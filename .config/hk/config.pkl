@@ -1,0 +1,70 @@
+amends "package://github.com/jdx/hk/releases/download/v1.45.0/hk@1.45.0#/Config.pkl"
+import "package://github.com/jdx/hk/releases/download/v1.45.0/hk@1.45.0#/Builtins.pkl"
+
+exclude = List(".idea/**")
+
+/// ---------- Linters that run on every file ----------
+local codeLinters = new Mapping<String, Step> {
+  ["mise"] = Builtins.mise
+  ["tombi_format"] = Builtins.tombi_format
+  ["pkl"] = Builtins.pkl
+  ["pkl_format"] = Builtins.pkl_format
+  // hack to pass configuration to yamlfmt/typos
+  // it's duplicated from Builtins
+  // waiting to find a better solution to use custom configuration
+  ["yamlfmt"] = (Builtins.yamlfmt) {
+    check_diff = "yamlfmt -conf .config/yamlfmt/config.yml -lint {{ files }}"
+    fix = "yamlfmt -conf .config/yamlfmt/config.yml {{ files }}"
+  }
+  ["typos"] = (Builtins.typos) {
+    check_diff =
+      """
+      output=$(typos --config .config/typos/config.toml --force-exclude --diff {{ files }})
+      [ -z "$output" ] && exit 0
+      printf "%s" "$output"
+      exit 1
+      """
+    fix = "typos --config .config/typos/config.toml --force-exclude --write-changes {{ files }}"
+  }
+}
+
+/// ---------- Hook definitions ----------
+hooks {
+  ["prepare-commit-msg"] {
+    fix = false
+    steps {
+      // typos fix your commit message
+      ["typos"] {
+        check =
+          "typos --config .config/typos/config.toml --format long --color always {{ commit_msg_file }}"
+      }
+    }
+  }
+
+  ["commit-msg"] {
+    fix = false
+    steps {
+      // your commit message should follow conventional commit
+      ["cocogitto"] {
+        check = "cog --config .config/cocogitto/config.toml verify --file {{ commit_msg_file }}"
+      }
+    }
+  }
+
+  // Pre‑commit runs all code linters.
+  ["pre-commit"] {
+    fix = false
+    stash = "git" // stash unstaged changes while fixing
+    steps = codeLinters
+  }
+
+  // Optional convenience commands:
+  ["fix"] {
+    fix = true
+    steps = codeLinters
+  }
+
+  ["check"] {
+    steps = codeLinters
+  }
+}

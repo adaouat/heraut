@@ -1,0 +1,7 @@
+[tasks."lint:check"]
+description = "Lint: check code"
+run = "hk check"
+
+[tasks."lint:fix"]
+description = "Lint: fix code"
+run = "hk fix"

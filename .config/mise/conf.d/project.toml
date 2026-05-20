@@ -1,0 +1,3 @@
+[tasks.setup]
+description = "Setup project"
+run = ["hk install"]

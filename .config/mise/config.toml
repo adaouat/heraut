@@ -1,0 +1,23 @@
+[settings]
+# Enable mise hooks
+experimental = true
+
+[tools]
+cocogitto = "7.0.0"
+hk = "1.45"
+pkl = "latest"
+tombi = "latest"
+typos = "latest"
+yamlfmt = "latest"
+
+[env]
+HK_FILE = "{{ config_root }}/.config/hk/config.pkl"
+
+# Be careful, shell aliases are only available in your shell, not in tasks or hk
+[shell_alias]
+cog = "cog --config {{ config_root }}/.config/cocogitto/config.toml"
+typos = "typos --config {{ config_root }}/.config/typos/config.toml"
+yamlfmt = "yamlfmt -conf {{ config_root }}/.config/yamlfmt/config.yml"
+
+[hooks]
+postinstall = { task = "setup" }

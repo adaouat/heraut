@@ -1,0 +1,5 @@
+# IDE
+/.idea
+
+# Mise
+/.config/mise/config.local.toml
