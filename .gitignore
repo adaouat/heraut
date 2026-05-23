@@ -3,3 +3,6 @@
 
 # Mise
 /.config/mise/config.local.toml
+
+# Claude Code — local-only permissions
+/.claude/settings.local.json
