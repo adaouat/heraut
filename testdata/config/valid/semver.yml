@@ -1,0 +1,21 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/adaouat/heraut/main/schema.json
+
+version: "1"
+
+versioning:
+  strategy: semver
+  prefix: "v"
+  initial_version: "0.1.0"
+  bump: auto
+
+changelog:
+  generator: git-cliff
+  output: CHANGELOG.md
+
+release:
+  notes:
+    generator: git-cliff
+  platforms:
+    - platform: github
+      repository: acme/widget
+      token_env: GH_TOKEN

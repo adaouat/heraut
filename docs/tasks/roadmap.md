@@ -492,7 +492,7 @@ every other package.
 
 ---
 
-#### `[ ]` T04: Config structs + loader + path resolution
+#### `[x]` T04: Config structs + loader + path resolution
 
 **Description:** Struct definitions, strict YAML parsing (rejects unknown keys), and path
 resolution. No semantic validation in this task.
@@ -515,6 +515,8 @@ resolution. No semantic validation in this task.
 `internal/config/{loader,path}_test.go`
 
 **Scope:** M
+
+Go struct names follow ADR-0006: `ContentDriver` (not `GeneratorConfig`), `Release`, `Versioning`, `Platform` with `Type string \`yaml:"platform"\`` to avoid the `Platform.Platform` self-reference. `Versioning.Prefix` is `*string` so an explicit `prefix: ""` is distinguishable from an unset prefix (needed for CalVer/SemVer default-prefix logic). `yaml.v3 KnownFields(true)` enforces strict parsing; `yaml.TypeError` errors are joined and wrapped with `"config: "` prefix so the line number is preserved. `ValidationError` and `ValidationErrors` types are defined in `error.go` for use in T05. Fixture structure uses `testdata/config/valid/` and `testdata/config/invalid/` as required by T05. `//nolint:errcheck` on `f.Close()` in `Load` — close errors on read-only files are non-actionable.
 
 ---
 

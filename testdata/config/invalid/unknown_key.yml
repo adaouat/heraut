@@ -1,0 +1,6 @@
+version: "1"
+
+versioning:
+  strategy: semver
+
+unknown_field: true

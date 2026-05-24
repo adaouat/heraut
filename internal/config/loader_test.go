@@ -1,0 +1,283 @@
+package config_test
+
+import (
+	"strings"
+	"testing"
+
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+
+	"github.com/adaouat/heraut/internal/config"
+)
+
+func TestLoadFromReader_semver(t *testing.T) {
+	src := `
+version: "1"
+versioning:
+  strategy: semver
+  prefix: "v"
+  initial_version: "0.1.0"
+  bump: auto
+`
+	cfg, err := config.LoadFromReader(strings.NewReader(src))
+	require.NoError(t, err)
+	assert.Equal(t, "1", cfg.Version)
+	assert.Equal(t, "semver", cfg.Versioning.Strategy)
+	require.NotNil(t, cfg.Versioning.Prefix)
+	assert.Equal(t, "v", *cfg.Versioning.Prefix)
+	assert.Equal(t, "0.1.0", cfg.Versioning.InitialVersion)
+	assert.Equal(t, "auto", cfg.Versioning.Bump)
+}
+
+func TestLoadFromReader_calver(t *testing.T) {
+	src := `
+version: "1"
+versioning:
+  strategy: calver
+  format: "YYYY.MM.PATCH"
+  prefix: ""
+`
+	cfg, err := config.LoadFromReader(strings.NewReader(src))
+	require.NoError(t, err)
+	assert.Equal(t, "calver", cfg.Versioning.Strategy)
+	assert.Equal(t, "YYYY.MM.PATCH", cfg.Versioning.Format)
+	// Explicit empty prefix is distinguishable from unset.
+	require.NotNil(t, cfg.Versioning.Prefix)
+	assert.Equal(t, "", *cfg.Versioning.Prefix)
+}
+
+func TestLoadFromReader_prefixUnset(t *testing.T) {
+	src := `
+version: "1"
+versioning:
+  strategy: semver
+`
+	cfg, err := config.LoadFromReader(strings.NewReader(src))
+	require.NoError(t, err)
+	// Unset prefix is nil (distinct from explicit "").
+	assert.Nil(t, cfg.Versioning.Prefix)
+}
+
+func TestLoadFromReader_semverPerEnv(t *testing.T) {
+	src := `
+version: "1"
+versioning:
+  strategy: semver-per-env
+  tag_format: "{env}/{version}"
+  environments:
+    dev:
+      bump: auto
+    prod:
+      bump: promote
+      source: dev
+`
+	cfg, err := config.LoadFromReader(strings.NewReader(src))
+	require.NoError(t, err)
+	assert.Equal(t, "semver-per-env", cfg.Versioning.Strategy)
+	assert.Equal(t, "{env}/{version}", cfg.Versioning.TagFormat)
+	require.Contains(t, cfg.Versioning.Environments, "dev")
+	require.Contains(t, cfg.Versioning.Environments, "prod")
+	assert.Equal(t, "auto", cfg.Versioning.Environments["dev"].Bump)
+	assert.Equal(t, "promote", cfg.Versioning.Environments["prod"].Bump)
+	assert.Equal(t, "dev", cfg.Versioning.Environments["prod"].Source)
+}
+
+func TestLoadFromReader_calverPerEnv(t *testing.T) {
+	src := `
+version: "1"
+versioning:
+  strategy: calver-per-env
+  format: "YYYY.MM.PATCH"
+  environments:
+    dev:
+      tag_format: "dev/{version}"
+      bump: auto
+    prod:
+      tag_format: "prod/{version}"
+      bump: promote
+`
+	cfg, err := config.LoadFromReader(strings.NewReader(src))
+	require.NoError(t, err)
+	assert.Equal(t, "calver-per-env", cfg.Versioning.Strategy)
+	assert.Equal(t, "dev/{version}", cfg.Versioning.Environments["dev"].TagFormat)
+	assert.Equal(t, "prod/{version}", cfg.Versioning.Environments["prod"].TagFormat)
+}
+
+func TestLoadFromReader_withChangelog(t *testing.T) {
+	src := `
+version: "1"
+versioning:
+  strategy: semver
+changelog:
+  generator: git-cliff
+  output: CHANGELOG.md
+  tag_pattern: "dev/*"
+`
+	cfg, err := config.LoadFromReader(strings.NewReader(src))
+	require.NoError(t, err)
+	require.NotNil(t, cfg.Changelog)
+	assert.Equal(t, "git-cliff", cfg.Changelog.Generator)
+	assert.Equal(t, "CHANGELOG.md", cfg.Changelog.Output)
+	assert.Equal(t, "dev/*", cfg.Changelog.TagPattern)
+}
+
+func TestLoadFromReader_withRelease(t *testing.T) {
+	src := `
+version: "1"
+versioning:
+  strategy: semver
+release:
+  notes:
+    generator: git-cliff
+  platforms:
+    - platform: github
+      repository: acme/widget
+      token_env: GH_TOKEN
+      draft: true
+    - platform: gitlab
+      project: acme/widget
+      token_env: GITLAB_TOKEN
+      catalog: true
+      assets:
+        - dist/myapp_*
+`
+	cfg, err := config.LoadFromReader(strings.NewReader(src))
+	require.NoError(t, err)
+	require.NotNil(t, cfg.Release)
+	require.NotNil(t, cfg.Release.Notes)
+	assert.Equal(t, "git-cliff", cfg.Release.Notes.Generator)
+	require.Len(t, cfg.Release.Platforms, 2)
+
+	gh := cfg.Release.Platforms[0]
+	assert.Equal(t, "github", gh.Type)
+	assert.Equal(t, "acme/widget", gh.Repository)
+	assert.Equal(t, "GH_TOKEN", gh.TokenEnv)
+	assert.True(t, gh.Draft)
+
+	gl := cfg.Release.Platforms[1]
+	assert.Equal(t, "gitlab", gl.Type)
+	assert.Equal(t, "acme/widget", gl.Project)
+	assert.True(t, gl.Catalog)
+	assert.Equal(t, []string{"dist/myapp_*"}, gl.Assets)
+}
+
+func TestLoadFromReader_withEnvOverrides(t *testing.T) {
+	src := `
+version: "1"
+versioning:
+  strategy: semver-per-env
+  tag_format: "{env}/{version}"
+  environments:
+    dev:
+      bump: auto
+    prod:
+      bump: promote
+environments:
+  dev:
+    release:
+      platforms:
+        - platform: gitlab
+  prod:
+    release:
+      platforms:
+        - platform: gitlab
+        - platform: github
+`
+	cfg, err := config.LoadFromReader(strings.NewReader(src))
+	require.NoError(t, err)
+	require.Contains(t, cfg.Environments, "dev")
+	require.Contains(t, cfg.Environments, "prod")
+	require.NotNil(t, cfg.Environments["dev"].Release)
+	require.Len(t, cfg.Environments["dev"].Release.Platforms, 1)
+	assert.Equal(t, "gitlab", cfg.Environments["dev"].Release.Platforms[0].Type)
+	require.Len(t, cfg.Environments["prod"].Release.Platforms, 2)
+}
+
+func TestLoadFromReader_withEnvVersioningDisableFlags(t *testing.T) {
+	src := `
+version: "1"
+versioning:
+  strategy: semver-per-env
+  environments:
+    dev:
+      tag_format: "dev/{version}"
+      bump: auto
+      disable_changelog: true
+      disable_notes: true
+`
+	cfg, err := config.LoadFromReader(strings.NewReader(src))
+	require.NoError(t, err)
+	dev := cfg.Versioning.Environments["dev"]
+	assert.True(t, dev.DisableChangelog)
+	assert.True(t, dev.DisableNotes)
+}
+
+func TestLoadFromReader_rejectsUnknownTopLevelKey(t *testing.T) {
+	src := `
+version: "1"
+versioning:
+  strategy: semver
+unknown_field: true
+`
+	_, err := config.LoadFromReader(strings.NewReader(src))
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "unknown_field")
+}
+
+func TestLoadFromReader_rejectsUnknownNestedKey(t *testing.T) {
+	src := `
+version: "1"
+versioning:
+  strategy: semver
+  typo_key: true
+`
+	_, err := config.LoadFromReader(strings.NewReader(src))
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "typo_key")
+}
+
+func TestLoadFromReader_rejectsUnknownPlatformKey(t *testing.T) {
+	src := `
+version: "1"
+versioning:
+  strategy: semver
+release:
+  platforms:
+    - platform: github
+      completely_unknown: true
+`
+	_, err := config.LoadFromReader(strings.NewReader(src))
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "completely_unknown")
+}
+
+func TestLoad_fileNotFound(t *testing.T) {
+	_, err := config.Load("/nonexistent/path/heraut.yml")
+	require.Error(t, err)
+}
+
+func TestLoad_fromFixtures(t *testing.T) {
+	tests := []struct {
+		name     string
+		path     string
+		strategy string
+	}{
+		{"semver", "../../testdata/config/valid/semver.yml", "semver"},
+		{"calver", "../../testdata/config/valid/calver.yml", "calver"},
+		{"semver-per-env", "../../testdata/config/valid/semver-per-env.yml", "semver-per-env"},
+		{"calver-per-env", "../../testdata/config/valid/calver-per-env.yml", "calver-per-env"},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			cfg, err := config.Load(tc.path)
+			require.NoError(t, err)
+			assert.Equal(t, tc.strategy, cfg.Versioning.Strategy)
+		})
+	}
+}
+
+func TestLoad_invalidFixture(t *testing.T) {
+	_, err := config.Load("../../testdata/config/invalid/unknown_key.yml")
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "unknown_field")
+}

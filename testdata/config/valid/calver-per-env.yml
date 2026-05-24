@@ -1,0 +1,12 @@
+version: "1"
+
+versioning:
+  strategy: calver-per-env
+  format: "YYYY.MM.PATCH"
+  environments:
+    dev:
+      tag_format: "dev/{version}"
+      bump: auto
+    prod:
+      tag_format: "prod/{version}"
+      bump: promote

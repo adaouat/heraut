@@ -1,0 +1,16 @@
+version: "1"
+
+versioning:
+  strategy: calver
+  format: "YYYY.MM.PATCH"
+  prefix: ""
+
+changelog:
+  generator: git-cliff
+  output: CHANGELOG.md
+
+release:
+  notes:
+    generator: git-cliff
+  platforms:
+    - platform: gitlab
