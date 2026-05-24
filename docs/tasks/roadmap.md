@@ -709,7 +709,7 @@ Pipeline flow (ADR-0011 + ADR-0012): resolve → optional changelog generate+com
 
 ### Phase 3 — Strategy Expansion
 
-#### `[ ]` T11: CalVer resolver
+#### `[x]` T11: CalVer resolver
 
 **Description:** CalVer resolver: format string parsing, date token substitution, PATCH
 increment.
@@ -727,6 +727,14 @@ increment.
 **Files:** `internal/versioning/calver/{resolver,parser,format,resolver_test,parser_test}.go`
 
 **Scope:** M
+
+Implemented `parser.go` (token scanner + regex-based version parser/renderer) and
+`resolver.go` (period-key comparison for PATCH increment vs. reset). The roadmap listed
+a `format.go` file but format logic folded naturally into `parser.go` — no separate file
+needed. `BumpFromDate(tags []string)` added to `Resolver` to satisfy the `perenv.VersionCalculator`
+interface (T12) without touching the perenv package. All 7 token combinations and all
+period-boundary edge cases covered by 50 tests. Default prefix for `calver` is `""`
+(unlike semver which defaults to `"v"`) — calver users typically have no prefix.
 
 ---
 

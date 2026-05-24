@@ -2,10 +2,12 @@ package app
 
 import (
 	"fmt"
+	"time"
 
 	"github.com/adaouat/heraut/internal/config"
 	"github.com/adaouat/heraut/internal/port"
 	"github.com/adaouat/heraut/internal/versioning"
+	"github.com/adaouat/heraut/internal/versioning/calver"
 	"github.com/adaouat/heraut/internal/versioning/semver"
 )
 
@@ -21,7 +23,9 @@ func NewResolver(cfg *config.Config, env string, force bool, versionOverride str
 			r.SetVersionOverride(versionOverride)
 		}
 		return r, nil
+	case "calver":
+		return calver.New(runner, cfg, time.Now), nil
 	default:
-		return nil, fmt.Errorf("unknown versioning strategy %q (supported: semver)", cfg.Versioning.Strategy)
+		return nil, fmt.Errorf("unknown versioning strategy %q (supported: semver, calver)", cfg.Versioning.Strategy)
 	}
 }
