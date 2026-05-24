@@ -24,6 +24,28 @@ func New(runner port.Runner, cfg *config.Config) *Resolver {
 	return &Resolver{runner: runner, cfg: cfg}
 }
 
+// BumpAuto computes the next SemVer from pre-fetched bare versions and commits.
+// tags is sorted newest-first with the prefix already stripped; commits are the
+// full commit messages since the latest tag. Implements the VersionCalculator
+// interface consumed by internal/versioning/perenv.
+func (r *Resolver) BumpAuto(tags []string, commits []string) (string, error) {
+	if len(tags) == 0 {
+		return r.initialVersion(), nil
+	}
+	currentVersion := tags[0]
+	if len(commits) == 0 {
+		return "", fmt.Errorf("no commits since %s", currentVersion)
+	}
+	bump := DetermineBump(commits)
+	return BumpVersion(currentVersion, bump)
+}
+
+// BumpFromDate is not used by the SemVer calculator; it satisfies the
+// VersionCalculator interface for internal/versioning/perenv.
+func (r *Resolver) BumpFromDate(_ []string) (string, error) {
+	return "", fmt.Errorf("BumpFromDate is not supported by the SemVer calculator")
+}
+
 // SetVersionOverride sets a manual version override (for bump: manual mode).
 func (r *Resolver) SetVersionOverride(v string) {
 	r.versionOverride = v

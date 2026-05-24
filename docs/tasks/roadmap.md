@@ -738,7 +738,7 @@ period-boundary edge cases covered by 50 tests. Default prefix for `calver` is `
 
 ---
 
-#### `[ ]` T12: Generic per-environment resolver
+#### `[x]` T12: Generic per-environment resolver
 
 **Description:** Generic `perenv.Resolver` wrapping either semver or calver via a
 `VersionCalculator` interface ([ADR-0009](../adr/0009-generic-perenv-resolver.md)).
@@ -766,6 +766,15 @@ Same logic serves both `semver-per-env` and `calver-per-env`.
 **Files:** `internal/versioning/perenv/{resolver,promote,auto,resolver_test}.go`
 
 **Scope:** M
+
+`VersionCalculator` interface placed in `perenv/resolver.go` alongside `Resolver`. Both
+`semver.Resolver` and `calver.Resolver` implement both methods; the unused method returns
+an explicit error (never called in practice — ADR-0009). Promote mode doesn't receive the
+calculator (it copies rather than computes). `compareVersionStrings` does dot-split integer
+comparison, covering both SemVer and CalVer without importing a separate library.
+Cycle detection covers self-reference at runtime; full chain cycle detection deferred to
+config validation (ADR-0008). 31 tests in `resolver_test.go` with a `promoteBackends`
+table and separate auto-mode tests per backend.
 
 ---
 

@@ -63,6 +63,12 @@ func (r *Resolver) Resolve() (versioning.Result, error) {
 	}, nil
 }
 
+// BumpAuto is not used by the CalVer calculator; it satisfies the
+// VersionCalculator interface for internal/versioning/perenv.
+func (r *Resolver) BumpAuto(_ []string, _ []string) (string, error) {
+	return "", fmt.Errorf("BumpAuto is not supported by the CalVer calculator")
+}
+
 // BumpFromDate computes the next CalVer version from date only, without querying git.
 // tags is a caller-provided slice of bare version strings (no prefix), newest first.
 // Implements the VersionCalculator interface consumed by internal/versioning/perenv.

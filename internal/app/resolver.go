@@ -8,6 +8,7 @@ import (
 	"github.com/adaouat/heraut/internal/port"
 	"github.com/adaouat/heraut/internal/versioning"
 	"github.com/adaouat/heraut/internal/versioning/calver"
+	"github.com/adaouat/heraut/internal/versioning/perenv"
 	"github.com/adaouat/heraut/internal/versioning/semver"
 )
 
@@ -25,7 +26,13 @@ func NewResolver(cfg *config.Config, env string, force bool, versionOverride str
 		return r, nil
 	case "calver":
 		return calver.New(runner, cfg, time.Now), nil
+	case "semver-per-env":
+		calc := semver.New(nil, cfg)
+		return perenv.New(runner, cfg, env, force, calc), nil
+	case "calver-per-env":
+		calc := calver.New(nil, cfg, time.Now)
+		return perenv.New(runner, cfg, env, force, calc), nil
 	default:
-		return nil, fmt.Errorf("unknown versioning strategy %q (supported: semver, calver)", cfg.Versioning.Strategy)
+		return nil, fmt.Errorf("unknown versioning strategy %q (supported: semver, calver, semver-per-env, calver-per-env)", cfg.Versioning.Strategy)
 	}
 }
