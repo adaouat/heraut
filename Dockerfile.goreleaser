@@ -1,0 +1,6 @@
+# Used by GoReleaser — copies the pre-built binary from the release build context.
+# For a local source build use the root Dockerfile instead.
+FROM alpine:3
+RUN apk add --no-cache ca-certificates
+COPY heraut /usr/local/bin/heraut
+ENTRYPOINT ["heraut"]
