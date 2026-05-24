@@ -609,7 +609,7 @@ Git log uses `--format=%B%x00` — full commit body per entry, null-byte separat
 
 ---
 
-#### `[ ]` T08: gitcliff generator
+#### `[x]` T08: gitcliff generator
 
 **Description:** Embedded TOML defaults
 ([ADR-0010](../adr/0010-embedded-cliff-toml-default.md)), user override merging,
@@ -633,6 +633,8 @@ invocation contract.
 **Files:** `internal/generators/gitcliff/{generator,merge,generator_test,merge_test}.go`
 
 **Scope:** M
+
+Added a `Mode` parameter to `New()` (changelog vs release-notes) — the roadmap listed `New(runner, cfg)` but the mode is needed to select the correct embedded TOML variant. Two TOML defaults are embedded via `//go:embed` (`cliff.changelog.toml` with stats block, `cliff.release-notes.toml` without). `MergeTOML` uses `go-toml/v2` with recursive map merging and array-replacement semantics (ADR-0010). `prepareConfig()` writes the merged result to a temp file, which is cleaned up via deferred `cleanup()` after each `Generate()` call. Contract tests check `--config` presence (not its temp-path value) using `assertHasFlag` helpers.
 
 ---
 
