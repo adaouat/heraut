@@ -864,7 +864,7 @@ defaults.
 
 ---
 
-#### `[ ]` T16: GitLab platform + contract tests
+#### `[x]` T16: GitLab platform + contract tests
 
 **Description:** Follows the T09 pattern.
 
@@ -884,9 +884,11 @@ defaults.
 
 **Scope:** M
 
-### ✦ `[ ]` CHECKPOINT E — All generators and platforms implemented and tested
+`gitlab.New(runner, cfg)` mirrors the GitHub platform pattern. Project resolution: `cfg.Project` → `$CI_PROJECT_PATH` → error. Token env defaults to `GITLAB_TOKEN`. `glab release create` uses `-R <project>` (not `--repo` like gh); `catalog: true` adds `--publish-to-catalog` before `-R`. Asset upload uses `glab release upload-asset` (hyphenated subcommand). Release URL is `https://gitlab.com/<project>/-/releases/<tag>`. Sixteen contract tests cover all operations including catalog flag, glob resolution, env fallback, and missing-project error.
 
-- [ ] Contract tests verify exact CLI arguments for all generators and both platforms
+### ✦ `[x]` CHECKPOINT E — All generators and platforms implemented and tested
+
+- [x] Contract tests verify exact CLI arguments for all generators and both platforms
 
 ---
 
