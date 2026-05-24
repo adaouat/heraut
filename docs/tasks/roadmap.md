@@ -366,7 +366,7 @@ the task checklist into the roadmap headings directly (bifrost-style).
 
 ### Phase 0 — Repo Bootstrap
 
-#### `[ ]` T00: Repository skeleton — module, cobra CLI, basic build
+#### `[x]` T00: Repository skeleton — module, cobra CLI, basic build
 
 **Description:** Create the Go module, cobra + fang root command, and `heraut --help` working.
 This is the first code commit — the skeleton everything else builds on.
@@ -385,6 +385,11 @@ This is the first code commit — the skeleton everything else builds on.
 **Files:** `go.mod`, `go.sum`, `cmd/heraut/main.go`, `internal/cmd/root.go`
 
 **Scope:** XS
+
+Used `charm.land/fang/v2` (confirmed module path from ADR-0003). The `Version`, `ProjectURL`,
+and `LatestURL` vars live in `main.go` as ldflag targets; `Version` defaults to `"dev"`.
+Added a `root_test.go` asserting `NewRootCmd()` returns a valid command with all five
+persistent flags registered. `ProjectURL` and `LatestURL` are wired but unused until T21.
 
 ---
 
