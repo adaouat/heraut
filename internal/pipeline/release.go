@@ -82,7 +82,7 @@ func (p *Pipeline) Run() error {
 
 	// Release notes
 	var notes string
-	if p.cfg.Notes != nil {
+	if p.cfg.Notes != nil && !p.cfg.DisableNotes {
 		notes, err = p.cfg.Notes.Generate(result.Tag)
 		if err != nil {
 			return fmt.Errorf("generating release notes: %w", err)

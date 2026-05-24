@@ -285,6 +285,31 @@ func TestRun_ResolverError(t *testing.T) {
 	assert.Contains(t, err.Error(), "no commits")
 }
 
+// TestRun_DisableNotes verifies release notes generation is skipped when DisableNotes is set.
+func TestRun_DisableNotes(t *testing.T) {
+	mr := testutil.NewMockRunner()
+	mr.QueueResponse("", "", nil) // git tag
+	mr.QueueResponse("", "", nil) // git push --tags
+
+	notes := &testutil.MockGenerator{GenerateOut: "## Notes\n"}
+	platform := &testutil.MockPlatform{PlatformName: "github"}
+
+	cfg := &pipeline.Config{
+		Notes:        notes,
+		Platforms:    []port.Platform{platform},
+		DisableNotes: true,
+	}
+
+	p := pipeline.New(mr, &fakeResolver{result: resolvedResult("v1.2.3")}, cfg, &bytes.Buffer{}, false)
+	require.NoError(t, p.Run())
+
+	// Notes generator must not have been called
+	assert.Len(t, notes.GenerateCalls, 0)
+	// Platform must still be called, but with empty notes
+	require.Len(t, platform.CreateReleaseCalls, 1)
+	assert.Equal(t, "", platform.CreateReleaseCalls[0].Notes)
+}
+
 // TestRun_MultiplePlatforms verifies all platforms receive a CreateRelease call.
 func TestRun_MultiplePlatforms(t *testing.T) {
 	mr := testutil.NewMockRunner()

@@ -17,4 +17,6 @@ type Config struct {
 	CommitMessage string
 	// DisableChangelog skips changelog generation and commit for the active env.
 	DisableChangelog bool
+	// DisableNotes skips release notes generation for the active env.
+	DisableNotes bool
 }
