@@ -520,7 +520,7 @@ Go struct names follow ADR-0006: `ContentDriver` (not `GeneratorConfig`), `Relea
 
 ---
 
-#### `[ ]` T05: Config semantic validation — composed validators
+#### `[x]` T05: Config semantic validation — composed validators
 
 **Description:** Composed layers — required fields → enum values → strategy-specific rules
 (cycle detection, source env existence).
@@ -544,10 +544,12 @@ Go struct names follow ADR-0006: `ContentDriver` (not `GeneratorConfig`), `Relea
 
 **Scope:** M
 
-### ✦ `[ ]` CHECKPOINT B — Config loads and validates
+Three validation layers run in order and all errors are collected (no early exit): required fields → enum values → strategy-specific. `validatePerEnv` handles the four per-env rules: env-level `bump` enum, `tag_format` containing `{version}`, source validation (ADR-0008 rules: no source on auto, source must exist, no self-reference, ambiguity when multiple autos exist without explicit source), and cycle detection. Cycle detection iterates `promote` envs in sorted key order for deterministic output and marks all envs in each detected cycle path to avoid duplicate reports. Error message for "source on auto env" uses "not valid on bump: auto" wording so tests can assert on the keyword "auto". Five invalid fixtures created alongside the four existing valid ones; all tested in fixture-based table tests.
 
-- [ ] `go test ./internal/...` passes
-- [ ] All `testdata/config/valid/` fixtures pass; all `testdata/config/invalid/`
+### ✦ `[x]` CHECKPOINT B — Config loads and validates
+
+- [x] `go test ./internal/...` passes
+- [x] All `testdata/config/valid/` fixtures pass; all `testdata/config/invalid/`
       fixtures fail with the expected error messages
 
 ---

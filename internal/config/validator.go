@@ -1,0 +1,313 @@
+package config
+
+import (
+	"fmt"
+	"sort"
+	"strings"
+)
+
+var (
+	validStrategies = map[string]bool{
+		"semver": true, "calver": true,
+		"semver-per-env": true, "calver-per-env": true,
+	}
+	validGenerators = map[string]bool{
+		"git-cliff": true, "communique": true, "cocogitto": true,
+	}
+	validPlatforms = map[string]bool{
+		"github": true, "gitlab": true,
+	}
+)
+
+// Validate runs all semantic validation layers against cfg.
+// All errors are collected and returned; validation does not stop on the first error.
+func Validate(cfg *Config) ValidationErrors {
+	if cfg == nil {
+		return nil
+	}
+	var errs ValidationErrors
+	errs = append(errs, validateRequired(cfg)...)
+	errs = append(errs, validateEnums(cfg)...)
+	errs = append(errs, validateStrategySpecific(cfg)...)
+	return errs
+}
+
+func validateRequired(cfg *Config) []ValidationError {
+	var errs []ValidationError
+	if cfg.Version == "" {
+		errs = append(errs, ValidationError{
+			Path:    "version",
+			Message: "required",
+			Hint:    `set version: "1"`,
+		})
+	} else if cfg.Version != "1" {
+		errs = append(errs, ValidationError{
+			Path:    "version",
+			Message: fmt.Sprintf("%q is not a valid schema version", cfg.Version),
+			Hint:    `the only valid schema version is "1"`,
+		})
+	}
+	if cfg.Versioning.Strategy == "" {
+		errs = append(errs, ValidationError{
+			Path:    "versioning.strategy",
+			Message: "required",
+			Hint:    "set strategy to one of: semver, calver, semver-per-env, calver-per-env",
+		})
+	}
+	return errs
+}
+
+func validateEnums(cfg *Config) []ValidationError {
+	var errs []ValidationError
+	if cfg.Versioning.Strategy != "" && !validStrategies[cfg.Versioning.Strategy] {
+		errs = append(errs, ValidationError{
+			Path:    "versioning.strategy",
+			Message: fmt.Sprintf("%q is not a valid strategy", cfg.Versioning.Strategy),
+			Hint:    "valid strategies: semver, calver, semver-per-env, calver-per-env",
+		})
+	}
+	errs = append(errs, validateContentDriver(cfg.Changelog, "changelog")...)
+	errs = append(errs, validateRelease(cfg.Release, "release")...)
+	for envName, override := range cfg.Environments {
+		base := "environments." + envName
+		errs = append(errs, validateContentDriver(override.Changelog, base+".changelog")...)
+		errs = append(errs, validateRelease(override.Release, base+".release")...)
+	}
+	return errs
+}
+
+func validateContentDriver(d *ContentDriver, path string) []ValidationError {
+	if d == nil {
+		return nil
+	}
+	var errs []ValidationError
+	if d.Generator == "" {
+		errs = append(errs, ValidationError{
+			Path:    path + ".generator",
+			Message: "required",
+			Hint:    "set generator to one of: git-cliff, communique, cocogitto",
+		})
+	} else if !validGenerators[d.Generator] {
+		errs = append(errs, ValidationError{
+			Path:    path + ".generator",
+			Message: fmt.Sprintf("%q is not a valid generator", d.Generator),
+			Hint:    "valid generators: git-cliff, communique, cocogitto",
+		})
+	}
+	return errs
+}
+
+func validateRelease(r *Release, path string) []ValidationError {
+	if r == nil {
+		return nil
+	}
+	var errs []ValidationError
+	errs = append(errs, validateContentDriver(r.Notes, path+".notes")...)
+	for i, plat := range r.Platforms {
+		platPath := fmt.Sprintf("%s.platforms[%d]", path, i)
+		if plat.Type == "" {
+			errs = append(errs, ValidationError{
+				Path:    platPath + ".platform",
+				Message: "required",
+				Hint:    "set platform to one of: github, gitlab",
+			})
+		} else if !validPlatforms[plat.Type] {
+			errs = append(errs, ValidationError{
+				Path:    platPath + ".platform",
+				Message: fmt.Sprintf("%q is not a valid platform", plat.Type),
+				Hint:    "valid platforms: github, gitlab",
+			})
+		}
+	}
+	return errs
+}
+
+func validateStrategySpecific(cfg *Config) []ValidationError {
+	var errs []ValidationError
+	switch cfg.Versioning.Strategy {
+	case "calver", "calver-per-env":
+		if cfg.Versioning.Format == "" {
+			errs = append(errs, ValidationError{
+				Path:    "versioning.format",
+				Message: fmt.Sprintf("required for %s strategy", cfg.Versioning.Strategy),
+				Hint:    `set a CalVer format string, e.g. "YYYY.MM.PATCH"`,
+			})
+		}
+	}
+	switch cfg.Versioning.Strategy {
+	case "semver-per-env", "calver-per-env":
+		errs = append(errs, validatePerEnv(cfg)...)
+	}
+	return errs
+}
+
+func validatePerEnv(cfg *Config) []ValidationError {
+	var errs []ValidationError
+	envs := cfg.Versioning.Environments
+
+	if len(envs) == 0 {
+		return append(errs, ValidationError{
+			Path:    "versioning.environments",
+			Message: fmt.Sprintf("required for %s strategy", cfg.Versioning.Strategy),
+			Hint:    "define at least one environment with its tag_format and bump mode",
+		})
+	}
+
+	// Common tag_format must contain {version} if set.
+	if cfg.Versioning.TagFormat != "" && !strings.Contains(cfg.Versioning.TagFormat, "{version}") {
+		errs = append(errs, ValidationError{
+			Path:    "versioning.tag_format",
+			Message: "must contain {version}",
+			Hint:    `example: "{env}/{version}"`,
+		})
+	}
+
+	// Count auto envs for ambiguity detection.
+	autoCount := 0
+	for _, env := range envs {
+		if env.Bump == "auto" {
+			autoCount++
+		}
+	}
+
+	for _, envName := range sortedEnvKeys(envs) {
+		env := envs[envName]
+		envPath := "versioning.environments." + envName
+
+		// bump required and enum.
+		if env.Bump == "" {
+			errs = append(errs, ValidationError{
+				Path:    envPath + ".bump",
+				Message: "required",
+				Hint:    "set bump to auto or promote",
+			})
+		} else if env.Bump != "auto" && env.Bump != "promote" {
+			errs = append(errs, ValidationError{
+				Path:    envPath + ".bump",
+				Message: fmt.Sprintf("%q is not a valid bump mode for per-env strategy", env.Bump),
+				Hint:    "valid modes: auto, promote",
+			})
+		}
+
+		// tag_format must contain {version} if set.
+		if env.TagFormat != "" && !strings.Contains(env.TagFormat, "{version}") {
+			errs = append(errs, ValidationError{
+				Path:    envPath + ".tag_format",
+				Message: "must contain {version}",
+				Hint:    fmt.Sprintf(`example: "%s/{version}"`, envName),
+			})
+		}
+
+		// Every env must have a tag_format, either directly or via the common one.
+		if env.TagFormat == "" && cfg.Versioning.TagFormat == "" {
+			errs = append(errs, ValidationError{
+				Path:    envPath + ".tag_format",
+				Message: "required: no tag_format set on this environment or at versioning.tag_format",
+				Hint:    "set tag_format on this environment or set versioning.tag_format as a shared template using {env} and {version}",
+			})
+		}
+
+		// source validation (ADR-0008).
+		sourcePath := envPath + ".source"
+		if env.Bump == "auto" && env.Source != "" {
+			errs = append(errs, ValidationError{
+				Path:    sourcePath,
+				Message: "source is not valid on bump: auto environments",
+				Hint:    "remove source: from this environment; source is only meaningful for bump: promote",
+			})
+		}
+		if env.Bump == "promote" {
+			if env.Source != "" {
+				if _, exists := envs[env.Source]; !exists {
+					errs = append(errs, ValidationError{
+						Path:    sourcePath,
+						Message: fmt.Sprintf("environment %q does not exist", env.Source),
+						Hint:    "available environments: " + strings.Join(sortedEnvKeys(envs), ", "),
+					})
+				}
+				if env.Source == envName {
+					errs = append(errs, ValidationError{
+						Path:    sourcePath,
+						Message: "environment cannot promote from itself",
+						Hint:    "set source to a different environment",
+					})
+				}
+			} else {
+				switch {
+				case autoCount == 0:
+					errs = append(errs, ValidationError{
+						Path:    sourcePath,
+						Message: "no auto environment found to promote from",
+						Hint:    "add source: <env-name> or add an environment with bump: auto",
+					})
+				case autoCount > 1:
+					errs = append(errs, ValidationError{
+						Path:    sourcePath,
+						Message: "multiple auto environments exist; source is ambiguous",
+						Hint:    "add source: <env-name> to specify which environment to promote from",
+					})
+				}
+			}
+		}
+	}
+
+	errs = append(errs, detectCycles(envs)...)
+	return errs
+}
+
+func detectCycles(envs map[string]EnvVersioning) []ValidationError {
+	var errs []ValidationError
+	reported := map[string]bool{}
+
+	for _, envName := range sortedEnvKeys(envs) {
+		if reported[envName] {
+			continue
+		}
+		if envs[envName].Bump != "promote" {
+			continue
+		}
+		if found, path := findCycle(envs, envName); found {
+			errs = append(errs, ValidationError{
+				Path:    "versioning.environments." + envName + ".source",
+				Message: "cycle detected (" + strings.Join(path, " → ") + ")",
+				Hint:    "each promotion source must trace back to an auto env without revisiting envs",
+			})
+			for _, e := range path {
+				reported[e] = true
+			}
+		}
+	}
+	return errs
+}
+
+func findCycle(envs map[string]EnvVersioning, start string) (bool, []string) {
+	path := []string{start}
+	seen := map[string]bool{start: true}
+	current := start
+
+	for {
+		env, exists := envs[current]
+		if !exists {
+			return false, nil
+		}
+		src := env.Source
+		if src == "" {
+			return false, nil
+		}
+		if seen[src] {
+			return true, append(path, src)
+		}
+		seen[src] = true
+		path = append(path, src)
+		current = src
+	}
+}
+
+func sortedEnvKeys(envs map[string]EnvVersioning) []string {
+	keys := make([]string, 0, len(envs))
+	for k := range envs {
+		keys = append(keys, k)
+	}
+	sort.Strings(keys)
+	return keys
+}
