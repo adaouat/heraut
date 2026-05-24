@@ -638,7 +638,7 @@ Added a `Mode` parameter to `New()` (changelog vs release-notes) — the roadmap
 
 ---
 
-#### `[ ]` T09: GitHub platform + contract tests
+#### `[x]` T09: GitHub platform + contract tests
 
 **Description:** GitHub platform driver with full contract test coverage. Establishes the
 pattern for GitLab in T16.
@@ -660,6 +660,8 @@ pattern for GitLab in T16.
 **Files:** `internal/platforms/github/{platform,platform_test}.go`
 
 **Scope:** M
+
+Repository resolution: `cfg.Repository` → `$GITHUB_REPOSITORY` → error. Token check: `$<TokenEnv>` (default `GH_TOKEN`) must be non-empty. Asset upload calls `filepath.Glob` per pattern — non-matching globs fail immediately with an actionable error. Contract tests assert exact args for all `gh` invocations; `--draft` and `--prerelease` are only appended when the flag is set. Follows T16 pattern.
 
 ---
 
