@@ -558,7 +558,7 @@ Three validation layers run in order and all errors are collected (no early exit
 
 *Goal: `heraut release` works end-to-end for a semver project publishing to GitHub.*
 
-#### `[ ]` T06: Tag format package (`versioning/tagfmt`)
+#### `[x]` T06: Tag format package (`versioning/tagfmt`)
 
 **Description:** Extract `{version}` and `{env}` substitution into a shared package
 ([ADR-0009](../adr/0009-generic-perenv-resolver.md)) used by both per-env resolvers.
@@ -576,6 +576,8 @@ Three validation layers run in order and all errors are collected (no early exit
 **Files:** `internal/versioning/tagfmt/{tagfmt,tagfmt_test}.go`
 
 **Scope:** S
+
+`Render`, `ParseVersion`, and `GlobPattern` all operate on a template string containing `{version}` (required) and optionally `{env}`. `ParseVersion` builds a regex from the template — `{version}` maps to a named capture group `(?P<version>.+)` and `{env}` maps to `[^/]+`. All three functions return an error immediately if the template lacks the `{version}` token. No external dependencies — only stdlib `regexp` and `strings`.
 
 ---
 
