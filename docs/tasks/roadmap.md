@@ -581,7 +581,7 @@ Three validation layers run in order and all errors are collected (no early exit
 
 ---
 
-#### `[ ]` T07: SemVer resolver
+#### `[x]` T07: SemVer resolver
 
 **Description:** SemVer version resolver: reads git tags, determines bump from
 conventional commits, produces the next version.
@@ -604,6 +604,8 @@ conventional commits, produces the next version.
 `internal/versioning/result.go`
 
 **Scope:** M
+
+Git log uses `--format=%B%x00` — full commit body per entry, null-byte separated — so `BREAKING CHANGE:` footers are detected correctly without a second git call. `DetermineBump` accepts full multi-line commit messages; `isBreaking` checks the first line for `!:` and the full text for `BREAKING CHANGE:`. `BumpVersion` uses `strconv.Atoi` on each component so `v1.9.0 → v1.10.0` is correct (integer arithmetic, not string manipulation). `Prefix` is a `*string` so explicit `prefix: ""` is honoured. `SetVersionOverride` method supports `bump: manual` mode.
 
 ---
 
