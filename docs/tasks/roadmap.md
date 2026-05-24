@@ -960,14 +960,14 @@ defaults.
 
 `pipeline.Config.DisableNotes` added alongside existing `DisableChangelog`; `buildReleasePipelineConfig` now sets both from per-env config. `app.EffectiveCliffConfig(driver, mode)` builds a gitcliff generator with a nil runner (safe — effective config methods only read files, never exec) and returns the merged TOML. `heraut cliff changelog` and `heraut cliff release-notes` print the embedded default when no driver is configured, error when the configured generator is not git-cliff.
 
-### ✦ `[ ]` CHECKPOINT F — Full pipeline surface implemented
+### ✦ `[x]` CHECKPOINT F — Full pipeline surface implemented
 
-- [ ] `go test ./...` passes
-- [ ] `heraut release --dry-run` works for all 4 strategies
-- [ ] `heraut changelog --dry-run` works for all 4 strategies
-- [ ] `heraut version next` works for all 4 strategies
-- [ ] `heraut check config` catches all validation errors
-- [ ] No domain/factory logic in `internal/cmd/`; all wiring in `internal/app/`
+- [x] `go test ./...` passes (339 tests)
+- [x] `heraut release --dry-run` works for all 4 strategies
+- [x] `heraut changelog --dry-run` works for all 4 strategies
+- [x] `heraut version next` works for all 4 strategies
+- [x] `heraut check config` catches all validation errors
+- [x] No domain/factory logic in `internal/cmd/`; all wiring in `internal/app/`
 
 ---
 
