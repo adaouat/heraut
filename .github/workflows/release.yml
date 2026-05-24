@@ -19,14 +19,20 @@ jobs:
       - uses: jdx/mise-action@v4
 
       - name: Login to GHCR
-        uses: docker/login-action@v3
+        uses: docker/login-action@v4
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Generate release notes
-        run: git cliff --config .config/cliff.toml --unreleased --strip all -o /tmp/RELEASE_NOTES.md
+        uses: orhun/git-cliff-action@v4
+        with:
+          config: .config/cliff.toml
+          args: --unreleased --strip all
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          OUTPUT: /tmp/RELEASE_NOTES.md
 
       - uses: goreleaser/goreleaser-action@v7
         with:
