@@ -98,6 +98,21 @@ func (g *Generator) effectiveConfig(base string) (string, error) {
 	return MergeTOML(base, override)
 }
 
+// CheckCliff runs git-cliff --context --no-exec against the effective merged config.
+// Called by `heraut check cliff`.
+func (g *Generator) CheckCliff() error {
+	cfgPath, cleanup, err := g.prepareConfig()
+	if err != nil {
+		return err
+	}
+	defer cleanup()
+	_, _, err = g.runner.Run("git-cliff", "--context", "--no-exec", "--config", cfgPath)
+	if err != nil {
+		return fmt.Errorf("git-cliff rejected config: %w", err)
+	}
+	return nil
+}
+
 // prepareConfig writes the effective merged TOML to a temp file and returns its path
 // plus a cleanup function. The caller must call cleanup() to remove the temp file.
 func (g *Generator) prepareConfig() (string, func(), error) {

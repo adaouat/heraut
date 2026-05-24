@@ -919,7 +919,7 @@ defaults.
 
 ---
 
-#### `[ ]` T18: `heraut check` subcommands
+#### `[x]` T18: `heraut check` subcommands
 
 **Acceptance:**
 - `heraut check config` — offline: `config.Load()` + `config.Validate()`, prints errors
@@ -938,6 +938,8 @@ defaults.
 **Files:** `internal/cmd/{check,check_test}.go`
 
 **Scope:** M
+
+`app.PreflightCheck(runner)` checks git binary + git user.name/email; called from both `heraut release` and `heraut changelog` before pipeline execution (generator/platform CLIs are covered by `pipeline.Check()`). `app.RuntimeCheck(runner, cfg)` does the full check (git + generators + platforms + git user) for `heraut check runtime`. `app.CheckCliff(runner, driver, mode string)` delegates to `gitcliff.Generator.CheckCliff()` (new method that runs `git-cliff --context --no-exec --config <tmpfile>`). The `heraut check` bare command runs all three checks and exits non-zero if any fail. The `heraut check cliff` uses string modes ("changelog"/"release-notes") to avoid the cmd→generators layer violation. Non-git-cliff generators are skipped with an info message.
 
 ---
 
