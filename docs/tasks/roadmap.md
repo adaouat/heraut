@@ -393,7 +393,7 @@ persistent flags registered. `ProjectURL` and `LatestURL` are wired but unused u
 
 ---
 
-#### `[ ]` T01: GitHub Actions CI — PR pipeline
+#### `[x]` T01: GitHub Actions CI — PR pipeline
 
 **Description:** PR pipeline runs on every pull request: build, test, lint. Blocks merges
 on failure.
@@ -410,9 +410,13 @@ on failure.
 
 **Scope:** S
 
+Modelled after bifrost's CI. Uses `jdx/mise-action@v4` so the same tool versions (Go,
+golangci-lint) are used in CI and locally. `golangci-lint` v2 config format with explicit
+linter list; govet is part of the default set. No additional linters beyond spec.
+
 ---
 
-#### `[ ]` T02: GoReleaser + release pipeline
+#### `[x]` T02: GoReleaser + release pipeline
 
 **Description:** Cross-platform binary builds targeting GitHub Releases and a GHCR Docker
 image. Release triggered by pushing a `v*` tag or `workflow_dispatch`.
@@ -440,12 +444,19 @@ image. Release triggered by pushing a `v*` tag or `workflow_dispatch`.
 
 **Scope:** S
 
-### ✦ `[ ]` CHECKPOINT A — Build and CI foundation
+Modelled after bifrost's goreleaser/release configs. Archives use `formats: [binary]` per
+ADR-0013 (no zip/tar wrapper). Dockerfile uses `golang:1.26-alpine` builder + `alpine:3`
+final stage; ldflag comment points to `.goreleaser.yml` as source of truth. GoReleaser
+`dockers` section handles GHCR image push (deprecation warning present — `dockers_v2` is
+coming but not yet required). Release workflow uses `git cliff` for release notes, matching
+bifrost's pattern.
 
-- [ ] `go build ./...` clean, `go test ./...` passes
-- [ ] PR CI pipeline runs on every push
-- [ ] GoReleaser snapshot build succeeds
-- [ ] Docker image builds and boots
+### ✦ `[x]` CHECKPOINT A — Build and CI foundation
+
+- [x] `go build ./...` clean, `go test ./...` passes
+- [x] PR CI pipeline runs on every push
+- [x] GoReleaser snapshot build succeeds
+- [x] Docker image builds and boots
 
 ---
 
