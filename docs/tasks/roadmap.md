@@ -778,7 +778,7 @@ table and separate auto-mode tests per backend.
 
 ---
 
-#### `[ ]` T13: `heraut version` subcommands
+#### `[x]` T13: `heraut version` subcommands
 
 **Description:** Thin commands over `app.NewResolver()`.
 
@@ -796,10 +796,18 @@ table and separate auto-mode tests per backend.
 
 **Scope:** S
 
-### ✦ `[ ]` CHECKPOINT — All 4 strategies pass `heraut version next`
+`version next` and `version current` are one-call wrappers: load config → build resolver
+(or call `app.CurrentTag`) → print tag. `app.CurrentTag` (new, in `app/current.go`) handles
+the strategy-specific glob derivation; per-env strategies require `--env`. `--env` was already
+a persistent root flag, so `version next` inherits it for free — confirmed in spec §Global flags.
+`version sprint bump` delegates to `config.IncrementSprint`: regex replace for existing
+`sprint:` fields (preserves formatting), insertion via detected indent for the first-run case.
+Output for both next and current is the full tag string (git tag including env prefix/format).
 
-- [ ] `semver`, `calver`, `semver-per-env`, `calver-per-env` all work
-- [ ] Only `internal/versioning/perenv/` exists — no `semver_per_env` or `calver_per_env`
+### ✦ `[x]` CHECKPOINT — All 4 strategies pass `heraut version next`
+
+- [x] `semver`, `calver`, `semver-per-env`, `calver-per-env` all work
+- [x] Only `internal/versioning/perenv/` exists — no `semver_per_env` or `calver_per_env`
 
 ---
 

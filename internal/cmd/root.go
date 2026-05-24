@@ -22,6 +22,7 @@ func NewRootCmd() *cobra.Command {
 	pf.Bool("force", false, "bypass E001/E002 promotion errors")
 
 	root.AddCommand(NewReleaseCmd())
+	root.AddCommand(NewVersionCmd())
 
 	return root
 }
