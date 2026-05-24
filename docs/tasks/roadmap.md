@@ -813,7 +813,7 @@ Output for both next and current is the full tag string (git tag including env p
 
 ### Phase 4 — Remaining Generators and GitLab Platform
 
-#### `[ ]` T14: communique generator + contract tests
+#### `[x]` T14: communique generator + contract tests
 
 **Description:** Simple wrapper; requires full config (no embedded defaults).
 
@@ -829,6 +829,8 @@ Output for both next and current is the full tag string (git tag including env p
 **Files:** `internal/generators/communique/{generator,generator_test}.go`
 
 **Scope:** S
+
+`communique.New(runner, cfg)` takes no mode parameter — communique has no embedded defaults and its invocation is `communique generate --config <file> <tag>` regardless of context. `Validate()` requires `cfg.Config` to be set (unlike gitcliff where config is optional). Seven contract tests verify `--version` check, config-required error, missing-file error, exact args, and runner error propagation.
 
 ---
 

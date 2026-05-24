@@ -49,7 +49,7 @@ func newVersionNextCmd() *cobra.Command {
 				return err
 			}
 
-			fmt.Fprintln(cmd.OutOrStdout(), result.Tag)
+			_, _ = fmt.Fprintln(cmd.OutOrStdout(), result.Tag)
 			return nil
 		},
 	}
@@ -77,7 +77,7 @@ func newVersionCurrentCmd() *cobra.Command {
 				return err
 			}
 
-			fmt.Fprintln(cmd.OutOrStdout(), tag)
+			_, _ = fmt.Fprintln(cmd.OutOrStdout(), tag)
 			return nil
 		},
 	}

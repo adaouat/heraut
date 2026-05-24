@@ -29,7 +29,7 @@ func newVersionSprintBumpCmd() *cobra.Command {
 				return err
 			}
 
-			fmt.Fprintf(cmd.OutOrStdout(), "sprint bumped to %d\n", newSprint)
+			_, _ = fmt.Fprintf(cmd.OutOrStdout(), "sprint bumped to %d\n", newSprint)
 			return nil
 		},
 	}
