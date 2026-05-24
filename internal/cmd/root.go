@@ -21,5 +21,7 @@ func NewRootCmd() *cobra.Command {
 	pf.String("env", "", "target environment (for per-env strategies)")
 	pf.Bool("force", false, "bypass E001/E002 promotion errors")
 
+	root.AddCommand(NewReleaseCmd())
+
 	return root
 }

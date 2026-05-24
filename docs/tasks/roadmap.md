@@ -665,7 +665,7 @@ Repository resolution: `cfg.Repository` → `$GITHUB_REPOSITORY` → error. Toke
 
 ---
 
-#### `[ ]` T10: App resolver factory + release pipeline + `heraut release`
+#### `[x]` T10: App resolver factory + release pipeline + `heraut release`
 
 **Description:** Wire the first complete vertical: `app.NewResolver()` factory,
 `pipeline.Pipeline`, `app.BuildPipeline()`, and the `heraut release` command. After this
@@ -697,11 +697,13 @@ task, `heraut release` works end-to-end for a semver project on GitHub.
 
 **Scope:** L
 
-### ✦ `[ ]` CHECKPOINT C — First working release
+Pipeline flow (ADR-0011 + ADR-0012): resolve → optional changelog generate+commit+push → git tag + push → optional release-notes generate → platform CreateRelease per platform → platform UploadAssets per platform. `versioning.Resolver` interface added to `internal/versioning/` so the pipeline doesn't import specific strategy packages. `app.NewResolver` handles semver only (calver/perenv deferred to T11/T12). `app.BuildPipeline` constructs all generators and platforms — `internal/cmd/release.go` is a thin layer: read flags → load config → validate → NewResolver → BuildPipeline → Check → Run. `MockGenerator` and `MockPlatform` added to `testutil` for pipeline unit tests. `fmt.Errorf` + `os.Remove` errors suppressed with `_ =` only where non-fatal (close/remove on write paths). Commit message default is `"chore(release): ${version}"` with `${version}` substitution.
 
-- [ ] `heraut release --dry-run` on test semver repo prints correct action sequence
-- [ ] `heraut --help` and `heraut release --help` show complete usage
-- [ ] No strategy-selection logic in `internal/cmd/`
+### ✦ `[x]` CHECKPOINT C — First working release
+
+- [x] `heraut release --dry-run` on test semver repo prints correct action sequence
+- [x] `heraut --help` and `heraut release --help` show complete usage
+- [x] No strategy-selection logic in `internal/cmd/`
 
 ---
 
