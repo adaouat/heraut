@@ -58,6 +58,10 @@ func NewChangelogCmd() *cobra.Command {
 				Commit:          commit,
 				Tag:             tag,
 			}
+			if err := app.PreflightCheck(runner); err != nil {
+				return fmt.Errorf("preflight check failed: %w", err)
+			}
+
 			pipe, err := app.BuildChangelogPipeline(runner, cfg, resolver, opts)
 			if err != nil {
 				return err

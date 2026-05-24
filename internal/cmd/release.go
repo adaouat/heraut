@@ -61,6 +61,10 @@ func NewReleaseCmd() *cobra.Command {
 				return err
 			}
 
+			if err := app.PreflightCheck(runner); err != nil {
+				return fmt.Errorf("preflight check failed: %w", err)
+			}
+
 			if err := pipe.Check(); err != nil {
 				return fmt.Errorf("preflight check failed: %w", err)
 			}
