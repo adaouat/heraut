@@ -462,7 +462,7 @@ bifrost's pattern.
 
 ### Phase 1 — Core Contracts and Config
 
-#### `[ ]` T03: Port interfaces + adapter + testutil
+#### `[x]` T03: Port interfaces + adapter + testutil
 
 **Description:** Three core port interfaces (`Runner`, `Generator`, `Platform`), the
 production `exec.Runner` adapter, and the test `MockRunner` + `FakeBin`. Foundation for
@@ -487,6 +487,8 @@ every other package.
 `internal/testutil/{mock_runner,fakebin,constants}.go`
 
 **Scope:** M
+
+`exec.Runner` uses `_, _ = fmt.Fprintf(...)` for dry-run and verbose log lines so errcheck is satisfied — write errors on a log writer are non-fatal. The `Out io.Writer` field (nil → os.Stderr) is exported so tests can redirect log output without constructors. `testutil.MockRunner` uses a FIFO `[]queuedResponse` queue; returning an error when the queue is empty surfaces misconfigured tests immediately. `testutil.FakeBin` uses `t.TempDir()` (auto-cleaned) and `t.Setenv("PATH", ...)` (auto-restored). Compile-time interface assertion `var _ port.Runner = (*Runner)(nil)` lives in `adapter/exec/runner.go`.
 
 ---
 
