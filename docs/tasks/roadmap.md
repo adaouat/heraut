@@ -894,7 +894,7 @@ defaults.
 
 ### Phase 5 — Complete Pipeline Surface
 
-#### `[ ]` T17: Changelog pipeline + `heraut changelog`
+#### `[x]` T17: Changelog pipeline + `heraut changelog`
 
 **Acceptance:**
 - `pipeline.NewChangelog(runner, resolver, cfg, out, dryRun)` → `*ChangelogPipeline`
@@ -914,6 +914,8 @@ defaults.
 `internal/cmd/changelog.go`
 
 **Scope:** M
+
+`pipeline.ChangelogConfig` holds `Commit`, `Tag`, `DisableChangelog`, `Changelog`, `ChangelogFile`, and `CommitMessage`. The `Tag: true` path implies commit — `BuildChangelogPipeline` sets `Commit: opts.Commit || opts.Tag` so the caller doesn't need to normalize the flags. When `Changelog == nil` but `Tag == true`, only the tag step runs (no git add/commit/push). `buildGenerator` extended to support communique and cocogitto; `buildPlatform` extended to support gitlab (gap left from T16). The `PipelineOpts` struct gained `Commit` and `Tag` fields used only by the changelog pipeline.
 
 ---
 
