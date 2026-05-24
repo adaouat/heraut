@@ -88,10 +88,11 @@ func buildReleasePipelineConfig(runner port.Runner, cfg *config.Config, env stri
 		}
 	}
 
-	// Per-env disable_changelog
+	// Per-env disable flags
 	if env != "" {
 		if envCfg, ok := cfg.Versioning.Environments[env]; ok {
 			pCfg.DisableChangelog = envCfg.DisableChangelog
+			pCfg.DisableNotes = envCfg.DisableNotes
 		}
 	}
 

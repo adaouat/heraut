@@ -943,7 +943,7 @@ defaults.
 
 ---
 
-#### `[ ]` T19: `heraut cliff` + per-env disable flags
+#### `[x]` T19: `heraut cliff` + per-env disable flags
 
 **Acceptance:**
 - `heraut cliff changelog` — prints the effective merged git-cliff TOML for changelog mode
@@ -957,6 +957,8 @@ defaults.
 **Files:** `internal/cmd/cliff.go`, `internal/app/pipeline.go` (per-env disable flags)
 
 **Scope:** S
+
+`pipeline.Config.DisableNotes` added alongside existing `DisableChangelog`; `buildReleasePipelineConfig` now sets both from per-env config. `app.EffectiveCliffConfig(driver, mode)` builds a gitcliff generator with a nil runner (safe — effective config methods only read files, never exec) and returns the merged TOML. `heraut cliff changelog` and `heraut cliff release-notes` print the embedded default when no driver is configured, error when the configured generator is not git-cliff.
 
 ### ✦ `[ ]` CHECKPOINT F — Full pipeline surface implemented
 
