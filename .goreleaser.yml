@@ -1,0 +1,49 @@
+version: 2
+
+project_name: heraut
+
+before:
+  hooks:
+    - go mod tidy
+
+builds:
+  - id: heraut
+    main: ./cmd/heraut/
+    binary: heraut
+    env:
+      - CGO_ENABLED=0
+    goos:
+      - linux
+      - darwin
+      - windows
+    goarch:
+      - amd64
+      - arm64
+    ignore:
+      - goos: windows
+        goarch: arm64
+    ldflags:
+      - >-
+        -s -w -X main.Version={{.Version}} -X main.ProjectURL=https://github.com/adaouat/heraut -X main.LatestURL=https://api.github.com/repos/adaouat/heraut/releases/latest #magic___^_^___line
+# ADR-0013: raw binaries, no archive wrapper
+archives:
+  - id: default
+    name_template: "{{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
+    formats:
+      - binary
+
+checksum:
+  name_template: "{{ .ProjectName }}_{{ .Version }}_checksums.txt"
+
+release:
+  disable: false
+
+dockers:
+  - image_templates:
+      - "ghcr.io/adaouat/heraut:{{ .Tag }}"
+      - "ghcr.io/adaouat/heraut:latest"
+    dockerfile: Dockerfile
+    build_flag_templates:
+      - "--build-arg=VERSION={{ .Version }}"
+      - "--label=org.opencontainers.image.version={{ .Version }}"
+      - "--label=org.opencontainers.image.revision={{ .FullCommit }}"
