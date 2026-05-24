@@ -1,15 +1,18 @@
 package cmd
 
-import "github.com/spf13/cobra"
+import (
+	"github.com/adaouat/heraut/internal/ui"
+	"github.com/spf13/cobra"
+)
 
 // NewRootCmd constructs the root heraut command.
 func NewRootCmd() *cobra.Command {
 	root := &cobra.Command{
 		Use:   "heraut",
 		Short: "Release management for git-based projects",
-		Long: `Héraut resolves versions, generates changelogs, and publishes releases
-to GitHub or GitLab.`,
+		Long:  ui.HelpLong(),
 	}
+	root.SetVersionTemplate(ui.VersionTemplate())
 
 	pf := root.PersistentFlags()
 	pf.String("config", "", "path to .heraut.yml (default: auto-discover)")
