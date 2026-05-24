@@ -1,3 +1,15 @@
 [tasks.setup]
 description = "Setup project"
 run = ["hk install"]
+
+[tasks.build]
+description = "Build heraut binary"
+run = "go build -o ./heraut ./cmd/heraut/"
+
+[tasks.test]
+description = "Run unit tests"
+run = "go test ./..."
+
+[tasks.run]
+description = "Run heraut CLI (dev mode)"
+run = "go run ./cmd/heraut/ $@"

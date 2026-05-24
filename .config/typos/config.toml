@@ -1,2 +1,5 @@
 [files]
 ignore-vcs = true
+
+[default.extend-words]
+Ratatui = "Ratatui"

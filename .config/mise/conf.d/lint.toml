@@ -5,3 +5,11 @@ run = "hk check"
 [tasks."lint:fix"]
 description = "Lint: fix code"
 run = "hk fix"
+
+[tasks."lint:go:check"]
+description = "Lint: check Go code (golangci-lint)"
+run = "hk check -S golangci_lint"
+
+[tasks."lint:go:fix"]
+description = "Lint: fix Go code (golangci-lint)"
+run = "hk fix -S golangci_lint"

@@ -9,6 +9,9 @@ local codeLinters = new Mapping<String, Step> {
   ["tombi_format"] = Builtins.tombi_format
   ["pkl"] = Builtins.pkl
   ["pkl_format"] = Builtins.pkl_format
+  ["go_fmt"] = Builtins.go_fmt
+  ["golangci_lint"] = Builtins.golangci_lint
+  ["gomod_tidy"] = Builtins.gomod_tidy
   // hack to pass configuration to yamlfmt/typos
   // it's duplicated from Builtins
   // waiting to find a better solution to use custom configuration
