@@ -834,7 +834,7 @@ Output for both next and current is the full tag string (git tag including env p
 
 ---
 
-#### `[ ]` T15: cocogitto generator + contract tests
+#### `[x]` T15: cocogitto generator + contract tests
 
 **Description:** 4-path config resolution (config × template combinations) and embedded
 defaults.
@@ -859,6 +859,8 @@ defaults.
 **Files:** `internal/generators/cocogitto/{generator,generator_test}.go`
 
 **Scope:** M
+
+`cocogitto.New(runner, cfg, mode)` takes a `Mode` parameter (changelog vs release-notes). The template path is injected into the embedded `cog.toml` at runtime via a `'<PATH_TEMPLATE.TERA>'` placeholder — no `-t` flag for embedded cases. Mode selects `changelog.tera` (full history) or `release-notes.tera` (single release, no version header). `-t` is used only for the `config/template` combination where the user's cog.toml cannot be modified. `output:` is handled by heraut: stdout captured and written to file. Thirteen contract tests cover all 4 combinations across both modes.
 
 ---
 

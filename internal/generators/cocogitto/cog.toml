@@ -1,0 +1,18 @@
+tag_prefix = "v"
+from_latest_tag = false
+ignore_merge_commits = true
+
+[changelog]
+commit_parsers = [
+  { message = "^feat", group = "Features" },
+  { message = "^fix", group = "Bug Fixes" },
+  { message = "^refactor", group = "Refactoring" },
+  { message = "^docs", group = "Documentation" },
+  { message = "^perf", group = "Performance" },
+  { message = "^chore", skip = true },
+  { message = "^ci", skip = true },
+  { message = "^build", skip = true },
+  { message = "^test", skip = true },
+  { message = "^style", skip = true },
+]
+template = "<PATH_TEMPLATE.TERA>"
