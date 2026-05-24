@@ -61,7 +61,7 @@ func TestCheck_RepositoryMissing(t *testing.T) {
 	mr.QueueResponse("gh version 2.0.0", "", nil)
 
 	t.Setenv("GH_TOKEN", "tok")
-	// No repository in config or env
+	t.Setenv("GITHUB_REPOSITORY", "") // CI sets this automatically; clear it for this test
 	p := github.New(mr, &config.Platform{TokenEnv: "GH_TOKEN"})
 	err := p.Check()
 	require.Error(t, err)
