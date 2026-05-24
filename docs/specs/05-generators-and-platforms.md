@@ -85,7 +85,7 @@ release:
     template: my.tera       # optional custom Tera template
 ```
 
-**Four config-path combinations** (per spec §7.3 of the source):
+**Four config-path combinations**:
 
 | `config:`  | `template:` | Effective behaviour                                                                          |
 |------------|-------------|----------------------------------------------------------------------------------------------|

@@ -34,7 +34,7 @@ behavioural spec.
 
 - [`docs/specs/`](docs/specs/) — behavioural specification (read before changing CLI surface or config schema)
 - [`docs/adr/`](docs/adr/) — architecture decision records (14 ADRs, numbered consecutively)
-- [`docs/tasks/`](docs/tasks/) — build roadmap (`roadmap.md`) and task checklist (`todo.md`)
+- [`docs/tasks/`](docs/tasks/) — build roadmap with inline task checklist (`roadmap.md`)
 
 ## Tech stack
 
@@ -55,19 +55,19 @@ behavioural spec.
 ## Project layout
 
 ```
-cmd/heraut/                     thin CLI layer: flags, app.*, UI display
-   main.go                      fang.Execute(newRootCmd())
-   root.go                      root command, persistent flags
-   release.go                   heraut release
-   changelog.go                 heraut changelog
-   version.go                   heraut version next / current
-   version_sprint.go            heraut version sprint bump
-   check.go                     heraut check config / runtime / cliff
-   cliff.go                     heraut cliff changelog / release-notes
-   init.go                      heraut init
-   self_update.go               heraut self-update
+cmd/heraut/main.go              entry point — fang.Execute(cmd.NewRootCmd())
 
 internal/
+   cmd/                         cobra command definitions (package cmd)
+      root.go                   root command, persistent flags
+      release.go                heraut release
+      changelog.go              heraut changelog
+      version.go                heraut version next / current
+      version_sprint.go         heraut version sprint bump
+      check.go                  heraut check config / runtime / cliff
+      cliff.go                  heraut cliff changelog / release-notes
+      init.go                   heraut init
+      self_update.go            heraut self-update
    port/                        interfaces — Runner, Generator, Platform
    adapter/exec/                shell runner implementing port.Runner
    testutil/                    MockRunner, FakeBin, constants
@@ -94,9 +94,11 @@ internal/
    scaffold/                    heraut init wizard + YAML generation
    selfupdate/                  GitHub Releases API + atomic binary replace
 
+testdata/                       repo-wide read-only test fixtures (.heraut.yml samples, …)
+
 docs/specs/                     6 numbered specs (behavioural authority)
 docs/adr/                       14 ADRs (architectural decisions)
-docs/tasks/                     roadmap.md, todo.md (build plan)
+docs/tasks/                     roadmap.md (build plan + inline task checklist)
 
 schema.json                     published JSON Schema for .heraut.yml IDE validation
 .goreleaser.yml                 raw-binary release config (no archives — see ADR-0013)

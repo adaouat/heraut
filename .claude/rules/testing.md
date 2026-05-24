@@ -99,7 +99,7 @@ tested is deliberately changed — and only after writing an ADR documenting the
 - Integration: reserved for the full release/changelog pipeline flows. One happy-path +
   one dry-run path per pipeline is the minimum.
 - Schema: every value of `versioning.strategy`, every value of `platform`, and every
-  value of `generator` has at least one valid fixture in `internal/config/testdata/`.
+  value of `generator` has at least one valid fixture in `testdata/config/`.
 
 ## When a hook or test fails
 

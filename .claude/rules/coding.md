@@ -3,7 +3,10 @@
 ## Architecture: hexagonal (ports & adapters)
 
 ```
-cmd/heraut/                   thin CLI: parse flags, call app.*, render UI
+cmd/heraut/main.go            entry point — fang.Execute(cmd.NewRootCmd())
+   │
+   ▼
+internal/cmd/                 cobra commands — parse flags, call app.*, render UI
    │
    ▼
 internal/app/                 wiring: NewResolver(), BuildPipeline(), BuildChangelogPipeline()
@@ -20,23 +23,28 @@ internal/pipeline/            release + changelog flows (no factories)
    └──→  internal/adapter/exec/ ── implements port.Runner
 ```
 
+- `cmd/heraut/main.go` is **trivial**: build flags (`Version`, `ProjectURL`, `LatestURL`)
+  plus a `fang.Execute(ctx, cmd.NewRootCmd(), …)` call. No flag parsing, no command logic.
+- `internal/cmd/` (package `cmd`) holds every cobra command. This keeps commands testable
+  as a regular Go package and leaves `cmd/heraut/` reserved for the entry point.
 - `internal/port/` defines interfaces (`Runner`, `Generator`, `Platform`). They are stable
   contracts — change them deliberately and update every implementor in one commit.
 - `internal/adapter/` and the generator/platform packages provide concrete implementations.
 - `internal/app/` is the **only** place that constructs concrete implementations from
-  config. `cmd/heraut/` never calls `gitcliff.New(...)`, `github.New(...)`, etc. directly.
+  config. `internal/cmd/` never calls `gitcliff.New(...)`, `github.New(...)`, etc. directly.
 
 ## Layer rules
 
-| Layer            | Allowed to import                                                                  |
-|------------------|------------------------------------------------------------------------------------|
-| `cmd/heraut/`    | `internal/app/`, `internal/ui/`, `internal/config/`                                |
-| `internal/app/`  | `internal/{port,config,pipeline,versioning,generators,platforms,adapter,ui}/`      |
-| `internal/pipeline/` | `internal/{port,config,versioning,ui}/`                                        |
-| `internal/generators/*`, `internal/platforms/*` | `internal/{port,config}/`                       |
-| `internal/versioning/*` | `internal/{port,config,versioning}/`                                        |
-| `internal/config/` | nothing from heraut (it is at the bottom)                                        |
-| `internal/port/`   | nothing from heraut (it is the contract)                                         |
+| Layer                | Allowed to import                                                                  |
+|----------------------|------------------------------------------------------------------------------------|
+| `cmd/heraut/`        | `internal/cmd/` only                                                               |
+| `internal/cmd/`      | `internal/app/`, `internal/ui/`, `internal/config/`                                |
+| `internal/app/`      | `internal/{port,config,pipeline,versioning,generators,platforms,adapter,ui}/`      |
+| `internal/pipeline/` | `internal/{port,config,versioning,ui}/`                                            |
+| `internal/generators/*`, `internal/platforms/*` | `internal/{port,config}/`                              |
+| `internal/versioning/*` | `internal/{port,config,versioning}/`                                            |
+| `internal/config/`   | nothing from heraut (it is at the bottom)                                          |
+| `internal/port/`     | nothing from heraut (it is the contract)                                           |
 
 If you find yourself importing `up` the stack, the design is wrong — fix the dependency
 direction, do not add the import.
@@ -80,10 +88,11 @@ direction, do not add the import.
 ## CLI commands
 
 - `RunE` (never `Run`) so errors propagate to `fang.Execute`.
-- Flags declared in the command's `init` or constructor; never package-level globals.
+- Flags declared in the command's constructor function; never package-level globals.
 - Command bodies are short: read flags → load config (`config.Load`) → call
   `app.NewResolver(...)` and `app.BuildPipeline(...)` → call `pipeline.Run()` → done.
-- No strategy switching, no generator construction, no platform construction in `cmd/`.
+- No strategy switching, no generator construction, no platform construction in
+  `internal/cmd/`.
 - Global flags on root: `--config`, `--dry-run`, `--verbose`, `--env`, `--force`.
 
 ## UI
@@ -110,4 +119,4 @@ direction, do not add the import.
   explicitly asks for it.
 - Do not add fields, flags, or interfaces for hypothetical future needs. YAGNI applies.
 - If you discover something that needs fixing outside the task, add it to
-  `docs/tasks/todo.md` as a new task — do not silently implement it.
+  `docs/tasks/roadmap.md` as a new task — do not silently implement it.

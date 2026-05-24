@@ -1,0 +1,21 @@
+# Architecture Decision Records
+
+ADRs document significant architectural choices: what was decided, why, and what
+trade-offs were accepted.
+
+| ADR | Title | Status |
+|---|---|---|
+| [0001](0001-language-go.md) | Implementation Language — Go | Accepted |
+| [0002](0002-tool-name-heraut.md) | Tool Name — Héraut / heraut | Accepted |
+| [0003](0003-cli-framework-cobra-fang.md) | CLI Framework — cobra + fang | Accepted |
+| [0004](0004-config-format-yaml.md) | Config File Format — YAML | Accepted |
+| [0005](0005-config-file-discovery.md) | Config File Discovery — `.config/heraut.yml` and `.heraut.yml` | Accepted |
+| [0006](0006-config-naming-generator-platform.md) | Config Naming — generator / platform / release | Accepted |
+| [0007](0007-version-promotion-error-handling.md) | Version Promotion Error Handling (E001 / E002 / E003) | Accepted |
+| [0008](0008-promote-source-env.md) | Explicit `source` Field for `bump: promote` Environments | Accepted |
+| [0009](0009-generic-perenv-resolver.md) | Generic Per-Env Resolver Design (`perenv` + `tagfmt`) | Accepted |
+| [0010](0010-embedded-cliff-toml-default.md) | Embedded `cliff.toml` Default with Optional User Override | Accepted |
+| [0011](0011-single-pipeline-release-via-pre-computation.md) | Single-Pipeline Release via Version Pre-computation | Accepted |
+| [0012](0012-changelog-commit-ownership.md) | Changelog Commit Ownership and Release Workflow Order | Accepted |
+| [0013](0013-raw-binary-goreleaser-format.md) | Raw Binary GoReleaser Format (No Archives) | Accepted |
+| [0014](0014-self-update-architecture.md) | Self-Update Architecture | Accepted |

@@ -114,11 +114,11 @@ through the binary → assert on the printed action plan or on the resulting tag
 
 ### Schema
 
-JSON Schema fixtures live in `internal/config/testdata/`:
+JSON Schema fixtures live in the repo-root `testdata/config/`:
 
-- `testdata/valid/<strategy>.yml` — one happy config per strategy
-- `testdata/invalid/<reason>.yml` — one config per validation failure, each paired with
-  the expected error message
+- `testdata/config/valid/<strategy>.yml` — one happy config per strategy
+- `testdata/config/invalid/<reason>.yml` — one config per validation failure, each
+  paired with the expected error message
 
 `heraut check config` is tested against these fixtures both via the validator directly
 and via the binary (golden output comparison).
@@ -157,7 +157,7 @@ behaviour it covers is deliberately changed, with an ADR documenting the change.
 3. `golangci-lint run`
 
 A failing job blocks merge. Branch protection on `main` requires the CI workflow to
-pass. Linters are configured in `.golangci.yml`, mirroring the source's setup.
+pass. Linters are configured in `.golangci.yml`.
 
 `.github/workflows/release.yml` triggers on `v*` tags and `workflow_dispatch`. It runs
 `goreleaser release --clean`, which builds the cross-platform binaries, creates the

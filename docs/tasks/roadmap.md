@@ -4,8 +4,8 @@
 > Repo: `github.com/adaouat/heraut`
 
 This roadmap is the executable plan for bringing Héraut to v1.0 with the feature set
-described in `docs/specs/`. It is the companion to `docs/tasks/todo.md` (the live task
-checklist) — read the todo for what to do next, read this roadmap for *why* and *how*.
+described in `docs/specs/`. Each task carries an inline `[ ] / [x]` checkbox — read the
+headings for what to do next, read the surrounding prose for *why* and *how*.
 
 The behavioural authority is `docs/specs/` (six numbered specs); the architectural
 authority is `docs/adr/` (14 ADRs). Where this roadmap mentions "behaviour", the specs
@@ -34,6 +34,29 @@ The `docs/specs/` (six numbered specs) and the 14 ADRs in `docs/adr/` are author
 
 ---
 
+## Working process
+
+Each task follows the two-step roadmap flow defined in
+[`.claude/rules/workflow.md`](../../.claude/rules/workflow.md):
+
+1. **Implement** — confirm the task is `[ ]`, then do the work (TDD: failing test first,
+   then implementation).
+2. **Done** — flip `[ ]` → `[x]`, add a one-paragraph note under the task describing
+   actual decisions, deferred items, or deviations. Commit implementation + roadmap
+   update together.
+
+Task status markers:
+
+| Marker | Meaning     |
+|--------|-------------|
+| `[ ]`  | Not started |
+| `[x]`  | Done        |
+
+One task at a time. The roadmap always reflects the current state of the branch.
+TDD is required — write the failing test before writing implementation code.
+
+---
+
 ## Architecture
 
 ### Key design choices
@@ -44,7 +67,7 @@ The `docs/specs/` (six numbered specs) and the 14 ADRs in `docs/adr/` are author
 | Strategy selection               | Single `app.NewResolver()` factory; never an `if` ladder in `cmd/`      |
 | Per-env strategies               | Generic `internal/versioning/perenv/` wrapping a `VersionCalculator` interface ([ADR-0009](../adr/0009-generic-perenv-resolver.md)) |
 | Tag format substitution          | Shared `internal/versioning/tagfmt/` package ([ADR-0009](../adr/0009-generic-perenv-resolver.md)) |
-| Domain wiring                    | `internal/app/` owns all factory logic; `cmd/heraut/` is a thin CLI layer |
+| Domain wiring                    | `internal/app/` owns all factory logic; `internal/cmd/` is a thin CLI layer |
 | Generator interface              | `Check()` + `Validate()` + `Generate(tag)` — three methods, validate before run |
 | Platform drivers                 | Contract-tested with `MockRunner` — every CLI argument is asserted      |
 | Config validation                | Strict YAML + composed semantic validators with `{Path, Message, Hint}` |
@@ -57,19 +80,21 @@ The `docs/specs/` (six numbered specs) and the 14 ADRs in `docs/adr/` are author
 
 ```
 heraut/
-├── cmd/heraut/                 thin CLI layer — parse flags, call app.*, display UI
-│   ├── main.go
-│   ├── root.go
-│   ├── release.go
-│   ├── changelog.go
-│   ├── version.go
-│   ├── version_sprint.go
-│   ├── check.go
-│   ├── cliff.go
-│   ├── init.go
-│   └── self_update.go
+├── cmd/heraut/
+│   └── main.go                 entry point — fang.Execute(cmd.NewRootCmd())
 │
 ├── internal/
+│   ├── cmd/                    cobra commands (package cmd) — flags, app.*, UI
+│   │   ├── root.go             root command, persistent flags
+│   │   ├── release.go          heraut release
+│   │   ├── changelog.go        heraut changelog
+│   │   ├── version.go          heraut version next / current
+│   │   ├── version_sprint.go   heraut version sprint bump
+│   │   ├── check.go            heraut check
+│   │   ├── cliff.go            heraut cliff
+│   │   ├── init.go             heraut init
+│   │   └── self_update.go      heraut self-update
+│   │
 │   ├── port/                   interfaces — extractable later
 │   │   ├── runner.go           Runner interface
 │   │   ├── generator.go        Generator interface (Check, Validate, Generate)
@@ -148,10 +173,13 @@ heraut/
 │       ├── manifest.go
 │       └── github.go           GitHub Releases API
 │
+├── testdata/                   repo-wide read-only test fixtures (.heraut.yml samples, …)
+│
 ├── docs/
+│   ├── README.md               index of the docs tree
 │   ├── specs/                  six numbered behavioural specs
-│   ├── adr/                    15 architectural decision records
-│   └── tasks/                  this roadmap + the todo
+│   ├── adr/                    14 architectural decision records
+│   └── tasks/                  roadmap.md (build plan + inline task checklist)
 │
 ├── schema.json
 ├── .goreleaser.yml             GitHub Releases + GHCR
@@ -174,7 +202,7 @@ Layer D: Documentation foundation
   CLAUDE.md, .claude/rules/, docs/specs/, docs/adr/, docs/tasks/
 
 Layer 0: Repo skeleton
-  go.mod, cmd/heraut skeleton, GitHub Actions CI, GoReleaser
+  go.mod, cmd/heraut/main.go, internal/cmd skeleton, GitHub Actions CI, GoReleaser
 
 Layer 1: Core contracts
   internal/port/                  Runner, Generator, Platform interfaces
@@ -214,7 +242,7 @@ Layer 10: App wiring (pipeline factory)
   internal/app/pipeline.go        BuildPipeline(), BuildChangelogPipeline()
 
 Layer 11: CLI commands (thin layer)
-  cmd/heraut/                     cobra commands; call app.*
+  internal/cmd/                   cobra commands (package cmd); call app.*
 
 Layer 12: Supporting features
   internal/scaffold/              wizard + YAML generation
@@ -252,7 +280,7 @@ discipline that applies to every task.
 Goal: stand up the docs that describe what heraut is and how it will be built, before
 any code. Every later phase references these docs.
 
-#### D01: `CLAUDE.md` + `.claude/rules/`
+#### `[x]` D01: `CLAUDE.md` + `.claude/rules/`
 
 **Description:** Write the root `CLAUDE.md` and the four rule files under `.claude/rules/`
 (claude, coding, testing, workflow). `CLAUDE.md` uses `@.claude/rules/*` includes so the
@@ -269,7 +297,7 @@ rules load automatically when Claude Code opens the repo.
 
 ---
 
-#### D02: `docs/specs/` — six numbered specs
+#### `[x]` D02: `docs/specs/` — six numbered specs
 
 **Description:** Write the six numbered behavioural specs.
 
@@ -286,7 +314,7 @@ rules load automatically when Claude Code opens the repo.
 
 ---
 
-#### D03: `docs/adr/` — 14 architectural decision records
+#### `[x]` D03: `docs/adr/` — 14 architectural decision records
 
 **Description:** Write the 14 ADRs that capture the foundational architectural
 decisions. Topics:
@@ -318,28 +346,27 @@ decisions. Topics:
 
 ---
 
-#### D04: `docs/tasks/` — roadmap + todo
+#### `[x]` D04: `docs/tasks/roadmap.md`
 
-**Description:** Write this roadmap and `docs/tasks/todo.md`.
+**Description:** Write this roadmap with inline `[ ] / [x]` task checkboxes, folding
+the task checklist into the roadmap headings directly (bifrost-style).
 
 **Acceptance:**
-- `docs/tasks/roadmap.md` exists (this file)
-- `docs/tasks/todo.md` exists with the D01–D04 + T00–T24 checklist
-- "Before You Start — Required Reading" section is dropped (docs/specs/ + docs/adr/ are
-  the authority now)
+- `docs/tasks/roadmap.md` exists with the D01–D04 + T00–T24 task headings, each carrying
+  an inline `[ ] / [x]` checkbox marker
 
 **Scope:** S
 
-### ✦ CHECKPOINT D — Docs foundation in place
+### ✦ `[x]` CHECKPOINT D — Docs foundation in place
 
-- [ ] All Phase D files exist and validate against the structure above
-- [ ] No code yet — `go.mod`, `cmd/`, `internal/` do not exist
+- [x] All Phase D files exist and validate against the structure above
+- [x] No code yet — `go.mod`, `cmd/`, `internal/` do not exist
 
 ---
 
 ### Phase 0 — Repo Bootstrap
 
-#### T00: Repository skeleton — module, cobra CLI, basic build
+#### `[ ]` T00: Repository skeleton — module, cobra CLI, basic build
 
 **Description:** Create the Go module, cobra + fang root command, and `heraut --help` working.
 This is the first code commit — the skeleton everything else builds on.
@@ -355,13 +382,13 @@ This is the first code commit — the skeleton everything else builds on.
 
 **Dependencies:** Phase D complete
 
-**Files:** `go.mod`, `go.sum`, `cmd/heraut/main.go`, `cmd/heraut/root.go`
+**Files:** `go.mod`, `go.sum`, `cmd/heraut/main.go`, `internal/cmd/root.go`
 
 **Scope:** XS
 
 ---
 
-#### T01: GitHub Actions CI — PR pipeline
+#### `[ ]` T01: GitHub Actions CI — PR pipeline
 
 **Description:** PR pipeline runs on every pull request: build, test, lint. Blocks merges
 on failure.
@@ -380,7 +407,7 @@ on failure.
 
 ---
 
-#### T02: GoReleaser + release pipeline
+#### `[ ]` T02: GoReleaser + release pipeline
 
 **Description:** Cross-platform binary builds targeting GitHub Releases and a GHCR Docker
 image. Release triggered by pushing a `v*` tag or `workflow_dispatch`.
@@ -408,7 +435,7 @@ image. Release triggered by pushing a `v*` tag or `workflow_dispatch`.
 
 **Scope:** S
 
-### ✦ CHECKPOINT A — Build and CI foundation
+### ✦ `[ ]` CHECKPOINT A — Build and CI foundation
 
 - [ ] `go build ./...` clean, `go test ./...` passes
 - [ ] PR CI pipeline runs on every push
@@ -419,7 +446,7 @@ image. Release triggered by pushing a `v*` tag or `workflow_dispatch`.
 
 ### Phase 1 — Core Contracts and Config
 
-#### T03: Port interfaces + adapter + testutil
+#### `[ ]` T03: Port interfaces + adapter + testutil
 
 **Description:** Three core port interfaces (`Runner`, `Generator`, `Platform`), the
 production `exec.Runner` adapter, and the test `MockRunner` + `FakeBin`. Foundation for
@@ -447,7 +474,7 @@ every other package.
 
 ---
 
-#### T04: Config structs + loader + path resolution
+#### `[ ]` T04: Config structs + loader + path resolution
 
 **Description:** Struct definitions, strict YAML parsing (rejects unknown keys), and path
 resolution. No semantic validation in this task.
@@ -466,13 +493,14 @@ resolution. No semantic validation in this task.
 **Dependencies:** T00
 
 **Files:** `internal/config/{config,loader,path,error}.go`,
-`internal/config/testdata/`, `internal/config/{loader,path}_test.go`
+`testdata/config/` (sample `.heraut.yml` per strategy + an invalid YAML),
+`internal/config/{loader,path}_test.go`
 
 **Scope:** M
 
 ---
 
-#### T05: Config semantic validation — composed validators
+#### `[ ]` T05: Config semantic validation — composed validators
 
 **Description:** Composed layers — required fields → enum values → strategy-specific rules
 (cycle detection, source env existence).
@@ -486,21 +514,21 @@ resolution. No semantic validation in this task.
   [ADR-0008](../adr/0008-promote-source-env.md) when multiple `auto` envs exist without
   `source`
 - `ValidationError{Path, Message, Hint}`
-- Fixtures in `testdata/valid/` and `testdata/invalid/`; each invalid fixture has an
-  expected error message
+- Fixtures live under repo-root `testdata/config/valid/` and `testdata/config/invalid/`;
+  each invalid fixture has an expected error message
 
 **Dependencies:** T04
 
-**Files:** `internal/config/validator.go`, `internal/config/testdata/valid/*.yml`,
-`internal/config/testdata/invalid/*.yml`, `internal/config/validator_test.go`
+**Files:** `internal/config/validator.go`, `testdata/config/valid/*.yml`,
+`testdata/config/invalid/*.yml`, `internal/config/validator_test.go`
 
 **Scope:** M
 
-### ✦ CHECKPOINT B — Config loads and validates
+### ✦ `[ ]` CHECKPOINT B — Config loads and validates
 
 - [ ] `go test ./internal/...` passes
-- [ ] All `testdata/valid/` fixtures pass; all `testdata/invalid/` fixtures fail with
-      the expected error messages
+- [ ] All `testdata/config/valid/` fixtures pass; all `testdata/config/invalid/`
+      fixtures fail with the expected error messages
 
 ---
 
@@ -508,7 +536,7 @@ resolution. No semantic validation in this task.
 
 *Goal: `heraut release` works end-to-end for a semver project publishing to GitHub.*
 
-#### T06: Tag format package (`versioning/tagfmt`)
+#### `[ ]` T06: Tag format package (`versioning/tagfmt`)
 
 **Description:** Extract `{version}` and `{env}` substitution into a shared package
 ([ADR-0009](../adr/0009-generic-perenv-resolver.md)) used by both per-env resolvers.
@@ -529,7 +557,7 @@ resolution. No semantic validation in this task.
 
 ---
 
-#### T07: SemVer resolver
+#### `[ ]` T07: SemVer resolver
 
 **Description:** SemVer version resolver: reads git tags, determines bump from
 conventional commits, produces the next version.
@@ -555,7 +583,7 @@ conventional commits, produces the next version.
 
 ---
 
-#### T08: gitcliff generator
+#### `[ ]` T08: gitcliff generator
 
 **Description:** Embedded TOML defaults
 ([ADR-0010](../adr/0010-embedded-cliff-toml-default.md)), user override merging,
@@ -582,7 +610,7 @@ invocation contract.
 
 ---
 
-#### T09: GitHub platform + contract tests
+#### `[ ]` T09: GitHub platform + contract tests
 
 **Description:** GitHub platform driver with full contract test coverage. Establishes the
 pattern for GitLab in T16.
@@ -607,7 +635,7 @@ pattern for GitLab in T16.
 
 ---
 
-#### T10: App resolver factory + release pipeline + `heraut release`
+#### `[ ]` T10: App resolver factory + release pipeline + `heraut release`
 
 **Description:** Wire the first complete vertical: `app.NewResolver()` factory,
 `pipeline.Pipeline`, `app.BuildPipeline()`, and the `heraut release` command. After this
@@ -624,8 +652,8 @@ task, `heraut release` works end-to-end for a semver project on GitHub.
   → git add + commit + push → git tag → create release on each platform → upload assets
   → generate release notes
 - `app.BuildPipeline(runner, cfg, env, opts)` — **all generator/platform construction
-  here, none in `cmd/`**
-- `cmd/heraut/release.go` — thin: read flags, call `app.NewResolver()` +
+  here, none in `internal/cmd/`**
+- `internal/cmd/release.go` — thin: read flags, call `app.NewResolver()` +
   `app.BuildPipeline()`, call `pipeline.Run()`
 - `--dry-run` and `--version` override flags
 - See [ADR-0011](../adr/0011-single-pipeline-release-via-pre-computation.md) and
@@ -635,21 +663,21 @@ task, `heraut release` works end-to-end for a semver project on GitHub.
 
 **Files:** `internal/app/{resolver,pipeline}.go`,
 `internal/pipeline/{config,release,release_test}.go`,
-`cmd/heraut/{release,release_test}.go`
+`internal/cmd/{release,release_test}.go`
 
 **Scope:** L
 
-### ✦ CHECKPOINT C — First working release
+### ✦ `[ ]` CHECKPOINT C — First working release
 
 - [ ] `heraut release --dry-run` on test semver repo prints correct action sequence
 - [ ] `heraut --help` and `heraut release --help` show complete usage
-- [ ] No strategy-selection logic in `cmd/heraut/`
+- [ ] No strategy-selection logic in `internal/cmd/`
 
 ---
 
 ### Phase 3 — Strategy Expansion
 
-#### T11: CalVer resolver
+#### `[ ]` T11: CalVer resolver
 
 **Description:** CalVer resolver: format string parsing, date token substitution, PATCH
 increment.
@@ -670,7 +698,7 @@ increment.
 
 ---
 
-#### T12: Generic per-environment resolver
+#### `[ ]` T12: Generic per-environment resolver
 
 **Description:** Generic `perenv.Resolver` wrapping either semver or calver via a
 `VersionCalculator` interface ([ADR-0009](../adr/0009-generic-perenv-resolver.md)).
@@ -701,7 +729,7 @@ Same logic serves both `semver-per-env` and `calver-per-env`.
 
 ---
 
-#### T13: `heraut version` subcommands
+#### `[ ]` T13: `heraut version` subcommands
 
 **Description:** Thin commands over `app.NewResolver()`.
 
@@ -715,11 +743,11 @@ Same logic serves both `semver-per-env` and `calver-per-env`.
 
 **Dependencies:** T10, T11, T12
 
-**Files:** `cmd/heraut/{version,version_sprint,version_test}.go`
+**Files:** `internal/cmd/{version,version_sprint,version_test}.go`
 
 **Scope:** S
 
-### ✦ CHECKPOINT D — All 4 strategies pass `heraut version next`
+### ✦ `[ ]` CHECKPOINT — All 4 strategies pass `heraut version next`
 
 - [ ] `semver`, `calver`, `semver-per-env`, `calver-per-env` all work
 - [ ] Only `internal/versioning/perenv/` exists — no `semver_per_env` or `calver_per_env`
@@ -728,7 +756,7 @@ Same logic serves both `semver-per-env` and `calver-per-env`.
 
 ### Phase 4 — Remaining Generators and GitLab Platform
 
-#### T14: communique generator + contract tests
+#### `[ ]` T14: communique generator + contract tests
 
 **Description:** Simple wrapper; requires full config (no embedded defaults).
 
@@ -747,7 +775,7 @@ Same logic serves both `semver-per-env` and `calver-per-env`.
 
 ---
 
-#### T15: cocogitto generator + contract tests
+#### `[ ]` T15: cocogitto generator + contract tests
 
 **Description:** 4-path config resolution (config × template combinations) and embedded
 defaults.
@@ -775,7 +803,7 @@ defaults.
 
 ---
 
-#### T16: GitLab platform + contract tests
+#### `[ ]` T16: GitLab platform + contract tests
 
 **Description:** Follows the T09 pattern.
 
@@ -795,7 +823,7 @@ defaults.
 
 **Scope:** M
 
-### ✦ CHECKPOINT E — All generators and platforms implemented and tested
+### ✦ `[ ]` CHECKPOINT E — All generators and platforms implemented and tested
 
 - [ ] Contract tests verify exact CLI arguments for all generators and both platforms
 
@@ -803,14 +831,14 @@ defaults.
 
 ### Phase 5 — Complete Pipeline Surface
 
-#### T17: Changelog pipeline + `heraut changelog`
+#### `[ ]` T17: Changelog pipeline + `heraut changelog`
 
 **Acceptance:**
 - `pipeline.NewChangelog(runner, resolver, cfg, out, dryRun)` → `*ChangelogPipeline`
 - `Run()` — resolve version → generate changelog → optionally commit + push → optionally
   tag
 - `app.BuildChangelogPipeline(runner, cfg, env, opts)` — wires generators from config;
-  **no generator construction in `cmd/`**
+  **no generator construction in `internal/cmd/`**
 - `heraut changelog [--commit] [--tag] [--version X.Y.Z]` — thin cmd
 - `--tag` implies `--commit`
 - Per-env `disable_changelog: true` exits 0 with info message
@@ -820,13 +848,13 @@ defaults.
 
 **Files:** `internal/pipeline/{changelog,changelog_test}.go`,
 `internal/app/pipeline.go` (BuildChangelogPipeline),
-`cmd/heraut/changelog.go`
+`internal/cmd/changelog.go`
 
 **Scope:** M
 
 ---
 
-#### T18: `heraut check` subcommands
+#### `[ ]` T18: `heraut check` subcommands
 
 **Acceptance:**
 - `heraut check config` — offline: `config.Load()` + `config.Validate()`, prints errors
@@ -842,13 +870,13 @@ defaults.
 
 **Dependencies:** T04, T05, T08, T10
 
-**Files:** `cmd/heraut/{check,check_test}.go`
+**Files:** `internal/cmd/{check,check_test}.go`
 
 **Scope:** M
 
 ---
 
-#### T19: `heraut cliff` + per-env disable flags
+#### `[ ]` T19: `heraut cliff` + per-env disable flags
 
 **Acceptance:**
 - `heraut cliff changelog` — prints the effective merged git-cliff TOML for changelog mode
@@ -859,24 +887,24 @@ defaults.
 
 **Dependencies:** T08, T10, T12
 
-**Files:** `cmd/heraut/cliff.go`, `internal/app/pipeline.go` (per-env disable flags)
+**Files:** `internal/cmd/cliff.go`, `internal/app/pipeline.go` (per-env disable flags)
 
 **Scope:** S
 
-### ✦ CHECKPOINT F — Full pipeline surface implemented
+### ✦ `[ ]` CHECKPOINT F — Full pipeline surface implemented
 
 - [ ] `go test ./...` passes
 - [ ] `heraut release --dry-run` works for all 4 strategies
 - [ ] `heraut changelog --dry-run` works for all 4 strategies
 - [ ] `heraut version next` works for all 4 strategies
 - [ ] `heraut check config` catches all validation errors
-- [ ] No domain/factory logic in `cmd/heraut/`; all wiring in `internal/app/`
+- [ ] No domain/factory logic in `internal/cmd/`; all wiring in `internal/app/`
 
 ---
 
 ### Phase 6 — Supporting Features
 
-#### T20: `heraut init` wizard
+#### `[ ]` T20: `heraut init` wizard
 
 **Acceptance:**
 - `scaffold.RunWizard()` — interactive huh-based prompts for strategy, platforms,
@@ -895,13 +923,13 @@ defaults.
 **Dependencies:** T04, T05
 
 **Files:** `internal/scaffold/{wizard,generate,cliff,cog,generate_test,wizard_test}.go`,
-`cmd/heraut/init.go`
+`internal/cmd/init.go`
 
 **Scope:** M
 
 ---
 
-#### T21: `heraut self-update` — GitHub Releases API
+#### `[ ]` T21: `heraut self-update` — GitHub Releases API
 
 **Description:** Self-update targeting the GitHub Releases API. See
 [ADR-0014](../adr/0014-self-update-architecture.md).
@@ -922,11 +950,11 @@ defaults.
 **Dependencies:** T00 (ldflags), T03
 
 **Files:** `internal/selfupdate/{updater,manifest,github,selfupdate_test}.go`,
-`cmd/heraut/self_update.go`
+`internal/cmd/self_update.go`
 
 **Scope:** M
 
-### ✦ CHECKPOINT G — DX features complete
+### ✦ `[ ]` CHECKPOINT G — DX features complete
 
 - [ ] `heraut init --defaults` produces a valid config that passes `heraut check config`
 - [ ] `heraut self-update --check` exits without error against mock GitHub API
@@ -938,7 +966,7 @@ defaults.
 Most docs are written upfront in Phase D. This phase handles what *can't* be written until
 the implementation is complete.
 
-#### T22: Spec reconciliation
+#### `[ ]` T22: Spec reconciliation
 
 Walk the 6 `docs/specs/` files against the implementation. Any drift (flag rename, behavior
 tweak, unimplemented field) gets fixed in the spec, not just the code. The spec is the
@@ -950,7 +978,7 @@ Scope: S
 
 ---
 
-#### T23: ADR reconciliation
+#### `[ ]` T23: ADR reconciliation
 
 Re-read the 14 ADRs from `docs/adr/`; validate that 0007 (E001/E002/E003), 0008
 (`source:` field), 0009 (generic perenv), 0010 (embedded cliff), and 0014 (self-update)
@@ -963,7 +991,7 @@ Scope: S
 
 ---
 
-#### T24: `README.md`
+#### `[ ]` T24: `README.md`
 
 Public-facing, written last. Install (`go install`, GitHub binary,
 `ghcr.io/adaouat/heraut`), quickstart (`heraut init` → `heraut check config` →
@@ -975,7 +1003,7 @@ Files: `README.md`
 
 Scope: S
 
-### ✦ CHECKPOINT H — Ready for public launch
+### ✦ `[ ]` CHECKPOINT H — Ready for public launch
 
 - [ ] `go test ./...` passes
 - [ ] `goreleaser build --snapshot --clean` succeeds

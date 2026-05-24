@@ -2,9 +2,15 @@
 
 ## Branching
 
-- Every working session starts on a new branch off `main`. Never commit directly to `main`.
-- Branch name: `<type>/<short-description>` where type matches the conventional-commit type
-  (e.g. `feat/perenv-resolver`, `fix/calver-patch-reset`, `docs/spec-reconciliation`).
+**During the build phase (pre-v1.0)**: commits land directly on `main`. The roadmap is
+the protection, not branches. One developer, one trunk.
+
+**After v1.0 ships**: every working session starts on a new branch off `main`. Never
+commit directly to `main`.
+
+- Branch name (post-v1.0): `<type>/<short-description>` where type matches the
+  conventional-commit type (e.g. `feat/perenv-resolver`, `fix/calver-patch-reset`,
+  `docs/spec-reconciliation`).
 - Fetch with prune before branching:
   ```bash
   git fetch --prune --prune-tags --all --tags
@@ -38,22 +44,28 @@ All commits must follow [Conventional Commits](https://www.conventionalcommits.o
 
 Keep subject lines ≤ 72 characters. Use the body for the *why*, not the *what*.
 
-## Three-step roadmap flow
+## Two-step roadmap flow
 
-For each task in `docs/tasks/todo.md`:
+Task status is tracked inline in `docs/tasks/roadmap.md` via checkbox markers next to
+each task heading:
 
-1. **Start** — flip the checkbox from `[ ]` to `[~]` (in progress) and commit alone:
-   ```
-   chore(roadmap): start T07 — SemVer resolver
-   ```
-2. **Implement** — code, tests, docs. Commit in logical pieces using the appropriate type.
-3. **Complete** — flip `[~]` → `[x]`. Add a one-paragraph note in `docs/tasks/roadmap.md`
-   under the task describing actual decisions made, deferred items, or deviations.
-   Commit the roadmap and todo changes together with the final implementation commit, or
+| Marker | Meaning     |
+|--------|-------------|
+| `[ ]`  | Not started |
+| `[x]`  | Done        |
+
+For each task:
+
+1. **Implement** — confirm the task is `[ ]` in `docs/tasks/roadmap.md`, then do the
+   work (TDD: failing test first, then implementation). Commit in logical pieces using
+   the appropriate conventional-commit type.
+2. **Complete** — flip `[ ]` → `[x]`. Add a one-paragraph note under the task in
+   `docs/tasks/roadmap.md` describing actual decisions made, deferred items, or
+   deviations. Commit the roadmap update alongside the final implementation commit, or
    as a separate `docs(roadmap):` commit if the work is already pushed.
 
 Never silently mark a task complete without the roadmap note. The note is what makes the
-plan a living document.
+roadmap a living document.
 
 ## Git hooks (hk)
 
@@ -79,18 +91,35 @@ hk fix -S <linter> # target one linter (e.g. hk fix -S golangci-lint, hk fix -S 
 Do **not** invoke the underlying tool (`gofmt`, `yamlfmt`, etc.) directly — `hk fix`
 applies the project's configured file selection and flags from `.config/hk/config.pkl`.
 
+## Plans
+
+Plans live in `.claude/plans/` (see `.claude/settings.json` → `plansDirectory`). Each
+plan captures one discrete unit of work — a phase, a milestone, a non-trivial task, or a
+research / design spike.
+
+**File naming:** descriptive, lowercase kebab-case, with a phase or task prefix where
+applicable. Examples:
+
+- `phase-d-docs-foundation.md` — phase-scoped plan
+- `t07-semver-resolver.md` — single-task plan
+- `perenv-design-spike.md` — research / design exploration
+
+Do **not** keep the auto-generated random name (e.g. `playful-dancing-wozniak.md`).
+Rename the file to its real subject before the first commit that references it.
+
 ## Pull requests
 
-PRs target `main`. Each PR should correspond to one task (T-id) or one tight cluster of
-related changes. A PR title is the conventional-commit subject of its primary change. The
-description lists the touched packages and points to the roadmap task, e.g.:
+Once branches are in use (post-v1.0): each PR corresponds to one task (T-id) or one
+tight cluster of related changes. A PR title is the conventional-commit subject of its
+primary change. The description lists the touched packages and points to the roadmap
+task, e.g.:
 
 ```
 ## Summary
 - Implements T07: SemVer resolver with DetermineBump + BumpVersion
-- Ports all edge-case tests verbatim from source (v1.9.0 → v1.10.0, prefix handling, …)
+- Edge cases covered: prefix handling, v1.9.0 → v1.10.0, manual mode error path
 
-Roadmap: docs/tasks/todo.md → T07
+Roadmap: docs/tasks/roadmap.md → T07
 ```
 
 ## Releases

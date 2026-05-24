@@ -14,7 +14,7 @@
 - Never implement anything not on the current roadmap without asking first.
 - If a task feels too large to implement safely in one step, break it down and propose
   the breakdown before starting.
-- Always follow the three-step roadmap flow (see `workflow.md`). No shortcuts.
+- Always follow the two-step roadmap flow (see `workflow.md`). No shortcuts.
 
 ## TDD discipline
 
@@ -33,12 +33,10 @@
 
 ## Roadmap discipline
 
-- Before starting a task: read `docs/tasks/todo.md`, confirm the task is `[ ]`, flip to
-  `[~]`, commit.
-- After completing a task: flip `[~]` → `[x]`, add a note in `docs/tasks/roadmap.md` under
-  the task (actual decisions, deferred items, deviations), commit alongside the
-  implementation.
-- If a new task surfaces mid-implementation, add it to `docs/tasks/todo.md` — do not
+- Before starting a task: read `docs/tasks/roadmap.md`, confirm the task is `[ ]`.
+- After completing a task: flip `[ ]` → `[x]`, add a one-paragraph note under the task
+  (actual decisions, deferred items, deviations), commit alongside the implementation.
+- If a new task surfaces mid-implementation, add it to `docs/tasks/roadmap.md` — do not
   silently implement it.
 
 ## Source-of-truth hierarchy

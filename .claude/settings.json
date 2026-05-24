@@ -1,0 +1,7 @@
+{
+  "plansDirectory": ".claude/plans",
+  "enabledPlugins": {
+    "cc-skills-golang@samber": true,
+    "agent-skills@addy-agent-skills": true
+  }
+}
