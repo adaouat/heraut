@@ -34,7 +34,7 @@ func (r *Resolver) BumpAuto(tags []string, commits []string) (string, error) {
 	}
 	currentVersion := tags[0]
 	if len(commits) == 0 {
-		return "", fmt.Errorf("no commits since %s", currentVersion)
+		return "", fmt.Errorf("no commits since %s — create at least one commit before running heraut release", currentVersion)
 	}
 	bump := DetermineBump(commits)
 	return BumpVersion(currentVersion, bump)
@@ -100,7 +100,7 @@ func (r *Resolver) resolveAuto() (versioning.Result, error) {
 
 	commits := parseCommits(stdout)
 	if len(commits) == 0 {
-		return versioning.Result{}, fmt.Errorf("no commits since %s", currentTag)
+		return versioning.Result{}, fmt.Errorf("no commits since %s — create at least one commit before running heraut release", currentTag)
 	}
 
 	bump := DetermineBump(commits)
