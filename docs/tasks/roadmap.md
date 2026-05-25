@@ -1304,7 +1304,7 @@ preferred alternative (`internal/ui` status-line helpers) is tracked in T32.
 
 ---
 
-#### `[ ]` T32: `internal/ui` status-line helpers
+#### `[x]` T32: `internal/ui` status-line helpers
 
 **Description:** Grow `internal/ui` with typed status-line helper functions —
 `Success(msg)`, `Warn(msg)`, `Err(msg)`, `Info(msg)` — backed by lipgloss v2 styling
@@ -1325,6 +1325,18 @@ introducing a logging framework.
 `internal/cmd/check.go` (callers)
 
 **Scope:** S
+
+**Done:** Added `Success`, `Err`, `Warn`, `Info` helpers to `internal/ui/status.go`.
+Each takes `(w io.Writer, msg string) string` — TTY/color detection is delegated to
+`colorprofile.Detect(w, os.Environ())` which handles NO_COLOR, TERM=dumb, and
+non-terminal writers (pipes, buffers) in one call. Helpers return "✓/✗/!/  " prefixed
+plain text in non-color contexts; in color-capable contexts the symbol gets a
+lipgloss bold+color treatment while the message stays unstyled (preserves
+copy-paste-friendliness). `internal/cmd/check.go` updated: all four raw `fmt.Fprintf`
+status-line patterns replaced with the helpers (`printRuntimeItems`, `printConfigErrors`,
+`checkCliffDriver`, config-ok lines). Seven new tests cover the non-TTY format, message
+preservation, and NO_COLOR compliance. `charm.land/lipgloss/v2` and
+`colorprofile` were already indirect deps via fang/huh — no new modules added.
 
 ---
 

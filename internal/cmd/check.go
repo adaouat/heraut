@@ -10,6 +10,7 @@ import (
 	"github.com/adaouat/heraut/internal/config"
 	"github.com/adaouat/heraut/internal/exitcode"
 	"github.com/adaouat/heraut/internal/port"
+	"github.com/adaouat/heraut/internal/ui"
 	"github.com/spf13/cobra"
 )
 
@@ -39,7 +40,7 @@ func NewCheckCmd() *cobra.Command {
 				failed = true
 				configFailed = true
 			} else {
-				_, _ = fmt.Fprintln(out, "config: ok")
+				_, _ = fmt.Fprintln(out, ui.Success(out, "config: ok"))
 			}
 
 			// runtime check
@@ -91,7 +92,7 @@ func newCheckConfigCmd() *cobra.Command {
 				printConfigErrors(errs, out)
 				return exitcode.Wrap(exitcode.Config, fmt.Errorf("%d error(s) in config", len(errs)))
 			}
-			_, _ = fmt.Fprintln(out, "config: ok")
+			_, _ = fmt.Fprintln(out, ui.Success(out, "config: ok"))
 			return nil
 		},
 	}
@@ -218,27 +219,27 @@ func runCliffChecks(runner port.Runner, cfg *config.Config, out io.Writer) bool 
 // generator) or if git-cliff accepts the config.
 func checkCliffDriver(runner port.Runner, driver *config.ContentDriver, mode string, out io.Writer) error {
 	if driver == nil {
-		_, _ = fmt.Fprintf(out, "cliff %s: skip (not configured)\n", mode)
+		_, _ = fmt.Fprintln(out, ui.Warn(out, fmt.Sprintf("cliff %s: skip (not configured)", mode)))
 		return nil
 	}
 	if !strings.EqualFold(driver.Generator, "git-cliff") {
-		_, _ = fmt.Fprintf(out, "cliff %s: skip (generator is %s, not git-cliff)\n", mode, driver.Generator)
+		_, _ = fmt.Fprintln(out, ui.Warn(out, fmt.Sprintf("cliff %s: skip (generator is %s, not git-cliff)", mode, driver.Generator)))
 		return nil
 	}
 	if err := app.CheckCliff(runner, driver, mode); err != nil {
-		_, _ = fmt.Fprintf(out, "cliff %s: ✗ %s\n", mode, err)
+		_, _ = fmt.Fprintln(out, ui.Err(out, fmt.Sprintf("cliff %s: %s", mode, err)))
 		return err
 	}
-	_, _ = fmt.Fprintf(out, "cliff %s: ok\n", mode)
+	_, _ = fmt.Fprintln(out, ui.Success(out, fmt.Sprintf("cliff %s: ok", mode)))
 	return nil
 }
 
 // printConfigErrors writes validation errors to out.
 func printConfigErrors(errs config.ValidationErrors, out io.Writer) {
 	for _, e := range errs {
-		_, _ = fmt.Fprintf(out, "✗ %s: %s\n", e.Path, e.Message)
+		_, _ = fmt.Fprintln(out, ui.Err(out, fmt.Sprintf("%s: %s", e.Path, e.Message)))
 		if e.Hint != "" {
-			_, _ = fmt.Fprintf(out, "  hint: %s\n", e.Hint)
+			_, _ = fmt.Fprintln(out, ui.Info(out, "hint: "+e.Hint))
 		}
 	}
 	_, _ = fmt.Fprintf(out, "%d error(s)\n", len(errs))
@@ -250,10 +251,10 @@ func printRuntimeItems(items []app.RuntimeCheckItem, out io.Writer) bool {
 	var failed bool
 	for _, item := range items {
 		if item.Err != nil {
-			_, _ = fmt.Fprintf(out, "✗ %s: %s\n", item.Name, item.Err)
+			_, _ = fmt.Fprintln(out, ui.Err(out, fmt.Sprintf("%s: %s", item.Name, item.Err)))
 			failed = true
 		} else {
-			_, _ = fmt.Fprintf(out, "✓ %s\n", item.Name)
+			_, _ = fmt.Fprintln(out, ui.Success(out, item.Name))
 		}
 	}
 	return failed
