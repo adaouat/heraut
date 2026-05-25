@@ -1183,7 +1183,7 @@ prebuilt-binary curl uses a `<version>` placeholder rather than a fabricated
 
 ---
 
-#### `[ ]` T27: Structured exit codes
+#### `[x]` T27: Structured exit codes
 
 **Description:** Implement the exit-code contract documented in
 [Spec 01 § Exit codes](../specs/01-overview.md#exit-codes). Today every error path exits
@@ -1203,6 +1203,23 @@ exist — `errors.Is` them to code `4`. Surfaced by T22 spec reconciliation.
 `internal/versioning/perenv/`, `internal/adapter/exec/`
 
 **Scope:** M
+
+**Done:** Added a leaf `internal/exitcode` package (codes `OK/Usage/Config/Runtime/
+Promotion/Internal` = `0/1/2/3/4/70`) with an `Error` wrapper, `Wrap(code, err)`
+(nil-safe; first/innermost classification wins), and `Resolve(err) int`. Classification
+happens at the cmd boundary rather than deep in the stack (honours "cmd decides the exit
+code"): each RunE wraps config load/validate/`NewResolver`/`BuildPipeline` failures as
+`Config` (2), preflight/runtime/cliff failures as `Runtime` (3), and pipeline/resolve
+failures through `wrapRunErr`, which routes promotion guards to `Promotion` (4) via the
+new `app.IsPromotionGuard` (app already imports perenv; keeps cmd off perenv) and
+everything else to `Runtime` (3). `cmd/heraut/main.go` now exits `cmd.ExitCode(err)`
+instead of a blanket `os.Exit(1)`. Unclassified errors (including cobra usage/flag errors)
+default to `1`, preserving historic behaviour; `70` is defined for unexpected/internal
+conditions but currently unused (no cmd path produces it — panics are fang's domain).
+Verified end-to-end on the built binary: `--version`→0, bad flag→1, missing-version /
+invalid-strategy / missing-file config→2; cmd tests cover promotion-guard E003→4 and
+`version current` no-tags→3. Also un-stale'd ADR-0007 (the exit-code-4 mapping is now
+implemented).
 
 ---
 

@@ -21,10 +21,11 @@ how to fix it). Offer a `--force` flag as an explicit escape hatch that must be 
 consciously.
 
 The three errors are wired as sentinel error values (`ErrTargetExists`,
-`ErrDestinationAhead`, `ErrNoSourceTags`) in `internal/versioning/perenv/` so the
-pipeline can detect them via `errors.Is`. They are intended to map to exit code 4 (see
-[Spec 01 — Exit codes](../specs/01-overview.md#exit-codes)); that exit-code mapping is
-not yet implemented (every error currently exits 1) and is tracked by roadmap **T27**.
+`ErrDestinationAhead`, `ErrNoSourceTags`) in `internal/versioning/perenv/` so callers can
+detect them via `errors.Is`. They map to exit code 4 (see
+[Spec 01 — Exit codes](../specs/01-overview.md#exit-codes)): the cmd layer recognises them
+through `app.IsPromotionGuard` and wraps them with `exitcode.Promotion`, which
+`cmd/heraut` resolves to `4` (T27).
 
 ### Edge case A — target tag already exists (E001)
 

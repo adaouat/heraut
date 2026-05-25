@@ -4,6 +4,7 @@ import (
 	"fmt"
 
 	"github.com/adaouat/heraut/internal/config"
+	"github.com/adaouat/heraut/internal/exitcode"
 	"github.com/spf13/cobra"
 )
 
@@ -26,7 +27,7 @@ func newVersionSprintBumpCmd() *cobra.Command {
 
 			newSprint, err := config.IncrementSprint(path)
 			if err != nil {
-				return err
+				return exitcode.Wrap(exitcode.Config, err)
 			}
 
 			_, _ = fmt.Fprintf(cmd.OutOrStdout(), "sprint bumped to %d\n", newSprint)

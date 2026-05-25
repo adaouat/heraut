@@ -6,6 +6,7 @@ import (
 	execadapter "github.com/adaouat/heraut/internal/adapter/exec"
 	"github.com/adaouat/heraut/internal/app"
 	"github.com/adaouat/heraut/internal/config"
+	"github.com/adaouat/heraut/internal/exitcode"
 	"github.com/spf13/cobra"
 )
 
@@ -36,17 +37,17 @@ func newVersionNextCmd() *cobra.Command {
 
 			cfg, err := config.Load(path)
 			if err != nil {
-				return fmt.Errorf("loading config: %w", err)
+				return exitcode.Wrap(exitcode.Config, fmt.Errorf("loading config: %w", err))
 			}
 
 			resolver, err := app.NewResolver(cfg, env, force, "", runner)
 			if err != nil {
-				return err
+				return exitcode.Wrap(exitcode.Config, err)
 			}
 
 			result, err := resolver.Resolve()
 			if err != nil {
-				return err
+				return wrapRunErr(err)
 			}
 
 			_, _ = fmt.Fprintln(cmd.OutOrStdout(), result.Tag)
@@ -69,12 +70,12 @@ func newVersionCurrentCmd() *cobra.Command {
 
 			cfg, err := config.Load(path)
 			if err != nil {
-				return fmt.Errorf("loading config: %w", err)
+				return exitcode.Wrap(exitcode.Config, fmt.Errorf("loading config: %w", err))
 			}
 
 			tag, err := app.CurrentTag(runner, cfg, env)
 			if err != nil {
-				return err
+				return exitcode.Wrap(exitcode.Runtime, err)
 			}
 
 			_, _ = fmt.Fprintln(cmd.OutOrStdout(), tag)

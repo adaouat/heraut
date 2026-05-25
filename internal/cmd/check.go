@@ -8,6 +8,7 @@ import (
 	execadapter "github.com/adaouat/heraut/internal/adapter/exec"
 	"github.com/adaouat/heraut/internal/app"
 	"github.com/adaouat/heraut/internal/config"
+	"github.com/adaouat/heraut/internal/exitcode"
 	"github.com/adaouat/heraut/internal/port"
 	"github.com/spf13/cobra"
 )
@@ -27,15 +28,16 @@ func NewCheckCmd() *cobra.Command {
 			path := config.ResolvePath(cfgPath)
 			cfg, err := config.Load(path)
 			if err != nil {
-				return fmt.Errorf("loading config: %w", err)
+				return exitcode.Wrap(exitcode.Config, fmt.Errorf("loading config: %w", err))
 			}
 
-			var failed bool
+			var failed, configFailed bool
 
 			// config check
 			if errs := config.Validate(cfg); len(errs) > 0 {
 				printConfigErrors(errs, out)
 				failed = true
+				configFailed = true
 			} else {
 				_, _ = fmt.Fprintln(out, "config: ok")
 			}
@@ -53,7 +55,11 @@ func NewCheckCmd() *cobra.Command {
 			}
 
 			if failed {
-				return fmt.Errorf("one or more checks failed")
+				code := exitcode.Runtime
+				if configFailed {
+					code = exitcode.Config
+				}
+				return exitcode.Wrap(code, fmt.Errorf("one or more checks failed"))
 			}
 			return nil
 		},
@@ -77,13 +83,13 @@ func newCheckConfigCmd() *cobra.Command {
 			path := config.ResolvePath(cfgPath)
 			cfg, err := config.Load(path)
 			if err != nil {
-				return fmt.Errorf("loading config: %w", err)
+				return exitcode.Wrap(exitcode.Config, fmt.Errorf("loading config: %w", err))
 			}
 
 			errs := config.Validate(cfg)
 			if len(errs) > 0 {
 				printConfigErrors(errs, out)
-				return fmt.Errorf("%d error(s) in config", len(errs))
+				return exitcode.Wrap(exitcode.Config, fmt.Errorf("%d error(s) in config", len(errs)))
 			}
 			_, _ = fmt.Fprintln(out, "config: ok")
 			return nil
@@ -104,12 +110,12 @@ func newCheckRuntimeCmd() *cobra.Command {
 			path := config.ResolvePath(cfgPath)
 			cfg, err := config.Load(path)
 			if err != nil {
-				return fmt.Errorf("loading config: %w", err)
+				return exitcode.Wrap(exitcode.Config, fmt.Errorf("loading config: %w", err))
 			}
 
 			items := app.RuntimeCheck(runner, cfg)
 			if failed := printRuntimeItems(items, out); failed {
-				return fmt.Errorf("one or more runtime checks failed")
+				return exitcode.Wrap(exitcode.Runtime, fmt.Errorf("one or more runtime checks failed"))
 			}
 			return nil
 		},
@@ -129,11 +135,11 @@ func newCheckCliffCmd() *cobra.Command {
 			path := config.ResolvePath(cfgPath)
 			cfg, err := config.Load(path)
 			if err != nil {
-				return fmt.Errorf("loading config: %w", err)
+				return exitcode.Wrap(exitcode.Config, fmt.Errorf("loading config: %w", err))
 			}
 
 			if failed := runCliffChecks(runner, cfg, out); failed {
-				return fmt.Errorf("git-cliff config validation failed")
+				return exitcode.Wrap(exitcode.Runtime, fmt.Errorf("git-cliff config validation failed"))
 			}
 			return nil
 		},
@@ -158,10 +164,10 @@ func newCheckCliffChangelogCmd() *cobra.Command {
 			path := config.ResolvePath(cfgPath)
 			cfg, err := config.Load(path)
 			if err != nil {
-				return fmt.Errorf("loading config: %w", err)
+				return exitcode.Wrap(exitcode.Config, fmt.Errorf("loading config: %w", err))
 			}
 
-			return checkCliffDriver(runner, cfg.Changelog, "changelog", out)
+			return exitcode.Wrap(exitcode.Runtime, checkCliffDriver(runner, cfg.Changelog, "changelog", out))
 		},
 	}
 }
@@ -179,14 +185,14 @@ func newCheckCliffReleaseNotesCmd() *cobra.Command {
 			path := config.ResolvePath(cfgPath)
 			cfg, err := config.Load(path)
 			if err != nil {
-				return fmt.Errorf("loading config: %w", err)
+				return exitcode.Wrap(exitcode.Config, fmt.Errorf("loading config: %w", err))
 			}
 
 			var notesDriver *config.ContentDriver
 			if cfg.Release != nil {
 				notesDriver = cfg.Release.Notes
 			}
-			return checkCliffDriver(runner, notesDriver, "release-notes", out)
+			return exitcode.Wrap(exitcode.Runtime, checkCliffDriver(runner, notesDriver, "release-notes", out))
 		},
 	}
 }

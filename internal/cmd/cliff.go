@@ -5,6 +5,7 @@ import (
 
 	"github.com/adaouat/heraut/internal/app"
 	"github.com/adaouat/heraut/internal/config"
+	"github.com/adaouat/heraut/internal/exitcode"
 	"github.com/spf13/cobra"
 )
 
@@ -29,12 +30,12 @@ func newCliffChangelogCmd() *cobra.Command {
 
 			cfg, err := config.Load(path)
 			if err != nil {
-				return fmt.Errorf("loading config: %w", err)
+				return exitcode.Wrap(exitcode.Config, fmt.Errorf("loading config: %w", err))
 			}
 
 			toml, err := app.EffectiveCliffConfig(cfg.Changelog, "changelog")
 			if err != nil {
-				return err
+				return exitcode.Wrap(exitcode.Runtime, err)
 			}
 			_, _ = fmt.Fprint(cmd.OutOrStdout(), toml)
 			return nil
@@ -52,7 +53,7 @@ func newCliffReleaseNotesCmd() *cobra.Command {
 
 			cfg, err := config.Load(path)
 			if err != nil {
-				return fmt.Errorf("loading config: %w", err)
+				return exitcode.Wrap(exitcode.Config, fmt.Errorf("loading config: %w", err))
 			}
 
 			var notesDriver *config.ContentDriver
@@ -62,7 +63,7 @@ func newCliffReleaseNotesCmd() *cobra.Command {
 
 			toml, err := app.EffectiveCliffConfig(notesDriver, "release-notes")
 			if err != nil {
-				return err
+				return exitcode.Wrap(exitcode.Runtime, err)
 			}
 			_, _ = fmt.Fprint(cmd.OutOrStdout(), toml)
 			return nil

@@ -8,6 +8,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/adaouat/heraut/internal/config"
+	"github.com/adaouat/heraut/internal/exitcode"
 	"github.com/adaouat/heraut/internal/scaffold"
 )
 
@@ -77,7 +78,7 @@ func NewInitCmd(version string) *cobra.Command {
 			}
 
 			if err := os.WriteFile(path, []byte(content), 0o644); err != nil {
-				return fmt.Errorf("writing config: %w", err)
+				return exitcode.Wrap(exitcode.Runtime, fmt.Errorf("writing config: %w", err))
 			}
 
 			_, _ = fmt.Fprintln(out, "config written to", path)

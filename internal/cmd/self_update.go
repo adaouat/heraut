@@ -7,6 +7,7 @@ import (
 
 	"github.com/spf13/cobra"
 
+	"github.com/adaouat/heraut/internal/exitcode"
 	"github.com/adaouat/heraut/internal/selfupdate"
 )
 
@@ -23,7 +24,7 @@ func NewSelfUpdateCmd(version string, opts ...selfupdate.Option) *cobra.Command 
 			if checkOnly {
 				latest, available, err := u.Check(context.Background())
 				if err != nil {
-					return fmt.Errorf("checking for updates: %w", err)
+					return exitcode.Wrap(exitcode.Runtime, fmt.Errorf("checking for updates: %w", err))
 				}
 				_, _ = fmt.Fprintf(cmd.OutOrStdout(), "current: %s\nlatest:  %s\n", version, latest)
 				if available {
@@ -33,7 +34,7 @@ func NewSelfUpdateCmd(version string, opts ...selfupdate.Option) *cobra.Command 
 				return nil
 			}
 
-			return u.Do(context.Background(), cmd.OutOrStdout())
+			return exitcode.Wrap(exitcode.Runtime, u.Do(context.Background(), cmd.OutOrStdout()))
 		},
 	}
 
