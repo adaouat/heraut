@@ -83,14 +83,27 @@ func TestUpdater_Check_UpdateAvailable(t *testing.T) {
 }
 
 func TestUpdater_Check_ServerError(t *testing.T) {
-	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		http.Error(w, "rate limited", http.StatusTooManyRequests)
-	}))
-	t.Cleanup(srv.Close)
+	tests := []struct {
+		name       string
+		statusCode int
+		wantMsg    string
+	}{
+		{"rate limited", http.StatusTooManyRequests, "429"},
+		{"no releases yet", http.StatusNotFound, "no published releases found"},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				http.Error(w, "error", tc.statusCode)
+			}))
+			t.Cleanup(srv.Close)
 
-	u := New("v1.2.3", WithLatestURL(srv.URL+"/releases/latest"))
-	_, _, err := u.Check(context.Background())
-	assert.Error(t, err)
+			u := New("v1.2.3", WithLatestURL(srv.URL+"/releases/latest"))
+			_, _, err := u.Check(context.Background())
+			require.Error(t, err)
+			assert.Contains(t, err.Error(), tc.wantMsg)
+		})
+	}
 }
 
 // ---- Hint -----------------------------------------------------------------

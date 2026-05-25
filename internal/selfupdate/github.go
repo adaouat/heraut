@@ -22,6 +22,9 @@ func fetchRelease(ctx context.Context, client *http.Client, latestURL string) (*
 	}
 	defer func() { _ = resp.Body.Close() }()
 
+	if resp.StatusCode == http.StatusNotFound {
+		return nil, fmt.Errorf("no published releases found")
+	}
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
 		return nil, fmt.Errorf("GitHub API returned %d", resp.StatusCode)
 	}
