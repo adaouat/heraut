@@ -1039,7 +1039,7 @@ defaults.
 Most docs are written upfront in Phase D. This phase handles what *can't* be written until
 the implementation is complete.
 
-#### `[ ]` T22: Spec reconciliation
+#### `[x]` T22: Spec reconciliation
 
 Walk the 6 `docs/specs/` files against the implementation. Any drift (flag rename, behavior
 tweak, unimplemented field) gets fixed in the spec, not just the code. The spec is the
@@ -1048,6 +1048,22 @@ source of truth for users.
 Files: `docs/specs/*.md`
 
 Scope: S
+
+**Done:** Walked all 6 specs against the code. Fixed five doc-only drifts where the spec
+was wrong and the code was right: (1) Spec 03 root-flag location `cmd/heraut/root.go` →
+`internal/cmd/root.go`; (2) Spec 06 GitHub contract-test example arg order (`--notes`
+precedes `--repo`); (3) Spec 03 `heraut release` action sequence — release notes are
+generated *before* platform creation and passed via `--notes`, not generated/attached
+afterwards; (4) Spec 05 GitHub invocation order (`--repo` before `[--draft] [--prerelease]`);
+(5) Spec 05 git-cliff invocation — `--tag` and `--unreleased` are always passed, corrected
+order. Reconciled five spec-vs-code feature gaps with the user: kept `heraut --version` as
+heraut-version-only and pointed to `heraut check runtime` for tool checks (Spec 03);
+corrected the global-flag table so `-v` is the `--version` shorthand and `--verbose` has
+none (matches fang/cobra reality); removed the inaccurate "(and its output afterward)"
+claim from `--verbose`; documented lightweight tags instead of "annotated" in Spec 03.
+Two gaps the user wants to keep as targets were left in the specs and tracked as new
+tasks: structured exit codes (Spec 01 table — T27) and annotated tags (T28). No code was
+changed in this task.
 
 ---
 
@@ -1136,6 +1152,67 @@ Public-facing, written last. Install (`go install`, GitHub binary,
 Files: `README.md`
 
 Scope: S
+
+---
+
+#### `[ ]` T27: Structured exit codes
+
+**Description:** Implement the exit-code contract documented in
+[Spec 01 § Exit codes](../specs/01-overview.md#exit-codes). Today every error path exits
+`1` (`cmd/heraut/main.go` does a blanket `os.Exit(1)`). Map error categories to the
+documented codes: `0` success, `1` usage error, `2` config error (invalid YAML / semantic
+validation), `3` runtime error (binary missing, token unset, network, git failure), `4`
+promotion guard tripped (E001/E002/E003 — reuse the existing sentinels from ADR-0007),
+`70` internal software error.
+
+**Approach:** Define typed/sentinel errors (or a small `ExitError` wrapper carrying a
+code) at the package boundaries that already produce these failures, and translate them
+to exit codes in `cmd/heraut/main.go` instead of the unconditional `os.Exit(1)`. The
+per-env sentinels (`ErrTargetExists`, `ErrDestinationAhead`, `ErrNoSourceTags`) already
+exist — `errors.Is` them to code `4`. Surfaced by T22 spec reconciliation.
+
+**Files:** `cmd/heraut/main.go`, error definitions across `internal/config/`,
+`internal/versioning/perenv/`, `internal/adapter/exec/`
+
+**Scope:** M
+
+---
+
+#### `[ ]` T28: Annotated git tags (revisit)
+
+**Description:** Both pipelines currently create lightweight tags (`git tag <tag>` in
+`internal/pipeline/release.go` and `changelog.go`). Annotated tags (`git tag -a -m …`)
+carry a tagger, date, and message and are what most release tooling expects. Decide
+whether to switch, and if so what the annotation message should be (likely the resolved
+version or the release notes). Discuss implementation before starting. Surfaced by T22
+spec reconciliation; Spec 03 currently documents lightweight tags to match the code.
+
+**Files:** `internal/pipeline/release.go`, `internal/pipeline/changelog.go`,
+`docs/specs/03-commands.md`
+
+**Scope:** S
+
+---
+
+#### `[ ]` T29: Verbose output echo + stderr on failure
+
+**Description:** Two related transparency gaps in the exec runner, surfaced by T22.
+(1) `--verbose` only logs `[exec] <cmd> <args>` before running — it does not echo the
+command's output afterward. (2) On failure the runner wraps the error as `"%s: %w"` and
+most callers discard the returned stderr, so a failed `gh release create` surfaces only
+`gh: exit status 1` with none of the underlying tool's error message.
+
+**Approach:** In `internal/adapter/exec/runner.go`, after a command returns: when
+`Verbose`, print the captured stdout/stderr (indented) to the log writer (buffered, not
+streamed — heraut needs stdout as a return value, e.g. git-cliff's changelog). On
+non-nil error, include the captured stderr in the wrapped error regardless of verbose so
+failures are diagnosable. Update Spec 03's `--verbose` description to document the echo.
+
+**Files:** `internal/adapter/exec/runner.go`, `docs/specs/03-commands.md`
+
+**Scope:** S
+
+---
 
 ### ✦ `[ ]` CHECKPOINT H — Ready for public launch
 

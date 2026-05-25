@@ -97,8 +97,8 @@ require.Len(t, mr.Calls, 1)
 assert.Equal(t, "gh", mr.Calls[0].Name)
 assert.Equal(t, []string{
     "release", "create", "v1.2.3",
-    "--repo", "acme/widget",
     "--notes", "release notes body",
+    "--repo", "acme/widget",
 }, mr.Calls[0].Args)
 ```
 

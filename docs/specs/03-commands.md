@@ -5,23 +5,24 @@ fields referenced here are defined in [Spec 02 — Configuration](02-configurati
 
 ## Global flags
 
-Present on every subcommand. Defined on the root command in `cmd/heraut/root.go`.
+Present on every subcommand. Defined on the root command in `internal/cmd/root.go`.
 
 | Flag                 | Default     | Description                                                                                                                |
 |----------------------|-------------|----------------------------------------------------------------------------------------------------------------------------|
 | `--config <path>`    | _(auto)_    | Path to `.heraut.yml`. Defaults to `.config/heraut.yml` if present, else `.heraut.yml`. See [ADR-0005](../adr/0005-config-file-discovery.md). |
 | `--dry-run`          | `false`     | Print actions without executing them. No git operations, no network calls, no file writes outside `/tmp`.                  |
-| `--verbose` / `-v`   | `false`     | Print each external command before executing it (and its output afterward).                                                |
+| `--verbose`          | `false`     | Log each external command (`[exec] <cmd> <args>`) before executing it.                                                      |
 | `--env <name>`       | `""`        | Active environment override. Required for per-env strategies; ignored by single-env strategies.                            |
 | `--force`            | `false`     | Bypass promotion guards E001 and E002 (per [ADR-0007](../adr/0007-version-promotion-error-handling.md)). E003 is not bypassed. |
-| `--version` / `-V`   | —           | Print heraut version and bundled tool versions (see § `heraut --version` below).                                           |
+| `--version` / `-v`   | —           | Print the heraut version (see § `heraut --version` below).                                                                 |
 | `--help` / `-h`      | —           | Print usage and exit.                                                                                                      |
 
 ## `heraut --version`
 
-Prints the heraut version (from ldflags) followed by the version of each external CLI
-heraut orchestrates (`git`, `git-cliff`, `glab`, `gh`, `cog`, `communique`). Missing
-binaries are listed as `not found`. Useful for bug reports.
+Prints the heraut version banner (logo + tagline + `heraut <version>`), with the version
+string injected from ldflags. To check the external CLIs heraut orchestrates (`git`,
+`git-cliff`, `glab`, `gh`, `cog`, `communique`) — whether they are on `PATH` and which
+token env vars are set — use `heraut check runtime` instead.
 
 ## `heraut init`
 
@@ -73,12 +74,14 @@ heraut release [--version X.Y.Z] [--dry-run] [--env <name>] [--force]
 3. **Generate changelog** (if `changelog` is configured and not disabled for the env)
    — writes to `changelog.output` (default `CHANGELOG.md`)
 4. **Commit changelog + push** — `chore(release): <version>`, then `git push`
-5. **Create git tag** on the changelog commit, then `git push --tags`
-6. **For each platform** in `release.platforms` (in declared order):
-   1. Create the release via `gh release create` / `glab release create`
+5. **Create git tag** (lightweight) on the changelog commit, then `git push --tags`
+6. **Generate release notes** (if `release.notes` is configured and not disabled for
+   the env) — the notes are needed at release-creation time, so they are produced before
+   any platform call
+7. **For each platform** in `release.platforms` (in declared order):
+   1. Create the release via `gh release create` / `glab release create`, passing the
+      notes from step 6 (`--notes`)
    2. Upload assets matching glob patterns
-7. **Generate release notes** (if `release.notes` is configured and not disabled for
-   the env) and attach to each platform release
 
 The version is pre-computed in step 2 and re-used in every subsequent step
 ([ADR-0011](../adr/0011-single-pipeline-release-via-pre-computation.md)) — no driver
@@ -95,7 +98,7 @@ heraut changelog [--commit] [--tag] [--version X.Y.Z] [--dry-run] [--env <name>]
 | Flag         | Description                                                                                              |
 |--------------|----------------------------------------------------------------------------------------------------------|
 | `--commit`   | After generating, commit `CHANGELOG.md` and push.                                                        |
-| `--tag`      | After committing, create and push an annotated git tag on that commit. Implies `--commit`.               |
+| `--tag`      | After committing, create and push a git tag on that commit. Implies `--commit`.                          |
 | `--version`  | Override the auto-computed version.                                                                      |
 | `--dry-run`  | Print the action plan; execute nothing.                                                                  |
 | `--env`      | Active environment.                                                                                      |
@@ -105,8 +108,8 @@ heraut changelog [--commit] [--tag] [--version X.Y.Z] [--dry-run] [--env <name>]
 1. Resolve next version (or use `--version`)
 2. Generate and update `CHANGELOG.md`
 3. Commit and push — `chore(release): <version>`
-4. Create annotated git tag
-5. Push tag
+4. Create a git tag (lightweight) on that commit
+5. Push tag (`git push --tags`)
 
 To then publish the platform release without re-generating the changelog, run
 `heraut release --version <tag>`.

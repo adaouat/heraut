@@ -44,13 +44,14 @@ heraut cliff release-notes
 **Invocation**:
 
 ```
-git-cliff --config <merged-tmp.toml> [--tag-pattern <pattern>] [--tag <version>] [--output <file>] [--unreleased]
+git-cliff --config <merged-tmp.toml> --tag <version> --unreleased [--tag-pattern <pattern>] [--output <file>]
 ```
 
 - `--config` points at a temp file containing the merged TOML (cleaned up after run)
+- `--tag` is always set to the resolved version, so unreleased commits get the new
+  version's heading in `CHANGELOG.md`
+- `--unreleased` is always passed, scoping output to commits since the last tag
 - `--tag-pattern` is set from `tag_pattern:` when configured
-- `--tag` is set to the resolved version, so unreleased commits get the new version's
-  heading in `CHANGELOG.md`
 - `--output` is set for changelog mode (writes to `output:`); omitted for release-notes
   mode (stdout is captured)
 
@@ -174,7 +175,7 @@ release:
 **Invocation**:
 
 ```
-gh release create <tag> --notes <notes> [--draft] [--prerelease] --repo <repository>
+gh release create <tag> --notes <notes> --repo <repository> [--draft] [--prerelease]
 gh release upload <tag> <file> --repo <repository>     # per asset, after release is created
 ```
 
