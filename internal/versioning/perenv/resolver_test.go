@@ -447,6 +447,103 @@ func TestResolve_Promote_E003_NoSourceTags(t *testing.T) {
 	}
 }
 
+// ---- Rich promotion error messages (T30 / ADR-0007) ----
+
+func TestPromotionError_E001_RichMessage(t *testing.T) {
+	mr := testutil.NewMockRunner()
+	mr.QueueResponse("dev/1.0.2\n", "", nil) // git tag -l dev/*
+	mr.QueueResponse("prod/1.0.2\n", "", nil) // git tag -l prod/1.0.2 → already exists
+
+	cfg := &config.Config{
+		Versioning: config.Versioning{
+			Strategy: "semver-per-env",
+			Environments: map[string]config.EnvVersioning{
+				"dev":  {Bump: "auto", TagFormat: "dev/{version}"},
+				"prod": {Bump: "promote", TagFormat: "prod/{version}"},
+			},
+		},
+	}
+
+	r := perenv.New(mr, cfg, "prod", false, semverCalc("0.1.0"))
+	_, err := r.Resolve()
+	require.Error(t, err)
+	assert.True(t, errors.Is(err, perenv.ErrTargetExists), "sentinel preserved: %v", err)
+
+	var pe *perenv.PromotionError
+	require.True(t, errors.As(err, &pe), "expected *PromotionError, got: %T", err)
+
+	msg := err.Error()
+	assert.Contains(t, msg, "error[E001]")
+	assert.Contains(t, msg, "dev/1.0.2")
+	assert.Contains(t, msg, "prod/1.0.2")
+	assert.Contains(t, msg, "already exists")
+	assert.Contains(t, msg, "git tag -d prod/1.0.2")
+	assert.Contains(t, msg, "heraut release --env prod --force")
+}
+
+func TestPromotionError_E002_RichMessage(t *testing.T) {
+	mr := testutil.NewMockRunner()
+	mr.QueueResponse("dev/1.0.2\n", "", nil)  // git tag -l dev/*
+	mr.QueueResponse("", "", nil)              // git tag -l prod/1.0.2 → not exist
+	mr.QueueResponse("prod/1.0.3\n", "", nil)  // git tag -l prod/* → dest is ahead
+
+	cfg := &config.Config{
+		Versioning: config.Versioning{
+			Strategy: "semver-per-env",
+			Environments: map[string]config.EnvVersioning{
+				"dev":  {Bump: "auto", TagFormat: "dev/{version}"},
+				"prod": {Bump: "promote", TagFormat: "prod/{version}"},
+			},
+		},
+	}
+
+	r := perenv.New(mr, cfg, "prod", false, semverCalc("0.1.0"))
+	_, err := r.Resolve()
+	require.Error(t, err)
+	assert.True(t, errors.Is(err, perenv.ErrDestinationAhead), "sentinel preserved: %v", err)
+
+	var pe *perenv.PromotionError
+	require.True(t, errors.As(err, &pe), "expected *PromotionError, got: %T", err)
+
+	msg := err.Error()
+	assert.Contains(t, msg, "error[E002]")
+	assert.Contains(t, msg, "dev/1.0.2")
+	assert.Contains(t, msg, "prod/1.0.3")
+	assert.Contains(t, msg, "regression")
+	assert.Contains(t, msg, "backwards")
+	assert.Contains(t, msg, "heraut release --env prod --force")
+}
+
+func TestPromotionError_E003_RichMessage(t *testing.T) {
+	mr := testutil.NewMockRunner()
+	mr.QueueResponse("", "", nil) // git tag -l dev/* → no source tags
+
+	cfg := &config.Config{
+		Versioning: config.Versioning{
+			Strategy: "semver-per-env",
+			Environments: map[string]config.EnvVersioning{
+				"dev":  {Bump: "auto", TagFormat: "dev/{version}"},
+				"prod": {Bump: "promote", TagFormat: "prod/{version}"},
+			},
+		},
+	}
+
+	r := perenv.New(mr, cfg, "prod", true, semverCalc("0.1.0"))
+	_, err := r.Resolve()
+	require.Error(t, err)
+	assert.True(t, errors.Is(err, perenv.ErrNoSourceTags), "sentinel preserved: %v", err)
+
+	var pe *perenv.PromotionError
+	require.True(t, errors.As(err, &pe), "expected *PromotionError, got: %T", err)
+
+	msg := err.Error()
+	assert.Contains(t, msg, "error[E003]")
+	assert.Contains(t, msg, "prod")
+	assert.Contains(t, msg, "dev/*")
+	assert.Contains(t, msg, "heraut release --env dev")
+	assert.Contains(t, msg, "--force cannot bypass")
+}
+
 // ---- source: field resolution ----
 
 func TestResolve_Source_Explicit_Override(t *testing.T) {

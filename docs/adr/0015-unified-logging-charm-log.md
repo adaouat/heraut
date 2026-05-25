@@ -1,14 +1,10 @@
 # ADR-0015: Unified Logging with `charm.land/log`
 
-- **Status**: Proposed
+- **Status**: Rejected
 - **Date**: 2026-05-25
 - **Deciders**: bchatard
 
-> **PROPOSED — not yet decided.** This ADR captures the impacts and trade-offs of adopting
-> a single leveled logger so the decision can be evaluated later. Nothing has been
-> implemented. Do not treat any section below as binding until the status flips to
-> Accepted or Rejected — the decision and its consequences will be recorded in this same
-> file at that point.
+> **REJECTED.** See the Decision section below for the rationale.
 
 ---
 
@@ -120,9 +116,23 @@ be decided up front.
 - New tests assert log behaviour with timestamps/color disabled for determinism.
 - ADR-0003's stack section would be updated to mention the logger alongside fang.
 
-## Recommendation
+## Decision
 
-Leave as **Proposed** pending evaluation. The current `io.Writer` + `--verbose` approach
-(just improved in T29) already covers the immediate need; adopt charm/log only as a
-deliberate, whole-codebase logging decision — not piecemeal — if levels and consistent
-styling become a real requirement.
+**Rejected.** The `io.Writer` + `--verbose` approach, improved in T29 to echo captured
+output and include stderr in failures, already covers the immediate diagnostic need.
+Adopting charm/log before v1.0 introduces more cost than benefit:
+
+- The ~61 `fmt.Fprint*` migration must be all-or-nothing (a half-migrated state is worse
+  than either endpoint), which is unjustified scope pre-v1.0.
+- Low-level adapters (`adapter/exec`) would need to be coupled to a logging framework
+  unless an extra seam is added — a real layering cost for minimal gain.
+- fang already handles styled error output; adding charm/log creates a second styling
+  system to keep coherent.
+- The stdout-purity constraint (machine-readable `version next` / `version current`
+  output) requires enforced stderr-only logging; the current `io.Writer` seam already
+  encodes this boundary.
+
+If consistent TTY/color detection or log levels become a real need after v1.0, the
+preferred path is **Option 4 from the Considered section** — grow `internal/ui` with
+typed status-line helpers (`Success`, `Warn`, `Err`, `Info`) that commands call directly,
+without a third-party logging framework. This is tracked in the roadmap.

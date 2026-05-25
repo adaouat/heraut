@@ -1270,7 +1270,7 @@ row updated. Verified: 447 tests pass, and the built binary shows the indented e
 
 ---
 
-#### `[ ]` T30: Rich promotion error messages (E001/E002/E003)
+#### `[x]` T30: Rich promotion error messages (E001/E002/E003)
 
 **Description:** [ADR-0007](../adr/0007-version-promotion-error-handling.md) specifies
 Biome-style multi-line errors for the three promotion guards (what was found, why it is
@@ -1289,6 +1289,42 @@ Pairs naturally with T27 (exit code 4) since both touch the promotion error path
 `internal/versioning/perenv/resolver.go`
 
 **Scope:** M
+
+**Done:** Implemented `PromotionError` in `promote.go` — a struct that wraps the sentinel
+(`Unwrap()` preserves `errors.Is` identity through the chain) and carries the context
+needed for each code: srcEnv, destEnv, srcTag, candidateTag, latestDestTag,
+latestDestVersion, suggestedSrcTag, srcGlob. `Error()` dispatches to `renderE001/2/3`
+which produce the exact Biome-style multi-line format from ADR-0007 examples — including
+concrete `git tag -d` / `--force` / `heraut release --env` remediation lines.
+`suggestedSrcTag` is pre-computed via `tagfmt.Render` so the E002 "create the missing
+source tag" hint uses the actual tag format. Three new message-content tests
+(`TestPromotionError_E001/2/3_RichMessage`) assert on key phrases plus `errors.As`
+extraction. All 450 tests pass. ADR-0015 (charm/log) rejected in the same session; the
+preferred alternative (`internal/ui` status-line helpers) is tracked in T32.
+
+---
+
+#### `[ ]` T32: `internal/ui` status-line helpers
+
+**Description:** Grow `internal/ui` with typed status-line helper functions —
+`Success(msg)`, `Warn(msg)`, `Err(msg)`, `Info(msg)` — backed by lipgloss v2 styling
+(already an indirect dep via fang/huh). These helpers replace the ad-hoc `✓`/`✗`
+`fmt.Fprintf` calls spread across `internal/cmd/check.go` and similar command files.
+TTY detection should gate ANSI output (plain text in CI/pipes, styled in terminal).
+This is the "Option 4" path from the rejected ADR-0015: growing `internal/ui` without
+introducing a logging framework.
+
+**Acceptance:**
+- `ui.Success(msg) string`, `ui.Warn(msg) string`, `ui.Err(msg) string`,
+  `ui.Info(msg) string` — each returns a styled (or plain, if no TTY) line
+- TTY detection: ANSI disabled when stderr is not a terminal and when `NO_COLOR` is set
+- `internal/cmd/check.go` updated to use the helpers in place of raw `fmt.Fprintf`
+- Unit tests: plain-text output (no TTY), ANSI-stripped assertions for TTY path
+
+**Files:** `internal/ui/status.go`, `internal/ui/status_test.go`,
+`internal/cmd/check.go` (callers)
+
+**Scope:** S
 
 ---
 
