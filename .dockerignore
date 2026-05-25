@@ -1,0 +1,23 @@
+# Version control
+.git/
+
+# CI / tooling config
+.github/
+.config/
+.claude/
+
+# Documentation
+docs/
+*.md
+
+# Docker files themselves
+Dockerfile*
+.dockerignore
+
+# Test-only packages and fixtures — not compiled into the binary
+internal/testutil/
+testdata/
+
+# Build artifacts
+dist/
+heraut

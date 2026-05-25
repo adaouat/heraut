@@ -37,12 +37,3 @@ checksum:
 
 release:
   disable: false
-
-dockers:
-  - image_templates:
-      - "ghcr.io/adaouat/heraut:{{ .Tag }}"
-      - "ghcr.io/adaouat/heraut:latest"
-    dockerfile: Dockerfile.goreleaser
-    build_flag_templates:
-      - "--label=org.opencontainers.image.version={{ .Version }}"
-      - "--label=org.opencontainers.image.revision={{ .FullCommit }}"

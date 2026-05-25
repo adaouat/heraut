@@ -1346,7 +1346,7 @@ raw TOML) and must not be decorated.
 
 ---
 
-#### `[ ]` T31: Batteries-included Docker image + multi-tag release
+#### `[x]` T31: Batteries-included Docker image + multi-tag release
 
 **Description:** Today both `Dockerfile` and `Dockerfile.goreleaser` produce a minimal
 alpine image containing only the `heraut` binary (`apk add ca-certificates` + the binary).
@@ -1401,6 +1401,17 @@ GHCR image flow), `.config/mise/config.toml` (if the new tool pins are tracked t
 new `docs/adr/00NN-*.md`.
 
 **Scope:** M
+
+**Done:** Three-stage Dockerfile (builder → mise tools → debian:trixie-slim final).
+All six external tools bundled at pinned ARG versions; only bare binaries are copied into
+the final image — mise itself is absent at runtime. Base image decision: `debian:trixie-slim`
+over Alpine because `gh`, `glab`, and `communique` ship only glibc builds (no musl).
+Multi-arch: `linux/amd64` + `linux/arm64` via buildx + QEMU in CI. Tagging: four cascading
+tags (`X.Y.Z`, `X.Y`, `X`, `latest`) via `docker/metadata-action` semver patterns; `latest`
+and bare `MAJOR` only move on the default branch (pre-releases excluded). `HERAUT_NO_UPDATE_CHECK`
+ENV deferred — no auto-update check exists today, so it would be a no-op. `Dockerfile.goreleaser`
+deleted, `dockers:` block removed from `.goreleaser.yml`, release workflow extended with
+QEMU + buildx + metadata + build-push steps. ADR-0016 documents the distribution story change.
 
 ---
 

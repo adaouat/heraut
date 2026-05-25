@@ -33,7 +33,7 @@ behavioural spec.
 ## Docs
 
 - [`docs/specs/`](docs/specs/) — behavioural specification (read before changing CLI surface or config schema)
-- [`docs/adr/`](docs/adr/) — architecture decision records (14 ADRs, numbered consecutively)
+- [`docs/adr/`](docs/adr/) — architecture decision records (16 ADRs, numbered consecutively)
 - [`docs/tasks/`](docs/tasks/) — build roadmap with inline task checklist (`roadmap.md`)
 
 ## Tech stack
@@ -49,7 +49,7 @@ behavioural spec.
 | **yaml.v3**                   | `.heraut.yml` parsing (see [ADR-0004](docs/adr/0004-config-format-yaml.md)) |
 | **JSON Schema**               | `schema.json` for IDE validation of `.heraut.yml`                   |
 | **`//go:embed`**              | Embedded git-cliff / cocogitto defaults                             |
-| **goreleaser**                | Cross-platform release builds, raw binaries, GHCR image             |
+| **goreleaser**                | Cross-platform release builds, raw binaries (see [ADR-0013](docs/adr/0013-raw-binary-goreleaser-format.md)) |
 | **git-cliff / glab / gh / cog / communique** | External CLIs orchestrated by heraut (not bundled)       |
 
 ## Project layout
@@ -97,13 +97,13 @@ internal/
 testdata/                       repo-wide read-only test fixtures (.heraut.yml samples, …)
 
 docs/specs/                     6 numbered specs (behavioural authority)
-docs/adr/                       14 ADRs (architectural decisions)
+docs/adr/                       16 ADRs (architectural decisions)
 docs/tasks/                     roadmap.md (build plan + inline task checklist)
 
 schema.json                     published JSON Schema for .heraut.yml IDE validation
 .goreleaser.yml                 raw-binary release config (no archives — see ADR-0013)
-Dockerfile                      builds from source with matching ldflags
-.github/workflows/              ci.yml (PR build/test/lint), release.yml (tag → GoReleaser → GHCR)
+Dockerfile                      bundled image: heraut + all external CLIs (see ADR-0016)
+.github/workflows/              ci.yml (PR build/test/lint), release.yml (tag → GoReleaser + Docker push)
 ```
 
 ## Tooling (mise)
@@ -131,7 +131,8 @@ Go, golangci-lint, goreleaser, and git-cliff are installed via mise (see
 
 `Dockerfile` and `.goreleaser.yml` both inject the build-time version via `-ldflags`.
 **They must stay identical.** GoReleaser is the source of truth; the Dockerfile carries
-a comment pointing there.
+a comment pointing there. The Dockerfile receives the version via `--build-arg
+HERAUT_VERSION=${{ github.ref_name }}` in the release workflow.
 
 | ldflag         | Purpose                                              |
 |----------------|------------------------------------------------------|
