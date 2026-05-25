@@ -973,7 +973,7 @@ defaults.
 
 ### Phase 6 — Supporting Features
 
-#### `[ ]` T20: `heraut init` wizard
+#### `[x]` T20: `heraut init` wizard
 
 **Acceptance:**
 - `scaffold.RunWizard()` — interactive huh-based prompts for strategy, platforms,
@@ -995,6 +995,8 @@ defaults.
 `internal/cmd/init.go`
 
 **Scope:** M
+
+`charm.land/huh/v2` added as a direct dependency (v2 module path, not the legacy `github.com/charmbracelet/huh`). `WithHideFunc` is group-only in huh v2, so conditional fields (platform-specific inputs, CalVer custom format, env source) are placed in separate groups rather than per-field. CalVer wizard offers 7 opinionated presets plus a validated custom input; `ValidateCalVerFormat` reuses `calver.ParseFormat` for structural checks and adds an unknown-token scan for suspicious uppercase literals. `--defaults` always writes non-interactively without prompting (even when a config already exists); `--force` skips the "Update it?" prompt for the interactive wizard path. `wizard_internal_test.go` uses package-internal access to test `resolveFormatChoice`.
 
 ---
 
