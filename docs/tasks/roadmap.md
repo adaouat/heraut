@@ -1239,7 +1239,7 @@ spec reconciliation; Spec 03 currently documents lightweight tags to match the c
 
 ---
 
-#### `[ ]` T29: Verbose output echo + stderr on failure
+#### `[x]` T29: Verbose output echo + stderr on failure
 
 **Description:** Two related transparency gaps in the exec runner, surfaced by T22.
 (1) `--verbose` only logs `[exec] <cmd> <args>` before running — it does not echo the
@@ -1257,9 +1257,16 @@ failures are diagnosable. Update Spec 03's `--verbose` description to document t
 
 **Scope:** S
 
----
-
-#### `[ ]` T30: Rich promotion error messages (E001/E002/E003)
+**Done:** Both gaps fixed in `RunEnv` (so `Run` inherits them). After `cmd.Run()`, when
+`Verbose` the captured stdout+stderr are echoed via a new `echoOutput` helper — each
+non-empty line indented two spaces under the `[exec]` line, to the same writer (`r.Out` /
+`os.Stderr`). On failure the wrapped error now appends the trimmed stderr when non-empty
+(`"%s: %w: %s"`), keeping `%w` so `errors.Is`/`errors.As` still work; with no stderr the
+message is unchanged (`"%s: %w"`, no dangling colon). Return values are untouched, so
+callers that consume stdout (e.g. git-cliff → changelog) are unaffected; `MockRunner` is
+also unaffected since the change lives only in the real exec adapter. Spec 03's `--verbose`
+row updated. Verified: 447 tests pass, and the built binary shows the indented echo under
+`[exec]` on `version current --verbose`.
 
 **Description:** [ADR-0007](../adr/0007-version-promotion-error-handling.md) specifies
 Biome-style multi-line errors for the three promotion guards (what was found, why it is

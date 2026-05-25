@@ -51,8 +51,17 @@ func (r *Runner) RunEnv(env []string, name string, args ...string) (string, stri
 	cmd.Stdout = &stdout
 	cmd.Stderr = &stderr
 
-	if err := cmd.Run(); err != nil {
-		return stdout.String(), stderr.String(), fmt.Errorf("%s: %w", name, err)
+	runErr := cmd.Run()
+
+	if r.Verbose {
+		echoOutput(r.writer(), stdout.String(), stderr.String())
+	}
+
+	if runErr != nil {
+		if se := strings.TrimSpace(stderr.String()); se != "" {
+			return stdout.String(), stderr.String(), fmt.Errorf("%s: %w: %s", name, runErr, se)
+		}
+		return stdout.String(), stderr.String(), fmt.Errorf("%s: %w", name, runErr)
 	}
 
 	return stdout.String(), stderr.String(), nil
@@ -63,4 +72,17 @@ func (r *Runner) writer() io.Writer {
 		return r.Out
 	}
 	return os.Stderr
+}
+
+// echoOutput writes a command's captured stdout and stderr to w, each non-empty
+// line indented by two spaces, so verbose runs show what each command produced.
+func echoOutput(w io.Writer, stdout, stderr string) {
+	for _, block := range []string{stdout, stderr} {
+		for _, line := range strings.Split(strings.TrimRight(block, "\n"), "\n") {
+			if line == "" {
+				continue
+			}
+			_, _ = fmt.Fprintf(w, "  %s\n", line)
+		}
+	}
 }
