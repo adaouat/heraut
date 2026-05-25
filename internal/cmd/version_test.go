@@ -15,7 +15,7 @@ import (
 
 // executeRoot builds a fresh root command, sets args, captures stdout, and runs it.
 func executeRoot(args ...string) (string, error) {
-	root := cmd.NewRootCmd()
+	root := cmd.NewRootCmd("dev")
 	var buf bytes.Buffer
 	root.SetOut(&buf)
 	root.SetErr(&buf)
@@ -35,7 +35,7 @@ func writeConfig(t *testing.T, content string) string {
 // ---- Structural tests ----
 
 func TestVersionCmd_Exists(t *testing.T) {
-	root := cmd.NewRootCmd()
+	root := cmd.NewRootCmd("dev")
 	var versionCmd, nextCmd, currentCmd, sprintCmd bool
 	for _, c := range root.Commands() {
 		if c.Use == "version" {

@@ -9,10 +9,19 @@ import (
 	"github.com/adaouat/heraut/internal/config"
 )
 
-const schemaURL = "https://raw.githubusercontent.com/adaouat/heraut/main/schema.json"
+const schemaBase = "https://raw.githubusercontent.com/adaouat/heraut/"
+const schemaFile = "/schema.json"
+
+func buildSchemaURL(version string) string {
+	if version == "" || version == "dev" {
+		return schemaBase + "main" + schemaFile
+	}
+	return schemaBase + version + schemaFile
+}
 
 // GenerateYAML converts answers to a .heraut.yml string with a yaml-language-server header.
-func GenerateYAML(a Answers) (string, error) {
+// version is the heraut build version (e.g. "v1.2.3"); empty or "dev" falls back to main.
+func GenerateYAML(a Answers, version string) (string, error) {
 	cfg := answersToConfig(a)
 
 	var buf bytes.Buffer
@@ -25,7 +34,7 @@ func GenerateYAML(a Answers) (string, error) {
 		return "", fmt.Errorf("finalizing YAML: %w", err)
 	}
 
-	header := "# yaml-language-server: $schema=" + schemaURL + "\n\n"
+	header := "# yaml-language-server: $schema=" + buildSchemaURL(version) + "\n\n"
 	return header + buf.String(), nil
 }
 

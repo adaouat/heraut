@@ -11,14 +11,20 @@ import (
 )
 
 func TestGenerateYAML_SchemaHeader(t *testing.T) {
-	out, err := scaffold.GenerateYAML(scaffold.Defaults())
+	out, err := scaffold.GenerateYAML(scaffold.Defaults(), "dev")
 	require.NoError(t, err)
 	assert.True(t, strings.HasPrefix(out, "# yaml-language-server: $schema="), "missing schema header")
-	assert.Contains(t, out, "schema.json")
+	assert.Contains(t, out, "https://raw.githubusercontent.com/adaouat/heraut/main/schema.json")
+}
+
+func TestGenerateYAML_VersionedSchemaHeader(t *testing.T) {
+	out, err := scaffold.GenerateYAML(scaffold.Defaults(), "v1.2.3")
+	require.NoError(t, err)
+	assert.Contains(t, out, "https://raw.githubusercontent.com/adaouat/heraut/v1.2.3/schema.json")
 }
 
 func TestGenerateYAML_DefaultsRoundTrip(t *testing.T) {
-	out, err := scaffold.GenerateYAML(scaffold.Defaults())
+	out, err := scaffold.GenerateYAML(scaffold.Defaults(), "dev")
 	require.NoError(t, err)
 
 	body := stripHeader(out)
@@ -38,7 +44,7 @@ func TestGenerateYAML_SemVer(t *testing.T) {
 		NotesGenerator:     "git-cliff",
 		Platforms:          []scaffold.PlatformAnswer{{Type: "github", Repository: "org/repo"}},
 	}
-	out, err := scaffold.GenerateYAML(a)
+	out, err := scaffold.GenerateYAML(a, "dev")
 	require.NoError(t, err)
 
 	body := stripHeader(out)
@@ -61,7 +67,7 @@ func TestGenerateYAML_CalVer(t *testing.T) {
 		ChangelogOutput:    "CHANGELOG.md",
 		Platforms:          []scaffold.PlatformAnswer{{Type: "gitlab"}},
 	}
-	out, err := scaffold.GenerateYAML(a)
+	out, err := scaffold.GenerateYAML(a, "dev")
 	require.NoError(t, err)
 
 	body := stripHeader(out)
@@ -86,7 +92,7 @@ func TestGenerateYAML_PerEnv(t *testing.T) {
 			{Name: "prod", Bump: "promote", Source: "dev"},
 		},
 	}
-	out, err := scaffold.GenerateYAML(a)
+	out, err := scaffold.GenerateYAML(a, "dev")
 	require.NoError(t, err)
 
 	body := stripHeader(out)
@@ -109,7 +115,7 @@ func TestGenerateYAML_CalVerSprint(t *testing.T) {
 		ChangelogOutput:    "CHANGELOG.md",
 		Platforms:          []scaffold.PlatformAnswer{{Type: "gitlab"}},
 	}
-	out, err := scaffold.GenerateYAML(a)
+	out, err := scaffold.GenerateYAML(a, "dev")
 	require.NoError(t, err)
 
 	body := stripHeader(out)
@@ -128,7 +134,7 @@ func TestGenerateYAML_SprintOmittedWhenZero(t *testing.T) {
 		Sprint:    0,
 		Platforms: []scaffold.PlatformAnswer{{Type: "gitlab"}},
 	}
-	out, err := scaffold.GenerateYAML(a)
+	out, err := scaffold.GenerateYAML(a, "dev")
 	require.NoError(t, err)
 	assert.NotContains(t, out, "sprint:")
 }
@@ -138,7 +144,7 @@ func TestGenerateYAML_NoPlatforms(t *testing.T) {
 		Strategy:           "semver",
 		ChangelogGenerator: "git-cliff",
 	}
-	out, err := scaffold.GenerateYAML(a)
+	out, err := scaffold.GenerateYAML(a, "dev")
 	require.NoError(t, err)
 
 	body := stripHeader(out)

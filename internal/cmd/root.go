@@ -6,7 +6,7 @@ import (
 )
 
 // NewRootCmd constructs the root heraut command.
-func NewRootCmd() *cobra.Command {
+func NewRootCmd(version string) *cobra.Command {
 	root := &cobra.Command{
 		Use:   "heraut",
 		Short: "Release management for git-based projects",
@@ -26,7 +26,7 @@ func NewRootCmd() *cobra.Command {
 	root.AddCommand(NewCheckCmd())
 	root.AddCommand(NewCliffCmd())
 	root.AddCommand(NewVersionCmd())
-	root.AddCommand(NewInitCmd())
+	root.AddCommand(NewInitCmd(version))
 
 	return root
 }

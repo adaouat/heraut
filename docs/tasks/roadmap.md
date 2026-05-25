@@ -1088,6 +1088,41 @@ Scope: S
 
 ---
 
+#### `[x]` T26: Versioned `schema.json` URL per heraut release
+
+**Description:** `heraut init` currently emits a hardcoded `main`-branch schema URL in
+`.heraut.yml`. Once heraut ships releases, configs should pin to the schema version that
+was current when they were generated, matching the Biome-style pattern. Version is
+threaded from the build-time `main.Version` ldflag down to `scaffold.GenerateYAML`.
+
+**Approach:**
+- Schema hosting: raw.githubusercontent.com at the git tag
+  (`https://raw.githubusercontent.com/adaouat/heraut/v1.2.3/schema.json`). Zero
+  infrastructure — tags are immutable, no GitHub Pages or release assets needed.
+- `"dev"` / `""` → falls back to `main` branch URL so local builds always get the
+  latest schema.
+- Version threaded explicitly through constructors:
+  `main.Version → NewRootCmd(version) → NewInitCmd(version) → GenerateYAML(a, version)`
+
+**Acceptance:**
+- `buildSchemaURL("v1.2.3")` → `…/v1.2.3/schema.json`
+- `buildSchemaURL("dev")` and `buildSchemaURL("")` → `…/main/schema.json`
+- `heraut init --defaults` on a release binary writes the versioned URL in `.heraut.yml`
+- `go build -ldflags="-X main.Version=v1.2.3" ./cmd/heraut/ && ./heraut init …`
+  produces `$schema=…/v1.2.3/schema.json`
+
+**Deferred:** `schema.json` `$id` field still points to `main` (minor spec deviation,
+acceptable until a docs-hosting story is defined).
+
+**Files:** `internal/scaffold/generate.go`, `internal/cmd/init.go`,
+`internal/cmd/root.go`, `cmd/heraut/main.go`
+
+**Plan:** `.claude/plans/t26-versioned-schema-url.md`
+
+**Scope:** S
+
+---
+
 #### `[ ]` T24: `README.md`
 
 Public-facing, written last. Install (`go install`, GitHub binary,

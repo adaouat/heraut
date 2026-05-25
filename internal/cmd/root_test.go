@@ -7,7 +7,7 @@ import (
 )
 
 func TestNewRootCmd(t *testing.T) {
-	root := cmd.NewRootCmd()
+	root := cmd.NewRootCmd("dev")
 	if root == nil {
 		t.Fatal("NewRootCmd() returned nil")
 	}

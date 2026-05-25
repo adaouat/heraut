@@ -12,7 +12,7 @@ import (
 )
 
 func TestInitCmd_ExistsOnRoot(t *testing.T) {
-	root := cmd.NewRootCmd()
+	root := cmd.NewRootCmd("dev")
 	var found bool
 	for _, c := range root.Commands() {
 		if c.Use == "init" {

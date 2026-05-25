@@ -11,7 +11,7 @@ import (
 // ---- structural ----
 
 func TestCliffCmd_Structure(t *testing.T) {
-	root := cmd.NewRootCmd()
+	root := cmd.NewRootCmd("dev")
 	var cliffSubs map[string]bool
 	for _, c := range root.Commands() {
 		if c.Use == "cliff" {

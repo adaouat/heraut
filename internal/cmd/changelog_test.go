@@ -21,7 +21,7 @@ func TestNewChangelogCmd(t *testing.T) {
 
 // TestRootCmd_HasChangelogSubcommand verifies `heraut changelog` is wired into the root.
 func TestRootCmd_HasChangelogSubcommand(t *testing.T) {
-	root := cmd.NewRootCmd()
+	root := cmd.NewRootCmd("dev")
 	var found bool
 	for _, sub := range root.Commands() {
 		if sub.Use == "changelog" {

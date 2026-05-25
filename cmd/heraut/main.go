@@ -17,7 +17,7 @@ var (
 )
 
 func main() {
-	root := cmd.NewRootCmd()
+	root := cmd.NewRootCmd(Version)
 	if err := fang.Execute(context.Background(), root, fang.WithVersion(Version)); err != nil {
 		os.Exit(1)
 	}

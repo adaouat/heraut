@@ -12,7 +12,7 @@ import (
 )
 
 // NewInitCmd constructs the `heraut init` command.
-func NewInitCmd() *cobra.Command {
+func NewInitCmd(version string) *cobra.Command {
 	initCmd := &cobra.Command{
 		Use:   "init",
 		Short: "Generate .heraut.yml interactively (or with --defaults)",
@@ -71,7 +71,7 @@ func NewInitCmd() *cobra.Command {
 				}
 			}
 
-			content, err := scaffold.GenerateYAML(answers)
+			content, err := scaffold.GenerateYAML(answers, version)
 			if err != nil {
 				return fmt.Errorf("generating config: %w", err)
 			}

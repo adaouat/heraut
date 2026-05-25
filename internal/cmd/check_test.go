@@ -13,7 +13,7 @@ import (
 // ---- structural ----
 
 func TestCheckCmd_Structure(t *testing.T) {
-	root := cmd.NewRootCmd()
+	root := cmd.NewRootCmd("dev")
 	var checkSubs, cliffSubs map[string]bool
 	for _, c := range root.Commands() {
 		if c.Use == "check" {
@@ -67,7 +67,7 @@ version: "1"
 versioning:
   strategy: badstrategy
 `)
-	root := cmd.NewRootCmd()
+	root := cmd.NewRootCmd("dev")
 	var buf bytes.Buffer
 	root.SetOut(&buf)
 	root.SetErr(&buf)
