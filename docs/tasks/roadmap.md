@@ -1427,7 +1427,7 @@ README Prerequisites clarified: Docker image bundles all CLIs.
 Goal: cut v1.0.0 using heraut itself, with quality gates enforced in CI and the
 bootstrapped release flow settled.
 
-#### `[ ]` T28: Annotated git tags (revisit)
+#### `[x]` T28: Annotated git tags (revisit)
 
 **Description:** Both pipelines currently create lightweight tags (`git tag <tag>` in
 `internal/pipeline/release.go` and `changelog.go`). Annotated tags (`git tag -a -m …`)
@@ -1440,6 +1440,14 @@ spec reconciliation; Spec 03 currently documents lightweight tags to match the c
 `docs/specs/03-commands.md`
 
 **Scope:** S
+
+**Done:** Added `versioning.tag_type: annotated | lightweight` config field (default:
+`annotated`). Both pipelines now create annotated tags by default via a private
+`gitTag(tag, version)` helper that branches on `cfg.AnnotatedTags`. The annotation
+message reuses the `commit_message` template (default `"chore(release): ${version}"`) so
+no second config field is needed. `app/pipeline.go` maps `tag_type != "lightweight"` →
+`AnnotatedTags: true`. Validator rejects unknown `tag_type` values; schema.json updated;
+Spec 02 and 03 updated. 8 new tests (2 annotated + 2 custom-message per pipeline).
 
 ---
 

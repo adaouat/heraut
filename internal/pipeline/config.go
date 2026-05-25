@@ -19,4 +19,7 @@ type Config struct {
 	DisableChangelog bool
 	// DisableNotes skips release notes generation for the active env.
 	DisableNotes bool
+	// AnnotatedTags creates annotated git tags (-a -m <commit_message>).
+	// When false, lightweight tags are created. Defaults to false (set by app layer).
+	AnnotatedTags bool
 }

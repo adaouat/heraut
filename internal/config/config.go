@@ -18,6 +18,7 @@ type Versioning struct {
 	Format         string                   `yaml:"format,omitempty"`
 	Sprint         int                      `yaml:"sprint,omitempty"`
 	TagFormat      string                   `yaml:"tag_format,omitempty"`
+	TagType        string                   `yaml:"tag_type,omitempty"`
 	Environments   map[string]EnvVersioning `yaml:"environments,omitempty"`
 }
 

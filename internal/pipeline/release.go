@@ -73,7 +73,7 @@ func (p *Pipeline) Run() error {
 	}
 
 	// Tag and push
-	if err := p.run("git", "tag", result.Tag); err != nil {
+	if err := p.gitTag(result.Tag, result.Version); err != nil {
 		return fmt.Errorf("git tag: %w", err)
 	}
 	if err := p.run("git", "push", "--tags"); err != nil {
@@ -133,6 +133,13 @@ func (p *Pipeline) commitMessage(version string) string {
 		tmpl = defaultCommitMessage
 	}
 	return strings.ReplaceAll(tmpl, "${version}", version)
+}
+
+func (p *Pipeline) gitTag(tag, version string) error {
+	if p.cfg.AnnotatedTags {
+		return p.run("git", "tag", "-a", tag, "-m", p.commitMessage(version))
+	}
+	return p.run("git", "tag", tag)
 }
 
 func (p *Pipeline) run(name string, args ...string) error {

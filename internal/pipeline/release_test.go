@@ -275,6 +275,41 @@ func TestRun_CustomCommitMessage(t *testing.T) {
 	assert.Equal(t, "release: v1.2.3", commitCall.Args[2])
 }
 
+// TestRun_AnnotatedTag verifies git tag -a is used when AnnotatedTags is true.
+func TestRun_AnnotatedTag(t *testing.T) {
+	mr := testutil.NewMockRunner()
+	mr.QueueResponse("", "", nil) // git tag
+	mr.QueueResponse("", "", nil) // git push --tags
+
+	cfg := &pipeline.Config{
+		AnnotatedTags: true,
+	}
+
+	p := pipeline.New(mr, &fakeResolver{result: resolvedResult("v1.2.3")}, cfg, &bytes.Buffer{}, false)
+	require.NoError(t, p.Run())
+
+	require.Len(t, mr.Calls, 2)
+	assert.Equal(t, []string{"tag", "-a", "v1.2.3", "-m", "chore(release): 1.2.3"}, mr.Calls[0].Args)
+	assert.Equal(t, []string{"push", "--tags"}, mr.Calls[1].Args)
+}
+
+// TestRun_AnnotatedTagCustomMessage verifies the annotation reuses the commit_message template.
+func TestRun_AnnotatedTagCustomMessage(t *testing.T) {
+	mr := testutil.NewMockRunner()
+	mr.QueueResponse("", "", nil) // git tag
+	mr.QueueResponse("", "", nil) // git push --tags
+
+	cfg := &pipeline.Config{
+		AnnotatedTags: true,
+		CommitMessage: "release: v${version}",
+	}
+
+	p := pipeline.New(mr, &fakeResolver{result: resolvedResult("v1.2.3")}, cfg, &bytes.Buffer{}, false)
+	require.NoError(t, p.Run())
+
+	assert.Equal(t, []string{"tag", "-a", "v1.2.3", "-m", "release: v1.2.3"}, mr.Calls[0].Args)
+}
+
 // TestRun_ResolverError propagates resolver failures.
 func TestRun_ResolverError(t *testing.T) {
 	mr := testutil.NewMockRunner()

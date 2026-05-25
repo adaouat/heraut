@@ -144,6 +144,43 @@ func TestChangelogRun_DisabledChangelog(t *testing.T) {
 	assert.Contains(t, out.String(), "disabled")
 }
 
+// TestChangelogRun_AnnotatedTag verifies git tag -a is used when AnnotatedTags is true.
+func TestChangelogRun_AnnotatedTag(t *testing.T) {
+	mr := testutil.NewMockRunner()
+	mr.QueueResponse("", "", nil) // git tag
+	mr.QueueResponse("", "", nil) // git push --tags
+
+	cfg := &pipeline.ChangelogConfig{
+		Tag:           true,
+		AnnotatedTags: true,
+	}
+
+	p := pipeline.NewChangelog(mr, &fakeResolver{result: resolvedResult("v1.2.3")}, cfg, &bytes.Buffer{}, false)
+	require.NoError(t, p.Run())
+
+	require.Len(t, mr.Calls, 2)
+	assert.Equal(t, []string{"tag", "-a", "v1.2.3", "-m", "chore(release): 1.2.3"}, mr.Calls[0].Args)
+	assert.Equal(t, []string{"push", "--tags"}, mr.Calls[1].Args)
+}
+
+// TestChangelogRun_AnnotatedTagCustomMessage verifies the annotation reuses the commit_message template.
+func TestChangelogRun_AnnotatedTagCustomMessage(t *testing.T) {
+	mr := testutil.NewMockRunner()
+	mr.QueueResponse("", "", nil) // git tag
+	mr.QueueResponse("", "", nil) // git push --tags
+
+	cfg := &pipeline.ChangelogConfig{
+		Tag:           true,
+		AnnotatedTags: true,
+		CommitMessage: "docs: v${version}",
+	}
+
+	p := pipeline.NewChangelog(mr, &fakeResolver{result: resolvedResult("v1.2.3")}, cfg, &bytes.Buffer{}, false)
+	require.NoError(t, p.Run())
+
+	assert.Equal(t, []string{"tag", "-a", "v1.2.3", "-m", "docs: v1.2.3"}, mr.Calls[0].Args)
+}
+
 // TestChangelogRun_ResolverError propagates resolver failures.
 func TestChangelogRun_ResolverError(t *testing.T) {
 	mr := testutil.NewMockRunner()

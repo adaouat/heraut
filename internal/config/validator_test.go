@@ -132,6 +132,37 @@ versioning:
 	assert.Contains(t, e.Message, "foobar")
 }
 
+// ── tag_type ──────────────────────────────────────────────────────────────────
+
+func TestValidate_invalidTagType(t *testing.T) {
+	cfg := mustLoad(t, `
+version: "1"
+versioning:
+  strategy: semver
+  tag_type: signed
+`)
+	errs := config.Validate(cfg)
+	e := findErr(errs, "versioning.tag_type")
+	require.NotNil(t, e)
+	assert.Contains(t, e.Message, "signed")
+	assert.Contains(t, e.Hint, "annotated")
+	assert.Contains(t, e.Hint, "lightweight")
+}
+
+func TestValidate_validTagTypes(t *testing.T) {
+	for _, tagType := range []string{"annotated", "lightweight"} {
+		t.Run(tagType, func(t *testing.T) {
+			cfg := mustLoad(t, `
+version: "1"
+versioning:
+  strategy: semver
+  tag_type: `+tagType+`
+`)
+			assert.Empty(t, config.Validate(cfg))
+		})
+	}
+}
+
 // ── calver format ─────────────────────────────────────────────────────────────
 
 func TestValidate_calverMissingFormat(t *testing.T) {

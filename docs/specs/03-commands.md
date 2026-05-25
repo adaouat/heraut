@@ -74,7 +74,7 @@ heraut release [--version X.Y.Z] [--dry-run] [--env <name>] [--force]
 3. **Generate changelog** (if `changelog` is configured and not disabled for the env)
    — writes to `changelog.output` (default `CHANGELOG.md`)
 4. **Commit changelog + push** — `chore(release): <version>`, then `git push`
-5. **Create git tag** (lightweight) on the changelog commit, then `git push --tags`
+5. **Create git tag** (annotated by default; set `versioning.tag_type: lightweight` to use a bare ref tag) on the changelog commit, then `git push --tags`
 6. **Generate release notes** (if `release.notes` is configured and not disabled for
    the env) — the notes are needed at release-creation time, so they are produced before
    any platform call
@@ -108,7 +108,7 @@ heraut changelog [--commit] [--tag] [--version X.Y.Z] [--dry-run] [--env <name>]
 1. Resolve next version (or use `--version`)
 2. Generate and update `CHANGELOG.md`
 3. Commit and push — `chore(release): <version>`
-4. Create a git tag (lightweight) on that commit
+4. Create a git tag (annotated by default; set `versioning.tag_type: lightweight` for a bare ref tag) on that commit
 5. Push tag (`git push --tags`)
 
 To then publish the platform release without re-generating the changelog, run

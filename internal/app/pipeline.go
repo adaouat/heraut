@@ -96,6 +96,8 @@ func buildReleasePipelineConfig(runner port.Runner, cfg *config.Config, env stri
 		}
 	}
 
+	pCfg.AnnotatedTags = cfg.Versioning.TagType != "lightweight"
+
 	return pCfg, nil
 }
 
@@ -121,6 +123,8 @@ func buildChangelogPipelineConfig(runner port.Runner, cfg *config.Config, opts P
 			cCfg.DisableChangelog = envCfg.DisableChangelog
 		}
 	}
+
+	cCfg.AnnotatedTags = cfg.Versioning.TagType != "lightweight"
 
 	return cCfg, nil
 }

@@ -66,6 +66,11 @@
           "type": "string",
           "description": "Common tag format template for per-env strategies (e.g. \"{env}/{version}\")."
         },
+        "tag_type": {
+          "type": "string",
+          "enum": ["annotated", "lightweight"],
+          "description": "Git tag type. \"annotated\" (default) creates tags with a tagger, timestamp, and message. \"lightweight\" creates bare ref tags."
+        },
         "environments": {
           "type": "object",
           "additionalProperties": {

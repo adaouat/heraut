@@ -17,6 +17,9 @@ var (
 	validPlatforms = map[string]bool{
 		"github": true, "gitlab": true,
 	}
+	validTagTypes = map[string]bool{
+		"annotated": true, "lightweight": true,
+	}
 )
 
 // Validate runs all semantic validation layers against cfg.
@@ -64,6 +67,13 @@ func validateEnums(cfg *Config) []ValidationError {
 			Path:    "versioning.strategy",
 			Message: fmt.Sprintf("%q is not a valid strategy", cfg.Versioning.Strategy),
 			Hint:    "valid strategies: semver, calver, semver-per-env, calver-per-env",
+		})
+	}
+	if cfg.Versioning.TagType != "" && !validTagTypes[cfg.Versioning.TagType] {
+		errs = append(errs, ValidationError{
+			Path:    "versioning.tag_type",
+			Message: fmt.Sprintf("%q is not a valid tag type", cfg.Versioning.TagType),
+			Hint:    "valid tag types: annotated, lightweight",
 		})
 	}
 	errs = append(errs, validateContentDriver(cfg.Changelog, "changelog")...)

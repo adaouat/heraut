@@ -23,6 +23,9 @@ type ChangelogConfig struct {
 	Commit bool
 	// Tag creates a git tag after committing (implies Commit).
 	Tag bool
+	// AnnotatedTags creates annotated git tags (-a -m <commit_message>).
+	// When false, lightweight tags are created. Defaults to false (set by app layer).
+	AnnotatedTags bool
 }
 
 // ChangelogPipeline executes the changelog-only flow.
@@ -76,7 +79,7 @@ func (p *ChangelogPipeline) Run() error {
 
 	// Tag the commit when --tag is set
 	if p.cfg.Tag {
-		if err := p.run("git", "tag", result.Tag); err != nil {
+		if err := p.gitTag(result.Tag, result.Version); err != nil {
 			return fmt.Errorf("git tag: %w", err)
 		}
 		if err := p.run("git", "push", "--tags"); err != nil {
@@ -112,6 +115,13 @@ func (p *ChangelogPipeline) commitMessage(version string) string {
 		tmpl = defaultCommitMessage
 	}
 	return strings.ReplaceAll(tmpl, "${version}", version)
+}
+
+func (p *ChangelogPipeline) gitTag(tag, version string) error {
+	if p.cfg.AnnotatedTags {
+		return p.run("git", "tag", "-a", tag, "-m", p.commitMessage(version))
+	}
+	return p.run("git", "tag", tag)
 }
 
 func (p *ChangelogPipeline) run(name string, args ...string) error {
