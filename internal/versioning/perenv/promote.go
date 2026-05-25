@@ -130,10 +130,10 @@ func resolvePromote(runner port.Runner, cfg *config.Config, env string, force bo
 		return versioning.Result{}, err
 	}
 
-	srcEnvCfg := cfg.Versioning.Environments[srcEnv]
+	srcTF := tagFormat(cfg, srcEnv)
 
 	// 2. List source tags and find the latest.
-	srcGlob, err := tagfmt.GlobPattern(srcEnvCfg.TagFormat, srcEnv)
+	srcGlob, err := tagfmt.GlobPattern(srcTF, srcEnv)
 	if err != nil {
 		return versioning.Result{}, fmt.Errorf("building source tag glob: %w", err)
 	}
@@ -155,14 +155,14 @@ func resolvePromote(runner port.Runner, cfg *config.Config, env string, force bo
 
 	// 3. Extract the bare version from the latest source tag.
 	latestSrcTag := srcTags[0]
-	candidateVersion, err := tagfmt.ParseVersion(srcEnvCfg.TagFormat, latestSrcTag)
+	candidateVersion, err := tagfmt.ParseVersion(srcTF, latestSrcTag)
 	if err != nil {
 		return versioning.Result{}, fmt.Errorf("parsing source tag %q: %w", latestSrcTag, err)
 	}
 
 	// 4. Render the candidate tag under the destination format.
-	destEnvCfg := cfg.Versioning.Environments[env]
-	candidateTag, err := tagfmt.Render(destEnvCfg.TagFormat, env, candidateVersion)
+	destTF := tagFormat(cfg, env)
+	candidateTag, err := tagfmt.Render(destTF, env, candidateVersion)
 	if err != nil {
 		return versioning.Result{}, fmt.Errorf("rendering candidate tag: %w", err)
 	}
@@ -183,7 +183,7 @@ func resolvePromote(runner port.Runner, cfg *config.Config, env string, force bo
 	}
 
 	// 6. E002: fail if the destination is already ahead of the candidate.
-	destGlob, err := tagfmt.GlobPattern(destEnvCfg.TagFormat, env)
+	destGlob, err := tagfmt.GlobPattern(destTF, env)
 	if err != nil {
 		return versioning.Result{}, fmt.Errorf("building destination tag glob: %w", err)
 	}
@@ -197,10 +197,10 @@ func resolvePromote(runner port.Runner, cfg *config.Config, env string, force bo
 	var currentDestTag string
 	if len(destTags) > 0 {
 		currentDestTag = destTags[0]
-		latestDestVersion, parseErr := tagfmt.ParseVersion(destEnvCfg.TagFormat, currentDestTag)
+		latestDestVersion, parseErr := tagfmt.ParseVersion(destTF, currentDestTag)
 		if parseErr == nil {
 			if compareVersionStrings(latestDestVersion, candidateVersion) > 0 && !force {
-				suggested, _ := tagfmt.Render(srcEnvCfg.TagFormat, srcEnv, latestDestVersion)
+				suggested, _ := tagfmt.Render(srcTF, srcEnv, latestDestVersion)
 				return versioning.Result{}, &PromotionError{
 					sentinel:          ErrDestinationAhead,
 					srcEnv:            srcEnv,

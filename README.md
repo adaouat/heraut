@@ -61,8 +61,9 @@ docker run --rm -v "$PWD":/repo -w /repo ghcr.io/adaouat/heraut:latest release -
 
 ## Prerequisites
 
-heraut does **not** bundle the external CLIs it orchestrates — install the ones your
-config uses and make sure they are on `PATH`:
+When running via **binary or `go install`**, heraut does **not** bundle the external CLIs it
+orchestrates — install the ones your config uses and make sure they are on `PATH`.
+The **Docker image** bundles all of them at pinned versions; no extra setup needed.
 
 | Tool | Needed for |
 |------|------------|

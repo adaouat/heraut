@@ -1,6 +1,7 @@
 # Build outputs
 /heraut
 *.test
+/dist
 
 # IDE
 /.idea

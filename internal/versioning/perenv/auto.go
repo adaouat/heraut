@@ -11,9 +11,9 @@ import (
 )
 
 func resolveAuto(runner port.Runner, cfg *config.Config, env string, calc VersionCalculator) (versioning.Result, error) {
-	envCfg := cfg.Versioning.Environments[env]
+	tf := tagFormat(cfg, env)
 
-	glob, err := tagfmt.GlobPattern(envCfg.TagFormat, env)
+	glob, err := tagfmt.GlobPattern(tf, env)
 	if err != nil {
 		return versioning.Result{}, fmt.Errorf("building tag glob for %q: %w", env, err)
 	}
@@ -29,7 +29,7 @@ func resolveAuto(runner port.Runner, cfg *config.Config, env string, calc Versio
 	var bareVersions []string
 	var latestTag string
 	for _, tag := range rawTags {
-		bare, parseErr := tagfmt.ParseVersion(envCfg.TagFormat, tag)
+		bare, parseErr := tagfmt.ParseVersion(tf, tag)
 		if parseErr == nil {
 			if latestTag == "" {
 				latestTag = tag
@@ -59,7 +59,7 @@ func resolveAuto(runner port.Runner, cfg *config.Config, env string, calc Versio
 		}
 	}
 
-	newTag, err := tagfmt.Render(envCfg.TagFormat, env, nextVersion)
+	newTag, err := tagfmt.Render(tf, env, nextVersion)
 	if err != nil {
 		return versioning.Result{}, fmt.Errorf("rendering tag: %w", err)
 	}

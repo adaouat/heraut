@@ -680,6 +680,32 @@ func TestResolve_UnknownBumpMode_Error(t *testing.T) {
 	assert.Contains(t, err.Error(), "rollback")
 }
 
+// TestResolve_TopLevelTagFormat verifies that versioning.tag_format is used as a
+// fallback when individual environments do not define their own tag_format.
+// This is the common pattern: one tag_format for all envs, per-env overrides optional.
+func TestResolve_TopLevelTagFormat_Auto(t *testing.T) {
+	mr := testutil.NewMockRunner()
+	mr.QueueResponse("", "", nil) // git tag -l dev/*  → no tags
+
+	cfg := &config.Config{
+		Versioning: config.Versioning{
+			Strategy:  "semver-per-env",
+			TagFormat: "{env}/{version}", // top-level; env has no override
+			Environments: map[string]config.EnvVersioning{
+				"dev": {Bump: "auto"}, // no TagFormat here
+			},
+		},
+	}
+
+	r := perenv.New(mr, cfg, "dev", false, semverCalc("0.1.0"))
+	result, err := r.Resolve()
+	require.NoError(t, err)
+
+	assert.Equal(t, "0.1.0", result.Version)
+	assert.Equal(t, "dev/0.1.0", result.Tag)
+	assert.Equal(t, []string{"tag", "-l", "dev/*", "--sort=-version:refname"}, mr.Calls[0].Args)
+}
+
 func TestResolve_GitTagListError(t *testing.T) {
 	mr := testutil.NewMockRunner()
 	mr.QueueResponse("", "fatal: not a git repo", fmt.Errorf("exit 128"))

@@ -51,6 +51,16 @@ func New(runner port.Runner, cfg *config.Config, env string, force bool, calc Ve
 	return &Resolver{runner: runner, cfg: cfg, env: env, force: force, calc: calc}
 }
 
+// tagFormat returns the effective tag format for env: the env-level override when
+// set, otherwise the top-level versioning.tag_format. Both auto and promote paths
+// use this so that a single top-level format covers all environments.
+func tagFormat(cfg *config.Config, env string) string {
+	if f := cfg.Versioning.Environments[env].TagFormat; f != "" {
+		return f
+	}
+	return cfg.Versioning.TagFormat
+}
+
 // Resolve returns the next version for the active environment.
 func (r *Resolver) Resolve() (versioning.Result, error) {
 	envCfg, ok := r.cfg.Versioning.Environments[r.env]
