@@ -1264,6 +1264,64 @@ Pairs naturally with T27 (exit code 4) since both touch the promotion error path
 
 ---
 
+#### `[ ]` T31: Batteries-included Docker image + multi-tag release
+
+**Description:** Today both `Dockerfile` and `Dockerfile.goreleaser` produce a minimal
+alpine image containing only the `heraut` binary (`apk add ca-certificates` + the binary).
+That means the published `ghcr.io/adaouat/heraut` image can't actually run a release — it
+has none of the external CLIs heraut orchestrates. Rework the image into a self-contained
+release runner that bundles all required tools at pinned, supported versions, and is built
+**outside GoReleaser** by a dedicated CI workflow.
+
+**Bundle (pinned versions):** `git`, `git-cliff`, `gh`, `glab`, `cog` (cocogitto), and
+`communique`. git-cliff (`2.13`) and cocogitto (`7.0.0`) versions exist in
+`.config/mise/config.toml`; `gh`, `glab`, and `communique` are not pinned anywhere yet and
+need explicit versions chosen for the image. Keep `heraut`'s own version injected via the
+`-X main.Version=...` ldflag (the [ldflags invariant](../../CLAUDE.md) still holds — this
+image does the version injection itself since it's not GoReleaser-driven).
+
+**Decoupled from GoReleaser:** the bundled image is built and pushed by its own workflow
+step (e.g. `docker/build-push-action` + `docker/metadata-action` for tag generation), not
+by the `.goreleaser.yml` `dockers:` block. The current minimal GoReleaser image is
+**removed entirely** — delete `Dockerfile.goreleaser` and the `.goreleaser.yml` `dockers:`
+block; the bundled image is the only published container (a slim binary-only variant has
+no value over the raw binary / `go install`).
+
+**Tagging:** on each new release `vX.Y.Z`, push the cascading tags so consumers can pin at
+their preferred precision:
+
+| Tag | Example (for `v1.4.2`) |
+|-----|------------------------|
+| `MAJOR.MINOR.PATCH` | `ghcr.io/adaouat/heraut:1.4.2` |
+| `MAJOR.MINOR` | `ghcr.io/adaouat/heraut:1.4` |
+| `MAJOR` | `ghcr.io/adaouat/heraut:1` |
+| `latest` | `ghcr.io/adaouat/heraut:latest` |
+
+(`docker/metadata-action` produces this set from a semver tag out of the box.)
+
+**Open decisions to settle during implementation:**
+- Base image: stay on alpine (musl — verify `gh`/`glab`/`communique` ship musl builds) or
+  move to a debian-slim/distroless base for glibc compatibility.
+- Multi-arch (`linux/amd64` + `linux/arm64`) or amd64 only.
+- Whether `latest` and bare `MAJOR` should move on pre-releases (probably not).
+
+Note: distroless is likely incompatible with bundling shell-driven CLIs — flagged here as
+a decision, but a minimal alpine/debian with the tools is the more probable landing.
+
+**Likely needs an ADR:** this changes heraut's distribution story (ADR-0013 covers the raw
+binary; the container positioning shifts from "thin wrapper" to "full release runner") and
+introduces a tagging policy — write an ADR for the bundled-image decision + tag scheme.
+
+**Files:** `Dockerfile`, `Dockerfile.goreleaser` (deleted), `.goreleaser.yml` (drop the
+`dockers:` block), `.github/workflows/release.yml` (or a new workflow), `CLAUDE.md`
+(update the project-layout/ldflags notes that reference `Dockerfile.goreleaser` and the
+GHCR image flow), `.config/mise/config.toml` (if the new tool pins are tracked there), a
+new `docs/adr/00NN-*.md`.
+
+**Scope:** M
+
+---
+
 ### ✦ `[ ]` CHECKPOINT H — Ready for public launch
 
 - [ ] `go test ./...` passes
