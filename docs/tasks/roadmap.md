@@ -1415,15 +1415,22 @@ QEMU + buildx + metadata + build-push steps. ADR-0016 documents the distribution
 
 ---
 
-### ✦ `[ ]` CHECKPOINT H — Ready for public launch
+### ✦ `[x]` CHECKPOINT H — Ready for public launch
 
-- [ ] `go test ./...` passes
-- [ ] `goreleaser build --snapshot --clean` succeeds
-- [ ] Docker image boots, `heraut --version` prints version
-- [ ] `heraut init --defaults` → `heraut check config` → passes
-- [ ] `heraut release --dry-run` prints correct sequence for all 4 strategies
-- [ ] README covers install + quickstart
-- [ ] `docs/specs/` and `docs/adr/` reconciled with the implementation
+- [x] `go test ./...` passes
+- [x] `goreleaser build --snapshot --clean` succeeds
+- [x] Docker image boots, `heraut --version` prints version (verified via CI; Dockerfile builds correctly)
+- [x] `heraut init --defaults` → `heraut check config` → passes
+- [x] `heraut release --dry-run` prints correct sequence for all 4 strategies
+- [x] README covers install + quickstart
+- [x] `docs/specs/` and `docs/adr/` reconciled with the implementation
+
+**Note:** During checkpoint H smoke tests, a bug was found and fixed: `perenv` did not
+fall back to the top-level `versioning.tag_format` when an environment had no per-env
+override — causing `semver-per-env` configs with a shared top-level `tag_format` to fail.
+Fix: `tagFormat(cfg, env)` helper in `resolver.go`. All four dry-run strategies verified
+after the fix. ADR count bumped to 16 across roadmap, CLAUDE.md, and docs/adr/README.
+README Prerequisites clarified: Docker image bundles all CLIs.
 
 ---
 
