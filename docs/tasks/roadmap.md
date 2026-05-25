@@ -1451,7 +1451,7 @@ Spec 02 and 03 updated. 8 new tests (2 annotated + 2 custom-message per pipeline
 
 ---
 
-#### `[ ]` T35: CI improvements — split jobs, coverage threshold, goreleaser check
+#### `[x]` T35: CI improvements — split jobs, coverage threshold, goreleaser check
 
 **Description:** Rework `.github/workflows/ci.yml` into three independent jobs so each
 can be individually required in branch protection. Add a coverage threshold gate and a
@@ -1473,6 +1473,14 @@ can be individually required in branch protection. Add a coverage threshold gate
 **Files:** `.github/workflows/ci.yml`
 
 **Scope:** S
+
+**Done:** Replaced the single `ci` job with three independent parallel jobs: `lint`
+(golangci-lint), `test` (go test + coverage threshold), `build` (go build + goreleaser
+check). Each job can be individually required in branch protection. Coverage threshold
+set at 70% now (current baseline is 69.6%); T34 raises coverage to ≥85% and will bump
+the threshold to 80%. `goreleaser check` added to the build job to catch config drift
+without running a release. The `build` job uses `fetch-depth: 0` for GoReleaser
+compatibility.
 
 ---
 

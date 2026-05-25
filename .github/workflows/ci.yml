@@ -6,18 +6,41 @@ on:
   pull_request:
 
 jobs:
-  ci:
+  lint:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
-
       - uses: jdx/mise-action@v4
-
       - name: Lint
         run: golangci-lint run ./...
 
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: jdx/mise-action@v4
       - name: Test
-        run: go test ./...
+        run: go test ./... -coverprofile=coverage.out
+      - name: Check coverage threshold
+        run: |
+          go tool cover -func=coverage.out | awk '
+            /^total:/ {
+              pct = substr($3, 1, length($3)-1)
+              printf "Total coverage: %s%%\n", pct
+              if (pct+0 < 70) {
+                printf "Error: coverage %s%% is below the 70%% threshold\n", pct
+                exit 1
+              }
+            }'
 
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+      - uses: jdx/mise-action@v4
       - name: Build
         run: go build ./cmd/heraut/
+      - name: Check GoReleaser config
+        run: goreleaser check
