@@ -51,3 +51,31 @@ func TestStatusHelpers_NoColorEnv(t *testing.T) {
 	assert.Equal(t, "! warning", ui.Warn(w, "warning"))
 	assert.Equal(t, "  hint: x", ui.Info(w, "hint: x"))
 }
+
+// TestStatusHelpers_ColorPath verifies styled output is different from plain text.
+// CLICOLOR_FORCE=1 forces colorprofile to treat the bytes.Buffer as a color terminal.
+func TestStatusHelpers_ColorPath(t *testing.T) {
+	t.Setenv("CLICOLOR_FORCE", "1")
+	t.Setenv("NO_COLOR", "")
+
+	w := &bytes.Buffer{}
+	tests := []struct {
+		name  string
+		got   string
+		plain string
+		sym   string
+	}{
+		{"Success", ui.Success(w, "ok"), "✓ ok", "✓"},
+		{"Err", ui.Err(w, "fail"), "✗ fail", "✗"},
+		{"Warn", ui.Warn(w, "warn"), "! warn", "!"},
+		{"Info", ui.Info(w, "info"), "  info", "info"},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			// Styled output must still contain the visible symbol/text.
+			assert.Contains(t, tc.got, tc.sym)
+			// And must differ from plain (ANSI codes added).
+			assert.NotEqual(t, tc.plain, tc.got)
+		})
+	}
+}

@@ -362,3 +362,217 @@ func TestRun_MultiplePlatforms(t *testing.T) {
 	assert.Len(t, p1.CreateReleaseCalls, 1)
 	assert.Len(t, p2.CreateReleaseCalls, 1)
 }
+
+// TestRun_GitAddError propagates git add failures.
+func TestRun_GitAddError(t *testing.T) {
+	mr := testutil.NewMockRunner()
+	mr.QueueResponse("", "", errors.New("not a git repo")) // git add fails
+
+	changelog := &testutil.MockGenerator{}
+
+	cfg := &pipeline.Config{
+		Changelog:     changelog,
+		ChangelogFile: "CHANGELOG.md",
+	}
+
+	p := pipeline.New(mr, &fakeResolver{result: resolvedResult("v1.2.3")}, cfg, &bytes.Buffer{}, false)
+	err := p.Run()
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "git add")
+}
+
+// TestRun_GitCommitError propagates git commit failures.
+func TestRun_GitCommitError(t *testing.T) {
+	mr := testutil.NewMockRunner()
+	mr.QueueResponse("", "", nil)                           // git add OK
+	mr.QueueResponse("", "", errors.New("nothing to commit")) // git commit fails
+
+	changelog := &testutil.MockGenerator{}
+
+	cfg := &pipeline.Config{
+		Changelog:     changelog,
+		ChangelogFile: "CHANGELOG.md",
+	}
+
+	p := pipeline.New(mr, &fakeResolver{result: resolvedResult("v1.2.3")}, cfg, &bytes.Buffer{}, false)
+	err := p.Run()
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "git commit")
+}
+
+// TestRun_GitPushError propagates git push failures.
+func TestRun_GitPushError(t *testing.T) {
+	mr := testutil.NewMockRunner()
+	mr.QueueResponse("", "", nil)                         // git add OK
+	mr.QueueResponse("", "", nil)                         // git commit OK
+	mr.QueueResponse("", "", errors.New("push rejected")) // git push fails
+
+	changelog := &testutil.MockGenerator{}
+
+	cfg := &pipeline.Config{
+		Changelog:     changelog,
+		ChangelogFile: "CHANGELOG.md",
+	}
+
+	p := pipeline.New(mr, &fakeResolver{result: resolvedResult("v1.2.3")}, cfg, &bytes.Buffer{}, false)
+	err := p.Run()
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "git push")
+}
+
+// TestRun_DefaultChangelogFile verifies "CHANGELOG.md" is used when ChangelogFile is empty.
+func TestRun_DefaultChangelogFile(t *testing.T) {
+	mr := testutil.NewMockRunner()
+	mr.QueueResponse("", "", nil) // git add
+	mr.QueueResponse("", "", nil) // git commit
+	mr.QueueResponse("", "", nil) // git push
+	mr.QueueResponse("", "", nil) // git tag
+	mr.QueueResponse("", "", nil) // git push --tags
+
+	changelog := &testutil.MockGenerator{}
+	platform := &testutil.MockPlatform{PlatformName: "github"}
+
+	cfg := &pipeline.Config{
+		Changelog: changelog,
+		// ChangelogFile intentionally empty — should default to CHANGELOG.md
+		Platforms: []port.Platform{platform},
+	}
+
+	p := pipeline.New(mr, &fakeResolver{result: resolvedResult("v1.2.3")}, cfg, &bytes.Buffer{}, false)
+	require.NoError(t, p.Run())
+
+	assert.Equal(t, []string{"add", "CHANGELOG.md"}, mr.Calls[0].Args)
+}
+
+// TestRun_ChangelogGenerateError propagates changelog generation failures.
+func TestRun_ChangelogGenerateError(t *testing.T) {
+	mr := testutil.NewMockRunner()
+	changelog := &testutil.MockGenerator{GenerateErr: errors.New("cliff failed")}
+
+	cfg := &pipeline.Config{
+		Changelog:     changelog,
+		ChangelogFile: "CHANGELOG.md",
+	}
+
+	p := pipeline.New(mr, &fakeResolver{result: resolvedResult("v1.2.3")}, cfg, &bytes.Buffer{}, false)
+	err := p.Run()
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "generating changelog")
+}
+
+// TestRun_GitTagError propagates git tag failures.
+func TestRun_GitTagError(t *testing.T) {
+	mr := testutil.NewMockRunner()
+	mr.QueueResponse("", "", errors.New("tag already exists"))
+
+	cfg := &pipeline.Config{}
+
+	p := pipeline.New(mr, &fakeResolver{result: resolvedResult("v1.2.3")}, cfg, &bytes.Buffer{}, false)
+	err := p.Run()
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "git tag")
+}
+
+// TestRun_GitPushTagsError propagates git push --tags failures.
+func TestRun_GitPushTagsError(t *testing.T) {
+	mr := testutil.NewMockRunner()
+	mr.QueueResponse("", "", nil)                          // git tag OK
+	mr.QueueResponse("", "", errors.New("push rejected")) // git push --tags fails
+
+	cfg := &pipeline.Config{}
+
+	p := pipeline.New(mr, &fakeResolver{result: resolvedResult("v1.2.3")}, cfg, &bytes.Buffer{}, false)
+	err := p.Run()
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "git push --tags")
+}
+
+// TestRun_ReleaseNotesError propagates release notes generation failures.
+func TestRun_ReleaseNotesError(t *testing.T) {
+	mr := testutil.NewMockRunner()
+	mr.QueueResponse("", "", nil) // git tag
+	mr.QueueResponse("", "", nil) // git push --tags
+
+	notes := &testutil.MockGenerator{GenerateErr: errors.New("cliff notes failed")}
+
+	cfg := &pipeline.Config{
+		Notes: notes,
+	}
+
+	p := pipeline.New(mr, &fakeResolver{result: resolvedResult("v1.2.3")}, cfg, &bytes.Buffer{}, false)
+	err := p.Run()
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "generating release notes")
+}
+
+// TestRun_CreateReleaseError propagates platform create release failures.
+func TestRun_CreateReleaseError(t *testing.T) {
+	mr := testutil.NewMockRunner()
+	mr.QueueResponse("", "", nil) // git tag
+	mr.QueueResponse("", "", nil) // git push --tags
+
+	platform := &testutil.MockPlatform{
+		PlatformName:    "github",
+		CreateReleaseErr: errors.New("API error"),
+	}
+
+	cfg := &pipeline.Config{Platforms: []port.Platform{platform}}
+
+	p := pipeline.New(mr, &fakeResolver{result: resolvedResult("v1.2.3")}, cfg, &bytes.Buffer{}, false)
+	err := p.Run()
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "create release")
+}
+
+// TestRun_UploadAssetsError propagates platform upload assets failures.
+func TestRun_UploadAssetsError(t *testing.T) {
+	mr := testutil.NewMockRunner()
+	mr.QueueResponse("", "", nil) // git tag
+	mr.QueueResponse("", "", nil) // git push --tags
+
+	platform := &testutil.MockPlatform{
+		PlatformName:  "github",
+		HasAssetsVal:  true,
+		UploadAssetsErr: errors.New("upload failed"),
+	}
+
+	cfg := &pipeline.Config{Platforms: []port.Platform{platform}}
+
+	p := pipeline.New(mr, &fakeResolver{result: resolvedResult("v1.2.3")}, cfg, &bytes.Buffer{}, false)
+	err := p.Run()
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "upload assets")
+}
+
+// TestCheck_ChangelogGeneratorError propagates changelog generator check failures.
+func TestCheck_ChangelogGeneratorError(t *testing.T) {
+	changelog := &testutil.MockGenerator{CheckErr: errors.New("git-cliff not found")}
+	cfg := &pipeline.Config{Changelog: changelog}
+
+	p := pipeline.New(testutil.NewMockRunner(), &fakeResolver{}, cfg, &bytes.Buffer{}, false)
+	err := p.Check()
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "changelog generator")
+}
+
+// TestCheck_NotesGeneratorError propagates release-notes generator check failures.
+func TestCheck_NotesGeneratorError(t *testing.T) {
+	notes := &testutil.MockGenerator{CheckErr: errors.New("cog not found")}
+	cfg := &pipeline.Config{Notes: notes}
+
+	p := pipeline.New(testutil.NewMockRunner(), &fakeResolver{}, cfg, &bytes.Buffer{}, false)
+	err := p.Check()
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "release-notes generator")
+}
+
+// TestCheck_PlatformError propagates platform check failures.
+func TestCheck_PlatformError(t *testing.T) {
+	platform := &testutil.MockPlatform{PlatformName: "github", CheckErr: errors.New("GH_TOKEN not set")}
+	cfg := &pipeline.Config{Platforms: []port.Platform{platform}}
+
+	p := pipeline.New(testutil.NewMockRunner(), &fakeResolver{}, cfg, &bytes.Buffer{}, false)
+	err := p.Check()
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "platform github")
+}

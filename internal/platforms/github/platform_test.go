@@ -212,3 +212,14 @@ func TestCreateRelease_NoRepo_Error(t *testing.T) {
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "repository")
 }
+
+// TestCheck_DefaultTokenEnv covers the tokenEnv() fallback to "GH_TOKEN" when no TokenEnv is configured.
+func TestCheck_DefaultTokenEnv(t *testing.T) {
+	mr := testutil.NewMockRunner()
+	mr.QueueResponse("gh version 2.0.0", "", nil)
+
+	t.Setenv("GH_TOKEN", "tok")
+	// No TokenEnv configured — should fall back to "GH_TOKEN" default
+	p := github.New(mr, &config.Platform{Repository: "org/repo"})
+	require.NoError(t, p.Check())
+}

@@ -2,6 +2,8 @@
 /heraut
 *.test
 /dist
+/coverage.out
+/cover_config.out
 
 # IDE
 /.idea

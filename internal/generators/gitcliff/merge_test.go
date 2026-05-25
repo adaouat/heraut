@@ -81,3 +81,16 @@ func TestMerge_InvalidTOML(t *testing.T) {
 	_, err := gitcliff.MergeTOML("not valid {{{ toml", "")
 	require.Error(t, err)
 }
+
+func TestMerge_EmptyBase(t *testing.T) {
+	// empty base TOML → baseMap is nil, covered by the nil-check branch
+	result, err := gitcliff.MergeTOML("", "[changelog]\nheader = \"x\"")
+	require.NoError(t, err)
+	assert.Contains(t, result, "header")
+}
+
+func TestMerge_InvalidOverrideTOML(t *testing.T) {
+	_, err := gitcliff.MergeTOML("[changelog]\nheader = \"x\"", "not valid {{{ toml")
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "parsing override TOML")
+}

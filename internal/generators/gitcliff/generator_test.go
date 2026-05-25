@@ -163,6 +163,50 @@ func TestEffectiveConfig_WithUserOverride(t *testing.T) {
 	assert.Contains(t, toml, "[git]")
 }
 
+// TestCheckCliff_Passes verifies exact args passed to git-cliff for config validation.
+func TestCheckCliff_Passes(t *testing.T) {
+	mr := testutil.NewMockRunner()
+	mr.QueueResponse("", "", nil)
+
+	cfg := &config.ContentDriver{Generator: "git-cliff"}
+	gen := gitcliff.New(mr, cfg, gitcliff.ModeChangelog)
+
+	require.NoError(t, gen.CheckCliff())
+	require.Len(t, mr.Calls, 1)
+	call := mr.Calls[0]
+	assert.Equal(t, "git-cliff", call.Name)
+	assertHasFlag(t, call.Args, "--context")
+	assertHasFlag(t, call.Args, "--no-exec")
+	assertHasFlag(t, call.Args, "--config")
+}
+
+// TestCheckCliff_Fails verifies error wrapping when git-cliff rejects the config.
+func TestCheckCliff_Fails(t *testing.T) {
+	mr := testutil.NewMockRunner()
+	mr.QueueResponse("", "invalid TOML", errors.New("exit status 1"))
+
+	cfg := &config.ContentDriver{Generator: "git-cliff"}
+	gen := gitcliff.New(mr, cfg, gitcliff.ModeChangelog)
+
+	err := gen.CheckCliff()
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "git-cliff rejected config")
+}
+
+// TestCheckCliff_ReleaseNotesMode verifies ModeReleaseNotes uses the release-notes base config.
+func TestCheckCliff_ReleaseNotesMode(t *testing.T) {
+	mr := testutil.NewMockRunner()
+	mr.QueueResponse("", "", nil)
+
+	cfg := &config.ContentDriver{Generator: "git-cliff"}
+	gen := gitcliff.New(mr, cfg, gitcliff.ModeReleaseNotes)
+
+	require.NoError(t, gen.CheckCliff())
+	require.Len(t, mr.Calls, 1)
+	assertHasFlag(t, mr.Calls[0].Args, "--context")
+	assertHasFlag(t, mr.Calls[0].Args, "--no-exec")
+}
+
 // assertHasFlag checks that args contains a specific flag (without requiring its value).
 func assertHasFlag(t *testing.T, args []string, flag string) {
 	t.Helper()

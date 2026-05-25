@@ -431,3 +431,17 @@ func TestBumpFromDate_NewPeriod_PatchReset(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, "2026.05.0", version)
 }
+
+func TestBumpAuto_Unsupported(t *testing.T) {
+	mr := testutil.NewMockRunner()
+	cfg := &config.Config{
+		Versioning: config.Versioning{
+			Strategy: "calver",
+			Format:   "YYYY.MM.PATCH",
+		},
+	}
+	r := calver.New(mr, cfg, fixedNow(2026, time.May, 1))
+	_, err := r.BumpAuto(nil, nil)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "not supported")
+}

@@ -281,3 +281,24 @@ func TestLoad_invalidFixture(t *testing.T) {
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "unknown_field")
 }
+
+func TestLoadFromReader_TypeMismatch(t *testing.T) {
+	// A YAML map into an integer field triggers a yaml.TypeError
+	src := `
+version: "1"
+versioning:
+  strategy: semver
+  sprint:
+    nested: value
+`
+	_, err := config.LoadFromReader(strings.NewReader(src))
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "config:")
+}
+
+func TestLoadFromReader_MalformedYAML(t *testing.T) {
+	// Completely malformed YAML triggers a non-TypeError error (EOF or parse error)
+	_, err := config.LoadFromReader(strings.NewReader("{{{{invalid yaml"))
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "config:")
+}

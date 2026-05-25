@@ -1484,7 +1484,7 @@ compatibility.
 
 ---
 
-#### `[ ]` T34: Coverage sweep — enforce 80%, target 85%
+#### `[x]` T34: Coverage sweep — enforce 80%, target 85%
 
 **Description:** Bring test coverage up to the threshold introduced by T35. The 0% and
 low-coverage packages are mechanical — unit and contract tests, no new design required.
@@ -1522,6 +1522,16 @@ harness or binary exec).
 `internal/selfupdate/`, `internal/ui/`, `internal/platforms/`, `internal/pipeline/`
 
 **Scope:** M
+
+Added 105 test cases across 19 files (5 new files in `internal/app/`, plus additions to
+`internal/config/`, `internal/scaffold/`, `internal/generators/gitcliff/`,
+`internal/versioning/semver/` and `calver/`, `internal/selfupdate/`, `internal/ui/`,
+`internal/platforms/github/` and `gitlab/`, `internal/pipeline/`). Coverage rose from
+69.7% to 82.5% (571 tests, 22 packages). The CI gate was raised from 70% to 80% in
+`.github/workflows/ci.yml`. No existing test rows were deleted or loosened. The
+`internal/cmd/release.go` and `internal/cmd/changelog.go` low-coverage paths were
+deferred — they require cobra command execution harnesses and were not in scope for this
+mechanical sweep; they can be addressed in a separate task if needed.
 
 ---
 

@@ -208,3 +208,14 @@ func TestCreateRelease_NoProject_Error(t *testing.T) {
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "project")
 }
+
+// TestCheck_DefaultTokenEnv covers the tokenEnv() fallback to "GITLAB_TOKEN" when no TokenEnv is configured.
+func TestCheck_DefaultTokenEnv(t *testing.T) {
+	mr := testutil.NewMockRunner()
+	mr.QueueResponse("glab version 1.0.0", "", nil)
+
+	t.Setenv("GITLAB_TOKEN", "tok")
+	// No TokenEnv configured — should fall back to "GITLAB_TOKEN" default
+	p := gitlab.New(mr, &config.Platform{Project: "grp/repo"})
+	require.NoError(t, p.Check())
+}

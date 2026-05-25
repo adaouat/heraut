@@ -27,8 +27,8 @@ jobs:
             /^total:/ {
               pct = substr($3, 1, length($3)-1)
               printf "Total coverage: %s%%\n", pct
-              if (pct+0 < 70) {
-                printf "Error: coverage %s%% is below the 70%% threshold\n", pct
+              if (pct+0 < 80) {
+                printf "Error: coverage %s%% is below the 80%% threshold\n", pct
                 exit 1
               }
             }'

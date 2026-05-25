@@ -237,3 +237,84 @@ func TestChangelogRun_CustomCommitMessage(t *testing.T) {
 
 	assert.Equal(t, "docs: update changelog for v1.2.3", mr.Calls[1].Args[2])
 }
+
+// TestChangelogRun_GitAddError propagates git add failures.
+func TestChangelogRun_GitAddError(t *testing.T) {
+	mr := testutil.NewMockRunner()
+	mr.QueueResponse("", "", errors.New("not a git repo")) // git add fails
+
+	gen := &testutil.MockGenerator{}
+
+	cfg := &pipeline.ChangelogConfig{
+		Changelog:     gen,
+		ChangelogFile: "CHANGELOG.md",
+		Commit:        true,
+	}
+
+	p := pipeline.NewChangelog(mr, &fakeResolver{result: resolvedResult("v1.2.3")}, cfg, &bytes.Buffer{}, false)
+	err := p.Run()
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "git add")
+}
+
+// TestChangelogRun_GitCommitError propagates git commit failures.
+func TestChangelogRun_GitCommitError(t *testing.T) {
+	mr := testutil.NewMockRunner()
+	mr.QueueResponse("", "", nil)                          // git add OK
+	mr.QueueResponse("", "", errors.New("nothing to commit")) // git commit fails
+
+	gen := &testutil.MockGenerator{}
+
+	cfg := &pipeline.ChangelogConfig{
+		Changelog:     gen,
+		ChangelogFile: "CHANGELOG.md",
+		Commit:        true,
+	}
+
+	p := pipeline.NewChangelog(mr, &fakeResolver{result: resolvedResult("v1.2.3")}, cfg, &bytes.Buffer{}, false)
+	err := p.Run()
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "git commit")
+}
+
+// TestChangelogRun_GitPushError propagates git push failures.
+func TestChangelogRun_GitPushError(t *testing.T) {
+	mr := testutil.NewMockRunner()
+	mr.QueueResponse("", "", nil)                           // git add OK
+	mr.QueueResponse("", "", nil)                           // git commit OK
+	mr.QueueResponse("", "", errors.New("push rejected")) // git push fails
+
+	gen := &testutil.MockGenerator{}
+
+	cfg := &pipeline.ChangelogConfig{
+		Changelog:     gen,
+		ChangelogFile: "CHANGELOG.md",
+		Commit:        true,
+	}
+
+	p := pipeline.NewChangelog(mr, &fakeResolver{result: resolvedResult("v1.2.3")}, cfg, &bytes.Buffer{}, false)
+	err := p.Run()
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "git push")
+}
+
+// TestChangelogRun_DefaultChangelogFile verifies "CHANGELOG.md" is used when ChangelogFile is empty.
+func TestChangelogRun_DefaultChangelogFile(t *testing.T) {
+	mr := testutil.NewMockRunner()
+	mr.QueueResponse("", "", nil) // git add
+	mr.QueueResponse("", "", nil) // git commit
+	mr.QueueResponse("", "", nil) // git push
+
+	gen := &testutil.MockGenerator{}
+
+	cfg := &pipeline.ChangelogConfig{
+		Changelog: gen,
+		// ChangelogFile intentionally empty
+		Commit: true,
+	}
+
+	p := pipeline.NewChangelog(mr, &fakeResolver{result: resolvedResult("v1.2.3")}, cfg, &bytes.Buffer{}, false)
+	require.NoError(t, p.Run())
+
+	assert.Equal(t, []string{"add", "CHANGELOG.md"}, mr.Calls[0].Args)
+}

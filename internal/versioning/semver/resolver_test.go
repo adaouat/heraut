@@ -1,6 +1,7 @@
 package semver_test
 
 import (
+	"errors"
 	"testing"
 
 	"github.com/adaouat/heraut/internal/config"
@@ -283,4 +284,96 @@ func TestDetermineBump(t *testing.T) {
 			assert.Equal(t, tc.want, got)
 		})
 	}
+}
+
+func TestBumpAuto_NoTags(t *testing.T) {
+	cfg := &config.Config{
+		Versioning: config.Versioning{
+			Strategy:       "semver",
+			InitialVersion: "0.1.0",
+		},
+	}
+	r := semver.New(nil, cfg)
+	got, err := r.BumpAuto(nil, nil)
+	require.NoError(t, err)
+	assert.Equal(t, "0.1.0", got)
+}
+
+func TestBumpAuto_WithCommits(t *testing.T) {
+	cfg := &config.Config{
+		Versioning: config.Versioning{Strategy: "semver"},
+	}
+	r := semver.New(nil, cfg)
+	got, err := r.BumpAuto([]string{"1.2.3"}, []string{"feat: add thing"})
+	require.NoError(t, err)
+	assert.Equal(t, "1.3.0", got)
+}
+
+func TestBumpAuto_NoCommitsSinceTag(t *testing.T) {
+	cfg := &config.Config{
+		Versioning: config.Versioning{Strategy: "semver"},
+	}
+	r := semver.New(nil, cfg)
+	_, err := r.BumpAuto([]string{"1.2.3"}, nil)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "no commits")
+}
+
+func TestBumpFromDate_Unsupported(t *testing.T) {
+	cfg := &config.Config{
+		Versioning: config.Versioning{Strategy: "semver"},
+	}
+	r := semver.New(nil, cfg)
+	_, err := r.BumpFromDate(nil)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "not supported")
+}
+
+func TestBumpVersion_InvalidFormat(t *testing.T) {
+	tests := []struct {
+		name    string
+		version string
+		wantErr string
+	}{
+		{"too few parts", "1.2", "invalid semver"},
+		{"invalid major", "abc.2.3", "invalid major"},
+		{"invalid minor", "1.abc.3", "invalid minor"},
+		{"invalid patch", "1.2.abc", "invalid patch"},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			_, err := semver.BumpVersion(tc.version, versioning.BumpPatch)
+			require.Error(t, err)
+			assert.Contains(t, err.Error(), tc.wantErr)
+		})
+	}
+}
+
+func TestResolve_GitTagListError(t *testing.T) {
+	mr := testutil.NewMockRunner()
+	mr.QueueResponse("", "", errors.New("not a git repo"))
+
+	cfg := &config.Config{
+		Versioning: config.Versioning{Strategy: "semver", Prefix: strPtr("v")},
+	}
+
+	r := semver.New(mr, cfg)
+	_, err := r.Resolve()
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "listing git tags")
+}
+
+func TestResolve_GitLogError(t *testing.T) {
+	mr := testutil.NewMockRunner()
+	mr.QueueResponse("v1.2.3\n", "", nil)     // git tag -l succeeds
+	mr.QueueResponse("", "", errors.New("git log failed")) // git log fails
+
+	cfg := &config.Config{
+		Versioning: config.Versioning{Strategy: "semver", Prefix: strPtr("v")},
+	}
+
+	r := semver.New(mr, cfg)
+	_, err := r.Resolve()
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "reading git log")
 }
