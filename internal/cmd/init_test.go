@@ -63,6 +63,51 @@ func TestInitCmd_DefaultsForceOverwrites(t *testing.T) {
 	assert.NotContains(t, string(data), "existing content")
 }
 
+func TestInitCmd_AutoDestDotHeraut(t *testing.T) {
+	// No .config/ dir → writes to .heraut.yml in CWD.
+	dir := t.TempDir()
+	t.Chdir(dir)
+
+	_, err := executeRoot("init", "--defaults")
+	require.NoError(t, err)
+
+	data, err := os.ReadFile(filepath.Join(dir, ".heraut.yml"))
+	require.NoError(t, err)
+	assert.Contains(t, string(data), "semver")
+}
+
+func TestInitCmd_AutoDestDotConfig(t *testing.T) {
+	// .config/ dir exists → writes to .config/heraut.yml.
+	dir := t.TempDir()
+	require.NoError(t, os.Mkdir(filepath.Join(dir, ".config"), 0o755))
+	t.Chdir(dir)
+
+	_, err := executeRoot("init", "--defaults")
+	require.NoError(t, err)
+
+	data, err := os.ReadFile(filepath.Join(dir, ".config", "heraut.yml"))
+	require.NoError(t, err)
+	assert.Contains(t, string(data), "semver")
+	_, err = os.Stat(filepath.Join(dir, ".heraut.yml"))
+	assert.True(t, os.IsNotExist(err), ".heraut.yml should not be created when .config/ exists")
+}
+
+func TestInitCmd_ExplicitConfigFlagOverridesAutoDest(t *testing.T) {
+	// --config always wins over auto-dest, even when .config/ exists.
+	dir := t.TempDir()
+	require.NoError(t, os.Mkdir(filepath.Join(dir, ".config"), 0o755))
+	t.Chdir(dir)
+	explicit := filepath.Join(dir, "custom.yml")
+
+	_, err := executeRoot("init", "--defaults", "--config", explicit)
+	require.NoError(t, err)
+
+	_, err = os.Stat(explicit)
+	require.NoError(t, err, "custom.yml should be written")
+	_, err = os.Stat(filepath.Join(dir, ".config", "heraut.yml"))
+	assert.True(t, os.IsNotExist(err), ".config/heraut.yml should not be created when --config is explicit")
+}
+
 func TestInitCmd_DefaultsWithExistingNoForceOverwrites(t *testing.T) {
 	// --defaults is always non-interactive: existing file is overwritten without prompt.
 	dir := t.TempDir()

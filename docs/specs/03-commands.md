@@ -47,8 +47,9 @@ asking for the current sprint number. This value is written to `versioning.sprin
 can be advanced later with `heraut version sprint bump`.
 
 **Output**: writes to `.config/heraut.yml` if the `.config/` directory already exists,
-else to `.heraut.yml`. The file starts with a `# yaml-language-server: $schema=…`
-header so IDEs pick up the schema automatically.
+else to `.heraut.yml`. Pass `--config <path>` to write to an explicit location instead.
+The file starts with a `# yaml-language-server: $schema=…` header so IDEs pick up the
+schema automatically.
 
 ## `heraut release`
 

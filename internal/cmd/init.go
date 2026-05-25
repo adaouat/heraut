@@ -22,7 +22,14 @@ func NewInitCmd() *cobra.Command {
 			defaults, _ := cmd.Flags().GetBool("defaults")
 			out := cmd.OutOrStdout()
 
-			path := config.ResolvePath(cfgPath)
+			// ResolvePath is for reading existing configs. InitDest picks the
+			// write destination based on whether .config/ directory exists.
+			var path string
+			if cfgPath != "" {
+				path = cfgPath
+			} else {
+				path = config.InitDest()
+			}
 
 			var answers scaffold.Answers
 			existingLoaded := false
