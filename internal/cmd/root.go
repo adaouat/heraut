@@ -1,12 +1,19 @@
 package cmd
 
 import (
-	"github.com/adaouat/heraut/internal/ui"
+	"context"
+	"os"
+	"time"
+
 	"github.com/spf13/cobra"
+
+	"github.com/adaouat/heraut/internal/selfupdate"
+	"github.com/adaouat/heraut/internal/ui"
 )
 
-// NewRootCmd constructs the root heraut command.
-func NewRootCmd(version string) *cobra.Command {
+// NewRootCmd constructs the root heraut command. opts are forwarded to the
+// self-update subsystem (e.g. selfupdate.WithLatestURL for tests).
+func NewRootCmd(version string, opts ...selfupdate.Option) *cobra.Command {
 	root := &cobra.Command{
 		Use:   "heraut",
 		Short: "Release management for git-based projects",
@@ -27,6 +34,20 @@ func NewRootCmd(version string) *cobra.Command {
 	root.AddCommand(NewCliffCmd())
 	root.AddCommand(NewVersionCmd())
 	root.AddCommand(NewInitCmd(version))
+	root.AddCommand(NewSelfUpdateCmd(version, opts...))
+
+	root.PersistentPostRunE = func(c *cobra.Command, args []string) error {
+		if c.Name() == "self-update" {
+			return nil
+		}
+		if version == "dev" || os.Getenv("HERAUT_NO_UPDATE_CHECK") == "1" {
+			return nil
+		}
+		ctx, cancel := context.WithTimeout(context.Background(), 500*time.Millisecond)
+		defer cancel()
+		selfupdate.New(version, opts...).Hint(ctx, c.ErrOrStderr())
+		return nil
+	}
 
 	return root
 }

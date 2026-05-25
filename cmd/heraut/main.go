@@ -9,12 +9,8 @@ import (
 	"github.com/adaouat/heraut/internal/cmd"
 )
 
-// Build-time variables injected via -ldflags.
-var (
-	Version    = "dev"
-	ProjectURL = "https://github.com/adaouat/heraut"
-	LatestURL  = "https://api.github.com/repos/adaouat/heraut/releases/latest"
-)
+// Version is injected at build time via -ldflags "-X main.Version={{.Tag}}".
+var Version = "dev"
 
 func main() {
 	root := cmd.NewRootCmd(Version)

@@ -1000,7 +1000,7 @@ defaults.
 
 ---
 
-#### `[ ]` T21: `heraut self-update` — GitHub Releases API
+#### `[x]` T21: `heraut self-update` — GitHub Releases API
 
 **Description:** Self-update targeting the GitHub Releases API. See
 [ADR-0014](../adr/0014-self-update-architecture.md).
@@ -1024,6 +1024,8 @@ defaults.
 `internal/cmd/self_update.go`
 
 **Scope:** M
+
+**Done:** `ProjectURL` and `LatestURL` dropped as ldflags — they are stable constants hardcoded in `internal/selfupdate/`. Only `Version` remains an ldflag, now using `{{.Tag}}` (e.g. `v1.2.3`) instead of `{{.Version}}` so the value matches the GitHub API `tag_name` format directly. `selfupdate.New(version, opts...)` takes variadic `Option`; `WithLatestURL` is the one exported option (used by cmd-level tests via `NewRootCmd(version, selfupdate.WithLatestURL(...))`). Background hint is synchronous-with-500ms-context in `PersistentPostRunE` — functionally equivalent to a goroutine from the user's perspective since it runs after the command output. 13 unit tests + 3 cmd tests; all tests use `httptest.Server`.
 
 ### ✦ `[ ]` CHECKPOINT G — DX features complete
 

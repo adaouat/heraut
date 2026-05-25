@@ -24,7 +24,7 @@ builds:
         goarch: arm64
     ldflags:
       - >-
-        -s -w -X main.Version={{.Version}} -X main.ProjectURL=https://github.com/adaouat/heraut -X main.LatestURL=https://api.github.com/repos/adaouat/heraut/releases/latest
+        -s -w -X main.Version={{.Tag}}
 # ADR-0013: raw binaries, no archive wrapper
 archives:
   - id: default

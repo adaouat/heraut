@@ -6,10 +6,7 @@ COPY . .
 # ldflags must match .goreleaser.yml — GoReleaser is the source of truth
 ARG VERSION=dev
 RUN go build \
-    -ldflags "-s -w \
-        -X main.Version=${VERSION} \
-        -X main.ProjectURL=https://github.com/adaouat/heraut \
-        -X main.LatestURL=https://api.github.com/repos/adaouat/heraut/releases/latest" \
+    -ldflags "-s -w -X main.Version=${VERSION}" \
     -o /heraut \
     ./cmd/heraut/
 
