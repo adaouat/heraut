@@ -1157,7 +1157,7 @@ acceptable until a docs-hosting story is defined).
 
 ---
 
-#### `[ ]` T24: `README.md`
+#### `[x]` T24: `README.md`
 
 Public-facing, written last. Install (`go install`, GitHub binary,
 `ghcr.io/adaouat/heraut`), quickstart (`heraut init` → `heraut check config` →
@@ -1168,6 +1168,18 @@ Public-facing, written last. Install (`go install`, GitHub binary,
 Files: `README.md`
 
 Scope: S
+
+**Done:** Wrote the public README. Header uses the brand horizontal lockup
+(`docs/images/lockup-horizontal.png`) — the user added eight brand images to
+`docs/images/` and asked for a subset, so only the horizontal lockup is referenced (the
+stacked lockup and release-card are available if a different header is preferred). Static
+shields.io badges for MIT + Go 1.26. Sections: what-it-does + the pun, install (`go
+install` / prebuilt raw binary with checksum note / Docker), prerequisites table mapping
+each external CLI to the config that needs it, quickstart (init → check config → dry-run
+→ release), a commands table + global-flags line, a short configuration reference with a
+working `.heraut.yml` example and the `$schema` header, self-update, and doc links. The
+prebuilt-binary curl uses a `<version>` placeholder rather than a fabricated
+`latest/download` URL, since GoReleaser asset names embed the version (ADR-0013).
 
 ---
 
