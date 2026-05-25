@@ -51,7 +51,8 @@ func ParseVersion(template, tag string) (string, error)
 
 // GlobPattern produces the git tag glob pattern for `git tag -l`.
 // Replaces {version} with `*` and {env} with the literal env name.
-func GlobPattern(template, env string) string
+// Returns an error if template has no {version} token.
+func GlobPattern(template, env string) (string, error)
 ```
 
 Both per-env resolvers go through this package; nothing else does.
@@ -74,7 +75,7 @@ type VersionCalculator interface {
     BumpFromDate(tags []string) (string, error)
 }
 
-func New(runner port.Runner, cfg config.Versioning, env string, force bool, calc VersionCalculator) (*Resolver, error)
+func New(runner port.Runner, cfg *config.Config, env string, force bool, calc VersionCalculator) *Resolver
 
 func (r *Resolver) Resolve() (versioning.Result, error)
 ```

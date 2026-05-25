@@ -1067,7 +1067,7 @@ changed in this task.
 
 ---
 
-#### `[ ]` T23: ADR reconciliation
+#### `[x]` T23: ADR reconciliation
 
 Re-read the 14 ADRs from `docs/adr/`; validate that 0007 (E001/E002/E003), 0008
 (`source:` field), 0009 (generic perenv), 0010 (embedded cliff), and 0014 (self-update)
@@ -1077,6 +1077,22 @@ was built.
 Files: `docs/adr/*.md`
 
 Scope: S
+
+**Done:** Validated the five focus ADRs against the code. **0008 and 0010 were accurate**
+(validator enforces all four `source` rules + cycle detection at config time; gitcliff
+embed filenames, `pelletier/go-toml/v2` merge, and `prepareConfig()` all match). Amended
+three: **0007** — clarified the sentinels are wired but the exit-code-4 mapping is not
+(tracked by T27); corrected the false "the comparator differs" claim (a single
+`compareVersionStrings` handles both SemVer and CalVer); added an implementation-status
+note that the rich Biome-style multi-line errors are the target but not yet built (tracked
+by new **T30**). **0009** — fixed the `New` signature (`cfg *config.Config`, no error
+return, not `config.Versioning` with error) and `GlobPattern` (returns `(string, error)`).
+**0014** — the URLs are compiled-in constants (`defaultProjectURL`/`defaultLatestURL`) in
+`internal/selfupdate/updater.go`, **not** `main.ProjectURL`/`main.LatestURL` ldflags; only
+`main.Version` is injected; rewrote the ldflags section and the hint-disable bullet
+accordingly. Also fixed the stale `CLAUDE.md` § ldflags-invariant table (per user request,
+outside the strict `docs/adr/` scope) to list only `main.Version`. Added T30 (rich
+promotion errors). No production code changed.
 
 ---
 
@@ -1211,6 +1227,28 @@ failures are diagnosable. Update Spec 03's `--verbose` description to document t
 **Files:** `internal/adapter/exec/runner.go`, `docs/specs/03-commands.md`
 
 **Scope:** S
+
+---
+
+#### `[ ]` T30: Rich promotion error messages (E001/E002/E003)
+
+**Description:** [ADR-0007](../adr/0007-version-promotion-error-handling.md) specifies
+Biome-style multi-line errors for the three promotion guards (what was found, why it is
+wrong, how to fix it — with concrete `git tag` / `--force` remediation). Today
+`internal/versioning/perenv/promote.go` emits concise single-line sentinel errors
+(`E001: target tag already exists: tag "prod/1.0.2" already exists (pass --force to
+bypass)`). Implement the rich format from the ADR examples. Surfaced by T23.
+
+**Approach:** Render the rich messages where the sentinels are produced (or where they
+are caught for display), carrying the source env, destination env, candidate version,
+and the latest source/destination tags. Keep the sentinel `errors.Is` identity intact so
+the pipeline's `--force` handling and the future exit-code mapping (T27) still work.
+Pairs naturally with T27 (exit code 4) since both touch the promotion error path.
+
+**Files:** `internal/versioning/perenv/promote.go` (+ wherever the errors are rendered),
+`internal/versioning/perenv/resolver.go`
+
+**Scope:** M
 
 ---
 

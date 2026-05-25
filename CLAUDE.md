@@ -129,15 +129,19 @@ Go, golangci-lint, goreleaser, and git-cliff are installed via mise (see
 
 ## ldflags invariant
 
-`Dockerfile` and `.goreleaser.yml` both inject build-time variables via `-ldflags`.
+`Dockerfile` and `.goreleaser.yml` both inject the build-time version via `-ldflags`.
 **They must stay identical.** GoReleaser is the source of truth; the Dockerfile carries
 a comment pointing there.
 
-| ldflag            | Purpose                                                          |
-|-------------------|------------------------------------------------------------------|
-| `main.Version`    | Running binary's version string (`heraut --version`)             |
-| `main.ProjectURL` | `https://github.com/adaouat/heraut` — used by `heraut self-update` |
-| `main.LatestURL`  | GitHub Releases API endpoint — `heraut self-update --check` and background hint |
+| ldflag         | Purpose                                              |
+|----------------|------------------------------------------------------|
+| `main.Version` | Running binary's version string (`heraut --version`) |
+
+`main.Version` is the only ldflag. The project URL and the GitHub Releases API endpoint
+used by `heraut self-update` are **compiled-in constants** (`defaultProjectURL`,
+`defaultLatestURL`) in `internal/selfupdate/updater.go`, not ldflags — heraut targets a
+single fixed public repo, so they never vary per build (see
+[ADR-0014](docs/adr/0014-self-update-architecture.md)).
 
 ## Bundled external CLIs (not installed by heraut)
 

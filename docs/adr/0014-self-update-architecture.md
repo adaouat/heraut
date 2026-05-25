@@ -62,9 +62,11 @@ or error a real command invocation.
 The hint is disabled when:
 
 - The command being run is `heraut self-update` (avoids confusing output during update)
+  — gated in `internal/cmd/root.go`'s `PersistentPostRunE`
 - `HERAUT_NO_UPDATE_CHECK=1` is set
 - The binary is a `dev` build (no `main.Version` ldflag) — can't reliably compare
-- `main.LatestURL` (the API endpoint embedded at build time) is empty
+- The Updater's `latestURL` is empty — in practice only when a test overrides it via
+  `WithLatestURL("")`, since production builds use the compiled-in constant
 
 A short-lived cache at `$XDG_CACHE_HOME/heraut/update-check.json` (fallback
 `~/.cache/heraut/update-check.json`) holds the last check timestamp and result; the
@@ -128,18 +130,24 @@ error: permission denied replacing /usr/local/bin/heraut
   hint: run with elevated privileges: sudo heraut self-update
 ```
 
-### `ProjectURL` and `LatestURL` ldflags
+### Project and latest-release URLs
 
-Two ldflags are embedded at build time, both wired in `Dockerfile` and
-`.goreleaser.yml`:
+The project URL and the latest-release API endpoint are **compiled-in constants** in
+`internal/selfupdate/updater.go`, not build-time ldflags:
 
-- `main.ProjectURL` — `https://github.com/adaouat/heraut`. Used for the install hint
+- `defaultProjectURL` — `https://github.com/adaouat/heraut`. Used for the install hint
   in error messages.
-- `main.LatestURL` — `https://api.github.com/repos/adaouat/heraut/releases/latest`.
+- `defaultLatestURL` — `https://api.github.com/repos/adaouat/heraut/releases/latest`.
   Used directly by the self-update code to fetch the latest release manifest.
 
-Both values must stay in lock-step between `Dockerfile` and `.goreleaser.yml`. The
-invariant is documented in `CLAUDE.md` § ldflags invariant.
+Because heraut targets a single, fixed public repository, these URLs never vary per
+build, so hardcoding them as constants is simpler than threading two extra ldflags
+through `main` → `cmd` → `selfupdate`. Tests override the endpoint with the
+`WithLatestURL(...)` option (backed by an `httptest.Server`).
+
+The only build-time ldflag is `main.Version` (`-X main.Version={{.Tag}}`), injected by
+both `.goreleaser.yml` and `Dockerfile`; GoReleaser is the source of truth (see
+`CLAUDE.md` § ldflags invariant).
 
 ## Alternatives considered
 

@@ -20,9 +20,11 @@ Provide rich, actionable error messages (Biome-style: what was found, why it is 
 how to fix it). Offer a `--force` flag as an explicit escape hatch that must be passed
 consciously.
 
-The three errors are wired as exit code 4 (see [Spec 01 — Exit codes](../specs/01-overview.md#exit-codes))
-and as sentinel error values in `internal/versioning/perenv/` so the pipeline can detect
-them via `errors.Is`.
+The three errors are wired as sentinel error values (`ErrTargetExists`,
+`ErrDestinationAhead`, `ErrNoSourceTags`) in `internal/versioning/perenv/` so the
+pipeline can detect them via `errors.Is`. They are intended to map to exit code 4 (see
+[Spec 01 — Exit codes](../specs/01-overview.md#exit-codes)); that exit-code mapping is
+not yet implemented (every error currently exits 1) and is tracked by roadmap **T27**.
 
 ### Edge case A — target tag already exists (E001)
 
@@ -106,6 +108,13 @@ error[E003]: no source tags found
 | E002 | Yes                       |
 | E003 | No                        |
 
+> **Implementation status**: the sentinel errors, the `--force` bypass matrix above, and
+> the SemVer/CalVer regression check (E002) are implemented. The rich multi-line message
+> format shown in the three examples above is **not yet implemented** — the current
+> errors are concise single-line messages (e.g. `E001: target tag already exists: tag
+> "prod/1.0.2" already exists (pass --force to bypass)`). The Biome-style format remains
+> the target and is tracked by roadmap **T30**.
+
 ## Consequences
 
 **Positive**
@@ -119,5 +128,7 @@ error[E003]: no source tags found
 - More implementation work than a simple "let it fail downstream" approach.
 - Edge case B requires the tool to fetch and compare tags across two namespaces — adds
   a git operation to the happy path (acceptable cost).
-- The check applies symmetrically to SemVer and CalVer ordering; the comparator differs
-  but the error message text is identical.
+- The check applies symmetrically to SemVer and CalVer. A single comparator
+  (`compareVersionStrings` in `promote.go`) handles both: it compares dot-separated
+  integer components, which works for SemVer (`1.2.3`) and CalVer (`2026.05.3`) alike, so
+  no per-strategy comparator is needed and the error message text is identical.
