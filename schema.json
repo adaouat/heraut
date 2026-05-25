@@ -1,0 +1,231 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://raw.githubusercontent.com/adaouat/heraut/main/schema.json",
+  "title": "heraut",
+  "description": "Configuration file for heraut (.heraut.yml).",
+  "type": "object",
+  "required": ["version", "versioning"],
+  "additionalProperties": false,
+  "properties": {
+    "version": {
+      "type": "string",
+      "const": "1",
+      "description": "Schema version. Must be \"1\"."
+    },
+    "versioning": {
+      "$ref": "#/definitions/Versioning"
+    },
+    "changelog": {
+      "$ref": "#/definitions/ContentDriver"
+    },
+    "release": {
+      "$ref": "#/definitions/Release"
+    },
+    "environments": {
+      "type": "object",
+      "additionalProperties": {
+        "$ref": "#/definitions/EnvOverride"
+      },
+      "description": "Top-level per-environment overrides for changelog and release."
+    }
+  },
+  "definitions": {
+    "Versioning": {
+      "type": "object",
+      "required": ["strategy"],
+      "additionalProperties": false,
+      "properties": {
+        "strategy": {
+          "type": "string",
+          "enum": ["semver", "calver", "semver-per-env", "calver-per-env"],
+          "description": "Versioning strategy."
+        },
+        "prefix": {
+          "type": "string",
+          "description": "Tag prefix (e.g. \"v\"). Set to \"\" for bare version tags."
+        },
+        "initial_version": {
+          "type": "string",
+          "description": "Version used when no tags exist yet. SemVer strategies only."
+        },
+        "bump": {
+          "type": "string",
+          "enum": ["auto", "manual"],
+          "description": "Bump mode. \"auto\" infers from conventional commits. SemVer strategies only."
+        },
+        "format": {
+          "type": "string",
+          "description": "CalVer format string (e.g. \"YYYY.MM.PATCH\"). Required for calver strategies."
+        },
+        "sprint": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "Current sprint counter. Required when format contains SPRINT. Advance with heraut version sprint bump."
+        },
+        "tag_format": {
+          "type": "string",
+          "description": "Common tag format template for per-env strategies (e.g. \"{env}/{version}\")."
+        },
+        "environments": {
+          "type": "object",
+          "additionalProperties": {
+            "$ref": "#/definitions/EnvVersioning"
+          },
+          "description": "Per-environment version config. Required for *-per-env strategies."
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "strategy": { "enum": ["calver", "calver-per-env"] }
+            },
+            "required": ["strategy"]
+          },
+          "then": {
+            "required": ["format"]
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "strategy": { "enum": ["semver-per-env", "calver-per-env"] }
+            },
+            "required": ["strategy"]
+          },
+          "then": {
+            "required": ["environments"]
+          }
+        }
+      ]
+    },
+    "EnvVersioning": {
+      "type": "object",
+      "required": ["bump"],
+      "additionalProperties": false,
+      "properties": {
+        "bump": {
+          "type": "string",
+          "enum": ["auto", "promote"],
+          "description": "Bump mode for this environment."
+        },
+        "tag_format": {
+          "type": "string",
+          "description": "Per-environment tag format override."
+        },
+        "branch": {
+          "type": "string",
+          "description": "Branch restriction for this environment."
+        },
+        "source": {
+          "type": "string",
+          "description": "Source environment for promote bump mode."
+        },
+        "disable_changelog": {
+          "type": "boolean",
+          "description": "Disable changelog generation for this environment."
+        },
+        "disable_notes": {
+          "type": "boolean",
+          "description": "Disable release notes for this environment."
+        }
+      }
+    },
+    "ContentDriver": {
+      "type": "object",
+      "required": ["generator"],
+      "additionalProperties": false,
+      "properties": {
+        "generator": {
+          "type": "string",
+          "enum": ["git-cliff", "communique", "cocogitto"],
+          "description": "Content generator."
+        },
+        "config": {
+          "type": "string",
+          "description": "Path to a generator-specific config file."
+        },
+        "output": {
+          "type": "string",
+          "description": "Changelog output file path (e.g. \"CHANGELOG.md\")."
+        },
+        "tag_pattern": {
+          "type": "string",
+          "description": "Git tag glob for filtering commits (e.g. \"dev/*\")."
+        },
+        "template": {
+          "type": "string",
+          "description": "Template path override."
+        }
+      }
+    },
+    "Release": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "notes": {
+          "$ref": "#/definitions/ContentDriver"
+        },
+        "platforms": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/Platform"
+          }
+        }
+      }
+    },
+    "Platform": {
+      "type": "object",
+      "required": ["platform"],
+      "additionalProperties": false,
+      "properties": {
+        "platform": {
+          "type": "string",
+          "enum": ["github", "gitlab"],
+          "description": "Platform type."
+        },
+        "repository": {
+          "type": "string",
+          "description": "GitHub repository (owner/repo). GitHub only."
+        },
+        "draft": {
+          "type": "boolean",
+          "description": "Create as draft release. GitHub only."
+        },
+        "prerelease": {
+          "type": "boolean",
+          "description": "Mark as pre-release. GitHub only."
+        },
+        "project": {
+          "type": "string",
+          "description": "GitLab project path (namespace/project). GitLab only."
+        },
+        "catalog": {
+          "type": "boolean",
+          "description": "Publish to GitLab release catalog. GitLab only."
+        },
+        "token_env": {
+          "type": "string",
+          "description": "Environment variable holding the API token."
+        },
+        "assets": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Asset file paths to attach to the release."
+        }
+      }
+    },
+    "EnvOverride": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "changelog": {
+          "$ref": "#/definitions/ContentDriver"
+        },
+        "release": {
+          "$ref": "#/definitions/Release"
+        }
+      }
+    }
+  }
+}

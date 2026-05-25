@@ -1062,6 +1062,32 @@ Scope: S
 
 ---
 
+#### `[x]` T25: `schema.json` — JSON Schema for `.heraut.yml`
+
+**Description:** Publish a JSON Schema at the project root so IDEs can validate
+`.heraut.yml` via the `# yaml-language-server: $schema=…` header emitted by
+`heraut init`. The schema must match the `config.Config` struct exactly
+(same required fields, same enums, same additionalProperties: false strictness).
+
+**Acceptance:**
+- `schema.json` exists at the project root, validates as JSON Schema draft-07
+- Covers: `version`, `versioning` (all sub-fields + enums), `changelog`,
+  `release`, `environments`, `platform` (GitHub/GitLab fields), `ContentDriver`
+- `if`/`then` conditionals: calver strategies require `format`; per-env strategies
+  require `versioning.environments`
+- All `testdata/config/valid/` fixtures pass the schema
+- Structural-invalid fixtures (`invalid_strategy.yml`, `invalid_generator.yml`,
+  `missing_version.yml`, `unknown_key.yml`, `perenv_no_environments.yml`) fail
+- Semantic-only fixtures (`source_ambiguous.yml`, `source_cycle.yml`) pass
+
+**Files:** `schema.json`, `internal/config/schema_test.go`
+
+**Scope:** S
+
+**Done:** Implemented JSON Schema draft-07 at `schema.json`. Used `definitions` (not `$defs`) with `additionalProperties: false` throughout and `if`/`then` conditionals for strategy-dependent required fields. Tests use `github.com/santhosh-tekuri/jsonschema/v6` — the v6 API requires `compiler.Compile(path)` directly; passing a `*strings.Reader` to `AddResource` was wrong (it expects a decoded JSON value). All 4 schema test functions (ValidJSON, ValidFixtures, InvalidFixtures, SemanticOnlyFixtures) pass against the 4 valid and 7 invalid fixtures in `testdata/config/`.
+
+---
+
 #### `[ ]` T24: `README.md`
 
 Public-facing, written last. Install (`go install`, GitHub binary,
