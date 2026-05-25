@@ -1268,6 +1268,10 @@ also unaffected since the change lives only in the real exec adapter. Spec 03's 
 row updated. Verified: 447 tests pass, and the built binary shows the indented echo under
 `[exec]` on `version current --verbose`.
 
+---
+
+#### `[ ]` T30: Rich promotion error messages (E001/E002/E003)
+
 **Description:** [ADR-0007](../adr/0007-version-promotion-error-handling.md) specifies
 Biome-style multi-line errors for the three promotion guards (what was found, why it is
 wrong, how to fix it — with concrete `git tag` / `--force` remediation). Today
