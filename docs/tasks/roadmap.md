@@ -1027,10 +1027,10 @@ defaults.
 
 **Done:** `ProjectURL` and `LatestURL` dropped as ldflags — they are stable constants hardcoded in `internal/selfupdate/`. Only `Version` remains an ldflag, now using `{{.Tag}}` (e.g. `v1.2.3`) instead of `{{.Version}}` so the value matches the GitHub API `tag_name` format directly. `selfupdate.New(version, opts...)` takes variadic `Option`; `WithLatestURL` is the one exported option (used by cmd-level tests via `NewRootCmd(version, selfupdate.WithLatestURL(...))`). Background hint is synchronous-with-500ms-context in `PersistentPostRunE` — functionally equivalent to a goroutine from the user's perspective since it runs after the command output. 13 unit tests + 3 cmd tests; all tests use `httptest.Server`.
 
-### ✦ `[ ]` CHECKPOINT G — DX features complete
+### ✦ `[x]` CHECKPOINT G — DX features complete
 
-- [ ] `heraut init --defaults` produces a valid config that passes `heraut check config`
-- [ ] `heraut self-update --check` exits without error against mock GitHub API
+- [x] `heraut init --defaults` produces a valid config that passes `heraut check config`
+- [x] `heraut self-update --check` exits without error against mock GitHub API
 
 ---
 
