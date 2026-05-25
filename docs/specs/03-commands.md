@@ -35,12 +35,16 @@ heraut init --force        # overwrite an existing config without prompting
 
 | Flag         | Default | Description                                                                                                  |
 |--------------|---------|--------------------------------------------------------------------------------------------------------------|
-| `--defaults` | `false` | Write a non-interactive default config (semver, prefix `"v"`, git-cliff, GitHub). Skip the wizard.           |
+| `--defaults` | `false` | Write a non-interactive default config (semver, prefix `"v"`, git-cliff, GitLab). Skip the wizard.           |
 | `--force`    | `false` | Overwrite an existing config file. Without it, heraut prompts before overwriting.                            |
 
-**Wizard flow**: strategy → prefix / format → generator(s) → platform(s) → environments
+**Wizard flow**: strategy → prefix / format → sprint (if format uses `SPRINT`) → generator(s) → platform(s) → environments
 (for per-env strategies, loops to add N envs). Existing config (if any) pre-populates
 the answers, so re-running `heraut init` updates instead of replacing.
+
+When `SPRINT` is chosen as part of the CalVer format, the wizard adds an extra step
+asking for the current sprint number. This value is written to `versioning.sprint` and
+can be advanced later with `heraut version sprint bump`.
 
 **Output**: writes to `.config/heraut.yml` if the `.config/` directory already exists,
 else to `.heraut.yml`. The file starts with a `# yaml-language-server: $schema=…`

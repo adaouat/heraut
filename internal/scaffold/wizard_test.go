@@ -128,6 +128,24 @@ func TestConfigToAnswers_Environments(t *testing.T) {
 	assert.True(t, names["prod"])
 }
 
+func TestConfigToAnswers_Sprint(t *testing.T) {
+	cfg := &config.Config{
+		Version:    "1",
+		Versioning: config.Versioning{Strategy: "calver", Format: "YYYY.SPRINT.PATCH", Sprint: 5},
+	}
+	a := scaffold.ConfigToAnswers(cfg)
+	assert.Equal(t, 5, a.Sprint)
+}
+
+func TestConfigToAnswers_SprintZeroWhenAbsent(t *testing.T) {
+	cfg := &config.Config{
+		Version:    "1",
+		Versioning: config.Versioning{Strategy: "calver", Format: "YYYY.MM.PATCH"},
+	}
+	a := scaffold.ConfigToAnswers(cfg)
+	assert.Equal(t, 0, a.Sprint)
+}
+
 func TestConfigToAnswers_NotesGenerator(t *testing.T) {
 	cfg := &config.Config{
 		Version:    "1",

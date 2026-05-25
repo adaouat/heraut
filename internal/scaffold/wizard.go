@@ -3,6 +3,7 @@ package scaffold
 import (
 	"fmt"
 	"regexp"
+	"strconv"
 	"strings"
 
 	"charm.land/huh/v2"
@@ -23,6 +24,10 @@ type Answers struct {
 	NotesGenerator string // git-cliff, communique, cocogitto, or "" (none)
 
 	Platforms []PlatformAnswer
+
+	// Sprint is the current sprint counter, required when Format contains SPRINT.
+	// Not clock-derived: advance it with `heraut version sprint bump`.
+	Sprint int
 
 	// Per-env strategies only.
 	TagFormat    string
@@ -85,6 +90,8 @@ func ConfigToAnswers(cfg *config.Config) Answers {
 	if cfg.Versioning.Prefix != nil {
 		a.Prefix = *cfg.Versioning.Prefix
 	}
+
+	a.Sprint = cfg.Versioning.Sprint
 
 	if cfg.Changelog != nil {
 		a.ChangelogGenerator = cfg.Changelog.Generator
@@ -210,6 +217,11 @@ func RunWizard(a *Answers) error {
 		} else {
 			a.Format = customFormat
 		}
+		if strings.Contains(a.Format, "SPRINT") {
+			if err := runSprintWizard(a); err != nil {
+				return err
+			}
+		}
 	}
 
 	if err := runPlatformWizard(a); err != nil {
@@ -222,6 +234,36 @@ func RunWizard(a *Answers) error {
 		}
 	}
 
+	return nil
+}
+
+func runSprintWizard(a *Answers) error {
+	initial := "1"
+	if a.Sprint > 0 {
+		initial = strconv.Itoa(a.Sprint)
+	}
+	sprintStr := initial
+
+	if err := huh.NewForm(
+		huh.NewGroup(
+			huh.NewInput().
+				Title("Current sprint number").
+				Description("SPRINT is not clock-derived — set it here and run 'heraut version sprint bump' to advance it").
+				Value(&sprintStr).
+				Validate(func(s string) error {
+					n, err := strconv.Atoi(strings.TrimSpace(s))
+					if err != nil || n < 1 {
+						return fmt.Errorf("sprint must be a positive integer")
+					}
+					return nil
+				}),
+		),
+	).Run(); err != nil {
+		return err
+	}
+
+	n, _ := strconv.Atoi(strings.TrimSpace(sprintStr))
+	a.Sprint = n
 	return nil
 }
 

@@ -100,6 +100,39 @@ func TestGenerateYAML_PerEnv(t *testing.T) {
 	assert.Contains(t, cfg.Versioning.Environments, "prod")
 }
 
+func TestGenerateYAML_CalVerSprint(t *testing.T) {
+	a := scaffold.Answers{
+		Strategy:           "calver",
+		Format:             "YYYY.SPRINT.PATCH",
+		Sprint:             3,
+		ChangelogGenerator: "git-cliff",
+		ChangelogOutput:    "CHANGELOG.md",
+		Platforms:          []scaffold.PlatformAnswer{{Type: "gitlab"}},
+	}
+	out, err := scaffold.GenerateYAML(a)
+	require.NoError(t, err)
+
+	body := stripHeader(out)
+	cfg, err := config.LoadFromReader(strings.NewReader(body))
+	require.NoError(t, err)
+
+	errs := config.Validate(cfg)
+	assert.Empty(t, errs)
+	assert.Equal(t, 3, cfg.Versioning.Sprint)
+}
+
+func TestGenerateYAML_SprintOmittedWhenZero(t *testing.T) {
+	a := scaffold.Answers{
+		Strategy:  "calver",
+		Format:    "YYYY.MM.PATCH",
+		Sprint:    0,
+		Platforms: []scaffold.PlatformAnswer{{Type: "gitlab"}},
+	}
+	out, err := scaffold.GenerateYAML(a)
+	require.NoError(t, err)
+	assert.NotContains(t, out, "sprint:")
+}
+
 func TestGenerateYAML_NoPlatforms(t *testing.T) {
 	a := scaffold.Answers{
 		Strategy:           "semver",

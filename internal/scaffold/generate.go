@@ -46,6 +46,10 @@ func answersToConfig(a Answers) config.Config {
 		cfg.Versioning.Format = a.Format
 	}
 
+	if a.Sprint > 0 {
+		cfg.Versioning.Sprint = a.Sprint
+	}
+
 	if len(a.Environments) > 0 {
 		cfg.Versioning.TagFormat = a.TagFormat
 		cfg.Versioning.Environments = make(map[string]config.EnvVersioning, len(a.Environments))

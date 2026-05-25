@@ -92,6 +92,10 @@ increments by one for each release within the same period.
 `versioning.sprint` and advance it manually with `heraut version sprint bump` at the
 start of each sprint. When sprint changes, `PATCH` resets to `0` on the next release.
 
+`heraut init` prompts for the initial `sprint` value when the selected CalVer format
+contains `SPRINT`; it writes the entered value to `versioning.sprint` in the generated
+`.heraut.yml`.
+
 ### Common format examples
 
 | Format              | Example tags                          | Period    |
