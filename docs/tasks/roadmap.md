@@ -1223,19 +1223,7 @@ implemented).
 
 ---
 
-#### `[ ]` T28: Annotated git tags (revisit)
-
-**Description:** Both pipelines currently create lightweight tags (`git tag <tag>` in
-`internal/pipeline/release.go` and `changelog.go`). Annotated tags (`git tag -a -m …`)
-carry a tagger, date, and message and are what most release tooling expects. Decide
-whether to switch, and if so what the annotation message should be (likely the resolved
-version or the release notes). Discuss implementation before starting. Surfaced by T22
-spec reconciliation; Spec 03 currently documents lightweight tags to match the code.
-
-**Files:** `internal/pipeline/release.go`, `internal/pipeline/changelog.go`,
-`docs/specs/03-commands.md`
-
-**Scope:** S
+*T28 moved to Phase 8 — Stable Release Preparation.*
 
 ---
 
@@ -1431,6 +1419,132 @@ override — causing `semver-per-env` configs with a shared top-level `tag_forma
 Fix: `tagFormat(cfg, env)` helper in `resolver.go`. All four dry-run strategies verified
 after the fix. ADR count bumped to 16 across roadmap, CLAUDE.md, and docs/adr/README.
 README Prerequisites clarified: Docker image bundles all CLIs.
+
+---
+
+### Phase 8 — Stable Release Preparation
+
+Goal: cut v1.0.0 using heraut itself, with quality gates enforced in CI and the
+bootstrapped release flow settled.
+
+#### `[ ]` T28: Annotated git tags (revisit)
+
+**Description:** Both pipelines currently create lightweight tags (`git tag <tag>` in
+`internal/pipeline/release.go` and `changelog.go`). Annotated tags (`git tag -a -m …`)
+carry a tagger, date, and message and are what most release tooling expects. Decide
+whether to switch, and if so what the annotation message should be (likely the resolved
+version or the release notes). Discuss implementation before starting. Surfaced by T22
+spec reconciliation; Spec 03 currently documents lightweight tags to match the code.
+
+**Files:** `internal/pipeline/release.go`, `internal/pipeline/changelog.go`,
+`docs/specs/03-commands.md`
+
+**Scope:** S
+
+---
+
+#### `[ ]` T35: CI improvements — split jobs, coverage threshold, goreleaser check
+
+**Description:** Rework `.github/workflows/ci.yml` into three independent jobs so each
+can be individually required in branch protection. Add a coverage threshold gate and a
+`goreleaser check` step to prevent silent release-config drift.
+
+**Acceptance:**
+- `ci.yml` has three separate jobs: `lint`, `test`, `build`
+  - `lint`: `golangci-lint run ./...` (unchanged behaviour, now independently requirable)
+  - `test`: `go test ./... -coverprofile=coverage.out`; fail if total statement coverage
+    falls below 80%
+  - `build`: `go build ./cmd/heraut/` + `goreleaser check` (validates `.goreleaser.yml`
+    without running a release)
+- No behavioral change to existing lint/test/build checks — only the job topology changes
+- The coverage threshold applies from this task forward; T34 is the sweep that brings
+  coverage above it
+
+**Dependencies:** none
+
+**Files:** `.github/workflows/ci.yml`
+
+**Scope:** S
+
+---
+
+#### `[ ]` T34: Coverage sweep — enforce 80%, target 85%
+
+**Description:** Bring test coverage up to the threshold introduced by T35. The 0% and
+low-coverage packages are mechanical — unit and contract tests, no new design required.
+Wizard forms and entry-point code are explicitly excluded (untestable without a VT100
+harness or binary exec).
+
+**Packages to cover (priority order):**
+
+| Package / function | Current | Why 0% / low |
+|--------------------|---------|--------------|
+| `internal/app/` (all functions) | 0% | Factory wiring — unit tests with MockRunner/MockGenerator/MockPlatform |
+| `internal/config/error.go` | 0% | `ValidationError.Error()` and `ValidationErrors.Error()` — never called in tests |
+| `internal/config/sprint.go` | 0% | `IncrementSprint` — cmd test goes through `version sprint bump` but doesn't reach here |
+| `internal/scaffold/cliff.go`, `cog.go` | 0% | Embedded-file accessors — one-liner tests |
+| `internal/generators/gitcliff` `CheckCliff` | 0% | New method from T18, no test added |
+| `internal/versioning/semver/resolver.go` `BumpAuto`, `BumpFromDate` | 0% | perenv tests use mock calculator — direct semver calls missing |
+| `internal/cmd/release.go` (13%), `changelog.go` (20%) | low | Error paths: config load, validation, resolver failures |
+| `internal/selfupdate/updater.go:282, 337` | 0% | Remaining error/edge branches; httptest already in place |
+| `internal/ui/status.go` | 67% | Styled code path — needs a colour-capable writer in tests |
+| `internal/platforms/` `UploadAssets` | 67% | Glob-mismatch error path not exercised |
+| `internal/pipeline/` (63–81%) | low | Error branches in release and changelog pipelines |
+
+**Explicitly excluded:** `internal/scaffold/wizard.go` (interactive `huh` forms),
+`cmd/heraut/main.go` (entry point), `internal/testutil/` (test helpers).
+
+**Acceptance:**
+- `go test ./... -cover` total ≥ 80% (gate from T35)
+- All packages listed above have meaningful new test coverage
+- No existing test rows deleted or loosened
+
+**Dependencies:** T35
+
+**Files:** test files across `internal/app/`, `internal/config/`, `internal/scaffold/`,
+`internal/generators/gitcliff/`, `internal/versioning/semver/`, `internal/cmd/`,
+`internal/selfupdate/`, `internal/ui/`, `internal/platforms/`, `internal/pipeline/`
+
+**Scope:** M
+
+---
+
+#### `[ ]` T33: Bootstrap heraut's own `.heraut.yml`
+
+**Description:** Configure heraut to manage its own releases — Option A from the
+pre-phase discussion. Heraut handles version resolution, changelog generation, commit,
+and tag; GoReleaser + the existing `release.yml` workflow handle binary builds and the
+GitHub Release. No platforms block in `.heraut.yml` — the pipeline stops after tagging.
+
+The existing `.config/cliff.toml` is the changelog source; the git-cliff step already
+in `release.yml` generates the GoReleaser release notes independently.
+
+**Approach:**
+- `.heraut.yml` at the repo root: `strategy: semver`, `prefix: v`, `generator: git-cliff`
+  with `config: .config/cliff.toml`, `output: CHANGELOG.md`, no `release.platforms`
+- `heraut release` becomes the developer command to cut a release locally
+- Release workflow trigger stays `on: push: tags: v*` — unchanged
+- `CHANGELOG.md` added to the repo (generated, not hand-maintained)
+
+**Note:** This is Option A only. Option B (heraut fully owns GitHub Release creation,
+GoReleaser becomes a pure build tool) is tracked in
+[`docs/ideas.md`](../ideas.md) as a future target.
+
+**Dependencies:** T28 (tag style settled), T34 (coverage gate must pass before v1.0.0)
+
+**Files:** `.heraut.yml`, `CHANGELOG.md` (generated), `.gitignore` (if CHANGELOG.md
+should not be tracked), `docs/tasks/roadmap.md`
+
+**Scope:** S
+
+---
+
+### ✦ `[ ]` CHECKPOINT I — v1.0.0 shipped via heraut
+
+- [ ] T28 resolved — lightweight confirmed or annotated implemented
+- [ ] CI split: `lint` / `test` / `build` run as independent required checks
+- [ ] Coverage ≥ 80% enforced in CI; actual coverage ≥ 85%
+- [ ] v1.0.0 cut by running `heraut release` on the heraut repo itself
 
 ---
 
