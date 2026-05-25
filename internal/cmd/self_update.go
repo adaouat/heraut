@@ -9,6 +9,7 @@ import (
 
 	"github.com/adaouat/heraut/internal/exitcode"
 	"github.com/adaouat/heraut/internal/selfupdate"
+	"github.com/adaouat/heraut/internal/ui"
 )
 
 // NewSelfUpdateCmd constructs the `heraut self-update` command.
@@ -30,7 +31,8 @@ func NewSelfUpdateCmd(version string, opts ...selfupdate.Option) *cobra.Command 
 				if available {
 					return errors.New("update available")
 				}
-				_, _ = fmt.Fprintln(cmd.OutOrStdout(), "heraut is up to date")
+				out := cmd.OutOrStdout()
+				_, _ = fmt.Fprintln(out, ui.Success(out, "heraut is up to date"))
 				return nil
 			}
 

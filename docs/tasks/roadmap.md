@@ -1337,6 +1337,12 @@ status-line patterns replaced with the helpers (`printRuntimeItems`, `printConfi
 `checkCliffDriver`, config-ok lines). Seven new tests cover the non-TTY format, message
 preservation, and NO_COLOR compliance. `charm.land/lipgloss/v2` and
 `colorprofile` were already indirect deps via fang/huh — no new modules added.
+Extended the migration to all remaining `internal/cmd/` call sites:
+`release.go` and `changelog.go` now delegate their config-error blocks to `printConfigErrors`
+(eliminating the duplicate loop + `os.Stderr` direct writes); `self_update.go`, `init.go`,
+and `version_sprint.go` use `ui.Success` for their single confirmation lines. `version.go`
+and `cliff.go` were deliberately left plain — their output is machine-readable (tag names,
+raw TOML) and must not be decorated.
 
 ---
 

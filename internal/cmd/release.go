@@ -2,7 +2,6 @@ package cmd
 
 import (
 	"fmt"
-	"os"
 
 	execadapter "github.com/adaouat/heraut/internal/adapter/exec"
 	"github.com/adaouat/heraut/internal/app"
@@ -36,12 +35,7 @@ func NewReleaseCmd() *cobra.Command {
 			}
 
 			if errs := config.Validate(cfg); len(errs) > 0 {
-				for _, e := range errs {
-					_, _ = fmt.Fprintf(os.Stderr, "config error [%s]: %s\n", e.Path, e.Message)
-					if e.Hint != "" {
-						_, _ = fmt.Fprintf(os.Stderr, "  hint: %s\n", e.Hint)
-					}
-				}
+				printConfigErrors(errs, cmd.ErrOrStderr())
 				return exitcode.Wrap(exitcode.Config, fmt.Errorf("configuration is invalid"))
 			}
 

@@ -10,6 +10,7 @@ import (
 	"github.com/adaouat/heraut/internal/config"
 	"github.com/adaouat/heraut/internal/exitcode"
 	"github.com/adaouat/heraut/internal/scaffold"
+	"github.com/adaouat/heraut/internal/ui"
 )
 
 // NewInitCmd constructs the `heraut init` command.
@@ -81,7 +82,7 @@ func NewInitCmd(version string) *cobra.Command {
 				return exitcode.Wrap(exitcode.Runtime, fmt.Errorf("writing config: %w", err))
 			}
 
-			_, _ = fmt.Fprintln(out, "config written to", path)
+			_, _ = fmt.Fprintln(out, ui.Success(out, "config written to "+path))
 			return nil
 		},
 	}
