@@ -26,6 +26,9 @@ func NewReleaseCmd() *cobra.Command {
 			force, _ := cmd.Flags().GetBool("force")
 
 			runner := execadapter.New(dryRun, verbose)
+			// Resolver only performs read-only git calls (tag list, log); use a real
+			// runner so dry-run still shows the correct resolved version.
+			readRunner := execadapter.New(false, verbose)
 
 			path := config.ResolvePath(cfgPath)
 
@@ -39,7 +42,7 @@ func NewReleaseCmd() *cobra.Command {
 				return exitcode.Wrap(exitcode.Config, fmt.Errorf("configuration is invalid"))
 			}
 
-			resolver, err := app.NewResolver(cfg, env, force, versionOverride, runner)
+			resolver, err := app.NewResolver(cfg, env, force, versionOverride, readRunner)
 			if err != nil {
 				return exitcode.Wrap(exitcode.Config, err)
 			}
