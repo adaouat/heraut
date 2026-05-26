@@ -33,6 +33,19 @@ and **two platforms** (`github`, `gitlab`).
 go install github.com/adaouat/heraut/cmd/heraut@latest
 ```
 
+### mise
+
+```bash
+mise use github:adaouat/heraut
+```
+
+Or declare it in your `.mise.toml` / `mise.toml`:
+
+```toml
+[tools]
+"github:adaouat/heraut" = "latest"
+```
+
 ### Prebuilt binary
 
 Download the raw binary for your platform from the

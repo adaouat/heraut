@@ -25,9 +25,12 @@ developers before committing config changes. No tokens, no network, no git opera
 Every command supports `--dry-run`. The implementation:
 
 1. The `exec.Runner` adapter checks its `DryRun` flag before invoking each command.
-2. When set, it logs the would-be invocation (with all args, env vars, working dir)
-   and returns immediately with empty stdout / nil error.
-3. Production code paths get the same execution shape with no side effects.
+2. When set, it logs the would-be invocation and returns immediately with empty stdout /
+   nil error — no git writes, no network calls, no file writes outside `/tmp`.
+3. **Exception — version resolution**: the resolver always uses a real (non-dry-run)
+   runner for its read-only git calls (`git tag -l`, `git log`), so `--dry-run` output
+   shows the correct resolved version rather than falling back to `initial_version`.
+4. Production code paths get the same execution shape with no other side effects.
 
 In dry-run mode the UI uses plain `Info` / `Success` lines instead of spinner
 animations, so the `[dry-run]` output never overwrites itself.

@@ -10,7 +10,7 @@ Present on every subcommand. Defined on the root command in `internal/cmd/root.g
 | Flag                 | Default     | Description                                                                                                                |
 |----------------------|-------------|----------------------------------------------------------------------------------------------------------------------------|
 | `--config <path>`    | _(auto)_    | Path to `.heraut.yml`. Defaults to `.config/heraut.yml` if present, else `.heraut.yml`. See [ADR-0005](../adr/0005-config-file-discovery.md). |
-| `--dry-run`          | `false`     | Print actions without executing them. No git operations, no network calls, no file writes outside `/tmp`.                  |
+| `--dry-run`          | `false`     | Print actions without executing them. No git writes, no network calls, no file writes outside `/tmp`. Read-only git calls (tag list, log) still execute so the resolved version is accurate. |
 | `--verbose`          | `false`     | Log each external command (`[exec] <cmd> <args>`) before running it, then echo its captured output (indented).              |
 | `--env <name>`       | `""`        | Active environment override. Required for per-env strategies; ignored by single-env strategies.                            |
 | `--force`            | `false`     | Bypass promotion guards E001 and E002 (per [ADR-0007](../adr/0007-version-promotion-error-handling.md)). E003 is not bypassed. |
