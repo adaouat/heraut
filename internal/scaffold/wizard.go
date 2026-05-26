@@ -224,8 +224,10 @@ func RunWizard(a *Answers) error {
 		}
 	}
 
-	if err := runPlatformWizard(a); err != nil {
-		return err
+	if a.NotesGenerator != "" {
+		if err := runPlatformWizard(a); err != nil {
+			return err
+		}
 	}
 
 	if a.Strategy == "semver-per-env" || a.Strategy == "calver-per-env" {
@@ -265,6 +267,18 @@ func runSprintWizard(a *Answers) error {
 	n, _ := strconv.Atoi(strings.TrimSpace(sprintStr))
 	a.Sprint = n
 	return nil
+}
+
+// platformTokenDefault returns the conventional token env var name for a platform type.
+func platformTokenDefault(platformType string) string {
+	switch platformType {
+	case "github":
+		return "GH_TOKEN"
+	case "gitlab":
+		return "GITLAB_TOKEN"
+	default:
+		return ""
+	}
 }
 
 func runPlatformWizard(a *Answers) error {
@@ -339,7 +353,10 @@ func runPlatformWizard(a *Answers) error {
 			}
 		}
 
-		// Step 3: common fields.
+		// Step 3: token env var, pre-filled with the platform convention.
+		if p.TokenEnv == "" {
+			p.TokenEnv = platformTokenDefault(p.Type)
+		}
 		if err := huh.NewForm(
 			huh.NewGroup(
 				huh.NewInput().

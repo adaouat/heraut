@@ -51,3 +51,20 @@ func TestResolveFormatChoice_CustomFormat(t *testing.T) {
 	assert.Equal(t, "custom", choice)
 	assert.Equal(t, "YYYY.MM.DD.WW.PATCH", custom)
 }
+
+func TestPlatformTokenDefault(t *testing.T) {
+	tests := []struct {
+		platform string
+		want     string
+	}{
+		{"github", "GH_TOKEN"},
+		{"gitlab", "GITLAB_TOKEN"},
+		{"", ""},
+		{"other", ""},
+	}
+	for _, tc := range tests {
+		t.Run(tc.platform, func(t *testing.T) {
+			assert.Equal(t, tc.want, platformTokenDefault(tc.platform))
+		})
+	}
+}
