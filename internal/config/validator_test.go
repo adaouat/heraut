@@ -633,3 +633,4 @@ func TestValidate_sourceCycleFixture(t *testing.T) {
 	}
 	assert.True(t, found, "expected a cycle detection error")
 }
+
