@@ -3,17 +3,14 @@ package pipeline
 import (
 	"fmt"
 	"io"
-	"strings"
 
 	"github.com/adaouat/heraut/internal/port"
 	"github.com/adaouat/heraut/internal/versioning"
 )
 
-const defaultCommitMessage = "chore(release): ${version}"
-
 // Pipeline executes the full release flow.
 type Pipeline struct {
-	runner   port.Runner
+	git      gitHelper
 	resolver versioning.Resolver
 	cfg      *Config
 	out      io.Writer
@@ -22,7 +19,7 @@ type Pipeline struct {
 
 // New constructs a release Pipeline.
 func New(runner port.Runner, resolver versioning.Resolver, cfg *Config, out io.Writer, dryRun bool) *Pipeline {
-	return &Pipeline{runner: runner, resolver: resolver, cfg: cfg, out: out, dryRun: dryRun}
+	return &Pipeline{git: gitHelper{runner: runner}, resolver: resolver, cfg: cfg, out: out, dryRun: dryRun}
 }
 
 // Check verifies all generators and platforms are usable before running.
@@ -67,16 +64,20 @@ func (p *Pipeline) Run() error {
 		if _, err := p.cfg.Changelog.Generate(result.Tag); err != nil {
 			return fmt.Errorf("generating changelog: %w", err)
 		}
-		if err := p.gitCommitChangelog(result); err != nil {
+		file := p.cfg.ChangelogFile
+		if file == "" {
+			file = "CHANGELOG.md"
+		}
+		if err := p.git.commitChangelog(file, commitMessage(p.cfg.CommitMessage, result.Version)); err != nil {
 			return fmt.Errorf("committing changelog: %w", err)
 		}
 	}
 
 	// Tag and push
-	if err := p.gitTag(result.Tag, result.Version); err != nil {
+	if err := p.git.tag(result.Tag, commitMessage(p.cfg.CommitMessage, result.Version), p.cfg.AnnotatedTags); err != nil {
 		return fmt.Errorf("git tag: %w", err)
 	}
-	if err := p.run("git", "push", "--tags"); err != nil {
+	if err := p.git.run("git", "push", "--tags"); err != nil {
 		return fmt.Errorf("git push --tags: %w", err)
 	}
 
@@ -106,45 +107,6 @@ func (p *Pipeline) Run() error {
 		_, _ = fmt.Fprintf(p.out, "  %s: %s\n", platform.Name(), platform.ReleaseURL(result.Tag))
 	}
 	return nil
-}
-
-func (p *Pipeline) gitCommitChangelog(result versioning.Result) error {
-	file := p.cfg.ChangelogFile
-	if file == "" {
-		file = "CHANGELOG.md"
-	}
-	if err := p.run("git", "add", file); err != nil {
-		return fmt.Errorf("git add: %w", err)
-	}
-
-	msg := p.commitMessage(result.Version)
-	if err := p.run("git", "commit", "-m", msg); err != nil {
-		return fmt.Errorf("git commit: %w", err)
-	}
-	if err := p.run("git", "push"); err != nil {
-		return fmt.Errorf("git push: %w", err)
-	}
-	return nil
-}
-
-func (p *Pipeline) commitMessage(version string) string {
-	tmpl := p.cfg.CommitMessage
-	if tmpl == "" {
-		tmpl = defaultCommitMessage
-	}
-	return strings.ReplaceAll(tmpl, "${version}", version)
-}
-
-func (p *Pipeline) gitTag(tag, version string) error {
-	if p.cfg.AnnotatedTags {
-		return p.run("git", "tag", "-a", tag, "-m", p.commitMessage(version))
-	}
-	return p.run("git", "tag", tag)
-}
-
-func (p *Pipeline) run(name string, args ...string) error {
-	_, _, err := p.runner.Run(name, args...)
-	return err
 }
 
 func (p *Pipeline) dryRunOutput(result versioning.Result) error {
