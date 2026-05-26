@@ -1,34 +1,23 @@
 # Changelog
 
-## [0.9.0](//compare/v0.8.0..v0.9.0) - 2026-05-26
-
-### 🚀 Features
-
-- *(pipeline)* Configurable git tag type — annotated (default) or lightweight - ([b3098d2](//commit/b3098d2ab58b608546cc9e5b96d8af55c01c7847))
-
-- *(ui/check)* Streaming spinners, section headers, resolved values, working tree - ([13f27b3](//commit/13f27b348ade47b021969a7eaf76f17886416224))
-
+## [0.9.1](//compare/v0.9.0..v0.9.1) - 2026-05-26
 
 ### 🐛 Bug Fixes
 
-- *(cmd)* Use real runner for resolver in dry-run mode - ([d3bc60f](//commit/d3bc60f8ecf740634d3d2bea7bf766b5b71ff91a))
+- *(platforms)* Token forwarding, auth check, glob dirs, gitlab upload command - ([18f16c8](//commit/18f16c82512c93e3110697c20b9af53ce3eb7c87))
+
+- *(platforms/gitlab)* Remove catalog field — GitLab publishes automatically - ([9bbfe00](//commit/9bbfe0049763faa44e44c60c4e8117096abac6d2))
+
+- *(scaffold)* Skip platform wizard when no release notes, default token env vars - ([fe4e643](//commit/fe4e643e0e9d9cc98db2d5c8e353dc92240fe811))
 
 
 ### 📚 Documentation
 
-- *(roadmap)* Add Phase 8 — Stable Release Preparation (T28/T33/T34/T35) - ([349b43b](//commit/349b43b686dee2e4729a60d725abe13a23599595))
+- *(specs)* Spec changelog.env / release.notes.env, plan EnvOverride fate - ([1dfecaa](//commit/1dfecaaa9cb1aefd427e28fd61fa8569344fe9a7))
 
-- Add mise install, fix dry-run spec for resolver reads - ([cc654af](//commit/cc654afeb19239ea41bc6b8b4061f4e81758b1f9))
+- *(specs)* Drop changelog.env/notes.env in favour of disable_changelog/disable_notes - ([b1935c9](//commit/b1935c9bd7478a0a42ff48612e17e6adda5e9872))
 
+- Add annotated sample config and maintenance rule for schema/sample sync - ([6f1a159](//commit/6f1a1594b6a20acee6eb4bfc3796c71e72734eb2))
 
-### 🧪 Testing
-
-- *(coverage)* Coverage sweep T34 — raise CI gate to 80% - ([54e3428](//commit/54e3428096d3da9ad8e75e10893c642012802a83))
-
-
-### ⚙️ Miscellaneous Tasks
-
-- *(config)* Bootstrap heraut's own .config/heraut.yml and initial CHANGELOG.md - ([c09669f](//commit/c09669f842432d1e3afe64b254ee794a98d06396))
-
-- Split CI into parallel lint/test/build jobs with coverage gate - ([6a0c831](//commit/6a0c831e7edf250dbf69a529ccf584ccb3cb0497))
+- Document Docker image tag formats in README - ([e092a0a](//commit/e092a0aa320cebf0d9ffc87d414eba4a01aa3e2b))
 
