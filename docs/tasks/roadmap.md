@@ -1535,7 +1535,7 @@ mechanical sweep; they can be addressed in a separate task if needed.
 
 ---
 
-#### `[ ]` T33: Bootstrap heraut's own `.heraut.yml`
+#### `[x]` T33: Bootstrap heraut's own `.heraut.yml`
 
 **Description:** Configure heraut to manage its own releases — Option A from the
 pre-phase discussion. Heraut handles version resolution, changelog generation, commit,
@@ -1562,6 +1562,15 @@ GoReleaser becomes a pure build tool) is tracked in
 should not be tracked), `docs/tasks/roadmap.md`
 
 **Scope:** S
+
+Config placed at `.config/heraut.yml` (higher-priority discovery path than `.heraut.yml`,
+keeps all tool configs together). Uses `.config/cliff.toml` as the git-cliff config so
+the generated CHANGELOG.md style is consistent with what `release.yml` already produces.
+No `release` block — the pipeline stops after tagging; GoReleaser owns binaries and the
+GitHub Release. Initial `CHANGELOG.md` generated from all existing tags using the
+effective merged config with GitHub PR metadata. A companion fix (`fix(cmd)`) ensures
+`--dry-run` always reads real git state for version resolution so the output is
+trustworthy.
 
 ---
 
