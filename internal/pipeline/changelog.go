@@ -72,7 +72,7 @@ func (p *ChangelogPipeline) Run() error {
 		// Commit the generated file when --commit or --tag is set
 		if p.cfg.Commit || p.cfg.Tag {
 			if err := p.gitCommitChangelog(result); err != nil {
-				return err
+				return fmt.Errorf("committing changelog: %w", err)
 			}
 		}
 	}

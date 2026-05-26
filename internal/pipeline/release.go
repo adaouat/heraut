@@ -68,7 +68,7 @@ func (p *Pipeline) Run() error {
 			return fmt.Errorf("generating changelog: %w", err)
 		}
 		if err := p.gitCommitChangelog(result); err != nil {
-			return err
+			return fmt.Errorf("committing changelog: %w", err)
 		}
 	}
 
