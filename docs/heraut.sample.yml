@@ -1,0 +1,210 @@
+# ─────────────────────────────────────────────────────────────────────────────
+# heraut — annotated sample configuration
+#
+# This file documents every supported field. Copy the blocks you need into
+# .heraut.yml (or .config/heraut.yml) and delete the rest.
+#
+# Full field reference: docs/specs/02-configuration.md
+# Versioning strategies: docs/specs/04-versioning.md
+# ─────────────────────────────────────────────────────────────────────────────
+
+# yaml-language-server: $schema=https://raw.githubusercontent.com/adaouat/heraut/main/schema.json
+
+# Schema version. Must be "1".
+version: "1"
+
+# ── versioning ────────────────────────────────────────────────────────────────
+#
+# Four strategies are available. Pick one; fields irrelevant to your strategy
+# are ignored. See docs/specs/04-versioning.md for the full strategy reference.
+
+versioning:
+  # strategy — required. One of:
+  #   semver         SemVer inferred from conventional commits (or manual bump)
+  #   calver         Calendar versioning (clock-derived period + PATCH counter)
+  #   semver-per-env SemVer with a separate tag namespace per environment
+  #   calver-per-env CalVer with a separate tag namespace per environment
+  strategy: semver
+
+  # prefix — string prepended to every version tag.
+  # "v" produces v1.2.3. Set to "" (or omit) for bare tags like 1.2.3.
+  prefix: "v"
+
+  # initial_version — version used when no matching tags exist yet.
+  # semver and semver-per-env only.
+  initial_version: "0.1.0"
+
+  # bump — how to determine the version increment. semver / semver-per-env only.
+  #   auto   inspect conventional-commit types since the last tag
+  #   manual require an explicit --bump flag on the CLI
+  bump: auto
+
+  # tag_type — git tag type. Omit for the default (annotated).
+  #   annotated   created with -a; carries tagger, timestamp, message
+  #   lightweight bare ref; no metadata (useful for ephemeral env tags)
+  # tag_type: lightweight
+
+  # ── CalVer fields (strategy: calver or calver-per-env) ───────────────────
+  #
+  # format — required for calver / calver-per-env.
+  # Tokens: YYYY MM DD WW QQ SS SPRINT PATCH
+  # PATCH is required and must be last. At least one calendar token is required.
+  #
+  #   YYYY.MM.PATCH      2026.01.3
+  #   YYYY.MM.DD.PATCH   2026.01.15.0
+  #   YYYY.WW.PATCH      2026.04.1   (ISO week)
+  #   YYYY.QQ.PATCH      2026.1.0    (quarter)
+  #   YYYY.SS.PATCH      2026.1.0    (semester)
+  #   YYYY.SPRINT.PATCH  2026.5.2    (sprint counter, not clock-derived)
+  #   YYYY.PATCH         2026.7
+  #
+  # format: "YYYY.MM.PATCH"
+
+  # sprint — current sprint counter. Required when format contains SPRINT.
+  # Not clock-derived: advance it with `heraut version sprint bump`.
+  # sprint: 1
+
+  # ── Per-env fields (strategy: semver-per-env or calver-per-env) ──────────
+  #
+  # tag_format — shared tag template for all environments. Must contain {version}.
+  # Typically also contains {env} to create separate namespaces per environment.
+  # Can be overridden per environment below.
+  # tag_format: "{env}/{version}"
+
+  # environments — one entry per deployment environment. Required for *-per-env.
+  # environments:
+  #   dev:
+  #     # bump mode for this environment:
+  #     #   auto    infer from conventional commits since the last tag in this namespace
+  #     #   promote copy the version from another environment's latest tag
+  #     bump: auto
+  #
+  #     # tag_format override for this environment only (overrides versioning.tag_format).
+  #     # tag_format: "dev/{version}"
+  #
+  #     # branch restriction: heraut refuses to run here unless this branch is active.
+  #     # Prevents accidental dev cuts from the wrong branch.
+  #     # branch: develop
+  #
+  #     # disable_changelog: skip changelog generation for this environment.
+  #     # Useful when only prod should commit CHANGELOG.md.
+  #     # disable_changelog: true
+  #
+  #     # disable_notes: skip release notes generation for this environment.
+  #     # The platform release is still created — just without a description body.
+  #     # disable_notes: true
+  #
+  #   staging:
+  #     bump: promote
+  #     source: dev        # environment to promote from
+  #     disable_changelog: true
+  #     disable_notes: true
+  #
+  #   prod:
+  #     bump: promote
+  #     source: staging    # staging must exist and have a tag before prod can promote
+
+# ── changelog ─────────────────────────────────────────────────────────────────
+#
+# Omit this block if you do not want heraut to manage a CHANGELOG.md.
+# When present, `heraut release` writes the file, commits it, and then tags.
+
+changelog:
+  # generator — required. Tool used to produce the changelog content.
+  #   git-cliff   recommended; uses cliff.toml deep-merged with heraut's built-in default
+  #   communique  requires config: pointing to a communique config file
+  #   cocogitto   uses cog.toml; heraut captures stdout and writes the output file
+  generator: git-cliff
+
+  # config — path to a generator config file (relative to project root).
+  #   git-cliff:  optional partial cliff.toml; deep-merged with heraut's built-in default
+  #   communique: required
+  #   cocogitto:  optional path to cog.toml
+  # config: cliff.toml
+
+  # output — path where the changelog file is written.
+  output: CHANGELOG.md
+
+  # tag_pattern — tag glob passed to the generator for commit filtering.
+  # Required with prefixed-tag strategies so the generator only sees commits
+  # from the right namespace. Not used by communique or cocogitto.
+  #   semver bare tags: "v[0-9]*"
+  #   per-env prod:     "prod/*"
+  # tag_pattern: "v[0-9]*"
+
+  # template — path to a custom Tera template. cocogitto only (passed as -t).
+  # template: .config/changelog.tera
+
+# ── release ───────────────────────────────────────────────────────────────────
+#
+# Omit this block if you do not publish releases to any platform.
+
+release:
+  # notes — generator for the release-page description text.
+  # Omit if you want the platform release created with no description body.
+  notes:
+    generator: git-cliff
+    # config, tag_pattern, template — same semantics as the changelog block above.
+    # tag_pattern: "v[0-9]*"
+
+  # platforms — one entry per target platform.
+  # Both github and gitlab can coexist; heraut publishes to all listed platforms.
+  platforms:
+    # ── GitHub ───────────────────────────────────────────────────────────────
+    - platform: github
+
+      # repository — owner/repo on GitHub. Required.
+      repository: acme/widget
+
+      # token_env — env var holding a GitHub token with contents:write scope.
+      # Defaults to GH_TOKEN if omitted.
+      token_env: GH_TOKEN
+
+      # draft — create the release as a draft (not publicly visible until published).
+      # draft: true
+
+      # prerelease — mark as a pre-release on the GitHub UI.
+      # prerelease: true
+
+      # assets — glob patterns for files to attach to the release.
+      # assets:
+      #   - dist/myapp_*
+      #   - dist/checksums.txt
+
+  # ── GitLab ───────────────────────────────────────────────────────────────
+  # - platform: gitlab
+  #
+  #   # project — GitLab namespace/project path.
+  #   # Defaults to $CI_PROJECT_PATH if omitted (convenient in CI).
+  #   project: acme/widget
+  #
+  #   # token_env — env var holding a GitLab token with api scope.
+  #   # Defaults to GITLAB_TOKEN if omitted.
+  #   token_env: GITLAB_TOKEN
+  #
+  #   # catalog — publish to the GitLab CI/CD Catalog.
+  #   # catalog: true
+  #
+  #   # assets — glob patterns for files to attach.
+  #   # assets:
+  #   #   - dist/myapp_*
+
+# ── environments (top-level overrides) ───────────────────────────────────────
+#
+# Parsed and validated, but NOT yet applied by the pipeline (deferred — see T37).
+# To suppress changelog or notes per environment today, use
+# disable_changelog / disable_notes inside versioning.environments.<env>.
+#
+# environments:
+#   dev:
+#     release:
+#       platforms:
+#         - platform: gitlab
+#   prod:
+#     changelog:
+#       generator: git-cliff
+#       output: CHANGELOG.md
+#     release:
+#       platforms:
+#         - platform: gitlab
+#         - platform: github

@@ -161,8 +161,9 @@ release:
 | `environments` | Per-environment overrides for `changelog` / `release` |
 
 This is the short version. See [Spec 02 — Configuration](docs/specs/02-configuration.md)
-for every field, and [Spec 04 — Versioning](docs/specs/04-versioning.md) for how each
-strategy computes the next version.
+for every field, [Spec 04 — Versioning](docs/specs/04-versioning.md) for how each
+strategy computes the next version, and [`docs/heraut.sample.yml`](docs/heraut.sample.yml)
+for a fully annotated config covering all fields with comments.
 
 ## Self-update
 

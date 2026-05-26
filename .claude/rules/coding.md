@@ -73,6 +73,11 @@ direction, do not add the import.
      `Message`, `Hint`.
 - Struct field names in `internal/config/config.go` are **wire-compatible** with existing
   `.heraut.yml` files. Renaming a field is a breaking change requiring an ADR.
+- When adding, renaming, or removing a field in `internal/config/config.go`, **also update**:
+  - `schema.json` — type, description, enum values, required list
+  - `docs/heraut.sample.yml` — show the field in context with a comment
+  Failing to keep these in sync silently misleads users who rely on schema autocomplete
+  or the sample as their configuration reference.
 
 ## Embedded assets
 
