@@ -72,6 +72,15 @@ docker run --rm ghcr.io/adaouat/heraut:latest --version
 docker run --rm -v "$PWD":/repo -w /repo ghcr.io/adaouat/heraut:latest release --dry-run
 ```
 
+Available tags (Docker images do not carry the `v` prefix that git tags use):
+
+| Tag | Meaning |
+|-----|---------|
+| `latest` | Latest release |
+| `0.9.0` | Exact version |
+| `0.9` | Latest patch of 0.9.x |
+| `0` | Latest release of major 0 |
+
 ## Prerequisites
 
 When running via **binary or `go install`**, heraut does **not** bundle the external CLIs it
