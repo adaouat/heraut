@@ -1600,6 +1600,68 @@ from indirect to direct deps.
 
 ---
 
+#### `[ ]` T38: `changelog.env` and `release.notes.env` — per-env content guards
+
+**Description:** Add an `env` field to the `ContentDriver` struct (used by both
+`changelog` and `release.notes`). When set, the corresponding pipeline step is skipped
+unless the active `--env` matches. Spec: [Spec 07](../specs/07-per-env-changelog.md).
+
+Acceptance criteria:
+
+- `changelog.env: prod` — changelog step runs only when `--env prod`; skipped (info
+  message, exit 0) for all other envs, including when no env is active.
+- `release.notes.env: prod` — notes generation skipped when env does not match; the
+  platform release is still created with no notes body (mirrors existing
+  `disable_notes: true` behaviour).
+- `disable_changelog: true` / `disable_notes: true` take precedence over the `env`
+  field when both are set on the same environment.
+- Validation errors: (1) `env` set on a non-per-env strategy; (2) named env does not
+  exist in `versioning.environments`.
+- `schema.json` updated with the new field.
+- `heraut check config` surfaces the validation errors above.
+
+**Files:** `internal/config/config.go`, `internal/config/validator.go`,
+`internal/config/validator_test.go`, `internal/app/pipeline.go`,
+`internal/app/pipeline_test.go`, `internal/pipeline/release.go`,
+`internal/pipeline/release_test.go`, `internal/pipeline/changelog.go`,
+`internal/pipeline/changelog_test.go`, `schema.json`,
+`testdata/config/` (new fixtures)
+
+**Scope:** S
+
+---
+
+#### `[ ]` T37: Decide fate of top-level `environments` override machinery
+
+**Description:** The top-level `environments` map (`environments.<env>.changelog`,
+`environments.<env>.release`) is parsed and validated by the config loader and
+validator, but the pipeline builder (`internal/app/pipeline.go`) never reads
+`cfg.Environments` — the overrides are silently dropped at runtime. This is a latent
+footgun: users who set these fields get no error and no effect.
+
+Two options:
+
+**A — Remove:** Delete `EnvOverride` from `config.go`, remove the validation loop in
+`validator.go`, update `schema.json`, update spec 02. Zero implementation risk; users
+who set the block today (no-op) would get a validation error after the change.
+
+**B — Implement:** Apply `cfg.Environments[env].Changelog` and
+`cfg.Environments[env].Release` in `buildReleasePipelineConfig` and
+`buildChangelogPipelineConfig`. Requires deciding merge semantics (field-level for
+`changelog`; list-replace for `release.platforms`), updating spec 02, and adding
+contract + integration tests. The `changelog.env` / `release.notes.env` fields added in
+spec 07 already cover the primary use case, so the remaining value is per-env platform
+lists and per-env output paths — real but lower-priority.
+
+Decide, document in an ADR, implement whichever option is chosen.
+
+**Files:** `internal/config/config.go`, `internal/config/validator.go`,
+`internal/app/pipeline.go`, `schema.json`, `docs/specs/02-configuration.md`
+
+**Scope:** S (remove) or M (implement)
+
+---
+
 ### ✦ `[ ]` CHECKPOINT I — v1.0.0 shipped via heraut
 
 - [ ] T28 resolved — lightweight confirmed or annotated implemented

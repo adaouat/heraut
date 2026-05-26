@@ -266,6 +266,7 @@ each.
 | `output`      | No       | Output file path (e.g. `CHANGELOG.md`). For `cocogitto`, heraut captures stdout and writes this file (cog itself has no `--output` flag).                                                                                                                                          |
 | `tag_pattern` | No       | Tag pattern regex for `git-cliff`. Required when using prefixed-tag strategies (e.g. `"dev/.*"`). Not used by `communique` or `cocogitto`.                                                                                                                                         |
 | `template`    | No       | Path to a custom Tera template for `cocogitto` (passed as `-t`). Not used by `git-cliff` or `communique`.                                                                                                                                                                          |
+| `env`         | No       | Per-env strategies only. Environment name the active `--env` must match for this step to run. When absent, the step runs for all environments. Config error if set on a non-per-env strategy or if the named env does not exist. See [Spec 07](07-per-env-changelog.md).           |
 
 See [Spec 05 — Generators and Platforms](05-generators-and-platforms.md) for the full
 behaviour of each generator.
@@ -322,7 +323,12 @@ release:
 
 Implementation: shells out to `gh release create` + `gh release upload`.
 
-## `environments` (top-level overrides)
+## `environments` (top-level overrides) — deferred
+
+> **Status: parsed and validated, not yet applied by the pipeline.**
+> The `changelog.env` and `release.notes.env` fields (see [Spec 07](07-per-env-changelog.md))
+> cover the primary use cases in the interim. A future task will decide whether to implement
+> or remove this block.
 
 The top-level `environments` map lets you override `changelog` and `release` per
 environment. Overrides are shallow-merged with the root config.
