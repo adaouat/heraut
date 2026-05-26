@@ -58,7 +58,6 @@ type Platform struct {
 	Prerelease bool   `yaml:"prerelease,omitempty"`
 	// GitLab-specific
 	Project string `yaml:"project,omitempty"`
-	Catalog bool   `yaml:"catalog,omitempty"`
 	// Shared
 	TokenEnv string   `yaml:"token_env,omitempty"`
 	Assets   []string `yaml:"assets,omitempty"`

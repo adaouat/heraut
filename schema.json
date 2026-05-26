@@ -205,10 +205,6 @@
           "type": "string",
           "description": "GitLab project path (namespace/project). GitLab only."
         },
-        "catalog": {
-          "type": "boolean",
-          "description": "Publish to GitLab release catalog. GitLab only."
-        },
         "token_env": {
           "type": "string",
           "description": "Environment variable holding the API token."

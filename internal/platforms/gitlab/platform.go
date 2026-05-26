@@ -56,11 +56,9 @@ func (p *Platform) CreateRelease(tag, notes string) error {
 		return err
 	}
 
-	args := []string{"release", "create", tag, "--notes", notes}
-	if p.cfg.Catalog {
-		args = append(args, "--publish-to-catalog")
-	}
-	args = append(args, "-R", proj)
+	// GitLab automatically publishes to the CI/CD Catalog when the project is a
+	// registered catalog resource — no explicit publish step needed.
+	args := []string{"release", "create", tag, "--notes", notes, "-R", proj}
 
 	if _, _, err := p.runner.Run("glab", args...); err != nil {
 		return fmt.Errorf("glab release create: %w", err)

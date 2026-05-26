@@ -97,27 +97,6 @@ func TestCreateRelease_BasicArgs(t *testing.T) {
 	}, call.Args)
 }
 
-func TestCreateRelease_WithCatalog(t *testing.T) {
-	mr := testutil.NewMockRunner()
-	mr.QueueResponse("", "", nil)
-
-	p := gitlab.New(mr, &config.Platform{Project: "grp/repo", Catalog: true})
-	require.NoError(t, p.CreateRelease("v1.0.0", "notes"))
-
-	call := mr.Calls[0]
-	assert.Contains(t, call.Args, "--publish-to-catalog")
-}
-
-func TestCreateRelease_WithoutCatalog(t *testing.T) {
-	mr := testutil.NewMockRunner()
-	mr.QueueResponse("", "", nil)
-
-	p := gitlab.New(mr, &config.Platform{Project: "grp/repo", Catalog: false})
-	require.NoError(t, p.CreateRelease("v1.0.0", "notes"))
-
-	call := mr.Calls[0]
-	assert.NotContains(t, call.Args, "--publish-to-catalog")
-}
 
 func TestHasAssets(t *testing.T) {
 	pEmpty := gitlab.New(testutil.NewMockRunner(), &config.Platform{})

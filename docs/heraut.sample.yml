@@ -182,9 +182,6 @@ release:
   #   # Defaults to GITLAB_TOKEN if omitted.
   #   token_env: GITLAB_TOKEN
   #
-  #   # catalog — publish to the GitLab CI/CD Catalog.
-  #   # catalog: true
-  #
   #   # assets — glob patterns for files to attach.
   #   # assets:
   #   #   - dist/myapp_*

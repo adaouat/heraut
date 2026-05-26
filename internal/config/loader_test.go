@@ -137,7 +137,6 @@ release:
     - platform: gitlab
       project: acme/widget
       token_env: GITLAB_TOKEN
-      catalog: true
       assets:
         - dist/myapp_*
 `
@@ -157,7 +156,6 @@ release:
 	gl := cfg.Release.Platforms[1]
 	assert.Equal(t, "gitlab", gl.Type)
 	assert.Equal(t, "acme/widget", gl.Project)
-	assert.True(t, gl.Catalog)
 	assert.Equal(t, []string{"dist/myapp_*"}, gl.Assets)
 }
 
