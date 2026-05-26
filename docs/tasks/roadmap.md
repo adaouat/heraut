@@ -1574,6 +1574,32 @@ trustworthy.
 
 ---
 
+#### `[x]` T36: `heraut check` TUI improvements — spinners, headers, values, working tree
+
+**Description:** Improve the `heraut check` output with five UX enhancements: (1) section
+headers (Config / Runtime / Cliff) separating the three check phases; (2) resolved values
+shown on success lines (e.g. `✓ git — git version 2.49.0`); (3) summary line at the end
+(`✓ all checks passed` / `✗ N check(s) failed`); (4) per-item spinner animation in TTY
+environments (streaming dispatch pattern in `app.RuntimeCheck`); (5) working tree check
+that warns when `git status --porcelain` reports uncommitted changes.
+
+**Files:** `internal/app/check.go`, `internal/app/check_test.go`,
+`internal/cmd/check.go`, `internal/ui/status.go`, `internal/ui/status_test.go`,
+`internal/ui/step.go` (new), `internal/ui/step_test.go` (new), `go.mod`
+
+**Scope:** M
+
+`app.RuntimeCheck` signature changed from `(runner, cfg) []RuntimeCheckItem` to a
+streaming dispatch `(runner, cfg, func(name string, run func() RuntimeCheckItem))`.
+`RuntimeCheckItem` gained `Value string` and `IsWarn bool`. The dispatch name is shown
+by the spinner before the check runs; the item returned by `run()` carries the final
+name and result. `cmd/check.go` uses `ui.StartStep` per item: `Done(value)` on success,
+`Fail(detail)` on hard error, `Skip(detail)` for warnings. `ui.Header(w, title)` added
+to `status.go`. `charm.land/bubbles/v2` and `github.com/charmbracelet/x/term` promoted
+from indirect to direct deps.
+
+---
+
 ### ✦ `[ ]` CHECKPOINT I — v1.0.0 shipped via heraut
 
 - [ ] T28 resolved — lightweight confirmed or annotated implemented

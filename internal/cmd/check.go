@@ -32,36 +32,35 @@ func NewCheckCmd() *cobra.Command {
 				return exitcode.Wrap(exitcode.Config, fmt.Errorf("loading config: %w", err))
 			}
 
-			var failed, configFailed bool
+			var failed int
 
-			// config check
+			// Config section
+			ui.Header(out, "Config")
 			if errs := config.Validate(cfg); len(errs) > 0 {
 				printConfigErrors(errs, out)
-				failed = true
-				configFailed = true
+				failed += len(errs)
 			} else {
 				_, _ = fmt.Fprintln(out, ui.Success(out, "config: ok"))
 			}
 
-			// runtime check
-			if items := app.RuntimeCheck(runner, cfg); len(items) > 0 {
-				if f := printRuntimeItems(items, out); f {
-					failed = true
-				}
-			}
+			// Runtime section
+			ui.Header(out, "Runtime")
+			failed += runRuntimeCheck(runner, cfg, out)
 
-			// cliff check (best-effort; skip if no git-cliff generators configured)
+			// Cliff section (best-effort; skip if no git-cliff generators configured)
+			ui.Header(out, "Cliff")
 			if f := runCliffChecks(runner, cfg, out); f {
-				failed = true
+				failed++
 			}
 
-			if failed {
+			// Summary
+			_, _ = fmt.Fprintln(out)
+			if failed > 0 {
+				_, _ = fmt.Fprintln(out, ui.Err(out, fmt.Sprintf("%d check(s) failed — fix the issues above before running heraut release", failed)))
 				code := exitcode.Runtime
-				if configFailed {
-					code = exitcode.Config
-				}
 				return exitcode.Wrap(code, fmt.Errorf("one or more checks failed"))
 			}
+			_, _ = fmt.Fprintln(out, ui.Success(out, "all checks passed"))
 			return nil
 		},
 	}
@@ -114,10 +113,14 @@ func newCheckRuntimeCmd() *cobra.Command {
 				return exitcode.Wrap(exitcode.Config, fmt.Errorf("loading config: %w", err))
 			}
 
-			items := app.RuntimeCheck(runner, cfg)
-			if failed := printRuntimeItems(items, out); failed {
+			ui.Header(out, "Runtime")
+			if failed := runRuntimeCheck(runner, cfg, out); failed > 0 {
+				_, _ = fmt.Fprintln(out)
+				_, _ = fmt.Fprintln(out, ui.Err(out, fmt.Sprintf("%d check(s) failed", failed)))
 				return exitcode.Wrap(exitcode.Runtime, fmt.Errorf("one or more runtime checks failed"))
 			}
+			_, _ = fmt.Fprintln(out)
+			_, _ = fmt.Fprintln(out, ui.Success(out, "all checks passed"))
 			return nil
 		},
 	}
@@ -139,6 +142,7 @@ func newCheckCliffCmd() *cobra.Command {
 				return exitcode.Wrap(exitcode.Config, fmt.Errorf("loading config: %w", err))
 			}
 
+			ui.Header(out, "Cliff")
 			if failed := runCliffChecks(runner, cfg, out); failed {
 				return exitcode.Wrap(exitcode.Runtime, fmt.Errorf("git-cliff config validation failed"))
 			}
@@ -198,6 +202,26 @@ func newCheckCliffReleaseNotesCmd() *cobra.Command {
 	}
 }
 
+// runRuntimeCheck dispatches each runtime check with a spinner and returns
+// the number of hard failures (warnings do not count).
+func runRuntimeCheck(runner port.Runner, cfg *config.Config, out io.Writer) int {
+	var failed int
+	app.RuntimeCheck(runner, cfg, func(name string, run func() app.RuntimeCheckItem) {
+		step := ui.StartStep(out, name)
+		item := run()
+		switch {
+		case item.IsWarn:
+			step.Skip(item.Err.Error())
+		case item.Err != nil:
+			step.Fail(item.Err.Error())
+			failed++
+		default:
+			step.Done(item.Value)
+		}
+	})
+	return failed
+}
+
 // runCliffChecks checks all configured git-cliff generators and reports results.
 // Returns true if any check failed.
 func runCliffChecks(runner port.Runner, cfg *config.Config, out io.Writer) bool {
@@ -211,6 +235,9 @@ func runCliffChecks(runner port.Runner, cfg *config.Config, out io.Writer) bool 
 		if err := checkCliffDriver(runner, cfg.Release.Notes, "release-notes", out); err != nil {
 			failed = true
 		}
+	}
+	if cfg.Changelog == nil && (cfg.Release == nil || cfg.Release.Notes == nil) {
+		_, _ = fmt.Fprintln(out, ui.Info(out, "no git-cliff generators configured"))
 	}
 	return failed
 }
@@ -226,11 +253,12 @@ func checkCliffDriver(runner port.Runner, driver *config.ContentDriver, mode str
 		_, _ = fmt.Fprintln(out, ui.Warn(out, fmt.Sprintf("cliff %s: skip (generator is %s, not git-cliff)", mode, driver.Generator)))
 		return nil
 	}
+	step := ui.StartStep(out, fmt.Sprintf("cliff %s", mode))
 	if err := app.CheckCliff(runner, driver, mode); err != nil {
-		_, _ = fmt.Fprintln(out, ui.Err(out, fmt.Sprintf("cliff %s: %s", mode, err)))
+		step.Fail(err.Error())
 		return err
 	}
-	_, _ = fmt.Fprintln(out, ui.Success(out, fmt.Sprintf("cliff %s: ok", mode)))
+	step.Done("valid")
 	return nil
 }
 
@@ -243,19 +271,4 @@ func printConfigErrors(errs config.ValidationErrors, out io.Writer) {
 		}
 	}
 	_, _ = fmt.Fprintf(out, "%d error(s)\n", len(errs))
-}
-
-// printRuntimeItems writes runtime check results to out.
-// Returns true if any item failed.
-func printRuntimeItems(items []app.RuntimeCheckItem, out io.Writer) bool {
-	var failed bool
-	for _, item := range items {
-		if item.Err != nil {
-			_, _ = fmt.Fprintln(out, ui.Err(out, fmt.Sprintf("%s: %s", item.Name, item.Err)))
-			failed = true
-		} else {
-			_, _ = fmt.Fprintln(out, ui.Success(out, item.Name))
-		}
-	}
-	return failed
 }

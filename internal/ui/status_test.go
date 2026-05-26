@@ -54,6 +54,16 @@ func TestStatusHelpers_NoColorEnv(t *testing.T) {
 
 // TestStatusHelpers_ColorPath verifies styled output is different from plain text.
 // CLICOLOR_FORCE=1 forces colorprofile to treat the bytes.Buffer as a color terminal.
+func TestHeader_NoTTY(t *testing.T) {
+	w := &bytes.Buffer{}
+	ui.Header(w, "Runtime")
+	got := w.String()
+	// Must contain the title and surrounding blank lines.
+	assert.Contains(t, got, "Runtime")
+	assert.True(t, strings.HasPrefix(got, "\n"), "expected leading blank line")
+	assert.True(t, strings.HasSuffix(got, "\n\n"), "expected trailing blank line")
+}
+
 func TestStatusHelpers_ColorPath(t *testing.T) {
 	t.Setenv("CLICOLOR_FORCE", "1")
 	t.Setenv("NO_COLOR", "")

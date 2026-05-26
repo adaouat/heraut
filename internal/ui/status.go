@@ -1,6 +1,7 @@
 package ui
 
 import (
+	"fmt"
 	"io"
 	"os"
 
@@ -40,6 +41,16 @@ func Info(w io.Writer, msg string) string {
 		return "  " + msg
 	}
 	return lipgloss.NewStyle().Foreground(lipgloss.Color("#6B7280")).Render("  " + msg)
+}
+
+// Header writes a bold section title to w, surrounded by blank lines.
+// Used to separate config / runtime / cliff sections in heraut check.
+func Header(w io.Writer, title string) {
+	if !hasColor(w) {
+		_, _ = fmt.Fprintf(w, "\n%s\n\n", title)
+		return
+	}
+	_, _ = fmt.Fprintf(w, "\n%s\n\n", lipgloss.NewStyle().Bold(true).Render(title))
 }
 
 // hasColor reports whether w supports ANSI color output.

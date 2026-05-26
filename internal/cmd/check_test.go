@@ -204,7 +204,7 @@ exit 0
 
 	out, err := executeRoot("check", "cliff", "changelog", "--config", cfgPath)
 	require.NoError(t, err)
-	assert.Contains(t, out, "ok")
+	assert.Contains(t, out, "valid")
 }
 
 func TestCheckCliffChangelog_Invalid(t *testing.T) {
