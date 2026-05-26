@@ -57,8 +57,10 @@ func TestCheck_TokenMissing(t *testing.T) {
 }
 
 func TestCheck_RepositoryMissing(t *testing.T) {
+	t.Setenv("GITHUB_ACTIONS", "")
 	mr := testutil.NewMockRunner()
 	mr.QueueResponse("gh version 2.0.0", "", nil)
+	mr.QueueResponse(`[]`, "", nil) // API auth check still runs
 
 	t.Setenv("GH_TOKEN", "tok")
 	t.Setenv("GITHUB_REPOSITORY", "") // CI sets this automatically; clear it for this test
@@ -69,6 +71,74 @@ func TestCheck_RepositoryMissing(t *testing.T) {
 }
 
 func TestCheck_OK(t *testing.T) {
+	t.Setenv("GITHUB_ACTIONS", "")
+	mr := testutil.NewMockRunner()
+	mr.QueueResponse("gh version 2.0.0", "", nil)
+	mr.QueueResponse(`[]`, "", nil) // API auth check
+
+	t.Setenv("GH_TOKEN", "tok")
+	p := github.New(mr, &config.Platform{TokenEnv: "GH_TOKEN", Repository: "org/repo"})
+	require.NoError(t, p.Check())
+
+	require.Len(t, mr.Calls, 2)
+	assert.Equal(t, []string{"--version"}, mr.Calls[0].Args)
+	assert.Equal(t, []string{"api", "repos/{owner}/{repo}/releases?per_page=1"}, mr.Calls[1].Args)
+	assert.Contains(t, mr.Calls[1].Env, "GH_TOKEN=tok")
+}
+
+func TestCheck_APIAuthFails(t *testing.T) {
+	t.Setenv("GITHUB_ACTIONS", "")
+	mr := testutil.NewMockRunner()
+	mr.QueueResponse("gh version 2.0.0", "", nil)
+	mr.QueueResponse("", "bad credentials", errors.New("exit status 1"))
+
+	t.Setenv("GH_TOKEN", "badtoken")
+	p := github.New(mr, &config.Platform{TokenEnv: "GH_TOKEN", Repository: "org/repo"})
+	err := p.Check()
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "API call failed")
+}
+
+func TestCheck_GitHubActions_OK(t *testing.T) {
+	t.Setenv("GITHUB_ACTIONS", "true")
+	t.Setenv("GITHUB_TOKEN", "ghtoken")
+	t.Setenv("GITHUB_REPOSITORY", "org/repo")
+
+	mr := testutil.NewMockRunner()
+	mr.QueueResponse("gh version 2.0.0", "", nil)
+	mr.QueueResponse(`[]`, "", nil)
+
+	t.Setenv("GH_TOKEN", "tok")
+	p := github.New(mr, &config.Platform{TokenEnv: "GH_TOKEN", Repository: "org/repo"})
+	require.NoError(t, p.Check())
+
+	require.Len(t, mr.Calls, 2)
+	apiCall := mr.Calls[1]
+	assert.Equal(t, []string{"api", "repos/org/repo/releases?per_page=1"}, apiCall.Args)
+	assert.Contains(t, apiCall.Env, "GH_TOKEN=ghtoken") // uses GITHUB_TOKEN, not token_env
+}
+
+func TestCheck_GitHubActions_AuthFails(t *testing.T) {
+	t.Setenv("GITHUB_ACTIONS", "true")
+	t.Setenv("GITHUB_TOKEN", "badtoken")
+	t.Setenv("GITHUB_REPOSITORY", "org/repo")
+
+	mr := testutil.NewMockRunner()
+	mr.QueueResponse("gh version 2.0.0", "", nil)
+	mr.QueueResponse("", "bad credentials", errors.New("exit status 1"))
+
+	t.Setenv("GH_TOKEN", "tok")
+	p := github.New(mr, &config.Platform{TokenEnv: "GH_TOKEN", Repository: "org/repo"})
+	err := p.Check()
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "GITHUB_TOKEN")
+}
+
+func TestCheck_GitHubActions_NoGITHUB_TOKEN(t *testing.T) {
+	t.Setenv("GITHUB_ACTIONS", "true")
+	t.Setenv("GITHUB_TOKEN", "") // not available
+	t.Setenv("GITHUB_REPOSITORY", "org/repo")
+
 	mr := testutil.NewMockRunner()
 	mr.QueueResponse("gh version 2.0.0", "", nil)
 
@@ -76,9 +146,7 @@ func TestCheck_OK(t *testing.T) {
 	p := github.New(mr, &config.Platform{TokenEnv: "GH_TOKEN", Repository: "org/repo"})
 	require.NoError(t, p.Check())
 
-	require.Len(t, mr.Calls, 1)
-	assert.Equal(t, "gh", mr.Calls[0].Name)
-	assert.Equal(t, []string{"--version"}, mr.Calls[0].Args)
+	require.Len(t, mr.Calls, 1) // no API call when GITHUB_TOKEN is absent
 }
 
 func TestCreateRelease_BasicArgs(t *testing.T) {
@@ -215,11 +283,64 @@ func TestCreateRelease_NoRepo_Error(t *testing.T) {
 
 // TestCheck_DefaultTokenEnv covers the tokenEnv() fallback to "GH_TOKEN" when no TokenEnv is configured.
 func TestCheck_DefaultTokenEnv(t *testing.T) {
+	t.Setenv("GITHUB_ACTIONS", "")
 	mr := testutil.NewMockRunner()
 	mr.QueueResponse("gh version 2.0.0", "", nil)
+	mr.QueueResponse(`[]`, "", nil) // API auth check
 
 	t.Setenv("GH_TOKEN", "tok")
 	// No TokenEnv configured — should fall back to "GH_TOKEN" default
 	p := github.New(mr, &config.Platform{Repository: "org/repo"})
 	require.NoError(t, p.Check())
+}
+
+func TestCreateRelease_TokenForwarded(t *testing.T) {
+	t.Setenv("CORP_TOKEN", "secret123")
+	mr := testutil.NewMockRunner()
+	mr.QueueResponse("", "", nil)
+
+	p := github.New(mr, &config.Platform{Repository: "org/repo", TokenEnv: "CORP_TOKEN"})
+	require.NoError(t, p.CreateRelease("v1.0.0", "notes"))
+
+	require.Len(t, mr.Calls, 1)
+	assert.Contains(t, mr.Calls[0].Env, "GH_TOKEN=secret123")
+}
+
+func TestUploadAssets_TokenForwarded(t *testing.T) {
+	tmp := t.TempDir()
+	assetPath := filepath.Join(tmp, "app")
+	require.NoError(t, os.WriteFile(assetPath, []byte("bin"), 0o755))
+
+	t.Setenv("CORP_TOKEN", "secret456")
+	mr := testutil.NewMockRunner()
+	mr.QueueResponse("", "", nil)
+
+	p := github.New(mr, &config.Platform{
+		Repository: "org/repo",
+		TokenEnv:   "CORP_TOKEN",
+		Assets:     []string{assetPath},
+	})
+	require.NoError(t, p.UploadAssets("v1.0.0"))
+
+	require.Len(t, mr.Calls, 1)
+	assert.Contains(t, mr.Calls[0].Env, "GH_TOKEN=secret456")
+}
+
+func TestUploadAssets_GlobSkipsDirectories(t *testing.T) {
+	tmp := t.TempDir()
+	require.NoError(t, os.WriteFile(filepath.Join(tmp, "app"), []byte("bin"), 0o755))
+	require.NoError(t, os.MkdirAll(filepath.Join(tmp, "subdir"), 0o755))
+
+	mr := testutil.NewMockRunner()
+	mr.QueueResponse("", "", nil)
+
+	p := github.New(mr, &config.Platform{
+		Repository: "org/repo",
+		Assets:     []string{filepath.Join(tmp, "*")},
+	})
+	require.NoError(t, p.UploadAssets("v1.0.0"))
+
+	require.Len(t, mr.Calls, 1) // only the file, not the directory
+	assert.Contains(t, mr.Calls[0].Args, filepath.Join(tmp, "app"))
+	assert.NotContains(t, mr.Calls[0].Args, filepath.Join(tmp, "subdir"))
 }

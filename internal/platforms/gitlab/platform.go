@@ -68,7 +68,8 @@ func (p *Platform) CreateRelease(tag, notes string) error {
 
 func (p *Platform) HasAssets() bool { return len(p.cfg.Assets) > 0 }
 
-// UploadAssets resolves each asset glob and runs `glab release upload-asset` per matched file.
+// UploadAssets resolves asset globs and uploads all matched files in one
+// `glab release upload --use-package-registry` call.
 func (p *Platform) UploadAssets(tag string) error {
 	proj, err := p.requireProject()
 	if err != nil {
@@ -80,10 +81,9 @@ func (p *Platform) UploadAssets(tag string) error {
 		return err
 	}
 
-	for _, f := range files {
-		if _, _, err := p.runner.Run("glab", "release", "upload-asset", tag, f, "-R", proj); err != nil {
-			return fmt.Errorf("glab release upload-asset %s: %w", f, err)
-		}
+	args := append([]string{"release", "upload", tag, "--use-package-registry", "-R", proj}, files...)
+	if _, _, err := p.runner.Run("glab", args...); err != nil {
+		return fmt.Errorf("glab release upload: %w", err)
 	}
 	return nil
 }
@@ -110,7 +110,8 @@ func (p *Platform) tokenEnv() string {
 	return defaultTokenEnv
 }
 
-// resolveGlobs expands each glob pattern and returns all matched paths.
+// resolveGlobs expands each glob pattern and returns matched file paths,
+// skipping directories so that globs like "dist/*" never pass a directory to glab.
 func resolveGlobs(patterns []string) ([]string, error) {
 	var files []string
 	for _, pattern := range patterns {
@@ -121,7 +122,15 @@ func resolveGlobs(patterns []string) ([]string, error) {
 		if len(matches) == 0 {
 			return nil, fmt.Errorf("no files matched asset pattern %q", pattern)
 		}
-		files = append(files, matches...)
+		for _, m := range matches {
+			info, err := os.Stat(m)
+			if err != nil {
+				return nil, fmt.Errorf("stat %q: %w", m, err)
+			}
+			if !info.IsDir() {
+				files = append(files, m)
+			}
+		}
 	}
 	return files, nil
 }

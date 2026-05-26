@@ -1,9 +1,11 @@
 package github
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/adaouat/heraut/internal/config"
 	"github.com/adaouat/heraut/internal/port"
@@ -33,17 +35,58 @@ func (p *Platform) ReleaseURL(tag string) string {
 	return fmt.Sprintf("https://github.com/%s/releases/tag/%s", p.repository(), tag)
 }
 
-// Check verifies gh is on PATH, the token env var is set, and repository is resolvable.
+// Check verifies gh is on PATH, the token env var is set, repository is resolvable,
+// and the token authenticates successfully against the GitHub API.
 func (p *Platform) Check() error {
-	if _, _, err := p.runner.Run("gh", "--version"); err != nil {
-		return fmt.Errorf("gh not found: %w", err)
+	var errs []error
+
+	_, _, binaryErr := p.runner.Run("gh", "--version")
+	if binaryErr != nil {
+		errs = append(errs, fmt.Errorf("gh not found: %w", binaryErr))
 	}
-	tokenEnv := p.tokenEnv()
-	if os.Getenv(tokenEnv) == "" {
-		return fmt.Errorf("environment variable %s is not set", tokenEnv)
+
+	tokenEnvName := p.tokenEnv()
+	tokenMissing := os.Getenv(tokenEnvName) == ""
+	if tokenMissing {
+		errs = append(errs, fmt.Errorf("environment variable %s is not set", tokenEnvName))
 	}
+
 	if p.repository() == "" {
-		return fmt.Errorf("repository not set: configure repository: in .heraut.yml or set $%s", repoEnvVar)
+		errs = append(errs, fmt.Errorf("repository not set: configure repository: in .heraut.yml or set $%s", repoEnvVar))
+	}
+
+	if binaryErr == nil {
+		if err := p.checkAPIAuth(tokenMissing); err != nil {
+			errs = append(errs, err)
+		}
+	}
+
+	return errors.Join(errs...)
+}
+
+// checkAPIAuth verifies API access. In GitHub Actions, GITHUB_TOKEN is used directly
+// because gh auth status reads config files and won't see the injected env var.
+// Outside Actions, the configured token is validated via a repo-scoped API call.
+func (p *Platform) checkAPIAuth(tokenMissing bool) error {
+	if os.Getenv("GITHUB_ACTIONS") == "true" {
+		githubToken := os.Getenv("GITHUB_TOKEN")
+		repo := os.Getenv("GITHUB_REPOSITORY")
+		if githubToken == "" || repo == "" {
+			return nil
+		}
+		endpoint := "repos/" + repo + "/releases?per_page=1"
+		_, stderr, err := p.runner.RunEnv([]string{"GH_TOKEN=" + githubToken}, "gh", "api", endpoint)
+		if err != nil {
+			return fmt.Errorf("github: API call failed (gh api %s): %s\n  hint: verify GITHUB_TOKEN has read access to the repository", endpoint, strings.TrimSpace(stderr))
+		}
+		return nil
+	}
+	if tokenMissing {
+		return nil
+	}
+	_, stderr, err := p.runner.RunEnv(p.tokenEnvSlice(), "gh", "api", "repos/{owner}/{repo}/releases?per_page=1")
+	if err != nil {
+		return fmt.Errorf("github: API call failed (gh api repos/{owner}/{repo}/releases): %s\n  hint: verify %s is valid and has the necessary scopes", strings.TrimSpace(stderr), p.tokenEnv())
 	}
 	return nil
 }
@@ -63,7 +106,7 @@ func (p *Platform) CreateRelease(tag, notes string) error {
 		args = append(args, "--prerelease")
 	}
 
-	if _, _, err := p.runner.Run("gh", args...); err != nil {
+	if _, _, err := p.runner.RunEnv(p.tokenEnvSlice(), "gh", args...); err != nil {
 		return fmt.Errorf("gh release create: %w", err)
 	}
 	return nil
@@ -84,7 +127,7 @@ func (p *Platform) UploadAssets(tag string) error {
 	}
 
 	for _, f := range files {
-		if _, _, err := p.runner.Run("gh", "release", "upload", tag, f, "--repo", repo); err != nil {
+		if _, _, err := p.runner.RunEnv(p.tokenEnvSlice(), "gh", "release", "upload", tag, f, "--repo", repo); err != nil {
 			return fmt.Errorf("gh release upload %s: %w", f, err)
 		}
 	}
@@ -113,7 +156,18 @@ func (p *Platform) tokenEnv() string {
 	return defaultTokenEnv
 }
 
-// resolveGlobs expands each glob pattern and returns all matched paths.
+// tokenEnvSlice reads the configured token and returns it as ["GH_TOKEN=<value>"]
+// so gh always finds it regardless of which env var name was configured.
+// Returns nil when the token is unset (auth will fail — Check() should have caught this).
+func (p *Platform) tokenEnvSlice() []string {
+	if token := os.Getenv(p.tokenEnv()); token != "" {
+		return []string{"GH_TOKEN=" + token}
+	}
+	return nil
+}
+
+// resolveGlobs expands each glob pattern and returns all matched file paths,
+// skipping directories so that globs like "dist/*" never pass a directory to gh.
 func resolveGlobs(patterns []string) ([]string, error) {
 	var files []string
 	for _, pattern := range patterns {
@@ -124,7 +178,15 @@ func resolveGlobs(patterns []string) ([]string, error) {
 		if len(matches) == 0 {
 			return nil, fmt.Errorf("no files matched asset pattern %q", pattern)
 		}
-		files = append(files, matches...)
+		for _, m := range matches {
+			info, err := os.Stat(m)
+			if err != nil {
+				return nil, fmt.Errorf("stat %q: %w", m, err)
+			}
+			if !info.IsDir() {
+				files = append(files, m)
+			}
+		}
 	}
 	return files, nil
 }

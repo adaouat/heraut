@@ -124,9 +124,10 @@ func TestUploadAssets_SingleFile(t *testing.T) {
 	call := mr.Calls[0]
 	assert.Equal(t, "glab", call.Name)
 	assert.Equal(t, []string{
-		"release", "upload-asset", "v1.2.3",
-		assetPath,
+		"release", "upload", "v1.2.3",
+		"--use-package-registry",
 		"-R", "grp/repo",
+		assetPath,
 	}, call.Args)
 }
 
@@ -137,8 +138,7 @@ func TestUploadAssets_Glob(t *testing.T) {
 	}
 
 	mr := testutil.NewMockRunner()
-	mr.QueueResponse("", "", nil)
-	mr.QueueResponse("", "", nil)
+	mr.QueueResponse("", "", nil) // one batch call
 
 	p := gitlab.New(mr, &config.Platform{
 		Project: "grp/repo",
@@ -146,13 +146,32 @@ func TestUploadAssets_Glob(t *testing.T) {
 	})
 	require.NoError(t, p.UploadAssets("v1.0.0"))
 
-	assert.Len(t, mr.Calls, 2)
-	for _, call := range mr.Calls {
-		assert.Equal(t, "glab", call.Name)
-		assert.Equal(t, "release", call.Args[0])
-		assert.Equal(t, "upload-asset", call.Args[1])
-		assert.Equal(t, "v1.0.0", call.Args[2])
-	}
+	require.Len(t, mr.Calls, 1) // all files in one call
+	call := mr.Calls[0]
+	assert.Equal(t, "glab", call.Name)
+	assert.Equal(t, "release", call.Args[0])
+	assert.Equal(t, "upload", call.Args[1])
+	assert.Equal(t, "v1.0.0", call.Args[2])
+	assert.Contains(t, call.Args, "--use-package-registry")
+}
+
+func TestUploadAssets_GlobSkipsDirectories(t *testing.T) {
+	tmp := t.TempDir()
+	require.NoError(t, os.WriteFile(filepath.Join(tmp, "app"), []byte("bin"), 0o755))
+	require.NoError(t, os.MkdirAll(filepath.Join(tmp, "subdir"), 0o755))
+
+	mr := testutil.NewMockRunner()
+	mr.QueueResponse("", "", nil)
+
+	p := gitlab.New(mr, &config.Platform{
+		Project: "grp/repo",
+		Assets:  []string{filepath.Join(tmp, "*")},
+	})
+	require.NoError(t, p.UploadAssets("v1.0.0"))
+
+	require.Len(t, mr.Calls, 1)
+	assert.Contains(t, mr.Calls[0].Args, filepath.Join(tmp, "app"))
+	assert.NotContains(t, mr.Calls[0].Args, filepath.Join(tmp, "subdir"))
 }
 
 func TestUploadAssets_GlobNoMatch(t *testing.T) {
