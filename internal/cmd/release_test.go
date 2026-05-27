@@ -10,56 +10,37 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestNewChangelogCmd(t *testing.T) {
-	c := cmd.NewChangelogCmd()
+func TestRelease_Structural(t *testing.T) {
+	c := cmd.NewReleaseCmd()
 	require.NotNil(t, c)
-	assert.Equal(t, "changelog", c.Use)
+	assert.Equal(t, "release", c.Use)
 	assert.NotEmpty(t, c.Short)
-
-	for _, name := range []string{"commit", "tag", "version"} {
-		assert.NotNil(t, c.Flags().Lookup(name), "flag %q not registered", name)
-	}
+	assert.NotNil(t, c.Flags().Lookup("version"), "flag 'version' not registered")
 }
 
-// TestRootCmd_HasChangelogSubcommand verifies `heraut changelog` is wired into the root.
-func TestRootCmd_HasChangelogSubcommand(t *testing.T) {
-	root := cmd.NewRootCmd("dev")
-	var found bool
-	for _, sub := range root.Commands() {
-		if sub.Use == "changelog" {
-			found = true
-			break
-		}
-	}
-	assert.True(t, found, "changelog subcommand not registered on root")
-}
-
-func TestChangelog_ConfigNotFound(t *testing.T) {
-	_, err := executeRoot("changelog", "--config", "/nonexistent/path/.heraut.yml")
+func TestRelease_ConfigNotFound(t *testing.T) {
+	_, err := executeRoot("release", "--config", "/nonexistent/path/.heraut.yml")
 	require.Error(t, err)
 	assert.Equal(t, exitcode.Config, cmd.ExitCode(err))
 }
 
-func TestChangelog_InvalidConfig(t *testing.T) {
+func TestRelease_InvalidConfig(t *testing.T) {
 	cfgPath := writeConfig(t, `
 version: "1"
 versioning:
   strategy: badstrategy
 `)
-	_, err := executeRoot("changelog", "--config", cfgPath)
+	_, err := executeRoot("release", "--config", cfgPath)
 	require.Error(t, err)
 	assert.Equal(t, exitcode.Config, cmd.ExitCode(err))
 }
 
-func TestChangelog_DryRun_OutputsVersion(t *testing.T) {
+func TestRelease_DryRun_OutputsVersion(t *testing.T) {
 	cfgPath := writeConfig(t, `
 version: "1"
 versioning:
   strategy: semver
   prefix: "v"
-changelog:
-  generator: git-cliff
-  output: CHANGELOG.md
 `)
 	testutil.FakeBin(t, "git", `#!/bin/sh
 case "$*" in
@@ -68,13 +49,13 @@ case "$*" in
   *) exit 1 ;;
 esac
 `)
-	out, err := executeRoot("changelog", "--config", cfgPath, "--dry-run")
+	out, err := executeRoot("release", "--config", cfgPath, "--dry-run")
 	require.NoError(t, err)
 	assert.Contains(t, out, "v1.1.0")
 	assert.Contains(t, out, "[dry-run]")
 }
 
-func TestChangelog_PreflightFail_GitIdentityMissing(t *testing.T) {
+func TestRelease_PreflightFail_GitIdentityMissing(t *testing.T) {
 	cfgPath := writeConfig(t, `
 version: "1"
 versioning:
@@ -88,7 +69,7 @@ case "$*" in
   *) exit 1 ;;
 esac
 `)
-	_, err := executeRoot("changelog", "--config", cfgPath)
+	_, err := executeRoot("release", "--config", cfgPath)
 	require.Error(t, err)
 	assert.Equal(t, exitcode.Runtime, cmd.ExitCode(err))
 }

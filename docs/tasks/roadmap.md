@@ -1656,7 +1656,7 @@ mechanical — lift the environments map to the root level.
 
 ---
 
-#### `[ ]` T39: Coverage sweep — `cmd/release.go` and `cmd/changelog.go`
+#### `[x]` T39: Coverage sweep — `cmd/release.go` and `cmd/changelog.go`
 
 **Description:** Bring `internal/cmd/release.go` (12.9%) and `internal/cmd/changelog.go`
 (19.4%) to meaningful coverage. These were explicitly deferred in T34 because they require
@@ -1675,6 +1675,15 @@ requires roughly +3.3 points, which these two files can provide.
 `.github/workflows/ci.yml` (gate bump)
 
 **Scope:** M
+
+`cmd/release.go` reached 87.1% (was 12.9%) and `cmd/changelog.go` reached 93.5% (was
+19.4%) via four execution tests each: config not found, invalid config, dry-run happy path
+(with FakeBin git for version resolution), and preflight fail (git identity missing). The
+remaining uncovered lines are the `NewResolver`/`BuildPipeline` error returns, which are
+unreachable with well-formed configs — all such errors are caught by `config.Validate`
+first. Eight additional tests for `check cliff` (bare) and `check cliff release-notes`
+were added to `check_test.go` to clear the 85% total threshold. CI gate bumped 80% → 85%.
+Final coverage: 85.3% across 621 tests in 23 packages.
 
 ---
 
