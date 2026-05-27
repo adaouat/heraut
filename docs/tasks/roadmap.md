@@ -1707,7 +1707,7 @@ they share the parent's step number rather than consuming a number of their own.
 The design decision is captured in
 [ADR-0017](../adr/0017-pipeline-progress-reporter.md).
 
-#### `[ ]` T40: `ui.Progress` — numbered step runner and `StepFn` type
+#### `[x]` T40: `ui.Progress` — numbered step runner and `StepFn` type
 
 **Description:** Introduce the `StepFn` callback type and the `ui.Progress` production
 implementation into `internal/ui`. This is the foundation the pipeline tasks build on;
@@ -1738,6 +1738,13 @@ it must be complete and tested before T41 or T42 start.
 **Files:** `internal/ui/progress.go`, `internal/ui/progress_test.go`
 
 **Scope:** S
+
+`StepFn` is a plain func type (not an interface) — satisfies the contract with a nil-able field and no extra
+boilerplate at callsites. `printSubResult` is a package-level private helper that `Step` calls after
+`Done`; keeping it package-level (rather than a method) avoids growing the `Progress` API surface.
+`nil fn` is a documented no-op rather than a panic, since pipelines may use conditional step registration.
+Error is returned verbatim (not wrapped) so callers can use `errors.Is/As` without extra unwrapping.
+`progress.go` reached 100% statement coverage; full suite 632 tests pass.
 
 ---
 
