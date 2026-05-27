@@ -73,7 +73,7 @@ func NewChangelogCmd() *cobra.Command {
 
 	changelogCmd.Flags().BoolVar(&commit, "commit", false, "commit the generated changelog")
 	changelogCmd.Flags().BoolVar(&tag, "tag", false, "tag after commit (implies --commit)")
-	changelogCmd.Flags().StringVar(&versionOverride, "version", "", "override the resolved version (e.g. 1.2.3)")
+	changelogCmd.Flags().StringVar(&versionOverride, "version", "", "override the resolved version — bare version without tag prefix (e.g. 1.2.3, not v1.2.3)")
 
 	return changelogCmd
 }

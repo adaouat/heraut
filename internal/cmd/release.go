@@ -72,7 +72,7 @@ func NewReleaseCmd() *cobra.Command {
 		},
 	}
 
-	releaseCmd.Flags().StringVar(&versionOverride, "version", "", "override the resolved version (e.g. 1.2.3)")
+	releaseCmd.Flags().StringVar(&versionOverride, "version", "", "override the resolved version — bare version without tag prefix (e.g. 1.2.3, not v1.2.3)")
 
 	return releaseCmd
 }
