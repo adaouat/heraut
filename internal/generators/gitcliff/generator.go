@@ -59,7 +59,17 @@ func (g *Generator) Generate(tag string) (string, error) {
 	}
 	defer cleanup()
 
-	args := []string{"--config", cfgPath, "--tag", tag, "--unreleased"}
+	args := []string{"--config", cfgPath, "--tag", tag}
+
+	// ModeChangelog: no range flag — git-cliff regenerates the full history so that
+	// CHANGELOG.md always contains every release, not just the current one.
+	//
+	// ModeReleaseNotes: --latest — the tag is already pushed by the time release notes
+	// are generated (step 6 of the release pipeline), so --unreleased would return
+	// nothing. --latest returns the commits in the tag we just created.
+	if g.mode == ModeReleaseNotes {
+		args = append(args, "--latest")
+	}
 
 	if g.cfg.TagPattern != "" {
 		args = append(args, "--tag-pattern", g.cfg.TagPattern)

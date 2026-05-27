@@ -41,16 +41,26 @@ heraut cliff changelog
 heraut cliff release-notes
 ```
 
-**Invocation**:
+**Invocation** (changelog mode):
 
 ```
-git-cliff --config <merged-tmp.toml> --tag <version> --unreleased [--tag-pattern <pattern>] [--output <file>]
+git-cliff --config <merged-tmp.toml> --tag <version> [--tag-pattern <pattern>] --output <file>
+```
+
+**Invocation** (release-notes mode):
+
+```
+git-cliff --config <merged-tmp.toml> --tag <version> --latest [--tag-pattern <pattern>]
 ```
 
 - `--config` points at a temp file containing the merged TOML (cleaned up after run)
 - `--tag` is always set to the resolved version, so unreleased commits get the new
   version's heading in `CHANGELOG.md`
-- `--unreleased` is always passed, scoping output to commits since the last tag
+- No range flag in changelog mode — git-cliff processes the full commit history so that
+  `CHANGELOG.md` always contains every release, not just the current one
+- `--latest` in release-notes mode — the tag is already pushed by the time release notes
+  are generated (step 6 of the release pipeline), so `--unreleased` would return nothing;
+  `--latest` returns the commits in the tag just created
 - `--tag-pattern` is set from `tag_pattern:` when configured
 - `--output` is set for changelog mode (writes to `output:`); omitted for release-notes
   mode (stdout is captured)

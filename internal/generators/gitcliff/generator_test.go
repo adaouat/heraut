@@ -88,7 +88,9 @@ func TestGenerate_ReleaseNotes(t *testing.T) {
 	// --config must be present (path is a temp file — check presence, not value)
 	assertHasFlag(t, call.Args, "--config")
 	assertArgValue(t, call.Args, "--tag", "v1.2.3")
-	assertHasFlag(t, call.Args, "--unreleased")
+	// release-notes mode: --latest (tag is already pushed when notes are generated)
+	assertHasFlag(t, call.Args, "--latest")
+	assertNotHasFlag(t, call.Args, "--unreleased")
 	// release-notes mode: no --output flag
 	assertNotHasFlag(t, call.Args, "--output")
 }
@@ -108,7 +110,9 @@ func TestGenerate_Changelog(t *testing.T) {
 	assertHasFlag(t, call.Args, "--config")
 	assertArgValue(t, call.Args, "--tag", "v1.2.3")
 	assertArgValue(t, call.Args, "--output", "CHANGELOG.md")
-	assertHasFlag(t, call.Args, "--unreleased")
+	// changelog mode: no range flag — git-cliff generates the full history
+	assertNotHasFlag(t, call.Args, "--unreleased")
+	assertNotHasFlag(t, call.Args, "--latest")
 	assertNotHasFlag(t, call.Args, "--tag-pattern")
 }
 
