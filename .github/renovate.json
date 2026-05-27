@@ -1,0 +1,74 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "extends": ["config:recommended"],
+  "schedule": ["before 9am on Monday"],
+  "labels": ["dependencies"],
+  "packageRules": [
+    {
+      "description": "Group non-major Go module updates into one weekly PR",
+      "matchManagers": ["gomod"],
+      "matchUpdateTypes": ["minor", "patch", "digest"],
+      "groupName": "Go dependencies",
+      "groupSlug": "go-deps"
+    },
+    {
+      "description": "Group all GitHub Actions updates into one weekly PR",
+      "matchManagers": ["github-actions"],
+      "groupName": "GitHub Actions",
+      "groupSlug": "github-actions"
+    },
+    {
+      "description": "Group Dockerfile ARG versions and mise tool versions into one PR so they stay in sync",
+      "matchManagers": ["dockerfile", "regex", "mise"],
+      "groupName": "bundled tool versions",
+      "groupSlug": "tool-versions"
+    }
+  ],
+  "customManagers": [
+    {
+      "customType": "regex",
+      "fileMatch": ["^Dockerfile$"],
+      "matchStrings": ["ARG MISE_VERSION=(?<currentValue>[\\d.]+)"],
+      "depNameTemplate": "jdx/mise",
+      "datasourceTemplate": "github-releases"
+    },
+    {
+      "customType": "regex",
+      "fileMatch": ["^Dockerfile$"],
+      "matchStrings": ["ARG GIT_CLIFF_VERSION=(?<currentValue>[\\d.]+)"],
+      "depNameTemplate": "orhun/git-cliff",
+      "datasourceTemplate": "github-releases"
+    },
+    {
+      "customType": "regex",
+      "fileMatch": ["^Dockerfile$"],
+      "matchStrings": ["ARG GLAB_VERSION=(?<currentValue>[\\d.]+)"],
+      "depNameTemplate": "gitlab-org/cli",
+      "datasourceTemplate": "github-releases"
+    },
+    {
+      "customType": "regex",
+      "fileMatch": ["^Dockerfile$"],
+      "matchStrings": ["ARG GH_VERSION=(?<currentValue>[\\d.]+)"],
+      "depNameTemplate": "cli/cli",
+      "datasourceTemplate": "github-releases"
+    },
+    {
+      "customType": "regex",
+      "fileMatch": ["^Dockerfile$"],
+      "matchStrings": ["ARG COCOGITTO_VERSION=(?<currentValue>[\\d.]+)"],
+      "depNameTemplate": "cocogitto/cocogitto",
+      "datasourceTemplate": "github-releases"
+    },
+    {
+      "customType": "regex",
+      "fileMatch": ["^Dockerfile$"],
+      "matchStrings": ["ARG COMMUNIQUE_VERSION=(?<currentValue>[\\d.]+)"],
+      "depNameTemplate": "jdx/communique",
+      "datasourceTemplate": "github-releases"
+    }
+  ],
+  "mise": {
+    "fileMatch": ["^\\.config/mise/config\\.toml$"]
+  }
+}
