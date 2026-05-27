@@ -1852,14 +1852,18 @@ Run/dryRunOutput/printSummary at 86–96%; pipeline+app packages 93.5% combined.
 
 ---
 
-### ✦ `[ ]` CHECKPOINT J — TUI Polish complete
+### ✦ `[x]` CHECKPOINT J — TUI Polish complete
 
-- [ ] `heraut release` shows `[N/M]` numbered steps with spinner in TTY
-- [ ] `heraut release --dry-run` shows `[dry-run]` step-by-step sequence
-- [ ] `heraut changelog` shows `[N/M]` numbered steps with spinner in TTY
-- [ ] `heraut changelog --dry-run` shows `[dry-run]` step-by-step sequence
-- [ ] Asset uploads shown as indented `✓ assets uploaded` sub-results
-- [ ] All existing tests pass unchanged (nil reporter path untouched)
+- [x] `heraut release` shows `[N/M]` numbered steps with spinner in TTY
+- [x] `heraut release --dry-run` shows `[dry-run]` step-by-step sequence
+- [x] `heraut changelog` shows `[N/M]` numbered steps with spinner in TTY
+- [x] `heraut changelog --dry-run` shows `[dry-run]` step-by-step sequence
+- [x] Asset uploads shown as indented `✓ assets uploaded` sub-results
+- [x] All existing tests pass unchanged (nil reporter path untouched)
+
+All three Phase 9 tasks (T40, T41, T42) shipped clean. Smoke-tested `heraut release --dry-run`
+and `heraut changelog --dry-run` against the live repo: both show `[N/M]`-prefixed steps with
+the `[dry-run]` result annotation. 648 tests pass across 23 packages.
 
 ---
 
