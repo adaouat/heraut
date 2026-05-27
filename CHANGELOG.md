@@ -1,10 +1,16 @@
 # Changelog
 
+## [0.11.2](//compare/v0.11.1..v0.11.2) - 2026-05-27
+
+### ⚙️ Miscellaneous Tasks
+
+- Fix git-cliff-action --unreleased → --latest for release notes - ([72e08e1](//commit/72e08e15586e498f6a1bf09414a63ad0d7850ca2))
+
 ## [0.11.1](//compare/v0.11.0..v0.11.1) - 2026-05-27
 
 ### 🐛 Bug Fixes
 
-- *(generators/gitcliff)* Correct git-cliff range flags per mode - ([061149c](//commit/061149ce599e186c6980a0e1796891e00f101759))
+- *(generators/gitcliff)* Correct git-cliff range flags per mode - ([061149c](//commit/061149ce599e186c6980a0e1796891e00f101759)) by @bchatard
 
 ## [0.11.0](//compare/v0.10.0..v0.11.0) - 2026-05-27
 
