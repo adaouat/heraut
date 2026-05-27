@@ -167,7 +167,7 @@ release:
 | `changelog` | Generator for `CHANGELOG.md` (committed during `release`) |
 | `release.notes` | Generator for the release-page notes |
 | `release.platforms` | Where to publish (`github`, `gitlab`, or both) |
-| `environments` | Per-environment overrides for `changelog` / `release` |
+| `environments` | Per-environment config for `*-per-env` strategies (bump mode, tag format, promotion source, changelog/release overrides) |
 
 This is the short version. See [Spec 02 — Configuration](docs/specs/02-configuration.md)
 for every field, [Spec 04 — Versioning](docs/specs/04-versioning.md) for how each
