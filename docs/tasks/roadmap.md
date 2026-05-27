@@ -1612,33 +1612,45 @@ Spec 02.
 
 ---
 
-#### `[ ]` T37: Decide fate of top-level `environments` override machinery
+#### `[ ]` T37: Unified `environments` block
 
-**Description:** The top-level `environments` map (`environments.<env>.changelog`,
-`environments.<env>.release`) is parsed and validated by the config loader and
-validator, but the pipeline builder (`internal/app/pipeline.go`) never reads
-`cfg.Environments` — the overrides are silently dropped at runtime. This is a latent
-footgun: users who set these fields get no error and no effect.
+**Description:** Collapse the split `versioning.environments` (versioning fields) and the
+ghost root `environments` (content overrides, parsed but never applied) into a single root
+`environments` map that owns all per-env configuration — versioning policy and content
+overrides in one place.
 
-Two options:
+**Decision:** Option B (implement, unified spec) chosen over Option A (remove). The full
+design is specified in `.claude/plans/environments-unified-spec.md`. Specs 02 and 04 are
+already updated to reflect the new structure.
 
-**A — Remove:** Delete `EnvOverride` from `config.go`, remove the validation loop in
-`validator.go`, update `schema.json`, update spec 02. Zero implementation risk; users
-who set the block today (no-op) would get a validation error after the change.
+**Breaking change:** `versioning.environments` is removed. Any `.heraut.yml` with
+`versioning.environments` fails after this change (strict YAML: unknown key). Migration is
+mechanical — lift the environments map to the root level.
 
-**B — Implement:** Apply `cfg.Environments[env].Changelog` and
-`cfg.Environments[env].Release` in `buildReleasePipelineConfig` and
-`buildChangelogPipelineConfig`. Requires deciding merge semantics (field-level for
-`changelog`; list-replace for `release.platforms`), updating spec 02, and adding
-contract + integration tests. The remaining value is per-env platform lists and per-env
-output paths — real but lower-priority.
+**Acceptance:**
+- `config.Environment` struct replaces `EnvVersioning` + `EnvOverride`; `EnvRelease` added for per-env release overrides (distinct nil semantics from root `Release`)
+- `Config.Environments` type changes from `map[string]EnvOverride` to `map[string]Environment`
+- `Versioning.Environments` field removed
+- Validator reads per-env rules from `cfg.Environments`; new flat-strategy guard (hard error); new warnings for contradictory `disable_changelog + changelog:` / `disable_notes + release.notes:` (non-zero exit, actionable hint)
+- `app/resolver.go` reads versioning fields from `cfg.Environments[env]`
+- `app/pipeline.go` applies content overrides (`changelog`, `release.platforms`, `release.notes`) from `cfg.Environments[env]` with field-level inheritance semantics
+- `app/current.go` updated to read `cfg.Environments`
+- Wizard: `EnvAnswer` gains `DisableChangelog`/`DisableNotes`; two confirm prompts added at end of `runEnvWizard`; `answersToConfig` writes to `cfg.Environments`; `ConfigToAnswers` reads from `cfg.Environments`
+- `schema.json`: remove `versioning.environments`; add unified `environments` with all versioning + content fields
+- `docs/heraut.sample.yml`: rewrite per-env examples to use root `environments`
+- `testdata/config/valid/`: update per-env fixtures to use root `environments`
+- `testdata/config/invalid/`: add fixture for flat-strategy + environments (new hard error)
+- All existing tests pass; new tests for flat-strategy guard and contradiction warnings
 
-Decide, document in an ADR, implement whichever option is chosen.
+**Spec:** `.claude/plans/environments-unified-spec.md`
 
 **Files:** `internal/config/config.go`, `internal/config/validator.go`,
-`internal/app/pipeline.go`, `schema.json`, `docs/specs/02-configuration.md`
+`internal/config/validator_test.go`, `internal/app/resolver.go`, `internal/app/pipeline.go`,
+`internal/app/current.go`, `internal/scaffold/wizard.go`, `internal/scaffold/generate.go`,
+`internal/scaffold/generate_test.go`, `schema.json`, `docs/heraut.sample.yml`,
+`testdata/config/valid/`, `testdata/config/invalid/`
 
-**Scope:** S (remove) or M (implement)
+**Scope:** L
 
 ---
 

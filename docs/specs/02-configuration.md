@@ -46,7 +46,7 @@ environments: ...     # optional — per-environment overrides for changelog/rel
 | `versioning`   | Yes      | Version resolution strategy and options.                                                                                   |
 | `changelog`    | No       | Changelog generator. When present, heraut generates and commits `CHANGELOG.md` during release.                             |
 | `release`      | No       | Release notes generator and target platforms.                                                                              |
-| `environments` | No       | Per-environment overrides for `changelog` and `release`, shallow-merged with the root config (top-level — distinct from `versioning.environments`). |
+| `environments` | No       | Per-environment settings (versioning and content). Only valid with `semver-per-env` or `calver-per-env`. |
 
 ### Design principles
 
@@ -77,7 +77,6 @@ versioning:
 | `sprint`          | Conditional | —                                        | Current sprint number. Required when `format` contains the `SPRINT` token. Advance with `heraut version sprint bump`.                                                                                                      |
 | `tag_format`      | No          | —                                        | Common tag format for all environments (per-env strategies). `{env}` is replaced with the environment name; `{version}` with the resolved version. Per-environment `tag_format` overrides this.                            |
 | `tag_type`        | No          | `annotated`                              | Git tag type: `annotated` (default) creates tags with `-a -m <commit_message>` so they carry a tagger, timestamp, and message. `lightweight` creates bare ref tags (`git tag <tag>`).                                     |
-| `environments`    | per-env     | —                                        | Map of environment name → version config. Required for `semver-per-env` and `calver-per-env`. See § Per-environment versioning fields.                                                                                     |
 
 See [Spec 04 — Versioning](04-versioning.md) for strategy-specific behaviour.
 
@@ -109,21 +108,22 @@ copies (`bump: promote`).
 ```yaml
 versioning:
   strategy: semver-per-env
-  environments:
-    dev:
-      tag_format: "dev/{version}"    # tags: dev/1.0.0, dev/1.0.1
-      branch: develop
-      bump: auto
-    staging:
-      tag_format: "staging/{version}"
-      branch: main
-      bump: promote
-      source: dev                    # promotes from dev (explicit, see § Bump modes)
-    prod:
-      tag_format: "prod/{version}"
-      branch: main
-      bump: promote
-      source: staging                # chains: prod ← staging ← dev
+
+environments:
+  dev:
+    tag_format: "dev/{version}"    # tags: dev/1.0.0, dev/1.0.1
+    branch: develop
+    bump: auto
+  staging:
+    tag_format: "staging/{version}"
+    branch: main
+    bump: promote
+    source: dev                    # promotes from dev (explicit, see § Bump modes)
+  prod:
+    tag_format: "prod/{version}"
+    branch: main
+    bump: promote
+    source: staging                # chains: prod ← staging ← dev
 ```
 
 ### Strategy: `calver-per-env`
@@ -136,27 +136,57 @@ copies the version from its source. No conventional commit parsing.
 versioning:
   strategy: calver-per-env
   format: "YYYY.MM.PATCH"
-  environments:
-    dev:
-      tag_format: "dev/{version}"    # dev/2026.05.0
-      bump: auto
-    prod:
-      tag_format: "prod/{version}"   # prod/2026.05.0
-      bump: promote
+
+environments:
+  dev:
+    tag_format: "dev/{version}"    # dev/2026.05.0
+    bump: auto
+  prod:
+    tag_format: "prod/{version}"   # prod/2026.05.0
+    bump: promote
 ```
 
-## Per-environment versioning fields
+## Per-environment fields (`environments.<name>`)
 
-Used inside `versioning.environments.<name>` for `semver-per-env` and `calver-per-env`.
+Used inside `environments.<name>` for `semver-per-env` and `calver-per-env`. All fields
+are optional unless noted.
 
-| Field               | Required    | Default | Description                                                                                                                                                                                  |
-|---------------------|-------------|---------|----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| `bump`              | Yes         | —       | `auto` or `promote` (see § Bump modes).                                                                                                                                                      |
-| `tag_format`        | Conditional | —       | Tag format for this environment. Must contain `{version}`. Overrides `versioning.tag_format` when set. Required if no common `tag_format` is defined.                                        |
-| `branch`            | No          | —       | Branch this environment is released from. Informational — used in error messages.                                                                                                            |
-| `source`            | No          | —       | Source environment for `bump: promote`. See § Bump modes → promote.                                                                                                                          |
-| `disable_changelog` | No          | `false` | When `true`, skips changelog generation and the changelog commit for this environment. Useful for non-prod environments where committing `CHANGELOG.md` is undesirable.                       |
-| `disable_notes`     | No          | `false` | When `true`, skips release notes generation. The platform release is still created, but without attached notes.                                                                              |
+### Versioning fields
+
+| Field        | Required      | Default | Description                                                                                                                                           |
+|--------------|---------------|---------|-------------------------------------------------------------------------------------------------------------------------------------------------------|
+| `bump`       | Yes (per-env) | —       | `auto` or `promote` (see § Bump modes).                                                                                                               |
+| `tag_format` | Conditional   | —       | Tag format for this environment. Must contain `{version}`. Overrides `versioning.tag_format` when set. Required if no common `tag_format` is defined. |
+| `branch`     | No            | —       | Branch this environment is released from. Informational — used in error messages.                                                                     |
+| `source`     | No            | —       | Source environment for `bump: promote`. See § Bump modes → promote.                                                                                   |
+
+### Content fields
+
+| Field               | Default | Description                                                                                                                                                               |
+|---------------------|---------|---------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| `disable_changelog` | `false` | When `true`, skips changelog generation and the git commit for this env. Takes precedence over `changelog:` when both are set.                                            |
+| `disable_notes`     | `false` | When `true`, skips release notes generation. The platform release is still created, but without attached notes. Takes precedence over `release.notes:` when both are set. |
+| `changelog`         | —       | Override the root `changelog` block for this env (full replacement). Absent means use the root default.                                                                   |
+| `release`           | —       | Override `release.platforms` and/or `release.notes` for this env. Fields inherit independently (see § Content override semantics below).                                  |
+
+### Content override semantics
+
+**`changelog`** — absent: use root `changelog`. Present: replaces root `changelog`
+entirely for this env (full replacement, not merge). `disable_changelog: true` takes
+precedence when both are set.
+
+**`release`** — field-level inheritance within `release`:
+
+| Sub-field           | Absent in env                 | Present in env                |
+|---------------------|-------------------------------|-------------------------------|
+| `release.platforms` | Use root `release.platforms`  | Replace entirely for this env |
+| `release.notes`     | Use root `release.notes`      | Replace entirely for this env |
+
+`disable_notes: true` takes precedence over `release.notes:` when both are set.
+
+Setting contradictory flags (e.g. `disable_changelog: true` and `changelog:` on the same
+env) produces a non-zero exit from `heraut check config` with an actionable hint
+explaining which field to remove.
 
 ### Bump modes
 
@@ -209,11 +239,12 @@ level using the `{env}` token:
 versioning:
   strategy: semver-per-env
   tag_format: "{env}/{version}"    # expands to dev/1.0.0, prod/1.0.0, etc.
-  environments:
-    dev:
-      bump: auto
-    prod:
-      bump: promote
+
+environments:
+  dev:
+    bump: auto
+  prod:
+    bump: promote
 ```
 
 A per-environment `tag_format` always overrides the common one.
@@ -322,38 +353,14 @@ release:
 
 Implementation: shells out to `gh release create` + `gh release upload`.
 
-## `environments` (top-level overrides) — deferred
+## `environments`
 
-> **Status: parsed and validated, not yet applied by the pipeline.**
-> A future task (T37) will decide whether to implement or remove this block.
+The root `environments` map is the single place for all per-environment configuration —
+versioning policy and content overrides together. It is only valid with `semver-per-env`
+or `calver-per-env`; using it with a flat strategy (`semver`, `calver`) is a hard
+validation error with an actionable hint.
 
-The top-level `environments` map lets you override `changelog` and `release` per
-environment. Overrides are shallow-merged with the root config.
-
-```yaml
-environments:
-  dev:
-    release:
-      platforms:
-        - platform: gitlab         # dev only publishes to GitLab
-  prod:
-    release:
-      platforms:
-        - platform: gitlab
-        - platform: github         # prod publishes to both
-```
-
-Each entry supports the same fields as `changelog` and `release` at the root level. The
-merge is **shallow**: setting `release.platforms` in an environment completely replaces
-the root `release.platforms` for that environment; it does not append.
-
-This is distinct from the per-environment versioning config inside
-`versioning.environments`, which controls version computation:
-
-| Block                     | Purpose                                                |
-|---------------------------|--------------------------------------------------------|
-| `versioning.environments` | Version computation (tag format, bump mode, source)    |
-| `environments` (top)      | Changelog and release overrides per environment        |
+See § Per-environment fields (`environments.<name>`) for the full field reference.
 
 ## Complete examples
 
@@ -412,19 +419,6 @@ version: "1"
 versioning:
   strategy: semver-per-env
   tag_format: "{env}/{version}"    # common format: dev/1.0.0, staging/1.0.0, prod/1.0.0
-  environments:
-    dev:
-      branch: develop
-      bump: auto
-      disable_changelog: true      # no CHANGELOG commit on dev
-    staging:
-      branch: main
-      bump: promote
-      source: dev                  # staging ← dev
-    prod:
-      branch: main
-      bump: promote
-      source: staging              # prod ← staging ← dev
 
 changelog:
   generator: git-cliff
@@ -440,10 +434,20 @@ release:
 
 environments:
   dev:
+    branch: develop
+    bump: auto
+    disable_changelog: true        # no CHANGELOG commit on dev
     release:
       platforms:
         - platform: gitlab         # dev releases only go to GitLab
+  staging:
+    branch: main
+    bump: promote
+    source: dev                    # staging ← dev
   prod:
+    branch: main
+    bump: promote
+    source: staging                # prod ← staging ← dev
     release:
       platforms:
         - platform: gitlab

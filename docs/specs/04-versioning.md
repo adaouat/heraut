@@ -145,15 +145,16 @@ The "period" depends on which tokens appear in `format`:
 ```yaml
 versioning:
   strategy: semver-per-env
-  environments:
-    dev:
-      tag_format: "dev/{version}"   # tags: dev/1.0.1, dev/1.0.2
-      branch: develop
-      bump: auto
-    prod:
-      tag_format: "prod/{version}"  # tags: prod/1.0.0, prod/1.0.1
-      branch: main
-      bump: promote                 # promote = take version from latest dev tag
+
+environments:
+  dev:
+    tag_format: "dev/{version}"   # tags: dev/1.0.1, dev/1.0.2
+    branch: develop
+    bump: auto
+  prod:
+    tag_format: "prod/{version}"  # tags: prod/1.0.0, prod/1.0.1
+    branch: main
+    bump: promote                 # promote = take version from latest dev tag
 ```
 
 Each environment has its own tag namespace. Typically one environment uses `bump: auto`
@@ -233,13 +234,14 @@ the latest tag(s) involved.
 versioning:
   strategy: calver-per-env
   format: "YYYY.MM.PATCH"       # CalVer format for the version component
-  environments:
-    dev:
-      tag_format: "dev/{version}"   # dev/2026.05.0
-      bump: auto
-    prod:
-      tag_format: "prod/{version}"  # prod/2026.05.0
-      bump: promote
+
+environments:
+  dev:
+    tag_format: "dev/{version}"   # dev/2026.05.0
+    bump: auto
+  prod:
+    tag_format: "prod/{version}"  # prod/2026.05.0
+    bump: promote
 ```
 
 Combines CalVer versioning (§ CalVer format tokens) with the multi-environment tag
