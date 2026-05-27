@@ -1014,7 +1014,7 @@ defaults.
   update available
 - `heraut self-update` — downloads binary for current OS/arch, verifies SHA-256
   checksum, atomically replaces the running binary
-- `HERAUT_NO_UPDATE_CHECK=1` disables the background hint
+- `HERAUT_CHECK_UPDATE=false` disables the background hint
 - Skipped for `dev` builds (no ldflags) and during `heraut self-update` itself
 - macOS: removes `com.apple.quarantine` xattr post-download
 
@@ -1396,7 +1396,7 @@ the final image — mise itself is absent at runtime. Base image decision: `debi
 over Alpine because `gh`, `glab`, and `communique` ship only glibc builds (no musl).
 Multi-arch: `linux/amd64` + `linux/arm64` via buildx + QEMU in CI. Tagging: four cascading
 tags (`X.Y.Z`, `X.Y`, `X`, `latest`) via `docker/metadata-action` semver patterns; `latest`
-and bare `MAJOR` only move on the default branch (pre-releases excluded). `HERAUT_NO_UPDATE_CHECK`
+and bare `MAJOR` only move on the default branch (pre-releases excluded). `HERAUT_CHECK_UPDATE`
 ENV deferred — no auto-update check exists today, so it would be a no-op. `Dockerfile.goreleaser`
 deleted, `dockers:` block removed from `.goreleaser.yml`, release workflow extended with
 QEMU + buildx + metadata + build-push steps. ADR-0016 documents the distribution story change.

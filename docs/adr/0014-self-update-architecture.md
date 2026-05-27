@@ -63,7 +63,7 @@ The hint is disabled when:
 
 - The command being run is `heraut self-update` (avoids confusing output during update)
   — gated in `internal/cmd/root.go`'s `PersistentPostRunE`
-- `HERAUT_NO_UPDATE_CHECK=1` is set
+- `HERAUT_CHECK_UPDATE=false` is set
 - The binary is a `dev` build (no `main.Version` ldflag) — can't reliably compare
 - The Updater's `latestURL` is empty — in practice only when a test overrides it via
   `WithLatestURL("")`, since production builds use the compiled-in constant

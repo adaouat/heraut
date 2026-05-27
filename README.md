@@ -188,7 +188,7 @@ heraut self-update --check    # print current vs latest; exit 1 if an update is 
 
 After any command, heraut runs a non-blocking, once-per-day check against the GitHub
 Releases API and prints a one-line hint if a newer version exists. Disable it with
-`HERAUT_NO_UPDATE_CHECK=1`. See [ADR-0014](docs/adr/0014-self-update-architecture.md).
+`HERAUT_CHECK_UPDATE=false`. See [ADR-0014](docs/adr/0014-self-update-architecture.md).
 
 ## Documentation
 

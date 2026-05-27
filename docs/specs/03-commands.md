@@ -230,10 +230,7 @@ heraut self-update --check    # print current vs latest; exit 1 if update availa
 
 Skipped for `dev` builds (no `ldflags`-injected version) and during a running
 `heraut self-update`. Disable the background check (printed at the end of any other
-command) by setting `HERAUT_NO_UPDATE_CHECK=1`.
-
-On macOS, heraut removes the `com.apple.quarantine` extended attribute on the
-downloaded binary so Gatekeeper does not block it.
+command) by setting `HERAUT_CHECK_UPDATE=false`.
 
 ## Background update hint
 
@@ -246,4 +243,4 @@ hint: heraut 1.2.3 available — run: heraut self-update
 ```
 
 Disabled for `heraut self-update`, in `dev` builds, and when
-`HERAUT_NO_UPDATE_CHECK=1` is set.
+`HERAUT_CHECK_UPDATE=false` is set.

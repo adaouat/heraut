@@ -40,7 +40,7 @@ func NewRootCmd(version string, opts ...selfupdate.Option) *cobra.Command {
 		if c.Name() == "self-update" {
 			return nil
 		}
-		if version == "dev" || os.Getenv("HERAUT_NO_UPDATE_CHECK") == "1" {
+		if version == "dev" || os.Getenv("HERAUT_CHECK_UPDATE") == "false" {
 			return nil
 		}
 		ctx, cancel := context.WithTimeout(context.Background(), 500*time.Millisecond)
