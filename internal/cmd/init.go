@@ -78,6 +78,24 @@ func NewInitCmd(version string) *cobra.Command {
 				return fmt.Errorf("generating config: %w", err)
 			}
 
+			if !defaults {
+				_, _ = fmt.Fprintf(out, "\n%s\n", content)
+				var confirmed bool
+				if err := huh.NewForm(
+					huh.NewGroup(
+						huh.NewConfirm().
+							Title("Write this config to "+path+"?").
+							Value(&confirmed),
+					),
+				).Run(); err != nil {
+					return fmt.Errorf("prompt failed: %w", err)
+				}
+				if !confirmed {
+					_, _ = fmt.Fprintln(out, ui.Info(out, "init aborted"))
+					return nil
+				}
+			}
+
 			if err := os.WriteFile(path, []byte(content), 0o644); err != nil {
 				return exitcode.Wrap(exitcode.Runtime, fmt.Errorf("writing config: %w", err))
 			}
