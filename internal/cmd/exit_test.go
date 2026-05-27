@@ -61,6 +61,25 @@ esac
 	assert.Equal(t, exitcode.Promotion, cmd.ExitCode(err))
 }
 
+func TestExitCode_NoCommits_Runtime(t *testing.T) {
+	cfgPath := writeConfig(t, `
+version: "1"
+versioning:
+  strategy: semver
+  prefix: "v"
+`)
+	testutil.FakeBin(t, "git", `#!/bin/sh
+case "$*" in
+  "tag -l v* --sort=-version:refname") echo "v1.0.0" ;;
+  "log v1.0.0..HEAD --format=%B"*) echo "" ;;
+  *) exit 1 ;;
+esac
+`)
+	_, err := executeRoot("version", "next", "--config", cfgPath)
+	require.Error(t, err)
+	assert.Equal(t, exitcode.Runtime, cmd.ExitCode(err))
+}
+
 func TestExitCode_CurrentNoTags_Runtime(t *testing.T) {
 	cfgPath := writeConfig(t, `
 version: "1"
