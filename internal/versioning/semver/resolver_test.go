@@ -210,6 +210,33 @@ func TestResolve_ManualMode_WithOverride(t *testing.T) {
 	assert.Len(t, mr.Calls, 0)
 }
 
+// TestResolve_AutoMode_WithOverride verifies that SetVersionOverride takes effect even
+// when bump is "auto" — the override must short-circuit the auto resolution path so
+// callers can pin a specific version via --version without switching to bump: manual.
+func TestResolve_AutoMode_WithOverride(t *testing.T) {
+	mr := testutil.NewMockRunner()
+	// No git calls should be made when an override is set.
+
+	cfg := &config.Config{
+		Versioning: config.Versioning{
+			Strategy: "semver",
+			Bump:     "auto",
+			Prefix:   strPtr("v"),
+		},
+	}
+
+	r := semver.New(mr, cfg)
+	r.SetVersionOverride("1.0.0")
+	result, err := r.Resolve()
+	require.NoError(t, err)
+
+	assert.Equal(t, "1.0.0", result.Version)
+	assert.Equal(t, "v1.0.0", result.Tag)
+	assert.Equal(t, versioning.BumpNone, result.Bump)
+	// Override must short-circuit auto — no git calls.
+	assert.Len(t, mr.Calls, 0)
+}
+
 func TestResolve_BreakingChange_Footer(t *testing.T) {
 	mr := testutil.NewMockRunner()
 	mr.QueueResponse("v1.0.0\n", "", nil)

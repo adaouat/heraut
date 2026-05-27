@@ -46,14 +46,17 @@ func (r *Resolver) BumpFromDate(_ []string) (string, error) {
 	return "", fmt.Errorf("BumpFromDate is not supported by the SemVer calculator")
 }
 
-// SetVersionOverride sets a manual version override (for bump: manual mode).
+// SetVersionOverride pins the resolved version, bypassing both auto and manual bump logic.
+// The caller passes the bare version (e.g. "1.0.0"); the prefix is still applied.
 func (r *Resolver) SetVersionOverride(v string) {
 	r.versionOverride = v
 }
 
 // Resolve returns the next version result.
+// An explicit versionOverride (set via SetVersionOverride) always takes precedence over
+// the configured bump mode — this allows --version to short-circuit auto resolution.
 func (r *Resolver) Resolve() (versioning.Result, error) {
-	if r.cfg.Versioning.Bump == "manual" {
+	if r.versionOverride != "" || r.cfg.Versioning.Bump == "manual" {
 		return r.resolveManual()
 	}
 	return r.resolveAuto()
