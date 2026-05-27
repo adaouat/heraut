@@ -1748,7 +1748,7 @@ Error is returned verbatim (not wrapped) so callers can use `errors.Is/As` witho
 
 ---
 
-#### `[ ]` T41: Release pipeline progress reporting
+#### `[x]` T41: Release pipeline progress reporting
 
 **Description:** Wire `StepFn` into the release pipeline. Each of the 2–N release steps
 runs inside `p.reporter(...)`. `BuildPipeline` computes the step total from the pipeline
@@ -1789,6 +1789,17 @@ block.
 `internal/app/pipeline.go`, `internal/cmd/release.go`
 
 **Scope:** M
+
+`Pipeline.WithReporter(*Pipeline)` is a fluent setter so existing `New(...)` callers are
+unaffected (zero-value `reporter == nil` → existing silent behaviour). `runStep` helper
+dispatches to the reporter or calls `fn()` directly, discarding result/subs — all error
+wrapping stays inside step fns so the existing error-message assertions still pass verbatim.
+Asset upload moved inside the "Publish to {platform}" step fn; success returns the release
+URL as result and "assets uploaded" as a sub-result. Dry-run with reporter emits descriptive
+results prefixed `[dry-run]` so the existing `assert.Contains(out, "[dry-run]")` cmd test
+continues to pass. `releaseStepTotal` is a standalone function (100% covered, easy to
+reason about). `release.go` Run + runStep + WithReporter + printSummary all at 100%;
+pipeline + app packages at 94.1% combined. 8 new tests; full suite 640 tests pass.
 
 ---
 

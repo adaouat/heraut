@@ -11,6 +11,7 @@ import (
 	"github.com/adaouat/heraut/internal/generators/gitcliff"
 	"github.com/adaouat/heraut/internal/pipeline"
 	"github.com/adaouat/heraut/internal/port"
+	"github.com/adaouat/heraut/internal/ui"
 	"github.com/adaouat/heraut/internal/versioning"
 )
 
@@ -38,7 +39,23 @@ func BuildPipeline(runner port.Runner, cfg *config.Config, resolver versioning.R
 	if out == nil {
 		out = io.Discard
 	}
-	return pipeline.New(runner, resolver, pipelineCfg, out, opts.DryRun), nil
+	pipe := pipeline.New(runner, resolver, pipelineCfg, out, opts.DryRun)
+	pipe = pipe.WithReporter(ui.NewProgress(out, releaseStepTotal(pipelineCfg)).Step)
+	return pipe, nil
+}
+
+// releaseStepTotal computes the number of numbered steps for a release pipeline.
+// Asset uploads are sub-results of the platform step, not separate numbered steps.
+func releaseStepTotal(cfg *pipeline.Config) int {
+	total := 3 // resolve version + create tag + push tag
+	if cfg.Changelog != nil && !cfg.DisableChangelog {
+		total += 2 // generate changelog + commit changelog
+	}
+	if cfg.Notes != nil && !cfg.DisableNotes {
+		total++ // generate release notes
+	}
+	total += len(cfg.Platforms) // one numbered step per platform
+	return total
 }
 
 // BuildChangelogPipeline constructs a ChangelogPipeline from config.

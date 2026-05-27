@@ -5,6 +5,7 @@ import (
 	"io"
 
 	"github.com/adaouat/heraut/internal/port"
+	"github.com/adaouat/heraut/internal/ui"
 	"github.com/adaouat/heraut/internal/versioning"
 )
 
@@ -15,11 +16,30 @@ type Pipeline struct {
 	cfg      *Config
 	out      io.Writer
 	dryRun   bool
+	reporter ui.StepFn
 }
 
 // New constructs a release Pipeline.
 func New(runner port.Runner, resolver versioning.Resolver, cfg *Config, out io.Writer, dryRun bool) *Pipeline {
 	return &Pipeline{git: gitHelper{runner: runner}, resolver: resolver, cfg: cfg, out: out, dryRun: dryRun}
+}
+
+// WithReporter sets the step reporter and returns p for chaining.
+// When reporter is nil (the zero value), Run() behaves identically to the
+// pre-reporter implementation — no output beyond the final summary.
+func (p *Pipeline) WithReporter(fn ui.StepFn) *Pipeline {
+	p.reporter = fn
+	return p
+}
+
+// runStep calls fn via the reporter when one is set, or directly when nil.
+// Errors returned by fn are propagated verbatim so callers can use errors.Is/As.
+func (p *Pipeline) runStep(name string, fn func() (string, []string, error)) error {
+	if p.reporter == nil {
+		_, _, err := fn()
+		return err
+	}
+	return p.reporter(name, fn)
 }
 
 // Check verifies all generators and platforms are usable before running.
@@ -48,75 +68,179 @@ func (p *Pipeline) Check() error {
 //  3. git tag → git push --tags
 //  4. (if notes configured) Generate release notes
 //  5. For each platform: CreateRelease (with notes if available)
-//  6. For each platform: UploadAssets (if platform.HasAssets())
+//  6. For each platform: UploadAssets (if platform.HasAssets()) — reported as sub-result
 func (p *Pipeline) Run() error {
-	result, err := p.resolver.Resolve()
-	if err != nil {
-		return fmt.Errorf("resolving version: %w", err)
+	// Step 1: Resolve version.
+	var result versioning.Result
+	if err := p.runStep("Resolve version", func() (string, []string, error) {
+		r, err := p.resolver.Resolve()
+		if err != nil {
+			return "", nil, fmt.Errorf("resolving version: %w", err)
+		}
+		result = r
+		return r.Tag, nil, nil
+	}); err != nil {
+		return err
 	}
 
 	if p.dryRun {
 		return p.dryRunOutput(result)
 	}
 
-	// Changelog step
+	// Step 2+3: Generate and commit changelog (conditional).
 	if p.cfg.Changelog != nil && !p.cfg.DisableChangelog {
-		if _, err := p.cfg.Changelog.Generate(result.Tag); err != nil {
-			return fmt.Errorf("generating changelog: %w", err)
+		if err := p.runStep("Generate changelog", func() (string, []string, error) {
+			if _, err := p.cfg.Changelog.Generate(result.Tag); err != nil {
+				return "", nil, fmt.Errorf("generating changelog: %w", err)
+			}
+			return "", nil, nil
+		}); err != nil {
+			return err
 		}
+
 		file := p.cfg.ChangelogFile
 		if file == "" {
 			file = "CHANGELOG.md"
 		}
-		if err := p.git.commitChangelog(file, commitMessage(p.cfg.CommitMessage, result.Version)); err != nil {
-			return fmt.Errorf("committing changelog: %w", err)
+		if err := p.runStep("Commit changelog", func() (string, []string, error) {
+			if err := p.git.commitChangelog(file, commitMessage(p.cfg.CommitMessage, result.Version)); err != nil {
+				return "", nil, fmt.Errorf("committing changelog: %w", err)
+			}
+			return "", nil, nil
+		}); err != nil {
+			return err
 		}
 	}
 
-	// Tag and push
-	if err := p.git.tag(result.Tag, commitMessage(p.cfg.CommitMessage, result.Version), p.cfg.AnnotatedTags); err != nil {
-		return fmt.Errorf("git tag: %w", err)
-	}
-	if err := p.git.run("git", "push", "--tags"); err != nil {
-		return fmt.Errorf("git push --tags: %w", err)
+	// Step 4: Create tag.
+	if err := p.runStep(fmt.Sprintf("Create tag %s", result.Tag), func() (string, []string, error) {
+		if err := p.git.tag(result.Tag, commitMessage(p.cfg.CommitMessage, result.Version), p.cfg.AnnotatedTags); err != nil {
+			return "", nil, fmt.Errorf("git tag: %w", err)
+		}
+		return "", nil, nil
+	}); err != nil {
+		return err
 	}
 
-	// Release notes
+	// Step 5: Push tag.
+	if err := p.runStep("Push tag", func() (string, []string, error) {
+		if err := p.git.run("git", "push", "--tags"); err != nil {
+			return "", nil, fmt.Errorf("git push --tags: %w", err)
+		}
+		return "", nil, nil
+	}); err != nil {
+		return err
+	}
+
+	// Step 6: Generate release notes (conditional).
 	var notes string
 	if p.cfg.Notes != nil && !p.cfg.DisableNotes {
-		notes, err = p.cfg.Notes.Generate(result.Tag)
-		if err != nil {
-			return fmt.Errorf("generating release notes: %w", err)
-		}
-	}
-
-	// Publish to platforms
-	for _, platform := range p.cfg.Platforms {
-		if err := platform.CreateRelease(result.Tag, notes); err != nil {
-			return fmt.Errorf("platform %s: create release: %w", platform.Name(), err)
-		}
-		if platform.HasAssets() {
-			if err := platform.UploadAssets(result.Tag); err != nil {
-				return fmt.Errorf("platform %s: upload assets: %w", platform.Name(), err)
+		if err := p.runStep("Generate release notes", func() (string, []string, error) {
+			var genErr error
+			notes, genErr = p.cfg.Notes.Generate(result.Tag)
+			if genErr != nil {
+				return "", nil, fmt.Errorf("generating release notes: %w", genErr)
 			}
+			return "", nil, nil
+		}); err != nil {
+			return err
 		}
 	}
 
-	_, _ = fmt.Fprintf(p.out, "released %s\n", result.Tag)
+	// Step 7: Publish to each platform; asset upload is a sub-result of this step.
 	for _, platform := range p.cfg.Platforms {
-		_, _ = fmt.Fprintf(p.out, "  %s: %s\n", platform.Name(), platform.ReleaseURL(result.Tag))
+		plat := platform // capture loop variable
+		if err := p.runStep(fmt.Sprintf("Publish to %s", plat.Name()), func() (string, []string, error) {
+			if err := plat.CreateRelease(result.Tag, notes); err != nil {
+				return "", nil, fmt.Errorf("platform %s: create release: %w", plat.Name(), err)
+			}
+			var subs []string
+			if plat.HasAssets() {
+				if err := plat.UploadAssets(result.Tag); err != nil {
+					return "", nil, fmt.Errorf("platform %s: upload assets: %w", plat.Name(), err)
+				}
+				subs = []string{"assets uploaded"}
+			}
+			return plat.ReleaseURL(result.Tag), subs, nil
+		}); err != nil {
+			return err
+		}
+	}
+
+	p.printSummary(result)
+	return nil
+}
+
+// dryRunOutput reports what would happen without performing any mutations.
+// When a reporter is set it emits one step per action; otherwise it falls back
+// to the plain [dry-run] lines for CI-friendly output.
+func (p *Pipeline) dryRunOutput(result versioning.Result) error {
+	if p.reporter == nil {
+		_, _ = fmt.Fprintf(p.out, "[dry-run] would release %s\n", result.Tag)
+		if p.cfg.Changelog != nil && !p.cfg.DisableChangelog {
+			_, _ = fmt.Fprintf(p.out, "[dry-run] would generate changelog → commit → push\n")
+		}
+		_, _ = fmt.Fprintf(p.out, "[dry-run] would tag %s and push\n", result.Tag)
+		for _, platform := range p.cfg.Platforms {
+			_, _ = fmt.Fprintf(p.out, "[dry-run] would publish to %s\n", platform.Name())
+		}
+		return nil
+	}
+
+	// Reporter path: emit one informational step per would-be action.
+	file := p.cfg.ChangelogFile
+	if file == "" {
+		file = "CHANGELOG.md"
+	}
+
+	if p.cfg.Changelog != nil && !p.cfg.DisableChangelog {
+		_ = p.runStep("Generate changelog", func() (string, []string, error) {
+			return "[dry-run] would write " + file, nil, nil
+		})
+		_ = p.runStep("Commit changelog", func() (string, []string, error) {
+			return "[dry-run] would commit and push", nil, nil
+		})
+	}
+
+	_ = p.runStep(fmt.Sprintf("Create tag %s", result.Tag), func() (string, []string, error) {
+		return "[dry-run] would tag", nil, nil
+	})
+	_ = p.runStep("Push tag", func() (string, []string, error) {
+		return "[dry-run] would push", nil, nil
+	})
+
+	if p.cfg.Notes != nil && !p.cfg.DisableNotes {
+		_ = p.runStep("Generate release notes", func() (string, []string, error) {
+			return "[dry-run] would generate", nil, nil
+		})
+	}
+
+	for _, platform := range p.cfg.Platforms {
+		plat := platform
+		_ = p.runStep(fmt.Sprintf("Publish to %s", plat.Name()), func() (string, []string, error) {
+			var subs []string
+			if plat.HasAssets() {
+				subs = []string{"[dry-run] would upload assets"}
+			}
+			return "[dry-run] would create release", subs, nil
+		})
 	}
 	return nil
 }
 
-func (p *Pipeline) dryRunOutput(result versioning.Result) error {
-	_, _ = fmt.Fprintf(p.out, "[dry-run] would release %s\n", result.Tag)
-	if p.cfg.Changelog != nil && !p.cfg.DisableChangelog {
-		_, _ = fmt.Fprintf(p.out, "[dry-run] would generate changelog → commit → push\n")
+// printSummary writes the post-run summary to p.out.
+// With a reporter it uses the styled block; without one it keeps the original
+// single-line format so existing plain callers are unaffected.
+func (p *Pipeline) printSummary(result versioning.Result) {
+	if p.reporter != nil {
+		_, _ = fmt.Fprintf(p.out, "\nReleased %s\n", result.Tag)
+		for _, platform := range p.cfg.Platforms {
+			_, _ = fmt.Fprintf(p.out, "  › %-8s %s\n", platform.Name(), platform.ReleaseURL(result.Tag))
+		}
+		return
 	}
-	_, _ = fmt.Fprintf(p.out, "[dry-run] would tag %s and push\n", result.Tag)
+	_, _ = fmt.Fprintf(p.out, "released %s\n", result.Tag)
 	for _, platform := range p.cfg.Platforms {
-		_, _ = fmt.Fprintf(p.out, "[dry-run] would publish to %s\n", platform.Name())
+		_, _ = fmt.Fprintf(p.out, "  %s: %s\n", platform.Name(), platform.ReleaseURL(result.Tag))
 	}
-	return nil
 }
