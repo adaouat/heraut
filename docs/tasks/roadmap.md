@@ -1687,11 +1687,11 @@ Final coverage: 85.3% across 621 tests in 23 packages.
 
 ---
 
-### ✦ `[ ]` CHECKPOINT I — v1.0.0 shipped via heraut
+### ✦ `[x]` CHECKPOINT I — v1.0.0 shipped via heraut
 
-- [ ] T28 resolved — lightweight confirmed or annotated implemented
-- [ ] CI split: `lint` / `test` / `build` run as independent required checks
-- [ ] Coverage ≥ 80% enforced in CI; actual coverage ≥ 85%
+- [x] T28 resolved — lightweight confirmed or annotated implemented
+- [x] CI split: `lint` / `test` / `build` run as independent required checks
+- [x] Coverage ≥ 80% enforced in CI; actual coverage ≥ 85%
 - [ ] v1.0.0 cut by running `heraut release` on the heraut repo itself
 
 ---
@@ -1803,7 +1803,7 @@ pipeline + app packages at 94.1% combined. 8 new tests; full suite 640 tests pas
 
 ---
 
-#### `[ ]` T42: Changelog pipeline progress reporting
+#### `[x]` T42: Changelog pipeline progress reporting
 
 **Description:** Same pattern as T41 for `ChangelogPipeline`. Simpler: at most 5 steps,
 no platforms, no sub-results.
@@ -1841,6 +1841,14 @@ no platforms, no sub-results.
 `internal/app/pipeline.go`, `internal/cmd/changelog.go`
 
 **Scope:** S
+
+Same `WithReporter` / `runStep` pattern as T41. `DisableChangelog` with reporter emits
+`ui.Warn("changelog disabled")` to `p.out` (preserves early-exit behavior; existing
+`assert.Contains(out, "disabled")` assertion continues to pass). `changelogStepTotal`
+mirrors `releaseStepTotal`; Tag contributes 2 (create tag + push tags), Commit contributes
+1 (commit changelog step). `changelog.go` NewChangelog/WithReporter/runStep at 100%;
+Run/dryRunOutput/printSummary at 86–96%; pipeline+app packages 93.5% combined.
+8 new reporter tests; full suite 648 tests pass.
 
 ---
 

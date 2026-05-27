@@ -69,7 +69,24 @@ func BuildChangelogPipeline(runner port.Runner, cfg *config.Config, resolver ver
 	if out == nil {
 		out = io.Discard
 	}
-	return pipeline.NewChangelog(runner, resolver, changelogCfg, out, opts.DryRun), nil
+	pipe := pipeline.NewChangelog(runner, resolver, changelogCfg, out, opts.DryRun)
+	pipe = pipe.WithReporter(ui.NewProgress(out, changelogStepTotal(changelogCfg)).Step)
+	return pipe, nil
+}
+
+// changelogStepTotal computes the number of numbered steps for a changelog pipeline.
+func changelogStepTotal(cfg *pipeline.ChangelogConfig) int {
+	total := 1 // resolve version
+	if cfg.Changelog != nil && !cfg.DisableChangelog {
+		total++ // generate changelog
+		if cfg.Commit || cfg.Tag {
+			total++ // commit changelog
+		}
+	}
+	if cfg.Tag {
+		total += 2 // create tag + push tags
+	}
+	return total
 }
 
 func buildReleasePipelineConfig(runner port.Runner, cfg *config.Config, env string) (*pipeline.Config, error) {

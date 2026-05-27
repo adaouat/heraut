@@ -5,6 +5,7 @@ import (
 	"io"
 
 	"github.com/adaouat/heraut/internal/port"
+	"github.com/adaouat/heraut/internal/ui"
 	"github.com/adaouat/heraut/internal/versioning"
 )
 
@@ -34,11 +35,30 @@ type ChangelogPipeline struct {
 	cfg      *ChangelogConfig
 	out      io.Writer
 	dryRun   bool
+	reporter ui.StepFn
 }
 
 // NewChangelog constructs a ChangelogPipeline.
 func NewChangelog(runner port.Runner, resolver versioning.Resolver, cfg *ChangelogConfig, out io.Writer, dryRun bool) *ChangelogPipeline {
 	return &ChangelogPipeline{git: gitHelper{runner: runner}, resolver: resolver, cfg: cfg, out: out, dryRun: dryRun}
+}
+
+// WithReporter sets the step reporter and returns p for chaining.
+// When reporter is nil (the zero value), Run() behaves identically to the
+// pre-reporter implementation — no output beyond the final summary.
+func (p *ChangelogPipeline) WithReporter(fn ui.StepFn) *ChangelogPipeline {
+	p.reporter = fn
+	return p
+}
+
+// runStep calls fn via the reporter when one is set, or directly when nil.
+// Errors returned by fn are propagated verbatim so callers can use errors.Is/As.
+func (p *ChangelogPipeline) runStep(name string, fn func() (string, []string, error)) error {
+	if p.reporter == nil {
+		_, _, err := fn()
+		return err
+	}
+	return p.reporter(name, fn)
 }
 
 // Run executes the changelog sequence:
@@ -48,13 +68,25 @@ func NewChangelog(runner port.Runner, resolver versioning.Resolver, cfg *Changel
 //  4. If Commit or Tag (and Changelog configured): git add → git commit → git push
 //  5. If Tag: git tag → git push --tags
 func (p *ChangelogPipeline) Run() error {
-	result, err := p.resolver.Resolve()
-	if err != nil {
-		return fmt.Errorf("resolving version: %w", err)
+	// Step 1: Resolve version.
+	var result versioning.Result
+	if err := p.runStep("Resolve version", func() (string, []string, error) {
+		r, err := p.resolver.Resolve()
+		if err != nil {
+			return "", nil, fmt.Errorf("resolving version: %w", err)
+		}
+		result = r
+		return r.Tag, nil, nil
+	}); err != nil {
+		return err
 	}
 
 	if p.cfg.DisableChangelog {
-		_, _ = fmt.Fprintf(p.out, "changelog disabled for %s\n", result.Tag)
+		if p.reporter != nil {
+			_, _ = fmt.Fprintln(p.out, ui.Warn(p.out, "changelog disabled"))
+		} else {
+			_, _ = fmt.Fprintf(p.out, "changelog disabled for %s\n", result.Tag)
+		}
 		return nil
 	}
 
@@ -62,45 +94,116 @@ func (p *ChangelogPipeline) Run() error {
 		return p.dryRunOutput(result)
 	}
 
-	// Generate changelog
+	// Step 2: Generate changelog (conditional).
 	if p.cfg.Changelog != nil {
-		if _, err := p.cfg.Changelog.Generate(result.Tag); err != nil {
-			return fmt.Errorf("generating changelog: %w", err)
+		if err := p.runStep("Generate changelog", func() (string, []string, error) {
+			if _, err := p.cfg.Changelog.Generate(result.Tag); err != nil {
+				return "", nil, fmt.Errorf("generating changelog: %w", err)
+			}
+			return "", nil, nil
+		}); err != nil {
+			return err
 		}
 
-		// Commit the generated file when --commit or --tag is set
+		// Step 3: Commit changelog (conditional).
 		if p.cfg.Commit || p.cfg.Tag {
 			file := p.cfg.ChangelogFile
 			if file == "" {
 				file = "CHANGELOG.md"
 			}
-			if err := p.git.commitChangelog(file, commitMessage(p.cfg.CommitMessage, result.Version)); err != nil {
-				return fmt.Errorf("committing changelog: %w", err)
+			if err := p.runStep("Commit changelog", func() (string, []string, error) {
+				if err := p.git.commitChangelog(file, commitMessage(p.cfg.CommitMessage, result.Version)); err != nil {
+					return "", nil, fmt.Errorf("committing changelog: %w", err)
+				}
+				return "", nil, nil
+			}); err != nil {
+				return err
 			}
 		}
 	}
 
-	// Tag the commit when --tag is set
+	// Step 4+5: Tag the commit (conditional).
 	if p.cfg.Tag {
-		if err := p.git.tag(result.Tag, commitMessage(p.cfg.CommitMessage, result.Version), p.cfg.AnnotatedTags); err != nil {
-			return fmt.Errorf("git tag: %w", err)
+		if err := p.runStep(fmt.Sprintf("Create tag %s", result.Tag), func() (string, []string, error) {
+			if err := p.git.tag(result.Tag, commitMessage(p.cfg.CommitMessage, result.Version), p.cfg.AnnotatedTags); err != nil {
+				return "", nil, fmt.Errorf("git tag: %w", err)
+			}
+			return "", nil, nil
+		}); err != nil {
+			return err
 		}
-		if err := p.git.run("git", "push", "--tags"); err != nil {
-			return fmt.Errorf("git push --tags: %w", err)
+
+		if err := p.runStep("Push tags", func() (string, []string, error) {
+			if err := p.git.run("git", "push", "--tags"); err != nil {
+				return "", nil, fmt.Errorf("git push --tags: %w", err)
+			}
+			return "", nil, nil
+		}); err != nil {
+			return err
 		}
 	}
 
-	_, _ = fmt.Fprintf(p.out, "changelog updated for %s\n", result.Tag)
+	p.printSummary(result)
 	return nil
 }
 
+// dryRunOutput reports what would happen without performing any mutations.
+// When a reporter is set it emits one step per action with [dry-run] result
+// prefixes; otherwise it falls back to plain [dry-run] lines.
 func (p *ChangelogPipeline) dryRunOutput(result versioning.Result) error {
-	_, _ = fmt.Fprintf(p.out, "[dry-run] would generate changelog for %s\n", result.Tag)
-	if p.cfg.Commit || p.cfg.Tag {
-		_, _ = fmt.Fprintf(p.out, "[dry-run] would commit → push\n")
+	if p.reporter == nil {
+		_, _ = fmt.Fprintf(p.out, "[dry-run] would generate changelog for %s\n", result.Tag)
+		if p.cfg.Commit || p.cfg.Tag {
+			_, _ = fmt.Fprintf(p.out, "[dry-run] would commit → push\n")
+		}
+		if p.cfg.Tag {
+			_, _ = fmt.Fprintf(p.out, "[dry-run] would tag %s and push\n", result.Tag)
+		}
+		return nil
 	}
+
+	// Reporter path: emit one informational step per would-be action.
+	file := p.cfg.ChangelogFile
+	if file == "" {
+		file = "CHANGELOG.md"
+	}
+
+	if p.cfg.Changelog != nil {
+		_ = p.runStep("Generate changelog", func() (string, []string, error) {
+			return "[dry-run] would write " + file, nil, nil
+		})
+		if p.cfg.Commit || p.cfg.Tag {
+			_ = p.runStep("Commit changelog", func() (string, []string, error) {
+				return "[dry-run] would commit and push", nil, nil
+			})
+		}
+	}
+
 	if p.cfg.Tag {
-		_, _ = fmt.Fprintf(p.out, "[dry-run] would tag %s and push\n", result.Tag)
+		_ = p.runStep(fmt.Sprintf("Create tag %s", result.Tag), func() (string, []string, error) {
+			return "[dry-run] would tag", nil, nil
+		})
+		_ = p.runStep("Push tags", func() (string, []string, error) {
+			return "[dry-run] would push", nil, nil
+		})
 	}
 	return nil
+}
+
+// printSummary writes the post-run summary to p.out.
+// With a reporter it uses the styled block; without one it keeps the original
+// single-line format so existing plain callers are unaffected.
+func (p *ChangelogPipeline) printSummary(result versioning.Result) {
+	if p.reporter != nil {
+		_, _ = fmt.Fprintf(p.out, "\nChangelog updated for %s\n", result.Tag)
+		if (p.cfg.Commit || p.cfg.Tag) && p.cfg.Changelog != nil {
+			file := p.cfg.ChangelogFile
+			if file == "" {
+				file = "CHANGELOG.md"
+			}
+			_, _ = fmt.Fprintf(p.out, "  %s committed and pushed\n", file)
+		}
+		return
+	}
+	_, _ = fmt.Fprintf(p.out, "changelog updated for %s\n", result.Tag)
 }
