@@ -13,6 +13,8 @@ jobs:
       - uses: jdx/mise-action@1648a7812b9aeae629881980618f079932869151 # v4
       - name: Lint
         run: golangci-lint run ./...
+      - name: Vulnerability scan
+        run: govulncheck ./...
 
   test:
     runs-on: ubuntu-latest

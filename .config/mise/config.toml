@@ -6,6 +6,7 @@ experimental = true
 cocogitto = "7.0.0"
 git-cliff = "2.13"
 go = "1.26"
+"go:golang.org/x/vuln/cmd/govulncheck" = "latest"
 golangci-lint = "2.12"
 goreleaser = "2.15"
 hk = "1.45"
