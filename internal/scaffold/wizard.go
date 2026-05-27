@@ -44,11 +44,13 @@ type PlatformAnswer struct {
 
 // EnvAnswer holds answers for one per-env environment.
 type EnvAnswer struct {
-	Name      string
-	Bump      string // "auto" or "promote"
-	TagFormat string
-	Source    string
-	Branch    string
+	Name             string
+	Bump             string // "auto" or "promote"
+	TagFormat        string
+	Source           string
+	Branch           string
+	DisableChangelog bool
+	DisableNotes     bool
 }
 
 // calverPresets lists opinionated CalVer format choices.
@@ -112,13 +114,15 @@ func ConfigToAnswers(cfg *config.Config) Answers {
 		}
 	}
 
-	for name, env := range cfg.Versioning.Environments {
+	for name, env := range cfg.Environments {
 		a.Environments = append(a.Environments, EnvAnswer{
-			Name:      name,
-			Bump:      env.Bump,
-			TagFormat: env.TagFormat,
-			Source:    env.Source,
-			Branch:    env.Branch,
+			Name:             name,
+			Bump:             env.Bump,
+			TagFormat:        env.TagFormat,
+			Source:           env.Source,
+			Branch:           env.Branch,
+			DisableChangelog: env.DisableChangelog,
+			DisableNotes:     env.DisableNotes,
 		})
 	}
 

@@ -3,19 +3,27 @@ version: "1"
 versioning:
   strategy: semver-per-env
   tag_format: "{env}/{version}"
-  environments:
-    dev:
-      branch: develop
-      bump: auto
-      disable_changelog: true
-    staging:
-      branch: main
-      bump: promote
-      source: dev
-    prod:
-      branch: main
-      bump: promote
-      source: staging
+
+environments:
+  dev:
+    branch: develop
+    bump: auto
+    disable_changelog: true
+    release:
+      platforms:
+        - platform: gitlab
+  staging:
+    branch: main
+    bump: promote
+    source: dev
+  prod:
+    branch: main
+    bump: promote
+    source: staging
+    release:
+      platforms:
+        - platform: gitlab
+        - platform: github
 
 changelog:
   generator: git-cliff
@@ -28,14 +36,3 @@ release:
     tag_pattern: "dev/*"
   platforms:
     - platform: gitlab
-
-environments:
-  dev:
-    release:
-      platforms:
-        - platform: gitlab
-  prod:
-    release:
-      platforms:
-        - platform: gitlab
-        - platform: github

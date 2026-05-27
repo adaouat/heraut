@@ -225,14 +225,14 @@ func resolvePromote(runner port.Runner, cfg *config.Config, env string, force bo
 // resolveSourceEnv determines which environment to promote from.
 // Returns the source env name, or an error if ambiguous or a cycle is detected.
 func resolveSourceEnv(cfg *config.Config, env string) (string, error) {
-	envCfg := cfg.Versioning.Environments[env]
+	envCfg := cfg.Environments[env]
 
 	if envCfg.Source != "" {
 		// Explicit source: check for self-reference (simplest cycle form).
 		if envCfg.Source == env {
 			return "", fmt.Errorf("cycle detected in source chain: environment %q references itself", env)
 		}
-		if _, ok := cfg.Versioning.Environments[envCfg.Source]; !ok {
+		if _, ok := cfg.Environments[envCfg.Source]; !ok {
 			return "", fmt.Errorf("source environment %q not found in config", envCfg.Source)
 		}
 		return envCfg.Source, nil
@@ -240,7 +240,7 @@ func resolveSourceEnv(cfg *config.Config, env string) (string, error) {
 
 	// Default: find the single bump:auto environment.
 	var autoEnvs []string
-	for name, e := range cfg.Versioning.Environments {
+	for name, e := range cfg.Environments {
 		if e.Bump == "auto" {
 			autoEnvs = append(autoEnvs, name)
 		}

@@ -68,41 +68,8 @@ versioning:
   #
   # tag_format — shared tag template for all environments. Must contain {version}.
   # Typically also contains {env} to create separate namespaces per environment.
-  # Can be overridden per environment below.
+  # Can be overridden per environment in the environments block below.
   # tag_format: "{env}/{version}"
-
-  # environments — one entry per deployment environment. Required for *-per-env.
-  # environments:
-  #   dev:
-  #     # bump mode for this environment:
-  #     #   auto    infer from conventional commits since the last tag in this namespace
-  #     #   promote copy the version from another environment's latest tag
-  #     bump: auto
-  #
-  #     # tag_format override for this environment only (overrides versioning.tag_format).
-  #     # tag_format: "dev/{version}"
-  #
-  #     # branch restriction: heraut refuses to run here unless this branch is active.
-  #     # Prevents accidental dev cuts from the wrong branch.
-  #     # branch: develop
-  #
-  #     # disable_changelog: skip changelog generation for this environment.
-  #     # Useful when only prod should commit CHANGELOG.md.
-  #     # disable_changelog: true
-  #
-  #     # disable_notes: skip release notes generation for this environment.
-  #     # The platform release is still created — just without a description body.
-  #     # disable_notes: true
-  #
-  #   staging:
-  #     bump: promote
-  #     source: dev        # environment to promote from
-  #     disable_changelog: true
-  #     disable_notes: true
-  #
-  #   prod:
-  #     bump: promote
-  #     source: staging    # staging must exist and have a tag before prod can promote
 
 # ── changelog ─────────────────────────────────────────────────────────────────
 #
@@ -186,21 +153,53 @@ release:
   #   # assets:
   #   #   - dist/myapp_*
 
-# ── environments (top-level overrides) ───────────────────────────────────────
+# ── environments ─────────────────────────────────────────────────────────────
 #
-# Parsed and validated, but NOT yet applied by the pipeline (deferred — see T37).
-# To suppress changelog or notes per environment today, use
-# disable_changelog / disable_notes inside versioning.environments.<env>.
+# Required for semver-per-env and calver-per-env strategies.
+# One entry per deployment environment.
+# Versioning fields drive version resolution; content fields override changelog/release.
+# Using environments with semver or calver is a hard error.
 #
 # environments:
 #   dev:
-#     release:
-#       platforms:
-#         - platform: gitlab
+#     # bump mode for this environment:
+#     #   auto    infer from conventional commits since the last tag in this namespace
+#     #   promote copy the version from another environment's latest tag
+#     bump: auto
+#
+#     # tag_format override for this environment only (overrides versioning.tag_format).
+#     # tag_format: "dev/{version}"
+#
+#     # branch restriction: heraut refuses to run here unless this branch is active.
+#     # branch: develop
+#
+#     # disable_changelog: skip changelog generation for this environment.
+#     # disable_changelog: true
+#
+#     # disable_notes: skip release notes generation for this environment.
+#     # disable_notes: true
+#
+#     # changelog override — replace root changelog config for this environment.
+#     # changelog:
+#     #   generator: git-cliff
+#     #   tag_pattern: "dev/*"
+#
+#     # release overrides — independently override notes and/or platforms.
+#     # release:
+#     #   notes:
+#     #     generator: git-cliff
+#     #   platforms:
+#     #     - platform: gitlab
+#
+#   staging:
+#     bump: promote
+#     source: dev        # environment to promote from
+#     disable_changelog: true
+#     disable_notes: true
+#
 #   prod:
-#     changelog:
-#       generator: git-cliff
-#       output: CHANGELOG.md
+#     bump: promote
+#     source: staging    # staging must exist and have a tag before prod can promote
 #     release:
 #       platforms:
 #         - platform: gitlab

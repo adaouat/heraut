@@ -6,30 +6,43 @@ type Config struct {
 	Versioning   Versioning             `yaml:"versioning"`
 	Changelog    *ContentDriver         `yaml:"changelog,omitempty"`
 	Release      *Release               `yaml:"release,omitempty"`
-	Environments map[string]EnvOverride `yaml:"environments,omitempty"`
+	Environments map[string]Environment `yaml:"environments,omitempty"`
 }
 
 // Versioning holds version resolution settings.
 type Versioning struct {
-	Strategy       string                   `yaml:"strategy"`
-	Prefix         *string                  `yaml:"prefix,omitempty"`
-	InitialVersion string                   `yaml:"initial_version,omitempty"`
-	Bump           string                   `yaml:"bump,omitempty"`
-	Format         string                   `yaml:"format,omitempty"`
-	Sprint         int                      `yaml:"sprint,omitempty"`
-	TagFormat      string                   `yaml:"tag_format,omitempty"`
-	TagType        string                   `yaml:"tag_type,omitempty"`
-	Environments   map[string]EnvVersioning `yaml:"environments,omitempty"`
+	Strategy       string  `yaml:"strategy"`
+	Prefix         *string `yaml:"prefix,omitempty"`
+	InitialVersion string  `yaml:"initial_version,omitempty"`
+	Bump           string  `yaml:"bump,omitempty"`
+	Format         string  `yaml:"format,omitempty"`
+	Sprint         int     `yaml:"sprint,omitempty"`
+	TagFormat      string  `yaml:"tag_format,omitempty"`
+	TagType        string  `yaml:"tag_type,omitempty"`
 }
 
-// EnvVersioning is the per-environment versioning config inside versioning.environments.
-type EnvVersioning struct {
-	Bump             string `yaml:"bump"`
-	TagFormat        string `yaml:"tag_format,omitempty"`
-	Branch           string `yaml:"branch,omitempty"`
-	Source           string `yaml:"source,omitempty"`
-	DisableChangelog bool   `yaml:"disable_changelog,omitempty"`
-	DisableNotes     bool   `yaml:"disable_notes,omitempty"`
+// Environment holds all per-environment configuration under the root environments map.
+// Versioning fields drive version resolution; content fields override changelog/release.
+type Environment struct {
+	// Versioning fields
+	Bump      string `yaml:"bump"`
+	TagFormat string `yaml:"tag_format,omitempty"`
+	Branch    string `yaml:"branch,omitempty"`
+	Source    string `yaml:"source,omitempty"`
+
+	// Content fields
+	DisableChangelog bool           `yaml:"disable_changelog,omitempty"`
+	DisableNotes     bool           `yaml:"disable_notes,omitempty"`
+	Changelog        *ContentDriver `yaml:"changelog,omitempty"`
+	Release          *EnvRelease    `yaml:"release,omitempty"`
+}
+
+// EnvRelease holds per-environment release overrides.
+// Nil fields mean "inherit from root release", which differs from root Release
+// where nil means "disabled".
+type EnvRelease struct {
+	Notes     *ContentDriver `yaml:"notes,omitempty"`
+	Platforms []Platform     `yaml:"platforms,omitempty"`
 }
 
 // ContentDriver configures a content generator (git-cliff, communique, cocogitto).
@@ -61,10 +74,4 @@ type Platform struct {
 	// Shared
 	TokenEnv string   `yaml:"token_env,omitempty"`
 	Assets   []string `yaml:"assets,omitempty"`
-}
-
-// EnvOverride holds per-environment changelog and release overrides (top-level environments).
-type EnvOverride struct {
-	Changelog *ContentDriver `yaml:"changelog,omitempty"`
-	Release   *Release       `yaml:"release,omitempty"`
 }

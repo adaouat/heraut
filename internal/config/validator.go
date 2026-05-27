@@ -32,6 +32,7 @@ func Validate(cfg *Config) ValidationErrors {
 	errs = append(errs, validateRequired(cfg)...)
 	errs = append(errs, validateEnums(cfg)...)
 	errs = append(errs, validateStrategySpecific(cfg)...)
+	errs = append(errs, validateEnvContradictions(cfg.Environments)...)
 	return errs
 }
 
@@ -78,10 +79,10 @@ func validateEnums(cfg *Config) []ValidationError {
 	}
 	errs = append(errs, validateContentDriver(cfg.Changelog, "changelog")...)
 	errs = append(errs, validateRelease(cfg.Release, "release")...)
-	for envName, override := range cfg.Environments {
+	for envName, env := range cfg.Environments {
 		base := "environments." + envName
-		errs = append(errs, validateContentDriver(override.Changelog, base+".changelog")...)
-		errs = append(errs, validateRelease(override.Release, base+".release")...)
+		errs = append(errs, validateContentDriver(env.Changelog, base+".changelog")...)
+		errs = append(errs, validateEnvRelease(env.Release, base+".release")...)
 	}
 	return errs
 }
@@ -132,8 +133,50 @@ func validateRelease(r *Release, path string) []ValidationError {
 	return errs
 }
 
+func validateEnvRelease(r *EnvRelease, path string) []ValidationError {
+	if r == nil {
+		return nil
+	}
+	var errs []ValidationError
+	errs = append(errs, validateContentDriver(r.Notes, path+".notes")...)
+	for i, plat := range r.Platforms {
+		platPath := fmt.Sprintf("%s.platforms[%d]", path, i)
+		if plat.Type == "" {
+			errs = append(errs, ValidationError{
+				Path:    platPath + ".platform",
+				Message: "required",
+				Hint:    "set platform to one of: github, gitlab",
+			})
+		} else if !validPlatforms[plat.Type] {
+			errs = append(errs, ValidationError{
+				Path:    platPath + ".platform",
+				Message: fmt.Sprintf("%q is not a valid platform", plat.Type),
+				Hint:    "valid platforms: github, gitlab",
+			})
+		}
+	}
+	return errs
+}
+
 func validateStrategySpecific(cfg *Config) []ValidationError {
 	var errs []ValidationError
+
+	// Flat-strategy guard: environments is only valid with per-env strategies.
+	if len(cfg.Environments) > 0 {
+		switch cfg.Versioning.Strategy {
+		case "semver-per-env", "calver-per-env":
+			// expected
+		default:
+			if cfg.Versioning.Strategy != "" {
+				errs = append(errs, ValidationError{
+					Path:    "environments",
+					Message: fmt.Sprintf("environments is only valid with semver-per-env or calver-per-env (current strategy: %s)", cfg.Versioning.Strategy),
+					Hint:    "remove the environments block, or change the strategy to semver-per-env or calver-per-env",
+				})
+			}
+		}
+	}
+
 	switch cfg.Versioning.Strategy {
 	case "calver", "calver-per-env":
 		if cfg.Versioning.Format == "" {
@@ -153,11 +196,11 @@ func validateStrategySpecific(cfg *Config) []ValidationError {
 
 func validatePerEnv(cfg *Config) []ValidationError {
 	var errs []ValidationError
-	envs := cfg.Versioning.Environments
+	envs := cfg.Environments
 
 	if len(envs) == 0 {
 		return append(errs, ValidationError{
-			Path:    "versioning.environments",
+			Path:    "environments",
 			Message: fmt.Sprintf("required for %s strategy", cfg.Versioning.Strategy),
 			Hint:    "define at least one environment with its tag_format and bump mode",
 		})
@@ -182,7 +225,7 @@ func validatePerEnv(cfg *Config) []ValidationError {
 
 	for _, envName := range sortedEnvKeys(envs) {
 		env := envs[envName]
-		envPath := "versioning.environments." + envName
+		envPath := "environments." + envName
 
 		// bump required and enum.
 		if env.Bump == "" {
@@ -265,7 +308,31 @@ func validatePerEnv(cfg *Config) []ValidationError {
 	return errs
 }
 
-func detectCycles(envs map[string]EnvVersioning) []ValidationError {
+func validateEnvContradictions(envs map[string]Environment) []ValidationError {
+	var errs []ValidationError
+	for _, envName := range sortedEnvKeys(envs) {
+		env := envs[envName]
+		base := "environments." + envName
+
+		if env.DisableChangelog && env.Changelog != nil {
+			errs = append(errs, ValidationError{
+				Path:    base + ".changelog",
+				Message: "disable_changelog: true makes the changelog override unreachable",
+				Hint:    "remove either disable_changelog: true (to apply the override) or the changelog: block (to keep the step disabled)",
+			})
+		}
+		if env.DisableNotes && env.Release != nil && env.Release.Notes != nil {
+			errs = append(errs, ValidationError{
+				Path:    base + ".release.notes",
+				Message: "disable_notes: true makes the release notes override unreachable",
+				Hint:    "remove either disable_notes: true (to apply the override) or the release.notes: block (to keep the step disabled)",
+			})
+		}
+	}
+	return errs
+}
+
+func detectCycles(envs map[string]Environment) []ValidationError {
 	var errs []ValidationError
 	reported := map[string]bool{}
 
@@ -278,7 +345,7 @@ func detectCycles(envs map[string]EnvVersioning) []ValidationError {
 		}
 		if found, path := findCycle(envs, envName); found {
 			errs = append(errs, ValidationError{
-				Path:    "versioning.environments." + envName + ".source",
+				Path:    "environments." + envName + ".source",
 				Message: "cycle detected (" + strings.Join(path, " → ") + ")",
 				Hint:    "each promotion source must trace back to an auto env without revisiting envs",
 			})
@@ -290,7 +357,7 @@ func detectCycles(envs map[string]EnvVersioning) []ValidationError {
 	return errs
 }
 
-func findCycle(envs map[string]EnvVersioning, start string) (bool, []string) {
+func findCycle(envs map[string]Environment, start string) (bool, []string) {
 	path := []string{start}
 	seen := map[string]bool{start: true}
 	current := start
@@ -313,7 +380,7 @@ func findCycle(envs map[string]EnvVersioning, start string) (bool, []string) {
 	}
 }
 
-func sortedEnvKeys(envs map[string]EnvVersioning) []string {
+func sortedEnvKeys(envs map[string]Environment) []string {
 	keys := make([]string, 0, len(envs))
 	for k := range envs {
 		keys = append(keys, k)

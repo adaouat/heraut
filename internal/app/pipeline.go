@@ -58,19 +58,46 @@ func BuildChangelogPipeline(runner port.Runner, cfg *config.Config, resolver ver
 func buildReleasePipelineConfig(runner port.Runner, cfg *config.Config, env string) (*pipeline.Config, error) {
 	pCfg := &pipeline.Config{}
 
+	// Resolve effective config: start from root, apply per-env overrides.
+	effectiveChangelog := cfg.Changelog
+	var effectiveNotes *config.ContentDriver
+	var effectivePlatforms []config.Platform
+	if cfg.Release != nil {
+		effectiveNotes = cfg.Release.Notes
+		effectivePlatforms = cfg.Release.Platforms
+	}
+
+	if env != "" {
+		if envCfg, ok := cfg.Environments[env]; ok {
+			pCfg.DisableChangelog = envCfg.DisableChangelog
+			pCfg.DisableNotes = envCfg.DisableNotes
+			if envCfg.Changelog != nil {
+				effectiveChangelog = envCfg.Changelog
+			}
+			if envCfg.Release != nil {
+				if envCfg.Release.Notes != nil {
+					effectiveNotes = envCfg.Release.Notes
+				}
+				if len(envCfg.Release.Platforms) > 0 {
+					effectivePlatforms = envCfg.Release.Platforms
+				}
+			}
+		}
+	}
+
 	// Changelog generator
-	if cfg.Changelog != nil {
-		gen, err := buildGenerator(runner, cfg.Changelog, gitcliff.ModeChangelog)
+	if effectiveChangelog != nil {
+		gen, err := buildGenerator(runner, effectiveChangelog, gitcliff.ModeChangelog)
 		if err != nil {
 			return nil, fmt.Errorf("changelog generator: %w", err)
 		}
 		pCfg.Changelog = gen
-		pCfg.ChangelogFile = cfg.Changelog.Output
+		pCfg.ChangelogFile = effectiveChangelog.Output
 	}
 
 	// Release notes generator
-	if cfg.Release != nil && cfg.Release.Notes != nil {
-		gen, err := buildGenerator(runner, cfg.Release.Notes, gitcliff.ModeReleaseNotes)
+	if effectiveNotes != nil {
+		gen, err := buildGenerator(runner, effectiveNotes, gitcliff.ModeReleaseNotes)
 		if err != nil {
 			return nil, fmt.Errorf("release notes generator: %w", err)
 		}
@@ -78,22 +105,12 @@ func buildReleasePipelineConfig(runner port.Runner, cfg *config.Config, env stri
 	}
 
 	// Platforms
-	if cfg.Release != nil {
-		for i, platCfg := range cfg.Release.Platforms {
-			p, err := buildPlatform(runner, &cfg.Release.Platforms[i])
-			if err != nil {
-				return nil, fmt.Errorf("platform %d (%s): %w", i, platCfg.Type, err)
-			}
-			pCfg.Platforms = append(pCfg.Platforms, p)
+	for i, platCfg := range effectivePlatforms {
+		p, err := buildPlatform(runner, &effectivePlatforms[i])
+		if err != nil {
+			return nil, fmt.Errorf("platform %d (%s): %w", i, platCfg.Type, err)
 		}
-	}
-
-	// Per-env disable flags
-	if env != "" {
-		if envCfg, ok := cfg.Versioning.Environments[env]; ok {
-			pCfg.DisableChangelog = envCfg.DisableChangelog
-			pCfg.DisableNotes = envCfg.DisableNotes
-		}
+		pCfg.Platforms = append(pCfg.Platforms, p)
 	}
 
 	pCfg.AnnotatedTags = cfg.Versioning.TagType != "lightweight"
@@ -107,21 +124,24 @@ func buildChangelogPipelineConfig(runner port.Runner, cfg *config.Config, opts P
 		Tag:    opts.Tag,
 	}
 
-	// Changelog generator
-	if cfg.Changelog != nil {
-		gen, err := buildGenerator(runner, cfg.Changelog, gitcliff.ModeChangelog)
+	// Resolve effective changelog: start from root, apply per-env override.
+	effectiveChangelog := cfg.Changelog
+	if opts.Env != "" {
+		if envCfg, ok := cfg.Environments[opts.Env]; ok {
+			cCfg.DisableChangelog = envCfg.DisableChangelog
+			if envCfg.Changelog != nil {
+				effectiveChangelog = envCfg.Changelog
+			}
+		}
+	}
+
+	if effectiveChangelog != nil {
+		gen, err := buildGenerator(runner, effectiveChangelog, gitcliff.ModeChangelog)
 		if err != nil {
 			return nil, fmt.Errorf("changelog generator: %w", err)
 		}
 		cCfg.Changelog = gen
-		cCfg.ChangelogFile = cfg.Changelog.Output
-	}
-
-	// Per-env disable_changelog
-	if opts.Env != "" {
-		if envCfg, ok := cfg.Versioning.Environments[opts.Env]; ok {
-			cCfg.DisableChangelog = envCfg.DisableChangelog
-		}
+		cCfg.ChangelogFile = effectiveChangelog.Output
 	}
 
 	cCfg.AnnotatedTags = cfg.Versioning.TagType != "lightweight"

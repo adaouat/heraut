@@ -61,13 +61,15 @@ func answersToConfig(a Answers) config.Config {
 
 	if len(a.Environments) > 0 {
 		cfg.Versioning.TagFormat = a.TagFormat
-		cfg.Versioning.Environments = make(map[string]config.EnvVersioning, len(a.Environments))
+		cfg.Environments = make(map[string]config.Environment, len(a.Environments))
 		for _, e := range a.Environments {
-			cfg.Versioning.Environments[e.Name] = config.EnvVersioning{
-				Bump:      e.Bump,
-				TagFormat: e.TagFormat,
-				Source:    e.Source,
-				Branch:    e.Branch,
+			cfg.Environments[e.Name] = config.Environment{
+				Bump:             e.Bump,
+				TagFormat:        e.TagFormat,
+				Source:           e.Source,
+				Branch:           e.Branch,
+				DisableChangelog: e.DisableChangelog,
+				DisableNotes:     e.DisableNotes,
 			}
 		}
 	}

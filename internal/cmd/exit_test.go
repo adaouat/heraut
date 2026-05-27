@@ -40,14 +40,14 @@ func TestExitCode_PromotionGuard_E003(t *testing.T) {
 version: "1"
 versioning:
   strategy: semver-per-env
-  environments:
-    dev:
-      bump: auto
-      tag_format: "dev/{version}"
-    prod:
-      bump: promote
-      source: dev
-      tag_format: "prod/{version}"
+environments:
+  dev:
+    bump: auto
+    tag_format: "dev/{version}"
+  prod:
+    bump: promote
+    source: dev
+    tag_format: "prod/{version}"
 `)
 	// dev (the promotion source) has no tags → E003.
 	testutil.FakeBin(t, "git", `#!/bin/sh

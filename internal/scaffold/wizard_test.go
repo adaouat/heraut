@@ -111,10 +111,10 @@ func TestConfigToAnswers_Environments(t *testing.T) {
 		Versioning: config.Versioning{
 			Strategy:  "semver-per-env",
 			TagFormat: "{env}/{version}",
-			Environments: map[string]config.EnvVersioning{
-				"dev":  {Bump: "auto"},
-				"prod": {Bump: "promote", Source: "dev"},
-			},
+		},
+		Environments: map[string]config.Environment{
+			"dev":  {Bump: "auto"},
+			"prod": {Bump: "promote", Source: "dev"},
 		},
 	}
 	a := scaffold.ConfigToAnswers(cfg)

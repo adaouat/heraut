@@ -4,7 +4,10 @@
   "title": "heraut",
   "description": "Configuration file for heraut (.heraut.yml).",
   "type": "object",
-  "required": ["version", "versioning"],
+  "required": [
+    "version",
+    "versioning"
+  ],
   "additionalProperties": false,
   "properties": {
     "version": {
@@ -24,20 +27,27 @@
     "environments": {
       "type": "object",
       "additionalProperties": {
-        "$ref": "#/definitions/EnvOverride"
+        "$ref": "#/definitions/Environment"
       },
-      "description": "Top-level per-environment overrides for changelog and release."
+      "description": "Per-environment configuration. Required for semver-per-env and calver-per-env strategies."
     }
   },
   "definitions": {
     "Versioning": {
       "type": "object",
-      "required": ["strategy"],
+      "required": [
+        "strategy"
+      ],
       "additionalProperties": false,
       "properties": {
         "strategy": {
           "type": "string",
-          "enum": ["semver", "calver", "semver-per-env", "calver-per-env"],
+          "enum": [
+            "semver",
+            "calver",
+            "semver-per-env",
+            "calver-per-env"
+          ],
           "description": "Versioning strategy."
         },
         "prefix": {
@@ -50,7 +60,10 @@
         },
         "bump": {
           "type": "string",
-          "enum": ["auto", "manual"],
+          "enum": [
+            "auto",
+            "manual"
+          ],
           "description": "Bump mode. \"auto\" infers from conventional commits. SemVer strategies only."
         },
         "format": {
@@ -68,82 +81,50 @@
         },
         "tag_type": {
           "type": "string",
-          "enum": ["annotated", "lightweight"],
+          "enum": [
+            "annotated",
+            "lightweight"
+          ],
           "description": "Git tag type. \"annotated\" (default) creates tags with a tagger, timestamp, and message. \"lightweight\" creates bare ref tags."
-        },
-        "environments": {
-          "type": "object",
-          "additionalProperties": {
-            "$ref": "#/definitions/EnvVersioning"
-          },
-          "description": "Per-environment version config. Required for *-per-env strategies."
         }
       },
       "allOf": [
         {
           "if": {
             "properties": {
-              "strategy": { "enum": ["calver", "calver-per-env"] }
+              "strategy": {
+                "enum": [
+                  "calver",
+                  "calver-per-env"
+                ]
+              }
             },
-            "required": ["strategy"]
+            "required": [
+              "strategy"
+            ]
           },
           "then": {
-            "required": ["format"]
-          }
-        },
-        {
-          "if": {
-            "properties": {
-              "strategy": { "enum": ["semver-per-env", "calver-per-env"] }
-            },
-            "required": ["strategy"]
-          },
-          "then": {
-            "required": ["environments"]
+            "required": [
+              "format"
+            ]
           }
         }
       ]
     },
-    "EnvVersioning": {
-      "type": "object",
-      "required": ["bump"],
-      "additionalProperties": false,
-      "properties": {
-        "bump": {
-          "type": "string",
-          "enum": ["auto", "promote"],
-          "description": "Bump mode for this environment."
-        },
-        "tag_format": {
-          "type": "string",
-          "description": "Per-environment tag format override."
-        },
-        "branch": {
-          "type": "string",
-          "description": "Branch restriction for this environment."
-        },
-        "source": {
-          "type": "string",
-          "description": "Source environment for promote bump mode."
-        },
-        "disable_changelog": {
-          "type": "boolean",
-          "description": "Disable changelog generation for this environment."
-        },
-        "disable_notes": {
-          "type": "boolean",
-          "description": "Disable release notes for this environment."
-        }
-      }
-    },
     "ContentDriver": {
       "type": "object",
-      "required": ["generator"],
+      "required": [
+        "generator"
+      ],
       "additionalProperties": false,
       "properties": {
         "generator": {
           "type": "string",
-          "enum": ["git-cliff", "communique", "cocogitto"],
+          "enum": [
+            "git-cliff",
+            "communique",
+            "cocogitto"
+          ],
           "description": "Content generator."
         },
         "config": {
@@ -181,12 +162,17 @@
     },
     "Platform": {
       "type": "object",
-      "required": ["platform"],
+      "required": [
+        "platform"
+      ],
       "additionalProperties": false,
       "properties": {
         "platform": {
           "type": "string",
-          "enum": ["github", "gitlab"],
+          "enum": [
+            "github",
+            "gitlab"
+          ],
           "description": "Platform type."
         },
         "repository": {
@@ -211,22 +197,102 @@
         },
         "assets": {
           "type": "array",
-          "items": { "type": "string" },
+          "items": {
+            "type": "string"
+          },
           "description": "Asset file paths to attach to the release."
         }
       }
     },
-    "EnvOverride": {
+    "EnvRelease": {
       "type": "object",
       "additionalProperties": false,
+      "description": "Per-environment release overrides. Absent fields inherit from root release.",
       "properties": {
+        "notes": {
+          "$ref": "#/definitions/ContentDriver",
+          "description": "Override release notes generator for this environment."
+        },
+        "platforms": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/Platform"
+          },
+          "description": "Override platforms for this environment."
+        }
+      }
+    },
+    "Environment": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "Per-environment configuration. Versioning fields drive version resolution; content fields override changelog/release.",
+      "properties": {
+        "bump": {
+          "type": "string",
+          "enum": [
+            "auto",
+            "promote"
+          ],
+          "description": "Bump mode for this environment."
+        },
+        "tag_format": {
+          "type": "string",
+          "description": "Per-environment tag format (e.g. \"dev/{version}\"). Must contain {version}."
+        },
+        "branch": {
+          "type": "string",
+          "description": "Branch restriction for this environment."
+        },
+        "source": {
+          "type": "string",
+          "description": "Source environment for promote bump mode."
+        },
+        "disable_changelog": {
+          "type": "boolean",
+          "description": "Disable changelog generation for this environment."
+        },
+        "disable_notes": {
+          "type": "boolean",
+          "description": "Disable release notes for this environment."
+        },
         "changelog": {
-          "$ref": "#/definitions/ContentDriver"
+          "$ref": "#/definitions/ContentDriver",
+          "description": "Override changelog generator for this environment."
         },
         "release": {
-          "$ref": "#/definitions/Release"
+          "$ref": "#/definitions/EnvRelease",
+          "description": "Override release settings for this environment."
         }
       }
     }
-  }
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "versioning": {
+            "properties": {
+              "strategy": {
+                "enum": [
+                  "semver-per-env",
+                  "calver-per-env"
+                ]
+              }
+            },
+            "required": [
+              "strategy"
+            ]
+          }
+        },
+        "required": [
+          "versioning"
+        ]
+      },
+      "then": {
+        "required": [
+          "environments"
+        ]
+      }
+    }
+  ]
 }

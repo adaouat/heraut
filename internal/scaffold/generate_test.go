@@ -102,8 +102,8 @@ func TestGenerateYAML_PerEnv(t *testing.T) {
 	errs := config.Validate(cfg)
 	assert.Empty(t, errs)
 	assert.Equal(t, "semver-per-env", cfg.Versioning.Strategy)
-	assert.Contains(t, cfg.Versioning.Environments, "dev")
-	assert.Contains(t, cfg.Versioning.Environments, "prod")
+	assert.Contains(t, cfg.Environments, "dev")
+	assert.Contains(t, cfg.Environments, "prod")
 }
 
 func TestGenerateYAML_CalVerSprint(t *testing.T) {

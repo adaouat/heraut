@@ -57,12 +57,12 @@ version: "1"
 versioning:
   strategy: semver-per-env
   tag_format: "{env}/{version}"
-  environments:
-    dev:
-      bump: auto
-    prod:
-      bump: promote
-      source: dev
+environments:
+  dev:
+    bump: auto
+  prod:
+    bump: promote
+    source: dev
 `)
 	assert.Empty(t, config.Validate(cfg))
 }
@@ -73,13 +73,13 @@ version: "1"
 versioning:
   strategy: calver-per-env
   format: "YYYY.MM.PATCH"
-  environments:
-    dev:
-      tag_format: "dev/{version}"
-      bump: auto
-    prod:
-      tag_format: "prod/{version}"
-      bump: promote
+environments:
+  dev:
+    tag_format: "dev/{version}"
+    bump: auto
+  prod:
+    tag_format: "prod/{version}"
+    bump: promote
 `)
 	assert.Empty(t, config.Validate(cfg))
 }
@@ -182,10 +182,10 @@ func TestValidate_calverPerEnvMissingFormat(t *testing.T) {
 version: "1"
 versioning:
   strategy: calver-per-env
-  environments:
-    dev:
-      tag_format: "dev/{version}"
-      bump: auto
+environments:
+  dev:
+    tag_format: "dev/{version}"
+    bump: auto
 `)
 	errs := config.Validate(cfg)
 	e := findErr(errs, "versioning.format")
@@ -289,9 +289,11 @@ func TestValidate_envOverrideInvalidPlatform(t *testing.T) {
 	cfg := mustLoad(t, `
 version: "1"
 versioning:
-  strategy: semver
+  strategy: semver-per-env
 environments:
   dev:
+    bump: auto
+    tag_format: "dev/{version}"
     release:
       platforms:
         - platform: aws
@@ -311,7 +313,7 @@ versioning:
   strategy: semver-per-env
 `)
 	errs := config.Validate(cfg)
-	e := findErr(errs, "versioning.environments")
+	e := findErr(errs, "environments")
 	require.NotNil(t, e)
 	assert.Contains(t, e.Message, "required")
 }
@@ -321,12 +323,12 @@ func TestValidate_perEnvMissingBump(t *testing.T) {
 version: "1"
 versioning:
   strategy: semver-per-env
-  environments:
-    dev:
-      tag_format: "dev/{version}"
+environments:
+  dev:
+    tag_format: "dev/{version}"
 `)
 	errs := config.Validate(cfg)
-	e := findErr(errs, "versioning.environments.dev.bump")
+	e := findErr(errs, "environments.dev.bump")
 	require.NotNil(t, e)
 	assert.Contains(t, e.Message, "required")
 }
@@ -336,13 +338,13 @@ func TestValidate_perEnvInvalidBump(t *testing.T) {
 version: "1"
 versioning:
   strategy: semver-per-env
-  environments:
-    dev:
-      tag_format: "dev/{version}"
-      bump: manual
+environments:
+  dev:
+    tag_format: "dev/{version}"
+    bump: manual
 `)
 	errs := config.Validate(cfg)
-	e := findErr(errs, "versioning.environments.dev.bump")
+	e := findErr(errs, "environments.dev.bump")
 	require.NotNil(t, e)
 	assert.Contains(t, e.Message, "manual")
 }
@@ -355,9 +357,9 @@ version: "1"
 versioning:
   strategy: semver-per-env
   tag_format: "{env}-release"
-  environments:
-    dev:
-      bump: auto
+environments:
+  dev:
+    bump: auto
 `)
 	errs := config.Validate(cfg)
 	e := findErr(errs, "versioning.tag_format")
@@ -370,13 +372,13 @@ func TestValidate_envTagFormatMissingVersionToken(t *testing.T) {
 version: "1"
 versioning:
   strategy: semver-per-env
-  environments:
-    dev:
-      tag_format: "dev-only"
-      bump: auto
+environments:
+  dev:
+    tag_format: "dev-only"
+    bump: auto
 `)
 	errs := config.Validate(cfg)
-	e := findErr(errs, "versioning.environments.dev.tag_format")
+	e := findErr(errs, "environments.dev.tag_format")
 	require.NotNil(t, e)
 	assert.Contains(t, e.Message, "{version}")
 }
@@ -386,12 +388,12 @@ func TestValidate_noTagFormatAnywhere(t *testing.T) {
 version: "1"
 versioning:
   strategy: semver-per-env
-  environments:
-    dev:
-      bump: auto
+environments:
+  dev:
+    bump: auto
 `)
 	errs := config.Validate(cfg)
-	e := findErr(errs, "versioning.environments.dev.tag_format")
+	e := findErr(errs, "environments.dev.tag_format")
 	require.NotNil(t, e)
 	assert.Contains(t, e.Message, "required")
 }
@@ -403,18 +405,18 @@ func TestValidate_sourceOnAutoEnv(t *testing.T) {
 version: "1"
 versioning:
   strategy: semver-per-env
-  environments:
-    dev:
-      tag_format: "dev/{version}"
-      bump: auto
-      source: prod
-    prod:
-      tag_format: "prod/{version}"
-      bump: promote
-      source: dev
+environments:
+  dev:
+    tag_format: "dev/{version}"
+    bump: auto
+    source: prod
+  prod:
+    tag_format: "prod/{version}"
+    bump: promote
+    source: dev
 `)
 	errs := config.Validate(cfg)
-	e := findErr(errs, "versioning.environments.dev.source")
+	e := findErr(errs, "environments.dev.source")
 	require.NotNil(t, e)
 	assert.Contains(t, e.Message, "auto")
 }
@@ -424,17 +426,17 @@ func TestValidate_sourceNonExistentEnv(t *testing.T) {
 version: "1"
 versioning:
   strategy: semver-per-env
-  environments:
-    dev:
-      tag_format: "dev/{version}"
-      bump: auto
-    prod:
-      tag_format: "prod/{version}"
-      bump: promote
-      source: nonexistent
+environments:
+  dev:
+    tag_format: "dev/{version}"
+    bump: auto
+  prod:
+    tag_format: "prod/{version}"
+    bump: promote
+    source: nonexistent
 `)
 	errs := config.Validate(cfg)
-	e := findErr(errs, "versioning.environments.prod.source")
+	e := findErr(errs, "environments.prod.source")
 	require.NotNil(t, e)
 	assert.Contains(t, e.Message, "nonexistent")
 }
@@ -444,17 +446,17 @@ func TestValidate_sourceSelfReference(t *testing.T) {
 version: "1"
 versioning:
   strategy: semver-per-env
-  environments:
-    dev:
-      tag_format: "dev/{version}"
-      bump: auto
-    prod:
-      tag_format: "prod/{version}"
-      bump: promote
-      source: prod
+environments:
+  dev:
+    tag_format: "dev/{version}"
+    bump: auto
+  prod:
+    tag_format: "prod/{version}"
+    bump: promote
+    source: prod
 `)
 	errs := config.Validate(cfg)
-	e := findErr(errs, "versioning.environments.prod.source")
+	e := findErr(errs, "environments.prod.source")
 	require.NotNil(t, e)
 	assert.Contains(t, e.Message, "itself")
 }
@@ -464,17 +466,17 @@ func TestValidate_promoteNoAutoEnvs(t *testing.T) {
 version: "1"
 versioning:
   strategy: semver-per-env
-  environments:
-    staging:
-      tag_format: "staging/{version}"
-      bump: promote
-    prod:
-      tag_format: "prod/{version}"
-      bump: promote
+environments:
+  staging:
+    tag_format: "staging/{version}"
+    bump: promote
+  prod:
+    tag_format: "prod/{version}"
+    bump: promote
 `)
 	errs := config.Validate(cfg)
 	// Both staging and prod should have source errors
-	e := findErr(errs, "versioning.environments.prod.source")
+	e := findErr(errs, "environments.prod.source")
 	require.NotNil(t, e)
 	assert.Contains(t, e.Message, "no auto environment")
 }
@@ -484,19 +486,19 @@ func TestValidate_promoteAmbiguousSource(t *testing.T) {
 version: "1"
 versioning:
   strategy: semver-per-env
-  environments:
-    dev:
-      tag_format: "dev/{version}"
-      bump: auto
-    hotfix:
-      tag_format: "hotfix/{version}"
-      bump: auto
-    prod:
-      tag_format: "prod/{version}"
-      bump: promote
+environments:
+  dev:
+    tag_format: "dev/{version}"
+    bump: auto
+  hotfix:
+    tag_format: "hotfix/{version}"
+    bump: auto
+  prod:
+    tag_format: "prod/{version}"
+    bump: promote
 `)
 	errs := config.Validate(cfg)
-	e := findErr(errs, "versioning.environments.prod.source")
+	e := findErr(errs, "environments.prod.source")
 	require.NotNil(t, e)
 	assert.Contains(t, e.Message, "ambiguous")
 }
@@ -508,18 +510,18 @@ func TestValidate_sourceCycle(t *testing.T) {
 version: "1"
 versioning:
   strategy: semver-per-env
-  environments:
-    dev:
-      tag_format: "dev/{version}"
-      bump: auto
-    staging:
-      tag_format: "staging/{version}"
-      bump: promote
-      source: prod
-    prod:
-      tag_format: "prod/{version}"
-      bump: promote
-      source: staging
+environments:
+  dev:
+    tag_format: "dev/{version}"
+    bump: auto
+  staging:
+    tag_format: "staging/{version}"
+    bump: promote
+    source: prod
+  prod:
+    tag_format: "prod/{version}"
+    bump: promote
+    source: staging
 `)
 	errs := config.Validate(cfg)
 	// Should detect a cycle involving prod and staging.
@@ -597,12 +599,17 @@ func TestValidate_invalidFixtures(t *testing.T) {
 		},
 		{
 			fixture:     "../../testdata/config/invalid/perenv_no_environments.yml",
-			wantPath:    "versioning.environments",
+			wantPath:    "environments",
 			wantMessage: "required",
 		},
 		{
+			fixture:     "../../testdata/config/invalid/flat_strategy_with_environments.yml",
+			wantPath:    "environments",
+			wantMessage: "semver",
+		},
+		{
 			fixture:     "../../testdata/config/invalid/source_ambiguous.yml",
-			wantPath:    "versioning.environments.prod.source",
+			wantPath:    "environments.prod.source",
 			wantMessage: "ambiguous",
 		},
 	}
@@ -634,3 +641,61 @@ func TestValidate_sourceCycleFixture(t *testing.T) {
 	assert.True(t, found, "expected a cycle detection error")
 }
 
+// ── flat strategy with environments ──────────────────────────────────────────
+
+func TestValidate_flatStrategyWithEnvironments(t *testing.T) {
+	cfg := mustLoad(t, `
+version: "1"
+versioning:
+  strategy: semver
+environments:
+  dev:
+    bump: auto
+    tag_format: "dev/{version}"
+`)
+	errs := config.Validate(cfg)
+	e := findErr(errs, "environments")
+	require.NotNil(t, e)
+	assert.Contains(t, e.Message, "semver")
+}
+
+// ── contradiction warnings ────────────────────────────────────────────────────
+
+func TestValidate_disableChangelogAndChangelogOverride(t *testing.T) {
+	cfg := mustLoad(t, `
+version: "1"
+versioning:
+  strategy: semver-per-env
+environments:
+  dev:
+    bump: auto
+    tag_format: "dev/{version}"
+    disable_changelog: true
+    changelog:
+      generator: git-cliff
+`)
+	errs := config.Validate(cfg)
+	e := findErr(errs, "environments.dev.changelog")
+	require.NotNil(t, e)
+	assert.Contains(t, e.Message, "unreachable")
+}
+
+func TestValidate_disableNotesAndNotesOverride(t *testing.T) {
+	cfg := mustLoad(t, `
+version: "1"
+versioning:
+  strategy: semver-per-env
+environments:
+  dev:
+    bump: auto
+    tag_format: "dev/{version}"
+    disable_notes: true
+    release:
+      notes:
+        generator: git-cliff
+`)
+	errs := config.Validate(cfg)
+	e := findErr(errs, "environments.dev.release.notes")
+	require.NotNil(t, e)
+	assert.Contains(t, e.Message, "unreachable")
+}

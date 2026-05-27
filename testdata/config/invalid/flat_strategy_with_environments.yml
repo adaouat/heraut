@@ -1,0 +1,9 @@
+version: "1"
+
+versioning:
+  strategy: semver
+
+environments:
+  dev:
+    bump: auto
+    tag_format: "dev/{version}"

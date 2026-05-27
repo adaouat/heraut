@@ -2,15 +2,16 @@ version: "1"
 
 versioning:
   strategy: semver-per-env
-  environments:
-    dev:
-      tag_format: "dev/{version}"
-      bump: auto
-    staging:
-      tag_format: "staging/{version}"
-      bump: promote
-      source: prod
-    prod:
-      tag_format: "prod/{version}"
-      bump: promote
-      source: staging
+
+environments:
+  dev:
+    tag_format: "dev/{version}"
+    bump: auto
+  staging:
+    tag_format: "staging/{version}"
+    bump: promote
+    source: prod
+  prod:
+    tag_format: "prod/{version}"
+    bump: promote
+    source: staging

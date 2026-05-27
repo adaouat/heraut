@@ -55,7 +55,7 @@ func New(runner port.Runner, cfg *config.Config, env string, force bool, calc Ve
 // set, otherwise the top-level versioning.tag_format. Both auto and promote paths
 // use this so that a single top-level format covers all environments.
 func tagFormat(cfg *config.Config, env string) string {
-	if f := cfg.Versioning.Environments[env].TagFormat; f != "" {
+	if f := cfg.Environments[env].TagFormat; f != "" {
 		return f
 	}
 	return cfg.Versioning.TagFormat
@@ -63,7 +63,7 @@ func tagFormat(cfg *config.Config, env string) string {
 
 // Resolve returns the next version for the active environment.
 func (r *Resolver) Resolve() (versioning.Result, error) {
-	envCfg, ok := r.cfg.Versioning.Environments[r.env]
+	envCfg, ok := r.cfg.Environments[r.env]
 	if !ok {
 		return versioning.Result{}, fmt.Errorf("environment %q not found in config", r.env)
 	}

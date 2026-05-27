@@ -146,7 +146,7 @@ func TestBuildPipeline_LightweightTagType(t *testing.T) {
 func TestBuildPipeline_PerEnvDisableFlags(t *testing.T) {
 	mr := testutil.NewMockRunner()
 	cfg := semverCfg()
-	cfg.Versioning.Environments = map[string]config.EnvVersioning{
+	cfg.Environments = map[string]config.Environment{
 		"prod": {DisableChangelog: true, DisableNotes: true},
 	}
 	opts := app.PipelineOpts{Out: &bytes.Buffer{}, Env: "prod"}
@@ -187,7 +187,7 @@ func TestBuildChangelogPipeline_WithCommitAndTag(t *testing.T) {
 func TestBuildChangelogPipeline_PerEnvDisable(t *testing.T) {
 	mr := testutil.NewMockRunner()
 	cfg := semverCfg()
-	cfg.Versioning.Environments = map[string]config.EnvVersioning{
+	cfg.Environments = map[string]config.Environment{
 		"staging": {DisableChangelog: true},
 	}
 	opts := app.PipelineOpts{Out: &bytes.Buffer{}, Env: "staging"}

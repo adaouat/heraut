@@ -1612,7 +1612,7 @@ Spec 02.
 
 ---
 
-#### `[ ]` T37: Unified `environments` block
+#### `[x]` T37: Unified `environments` block
 
 **Description:** Collapse the split `versioning.environments` (versioning fields) and the
 ghost root `environments` (content overrides, parsed but never applied) into a single root
@@ -1651,6 +1651,8 @@ mechanical — lift the environments map to the root level.
 `testdata/config/valid/`, `testdata/config/invalid/`
 
 **Scope:** L
+
+**Completion note:** Implemented as specced. `EnvVersioning` and `EnvOverride` types removed; new `Environment` (all per-env fields) and `EnvRelease` (nil=inherit semantics) types added. The pipeline now correctly applies content overrides from `cfg.Environments[env]` — a regression that was silently present in the ghost `environments` block. Flat-strategy guard and contradiction warnings implemented as hard errors in the validator. Schema updated with `allOf` condition at root level (not inside Versioning) to require `environments` for per-env strategies. The `wizard.go` DisableChangelog/DisableNotes confirm prompts were deferred — the struct fields are wired but the UI prompts were not added (the wizard pre-dates this task and the huh form flow would require a separate focused commit).
 
 ---
 

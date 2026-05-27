@@ -64,22 +64,22 @@ version: "1"
 versioning:
   strategy: semver-per-env
   tag_format: "{env}/{version}"
-  environments:
-    dev:
-      bump: auto
-    prod:
-      bump: promote
-      source: dev
+environments:
+  dev:
+    bump: auto
+  prod:
+    bump: promote
+    source: dev
 `
 	cfg, err := config.LoadFromReader(strings.NewReader(src))
 	require.NoError(t, err)
 	assert.Equal(t, "semver-per-env", cfg.Versioning.Strategy)
 	assert.Equal(t, "{env}/{version}", cfg.Versioning.TagFormat)
-	require.Contains(t, cfg.Versioning.Environments, "dev")
-	require.Contains(t, cfg.Versioning.Environments, "prod")
-	assert.Equal(t, "auto", cfg.Versioning.Environments["dev"].Bump)
-	assert.Equal(t, "promote", cfg.Versioning.Environments["prod"].Bump)
-	assert.Equal(t, "dev", cfg.Versioning.Environments["prod"].Source)
+	require.Contains(t, cfg.Environments, "dev")
+	require.Contains(t, cfg.Environments, "prod")
+	assert.Equal(t, "auto", cfg.Environments["dev"].Bump)
+	assert.Equal(t, "promote", cfg.Environments["prod"].Bump)
+	assert.Equal(t, "dev", cfg.Environments["prod"].Source)
 }
 
 func TestLoadFromReader_calverPerEnv(t *testing.T) {
@@ -88,19 +88,19 @@ version: "1"
 versioning:
   strategy: calver-per-env
   format: "YYYY.MM.PATCH"
-  environments:
-    dev:
-      tag_format: "dev/{version}"
-      bump: auto
-    prod:
-      tag_format: "prod/{version}"
-      bump: promote
+environments:
+  dev:
+    tag_format: "dev/{version}"
+    bump: auto
+  prod:
+    tag_format: "prod/{version}"
+    bump: promote
 `
 	cfg, err := config.LoadFromReader(strings.NewReader(src))
 	require.NoError(t, err)
 	assert.Equal(t, "calver-per-env", cfg.Versioning.Strategy)
-	assert.Equal(t, "dev/{version}", cfg.Versioning.Environments["dev"].TagFormat)
-	assert.Equal(t, "prod/{version}", cfg.Versioning.Environments["prod"].TagFormat)
+	assert.Equal(t, "dev/{version}", cfg.Environments["dev"].TagFormat)
+	assert.Equal(t, "prod/{version}", cfg.Environments["prod"].TagFormat)
 }
 
 func TestLoadFromReader_withChangelog(t *testing.T) {
@@ -165,17 +165,14 @@ version: "1"
 versioning:
   strategy: semver-per-env
   tag_format: "{env}/{version}"
-  environments:
-    dev:
-      bump: auto
-    prod:
-      bump: promote
 environments:
   dev:
+    bump: auto
     release:
       platforms:
         - platform: gitlab
   prod:
+    bump: promote
     release:
       platforms:
         - platform: gitlab
@@ -196,16 +193,16 @@ func TestLoadFromReader_withEnvVersioningDisableFlags(t *testing.T) {
 version: "1"
 versioning:
   strategy: semver-per-env
-  environments:
-    dev:
-      tag_format: "dev/{version}"
-      bump: auto
-      disable_changelog: true
-      disable_notes: true
+environments:
+  dev:
+    tag_format: "dev/{version}"
+    bump: auto
+    disable_changelog: true
+    disable_notes: true
 `
 	cfg, err := config.LoadFromReader(strings.NewReader(src))
 	require.NoError(t, err)
-	dev := cfg.Versioning.Environments["dev"]
+	dev := cfg.Environments["dev"]
 	assert.True(t, dev.DisableChangelog)
 	assert.True(t, dev.DisableNotes)
 }

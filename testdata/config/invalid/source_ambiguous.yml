@@ -2,13 +2,14 @@ version: "1"
 
 versioning:
   strategy: semver-per-env
-  environments:
-    dev:
-      tag_format: "dev/{version}"
-      bump: auto
-    hotfix:
-      tag_format: "hotfix/{version}"
-      bump: auto
-    prod:
-      tag_format: "prod/{version}"
-      bump: promote
+
+environments:
+  dev:
+    tag_format: "dev/{version}"
+    bump: auto
+  hotfix:
+    tag_format: "hotfix/{version}"
+    bump: auto
+  prod:
+    tag_format: "prod/{version}"
+    bump: promote

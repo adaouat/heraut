@@ -126,10 +126,10 @@ func TestVersionNext_PerEnv_SemverAuto(t *testing.T) {
 version: "1"
 versioning:
   strategy: semver-per-env
-  environments:
-    dev:
-      bump: auto
-      tag_format: "dev/{version}"
+environments:
+  dev:
+    bump: auto
+    tag_format: "dev/{version}"
 `)
 	testutil.FakeBin(t, "git", `#!/bin/sh
 case "$*" in
@@ -186,13 +186,13 @@ func TestVersionCurrent_PerEnv(t *testing.T) {
 version: "1"
 versioning:
   strategy: semver-per-env
-  environments:
-    prod:
-      bump: promote
-      tag_format: "prod/{version}"
-    dev:
-      bump: auto
-      tag_format: "dev/{version}"
+environments:
+  prod:
+    bump: promote
+    tag_format: "prod/{version}"
+  dev:
+    bump: auto
+    tag_format: "dev/{version}"
 `)
 	testutil.FakeBin(t, "git", `#!/bin/sh
 case "$*" in

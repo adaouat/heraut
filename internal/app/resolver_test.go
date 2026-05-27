@@ -44,9 +44,9 @@ func TestNewResolver_SemverPerEnv(t *testing.T) {
 		Version: "1",
 		Versioning: config.Versioning{
 			Strategy: "semver-per-env",
-			Environments: map[string]config.EnvVersioning{
-				"prod": {Bump: "auto", TagFormat: "prod/${version}"},
-			},
+		},
+		Environments: map[string]config.Environment{
+			"prod": {Bump: "auto", TagFormat: "prod/${version}"},
 		},
 	}
 	r, err := app.NewResolver(cfg, "prod", false, "", mr)
@@ -61,9 +61,9 @@ func TestNewResolver_CalverPerEnv(t *testing.T) {
 		Versioning: config.Versioning{
 			Strategy: "calver-per-env",
 			Format:   "YYYY.MM.PATCH",
-			Environments: map[string]config.EnvVersioning{
-				"prod": {Bump: "auto", TagFormat: "prod/${version}"},
-			},
+		},
+		Environments: map[string]config.Environment{
+			"prod": {Bump: "auto", TagFormat: "prod/${version}"},
 		},
 	}
 	r, err := app.NewResolver(cfg, "prod", false, "", mr)

@@ -46,9 +46,9 @@ func TestResolve_Auto_Semver_NoTags_InitialVersion(t *testing.T) {
 	cfg := &config.Config{
 		Versioning: config.Versioning{
 			Strategy: "semver-per-env",
-			Environments: map[string]config.EnvVersioning{
-				"dev": {Bump: "auto", TagFormat: "dev/{version}"},
-			},
+		},
+		Environments: map[string]config.Environment{
+			"dev": {Bump: "auto", TagFormat: "dev/{version}"},
 		},
 	}
 
@@ -73,9 +73,9 @@ func TestResolve_Auto_Semver_BumpMinor(t *testing.T) {
 	cfg := &config.Config{
 		Versioning: config.Versioning{
 			Strategy: "semver-per-env",
-			Environments: map[string]config.EnvVersioning{
-				"dev": {Bump: "auto", TagFormat: "dev/{version}"},
-			},
+		},
+		Environments: map[string]config.Environment{
+			"dev": {Bump: "auto", TagFormat: "dev/{version}"},
 		},
 	}
 
@@ -99,9 +99,9 @@ func TestResolve_Auto_Semver_BumpMajor_Breaking(t *testing.T) {
 	cfg := &config.Config{
 		Versioning: config.Versioning{
 			Strategy: "semver-per-env",
-			Environments: map[string]config.EnvVersioning{
-				"dev": {Bump: "auto", TagFormat: "dev/{version}"},
-			},
+		},
+		Environments: map[string]config.Environment{
+			"dev": {Bump: "auto", TagFormat: "dev/{version}"},
 		},
 	}
 
@@ -121,9 +121,9 @@ func TestResolve_Auto_Semver_NoCommitsSinceTag_Error(t *testing.T) {
 	cfg := &config.Config{
 		Versioning: config.Versioning{
 			Strategy: "semver-per-env",
-			Environments: map[string]config.EnvVersioning{
-				"dev": {Bump: "auto", TagFormat: "dev/{version}"},
-			},
+		},
+		Environments: map[string]config.Environment{
+			"dev": {Bump: "auto", TagFormat: "dev/{version}"},
 		},
 	}
 
@@ -142,9 +142,9 @@ func TestResolve_Auto_Semver_CustomTagFormat(t *testing.T) {
 	cfg := &config.Config{
 		Versioning: config.Versioning{
 			Strategy: "semver-per-env",
-			Environments: map[string]config.EnvVersioning{
-				"dev": {Bump: "auto", TagFormat: "{version}/dev"},
-			},
+		},
+		Environments: map[string]config.Environment{
+			"dev": {Bump: "auto", TagFormat: "{version}/dev"},
 		},
 	}
 
@@ -166,9 +166,9 @@ func TestResolve_Auto_Calver_NoTags_FirstRelease(t *testing.T) {
 		Versioning: config.Versioning{
 			Strategy: "calver-per-env",
 			Format:   "YYYY.MM.PATCH",
-			Environments: map[string]config.EnvVersioning{
-				"dev": {Bump: "auto", TagFormat: "dev/{version}"},
-			},
+		},
+		Environments: map[string]config.Environment{
+			"dev": {Bump: "auto", TagFormat: "dev/{version}"},
 		},
 	}
 
@@ -193,9 +193,9 @@ func TestResolve_Auto_Calver_SamePeriod_PatchIncrement(t *testing.T) {
 		Versioning: config.Versioning{
 			Strategy: "calver-per-env",
 			Format:   "YYYY.MM.PATCH",
-			Environments: map[string]config.EnvVersioning{
-				"dev": {Bump: "auto", TagFormat: "dev/{version}"},
-			},
+		},
+		Environments: map[string]config.Environment{
+			"dev": {Bump: "auto", TagFormat: "dev/{version}"},
 		},
 	}
 
@@ -216,9 +216,9 @@ func TestResolve_Auto_Calver_NewPeriod_PatchReset(t *testing.T) {
 		Versioning: config.Versioning{
 			Strategy: "calver-per-env",
 			Format:   "YYYY.MM.PATCH",
-			Environments: map[string]config.EnvVersioning{
-				"dev": {Bump: "auto", TagFormat: "dev/{version}"},
-			},
+		},
+		Environments: map[string]config.Environment{
+			"dev": {Bump: "auto", TagFormat: "dev/{version}"},
 		},
 	}
 
@@ -239,7 +239,7 @@ var promoteBackends = []struct {
 	name     string
 	strategy string
 	calc     perenv.VersionCalculator
-	envs     map[string]config.EnvVersioning
+	envs     map[string]config.Environment
 	srcTag   string // git tag -l response for source env
 	dstTag   string // candidate rendered for destination
 	bareVer  string // bare version from srcTag
@@ -248,7 +248,7 @@ var promoteBackends = []struct {
 		name:     "semver backend",
 		strategy: "semver-per-env",
 		calc:     semverCalc("0.1.0"),
-		envs: map[string]config.EnvVersioning{
+		envs: map[string]config.Environment{
 			"dev":  {Bump: "auto", TagFormat: "dev/{version}"},
 			"prod": {Bump: "promote", TagFormat: "prod/{version}"},
 		},
@@ -260,7 +260,7 @@ var promoteBackends = []struct {
 		name:     "calver backend",
 		strategy: "calver-per-env",
 		calc:     calverCalc("YYYY.MM.PATCH", fixedNow(2026, time.May, 24)),
-		envs: map[string]config.EnvVersioning{
+		envs: map[string]config.Environment{
 			"dev":  {Bump: "auto", TagFormat: "dev/{version}"},
 			"prod": {Bump: "promote", TagFormat: "prod/{version}"},
 		},
@@ -282,8 +282,8 @@ func TestResolve_Promote_HappyPath(t *testing.T) {
 				Versioning: config.Versioning{
 					Strategy:     b.strategy,
 					Format:       "YYYY.MM.PATCH",
-					Environments: b.envs,
 				},
+				Environments: b.envs,
 			}
 
 			r := perenv.New(mr, cfg, "prod", false, b.calc)
@@ -308,8 +308,8 @@ func TestResolve_Promote_E001_NoForce(t *testing.T) {
 				Versioning: config.Versioning{
 					Strategy:     b.strategy,
 					Format:       "YYYY.MM.PATCH",
-					Environments: b.envs,
 				},
+				Environments: b.envs,
 			}
 
 			r := perenv.New(mr, cfg, "prod", false, b.calc)
@@ -332,8 +332,8 @@ func TestResolve_Promote_E001_Force_Bypasses(t *testing.T) {
 				Versioning: config.Versioning{
 					Strategy:     b.strategy,
 					Format:       "YYYY.MM.PATCH",
-					Environments: b.envs,
 				},
+				Environments: b.envs,
 			}
 
 			r := perenv.New(mr, cfg, "prod", true, b.calc)
@@ -349,7 +349,7 @@ func TestResolve_Promote_E002_NoForce(t *testing.T) {
 		name     string
 		strategy string
 		calc     perenv.VersionCalculator
-		envs     map[string]config.EnvVersioning
+		envs     map[string]config.Environment
 		srcTag   string
 		dstTag   string // candidate tag
 		aheadTag string // destination's current tag (> candidate)
@@ -358,7 +358,7 @@ func TestResolve_Promote_E002_NoForce(t *testing.T) {
 			name:     "semver backend",
 			strategy: "semver-per-env",
 			calc:     semverCalc("0.1.0"),
-			envs: map[string]config.EnvVersioning{
+			envs: map[string]config.Environment{
 				"dev":  {Bump: "auto", TagFormat: "dev/{version}"},
 				"prod": {Bump: "promote", TagFormat: "prod/{version}"},
 			},
@@ -370,7 +370,7 @@ func TestResolve_Promote_E002_NoForce(t *testing.T) {
 			name:     "calver backend",
 			strategy: "calver-per-env",
 			calc:     calverCalc("YYYY.MM.PATCH", fixedNow(2026, time.May, 24)),
-			envs: map[string]config.EnvVersioning{
+			envs: map[string]config.Environment{
 				"dev":  {Bump: "auto", TagFormat: "dev/{version}"},
 				"prod": {Bump: "promote", TagFormat: "prod/{version}"},
 			},
@@ -390,8 +390,8 @@ func TestResolve_Promote_E002_NoForce(t *testing.T) {
 				Versioning: config.Versioning{
 					Strategy:     tc.strategy,
 					Format:       "YYYY.MM.PATCH",
-					Environments: tc.envs,
 				},
+				Environments: tc.envs,
 			}
 
 			r := perenv.New(mr, cfg, "prod", false, tc.calc)
@@ -411,10 +411,10 @@ func TestResolve_Promote_E002_Force_Bypasses(t *testing.T) {
 	cfg := &config.Config{
 		Versioning: config.Versioning{
 			Strategy: "semver-per-env",
-			Environments: map[string]config.EnvVersioning{
-				"dev":  {Bump: "auto", TagFormat: "dev/{version}"},
-				"prod": {Bump: "promote", TagFormat: "prod/{version}"},
-			},
+		},
+		Environments: map[string]config.Environment{
+			"dev":  {Bump: "auto", TagFormat: "dev/{version}"},
+			"prod": {Bump: "promote", TagFormat: "prod/{version}"},
 		},
 	}
 
@@ -434,8 +434,8 @@ func TestResolve_Promote_E003_NoSourceTags(t *testing.T) {
 				Versioning: config.Versioning{
 					Strategy:     b.strategy,
 					Format:       "YYYY.MM.PATCH",
-					Environments: b.envs,
 				},
+				Environments: b.envs,
 			}
 
 			// force=true has no effect on E003
@@ -457,10 +457,10 @@ func TestPromotionError_E001_RichMessage(t *testing.T) {
 	cfg := &config.Config{
 		Versioning: config.Versioning{
 			Strategy: "semver-per-env",
-			Environments: map[string]config.EnvVersioning{
-				"dev":  {Bump: "auto", TagFormat: "dev/{version}"},
-				"prod": {Bump: "promote", TagFormat: "prod/{version}"},
-			},
+		},
+		Environments: map[string]config.Environment{
+			"dev":  {Bump: "auto", TagFormat: "dev/{version}"},
+			"prod": {Bump: "promote", TagFormat: "prod/{version}"},
 		},
 	}
 
@@ -490,10 +490,10 @@ func TestPromotionError_E002_RichMessage(t *testing.T) {
 	cfg := &config.Config{
 		Versioning: config.Versioning{
 			Strategy: "semver-per-env",
-			Environments: map[string]config.EnvVersioning{
-				"dev":  {Bump: "auto", TagFormat: "dev/{version}"},
-				"prod": {Bump: "promote", TagFormat: "prod/{version}"},
-			},
+		},
+		Environments: map[string]config.Environment{
+			"dev":  {Bump: "auto", TagFormat: "dev/{version}"},
+			"prod": {Bump: "promote", TagFormat: "prod/{version}"},
 		},
 	}
 
@@ -521,10 +521,10 @@ func TestPromotionError_E003_RichMessage(t *testing.T) {
 	cfg := &config.Config{
 		Versioning: config.Versioning{
 			Strategy: "semver-per-env",
-			Environments: map[string]config.EnvVersioning{
-				"dev":  {Bump: "auto", TagFormat: "dev/{version}"},
-				"prod": {Bump: "promote", TagFormat: "prod/{version}"},
-			},
+		},
+		Environments: map[string]config.Environment{
+			"dev":  {Bump: "auto", TagFormat: "dev/{version}"},
+			"prod": {Bump: "promote", TagFormat: "prod/{version}"},
 		},
 	}
 
@@ -556,11 +556,11 @@ func TestResolve_Source_Explicit_Override(t *testing.T) {
 	cfg := &config.Config{
 		Versioning: config.Versioning{
 			Strategy: "semver-per-env",
-			Environments: map[string]config.EnvVersioning{
-				"dev":     {Bump: "auto", TagFormat: "dev/{version}"},
-				"preprod": {Bump: "promote", TagFormat: "preprod/{version}", Source: "dev"},
-				"prod":    {Bump: "promote", TagFormat: "prod/{version}", Source: "preprod"},
-			},
+		},
+		Environments: map[string]config.Environment{
+			"dev":     {Bump: "auto", TagFormat: "dev/{version}"},
+			"preprod": {Bump: "promote", TagFormat: "preprod/{version}", Source: "dev"},
+			"prod":    {Bump: "promote", TagFormat: "prod/{version}", Source: "preprod"},
 		},
 	}
 
@@ -583,11 +583,11 @@ func TestResolve_Source_Default_SingleAutoEnv(t *testing.T) {
 	cfg := &config.Config{
 		Versioning: config.Versioning{
 			Strategy: "semver-per-env",
-			Environments: map[string]config.EnvVersioning{
-				"dev":  {Bump: "auto", TagFormat: "dev/{version}"},
-				"prod": {Bump: "promote", TagFormat: "prod/{version}"},
-				// no source: → defaults to single auto env (dev)
-			},
+		},
+		Environments: map[string]config.Environment{
+			"dev":  {Bump: "auto", TagFormat: "dev/{version}"},
+			"prod": {Bump: "promote", TagFormat: "prod/{version}"},
+			// no source: → defaults to single auto env (dev)
 		},
 	}
 
@@ -607,12 +607,12 @@ func TestResolve_Source_Ambiguity_Error(t *testing.T) {
 	cfg := &config.Config{
 		Versioning: config.Versioning{
 			Strategy: "semver-per-env",
-			Environments: map[string]config.EnvVersioning{
-				"dev1": {Bump: "auto", TagFormat: "dev1/{version}"},
-				"dev2": {Bump: "auto", TagFormat: "dev2/{version}"},
-				"prod": {Bump: "promote", TagFormat: "prod/{version}"},
-				// no source: → ambiguous (two auto envs)
-			},
+		},
+		Environments: map[string]config.Environment{
+			"dev1": {Bump: "auto", TagFormat: "dev1/{version}"},
+			"dev2": {Bump: "auto", TagFormat: "dev2/{version}"},
+			"prod": {Bump: "promote", TagFormat: "prod/{version}"},
+			// no source: → ambiguous (two auto envs)
 		},
 	}
 
@@ -629,10 +629,10 @@ func TestResolve_Source_SelfReference_Error(t *testing.T) {
 	cfg := &config.Config{
 		Versioning: config.Versioning{
 			Strategy: "semver-per-env",
-			Environments: map[string]config.EnvVersioning{
-				"dev":  {Bump: "auto", TagFormat: "dev/{version}"},
-				"prod": {Bump: "promote", TagFormat: "prod/{version}", Source: "prod"}, // self-reference
-			},
+		},
+		Environments: map[string]config.Environment{
+			"dev":  {Bump: "auto", TagFormat: "dev/{version}"},
+			"prod": {Bump: "promote", TagFormat: "prod/{version}", Source: "prod"}, // self-reference
 		},
 	}
 
@@ -650,9 +650,9 @@ func TestResolve_UnknownEnvironment_Error(t *testing.T) {
 	cfg := &config.Config{
 		Versioning: config.Versioning{
 			Strategy: "semver-per-env",
-			Environments: map[string]config.EnvVersioning{
-				"dev": {Bump: "auto", TagFormat: "dev/{version}"},
-			},
+		},
+		Environments: map[string]config.Environment{
+			"dev": {Bump: "auto", TagFormat: "dev/{version}"},
 		},
 	}
 
@@ -668,9 +668,9 @@ func TestResolve_UnknownBumpMode_Error(t *testing.T) {
 	cfg := &config.Config{
 		Versioning: config.Versioning{
 			Strategy: "semver-per-env",
-			Environments: map[string]config.EnvVersioning{
-				"dev": {Bump: "rollback", TagFormat: "dev/{version}"},
-			},
+		},
+		Environments: map[string]config.Environment{
+			"dev": {Bump: "rollback", TagFormat: "dev/{version}"},
 		},
 	}
 
@@ -691,9 +691,9 @@ func TestResolve_TopLevelTagFormat_Auto(t *testing.T) {
 		Versioning: config.Versioning{
 			Strategy:  "semver-per-env",
 			TagFormat: "{env}/{version}", // top-level; env has no override
-			Environments: map[string]config.EnvVersioning{
-				"dev": {Bump: "auto"}, // no TagFormat here
-			},
+		},
+		Environments: map[string]config.Environment{
+			"dev": {Bump: "auto"}, // no TagFormat here
 		},
 	}
 
@@ -713,9 +713,9 @@ func TestResolve_GitTagListError(t *testing.T) {
 	cfg := &config.Config{
 		Versioning: config.Versioning{
 			Strategy: "semver-per-env",
-			Environments: map[string]config.EnvVersioning{
-				"dev": {Bump: "auto", TagFormat: "dev/{version}"},
-			},
+		},
+		Environments: map[string]config.Environment{
+			"dev": {Bump: "auto", TagFormat: "dev/{version}"},
 		},
 	}
 

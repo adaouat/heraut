@@ -52,7 +52,7 @@ func currentTagGlob(cfg *config.Config, env string) (string, error) {
 		if env == "" {
 			return "", fmt.Errorf("--env is required for %s strategy", cfg.Versioning.Strategy)
 		}
-		envCfg, ok := cfg.Versioning.Environments[env]
+		envCfg, ok := cfg.Environments[env]
 		if !ok {
 			return "", fmt.Errorf("environment %q not found in config", env)
 		}
