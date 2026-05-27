@@ -1656,6 +1656,28 @@ mechanical — lift the environments map to the root level.
 
 ---
 
+#### `[ ]` T39: Coverage sweep — `cmd/release.go` and `cmd/changelog.go`
+
+**Description:** Bring `internal/cmd/release.go` (12.9%) and `internal/cmd/changelog.go`
+(19.4%) to meaningful coverage. These were explicitly deferred in T34 because they require
+a cobra command execution harness. The total coverage is currently 81.7%; reaching 85%
+requires roughly +3.3 points, which these two files can provide.
+
+**Acceptance:**
+- `cmd/release.go` and `cmd/changelog.go` each reach ≥ 70% coverage
+- Total `go test ./...` coverage reaches ≥ 85%
+- CI gate bumped from 80% → 85% once actual coverage clears the threshold
+- No existing test rows deleted or loosened
+
+**Dependencies:** T34 (done)
+
+**Files:** `internal/cmd/release_test.go`, `internal/cmd/changelog_test.go`,
+`.github/workflows/ci.yml` (gate bump)
+
+**Scope:** M
+
+---
+
 ### ✦ `[ ]` CHECKPOINT I — v1.0.0 shipped via heraut
 
 - [ ] T28 resolved — lightweight confirmed or annotated implemented
