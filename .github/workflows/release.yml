@@ -30,7 +30,7 @@ jobs:
         uses: orhun/git-cliff-action@f50e11560dce63f7c33227798f90b924471a88b5 # v4
         with:
           config: .config/cliff.toml
-          args: --unreleased --strip all
+          args: --latest --strip all
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           OUTPUT: /tmp/RELEASE_NOTES.md
