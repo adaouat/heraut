@@ -19,4 +19,6 @@ trade-offs were accepted.
 | [0012](0012-changelog-commit-ownership.md) | Changelog Commit Ownership and Release Workflow Order | Accepted |
 | [0013](0013-raw-binary-goreleaser-format.md) | Raw Binary GoReleaser Format (No Archives) | Accepted |
 | [0014](0014-self-update-architecture.md) | Self-Update Architecture | Accepted |
-| [0015](0015-unified-logging-charm-log.md) | Unified Logging with `charm.land/log` | Proposed |
+| [0015](0015-unified-logging-charm-log.md) | Unified Logging with `charm.land/log` | Rejected |
+| [0016](0016-bundled-docker-image.md) | Batteries-Included Docker Image | Accepted |
+| [0017](0017-pipeline-progress-reporter.md) | Pipeline Progress Reporter Pattern | Accepted |

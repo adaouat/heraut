@@ -1696,6 +1696,147 @@ Final coverage: 85.3% across 621 tests in 23 packages.
 
 ---
 
+### Phase 9 — TUI Polish
+
+Goal: give `heraut release` and `heraut changelog` the same per-step progress feedback
+that `heraut check` already delivers. Each pipeline step shows a spinner while it runs
+and a `[N/M]` step counter so the user always knows where they are in the sequence.
+Asset uploads are shown as indented sub-results under their parent platform step —
+they share the parent's step number rather than consuming a number of their own.
+
+The design decision is captured in
+[ADR-0017](../adr/0017-pipeline-progress-reporter.md).
+
+#### `[ ]` T40: `ui.Progress` — numbered step runner and `StepFn` type
+
+**Description:** Introduce the `StepFn` callback type and the `ui.Progress` production
+implementation into `internal/ui`. This is the foundation the pipeline tasks build on;
+it must be complete and tested before T41 or T42 start.
+
+**Acceptance:**
+- `StepFn` type defined in `internal/ui/progress.go`:
+  ```go
+  type StepFn func(name string, fn func() (result string, subs []string, err error)) error
+  ```
+- `ui.NewProgress(out io.Writer, total int) *Progress` — returns a `*Progress` whose
+  `Step` method satisfies `StepFn`
+- TTY path: starts an existing `ui.Step` spinner labelled `[N/total] name`; on success
+  calls `Done(result)` then prints each sub-result as `  ✓ <label>` (indented, styled
+  with `ui.Success` symbol, plain text); on failure calls `Fail(detail)`
+- Non-TTY path: uses `StartPlainStep`; same `[N/total]` prefix; sub-results printed
+  immediately after the `✓` line
+- `ui.Progress.SubResult(out io.Writer, label string)` — package-private helper that
+  renders one indented sub-result line; used by `Step` after `Done`
+- Counter is 1-based; the first `Step` call prints `[1/total]`
+- `total == 0` is allowed (renders `[N/0]`) — callers that cannot pre-compute a total
+  may pass 0; this is a degraded but non-crashing state
+- Unit tests: counter increments, result suffix present/absent, sub-results rendered,
+  TTY vs non-TTY paths, failure path, nil-fn safety
+
+**Dependencies:** T36 (existing `ui.Step` and `ui.StartStep`)
+
+**Files:** `internal/ui/progress.go`, `internal/ui/progress_test.go`
+
+**Scope:** S
+
+---
+
+#### `[ ]` T41: Release pipeline progress reporting
+
+**Description:** Wire `StepFn` into the release pipeline. Each of the 2–N release steps
+runs inside `p.reporter(...)`. `BuildPipeline` computes the step total from the pipeline
+config and creates `ui.NewProgress`; the resulting `progress.Step` func is the reporter.
+The dry-run path is rewritten as step-by-step plain output instead of the current static
+block.
+
+**Acceptance:**
+- `pipeline.Pipeline` gains a `reporter StepFn` field (zero value = nil = silent)
+- Every step in `Pipeline.Run()` is wrapped:
+  1. Resolve version → `result = tag`
+  2. Generate changelog → `result = ""`, or the output file name if available
+  3. Commit changelog → `result = ""`
+  4. Create tag → `result = ""`
+  5. Push tag → `result = ""`
+  6. Generate release notes → `result = ""`
+  7. Publish to {platform} → `result = platform.ReleaseURL(tag)`;
+     `subs = ["assets uploaded"]` when `platform.HasAssets()` and upload succeeds
+- `BuildPipeline` computes `total` = 2 (resolve + tag + push) + (changelog ? 2 : 0) +
+  (notes ? 1 : 0) + sum over platforms of (1 + (hasAssets ? 0 : 0)); calls
+  `ui.NewProgress(opts.Out, total)`; sets `reporter = progress.Step` on the pipeline
+- Dry-run path (`dryRunOutput`): rewritten to call the reporter with plain descriptions
+  prefixed `[dry-run]`; skipped steps rendered as `Step.Skip(...)`. Dry-run always uses
+  `StartPlainStep` (no spinner)
+- Summary block printed after all steps succeed:
+  ```
+  Released v1.2.3
+    › github   https://github.com/org/repo/releases/tag/v1.2.3
+  ```
+- When `reporter == nil`, `Pipeline.Run()` behaviour is identical to today (no output
+  changes, all existing pipeline unit tests pass without modification)
+- New tests: reporter called with expected step names and order (using a `testStepFn`
+  capture); dry-run reporter sequence; sub-results on asset upload
+
+**Dependencies:** T40
+
+**Files:** `internal/pipeline/release.go`, `internal/pipeline/release_test.go`,
+`internal/app/pipeline.go`, `internal/cmd/release.go`
+
+**Scope:** M
+
+---
+
+#### `[ ]` T42: Changelog pipeline progress reporting
+
+**Description:** Same pattern as T41 for `ChangelogPipeline`. Simpler: at most 5 steps,
+no platforms, no sub-results.
+
+**Acceptance:**
+- `pipeline.ChangelogPipeline` gains a `reporter StepFn` field
+- Every step in `ChangelogPipeline.Run()` is wrapped:
+  1. Resolve version → `result = tag`
+  2. Generate changelog → `result = ""`
+  3. Commit changelog → `result = ""`
+  4. Create tag → `result = ""`
+  5. Push tags → `result = ""`
+- `BuildChangelogPipeline` computes `total` = 1 (resolve) + (changelog ? 1 : 0) +
+  (commit || tag && changelog ? 1 : 0) + (tag ? 2 : 0); sets `reporter = progress.Step`
+- Dry-run path rewritten identically to T41: per-step plain output with `[dry-run]`
+  prefix; skipped steps with `Skip`
+- Summary block:
+  ```
+  Changelog updated for v1.2.3
+  ```
+  With one extra line if committed/tagged:
+  ```
+  Changelog updated for v1.2.3
+    CHANGELOG.md committed and pushed
+  ```
+- When `reporter == nil`, existing behaviour is unchanged
+- When `cfg.DisableChangelog` is true: single `Skip` call on step 2, remaining steps
+  still reported if applicable; the current `"changelog disabled for %s"` line replaced
+  by a `Step.Skip("disabled")` for the generate step
+- New tests: reporter called with expected step names and order; dry-run reporter sequence
+
+**Dependencies:** T40
+
+**Files:** `internal/pipeline/changelog.go`, `internal/pipeline/changelog_test.go`,
+`internal/app/pipeline.go`, `internal/cmd/changelog.go`
+
+**Scope:** S
+
+---
+
+### ✦ `[ ]` CHECKPOINT J — TUI Polish complete
+
+- [ ] `heraut release` shows `[N/M]` numbered steps with spinner in TTY
+- [ ] `heraut release --dry-run` shows `[dry-run]` step-by-step sequence
+- [ ] `heraut changelog` shows `[N/M]` numbered steps with spinner in TTY
+- [ ] `heraut changelog --dry-run` shows `[dry-run]` step-by-step sequence
+- [ ] Asset uploads shown as indented `✓ assets uploaded` sub-results
+- [ ] All existing tests pass unchanged (nil reporter path untouched)
+
+---
+
 ## Risks and mitigations
 
 | Risk                                                                                | Impact            | Mitigation                                                                |
