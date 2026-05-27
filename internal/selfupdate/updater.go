@@ -132,7 +132,7 @@ func (u *Updater) hintLatest(ctx context.Context) (string, error) {
 }
 
 // Do performs the full self-update: fetch → find asset → download → verify
-// SHA-256 → chmod → atomic replace → macOS quarantine removal.
+// SHA-256 → chmod → atomic replace.
 func (u *Updater) Do(ctx context.Context, w io.Writer) error {
 	rel, err := fetchRelease(ctx, u.client, u.latestURL)
 	if err != nil {
@@ -187,8 +187,6 @@ func (u *Updater) Do(ctx context.Context, w io.Writer) error {
 		_ = os.Remove(tmpPath)
 		return err
 	}
-
-	removeQuarantine(execPath)
 
 	_, _ = fmt.Fprintf(w, "heraut updated to %s\n", latest)
 	return nil

@@ -63,6 +63,11 @@ chmod +x heraut
 
 Once installed, `heraut self-update` keeps it current.
 
+> **macOS / Gatekeeper:** if the binary is blocked after download, clear the quarantine flag:
+> ```bash
+> xattr -d com.apple.quarantine heraut
+> ```
+
 ### Docker
 
 ```bash
@@ -183,9 +188,7 @@ heraut self-update --check    # print current vs latest; exit 1 if an update is 
 
 After any command, heraut runs a non-blocking, once-per-day check against the GitHub
 Releases API and prints a one-line hint if a newer version exists. Disable it with
-`HERAUT_NO_UPDATE_CHECK=1`. On macOS, self-update removes the `com.apple.quarantine`
-attribute so Gatekeeper does not block the new binary. See
-[ADR-0014](docs/adr/0014-self-update-architecture.md).
+`HERAUT_NO_UPDATE_CHECK=1`. See [ADR-0014](docs/adr/0014-self-update-architecture.md).
 
 ## Documentation
 
