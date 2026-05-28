@@ -1898,7 +1898,7 @@ attestation store.
 
 ---
 
-#### `[ ]` T44: Self-update: suppress post-update hint and clear cache on success
+#### `[x]` T44: Self-update: suppress post-update hint and clear cache on success
 
 **Description:** After `heraut self-update` downloads and atomically replaces the binary,
 the `PersistentPostRunE` hint fires in the still-running old process. Since the old
@@ -1920,6 +1920,13 @@ will correctly see `currentVersion == LatestVersion`, but the current invocation
 **Files:** `internal/selfupdate/updater.go`, `internal/selfupdate/selfupdate_test.go`
 
 **Scope:** S
+
+**Done:** Added `updated bool` to `Updater`; `Hint` returns early when it is set. `Do`
+sets the flag and calls `os.Remove` on the cache file path after printing the success
+message. Cache removal is best-effort (`_ =`) — a failure to remove doesn't affect the
+update result. Two new tests (red→green): `TestUpdater_Do_ClearsCache` verifies the cache
+file is absent after a successful `Do`; `TestUpdater_Hint_SilentAfterSuccessfulDo`
+verifies `Hint` prints nothing in the same process run. 660 tests pass.
 
 ---
 

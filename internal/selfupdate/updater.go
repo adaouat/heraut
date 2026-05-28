@@ -32,6 +32,7 @@ type Updater struct {
 	projectURL     string
 	latestURL      string
 	client         *http.Client
+	updated        bool // set by Do on success; suppresses the post-run hint
 	// injectable for tests
 	cacheDir   func() (string, error)
 	executable func() (string, error)
@@ -106,7 +107,7 @@ func (u *Updater) Check(ctx context.Context) (string, bool, error) {
 // hint line to w if so. Errors are silently swallowed — the hint must never
 // affect a command's exit code. ctx should carry a short timeout (≈500 ms).
 func (u *Updater) Hint(ctx context.Context, w io.Writer) {
-	if u.currentVersion == "dev" || u.latestURL == "" {
+	if u.currentVersion == "dev" || u.latestURL == "" || u.updated {
 		return
 	}
 	latest, err := u.hintLatest(ctx)
@@ -189,6 +190,10 @@ func (u *Updater) Do(ctx context.Context, w io.Writer) error {
 	}
 
 	_, _ = fmt.Fprintf(w, "heraut updated to %s\n", latest)
+	u.updated = true
+	if path, err := u.cacheFilePath(); err == nil {
+		_ = os.Remove(path)
+	}
 	return nil
 }
 

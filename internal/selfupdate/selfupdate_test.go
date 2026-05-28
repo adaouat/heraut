@@ -318,3 +318,63 @@ func TestUpdater_Do_AssetNotFound(t *testing.T) {
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "no asset found")
 }
+
+func TestUpdater_Do_ClearsCache(t *testing.T) {
+	newContent := []byte("fake-new-binary-content")
+	binName := assetName(bareVersion("v1.3.0"), "linux", "amd64")
+	csumName := checksumAssetName(bareVersion("v1.3.0"))
+
+	_, latestURL := newReleaseServer(t, "v1.3.0", map[string][]byte{
+		binName:  newContent,
+		csumName: buildChecksums(binName, newContent),
+	})
+
+	cacheDir := t.TempDir()
+	cacheFile := filepath.Join(cacheDir, "update-check.json")
+	data, _ := json.Marshal(updateCache{CheckedAt: time.Now(), LatestVersion: "v1.3.0"})
+	require.NoError(t, os.WriteFile(cacheFile, data, 0o644))
+
+	dir := t.TempDir()
+	execPath := filepath.Join(dir, "heraut")
+	require.NoError(t, os.WriteFile(execPath, []byte("old-binary"), 0o755))
+
+	u := New("v1.2.3",
+		WithLatestURL(latestURL),
+		withExecutable(func() (string, error) { return execPath, nil }),
+		withPlatform("linux", "amd64"),
+		withCacheDir(cacheDir),
+	)
+
+	require.NoError(t, u.Do(context.Background(), &strings.Builder{}))
+
+	_, err := os.Stat(cacheFile)
+	assert.True(t, os.IsNotExist(err), "cache file should be deleted after successful update")
+}
+
+func TestUpdater_Hint_SilentAfterSuccessfulDo(t *testing.T) {
+	newContent := []byte("fake-new-binary-content")
+	binName := assetName(bareVersion("v1.3.0"), "linux", "amd64")
+	csumName := checksumAssetName(bareVersion("v1.3.0"))
+
+	_, latestURL := newReleaseServer(t, "v1.3.0", map[string][]byte{
+		binName:  newContent,
+		csumName: buildChecksums(binName, newContent),
+	})
+
+	dir := t.TempDir()
+	execPath := filepath.Join(dir, "heraut")
+	require.NoError(t, os.WriteFile(execPath, []byte("old-binary"), 0o755))
+
+	u := New("v1.2.3",
+		WithLatestURL(latestURL),
+		withExecutable(func() (string, error) { return execPath, nil }),
+		withPlatform("linux", "amd64"),
+		withCacheDir(t.TempDir()),
+	)
+
+	require.NoError(t, u.Do(context.Background(), &strings.Builder{}))
+
+	var buf strings.Builder
+	u.Hint(context.Background(), &buf)
+	assert.Empty(t, buf.String(), "Hint should be silent in the same process after a successful Do")
+}
