@@ -1873,7 +1873,7 @@ Goal: harden the tool based on beta testing feedback before cutting v1.0.0. Six 
 fixes covering CI infrastructure, self-update UX, init wizard defaults, runtime checks,
 platform auth, and a pre-v1.0 breaking rename.
 
-#### `[ ]` T43: Fix release workflow — `attestations: write` permission missing
+#### `[x]` T43: Fix release workflow — `attestations: write` permission missing
 
 **Description:** Both `goreleaser` and `docker` jobs in `.github/workflows/release.yml`
 fail with "Failed to persist attestation: Resource not accessible by integration" because
@@ -1889,6 +1889,12 @@ present (OIDC token), but `attestations: write` is also required for
 **Files:** `.github/workflows/release.yml`
 
 **Scope:** XS
+
+**Done:** Added `attestations: write` to both the `goreleaser` job (for binary attestation)
+and the `docker` job (for image attestation) in `.github/workflows/release.yml`. The
+`id-token: write` permission was already present; `attestations: write` is the separate
+permission required by `actions/attest-build-provenance` to write to the repository's
+attestation store.
 
 ---
 

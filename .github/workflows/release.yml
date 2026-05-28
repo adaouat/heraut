@@ -12,6 +12,7 @@ jobs:
       contents: write # create GitHub Release + upload assets
       pull-requests: read # GoReleaser links PRs to commits in release notes
       id-token: write # OIDC token for build provenance attestation
+      attestations: write # persist build provenance attestations
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
         with:
@@ -45,6 +46,7 @@ jobs:
     permissions:
       packages: write # push to GHCR
       id-token: write # OIDC token for build provenance attestation
+      attestations: write # persist image provenance attestations
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
 
