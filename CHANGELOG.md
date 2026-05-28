@@ -1,10 +1,16 @@
 # Changelog
 
+## [0.12.0](//compare/v0.11.2..v0.12.0) - 2026-05-28
+
+### 🚀 Features
+
+- *(pipeline)* Honour git config tag.gpgSign for signed tags (Option B) - ([a7dbbd7](//commit/a7dbbd79417507c23ee61f6fdd5d27c05955c7c8))
+
 ## [0.11.2](//compare/v0.11.1..v0.11.2) - 2026-05-27
 
 ### ⚙️ Miscellaneous Tasks
 
-- Fix git-cliff-action --unreleased → --latest for release notes - ([72e08e1](//commit/72e08e15586e498f6a1bf09414a63ad0d7850ca2))
+- Fix git-cliff-action --unreleased → --latest for release notes - ([72e08e1](//commit/72e08e15586e498f6a1bf09414a63ad0d7850ca2)) by @bchatard
 
 ## [0.11.1](//compare/v0.11.0..v0.11.1) - 2026-05-27
 
