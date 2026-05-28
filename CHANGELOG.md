@@ -1,10 +1,16 @@
 # Changelog
 
+## [0.12.10](//compare/v0.12.9..v0.12.10) - 2026-05-28
+
+### ⚙️ Miscellaneous Tasks
+
+- Implement draft→publish flow for immutable release attestation - ([4d52b5a](//commit/4d52b5a91e26a89a4bab4cd18594e1aa83bde960))
+
 ## [0.12.9](//compare/v0.12.8..v0.12.9) - 2026-05-28
 
 ### ⚙️ Miscellaneous Tasks
 
-- Fix binary attestation to use checksums.txt - ([439cae5](//commit/439cae5cf69446a2bf1f0bdb8680dddd310c719b))
+- Fix binary attestation to use checksums.txt - ([439cae5](//commit/439cae5cf69446a2bf1f0bdb8680dddd310c719b)) by @bchatard
 
 ## [0.12.8](//compare/v0.12.7..v0.12.8) - 2026-05-28
 
