@@ -1,10 +1,16 @@
 # Changelog
 
+## [0.12.9](//compare/v0.12.8..v0.12.9) - 2026-05-28
+
+### ⚙️ Miscellaneous Tasks
+
+- Fix binary attestation to use checksums.txt - ([439cae5](//commit/439cae5cf69446a2bf1f0bdb8680dddd310c719b))
+
 ## [0.12.8](//compare/v0.12.7..v0.12.8) - 2026-05-28
 
 ### ⚙️ Miscellaneous Tasks
 
-- Use subject-path glob for binary attestation - ([6e6e386](//commit/6e6e386d2f80b0131f5abc76916730bde2606e11))
+- Use subject-path glob for binary attestation - ([6e6e386](//commit/6e6e386d2f80b0131f5abc76916730bde2606e11)) by @bchatard
 
 ## [0.12.7](//compare/v0.12.6..v0.12.7) - 2026-05-28
 
