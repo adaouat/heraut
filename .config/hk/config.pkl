@@ -1,5 +1,5 @@
-amends "package://github.com/jdx/hk/releases/download/v1.45.0/hk@1.45.0#/Config.pkl"
-import "package://github.com/jdx/hk/releases/download/v1.45.0/hk@1.45.0#/Builtins.pkl"
+amends "package://github.com/jdx/hk/releases/download/v1.46.0/hk@1.46.0#/Config.pkl"
+import "package://github.com/jdx/hk/releases/download/v1.46.0/hk@1.46.0#/Builtins.pkl"
 
 exclude = List(".idea/**")
 
@@ -11,6 +11,8 @@ local codeLinters = new Mapping<String, Step> {
   ["pkl_format"] = Builtins.pkl_format
   ["go_fmt"] = Builtins.go_fmt
   ["golangci_lint"] = Builtins.golangci_lint
+  ["actionlint"] = Builtins.actionlint
+  ["hadolint"] = Builtins.hadolint
   ["gomod_tidy"] = Builtins.gomod_tidy
   // hack to pass configuration to yamlfmt/typos
   // it's duplicated from Builtins
