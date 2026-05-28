@@ -53,6 +53,7 @@ func NewReleaseCmd() *cobra.Command {
 				VersionOverride: versionOverride,
 				Env:             env,
 				Out:             cmd.OutOrStdout(),
+				SignTags:        app.ReadGPGSign(readRunner),
 			}
 			pipe, err := app.BuildPipeline(runner, cfg, resolver, opts)
 			if err != nil {

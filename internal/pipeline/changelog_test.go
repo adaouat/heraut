@@ -181,6 +181,26 @@ func TestChangelogRun_AnnotatedTagCustomMessage(t *testing.T) {
 	assert.Equal(t, []string{"tag", "-a", "v1.2.3", "-m", "docs: v1.2.3"}, mr.Calls[0].Args)
 }
 
+// TestChangelogRun_SignedTag verifies SignTags:true produces "git tag -s <tag> -m <msg>".
+func TestChangelogRun_SignedTag(t *testing.T) {
+	mr := testutil.NewMockRunner()
+	mr.QueueResponse("", "", nil) // git tag -s
+	mr.QueueResponse("", "", nil) // git push --tags
+
+	cfg := &pipeline.ChangelogConfig{
+		Tag:           true,
+		SignTags:      true,
+		AnnotatedTags: true, // should be ignored when signing
+	}
+
+	p := pipeline.NewChangelog(mr, &fakeResolver{result: resolvedResult("v1.2.3")}, cfg, &bytes.Buffer{}, false)
+	require.NoError(t, p.Run())
+
+	require.Len(t, mr.Calls, 2)
+	assert.Equal(t, []string{"tag", "-s", "v1.2.3", "-m", "chore(release): 1.2.3"}, mr.Calls[0].Args)
+	assert.NotContains(t, mr.Calls[0].Args, "-a")
+}
+
 // TestChangelogRun_ResolverError propagates resolver failures.
 func TestChangelogRun_ResolverError(t *testing.T) {
 	mr := testutil.NewMockRunner()

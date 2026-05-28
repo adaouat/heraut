@@ -22,4 +22,7 @@ type Config struct {
 	// AnnotatedTags creates annotated git tags (-a -m <commit_message>).
 	// When false, lightweight tags are created. Defaults to false (set by app layer).
 	AnnotatedTags bool
+	// SignTags creates GPG-signed tags (-s -m <commit_message>), overriding AnnotatedTags.
+	// Populated from git config tag.gpgSign by the app layer.
+	SignTags bool
 }

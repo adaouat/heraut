@@ -25,6 +25,20 @@ type PipelineOpts struct {
 	// Commit and Tag are used by the changelog pipeline only.
 	Commit bool
 	Tag    bool
+	// SignTags mirrors git config tag.gpgSign — when true the pipeline creates
+	// signed tags (-s) instead of annotated ones. Set by the caller via ReadGPGSign.
+	SignTags bool
+}
+
+// ReadGPGSign reads tag.gpgSign from git config and returns true when it is set to "true".
+// Any error (key absent, git not available) is treated as false — non-signing is the safe default.
+// Callers should pass a non-dry-run runner so the config is always read regardless of --dry-run.
+func ReadGPGSign(runner port.Runner) bool {
+	stdout, _, err := runner.Run("git", "config", "--get", "tag.gpgSign")
+	if err != nil {
+		return false
+	}
+	return strings.TrimSpace(stdout) == "true"
 }
 
 // BuildPipeline constructs a release Pipeline from config. All generator and platform
@@ -34,6 +48,7 @@ func BuildPipeline(runner port.Runner, cfg *config.Config, resolver versioning.R
 	if err != nil {
 		return nil, err
 	}
+	pipelineCfg.SignTags = opts.SignTags
 
 	out := opts.Out
 	if out == nil {
@@ -64,6 +79,7 @@ func BuildChangelogPipeline(runner port.Runner, cfg *config.Config, resolver ver
 	if err != nil {
 		return nil, err
 	}
+	changelogCfg.SignTags = opts.SignTags
 
 	out := opts.Out
 	if out == nil {

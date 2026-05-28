@@ -2,6 +2,7 @@ package app_test
 
 import (
 	"bytes"
+	"errors"
 	"testing"
 
 	"github.com/adaouat/heraut/internal/app"
@@ -194,4 +195,25 @@ func TestBuildChangelogPipeline_PerEnvDisable(t *testing.T) {
 	p, err := app.BuildChangelogPipeline(mr, cfg, defaultResolver, opts)
 	require.NoError(t, err)
 	assert.NotNil(t, p)
+}
+
+func TestReadGPGSign_True(t *testing.T) {
+	mr := testutil.NewMockRunner()
+	mr.QueueResponse("true\n", "", nil)
+	assert.True(t, app.ReadGPGSign(mr))
+	require.Len(t, mr.Calls, 1)
+	assert.Equal(t, []string{"config", "--get", "tag.gpgSign"}, mr.Calls[0].Args)
+}
+
+func TestReadGPGSign_False(t *testing.T) {
+	mr := testutil.NewMockRunner()
+	mr.QueueResponse("false\n", "", nil)
+	assert.False(t, app.ReadGPGSign(mr))
+}
+
+func TestReadGPGSign_NotSet(t *testing.T) {
+	// git config --get exits 1 when the key is not set — treat as false.
+	mr := testutil.NewMockRunner()
+	mr.QueueResponse("", "", errors.New("exit status 1"))
+	assert.False(t, app.ReadGPGSign(mr))
 }

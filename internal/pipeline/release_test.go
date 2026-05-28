@@ -293,6 +293,46 @@ func TestRun_AnnotatedTag(t *testing.T) {
 	assert.Equal(t, []string{"push", "--tags"}, mr.Calls[1].Args)
 }
 
+// TestRun_SignedTag verifies that SignTags:true produces "git tag -s <tag> -m <msg>"
+// regardless of AnnotatedTags — -s implies annotated, and signing always takes precedence.
+func TestRun_SignedTag(t *testing.T) {
+	mr := testutil.NewMockRunner()
+	mr.QueueResponse("", "", nil) // git tag -s
+	mr.QueueResponse("", "", nil) // git push --tags
+
+	cfg := &pipeline.Config{
+		SignTags:      true,
+		AnnotatedTags: true, // should be ignored when signing
+	}
+
+	p := pipeline.New(mr, &fakeResolver{result: resolvedResult("v1.2.3")}, cfg, &bytes.Buffer{}, false)
+	require.NoError(t, p.Run())
+
+	require.Len(t, mr.Calls, 2)
+	assert.Equal(t, []string{"tag", "-s", "v1.2.3", "-m", "chore(release): 1.2.3"}, mr.Calls[0].Args)
+	// -a must NOT appear alongside -s
+	assert.NotContains(t, mr.Calls[0].Args, "-a")
+}
+
+// TestRun_SignedTag_LightweightBase verifies that SignTags:true overrides a lightweight
+// base config — the tag is still signed (annotated) because the user opted into signing.
+func TestRun_SignedTag_LightweightBase(t *testing.T) {
+	mr := testutil.NewMockRunner()
+	mr.QueueResponse("", "", nil) // git tag -s
+	mr.QueueResponse("", "", nil) // git push --tags
+
+	cfg := &pipeline.Config{
+		SignTags:      true,
+		AnnotatedTags: false, // lightweight base, signing wins
+	}
+
+	p := pipeline.New(mr, &fakeResolver{result: resolvedResult("v1.2.3")}, cfg, &bytes.Buffer{}, false)
+	require.NoError(t, p.Run())
+
+	require.Len(t, mr.Calls, 2)
+	assert.Equal(t, []string{"tag", "-s", "v1.2.3", "-m", "chore(release): 1.2.3"}, mr.Calls[0].Args)
+}
+
 // TestRun_AnnotatedTagCustomMessage verifies the annotation reuses the commit_message template.
 func TestRun_AnnotatedTagCustomMessage(t *testing.T) {
 	mr := testutil.NewMockRunner()

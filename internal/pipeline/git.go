@@ -31,7 +31,11 @@ func (g *gitHelper) commitChangelog(file, msg string) error {
 	return nil
 }
 
-func (g *gitHelper) tag(tag, msg string, annotated bool) error {
+func (g *gitHelper) tag(tag, msg string, annotated, sign bool) error {
+	if sign {
+		// -s implies annotated; always provide -m so git does not open an editor.
+		return g.run("git", "tag", "-s", tag, "-m", msg)
+	}
 	if annotated {
 		return g.run("git", "tag", "-a", tag, "-m", msg)
 	}

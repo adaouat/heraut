@@ -114,7 +114,7 @@ func (p *Pipeline) Run() error {
 
 	// Step 4: Create tag.
 	if err := p.runStep(fmt.Sprintf("Create tag %s", result.Tag), func() (string, []string, error) {
-		if err := p.git.tag(result.Tag, commitMessage(p.cfg.CommitMessage, result.Version), p.cfg.AnnotatedTags); err != nil {
+		if err := p.git.tag(result.Tag, commitMessage(p.cfg.CommitMessage, result.Version), p.cfg.AnnotatedTags, p.cfg.SignTags); err != nil {
 			return "", nil, fmt.Errorf("git tag: %w", err)
 		}
 		return "", nil, nil

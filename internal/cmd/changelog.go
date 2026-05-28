@@ -55,6 +55,7 @@ func NewChangelogCmd() *cobra.Command {
 				Out:             cmd.OutOrStdout(),
 				Commit:          commit,
 				Tag:             tag,
+				SignTags:        app.ReadGPGSign(readRunner),
 			}
 			if !dryRun {
 				if err := app.PreflightCheck(runner); err != nil {

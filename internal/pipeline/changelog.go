@@ -26,6 +26,9 @@ type ChangelogConfig struct {
 	// AnnotatedTags creates annotated git tags (-a -m <commit_message>).
 	// When false, lightweight tags are created. Defaults to false (set by app layer).
 	AnnotatedTags bool
+	// SignTags creates GPG-signed tags (-s -m <commit_message>), overriding AnnotatedTags.
+	// Populated from git config tag.gpgSign by the app layer.
+	SignTags bool
 }
 
 // ChangelogPipeline executes the changelog-only flow.
@@ -125,7 +128,7 @@ func (p *ChangelogPipeline) Run() error {
 	// Step 4+5: Tag the commit (conditional).
 	if p.cfg.Tag {
 		if err := p.runStep(fmt.Sprintf("Create tag %s", result.Tag), func() (string, []string, error) {
-			if err := p.git.tag(result.Tag, commitMessage(p.cfg.CommitMessage, result.Version), p.cfg.AnnotatedTags); err != nil {
+			if err := p.git.tag(result.Tag, commitMessage(p.cfg.CommitMessage, result.Version), p.cfg.AnnotatedTags, p.cfg.SignTags); err != nil {
 				return "", nil, fmt.Errorf("git tag: %w", err)
 			}
 			return "", nil, nil
