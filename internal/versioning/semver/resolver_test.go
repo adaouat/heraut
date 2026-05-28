@@ -210,6 +210,53 @@ func TestResolve_ManualMode_WithOverride(t *testing.T) {
 	assert.Len(t, mr.Calls, 0)
 }
 
+// TestResolve_ManualMode_WithPrefixedOverride verifies that passing the full tag
+// (e.g. "v2.5.0") to SetVersionOverride produces the same result as passing the
+// bare version ("2.5.0") — the prefix is stripped before building the tag so
+// piping `heraut version next` into `--version` doesn't double the prefix.
+func TestResolve_ManualMode_WithPrefixedOverride(t *testing.T) {
+	mr := testutil.NewMockRunner()
+
+	cfg := &config.Config{
+		Versioning: config.Versioning{
+			Strategy: "semver",
+			Bump:     "manual",
+			Prefix:   strPtr("v"),
+		},
+	}
+
+	r := semver.New(mr, cfg)
+	r.SetVersionOverride("v2.5.0") // full tag, as returned by heraut version next
+	result, err := r.Resolve()
+	require.NoError(t, err)
+
+	assert.Equal(t, "2.5.0", result.Version) // prefix stripped from Version
+	assert.Equal(t, "v2.5.0", result.Tag)    // prefix applied exactly once
+	assert.Len(t, mr.Calls, 0)
+}
+
+// TestResolve_AutoMode_WithPrefixedOverride verifies the same stripping for bump:auto.
+func TestResolve_AutoMode_WithPrefixedOverride(t *testing.T) {
+	mr := testutil.NewMockRunner()
+
+	cfg := &config.Config{
+		Versioning: config.Versioning{
+			Strategy: "semver",
+			Bump:     "auto",
+			Prefix:   strPtr("v"),
+		},
+	}
+
+	r := semver.New(mr, cfg)
+	r.SetVersionOverride("v1.0.0")
+	result, err := r.Resolve()
+	require.NoError(t, err)
+
+	assert.Equal(t, "1.0.0", result.Version)
+	assert.Equal(t, "v1.0.0", result.Tag)
+	assert.Len(t, mr.Calls, 0)
+}
+
 // TestResolve_AutoMode_WithOverride verifies that SetVersionOverride takes effect even
 // when bump is "auto" — the override must short-circuit the auto resolution path so
 // callers can pin a specific version via --version without switching to bump: manual.
@@ -392,7 +439,7 @@ func TestResolve_GitTagListError(t *testing.T) {
 
 func TestResolve_GitLogError(t *testing.T) {
 	mr := testutil.NewMockRunner()
-	mr.QueueResponse("v1.2.3\n", "", nil)     // git tag -l succeeds
+	mr.QueueResponse("v1.2.3\n", "", nil)                  // git tag -l succeeds
 	mr.QueueResponse("", "", errors.New("git log failed")) // git log fails
 
 	cfg := &config.Config{

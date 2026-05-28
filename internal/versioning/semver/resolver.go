@@ -67,9 +67,12 @@ func (r *Resolver) resolveManual() (versioning.Result, error) {
 		return versioning.Result{}, fmt.Errorf("manual bump mode requires --version flag")
 	}
 	prefix := r.prefix()
+	// Strip the prefix if the caller passed the full tag (e.g. from `heraut version next`)
+	// so that --version v1.0.0 and --version 1.0.0 both produce the tag v1.0.0.
+	version := strings.TrimPrefix(r.versionOverride, prefix)
 	return versioning.Result{
-		Version: r.versionOverride,
-		Tag:     prefix + r.versionOverride,
+		Version: version,
+		Tag:     prefix + version,
 		Bump:    versioning.BumpNone,
 	}, nil
 }

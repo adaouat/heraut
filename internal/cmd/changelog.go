@@ -50,12 +50,12 @@ func NewChangelogCmd() *cobra.Command {
 			}
 
 			opts := app.PipelineOpts{
-				DryRun:          dryRun,
-				Env:             env,
-				Out:             cmd.OutOrStdout(),
-				Commit:          commit,
-				Tag:             tag,
-				SignTags:        app.ReadGPGSign(readRunner),
+				DryRun:   dryRun,
+				Env:      env,
+				Out:      cmd.OutOrStdout(),
+				Commit:   commit,
+				Tag:      tag,
+				SignTags: app.ReadGPGSign(readRunner),
 			}
 			if !dryRun {
 				if err := app.PreflightCheck(runner); err != nil {
@@ -74,7 +74,7 @@ func NewChangelogCmd() *cobra.Command {
 
 	changelogCmd.Flags().BoolVar(&commit, "commit", false, "commit the generated changelog")
 	changelogCmd.Flags().BoolVar(&tag, "tag", false, "tag after commit (implies --commit)")
-	changelogCmd.Flags().StringVar(&versionOverride, "version", "", "override the resolved version — bare version without tag prefix (e.g. 1.2.3, not v1.2.3)")
+	changelogCmd.Flags().StringVar(&versionOverride, "version", "", "override the resolved version — with or without tag prefix (e.g. 1.2.3 or v1.2.3)")
 
 	return changelogCmd
 }
