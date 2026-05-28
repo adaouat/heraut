@@ -2035,7 +2035,7 @@ e.g. `v`) clearly belong together.
 
 ---
 
-#### `[ ]` T49: Parallel multi-arch Docker builds via runner matrix
+#### `[x]` T49: Parallel multi-arch Docker builds via runner matrix
 
 **Description:** The bundled Docker image currently builds `linux/amd64` and `linux/arm64`
 in a single job using QEMU emulation (`docker/setup-qemu-action`). Since the GHA cache
@@ -2068,6 +2068,15 @@ platform should build in under 10 min.
 **Files:** `.github/workflows/release.yml`
 
 **Scope:** S
+
+**Done:** Replaced the single QEMU-based `docker` job with a `docker-build` matrix job
+(two rows: `ubuntu-latest` for `linux/amd64`, `ubuntu-24.04-arm` for `linux/arm64`) plus
+a `docker-merge` job. Each build row pushes its platform image by digest (no tags), exports
+the digest as an artifact, then `docker-merge` assembles the manifest list via
+`docker buildx imagetools create`, extracts the merged digest, and attests. QEMU setup
+removed. Cache scope split per platform (`docker-linux-amd64` / `docker-linux-arm64`) to
+prevent cross-platform cache pollution. `actions/upload-artifact@v7` and
+`actions/download-artifact@v8` pinned to SHAs.
 
 ---
 
