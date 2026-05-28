@@ -1,10 +1,16 @@
 # Changelog
 
+## [0.12.7](//compare/v0.12.6..v0.12.7) - 2026-05-28
+
+### ⚙️ Miscellaneous Tasks
+
+- Use subject-checksums only for binary attestation - ([2ab644a](//commit/2ab644a23d56539ec8dab97a0e5bc494f502d4ef))
+
 ## [0.12.6](//compare/v0.12.5..v0.12.6) - 2026-05-28
 
 ### ⚙️ Miscellaneous Tasks
 
-- Switch to actions/attest for binary and image attestations - ([16f63f8](//commit/16f63f8549ea3a6562364560a3c2f0efec007812))
+- Switch to actions/attest for binary and image attestations - ([16f63f8](//commit/16f63f8549ea3a6562364560a3c2f0efec007812)) by @bchatard
 
 ## [0.12.5](//compare/v0.12.4..v0.12.5) - 2026-05-28
 
