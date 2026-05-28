@@ -33,7 +33,7 @@ archives:
       - binary
 
 checksum:
-  name_template: "{{ .ProjectName }}_{{ .Version }}_checksums.txt"
+  name_template: "checksums.txt"
 
 release:
   disable: false
