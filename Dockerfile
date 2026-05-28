@@ -60,6 +60,7 @@ FROM debian:trixie-slim
 
 ENV GLAB_SEND_TELEMETRY=false
 ENV GLAB_CHECK_UPDATE=false
+ENV HERAUT_CHECK_UPDATE=false
 
 # hadolint ignore=DL3008
 RUN apt-get update \
