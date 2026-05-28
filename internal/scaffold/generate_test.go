@@ -78,6 +78,29 @@ func TestGenerateYAML_CalVer(t *testing.T) {
 	assert.Empty(t, errs)
 	assert.Equal(t, "calver", cfg.Versioning.Strategy)
 	assert.Equal(t, "YYYY.MM.PATCH", cfg.Versioning.Format)
+	// Empty prefix must survive the round-trip as &"" so the resolver does not
+	// fall back to the "v" default (nil = unset = use default).
+	require.NotNil(t, cfg.Versioning.Prefix)
+	assert.Equal(t, "", *cfg.Versioning.Prefix)
+}
+
+// TestGenerateYAML_EmptyPrefix_ExplicitlyWritten verifies that leaving the
+// wizard prefix blank produces prefix: "" in YAML — not an absent field,
+// which would silently fall back to the "v" default in the resolver.
+func TestGenerateYAML_EmptyPrefix_ExplicitlyWritten(t *testing.T) {
+	a := scaffold.Answers{
+		Strategy: "semver",
+		Prefix:   "",
+	}
+	out, err := scaffold.GenerateYAML(a, "dev")
+	require.NoError(t, err)
+	assert.Contains(t, out, "prefix:", "prefix key must be written even when empty")
+
+	body := stripHeader(out)
+	cfg, err := config.LoadFromReader(strings.NewReader(body))
+	require.NoError(t, err)
+	require.NotNil(t, cfg.Versioning.Prefix)
+	assert.Equal(t, "", *cfg.Versioning.Prefix)
 }
 
 func TestGenerateYAML_PerEnv(t *testing.T) {
