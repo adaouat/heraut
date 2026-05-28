@@ -1,10 +1,16 @@
 # Changelog
 
+## [0.12.6](//compare/v0.12.5..v0.12.6) - 2026-05-28
+
+### ⚙️ Miscellaneous Tasks
+
+- Switch to actions/attest for binary and image attestations - ([16f63f8](//commit/16f63f8549ea3a6562364560a3c2f0efec007812))
+
 ## [0.12.5](//compare/v0.12.4..v0.12.5) - 2026-05-28
 
 ### ⚙️ Miscellaneous Tasks
 
-- Upload attestation bundle as release asset - ([be9f817](//commit/be9f817ee1899c110c77149bc4f83fb1b3ca1df0))
+- Upload attestation bundle as release asset - ([be9f817](//commit/be9f817ee1899c110c77149bc4f83fb1b3ca1df0)) by @bchatard
 
 ## [0.12.4](//compare/v0.12.3..v0.12.4) - 2026-05-28
 
