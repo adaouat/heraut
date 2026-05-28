@@ -2,6 +2,7 @@ package app
 
 import (
 	"fmt"
+	"os"
 	"strings"
 
 	"github.com/adaouat/heraut/internal/config"
@@ -34,20 +35,56 @@ func PreflightCheck(runner port.Runner) error {
 	return nil
 }
 
-// RuntimeCheck verifies all runtime dependencies by calling dispatch once per check.
-// dispatch receives the check name (for display before the check runs) and a run
-// function that performs the check and returns the result. The caller decides how to
-// present each item (spinner, plain line, etc.).
+// RuntimeCheck verifies all runtime dependencies, grouped into three sections:
+// Git, Platforms, and Generators. header is called once per section before its
+// items. dispatch is called once per item with the label shown while the check
+// runs; the run function performs the check and returns the result.
 //
-// Check order: git binary → working tree → generators → platforms → git user identity.
-func RuntimeCheck(runner port.Runner, cfg *config.Config, dispatch func(name string, run func() RuntimeCheckItem)) {
-	// git binary
+// Check order:
+//
+//	Git:        git binary → user.name → user.email → working tree
+//	Platforms:  glab (GitLab) → gh (GitHub)
+//	Generators: git-cliff → cocogitto → communique
+//
+// Configured tools are hard errors when missing; unconfigured-but-supported
+// tools warn when absent and succeed silently when present.
+func RuntimeCheck(
+	runner port.Runner,
+	cfg *config.Config,
+	header func(title string),
+	dispatch func(name string, run func() RuntimeCheckItem),
+) {
+	// ── Git ──────────────────────────────────────────────────────────────────
+	header("Git")
+
 	dispatch("git", func() RuntimeCheckItem {
 		out, _, err := runner.Run("git", "--version")
 		if err != nil {
 			return RuntimeCheckItem{Name: "git", Err: err}
 		}
 		return RuntimeCheckItem{Name: "git", Value: strings.TrimSpace(out)}
+	})
+
+	dispatch("git user.name", func() RuntimeCheckItem {
+		name, _, err := runner.Run("git", "config", "user.name")
+		if err != nil || strings.TrimSpace(name) == "" {
+			return RuntimeCheckItem{
+				Name: "git user.name",
+				Err:  fmt.Errorf("not configured; run: git config user.name <name>"),
+			}
+		}
+		return RuntimeCheckItem{Name: "git user.name", Value: strings.TrimSpace(name)}
+	})
+
+	dispatch("git user.email", func() RuntimeCheckItem {
+		email, _, err := runner.Run("git", "config", "user.email")
+		if err != nil || strings.TrimSpace(email) == "" {
+			return RuntimeCheckItem{
+				Name: "git user.email",
+				Err:  fmt.Errorf("not configured; run: git config user.email <email>"),
+			}
+		}
+		return RuntimeCheckItem{Name: "git user.email", Value: strings.TrimSpace(email)}
 	})
 
 	// working tree (advisory — a dirty tree is a warning, not a hard failure)
@@ -66,118 +103,60 @@ func RuntimeCheck(runner port.Runner, cfg *config.Config, dispatch func(name str
 			Err: fmt.Errorf("%d uncommitted change(s)", n)}
 	})
 
-	// Configured changelog generator
-	if cfg.Changelog != nil {
-		gen := cfg.Changelog.Generator
-		dispatch("changelog generator", func() RuntimeCheckItem {
-			g, buildErr := buildGenerator(runner, cfg.Changelog, gitcliff.ModeChangelog)
-			if buildErr != nil {
-				return RuntimeCheckItem{Name: "changelog generator", Err: buildErr}
-			}
-			return RuntimeCheckItem{
-				Name: "changelog generator (" + gen + ")",
-				Err:  g.Check(),
-			}
-		})
-	}
+	// ── Platforms ─────────────────────────────────────────────────────────────
+	header("Platforms")
 
-	// Configured release-notes generator
-	if cfg.Release != nil && cfg.Release.Notes != nil {
-		gen := cfg.Release.Notes.Generator
-		dispatch("release-notes generator", func() RuntimeCheckItem {
-			g, buildErr := buildGenerator(runner, cfg.Release.Notes, gitcliff.ModeReleaseNotes)
-			if buildErr != nil {
-				return RuntimeCheckItem{Name: "release-notes generator", Err: buildErr}
-			}
-			return RuntimeCheckItem{
-				Name: "release-notes generator (" + gen + ")",
-				Err:  g.Check(),
-			}
-		})
-	}
-
-	// Optional generators: always shown; warn when absent, success when present.
-	usedGens := configuredGenerators(cfg)
-	for _, og := range []struct{ name, binary string }{
-		{"git-cliff", "git-cliff"},
-		{"communique", "communique"},
-		{"cocogitto", "cog"},
-	} {
-		if !usedGens[og.name] {
-			og := og
-			dispatch(og.binary, func() RuntimeCheckItem {
-				out, _, err := runner.Run(og.binary, "--version")
-				if err != nil {
-					return RuntimeCheckItem{
-						Name:   og.binary,
-						IsWarn: true,
-						Err:    fmt.Errorf("not found (not required by this config)"),
-					}
-				}
-				return RuntimeCheckItem{Name: og.binary, Value: strings.TrimSpace(out)}
-			})
-		}
-	}
-
-	// Configured platforms
-	if cfg.Release != nil {
-		for i := range cfg.Release.Platforms {
-			platCfg := &cfg.Release.Platforms[i]
-			dispatch("platform "+platCfg.Type, func() RuntimeCheckItem {
-				p, buildErr := buildPlatform(runner, platCfg)
-				if buildErr != nil {
-					return RuntimeCheckItem{Name: "platform " + platCfg.Type, Err: buildErr}
-				}
-				return RuntimeCheckItem{Name: p.Name(), Err: p.Check()}
-			})
-		}
-	}
-
-	// Optional platforms: always shown; warn when absent, success when present.
 	usedPlats := configuredPlatforms(cfg)
-	for _, op := range []struct{ typ, binary string }{
-		{"github", "gh"},
-		{"gitlab", "glab"},
+	for _, op := range []struct{ typ, binary, display string }{
+		{"gitlab", "glab", "glab"},
+		{"github", "gh", "gh"},
 	} {
-		if !usedPlats[op.typ] {
-			op := op
-			dispatch(op.binary, func() RuntimeCheckItem {
-				out, _, err := runner.Run(op.binary, "--version")
-				if err != nil {
-					return RuntimeCheckItem{
-						Name:   op.binary,
-						IsWarn: true,
-						Err:    fmt.Errorf("not found (not required by this config)"),
-					}
+		op := op
+		required := usedPlats[op.typ]
+		dispatch(op.display, func() RuntimeCheckItem {
+			out, _, err := runner.Run(op.binary, "--version")
+			if err != nil {
+				if required {
+					return RuntimeCheckItem{Name: op.display, Err: fmt.Errorf("%s: not found on PATH", op.binary)}
 				}
-				return RuntimeCheckItem{Name: op.binary, Value: strings.TrimSpace(out)}
-			})
-		}
+				return RuntimeCheckItem{Name: op.display, IsWarn: true,
+					Err: fmt.Errorf("not found (not required by this config)")}
+			}
+			version := strings.TrimSpace(out)
+			if required {
+				tokenEnv := platformTokenEnv(cfg, op.typ)
+				if os.Getenv(tokenEnv) == "" {
+					return RuntimeCheckItem{Name: op.display,
+						Err: fmt.Errorf("%s is not set", tokenEnv)}
+				}
+			}
+			return RuntimeCheckItem{Name: op.display, Value: version}
+		})
 	}
 
-	// git user.name
-	dispatch("git user.name", func() RuntimeCheckItem {
-		gitName, _, nameErr := runner.Run("git", "config", "user.name")
-		if nameErr != nil || strings.TrimSpace(gitName) == "" {
-			return RuntimeCheckItem{
-				Name: "git user.name",
-				Err:  fmt.Errorf("not configured; run: git config user.name <name>"),
-			}
-		}
-		return RuntimeCheckItem{Name: "git user.name", Value: strings.TrimSpace(gitName)}
-	})
+	// ── Generators ────────────────────────────────────────────────────────────
+	header("Generators")
 
-	// git user.email
-	dispatch("git user.email", func() RuntimeCheckItem {
-		gitEmail, _, emailErr := runner.Run("git", "config", "user.email")
-		if emailErr != nil || strings.TrimSpace(gitEmail) == "" {
-			return RuntimeCheckItem{
-				Name: "git user.email",
-				Err:  fmt.Errorf("not configured; run: git config user.email <email>"),
+	usedGens := configuredGenerators(cfg)
+	for _, og := range []struct{ name, binary, display string }{
+		{"git-cliff", "git-cliff", "git-cliff"},
+		{"cocogitto", "cog", "cocogitto"},
+		{"communique", "communique", "communique"},
+	} {
+		og := og
+		required := usedGens[og.name]
+		dispatch(og.display, func() RuntimeCheckItem {
+			out, _, err := runner.Run(og.binary, "--version")
+			if err != nil {
+				if required {
+					return RuntimeCheckItem{Name: og.display, Err: fmt.Errorf("%s: not found on PATH", og.binary)}
+				}
+				return RuntimeCheckItem{Name: og.display, IsWarn: true,
+					Err: fmt.Errorf("not found (not required by this config)")}
 			}
-		}
-		return RuntimeCheckItem{Name: "git user.email", Value: strings.TrimSpace(gitEmail)}
-	})
+			return RuntimeCheckItem{Name: og.display, Value: strings.TrimSpace(out)}
+		})
+	}
 }
 
 // configuredGenerators returns the set of generator names active in cfg.
@@ -201,6 +180,26 @@ func configuredPlatforms(cfg *config.Config) map[string]bool {
 		}
 	}
 	return m
+}
+
+// platformTokenEnv returns the token environment variable name for a platform,
+// using the per-config override when set, falling back to the well-known default.
+func platformTokenEnv(cfg *config.Config, typ string) string {
+	if cfg.Release != nil {
+		for _, p := range cfg.Release.Platforms {
+			if p.Type == typ && p.TokenEnv != "" {
+				return p.TokenEnv
+			}
+		}
+	}
+	switch typ {
+	case "github":
+		return "GH_TOKEN"
+	case "gitlab":
+		return "GITLAB_TOKEN"
+	default:
+		return ""
+	}
 }
 
 // CheckCliff runs git-cliff --context --no-exec against the effective merged config

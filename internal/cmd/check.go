@@ -43,8 +43,7 @@ func NewCheckCmd() *cobra.Command {
 				_, _ = fmt.Fprintln(out, ui.Success(out, "config: ok"))
 			}
 
-			// Runtime section
-			ui.Header(out, "Runtime")
+			// Runtime section (Git / Platforms / Generators — headers emitted by RuntimeCheck)
 			failed += runRuntimeCheck(runner, cfg, out)
 
 			// Cliff section (best-effort; skip if no git-cliff generators configured)
@@ -113,7 +112,6 @@ func newCheckRuntimeCmd() *cobra.Command {
 				return exitcode.Wrap(exitcode.Config, fmt.Errorf("loading config: %w", err))
 			}
 
-			ui.Header(out, "Runtime")
 			if failed := runRuntimeCheck(runner, cfg, out); failed > 0 {
 				_, _ = fmt.Fprintln(out)
 				_, _ = fmt.Fprintln(out, ui.Err(out, fmt.Sprintf("%d check(s) failed", failed)))
@@ -206,19 +204,22 @@ func newCheckCliffReleaseNotesCmd() *cobra.Command {
 // the number of hard failures (warnings do not count).
 func runRuntimeCheck(runner port.Runner, cfg *config.Config, out io.Writer) int {
 	var failed int
-	app.RuntimeCheck(runner, cfg, func(name string, run func() app.RuntimeCheckItem) {
-		step := ui.StartStep(out, name)
-		item := run()
-		switch {
-		case item.IsWarn:
-			step.Skip(item.Err.Error())
-		case item.Err != nil:
-			step.Fail(item.Err.Error())
-			failed++
-		default:
-			step.Done(item.Value)
-		}
-	})
+	app.RuntimeCheck(runner, cfg,
+		func(title string) { ui.Header(out, title) },
+		func(name string, run func() app.RuntimeCheckItem) {
+			step := ui.StartStep(out, name)
+			item := run()
+			switch {
+			case item.IsWarn:
+				step.Skip(item.Err.Error())
+			case item.Err != nil:
+				step.Fail(item.Err.Error())
+				failed++
+			default:
+				step.Done(item.Value)
+			}
+		},
+	)
 	return failed
 }
 
