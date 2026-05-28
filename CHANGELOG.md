@@ -1,10 +1,16 @@
 # Changelog
 
+## [0.12.5](//compare/v0.12.4..v0.12.5) - 2026-05-28
+
+### ⚙️ Miscellaneous Tasks
+
+- Upload attestation bundle as release asset - ([be9f817](//commit/be9f817ee1899c110c77149bc4f83fb1b3ca1df0))
+
 ## [0.12.4](//compare/v0.12.3..v0.12.4) - 2026-05-28
 
 ### ⚙️ Miscellaneous Tasks
 
-- Add artifact-metadata: write permission to docker jobs - ([decfcbc](//commit/decfcbccc2625b5533ee4bef199ae2dc933dd01d))
+- Add artifact-metadata: write permission to docker jobs - ([decfcbc](//commit/decfcbccc2625b5533ee4bef199ae2dc933dd01d)) by @bchatard
 
 ## [0.12.3](//compare/v0.12.2..v0.12.3) - 2026-05-28
 
