@@ -1,14 +1,27 @@
 # Changelog
 
+## [0.12.3](//compare/v0.12.2..v0.12.3) - 2026-05-28
+
+### 📚 Documentation
+
+- *(roadmap)* Add Phase 10 — Beta Polish (T43–T49) - ([6de2674](//commit/6de267472726373d8a6bff0a01e22a6ad25dc562))
+
+
+### ⚙️ Miscellaneous Tasks
+
+- Add attestations: write permission to release and docker jobs - ([a265f96](//commit/a265f96278f9c34b3b7627d5a7f9d24cada0e2e0))
+
+- Build linux/amd64 and linux/arm64 Docker images in parallel - ([f51daeb](//commit/f51daeba215080bf2f1314b9f193cc2687a2c958))
+
 ## [0.12.2](//compare/v0.12.1..v0.12.2) - 2026-05-28
 
 ### ⚙️ Miscellaneous Tasks
 
-- *(docker)* Disable update check in bundled image - ([422b199](//commit/422b1995df8a023e368bba2da80fc7e5613515d9))
+- *(docker)* Disable update check in bundled image - ([422b199](//commit/422b1995df8a023e368bba2da80fc7e5613515d9)) by @bchatard
 
-- *(mise)* Upgrade goreleaser 2.15 → 2.16 - ([220f4ab](//commit/220f4abda2bfbb3b79ea9e57a7247ab96f8b38d6))
+- *(mise)* Upgrade goreleaser 2.15 → 2.16 - ([220f4ab](//commit/220f4abda2bfbb3b79ea9e57a7247ab96f8b38d6)) by @bchatard
 
-- Add build provenance attestations to release and docker jobs - ([6896852](//commit/6896852d0c06f34119893c257276f52ce2a766d2))
+- Add build provenance attestations to release and docker jobs - ([6896852](//commit/6896852d0c06f34119893c257276f52ce2a766d2)) by @bchatard
 
 ## [0.12.1](//compare/v0.12.0..v0.12.1) - 2026-05-28
 
