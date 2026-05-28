@@ -1,10 +1,27 @@
 # Changelog
 
+## [0.12.1](//compare/v0.12.0..v0.12.1) - 2026-05-28
+
+### 🐛 Bug Fixes
+
+- *(scaffold)* Write prefix: "" explicitly when wizard input is empty - ([fef31ed](//commit/fef31ed9ac02ae498c8f7d6244f60dac07e4717e))
+
+- *(versioning/semver)* Strip tag prefix from --version override if present - ([75d04a6](//commit/75d04a6d0671df9deeceb371d12a17bb192c5039))
+
+
+### ⚙️ Miscellaneous Tasks
+
+- Parallelise goreleaser and docker jobs in release workflow - ([15ac51f](//commit/15ac51ff14aba0ab44208fdeefa7b51d34019a62))
+
+- Fix docker build cache miss on tag-triggered releases - ([193b685](//commit/193b685621d9f17b92f855ab7a0440abdf21cb6c))
+
+- Bump mise tools and add actionlint + hadolint linters - ([29024ef](//commit/29024ef23be22816d9c229e027bf3cc29f2fe383))
+
 ## [0.12.0](//compare/v0.11.2..v0.12.0) - 2026-05-28
 
 ### 🚀 Features
 
-- *(pipeline)* Honour git config tag.gpgSign for signed tags (Option B) - ([a7dbbd7](//commit/a7dbbd79417507c23ee61f6fdd5d27c05955c7c8))
+- *(pipeline)* Honour git config tag.gpgSign for signed tags (Option B) - ([a7dbbd7](//commit/a7dbbd79417507c23ee61f6fdd5d27c05955c7c8)) by @bchatard
 
 ## [0.11.2](//compare/v0.11.1..v0.11.2) - 2026-05-27
 
