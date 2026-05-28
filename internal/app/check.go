@@ -96,8 +96,7 @@ func RuntimeCheck(runner port.Runner, cfg *config.Config, dispatch func(name str
 		})
 	}
 
-	// Optional generators: warn only when a supported binary is absent and
-	// not already covered by a configured (required) check.
+	// Optional generators: always shown; warn when absent, success when present.
 	usedGens := configuredGenerators(cfg)
 	for _, og := range []struct{ name, binary string }{
 		{"git-cliff", "git-cliff"},
@@ -106,16 +105,17 @@ func RuntimeCheck(runner port.Runner, cfg *config.Config, dispatch func(name str
 	} {
 		if !usedGens[og.name] {
 			og := og
-			_, _, err := runner.Run(og.binary, "--version")
-			if err != nil {
-				dispatch(og.binary, func() RuntimeCheckItem {
+			dispatch(og.binary, func() RuntimeCheckItem {
+				out, _, err := runner.Run(og.binary, "--version")
+				if err != nil {
 					return RuntimeCheckItem{
 						Name:   og.binary,
 						IsWarn: true,
 						Err:    fmt.Errorf("not found (not required by this config)"),
 					}
-				})
-			}
+				}
+				return RuntimeCheckItem{Name: og.binary, Value: strings.TrimSpace(out)}
+			})
 		}
 	}
 
@@ -133,8 +133,7 @@ func RuntimeCheck(runner port.Runner, cfg *config.Config, dispatch func(name str
 		}
 	}
 
-	// Optional platforms: warn only when a supported binary is absent and
-	// not already covered by a configured (required) check.
+	// Optional platforms: always shown; warn when absent, success when present.
 	usedPlats := configuredPlatforms(cfg)
 	for _, op := range []struct{ typ, binary string }{
 		{"github", "gh"},
@@ -142,16 +141,17 @@ func RuntimeCheck(runner port.Runner, cfg *config.Config, dispatch func(name str
 	} {
 		if !usedPlats[op.typ] {
 			op := op
-			_, _, err := runner.Run(op.binary, "--version")
-			if err != nil {
-				dispatch(op.binary, func() RuntimeCheckItem {
+			dispatch(op.binary, func() RuntimeCheckItem {
+				out, _, err := runner.Run(op.binary, "--version")
+				if err != nil {
 					return RuntimeCheckItem{
 						Name:   op.binary,
 						IsWarn: true,
 						Err:    fmt.Errorf("not found (not required by this config)"),
 					}
-				})
-			}
+				}
+				return RuntimeCheckItem{Name: op.binary, Value: strings.TrimSpace(out)}
+			})
 		}
 	}
 

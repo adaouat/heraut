@@ -191,7 +191,12 @@ func TestRuntimeCheck_DispatchNames(t *testing.T) {
 		run()
 	})
 
-	assert.Equal(t, []string{"git", "working tree", "git user.name", "git user.email"}, names)
+	assert.Equal(t, []string{
+		"git", "working tree",
+		"git-cliff", "communique", "cog",
+		"gh", "glab",
+		"git user.name", "git user.email",
+	}, names)
 }
 
 func TestRuntimeCheck_WithGitcliff(t *testing.T) {
