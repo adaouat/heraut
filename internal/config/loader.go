@@ -30,7 +30,15 @@ func LoadFromReader(r io.Reader) (*Config, error) {
 	if err := dec.Decode(&cfg); err != nil {
 		return nil, formatYAMLError(err)
 	}
+	normalize(&cfg)
 	return &cfg, nil
+}
+
+// normalize applies post-parse defaults that cannot be expressed in the YAML schema.
+func normalize(cfg *Config) {
+	if cfg.Changelog != nil && cfg.Changelog.Output == "" {
+		cfg.Changelog.Output = "CHANGELOG.md"
+	}
 }
 
 func formatYAMLError(err error) error {

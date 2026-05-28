@@ -1930,7 +1930,7 @@ verifies `Hint` prints nothing in the same process run. 660 tests pass.
 
 ---
 
-#### `[ ]` T45: Default `changelog.output` to `"CHANGELOG.md"` when empty
+#### `[x]` T45: Default `changelog.output` to `"CHANGELOG.md"` when empty
 
 **Description:** `heraut init` asks for a changelog output file name but allows an empty
 answer. When the field is empty, no file is created, and the subsequent `git add +commit`
@@ -1954,6 +1954,15 @@ step in the release pipeline errors because the file does not exist.
 **Files:** `internal/config/loader.go` (or `validator.go`), `internal/scaffold/wizard.go`
 
 **Scope:** S
+
+**Done:** Three-layer defence. (1) `config.normalize()` called in `LoadFromReader` after
+decoding: if `cfg.Changelog != nil && cfg.Changelog.Output == ""`, defaults to
+`"CHANGELOG.md"` — catches configs written by any tool, including the YAML file produced
+by `heraut init`. (2) `scaffold.ConfigToAnswers`: defaults `ChangelogOutput` to
+`"CHANGELOG.md"` when re-reading an existing config with an empty output, so re-running
+the wizard starts with the right value. (3) `scaffold.answersToConfig`: same default so
+`GenerateYAML` always writes a non-empty output when a changelog generator is configured.
+Three new tests (red→green). 665 tests pass.
 
 ---
 

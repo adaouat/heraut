@@ -98,6 +98,9 @@ func ConfigToAnswers(cfg *config.Config) Answers {
 	if cfg.Changelog != nil {
 		a.ChangelogGenerator = cfg.Changelog.Generator
 		a.ChangelogOutput = cfg.Changelog.Output
+		if a.ChangelogOutput == "" {
+			a.ChangelogOutput = "CHANGELOG.md"
+		}
 	}
 
 	if cfg.Release != nil {

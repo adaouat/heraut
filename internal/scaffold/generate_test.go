@@ -188,3 +188,26 @@ func stripHeader(yaml string) string {
 	}
 	return strings.Join(out, "\n")
 }
+
+func TestConfigToAnswers_DefaultsEmptyChangelogOutput(t *testing.T) {
+	cfg := &config.Config{
+		Version: "1",
+		Changelog: &config.ContentDriver{
+			Generator: "git-cliff",
+			Output:    "",
+		},
+	}
+	a := scaffold.ConfigToAnswers(cfg)
+	assert.Equal(t, "CHANGELOG.md", a.ChangelogOutput)
+}
+
+func TestGenerateYAML_DefaultsEmptyChangelogOutput(t *testing.T) {
+	a := scaffold.Answers{
+		Strategy:           "semver",
+		ChangelogGenerator: "git-cliff",
+		ChangelogOutput:    "",
+	}
+	out, err := scaffold.GenerateYAML(a, "dev")
+	require.NoError(t, err)
+	assert.Contains(t, out, "output: CHANGELOG.md")
+}

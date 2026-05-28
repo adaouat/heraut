@@ -297,3 +297,40 @@ func TestLoadFromReader_MalformedYAML(t *testing.T) {
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "config:")
 }
+
+func TestLoadFromReader_DefaultsChangelogOutput(t *testing.T) {
+	tests := []struct {
+		name string
+		src  string
+	}{
+		{
+			name: "empty string",
+			src: `
+version: "1"
+versioning:
+  strategy: semver
+changelog:
+  generator: git-cliff
+  output: ""
+`,
+		},
+		{
+			name: "omitted field",
+			src: `
+version: "1"
+versioning:
+  strategy: semver
+changelog:
+  generator: git-cliff
+`,
+		},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			cfg, err := config.LoadFromReader(strings.NewReader(tc.src))
+			require.NoError(t, err)
+			require.NotNil(t, cfg.Changelog)
+			assert.Equal(t, "CHANGELOG.md", cfg.Changelog.Output)
+		})
+	}
+}

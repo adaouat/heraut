@@ -75,9 +75,13 @@ func answersToConfig(a Answers) config.Config {
 	}
 
 	if a.ChangelogGenerator != "" {
+		output := a.ChangelogOutput
+		if output == "" {
+			output = "CHANGELOG.md"
+		}
 		cfg.Changelog = &config.ContentDriver{
 			Generator: a.ChangelogGenerator,
-			Output:    a.ChangelogOutput,
+			Output:    output,
 		}
 	}
 
