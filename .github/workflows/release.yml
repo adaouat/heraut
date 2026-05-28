@@ -37,9 +37,15 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Attest build provenance
+        id: attest
         uses: actions/attest-build-provenance@a2bbfa25375fe432b6a289bc6b6cd05ecd0c4c32 # v4
         with:
           subject-path: dist/heraut_*
+
+      - name: Upload attestation bundle to release
+        run: gh release upload ${{ github.ref_name }} ${{ steps.attest.outputs.bundle-path }}#attestation.json
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
   docker-build:
     runs-on: ${{ matrix.runner }}
