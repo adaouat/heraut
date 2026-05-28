@@ -1,10 +1,16 @@
 # Changelog
 
+## [0.12.8](//compare/v0.12.7..v0.12.8) - 2026-05-28
+
+### ⚙️ Miscellaneous Tasks
+
+- Use subject-path glob for binary attestation - ([6e6e386](//commit/6e6e386d2f80b0131f5abc76916730bde2606e11))
+
 ## [0.12.7](//compare/v0.12.6..v0.12.7) - 2026-05-28
 
 ### ⚙️ Miscellaneous Tasks
 
-- Use subject-checksums only for binary attestation - ([2ab644a](//commit/2ab644a23d56539ec8dab97a0e5bc494f502d4ef))
+- Use subject-checksums only for binary attestation - ([2ab644a](//commit/2ab644a23d56539ec8dab97a0e5bc494f502d4ef)) by @bchatard
 
 ## [0.12.6](//compare/v0.12.5..v0.12.6) - 2026-05-28
 
