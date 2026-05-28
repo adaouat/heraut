@@ -11,6 +11,7 @@ jobs:
     permissions:
       contents: write # create GitHub Release + upload assets
       pull-requests: read # GoReleaser links PRs to commits in release notes
+      id-token: write # OIDC token for build provenance attestation
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
         with:
@@ -34,10 +35,16 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
+      - name: Attest build provenance
+        uses: actions/attest-build-provenance@a2bbfa25375fe432b6a289bc6b6cd05ecd0c4c32 # v4
+        with:
+          subject-path: dist/heraut_*
+
   docker:
     runs-on: ubuntu-latest
     permissions:
       packages: write # push to GHCR
+      id-token: write # OIDC token for build provenance attestation
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
 
@@ -66,6 +73,7 @@ jobs:
             type=raw,value=latest,enable={{is_default_branch}}
 
       - name: Build and push bundled image
+        id: build
         uses: docker/build-push-action@f9f3042f7e2789586610d6e8b85c8f03e5195baf # v7
         with:
           context: .
@@ -78,3 +86,10 @@ jobs:
             HERAUT_VERSION=${{ github.ref_name }}
           cache-from: type=gha,scope=docker-release
           cache-to: type=gha,mode=max,scope=docker-release
+
+      - name: Attest image provenance
+        uses: actions/attest-build-provenance@a2bbfa25375fe432b6a289bc6b6cd05ecd0c4c32 # v4
+        with:
+          subject-name: ghcr.io/adaouat/heraut
+          subject-digest: ${{ steps.build.outputs.digest }}
+          push-to-registry: true
