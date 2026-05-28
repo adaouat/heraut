@@ -2,6 +2,7 @@ package app_test
 
 import (
 	"errors"
+	"strings"
 	"testing"
 
 	"github.com/adaouat/heraut/internal/app"
@@ -25,8 +26,8 @@ func collectItems(mr *testutil.MockRunner, cfg *config.Config) []app.RuntimeChec
 func TestPreflightCheck_Passes(t *testing.T) {
 	mr := testutil.NewMockRunner()
 	mr.QueueResponse("git version 2.40.0", "", nil) // git --version
-	mr.QueueResponse("Alice", "", nil)               // git config user.name
-	mr.QueueResponse("a@b.com", "", nil)             // git config user.email
+	mr.QueueResponse("Alice", "", nil)              // git config user.name
+	mr.QueueResponse("a@b.com", "", nil)            // git config user.email
 
 	require.NoError(t, app.PreflightCheck(mr))
 }
@@ -53,7 +54,7 @@ func TestPreflightCheck_UserNameMissing(t *testing.T) {
 func TestPreflightCheck_UserEmailMissing(t *testing.T) {
 	mr := testutil.NewMockRunner()
 	mr.QueueResponse("git version 2.40.0", "", nil) // git --version
-	mr.QueueResponse("Alice", "", nil)               // user.name OK
+	mr.QueueResponse("Alice", "", nil)              // user.name OK
 	mr.QueueResponse("", "", nil)                   // user.email returns empty
 
 	err := app.PreflightCheck(mr)
@@ -67,8 +68,8 @@ func TestRuntimeCheck_MinimalConfig(t *testing.T) {
 	mr := testutil.NewMockRunner()
 	mr.QueueResponse("git version 2.40.0", "", nil) // git --version
 	mr.QueueResponse("", "", nil)                   // git status --porcelain (clean)
-	mr.QueueResponse("Alice", "", nil)               // user.name
-	mr.QueueResponse("a@b.com", "", nil)             // user.email
+	mr.QueueResponse("Alice", "", nil)              // user.name
+	mr.QueueResponse("a@b.com", "", nil)            // user.email
 
 	cfg := semverCfg()
 	items := collectItems(mr, cfg)
@@ -87,9 +88,9 @@ func TestRuntimeCheck_MinimalConfig(t *testing.T) {
 func TestRuntimeCheck_GitValue(t *testing.T) {
 	mr := testutil.NewMockRunner()
 	mr.QueueResponse("git version 2.49.0\n", "", nil) // git --version
-	mr.QueueResponse("", "", nil)                      // git status --porcelain
-	mr.QueueResponse("Alice", "", nil)                 // user.name
-	mr.QueueResponse("a@b.com", "", nil)               // user.email
+	mr.QueueResponse("", "", nil)                     // git status --porcelain
+	mr.QueueResponse("Alice", "", nil)                // user.name
+	mr.QueueResponse("a@b.com", "", nil)              // user.email
 
 	cfg := semverCfg()
 	items := collectItems(mr, cfg)
@@ -106,10 +107,15 @@ func TestRuntimeCheck_GitValue(t *testing.T) {
 
 func TestRuntimeCheck_UserNameValue(t *testing.T) {
 	mr := testutil.NewMockRunner()
-	mr.QueueResponse("git version 2.40.0", "", nil)   // git --version
-	mr.QueueResponse("", "", nil)                      // git status --porcelain
-	mr.QueueResponse("Alice Smith\n", "", nil)         // user.name
-	mr.QueueResponse("alice@example.com\n", "", nil)   // user.email
+	mr.QueueResponse("git version 2.40.0", "", nil)  // git --version
+	mr.QueueResponse("", "", nil)                    // git status --porcelain
+	mr.QueueResponse("git-cliff 2.0", "", nil)       // optional: git-cliff (found)
+	mr.QueueResponse("communique 1.0", "", nil)      // optional: communique (found)
+	mr.QueueResponse("cog 7.0", "", nil)             // optional: cog (found)
+	mr.QueueResponse("gh 2.0", "", nil)              // optional: gh (found)
+	mr.QueueResponse("glab 1.0", "", nil)            // optional: glab (found)
+	mr.QueueResponse("Alice Smith\n", "", nil)       // user.name
+	mr.QueueResponse("alice@example.com\n", "", nil) // user.email
 
 	cfg := semverCfg()
 	items := collectItems(mr, cfg)
@@ -128,8 +134,8 @@ func TestRuntimeCheck_WorkingTreeClean(t *testing.T) {
 	mr := testutil.NewMockRunner()
 	mr.QueueResponse("git version 2.40.0", "", nil) // git --version
 	mr.QueueResponse("", "", nil)                   // git status --porcelain (clean)
-	mr.QueueResponse("Alice", "", nil)               // user.name
-	mr.QueueResponse("a@b.com", "", nil)             // user.email
+	mr.QueueResponse("Alice", "", nil)              // user.name
+	mr.QueueResponse("a@b.com", "", nil)            // user.email
 
 	cfg := semverCfg()
 	items := collectItems(mr, cfg)
@@ -147,10 +153,10 @@ func TestRuntimeCheck_WorkingTreeClean(t *testing.T) {
 
 func TestRuntimeCheck_WorkingTreeDirty(t *testing.T) {
 	mr := testutil.NewMockRunner()
-	mr.QueueResponse("git version 2.40.0", "", nil)                             // git --version
+	mr.QueueResponse("git version 2.40.0", "", nil)                       // git --version
 	mr.QueueResponse(" M internal/foo.go\n M internal/bar.go\n", "", nil) // git status --porcelain
-	mr.QueueResponse("Alice", "", nil)                                           // user.name
-	mr.QueueResponse("a@b.com", "", nil)                                         // user.email
+	mr.QueueResponse("Alice", "", nil)                                    // user.name
+	mr.QueueResponse("a@b.com", "", nil)                                  // user.email
 
 	cfg := semverCfg()
 	items := collectItems(mr, cfg)
@@ -170,8 +176,13 @@ func TestRuntimeCheck_DispatchNames(t *testing.T) {
 	mr := testutil.NewMockRunner()
 	mr.QueueResponse("git version 2.40.0", "", nil) // git --version
 	mr.QueueResponse("", "", nil)                   // git status --porcelain
-	mr.QueueResponse("Alice", "", nil)               // user.name
-	mr.QueueResponse("a@b.com", "", nil)             // user.email
+	mr.QueueResponse("git-cliff 2.0", "", nil)      // optional: git-cliff (found — no dispatch)
+	mr.QueueResponse("communique 1.0", "", nil)     // optional: communique (found — no dispatch)
+	mr.QueueResponse("cog 7.0", "", nil)            // optional: cog (found — no dispatch)
+	mr.QueueResponse("gh 2.0", "", nil)             // optional: gh (found — no dispatch)
+	mr.QueueResponse("glab 1.0", "", nil)           // optional: glab (found — no dispatch)
+	mr.QueueResponse("Alice", "", nil)              // user.name
+	mr.QueueResponse("a@b.com", "", nil)            // user.email
 
 	cfg := semverCfg()
 	var names []string
@@ -188,8 +199,8 @@ func TestRuntimeCheck_WithGitcliff(t *testing.T) {
 	mr.QueueResponse("git version 2.40.0", "", nil) // git --version
 	mr.QueueResponse("", "", nil)                   // git status --porcelain
 	mr.QueueResponse("git-cliff 2.9.0", "", nil)    // generator Check()
-	mr.QueueResponse("Alice", "", nil)               // user.name
-	mr.QueueResponse("a@b.com", "", nil)             // user.email
+	mr.QueueResponse("Alice", "", nil)              // user.name
+	mr.QueueResponse("a@b.com", "", nil)            // user.email
 
 	cfg := semverCfg()
 	cfg.Changelog = &config.ContentDriver{Generator: "git-cliff"}
@@ -210,8 +221,8 @@ func TestRuntimeCheck_WithGitHubPlatform(t *testing.T) {
 	mr.QueueResponse("git version 2.40.0", "", nil) // git --version
 	mr.QueueResponse("", "", nil)                   // git status --porcelain
 	mr.QueueResponse("gh version 2.0.0", "", nil)   // platform Check()
-	mr.QueueResponse("Alice", "", nil)               // user.name
-	mr.QueueResponse("a@b.com", "", nil)             // user.email
+	mr.QueueResponse("Alice", "", nil)              // user.name
+	mr.QueueResponse("a@b.com", "", nil)            // user.email
 
 	cfg := semverCfg()
 	cfg.Release = &config.Release{
@@ -225,8 +236,8 @@ func TestRuntimeCheck_UnknownChangelogGenerator(t *testing.T) {
 	mr := testutil.NewMockRunner()
 	mr.QueueResponse("git version 2.40.0", "", nil) // git --version
 	mr.QueueResponse("", "", nil)                   // git status --porcelain
-	mr.QueueResponse("Alice", "", nil)               // user.name
-	mr.QueueResponse("a@b.com", "", nil)             // user.email
+	mr.QueueResponse("Alice", "", nil)              // user.name
+	mr.QueueResponse("a@b.com", "", nil)            // user.email
 
 	cfg := semverCfg()
 	cfg.Changelog = &config.ContentDriver{Generator: "unknown-gen"}
@@ -247,8 +258,8 @@ func TestRuntimeCheck_WithReleaseNotes(t *testing.T) {
 	mr.QueueResponse("git version 2.40.0", "", nil) // git --version
 	mr.QueueResponse("", "", nil)                   // git status --porcelain
 	mr.QueueResponse("git-cliff 2.9.0", "", nil)    // notes generator Check()
-	mr.QueueResponse("Alice", "", nil)               // user.name
-	mr.QueueResponse("a@b.com", "", nil)             // user.email
+	mr.QueueResponse("Alice", "", nil)              // user.name
+	mr.QueueResponse("a@b.com", "", nil)            // user.email
 
 	cfg := semverCfg()
 	cfg.Release = &config.Release{
@@ -270,8 +281,8 @@ func TestRuntimeCheck_UnknownPlatform(t *testing.T) {
 	mr := testutil.NewMockRunner()
 	mr.QueueResponse("git version 2.40.0", "", nil) // git --version
 	mr.QueueResponse("", "", nil)                   // git status --porcelain
-	mr.QueueResponse("Alice", "", nil)               // user.name
-	mr.QueueResponse("a@b.com", "", nil)             // user.email
+	mr.QueueResponse("Alice", "", nil)              // user.name
+	mr.QueueResponse("a@b.com", "", nil)            // user.email
 
 	cfg := semverCfg()
 	cfg.Release = &config.Release{
@@ -294,7 +305,7 @@ func TestRuntimeCheck_UserNameMissing(t *testing.T) {
 	mr.QueueResponse("git version 2.40.0", "", nil) // git --version
 	mr.QueueResponse("", "", nil)                   // git status --porcelain
 	mr.QueueResponse("", "", nil)                   // user.name empty
-	mr.QueueResponse("a@b.com", "", nil)             // user.email
+	mr.QueueResponse("a@b.com", "", nil)            // user.email
 
 	cfg := semverCfg()
 	items := collectItems(mr, cfg)
@@ -312,7 +323,7 @@ func TestRuntimeCheck_UserEmailMissing(t *testing.T) {
 	mr := testutil.NewMockRunner()
 	mr.QueueResponse("git version 2.40.0", "", nil) // git --version
 	mr.QueueResponse("", "", nil)                   // git status --porcelain
-	mr.QueueResponse("Alice", "", nil)               // user.name OK
+	mr.QueueResponse("Alice", "", nil)              // user.name OK
 	mr.QueueResponse("", "", nil)                   // user.email empty
 
 	cfg := semverCfg()
@@ -367,4 +378,115 @@ func TestAppCheckCliff_ReleaseNotesMode(t *testing.T) {
 	}
 	assert.True(t, hasContext, "expected --context in args")
 	assert.True(t, hasNoExec, "expected --no-exec in args")
+}
+
+// ---- Optional tool checks -------------------------------------------------------
+
+func TestRuntimeCheck_OptionalGeneratorsWarnWhenMissing(t *testing.T) {
+	mr := testutil.NewMockRunner()
+	mr.QueueResponse("git version 2.40.0", "", nil)               // git --version
+	mr.QueueResponse("", "", nil)                                 // git status --porcelain
+	mr.QueueResponse("", "", errors.New("git-cliff: not found"))  // optional: git-cliff --version
+	mr.QueueResponse("", "", errors.New("communique: not found")) // optional: communique --version
+	mr.QueueResponse("", "", errors.New("cog: not found"))        // optional: cog --version
+	mr.QueueResponse("gh 2.0.0", "", nil)                         // optional: gh --version (found)
+	mr.QueueResponse("glab 1.0.0", "", nil)                       // optional: glab --version (found)
+	mr.QueueResponse("Alice", "", nil)                            // user.name
+	mr.QueueResponse("a@b.com", "", nil)                          // user.email
+
+	cfg := semverCfg()
+	items := collectItems(mr, cfg)
+
+	warnNames := make(map[string]bool)
+	for _, it := range items {
+		if it.IsWarn && it.Err != nil && strings.Contains(it.Err.Error(), "not required") {
+			warnNames[it.Name] = true
+		}
+	}
+	assert.True(t, warnNames["git-cliff"], "expected optional warn for git-cliff")
+	assert.True(t, warnNames["communique"], "expected optional warn for communique")
+	assert.True(t, warnNames["cog"], "expected optional warn for cog")
+	assert.False(t, warnNames["gh"], "gh was found, no optional warn expected")
+	assert.False(t, warnNames["glab"], "glab was found, no optional warn expected")
+}
+
+func TestRuntimeCheck_OptionalPlatformsWarnWhenMissing(t *testing.T) {
+	mr := testutil.NewMockRunner()
+	mr.QueueResponse("git version 2.40.0", "", nil)         // git --version
+	mr.QueueResponse("", "", nil)                           // git status --porcelain
+	mr.QueueResponse("git-cliff 2.0.0", "", nil)            // optional: git-cliff (found)
+	mr.QueueResponse("communique 1.0.0", "", nil)           // optional: communique (found)
+	mr.QueueResponse("cog 7.0.0", "", nil)                  // optional: cog (found)
+	mr.QueueResponse("", "", errors.New("gh: not found"))   // optional: gh --version
+	mr.QueueResponse("", "", errors.New("glab: not found")) // optional: glab --version
+	mr.QueueResponse("Alice", "", nil)                      // user.name
+	mr.QueueResponse("a@b.com", "", nil)                    // user.email
+
+	cfg := semverCfg()
+	items := collectItems(mr, cfg)
+
+	warnNames := make(map[string]bool)
+	for _, it := range items {
+		if it.IsWarn && it.Err != nil && strings.Contains(it.Err.Error(), "not required") {
+			warnNames[it.Name] = true
+		}
+	}
+	assert.True(t, warnNames["gh"], "expected optional warn for gh")
+	assert.True(t, warnNames["glab"], "expected optional warn for glab")
+	assert.False(t, warnNames["git-cliff"], "git-cliff was found, no optional warn expected")
+}
+
+func TestRuntimeCheck_OptionalToolsSilentWhenPresent(t *testing.T) {
+	mr := testutil.NewMockRunner()
+	mr.QueueResponse("git version 2.40.0", "", nil) // git --version
+	mr.QueueResponse("", "", nil)                   // git status --porcelain
+	mr.QueueResponse("git-cliff 2.0", "", nil)      // optional: found
+	mr.QueueResponse("communique 1.0", "", nil)     // optional: found
+	mr.QueueResponse("cog 7.0", "", nil)            // optional: found
+	mr.QueueResponse("gh 2.0", "", nil)             // optional: found
+	mr.QueueResponse("glab 1.0", "", nil)           // optional: found
+	mr.QueueResponse("Alice", "", nil)              // user.name
+	mr.QueueResponse("a@b.com", "", nil)            // user.email
+
+	cfg := semverCfg()
+	items := collectItems(mr, cfg)
+
+	for _, it := range items {
+		if it.Err != nil && strings.Contains(it.Err.Error(), "not required") {
+			t.Errorf("unexpected optional warn item: %s — %v", it.Name, it.Err)
+		}
+	}
+}
+
+func TestRuntimeCheck_ConfiguredGeneratorExcludedFromOptional(t *testing.T) {
+	mr := testutil.NewMockRunner()
+	mr.QueueResponse("git version 2.40.0", "", nil) // git --version
+	mr.QueueResponse("", "", nil)                   // git status --porcelain
+	mr.QueueResponse("git-cliff 2.9.0", "", nil)    // required: changelog generator Check()
+	// git-cliff IS configured → no optional check for it
+	mr.QueueResponse("", "", errors.New("communique: not found")) // optional: communique
+	mr.QueueResponse("", "", errors.New("cog: not found"))        // optional: cog
+	mr.QueueResponse("", "", errors.New("gh: not found"))         // optional: gh
+	mr.QueueResponse("", "", errors.New("glab: not found"))       // optional: glab
+	mr.QueueResponse("Alice", "", nil)                            // user.name
+	mr.QueueResponse("a@b.com", "", nil)                          // user.email
+
+	cfg := semverCfg()
+	cfg.Changelog = &config.ContentDriver{Generator: "git-cliff"}
+	items := collectItems(mr, cfg)
+
+	for _, it := range items {
+		if it.Name == "git-cliff" && it.IsWarn {
+			t.Error("git-cliff is configured (required), must not appear as optional warn")
+		}
+	}
+	// communique and cog should appear as optional warns
+	warnNames := make(map[string]bool)
+	for _, it := range items {
+		if it.IsWarn && it.Err != nil && strings.Contains(it.Err.Error(), "not required") {
+			warnNames[it.Name] = true
+		}
+	}
+	assert.True(t, warnNames["communique"])
+	assert.True(t, warnNames["cog"])
 }

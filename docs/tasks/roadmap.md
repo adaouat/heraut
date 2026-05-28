@@ -1966,7 +1966,7 @@ Three new tests (red→green). 665 tests pass.
 
 ---
 
-#### `[ ]` T46: `heraut check runtime` — config-aware required vs optional tool checks
+#### `[x]` T46: `heraut check runtime` — config-aware required vs optional tool checks
 
 **Description:** `heraut check runtime` currently checks every supported external CLI
 (`git`, `git-cliff`, `communique`, `cog`, `gh`, `glab`) regardless of what the active
@@ -1990,6 +1990,17 @@ Pass the partition to the streaming dispatch so `cmd/check.go` can apply `Done` 
 `internal/cmd/check.go`
 
 **Scope:** S
+
+**Done:** Added two private helpers `configuredGenerators` and `configuredPlatforms` to
+derive which tools the active config actually needs. In `RuntimeCheck`, after the required
+generator and platform checks, two loops check each supported-but-unconfigured tool
+(`git-cliff`, `communique`, `cog`, `gh`, `glab`) via a direct `runner.Run("binary",
+"--version")` call. If the binary is absent the loop calls `dispatch` with
+`IsWarn: true` and `Err: "not found (not required by this config)"`. If present, no
+dispatch call is made — the output stays clean. `cmd/check.go` already routes
+`IsWarn=true` items to `step.Skip()` so no cmd changes were needed. 4 new tests
+(red→green); 2 existing tests updated to queue optional tool mock responses. 669 tests
+pass.
 
 ---
 

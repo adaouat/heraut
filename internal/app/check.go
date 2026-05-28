@@ -66,7 +66,7 @@ func RuntimeCheck(runner port.Runner, cfg *config.Config, dispatch func(name str
 			Err: fmt.Errorf("%d uncommitted change(s)", n)}
 	})
 
-	// Changelog generator
+	// Configured changelog generator
 	if cfg.Changelog != nil {
 		gen := cfg.Changelog.Generator
 		dispatch("changelog generator", func() RuntimeCheckItem {
@@ -81,7 +81,7 @@ func RuntimeCheck(runner port.Runner, cfg *config.Config, dispatch func(name str
 		})
 	}
 
-	// Release notes generator
+	// Configured release-notes generator
 	if cfg.Release != nil && cfg.Release.Notes != nil {
 		gen := cfg.Release.Notes.Generator
 		dispatch("release-notes generator", func() RuntimeCheckItem {
@@ -96,7 +96,30 @@ func RuntimeCheck(runner port.Runner, cfg *config.Config, dispatch func(name str
 		})
 	}
 
-	// Platforms
+	// Optional generators: warn only when a supported binary is absent and
+	// not already covered by a configured (required) check.
+	usedGens := configuredGenerators(cfg)
+	for _, og := range []struct{ name, binary string }{
+		{"git-cliff", "git-cliff"},
+		{"communique", "communique"},
+		{"cocogitto", "cog"},
+	} {
+		if !usedGens[og.name] {
+			og := og
+			_, _, err := runner.Run(og.binary, "--version")
+			if err != nil {
+				dispatch(og.binary, func() RuntimeCheckItem {
+					return RuntimeCheckItem{
+						Name:   og.binary,
+						IsWarn: true,
+						Err:    fmt.Errorf("not found (not required by this config)"),
+					}
+				})
+			}
+		}
+	}
+
+	// Configured platforms
 	if cfg.Release != nil {
 		for i := range cfg.Release.Platforms {
 			platCfg := &cfg.Release.Platforms[i]
@@ -107,6 +130,28 @@ func RuntimeCheck(runner port.Runner, cfg *config.Config, dispatch func(name str
 				}
 				return RuntimeCheckItem{Name: p.Name(), Err: p.Check()}
 			})
+		}
+	}
+
+	// Optional platforms: warn only when a supported binary is absent and
+	// not already covered by a configured (required) check.
+	usedPlats := configuredPlatforms(cfg)
+	for _, op := range []struct{ typ, binary string }{
+		{"github", "gh"},
+		{"gitlab", "glab"},
+	} {
+		if !usedPlats[op.typ] {
+			op := op
+			_, _, err := runner.Run(op.binary, "--version")
+			if err != nil {
+				dispatch(op.binary, func() RuntimeCheckItem {
+					return RuntimeCheckItem{
+						Name:   op.binary,
+						IsWarn: true,
+						Err:    fmt.Errorf("not found (not required by this config)"),
+					}
+				})
+			}
 		}
 	}
 
@@ -133,6 +178,29 @@ func RuntimeCheck(runner port.Runner, cfg *config.Config, dispatch func(name str
 		}
 		return RuntimeCheckItem{Name: "git user.email", Value: strings.TrimSpace(gitEmail)}
 	})
+}
+
+// configuredGenerators returns the set of generator names active in cfg.
+func configuredGenerators(cfg *config.Config) map[string]bool {
+	m := make(map[string]bool)
+	if cfg.Changelog != nil {
+		m[cfg.Changelog.Generator] = true
+	}
+	if cfg.Release != nil && cfg.Release.Notes != nil {
+		m[cfg.Release.Notes.Generator] = true
+	}
+	return m
+}
+
+// configuredPlatforms returns the set of platform types active in cfg.
+func configuredPlatforms(cfg *config.Config) map[string]bool {
+	m := make(map[string]bool)
+	if cfg.Release != nil {
+		for _, p := range cfg.Release.Platforms {
+			m[p.Type] = true
+		}
+	}
+	return m
 }
 
 // CheckCliff runs git-cliff --context --no-exec against the effective merged config
