@@ -37,15 +37,10 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Attest build provenance
-        id: attest
-        uses: actions/attest-build-provenance@a2bbfa25375fe432b6a289bc6b6cd05ecd0c4c32 # v4
+        uses: actions/attest@59d89421af93a897026c735860bf21b6eb4f7b26 # v4
         with:
           subject-path: dist/heraut_*
-
-      - name: Upload attestation bundle to release
-        run: gh release upload ${{ github.ref_name }} ${{ steps.attest.outputs.bundle-path }}#attestation.json
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          subject-checksums: dist/heraut_*_checksums.txt
 
   docker-build:
     runs-on: ${{ matrix.runner }}
@@ -167,7 +162,7 @@ jobs:
           echo "digest=$DIGEST" >> $GITHUB_OUTPUT
 
       - name: Attest image provenance
-        uses: actions/attest-build-provenance@a2bbfa25375fe432b6a289bc6b6cd05ecd0c4c32 # v4
+        uses: actions/attest@59d89421af93a897026c735860bf21b6eb4f7b26 # v4
         with:
           subject-name: ghcr.io/adaouat/heraut
           subject-digest: ${{ steps.digest.outputs.digest }}
