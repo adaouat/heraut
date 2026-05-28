@@ -41,6 +41,11 @@ jobs:
         with:
           subject-checksums: dist/checksums.txt
 
+      - name: Publish release
+        run: gh release edit "${{ github.ref_name }}" --draft=false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
   docker-build:
     runs-on: ${{ matrix.runner }}
     permissions:

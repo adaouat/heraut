@@ -52,7 +52,7 @@ Download the raw binary for your platform from the
 [releases page](https://github.com/adaouat/heraut/releases). Assets are named
 `heraut_<version>_<os>_<arch>` (no archive wrapper — see
 [ADR-0013](docs/adr/0013-raw-binary-goreleaser-format.md)), alongside a
-`heraut_<version>_checksums.txt` for verification.
+`checksums.txt` for verification.
 
 ```bash
 # example: macOS arm64 — replace <version> with the release tag

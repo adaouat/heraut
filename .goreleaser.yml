@@ -37,3 +37,4 @@ checksum:
 
 release:
   disable: false
+  draft: true
