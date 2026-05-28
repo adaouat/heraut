@@ -1,21 +1,31 @@
 # Changelog
 
+## [0.12.2](//compare/v0.12.1..v0.12.2) - 2026-05-28
+
+### ⚙️ Miscellaneous Tasks
+
+- *(docker)* Disable update check in bundled image - ([422b199](//commit/422b1995df8a023e368bba2da80fc7e5613515d9))
+
+- *(mise)* Upgrade goreleaser 2.15 → 2.16 - ([220f4ab](//commit/220f4abda2bfbb3b79ea9e57a7247ab96f8b38d6))
+
+- Add build provenance attestations to release and docker jobs - ([6896852](//commit/6896852d0c06f34119893c257276f52ce2a766d2))
+
 ## [0.12.1](//compare/v0.12.0..v0.12.1) - 2026-05-28
 
 ### 🐛 Bug Fixes
 
-- *(scaffold)* Write prefix: "" explicitly when wizard input is empty - ([fef31ed](//commit/fef31ed9ac02ae498c8f7d6244f60dac07e4717e))
+- *(scaffold)* Write prefix: "" explicitly when wizard input is empty - ([fef31ed](//commit/fef31ed9ac02ae498c8f7d6244f60dac07e4717e)) by @bchatard
 
-- *(versioning/semver)* Strip tag prefix from --version override if present - ([75d04a6](//commit/75d04a6d0671df9deeceb371d12a17bb192c5039))
+- *(versioning/semver)* Strip tag prefix from --version override if present - ([75d04a6](//commit/75d04a6d0671df9deeceb371d12a17bb192c5039)) by @bchatard
 
 
 ### ⚙️ Miscellaneous Tasks
 
-- Parallelise goreleaser and docker jobs in release workflow - ([15ac51f](//commit/15ac51ff14aba0ab44208fdeefa7b51d34019a62))
+- Parallelise goreleaser and docker jobs in release workflow - ([15ac51f](//commit/15ac51ff14aba0ab44208fdeefa7b51d34019a62)) by @bchatard
 
-- Fix docker build cache miss on tag-triggered releases - ([193b685](//commit/193b685621d9f17b92f855ab7a0440abdf21cb6c))
+- Fix docker build cache miss on tag-triggered releases - ([193b685](//commit/193b685621d9f17b92f855ab7a0440abdf21cb6c)) by @bchatard
 
-- Bump mise tools and add actionlint + hadolint linters - ([29024ef](//commit/29024ef23be22816d9c229e027bf3cc29f2fe383))
+- Bump mise tools and add actionlint + hadolint linters - ([29024ef](//commit/29024ef23be22816d9c229e027bf3cc29f2fe383)) by @bchatard
 
 ## [0.12.0](//compare/v0.11.2..v0.12.0) - 2026-05-28
 
