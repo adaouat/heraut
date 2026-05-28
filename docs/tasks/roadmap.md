@@ -1867,6 +1867,218 @@ the `[dry-run]` result annotation. 648 tests pass across 23 packages.
 
 ---
 
+### Phase 10 — Beta Polish
+
+Goal: harden the tool based on beta testing feedback before cutting v1.0.0. Six targeted
+fixes covering CI infrastructure, self-update UX, init wizard defaults, runtime checks,
+platform auth, and a pre-v1.0 breaking rename.
+
+#### `[ ]` T43: Fix release workflow — `attestations: write` permission missing
+
+**Description:** Both `goreleaser` and `docker` jobs in `.github/workflows/release.yml`
+fail with "Failed to persist attestation: Resource not accessible by integration" because
+`attestations: write` is absent from their `permissions:` blocks. `id-token: write` is
+present (OIDC token), but `attestations: write` is also required for
+`actions/attest-build-provenance` to write the attestation to the repository.
+
+**Acceptance:**
+- `goreleaser` job gains `attestations: write`
+- `docker` job gains `attestations: write`
+- The attestation steps in both jobs pass on the next release tag push
+
+**Files:** `.github/workflows/release.yml`
+
+**Scope:** XS
+
+---
+
+#### `[ ]` T44: Self-update: suppress post-update hint and clear cache on success
+
+**Description:** After `heraut self-update` downloads and atomically replaces the binary,
+the `PersistentPostRunE` hint fires in the still-running old process. Since the old
+`currentVersion` differs from the cached `LatestVersion`, the hint is displayed immediately
+after "heraut updated to vX.Y.Z" — confusing users into thinking the update failed.
+
+**Root cause:** `Do()` completes successfully but neither suppresses the hint for the rest
+of the current process run nor clears the stale cache. The new binary (next invocation)
+will correctly see `currentVersion == LatestVersion`, but the current invocation does not.
+
+**Fix:**
+- Add an `updated bool` field to `Updater`; `Do()` sets it on success.
+- `Hint()` returns early when `u.updated` is true.
+- `Do()` also deletes the cache file after a successful update, so the first invocation
+  of the new binary fetches a fresh check (and correctly sees it is up to date).
+- Contract tests: verify `Hint` is a no-op after a successful `Do`; verify the cache
+  file is absent after `Do` succeeds.
+
+**Files:** `internal/selfupdate/updater.go`, `internal/selfupdate/selfupdate_test.go`
+
+**Scope:** S
+
+---
+
+#### `[ ]` T45: Default `changelog.output` to `"CHANGELOG.md"` when empty
+
+**Description:** `heraut init` asks for a changelog output file name but allows an empty
+answer. When the field is empty, no file is created, and the subsequent `git add +commit`
+step in the release pipeline errors because the file does not exist.
+
+**Fix applies in two places:**
+1. **Config loader / validator:** if `changelog` is configured but `changelog.output` is
+   `""` (empty string), default it to `"CHANGELOG.md"`. An explicit empty string in YAML
+   is now treated identically to an omitted field (no `*string` pointer change required —
+   validate as a post-load normalisation step).
+2. **Wizard (`scaffold/wizard.go`):** set `"CHANGELOG.md"` as the default value for the
+   `output` input so the user never gets an accidental empty value.
+
+**Acceptance:**
+- `config.Load` on a config with `output: ""` behaves as if `output: CHANGELOG.md`
+- Wizard output field defaults to `"CHANGELOG.md"` (shown as placeholder; pressing Enter
+  accepts it)
+- `heraut check config` passes for both empty-output and missing-output configs
+- Unit test: normalisation fires correctly; wizard unit test: default preserved
+
+**Files:** `internal/config/loader.go` (or `validator.go`), `internal/scaffold/wizard.go`
+
+**Scope:** S
+
+---
+
+#### `[ ]` T46: `heraut check runtime` — config-aware required vs optional tool checks
+
+**Description:** `heraut check runtime` currently checks every supported external CLI
+(`git`, `git-cliff`, `communique`, `cog`, `gh`, `glab`) regardless of what the active
+config actually uses. As a result, a pure GitHub + git-cliff project sees spurious errors
+for `glab` and `cog` being absent.
+
+**Expected behaviour:**
+- **Required** (hard error): tools the active config actually needs — the configured
+  generator (`git-cliff`, `communique`, or `cog`) and each configured platform (`gh` for
+  GitHub, `glab` for GitLab).
+- **Optional / warn**: tools that heraut supports but are not referenced by the current
+  config — emit `⚠ glab not found (not required by this config)` rather than an error.
+- `git` and `git user.name/email` remain required unconditionally (no config dependency).
+
+**Approach:** `app.RuntimeCheck` receives `*config.Config` (already does) — derive which
+generator and platforms are active and partition the tool list into required vs optional.
+Pass the partition to the streaming dispatch so `cmd/check.go` can apply `Done` vs
+`Skip`/`Warn` per item.
+
+**Files:** `internal/app/check.go`, `internal/app/check_test.go`,
+`internal/cmd/check.go`
+
+**Scope:** S
+
+---
+
+#### `[ ]` T47: Platform API auth verification in `platform.Check()`
+
+**Description:** Both `github.Platform.Check()` and `gitlab.Platform.Check()` verify the
+token env var is non-empty, but they do not confirm the credentials are actually accepted
+by the API. A missing or revoked token is only discovered mid-release after git has
+already committed and tagged. The previous implementation had a `checkAPIAuth` call;
+that guard was not ported to the current platform drivers.
+
+**Approach:** The user will supply detailed requirements for each platform before this task
+starts (the exact CLI calls to use, what constitutes a passing auth check, and what error
+message/hint to surface on failure). Do not implement until those details are provided.
+
+**Acceptance (placeholders — to be filled in at task start):**
+- `Platform.Check()` returns a non-nil error when credentials are set but invalid/expired
+- `heraut check runtime` shows `✓ gh — <auth detail>` / `✓ glab — <auth detail>` on success
+- Contract tests assert the exact CLI args for the auth check (MockRunner pattern)
+- Auth check failure produces a clear actionable error with a remediation hint
+
+**Files:** `internal/platforms/github/{platform,platform_test}.go`,
+`internal/platforms/gitlab/{platform,platform_test}.go`
+
+**Scope:** S
+
+---
+
+#### `[ ]` T48: Rename `versioning.prefix` → `versioning.tag_prefix`
+
+**Description:** `versioning.tag_format` and `versioning.prefix` are sibling fields in the
+`[versioning]` block, both governing tag naming. The inconsistent naming (`tag_format` vs
+plain `prefix`) is a pre-v1.0 wart — once v1.0.0 ships, any rename is a breaking change.
+
+**Decision:** rename `versioning.prefix` → `versioning.tag_prefix`. The `tag_*` prefix
+makes the grouping explicit: `tag_format` (full template) and `tag_prefix` (short prefix,
+e.g. `v`) clearly belong together.
+
+**Acceptance (breaking change — mechanical migration):**
+- `config.Versioning.Prefix *string` → `config.Versioning.TagPrefix *string`; YAML tag
+  changes from `yaml:"prefix"` to `yaml:"tag_prefix"`
+- All internal references (`semver`, `calver`, `perenv`, `app/`, `scaffold/`) updated
+- `schema.json`: `versioning.prefix` → `versioning.tag_prefix`; old field removed
+- `docs/heraut.sample.yml`: updated
+- `testdata/config/valid/*.yml` and `testdata/config/invalid/*.yml`: all `prefix:` keys
+  renamed to `tag_prefix:`
+- `.config/heraut.yml` (heraut's own config): updated
+- `docs/specs/02-configuration.md` and `04-versioning.md`: updated
+- `heraut init` wizard: field label updated; YAML output uses `tag_prefix:`
+- All tests pass; `go test ./...` clean after rename
+
+**Files:** `internal/config/config.go`, `internal/versioning/semver/resolver.go`,
+`internal/versioning/calver/resolver.go`, `internal/versioning/perenv/resolver.go`,
+`internal/app/resolver.go`, `internal/scaffold/{wizard,generate}.go`, `schema.json`,
+`docs/heraut.sample.yml`, `testdata/config/valid/*.yml`, `testdata/config/invalid/*.yml`,
+`.config/heraut.yml`, `docs/specs/02-configuration.md`, `docs/specs/04-versioning.md`
+
+**Scope:** M
+
+---
+
+#### `[ ]` T49: Parallel multi-arch Docker builds via runner matrix
+
+**Description:** The bundled Docker image currently builds `linux/amd64` and `linux/arm64`
+in a single job using QEMU emulation (`docker/setup-qemu-action`). Since the GHA cache
+was introduced (T31), build time has grown to ~70 min — the arm64 QEMU emulation is the
+bottleneck even when layers are cached. The image is ~340 MB; on native hardware each
+platform should build in under 10 min.
+
+**Approach (standard Docker multi-arch matrix pattern):**
+1. A `docker-build` matrix job with two rows:
+   - `{ platform: linux/amd64, runner: ubuntu-latest }`
+   - `{ platform: linux/arm64, runner: ubuntu-24.04-arm }` — GitHub's native arm64 runner
+   Each row builds a single-platform image, pushes to GHCR **by digest** (no final tags),
+   and uploads the digest as a job artifact (or job output).
+2. A `docker-merge` job (depends on both matrix rows) calls
+   `docker buildx imagetools create` combining the two digests under the final
+   `docker/metadata-action` tags (same `semver` patterns as today).
+3. The attest step moves to `docker-merge` and attests the merged image digest.
+4. QEMU setup and `--platforms linux/amd64,linux/arm64` removed from the build step.
+5. Per-platform GHA layer cache (`scope=docker-release-{platform}`) so each runner
+   warms and reads its own cache without cross-platform interference.
+
+**Acceptance:**
+- Total wall-clock time for the `docker` path ≤ 20 min on a real release tag
+- Published image remains a proper multi-arch manifest list (`docker inspect` shows both
+  `linux/amd64` and `linux/arm64` digests)
+- Cascading tags (`X.Y.Z`, `X.Y`, `X`, `latest`) are still applied to the merged manifest
+- Attestation still attached to the final merged image
+- No change to the `goreleaser` job
+
+**Files:** `.github/workflows/release.yml`
+
+**Scope:** S
+
+---
+
+### ✦ `[ ]` CHECKPOINT K — Beta polish complete, ready for v1.0.0
+
+- [ ] Release workflow attestation steps pass
+- [ ] `heraut self-update` hint does not fire immediately after a successful update
+- [ ] `heraut init` with empty changelog output defaults to `CHANGELOG.md`
+- [ ] `heraut check runtime` shows errors only for tools the active config requires
+- [ ] `heraut check runtime` fails fast on invalid/expired platform credentials
+- [ ] `versioning.tag_prefix` replaces `versioning.prefix` throughout
+- [ ] `go test ./...` passes; all fixtures use `tag_prefix:`
+- [ ] Docker build splits into parallel native-runner matrix; wall-clock ≤ 20 min
+- [ ] v1.0.0 cut by running `heraut release` on the heraut repo itself
+
+---
+
 ## Risks and mitigations
 
 | Risk                                                                                | Impact            | Mitigation                                                                |
