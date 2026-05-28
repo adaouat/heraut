@@ -46,6 +46,7 @@ jobs:
     permissions:
       packages: write # push image digest to GHCR
       id-token: write # OIDC token (required by login-action)
+      artifact-metadata: write # upload-artifact v7+ storage record
     strategy:
       fail-fast: false
       matrix:
@@ -113,6 +114,7 @@ jobs:
       packages: write # push final manifest list to GHCR
       id-token: write # OIDC token for build provenance attestation
       attestations: write # persist image provenance attestations
+      artifact-metadata: write # download-artifact v8+ storage record
     steps:
       - name: Download digests
         uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
