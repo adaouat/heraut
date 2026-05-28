@@ -1,17 +1,23 @@
 # Changelog
 
+## [0.12.4](//compare/v0.12.3..v0.12.4) - 2026-05-28
+
+### ⚙️ Miscellaneous Tasks
+
+- Add artifact-metadata: write permission to docker jobs - ([decfcbc](//commit/decfcbccc2625b5533ee4bef199ae2dc933dd01d))
+
 ## [0.12.3](//compare/v0.12.2..v0.12.3) - 2026-05-28
 
 ### 📚 Documentation
 
-- *(roadmap)* Add Phase 10 — Beta Polish (T43–T49) - ([6de2674](//commit/6de267472726373d8a6bff0a01e22a6ad25dc562))
+- *(roadmap)* Add Phase 10 — Beta Polish (T43–T49) - ([6de2674](//commit/6de267472726373d8a6bff0a01e22a6ad25dc562)) by @bchatard
 
 
 ### ⚙️ Miscellaneous Tasks
 
-- Add attestations: write permission to release and docker jobs - ([a265f96](//commit/a265f96278f9c34b3b7627d5a7f9d24cada0e2e0))
+- Add attestations: write permission to release and docker jobs - ([a265f96](//commit/a265f96278f9c34b3b7627d5a7f9d24cada0e2e0)) by @bchatard
 
-- Build linux/amd64 and linux/arm64 Docker images in parallel - ([f51daeb](//commit/f51daeba215080bf2f1314b9f193cc2687a2c958))
+- Build linux/amd64 and linux/arm64 Docker images in parallel - ([f51daeb](//commit/f51daeba215080bf2f1314b9f193cc2687a2c958)) by @bchatard
 
 ## [0.12.2](//compare/v0.12.1..v0.12.2) - 2026-05-28
 
