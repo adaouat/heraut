@@ -1,8 +1,10 @@
 package gitlab
 
 import (
+	"errors"
 	"fmt"
 	"os"
+	"strings"
 
 	"github.com/adaouat/heraut/internal/config"
 	"github.com/adaouat/heraut/internal/platforms"
@@ -10,9 +12,9 @@ import (
 )
 
 const (
-	defaultTokenEnv  = "GITLAB_TOKEN"
-	projectEnvVar    = "CI_PROJECT_PATH"
-	gitlabBaseURL    = "https://gitlab.com"
+	defaultTokenEnv = "GITLAB_TOKEN"
+	projectEnvVar   = "CI_PROJECT_PATH"
+	gitlabBaseURL   = "https://gitlab.com"
 )
 
 // Platform implements port.Platform for GitLab via the glab CLI.
@@ -34,17 +36,66 @@ func (p *Platform) ReleaseURL(tag string) string {
 	return fmt.Sprintf("%s/%s/-/releases/%s", gitlabBaseURL, p.project(), tag)
 }
 
-// Check verifies glab is on PATH, the token env var is set, and project is resolvable.
+// Check verifies glab is on PATH, the token env var is set, project is resolvable,
+// and the token authenticates successfully against the GitLab API.
 func (p *Platform) Check() error {
-	if _, _, err := p.runner.Run("glab", "--version"); err != nil {
-		return fmt.Errorf("glab not found: %w", err)
+	var errs []error
+
+	_, _, binaryErr := p.runner.Run("glab", "--version")
+	if binaryErr != nil {
+		errs = append(errs, fmt.Errorf("glab not found: %w", binaryErr))
 	}
+
 	tokenEnv := p.tokenEnv()
-	if os.Getenv(tokenEnv) == "" {
-		return fmt.Errorf("environment variable %s is not set", tokenEnv)
+	tokenMissing := os.Getenv(tokenEnv) == ""
+	if tokenMissing {
+		errs = append(errs, fmt.Errorf("environment variable %s is not set", tokenEnv))
 	}
+
 	if p.project() == "" {
-		return fmt.Errorf("project not set: configure project: in .heraut.yml or set $%s", projectEnvVar)
+		errs = append(errs, fmt.Errorf("project not set: configure project: in .heraut.yml or set $%s", projectEnvVar))
+	}
+
+	if binaryErr == nil {
+		if err := p.checkAPIAuth(tokenEnv, tokenMissing); err != nil {
+			errs = append(errs, err)
+		}
+	}
+
+	return errors.Join(errs...)
+}
+
+// checkAPIAuth verifies API access. In GitLab CI, glab is already authenticated
+// via CI autologin so no token injection is used; the project releases endpoint is
+// probed via CI_PROJECT_ID. Outside CI, the configured token is validated via the
+// /user endpoint.
+func (p *Platform) checkAPIAuth(tokenEnv string, tokenMissing bool) error {
+	if os.Getenv("GITLAB_CI") == "true" {
+		projectID := os.Getenv("CI_PROJECT_ID")
+		if projectID == "" {
+			return nil
+		}
+		endpoint := "projects/" + projectID + "/releases?per_page=1"
+		_, stderr, err := p.runner.Run("glab", "api", endpoint)
+		if err != nil {
+			return fmt.Errorf("gitlab: API call failed (glab api %s): %s\n  hint: ensure CI_JOB_TOKEN has read access (Settings > CI/CD > Job token permissions)", endpoint, strings.TrimSpace(stderr))
+		}
+		return nil
+	}
+	if tokenMissing {
+		return nil
+	}
+	_, stderr, err := p.runner.RunEnv(p.tokenEnvSlice(tokenEnv), "glab", "api", "user")
+	if err != nil {
+		return fmt.Errorf("gitlab: API call failed (glab api user): %s\n  hint: verify %s is valid and has the api scope", strings.TrimSpace(stderr), tokenEnv)
+	}
+	return nil
+}
+
+// tokenEnvSlice injects the configured token as GITLAB_TOKEN so glab always finds it.
+func (p *Platform) tokenEnvSlice(envName string) []string {
+	if token := os.Getenv(envName); token != "" {
+		return []string{"GITLAB_TOKEN=" + token}
 	}
 	return nil
 }

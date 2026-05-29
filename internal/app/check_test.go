@@ -266,6 +266,7 @@ func TestRuntimeCheck_WithGitcliff(t *testing.T) {
 
 func TestRuntimeCheck_WithGitHubPlatform(t *testing.T) {
 	t.Setenv("GH_TOKEN", "test-token")
+	t.Setenv("GITHUB_ACTIONS", "") // non-CI path
 
 	mr := testutil.NewMockRunner()
 	mr.QueueResponse("git version 2.40.0", "", nil) // git --version
@@ -273,14 +274,15 @@ func TestRuntimeCheck_WithGitHubPlatform(t *testing.T) {
 	mr.QueueResponse("a@b.com", "", nil)            // user.email
 	mr.QueueResponse("", "", nil)                   // git status
 	mr.QueueResponse("glab 1.0", "", nil)           // glab (optional)
-	mr.QueueResponse("gh 2.67.0", "", nil)          // gh (required)
+	mr.QueueResponse("gh 2.67.0", "", nil)          // gh binary — inside p.Check()
+	mr.QueueResponse(`[]`, "", nil)                 // gh api auth — inside p.Check().checkAPIAuth()
 	mr.QueueResponse("git-cliff 2.0", "", nil)      // git-cliff (optional)
 	mr.QueueResponse("cog 7.0", "", nil)            // cog (optional)
 	mr.QueueResponse("communique 1.0", "", nil)     // communique (optional)
 
 	cfg := semverCfg()
 	cfg.Release = &config.Release{
-		Platforms: []config.Platform{{Type: "github"}},
+		Platforms: []config.Platform{{Type: "github", Repository: "org/repo"}},
 	}
 	items := collectItems(mr, cfg)
 
@@ -289,7 +291,6 @@ func TestRuntimeCheck_WithGitHubPlatform(t *testing.T) {
 		if it.Name == "gh" {
 			found = true
 			assert.NoError(t, it.Err)
-			assert.Equal(t, "gh 2.67.0", it.Value)
 		}
 	}
 	assert.True(t, found, "expected gh item")
@@ -297,6 +298,7 @@ func TestRuntimeCheck_WithGitHubPlatform(t *testing.T) {
 
 func TestRuntimeCheck_WithGitHubPlatform_MissingToken(t *testing.T) {
 	t.Setenv("GH_TOKEN", "")
+	t.Setenv("GITHUB_ACTIONS", "")
 
 	mr := testutil.NewMockRunner()
 	mr.QueueResponse("git version 2.40.0", "", nil) // git --version
@@ -304,14 +306,15 @@ func TestRuntimeCheck_WithGitHubPlatform_MissingToken(t *testing.T) {
 	mr.QueueResponse("a@b.com", "", nil)            // user.email
 	mr.QueueResponse("", "", nil)                   // git status
 	mr.QueueResponse("glab 1.0", "", nil)           // glab (optional)
-	mr.QueueResponse("gh 2.67.0", "", nil)          // gh (required — binary found but token missing)
-	mr.QueueResponse("git-cliff 2.0", "", nil)      // git-cliff (optional)
-	mr.QueueResponse("cog 7.0", "", nil)            // cog (optional)
-	mr.QueueResponse("communique 1.0", "", nil)     // communique (optional)
+	mr.QueueResponse("gh 2.67.0", "", nil)          // gh binary — p.Check() runs binary before token
+	// token missing → checkAPIAuth skipped → no API runner call
+	mr.QueueResponse("git-cliff 2.0", "", nil)  // git-cliff (optional)
+	mr.QueueResponse("cog 7.0", "", nil)        // cog (optional)
+	mr.QueueResponse("communique 1.0", "", nil) // communique (optional)
 
 	cfg := semverCfg()
 	cfg.Release = &config.Release{
-		Platforms: []config.Platform{{Type: "github"}},
+		Platforms: []config.Platform{{Type: "github", Repository: "org/repo"}},
 	}
 	items := collectItems(mr, cfg)
 

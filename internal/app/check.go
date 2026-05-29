@@ -2,7 +2,6 @@ package app
 
 import (
 	"fmt"
-	"os"
 	"strings"
 
 	"github.com/adaouat/heraut/internal/config"
@@ -114,23 +113,25 @@ func RuntimeCheck(
 		op := op
 		required := usedPlats[op.typ]
 		dispatch(op.display, func() RuntimeCheckItem {
+			if required {
+				// Full check: binary + token + project + API auth.
+				platCfg := findPlatformCfg(cfg, op.typ)
+				p, buildErr := buildPlatform(runner, platCfg)
+				if buildErr != nil {
+					return RuntimeCheckItem{Name: op.display, Err: buildErr}
+				}
+				if err := p.Check(); err != nil {
+					return RuntimeCheckItem{Name: op.display, Err: err}
+				}
+				return RuntimeCheckItem{Name: op.display}
+			}
+			// Optional: binary existence only, show version if found.
 			out, _, err := runner.Run(op.binary, "--version")
 			if err != nil {
-				if required {
-					return RuntimeCheckItem{Name: op.display, Err: fmt.Errorf("%s: not found on PATH", op.binary)}
-				}
 				return RuntimeCheckItem{Name: op.display, IsWarn: true,
 					Err: fmt.Errorf("not found (not required by this config)")}
 			}
-			version := strings.TrimSpace(out)
-			if required {
-				tokenEnv := platformTokenEnv(cfg, op.typ)
-				if os.Getenv(tokenEnv) == "" {
-					return RuntimeCheckItem{Name: op.display,
-						Err: fmt.Errorf("%s is not set", tokenEnv)}
-				}
-			}
-			return RuntimeCheckItem{Name: op.display, Value: version}
+			return RuntimeCheckItem{Name: op.display, Value: strings.TrimSpace(out)}
 		})
 	}
 
@@ -182,24 +183,17 @@ func configuredPlatforms(cfg *config.Config) map[string]bool {
 	return m
 }
 
-// platformTokenEnv returns the token environment variable name for a platform,
-// using the per-config override when set, falling back to the well-known default.
-func platformTokenEnv(cfg *config.Config, typ string) string {
-	if cfg.Release != nil {
-		for _, p := range cfg.Release.Platforms {
-			if p.Type == typ && p.TokenEnv != "" {
-				return p.TokenEnv
-			}
+// findPlatformCfg returns the config for the platform of the given type, or nil.
+func findPlatformCfg(cfg *config.Config, typ string) *config.Platform {
+	if cfg.Release == nil {
+		return nil
+	}
+	for i := range cfg.Release.Platforms {
+		if cfg.Release.Platforms[i].Type == typ {
+			return &cfg.Release.Platforms[i]
 		}
 	}
-	switch typ {
-	case "github":
-		return "GH_TOKEN"
-	case "gitlab":
-		return "GITLAB_TOKEN"
-	default:
-		return ""
-	}
+	return nil
 }
 
 // CheckCliff runs git-cliff --context --no-exec against the effective merged config

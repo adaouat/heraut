@@ -68,16 +68,18 @@ func TestCheck_ProjectMissing(t *testing.T) {
 }
 
 func TestCheck_OK(t *testing.T) {
+	t.Setenv("GITLAB_CI", "")
 	mr := testutil.NewMockRunner()
 	mr.QueueResponse("glab version 1.0.0", "", nil)
+	mr.QueueResponse(`{"username":"alice"}`, "", nil) // auth check
 
 	t.Setenv("GITLAB_TOKEN", "tok")
 	p := gitlab.New(mr, &config.Platform{TokenEnv: "GITLAB_TOKEN", Project: "grp/repo"})
 	require.NoError(t, p.Check())
 
-	require.Len(t, mr.Calls, 1)
-	assert.Equal(t, "glab", mr.Calls[0].Name)
+	require.Len(t, mr.Calls, 2)
 	assert.Equal(t, []string{"--version"}, mr.Calls[0].Args)
+	assert.Equal(t, []string{"api", "user"}, mr.Calls[1].Args)
 }
 
 func TestCreateRelease_BasicArgs(t *testing.T) {
@@ -96,7 +98,6 @@ func TestCreateRelease_BasicArgs(t *testing.T) {
 		"-R", "grp/repo",
 	}, call.Args)
 }
-
 
 func TestHasAssets(t *testing.T) {
 	pEmpty := gitlab.New(testutil.NewMockRunner(), &config.Platform{})
@@ -209,11 +210,77 @@ func TestCreateRelease_NoProject_Error(t *testing.T) {
 
 // TestCheck_DefaultTokenEnv covers the tokenEnv() fallback to "GITLAB_TOKEN" when no TokenEnv is configured.
 func TestCheck_DefaultTokenEnv(t *testing.T) {
+	t.Setenv("GITLAB_CI", "")
 	mr := testutil.NewMockRunner()
 	mr.QueueResponse("glab version 1.0.0", "", nil)
+	mr.QueueResponse(`{"username":"alice"}`, "", nil) // auth check
 
 	t.Setenv("GITLAB_TOKEN", "tok")
 	// No TokenEnv configured — should fall back to "GITLAB_TOKEN" default
 	p := gitlab.New(mr, &config.Platform{Project: "grp/repo"})
 	require.NoError(t, p.Check())
+}
+
+// ---- Auth check -------------------------------------------------------------
+
+func TestCheck_OK_WithAuth(t *testing.T) {
+	t.Setenv("GITLAB_CI", "")
+	mr := testutil.NewMockRunner()
+	mr.QueueResponse("glab version 1.0.0", "", nil)   // --version
+	mr.QueueResponse(`{"username":"alice"}`, "", nil) // glab api user
+
+	t.Setenv("GITLAB_TOKEN", "tok")
+	p := gitlab.New(mr, &config.Platform{TokenEnv: "GITLAB_TOKEN", Project: "grp/repo"})
+	require.NoError(t, p.Check())
+
+	require.Len(t, mr.Calls, 2)
+	assert.Equal(t, []string{"--version"}, mr.Calls[0].Args)
+	assert.Equal(t, []string{"api", "user"}, mr.Calls[1].Args)
+	assert.Equal(t, []string{"GITLAB_TOKEN=tok"}, mr.Calls[1].Env)
+}
+
+func TestCheck_Auth_Failure(t *testing.T) {
+	t.Setenv("GITLAB_CI", "")
+	mr := testutil.NewMockRunner()
+	mr.QueueResponse("glab version 1.0.0", "", nil)
+	mr.QueueResponse("", "401 Unauthorized", errors.New("exit status 1"))
+
+	t.Setenv("GITLAB_TOKEN", "bad-token")
+	p := gitlab.New(mr, &config.Platform{TokenEnv: "GITLAB_TOKEN", Project: "grp/repo"})
+
+	err := p.Check()
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "API call failed")
+	assert.Contains(t, err.Error(), "GITLAB_TOKEN")
+}
+
+func TestCheck_Auth_InCI_OK(t *testing.T) {
+	t.Setenv("GITLAB_CI", "true")
+	t.Setenv("CI_PROJECT_ID", "42")
+	mr := testutil.NewMockRunner()
+	mr.QueueResponse("glab version 1.0.0", "", nil)
+	mr.QueueResponse(`[]`, "", nil) // glab api projects/42/releases?per_page=1
+
+	t.Setenv("GITLAB_TOKEN", "ci-token")
+	p := gitlab.New(mr, &config.Platform{TokenEnv: "GITLAB_TOKEN", Project: "grp/repo"})
+	require.NoError(t, p.Check())
+
+	require.Len(t, mr.Calls, 2)
+	assert.Equal(t, []string{"api", "projects/42/releases?per_page=1"}, mr.Calls[1].Args)
+	// In CI, no token injection — glab uses its own CI autologin
+	assert.Nil(t, mr.Calls[1].Env)
+}
+
+func TestCheck_Auth_InCI_NoProjectID(t *testing.T) {
+	// When CI_PROJECT_ID is unset, skip the auth check gracefully.
+	t.Setenv("GITLAB_CI", "true")
+	t.Setenv("CI_PROJECT_ID", "")
+	mr := testutil.NewMockRunner()
+	mr.QueueResponse("glab version 1.0.0", "", nil)
+	// No second response needed — auth check is skipped
+
+	t.Setenv("GITLAB_TOKEN", "ci-token")
+	p := gitlab.New(mr, &config.Platform{TokenEnv: "GITLAB_TOKEN", Project: "grp/repo"})
+	require.NoError(t, p.Check())
+	require.Len(t, mr.Calls, 1) // only binary check
 }

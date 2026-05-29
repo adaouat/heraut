@@ -2004,7 +2004,7 @@ pass.
 
 ---
 
-#### `[ ]` T47: Platform API auth verification in `platform.Check()`
+#### `[x]` T47: Platform API auth verification in `platform.Check()`
 
 **Description:** Both `github.Platform.Check()` and `gitlab.Platform.Check()` verify the
 token env var is non-empty, but they do not confirm the credentials are actually accepted
