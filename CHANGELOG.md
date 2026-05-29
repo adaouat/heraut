@@ -1,17 +1,23 @@
 # Changelog
 
+## [0.13.4](//compare/v0.13.3..v0.13.4) - 2026-05-29
+
+### 🐛 Bug Fixes
+
+- *(selfupdate)* Correct checksum filename to match goreleaser config - ([8645ed2](//commit/8645ed21eae821b6b6059e5cbef804a1d2c0b44f))
+
 ## [0.13.3](//compare/v0.13.2..v0.13.3) - 2026-05-29
 
 ### 🐛 Bug Fixes
 
-- *(pipeline)* Disable_changelog no longer suppresses --tag - ([2fa8b0e](//commit/2fa8b0ebd8f76d8db0fa0dcf8d148114af942d08))
+- *(pipeline)* Disable_changelog no longer suppresses --tag - ([2fa8b0e](//commit/2fa8b0ebd8f76d8db0fa0dcf8d148114af942d08)) by @bchatard
 
 
 ### 📚 Documentation
 
-- *(roadmap)* Add T50 — disable_changelog should not suppress --tag - ([20c00fa](//commit/20c00fac71ef77ffa6c96b48686bbd6d756bf171))
+- *(roadmap)* Add T50 — disable_changelog should not suppress --tag - ([20c00fa](//commit/20c00fac71ef77ffa6c96b48686bbd6d756bf171)) by @bchatard
 
-- *(specs)* Document release without notes as an explicit valid pattern - ([e409edb](//commit/e409edb640a5217eb74496f51f1b97fdb0893f35))
+- *(specs)* Document release without notes as an explicit valid pattern - ([e409edb](//commit/e409edb640a5217eb74496f51f1b97fdb0893f35)) by @bchatard
 
 ## [0.13.2](//compare/v0.13.1..v0.13.2) - 2026-05-29
 
