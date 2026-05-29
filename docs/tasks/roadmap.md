@@ -2127,6 +2127,61 @@ is cutting v1.0.0 itself — all quality gates are green.
 
 ---
 
+### Phase 11 — Post-Beta Improvements
+
+Goal: targeted behaviour fixes discovered during real-world usage after Phase 10.
+
+#### `[ ]` T50: `disable_changelog` should not suppress `--tag` in `heraut changelog`
+
+**Description:** `disable_changelog: true` per-env currently exits the `heraut changelog`
+pipeline entirely — before the tag step runs. This means a pipeline that uses
+`heraut changelog --tag --env B` with `disable_changelog: true` for env B silently skips
+the tag, even though `--tag` was explicitly requested.
+
+The intended behaviour is:
+- env A (`heraut changelog --tag`): generate changelog → commit → tag ✓
+- env B (`heraut changelog --tag --env B`, `disable_changelog: true`): skip changelog
+  generation and commit; still create and push the tag ✓
+
+This makes `heraut changelog --tag` a clean tag-only workflow for envs where changelog
+generation is disabled, without requiring a separate command.
+
+**Root cause:** `pipeline.ChangelogPipeline.Run()` returns early when
+`cfg.DisableChangelog` is true (before the tag block at step 4). The fix is to change the
+early return to only skip the changelog generation+commit block, then proceed to the tag
+step when `cfg.Tag` is true.
+
+**Behaviour contract after the fix:**
+
+| `DisableChangelog` | `Tag` | Changelog generated | Tag created |
+|--------------------|-------|---------------------|-------------|
+| false              | false | yes (if configured) | no          |
+| false              | true  | yes (if configured) | yes         |
+| true               | false | no                  | no          |
+| true               | true  | no                  | yes         |
+
+**Acceptance:**
+- `pipeline.ChangelogPipeline.Run()` with `DisableChangelog: true, Tag: true` skips
+  changelog generation and commit but creates and pushes the tag
+- With `DisableChangelog: true, Tag: false` the pipeline still exits early with the
+  "changelog disabled" message (no tag, no changelog — nothing to do)
+- Reporter: the "Generate changelog" step emits `Skip("disabled")` when `DisableChangelog`
+  is true; tag steps proceed as normal
+- `docs/specs/03-commands.md`: update `disable_changelog` description to reflect the new
+  semantics (skips generation only, not the whole command)
+- `docs/specs/02-configuration.md`: same update in the `disable_changelog` field table
+- Existing tests for `DisableChangelog: true, Tag: false` continue to pass unchanged
+
+**Dependencies:** T42 (reporter integration)
+
+**Files:** `internal/pipeline/changelog.go`, `internal/pipeline/changelog_test.go`,
+`internal/pipeline/changelog_reporter_test.go`,
+`docs/specs/03-commands.md`, `docs/specs/02-configuration.md`
+
+**Scope:** S
+
+---
+
 ## Risks and mitigations
 
 | Risk                                                                                | Impact            | Mitigation                                                                |
