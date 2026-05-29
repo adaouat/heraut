@@ -15,7 +15,7 @@ func TestDefaults_Strategy(t *testing.T) {
 
 func TestDefaults_Prefix(t *testing.T) {
 	a := scaffold.Defaults()
-	assert.Equal(t, "v", a.Prefix)
+	assert.Equal(t, "v", a.TagPrefix)
 }
 
 func TestDefaults_Generator(t *testing.T) {
@@ -42,10 +42,10 @@ func TestConfigToAnswers_Prefix(t *testing.T) {
 	prefix := "v"
 	cfg := &config.Config{
 		Version:    "1",
-		Versioning: config.Versioning{Strategy: "semver", Prefix: &prefix},
+		Versioning: config.Versioning{Strategy: "semver", TagPrefix: &prefix},
 	}
 	a := scaffold.ConfigToAnswers(cfg)
-	assert.Equal(t, "v", a.Prefix)
+	assert.Equal(t, "v", a.TagPrefix)
 }
 
 func TestConfigToAnswers_NilPrefix(t *testing.T) {
@@ -54,7 +54,7 @@ func TestConfigToAnswers_NilPrefix(t *testing.T) {
 		Versioning: config.Versioning{Strategy: "semver"},
 	}
 	a := scaffold.ConfigToAnswers(cfg)
-	assert.Equal(t, "", a.Prefix)
+	assert.Equal(t, "", a.TagPrefix)
 }
 
 func TestConfigToAnswers_CalVerFormat(t *testing.T) {

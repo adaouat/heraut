@@ -33,8 +33,8 @@ func CurrentTag(runner port.Runner, cfg *config.Config, env string) (string, err
 
 func currentTagGlob(cfg *config.Config, env string) (string, error) {
 	prefix := func() string {
-		if cfg.Versioning.Prefix != nil {
-			return *cfg.Versioning.Prefix
+		if cfg.Versioning.TagPrefix != nil {
+			return *cfg.Versioning.TagPrefix
 		}
 		return ""
 	}
@@ -42,8 +42,8 @@ func currentTagGlob(cfg *config.Config, env string) (string, error) {
 	switch cfg.Versioning.Strategy {
 	case "semver":
 		p := "v"
-		if cfg.Versioning.Prefix != nil {
-			p = *cfg.Versioning.Prefix
+		if cfg.Versioning.TagPrefix != nil {
+			p = *cfg.Versioning.TagPrefix
 		}
 		return p + "*", nil
 	case "calver":

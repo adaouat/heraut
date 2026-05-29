@@ -70,7 +70,7 @@ versioning:
 | Field             | Required    | Default                                  | Description                                                                                                                                                                                                                |
 |-------------------|-------------|------------------------------------------|----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
 | `strategy`        | Yes         | —                                        | One of: `semver`, `calver`, `semver-per-env`, `calver-per-env`.                                                                                                                                                            |
-| `prefix`          | No          | `"v"` (semver), `""` (calver)            | Tag prefix prepended to the version string. Set to `""` to produce bare version tags.                                                                                                                                      |
+| `tag_prefix`          | No          | `"v"` (semver), `""` (calver)            | Tag prefix prepended to the version string. Set to `""` to produce bare version tags.                                                                                                                                      |
 | `initial_version` | No          | `"0.1.0"`                                | Version used when no tags exist yet. SemVer strategies only.                                                                                                                                                               |
 | `bump`            | No          | `"auto"`                                 | `auto` — infer bump from conventional commits. `manual` — requires `--version` flag at runtime. SemVer strategies only.                                                                                                    |
 | `format`          | CalVer      | —                                        | CalVer format string (see [Spec 04 — Versioning § CalVer format tokens](04-versioning.md#calver-format-tokens)). Required for `calver` and `calver-per-env`.                                                               |
@@ -85,7 +85,7 @@ See [Spec 04 — Versioning](04-versioning.md) for strategy-specific behaviour.
 ```yaml
 versioning:
   strategy: semver
-  prefix: "v"             # produces tags like v1.2.3
+  tag_prefix: "v"             # produces tags like v1.2.3
   initial_version: "0.1.0"
   bump: auto
 ```
@@ -96,7 +96,7 @@ versioning:
 versioning:
   strategy: calver
   format: "YYYY.MM.PATCH"   # e.g. 2026.05.0, 2026.05.1
-  prefix: ""
+  tag_prefix: ""
 ```
 
 ### Strategy: `semver-per-env`
@@ -373,7 +373,7 @@ version: "1"
 
 versioning:
   strategy: semver
-  prefix: "v"
+  tag_prefix: "v"
   initial_version: "0.1.0"
   bump: auto
 
@@ -398,7 +398,7 @@ version: "1"
 versioning:
   strategy: calver
   format: "YYYY.MM.PATCH"
-  prefix: ""
+  tag_prefix: ""
 
 changelog:
   generator: git-cliff
@@ -461,7 +461,7 @@ version: "1"
 
 versioning:
   strategy: semver
-  prefix: "v"
+  tag_prefix: "v"
 
 release:
   notes:

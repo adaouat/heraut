@@ -2029,7 +2029,7 @@ message/hint to surface on failure). Do not implement until those details are pr
 
 ---
 
-#### `[ ]` T48: Rename `versioning.prefix` → `versioning.tag_prefix`
+#### `[x]` T48: Rename `versioning.prefix` → `versioning.tag_prefix`
 
 **Description:** `versioning.tag_format` and `versioning.prefix` are sibling fields in the
 `[versioning]` block, both governing tag naming. The inconsistent naming (`tag_format` vs

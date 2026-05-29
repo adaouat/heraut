@@ -38,7 +38,7 @@ func TestGenerateYAML_DefaultsRoundTrip(t *testing.T) {
 func TestGenerateYAML_SemVer(t *testing.T) {
 	a := scaffold.Answers{
 		Strategy:           "semver",
-		Prefix:             "v",
+		TagPrefix:          "v",
 		ChangelogGenerator: "git-cliff",
 		ChangelogOutput:    "CHANGELOG.md",
 		NotesGenerator:     "git-cliff",
@@ -54,14 +54,14 @@ func TestGenerateYAML_SemVer(t *testing.T) {
 	errs := config.Validate(cfg)
 	assert.Empty(t, errs)
 	assert.Equal(t, "semver", cfg.Versioning.Strategy)
-	require.NotNil(t, cfg.Versioning.Prefix)
-	assert.Equal(t, "v", *cfg.Versioning.Prefix)
+	require.NotNil(t, cfg.Versioning.TagPrefix)
+	assert.Equal(t, "v", *cfg.Versioning.TagPrefix)
 }
 
 func TestGenerateYAML_CalVer(t *testing.T) {
 	a := scaffold.Answers{
 		Strategy:           "calver",
-		Prefix:             "",
+		TagPrefix:          "",
 		Format:             "YYYY.MM.PATCH",
 		ChangelogGenerator: "git-cliff",
 		ChangelogOutput:    "CHANGELOG.md",
@@ -80,8 +80,8 @@ func TestGenerateYAML_CalVer(t *testing.T) {
 	assert.Equal(t, "YYYY.MM.PATCH", cfg.Versioning.Format)
 	// Empty prefix must survive the round-trip as &"" so the resolver does not
 	// fall back to the "v" default (nil = unset = use default).
-	require.NotNil(t, cfg.Versioning.Prefix)
-	assert.Equal(t, "", *cfg.Versioning.Prefix)
+	require.NotNil(t, cfg.Versioning.TagPrefix)
+	assert.Equal(t, "", *cfg.Versioning.TagPrefix)
 }
 
 // TestGenerateYAML_EmptyPrefix_ExplicitlyWritten verifies that leaving the
@@ -89,18 +89,18 @@ func TestGenerateYAML_CalVer(t *testing.T) {
 // which would silently fall back to the "v" default in the resolver.
 func TestGenerateYAML_EmptyPrefix_ExplicitlyWritten(t *testing.T) {
 	a := scaffold.Answers{
-		Strategy: "semver",
-		Prefix:   "",
+		Strategy:  "semver",
+		TagPrefix: "",
 	}
 	out, err := scaffold.GenerateYAML(a, "dev")
 	require.NoError(t, err)
-	assert.Contains(t, out, "prefix:", "prefix key must be written even when empty")
+	assert.Contains(t, out, "tag_prefix:", "tag_prefix key must be written even when empty")
 
 	body := stripHeader(out)
 	cfg, err := config.LoadFromReader(strings.NewReader(body))
 	require.NoError(t, err)
-	require.NotNil(t, cfg.Versioning.Prefix)
-	assert.Equal(t, "", *cfg.Versioning.Prefix)
+	require.NotNil(t, cfg.Versioning.TagPrefix)
+	assert.Equal(t, "", *cfg.Versioning.TagPrefix)
 }
 
 func TestGenerateYAML_PerEnv(t *testing.T) {

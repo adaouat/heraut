@@ -3,7 +3,7 @@ version: "1"
 versioning:
   strategy: calver
   format: "YYYY.MM.PATCH"
-  prefix: ""
+  tag_prefix: ""
 
 changelog:
   generator: git-cliff

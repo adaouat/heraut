@@ -69,7 +69,7 @@ func TestVersionNext_Semver_MinorBump(t *testing.T) {
 version: "1"
 versioning:
   strategy: semver
-  prefix: "v"
+  tag_prefix: "v"
 `)
 	testutil.FakeBin(t, "git", `#!/bin/sh
 case "$*" in
@@ -88,7 +88,7 @@ func TestVersionNext_Semver_NoTags_InitialVersion(t *testing.T) {
 version: "1"
 versioning:
   strategy: semver
-  prefix: "v"
+  tag_prefix: "v"
   initial_version: "0.1.0"
 `)
 	testutil.FakeBin(t, "git", `#!/bin/sh
@@ -150,7 +150,7 @@ func TestVersionCurrent_Semver(t *testing.T) {
 version: "1"
 versioning:
   strategy: semver
-  prefix: "v"
+  tag_prefix: "v"
 `)
 	testutil.FakeBin(t, "git", `#!/bin/sh
 case "$*" in
@@ -210,7 +210,7 @@ func TestVersionCurrent_NoTags_Error(t *testing.T) {
 version: "1"
 versioning:
   strategy: semver
-  prefix: "v"
+  tag_prefix: "v"
 `)
 	testutil.FakeBin(t, "git", `#!/bin/sh
 echo ""

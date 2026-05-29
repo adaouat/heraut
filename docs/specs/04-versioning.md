@@ -20,7 +20,7 @@ The strategy selector is implemented in `internal/app/resolver.go` (`app.NewReso
 ```yaml
 versioning:
   strategy: semver
-  prefix: "v"                   # tag prefix, default "v"
+  tag_prefix: "v"                   # tag prefix, default "v"
   initial_version: "0.1.0"
   bump: auto                    # auto | manual
 ```
@@ -42,7 +42,7 @@ The highest applicable bump wins (e.g. a single `feat!:` outranks ten `fix:` com
 
 ### Prefix handling
 
-`prefix` (default `"v"`) is stripped before SemVer comparison and re-applied on output.
+`tag_prefix` (default `"v"`) is stripped before SemVer comparison and re-applied on output.
 Tags are sorted by SemVer order, not lexicographically — `v1.10.0` is newer than
 `v1.9.0`, and bumping `v1.9.0` produces `v1.10.0` (never `v1.100.0`).
 
@@ -65,7 +65,7 @@ git operations.
 versioning:
   strategy: calver
   format: "YYYY.MM.PATCH"       # CalVer format string
-  prefix: ""
+  tag_prefix: ""
 ```
 
 The version is derived from the current date plus a `PATCH` counter that resets when

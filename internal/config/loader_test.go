@@ -15,7 +15,7 @@ func TestLoadFromReader_semver(t *testing.T) {
 version: "1"
 versioning:
   strategy: semver
-  prefix: "v"
+  tag_prefix: "v"
   initial_version: "0.1.0"
   bump: auto
 `
@@ -23,8 +23,8 @@ versioning:
 	require.NoError(t, err)
 	assert.Equal(t, "1", cfg.Version)
 	assert.Equal(t, "semver", cfg.Versioning.Strategy)
-	require.NotNil(t, cfg.Versioning.Prefix)
-	assert.Equal(t, "v", *cfg.Versioning.Prefix)
+	require.NotNil(t, cfg.Versioning.TagPrefix)
+	assert.Equal(t, "v", *cfg.Versioning.TagPrefix)
 	assert.Equal(t, "0.1.0", cfg.Versioning.InitialVersion)
 	assert.Equal(t, "auto", cfg.Versioning.Bump)
 }
@@ -35,15 +35,15 @@ version: "1"
 versioning:
   strategy: calver
   format: "YYYY.MM.PATCH"
-  prefix: ""
+  tag_prefix: ""
 `
 	cfg, err := config.LoadFromReader(strings.NewReader(src))
 	require.NoError(t, err)
 	assert.Equal(t, "calver", cfg.Versioning.Strategy)
 	assert.Equal(t, "YYYY.MM.PATCH", cfg.Versioning.Format)
 	// Explicit empty prefix is distinguishable from unset.
-	require.NotNil(t, cfg.Versioning.Prefix)
-	assert.Equal(t, "", *cfg.Versioning.Prefix)
+	require.NotNil(t, cfg.Versioning.TagPrefix)
+	assert.Equal(t, "", *cfg.Versioning.TagPrefix)
 }
 
 func TestLoadFromReader_prefixUnset(t *testing.T) {
@@ -55,7 +55,7 @@ versioning:
 	cfg, err := config.LoadFromReader(strings.NewReader(src))
 	require.NoError(t, err)
 	// Unset prefix is nil (distinct from explicit "").
-	assert.Nil(t, cfg.Versioning.Prefix)
+	assert.Nil(t, cfg.Versioning.TagPrefix)
 }
 
 func TestLoadFromReader_semverPerEnv(t *testing.T) {

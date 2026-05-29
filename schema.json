@@ -50,7 +50,7 @@
           ],
           "description": "Versioning strategy."
         },
-        "prefix": {
+        "tag_prefix": {
           "type": "string",
           "description": "Tag prefix (e.g. \"v\"). Set to \"\" for bare version tags."
         },

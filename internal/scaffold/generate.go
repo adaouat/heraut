@@ -48,8 +48,8 @@ func answersToConfig(a Answers) config.Config {
 
 	// Always write prefix — even when empty — so the resolver does not fall
 	// back to the "v" default (nil = unset = use default; &"" = no prefix).
-	prefix := a.Prefix
-	cfg.Versioning.Prefix = &prefix
+	prefix := a.TagPrefix
+	cfg.Versioning.TagPrefix = &prefix
 
 	if a.Format != "" {
 		cfg.Versioning.Format = a.Format

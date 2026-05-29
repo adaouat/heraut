@@ -124,8 +124,8 @@ func (r *Resolver) resolveAuto() (versioning.Result, error) {
 }
 
 func (r *Resolver) prefix() string {
-	if r.cfg.Versioning.Prefix != nil {
-		return *r.cfg.Versioning.Prefix
+	if r.cfg.Versioning.TagPrefix != nil {
+		return *r.cfg.Versioning.TagPrefix
 	}
 	return defaultPrefix
 }

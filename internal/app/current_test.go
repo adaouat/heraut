@@ -18,7 +18,7 @@ func TestCurrentTag_Semver(t *testing.T) {
 	mr.QueueResponse("v1.2.3\nv1.2.2\n", "", nil)
 
 	cfg := &config.Config{
-		Versioning: config.Versioning{Strategy: "semver", Prefix: strPtr("v")},
+		Versioning: config.Versioning{Strategy: "semver", TagPrefix: strPtr("v")},
 	}
 	got, err := app.CurrentTag(mr, cfg, "")
 	require.NoError(t, err)
@@ -34,7 +34,7 @@ func TestCurrentTag_Calver(t *testing.T) {
 
 	empty := ""
 	cfg := &config.Config{
-		Versioning: config.Versioning{Strategy: "calver", Prefix: &empty},
+		Versioning: config.Versioning{Strategy: "calver", TagPrefix: &empty},
 	}
 	got, err := app.CurrentTag(mr, cfg, "")
 	require.NoError(t, err)
@@ -76,7 +76,7 @@ func TestCurrentTag_NoTags(t *testing.T) {
 	mr.QueueResponse("", "", nil)
 
 	cfg := &config.Config{
-		Versioning: config.Versioning{Strategy: "semver", Prefix: strPtr("v")},
+		Versioning: config.Versioning{Strategy: "semver", TagPrefix: strPtr("v")},
 	}
 	_, err := app.CurrentTag(mr, cfg, "")
 	require.Error(t, err)
@@ -88,7 +88,7 @@ func TestCurrentTag_GitError(t *testing.T) {
 	mr.QueueResponse("", "", errors.New("not a git repo"))
 
 	cfg := &config.Config{
-		Versioning: config.Versioning{Strategy: "semver", Prefix: strPtr("v")},
+		Versioning: config.Versioning{Strategy: "semver", TagPrefix: strPtr("v")},
 	}
 	_, err := app.CurrentTag(mr, cfg, "")
 	require.Error(t, err)

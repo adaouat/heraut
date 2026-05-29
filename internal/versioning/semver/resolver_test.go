@@ -23,7 +23,7 @@ func TestResolve_InitialVersion(t *testing.T) {
 		Versioning: config.Versioning{
 			Strategy:       "semver",
 			InitialVersion: "0.1.0",
-			Prefix:         strPtr("v"),
+			TagPrefix:      strPtr("v"),
 		},
 	}
 
@@ -64,7 +64,7 @@ func TestResolve_NoPrefixInitial(t *testing.T) {
 	cfg := &config.Config{
 		Versioning: config.Versioning{
 			Strategy:       "semver",
-			Prefix:         &empty,
+			TagPrefix:      &empty,
 			InitialVersion: "1.0.0",
 		},
 	}
@@ -87,8 +87,8 @@ func TestResolve_BumpMinor(t *testing.T) {
 
 	cfg := &config.Config{
 		Versioning: config.Versioning{
-			Strategy: "semver",
-			Prefix:   strPtr("v"),
+			Strategy:  "semver",
+			TagPrefix: strPtr("v"),
 		},
 	}
 
@@ -111,7 +111,7 @@ func TestResolve_BumpMajor_Breaking(t *testing.T) {
 	mr.QueueResponse("feat!: breaking change\x00feat: add feature\x00", "", nil)
 
 	cfg := &config.Config{
-		Versioning: config.Versioning{Strategy: "semver", Prefix: strPtr("v")},
+		Versioning: config.Versioning{Strategy: "semver", TagPrefix: strPtr("v")},
 	}
 
 	r := semver.New(mr, cfg)
@@ -128,7 +128,7 @@ func TestResolve_BumpPatch_FixOnly(t *testing.T) {
 	mr.QueueResponse("fix: correct typo\x00chore: update deps\x00", "", nil)
 
 	cfg := &config.Config{
-		Versioning: config.Versioning{Strategy: "semver", Prefix: strPtr("v")},
+		Versioning: config.Versioning{Strategy: "semver", TagPrefix: strPtr("v")},
 	}
 
 	r := semver.New(mr, cfg)
@@ -145,7 +145,7 @@ func TestResolve_BumpPatch_FallbackChoreOnly(t *testing.T) {
 	mr.QueueResponse("chore: update deps\x00docs: improve readme\x00", "", nil)
 
 	cfg := &config.Config{
-		Versioning: config.Versioning{Strategy: "semver", Prefix: strPtr("v")},
+		Versioning: config.Versioning{Strategy: "semver", TagPrefix: strPtr("v")},
 	}
 
 	r := semver.New(mr, cfg)
@@ -162,7 +162,7 @@ func TestResolve_NoCommitsSinceTag_Error(t *testing.T) {
 	mr.QueueResponse("", "", nil) // no commits (empty output)
 
 	cfg := &config.Config{
-		Versioning: config.Versioning{Strategy: "semver", Prefix: strPtr("v")},
+		Versioning: config.Versioning{Strategy: "semver", TagPrefix: strPtr("v")},
 	}
 
 	r := semver.New(mr, cfg)
@@ -194,9 +194,9 @@ func TestResolve_ManualMode_WithOverride(t *testing.T) {
 
 	cfg := &config.Config{
 		Versioning: config.Versioning{
-			Strategy: "semver",
-			Bump:     "manual",
-			Prefix:   strPtr("v"),
+			Strategy:  "semver",
+			Bump:      "manual",
+			TagPrefix: strPtr("v"),
 		},
 	}
 
@@ -219,9 +219,9 @@ func TestResolve_ManualMode_WithPrefixedOverride(t *testing.T) {
 
 	cfg := &config.Config{
 		Versioning: config.Versioning{
-			Strategy: "semver",
-			Bump:     "manual",
-			Prefix:   strPtr("v"),
+			Strategy:  "semver",
+			Bump:      "manual",
+			TagPrefix: strPtr("v"),
 		},
 	}
 
@@ -241,9 +241,9 @@ func TestResolve_AutoMode_WithPrefixedOverride(t *testing.T) {
 
 	cfg := &config.Config{
 		Versioning: config.Versioning{
-			Strategy: "semver",
-			Bump:     "auto",
-			Prefix:   strPtr("v"),
+			Strategy:  "semver",
+			Bump:      "auto",
+			TagPrefix: strPtr("v"),
 		},
 	}
 
@@ -266,9 +266,9 @@ func TestResolve_AutoMode_WithOverride(t *testing.T) {
 
 	cfg := &config.Config{
 		Versioning: config.Versioning{
-			Strategy: "semver",
-			Bump:     "auto",
-			Prefix:   strPtr("v"),
+			Strategy:  "semver",
+			Bump:      "auto",
+			TagPrefix: strPtr("v"),
 		},
 	}
 
@@ -291,7 +291,7 @@ func TestResolve_BreakingChange_Footer(t *testing.T) {
 	mr.QueueResponse("fix: something\n\nBREAKING CHANGE: removed API\n\x00", "", nil)
 
 	cfg := &config.Config{
-		Versioning: config.Versioning{Strategy: "semver", Prefix: strPtr("v")},
+		Versioning: config.Versioning{Strategy: "semver", TagPrefix: strPtr("v")},
 	}
 
 	r := semver.New(mr, cfg)
@@ -309,7 +309,7 @@ func TestResolve_Minor_Before_Patch_Priority(t *testing.T) {
 	mr.QueueResponse("fix: a bug\x00feat: new thing\x00fix: another bug\x00", "", nil)
 
 	cfg := &config.Config{
-		Versioning: config.Versioning{Strategy: "semver", Prefix: strPtr("v")},
+		Versioning: config.Versioning{Strategy: "semver", TagPrefix: strPtr("v")},
 	}
 
 	r := semver.New(mr, cfg)
@@ -428,7 +428,7 @@ func TestResolve_GitTagListError(t *testing.T) {
 	mr.QueueResponse("", "", errors.New("not a git repo"))
 
 	cfg := &config.Config{
-		Versioning: config.Versioning{Strategy: "semver", Prefix: strPtr("v")},
+		Versioning: config.Versioning{Strategy: "semver", TagPrefix: strPtr("v")},
 	}
 
 	r := semver.New(mr, cfg)
@@ -443,7 +443,7 @@ func TestResolve_GitLogError(t *testing.T) {
 	mr.QueueResponse("", "", errors.New("git log failed")) // git log fails
 
 	cfg := &config.Config{
-		Versioning: config.Versioning{Strategy: "semver", Prefix: strPtr("v")},
+		Versioning: config.Versioning{Strategy: "semver", TagPrefix: strPtr("v")},
 	}
 
 	r := semver.New(mr, cfg)

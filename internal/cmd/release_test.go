@@ -40,7 +40,7 @@ func TestRelease_DryRun_OutputsVersion(t *testing.T) {
 version: "1"
 versioning:
   strategy: semver
-  prefix: "v"
+  tag_prefix: "v"
 `)
 	testutil.FakeBin(t, "git", `#!/bin/sh
 case "$*" in
@@ -60,7 +60,7 @@ func TestRelease_PreflightFail_GitIdentityMissing(t *testing.T) {
 version: "1"
 versioning:
   strategy: semver
-  prefix: "v"
+  tag_prefix: "v"
 `)
 	// git --version succeeds; everything else (config user.name, config user.email) exits 1.
 	testutil.FakeBin(t, "git", `#!/bin/sh

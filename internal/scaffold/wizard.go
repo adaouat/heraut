@@ -14,9 +14,9 @@ import (
 
 // Answers holds the user's responses from the init wizard.
 type Answers struct {
-	Strategy string // semver, calver, semver-per-env, calver-per-env
-	Prefix   string // version prefix, e.g. "v" or ""
-	Format   string // CalVer format string, e.g. "YYYY.MM.PATCH"
+	Strategy  string // semver, calver, semver-per-env, calver-per-env
+	TagPrefix string // version prefix, e.g. "v" or ""
+	Format    string // CalVer format string, e.g. "YYYY.MM.PATCH"
 
 	ChangelogGenerator string // git-cliff, communique, cocogitto, or "" (none)
 	ChangelogOutput    string // e.g. "CHANGELOG.md"
@@ -73,7 +73,7 @@ var calverPresets = []struct {
 func Defaults() Answers {
 	return Answers{
 		Strategy:           "semver",
-		Prefix:             "v",
+		TagPrefix:          "v",
 		ChangelogGenerator: "git-cliff",
 		ChangelogOutput:    "CHANGELOG.md",
 		NotesGenerator:     "git-cliff",
@@ -89,8 +89,8 @@ func ConfigToAnswers(cfg *config.Config) Answers {
 		TagFormat: cfg.Versioning.TagFormat,
 	}
 
-	if cfg.Versioning.Prefix != nil {
-		a.Prefix = *cfg.Versioning.Prefix
+	if cfg.Versioning.TagPrefix != nil {
+		a.TagPrefix = *cfg.Versioning.TagPrefix
 	}
 
 	a.Sprint = cfg.Versioning.Sprint
@@ -165,7 +165,7 @@ func RunWizard(a *Answers) error {
 			huh.NewInput().
 				Title("Version prefix").
 				Description(`e.g. "v" for v1.2.3, leave empty for no prefix`).
-				Value(&a.Prefix),
+				Value(&a.TagPrefix),
 		),
 		huh.NewGroup(
 			huh.NewSelect[string]().

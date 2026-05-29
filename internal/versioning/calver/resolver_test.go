@@ -50,9 +50,9 @@ func TestResolve_WithPrefix_NoTags_FirstRelease(t *testing.T) {
 
 	cfg := &config.Config{
 		Versioning: config.Versioning{
-			Strategy: "calver",
-			Format:   "YYYY.MM.PATCH",
-			Prefix:   strPtr("v"),
+			Strategy:  "calver",
+			Format:    "YYYY.MM.PATCH",
+			TagPrefix: strPtr("v"),
 		},
 	}
 

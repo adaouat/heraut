@@ -4,7 +4,7 @@ version: "1"
 
 versioning:
   strategy: semver
-  prefix: "v"
+  tag_prefix: "v"
   initial_version: "0.1.0"
   bump: auto
 

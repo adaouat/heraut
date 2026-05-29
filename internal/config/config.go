@@ -12,7 +12,7 @@ type Config struct {
 // Versioning holds version resolution settings.
 type Versioning struct {
 	Strategy       string  `yaml:"strategy"`
-	Prefix         *string `yaml:"prefix,omitempty"`
+	TagPrefix      *string `yaml:"tag_prefix,omitempty"`
 	InitialVersion string  `yaml:"initial_version,omitempty"`
 	Bump           string  `yaml:"bump,omitempty"`
 	Format         string  `yaml:"format,omitempty"`

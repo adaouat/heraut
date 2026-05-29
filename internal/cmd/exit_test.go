@@ -66,7 +66,7 @@ func TestExitCode_NoCommits_Runtime(t *testing.T) {
 version: "1"
 versioning:
   strategy: semver
-  prefix: "v"
+  tag_prefix: "v"
 `)
 	testutil.FakeBin(t, "git", `#!/bin/sh
 case "$*" in
@@ -85,7 +85,7 @@ func TestExitCode_CurrentNoTags_Runtime(t *testing.T) {
 version: "1"
 versioning:
   strategy: semver
-  prefix: "v"
+  tag_prefix: "v"
 `)
 	testutil.FakeBin(t, "git", `#!/bin/sh
 echo ""

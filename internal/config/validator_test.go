@@ -35,7 +35,7 @@ func TestValidate_validSemver(t *testing.T) {
 version: "1"
 versioning:
   strategy: semver
-  prefix: "v"
+  tag_prefix: "v"
   bump: auto
 `)
 	assert.Empty(t, config.Validate(cfg))

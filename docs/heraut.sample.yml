@@ -28,7 +28,7 @@ versioning:
 
   # prefix — string prepended to every version tag.
   # "v" produces v1.2.3. Set to "" (or omit) for bare tags like 1.2.3.
-  prefix: "v"
+  tag_prefix: "v"
 
   # initial_version — version used when no matching tags exist yet.
   # semver and semver-per-env only.
