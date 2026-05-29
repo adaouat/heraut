@@ -46,9 +46,10 @@ func assetName(version, goos, goarch string) string {
 	return name
 }
 
-// checksumAssetName returns the goreleaser checksum filename for the given version.
-func checksumAssetName(version string) string {
-	return fmt.Sprintf("heraut_%s_checksums.txt", version)
+// checksumAssetName returns the goreleaser checksum filename.
+// Matches the name_template in .goreleaser.yml: "checksums.txt".
+func checksumAssetName() string {
+	return "checksums.txt"
 }
 
 // findAsset returns a pointer to the first asset with the given name, or nil.

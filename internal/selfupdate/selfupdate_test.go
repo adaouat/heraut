@@ -60,6 +60,12 @@ func newReleaseServer(t *testing.T, tagName string, assets map[string][]byte) (*
 	return srv, srv.URL + "/releases/latest"
 }
 
+// ---- Asset name helpers ---------------------------------------------------
+
+func TestChecksumAssetName(t *testing.T) {
+	assert.Equal(t, "checksums.txt", checksumAssetName())
+}
+
 // ---- Check ----------------------------------------------------------------
 
 func TestUpdater_Check_UpToDate(t *testing.T) {
@@ -240,7 +246,7 @@ func TestUpdater_Do_UpToDate(t *testing.T) {
 func TestUpdater_Do_Success(t *testing.T) {
 	newContent := []byte("fake-new-binary-content")
 	binName := assetName(bareVersion("v1.3.0"), "linux", "amd64")
-	csumName := checksumAssetName(bareVersion("v1.3.0"))
+	csumName := checksumAssetName()
 
 	_, latestURL := newReleaseServer(t, "v1.3.0", map[string][]byte{
 		binName:  newContent,
@@ -272,7 +278,7 @@ func TestUpdater_Do_Success(t *testing.T) {
 func TestUpdater_Do_ChecksumMismatch(t *testing.T) {
 	newContent := []byte("fake-new-binary")
 	binName := assetName(bareVersion("v1.3.0"), "linux", "amd64")
-	csumName := checksumAssetName(bareVersion("v1.3.0"))
+	csumName := checksumAssetName()
 
 	_, latestURL := newReleaseServer(t, "v1.3.0", map[string][]byte{
 		binName:  newContent,
@@ -322,7 +328,7 @@ func TestUpdater_Do_AssetNotFound(t *testing.T) {
 func TestUpdater_Do_ClearsCache(t *testing.T) {
 	newContent := []byte("fake-new-binary-content")
 	binName := assetName(bareVersion("v1.3.0"), "linux", "amd64")
-	csumName := checksumAssetName(bareVersion("v1.3.0"))
+	csumName := checksumAssetName()
 
 	_, latestURL := newReleaseServer(t, "v1.3.0", map[string][]byte{
 		binName:  newContent,
@@ -354,7 +360,7 @@ func TestUpdater_Do_ClearsCache(t *testing.T) {
 func TestUpdater_Hint_SilentAfterSuccessfulDo(t *testing.T) {
 	newContent := []byte("fake-new-binary-content")
 	binName := assetName(bareVersion("v1.3.0"), "linux", "amd64")
-	csumName := checksumAssetName(bareVersion("v1.3.0"))
+	csumName := checksumAssetName()
 
 	_, latestURL := newReleaseServer(t, "v1.3.0", map[string][]byte{
 		binName:  newContent,

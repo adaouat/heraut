@@ -148,7 +148,7 @@ func (u *Updater) Do(ctx context.Context, w io.Writer) error {
 
 	bare := bareVersion(latest)
 	binName := assetName(bare, u.goos, u.goarch)
-	csumName := checksumAssetName(bare)
+	csumName := checksumAssetName()
 
 	binAsset := findAsset(rel.Assets, binName)
 	if binAsset == nil {
