@@ -115,8 +115,10 @@ heraut changelog [--commit] [--tag] [--version X.Y.Z] [--dry-run] [--env <name>]
 To then publish the platform release without re-generating the changelog, run
 `heraut release --version <tag>`.
 
-If the active environment has `disable_changelog: true`, `heraut changelog` exits 0
-with an info message and does nothing.
+If the active environment has `disable_changelog: true`, changelog generation and the
+git commit are skipped. If `--tag` was also passed, the tag is still created and pushed
+— only the changelog step is suppressed. If neither `--tag` nor any other work remains,
+the command exits 0 with an info message.
 
 ### Tag-only workflow (no `release` block required)
 

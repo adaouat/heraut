@@ -90,15 +90,18 @@ func (p *ChangelogPipeline) Run() error {
 		} else {
 			_, _ = fmt.Fprintf(p.out, "changelog disabled for %s\n", result.Tag)
 		}
-		return nil
+		if !p.cfg.Tag {
+			return nil
+		}
+		// Tag is true: skip changelog steps but proceed to tag.
 	}
 
 	if p.dryRun {
 		return p.dryRunOutput(result)
 	}
 
-	// Step 2: Generate changelog (conditional).
-	if p.cfg.Changelog != nil {
+	// Step 2: Generate changelog (skipped when DisableChangelog is true).
+	if p.cfg.Changelog != nil && !p.cfg.DisableChangelog {
 		if err := p.runStep("Generate changelog", func() (string, []string, error) {
 			if _, err := p.cfg.Changelog.Generate(result.Tag); err != nil {
 				return "", nil, fmt.Errorf("generating changelog: %w", err)
@@ -155,9 +158,11 @@ func (p *ChangelogPipeline) Run() error {
 // prefixes; otherwise it falls back to plain [dry-run] lines.
 func (p *ChangelogPipeline) dryRunOutput(result versioning.Result) error {
 	if p.reporter == nil {
-		_, _ = fmt.Fprintf(p.out, "[dry-run] would generate changelog for %s\n", result.Tag)
-		if p.cfg.Commit || p.cfg.Tag {
-			_, _ = fmt.Fprintf(p.out, "[dry-run] would commit → push\n")
+		if !p.cfg.DisableChangelog {
+			_, _ = fmt.Fprintf(p.out, "[dry-run] would generate changelog for %s\n", result.Tag)
+			if p.cfg.Commit || p.cfg.Tag {
+				_, _ = fmt.Fprintf(p.out, "[dry-run] would commit → push\n")
+			}
 		}
 		if p.cfg.Tag {
 			_, _ = fmt.Fprintf(p.out, "[dry-run] would tag %s and push\n", result.Tag)
@@ -171,7 +176,7 @@ func (p *ChangelogPipeline) dryRunOutput(result versioning.Result) error {
 		file = "CHANGELOG.md"
 	}
 
-	if p.cfg.Changelog != nil {
+	if p.cfg.Changelog != nil && !p.cfg.DisableChangelog {
 		_ = p.runStep("Generate changelog", func() (string, []string, error) {
 			return "[dry-run] would write " + file, nil, nil
 		})

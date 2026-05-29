@@ -2131,7 +2131,7 @@ is cutting v1.0.0 itself — all quality gates are green.
 
 Goal: targeted behaviour fixes discovered during real-world usage after Phase 10.
 
-#### `[ ]` T50: `disable_changelog` should not suppress `--tag` in `heraut changelog`
+#### `[x]` T50: `disable_changelog` should not suppress `--tag` in `heraut changelog`
 
 **Description:** `disable_changelog: true` per-env currently exits the `heraut changelog`
 pipeline entirely — before the tag step runs. This means a pipeline that uses
@@ -2179,6 +2179,14 @@ step when `cfg.Tag` is true.
 `docs/specs/03-commands.md`, `docs/specs/02-configuration.md`
 
 **Scope:** S
+
+**Done:** Changed the `DisableChangelog` early-return to only fire when `Tag` is false.
+When `Tag` is true the "changelog disabled" notice is still printed, then the pipeline
+falls through to the tag step. The changelog generation condition gained `&& !p.cfg.DisableChangelog`
+(previously safe to omit because the early return preceded the block). `dryRunOutput` updated
+to skip changelog dry-run lines when disabled, so both plain and reporter dry-run paths respect
+the flag. Three new tests (red→green): plain tag, reporter step sequence, reporter dry-run
+sequence. Specs 02 and 03 updated. 681 tests pass.
 
 ---
 

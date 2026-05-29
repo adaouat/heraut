@@ -174,6 +174,67 @@ func TestChangelogRun_Reporter_DisabledChangelog(t *testing.T) {
 	assert.Contains(t, out.String(), "disabled")
 }
 
+// TestChangelogRun_Reporter_DisabledChangelog_WithTag verifies that when both
+// DisableChangelog and Tag are true, only resolve + tag steps appear in the reporter.
+func TestChangelogRun_Reporter_DisabledChangelog_WithTag(t *testing.T) {
+	mr := testutil.NewMockRunner()
+	mr.QueueResponse("", "", nil) // git tag
+	mr.QueueResponse("", "", nil) // git push --tags
+
+	gen := &testutil.MockGenerator{}
+
+	cfg := &pipeline.ChangelogConfig{
+		Changelog:        gen,
+		ChangelogFile:    "CHANGELOG.md",
+		DisableChangelog: true,
+		Tag:              true,
+	}
+
+	var captured []capturedStep
+	out := &bytes.Buffer{}
+	p := pipeline.NewChangelog(mr, &fakeResolver{result: resolvedResult("v1.2.3")}, cfg, out, false).
+		WithReporter(capturingStepFn(&captured))
+
+	require.NoError(t, p.Run())
+
+	assert.Len(t, gen.GenerateCalls, 0)
+	assert.Equal(t, []string{
+		"Resolve version",
+		"Create tag v1.2.3",
+		"Push tags",
+	}, stepNames(captured))
+	assert.Contains(t, out.String(), "disabled")
+}
+
+// TestChangelogRun_DryRun_DisabledChangelog_WithTag verifies that dry-run with
+// DisableChangelog+Tag shows only the tag steps, not the changelog steps.
+func TestChangelogRun_DryRun_DisabledChangelog_WithTag(t *testing.T) {
+	mr := testutil.NewMockRunner()
+	gen := &testutil.MockGenerator{}
+
+	cfg := &pipeline.ChangelogConfig{
+		Changelog:        gen,
+		ChangelogFile:    "CHANGELOG.md",
+		DisableChangelog: true,
+		Tag:              true,
+	}
+
+	var captured []capturedStep
+	out := &bytes.Buffer{}
+	p := pipeline.NewChangelog(mr, &fakeResolver{result: resolvedResult("v1.2.3")}, cfg, out, true).
+		WithReporter(capturingStepFn(&captured))
+
+	require.NoError(t, p.Run())
+
+	assert.Len(t, mr.Calls, 0)
+	assert.Len(t, gen.GenerateCalls, 0)
+	names := stepNames(captured)
+	assert.NotContains(t, names, "Generate changelog")
+	assert.NotContains(t, names, "Commit changelog")
+	assert.Contains(t, names, fmt.Sprintf("Create tag %s", "v1.2.3"))
+	assert.Contains(t, names, "Push tags")
+}
+
 // TestChangelogRun_Reporter_SummaryContainsTag verifies the output contains the
 // tag after a successful run (regression guard on summary format).
 func TestChangelogRun_Reporter_SummaryContainsTag(t *testing.T) {

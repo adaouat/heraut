@@ -258,6 +258,33 @@ func TestChangelogRun_CustomCommitMessage(t *testing.T) {
 	assert.Equal(t, "docs: update changelog for v1.2.3", mr.Calls[1].Args[2])
 }
 
+// TestChangelogRun_DisabledChangelog_WithTag verifies that when DisableChangelog is true
+// but Tag is also true, changelog generation is skipped but the tag is still created.
+func TestChangelogRun_DisabledChangelog_WithTag(t *testing.T) {
+	mr := testutil.NewMockRunner()
+	mr.QueueResponse("", "", nil) // git tag
+	mr.QueueResponse("", "", nil) // git push --tags
+
+	gen := &testutil.MockGenerator{}
+
+	cfg := &pipeline.ChangelogConfig{
+		Changelog:        gen,
+		ChangelogFile:    "CHANGELOG.md",
+		DisableChangelog: true,
+		Tag:              true,
+	}
+
+	out := &bytes.Buffer{}
+	p := pipeline.NewChangelog(mr, &fakeResolver{result: resolvedResult("v1.2.3")}, cfg, out, false)
+	require.NoError(t, p.Run())
+
+	assert.Len(t, gen.GenerateCalls, 0)
+	require.Len(t, mr.Calls, 2)
+	assert.Equal(t, []string{"tag", "v1.2.3"}, mr.Calls[0].Args)
+	assert.Equal(t, []string{"push", "origin", "--tags"}, mr.Calls[1].Args)
+	assert.Contains(t, out.String(), "disabled")
+}
+
 // TestChangelogRun_GitAddError propagates git add failures.
 func TestChangelogRun_GitAddError(t *testing.T) {
 	mr := testutil.NewMockRunner()

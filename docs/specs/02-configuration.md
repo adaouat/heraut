@@ -164,7 +164,7 @@ are optional unless noted.
 
 | Field               | Default | Description                                                                                                                                                               |
 |---------------------|---------|---------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| `disable_changelog` | `false` | When `true`, skips changelog generation and the git commit for this env. Takes precedence over `changelog:` when both are set.                                            |
+| `disable_changelog` | `false` | When `true`, skips changelog generation and the git commit for this env. If `--tag` is also requested, the tag is still created. Takes precedence over `changelog:` when both are set. |
 | `disable_notes`     | `false` | When `true`, skips release notes generation. The platform release is still created, but without attached notes. Takes precedence over `release.notes:` when both are set. |
 | `changelog`         | —       | Override the root `changelog` block for this env (full replacement). Absent means use the root default.                                                                   |
 | `release`           | —       | Override `release.platforms` and/or `release.notes` for this env. Fields inherit independently (see § Content override semantics below).                                  |
