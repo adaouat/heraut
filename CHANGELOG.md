@@ -1,15 +1,26 @@
 # Changelog
 
+## [0.13.2](//compare/v0.13.1..v0.13.2) - 2026-05-29
+
+### 🐛 Bug Fixes
+
+- *(cmd)* Error when heraut release has no platforms configured - ([7f38edf](//commit/7f38edf06100b0a590aea03cd46d6554f8c4ab0b))
+
+
+### 📚 Documentation
+
+- *(specs)* Document heraut changelog tag-only workflow - ([2acd646](//commit/2acd64630b81fc08cf4181379ac630790522fc2b))
+
 ## [0.13.1](//compare/v0.13.0..v0.13.1) - 2026-05-29
 
 ### 🐛 Bug Fixes
 
-- *(pipeline)* Use explicit remote in git push calls - ([ad7dfff](//commit/ad7dfff5b9a4d67285332d0bf5db509ed44b7526))
+- *(pipeline)* Use explicit remote in git push calls - ([ad7dfff](//commit/ad7dfff5b9a4d67285332d0bf5db509ed44b7526)) by @bchatard
 
 
 ### 🧪 Testing
 
-- *(platforms/github)* Cover draft+prerelease combination - ([911d362](//commit/911d362dfbac2d2f88bfa46239db2c7a44b6f6f4))
+- *(platforms/github)* Cover draft+prerelease combination - ([911d362](//commit/911d362dfbac2d2f88bfa46239db2c7a44b6f6f4)) by @bchatard
 
 ## [0.13.0](//compare/v0.12.10..v0.13.0) - 2026-05-29
 
