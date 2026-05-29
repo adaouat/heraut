@@ -1,15 +1,28 @@
 # Changelog
 
-## [0.13.2](//compare/v0.13.1..v0.13.2) - 2026-05-29
+## [0.13.3](//compare/v0.13.2..v0.13.3) - 2026-05-29
 
 ### 🐛 Bug Fixes
 
-- *(cmd)* Error when heraut release has no platforms configured - ([7f38edf](//commit/7f38edf06100b0a590aea03cd46d6554f8c4ab0b))
+- *(pipeline)* Disable_changelog no longer suppresses --tag - ([2fa8b0e](//commit/2fa8b0ebd8f76d8db0fa0dcf8d148114af942d08))
 
 
 ### 📚 Documentation
 
-- *(specs)* Document heraut changelog tag-only workflow - ([2acd646](//commit/2acd64630b81fc08cf4181379ac630790522fc2b))
+- *(roadmap)* Add T50 — disable_changelog should not suppress --tag - ([20c00fa](//commit/20c00fac71ef77ffa6c96b48686bbd6d756bf171))
+
+- *(specs)* Document release without notes as an explicit valid pattern - ([e409edb](//commit/e409edb640a5217eb74496f51f1b97fdb0893f35))
+
+## [0.13.2](//compare/v0.13.1..v0.13.2) - 2026-05-29
+
+### 🐛 Bug Fixes
+
+- *(cmd)* Error when heraut release has no platforms configured - ([7f38edf](//commit/7f38edf06100b0a590aea03cd46d6554f8c4ab0b)) by @bchatard
+
+
+### 📚 Documentation
+
+- *(specs)* Document heraut changelog tag-only workflow - ([2acd646](//commit/2acd64630b81fc08cf4181379ac630790522fc2b)) by @bchatard
 
 ## [0.13.1](//compare/v0.13.0..v0.13.1) - 2026-05-29
 
