@@ -281,9 +281,27 @@ release:
     - platform: github
 ```
 
-Both `notes` and `platforms` are optional independently. A config with `platforms` but
-no `notes` creates a release without attached notes; one with `notes` but no
-`platforms` generates notes without publishing.
+Both `notes` and `platforms` are optional independently:
+
+- **`platforms` only (no `notes`)** — the release is published on each platform with no
+  inline content. This is intentional and valid: the CHANGELOG.md in the repository (or
+  the platform's own auto-generate feature) serves as the record. Use a comment to make
+  the intent explicit:
+
+  ```yaml
+  release:
+    # No inline release notes — CHANGELOG.md in the repo is the record.
+    platforms:
+      - platform: github
+        repository: org/repo
+  ```
+
+- **`notes` only (no `platforms`)** — notes are generated but no platform release is
+  created. Useful for previewing or piping output to another tool.
+
+- **Neither** — `release:` may be omitted entirely when `heraut release` is not used.
+  Note: `heraut release` requires at least one entry in `platforms`; omitting the whole
+  `release` block (or leaving `platforms` empty) is a configuration error for that command.
 
 ## Content generators
 
