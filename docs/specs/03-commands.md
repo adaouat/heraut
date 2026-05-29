@@ -89,7 +89,8 @@ re-resolves it.
 
 ## `heraut changelog`
 
-Generate or update `CHANGELOG.md` without publishing a release.
+Resolve the next version, optionally generate a changelog, optionally commit and tag —
+without publishing to any release platform.
 
 ```
 heraut changelog [--commit] [--tag] [--version X.Y.Z] [--dry-run] [--env <name>]
@@ -106,7 +107,7 @@ heraut changelog [--commit] [--tag] [--version X.Y.Z] [--dry-run] [--env <name>]
 **Action sequence** (with `--tag`, mirrors `cog bump`):
 
 1. Resolve next version (or use `--version`)
-2. Generate and update `CHANGELOG.md`
+2. Generate and update `CHANGELOG.md` (only if `changelog` is configured)
 3. Commit and push — `chore(release): <version>`
 4. Create a git tag (annotated by default; set `versioning.tag_type: lightweight` for a bare ref tag) on that commit
 5. Push tag (`git push --tags`)
@@ -116,6 +117,29 @@ To then publish the platform release without re-generating the changelog, run
 
 If the active environment has `disable_changelog: true`, `heraut changelog` exits 0
 with an info message and does nothing.
+
+### Tag-only workflow (no `release` block required)
+
+`heraut changelog --tag` is valid even when no `changelog` generator is configured.
+It resolves the next version, creates an annotated tag, and pushes — nothing else.
+This is useful when:
+
+- The changelog is maintained manually or by another tool.
+- A CI pipeline needs a versioned tag to trigger downstream jobs, but the GitHub/GitLab
+  release will be created separately.
+- You want to use heraut purely for version resolution and tagging, without committing
+  to any platform integration.
+
+```yaml
+# Minimal .heraut.yml for tag-only use
+version: "1"
+versioning:
+  strategy: semver
+  tag_prefix: "v"
+# No changelog block, no release block — heraut changelog --tag still works.
+```
+
+Unlike `heraut release`, this command does **not** require a `release.platforms` entry.
 
 ## `heraut version next`
 
