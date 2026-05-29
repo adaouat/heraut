@@ -42,6 +42,12 @@ func NewReleaseCmd() *cobra.Command {
 				return exitcode.Wrap(exitcode.Config, fmt.Errorf("configuration is invalid"))
 			}
 
+			if !hasEffectivePlatforms(cfg, env) {
+				return exitcode.Wrap(exitcode.Config, fmt.Errorf(
+					"heraut release requires at least one entry in release.platforms — use 'heraut changelog' for tag-only workflows",
+				))
+			}
+
 			resolver, err := app.NewResolver(cfg, env, force, versionOverride, readRunner)
 			if err != nil {
 				return exitcode.Wrap(exitcode.Config, err)
@@ -76,4 +82,15 @@ func NewReleaseCmd() *cobra.Command {
 	releaseCmd.Flags().StringVar(&versionOverride, "version", "", "override the resolved version — with or without tag prefix (e.g. 1.2.3 or v1.2.3)")
 
 	return releaseCmd
+}
+
+// hasEffectivePlatforms reports whether cfg has at least one release platform
+// after applying env overrides. Env platforms replace root platforms entirely.
+func hasEffectivePlatforms(cfg *config.Config, env string) bool {
+	if env != "" {
+		if envCfg, ok := cfg.Environments[env]; ok && envCfg.Release != nil {
+			return len(envCfg.Release.Platforms) > 0
+		}
+	}
+	return cfg.Release != nil && len(cfg.Release.Platforms) > 0
 }

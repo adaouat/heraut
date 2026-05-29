@@ -41,6 +41,10 @@ version: "1"
 versioning:
   strategy: semver
   tag_prefix: "v"
+release:
+  platforms:
+    - platform: github
+      repository: test/repo
 `)
 	testutil.FakeBin(t, "git", `#!/bin/sh
 case "$*" in
@@ -55,12 +59,47 @@ esac
 	assert.Contains(t, out, "[dry-run]")
 }
 
+func TestRelease_NoPlatforms_Error(t *testing.T) {
+	cfgPath := writeConfig(t, `
+version: "1"
+versioning:
+  strategy: semver
+  tag_prefix: "v"
+changelog:
+  generator: git-cliff
+  output: CHANGELOG.md
+`)
+	_, err := executeRoot("release", "--config", cfgPath, "--dry-run")
+	require.Error(t, err)
+	assert.Equal(t, exitcode.Config, cmd.ExitCode(err))
+	assert.Contains(t, err.Error(), "platform")
+}
+
+func TestRelease_EmptyPlatforms_Error(t *testing.T) {
+	cfgPath := writeConfig(t, `
+version: "1"
+versioning:
+  strategy: semver
+  tag_prefix: "v"
+release:
+  platforms: []
+`)
+	_, err := executeRoot("release", "--config", cfgPath, "--dry-run")
+	require.Error(t, err)
+	assert.Equal(t, exitcode.Config, cmd.ExitCode(err))
+	assert.Contains(t, err.Error(), "platform")
+}
+
 func TestRelease_PreflightFail_GitIdentityMissing(t *testing.T) {
 	cfgPath := writeConfig(t, `
 version: "1"
 versioning:
   strategy: semver
   tag_prefix: "v"
+release:
+  platforms:
+    - platform: github
+      repository: test/repo
 `)
 	// git --version succeeds; everything else (config user.name, config user.email) exits 1.
 	testutil.FakeBin(t, "git", `#!/bin/sh
