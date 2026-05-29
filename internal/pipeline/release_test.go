@@ -86,7 +86,7 @@ func TestRun_HappyPath_NoChangelog(t *testing.T) {
 	assert.Equal(t, "git", mr.Calls[0].Name)
 	assert.Equal(t, []string{"tag", "v1.2.3"}, mr.Calls[0].Args)
 	// git push --tags
-	assert.Equal(t, []string{"push", "--tags"}, mr.Calls[1].Args)
+	assert.Equal(t, []string{"push", "origin", "--tags"}, mr.Calls[1].Args)
 
 	// platform.CreateRelease was called with the resolved tag
 	require.Len(t, platform.CreateReleaseCalls, 1)
@@ -126,9 +126,9 @@ func TestRun_WithChangelog(t *testing.T) {
 	require.Len(t, mr.Calls, 5)
 	assert.Equal(t, []string{"add", "CHANGELOG.md"}, mr.Calls[0].Args)
 	assert.Equal(t, "commit", mr.Calls[1].Args[0])
-	assert.Equal(t, []string{"push"}, mr.Calls[2].Args)
+	assert.Equal(t, []string{"push", "origin", "HEAD"}, mr.Calls[2].Args)
 	assert.Equal(t, []string{"tag", "v1.2.3"}, mr.Calls[3].Args)
-	assert.Equal(t, []string{"push", "--tags"}, mr.Calls[4].Args)
+	assert.Equal(t, []string{"push", "origin", "--tags"}, mr.Calls[4].Args)
 }
 
 // TestRun_WithNotes verifies release notes are generated and passed to CreateRelease.
@@ -290,7 +290,7 @@ func TestRun_AnnotatedTag(t *testing.T) {
 
 	require.Len(t, mr.Calls, 2)
 	assert.Equal(t, []string{"tag", "-a", "v1.2.3", "-m", "chore(release): 1.2.3"}, mr.Calls[0].Args)
-	assert.Equal(t, []string{"push", "--tags"}, mr.Calls[1].Args)
+	assert.Equal(t, []string{"push", "origin", "--tags"}, mr.Calls[1].Args)
 }
 
 // TestRun_SignedTag verifies that SignTags:true produces "git tag -s <tag> -m <msg>"
@@ -424,7 +424,7 @@ func TestRun_GitAddError(t *testing.T) {
 // TestRun_GitCommitError propagates git commit failures.
 func TestRun_GitCommitError(t *testing.T) {
 	mr := testutil.NewMockRunner()
-	mr.QueueResponse("", "", nil)                           // git add OK
+	mr.QueueResponse("", "", nil)                             // git add OK
 	mr.QueueResponse("", "", errors.New("nothing to commit")) // git commit fails
 
 	changelog := &testutil.MockGenerator{}
@@ -516,7 +516,7 @@ func TestRun_GitTagError(t *testing.T) {
 // TestRun_GitPushTagsError propagates git push --tags failures.
 func TestRun_GitPushTagsError(t *testing.T) {
 	mr := testutil.NewMockRunner()
-	mr.QueueResponse("", "", nil)                          // git tag OK
+	mr.QueueResponse("", "", nil)                         // git tag OK
 	mr.QueueResponse("", "", errors.New("push rejected")) // git push --tags fails
 
 	cfg := &pipeline.Config{}
@@ -552,7 +552,7 @@ func TestRun_CreateReleaseError(t *testing.T) {
 	mr.QueueResponse("", "", nil) // git push --tags
 
 	platform := &testutil.MockPlatform{
-		PlatformName:    "github",
+		PlatformName:     "github",
 		CreateReleaseErr: errors.New("API error"),
 	}
 
@@ -571,8 +571,8 @@ func TestRun_UploadAssetsError(t *testing.T) {
 	mr.QueueResponse("", "", nil) // git push --tags
 
 	platform := &testutil.MockPlatform{
-		PlatformName:  "github",
-		HasAssetsVal:  true,
+		PlatformName:    "github",
+		HasAssetsVal:    true,
 		UploadAssetsErr: errors.New("upload failed"),
 	}
 

@@ -124,7 +124,7 @@ func (p *Pipeline) Run() error {
 
 	// Step 5: Push tag.
 	if err := p.runStep("Push tag", func() (string, []string, error) {
-		if err := p.git.run("git", "push", "--tags"); err != nil {
+		if err := p.git.run("git", "push", "origin", "--tags"); err != nil {
 			return "", nil, fmt.Errorf("git push --tags: %w", err)
 		}
 		return "", nil, nil

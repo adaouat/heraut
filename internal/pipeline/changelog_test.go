@@ -53,7 +53,7 @@ func TestChangelogRun_WithCommit(t *testing.T) {
 	require.Len(t, mr.Calls, 3)
 	assert.Equal(t, []string{"add", "CHANGELOG.md"}, mr.Calls[0].Args)
 	assert.Equal(t, "commit", mr.Calls[1].Args[0])
-	assert.Equal(t, []string{"push"}, mr.Calls[2].Args)
+	assert.Equal(t, []string{"push", "origin", "HEAD"}, mr.Calls[2].Args)
 }
 
 // TestChangelogRun_WithTag verifies --tag implies commit: generate + commit + push + tag + push --tags.
@@ -80,9 +80,9 @@ func TestChangelogRun_WithTag(t *testing.T) {
 	require.Len(t, mr.Calls, 5)
 	assert.Equal(t, []string{"add", "CHANGELOG.md"}, mr.Calls[0].Args)
 	assert.Equal(t, "commit", mr.Calls[1].Args[0])
-	assert.Equal(t, []string{"push"}, mr.Calls[2].Args)
+	assert.Equal(t, []string{"push", "origin", "HEAD"}, mr.Calls[2].Args)
 	assert.Equal(t, []string{"tag", "v1.2.3"}, mr.Calls[3].Args)
-	assert.Equal(t, []string{"push", "--tags"}, mr.Calls[4].Args)
+	assert.Equal(t, []string{"push", "origin", "--tags"}, mr.Calls[4].Args)
 }
 
 // TestChangelogRun_TagWithoutChangelog verifies tag-only when no generator is configured.
@@ -100,7 +100,7 @@ func TestChangelogRun_TagWithoutChangelog(t *testing.T) {
 
 	require.Len(t, mr.Calls, 2)
 	assert.Equal(t, []string{"tag", "v1.2.3"}, mr.Calls[0].Args)
-	assert.Equal(t, []string{"push", "--tags"}, mr.Calls[1].Args)
+	assert.Equal(t, []string{"push", "origin", "--tags"}, mr.Calls[1].Args)
 }
 
 // TestChangelogRun_DryRun verifies no git mutations or generator calls in dry-run.
@@ -160,7 +160,7 @@ func TestChangelogRun_AnnotatedTag(t *testing.T) {
 
 	require.Len(t, mr.Calls, 2)
 	assert.Equal(t, []string{"tag", "-a", "v1.2.3", "-m", "chore(release): 1.2.3"}, mr.Calls[0].Args)
-	assert.Equal(t, []string{"push", "--tags"}, mr.Calls[1].Args)
+	assert.Equal(t, []string{"push", "origin", "--tags"}, mr.Calls[1].Args)
 }
 
 // TestChangelogRun_AnnotatedTagCustomMessage verifies the annotation reuses the commit_message template.
@@ -280,7 +280,7 @@ func TestChangelogRun_GitAddError(t *testing.T) {
 // TestChangelogRun_GitCommitError propagates git commit failures.
 func TestChangelogRun_GitCommitError(t *testing.T) {
 	mr := testutil.NewMockRunner()
-	mr.QueueResponse("", "", nil)                          // git add OK
+	mr.QueueResponse("", "", nil)                             // git add OK
 	mr.QueueResponse("", "", errors.New("nothing to commit")) // git commit fails
 
 	gen := &testutil.MockGenerator{}
@@ -300,8 +300,8 @@ func TestChangelogRun_GitCommitError(t *testing.T) {
 // TestChangelogRun_GitPushError propagates git push failures.
 func TestChangelogRun_GitPushError(t *testing.T) {
 	mr := testutil.NewMockRunner()
-	mr.QueueResponse("", "", nil)                           // git add OK
-	mr.QueueResponse("", "", nil)                           // git commit OK
+	mr.QueueResponse("", "", nil)                         // git add OK
+	mr.QueueResponse("", "", nil)                         // git commit OK
 	mr.QueueResponse("", "", errors.New("push rejected")) // git push fails
 
 	gen := &testutil.MockGenerator{}

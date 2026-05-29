@@ -137,8 +137,8 @@ func (p *ChangelogPipeline) Run() error {
 		}
 
 		if err := p.runStep("Push tags", func() (string, []string, error) {
-			if err := p.git.run("git", "push", "--tags"); err != nil {
-				return "", nil, fmt.Errorf("git push --tags: %w", err)
+			if err := p.git.run("git", "push", "origin", "--tags"); err != nil {
+				return "", nil, fmt.Errorf("git push: %w", err)
 			}
 			return "", nil, nil
 		}); err != nil {

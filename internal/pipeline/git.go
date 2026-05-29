@@ -25,7 +25,7 @@ func (g *gitHelper) commitChangelog(file, msg string) error {
 	if err := g.run("git", "commit", "-m", msg); err != nil {
 		return fmt.Errorf("git commit: %w", err)
 	}
-	if err := g.run("git", "push"); err != nil {
+	if err := g.run("git", "push", "origin", "HEAD"); err != nil {
 		return fmt.Errorf("git push: %w", err)
 	}
 	return nil
