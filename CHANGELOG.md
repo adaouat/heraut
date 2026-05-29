@@ -1,30 +1,41 @@
 # Changelog
 
+## [0.13.1](//compare/v0.13.0..v0.13.1) - 2026-05-29
+
+### 🐛 Bug Fixes
+
+- *(pipeline)* Use explicit remote in git push calls - ([ad7dfff](//commit/ad7dfff5b9a4d67285332d0bf5db509ed44b7526))
+
+
+### 🧪 Testing
+
+- *(platforms/github)* Cover draft+prerelease combination - ([911d362](//commit/911d362dfbac2d2f88bfa46239db2c7a44b6f6f4))
+
 ## [0.13.0](//compare/v0.12.10..v0.13.0) - 2026-05-29
 
 ### 🚀 Features
 
-- *(check)* Config-aware required vs optional tool checks in runtime - ([92b5fd1](//commit/92b5fd1d85e77885127592166a64ca534a424f64))
+- *(check)* Config-aware required vs optional tool checks in runtime - ([92b5fd1](//commit/92b5fd1d85e77885127592166a64ca534a424f64)) by @bchatard
 
-- *(check)* Grouped runtime TUI — Git / Platforms / Generators - ([bc01b6e](//commit/bc01b6e6cecf9d9e4087b18ce527a48ae0ff1f2f))
+- *(check)* Grouped runtime TUI — Git / Platforms / Generators - ([bc01b6e](//commit/bc01b6e6cecf9d9e4087b18ce527a48ae0ff1f2f)) by @bchatard
 
-- *(config)* Rename versioning.prefix → versioning.tag_prefix - ([0e40585](//commit/0e40585a8d1d78a9db5bd084b2f384ade59b18e6))
+- *(config)* Rename versioning.prefix → versioning.tag_prefix - ([0e40585](//commit/0e40585a8d1d78a9db5bd084b2f384ade59b18e6)) by @bchatard
 
-- *(platforms)* Add API auth verification to platform Check() - ([607cfa7](//commit/607cfa7e446e222fb0d80e1558cd3c227e8898b5))
+- *(platforms)* Add API auth verification to platform Check() - ([607cfa7](//commit/607cfa7e446e222fb0d80e1558cd3c227e8898b5)) by @bchatard
 
 
 ### 🐛 Bug Fixes
 
-- *(check)* Always show optional tools in runtime check output - ([2842632](//commit/2842632776bec09356fca5c968ff5e46cb8af525))
+- *(check)* Always show optional tools in runtime check output - ([2842632](//commit/2842632776bec09356fca5c968ff5e46cb8af525)) by @bchatard
 
-- *(config,scaffold)* Default changelog.output to CHANGELOG.md when empty - ([60ea9c7](//commit/60ea9c7c0e1b91dbc2bd6e6b1d69d5bbc00ba83f))
+- *(config,scaffold)* Default changelog.output to CHANGELOG.md when empty - ([60ea9c7](//commit/60ea9c7c0e1b91dbc2bd6e6b1d69d5bbc00ba83f)) by @bchatard
 
-- *(selfupdate)* Suppress hint and clear cache after successful update - ([e47be4d](//commit/e47be4db03e7fef026cd8dca45b55cf521675f81))
+- *(selfupdate)* Suppress hint and clear cache after successful update - ([e47be4d](//commit/e47be4db03e7fef026cd8dca45b55cf521675f81)) by @bchatard
 
 
 ### 📚 Documentation
 
-- *(roadmap)* Complete Checkpoint K — Phase 10 beta polish done - ([cbafaba](//commit/cbafabab4e12799f0deb13906469b384e7d40e08))
+- *(roadmap)* Complete Checkpoint K — Phase 10 beta polish done - ([cbafaba](//commit/cbafabab4e12799f0deb13906469b384e7d40e08)) by @bchatard
 
 ## [0.12.10](//compare/v0.12.9..v0.12.10) - 2026-05-28
 
