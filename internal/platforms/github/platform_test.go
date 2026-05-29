@@ -189,6 +189,18 @@ func TestCreateRelease_Prerelease(t *testing.T) {
 	assert.Contains(t, call.Args, "--prerelease")
 }
 
+func TestCreateRelease_DraftAndPrerelease(t *testing.T) {
+	mr := testutil.NewMockRunner()
+	mr.QueueResponse("", "", nil)
+
+	p := github.New(mr, &config.Platform{Repository: "org/repo", Draft: true, Prerelease: true})
+	require.NoError(t, p.CreateRelease("v1.0.0-rc.1", "notes"))
+
+	call := mr.Calls[0]
+	assert.Contains(t, call.Args, "--draft")
+	assert.Contains(t, call.Args, "--prerelease")
+}
+
 func TestHasAssets(t *testing.T) {
 	pEmpty := github.New(testutil.NewMockRunner(), &config.Platform{})
 	assert.False(t, pEmpty.HasAssets())
