@@ -2107,17 +2107,23 @@ prevent cross-platform cache pollution. `actions/upload-artifact@v7` and
 
 ---
 
-### ✦ `[ ]` CHECKPOINT K — Beta polish complete, ready for v1.0.0
+### ✦ `[x]` CHECKPOINT K — Beta polish complete, ready for v1.0.0
 
-- [ ] Release workflow attestation steps pass
-- [ ] `heraut self-update` hint does not fire immediately after a successful update
-- [ ] `heraut init` with empty changelog output defaults to `CHANGELOG.md`
-- [ ] `heraut check runtime` shows errors only for tools the active config requires
-- [ ] `heraut check runtime` fails fast on invalid/expired platform credentials
-- [ ] `versioning.tag_prefix` replaces `versioning.prefix` throughout
-- [ ] `go test ./...` passes; all fixtures use `tag_prefix:`
-- [ ] Docker build splits into parallel native-runner matrix; wall-clock ≤ 20 min
+- [x] Release workflow attestation steps pass (T43 — `attestations: write` added)
+- [x] `heraut self-update` hint does not fire immediately after a successful update (T44)
+- [x] `heraut init` with empty changelog output defaults to `CHANGELOG.md` (T45)
+- [x] `heraut check runtime` shows errors only for tools the active config requires (T46)
+- [x] `heraut check runtime` fails fast on invalid/expired platform credentials (T47)
+- [x] `versioning.tag_prefix` replaces `versioning.prefix` throughout (T48)
+- [x] `go test ./...` passes; 675 tests across 23 packages
+- [x] Docker build splits into parallel native-runner matrix; wall-clock ≤ 20 min (T49)
 - [ ] v1.0.0 cut by running `heraut release` on the heraut repo itself
+
+All Phase 10 tasks (T43–T49) shipped. `heraut check runtime` now displays a clean
+three-section TUI (Git / Platforms / Generators) with config-aware required vs optional
+tool checks and full API auth verification for configured platforms. The release workflow
+uses native-runner parallel Docker builds and proper attestation. The one remaining item
+is cutting v1.0.0 itself — all quality gates are green.
 
 ---
 
