@@ -1,53 +1,94 @@
 name: Release
 
 on:
-  push:
-    tags:
-      - v*
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Override version (e.g. v1.2.3). Leave empty to use `heraut version next`."
+        required: false
+        default: ""
 
 jobs:
-  goreleaser:
+  release:
     runs-on: ubuntu-latest
+    outputs:
+      tag: ${{ steps.version.outputs.tag }}
     permissions:
-      contents: write # create GitHub Release + upload assets
-      pull-requests: read # GoReleaser links PRs to commits in release notes
+      contents: write # create GitHub Release + push tag + upload assets
       id-token: write # OIDC token for build provenance attestation
       attestations: write # persist build provenance attestations
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
         with:
-          fetch-depth: 0 # GoReleaser needs full tag history
+          fetch-depth: 0 # full history for changelog generation
+          token: ${{ secrets.GITHUB_TOKEN }}
 
       - uses: jdx/mise-action@1648a7812b9aeae629881980618f079932869151 # v4
 
-      - name: Generate release notes
-        uses: orhun/git-cliff-action@f50e11560dce63f7c33227798f90b924471a88b5 # v4
-        with:
-          config: .config/cliff.toml
-          args: --latest --strip all
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          OUTPUT: /tmp/RELEASE_NOTES.md
+      - name: Configure git identity
+        run: |
+          git config user.name "heraut[bot]"
+          git config user.email "heraut[bot]@users.noreply.github.com"
 
-      - uses: goreleaser/goreleaser-action@5daf1e915a5f0af01ddbcd89a43b8061ff4f1a89 # v7
+      - name: Resolve version
+        id: version
+        run: |
+          if [[ -n "${{ inputs.version }}" ]]; then
+            echo "VERSION=${{ inputs.version }}" >> "$GITHUB_ENV"
+            echo "VERSION_OVERRIDDEN=true" >> "$GITHUB_ENV"
+            echo "tag=${{ inputs.version }}" >> "$GITHUB_OUTPUT"
+          else
+            V=$(heraut version next)
+            echo "VERSION=$V" >> "$GITHUB_ENV"
+            echo "VERSION_OVERRIDDEN=false" >> "$GITHUB_ENV"
+            echo "tag=$V" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Build binaries
+        uses: goreleaser/goreleaser-action@5daf1e915a5f0af01ddbcd89a43b8061ff4f1a89 # v7
         with:
           version: "~> v2"
-          args: release --clean --release-notes /tmp/RELEASE_NOTES.md
+          args: release --clean --skip=publish,announce,validate
         env:
+          GORELEASER_CURRENT_TAG: ${{ env.VERSION }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Collect release binaries
+        run: |
+          for f in dist/heraut_*/heraut_*; do cp "$f" dist/; done
+          echo "FRESH_BIN=dist/heraut_${VERSION#v}_linux_amd64" >> "$GITHUB_ENV"
 
       - name: Attest build provenance
         uses: actions/attest@59d89421af93a897026c735860bf21b6eb4f7b26 # v4
         with:
           subject-checksums: dist/checksums.txt
 
-      - name: Publish release
-        run: gh release edit "${{ github.ref_name }}" --draft=false
+      - name: Version sanity check
+        if: env.VERSION_OVERRIDDEN == 'false'
+        run: |
+          FRESH=./$FRESH_BIN
+          FRESH_VERSION=$($FRESH version next)
+          if [[ "$FRESH_VERSION" != "$VERSION" ]]; then
+            echo "Version mismatch: resolved $VERSION but fresh binary resolves $FRESH_VERSION"
+            echo "A releasable commit landed between step "Resolve version" and now. Re-run the workflow."
+            exit 1
+          fi
+
+      - name: Preflight check
+        run: ./$FRESH_BIN check
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+
+      - name: Release
+        run: ./$FRESH_BIN release --version "$VERSION"
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
 
   docker-build:
     runs-on: ${{ matrix.runner }}
+    needs: release
     permissions:
       packages: write # push image digest to GHCR
       id-token: write # OIDC token (required by login-action)
@@ -94,7 +135,7 @@ jobs:
           labels: ${{ steps.meta.outputs.labels }}
           outputs: type=image,name=ghcr.io/adaouat/heraut,push-by-digest=true,name-canonical=true,push=true
           build-args: |
-            HERAUT_VERSION=${{ github.ref_name }}
+            HERAUT_VERSION=${{ needs.release.outputs.tag }}
           cache-from: type=gha,scope=docker-${{ env.PLATFORM_PAIR }}
           cache-to: type=gha,mode=max,scope=docker-${{ env.PLATFORM_PAIR }}
 

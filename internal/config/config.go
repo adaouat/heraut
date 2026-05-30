@@ -58,6 +58,10 @@ type ContentDriver struct {
 type Release struct {
 	Notes     *ContentDriver `yaml:"notes,omitempty"`
 	Platforms []Platform     `yaml:"platforms,omitempty"`
+	// Assets lists glob patterns for files to attach to the GitHub/GitLab release.
+	// Globs are expanded at release time; a pattern matching nothing emits a warning
+	// but does not abort the release. Applied to all configured platforms.
+	Assets []string `yaml:"assets,omitempty"`
 }
 
 // Platform holds settings for one release platform (github or gitlab).
@@ -74,4 +78,7 @@ type Platform struct {
 	// Shared
 	TokenEnv string   `yaml:"token_env,omitempty"`
 	Assets   []string `yaml:"assets,omitempty"`
+	// LenientAssets is set programmatically when assets come from release.assets (top-level).
+	// When true, a glob pattern that matches nothing emits a warning instead of an error.
+	LenientAssets bool `yaml:"-"`
 }

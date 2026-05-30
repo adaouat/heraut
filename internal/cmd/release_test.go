@@ -90,6 +90,65 @@ release:
 	assert.Contains(t, err.Error(), "platform")
 }
 
+func TestRelease_VersionFlag_InvalidFormat(t *testing.T) {
+	cfgPath := writeConfig(t, `
+version: "1"
+versioning:
+  strategy: semver
+  tag_prefix: "v"
+release:
+  platforms:
+    - platform: github
+      repository: test/repo
+`)
+	tests := []struct {
+		name    string
+		version string
+	}{
+		{"bare word", "notaversion"},
+		{"only major", "v1"},
+		{"only major.minor", "v1.2"},
+		{"v prefix only", "v"},
+		{"non-numeric", "va.b.c"},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			_, err := executeRoot("release", "--config", cfgPath, "--version", tc.version, "--dry-run")
+			require.Error(t, err)
+			assert.Equal(t, exitcode.Config, cmd.ExitCode(err))
+		})
+	}
+}
+
+func TestRelease_VersionFlag_ValidFormats(t *testing.T) {
+	cfgPath := writeConfig(t, `
+version: "1"
+versioning:
+  strategy: semver
+  tag_prefix: "v"
+release:
+  platforms:
+    - platform: github
+      repository: test/repo
+`)
+	tests := []struct {
+		name    string
+		version string
+	}{
+		{"with v prefix", "v1.2.3"},
+		{"without v prefix", "1.2.3"},
+		{"zeros", "v0.0.0"},
+		{"large numbers", "v1.10.100"},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			out, err := executeRoot("release", "--config", cfgPath, "--version", tc.version, "--dry-run")
+			require.NoError(t, err)
+			assert.Contains(t, out, "[dry-run]")
+		})
+	}
+}
+
 func TestRelease_PreflightFail_GitIdentityMissing(t *testing.T) {
 	cfgPath := writeConfig(t, `
 version: "1"

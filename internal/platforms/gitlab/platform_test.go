@@ -186,6 +186,37 @@ func TestUploadAssets_GlobNoMatch(t *testing.T) {
 	assert.Contains(t, err.Error(), "no files matched")
 }
 
+func TestUploadAssets_LenientGlobs_NoMatch_Warns(t *testing.T) {
+	mr := testutil.NewMockRunner()
+	p := gitlab.New(mr, &config.Platform{
+		Project:       "grp/repo",
+		Assets:        []string{"/tmp/nonexistent/heraut_*"},
+		LenientAssets: true,
+	})
+	require.NoError(t, p.UploadAssets("v1.0.0"))
+	assert.Empty(t, mr.Calls)
+}
+
+func TestUploadAssets_LenientGlobs_WithMatch_Uploads(t *testing.T) {
+	tmp := t.TempDir()
+	require.NoError(t, os.WriteFile(filepath.Join(tmp, "heraut_linux"), []byte("bin"), 0o755))
+
+	mr := testutil.NewMockRunner()
+	mr.QueueResponse("", "", nil)
+
+	p := gitlab.New(mr, &config.Platform{
+		Project:       "grp/repo",
+		Assets:        []string{filepath.Join(tmp, "heraut_*")},
+		LenientAssets: true,
+	})
+	require.NoError(t, p.UploadAssets("v1.0.0"))
+
+	require.Len(t, mr.Calls, 1)
+	assert.Equal(t, "glab", mr.Calls[0].Name)
+	assert.Equal(t, "release", mr.Calls[0].Args[0])
+	assert.Equal(t, "upload", mr.Calls[0].Args[1])
+}
+
 func TestCreateRelease_ProjectFromEnv(t *testing.T) {
 	t.Setenv("CI_PROJECT_PATH", "envgrp/envrepo")
 	mr := testutil.NewMockRunner()

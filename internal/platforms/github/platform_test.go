@@ -338,6 +338,38 @@ func TestUploadAssets_TokenForwarded(t *testing.T) {
 	assert.Contains(t, mr.Calls[0].Env, "GH_TOKEN=secret456")
 }
 
+func TestUploadAssets_LenientGlobs_NoMatch_Warns(t *testing.T) {
+	mr := testutil.NewMockRunner()
+	p := github.New(mr, &config.Platform{
+		Repository:    "org/repo",
+		Assets:        []string{"/tmp/nonexistent/heraut_*"},
+		LenientAssets: true,
+	})
+	// Should succeed and not call gh release upload
+	require.NoError(t, p.UploadAssets("v1.0.0"))
+	assert.Empty(t, mr.Calls)
+}
+
+func TestUploadAssets_LenientGlobs_WithMatch_Uploads(t *testing.T) {
+	tmp := t.TempDir()
+	require.NoError(t, os.WriteFile(filepath.Join(tmp, "heraut_linux"), []byte("bin"), 0o755))
+
+	mr := testutil.NewMockRunner()
+	mr.QueueResponse("", "", nil)
+
+	p := github.New(mr, &config.Platform{
+		Repository:    "org/repo",
+		Assets:        []string{filepath.Join(tmp, "heraut_*")},
+		LenientAssets: true,
+	})
+	require.NoError(t, p.UploadAssets("v1.0.0"))
+
+	require.Len(t, mr.Calls, 1)
+	assert.Equal(t, "gh", mr.Calls[0].Name)
+	assert.Equal(t, "release", mr.Calls[0].Args[0])
+	assert.Equal(t, "upload", mr.Calls[0].Args[1])
+}
+
 func TestUploadAssets_GlobSkipsDirectories(t *testing.T) {
 	tmp := t.TempDir()
 	require.NoError(t, os.WriteFile(filepath.Join(tmp, "app"), []byte("bin"), 0o755))

@@ -81,17 +81,43 @@ func TestNewResolver_UnknownStrategy(t *testing.T) {
 	assert.Contains(t, err.Error(), "unknown-strategy")
 }
 
-func TestNewResolver_VersionOverride(t *testing.T) {
+func TestNewResolver_VersionOverride_Semver(t *testing.T) {
 	mr := testutil.NewMockRunner()
-	// Queue a response for Resolve (git tag -l) when called
-	mr.QueueResponse("", "", nil)
-
-	r, err := app.NewResolver(semverCfg(), "", false, "2.0.0", mr)
+	r, err := app.NewResolver(semverCfg(), "", false, "v2.0.0", mr)
 	require.NoError(t, err)
-	require.NotNil(t, r)
 
-	// With versionOverride set, semver uses manual mode — but strategy is "semver",
-	// not "manual", so override is set but we just verify the resolver resolves without error.
-	// We check the resolver is non-nil (override was applied).
-	assert.NotNil(t, r)
+	result, err := r.Resolve()
+	require.NoError(t, err)
+	assert.Equal(t, "v2.0.0", result.Tag)
+	assert.Equal(t, "2.0.0", result.Version)
+	assert.Empty(t, mr.Calls, "static resolver must not call git")
+}
+
+func TestNewResolver_VersionOverride_Calver(t *testing.T) {
+	mr := testutil.NewMockRunner()
+	r, err := app.NewResolver(calverCfg(), "", false, "2026.05.3", mr)
+	require.NoError(t, err)
+
+	result, err := r.Resolve()
+	require.NoError(t, err)
+	assert.Equal(t, "2026.05.3", result.Tag)
+	assert.Empty(t, mr.Calls, "static resolver must not call git")
+}
+
+func TestNewResolver_VersionOverride_SemverPerEnv(t *testing.T) {
+	mr := testutil.NewMockRunner()
+	cfg := &config.Config{
+		Version:    "1",
+		Versioning: config.Versioning{Strategy: "semver-per-env"},
+		Environments: map[string]config.Environment{
+			"prod": {Bump: "auto", TagFormat: "prod/${version}"},
+		},
+	}
+	r, err := app.NewResolver(cfg, "prod", false, "v1.5.0", mr)
+	require.NoError(t, err)
+
+	result, err := r.Resolve()
+	require.NoError(t, err)
+	assert.Equal(t, "v1.5.0", result.Tag)
+	assert.Empty(t, mr.Calls, "static resolver must not call git")
 }

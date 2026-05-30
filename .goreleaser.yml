@@ -9,7 +9,7 @@ before:
 builds:
   - id: heraut
     main: ./cmd/heraut/
-    binary: heraut
+    binary: "heraut_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
     env:
       - CGO_ENABLED=0
     goos:
@@ -25,7 +25,9 @@ builds:
     ldflags:
       - >-
         -s -w -X main.Version={{.Tag}}
-# ADR-0013: raw binaries, no archive wrapper
+# ADR-0013: raw binaries, no archive wrapper.
+# binary and name_template share the same versioned naming so the checksum
+# covers the built binary directly (ADR-0018).
 archives:
   - id: default
     name_template: "{{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
@@ -35,6 +37,7 @@ archives:
 checksum:
   name_template: "checksums.txt"
 
+# release.disable: true — goreleaser is build-only in the CI pipeline (ADR-0018).
+# heraut owns GitHub Release creation via `heraut release --version`.
 release:
-  disable: false
-  draft: true
+  disable: true

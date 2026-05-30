@@ -112,9 +112,11 @@ func buildReleasePipelineConfig(runner port.Runner, cfg *config.Config, env stri
 	effectiveChangelog := cfg.Changelog
 	var effectiveNotes *config.ContentDriver
 	var effectivePlatforms []config.Platform
+	var releaseAssets []string
 	if cfg.Release != nil {
 		effectiveNotes = cfg.Release.Notes
 		effectivePlatforms = cfg.Release.Platforms
+		releaseAssets = cfg.Release.Assets
 	}
 
 	if env != "" {
@@ -154,8 +156,13 @@ func buildReleasePipelineConfig(runner port.Runner, cfg *config.Config, env stri
 		pCfg.Notes = gen
 	}
 
-	// Platforms
+	// Platforms — propagate release.assets (top-level) to each platform with lenient
+	// glob semantics (warn on no-match instead of error).
 	for i, platCfg := range effectivePlatforms {
+		if len(releaseAssets) > 0 && len(effectivePlatforms[i].Assets) == 0 {
+			effectivePlatforms[i].Assets = releaseAssets
+			effectivePlatforms[i].LenientAssets = true
+		}
 		p, err := buildPlatform(runner, &effectivePlatforms[i])
 		if err != nil {
 			return nil, fmt.Errorf("platform %d (%s): %w", i, platCfg.Type, err)

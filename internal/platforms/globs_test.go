@@ -63,6 +63,44 @@ func TestResolveGlobs_InvalidGlobSyntax(t *testing.T) {
 	assert.Contains(t, err.Error(), "invalid glob pattern")
 }
 
+func TestResolveGlobsLenient_Matches(t *testing.T) {
+	dir := t.TempDir()
+	touch(t, dir, "a.bin")
+	touch(t, dir, "b.bin")
+
+	var warned []string
+	files, err := platforms.ResolveGlobsLenient(
+		[]string{filepath.Join(dir, "*.bin")},
+		func(p string) { warned = append(warned, p) },
+	)
+	require.NoError(t, err)
+	assert.ElementsMatch(t, []string{
+		filepath.Join(dir, "a.bin"),
+		filepath.Join(dir, "b.bin"),
+	}, files)
+	assert.Empty(t, warned)
+}
+
+func TestResolveGlobsLenient_NoMatch_Warns(t *testing.T) {
+	dir := t.TempDir()
+
+	var warned []string
+	files, err := platforms.ResolveGlobsLenient(
+		[]string{filepath.Join(dir, "*.zip")},
+		func(p string) { warned = append(warned, p) },
+	)
+	require.NoError(t, err)
+	assert.Empty(t, files)
+	require.Len(t, warned, 1)
+	assert.Contains(t, warned[0], "*.zip")
+}
+
+func TestResolveGlobsLenient_InvalidGlob_Errors(t *testing.T) {
+	_, err := platforms.ResolveGlobsLenient([]string{"[invalid"}, func(string) {})
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "invalid glob pattern")
+}
+
 func touch(t *testing.T, dir, name string) {
 	t.Helper()
 	path := filepath.Join(dir, name)

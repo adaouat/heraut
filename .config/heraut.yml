@@ -11,3 +11,15 @@ changelog:
   generator: git-cliff
   config: .config/cliff.toml
   output: CHANGELOG.md
+
+release:
+  platforms:
+    - platform: github
+      repository: adaouat/heraut
+  assets:
+    - "dist/heraut_*_linux_amd64"
+    - "dist/heraut_*_linux_arm64"
+    - "dist/heraut_*_darwin_amd64"
+    - "dist/heraut_*_darwin_arm64"
+    - "dist/heraut_*_windows_amd64.exe"
+    - "dist/checksums.txt"

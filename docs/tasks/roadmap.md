@@ -2190,7 +2190,7 @@ sequence. Specs 02 and 03 updated. 681 tests pass.
 
 ---
 
-#### `[ ]` T51: CI build-then-release pipeline + `--version` flag + `release.assets`
+#### `[x]` T51: CI build-then-release pipeline + `--version` flag + `release.assets`
 
 **Description:** Replace the current tag-triggered GoReleaser-owned release workflow with a
 self-bootstrapping three-step CI pipeline where heraut owns the GitHub Release. Eliminates
@@ -2250,6 +2250,20 @@ public config contract.
 
 **Scope:** L
 
+**Done:** Implemented all acceptance criteria. `config.Release.Assets []string` added (top-level,
+YAML-settable); `config.Platform.LenientAssets bool` (internal, `yaml:"-"`) flags lenient glob
+semantics for release-level assets. `platforms.ResolveGlobsLenient` added alongside the existing
+strict `ResolveGlobs`. `versioning.StaticResolver` introduced — `app.NewResolver` returns it for
+ALL strategies when `--version` is set, making the flag strategy-agnostic and git-free. `cmd/release`
+validates `--version` as `vMAJOR.MINOR.PATCH` / `MAJOR.MINOR.PATCH` before any pipeline step runs.
+`buildReleasePipelineConfig` propagates `release.assets` to all platform configs with `LenientAssets=true`.
+Goreleaser now uses `goreleaser release` (not `goreleaser build`) with `release.disable: true` so archives
+and `checksums.txt` are generated automatically; binary name template `heraut_{{ .Version }}_{{ .Os }}_{{ .Arch }}`
+ensures versioned names in build dirs; a copy loop collects them to `dist/` root. Workflow uses
+`workflow_dispatch` with optional version input; version sanity check (fresh binary must agree with step-0
+version) is skipped when version is manually set. `schema.json`, `heraut.sample.yml`, `.config/heraut.yml`
+updated. Resolved questions table updated. 712 tests pass.
+
 ---
 
 ## Risks and mitigations
@@ -2268,7 +2282,7 @@ public config contract.
 | Question                                                                            | Resolution                                                                |
 |-------------------------------------------------------------------------------------|---------------------------------------------------------------------------|
 | Module path                                                                         | `github.com/adaouat/heraut`                                               |
-| GoReleaser release ownership for the heraut repo's own releases                     | GoReleaser creates GitHub Releases directly (`release: disable: false`)   |
+| GoReleaser release ownership for the heraut repo's own releases                     | heraut owns GitHub Release creation (T51 / ADR-0018); goreleaser is build-only (`release: disable: true`) |
 | Docker image registry                                                               | `ghcr.io/adaouat/heraut`                                                  |
 | Dev tooling                                                                         | `mise` + `hk` (already configured in `.config/`)                          |
 | Self-update version check                                                           | GitHub Releases API directly (no Pages hosting)                           |

@@ -157,6 +157,13 @@
           "items": {
             "$ref": "#/definitions/Platform"
           }
+        },
+        "assets": {
+          "type": "array",
+          "description": "Glob patterns for files to attach to the release. Applied to all configured platforms. A pattern matching nothing emits a warning but does not abort the release.",
+          "items": {
+            "type": "string"
+          }
         }
       }
     },

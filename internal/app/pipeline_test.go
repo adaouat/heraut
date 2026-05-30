@@ -197,6 +197,23 @@ func TestBuildChangelogPipeline_PerEnvDisable(t *testing.T) {
 	assert.NotNil(t, p)
 }
 
+func TestBuildPipeline_ReleaseAssets_PropagatesToPlatforms(t *testing.T) {
+	// release.assets at the top level should build successfully — the platform
+	// contract tests verify the actual upload behavior with LenientAssets=true.
+	mr := testutil.NewMockRunner()
+	cfg := semverCfg()
+	cfg.Release = &config.Release{
+		Platforms: []config.Platform{{Type: "github", Repository: "org/repo"}},
+		Assets: []string{
+			"dist/heraut_*_linux_amd64",
+			"dist/checksums.txt",
+		},
+	}
+	p, err := app.BuildPipeline(mr, cfg, defaultResolver, defaultOpts)
+	require.NoError(t, err)
+	assert.NotNil(t, p)
+}
+
 func TestReadGPGSign_True(t *testing.T) {
 	mr := testutil.NewMockRunner()
 	mr.QueueResponse("true\n", "", nil)

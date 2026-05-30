@@ -114,6 +114,17 @@ release:
     # config, tag_pattern, template — same semantics as the changelog block above.
     # tag_pattern: "v[0-9]*"
 
+  # assets — glob patterns for files to attach to the release, applied to all platforms.
+  # Globs are expanded at release time; a pattern matching nothing emits a warning
+  # but does not abort the release.
+  # assets:
+  #   - "dist/myapp_*_linux_amd64"
+  #   - "dist/myapp_*_linux_arm64"
+  #   - "dist/myapp_*_darwin_amd64"
+  #   - "dist/myapp_*_darwin_arm64"
+  #   - "dist/myapp_*_windows_amd64.exe"
+  #   - "dist/checksums.txt"
+
   # platforms — one entry per target platform.
   # Both github and gitlab can coexist; heraut publishes to all listed platforms.
   platforms:

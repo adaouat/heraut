@@ -334,3 +334,43 @@ changelog:
 		})
 	}
 }
+
+func TestLoadFromReader_ReleaseAssets(t *testing.T) {
+	src := `
+version: "1"
+versioning:
+  strategy: semver
+  tag_prefix: "v"
+release:
+  platforms:
+    - platform: github
+      repository: owner/repo
+  assets:
+    - "dist/heraut_*_linux_amd64"
+    - "dist/checksums.txt"
+`
+	cfg, err := config.LoadFromReader(strings.NewReader(src))
+	require.NoError(t, err)
+	require.NotNil(t, cfg.Release)
+	assert.Equal(t, []string{
+		"dist/heraut_*_linux_amd64",
+		"dist/checksums.txt",
+	}, cfg.Release.Assets)
+}
+
+func TestLoadFromReader_ReleaseAssets_Empty(t *testing.T) {
+	src := `
+version: "1"
+versioning:
+  strategy: semver
+  tag_prefix: "v"
+release:
+  platforms:
+    - platform: github
+      repository: owner/repo
+`
+	cfg, err := config.LoadFromReader(strings.NewReader(src))
+	require.NoError(t, err)
+	require.NotNil(t, cfg.Release)
+	assert.Empty(t, cfg.Release.Assets)
+}

@@ -115,15 +115,27 @@ func (p *Platform) CreateRelease(tag, notes string) error {
 func (p *Platform) HasAssets() bool { return len(p.cfg.Assets) > 0 }
 
 // UploadAssets resolves each asset glob and runs `gh release upload` per matched file.
+// When cfg.LenientAssets is true, globs that match nothing emit a warning to stderr
+// instead of returning an error (used for release-level assets from release.assets).
 func (p *Platform) UploadAssets(tag string) error {
 	repo, err := p.requireRepository()
 	if err != nil {
 		return err
 	}
 
-	files, err := platforms.ResolveGlobs(p.cfg.Assets)
+	var files []string
+	if p.cfg.LenientAssets {
+		files, err = platforms.ResolveGlobsLenient(p.cfg.Assets, func(pattern string) {
+			_, _ = fmt.Fprintf(os.Stderr, "warning: no files matched asset pattern %q — skipping\n", pattern)
+		})
+	} else {
+		files, err = platforms.ResolveGlobs(p.cfg.Assets)
+	}
 	if err != nil {
 		return err
+	}
+	if len(files) == 0 {
+		return nil
 	}
 
 	for _, f := range files {
