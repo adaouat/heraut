@@ -33,7 +33,7 @@ behavioural spec.
 ## Docs
 
 - [`docs/specs/`](docs/specs/) — behavioural specification (read before changing CLI surface or config schema)
-- [`docs/adr/`](docs/adr/) — architecture decision records (17 ADRs, numbered consecutively)
+- [`docs/adr/`](docs/adr/) — architecture decision records (18 ADRs, numbered consecutively)
 - [`docs/tasks/`](docs/tasks/) — build roadmap with inline task checklist (`roadmap.md`)
 
 ## Tech stack
@@ -97,7 +97,7 @@ internal/
 testdata/                       repo-wide read-only test fixtures (.heraut.yml samples, …)
 
 docs/specs/                     6 numbered specs (behavioural authority)
-docs/adr/                       17 ADRs (architectural decisions)
+docs/adr/                       18 ADRs (architectural decisions)
 docs/tasks/                     roadmap.md (build plan + inline task checklist)
 
 schema.json                     published JSON Schema for .heraut.yml IDE validation

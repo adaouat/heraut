@@ -22,3 +22,4 @@ trade-offs were accepted.
 | [0015](0015-unified-logging-charm-log.md) | Unified Logging with `charm.land/log` | Rejected |
 | [0016](0016-bundled-docker-image.md) | Batteries-Included Docker Image | Accepted |
 | [0017](0017-pipeline-progress-reporter.md) | Pipeline Progress Reporter Pattern | Accepted |
+| [0018](0018-ci-build-then-release-pipeline.md) | Self-Bootstrapping CI Release Pipeline | Accepted |
