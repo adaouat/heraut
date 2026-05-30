@@ -101,6 +101,8 @@ func (p *Platform) tokenEnvSlice(envName string) []string {
 }
 
 // CreateRelease runs `glab release create`.
+// When cfg.LenientAssets is true (release-level assets), resolved asset files are
+// included as positional args for atomic create+upload (mirrors the GitHub pattern).
 func (p *Platform) CreateRelease(tag, notes string) error {
 	proj, err := p.requireProject()
 	if err != nil {
@@ -110,6 +112,16 @@ func (p *Platform) CreateRelease(tag, notes string) error {
 	// GitLab automatically publishes to the CI/CD Catalog when the project is a
 	// registered catalog resource — no explicit publish step needed.
 	args := []string{"release", "create", tag, "--notes", notes, "-R", proj}
+
+	if p.cfg.LenientAssets && len(p.cfg.Assets) > 0 {
+		files, err := platforms.ResolveGlobsLenient(p.cfg.Assets, func(pattern string) {
+			_, _ = fmt.Fprintf(os.Stderr, "warning: no files matched asset pattern %q — skipping\n", pattern)
+		})
+		if err != nil {
+			return fmt.Errorf("glab release create: resolving assets: %w", err)
+		}
+		args = append(args, files...)
+	}
 
 	if _, _, err := p.runner.Run("glab", args...); err != nil {
 		return fmt.Errorf("glab release create: %w", err)
@@ -121,22 +133,19 @@ func (p *Platform) HasAssets() bool { return len(p.cfg.Assets) > 0 }
 
 // UploadAssets resolves asset globs and uploads all matched files in one
 // `glab release upload --use-package-registry` call.
-// When cfg.LenientAssets is true, globs that match nothing emit a warning to stderr
-// instead of returning an error (used for release-level assets from release.assets).
+// When cfg.LenientAssets is true, this is a no-op — assets were already included
+// in the glab release create call atomically.
 func (p *Platform) UploadAssets(tag string) error {
+	if p.cfg.LenientAssets {
+		return nil
+	}
+
 	proj, err := p.requireProject()
 	if err != nil {
 		return err
 	}
 
-	var files []string
-	if p.cfg.LenientAssets {
-		files, err = platforms.ResolveGlobsLenient(p.cfg.Assets, func(pattern string) {
-			_, _ = fmt.Fprintf(os.Stderr, "warning: no files matched asset pattern %q — skipping\n", pattern)
-		})
-	} else {
-		files, err = platforms.ResolveGlobs(p.cfg.Assets)
-	}
+	files, err := platforms.ResolveGlobs(p.cfg.Assets)
 	if err != nil {
 		return err
 	}

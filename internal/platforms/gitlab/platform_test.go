@@ -99,6 +99,41 @@ func TestCreateRelease_BasicArgs(t *testing.T) {
 	}, call.Args)
 }
 
+func TestCreateRelease_LenientAssets_IncludesFilesInCreate(t *testing.T) {
+	tmp := t.TempDir()
+	require.NoError(t, os.WriteFile(filepath.Join(tmp, "heraut_linux"), []byte("bin"), 0o755))
+	require.NoError(t, os.WriteFile(filepath.Join(tmp, "checksums.txt"), []byte("abc"), 0o644))
+
+	mr := testutil.NewMockRunner()
+	mr.QueueResponse("", "", nil)
+
+	p := gitlab.New(mr, &config.Platform{
+		Project:       "grp/repo",
+		Assets:        []string{filepath.Join(tmp, "heraut_linux"), filepath.Join(tmp, "checksums.txt")},
+		LenientAssets: true,
+	})
+	require.NoError(t, p.CreateRelease("v1.0.0", "notes"))
+
+	require.Len(t, mr.Calls, 1)
+	call := mr.Calls[0]
+	assert.Equal(t, "glab", call.Name)
+	assert.Equal(t, "release", call.Args[0])
+	assert.Equal(t, "create", call.Args[1])
+	assert.Contains(t, call.Args, filepath.Join(tmp, "heraut_linux"))
+	assert.Contains(t, call.Args, filepath.Join(tmp, "checksums.txt"))
+}
+
+func TestUploadAssets_LenientGlobs_IsNoop(t *testing.T) {
+	mr := testutil.NewMockRunner()
+	p := gitlab.New(mr, &config.Platform{
+		Project:       "grp/repo",
+		Assets:        []string{"dist/heraut_*"},
+		LenientAssets: true,
+	})
+	require.NoError(t, p.UploadAssets("v1.0.0"))
+	assert.Empty(t, mr.Calls)
+}
+
 func TestHasAssets(t *testing.T) {
 	pEmpty := gitlab.New(testutil.NewMockRunner(), &config.Platform{})
 	assert.False(t, pEmpty.HasAssets())
@@ -197,24 +232,15 @@ func TestUploadAssets_LenientGlobs_NoMatch_Warns(t *testing.T) {
 	assert.Empty(t, mr.Calls)
 }
 
-func TestUploadAssets_LenientGlobs_WithMatch_Uploads(t *testing.T) {
-	tmp := t.TempDir()
-	require.NoError(t, os.WriteFile(filepath.Join(tmp, "heraut_linux"), []byte("bin"), 0o755))
-
+func TestUploadAssets_LenientGlobs_WithMatch_IsNoop(t *testing.T) {
 	mr := testutil.NewMockRunner()
-	mr.QueueResponse("", "", nil)
-
 	p := gitlab.New(mr, &config.Platform{
 		Project:       "grp/repo",
-		Assets:        []string{filepath.Join(tmp, "heraut_*")},
+		Assets:        []string{"dist/heraut_*"},
 		LenientAssets: true,
 	})
 	require.NoError(t, p.UploadAssets("v1.0.0"))
-
-	require.Len(t, mr.Calls, 1)
-	assert.Equal(t, "glab", mr.Calls[0].Name)
-	assert.Equal(t, "release", mr.Calls[0].Args[0])
-	assert.Equal(t, "upload", mr.Calls[0].Args[1])
+	assert.Empty(t, mr.Calls)
 }
 
 func TestCreateRelease_ProjectFromEnv(t *testing.T) {

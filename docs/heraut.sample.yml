@@ -117,6 +117,9 @@ release:
   # assets — glob patterns for files to attach to the release, applied to all platforms.
   # Globs are expanded at release time; a pattern matching nothing emits a warning
   # but does not abort the release.
+  # Precedence: if a platform entry also defines assets:, the platform-level list
+  # takes full precedence and release.assets is ignored for that platform. Use
+  # release.assets as a shared default; use platform.assets for platform-specific overrides.
   # assets:
   #   - "dist/myapp_*_linux_amd64"
   #   - "dist/myapp_*_linux_arm64"
@@ -144,7 +147,8 @@ release:
       # prerelease — mark as a pre-release on the GitHub UI.
       # prerelease: true
 
-      # assets — glob patterns for files to attach to the release.
+      # assets — platform-specific glob patterns. When set, overrides release.assets
+      # entirely for this platform (no merging). Omit to inherit release.assets.
       # assets:
       #   - dist/myapp_*
       #   - dist/checksums.txt
@@ -160,7 +164,7 @@ release:
   #   # Defaults to GITLAB_TOKEN if omitted.
   #   token_env: GITLAB_TOKEN
   #
-  #   # assets — glob patterns for files to attach.
+  #   # assets — platform-specific overrides (overrides release.assets entirely for this platform).
   #   # assets:
   #   #   - dist/myapp_*
 

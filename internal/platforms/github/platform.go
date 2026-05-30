@@ -92,6 +92,10 @@ func (p *Platform) checkAPIAuth(tokenMissing bool) error {
 }
 
 // CreateRelease runs `gh release create`.
+// When cfg.LenientAssets is true (release-level assets), resolved asset files are
+// included as positional args so the create and upload are atomic — this avoids
+// GitHub's HTTP 422 "Cannot upload assets to an immutable release" that occurs when
+// uploading to an already-published release via a separate gh release upload call.
 func (p *Platform) CreateRelease(tag, notes string) error {
 	repo, err := p.requireRepository()
 	if err != nil {
@@ -106,6 +110,16 @@ func (p *Platform) CreateRelease(tag, notes string) error {
 		args = append(args, "--prerelease")
 	}
 
+	if p.cfg.LenientAssets && len(p.cfg.Assets) > 0 {
+		files, err := platforms.ResolveGlobsLenient(p.cfg.Assets, func(pattern string) {
+			_, _ = fmt.Fprintf(os.Stderr, "warning: no files matched asset pattern %q — skipping\n", pattern)
+		})
+		if err != nil {
+			return fmt.Errorf("gh release create: resolving assets: %w", err)
+		}
+		args = append(args, files...)
+	}
+
 	if _, _, err := p.runner.RunEnv(p.tokenEnvSlice(), "gh", args...); err != nil {
 		return fmt.Errorf("gh release create: %w", err)
 	}
@@ -115,22 +129,19 @@ func (p *Platform) CreateRelease(tag, notes string) error {
 func (p *Platform) HasAssets() bool { return len(p.cfg.Assets) > 0 }
 
 // UploadAssets resolves each asset glob and runs `gh release upload` per matched file.
-// When cfg.LenientAssets is true, globs that match nothing emit a warning to stderr
-// instead of returning an error (used for release-level assets from release.assets).
+// When cfg.LenientAssets is true, this is a no-op — assets were already uploaded
+// atomically inside CreateRelease to avoid GitHub's HTTP 422 on separate upload.
 func (p *Platform) UploadAssets(tag string) error {
+	if p.cfg.LenientAssets {
+		return nil
+	}
+
 	repo, err := p.requireRepository()
 	if err != nil {
 		return err
 	}
 
-	var files []string
-	if p.cfg.LenientAssets {
-		files, err = platforms.ResolveGlobsLenient(p.cfg.Assets, func(pattern string) {
-			_, _ = fmt.Fprintf(os.Stderr, "warning: no files matched asset pattern %q — skipping\n", pattern)
-		})
-	} else {
-		files, err = platforms.ResolveGlobs(p.cfg.Assets)
-	}
+	files, err := platforms.ResolveGlobs(p.cfg.Assets)
 	if err != nil {
 		return err
 	}

@@ -160,7 +160,7 @@
         },
         "assets": {
           "type": "array",
-          "description": "Glob patterns for files to attach to the release. Applied to all configured platforms. A pattern matching nothing emits a warning but does not abort the release.",
+          "description": "Glob patterns for files to attach to the release, applied to all platforms. Globs are expanded at release time; a pattern matching nothing emits a warning but does not abort the release. If a platform entry also defines assets, the platform-level list takes full precedence for that platform (no merging).",
           "items": {
             "type": "string"
           }
@@ -207,7 +207,7 @@
           "items": {
             "type": "string"
           },
-          "description": "Asset file paths to attach to the release."
+          "description": "Platform-specific glob patterns for files to attach to the release. When set, overrides release.assets entirely for this platform. Omit to inherit release.assets."
         }
       }
     },
