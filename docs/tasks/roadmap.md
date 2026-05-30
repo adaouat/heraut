@@ -2190,6 +2190,68 @@ sequence. Specs 02 and 03 updated. 681 tests pass.
 
 ---
 
+#### `[ ]` T51: CI build-then-release pipeline + `--version` flag + `release.assets`
+
+**Description:** Replace the current tag-triggered GoReleaser-owned release workflow with a
+self-bootstrapping three-step CI pipeline where heraut owns the GitHub Release. Eliminates
+the full bootstrap dependency: a broken `heraut release` can be fixed and retried by
+pushing a code fix — no manual escape hatch needed.
+
+**Pipeline design:**
+- Step 0: `heraut version next` from the pinned previous build → `VERSION`
+- Step 1: `GORELEASER_CURRENT_TAG=$VERSION goreleaser build --clean` → `dist/` with all
+  platform binaries and ldflags baked in; no GitHub Release creation, no tag, no push
+- Step 2: fresh binary from `dist/` runs `heraut check`, then a version sanity check
+  (`heraut version next` with fresh binary must match `VERSION`), then
+  `heraut release --version $VERSION` (changelog → commit → tag → push → publish + asset
+  upload)
+- `workflow_dispatch` trigger with optional `version` input — when set, bypasses step 0
+  and skips the version sanity check (explicit override is intentional)
+
+See [ADR-0018](../adr/0018-ci-build-then-release-pipeline.md) and spec at
+[`.claude/plans/ci-build-then-release.md`](../../.claude/plans/ci-build-then-release.md).
+
+**Acceptance:**
+- `heraut release --version v1.2.3` completes without calling the version resolver;
+  invalid format rejected before any pipeline step runs
+- `release.assets` glob patterns in `.heraut.yml` are expanded and passed as positional
+  args to `gh release create` / `glab release create`; glob matching nothing emits a
+  warning but does not fail the release
+- `heraut check` runs with the fresh binary before any git state is written; failure aborts
+- Version mismatch between step 0 and fresh binary aborts CI cleanly; skipped when
+  `workflow_dispatch` `version` input is set
+- GitHub Actions workflow triggers on `workflow_dispatch`; Docker workflows continue to
+  trigger on the tag heraut pushes (unchanged)
+- `goreleaser build --clean` is the only goreleaser invocation; `release.disable: true`
+  in `.goreleaser.yml`
+- `schema.json` and `docs/heraut.sample.yml` updated for `release.assets`
+- Contract tests cover asset glob expansion + args for GitHub and GitLab platforms
+
+**ADR required:** ADR-0018 — transfer of GitHub Release ownership from GoReleaser to
+heraut; rationale for the build-then-use bootstrap design; `release.assets` as a new
+public config contract.
+
+**Spec:** `.claude/plans/ci-build-then-release.md`
+
+**Dependencies:** T50 (done)
+
+**Files:**
+- `internal/cmd/release.go` — `--version` flag
+- `internal/app/pipeline.go` — accept pre-resolved version in pipeline opts
+- `internal/pipeline/release.go` — skip resolver step when version is pre-set
+- `internal/config/config.go` — `Assets []string` in `ReleaseConfig`
+- `internal/platforms/github/{platform,platform_test}.go` — glob expansion + `gh release create` args
+- `internal/platforms/gitlab/{platform,platform_test}.go` — same for `glab release create`
+- `schema.json` — add `release.assets` array field
+- `docs/heraut.sample.yml` — show `assets` field in context
+- `.goreleaser.yml` — `release.disable: true`
+- `.github/workflows/release.yml` — three-step pipeline, `workflow_dispatch` trigger
+- `docs/adr/0018-ci-build-then-release-pipeline.md`
+
+**Scope:** L
+
+---
+
 ## Risks and mitigations
 
 | Risk                                                                                | Impact            | Mitigation                                                                |
