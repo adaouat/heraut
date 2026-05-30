@@ -18,18 +18,20 @@ jobs:
       id-token: write # OIDC token for build provenance attestation
       attestations: write # persist build provenance attestations
     steps:
-      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+      - name: Checkout code
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
         with:
           fetch-depth: 0 # full history for changelog generation
           token: ${{ secrets.GITHUB_TOKEN }}
 
-      - uses: jdx/mise-action@1648a7812b9aeae629881980618f079932869151 # v4
+      - name: Setup Mise
+        uses: jdx/mise-action@1648a7812b9aeae629881980618f079932869151 # v4
 
       - name: Configure git
         run: |
           git config user.name "heraut[bot]"
           git config user.email "heraut[bot]@users.noreply.github.com"
-          echo "${{ secrets.RELEASE_GPG_PRIVATE_KEY }}" | base64 -d | gpg --batch --import
+          echo "${{ secrets.RELEASE_GPG_PRIVATE_KEY }}" | gpg --batch --import
           git config user.signingkey "${{ secrets.RELEASE_GPG_KEY_ID }}"
           git config commit.gpgsign true
           git config tag.gpgSign true
@@ -119,7 +121,8 @@ jobs:
           - platform: linux/arm64
             runner: ubuntu-24.04-arm
     steps:
-      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+      - name: Checkout code
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
 
       - name: Prepare platform tag
         run: echo "PLATFORM_PAIR=${PLATFORM//\//-}" >> $GITHUB_ENV
