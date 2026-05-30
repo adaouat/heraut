@@ -38,7 +38,11 @@ jobs:
             echo "VERSION_OVERRIDDEN=true" >> "$GITHUB_ENV"
             echo "tag=${{ inputs.version }}" >> "$GITHUB_OUTPUT"
           else
-            V=$(heraut version next)
+            # Strip the release block so the bootstrap heraut (which predates
+            # fields added in the version being released) does not fail on
+            # unknown YAML keys. version next only needs the versioning block.
+            yq 'del(.release)' .config/heraut.yml > /tmp/heraut-version.yml
+            V=$(HERAUT_FILE=/tmp/heraut-version.yml heraut version next)
             echo "VERSION=$V" >> "$GITHUB_ENV"
             echo "VERSION_OVERRIDDEN=false" >> "$GITHUB_ENV"
             echo "tag=$V" >> "$GITHUB_OUTPUT"
