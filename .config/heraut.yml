@@ -13,6 +13,8 @@ changelog:
   output: CHANGELOG.md
 
 release:
+  notes:
+    generator: git-cliff
   platforms:
     - platform: github
       repository: adaouat/heraut
