@@ -18,6 +18,7 @@ func TestResolvePath_explicit(t *testing.T) {
 func TestResolvePath_dotConfigPresent(t *testing.T) {
 	dir := t.TempDir()
 	t.Chdir(dir)
+	t.Setenv("HERAUT_FILE", "")
 	require.NoError(t, os.MkdirAll(filepath.Join(dir, ".config"), 0o755))
 	require.NoError(t, os.WriteFile(filepath.Join(dir, ".config", "heraut.yml"), []byte("version: '1'"), 0o644))
 
@@ -27,6 +28,7 @@ func TestResolvePath_dotConfigPresent(t *testing.T) {
 func TestResolvePath_dotHerautPresent(t *testing.T) {
 	dir := t.TempDir()
 	t.Chdir(dir)
+	t.Setenv("HERAUT_FILE", "")
 	require.NoError(t, os.WriteFile(filepath.Join(dir, ".heraut.yml"), []byte("version: '1'"), 0o644))
 
 	assert.Equal(t, ".heraut.yml", config.ResolvePath(""))
@@ -35,6 +37,7 @@ func TestResolvePath_dotHerautPresent(t *testing.T) {
 func TestResolvePath_fallbackWhenNoFiles(t *testing.T) {
 	dir := t.TempDir()
 	t.Chdir(dir)
+	t.Setenv("HERAUT_FILE", "")
 
 	// Neither .config/heraut.yml nor .heraut.yml exists: return default.
 	assert.Equal(t, ".heraut.yml", config.ResolvePath(""))
@@ -43,6 +46,7 @@ func TestResolvePath_fallbackWhenNoFiles(t *testing.T) {
 func TestResolvePath_dotConfigTakesPrecedence(t *testing.T) {
 	dir := t.TempDir()
 	t.Chdir(dir)
+	t.Setenv("HERAUT_FILE", "")
 	require.NoError(t, os.MkdirAll(filepath.Join(dir, ".config"), 0o755))
 	require.NoError(t, os.WriteFile(filepath.Join(dir, ".config", "heraut.yml"), []byte("version: '1'"), 0o644))
 	require.NoError(t, os.WriteFile(filepath.Join(dir, ".heraut.yml"), []byte("version: '1'"), 0o644))
@@ -58,6 +62,14 @@ func TestResolvePath_envVar(t *testing.T) {
 func TestResolvePath_explicitFlagWinsOverEnvVar(t *testing.T) {
 	t.Setenv("HERAUT_FILE", "/env/path.yml")
 	assert.Equal(t, "/flag/path.yml", config.ResolvePath("/flag/path.yml"))
+}
+
+func TestResolvePath_envVarWhitespaceOnlyFallsThrough(t *testing.T) {
+	dir := t.TempDir()
+	t.Chdir(dir)
+	t.Setenv("HERAUT_FILE", "   ")
+	// Whitespace-only is treated as unset; falls through to auto-discovery.
+	assert.Equal(t, ".heraut.yml", config.ResolvePath(""))
 }
 
 func TestResolvePath_envVarEmptyStringFallsThrough(t *testing.T) {

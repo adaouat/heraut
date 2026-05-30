@@ -1,6 +1,9 @@
 package config
 
-import "os"
+import (
+	"os"
+	"strings"
+)
 
 // ResolvePath returns the config file to use:
 //  1. explicit (--config flag) if non-empty
@@ -11,7 +14,7 @@ func ResolvePath(explicit string) string {
 	if explicit != "" {
 		return explicit
 	}
-	if env := os.Getenv("HERAUT_FILE"); env != "" {
+	if env := strings.TrimSpace(os.Getenv("HERAUT_FILE")); env != "" {
 		return env
 	}
 	if _, err := os.Stat(".config/heraut.yml"); err == nil {
