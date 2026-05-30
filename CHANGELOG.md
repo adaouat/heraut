@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.15.2](https://github.com/adaouat/heraut/compare/v0.15.1..v0.15.2) - 2026-05-30
+
+### ⚙️ Miscellaneous Tasks
+
+- *(config)* Add release notes generator to heraut's own config - ([ad74c6c](https://github.com/adaouat/heraut/commit/ad74c6c7edf34fc29dffe10e4fe0caa0782c9905)) by @bchatard
+
 ## [0.15.1](https://github.com/adaouat/heraut/compare/v0.15.0..v0.15.1) - 2026-05-30
 
 ### 🐛 Bug Fixes
