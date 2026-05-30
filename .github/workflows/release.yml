@@ -86,6 +86,15 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GITHUB_REPOSITORY: ${{ github.repository }}
 
+      - name: Pin heraut in mise to released version
+        run: |
+          mise use --pin "github:adaouat/heraut@${VERSION#v}"
+          git add .config/mise/config.toml .config/mise/mise.lock
+          git diff --staged --quiet || {
+            git commit -m "chore(deps.heraut): pin heraut to $VERSION"
+            git push
+          }
+
   docker-build:
     runs-on: ${{ matrix.runner }}
     needs: release
