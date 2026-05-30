@@ -67,6 +67,7 @@ func TestInitCmd_AutoDestDotHeraut(t *testing.T) {
 	// No .config/ dir → writes to .heraut.yml in CWD.
 	dir := t.TempDir()
 	t.Chdir(dir)
+	t.Setenv("HERAUT_FILE", "")
 
 	_, err := executeRoot("init", "--defaults")
 	require.NoError(t, err)
@@ -81,6 +82,7 @@ func TestInitCmd_AutoDestDotConfig(t *testing.T) {
 	dir := t.TempDir()
 	require.NoError(t, os.Mkdir(filepath.Join(dir, ".config"), 0o755))
 	t.Chdir(dir)
+	t.Setenv("HERAUT_FILE", "")
 
 	_, err := executeRoot("init", "--defaults")
 	require.NoError(t, err)
@@ -106,6 +108,37 @@ func TestInitCmd_ExplicitConfigFlagOverridesAutoDest(t *testing.T) {
 	require.NoError(t, err, "custom.yml should be written")
 	_, err = os.Stat(filepath.Join(dir, ".config", "heraut.yml"))
 	assert.True(t, os.IsNotExist(err), ".config/heraut.yml should not be created when --config is explicit")
+}
+
+func TestInitCmd_EnvVarDeterminesWriteDest(t *testing.T) {
+	dir := t.TempDir()
+	t.Chdir(dir)
+	dest := filepath.Join(dir, "custom-from-env.yml")
+	t.Setenv("HERAUT_FILE", dest)
+
+	_, err := executeRoot("init", "--defaults")
+	require.NoError(t, err)
+
+	data, err := os.ReadFile(dest)
+	require.NoError(t, err)
+	assert.Contains(t, string(data), "semver")
+	_, err = os.Stat(filepath.Join(dir, ".heraut.yml"))
+	assert.True(t, os.IsNotExist(err), ".heraut.yml should not be created when HERAUT_FILE is set")
+}
+
+func TestInitCmd_ExplicitFlagWinsOverEnvVar(t *testing.T) {
+	dir := t.TempDir()
+	t.Chdir(dir)
+	t.Setenv("HERAUT_FILE", filepath.Join(dir, "env.yml"))
+	explicit := filepath.Join(dir, "flag.yml")
+
+	_, err := executeRoot("init", "--defaults", "--config", explicit)
+	require.NoError(t, err)
+
+	_, err = os.Stat(explicit)
+	require.NoError(t, err, "flag.yml should be written")
+	_, err = os.Stat(filepath.Join(dir, "env.yml"))
+	assert.True(t, os.IsNotExist(err), "env.yml should not be created when --config flag is set")
 }
 
 func TestInitCmd_DefaultsWithExistingNoForceOverwrites(t *testing.T) {

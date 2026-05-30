@@ -3,6 +3,7 @@ package cmd
 import (
 	"fmt"
 	"os"
+	"strings"
 
 	"charm.land/huh/v2"
 	"github.com/spf13/cobra"
@@ -24,11 +25,12 @@ func NewInitCmd(version string) *cobra.Command {
 			defaults, _ := cmd.Flags().GetBool("defaults")
 			out := cmd.OutOrStdout()
 
-			// ResolvePath is for reading existing configs. InitDest picks the
-			// write destination based on whether .config/ directory exists.
+			// Write destination priority: --config flag → HERAUT_FILE env var → InitDest().
 			var path string
 			if cfgPath != "" {
 				path = cfgPath
+			} else if env := strings.TrimSpace(os.Getenv("HERAUT_FILE")); env != "" {
+				path = env
 			} else {
 				path = config.InitDest()
 			}
@@ -84,7 +86,7 @@ func NewInitCmd(version string) *cobra.Command {
 				if err := huh.NewForm(
 					huh.NewGroup(
 						huh.NewConfirm().
-							Title("Write this config to "+path+"?").
+							Title("Write this config to " + path + "?").
 							Value(&confirmed),
 					),
 				).Run(); err != nil {
