@@ -1,10 +1,42 @@
 # Changelog
 
+## [0.14.0](//compare/v0.13.4..v0.14.0) - 2026-05-30
+
+### 🚀 Features
+
+- *(cmd)* Honour HERAUT_FILE in heraut init write destination - ([bd7f023](//commit/bd7f0230c479c682dad93aea7695fb4a71e1c001))
+
+- *(config)* Add HERAUT_FILE env var for config file path - ([026a3fa](//commit/026a3fa4b77c967e29e5fcef4957925aa5887ec2))
+
+
+### 🐛 Bug Fixes
+
+- *(config)* Trim whitespace from HERAUT_FILE and isolate env var in tests - ([27fd50c](//commit/27fd50c20bd3e2e76a65896794c1a786c1ac3efc))
+
+
+### 📚 Documentation
+
+- *(adr)* Update ADR-0005 to document HERAUT_FILE discovery step - ([16011a7](//commit/16011a77e107b770a0bd31a6786f5fc853313076))
+
+- *(claude)* Add config discovery and non-obvious constraints sections - ([3817029](//commit/3817029f970884713919ee478a27a46235e2d6e1))
+
+- *(specs)* Document pre-commit hook behaviour for changelog commit - ([52a82ea](//commit/52a82eac9da39d08c46a18ec913edc84aa729a27))
+
+
+### 🧪 Testing
+
+- *(config)* Cover HERAUT_FILE empty string fallthrough - ([bd3cbad](//commit/bd3cbadbab0d35e8efc7837aaf9a0ead7d1f3a14))
+
+
+### ⚙️ Miscellaneous Tasks
+
+- *(config)* Add gopls + Claude Code plugins, exclude CHANGELOG from typos - ([3f261bd](//commit/3f261bd052a3cf9d3970cc9ff9e94d8b9c545a7b))
+
 ## [0.13.4](//compare/v0.13.3..v0.13.4) - 2026-05-29
 
 ### 🐛 Bug Fixes
 
-- *(selfupdate)* Correct checksum filename to match goreleaser config - ([8645ed2](//commit/8645ed21eae821b6b6059e5cbef804a1d2c0b44f))
+- *(selfupdate)* Correct checksum filename to match goreleaser config - ([8645ed2](//commit/8645ed21eae821b6b6059e5cbef804a1d2c0b44f)) by @bchatard
 
 ## [0.13.3](//compare/v0.13.2..v0.13.3) - 2026-05-29
 
