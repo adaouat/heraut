@@ -19,13 +19,17 @@ contributor.
 
 ## Decision
 
-heraut supports two config locations and resolves them in order:
+heraut supports multiple config sources and resolves them in order:
 
-| Priority | Location             | When used                       |
-|----------|----------------------|---------------------------------|
-| 1        | `--config <path>`    | Explicit flag — always honoured |
-| 2        | `.config/heraut.yml` | When that file exists           |
-| 3        | `.heraut.yml`        | Default fallback                |
+| Priority | Source               | When used                                          |
+|----------|----------------------|----------------------------------------------------|
+| 1        | `--config <path>`    | Explicit flag — always honoured                    |
+| 2        | `HERAUT_FILE`        | Env var set — useful in CI/CD                      |
+| 3        | `.config/heraut.yml` | When that file exists                              |
+| 4        | `.heraut.yml`        | Default fallback                                   |
+
+`HERAUT_FILE` was added to support CI/CD environments where injecting an env var is
+more natural than passing a CLI flag (e.g. via a GitLab/GitHub CI variable).
 
 `heraut init` applies the same logic to choose where to write:
 
@@ -44,8 +48,10 @@ The resolution is implemented in `internal/config.ResolvePath` and
 - Consistent with how `mise`, `hk`, and `typos` are configured.
 
 **Negative / trade-offs**
-- Two possible config locations can cause confusion if both exist simultaneously
+- Two possible config file locations can cause confusion if both exist simultaneously
   (`.config/heraut.yml` silently takes precedence; documented in
   [Spec 02 — Configuration § File discovery](../specs/02-configuration.md#file-discovery)).
+- `HERAUT_FILE` adds a third override point; if set to an unexpected value in the
+  environment it will silently shadow the project config.
 - The resolution logic must be kept in sync across all commands; it is centralised in
   `internal/config.ResolvePath` to prevent drift.
