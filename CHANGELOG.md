@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.15.1](https://github.com/adaouat/heraut/compare/v0.15.0..v0.15.1) - 2026-05-30
+
+### 🐛 Bug Fixes
+
+- *(platforms)* Atomic create+upload to avoid GitHub HTTP 422 - ([3058a83](https://github.com/adaouat/heraut/commit/3058a8362a57378480b00dd7e4b50df4d1f659a0)) by @bchatard
+
 ## [0.15.0](https://github.com/adaouat/heraut/compare/v0.14.0..v0.15.0) - 2026-05-30
 
 ### 🚀 Features
