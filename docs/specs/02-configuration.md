@@ -23,11 +23,13 @@ Heraut looks for the config file in this order
 ([ADR-0005](../adr/0005-config-file-discovery.md)):
 
 1. `--config <path>` if passed explicitly
-2. `.config/heraut.yml`
-3. `.heraut.yml`
+2. `HERAUT_FILE` environment variable if set
+3. `.config/heraut.yml` if the file exists
+4. `.heraut.yml` (default fallback)
 
-The first one found wins. `heraut init` writes to `.config/heraut.yml` if `.config/`
-already exists, otherwise to `.heraut.yml`.
+The first match wins. `HERAUT_FILE` is useful in CI/CD environments where injecting an
+env var is easier than passing a CLI flag. `heraut init` writes to `.config/heraut.yml`
+if `.config/` already exists, otherwise to `.heraut.yml`.
 
 ## Top-level structure
 

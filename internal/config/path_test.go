@@ -50,6 +50,26 @@ func TestResolvePath_dotConfigTakesPrecedence(t *testing.T) {
 	assert.Equal(t, ".config/heraut.yml", config.ResolvePath(""))
 }
 
+func TestResolvePath_envVar(t *testing.T) {
+	t.Setenv("HERAUT_FILE", "/env/path.yml")
+	assert.Equal(t, "/env/path.yml", config.ResolvePath(""))
+}
+
+func TestResolvePath_explicitFlagWinsOverEnvVar(t *testing.T) {
+	t.Setenv("HERAUT_FILE", "/env/path.yml")
+	assert.Equal(t, "/flag/path.yml", config.ResolvePath("/flag/path.yml"))
+}
+
+func TestResolvePath_envVarWinsOverAutoDiscovery(t *testing.T) {
+	dir := t.TempDir()
+	t.Chdir(dir)
+	require.NoError(t, os.MkdirAll(filepath.Join(dir, ".config"), 0o755))
+	require.NoError(t, os.WriteFile(filepath.Join(dir, ".config", "heraut.yml"), []byte("version: '1'"), 0o644))
+
+	t.Setenv("HERAUT_FILE", "/env/path.yml")
+	assert.Equal(t, "/env/path.yml", config.ResolvePath(""))
+}
+
 func TestInitDest_withDotConfigDir(t *testing.T) {
 	dir := t.TempDir()
 	t.Chdir(dir)
