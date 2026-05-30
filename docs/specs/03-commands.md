@@ -87,6 +87,31 @@ The version is pre-computed in step 2 and re-used in every subsequent step
 ([ADR-0011](../adr/0011-single-pipeline-release-via-pre-computation.md)) — no driver
 re-resolves it.
 
+### Pre-commit hooks and the changelog commit
+
+heraut runs `git commit` without `--no-verify` — hooks always fire. If your pre-commit
+hooks run linters (e.g. `typos`, `markdownlint`) against staged files, they will also
+run against `CHANGELOG.md`. Because changelog content comes from commit messages
+verbatim, linters frequently produce false positives on it (unusual words, non-standard
+casing, etc.).
+
+The correct fix is to **exclude the changelog file from those linters** in your project's
+tool configuration — not to bypass hooks. Examples:
+
+```toml
+# .config/typos/config.toml (or typos.toml)
+extend-exclude = ["CHANGELOG.md"]
+```
+
+```yaml
+# .markdownlint.yml
+# or add to .markdownlintignore
+```
+
+heraut will never pass `--no-verify` to `git commit`. Bypassing hooks removes safety
+checks (commit-message validation, signing, etc.) that are unrelated to the linting
+false-positive problem.
+
 ## `heraut changelog`
 
 Resolve the next version, optionally generate a changelog, optionally commit and tag —
