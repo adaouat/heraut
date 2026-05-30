@@ -1,5 +1,16 @@
 # Changelog
 
+## [0.15.3](https://github.com/adaouat/heraut/compare/v0.15.2..v0.15.3) - 2026-05-30
+
+### 🐛 Bug Fixes
+
+- *(ci)* Import GPG key without base64 decode - ([919337b](https://github.com/adaouat/heraut/commit/919337b1fb5f3564f67c259c376d04e7658d53f0)) by @bchatard
+
+
+### ⚙️ Miscellaneous Tasks
+
+- *(release)* Configure GPG commit and tag signing - ([02e045d](https://github.com/adaouat/heraut/commit/02e045d424e37ad2066603f61d5cf6b4cc9ae634)) by @bchatard
+
 ## [0.15.2](https://github.com/adaouat/heraut/compare/v0.15.1..v0.15.2) - 2026-05-30
 
 ### ⚙️ Miscellaneous Tasks
