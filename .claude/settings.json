@@ -1,7 +1,10 @@
 {
   "enabledPlugins": {
     "cc-skills-golang@samber": true,
-    "agent-skills@addy-agent-skills": true
+    "agent-skills@addy-agent-skills": true,
+    "claude-code-setup@claude-plugins-official": true,
+    "gopls-lsp@claude-plugins-official": true,
+    "claude-md-management@claude-plugins-official": true
   },
   "plansDirectory": ".claude/plans"
 }

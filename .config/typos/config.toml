@@ -1,5 +1,6 @@
 [files]
 ignore-vcs = true
+extend-exclude = ["CHANGELOG.md"]
 
 [default.extend-words]
 Ratatui = "Ratatui"
