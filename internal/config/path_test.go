@@ -60,6 +60,14 @@ func TestResolvePath_explicitFlagWinsOverEnvVar(t *testing.T) {
 	assert.Equal(t, "/flag/path.yml", config.ResolvePath("/flag/path.yml"))
 }
 
+func TestResolvePath_envVarEmptyStringFallsThrough(t *testing.T) {
+	dir := t.TempDir()
+	t.Chdir(dir)
+	t.Setenv("HERAUT_FILE", "")
+	// Empty string is treated as unset; falls through to auto-discovery.
+	assert.Equal(t, ".heraut.yml", config.ResolvePath(""))
+}
+
 func TestResolvePath_envVarWinsOverAutoDiscovery(t *testing.T) {
 	dir := t.TempDir()
 	t.Chdir(dir)
