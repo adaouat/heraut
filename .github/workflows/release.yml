@@ -17,6 +17,8 @@ jobs:
       contents: write # create GitHub Release + push tag + upload assets
       id-token: write # OIDC token for build provenance attestation
       attestations: write # persist build provenance attestations
+    env:
+      HERAUT_CHECK_UPDATE: false
     steps:
       - name: Checkout code
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
@@ -37,8 +39,8 @@ jobs:
 
       - name: Configure git identity
         run: |
-          git config user.name "heraut[bot]"
-          git config user.email "heraut[bot]@users.noreply.github.com"
+          git config user.name "Héraut Release Bot"
+          git config user.email "heraut+github@adaouat.dev"
 
       - name: Resolve version
         id: version
