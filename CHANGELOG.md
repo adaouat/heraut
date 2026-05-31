@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.15.5](https://github.com/adaouat/heraut/compare/v0.15.4..v0.15.5) - 2026-05-31
+
+### ⚙️ Miscellaneous Tasks
+
+- *(release)* Set bot identity and disable update hint - ([b6ae4f5](https://github.com/adaouat/heraut/commit/b6ae4f5acf5935030e3bf5b4c84bed89a33f917d)) by @bchatard
+
 ## [0.15.4](https://github.com/adaouat/heraut/compare/v0.15.3..v0.15.4) - 2026-05-31
 
 ### 🐛 Bug Fixes
