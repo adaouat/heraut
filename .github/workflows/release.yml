@@ -32,6 +32,9 @@ jobs:
           git config user.name "heraut[bot]"
           git config user.email "heraut[bot]@users.noreply.github.com"
           echo "${{ secrets.RELEASE_GPG_PRIVATE_KEY }}" | gpg --batch --import
+          echo "${{ secrets.RELEASE_GPG_KEY_ID }}:6:" | gpg --import-ownertrust
+          echo "no-tty" >> ~/.gnupg/gpg.conf
+          gpgconf --kill gpg-agent
           git config user.signingkey "${{ secrets.RELEASE_GPG_KEY_ID }}"
           git config commit.gpgsign true
           git config tag.gpgSign true
