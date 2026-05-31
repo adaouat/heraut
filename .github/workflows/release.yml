@@ -27,17 +27,18 @@ jobs:
       - name: Setup Mise
         uses: jdx/mise-action@1648a7812b9aeae629881980618f079932869151 # v4
 
-      - name: Configure git
+      - name: Import GPG key
+        uses: crazy-max/ghaction-import-gpg@2dc316deee8e90f13e1a351ab510b4d5bc0c82cd # v7
+        with:
+          gpg_private_key: ${{ secrets.RELEASE_GPG_PRIVATE_KEY }}
+          git_user_signingkey: true
+          git_commit_gpgsign: true
+          git_tag_gpgsign: true
+
+      - name: Configure git identity
         run: |
           git config user.name "heraut[bot]"
           git config user.email "heraut[bot]@users.noreply.github.com"
-          echo "${{ secrets.RELEASE_GPG_PRIVATE_KEY }}" | gpg --batch --import
-          echo "${{ secrets.RELEASE_GPG_KEY_ID }}:6:" | gpg --import-ownertrust
-          echo "no-tty" >> ~/.gnupg/gpg.conf
-          gpgconf --kill gpg-agent
-          git config user.signingkey "${{ secrets.RELEASE_GPG_KEY_ID }}"
-          git config commit.gpgsign true
-          git config tag.gpgSign true
 
       - name: Resolve version
         id: version
