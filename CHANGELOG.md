@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.15.6](https://github.com/adaouat/heraut/compare/v0.15.5..v0.15.6) - 2026-05-31
+
+### ⚙️ Miscellaneous Tasks
+
+- *(ci)* Remove heraut from mise, install directly in CI - ([5fb1a5f](https://github.com/adaouat/heraut/commit/5fb1a5f52056f910ebf17b1d1629691999569a99)) by @bchatard
+
 ## [0.15.5](https://github.com/adaouat/heraut/compare/v0.15.4..v0.15.5) - 2026-05-31
 
 ### ⚙️ Miscellaneous Tasks
