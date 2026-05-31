@@ -104,49 +104,49 @@ checksum = "sha256:3ae3a5549e85c7ad5b20192ebcfee4371269deca51255f6f2f2e051c6541f
 url = "https://github.com/orhun/git-cliff/releases/download/v2.13.1/git-cliff-2.13.1-x86_64-pc-windows-msvc.zip"
 
 [[tools."github:adaouat/heraut"]]
-version = "0.15.4"
+version = "0.15.5"
 backend = "github:adaouat/heraut"
 
 [tools."github:adaouat/heraut"."platforms.linux-arm64"]
-checksum = "sha256:106ff3938d7ef88cc603d0b9bfd5c0f49a89918376f301f8abe6a4cb45470e35"
-url = "https://github.com/adaouat/heraut/releases/download/v0.15.4/heraut_0.15.4_linux_arm64"
-url_api = "https://api.github.com/repos/adaouat/heraut/releases/assets/434429973"
+checksum = "sha256:8feb7e78fdf033bd39fb1a1b4a0e0496963943e08ca40ca361a37aea0b58d3bc"
+url = "https://github.com/adaouat/heraut/releases/download/v0.15.5/heraut_0.15.5_linux_arm64"
+url_api = "https://api.github.com/repos/adaouat/heraut/releases/assets/434487397"
 provenance = "github-attestations"
 
 [tools."github:adaouat/heraut"."platforms.linux-arm64-musl"]
-checksum = "sha256:106ff3938d7ef88cc603d0b9bfd5c0f49a89918376f301f8abe6a4cb45470e35"
-url = "https://github.com/adaouat/heraut/releases/download/v0.15.4/heraut_0.15.4_linux_arm64"
-url_api = "https://api.github.com/repos/adaouat/heraut/releases/assets/434429973"
+checksum = "sha256:8feb7e78fdf033bd39fb1a1b4a0e0496963943e08ca40ca361a37aea0b58d3bc"
+url = "https://github.com/adaouat/heraut/releases/download/v0.15.5/heraut_0.15.5_linux_arm64"
+url_api = "https://api.github.com/repos/adaouat/heraut/releases/assets/434487397"
 provenance = "github-attestations"
 
 [tools."github:adaouat/heraut"."platforms.linux-x64"]
-checksum = "sha256:b16bd9f43ae102bf8fdb1dde9dc2911aba8100921dffbf3459fe24e633a2d6a7"
-url = "https://github.com/adaouat/heraut/releases/download/v0.15.4/heraut_0.15.4_linux_amd64"
-url_api = "https://api.github.com/repos/adaouat/heraut/releases/assets/434429977"
+checksum = "sha256:71771656227d7c33467031222dcef0ca399a7c061b1dd44b72b60d0bc7ebd647"
+url = "https://github.com/adaouat/heraut/releases/download/v0.15.5/heraut_0.15.5_linux_amd64"
+url_api = "https://api.github.com/repos/adaouat/heraut/releases/assets/434487400"
 provenance = "github-attestations"
 
 [tools."github:adaouat/heraut"."platforms.linux-x64-musl"]
-checksum = "sha256:b16bd9f43ae102bf8fdb1dde9dc2911aba8100921dffbf3459fe24e633a2d6a7"
-url = "https://github.com/adaouat/heraut/releases/download/v0.15.4/heraut_0.15.4_linux_amd64"
-url_api = "https://api.github.com/repos/adaouat/heraut/releases/assets/434429977"
+checksum = "sha256:71771656227d7c33467031222dcef0ca399a7c061b1dd44b72b60d0bc7ebd647"
+url = "https://github.com/adaouat/heraut/releases/download/v0.15.5/heraut_0.15.5_linux_amd64"
+url_api = "https://api.github.com/repos/adaouat/heraut/releases/assets/434487400"
 provenance = "github-attestations"
 
 [tools."github:adaouat/heraut"."platforms.macos-arm64"]
-checksum = "sha256:b30b2eec704d9585c9954c99cc805d0cd1a5d57ce154a151a0a5c08193edd7c7"
-url = "https://github.com/adaouat/heraut/releases/download/v0.15.4/heraut_0.15.4_darwin_arm64"
-url_api = "https://api.github.com/repos/adaouat/heraut/releases/assets/434429976"
+checksum = "sha256:376956965f1ab0338e19b14dbba8d1abee2554ca214c90d1a298b697c9b3903a"
+url = "https://github.com/adaouat/heraut/releases/download/v0.15.5/heraut_0.15.5_darwin_arm64"
+url_api = "https://api.github.com/repos/adaouat/heraut/releases/assets/434487396"
 provenance = "github-attestations"
 
 [tools."github:adaouat/heraut"."platforms.macos-x64"]
-checksum = "sha256:e35d560579989472d3200e0350e8e4bdf4854f89317598ce4a205adec884f189"
-url = "https://github.com/adaouat/heraut/releases/download/v0.15.4/heraut_0.15.4_darwin_amd64"
-url_api = "https://api.github.com/repos/adaouat/heraut/releases/assets/434429974"
+checksum = "sha256:0330b33463339b95c7e858dc436c29c22a85b6dc132562bdd7784040ec2952c6"
+url = "https://github.com/adaouat/heraut/releases/download/v0.15.5/heraut_0.15.5_darwin_amd64"
+url_api = "https://api.github.com/repos/adaouat/heraut/releases/assets/434487398"
 provenance = "github-attestations"
 
 [tools."github:adaouat/heraut"."platforms.windows-x64"]
-checksum = "sha256:41343a62846bce66656b20a037838714409846a8cf928e974da21148a141474f"
-url = "https://github.com/adaouat/heraut/releases/download/v0.15.4/heraut_0.15.4_windows_amd64.exe"
-url_api = "https://api.github.com/repos/adaouat/heraut/releases/assets/434429975"
+checksum = "sha256:4fc98ab2ea37c9f1b00e65c77df64a50a8c21c9683cef550f4794a1442be620e"
+url = "https://github.com/adaouat/heraut/releases/download/v0.15.5/heraut_0.15.5_windows_amd64.exe"
+url_api = "https://api.github.com/repos/adaouat/heraut/releases/assets/434487399"
 provenance = "github-attestations"
 
 [[tools.go]]
