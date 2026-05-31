@@ -1,5 +1,16 @@
 # Changelog
 
+## [0.15.4](https://github.com/adaouat/heraut/compare/v0.15.3..v0.15.4) - 2026-05-31
+
+### 🐛 Bug Fixes
+
+- *(ci)* Set GPG ownertrust and no-tty for non-interactive signing - ([317c462](https://github.com/adaouat/heraut/commit/317c462a7d135ad0adb0b5cc8f056dad23c1844b)) by @bchatard
+
+
+### ⚙️ Miscellaneous Tasks
+
+- *(release)* Use crazy-max/ghaction-import-gpg for key setup - ([45f7837](https://github.com/adaouat/heraut/commit/45f78371759a129a3287881a0cddc3de02174cfd)) by @bchatard
+
 ## [0.15.3](https://github.com/adaouat/heraut/compare/v0.15.2..v0.15.3) - 2026-05-30
 
 ### 🐛 Bug Fixes
