@@ -29,8 +29,13 @@ func NewChangelogCmd() *cobra.Command {
 			env, _ := cmd.Flags().GetString("env")
 			force, _ := cmd.Flags().GetBool("force")
 
-			if buildID != "" && versionOverride == "" {
-				return exitcode.Wrap(exitcode.Config, fmt.Errorf("--build requires --version: provide the version explicitly when specifying a build ID"))
+			if buildID != "" {
+				if versionOverride == "" {
+					return exitcode.Wrap(exitcode.Config, fmt.Errorf("--build requires --version: provide the version explicitly when specifying a build ID"))
+				}
+				if err := app.ValidateBuildID(buildID); err != nil {
+					return exitcode.Wrap(exitcode.Config, err)
+				}
 			}
 
 			runner := execadapter.New(dryRun, verbose)

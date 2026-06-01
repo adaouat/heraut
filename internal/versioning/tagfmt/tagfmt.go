@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"regexp"
 	"strings"
+	"unicode"
 )
 
 const (
@@ -99,12 +100,11 @@ func DeriveBuildPostprocessorPattern(template string) string {
 // buildTagPrefixRegex converts the portion of a tag format before {version}
 // into a regex fragment, replacing {env} with an appropriate character class.
 func buildTagPrefixRegex(prefix string) string {
-	eIdx := strings.Index(prefix, envToken)
-	if eIdx < 0 {
+	beforeRaw, after, found := strings.Cut(prefix, envToken)
+	if !found {
 		return regexp.QuoteMeta(prefix)
 	}
-	before := regexp.QuoteMeta(prefix[:eIdx])
-	after := prefix[eIdx+len(envToken):]
+	before := regexp.QuoteMeta(beforeRaw)
 
 	var envClass string
 	if len(after) > 0 {
@@ -114,6 +114,22 @@ func buildTagPrefixRegex(prefix string) string {
 		envClass = `[^/\]]+`
 	}
 	return before + envClass + regexp.QuoteMeta(after)
+}
+
+// ValidateBuildID checks that a build ID is usable as a tag component: non-empty,
+// no "/" (path separator) and no whitespace (git ref constraints). CI build IDs
+// like "$CI_PIPELINE_ID" and "$GITHUB_RUN_NUMBER" satisfy this.
+func ValidateBuildID(build string) error {
+	if build == "" {
+		return fmt.Errorf("build ID must not be empty")
+	}
+	if strings.ContainsRune(build, '/') {
+		return fmt.Errorf("build ID %q must not contain '/'", build)
+	}
+	if strings.ContainsFunc(build, unicode.IsSpace) {
+		return fmt.Errorf("build ID %q must not contain whitespace", build)
+	}
+	return nil
 }
 
 // GlobPattern returns a git tag glob pattern for listing tags under the given env.

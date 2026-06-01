@@ -225,6 +225,34 @@ func TestDeriveBuildPostprocessorPattern(t *testing.T) {
 	}
 }
 
+func TestValidateBuildID(t *testing.T) {
+	tests := []struct {
+		name    string
+		build   string
+		wantErr bool
+	}{
+		{"numeric CI id", "158404", false},
+		{"alphanumeric", "build42abc", false},
+		{"with dots and dashes", "1.2.3-beta", false},
+		{"empty", "", true},
+		{"contains slash", "a/b", true},
+		{"contains space", "build 42", true},
+		{"contains tab", "build\t42", true},
+		{"leading space", " 158404", true},
+		{"trailing newline", "158404\n", true},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			err := tagfmt.ValidateBuildID(tc.build)
+			if tc.wantErr {
+				assert.Error(t, err)
+			} else {
+				assert.NoError(t, err)
+			}
+		})
+	}
+}
+
 func TestParseVersion_WithBuild(t *testing.T) {
 	tests := []struct {
 		name     string

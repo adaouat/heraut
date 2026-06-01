@@ -21,6 +21,19 @@ func TestNewChangelogCmd(t *testing.T) {
 	}
 }
 
+func TestChangelog_BuildRejectsInvalidValue(t *testing.T) {
+	cfgPath := writeConfig(t, `
+version: "1"
+versioning:
+  strategy: semver-per-env
+  tag_format: "{env}/{version}-{build}"
+`)
+	_, err := executeRoot("changelog", "--config", cfgPath, "--env", "uat",
+		"--version", "7.4.1", "--build", "bad/value")
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "build")
+}
+
 func TestChangelog_BuildRequiresVersion(t *testing.T) {
 	cfgPath := writeConfig(t, `
 version: "1"

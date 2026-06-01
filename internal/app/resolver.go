@@ -58,6 +58,12 @@ func NewResolver(cfg *config.Config, env string, force bool, versionOverride, bu
 	}
 }
 
+// ValidateBuildID reports whether a --build value is usable as a tag component.
+// Delegates to tagfmt so cmd does not import the versioning layer directly.
+func ValidateBuildID(build string) error {
+	return tagfmt.ValidateBuildID(build)
+}
+
 // effectiveTagFmt returns the tag format to use for build ID rendering and
 // validates that {build} is present (required when --build is passed). The
 // env-override → top-level resolution lives in config.EffectiveTagFormat.

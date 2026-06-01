@@ -273,8 +273,8 @@ heraut changelog --tag --env uat --version 7.4.1 --build $CI_PIPELINE_ID
 - `--build` requires `--version` — build IDs come from CI, not from commit analysis.
 - If `{build}` appears in `tag_format` but `--build` is not passed, heraut exits with
   an error.
-- Build IDs must not contain `/` or whitespace (git tag constraint). *(Enforcement is
-  planned — see roadmap T55; today an invalid build ID surfaces as a `git tag` error.)*
+- Build IDs must not contain `/` or whitespace (git tag constraint). `--build` rejects
+  an invalid value up front with an actionable error.
 - Internally, the changelog range comparison treats `{build}` as a non-capturing wildcard,
   so existing tags like `uat/7.4.0-155391` correctly yield version `7.4.0` when computing
   the commit range.

@@ -2348,7 +2348,7 @@ override) `heraut version current --env <env>` fails: `tag format template must 
 
 **Done:** Added `(*config.Config).EffectiveTagFormat(env)` as the single resolution point (env override → top-level), placed in `internal/config/tagformat.go` since it is pure config logic importable by both `app` and `perenv`. `currentTagGlob` now calls it (keeping the unknown-env existence check for a good error), fixing the bug; `perenv.tagFormat`, `app.effectiveTagFmt`, and `withBuildPostprocessor` all delegate. Renamed the `copy` builtin shadow to `clone`. Verified end-to-end: `version current --env uat` with a top-level-only `{env}/{version}-{build}` now prints `uat/7.4.0-100`. Spec 02/03 and the guide updated to drop the T54 "planned" caveats (T58 bare-version output still open).
 
-#### `[ ]` T55: Validate `--build` value at the cmd boundary
+#### `[x]` T55: Validate `--build` value at the cmd boundary
 
 **Bug:** the spec states build IDs must not contain `/` or whitespace, but nothing
 enforces it. An invalid value flows into the tag and fails later at `git tag` with a
@@ -2363,6 +2363,8 @@ cryptic message.
 **Files:** `internal/cmd/changelog.go`, `docs/specs/02-configuration.md`
 
 **Scope:** XS
+
+**Done:** `tagfmt.ValidateBuildID` (non-empty, no `/`, no whitespace via `unicode.IsSpace`) with a 9-case table test; exposed through a thin `app.ValidateBuildID` wrapper so `cmd` does not import the versioning layer (respects the layer rules). Called in `cmd/changelog.go` inside the existing front-loaded `--build` block, before config load, so the error is immediate and actionable. Spec 02 updated to state enforcement.
 
 #### `[ ]` T56: `heraut cliff` reflects the injected build-id postprocessor
 
