@@ -212,19 +212,13 @@ func buildChangelogPipelineConfig(runner port.Runner, cfg *config.Config, opts P
 // populated when {build} is present in the effective tag format. The original
 // driver is not modified. Returns the original pointer when no derivation is needed.
 func withBuildPostprocessor(driver *config.ContentDriver, cfg *config.Config, env string) *config.ContentDriver {
-	tf := cfg.Versioning.TagFormat
-	if env != "" {
-		if envCfg, ok := cfg.Environments[env]; ok && envCfg.TagFormat != "" {
-			tf = envCfg.TagFormat
-		}
-	}
-	pat := tagfmt.DeriveBuildPostprocessorPattern(tf)
+	pat := tagfmt.DeriveBuildPostprocessorPattern(cfg.EffectiveTagFormat(env))
 	if pat == "" {
 		return driver
 	}
-	copy := *driver
-	copy.BuildPostprocessorPattern = pat
-	return &copy
+	clone := *driver
+	clone.BuildPostprocessorPattern = pat
+	return &clone
 }
 
 func buildGenerator(runner port.Runner, driver *config.ContentDriver, defaultMode gitcliff.Mode) (port.Generator, error) {

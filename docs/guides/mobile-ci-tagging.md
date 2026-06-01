@@ -171,11 +171,9 @@ APP_VERSION=$(node -p "require('./package.json').version")
 ## Querying the current tag after tagging
 
 > **Current behaviour:** `heraut version current --env <env>` prints the
-> latest **raw tag** (e.g. `uat/7.4.1-158404`), not the bare version, and it
-> currently requires a per-environment `tag_format` rather than the common
-> top-level one. A bare-version output and the top-level `tag_format` fallback
-> are tracked in roadmap **T54** and **T58**. Until then, parse the tag in the
-> pipeline:
+> latest **raw tag** (e.g. `uat/7.4.1-158404`), not the bare version. A
+> bare-version output is tracked in roadmap **T58**. Until then, parse the tag
+> in the pipeline:
 
 ```bash
 TAG=$(heraut version current --env uat)        # uat/7.4.1-158404

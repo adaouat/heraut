@@ -52,11 +52,10 @@ func currentTagGlob(cfg *config.Config, env string) (string, error) {
 		if env == "" {
 			return "", fmt.Errorf("--env is required for %s strategy", cfg.Versioning.Strategy)
 		}
-		envCfg, ok := cfg.Environments[env]
-		if !ok {
+		if _, ok := cfg.Environments[env]; !ok {
 			return "", fmt.Errorf("environment %q not found in config", env)
 		}
-		return tagfmt.GlobPattern(envCfg.TagFormat, env)
+		return tagfmt.GlobPattern(cfg.EffectiveTagFormat(env), env)
 	default:
 		return "", fmt.Errorf("unknown versioning strategy %q", cfg.Versioning.Strategy)
 	}

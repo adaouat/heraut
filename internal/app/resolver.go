@@ -58,16 +58,11 @@ func NewResolver(cfg *config.Config, env string, force bool, versionOverride, bu
 	}
 }
 
-// effectiveTagFmt returns the tag format to use for build ID rendering.
-// It applies per-env override over the top-level tag_format, and validates
-// that {build} is present (required when --build is passed).
+// effectiveTagFmt returns the tag format to use for build ID rendering and
+// validates that {build} is present (required when --build is passed). The
+// env-override → top-level resolution lives in config.EffectiveTagFormat.
 func effectiveTagFmt(cfg *config.Config, env string) (string, error) {
-	tf := cfg.Versioning.TagFormat
-	if env != "" {
-		if envCfg, ok := cfg.Environments[env]; ok && envCfg.TagFormat != "" {
-			tf = envCfg.TagFormat
-		}
-	}
+	tf := cfg.EffectiveTagFormat(env)
 	if tf == "" {
 		return "", fmt.Errorf("--build requires versioning.tag_format to contain a {build} token, but tag_format is not set")
 	}

@@ -2326,7 +2326,7 @@ template context in git-cliff 2.x. Headings should show the bare version (`7.4.1
 Follow-ups from the T52/T53 code+docs review. The `{build}` changelog flow works, but
 several adjacent commands and a diagnostic surface are inconsistent with it.
 
-#### `[ ]` T54: Fix `version current` per-env `tag_format` fallback + unify resolution
+#### `[x]` T54: Fix `version current` per-env `tag_format` fallback + unify resolution
 
 **Bug:** `app.currentTagGlob` (`internal/app/current.go:59`) reads `envCfg.TagFormat`
 directly, with no fallback to the top-level `versioning.tag_format`. Three other call
@@ -2345,6 +2345,8 @@ override) `heraut version current --env <env>` fails: `tag format template must 
 **Files:** `internal/app/current.go`, `internal/app/resolver.go`, `internal/app/pipeline.go`, possibly a new `internal/app/tagformat.go` helper
 
 **Scope:** S
+
+**Done:** Added `(*config.Config).EffectiveTagFormat(env)` as the single resolution point (env override → top-level), placed in `internal/config/tagformat.go` since it is pure config logic importable by both `app` and `perenv`. `currentTagGlob` now calls it (keeping the unknown-env existence check for a good error), fixing the bug; `perenv.tagFormat`, `app.effectiveTagFmt`, and `withBuildPostprocessor` all delegate. Renamed the `copy` builtin shadow to `clone`. Verified end-to-end: `version current --env uat` with a top-level-only `{env}/{version}-{build}` now prints `uat/7.4.0-100`. Spec 02/03 and the guide updated to drop the T54 "planned" caveats (T58 bare-version output still open).
 
 #### `[ ]` T55: Validate `--build` value at the cmd boundary
 

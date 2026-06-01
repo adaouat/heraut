@@ -209,9 +209,9 @@ For single-env strategies, prints the latest tag overall. For per-env strategies
 prints the latest tag in the active environment's tag namespace (e.g. the latest
 `prod/*` tag when `--env prod`).
 
-Prints the **raw tag** (including any `{build}` suffix), not the bare version. For per-env
-strategies it currently requires a per-environment `tag_format` rather than the common
-top-level one — both are tracked in roadmap T54 (fallback) and T58 (bare-version output).
+Prints the **raw tag** (including any `{build}` suffix), not the bare version. The common
+top-level `tag_format` is honoured (no per-environment override required). Bare-version
+output is tracked in roadmap T58.
 
 Exits non-zero if no tags exist.
 

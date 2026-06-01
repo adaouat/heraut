@@ -61,6 +61,28 @@ func TestCurrentTag_SemverPerEnv(t *testing.T) {
 	assert.Contains(t, mr.Calls[0].Args[2], "prod")
 }
 
+func TestCurrentTag_PerEnvCommonTagFormat(t *testing.T) {
+	// Bug T54: with a top-level tag_format and no per-env override, the glob
+	// must still resolve. Previously currentTagGlob read envCfg.TagFormat directly,
+	// which was empty here, producing "tag format must contain {version}".
+	mr := testutil.NewMockRunner()
+	mr.QueueResponse("uat/7.4.1-158404\nuat/7.4.0-155391\n", "", nil)
+
+	cfg := &config.Config{
+		Versioning: config.Versioning{
+			Strategy:  "semver-per-env",
+			TagFormat: "{env}/{version}-{build}",
+		},
+		Environments: map[string]config.Environment{
+			"uat": {Bump: "auto"},
+		},
+	}
+	got, err := app.CurrentTag(mr, cfg, "uat")
+	require.NoError(t, err)
+	assert.Equal(t, "uat/7.4.1-158404", got)
+	assert.Equal(t, "uat/*-*", mr.Calls[0].Args[2])
+}
+
 func TestCurrentTag_PerEnvMissingEnvArg(t *testing.T) {
 	mr := testutil.NewMockRunner()
 	cfg := &config.Config{
