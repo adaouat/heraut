@@ -1,5 +1,16 @@
 # Changelog
 
+## [0.18.0](https://github.com/adaouat/heraut/compare/v0.17.0..v0.18.0) - 2026-06-01
+
+### 🚀 Features
+
+- *(scaffold)* Token env var is now a select with known + custom option - ([938b607](https://github.com/adaouat/heraut/commit/938b6071d6f7d615f6fd756c9391265c7d6198ea)) by @bchatard
+
+
+### 🐛 Bug Fixes
+
+- *(scaffold)* Wrap token names in backticks to prevent italic rendering - ([6ed4d45](https://github.com/adaouat/heraut/commit/6ed4d458ab16a8d6a8e4ead329d382dc2b494a41)) by @bchatard
+
 ## [0.17.0](https://github.com/adaouat/heraut/compare/v0.16.0..v0.17.0) - 2026-06-01
 
 ### 🚀 Features
