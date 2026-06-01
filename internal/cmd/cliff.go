@@ -26,6 +26,7 @@ func newCliffChangelogCmd() *cobra.Command {
 		Short: "Print the effective git-cliff TOML for changelog mode",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			cfgPath, _ := cmd.Flags().GetString("config")
+			env, _ := cmd.Flags().GetString("env")
 			path := config.ResolvePath(cfgPath)
 
 			cfg, err := config.Load(path)
@@ -33,7 +34,7 @@ func newCliffChangelogCmd() *cobra.Command {
 				return exitcode.Wrap(exitcode.Config, fmt.Errorf("loading config: %w", err))
 			}
 
-			toml, err := app.EffectiveCliffConfig(cfg.Changelog, "changelog")
+			toml, err := app.EffectiveCliffConfig(cfg, cfg.Changelog, "changelog", env)
 			if err != nil {
 				return exitcode.Wrap(exitcode.Runtime, err)
 			}
@@ -49,6 +50,7 @@ func newCliffReleaseNotesCmd() *cobra.Command {
 		Short: "Print the effective git-cliff TOML for release-notes mode",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			cfgPath, _ := cmd.Flags().GetString("config")
+			env, _ := cmd.Flags().GetString("env")
 			path := config.ResolvePath(cfgPath)
 
 			cfg, err := config.Load(path)
@@ -61,7 +63,7 @@ func newCliffReleaseNotesCmd() *cobra.Command {
 				notesDriver = cfg.Release.Notes
 			}
 
-			toml, err := app.EffectiveCliffConfig(notesDriver, "release-notes")
+			toml, err := app.EffectiveCliffConfig(cfg, notesDriver, "release-notes", env)
 			if err != nil {
 				return exitcode.Wrap(exitcode.Runtime, err)
 			}

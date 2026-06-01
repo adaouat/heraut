@@ -140,7 +140,8 @@ func buildReleasePipelineConfig(runner port.Runner, cfg *config.Config, env stri
 
 	// Changelog generator
 	if effectiveChangelog != nil {
-		gen, err := buildGenerator(runner, effectiveChangelog, gitcliff.ModeChangelog)
+		driver := withBuildPostprocessor(effectiveChangelog, cfg, env)
+		gen, err := buildGenerator(runner, driver, gitcliff.ModeChangelog)
 		if err != nil {
 			return nil, fmt.Errorf("changelog generator: %w", err)
 		}
@@ -150,7 +151,8 @@ func buildReleasePipelineConfig(runner port.Runner, cfg *config.Config, env stri
 
 	// Release notes generator
 	if effectiveNotes != nil {
-		gen, err := buildGenerator(runner, effectiveNotes, gitcliff.ModeReleaseNotes)
+		driver := withBuildPostprocessor(effectiveNotes, cfg, env)
+		gen, err := buildGenerator(runner, driver, gitcliff.ModeReleaseNotes)
 		if err != nil {
 			return nil, fmt.Errorf("release notes generator: %w", err)
 		}

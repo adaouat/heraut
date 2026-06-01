@@ -308,6 +308,10 @@ heraut cliff release-notes    # effective config for `release.notes`
 Output is valid TOML on stdout; pipe it to a file if you want to commit a frozen
 version, or to `git-cliff` directly to reproduce heraut's invocation.
 
+`--env <name>` is honoured so the per-environment effective config is shown. When
+`versioning.tag_format` contains `{build}`, the auto-injected build-id postprocessor
+appears in the output — matching exactly what the pipeline feeds `git-cliff`.
+
 ## `heraut self-update`
 
 Replace the running binary with the latest GitHub release. See

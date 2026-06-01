@@ -52,6 +52,26 @@ versioning:
 	assert.Contains(t, out, "[changelog]")
 }
 
+func TestCliffChangelog_BuildFormat_ShowsPostprocessor(t *testing.T) {
+	cfgPath := writeConfig(t, `
+version: "1"
+versioning:
+  strategy: semver-per-env
+  tag_format: "{env}/{version}-{build}"
+changelog:
+  generator: git-cliff
+environments:
+  main:
+    bump: auto
+`)
+	out, err := executeRoot("cliff", "changelog", "--config", cfgPath, "--env", "main")
+	require.NoError(t, err)
+	// The derived postprocessor must be present, not an empty array.
+	assert.Contains(t, out, "postprocessors")
+	assert.Contains(t, out, `[0-9]`)
+	assert.NotContains(t, out, "postprocessors = []")
+}
+
 func TestCliffChangelog_NotGitCliff_Error(t *testing.T) {
 	cfgPath := writeConfig(t, `
 version: "1"

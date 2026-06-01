@@ -2366,7 +2366,7 @@ cryptic message.
 
 **Done:** `tagfmt.ValidateBuildID` (non-empty, no `/`, no whitespace via `unicode.IsSpace`) with a 9-case table test; exposed through a thin `app.ValidateBuildID` wrapper so `cmd` does not import the versioning layer (respects the layer rules). Called in `cmd/changelog.go` inside the existing front-loaded `--build` block, before config load, so the error is immediate and actionable. Spec 02 updated to state enforcement.
 
-#### `[ ]` T56: `heraut cliff` reflects the injected build-id postprocessor
+#### `[x]` T56: `heraut cliff` reflects the injected build-id postprocessor
 
 **Bug:** `app.EffectiveCliffConfig` (used by `heraut cliff changelog`) builds the
 generator straight from `cfg.Changelog`, bypassing `withBuildPostprocessor`, so it prints
@@ -2383,6 +2383,8 @@ diagnostic is currently misleading for the build-id flow.
 **Files:** `internal/app/cliff.go`, `internal/cmd/cliff.go` (pass env + cfg), test
 
 **Scope:** S
+
+**Done:** `EffectiveCliffConfig` signature now takes `(cfg, driver, mode, env)` and runs the driver through `withBuildPostprocessor` before building the generator, so the injected postprocessor appears in the output. Both `heraut cliff changelog` and `heraut cliff release-notes` read `--env`. Also closed a latent inconsistency: `buildReleasePipelineConfig` now applies `withBuildPostprocessor` to **both** the changelog and notes generators (previously only the `heraut changelog` pipeline did), so the release pipeline, the changelog pipeline, and `heraut cliff` all agree. Tests at the app layer (`EffectiveCliffConfig_BuildFormatInjectsPostprocessor`) and cmd layer (`TestCliffChangelog_BuildFormat_ShowsPostprocessor`). Spec 03 cliff section notes `--env` + postprocessor reflection.
 
 #### `[ ]` T57: `heraut release --build` for build-id release flows
 
