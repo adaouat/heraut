@@ -1,5 +1,45 @@
 # Changelog
 
+## [0.19.0](https://github.com/adaouat/heraut/compare/v0.18.0..v0.19.0) - 2026-06-01
+
+### 🚀 Features
+
+- *(changelog)* {build} token and --build flag for CI build IDs - ([7f66a21](https://github.com/adaouat/heraut/commit/7f66a21f4576aed684579bd474b72d1d679b6491)) by @bchatard
+
+- *(changelog)* Validate --build value up front (T55) - ([533fe56](https://github.com/adaouat/heraut/commit/533fe56babcd51fb01a0e00de7e9f4629ecc0cc9)) by @bchatard
+
+- *(gitcliff)* Derive build-id postprocessor pattern from tag_format - ([1a81167](https://github.com/adaouat/heraut/commit/1a811677d0426095be1bd462f2c9923ab1df0c60)) by @bchatard
+
+- *(tagfmt)* Actionable error when {build} format lacks a build ID (T59) - ([7283fe8](https://github.com/adaouat/heraut/commit/7283fe8f6e6a0d148413347d7cc9f0be4349bbad)) by @bchatard
+
+- *(version)* Add --bare to version current (T58) - ([9926afb](https://github.com/adaouat/heraut/commit/9926afbcd2ab560acfe5d3461bbf1feb4c746dd4)) by @bchatard
+
+
+### 🐛 Bug Fixes
+
+- *(app)* Version current honours top-level tag_format (T54) - ([4354bdc](https://github.com/adaouat/heraut/commit/4354bdcdda8ea1f02905a8c8a2f35a30da156c9d)) by @bchatard
+
+- *(cliff)* Reflect injected build-id postprocessor in effective config (T56) - ([bcb9f01](https://github.com/adaouat/heraut/commit/bcb9f018f0fe8fbadb41cfecc9e83a550911f2e2)) by @bchatard
+
+
+### 📚 Documentation
+
+- *(guides)* Mobile/CI multi-build tagging how-to - ([40dbec9](https://github.com/adaouat/heraut/commit/40dbec90db926fcd92385b2650aae052089a57a6)) by @bchatard
+
+- *(roadmap)* Note T57 held pending production use of the changelog flow - ([e94d34a](https://github.com/adaouat/heraut/commit/e94d34a1650c60642a100737ef721ad0cad7e820)) by @bchatard
+
+- Record build-id review findings as roadmap T53–T59 + spec caveats - ([4c6b9f7](https://github.com/adaouat/heraut/commit/4c6b9f78fa160f09cae803c69a8e5502236701f8)) by @bchatard
+
+
+### 🧪 Testing
+
+- *(app)* Cover build-id resolver and CurrentVersion paths - ([ab78fa4](https://github.com/adaouat/heraut/commit/ab78fa434e77897e3ffd2b9572db6a51de620492)) by @bchatard
+
+
+### ⚙️ Miscellaneous Tasks
+
+- *(osv-scan)* Point at the subdirectory action, not the repo root - ([6025dd1](https://github.com/adaouat/heraut/commit/6025dd1958092c5db27ae21376e1790e8ff3c8bf)) by @bchatard
+
 ## [0.18.0](https://github.com/adaouat/heraut/compare/v0.17.0..v0.18.0) - 2026-06-01
 
 ### 🚀 Features
