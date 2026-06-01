@@ -17,8 +17,8 @@ import (
 type PromotionError struct {
 	sentinel error
 
-	srcEnv   string
-	destEnv  string
+	srcEnv  string
+	destEnv string
 
 	// E001 + E002: source and candidate tags
 	srcTag       string
@@ -162,7 +162,7 @@ func resolvePromote(runner port.Runner, cfg *config.Config, env string, force bo
 
 	// 4. Render the candidate tag under the destination format.
 	destTF := tagFormat(cfg, env)
-	candidateTag, err := tagfmt.Render(destTF, env, candidateVersion)
+	candidateTag, err := tagfmt.Render(destTF, env, candidateVersion, "")
 	if err != nil {
 		return versioning.Result{}, fmt.Errorf("rendering candidate tag: %w", err)
 	}
@@ -200,7 +200,7 @@ func resolvePromote(runner port.Runner, cfg *config.Config, env string, force bo
 		latestDestVersion, parseErr := tagfmt.ParseVersion(destTF, currentDestTag)
 		if parseErr == nil {
 			if compareVersionStrings(latestDestVersion, candidateVersion) > 0 && !force {
-				suggested, _ := tagfmt.Render(srcTF, srcEnv, latestDestVersion)
+				suggested, _ := tagfmt.Render(srcTF, srcEnv, latestDestVersion, "")
 				return versioning.Result{}, &PromotionError{
 					sentinel:          ErrDestinationAhead,
 					srcEnv:            srcEnv,

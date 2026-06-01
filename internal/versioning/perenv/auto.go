@@ -59,7 +59,7 @@ func resolveAuto(runner port.Runner, cfg *config.Config, env string, calc Versio
 		}
 	}
 
-	newTag, err := tagfmt.Render(tf, env, nextVersion)
+	newTag, err := tagfmt.Render(tf, env, nextVersion, "")
 	if err != nil {
 		return versioning.Result{}, fmt.Errorf("rendering tag: %w", err)
 	}

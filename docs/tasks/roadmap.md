@@ -2270,6 +2270,34 @@ updated. Resolved questions table updated. 712 tests pass.
 
 ---
 
+---
+
+#### `[x]` T52: `{build}` token + `--build` flag for CI/mobile tagging
+
+**Motivation:** Mobile and CI pipelines create tags with the pattern
+`<env>/<version>-<build_id>` (e.g. `uat/7.4.1-158404`). The build ID comes from
+the CI system (`$CI_PIPELINE_ID`, `$GITHUB_RUN_NUMBER`) and is independent of version
+bumping. `heraut changelog --tag --build` covers the "tag + optional changelog"
+use case without requiring a full platform release per build.
+
+**Acceptance:**
+- `{build}` token supported in `versioning.tag_format` alongside `{version}` and `{env}`
+- `--build <id>` flag on `heraut changelog`; rejected before config load when given without `--version`
+- `tagfmt.Render` errors when `{build}` is in template but build is empty
+- `tagfmt.ParseVersion` treats `{build}` as a non-capturing wildcard — `uat/7.4.0-155391` yields version `7.4.0`
+- `tagfmt.GlobPattern` replaces `{build}` with `*`
+- `app.NewResolver` computes the full tag via `effectiveTagFmt` (env override → top-level) when `--build` is provided
+- `heraut release --build` deferred pending production validation
+
+**Files:** `internal/versioning/tagfmt/`, `internal/versioning/perenv/`,
+`internal/app/resolver.go`, `internal/cmd/changelog.go`
+
+**Scope:** S
+
+**Done:** `{build}` added as a third tagfmt token with identical mechanics to `{env}` for `ParseVersion` and `GlobPattern`. `Render` accepts a `build string` fourth parameter; all existing callers (perenv auto + promote) pass `""`. `effectiveTagFmt(cfg, env)` resolves the effective `tag_format` (env-specific override → top-level) and validates `{build}` presence; called from `NewResolver` when both `versionOverride` and `buildID` are set. `--build` validation is front-loaded before config I/O so the error is immediate. Changelog generation for multi-build-per-version flows requires a custom git-cliff config with `tag_pattern` scoped to the production env and `disable_changelog: true` on UAT environments — this is user configuration, not a heraut change. Plan: `.claude/plans/build-token-mobile-changelog.md`.
+
+---
+
 ## Risks and mitigations
 
 | Risk                                                                                | Impact            | Mitigation                                                                |

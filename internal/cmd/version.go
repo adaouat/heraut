@@ -40,7 +40,7 @@ func newVersionNextCmd() *cobra.Command {
 				return exitcode.Wrap(exitcode.Config, fmt.Errorf("loading config: %w", err))
 			}
 
-			resolver, err := app.NewResolver(cfg, env, force, "", runner)
+			resolver, err := app.NewResolver(cfg, env, force, "", "", runner)
 			if err != nil {
 				return exitcode.Wrap(exitcode.Config, err)
 			}

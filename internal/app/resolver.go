@@ -11,6 +11,7 @@ import (
 	"github.com/adaouat/heraut/internal/versioning/calver"
 	"github.com/adaouat/heraut/internal/versioning/perenv"
 	"github.com/adaouat/heraut/internal/versioning/semver"
+	"github.com/adaouat/heraut/internal/versioning/tagfmt"
 )
 
 // NewResolver builds the appropriate versioning.Resolver from config.
@@ -18,12 +19,27 @@ import (
 // force is the --force flag value.
 // versionOverride is set when --version X.Y.Z is passed; when non-empty a
 // StaticResolver is returned for all strategies, bypassing git calls entirely.
-func NewResolver(cfg *config.Config, env string, force bool, versionOverride string, runner port.Runner) (versioning.Resolver, error) {
+// buildID is set when --build <id> is passed; requires versionOverride to be set.
+func NewResolver(cfg *config.Config, env string, force bool, versionOverride, buildID string, runner port.Runner) (versioning.Resolver, error) {
+	if buildID != "" && versionOverride == "" {
+		return nil, fmt.Errorf("--build requires --version: build ID cannot be combined with automatic version resolution")
+	}
 	if versionOverride != "" {
 		// Strip any leading "v" to derive the bare version component used in commit
 		// messages and changelog templates. The full tag is used as-is.
 		version := strings.TrimPrefix(versionOverride, "v")
-		return versioning.NewStaticResolver(versionOverride, version), nil
+		tag := versionOverride
+		if buildID != "" {
+			tf, err := effectiveTagFmt(cfg, env)
+			if err != nil {
+				return nil, err
+			}
+			tag, err = tagfmt.Render(tf, env, version, buildID)
+			if err != nil {
+				return nil, fmt.Errorf("rendering tag with build ID: %w", err)
+			}
+		}
+		return versioning.NewStaticResolver(tag, version), nil
 	}
 
 	switch cfg.Versioning.Strategy {
@@ -40,4 +56,23 @@ func NewResolver(cfg *config.Config, env string, force bool, versionOverride str
 	default:
 		return nil, fmt.Errorf("unknown versioning strategy %q (supported: semver, calver, semver-per-env, calver-per-env)", cfg.Versioning.Strategy)
 	}
+}
+
+// effectiveTagFmt returns the tag format to use for build ID rendering.
+// It applies per-env override over the top-level tag_format, and validates
+// that {build} is present (required when --build is passed).
+func effectiveTagFmt(cfg *config.Config, env string) (string, error) {
+	tf := cfg.Versioning.TagFormat
+	if env != "" {
+		if envCfg, ok := cfg.Environments[env]; ok && envCfg.TagFormat != "" {
+			tf = envCfg.TagFormat
+		}
+	}
+	if tf == "" {
+		return "", fmt.Errorf("--build requires versioning.tag_format to contain a {build} token, but tag_format is not set")
+	}
+	if !strings.Contains(tf, "{build}") {
+		return "", fmt.Errorf("--build requires a {build} token in versioning.tag_format (got %q)", tf)
+	}
+	return tf, nil
 }

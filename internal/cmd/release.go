@@ -59,7 +59,7 @@ func NewReleaseCmd() *cobra.Command {
 				))
 			}
 
-			resolver, err := app.NewResolver(cfg, env, force, versionOverride, readRunner)
+			resolver, err := app.NewResolver(cfg, env, force, versionOverride, "", readRunner)
 			if err != nil {
 				return exitcode.Wrap(exitcode.Config, err)
 			}

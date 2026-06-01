@@ -16,9 +16,21 @@ func TestNewChangelogCmd(t *testing.T) {
 	assert.Equal(t, "changelog", c.Use)
 	assert.NotEmpty(t, c.Short)
 
-	for _, name := range []string{"commit", "tag", "version"} {
+	for _, name := range []string{"commit", "tag", "version", "build"} {
 		assert.NotNil(t, c.Flags().Lookup(name), "flag %q not registered", name)
 	}
+}
+
+func TestChangelog_BuildRequiresVersion(t *testing.T) {
+	cfgPath := writeConfig(t, `
+version: "1"
+versioning:
+  strategy: semver-per-env
+  tag_format: "{env}/{version}-{build}"
+`)
+	_, err := executeRoot("changelog", "--config", cfgPath, "--env", "uat", "--build", "12345")
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "--version")
 }
 
 // TestRootCmd_HasChangelogSubcommand verifies `heraut changelog` is wired into the root.

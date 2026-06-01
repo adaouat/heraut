@@ -9,15 +9,22 @@ import (
 const (
 	versionToken = "{version}"
 	envToken     = "{env}"
+	buildToken   = "{build}"
 )
 
-// Render substitutes {version} and {env} tokens in template.
-func Render(template, env, version string) (string, error) {
+// Render substitutes {version}, {env}, and {build} tokens in template.
+// build may be empty when {build} is not present in the template; if {build}
+// is present but build is empty, an error is returned.
+func Render(template, env, version, build string) (string, error) {
 	if !strings.Contains(template, versionToken) {
 		return "", fmt.Errorf("tag format template must contain %s token", versionToken)
 	}
+	if strings.Contains(template, buildToken) && build == "" {
+		return "", fmt.Errorf("tag format template contains %s but no build ID was provided", buildToken)
+	}
 	result := strings.ReplaceAll(template, versionToken, version)
 	result = strings.ReplaceAll(result, envToken, env)
+	result = strings.ReplaceAll(result, buildToken, build)
 	return result, nil
 }
 
@@ -28,10 +35,11 @@ func ParseVersion(template, tag string) (string, error) {
 	}
 
 	// Build a regex by escaping the template and replacing tokens with capture groups.
-	// {version} → named capture group; {env} → non-capturing wildcard.
+	// {version} → named capture group; {env} and {build} → non-capturing wildcards.
 	regexStr := regexp.QuoteMeta(template)
 	regexStr = strings.ReplaceAll(regexStr, regexp.QuoteMeta(versionToken), `(?P<version>.+)`)
 	regexStr = strings.ReplaceAll(regexStr, regexp.QuoteMeta(envToken), `[^/]+`)
+	regexStr = strings.ReplaceAll(regexStr, regexp.QuoteMeta(buildToken), `[^/]+`)
 	regexStr = "^" + regexStr + "$"
 
 	re, err := regexp.Compile(regexStr)
@@ -58,5 +66,6 @@ func GlobPattern(template, env string) (string, error) {
 	}
 	result := strings.ReplaceAll(template, envToken, env)
 	result = strings.ReplaceAll(result, versionToken, "*")
+	result = strings.ReplaceAll(result, buildToken, "*")
 	return result, nil
 }

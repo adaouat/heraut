@@ -16,6 +16,7 @@ func NewChangelogCmd() *cobra.Command {
 		commit          bool
 		tag             bool
 		versionOverride string
+		buildID         string
 	)
 
 	changelogCmd := &cobra.Command{
@@ -27,6 +28,10 @@ func NewChangelogCmd() *cobra.Command {
 			verbose, _ := cmd.Flags().GetBool("verbose")
 			env, _ := cmd.Flags().GetString("env")
 			force, _ := cmd.Flags().GetBool("force")
+
+			if buildID != "" && versionOverride == "" {
+				return exitcode.Wrap(exitcode.Config, fmt.Errorf("--build requires --version: provide the version explicitly when specifying a build ID"))
+			}
 
 			runner := execadapter.New(dryRun, verbose)
 			// Resolver only performs read-only git calls; use a real runner so
@@ -44,7 +49,7 @@ func NewChangelogCmd() *cobra.Command {
 				return exitcode.Wrap(exitcode.Config, fmt.Errorf("configuration is invalid"))
 			}
 
-			resolver, err := app.NewResolver(cfg, env, force, versionOverride, readRunner)
+			resolver, err := app.NewResolver(cfg, env, force, versionOverride, buildID, readRunner)
 			if err != nil {
 				return exitcode.Wrap(exitcode.Config, err)
 			}
@@ -75,6 +80,7 @@ func NewChangelogCmd() *cobra.Command {
 	changelogCmd.Flags().BoolVar(&commit, "commit", false, "commit the generated changelog")
 	changelogCmd.Flags().BoolVar(&tag, "tag", false, "tag after commit (implies --commit)")
 	changelogCmd.Flags().StringVar(&versionOverride, "version", "", "override the resolved version — with or without tag prefix (e.g. 1.2.3 or v1.2.3)")
+	changelogCmd.Flags().StringVar(&buildID, "build", "", "build ID appended to the tag via the {build} token in tag_format (requires --version)")
 
 	return changelogCmd
 }

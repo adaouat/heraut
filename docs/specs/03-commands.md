@@ -134,6 +134,7 @@ heraut changelog [--commit] [--tag] [--version X.Y.Z] [--dry-run] [--env <name>]
 | `--commit`   | After generating, commit `CHANGELOG.md` and push.                                                        |
 | `--tag`      | After committing, create and push a git tag on that commit. Implies `--commit`.                          |
 | `--version`  | Override the auto-computed version.                                                                      |
+| `--build`    | CI build ID appended to the tag via the `{build}` token in `tag_format`. Requires `--version`.           |
 | `--dry-run`  | Print the action plan; execute nothing.                                                                  |
 | `--env`      | Active environment.                                                                                      |
 

@@ -251,6 +251,39 @@ environments:
 
 A per-environment `tag_format` always overrides the common one.
 
+### `{build}` token — CI build IDs
+
+`tag_format` supports a third token, `{build}`, for pipelines that append a CI build
+number to the tag (common in mobile projects):
+
+```yaml
+versioning:
+  strategy: semver-per-env
+  tag_format: "{env}/{version}-{build}"  # e.g. uat/7.4.1-158404
+```
+
+`{build}` is populated by the `--build <id>` flag on `heraut changelog`:
+
+```bash
+heraut changelog --tag --env uat --version 7.4.1 --build $CI_PIPELINE_ID
+```
+
+**Constraints:**
+
+- `--build` requires `--version` — build IDs come from CI, not from commit analysis.
+- If `{build}` appears in `tag_format` but `--build` is not passed, heraut exits with
+  an error.
+- Build IDs must not contain `/` or whitespace (git tag constraint).
+- `ParseVersion` treats `{build}` as a non-capturing wildcard, so existing tags like
+  `uat/7.4.0-155391` correctly yield version `7.4.0` for range computation and
+  current-version lookups.
+
+**Changelog note:** git-cliff generates one section per tag boundary. Multiple builds
+of the same semantic version produce multiple sections with the same heading. For a clean
+per-version changelog, set `disable_changelog: true` on UAT environments and only
+generate the changelog on the production/main release. Use a custom git-cliff config
+(`changelog.config`) with `tag_pattern` scoped to the production env.
+
 ## `changelog`
 
 Controls how `CHANGELOG.md` is generated and committed.

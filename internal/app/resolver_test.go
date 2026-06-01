@@ -26,14 +26,14 @@ func calverCfg() *config.Config {
 
 func TestNewResolver_Semver(t *testing.T) {
 	mr := testutil.NewMockRunner()
-	r, err := app.NewResolver(semverCfg(), "", false, "", mr)
+	r, err := app.NewResolver(semverCfg(), "", false, "", "", mr)
 	require.NoError(t, err)
 	assert.NotNil(t, r)
 }
 
 func TestNewResolver_Calver(t *testing.T) {
 	mr := testutil.NewMockRunner()
-	r, err := app.NewResolver(calverCfg(), "", false, "", mr)
+	r, err := app.NewResolver(calverCfg(), "", false, "", "", mr)
 	require.NoError(t, err)
 	assert.NotNil(t, r)
 }
@@ -49,7 +49,7 @@ func TestNewResolver_SemverPerEnv(t *testing.T) {
 			"prod": {Bump: "auto", TagFormat: "prod/${version}"},
 		},
 	}
-	r, err := app.NewResolver(cfg, "prod", false, "", mr)
+	r, err := app.NewResolver(cfg, "prod", false, "", "", mr)
 	require.NoError(t, err)
 	assert.NotNil(t, r)
 }
@@ -66,7 +66,7 @@ func TestNewResolver_CalverPerEnv(t *testing.T) {
 			"prod": {Bump: "auto", TagFormat: "prod/${version}"},
 		},
 	}
-	r, err := app.NewResolver(cfg, "prod", false, "", mr)
+	r, err := app.NewResolver(cfg, "prod", false, "", "", mr)
 	require.NoError(t, err)
 	assert.NotNil(t, r)
 }
@@ -76,14 +76,14 @@ func TestNewResolver_UnknownStrategy(t *testing.T) {
 	cfg := &config.Config{
 		Versioning: config.Versioning{Strategy: "unknown-strategy"},
 	}
-	_, err := app.NewResolver(cfg, "", false, "", mr)
+	_, err := app.NewResolver(cfg, "", false, "", "", mr)
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "unknown-strategy")
 }
 
 func TestNewResolver_VersionOverride_Semver(t *testing.T) {
 	mr := testutil.NewMockRunner()
-	r, err := app.NewResolver(semverCfg(), "", false, "v2.0.0", mr)
+	r, err := app.NewResolver(semverCfg(), "", false, "v2.0.0", "", mr)
 	require.NoError(t, err)
 
 	result, err := r.Resolve()
@@ -95,7 +95,7 @@ func TestNewResolver_VersionOverride_Semver(t *testing.T) {
 
 func TestNewResolver_VersionOverride_Calver(t *testing.T) {
 	mr := testutil.NewMockRunner()
-	r, err := app.NewResolver(calverCfg(), "", false, "2026.05.3", mr)
+	r, err := app.NewResolver(calverCfg(), "", false, "2026.05.3", "", mr)
 	require.NoError(t, err)
 
 	result, err := r.Resolve()
@@ -113,7 +113,7 @@ func TestNewResolver_VersionOverride_SemverPerEnv(t *testing.T) {
 			"prod": {Bump: "auto", TagFormat: "prod/${version}"},
 		},
 	}
-	r, err := app.NewResolver(cfg, "prod", false, "v1.5.0", mr)
+	r, err := app.NewResolver(cfg, "prod", false, "v1.5.0", "", mr)
 	require.NoError(t, err)
 
 	result, err := r.Resolve()
