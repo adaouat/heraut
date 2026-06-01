@@ -1,5 +1,18 @@
 # Changelog
 
+## [0.17.0](https://github.com/adaouat/heraut/compare/v0.16.0..v0.17.0) - 2026-06-01
+
+### 🚀 Features
+
+- *(scaffold)* Show CI/CD tip after GitLab platform selection in init wizard - ([58fdb4e](https://github.com/adaouat/heraut/commit/58fdb4e56809bd8b9514c052d4d3e103f2e7abee)) by @bchatard
+
+- *(scaffold)* Pre-fill project/repo from git remote in init wizard - ([5a666e5](https://github.com/adaouat/heraut/commit/5a666e55d96e4ad676518aa758ccbba799cfaa83)) by @bchatard
+
+
+### 📚 Documentation
+
+- Update specs and roadmap for today's check and init enhancements - ([29e58e8](https://github.com/adaouat/heraut/commit/29e58e8cf0a841be410135dd9ce9d54c1c3a5128)) by @bchatard
+
 ## [0.16.0](https://github.com/adaouat/heraut/compare/v0.15.6..v0.16.0) - 2026-06-01
 
 ### 🚀 Features
