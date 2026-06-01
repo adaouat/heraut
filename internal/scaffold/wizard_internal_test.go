@@ -76,19 +76,33 @@ func TestParseRemoteProject(t *testing.T) {
 	}
 }
 
-func TestPlatformTokenDefault(t *testing.T) {
+func TestResolveTokenChoice(t *testing.T) {
 	tests := []struct {
-		platform string
-		want     string
+		name         string
+		platformType string
+		existing     string
+		wantChoice   string
+		wantCustom   string
 	}{
-		{"github", "GH_TOKEN"},
-		{"gitlab", "GITLAB_TOKEN"},
-		{"", ""},
-		{"other", ""},
+		// empty → platform default pre-selected
+		{"github default", "github", "", "GH_TOKEN", ""},
+		{"gitlab default", "gitlab", "", "GITLAB_TOKEN", ""},
+		{"unknown platform default", "other", "", "custom", ""},
+		// known tokens round-trip
+		{"GH_TOKEN known", "github", "GH_TOKEN", "GH_TOKEN", ""},
+		{"GITLAB_TOKEN known", "gitlab", "GITLAB_TOKEN", "GITLAB_TOKEN", ""},
+		{"CI_JOB_TOKEN known", "gitlab", "CI_JOB_TOKEN", "CI_JOB_TOKEN", ""},
+		// custom values
+		{"github custom token", "github", "MY_GITHUB_PAT", "custom", "MY_GITHUB_PAT"},
+		{"gitlab custom token", "gitlab", "MY_GITLAB_TOKEN", "custom", "MY_GITLAB_TOKEN"},
+		// wrong-platform token treated as custom
+		{"GH_TOKEN on gitlab is custom", "gitlab", "GH_TOKEN", "custom", "GH_TOKEN"},
 	}
 	for _, tc := range tests {
-		t.Run(tc.platform, func(t *testing.T) {
-			assert.Equal(t, tc.want, platformTokenDefault(tc.platform))
+		t.Run(tc.name, func(t *testing.T) {
+			choice, custom := resolveTokenChoice(tc.platformType, tc.existing)
+			assert.Equal(t, tc.wantChoice, choice)
+			assert.Equal(t, tc.wantCustom, custom)
 		})
 	}
 }

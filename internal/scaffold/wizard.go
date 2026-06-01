@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os/exec"
 	"regexp"
+	"slices"
 	"strconv"
 	"strings"
 
@@ -309,16 +310,34 @@ func parseRemoteProject(rawURL string) string {
 	return strings.TrimSuffix(rawURL, ".git")
 }
 
-// platformTokenDefault returns the conventional token env var name for a platform type.
-func platformTokenDefault(platformType string) string {
+// platformTokenOptions returns the known token env var names for a platform,
+// in display order. The first entry is the recommended default.
+func platformTokenOptions(platformType string) []string {
 	switch platformType {
 	case "github":
-		return "GH_TOKEN"
+		return []string{"GH_TOKEN"}
 	case "gitlab":
-		return "GITLAB_TOKEN"
+		return []string{"GITLAB_TOKEN", "CI_JOB_TOKEN"}
 	default:
-		return ""
+		return nil
 	}
+}
+
+// resolveTokenChoice maps an existing token env var to a wizard select choice
+// and optional custom value. When existing is empty the first known token is
+// returned as the default. Unrecognised values map to ("custom", existing).
+func resolveTokenChoice(platformType, existing string) (choice, custom string) {
+	opts := platformTokenOptions(platformType)
+	if existing == "" {
+		if len(opts) > 0 {
+			return opts[0], ""
+		}
+		return "custom", ""
+	}
+	if slices.Contains(opts, existing) {
+		return existing, ""
+	}
+	return "custom", existing
 }
 
 func runPlatformWizard(a *Answers) error {
@@ -412,19 +431,41 @@ func runPlatformWizard(a *Answers) error {
 			}
 		}
 
-		// Step 3: token env var, pre-filled with the platform convention.
-		if p.TokenEnv == "" {
-			p.TokenEnv = platformTokenDefault(p.Type)
+		// Step 3: token env var — select from known names or enter custom.
+		tokenChoice, customToken := resolveTokenChoice(p.Type, p.TokenEnv)
+		knownOpts := platformTokenOptions(p.Type)
+		tokenOpts := make([]huh.Option[string], 0, len(knownOpts)+1)
+		for _, k := range knownOpts {
+			tokenOpts = append(tokenOpts, huh.NewOption(k, k))
 		}
+		tokenOpts = append(tokenOpts, huh.NewOption("Custom", "custom"))
+
 		if err := huh.NewForm(
 			huh.NewGroup(
-				huh.NewInput().
+				huh.NewSelect[string]().
 					Title("Token environment variable").
-					Description(`e.g. "GH_TOKEN" or "GITLAB_TOKEN"`).
-					Value(&p.TokenEnv),
+					Options(tokenOpts...).
+					Value(&tokenChoice),
 			),
+			huh.NewGroup(
+				huh.NewInput().
+					Title("Custom token environment variable").
+					Value(&customToken).
+					Validate(func(s string) error {
+						if strings.TrimSpace(s) == "" {
+							return fmt.Errorf("token env var is required")
+						}
+						return nil
+					}),
+			).WithHideFunc(func() bool { return tokenChoice != "custom" }),
 		).Run(); err != nil {
 			return err
+		}
+
+		if tokenChoice == "custom" {
+			p.TokenEnv = strings.TrimSpace(customToken)
+		} else {
+			p.TokenEnv = tokenChoice
 		}
 
 		a.Platforms = append(a.Platforms, p)
