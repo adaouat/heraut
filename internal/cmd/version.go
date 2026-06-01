@@ -57,7 +57,8 @@ func newVersionNextCmd() *cobra.Command {
 }
 
 func newVersionCurrentCmd() *cobra.Command {
-	return &cobra.Command{
+	var bare bool
+	cmd := &cobra.Command{
 		Use:   "current",
 		Short: "Print the latest released tag",
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -73,13 +74,19 @@ func newVersionCurrentCmd() *cobra.Command {
 				return exitcode.Wrap(exitcode.Config, fmt.Errorf("loading config: %w", err))
 			}
 
-			tag, err := app.CurrentTag(runner, cfg, env)
+			out := app.CurrentTag
+			if bare {
+				out = app.CurrentVersion
+			}
+			value, err := out(runner, cfg, env)
 			if err != nil {
 				return exitcode.Wrap(exitcode.Runtime, err)
 			}
 
-			_, _ = fmt.Fprintln(cmd.OutOrStdout(), tag)
+			_, _ = fmt.Fprintln(cmd.OutOrStdout(), value)
 			return nil
 		},
 	}
+	cmd.Flags().BoolVar(&bare, "bare", false, "print the bare semantic version (strip prefix/env/build), not the raw tag")
+	return cmd
 }

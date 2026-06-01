@@ -205,6 +205,45 @@ esac
 	assert.Equal(t, "prod/1.5.0\n", out)
 }
 
+func TestVersionCurrent_Bare_PerEnvBuildFormat(t *testing.T) {
+	cfgPath := writeConfig(t, `
+version: "1"
+versioning:
+  strategy: semver-per-env
+  tag_format: "{env}/{version}-{build}"
+environments:
+  main:
+    bump: auto
+`)
+	testutil.FakeBin(t, "git", `#!/bin/sh
+case "$*" in
+  "tag -l main/*-* --sort=-version:refname") printf "main/7.4.1-158404\nmain/7.4.0-155398\n" ;;
+  *) exit 1 ;;
+esac
+`)
+	out, err := executeRoot("version", "current", "--config", cfgPath, "--env", "main", "--bare")
+	require.NoError(t, err)
+	assert.Equal(t, "7.4.1\n", out)
+}
+
+func TestVersionCurrent_Bare_Semver(t *testing.T) {
+	cfgPath := writeConfig(t, `
+version: "1"
+versioning:
+  strategy: semver
+  tag_prefix: "v"
+`)
+	testutil.FakeBin(t, "git", `#!/bin/sh
+case "$*" in
+  "tag -l v* --sort=-version:refname") printf "v1.2.3\nv1.2.2\n" ;;
+  *) exit 1 ;;
+esac
+`)
+	out, err := executeRoot("version", "current", "--config", cfgPath, "--bare")
+	require.NoError(t, err)
+	assert.Equal(t, "1.2.3\n", out)
+}
+
 func TestVersionCurrent_NoTags_Error(t *testing.T) {
 	cfgPath := writeConfig(t, `
 version: "1"

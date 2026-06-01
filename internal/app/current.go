@@ -31,6 +31,39 @@ func CurrentTag(runner port.Runner, cfg *config.Config, env string) (string, err
 	return "", fmt.Errorf("no tags found for %q", glob)
 }
 
+// CurrentVersion returns the bare semantic version of the latest tag (the tag with
+// any prefix / env / build components stripped). For per-env strategies the version is
+// parsed via the effective tag_format; for single-env strategies the tag prefix is
+// stripped.
+func CurrentVersion(runner port.Runner, cfg *config.Config, env string) (string, error) {
+	tag, err := CurrentTag(runner, cfg, env)
+	if err != nil {
+		return "", err
+	}
+	switch cfg.Versioning.Strategy {
+	case "semver":
+		prefix := "v"
+		if cfg.Versioning.TagPrefix != nil {
+			prefix = *cfg.Versioning.TagPrefix
+		}
+		return strings.TrimPrefix(tag, prefix), nil
+	case "calver":
+		prefix := ""
+		if cfg.Versioning.TagPrefix != nil {
+			prefix = *cfg.Versioning.TagPrefix
+		}
+		return strings.TrimPrefix(tag, prefix), nil
+	case "semver-per-env", "calver-per-env":
+		v, err := tagfmt.ParseVersion(cfg.EffectiveTagFormat(env), tag)
+		if err != nil {
+			return "", fmt.Errorf("parsing version from tag %q: %w", tag, err)
+		}
+		return v, nil
+	default:
+		return "", fmt.Errorf("unknown versioning strategy %q", cfg.Versioning.Strategy)
+	}
+}
+
 func currentTagGlob(cfg *config.Config, env string) (string, error) {
 	prefix := func() string {
 		if cfg.Versioning.TagPrefix != nil {

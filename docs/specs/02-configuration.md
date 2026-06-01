@@ -288,7 +288,7 @@ tag (no build ID is available) and will error until the noted work lands:
 | `heraut changelog --tag --version … --build …` | ✅ supported |
 | `heraut release` | ❌ no `--build` flag (planned — roadmap T57) |
 | `heraut version next` | ❌ cannot render a build tag |
-| `heraut version current --env <env>` | ⚠️ returns the raw tag (bare-version output planned — roadmap T58) |
+| `heraut version current --env <env>` | ✅ raw tag; add `--bare` for the stripped version (`7.4.1`) |
 
 **Changelog note:** git-cliff generates one section per tag boundary. Multiple builds
 of the same semantic version produce multiple sections with the same heading. For a clean

@@ -2406,7 +2406,7 @@ that want a platform release per build, mirroring `heraut changelog --build` sem
 
 **Scope:** M
 
-#### `[ ]` T58: `heraut version current` returns the bare semantic version
+#### `[x]` T58: `heraut version current` returns the bare semantic version
 
 **Enhancement:** `version current` prints the raw tag (`uat/7.4.1-158404`). Downstream CI
 jobs want the bare `7.4.1`. Add a way to get it (e.g. `--bare`, or parse via the effective
@@ -2424,6 +2424,8 @@ jobs want the bare `7.4.1`. Add a way to get it (e.g. `--bare`, or parse via the
 **Files:** `internal/cmd/version.go`, `internal/app/current.go`, `docs/guides/mobile-ci-tagging.md`
 
 **Scope:** S
+
+**Done:** Added `--bare` to `heraut version current`. `app.CurrentVersion` strips per strategy: semver/calver strip the tag prefix (default `v` / empty); per-env strategies parse via `tagfmt.ParseVersion(cfg.EffectiveTagFormat(env), tag)` — which handles `{build}` (and SemVer pre-release) correctly. The cmd selects `app.CurrentTag` or `app.CurrentVersion` by the flag. Tests: per-env build-format → `7.4.1`, semver `v1.2.3` → `1.2.3`. Guide updated to `--bare` (sed workaround removed); Spec 02 scope table + Spec 03 `version current` updated.
 
 #### `[ ]` T59: Clearer errors when a `{build}` format is used outside the changelog flow
 
