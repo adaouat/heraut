@@ -69,6 +69,8 @@ func TestRender_BuildRequiredButEmpty(t *testing.T) {
 	_, err := tagfmt.Render("{env}/{version}-{build}", "uat", "7.4.1", "")
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "{build}")
+	// The error must point the user toward the changelog --build flow.
+	assert.Contains(t, err.Error(), "changelog --build")
 }
 
 func TestParseVersion(t *testing.T) {

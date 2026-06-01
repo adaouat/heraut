@@ -2427,7 +2427,7 @@ jobs want the bare `7.4.1`. Add a way to get it (e.g. `--bare`, or parse via the
 
 **Done:** Added `--bare` to `heraut version current`. `app.CurrentVersion` strips per strategy: semver/calver strip the tag prefix (default `v` / empty); per-env strategies parse via `tagfmt.ParseVersion(cfg.EffectiveTagFormat(env), tag)` — which handles `{build}` (and SemVer pre-release) correctly. The cmd selects `app.CurrentTag` or `app.CurrentVersion` by the flag. Tests: per-env build-format → `7.4.1`, semver `v1.2.3` → `1.2.3`. Guide updated to `--bare` (sed workaround removed); Spec 02 scope table + Spec 03 `version current` updated.
 
-#### `[ ]` T59: Clearer errors when a `{build}` format is used outside the changelog flow
+#### `[x]` T59: Clearer errors when a `{build}` format is used outside the changelog flow
 
 **Sharp edge:** `heraut release` and `heraut version next` fail with
 `rendering tag: tag format template contains {build} but no build ID was provided`. The
@@ -2444,6 +2444,8 @@ how to proceed.
 **Files:** `internal/versioning/tagfmt/tagfmt.go` or call sites, `docs/specs/03-commands.md`
 
 **Scope:** XS
+
+**Done:** Enriched the `tagfmt.Render` error to be self-explanatory at every surfacing point: "…this format is changelog-only — run `heraut changelog --build <id>` (heraut release / version next do not accept a build ID)". Chose the message at the render site (rather than per-command pre-checks) so it covers release, version next, *and* changelog-without-build uniformly. The Spec 03 caveats under `release` / `version next` and the Spec 02 scope table were added earlier in the review pass. When T57 lands, update the parenthetical to mention `release --build`.
 
 ---
 
