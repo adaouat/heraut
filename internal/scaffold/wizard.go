@@ -400,7 +400,7 @@ func runPlatformWizard(a *Answers) error {
 					huh.NewNote().
 						Title("Running in GitLab CI/CD?").
 						Description(
-							"Use CI_JOB_TOKEN instead of GITLAB_TOKEN and enable "+
+							"Use `CI_JOB_TOKEN` instead of `GITLAB_TOKEN` and enable "+
 								`"Allow Git push requests to the repository" `+
 								"in your project settings "+
 								"(Settings › CI/CD › Job token permissions).",
