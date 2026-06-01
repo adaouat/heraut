@@ -1,5 +1,18 @@
 # Changelog
 
+## [0.16.0](https://github.com/adaouat/heraut/compare/v0.15.6..v0.16.0) - 2026-06-01
+
+### 🚀 Features
+
+- *(cmd/check)* Display config file path and resolution source - ([db4c5ff](https://github.com/adaouat/heraut/commit/db4c5ff79c632e66a86058c104efba4f00e095dc)) by @bchatard
+
+- *(cmd/check)* Runtime check works without a config file - ([1796095](https://github.com/adaouat/heraut/commit/179609527441ed78305cf1bf72559f359b7109b4)) by @bchatard
+
+
+### ⚙️ Miscellaneous Tasks
+
+- *(release)* Fix Docker version tags for workflow_dispatch trigger - ([4e65a80](https://github.com/adaouat/heraut/commit/4e65a80cceda5514f431c3f0a7c11d514124640d)) by @bchatard
+
 ## [0.15.6](https://github.com/adaouat/heraut/compare/v0.15.5..v0.15.6) - 2026-05-31
 
 ### ⚙️ Miscellaneous Tasks
