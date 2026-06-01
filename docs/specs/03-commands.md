@@ -75,6 +75,11 @@ heraut release [--version X.Y.Z] [--dry-run] [--env <name>] [--force]
 | `--env`      | Active environment (required for per-env strategies).                                |
 | `--force`    | Bypass E001 (target tag exists) and E002 (destination ahead).                        |
 
+> **`{build}` tag formats:** `heraut release` has no `--build` flag, so a `tag_format`
+> containing `{build}` cannot be rendered here and the command errors. The build-id flow
+> is changelog-only today (see [Spec 02 § `{build}` token](02-configuration.md#build-token--ci-build-ids));
+> `release --build` is planned (roadmap T57).
+
 **Action sequence** ([ADR-0011](../adr/0011-single-pipeline-release-via-pre-computation.md), [ADR-0012](../adr/0012-changelog-commit-ownership.md)):
 
 1. **Preflight** — run `heraut check config` + `heraut check runtime` checks
@@ -188,6 +193,10 @@ heraut version next [--env <name>] [--force]
 
 Exits non-zero if a promotion guard trips (E001/E002/E003).
 
+> **`{build}` tag formats:** `version next` cannot render a tag that requires a build ID
+> and will error. The build-id flow is changelog-only (see
+> [Spec 02 § `{build}` token](02-configuration.md#build-token--ci-build-ids)).
+
 ## `heraut version current`
 
 Print the latest released tag for the active strategy / environment.
@@ -199,6 +208,10 @@ heraut version current [--env <name>]
 For single-env strategies, prints the latest tag overall. For per-env strategies,
 prints the latest tag in the active environment's tag namespace (e.g. the latest
 `prod/*` tag when `--env prod`).
+
+Prints the **raw tag** (including any `{build}` suffix), not the bare version. For per-env
+strategies it currently requires a per-environment `tag_format` rather than the common
+top-level one — both are tracked in roadmap T54 (fallback) and T58 (bare-version output).
 
 Exits non-zero if no tags exist.
 

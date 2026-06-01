@@ -2298,6 +2298,147 @@ use case without requiring a full platform release per build.
 
 ---
 
+#### `[x]` T53: Auto-derive build-id git-cliff postprocessor from `tag_format`
+
+**Motivation:** With `tag_format: "{env}/{version}-{build}"`, git-cliff's `{{ version }}`
+is the full raw tag (`uat/7.4.1-158404`); `tag_pattern` capture groups do not feed the
+template context in git-cliff 2.x. Headings should show the bare version (`7.4.1`).
+
+**Acceptance:**
+- `tagfmt.DeriveBuildPostprocessorPattern(template)` derives a regex from the effective
+  `tag_format`, handling any separator between `{version}` and `{build}` (`-`, `+`, `_`, …)
+- Returns `""` when `{build}` is absent or precedes `{version}`
+- `-` separator disambiguates SemVer pre-release segments (leading non-digit)
+- Pattern injected into the merged TOML `[changelog].postprocessors` (prepended to any
+  user-defined entries), stripping env prefix + build ID: `[uat/7.4.1-158404]` → `[7.4.1]`
+- Standard SemVer tags (`v1.2.3`, `1.2.3-rc.1`) are unaffected
+
+**Files:** `internal/versioning/tagfmt/`, `internal/config/config.go` (`BuildPostprocessorPattern` field, `yaml:"-"`), `internal/generators/gitcliff/generator.go` (`injectBuildPostprocessor`), `internal/app/pipeline.go` (`withBuildPostprocessor`)
+
+**Scope:** S
+
+**Done:** Shipped in `feat(gitcliff): derive build-id postprocessor pattern from tag_format`. Pattern derived from the effective `tag_format` (env override → top-level) in `withBuildPostprocessor`, carried on a `ContentDriver` copy via the unexported `BuildPostprocessorPattern` field, injected by `injectBuildPostprocessor` (unmarshal → prepend → marshal). Verified end-to-end: `[uat/7.4.1-158404]` → `[7.4.1]`, compare URLs keep raw tags. **Follow-up gaps found in review and split into T54–T59 below.**
+
+---
+
+### Phase 12 — Build-ID flow hardening
+
+Follow-ups from the T52/T53 code+docs review. The `{build}` changelog flow works, but
+several adjacent commands and a diagnostic surface are inconsistent with it.
+
+#### `[ ]` T54: Fix `version current` per-env `tag_format` fallback + unify resolution
+
+**Bug:** `app.currentTagGlob` (`internal/app/current.go:59`) reads `envCfg.TagFormat`
+directly, with no fallback to the top-level `versioning.tag_format`. Three other call
+sites (`perenv.tagFormat`, `app.effectiveTagFmt`, `app.withBuildPostprocessor`) all apply
+the env-override → top-level fallback. With the common top-level `tag_format` (no per-env
+override) `heraut version current --env <env>` fails: `tag format template must contain
+{version} token`.
+
+**Acceptance:**
+- A single shared helper resolves the effective `tag_format` (env override → top-level);
+  `current.go`, `resolver.go`, and `pipeline.go` all call it (perenv keeps or shares its own)
+- `heraut version current --env uat` works with a top-level-only `{env}/{version}-{build}`
+  format (failing test first, against a real git repo / fixture)
+- Rename the `copy := *driver` shadow of the builtin in `withBuildPostprocessor` to `clone`
+
+**Files:** `internal/app/current.go`, `internal/app/resolver.go`, `internal/app/pipeline.go`, possibly a new `internal/app/tagformat.go` helper
+
+**Scope:** S
+
+#### `[ ]` T55: Validate `--build` value at the cmd boundary
+
+**Bug:** the spec states build IDs must not contain `/` or whitespace, but nothing
+enforces it. An invalid value flows into the tag and fails later at `git tag` with a
+cryptic message.
+
+**Acceptance:**
+- `--build` rejected before config I/O when it contains `/`, whitespace, or is otherwise
+  not a valid git ref component, with an actionable error
+- Table-driven cmd test covering valid/invalid build IDs
+- Spec note in `02-configuration.md` updated from "planned" to enforced
+
+**Files:** `internal/cmd/changelog.go`, `docs/specs/02-configuration.md`
+
+**Scope:** XS
+
+#### `[ ]` T56: `heraut cliff` reflects the injected build-id postprocessor
+
+**Bug:** `app.EffectiveCliffConfig` (used by `heraut cliff changelog`) builds the
+generator straight from `cfg.Changelog`, bypassing `withBuildPostprocessor`, so it prints
+`postprocessors = []` while a real `heraut changelog` run injects the build-id pattern.
+Spec 03 says `heraut cliff` shows "what heraut actually feeds to git-cliff" — this
+diagnostic is currently misleading for the build-id flow.
+
+**Acceptance:**
+- `heraut cliff changelog` output includes the derived postprocessor when `tag_format`
+  contains `{build}` (matches what `heraut changelog` runs)
+- `--env` is honoured so the per-env effective `tag_format` is used
+- Test asserts the postprocessor is present in the effective TOML
+
+**Files:** `internal/app/cliff.go`, `internal/cmd/cliff.go` (pass env + cfg), test
+
+**Scope:** S
+
+#### `[ ]` T57: `heraut release --build` for build-id release flows
+
+**Enhancement (deferred from T52):** with a `{build}` `tag_format`, `heraut release`
+cannot render a tag (no build ID) and hard-fails. Add `--build` to `release` for teams
+that want a platform release per build, mirroring `heraut changelog --build` semantics
+(requires `--version`, validated value).
+
+**Acceptance:**
+- `--build` flag on `heraut release`; `--build` requires `--version`
+- Reuses the shared `NewResolver` build path (no duplicate tag rendering)
+- Contract/integration coverage for the release pipeline with a build ID
+- Decide and document whether a release-per-build is advisable (volume of GitHub/GitLab
+  releases) — guard or warn if appropriate
+
+**Dependencies:** T54 (shared resolution), T55 (build validation)
+
+**Files:** `internal/cmd/release.go`, `internal/app/pipeline.go`, platform contract tests
+
+**Scope:** M
+
+#### `[ ]` T58: `heraut version current` returns the bare semantic version
+
+**Enhancement:** `version current` prints the raw tag (`uat/7.4.1-158404`). Downstream CI
+jobs want the bare `7.4.1`. Add a way to get it (e.g. `--bare`, or parse via the effective
+`tag_format` for per-env strategies). Unblocks the guide's "query current version" section.
+
+**Acceptance:**
+- `heraut version current --env uat --bare` (or agreed flag) prints `7.4.1` for a
+  `{env}/{version}-{build}` tag
+- Uses `tagfmt.ParseVersion` against the effective `tag_format`
+- Guide's "Querying the current tag" section updated to the real command (remove the
+  interim `sed` workaround)
+
+**Dependencies:** T54
+
+**Files:** `internal/cmd/version.go`, `internal/app/current.go`, `docs/guides/mobile-ci-tagging.md`
+
+**Scope:** S
+
+#### `[ ]` T59: Clearer errors when a `{build}` format is used outside the changelog flow
+
+**Sharp edge:** `heraut release` and `heraut version next` fail with
+`rendering tag: tag format template contains {build} but no build ID was provided`. The
+message is correct but doesn't explain that the format is changelog-only (until T57) or
+how to proceed.
+
+**Acceptance:**
+- When `tagfmt.Render` fails on a missing build ID, the surfaced error names the command
+  limitation and points to `heraut changelog --build` (or `release --build` once T57 lands)
+- Spec 03 caveat under `release` / `version next` cross-links the scope table in Spec 02
+
+**Dependencies:** T57 (message references `release --build` once it exists)
+
+**Files:** `internal/versioning/tagfmt/tagfmt.go` or call sites, `docs/specs/03-commands.md`
+
+**Scope:** XS
+
+---
+
 ## Risks and mitigations
 
 | Risk                                                                                | Impact            | Mitigation                                                                |

@@ -273,16 +273,29 @@ heraut changelog --tag --env uat --version 7.4.1 --build $CI_PIPELINE_ID
 - `--build` requires `--version` — build IDs come from CI, not from commit analysis.
 - If `{build}` appears in `tag_format` but `--build` is not passed, heraut exits with
   an error.
-- Build IDs must not contain `/` or whitespace (git tag constraint).
-- `ParseVersion` treats `{build}` as a non-capturing wildcard, so existing tags like
-  `uat/7.4.0-155391` correctly yield version `7.4.0` for range computation and
-  current-version lookups.
+- Build IDs must not contain `/` or whitespace (git tag constraint). *(Enforcement is
+  planned — see roadmap T55; today an invalid build ID surfaces as a `git tag` error.)*
+- Internally, the changelog range comparison treats `{build}` as a non-capturing wildcard,
+  so existing tags like `uat/7.4.0-155391` correctly yield version `7.4.0` when computing
+  the commit range.
+
+**Scope — changelog-only:** the `{build}` flow is supported by `heraut changelog --build`
+only. With a `tag_format` that contains `{build}`, the following commands cannot render a
+tag (no build ID is available) and will error until the noted work lands:
+
+| Command | Status |
+|---|---|
+| `heraut changelog --tag --version … --build …` | ✅ supported |
+| `heraut release` | ❌ no `--build` flag (planned — roadmap T57) |
+| `heraut version next` | ❌ cannot render a build tag |
+| `heraut version current --env <env>` | ⚠️ returns the raw tag, and requires a per-env `tag_format` (fixes planned — roadmap T54, T58) |
 
 **Changelog note:** git-cliff generates one section per tag boundary. Multiple builds
 of the same semantic version produce multiple sections with the same heading. For a clean
 per-version changelog, set `disable_changelog: true` on UAT environments and only
-generate the changelog on the production/main release. Use a custom git-cliff config
-(`changelog.config`) with `tag_pattern` scoped to the production env.
+generate the changelog on the production/main release. Use `tag_pattern` scoped to the
+production env; heraut automatically injects a postprocessor that strips the env prefix
+and build ID from version headings (`[uat/7.4.1-158404]` → `[7.4.1]`).
 
 ## `changelog`
 
