@@ -2,6 +2,7 @@ package scaffold
 
 import (
 	"fmt"
+	"os/exec"
 	"regexp"
 	"strconv"
 	"strings"
@@ -276,6 +277,38 @@ func runSprintWizard(a *Answers) error {
 	return nil
 }
 
+// detectRemoteProject runs git remote get-url origin and returns the parsed
+// namespace/project string. Returns "" when not in a git repo or on any error.
+func detectRemoteProject() string {
+	out, err := exec.Command("git", "remote", "get-url", "origin").Output()
+	if err != nil {
+		return ""
+	}
+	return parseRemoteProject(strings.TrimSpace(string(out)))
+}
+
+// parseRemoteProject extracts "namespace/project" (or "owner/repo") from a git
+// remote URL. Handles SSH (git@host:path.git), ssh:// and HTTPS schemes.
+func parseRemoteProject(rawURL string) string {
+	if rawURL == "" {
+		return ""
+	}
+	// Strip any scheme prefix (https://, ssh://, git+ssh://, …)
+	if i := strings.Index(rawURL, "://"); i != -1 {
+		rawURL = rawURL[i+3:]
+		// Now looks like "host/path.git" — strip the host.
+		if i := strings.Index(rawURL, "/"); i != -1 {
+			rawURL = rawURL[i+1:]
+		} else {
+			return ""
+		}
+	} else if i := strings.Index(rawURL, ":"); i != -1 {
+		// SCP-style SSH: git@host:path.git — everything after the colon is the path.
+		rawURL = rawURL[i+1:]
+	}
+	return strings.TrimSuffix(rawURL, ".git")
+}
+
 // platformTokenDefault returns the conventional token env var name for a platform type.
 func platformTokenDefault(platformType string) string {
 	switch platformType {
@@ -329,8 +362,13 @@ func runPlatformWizard(a *Answers) error {
 		}
 
 		// Step 2: platform-specific fields.
+		// Pre-fill from git remote when the field is still empty.
+		detected := detectRemoteProject()
 		switch p.Type {
 		case "github":
+			if p.Repository == "" {
+				p.Repository = detected
+			}
 			if err := huh.NewForm(
 				huh.NewGroup(
 					huh.NewInput().
@@ -348,6 +386,9 @@ func runPlatformWizard(a *Answers) error {
 				return err
 			}
 		case "gitlab":
+			if p.Project == "" {
+				p.Project = detected
+			}
 			if err := huh.NewForm(
 				huh.NewGroup(
 					huh.NewInput().

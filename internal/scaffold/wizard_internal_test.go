@@ -52,6 +52,30 @@ func TestResolveFormatChoice_CustomFormat(t *testing.T) {
 	assert.Equal(t, "YYYY.MM.DD.WW.PATCH", custom)
 }
 
+func TestParseRemoteProject(t *testing.T) {
+	tests := []struct {
+		name string
+		url  string
+		want string
+	}{
+		{"ssh with .git", "git@github.com:owner/repo.git", "owner/repo"},
+		{"ssh without .git", "git@github.com:owner/repo", "owner/repo"},
+		{"https with .git", "https://github.com/owner/repo.git", "owner/repo"},
+		{"https without .git", "https://github.com/owner/repo", "owner/repo"},
+		{"gitlab ssh", "git@gitlab.com:namespace/project.git", "namespace/project"},
+		{"gitlab https", "https://gitlab.com/namespace/project.git", "namespace/project"},
+		{"nested gitlab groups", "git@gitlab.com:namespace/group/project.git", "namespace/group/project"},
+		{"self-hosted https", "https://git.company.com/team/service.git", "team/service"},
+		{"ssh scheme", "ssh://git@gitlab.com/namespace/project.git", "namespace/project"},
+		{"empty", "", ""},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			assert.Equal(t, tc.want, parseRemoteProject(tc.url))
+		})
+	}
+}
+
 func TestPlatformTokenDefault(t *testing.T) {
 	tests := []struct {
 		platform string
