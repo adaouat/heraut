@@ -13,6 +13,7 @@ import (
 	"github.com/adaouat/heraut/internal/port"
 	"github.com/adaouat/heraut/internal/ui"
 	"github.com/adaouat/heraut/internal/versioning"
+	"github.com/adaouat/heraut/internal/versioning/tagfmt"
 )
 
 // PipelineOpts carries runtime options for building a pipeline.
@@ -193,7 +194,8 @@ func buildChangelogPipelineConfig(runner port.Runner, cfg *config.Config, opts P
 	}
 
 	if effectiveChangelog != nil {
-		gen, err := buildGenerator(runner, effectiveChangelog, gitcliff.ModeChangelog)
+		driver := withBuildPostprocessor(effectiveChangelog, cfg, opts.Env)
+		gen, err := buildGenerator(runner, driver, gitcliff.ModeChangelog)
 		if err != nil {
 			return nil, fmt.Errorf("changelog generator: %w", err)
 		}
@@ -204,6 +206,25 @@ func buildChangelogPipelineConfig(runner port.Runner, cfg *config.Config, opts P
 	cCfg.AnnotatedTags = cfg.Versioning.TagType != "lightweight"
 
 	return cCfg, nil
+}
+
+// withBuildPostprocessor returns a ContentDriver copy with BuildPostprocessorPattern
+// populated when {build} is present in the effective tag format. The original
+// driver is not modified. Returns the original pointer when no derivation is needed.
+func withBuildPostprocessor(driver *config.ContentDriver, cfg *config.Config, env string) *config.ContentDriver {
+	tf := cfg.Versioning.TagFormat
+	if env != "" {
+		if envCfg, ok := cfg.Environments[env]; ok && envCfg.TagFormat != "" {
+			tf = envCfg.TagFormat
+		}
+	}
+	pat := tagfmt.DeriveBuildPostprocessorPattern(tf)
+	if pat == "" {
+		return driver
+	}
+	copy := *driver
+	copy.BuildPostprocessorPattern = pat
+	return &copy
 }
 
 func buildGenerator(runner port.Runner, driver *config.ContentDriver, defaultMode gitcliff.Mode) (port.Generator, error) {

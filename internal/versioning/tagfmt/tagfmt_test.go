@@ -1,6 +1,7 @@
 package tagfmt_test
 
 import (
+	"regexp"
 	"testing"
 
 	"github.com/adaouat/heraut/internal/versioning/tagfmt"
@@ -142,6 +143,86 @@ func TestGlobPatternError(t *testing.T) {
 	_, err := tagfmt.GlobPattern("no-version-token", "dev")
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "{version}")
+}
+
+func TestDeriveBuildPostprocessorPattern(t *testing.T) {
+	tests := []struct {
+		name     string
+		template string
+		wantNil  bool // expect empty string (no pattern)
+		// If not wantNil, verify the pattern matches / doesn't match certain tags.
+		matches    []string
+		noMatches  []string
+		wantGroup1 map[string]string // tag → expected capture group $1
+	}{
+		{
+			name:     "no build token returns empty",
+			template: "{env}/{version}",
+			wantNil:  true,
+		},
+		{
+			name:     "no version token returns empty",
+			template: "{env}/{build}",
+			wantNil:  true,
+		},
+		{
+			name:     "build before version returns empty",
+			template: "{build}/{env}/{version}",
+			wantNil:  true,
+		},
+		{
+			name:     "env/version-build",
+			template: "{env}/{version}-{build}",
+			wantGroup1: map[string]string{
+				"[uat/7.4.1-158404]":      "7.4.1",
+				"[main/7.4.0-155398]":     "7.4.0",
+				"[uat/7.4.1-rc.1-158404]": "7.4.1-rc.1",
+			},
+			noMatches: []string{
+				"[v1.2.3]",     // no build suffix
+				"[1.2.3-rc.1]", // no build suffix
+			},
+		},
+		{
+			name:     "version-build (no env)",
+			template: "{version}-{build}",
+			wantGroup1: map[string]string{
+				"[7.4.1-158404]":      "7.4.1",
+				"[7.4.1-rc.1-158404]": "7.4.1-rc.1",
+			},
+			noMatches: []string{"[v1.2.3]", "[1.2.3-rc.1]"},
+		},
+		{
+			name:     "env/version+build (plus separator)",
+			template: "{env}/{version}+{build}",
+			wantGroup1: map[string]string{
+				"[uat/7.4.1+158404]":      "7.4.1",
+				"[uat/7.4.1-rc.1+158404]": "7.4.1-rc.1",
+			},
+			noMatches: []string{"[uat/7.4.1-158404]"}, // dash sep, not plus
+		},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			pat := tagfmt.DeriveBuildPostprocessorPattern(tc.template)
+			if tc.wantNil {
+				assert.Empty(t, pat)
+				return
+			}
+			require.NotEmpty(t, pat, "expected non-empty pattern")
+			re, err := regexp.Compile(pat)
+			require.NoError(t, err, "derived pattern must compile: %s", pat)
+
+			for tag, want := range tc.wantGroup1 {
+				m := re.FindStringSubmatch(tag)
+				require.NotNilf(t, m, "pattern should match %q", tag)
+				assert.Equalf(t, want, m[1], "capture group for %q", tag)
+			}
+			for _, tag := range tc.noMatches {
+				assert.Nilf(t, re.FindStringSubmatch(tag), "pattern should NOT match %q", tag)
+			}
+		})
+	}
 }
 
 func TestParseVersion_WithBuild(t *testing.T) {

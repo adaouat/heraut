@@ -4,6 +4,7 @@ import (
 	"errors"
 	"os"
 	"path/filepath"
+	"slices"
 	"testing"
 
 	"github.com/adaouat/heraut/internal/config"
@@ -167,6 +168,43 @@ func TestEffectiveConfig_WithUserOverride(t *testing.T) {
 	assert.Contains(t, toml, "[git]")
 }
 
+func TestEffectiveConfig_BuildPostprocessorInjected(t *testing.T) {
+	mr := testutil.NewMockRunner()
+	cfg := &config.ContentDriver{
+		Generator:                 "git-cliff",
+		BuildPostprocessorPattern: `\[(?:[^/\]]+/)?([0-9]+\.[0-9]+\.[0-9]+)-[0-9]+\]`,
+	}
+	gen := gitcliff.New(mr, cfg, gitcliff.ModeChangelog)
+
+	toml, err := gen.EffectiveChangelogConfig()
+	require.NoError(t, err)
+	assert.Contains(t, toml, `[0-9]+\.[0-9]+\.[0-9]+`)
+	assert.Contains(t, toml, `[$1]`)
+	assert.Contains(t, toml, "postprocessors")
+}
+
+func TestEffectiveConfig_BuildPostprocessorPrependsToExisting(t *testing.T) {
+	tmp := t.TempDir()
+	cfgPath := filepath.Join(tmp, "cliff.toml")
+	require.NoError(t, os.WriteFile(cfgPath, []byte(
+		"[changelog]\npostprocessors = [{pattern = 'foo', replace = 'bar'}]\n",
+	), 0o600))
+
+	mr := testutil.NewMockRunner()
+	cfg := &config.ContentDriver{
+		Generator:                 "git-cliff",
+		Config:                    cfgPath,
+		BuildPostprocessorPattern: `\[([0-9]+)\]`,
+	}
+	gen := gitcliff.New(mr, cfg, gitcliff.ModeChangelog)
+
+	toml, err := gen.EffectiveChangelogConfig()
+	require.NoError(t, err)
+	// Both the derived pattern and the user's pattern must be present.
+	assert.Contains(t, toml, `[0-9]+`)
+	assert.Contains(t, toml, "foo")
+}
+
 // TestCheckCliff_Passes verifies exact args passed to git-cliff for config validation.
 func TestCheckCliff_Passes(t *testing.T) {
 	mr := testutil.NewMockRunner()
@@ -214,21 +252,15 @@ func TestCheckCliff_ReleaseNotesMode(t *testing.T) {
 // assertHasFlag checks that args contains a specific flag (without requiring its value).
 func assertHasFlag(t *testing.T, args []string, flag string) {
 	t.Helper()
-	for _, a := range args {
-		if a == flag {
-			return
-		}
+	if !slices.Contains(args, flag) {
+		t.Errorf("expected flag %q in args %v", flag, args)
 	}
-	t.Errorf("expected flag %q in args %v", flag, args)
 }
 
 func assertNotHasFlag(t *testing.T, args []string, flag string) {
 	t.Helper()
-	for _, a := range args {
-		if a == flag {
-			t.Errorf("unexpected flag %q in args %v", flag, args)
-			return
-		}
+	if slices.Contains(args, flag) {
+		t.Errorf("unexpected flag %q in args %v", flag, args)
 	}
 }
 

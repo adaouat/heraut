@@ -59,6 +59,63 @@ func ParseVersion(template, tag string) (string, error) {
 	return match[idx], nil
 }
 
+// DeriveBuildPostprocessorPattern returns a regex suitable for a git-cliff
+// postprocessor that strips the env prefix and trailing numeric build ID from
+// version headings (e.g. [uat/7.4.1-158404] → [7.4.1]).
+//
+// Returns "" when {build} is absent, when {build} precedes {version}, or when
+// no separator exists between {version} and {build}.
+func DeriveBuildPostprocessorPattern(template string) string {
+	if !strings.Contains(template, buildToken) || !strings.Contains(template, versionToken) {
+		return ""
+	}
+	vIdx := strings.Index(template, versionToken)
+	bIdx := strings.Index(template, buildToken)
+	if bIdx <= vIdx {
+		return ""
+	}
+
+	buildSep := template[vIdx+len(versionToken) : bIdx]
+	if buildSep == "" {
+		return ""
+	}
+
+	prefixRe := buildTagPrefixRegex(template[:vIdx])
+	buildSepRe := regexp.QuoteMeta(buildSep)
+
+	// When the build separator is "-", semver pre-release segments use the same
+	// character, so disambiguate: pre-release segments start with a non-digit.
+	var versionCapture string
+	if buildSep == "-" {
+		versionCapture = `([0-9]+\.[0-9]+\.[0-9]+(?:-[^0-9][^-\]]*)*)`
+	} else {
+		firstChar := regexp.QuoteMeta(string([]rune(buildSep)[0]))
+		versionCapture = `([0-9]+\.[0-9]+\.[0-9]+[^` + firstChar + `\]]*)`
+	}
+
+	return `\[` + prefixRe + versionCapture + buildSepRe + `[0-9]+\]`
+}
+
+// buildTagPrefixRegex converts the portion of a tag format before {version}
+// into a regex fragment, replacing {env} with an appropriate character class.
+func buildTagPrefixRegex(prefix string) string {
+	eIdx := strings.Index(prefix, envToken)
+	if eIdx < 0 {
+		return regexp.QuoteMeta(prefix)
+	}
+	before := regexp.QuoteMeta(prefix[:eIdx])
+	after := prefix[eIdx+len(envToken):]
+
+	var envClass string
+	if len(after) > 0 {
+		sepChar := regexp.QuoteMeta(string([]rune(after)[0]))
+		envClass = `[^` + sepChar + `\]]+`
+	} else {
+		envClass = `[^/\]]+`
+	}
+	return before + envClass + regexp.QuoteMeta(after)
+}
+
 // GlobPattern returns a git tag glob pattern for listing tags under the given env.
 func GlobPattern(template, env string) (string, error) {
 	if !strings.Contains(template, versionToken) {

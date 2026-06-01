@@ -30,9 +30,8 @@ versioning:
 
 changelog:
   generator: git-cliff
-  # Point to a custom cliff config scoped to production (see below).
+  # tag_pattern scopes git-cliff to the production env only.
   # UAT builds skip changelog entirely (disable_changelog: true).
-  config: .config/cliff.prod.toml
   tag_pattern: "main/[0-9]+\\.[0-9]+\\.[0-9]+-[0-9]+"
 
 environments:
@@ -88,68 +87,23 @@ and pushes the changelog, then pushes the tag.
 
 ---
 
-## Custom git-cliff config for production
+## Version display in the changelog
 
-Without a `tag_pattern`, git-cliff won't recognise the `{env}/{version}-{build}`
-format and will treat all commits as unreleased. The following config scopes
-git-cliff to production tags only and displays `7.4.1` instead of `main/7.4.1-158404`
-in the changelog headings.
+heraut's embedded git-cliff config already handles build-id tags. A
+postprocessor strips the env prefix and trailing numeric build ID from every
+version heading, so the output reads `7.4.1` instead of `main/7.4.1-159001`:
 
-```toml
-# .config/cliff.prod.toml
-[changelog]
-header = "# Changelog\n\n"
-body = """
-{%- macro remote_url() -%}
-  {{ get_env(name="CI_PROJECT_URL", default=get_env(name="GITHUB_SERVER_URL", default="") ~ "/" ~ get_env(name="GITHUB_REPOSITORY", default="")) }}
-{%- endmacro -%}
+| Tag | Displayed as |
+|---|---|
+| `main/7.4.1-159001` | `7.4.1` |
+| `main/7.4.1-rc.1-159001` | `7.4.1-rc.1` |
+| `7.4.1-159001` | `7.4.1` |
+| `v1.2.3` | `1.2.3` (unchanged — no build suffix) |
 
-{% if version %}\
-    {% set display_version = version | split(pat="/") | last | split(pat="-") | first %}\
-    {% if previous.version %}\
-        ## [{{ display_version }}]\
-          ({{ self::remote_url() }}/compare/{{ previous.version }}..{{ version }}) - {{ timestamp | date(format="%Y-%m-%d") }}
-    {% else %}\
-        ## [{{ display_version }}] - {{ timestamp | date(format="%Y-%m-%d") }}
-    {% endif %}\
-{% else %}\
-    ## [unreleased]
-{% endif %}\
-
-{% for group, commits in commits | group_by(attribute="group") %}
-    ### {{ group | striptags | trim | upper_first }}
-    {% for commit in commits | sort(attribute="message") %}
-        - {% if commit.scope %}*({{ commit.scope }})* {% endif %}\
-            {% if commit.breaking %}[**breaking**] {% endif %}\
-            {{ commit.message | upper_first }}
-    {%- endfor %}
-{% endfor -%}
-"""
-trim = true
-
-[git]
-conventional_commits = true
-filter_unconventional = false
-commit_parsers = [
-  { message = "^feat", group = "<!-- 0 -->🚀 Features" },
-  { message = "^fix", group = "<!-- 1 -->🐛 Bug Fixes" },
-  { message = "^doc", group = "<!-- 3 -->📚 Documentation" },
-  { message = "^perf", group = "<!-- 4 -->⚡ Performance" },
-  { message = "^refactor", group = "<!-- 2 -->🚜 Refactor" },
-  { message = "^chore\\(release\\):", skip = true },
-  { message = "^chore|^ci|^build", skip = true },
-  { message = "^test|^style", skip = true },
-]
-filter_commits = true
-```
-
-**Key differences from the default embedded config:**
-
-| | Default (embedded) | Production cliff config |
-|---|---|---|
-| `tag_pattern` | not set (relies on `--tag-pattern` flag) | passed via `changelog.tag_pattern` |
-| Version heading | `{{ version \| trim_start_matches(pat="v") }}` → `main/7.4.1-158404` | extracts `7.4.1` via split |
-| Chore/CI commits | shown | skipped (`filter_commits = true`) |
+The postprocessor requires a trailing `-{digits}` segment to match, so
+standard semver tags are unaffected. No extra config file is needed — just
+set `changelog.tag_pattern` in `.heraut.yml` to scope git-cliff to the
+production env as shown above.
 
 ---
 

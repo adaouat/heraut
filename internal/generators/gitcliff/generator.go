@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"os"
 
+	"github.com/pelletier/go-toml/v2"
+
 	"github.com/adaouat/heraut/internal/config"
 	"github.com/adaouat/heraut/internal/port"
 )
@@ -105,7 +107,45 @@ func (g *Generator) effectiveConfig(base string) (string, error) {
 		}
 		override = string(data)
 	}
-	return MergeTOML(base, override)
+	merged, err := MergeTOML(base, override)
+	if err != nil {
+		return "", err
+	}
+	return injectBuildPostprocessor(merged, g.cfg.BuildPostprocessorPattern)
+}
+
+// injectBuildPostprocessor prepends a postprocessor entry derived from the
+// {build} tag format to the [changelog] postprocessors array in the merged TOML.
+// This strips the env prefix and build ID from version headings at render time.
+// When pattern is empty, merged is returned unchanged.
+func injectBuildPostprocessor(merged, pattern string) (string, error) {
+	if pattern == "" {
+		return merged, nil
+	}
+	var doc map[string]any
+	if err := toml.Unmarshal([]byte(merged), &doc); err != nil {
+		return "", fmt.Errorf("parsing merged TOML for postprocessor injection: %w", err)
+	}
+
+	changelog, _ := doc["changelog"].(map[string]any)
+	if changelog == nil {
+		changelog = make(map[string]any)
+		doc["changelog"] = changelog
+	}
+
+	entry := map[string]any{"pattern": pattern, "replace": "[$1]"}
+	switch existing := changelog["postprocessors"].(type) {
+	case []any:
+		changelog["postprocessors"] = append([]any{entry}, existing...)
+	default:
+		changelog["postprocessors"] = []any{entry}
+	}
+
+	out, err := toml.Marshal(doc)
+	if err != nil {
+		return "", fmt.Errorf("marshalling TOML after postprocessor injection: %w", err)
+	}
+	return string(out), nil
 }
 
 // CheckCliff runs git-cliff --context --no-exec against the effective merged config.
