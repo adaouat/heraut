@@ -553,6 +553,71 @@ func TestRuntimeCheck_ConfiguredGeneratorExcludedFromOptional(t *testing.T) {
 	assert.True(t, warnNames["communique"])
 }
 
+// ---- RuntimeCheck with nil config -------------------------------------------
+
+func TestRuntimeCheck_NilConfig_AllToolsPassWhenPresent(t *testing.T) {
+	mr := testutil.NewMockRunner()
+	queueSuccess(mr) // call order is identical to the non-nil config path
+
+	items := collectItems(mr, nil)
+	require.Len(t, items, 9)
+	for _, it := range items {
+		if it.Name == "working tree" {
+			continue // always advisory regardless of config
+		}
+		assert.NoError(t, it.Err, "nil config: %s should pass when binary present", it.Name)
+		assert.False(t, it.IsWarn, "nil config: %s must not be optional", it.Name)
+	}
+}
+
+func TestRuntimeCheck_NilConfig_MissingBinaryIsHardError(t *testing.T) {
+	mr := testutil.NewMockRunner()
+	mr.QueueResponse("git version 2.40.0", "", nil)         // git
+	mr.QueueResponse("Alice", "", nil)                      // user.name
+	mr.QueueResponse("a@b.com", "", nil)                    // user.email
+	mr.QueueResponse("", "", nil)                           // git status
+	mr.QueueResponse("", "", errors.New("glab: not found")) // glab missing
+	mr.QueueResponse("gh 2.0.0", "", nil)                   // gh
+	mr.QueueResponse("git-cliff 2.9.0", "", nil)            // git-cliff
+	mr.QueueResponse("cog 7.0.0", "", nil)                  // cog
+	mr.QueueResponse("communique 1.0.0", "", nil)           // communique
+
+	items := collectItems(mr, nil)
+
+	for _, it := range items {
+		if it.Name == "glab" {
+			assert.Error(t, it.Err, "missing glab should be a hard error with nil config")
+			assert.False(t, it.IsWarn, "missing glab must not be a warning with nil config")
+			return
+		}
+	}
+	t.Fatal("expected glab item")
+}
+
+func TestRuntimeCheck_NilConfig_MissingGeneratorIsHardError(t *testing.T) {
+	mr := testutil.NewMockRunner()
+	mr.QueueResponse("git version 2.40.0", "", nil)              // git
+	mr.QueueResponse("Alice", "", nil)                           // user.name
+	mr.QueueResponse("a@b.com", "", nil)                         // user.email
+	mr.QueueResponse("", "", nil)                                // git status
+	mr.QueueResponse("glab 1.0.0", "", nil)                      // glab
+	mr.QueueResponse("gh 2.0.0", "", nil)                        // gh
+	mr.QueueResponse("", "", errors.New("git-cliff: not found")) // git-cliff missing
+	mr.QueueResponse("cog 7.0.0", "", nil)                       // cog
+	mr.QueueResponse("communique 1.0.0", "", nil)                // communique
+
+	items := collectItems(mr, nil)
+
+	for _, it := range items {
+		if it.Name == "git-cliff" {
+			assert.Error(t, it.Err, "missing git-cliff should be a hard error with nil config")
+			assert.False(t, it.IsWarn, "missing git-cliff must not be a warning with nil config")
+			return
+		}
+	}
+	t.Fatal("expected git-cliff item")
+}
+
 // ---- CheckCliff ---------------------------------------------------------------
 
 func TestAppCheckCliff_Passes(t *testing.T) {

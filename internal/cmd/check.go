@@ -1,8 +1,10 @@
 package cmd
 
 import (
+	"errors"
 	"fmt"
 	"io"
+	"os"
 	"strings"
 
 	execadapter "github.com/adaouat/heraut/internal/adapter/exec"
@@ -111,7 +113,11 @@ func newCheckRuntimeCmd() *cobra.Command {
 			path := config.ResolvePath(cfgPath)
 			cfg, err := config.Load(path)
 			if err != nil {
-				return exitcode.Wrap(exitcode.Config, fmt.Errorf("loading config: %w", err))
+				if !errors.Is(err, os.ErrNotExist) {
+					return exitcode.Wrap(exitcode.Config, fmt.Errorf("loading config: %w", err))
+				}
+				_, _ = fmt.Fprintln(out, ui.Warn(out, fmt.Sprintf("no config found at %s — all tools checked as required", path)))
+				cfg = nil
 			}
 
 			if failed := runRuntimeCheck(runner, cfg, out); failed > 0 {

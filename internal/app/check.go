@@ -113,7 +113,7 @@ func RuntimeCheck(
 		op := op
 		required := usedPlats[op.typ]
 		dispatch(op.display, func() RuntimeCheckItem {
-			if required {
+			if required && cfg != nil {
 				// Full check: binary + token + project + API auth.
 				platCfg := findPlatformCfg(cfg, op.typ)
 				p, buildErr := buildPlatform(runner, platCfg)
@@ -125,9 +125,14 @@ func RuntimeCheck(
 				}
 				return RuntimeCheckItem{Name: op.display}
 			}
-			// Optional: binary existence only, show version if found.
+			// Binary-only check (no config available for token/project resolution).
+			// Missing binary is a hard error when required, advisory otherwise.
 			out, _, err := runner.Run(op.binary, "--version")
 			if err != nil {
+				if required {
+					return RuntimeCheckItem{Name: op.display,
+						Err: fmt.Errorf("%s: not found on PATH", op.binary)}
+				}
 				return RuntimeCheckItem{Name: op.display, IsWarn: true,
 					Err: fmt.Errorf("not found (not required by this config)")}
 			}
@@ -161,7 +166,11 @@ func RuntimeCheck(
 }
 
 // configuredGenerators returns the set of generator names active in cfg.
+// When cfg is nil (no config file found) all supported generators are required.
 func configuredGenerators(cfg *config.Config) map[string]bool {
+	if cfg == nil {
+		return map[string]bool{"git-cliff": true, "cocogitto": true, "communique": true}
+	}
 	m := make(map[string]bool)
 	if cfg.Changelog != nil {
 		m[cfg.Changelog.Generator] = true
@@ -173,7 +182,11 @@ func configuredGenerators(cfg *config.Config) map[string]bool {
 }
 
 // configuredPlatforms returns the set of platform types active in cfg.
+// When cfg is nil (no config file found) all supported platforms are required.
 func configuredPlatforms(cfg *config.Config) map[string]bool {
+	if cfg == nil {
+		return map[string]bool{"github": true, "gitlab": true}
+	}
 	m := make(map[string]bool)
 	if cfg.Release != nil {
 		for _, p := range cfg.Release.Platforms {

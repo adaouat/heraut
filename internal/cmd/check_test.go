@@ -93,6 +93,42 @@ versioning:
 	assert.Contains(t, buf.String(), "versioning.strategy")
 }
 
+// ---- check runtime (no config) ----
+
+func TestCheckRuntime_NoConfigFile(t *testing.T) {
+	dir := t.TempDir()
+	t.Chdir(dir)
+	t.Setenv("HERAUT_FILE", "")
+
+	testutil.FakeBin(t, "git", `#!/bin/sh
+case "$*" in
+  "--version") echo "git version 2.x" ;;
+  "config user.name") echo "John Doe" ;;
+  "config user.email") echo "john@example.com" ;;
+  *) exit 0 ;;
+esac
+`)
+	testutil.FakeBin(t, "git-cliff", `#!/bin/sh
+echo "git-cliff 2.7.0"
+`)
+	testutil.FakeBin(t, "gh", `#!/bin/sh
+echo "gh 2.x"
+`)
+	testutil.FakeBin(t, "glab", `#!/bin/sh
+echo "glab 1.x"
+`)
+	testutil.FakeBin(t, "cog", `#!/bin/sh
+echo "cog 6.x"
+`)
+	testutil.FakeBin(t, "communique", `#!/bin/sh
+echo "communique 1.x"
+`)
+
+	out, err := executeRoot("check", "runtime")
+	require.NoError(t, err)
+	assert.Contains(t, out, "no config")
+}
+
 // ---- check runtime ----
 
 func TestCheckRuntime_AllGood(t *testing.T) {
