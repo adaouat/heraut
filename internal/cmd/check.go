@@ -26,7 +26,7 @@ func NewCheckCmd() *cobra.Command {
 			runner := execadapter.New(false, verbose)
 			out := cmd.OutOrStdout()
 
-			path := config.ResolvePath(cfgPath)
+			path, source := config.ResolvePathWithSource(cfgPath)
 			cfg, err := config.Load(path)
 			if err != nil {
 				return exitcode.Wrap(exitcode.Config, fmt.Errorf("loading config: %w", err))
@@ -36,6 +36,7 @@ func NewCheckCmd() *cobra.Command {
 
 			// Config section
 			ui.Header(out, "Config")
+			_, _ = fmt.Fprintln(out, ui.Info(out, fmt.Sprintf("%s  (from %s)", path, source)))
 			if errs := config.Validate(cfg); len(errs) > 0 {
 				printConfigErrors(errs, out)
 				failed += len(errs)
@@ -79,12 +80,13 @@ func newCheckConfigCmd() *cobra.Command {
 			cfgPath, _ := cmd.Flags().GetString("config")
 			out := cmd.OutOrStdout()
 
-			path := config.ResolvePath(cfgPath)
+			path, source := config.ResolvePathWithSource(cfgPath)
 			cfg, err := config.Load(path)
 			if err != nil {
 				return exitcode.Wrap(exitcode.Config, fmt.Errorf("loading config: %w", err))
 			}
 
+			_, _ = fmt.Fprintln(out, ui.Info(out, fmt.Sprintf("%s  (from %s)", path, source)))
 			errs := config.Validate(cfg)
 			if len(errs) > 0 {
 				printConfigErrors(errs, out)

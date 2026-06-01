@@ -61,6 +61,23 @@ versioning:
 	require.Error(t, err)
 }
 
+func TestCheckConfig_ShowsConfigFileSource(t *testing.T) {
+	cfgPath := writeConfig(t, `
+version: "1"
+versioning:
+  strategy: semver
+`)
+	root := cmd.NewRootCmd("dev")
+	var buf bytes.Buffer
+	root.SetOut(&buf)
+	root.SetErr(&buf)
+	root.SetArgs([]string{"check", "config", "--config", cfgPath})
+	_, _ = root.ExecuteC()
+	out := buf.String()
+	assert.Contains(t, out, cfgPath)
+	assert.Contains(t, out, "--config")
+}
+
 func TestCheckConfig_InvalidPrintsPath(t *testing.T) {
 	cfgPath := writeConfig(t, `
 version: "1"
