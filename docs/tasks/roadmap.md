@@ -2400,11 +2400,19 @@ that want a platform release per build, mirroring `heraut changelog --build` sem
 - Decide and document whether a release-per-build is advisable (volume of GitHub/GitLab
   releases) — guard or warn if appropriate
 
-**Dependencies:** T54 (shared resolution), T55 (build validation)
+**Dependencies:** T54 (shared resolution) ✅, T55 (build validation) ✅ — both landed, so
+this is unblocked technically.
 
 **Files:** `internal/cmd/release.go`, `internal/app/pipeline.go`, platform contract tests
 
 **Scope:** M
+
+**Held (intentionally open):** deferred until the `heraut changelog --build` flow has been
+exercised in a real mobile project. The open product question — whether a GitHub/GitLab
+release *per CI build* is desirable, given multiple builds per semantic version — should be
+answered from that experience before building this. Pick up once there's a concrete
+release-per-build use case; the `tagfmt.Render` error (T59) already points build-id users
+to the changelog flow in the meantime.
 
 #### `[x]` T58: `heraut version current` returns the bare semantic version
 
