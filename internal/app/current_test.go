@@ -126,3 +126,81 @@ func TestCurrentTag_UnknownStrategy(t *testing.T) {
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "unknown")
 }
+
+func TestCurrentVersion_SemverStripsPrefix(t *testing.T) {
+	mr := testutil.NewMockRunner()
+	mr.QueueResponse("v1.2.3\nv1.2.2\n", "", nil)
+
+	cfg := &config.Config{
+		Versioning: config.Versioning{Strategy: "semver", TagPrefix: strPtr("v")},
+	}
+	got, err := app.CurrentVersion(mr, cfg, "")
+	require.NoError(t, err)
+	assert.Equal(t, "1.2.3", got)
+}
+
+func TestCurrentVersion_SemverDefaultPrefix(t *testing.T) {
+	mr := testutil.NewMockRunner()
+	mr.QueueResponse("v9.0.0\n", "", nil)
+
+	// No TagPrefix set → semver defaults to "v".
+	cfg := &config.Config{
+		Versioning: config.Versioning{Strategy: "semver"},
+	}
+	got, err := app.CurrentVersion(mr, cfg, "")
+	require.NoError(t, err)
+	assert.Equal(t, "9.0.0", got)
+}
+
+func TestCurrentVersion_CalverStripsPrefix(t *testing.T) {
+	mr := testutil.NewMockRunner()
+	mr.QueueResponse("rel-2026.05.1\n", "", nil)
+
+	cfg := &config.Config{
+		Versioning: config.Versioning{Strategy: "calver", TagPrefix: strPtr("rel-")},
+	}
+	got, err := app.CurrentVersion(mr, cfg, "")
+	require.NoError(t, err)
+	assert.Equal(t, "2026.05.1", got)
+}
+
+func TestCurrentVersion_PerEnvBuildFormat(t *testing.T) {
+	mr := testutil.NewMockRunner()
+	mr.QueueResponse("main/7.4.1-158404\nmain/7.4.0-155398\n", "", nil)
+
+	cfg := &config.Config{
+		Versioning: config.Versioning{
+			Strategy:  "semver-per-env",
+			TagFormat: "{env}/{version}-{build}",
+		},
+		Environments: map[string]config.Environment{
+			"main": {Bump: "auto"},
+		},
+	}
+	got, err := app.CurrentVersion(mr, cfg, "main")
+	require.NoError(t, err)
+	assert.Equal(t, "7.4.1", got)
+}
+
+func TestCurrentVersion_PropagatesCurrentTagError(t *testing.T) {
+	mr := testutil.NewMockRunner()
+	mr.QueueResponse("", "", nil) // no tags
+
+	cfg := &config.Config{
+		Versioning: config.Versioning{Strategy: "semver", TagPrefix: strPtr("v")},
+	}
+	_, err := app.CurrentVersion(mr, cfg, "")
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "no tags")
+}
+
+func TestCurrentVersion_UnknownStrategy(t *testing.T) {
+	mr := testutil.NewMockRunner()
+	mr.QueueResponse("x\n", "", nil)
+
+	cfg := &config.Config{
+		Versioning: config.Versioning{Strategy: "unknown"},
+	}
+	_, err := app.CurrentVersion(mr, cfg, "")
+	require.Error(t, err)
+}
