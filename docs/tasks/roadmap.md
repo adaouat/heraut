@@ -941,6 +941,8 @@ defaults.
 
 `app.PreflightCheck(runner)` checks git binary + git user.name/email; called from both `heraut release` and `heraut changelog` before pipeline execution (generator/platform CLIs are covered by `pipeline.Check()`). `app.RuntimeCheck(runner, cfg)` does the full check (git + generators + platforms + git user) for `heraut check runtime`. `app.CheckCliff(runner, driver, mode string)` delegates to `gitcliff.Generator.CheckCliff()` (new method that runs `git-cliff --context --no-exec --config <tmpfile>`). The `heraut check` bare command runs all three checks and exits non-zero if any fail. The `heraut check cliff` uses string modes ("changelog"/"release-notes") to avoid the cmd→generators layer violation. Non-git-cliff generators are skipped with an info message.
 
+Post-initial: `heraut check config` (and the bare `heraut check`) now display the resolved config file path and resolution source (`--config`, `HERAUT_FILE`, `.config/heraut.yml`, `.heraut.yml`) after a successful load — implemented via `config.ResolvePathWithSource` which returns a typed `PathSource` alongside the path. `heraut check runtime` now handles a missing config file gracefully: `configuredGenerators(nil)` and `configuredPlatforms(nil)` return all supported tools as required; the full platform check (token + API) is skipped when cfg is nil since there is no config to derive env var names from — only binary presence is checked.
+
 ---
 
 #### `[x]` T19: `heraut cliff` + per-env disable flags
@@ -997,6 +999,8 @@ defaults.
 **Scope:** M
 
 `charm.land/huh/v2` added as a direct dependency (v2 module path, not the legacy `github.com/charmbracelet/huh`). `WithHideFunc` is group-only in huh v2, so conditional fields (platform-specific inputs, CalVer custom format, env source) are placed in separate groups rather than per-field. CalVer wizard offers 7 opinionated presets plus a validated custom input; `ValidateCalVerFormat` reuses `calver.ParseFormat` for structural checks and adds an unknown-token scan for suspicious uppercase literals. `--defaults` always writes non-interactively without prompting (even when a config already exists); `--force` skips the "Update it?" prompt for the interactive wizard path. `wizard_internal_test.go` uses package-internal access to test `resolveFormatChoice`.
+
+Post-initial: the platform project/repository field is pre-populated from `git remote get-url origin` when the current directory is a git repo — `parseRemoteProject` handles SSH (`git@host:ns/proj.git`), `ssh://`, and HTTPS schemes including nested GitLab groups; detection is best-effort and silent on failure. When GitLab is selected, a `huh.NewNote()` group (`.Next(true)`) is shown between the project input and the token step, advising CI/CD users to use `CI_JOB_TOKEN` and enable "Allow Git push requests" in project settings.
 
 ---
 

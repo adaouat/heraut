@@ -43,6 +43,14 @@ heraut init --force        # overwrite an existing config without prompting
 (for per-env strategies, loops to add N envs). Existing config (if any) pre-populates
 the answers, so re-running `heraut init` updates instead of replacing.
 
+For each platform step, the project/repository field is pre-populated from
+`git remote get-url origin` when the current directory is a git repo (SSH and HTTPS
+remotes are both supported; falls back silently if detection fails). When GitLab is
+selected, the wizard shows an advisory page reminding users running `heraut release`
+in a GitLab CI/CD pipeline to use `CI_JOB_TOKEN` instead of `GITLAB_TOKEN` and to
+enable "Allow Git push requests to the repository" (Settings › CI/CD › Job token
+permissions).
+
 When `SPRINT` is chosen as part of the CalVer format, the wizard adds an extra step
 asking for the current sprint number. This value is written to `versioning.sprint` and
 can be advanced later with `heraut version sprint bump`.
@@ -227,7 +235,18 @@ heraut check cliff release-notes   # only the release-notes config
 Offline. Parses `.heraut.yml` and runs the full semantic validator. No token or
 network access required. Errors include the key path, the invalid value, and a hint.
 
-Example output:
+After a successful load, a supplementary line shows the resolved path and the source
+that determined it:
+
+```
+  .heraut.yml  (from .heraut.yml)
+✓ config: ok
+```
+
+The source label is one of `--config`, `HERAUT_FILE`, `.config/heraut.yml`, or
+`.heraut.yml`.
+
+Example output (with errors):
 ```
 ✗ versioning.strategy: invalid value "semvr"
   hint: must be one of: semver, calver, semver-per-env, calver-per-env
@@ -247,6 +266,12 @@ Online checks:
 - The token env var for each configured platform is set
 - `git config user.name` and `git config user.email` are set (required for the
   changelog commit)
+
+When no config file is found, `heraut check runtime` proceeds rather than failing. All
+supported tools (git, gh, glab, git-cliff, cog, communique) are treated as required —
+hard error if any binary is missing. The full platform check (token + API auth) is
+skipped in this case since there is no config to source token names from; only binary
+presence is verified.
 
 ### `heraut check cliff`
 
