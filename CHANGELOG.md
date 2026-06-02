@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.20.1](https://github.com/adaouat/heraut/compare/v0.20.0..v0.20.1) - 2026-06-02
+
+### 🐛 Bug Fixes
+
+- *(selfupdate)* Only hint when latest is strictly newer than current - ([49557ce](https://github.com/adaouat/heraut/commit/49557ce6c81350aa39124c9a79f7211bcb4454ea)) by @bchatard
+
 ## [0.20.0](https://github.com/adaouat/heraut/compare/v0.19.0..v0.20.0) - 2026-06-02
 
 ### 🚀 Features
