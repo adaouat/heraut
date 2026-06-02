@@ -699,3 +699,44 @@ environments:
 	require.NotNil(t, e)
 	assert.Contains(t, e.Message, "unreachable")
 }
+
+// ADR-0019: per-env content drivers merge over the top-level. A partial per-env
+// changelog block (no generator) inherits the top-level generator and is valid.
+func TestValidate_perEnvChangelogInheritsGenerator(t *testing.T) {
+	cfg := mustLoad(t, `
+version: "1"
+versioning:
+  strategy: semver-per-env
+  tag_format: "{env}/{version}"
+changelog:
+  generator: git-cliff
+  output: CHANGELOG.md
+environments:
+  prod:
+    bump: auto
+    changelog:
+      config: cliff.prod.toml
+`)
+	errs := config.Validate(cfg)
+	assert.Nil(t, findErr(errs, "environments.prod.changelog.generator"),
+		"per-env block should inherit the top-level generator")
+}
+
+// A per-env changelog with no generator and no top-level changelog to inherit from
+// is still invalid — the merged driver has no generator.
+func TestValidate_perEnvChangelogNoGeneratorAnywhere(t *testing.T) {
+	cfg := mustLoad(t, `
+version: "1"
+versioning:
+  strategy: semver-per-env
+  tag_format: "{env}/{version}"
+environments:
+  prod:
+    bump: auto
+    changelog:
+      config: cliff.prod.toml
+`)
+	errs := config.Validate(cfg)
+	assert.NotNil(t, findErr(errs, "environments.prod.changelog.generator"),
+		"no generator at either level must still fail")
+}

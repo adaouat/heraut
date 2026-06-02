@@ -8,7 +8,7 @@ described in `docs/specs/`. Each task carries an inline `[ ] / [x]` checkbox —
 headings for what to do next, read the surrounding prose for *why* and *how*.
 
 The behavioural authority is `docs/specs/` (six numbered specs); the architectural
-authority is `docs/adr/` (18 ADRs). Where this roadmap mentions "behaviour", the specs
+authority is `docs/adr/` (19 ADRs). Where this roadmap mentions "behaviour", the specs
 win; where it mentions a "decision", the ADR wins. If you find a disagreement between
 roadmap and spec/ADR, fix the roadmap.
 
@@ -30,7 +30,7 @@ The goals of v1.0:
    (`port`, `adapter/exec`, `testutil`, `ui`) can be extracted into a shared Go library
    later when other CLIs need them.
 
-The `docs/specs/` (six numbered specs) and the 18 ADRs in `docs/adr/` are authoritative.
+The `docs/specs/` (six numbered specs) and the 19 ADRs in `docs/adr/` are authoritative.
 
 ---
 
@@ -2527,7 +2527,7 @@ non-`{version}` tokens (env prefix/suffix and build) from headings.
 
 **Done:** Replaced `DeriveBuildPostprocessorPattern` (+ its `buildTagPrefixRegex` helper) with `DeriveHeadingVersionPattern`, a template-driven derivation: `{version}`→`([^\]]+)`, `{env}`/`{build}`→`[^/\]]+`, literals escaped, wrapped in `\[…\]`. All wildcards exclude `]` so a postprocessor can never span two headings (new `TestDeriveHeadingVersionPattern_NoCrossHeadingMatch` proves it). The greedy version capture + anchored trailing token handles SemVer pre-release under `-` without the old special-casing. Renamed the carrier field `ContentDriver.BuildPostprocessorPattern` → `HeadingVersionPattern`, `gitcliff.injectBuildPostprocessor` → `injectHeadingPostprocessor`, and the decoration helper `withBuildPostprocessor` → `withEnvDerivations` (sets both the heading pattern and T61's tag pattern). Verified end-to-end: `{version}_{env}` → `[2026.3.0]` headings, compare links keep raw tags. Emits nothing for plain `{version}` / `v{version}` (already clean). Spec 02 documents the auto-cleaning.
 
-#### `[ ]` T63: Per-env content-driver overrides deep-merge over the top-level
+#### `[x]` T63: Per-env content-driver overrides deep-merge over the top-level
 
 **Motivation:** today a per-env `changelog` (and `release.notes`) block **replaces** the
 top-level driver wholesale (`pipeline.go` → `effectiveChangelog = envCfg.Changelog`,
@@ -2558,6 +2558,8 @@ the platforms-stay-replace exception and the precedence rules.
 `docs/specs/02-configuration.md`, `docs/adr/00XX-perenv-driver-merge.md`
 
 **Scope:** M
+
+**Done:** [ADR-0019](../adr/0019-perenv-content-driver-merge.md) accepted. Pure `config.MergeContentDriver(base, override)` helper: nil base → override, nil override → base, **generator differs → full replace** (no inheriting generator-specific fields across generators), otherwise field-by-field (non-empty override wins). User chose full field-merge + the differ→replace exception. Wired into both pipeline paths (`buildReleasePipelineConfig`, `buildChangelogPipelineConfig`) replacing the old wholesale assignment, and into the **validator** — per-env changelog/notes now validate the *merged* effective driver, so an inherited generator satisfies `required` while a driver with no generator at either level still fails. Platforms stay list-replace; `EnvRelease` has no `assets` field so per-env assets remain out of scope. Known limit: empty = inherit, so no per-env "unset". 9 merge-helper tests + 2 validator tests (inherit OK / no-generator-anywhere fails) + 1 pipeline test (partial override builds). Spec 02 § Content override semantics rewritten; ADR index + the "19 ADRs" counts updated.
 
 ---
 

@@ -168,23 +168,44 @@ are optional unless noted.
 |---------------------|---------|---------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
 | `disable_changelog` | `false` | When `true`, skips changelog generation and the git commit for this env. If `--tag` is also requested, the tag is still created. Takes precedence over `changelog:` when both are set. |
 | `disable_notes`     | `false` | When `true`, skips release notes generation. The platform release is still created, but without attached notes. Takes precedence over `release.notes:` when both are set. |
-| `changelog`         | —       | Override the root `changelog` block for this env (full replacement). Absent means use the root default.                                                                   |
-| `release`           | —       | Override `release.platforms` and/or `release.notes` for this env. Fields inherit independently (see § Content override semantics below).                                  |
+| `changelog`         | —       | Override the root `changelog` for this env. Deep-merges field-by-field (see § Content override semantics). Absent means use the root default.                              |
+| `release`           | —       | Override `release.notes` (deep-merge) and/or `release.platforms` (replace) for this env (see § Content override semantics below).                                          |
 
 ### Content override semantics
 
-**`changelog`** — absent: use root `changelog`. Present: replaces root `changelog`
-entirely for this env (full replacement, not merge). `disable_changelog: true` takes
-precedence when both are set.
+Per-environment `changelog` and `release.notes` blocks **deep-merge** field-by-field over
+the root driver ([ADR-0019](../adr/0019-perenv-content-driver-merge.md)): a field you set
+per-env wins; a field you omit inherits from the root. So you can override just one field:
 
-**`release`** — field-level inheritance within `release`:
+```yaml
+changelog:
+  generator: git-cliff
+  output: CHANGELOG.md
+
+environments:
+  prod:
+    changelog:
+      config: cliff.prod.toml   # inherits generator + output from root
+```
+
+**Generator switch is the exception.** If the per-env block sets a `generator` that differs
+from the root, it is used as-is with no inheritance (generator-specific fields like `config`
+/ `template` do not carry across generators). Same generator (or unset) → field-merge;
+different generator → fresh block.
+
+**Limitation:** because an empty field inherits, a per-env block cannot blank out a value
+the root sets (there is no explicit "unset").
+
+`disable_changelog` / `disable_notes: true` take precedence over `changelog:` / `release.notes:`
+when both are set on the same env.
+
+**Lists stay replace** — `release.platforms` is replaced wholesale per env (merging lists
+is ambiguous); absent means use the root list:
 
 | Sub-field           | Absent in env                 | Present in env                |
 |---------------------|-------------------------------|-------------------------------|
 | `release.platforms` | Use root `release.platforms`  | Replace entirely for this env |
-| `release.notes`     | Use root `release.notes`      | Replace entirely for this env |
-
-`disable_notes: true` takes precedence over `release.notes:` when both are set.
+| `release.notes`     | Use root `release.notes`      | **Deep-merge** over root      |
 
 Setting contradictory flags (e.g. `disable_changelog: true` and `changelog:` on the same
 env) produces a non-zero exit from `heraut check config` with an actionable hint

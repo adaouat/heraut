@@ -81,8 +81,13 @@ func validateEnums(cfg *Config) []ValidationError {
 	errs = append(errs, validateRelease(cfg.Release, "release")...)
 	for envName, env := range cfg.Environments {
 		base := "environments." + envName
-		errs = append(errs, validateContentDriver(env.Changelog, base+".changelog")...)
-		errs = append(errs, validateEnvRelease(env.Release, base+".release")...)
+		// Per-env content drivers merge over the top-level (ADR-0019); validate the
+		// effective merged driver so an inherited generator satisfies the required check.
+		if env.Changelog != nil {
+			eff := MergeContentDriver(cfg.Changelog, env.Changelog)
+			errs = append(errs, validateContentDriver(eff, base+".changelog")...)
+		}
+		errs = append(errs, validateEnvRelease(env.Release, cfg.Release, base+".release")...)
 	}
 	return errs
 }
@@ -133,12 +138,20 @@ func validateRelease(r *Release, path string) []ValidationError {
 	return errs
 }
 
-func validateEnvRelease(r *EnvRelease, path string) []ValidationError {
+func validateEnvRelease(r *EnvRelease, topRelease *Release, path string) []ValidationError {
 	if r == nil {
 		return nil
 	}
 	var errs []ValidationError
-	errs = append(errs, validateContentDriver(r.Notes, path+".notes")...)
+	// Per-env notes merge over the top-level release.notes (ADR-0019); validate the
+	// effective merged driver.
+	if r.Notes != nil {
+		var topNotes *ContentDriver
+		if topRelease != nil {
+			topNotes = topRelease.Notes
+		}
+		errs = append(errs, validateContentDriver(MergeContentDriver(topNotes, r.Notes), path+".notes")...)
+	}
 	for i, plat := range r.Platforms {
 		platPath := fmt.Sprintf("%s.platforms[%d]", path, i)
 		if plat.Type == "" {

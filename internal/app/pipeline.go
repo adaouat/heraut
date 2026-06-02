@@ -125,11 +125,11 @@ func buildReleasePipelineConfig(runner port.Runner, cfg *config.Config, env stri
 			pCfg.DisableChangelog = envCfg.DisableChangelog
 			pCfg.DisableNotes = envCfg.DisableNotes
 			if envCfg.Changelog != nil {
-				effectiveChangelog = envCfg.Changelog
+				effectiveChangelog = config.MergeContentDriver(effectiveChangelog, envCfg.Changelog)
 			}
 			if envCfg.Release != nil {
 				if envCfg.Release.Notes != nil {
-					effectiveNotes = envCfg.Release.Notes
+					effectiveNotes = config.MergeContentDriver(effectiveNotes, envCfg.Release.Notes)
 				}
 				if len(envCfg.Release.Platforms) > 0 {
 					effectivePlatforms = envCfg.Release.Platforms
@@ -184,13 +184,13 @@ func buildChangelogPipelineConfig(runner port.Runner, cfg *config.Config, opts P
 		Tag:    opts.Tag,
 	}
 
-	// Resolve effective changelog: start from root, apply per-env override.
+	// Resolve effective changelog: start from root, deep-merge per-env override (ADR-0019).
 	effectiveChangelog := cfg.Changelog
 	if opts.Env != "" {
 		if envCfg, ok := cfg.Environments[opts.Env]; ok {
 			cCfg.DisableChangelog = envCfg.DisableChangelog
 			if envCfg.Changelog != nil {
-				effectiveChangelog = envCfg.Changelog
+				effectiveChangelog = config.MergeContentDriver(effectiveChangelog, envCfg.Changelog)
 			}
 		}
 	}

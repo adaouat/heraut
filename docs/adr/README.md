@@ -23,3 +23,4 @@ trade-offs were accepted.
 | [0016](0016-bundled-docker-image.md) | Batteries-Included Docker Image | Accepted |
 | [0017](0017-pipeline-progress-reporter.md) | Pipeline Progress Reporter Pattern | Accepted |
 | [0018](0018-ci-build-then-release-pipeline.md) | Self-Bootstrapping CI Release Pipeline | Accepted |
+| [0019](0019-perenv-content-driver-merge.md) | Per-Environment Content-Driver Overrides Deep-Merge | Accepted |

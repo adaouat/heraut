@@ -276,6 +276,31 @@ func TestBuildChangelogPipeline_ExplicitTagPatternWins(t *testing.T) {
 	assert.Equal(t, "custom-pattern", got, "explicit user tag_pattern must win over derivation")
 }
 
+func TestBuildChangelogPipeline_PerEnvPartialOverrideMerges(t *testing.T) {
+	// ADR-0019: per-env changelog with only `config` inherits the top-level
+	// generator + output. The pipeline must build (no "generator required" error)
+	// and use the inherited output file.
+	mr := testutil.NewMockRunner()
+	cfg := &config.Config{
+		Version: "1",
+		Versioning: config.Versioning{
+			Strategy:  "semver-per-env",
+			TagFormat: "{env}/{version}",
+		},
+		Changelog: &config.ContentDriver{Generator: "git-cliff", Output: "CHANGELOG.md"},
+		Environments: map[string]config.Environment{
+			"prod": {
+				Bump:      "auto",
+				Changelog: &config.ContentDriver{Config: "cliff.prod.toml"},
+			},
+		},
+	}
+	opts := app.PipelineOpts{Env: "prod", Out: &bytes.Buffer{}}
+	p, err := app.BuildChangelogPipeline(mr, cfg, defaultResolver, opts)
+	require.NoError(t, err, "partial per-env override must inherit the generator")
+	assert.NotNil(t, p)
+}
+
 func TestBuildPipeline_ReleaseAssets_PropagatesToPlatforms(t *testing.T) {
 	// release.assets at the top level should build successfully — the platform
 	// contract tests verify the actual upload behavior with LenientAssets=true.
