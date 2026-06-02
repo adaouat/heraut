@@ -2525,6 +2525,38 @@ non-`{version}` tokens (env prefix/suffix and build) from headings.
 
 **Scope:** S
 
+#### `[ ]` T63: Per-env content-driver overrides deep-merge over the top-level
+
+**Motivation:** today a per-env `changelog` (and `release.notes`) block **replaces** the
+top-level driver wholesale (`pipeline.go` → `effectiveChangelog = envCfg.Changelog`,
+`effectiveNotes = envCfg.Release.Notes`). So overriding just `tag_pattern` for one
+environment forces re-declaring `generator` (and `output`), which is error-prone. Make the
+per-env block **deep-merge** field-by-field over the top-level: a field set per-env wins;
+an unset field inherits.
+
+**Scope of change:**
+- `environments.<env>.changelog` merges over `changelog`
+- `environments.<env>.release.notes` merges over `release.notes`
+- Field-level: non-zero per-env field overrides; zero/empty inherits (e.g. set only
+  `tag_pattern` per-env and inherit `generator`/`output`)
+- Decide platform handling: `release.platforms` stays list-replace (merging lists is
+  ambiguous) — document the asymmetry
+
+**Acceptance:**
+- `environments.prod.changelog: { tag_pattern: "X" }` alone resolves to the top-level
+  generator/output with `tag_pattern: X` (no "generator required" error)
+- Existing full-replacement configs still resolve identically (a per-env block that sets
+  every field behaves as before)
+- Table-driven resolver tests for inherit / override / partial cases, changelog + notes
+
+**ADR required:** yes — changes per-env config resolution semantics (replace → merge); note
+the platforms-stay-replace exception and the precedence rules.
+
+**Files:** `internal/app/pipeline.go` (or a new `internal/config/` merge helper),
+`docs/specs/02-configuration.md`, `docs/adr/00XX-perenv-driver-merge.md`
+
+**Scope:** M
+
 ---
 
 ## Risks and mitigations
