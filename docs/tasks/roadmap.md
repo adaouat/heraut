@@ -2486,7 +2486,7 @@ scope: applies to *every* `--env` command.)
 
 **Done:** `app.CheckBranch` short-circuits on `force` (skips the git call entirely) and on empty env / no branch; otherwise compares `git rev-parse --abbrev-ref HEAD` against `env.branch` and errors with a `--force` hint. Wired into all four commands: release + changelog inside their existing `if !dryRun` block (preview is not blocked); version next + current unconditionally (no dry-run there). `version current` gained a `force` flag read. 6 app unit tests + 2 cmd integration tests (blocks wrong branch, `--force` bypasses). Spec 02 row and schema description corrected from "informational" to the enforced guard; the sample yml comment already matched.
 
-#### `[ ]` T61: Auto-derive `tag_pattern` to scope per-env changelogs
+#### `[x]` T61: Auto-derive `tag_pattern` to scope per-env changelogs
 
 **Motivation:** `heraut changelog --env prod` with `tag_format: '{version}_{env}'` and no
 explicit `tag_pattern` feeds git-cliff *all* tags (`*_prod`, `*_test`, `*_vali`), mixing
@@ -2503,6 +2503,8 @@ should be too.
 **Files:** `internal/versioning/tagfmt/tagfmt.go`, `internal/app/pipeline.go`
 
 **Scope:** S
+
+**Done:** `tagfmt.DeriveTagPattern(template, env)` returns an anchored regex ({env}→literal, {version}/{build}→`.+`), or `""` when the template has no `{env}`. The literal env separator in the template is what disambiguates e.g. `prod` from `preprod` (`^.+_prod$` rejects `..._preprod`). Folded into `withBuildPostprocessor` (now sets both `BuildPostprocessorPattern` and `TagPattern`), applied in the changelog + release pipelines and `EffectiveCliffConfig`; the derived `TagPattern` reaches git-cliff as `--tag-pattern`. Explicit `changelog.tag_pattern` always wins (guarded by `driver.TagPattern == ""`). Verified end-to-end (`changelog --env prod` → `--tag-pattern ^.+_prod$`) plus app integration tests for both the derived and explicit-override paths. Spec 02 `tag_pattern` row documents the auto-derivation.
 
 #### `[ ]` T62: Strip the env (and build) suffix from changelog headings
 

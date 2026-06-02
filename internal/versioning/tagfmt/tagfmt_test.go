@@ -9,6 +9,69 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+func TestDeriveTagPattern(t *testing.T) {
+	tests := []struct {
+		name      string
+		template  string
+		env       string
+		wantEmpty bool
+		matches   []string
+		noMatches []string
+	}{
+		{
+			name:      "no env token returns empty",
+			template:  "v{version}",
+			env:       "prod",
+			wantEmpty: true,
+		},
+		{
+			name:      "empty env returns empty",
+			template:  "{env}/{version}",
+			env:       "",
+			wantEmpty: true,
+		},
+		{
+			name:      "version_env suffix",
+			template:  "{version}_{env}",
+			env:       "prod",
+			matches:   []string{"2026.3.0_prod", "1.2.3_prod"},
+			noMatches: []string{"2026.3.0_test", "2026.3.0_vali", "2026.3.0_preprod"},
+		},
+		{
+			name:      "env/version prefix",
+			template:  "{env}/{version}",
+			env:       "prod",
+			matches:   []string{"prod/1.2.3"},
+			noMatches: []string{"dev/1.2.3", "staging/1.2.3"},
+		},
+		{
+			name:      "env/version-build",
+			template:  "{env}/{version}-{build}",
+			env:       "uat",
+			matches:   []string{"uat/7.4.1-158404", "uat/7.4.0-155398"},
+			noMatches: []string{"main/7.4.1-159001"},
+		},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			pat := tagfmt.DeriveTagPattern(tc.template, tc.env)
+			if tc.wantEmpty {
+				assert.Empty(t, pat)
+				return
+			}
+			require.NotEmpty(t, pat)
+			re, err := regexp.Compile(pat)
+			require.NoError(t, err, "derived pattern must compile: %s", pat)
+			for _, tag := range tc.matches {
+				assert.Truef(t, re.MatchString(tag), "pattern %q should match %q", pat, tag)
+			}
+			for _, tag := range tc.noMatches {
+				assert.Falsef(t, re.MatchString(tag), "pattern %q should NOT match %q", pat, tag)
+			}
+		})
+	}
+}
+
 func TestRender(t *testing.T) {
 	tests := []struct {
 		name     string

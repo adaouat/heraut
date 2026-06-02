@@ -197,6 +197,85 @@ func TestBuildChangelogPipeline_PerEnvDisable(t *testing.T) {
 	assert.NotNil(t, p)
 }
 
+func TestBuildChangelogPipeline_PerEnvDerivesTagPattern(t *testing.T) {
+	mr := testutil.NewMockRunner()
+	mr.QueueResponse("", "", nil) // git-cliff generate
+
+	cfg := &config.Config{
+		Version: "1",
+		Versioning: config.Versioning{
+			Strategy:  "calver-per-env",
+			Format:    "YYYY.SPRINT.PATCH",
+			TagFormat: "{version}_{env}",
+		},
+		Changelog: &config.ContentDriver{Generator: "git-cliff", Output: "CHANGELOG.md"},
+		Environments: map[string]config.Environment{
+			"prod": {Bump: "auto"},
+		},
+	}
+	res := &fakeResolver{result: versioning.Result{Version: "2026.3.1", Tag: "2026.3.1_prod"}}
+	opts := app.PipelineOpts{Env: "prod", Out: &bytes.Buffer{}}
+
+	p, err := app.BuildChangelogPipeline(mr, cfg, res, opts)
+	require.NoError(t, err)
+	require.NoError(t, p.Run())
+
+	var cliffArgs []string
+	for _, c := range mr.Calls {
+		if c.Name == "git-cliff" {
+			cliffArgs = c.Args
+		}
+	}
+	require.NotNil(t, cliffArgs, "expected a git-cliff call")
+	// --tag-pattern scoped to the prod env must be present.
+	var got string
+	for i, a := range cliffArgs {
+		if a == "--tag-pattern" && i+1 < len(cliffArgs) {
+			got = cliffArgs[i+1]
+		}
+	}
+	assert.Equal(t, "^.+_prod$", got)
+}
+
+func TestBuildChangelogPipeline_ExplicitTagPatternWins(t *testing.T) {
+	mr := testutil.NewMockRunner()
+	mr.QueueResponse("", "", nil)
+
+	cfg := &config.Config{
+		Version: "1",
+		Versioning: config.Versioning{
+			Strategy:  "semver-per-env",
+			TagFormat: "{version}_{env}",
+		},
+		Changelog: &config.ContentDriver{
+			Generator:  "git-cliff",
+			Output:     "CHANGELOG.md",
+			TagPattern: "custom-pattern",
+		},
+		Environments: map[string]config.Environment{
+			"prod": {Bump: "auto"},
+		},
+	}
+	res := &fakeResolver{result: versioning.Result{Version: "1.2.3", Tag: "1.2.3_prod"}}
+	opts := app.PipelineOpts{Env: "prod", Out: &bytes.Buffer{}}
+
+	p, err := app.BuildChangelogPipeline(mr, cfg, res, opts)
+	require.NoError(t, err)
+	require.NoError(t, p.Run())
+
+	var got string
+	for _, c := range mr.Calls {
+		if c.Name == "git-cliff" {
+			for i, a := range c.Args {
+				if a == "--tag-pattern" && i+1 < len(c.Args) {
+					got = c.Args[i+1]
+				}
+			}
+		}
+	}
+	assert.Equal(t, "custom-pattern", got, "explicit user tag_pattern must win over derivation")
+}
+
 func TestBuildPipeline_ReleaseAssets_PropagatesToPlatforms(t *testing.T) {
 	// release.assets at the top level should build successfully — the platform
 	// contract tests verify the actual upload behavior with LenientAssets=true.

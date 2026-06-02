@@ -210,16 +210,32 @@ func buildChangelogPipelineConfig(runner port.Runner, cfg *config.Config, opts P
 	return cCfg, nil
 }
 
-// withBuildPostprocessor returns a ContentDriver copy with BuildPostprocessorPattern
-// populated when {build} is present in the effective tag format. The original
-// driver is not modified. Returns the original pointer when no derivation is needed.
+// withBuildPostprocessor returns a ContentDriver copy with env-derived scoping applied
+// from the effective tag format:
+//   - BuildPostprocessorPattern: strips env/build from changelog headings (when {build})
+//   - TagPattern: scopes git-cliff to the active env's tags (when {env} and the user has
+//     not set an explicit tag_pattern)
+//
+// The original driver is never mutated. Returns the original pointer when nothing applies.
 func withBuildPostprocessor(driver *config.ContentDriver, cfg *config.Config, env string) *config.ContentDriver {
-	pat := tagfmt.DeriveBuildPostprocessorPattern(cfg.EffectiveTagFormat(env))
-	if pat == "" {
+	tf := cfg.EffectiveTagFormat(env)
+	postPat := tagfmt.DeriveBuildPostprocessorPattern(tf)
+
+	var tagPat string
+	if driver.TagPattern == "" {
+		tagPat = tagfmt.DeriveTagPattern(tf, env)
+	}
+
+	if postPat == "" && tagPat == "" {
 		return driver
 	}
 	clone := *driver
-	clone.BuildPostprocessorPattern = pat
+	if postPat != "" {
+		clone.BuildPostprocessorPattern = postPat
+	}
+	if tagPat != "" {
+		clone.TagPattern = tagPat
+	}
 	return &clone
 }
 

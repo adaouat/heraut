@@ -134,6 +134,21 @@ func ValidateBuildID(build string) error {
 	return nil
 }
 
+// DeriveTagPattern returns an anchored regex (for git-cliff --tag-pattern) that matches
+// only the given environment's tags. {env} becomes the literal env, {version} and {build}
+// become wildcards. Returns "" when the template has no {env} token or env is empty —
+// there is nothing to scope in those cases.
+func DeriveTagPattern(template, env string) string {
+	if env == "" || !strings.Contains(template, envToken) {
+		return ""
+	}
+	regexStr := regexp.QuoteMeta(template)
+	regexStr = strings.ReplaceAll(regexStr, regexp.QuoteMeta(versionToken), `.+`)
+	regexStr = strings.ReplaceAll(regexStr, regexp.QuoteMeta(buildToken), `.+`)
+	regexStr = strings.ReplaceAll(regexStr, regexp.QuoteMeta(envToken), regexp.QuoteMeta(env))
+	return "^" + regexStr + "$"
+}
+
 // GlobPattern returns a git tag glob pattern for listing tags under the given env.
 func GlobPattern(template, env string) (string, error) {
 	if !strings.Contains(template, versionToken) {
