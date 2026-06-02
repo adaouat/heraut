@@ -1,5 +1,24 @@
 # Changelog
 
+## [0.20.0](https://github.com/adaouat/heraut/compare/v0.19.0..v0.20.0) - 2026-06-02
+
+### 🚀 Features
+
+- *(app)* Enforce per-env branch guard (T60) - ([56c0445](https://github.com/adaouat/heraut/commit/56c0445fdf78522bac643aae128081e39247f634)) by @bchatard
+
+- *(changelog)* Auto-derive tag_pattern to scope per-env changelogs (T61) - ([c8970a3](https://github.com/adaouat/heraut/commit/c8970a3e7f6fb6413c591560d3591e583587e10e)) by @bchatard
+
+- *(changelog)* Strip env/build tokens from changelog headings (T62) - ([359d9fd](https://github.com/adaouat/heraut/commit/359d9fdd7482b521662d7066e617edab567e1d46)) by @bchatard
+
+- *(config)* Per-env content-driver overrides deep-merge (T63, ADR-0019) - ([e0446f2](https://github.com/adaouat/heraut/commit/e0446f21b125ae560aaa4b5967a3a6d04151d91d)) by @bchatard
+
+
+### 📚 Documentation
+
+- *(roadmap)* Add T63 — per-env content-driver overrides deep-merge - ([3887510](https://github.com/adaouat/heraut/commit/38875102af09ce22ac09415ca5fe59f78fc69c7f)) by @bchatard
+
+- Clarify that an omitted env branch imposes no restriction (T60) - ([e4d4bba](https://github.com/adaouat/heraut/commit/e4d4bba9d84e6eced5ecc5ab67276ab2657dd93d)) by @bchatard
+
 ## [0.19.0](https://github.com/adaouat/heraut/compare/v0.18.0..v0.19.0) - 2026-06-01
 
 ### 🚀 Features
