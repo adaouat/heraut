@@ -18,12 +18,15 @@ func (g *gitHelper) run(name string, args ...string) error {
 	return err
 }
 
-func (g *gitHelper) commitChangelog(file, msg string) error {
+func (g *gitHelper) commitChangelog(file, msg string, push bool) error {
 	if err := g.run("git", "add", file); err != nil {
 		return fmt.Errorf("git add: %w", err)
 	}
 	if err := g.run("git", "commit", "-m", msg); err != nil {
 		return fmt.Errorf("git commit: %w", err)
+	}
+	if !push {
+		return nil
 	}
 	if err := g.run("git", "push", "origin", "HEAD"); err != nil {
 		return fmt.Errorf("git push: %w", err)

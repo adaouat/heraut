@@ -131,13 +131,14 @@ Resolve the next version, optionally generate a changelog, optionally commit and
 without publishing to any release platform.
 
 ```
-heraut changelog [--commit] [--tag] [--version X.Y.Z] [--dry-run] [--env <name>]
+heraut changelog [--commit] [--tag] [--no-push] [--version X.Y.Z] [--dry-run] [--env <name>]
 ```
 
 | Flag         | Description                                                                                              |
 |--------------|----------------------------------------------------------------------------------------------------------|
 | `--commit`   | After generating, commit `CHANGELOG.md` and push.                                                        |
 | `--tag`      | After committing, create and push a git tag on that commit. Implies `--commit`.                          |
+| `--no-push`  | Commit and tag locally without pushing. Skips both `git push origin HEAD` and `git push origin --tags`. Only meaningful with `--commit`/`--tag`. |
 | `--version`  | Override the auto-computed version.                                                                      |
 | `--build`    | CI build ID appended to the tag via the `{build}` token in `tag_format`. Requires `--version`.           |
 | `--dry-run`  | Print the action plan; execute nothing.                                                                  |
@@ -147,9 +148,13 @@ heraut changelog [--commit] [--tag] [--version X.Y.Z] [--dry-run] [--env <name>]
 
 1. Resolve next version (or use `--version`)
 2. Generate and update `CHANGELOG.md` (only if `changelog` is configured)
-3. Commit and push — `chore(release): <version>`
+3. Commit and push — `chore(release): <version>` (push skipped with `--no-push`)
 4. Create a git tag (annotated by default; set `versioning.tag_type: lightweight` for a bare ref tag) on that commit
-5. Push tag (`git push --tags`)
+5. Push tag (`git push --tags`) — skipped with `--no-push`
+
+With `--no-push`, the commit and tag are created locally only; push them yourself (or
+let a CI job own pushing) afterwards. The flag is a no-op without `--commit`/`--tag`,
+since nothing is committed or tagged to push.
 
 To then publish the platform release without re-generating the changelog, run
 `heraut release --version <tag>`.

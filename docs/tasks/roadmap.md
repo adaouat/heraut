@@ -2563,6 +2563,83 @@ the platforms-stay-replace exception and the precedence rules.
 
 ---
 
+#### `[x]` T64: `--no-push` flag for `heraut changelog` — commit/tag locally without pushing
+
+**Motivation:** `heraut changelog --commit` always runs `git push origin HEAD`, and
+`--tag` always runs `git push origin --tags`. The push is hardcoded — `commitChangelog`
+(`internal/pipeline/git.go`) bundles `add → commit → push`, and the tag-push is an
+unconditional step in `internal/pipeline/changelog.go`. There is no way to produce the
+changelog commit (and tag) locally and defer the push to a later manual step or a CI job
+that owns pushing. Add `--no-push` so users can keep `--commit`/`--tag` ergonomics while
+retaining control over when refs leave the machine.
+
+**Scope of change:**
+- Split push out of `gitHelper.commitChangelog` so it is a separately gated step (mirror
+  the already-separate tag-push step) rather than baked into the commit helper.
+- New `--no-push` flag on `heraut changelog`. When set: still `git add` → `git commit`
+  (and `git tag` if `--tag`), but skip both `git push origin HEAD` and
+  `git push origin --tags`.
+- Default unchanged: without `--no-push`, behaviour is identical to today (push happens).
+- `--no-push` is only meaningful with `--commit`/`--tag` (without them nothing is
+  committed, so nothing would push). Decide: silently no-op vs. warn when `--no-push` is
+  passed with neither — lean to a no-op, document it.
+
+**Wiring:**
+- `internal/cmd/changelog.go` — declare the flag, thread into `app.PipelineOpts`.
+- `app.PipelineOpts` + `pipeline.ChangelogConfig` — carry the choice. Keep the struct
+  field positive (`Push bool`, default `true`) and translate `--no-push` → `Push: !noPush`
+  in the cmd, consistent with the existing positive `Commit`/`Tag` fields.
+- `app.BuildChangelogPipeline` — pass it through.
+
+**Acceptance:**
+- `heraut changelog --commit --no-push` → contract test asserts `git add` + `git commit`
+  run and **no** `git push` call is made.
+- `heraut changelog --tag --no-push` → `git add` + `git commit` + `git tag` run, **no**
+  `git push origin HEAD` and **no** `git push origin --tags`.
+- `heraut changelog --commit` (no flag) still pushes — existing contract tests stay green
+  unchanged.
+- `--dry-run` output reflects the choice (e.g. `would commit (no push)` /
+  `would tag (no push)`).
+- TDD: failing contract tests first (MockRunner asserting the absence of `push` calls).
+
+**Out of scope / open:** `heraut release` pushes unconditionally too; whether `release`
+gets a parallel `--no-push` is **not** part of this task — note it as a follow-up if the
+need is real (a tag-but-don't-push release is an unusual flow). No config/`.heraut.yml`
+key — this is a per-invocation flag only.
+
+**ADR required:** no — the default (push) is unchanged, so no behavioural reversal. Does
+touch the workflow described in [ADR-0012](../adr/0012-changelog-commit-ownership.md);
+reconcile the wording there if it states the push is mandatory rather than default.
+
+**Dependencies:** T17 (changelog pipeline) ✅
+
+**Files:** `internal/cmd/changelog.go`, `internal/pipeline/{git,changelog}.go`,
+`internal/app/pipeline.go`, `internal/pipeline/changelog_test.go`,
+`docs/specs/03-commands.md`
+
+**Scope:** S
+
+**Done:** Implemented as `--no-push` on `heraut changelog`. **Deviation from the design
+note above:** used a `NoPush bool` config field instead of the suggested positive `Push
+bool` default `true`. Reason — Go's zero value for `bool` is `false`; a `Push` field would
+default to "no push", forcing every existing direct-construction test and the app layer to
+set `Push: true` and silently inverting the default for any future caller that forgets.
+`NoPush` keeps the invariant "zero value = today's behaviour (push)", so all pre-existing
+changelog contract tests pass unchanged. Rather than splitting push into its own numbered
+reporter step (which would have churned `changelogStepTotal` and the reporter tests), the
+shared `gitHelper.commitChangelog` gained a `push bool` param — the release pipeline passes
+`true` (unchanged), changelog passes `!NoPush`; the already-separate tag-push step is gated
+on `!NoPush`. `changelogStepTotal` drops the push-tags step when `NoPush`. Dry-run and the
+post-run summary report `(no push)` / `committed (not pushed)`. `--no-push` is a documented
+no-op without `--commit`/`--tag` (nothing committed to push). `heraut release` left
+unchanged (out of scope; noted as a possible follow-up). No ADR — default behaviour
+unchanged; ADR-0012's wording already frames the push as part of the default flow, not a
+hard invariant, so no reconciliation needed. Tests: 3 pipeline contract tests (commit /
+tag / tag-only, each asserting no `push` call) + 1 cmd flag-registration entry + 1 cmd
+dry-run wiring test. Spec 03 updated (usage line, flag table, action sequence, note).
+
+---
+
 ## Risks and mitigations
 
 | Risk                                                                                | Impact            | Mitigation                                                                |

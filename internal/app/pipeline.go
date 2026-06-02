@@ -26,6 +26,9 @@ type PipelineOpts struct {
 	// Commit and Tag are used by the changelog pipeline only.
 	Commit bool
 	Tag    bool
+	// NoPush is used by the changelog pipeline only: when true, the commit and tag
+	// are created locally but not pushed.
+	NoPush bool
 	// SignTags mirrors git config tag.gpgSign — when true the pipeline creates
 	// signed tags (-s) instead of annotated ones. Set by the caller via ReadGPGSign.
 	SignTags bool
@@ -101,7 +104,10 @@ func changelogStepTotal(cfg *pipeline.ChangelogConfig) int {
 		}
 	}
 	if cfg.Tag {
-		total += 2 // create tag + push tags
+		total++ // create tag
+		if !cfg.NoPush {
+			total++ // push tags
+		}
 	}
 	return total
 }
@@ -182,6 +188,7 @@ func buildChangelogPipelineConfig(runner port.Runner, cfg *config.Config, opts P
 	cCfg := &pipeline.ChangelogConfig{
 		Commit: opts.Commit || opts.Tag,
 		Tag:    opts.Tag,
+		NoPush: opts.NoPush,
 	}
 
 	// Resolve effective changelog: start from root, deep-merge per-env override (ADR-0019).

@@ -15,6 +15,7 @@ func NewChangelogCmd() *cobra.Command {
 	var (
 		commit          bool
 		tag             bool
+		noPush          bool
 		versionOverride string
 		buildID         string
 	)
@@ -65,6 +66,7 @@ func NewChangelogCmd() *cobra.Command {
 				Out:      cmd.OutOrStdout(),
 				Commit:   commit,
 				Tag:      tag,
+				NoPush:   noPush,
 				SignTags: app.ReadGPGSign(readRunner),
 			}
 			if !dryRun {
@@ -87,6 +89,7 @@ func NewChangelogCmd() *cobra.Command {
 
 	changelogCmd.Flags().BoolVar(&commit, "commit", false, "commit the generated changelog")
 	changelogCmd.Flags().BoolVar(&tag, "tag", false, "tag after commit (implies --commit)")
+	changelogCmd.Flags().BoolVar(&noPush, "no-push", false, "commit and tag locally without pushing (only meaningful with --commit/--tag)")
 	changelogCmd.Flags().StringVar(&versionOverride, "version", "", "override the resolved version — with or without tag prefix (e.g. 1.2.3 or v1.2.3)")
 	changelogCmd.Flags().StringVar(&buildID, "build", "", "build ID appended to the tag via the {build} token in tag_format (requires --version)")
 

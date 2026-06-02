@@ -103,7 +103,7 @@ func (p *Pipeline) Run() error {
 			file = "CHANGELOG.md"
 		}
 		if err := p.runStep("Commit changelog", func() (string, []string, error) {
-			if err := p.git.commitChangelog(file, commitMessage(p.cfg.CommitMessage, result.Version)); err != nil {
+			if err := p.git.commitChangelog(file, commitMessage(p.cfg.CommitMessage, result.Version), true); err != nil {
 				return "", nil, fmt.Errorf("committing changelog: %w", err)
 			}
 			return "", nil, nil

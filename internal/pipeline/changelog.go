@@ -23,6 +23,10 @@ type ChangelogConfig struct {
 	Commit bool
 	// Tag creates a git tag after committing (implies Commit).
 	Tag bool
+	// NoPush keeps the commit and tag local: the changelog is committed (and the
+	// tag created) but neither `git push origin HEAD` nor `git push origin --tags`
+	// runs. The zero value (false) preserves the default push behaviour.
+	NoPush bool
 	// AnnotatedTags creates annotated git tags (-a -m <commit_message>).
 	// When false, lightweight tags are created. Defaults to false (set by app layer).
 	AnnotatedTags bool
@@ -70,6 +74,9 @@ func (p *ChangelogPipeline) runStep(name string, fn func() (string, []string, er
 //  3. If Changelog configured: generate changelog
 //  4. If Commit or Tag (and Changelog configured): git add → git commit → git push
 //  5. If Tag: git tag → git push --tags
+//
+// When NoPush is set, both pushes (HEAD and --tags) are skipped — the commit and
+// tag are created locally only.
 func (p *ChangelogPipeline) Run() error {
 	// Step 1: Resolve version.
 	var result versioning.Result
@@ -118,7 +125,7 @@ func (p *ChangelogPipeline) Run() error {
 				file = "CHANGELOG.md"
 			}
 			if err := p.runStep("Commit changelog", func() (string, []string, error) {
-				if err := p.git.commitChangelog(file, commitMessage(p.cfg.CommitMessage, result.Version)); err != nil {
+				if err := p.git.commitChangelog(file, commitMessage(p.cfg.CommitMessage, result.Version), !p.cfg.NoPush); err != nil {
 					return "", nil, fmt.Errorf("committing changelog: %w", err)
 				}
 				return "", nil, nil
@@ -139,13 +146,15 @@ func (p *ChangelogPipeline) Run() error {
 			return err
 		}
 
-		if err := p.runStep("Push tags", func() (string, []string, error) {
-			if err := p.git.run("git", "push", "origin", "--tags"); err != nil {
-				return "", nil, fmt.Errorf("git push: %w", err)
+		if !p.cfg.NoPush {
+			if err := p.runStep("Push tags", func() (string, []string, error) {
+				if err := p.git.run("git", "push", "origin", "--tags"); err != nil {
+					return "", nil, fmt.Errorf("git push: %w", err)
+				}
+				return "", nil, nil
+			}); err != nil {
+				return err
 			}
-			return "", nil, nil
-		}); err != nil {
-			return err
 		}
 	}
 
@@ -161,11 +170,19 @@ func (p *ChangelogPipeline) dryRunOutput(result versioning.Result) error {
 		if !p.cfg.DisableChangelog {
 			_, _ = fmt.Fprintf(p.out, "[dry-run] would generate changelog for %s\n", result.Tag)
 			if p.cfg.Commit || p.cfg.Tag {
-				_, _ = fmt.Fprintf(p.out, "[dry-run] would commit → push\n")
+				if p.cfg.NoPush {
+					_, _ = fmt.Fprintf(p.out, "[dry-run] would commit (no push)\n")
+				} else {
+					_, _ = fmt.Fprintf(p.out, "[dry-run] would commit → push\n")
+				}
 			}
 		}
 		if p.cfg.Tag {
-			_, _ = fmt.Fprintf(p.out, "[dry-run] would tag %s and push\n", result.Tag)
+			if p.cfg.NoPush {
+				_, _ = fmt.Fprintf(p.out, "[dry-run] would tag %s (no push)\n", result.Tag)
+			} else {
+				_, _ = fmt.Fprintf(p.out, "[dry-run] would tag %s and push\n", result.Tag)
+			}
 		}
 		return nil
 	}
@@ -182,6 +199,9 @@ func (p *ChangelogPipeline) dryRunOutput(result versioning.Result) error {
 		})
 		if p.cfg.Commit || p.cfg.Tag {
 			_ = p.runStep("Commit changelog", func() (string, []string, error) {
+				if p.cfg.NoPush {
+					return "[dry-run] would commit (no push)", nil, nil
+				}
 				return "[dry-run] would commit and push", nil, nil
 			})
 		}
@@ -191,9 +211,11 @@ func (p *ChangelogPipeline) dryRunOutput(result versioning.Result) error {
 		_ = p.runStep(fmt.Sprintf("Create tag %s", result.Tag), func() (string, []string, error) {
 			return "[dry-run] would tag", nil, nil
 		})
-		_ = p.runStep("Push tags", func() (string, []string, error) {
-			return "[dry-run] would push", nil, nil
-		})
+		if !p.cfg.NoPush {
+			_ = p.runStep("Push tags", func() (string, []string, error) {
+				return "[dry-run] would push", nil, nil
+			})
+		}
 	}
 	return nil
 }
@@ -209,7 +231,11 @@ func (p *ChangelogPipeline) printSummary(result versioning.Result) {
 			if file == "" {
 				file = "CHANGELOG.md"
 			}
-			_, _ = fmt.Fprintf(p.out, "  %s committed and pushed\n", file)
+			if p.cfg.NoPush {
+				_, _ = fmt.Fprintf(p.out, "  %s committed (not pushed)\n", file)
+			} else {
+				_, _ = fmt.Fprintf(p.out, "  %s committed and pushed\n", file)
+			}
 		}
 		return
 	}

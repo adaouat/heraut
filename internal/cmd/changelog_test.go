@@ -16,7 +16,7 @@ func TestNewChangelogCmd(t *testing.T) {
 	assert.Equal(t, "changelog", c.Use)
 	assert.NotEmpty(t, c.Short)
 
-	for _, name := range []string{"commit", "tag", "version", "build"} {
+	for _, name := range []string{"commit", "tag", "no-push", "version", "build"} {
 		assert.NotNil(t, c.Flags().Lookup(name), "flag %q not registered", name)
 	}
 }
@@ -97,6 +97,29 @@ esac
 	require.NoError(t, err)
 	assert.Contains(t, out, "v1.1.0")
 	assert.Contains(t, out, "[dry-run]")
+}
+
+func TestChangelog_DryRun_NoPush(t *testing.T) {
+	cfgPath := writeConfig(t, `
+version: "1"
+versioning:
+  strategy: semver
+  tag_prefix: "v"
+changelog:
+  generator: git-cliff
+  output: CHANGELOG.md
+`)
+	testutil.FakeBin(t, "git", `#!/bin/sh
+case "$*" in
+  "tag -l v* --sort=-version:refname") echo "v1.0.0" ;;
+  "log v1.0.0..HEAD --format=%B"*) printf "feat: new feature\x00" ;;
+  *) exit 1 ;;
+esac
+`)
+	out, err := executeRoot("changelog", "--config", cfgPath, "--tag", "--no-push", "--dry-run")
+	require.NoError(t, err)
+	assert.Contains(t, out, "no push")
+	assert.NotContains(t, out, "would push")
 }
 
 func TestChangelog_PreflightFail_GitIdentityMissing(t *testing.T) {

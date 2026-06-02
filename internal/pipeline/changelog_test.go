@@ -103,6 +103,78 @@ func TestChangelogRun_TagWithoutChangelog(t *testing.T) {
 	assert.Equal(t, []string{"push", "origin", "--tags"}, mr.Calls[1].Args)
 }
 
+// TestChangelogRun_WithCommit_NoPush verifies --no-push commits but does not push.
+func TestChangelogRun_WithCommit_NoPush(t *testing.T) {
+	mr := testutil.NewMockRunner()
+	mr.QueueResponse("", "", nil) // git add
+	mr.QueueResponse("", "", nil) // git commit
+
+	gen := &testutil.MockGenerator{}
+
+	cfg := &pipeline.ChangelogConfig{
+		Changelog:     gen,
+		ChangelogFile: "CHANGELOG.md",
+		Commit:        true,
+		NoPush:        true,
+	}
+
+	p := pipeline.NewChangelog(mr, &fakeResolver{result: resolvedResult("v1.2.3")}, cfg, &bytes.Buffer{}, false)
+	require.NoError(t, p.Run())
+
+	require.Len(t, gen.GenerateCalls, 1)
+	require.Len(t, mr.Calls, 2)
+	assert.Equal(t, []string{"add", "CHANGELOG.md"}, mr.Calls[0].Args)
+	assert.Equal(t, "commit", mr.Calls[1].Args[0])
+	for _, c := range mr.Calls {
+		assert.NotEqual(t, "push", c.Args[0], "no git push expected with NoPush")
+	}
+}
+
+// TestChangelogRun_WithTag_NoPush verifies --tag --no-push commits and tags but pushes neither.
+func TestChangelogRun_WithTag_NoPush(t *testing.T) {
+	mr := testutil.NewMockRunner()
+	mr.QueueResponse("", "", nil) // git add
+	mr.QueueResponse("", "", nil) // git commit
+	mr.QueueResponse("", "", nil) // git tag
+
+	gen := &testutil.MockGenerator{}
+
+	cfg := &pipeline.ChangelogConfig{
+		Changelog:     gen,
+		ChangelogFile: "CHANGELOG.md",
+		Tag:           true,
+		NoPush:        true,
+	}
+
+	p := pipeline.NewChangelog(mr, &fakeResolver{result: resolvedResult("v1.2.3")}, cfg, &bytes.Buffer{}, false)
+	require.NoError(t, p.Run())
+
+	require.Len(t, mr.Calls, 3)
+	assert.Equal(t, []string{"add", "CHANGELOG.md"}, mr.Calls[0].Args)
+	assert.Equal(t, "commit", mr.Calls[1].Args[0])
+	assert.Equal(t, []string{"tag", "v1.2.3"}, mr.Calls[2].Args)
+	for _, c := range mr.Calls {
+		assert.NotEqual(t, "push", c.Args[0], "no git push expected with NoPush")
+	}
+}
+
+// TestChangelogRun_TagWithoutChangelog_NoPush verifies tag-only with --no-push tags but does not push.
+func TestChangelogRun_TagWithoutChangelog_NoPush(t *testing.T) {
+	mr := testutil.NewMockRunner()
+	mr.QueueResponse("", "", nil) // git tag
+
+	cfg := &pipeline.ChangelogConfig{
+		Tag:    true,
+		NoPush: true,
+	}
+
+	p := pipeline.NewChangelog(mr, &fakeResolver{result: resolvedResult("v1.2.3")}, cfg, &bytes.Buffer{}, false)
+	require.NoError(t, p.Run())
+
+	require.Len(t, mr.Calls, 1)
+	assert.Equal(t, []string{"tag", "v1.2.3"}, mr.Calls[0].Args)
+}
+
 // TestChangelogRun_DryRun verifies no git mutations or generator calls in dry-run.
 func TestChangelogRun_DryRun(t *testing.T) {
 	mr := testutil.NewMockRunner()
