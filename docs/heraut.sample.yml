@@ -186,6 +186,7 @@ release:
 #     # tag_format: "dev/{version}"
 #
 #     # branch restriction: heraut refuses to run here unless this branch is active.
+#     # omit or leave empty for no restriction (the default).
 #     # branch: develop
 #
 #     # disable_changelog: skip changelog generation for this environment.
