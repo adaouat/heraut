@@ -2457,6 +2457,74 @@ how to proceed.
 
 ---
 
+### Phase 13 — Per-environment correctness
+
+The per-env `branch` field was declared, schema'd, and wizard-prompted but never wired to
+any behavior (the docs even contradicted each other). And per-env changelog generation was
+not actually scoped to the active environment's tags — `heraut changelog --env prod` fed
+git-cliff every environment's tags as release boundaries. These three tasks make per-env
+operations behave as documented.
+
+#### `[x]` T60: Branch guard — enforce `environments.<env>.branch`
+
+**Motivation:** `branch` was inert. Give it the behaviour the sample/wizard promised:
+refuse any per-env operation unless the current git branch matches the environment's
+`branch`, preventing e.g. a `prod` release from a feature branch. (User chose the strict
+scope: applies to *every* `--env` command.)
+
+**Acceptance:**
+- A shared `app.CheckBranch(runner, cfg, env, force)` reads the current branch
+  (`git rev-parse --abbrev-ref HEAD`) and errors when it differs from `env.branch`
+- Applies to `heraut release`, `heraut changelog`, `heraut version next`, `heraut version current`
+- No-op when `env == ""` or the env has no `branch` set
+- `--force` overrides (consistent with E001/E002); skipped in `--dry-run` for release/changelog
+- Spec 02 `branch` row + schema description corrected from "informational" to the enforced guard
+
+**Files:** `internal/app/branch.go`, `internal/cmd/{release,changelog,version}.go`, `docs/specs/02-configuration.md`, `schema.json`
+
+**Scope:** S
+
+**Done:** `app.CheckBranch` short-circuits on `force` (skips the git call entirely) and on empty env / no branch; otherwise compares `git rev-parse --abbrev-ref HEAD` against `env.branch` and errors with a `--force` hint. Wired into all four commands: release + changelog inside their existing `if !dryRun` block (preview is not blocked); version next + current unconditionally (no dry-run there). `version current` gained a `force` flag read. 6 app unit tests + 2 cmd integration tests (blocks wrong branch, `--force` bypasses). Spec 02 row and schema description corrected from "informational" to the enforced guard; the sample yml comment already matched.
+
+#### `[ ]` T61: Auto-derive `tag_pattern` to scope per-env changelogs
+
+**Motivation:** `heraut changelog --env prod` with `tag_format: '{version}_{env}'` and no
+explicit `tag_pattern` feeds git-cliff *all* tags (`*_prod`, `*_test`, `*_vali`), mixing
+environments. Version resolution is already env-scoped via the glob; the changelog body
+should be too.
+
+**Acceptance:**
+- `tagfmt.DeriveTagPattern(template, env)` builds a git-cliff `--tag-pattern` regex that
+  matches only the active env's tags ({env} → literal, {version}/{build} → wildcard, anchored)
+- The pipeline sets the derived pattern on the generator when per-env and the user has **not**
+  set an explicit `changelog.tag_pattern` (explicit config always wins)
+- `heraut changelog --env prod` shows only `*_prod` releases
+
+**Files:** `internal/versioning/tagfmt/tagfmt.go`, `internal/app/pipeline.go`
+
+**Scope:** S
+
+#### `[ ]` T62: Strip the env (and build) suffix from changelog headings
+
+**Motivation:** with `{version}_{env}` tags the heading renders as `2026.3.0_prod`; it should
+read `2026.3.0`. Generalise the existing build-only postprocessor derivation to strip any
+non-`{version}` tokens (env prefix/suffix and build) from headings.
+
+**Acceptance:**
+- Generalise `DeriveBuildPostprocessorPattern` → a heading-version derivation that handles
+  `{env}` prefix, `{env}` suffix, `{build}`, and combinations; preserves the existing
+  `-`-separator SemVer pre-release disambiguation
+- `2026.3.0_prod` → `2026.3.0`; `uat/7.4.1-158404` → `7.4.1` (existing cases still pass)
+- Injected via the same `withBuildPostprocessor` path; `heraut cliff` reflects it
+
+**Dependencies:** generalises the T53 derivation
+
+**Files:** `internal/versioning/tagfmt/tagfmt.go`, `internal/app/pipeline.go`
+
+**Scope:** S
+
+---
+
 ## Risks and mitigations
 
 | Risk                                                                                | Impact            | Mitigation                                                                |

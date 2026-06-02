@@ -40,6 +40,10 @@ func newVersionNextCmd() *cobra.Command {
 				return exitcode.Wrap(exitcode.Config, fmt.Errorf("loading config: %w", err))
 			}
 
+			if err := app.CheckBranch(runner, cfg, env, force); err != nil {
+				return exitcode.Wrap(exitcode.Runtime, err)
+			}
+
 			resolver, err := app.NewResolver(cfg, env, force, "", "", runner)
 			if err != nil {
 				return exitcode.Wrap(exitcode.Config, err)
@@ -65,6 +69,7 @@ func newVersionCurrentCmd() *cobra.Command {
 			cfgPath, _ := cmd.Flags().GetString("config")
 			verbose, _ := cmd.Flags().GetBool("verbose")
 			env, _ := cmd.Flags().GetString("env")
+			force, _ := cmd.Flags().GetBool("force")
 
 			runner := execadapter.New(false, verbose)
 			path := config.ResolvePath(cfgPath)
@@ -72,6 +77,10 @@ func newVersionCurrentCmd() *cobra.Command {
 			cfg, err := config.Load(path)
 			if err != nil {
 				return exitcode.Wrap(exitcode.Config, fmt.Errorf("loading config: %w", err))
+			}
+
+			if err := app.CheckBranch(runner, cfg, env, force); err != nil {
+				return exitcode.Wrap(exitcode.Runtime, err)
 			}
 
 			out := app.CurrentTag

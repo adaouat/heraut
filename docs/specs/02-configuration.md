@@ -159,7 +159,7 @@ are optional unless noted.
 |--------------|---------------|---------|-------------------------------------------------------------------------------------------------------------------------------------------------------|
 | `bump`       | Yes (per-env) | —       | `auto` or `promote` (see § Bump modes).                                                                                                               |
 | `tag_format` | Conditional   | —       | Tag format for this environment. Must contain `{version}`. Overrides `versioning.tag_format` when set. Required if no common `tag_format` is defined. |
-| `branch`     | No            | —       | Branch this environment is released from. Informational — used in error messages.                                                                     |
+| `branch`     | No            | —       | Branch this environment is operated from. **Enforced**: heraut refuses any `--env <env>` command (release, changelog, version next/current) unless the current git branch matches. Bypass with `--force`. |
 | `source`     | No            | —       | Source environment for `bump: promote`. See § Bump modes → promote.                                                                                   |
 
 ### Content fields

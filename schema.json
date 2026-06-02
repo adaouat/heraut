@@ -248,7 +248,7 @@
         },
         "branch": {
           "type": "string",
-          "description": "Branch restriction for this environment."
+          "description": "Branch this environment is operated from. heraut refuses any --env command for this environment unless the current git branch matches (override with --force)."
         },
         "source": {
           "type": "string",

@@ -68,6 +68,9 @@ func NewChangelogCmd() *cobra.Command {
 				SignTags: app.ReadGPGSign(readRunner),
 			}
 			if !dryRun {
+				if err := app.CheckBranch(readRunner, cfg, env, force); err != nil {
+					return exitcode.Wrap(exitcode.Runtime, err)
+				}
 				if err := app.PreflightCheck(runner); err != nil {
 					return exitcode.Wrap(exitcode.Runtime, fmt.Errorf("preflight check failed: %w", err))
 				}

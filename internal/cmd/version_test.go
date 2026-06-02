@@ -143,6 +143,52 @@ esac
 	assert.Equal(t, "dev/1.0.1\n", out)
 }
 
+func TestVersionNext_BranchGuard_BlocksWrongBranch(t *testing.T) {
+	cfgPath := writeConfig(t, `
+version: "1"
+versioning:
+  strategy: semver-per-env
+environments:
+  prod:
+    bump: auto
+    branch: main
+    tag_format: "prod/{version}"
+`)
+	testutil.FakeBin(t, "git", `#!/bin/sh
+case "$*" in
+  "rev-parse --abbrev-ref HEAD") echo "feature/x" ;;
+  *) exit 1 ;;
+esac
+`)
+	_, err := executeRoot("version", "next", "--config", cfgPath, "--env", "prod")
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "branch")
+}
+
+func TestVersionNext_BranchGuard_ForceBypasses(t *testing.T) {
+	cfgPath := writeConfig(t, `
+version: "1"
+versioning:
+  strategy: semver-per-env
+environments:
+  prod:
+    bump: auto
+    branch: main
+    tag_format: "prod/{version}"
+`)
+	testutil.FakeBin(t, "git", `#!/bin/sh
+case "$*" in
+  "rev-parse --abbrev-ref HEAD") echo "feature/x" ;;
+  "tag -l prod/* --sort=-version:refname") echo "prod/1.0.0" ;;
+  "log prod/1.0.0..HEAD --format=%B"*) printf "fix: patch\x00" ;;
+  *) exit 1 ;;
+esac
+`)
+	out, err := executeRoot("version", "next", "--config", cfgPath, "--env", "prod", "--force")
+	require.NoError(t, err)
+	assert.Equal(t, "prod/1.0.1\n", out)
+}
+
 // ---- version current ----
 
 func TestVersionCurrent_Semver(t *testing.T) {
