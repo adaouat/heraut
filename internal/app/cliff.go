@@ -22,7 +22,7 @@ func EffectiveCliffConfig(cfg *config.Config, driver *config.ContentDriver, mode
 	if driver == nil {
 		driver = &config.ContentDriver{}
 	}
-	driver = withBuildPostprocessor(driver, cfg, env)
+	driver = withEnvDerivations(driver, cfg, env)
 
 	m := gitcliff.ModeChangelog
 	if mode == "release-notes" {

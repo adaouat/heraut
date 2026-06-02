@@ -140,7 +140,7 @@ func buildReleasePipelineConfig(runner port.Runner, cfg *config.Config, env stri
 
 	// Changelog generator
 	if effectiveChangelog != nil {
-		driver := withBuildPostprocessor(effectiveChangelog, cfg, env)
+		driver := withEnvDerivations(effectiveChangelog, cfg, env)
 		gen, err := buildGenerator(runner, driver, gitcliff.ModeChangelog)
 		if err != nil {
 			return nil, fmt.Errorf("changelog generator: %w", err)
@@ -151,7 +151,7 @@ func buildReleasePipelineConfig(runner port.Runner, cfg *config.Config, env stri
 
 	// Release notes generator
 	if effectiveNotes != nil {
-		driver := withBuildPostprocessor(effectiveNotes, cfg, env)
+		driver := withEnvDerivations(effectiveNotes, cfg, env)
 		gen, err := buildGenerator(runner, driver, gitcliff.ModeReleaseNotes)
 		if err != nil {
 			return nil, fmt.Errorf("release notes generator: %w", err)
@@ -196,7 +196,7 @@ func buildChangelogPipelineConfig(runner port.Runner, cfg *config.Config, opts P
 	}
 
 	if effectiveChangelog != nil {
-		driver := withBuildPostprocessor(effectiveChangelog, cfg, opts.Env)
+		driver := withEnvDerivations(effectiveChangelog, cfg, opts.Env)
 		gen, err := buildGenerator(runner, driver, gitcliff.ModeChangelog)
 		if err != nil {
 			return nil, fmt.Errorf("changelog generator: %w", err)
@@ -210,28 +210,29 @@ func buildChangelogPipelineConfig(runner port.Runner, cfg *config.Config, opts P
 	return cCfg, nil
 }
 
-// withBuildPostprocessor returns a ContentDriver copy with env-derived scoping applied
+// withEnvDerivations returns a ContentDriver copy with env-derived scoping applied
 // from the effective tag format:
-//   - BuildPostprocessorPattern: strips env/build from changelog headings (when {build})
+//   - HeadingVersionPattern: strips env prefix/suffix and build from changelog headings
+//     (when {env} or {build} is present)
 //   - TagPattern: scopes git-cliff to the active env's tags (when {env} and the user has
 //     not set an explicit tag_pattern)
 //
 // The original driver is never mutated. Returns the original pointer when nothing applies.
-func withBuildPostprocessor(driver *config.ContentDriver, cfg *config.Config, env string) *config.ContentDriver {
+func withEnvDerivations(driver *config.ContentDriver, cfg *config.Config, env string) *config.ContentDriver {
 	tf := cfg.EffectiveTagFormat(env)
-	postPat := tagfmt.DeriveBuildPostprocessorPattern(tf)
+	headingPat := tagfmt.DeriveHeadingVersionPattern(tf)
 
 	var tagPat string
 	if driver.TagPattern == "" {
 		tagPat = tagfmt.DeriveTagPattern(tf, env)
 	}
 
-	if postPat == "" && tagPat == "" {
+	if headingPat == "" && tagPat == "" {
 		return driver
 	}
 	clone := *driver
-	if postPat != "" {
-		clone.BuildPostprocessorPattern = postPat
+	if headingPat != "" {
+		clone.HeadingVersionPattern = headingPat
 	}
 	if tagPat != "" {
 		clone.TagPattern = tagPat

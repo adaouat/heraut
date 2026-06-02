@@ -52,10 +52,11 @@ type ContentDriver struct {
 	Output     string `yaml:"output,omitempty"`
 	TagPattern string `yaml:"tag_pattern,omitempty"`
 	Template   string `yaml:"template,omitempty"`
-	// BuildPostprocessorPattern is set by the app layer when {build} is present in
-	// tag_format. It is injected into the effective git-cliff TOML as a postprocessor
-	// that strips the env prefix and build ID from version headings. Not user-configurable.
-	BuildPostprocessorPattern string `yaml:"-"`
+	// HeadingVersionPattern is set by the app layer when the effective tag_format contains
+	// {env} or {build}. It is injected into the effective git-cliff TOML as a postprocessor
+	// that strips the env prefix/suffix and build ID from version headings (leaving just the
+	// version). Not user-configurable.
+	HeadingVersionPattern string `yaml:"-"`
 }
 
 // Release holds release notes and platform settings.

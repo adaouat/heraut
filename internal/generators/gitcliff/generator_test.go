@@ -168,11 +168,11 @@ func TestEffectiveConfig_WithUserOverride(t *testing.T) {
 	assert.Contains(t, toml, "[git]")
 }
 
-func TestEffectiveConfig_BuildPostprocessorInjected(t *testing.T) {
+func TestEffectiveConfig_HeadingPostprocessorInjected(t *testing.T) {
 	mr := testutil.NewMockRunner()
 	cfg := &config.ContentDriver{
-		Generator:                 "git-cliff",
-		BuildPostprocessorPattern: `\[(?:[^/\]]+/)?([0-9]+\.[0-9]+\.[0-9]+)-[0-9]+\]`,
+		Generator:             "git-cliff",
+		HeadingVersionPattern: `\[(?:[^/\]]+/)?([0-9]+\.[0-9]+\.[0-9]+)-[0-9]+\]`,
 	}
 	gen := gitcliff.New(mr, cfg, gitcliff.ModeChangelog)
 
@@ -183,7 +183,7 @@ func TestEffectiveConfig_BuildPostprocessorInjected(t *testing.T) {
 	assert.Contains(t, toml, "postprocessors")
 }
 
-func TestEffectiveConfig_BuildPostprocessorPrependsToExisting(t *testing.T) {
+func TestEffectiveConfig_HeadingPostprocessorPrependsToExisting(t *testing.T) {
 	tmp := t.TempDir()
 	cfgPath := filepath.Join(tmp, "cliff.toml")
 	require.NoError(t, os.WriteFile(cfgPath, []byte(
@@ -192,9 +192,9 @@ func TestEffectiveConfig_BuildPostprocessorPrependsToExisting(t *testing.T) {
 
 	mr := testutil.NewMockRunner()
 	cfg := &config.ContentDriver{
-		Generator:                 "git-cliff",
-		Config:                    cfgPath,
-		BuildPostprocessorPattern: `\[([0-9]+)\]`,
+		Generator:             "git-cliff",
+		Config:                cfgPath,
+		HeadingVersionPattern: `\[([0-9]+)\]`,
 	}
 	gen := gitcliff.New(mr, cfg, gitcliff.ModeChangelog)
 

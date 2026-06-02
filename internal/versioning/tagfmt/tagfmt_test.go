@@ -210,19 +210,22 @@ func TestGlobPatternError(t *testing.T) {
 	assert.Contains(t, err.Error(), "{version}")
 }
 
-func TestDeriveBuildPostprocessorPattern(t *testing.T) {
+func TestDeriveHeadingVersionPattern(t *testing.T) {
 	tests := []struct {
-		name     string
-		template string
-		wantNil  bool // expect empty string (no pattern)
-		// If not wantNil, verify the pattern matches / doesn't match certain tags.
-		matches    []string
+		name       string
+		template   string
+		wantNil    bool
 		noMatches  []string
-		wantGroup1 map[string]string // tag → expected capture group $1
+		wantGroup1 map[string]string // heading → expected capture group $1
 	}{
 		{
-			name:     "no build token returns empty",
-			template: "{env}/{version}",
+			name:     "plain version returns empty (nothing to strip)",
+			template: "{version}",
+			wantNil:  true,
+		},
+		{
+			name:     "v prefix returns empty (template already trims v)",
+			template: "v{version}",
 			wantNil:  true,
 		},
 		{
@@ -231,63 +234,76 @@ func TestDeriveBuildPostprocessorPattern(t *testing.T) {
 			wantNil:  true,
 		},
 		{
-			name:     "build before version returns empty",
-			template: "{build}/{env}/{version}",
-			wantNil:  true,
+			name:     "env suffix",
+			template: "{version}_{env}",
+			wantGroup1: map[string]string{
+				"[2026.3.0_prod]": "2026.3.0",
+				"[1.2.3_prod]":    "1.2.3",
+			},
 		},
 		{
-			name:     "env/version-build",
+			name:     "env prefix",
+			template: "{env}/{version}",
+			wantGroup1: map[string]string{
+				"[prod/1.2.3]":    "1.2.3",
+				"[staging/2.0.0]": "2.0.0",
+			},
+		},
+		{
+			name:     "env prefix + build suffix",
 			template: "{env}/{version}-{build}",
 			wantGroup1: map[string]string{
 				"[uat/7.4.1-158404]":      "7.4.1",
-				"[main/7.4.0-155398]":     "7.4.0",
 				"[uat/7.4.1-rc.1-158404]": "7.4.1-rc.1",
-			},
-			noMatches: []string{
-				"[v1.2.3]",     // no build suffix
-				"[1.2.3-rc.1]", // no build suffix
 			},
 		},
 		{
-			name:     "version-build (no env)",
+			name:     "version-build no env",
 			template: "{version}-{build}",
 			wantGroup1: map[string]string{
 				"[7.4.1-158404]":      "7.4.1",
 				"[7.4.1-rc.1-158404]": "7.4.1-rc.1",
 			},
-			noMatches: []string{"[v1.2.3]", "[1.2.3-rc.1]"},
 		},
 		{
-			name:     "env/version+build (plus separator)",
+			name:     "plus build separator",
 			template: "{env}/{version}+{build}",
 			wantGroup1: map[string]string{
-				"[uat/7.4.1+158404]":      "7.4.1",
-				"[uat/7.4.1-rc.1+158404]": "7.4.1-rc.1",
+				"[uat/7.4.1+158404]": "7.4.1",
 			},
-			noMatches: []string{"[uat/7.4.1-158404]"}, // dash sep, not plus
 		},
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			pat := tagfmt.DeriveBuildPostprocessorPattern(tc.template)
+			pat := tagfmt.DeriveHeadingVersionPattern(tc.template)
 			if tc.wantNil {
 				assert.Empty(t, pat)
 				return
 			}
-			require.NotEmpty(t, pat, "expected non-empty pattern")
+			require.NotEmpty(t, pat)
 			re, err := regexp.Compile(pat)
 			require.NoError(t, err, "derived pattern must compile: %s", pat)
-
-			for tag, want := range tc.wantGroup1 {
-				m := re.FindStringSubmatch(tag)
-				require.NotNilf(t, m, "pattern should match %q", tag)
-				assert.Equalf(t, want, m[1], "capture group for %q", tag)
+			for heading, want := range tc.wantGroup1 {
+				m := re.FindStringSubmatch(heading)
+				require.NotNilf(t, m, "pattern should match %q", heading)
+				assert.Equalf(t, want, m[1], "capture group for %q", heading)
 			}
-			for _, tag := range tc.noMatches {
-				assert.Nilf(t, re.FindStringSubmatch(tag), "pattern should NOT match %q", tag)
+			for _, h := range tc.noMatches {
+				assert.Nilf(t, re.FindStringSubmatch(h), "pattern should NOT match %q", h)
 			}
 		})
 	}
+}
+
+// The derived pattern must not match across two headings — wildcards exclude ']'.
+func TestDeriveHeadingVersionPattern_NoCrossHeadingMatch(t *testing.T) {
+	pat := tagfmt.DeriveHeadingVersionPattern("{version}_{env}")
+	require.NotEmpty(t, pat)
+	re := regexp.MustCompile(pat)
+
+	doc := "## [2026.3.0_prod] - x\n## [2026.2.0_prod] - y"
+	got := re.ReplaceAllString(doc, "[$1]")
+	assert.Equal(t, "## [2026.3.0] - x\n## [2026.2.0] - y", got)
 }
 
 func TestValidateBuildID(t *testing.T) {

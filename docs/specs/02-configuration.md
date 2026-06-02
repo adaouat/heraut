@@ -251,6 +251,12 @@ environments:
 
 A per-environment `tag_format` always overrides the common one.
 
+**Changelog headings are cleaned automatically.** When `tag_format` carries an `{env}`
+(prefix or suffix) or `{build}` token, heraut injects a git-cliff postprocessor that strips
+those tokens from the version heading, leaving just the version: `prod/1.0.0` → `1.0.0`,
+`2026.3.0_prod` → `2026.3.0`, `uat/7.4.1-158404` → `7.4.1` (SemVer pre-release preserved:
+`7.4.1-rc.1`). Compare links still use the full tags.
+
 ### `{build}` token — CI build IDs
 
 `tag_format` supports a third token, `{build}`, for pipelines that append a CI build

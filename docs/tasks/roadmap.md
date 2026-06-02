@@ -2506,7 +2506,7 @@ should be too.
 
 **Done:** `tagfmt.DeriveTagPattern(template, env)` returns an anchored regex ({env}→literal, {version}/{build}→`.+`), or `""` when the template has no `{env}`. The literal env separator in the template is what disambiguates e.g. `prod` from `preprod` (`^.+_prod$` rejects `..._preprod`). Folded into `withBuildPostprocessor` (now sets both `BuildPostprocessorPattern` and `TagPattern`), applied in the changelog + release pipelines and `EffectiveCliffConfig`; the derived `TagPattern` reaches git-cliff as `--tag-pattern`. Explicit `changelog.tag_pattern` always wins (guarded by `driver.TagPattern == ""`). Verified end-to-end (`changelog --env prod` → `--tag-pattern ^.+_prod$`) plus app integration tests for both the derived and explicit-override paths. Spec 02 `tag_pattern` row documents the auto-derivation.
 
-#### `[ ]` T62: Strip the env (and build) suffix from changelog headings
+#### `[x]` T62: Strip the env (and build) suffix from changelog headings
 
 **Motivation:** with `{version}_{env}` tags the heading renders as `2026.3.0_prod`; it should
 read `2026.3.0`. Generalise the existing build-only postprocessor derivation to strip any
@@ -2524,6 +2524,8 @@ non-`{version}` tokens (env prefix/suffix and build) from headings.
 **Files:** `internal/versioning/tagfmt/tagfmt.go`, `internal/app/pipeline.go`
 
 **Scope:** S
+
+**Done:** Replaced `DeriveBuildPostprocessorPattern` (+ its `buildTagPrefixRegex` helper) with `DeriveHeadingVersionPattern`, a template-driven derivation: `{version}`→`([^\]]+)`, `{env}`/`{build}`→`[^/\]]+`, literals escaped, wrapped in `\[…\]`. All wildcards exclude `]` so a postprocessor can never span two headings (new `TestDeriveHeadingVersionPattern_NoCrossHeadingMatch` proves it). The greedy version capture + anchored trailing token handles SemVer pre-release under `-` without the old special-casing. Renamed the carrier field `ContentDriver.BuildPostprocessorPattern` → `HeadingVersionPattern`, `gitcliff.injectBuildPostprocessor` → `injectHeadingPostprocessor`, and the decoration helper `withBuildPostprocessor` → `withEnvDerivations` (sets both the heading pattern and T61's tag pattern). Verified end-to-end: `{version}_{env}` → `[2026.3.0]` headings, compare links keep raw tags. Emits nothing for plain `{version}` / `v{version}` (already clean). Spec 02 documents the auto-cleaning.
 
 #### `[ ]` T63: Per-env content-driver overrides deep-merge over the top-level
 

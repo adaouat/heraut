@@ -111,14 +111,14 @@ func (g *Generator) effectiveConfig(base string) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	return injectBuildPostprocessor(merged, g.cfg.BuildPostprocessorPattern)
+	return injectHeadingPostprocessor(merged, g.cfg.HeadingVersionPattern)
 }
 
-// injectBuildPostprocessor prepends a postprocessor entry derived from the
-// {build} tag format to the [changelog] postprocessors array in the merged TOML.
-// This strips the env prefix and build ID from version headings at render time.
-// When pattern is empty, merged is returned unchanged.
-func injectBuildPostprocessor(merged, pattern string) (string, error) {
+// injectHeadingPostprocessor prepends a postprocessor entry (derived from the effective
+// tag_format) to the [changelog] postprocessors array in the merged TOML. This strips the
+// env prefix/suffix and build ID from version headings at render time. When pattern is
+// empty, merged is returned unchanged.
+func injectHeadingPostprocessor(merged, pattern string) (string, error) {
 	if pattern == "" {
 		return merged, nil
 	}

@@ -62,60 +62,33 @@ func ParseVersion(template, tag string) (string, error) {
 	return match[idx], nil
 }
 
-// DeriveBuildPostprocessorPattern returns a regex suitable for a git-cliff
-// postprocessor that strips the env prefix and trailing numeric build ID from
-// version headings (e.g. [uat/7.4.1-158404] → [7.4.1]).
+// DeriveHeadingVersionPattern returns a git-cliff postprocessor regex that strips every
+// non-{version} token (env prefix/suffix and build) from a changelog version heading,
+// leaving only the version. The replacement is "[$1]". Examples:
 //
-// Returns "" when {build} is absent, when {build} precedes {version}, or when
-// no separator exists between {version} and {build}.
-func DeriveBuildPostprocessorPattern(template string) string {
-	if !strings.Contains(template, buildToken) || !strings.Contains(template, versionToken) {
+//	{version}_{env}          [2026.3.0_prod]      → [2026.3.0]
+//	{env}/{version}-{build}  [uat/7.4.1-158404]   → [7.4.1]
+//	{env}/{version}          [prod/1.2.3]         → [1.2.3]
+//
+// Returns "" when there is nothing to strip — no {version}, or neither {env} nor {build}
+// present (a plain or "v"-prefixed version heading is already clean).
+//
+// All wildcards exclude "]" so a match can never span two headings (postprocessors run
+// against the whole rendered document). The greedy version capture plus the anchored
+// trailing token handle SemVer pre-release segments (e.g. 7.4.1-rc.1) under a "-" build
+// separator without special-casing.
+func DeriveHeadingVersionPattern(template string) string {
+	if !strings.Contains(template, versionToken) {
 		return ""
 	}
-	vIdx := strings.Index(template, versionToken)
-	bIdx := strings.Index(template, buildToken)
-	if bIdx <= vIdx {
+	if !strings.Contains(template, envToken) && !strings.Contains(template, buildToken) {
 		return ""
 	}
-
-	buildSep := template[vIdx+len(versionToken) : bIdx]
-	if buildSep == "" {
-		return ""
-	}
-
-	prefixRe := buildTagPrefixRegex(template[:vIdx])
-	buildSepRe := regexp.QuoteMeta(buildSep)
-
-	// When the build separator is "-", semver pre-release segments use the same
-	// character, so disambiguate: pre-release segments start with a non-digit.
-	var versionCapture string
-	if buildSep == "-" {
-		versionCapture = `([0-9]+\.[0-9]+\.[0-9]+(?:-[^0-9][^-\]]*)*)`
-	} else {
-		firstChar := regexp.QuoteMeta(string([]rune(buildSep)[0]))
-		versionCapture = `([0-9]+\.[0-9]+\.[0-9]+[^` + firstChar + `\]]*)`
-	}
-
-	return `\[` + prefixRe + versionCapture + buildSepRe + `[0-9]+\]`
-}
-
-// buildTagPrefixRegex converts the portion of a tag format before {version}
-// into a regex fragment, replacing {env} with an appropriate character class.
-func buildTagPrefixRegex(prefix string) string {
-	beforeRaw, after, found := strings.Cut(prefix, envToken)
-	if !found {
-		return regexp.QuoteMeta(prefix)
-	}
-	before := regexp.QuoteMeta(beforeRaw)
-
-	var envClass string
-	if len(after) > 0 {
-		sepChar := regexp.QuoteMeta(string([]rune(after)[0]))
-		envClass = `[^` + sepChar + `\]]+`
-	} else {
-		envClass = `[^/\]]+`
-	}
-	return before + envClass + regexp.QuoteMeta(after)
+	regexStr := regexp.QuoteMeta(template)
+	regexStr = strings.ReplaceAll(regexStr, regexp.QuoteMeta(versionToken), `([^\]]+)`)
+	regexStr = strings.ReplaceAll(regexStr, regexp.QuoteMeta(envToken), `[^/\]]+`)
+	regexStr = strings.ReplaceAll(regexStr, regexp.QuoteMeta(buildToken), `[^/\]]+`)
+	return `\[` + regexStr + `\]`
 }
 
 // ValidateBuildID checks that a build ID is usable as a tag component: non-empty,

@@ -66,9 +66,9 @@ environments:
 `)
 	out, err := executeRoot("cliff", "changelog", "--config", cfgPath, "--env", "main")
 	require.NoError(t, err)
-	// The derived postprocessor must be present, not an empty array.
+	// The derived heading postprocessor must be present, not an empty array.
 	assert.Contains(t, out, "postprocessors")
-	assert.Contains(t, out, `[0-9]`)
+	assert.Contains(t, out, `replace = '[$1]'`)
 	assert.NotContains(t, out, "postprocessors = []")
 }
 
