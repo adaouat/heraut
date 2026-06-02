@@ -5,8 +5,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/adaouat/forge/exec/exectest"
 	"github.com/adaouat/heraut/internal/config"
-	"github.com/adaouat/heraut/internal/testutil"
 	"github.com/adaouat/heraut/internal/versioning/calver"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -21,7 +21,7 @@ func fixedNow(year int, month time.Month, day int) func() time.Time {
 func strPtr(s string) *string { return &s }
 
 func TestResolve_NoTags_FirstRelease(t *testing.T) {
-	mr := testutil.NewMockRunner()
+	mr := exectest.NewMockRunner()
 	mr.QueueResponse("", "", nil)
 
 	cfg := &config.Config{
@@ -45,7 +45,7 @@ func TestResolve_NoTags_FirstRelease(t *testing.T) {
 }
 
 func TestResolve_WithPrefix_NoTags_FirstRelease(t *testing.T) {
-	mr := testutil.NewMockRunner()
+	mr := exectest.NewMockRunner()
 	mr.QueueResponse("", "", nil)
 
 	cfg := &config.Config{
@@ -66,7 +66,7 @@ func TestResolve_WithPrefix_NoTags_FirstRelease(t *testing.T) {
 }
 
 func TestResolve_SamePeriod_PatchIncrement(t *testing.T) {
-	mr := testutil.NewMockRunner()
+	mr := exectest.NewMockRunner()
 	mr.QueueResponse("2026.05.1\n2026.05.0\n", "", nil)
 
 	cfg := &config.Config{
@@ -86,7 +86,7 @@ func TestResolve_SamePeriod_PatchIncrement(t *testing.T) {
 }
 
 func TestResolve_NewMonth_PatchReset(t *testing.T) {
-	mr := testutil.NewMockRunner()
+	mr := exectest.NewMockRunner()
 	mr.QueueResponse("2026.04.5\n2026.04.0\n", "", nil)
 
 	cfg := &config.Config{
@@ -105,7 +105,7 @@ func TestResolve_NewMonth_PatchReset(t *testing.T) {
 }
 
 func TestResolve_NewYear_PatchReset(t *testing.T) {
-	mr := testutil.NewMockRunner()
+	mr := exectest.NewMockRunner()
 	mr.QueueResponse("2025.12.3\n", "", nil)
 
 	cfg := &config.Config{
@@ -123,7 +123,7 @@ func TestResolve_NewYear_PatchReset(t *testing.T) {
 }
 
 func TestResolve_DailyFormat_SameDay_PatchIncrement(t *testing.T) {
-	mr := testutil.NewMockRunner()
+	mr := exectest.NewMockRunner()
 	mr.QueueResponse("2026.05.24.0\n", "", nil)
 
 	cfg := &config.Config{
@@ -141,7 +141,7 @@ func TestResolve_DailyFormat_SameDay_PatchIncrement(t *testing.T) {
 }
 
 func TestResolve_DailyFormat_NewDay_PatchReset(t *testing.T) {
-	mr := testutil.NewMockRunner()
+	mr := exectest.NewMockRunner()
 	mr.QueueResponse("2026.05.23.2\n", "", nil)
 
 	cfg := &config.Config{
@@ -160,7 +160,7 @@ func TestResolve_DailyFormat_NewDay_PatchReset(t *testing.T) {
 
 // 2026-05-24 is ISO week 21.
 func TestResolve_WeeklyFormat_SameWeek_PatchIncrement(t *testing.T) {
-	mr := testutil.NewMockRunner()
+	mr := exectest.NewMockRunner()
 	mr.QueueResponse("2026.21.0\n", "", nil)
 
 	cfg := &config.Config{
@@ -178,7 +178,7 @@ func TestResolve_WeeklyFormat_SameWeek_PatchIncrement(t *testing.T) {
 }
 
 func TestResolve_WeeklyFormat_NewWeek_PatchReset(t *testing.T) {
-	mr := testutil.NewMockRunner()
+	mr := exectest.NewMockRunner()
 	mr.QueueResponse("2026.20.3\n", "", nil)
 
 	cfg := &config.Config{
@@ -197,7 +197,7 @@ func TestResolve_WeeklyFormat_NewWeek_PatchReset(t *testing.T) {
 }
 
 func TestResolve_QuarterlyFormat_SameQuarter_PatchIncrement(t *testing.T) {
-	mr := testutil.NewMockRunner()
+	mr := exectest.NewMockRunner()
 	mr.QueueResponse("2026.2.0\n", "", nil)
 
 	cfg := &config.Config{
@@ -216,7 +216,7 @@ func TestResolve_QuarterlyFormat_SameQuarter_PatchIncrement(t *testing.T) {
 }
 
 func TestResolve_QuarterlyFormat_NewQuarter_PatchReset(t *testing.T) {
-	mr := testutil.NewMockRunner()
+	mr := exectest.NewMockRunner()
 	mr.QueueResponse("2026.1.5\n", "", nil)
 
 	cfg := &config.Config{
@@ -235,7 +235,7 @@ func TestResolve_QuarterlyFormat_NewQuarter_PatchReset(t *testing.T) {
 }
 
 func TestResolve_SemesterFormat_SameSemester_PatchIncrement(t *testing.T) {
-	mr := testutil.NewMockRunner()
+	mr := exectest.NewMockRunner()
 	mr.QueueResponse("2026.1.2\n", "", nil)
 
 	cfg := &config.Config{
@@ -254,7 +254,7 @@ func TestResolve_SemesterFormat_SameSemester_PatchIncrement(t *testing.T) {
 }
 
 func TestResolve_SemesterFormat_NewSemester_PatchReset(t *testing.T) {
-	mr := testutil.NewMockRunner()
+	mr := exectest.NewMockRunner()
 	mr.QueueResponse("2026.1.5\n", "", nil)
 
 	cfg := &config.Config{
@@ -273,7 +273,7 @@ func TestResolve_SemesterFormat_NewSemester_PatchReset(t *testing.T) {
 }
 
 func TestResolve_SprintFormat_SameSprint_PatchIncrement(t *testing.T) {
-	mr := testutil.NewMockRunner()
+	mr := exectest.NewMockRunner()
 	mr.QueueResponse("2026.5.2\n", "", nil)
 
 	cfg := &config.Config{
@@ -292,7 +292,7 @@ func TestResolve_SprintFormat_SameSprint_PatchIncrement(t *testing.T) {
 }
 
 func TestResolve_SprintFormat_NewSprint_PatchReset(t *testing.T) {
-	mr := testutil.NewMockRunner()
+	mr := exectest.NewMockRunner()
 	mr.QueueResponse("2026.5.3\n", "", nil)
 
 	cfg := &config.Config{
@@ -311,7 +311,7 @@ func TestResolve_SprintFormat_NewSprint_PatchReset(t *testing.T) {
 }
 
 func TestResolve_YearlyFormat_SameYear_PatchIncrement(t *testing.T) {
-	mr := testutil.NewMockRunner()
+	mr := exectest.NewMockRunner()
 	mr.QueueResponse("2026.3\n2026.0\n", "", nil)
 
 	cfg := &config.Config{
@@ -329,7 +329,7 @@ func TestResolve_YearlyFormat_SameYear_PatchIncrement(t *testing.T) {
 }
 
 func TestResolve_YearlyFormat_NewYear_PatchReset(t *testing.T) {
-	mr := testutil.NewMockRunner()
+	mr := exectest.NewMockRunner()
 	mr.QueueResponse("2025.7\n", "", nil)
 
 	cfg := &config.Config{
@@ -348,7 +348,7 @@ func TestResolve_YearlyFormat_NewYear_PatchReset(t *testing.T) {
 
 // Tags that don't match the CalVer format are skipped; first parsable tag wins.
 func TestResolve_IgnoresUnparsableTags(t *testing.T) {
-	mr := testutil.NewMockRunner()
+	mr := exectest.NewMockRunner()
 	mr.QueueResponse("some-unrelated-tag\n2026.05.1\n", "", nil)
 
 	cfg := &config.Config{
@@ -367,7 +367,7 @@ func TestResolve_IgnoresUnparsableTags(t *testing.T) {
 }
 
 func TestResolve_GitTagError(t *testing.T) {
-	mr := testutil.NewMockRunner()
+	mr := exectest.NewMockRunner()
 	mr.QueueResponse("", "fatal: not a git repo", fmt.Errorf("exit 128"))
 
 	cfg := &config.Config{
@@ -385,7 +385,7 @@ func TestResolve_GitTagError(t *testing.T) {
 
 // BumpFromDate is used by the perenv calculator interface.
 func TestBumpFromDate_NoTags_FirstRelease(t *testing.T) {
-	mr := testutil.NewMockRunner()
+	mr := exectest.NewMockRunner()
 
 	cfg := &config.Config{
 		Versioning: config.Versioning{
@@ -401,7 +401,7 @@ func TestBumpFromDate_NoTags_FirstRelease(t *testing.T) {
 }
 
 func TestBumpFromDate_SamePeriod_PatchIncrement(t *testing.T) {
-	mr := testutil.NewMockRunner()
+	mr := exectest.NewMockRunner()
 
 	cfg := &config.Config{
 		Versioning: config.Versioning{
@@ -417,7 +417,7 @@ func TestBumpFromDate_SamePeriod_PatchIncrement(t *testing.T) {
 }
 
 func TestBumpFromDate_NewPeriod_PatchReset(t *testing.T) {
-	mr := testutil.NewMockRunner()
+	mr := exectest.NewMockRunner()
 
 	cfg := &config.Config{
 		Versioning: config.Versioning{
@@ -433,7 +433,7 @@ func TestBumpFromDate_NewPeriod_PatchReset(t *testing.T) {
 }
 
 func TestBumpAuto_Unsupported(t *testing.T) {
-	mr := testutil.NewMockRunner()
+	mr := exectest.NewMockRunner()
 	cfg := &config.Config{
 		Versioning: config.Versioning{
 			Strategy: "calver",

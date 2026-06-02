@@ -5,9 +5,9 @@ import (
 	"errors"
 	"testing"
 
+	"github.com/adaouat/forge/exec/exectest"
 	"github.com/adaouat/heraut/internal/app"
 	"github.com/adaouat/heraut/internal/config"
-	"github.com/adaouat/heraut/internal/testutil"
 	"github.com/adaouat/heraut/internal/versioning"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -27,7 +27,7 @@ var defaultResolver = &fakeResolver{
 var defaultOpts = app.PipelineOpts{Out: &bytes.Buffer{}}
 
 func TestBuildPipeline_Minimal(t *testing.T) {
-	mr := testutil.NewMockRunner()
+	mr := exectest.NewMockRunner()
 	cfg := semverCfg()
 	p, err := app.BuildPipeline(mr, cfg, defaultResolver, defaultOpts)
 	require.NoError(t, err)
@@ -35,7 +35,7 @@ func TestBuildPipeline_Minimal(t *testing.T) {
 }
 
 func TestBuildPipeline_WithGitcliff(t *testing.T) {
-	mr := testutil.NewMockRunner()
+	mr := exectest.NewMockRunner()
 	cfg := semverCfg()
 	cfg.Changelog = &config.ContentDriver{Generator: "git-cliff", Output: "CHANGELOG.md"}
 	p, err := app.BuildPipeline(mr, cfg, defaultResolver, defaultOpts)
@@ -44,7 +44,7 @@ func TestBuildPipeline_WithGitcliff(t *testing.T) {
 }
 
 func TestBuildPipeline_WithCommunique(t *testing.T) {
-	mr := testutil.NewMockRunner()
+	mr := exectest.NewMockRunner()
 	cfg := semverCfg()
 	cfg.Changelog = &config.ContentDriver{Generator: "communique", Output: "CHANGELOG.md"}
 	p, err := app.BuildPipeline(mr, cfg, defaultResolver, defaultOpts)
@@ -53,7 +53,7 @@ func TestBuildPipeline_WithCommunique(t *testing.T) {
 }
 
 func TestBuildPipeline_WithCocogitto(t *testing.T) {
-	mr := testutil.NewMockRunner()
+	mr := exectest.NewMockRunner()
 	cfg := semverCfg()
 	cfg.Changelog = &config.ContentDriver{Generator: "cocogitto", Output: "CHANGELOG.md"}
 	p, err := app.BuildPipeline(mr, cfg, defaultResolver, defaultOpts)
@@ -62,7 +62,7 @@ func TestBuildPipeline_WithCocogitto(t *testing.T) {
 }
 
 func TestBuildPipeline_UnknownGenerator(t *testing.T) {
-	mr := testutil.NewMockRunner()
+	mr := exectest.NewMockRunner()
 	cfg := semverCfg()
 	cfg.Changelog = &config.ContentDriver{Generator: "unknown-gen"}
 	_, err := app.BuildPipeline(mr, cfg, defaultResolver, defaultOpts)
@@ -71,7 +71,7 @@ func TestBuildPipeline_UnknownGenerator(t *testing.T) {
 }
 
 func TestBuildPipeline_WithGitHubPlatform(t *testing.T) {
-	mr := testutil.NewMockRunner()
+	mr := exectest.NewMockRunner()
 	cfg := semverCfg()
 	cfg.Release = &config.Release{
 		Platforms: []config.Platform{{Type: "github"}},
@@ -82,7 +82,7 @@ func TestBuildPipeline_WithGitHubPlatform(t *testing.T) {
 }
 
 func TestBuildPipeline_WithGitLabPlatform(t *testing.T) {
-	mr := testutil.NewMockRunner()
+	mr := exectest.NewMockRunner()
 	cfg := semverCfg()
 	cfg.Release = &config.Release{
 		Platforms: []config.Platform{{Type: "gitlab"}},
@@ -93,7 +93,7 @@ func TestBuildPipeline_WithGitLabPlatform(t *testing.T) {
 }
 
 func TestBuildPipeline_UnknownPlatform(t *testing.T) {
-	mr := testutil.NewMockRunner()
+	mr := exectest.NewMockRunner()
 	cfg := semverCfg()
 	cfg.Release = &config.Release{
 		Platforms: []config.Platform{{Type: "unknown-plat"}},
@@ -104,7 +104,7 @@ func TestBuildPipeline_UnknownPlatform(t *testing.T) {
 }
 
 func TestBuildPipeline_WithNotes(t *testing.T) {
-	mr := testutil.NewMockRunner()
+	mr := exectest.NewMockRunner()
 	cfg := semverCfg()
 	cfg.Release = &config.Release{
 		Notes: &config.ContentDriver{Generator: "git-cliff"},
@@ -115,7 +115,7 @@ func TestBuildPipeline_WithNotes(t *testing.T) {
 }
 
 func TestBuildPipeline_UnknownNotesGenerator(t *testing.T) {
-	mr := testutil.NewMockRunner()
+	mr := exectest.NewMockRunner()
 	cfg := semverCfg()
 	cfg.Release = &config.Release{
 		Notes: &config.ContentDriver{Generator: "unknown-notes"},
@@ -128,7 +128,7 @@ func TestBuildPipeline_UnknownNotesGenerator(t *testing.T) {
 func TestBuildPipeline_AnnotatedTagsDefault(t *testing.T) {
 	// Empty TagType → annotated is the default (AnnotatedTags: true).
 	// We verify by building successfully — behavior is in pipeline tests.
-	mr := testutil.NewMockRunner()
+	mr := exectest.NewMockRunner()
 	cfg := semverCfg()
 	p, err := app.BuildPipeline(mr, cfg, defaultResolver, defaultOpts)
 	require.NoError(t, err)
@@ -136,7 +136,7 @@ func TestBuildPipeline_AnnotatedTagsDefault(t *testing.T) {
 }
 
 func TestBuildPipeline_LightweightTagType(t *testing.T) {
-	mr := testutil.NewMockRunner()
+	mr := exectest.NewMockRunner()
 	cfg := semverCfg()
 	cfg.Versioning.TagType = "lightweight"
 	p, err := app.BuildPipeline(mr, cfg, defaultResolver, defaultOpts)
@@ -145,7 +145,7 @@ func TestBuildPipeline_LightweightTagType(t *testing.T) {
 }
 
 func TestBuildPipeline_PerEnvDisableFlags(t *testing.T) {
-	mr := testutil.NewMockRunner()
+	mr := exectest.NewMockRunner()
 	cfg := semverCfg()
 	cfg.Environments = map[string]config.Environment{
 		"prod": {DisableChangelog: true, DisableNotes: true},
@@ -157,7 +157,7 @@ func TestBuildPipeline_PerEnvDisableFlags(t *testing.T) {
 }
 
 func TestBuildChangelogPipeline_WithGitcliff(t *testing.T) {
-	mr := testutil.NewMockRunner()
+	mr := exectest.NewMockRunner()
 	cfg := semverCfg()
 	cfg.Changelog = &config.ContentDriver{Generator: "git-cliff", Output: "CHANGELOG.md"}
 	opts := app.PipelineOpts{Out: &bytes.Buffer{}}
@@ -167,7 +167,7 @@ func TestBuildChangelogPipeline_WithGitcliff(t *testing.T) {
 }
 
 func TestBuildChangelogPipeline_UnknownGenerator(t *testing.T) {
-	mr := testutil.NewMockRunner()
+	mr := exectest.NewMockRunner()
 	cfg := semverCfg()
 	cfg.Changelog = &config.ContentDriver{Generator: "unknown-gen"}
 	opts := app.PipelineOpts{Out: &bytes.Buffer{}}
@@ -177,7 +177,7 @@ func TestBuildChangelogPipeline_UnknownGenerator(t *testing.T) {
 }
 
 func TestBuildChangelogPipeline_WithCommitAndTag(t *testing.T) {
-	mr := testutil.NewMockRunner()
+	mr := exectest.NewMockRunner()
 	cfg := semverCfg()
 	opts := app.PipelineOpts{Out: &bytes.Buffer{}, Commit: true, Tag: true}
 	p, err := app.BuildChangelogPipeline(mr, cfg, defaultResolver, opts)
@@ -186,7 +186,7 @@ func TestBuildChangelogPipeline_WithCommitAndTag(t *testing.T) {
 }
 
 func TestBuildChangelogPipeline_PerEnvDisable(t *testing.T) {
-	mr := testutil.NewMockRunner()
+	mr := exectest.NewMockRunner()
 	cfg := semverCfg()
 	cfg.Environments = map[string]config.Environment{
 		"staging": {DisableChangelog: true},
@@ -198,7 +198,7 @@ func TestBuildChangelogPipeline_PerEnvDisable(t *testing.T) {
 }
 
 func TestBuildChangelogPipeline_PerEnvDerivesTagPattern(t *testing.T) {
-	mr := testutil.NewMockRunner()
+	mr := exectest.NewMockRunner()
 	mr.QueueResponse("", "", nil) // git-cliff generate
 
 	cfg := &config.Config{
@@ -238,7 +238,7 @@ func TestBuildChangelogPipeline_PerEnvDerivesTagPattern(t *testing.T) {
 }
 
 func TestBuildChangelogPipeline_ExplicitTagPatternWins(t *testing.T) {
-	mr := testutil.NewMockRunner()
+	mr := exectest.NewMockRunner()
 	mr.QueueResponse("", "", nil)
 
 	cfg := &config.Config{
@@ -280,7 +280,7 @@ func TestBuildChangelogPipeline_PerEnvPartialOverrideMerges(t *testing.T) {
 	// ADR-0019: per-env changelog with only `config` inherits the top-level
 	// generator + output. The pipeline must build (no "generator required" error)
 	// and use the inherited output file.
-	mr := testutil.NewMockRunner()
+	mr := exectest.NewMockRunner()
 	cfg := &config.Config{
 		Version: "1",
 		Versioning: config.Versioning{
@@ -304,7 +304,7 @@ func TestBuildChangelogPipeline_PerEnvPartialOverrideMerges(t *testing.T) {
 func TestBuildPipeline_ReleaseAssets_PropagatesToPlatforms(t *testing.T) {
 	// release.assets at the top level should build successfully — the platform
 	// contract tests verify the actual upload behavior with LenientAssets=true.
-	mr := testutil.NewMockRunner()
+	mr := exectest.NewMockRunner()
 	cfg := semverCfg()
 	cfg.Release = &config.Release{
 		Platforms: []config.Platform{{Type: "github", Repository: "org/repo"}},
@@ -319,7 +319,7 @@ func TestBuildPipeline_ReleaseAssets_PropagatesToPlatforms(t *testing.T) {
 }
 
 func TestReadGPGSign_True(t *testing.T) {
-	mr := testutil.NewMockRunner()
+	mr := exectest.NewMockRunner()
 	mr.QueueResponse("true\n", "", nil)
 	assert.True(t, app.ReadGPGSign(mr))
 	require.Len(t, mr.Calls, 1)
@@ -327,14 +327,14 @@ func TestReadGPGSign_True(t *testing.T) {
 }
 
 func TestReadGPGSign_False(t *testing.T) {
-	mr := testutil.NewMockRunner()
+	mr := exectest.NewMockRunner()
 	mr.QueueResponse("false\n", "", nil)
 	assert.False(t, app.ReadGPGSign(mr))
 }
 
 func TestReadGPGSign_NotSet(t *testing.T) {
 	// git config --get exits 1 when the key is not set — treat as false.
-	mr := testutil.NewMockRunner()
+	mr := exectest.NewMockRunner()
 	mr.QueueResponse("", "", errors.New("exit status 1"))
 	assert.False(t, app.ReadGPGSign(mr))
 }

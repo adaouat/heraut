@@ -11,6 +11,7 @@ import (
 	"fmt"
 	"testing"
 
+	"github.com/adaouat/forge/exec/exectest"
 	"github.com/adaouat/heraut/internal/pipeline"
 	"github.com/adaouat/heraut/internal/port"
 	"github.com/adaouat/heraut/internal/testutil"
@@ -45,7 +46,7 @@ func stepNames(steps []capturedStep) []string {
 // TestRun_Reporter_MinimalSequence verifies step names and order for the simplest
 // release (no changelog, no notes, one platform without assets).
 func TestRun_Reporter_MinimalSequence(t *testing.T) {
-	mr := testutil.NewMockRunner()
+	mr := exectest.NewMockRunner()
 	mr.QueueResponse("", "", nil) // git tag
 	mr.QueueResponse("", "", nil) // git push --tags
 
@@ -76,7 +77,7 @@ func TestRun_Reporter_MinimalSequence(t *testing.T) {
 // TestRun_Reporter_WithChangelog verifies the generate + commit steps appear between
 // resolve and tag when changelog is configured.
 func TestRun_Reporter_WithChangelog(t *testing.T) {
-	mr := testutil.NewMockRunner()
+	mr := exectest.NewMockRunner()
 	mr.QueueResponse("", "", nil) // git add
 	mr.QueueResponse("", "", nil) // git commit
 	mr.QueueResponse("", "", nil) // git push
@@ -111,7 +112,7 @@ func TestRun_Reporter_WithChangelog(t *testing.T) {
 // TestRun_Reporter_WithNotes verifies the release-notes step appears between
 // push-tag and publish-to-platform.
 func TestRun_Reporter_WithNotes(t *testing.T) {
-	mr := testutil.NewMockRunner()
+	mr := exectest.NewMockRunner()
 	mr.QueueResponse("", "", nil) // git tag
 	mr.QueueResponse("", "", nil) // git push --tags
 
@@ -141,7 +142,7 @@ func TestRun_Reporter_WithNotes(t *testing.T) {
 // TestRun_Reporter_AssetUploadSubResult verifies that a platform with assets
 // produces a sub-result "assets uploaded" and no extra numbered step.
 func TestRun_Reporter_AssetUploadSubResult(t *testing.T) {
-	mr := testutil.NewMockRunner()
+	mr := exectest.NewMockRunner()
 	mr.QueueResponse("", "", nil) // git tag
 	mr.QueueResponse("", "", nil) // git push --tags
 
@@ -167,7 +168,7 @@ func TestRun_Reporter_AssetUploadSubResult(t *testing.T) {
 // TestRun_Reporter_MultiplePlatformsEachGetStep verifies every platform
 // receives its own numbered step.
 func TestRun_Reporter_MultiplePlatformsEachGetStep(t *testing.T) {
-	mr := testutil.NewMockRunner()
+	mr := exectest.NewMockRunner()
 	mr.QueueResponse("", "", nil) // git tag
 	mr.QueueResponse("", "", nil) // git push --tags
 
@@ -189,7 +190,7 @@ func TestRun_Reporter_MultiplePlatformsEachGetStep(t *testing.T) {
 // TestRun_Reporter_DryRunSequence verifies that dry-run with a reporter shows
 // all expected steps but makes no real git or platform calls.
 func TestRun_Reporter_DryRunSequence(t *testing.T) {
-	mr := testutil.NewMockRunner()
+	mr := exectest.NewMockRunner()
 	changelog := &testutil.MockGenerator{}
 	platform := &testutil.MockPlatform{PlatformName: "github"}
 	cfg := &pipeline.Config{
@@ -221,7 +222,7 @@ func TestRun_Reporter_DryRunSequence(t *testing.T) {
 // TestRun_Reporter_SummaryContainsTag verifies that after a successful run
 // the output contains the released tag (regression guard on summary format).
 func TestRun_Reporter_SummaryContainsTag(t *testing.T) {
-	mr := testutil.NewMockRunner()
+	mr := exectest.NewMockRunner()
 	mr.QueueResponse("", "", nil) // git tag
 	mr.QueueResponse("", "", nil) // git push --tags
 
@@ -239,7 +240,7 @@ func TestRun_Reporter_SummaryContainsTag(t *testing.T) {
 // TestRun_Reporter_NilIsTransparent documents that a nil reporter is identical
 // to not calling WithReporter: no output beyond the summary line.
 func TestRun_Reporter_NilIsTransparent(t *testing.T) {
-	mr := testutil.NewMockRunner()
+	mr := exectest.NewMockRunner()
 	mr.QueueResponse("", "", nil) // git tag
 	mr.QueueResponse("", "", nil) // git push --tags
 
@@ -250,7 +251,7 @@ func TestRun_Reporter_NilIsTransparent(t *testing.T) {
 	out1 := &bytes.Buffer{}
 	p1 := pipeline.New(mr, &fakeResolver{result: resolvedResult("v1.2.3")}, cfg, out1, false)
 
-	mr2 := testutil.NewMockRunner()
+	mr2 := exectest.NewMockRunner()
 	mr2.QueueResponse("", "", nil)
 	mr2.QueueResponse("", "", nil)
 	out2 := &bytes.Buffer{}

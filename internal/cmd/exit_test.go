@@ -3,9 +3,9 @@ package cmd_test
 import (
 	"testing"
 
+	"github.com/adaouat/forge/exec/exectest"
 	"github.com/adaouat/heraut/internal/cmd"
 	"github.com/adaouat/heraut/internal/exitcode"
-	"github.com/adaouat/heraut/internal/testutil"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -50,7 +50,7 @@ environments:
     tag_format: "prod/{version}"
 `)
 	// dev (the promotion source) has no tags → E003.
-	testutil.FakeBin(t, "git", `#!/bin/sh
+	exectest.FakeBin(t, "git", `#!/bin/sh
 case "$*" in
   "tag -l dev/* --sort=-version:refname") echo "" ;;
   *) exit 1 ;;
@@ -68,7 +68,7 @@ versioning:
   strategy: semver
   tag_prefix: "v"
 `)
-	testutil.FakeBin(t, "git", `#!/bin/sh
+	exectest.FakeBin(t, "git", `#!/bin/sh
 case "$*" in
   "tag -l v* --sort=-version:refname") echo "v1.0.0" ;;
   "log v1.0.0..HEAD --format=%B"*) echo "" ;;
@@ -87,7 +87,7 @@ versioning:
   strategy: semver
   tag_prefix: "v"
 `)
-	testutil.FakeBin(t, "git", `#!/bin/sh
+	exectest.FakeBin(t, "git", `#!/bin/sh
 echo ""
 `)
 	_, err := executeRoot("version", "current", "--config", cfgPath)

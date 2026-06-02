@@ -6,32 +6,32 @@ import (
 	"path/filepath"
 	"testing"
 
+	"github.com/adaouat/forge/exec/exectest"
 	"github.com/adaouat/heraut/internal/config"
 	"github.com/adaouat/heraut/internal/platforms/github"
-	"github.com/adaouat/heraut/internal/testutil"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
 func TestName(t *testing.T) {
-	p := github.New(testutil.NewMockRunner(), &config.Platform{})
+	p := github.New(exectest.NewMockRunner(), &config.Platform{})
 	assert.Equal(t, "github", p.Name())
 }
 
 func TestReleaseURL(t *testing.T) {
 	cfg := &config.Platform{Repository: "myorg/myrepo"}
-	p := github.New(testutil.NewMockRunner(), cfg)
+	p := github.New(exectest.NewMockRunner(), cfg)
 	assert.Equal(t, "https://github.com/myorg/myrepo/releases/tag/v1.2.3", p.ReleaseURL("v1.2.3"))
 }
 
 func TestReleaseURL_FromEnv(t *testing.T) {
 	t.Setenv("GITHUB_REPOSITORY", "envorg/envrepo")
-	p := github.New(testutil.NewMockRunner(), &config.Platform{})
+	p := github.New(exectest.NewMockRunner(), &config.Platform{})
 	assert.Equal(t, "https://github.com/envorg/envrepo/releases/tag/v1.0.0", p.ReleaseURL("v1.0.0"))
 }
 
 func TestCheck_GhMissing(t *testing.T) {
-	mr := testutil.NewMockRunner()
+	mr := exectest.NewMockRunner()
 	mr.QueueResponse("", "gh: command not found", errors.New("exit status 127"))
 
 	p := github.New(mr, &config.Platform{TokenEnv: "GH_TOKEN"})
@@ -44,7 +44,7 @@ func TestCheck_GhMissing(t *testing.T) {
 }
 
 func TestCheck_TokenMissing(t *testing.T) {
-	mr := testutil.NewMockRunner()
+	mr := exectest.NewMockRunner()
 	mr.QueueResponse("gh version 2.0.0", "", nil)
 
 	// ensure GH_TOKEN is not set
@@ -58,7 +58,7 @@ func TestCheck_TokenMissing(t *testing.T) {
 
 func TestCheck_RepositoryMissing(t *testing.T) {
 	t.Setenv("GITHUB_ACTIONS", "")
-	mr := testutil.NewMockRunner()
+	mr := exectest.NewMockRunner()
 	mr.QueueResponse("gh version 2.0.0", "", nil)
 	mr.QueueResponse(`[]`, "", nil) // API auth check still runs
 
@@ -72,7 +72,7 @@ func TestCheck_RepositoryMissing(t *testing.T) {
 
 func TestCheck_OK(t *testing.T) {
 	t.Setenv("GITHUB_ACTIONS", "")
-	mr := testutil.NewMockRunner()
+	mr := exectest.NewMockRunner()
 	mr.QueueResponse("gh version 2.0.0", "", nil)
 	mr.QueueResponse(`[]`, "", nil) // API auth check
 
@@ -88,7 +88,7 @@ func TestCheck_OK(t *testing.T) {
 
 func TestCheck_APIAuthFails(t *testing.T) {
 	t.Setenv("GITHUB_ACTIONS", "")
-	mr := testutil.NewMockRunner()
+	mr := exectest.NewMockRunner()
 	mr.QueueResponse("gh version 2.0.0", "", nil)
 	mr.QueueResponse("", "bad credentials", errors.New("exit status 1"))
 
@@ -104,7 +104,7 @@ func TestCheck_GitHubActions_OK(t *testing.T) {
 	t.Setenv("GITHUB_TOKEN", "ghtoken")
 	t.Setenv("GITHUB_REPOSITORY", "org/repo")
 
-	mr := testutil.NewMockRunner()
+	mr := exectest.NewMockRunner()
 	mr.QueueResponse("gh version 2.0.0", "", nil)
 	mr.QueueResponse(`[]`, "", nil)
 
@@ -123,7 +123,7 @@ func TestCheck_GitHubActions_AuthFails(t *testing.T) {
 	t.Setenv("GITHUB_TOKEN", "badtoken")
 	t.Setenv("GITHUB_REPOSITORY", "org/repo")
 
-	mr := testutil.NewMockRunner()
+	mr := exectest.NewMockRunner()
 	mr.QueueResponse("gh version 2.0.0", "", nil)
 	mr.QueueResponse("", "bad credentials", errors.New("exit status 1"))
 
@@ -139,7 +139,7 @@ func TestCheck_GitHubActions_NoGITHUB_TOKEN(t *testing.T) {
 	t.Setenv("GITHUB_TOKEN", "") // not available
 	t.Setenv("GITHUB_REPOSITORY", "org/repo")
 
-	mr := testutil.NewMockRunner()
+	mr := exectest.NewMockRunner()
 	mr.QueueResponse("gh version 2.0.0", "", nil)
 
 	t.Setenv("GH_TOKEN", "tok")
@@ -150,7 +150,7 @@ func TestCheck_GitHubActions_NoGITHUB_TOKEN(t *testing.T) {
 }
 
 func TestCreateRelease_BasicArgs(t *testing.T) {
-	mr := testutil.NewMockRunner()
+	mr := exectest.NewMockRunner()
 	mr.QueueResponse("", "", nil)
 
 	p := github.New(mr, &config.Platform{Repository: "org/repo", TokenEnv: "GH_TOKEN"})
@@ -167,7 +167,7 @@ func TestCreateRelease_BasicArgs(t *testing.T) {
 }
 
 func TestCreateRelease_Draft(t *testing.T) {
-	mr := testutil.NewMockRunner()
+	mr := exectest.NewMockRunner()
 	mr.QueueResponse("", "", nil)
 
 	p := github.New(mr, &config.Platform{Repository: "org/repo", Draft: true})
@@ -179,7 +179,7 @@ func TestCreateRelease_Draft(t *testing.T) {
 }
 
 func TestCreateRelease_Prerelease(t *testing.T) {
-	mr := testutil.NewMockRunner()
+	mr := exectest.NewMockRunner()
 	mr.QueueResponse("", "", nil)
 
 	p := github.New(mr, &config.Platform{Repository: "org/repo", Prerelease: true})
@@ -194,7 +194,7 @@ func TestCreateRelease_LenientAssets_IncludesFilesInCreate(t *testing.T) {
 	require.NoError(t, os.WriteFile(filepath.Join(tmp, "heraut_linux"), []byte("bin"), 0o755))
 	require.NoError(t, os.WriteFile(filepath.Join(tmp, "checksums.txt"), []byte("abc"), 0o644))
 
-	mr := testutil.NewMockRunner()
+	mr := exectest.NewMockRunner()
 	mr.QueueResponse("", "", nil)
 
 	p := github.New(mr, &config.Platform{
@@ -216,7 +216,7 @@ func TestCreateRelease_LenientAssets_IncludesFilesInCreate(t *testing.T) {
 
 func TestUploadAssets_LenientGlobs_IsNoop(t *testing.T) {
 	// With LenientAssets, assets were already uploaded in CreateRelease — UploadAssets is a no-op.
-	mr := testutil.NewMockRunner()
+	mr := exectest.NewMockRunner()
 	p := github.New(mr, &config.Platform{
 		Repository:    "org/repo",
 		Assets:        []string{"dist/heraut_*"},
@@ -227,7 +227,7 @@ func TestUploadAssets_LenientGlobs_IsNoop(t *testing.T) {
 }
 
 func TestCreateRelease_DraftAndPrerelease(t *testing.T) {
-	mr := testutil.NewMockRunner()
+	mr := exectest.NewMockRunner()
 	mr.QueueResponse("", "", nil)
 
 	p := github.New(mr, &config.Platform{Repository: "org/repo", Draft: true, Prerelease: true})
@@ -239,10 +239,10 @@ func TestCreateRelease_DraftAndPrerelease(t *testing.T) {
 }
 
 func TestHasAssets(t *testing.T) {
-	pEmpty := github.New(testutil.NewMockRunner(), &config.Platform{})
+	pEmpty := github.New(exectest.NewMockRunner(), &config.Platform{})
 	assert.False(t, pEmpty.HasAssets())
 
-	pWithAssets := github.New(testutil.NewMockRunner(), &config.Platform{Assets: []string{"dist/*"}})
+	pWithAssets := github.New(exectest.NewMockRunner(), &config.Platform{Assets: []string{"dist/*"}})
 	assert.True(t, pWithAssets.HasAssets())
 }
 
@@ -251,7 +251,7 @@ func TestUploadAssets_SingleFile(t *testing.T) {
 	assetPath := filepath.Join(tmp, "myapp")
 	require.NoError(t, os.WriteFile(assetPath, []byte("binary"), 0o755))
 
-	mr := testutil.NewMockRunner()
+	mr := exectest.NewMockRunner()
 	mr.QueueResponse("", "", nil)
 
 	p := github.New(mr, &config.Platform{
@@ -276,7 +276,7 @@ func TestUploadAssets_Glob(t *testing.T) {
 		require.NoError(t, os.WriteFile(filepath.Join(tmp, name), []byte("bin"), 0o755))
 	}
 
-	mr := testutil.NewMockRunner()
+	mr := exectest.NewMockRunner()
 	mr.QueueResponse("", "", nil)
 	mr.QueueResponse("", "", nil)
 
@@ -297,7 +297,7 @@ func TestUploadAssets_Glob(t *testing.T) {
 }
 
 func TestUploadAssets_GlobNoMatch(t *testing.T) {
-	mr := testutil.NewMockRunner()
+	mr := exectest.NewMockRunner()
 	p := github.New(mr, &config.Platform{
 		Repository: "org/repo",
 		Assets:     []string{"/tmp/nonexistent/heraut_*"},
@@ -309,7 +309,7 @@ func TestUploadAssets_GlobNoMatch(t *testing.T) {
 
 func TestCreateRelease_RepoFromEnv(t *testing.T) {
 	t.Setenv("GITHUB_REPOSITORY", "envorg/envrepo")
-	mr := testutil.NewMockRunner()
+	mr := exectest.NewMockRunner()
 	mr.QueueResponse("", "", nil)
 
 	p := github.New(mr, &config.Platform{})
@@ -322,7 +322,7 @@ func TestCreateRelease_RepoFromEnv(t *testing.T) {
 func TestCreateRelease_NoRepo_Error(t *testing.T) {
 	// Clear env var
 	t.Setenv("GITHUB_REPOSITORY", "")
-	mr := testutil.NewMockRunner()
+	mr := exectest.NewMockRunner()
 
 	p := github.New(mr, &config.Platform{})
 	err := p.CreateRelease("v1.0.0", "notes")
@@ -333,7 +333,7 @@ func TestCreateRelease_NoRepo_Error(t *testing.T) {
 // TestCheck_DefaultTokenEnv covers the tokenEnv() fallback to "GH_TOKEN" when no TokenEnv is configured.
 func TestCheck_DefaultTokenEnv(t *testing.T) {
 	t.Setenv("GITHUB_ACTIONS", "")
-	mr := testutil.NewMockRunner()
+	mr := exectest.NewMockRunner()
 	mr.QueueResponse("gh version 2.0.0", "", nil)
 	mr.QueueResponse(`[]`, "", nil) // API auth check
 
@@ -345,7 +345,7 @@ func TestCheck_DefaultTokenEnv(t *testing.T) {
 
 func TestCreateRelease_TokenForwarded(t *testing.T) {
 	t.Setenv("CORP_TOKEN", "secret123")
-	mr := testutil.NewMockRunner()
+	mr := exectest.NewMockRunner()
 	mr.QueueResponse("", "", nil)
 
 	p := github.New(mr, &config.Platform{Repository: "org/repo", TokenEnv: "CORP_TOKEN"})
@@ -361,7 +361,7 @@ func TestUploadAssets_TokenForwarded(t *testing.T) {
 	require.NoError(t, os.WriteFile(assetPath, []byte("bin"), 0o755))
 
 	t.Setenv("CORP_TOKEN", "secret456")
-	mr := testutil.NewMockRunner()
+	mr := exectest.NewMockRunner()
 	mr.QueueResponse("", "", nil)
 
 	p := github.New(mr, &config.Platform{
@@ -376,7 +376,7 @@ func TestUploadAssets_TokenForwarded(t *testing.T) {
 }
 
 func TestUploadAssets_LenientGlobs_NoMatch_Warns(t *testing.T) {
-	mr := testutil.NewMockRunner()
+	mr := exectest.NewMockRunner()
 	p := github.New(mr, &config.Platform{
 		Repository:    "org/repo",
 		Assets:        []string{"/tmp/nonexistent/heraut_*"},
@@ -390,7 +390,7 @@ func TestUploadAssets_LenientGlobs_NoMatch_Warns(t *testing.T) {
 func TestUploadAssets_LenientGlobs_WithMatch_IsNoop(t *testing.T) {
 	// UploadAssets is a no-op for lenient assets — files are uploaded atomically
 	// inside CreateRelease to avoid GitHub's HTTP 422 on separate upload.
-	mr := testutil.NewMockRunner()
+	mr := exectest.NewMockRunner()
 	p := github.New(mr, &config.Platform{
 		Repository:    "org/repo",
 		Assets:        []string{"dist/heraut_*"},
@@ -405,7 +405,7 @@ func TestUploadAssets_GlobSkipsDirectories(t *testing.T) {
 	require.NoError(t, os.WriteFile(filepath.Join(tmp, "app"), []byte("bin"), 0o755))
 	require.NoError(t, os.MkdirAll(filepath.Join(tmp, "subdir"), 0o755))
 
-	mr := testutil.NewMockRunner()
+	mr := exectest.NewMockRunner()
 	mr.QueueResponse("", "", nil)
 
 	p := github.New(mr, &config.Platform{

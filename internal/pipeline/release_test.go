@@ -5,6 +5,7 @@ import (
 	"errors"
 	"testing"
 
+	"github.com/adaouat/forge/exec/exectest"
 	"github.com/adaouat/heraut/internal/pipeline"
 	"github.com/adaouat/heraut/internal/port"
 	"github.com/adaouat/heraut/internal/testutil"
@@ -27,7 +28,7 @@ func resolvedResult(tag string) versioning.Result {
 
 // TestCheck_Passes calls Check and expects no error when all sub-checks pass.
 func TestCheck_Passes(t *testing.T) {
-	mr := testutil.NewMockRunner()
+	mr := exectest.NewMockRunner()
 	platform := &testutil.MockPlatform{PlatformName: "github"}
 	gen := &testutil.MockGenerator{}
 
@@ -41,7 +42,7 @@ func TestCheck_Passes(t *testing.T) {
 }
 
 func TestCheck_GeneratorFails(t *testing.T) {
-	mr := testutil.NewMockRunner()
+	mr := exectest.NewMockRunner()
 	gen := &testutil.MockGenerator{CheckErr: errors.New("git-cliff not found")}
 
 	cfg := &pipeline.Config{Changelog: gen}
@@ -52,7 +53,7 @@ func TestCheck_GeneratorFails(t *testing.T) {
 }
 
 func TestCheck_PlatformFails(t *testing.T) {
-	mr := testutil.NewMockRunner()
+	mr := exectest.NewMockRunner()
 	platform := &testutil.MockPlatform{
 		PlatformName: "github",
 		CheckErr:     errors.New("gh not found"),
@@ -67,7 +68,7 @@ func TestCheck_PlatformFails(t *testing.T) {
 
 // TestRun_HappyPath_NoChangelog verifies the minimal release sequence (no changelog).
 func TestRun_HappyPath_NoChangelog(t *testing.T) {
-	mr := testutil.NewMockRunner()
+	mr := exectest.NewMockRunner()
 	// git tag + git push --tags
 	mr.QueueResponse("", "", nil)
 	mr.QueueResponse("", "", nil)
@@ -95,7 +96,7 @@ func TestRun_HappyPath_NoChangelog(t *testing.T) {
 
 // TestRun_WithChangelog verifies changelog generation + commit + push before tagging.
 func TestRun_WithChangelog(t *testing.T) {
-	mr := testutil.NewMockRunner()
+	mr := exectest.NewMockRunner()
 	// git add CHANGELOG.md
 	mr.QueueResponse("", "", nil)
 	// git commit
@@ -133,7 +134,7 @@ func TestRun_WithChangelog(t *testing.T) {
 
 // TestRun_WithNotes verifies release notes are generated and passed to CreateRelease.
 func TestRun_WithNotes(t *testing.T) {
-	mr := testutil.NewMockRunner()
+	mr := exectest.NewMockRunner()
 	mr.QueueResponse("", "", nil) // git tag
 	mr.QueueResponse("", "", nil) // git push --tags
 
@@ -155,7 +156,7 @@ func TestRun_WithNotes(t *testing.T) {
 
 // TestRun_WithAssets verifies UploadAssets is called after CreateRelease.
 func TestRun_WithAssets(t *testing.T) {
-	mr := testutil.NewMockRunner()
+	mr := exectest.NewMockRunner()
 	mr.QueueResponse("", "", nil) // git tag
 	mr.QueueResponse("", "", nil) // git push --tags
 
@@ -175,7 +176,7 @@ func TestRun_WithAssets(t *testing.T) {
 
 // TestRun_DryRun verifies no git mutations or platform calls are made.
 func TestRun_DryRun(t *testing.T) {
-	mr := testutil.NewMockRunner()
+	mr := exectest.NewMockRunner()
 	changelog := &testutil.MockGenerator{}
 	platform := &testutil.MockPlatform{PlatformName: "github"}
 
@@ -199,7 +200,7 @@ func TestRun_DryRun(t *testing.T) {
 
 // TestRun_DisableChangelog verifies changelog step is skipped when flag is set.
 func TestRun_DisableChangelog(t *testing.T) {
-	mr := testutil.NewMockRunner()
+	mr := exectest.NewMockRunner()
 	mr.QueueResponse("", "", nil) // git tag
 	mr.QueueResponse("", "", nil) // git push --tags
 
@@ -224,7 +225,7 @@ func TestRun_DisableChangelog(t *testing.T) {
 
 // TestRun_CommitMessage verifies the default commit message format.
 func TestRun_CommitMessage(t *testing.T) {
-	mr := testutil.NewMockRunner()
+	mr := exectest.NewMockRunner()
 	mr.QueueResponse("", "", nil) // git add
 	mr.QueueResponse("", "", nil) // git commit
 	mr.QueueResponse("", "", nil) // git push
@@ -251,7 +252,7 @@ func TestRun_CommitMessage(t *testing.T) {
 
 // TestRun_CustomCommitMessage verifies commit message template substitution.
 func TestRun_CustomCommitMessage(t *testing.T) {
-	mr := testutil.NewMockRunner()
+	mr := exectest.NewMockRunner()
 	mr.QueueResponse("", "", nil) // git add
 	mr.QueueResponse("", "", nil) // git commit
 	mr.QueueResponse("", "", nil) // git push
@@ -277,7 +278,7 @@ func TestRun_CustomCommitMessage(t *testing.T) {
 
 // TestRun_AnnotatedTag verifies git tag -a is used when AnnotatedTags is true.
 func TestRun_AnnotatedTag(t *testing.T) {
-	mr := testutil.NewMockRunner()
+	mr := exectest.NewMockRunner()
 	mr.QueueResponse("", "", nil) // git tag
 	mr.QueueResponse("", "", nil) // git push --tags
 
@@ -296,7 +297,7 @@ func TestRun_AnnotatedTag(t *testing.T) {
 // TestRun_SignedTag verifies that SignTags:true produces "git tag -s <tag> -m <msg>"
 // regardless of AnnotatedTags — -s implies annotated, and signing always takes precedence.
 func TestRun_SignedTag(t *testing.T) {
-	mr := testutil.NewMockRunner()
+	mr := exectest.NewMockRunner()
 	mr.QueueResponse("", "", nil) // git tag -s
 	mr.QueueResponse("", "", nil) // git push --tags
 
@@ -317,7 +318,7 @@ func TestRun_SignedTag(t *testing.T) {
 // TestRun_SignedTag_LightweightBase verifies that SignTags:true overrides a lightweight
 // base config — the tag is still signed (annotated) because the user opted into signing.
 func TestRun_SignedTag_LightweightBase(t *testing.T) {
-	mr := testutil.NewMockRunner()
+	mr := exectest.NewMockRunner()
 	mr.QueueResponse("", "", nil) // git tag -s
 	mr.QueueResponse("", "", nil) // git push --tags
 
@@ -335,7 +336,7 @@ func TestRun_SignedTag_LightweightBase(t *testing.T) {
 
 // TestRun_AnnotatedTagCustomMessage verifies the annotation reuses the commit_message template.
 func TestRun_AnnotatedTagCustomMessage(t *testing.T) {
-	mr := testutil.NewMockRunner()
+	mr := exectest.NewMockRunner()
 	mr.QueueResponse("", "", nil) // git tag
 	mr.QueueResponse("", "", nil) // git push --tags
 
@@ -352,7 +353,7 @@ func TestRun_AnnotatedTagCustomMessage(t *testing.T) {
 
 // TestRun_ResolverError propagates resolver failures.
 func TestRun_ResolverError(t *testing.T) {
-	mr := testutil.NewMockRunner()
+	mr := exectest.NewMockRunner()
 	cfg := &pipeline.Config{}
 	p := pipeline.New(mr, &fakeResolver{err: errors.New("no commits since last tag")}, cfg, &bytes.Buffer{}, false)
 	err := p.Run()
@@ -362,7 +363,7 @@ func TestRun_ResolverError(t *testing.T) {
 
 // TestRun_DisableNotes verifies release notes generation is skipped when DisableNotes is set.
 func TestRun_DisableNotes(t *testing.T) {
-	mr := testutil.NewMockRunner()
+	mr := exectest.NewMockRunner()
 	mr.QueueResponse("", "", nil) // git tag
 	mr.QueueResponse("", "", nil) // git push --tags
 
@@ -387,7 +388,7 @@ func TestRun_DisableNotes(t *testing.T) {
 
 // TestRun_MultiplePlatforms verifies all platforms receive a CreateRelease call.
 func TestRun_MultiplePlatforms(t *testing.T) {
-	mr := testutil.NewMockRunner()
+	mr := exectest.NewMockRunner()
 	mr.QueueResponse("", "", nil) // git tag
 	mr.QueueResponse("", "", nil) // git push --tags
 
@@ -405,7 +406,7 @@ func TestRun_MultiplePlatforms(t *testing.T) {
 
 // TestRun_GitAddError propagates git add failures.
 func TestRun_GitAddError(t *testing.T) {
-	mr := testutil.NewMockRunner()
+	mr := exectest.NewMockRunner()
 	mr.QueueResponse("", "", errors.New("not a git repo")) // git add fails
 
 	changelog := &testutil.MockGenerator{}
@@ -423,7 +424,7 @@ func TestRun_GitAddError(t *testing.T) {
 
 // TestRun_GitCommitError propagates git commit failures.
 func TestRun_GitCommitError(t *testing.T) {
-	mr := testutil.NewMockRunner()
+	mr := exectest.NewMockRunner()
 	mr.QueueResponse("", "", nil)                             // git add OK
 	mr.QueueResponse("", "", errors.New("nothing to commit")) // git commit fails
 
@@ -442,7 +443,7 @@ func TestRun_GitCommitError(t *testing.T) {
 
 // TestRun_GitPushError propagates git push failures.
 func TestRun_GitPushError(t *testing.T) {
-	mr := testutil.NewMockRunner()
+	mr := exectest.NewMockRunner()
 	mr.QueueResponse("", "", nil)                         // git add OK
 	mr.QueueResponse("", "", nil)                         // git commit OK
 	mr.QueueResponse("", "", errors.New("push rejected")) // git push fails
@@ -462,7 +463,7 @@ func TestRun_GitPushError(t *testing.T) {
 
 // TestRun_DefaultChangelogFile verifies "CHANGELOG.md" is used when ChangelogFile is empty.
 func TestRun_DefaultChangelogFile(t *testing.T) {
-	mr := testutil.NewMockRunner()
+	mr := exectest.NewMockRunner()
 	mr.QueueResponse("", "", nil) // git add
 	mr.QueueResponse("", "", nil) // git commit
 	mr.QueueResponse("", "", nil) // git push
@@ -486,7 +487,7 @@ func TestRun_DefaultChangelogFile(t *testing.T) {
 
 // TestRun_ChangelogGenerateError propagates changelog generation failures.
 func TestRun_ChangelogGenerateError(t *testing.T) {
-	mr := testutil.NewMockRunner()
+	mr := exectest.NewMockRunner()
 	changelog := &testutil.MockGenerator{GenerateErr: errors.New("cliff failed")}
 
 	cfg := &pipeline.Config{
@@ -502,7 +503,7 @@ func TestRun_ChangelogGenerateError(t *testing.T) {
 
 // TestRun_GitTagError propagates git tag failures.
 func TestRun_GitTagError(t *testing.T) {
-	mr := testutil.NewMockRunner()
+	mr := exectest.NewMockRunner()
 	mr.QueueResponse("", "", errors.New("tag already exists"))
 
 	cfg := &pipeline.Config{}
@@ -515,7 +516,7 @@ func TestRun_GitTagError(t *testing.T) {
 
 // TestRun_GitPushTagsError propagates git push --tags failures.
 func TestRun_GitPushTagsError(t *testing.T) {
-	mr := testutil.NewMockRunner()
+	mr := exectest.NewMockRunner()
 	mr.QueueResponse("", "", nil)                         // git tag OK
 	mr.QueueResponse("", "", errors.New("push rejected")) // git push --tags fails
 
@@ -529,7 +530,7 @@ func TestRun_GitPushTagsError(t *testing.T) {
 
 // TestRun_ReleaseNotesError propagates release notes generation failures.
 func TestRun_ReleaseNotesError(t *testing.T) {
-	mr := testutil.NewMockRunner()
+	mr := exectest.NewMockRunner()
 	mr.QueueResponse("", "", nil) // git tag
 	mr.QueueResponse("", "", nil) // git push --tags
 
@@ -547,7 +548,7 @@ func TestRun_ReleaseNotesError(t *testing.T) {
 
 // TestRun_CreateReleaseError propagates platform create release failures.
 func TestRun_CreateReleaseError(t *testing.T) {
-	mr := testutil.NewMockRunner()
+	mr := exectest.NewMockRunner()
 	mr.QueueResponse("", "", nil) // git tag
 	mr.QueueResponse("", "", nil) // git push --tags
 
@@ -566,7 +567,7 @@ func TestRun_CreateReleaseError(t *testing.T) {
 
 // TestRun_UploadAssetsError propagates platform upload assets failures.
 func TestRun_UploadAssetsError(t *testing.T) {
-	mr := testutil.NewMockRunner()
+	mr := exectest.NewMockRunner()
 	mr.QueueResponse("", "", nil) // git tag
 	mr.QueueResponse("", "", nil) // git push --tags
 
@@ -589,7 +590,7 @@ func TestCheck_ChangelogGeneratorError(t *testing.T) {
 	changelog := &testutil.MockGenerator{CheckErr: errors.New("git-cliff not found")}
 	cfg := &pipeline.Config{Changelog: changelog}
 
-	p := pipeline.New(testutil.NewMockRunner(), &fakeResolver{}, cfg, &bytes.Buffer{}, false)
+	p := pipeline.New(exectest.NewMockRunner(), &fakeResolver{}, cfg, &bytes.Buffer{}, false)
 	err := p.Check()
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "changelog generator")
@@ -600,7 +601,7 @@ func TestCheck_NotesGeneratorError(t *testing.T) {
 	notes := &testutil.MockGenerator{CheckErr: errors.New("cog not found")}
 	cfg := &pipeline.Config{Notes: notes}
 
-	p := pipeline.New(testutil.NewMockRunner(), &fakeResolver{}, cfg, &bytes.Buffer{}, false)
+	p := pipeline.New(exectest.NewMockRunner(), &fakeResolver{}, cfg, &bytes.Buffer{}, false)
 	err := p.Check()
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "release-notes generator")
@@ -611,7 +612,7 @@ func TestCheck_PlatformError(t *testing.T) {
 	platform := &testutil.MockPlatform{PlatformName: "github", CheckErr: errors.New("GH_TOKEN not set")}
 	cfg := &pipeline.Config{Platforms: []port.Platform{platform}}
 
-	p := pipeline.New(testutil.NewMockRunner(), &fakeResolver{}, cfg, &bytes.Buffer{}, false)
+	p := pipeline.New(exectest.NewMockRunner(), &fakeResolver{}, cfg, &bytes.Buffer{}, false)
 	err := p.Check()
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "platform github")

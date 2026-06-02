@@ -5,6 +5,7 @@ import (
 	"errors"
 	"testing"
 
+	"github.com/adaouat/forge/exec/exectest"
 	"github.com/adaouat/heraut/internal/pipeline"
 	"github.com/adaouat/heraut/internal/testutil"
 	"github.com/stretchr/testify/assert"
@@ -14,7 +15,7 @@ import (
 // TestChangelogRun_GenerateOnly verifies changelog is generated but no git ops when
 // neither --commit nor --tag is set.
 func TestChangelogRun_GenerateOnly(t *testing.T) {
-	mr := testutil.NewMockRunner()
+	mr := exectest.NewMockRunner()
 	gen := &testutil.MockGenerator{GenerateOut: "changelog content"}
 
 	cfg := &pipeline.ChangelogConfig{
@@ -33,7 +34,7 @@ func TestChangelogRun_GenerateOnly(t *testing.T) {
 
 // TestChangelogRun_WithCommit verifies generate + git add + commit + push.
 func TestChangelogRun_WithCommit(t *testing.T) {
-	mr := testutil.NewMockRunner()
+	mr := exectest.NewMockRunner()
 	mr.QueueResponse("", "", nil) // git add
 	mr.QueueResponse("", "", nil) // git commit
 	mr.QueueResponse("", "", nil) // git push
@@ -58,7 +59,7 @@ func TestChangelogRun_WithCommit(t *testing.T) {
 
 // TestChangelogRun_WithTag verifies --tag implies commit: generate + commit + push + tag + push --tags.
 func TestChangelogRun_WithTag(t *testing.T) {
-	mr := testutil.NewMockRunner()
+	mr := exectest.NewMockRunner()
 	mr.QueueResponse("", "", nil) // git add
 	mr.QueueResponse("", "", nil) // git commit
 	mr.QueueResponse("", "", nil) // git push
@@ -87,7 +88,7 @@ func TestChangelogRun_WithTag(t *testing.T) {
 
 // TestChangelogRun_TagWithoutChangelog verifies tag-only when no generator is configured.
 func TestChangelogRun_TagWithoutChangelog(t *testing.T) {
-	mr := testutil.NewMockRunner()
+	mr := exectest.NewMockRunner()
 	mr.QueueResponse("", "", nil) // git tag
 	mr.QueueResponse("", "", nil) // git push --tags
 
@@ -105,7 +106,7 @@ func TestChangelogRun_TagWithoutChangelog(t *testing.T) {
 
 // TestChangelogRun_WithCommit_NoPush verifies --no-push commits but does not push.
 func TestChangelogRun_WithCommit_NoPush(t *testing.T) {
-	mr := testutil.NewMockRunner()
+	mr := exectest.NewMockRunner()
 	mr.QueueResponse("", "", nil) // git add
 	mr.QueueResponse("", "", nil) // git commit
 
@@ -132,7 +133,7 @@ func TestChangelogRun_WithCommit_NoPush(t *testing.T) {
 
 // TestChangelogRun_WithTag_NoPush verifies --tag --no-push commits and tags but pushes neither.
 func TestChangelogRun_WithTag_NoPush(t *testing.T) {
-	mr := testutil.NewMockRunner()
+	mr := exectest.NewMockRunner()
 	mr.QueueResponse("", "", nil) // git add
 	mr.QueueResponse("", "", nil) // git commit
 	mr.QueueResponse("", "", nil) // git tag
@@ -160,7 +161,7 @@ func TestChangelogRun_WithTag_NoPush(t *testing.T) {
 
 // TestChangelogRun_TagWithoutChangelog_NoPush verifies tag-only with --no-push tags but does not push.
 func TestChangelogRun_TagWithoutChangelog_NoPush(t *testing.T) {
-	mr := testutil.NewMockRunner()
+	mr := exectest.NewMockRunner()
 	mr.QueueResponse("", "", nil) // git tag
 
 	cfg := &pipeline.ChangelogConfig{
@@ -177,7 +178,7 @@ func TestChangelogRun_TagWithoutChangelog_NoPush(t *testing.T) {
 
 // TestChangelogRun_DryRun verifies no git mutations or generator calls in dry-run.
 func TestChangelogRun_DryRun(t *testing.T) {
-	mr := testutil.NewMockRunner()
+	mr := exectest.NewMockRunner()
 	gen := &testutil.MockGenerator{}
 
 	cfg := &pipeline.ChangelogConfig{
@@ -198,7 +199,7 @@ func TestChangelogRun_DryRun(t *testing.T) {
 
 // TestChangelogRun_DisabledChangelog exits 0 with an info message; no generate or git ops.
 func TestChangelogRun_DisabledChangelog(t *testing.T) {
-	mr := testutil.NewMockRunner()
+	mr := exectest.NewMockRunner()
 	gen := &testutil.MockGenerator{}
 
 	cfg := &pipeline.ChangelogConfig{
@@ -218,7 +219,7 @@ func TestChangelogRun_DisabledChangelog(t *testing.T) {
 
 // TestChangelogRun_AnnotatedTag verifies git tag -a is used when AnnotatedTags is true.
 func TestChangelogRun_AnnotatedTag(t *testing.T) {
-	mr := testutil.NewMockRunner()
+	mr := exectest.NewMockRunner()
 	mr.QueueResponse("", "", nil) // git tag
 	mr.QueueResponse("", "", nil) // git push --tags
 
@@ -237,7 +238,7 @@ func TestChangelogRun_AnnotatedTag(t *testing.T) {
 
 // TestChangelogRun_AnnotatedTagCustomMessage verifies the annotation reuses the commit_message template.
 func TestChangelogRun_AnnotatedTagCustomMessage(t *testing.T) {
-	mr := testutil.NewMockRunner()
+	mr := exectest.NewMockRunner()
 	mr.QueueResponse("", "", nil) // git tag
 	mr.QueueResponse("", "", nil) // git push --tags
 
@@ -255,7 +256,7 @@ func TestChangelogRun_AnnotatedTagCustomMessage(t *testing.T) {
 
 // TestChangelogRun_SignedTag verifies SignTags:true produces "git tag -s <tag> -m <msg>".
 func TestChangelogRun_SignedTag(t *testing.T) {
-	mr := testutil.NewMockRunner()
+	mr := exectest.NewMockRunner()
 	mr.QueueResponse("", "", nil) // git tag -s
 	mr.QueueResponse("", "", nil) // git push --tags
 
@@ -275,7 +276,7 @@ func TestChangelogRun_SignedTag(t *testing.T) {
 
 // TestChangelogRun_ResolverError propagates resolver failures.
 func TestChangelogRun_ResolverError(t *testing.T) {
-	mr := testutil.NewMockRunner()
+	mr := exectest.NewMockRunner()
 	cfg := &pipeline.ChangelogConfig{}
 
 	p := pipeline.NewChangelog(mr, &fakeResolver{err: errors.New("no commits since last tag")}, cfg, &bytes.Buffer{}, false)
@@ -286,7 +287,7 @@ func TestChangelogRun_ResolverError(t *testing.T) {
 
 // TestChangelogRun_DefaultCommitMessage verifies the default commit message contains the version.
 func TestChangelogRun_DefaultCommitMessage(t *testing.T) {
-	mr := testutil.NewMockRunner()
+	mr := exectest.NewMockRunner()
 	mr.QueueResponse("", "", nil) // git add
 	mr.QueueResponse("", "", nil) // git commit
 	mr.QueueResponse("", "", nil) // git push
@@ -310,7 +311,7 @@ func TestChangelogRun_DefaultCommitMessage(t *testing.T) {
 
 // TestChangelogRun_CustomCommitMessage verifies commit message template substitution.
 func TestChangelogRun_CustomCommitMessage(t *testing.T) {
-	mr := testutil.NewMockRunner()
+	mr := exectest.NewMockRunner()
 	mr.QueueResponse("", "", nil) // git add
 	mr.QueueResponse("", "", nil) // git commit
 	mr.QueueResponse("", "", nil) // git push
@@ -333,7 +334,7 @@ func TestChangelogRun_CustomCommitMessage(t *testing.T) {
 // TestChangelogRun_DisabledChangelog_WithTag verifies that when DisableChangelog is true
 // but Tag is also true, changelog generation is skipped but the tag is still created.
 func TestChangelogRun_DisabledChangelog_WithTag(t *testing.T) {
-	mr := testutil.NewMockRunner()
+	mr := exectest.NewMockRunner()
 	mr.QueueResponse("", "", nil) // git tag
 	mr.QueueResponse("", "", nil) // git push --tags
 
@@ -359,7 +360,7 @@ func TestChangelogRun_DisabledChangelog_WithTag(t *testing.T) {
 
 // TestChangelogRun_GitAddError propagates git add failures.
 func TestChangelogRun_GitAddError(t *testing.T) {
-	mr := testutil.NewMockRunner()
+	mr := exectest.NewMockRunner()
 	mr.QueueResponse("", "", errors.New("not a git repo")) // git add fails
 
 	gen := &testutil.MockGenerator{}
@@ -378,7 +379,7 @@ func TestChangelogRun_GitAddError(t *testing.T) {
 
 // TestChangelogRun_GitCommitError propagates git commit failures.
 func TestChangelogRun_GitCommitError(t *testing.T) {
-	mr := testutil.NewMockRunner()
+	mr := exectest.NewMockRunner()
 	mr.QueueResponse("", "", nil)                             // git add OK
 	mr.QueueResponse("", "", errors.New("nothing to commit")) // git commit fails
 
@@ -398,7 +399,7 @@ func TestChangelogRun_GitCommitError(t *testing.T) {
 
 // TestChangelogRun_GitPushError propagates git push failures.
 func TestChangelogRun_GitPushError(t *testing.T) {
-	mr := testutil.NewMockRunner()
+	mr := exectest.NewMockRunner()
 	mr.QueueResponse("", "", nil)                         // git add OK
 	mr.QueueResponse("", "", nil)                         // git commit OK
 	mr.QueueResponse("", "", errors.New("push rejected")) // git push fails
@@ -419,7 +420,7 @@ func TestChangelogRun_GitPushError(t *testing.T) {
 
 // TestChangelogRun_DefaultChangelogFile verifies "CHANGELOG.md" is used when ChangelogFile is empty.
 func TestChangelogRun_DefaultChangelogFile(t *testing.T) {
-	mr := testutil.NewMockRunner()
+	mr := exectest.NewMockRunner()
 	mr.QueueResponse("", "", nil) // git add
 	mr.QueueResponse("", "", nil) // git commit
 	mr.QueueResponse("", "", nil) // git push

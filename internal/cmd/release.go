@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"regexp"
 
-	execadapter "github.com/adaouat/heraut/internal/adapter/exec"
+	execadapter "github.com/adaouat/forge/exec"
 	"github.com/adaouat/heraut/internal/app"
 	"github.com/adaouat/heraut/internal/config"
 	"github.com/adaouat/heraut/internal/exitcode"

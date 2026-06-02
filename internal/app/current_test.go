@@ -4,9 +4,9 @@ import (
 	"errors"
 	"testing"
 
+	"github.com/adaouat/forge/exec/exectest"
 	"github.com/adaouat/heraut/internal/app"
 	"github.com/adaouat/heraut/internal/config"
-	"github.com/adaouat/heraut/internal/testutil"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -14,7 +14,7 @@ import (
 func strPtr(s string) *string { return &s }
 
 func TestCurrentTag_Semver(t *testing.T) {
-	mr := testutil.NewMockRunner()
+	mr := exectest.NewMockRunner()
 	mr.QueueResponse("v1.2.3\nv1.2.2\n", "", nil)
 
 	cfg := &config.Config{
@@ -29,7 +29,7 @@ func TestCurrentTag_Semver(t *testing.T) {
 }
 
 func TestCurrentTag_Calver(t *testing.T) {
-	mr := testutil.NewMockRunner()
+	mr := exectest.NewMockRunner()
 	mr.QueueResponse("2026.05.1\n", "", nil)
 
 	empty := ""
@@ -42,7 +42,7 @@ func TestCurrentTag_Calver(t *testing.T) {
 }
 
 func TestCurrentTag_SemverPerEnv(t *testing.T) {
-	mr := testutil.NewMockRunner()
+	mr := exectest.NewMockRunner()
 	mr.QueueResponse("prod/1.2.3\nprod/1.2.2\n", "", nil)
 
 	cfg := &config.Config{
@@ -65,7 +65,7 @@ func TestCurrentTag_PerEnvCommonTagFormat(t *testing.T) {
 	// Bug T54: with a top-level tag_format and no per-env override, the glob
 	// must still resolve. Previously currentTagGlob read envCfg.TagFormat directly,
 	// which was empty here, producing "tag format must contain {version}".
-	mr := testutil.NewMockRunner()
+	mr := exectest.NewMockRunner()
 	mr.QueueResponse("uat/7.4.1-158404\nuat/7.4.0-155391\n", "", nil)
 
 	cfg := &config.Config{
@@ -84,7 +84,7 @@ func TestCurrentTag_PerEnvCommonTagFormat(t *testing.T) {
 }
 
 func TestCurrentTag_PerEnvMissingEnvArg(t *testing.T) {
-	mr := testutil.NewMockRunner()
+	mr := exectest.NewMockRunner()
 	cfg := &config.Config{
 		Versioning: config.Versioning{Strategy: "semver-per-env"},
 	}
@@ -94,7 +94,7 @@ func TestCurrentTag_PerEnvMissingEnvArg(t *testing.T) {
 }
 
 func TestCurrentTag_NoTags(t *testing.T) {
-	mr := testutil.NewMockRunner()
+	mr := exectest.NewMockRunner()
 	mr.QueueResponse("", "", nil)
 
 	cfg := &config.Config{
@@ -106,7 +106,7 @@ func TestCurrentTag_NoTags(t *testing.T) {
 }
 
 func TestCurrentTag_GitError(t *testing.T) {
-	mr := testutil.NewMockRunner()
+	mr := exectest.NewMockRunner()
 	mr.QueueResponse("", "", errors.New("not a git repo"))
 
 	cfg := &config.Config{
@@ -118,7 +118,7 @@ func TestCurrentTag_GitError(t *testing.T) {
 }
 
 func TestCurrentTag_UnknownStrategy(t *testing.T) {
-	mr := testutil.NewMockRunner()
+	mr := exectest.NewMockRunner()
 	cfg := &config.Config{
 		Versioning: config.Versioning{Strategy: "unknown"},
 	}
@@ -128,7 +128,7 @@ func TestCurrentTag_UnknownStrategy(t *testing.T) {
 }
 
 func TestCurrentVersion_SemverStripsPrefix(t *testing.T) {
-	mr := testutil.NewMockRunner()
+	mr := exectest.NewMockRunner()
 	mr.QueueResponse("v1.2.3\nv1.2.2\n", "", nil)
 
 	cfg := &config.Config{
@@ -140,7 +140,7 @@ func TestCurrentVersion_SemverStripsPrefix(t *testing.T) {
 }
 
 func TestCurrentVersion_SemverDefaultPrefix(t *testing.T) {
-	mr := testutil.NewMockRunner()
+	mr := exectest.NewMockRunner()
 	mr.QueueResponse("v9.0.0\n", "", nil)
 
 	// No TagPrefix set → semver defaults to "v".
@@ -153,7 +153,7 @@ func TestCurrentVersion_SemverDefaultPrefix(t *testing.T) {
 }
 
 func TestCurrentVersion_CalverStripsPrefix(t *testing.T) {
-	mr := testutil.NewMockRunner()
+	mr := exectest.NewMockRunner()
 	mr.QueueResponse("rel-2026.05.1\n", "", nil)
 
 	cfg := &config.Config{
@@ -165,7 +165,7 @@ func TestCurrentVersion_CalverStripsPrefix(t *testing.T) {
 }
 
 func TestCurrentVersion_PerEnvBuildFormat(t *testing.T) {
-	mr := testutil.NewMockRunner()
+	mr := exectest.NewMockRunner()
 	mr.QueueResponse("main/7.4.1-158404\nmain/7.4.0-155398\n", "", nil)
 
 	cfg := &config.Config{
@@ -183,7 +183,7 @@ func TestCurrentVersion_PerEnvBuildFormat(t *testing.T) {
 }
 
 func TestCurrentVersion_PropagatesCurrentTagError(t *testing.T) {
-	mr := testutil.NewMockRunner()
+	mr := exectest.NewMockRunner()
 	mr.QueueResponse("", "", nil) // no tags
 
 	cfg := &config.Config{
@@ -195,7 +195,7 @@ func TestCurrentVersion_PropagatesCurrentTagError(t *testing.T) {
 }
 
 func TestCurrentVersion_UnknownStrategy(t *testing.T) {
-	mr := testutil.NewMockRunner()
+	mr := exectest.NewMockRunner()
 	mr.QueueResponse("x\n", "", nil)
 
 	cfg := &config.Config{

@@ -4,8 +4,8 @@ import (
 	"errors"
 	"testing"
 
+	"github.com/adaouat/forge/exec/exectest"
 	"github.com/adaouat/heraut/internal/config"
-	"github.com/adaouat/heraut/internal/testutil"
 	"github.com/adaouat/heraut/internal/versioning"
 	"github.com/adaouat/heraut/internal/versioning/semver"
 	"github.com/stretchr/testify/assert"
@@ -15,7 +15,7 @@ import (
 func strPtr(s string) *string { return &s }
 
 func TestResolve_InitialVersion(t *testing.T) {
-	mr := testutil.NewMockRunner()
+	mr := exectest.NewMockRunner()
 	// git tag -l returns empty (no tags)
 	mr.QueueResponse("", "", nil)
 
@@ -42,7 +42,7 @@ func TestResolve_InitialVersion(t *testing.T) {
 }
 
 func TestResolve_InitialVersionDefault(t *testing.T) {
-	mr := testutil.NewMockRunner()
+	mr := exectest.NewMockRunner()
 	mr.QueueResponse("", "", nil)
 
 	cfg := &config.Config{
@@ -57,7 +57,7 @@ func TestResolve_InitialVersionDefault(t *testing.T) {
 }
 
 func TestResolve_NoPrefixInitial(t *testing.T) {
-	mr := testutil.NewMockRunner()
+	mr := exectest.NewMockRunner()
 	mr.QueueResponse("", "", nil)
 
 	empty := ""
@@ -79,7 +79,7 @@ func TestResolve_NoPrefixInitial(t *testing.T) {
 }
 
 func TestResolve_BumpMinor(t *testing.T) {
-	mr := testutil.NewMockRunner()
+	mr := exectest.NewMockRunner()
 	// git tag -l returns current tags
 	mr.QueueResponse("v1.2.3\nv1.2.2\nv1.0.0\n", "", nil)
 	// git log returns commits (null-byte separated full messages)
@@ -106,7 +106,7 @@ func TestResolve_BumpMinor(t *testing.T) {
 }
 
 func TestResolve_BumpMajor_Breaking(t *testing.T) {
-	mr := testutil.NewMockRunner()
+	mr := exectest.NewMockRunner()
 	mr.QueueResponse("v2.0.0\n", "", nil)
 	mr.QueueResponse("feat!: breaking change\x00feat: add feature\x00", "", nil)
 
@@ -123,7 +123,7 @@ func TestResolve_BumpMajor_Breaking(t *testing.T) {
 }
 
 func TestResolve_BumpPatch_FixOnly(t *testing.T) {
-	mr := testutil.NewMockRunner()
+	mr := exectest.NewMockRunner()
 	mr.QueueResponse("v1.0.0\n", "", nil)
 	mr.QueueResponse("fix: correct typo\x00chore: update deps\x00", "", nil)
 
@@ -140,7 +140,7 @@ func TestResolve_BumpPatch_FixOnly(t *testing.T) {
 }
 
 func TestResolve_BumpPatch_FallbackChoreOnly(t *testing.T) {
-	mr := testutil.NewMockRunner()
+	mr := exectest.NewMockRunner()
 	mr.QueueResponse("v1.5.0\n", "", nil)
 	mr.QueueResponse("chore: update deps\x00docs: improve readme\x00", "", nil)
 
@@ -157,7 +157,7 @@ func TestResolve_BumpPatch_FallbackChoreOnly(t *testing.T) {
 }
 
 func TestResolve_NoCommitsSinceTag_Error(t *testing.T) {
-	mr := testutil.NewMockRunner()
+	mr := exectest.NewMockRunner()
 	mr.QueueResponse("v1.0.0\n", "", nil)
 	mr.QueueResponse("", "", nil) // no commits (empty output)
 
@@ -172,7 +172,7 @@ func TestResolve_NoCommitsSinceTag_Error(t *testing.T) {
 }
 
 func TestResolve_ManualMode_NoOverride_Error(t *testing.T) {
-	mr := testutil.NewMockRunner()
+	mr := exectest.NewMockRunner()
 
 	cfg := &config.Config{
 		Versioning: config.Versioning{
@@ -190,7 +190,7 @@ func TestResolve_ManualMode_NoOverride_Error(t *testing.T) {
 }
 
 func TestResolve_ManualMode_WithOverride(t *testing.T) {
-	mr := testutil.NewMockRunner()
+	mr := exectest.NewMockRunner()
 
 	cfg := &config.Config{
 		Versioning: config.Versioning{
@@ -215,7 +215,7 @@ func TestResolve_ManualMode_WithOverride(t *testing.T) {
 // bare version ("2.5.0") — the prefix is stripped before building the tag so
 // piping `heraut version next` into `--version` doesn't double the prefix.
 func TestResolve_ManualMode_WithPrefixedOverride(t *testing.T) {
-	mr := testutil.NewMockRunner()
+	mr := exectest.NewMockRunner()
 
 	cfg := &config.Config{
 		Versioning: config.Versioning{
@@ -237,7 +237,7 @@ func TestResolve_ManualMode_WithPrefixedOverride(t *testing.T) {
 
 // TestResolve_AutoMode_WithPrefixedOverride verifies the same stripping for bump:auto.
 func TestResolve_AutoMode_WithPrefixedOverride(t *testing.T) {
-	mr := testutil.NewMockRunner()
+	mr := exectest.NewMockRunner()
 
 	cfg := &config.Config{
 		Versioning: config.Versioning{
@@ -261,7 +261,7 @@ func TestResolve_AutoMode_WithPrefixedOverride(t *testing.T) {
 // when bump is "auto" — the override must short-circuit the auto resolution path so
 // callers can pin a specific version via --version without switching to bump: manual.
 func TestResolve_AutoMode_WithOverride(t *testing.T) {
-	mr := testutil.NewMockRunner()
+	mr := exectest.NewMockRunner()
 	// No git calls should be made when an override is set.
 
 	cfg := &config.Config{
@@ -285,7 +285,7 @@ func TestResolve_AutoMode_WithOverride(t *testing.T) {
 }
 
 func TestResolve_BreakingChange_Footer(t *testing.T) {
-	mr := testutil.NewMockRunner()
+	mr := exectest.NewMockRunner()
 	mr.QueueResponse("v1.0.0\n", "", nil)
 	// Full commit body with BREAKING CHANGE footer, null-byte separated
 	mr.QueueResponse("fix: something\n\nBREAKING CHANGE: removed API\n\x00", "", nil)
@@ -303,7 +303,7 @@ func TestResolve_BreakingChange_Footer(t *testing.T) {
 }
 
 func TestResolve_Minor_Before_Patch_Priority(t *testing.T) {
-	mr := testutil.NewMockRunner()
+	mr := exectest.NewMockRunner()
 	mr.QueueResponse("v0.5.0\n", "", nil)
 	// mix of fix and feat — feat wins → minor
 	mr.QueueResponse("fix: a bug\x00feat: new thing\x00fix: another bug\x00", "", nil)
@@ -424,7 +424,7 @@ func TestBumpVersion_InvalidFormat(t *testing.T) {
 }
 
 func TestResolve_GitTagListError(t *testing.T) {
-	mr := testutil.NewMockRunner()
+	mr := exectest.NewMockRunner()
 	mr.QueueResponse("", "", errors.New("not a git repo"))
 
 	cfg := &config.Config{
@@ -438,7 +438,7 @@ func TestResolve_GitTagListError(t *testing.T) {
 }
 
 func TestResolve_GitLogError(t *testing.T) {
-	mr := testutil.NewMockRunner()
+	mr := exectest.NewMockRunner()
 	mr.QueueResponse("v1.2.3\n", "", nil)                  // git tag -l succeeds
 	mr.QueueResponse("", "", errors.New("git log failed")) // git log fails
 

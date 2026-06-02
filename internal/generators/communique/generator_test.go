@@ -6,15 +6,15 @@ import (
 	"path/filepath"
 	"testing"
 
+	"github.com/adaouat/forge/exec/exectest"
 	"github.com/adaouat/heraut/internal/config"
 	"github.com/adaouat/heraut/internal/generators/communique"
-	"github.com/adaouat/heraut/internal/testutil"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
 func TestCheck_BinaryMissing(t *testing.T) {
-	mr := testutil.NewMockRunner()
+	mr := exectest.NewMockRunner()
 	mr.QueueResponse("", "communique: command not found", errors.New("exit status 127"))
 
 	cfg := &config.ContentDriver{Generator: "communique"}
@@ -26,7 +26,7 @@ func TestCheck_BinaryMissing(t *testing.T) {
 }
 
 func TestCheck_BinaryPresent(t *testing.T) {
-	mr := testutil.NewMockRunner()
+	mr := exectest.NewMockRunner()
 	mr.QueueResponse("communique 1.0.0", "", nil)
 
 	cfg := &config.ContentDriver{Generator: "communique"}
@@ -39,7 +39,7 @@ func TestCheck_BinaryPresent(t *testing.T) {
 }
 
 func TestValidate_NoConfig_Error(t *testing.T) {
-	mr := testutil.NewMockRunner()
+	mr := exectest.NewMockRunner()
 	cfg := &config.ContentDriver{Generator: "communique"}
 	gen := communique.New(mr, cfg)
 
@@ -49,7 +49,7 @@ func TestValidate_NoConfig_Error(t *testing.T) {
 }
 
 func TestValidate_ConfigFileMissing(t *testing.T) {
-	mr := testutil.NewMockRunner()
+	mr := exectest.NewMockRunner()
 	cfg := &config.ContentDriver{Generator: "communique", Config: "/nonexistent/communique.yml"}
 	gen := communique.New(mr, cfg)
 
@@ -63,7 +63,7 @@ func TestValidate_ConfigFileExists(t *testing.T) {
 	cfgPath := filepath.Join(tmp, "communique.yml")
 	require.NoError(t, os.WriteFile(cfgPath, []byte("version: 1\n"), 0o600))
 
-	mr := testutil.NewMockRunner()
+	mr := exectest.NewMockRunner()
 	cfg := &config.ContentDriver{Generator: "communique", Config: cfgPath}
 	gen := communique.New(mr, cfg)
 
@@ -76,7 +76,7 @@ func TestGenerate_ExactArgs(t *testing.T) {
 	cfgPath := filepath.Join(tmp, "communique.yml")
 	require.NoError(t, os.WriteFile(cfgPath, []byte("version: 1\n"), 0o600))
 
-	mr := testutil.NewMockRunner()
+	mr := exectest.NewMockRunner()
 	mr.QueueResponse("## Changelog\n- feat: add thing\n", "", nil)
 
 	cfg := &config.ContentDriver{Generator: "communique", Config: cfgPath}
@@ -97,7 +97,7 @@ func TestGenerate_RunnerError(t *testing.T) {
 	cfgPath := filepath.Join(tmp, "communique.yml")
 	require.NoError(t, os.WriteFile(cfgPath, []byte("version: 1\n"), 0o600))
 
-	mr := testutil.NewMockRunner()
+	mr := exectest.NewMockRunner()
 	mr.QueueResponse("", "error: bad config", errors.New("exit status 1"))
 
 	cfg := &config.ContentDriver{Generator: "communique", Config: cfgPath}

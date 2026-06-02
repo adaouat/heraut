@@ -3,9 +3,9 @@ package app_test
 import (
 	"testing"
 
+	"github.com/adaouat/forge/exec/exectest"
 	"github.com/adaouat/heraut/internal/app"
 	"github.com/adaouat/heraut/internal/config"
-	"github.com/adaouat/heraut/internal/testutil"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -25,21 +25,21 @@ func calverCfg() *config.Config {
 }
 
 func TestNewResolver_Semver(t *testing.T) {
-	mr := testutil.NewMockRunner()
+	mr := exectest.NewMockRunner()
 	r, err := app.NewResolver(semverCfg(), "", false, "", "", mr)
 	require.NoError(t, err)
 	assert.NotNil(t, r)
 }
 
 func TestNewResolver_Calver(t *testing.T) {
-	mr := testutil.NewMockRunner()
+	mr := exectest.NewMockRunner()
 	r, err := app.NewResolver(calverCfg(), "", false, "", "", mr)
 	require.NoError(t, err)
 	assert.NotNil(t, r)
 }
 
 func TestNewResolver_SemverPerEnv(t *testing.T) {
-	mr := testutil.NewMockRunner()
+	mr := exectest.NewMockRunner()
 	cfg := &config.Config{
 		Version: "1",
 		Versioning: config.Versioning{
@@ -55,7 +55,7 @@ func TestNewResolver_SemverPerEnv(t *testing.T) {
 }
 
 func TestNewResolver_CalverPerEnv(t *testing.T) {
-	mr := testutil.NewMockRunner()
+	mr := exectest.NewMockRunner()
 	cfg := &config.Config{
 		Version: "1",
 		Versioning: config.Versioning{
@@ -72,7 +72,7 @@ func TestNewResolver_CalverPerEnv(t *testing.T) {
 }
 
 func TestNewResolver_UnknownStrategy(t *testing.T) {
-	mr := testutil.NewMockRunner()
+	mr := exectest.NewMockRunner()
 	cfg := &config.Config{
 		Versioning: config.Versioning{Strategy: "unknown-strategy"},
 	}
@@ -82,7 +82,7 @@ func TestNewResolver_UnknownStrategy(t *testing.T) {
 }
 
 func TestNewResolver_VersionOverride_Semver(t *testing.T) {
-	mr := testutil.NewMockRunner()
+	mr := exectest.NewMockRunner()
 	r, err := app.NewResolver(semverCfg(), "", false, "v2.0.0", "", mr)
 	require.NoError(t, err)
 
@@ -94,7 +94,7 @@ func TestNewResolver_VersionOverride_Semver(t *testing.T) {
 }
 
 func TestNewResolver_VersionOverride_Calver(t *testing.T) {
-	mr := testutil.NewMockRunner()
+	mr := exectest.NewMockRunner()
 	r, err := app.NewResolver(calverCfg(), "", false, "2026.05.3", "", mr)
 	require.NoError(t, err)
 
@@ -105,7 +105,7 @@ func TestNewResolver_VersionOverride_Calver(t *testing.T) {
 }
 
 func TestNewResolver_VersionOverride_SemverPerEnv(t *testing.T) {
-	mr := testutil.NewMockRunner()
+	mr := exectest.NewMockRunner()
 	cfg := &config.Config{
 		Version:    "1",
 		Versioning: config.Versioning{Strategy: "semver-per-env"},
@@ -123,7 +123,7 @@ func TestNewResolver_VersionOverride_SemverPerEnv(t *testing.T) {
 }
 
 func TestNewResolver_BuildID_RendersTag(t *testing.T) {
-	mr := testutil.NewMockRunner()
+	mr := exectest.NewMockRunner()
 	cfg := &config.Config{
 		Version: "1",
 		Versioning: config.Versioning{
@@ -145,7 +145,7 @@ func TestNewResolver_BuildID_RendersTag(t *testing.T) {
 }
 
 func TestNewResolver_BuildID_UsesEnvTagFormatOverride(t *testing.T) {
-	mr := testutil.NewMockRunner()
+	mr := exectest.NewMockRunner()
 	cfg := &config.Config{
 		Version: "1",
 		Versioning: config.Versioning{
@@ -165,14 +165,14 @@ func TestNewResolver_BuildID_UsesEnvTagFormatOverride(t *testing.T) {
 }
 
 func TestNewResolver_BuildID_RequiresVersion(t *testing.T) {
-	mr := testutil.NewMockRunner()
+	mr := exectest.NewMockRunner()
 	_, err := app.NewResolver(semverCfg(), "", false, "", "158404", mr)
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "--build requires --version")
 }
 
 func TestNewResolver_BuildID_NoBuildToken(t *testing.T) {
-	mr := testutil.NewMockRunner()
+	mr := exectest.NewMockRunner()
 	cfg := &config.Config{
 		Version: "1",
 		Versioning: config.Versioning{
@@ -189,7 +189,7 @@ func TestNewResolver_BuildID_NoBuildToken(t *testing.T) {
 }
 
 func TestNewResolver_BuildID_NoTagFormat(t *testing.T) {
-	mr := testutil.NewMockRunner()
+	mr := exectest.NewMockRunner()
 	_, err := app.NewResolver(semverCfg(), "", false, "7.4.1", "158404", mr)
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "tag_format")

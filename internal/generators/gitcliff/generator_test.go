@@ -7,15 +7,15 @@ import (
 	"slices"
 	"testing"
 
+	"github.com/adaouat/forge/exec/exectest"
 	"github.com/adaouat/heraut/internal/config"
 	"github.com/adaouat/heraut/internal/generators/gitcliff"
-	"github.com/adaouat/heraut/internal/testutil"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
 func TestCheck_BinaryMissing(t *testing.T) {
-	mr := testutil.NewMockRunner()
+	mr := exectest.NewMockRunner()
 	mr.QueueResponse("", "git-cliff: command not found", errors.New("exit status 127"))
 
 	cfg := &config.ContentDriver{Generator: "git-cliff"}
@@ -27,7 +27,7 @@ func TestCheck_BinaryMissing(t *testing.T) {
 }
 
 func TestCheck_BinaryPresent(t *testing.T) {
-	mr := testutil.NewMockRunner()
+	mr := exectest.NewMockRunner()
 	mr.QueueResponse("git-cliff 2.9.0", "", nil)
 
 	cfg := &config.ContentDriver{Generator: "git-cliff"}
@@ -40,7 +40,7 @@ func TestCheck_BinaryPresent(t *testing.T) {
 }
 
 func TestValidate_NoConfig_NoError(t *testing.T) {
-	mr := testutil.NewMockRunner()
+	mr := exectest.NewMockRunner()
 	cfg := &config.ContentDriver{Generator: "git-cliff"}
 	gen := gitcliff.New(mr, cfg, gitcliff.ModeReleaseNotes)
 
@@ -53,7 +53,7 @@ func TestValidate_ConfigFileExists(t *testing.T) {
 	cfgPath := filepath.Join(tmp, "cliff.toml")
 	require.NoError(t, os.WriteFile(cfgPath, []byte("[changelog]\n"), 0o600))
 
-	mr := testutil.NewMockRunner()
+	mr := exectest.NewMockRunner()
 	cfg := &config.ContentDriver{Generator: "git-cliff", Config: cfgPath}
 	gen := gitcliff.New(mr, cfg, gitcliff.ModeReleaseNotes)
 
@@ -61,7 +61,7 @@ func TestValidate_ConfigFileExists(t *testing.T) {
 }
 
 func TestValidate_ConfigFileMissing(t *testing.T) {
-	mr := testutil.NewMockRunner()
+	mr := exectest.NewMockRunner()
 	cfg := &config.ContentDriver{Generator: "git-cliff", Config: "/nonexistent/cliff.toml"}
 	gen := gitcliff.New(mr, cfg, gitcliff.ModeReleaseNotes)
 
@@ -72,7 +72,7 @@ func TestValidate_ConfigFileMissing(t *testing.T) {
 
 // TestGenerate_ReleaseNotes verifies the exact args passed to git-cliff in release-notes mode.
 func TestGenerate_ReleaseNotes(t *testing.T) {
-	mr := testutil.NewMockRunner()
+	mr := exectest.NewMockRunner()
 	mr.QueueResponse("## Features\n- add thing\n", "", nil)
 
 	cfg := &config.ContentDriver{Generator: "git-cliff"}
@@ -98,7 +98,7 @@ func TestGenerate_ReleaseNotes(t *testing.T) {
 
 // TestGenerate_Changelog verifies args in changelog mode (with output file).
 func TestGenerate_Changelog(t *testing.T) {
-	mr := testutil.NewMockRunner()
+	mr := exectest.NewMockRunner()
 	mr.QueueResponse("", "", nil)
 
 	cfg := &config.ContentDriver{Generator: "git-cliff", Output: "CHANGELOG.md"}
@@ -119,7 +119,7 @@ func TestGenerate_Changelog(t *testing.T) {
 
 // TestGenerate_TagPattern verifies --tag-pattern is passed when configured.
 func TestGenerate_TagPattern(t *testing.T) {
-	mr := testutil.NewMockRunner()
+	mr := exectest.NewMockRunner()
 	mr.QueueResponse("notes", "", nil)
 
 	cfg := &config.ContentDriver{Generator: "git-cliff", TagPattern: "dev/*"}
@@ -132,7 +132,7 @@ func TestGenerate_TagPattern(t *testing.T) {
 }
 
 func TestEffectiveChangelogConfig(t *testing.T) {
-	mr := testutil.NewMockRunner()
+	mr := exectest.NewMockRunner()
 	cfg := &config.ContentDriver{Generator: "git-cliff"}
 	gen := gitcliff.New(mr, cfg, gitcliff.ModeChangelog)
 
@@ -143,7 +143,7 @@ func TestEffectiveChangelogConfig(t *testing.T) {
 }
 
 func TestEffectiveReleaseNotesConfig(t *testing.T) {
-	mr := testutil.NewMockRunner()
+	mr := exectest.NewMockRunner()
 	cfg := &config.ContentDriver{Generator: "git-cliff"}
 	gen := gitcliff.New(mr, cfg, gitcliff.ModeReleaseNotes)
 
@@ -157,7 +157,7 @@ func TestEffectiveConfig_WithUserOverride(t *testing.T) {
 	cfgPath := filepath.Join(tmp, "cliff.toml")
 	require.NoError(t, os.WriteFile(cfgPath, []byte("[changelog]\nheader = \"# My App\"\n"), 0o600))
 
-	mr := testutil.NewMockRunner()
+	mr := exectest.NewMockRunner()
 	cfg := &config.ContentDriver{Generator: "git-cliff", Config: cfgPath}
 	gen := gitcliff.New(mr, cfg, gitcliff.ModeChangelog)
 
@@ -169,7 +169,7 @@ func TestEffectiveConfig_WithUserOverride(t *testing.T) {
 }
 
 func TestEffectiveConfig_HeadingPostprocessorInjected(t *testing.T) {
-	mr := testutil.NewMockRunner()
+	mr := exectest.NewMockRunner()
 	cfg := &config.ContentDriver{
 		Generator:             "git-cliff",
 		HeadingVersionPattern: `\[(?:[^/\]]+/)?([0-9]+\.[0-9]+\.[0-9]+)-[0-9]+\]`,
@@ -190,7 +190,7 @@ func TestEffectiveConfig_HeadingPostprocessorPrependsToExisting(t *testing.T) {
 		"[changelog]\npostprocessors = [{pattern = 'foo', replace = 'bar'}]\n",
 	), 0o600))
 
-	mr := testutil.NewMockRunner()
+	mr := exectest.NewMockRunner()
 	cfg := &config.ContentDriver{
 		Generator:             "git-cliff",
 		Config:                cfgPath,
@@ -207,7 +207,7 @@ func TestEffectiveConfig_HeadingPostprocessorPrependsToExisting(t *testing.T) {
 
 // TestCheckCliff_Passes verifies exact args passed to git-cliff for config validation.
 func TestCheckCliff_Passes(t *testing.T) {
-	mr := testutil.NewMockRunner()
+	mr := exectest.NewMockRunner()
 	mr.QueueResponse("", "", nil)
 
 	cfg := &config.ContentDriver{Generator: "git-cliff"}
@@ -224,7 +224,7 @@ func TestCheckCliff_Passes(t *testing.T) {
 
 // TestCheckCliff_Fails verifies error wrapping when git-cliff rejects the config.
 func TestCheckCliff_Fails(t *testing.T) {
-	mr := testutil.NewMockRunner()
+	mr := exectest.NewMockRunner()
 	mr.QueueResponse("", "invalid TOML", errors.New("exit status 1"))
 
 	cfg := &config.ContentDriver{Generator: "git-cliff"}
@@ -237,7 +237,7 @@ func TestCheckCliff_Fails(t *testing.T) {
 
 // TestCheckCliff_ReleaseNotesMode verifies ModeReleaseNotes uses the release-notes base config.
 func TestCheckCliff_ReleaseNotesMode(t *testing.T) {
-	mr := testutil.NewMockRunner()
+	mr := exectest.NewMockRunner()
 	mr.QueueResponse("", "", nil)
 
 	cfg := &config.ContentDriver{Generator: "git-cliff"}

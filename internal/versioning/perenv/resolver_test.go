@@ -6,8 +6,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/adaouat/forge/exec/exectest"
 	"github.com/adaouat/heraut/internal/config"
-	"github.com/adaouat/heraut/internal/testutil"
 	"github.com/adaouat/heraut/internal/versioning/calver"
 	"github.com/adaouat/heraut/internal/versioning/perenv"
 	"github.com/adaouat/heraut/internal/versioning/semver"
@@ -40,7 +40,7 @@ func calverCalc(format string, now func() time.Time) perenv.VersionCalculator {
 // ---- Auto mode: SemVer backend ----
 
 func TestResolve_Auto_Semver_NoTags_InitialVersion(t *testing.T) {
-	mr := testutil.NewMockRunner()
+	mr := exectest.NewMockRunner()
 	mr.QueueResponse("", "", nil) // git tag -l dev/*  → no tags
 
 	cfg := &config.Config{
@@ -66,7 +66,7 @@ func TestResolve_Auto_Semver_NoTags_InitialVersion(t *testing.T) {
 }
 
 func TestResolve_Auto_Semver_BumpMinor(t *testing.T) {
-	mr := testutil.NewMockRunner()
+	mr := exectest.NewMockRunner()
 	mr.QueueResponse("dev/1.2.3\ndev/1.0.0\n", "", nil)
 	mr.QueueResponse("feat: add new endpoint\x00fix: typo\x00", "", nil)
 
@@ -92,7 +92,7 @@ func TestResolve_Auto_Semver_BumpMinor(t *testing.T) {
 }
 
 func TestResolve_Auto_Semver_BumpMajor_Breaking(t *testing.T) {
-	mr := testutil.NewMockRunner()
+	mr := exectest.NewMockRunner()
 	mr.QueueResponse("dev/1.0.0\n", "", nil)
 	mr.QueueResponse("feat!: breaking change\x00", "", nil)
 
@@ -114,7 +114,7 @@ func TestResolve_Auto_Semver_BumpMajor_Breaking(t *testing.T) {
 }
 
 func TestResolve_Auto_Semver_NoCommitsSinceTag_Error(t *testing.T) {
-	mr := testutil.NewMockRunner()
+	mr := exectest.NewMockRunner()
 	mr.QueueResponse("dev/1.0.0\n", "", nil)
 	mr.QueueResponse("", "", nil) // empty git log
 
@@ -135,7 +135,7 @@ func TestResolve_Auto_Semver_NoCommitsSinceTag_Error(t *testing.T) {
 
 // Custom tag format: {version}/dev
 func TestResolve_Auto_Semver_CustomTagFormat(t *testing.T) {
-	mr := testutil.NewMockRunner()
+	mr := exectest.NewMockRunner()
 	mr.QueueResponse("1.0.0/dev\n", "", nil)
 	mr.QueueResponse("fix: bugfix\x00", "", nil)
 
@@ -159,7 +159,7 @@ func TestResolve_Auto_Semver_CustomTagFormat(t *testing.T) {
 // ---- Auto mode: CalVer backend ----
 
 func TestResolve_Auto_Calver_NoTags_FirstRelease(t *testing.T) {
-	mr := testutil.NewMockRunner()
+	mr := exectest.NewMockRunner()
 	mr.QueueResponse("", "", nil) // git tag -l dev/*  → no tags
 
 	cfg := &config.Config{
@@ -186,7 +186,7 @@ func TestResolve_Auto_Calver_NoTags_FirstRelease(t *testing.T) {
 }
 
 func TestResolve_Auto_Calver_SamePeriod_PatchIncrement(t *testing.T) {
-	mr := testutil.NewMockRunner()
+	mr := exectest.NewMockRunner()
 	mr.QueueResponse("dev/2026.05.1\ndev/2026.05.0\n", "", nil)
 
 	cfg := &config.Config{
@@ -209,7 +209,7 @@ func TestResolve_Auto_Calver_SamePeriod_PatchIncrement(t *testing.T) {
 }
 
 func TestResolve_Auto_Calver_NewPeriod_PatchReset(t *testing.T) {
-	mr := testutil.NewMockRunner()
+	mr := exectest.NewMockRunner()
 	mr.QueueResponse("dev/2026.04.5\n", "", nil)
 
 	cfg := &config.Config{
@@ -273,15 +273,15 @@ var promoteBackends = []struct {
 func TestResolve_Promote_HappyPath(t *testing.T) {
 	for _, b := range promoteBackends {
 		t.Run(b.name, func(t *testing.T) {
-			mr := testutil.NewMockRunner()
+			mr := exectest.NewMockRunner()
 			mr.QueueResponse(b.srcTag+"\n", "", nil) // git tag -l dev/*
-			mr.QueueResponse("", "", nil)             // git tag -l <candidateTag> → does not exist
-			mr.QueueResponse("", "", nil)             // git tag -l prod/* → no dest tags yet
+			mr.QueueResponse("", "", nil)            // git tag -l <candidateTag> → does not exist
+			mr.QueueResponse("", "", nil)            // git tag -l prod/* → no dest tags yet
 
 			cfg := &config.Config{
 				Versioning: config.Versioning{
-					Strategy:     b.strategy,
-					Format:       "YYYY.MM.PATCH",
+					Strategy: b.strategy,
+					Format:   "YYYY.MM.PATCH",
 				},
 				Environments: b.envs,
 			}
@@ -300,14 +300,14 @@ func TestResolve_Promote_HappyPath(t *testing.T) {
 func TestResolve_Promote_E001_NoForce(t *testing.T) {
 	for _, b := range promoteBackends {
 		t.Run(b.name, func(t *testing.T) {
-			mr := testutil.NewMockRunner()
+			mr := exectest.NewMockRunner()
 			mr.QueueResponse(b.srcTag+"\n", "", nil) // git tag -l dev/*
 			mr.QueueResponse(b.dstTag+"\n", "", nil) // git tag -l <candidateTag> → exists!
 
 			cfg := &config.Config{
 				Versioning: config.Versioning{
-					Strategy:     b.strategy,
-					Format:       "YYYY.MM.PATCH",
+					Strategy: b.strategy,
+					Format:   "YYYY.MM.PATCH",
 				},
 				Environments: b.envs,
 			}
@@ -323,15 +323,15 @@ func TestResolve_Promote_E001_NoForce(t *testing.T) {
 func TestResolve_Promote_E001_Force_Bypasses(t *testing.T) {
 	for _, b := range promoteBackends {
 		t.Run(b.name, func(t *testing.T) {
-			mr := testutil.NewMockRunner()
+			mr := exectest.NewMockRunner()
 			mr.QueueResponse(b.srcTag+"\n", "", nil) // git tag -l dev/*
 			mr.QueueResponse(b.dstTag+"\n", "", nil) // git tag -l <candidateTag> → exists
-			mr.QueueResponse("", "", nil)             // git tag -l prod/* → some dest tags
+			mr.QueueResponse("", "", nil)            // git tag -l prod/* → some dest tags
 
 			cfg := &config.Config{
 				Versioning: config.Versioning{
-					Strategy:     b.strategy,
-					Format:       "YYYY.MM.PATCH",
+					Strategy: b.strategy,
+					Format:   "YYYY.MM.PATCH",
 				},
 				Environments: b.envs,
 			}
@@ -381,15 +381,15 @@ func TestResolve_Promote_E002_NoForce(t *testing.T) {
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			mr := testutil.NewMockRunner()
-			mr.QueueResponse(tc.srcTag+"\n", "", nil)  // git tag -l dev/* → src
+			mr := exectest.NewMockRunner()
+			mr.QueueResponse(tc.srcTag+"\n", "", nil)   // git tag -l dev/* → src
 			mr.QueueResponse("", "", nil)               // git tag -l <candidateTag> → not exist
 			mr.QueueResponse(tc.aheadTag+"\n", "", nil) // git tag -l prod/* → dest is ahead
 
 			cfg := &config.Config{
 				Versioning: config.Versioning{
-					Strategy:     tc.strategy,
-					Format:       "YYYY.MM.PATCH",
+					Strategy: tc.strategy,
+					Format:   "YYYY.MM.PATCH",
 				},
 				Environments: tc.envs,
 			}
@@ -403,8 +403,8 @@ func TestResolve_Promote_E002_NoForce(t *testing.T) {
 }
 
 func TestResolve_Promote_E002_Force_Bypasses(t *testing.T) {
-	mr := testutil.NewMockRunner()
-	mr.QueueResponse("dev/1.2.3\n", "", nil) // git tag -l dev/*
+	mr := exectest.NewMockRunner()
+	mr.QueueResponse("dev/1.2.3\n", "", nil)  // git tag -l dev/*
 	mr.QueueResponse("", "", nil)             // git tag -l prod/1.2.3 → not exist
 	mr.QueueResponse("prod/1.2.4\n", "", nil) // git tag -l prod/* → dest is ahead
 
@@ -427,13 +427,13 @@ func TestResolve_Promote_E002_Force_Bypasses(t *testing.T) {
 func TestResolve_Promote_E003_NoSourceTags(t *testing.T) {
 	for _, b := range promoteBackends {
 		t.Run(b.name, func(t *testing.T) {
-			mr := testutil.NewMockRunner()
+			mr := exectest.NewMockRunner()
 			mr.QueueResponse("", "", nil) // git tag -l dev/* → no source tags
 
 			cfg := &config.Config{
 				Versioning: config.Versioning{
-					Strategy:     b.strategy,
-					Format:       "YYYY.MM.PATCH",
+					Strategy: b.strategy,
+					Format:   "YYYY.MM.PATCH",
 				},
 				Environments: b.envs,
 			}
@@ -450,8 +450,8 @@ func TestResolve_Promote_E003_NoSourceTags(t *testing.T) {
 // ---- Rich promotion error messages (T30 / ADR-0007) ----
 
 func TestPromotionError_E001_RichMessage(t *testing.T) {
-	mr := testutil.NewMockRunner()
-	mr.QueueResponse("dev/1.0.2\n", "", nil) // git tag -l dev/*
+	mr := exectest.NewMockRunner()
+	mr.QueueResponse("dev/1.0.2\n", "", nil)  // git tag -l dev/*
 	mr.QueueResponse("prod/1.0.2\n", "", nil) // git tag -l prod/1.0.2 → already exists
 
 	cfg := &config.Config{
@@ -482,10 +482,10 @@ func TestPromotionError_E001_RichMessage(t *testing.T) {
 }
 
 func TestPromotionError_E002_RichMessage(t *testing.T) {
-	mr := testutil.NewMockRunner()
+	mr := exectest.NewMockRunner()
 	mr.QueueResponse("dev/1.0.2\n", "", nil)  // git tag -l dev/*
-	mr.QueueResponse("", "", nil)              // git tag -l prod/1.0.2 → not exist
-	mr.QueueResponse("prod/1.0.3\n", "", nil)  // git tag -l prod/* → dest is ahead
+	mr.QueueResponse("", "", nil)             // git tag -l prod/1.0.2 → not exist
+	mr.QueueResponse("prod/1.0.3\n", "", nil) // git tag -l prod/* → dest is ahead
 
 	cfg := &config.Config{
 		Versioning: config.Versioning{
@@ -515,7 +515,7 @@ func TestPromotionError_E002_RichMessage(t *testing.T) {
 }
 
 func TestPromotionError_E003_RichMessage(t *testing.T) {
-	mr := testutil.NewMockRunner()
+	mr := exectest.NewMockRunner()
 	mr.QueueResponse("", "", nil) // git tag -l dev/* → no source tags
 
 	cfg := &config.Config{
@@ -547,11 +547,11 @@ func TestPromotionError_E003_RichMessage(t *testing.T) {
 // ---- source: field resolution ----
 
 func TestResolve_Source_Explicit_Override(t *testing.T) {
-	mr := testutil.NewMockRunner()
+	mr := exectest.NewMockRunner()
 	// preprod is explicit source for prod; preprod has auto tags
 	mr.QueueResponse("preprod/1.5.0\n", "", nil) // git tag -l preprod/*
-	mr.QueueResponse("", "", nil)                 // git tag -l prod/1.5.0 → not exist
-	mr.QueueResponse("", "", nil)                 // git tag -l prod/* → no dest tags
+	mr.QueueResponse("", "", nil)                // git tag -l prod/1.5.0 → not exist
+	mr.QueueResponse("", "", nil)                // git tag -l prod/* → no dest tags
 
 	cfg := &config.Config{
 		Versioning: config.Versioning{
@@ -575,10 +575,10 @@ func TestResolve_Source_Explicit_Override(t *testing.T) {
 }
 
 func TestResolve_Source_Default_SingleAutoEnv(t *testing.T) {
-	mr := testutil.NewMockRunner()
+	mr := exectest.NewMockRunner()
 	mr.QueueResponse("dev/2.0.0\n", "", nil) // git tag -l dev/*
-	mr.QueueResponse("", "", nil)             // git tag -l prod/2.0.0 → not exist
-	mr.QueueResponse("", "", nil)             // git tag -l prod/* → no dest tags
+	mr.QueueResponse("", "", nil)            // git tag -l prod/2.0.0 → not exist
+	mr.QueueResponse("", "", nil)            // git tag -l prod/* → no dest tags
 
 	cfg := &config.Config{
 		Versioning: config.Versioning{
@@ -601,7 +601,7 @@ func TestResolve_Source_Default_SingleAutoEnv(t *testing.T) {
 }
 
 func TestResolve_Source_Ambiguity_Error(t *testing.T) {
-	mr := testutil.NewMockRunner()
+	mr := exectest.NewMockRunner()
 	// No mock responses needed — error before git calls.
 
 	cfg := &config.Config{
@@ -624,7 +624,7 @@ func TestResolve_Source_Ambiguity_Error(t *testing.T) {
 }
 
 func TestResolve_Source_SelfReference_Error(t *testing.T) {
-	mr := testutil.NewMockRunner()
+	mr := exectest.NewMockRunner()
 
 	cfg := &config.Config{
 		Versioning: config.Versioning{
@@ -645,7 +645,7 @@ func TestResolve_Source_SelfReference_Error(t *testing.T) {
 // ---- Error paths ----
 
 func TestResolve_UnknownEnvironment_Error(t *testing.T) {
-	mr := testutil.NewMockRunner()
+	mr := exectest.NewMockRunner()
 
 	cfg := &config.Config{
 		Versioning: config.Versioning{
@@ -663,7 +663,7 @@ func TestResolve_UnknownEnvironment_Error(t *testing.T) {
 }
 
 func TestResolve_UnknownBumpMode_Error(t *testing.T) {
-	mr := testutil.NewMockRunner()
+	mr := exectest.NewMockRunner()
 
 	cfg := &config.Config{
 		Versioning: config.Versioning{
@@ -684,7 +684,7 @@ func TestResolve_UnknownBumpMode_Error(t *testing.T) {
 // fallback when individual environments do not define their own tag_format.
 // This is the common pattern: one tag_format for all envs, per-env overrides optional.
 func TestResolve_TopLevelTagFormat_Auto(t *testing.T) {
-	mr := testutil.NewMockRunner()
+	mr := exectest.NewMockRunner()
 	mr.QueueResponse("", "", nil) // git tag -l dev/*  → no tags
 
 	cfg := &config.Config{
@@ -707,7 +707,7 @@ func TestResolve_TopLevelTagFormat_Auto(t *testing.T) {
 }
 
 func TestResolve_GitTagListError(t *testing.T) {
-	mr := testutil.NewMockRunner()
+	mr := exectest.NewMockRunner()
 	mr.QueueResponse("", "fatal: not a git repo", fmt.Errorf("exit 128"))
 
 	cfg := &config.Config{

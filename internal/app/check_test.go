@@ -5,15 +5,15 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/adaouat/forge/exec/exectest"
 	"github.com/adaouat/heraut/internal/app"
 	"github.com/adaouat/heraut/internal/config"
-	"github.com/adaouat/heraut/internal/testutil"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
 // collectItems drives RuntimeCheck synchronously and returns all items.
-func collectItems(mr *testutil.MockRunner, cfg *config.Config) []app.RuntimeCheckItem {
+func collectItems(mr *exectest.MockRunner, cfg *config.Config) []app.RuntimeCheckItem {
 	var items []app.RuntimeCheckItem
 	app.RuntimeCheck(mr, cfg,
 		func(_ string) {}, // no-op for section headers
@@ -27,7 +27,7 @@ func collectItems(mr *testutil.MockRunner, cfg *config.Config) []app.RuntimeChec
 // queueSuccess queues the 9 runner.Run responses for semverCfg (no generators/platforms)
 // with all tools present. Call order: git, user.name, user.email, git status,
 // glab, gh, git-cliff, cog, communique.
-func queueSuccess(mr *testutil.MockRunner) {
+func queueSuccess(mr *exectest.MockRunner) {
 	mr.QueueResponse("git version 2.40.0", "", nil) // git --version
 	mr.QueueResponse("Alice", "", nil)              // git config user.name
 	mr.QueueResponse("a@b.com", "", nil)            // git config user.email
@@ -42,7 +42,7 @@ func queueSuccess(mr *testutil.MockRunner) {
 // ---- PreflightCheck -----------------------------------------------------------
 
 func TestPreflightCheck_Passes(t *testing.T) {
-	mr := testutil.NewMockRunner()
+	mr := exectest.NewMockRunner()
 	mr.QueueResponse("git version 2.40.0", "", nil) // git --version
 	mr.QueueResponse("Alice", "", nil)              // git config user.name
 	mr.QueueResponse("a@b.com", "", nil)            // git config user.email
@@ -51,7 +51,7 @@ func TestPreflightCheck_Passes(t *testing.T) {
 }
 
 func TestPreflightCheck_GitMissing(t *testing.T) {
-	mr := testutil.NewMockRunner()
+	mr := exectest.NewMockRunner()
 	mr.QueueResponse("", "", errors.New("git: command not found"))
 
 	err := app.PreflightCheck(mr)
@@ -60,7 +60,7 @@ func TestPreflightCheck_GitMissing(t *testing.T) {
 }
 
 func TestPreflightCheck_UserNameMissing(t *testing.T) {
-	mr := testutil.NewMockRunner()
+	mr := exectest.NewMockRunner()
 	mr.QueueResponse("git version 2.40.0", "", nil) // git --version
 	mr.QueueResponse("", "", nil)                   // user.name returns empty
 
@@ -70,7 +70,7 @@ func TestPreflightCheck_UserNameMissing(t *testing.T) {
 }
 
 func TestPreflightCheck_UserEmailMissing(t *testing.T) {
-	mr := testutil.NewMockRunner()
+	mr := exectest.NewMockRunner()
 	mr.QueueResponse("git version 2.40.0", "", nil) // git --version
 	mr.QueueResponse("Alice", "", nil)              // user.name OK
 	mr.QueueResponse("", "", nil)                   // user.email returns empty
@@ -83,7 +83,7 @@ func TestPreflightCheck_UserEmailMissing(t *testing.T) {
 // ---- RuntimeCheck ------------------------------------------------------------
 
 func TestRuntimeCheck_MinimalConfig(t *testing.T) {
-	mr := testutil.NewMockRunner()
+	mr := exectest.NewMockRunner()
 	queueSuccess(mr)
 
 	cfg := semverCfg()
@@ -101,7 +101,7 @@ func TestRuntimeCheck_MinimalConfig(t *testing.T) {
 }
 
 func TestRuntimeCheck_GitValue(t *testing.T) {
-	mr := testutil.NewMockRunner()
+	mr := exectest.NewMockRunner()
 	mr.QueueResponse("git version 2.49.0\n", "", nil) // git --version
 	mr.QueueResponse("Alice", "", nil)                // user.name
 	mr.QueueResponse("a@b.com", "", nil)              // user.email
@@ -126,7 +126,7 @@ func TestRuntimeCheck_GitValue(t *testing.T) {
 }
 
 func TestRuntimeCheck_UserNameValue(t *testing.T) {
-	mr := testutil.NewMockRunner()
+	mr := exectest.NewMockRunner()
 	mr.QueueResponse("git version 2.40.0", "", nil)  // git --version
 	mr.QueueResponse("Alice Smith\n", "", nil)       // user.name
 	mr.QueueResponse("alice@example.com\n", "", nil) // user.email
@@ -151,7 +151,7 @@ func TestRuntimeCheck_UserNameValue(t *testing.T) {
 }
 
 func TestRuntimeCheck_WorkingTreeClean(t *testing.T) {
-	mr := testutil.NewMockRunner()
+	mr := exectest.NewMockRunner()
 	mr.QueueResponse("git version 2.40.0", "", nil) // git --version
 	mr.QueueResponse("Alice", "", nil)              // user.name
 	mr.QueueResponse("a@b.com", "", nil)            // user.email
@@ -177,7 +177,7 @@ func TestRuntimeCheck_WorkingTreeClean(t *testing.T) {
 }
 
 func TestRuntimeCheck_WorkingTreeDirty(t *testing.T) {
-	mr := testutil.NewMockRunner()
+	mr := exectest.NewMockRunner()
 	mr.QueueResponse("git version 2.40.0", "", nil)                       // git --version
 	mr.QueueResponse("Alice", "", nil)                                    // user.name
 	mr.QueueResponse("a@b.com", "", nil)                                  // user.email
@@ -203,7 +203,7 @@ func TestRuntimeCheck_WorkingTreeDirty(t *testing.T) {
 }
 
 func TestRuntimeCheck_DispatchNames(t *testing.T) {
-	mr := testutil.NewMockRunner()
+	mr := exectest.NewMockRunner()
 	queueSuccess(mr)
 
 	cfg := semverCfg()
@@ -224,7 +224,7 @@ func TestRuntimeCheck_DispatchNames(t *testing.T) {
 }
 
 func TestRuntimeCheck_SectionHeaders(t *testing.T) {
-	mr := testutil.NewMockRunner()
+	mr := exectest.NewMockRunner()
 	queueSuccess(mr)
 
 	cfg := semverCfg()
@@ -238,7 +238,7 @@ func TestRuntimeCheck_SectionHeaders(t *testing.T) {
 }
 
 func TestRuntimeCheck_WithGitcliff(t *testing.T) {
-	mr := testutil.NewMockRunner()
+	mr := exectest.NewMockRunner()
 	mr.QueueResponse("git version 2.40.0", "", nil) // git --version
 	mr.QueueResponse("Alice", "", nil)              // user.name
 	mr.QueueResponse("a@b.com", "", nil)            // user.email
@@ -268,7 +268,7 @@ func TestRuntimeCheck_WithGitHubPlatform(t *testing.T) {
 	t.Setenv("GH_TOKEN", "test-token")
 	t.Setenv("GITHUB_ACTIONS", "") // non-CI path
 
-	mr := testutil.NewMockRunner()
+	mr := exectest.NewMockRunner()
 	mr.QueueResponse("git version 2.40.0", "", nil) // git --version
 	mr.QueueResponse("Alice", "", nil)              // user.name
 	mr.QueueResponse("a@b.com", "", nil)            // user.email
@@ -300,7 +300,7 @@ func TestRuntimeCheck_WithGitHubPlatform_MissingToken(t *testing.T) {
 	t.Setenv("GH_TOKEN", "")
 	t.Setenv("GITHUB_ACTIONS", "")
 
-	mr := testutil.NewMockRunner()
+	mr := exectest.NewMockRunner()
 	mr.QueueResponse("git version 2.40.0", "", nil) // git --version
 	mr.QueueResponse("Alice", "", nil)              // user.name
 	mr.QueueResponse("a@b.com", "", nil)            // user.email
@@ -332,7 +332,7 @@ func TestRuntimeCheck_UnknownChangelogGenerator(t *testing.T) {
 	// "unknown-gen" is not a recognized generator; config validation would
 	// normally catch this. RuntimeCheck checks only the 3 supported generators.
 	// An unknown configured generator produces no runtime check item.
-	mr := testutil.NewMockRunner()
+	mr := exectest.NewMockRunner()
 	mr.QueueResponse("git version 2.40.0", "", nil) // git --version
 	mr.QueueResponse("Alice", "", nil)              // user.name
 	mr.QueueResponse("a@b.com", "", nil)            // user.email
@@ -354,7 +354,7 @@ func TestRuntimeCheck_UnknownChangelogGenerator(t *testing.T) {
 
 func TestRuntimeCheck_UnknownPlatform(t *testing.T) {
 	// Unknown platforms are caught by config validation, not RuntimeCheck.
-	mr := testutil.NewMockRunner()
+	mr := exectest.NewMockRunner()
 	mr.QueueResponse("git version 2.40.0", "", nil) // git --version
 	mr.QueueResponse("Alice", "", nil)              // user.name
 	mr.QueueResponse("a@b.com", "", nil)            // user.email
@@ -377,7 +377,7 @@ func TestRuntimeCheck_UnknownPlatform(t *testing.T) {
 }
 
 func TestRuntimeCheck_UserNameMissing(t *testing.T) {
-	mr := testutil.NewMockRunner()
+	mr := exectest.NewMockRunner()
 	mr.QueueResponse("git version 2.40.0", "", nil) // git --version
 	mr.QueueResponse("", "", nil)                   // user.name empty
 	mr.QueueResponse("a@b.com", "", nil)            // user.email
@@ -401,7 +401,7 @@ func TestRuntimeCheck_UserNameMissing(t *testing.T) {
 }
 
 func TestRuntimeCheck_UserEmailMissing(t *testing.T) {
-	mr := testutil.NewMockRunner()
+	mr := exectest.NewMockRunner()
 	mr.QueueResponse("git version 2.40.0", "", nil) // git --version
 	mr.QueueResponse("Alice", "", nil)              // user.name OK
 	mr.QueueResponse("", "", nil)                   // user.email empty
@@ -425,7 +425,7 @@ func TestRuntimeCheck_UserEmailMissing(t *testing.T) {
 }
 
 func TestRuntimeCheck_WithReleaseNotes(t *testing.T) {
-	mr := testutil.NewMockRunner()
+	mr := exectest.NewMockRunner()
 	mr.QueueResponse("git version 2.40.0", "", nil) // git --version
 	mr.QueueResponse("Alice", "", nil)              // user.name
 	mr.QueueResponse("a@b.com", "", nil)            // user.email
@@ -455,7 +455,7 @@ func TestRuntimeCheck_WithReleaseNotes(t *testing.T) {
 // ---- Optional tool checks -------------------------------------------------------
 
 func TestRuntimeCheck_OptionalGeneratorsWarnWhenMissing(t *testing.T) {
-	mr := testutil.NewMockRunner()
+	mr := exectest.NewMockRunner()
 	mr.QueueResponse("git version 2.40.0", "", nil)               // git --version
 	mr.QueueResponse("Alice", "", nil)                            // user.name
 	mr.QueueResponse("a@b.com", "", nil)                          // user.email
@@ -483,7 +483,7 @@ func TestRuntimeCheck_OptionalGeneratorsWarnWhenMissing(t *testing.T) {
 }
 
 func TestRuntimeCheck_OptionalPlatformsWarnWhenMissing(t *testing.T) {
-	mr := testutil.NewMockRunner()
+	mr := exectest.NewMockRunner()
 	mr.QueueResponse("git version 2.40.0", "", nil)         // git --version
 	mr.QueueResponse("Alice", "", nil)                      // user.name
 	mr.QueueResponse("a@b.com", "", nil)                    // user.email
@@ -509,7 +509,7 @@ func TestRuntimeCheck_OptionalPlatformsWarnWhenMissing(t *testing.T) {
 }
 
 func TestRuntimeCheck_OptionalToolsSilentWhenPresent(t *testing.T) {
-	mr := testutil.NewMockRunner()
+	mr := exectest.NewMockRunner()
 	queueSuccess(mr)
 
 	cfg := semverCfg()
@@ -523,7 +523,7 @@ func TestRuntimeCheck_OptionalToolsSilentWhenPresent(t *testing.T) {
 }
 
 func TestRuntimeCheck_ConfiguredGeneratorExcludedFromOptional(t *testing.T) {
-	mr := testutil.NewMockRunner()
+	mr := exectest.NewMockRunner()
 	mr.QueueResponse("git version 2.40.0", "", nil)               // git --version
 	mr.QueueResponse("Alice", "", nil)                            // user.name
 	mr.QueueResponse("a@b.com", "", nil)                          // user.email
@@ -556,7 +556,7 @@ func TestRuntimeCheck_ConfiguredGeneratorExcludedFromOptional(t *testing.T) {
 // ---- RuntimeCheck with nil config -------------------------------------------
 
 func TestRuntimeCheck_NilConfig_AllToolsPassWhenPresent(t *testing.T) {
-	mr := testutil.NewMockRunner()
+	mr := exectest.NewMockRunner()
 	queueSuccess(mr) // call order is identical to the non-nil config path
 
 	items := collectItems(mr, nil)
@@ -571,7 +571,7 @@ func TestRuntimeCheck_NilConfig_AllToolsPassWhenPresent(t *testing.T) {
 }
 
 func TestRuntimeCheck_NilConfig_MissingBinaryIsHardError(t *testing.T) {
-	mr := testutil.NewMockRunner()
+	mr := exectest.NewMockRunner()
 	mr.QueueResponse("git version 2.40.0", "", nil)         // git
 	mr.QueueResponse("Alice", "", nil)                      // user.name
 	mr.QueueResponse("a@b.com", "", nil)                    // user.email
@@ -595,7 +595,7 @@ func TestRuntimeCheck_NilConfig_MissingBinaryIsHardError(t *testing.T) {
 }
 
 func TestRuntimeCheck_NilConfig_MissingGeneratorIsHardError(t *testing.T) {
-	mr := testutil.NewMockRunner()
+	mr := exectest.NewMockRunner()
 	mr.QueueResponse("git version 2.40.0", "", nil)              // git
 	mr.QueueResponse("Alice", "", nil)                           // user.name
 	mr.QueueResponse("a@b.com", "", nil)                         // user.email
@@ -621,7 +621,7 @@ func TestRuntimeCheck_NilConfig_MissingGeneratorIsHardError(t *testing.T) {
 // ---- CheckCliff ---------------------------------------------------------------
 
 func TestAppCheckCliff_Passes(t *testing.T) {
-	mr := testutil.NewMockRunner()
+	mr := exectest.NewMockRunner()
 	mr.QueueResponse("", "", nil)
 
 	driver := &config.ContentDriver{Generator: "git-cliff"}
@@ -629,7 +629,7 @@ func TestAppCheckCliff_Passes(t *testing.T) {
 }
 
 func TestAppCheckCliff_Fails(t *testing.T) {
-	mr := testutil.NewMockRunner()
+	mr := exectest.NewMockRunner()
 	mr.QueueResponse("", "invalid TOML", errors.New("exit status 1"))
 
 	driver := &config.ContentDriver{Generator: "git-cliff"}
@@ -639,7 +639,7 @@ func TestAppCheckCliff_Fails(t *testing.T) {
 }
 
 func TestAppCheckCliff_ReleaseNotesMode(t *testing.T) {
-	mr := testutil.NewMockRunner()
+	mr := exectest.NewMockRunner()
 	mr.QueueResponse("", "", nil)
 
 	driver := &config.ContentDriver{Generator: "git-cliff"}

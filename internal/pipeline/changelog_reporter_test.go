@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"testing"
 
+	"github.com/adaouat/forge/exec/exectest"
 	"github.com/adaouat/heraut/internal/pipeline"
 	"github.com/adaouat/heraut/internal/testutil"
 	"github.com/stretchr/testify/assert"
@@ -18,7 +19,7 @@ import (
 // TestChangelogRun_Reporter_GenerateOnly verifies step sequence when only
 // changelog generation is configured (no commit, no tag).
 func TestChangelogRun_Reporter_GenerateOnly(t *testing.T) {
-	mr := testutil.NewMockRunner()
+	mr := exectest.NewMockRunner()
 	gen := &testutil.MockGenerator{GenerateOut: "content"}
 
 	cfg := &pipeline.ChangelogConfig{
@@ -39,7 +40,7 @@ func TestChangelogRun_Reporter_GenerateOnly(t *testing.T) {
 // TestChangelogRun_Reporter_WithCommit verifies generate + commit steps appear
 // when Commit is true.
 func TestChangelogRun_Reporter_WithCommit(t *testing.T) {
-	mr := testutil.NewMockRunner()
+	mr := exectest.NewMockRunner()
 	mr.QueueResponse("", "", nil) // git add
 	mr.QueueResponse("", "", nil) // git commit
 	mr.QueueResponse("", "", nil) // git push
@@ -67,7 +68,7 @@ func TestChangelogRun_Reporter_WithCommit(t *testing.T) {
 
 // TestChangelogRun_Reporter_WithTag verifies the full step sequence when Tag is true.
 func TestChangelogRun_Reporter_WithTag(t *testing.T) {
-	mr := testutil.NewMockRunner()
+	mr := exectest.NewMockRunner()
 	mr.QueueResponse("", "", nil) // git add
 	mr.QueueResponse("", "", nil) // git commit
 	mr.QueueResponse("", "", nil) // git push
@@ -100,7 +101,7 @@ func TestChangelogRun_Reporter_WithTag(t *testing.T) {
 // TestChangelogRun_Reporter_TagWithoutChangelog verifies tag-only when no generator
 // is configured: resolve + create tag + push tags.
 func TestChangelogRun_Reporter_TagWithoutChangelog(t *testing.T) {
-	mr := testutil.NewMockRunner()
+	mr := exectest.NewMockRunner()
 	mr.QueueResponse("", "", nil) // git tag
 	mr.QueueResponse("", "", nil) // git push --tags
 
@@ -122,7 +123,7 @@ func TestChangelogRun_Reporter_TagWithoutChangelog(t *testing.T) {
 // TestChangelogRun_Reporter_DryRunSequence verifies that dry-run with a reporter
 // shows all expected steps but makes no real git or generator calls.
 func TestChangelogRun_Reporter_DryRunSequence(t *testing.T) {
-	mr := testutil.NewMockRunner()
+	mr := exectest.NewMockRunner()
 	gen := &testutil.MockGenerator{}
 
 	cfg := &pipeline.ChangelogConfig{
@@ -154,7 +155,7 @@ func TestChangelogRun_Reporter_DryRunSequence(t *testing.T) {
 // TestChangelogRun_Reporter_DisabledChangelog verifies that the output contains
 // "disabled" when DisableChangelog is true, regardless of reporter.
 func TestChangelogRun_Reporter_DisabledChangelog(t *testing.T) {
-	mr := testutil.NewMockRunner()
+	mr := exectest.NewMockRunner()
 	gen := &testutil.MockGenerator{}
 
 	cfg := &pipeline.ChangelogConfig{
@@ -177,7 +178,7 @@ func TestChangelogRun_Reporter_DisabledChangelog(t *testing.T) {
 // TestChangelogRun_Reporter_DisabledChangelog_WithTag verifies that when both
 // DisableChangelog and Tag are true, only resolve + tag steps appear in the reporter.
 func TestChangelogRun_Reporter_DisabledChangelog_WithTag(t *testing.T) {
-	mr := testutil.NewMockRunner()
+	mr := exectest.NewMockRunner()
 	mr.QueueResponse("", "", nil) // git tag
 	mr.QueueResponse("", "", nil) // git push --tags
 
@@ -209,7 +210,7 @@ func TestChangelogRun_Reporter_DisabledChangelog_WithTag(t *testing.T) {
 // TestChangelogRun_DryRun_DisabledChangelog_WithTag verifies that dry-run with
 // DisableChangelog+Tag shows only the tag steps, not the changelog steps.
 func TestChangelogRun_DryRun_DisabledChangelog_WithTag(t *testing.T) {
-	mr := testutil.NewMockRunner()
+	mr := exectest.NewMockRunner()
 	gen := &testutil.MockGenerator{}
 
 	cfg := &pipeline.ChangelogConfig{
@@ -238,7 +239,7 @@ func TestChangelogRun_DryRun_DisabledChangelog_WithTag(t *testing.T) {
 // TestChangelogRun_Reporter_SummaryContainsTag verifies the output contains the
 // tag after a successful run (regression guard on summary format).
 func TestChangelogRun_Reporter_SummaryContainsTag(t *testing.T) {
-	mr := testutil.NewMockRunner()
+	mr := exectest.NewMockRunner()
 	gen := &testutil.MockGenerator{}
 
 	cfg := &pipeline.ChangelogConfig{
@@ -263,11 +264,11 @@ func TestChangelogRun_Reporter_NilIsTransparent(t *testing.T) {
 		ChangelogFile: "CHANGELOG.md",
 	}
 
-	mr1 := testutil.NewMockRunner()
+	mr1 := exectest.NewMockRunner()
 	out1 := &bytes.Buffer{}
 	p1 := pipeline.NewChangelog(mr1, &fakeResolver{result: resolvedResult("v1.2.3")}, cfg, out1, false)
 
-	mr2 := testutil.NewMockRunner()
+	mr2 := exectest.NewMockRunner()
 	out2 := &bytes.Buffer{}
 	p2 := pipeline.NewChangelog(mr2, &fakeResolver{result: resolvedResult("v1.2.3")}, cfg, out2, false)
 

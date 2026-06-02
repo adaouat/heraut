@@ -7,8 +7,8 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/adaouat/forge/exec/exectest"
 	"github.com/adaouat/heraut/internal/cmd"
-	"github.com/adaouat/heraut/internal/testutil"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -71,7 +71,7 @@ versioning:
   strategy: semver
   tag_prefix: "v"
 `)
-	testutil.FakeBin(t, "git", `#!/bin/sh
+	exectest.FakeBin(t, "git", `#!/bin/sh
 case "$*" in
   "tag -l v* --sort=-version:refname") echo "v1.2.3" ;;
   "log v1.2.3..HEAD --format=%B"*) printf "feat: add thing\x00" ;;
@@ -91,7 +91,7 @@ versioning:
   tag_prefix: "v"
   initial_version: "0.1.0"
 `)
-	testutil.FakeBin(t, "git", `#!/bin/sh
+	exectest.FakeBin(t, "git", `#!/bin/sh
 case "$*" in
   "tag -l v* --sort=-version:refname") echo "" ;;
   *) exit 1 ;;
@@ -109,7 +109,7 @@ versioning:
   strategy: calver
   format: "YYYY.MM.PATCH"
 `)
-	testutil.FakeBin(t, "git", `#!/bin/sh
+	exectest.FakeBin(t, "git", `#!/bin/sh
 case "$*" in
   "tag -l * --sort=-version:refname") echo "" ;;
   *) exit 1 ;;
@@ -131,7 +131,7 @@ environments:
     bump: auto
     tag_format: "dev/{version}"
 `)
-	testutil.FakeBin(t, "git", `#!/bin/sh
+	exectest.FakeBin(t, "git", `#!/bin/sh
 case "$*" in
   "tag -l dev/* --sort=-version:refname") echo "dev/1.0.0" ;;
   "log dev/1.0.0..HEAD --format=%B"*) printf "fix: patch\x00" ;;
@@ -154,7 +154,7 @@ environments:
     branch: main
     tag_format: "prod/{version}"
 `)
-	testutil.FakeBin(t, "git", `#!/bin/sh
+	exectest.FakeBin(t, "git", `#!/bin/sh
 case "$*" in
   "rev-parse --abbrev-ref HEAD") echo "feature/x" ;;
   *) exit 1 ;;
@@ -176,7 +176,7 @@ environments:
     branch: main
     tag_format: "prod/{version}"
 `)
-	testutil.FakeBin(t, "git", `#!/bin/sh
+	exectest.FakeBin(t, "git", `#!/bin/sh
 case "$*" in
   "rev-parse --abbrev-ref HEAD") echo "feature/x" ;;
   "tag -l prod/* --sort=-version:refname") echo "prod/1.0.0" ;;
@@ -198,7 +198,7 @@ versioning:
   strategy: semver
   tag_prefix: "v"
 `)
-	testutil.FakeBin(t, "git", `#!/bin/sh
+	exectest.FakeBin(t, "git", `#!/bin/sh
 case "$*" in
   "tag -l v* --sort=-version:refname") printf "v2.1.0\nv2.0.0\nv1.0.0\n" ;;
   *) exit 1 ;;
@@ -216,7 +216,7 @@ versioning:
   strategy: calver
   format: "YYYY.MM.PATCH"
 `)
-	testutil.FakeBin(t, "git", `#!/bin/sh
+	exectest.FakeBin(t, "git", `#!/bin/sh
 case "$*" in
   "tag -l * --sort=-version:refname") printf "2026.05.3\n2026.05.0\n" ;;
   *) exit 1 ;;
@@ -240,7 +240,7 @@ environments:
     bump: auto
     tag_format: "dev/{version}"
 `)
-	testutil.FakeBin(t, "git", `#!/bin/sh
+	exectest.FakeBin(t, "git", `#!/bin/sh
 case "$*" in
   "tag -l prod/* --sort=-version:refname") printf "prod/1.5.0\nprod/1.4.0\n" ;;
   *) exit 1 ;;
@@ -261,7 +261,7 @@ environments:
   main:
     bump: auto
 `)
-	testutil.FakeBin(t, "git", `#!/bin/sh
+	exectest.FakeBin(t, "git", `#!/bin/sh
 case "$*" in
   "tag -l main/*-* --sort=-version:refname") printf "main/7.4.1-158404\nmain/7.4.0-155398\n" ;;
   *) exit 1 ;;
@@ -279,7 +279,7 @@ versioning:
   strategy: semver
   tag_prefix: "v"
 `)
-	testutil.FakeBin(t, "git", `#!/bin/sh
+	exectest.FakeBin(t, "git", `#!/bin/sh
 case "$*" in
   "tag -l v* --sort=-version:refname") printf "v1.2.3\nv1.2.2\n" ;;
   *) exit 1 ;;
@@ -297,7 +297,7 @@ versioning:
   strategy: semver
   tag_prefix: "v"
 `)
-	testutil.FakeBin(t, "git", `#!/bin/sh
+	exectest.FakeBin(t, "git", `#!/bin/sh
 echo ""
 `)
 	_, err := executeRoot("version", "current", "--config", cfgPath)

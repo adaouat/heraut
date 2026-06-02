@@ -3,9 +3,9 @@ package cmd_test
 import (
 	"testing"
 
+	"github.com/adaouat/forge/exec/exectest"
 	"github.com/adaouat/heraut/internal/cmd"
 	"github.com/adaouat/heraut/internal/exitcode"
-	"github.com/adaouat/heraut/internal/testutil"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -46,7 +46,7 @@ release:
     - platform: github
       repository: test/repo
 `)
-	testutil.FakeBin(t, "git", `#!/bin/sh
+	exectest.FakeBin(t, "git", `#!/bin/sh
 case "$*" in
   "tag -l v* --sort=-version:refname") echo "v1.0.0" ;;
   "log v1.0.0..HEAD --format=%B"*) printf "feat: new feature\x00" ;;
@@ -161,7 +161,7 @@ release:
       repository: test/repo
 `)
 	// git --version succeeds; everything else (config user.name, config user.email) exits 1.
-	testutil.FakeBin(t, "git", `#!/bin/sh
+	exectest.FakeBin(t, "git", `#!/bin/sh
 case "$*" in
   "--version") echo "git version 2.49.0" ;;
   *) exit 1 ;;

@@ -4,9 +4,9 @@ import (
 	"errors"
 	"testing"
 
+	"github.com/adaouat/forge/exec/exectest"
 	"github.com/adaouat/heraut/internal/app"
 	"github.com/adaouat/heraut/internal/config"
-	"github.com/adaouat/heraut/internal/testutil"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -21,7 +21,7 @@ func branchCfg(env, branch string) *config.Config {
 }
 
 func TestCheckBranch_Matches(t *testing.T) {
-	mr := testutil.NewMockRunner()
+	mr := exectest.NewMockRunner()
 	mr.QueueResponse("main\n", "", nil)
 	require.NoError(t, app.CheckBranch(mr, branchCfg("prod", "main"), "prod", false))
 	require.Len(t, mr.Calls, 1)
@@ -29,7 +29,7 @@ func TestCheckBranch_Matches(t *testing.T) {
 }
 
 func TestCheckBranch_Mismatch(t *testing.T) {
-	mr := testutil.NewMockRunner()
+	mr := exectest.NewMockRunner()
 	mr.QueueResponse("feature/x\n", "", nil)
 	err := app.CheckBranch(mr, branchCfg("prod", "main"), "prod", false)
 	require.Error(t, err)
@@ -39,26 +39,26 @@ func TestCheckBranch_Mismatch(t *testing.T) {
 }
 
 func TestCheckBranch_ForceBypasses(t *testing.T) {
-	mr := testutil.NewMockRunner()
+	mr := exectest.NewMockRunner()
 	// force → no git call, no error even though we never check.
 	require.NoError(t, app.CheckBranch(mr, branchCfg("prod", "main"), "prod", true))
 	assert.Empty(t, mr.Calls, "force should skip the branch check entirely")
 }
 
 func TestCheckBranch_NoEnv(t *testing.T) {
-	mr := testutil.NewMockRunner()
+	mr := exectest.NewMockRunner()
 	require.NoError(t, app.CheckBranch(mr, branchCfg("prod", "main"), "", false))
 	assert.Empty(t, mr.Calls)
 }
 
 func TestCheckBranch_EnvWithoutBranch(t *testing.T) {
-	mr := testutil.NewMockRunner()
+	mr := exectest.NewMockRunner()
 	require.NoError(t, app.CheckBranch(mr, branchCfg("prod", ""), "prod", false))
 	assert.Empty(t, mr.Calls)
 }
 
 func TestCheckBranch_GitError(t *testing.T) {
-	mr := testutil.NewMockRunner()
+	mr := exectest.NewMockRunner()
 	mr.QueueResponse("", "", errors.New("not a git repo"))
 	err := app.CheckBranch(mr, branchCfg("prod", "main"), "prod", false)
 	require.Error(t, err)

@@ -6,15 +6,15 @@ import (
 	"path/filepath"
 	"testing"
 
+	"github.com/adaouat/forge/exec/exectest"
 	"github.com/adaouat/heraut/internal/config"
 	"github.com/adaouat/heraut/internal/generators/cocogitto"
-	"github.com/adaouat/heraut/internal/testutil"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
 func TestCheck_BinaryMissing(t *testing.T) {
-	mr := testutil.NewMockRunner()
+	mr := exectest.NewMockRunner()
 	mr.QueueResponse("", "cog: command not found", errors.New("exit status 127"))
 
 	cfg := &config.ContentDriver{Generator: "cocogitto"}
@@ -26,7 +26,7 @@ func TestCheck_BinaryMissing(t *testing.T) {
 }
 
 func TestCheck_BinaryPresent(t *testing.T) {
-	mr := testutil.NewMockRunner()
+	mr := exectest.NewMockRunner()
 	mr.QueueResponse("cog 7.0.0", "", nil)
 
 	cfg := &config.ContentDriver{Generator: "cocogitto"}
@@ -39,7 +39,7 @@ func TestCheck_BinaryPresent(t *testing.T) {
 }
 
 func TestValidate_NoConfigNoTemplate(t *testing.T) {
-	mr := testutil.NewMockRunner()
+	mr := exectest.NewMockRunner()
 	cfg := &config.ContentDriver{Generator: "cocogitto"}
 	gen := cocogitto.New(mr, cfg, cocogitto.ModeReleaseNotes)
 
@@ -47,7 +47,7 @@ func TestValidate_NoConfigNoTemplate(t *testing.T) {
 }
 
 func TestValidate_ConfigFileMissing(t *testing.T) {
-	mr := testutil.NewMockRunner()
+	mr := exectest.NewMockRunner()
 	cfg := &config.ContentDriver{Generator: "cocogitto", Config: "/nonexistent/cog.toml"}
 	gen := cocogitto.New(mr, cfg, cocogitto.ModeReleaseNotes)
 
@@ -57,7 +57,7 @@ func TestValidate_ConfigFileMissing(t *testing.T) {
 }
 
 func TestValidate_TemplateFileMissing(t *testing.T) {
-	mr := testutil.NewMockRunner()
+	mr := exectest.NewMockRunner()
 	cfg := &config.ContentDriver{Generator: "cocogitto", Template: "/nonexistent/tmpl.tera"}
 	gen := cocogitto.New(mr, cfg, cocogitto.ModeReleaseNotes)
 
@@ -73,7 +73,7 @@ func TestValidate_BothFilesExist(t *testing.T) {
 	require.NoError(t, os.WriteFile(cfgPath, []byte("[changelog]\n"), 0o600))
 	require.NoError(t, os.WriteFile(tmplPath, []byte("template\n"), 0o600))
 
-	mr := testutil.NewMockRunner()
+	mr := exectest.NewMockRunner()
 	cfg := &config.ContentDriver{Generator: "cocogitto", Config: cfgPath, Template: tmplPath}
 	gen := cocogitto.New(mr, cfg, cocogitto.ModeReleaseNotes)
 
@@ -82,7 +82,7 @@ func TestValidate_BothFilesExist(t *testing.T) {
 
 // TestGenerate_NoneNone_ReleaseNotes: embedded config + embedded template → no -t flag.
 func TestGenerate_NoneNone_ReleaseNotes(t *testing.T) {
-	mr := testutil.NewMockRunner()
+	mr := exectest.NewMockRunner()
 	mr.QueueResponse("## Features\n- add thing\n", "", nil)
 
 	cfg := &config.ContentDriver{Generator: "cocogitto"}
@@ -107,7 +107,7 @@ func TestGenerate_NoneNone_ReleaseNotes(t *testing.T) {
 
 // TestGenerate_NoneNone_Changelog: no --at in changelog mode, no -t.
 func TestGenerate_NoneNone_Changelog(t *testing.T) {
-	mr := testutil.NewMockRunner()
+	mr := exectest.NewMockRunner()
 	mr.QueueResponse("full changelog\n", "", nil)
 
 	cfg := &config.ContentDriver{Generator: "cocogitto"}
@@ -129,7 +129,7 @@ func TestGenerate_NoneTemplate(t *testing.T) {
 	tmplPath := filepath.Join(tmp, "release.tera")
 	require.NoError(t, os.WriteFile(tmplPath, []byte("template\n"), 0o600))
 
-	mr := testutil.NewMockRunner()
+	mr := exectest.NewMockRunner()
 	mr.QueueResponse("notes\n", "", nil)
 
 	cfg := &config.ContentDriver{Generator: "cocogitto", Template: tmplPath}
@@ -151,7 +151,7 @@ func TestGenerate_ConfigNone(t *testing.T) {
 	cfgPath := filepath.Join(tmp, "cog.toml")
 	require.NoError(t, os.WriteFile(cfgPath, []byte("[changelog]\n"), 0o600))
 
-	mr := testutil.NewMockRunner()
+	mr := exectest.NewMockRunner()
 	mr.QueueResponse("notes\n", "", nil)
 
 	cfg := &config.ContentDriver{Generator: "cocogitto", Config: cfgPath}
@@ -174,7 +174,7 @@ func TestGenerate_ConfigTemplate(t *testing.T) {
 	require.NoError(t, os.WriteFile(cfgPath, []byte("[changelog]\n"), 0o600))
 	require.NoError(t, os.WriteFile(tmplPath, []byte("template\n"), 0o600))
 
-	mr := testutil.NewMockRunner()
+	mr := exectest.NewMockRunner()
 	mr.QueueResponse("notes\n", "", nil)
 
 	cfg := &config.ContentDriver{Generator: "cocogitto", Config: cfgPath, Template: tmplPath}
@@ -194,7 +194,7 @@ func TestGenerate_OutputWritten(t *testing.T) {
 	tmp := t.TempDir()
 	outputPath := filepath.Join(tmp, "CHANGELOG.md")
 
-	mr := testutil.NewMockRunner()
+	mr := exectest.NewMockRunner()
 	mr.QueueResponse("## Generated changelog\n", "", nil)
 
 	cfg := &config.ContentDriver{Generator: "cocogitto", Output: outputPath}
@@ -210,7 +210,7 @@ func TestGenerate_OutputWritten(t *testing.T) {
 }
 
 func TestGenerate_RunnerError(t *testing.T) {
-	mr := testutil.NewMockRunner()
+	mr := exectest.NewMockRunner()
 	mr.QueueResponse("", "fatal error", errors.New("exit status 1"))
 
 	cfg := &config.ContentDriver{Generator: "cocogitto"}

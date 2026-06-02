@@ -4,8 +4,8 @@ import (
 	"bytes"
 	"testing"
 
+	"github.com/adaouat/forge/exec/exectest"
 	"github.com/adaouat/heraut/internal/cmd"
-	"github.com/adaouat/heraut/internal/testutil"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -100,7 +100,7 @@ func TestCheckRuntime_NoConfigFile(t *testing.T) {
 	t.Chdir(dir)
 	t.Setenv("HERAUT_FILE", "")
 
-	testutil.FakeBin(t, "git", `#!/bin/sh
+	exectest.FakeBin(t, "git", `#!/bin/sh
 case "$*" in
   "--version") echo "git version 2.x" ;;
   "config user.name") echo "John Doe" ;;
@@ -108,19 +108,19 @@ case "$*" in
   *) exit 0 ;;
 esac
 `)
-	testutil.FakeBin(t, "git-cliff", `#!/bin/sh
+	exectest.FakeBin(t, "git-cliff", `#!/bin/sh
 echo "git-cliff 2.7.0"
 `)
-	testutil.FakeBin(t, "gh", `#!/bin/sh
+	exectest.FakeBin(t, "gh", `#!/bin/sh
 echo "gh 2.x"
 `)
-	testutil.FakeBin(t, "glab", `#!/bin/sh
+	exectest.FakeBin(t, "glab", `#!/bin/sh
 echo "glab 1.x"
 `)
-	testutil.FakeBin(t, "cog", `#!/bin/sh
+	exectest.FakeBin(t, "cog", `#!/bin/sh
 echo "cog 6.x"
 `)
-	testutil.FakeBin(t, "communique", `#!/bin/sh
+	exectest.FakeBin(t, "communique", `#!/bin/sh
 echo "communique 1.x"
 `)
 
@@ -142,7 +142,7 @@ release:
   platforms:
     - platform: github
 `)
-	testutil.FakeBin(t, "git", `#!/bin/sh
+	exectest.FakeBin(t, "git", `#!/bin/sh
 case "$*" in
   "--version") echo "git version 2.x" ;;
   "config user.name") echo "John Doe" ;;
@@ -150,10 +150,10 @@ case "$*" in
   *) exit 0 ;;
 esac
 `)
-	testutil.FakeBin(t, "git-cliff", `#!/bin/sh
+	exectest.FakeBin(t, "git-cliff", `#!/bin/sh
 echo "git-cliff 2.7.0"
 `)
-	testutil.FakeBin(t, "gh", `#!/bin/sh
+	exectest.FakeBin(t, "gh", `#!/bin/sh
 echo "gh 2.x"
 `)
 	t.Setenv("GH_TOKEN", "test-token")
@@ -170,7 +170,7 @@ version: "1"
 versioning:
   strategy: semver
 `)
-	testutil.FakeBin(t, "git", `#!/bin/sh
+	exectest.FakeBin(t, "git", `#!/bin/sh
 exit 127
 `)
 
@@ -186,7 +186,7 @@ versioning:
 changelog:
   generator: git-cliff
 `)
-	testutil.FakeBin(t, "git", `#!/bin/sh
+	exectest.FakeBin(t, "git", `#!/bin/sh
 case "$*" in
   "--version") echo "git version 2.x" ;;
   "config user.name") echo "John Doe" ;;
@@ -194,7 +194,7 @@ case "$*" in
   *) exit 0 ;;
 esac
 `)
-	testutil.FakeBin(t, "git-cliff", `#!/bin/sh
+	exectest.FakeBin(t, "git-cliff", `#!/bin/sh
 exit 127
 `)
 
@@ -208,7 +208,7 @@ version: "1"
 versioning:
   strategy: semver
 `)
-	testutil.FakeBin(t, "git", `#!/bin/sh
+	exectest.FakeBin(t, "git", `#!/bin/sh
 case "$*" in
   "--version") echo "git version 2.x" ;;
   "config user.name") echo "" ;;
@@ -227,7 +227,7 @@ version: "1"
 versioning:
   strategy: semver
 `)
-	testutil.FakeBin(t, "git", `#!/bin/sh
+	exectest.FakeBin(t, "git", `#!/bin/sh
 case "$*" in
   "--version") echo "git version 2.x" ;;
   "config user.name") echo "John Doe" ;;
@@ -250,7 +250,7 @@ versioning:
 changelog:
   generator: git-cliff
 `)
-	testutil.FakeBin(t, "git-cliff", `#!/bin/sh
+	exectest.FakeBin(t, "git-cliff", `#!/bin/sh
 echo "git-cliff 2.7.0"
 exit 0
 `)
@@ -268,7 +268,7 @@ versioning:
 changelog:
   generator: git-cliff
 `)
-	testutil.FakeBin(t, "git-cliff", `#!/bin/sh
+	exectest.FakeBin(t, "git-cliff", `#!/bin/sh
 case "$1" in
   "--version") echo "git-cliff 2.7.0" ;;
   "--context") echo "error: invalid config" >&2; exit 1 ;;
@@ -320,7 +320,7 @@ versioning:
 changelog:
   generator: git-cliff
 `)
-	testutil.FakeBin(t, "git-cliff", `#!/bin/sh
+	exectest.FakeBin(t, "git-cliff", `#!/bin/sh
 echo "git-cliff 2.7.0"
 exit 0
 `)
@@ -337,7 +337,7 @@ versioning:
 changelog:
   generator: git-cliff
 `)
-	testutil.FakeBin(t, "git-cliff", `#!/bin/sh
+	exectest.FakeBin(t, "git-cliff", `#!/bin/sh
 case "$1" in
   "--version") echo "git-cliff 2.7.0" ;;
   "--context") echo "error: bad config" >&2; exit 1 ;;
@@ -375,7 +375,7 @@ release:
   notes:
     generator: git-cliff
 `)
-	testutil.FakeBin(t, "git-cliff", `#!/bin/sh
+	exectest.FakeBin(t, "git-cliff", `#!/bin/sh
 echo "git-cliff 2.7.0"
 exit 0
 `)
@@ -393,7 +393,7 @@ release:
   notes:
     generator: git-cliff
 `)
-	testutil.FakeBin(t, "git-cliff", `#!/bin/sh
+	exectest.FakeBin(t, "git-cliff", `#!/bin/sh
 case "$1" in
   "--version") echo "git-cliff 2.7.0" ;;
   "--context") echo "error: bad config" >&2; exit 1 ;;
@@ -414,7 +414,7 @@ versioning:
 changelog:
   generator: git-cliff
 `)
-	testutil.FakeBin(t, "git", `#!/bin/sh
+	exectest.FakeBin(t, "git", `#!/bin/sh
 case "$*" in
   "--version") echo "git version 2.x" ;;
   "config user.name") echo "John Doe" ;;
@@ -422,7 +422,7 @@ case "$*" in
   *) exit 0 ;;
 esac
 `)
-	testutil.FakeBin(t, "git-cliff", `#!/bin/sh
+	exectest.FakeBin(t, "git-cliff", `#!/bin/sh
 echo "git-cliff 2.7.0"
 exit 0
 `)

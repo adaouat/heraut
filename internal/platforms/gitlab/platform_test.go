@@ -6,32 +6,32 @@ import (
 	"path/filepath"
 	"testing"
 
+	"github.com/adaouat/forge/exec/exectest"
 	"github.com/adaouat/heraut/internal/config"
 	"github.com/adaouat/heraut/internal/platforms/gitlab"
-	"github.com/adaouat/heraut/internal/testutil"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
 func TestName(t *testing.T) {
-	p := gitlab.New(testutil.NewMockRunner(), &config.Platform{})
+	p := gitlab.New(exectest.NewMockRunner(), &config.Platform{})
 	assert.Equal(t, "gitlab", p.Name())
 }
 
 func TestReleaseURL(t *testing.T) {
 	cfg := &config.Platform{Project: "mygroup/myrepo"}
-	p := gitlab.New(testutil.NewMockRunner(), cfg)
+	p := gitlab.New(exectest.NewMockRunner(), cfg)
 	assert.Equal(t, "https://gitlab.com/mygroup/myrepo/-/releases/v1.2.3", p.ReleaseURL("v1.2.3"))
 }
 
 func TestReleaseURL_FromEnv(t *testing.T) {
 	t.Setenv("CI_PROJECT_PATH", "envgroup/envrepo")
-	p := gitlab.New(testutil.NewMockRunner(), &config.Platform{})
+	p := gitlab.New(exectest.NewMockRunner(), &config.Platform{})
 	assert.Equal(t, "https://gitlab.com/envgroup/envrepo/-/releases/v1.0.0", p.ReleaseURL("v1.0.0"))
 }
 
 func TestCheck_GlabMissing(t *testing.T) {
-	mr := testutil.NewMockRunner()
+	mr := exectest.NewMockRunner()
 	mr.QueueResponse("", "glab: command not found", errors.New("exit status 127"))
 
 	p := gitlab.New(mr, &config.Platform{TokenEnv: "GITLAB_TOKEN", Project: "grp/repo"})
@@ -43,7 +43,7 @@ func TestCheck_GlabMissing(t *testing.T) {
 }
 
 func TestCheck_TokenMissing(t *testing.T) {
-	mr := testutil.NewMockRunner()
+	mr := exectest.NewMockRunner()
 	mr.QueueResponse("glab version 1.0.0", "", nil)
 
 	t.Setenv("GITLAB_TOKEN", "")
@@ -55,7 +55,7 @@ func TestCheck_TokenMissing(t *testing.T) {
 }
 
 func TestCheck_ProjectMissing(t *testing.T) {
-	mr := testutil.NewMockRunner()
+	mr := exectest.NewMockRunner()
 	mr.QueueResponse("glab version 1.0.0", "", nil)
 
 	t.Setenv("GITLAB_TOKEN", "tok")
@@ -69,7 +69,7 @@ func TestCheck_ProjectMissing(t *testing.T) {
 
 func TestCheck_OK(t *testing.T) {
 	t.Setenv("GITLAB_CI", "")
-	mr := testutil.NewMockRunner()
+	mr := exectest.NewMockRunner()
 	mr.QueueResponse("glab version 1.0.0", "", nil)
 	mr.QueueResponse(`{"username":"alice"}`, "", nil) // auth check
 
@@ -83,7 +83,7 @@ func TestCheck_OK(t *testing.T) {
 }
 
 func TestCreateRelease_BasicArgs(t *testing.T) {
-	mr := testutil.NewMockRunner()
+	mr := exectest.NewMockRunner()
 	mr.QueueResponse("", "", nil)
 
 	p := gitlab.New(mr, &config.Platform{Project: "grp/repo", TokenEnv: "GITLAB_TOKEN"})
@@ -104,7 +104,7 @@ func TestCreateRelease_LenientAssets_IncludesFilesInCreate(t *testing.T) {
 	require.NoError(t, os.WriteFile(filepath.Join(tmp, "heraut_linux"), []byte("bin"), 0o755))
 	require.NoError(t, os.WriteFile(filepath.Join(tmp, "checksums.txt"), []byte("abc"), 0o644))
 
-	mr := testutil.NewMockRunner()
+	mr := exectest.NewMockRunner()
 	mr.QueueResponse("", "", nil)
 
 	p := gitlab.New(mr, &config.Platform{
@@ -124,7 +124,7 @@ func TestCreateRelease_LenientAssets_IncludesFilesInCreate(t *testing.T) {
 }
 
 func TestUploadAssets_LenientGlobs_IsNoop(t *testing.T) {
-	mr := testutil.NewMockRunner()
+	mr := exectest.NewMockRunner()
 	p := gitlab.New(mr, &config.Platform{
 		Project:       "grp/repo",
 		Assets:        []string{"dist/heraut_*"},
@@ -135,10 +135,10 @@ func TestUploadAssets_LenientGlobs_IsNoop(t *testing.T) {
 }
 
 func TestHasAssets(t *testing.T) {
-	pEmpty := gitlab.New(testutil.NewMockRunner(), &config.Platform{})
+	pEmpty := gitlab.New(exectest.NewMockRunner(), &config.Platform{})
 	assert.False(t, pEmpty.HasAssets())
 
-	pWithAssets := gitlab.New(testutil.NewMockRunner(), &config.Platform{Assets: []string{"dist/*"}})
+	pWithAssets := gitlab.New(exectest.NewMockRunner(), &config.Platform{Assets: []string{"dist/*"}})
 	assert.True(t, pWithAssets.HasAssets())
 }
 
@@ -147,7 +147,7 @@ func TestUploadAssets_SingleFile(t *testing.T) {
 	assetPath := filepath.Join(tmp, "myapp")
 	require.NoError(t, os.WriteFile(assetPath, []byte("binary"), 0o755))
 
-	mr := testutil.NewMockRunner()
+	mr := exectest.NewMockRunner()
 	mr.QueueResponse("", "", nil)
 
 	p := gitlab.New(mr, &config.Platform{
@@ -173,7 +173,7 @@ func TestUploadAssets_Glob(t *testing.T) {
 		require.NoError(t, os.WriteFile(filepath.Join(tmp, name), []byte("bin"), 0o755))
 	}
 
-	mr := testutil.NewMockRunner()
+	mr := exectest.NewMockRunner()
 	mr.QueueResponse("", "", nil) // one batch call
 
 	p := gitlab.New(mr, &config.Platform{
@@ -196,7 +196,7 @@ func TestUploadAssets_GlobSkipsDirectories(t *testing.T) {
 	require.NoError(t, os.WriteFile(filepath.Join(tmp, "app"), []byte("bin"), 0o755))
 	require.NoError(t, os.MkdirAll(filepath.Join(tmp, "subdir"), 0o755))
 
-	mr := testutil.NewMockRunner()
+	mr := exectest.NewMockRunner()
 	mr.QueueResponse("", "", nil)
 
 	p := gitlab.New(mr, &config.Platform{
@@ -211,7 +211,7 @@ func TestUploadAssets_GlobSkipsDirectories(t *testing.T) {
 }
 
 func TestUploadAssets_GlobNoMatch(t *testing.T) {
-	mr := testutil.NewMockRunner()
+	mr := exectest.NewMockRunner()
 	p := gitlab.New(mr, &config.Platform{
 		Project: "grp/repo",
 		Assets:  []string{"/tmp/nonexistent/heraut_*"},
@@ -222,7 +222,7 @@ func TestUploadAssets_GlobNoMatch(t *testing.T) {
 }
 
 func TestUploadAssets_LenientGlobs_NoMatch_Warns(t *testing.T) {
-	mr := testutil.NewMockRunner()
+	mr := exectest.NewMockRunner()
 	p := gitlab.New(mr, &config.Platform{
 		Project:       "grp/repo",
 		Assets:        []string{"/tmp/nonexistent/heraut_*"},
@@ -233,7 +233,7 @@ func TestUploadAssets_LenientGlobs_NoMatch_Warns(t *testing.T) {
 }
 
 func TestUploadAssets_LenientGlobs_WithMatch_IsNoop(t *testing.T) {
-	mr := testutil.NewMockRunner()
+	mr := exectest.NewMockRunner()
 	p := gitlab.New(mr, &config.Platform{
 		Project:       "grp/repo",
 		Assets:        []string{"dist/heraut_*"},
@@ -245,7 +245,7 @@ func TestUploadAssets_LenientGlobs_WithMatch_IsNoop(t *testing.T) {
 
 func TestCreateRelease_ProjectFromEnv(t *testing.T) {
 	t.Setenv("CI_PROJECT_PATH", "envgrp/envrepo")
-	mr := testutil.NewMockRunner()
+	mr := exectest.NewMockRunner()
 	mr.QueueResponse("", "", nil)
 
 	p := gitlab.New(mr, &config.Platform{})
@@ -257,7 +257,7 @@ func TestCreateRelease_ProjectFromEnv(t *testing.T) {
 
 func TestCreateRelease_NoProject_Error(t *testing.T) {
 	t.Setenv("CI_PROJECT_PATH", "")
-	mr := testutil.NewMockRunner()
+	mr := exectest.NewMockRunner()
 
 	p := gitlab.New(mr, &config.Platform{})
 	err := p.CreateRelease("v1.0.0", "notes")
@@ -268,7 +268,7 @@ func TestCreateRelease_NoProject_Error(t *testing.T) {
 // TestCheck_DefaultTokenEnv covers the tokenEnv() fallback to "GITLAB_TOKEN" when no TokenEnv is configured.
 func TestCheck_DefaultTokenEnv(t *testing.T) {
 	t.Setenv("GITLAB_CI", "")
-	mr := testutil.NewMockRunner()
+	mr := exectest.NewMockRunner()
 	mr.QueueResponse("glab version 1.0.0", "", nil)
 	mr.QueueResponse(`{"username":"alice"}`, "", nil) // auth check
 
@@ -282,7 +282,7 @@ func TestCheck_DefaultTokenEnv(t *testing.T) {
 
 func TestCheck_OK_WithAuth(t *testing.T) {
 	t.Setenv("GITLAB_CI", "")
-	mr := testutil.NewMockRunner()
+	mr := exectest.NewMockRunner()
 	mr.QueueResponse("glab version 1.0.0", "", nil)   // --version
 	mr.QueueResponse(`{"username":"alice"}`, "", nil) // glab api user
 
@@ -298,7 +298,7 @@ func TestCheck_OK_WithAuth(t *testing.T) {
 
 func TestCheck_Auth_Failure(t *testing.T) {
 	t.Setenv("GITLAB_CI", "")
-	mr := testutil.NewMockRunner()
+	mr := exectest.NewMockRunner()
 	mr.QueueResponse("glab version 1.0.0", "", nil)
 	mr.QueueResponse("", "401 Unauthorized", errors.New("exit status 1"))
 
@@ -314,7 +314,7 @@ func TestCheck_Auth_Failure(t *testing.T) {
 func TestCheck_Auth_InCI_OK(t *testing.T) {
 	t.Setenv("GITLAB_CI", "true")
 	t.Setenv("CI_PROJECT_ID", "42")
-	mr := testutil.NewMockRunner()
+	mr := exectest.NewMockRunner()
 	mr.QueueResponse("glab version 1.0.0", "", nil)
 	mr.QueueResponse(`[]`, "", nil) // glab api projects/42/releases?per_page=1
 
@@ -332,7 +332,7 @@ func TestCheck_Auth_InCI_NoProjectID(t *testing.T) {
 	// When CI_PROJECT_ID is unset, skip the auth check gracefully.
 	t.Setenv("GITLAB_CI", "true")
 	t.Setenv("CI_PROJECT_ID", "")
-	mr := testutil.NewMockRunner()
+	mr := exectest.NewMockRunner()
 	mr.QueueResponse("glab version 1.0.0", "", nil)
 	// No second response needed — auth check is skipped
 
