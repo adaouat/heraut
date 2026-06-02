@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.21.0](https://github.com/adaouat/heraut/compare/v0.20.1..v0.21.0) - 2026-06-02
+
+### 🚀 Features
+
+- *(cmd)* Add --no-push flag to heraut changelog - ([c807c1d](https://github.com/adaouat/heraut/commit/c807c1d5960bc289499f6f1784c901bb6920857b)) by @bchatard
+
 ## [0.20.1](https://github.com/adaouat/heraut/compare/v0.20.0..v0.20.1) - 2026-06-02
 
 ### 🐛 Bug Fixes
