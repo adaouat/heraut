@@ -11,6 +11,7 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
+	"strconv"
 	"strings"
 	"time"
 )
@@ -100,7 +101,7 @@ func (u *Updater) Check(ctx context.Context) (string, bool, error) {
 		return "", false, err
 	}
 	latest := rel.TagName
-	return latest, latest != u.currentVersion, nil
+	return latest, isNewer(latest, u.currentVersion), nil
 }
 
 // Hint checks (with 24 h caching) whether an update is available and prints a
@@ -111,10 +112,48 @@ func (u *Updater) Hint(ctx context.Context, w io.Writer) {
 		return
 	}
 	latest, err := u.hintLatest(ctx)
-	if err != nil || latest == "" || latest == u.currentVersion {
+	if err != nil || !isNewer(latest, u.currentVersion) {
 		return
 	}
 	_, _ = fmt.Fprintf(w, "hint: heraut %s available — run: heraut self-update\n", latest)
+}
+
+// isNewer reports whether the latest version is strictly greater than current.
+// Versions are compared component-by-component as dot-separated integers after
+// stripping an optional leading "v" — this works for both SemVer (1.2.3) and CalVer
+// (2026.5.0). A non-numeric or empty latest returns false (never suggest an update).
+func isNewer(latest, current string) bool {
+	l := strings.TrimPrefix(latest, "v")
+	c := strings.TrimPrefix(current, "v")
+	if l == "" {
+		return false
+	}
+	return compareVersions(l, c) > 0
+}
+
+// compareVersions returns -1, 0, or 1 comparing dot-separated integer versions.
+// Missing trailing components are treated as 0 (1.2 == 1.2.0). Non-numeric
+// components compare as 0.
+func compareVersions(a, b string) int {
+	aParts := strings.Split(a, ".")
+	bParts := strings.Split(b, ".")
+	n := max(len(aParts), len(bParts))
+	for i := range n {
+		var av, bv int
+		if i < len(aParts) {
+			av, _ = strconv.Atoi(aParts[i])
+		}
+		if i < len(bParts) {
+			bv, _ = strconv.Atoi(bParts[i])
+		}
+		switch {
+		case av < bv:
+			return -1
+		case av > bv:
+			return 1
+		}
+	}
+	return 0
 }
 
 // hintLatest returns the latest version using the 24 h cache, fetching only when stale.

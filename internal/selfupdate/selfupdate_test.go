@@ -88,6 +88,37 @@ func TestUpdater_Check_UpdateAvailable(t *testing.T) {
 	assert.True(t, available)
 }
 
+func TestUpdater_Check_CurrentNewerThanLatest(t *testing.T) {
+	_, latestURL := newReleaseServer(t, "v1.2.0", nil)
+	u := New("v1.3.0", WithLatestURL(latestURL))
+
+	latest, available, err := u.Check(context.Background())
+	require.NoError(t, err)
+	assert.Equal(t, "v1.2.0", latest)
+	assert.False(t, available, "must not report an update when current is newer than latest")
+}
+
+func TestIsNewer(t *testing.T) {
+	tests := []struct {
+		latest, current string
+		want            bool
+	}{
+		{"v1.3.0", "v1.2.3", true},
+		{"1.3.0", "1.2.3", true},
+		{"v1.2.3", "v1.2.3", false},    // equal
+		{"v1.2.0", "v1.3.0", false},    // older
+		{"v1.10.0", "v1.9.0", true},    // numeric, not lexical
+		{"v2.0.0", "1.9.9", true},      // mixed prefix
+		{"2026.5.0", "2026.4.9", true}, // CalVer
+		{"2026.4.0", "2026.5.0", false},
+	}
+	for _, tc := range tests {
+		t.Run(tc.latest+"_vs_"+tc.current, func(t *testing.T) {
+			assert.Equal(t, tc.want, isNewer(tc.latest, tc.current))
+		})
+	}
+}
+
 func TestUpdater_Check_ServerError(t *testing.T) {
 	tests := []struct {
 		name       string
@@ -142,6 +173,42 @@ func TestUpdater_Hint_SilentWhenUpToDate(t *testing.T) {
 	defer cancel()
 	u.Hint(ctx, &buf)
 
+	assert.Empty(t, buf.String())
+}
+
+// Current version ahead of the published latest (e.g. upgraded via mise/brew to a
+// newer build than the cached/served release) must NOT show a backward "update" hint.
+func TestUpdater_Hint_SilentWhenCurrentIsNewer(t *testing.T) {
+	_, latestURL := newReleaseServer(t, "v1.2.0", nil)
+	u := New("v1.3.0", // installed out-of-band, newer than served latest
+		WithLatestURL(latestURL),
+		withCacheDir(t.TempDir()),
+	)
+
+	var buf strings.Builder
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	u.Hint(ctx, &buf)
+
+	assert.Empty(t, buf.String(), "must not suggest downgrading to an older release")
+}
+
+// The 24h-cached latest can be stale and older than a freshly-installed binary.
+func TestUpdater_Hint_SilentWhenCacheOlderThanCurrent(t *testing.T) {
+	cacheDir := t.TempDir()
+	fixedNow := time.Date(2026, 1, 1, 12, 0, 0, 0, time.UTC)
+	// Cache says latest is v1.2.0 (checked recently), but the binary is now v1.3.0.
+	data, _ := json.Marshal(updateCache{CheckedAt: fixedNow, LatestVersion: "v1.2.0"})
+	require.NoError(t, os.WriteFile(filepath.Join(cacheDir, "update-check.json"), data, 0o644))
+
+	u := New("v1.3.0",
+		WithLatestURL("http://unused.invalid"), // cache is fresh; no fetch
+		withCacheDir(cacheDir),
+		withNow(func() time.Time { return fixedNow }),
+	)
+
+	var buf strings.Builder
+	u.Hint(context.Background(), &buf)
 	assert.Empty(t, buf.String())
 }
 
