@@ -6,14 +6,16 @@ package exitcode
 
 import forgeexit "github.com/adaouat/forge/exitcode"
 
-// Exit codes per docs/specs/01-overview.md § Exit codes.
+// Exit codes per docs/specs/01-overview.md § Exit codes. The generic codes are
+// re-exported from forge's shared vocabulary (ADR-0003); Promotion is heraut's
+// own domain code in the reserved 4-69 range.
 const (
-	OK        = 0  // success
-	Usage     = 1  // bad flags or arguments (also the default for unclassified errors)
-	Config    = 2  // invalid YAML, missing required fields, semantic validation failure
-	Runtime   = 3  // binary missing, token unset, network failure, git operation failed
-	Promotion = 4  // promotion guard tripped (E001/E002/E003)
-	Internal  = 70 // unexpected/internal condition
+	OK        = forgeexit.OK       // success
+	Usage     = forgeexit.Usage    // bad flags or arguments (also the default for unclassified errors)
+	Config    = forgeexit.Config   // invalid YAML, missing required fields, semantic validation failure
+	Runtime   = forgeexit.Runtime  // binary missing, token unset, network failure, git operation failed
+	Promotion = 4                  // promotion guard tripped (E001/E002/E003)
+	Internal  = forgeexit.Internal // unexpected/internal condition
 )
 
 // Wrap annotates err with an exit code; the first/innermost classification wins.
