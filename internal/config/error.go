@@ -1,29 +1,11 @@
 package config
 
-import "strings"
+import forgeconfig "github.com/adaouat/forge/config"
 
-// ValidationError describes a single semantic validation failure.
-type ValidationError struct {
-	Path    string
-	Message string
-	Hint    string
-}
-
-func (e ValidationError) Error() string {
-	s := e.Path + ": " + e.Message
-	if e.Hint != "" {
-		s += "\n  hint: " + e.Hint
-	}
-	return s
-}
-
-// ValidationErrors is a list of ValidationError that implements error.
-type ValidationErrors []ValidationError
-
-func (ve ValidationErrors) Error() string {
-	msgs := make([]string, len(ve))
-	for i, e := range ve {
-		msgs[i] = e.Error()
-	}
-	return strings.Join(msgs, "\n")
-}
+// ValidationError and ValidationErrors are heraut's aliases for forge's
+// structured validation errors (Path/Message/Hint). The validator produces
+// them; cmd renders them.
+type (
+	ValidationError  = forgeconfig.ValidationError
+	ValidationErrors = forgeconfig.ValidationErrors
+)

@@ -1,11 +1,9 @@
 package config
 
-import (
-	"os"
-	"strings"
-)
+import forgeconfig "github.com/adaouat/forge/config"
 
-// PathSource identifies how a config file path was resolved.
+// PathSource identifies how a config file path was resolved. The values mirror
+// forge's Resolver.Label output for app "heraut".
 type PathSource string
 
 const (
@@ -15,36 +13,24 @@ const (
 	SourceDefault   PathSource = ".heraut.yml"
 )
 
-// ResolvePathWithSource returns the config file to use and the source that determined it:
-//  1. explicit (--config flag) if non-empty → SourceFlag
-//  2. HERAUT_FILE env var if set → SourceEnvVar
-//  3. .config/heraut.yml if it exists → SourceXDGConfig
-//  4. .heraut.yml (default fallback) → SourceDefault
+func resolver() forgeconfig.Resolver { return forgeconfig.Resolver{App: "heraut"} }
+
+// ResolvePathWithSource returns the config file to use and the source that determined it
+// (see forge's Resolver: --config flag → HERAUT_FILE → .config/heraut.yml → .heraut.yml).
 func ResolvePathWithSource(explicit string) (string, PathSource) {
-	if explicit != "" {
-		return explicit, SourceFlag
-	}
-	if env := strings.TrimSpace(os.Getenv("HERAUT_FILE")); env != "" {
-		return env, SourceEnvVar
-	}
-	if _, err := os.Stat(".config/heraut.yml"); err == nil {
-		return ".config/heraut.yml", SourceXDGConfig
-	}
-	return ".heraut.yml", SourceDefault
+	r := resolver()
+	path, src := r.Resolve(explicit)
+	return path, PathSource(r.Label(src))
 }
 
-// ResolvePath returns the config file to use. See ResolvePathWithSource for the full
-// resolution order.
+// ResolvePath returns the config file to use. See ResolvePathWithSource for the order.
 func ResolvePath(explicit string) string {
-	path, _ := ResolvePathWithSource(explicit)
+	path, _ := resolver().Resolve(explicit)
 	return path
 }
 
 // InitDest returns the path heraut init should write to:
 // .config/heraut.yml if .config/ exists, else .heraut.yml.
 func InitDest() string {
-	if _, err := os.Stat(".config"); err == nil {
-		return ".config/heraut.yml"
-	}
-	return ".heraut.yml"
+	return resolver().InitDest()
 }
