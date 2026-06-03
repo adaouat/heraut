@@ -3,14 +3,14 @@ package ui
 import (
 	"fmt"
 	"io"
-	"os"
 	"strings"
 	"sync"
 	"time"
 
 	"charm.land/bubbles/v2/spinner"
 	"charm.land/lipgloss/v2"
-	"github.com/charmbracelet/x/term"
+
+	forgeui "github.com/adaouat/forge/ui"
 )
 
 // Step represents a single named check or pipeline step.
@@ -33,7 +33,7 @@ var spinningStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("214")).Bold(t
 // Animates a spinner when the writer is a terminal, falls back to plain text
 // otherwise.
 func StartStep(out io.Writer, msg string) *Step {
-	return newStep(out, msg, !isTerminal(out))
+	return newStep(out, msg, !forgeui.IsTTY(out))
 }
 
 // StartPlainStep always uses plain lines regardless of terminal. Use in
@@ -115,12 +115,4 @@ func (s *Step) complete(print func()) {
 	// Clear the spinner line, then print the final result on a clean line.
 	_, _ = fmt.Fprintf(s.out, "\r%s\r", strings.Repeat(" ", len(s.msg)+10))
 	print()
-}
-
-func isTerminal(w io.Writer) bool {
-	f, ok := w.(*os.File)
-	if !ok {
-		return false
-	}
-	return term.IsTerminal(f.Fd())
 }

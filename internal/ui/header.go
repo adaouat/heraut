@@ -1,5 +1,7 @@
 package ui
 
+import forgeui "github.com/adaouat/forge/ui"
+
 const asciiArt = `
 ██╗  ██╗███████╗██████╗  █████╗ ██╗   ██╗████████╗
 ██║  ██║██╔════╝██╔══██╗██╔══██╗██║   ██║╚══██╔══╝
@@ -12,12 +14,8 @@ const asciiArt = `
 const CatchPhrase = "Every release deserves a héraut."
 
 // HelpLong returns the ASCII art + tagline for use as cobra root.Long.
-func HelpLong() string {
-	return asciiArt + "\n" + CatchPhrase
-}
+func HelpLong() string { return forgeui.HelpLong(asciiArt, CatchPhrase) }
 
 // VersionTemplate returns a cobra text/template string for --version output.
 // cobra fills {{.Name}} and {{.Version}} at runtime.
-func VersionTemplate() string {
-	return asciiArt + "\n\n  " + CatchPhrase + "\n\n  {{.Name}} {{.Version}}\n\n"
-}
+func VersionTemplate() string { return forgeui.VersionTemplate(asciiArt, CatchPhrase) }
