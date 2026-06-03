@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	execadapter "github.com/adaouat/forge/exec"
+	forgeui "github.com/adaouat/forge/ui"
 	"github.com/adaouat/heraut/internal/app"
 	"github.com/adaouat/heraut/internal/config"
 	"github.com/adaouat/heraut/internal/exitcode"
@@ -212,19 +213,23 @@ func newCheckCliffReleaseNotesCmd() *cobra.Command {
 // the number of hard failures (warnings do not count).
 func runRuntimeCheck(runner port.Runner, cfg *config.Config, out io.Writer) int {
 	var failed int
+	sp := forgeui.NewSpinner(out, forgeui.Human)
 	app.RuntimeCheck(runner, cfg,
 		func(title string) { ui.Header(out, title) },
 		func(name string, run func() app.RuntimeCheckItem) {
-			step := ui.StartStep(out, name)
-			item := run()
-			switch {
-			case item.IsWarn:
-				step.Skip(item.Err.Error())
-			case item.Err != nil:
-				step.Fail(item.Err.Error())
+			err := sp.Run(name, func() (forgeui.Result, error) {
+				item := run()
+				switch {
+				case item.IsWarn:
+					return forgeui.Result{}, forgeui.Skip(item.Err.Error())
+				case item.Err != nil:
+					return forgeui.Result{}, item.Err
+				default:
+					return forgeui.Result{Detail: item.Value}, nil
+				}
+			})
+			if err != nil {
 				failed++
-			default:
-				step.Done(item.Value)
 			}
 		},
 	)
@@ -262,13 +267,12 @@ func checkCliffDriver(runner port.Runner, driver *config.ContentDriver, mode str
 		_, _ = fmt.Fprintln(out, ui.Warn(out, fmt.Sprintf("cliff %s: skip (generator is %s, not git-cliff)", mode, driver.Generator)))
 		return nil
 	}
-	step := ui.StartStep(out, fmt.Sprintf("cliff %s", mode))
-	if err := app.CheckCliff(runner, driver, mode); err != nil {
-		step.Fail(err.Error())
-		return err
-	}
-	step.Done("valid")
-	return nil
+	return forgeui.NewSpinner(out, forgeui.Human).Run(fmt.Sprintf("cliff %s", mode), func() (forgeui.Result, error) {
+		if err := app.CheckCliff(runner, driver, mode); err != nil {
+			return forgeui.Result{}, err
+		}
+		return forgeui.Result{Detail: "valid"}, nil
+	})
 }
 
 // printConfigErrors writes validation errors to out.

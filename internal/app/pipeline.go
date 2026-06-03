@@ -5,6 +5,7 @@ import (
 	"io"
 	"strings"
 
+	forgeui "github.com/adaouat/forge/ui"
 	"github.com/adaouat/heraut/internal/config"
 	"github.com/adaouat/heraut/internal/generators/cocogitto"
 	"github.com/adaouat/heraut/internal/generators/communique"
@@ -59,8 +60,21 @@ func BuildPipeline(runner port.Runner, cfg *config.Config, resolver versioning.R
 		out = io.Discard
 	}
 	pipe := pipeline.New(runner, resolver, pipelineCfg, out, opts.DryRun)
-	pipe = pipe.WithReporter(ui.NewProgress(out, releaseStepTotal(pipelineCfg)).Step)
+	pipe = pipe.WithReporter(spinnerReporter(out, releaseStepTotal(pipelineCfg)))
 	return pipe, nil
+}
+
+// spinnerReporter adapts a forge ui.Spinner to the pipeline's ui.StepFn: each
+// step animates a spinner (human mode on a TTY) and resolves to a ✓/✗ line with
+// an [N/total] counter. The pipeline always passes a non-nil fn.
+func spinnerReporter(out io.Writer, total int) ui.StepFn {
+	sp := forgeui.NewSpinner(out, forgeui.Human).Total(total)
+	return func(name string, fn func() (result string, subs []string, err error)) error {
+		return sp.Run(name, func() (forgeui.Result, error) {
+			result, subs, err := fn()
+			return forgeui.Result{Detail: result, Subs: subs}, err
+		})
+	}
 }
 
 // releaseStepTotal computes the number of numbered steps for a release pipeline.
@@ -90,7 +104,7 @@ func BuildChangelogPipeline(runner port.Runner, cfg *config.Config, resolver ver
 		out = io.Discard
 	}
 	pipe := pipeline.NewChangelog(runner, resolver, changelogCfg, out, opts.DryRun)
-	pipe = pipe.WithReporter(ui.NewProgress(out, changelogStepTotal(changelogCfg)).Step)
+	pipe = pipe.WithReporter(spinnerReporter(out, changelogStepTotal(changelogCfg)))
 	return pipe, nil
 }
 
