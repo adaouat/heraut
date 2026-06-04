@@ -6,38 +6,10 @@ on:
   pull_request:
 
 jobs:
-  lint:
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
-      - name: Setup Mise
-        uses: jdx/mise-action@1648a7812b9aeae629881980618f079932869151 # v4
-      - name: Lint
-        run: golangci-lint run ./...
-      - name: Vulnerability scan
-        run: govulncheck ./...
-
-  test:
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
-      - name: Setup Mise
-        uses: jdx/mise-action@1648a7812b9aeae629881980618f079932869151 # v4
-      - name: Test
-        run: go test ./... -coverprofile=coverage.out
-      - name: Check coverage threshold
-        run: |
-          go tool cover -func=coverage.out | awk '
-            /^total:/ {
-              pct = substr($3, 1, length($3)-1)
-              printf "Total coverage: %s%%\n", pct
-              if (pct+0 < 85) {
-                printf "Error: coverage %s%% is below the 85%% threshold\n", pct
-                exit 1
-              }
-            }'
+  # Lint + test come from forge's shared reusable workflow (ADR-0006).
+  # heraut uses the default 85% coverage threshold.
+  ci:
+    uses: adaouat/forge/.github/workflows/go-ci.yml@79edf69202740f8e0af6d28e4b17d5965ee11ca9 # v0.6.0
 
   build:
     runs-on: ubuntu-latest
