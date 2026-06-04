@@ -14,6 +14,7 @@ var Version = "dev"
 
 func main() {
 	root := cmd.NewRootCmd(Version)
-	err := fang.Execute(context.Background(), root, fang.WithVersion(Version))
+	err := fang.Execute(context.Background(), root,
+		fang.WithVersion(Version), fang.WithColorSchemeFunc(colorScheme))
 	os.Exit(cmd.ExitCode(err))
 }

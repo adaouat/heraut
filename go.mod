@@ -5,6 +5,7 @@ go 1.26.4
 require (
 	charm.land/fang/v2 v2.0.1
 	charm.land/huh/v2 v2.0.3
+	charm.land/lipgloss/v2 v2.0.2
 	github.com/pelletier/go-toml/v2 v2.3.1
 	github.com/santhosh-tekuri/jsonschema/v6 v6.0.2
 	github.com/spf13/cobra v1.10.2
@@ -14,14 +15,13 @@ require (
 
 require (
 	charm.land/bubbles/v2 v2.1.0 // indirect
-	charm.land/lipgloss/v2 v2.0.2 // indirect
 	github.com/charmbracelet/colorprofile v0.4.2 // indirect
 	github.com/charmbracelet/x/term v0.2.2 // indirect
 )
 
 require (
 	charm.land/bubbletea/v2 v2.0.2 // indirect
-	github.com/adaouat/forge v0.6.2
+	github.com/adaouat/forge v0.7.0
 	github.com/atotto/clipboard v0.1.4 // indirect
 	github.com/catppuccin/go v0.2.0 // indirect
 	github.com/charmbracelet/ultraviolet v0.0.0-20260205113103-524a6607adb8 // indirect
