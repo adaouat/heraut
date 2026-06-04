@@ -1,5 +1,52 @@
 # Changelog
 
+## [0.21.1](https://github.com/adaouat/heraut/compare/v0.21.0..v0.21.1) - 2026-06-04
+
+### 💼 Other
+
+- Bump Go toolchain lock to 1.26.4 - ([45233c8](https://github.com/adaouat/heraut/commit/45233c8f891ac9128125e3c8122620204b876bbe)) by @bchatard
+
+- Bump go.mod directive to 1.26.4 - ([2dd5018](https://github.com/adaouat/heraut/commit/2dd5018a15cdc064a150487e9c5751107cd52a69)) by @bchatard
+
+- Depend on published forge v0.6.2 (drop replace) - ([e5d3d09](https://github.com/adaouat/heraut/commit/e5d3d09394721f0e3feb279cc87b85f4913a833e)) by @bchatard
+
+
+### 🚜 Refactor
+
+- *(cmd)* Drop self-update, use forge updatecheck hint - ([b92ff7a](https://github.com/adaouat/heraut/commit/b92ff7ae4e817e642bf4b17b89c3e28ff98ba6d2)) by @bchatard
+
+- *(config)* Use forge config primitives - ([53e89f5](https://github.com/adaouat/heraut/commit/53e89f52b4f6578daf2f1891e6452b407e6372f1)) by @bchatard
+
+- *(config)* Emit forge's config error wording - ([17d46eb](https://github.com/adaouat/heraut/commit/17d46eb5526957fe86f1e7ee0f1bdb612efc8ea6)) by @bchatard
+
+- *(exec)* Consume forge exec.Runner and exectest - ([e7fc732](https://github.com/adaouat/heraut/commit/e7fc7322e75e9cb8046e62ede621ac5c169a8dc6)) by @bchatard
+
+- *(exitcode)* Delegate Wrap/Resolve to forge - ([9f835fa](https://github.com/adaouat/heraut/commit/9f835fab94e127c239712a9b11a987fbda75a3e3)) by @bchatard
+
+- *(exitcode)* Re-export forge's shared exit codes - ([a5e9d5f](https://github.com/adaouat/heraut/commit/a5e9d5fa1fb60f184e6978ec955391585e282cc5)) by @bchatard
+
+- *(ui)* Route status/header/detection through forge - ([2af13c8](https://github.com/adaouat/heraut/commit/2af13c88865789792306f6f102bffc92eaaeabd7)) by @bchatard
+
+- *(ui)* Run checks and pipeline steps via forge.Spinner - ([42828e6](https://github.com/adaouat/heraut/commit/42828e6a94ff728b10347876bd1f70d09ad5ca1b)) by @bchatard
+
+
+### 📚 Documentation
+
+- *(readme)* Drop removed self-update references - ([75ae055](https://github.com/adaouat/heraut/commit/75ae055c07d79cdf90cad27279c33f96a043192f)) by @bchatard
+
+- Mark self-update superseded across specs and ADR-0014 - ([eb811b3](https://github.com/adaouat/heraut/commit/eb811b38c107b6a4dcfa5b081607769088126a58)) by @bchatard
+
+- Document heraut Homebrew cask install and ADR notes - ([5d5b008](https://github.com/adaouat/heraut/commit/5d5b008b1b82408647402f6d8280294d13c2b03b)) by @bchatard
+
+
+### ⚙️ Miscellaneous Tasks
+
+- Call forge's shared lint/test reusable workflow - ([42397fe](https://github.com/adaouat/heraut/commit/42397fe70b3a8878318ea754f30d3c7a9be31e61)) by @bchatard
+
+- Re-pin forge go-ci to v0.6.1 and set coverage-threshold - ([661119e](https://github.com/adaouat/heraut/commit/661119e6ed147a339fc966d934467c78e62d47c7)) by @bchatard
+
+- Publish Homebrew cask to adaouat/homebrew-tap - ([697056e](https://github.com/adaouat/heraut/commit/697056e92238a6585d384fe237e28ce1f7f16e1c)) by @bchatard
+
 ## [0.21.0](https://github.com/adaouat/heraut/compare/v0.20.1..v0.21.0) - 2026-06-02
 
 ### 🚀 Features
