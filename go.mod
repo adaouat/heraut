@@ -1,6 +1,6 @@
 module github.com/adaouat/heraut
 
-go 1.26.3
+go 1.26.4
 
 require (
 	charm.land/fang/v2 v2.0.1
