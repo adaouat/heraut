@@ -48,8 +48,8 @@ jobs:
 
       - name: Configure git identity
         run: |
-          git config user.name "Héraut Release Bot"
-          git config user.email "heraut+github@adaouat.dev"
+          git config --global user.name "Héraut Release Bot"
+          git config --global user.email "heraut+github@adaouat.dev"
 
       - name: Resolve version
         id: version
@@ -131,8 +131,7 @@ jobs:
           cd /tmp/tap
           git add Casks/heraut.rb
           git diff --cached --quiet && { echo "cask unchanged"; exit 0; }
-          git -c user.name="Héraut Release Bot" -c user.email="heraut+github@adaouat.dev" \
-            commit -m "heraut ${VERSION}"
+          git commit -m "heraut ${VERSION}"
           git push
 
   docker-build:
