@@ -61,7 +61,9 @@ chmod +x heraut
 ./heraut --version
 ```
 
-Once installed, `heraut self-update` keeps it current.
+Once installed, heraut prints a one-line upgrade hint when a newer release exists; re-run
+your install method (`mise upgrade heraut`, `go install …@latest`, or the curl command) to
+upgrade.
 
 > **macOS / Gatekeeper:** if the binary is blocked after download, clear the quarantine flag:
 > ```bash
@@ -131,7 +133,6 @@ heraut release
 | `heraut check` | Preflight: config + runtime + cliff (`config` / `runtime` / `cliff` subcommands) |
 | `heraut cliff <mode>` | Print the effective merged git-cliff TOML (`changelog` / `release-notes`) |
 | `heraut init` | Interactive wizard to generate `.heraut.yml` |
-| `heraut self-update` | Download, verify, and atomically replace the binary |
 
 Global flags (on every command): `--config`, `--dry-run`, `--verbose`, `--env`,
 `--force`, `--version`/`-v`, `--help`/`-h`. See
@@ -179,16 +180,14 @@ for every field, [Spec 04 — Versioning](docs/specs/04-versioning.md) for how e
 strategy computes the next version, and [`docs/heraut.sample.yml`](docs/heraut.sample.yml)
 for a fully annotated config covering all fields with comments.
 
-## Self-update
-
-```bash
-heraut self-update            # download + verify (SHA-256) + atomically replace
-heraut self-update --check    # print current vs latest; exit 1 if an update is available
-```
+## Updates
 
 After any command, heraut runs a non-blocking, once-per-day check against the GitHub
-Releases API and prints a one-line hint if a newer version exists. Disable it with
-`HERAUT_CHECK_UPDATE=false`. See [ADR-0014](docs/adr/0014-self-update-architecture.md).
+Releases API and prints a one-line hint — with the matching upgrade command — when a newer
+version exists. Disable the check with `HERAUT_CHECK_UPDATE=false`.
+
+heraut does not self-replace its binary: upgrades go through your install method
+(`mise upgrade heraut`, `go install …@latest`, Homebrew, or re-running the curl command).
 
 ## Documentation
 
