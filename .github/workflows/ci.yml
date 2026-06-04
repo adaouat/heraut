@@ -7,9 +7,10 @@ on:
 
 jobs:
   # Lint + test come from forge's shared reusable workflow (ADR-0006).
-  # heraut uses the default 85% coverage threshold.
   ci:
-    uses: adaouat/forge/.github/workflows/go-ci.yml@79edf69202740f8e0af6d28e4b17d5965ee11ca9 # v0.6.0
+    uses: adaouat/forge/.github/workflows/go-ci.yml@5a8de75f0c08d6ca58bea0f59617282a98f9f2b6 # v0.6.1
+    with:
+      coverage-threshold: 85
 
   build:
     runs-on: ubuntu-latest
