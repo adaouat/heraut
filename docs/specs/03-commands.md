@@ -319,29 +319,18 @@ version, or to `git-cliff` directly to reproduce heraut's invocation.
 `versioning.tag_format` contains `{build}`, the auto-injected build-id postprocessor
 appears in the output — matching exactly what the pipeline feeds `git-cliff`.
 
-## `heraut self-update`
-
-Replace the running binary with the latest GitHub release. See
-[ADR-0014](../adr/0014-self-update-architecture.md).
-
-```
-heraut self-update            # download + verify + atomically replace
-heraut self-update --check    # print current vs latest; exit 1 if update available
-```
-
-Skipped for `dev` builds (no `ldflags`-injected version) and during a running
-`heraut self-update`. Disable the background check (printed at the end of any other
-command) by setting `HERAUT_CHECK_UPDATE=false`.
-
 ## Background update hint
 
 After any successful command, heraut performs a non-blocking check against the GitHub
-Releases API (timeout 500ms). If a newer version is available, it prints a single hint
-line to stderr after the command's normal output:
+Releases API (timeout 500ms). If a newer version is available, it prints a single line to
+stderr after the command's normal output, naming the upgrade command for however the binary
+was installed:
 
 ```
-hint: heraut 1.2.3 available — run: heraut self-update
+heraut 1.2.3 available — run: mise upgrade heraut
 ```
 
-Disabled for `heraut self-update`, in `dev` builds, and when
-`HERAUT_CHECK_UPDATE=false` is set.
+The check is delegated to forge's shared `updatecheck` package and runs at most once per 24
+hours (cached under `$XDG_CACHE_HOME/heraut/`). heraut does **not** self-replace its binary —
+upgrades go through the package manager (see [ADR-0014](../adr/0014-self-update-architecture.md),
+superseded). Disabled in `dev` builds and when `HERAUT_CHECK_UPDATE=false` is set.

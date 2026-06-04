@@ -101,8 +101,9 @@ outside `/tmp`.
 - Three content generators: git-cliff, communique, cocogitto
 - JSON Schema for IDE validation of `.heraut.yml`
 - Raw binary distribution via GitHub Releases + GHCR Docker image
-- Self-update via the GitHub Releases API
-  ([ADR-0014](../adr/0014-self-update-architecture.md))
+- Update-availability check via the GitHub Releases API — a daily hint with the upgrade
+  command; upgrades go through the package manager, not binary self-replacement (forge
+  `updatecheck`; [ADR-0014](../adr/0014-self-update-architecture.md) superseded)
 
 ### Out of scope (revisit later)
 

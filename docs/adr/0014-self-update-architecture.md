@@ -1,10 +1,18 @@
 # ADR-0014: Self-Update Architecture
 
-- **Status**: Accepted
+- **Status**: Superseded by forge ADR-0005
 - **Date**: 2026-05-23
 - **Deciders**: bchatard
 
 ---
+
+> **Superseded (2026-06-04).** heraut no longer self-replaces its binary: the
+> `internal/selfupdate` package and the `heraut self-update` command were removed. Upgrades are
+> delegated to whatever installed the binary (mise / Homebrew / `go install` / curl). The
+> once-per-24h update **check** described below survives, but now comes from forge's shared
+> `updatecheck` package, which prints a hint with the detected upgrade command — it never
+> downloads or replaces the binary. See **forge ADR-0005 — Updates via package managers, not
+> binary self-replacement**. The design below is kept as a historical record.
 
 ## Context
 

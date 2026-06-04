@@ -179,5 +179,5 @@ Foundational design questions and their resolutions:
 | Tool name                                                                                      | Héraut (brand) / `heraut` (binary). See [ADR-0002](../adr/0002-tool-name-heraut.md). |
 | `source:` field for promote with multiple `auto` envs                                          | Explicit `source:` field, with cycle detection and chaining. See [ADR-0008](../adr/0008-promote-source-env.md). |
 | Module path                                                                                    | `github.com/adaouat/heraut`                                               |
-| Self-update version check                                                                      | GitHub Releases API directly. See [ADR-0014](../adr/0014-self-update-architecture.md). |
+| Update availability check                                                                      | GitHub Releases API via forge's `updatecheck`; daily hint, no binary self-replacement. See [ADR-0014](../adr/0014-self-update-architecture.md) (superseded). |
 | Per-env strategy code shape                                                                    | Generic `internal/versioning/perenv/` wrapping a `VersionCalculator` interface. See [ADR-0009](../adr/0009-generic-perenv-resolver.md). |
