@@ -6,6 +6,13 @@
 
 ---
 
+> **Note (2026-06-04).** `builds.binary` is now plain `heraut`, not the versioned
+> `heraut_<version>_<os>_<arch>` shown below, so the Homebrew cask installs the binary as
+> `heraut`. The versioned **asset** name is unchanged — it comes from `archives.name_template`,
+> and the release workflow maps each build output to its versioned name via goreleaser's
+> `artifacts.json`. The raw-binary decision and the asset/checksum naming below still hold;
+> only where the version lives in the config moved (from `builds.binary` to `name_template`).
+
 ## Context
 
 GoReleaser is the build tool ([Spec 06 — CI](../specs/06-dx-and-testing.md#ci)). The

@@ -6,6 +6,12 @@
 
 ---
 
+> **Note (2026-06-04).** The release job now publishes a **Homebrew cask** to
+> `adaouat/homebrew-tap` as a final step, after `heraut release` uploads the assets —
+> extending "heraut owns publishing" to the cask. goreleaser stays build-only
+> (`--skip=publish`); it only *generates* the cask, which the workflow then pushes. The
+> step skips gracefully when `HOMEBREW_TAP_TOKEN` is unset, so it never breaks a release.
+
 ## Context
 
 The v0.x release workflow (established in T02 and T33) is:

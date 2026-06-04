@@ -27,6 +27,12 @@ and **two platforms** (`github`, `gitlab`).
 
 ## Install
 
+### Homebrew
+
+```bash
+brew install --cask adaouat/tap/heraut
+```
+
 ### `go install`
 
 ```bash
