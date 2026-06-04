@@ -79,8 +79,12 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Collect release binaries
+        # builds.binary is plain `heraut` (so the Homebrew cask installs under that
+        # name), so the versioned asset names live in goreleaser's artifacts.json —
+        # copy each build output to its versioned name for `heraut release` to upload.
         run: |
-          for f in dist/heraut_*/heraut_*; do cp "$f" dist/; done
+          jq -r '.[] | select(.type == "Binary" and (.name | startswith("heraut_"))) | "\(.path)\t\(.name)"' \
+            dist/artifacts.json | while IFS=$'\t' read -r path name; do cp "$path" "dist/$name"; done
           echo "FRESH_BIN=dist/heraut_${VERSION#v}_linux_amd64" >> "$GITHUB_ENV"
 
       - name: Attest build provenance
@@ -110,6 +114,26 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GITHUB_REPOSITORY: ${{ github.repository }}
+
+      - name: Publish Homebrew cask
+        # goreleaser is build-only (--skip=publish), so it only generated the cask;
+        # push it to the tap now that `heraut release` has uploaded the assets. Skips
+        # gracefully if the token isn't set, so it never breaks a release.
+        env:
+          HOMEBREW_TAP_TOKEN: ${{ secrets.HOMEBREW_TAP_TOKEN }}
+        run: |
+          if [ -z "$HOMEBREW_TAP_TOKEN" ]; then
+            echo "HOMEBREW_TAP_TOKEN not set — skipping cask publish."
+            exit 0
+          fi
+          git clone "https://x-access-token:${HOMEBREW_TAP_TOKEN}@github.com/adaouat/homebrew-tap.git" /tmp/tap
+          install -D dist/homebrew/Casks/heraut.rb /tmp/tap/Casks/heraut.rb
+          cd /tmp/tap
+          git add Casks/heraut.rb
+          git diff --cached --quiet && { echo "cask unchanged"; exit 0; }
+          git -c user.name="Héraut Release Bot" -c user.email="heraut+github@adaouat.dev" \
+            commit -m "heraut ${VERSION}"
+          git push
 
   docker-build:
     runs-on: ${{ matrix.runner }}

@@ -9,7 +9,9 @@ before:
 builds:
   - id: heraut
     main: ./cmd/heraut/
-    binary: "heraut_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
+    # Plain name so the Homebrew cask installs the binary as `heraut`; the version
+    # lives in the asset name via archives.name_template below.
+    binary: heraut
     env:
       - CGO_ENABLED=0
     goos:
@@ -25,9 +27,9 @@ builds:
     ldflags:
       - >-
         -s -w -X main.Version={{.Tag}}
-# ADR-0013: raw binaries, no archive wrapper.
-# binary and name_template share the same versioned naming so the checksum
-# covers the built binary directly (ADR-0018).
+# ADR-0013: raw binaries, no archive wrapper. The version lives in the asset name
+# via name_template (builds.binary is plain — needed so the Homebrew cask installs
+# as `heraut`); the checksum covers the binary users run directly (ADR-0018).
 archives:
   - id: default
     name_template: "{{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
@@ -41,3 +43,17 @@ checksum:
 # heraut owns GitHub Release creation via `heraut release --version`.
 release:
   disable: true
+
+# Homebrew cask. goreleaser is build-only here (--skip=publish, ADR-0018), so it only
+# *generates* dist/homebrew/Casks/heraut.rb — the release workflow pushes it to the tap
+# after `heraut release` uploads the assets. The explicit url.template is required
+# because release.disable means goreleaser can't derive the default download URL.
+homebrew_casks:
+  - repository:
+      owner: adaouat
+      name: homebrew-tap
+    directory: Casks
+    url:
+      template: "https://github.com/adaouat/heraut/releases/download/{{ .Tag }}/{{ .ArtifactName }}"
+    homepage: "https://github.com/adaouat/heraut"
+    description: "Release management for git-based projects"
