@@ -11,8 +11,14 @@ import (
 	"charm.land/huh/v2"
 
 	"github.com/adaouat/heraut/internal/config"
+	"github.com/adaouat/heraut/internal/ui"
 	"github.com/adaouat/heraut/internal/versioning/calver"
 )
+
+// themedForm builds a huh form with heraut's branded theme (the Heraldic accent).
+func themedForm(groups ...*huh.Group) *huh.Form {
+	return huh.NewForm(groups...).WithTheme(ui.HuhTheme())
+}
 
 // Answers holds the user's responses from the init wizard.
 type Answers struct {
@@ -153,7 +159,7 @@ func RunWizard(a *Answers) error {
 		presetOpts[i] = huh.NewOption(p.label, p.format)
 	}
 
-	mainForm := huh.NewForm(
+	mainForm := themedForm(
 		huh.NewGroup(
 			huh.NewSelect[string]().
 				Title("Versioning strategy").
@@ -255,7 +261,7 @@ func runSprintWizard(a *Answers) error {
 	}
 	sprintStr := initial
 
-	if err := huh.NewForm(
+	if err := themedForm(
 		huh.NewGroup(
 			huh.NewInput().
 				Title("Current sprint number").
@@ -347,7 +353,7 @@ func runPlatformWizard(a *Answers) error {
 
 	for {
 		if !first {
-			confirm := huh.NewForm(
+			confirm := themedForm(
 				huh.NewGroup(
 					huh.NewConfirm().
 						Title("Add another release platform?").
@@ -366,7 +372,7 @@ func runPlatformWizard(a *Answers) error {
 		p := PlatformAnswer{}
 
 		// Step 1: platform type.
-		if err := huh.NewForm(
+		if err := themedForm(
 			huh.NewGroup(
 				huh.NewSelect[string]().
 					Title("Release platform").
@@ -388,7 +394,7 @@ func runPlatformWizard(a *Answers) error {
 			if p.Repository == "" {
 				p.Repository = detected
 			}
-			if err := huh.NewForm(
+			if err := themedForm(
 				huh.NewGroup(
 					huh.NewInput().
 						Title("Repository (owner/repo)").
@@ -408,7 +414,7 @@ func runPlatformWizard(a *Answers) error {
 			if p.Project == "" {
 				p.Project = detected
 			}
-			if err := huh.NewForm(
+			if err := themedForm(
 				huh.NewGroup(
 					huh.NewInput().
 						Title("Project (namespace/project)").
@@ -440,7 +446,7 @@ func runPlatformWizard(a *Answers) error {
 		}
 		tokenOpts = append(tokenOpts, huh.NewOption("Custom", "custom"))
 
-		if err := huh.NewForm(
+		if err := themedForm(
 			huh.NewGroup(
 				huh.NewSelect[string]().
 					Title("Token environment variable").
@@ -481,7 +487,7 @@ func runEnvWizard(a *Answers) error {
 	for {
 		env := EnvAnswer{}
 
-		if err := huh.NewForm(
+		if err := themedForm(
 			huh.NewGroup(
 				huh.NewInput().
 					Title("Environment name").

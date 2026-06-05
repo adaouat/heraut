@@ -50,7 +50,7 @@ func NewInitCmd(version string) *cobra.Command {
 								Title(fmt.Sprintf("%s already exists. Update it?", path)).
 								Value(&update),
 						),
-					)
+					).WithTheme(ui.HuhTheme())
 					if err := prompt.Run(); err != nil {
 						return fmt.Errorf("prompt failed: %w", err)
 					}
@@ -89,7 +89,7 @@ func NewInitCmd(version string) *cobra.Command {
 							Title("Write this config to " + path + "?").
 							Value(&confirmed),
 					),
-				).Run(); err != nil {
+				).WithTheme(ui.HuhTheme()).Run(); err != nil {
 					return fmt.Errorf("prompt failed: %w", err)
 				}
 				if !confirmed {
