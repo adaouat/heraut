@@ -1,5 +1,18 @@
 # Changelog
 
+## [0.22.0](https://github.com/adaouat/heraut/compare/v0.21.1..v0.22.0) - 2026-06-05
+
+### 🚀 Features
+
+- *(cmd)* Apply the Heraldic fang theme (forge v0.7.0) - ([e2add7d](https://github.com/adaouat/heraut/commit/e2add7ddf62bc54d818eebc7e325dd3c350091aa)) by @bchatard
+
+
+### ⚙️ Miscellaneous Tasks
+
+- *(release)* Use global git identity, simplify cask commit - ([1bf1f44](https://github.com/adaouat/heraut/commit/1bf1f44dfd36f063d7170dc66841359bf42c99f7)) by @bchatard
+
+- *(release)* Use forge's release-setup composite action - ([e9b6d74](https://github.com/adaouat/heraut/commit/e9b6d747f35e7c0e8ab29b8c989b868646f44814)) by @bchatard
+
 ## [0.21.1](https://github.com/adaouat/heraut/compare/v0.21.0..v0.21.1) - 2026-06-04
 
 ### 💼 Other
