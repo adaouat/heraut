@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.23.0](https://github.com/adaouat/heraut/compare/v0.22.0..v0.23.0) - 2026-06-05
+
+### 🚀 Features
+
+- *(cmd)* Adopt forge cli.Run + theme (drop direct fang) - ([ea3eed8](https://github.com/adaouat/heraut/commit/ea3eed8d3ea36ab89f6b2be00df37836f561040c)) by @bchatard
+
+- Brand huh prompts with the Heraldic theme - ([6801a3d](https://github.com/adaouat/heraut/commit/6801a3d5540d559001a0327b0888083fe1edf7c8)) by @bchatard
+
 ## [0.22.0](https://github.com/adaouat/heraut/compare/v0.21.1..v0.22.0) - 2026-06-05
 
 ### 🚀 Features
