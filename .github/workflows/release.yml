@@ -12,7 +12,7 @@ jobs:
   release:
     runs-on: ubuntu-latest
     outputs:
-      tag: ${{ steps.version.outputs.tag }}
+      tag: ${{ steps.setup.outputs.tag }}
     permissions:
       contents: write # create GitHub Release + push tag + upload assets
       id-token: write # OIDC token for build provenance attestation
@@ -26,48 +26,15 @@ jobs:
           fetch-depth: 0 # full history for changelog generation
           token: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Setup Mise
-        uses: jdx/mise-action@1648a7812b9aeae629881980618f079932869151 # v4
-
-      - name: Install heraut (step 0 bootstrap)
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          gh release download --repo adaouat/heraut \
-            --pattern "heraut_*_linux_amd64" \
-            --output /usr/local/bin/heraut --clobber
-          chmod +x /usr/local/bin/heraut
-
-      - name: Import GPG key
-        uses: crazy-max/ghaction-import-gpg@2dc316deee8e90f13e1a351ab510b4d5bc0c82cd # v7
+      # mise + heraut bootstrap + GPG + identity + resolved version (forge ADR-0009).
+      # heraut's own release/preflight below still use the freshly built $FRESH_BIN.
+      - name: Release setup
+        id: setup
+        uses: adaouat/forge/.github/actions/release-setup@66461c2797ae849f135ab34bac2b96484d21128d # v0.7.2
         with:
-          gpg_private_key: ${{ secrets.RELEASE_GPG_PRIVATE_KEY }}
-          git_user_signingkey: true
-          git_commit_gpgsign: true
-          git_tag_gpgsign: true
-
-      - name: Configure git identity
-        run: |
-          git config --global user.name "Héraut Release Bot"
-          git config --global user.email "heraut+github@adaouat.dev"
-
-      - name: Resolve version
-        id: version
-        run: |
-          if [[ -n "${{ inputs.version }}" ]]; then
-            echo "VERSION=${{ inputs.version }}" >> "$GITHUB_ENV"
-            echo "VERSION_OVERRIDDEN=true" >> "$GITHUB_ENV"
-            echo "tag=${{ inputs.version }}" >> "$GITHUB_OUTPUT"
-          else
-            # Strip the release block so the bootstrap heraut (which predates
-            # fields added in the version being released) does not fail on
-            # unknown YAML keys. version next only needs the versioning block.
-            yq 'del(.release)' .config/heraut.yml > /tmp/heraut-version.yml
-            V=$(HERAUT_FILE=/tmp/heraut-version.yml heraut version next)
-            echo "VERSION=$V" >> "$GITHUB_ENV"
-            echo "VERSION_OVERRIDDEN=false" >> "$GITHUB_ENV"
-            echo "tag=$V" >> "$GITHUB_OUTPUT"
-          fi
+          gpg-private-key: ${{ secrets.RELEASE_GPG_PRIVATE_KEY }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          version: ${{ inputs.version }}
 
       - name: Build binaries
         uses: goreleaser/goreleaser-action@5daf1e915a5f0af01ddbcd89a43b8061ff4f1a89 # v7
@@ -131,7 +98,7 @@ jobs:
           cd /tmp/tap
           git add Casks/heraut.rb
           git diff --cached --quiet && { echo "cask unchanged"; exit 0; }
-          git commit -m "heraut ${VERSION}"
+          git commit -m "chore(deps.heraut): ${VERSION}"
           git push
 
   docker-build:
