@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.23.1](https://github.com/adaouat/heraut/compare/v0.23.0..v0.23.1) - 2026-06-07
+
+### 🐛 Bug Fixes
+
+- Readable --help usage block (bump forge to v0.9.0) - ([618e95d](https://github.com/adaouat/heraut/commit/618e95d2c640aa7dda213e409362c1b05a0458a0)) by @bchatard
+
 ## [0.23.0](https://github.com/adaouat/heraut/compare/v0.22.0..v0.23.0) - 2026-06-05
 
 ### 🚀 Features
