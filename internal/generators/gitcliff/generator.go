@@ -3,6 +3,7 @@ package gitcliff
 import (
 	"fmt"
 	"os"
+	"strings"
 
 	"github.com/pelletier/go-toml/v2"
 
@@ -54,7 +55,12 @@ func (g *Generator) Validate() error {
 
 // Generate invokes git-cliff with the merged TOML config and returns stdout (release-notes
 // mode) or empty string (changelog mode, where output goes to a file).
-func (g *Generator) Generate(tag string) (string, error) {
+//
+// When lc is non-nil, heraut-owned env vars (HERAUT_REMOTE_URL, HERAUT_PLATFORM) are
+// injected into the git-cliff process so the template resolves links against that
+// platform; when nil, git-cliff runs with the ambient environment and the template falls
+// through to its CI-var detection (ADR-0021 / T68).
+func (g *Generator) Generate(tag string, lc *port.LinkContext) (string, error) {
 	cfgPath, cleanup, err := g.prepareConfig()
 	if err != nil {
 		return "", err
@@ -81,11 +87,34 @@ func (g *Generator) Generate(tag string) (string, error) {
 		args = append(args, "--output", g.cfg.Output)
 	}
 
-	stdout, _, err := g.runner.Run("git-cliff", args...)
+	var stdout string
+	if lc != nil {
+		stdout, _, err = g.runner.RunEnv(linkEnv(lc), "git-cliff", args...)
+	} else {
+		stdout, _, err = g.runner.Run("git-cliff", args...)
+	}
 	if err != nil {
 		return "", fmt.Errorf("git-cliff: %w", err)
 	}
 	return stdout, nil
+}
+
+// linkEnv translates a LinkContext into the heraut-owned env vars the embedded git-cliff
+// template reads via get_env: HERAUT_REMOTE_URL (the repository root URL) and
+// HERAUT_PLATFORM (github|gitlab, for the PR vs MR link shape). T71 updates the template
+// to prefer these over the ambient CI-var chain.
+func linkEnv(lc *port.LinkContext) []string {
+	url := strings.TrimRight(lc.BaseURL, "/")
+	if lc.Owner != "" {
+		url += "/" + lc.Owner
+	}
+	if lc.Repo != "" {
+		url += "/" + lc.Repo
+	}
+	return []string{
+		"HERAUT_REMOTE_URL=" + url,
+		"HERAUT_PLATFORM=" + lc.Platform,
+	}
 }
 
 // EffectiveChangelogConfig returns the merged TOML for the changelog variant.

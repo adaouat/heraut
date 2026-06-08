@@ -1,19 +1,23 @@
 package testutil
 
+import "github.com/adaouat/heraut/internal/port"
+
 // MockGenerator is a port.Generator that records calls for contract testing.
 type MockGenerator struct {
-	CheckErr    error
-	ValidateErr error
-	GenerateOut string
-	GenerateErr error
-	GenerateCalls []string // tags passed to Generate
+	CheckErr         error
+	ValidateErr      error
+	GenerateOut      string
+	GenerateErr      error
+	GenerateCalls    []string            // tags passed to Generate
+	GenerateContexts []*port.LinkContext // link context passed alongside each tag (nil = single-platform)
 }
 
 func (m *MockGenerator) Check() error { return m.CheckErr }
 
 func (m *MockGenerator) Validate() error { return m.ValidateErr }
 
-func (m *MockGenerator) Generate(tag string) (string, error) {
+func (m *MockGenerator) Generate(tag string, lc *port.LinkContext) (string, error) {
 	m.GenerateCalls = append(m.GenerateCalls, tag)
+	m.GenerateContexts = append(m.GenerateContexts, lc)
 	return m.GenerateOut, m.GenerateErr
 }

@@ -110,7 +110,7 @@ func (p *ChangelogPipeline) Run() error {
 	// Step 2: Generate changelog (skipped when DisableChangelog is true).
 	if p.cfg.Changelog != nil && !p.cfg.DisableChangelog {
 		if err := p.runStep("Generate changelog", func() (string, []string, error) {
-			if _, err := p.cfg.Changelog.Generate(result.Tag); err != nil {
+			if _, err := p.cfg.Changelog.Generate(result.Tag, nil); err != nil {
 				return "", nil, fmt.Errorf("generating changelog: %w", err)
 			}
 			return "", nil, nil

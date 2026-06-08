@@ -10,6 +10,7 @@ import (
 	"github.com/adaouat/forge/exec/exectest"
 	"github.com/adaouat/heraut/internal/config"
 	"github.com/adaouat/heraut/internal/generators/gitcliff"
+	"github.com/adaouat/heraut/internal/port"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -78,7 +79,7 @@ func TestGenerate_ReleaseNotes(t *testing.T) {
 	cfg := &config.ContentDriver{Generator: "git-cliff"}
 	gen := gitcliff.New(mr, cfg, gitcliff.ModeReleaseNotes)
 
-	notes, err := gen.Generate("v1.2.3")
+	notes, err := gen.Generate("v1.2.3", nil)
 	require.NoError(t, err)
 	assert.Equal(t, "## Features\n- add thing\n", notes)
 
@@ -104,7 +105,7 @@ func TestGenerate_Changelog(t *testing.T) {
 	cfg := &config.ContentDriver{Generator: "git-cliff", Output: "CHANGELOG.md"}
 	gen := gitcliff.New(mr, cfg, gitcliff.ModeChangelog)
 
-	_, err := gen.Generate("v1.2.3")
+	_, err := gen.Generate("v1.2.3", nil)
 	require.NoError(t, err)
 
 	call := mr.Calls[0]
@@ -125,10 +126,51 @@ func TestGenerate_TagPattern(t *testing.T) {
 	cfg := &config.ContentDriver{Generator: "git-cliff", TagPattern: "dev/*"}
 	gen := gitcliff.New(mr, cfg, gitcliff.ModeReleaseNotes)
 
-	_, err := gen.Generate("dev/1.2.3")
+	_, err := gen.Generate("dev/1.2.3", nil)
 	require.NoError(t, err)
 
 	assertArgValue(t, mr.Calls[0].Args, "--tag-pattern", "dev/*")
+}
+
+// TestGenerate_LinkContext_InjectsEnv verifies a non-nil LinkContext is translated into
+// heraut-owned env vars on the git-cliff invocation (ADR-0021 / T68).
+func TestGenerate_LinkContext_InjectsEnv(t *testing.T) {
+	mr := exectest.NewMockRunner()
+	mr.QueueResponse("notes", "", nil)
+
+	cfg := &config.ContentDriver{Generator: "git-cliff"}
+	gen := gitcliff.New(mr, cfg, gitcliff.ModeReleaseNotes)
+
+	lc := &port.LinkContext{
+		BaseURL:  "https://gitlab.example.com",
+		Owner:    "acme",
+		Repo:     "widget",
+		Platform: "gitlab",
+	}
+	_, err := gen.Generate("v1.2.3", lc)
+	require.NoError(t, err)
+
+	require.Len(t, mr.Calls, 1)
+	call := mr.Calls[0]
+	assert.Equal(t, "git-cliff", call.Name)
+	assert.Contains(t, call.Env, "HERAUT_REMOTE_URL=https://gitlab.example.com/acme/widget")
+	assert.Contains(t, call.Env, "HERAUT_PLATFORM=gitlab")
+}
+
+// TestGenerate_NilLinkContext_NoEnv verifies the single-platform path injects nothing,
+// so git-cliff falls through to ambient CI detection exactly as before.
+func TestGenerate_NilLinkContext_NoEnv(t *testing.T) {
+	mr := exectest.NewMockRunner()
+	mr.QueueResponse("notes", "", nil)
+
+	cfg := &config.ContentDriver{Generator: "git-cliff"}
+	gen := gitcliff.New(mr, cfg, gitcliff.ModeReleaseNotes)
+
+	_, err := gen.Generate("v1.2.3", nil)
+	require.NoError(t, err)
+
+	require.Len(t, mr.Calls, 1)
+	assert.Nil(t, mr.Calls[0].Env, "nil LinkContext must not inject env vars")
 }
 
 func TestEffectiveChangelogConfig(t *testing.T) {

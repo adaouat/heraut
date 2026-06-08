@@ -158,9 +158,12 @@ type LinkContext struct {
 }
 ```
 
-(GitLab project paths like `group/sub/proj` split into `owner=group/sub`, `repo=proj`;
-the adapter owns that parsing. cog wants `--remote` as the bare host without scheme, so the
-cocogitto adapter strips the scheme from `BaseURL`.)
+(`LinkContext` carries `Owner`/`Repo` **already split**, so GitLab project paths like
+`group/sub/proj` are split into `owner=group/sub`, `repo=proj` when the context is
+*constructed* — that is T70's concern, not the adapters'. The adapters just map the fields:
+cog wants `--remote` as the bare host without scheme, so the cocogitto adapter strips the
+scheme from `BaseURL`; git-cliff recomposes `{BaseURL}/{Owner}/{Repo}` into
+`HERAUT_REMOTE_URL`.)
 
 - **The `port.Generator` interface change** to carry the context is [T69]; the embedded
   template updates are [T71]. This ADR records *that* notes are regenerated per platform,

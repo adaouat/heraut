@@ -2868,7 +2868,7 @@ ambient fallback, so the ">1 platform" gate exists chiefly to protect git-cliff;
 first appear in multi-platform mode under the uniform gate. `LinkContext` indicative shape
 (`BaseURL`/`Owner`/`Repo`/`Platform`, `nil` = fall through) handed to T69. No code changed.
 
-#### `[ ]` T69: `port.Generator` interface change to carry per-platform context
+#### `[x]` T69: `port.Generator` interface change to carry per-platform context
 
 **Motivation:** `Generate(tag string) (string, error)` has no surface for per-platform
 link-resolution context. Per [`coding.md`](../../.claude/rules/coding.md), `port`
@@ -2893,6 +2893,24 @@ contract tests pass with `nil` context (unchanged invocations); a non-nil contex
 the expected native surface per generator (git-cliff: env vars on the call; cocogitto: the
 `--remote/--owner/--repository` args; communique: asserted to have **no** effect on the
 invoked command).
+
+**Done:** `port.Generator.Generate` now takes `(tag string, lc *port.LinkContext)`, with
+`LinkContext{BaseURL, Owner, Repo, Platform}` defined in `internal/port/generator.go`
+(`nil` = single-platform fall-through). TDD: 5 new contract tests written first (red on the
+new type/arity), then implementation. Per-generator translation (T68 decision): **gitcliff**
+runs via `RunEnv` injecting `HERAUT_REMOTE_URL` (`{BaseURL}/{Owner}/{Repo}`) +
+`HERAUT_PLATFORM` when `lc != nil`, else plain `Run` (ambient, unchanged); **cocogitto**
+appends `--remote` (scheme-stripped host) / `--owner` / `--repository` when `lc != nil`;
+**communique** accepts and ignores it (asserted: identical args, no env). All implementors
+moved in one commit per the stable-contract rule, incl. `testutil.MockGenerator` (kept
+`GenerateCalls []string`, added parallel `GenerateContexts []*port.LinkContext` for T70).
+Three production callers pass `nil` for now (both changelog sites — changelog is singular;
+the release-notes site — T70 will pass per-platform context). **No output change yet** —
+T69 is plumbing; templates (T71) still ignore the injected env vars / flags. **Scope note:**
+the GitLab `group/sub/proj` → owner/repo split is *not* in the adapters — `LinkContext`
+carries pre-split `Owner`/`Repo`, so the split happens at construction (T70); adapters just
+map fields (corrects the ADR-0021/earlier-T69 wording that implied the cocogitto adapter
+splits). 802 tests green (5 new), golangci-lint clean.
 
 **Files:** `internal/port/generator.go`, `internal/generators/{gitcliff,cocogitto,
 communique}/*.go` and their `_test.go` files

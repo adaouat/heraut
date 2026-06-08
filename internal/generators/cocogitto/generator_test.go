@@ -9,6 +9,7 @@ import (
 	"github.com/adaouat/forge/exec/exectest"
 	"github.com/adaouat/heraut/internal/config"
 	"github.com/adaouat/heraut/internal/generators/cocogitto"
+	"github.com/adaouat/heraut/internal/port"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -88,7 +89,7 @@ func TestGenerate_NoneNone_ReleaseNotes(t *testing.T) {
 	cfg := &config.ContentDriver{Generator: "cocogitto"}
 	gen := cocogitto.New(mr, cfg, cocogitto.ModeReleaseNotes)
 
-	notes, err := gen.Generate("v1.2.3")
+	notes, err := gen.Generate("v1.2.3", nil)
 	require.NoError(t, err)
 	assert.Equal(t, "## Features\n- add thing\n", notes)
 
@@ -113,7 +114,7 @@ func TestGenerate_NoneNone_Changelog(t *testing.T) {
 	cfg := &config.ContentDriver{Generator: "cocogitto"}
 	gen := cocogitto.New(mr, cfg, cocogitto.ModeChangelog)
 
-	_, err := gen.Generate("v1.2.3")
+	_, err := gen.Generate("v1.2.3", nil)
 	require.NoError(t, err)
 
 	call := mr.Calls[0]
@@ -135,7 +136,7 @@ func TestGenerate_NoneTemplate(t *testing.T) {
 	cfg := &config.ContentDriver{Generator: "cocogitto", Template: tmplPath}
 	gen := cocogitto.New(mr, cfg, cocogitto.ModeReleaseNotes)
 
-	_, err := gen.Generate("v1.0.0")
+	_, err := gen.Generate("v1.0.0", nil)
 	require.NoError(t, err)
 
 	call := mr.Calls[0]
@@ -157,7 +158,7 @@ func TestGenerate_ConfigNone(t *testing.T) {
 	cfg := &config.ContentDriver{Generator: "cocogitto", Config: cfgPath}
 	gen := cocogitto.New(mr, cfg, cocogitto.ModeReleaseNotes)
 
-	_, err := gen.Generate("v2.0.0")
+	_, err := gen.Generate("v2.0.0", nil)
 	require.NoError(t, err)
 
 	call := mr.Calls[0]
@@ -180,13 +181,56 @@ func TestGenerate_ConfigTemplate(t *testing.T) {
 	cfg := &config.ContentDriver{Generator: "cocogitto", Config: cfgPath, Template: tmplPath}
 	gen := cocogitto.New(mr, cfg, cocogitto.ModeReleaseNotes)
 
-	_, err := gen.Generate("v3.0.0")
+	_, err := gen.Generate("v3.0.0", nil)
 	require.NoError(t, err)
 
 	call := mr.Calls[0]
 	assertArgValue(t, call.Args, "--config", cfgPath)
 	assertArgValue(t, call.Args, "-t", tmplPath)
 	assertArgValue(t, call.Args, "--at", "v3.0.0")
+}
+
+// TestGenerate_LinkContext_PassesRemoteFlags verifies a non-nil LinkContext is translated
+// into cog's --remote/--owner/--repository flags, with the scheme stripped from the host
+// (ADR-0021 / T68).
+func TestGenerate_LinkContext_PassesRemoteFlags(t *testing.T) {
+	mr := exectest.NewMockRunner()
+	mr.QueueResponse("notes", "", nil)
+
+	cfg := &config.ContentDriver{Generator: "cocogitto"}
+	gen := cocogitto.New(mr, cfg, cocogitto.ModeReleaseNotes)
+
+	lc := &port.LinkContext{
+		BaseURL:  "https://gitlab.example.com",
+		Owner:    "acme",
+		Repo:     "widget",
+		Platform: "gitlab",
+	}
+	_, err := gen.Generate("v1.2.3", lc)
+	require.NoError(t, err)
+
+	call := mr.Calls[0]
+	assertArgValue(t, call.Args, "--remote", "gitlab.example.com")
+	assertArgValue(t, call.Args, "--owner", "acme")
+	assertArgValue(t, call.Args, "--repository", "widget")
+}
+
+// TestGenerate_NilLinkContext_NoRemoteFlags verifies the single-platform path adds no
+// remote flags — cog behaves exactly as before.
+func TestGenerate_NilLinkContext_NoRemoteFlags(t *testing.T) {
+	mr := exectest.NewMockRunner()
+	mr.QueueResponse("notes", "", nil)
+
+	cfg := &config.ContentDriver{Generator: "cocogitto"}
+	gen := cocogitto.New(mr, cfg, cocogitto.ModeReleaseNotes)
+
+	_, err := gen.Generate("v1.2.3", nil)
+	require.NoError(t, err)
+
+	call := mr.Calls[0]
+	assertNotHasFlag(t, call.Args, "--remote")
+	assertNotHasFlag(t, call.Args, "--owner")
+	assertNotHasFlag(t, call.Args, "--repository")
 }
 
 // TestGenerate_OutputWritten verifies heraut writes stdout to output file in changelog mode.
@@ -200,7 +244,7 @@ func TestGenerate_OutputWritten(t *testing.T) {
 	cfg := &config.ContentDriver{Generator: "cocogitto", Output: outputPath}
 	gen := cocogitto.New(mr, cfg, cocogitto.ModeChangelog)
 
-	result, err := gen.Generate("v1.0.0")
+	result, err := gen.Generate("v1.0.0", nil)
 	require.NoError(t, err)
 	assert.Empty(t, result)
 
@@ -216,7 +260,7 @@ func TestGenerate_RunnerError(t *testing.T) {
 	cfg := &config.ContentDriver{Generator: "cocogitto"}
 	gen := cocogitto.New(mr, cfg, cocogitto.ModeReleaseNotes)
 
-	_, err := gen.Generate("v1.0.0")
+	_, err := gen.Generate("v1.0.0", nil)
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "cog")
 }

@@ -65,7 +65,11 @@ func (g *Generator) Validate() error {
 
 // Generate invokes cog changelog with the resolved config and returns stdout
 // (or empty string when output is written to a file).
-func (g *Generator) Generate(tag string) (string, error) {
+//
+// When lc is non-nil, the per-platform context is passed via cog's native
+// --remote/--owner/--repository flags (the host scheme is stripped — cog prepends
+// https://); when nil, no remote flags are added (ADR-0021 / T68).
+func (g *Generator) Generate(tag string, lc *port.LinkContext) (string, error) {
 	cfgPath, cfgCleanup, err := g.resolveCogConfig()
 	if err != nil {
 		return "", err
@@ -83,6 +87,14 @@ func (g *Generator) Generate(tag string) (string, error) {
 
 	if g.mode == ModeReleaseNotes {
 		args = append(args, "--at", tag)
+	}
+
+	if lc != nil {
+		args = append(args,
+			"--remote", schemeless(lc.BaseURL),
+			"--owner", lc.Owner,
+			"--repository", lc.Repo,
+		)
 	}
 
 	stdout, _, err := g.runner.Run("cog", args...)
@@ -166,6 +178,14 @@ func (g *Generator) resolveTemplatePath() (string, func(), error) {
 		asset = "release-notes.tera"
 	}
 	return writeTempEmbed("heraut-cog-*.tera", asset)
+}
+
+// schemeless strips the http(s):// scheme and any trailing slash from a base URL, since
+// cog's --remote expects a bare host (it prepends https:// itself).
+func schemeless(u string) string {
+	u = strings.TrimPrefix(u, "https://")
+	u = strings.TrimPrefix(u, "http://")
+	return strings.TrimRight(u, "/")
 }
 
 func writeTempEmbed(pattern, asset string) (string, func(), error) {

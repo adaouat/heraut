@@ -115,7 +115,7 @@ func (p *Pipeline) Run() error {
 	// Step 2+3: Generate and commit changelog (conditional).
 	if p.cfg.Changelog != nil && !p.cfg.DisableChangelog {
 		if err := p.runStep("Generate changelog", func() (string, []string, error) {
-			if _, err := p.cfg.Changelog.Generate(result.Tag); err != nil {
+			if _, err := p.cfg.Changelog.Generate(result.Tag, nil); err != nil {
 				return "", nil, fmt.Errorf("generating changelog: %w", err)
 			}
 			return "", nil, nil
@@ -162,7 +162,7 @@ func (p *Pipeline) Run() error {
 	if p.cfg.Notes != nil && !p.cfg.DisableNotes {
 		if err := p.runStep("Generate release notes", func() (string, []string, error) {
 			var genErr error
-			notes, genErr = p.cfg.Notes.Generate(result.Tag)
+			notes, genErr = p.cfg.Notes.Generate(result.Tag, nil)
 			if genErr != nil {
 				return "", nil, fmt.Errorf("generating release notes: %w", genErr)
 			}

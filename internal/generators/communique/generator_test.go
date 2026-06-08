@@ -9,6 +9,7 @@ import (
 	"github.com/adaouat/forge/exec/exectest"
 	"github.com/adaouat/heraut/internal/config"
 	"github.com/adaouat/heraut/internal/generators/communique"
+	"github.com/adaouat/heraut/internal/port"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -82,7 +83,7 @@ func TestGenerate_ExactArgs(t *testing.T) {
 	cfg := &config.ContentDriver{Generator: "communique", Config: cfgPath}
 	gen := communique.New(mr, cfg)
 
-	notes, err := gen.Generate("v1.2.3")
+	notes, err := gen.Generate("v1.2.3", nil)
 	require.NoError(t, err)
 	assert.Equal(t, "## Changelog\n- feat: add thing\n", notes)
 
@@ -103,7 +104,35 @@ func TestGenerate_RunnerError(t *testing.T) {
 	cfg := &config.ContentDriver{Generator: "communique", Config: cfgPath}
 	gen := communique.New(mr, cfg)
 
-	_, err := gen.Generate("v1.2.3")
+	_, err := gen.Generate("v1.2.3", nil)
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "communique")
+}
+
+// TestGenerate_LinkContextIgnored verifies communique is opaque to per-platform context:
+// a non-nil LinkContext changes neither the args nor the env (ADR-0021 / T73).
+func TestGenerate_LinkContextIgnored(t *testing.T) {
+	tmp := t.TempDir()
+	cfgPath := filepath.Join(tmp, "communique.yml")
+	require.NoError(t, os.WriteFile(cfgPath, []byte("version: 1\n"), 0o600))
+
+	mr := exectest.NewMockRunner()
+	mr.QueueResponse("## Changelog\n", "", nil)
+
+	cfg := &config.ContentDriver{Generator: "communique", Config: cfgPath}
+	gen := communique.New(mr, cfg)
+
+	lc := &port.LinkContext{
+		BaseURL:  "https://gitlab.example.com",
+		Owner:    "acme",
+		Repo:     "widget",
+		Platform: "gitlab",
+	}
+	_, err := gen.Generate("v1.2.3", lc)
+	require.NoError(t, err)
+
+	require.Len(t, mr.Calls, 1)
+	call := mr.Calls[0]
+	assert.Equal(t, []string{"generate", "--config", cfgPath, "v1.2.3"}, call.Args)
+	assert.Nil(t, call.Env, "communique ignores LinkContext — no env injection")
 }
