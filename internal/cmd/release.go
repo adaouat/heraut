@@ -5,6 +5,7 @@ import (
 	"regexp"
 
 	execadapter "github.com/adaouat/forge/exec"
+	flog "github.com/adaouat/forge/log"
 	"github.com/adaouat/heraut/internal/app"
 	"github.com/adaouat/heraut/internal/config"
 	"github.com/adaouat/heraut/internal/exitcode"
@@ -41,12 +42,15 @@ func NewReleaseCmd() *cobra.Command {
 			// runner so dry-run still shows the correct resolved version.
 			readRunner := execadapter.New(false, verbose)
 
+			logger := flog.New(cmd.ErrOrStderr(), flog.LevelFor(verbose))
+
 			path := config.ResolvePath(cfgPath)
 
 			cfg, err := config.Load(path)
 			if err != nil {
 				return exitcode.Wrap(exitcode.Config, fmt.Errorf("loading config: %w", err))
 			}
+			logger.Debug("config resolved", "path", path)
 
 			if errs := config.Validate(cfg); len(errs) > 0 {
 				printConfigErrors(errs, cmd.ErrOrStderr())
@@ -71,6 +75,7 @@ func NewReleaseCmd() *cobra.Command {
 				Env:             env,
 				Out:             cmd.OutOrStdout(),
 				SignTags:        app.ReadGPGSign(readRunner),
+				Logger:          logger,
 			}
 			pipe, err := app.BuildPipeline(runner, cfg, resolver, opts)
 			if err != nil {

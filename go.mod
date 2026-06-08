@@ -15,8 +15,11 @@ require (
 require (
 	charm.land/bubbles/v2 v2.1.0 // indirect
 	charm.land/fang/v2 v2.0.1 // indirect
+	charm.land/log/v2 v2.0.0 // indirect
 	github.com/charmbracelet/colorprofile v0.4.2 // indirect
 	github.com/charmbracelet/x/term v0.2.2 // indirect
+	github.com/go-logfmt/logfmt v0.6.0 // indirect
+	golang.org/x/exp v0.0.0-20231006140011-7918f672742d // indirect
 )
 
 require (

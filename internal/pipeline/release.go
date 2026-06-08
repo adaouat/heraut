@@ -3,6 +3,7 @@ package pipeline
 import (
 	"fmt"
 	"io"
+	"log/slog"
 
 	"github.com/adaouat/heraut/internal/port"
 	"github.com/adaouat/heraut/internal/ui"
@@ -17,6 +18,7 @@ type Pipeline struct {
 	out      io.Writer
 	dryRun   bool
 	reporter ui.StepFn
+	logger   *slog.Logger
 }
 
 // New constructs a release Pipeline.
@@ -32,14 +34,36 @@ func (p *Pipeline) WithReporter(fn ui.StepFn) *Pipeline {
 	return p
 }
 
+// WithLogger sets the operator-debug diagnostic logger and returns p for chaining.
+// When unset, diagnostics are discarded. See forge ADR-0011.
+func (p *Pipeline) WithLogger(l *slog.Logger) *Pipeline {
+	p.logger = l
+	return p
+}
+
+// debug emits an operator-debug log line when a logger is set.
+func (p *Pipeline) debug(msg string, args ...any) {
+	if p.logger != nil {
+		p.logger.Debug(msg, args...)
+	}
+}
+
 // runStep calls fn via the reporter when one is set, or directly when nil.
 // Errors returned by fn are propagated verbatim so callers can use errors.Is/As.
 func (p *Pipeline) runStep(name string, fn func() (string, []string, error)) error {
+	p.debug("step started", "step", name)
+	logged := func() (string, []string, error) {
+		out, sub, err := fn()
+		if err == nil {
+			p.debug("step completed", "step", name)
+		}
+		return out, sub, err
+	}
 	if p.reporter == nil {
-		_, _, err := fn()
+		_, _, err := logged()
 		return err
 	}
-	return p.reporter(name, fn)
+	return p.reporter(name, logged)
 }
 
 // Check verifies all generators and platforms are usable before running.
@@ -78,6 +102,7 @@ func (p *Pipeline) Run() error {
 			return "", nil, fmt.Errorf("resolving version: %w", err)
 		}
 		result = r
+		p.debug("resolved version", "tag", r.Tag, "version", r.Version, "current_tag", r.CurrentTag)
 		return r.Tag, nil, nil
 	}); err != nil {
 		return err

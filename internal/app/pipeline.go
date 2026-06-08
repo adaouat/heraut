@@ -3,6 +3,7 @@ package app
 import (
 	"fmt"
 	"io"
+	"log/slog"
 	"strings"
 
 	forgeui "github.com/adaouat/forge/ui"
@@ -33,6 +34,8 @@ type PipelineOpts struct {
 	// SignTags mirrors git config tag.gpgSign — when true the pipeline creates
 	// signed tags (-s) instead of annotated ones. Set by the caller via ReadGPGSign.
 	SignTags bool
+	// Logger receives operator-debug diagnostics (nil discards them). See forge ADR-0011.
+	Logger *slog.Logger
 }
 
 // ReadGPGSign reads tag.gpgSign from git config and returns true when it is set to "true".
@@ -61,6 +64,7 @@ func BuildPipeline(runner port.Runner, cfg *config.Config, resolver versioning.R
 	}
 	pipe := pipeline.New(runner, resolver, pipelineCfg, out, opts.DryRun)
 	pipe = pipe.WithReporter(spinnerReporter(out, releaseStepTotal(pipelineCfg)))
+	pipe = pipe.WithLogger(opts.Logger)
 	return pipe, nil
 }
 
