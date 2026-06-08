@@ -9,6 +9,7 @@ import (
 	"github.com/adaouat/forge/exec/exectest"
 	"github.com/adaouat/heraut/internal/config"
 	"github.com/adaouat/heraut/internal/platforms/gitlab"
+	"github.com/adaouat/heraut/internal/port"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -28,6 +29,35 @@ func TestReleaseURL_FromEnv(t *testing.T) {
 	t.Setenv("CI_PROJECT_PATH", "envgroup/envrepo")
 	p := gitlab.New(exectest.NewMockRunner(), &config.Platform{})
 	assert.Equal(t, "https://gitlab.com/envgroup/envrepo/-/releases/v1.0.0", p.ReleaseURL("v1.0.0"))
+}
+
+func TestLinkContext_NestedGroup(t *testing.T) {
+	// GitLab project paths split on the LAST slash: group/subgroup is the owner, the
+	// final segment is the repo.
+	cfg := &config.Platform{Project: "group/sub/proj", BaseURL: "https://gitlab.com"}
+	p := gitlab.New(exectest.NewMockRunner(), cfg)
+	assert.Equal(t, port.LinkContext{
+		BaseURL:  "https://gitlab.com",
+		Owner:    "group/sub",
+		Repo:     "proj",
+		Platform: "gitlab",
+	}, p.LinkContext())
+}
+
+func TestLinkContext_SimpleProject(t *testing.T) {
+	// BaseURL empty (config not normalized) → falls back to the default host.
+	cfg := &config.Platform{Project: "group/proj"}
+	lc := gitlab.New(exectest.NewMockRunner(), cfg).LinkContext()
+	assert.Equal(t, "group", lc.Owner)
+	assert.Equal(t, "proj", lc.Repo)
+	assert.Equal(t, "https://gitlab.com", lc.BaseURL)
+}
+
+func TestLinkContext_FromEnv(t *testing.T) {
+	t.Setenv("CI_PROJECT_PATH", "envgroup/envrepo")
+	lc := gitlab.New(exectest.NewMockRunner(), &config.Platform{}).LinkContext()
+	assert.Equal(t, "envgroup", lc.Owner)
+	assert.Equal(t, "envrepo", lc.Repo)
 }
 
 func TestCheck_GlabMissing(t *testing.T) {

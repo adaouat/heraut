@@ -9,6 +9,7 @@ import (
 	"github.com/adaouat/forge/exec/exectest"
 	"github.com/adaouat/heraut/internal/config"
 	"github.com/adaouat/heraut/internal/platforms/github"
+	"github.com/adaouat/heraut/internal/port"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -28,6 +29,31 @@ func TestReleaseURL_FromEnv(t *testing.T) {
 	t.Setenv("GITHUB_REPOSITORY", "envorg/envrepo")
 	p := github.New(exectest.NewMockRunner(), &config.Platform{})
 	assert.Equal(t, "https://github.com/envorg/envrepo/releases/tag/v1.0.0", p.ReleaseURL("v1.0.0"))
+}
+
+func TestLinkContext(t *testing.T) {
+	cfg := &config.Platform{Repository: "acme/widget", BaseURL: "https://github.com"}
+	p := github.New(exectest.NewMockRunner(), cfg)
+	assert.Equal(t, port.LinkContext{
+		BaseURL:  "https://github.com",
+		Owner:    "acme",
+		Repo:     "widget",
+		Platform: "github",
+	}, p.LinkContext())
+}
+
+func TestLinkContext_DefaultBaseURL(t *testing.T) {
+	// BaseURL empty (config not normalized) → falls back to the default host.
+	cfg := &config.Platform{Repository: "acme/widget"}
+	lc := github.New(exectest.NewMockRunner(), cfg).LinkContext()
+	assert.Equal(t, "https://github.com", lc.BaseURL)
+}
+
+func TestLinkContext_FromEnv(t *testing.T) {
+	t.Setenv("GITHUB_REPOSITORY", "envorg/envrepo")
+	lc := github.New(exectest.NewMockRunner(), &config.Platform{}).LinkContext()
+	assert.Equal(t, "envorg", lc.Owner)
+	assert.Equal(t, "envrepo", lc.Repo)
 }
 
 func TestCheck_GhMissing(t *testing.T) {

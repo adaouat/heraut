@@ -14,6 +14,7 @@ import (
 const (
 	defaultTokenEnv = "GH_TOKEN"
 	repoEnvVar      = "GITHUB_REPOSITORY"
+	githubBaseURL   = "https://github.com"
 )
 
 // Platform implements port.Platform for GitHub via the gh CLI.
@@ -33,6 +34,23 @@ func (p *Platform) Name() string { return "github" }
 
 func (p *Platform) ReleaseURL(tag string) string {
 	return fmt.Sprintf("https://github.com/%s/releases/tag/%s", p.repository(), tag)
+}
+
+// LinkContext resolves this platform's link coordinates. GitHub repositories are
+// owner/repo, so the path splits on the first slash. BaseURL falls back to the default
+// host when unset (e.g. a config that was not run through the loader's normalize step).
+func (p *Platform) LinkContext() port.LinkContext {
+	owner, repo, _ := strings.Cut(p.repository(), "/")
+	baseURL := p.cfg.BaseURL
+	if baseURL == "" {
+		baseURL = githubBaseURL
+	}
+	return port.LinkContext{
+		BaseURL:  baseURL,
+		Owner:    owner,
+		Repo:     repo,
+		Platform: "github",
+	}
 }
 
 // Check verifies gh is on PATH, the token env var is set, repository is resolvable,

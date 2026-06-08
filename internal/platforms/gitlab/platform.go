@@ -36,6 +36,28 @@ func (p *Platform) ReleaseURL(tag string) string {
 	return fmt.Sprintf("%s/%s/-/releases/%s", gitlabBaseURL, p.project(), tag)
 }
 
+// LinkContext resolves this platform's link coordinates. GitLab projects may be nested
+// (group/subgroup/project), so the path splits on the last slash: everything before is
+// the owner (namespace), the final segment is the repo. BaseURL falls back to the default
+// host when unset (e.g. a config that was not run through the loader's normalize step).
+func (p *Platform) LinkContext() port.LinkContext {
+	proj := p.project()
+	owner, repo := "", proj
+	if i := strings.LastIndex(proj, "/"); i >= 0 {
+		owner, repo = proj[:i], proj[i+1:]
+	}
+	baseURL := p.cfg.BaseURL
+	if baseURL == "" {
+		baseURL = gitlabBaseURL
+	}
+	return port.LinkContext{
+		BaseURL:  baseURL,
+		Owner:    owner,
+		Repo:     repo,
+		Platform: "gitlab",
+	}
+}
+
 // Check verifies glab is on PATH, the token env var is set, project is resolvable,
 // and the token authenticates successfully against the GitLab API.
 func (p *Platform) Check() error {

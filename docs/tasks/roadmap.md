@@ -2919,15 +2919,62 @@ communique}/*.go` and their `_test.go` files
 
 **Scope:** M
 
-#### `[ ]` T70: Restructure `pipeline.Run()` — notes generation moves into the per-platform loop
+> **T70 split (this session, user-approved "split if needed"):** T70 was split into
+> **T70a** (expose `LinkContext()` on `port.Platform` — the missing accessor) and **T70b**
+> (the pipeline restructure that consumes it). Downstream "T70" references mean T70b.
 
-**Motivation:** Today, `p.cfg.Notes.Generate(result.Tag)` runs once in Step 6 and the
+#### `[x]` T70a: Expose per-platform `LinkContext()` on `port.Platform`
+
+**Motivation:** T70b must build a per-platform `LinkContext`, but the pipeline holds only
+`port.Platform` interface instances — `base_url`/`repository`/`project` aren't reachable
+through the interface. The platform already exposes `ReleaseURL` built from the same
+coordinates, so a parallel `LinkContext()` accessor is the natural home, and it keeps the
+owner/repo split where the platform's path knowledge already lives.
+
+**Scope of change:**
+- Add `LinkContext() port.LinkContext` to the `port.Platform` interface (stable-contract
+  change — every implementor moves in one commit, like T69).
+- **github:** `BaseURL` from `cfg.BaseURL`; split the effective `repository()`
+  (`owner/repo`) on the **first** slash → `Owner`/`Repo`; `Platform: "github"`.
+- **gitlab:** `BaseURL` from `cfg.BaseURL`; split the effective `project()`
+  (`group[/sub]/proj`) on the **last** slash → `Owner`/`Repo`; `Platform: "gitlab"`.
+- Both reuse the existing env-fallback helpers (`repository()` / `project()`), so a repo
+  path resolved from `GITHUB_REPOSITORY` / `CI_PROJECT_PATH` is reflected.
+- Update `testutil.MockPlatform` (add a settable `LinkContextVal`).
+
+**Acceptance:** contract tests assert github `acme/widget` → `{Owner: acme, Repo: widget}`
+and gitlab `group/sub/proj` → `{Owner: group/sub, Repo: proj}`, each with the right
+`BaseURL` (default + explicit) and `Platform`. TDD: failing tests first.
+
+**Files:** `internal/port/platform.go`, `internal/platforms/{github,gitlab}/platform.go`
+and their `_test.go`, `internal/testutil/mock_platform.go`
+
+**Dependencies:** T69
+
+**Scope:** S
+
+**Done:** Added `LinkContext() port.LinkContext` to `port.Platform` (stable-contract
+change, all 3 implementors moved together). **github**: `strings.Cut(repository(), "/")`
+(first slash) → Owner/Repo, Platform `github`. **gitlab**: `strings.LastIndex(project(),
+"/")` (last slash) → Owner=namespace (incl. nested `group/sub`), Repo=final segment,
+Platform `gitlab`. Both reuse the existing `repository()`/`project()` env-fallback helpers
+and fall back to the per-type default host (`githubBaseURL`/`gitlabBaseURL` consts) when
+`cfg.BaseURL` is empty — so a directly-constructed (non-normalized) `config.Platform`
+still yields a sane host (ReleaseURL keeps its own hardcoded host; the consumer-2 rewrite
+is still deferred to the multi-instance thread). `testutil.MockPlatform` gained a settable
+`LinkContextVal`. TDD: 6 contract tests first (red), then implementation — 808 tests green
+(+6), golangci-lint clean. **No behaviour change yet** — nothing calls `LinkContext()`
+until T70b.
+
+#### `[ ]` T70b: Restructure `pipeline.Run()` — notes generation moves into the per-platform loop
+
+**Motivation:** Today, `p.cfg.Notes.Generate(result.Tag, nil)` runs once in Step 6 and the
 resulting string is reused verbatim across every platform's `CreateRelease` in Step 7's
 loop (`internal/pipeline/release.go`). To produce per-platform-flavored notes when there
 is more than one platform, generation must move *inside* that loop, called once per
-platform with that platform's resolved `LinkContext` (derived from its `base_url` +
-`repository`/`project`). This changes the pipeline's step count/order, which ADR-0017
-governs — the reporter must be updated in lockstep.
+platform with that platform's `LinkContext` (from `plat.LinkContext()`, T70a). This
+changes the pipeline's step count/order, which ADR-0017 governs — the reporter must be
+updated in lockstep.
 
 **Non-regression (see the phase invariant above):** the per-platform path is taken **only
 when more than one platform is configured**. With exactly one platform, the pipeline keeps
@@ -2936,33 +2983,31 @@ CI detection, exactly as today). heraut must never replace a single platform's
 ambient-derived links with a less-specific default-`base_url` value.
 
 **Scope of change:**
-- When >1 platform: move `Notes.Generate` into the per-platform loop, passing each
-  platform's `LinkContext`. When exactly 1 platform: leave generation as a single
-  pre-loop call with no `LinkContext` (byte-for-byte today's behaviour).
+- When >1 platform: move `Notes.Generate` into the per-platform loop, passing
+  `&plat.LinkContext()`. When exactly 1 platform: leave generation as a single pre-loop
+  call with `nil` `LinkContext` (byte-for-byte today's behaviour).
 - Update `ui.Progress`/reporter step definitions and counts to reflect the new structure
   (per ADR-0017 and [ADR-0021](../adr/0021-per-platform-release-notes.md)'s step-semantics
   decision: multi-platform omits the standalone notes step and folds notes generation into
-  each publish step as a `notes generated` sub-result; `app.releaseStepTotal` branches on
-  `len(Platforms) > 1`). The single-platform step structure stays unchanged.
+  each publish step as a `notes generated` sub-result; `app.releaseStepTotal` adds the
+  `+1` notes step only when `len(Platforms) <= 1`). The single-platform step structure
+  stays unchanged.
 - The committed `CHANGELOG.md` generation (Step 2) is untouched — confirm no accidental
   coupling.
 
 **Acceptance:**
-- Multi-platform: integration test shows N configured platforms → N `Notes.Generate`
-  calls, each with that platform's distinct `LinkContext`; dry-run output and the post-run
-  summary reflect the new step structure.
+- Multi-platform: test shows N configured platforms → N `Notes.Generate` calls, each with
+  that platform's distinct `LinkContext`; dry-run output and the post-run summary reflect
+  the new step structure.
 - **Single-platform non-regression:** exactly one platform → exactly **one**
-  `Notes.Generate` call with an **empty/absent** `LinkContext`, step count and dry-run
-  output identical to pre-T70; existing single-platform contract/integration tests stay
-  green unchanged.
-- **Self-hosted-CI non-regression:** single GitLab platform, no `base_url`, with
-  `CI_PROJECT_URL` set to a self-hosted host → notes resolve links from that ambient host,
-  not from the `gitlab.com` default (assert the self-hosted host appears in the generated
-  notes).
+  `Notes.Generate` call with a **nil** `LinkContext`, step count and dry-run output
+  identical to pre-T70; existing single-platform contract/integration tests stay green
+  unchanged.
 
-**Files:** `internal/pipeline/release.go`, `internal/pipeline/release_test.go`
+**Files:** `internal/pipeline/release.go`, `internal/pipeline/release_test.go`,
+`internal/app/pipeline.go` (`releaseStepTotal`)
 
-**Dependencies:** T69
+**Dependencies:** T70a
 
 **ADR required:** recorded in [ADR-0021](../adr/0021-per-platform-release-notes.md) (T67) —
 this task implements that decision.
