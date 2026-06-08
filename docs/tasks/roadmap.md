@@ -2654,6 +2654,23 @@ committed `CHANGELOG.md`, which stays singular and generated once (Step 2, uncha
 T65-T73 below close this gap for git-cliff and cocogitto (communique is opaque to heraut
 and is explicitly excluded — see T73).
 
+> **Non-regression invariant (load-bearing for the whole phase).** Today's single-platform
+> CI flows work *because* the templates resolve links from ambient CI vars — and that is
+> correct even for self-hosted instances (a self-hosted GitLab runner sets
+> `CI_PROJECT_URL=https://gitlab.example.com/...` and `glab` publishes via CI autologin;
+> heraut never needs the host). Phase 14 must not regress this. **heraut injects
+> per-platform link context only when it would change the answer — i.e. when more than one
+> platform is configured** (and, once the [ADR-0020](../adr/0020-platform-base-url.md) gate
+> lifts, when `base_url` is explicitly non-default). With exactly one platform and an unset
+> (default) `base_url`, heraut injects **nothing**: notes are generated once, exactly as
+> today, and ambient-CI detection runs untouched. Corollary: heraut must **never override a
+> more-specific ambient CI value with a less-specific default `base_url`**. The ADR-0020
+> validator gate is what makes this safe in the multi-platform path too — because every
+> *injectable* `base_url` is currently a public default, the injected value can never be
+> less specific than what ambient CI would have produced for that platform; the only way a
+> self-hosted host reaches the notes is via ambient detection in the single-platform path,
+> which we preserve by not injecting.
+
 A **third, related but distinct** gap surfaced during the spike — heraut's config already
 allows multiple platform entries of the *same* type (e.g. two GitLab instances), but
 `findPlatformCfg`, the hardcoded `gitlabBaseURL`/`github.com` constants, `checkAPIAuth`,
@@ -2810,24 +2827,40 @@ communique}/*.go` and their `_test.go` files
 
 **Motivation:** Today, `p.cfg.Notes.Generate(result.Tag)` runs once in Step 6 and the
 resulting string is reused verbatim across every platform's `CreateRelease` in Step 7's
-loop (`internal/pipeline/release.go`). To produce per-platform-flavored notes, generation
-must move *inside* that loop, called once per platform with that platform's resolved
-`LinkContext` (derived from its `base_url` + `repository`/`project` — never from ambient
-CI vars). This changes the pipeline's step count/order, which ADR-0017 governs — the
-reporter must be updated in lockstep.
+loop (`internal/pipeline/release.go`). To produce per-platform-flavored notes when there
+is more than one platform, generation must move *inside* that loop, called once per
+platform with that platform's resolved `LinkContext` (derived from its `base_url` +
+`repository`/`project`). This changes the pipeline's step count/order, which ADR-0017
+governs — the reporter must be updated in lockstep.
+
+**Non-regression (see the phase invariant above):** the per-platform path is taken **only
+when more than one platform is configured**. With exactly one platform, the pipeline keeps
+generating notes once with **no** `LinkContext` (so the templates fall through to ambient
+CI detection, exactly as today). heraut must never replace a single platform's
+ambient-derived links with a less-specific default-`base_url` value.
 
 **Scope of change:**
-- Move `Notes.Generate` out of the standalone Step 6 and into the per-platform loop,
-  passing each platform's `LinkContext`.
+- When >1 platform: move `Notes.Generate` into the per-platform loop, passing each
+  platform's `LinkContext`. When exactly 1 platform: leave generation as a single
+  pre-loop call with no `LinkContext` (byte-for-byte today's behaviour).
 - Update `ui.Progress`/reporter step definitions and counts to reflect the new structure
-  (per ADR-0017 and the T67 ADR's documented decision on step semantics).
+  (per ADR-0017 and the T67 ADR's documented decision on step semantics). The
+  single-platform step structure stays unchanged.
 - The committed `CHANGELOG.md` generation (Step 2) is untouched — confirm no accidental
   coupling.
 
-**Acceptance:** Integration test shows N configured platforms → N `Notes.Generate` calls,
-each with that platform's distinct `LinkContext`; dry-run output and the post-run summary
-reflect the new step structure; existing single-platform contract/integration tests stay
-green (notes content unchanged when there's exactly one platform).
+**Acceptance:**
+- Multi-platform: integration test shows N configured platforms → N `Notes.Generate`
+  calls, each with that platform's distinct `LinkContext`; dry-run output and the post-run
+  summary reflect the new step structure.
+- **Single-platform non-regression:** exactly one platform → exactly **one**
+  `Notes.Generate` call with an **empty/absent** `LinkContext`, step count and dry-run
+  output identical to pre-T70; existing single-platform contract/integration tests stay
+  green unchanged.
+- **Self-hosted-CI non-regression:** single GitLab platform, no `base_url`, with
+  `CI_PROJECT_URL` set to a self-hosted host → notes resolve links from that ambient host,
+  not from the `gitlab.com` default (assert the self-hosted host appears in the generated
+  notes).
 
 **Files:** `internal/pipeline/release.go`, `internal/pipeline/release_test.go`
 
@@ -2851,16 +2884,26 @@ this needs care (and the ADR's guidance on documenting template diffs).
 
 **Scope of change:**
 - Update `remote_url()`/`pr_link()` macros in both embedded git-cliff release-notes TOMLs
-  to check the heraut-injected variable first, falling back to the current `default()`
-  chain.
+  to check the heraut-injected variable first, **falling back to the current `CI_PROJECT_URL`
+  / `GITHUB_SERVER_URL` `default()` chain when the injected variable is empty/absent.** The
+  injected variable is only ever set in the multi-platform path (T70), so single-platform
+  runs hit the fallback and behave exactly as today — including self-hosted instances,
+  whose correct host arrives via `CI_PROJECT_URL`. The macro must treat an empty injected
+  value as "not supplied" (fall through), never as "use empty/override" — so a
+  default-`base_url` value can't clobber a more-specific ambient host.
 - Update cocogitto's embedded `cog.toml`/Tera templates the same way.
 - Document the byte-level diff per ADR-0010's guidance (what changed, why, who's
   affected).
 
-**Acceptance:** Contract tests assert both the heraut-injected path (new context present
-→ links use it) and the fallback path (no heraut context → behaves exactly as today,
-preserving the hard-won existing assertions). `EffectiveReleaseNotesConfig()` reflects the
-updated macros for `heraut cliff`.
+**Acceptance:** Contract tests assert:
+- **Injected path:** injected variable present → links use it.
+- **Fallback path:** injected variable empty/absent → macro behaves exactly as today,
+  preserving the hard-won existing assertions (this is the single-platform / CI-native
+  case).
+- **Self-hosted fallback:** injected variable empty/absent **and** `CI_PROJECT_URL` set to
+  a self-hosted host → links use the self-hosted host (proves a default `base_url` never
+  silently overrides ambient detection).
+- `EffectiveReleaseNotesConfig()` reflects the updated macros for `heraut cliff`.
 
 **Files:** `internal/generators/gitcliff/cliff.{changelog,release-notes}.toml`,
 `internal/generators/cocogitto/cog.toml` + Tera templates, their `_test.go` files

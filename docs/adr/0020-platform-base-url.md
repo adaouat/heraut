@@ -108,6 +108,28 @@ document it), but the only accepted value is the per-type default until consumer
 When host targeting lands, the gate is lifted in that same change. This keeps the field
 from ever silently half-working.
 
+### Non-regression invariant: single-platform CI flows are untouched
+
+Today's single-platform CI flows work *because* the templates resolve links from ambient
+CI vars — and that is already correct for self-hosted instances: a self-hosted GitLab
+runner sets `CI_PROJECT_URL=https://gitlab.example.com/...` and `glab` publishes via CI
+autologin, so heraut never needs the host. This must not regress. Therefore:
+
+**heraut injects per-platform link context only when it would change the answer — when
+more than one platform is configured** (and, once the gate above lifts, when `base_url` is
+explicitly non-default). With exactly one platform and an unset (default) `base_url`,
+heraut injects **nothing**: notes generate once, exactly as today, and the templates fall
+through to ambient-CI detection. **Corollary: heraut must never override a more-specific
+ambient CI value with a less-specific default `base_url`** — the injected variable being
+empty must mean "fall through to ambient", never "use the default".
+
+The validator gate is what makes this safe in the multi-platform path as well: because
+every *injectable* `base_url` is currently a public default, the injected value can never
+be less specific than what ambient CI would have produced for that platform. The only way
+a self-hosted host reaches the notes is via ambient detection in the single-platform path
+— which is preserved precisely by not injecting there. (Enforced by the T70/T71
+non-regression acceptance tests.)
+
 ### Scope and non-goals
 
 - **No per-environment merge logic.** `release.platforms` is replaced wholesale per
