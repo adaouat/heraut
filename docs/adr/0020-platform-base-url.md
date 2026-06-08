@@ -72,14 +72,21 @@ release:
 | # | Consumer | Where | Thread |
 |---|----------|-------|--------|
 | 1 | Link resolution in release notes (per-platform host + path shape) | embedded git-cliff / cocogitto templates fed per platform | Phase 14 — T70/T71 |
-| 2 | `ReleaseURL` reporter summary line | `platforms/{github,gitlab}.ReleaseURL` | Phase 14 — T66 |
+| 2 | `ReleaseURL` reporter summary line | `platforms/{github,gitlab}.ReleaseURL` | deferred — multi-instance thread |
 | 3 | CLI host targeting — pointing `gh`/`glab` at the host so the release actually *publishes* there (`GH_HOST` / `GITLAB_HOST` and the auth probe) | `platforms/{github,gitlab}` Check/CreateRelease | deferred — multi-instance thread |
 
-Consumers 1 and 2 work correctly for the **default** values and require no host targeting:
-the link-flavor fix is meaningful precisely because the two *public* defaults already
-differ in host and path shape, so regenerating notes per platform with each platform's
-default `base_url` already produces correctly-flavored links. Consumer 2 simply reads the
-field instead of the hardcoded constant.
+Consumer 1 is Phase 14's deliverable and requires no host targeting: the link-flavor fix
+is meaningful precisely because the two *public* defaults already differ in host and path
+shape, so regenerating notes per platform with each platform's default `base_url` already
+produces correctly-flavored links.
+
+Consumer 2 *would* work for the default values with no host targeting (it would simply read
+`base_url` instead of the hardcoded `gitlabBaseURL` / `github.com` constants), but its
+wiring is **deferred to the multi-instance thread alongside consumer 3** — both touch the
+same `platforms/{github,gitlab}` files, the constant removal is naturally part of making
+those packages instance-aware, and while the gate holds `base_url == default` the rewrite
+is observationally a no-op (the field equals the constant). T66 therefore lands the config
+field only; the platform packages keep their constants until that thread.
 
 Consumer 3 — making `gh`/`glab` talk to a *non-default* (self-hosted) host — is the harder,
 separate problem tracked by the multi-instance thread (it also has to rework the

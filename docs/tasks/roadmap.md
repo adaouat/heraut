@@ -2772,15 +2772,17 @@ base-url.yml` (both platforms at their defaults) added to the schema glob and th
 `TestValidate_validFixtures` list. Tests: 8 new validator cases (default applied ×2,
 explicit-default, trailing-slash, non-default gated, malformed-distinct-from-gate, per-env
 gated) — 142 config tests green, 797 across all 21 packages, golangci-lint clean.
-**Scope deviation (flagged):** ADR-0020's consumer table attributes the `ReleaseURL`
-rewrite (reading `base_url` instead of the hardcoded `gitlabBaseURL`/`github.com`
-constants) to T66, but T66's roadmap scope/files are config-layer only. Implemented T66 to
-its roadmap entry (config + validator + schema + sample + fixture) and left the
-platform-package wiring out, because the gate forces `base_url == default`, making
-"read the field" vs. "read the constant" observationally identical today. The
-ADR-vs-roadmap mismatch is surfaced to the user; the platform-package wiring (which also
-removes the latent hardcoded constants) is a candidate for its own follow-up or to ride
-with the multi-instance host-targeting thread — pending the user's call.
+**Scope deviation (flagged + resolved):** ADR-0020's consumer table originally attributed
+the `ReleaseURL` rewrite (reading `base_url` instead of the hardcoded
+`gitlabBaseURL`/`github.com` constants) to T66, but T66's roadmap scope/files are
+config-layer only. Implemented T66 to its roadmap entry (config + validator + schema +
+sample + fixture) and left the platform-package wiring out, because the gate forces
+`base_url == default`, making "read the field" vs. "read the constant" observationally
+identical today. Surfaced the ADR-vs-roadmap mismatch; **user opted to defer the
+`ReleaseURL` wiring (consumer 2) to the multi-instance host-targeting thread** — it touches
+the same `platforms/{github,gitlab}` files as consumer 3 and removing the constants is a
+natural part of making those packages instance-aware. ADR-0020's consumer table updated to
+reattribute consumer 2 accordingly.
 
 #### `[ ]` T67: ADR — release notes regenerated per platform
 
