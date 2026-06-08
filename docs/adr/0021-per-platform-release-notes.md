@@ -99,15 +99,73 @@ file cannot have two link flavors, and nothing here changes Step 2. This is "mai
 thinking (design-spike option A) correctly scoped to the one artifact that genuinely needs
 a single answer.
 
-### Deferred to subsequent tasks (not decided here)
+### Context-injection shape (resolved by T68)
 
-- **The context-injection shape** — how the per-platform context reaches the generator
-  (reuse existing env vars vs. new heraut-owned template variables) — is the [T68]
-  mini-spike. It is the crux of keeping git-cliff and cocogitto consistent and must
-  confirm what cocogitto's Tera context accepts.
+T68 investigated *how* the per-platform context reaches each generator, with an empirical
+proof-of-concept against the installed `cog 7.0.0` and `git-cliff 2.13.1`. The two
+generators turn out to resolve links through **completely different surfaces**, so a single
+uniform mechanism is the wrong abstraction:
+
+- **git-cliff** resolves links in its Tera template via `get_env(name=…)`, reading the
+  subprocess environment. heraut already writes the full merged TOML per call and can pass
+  extra env vars via `port.Runner.RunEnv`.
+- **cocogitto** resolves links from `--remote` / `--owner` / `--repository` **CLI flags**
+  (equivalently `[changelog] remote/owner/repository` keys in the cog.toml heraut already
+  writes). cog's `-t remote` template then renders host-correct links. PoC confirmed the
+  same flags produce `https://gitlab.example.com/...` *and* `https://github.com/...`
+  correctly, self-hosted included. cog's Tera *also* supports `get_env`, but cog's
+  idiomatic surface is the remote/owner/repository config — not env vars — and the embedded
+  cog templates render **no links at all** today (T71 must add link rendering regardless).
+
+**Decision: a generator-agnostic `LinkContext` at the `port.Generator` boundary, translated
+by each adapter into that tool's native mechanism.** This is "new heraut-owned context"
+(option b) rather than "reuse ambient CI env vars" (option a) — but the unification lives at
+the `LinkContext` abstraction, not at the wire mechanism:
+
+- **git-cliff adapter** injects heraut-owned env vars (e.g. `HERAUT_REMOTE_URL`, plus a
+  platform-type marker for the PR vs MR path shape) via `RunEnv`; the embedded macro reads
+  them with `get_env`, keeping the existing `CI_PROJECT_URL` / `GITHUB_SERVER_URL` chain as
+  the `default=` fallback.
+- **cocogitto adapter** passes `--remote/--owner/--repository` (or injects the equivalent
+  `[changelog]` keys into the temp cog.toml) and selects cog's remote-linking template.
+- **communique adapter** ignores the context (opaque — see below).
+
+This was rejected for option (a): reusing ambient CI vars *as the primary mechanism* can't
+work, because heraut needs to **override** the ambient value per target platform, and an
+ambient var describes the CI runner's own host, not the target. Overriding requires a
+heraut-owned value that takes precedence — which *is* option (b). Forcing cog onto `get_env`
+would also fight its idiomatic remote/owner/repository surface.
+
+**PoC-confirmed non-regression (git-cliff):** with `HERAUT_REMOTE_URL` set, the injected
+value wins; with it unset, the macro falls through to ambient `CI_PROJECT_URL` (self-hosted
+host preserved). Injecting only in the multi-platform path therefore leaves single-platform
+CI runs byte-for-byte unchanged (ADR-0020 invariant). Note the asymmetry handed to T70/T71:
+cog has **no** ambient-CI fallback (it renders no links without explicit remote/owner), so
+the ">1 platform" injection gate exists primarily to protect git-cliff's ambient behavior;
+cog could safely receive context even single-platform, but applying the uniform gate is
+simplest and merely means cog links first appear in multi-platform mode.
+
+**Shape for T69 (`port.Generator`):** carry an optional per-platform context, where absent
+(`nil`) means "no per-platform context → fall through to ambient detection" (the
+single-platform path). Indicative fields, to be finalized in T69:
+
+```go
+type LinkContext struct {
+    BaseURL  string // resolved per-platform web base URL, e.g. https://gitlab.example.com
+    Owner    string // org / namespace (GitLab group[/subgroup])
+    Repo     string // repository / project name
+    Platform string // "github" | "gitlab" — selects PR (/pull/N) vs MR (/-/merge_requests/N) shape
+}
+```
+
+(GitLab project paths like `group/sub/proj` split into `owner=group/sub`, `repo=proj`;
+the adapter owns that parsing. cog wants `--remote` as the bare host without scheme, so the
+cocogitto adapter strips the scheme from `BaseURL`.)
+
 - **The `port.Generator` interface change** to carry the context is [T69]; the embedded
-  template updates are [T71]. This ADR records *that* notes are regenerated per platform
-  and *where* in the pipeline — not the interface signature or template bytes.
+  template updates are [T71]. This ADR records *that* notes are regenerated per platform,
+  *where* in the pipeline, and *by what mechanism* per generator — not the final interface
+  signature or template bytes.
 
 ### communique
 

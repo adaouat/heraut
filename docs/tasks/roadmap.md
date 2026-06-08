@@ -2847,6 +2847,27 @@ chosen shape. Unblocks T69-T71.
 
 **Scope:** S
 
+**Done:** Investigated both generators against installed `cog 7.0.0` + `git-cliff 2.13.1`
+with a throwaway tagged repo; decision recorded in
+[ADR-0021](../adr/0021-per-platform-release-notes.md) → "Context-injection shape (resolved
+by T68)". **Finding:** the two generators resolve links through different surfaces, so a
+single uniform mechanism is the wrong abstraction. git-cliff reads `get_env(name=…)` from
+the subprocess env (heraut can inject via `RunEnv`); cog resolves links from
+`--remote/--owner/--repository` CLI flags (or `[changelog]` cog.toml keys) — PoC produced
+correct `gitlab.example.com` *and* `github.com` links, self-hosted included — and cog's
+embedded templates render **no links today** (T71 adds them). **Decision:** option (b),
+heraut-owned context — a generator-agnostic `LinkContext` at the `port.Generator` boundary,
+each adapter translating it into the tool's native mechanism (git-cliff = heraut-owned env
+vars read via `get_env` with the existing CI-var chain as `default=` fallback; cocogitto =
+remote/owner/repository flags/keys; communique = ignored). Rejected option (a) reuse-ambient
+as primary: heraut must *override* per target, and an ambient var describes the runner not
+the target, so a heraut-owned precedence value is required anyway. **PoC-confirmed
+non-regression:** injected `HERAUT_REMOTE_URL` wins; absent → falls through to ambient
+`CI_PROJECT_URL` (self-hosted preserved). Flagged a cog asymmetry to T70/T71: cog has no
+ambient fallback, so the ">1 platform" gate exists chiefly to protect git-cliff; cog links
+first appear in multi-platform mode under the uniform gate. `LinkContext` indicative shape
+(`BaseURL`/`Owner`/`Repo`/`Platform`, `nil` = fall through) handed to T69. No code changed.
+
 #### `[ ]` T69: `port.Generator` interface change to carry per-platform context
 
 **Motivation:** `Generate(tag string) (string, error)` has no surface for per-platform
@@ -2856,17 +2877,22 @@ the same commit — git-cliff, cocogitto, *and* communique (which ignores the ne
 per T73's documented exclusion) all move together.
 
 **Scope of change:**
-- Extend `port.Generator.Generate` to accept the context shape decided in T68 (e.g. a
-  `LinkContext` struct carrying resolved `base_url` + `repository`/`project` per
-  platform).
+- Extend `port.Generator.Generate` to accept the [ADR-0021]-resolved (T68) optional
+  `*LinkContext` — indicatively `{ BaseURL, Owner, Repo, Platform }` — where `nil` means
+  "no per-platform context → fall through to ambient detection" (the single-platform path).
 - Update `gitcliff.Generator`, `cocogitto.Generator`, and `communique.Generator` to the
-  new signature; communique's implementation accepts and ignores the new parameter
-  (documented opacity, not a bug).
+  new signature, each translating `LinkContext` into its native mechanism (T68 decision):
+  git-cliff sets heraut-owned env vars via `RunEnv` (read by `get_env`); cocogitto passes
+  `--remote/--owner/--repository` (bare host, scheme stripped; GitLab `group/sub/proj` →
+  owner `group/sub`, repo `proj`); communique accepts and **ignores** it (documented
+  opacity, not a bug). Template byte changes are T71 — T69 is the signature + plumbing.
 - Update every test double / mock implementing `port.Generator`.
 
 **Acceptance:** All three generators compile against the new signature; existing
-contract tests pass with the context parameter threaded through (communique tests assert
-it's accepted and has no effect on the invoked command).
+contract tests pass with `nil` context (unchanged invocations); a non-nil context flows to
+the expected native surface per generator (git-cliff: env vars on the call; cocogitto: the
+`--remote/--owner/--repository` args; communique: asserted to have **no** effect on the
+invoked command).
 
 **Files:** `internal/port/generator.go`, `internal/generators/{gitcliff,cocogitto,
 communique}/*.go` and their `_test.go` files

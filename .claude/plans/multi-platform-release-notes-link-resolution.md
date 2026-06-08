@@ -118,6 +118,15 @@ rendered string keeps getting reused for every platform.
 
 ### Open sub-decision: how does heraut inject per-platform context?
 
+**RESOLVED (T68) — see [ADR-0021](../../docs/adr/0021-per-platform-release-notes.md)
+"Context-injection shape".** PoC against `cog 7.0.0` / `git-cliff 2.13.1` showed the two
+generators resolve links through different surfaces, so neither shape below applies
+uniformly: chose **option (b), heraut-owned context** via a generator-agnostic
+`LinkContext` at the `port.Generator` boundary, each adapter translating to its native
+mechanism (git-cliff = heraut-owned env vars via `get_env` with the CI-var chain as
+fallback; cocogitto = `--remote/--owner/--repository`; communique = ignored). The two
+shapes originally considered:
+
 Two shapes, each with trade-offs — this needs its own mini-spike once the direction above
 is agreed, because it's the crux of "three generators must stay consistent":
 
@@ -237,12 +246,13 @@ task — needs the breakdown-and-propose treatment per `claude.md`'s task-discip
 
 ## Open questions to resolve before turning this into roadmap entries
 
-1. Env-var reuse vs new heraut-owned template variables (T68) — affects whether existing
-   user-overridden templates keep working unchanged, and how much template-surface churn
-   we're signing up for across git-cliff *and* cocogitto.
-2. Should `base_url` support per-environment overrides, consistent with the per-env
-   content-driver deep-merge introduced in T63? Or is platform-level granularity enough
-   for the realistic self-hosted-instance scenarios?
+1. ~~Env-var reuse vs new heraut-owned template variables (T68)~~ — **RESOLVED (T68):**
+   heraut-owned `LinkContext`, per-generator native translation. See
+   [ADR-0021](../../docs/adr/0021-per-platform-release-notes.md).
+2. ~~Should `base_url` support per-environment overrides?~~ — **RESOLVED (T65/ADR-0020):**
+   no special merge; `release.platforms` is replaced wholesale per env (ADR-0019), so a
+   per-env platform block already carries its own `base_url`. Platform-level granularity is
+   enough.
 3. Is the communique exclusion acceptable as a documented limitation, or does it push
    some users toward git-cliff/cocogitto for multi-platform setups specifically? Worth
    surfacing in the spec either way so it's a documented trade-off, not a surprise.
