@@ -24,7 +24,7 @@ func NewRootCmd(version string) *cobra.Command {
 	pf := root.PersistentFlags()
 	pf.String("config", "", "path to .heraut.yml (default: auto-discover)")
 	pf.Bool("dry-run", false, "print actions without executing them")
-	pf.Bool("verbose", false, "log each command before executing it")
+	pf.Bool("verbose", false, "echo each command and emit diagnostic logs")
 	pf.String("env", "", "target environment (for per-env strategies)")
 	pf.Bool("force", false, "bypass E001/E002 promotion errors")
 
