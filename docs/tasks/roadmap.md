@@ -2640,6 +2640,251 @@ dry-run wiring test. Spec 03 updated (usage line, flag table, action sequence, n
 
 ---
 
+### Phase 14 — Multi-platform release correctness
+
+Design spike: [`.claude/plans/multi-platform-release-notes-link-resolution.md`](../../.claude/plans/multi-platform-release-notes-link-resolution.md).
+heraut can publish one release to several platforms (`release.platforms`: GitHub +
+GitLab) from a single pipeline run, but release notes are generated **once** and reused
+verbatim for every platform. The generators resolve commit/PR/MR links from *ambient CI
+environment variables* (`CI_PROJECT_URL` / `GITHUB_SERVER_URL` / `GITHUB_REPOSITORY`), so
+whichever CI the pipeline happens to run in "wins" the link flavor — every other
+configured platform gets a release whose notes point at the wrong host with the wrong
+link-path shape (`/pulls/N` vs `/-/merge_requests/N`, etc.). This is distinct from the
+committed `CHANGELOG.md`, which stays singular and generated once (Step 2, unchanged).
+T65-T73 below close this gap for git-cliff and cocogitto (communique is opaque to heraut
+and is explicitly excluded — see T73).
+
+A **third, related but distinct** gap surfaced during the spike — heraut's config already
+allows multiple platform entries of the *same* type (e.g. two GitLab instances), but
+`findPlatformCfg`, the hardcoded `gitlabBaseURL`/`github.com` constants, `checkAPIAuth`,
+and the reporter's `Name()` all silently assume at most one platform per type. It shares
+`base_url` (T65/T66) as a load-bearing prerequisite but is **not** folded into this
+phase's numbering — see "Related (but distinct) gap" in the design note. It needs its own
+scoping pass, task numbers, and likely its own ADR before it lands on the roadmap.
+
+#### `[ ]` T65: ADR — per-platform `base_url` for self-hosted instances
+
+**Motivation:** heraut cannot correctly resolve a self-hosted GitLab/GitHub Enterprise
+host by sniffing ambient CI env vars — those describe *where CI is running*, not *where
+each configured target platform lives*. A `base_url` field on `config.Platform` is the
+natural extension (alongside `repository`/`project`), but it's a new wire-compatible field
+and changes how link resolution works — it needs a decision record before it lands.
+
+**Acceptance:** ADR documents the new `base_url` field (optional, default
+`https://github.com` / `https://gitlab.com`), why it's needed (self-hosted instances,
+correct link resolution, multi-instance prerequisite), and its relationship to T67's
+per-platform notes regeneration.
+
+**Files:** `docs/adr/00XX-platform-base-url.md`
+
+**Dependencies:** none
+
+**Scope:** S
+
+#### `[ ]` T66: `base_url` config field (config + schema + sample)
+
+**Motivation:** Land the field decided in T65 following the standard field-change
+checklist — struct, schema, sample doc must move together or IDE autocomplete and the
+sample silently mislead users.
+
+**Scope of change:**
+- Add `BaseURL string` (optional) to `config.Platform`, defaulting to
+  `https://github.com` / `https://gitlab.com` per platform type when empty.
+- Update `schema.json` (type, description) and `docs/heraut.sample.yml` (show the field
+  in context with a comment, including the self-hosted use case).
+- Semantic validation in `internal/config/validator.go` if the value isn't a valid URL.
+
+**Acceptance:** A `.heraut.yml` with `base_url: https://gitlab.example.com` on a `gitlab`
+platform entry validates and loads; omitting it preserves today's defaults. Schema
+fixture added to `testdata/config/`.
+
+**Files:** `internal/config/{config,validator}.go`, `schema.json`,
+`docs/heraut.sample.yml`, `testdata/config/`
+
+**Dependencies:** T65
+
+**ADR required:** no — recorded in T65, this task lands the field it describes.
+
+**Scope:** M
+
+#### `[ ]` T67: ADR — release notes regenerated per platform
+
+**Motivation:** Closing the link-flavor gap requires regenerating release notes once per
+configured platform — not once globally — each pass fed that platform's own
+`base_url` + `repository`/`project`. This is a real architectural shift: notes stop being
+a single artifact produced once in the pipeline and become N artifacts produced inside
+the per-platform loop. It interacts with the reporter step semantics from
+[ADR-0017](../adr/0017-release-pipeline-progress-reporting.md) (step count / naming) and
+needs a decision record before the pipeline restructure (T70) begins.
+
+**Acceptance:** ADR documents: why notes must be regenerated per platform (not just
+templated smarter), how this changes `pipeline.Run()`'s step structure and ADR-0017's
+step semantics, and confirms the committed `CHANGELOG.md` is unaffected (Step 2 stays a
+single canonical generation tied to `origin`).
+
+**Files:** `docs/adr/00XX-per-platform-release-notes.md`
+
+**Dependencies:** T66
+
+**Scope:** S
+
+#### `[ ]` T68: Resolve the context-injection shape (env vars vs. new template variables)
+
+**Motivation:** Mini-spike to decide *how* heraut hands each platform's link-resolution
+context to the generators — the crux of "three generators must stay consistent."  Two
+shapes are on the table: (a) reuse existing env vars (`CI_PROJECT_URL`,
+`GITHUB_SERVER_URL`/`GITHUB_REPOSITORY` — smallest template diff, but conflates "the CI
+heraut runs in" with "the platform heraut targets," and both sets could be present
+simultaneously with the wrong one winning by the macro's `default()` chain), or (b) new
+heraut-owned template variables (cleaner separation, but a real template-surface change
+across git-cliff *and* cocogitto — needs to confirm what cocogitto's Tera context can
+actually accept before committing to a shape).
+
+**Acceptance:** Written decision (in the T67 ADR or a follow-up note) on which shape to
+use, with a confirmed proof-of-concept showing cocogitto's Tera context can accept the
+chosen shape. Unblocks T69-T71.
+
+**Files:** none (research spike; output is a decision, not code)
+
+**Dependencies:** T67
+
+**Scope:** S
+
+#### `[ ]` T69: `port.Generator` interface change to carry per-platform context
+
+**Motivation:** `Generate(tag string) (string, error)` has no surface for per-platform
+link-resolution context. Per [`coding.md`](../../.claude/rules/coding.md), `port`
+interfaces are stable contracts changed deliberately with every implementor updated in
+the same commit — git-cliff, cocogitto, *and* communique (which ignores the new context,
+per T73's documented exclusion) all move together.
+
+**Scope of change:**
+- Extend `port.Generator.Generate` to accept the context shape decided in T68 (e.g. a
+  `LinkContext` struct carrying resolved `base_url` + `repository`/`project` per
+  platform).
+- Update `gitcliff.Generator`, `cocogitto.Generator`, and `communique.Generator` to the
+  new signature; communique's implementation accepts and ignores the new parameter
+  (documented opacity, not a bug).
+- Update every test double / mock implementing `port.Generator`.
+
+**Acceptance:** All three generators compile against the new signature; existing
+contract tests pass with the context parameter threaded through (communique tests assert
+it's accepted and has no effect on the invoked command).
+
+**Files:** `internal/port/generator.go`, `internal/generators/{gitcliff,cocogitto,
+communique}/*.go` and their `_test.go` files
+
+**Dependencies:** T68
+
+**Scope:** M
+
+#### `[ ]` T70: Restructure `pipeline.Run()` — notes generation moves into the per-platform loop
+
+**Motivation:** Today, `p.cfg.Notes.Generate(result.Tag)` runs once in Step 6 and the
+resulting string is reused verbatim across every platform's `CreateRelease` in Step 7's
+loop (`internal/pipeline/release.go`). To produce per-platform-flavored notes, generation
+must move *inside* that loop, called once per platform with that platform's resolved
+`LinkContext` (derived from its `base_url` + `repository`/`project` — never from ambient
+CI vars). This changes the pipeline's step count/order, which ADR-0017 governs — the
+reporter must be updated in lockstep.
+
+**Scope of change:**
+- Move `Notes.Generate` out of the standalone Step 6 and into the per-platform loop,
+  passing each platform's `LinkContext`.
+- Update `ui.Progress`/reporter step definitions and counts to reflect the new structure
+  (per ADR-0017 and the T67 ADR's documented decision on step semantics).
+- The committed `CHANGELOG.md` generation (Step 2) is untouched — confirm no accidental
+  coupling.
+
+**Acceptance:** Integration test shows N configured platforms → N `Notes.Generate` calls,
+each with that platform's distinct `LinkContext`; dry-run output and the post-run summary
+reflect the new step structure; existing single-platform contract/integration tests stay
+green (notes content unchanged when there's exactly one platform).
+
+**Files:** `internal/pipeline/release.go`, `internal/pipeline/release_test.go`
+
+**Dependencies:** T69
+
+**ADR required:** recorded in T67 — this task implements that decision.
+
+**Scope:** M
+
+#### `[ ]` T71: Update embedded git-cliff + cocogitto templates to prefer heraut-injected context
+
+**Motivation:** `remote_url()`/`pr_link()` in the embedded git-cliff TOMLs
+(`cliff.changelog.toml`, `cliff.release-notes.toml`) and cocogitto's Tera templates
+currently resolve links solely from ambient CI env vars. They need to prefer the
+heraut-injected context from T69/T70, falling back to the existing
+`CI_PROJECT_URL`/`GITHUB_SERVER_URL` detection when heraut hasn't supplied anything —
+preserving today's behaviour for single-platform setups and anyone who copied the
+defaults into an override. Per [ADR-0010](../adr/0010-embedded-cliff-toml-default.md),
+embedded TOML/Tera is user-facing — any byte change affects every default-config user, so
+this needs care (and the ADR's guidance on documenting template diffs).
+
+**Scope of change:**
+- Update `remote_url()`/`pr_link()` macros in both embedded git-cliff release-notes TOMLs
+  to check the heraut-injected variable first, falling back to the current `default()`
+  chain.
+- Update cocogitto's embedded `cog.toml`/Tera templates the same way.
+- Document the byte-level diff per ADR-0010's guidance (what changed, why, who's
+  affected).
+
+**Acceptance:** Contract tests assert both the heraut-injected path (new context present
+→ links use it) and the fallback path (no heraut context → behaves exactly as today,
+preserving the hard-won existing assertions). `EffectiveReleaseNotesConfig()` reflects the
+updated macros for `heraut cliff`.
+
+**Files:** `internal/generators/gitcliff/cliff.{changelog,release-notes}.toml`,
+`internal/generators/cocogitto/cog.toml` + Tera templates, their `_test.go` files
+
+**Dependencies:** T69
+
+**Scope:** M
+
+#### `[ ]` T72: Integration test — multi-platform release produces distinctly-flavored notes
+
+**Motivation:** Closes the loop end-to-end. The whole point of T65-T71 is that "N
+platforms configured → N distinctly-flavored notes, each pointing at its own host/path
+shape" — that needs a real integration assertion, not just unit/contract coverage of the
+pieces.
+
+**Acceptance:** Full-pipeline integration test (real git repo + `testutil.FakeBin`)
+configures GitHub + GitLab platforms with distinct `base_url`/`repository`/`project`
+values, runs `heraut release`, and asserts each platform's `CreateRelease` call received
+notes whose commit/PR/MR links use *that platform's* host and path shape (not the other
+platform's, not ambient-CI-derived values).
+
+**Files:** `internal/pipeline/release_test.go` (or a new integration test file alongside
+it, matching the existing integration-test layout)
+
+**Dependencies:** T70, T71
+
+**Scope:** S
+
+#### `[ ]` T73: Spec update — document communique's link-resolution exclusion
+
+**Motivation:** `communique.Generate` is fully opaque to heraut — it just runs
+`communique generate --config <user-file> <tag>` and returns stdout, with link
+resolution entirely owned by the user's communique config. T69 threads a `LinkContext`
+through `port.Generator` for consistency, but communique ignores it: "inject per-platform
+context" is not achievable for communique users without a communique-side feature. This
+must be a documented limitation, not a silent surprise.
+
+**Acceptance:** `docs/specs/05-generators-and-platforms.md` explicitly states that
+communique users publishing to multiple platforms will get identical release notes across
+all of them (communique resolves its own links from its own config, independent of which
+platform heraut is currently publishing to), and that this is a known, accepted scope
+boundary — not a bug.
+
+**Files:** `docs/specs/05-generators-and-platforms.md`
+
+**Dependencies:** none (can land independently, but make sense to land alongside T69 so
+the spec and the code agree from the same commit forward)
+
+**Scope:** S
+
+---
+
 ## Risks and mitigations
 
 | Risk                                                                                | Impact            | Mitigation                                                                |
