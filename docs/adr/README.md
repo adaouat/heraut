@@ -25,3 +25,4 @@ trade-offs were accepted.
 | [0018](0018-ci-build-then-release-pipeline.md) | Self-Bootstrapping CI Release Pipeline | Accepted |
 | [0019](0019-perenv-content-driver-merge.md) | Per-Environment Content-Driver Overrides Deep-Merge | Accepted |
 | [0020](0020-platform-base-url.md) | Per-Platform `base_url` for Self-Hosted Instances | Accepted |
+| [0021](0021-per-platform-release-notes.md) | Release Notes Regenerated Per Platform | Accepted |

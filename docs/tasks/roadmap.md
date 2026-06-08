@@ -2784,7 +2784,7 @@ the same `platforms/{github,gitlab}` files as consumer 3 and removing the consta
 natural part of making those packages instance-aware. ADR-0020's consumer table updated to
 reattribute consumer 2 accordingly.
 
-#### `[ ]` T67: ADR — release notes regenerated per platform
+#### `[x]` T67: ADR — release notes regenerated per platform
 
 **Motivation:** Closing the link-flavor gap requires regenerating release notes once per
 configured platform — not once globally — each pass fed that platform's own
@@ -2804,6 +2804,26 @@ single canonical generation tied to `origin`).
 **Dependencies:** T66
 
 **Scope:** S
+
+**Done:** [ADR-0021](../adr/0021-per-platform-release-notes.md) written. Records the
+decision: notes generation moves into the per-platform publish loop, regenerated once per
+platform with that platform's link context — **but only when `len(Platforms) > 1`**;
+single-platform keeps the existing single pre-loop generation with no context (preserving
+ADR-0020's non-regression invariant + ambient-CI link resolution). Key step-model decision
+(reconciling ADR-0017): per-platform notes generation follows the **asset-upload
+sub-result precedent** rather than becoming its own numbered step — in multi-platform mode
+the standalone `Generate release notes` step is **omitted** and generation folds into each
+`Publish to {platform}` step (surfaced as a `notes generated` sub-result), so
+`app.releaseStepTotal` branches on `len(Platforms) > 1` (the `+1` notes step only in the
+single-platform arm; the `+len(Platforms)` publish steps cover it otherwise). Confirmed the
+committed `CHANGELOG.md` (Step 2) is untouched — release notes are the only artifact
+regenerated. Deferred (not decided here): the context-injection shape (T68), the
+`port.Generator` signature (T69), template bytes (T71). communique: per-platform
+regeneration is identical-but-harmless (it ignores context); pipeline *may* generate-once
+for context-blind generators as an optimization; user-facing limitation documented in T73.
+Out of scope: the tag-sync/target-pinning race (orthogonal timing problem). No code in
+this task; one new live-feedback trade-off noted (notes-gen reported retroactively as a
+sub-result rather than a live step in multi-platform mode).
 
 #### `[ ]` T68: Resolve the context-injection shape (env vars vs. new template variables)
 
@@ -2876,8 +2896,10 @@ ambient-derived links with a less-specific default-`base_url` value.
   platform's `LinkContext`. When exactly 1 platform: leave generation as a single
   pre-loop call with no `LinkContext` (byte-for-byte today's behaviour).
 - Update `ui.Progress`/reporter step definitions and counts to reflect the new structure
-  (per ADR-0017 and the T67 ADR's documented decision on step semantics). The
-  single-platform step structure stays unchanged.
+  (per ADR-0017 and [ADR-0021](../adr/0021-per-platform-release-notes.md)'s step-semantics
+  decision: multi-platform omits the standalone notes step and folds notes generation into
+  each publish step as a `notes generated` sub-result; `app.releaseStepTotal` branches on
+  `len(Platforms) > 1`). The single-platform step structure stays unchanged.
 - The committed `CHANGELOG.md` generation (Step 2) is untouched — confirm no accidental
   coupling.
 
@@ -2898,7 +2920,8 @@ ambient-derived links with a less-specific default-`base_url` value.
 
 **Dependencies:** T69
 
-**ADR required:** recorded in T67 — this task implements that decision.
+**ADR required:** recorded in [ADR-0021](../adr/0021-per-platform-release-notes.md) (T67) —
+this task implements that decision.
 
 **Scope:** M
 
