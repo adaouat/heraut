@@ -2662,7 +2662,7 @@ and the reporter's `Name()` all silently assume at most one platform per type. I
 phase's numbering — see "Related (but distinct) gap" in the design note. It needs its own
 scoping pass, task numbers, and likely its own ADR before it lands on the roadmap.
 
-#### `[ ]` T65: ADR — per-platform `base_url` for self-hosted instances
+#### `[x]` T65: ADR — per-platform `base_url` for self-hosted instances
 
 **Motivation:** heraut cannot correctly resolve a self-hosted GitLab/GitHub Enterprise
 host by sniffing ambient CI env vars — those describe *where CI is running*, not *where
@@ -2675,11 +2675,26 @@ and changes how link resolution works — it needs a decision record before it l
 correct link resolution, multi-instance prerequisite), and its relationship to T67's
 per-platform notes regeneration.
 
-**Files:** `docs/adr/00XX-platform-base-url.md`
+**Files:** `docs/adr/0020-platform-base-url.md`
 
 **Dependencies:** none
 
 **Scope:** S
+
+**Done:** [ADR-0020](../adr/0020-platform-base-url.md) written. Records `base_url` as the
+single per-platform **web base URL** (not API endpoint — the CLIs derive the API path),
+optional with per-type defaults, trailing-slash normalized. Key decision surfaced during
+the task: `base_url` feeds **three** consumers — link resolution in notes (T70/T71), the
+`ReleaseURL` summary (T66), and `gh`/`glab` **host targeting** (deferred to the
+multi-instance thread). Consumers 1–2 work for the *default* values (the link-flavor fix is
+meaningful even at defaults because public github.com vs gitlab.com differ in host *and*
+path shape), so Phase 14 needs no host targeting. To avoid shipping a field that silently
+half-works, the validator **rejects a non-default `base_url`** with a "self-hosted
+publishing not yet supported" error until host targeting lands (user-chosen over folding
+host-targeting into T66, or docs-only). Resolved design-note open question 2: no per-env
+merge for `base_url` — `release.platforms` is replaced wholesale per env (ADR-0019), so a
+per-env platform block already carries its own value. This gate flows into T66's
+acceptance below.
 
 #### `[ ]` T66: `base_url` config field (config + schema + sample)
 
@@ -2689,21 +2704,34 @@ sample silently mislead users.
 
 **Scope of change:**
 - Add `BaseURL string` (optional) to `config.Platform`, defaulting to
-  `https://github.com` / `https://gitlab.com` per platform type when empty.
+  `https://github.com` / `https://gitlab.com` per platform type when empty. Normalize a
+  trailing `/` so link construction never produces `//`.
 - Update `schema.json` (type, description) and `docs/heraut.sample.yml` (show the field
-  in context with a comment, including the self-hosted use case).
-- Semantic validation in `internal/config/validator.go` if the value isn't a valid URL.
+  in context with a comment, including the self-hosted use case — noting it is gated
+  pending host targeting).
+- Semantic validation in `internal/config/validator.go`: reject malformed URLs, **and**
+  per [ADR-0020](../adr/0020-platform-base-url.md), **reject a non-default `base_url`**
+  (anything other than the platform-type default) with a clear "self-hosted publishing not
+  yet supported — tracked separately (ADR-0020, multi-instance thread)" error. The field
+  ships forward-compatible, but the only accepted value is the default until `gh`/`glab`
+  host targeting lands. This gate is removed (with its tests) by the host-targeting task.
 
-**Acceptance:** A `.heraut.yml` with `base_url: https://gitlab.example.com` on a `gitlab`
-platform entry validates and loads; omitting it preserves today's defaults. Schema
-fixture added to `testdata/config/`.
+**Acceptance:**
+- A `.heraut.yml` omitting `base_url` validates and loads exactly as today (per-type
+  default applied). Schema fixture added to `testdata/config/`.
+- A `base_url` equal to the platform-type default validates (explicit-but-default is fine).
+- A *non-default* `base_url` (e.g. `https://gitlab.example.com`) is **rejected** by the
+  validator with the ADR-0020 gate error — contract/validator test asserts the rejection
+  and the hint text. (Flips to "accepted" only when host targeting lands.)
+- A malformed `base_url` is rejected with a URL-validation error distinct from the gate.
 
 **Files:** `internal/config/{config,validator}.go`, `schema.json`,
 `docs/heraut.sample.yml`, `testdata/config/`
 
 **Dependencies:** T65
 
-**ADR required:** no — recorded in T65, this task lands the field it describes.
+**ADR required:** no — recorded in [ADR-0020](../adr/0020-platform-base-url.md) (T65),
+this task lands the field it describes including the validator gate.
 
 **Scope:** M
 
@@ -2714,7 +2742,7 @@ configured platform — not once globally — each pass fed that platform's own
 `base_url` + `repository`/`project`. This is a real architectural shift: notes stop being
 a single artifact produced once in the pipeline and become N artifacts produced inside
 the per-platform loop. It interacts with the reporter step semantics from
-[ADR-0017](../adr/0017-release-pipeline-progress-reporting.md) (step count / naming) and
+[ADR-0017](../adr/0017-pipeline-progress-reporter.md) (step count / naming) and
 needs a decision record before the pipeline restructure (T70) begins.
 
 **Acceptance:** ADR documents: why notes must be regenerated per platform (not just
@@ -2722,7 +2750,7 @@ templated smarter), how this changes `pipeline.Run()`'s step structure and ADR-0
 step semantics, and confirms the committed `CHANGELOG.md` is unaffected (Step 2 stays a
 single canonical generation tied to `origin`).
 
-**Files:** `docs/adr/00XX-per-platform-release-notes.md`
+**Files:** `docs/adr/0021-per-platform-release-notes.md`
 
 **Dependencies:** T66
 
