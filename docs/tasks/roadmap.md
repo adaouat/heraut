@@ -3096,7 +3096,7 @@ correctly ignored; (2) `HERAUT_*` github → `github.com/.../pull/N` *(PoC used 
 `CI_PROJECT_URL` → self-hosted host + MR (ambient fallback, non-regression); (4) no
 `HERAUT_*` + GitHub Actions vars → `github.com` + PR. 821 tests green, golangci-lint clean.
 
-#### `[ ]` T71b: cocogitto templates — render per-platform links from the remote context
+#### `[x]` T71b: cocogitto templates — render per-platform links from the remote context
 
 **Motivation:** cocogitto's embedded `changelog.tera` / `release-notes.tera` render **no
 commit/PR links at all** today. With the `--remote/--owner/--repository` flags now passed
@@ -3116,6 +3116,25 @@ template change.
 vars; absent-context rendering is unchanged. Manual render PoC against real cog (flags set
 → host links; flags unset → no links) captured in the Done note. TDD: byte assertions red
 first.
+
+**Done:** Probed cog 7.0.0 (incl. extracting its built-in `remote` template from the
+binary): the context variable is **`repository_url`** — the full base
+`https://{host}/{owner}/{repo}`, set only when `--remote/--owner/--repository` are passed,
+**undefined otherwise**. Confirmed empirically that `{% if repository_url %}` is
+falsy-safe on the undefined case (no Tera error). Added a guarded link suffix
+`{% if repository_url %} - ([{{ commit.id | truncate(length=7,end="") }}]({{ repository_url }}/commit/{{ commit.id }})){% endif %}`
+to the commit loop in **both** `release-notes.tera` and `changelog.tera` (kept in sync;
+heraut always passes `nil` context to the changelog driver so its suffix is a no-op for
+parity). Commit links use `/commit/` universally — matching cog's own `remote` template
+(GitHub native; GitLab redirects). TDD: white-box `embed_internal_test.go` (`package
+cocogitto`, reads the production `embed.FS`, asserts `repository_url` + `/commit/` +
+`if repository_url` guard) red first, then the edit. **Manual render PoC** against real cog
+7.0.0 using the actual embedded templates: flags set → `gitlab.example.com/acme/widget/
+commit/<sha>` links; flags unset → link-free output **byte-identical to today** (the
+non-regression); `changelog.tera` unchanged (version header + no links). 824 tests green
+(+3), golangci-lint clean. **This is the payoff:** with T71a + T71b, a multi-platform
+release now produces per-platform-flavored links end to end for git-cliff *and* cocogitto
+(communique still excluded — T73).
 
 **Files:** `internal/generators/cocogitto/{changelog,release-notes}.tera` (and `cog.toml`
 if needed), `internal/generators/cocogitto/generator_test.go`
