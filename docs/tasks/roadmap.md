@@ -2966,7 +2966,7 @@ is still deferred to the multi-instance thread). `testutil.MockPlatform` gained 
 (+6), golangci-lint clean. **No behaviour change yet** — nothing calls `LinkContext()`
 until T70b.
 
-#### `[ ]` T70b: Restructure `pipeline.Run()` — notes generation moves into the per-platform loop
+#### `[x]` T70b: Restructure `pipeline.Run()` — notes generation moves into the per-platform loop
 
 **Motivation:** Today, `p.cfg.Notes.Generate(result.Tag, nil)` runs once in Step 6 and the
 resulting string is reused verbatim across every platform's `CreateRelease` in Step 7's
@@ -3013,6 +3013,22 @@ ambient-derived links with a less-specific default-`base_url` value.
 this task implements that decision.
 
 **Scope:** M
+
+**Done:** `pipeline.Run()` Steps 6+7 restructured. Single platform → unchanged: one
+standalone `Generate release notes` step calling `Notes.Generate(tag, nil)`, notes reused
+by the lone publish step. Multi-platform (`len(Platforms) > 1`) → the standalone notes step
+is gone; each `Publish to {platform}` step calls `Notes.Generate(tag, &plat.LinkContext())`
+first (sub-result `notes generated`), then `CreateRelease`, then assets. `dryRunOutput`
+mirrors this (standalone notes step only single-platform; `[dry-run] would generate notes`
+folded into multi-platform publish steps; no generator calls). `app.releaseStepTotal` now
+adds the `+1` notes step only when `len(Platforms) <= 1`, with a new white-box
+`steptotal_internal_test.go` (`package app`) covering all 6 single/multi × notes/changelog
+combinations. The committed `CHANGELOG.md` (Step 2) is untouched. TDD: 2 pipeline behaviour
+tests + 3 reporter tests (multi folds / single standalone / dry-run multi) + 6 step-total
+rows, written red first. Non-regression guards (`TestRun_SinglePlatform_NotesNilContext`,
+`TestRun_Reporter_SinglePlatform_StandaloneNotesStep`) pass against the old and new code.
+819 tests green (+11), golangci-lint clean. **Still no output change** — generators receive
+the context but the templates ignore it until T71.
 
 #### `[ ]` T71: Update embedded git-cliff + cocogitto templates to prefer heraut-injected context
 

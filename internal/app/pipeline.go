@@ -88,7 +88,10 @@ func releaseStepTotal(cfg *pipeline.Config) int {
 	if cfg.Changelog != nil && !cfg.DisableChangelog {
 		total += 2 // generate changelog + commit changelog
 	}
-	if cfg.Notes != nil && !cfg.DisableNotes {
+	// The standalone "generate release notes" step exists only for single-platform
+	// releases. With multiple platforms, notes are regenerated inside each publish step
+	// (folded as a sub-result, not a numbered step) — see ADR-0021.
+	if cfg.Notes != nil && !cfg.DisableNotes && len(cfg.Platforms) <= 1 {
 		total++ // generate release notes
 	}
 	total += len(cfg.Platforms) // one numbered step per platform

@@ -90,8 +90,9 @@ func (p *Pipeline) Check() error {
 //  1. Resolve version
 //  2. (if changelog configured and not disabled) Generate changelog → git add → git commit → git push
 //  3. git tag → git push --tags
-//  4. (if notes configured) Generate release notes
-//  5. For each platform: CreateRelease (with notes if available)
+//  4. (if notes configured, single platform only) Generate release notes
+//  5. For each platform: (if notes configured + multi-platform) regenerate notes with the
+//     platform's LinkContext, then CreateRelease
 //  6. For each platform: UploadAssets (if platform.HasAssets()) — reported as sub-result
 func (p *Pipeline) Run() error {
 	// Step 1: Resolve version.
@@ -157,9 +158,15 @@ func (p *Pipeline) Run() error {
 		return err
 	}
 
-	// Step 6: Generate release notes (conditional).
+	// Steps 6+7: release notes + publish. With a single platform, notes are generated
+	// once up front with no per-platform context (ambient CI fall-through, unchanged).
+	// With multiple platforms, notes are regenerated inside each publish step with that
+	// platform's LinkContext so links carry the right host/path shape (ADR-0021).
+	notesEnabled := p.cfg.Notes != nil && !p.cfg.DisableNotes
+	multiPlatform := len(p.cfg.Platforms) > 1
+
 	var notes string
-	if p.cfg.Notes != nil && !p.cfg.DisableNotes {
+	if notesEnabled && !multiPlatform {
 		if err := p.runStep("Generate release notes", func() (string, []string, error) {
 			var genErr error
 			notes, genErr = p.cfg.Notes.Generate(result.Tag, nil)
@@ -172,19 +179,28 @@ func (p *Pipeline) Run() error {
 		}
 	}
 
-	// Step 7: Publish to each platform; asset upload is a sub-result of this step.
 	for _, platform := range p.cfg.Platforms {
 		plat := platform // capture loop variable
 		if err := p.runStep(fmt.Sprintf("Publish to %s", plat.Name()), func() (string, []string, error) {
-			if err := plat.CreateRelease(result.Tag, notes); err != nil {
+			var subs []string
+			platNotes := notes
+			if notesEnabled && multiPlatform {
+				lc := plat.LinkContext()
+				generated, genErr := p.cfg.Notes.Generate(result.Tag, &lc)
+				if genErr != nil {
+					return "", nil, fmt.Errorf("platform %s: generating release notes: %w", plat.Name(), genErr)
+				}
+				platNotes = generated
+				subs = append(subs, "notes generated")
+			}
+			if err := plat.CreateRelease(result.Tag, platNotes); err != nil {
 				return "", nil, fmt.Errorf("platform %s: create release: %w", plat.Name(), err)
 			}
-			var subs []string
 			if plat.HasAssets() {
 				if err := plat.UploadAssets(result.Tag); err != nil {
 					return "", nil, fmt.Errorf("platform %s: upload assets: %w", plat.Name(), err)
 				}
-				subs = []string{"assets uploaded"}
+				subs = append(subs, "assets uploaded")
 			}
 			return plat.ReleaseURL(result.Tag), subs, nil
 		}); err != nil {
@@ -234,7 +250,10 @@ func (p *Pipeline) dryRunOutput(result versioning.Result) error {
 		return "[dry-run] would push", nil, nil
 	})
 
-	if p.cfg.Notes != nil && !p.cfg.DisableNotes {
+	notesEnabled := p.cfg.Notes != nil && !p.cfg.DisableNotes
+	multiPlatform := len(p.cfg.Platforms) > 1
+
+	if notesEnabled && !multiPlatform {
 		_ = p.runStep("Generate release notes", func() (string, []string, error) {
 			return "[dry-run] would generate", nil, nil
 		})
@@ -244,8 +263,11 @@ func (p *Pipeline) dryRunOutput(result versioning.Result) error {
 		plat := platform
 		_ = p.runStep(fmt.Sprintf("Publish to %s", plat.Name()), func() (string, []string, error) {
 			var subs []string
+			if notesEnabled && multiPlatform {
+				subs = append(subs, "[dry-run] would generate notes")
+			}
 			if plat.HasAssets() {
-				subs = []string{"[dry-run] would upload assets"}
+				subs = append(subs, "[dry-run] would upload assets")
 			}
 			return "[dry-run] would create release", subs, nil
 		})

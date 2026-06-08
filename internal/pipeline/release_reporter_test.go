@@ -187,6 +187,80 @@ func TestRun_Reporter_MultiplePlatformsEachGetStep(t *testing.T) {
 	assert.Contains(t, names, "Publish to gitlab")
 }
 
+// TestRun_Reporter_MultiPlatform_NotesFoldedIntoPublish verifies that with >1 platform
+// the standalone "Generate release notes" step is omitted and notes generation folds into
+// each publish step as a "notes generated" sub-result (ADR-0021 step semantics).
+func TestRun_Reporter_MultiPlatform_NotesFoldedIntoPublish(t *testing.T) {
+	mr := exectest.NewMockRunner()
+	mr.QueueResponse("", "", nil) // git tag
+	mr.QueueResponse("", "", nil) // git push --tags
+
+	notes := &testutil.MockGenerator{GenerateOut: "## notes\n"}
+	p1 := &testutil.MockPlatform{PlatformName: "github"}
+	p2 := &testutil.MockPlatform{PlatformName: "gitlab"}
+	cfg := &pipeline.Config{Notes: notes, Platforms: []port.Platform{p1, p2}}
+
+	var captured []capturedStep
+	p := pipeline.New(mr, &fakeResolver{result: resolvedResult("v1.2.3")}, cfg, &bytes.Buffer{}, false).
+		WithReporter(capturingStepFn(&captured))
+	require.NoError(t, p.Run())
+
+	names := stepNames(captured)
+	assert.NotContains(t, names, "Generate release notes", "multi-platform must not emit a standalone notes step")
+	assert.Contains(t, names, "Publish to github")
+	assert.Contains(t, names, "Publish to gitlab")
+
+	// Each publish step carries a "notes generated" sub-result.
+	for _, s := range captured {
+		if s.name == "Publish to github" || s.name == "Publish to gitlab" {
+			assert.Contains(t, s.subs, "notes generated", "expected notes sub-result on %s", s.name)
+		}
+	}
+}
+
+// TestRun_Reporter_SinglePlatform_StandaloneNotesStep verifies the single-platform path
+// keeps the standalone "Generate release notes" step (non-regression).
+func TestRun_Reporter_SinglePlatform_StandaloneNotesStep(t *testing.T) {
+	mr := exectest.NewMockRunner()
+	mr.QueueResponse("", "", nil) // git tag
+	mr.QueueResponse("", "", nil) // git push --tags
+
+	notes := &testutil.MockGenerator{GenerateOut: "## notes\n"}
+	platform := &testutil.MockPlatform{PlatformName: "github"}
+	cfg := &pipeline.Config{Notes: notes, Platforms: []port.Platform{platform}}
+
+	var captured []capturedStep
+	p := pipeline.New(mr, &fakeResolver{result: resolvedResult("v1.2.3")}, cfg, &bytes.Buffer{}, false).
+		WithReporter(capturingStepFn(&captured))
+	require.NoError(t, p.Run())
+
+	assert.Contains(t, stepNames(captured), "Generate release notes")
+}
+
+// TestRun_DryRun_MultiPlatform_NotesFolded verifies the dry-run path mirrors the live
+// step structure: no standalone notes step, "would generate notes" folded into publish,
+// and no real generator calls.
+func TestRun_DryRun_MultiPlatform_NotesFolded(t *testing.T) {
+	mr := exectest.NewMockRunner()
+	notes := &testutil.MockGenerator{GenerateOut: "n"}
+	p1 := &testutil.MockPlatform{PlatformName: "github"}
+	p2 := &testutil.MockPlatform{PlatformName: "gitlab"}
+	cfg := &pipeline.Config{Notes: notes, Platforms: []port.Platform{p1, p2}}
+
+	var captured []capturedStep
+	p := pipeline.New(mr, &fakeResolver{result: resolvedResult("v1.2.3")}, cfg, &bytes.Buffer{}, true).
+		WithReporter(capturingStepFn(&captured))
+	require.NoError(t, p.Run())
+
+	assert.NotContains(t, stepNames(captured), "Generate release notes")
+	assert.Len(t, notes.GenerateCalls, 0, "dry-run must not call the generator")
+	for _, s := range captured {
+		if s.name == "Publish to github" || s.name == "Publish to gitlab" {
+			assert.Contains(t, s.subs, "[dry-run] would generate notes")
+		}
+	}
+}
+
 // TestRun_Reporter_DryRunSequence verifies that dry-run with a reporter shows
 // all expected steps but makes no real git or platform calls.
 func TestRun_Reporter_DryRunSequence(t *testing.T) {

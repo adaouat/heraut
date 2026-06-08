@@ -154,6 +154,60 @@ func TestRun_WithNotes(t *testing.T) {
 	assert.Equal(t, "## Features\n- add thing\n", platform.CreateReleaseCalls[0].Notes)
 }
 
+// TestRun_SinglePlatform_NotesNilContext verifies the single-platform path generates
+// notes once with a nil LinkContext (ambient fall-through, non-regression — ADR-0021).
+func TestRun_SinglePlatform_NotesNilContext(t *testing.T) {
+	mr := exectest.NewMockRunner()
+	mr.QueueResponse("", "", nil) // git tag
+	mr.QueueResponse("", "", nil) // git push --tags
+
+	notes := &testutil.MockGenerator{GenerateOut: "## notes\n"}
+	gh := &testutil.MockPlatform{
+		PlatformName:   "github",
+		LinkContextVal: port.LinkContext{BaseURL: "https://github.com", Owner: "acme", Repo: "widget", Platform: "github"},
+	}
+	cfg := &pipeline.Config{Notes: notes, Platforms: []port.Platform{gh}}
+
+	p := pipeline.New(mr, &fakeResolver{result: resolvedResult("v1.2.3")}, cfg, &bytes.Buffer{}, false)
+	require.NoError(t, p.Run())
+
+	require.Len(t, notes.GenerateCalls, 1)
+	require.Len(t, notes.GenerateContexts, 1)
+	assert.Nil(t, notes.GenerateContexts[0], "single platform must pass nil LinkContext")
+	assert.Equal(t, "## notes\n", gh.CreateReleaseCalls[0].Notes)
+}
+
+// TestRun_MultiPlatform_NotesPerPlatform verifies notes are regenerated once per platform,
+// each with that platform's distinct LinkContext (ADR-0021).
+func TestRun_MultiPlatform_NotesPerPlatform(t *testing.T) {
+	mr := exectest.NewMockRunner()
+	mr.QueueResponse("", "", nil) // git tag
+	mr.QueueResponse("", "", nil) // git push --tags
+
+	notes := &testutil.MockGenerator{GenerateOut: "## notes\n"}
+	gh := &testutil.MockPlatform{
+		PlatformName:   "github",
+		LinkContextVal: port.LinkContext{BaseURL: "https://github.com", Owner: "acme", Repo: "widget", Platform: "github"},
+	}
+	gl := &testutil.MockPlatform{
+		PlatformName:   "gitlab",
+		LinkContextVal: port.LinkContext{BaseURL: "https://gitlab.com", Owner: "acme", Repo: "widget", Platform: "gitlab"},
+	}
+	cfg := &pipeline.Config{Notes: notes, Platforms: []port.Platform{gh, gl}}
+
+	p := pipeline.New(mr, &fakeResolver{result: resolvedResult("v1.2.3")}, cfg, &bytes.Buffer{}, false)
+	require.NoError(t, p.Run())
+
+	require.Len(t, notes.GenerateCalls, 2)
+	require.Len(t, notes.GenerateContexts, 2)
+	require.NotNil(t, notes.GenerateContexts[0])
+	require.NotNil(t, notes.GenerateContexts[1])
+	assert.Equal(t, "github", notes.GenerateContexts[0].Platform)
+	assert.Equal(t, "gitlab", notes.GenerateContexts[1].Platform)
+	require.Len(t, gh.CreateReleaseCalls, 1)
+	require.Len(t, gl.CreateReleaseCalls, 1)
+}
+
 // TestRun_WithAssets verifies UploadAssets is called after CreateRelease.
 func TestRun_WithAssets(t *testing.T) {
 	mr := exectest.NewMockRunner()
