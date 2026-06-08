@@ -2,6 +2,7 @@ package config
 
 import (
 	"io"
+	"strings"
 
 	forgeconfig "github.com/adaouat/forge/config"
 )
@@ -31,5 +32,25 @@ func LoadFromReader(r io.Reader) (*Config, error) {
 func normalize(cfg *Config) {
 	if cfg.Changelog != nil && cfg.Changelog.Output == "" {
 		cfg.Changelog.Output = "CHANGELOG.md"
+	}
+	if cfg.Release != nil {
+		normalizePlatforms(cfg.Release.Platforms)
+	}
+	for _, env := range cfg.Environments {
+		if env.Release != nil {
+			normalizePlatforms(env.Release.Platforms)
+		}
+	}
+}
+
+// normalizePlatforms trims a trailing slash from each platform's base_url and fills in
+// the per-type default when it is empty, so cfg.Platform.BaseURL is the single
+// trailing-slash-free source of truth for that platform's host (ADR-0020).
+func normalizePlatforms(plats []Platform) {
+	for i := range plats {
+		plats[i].BaseURL = strings.TrimRight(plats[i].BaseURL, "/")
+		if plats[i].BaseURL == "" {
+			plats[i].BaseURL = defaultBaseURL(plats[i].Type)
+		}
 	}
 }

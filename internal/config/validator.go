@@ -2,6 +2,7 @@ package config
 
 import (
 	"fmt"
+	"net/url"
 	"sort"
 	"strings"
 )
@@ -134,8 +135,46 @@ func validateRelease(r *Release, path string) []ValidationError {
 				Hint:    "valid platforms: github, gitlab",
 			})
 		}
+		errs = append(errs, validatePlatformBaseURL(plat, platPath)...)
 	}
 	return errs
+}
+
+// validatePlatformBaseURL validates a platform's base_url: it must be a well-formed
+// absolute http(s) URL, and — per ADR-0020 — it must equal the platform-type default
+// until self-hosted host targeting lands (the gate). An empty value means "use the
+// default" and is always accepted.
+func validatePlatformBaseURL(plat Platform, platPath string) []ValidationError {
+	if plat.BaseURL == "" {
+		return nil
+	}
+	raw := strings.TrimRight(plat.BaseURL, "/")
+	if !isValidBaseURL(raw) {
+		return []ValidationError{{
+			Path:    platPath + ".base_url",
+			Message: fmt.Sprintf("%q is not a valid URL", plat.BaseURL),
+			Hint:    "base_url must be an absolute http(s) URL, e.g. https://gitlab.example.com",
+		}}
+	}
+	if def := defaultBaseURL(plat.Type); def != "" && raw != def {
+		return []ValidationError{{
+			Path:    platPath + ".base_url",
+			Message: "self-hosted hosts are not yet supported",
+			Hint: fmt.Sprintf(
+				"base_url currently only accepts the platform default (%s); self-hosted publishing is tracked separately (ADR-0020)",
+				def,
+			),
+		}}
+	}
+	return nil
+}
+
+func isValidBaseURL(s string) bool {
+	u, err := url.Parse(s)
+	if err != nil {
+		return false
+	}
+	return (u.Scheme == "http" || u.Scheme == "https") && u.Host != ""
 }
 
 func validateEnvRelease(r *EnvRelease, topRelease *Release, path string) []ValidationError {
@@ -167,6 +206,7 @@ func validateEnvRelease(r *EnvRelease, topRelease *Release, path string) []Valid
 				Hint:    "valid platforms: github, gitlab",
 			})
 		}
+		errs = append(errs, validatePlatformBaseURL(plat, platPath)...)
 	}
 	return errs
 }

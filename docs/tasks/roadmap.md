@@ -2713,7 +2713,7 @@ merge for `base_url` — `release.platforms` is replaced wholesale per env (ADR-
 per-env platform block already carries its own value. This gate flows into T66's
 acceptance below.
 
-#### `[ ]` T66: `base_url` config field (config + schema + sample)
+#### `[x]` T66: `base_url` config field (config + schema + sample)
 
 **Motivation:** Land the field decided in T65 following the standard field-change
 checklist — struct, schema, sample doc must move together or IDE autocomplete and the
@@ -2751,6 +2751,36 @@ sample silently mislead users.
 this task lands the field it describes including the validator gate.
 
 **Scope:** M
+
+**Done:** Added `BaseURL string` (`yaml:"base_url,omitempty"`) to `config.Platform` as a
+shared field. Defaulting + trailing-slash trim live in `loader.normalize` via a new
+`normalizePlatforms` helper applied to **all** platform lists (top-level `release.platforms`
+*and* every `environments.<env>.release.platforms`), backed by a `defaultBaseURL(type)`
+helper + `defaultGitHubBaseURL`/`defaultGitLabBaseURL` constants in `config.go` — so after
+load `Platform.BaseURL` is the single trailing-slash-free source of truth. Validation
+(`validatePlatformBaseURL`, wired into both `validateRelease` and `validateEnvRelease`
+loops): empty → accepted (default applies); malformed → URL error (checked first, via
+`isValidBaseURL` requiring http/https scheme + non-empty host); well-formed but non-default
+→ the ADR-0020 gate error ("self-hosted hosts are not yet supported", hint points to
+ADR-0020). The two errors are deliberately distinct (malformed returns before the gate).
+The validator treats empty as "use default" so it stays correct even on a directly-
+constructed (non-normalized) `Config`. Schema gains a permissive `base_url` string property
+(semantic gate stays in the validator, matching the strict-parse vs semantic split); sample
+documents it on both the GitHub entry and the commented GitLab block with the
+"self-hosted not yet supported" note. New valid fixture `testdata/config/valid/platform-
+base-url.yml` (both platforms at their defaults) added to the schema glob and the explicit
+`TestValidate_validFixtures` list. Tests: 8 new validator cases (default applied ×2,
+explicit-default, trailing-slash, non-default gated, malformed-distinct-from-gate, per-env
+gated) — 142 config tests green, 797 across all 21 packages, golangci-lint clean.
+**Scope deviation (flagged):** ADR-0020's consumer table attributes the `ReleaseURL`
+rewrite (reading `base_url` instead of the hardcoded `gitlabBaseURL`/`github.com`
+constants) to T66, but T66's roadmap scope/files are config-layer only. Implemented T66 to
+its roadmap entry (config + validator + schema + sample + fixture) and left the
+platform-package wiring out, because the gate forces `base_url == default`, making
+"read the field" vs. "read the constant" observationally identical today. The
+ADR-vs-roadmap mismatch is surfaced to the user; the platform-package wiring (which also
+removes the latent hardcoded constants) is a candidate for its own follow-up or to ride
+with the multi-instance host-targeting thread — pending the user's call.
 
 #### `[ ]` T67: ADR — release notes regenerated per platform
 

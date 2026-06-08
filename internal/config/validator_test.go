@@ -283,6 +283,125 @@ release:
 	assert.Empty(t, config.Validate(cfg))
 }
 
+// ── platform base_url (ADR-0020) ─────────────────────────────────────────────
+
+func TestValidate_platformBaseURLDefaultApplied(t *testing.T) {
+	cfg := mustLoad(t, `
+version: "1"
+versioning:
+  strategy: semver
+release:
+  platforms:
+    - platform: github
+      repository: acme/widget
+`)
+	require.NotNil(t, cfg.Release)
+	require.Len(t, cfg.Release.Platforms, 1)
+	assert.Equal(t, "https://github.com", cfg.Release.Platforms[0].BaseURL)
+	assert.Empty(t, config.Validate(cfg))
+}
+
+func TestValidate_platformBaseURLDefaultAppliedGitLab(t *testing.T) {
+	cfg := mustLoad(t, `
+version: "1"
+versioning:
+  strategy: semver
+release:
+  platforms:
+    - platform: gitlab
+      project: acme/widget
+`)
+	require.Len(t, cfg.Release.Platforms, 1)
+	assert.Equal(t, "https://gitlab.com", cfg.Release.Platforms[0].BaseURL)
+	assert.Empty(t, config.Validate(cfg))
+}
+
+func TestValidate_platformBaseURLExplicitDefault(t *testing.T) {
+	cfg := mustLoad(t, `
+version: "1"
+versioning:
+  strategy: semver
+release:
+  platforms:
+    - platform: gitlab
+      project: acme/widget
+      base_url: https://gitlab.com
+`)
+	assert.Empty(t, config.Validate(cfg))
+}
+
+func TestValidate_platformBaseURLTrailingSlashNormalized(t *testing.T) {
+	cfg := mustLoad(t, `
+version: "1"
+versioning:
+  strategy: semver
+release:
+  platforms:
+    - platform: github
+      repository: acme/widget
+      base_url: https://github.com/
+`)
+	assert.Equal(t, "https://github.com", cfg.Release.Platforms[0].BaseURL)
+	assert.Empty(t, config.Validate(cfg))
+}
+
+func TestValidate_platformBaseURLNonDefaultGated(t *testing.T) {
+	cfg := mustLoad(t, `
+version: "1"
+versioning:
+  strategy: semver
+release:
+  platforms:
+    - platform: gitlab
+      project: acme/widget
+      base_url: https://gitlab.example.com
+`)
+	errs := config.Validate(cfg)
+	e := findErr(errs, "release.platforms[0].base_url")
+	require.NotNil(t, e)
+	assert.Contains(t, e.Message, "not yet supported")
+	assert.Contains(t, e.Hint, "ADR-0020")
+}
+
+func TestValidate_platformBaseURLMalformed(t *testing.T) {
+	cfg := mustLoad(t, `
+version: "1"
+versioning:
+  strategy: semver
+release:
+  platforms:
+    - platform: github
+      repository: acme/widget
+      base_url: "not a url"
+`)
+	errs := config.Validate(cfg)
+	e := findErr(errs, "release.platforms[0].base_url")
+	require.NotNil(t, e)
+	assert.Contains(t, e.Message, "not a valid URL")
+	assert.NotContains(t, e.Message, "not yet supported")
+}
+
+func TestValidate_envOverridePlatformBaseURLGated(t *testing.T) {
+	cfg := mustLoad(t, `
+version: "1"
+versioning:
+  strategy: semver-per-env
+environments:
+  dev:
+    bump: auto
+    tag_format: "dev/{version}"
+    release:
+      platforms:
+        - platform: gitlab
+          project: acme/widget
+          base_url: https://gitlab.example.com
+`)
+	errs := config.Validate(cfg)
+	e := findErr(errs, "environments.dev.release.platforms[0].base_url")
+	require.NotNil(t, e)
+	assert.Contains(t, e.Message, "not yet supported")
+}
+
 // ── env overrides (top-level environments) ───────────────────────────────────
 
 func TestValidate_envOverrideInvalidPlatform(t *testing.T) {
@@ -566,6 +685,7 @@ func TestValidate_validFixtures(t *testing.T) {
 		"../../testdata/config/valid/calver.yml",
 		"../../testdata/config/valid/semver-per-env.yml",
 		"../../testdata/config/valid/calver-per-env.yml",
+		"../../testdata/config/valid/platform-base-url.yml",
 	}
 	for _, path := range fixtures {
 		t.Run(path, func(t *testing.T) {

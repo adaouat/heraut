@@ -141,6 +141,12 @@ release:
       # Defaults to GH_TOKEN if omitted.
       token_env: GH_TOKEN
 
+      # base_url — web base URL of the platform instance. Defaults to
+      # https://github.com (GitHub) / https://gitlab.com (GitLab).
+      # NOTE: self-hosted (non-default) values are not yet supported — heraut
+      # rejects them at load time. Tracked separately (see ADR-0020).
+      # base_url: https://github.com
+
       # draft — create the release as a draft (not publicly visible until published).
       # draft: true
 
@@ -163,6 +169,10 @@ release:
   #   # token_env — env var holding a GitLab token with api scope.
   #   # Defaults to GITLAB_TOKEN if omitted.
   #   token_env: GITLAB_TOKEN
+  #
+  #   # base_url — defaults to https://gitlab.com. Self-hosted (non-default)
+  #   # values are not yet supported and are rejected at load time (ADR-0020).
+  #   # base_url: https://gitlab.com
   #
   #   # assets — platform-specific overrides (overrides release.assets entirely for this platform).
   #   # assets:

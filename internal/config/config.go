@@ -81,9 +81,29 @@ type Platform struct {
 	// GitLab-specific
 	Project string `yaml:"project,omitempty"`
 	// Shared
+	BaseURL  string   `yaml:"base_url,omitempty"`
 	TokenEnv string   `yaml:"token_env,omitempty"`
 	Assets   []string `yaml:"assets,omitempty"`
 	// LenientAssets is set programmatically when assets come from release.assets (top-level).
 	// When true, a glob pattern that matches nothing emits a warning instead of an error.
 	LenientAssets bool `yaml:"-"`
+}
+
+const (
+	defaultGitHubBaseURL = "https://github.com"
+	defaultGitLabBaseURL = "https://gitlab.com"
+)
+
+// defaultBaseURL returns the default web base URL for a platform type, or "" when the
+// type has no known default (e.g. an invalid platform — the type error is raised
+// separately by the validator).
+func defaultBaseURL(platformType string) string {
+	switch platformType {
+	case "github":
+		return defaultGitHubBaseURL
+	case "gitlab":
+		return defaultGitLabBaseURL
+	default:
+		return ""
+	}
 }
