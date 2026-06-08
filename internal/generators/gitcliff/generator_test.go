@@ -194,6 +194,26 @@ func TestEffectiveReleaseNotesConfig(t *testing.T) {
 	assert.Contains(t, toml, "[changelog]")
 }
 
+// TestEffectiveConfig_PrefersHerautContext verifies both embedded TOMLs prefer the
+// heraut-injected vars for link resolution while preserving the ambient CI fallback
+// (T71a / ADR-0021). Byte assertion — actual Tera rendering is verified manually with the
+// real git-cliff (the suite has no real-binary tests).
+func TestEffectiveConfig_PrefersHerautContext(t *testing.T) {
+	mr := exectest.NewMockRunner()
+	gen := gitcliff.New(mr, &config.ContentDriver{Generator: "git-cliff"}, gitcliff.ModeReleaseNotes)
+
+	rn, err := gen.EffectiveReleaseNotesConfig()
+	require.NoError(t, err)
+	cl, err := gen.EffectiveChangelogConfig()
+	require.NoError(t, err)
+
+	for name, toml := range map[string]string{"release-notes": rn, "changelog": cl} {
+		assert.Contains(t, toml, "HERAUT_REMOTE_URL", "%s: remote_url must prefer the heraut-injected URL", name)
+		assert.Contains(t, toml, "HERAUT_PLATFORM", "%s: pr_link must discriminate via HERAUT_PLATFORM", name)
+		assert.Contains(t, toml, "CI_PROJECT_URL", "%s: ambient CI fallback must be preserved", name)
+	}
+}
+
 func TestEffectiveConfig_WithUserOverride(t *testing.T) {
 	tmp := t.TempDir()
 	cfgPath := filepath.Join(tmp, "cliff.toml")

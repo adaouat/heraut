@@ -3030,45 +3030,97 @@ rows, written red first. Non-regression guards (`TestRun_SinglePlatform_NotesNil
 819 tests green (+11), golangci-lint clean. **Still no output change** — generators receive
 the context but the templates ignore it until T71.
 
-#### `[ ]` T71: Update embedded git-cliff + cocogitto templates to prefer heraut-injected context
+> **T71 split (this session, user-approved "split if needed"):** T71 splits along the two
+> generators — **T71a** (git-cliff macros) and **T71b** (cocogitto templates) — which use
+> different injection surfaces (env vars via `get_env` vs `--remote/--owner/--repository`
+> flags) and so are independent. Downstream "T71" references mean both are done.
+>
+> **Verification note (applies to both):** the suite has **no** real-binary test precedent
+> (MockRunner/FakeBin only), and heraut does not render Tera itself — the external tool
+> does. So automated tests assert the macro/template **bytes** via
+> `EffectiveReleaseNotesConfig()` / `EffectiveChangelogConfig()` (git-cliff) and the
+> embedded template contents (cocogitto): heraut-var preferred, CI fallback preserved.
+> Actual rendering is verified **manually** with the real tool against a throwaway repo
+> (as in the T68 PoC) and the transcript captured in the Done note — this catches Tera
+> syntax errors the byte assertions can't.
 
-**Motivation:** `remote_url()`/`pr_link()` in the embedded git-cliff TOMLs
-(`cliff.changelog.toml`, `cliff.release-notes.toml`) and cocogitto's Tera templates
-currently resolve links solely from ambient CI env vars. They need to prefer the
-heraut-injected context from T69/T70, falling back to the existing
-`CI_PROJECT_URL`/`GITHUB_SERVER_URL` detection when heraut hasn't supplied anything —
-preserving today's behaviour for single-platform setups and anyone who copied the
-defaults into an override. Per [ADR-0010](../adr/0010-embedded-cliff-toml-default.md),
-embedded TOML/Tera is user-facing — any byte change affects every default-config user, so
-this needs care (and the ADR's guidance on documenting template diffs).
+#### `[x]` T71a: git-cliff templates — prefer heraut-injected context with CI fallback
+
+**Motivation:** `remote_url()`/`pr_link()` in **both** embedded git-cliff TOMLs
+(`cliff.changelog.toml`, `cliff.release-notes.toml` — currently byte-identical macros)
+resolve links solely from ambient CI env vars. They must prefer the heraut-injected
+`HERAUT_REMOTE_URL` / `HERAUT_PLATFORM` (T69), falling back to the existing
+`CI_PROJECT_URL` / `GITHUB_SERVER_URL` chain when absent. Per
+[ADR-0010](../adr/0010-embedded-cliff-toml-default.md), embedded TOML is user-facing — any
+byte change affects every default-config user.
 
 **Scope of change:**
-- Update `remote_url()`/`pr_link()` macros in both embedded git-cliff release-notes TOMLs
-  to check the heraut-injected variable first, **falling back to the current `CI_PROJECT_URL`
-  / `GITHUB_SERVER_URL` `default()` chain when the injected variable is empty/absent.** The
-  injected variable is only ever set in the multi-platform path (T70), so single-platform
-  runs hit the fallback and behave exactly as today — including self-hosted instances,
-  whose correct host arrives via `CI_PROJECT_URL`. The macro must treat an empty injected
-  value as "not supplied" (fall through), never as "use empty/override" — so a
-  default-`base_url` value can't clobber a more-specific ambient host.
-- Update cocogitto's embedded `cog.toml`/Tera templates the same way.
-- Document the byte-level diff per ADR-0010's guidance (what changed, why, who's
-  affected).
+- `remote_url()`: `get_env(HERAUT_REMOTE_URL, default=<existing CI_PROJECT_URL/… chain>)`.
+- `pr_link()`: discriminate GitLab (MR) vs GitHub (PR) via `HERAUT_PLATFORM` first, falling
+  back to the current `CI_PROJECT_URL != ""` heuristic when `HERAUT_PLATFORM` is empty.
+- The macro must treat an **empty** injected value as "not supplied" (fall through), never
+  as "override with empty" — so a default-`base_url` value never clobbers a more-specific
+  ambient host (the self-hosted-CI non-regression).
+- Update **both** TOMLs identically (keep the macros in sync). The changelog is generated
+  with `nil` context (T70b), so `HERAUT_REMOTE_URL` is never set for it — its update is a
+  verified no-op kept purely for macro parity.
+- Preserve the pre-existing `/pulls/` path literal verbatim (a separate latent bug — see
+  the new follow-up task below; not in scope here).
 
-**Acceptance:** Contract tests assert:
-- **Injected path:** injected variable present → links use it.
-- **Fallback path:** injected variable empty/absent → macro behaves exactly as today,
-  preserving the hard-won existing assertions (this is the single-platform / CI-native
-  case).
-- **Self-hosted fallback:** injected variable empty/absent **and** `CI_PROJECT_URL` set to
-  a self-hosted host → links use the self-hosted host (proves a default `base_url` never
-  silently overrides ambient detection).
-- `EffectiveReleaseNotesConfig()` reflects the updated macros for `heraut cliff`.
+**Acceptance:** `EffectiveReleaseNotesConfig()` and `EffectiveChangelogConfig()` contain
+`HERAUT_REMOTE_URL` and `HERAUT_PLATFORM` **and** still contain `CI_PROJECT_URL` (fallback
+preserved). Existing `Effective*Config` assertions stay green. Manual render PoC against
+real git-cliff (env set → heraut host; env unset → ambient `CI_PROJECT_URL`) captured in
+the Done note. TDD: byte assertions red first.
 
 **Files:** `internal/generators/gitcliff/cliff.{changelog,release-notes}.toml`,
-`internal/generators/cocogitto/cog.toml` + Tera templates, their `_test.go` files
+`internal/generators/gitcliff/generator_test.go`
 
-**Dependencies:** T69
+**Dependencies:** T70b
+
+**Scope:** S
+
+**Done:** Both embedded TOMLs updated identically. `remote_url()` now reads
+`get_env(HERAUT_REMOTE_URL, default=<CI_PROJECT_URL → GITHUB_SERVER_URL+GITHUB_REPOSITORY
+chain>)`; `pr_link()` sets `heraut_platform = get_env(HERAUT_PLATFORM)` and renders an MR
+link when it's `gitlab` (or empty + `CI_PROJECT_URL` set), else a PR link — so the
+heraut-injected platform overrides the ambient CI heuristic but an absent value falls
+through unchanged. `/pulls/` literal preserved (→ T74). TDD: byte assertion
+(`TestEffectiveConfig_PrefersHerautContext`: both Effective configs contain
+`HERAUT_REMOTE_URL` + `HERAUT_PLATFORM` and still `CI_PROJECT_URL`) red first, then the
+edit. **Manual render PoC** against real git-cliff 2.13.1 (throwaway tagged repo, since the
+suite has no real-binary tests) confirmed all four cases — no Tera syntax error:
+(1) `HERAUT_*` gitlab → `gitlab.example.com/.../-/merge_requests/N`, bogus `CI_PROJECT_URL`
+correctly ignored; (2) `HERAUT_*` github → `github.com/.../pull/N` *(PoC used the T74 fix
+`/pull/`; the embedded TOML still ships `/pulls/`)*; (3) no `HERAUT_*` + self-hosted
+`CI_PROJECT_URL` → self-hosted host + MR (ambient fallback, non-regression); (4) no
+`HERAUT_*` + GitHub Actions vars → `github.com` + PR. 821 tests green, golangci-lint clean.
+
+#### `[ ]` T71b: cocogitto templates — render per-platform links from the remote context
+
+**Motivation:** cocogitto's embedded `changelog.tera` / `release-notes.tera` render **no
+commit/PR links at all** today. With the `--remote/--owner/--repository` flags now passed
+by the adapter (T69), the templates must render links from cog's remote context (the same
+mechanism cog's built-in `remote` template uses). Per ADR-0010 this is a user-facing
+template change.
+
+**Scope of change:**
+- Probe cog 7.0.0 to confirm the exact Tera context variable names exposed when
+  `--remote/--owner/--repository` are set (built-in `remote` template as reference).
+- Rewrite the embedded `.tera` templates to render commit links using those vars, while
+  rendering link-free output when they are absent (single-platform / no-context case stays
+  byte-for-byte as today).
+- Document the byte-level diff per ADR-0010.
+
+**Acceptance:** embedded-template tests assert the templates reference the remote context
+vars; absent-context rendering is unchanged. Manual render PoC against real cog (flags set
+→ host links; flags unset → no links) captured in the Done note. TDD: byte assertions red
+first.
+
+**Files:** `internal/generators/cocogitto/{changelog,release-notes}.tera` (and `cog.toml`
+if needed), `internal/generators/cocogitto/generator_test.go`
+
+**Dependencies:** T70b
 
 **Scope:** M
 
@@ -3111,6 +3163,29 @@ boundary — not a bug.
 
 **Dependencies:** none (can land independently, but make sense to land alongside T69 so
 the spec and the code agree from the same commit forward)
+
+**Scope:** S
+
+#### `[ ]` T74: Fix git-cliff PR link path — `/pulls/` → `/pull/` (pre-existing bug)
+
+**Motivation:** Surfaced while reading the templates during T71a. The embedded git-cliff
+`pr_link()` macro (both `cliff.changelog.toml` and `cliff.release-notes.toml`) builds
+GitHub PR links as `{remote}/pulls/{number}`, but GitHub's PR URL is `/pull/{number}`
+(singular) — `/pulls/N` is the PR *list*, not PR N, so the link is wrong. Pre-existing,
+unrelated to the multi-platform work; preserved verbatim through T71a to keep that change
+focused.
+
+**Scope of change:** change `/pulls/` → `/pull/` in the `pr_link()` GitHub branch of both
+embedded TOMLs; update any test asserting `/pulls/`.
+
+**Acceptance:** PR links render as `/pull/N`; `Effective*Config` reflects the fix. Manual
+git-cliff render PoC confirms a valid GitHub PR URL.
+
+**Files:** `internal/generators/gitcliff/cliff.{changelog,release-notes}.toml` and tests
+
+**Dependencies:** T71a (avoid editing the same macro lines concurrently)
+
+**ADR required:** no — bugfix to a wrong literal; document the byte change per ADR-0010.
 
 **Scope:** S
 
