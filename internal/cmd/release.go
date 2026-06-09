@@ -5,7 +5,7 @@ import (
 	"regexp"
 
 	execadapter "github.com/adaouat/forge/exec"
-	flog "github.com/adaouat/forge/log"
+	forgelog "github.com/adaouat/forge/log"
 	"github.com/adaouat/heraut/internal/app"
 	"github.com/adaouat/heraut/internal/config"
 	"github.com/adaouat/heraut/internal/exitcode"
@@ -42,7 +42,7 @@ func NewReleaseCmd() *cobra.Command {
 			// runner so dry-run still shows the correct resolved version.
 			readRunner := execadapter.New(false, verbose)
 
-			logger := flog.New(cmd.ErrOrStderr(), flog.LevelFor(verbose))
+			logger := forgelog.New(cmd.ErrOrStderr(), forgelog.LevelFor(verbose))
 
 			path := config.ResolvePath(cfgPath)
 

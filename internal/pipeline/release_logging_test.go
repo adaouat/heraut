@@ -6,7 +6,7 @@ import (
 	"testing"
 
 	"github.com/adaouat/forge/exec/exectest"
-	flog "github.com/adaouat/forge/log"
+	forgelog "github.com/adaouat/forge/log"
 	"github.com/adaouat/heraut/internal/pipeline"
 	"github.com/adaouat/heraut/internal/port"
 	"github.com/adaouat/heraut/internal/testutil"
@@ -35,7 +35,7 @@ func TestRun_LogsDiagnostics(t *testing.T) {
 			cfg := &pipeline.Config{Platforms: []port.Platform{platform}}
 
 			var buf bytes.Buffer
-			logger := flog.New(&buf, tc.level)
+			logger := forgelog.New(&buf, tc.level)
 			p := pipeline.New(mr, &fakeResolver{result: resolvedResult("v1.2.3")}, cfg, &bytes.Buffer{}, false).
 				WithLogger(logger)
 			require.NoError(t, p.Run())
