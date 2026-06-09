@@ -214,6 +214,23 @@ func TestEffectiveConfig_PrefersHerautContext(t *testing.T) {
 	}
 }
 
+// TestEffectiveConfig_GitHubPRPath verifies the GitHub PR link uses /pull/<n> (singular —
+// the actual GitHub PR URL), not /pulls/<n> (the PR list). T74.
+func TestEffectiveConfig_GitHubPRPath(t *testing.T) {
+	mr := exectest.NewMockRunner()
+	gen := gitcliff.New(mr, &config.ContentDriver{Generator: "git-cliff"}, gitcliff.ModeReleaseNotes)
+
+	rn, err := gen.EffectiveReleaseNotesConfig()
+	require.NoError(t, err)
+	cl, err := gen.EffectiveChangelogConfig()
+	require.NoError(t, err)
+
+	for name, toml := range map[string]string{"release-notes": rn, "changelog": cl} {
+		assert.Contains(t, toml, "/pull/", "%s: GitHub PR link must use /pull/<n>", name)
+		assert.NotContains(t, toml, "/pulls/", "%s: /pulls/ is the PR list, not a single PR", name)
+	}
+}
+
 func TestEffectiveConfig_WithUserOverride(t *testing.T) {
 	tmp := t.TempDir()
 	cfgPath := filepath.Join(tmp, "cliff.toml")

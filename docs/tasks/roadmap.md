@@ -3221,7 +3221,7 @@ each platform's `link` context when >1 platform; single-platform passes `nil` �
 fallback; git-cliff/cocogitto consume it, communique doesn't). Docs-only — no tests; typos
 + commit-msg hooks pass.
 
-#### `[ ]` T74: Fix git-cliff PR link path — `/pulls/` → `/pull/` (pre-existing bug)
+#### `[x]` T74: Fix git-cliff PR link path — `/pulls/` → `/pull/` (pre-existing bug)
 
 **Motivation:** Surfaced while reading the templates during T71a. The embedded git-cliff
 `pr_link()` macro (both `cliff.changelog.toml` and `cliff.release-notes.toml`) builds
@@ -3243,6 +3243,15 @@ git-cliff render PoC confirms a valid GitHub PR URL.
 **ADR required:** no — bugfix to a wrong literal; document the byte change per ADR-0010.
 
 **Scope:** S
+
+**Done:** Swapped the single literal `/pulls/` → `/pull/` in the `pr_link()` GitHub branch
+of both embedded TOMLs (`cliff.changelog.toml`, `cliff.release-notes.toml`). GitHub's PR
+URL is `/pull/<n>`; `/pulls/<n>` was the PR-list path, so the link 404'd/redirected.
+TDD: new byte-assertion `TestEffectiveConfig_GitHubPRPath` (both Effective configs contain
+`/pull/`, not `/pulls/`) red first, then the fix. Manual git-cliff render PoC confirmed
+`[#42](https://github.com/acme/widget/pull/42)`. Per-ADR-0010 byte change: affects the
+GitHub PR link in default-config release notes/changelogs — now correct. 826 tests green
+(+1), golangci-lint clean.
 
 #### `[ ]` T75: Fat-injection / thin templates — heraut computes URL pieces in Go
 

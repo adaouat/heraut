@@ -16,7 +16,7 @@ body = """
   {%- if heraut_platform == "gitlab" or (heraut_platform == "" and get_env(name="CI_PROJECT_URL", default="") != "") -%}
     [!{{ number }}]({{ self::remote_url() }}/-/merge_requests/{{ number }})
   {%- else -%}
-    [#{{ number }}]({{ self::remote_url() }}/pulls/{{ number }})
+    [#{{ number }}]({{ self::remote_url() }}/pull/{{ number }})
   {%- endif -%}
 {%- endmacro -%}
 
