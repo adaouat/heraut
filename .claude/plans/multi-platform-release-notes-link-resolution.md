@@ -202,6 +202,16 @@ without a per-platform host, `ReleaseURL`, the auth probe, and the actual `glab 
   `GITHUB_REPOSITORY` checks don't get applied to the *wrong* configured platform when
   there's more than one of the same type.
 
+**Rides with this thread — fat-injection / thin templates (roadmap T75):** once `base_url`
+is authoritative for *every* case (single-platform self-hosted included), heraut can compute
+the full URL pieces in Go (`HERAUT_PR_URL` / `HERAUT_COMPARE_URL` / `HERAUT_COMMIT_URL` /
+`HERAUT_PR_LABEL`) for all runs, **retire the ambient `CI_PROJECT_URL` / `GITHUB_SERVER_URL`
+detection**, and collapse the embedded git-cliff templates to branch-free interpolation
+(the T71 `get_env` fallback chains + the `pr_link` platform branch exist *only* because the
+ambient fallback is still required under the ADR-0020 gate). User idea (2026-06-09); needs
+its own ADR (template-variable contract change). Sequence it after host-targeting — doing it
+before yields a hybrid that keeps the fallback branch.
+
 **Scoping note:** this is a **third, distinct thread** — separate from both the
 link-flavor problem (this note's main subject) and the tag-sync/target-pinning sketch
 discussed earlier. It should **not** be folded into the T65-T73 breakdown below; it would
