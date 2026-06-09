@@ -1,5 +1,26 @@
 # Changelog
 
+## [0.25.0](https://github.com/adaouat/heraut/compare/v0.24.0..v0.25.0) - 2026-06-09
+
+### 🚀 Features
+
+- *(generators/gitcliff)* Fat injection / thin branch-free templates - ([1c5301d](https://github.com/adaouat/heraut/commit/1c5301dcb8fa23d4f8cc890cff26aa96b8ff581a)) by @bchatard
+
+
+### 🐛 Bug Fixes
+
+- *(generators/cocogitto)* Repair embedded cog.toml for cog 7.0.0 + enrich - ([b8b659e](https://github.com/adaouat/heraut/commit/b8b659ee55e6637b41ae468657674bb9c22f39b2)) by @bchatard
+
+
+### 📚 Documentation
+
+- *(roadmap)* Add T76 — richer cocogitto default templates - ([f0396f8](https://github.com/adaouat/heraut/commit/f0396f81165f7c910e013710d0a0e700542365d1)) by @bchatard
+
+
+### 🧪 Testing
+
+- *(generators)* Real-CLI smoke tests for embedded default configs - ([960d24b](https://github.com/adaouat/heraut/commit/960d24b8d99d0abdcb5fbabebef8c32a3c4517d7)) by @bchatard
+
 ## [0.24.0](https://github.com/adaouat/heraut/compare/v0.23.1..v0.24.0) - 2026-06-09
 
 ### 🚀 Features
