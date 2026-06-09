@@ -3,13 +3,16 @@ package cocogitto_test
 import (
 	"errors"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"testing"
 
+	execadapter "github.com/adaouat/forge/exec"
 	"github.com/adaouat/forge/exec/exectest"
 	"github.com/adaouat/heraut/internal/config"
 	"github.com/adaouat/heraut/internal/generators/cocogitto"
 	"github.com/adaouat/heraut/internal/port"
+	"github.com/adaouat/heraut/internal/testutil"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -326,5 +329,28 @@ func assertArgsBefore(t *testing.T, args []string, flag1, flag2 string) {
 	}
 	if idx1 >= idx2 {
 		t.Errorf("expected %q (idx %d) before %q (idx %d) in args %v", flag1, idx1, flag2, idx2, args)
+	}
+}
+
+// TestEmbeddedConfig_RealCog runs the *real* cog against heraut's embedded default config
+// in both modes. This is the guard that would have caught the T76 bug (the embedded
+// cog.toml's commit_parsers block, which cog 7.0.0 rejects) — the MockRunner contract tests
+// never run cog, so an invalid embedded config sailed through. Skips when cog is not on
+// PATH; runs in CI where mise installs it. See T77.
+func TestEmbeddedConfig_RealCog(t *testing.T) {
+	if _, err := exec.LookPath("cog"); err != nil {
+		t.Skip("cog not on PATH")
+	}
+	testutil.RealGitRepo(t, "v0.1.0")
+	runner := execadapter.New(false, false)
+	for name, mode := range map[string]cocogitto.Mode{
+		"changelog":     cocogitto.ModeChangelog,
+		"release-notes": cocogitto.ModeReleaseNotes,
+	} {
+		t.Run(name, func(t *testing.T) {
+			gen := cocogitto.New(runner, &config.ContentDriver{Generator: "cocogitto"}, mode)
+			_, err := gen.Generate("v0.1.0", nil)
+			require.NoError(t, err, "real cog must accept the embedded %s config", name)
+		})
 	}
 }

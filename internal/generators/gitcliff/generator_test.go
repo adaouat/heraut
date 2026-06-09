@@ -7,10 +7,14 @@ import (
 	"slices"
 	"testing"
 
+	"os/exec"
+
+	execadapter "github.com/adaouat/forge/exec"
 	"github.com/adaouat/forge/exec/exectest"
 	"github.com/adaouat/heraut/internal/config"
 	"github.com/adaouat/heraut/internal/generators/gitcliff"
 	"github.com/adaouat/heraut/internal/port"
+	"github.com/adaouat/heraut/internal/testutil"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -345,4 +349,26 @@ func assertArgValue(t *testing.T, args []string, flag, value string) {
 		}
 	}
 	t.Errorf("expected %q %q in args %v", flag, value, args)
+}
+
+// TestEmbeddedConfig_RealGitCliff runs the *real* git-cliff against heraut's embedded
+// default config in both modes, to catch an embedded TOML the tool would reject — the gap
+// that let the cocogitto config bug (T76) ship past the MockRunner contract tests. Skips
+// when git-cliff is not on PATH; runs in CI where mise installs it. See T77.
+func TestEmbeddedConfig_RealGitCliff(t *testing.T) {
+	if _, err := exec.LookPath("git-cliff"); err != nil {
+		t.Skip("git-cliff not on PATH")
+	}
+	testutil.RealGitRepo(t, "v0.1.0")
+	runner := execadapter.New(false, false)
+	for name, mode := range map[string]gitcliff.Mode{
+		"changelog":     gitcliff.ModeChangelog,
+		"release-notes": gitcliff.ModeReleaseNotes,
+	} {
+		t.Run(name, func(t *testing.T) {
+			gen := gitcliff.New(runner, &config.ContentDriver{Generator: "git-cliff"}, mode)
+			_, err := gen.Generate("v0.1.0", nil)
+			require.NoError(t, err, "real git-cliff must accept the embedded %s config", name)
+		})
+	}
 }

@@ -3413,7 +3413,7 @@ the cog-schema note + the git-cliff parity limits). Out of scope, confirmed impo
 cog (0 refs in the binary): PR/MR links, contributors, statistics. 839 tests green,
 golangci-lint clean. **Follow-up surfaced → T77** (the testing gap that let this ship).
 
-#### `[ ]` T77: Validate embedded generator configs against the real CLIs
+#### `[x]` T77: Validate embedded generator configs against the real CLIs
 
 **Motivation:** T76 found that the embedded cocogitto `cog.toml` was invalid for the pinned
 cog 7.0.0 yet shipped green, because every generator contract test uses `MockRunner` and
@@ -3432,6 +3432,21 @@ validates the effective embedded config via the tool (`cog --config … changelo
 (the bundled Docker image already has the CLIs — ADR-0016).
 
 **Dependencies:** none. **Scope:** S–M (includes a small spike on the approach).
+
+**Done:** Spike resolved the CI question decisively: forge's reusable `go-ci.yml` `test`
+job runs **Setup Mise (`mise-action`) before `go test ./...`**, and `.config/mise/config.toml`
+pins `cocogitto`/`git-cliff` — so the tools are on PATH during CI's test run. That means a
+plain **skippable** real-CLI test runs in CI (no CI-pipeline change needed) and only skips
+for local devs lacking the tools. Chose that over the `heraut check` sub-check (simpler,
+direct CI protection). Added `testutil.RealGitRepo` (temp git repo + tagged conventional
+commit + `t.Chdir`, skips if git absent) and two tests — `TestEmbeddedConfig_RealGitCliff`
+and `TestEmbeddedConfig_RealCog` — that build each generator with a real `exec` runner +
+the embedded default config and run **both** modes, asserting the real tool accepts it.
+**Proof the guard works:** temporarily restoring the broken `commit_parsers` `cog.toml`
+makes `TestEmbeddedConfig_RealCog` fail with the exact T76 error (`unknown field
+commit_parsers`); the fixed config passes. Documented the new real-CLI smoke-test category
+as a narrow exception in `.claude/rules/testing.md` (config-acceptance only; skippable;
+local + deterministic). 845 tests green, golangci-lint clean.
 
 ---
 

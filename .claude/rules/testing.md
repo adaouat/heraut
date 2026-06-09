@@ -51,6 +51,17 @@ codes map to errors).
 
 Reach for FakeBin sparingly — most behavior can be verified at the contract layer.
 
+## Real-CLI smoke tests (embedded config validation)
+
+A narrow, deliberate exception to "mock the externals": a few **skippable** tests run the
+*real* `git-cliff` / `cog` against heraut's **embedded default configs** (via
+`testutil.RealGitRepo`), asserting the tool *accepts* the config. MockRunner can't catch an
+embedded TOML the real tool rejects — that gap shipped a broken cocogitto default once (the
+embedded `cog.toml` used a field cog rejects). These tests `t.Skip` when the binary is
+absent and run in CI, where `mise` installs the pinned tools. Keep them to
+config-acceptance smoke checks (no output assertions — those stay byte-level / manual);
+they are local and deterministic (no network, `t.TempDir`).
+
 ## Table-driven tests preferred
 
 Group related cases into a single test with a `[]struct` of inputs and expected outputs.
