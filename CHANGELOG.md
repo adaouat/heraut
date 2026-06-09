@@ -1,5 +1,63 @@
 # Changelog
 
+## [0.24.0](https://github.com/adaouat/heraut/compare/v0.23.1..v0.24.0) - 2026-06-09
+
+### 🚀 Features
+
+- *(config)* Add per-platform base_url field with self-hosted gate - ([35da050](https://github.com/adaouat/heraut/commit/35da0504a9b50c4b82d300f1c9c73b83d1dcc8a1)) by @bchatard
+
+- *(generators/cocogitto)* Render per-platform commit links in templates - ([52290c4](https://github.com/adaouat/heraut/commit/52290c4da924bfc54bb592d0173648c94669c411)) by @bchatard
+
+- *(generators/gitcliff)* Prefer heraut-injected link context in templates - ([928e917](https://github.com/adaouat/heraut/commit/928e91780c7ede55c09808984adaa9fcec4d2a41)) by @bchatard
+
+- *(pipeline)* Regenerate release notes per platform when multi-target - ([3062929](https://github.com/adaouat/heraut/commit/3062929c8fa94402418298883282c861a8403d69)) by @bchatard
+
+- *(port)* Carry per-platform LinkContext through Generator.Generate - ([78d25c0](https://github.com/adaouat/heraut/commit/78d25c079d356ff1a74af3ccccbed8bf0a446982)) by @bchatard
+
+- *(port)* Expose per-platform LinkContext() on port.Platform - ([34aff60](https://github.com/adaouat/heraut/commit/34aff60cb1c2297e962364ad8f0ee842d7302421)) by @bchatard
+
+- *(release)* Add operator-debugging diagnostics to the release pipeline - ([46ebbc7](https://github.com/adaouat/heraut/commit/46ebbc7ad8924fae1c2960e990cd19d0aea3df46)) by @bchatard
+
+- *(ui)* Brand the heraut banner in heraldic gold - ([cc01486](https://github.com/adaouat/heraut/commit/cc01486781282e44442f612110ad70e8513af4d2)) by @bchatard
+
+
+### 🐛 Bug Fixes
+
+- *(generators/gitcliff)* GitHub PR links use /pull/ not /pulls/ - ([d5a6353](https://github.com/adaouat/heraut/commit/d5a6353bb2c297db9c8c0b6f14aec92046545afb)) by @bchatard
+
+
+### 💼 Other
+
+- *(deps)* Bump forge to v0.11.0 - ([aa7ddb6](https://github.com/adaouat/heraut/commit/aa7ddb6432b798f647c7c766ac469e587b323c8e)) by @bchatard
+
+
+### 📚 Documentation
+
+- *(adr)* Add 0020 per-platform base_url; complete T65 - ([c60a5fc](https://github.com/adaouat/heraut/commit/c60a5fc0ffe72b9bf982f3cba5ababd7f5c2ea51)) by @bchatard
+
+- *(adr)* Record single-platform CI non-regression invariant for base_url - ([7a8f93e](https://github.com/adaouat/heraut/commit/7a8f93e699ee909013f52009753a4b9d8d93fc07)) by @bchatard
+
+- *(adr)* Defer ReleaseURL base_url wiring to the host-targeting thread - ([6790cd0](https://github.com/adaouat/heraut/commit/6790cd09092d20bc949570c5c67be31e94b81a73)) by @bchatard
+
+- *(adr)* Add 0021 per-platform release notes; complete T67 - ([9b50820](https://github.com/adaouat/heraut/commit/9b508208b034440f8d27946c85e209552c1caf05)) by @bchatard
+
+- *(adr)* Resolve T68 context-injection shape with PoC findings - ([259cebf](https://github.com/adaouat/heraut/commit/259cebff49a865ab28c6676bb3942c05e5b4493f)) by @bchatard
+
+- *(cmd)* Clarify --verbose help — echoes commands and emits diagnostics - ([1f32a53](https://github.com/adaouat/heraut/commit/1f32a5341149777bdaf065080d62d311a7f27260)) by @bchatard
+
+- *(roadmap)* Add Phase 14 — multi-platform release correctness (T65-T73) - ([c30c695](https://github.com/adaouat/heraut/commit/c30c695ecb966523e5fe3a9759c32c478d9d1abc)) by @bchatard
+
+- *(roadmap)* Add T75 — fat-injection / thin templates (deferred) - ([e378691](https://github.com/adaouat/heraut/commit/e3786911383df1a21ff3ab909e96b4a4c3fe4953)) by @bchatard
+
+- *(roadmap)* Refine T75 — concrete prefix vars, fully-thin contract - ([28b4aa3](https://github.com/adaouat/heraut/commit/28b4aa32c545d5d5a066ff0c0ea60bd2db8a1405)) by @bchatard
+
+- *(spec)* Document communique's multi-platform link-resolution exclusion - ([546836d](https://github.com/adaouat/heraut/commit/546836dd4e1ff81e715a4e2211a8cbc2c8db618e)) by @bchatard
+
+
+### 🧪 Testing
+
+- *(pipeline)* End-to-end multi-platform distinct-notes integration test - ([432a78f](https://github.com/adaouat/heraut/commit/432a78fa0971aba58b55b3cebd591be92939cd59)) by @bchatard
+
 ## [0.23.1](https://github.com/adaouat/heraut/compare/v0.23.0..v0.23.1) - 2026-06-07
 
 ### 🐛 Bug Fixes
