@@ -3143,7 +3143,7 @@ if needed), `internal/generators/cocogitto/generator_test.go`
 
 **Scope:** M
 
-#### `[ ]` T72: Integration test — multi-platform release produces distinctly-flavored notes
+#### `[x]` T72: Integration test — multi-platform release produces distinctly-flavored notes
 
 **Motivation:** Closes the loop end-to-end. The whole point of T65-T71 is that "N
 platforms configured → N distinctly-flavored notes, each pointing at its own host/path
@@ -3162,6 +3162,29 @@ it, matching the existing integration-test layout)
 **Dependencies:** T70, T71
 
 **Scope:** S
+
+**Done:** `internal/pipeline/release_integration_test.go` —
+`TestRun_Integration_MultiPlatform_DistinctlyFlavoredNotes`. Drives `pipeline.Run()`
+through the **real** `exec.New` runner (not MockRunner) with real `gitcliff`/`github`/
+`gitlab` constructed against it, so it exercises the one path the contract tests can't:
+heraut's per-platform `HERAUT_REMOTE_URL` propagating through `exec.Runner.RunEnv` into the
+git-cliff subprocess. FakeBins: `git` is a no-op (so `git tag`/`git push` never touch the
+real repo — verified the working tree/tags stay clean), `git-cliff` echoes
+`$HERAUT_REMOTE_URL` as the notes (stand-in for "rendered links against this host"; real
+Tera rendering is the T71 manual PoC), and `gh`/`glab` capture the `--notes` they receive
+to per-tool files. Asserts the GitHub release got `https://github.com/test/gh-repo` and the
+GitLab release got `https://gitlab.com/test/gl-proj`, with neither leaking the other's host.
+**Deviations from the acceptance text (kept Scope S):** (1) pipeline-level (real exec +
+FakeBin), **not** cmd-level `executeRoot` — a full non-dry-run cmd release would also need
+to fake the whole preflight (`gh`/`glab` `--version`/token/API probes, git identity,
+`GITHUB_ACTIONS`/`GITLAB_CI` env hygiene), which is M+ and tests mostly preflight surface
+unrelated to the notes flow; (2) `fakeResolver` + no-op fake `git` instead of a real git
+repo+remote — the per-platform-notes behaviour is what's under test, and faking git matches
+the existing cmd integration tests' pattern while guaranteeing the real repo is never
+mutated; (3) distinct *hosts* come from the per-type defaults (`github.com` vs `gitlab.com`)
++ `repository`/`project`, since a non-default `base_url` is still gated (ADR-0020). 825
+tests green (+1), golangci-lint clean. **Phase 14's link-flavor goal is now proven
+end-to-end.**
 
 #### `[ ]` T73: Spec update — document communique's link-resolution exclusion
 
