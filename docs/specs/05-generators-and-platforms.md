@@ -117,10 +117,20 @@ release:
 | `cog.toml` | `my.tera`   | user's `cog.toml` + user's Tera template                                                     |
 
 The embedded `cog.toml` sets `tag_prefix = "v"`, `from_latest_tag = false`,
-`ignore_merge_commits = true`, and maps conventional commit types (feat, fix, refactor,
-docs, perf) to clean group titles while silencing chore/ci/build/test/style. The
-embedded Tera templates produce clean markdown without commit hashes or author names,
-with breaking changes marked as `**[BREAKING]**`.
+`ignore_merge_commits = true`, and uses cog's top-level `[commit_types]` table to give the
+kept types emoji titles matching the git-cliff generator (🚀 Features, 🐛 Bug Fixes,
+🚜 Refactor, 📚 Documentation, ⚡ Performance) while omitting chore/ci/build/test/style via
+`omit_from_changelog`. The embedded Tera templates render grouped entries with the scope,
+a `**[BREAKING]**` marker, a commit link (when heraut supplies the platform context — see
+above), and the author (`commit.signature`).
+
+> **cog schema note:** type titling/omission uses cog's top-level `[commit_types]` table —
+> **not** a git-cliff-style commit-parser array under `[changelog]`, which cog rejects
+> ("unknown field"). Grouping itself is cog's built-in commit-type mapping.
+
+**Parity limits vs git-cliff** (cog exposes no such template context, so these are *not*
+available with the `cocogitto` generator, by design): PR/MR links, a "New Contributors"
+section, and the commit-statistics block. Teams that need those should use `git-cliff`.
 
 **Invocation**:
 

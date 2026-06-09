@@ -2,17 +2,21 @@ tag_prefix = "v"
 from_latest_tag = false
 ignore_merge_commits = true
 
+# cog groups changelog entries by commit type using its built-in mapping; this table only
+# customises the displayed titles (emoji, matching the git-cliff generator's headings) and
+# omits the noise types. NOTE: cog uses this top-level [commit_types] table — NOT a
+# git-cliff-style commit-parser array under [changelog], which cog rejects ("unknown field").
+[commit_types]
+feat = { changelog_title = "🚀 Features" }
+fix = { changelog_title = "🐛 Bug Fixes" }
+refactor = { changelog_title = "🚜 Refactor" }
+docs = { changelog_title = "📚 Documentation" }
+perf = { changelog_title = "⚡ Performance" }
+chore = { omit_from_changelog = true }
+ci = { omit_from_changelog = true }
+build = { omit_from_changelog = true }
+test = { omit_from_changelog = true }
+style = { omit_from_changelog = true }
+
 [changelog]
-commit_parsers = [
-  { message = "^feat", group = "Features" },
-  { message = "^fix", group = "Bug Fixes" },
-  { message = "^refactor", group = "Refactoring" },
-  { message = "^docs", group = "Documentation" },
-  { message = "^perf", group = "Performance" },
-  { message = "^chore", skip = true },
-  { message = "^ci", skip = true },
-  { message = "^build", skip = true },
-  { message = "^test", skip = true },
-  { message = "^style", skip = true },
-]
 template = "<PATH_TEMPLATE.TERA>"

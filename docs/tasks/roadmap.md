@@ -3353,7 +3353,7 @@ render PoC**: both thin templates render correctly with GitHub + GitLab prefixes
 GitLab `/-/compare/` and `/-/commit/`), and standalone (no heraut env) degrades to empty
 prefixes with **no Tera error**. 838 tests green, golangci-lint clean.
 
-#### `[ ]` T76: Richer cocogitto default templates (git-cliff-like layout, achievable subset)
+#### `[x]` T76: Richer cocogitto default templates (git-cliff-like layout, achievable subset)
 
 **Motivation (user idea, 2026-06-09):** cocogitto's embedded templates render a much barer
 changelog/release-notes than git-cliff's. Bring the *layout* closer to git-cliff for a
@@ -3394,6 +3394,44 @@ limitation. (If the change to defaults is judged substantial, a short ADR is fin
 link rendering).
 
 **Scope:** S
+
+**Done — and it turned out to be a bug fix, not just enrichment.** Starting T76 surfaced
+that the embedded `cog.toml` used a git-cliff-style `[changelog] commit_parsers` block,
+which **cog 7.0.0 rejects** (`unknown field commit_parsers`) — so the default
+`generator: cocogitto` path (the `none/none` config combination) **failed at runtime**.
+The unit tests missed it because they mock cog (never run it). Rewrote the embedded
+`cog.toml` to cog's actual schema: top-level `[commit_types]` with emoji `changelog_title`
+for feat/fix/refactor/docs/perf (matching git-cliff's headings) and `omit_from_changelog`
+for chore/ci/build/test/style (preserving the old silencing intent; cog *includes* those by
+default). Added author attribution (`commit.signature` — the clean git author name; cog's
+`commit.author` handle is empty without an `[changelog] authors` mapping) to both `.tera`
+templates, alongside the T71b commit links. All verified against **real cog 7.0.0** (PoCs):
+config now parses, emoji headers render, chore/ci omitted, author + scope + links present.
+Tests: `TestEmbeddedCogToml_Cog7Schema` (no `commit_parsers`; has `[commit_types]` + emoji
++ omit rules) + author assertion in the template test. Spec 05 updated (new mechanism +
+the cog-schema note + the git-cliff parity limits). Out of scope, confirmed impossible in
+cog (0 refs in the binary): PR/MR links, contributors, statistics. 839 tests green,
+golangci-lint clean. **Follow-up surfaced → T77** (the testing gap that let this ship).
+
+#### `[ ]` T77: Validate embedded generator configs against the real CLIs
+
+**Motivation:** T76 found that the embedded cocogitto `cog.toml` was invalid for the pinned
+cog 7.0.0 yet shipped green, because every generator contract test uses `MockRunner` and
+never executes the real tool — so a malformed embedded `cog.toml` / `cliff.*.toml` is never
+caught. The same blind spot applies to git-cliff (the embedded TOMLs are only byte-asserted,
+never run). A guard is needed so an embedded default that the real CLI rejects fails CI.
+
+**Scope of change (to design):** a **skippable** integration test (skip when the binary is
+absent — deviates from the suite's MockRunner/FakeBin norm, so decide the pattern) that runs
+the real `cog` / `git-cliff` against each embedded default config over a tiny `t.TempDir`
+git repo and asserts a clean parse/render. Alternatively, a `heraut check` sub-check that
+validates the effective embedded config via the tool (`cog --config … changelog --at` /
+`git-cliff --config … --context --no-exec`). Pick one in a short spike.
+
+**Acceptance:** a deliberately-broken embedded config fails the new guard; CI runs it
+(the bundled Docker image already has the CLIs — ADR-0016).
+
+**Dependencies:** none. **Scope:** S–M (includes a small spike on the approach).
 
 ---
 
