@@ -3253,47 +3253,77 @@ TDD: new byte-assertion `TestEffectiveConfig_GitHubPRPath` (both Effective confi
 GitHub PR link in default-config release notes/changelogs — now correct. 826 tests green
 (+1), golangci-lint clean.
 
-#### `[ ]` T75: Fat-injection / thin templates — heraut computes URL pieces in Go
+#### `[ ]` T75: Fat-injection / thin templates — heraut computes URL prefixes in Go
 
-**Motivation (user idea, 2026-06-09):** push the `HERAUT_*` approach further — have heraut
-compute the *fully-formed* URL pieces in Go (`HERAUT_PR_URL`, `HERAUT_COMPARE_URL`,
-`HERAUT_COMMIT_URL`, `HERAUT_PR_LABEL`) so the embedded templates become pure interpolation
-with **no `if/else` and no `get_env` fallback chains**. This moves the platform-specific
-path knowledge (GitHub `#`+`/pull/` vs GitLab `!`+`/-/merge_requests/`) out of Tera and into
-typed, unit-testable Go — heraut already owns `LinkContext.Platform`. Benefits: flatter
-templates, testable URL construction, trivial to add a new platform or self-hosted path
-quirk, and users who copy the defaults don't re-derive path shapes.
+**Motivation (user idea, 2026-06-09):** push the `HERAUT_*` approach to its conclusion —
+have heraut compute the per-platform URL **prefixes** in Go and inject them, so the embedded
+git-cliff templates become **branch-free pure interpolation** with no `pr_link` `if/else`
+and no `get_env` fallback chains. Moves the platform path-shape knowledge (GitHub `#`+`/pull/`
+vs GitLab `!`+`/-/merge_requests/`, and `/commit/` vs `/-/commit/`) out of untestable Tera
+and into a typed, table-tested Go helper. heraut already owns `LinkContext.Platform`.
 
-**Why this is gated on host-targeting (not doable cleanly now):** today the *only* branch is
-`pr_link`, and it exists to serve **two** modes — heraut-injected (multi-platform) and
-ambient-CI fallback (single platform). For a single self-hosted platform heraut cannot
-pre-compute a full URL because the [ADR-0020](../adr/0020-platform-base-url.md) gate forbids
-a non-default `base_url`, so the real host only arrives via ambient `CI_PROJECT_URL` — the
-self-hosted-CI non-regression. So while the gate stands, the ambient fallback branch **must
-stay**; injecting more URL vars now yields a *hybrid* (injected path + fallback branch) that
-is only marginally flatter and adds env-var surface. Once the host-targeting / multi-instance
-thread makes `base_url` authoritative for **every** case, heraut can compute all URL pieces
-for single- and multi-platform alike, the ambient `CI_PROJECT_URL` detection can be
-**retired**, and the templates collapse to branch-free interpolation — the clean end state.
+**Variables are prefixes, not whole URLs.** git-cliff supplies the variable part at render
+time (`commit.id`, `commit.remote.pr_number`, `previous.version..version`), so heraut injects
+the prefix the template appends to:
+
+| Var | GitHub | GitLab |
+|-----|--------|--------|
+| `HERAUT_COMMIT_URL`  | `{base}/{owner}/{repo}/commit/`  | `{base}/{owner}/{repo}/-/commit/` |
+| `HERAUT_PR_URL`      | `{base}/{owner}/{repo}/pull/`    | `{base}/{owner}/{repo}/-/merge_requests/` |
+| `HERAUT_PR_LABEL`    | `#`                              | `!` |
+| `HERAUT_COMPARE_URL` | `{base}/{owner}/{repo}/compare/` | `{base}/{owner}/{repo}/-/compare/` |
+
+(`HERAUT_REMOTE_URL` from T69 stays as the repo-root base. Issue links remain git-cliff's
+own `link_parsers` domain — not heraut's.)
+
+**Decisions baked in (2026-06-09):**
+- **Fully thin, no fallback (chosen over a static `default()`).** The embedded template is
+  heraut's default and *documents* that heraut populates the `HERAUT_*` vars; there is **no**
+  `default()` and **no** ambient `CI_PROJECT_URL` / `GITHUB_SERVER_URL` detection. Standalone
+  `git-cliff` runs (no heraut) get empty prefixes — users invoking git-cliff directly keep
+  their own template. This is the cleanest realization and the contract must be documented.
+- **git-cliff only.** cocogitto is already branch-free (renders from cog's native
+  `repository_url`, populated by `--remote/--owner/--repository`) — **no cocogitto change**.
+
+**Why gated on host-targeting (still parked):** today the `pr_link` branch + `get_env`
+fallback exist to serve a single self-hosted platform whose real host arrives only via
+ambient `CI_PROJECT_URL` (the [ADR-0020](../adr/0020-platform-base-url.md) gate forbids a
+non-default `base_url`). Retiring ambient detection now would break that self-hosted-CI flow.
+Once the host-targeting / multi-instance thread makes `base_url` authoritative for **every**
+case, heraut always knows the host → always injects → ambient detection is genuinely
+unnecessary and can retire, and the templates go fully thin. Doing it before then yields a
+hybrid (injected path + fallback branch) — marginal gain, more surface.
 
 **Scope of change (when unblocked):**
-- Compute the URL pieces in Go (new fields on / derived from `port.LinkContext`; per-platform
-  path + label), inject as `HERAUT_*` env vars for **all** runs (git-cliff).
-- Strip the `pr_link` branch and the `get_env` fallback chains from both embedded git-cliff
-  TOMLs → pure interpolation. cocogitto is already branch-free (uses cog's `repository_url`)
-  — minimal/no change.
-- Retire the ambient `CI_PROJECT_URL` / `GITHUB_SERVER_URL` detection from the defaults once
-  `base_url` is authoritative.
+- A table-tested Go helper computing the prefix set per `LinkContext.Platform` (home TBD in
+  the ADR — likely a `LinkContext` method or a gitcliff-adapter helper; the path-shape logic
+  is platform-general, the `HERAUT_*` var names are git-cliff-specific). Injected via
+  `RunEnv` for **all** git-cliff runs.
+- Rewrite both embedded git-cliff TOMLs (`cliff.changelog.toml`, `cliff.release-notes.toml`)
+  to branch-free interpolation — remove the `pr_link` `if/else` and every `get_env(...,
+  default=...)` chain.
+- Retire ambient `CI_PROJECT_URL` / `GITHUB_SERVER_URL` detection from the defaults.
 
-**ADR required:** **yes** — changes the embedded template-variable contract (ADR-0010
-user-facing surface) and retires ambient CI detection; supersedes the T71 macro shape.
+**Acceptance:**
+- Go table test: `github`/`gitlab` `LinkContext` → the exact prefix set above (incl. the
+  `/-/` GitLab paths and `#`/`!` labels).
+- Byte assertions: `EffectiveReleaseNotesConfig()`/`EffectiveChangelogConfig()` reference
+  `HERAUT_COMMIT_URL` / `HERAUT_PR_URL` / `HERAUT_PR_LABEL` / `HERAUT_COMPARE_URL` and contain
+  **no** `get_env(..., default=` and **no** `pr_link` platform `if`.
+- Manual real-git-cliff render PoC (per the suite's no-real-binary convention): injected →
+  correct per-platform links incl. GitLab `/-/` paths.
+
+**ADR required:** **yes** — changes the embedded template-variable contract
+([ADR-0010](../adr/0010-embedded-cliff-toml-default.md) user-facing surface), documents the
+"requires heraut" standalone contract, and retires ambient CI detection; **supersedes the
+T71a macro shape**.
 
 **Dependencies:** the host-targeting / multi-instance thread (currently an unscoped thread
 in the [design note](../../.claude/plans/multi-platform-release-notes-link-resolution.md)
-"Related (but distinct) gap" — must be numbered and landed first). **Do not start before
+"Related (but distinct) gap" — scoped separately, not yet numbered). **Do not start before
 that thread makes `base_url` authoritative for single-platform self-hosted.**
 
-**Scope:** M (deferred)
+**Scope:** M (deferred / parked)
 
 ---
 
