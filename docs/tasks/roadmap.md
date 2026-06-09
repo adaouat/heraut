@@ -3186,7 +3186,7 @@ mutated; (3) distinct *hosts* come from the per-type defaults (`github.com` vs `
 tests green (+1), golangci-lint clean. **Phase 14's link-flavor goal is now proven
 end-to-end.**
 
-#### `[ ]` T73: Spec update — document communique's link-resolution exclusion
+#### `[x]` T73: Spec update — document communique's link-resolution exclusion
 
 **Motivation:** `communique.Generate` is fully opaque to heraut — it just runs
 `communique generate --config <user-file> <tag>` and returns stdout, with link
@@ -3207,6 +3207,19 @@ boundary — not a bug.
 the spec and the code agree from the same commit forward)
 
 **Scope:** S
+
+**Done:** Added a "Known limitation — multi-platform links" note to the communique section
+of Spec 05 (matching cocogitto's existing limitation-note style): communique is opaque,
+owns link resolution via the user's `communique.toml`, ignores the per-platform context
+heraut passes, so a release to >1 platform gets **identical** notes/links on every
+platform — a known, accepted scope boundary, not a bug; pointed multi-platform users to
+git-cliff/cocogitto and ADR-0021. **Also reconciled a T69 doc-debt** that the note depends
+on: the "Generator interface" section still showed the pre-T69 `Generate(tag string)`
+signature, so updated it to `Generate(tag string, link *port.LinkContext)` and added a
+short "Per-platform link resolution" paragraph (heraut regenerates notes per platform with
+each platform's `link` context when >1 platform; single-platform passes `nil` → ambient-CI
+fallback; git-cliff/cocogitto consume it, communique doesn't). Docs-only — no tests; typos
++ commit-msg hooks pass.
 
 #### `[ ]` T74: Fix git-cliff PR link path — `/pulls/` → `/pull/` (pre-existing bug)
 

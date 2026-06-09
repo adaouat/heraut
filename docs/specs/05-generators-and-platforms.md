@@ -85,6 +85,17 @@ communique generate --config <file> <tag>
 
 stdout is captured and used as the release notes content.
 
+**Known limitation — multi-platform links**: communique is opaque to heraut. Link
+resolution lives entirely inside the user's `communique.toml`; heraut has no template
+surface to inject per-platform context, so the link context heraut passes to `Generate`
+(see [Generator interface](#generator-interface)) is **ignored** by the communique
+generator. Consequence: a release published to **more than one** platform (e.g. GitHub +
+GitLab) gets **identical** release notes — and identical links — on every platform.
+communique cannot tailor links to each platform's host or path shape. This is a known,
+accepted scope boundary, **not a bug**. Teams that need per-platform-flavored links across
+multiple platforms should use `git-cliff` or `cocogitto`
+(see [ADR-0021](../adr/0021-per-platform-release-notes.md)).
+
 ### cocogitto
 
 ```yaml
@@ -153,15 +164,23 @@ All generators implement `port.Generator`:
 
 ```go
 type Generator interface {
-    Check() error                                  // binary in PATH
-    Validate() error                               // user config files exist if specified
-    Generate(tag string) (string, error)           // run the binary, return stdout
+    Check() error                                            // binary in PATH
+    Validate() error                                         // user config files exist if specified
+    Generate(tag string, link *port.LinkContext) (string, error) // run the binary, return stdout
 }
 ```
 
 `Validate()` is called by `heraut check config` and `heraut check cliff` and before
 the pipeline runs. For generators with no config-file dependency (e.g. git-cliff with
 only embedded defaults), `Validate()` returns `nil`.
+
+**Per-platform link resolution**: when a release targets **more than one** platform,
+heraut regenerates the release notes once per platform and passes that platform's
+`link` context (host, owner, repo, type) so commit/PR/MR links resolve to the correct
+host and path shape (see [ADR-0021](../adr/0021-per-platform-release-notes.md)).
+`git-cliff` and `cocogitto` consume this context. A single-platform release passes
+`nil`, and the generators fall through to ambient-CI link detection — today's unchanged
+behaviour. **communique does not consume the context** (see its section above).
 
 ## Platforms
 
