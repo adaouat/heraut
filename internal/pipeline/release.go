@@ -113,10 +113,12 @@ func (p *Pipeline) Run() error {
 		return p.dryRunOutput(result)
 	}
 
-	// Step 2+3: Generate and commit changelog (conditional).
+	// Step 2+3: Generate and commit changelog (conditional). The committed changelog is
+	// singular and tied to origin, so it resolves links from the ambient CI host (ADR-0022).
 	if p.cfg.Changelog != nil && !p.cfg.DisableChangelog {
+		changelogCtx := ambientLinkContext()
 		if err := p.runStep("Generate changelog", func() (string, []string, error) {
-			if _, err := p.cfg.Changelog.Generate(result.Tag, nil); err != nil {
+			if _, err := p.cfg.Changelog.Generate(result.Tag, changelogCtx); err != nil {
 				return "", nil, fmt.Errorf("generating changelog: %w", err)
 			}
 			return "", nil, nil
@@ -159,17 +161,18 @@ func (p *Pipeline) Run() error {
 	}
 
 	// Steps 6+7: release notes + publish. With a single platform, notes are generated
-	// once up front with no per-platform context (ambient CI fall-through, unchanged).
-	// With multiple platforms, notes are regenerated inside each publish step with that
-	// platform's LinkContext so links carry the right host/path shape (ADR-0021).
+	// once up front with that platform's resolved link context. With multiple platforms,
+	// notes are regenerated inside each publish step with that platform's LinkContext so
+	// links carry the right host/path shape (ADR-0021 / ADR-0022).
 	notesEnabled := p.cfg.Notes != nil && !p.cfg.DisableNotes
 	multiPlatform := len(p.cfg.Platforms) > 1
 
 	var notes string
 	if notesEnabled && !multiPlatform {
+		lc := p.singlePlatformLinkContext()
 		if err := p.runStep("Generate release notes", func() (string, []string, error) {
 			var genErr error
-			notes, genErr = p.cfg.Notes.Generate(result.Tag, nil)
+			notes, genErr = p.cfg.Notes.Generate(result.Tag, lc)
 			if genErr != nil {
 				return "", nil, fmt.Errorf("generating release notes: %w", genErr)
 			}

@@ -194,11 +194,13 @@ func TestEffectiveReleaseNotesConfig(t *testing.T) {
 	assert.Contains(t, toml, "[changelog]")
 }
 
-// TestEffectiveConfig_PrefersHerautContext verifies both embedded TOMLs prefer the
-// heraut-injected vars for link resolution while preserving the ambient CI fallback
-// (T71a / ADR-0021). Byte assertion — actual Tera rendering is verified manually with the
-// real git-cliff (the suite has no real-binary tests).
-func TestEffectiveConfig_PrefersHerautContext(t *testing.T) {
+// TestEffectiveConfig_ThinTemplates verifies both embedded TOMLs are branch-free
+// interpolation (T75 / ADR-0022): they reference the heraut-injected URL-prefix vars and
+// carry no remote_url macro, no platform if/else (no HERAUT_PLATFORM read), and no ambient
+// CI fallback chain (relocated to Go — see TestLinkEnv / TestAmbientLinkContext). The
+// per-platform path shapes (/pull/ vs /-/merge_requests/, /commit/ vs /-/commit/) and the
+// old /pulls/ vs /pull/ concern (T74) are now asserted in Go by TestLinkEnv.
+func TestEffectiveConfig_ThinTemplates(t *testing.T) {
 	mr := exectest.NewMockRunner()
 	gen := gitcliff.New(mr, &config.ContentDriver{Generator: "git-cliff"}, gitcliff.ModeReleaseNotes)
 
@@ -208,27 +210,18 @@ func TestEffectiveConfig_PrefersHerautContext(t *testing.T) {
 	require.NoError(t, err)
 
 	for name, toml := range map[string]string{"release-notes": rn, "changelog": cl} {
-		assert.Contains(t, toml, "HERAUT_REMOTE_URL", "%s: remote_url must prefer the heraut-injected URL", name)
-		assert.Contains(t, toml, "HERAUT_PLATFORM", "%s: pr_link must discriminate via HERAUT_PLATFORM", name)
-		assert.Contains(t, toml, "CI_PROJECT_URL", "%s: ambient CI fallback must be preserved", name)
+		// Interpolates the heraut-injected prefixes.
+		assert.Contains(t, toml, "HERAUT_COMMIT_URL", "%s: commit link must use the injected prefix", name)
+		assert.Contains(t, toml, "HERAUT_PR_URL", "%s: PR/MR link must use the injected prefix", name)
+		assert.Contains(t, toml, "HERAUT_PR_LABEL", "%s: PR/MR label must use the injected glyph", name)
+		// Branch-free: macro, platform discriminator and ambient chain are all gone.
+		assert.NotContains(t, toml, "remote_url", "%s: remote_url macro must be removed", name)
+		assert.NotContains(t, toml, "HERAUT_PLATFORM", "%s: no platform if/else in the template", name)
+		assert.NotContains(t, toml, "CI_PROJECT_URL", "%s: ambient fallback is relocated to Go", name)
+		assert.NotContains(t, toml, "/pulls/", "%s", name)
 	}
-}
-
-// TestEffectiveConfig_GitHubPRPath verifies the GitHub PR link uses /pull/<n> (singular —
-// the actual GitHub PR URL), not /pulls/<n> (the PR list). T74.
-func TestEffectiveConfig_GitHubPRPath(t *testing.T) {
-	mr := exectest.NewMockRunner()
-	gen := gitcliff.New(mr, &config.ContentDriver{Generator: "git-cliff"}, gitcliff.ModeReleaseNotes)
-
-	rn, err := gen.EffectiveReleaseNotesConfig()
-	require.NoError(t, err)
-	cl, err := gen.EffectiveChangelogConfig()
-	require.NoError(t, err)
-
-	for name, toml := range map[string]string{"release-notes": rn, "changelog": cl} {
-		assert.Contains(t, toml, "/pull/", "%s: GitHub PR link must use /pull/<n>", name)
-		assert.NotContains(t, toml, "/pulls/", "%s: /pulls/ is the PR list, not a single PR", name)
-	}
+	// Compare links exist only in the changelog template.
+	assert.Contains(t, cl, "HERAUT_COMPARE_URL", "changelog compare link must use the injected prefix")
 }
 
 func TestEffectiveConfig_WithUserOverride(t *testing.T) {

@@ -104,16 +104,30 @@ func (g *Generator) Generate(tag string, lc *port.LinkContext) (string, error) {
 // HERAUT_PLATFORM (github|gitlab, for the PR vs MR link shape). T71 updates the template
 // to prefer these over the ambient CI-var chain.
 func linkEnv(lc *port.LinkContext) []string {
-	url := strings.TrimRight(lc.BaseURL, "/")
+	remote := strings.TrimRight(lc.BaseURL, "/")
 	if lc.Owner != "" {
-		url += "/" + lc.Owner
+		remote += "/" + lc.Owner
 	}
 	if lc.Repo != "" {
-		url += "/" + lc.Repo
+		remote += "/" + lc.Repo
 	}
+
+	// GitLab routes everything below the project under /-/ (e.g. /-/merge_requests/);
+	// GitHub does not and uses /pull/. The label glyph differs too (! vs #). This is the
+	// only per-platform path knowledge — kept here in Go (table-tested) so the templates
+	// stay branch-free (T75 / ADR-0022).
+	infix, prPath, label := "", "pull", "#"
+	if lc.Platform == "gitlab" {
+		infix, prPath, label = "/-", "merge_requests", "!"
+	}
+
 	return []string{
-		"HERAUT_REMOTE_URL=" + url,
+		"HERAUT_REMOTE_URL=" + remote,
 		"HERAUT_PLATFORM=" + lc.Platform,
+		"HERAUT_COMMIT_URL=" + remote + infix + "/commit/",
+		"HERAUT_PR_URL=" + remote + infix + "/" + prPath + "/",
+		"HERAUT_PR_LABEL=" + label,
+		"HERAUT_COMPARE_URL=" + remote + infix + "/compare/",
 	}
 }
 

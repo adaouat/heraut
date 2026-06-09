@@ -107,10 +107,12 @@ func (p *ChangelogPipeline) Run() error {
 		return p.dryRunOutput(result)
 	}
 
-	// Step 2: Generate changelog (skipped when DisableChangelog is true).
+	// Step 2: Generate changelog (skipped when DisableChangelog is true). The committed
+	// changelog is tied to origin, so it resolves links from the ambient CI host (ADR-0022).
 	if p.cfg.Changelog != nil && !p.cfg.DisableChangelog {
+		changelogCtx := ambientLinkContext()
 		if err := p.runStep("Generate changelog", func() (string, []string, error) {
-			if _, err := p.cfg.Changelog.Generate(result.Tag, nil); err != nil {
+			if _, err := p.cfg.Changelog.Generate(result.Tag, changelogCtx); err != nil {
 				return "", nil, fmt.Errorf("generating changelog: %w", err)
 			}
 			return "", nil, nil

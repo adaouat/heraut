@@ -154,18 +154,28 @@ func TestRun_WithNotes(t *testing.T) {
 	assert.Equal(t, "## Features\n- add thing\n", platform.CreateReleaseCalls[0].Notes)
 }
 
-// TestRun_SinglePlatform_NotesNilContext verifies the single-platform path generates
-// notes once with a nil LinkContext (ambient fall-through, non-regression — ADR-0021).
-func TestRun_SinglePlatform_NotesNilContext(t *testing.T) {
+// clearAmbientCIEnv pins the ambient link-host env vars empty so single-platform context
+// resolution is deterministic regardless of the CI the suite runs in (e.g. GitHub Actions
+// sets GITHUB_SERVER_URL).
+func clearAmbientCIEnv(t *testing.T) {
+	t.Helper()
+	t.Setenv("CI_PROJECT_URL", "")
+	t.Setenv("GITHUB_SERVER_URL", "")
+	t.Setenv("GITHUB_REPOSITORY", "")
+}
+
+// TestRun_SinglePlatform_PlatformContext verifies the single-platform path generates notes
+// once with the platform's own resolved LinkContext when there is no ambient CI host
+// (T75 — reverses T70b's earlier nil-context behaviour).
+func TestRun_SinglePlatform_PlatformContext(t *testing.T) {
+	clearAmbientCIEnv(t)
 	mr := exectest.NewMockRunner()
 	mr.QueueResponse("", "", nil) // git tag
 	mr.QueueResponse("", "", nil) // git push --tags
 
 	notes := &testutil.MockGenerator{GenerateOut: "## notes\n"}
-	gh := &testutil.MockPlatform{
-		PlatformName:   "github",
-		LinkContextVal: port.LinkContext{BaseURL: "https://github.com", Owner: "acme", Repo: "widget", Platform: "github"},
-	}
+	lc := port.LinkContext{BaseURL: "https://github.com", Owner: "acme", Repo: "widget", Platform: "github"}
+	gh := &testutil.MockPlatform{PlatformName: "github", LinkContextVal: lc}
 	cfg := &pipeline.Config{Notes: notes, Platforms: []port.Platform{gh}}
 
 	p := pipeline.New(mr, &fakeResolver{result: resolvedResult("v1.2.3")}, cfg, &bytes.Buffer{}, false)
@@ -173,8 +183,56 @@ func TestRun_SinglePlatform_NotesNilContext(t *testing.T) {
 
 	require.Len(t, notes.GenerateCalls, 1)
 	require.Len(t, notes.GenerateContexts, 1)
-	assert.Nil(t, notes.GenerateContexts[0], "single platform must pass nil LinkContext")
+	require.NotNil(t, notes.GenerateContexts[0])
+	assert.Equal(t, lc, *notes.GenerateContexts[0], "single platform passes the platform's own context")
 	assert.Equal(t, "## notes\n", gh.CreateReleaseCalls[0].Notes)
+}
+
+// TestRun_SinglePlatform_AmbientHostPreferred verifies that when the ambient CI host
+// describes the *same* platform, it is preferred (so a self-hosted instance, whose real
+// host only lives in the CI env, is honoured) — T75.
+func TestRun_SinglePlatform_AmbientHostPreferred(t *testing.T) {
+	clearAmbientCIEnv(t)
+	t.Setenv("CI_PROJECT_URL", "https://gitlab.example.com/grp/proj")
+	mr := exectest.NewMockRunner()
+	mr.QueueResponse("", "", nil) // git tag
+	mr.QueueResponse("", "", nil) // git push --tags
+
+	notes := &testutil.MockGenerator{GenerateOut: "n"}
+	gl := &testutil.MockPlatform{
+		PlatformName:   "gitlab",
+		LinkContextVal: port.LinkContext{BaseURL: "https://gitlab.com", Owner: "grp", Repo: "proj", Platform: "gitlab"},
+	}
+	cfg := &pipeline.Config{Notes: notes, Platforms: []port.Platform{gl}}
+
+	p := pipeline.New(mr, &fakeResolver{result: resolvedResult("v1.2.3")}, cfg, &bytes.Buffer{}, false)
+	require.NoError(t, p.Run())
+
+	require.NotNil(t, notes.GenerateContexts[0])
+	assert.Equal(t, "https://gitlab.example.com/grp/proj", notes.GenerateContexts[0].BaseURL,
+		"ambient self-hosted host must win over the default base_url")
+}
+
+// TestRun_SinglePlatform_AmbientMismatchIgnored verifies a mismatched ambient CI (e.g. a
+// GitHub release built in GitLab CI) does NOT stamp the wrong host — the platform's own
+// context is used instead (T75).
+func TestRun_SinglePlatform_AmbientMismatchIgnored(t *testing.T) {
+	clearAmbientCIEnv(t)
+	t.Setenv("CI_PROJECT_URL", "https://gitlab.example.com/grp/proj") // gitlab CI
+	mr := exectest.NewMockRunner()
+	mr.QueueResponse("", "", nil) // git tag
+	mr.QueueResponse("", "", nil) // git push --tags
+
+	notes := &testutil.MockGenerator{GenerateOut: "n"}
+	lc := port.LinkContext{BaseURL: "https://github.com", Owner: "acme", Repo: "widget", Platform: "github"}
+	gh := &testutil.MockPlatform{PlatformName: "github", LinkContextVal: lc} // github target
+	cfg := &pipeline.Config{Notes: notes, Platforms: []port.Platform{gh}}
+
+	p := pipeline.New(mr, &fakeResolver{result: resolvedResult("v1.2.3")}, cfg, &bytes.Buffer{}, false)
+	require.NoError(t, p.Run())
+
+	require.NotNil(t, notes.GenerateContexts[0])
+	assert.Equal(t, lc, *notes.GenerateContexts[0], "mismatched ambient platform must be ignored")
 }
 
 // TestRun_MultiPlatform_NotesPerPlatform verifies notes are regenerated once per platform,

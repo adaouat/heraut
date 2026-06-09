@@ -3253,7 +3253,7 @@ TDD: new byte-assertion `TestEffectiveConfig_GitHubPRPath` (both Effective confi
 GitHub PR link in default-config release notes/changelogs — now correct. 826 tests green
 (+1), golangci-lint clean.
 
-#### `[ ]` T75: Fat-injection / thin templates — heraut computes URL prefixes in Go
+#### `[x]` T75: Fat-injection / thin templates — heraut computes URL prefixes in Go
 
 **Motivation (user idea, 2026-06-09):** push the `HERAUT_*` approach to its conclusion —
 have heraut compute the per-platform URL **prefixes** in Go and inject them, so the embedded
@@ -3324,6 +3324,34 @@ in the [design note](../../.claude/plans/multi-platform-release-notes-link-resol
 that thread makes `base_url` authoritative for single-platform self-hosted.**
 
 **Scope:** M (deferred / parked)
+
+**Done:** [ADR-0022](../adr/0022-fat-injection-thin-templates.md) written. **Un-parked**
+during planning: the host-targeting gate only blocks self-hosted *publishing*, not link
+*rendering* — heraut can read the ambient CI host vars in **Go**, so the ambient fallback
+relocates from Tera into a table-tested helper and the templates go fully thin now (no
+host-targeting needed; the `base_url` publish-gate is untouched). **Done as one task, not
+the suggested T75a/T75b split** — the changelog template is generated at *two* sites
+(release pipeline Step 2 + the changelog pipeline) and a thin `changelog.toml` requires
+both to inject context, so splitting would have opened a regression window (thin template +
+`nil` context → empty links). Implementation: (1) `gitcliff.linkEnv` extended to emit all 6
+vars, computing `/-/` (gitlab) vs `/` (github) + `#`/`!` — the testability payoff
+(`TestLinkEnv`, white-box table); (2) `pipeline.ambientLinkContext()` resolves the ambient
+host (`CI_PROJECT_URL`→gitlab / `GITHUB_SERVER_URL`+`GITHUB_REPOSITORY`→github / nil),
+`t.Setenv`-tested; (3) `release.go` — single-platform release notes use
+`singlePlatformLinkContext()` (ambient **only if it matches the target platform**, else the
+platform's own — a guard that also fixes a latent mismatch bug in the old Tera detection),
+changelog Step 2 uses ambient; (4) `changelog.go` — changelog uses ambient; (5) **both**
+embedded TOMLs rewritten to branch-free interpolation (`remote_url()`/`pr_link()` macros,
+the platform `if/else`, and the `get_env` fallback chain all removed; `default=""`
+empty-guard kept). cocogitto untouched (already branch-free). **Reverses ADR-0021/T70b's
+"single-platform → `nil` context"** and **supersedes the T71a/T74 macro shape** (the
+`/pull/` vs `/pulls/` correctness now lives in `linkEnv`/`TestLinkEnv`); both documented in
+ADR-0022. Tests: `TestLinkEnv` + `TestAmbientLinkContext` (the Go payoff), updated
+single-platform context tests (platform-context / ambient-preferred / ambient-mismatch),
+thin-template byte assertions (`TestEffectiveConfig_ThinTemplates`). **Manual real-git-cliff
+render PoC**: both thin templates render correctly with GitHub + GitLab prefixes (incl.
+GitLab `/-/compare/` and `/-/commit/`), and standalone (no heraut env) degrades to empty
+prefixes with **no Tera error**. 838 tests green, golangci-lint clean.
 
 ---
 

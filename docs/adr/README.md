@@ -26,3 +26,4 @@ trade-offs were accepted.
 | [0019](0019-perenv-content-driver-merge.md) | Per-Environment Content-Driver Overrides Deep-Merge | Accepted |
 | [0020](0020-platform-base-url.md) | Per-Platform `base_url` for Self-Hosted Instances | Accepted |
 | [0021](0021-per-platform-release-notes.md) | Release Notes Regenerated Per Platform | Accepted |
+| [0022](0022-fat-injection-thin-templates.md) | Fat Injection / Thin git-cliff Templates | Accepted |

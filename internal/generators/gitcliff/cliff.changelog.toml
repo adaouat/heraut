@@ -9,24 +9,15 @@ header = "# Changelog\n\n"
 # A Tera template to be rendered for each release in the changelog.
 # See https://keats.github.io/tera/docs/#introduction
 body = """
-{%- macro remote_url() -%}
-  {{ get_env(name="HERAUT_REMOTE_URL", default=get_env(name="CI_PROJECT_URL", default=get_env(name="GITHUB_SERVER_URL", default="") ~ "/" ~ get_env(name="GITHUB_REPOSITORY", default=""))) }}
-{%- endmacro -%}
-
 {%- macro pr_link(number) -%}
-  {%- set heraut_platform = get_env(name="HERAUT_PLATFORM", default="") -%}
-  {%- if heraut_platform == "gitlab" or (heraut_platform == "" and get_env(name="CI_PROJECT_URL", default="") != "") -%}
-    [!{{ number }}]({{ self::remote_url() }}/-/merge_requests/{{ number }})
-  {%- else -%}
-    [#{{ number }}]({{ self::remote_url() }}/pull/{{ number }})
-  {%- endif -%}
+  [{{ get_env(name="HERAUT_PR_LABEL", default="") }}{{ number }}]({{ get_env(name="HERAUT_PR_URL", default="") }}{{ number }})
 {%- endmacro -%}
 
 {% macro print_commit(commit) -%}
     - {% if commit.scope %}*({{ commit.scope }})* {% endif %}\
         {% if commit.breaking %}[**breaking**] {% endif %}\
         {{ commit.message | upper_first }} - \
-        ([{{ commit.id | truncate(length=7, end="") }}]({{ self::remote_url() }}/commit/{{ commit.id }}))\
+        ([{{ commit.id | truncate(length=7, end="") }}]({{ get_env(name="HERAUT_COMMIT_URL", default="") }}{{ commit.id }}))\
         {% if commit.remote.username %} by @{{ commit.remote.username }}{%- endif %}\
         {%- if commit.remote.pr_number %} in {{ self::pr_link(number=commit.remote.pr_number) }}{%- endif %}
 {% endmacro -%}
@@ -34,7 +25,7 @@ body = """
 {% if version %}\
     {% if previous.version %}\
         ## [{{ version | trim_start_matches(pat="v") }}]\
-          ({{ self::remote_url() }}/compare/{{ previous.version }}..{{ version }}) - {{ timestamp | date(format="%Y-%m-%d") }}
+          ({{ get_env(name="HERAUT_COMPARE_URL", default="") }}{{ previous.version }}..{{ version }}) - {{ timestamp | date(format="%Y-%m-%d") }}
     {% else %}\
         ## [{{ version | trim_start_matches(pat="v") }}] - {{ timestamp | date(format="%Y-%m-%d") }}
     {% endif %}\
