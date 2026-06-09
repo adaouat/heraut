@@ -3353,6 +3353,48 @@ render PoC**: both thin templates render correctly with GitHub + GitLab prefixes
 GitLab `/-/compare/` and `/-/commit/`), and standalone (no heraut env) degrades to empty
 prefixes with **no Tera error**. 838 tests green, golangci-lint clean.
 
+#### `[ ]` T76: Richer cocogitto default templates (git-cliff-like layout, achievable subset)
+
+**Motivation (user idea, 2026-06-09):** cocogitto's embedded templates render a much barer
+changelog/release-notes than git-cliff's. Bring the *layout* closer to git-cliff for a
+quality bump to cocogitto users — independent of git-cliff, not full parity. Surfaced while
+comparing the two generators during the T71–T75 template work.
+
+**Achievable (cog exposes the data) — in scope:**
+- **Emoji group headers** matching git-cliff (`🚀 Features`, `🐛 Bug Fixes`, `🚜 Refactor`,
+  `📚 Documentation`, `⚡ Performance`) — set in the embedded `cog.toml` `commit_parsers`
+  `group` names (verify cog maps `group` → the template's `group_by(attribute="type")` value;
+  confirmed informally in T71b).
+- **Author attribution** — `commit.author` / `commit.signature` (the git author/signature,
+  **not** a linked platform username — cog has no API username). Decide link vs plain name.
+- Keep the T71b commit links, scope, and breaking marker.
+
+**NOT achievable (cog exposes nothing — confirmed against the cog 7.0.0 binary, 0 refs) —
+explicitly out of scope:**
+- PR/MR links (git-cliff's `commit.remote.pr_number`, from the platform API).
+- New Contributors section (`gitlab.contributors`).
+- Commit Statistics block (`statistics.*`).
+
+These need cog itself to add a git-cliff-style `[remote]` integration; document them as a
+known limitation, not a heraut gap.
+
+**Scope of change:** edit embedded `internal/generators/cocogitto/cog.toml` (emoji group
+names) + `changelog.tera` / `release-notes.tera` (author); update
+`docs/specs/05-generators-and-platforms.md` (note the layout improvement + the parity
+limits); document the byte change per [ADR-0010](../adr/0010-embedded-cliff-toml-default.md).
+
+**Acceptance:** byte assertions — the embedded templates/`cog.toml` carry the emoji group
+names + author field; manual real-cog render PoC (suite has no real-binary tests) shows the
+richer output. cocogitto's existing four config-path contract tests stay green.
+
+**ADR required:** no — but an ADR-0010 byte-change note; spec update documents the parity
+limitation. (If the change to defaults is judged substantial, a short ADR is fine.)
+
+**Dependencies:** none (independent of the host-targeting thread; builds on T71b's cocogitto
+link rendering).
+
+**Scope:** S
+
 ---
 
 ## Risks and mitigations
