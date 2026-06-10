@@ -53,6 +53,14 @@ cleanly without the `@author`/`#PR` suffix; commit/compare links survive — the
 heraut-owned via `HERAUT_*`). A persistent **`--offline`** CLI flag forces `disabled` for a
 single run.
 
+The CLI override is intentionally a **boolean `--offline`** rather than a
+`--remote-metadata <value>` mirror of the config key: it follows git-cliff's own `--offline`
+and heraut's runtime-flag convention (`--dry-run` / `--force` are escape hatches, not config
+mirrors — heraut has no `--strategy` / `--generator` / `--bump` flag either), and the
+`required` / `optional` CLI overrides have no demonstrated use case (YAGNI). A full
+`--remote-metadata` mirror can be added later if a need appears, keeping `--offline` as the
+shorthand alias for `=disabled`.
+
 The policy is applied to a `ContentDriver` copy by the app layer (`withEnvDerivations` for
 the pipeline; `app.CheckCliff` for preflight), mirroring how `HeadingVersionPattern` is
 propagated. The gitcliff generator implements the three branches in `runCliff` and exposes
