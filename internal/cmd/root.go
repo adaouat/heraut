@@ -4,6 +4,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/adaouat/forge/updatecheck"
+	"github.com/adaouat/heraut"
 	"github.com/adaouat/heraut/internal/ui"
 )
 
@@ -34,6 +35,7 @@ func NewRootCmd(version string) *cobra.Command {
 		Repo:      "adaouat/heraut",
 		Current:   version,
 		CacheFile: updatecheck.CacheFile("heraut"),
+		Changelog: heraut.Changelog,
 	}))
 
 	// After each command, print a one-line update hint if a newer release exists
