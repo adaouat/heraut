@@ -25,3 +25,13 @@ func TestNewRootCmd(t *testing.T) {
 		}
 	}
 }
+
+func TestNewRootCmd_RegistersWhatsNew(t *testing.T) {
+	root := cmd.NewRootCmd("v1.0.0")
+	for _, c := range root.Commands() {
+		if c.Name() == "whatsnew" {
+			return
+		}
+	}
+	t.Error("whatsnew subcommand not registered")
+}
