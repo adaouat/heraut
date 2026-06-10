@@ -27,6 +27,7 @@ func NewRootCmd(version string) *cobra.Command {
 	pf.Bool("verbose", false, "echo each command and emit diagnostic logs")
 	pf.String("env", "", "target environment (for per-env strategies)")
 	pf.Bool("force", false, "bypass E001/E002 promotion errors")
+	pf.Bool("offline", false, "skip remote PR/MR metadata enrichment (forces remote_metadata: disabled)")
 
 	root.AddCommand(NewReleaseCmd())
 	root.AddCommand(NewChangelogCmd())

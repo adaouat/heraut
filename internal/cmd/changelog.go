@@ -49,6 +49,7 @@ func NewChangelogCmd() *cobra.Command {
 			if err != nil {
 				return exitcode.Wrap(exitcode.Config, fmt.Errorf("loading config: %w", err))
 			}
+			applyOfflineOverride(cmd, cfg)
 
 			if errs := config.Validate(cfg); len(errs) > 0 {
 				printConfigErrors(errs, cmd.ErrOrStderr())

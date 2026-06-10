@@ -34,6 +34,7 @@ func NewCheckCmd() *cobra.Command {
 			if err != nil {
 				return exitcode.Wrap(exitcode.Config, fmt.Errorf("loading config: %w", err))
 			}
+			applyOfflineOverride(cmd, cfg)
 
 			var failed int
 
@@ -148,6 +149,7 @@ func newCheckCliffCmd() *cobra.Command {
 			if err != nil {
 				return exitcode.Wrap(exitcode.Config, fmt.Errorf("loading config: %w", err))
 			}
+			applyOfflineOverride(cmd, cfg)
 
 			ui.Header(out, "Cliff")
 			if failed := runCliffChecks(runner, cfg, out); failed {
@@ -179,6 +181,7 @@ func newCheckCliffChangelogCmd() *cobra.Command {
 				return exitcode.Wrap(exitcode.Config, fmt.Errorf("loading config: %w", err))
 			}
 
+			applyOfflineOverride(cmd, cfg)
 			return exitcode.Wrap(exitcode.Runtime, checkCliffDriver(runner, cfg.Changelog, "changelog", cfg.RemoteMetadata, out))
 		},
 	}
@@ -200,6 +203,7 @@ func newCheckCliffReleaseNotesCmd() *cobra.Command {
 				return exitcode.Wrap(exitcode.Config, fmt.Errorf("loading config: %w", err))
 			}
 
+			applyOfflineOverride(cmd, cfg)
 			var notesDriver *config.ContentDriver
 			if cfg.Release != nil {
 				notesDriver = cfg.Release.Notes
