@@ -3448,6 +3448,45 @@ commit_parsers`); the fixed config passes. Documented the new real-CLI smoke-tes
 as a narrow exception in `.claude/rules/testing.md` (config-acceptance only; skippable;
 local + deterministic). 845 tests green, golangci-lint clean.
 
+#### `[ ]` T78: `remote_metadata` policy — control git-cliff's remote enrichment
+
+**Motivation:** git-cliff enriches changelog/release-notes with PR author + number by
+hitting the GitHub/GitLab API (auto-detected from the git remote; triggered by the
+`commit.remote.*` refs in the embedded templates). That fetch needs a token and is **fatal
+on failure** — unauthenticated it hits GitHub's 60/hr shared-IP limit and panics with a 403
+(exit 101). CI now authenticates it (`ci: 92b2a12`), but any tokenless / rate-limited /
+offline run of `heraut changelog` / `check` / `release` still crashes, with no opt-out.
+
+**Scope of change:** add a tri-state policy `remote_metadata: required | optional |
+disabled` (default **`optional`**) — a **top-level** key governing **both** changelog and
+release-notes generation. Both are `*ContentDriver` sharing the embedded git-cliff
+templates, and both `cliff.changelog.toml` and `cliff.release-notes.toml` carry the
+`commit.remote.*` refs, so the original failure hit `cliff changelog` *and* `cliff
+release-notes` alike — the policy must cover both. Backed by git-cliff's `--offline` flag
+(verified: 0 calls, no panic, renders cleanly without the `@author`/`#PR` suffix;
+commit/compare links survive — they're heraut-owned via `HERAUT_*`):
+
+- `required` → fetch; **fail** if unavailable (strict CI — today's de-facto behavior).
+- `optional` → fetch when possible; on a remote-fetch failure re-run with `--offline` +
+  `ui.Warn` and continue (degrades against missing token *and* rate-limit/network).
+- `disabled` → always pass `--offline`; never touch the network (deterministic, no token).
+
+Plumb the policy config → app/pipeline → **both** gitcliff generators (changelog +
+release-notes, each via `Generate` + `CheckCliff`). Add a root `--offline` flag as one-off
+sugar for `disabled` (overrides config for that run, both generators). The `port.Generator`
+semantic is "remote-enrichment policy"; cocogitto / communique treat non-`required` as a
+no-op (they don't fetch). A per-generator override (split changelog vs release-notes policy)
+is **deferred** — add only if split policies are actually requested (YAGNI).
+
+**Acceptance:** MockRunner contract tests assert `--offline` is present iff policy is
+`disabled` (absent for `required`) on **both** the changelog and release-notes invocations;
+an `optional` run with a forced remote failure degrades + warns instead of erroring; a
+config with no key behaves as `optional`. `schema.json` +
+`docs/heraut.sample.yml` updated; an ADR records the flag/config surface and the
+default-`optional` behaviour change (heraut no longer panics tokenless out of the box).
+
+**Dependencies:** none (builds on T75 / ADR-0022's `HERAUT_*` link injection). **Scope:** S–M.
+
 ---
 
 ## Risks and mitigations
