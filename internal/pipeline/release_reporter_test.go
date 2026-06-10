@@ -245,6 +245,24 @@ func TestRun_Reporter_DegradedNotes_EmitsSubResult(t *testing.T) {
 	assert.Contains(t, notesStep.subs, "remote metadata unavailable — PR authors/numbers omitted")
 }
 
+// TestRun_BuildTag_PropagatesToPlatform verifies a build-rendered tag (T57 — heraut
+// release --build) flows unchanged from the resolver to the platform's CreateRelease.
+func TestRun_BuildTag_PropagatesToPlatform(t *testing.T) {
+	mr := exectest.NewMockRunner()
+	mr.QueueResponse("", "", nil) // git tag
+	mr.QueueResponse("", "", nil) // git push --tags
+
+	notes := &testutil.MockGenerator{GenerateOut: "## notes\n"}
+	platform := &testutil.MockPlatform{PlatformName: "github"}
+	cfg := &pipeline.Config{Notes: notes, Platforms: []port.Platform{platform}}
+
+	p := pipeline.New(mr, &fakeResolver{result: resolvedResult("uat/7.4.1-158404")}, cfg, &bytes.Buffer{}, false)
+	require.NoError(t, p.Run())
+
+	require.Len(t, platform.CreateReleaseCalls, 1)
+	assert.Equal(t, "uat/7.4.1-158404", platform.CreateReleaseCalls[0].Tag)
+}
+
 // TestRun_Reporter_SinglePlatform_StandaloneNotesStep verifies the single-platform path
 // keeps the standalone "Generate release notes" step (non-regression).
 func TestRun_Reporter_SinglePlatform_StandaloneNotesStep(t *testing.T) {

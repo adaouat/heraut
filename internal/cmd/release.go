@@ -17,7 +17,10 @@ var versionPattern = regexp.MustCompile(`^v?\d+\.\d+\.\d+$`)
 
 // NewReleaseCmd constructs the `heraut release` command.
 func NewReleaseCmd() *cobra.Command {
-	var versionOverride string
+	var (
+		versionOverride string
+		buildID         string
+	)
 
 	releaseCmd := &cobra.Command{
 		Use:   "release",
@@ -28,6 +31,15 @@ func NewReleaseCmd() *cobra.Command {
 					"invalid --version %q: expected vMAJOR.MINOR.PATCH or MAJOR.MINOR.PATCH (e.g. v1.2.3)",
 					versionOverride,
 				))
+			}
+
+			if buildID != "" {
+				if versionOverride == "" {
+					return exitcode.Wrap(exitcode.Config, fmt.Errorf("--build requires --version: provide the version explicitly when specifying a build ID"))
+				}
+				if err := app.ValidateBuildID(buildID); err != nil {
+					return exitcode.Wrap(exitcode.Config, err)
+				}
 			}
 
 			// Read persistent flags from root
@@ -64,7 +76,7 @@ func NewReleaseCmd() *cobra.Command {
 				))
 			}
 
-			resolver, err := app.NewResolver(cfg, env, force, versionOverride, "", readRunner)
+			resolver, err := app.NewResolver(cfg, env, force, versionOverride, buildID, readRunner)
 			if err != nil {
 				return exitcode.Wrap(exitcode.Config, err)
 			}
@@ -100,6 +112,7 @@ func NewReleaseCmd() *cobra.Command {
 	}
 
 	releaseCmd.Flags().StringVar(&versionOverride, "version", "", "override the resolved version — with or without tag prefix (e.g. 1.2.3 or v1.2.3)")
+	releaseCmd.Flags().StringVar(&buildID, "build", "", "build ID appended to the tag via the {build} token in tag_format (requires --version)")
 
 	return releaseCmd
 }

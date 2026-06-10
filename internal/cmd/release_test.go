@@ -15,7 +15,54 @@ func TestRelease_Structural(t *testing.T) {
 	require.NotNil(t, c)
 	assert.Equal(t, "release", c.Use)
 	assert.NotEmpty(t, c.Short)
-	assert.NotNil(t, c.Flags().Lookup("version"), "flag 'version' not registered")
+	for _, name := range []string{"version", "build"} {
+		assert.NotNil(t, c.Flags().Lookup(name), "flag %q not registered", name)
+	}
+}
+
+func TestRelease_BuildRequiresVersion(t *testing.T) {
+	cfgPath := writeConfig(t, `
+version: "1"
+versioning:
+  strategy: semver-per-env
+  tag_format: "{env}/{version}-{build}"
+`)
+	_, err := executeRoot("release", "--config", cfgPath, "--env", "uat", "--build", "12345")
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "--version")
+}
+
+func TestRelease_BuildRejectsInvalidValue(t *testing.T) {
+	cfgPath := writeConfig(t, `
+version: "1"
+versioning:
+  strategy: semver-per-env
+  tag_format: "{env}/{version}-{build}"
+`)
+	_, err := executeRoot("release", "--config", cfgPath, "--env", "uat",
+		"--version", "7.4.1", "--build", "bad/value")
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "build")
+}
+
+func TestRelease_Build_DryRun_RendersTag(t *testing.T) {
+	cfgPath := writeConfig(t, `
+version: "1"
+versioning:
+  strategy: semver-per-env
+  tag_format: "{env}/{version}-{build}"
+environments:
+  uat:
+    bump: auto
+release:
+  platforms:
+    - platform: github
+      repository: test/repo
+`)
+	out, err := executeRoot("release", "--config", cfgPath, "--env", "uat",
+		"--version", "7.4.1", "--build", "158404", "--dry-run")
+	require.NoError(t, err)
+	assert.Contains(t, out, "uat/7.4.1-158404")
 }
 
 func TestRelease_ConfigNotFound(t *testing.T) {
