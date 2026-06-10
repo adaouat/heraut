@@ -30,6 +30,16 @@
         "$ref": "#/definitions/Environment"
       },
       "description": "Per-environment configuration. Required for semver-per-env and calver-per-env strategies."
+    },
+    "remote_metadata": {
+      "type": "string",
+      "enum": [
+        "required",
+        "optional",
+        "disabled"
+      ],
+      "default": "optional",
+      "description": "Whether content generators fetch PR/MR metadata (author handle, PR number) from the platform API to enrich the changelog/release-notes. 'required': fetch and fail if unavailable. 'optional' (default): fetch when possible, otherwise generate without it and warn. 'disabled': never fetch (offline, no token). Governs both changelog and release-notes generation. The --offline flag forces 'disabled' for a single run."
     }
   },
   "definitions": {

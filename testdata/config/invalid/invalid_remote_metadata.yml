@@ -1,0 +1,6 @@
+version: "1"
+
+versioning:
+  strategy: semver
+
+remote_metadata: sometimes

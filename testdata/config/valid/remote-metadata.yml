@@ -1,0 +1,13 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/adaouat/heraut/main/schema.json
+
+version: "1"
+
+versioning:
+  strategy: semver
+  bump: auto
+
+remote_metadata: disabled
+
+changelog:
+  generator: git-cliff
+  output: CHANGELOG.md

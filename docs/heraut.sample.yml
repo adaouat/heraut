@@ -71,6 +71,21 @@ versioning:
   # Can be overridden per environment in the environments block below.
   # tag_format: "{env}/{version}"
 
+# ── remote_metadata ───────────────────────────────────────────────────────────
+#
+# Whether content generators (git-cliff) fetch PR/MR metadata — author handle and
+# PR number — from the GitHub/GitLab API to enrich the changelog and release notes.
+# Governs both changelog and release-notes generation. Default: optional.
+#
+#   required   fetch; fail if the API is unavailable (needs a token).
+#   optional   fetch when possible; otherwise generate without it and warn — never
+#              fails on a missing token, rate limit, or offline run.
+#   disabled   never fetch (fully offline, no token needed).
+#
+# git-cliff reads GITHUB_TOKEN / GITLAB_TOKEN. The --offline flag forces 'disabled'
+# for a single run.
+# remote_metadata: optional
+
 # ── changelog ─────────────────────────────────────────────────────────────────
 #
 # Omit this block if you do not want heraut to manage a CHANGELOG.md.
