@@ -7,6 +7,12 @@ type Config struct {
 	Changelog    *ContentDriver         `yaml:"changelog,omitempty"`
 	Release      *Release               `yaml:"release,omitempty"`
 	Environments map[string]Environment `yaml:"environments,omitempty"`
+	// RemoteMetadata controls whether content generators fetch PR/MR metadata from the
+	// platform API (author handle, PR number) to enrich changelog/release-notes:
+	// "required" (fetch, fail if unavailable), "optional" (fetch when possible, else warn +
+	// skip), "disabled" (never fetch). Empty resolves to "optional". Governs both changelog
+	// and release-notes generation (T78).
+	RemoteMetadata string `yaml:"remote_metadata,omitempty"`
 }
 
 // Versioning holds version resolution settings.
@@ -57,6 +63,10 @@ type ContentDriver struct {
 	// that strips the env prefix/suffix and build ID from version headings (leaving just the
 	// version). Not user-configurable.
 	HeadingVersionPattern string `yaml:"-"`
+	// RemoteMetadata is the effective top-level Config.RemoteMetadata policy, propagated onto
+	// the driver by the app layer so the generator can honour it. Empty means "optional".
+	// Not user-configurable at the driver level (the user sets it once at the top level).
+	RemoteMetadata string `yaml:"-"`
 }
 
 // Release holds release notes and platform settings.

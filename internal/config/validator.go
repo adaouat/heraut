@@ -21,6 +21,9 @@ var (
 	validTagTypes = map[string]bool{
 		"annotated": true, "lightweight": true,
 	}
+	validRemoteMetadata = map[string]bool{
+		"required": true, "optional": true, "disabled": true,
+	}
 )
 
 // Validate runs all semantic validation layers against cfg.
@@ -76,6 +79,13 @@ func validateEnums(cfg *Config) []ValidationError {
 			Path:    "versioning.tag_type",
 			Message: fmt.Sprintf("%q is not a valid tag type", cfg.Versioning.TagType),
 			Hint:    "valid tag types: annotated, lightweight",
+		})
+	}
+	if cfg.RemoteMetadata != "" && !validRemoteMetadata[cfg.RemoteMetadata] {
+		errs = append(errs, ValidationError{
+			Path:    "remote_metadata",
+			Message: fmt.Sprintf("%q is not a valid remote_metadata policy", cfg.RemoteMetadata),
+			Hint:    "valid values: required, optional, disabled",
 		})
 	}
 	errs = append(errs, validateContentDriver(cfg.Changelog, "changelog")...)

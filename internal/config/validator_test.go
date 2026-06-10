@@ -163,6 +163,47 @@ versioning:
 	}
 }
 
+// ── remote_metadata ─────────────────────────────────────────────────────────────
+
+func TestValidate_invalidRemoteMetadata(t *testing.T) {
+	cfg := mustLoad(t, `
+version: "1"
+versioning:
+  strategy: semver
+remote_metadata: sometimes
+`)
+	errs := config.Validate(cfg)
+	e := findErr(errs, "remote_metadata")
+	require.NotNil(t, e)
+	assert.Contains(t, e.Message, "sometimes")
+	assert.Contains(t, e.Hint, "required")
+	assert.Contains(t, e.Hint, "optional")
+	assert.Contains(t, e.Hint, "disabled")
+}
+
+func TestValidate_validRemoteMetadata(t *testing.T) {
+	for _, v := range []string{"required", "optional", "disabled"} {
+		t.Run(v, func(t *testing.T) {
+			cfg := mustLoad(t, `
+version: "1"
+versioning:
+  strategy: semver
+remote_metadata: `+v+`
+`)
+			assert.Empty(t, config.Validate(cfg))
+		})
+	}
+}
+
+func TestValidate_emptyRemoteMetadataIsValid(t *testing.T) {
+	cfg := mustLoad(t, `
+version: "1"
+versioning:
+  strategy: semver
+`)
+	assert.Nil(t, findErr(config.Validate(cfg), "remote_metadata"))
+}
+
 // ── calver format ─────────────────────────────────────────────────────────────
 
 func TestValidate_calverMissingFormat(t *testing.T) {
