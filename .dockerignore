@@ -9,6 +9,7 @@
 # Documentation
 docs/
 *.md
+!CHANGELOG.md
 
 # Docker files themselves
 Dockerfile*
