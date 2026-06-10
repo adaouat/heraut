@@ -3448,7 +3448,7 @@ commit_parsers`); the fixed config passes. Documented the new real-CLI smoke-tes
 as a narrow exception in `.claude/rules/testing.md` (config-acceptance only; skippable;
 local + deterministic). 845 tests green, golangci-lint clean.
 
-#### `[ ]` T78: `remote_metadata` policy — control git-cliff's remote enrichment
+#### `[x]` T78: `remote_metadata` policy — control git-cliff's remote enrichment
 
 **Motivation:** git-cliff enriches changelog/release-notes with PR author + number by
 hitting the GitHub/GitLab API (auto-detected from the git remote; triggered by the
@@ -3486,6 +3486,20 @@ config with no key behaves as `optional`. `schema.json` +
 default-`optional` behaviour change (heraut no longer panics tokenless out of the box).
 
 **Dependencies:** none (builds on T75 / ADR-0022's `HERAUT_*` link injection). **Scope:** S–M.
+
+**Done:** Shipped as [ADR-0023](../adr/0023-remote-metadata-policy.md) across six commits.
+Top-level `remote_metadata: required | optional | disabled` (default `optional`),
+enum-validated, backed by git-cliff's `--offline`. `optional` retries `--offline` on **any**
+remote failure and reports `Degraded()` — retry-on-failure was chosen over predict-by-token
+because the original incident was a rate-limit (a present-but-throttled token would still
+panic under prediction). The policy is propagated to both the changelog and release-notes
+drivers via `withEnvDerivations` + `app.CheckCliff` (applied to a driver copy, never
+mutating the caller's), and degrade is surfaced in the `heraut check` cliff detail line and
+as a release/changelog step sub-result (generators expose an optional `Degraded()` interface
+the pipeline type-asserts, keeping it decoupled). Root `--offline` flag forces `disabled`
+via `applyOfflineOverride`. `schema.json` + `docs/heraut.sample.yml` + valid/invalid schema
+fixtures added. Per-generator split policy left deferred (YAGNI). Full suite green,
+golangci-lint clean.
 
 ---
 

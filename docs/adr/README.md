@@ -27,3 +27,4 @@ trade-offs were accepted.
 | [0020](0020-platform-base-url.md) | Per-Platform `base_url` for Self-Hosted Instances | Accepted |
 | [0021](0021-per-platform-release-notes.md) | Release Notes Regenerated Per Platform | Accepted |
 | [0022](0022-fat-injection-thin-templates.md) | Fat Injection / Thin git-cliff Templates | Accepted |
+| [0023](0023-remote-metadata-policy.md) | Remote-Metadata Policy for Content Generation | Accepted |
