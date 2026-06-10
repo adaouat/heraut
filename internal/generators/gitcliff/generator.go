@@ -3,12 +3,20 @@ package gitcliff
 import (
 	"fmt"
 	"os"
+	"slices"
 	"strings"
 
 	"github.com/pelletier/go-toml/v2"
 
 	"github.com/adaouat/heraut/internal/config"
 	"github.com/adaouat/heraut/internal/port"
+)
+
+// Remote-metadata policy values (T78). Empty resolves to remoteOptional.
+const (
+	remoteOptional = "optional"
+	remoteRequired = "required"
+	remoteDisabled = "disabled"
 )
 
 // Mode selects which embedded TOML default to use.
@@ -21,9 +29,10 @@ const (
 
 // Generator implements port.Generator for git-cliff.
 type Generator struct {
-	runner port.Runner
-	cfg    *config.ContentDriver
-	mode   Mode
+	runner   port.Runner
+	cfg      *config.ContentDriver
+	mode     Mode
+	degraded bool
 }
 
 var _ port.Generator = (*Generator)(nil)
@@ -32,6 +41,11 @@ var _ port.Generator = (*Generator)(nil)
 func New(runner port.Runner, cfg *config.ContentDriver, mode Mode) *Generator {
 	return &Generator{runner: runner, cfg: cfg, mode: mode}
 }
+
+// Degraded reports whether the most recent Generate/CheckCliff fell back to --offline
+// because the remote metadata fetch failed under the "optional" policy (T78). Callers
+// (pipeline / check) use it to warn that PR author / number were omitted.
+func (g *Generator) Degraded() bool { return g.degraded }
 
 // Check verifies that git-cliff is available on PATH.
 func (g *Generator) Check() error {
@@ -87,16 +101,51 @@ func (g *Generator) Generate(tag string, lc *port.LinkContext) (string, error) {
 		args = append(args, "--output", g.cfg.Output)
 	}
 
-	var stdout string
-	if lc != nil {
-		stdout, _, err = g.runner.RunEnv(linkEnv(lc), "git-cliff", args...)
-	} else {
-		stdout, _, err = g.runner.Run("git-cliff", args...)
-	}
+	stdout, err := g.runCliff(args, lc)
 	if err != nil {
 		return "", fmt.Errorf("git-cliff: %w", err)
 	}
 	return stdout, nil
+}
+
+// runCliff runs git-cliff applying the remote-metadata policy (T78):
+//   - disabled: always pass --offline (never reach the platform API).
+//   - required: never pass --offline; a remote-fetch failure is fatal.
+//   - optional (default): try online; on any failure retry with --offline. If the offline
+//     retry succeeds the run is marked degraded; if it also fails the original (online)
+//     error is returned so a genuine config error still surfaces.
+func (g *Generator) runCliff(args []string, lc *port.LinkContext) (string, error) {
+	switch g.cfg.RemoteMetadata {
+	case remoteDisabled:
+		return g.exec(appendOffline(args), lc)
+	case remoteRequired:
+		return g.exec(args, lc)
+	default: // remoteOptional
+		stdout, err := g.exec(args, lc)
+		if err == nil {
+			return stdout, nil
+		}
+		offlineOut, offlineErr := g.exec(appendOffline(args), lc)
+		if offlineErr != nil {
+			return "", err
+		}
+		g.degraded = true
+		return offlineOut, nil
+	}
+}
+
+// appendOffline returns args with --offline appended, without mutating the input.
+func appendOffline(args []string) []string {
+	return append(slices.Clone(args), "--offline")
+}
+
+func (g *Generator) exec(args []string, lc *port.LinkContext) (string, error) {
+	if lc != nil {
+		stdout, _, err := g.runner.RunEnv(linkEnv(lc), "git-cliff", args...)
+		return stdout, err
+	}
+	stdout, _, err := g.runner.Run("git-cliff", args...)
+	return stdout, err
 }
 
 // linkEnv translates a LinkContext into the heraut-owned env vars the embedded git-cliff
@@ -199,8 +248,8 @@ func (g *Generator) CheckCliff() error {
 		return err
 	}
 	defer cleanup()
-	_, _, err = g.runner.Run("git-cliff", "--context", "--no-exec", "--config", cfgPath)
-	if err != nil {
+	args := []string{"--context", "--no-exec", "--config", cfgPath}
+	if _, err := g.runCliff(args, nil); err != nil {
 		return fmt.Errorf("git-cliff rejected config: %w", err)
 	}
 	return nil

@@ -325,6 +325,109 @@ func TestCheckCliff_ReleaseNotesMode(t *testing.T) {
 	assertHasFlag(t, mr.Calls[0].Args, "--no-exec")
 }
 
+// ── remote_metadata policy (T78) ──────────────────────────────────────────────
+
+func TestGenerate_RemoteDisabled_PassesOffline(t *testing.T) {
+	mr := exectest.NewMockRunner()
+	mr.QueueResponse("notes", "", nil)
+
+	cfg := &config.ContentDriver{Generator: "git-cliff", RemoteMetadata: "disabled"}
+	gen := gitcliff.New(mr, cfg, gitcliff.ModeReleaseNotes)
+
+	_, err := gen.Generate("v1.2.3", nil)
+	require.NoError(t, err)
+	require.Len(t, mr.Calls, 1)
+	assertHasFlag(t, mr.Calls[0].Args, "--offline")
+	assert.False(t, gen.Degraded())
+}
+
+func TestGenerate_RemoteRequired_NoOfflineFailsHard(t *testing.T) {
+	mr := exectest.NewMockRunner()
+	mr.QueueResponse("", "boom", errors.New("exit status 101"))
+
+	cfg := &config.ContentDriver{Generator: "git-cliff", RemoteMetadata: "required"}
+	gen := gitcliff.New(mr, cfg, gitcliff.ModeReleaseNotes)
+
+	_, err := gen.Generate("v1.2.3", nil)
+	require.Error(t, err)
+	require.Len(t, mr.Calls, 1) // no retry under 'required'
+	assertNotHasFlag(t, mr.Calls[0].Args, "--offline")
+}
+
+func TestGenerate_RemoteOptional_SuccessNoRetry(t *testing.T) {
+	mr := exectest.NewMockRunner()
+	mr.QueueResponse("notes", "", nil)
+
+	cfg := &config.ContentDriver{Generator: "git-cliff"} // empty → optional
+	gen := gitcliff.New(mr, cfg, gitcliff.ModeReleaseNotes)
+
+	out, err := gen.Generate("v1.2.3", nil)
+	require.NoError(t, err)
+	assert.Equal(t, "notes", out)
+	require.Len(t, mr.Calls, 1)
+	assertNotHasFlag(t, mr.Calls[0].Args, "--offline")
+	assert.False(t, gen.Degraded())
+}
+
+func TestGenerate_RemoteOptional_DegradesOnFailure(t *testing.T) {
+	mr := exectest.NewMockRunner()
+	mr.QueueResponse("", "Could not get github metadata", errors.New("exit status 101")) // online
+	mr.QueueResponse("offline notes", "", nil)                                           // --offline retry
+
+	cfg := &config.ContentDriver{Generator: "git-cliff", RemoteMetadata: "optional"}
+	gen := gitcliff.New(mr, cfg, gitcliff.ModeReleaseNotes)
+
+	out, err := gen.Generate("v1.2.3", nil)
+	require.NoError(t, err)
+	assert.Equal(t, "offline notes", out)
+	require.Len(t, mr.Calls, 2)
+	assertNotHasFlag(t, mr.Calls[0].Args, "--offline")
+	assertHasFlag(t, mr.Calls[1].Args, "--offline")
+	assert.True(t, gen.Degraded())
+}
+
+func TestGenerate_RemoteOptional_BothFail_ReturnsOriginalError(t *testing.T) {
+	mr := exectest.NewMockRunner()
+	mr.QueueResponse("", "online boom", errors.New("online error"))
+	mr.QueueResponse("", "offline boom", errors.New("offline error"))
+
+	cfg := &config.ContentDriver{Generator: "git-cliff", RemoteMetadata: "optional"}
+	gen := gitcliff.New(mr, cfg, gitcliff.ModeReleaseNotes)
+
+	_, err := gen.Generate("v1.2.3", nil)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "online error") // original online error, not the offline one
+	require.Len(t, mr.Calls, 2)
+	assert.False(t, gen.Degraded())
+}
+
+func TestCheckCliff_RemoteOptional_DegradesOnFailure(t *testing.T) {
+	mr := exectest.NewMockRunner()
+	mr.QueueResponse("", "Could not get github metadata", errors.New("exit status 101"))
+	mr.QueueResponse("", "", nil) // --offline retry succeeds
+
+	cfg := &config.ContentDriver{Generator: "git-cliff"} // optional
+	gen := gitcliff.New(mr, cfg, gitcliff.ModeChangelog)
+
+	require.NoError(t, gen.CheckCliff())
+	require.Len(t, mr.Calls, 2)
+	assertNotHasFlag(t, mr.Calls[0].Args, "--offline")
+	assertHasFlag(t, mr.Calls[1].Args, "--offline")
+	assert.True(t, gen.Degraded())
+}
+
+func TestCheckCliff_RemoteDisabled_PassesOffline(t *testing.T) {
+	mr := exectest.NewMockRunner()
+	mr.QueueResponse("", "", nil)
+
+	cfg := &config.ContentDriver{Generator: "git-cliff", RemoteMetadata: "disabled"}
+	gen := gitcliff.New(mr, cfg, gitcliff.ModeChangelog)
+
+	require.NoError(t, gen.CheckCliff())
+	require.Len(t, mr.Calls, 1)
+	assertHasFlag(t, mr.Calls[0].Args, "--offline")
+}
+
 // assertHasFlag checks that args contains a specific flag (without requiring its value).
 func assertHasFlag(t *testing.T, args []string, flag string) {
 	t.Helper()
