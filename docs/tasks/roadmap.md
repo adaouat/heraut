@@ -2386,7 +2386,7 @@ diagnostic is currently misleading for the build-id flow.
 
 **Done:** `EffectiveCliffConfig` signature now takes `(cfg, driver, mode, env)` and runs the driver through `withBuildPostprocessor` before building the generator, so the injected postprocessor appears in the output. Both `heraut cliff changelog` and `heraut cliff release-notes` read `--env`. Also closed a latent inconsistency: `buildReleasePipelineConfig` now applies `withBuildPostprocessor` to **both** the changelog and notes generators (previously only the `heraut changelog` pipeline did), so the release pipeline, the changelog pipeline, and `heraut cliff` all agree. Tests at the app layer (`EffectiveCliffConfig_BuildFormatInjectsPostprocessor`) and cmd layer (`TestCliffChangelog_BuildFormat_ShowsPostprocessor`). Spec 03 cliff section notes `--env` + postprocessor reflection.
 
-#### `[ ]` T57: `heraut release --build` for build-id release flows
+#### `[x]` T57: `heraut release --build` for build-id release flows
 
 **Enhancement (deferred from T52):** with a `{build}` `tag_format`, `heraut release`
 cannot render a tag (no build ID) and hard-fails. Add `--build` to `release` for teams
@@ -2413,6 +2413,20 @@ release *per CI build* is desirable, given multiple builds per semantic version 
 answered from that experience before building this. Pick up once there's a concrete
 release-per-build use case; the `tagfmt.Render` error (T59) already points build-id users
 to the changelog flow in the meantime.
+
+**Done:** Implemented as a mirror of `heraut changelog --build`. `internal/cmd/release.go`
+gained a `--build` flag with the same validation (requires `--version`; rejects invalid
+values via `app.ValidateBuildID`) and passes the build ID to `app.NewResolver`, which
+already renders `{build}` into the tag and returns a `StaticResolver`. **No
+`internal/app/pipeline.go` change** (the Files line over-estimated): the pipeline consumes
+`result.Tag` unchanged, so the build tag flows to the tag step, notes, and every platform's
+`CreateRelease` for free. **Product question resolved — allow freely:** release-per-build is
+unguarded; passing both `--version` and `--build` is the explicit, scripted opt-in (a
+per-build warning would just be CI log noise, and `changelog --build` has no guard either).
+Tests: cmd flag registration + `--build` requires `--version` + invalid-value rejection + a
+dry-run integration asserting the rendered `uat/7.4.1-158404` tag, plus a pipeline contract
+test asserting the build tag reaches `MockPlatform.CreateRelease`. Spec 02/03 updated
+(support table flipped to ✅, release example, `--build` flag reference). Full suite green.
 
 #### `[x]` T58: `heraut version current` returns the bare semantic version
 
