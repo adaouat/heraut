@@ -1,5 +1,18 @@
 # Changelog
 
+## [0.27.0](https://github.com/adaouat/heraut/compare/v0.26.0..v0.27.0) - 2026-06-10
+
+### 🚀 Features
+
+- *(cmd)* Add whatsnew command, adopt forge's shared hint wiring - ([9457530](https://github.com/adaouat/heraut/commit/94575309ed2de5f2f78a56a803feec796cfa69b9)) by @bchatard
+
+
+### 💼 Other
+
+- *(deps)* Bump forge to v0.13.0 - ([6a4f278](https://github.com/adaouat/heraut/commit/6a4f2782d1dd3410372d625a44e5ea6252e2aded)) by @bchatard
+
+- *(deps)* Bump forge to v0.14.0 - ([b36f93a](https://github.com/adaouat/heraut/commit/b36f93add337fa6c7d99110dd257d4c66c79cea5)) by @bchatard
+
 ## [0.26.0](https://github.com/adaouat/heraut/compare/v0.25.1..v0.26.0) - 2026-06-10
 
 ### 🚀 Features
