@@ -10,6 +10,7 @@ type MockGenerator struct {
 	GenerateErr      error
 	GenerateCalls    []string            // tags passed to Generate
 	GenerateContexts []*port.LinkContext // link context passed alongside each tag (nil = single-platform)
+	DegradedVal      bool                // value returned by Degraded()
 }
 
 func (m *MockGenerator) Check() error { return m.CheckErr }
@@ -21,3 +22,7 @@ func (m *MockGenerator) Generate(tag string, lc *port.LinkContext) (string, erro
 	m.GenerateContexts = append(m.GenerateContexts, lc)
 	return m.GenerateOut, m.GenerateErr
 }
+
+// Degraded reports whether the generator fell back to offline mode (T78). It mirrors the
+// optional Degraded() method the pipeline type-asserts on real generators.
+func (m *MockGenerator) Degraded() bool { return m.DegradedVal }

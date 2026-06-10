@@ -115,7 +115,7 @@ func (p *ChangelogPipeline) Run() error {
 			if _, err := p.cfg.Changelog.Generate(result.Tag, changelogCtx); err != nil {
 				return "", nil, fmt.Errorf("generating changelog: %w", err)
 			}
-			return "", nil, nil
+			return "", degradedSubResult(p.cfg.Changelog), nil
 		}); err != nil {
 			return err
 		}

@@ -121,7 +121,7 @@ func (p *Pipeline) Run() error {
 			if _, err := p.cfg.Changelog.Generate(result.Tag, changelogCtx); err != nil {
 				return "", nil, fmt.Errorf("generating changelog: %w", err)
 			}
-			return "", nil, nil
+			return "", degradedSubResult(p.cfg.Changelog), nil
 		}); err != nil {
 			return err
 		}
@@ -176,7 +176,7 @@ func (p *Pipeline) Run() error {
 			if genErr != nil {
 				return "", nil, fmt.Errorf("generating release notes: %w", genErr)
 			}
-			return "", nil, nil
+			return "", degradedSubResult(p.cfg.Notes), nil
 		}); err != nil {
 			return err
 		}
@@ -195,6 +195,7 @@ func (p *Pipeline) Run() error {
 				}
 				platNotes = generated
 				subs = append(subs, "notes generated")
+				subs = append(subs, degradedSubResult(p.cfg.Notes)...)
 			}
 			if err := plat.CreateRelease(result.Tag, platNotes); err != nil {
 				return "", nil, fmt.Errorf("platform %s: create release: %w", plat.Name(), err)
@@ -274,6 +275,17 @@ func (p *Pipeline) dryRunOutput(result versioning.Result) error {
 			}
 			return "[dry-run] would create release", subs, nil
 		})
+	}
+	return nil
+}
+
+// degradedSubResult returns a one-element sub-result note when gen fell back to --offline
+// because the remote metadata fetch failed under the "optional" policy, so PR
+// authors/numbers were omitted; nil otherwise. Generators expose Degraded() through an
+// optional interface so the pipeline stays decoupled from the concrete generator (T78).
+func degradedSubResult(gen port.Generator) []string {
+	if d, ok := gen.(interface{ Degraded() bool }); ok && d.Degraded() {
+		return []string{"remote metadata unavailable — PR authors/numbers omitted"}
 	}
 	return nil
 }

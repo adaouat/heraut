@@ -218,6 +218,33 @@ func TestRun_Reporter_MultiPlatform_NotesFoldedIntoPublish(t *testing.T) {
 	}
 }
 
+// TestRun_Reporter_DegradedNotes_EmitsSubResult verifies that when the notes generator
+// fell back to --offline (remote_metadata: optional, fetch failed), the notes step carries
+// a degraded sub-result so the omission of PR authors/numbers is visible (T78).
+func TestRun_Reporter_DegradedNotes_EmitsSubResult(t *testing.T) {
+	mr := exectest.NewMockRunner()
+	mr.QueueResponse("", "", nil) // git tag
+	mr.QueueResponse("", "", nil) // git push --tags
+
+	notes := &testutil.MockGenerator{GenerateOut: "## notes\n", DegradedVal: true}
+	p1 := &testutil.MockPlatform{PlatformName: "github"}
+	cfg := &pipeline.Config{Notes: notes, Platforms: []port.Platform{p1}}
+
+	var captured []capturedStep
+	p := pipeline.New(mr, &fakeResolver{result: resolvedResult("v1.2.3")}, cfg, &bytes.Buffer{}, false).
+		WithReporter(capturingStepFn(&captured))
+	require.NoError(t, p.Run())
+
+	var notesStep *capturedStep
+	for i := range captured {
+		if captured[i].name == "Generate release notes" {
+			notesStep = &captured[i]
+		}
+	}
+	require.NotNil(t, notesStep, "expected a Generate release notes step")
+	assert.Contains(t, notesStep.subs, "remote metadata unavailable — PR authors/numbers omitted")
+}
+
 // TestRun_Reporter_SinglePlatform_StandaloneNotesStep verifies the single-platform path
 // keeps the standalone "Generate release notes" step (non-regression).
 func TestRun_Reporter_SinglePlatform_StandaloneNotesStep(t *testing.T) {
