@@ -1,5 +1,21 @@
 # Changelog
 
+## [0.25.1](https://github.com/adaouat/heraut/compare/v0.25.0..v0.25.1) - 2026-06-10
+
+### 🐛 Bug Fixes
+
+- *(deps)* Run go mod tidy - ([bc8a7b9](https://github.com/adaouat/heraut/commit/bc8a7b9bf88bd836c545353503f21cb3792e0398)) by @bchatard
+
+
+### 💼 Other
+
+- *(deps)* Bump forge to v0.11.1 - ([82dd26c](https://github.com/adaouat/heraut/commit/82dd26c2ce1700f243a3a5afd185ce5da61a29e7)) by @bchatard
+
+
+### 🚜 Refactor
+
+- Align forge/log import alias to forgelog - ([14750f4](https://github.com/adaouat/heraut/commit/14750f4ee20b1708eee0320f67fd454446f9a87e)) by @bchatard
+
 ## [0.25.0](https://github.com/adaouat/heraut/compare/v0.24.0..v0.25.0) - 2026-06-09
 
 ### 🚀 Features
