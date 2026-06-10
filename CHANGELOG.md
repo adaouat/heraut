@@ -1,5 +1,16 @@
 # Changelog
 
+## [0.28.0](https://github.com/adaouat/heraut/compare/v0.27.0..v0.28.0) - 2026-06-10
+
+### 🚀 Features
+
+- *(whatsnew)* Embed CHANGELOG.md as the offline fallback - ([09fe57c](https://github.com/adaouat/heraut/commit/09fe57cd825096f7d42c738e2203a8bd51e6778e)) by @bchatard
+
+
+### 💼 Other
+
+- *(deps)* Bump forge to v0.15.0 - ([93cee93](https://github.com/adaouat/heraut/commit/93cee93d646ecb2e7e501c5f675055a5ca3e4a60)) by @bchatard
+
 ## [0.27.0](https://github.com/adaouat/heraut/compare/v0.26.0..v0.27.0) - 2026-06-10
 
 ### 🚀 Features
