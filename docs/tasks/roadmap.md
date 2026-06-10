@@ -2825,7 +2825,7 @@ Out of scope: the tag-sync/target-pinning race (orthogonal timing problem). No c
 this task; one new live-feedback trade-off noted (notes-gen reported retroactively as a
 sub-result rather than a live step in multi-platform mode).
 
-#### `[ ]` T68: Resolve the context-injection shape (env vars vs. new template variables)
+#### `[x]` T68: Resolve the context-injection shape (env vars vs. new template variables)
 
 **Motivation:** Mini-spike to decide *how* heraut hands each platform's link-resolution
 context to the generators — the crux of "three generators must stay consistent."  Two
