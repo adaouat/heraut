@@ -239,11 +239,13 @@ func buildChangelogPipelineConfig(runner port.Runner, cfg *config.Config, opts P
 }
 
 // withEnvDerivations returns a ContentDriver copy with env-derived scoping applied
-// from the effective tag format:
+// from the effective tag format, plus the top-level remote_metadata policy:
 //   - HeadingVersionPattern: strips env prefix/suffix and build from changelog headings
 //     (when {env} or {build} is present)
 //   - TagPattern: scopes git-cliff to the active env's tags (when {env} and the user has
 //     not set an explicit tag_pattern)
+//   - RemoteMetadata: the top-level Config.RemoteMetadata policy, so the generator honours
+//     it (empty is left empty — the generator treats that as "optional")
 //
 // The original driver is never mutated. Returns the original pointer when nothing applies.
 func withEnvDerivations(driver *config.ContentDriver, cfg *config.Config, env string) *config.ContentDriver {
@@ -255,7 +257,7 @@ func withEnvDerivations(driver *config.ContentDriver, cfg *config.Config, env st
 		tagPat = tagfmt.DeriveTagPattern(tf, env)
 	}
 
-	if headingPat == "" && tagPat == "" {
+	if headingPat == "" && tagPat == "" && cfg.RemoteMetadata == "" {
 		return driver
 	}
 	clone := *driver
@@ -264,6 +266,9 @@ func withEnvDerivations(driver *config.ContentDriver, cfg *config.Config, env st
 	}
 	if tagPat != "" {
 		clone.TagPattern = tagPat
+	}
+	if cfg.RemoteMetadata != "" {
+		clone.RemoteMetadata = cfg.RemoteMetadata
 	}
 	return &clone
 }

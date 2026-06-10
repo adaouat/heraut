@@ -625,7 +625,8 @@ func TestAppCheckCliff_Passes(t *testing.T) {
 	mr.QueueResponse("", "", nil)
 
 	driver := &config.ContentDriver{Generator: "git-cliff"}
-	require.NoError(t, app.CheckCliff(mr, driver, "changelog"))
+	_, err := app.CheckCliff(mr, driver, "changelog", "required")
+	require.NoError(t, err)
 }
 
 func TestAppCheckCliff_Fails(t *testing.T) {
@@ -633,7 +634,7 @@ func TestAppCheckCliff_Fails(t *testing.T) {
 	mr.QueueResponse("", "invalid TOML", errors.New("exit status 1"))
 
 	driver := &config.ContentDriver{Generator: "git-cliff"}
-	err := app.CheckCliff(mr, driver, "changelog")
+	_, err := app.CheckCliff(mr, driver, "changelog", "required")
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "git-cliff rejected config")
 }
@@ -643,7 +644,8 @@ func TestAppCheckCliff_ReleaseNotesMode(t *testing.T) {
 	mr.QueueResponse("", "", nil)
 
 	driver := &config.ContentDriver{Generator: "git-cliff"}
-	require.NoError(t, app.CheckCliff(mr, driver, "release-notes"))
+	_, err := app.CheckCliff(mr, driver, "release-notes", "required")
+	require.NoError(t, err)
 	require.Len(t, mr.Calls, 1)
 	// Verify --context --no-exec were passed
 	args := mr.Calls[0].Args

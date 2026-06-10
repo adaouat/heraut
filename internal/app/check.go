@@ -210,12 +210,20 @@ func findPlatformCfg(cfg *config.Config, typ string) *config.Platform {
 }
 
 // CheckCliff runs git-cliff --context --no-exec against the effective merged config
-// for the given content driver. mode must be "changelog" or "release-notes".
-// Returns nil if git-cliff accepts the config.
-func CheckCliff(runner port.Runner, driver *config.ContentDriver, mode string) error {
+// for the given content driver, applying the remote_metadata policy. mode must be
+// "changelog" or "release-notes". Returns whether the check fell back to --offline
+// (degraded, optional policy) and an error if git-cliff rejected the config. The
+// caller's driver is never mutated — the policy is applied to a copy.
+func CheckCliff(runner port.Runner, driver *config.ContentDriver, mode, policy string) (bool, error) {
 	m := gitcliff.ModeChangelog
 	if mode == "release-notes" {
 		m = gitcliff.ModeReleaseNotes
 	}
-	return gitcliff.New(runner, driver, m).CheckCliff()
+	d := *driver
+	d.RemoteMetadata = policy
+	gen := gitcliff.New(runner, &d, m)
+	if err := gen.CheckCliff(); err != nil {
+		return false, err
+	}
+	return gen.Degraded(), nil
 }

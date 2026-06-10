@@ -179,7 +179,7 @@ func newCheckCliffChangelogCmd() *cobra.Command {
 				return exitcode.Wrap(exitcode.Config, fmt.Errorf("loading config: %w", err))
 			}
 
-			return exitcode.Wrap(exitcode.Runtime, checkCliffDriver(runner, cfg.Changelog, "changelog", out))
+			return exitcode.Wrap(exitcode.Runtime, checkCliffDriver(runner, cfg.Changelog, "changelog", cfg.RemoteMetadata, out))
 		},
 	}
 }
@@ -204,7 +204,7 @@ func newCheckCliffReleaseNotesCmd() *cobra.Command {
 			if cfg.Release != nil {
 				notesDriver = cfg.Release.Notes
 			}
-			return exitcode.Wrap(exitcode.Runtime, checkCliffDriver(runner, notesDriver, "release-notes", out))
+			return exitcode.Wrap(exitcode.Runtime, checkCliffDriver(runner, notesDriver, "release-notes", cfg.RemoteMetadata, out))
 		},
 	}
 }
@@ -241,12 +241,12 @@ func runRuntimeCheck(runner port.Runner, cfg *config.Config, out io.Writer) int 
 func runCliffChecks(runner port.Runner, cfg *config.Config, out io.Writer) bool {
 	var failed bool
 	if cfg.Changelog != nil {
-		if err := checkCliffDriver(runner, cfg.Changelog, "changelog", out); err != nil {
+		if err := checkCliffDriver(runner, cfg.Changelog, "changelog", cfg.RemoteMetadata, out); err != nil {
 			failed = true
 		}
 	}
 	if cfg.Release != nil && cfg.Release.Notes != nil {
-		if err := checkCliffDriver(runner, cfg.Release.Notes, "release-notes", out); err != nil {
+		if err := checkCliffDriver(runner, cfg.Release.Notes, "release-notes", cfg.RemoteMetadata, out); err != nil {
 			failed = true
 		}
 	}
@@ -258,7 +258,7 @@ func runCliffChecks(runner port.Runner, cfg *config.Config, out io.Writer) bool 
 
 // checkCliffDriver validates one git-cliff config. Returns nil if skipped (non-gitcliff
 // generator) or if git-cliff accepts the config.
-func checkCliffDriver(runner port.Runner, driver *config.ContentDriver, mode string, out io.Writer) error {
+func checkCliffDriver(runner port.Runner, driver *config.ContentDriver, mode, policy string, out io.Writer) error {
 	if driver == nil {
 		_, _ = fmt.Fprintln(out, ui.Warn(out, fmt.Sprintf("cliff %s: skip (not configured)", mode)))
 		return nil
@@ -268,10 +268,15 @@ func checkCliffDriver(runner port.Runner, driver *config.ContentDriver, mode str
 		return nil
 	}
 	return forgeui.NewSpinner(out, forgeui.Human).Run(fmt.Sprintf("cliff %s", mode), func() (forgeui.Result, error) {
-		if err := app.CheckCliff(runner, driver, mode); err != nil {
+		degraded, err := app.CheckCliff(runner, driver, mode, policy)
+		if err != nil {
 			return forgeui.Result{}, err
 		}
-		return forgeui.Result{Detail: "valid"}, nil
+		detail := "valid"
+		if degraded {
+			detail = "valid (offline — remote metadata unavailable)"
+		}
+		return forgeui.Result{Detail: detail}, nil
 	})
 }
 
