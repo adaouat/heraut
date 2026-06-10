@@ -289,10 +289,11 @@ versioning:
   tag_format: "{env}/{version}-{build}"  # e.g. uat/7.4.1-158404
 ```
 
-`{build}` is populated by the `--build <id>` flag on `heraut changelog`:
+`{build}` is populated by the `--build <id>` flag on `heraut changelog` and `heraut release`:
 
 ```bash
 heraut changelog --tag --env uat --version 7.4.1 --build $CI_PIPELINE_ID
+heraut release         --env uat --version 7.4.1 --build $CI_PIPELINE_ID
 ```
 
 **Constraints:**
@@ -306,16 +307,20 @@ heraut changelog --tag --env uat --version 7.4.1 --build $CI_PIPELINE_ID
   so existing tags like `uat/7.4.0-155391` correctly yield version `7.4.0` when computing
   the commit range.
 
-**Scope — changelog-only:** the `{build}` flow is supported by `heraut changelog --build`
-only. With a `tag_format` that contains `{build}`, the following commands cannot render a
-tag (no build ID is available) and will error until the noted work lands:
+**Scope:** the `{build}` flow is supported by `heraut changelog --build` and
+`heraut release --build`. With a `tag_format` that contains `{build}`, commands that infer
+the tag from git history cannot render one (no build ID is available) and will error:
 
 | Command | Status |
 |---|---|
 | `heraut changelog --tag --version … --build …` | ✅ supported |
-| `heraut release` | ❌ no `--build` flag (planned — roadmap T57) |
+| `heraut release --version … --build …` | ✅ supported |
 | `heraut version next` | ❌ cannot render a build tag |
 | `heraut version current --env <env>` | ✅ raw tag; add `--bare` for the stripped version (`7.4.1`) |
+
+`heraut release --build` publishes **one platform release per build** — intentional for
+build-per-release teams. Passing both `--version` and `--build` is the explicit opt-in;
+heraut does not guard or warn (mirrors `changelog --build`).
 
 **Changelog note:** git-cliff generates one section per tag boundary. Multiple builds
 of the same semantic version produce multiple sections with the same heading. For a clean

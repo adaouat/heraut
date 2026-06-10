@@ -65,20 +65,21 @@ schema automatically.
 Run the full release pipeline.
 
 ```
-heraut release [--version X.Y.Z] [--dry-run] [--env <name>] [--force]
+heraut release [--version X.Y.Z] [--build <id>] [--dry-run] [--env <name>] [--force]
 ```
 
 | Flag         | Description                                                                          |
 |--------------|--------------------------------------------------------------------------------------|
 | `--version`  | Override the auto-computed version. Bypasses bump resolution.                        |
+| `--build`    | CI build ID appended to the tag via the `{build}` token in `tag_format`. Requires `--version`. |
 | `--dry-run`  | Print the action plan; execute nothing.                                              |
 | `--env`      | Active environment (required for per-env strategies).                                |
 | `--force`    | Bypass E001 (target tag exists) and E002 (destination ahead).                        |
 
-> **`{build}` tag formats:** `heraut release` has no `--build` flag, so a `tag_format`
-> containing `{build}` cannot be rendered here and the command errors. The build-id flow
-> is changelog-only today (see [Spec 02 § `{build}` token](02-configuration.md#build-token--ci-build-ids));
-> `release --build` is planned (roadmap T57).
+> **`{build}` tag formats:** with a `tag_format` containing `{build}`, pass `--build <id>`
+> (requires `--version`) to render and publish a release per build — this creates one
+> platform release per build, by design. See
+> [Spec 02 § `{build}` token](02-configuration.md#build-token--ci-build-ids).
 
 **Action sequence** ([ADR-0011](../adr/0011-single-pipeline-release-via-pre-computation.md), [ADR-0012](../adr/0012-changelog-commit-ownership.md)):
 
