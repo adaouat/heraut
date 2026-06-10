@@ -74,12 +74,20 @@ jobs:
         run: ./$FRESH_BIN check
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # git-cliff reads GITHUB_TOKEN to authenticate its PR-metadata API calls; without
+          # it the calls are unauthenticated and hit GitHub's 60/hr shared-IP rate limit,
+          # which git-cliff treats as fatal (403 panic). GH_TOKEN above is for gh/glab —
+          # the two are not interchangeable.
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GITHUB_REPOSITORY: ${{ github.repository }}
 
       - name: Release
         run: ./$FRESH_BIN release --version "$VERSION"
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # git-cliff needs GITHUB_TOKEN (not GH_TOKEN) to authenticate its PR-metadata API
+          # calls during changelog/release-notes generation — see the Preflight step above.
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GITHUB_REPOSITORY: ${{ github.repository }}
 
       - name: Publish Homebrew cask
