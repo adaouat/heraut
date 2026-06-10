@@ -1,5 +1,35 @@
 # Changelog
 
+## [0.26.0](https://github.com/adaouat/heraut/compare/v0.25.1..v0.26.0) - 2026-06-10
+
+### 🚀 Features
+
+- *(app)* Propagate remote_metadata policy + report cliff degrade - ([a465871](https://github.com/adaouat/heraut/commit/a465871cbb4e7626297cdb82141f38467ea62305)) by @bchatard
+
+- *(cmd)* Add --offline flag forcing remote_metadata: disabled - ([2dffbe0](https://github.com/adaouat/heraut/commit/2dffbe086b63c65faee0a337b12f20c0d8f580d6)) by @bchatard
+
+- *(config)* Add remote_metadata policy field + validation - ([b9a467c](https://github.com/adaouat/heraut/commit/b9a467c4ccfa3437955a3d0d080ef34e3d30a747)) by @bchatard
+
+- *(config)* Add remote_metadata to schema.json + sample + fixtures - ([7aa259f](https://github.com/adaouat/heraut/commit/7aa259f04d1b711bc6f802f110bcf0c5fda3b412)) by @bchatard
+
+- *(generators/gitcliff)* Honor remote_metadata policy via --offline - ([e14c020](https://github.com/adaouat/heraut/commit/e14c020028999da0abf7a1b07104ad817c1c353f)) by @bchatard
+
+- *(pipeline)* Surface remote-metadata degrade as a step sub-result - ([7c682e1](https://github.com/adaouat/heraut/commit/7c682e15015da32aeea5a11c16e3f03f942e1528)) by @bchatard
+
+
+### 📚 Documentation
+
+- *(adr)* Add ADR-0023 remote-metadata policy; complete roadmap T78 - ([fb22f0a](https://github.com/adaouat/heraut/commit/fb22f0a61983c46cd8d889538291e1f71e678089)) by @bchatard
+
+- *(adr)* Record why the CLI override is boolean --offline (ADR-0023) - ([e93cb06](https://github.com/adaouat/heraut/commit/e93cb06291a66e7aa844da7cd406d382f5225b2c)) by @bchatard
+
+- *(roadmap)* Add T78 — remote_metadata policy for git-cliff enrichment - ([9680617](https://github.com/adaouat/heraut/commit/9680617638b460bcadf76f93bb7812460f7f18f8)) by @bchatard
+
+
+### ⚙️ Miscellaneous Tasks
+
+- Authenticate git-cliff GitHub API calls in release workflow - ([cc8f128](https://github.com/adaouat/heraut/commit/cc8f1282c3f848ad16916a4818d7488aef9cb96e)) by @bchatard
+
 ## [0.25.1](https://github.com/adaouat/heraut/compare/v0.25.0..v0.25.1) - 2026-06-10
 
 ### 🐛 Bug Fixes
