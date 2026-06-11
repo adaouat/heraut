@@ -10,8 +10,7 @@ body = """
 {%- macro pr_link(number) -%}
   [{{ get_env(name="HERAUT_PR_LABEL", default="") }}{{ number }}]({{ get_env(name="HERAUT_PR_URL", default="") }}{{ number }})
 {%- endmacro -%}
-
-{% macro print_commit(commit) -%}
+{%- macro print_commit(commit) -%}
     - {% if commit.scope %}*({{ commit.scope }})* {% endif %}\
         {% if commit.breaking %}[**breaking**] {% endif %}\
         {{ commit.message | upper_first }} - \
@@ -27,9 +26,8 @@ body = """
             {% endfor %}\
         {% endif %}\
         {% if commit.body or commit.footers %}\n{% endif %}\
-{% endmacro -%}
-
-{% macro print_contributors(contributors) -%}
+{%- endmacro -%}
+{%- macro print_contributors(contributors) -%}
 {% if contributors | filter(attribute="is_first_time", value=true) | length != 0 %}
   ### New Contributors ❤️
 {% for contributor in contributors | filter(attribute="is_first_time", value=true) %}
@@ -39,13 +37,7 @@ body = """
     {%- endif %}
 {%- endfor %}
 {% endif -%}
-{% endmacro -%}
-
-{% if version %}\
-    ## [{{ version | trim_start_matches(pat="v") }}] - {{ timestamp | date(format="%Y-%m-%d") }}
-{% else %}\
-    ## [unreleased]
-{% endif %}\
+{%- endmacro -%}
 
 {% for group, commits in commits | group_by(attribute="group") %}
     ### {{ group | striptags | trim | upper_first }}
