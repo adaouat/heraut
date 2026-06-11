@@ -1,5 +1,18 @@
 # Changelog
 
+## [0.30.1](https://github.com/adaouat/heraut/compare/v0.30.0..v0.30.1) - 2026-06-11
+
+### 🎨 Styling
+
+- Gofmt -s on calver parser_test - ([e5ec535](https://github.com/adaouat/heraut/commit/e5ec535375aa14ca9c872bf563cece3ce3ffe5e5)) by @bchatard
+
+
+### ⚙️ Miscellaneous Tasks
+
+- Run the full hk linter set in CI (hadolint, actionlint, typos, …) - ([0906de5](https://github.com/adaouat/heraut/commit/0906de56c76fdaf2dc5e1700e2d4ccfd1b372e69)) by @bchatard
+
+- Fix shellcheck findings in release.yml run blocks - ([c8cb125](https://github.com/adaouat/heraut/commit/c8cb1253ee4d1e715a99727187b4cd6e289058ea)) by @bchatard
+
 ## [0.30.0](https://github.com/adaouat/heraut/compare/v0.29.0..v0.30.0) - 2026-06-11
 
 ### 🚀 Features
