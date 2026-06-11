@@ -3,6 +3,7 @@ package config
 import (
 	"fmt"
 	"net/url"
+	"regexp"
 	"sort"
 	"strings"
 )
@@ -37,7 +38,59 @@ func Validate(cfg *Config) ValidationErrors {
 	errs = append(errs, validateEnums(cfg)...)
 	errs = append(errs, validateStrategySpecific(cfg)...)
 	errs = append(errs, validateEnvContradictions(cfg.Environments)...)
+	errs = append(errs, validateTickets(cfg)...)
 	return errs
+}
+
+// validateTickets checks the ticket-link config: each pattern compiles as a regex, each url
+// is an absolute http(s) URL containing {ticket}, and tickets require the git-cliff generator.
+func validateTickets(cfg *Config) []ValidationError {
+	if len(cfg.Tickets) == 0 {
+		return nil
+	}
+	var errs []ValidationError
+	if !ticketsGeneratorSupported(cfg) {
+		errs = append(errs, ValidationError{
+			Path:    "tickets",
+			Message: "ticket linking requires the git-cliff generator",
+			Hint:    "set changelog.generator / release.notes.generator to git-cliff, or remove tickets",
+		})
+	}
+	for i, t := range cfg.Tickets {
+		base := fmt.Sprintf("tickets[%d]", i)
+		if t.Pattern == "" {
+			errs = append(errs, ValidationError{Path: base + ".pattern", Message: "required", Hint: "a regex matching ticket IDs, e.g. [A-Z]+-[0-9]+"})
+		} else if _, err := regexp.Compile(t.Pattern); err != nil {
+			errs = append(errs, ValidationError{Path: base + ".pattern", Message: fmt.Sprintf("invalid regex: %v", err), Hint: "use a valid git-cliff (Rust) / Go regex"})
+		}
+		if t.URL == "" {
+			errs = append(errs, ValidationError{Path: base + ".url", Message: "required", Hint: "an http(s) URL containing {ticket}, e.g. https://jira.example.com/browse/{ticket}"})
+			continue
+		}
+		if !strings.Contains(t.URL, "{ticket}") {
+			errs = append(errs, ValidationError{Path: base + ".url", Message: "must contain the {ticket} placeholder", Hint: "e.g. https://jira.example.com/browse/{ticket}"})
+		}
+		if !isValidBaseURL(strings.ReplaceAll(t.URL, "{ticket}", "1")) {
+			errs = append(errs, ValidationError{Path: base + ".url", Message: "must be an absolute http(s) URL", Hint: "include the scheme, e.g. https://…"})
+		}
+	}
+	return errs
+}
+
+// ticketsGeneratorSupported reports whether every configured top-level content generator is
+// git-cliff (the only generator with a link mechanism). An empty generator (inherits the
+// default) is allowed.
+func ticketsGeneratorSupported(cfg *Config) bool {
+	drivers := []*ContentDriver{cfg.Changelog}
+	if cfg.Release != nil {
+		drivers = append(drivers, cfg.Release.Notes)
+	}
+	for _, d := range drivers {
+		if d != nil && d.Generator != "" && !strings.EqualFold(d.Generator, "git-cliff") {
+			return false
+		}
+	}
+	return true
 }
 
 func validateRequired(cfg *Config) []ValidationError {

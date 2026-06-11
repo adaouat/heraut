@@ -901,3 +901,63 @@ environments:
 	assert.NotNil(t, findErr(errs, "environments.prod.changelog.generator"),
 		"no generator at either level must still fail")
 }
+
+// ── tickets ──────────────────────────────────────────────────────────────────
+
+func TestValidate_TicketsValid(t *testing.T) {
+	cfg := mustLoad(t, `
+version: "1"
+versioning:
+  strategy: semver
+changelog:
+  generator: git-cliff
+tickets:
+  - pattern: '[A-Z]+-[0-9]+'
+    url: 'https://acme.atlassian.net/browse/{ticket}'
+`)
+	assert.Empty(t, config.Validate(cfg))
+}
+
+func TestValidate_TicketsInvalidRegex(t *testing.T) {
+	cfg := mustLoad(t, `
+version: "1"
+versioning:
+  strategy: semver
+tickets:
+  - pattern: '[A-Z'
+    url: 'https://x.test/{ticket}'
+`)
+	e := findErr(config.Validate(cfg), "tickets[0].pattern")
+	require.NotNil(t, e)
+	assert.Contains(t, e.Message, "regex")
+}
+
+func TestValidate_TicketsURLMissingPlaceholder(t *testing.T) {
+	cfg := mustLoad(t, `
+version: "1"
+versioning:
+  strategy: semver
+tickets:
+  - pattern: '[A-Z]+-[0-9]+'
+    url: 'https://x.test/browse/'
+`)
+	e := findErr(config.Validate(cfg), "tickets[0].url")
+	require.NotNil(t, e)
+	assert.Contains(t, e.Message, "{ticket}")
+}
+
+func TestValidate_TicketsNonGitCliffGenerator(t *testing.T) {
+	cfg := mustLoad(t, `
+version: "1"
+versioning:
+  strategy: semver
+changelog:
+  generator: cocogitto
+tickets:
+  - pattern: '[A-Z]+-[0-9]+'
+    url: 'https://x.test/{ticket}'
+`)
+	e := findErr(config.Validate(cfg), "tickets")
+	require.NotNil(t, e)
+	assert.Contains(t, e.Message, "git-cliff")
+}
