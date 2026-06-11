@@ -10,50 +10,50 @@ import (
 
 func TestParseFormat_Tokens(t *testing.T) {
 	tests := []struct {
-		name        string
-		format      string
-		wantKinds   []calver.TokenKind
+		name         string
+		format       string
+		wantKinds    []calver.TokenKind
 		wantLiterals []string
 	}{
 		{
-			name:   "YYYY.MM.PATCH",
-			format: "YYYY.MM.PATCH",
+			name:         "YYYY.MM.PATCH",
+			format:       "YYYY.MM.PATCH",
 			wantKinds:    []calver.TokenKind{calver.KindYYYY, calver.KindLiteral, calver.KindMM, calver.KindLiteral, calver.KindPATCH},
 			wantLiterals: []string{"", ".", "", ".", ""},
 		},
 		{
-			name:   "YYYY.MM.DD.PATCH",
-			format: "YYYY.MM.DD.PATCH",
+			name:         "YYYY.MM.DD.PATCH",
+			format:       "YYYY.MM.DD.PATCH",
 			wantKinds:    []calver.TokenKind{calver.KindYYYY, calver.KindLiteral, calver.KindMM, calver.KindLiteral, calver.KindDD, calver.KindLiteral, calver.KindPATCH},
 			wantLiterals: []string{"", ".", "", ".", "", ".", ""},
 		},
 		{
-			name:   "YYYY.WW.PATCH",
-			format: "YYYY.WW.PATCH",
+			name:         "YYYY.WW.PATCH",
+			format:       "YYYY.WW.PATCH",
 			wantKinds:    []calver.TokenKind{calver.KindYYYY, calver.KindLiteral, calver.KindWW, calver.KindLiteral, calver.KindPATCH},
 			wantLiterals: []string{"", ".", "", ".", ""},
 		},
 		{
-			name:   "YYYY.QQ.PATCH",
-			format: "YYYY.QQ.PATCH",
+			name:         "YYYY.QQ.PATCH",
+			format:       "YYYY.QQ.PATCH",
 			wantKinds:    []calver.TokenKind{calver.KindYYYY, calver.KindLiteral, calver.KindQQ, calver.KindLiteral, calver.KindPATCH},
 			wantLiterals: []string{"", ".", "", ".", ""},
 		},
 		{
-			name:   "YYYY.SS.PATCH",
-			format: "YYYY.SS.PATCH",
+			name:         "YYYY.SS.PATCH",
+			format:       "YYYY.SS.PATCH",
 			wantKinds:    []calver.TokenKind{calver.KindYYYY, calver.KindLiteral, calver.KindSS, calver.KindLiteral, calver.KindPATCH},
 			wantLiterals: []string{"", ".", "", ".", ""},
 		},
 		{
-			name:   "YYYY.SPRINT.PATCH",
-			format: "YYYY.SPRINT.PATCH",
+			name:         "YYYY.SPRINT.PATCH",
+			format:       "YYYY.SPRINT.PATCH",
 			wantKinds:    []calver.TokenKind{calver.KindYYYY, calver.KindLiteral, calver.KindSPRINT, calver.KindLiteral, calver.KindPATCH},
 			wantLiterals: []string{"", ".", "", ".", ""},
 		},
 		{
-			name:   "YYYY.PATCH yearly",
-			format: "YYYY.PATCH",
+			name:         "YYYY.PATCH yearly",
+			format:       "YYYY.PATCH",
 			wantKinds:    []calver.TokenKind{calver.KindYYYY, calver.KindLiteral, calver.KindPATCH},
 			wantLiterals: []string{"", ".", ""},
 		},
