@@ -383,6 +383,30 @@ Both `notes` and `platforms` are optional independently:
   Note: `heraut release` requires at least one entry in `platforms`; omitting the whole
   `release` block (or leaving `platforms` empty) is a configuration error for that command.
 
+## `tickets`
+
+A top-level list that links issue-tracker references found in commit messages — **subject,
+body, or footer** (e.g. `Refs: PROJ-123`) — in both the changelog and the release notes.
+**git-cliff only**; setting `tickets` with a `cocogitto`/`communique` generator is a
+configuration error (ADR-0024).
+
+```yaml
+tickets:
+  - pattern: '[A-Z]+-[0-9]+'                          # Jira/Linear: PROJ-123 → /browse/PROJ-123
+    url: 'https://acme.atlassian.net/browse/{ticket}'
+  - pattern: 'GH-([0-9]+)'                            # GitHub issues: GH-123 → /issues/123
+    url: 'https://github.com/acme/app/issues/{ticket}'
+```
+
+| Field | Meaning |
+|---|---|
+| `pattern` | A regex matching ticket IDs. Each match is rendered as a link; the **label** is always the full match. |
+| `url` | A URL template containing `{ticket}`. `{ticket}` is the pattern's **first capture group**, or the **full match** when the pattern has no group — so a system whose URL needs only part of the token (GitHub `GH-123` → `…/issues/123`) wraps that part in `()`. |
+
+heraut injects each entry as a git-cliff `link_parser` (appended after any user-supplied
+ones); the link is appended to the commit line as `([TICKET](url))`. A ticket that appears in
+the subject shows both in the prose and as the appended link (append-only).
+
 ## Content generators
 
 Used under `changelog` and `release.notes`. A project can use different generators for

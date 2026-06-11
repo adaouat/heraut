@@ -28,3 +28,4 @@ trade-offs were accepted.
 | [0021](0021-per-platform-release-notes.md) | Release Notes Regenerated Per Platform | Accepted |
 | [0022](0022-fat-injection-thin-templates.md) | Fat Injection / Thin git-cliff Templates | Accepted |
 | [0023](0023-remote-metadata-policy.md) | Remote-Metadata Policy for Content Generation | Accepted |
+| [0024](0024-ticket-linking.md) | Ticket Linking via git-cliff link_parsers | Accepted |

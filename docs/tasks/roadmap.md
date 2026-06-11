@@ -3525,7 +3525,7 @@ TOML; both embedded templates render `commit.links`. Design:
 plan: [`.claude/plans/ticket-linking-implementation.md`](../../.claude/plans/ticket-linking-implementation.md);
 decision recorded in ADR-0024 (T82).
 
-#### `[ ]` T79: `tickets` config surface + validation
+#### `[x]` T79: `tickets` config surface + validation
 
 Add a top-level `tickets:` list (`pattern` + `url`) — parsed by the loader and
 semantically validated: each `pattern` compiles as a regex, each `url` is an absolute
@@ -3535,7 +3535,11 @@ governance of both generators.
 
 **Files:** `internal/config/{config.go,validator.go}` + tests. **Scope:** S.
 
-#### `[ ]` T80: Inject ticket `link_parsers` + propagate onto drivers
+**Done:** `Ticket{Pattern, URL}` + `Config.Tickets` + the programmatic `ContentDriver.Tickets`
+carrier; `validateTickets` (each pattern compiles, each url is an absolute http(s) URL
+containing `{ticket}`, and `tickets` requires git-cliff). Commits `14d0b6f`, `47a518b`.
+
+#### `[x]` T80: Inject ticket `link_parsers` + propagate onto drivers
 
 The gitcliff generator's `effectiveConfig` gains `injectLinkParsers`: each ticket becomes a
 git-cliff `{ pattern, href }` entry (pattern wrapped in a capture group only when it has
@@ -3546,7 +3550,11 @@ in `withEnvDerivations` (the same clone point as `remote_metadata`).
 **Files:** `internal/generators/gitcliff/generator.go`, `internal/app/pipeline.go` + tests.
 **Scope:** S–M. **Dependencies:** T79.
 
-#### `[ ]` T81: Render ticket links in changelog + release-notes templates
+**Done:** `injectLinkParsers` in `effectiveConfig` (regex `NumSubexp()==0` → wrap the pattern
+in a group; `{ticket}`→`$1`; appended after any existing `link_parsers`); `withEnvDerivations`
+carries `cfg.Tickets` onto the driver clone. Commits `99c9e26`, `5696d2c`.
+
+#### `[x]` T81: Render ticket links in changelog + release-notes templates
 
 Both embedded `print_commit` macros append `commit.links` after the PR-number segment.
 Whitespace verified via a real-CLI render (config-acceptance tests only — rendered output
@@ -3555,7 +3563,11 @@ is checked manually, as with the New Contributors section).
 **Files:** `internal/generators/gitcliff/{cliff.changelog.toml,cliff.release-notes.toml}`.
 **Scope:** S. **Dependencies:** T80.
 
-#### `[ ]` T82: Schema, sample, fixtures + ADR-0024 + spec
+**Done:** Both `print_commit` macros append `commit.links` as `([TICKET](url))`. A real-CLI
+render confirmed subject *and* footer (`Refs:`) tickets link with clean whitespace,
+location-independent. Commit `698d075`.
+
+#### `[x]` T82: Schema, sample, fixtures + ADR-0024 + spec
 
 `schema.json` (`tickets` array) + `docs/heraut.sample.yml` section + valid/invalid schema
 fixtures; ADR-0024 recording the link_parsers-over-preprocessors decision; document
@@ -3564,6 +3576,10 @@ fixtures; ADR-0024 recording the link_parsers-over-preprocessors decision; docum
 **Files:** `schema.json`, `docs/heraut.sample.yml`, `testdata/config/{valid,invalid}/`,
 `internal/config/schema_test.go`, `docs/adr/0024-ticket-linking.md`, `docs/adr/README.md`,
 `docs/specs/02-configuration.md`. **Scope:** S. **Dependencies:** T79.
+
+**Done:** `tickets` in `schema.json` + `docs/heraut.sample.yml` + valid/invalid schema
+fixtures; [ADR-0024](../adr/0024-ticket-linking.md) records the link_parsers-over-preprocessors
+decision; `docs/specs/02-configuration.md` § `tickets`. Full suite green, golangci-lint clean.
 
 ---
 
