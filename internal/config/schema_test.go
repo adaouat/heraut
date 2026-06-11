@@ -72,6 +72,7 @@ func TestSchema_InvalidFixtures(t *testing.T) {
 		{"invalid_strategy.yml", "strategy enum violation"},
 		{"invalid_generator.yml", "generator enum violation"},
 		{"invalid_remote_metadata.yml", "remote_metadata enum violation"},
+		{"invalid_tickets.yml", "tickets item missing required url"},
 		{"unknown_key.yml", "additionalProperties violation"},
 		{"perenv_no_environments.yml", "per-env strategy requires environments"},
 	}

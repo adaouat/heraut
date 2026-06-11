@@ -1,0 +1,7 @@
+version: "1"
+
+versioning:
+  strategy: semver
+
+tickets:
+  - pattern: '[A-Z]+-[0-9]+'

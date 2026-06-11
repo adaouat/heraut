@@ -40,6 +40,28 @@
       ],
       "default": "optional",
       "description": "Whether content generators fetch PR/MR metadata (author handle, PR number) from the platform API to enrich the changelog/release-notes. 'required': fetch and fail if unavailable. 'optional' (default): fetch when possible, otherwise generate without it and warn. 'disabled': never fetch (offline, no token). Governs both changelog and release-notes generation. The --offline flag forces 'disabled' for a single run."
+    },
+    "tickets": {
+      "type": "array",
+      "description": "Issue-tracker links. Each entry's regex is matched in commit messages (subject/body/footer) and rendered as a link in the changelog and release notes. git-cliff only.",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "pattern",
+          "url"
+        ],
+        "properties": {
+          "pattern": {
+            "type": "string",
+            "description": "Regex matching ticket IDs, e.g. [A-Z]+-[0-9]+. The first capture group (or the full match if there is no group) becomes {ticket}; the link label is always the full match."
+          },
+          "url": {
+            "type": "string",
+            "description": "URL template containing {ticket}, e.g. https://jira.example.com/browse/{ticket}."
+          }
+        }
+      }
     }
   },
   "definitions": {
