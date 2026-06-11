@@ -475,3 +475,27 @@ func TestEmbeddedConfig_RealGitCliff(t *testing.T) {
 		})
 	}
 }
+
+func TestEffectiveConfig_InjectsTicketLinkParsers(t *testing.T) {
+	cfg := &config.ContentDriver{Generator: "git-cliff", Tickets: []config.Ticket{
+		{Pattern: "[A-Z]+-[0-9]+", URL: "https://acme.atlassian.net/browse/{ticket}"}, // no group → wrapped
+		{Pattern: "GH-([0-9]+)", URL: "https://github.com/acme/app/issues/{ticket}"},  // group → as-is
+	}}
+	gen := gitcliff.New(nil, cfg, gitcliff.ModeReleaseNotes)
+
+	out, err := gen.EffectiveReleaseNotesConfig()
+	require.NoError(t, err)
+	assert.Contains(t, out, "link_parsers")
+	assert.Contains(t, out, "([A-Z]+-[0-9]+)") // no-group pattern wrapped in a capture group
+	assert.Contains(t, out, "browse/$1")       // {ticket} → $1 in href
+	assert.Contains(t, out, "GH-([0-9]+)")     // already-grouped pattern left as-is
+	assert.Contains(t, out, "issues/$1")
+}
+
+func TestEffectiveConfig_NoTickets_NoLinkParsers(t *testing.T) {
+	cfg := &config.ContentDriver{Generator: "git-cliff"}
+	gen := gitcliff.New(nil, cfg, gitcliff.ModeChangelog)
+	out, err := gen.EffectiveChangelogConfig()
+	require.NoError(t, err)
+	assert.NotContains(t, out, "atlassian")
+}

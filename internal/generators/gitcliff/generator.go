@@ -3,6 +3,7 @@ package gitcliff
 import (
 	"fmt"
 	"os"
+	"regexp"
 	"slices"
 	"strings"
 
@@ -203,7 +204,55 @@ func (g *Generator) effectiveConfig(base string) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	return injectHeadingPostprocessor(merged, g.cfg.HeadingVersionPattern)
+	withHeading, err := injectHeadingPostprocessor(merged, g.cfg.HeadingVersionPattern)
+	if err != nil {
+		return "", err
+	}
+	return injectLinkParsers(withHeading, g.cfg.Tickets)
+}
+
+// injectLinkParsers appends one git-cliff link_parser per ticket to the [git] table of the
+// merged TOML: { pattern = <P>, href = <url with {ticket}→$1> }. <P> is the user pattern
+// wrapped in a capture group only when it has none, so $1 is the URL value; the link label
+// defaults to the full match (git-cliff's text default). Existing user link_parsers are
+// preserved — heraut's entries are appended after them.
+func injectLinkParsers(merged string, tickets []config.Ticket) (string, error) {
+	if len(tickets) == 0 {
+		return merged, nil
+	}
+	var doc map[string]any
+	if err := toml.Unmarshal([]byte(merged), &doc); err != nil {
+		return "", fmt.Errorf("parsing merged TOML for link_parsers injection: %w", err)
+	}
+	git, _ := doc["git"].(map[string]any)
+	if git == nil {
+		git = make(map[string]any)
+		doc["git"] = git
+	}
+	entries := make([]any, 0, len(tickets))
+	for _, t := range tickets {
+		pattern := t.Pattern
+		re, err := regexp.Compile(pattern)
+		if err != nil {
+			return "", fmt.Errorf("ticket pattern %q: %w", t.Pattern, err)
+		}
+		if re.NumSubexp() == 0 {
+			pattern = "(" + pattern + ")"
+		}
+		href := strings.ReplaceAll(t.URL, "{ticket}", "$1")
+		entries = append(entries, map[string]any{"pattern": pattern, "href": href})
+	}
+	switch existing := git["link_parsers"].(type) {
+	case []any:
+		git["link_parsers"] = append(existing, entries...)
+	default:
+		git["link_parsers"] = entries
+	}
+	out, err := toml.Marshal(doc)
+	if err != nil {
+		return "", fmt.Errorf("marshalling TOML after link_parsers injection: %w", err)
+	}
+	return string(out), nil
 }
 
 // injectHeadingPostprocessor prepends a postprocessor entry (derived from the effective
