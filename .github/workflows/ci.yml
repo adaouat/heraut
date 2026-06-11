@@ -25,3 +25,18 @@ jobs:
         run: go build ./cmd/heraut/
       - name: Check GoReleaser config
         run: goreleaser check
+
+  # The reusable `ci` job only runs golangci-lint, but all linting is configured in hk
+  # (.config/hk/config.pkl) — hadolint, actionlint, yamlfmt, typos, pkl, go fmt, … — and the
+  # local pre-commit hook only sees staged files, so those never reach CI. Run the full hk
+  # set here (check mode, all files; --skip-step golangci_lint avoids re-running it). hk's
+  # per-step file selection scopes each linter (hadolint → Dockerfile*, actionlint → workflows).
+  hk:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+      - name: Setup Mise
+        uses: jdx/mise-action@1648a7812b9aeae629881980618f079932869151 # v4
+      - name: hk check
+        run: hk check --all --check --skip-step golangci_lint
