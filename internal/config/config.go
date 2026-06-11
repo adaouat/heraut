@@ -13,6 +13,18 @@ type Config struct {
 	// skip), "disabled" (never fetch). Empty resolves to "optional". Governs both changelog
 	// and release-notes generation (T78).
 	RemoteMetadata string `yaml:"remote_metadata,omitempty"`
+	// Tickets configures issue-tracker links: each entry's regex is matched in commit
+	// messages (subject/body/footer) and rendered as a link in the changelog and release
+	// notes. git-cliff only (T79 / ADR-0024).
+	Tickets []Ticket `yaml:"tickets,omitempty"`
+}
+
+// Ticket maps a commit ticket-ID pattern to a URL template. {ticket} in URL is the first
+// capture group of Pattern (or the full match if Pattern has no group); the link label is
+// always the full match.
+type Ticket struct {
+	Pattern string `yaml:"pattern"`
+	URL     string `yaml:"url"`
 }
 
 // Versioning holds version resolution settings.
@@ -67,6 +79,9 @@ type ContentDriver struct {
 	// the driver by the app layer so the generator can honour it. Empty means "optional".
 	// Not user-configurable at the driver level (the user sets it once at the top level).
 	RemoteMetadata string `yaml:"-"`
+	// Tickets is the effective top-level Config.Tickets, propagated onto the driver by the
+	// app layer so the generator can inject link_parsers. Not user-configurable per-driver.
+	Tickets []Ticket `yaml:"-"`
 }
 
 // Release holds release notes and platform settings.

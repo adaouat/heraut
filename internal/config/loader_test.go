@@ -374,3 +374,17 @@ release:
 	require.NotNil(t, cfg.Release)
 	assert.Empty(t, cfg.Release.Assets)
 }
+
+func TestLoad_Tickets(t *testing.T) {
+	cfg := mustLoad(t, `
+version: "1"
+versioning:
+  strategy: semver
+tickets:
+  - pattern: '[A-Z]+-[0-9]+'
+    url: 'https://acme.atlassian.net/browse/{ticket}'
+`)
+	require.Len(t, cfg.Tickets, 1)
+	assert.Equal(t, "[A-Z]+-[0-9]+", cfg.Tickets[0].Pattern)
+	assert.Equal(t, "https://acme.atlassian.net/browse/{ticket}", cfg.Tickets[0].URL)
+}
