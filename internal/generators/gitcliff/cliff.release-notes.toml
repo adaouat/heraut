@@ -29,6 +29,18 @@ body = """
         {% if commit.body or commit.footers %}\n{% endif %}\
 {% endmacro -%}
 
+{% macro print_contributors(contributors) -%}
+{% if contributors | filter(attribute="is_first_time", value=true) | length != 0 %}
+  ### New Contributors ❤️
+{% for contributor in contributors | filter(attribute="is_first_time", value=true) %}
+  * @{{ contributor.username }} made their first contribution
+    {%- if contributor.pr_number %} in \
+      {{ self::pr_link(number=contributor.pr_number) }} \
+    {%- endif %}
+{%- endfor %}
+{% endif -%}
+{% endmacro -%}
+
 {% if version %}\
     ## [{{ version | trim_start_matches(pat="v") }}] - {{ timestamp | date(format="%Y-%m-%d") }}
 {% else %}\
@@ -48,15 +60,12 @@ body = """
         {% endif -%}
     {% endfor -%}
 {% endfor -%}
-{% if gitlab.contributors | filter(attribute="is_first_time", value=true) | length != 0 %}
-  ### New Contributors ❤️
-{% for contributor in gitlab.contributors | filter(attribute="is_first_time", value=true) %}
-  * @{{ contributor.username }} made their first contribution
-    {%- if contributor.pr_number %} in \
-      {{ self::pr_link(number=contributor.pr_number) }} \
-    {%- endif %}
-{%- endfor -%}\
-{%- endif %}
+{%- set contributors = gitlab.contributors
+    | concat(with=github.contributors)
+    | concat(with=gitea.contributors)
+    | concat(with=bitbucket.contributors)
+    | concat(with=azure_devops.contributors) -%}
+{{ self::print_contributors(contributors=contributors) }}
 ### Commit Statistics\n
 - {{ statistics.commit_count }} commit(s) contributed to the release.
 - {{ statistics.commits_timespan | default(value=0) }} day(s) passed between the first and last commit.
