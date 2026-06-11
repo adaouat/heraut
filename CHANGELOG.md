@@ -1,5 +1,35 @@
 # Changelog
 
+## [0.29.0](https://github.com/adaouat/heraut/compare/v0.28.0..v0.29.0) - 2026-06-11
+
+### 🚀 Features
+
+- *(cmd)* Add --build to heraut release for build-id release flows - ([280b29d](https://github.com/adaouat/heraut/commit/280b29df0e307f41ff402180daa79376996a2e01)) by @bchatard
+
+
+### 🐛 Bug Fixes
+
+- *(generators/gitcliff)* Render New Contributors from any platform's remote - ([316ce84](https://github.com/adaouat/heraut/commit/316ce846e33400cabea6cbc6200a6d6d310f823d)) by @bchatard
+
+
+### 📚 Documentation
+
+- *(roadmap)* Mark T68 done (checkbox lag; work landed in ADR-0021) - ([7061e89](https://github.com/adaouat/heraut/commit/7061e89fa3c6ce8b419d6aae8b2bc1c4f6315f04)) by @bchatard
+
+- *(roadmap)* Complete T57 (heraut release --build) - ([d86c09b](https://github.com/adaouat/heraut/commit/d86c09ba961e31c742bbfd8749b23e026487ae0a)) by @bchatard
+
+- *(specs)* Document heraut release --build (T57) - ([3e8e37a](https://github.com/adaouat/heraut/commit/3e8e37a8ecd53a158f1ce8738ae26f6c8272c90d)) by @bchatard
+
+
+### 🎨 Styling
+
+- *(generators/gitcliff)* Drop redundant version heading from release notes - ([c977f61](https://github.com/adaouat/heraut/commit/c977f61c2386f848bedeb19a58b389aaf00c4297)) by @bchatard
+
+
+### ⚙️ Miscellaneous Tasks
+
+- Keep CHANGELOG.md in Docker build context for the whatsnew embed - ([acac7b6](https://github.com/adaouat/heraut/commit/acac7b60e7022ccc844b8792012b2a11a6820f38)) by @bchatard
+
 ## [0.28.0](https://github.com/adaouat/heraut/compare/v0.27.0..v0.28.0) - 2026-06-10
 
 ### 🚀 Features
