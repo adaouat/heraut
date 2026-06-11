@@ -71,7 +71,7 @@ jobs:
           fi
 
       - name: Preflight check
-        run: ./$FRESH_BIN check
+        run: '"./$FRESH_BIN" check'
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           # git-cliff reads GITHUB_TOKEN to authenticate its PR-metadata API calls; without
@@ -82,7 +82,7 @@ jobs:
           GITHUB_REPOSITORY: ${{ github.repository }}
 
       - name: Release
-        run: ./$FRESH_BIN release --version "$VERSION"
+        run: '"./$FRESH_BIN" release --version "$VERSION"'
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           # git-cliff needs GITHUB_TOKEN (not GH_TOKEN) to authenticate its PR-metadata API
@@ -129,7 +129,7 @@ jobs:
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
 
       - name: Prepare platform tag
-        run: echo "PLATFORM_PAIR=${PLATFORM//\//-}" >> $GITHUB_ENV
+        run: echo "PLATFORM_PAIR=${PLATFORM//\//-}" >> "$GITHUB_ENV"
         env:
           PLATFORM: ${{ matrix.platform }}
 
@@ -217,6 +217,8 @@ jobs:
       - name: Create manifest list and push
         working-directory: /tmp/digests
         run: |
+          # shellcheck disable=SC2046 # word splitting is intentional: each "-t tag" must be
+          # a separate arg, and the glob must expand to one path per digest file.
           docker buildx imagetools create \
             $(jq -cr '.tags | map("-t " + .) | join(" ")' <<< "$DOCKER_METADATA_OUTPUT_JSON") \
             $(printf 'ghcr.io/adaouat/heraut@sha256:%s ' *)
@@ -228,7 +230,7 @@ jobs:
             --format '{{json .Manifest}}' \
             ghcr.io/adaouat/heraut:${{ steps.meta.outputs.version }} \
             | jq -r '.digest // .Digest')
-          echo "digest=$DIGEST" >> $GITHUB_OUTPUT
+          echo "digest=$DIGEST" >> "$GITHUB_OUTPUT"
 
       - name: Attest image provenance
         uses: actions/attest@59d89421af93a897026c735860bf21b6eb4f7b26 # v4
