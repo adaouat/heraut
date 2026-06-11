@@ -1,5 +1,32 @@
 # Changelog
 
+## [0.30.0](https://github.com/adaouat/heraut/compare/v0.29.0..v0.30.0) - 2026-06-11
+
+### 🚀 Features
+
+- *(app)* Propagate tickets config onto content drivers - ([10410fa](https://github.com/adaouat/heraut/commit/10410fa7a6d9b2ab7709376d95b9b2370697abdf)) by @bchatard
+
+- *(config)* Add tickets field for issue-tracker links - ([770c318](https://github.com/adaouat/heraut/commit/770c31816a7b13aafe690fff35b81d64d9331f05)) by @bchatard
+
+- *(config)* Validate tickets (regex, {ticket} url, git-cliff only) - ([a159801](https://github.com/adaouat/heraut/commit/a15980141a30bd5e5e20cd0b4918093211621400)) by @bchatard
+
+- *(config)* Add tickets to schema + sample + fixtures - ([0de6706](https://github.com/adaouat/heraut/commit/0de6706295a1d00cb1b9b2c1376640825cd4cbb4)) by @bchatard
+
+- *(generators/gitcliff)* Inject ticket link_parsers into effective config - ([cc1925d](https://github.com/adaouat/heraut/commit/cc1925dfdf822934e8aabf0381326a20f6afaad7)) by @bchatard
+
+- *(generators/gitcliff)* Render ticket links in changelog and release notes - ([98f83e1](https://github.com/adaouat/heraut/commit/98f83e14817ef671d209d9d0aeeab29ac1f489fe)) by @bchatard
+
+
+### 📚 Documentation
+
+- *(plans)* Add ticket-linking design spec - ([6dee113](https://github.com/adaouat/heraut/commit/6dee113ec25380379575f08f006a51707d73d31c)) by @bchatard
+
+- *(plans)* Add ticket-linking implementation plan - ([d33f307](https://github.com/adaouat/heraut/commit/d33f307cb016e3e6f72b89e3882d996a523ed9d3)) by @bchatard
+
+- *(roadmap)* Add Phase 15 — ticket linking (T79–T82) - ([dfc44c5](https://github.com/adaouat/heraut/commit/dfc44c54cea71fa718d170607ea66f86f3fe048a)) by @bchatard
+
+- ADR-0024 ticket linking; document tickets; complete T79–T82 - ([485c07a](https://github.com/adaouat/heraut/commit/485c07af93d398cc78db68b238a320834e9d4391)) by @bchatard
+
 ## [0.29.0](https://github.com/adaouat/heraut/compare/v0.28.0..v0.29.0) - 2026-06-11
 
 ### 🚀 Features
