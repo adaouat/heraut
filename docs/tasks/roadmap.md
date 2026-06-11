@@ -3515,6 +3515,56 @@ via `applyOfflineOverride`. `schema.json` + `docs/heraut.sample.yml` + valid/inv
 fixtures added. Per-generator split policy left deferred (YAGNI). Full suite green,
 golangci-lint clean.
 
+### Phase 15 — Ticket linking
+
+First-class issue-tracker links (Jira/Linear/GitHub-issue) in the changelog **and** release
+notes, via git-cliff's `link_parsers`. A top-level `tickets:` list is validated, propagated
+onto the content drivers (like `remote_metadata`), and injected into the effective git-cliff
+TOML; both embedded templates render `commit.links`. Design:
+[`.claude/plans/ticket-linking.md`](../../.claude/plans/ticket-linking.md); implementation
+plan: [`.claude/plans/ticket-linking-implementation.md`](../../.claude/plans/ticket-linking-implementation.md);
+decision recorded in ADR-0024 (T82).
+
+#### `[ ]` T79: `tickets` config surface + validation
+
+Add a top-level `tickets:` list (`pattern` + `url`) — parsed by the loader and
+semantically validated: each `pattern` compiles as a regex, each `url` is an absolute
+http(s) URL containing `{ticket}`, and `tickets` set with a non-git-cliff generator is an
+error (only git-cliff has a link mechanism). Mirrors `remote_metadata`'s top-level
+governance of both generators.
+
+**Files:** `internal/config/{config.go,validator.go}` + tests. **Scope:** S.
+
+#### `[ ]` T80: Inject ticket `link_parsers` + propagate onto drivers
+
+The gitcliff generator's `effectiveConfig` gains `injectLinkParsers`: each ticket becomes a
+git-cliff `{ pattern, href }` entry (pattern wrapped in a capture group only when it has
+none, so `{ticket}`→`$1` is the URL value; label defaults to the full match), appended to
+any existing `[git].link_parsers`. The app layer propagates `cfg.Tickets` onto each driver
+in `withEnvDerivations` (the same clone point as `remote_metadata`).
+
+**Files:** `internal/generators/gitcliff/generator.go`, `internal/app/pipeline.go` + tests.
+**Scope:** S–M. **Dependencies:** T79.
+
+#### `[ ]` T81: Render ticket links in changelog + release-notes templates
+
+Both embedded `print_commit` macros append `commit.links` after the PR-number segment.
+Whitespace verified via a real-CLI render (config-acceptance tests only — rendered output
+is checked manually, as with the New Contributors section).
+
+**Files:** `internal/generators/gitcliff/{cliff.changelog.toml,cliff.release-notes.toml}`.
+**Scope:** S. **Dependencies:** T80.
+
+#### `[ ]` T82: Schema, sample, fixtures + ADR-0024 + spec
+
+`schema.json` (`tickets` array) + `docs/heraut.sample.yml` section + valid/invalid schema
+fixtures; ADR-0024 recording the link_parsers-over-preprocessors decision; document
+`tickets` in `docs/specs/02-configuration.md`.
+
+**Files:** `schema.json`, `docs/heraut.sample.yml`, `testdata/config/{valid,invalid}/`,
+`internal/config/schema_test.go`, `docs/adr/0024-ticket-linking.md`, `docs/adr/README.md`,
+`docs/specs/02-configuration.md`. **Scope:** S. **Dependencies:** T79.
+
 ---
 
 ## Risks and mitigations
