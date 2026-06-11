@@ -246,6 +246,7 @@ func buildChangelogPipelineConfig(runner port.Runner, cfg *config.Config, opts P
 //     not set an explicit tag_pattern)
 //   - RemoteMetadata: the top-level Config.RemoteMetadata policy, so the generator honours
 //     it (empty is left empty — the generator treats that as "optional")
+//   - Tickets: the top-level Config.Tickets, so the generator can inject link_parsers
 //
 // The original driver is never mutated. Returns the original pointer when nothing applies.
 func withEnvDerivations(driver *config.ContentDriver, cfg *config.Config, env string) *config.ContentDriver {
@@ -257,7 +258,7 @@ func withEnvDerivations(driver *config.ContentDriver, cfg *config.Config, env st
 		tagPat = tagfmt.DeriveTagPattern(tf, env)
 	}
 
-	if headingPat == "" && tagPat == "" && cfg.RemoteMetadata == "" {
+	if headingPat == "" && tagPat == "" && cfg.RemoteMetadata == "" && len(cfg.Tickets) == 0 {
 		return driver
 	}
 	clone := *driver
@@ -269,6 +270,9 @@ func withEnvDerivations(driver *config.ContentDriver, cfg *config.Config, env st
 	}
 	if cfg.RemoteMetadata != "" {
 		clone.RemoteMetadata = cfg.RemoteMetadata
+	}
+	if len(cfg.Tickets) > 0 {
+		clone.Tickets = cfg.Tickets
 	}
 	return &clone
 }
