@@ -1,5 +1,33 @@
 # Changelog
 
+## [0.31.0](https://github.com/adaouat/heraut/compare/v0.30.2..v0.31.0) - 2026-06-12
+
+### 🚀 Features
+
+- *(app)* One heraut check runtime Platforms row per configured entry - ([6bdc4b4](https://github.com/adaouat/heraut/commit/6bdc4b44187766af1d426db10a848848602f075e)) by @bchatard
+
+- *(config)* Require unique platform name, allow self-hosted base_url - ([2d6f2f6](https://github.com/adaouat/heraut/commit/2d6f2f6cb079595a26e2bd9d0da081a6e7a3fd4d)) by @bchatard
+
+- *(platforms/github)* Support self-hosted instances via GH_HOST - ([c113508](https://github.com/adaouat/heraut/commit/c113508953c9a43d714ac57ce7fe24eb5d3d3d19)) by @bchatard
+
+- *(platforms/gitlab)* Support self-hosted instances via GITLAB_HOST - ([3bfdb06](https://github.com/adaouat/heraut/commit/3bfdb0676abda29058987054f361ba0752e2a4e3)) by @bchatard
+
+
+### 📚 Documentation
+
+- *(adr)* Add ADR-0025, supersede ADR-0020 (multi-instance platforms) - ([b3ae621](https://github.com/adaouat/heraut/commit/b3ae6216d5b734a92c4fc4cc8bc69ae70d126717)) by @bchatard
+
+- *(app)* Clarify Platforms section dispatch order in RuntimeCheck - ([e47b250](https://github.com/adaouat/heraut/commit/e47b250d7a14ae90b40bb83ee65c586c3201ebf2)) by @bchatard
+
+- *(plans)* Add multi-instance platforms implementation plan - ([4f9eb70](https://github.com/adaouat/heraut/commit/4f9eb7055cec2156663327004a17ac630fd1c3f1)) by @bchatard
+
+- Design spec for multi-instance same-platform releases - ([2b3e99b](https://github.com/adaouat/heraut/commit/2b3e99be5926448915e5f7d90f4131ee7841a861)) by @bchatard
+
+
+### 🎨 Styling
+
+- *(app)* Drop unneeded loop variable copy in check.go - ([60b3e9d](https://github.com/adaouat/heraut/commit/60b3e9dc9c919bb7f0b2fe008753bbe0b0c2fb3e)) by @bchatard
+
 ## [0.30.2](https://github.com/adaouat/heraut/compare/v0.30.1..v0.30.2) - 2026-06-12
 
 ### 🐛 Bug Fixes
