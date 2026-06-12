@@ -15,8 +15,8 @@ import (
 )
 
 func TestName(t *testing.T) {
-	p := gitlab.New(exectest.NewMockRunner(), &config.Platform{})
-	assert.Equal(t, "gitlab", p.Name())
+	p := gitlab.New(exectest.NewMockRunner(), &config.Platform{Name: "gitlab-internal"})
+	assert.Equal(t, "gitlab-internal", p.Name())
 }
 
 func TestReleaseURL(t *testing.T) {
@@ -29,6 +29,12 @@ func TestReleaseURL_FromEnv(t *testing.T) {
 	t.Setenv("CI_PROJECT_PATH", "envgroup/envrepo")
 	p := gitlab.New(exectest.NewMockRunner(), &config.Platform{})
 	assert.Equal(t, "https://gitlab.com/envgroup/envrepo/-/releases/v1.0.0", p.ReleaseURL("v1.0.0"))
+}
+
+func TestReleaseURL_SelfHosted(t *testing.T) {
+	cfg := &config.Platform{Project: "grp/repo", BaseURL: "https://gitlab.example.com"}
+	p := gitlab.New(exectest.NewMockRunner(), cfg)
+	assert.Equal(t, "https://gitlab.example.com/grp/repo/-/releases/v1.2.3", p.ReleaseURL("v1.2.3"))
 }
 
 func TestLinkContext_NestedGroup(t *testing.T) {
@@ -370,4 +376,62 @@ func TestCheck_Auth_InCI_NoProjectID(t *testing.T) {
 	p := gitlab.New(mr, &config.Platform{TokenEnv: "GITLAB_TOKEN", Project: "grp/repo"})
 	require.NoError(t, p.Check())
 	require.Len(t, mr.Calls, 1) // only binary check
+}
+
+// ---- Self-hosted (multi-instance, ADR-0025) ----------------------------------
+
+func TestCreateRelease_SelfHosted_SetsGitlabHostEnv(t *testing.T) {
+	mr := exectest.NewMockRunner()
+	mr.QueueResponse("", "", nil)
+
+	p := gitlab.New(mr, &config.Platform{
+		Project: "grp/repo",
+		BaseURL: "https://gitlab.example.com",
+	})
+	require.NoError(t, p.CreateRelease("v1.0.0", "notes"))
+
+	require.Len(t, mr.Calls, 1)
+	assert.Equal(t, []string{"GITLAB_HOST=gitlab.example.com"}, mr.Calls[0].Env)
+}
+
+func TestUploadAssets_SelfHosted_SetsGitlabHostEnv(t *testing.T) {
+	tmp := t.TempDir()
+	assetPath := filepath.Join(tmp, "myapp")
+	require.NoError(t, os.WriteFile(assetPath, []byte("binary"), 0o755))
+
+	mr := exectest.NewMockRunner()
+	mr.QueueResponse("", "", nil)
+
+	p := gitlab.New(mr, &config.Platform{
+		Project: "grp/repo",
+		Assets:  []string{assetPath},
+		BaseURL: "https://gitlab.example.com",
+	})
+	require.NoError(t, p.UploadAssets("v1.2.3"))
+
+	require.Len(t, mr.Calls, 1)
+	assert.Equal(t, []string{"GITLAB_HOST=gitlab.example.com"}, mr.Calls[0].Env)
+}
+
+func TestCheck_SelfHosted_SkipsCIAutologin(t *testing.T) {
+	// Even when GITLAB_CI=true, a self-hosted instance must not rely on glab's CI
+	// autologin (which targets the gitlab.com job token) — it always authenticates
+	// via the configured token, with GITLAB_HOST pointing glab at the right host.
+	t.Setenv("GITLAB_CI", "true")
+	t.Setenv("CI_PROJECT_ID", "42")
+	mr := exectest.NewMockRunner()
+	mr.QueueResponse("glab version 1.0.0", "", nil)   // --version
+	mr.QueueResponse(`{"username":"alice"}`, "", nil) // glab api user
+
+	t.Setenv("GITLAB_TOKEN", "ci-token")
+	p := gitlab.New(mr, &config.Platform{
+		TokenEnv: "GITLAB_TOKEN",
+		Project:  "grp/repo",
+		BaseURL:  "https://gitlab.example.com",
+	})
+	require.NoError(t, p.Check())
+
+	require.Len(t, mr.Calls, 2)
+	assert.Equal(t, []string{"api", "user"}, mr.Calls[1].Args)
+	assert.Equal(t, []string{"GITLAB_TOKEN=ci-token", "GITLAB_HOST=gitlab.example.com"}, mr.Calls[1].Env)
 }

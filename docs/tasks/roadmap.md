@@ -3623,7 +3623,7 @@ each platform entry's `name` to its type and appends `-N` for the Nth+ duplicate
 type (`github`, `gitlab`, `gitlab-2`, ...) via a `platformTypeCount` map. No deviations
 from the plan.
 
-#### `[ ]` T84: GitLab platform — `hostEnv()`, `Name()`, `ReleaseURL()` honor config
+#### `[x]` T84: GitLab platform — `hostEnv()`, `Name()`, `ReleaseURL()` honor config
 
 `internal/platforms/gitlab/platform.go` gains `selfHosted()`/`hostEnv() []string`
 (`GITLAB_HOST=<host>` for non-default `base_url`, else `nil`); `Name()` returns
@@ -3633,6 +3633,16 @@ self-hosted and merges `hostEnv()` into the token-auth probe.
 
 **Files:** `internal/platforms/gitlab/{platform.go,platform_test.go}`. **Scope:** M.
 **Dependencies:** T83.
+
+Implemented exactly as planned: `Name()` now returns `cfg.Name`; `ReleaseURL()` falls
+back to the default `gitlabBaseURL` only when `cfg.BaseURL` is empty; `selfHosted()`
+reports true when `cfg.BaseURL` is set and differs from `gitlabBaseURL`; `hostEnv()`
+parses `cfg.BaseURL` and returns `["GITLAB_HOST=<host>"]` (or `nil` for the default
+host, making `RunEnv(p.hostEnv(), ...)` a no-op for existing callers).
+`CreateRelease`/`UploadAssets` now call `RunEnv(p.hostEnv(), "glab", ...)`.
+`checkAPIAuth` skips the `GITLAB_CI` autologin branch entirely when `selfHosted()` is
+true, falling through to the token-based `/user` probe with `hostEnv()` merged into the
+env alongside `GITLAB_TOKEN`. No deviations from the plan.
 
 #### `[ ]` T85: GitHub platform — `hostEnv()`, `Name()`, `ReleaseURL()` honor config
 

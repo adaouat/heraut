@@ -3,6 +3,7 @@ package gitlab
 import (
 	"errors"
 	"fmt"
+	"net/url"
 	"os"
 	"strings"
 
@@ -30,10 +31,14 @@ func New(runner port.Runner, cfg *config.Platform) *Platform {
 	return &Platform{runner: runner, cfg: cfg}
 }
 
-func (p *Platform) Name() string { return "gitlab" }
+func (p *Platform) Name() string { return p.cfg.Name }
 
 func (p *Platform) ReleaseURL(tag string) string {
-	return fmt.Sprintf("%s/%s/-/releases/%s", gitlabBaseURL, p.project(), tag)
+	baseURL := p.cfg.BaseURL
+	if baseURL == "" {
+		baseURL = gitlabBaseURL
+	}
+	return fmt.Sprintf("%s/%s/-/releases/%s", baseURL, p.project(), tag)
 }
 
 // LinkContext resolves this platform's link coordinates. GitLab projects may be nested
@@ -87,12 +92,12 @@ func (p *Platform) Check() error {
 	return errors.Join(errs...)
 }
 
-// checkAPIAuth verifies API access. In GitLab CI, glab is already authenticated
-// via CI autologin so no token injection is used; the project releases endpoint is
-// probed via CI_PROJECT_ID. Outside CI, the configured token is validated via the
-// /user endpoint.
+// checkAPIAuth verifies API access. For the default GitLab host in GitLab CI, glab is
+// already authenticated via CI autologin so no token injection is used; the project
+// releases endpoint is probed via CI_PROJECT_ID. For self-hosted instances, and outside
+// CI, the configured token (plus GITLAB_HOST when self-hosted) is validated via /user.
 func (p *Platform) checkAPIAuth(tokenEnv string, tokenMissing bool) error {
-	if os.Getenv("GITLAB_CI") == "true" {
+	if !p.selfHosted() && os.Getenv("GITLAB_CI") == "true" {
 		projectID := os.Getenv("CI_PROJECT_ID")
 		if projectID == "" {
 			return nil
@@ -107,7 +112,8 @@ func (p *Platform) checkAPIAuth(tokenEnv string, tokenMissing bool) error {
 	if tokenMissing {
 		return nil
 	}
-	_, stderr, err := p.runner.RunEnv(p.tokenEnvSlice(tokenEnv), "glab", "api", "user")
+	env := append(p.tokenEnvSlice(tokenEnv), p.hostEnv()...)
+	_, stderr, err := p.runner.RunEnv(env, "glab", "api", "user")
 	if err != nil {
 		return fmt.Errorf("gitlab: API call failed (glab api user): %s\n  hint: verify %s is valid and has the api scope", strings.TrimSpace(stderr), tokenEnv)
 	}
@@ -120,6 +126,25 @@ func (p *Platform) tokenEnvSlice(envName string) []string {
 		return []string{"GITLAB_TOKEN=" + token}
 	}
 	return nil
+}
+
+// selfHosted reports whether this platform targets a non-default GitLab host.
+func (p *Platform) selfHosted() bool {
+	return p.cfg.BaseURL != "" && p.cfg.BaseURL != gitlabBaseURL
+}
+
+// hostEnv returns the env vars needed to point glab at a self-hosted instance.
+// Returns nil for the default host (gitlab.com), so RunEnv(p.hostEnv(), ...) is a
+// no-op for the common case.
+func (p *Platform) hostEnv() []string {
+	if !p.selfHosted() {
+		return nil
+	}
+	u, err := url.Parse(p.cfg.BaseURL)
+	if err != nil || u.Host == "" {
+		return nil
+	}
+	return []string{"GITLAB_HOST=" + u.Host}
 }
 
 // CreateRelease runs `glab release create`.
@@ -145,7 +170,7 @@ func (p *Platform) CreateRelease(tag, notes string) error {
 		args = append(args, files...)
 	}
 
-	if _, _, err := p.runner.Run("glab", args...); err != nil {
+	if _, _, err := p.runner.RunEnv(p.hostEnv(), "glab", args...); err != nil {
 		return fmt.Errorf("glab release create: %w", err)
 	}
 	return nil
@@ -176,7 +201,7 @@ func (p *Platform) UploadAssets(tag string) error {
 	}
 
 	args := append([]string{"release", "upload", tag, "--use-package-registry", "-R", proj}, files...)
-	if _, _, err := p.runner.Run("glab", args...); err != nil {
+	if _, _, err := p.runner.RunEnv(p.hostEnv(), "glab", args...); err != nil {
 		return fmt.Errorf("glab release upload: %w", err)
 	}
 	return nil
