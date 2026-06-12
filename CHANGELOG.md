@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.30.2](https://github.com/adaouat/heraut/compare/v0.30.1..v0.30.2) - 2026-06-12
+
+### 🐛 Bug Fixes
+
+- *(deps)* Bump forge to v0.16.0 - ([56d38f7](https://github.com/adaouat/heraut/commit/56d38f7d51bce67cf201de5d585feff5370303ba)) by @bchatard
+
 ## [0.30.1](https://github.com/adaouat/heraut/compare/v0.30.0..v0.30.1) - 2026-06-11
 
 ### 🎨 Styling
