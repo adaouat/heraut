@@ -3,6 +3,7 @@ package github
 import (
 	"errors"
 	"fmt"
+	"net/url"
 	"os"
 	"strings"
 
@@ -30,10 +31,14 @@ func New(runner port.Runner, cfg *config.Platform) *Platform {
 	return &Platform{runner: runner, cfg: cfg}
 }
 
-func (p *Platform) Name() string { return "github" }
+func (p *Platform) Name() string { return p.cfg.Name }
 
 func (p *Platform) ReleaseURL(tag string) string {
-	return fmt.Sprintf("https://github.com/%s/releases/tag/%s", p.repository(), tag)
+	baseURL := p.cfg.BaseURL
+	if baseURL == "" {
+		baseURL = githubBaseURL
+	}
+	return fmt.Sprintf("%s/%s/releases/tag/%s", baseURL, p.repository(), tag)
 }
 
 // LinkContext resolves this platform's link coordinates. GitHub repositories are
@@ -82,11 +87,13 @@ func (p *Platform) Check() error {
 	return errors.Join(errs...)
 }
 
-// checkAPIAuth verifies API access. In GitHub Actions, GITHUB_TOKEN is used directly
-// because gh auth status reads config files and won't see the injected env var.
-// Outside Actions, the configured token is validated via a repo-scoped API call.
+// checkAPIAuth verifies API access. For the default GitHub host in GitHub Actions,
+// GITHUB_TOKEN is used directly because gh auth status reads config files and won't see
+// the injected env var. For self-hosted instances (GHES), and outside Actions, the
+// configured token (plus GH_HOST/GH_ENTERPRISE_TOKEN when self-hosted) is validated via a
+// repo-scoped API call.
 func (p *Platform) checkAPIAuth(tokenMissing bool) error {
-	if os.Getenv("GITHUB_ACTIONS") == "true" {
+	if !p.selfHosted() && os.Getenv("GITHUB_ACTIONS") == "true" {
 		githubToken := os.Getenv("GITHUB_TOKEN")
 		repo := os.Getenv("GITHUB_REPOSITORY")
 		if githubToken == "" || repo == "" {
@@ -102,7 +109,8 @@ func (p *Platform) checkAPIAuth(tokenMissing bool) error {
 	if tokenMissing {
 		return nil
 	}
-	_, stderr, err := p.runner.RunEnv(p.tokenEnvSlice(), "gh", "api", "repos/{owner}/{repo}/releases?per_page=1")
+	env := append(p.tokenEnvSlice(), p.hostEnv()...)
+	_, stderr, err := p.runner.RunEnv(env, "gh", "api", "repos/{owner}/{repo}/releases?per_page=1")
 	if err != nil {
 		return fmt.Errorf("github: API call failed (gh api repos/{owner}/{repo}/releases): %s\n  hint: verify %s is valid and has the necessary scopes", strings.TrimSpace(stderr), p.tokenEnv())
 	}
@@ -138,7 +146,8 @@ func (p *Platform) CreateRelease(tag, notes string) error {
 		args = append(args, files...)
 	}
 
-	if _, _, err := p.runner.RunEnv(p.tokenEnvSlice(), "gh", args...); err != nil {
+	env := append(p.tokenEnvSlice(), p.hostEnv()...)
+	if _, _, err := p.runner.RunEnv(env, "gh", args...); err != nil {
 		return fmt.Errorf("gh release create: %w", err)
 	}
 	return nil
@@ -168,7 +177,8 @@ func (p *Platform) UploadAssets(tag string) error {
 	}
 
 	for _, f := range files {
-		if _, _, err := p.runner.RunEnv(p.tokenEnvSlice(), "gh", "release", "upload", tag, f, "--repo", repo); err != nil {
+		env := append(p.tokenEnvSlice(), p.hostEnv()...)
+		if _, _, err := p.runner.RunEnv(env, "gh", "release", "upload", tag, f, "--repo", repo); err != nil {
 			return fmt.Errorf("gh release upload %s: %w", f, err)
 		}
 	}
@@ -205,4 +215,29 @@ func (p *Platform) tokenEnvSlice() []string {
 		return []string{"GH_TOKEN=" + token}
 	}
 	return nil
+}
+
+// selfHosted reports whether this platform targets a non-default GitHub host
+// (i.e. a GitHub Enterprise Server instance).
+func (p *Platform) selfHosted() bool {
+	return p.cfg.BaseURL != "" && p.cfg.BaseURL != githubBaseURL
+}
+
+// hostEnv returns the env vars needed to point gh at a self-hosted GHES instance:
+// GH_HOST selects the host, and GH_ENTERPRISE_TOKEN (gh's expected var for non-github.com
+// hosts) carries the configured token. Returns nil for the default host (github.com), so
+// RunEnv(p.hostEnv(), ...) is a no-op for the common case.
+func (p *Platform) hostEnv() []string {
+	if !p.selfHosted() {
+		return nil
+	}
+	u, err := url.Parse(p.cfg.BaseURL)
+	if err != nil || u.Host == "" {
+		return nil
+	}
+	env := []string{"GH_HOST=" + u.Host}
+	if token := os.Getenv(p.tokenEnv()); token != "" {
+		env = append(env, "GH_ENTERPRISE_TOKEN="+token)
+	}
+	return env
 }

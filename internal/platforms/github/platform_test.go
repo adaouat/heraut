@@ -15,8 +15,8 @@ import (
 )
 
 func TestName(t *testing.T) {
-	p := github.New(exectest.NewMockRunner(), &config.Platform{})
-	assert.Equal(t, "github", p.Name())
+	p := github.New(exectest.NewMockRunner(), &config.Platform{Name: "github-internal"})
+	assert.Equal(t, "github-internal", p.Name())
 }
 
 func TestReleaseURL(t *testing.T) {
@@ -29,6 +29,12 @@ func TestReleaseURL_FromEnv(t *testing.T) {
 	t.Setenv("GITHUB_REPOSITORY", "envorg/envrepo")
 	p := github.New(exectest.NewMockRunner(), &config.Platform{})
 	assert.Equal(t, "https://github.com/envorg/envrepo/releases/tag/v1.0.0", p.ReleaseURL("v1.0.0"))
+}
+
+func TestReleaseURL_SelfHosted(t *testing.T) {
+	cfg := &config.Platform{Repository: "org/repo", BaseURL: "https://github.example.com"}
+	p := github.New(exectest.NewMockRunner(), cfg)
+	assert.Equal(t, "https://github.example.com/org/repo/releases/tag/v1.2.3", p.ReleaseURL("v1.2.3"))
 }
 
 func TestLinkContext(t *testing.T) {
@@ -443,4 +449,67 @@ func TestUploadAssets_GlobSkipsDirectories(t *testing.T) {
 	require.Len(t, mr.Calls, 1) // only the file, not the directory
 	assert.Contains(t, mr.Calls[0].Args, filepath.Join(tmp, "app"))
 	assert.NotContains(t, mr.Calls[0].Args, filepath.Join(tmp, "subdir"))
+}
+
+// ---- Self-hosted (multi-instance, ADR-0025) ----------------------------------
+
+func TestCreateRelease_SelfHosted_SetsGhHostEnv(t *testing.T) {
+	t.Setenv("GH_TOKEN", "ent-token")
+	mr := exectest.NewMockRunner()
+	mr.QueueResponse("", "", nil)
+
+	p := github.New(mr, &config.Platform{
+		Repository: "org/repo",
+		BaseURL:    "https://github.example.com",
+	})
+	require.NoError(t, p.CreateRelease("v1.0.0", "notes"))
+
+	require.Len(t, mr.Calls, 1)
+	assert.Equal(t, []string{"GH_TOKEN=ent-token", "GH_HOST=github.example.com", "GH_ENTERPRISE_TOKEN=ent-token"}, mr.Calls[0].Env)
+}
+
+func TestUploadAssets_SelfHosted_SetsGhHostEnv(t *testing.T) {
+	tmp := t.TempDir()
+	assetPath := filepath.Join(tmp, "myapp")
+	require.NoError(t, os.WriteFile(assetPath, []byte("binary"), 0o755))
+
+	t.Setenv("GH_TOKEN", "ent-token")
+	mr := exectest.NewMockRunner()
+	mr.QueueResponse("", "", nil)
+
+	p := github.New(mr, &config.Platform{
+		Repository: "org/repo",
+		Assets:     []string{assetPath},
+		BaseURL:    "https://github.example.com",
+	})
+	require.NoError(t, p.UploadAssets("v1.2.3"))
+
+	require.Len(t, mr.Calls, 1)
+	assert.Equal(t, []string{"GH_TOKEN=ent-token", "GH_HOST=github.example.com", "GH_ENTERPRISE_TOKEN=ent-token"}, mr.Calls[0].Env)
+}
+
+func TestCheck_SelfHosted_SkipsActionsAutologin(t *testing.T) {
+	// Even when GITHUB_ACTIONS=true, a self-hosted GHES instance must not rely on the
+	// GITHUB_TOKEN-based autologin (which targets api.github.com) — it always
+	// authenticates via the configured token, with GH_HOST/GH_ENTERPRISE_TOKEN pointing
+	// gh at the right host.
+	t.Setenv("GITHUB_ACTIONS", "true")
+	t.Setenv("GITHUB_TOKEN", "actions-token")
+	t.Setenv("GITHUB_REPOSITORY", "org/repo")
+
+	mr := exectest.NewMockRunner()
+	mr.QueueResponse("gh version 2.0.0", "", nil)
+	mr.QueueResponse(`[]`, "", nil)
+
+	t.Setenv("GH_TOKEN", "ent-token")
+	p := github.New(mr, &config.Platform{
+		TokenEnv:   "GH_TOKEN",
+		Repository: "org/repo",
+		BaseURL:    "https://github.example.com",
+	})
+	require.NoError(t, p.Check())
+
+	require.Len(t, mr.Calls, 2)
+	assert.Equal(t, []string{"api", "repos/{owner}/{repo}/releases?per_page=1"}, mr.Calls[1].Args)
+	assert.Equal(t, []string{"GH_TOKEN=ent-token", "GH_HOST=github.example.com", "GH_ENTERPRISE_TOKEN=ent-token"}, mr.Calls[1].Env)
 }

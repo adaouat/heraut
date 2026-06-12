@@ -3644,7 +3644,7 @@ host, making `RunEnv(p.hostEnv(), ...)` a no-op for existing callers).
 true, falling through to the token-based `/user` probe with `hostEnv()` merged into the
 env alongside `GITLAB_TOKEN`. No deviations from the plan.
 
-#### `[ ]` T85: GitHub platform — `hostEnv()`, `Name()`, `ReleaseURL()` honor config
+#### `[x]` T85: GitHub platform — `hostEnv()`, `Name()`, `ReleaseURL()` honor config
 
 Mirrors T84 for `internal/platforms/github/platform.go`: `selfHosted()`/`hostEnv()`
 returns `["GH_HOST=<host>", "GH_ENTERPRISE_TOKEN=<token>"]` for non-default `base_url`;
@@ -3654,6 +3654,18 @@ returns `["GH_HOST=<host>", "GH_ENTERPRISE_TOKEN=<token>"]` for non-default `bas
 
 **Files:** `internal/platforms/github/{platform.go,platform_test.go}`. **Scope:** M.
 **Dependencies:** T83.
+
+Implemented exactly as planned, mirroring T84/GitLab. `Name()` now returns `cfg.Name`;
+`ReleaseURL()` falls back to the existing `githubBaseURL` constant (`"https://github.com"`,
+already defined — no new constant needed) when `cfg.BaseURL` is empty. Added
+`selfHosted()` (true when `cfg.BaseURL` is set and differs from `githubBaseURL`) and
+`hostEnv()` (returns `["GH_HOST=<host>", "GH_ENTERPRISE_TOKEN=<token>"]`, or `nil` for the
+default host) using `net/url` to parse the host from `cfg.BaseURL`.
+`CreateRelease`/`UploadAssets`/`checkAPIAuth` now call
+`RunEnv(append(p.tokenEnvSlice(), p.hostEnv()...), ...)`. `checkAPIAuth` skips the
+`GITHUB_ACTIONS` autologin branch when `selfHosted()` is true, falling through to the
+token-based `repos/{owner}/{repo}/releases?per_page=1` probe with `hostEnv()` merged in.
+No deviations from the plan.
 
 #### `[ ]` T86: `heraut check runtime` — one Platforms row per configured entry
 
