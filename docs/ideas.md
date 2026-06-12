@@ -84,3 +84,26 @@ token secret — zero boilerplate to get a heraut-powered release pipeline.
 
 Distinct from `heraut-action` (which is an Action step); these are full pipeline
 templates that cover the multi-job pattern (lint + test + release gate).
+
+---
+
+## Multi-instance same-platform releases (e.g. public GitLab + self-hosted GitLab)
+
+Today `release.platforms` allows multiple entries, but two entries of the *same type*
+(two GitLab instances, e.g. `gitlab.com` + a private `gitlab.example.com`) don't work:
+[ADR-0020](adr/0020-platform-base-url.md) gates `base_url` to the platform-type default,
+so a non-default host fails config validation with "self-hosted hosts are not yet
+supported".
+
+**What's needed (per ADR-0020's "multi-instance thread")**:
+- Lift the `base_url` validator gate for non-default hosts.
+- CLI host targeting: `gh`/`glab` need to be pointed at the configured host
+  (`GH_HOST`/`GITLAB_HOST`) so publishing actually reaches the right instance, including
+  rework of the CI-context auth probe.
+- Disambiguate `findPlatformCfg` (currently first-match-by-type) and the reporter's
+  `Name()` (currently a bare `"gitlab"`/`"github"`, ambiguous with two instances of the
+  same type).
+
+**Trigger:** a user needs to publish the same release to both a public and a private
+instance of the same platform type. `base_url` (ADR-0020) is the prerequisite data; this
+idea is the consuming capability.
