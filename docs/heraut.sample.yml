@@ -161,6 +161,11 @@ release:
     # ── GitHub ───────────────────────────────────────────────────────────────
     - platform: github
 
+      # name — required. Unique identifier for this entry within this
+      # release.platforms list (top-level, or a single environment override).
+      # Used to label this platform in `heraut check runtime` output.
+      name: github
+
       # repository — owner/repo on GitHub. Required.
       repository: acme/widget
 
@@ -170,8 +175,8 @@ release:
 
       # base_url — web base URL of the platform instance. Defaults to
       # https://github.com (GitHub) / https://gitlab.com (GitLab).
-      # NOTE: self-hosted (non-default) values are not yet supported — heraut
-      # rejects them at load time. Tracked separately (see ADR-0020).
+      # Self-hosted (non-default) values are supported (ADR-0025): heraut points
+      # gh/glab at the configured host via GH_HOST / GITLAB_HOST.
       # base_url: https://github.com
 
       # draft — create the release as a draft (not publicly visible until published).
@@ -189,6 +194,9 @@ release:
   # ── GitLab ───────────────────────────────────────────────────────────────
   # - platform: gitlab
   #
+  #   # name — required, unique within this release.platforms list.
+  #   name: gitlab
+  #
   #   # project — GitLab namespace/project path.
   #   # Defaults to $CI_PROJECT_PATH if omitted (convenient in CI).
   #   project: acme/widget
@@ -197,13 +205,25 @@ release:
   #   # Defaults to GITLAB_TOKEN if omitted.
   #   token_env: GITLAB_TOKEN
   #
-  #   # base_url — defaults to https://gitlab.com. Self-hosted (non-default)
-  #   # values are not yet supported and are rejected at load time (ADR-0020).
+  #   # base_url — defaults to https://gitlab.com. Self-hosted values are
+  #   # supported (ADR-0025).
   #   # base_url: https://gitlab.com
   #
   #   # assets — platform-specific overrides (overrides release.assets entirely for this platform).
   #   # assets:
   #   #   - dist/myapp_*
+
+  # ── Multiple instances of the same platform type (ADR-0025) ───────────────
+  # Two entries with the same `platform:` but different `name:`, `base_url:`,
+  # and `token_env:` publish the release to both instances:
+  # - platform: gitlab
+  #   name: gitlab-saas
+  #   project: acme/widget
+  # - platform: gitlab
+  #   name: gitlab-internal
+  #   project: tools/widget-mirror
+  #   base_url: https://gitlab.example.com
+  #   token_env: GITLAB_INTERNAL_TOKEN
 
 # ── environments ─────────────────────────────────────────────────────────────
 #

@@ -129,6 +129,31 @@ func TestGenerateYAML_PerEnv(t *testing.T) {
 	assert.Contains(t, cfg.Environments, "prod")
 }
 
+func TestGenerateYAML_PlatformNamesDefaultedAndDeduped(t *testing.T) {
+	a := scaffold.Answers{
+		Strategy:           "semver",
+		ChangelogGenerator: "git-cliff",
+		ChangelogOutput:    "CHANGELOG.md",
+		Platforms: []scaffold.PlatformAnswer{
+			{Type: "github", Repository: "acme/widget"},
+			{Type: "gitlab", Project: "acme/widget"},
+			{Type: "gitlab", Project: "tools/widget-mirror"},
+		},
+	}
+	out, err := scaffold.GenerateYAML(a, "dev")
+	require.NoError(t, err)
+
+	body := stripHeader(out)
+	cfg, err := config.LoadFromReader(strings.NewReader(body))
+	require.NoError(t, err)
+	assert.Empty(t, config.Validate(cfg))
+
+	require.Len(t, cfg.Release.Platforms, 3)
+	assert.Equal(t, "github", cfg.Release.Platforms[0].Name)
+	assert.Equal(t, "gitlab", cfg.Release.Platforms[1].Name)
+	assert.Equal(t, "gitlab-2", cfg.Release.Platforms[2].Name)
+}
+
 func TestGenerateYAML_CalVerSprint(t *testing.T) {
 	a := scaffold.Answers{
 		Strategy:           "calver",

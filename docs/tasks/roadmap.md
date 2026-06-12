@@ -3581,6 +3581,95 @@ fixtures; ADR-0024 recording the link_parsers-over-preprocessors decision; docum
 fixtures; [ADR-0024](../adr/0024-ticket-linking.md) records the link_parsers-over-preprocessors
 decision; `docs/specs/02-configuration.md` § `tickets`. Full suite green, golangci-lint clean.
 
+### Phase 16 — Multi-instance same-platform releases
+
+Allow `release.platforms` (and per-env overrides) to contain multiple entries of the same
+platform type — e.g. a public `gitlab.com` instance and a self-hosted
+`gitlab.example.com` instance — in one `heraut release` run. This is the "multi-instance
+thread" deferred by [ADR-0020](../adr/0020-platform-base-url.md) (`base_url`). Design:
+[`.claude/plans/multi-instance-platforms-design.md`](../../.claude/plans/multi-instance-platforms-design.md);
+implementation plan:
+[`.claude/plans/multi-instance-platforms-implementation.md`](../../.claude/plans/multi-instance-platforms-implementation.md);
+decision recorded in ADR-0025 (T87).
+
+#### `[x]` T83: Config schema — required `name` field + lift `base_url` gate
+
+Add a required, unique `config.Platform.Name` field (unique per `release.platforms` list
+scope — top-level and each env override independently). Remove
+`validatePlatformBaseURL`'s "must equal the platform-type default" gate, keeping only the
+`isValidBaseURL` shape check. Update `schema.json`, `docs/heraut.sample.yml`,
+`.config/heraut.yml`, and all fixtures/tests to add `name:`. `heraut init` defaults +
+dedupes `name` per platform type (`github`, `gitlab`, `gitlab-2`, ...).
+
+**Files:** `internal/config/{config.go,validator.go,validator_test.go}`, `schema.json`,
+`docs/heraut.sample.yml`, `.config/heraut.yml`, `internal/cmd/{check,release}_test.go`,
+`internal/scaffold/{generate.go,generate_test.go}`, `testdata/config/`. **Scope:** M.
+**Dependencies:** none.
+
+**Done:** Added `Platform.Name` (`yaml:"name"`, required, no `omitempty`). Introduced
+`validatePlatformEntries`, a single helper called from both `validateRelease` and
+`validateEnvRelease`, which checks platform type, required+unique `name` (scoped per
+list, tracked via a `map[string]int` of first-seen index), and `base_url` shape.
+`validatePlatformBaseURL` now only runs `isValidBaseURL` — the old "must equal the
+platform-type default" gate (ADR-0020) is removed entirely; self-hosted `base_url`
+values are accepted (ADR-0025 supersedes the gate). Updated `schema.json` (`name`
+required, new property, reworded `base_url` description),
+`docs/heraut.sample.yml` (added `name:` to both platform examples, replaced the
+ADR-0020 "not yet supported" caveat with an ADR-0025 self-hosted note, and added a
+multi-instance example block), `.config/heraut.yml`, `internal/cmd/check_test.go` and
+`internal/cmd/release_test.go` (5 occurrences), and the 4 affected fixtures in
+`testdata/config/valid/`. `heraut init` (`internal/scaffold/generate.go`) now defaults
+each platform entry's `name` to its type and appends `-N` for the Nth+ duplicate of a
+type (`github`, `gitlab`, `gitlab-2`, ...) via a `platformTypeCount` map. No deviations
+from the plan.
+
+#### `[ ]` T84: GitLab platform — `hostEnv()`, `Name()`, `ReleaseURL()` honor config
+
+`internal/platforms/gitlab/platform.go` gains `selfHosted()`/`hostEnv() []string`
+(`GITLAB_HOST=<host>` for non-default `base_url`, else `nil`); `Name()` returns
+`cfg.Name`; `ReleaseURL()` honors `cfg.BaseURL`; `CreateRelease`/`UploadAssets` switch to
+`RunEnv(p.hostEnv(), "glab", ...)`; `checkAPIAuth` skips `GITLAB_CI` autologin when
+self-hosted and merges `hostEnv()` into the token-auth probe.
+
+**Files:** `internal/platforms/gitlab/{platform.go,platform_test.go}`. **Scope:** M.
+**Dependencies:** T83.
+
+#### `[ ]` T85: GitHub platform — `hostEnv()`, `Name()`, `ReleaseURL()` honor config
+
+Mirrors T84 for `internal/platforms/github/platform.go`: `selfHosted()`/`hostEnv()`
+returns `["GH_HOST=<host>", "GH_ENTERPRISE_TOKEN=<token>"]` for non-default `base_url`;
+`Name()` returns `cfg.Name`; `ReleaseURL()` honors `cfg.BaseURL`;
+`CreateRelease`/`UploadAssets`/`checkAPIAuth` merge `hostEnv()` into the token env;
+`checkAPIAuth` skips `GITHUB_ACTIONS` autologin when self-hosted.
+
+**Files:** `internal/platforms/github/{platform.go,platform_test.go}`. **Scope:** M.
+**Dependencies:** T83.
+
+#### `[ ]` T86: `heraut check runtime` — one Platforms row per configured entry
+
+Restructure `internal/app/check.go`'s Platforms section from "one row per platform *type*"
+(`configuredPlatforms`/`findPlatformCfg`, first-match-by-type) to "one row per
+`release.platforms` *entry*", labeled by the entry's `name`, running that entry's full
+`Check()`. Falls back to a binary-only `glab`/`gh` probe when no platforms are configured
+(unchanged nil-config / no-`release`-block behavior). Per-CLI-type binary-presence
+deduplication across same-type entries (described in the design note) is **deferred** —
+each entry runs its own `--version` probe.
+
+**Files:** `internal/app/{check.go,check_test.go}`. **Scope:** M. **Dependencies:** T83,
+T84, T85.
+
+#### `[ ]` T87: Docs — ADR-0025, supersede ADR-0020, update spec 05
+
+New `docs/adr/0025-multi-instance-platforms.md` recording the lifted `base_url` gate,
+per-platform CLI host targeting, the required unique `name` field, and the restructured
+`heraut check runtime` Platforms section. Mark ADR-0020 as superseded.
+`docs/specs/05-generators-and-platforms.md` gains a self-hosted/multi-instance subsection
+and `name:` in both platform examples.
+
+**Files:** `docs/adr/0025-multi-instance-platforms.md`, `docs/adr/0020-platform-base-url.md`,
+`docs/adr/README.md`, `docs/specs/05-generators-and-platforms.md`. **Scope:** S.
+**Dependencies:** T83-T86.
+
 ---
 
 ## Risks and mitigations

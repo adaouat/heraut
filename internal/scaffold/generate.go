@@ -94,8 +94,15 @@ func answersToConfig(a Answers) config.Config {
 				Generator: a.NotesGenerator,
 			}
 		}
+		platformTypeCount := make(map[string]int)
 		for _, p := range a.Platforms {
+			platformTypeCount[p.Type]++
+			name := p.Type
+			if n := platformTypeCount[p.Type]; n > 1 {
+				name = fmt.Sprintf("%s-%d", p.Type, n)
+			}
 			plat := config.Platform{
+				Name:       name,
 				Type:       p.Type,
 				Repository: p.Repository,
 				Project:    p.Project,

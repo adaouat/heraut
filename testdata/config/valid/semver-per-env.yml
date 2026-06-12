@@ -12,6 +12,7 @@ environments:
     release:
       platforms:
         - platform: gitlab
+          name: gitlab
   staging:
     branch: main
     bump: promote
@@ -23,7 +24,9 @@ environments:
     release:
       platforms:
         - platform: gitlab
+          name: gitlab
         - platform: github
+          name: github
 
 changelog:
   generator: git-cliff
@@ -36,3 +39,4 @@ release:
     tag_pattern: "dev/*"
   platforms:
     - platform: gitlab
+      name: gitlab

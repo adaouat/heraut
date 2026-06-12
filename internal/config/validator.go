@@ -183,7 +183,17 @@ func validateRelease(r *Release, path string) []ValidationError {
 	}
 	var errs []ValidationError
 	errs = append(errs, validateContentDriver(r.Notes, path+".notes")...)
-	for i, plat := range r.Platforms {
+	errs = append(errs, validatePlatformEntries(r.Platforms, path)...)
+	return errs
+}
+
+// validatePlatformEntries validates one release.platforms list (top-level or a single
+// environment override): each entry's platform type, its required unique name
+// (scoped to this list — ADR-0025), and its base_url.
+func validatePlatformEntries(platforms []Platform, path string) []ValidationError {
+	var errs []ValidationError
+	seen := make(map[string]int)
+	for i, plat := range platforms {
 		platPath := fmt.Sprintf("%s.platforms[%d]", path, i)
 		if plat.Type == "" {
 			errs = append(errs, ValidationError{
@@ -198,15 +208,30 @@ func validateRelease(r *Release, path string) []ValidationError {
 				Hint:    "valid platforms: github, gitlab",
 			})
 		}
+		if plat.Name == "" {
+			errs = append(errs, ValidationError{
+				Path:    platPath + ".name",
+				Message: "required",
+				Hint:    `set a unique name for this platform entry, e.g. "gitlab-saas"`,
+			})
+		} else if first, ok := seen[plat.Name]; ok {
+			errs = append(errs, ValidationError{
+				Path:    platPath + ".name",
+				Message: fmt.Sprintf("duplicate platform name %q (already used by platforms[%d])", plat.Name, first),
+				Hint:    "platform names must be unique within this release.platforms list",
+			})
+		} else {
+			seen[plat.Name] = i
+		}
 		errs = append(errs, validatePlatformBaseURL(plat, platPath)...)
 	}
 	return errs
 }
 
 // validatePlatformBaseURL validates a platform's base_url: it must be a well-formed
-// absolute http(s) URL, and — per ADR-0020 — it must equal the platform-type default
-// until self-hosted host targeting lands (the gate). An empty value means "use the
-// default" and is always accepted.
+// absolute http(s) URL. An empty value means "use the platform-type default" and is
+// always accepted. Self-hosted (non-default) hosts are accepted — see ADR-0025, which
+// supersedes ADR-0020's gate.
 func validatePlatformBaseURL(plat Platform, platPath string) []ValidationError {
 	if plat.BaseURL == "" {
 		return nil
@@ -217,16 +242,6 @@ func validatePlatformBaseURL(plat Platform, platPath string) []ValidationError {
 			Path:    platPath + ".base_url",
 			Message: fmt.Sprintf("%q is not a valid URL", plat.BaseURL),
 			Hint:    "base_url must be an absolute http(s) URL, e.g. https://gitlab.example.com",
-		}}
-	}
-	if def := defaultBaseURL(plat.Type); def != "" && raw != def {
-		return []ValidationError{{
-			Path:    platPath + ".base_url",
-			Message: "self-hosted hosts are not yet supported",
-			Hint: fmt.Sprintf(
-				"base_url currently only accepts the platform default (%s); self-hosted publishing is tracked separately (ADR-0020)",
-				def,
-			),
 		}}
 	}
 	return nil
@@ -254,23 +269,7 @@ func validateEnvRelease(r *EnvRelease, topRelease *Release, path string) []Valid
 		}
 		errs = append(errs, validateContentDriver(MergeContentDriver(topNotes, r.Notes), path+".notes")...)
 	}
-	for i, plat := range r.Platforms {
-		platPath := fmt.Sprintf("%s.platforms[%d]", path, i)
-		if plat.Type == "" {
-			errs = append(errs, ValidationError{
-				Path:    platPath + ".platform",
-				Message: "required",
-				Hint:    "set platform to one of: github, gitlab",
-			})
-		} else if !validPlatforms[plat.Type] {
-			errs = append(errs, ValidationError{
-				Path:    platPath + ".platform",
-				Message: fmt.Sprintf("%q is not a valid platform", plat.Type),
-				Hint:    "valid platforms: github, gitlab",
-			})
-		}
-		errs = append(errs, validatePlatformBaseURL(plat, platPath)...)
-	}
+	errs = append(errs, validatePlatformEntries(r.Platforms, path)...)
 	return errs
 }
 

@@ -141,6 +141,7 @@ changelog:
 release:
   platforms:
     - platform: github
+      name: github
 `)
 	exectest.FakeBin(t, "git", `#!/bin/sh
 case "$*" in

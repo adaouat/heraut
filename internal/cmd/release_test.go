@@ -57,6 +57,7 @@ environments:
 release:
   platforms:
     - platform: github
+      name: github
       repository: test/repo
 `)
 	out, err := executeRoot("release", "--config", cfgPath, "--env", "uat",
@@ -91,6 +92,7 @@ versioning:
 release:
   platforms:
     - platform: github
+      name: github
       repository: test/repo
 `)
 	exectest.FakeBin(t, "git", `#!/bin/sh
@@ -146,6 +148,7 @@ versioning:
 release:
   platforms:
     - platform: github
+      name: github
       repository: test/repo
 `)
 	tests := []struct {
@@ -176,6 +179,7 @@ versioning:
 release:
   platforms:
     - platform: github
+      name: github
       repository: test/repo
 `)
 	tests := []struct {
@@ -205,6 +209,7 @@ versioning:
 release:
   platforms:
     - platform: github
+      name: github
       repository: test/repo
 `)
 	// git --version succeeds; everything else (config user.name, config user.email) exits 1.

@@ -98,6 +98,9 @@ type Release struct {
 // Type is the platform discriminator ("github" or "gitlab") mapping to yaml:"platform";
 // using Type avoids the Platform.Platform self-reference (ADR-0006).
 type Platform struct {
+	// Name uniquely identifies this platform entry within its release.platforms list
+	// (top-level or a single environment override). Required — see ADR-0025.
+	Name string `yaml:"name"`
 	Type string `yaml:"platform"`
 	// GitHub-specific
 	Repository string `yaml:"repository,omitempty"`

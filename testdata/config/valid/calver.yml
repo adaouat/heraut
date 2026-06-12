@@ -14,3 +14,4 @@ release:
     generator: git-cliff
   platforms:
     - platform: gitlab
+      name: gitlab

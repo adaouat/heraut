@@ -319,9 +319,49 @@ versioning:
 release:
   platforms:
     - platform: github
+      name: github
     - platform: gitlab
+      name: gitlab
 `)
 	assert.Empty(t, config.Validate(cfg))
+}
+
+func TestValidate_platformNameRequired(t *testing.T) {
+	cfg := mustLoad(t, `
+version: "1"
+versioning:
+  strategy: semver
+release:
+  platforms:
+    - platform: github
+      repository: acme/widget
+`)
+	errs := config.Validate(cfg)
+	e := findErr(errs, "release.platforms[0].name")
+	require.NotNil(t, e)
+	assert.Contains(t, e.Message, "required")
+}
+
+func TestValidate_platformNameDuplicate(t *testing.T) {
+	cfg := mustLoad(t, `
+version: "1"
+versioning:
+  strategy: semver
+release:
+  platforms:
+    - platform: gitlab
+      name: primary
+      project: acme/widget
+    - platform: gitlab
+      name: primary
+      project: tools/widget-mirror
+      base_url: https://gitlab.example.com
+      token_env: GITLAB_INTERNAL_TOKEN
+`)
+	errs := config.Validate(cfg)
+	e := findErr(errs, "release.platforms[1].name")
+	require.NotNil(t, e)
+	assert.Contains(t, e.Message, "duplicate")
 }
 
 // ── platform base_url (ADR-0020) ─────────────────────────────────────────────
@@ -334,6 +374,7 @@ versioning:
 release:
   platforms:
     - platform: github
+      name: github
       repository: acme/widget
 `)
 	require.NotNil(t, cfg.Release)
@@ -350,6 +391,7 @@ versioning:
 release:
   platforms:
     - platform: gitlab
+      name: gitlab
       project: acme/widget
 `)
 	require.Len(t, cfg.Release.Platforms, 1)
@@ -365,6 +407,7 @@ versioning:
 release:
   platforms:
     - platform: gitlab
+      name: gitlab
       project: acme/widget
       base_url: https://gitlab.com
 `)
@@ -379,6 +422,7 @@ versioning:
 release:
   platforms:
     - platform: github
+      name: github
       repository: acme/widget
       base_url: https://github.com/
 `)
@@ -386,7 +430,7 @@ release:
 	assert.Empty(t, config.Validate(cfg))
 }
 
-func TestValidate_platformBaseURLNonDefaultGated(t *testing.T) {
+func TestValidate_platformBaseURLSelfHostedAccepted(t *testing.T) {
 	cfg := mustLoad(t, `
 version: "1"
 versioning:
@@ -394,14 +438,11 @@ versioning:
 release:
   platforms:
     - platform: gitlab
+      name: gitlab-internal
       project: acme/widget
       base_url: https://gitlab.example.com
 `)
-	errs := config.Validate(cfg)
-	e := findErr(errs, "release.platforms[0].base_url")
-	require.NotNil(t, e)
-	assert.Contains(t, e.Message, "not yet supported")
-	assert.Contains(t, e.Hint, "ADR-0020")
+	assert.Empty(t, config.Validate(cfg))
 }
 
 func TestValidate_platformBaseURLMalformed(t *testing.T) {
@@ -412,6 +453,7 @@ versioning:
 release:
   platforms:
     - platform: github
+      name: github
       repository: acme/widget
       base_url: "not a url"
 `)
@@ -422,7 +464,7 @@ release:
 	assert.NotContains(t, e.Message, "not yet supported")
 }
 
-func TestValidate_envOverridePlatformBaseURLGated(t *testing.T) {
+func TestValidate_envOverridePlatformBaseURLSelfHostedAccepted(t *testing.T) {
 	cfg := mustLoad(t, `
 version: "1"
 versioning:
@@ -434,13 +476,11 @@ environments:
     release:
       platforms:
         - platform: gitlab
+          name: gitlab-internal
           project: acme/widget
           base_url: https://gitlab.example.com
 `)
-	errs := config.Validate(cfg)
-	e := findErr(errs, "environments.dev.release.platforms[0].base_url")
-	require.NotNil(t, e)
-	assert.Contains(t, e.Message, "not yet supported")
+	assert.Empty(t, config.Validate(cfg))
 }
 
 // ── env overrides (top-level environments) ───────────────────────────────────

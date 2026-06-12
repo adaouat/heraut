@@ -16,6 +16,7 @@ release:
     generator: git-cliff
   platforms:
     - platform: github
+      name: github
       repository: adaouat/heraut
   assets:
     - "dist/heraut_*_linux_amd64"

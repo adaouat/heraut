@@ -202,10 +202,15 @@
     "Platform": {
       "type": "object",
       "required": [
-        "platform"
+        "platform",
+        "name"
       ],
       "additionalProperties": false,
       "properties": {
+        "name": {
+          "type": "string",
+          "description": "Unique identifier for this platform entry within its release.platforms list (top-level or a single environment override). Required."
+        },
         "platform": {
           "type": "string",
           "enum": [
@@ -232,7 +237,7 @@
         },
         "base_url": {
           "type": "string",
-          "description": "Web base URL of the platform instance (e.g. https://gitlab.example.com for a self-hosted instance). Defaults to https://github.com / https://gitlab.com. Note: non-default (self-hosted) values are not yet supported and are rejected at load time — tracked separately (ADR-0020)."
+          "description": "Web base URL of the platform instance (e.g. https://gitlab.example.com for a self-hosted instance). Defaults to https://github.com / https://gitlab.com. Self-hosted (non-default) values are supported — see ADR-0025."
         },
         "token_env": {
           "type": "string",

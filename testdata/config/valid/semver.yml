@@ -17,5 +17,6 @@ release:
     generator: git-cliff
   platforms:
     - platform: github
+      name: github
       repository: acme/widget
       token_env: GH_TOKEN
