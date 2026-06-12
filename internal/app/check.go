@@ -128,7 +128,6 @@ func RuntimeCheck(
 		// found, so both could plausibly be needed); advisory otherwise.
 		required := cfg == nil
 		for _, bin := range []string{"glab", "gh"} {
-			bin := bin
 			dispatch(bin, func() RuntimeCheckItem {
 				out, _, err := runner.Run(bin, "--version")
 				if err != nil {
