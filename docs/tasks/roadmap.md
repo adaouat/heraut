@@ -3717,6 +3717,176 @@ entries of the same type (ADR-0025)" subsection, and updated the `Platform` inte
 
 ---
 
+### Phase 17 — Full-project review remediation
+
+Findings from the 2026-06-12 full code + docs review of v0.31.0 (all ~6.8k production
+lines, specs, ADRs, schema, CLAUDE.md). Three correctness bugs in code, one spec/code
+conflict that makes a spec-faithful config fail to load, significant doc drift from the
+forge extraction, plus consistency and hygiene items. Ordered by priority: correctness
+first (T88-T93), then docs (T94-T96), then consistency/hygiene (T97-T101).
+
+#### `[ ]` T88: GitLab platform — inject `token_env` into release-time calls
+
+`Check()` injects the configured token via `tokenEnvSlice()`, but `CreateRelease` and
+`UploadAssets` pass only `hostEnv()` — so a custom `token_env` (or two GitLab instances
+with different tokens, ADR-0025's motivating scenario) passes `heraut check runtime` and
+then runs `glab release create` without the token. Mirror GitHub's
+`RunEnv(append(p.tokenEnvSlice(), p.hostEnv()...), ...)` pattern. The contract tests
+asserting `["GITLAB_HOST=..."]`-only env on the self-hosted CreateRelease/UploadAssets
+rows currently pin the buggy behavior — update them deliberately in the same commit, per
+the testing rules.
+
+**Files:** `internal/platforms/gitlab/{platform.go,platform_test.go}`. **Scope:** S.
+**Dependencies:** none.
+
+#### `[ ]` T89: `hasEffectivePlatforms` — env `release:` without `platforms:` inherits root
+
+Spec 02 § Content override semantics: `release.platforms` absent in env → use the root
+list, and `buildReleasePipelineConfig` implements that (`len > 0` check). But
+`hasEffectivePlatforms` (`internal/cmd/release.go`) returns false whenever
+`envCfg.Release != nil` and its platform list is empty, so an env overriding only
+`release.notes` gets a spurious "requires at least one entry in release.platforms" error.
+Align the guard with the builder and the spec.
+
+**Files:** `internal/cmd/{release.go,release_test.go}`. **Scope:** S.
+**Dependencies:** none.
+
+#### `[ ]` T90: Unify `--version` override validation across `release` and `changelog`
+
+`heraut release` enforces `^v?\d+\.\d+\.\d+$` — rejecting valid CalVer overrides for any
+format that isn't exactly 3 numeric components (`YYYY.PATCH`, `YYYY.MM.DD.PATCH`) and all
+pre-releases — while `heraut changelog --version` validates nothing. Spec 03 states no
+shape restriction. Decide the contract (strategy-aware validation, or none), apply it to
+both commands, and record it in spec 03.
+
+**Files:** `internal/cmd/{release.go,changelog.go}` + tests,
+`docs/specs/03-commands.md`. **Scope:** S. **Dependencies:** none.
+
+#### `[ ]` T91: SemVer bump — fix breaking-change detection edge cases
+
+`isBreaking` matches `"!:"` anywhere in the subject (`fix: handle the foo!: token` →
+spurious major bump); anchor the `!` to the conventional-commit type/scope prefix. Also
+recognize the hyphenated `BREAKING-CHANGE:` footer, which the Conventional Commits 1.0
+spec mandates as a synonym of `BREAKING CHANGE:`.
+
+**Files:** `internal/versioning/semver/{bump.go,bump_test.go}`. **Scope:** S.
+**Dependencies:** none.
+
+#### `[ ]` T92: SemVer resolver — pre-release tag policy
+
+Git's default `version:refname` sort orders `v1.2.3-rc.1` *above* `v1.2.3` (without
+`versionsort.suffix`), and `BumpVersion("1.2.3-rc.1")` then fails with "invalid patch" —
+so one pre-release tag bricks auto-resolution. Decide: skip tags that don't parse as
+`MAJOR.MINOR.PATCH` (mirroring the CalVer resolver's skip-unparsable behavior), or
+declare pre-release tags unsupported in spec 04 and keep the hard error with a clearer
+message.
+
+**Files:** `internal/versioning/semver/{resolver.go,resolver_test.go}`,
+`docs/specs/04-versioning.md`. **Scope:** S. **Dependencies:** none.
+
+#### `[ ]` T93: Pipelines — push only the created tag
+
+Both pipelines run `git push origin --tags`, publishing every local tag including stale
+or experimental ones. Push `result.Tag` explicitly (`git push origin <tag>`). Align the
+step-name wording between the two pipelines ("Push tag" vs "Push tags") while there.
+
+**Files:** `internal/pipeline/{release.go,changelog.go}` + tests,
+`docs/specs/03-commands.md` (action sequences). **Scope:** S. **Dependencies:** none.
+
+#### `[ ]` T94: Spec 02/03 — platform tables and command surface match the code
+
+Spec 02 platform tables: remove the `catalog:` field (no `Catalog` field exists in
+`config.Platform`; the strict loader rejects unknown keys, so a spec-faithful config
+fails to load — the code notes catalog publishing is automatic now), add the **required**
+`name:` field (ADR-0025) and `base_url:` to both GitHub and GitLab tables and examples,
+and fix `glab release upload-asset` → `glab release upload --use-package-registry`.
+Spec 03: document the `whatsnew` command (asserted by `root_test.go` but absent from the
+behavioral authority).
+
+**Files:** `docs/specs/{02-configuration.md,03-commands.md}`. **Scope:** S.
+**Dependencies:** none.
+
+#### `[ ]` T95: CLAUDE.md — rewrite to post-forge reality
+
+CLAUDE.md still describes the pre-forge codebase: `internal/adapter/exec/`,
+`internal/selfupdate/`, `self_update.go`, `fang.Execute` in main.go, "19 ADRs" (25
+exist), and an ldflags section anchored on `internal/selfupdate/updater.go`. Missing:
+the `github.com/adaouat/forge` dependency (exec runner, config loader, exitcode, ui,
+updatecheck), `internal/exitcode/`, the `whatsnew` command, and the `--offline` flag.
+Rewrite the project-layout, tech-stack, ldflags, and command-surface sections.
+
+**Files:** `CLAUDE.md`. **Scope:** S. **Dependencies:** none.
+
+#### `[ ]` T96: Roadmap — reconcile the v1.0.0 checkpoint items and stale overview
+
+CHECKPOINT I is titled "v1.0.0 shipped via heraut" and marked `[x]`, but its sub-item
+"v1.0.0 cut by running `heraut release` on the heraut repo itself" is `[ ]` (here and
+again under CHECKPOINT K) while the project is at 0.31.0. Either cut v1.0.0 or retitle
+the checkpoints to reflect that the gates are green and the cut is pending. Also refresh
+the roadmap's Overview, which predates the forge extraction: "19 ADRs", "self-update
+tooling", and "extracted into a shared Go library later" (forge already exists).
+
+**Files:** `docs/tasks/roadmap.md`. **Scope:** S. **Dependencies:** none.
+
+#### `[ ]` T97: Validate `tag_pattern` is git-cliff-only
+
+`tag_pattern` on a content driver is silently ignored by `communique` and `cocogitto`
+(only git-cliff consumes it). Gate it in the validator the same way `tickets` is gated
+to git-cliff, with an actionable hint.
+
+**Files:** `internal/config/{validator.go,validator_test.go}`,
+`docs/specs/02-configuration.md`. **Scope:** S. **Dependencies:** none.
+
+#### `[ ]` T98: Command consistency pass — validation and no-config behavior
+
+Three alignments: (1) `heraut version next/current` skip `config.Validate`, so per-env
+misconfigs surface as raw resolver errors instead of path/hint output; (2) bare
+`heraut check` hard-fails when no config file exists while `check runtime` degrades to
+the all-tools-required probe — align bare `check`; (3) bare `check` exits with the
+Runtime code even when only config-section errors failed — classify by what failed.
+
+**Files:** `internal/cmd/{version.go,check.go}` + tests, `docs/specs/03-commands.md`.
+**Scope:** M. **Dependencies:** none.
+
+#### `[ ]` T99: `heraut init` update flow — round-trip advanced fields
+
+`ConfigToAnswers` drops `tickets`, `remote_metadata`, `release.assets`, `base_url`,
+`draft`/`prerelease`, and env content overrides, so the "Update it?" flow silently
+regenerates a config without them (the user confirms the printed YAML, but nothing
+signals the loss). Either carry these fields through Answers → GenerateYAML, or print an
+explicit "the following settings will be dropped" warning before the confirm prompt.
+
+**Files:** `internal/scaffold/{wizard.go,generate.go}` + tests, `internal/cmd/init.go`.
+**Scope:** M. **Dependencies:** none.
+
+#### `[ ]` T100: `heraut check runtime --env` — check the env's effective platforms
+
+`RuntimeCheck`'s Platforms section reads only `cfg.Release.Platforms`; an environment
+override's platform list is never checked. Thread the active `--env` through to
+`RuntimeCheck` and dispatch one row per *effective* platform entry (env list when
+present, else root), reusing the same replace semantics as the pipeline builder.
+
+**Files:** `internal/app/{check.go,check_test.go}`, `internal/cmd/check.go`,
+`docs/specs/03-commands.md`. **Scope:** M. **Dependencies:** T89 (shared effective-list
+semantics).
+
+#### `[ ]` T101: Hygiene — comments, loop copies, enum style, case conventions
+
+Bundle of style-rule violations found in review: (1) 16 task-ID references
+(T68/T75/T78/T79...) in production comments across `internal/cmd/offline.go`,
+`internal/pipeline/{release.go,linkctx.go}`, `internal/config/config.go`, and all three
+generators — the coding rules forbid task references in comments; keep the ADR pointers,
+drop the T-ids. (2) Leftover pre-Go-1.22 loop-var copies (`plat := platform` in
+`pipeline/release.go`, `og := og` in `app/check.go`) — finish what commit 60b3e9d
+started. (3) `BumpType`/`Mode` enums repeat `= iota` on every line. (4) Validator enum
+maps are exact-case while `app.buildGenerator`/`checkCliffDriver` use
+`ToLower`/`EqualFold` — pick one convention. (5) `code := exitcode.Runtime` pointless
+variable in `cmd/check.go`.
+
+**Files:** scattered (see list above). **Scope:** S. **Dependencies:** none.
+
+---
+
 ## Risks and mitigations
 
 | Risk                                                                                | Impact            | Mitigation                                                                |
