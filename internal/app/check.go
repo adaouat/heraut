@@ -42,7 +42,8 @@ func PreflightCheck(runner port.Runner) error {
 // Check order:
 //
 //	Git:        git binary → user.name → user.email → working tree
-//	Platforms:  glab (GitLab) → gh (GitHub)
+//	Platforms:  one row per configured release.platforms entry, or
+//	            glab (GitLab) → gh (GitHub) as a binary-only fallback
 //	Generators: git-cliff → cocogitto → communique
 //
 // Configured tools are hard errors when missing; unconfigured-but-supported
