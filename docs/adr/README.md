@@ -24,8 +24,9 @@ trade-offs were accepted.
 | [0017](0017-pipeline-progress-reporter.md) | Pipeline Progress Reporter Pattern | Accepted |
 | [0018](0018-ci-build-then-release-pipeline.md) | Self-Bootstrapping CI Release Pipeline | Accepted |
 | [0019](0019-perenv-content-driver-merge.md) | Per-Environment Content-Driver Overrides Deep-Merge | Accepted |
-| [0020](0020-platform-base-url.md) | Per-Platform `base_url` for Self-Hosted Instances | Accepted |
+| [0020](0020-platform-base-url.md) | Per-Platform `base_url` for Self-Hosted Instances | Superseded by ADR-0025 |
 | [0021](0021-per-platform-release-notes.md) | Release Notes Regenerated Per Platform | Accepted |
 | [0022](0022-fat-injection-thin-templates.md) | Fat Injection / Thin git-cliff Templates | Accepted |
 | [0023](0023-remote-metadata-policy.md) | Remote-Metadata Policy for Content Generation | Accepted |
 | [0024](0024-ticket-linking.md) | Ticket Linking via git-cliff link_parsers | Accepted |
+| [0025](0025-multi-instance-platforms.md) | Multi-Instance Same-Platform Releases | Accepted |

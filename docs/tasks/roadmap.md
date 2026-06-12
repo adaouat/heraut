@@ -3692,13 +3692,24 @@ same-type entries remains deferred, as already agreed — each entry runs its ow
 `--version` probe, demonstrated by `TestRuntimeCheck_MultipleSameTypePlatforms` (two
 `gitlab` entries, two `glab --version` probes).
 
-#### `[ ]` T87: Docs — ADR-0025, supersede ADR-0020, update spec 05
+#### `[x]` T87: Docs — ADR-0025, supersede ADR-0020, update spec 05
 
 New `docs/adr/0025-multi-instance-platforms.md` recording the lifted `base_url` gate,
 per-platform CLI host targeting, the required unique `name` field, and the restructured
 `heraut check runtime` Platforms section. Mark ADR-0020 as superseded.
 `docs/specs/05-generators-and-platforms.md` gains a self-hosted/multi-instance subsection
 and `name:` in both platform examples.
+
+Created ADR-0025 with the full decision record (required unique `name` field, lifted
+`base_url` gate, `hostEnv()` per-platform CLI host targeting, `Check()` self-hosted
+autologin skip, `Name()`/`ReleaseURL()`/`LinkContext()` honoring configured values, and
+the restructured `heraut check runtime` Platforms section). Marked ADR-0020 as superseded
+with a pointer blockquote, and updated the ADR README index (ADR-0020 row →
+"Superseded by ADR-0025", new ADR-0025 row added after ADR-0024). Updated
+`docs/specs/05-generators-and-platforms.md`: added `name:` and `base_url:` to both the
+GitHub and GitLab platform examples, added a new "Self-hosted instances and multiple
+entries of the same type (ADR-0025)" subsection, and updated the `Platform` interface's
+`Name()` doc comment. This completes Phase 16 (T83-T87) / ADR-0025.
 
 **Files:** `docs/adr/0025-multi-instance-platforms.md`, `docs/adr/0020-platform-base-url.md`,
 `docs/adr/README.md`, `docs/specs/05-generators-and-platforms.md`. **Scope:** S.

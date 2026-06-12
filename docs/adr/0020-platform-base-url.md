@@ -1,10 +1,18 @@
 # ADR-0020: Per-Platform `base_url` for Self-Hosted Instances
 
-- **Status**: Accepted
+- **Status**: Superseded by [ADR-0025](0025-multi-instance-platforms.md)
 - **Date**: 2026-06-08
 - **Deciders**: bchatard
 
 ---
+
+> **Superseded**: the validator gate described below ("Gate non-default `base_url` until
+> host targeting lands") and the deferred consumers 2/3 in the table below were resolved
+> by [ADR-0025](0025-multi-instance-platforms.md), which lifts the gate and implements
+> per-platform host targeting (`GH_HOST`/`GITLAB_HOST`/`GH_ENTERPRISE_TOKEN`),
+> `Name()`/`ReleaseURL()`/`LinkContext()` honoring `base_url`, and a `name` field for
+> disambiguating multiple entries of the same platform type. The rest of this ADR (the
+> `base_url` field itself, its semantics, and consumer 1 / Phase 14) remains accurate.
 
 ## Context
 

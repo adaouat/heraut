@@ -203,8 +203,10 @@ can be published to one or both — `release.platforms` is a list.
 release:
   platforms:
     - platform: github
+      name: github               # required, must be unique within this platforms list
       repository: org/repo        # optional, defaults to $GITHUB_REPOSITORY
       token_env: GH_TOKEN         # optional, defaults to GH_TOKEN
+      base_url: https://github.com  # optional, defaults to https://github.com
       draft: false
       prerelease: false
       assets:
@@ -232,8 +234,10 @@ gh release upload <tag> <file> --repo <repository>     # per asset, after releas
 release:
   platforms:
     - platform: gitlab
+      name: gitlab               # required, must be unique within this platforms list
       project: $CI_PROJECT_PATH   # optional, defaults to $CI_PROJECT_PATH
       token_env: GITLAB_TOKEN     # optional, defaults to GITLAB_TOKEN
+      base_url: https://gitlab.com  # optional, defaults to https://gitlab.com
       catalog: false              # optional, set true for a CI/CD Catalog release
       assets:
         - dist/myapp_*
@@ -253,13 +257,45 @@ glab release upload-asset <tag> <file> -R <project>    # per asset, after releas
   Catalog release
 - **Release URL**: `<gitlab-base>/<project>/-/releases/<tag>`
 
+### Self-hosted instances and multiple entries of the same type (ADR-0025)
+
+`base_url` may be set to any absolute `http(s)://` URL — including a host other than the
+platform's default (`github.com` / `gitlab.com`). When `base_url` is self-hosted, heraut:
+
+- Points `gh`/`glab` at that host: `GITLAB_HOST=<host>` for GitLab, `GH_HOST=<host>` +
+  `GH_ENTERPRISE_TOKEN=<token>` for GitHub Enterprise Server.
+- Skips CI autologin (`GITHUB_ACTIONS`/`GITLAB_CI`) for that entry — autologin always
+  targets the CI runner's own (public) host, never a separately-configured self-hosted
+  target — and instead always validates the configured `token_env`.
+- Resolves `ReleaseURL`/`LinkContext` against `base_url` instead of the type default.
+
+Because `release.platforms` is a list, multiple entries of the *same* platform type are
+supported — e.g. publishing to both `gitlab.com` and a self-hosted
+`gitlab.example.com`:
+
+```yaml
+release:
+  platforms:
+    - platform: gitlab
+      name: gitlab-com
+      project: acme/widget-catalog
+    - platform: gitlab
+      name: gitlab-internal
+      project: acme/widget
+      base_url: https://gitlab.example.com
+```
+
+Each entry's `name` must be unique within its `release.platforms` list and is used to
+label that entry's row in `heraut check runtime`'s Platforms section and in any
+per-entry error message.
+
 ### Platform interface
 
 All platforms implement `port.Platform`:
 
 ```go
 type Platform interface {
-    Name() string                                  // "github" or "gitlab"
+    Name() string                                  // the configured platform entry's name
     ReleaseURL(tag string) string                  // canonical URL
     Check() error                                  // binary + token + project/repo resolved
     CreateRelease(tag, notes string) error         // create the release
