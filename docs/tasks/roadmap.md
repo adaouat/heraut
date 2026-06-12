@@ -3667,7 +3667,7 @@ default host) using `net/url` to parse the host from `cfg.BaseURL`.
 token-based `repos/{owner}/{repo}/releases?per_page=1` probe with `hostEnv()` merged in.
 No deviations from the plan.
 
-#### `[ ]` T86: `heraut check runtime` — one Platforms row per configured entry
+#### `[x]` T86: `heraut check runtime` — one Platforms row per configured entry
 
 Restructure `internal/app/check.go`'s Platforms section from "one row per platform *type*"
 (`configuredPlatforms`/`findPlatformCfg`, first-match-by-type) to "one row per
@@ -3679,6 +3679,18 @@ each entry runs its own `--version` probe.
 
 **Files:** `internal/app/{check.go,check_test.go}`. **Scope:** M. **Dependencies:** T83,
 T84, T85.
+
+Done: removed `configuredPlatforms` and `findPlatformCfg`. When `cfg.Release.Platforms`
+is non-empty, `RuntimeCheck` now dispatches one Platforms row per entry, labeled by
+`platCfg.Name`, each running its own `buildPlatform` + `p.Check()` (binary + token +
+project/repository + API auth). `buildPlatform` already returned an "unsupported
+platform" error for unknown types, so no message change was needed for
+`TestRuntimeCheck_UnknownPlatform`. When `cfg == nil` or `cfg.Release == nil` or
+`cfg.Release.Platforms` is empty, falls back to the prior binary-only `glab`/`gh` probe
+(hard error when `cfg == nil`, advisory otherwise). Per-CLI-type binary-dedup across
+same-type entries remains deferred, as already agreed — each entry runs its own
+`--version` probe, demonstrated by `TestRuntimeCheck_MultipleSameTypePlatforms` (two
+`gitlab` entries, two `glab --version` probes).
 
 #### `[ ]` T87: Docs — ADR-0025, supersede ADR-0020, update spec 05
 

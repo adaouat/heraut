@@ -105,39 +105,43 @@ func RuntimeCheck(
 	// ── Platforms ─────────────────────────────────────────────────────────────
 	header("Platforms")
 
-	usedPlats := configuredPlatforms(cfg)
-	for _, op := range []struct{ typ, binary, display string }{
-		{"gitlab", "glab", "glab"},
-		{"github", "gh", "gh"},
-	} {
-		op := op
-		required := usedPlats[op.typ]
-		dispatch(op.display, func() RuntimeCheckItem {
-			if required && cfg != nil {
-				// Full check: binary + token + project + API auth.
-				platCfg := findPlatformCfg(cfg, op.typ)
+	if cfg != nil && cfg.Release != nil && len(cfg.Release.Platforms) > 0 {
+		// One row per configured platform entry: full check (binary + token +
+		// project/repository + API auth), labeled by the entry's configured name.
+		for i := range cfg.Release.Platforms {
+			platCfg := &cfg.Release.Platforms[i]
+			name := platCfg.Name
+			dispatch(name, func() RuntimeCheckItem {
 				p, buildErr := buildPlatform(runner, platCfg)
 				if buildErr != nil {
-					return RuntimeCheckItem{Name: op.display, Err: buildErr}
+					return RuntimeCheckItem{Name: name, Err: buildErr}
 				}
 				if err := p.Check(); err != nil {
-					return RuntimeCheckItem{Name: op.display, Err: err}
+					return RuntimeCheckItem{Name: name, Err: err}
 				}
-				return RuntimeCheckItem{Name: op.display}
-			}
-			// Binary-only check (no config available for token/project resolution).
-			// Missing binary is a hard error when required, advisory otherwise.
-			out, _, err := runner.Run(op.binary, "--version")
-			if err != nil {
-				if required {
-					return RuntimeCheckItem{Name: op.display,
-						Err: fmt.Errorf("%s: not found on PATH", op.binary)}
+				return RuntimeCheckItem{Name: name}
+			})
+		}
+	} else {
+		// No platforms configured: fall back to a binary-only probe of both
+		// supported CLIs. Required (hard error) when cfg is nil (no config file
+		// found, so both could plausibly be needed); advisory otherwise.
+		required := cfg == nil
+		for _, bin := range []string{"glab", "gh"} {
+			bin := bin
+			dispatch(bin, func() RuntimeCheckItem {
+				out, _, err := runner.Run(bin, "--version")
+				if err != nil {
+					if required {
+						return RuntimeCheckItem{Name: bin,
+							Err: fmt.Errorf("%s: not found on PATH", bin)}
+					}
+					return RuntimeCheckItem{Name: bin, IsWarn: true,
+						Err: fmt.Errorf("not found (not required by this config)")}
 				}
-				return RuntimeCheckItem{Name: op.display, IsWarn: true,
-					Err: fmt.Errorf("not found (not required by this config)")}
-			}
-			return RuntimeCheckItem{Name: op.display, Value: strings.TrimSpace(out)}
-		})
+				return RuntimeCheckItem{Name: bin, Value: strings.TrimSpace(out)}
+			})
+		}
 	}
 
 	// ── Generators ────────────────────────────────────────────────────────────
@@ -179,34 +183,6 @@ func configuredGenerators(cfg *config.Config) map[string]bool {
 		m[cfg.Release.Notes.Generator] = true
 	}
 	return m
-}
-
-// configuredPlatforms returns the set of platform types active in cfg.
-// When cfg is nil (no config file found) all supported platforms are required.
-func configuredPlatforms(cfg *config.Config) map[string]bool {
-	if cfg == nil {
-		return map[string]bool{"github": true, "gitlab": true}
-	}
-	m := make(map[string]bool)
-	if cfg.Release != nil {
-		for _, p := range cfg.Release.Platforms {
-			m[p.Type] = true
-		}
-	}
-	return m
-}
-
-// findPlatformCfg returns the config for the platform of the given type, or nil.
-func findPlatformCfg(cfg *config.Config, typ string) *config.Platform {
-	if cfg.Release == nil {
-		return nil
-	}
-	for i := range cfg.Release.Platforms {
-		if cfg.Release.Platforms[i].Type == typ {
-			return &cfg.Release.Platforms[i]
-		}
-	}
-	return nil
 }
 
 // CheckCliff runs git-cliff --context --no-exec against the effective merged config

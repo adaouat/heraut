@@ -273,7 +273,6 @@ func TestRuntimeCheck_WithGitHubPlatform(t *testing.T) {
 	mr.QueueResponse("Alice", "", nil)              // user.name
 	mr.QueueResponse("a@b.com", "", nil)            // user.email
 	mr.QueueResponse("", "", nil)                   // git status
-	mr.QueueResponse("glab 1.0", "", nil)           // glab (optional)
 	mr.QueueResponse("gh 2.67.0", "", nil)          // gh binary — inside p.Check()
 	mr.QueueResponse(`[]`, "", nil)                 // gh api auth — inside p.Check().checkAPIAuth()
 	mr.QueueResponse("git-cliff 2.0", "", nil)      // git-cliff (optional)
@@ -282,7 +281,7 @@ func TestRuntimeCheck_WithGitHubPlatform(t *testing.T) {
 
 	cfg := semverCfg()
 	cfg.Release = &config.Release{
-		Platforms: []config.Platform{{Type: "github", Repository: "org/repo"}},
+		Platforms: []config.Platform{{Type: "github", Name: "gh", Repository: "org/repo"}},
 	}
 	items := collectItems(mr, cfg)
 
@@ -305,7 +304,6 @@ func TestRuntimeCheck_WithGitHubPlatform_MissingToken(t *testing.T) {
 	mr.QueueResponse("Alice", "", nil)              // user.name
 	mr.QueueResponse("a@b.com", "", nil)            // user.email
 	mr.QueueResponse("", "", nil)                   // git status
-	mr.QueueResponse("glab 1.0", "", nil)           // glab (optional)
 	mr.QueueResponse("gh 2.67.0", "", nil)          // gh binary — p.Check() runs binary before token
 	// token missing → checkAPIAuth skipped → no API runner call
 	mr.QueueResponse("git-cliff 2.0", "", nil)  // git-cliff (optional)
@@ -314,7 +312,7 @@ func TestRuntimeCheck_WithGitHubPlatform_MissingToken(t *testing.T) {
 
 	cfg := semverCfg()
 	cfg.Release = &config.Release{
-		Platforms: []config.Platform{{Type: "github", Repository: "org/repo"}},
+		Platforms: []config.Platform{{Type: "github", Name: "gh", Repository: "org/repo"}},
 	}
 	items := collectItems(mr, cfg)
 
@@ -353,27 +351,70 @@ func TestRuntimeCheck_UnknownChangelogGenerator(t *testing.T) {
 }
 
 func TestRuntimeCheck_UnknownPlatform(t *testing.T) {
-	// Unknown platforms are caught by config validation, not RuntimeCheck.
+	// An unrecognized platform type is normally caught by config validation before
+	// RuntimeCheck runs, but RuntimeCheck still reports a hard error for the entry
+	// (labeled by its configured name) rather than silently skipping it.
 	mr := exectest.NewMockRunner()
 	mr.QueueResponse("git version 2.40.0", "", nil) // git --version
 	mr.QueueResponse("Alice", "", nil)              // user.name
 	mr.QueueResponse("a@b.com", "", nil)            // user.email
 	mr.QueueResponse("", "", nil)                   // git status
-	mr.QueueResponse("glab 1.0", "", nil)           // glab (optional; "unknown-plat" ≠ "gitlab")
-	mr.QueueResponse("gh 2.0", "", nil)             // gh (optional)
 	mr.QueueResponse("git-cliff 2.0", "", nil)      // git-cliff (optional)
 	mr.QueueResponse("cog 7.0", "", nil)            // cog (optional)
 	mr.QueueResponse("communique 1.0", "", nil)     // communique (optional)
 
 	cfg := semverCfg()
 	cfg.Release = &config.Release{
-		Platforms: []config.Platform{{Type: "unknown-plat"}},
+		Platforms: []config.Platform{{Type: "unknown-plat", Name: "unknown-plat"}},
 	}
 	items := collectItems(mr, cfg)
 
 	for _, it := range items {
-		assert.NotEqual(t, "unknown-plat", it.Name, "unknown platform should not appear")
+		if it.Name == "unknown-plat" {
+			assert.Error(t, it.Err)
+			assert.Contains(t, it.Err.Error(), "unsupported platform")
+			return
+		}
 	}
+	t.Fatal("expected unknown-plat item")
+}
+
+func TestRuntimeCheck_MultipleSameTypePlatforms(t *testing.T) {
+	t.Setenv("GH_TOKEN", "")
+	t.Setenv("GITLAB_TOKEN", "")
+	t.Setenv("GITLAB_CI", "")
+
+	mr := exectest.NewMockRunner()
+	mr.QueueResponse("git version 2.40.0", "", nil) // git --version
+	mr.QueueResponse("Alice", "", nil)              // user.name
+	mr.QueueResponse("a@b.com", "", nil)            // user.email
+	mr.QueueResponse("", "", nil)                   // git status
+	mr.QueueResponse("glab 1.0", "", nil)           // gitlab-com p.Check() binary
+	// token missing → checkAPIAuth skipped for gitlab-com
+	mr.QueueResponse("glab 1.0", "", nil) // gitlab-internal p.Check() binary
+	// token missing → checkAPIAuth skipped for gitlab-internal
+	mr.QueueResponse("git-cliff 2.0", "", nil)  // git-cliff (optional)
+	mr.QueueResponse("cog 7.0", "", nil)        // cog (optional)
+	mr.QueueResponse("communique 1.0", "", nil) // communique (optional)
+
+	cfg := semverCfg()
+	cfg.Release = &config.Release{
+		Platforms: []config.Platform{
+			{Type: "gitlab", Name: "gitlab-com", Project: "acme/widget"},
+			{Type: "gitlab", Name: "gitlab-internal", Project: "acme/widget", BaseURL: "https://gitlab.example.com"},
+		},
+	}
+	items := collectItems(mr, cfg)
+
+	var names []string
+	for _, it := range items {
+		if it.Name == "gitlab-com" || it.Name == "gitlab-internal" {
+			names = append(names, it.Name)
+			assert.Error(t, it.Err, "%s: missing GITLAB_TOKEN should be a hard error", it.Name)
+			assert.Contains(t, it.Err.Error(), "GITLAB_TOKEN")
+		}
+	}
+	assert.Equal(t, []string{"gitlab-com", "gitlab-internal"}, names)
 }
 
 func TestRuntimeCheck_UserNameMissing(t *testing.T) {
