@@ -4047,7 +4047,7 @@ explicit "the following settings will be dropped" warning before the confirm pro
 > has no end-to-end test, consistent with the existing suite (no test drives any
 > non-`--defaults` interactive `init` path — `huh` forms need a TTY).
 
-#### `[ ]` T100: `heraut check runtime --env` — check the env's effective platforms
+#### `[x]` T100: `heraut check runtime --env` — check the env's effective platforms
 
 `RuntimeCheck`'s Platforms section reads only `cfg.Release.Platforms`; an environment
 override's platform list is never checked. Thread the active `--env` through to
@@ -4057,6 +4057,25 @@ present, else root), reusing the same replace semantics as the pipeline builder.
 **Files:** `internal/app/{check.go,check_test.go}`, `internal/cmd/check.go`,
 `docs/specs/03-commands.md`. **Scope:** M. **Dependencies:** T89 (shared effective-list
 semantics).
+
+> `RuntimeCheck` gained an `env string` parameter; the Platforms section now resolves
+> `platforms` the same way as `buildReleasePipelineConfig` and `hasEffectivePlatforms`
+> (T89): start from `cfg.Release.Platforms`, replace wholesale with
+> `cfg.Environments[env].Release.Platforms` only when `env != ""`, the env exists,
+> `Release != nil`, and its platform list is non-empty. `internal/cmd/check.go` reads the
+> root `--env` flag in both the bare `check` and `check runtime` `RunE` functions and
+> threads it through `runRuntimeCheck`. This is now the third independent copy of this
+> exact resolution snippet (`pipeline.go`, `cmd/release.go`'s `hasEffectivePlatforms`, and
+> here) — extracting a shared `config` helper would be a reasonable follow-up but is out
+> of scope for this task's file list (`pipeline.go`/`cmd/release.go` aren't listed) and
+> not added as a new task, since T101's hygiene bundle already tracks related
+> consistency issues in this area. `collectItems` in `check_test.go` gained an `env`
+> parameter (all ~20 existing call sites pass `""`, preserving prior behavior); two new
+> tests cover the replace and inherit branches
+> (`TestRuntimeCheck_EnvPlatformOverrideReplacesRoot`,
+> `TestRuntimeCheck_EnvWithoutPlatformOverrideInheritsRoot`). `docs/specs/03-commands.md`
+> documents the `--env` resolution under `heraut check runtime`, noting bare `heraut
+> check` applies the same logic.
 
 #### `[ ]` T101: Hygiene — comments, loop copies, enum style, case conventions
 

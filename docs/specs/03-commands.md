@@ -323,6 +323,13 @@ hard error if any binary is missing. The full platform check (token + API auth) 
 skipped in this case since there is no config to source token names from; only binary
 presence is verified.
 
+**`--env`**: the Platforms section checks the *effective* `release.platforms` list for
+the given environment — the env's `release.platforms` when non-empty, replacing the root
+list entirely; otherwise the root list (same replace semantics as the release pipeline,
+see [ADR-0025](../adr/0025-multi-instance-platforms.md)). Without `--env`, or for an env
+with no `release.platforms` override, the root list is checked. `heraut check` (bare)
+applies the same `--env`-aware resolution.
+
 ### `heraut check cliff`
 
 Invokes `git-cliff --context --no-exec` against the effective merged config (embedded

@@ -39,10 +39,16 @@ func PreflightCheck(runner port.Runner) error {
 // items. dispatch is called once per item with the label shown while the check
 // runs; the run function performs the check and returns the result.
 //
+// env selects the active environment for the Platforms section: when non-empty
+// and cfg.Environments[env].Release.Platforms is non-empty, it replaces the root
+// release.platforms list entirely (same semantics as the release pipeline's
+// effective-platforms resolution). An empty env, or an env with no platform
+// override, checks the root list.
+//
 // Check order:
 //
 //	Git:        git binary → user.name → user.email → working tree
-//	Platforms:  one row per configured release.platforms entry, or
+//	Platforms:  one row per effective release.platforms entry, or
 //	            glab (GitLab) → gh (GitHub) as a binary-only fallback
 //	Generators: git-cliff → cocogitto → communique
 //
@@ -51,6 +57,7 @@ func PreflightCheck(runner port.Runner) error {
 func RuntimeCheck(
 	runner port.Runner,
 	cfg *config.Config,
+	env string,
 	header func(title string),
 	dispatch func(name string, run func() RuntimeCheckItem),
 ) {
@@ -106,11 +113,23 @@ func RuntimeCheck(
 	// ── Platforms ─────────────────────────────────────────────────────────────
 	header("Platforms")
 
-	if cfg != nil && cfg.Release != nil && len(cfg.Release.Platforms) > 0 {
-		// One row per configured platform entry: full check (binary + token +
+	var platforms []config.Platform
+	if cfg != nil {
+		if cfg.Release != nil {
+			platforms = cfg.Release.Platforms
+		}
+		if env != "" {
+			if envCfg, ok := cfg.Environments[env]; ok && envCfg.Release != nil && len(envCfg.Release.Platforms) > 0 {
+				platforms = envCfg.Release.Platforms
+			}
+		}
+	}
+
+	if len(platforms) > 0 {
+		// One row per effective platform entry: full check (binary + token +
 		// project/repository + API auth), labeled by the entry's configured name.
-		for i := range cfg.Release.Platforms {
-			platCfg := &cfg.Release.Platforms[i]
+		for i := range platforms {
+			platCfg := &platforms[i]
 			name := platCfg.Name
 			dispatch(name, func() RuntimeCheckItem {
 				p, buildErr := buildPlatform(runner, platCfg)

@@ -26,6 +26,7 @@ func NewCheckCmd() *cobra.Command {
 		RunE: func(cmd *cobra.Command, args []string) error {
 			cfgPath, _ := cmd.Flags().GetString("config")
 			verbose, _ := cmd.Flags().GetBool("verbose")
+			env, _ := cmd.Flags().GetString("env")
 			runner := execadapter.New(false, verbose)
 			out := cmd.OutOrStdout()
 
@@ -59,7 +60,7 @@ func NewCheckCmd() *cobra.Command {
 			}
 
 			// Runtime section (Git / Platforms / Generators — headers emitted by RuntimeCheck)
-			failed += runRuntimeCheck(runner, cfg, out)
+			failed += runRuntimeCheck(runner, cfg, env, out)
 
 			// Cliff section (best-effort; skip if no git-cliff generators configured)
 			ui.Header(out, "Cliff")
@@ -124,6 +125,7 @@ func newCheckRuntimeCmd() *cobra.Command {
 		RunE: func(cmd *cobra.Command, args []string) error {
 			cfgPath, _ := cmd.Flags().GetString("config")
 			verbose, _ := cmd.Flags().GetBool("verbose")
+			env, _ := cmd.Flags().GetString("env")
 			runner := execadapter.New(false, verbose)
 			out := cmd.OutOrStdout()
 
@@ -137,7 +139,7 @@ func newCheckRuntimeCmd() *cobra.Command {
 				cfg = nil
 			}
 
-			if failed := runRuntimeCheck(runner, cfg, out); failed > 0 {
+			if failed := runRuntimeCheck(runner, cfg, env, out); failed > 0 {
 				_, _ = fmt.Fprintln(out)
 				_, _ = fmt.Fprintln(out, ui.Err(out, fmt.Sprintf("%d check(s) failed", failed)))
 				return exitcode.Wrap(exitcode.Runtime, fmt.Errorf("one or more runtime checks failed"))
@@ -229,11 +231,13 @@ func newCheckCliffReleaseNotesCmd() *cobra.Command {
 }
 
 // runRuntimeCheck dispatches each runtime check with a spinner and returns
-// the number of hard failures (warnings do not count).
-func runRuntimeCheck(runner port.Runner, cfg *config.Config, out io.Writer) int {
+// the number of hard failures (warnings do not count). env selects the
+// effective release.platforms list (root or env override) for the Platforms
+// section; pass "" to check the root list.
+func runRuntimeCheck(runner port.Runner, cfg *config.Config, env string, out io.Writer) int {
 	var failed int
 	sp := forgeui.NewSpinner(out, forgeui.Human)
-	app.RuntimeCheck(runner, cfg,
+	app.RuntimeCheck(runner, cfg, env,
 		func(title string) { ui.Header(out, title) },
 		func(name string, run func() app.RuntimeCheckItem) {
 			err := sp.Run(name, func() (forgeui.Result, error) {

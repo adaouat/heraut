@@ -13,9 +13,9 @@ import (
 )
 
 // collectItems drives RuntimeCheck synchronously and returns all items.
-func collectItems(mr *exectest.MockRunner, cfg *config.Config) []app.RuntimeCheckItem {
+func collectItems(mr *exectest.MockRunner, cfg *config.Config, env string) []app.RuntimeCheckItem {
 	var items []app.RuntimeCheckItem
-	app.RuntimeCheck(mr, cfg,
+	app.RuntimeCheck(mr, cfg, env,
 		func(_ string) {}, // no-op for section headers
 		func(_ string, run func() app.RuntimeCheckItem) {
 			items = append(items, run())
@@ -87,7 +87,7 @@ func TestRuntimeCheck_MinimalConfig(t *testing.T) {
 	queueSuccess(mr)
 
 	cfg := semverCfg()
-	items := collectItems(mr, cfg)
+	items := collectItems(mr, cfg, "")
 	require.Len(t, items, 9)
 
 	names := make([]string, len(items))
@@ -113,7 +113,7 @@ func TestRuntimeCheck_GitValue(t *testing.T) {
 	mr.QueueResponse("communique 1.0", "", nil)       // communique
 
 	cfg := semverCfg()
-	items := collectItems(mr, cfg)
+	items := collectItems(mr, cfg, "")
 
 	for _, it := range items {
 		if it.Name == "git" {
@@ -138,7 +138,7 @@ func TestRuntimeCheck_UserNameValue(t *testing.T) {
 	mr.QueueResponse("communique 1.0", "", nil)      // communique
 
 	cfg := semverCfg()
-	items := collectItems(mr, cfg)
+	items := collectItems(mr, cfg, "")
 
 	for _, it := range items {
 		if it.Name == "git user.name" {
@@ -163,7 +163,7 @@ func TestRuntimeCheck_WorkingTreeClean(t *testing.T) {
 	mr.QueueResponse("communique 1.0", "", nil)
 
 	cfg := semverCfg()
-	items := collectItems(mr, cfg)
+	items := collectItems(mr, cfg, "")
 
 	for _, it := range items {
 		if it.Name == "working tree" {
@@ -189,7 +189,7 @@ func TestRuntimeCheck_WorkingTreeDirty(t *testing.T) {
 	mr.QueueResponse("communique 1.0", "", nil)
 
 	cfg := semverCfg()
-	items := collectItems(mr, cfg)
+	items := collectItems(mr, cfg, "")
 
 	for _, it := range items {
 		if it.Name == "working tree" {
@@ -208,7 +208,7 @@ func TestRuntimeCheck_DispatchNames(t *testing.T) {
 
 	cfg := semverCfg()
 	var names []string
-	app.RuntimeCheck(mr, cfg,
+	app.RuntimeCheck(mr, cfg, "",
 		func(_ string) {}, // ignore section headers
 		func(name string, run func() app.RuntimeCheckItem) {
 			names = append(names, name)
@@ -229,7 +229,7 @@ func TestRuntimeCheck_SectionHeaders(t *testing.T) {
 
 	cfg := semverCfg()
 	var headers []string
-	app.RuntimeCheck(mr, cfg,
+	app.RuntimeCheck(mr, cfg, "",
 		func(title string) { headers = append(headers, title) },
 		func(_ string, run func() app.RuntimeCheckItem) { run() },
 	)
@@ -251,7 +251,7 @@ func TestRuntimeCheck_WithGitcliff(t *testing.T) {
 
 	cfg := semverCfg()
 	cfg.Changelog = &config.ContentDriver{Generator: "git-cliff"}
-	items := collectItems(mr, cfg)
+	items := collectItems(mr, cfg, "")
 
 	found := false
 	for _, it := range items {
@@ -283,7 +283,7 @@ func TestRuntimeCheck_WithGitHubPlatform(t *testing.T) {
 	cfg.Release = &config.Release{
 		Platforms: []config.Platform{{Type: "github", Name: "gh", Repository: "org/repo"}},
 	}
-	items := collectItems(mr, cfg)
+	items := collectItems(mr, cfg, "")
 
 	found := false
 	for _, it := range items {
@@ -314,7 +314,7 @@ func TestRuntimeCheck_WithGitHubPlatform_MissingToken(t *testing.T) {
 	cfg.Release = &config.Release{
 		Platforms: []config.Platform{{Type: "github", Name: "gh", Repository: "org/repo"}},
 	}
-	items := collectItems(mr, cfg)
+	items := collectItems(mr, cfg, "")
 
 	for _, it := range items {
 		if it.Name == "gh" {
@@ -324,6 +324,75 @@ func TestRuntimeCheck_WithGitHubPlatform_MissingToken(t *testing.T) {
 		}
 	}
 	t.Fatal("expected gh item")
+}
+
+func TestRuntimeCheck_EnvPlatformOverrideReplacesRoot(t *testing.T) {
+	t.Setenv("GH_TOKEN", "")
+	t.Setenv("GITHUB_ACTIONS", "")
+
+	mr := exectest.NewMockRunner()
+	mr.QueueResponse("git version 2.40.0", "", nil) // git --version
+	mr.QueueResponse("Alice", "", nil)              // user.name
+	mr.QueueResponse("a@b.com", "", nil)            // user.email
+	mr.QueueResponse("", "", nil)                   // git status
+	mr.QueueResponse("gh 2.67.0", "", nil)          // github-prod binary — only entry checked
+	mr.QueueResponse("git-cliff 2.0", "", nil)      // git-cliff (optional)
+	mr.QueueResponse("cog 7.0", "", nil)            // cog (optional)
+	mr.QueueResponse("communique 1.0", "", nil)     // communique (optional)
+
+	cfg := semverCfg()
+	cfg.Release = &config.Release{
+		Platforms: []config.Platform{{Type: "github", Name: "github-root", Repository: "org/root"}},
+	}
+	cfg.Environments = map[string]config.Environment{
+		"prod": {
+			Bump: "auto",
+			Release: &config.EnvRelease{
+				Platforms: []config.Platform{{Type: "github", Name: "github-prod", Repository: "org/prod"}},
+			},
+		},
+	}
+	items := collectItems(mr, cfg, "prod")
+
+	var names []string
+	for _, it := range items {
+		if it.Name == "github-root" || it.Name == "github-prod" {
+			names = append(names, it.Name)
+		}
+	}
+	assert.Equal(t, []string{"github-prod"}, names, "env release.platforms should replace root platforms entirely")
+}
+
+func TestRuntimeCheck_EnvWithoutPlatformOverrideInheritsRoot(t *testing.T) {
+	t.Setenv("GH_TOKEN", "")
+	t.Setenv("GITHUB_ACTIONS", "")
+
+	mr := exectest.NewMockRunner()
+	mr.QueueResponse("git version 2.40.0", "", nil) // git --version
+	mr.QueueResponse("Alice", "", nil)              // user.name
+	mr.QueueResponse("a@b.com", "", nil)            // user.email
+	mr.QueueResponse("", "", nil)                   // git status
+	mr.QueueResponse("gh 2.67.0", "", nil)          // github-root binary — only entry checked
+	mr.QueueResponse("git-cliff 2.0", "", nil)      // git-cliff (optional)
+	mr.QueueResponse("cog 7.0", "", nil)            // cog (optional)
+	mr.QueueResponse("communique 1.0", "", nil)     // communique (optional)
+
+	cfg := semverCfg()
+	cfg.Release = &config.Release{
+		Platforms: []config.Platform{{Type: "github", Name: "github-root", Repository: "org/root"}},
+	}
+	cfg.Environments = map[string]config.Environment{
+		"staging": {Bump: "auto"}, // no release override → inherits root platforms
+	}
+	items := collectItems(mr, cfg, "staging")
+
+	var names []string
+	for _, it := range items {
+		if it.Name == "github-root" {
+			names = append(names, it.Name)
+		}
+	}
+	assert.Equal(t, []string{"github-root"}, names, "env without release.platforms should inherit root")
 }
 
 func TestRuntimeCheck_UnknownChangelogGenerator(t *testing.T) {
@@ -343,7 +412,7 @@ func TestRuntimeCheck_UnknownChangelogGenerator(t *testing.T) {
 
 	cfg := semverCfg()
 	cfg.Changelog = &config.ContentDriver{Generator: "unknown-gen"}
-	items := collectItems(mr, cfg)
+	items := collectItems(mr, cfg, "")
 
 	for _, it := range items {
 		assert.NotEqual(t, "unknown-gen", it.Name, "unknown generator should not appear")
@@ -367,7 +436,7 @@ func TestRuntimeCheck_UnknownPlatform(t *testing.T) {
 	cfg.Release = &config.Release{
 		Platforms: []config.Platform{{Type: "unknown-plat", Name: "unknown-plat"}},
 	}
-	items := collectItems(mr, cfg)
+	items := collectItems(mr, cfg, "")
 
 	for _, it := range items {
 		if it.Name == "unknown-plat" {
@@ -404,7 +473,7 @@ func TestRuntimeCheck_MultipleSameTypePlatforms(t *testing.T) {
 			{Type: "gitlab", Name: "gitlab-internal", Project: "acme/widget", BaseURL: "https://gitlab.example.com"},
 		},
 	}
-	items := collectItems(mr, cfg)
+	items := collectItems(mr, cfg, "")
 
 	var names []string
 	for _, it := range items {
@@ -430,7 +499,7 @@ func TestRuntimeCheck_UserNameMissing(t *testing.T) {
 	mr.QueueResponse("communique 1.0", "", nil)
 
 	cfg := semverCfg()
-	items := collectItems(mr, cfg)
+	items := collectItems(mr, cfg, "")
 
 	found := false
 	for _, it := range items {
@@ -454,7 +523,7 @@ func TestRuntimeCheck_UserEmailMissing(t *testing.T) {
 	mr.QueueResponse("communique 1.0", "", nil)
 
 	cfg := semverCfg()
-	items := collectItems(mr, cfg)
+	items := collectItems(mr, cfg, "")
 
 	found := false
 	for _, it := range items {
@@ -481,7 +550,7 @@ func TestRuntimeCheck_WithReleaseNotes(t *testing.T) {
 	cfg.Release = &config.Release{
 		Notes: &config.ContentDriver{Generator: "git-cliff"},
 	}
-	items := collectItems(mr, cfg)
+	items := collectItems(mr, cfg, "")
 
 	found := false
 	for _, it := range items {
@@ -508,7 +577,7 @@ func TestRuntimeCheck_OptionalGeneratorsWarnWhenMissing(t *testing.T) {
 	mr.QueueResponse("", "", errors.New("communique: not found")) // communique (optional, missing)
 
 	cfg := semverCfg()
-	items := collectItems(mr, cfg)
+	items := collectItems(mr, cfg, "")
 
 	warnNames := make(map[string]bool)
 	for _, it := range items {
@@ -536,7 +605,7 @@ func TestRuntimeCheck_OptionalPlatformsWarnWhenMissing(t *testing.T) {
 	mr.QueueResponse("communique 1.0.0", "", nil)           // communique (optional, found)
 
 	cfg := semverCfg()
-	items := collectItems(mr, cfg)
+	items := collectItems(mr, cfg, "")
 
 	warnNames := make(map[string]bool)
 	for _, it := range items {
@@ -554,7 +623,7 @@ func TestRuntimeCheck_OptionalToolsSilentWhenPresent(t *testing.T) {
 	queueSuccess(mr)
 
 	cfg := semverCfg()
-	items := collectItems(mr, cfg)
+	items := collectItems(mr, cfg, "")
 
 	for _, it := range items {
 		if it.Err != nil && strings.Contains(it.Err.Error(), "not required") {
@@ -577,7 +646,7 @@ func TestRuntimeCheck_ConfiguredGeneratorExcludedFromOptional(t *testing.T) {
 
 	cfg := semverCfg()
 	cfg.Changelog = &config.ContentDriver{Generator: "git-cliff"}
-	items := collectItems(mr, cfg)
+	items := collectItems(mr, cfg, "")
 
 	for _, it := range items {
 		if it.Name == "git-cliff" && it.IsWarn {
@@ -600,7 +669,7 @@ func TestRuntimeCheck_NilConfig_AllToolsPassWhenPresent(t *testing.T) {
 	mr := exectest.NewMockRunner()
 	queueSuccess(mr) // call order is identical to the non-nil config path
 
-	items := collectItems(mr, nil)
+	items := collectItems(mr, nil, "")
 	require.Len(t, items, 9)
 	for _, it := range items {
 		if it.Name == "working tree" {
@@ -623,7 +692,7 @@ func TestRuntimeCheck_NilConfig_MissingBinaryIsHardError(t *testing.T) {
 	mr.QueueResponse("cog 7.0.0", "", nil)                  // cog
 	mr.QueueResponse("communique 1.0.0", "", nil)           // communique
 
-	items := collectItems(mr, nil)
+	items := collectItems(mr, nil, "")
 
 	for _, it := range items {
 		if it.Name == "glab" {
@@ -647,7 +716,7 @@ func TestRuntimeCheck_NilConfig_MissingGeneratorIsHardError(t *testing.T) {
 	mr.QueueResponse("cog 7.0.0", "", nil)                       // cog
 	mr.QueueResponse("communique 1.0.0", "", nil)                // communique
 
-	items := collectItems(mr, nil)
+	items := collectItems(mr, nil, "")
 
 	for _, it := range items {
 		if it.Name == "git-cliff" {
