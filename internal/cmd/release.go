@@ -118,12 +118,18 @@ func NewReleaseCmd() *cobra.Command {
 }
 
 // hasEffectivePlatforms reports whether cfg has at least one release platform
-// after applying env overrides. Env platforms replace root platforms entirely.
+// after applying env overrides. An env's release.platforms replaces the root
+// list only when non-empty; an absent or empty env platform list inherits the
+// root list — matching buildReleasePipelineConfig's merge semantics.
 func hasEffectivePlatforms(cfg *config.Config, env string) bool {
+	var platforms []config.Platform
+	if cfg.Release != nil {
+		platforms = cfg.Release.Platforms
+	}
 	if env != "" {
-		if envCfg, ok := cfg.Environments[env]; ok && envCfg.Release != nil {
-			return len(envCfg.Release.Platforms) > 0
+		if envCfg, ok := cfg.Environments[env]; ok && envCfg.Release != nil && len(envCfg.Release.Platforms) > 0 {
+			platforms = envCfg.Release.Platforms
 		}
 	}
-	return cfg.Release != nil && len(cfg.Release.Platforms) > 0
+	return len(platforms) > 0
 }

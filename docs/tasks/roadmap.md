@@ -3749,7 +3749,7 @@ existing `(envName string)` signature (unlike GitHub's zero-arg version) since
 `["GITLAB_TOKEN=tok", "GITLAB_HOST=gitlab.example.com"]`, mirroring
 `TestCheck_SelfHosted_SkipsCIAutologin`'s already-correct env ordering.
 
-#### `[ ]` T89: `hasEffectivePlatforms` — env `release:` without `platforms:` inherits root
+#### `[x]` T89: `hasEffectivePlatforms` — env `release:` without `platforms:` inherits root
 
 Spec 02 § Content override semantics: `release.platforms` absent in env → use the root
 list, and `buildReleasePipelineConfig` implements that (`len > 0` check). But
@@ -3760,6 +3760,15 @@ Align the guard with the builder and the spec.
 
 **Files:** `internal/cmd/{release.go,release_test.go}`. **Scope:** S.
 **Dependencies:** none.
+
+`hasEffectivePlatforms` now mirrors `buildReleasePipelineConfig`'s merge: start from
+`cfg.Release.Platforms`, and only replace with the env's list when
+`len(envCfg.Release.Platforms) > 0`. Added `internal/cmd/release_internal_test.go`
+(`package cmd`, precedent: `offline_test.go`) with a table-driven
+`TestHasEffectivePlatforms` covering both the root-only and env-inheritance paths as a
+pure-function unit test — going through `executeRoot` would have dragged in generator/
+pipeline execution unrelated to this guard. Small deviation from the roadmap's file list
+(`release_test.go` only), noted here per the roadmap-discipline rule on deviations.
 
 #### `[ ]` T90: Unify `--version` override validation across `release` and `changelog`
 
