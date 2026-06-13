@@ -1001,3 +1001,88 @@ tickets:
 	require.NotNil(t, e)
 	assert.Contains(t, e.Message, "git-cliff")
 }
+
+// ── tag_pattern ──────────────────────────────────────────────────────────────
+
+func TestValidate_changelogTagPatternRequiresGitCliff(t *testing.T) {
+	cfg := mustLoad(t, `
+version: "1"
+versioning:
+  strategy: semver
+changelog:
+  generator: cocogitto
+  tag_pattern: "v[0-9]*"
+`)
+	e := findErr(config.Validate(cfg), "changelog.tag_pattern")
+	require.NotNil(t, e)
+	assert.Contains(t, e.Message, "git-cliff")
+}
+
+func TestValidate_changelogTagPatternGitCliffValid(t *testing.T) {
+	cfg := mustLoad(t, `
+version: "1"
+versioning:
+  strategy: semver
+changelog:
+  generator: git-cliff
+  tag_pattern: "v[0-9]*"
+`)
+	assert.Nil(t, findErr(config.Validate(cfg), "changelog.tag_pattern"))
+}
+
+func TestValidate_releaseNotesTagPatternRequiresGitCliff(t *testing.T) {
+	cfg := mustLoad(t, `
+version: "1"
+versioning:
+  strategy: semver
+release:
+  notes:
+    generator: communique
+    tag_pattern: "v[0-9]*"
+`)
+	e := findErr(config.Validate(cfg), "release.notes.tag_pattern")
+	require.NotNil(t, e)
+	assert.Contains(t, e.Message, "git-cliff")
+}
+
+// A per-env changelog that only sets tag_pattern inherits the top-level git-cliff
+// generator via MergeContentDriver, so the effective driver is valid.
+func TestValidate_perEnvTagPatternInheritsGitCliff(t *testing.T) {
+	cfg := mustLoad(t, `
+version: "1"
+versioning:
+  strategy: semver-per-env
+  tag_format: "{env}/{version}"
+changelog:
+  generator: git-cliff
+environments:
+  prod:
+    bump: auto
+    changelog:
+      tag_pattern: "prod/*"
+`)
+	assert.Nil(t, findErr(config.Validate(cfg), "environments.prod.changelog.tag_pattern"))
+}
+
+// A per-env changelog that switches to a non-git-cliff generator and sets tag_pattern
+// fully replaces the inherited driver (ADR-0019), so the effective generator is the
+// override's — and tag_pattern is rejected.
+func TestValidate_perEnvTagPatternGeneratorSwitchRejected(t *testing.T) {
+	cfg := mustLoad(t, `
+version: "1"
+versioning:
+  strategy: semver-per-env
+  tag_format: "{env}/{version}"
+changelog:
+  generator: git-cliff
+environments:
+  prod:
+    bump: auto
+    changelog:
+      generator: cocogitto
+      tag_pattern: "prod/*"
+`)
+	e := findErr(config.Validate(cfg), "environments.prod.changelog.tag_pattern")
+	require.NotNil(t, e)
+	assert.Contains(t, e.Message, "git-cliff")
+}

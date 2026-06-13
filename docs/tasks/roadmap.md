@@ -3954,7 +3954,7 @@ tooling", and "extracted into a shared Go library later" (forge already exists).
 > shared library) is now marked Done — `github.com/adaouat/forge` is that library,
 > cross-referenced via ADR-0014 (the one heraut ADR documenting a forge supersession).
 
-#### `[ ]` T97: Validate `tag_pattern` is git-cliff-only
+#### `[x]` T97: Validate `tag_pattern` is git-cliff-only
 
 `tag_pattern` on a content driver is silently ignored by `communique` and `cocogitto`
 (only git-cliff consumes it). Gate it in the validator the same way `tickets` is gated
@@ -3962,6 +3962,24 @@ to git-cliff, with an actionable hint.
 
 **Files:** `internal/config/{validator.go,validator_test.go}`,
 `docs/specs/02-configuration.md`. **Scope:** S. **Dependencies:** none.
+
+> Added one check inside `validateContentDriver` (after the existing `generator` enum
+> check): if `tag_pattern` is set and `generator` is set and isn't `git-cliff`, emit a
+> `<path>.tag_pattern` error hinting to switch to git-cliff or remove `tag_pattern`. This
+> single insertion point covers all four call sites (top-level `changelog`, top-level
+> `release.notes`, and their per-env equivalents) because `MergeContentDriver`
+> (ADR-0019) already resolves each per-env driver to its effective `(generator,
+> tag_pattern)` pair before validation runs — inherited drivers see the parent's
+> git-cliff generator, generator-switches see the override's. Used exact-case
+> `Generator != "git-cliff"` to match this function's existing enum check, not
+> `strings.EqualFold` (T101 item (4) already tracks that cross-function
+> case-sensitivity inconsistency as a separate hygiene item). Five new tests cover:
+> top-level changelog/release-notes rejection, a valid git-cliff case, per-env
+> inheritance (valid), and per-env generator-switch (rejected). `02-configuration.md`'s
+> `tag_pattern` row now says "git-cliff only" and that pairing it with `communique` or
+> `cocogitto` is a validation error. Checked `testdata/config/valid/semver-per-env.yml`
+> — its `tag_pattern` entries are both already paired with `git-cliff`, no fixture
+> changes needed.
 
 #### `[ ]` T98: Command consistency pass — validation and no-config behavior
 

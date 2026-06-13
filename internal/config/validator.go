@@ -174,6 +174,13 @@ func validateContentDriver(d *ContentDriver, path string) []ValidationError {
 			Hint:    "valid generators: git-cliff, communique, cocogitto",
 		})
 	}
+	if d.TagPattern != "" && d.Generator != "" && d.Generator != "git-cliff" {
+		errs = append(errs, ValidationError{
+			Path:    path + ".tag_pattern",
+			Message: "tag_pattern requires the git-cliff generator",
+			Hint:    fmt.Sprintf("set generator to git-cliff, or remove tag_pattern (current generator: %s)", d.Generator),
+		})
+	}
 	return errs
 }
 
