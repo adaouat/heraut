@@ -3770,7 +3770,7 @@ pure-function unit test — going through `executeRoot` would have dragged in ge
 pipeline execution unrelated to this guard. Small deviation from the roadmap's file list
 (`release_test.go` only), noted here per the roadmap-discipline rule on deviations.
 
-#### `[ ]` T90: Unify `--version` override validation across `release` and `changelog`
+#### `[x]` T90: Unify `--version` override validation across `release` and `changelog`
 
 `heraut release` enforces `^v?\d+\.\d+\.\d+$` — rejecting valid CalVer overrides for any
 format that isn't exactly 3 numeric components (`YYYY.PATCH`, `YYYY.MM.DD.PATCH`) and all
@@ -3780,6 +3780,24 @@ both commands, and record it in spec 03.
 
 **Files:** `internal/cmd/{release.go,changelog.go}` + tests,
 `docs/specs/03-commands.md`. **Scope:** S. **Dependencies:** none.
+
+**Decision: no shape restriction.** `NewResolver` already treats `--version` as an opaque
+string for `StaticResolver` (only a leading `v` is stripped); `Resolve()` performs zero
+validation. Spec 03 documents `--version` generically with no regex. Dropped the SemVer-
+only `versionPattern` regex entirely and added `tagfmt.ValidateVersionOverride` /
+`app.ValidateVersionOverride` — mirroring the existing `ValidateBuildID` precedent but
+*without* the `/`-ban, since a full tag override may legitimately contain `/`. The check
+is now: non-empty, no whitespace, nothing else. Applied identically to `release.go`
+(replacing the old regex check) and `changelog.go` (new — it previously validated
+nothing). `TestRelease_VersionFlag_InvalidFormat`'s 5 previously-rejected-but-now-valid
+cases (`notaversion`, `v1`, `v1.2`, `v`, `va.b.c`) moved into
+`TestRelease_VersionFlag_ValidFormats`, which also gained CalVer (`2024.03`,
+`2024.03.15.2`) and pre-release (`1.2.3-rc.1`) cases; `InvalidFormat` now covers
+whitespace-containing values. Added `TestValidateVersionOverride` to
+`tagfmt_test.go`/`resolver_test.go`, and `TestChangelog_VersionFlag_RejectsWhitespace` for
+parity. Judged this an input-validation contract change (not a version-arithmetic
+"hard-won edge case"), so no ADR — the decision and rationale are recorded here and in
+spec 03's updated `--version` rows.
 
 #### `[ ]` T91: SemVer bump — fix breaking-change detection edge cases
 

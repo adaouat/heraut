@@ -334,6 +334,37 @@ func TestValidateBuildID(t *testing.T) {
 	}
 }
 
+func TestValidateVersionOverride(t *testing.T) {
+	tests := []struct {
+		name    string
+		version string
+		wantErr bool
+	}{
+		{"semver with v prefix", "v1.2.3", false},
+		{"semver without prefix", "1.2.3", false},
+		{"calver year.patch", "2024.03", false},
+		{"calver full", "2024.03.15.2", false},
+		{"pre-release", "1.2.3-rc.1", false},
+		{"bare word", "notaversion", false},
+		{"v prefix only", "v", false},
+		{"empty", "", true},
+		{"contains space", "1.2 .3", true},
+		{"trailing space", "1.2.3 ", true},
+		{"contains tab", "1.2.3\t", true},
+		{"trailing newline", "1.2.3\n", true},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			err := tagfmt.ValidateVersionOverride(tc.version)
+			if tc.wantErr {
+				assert.Error(t, err)
+			} else {
+				assert.NoError(t, err)
+			}
+		})
+	}
+}
+
 func TestParseVersion_WithBuild(t *testing.T) {
 	tests := []struct {
 		name     string

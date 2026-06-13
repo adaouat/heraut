@@ -46,6 +46,18 @@ versioning:
 	assert.Contains(t, err.Error(), "--version")
 }
 
+func TestChangelog_VersionFlag_RejectsWhitespace(t *testing.T) {
+	cfgPath := writeConfig(t, `
+version: "1"
+versioning:
+  strategy: semver
+  tag_prefix: "v"
+`)
+	_, err := executeRoot("changelog", "--config", cfgPath, "--version", "1.2.3 ", "--dry-run")
+	require.Error(t, err)
+	assert.Equal(t, exitcode.Config, cmd.ExitCode(err))
+}
+
 // TestRootCmd_HasChangelogSubcommand verifies `heraut changelog` is wired into the root.
 func TestRootCmd_HasChangelogSubcommand(t *testing.T) {
 	root := cmd.NewRootCmd("dev")

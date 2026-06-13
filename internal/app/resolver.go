@@ -64,6 +64,13 @@ func ValidateBuildID(build string) error {
 	return tagfmt.ValidateBuildID(build)
 }
 
+// ValidateVersionOverride reports whether a --version value is usable as a
+// tag/version override. Delegates to tagfmt so cmd does not import the
+// versioning layer directly.
+func ValidateVersionOverride(version string) error {
+	return tagfmt.ValidateVersionOverride(version)
+}
+
 // effectiveTagFmt returns the tag format to use for build ID rendering and
 // validates that {build} is present (required when --build is passed). The
 // env-override → top-level resolution lives in config.EffectiveTagFormat.

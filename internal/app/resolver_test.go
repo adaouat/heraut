@@ -200,3 +200,10 @@ func TestValidateBuildID(t *testing.T) {
 	require.Error(t, app.ValidateBuildID("bad/value"))
 	require.Error(t, app.ValidateBuildID(""))
 }
+
+func TestValidateVersionOverride(t *testing.T) {
+	require.NoError(t, app.ValidateVersionOverride("v1.2.3"))
+	require.NoError(t, app.ValidateVersionOverride("2024.03.15.2"))
+	require.Error(t, app.ValidateVersionOverride(""))
+	require.Error(t, app.ValidateVersionOverride("1.2.3 "))
+}

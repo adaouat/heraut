@@ -65,12 +65,12 @@ schema automatically.
 Run the full release pipeline.
 
 ```
-heraut release [--version X.Y.Z] [--build <id>] [--dry-run] [--env <name>] [--force]
+heraut release [--version <version>] [--build <id>] [--dry-run] [--env <name>] [--force]
 ```
 
 | Flag         | Description                                                                          |
 |--------------|--------------------------------------------------------------------------------------|
-| `--version`  | Override the auto-computed version. Bypasses bump resolution.                        |
+| `--version`  | Override the auto-computed version. Bypasses bump resolution. Accepts any non-empty value with no whitespace — heraut does not enforce a SemVer/CalVer shape; an optional leading `v` is stripped and the rest is used verbatim as the tag/version. |
 | `--build`    | CI build ID appended to the tag via the `{build}` token in `tag_format`. Requires `--version`. |
 | `--dry-run`  | Print the action plan; execute nothing.                                              |
 | `--env`      | Active environment (required for per-env strategies).                                |
@@ -132,7 +132,7 @@ Resolve the next version, optionally generate a changelog, optionally commit and
 without publishing to any release platform.
 
 ```
-heraut changelog [--commit] [--tag] [--no-push] [--version X.Y.Z] [--dry-run] [--env <name>]
+heraut changelog [--commit] [--tag] [--no-push] [--version <version>] [--dry-run] [--env <name>]
 ```
 
 | Flag         | Description                                                                                              |
@@ -140,7 +140,7 @@ heraut changelog [--commit] [--tag] [--no-push] [--version X.Y.Z] [--dry-run] [-
 | `--commit`   | After generating, commit `CHANGELOG.md` and push.                                                        |
 | `--tag`      | After committing, create and push a git tag on that commit. Implies `--commit`.                          |
 | `--no-push`  | Commit and tag locally without pushing. Skips both `git push origin HEAD` and `git push origin --tags`. Only meaningful with `--commit`/`--tag`. |
-| `--version`  | Override the auto-computed version.                                                                      |
+| `--version`  | Override the auto-computed version. Bypasses bump resolution. Same validation as `heraut release --version` — non-empty, no whitespace, format-agnostic. |
 | `--build`    | CI build ID appended to the tag via the `{build}` token in `tag_format`. Requires `--version`.           |
 | `--dry-run`  | Print the action plan; execute nothing.                                                                  |
 | `--env`      | Active environment.                                                                                      |

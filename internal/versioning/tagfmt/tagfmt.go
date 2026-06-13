@@ -107,6 +107,21 @@ func ValidateBuildID(build string) error {
 	return nil
 }
 
+// ValidateVersionOverride checks that a --version value is usable as a tag/version
+// override: non-empty and free of whitespace (git ref constraints). Unlike
+// ValidateBuildID, "/" is allowed — a full tag override may legitimately contain
+// one. heraut is strategy-agnostic about the shape of the override (SemVer,
+// CalVer, or any other scheme the user's tag_format expects).
+func ValidateVersionOverride(version string) error {
+	if version == "" {
+		return fmt.Errorf("version must not be empty")
+	}
+	if strings.ContainsFunc(version, unicode.IsSpace) {
+		return fmt.Errorf("version %q must not contain whitespace", version)
+	}
+	return nil
+}
+
 // DeriveTagPattern returns an anchored regex (for git-cliff --tag-pattern) that matches
 // only the given environment's tags. {env} becomes the literal env, {version} and {build}
 // become wildcards. Returns "" when the template has no {env} token or env is empty —

@@ -155,11 +155,10 @@ release:
 		name    string
 		version string
 	}{
-		{"bare word", "notaversion"},
-		{"only major", "v1"},
-		{"only major.minor", "v1.2"},
-		{"v prefix only", "v"},
-		{"non-numeric", "va.b.c"},
+		{"whitespace only", " "},
+		{"contains space", "1.2 .3"},
+		{"trailing space", "1.2.3 "},
+		{"contains tab", "1.2.3\t"},
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
@@ -190,6 +189,14 @@ release:
 		{"without v prefix", "1.2.3"},
 		{"zeros", "v0.0.0"},
 		{"large numbers", "v1.10.100"},
+		{"bare word", "notaversion"},
+		{"only major", "v1"},
+		{"only major.minor", "v1.2"},
+		{"v prefix only", "v"},
+		{"non-numeric", "va.b.c"},
+		{"calver year.patch", "2024.03"},
+		{"calver full", "2024.03.15.2"},
+		{"pre-release", "1.2.3-rc.1"},
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {

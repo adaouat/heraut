@@ -2,7 +2,6 @@ package cmd
 
 import (
 	"fmt"
-	"regexp"
 
 	execadapter "github.com/adaouat/forge/exec"
 	forgelog "github.com/adaouat/forge/log"
@@ -11,9 +10,6 @@ import (
 	"github.com/adaouat/heraut/internal/exitcode"
 	"github.com/spf13/cobra"
 )
-
-// versionPattern matches a valid semver version with or without "v" prefix.
-var versionPattern = regexp.MustCompile(`^v?\d+\.\d+\.\d+$`)
 
 // NewReleaseCmd constructs the `heraut release` command.
 func NewReleaseCmd() *cobra.Command {
@@ -26,11 +22,10 @@ func NewReleaseCmd() *cobra.Command {
 		Use:   "release",
 		Short: "Resolve next version, generate changelog, tag, and publish",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			if versionOverride != "" && !versionPattern.MatchString(versionOverride) {
-				return exitcode.Wrap(exitcode.Config, fmt.Errorf(
-					"invalid --version %q: expected vMAJOR.MINOR.PATCH or MAJOR.MINOR.PATCH (e.g. v1.2.3)",
-					versionOverride,
-				))
+			if versionOverride != "" {
+				if err := app.ValidateVersionOverride(versionOverride); err != nil {
+					return exitcode.Wrap(exitcode.Config, err)
+				}
 			}
 
 			if buildID != "" {
