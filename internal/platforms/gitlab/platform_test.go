@@ -381,6 +381,7 @@ func TestCheck_Auth_InCI_NoProjectID(t *testing.T) {
 // ---- Self-hosted (multi-instance, ADR-0025) ----------------------------------
 
 func TestCreateRelease_SelfHosted_SetsGitlabHostEnv(t *testing.T) {
+	t.Setenv("GITLAB_TOKEN", "tok")
 	mr := exectest.NewMockRunner()
 	mr.QueueResponse("", "", nil)
 
@@ -391,7 +392,7 @@ func TestCreateRelease_SelfHosted_SetsGitlabHostEnv(t *testing.T) {
 	require.NoError(t, p.CreateRelease("v1.0.0", "notes"))
 
 	require.Len(t, mr.Calls, 1)
-	assert.Equal(t, []string{"GITLAB_HOST=gitlab.example.com"}, mr.Calls[0].Env)
+	assert.Equal(t, []string{"GITLAB_TOKEN=tok", "GITLAB_HOST=gitlab.example.com"}, mr.Calls[0].Env)
 }
 
 func TestUploadAssets_SelfHosted_SetsGitlabHostEnv(t *testing.T) {
@@ -399,6 +400,7 @@ func TestUploadAssets_SelfHosted_SetsGitlabHostEnv(t *testing.T) {
 	assetPath := filepath.Join(tmp, "myapp")
 	require.NoError(t, os.WriteFile(assetPath, []byte("binary"), 0o755))
 
+	t.Setenv("GITLAB_TOKEN", "tok")
 	mr := exectest.NewMockRunner()
 	mr.QueueResponse("", "", nil)
 
@@ -410,7 +412,7 @@ func TestUploadAssets_SelfHosted_SetsGitlabHostEnv(t *testing.T) {
 	require.NoError(t, p.UploadAssets("v1.2.3"))
 
 	require.Len(t, mr.Calls, 1)
-	assert.Equal(t, []string{"GITLAB_HOST=gitlab.example.com"}, mr.Calls[0].Env)
+	assert.Equal(t, []string{"GITLAB_TOKEN=tok", "GITLAB_HOST=gitlab.example.com"}, mr.Calls[0].Env)
 }
 
 func TestCheck_SelfHosted_SkipsCIAutologin(t *testing.T) {

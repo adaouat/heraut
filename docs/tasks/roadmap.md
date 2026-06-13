@@ -3725,7 +3725,7 @@ conflict that makes a spec-faithful config fail to load, significant doc drift f
 forge extraction, plus consistency and hygiene items. Ordered by priority: correctness
 first (T88-T93), then docs (T94-T96), then consistency/hygiene (T97-T101).
 
-#### `[ ]` T88: GitLab platform — inject `token_env` into release-time calls
+#### `[x]` T88: GitLab platform — inject `token_env` into release-time calls
 
 `Check()` injects the configured token via `tokenEnvSlice()`, but `CreateRelease` and
 `UploadAssets` pass only `hostEnv()` — so a custom `token_env` (or two GitLab instances
@@ -3738,6 +3738,16 @@ the testing rules.
 
 **Files:** `internal/platforms/gitlab/{platform.go,platform_test.go}`. **Scope:** S.
 **Dependencies:** none.
+
+`CreateRelease` and `UploadAssets` now build `env := append(p.tokenEnvSlice(p.tokenEnv()),
+p.hostEnv()...)` before calling `RunEnv`, matching `checkAPIAuth`'s existing pattern and
+GitHub's `tokenEnvSlice()`+`hostEnv()` composition. GitLab's `tokenEnvSlice` keeps its
+existing `(envName string)` signature (unlike GitHub's zero-arg version) since
+`checkAPIAuth` already threads `tokenEnv` explicitly. Updated
+`TestCreateRelease_SelfHosted_SetsGitlabHostEnv` and
+`TestUploadAssets_SelfHosted_SetsGitlabHostEnv` to set `GITLAB_TOKEN` and expect
+`["GITLAB_TOKEN=tok", "GITLAB_HOST=gitlab.example.com"]`, mirroring
+`TestCheck_SelfHosted_SkipsCIAutologin`'s already-correct env ordering.
 
 #### `[ ]` T89: `hasEffectivePlatforms` — env `release:` without `platforms:` inherits root
 

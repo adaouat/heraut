@@ -170,7 +170,8 @@ func (p *Platform) CreateRelease(tag, notes string) error {
 		args = append(args, files...)
 	}
 
-	if _, _, err := p.runner.RunEnv(p.hostEnv(), "glab", args...); err != nil {
+	env := append(p.tokenEnvSlice(p.tokenEnv()), p.hostEnv()...)
+	if _, _, err := p.runner.RunEnv(env, "glab", args...); err != nil {
 		return fmt.Errorf("glab release create: %w", err)
 	}
 	return nil
@@ -201,7 +202,8 @@ func (p *Platform) UploadAssets(tag string) error {
 	}
 
 	args := append([]string{"release", "upload", tag, "--use-package-registry", "-R", proj}, files...)
-	if _, _, err := p.runner.RunEnv(p.hostEnv(), "glab", args...); err != nil {
+	env := append(p.tokenEnvSlice(p.tokenEnv()), p.hostEnv()...)
+	if _, _, err := p.runner.RunEnv(env, "glab", args...); err != nil {
 		return fmt.Errorf("glab release upload: %w", err)
 	}
 	return nil
