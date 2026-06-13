@@ -3898,7 +3898,7 @@ change; no code or tests touched. Filed T104 for the spec 02 "Complete examples"
 (missing `name:` on every platform entry) and spec 05's matching `catalog`/
 `upload-asset` drift, found during this task but outside its stated file list.
 
-#### `[ ]` T95: CLAUDE.md — rewrite to post-forge reality
+#### `[x]` T95: CLAUDE.md — rewrite to post-forge reality
 
 CLAUDE.md still describes the pre-forge codebase: `internal/adapter/exec/`,
 `internal/selfupdate/`, `self_update.go`, `fang.Execute` in main.go, "19 ADRs" (25
@@ -3908,6 +3908,26 @@ updatecheck), `internal/exitcode/`, the `whatsnew` command, and the `--offline` 
 Rewrite the project-layout, tech-stack, ldflags, and command-surface sections.
 
 **Files:** `CLAUDE.md`. **Scope:** S. **Dependencies:** none.
+
+> Rewrote five sections against the current tree (verified via `go.mod`, `main.go`,
+> `internal/port/runner.go`, `internal/exitcode/`, `internal/cmd/{root,offline,exit}.go`,
+> `internal/ui/{header,status,theme}.go`). "What this tool does" swaps `self-update` for
+> `whatsnew`. "Docs" now says 25 ADRs. "Tech stack" replaces the `fang` and
+> `bubbles/spinner` rows with a single `github.com/adaouat/forge` row (forge/cli wraps
+> cobra+fang — both are now indirect deps — and provides exec/config/exitcode/ui/
+> updatecheck); `//go:embed` row now also covers the root `changelog.go` embed used by
+> `whatsnew`'s offline fallback. "Project layout" drops `internal/adapter/exec/` and
+> `internal/selfupdate/`, adds `internal/exitcode/`, `internal/cmd/{offline,exit}.go`,
+> the root `changelog.go`, corrects `port.Runner` to "alias to forge/exec.Runner", and
+> corrects the `main.go` entry-point line to `forge/cli.Run(cmd.NewRootCmd(version), …)`.
+> "ldflags invariant" replaces the `internal/selfupdate/updater.go` /
+> `defaultProjectURL`/`defaultLatestURL` anchor (removed with selfupdate) with the
+> hardcoded `"adaouat/heraut"` repo literal now passed to `forge/updatecheck` in
+> `root.go`, and points ADR-0014 at its supersession (forge ADR-0005). Added an
+> `--offline` bullet to "Non-obvious constraints" (it silently overrides
+> `remote_metadata` from config). While verifying `internal/exitcode/`'s `Promotion`
+> code, found `internal/cmd/exit.go`'s doc comment still says "fang.Execute" — folded
+> as item (6) into T101's existing hygiene bundle rather than filing a new task.
 
 #### `[ ]` T96: Roadmap — reconcile the v1.0.0 checkpoint items and stale overview
 
@@ -3973,7 +3993,9 @@ drop the T-ids. (2) Leftover pre-Go-1.22 loop-var copies (`plat := platform` in
 started. (3) `BumpType`/`Mode` enums repeat `= iota` on every line. (4) Validator enum
 maps are exact-case while `app.buildGenerator`/`checkCliffDriver` use
 `ToLower`/`EqualFold` — pick one convention. (5) `code := exitcode.Runtime` pointless
-variable in `cmd/check.go`.
+variable in `cmd/check.go`. (6) `internal/cmd/exit.go`'s `ExitCode` doc comment says
+"cmd/heraut passes the error from fang.Execute here" — `main.go` now calls
+`forge/cli.Run`, not `fang.Execute` directly (found during T95).
 
 **Files:** scattered (see list above). **Scope:** S. **Dependencies:** none.
 

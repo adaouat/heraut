@@ -22,7 +22,7 @@ heraut version sprint bump  # increment sprint counter in .heraut.yml (CalVer)
 heraut check            # preflight: config + runtime + cliff (effective config)
 heraut cliff <mode>     # show the effective merged git-cliff TOML
 heraut init             # interactive wizard to generate .heraut.yml
-heraut self-update      # download + verify + atomically replace the binary
+heraut whatsnew         # release notes for versions newer than the running build
 ```
 
 Four versioning strategies are supported (`semver`, `calver`, `semver-per-env`,
@@ -33,7 +33,7 @@ behavioural spec.
 ## Docs
 
 - [`docs/specs/`](docs/specs/) — behavioural specification (read before changing CLI surface or config schema)
-- [`docs/adr/`](docs/adr/) — architecture decision records (19 ADRs, numbered consecutively)
+- [`docs/adr/`](docs/adr/) — architecture decision records (25 ADRs, numbered consecutively)
 - [`docs/tasks/`](docs/tasks/) — build roadmap with inline task checklist (`roadmap.md`)
 
 ## Tech stack
@@ -42,24 +42,24 @@ behavioural spec.
 |-------------------------------|---------------------------------------------------------------------|
 | **Go** (via mise)             | Implementation language (see [ADR-0001](docs/adr/0001-language-go.md)) |
 | **cobra**                     | CLI subcommand structure                                            |
-| **fang**                      | cobra wrapper: styled help/errors, `--version`, completions (see [ADR-0003](docs/adr/0003-cli-framework-cobra-fang.md)) |
+| **github.com/adaouat/forge**  | Shared library: CLI execution wrapping cobra + fang (`forge/cli`, see [ADR-0003](docs/adr/0003-cli-framework-cobra-fang.md)), exec `Runner` + test doubles (`forge/exec`), config loading (`forge/config`), exit codes (`forge/exitcode`), UI theming/spinner (`forge/ui`), update check + `whatsnew` (`forge/updatecheck`), structured logging (`forge/log`) |
 | **huh**                       | Interactive forms used by `heraut init`                             |
-| **bubbles/spinner**           | Spinner for long-running pipeline steps                             |
-| **lipgloss v2**               | Terminal styling                                                    |
+| **lipgloss v2**               | Terminal styling — heraut's gold accent, layered over `forge/ui`    |
 | **yaml.v3**                   | `.heraut.yml` parsing (see [ADR-0004](docs/adr/0004-config-format-yaml.md)) |
 | **JSON Schema**               | `schema.json` for IDE validation of `.heraut.yml`                   |
-| **`//go:embed`**              | Embedded git-cliff / cocogitto defaults                             |
+| **`//go:embed`**              | Embedded git-cliff / cocogitto defaults + `CHANGELOG.md` (offline fallback for `whatsnew`) |
 | **goreleaser**                | Cross-platform release builds, raw binaries (see [ADR-0013](docs/adr/0013-raw-binary-goreleaser-format.md)) |
 | **git-cliff / glab / gh / cog / communique** | External CLIs orchestrated by heraut (not bundled)       |
 
 ## Project layout
 
 ```
-cmd/heraut/main.go              entry point — fang.Execute(cmd.NewRootCmd())
+cmd/heraut/main.go              entry point — forge/cli.Run(cmd.NewRootCmd(version), …)
+changelog.go                    //go:embed CHANGELOG.md — offline fallback for `whatsnew`
 
 internal/
    cmd/                         cobra command definitions (package cmd)
-      root.go                   root command, persistent flags
+      root.go                   root command, persistent flags, whatsnew + update-hint wiring
       release.go                heraut release
       changelog.go              heraut changelog
       version.go                heraut version next / current
@@ -67,11 +67,12 @@ internal/
       check.go                  heraut check config / runtime / cliff
       cliff.go                  heraut cliff changelog / release-notes
       init.go                   heraut init
-      self_update.go            heraut self-update
-   port/                        interfaces — Runner, Generator, Platform
-   adapter/exec/                shell runner implementing port.Runner
-   testutil/                    MockRunner, FakeBin, constants
-   ui/                          lipgloss styles, step spinner, version banner
+      offline.go                --offline flag → forces remote_metadata: disabled
+      exit.go                   maps pipeline errors to internal/exitcode codes
+   port/                        interfaces — Runner (alias to forge/exec.Runner), Generator, Platform
+   exitcode/                    re-exports forge/exitcode + heraut's own Promotion (E001/E002/E003) code
+   testutil/                    MockGenerator, MockPlatform, RealGitRepo, binary-name constants
+   ui/                          gold accent + huh theme (wrapping forge/ui), version banner, StepFn
    config/                      structs, loader, path resolution, validator, errors
    versioning/
       result.go                 shared Result type
@@ -92,12 +93,11 @@ internal/
       config.go                 Pipeline.Config struct
    app/                         wiring layer — NewResolver(), BuildPipeline(), BuildChangelogPipeline()
    scaffold/                    heraut init wizard + YAML generation
-   selfupdate/                  GitHub Releases API + atomic binary replace
 
 testdata/                       repo-wide read-only test fixtures (.heraut.yml samples, …)
 
 docs/specs/                     6 numbered specs (behavioural authority)
-docs/adr/                       19 ADRs (architectural decisions)
+docs/adr/                       25 ADRs (architectural decisions)
 docs/tasks/                     roadmap.md (build plan + inline task checklist)
 
 schema.json                     published JSON Schema for .heraut.yml IDE validation
@@ -138,11 +138,11 @@ HERAUT_VERSION=${{ github.ref_name }}` in the release workflow.
 |----------------|------------------------------------------------------|
 | `main.Version` | Running binary's version string (`heraut --version`) |
 
-`main.Version` is the only ldflag. The project URL and the GitHub Releases API endpoint
-used by `heraut self-update` are **compiled-in constants** (`defaultProjectURL`,
-`defaultLatestURL`) in `internal/selfupdate/updater.go`, not ldflags — heraut targets a
-single fixed public repo, so they never vary per build (see
-[ADR-0014](docs/adr/0014-self-update-architecture.md)).
+`main.Version` is the only ldflag. heraut's GitHub repo (`adaouat/heraut`) is a hardcoded
+string literal passed to `forge/updatecheck.WhatsNewCommand` and `updatecheck.Hinter` in
+`internal/cmd/root.go`, not a build-time constant — heraut targets a single fixed public
+repo and no longer self-replaces its binary (see
+[ADR-0014](docs/adr/0014-self-update-architecture.md), superseded by forge ADR-0005).
 
 ## Config file discovery
 
@@ -163,6 +163,9 @@ install them separately. `heraut check runtime` verifies they are on `PATH`.
 - `disable_changelog: true` per-env skips changelog generation and the commit, but **not**
   the tag when `--tag` is also passed. Use `heraut changelog --tag --env <env>` for
   tag-only flows on environments where changelog is disabled.
+- The global `--offline` flag overrides config: it forces `remote_metadata: disabled` for
+  the run regardless of what `.heraut.yml` sets, skipping PR/MR enrichment in changelog and
+  release-notes generation (`internal/cmd/offline.go`).
 
 ## When in doubt
 
