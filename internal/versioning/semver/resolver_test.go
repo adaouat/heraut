@@ -348,9 +348,12 @@ func TestDetermineBump(t *testing.T) {
 		{"fix → patch", []string{"fix: y"}, versioning.BumpPatch},
 		{"feat! → major", []string{"feat!: breaking"}, versioning.BumpMajor},
 		{"fix! → major", []string{"fix!: also breaking"}, versioning.BumpMajor},
+		{"feat(scope)! → major", []string{"feat(api)!: remove endpoint"}, versioning.BumpMajor},
 		{"chore only → patch fallback", []string{"chore: bump deps"}, versioning.BumpPatch},
 		{"major beats minor beats patch", []string{"fix: y", "feat: x", "feat!: z"}, versioning.BumpMajor},
 		{"BREAKING CHANGE footer", []string{"fix: y\n\nBREAKING CHANGE: boom"}, versioning.BumpMajor},
+		{"BREAKING-CHANGE hyphenated footer", []string{"fix: y\n\nBREAKING-CHANGE: boom"}, versioning.BumpMajor},
+		{"bang in description, not type prefix → not breaking", []string{"fix: handle the foo!: token"}, versioning.BumpPatch},
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {

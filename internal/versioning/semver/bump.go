@@ -2,11 +2,18 @@ package semver
 
 import (
 	"fmt"
+	"regexp"
 	"strconv"
 	"strings"
 
 	"github.com/adaouat/heraut/internal/versioning"
 )
+
+// breakingPrefixPattern matches a conventional-commit subject whose type (and
+// optional scope) is marked breaking with "!" immediately before the colon,
+// e.g. "feat!:" or "fix(api)!:". A bare "!:" elsewhere in the subject — such
+// as inside the description — does not count.
+var breakingPrefixPattern = regexp.MustCompile(`^\w+(\([^)]*\))?!:`)
 
 // DetermineBump scans conventional commit subjects and returns the highest applicable bump.
 func DetermineBump(commits []string) versioning.BumpType {
@@ -57,16 +64,14 @@ func BumpVersion(current string, bump versioning.BumpType) (string, error) {
 }
 
 func isBreaking(commit string) bool {
-	// feat! or fix! (type with bang before colon)
-	subject := firstLine(commit)
-	if idx := strings.Index(subject, "!:"); idx > 0 {
+	// type! or type(scope)! immediately before the colon
+	if breakingPrefixPattern.MatchString(firstLine(commit)) {
 		return true
 	}
-	// BREAKING CHANGE footer anywhere in the full commit message
-	if strings.Contains(commit, "BREAKING CHANGE:") {
-		return true
-	}
-	return false
+	// BREAKING CHANGE / BREAKING-CHANGE footer anywhere in the full commit
+	// message — Conventional Commits 1.0.0 treats the hyphenated form as a
+	// synonym of the spaced form.
+	return strings.Contains(commit, "BREAKING CHANGE:") || strings.Contains(commit, "BREAKING-CHANGE:")
 }
 
 func isFeat(commit string) bool {

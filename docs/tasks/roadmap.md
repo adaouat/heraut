@@ -3799,7 +3799,7 @@ parity. Judged this an input-validation contract change (not a version-arithmeti
 "hard-won edge case"), so no ADR — the decision and rationale are recorded here and in
 spec 03's updated `--version` rows.
 
-#### `[ ]` T91: SemVer bump — fix breaking-change detection edge cases
+#### `[x]` T91: SemVer bump — fix breaking-change detection edge cases
 
 `isBreaking` matches `"!:"` anywhere in the subject (`fix: handle the foo!: token` →
 spurious major bump); anchor the `!` to the conventional-commit type/scope prefix. Also
@@ -3808,6 +3808,18 @@ spec mandates as a synonym of `BREAKING CHANGE:`.
 
 **Files:** `internal/versioning/semver/{bump.go,bump_test.go}`. **Scope:** S.
 **Dependencies:** none.
+
+Replaced the `strings.Index(subject, "!:") > 0` check with a
+`breakingPrefixPattern = regexp.MustCompile(`^\w+(\([^)]*\))?!:`)`, anchoring `!:` to the
+type/optional-`(scope)` prefix — `feat(api)!:` still matches, `fix: handle the foo!:
+token` no longer does. `isBreaking` now also checks `BREAKING-CHANGE:` alongside
+`BREAKING CHANGE:`. Added the two new cases (plus a `feat(scope)!` regression case) as
+rows in the existing `TestDetermineBump` table in `resolver_test.go` rather than creating
+`bump_test.go` — `DetermineBump`/`BumpVersion` are already tested there as
+`package semver_test`, and `isBreaking`/`isFeat` are unexported so can only be exercised
+through `DetermineBump`; a new file would split one function's coverage across two files
+for no benefit. Deviation from the roadmap's stated `bump_test.go`, noted here per
+roadmap-discipline.
 
 #### `[ ]` T92: SemVer resolver — pre-release tag policy
 
