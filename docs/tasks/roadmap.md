@@ -4147,7 +4147,7 @@ variable in `cmd/check.go`. (6) `internal/cmd/exit.go`'s `ExitCode` doc comment 
 > `go build ./...`, `go test ./...` (957 passed, 22 packages), and `hk check`
 > (golangci-lint 0 issues, go_fmt, typos) all pass.
 
-#### `[ ]` T102: Spec 04 — bump-determination table doesn't reflect T91's anchoring
+#### `[x]` T102: Spec 04 — bump-determination table doesn't reflect T91's anchoring
 
 T91 anchored the breaking-change `!` to the conventional-commit type/scope prefix (so
 `!:` only inside a description no longer triggers a major bump) and added the hyphenated
@@ -4157,6 +4157,15 @@ with `!` (e.g. `feat!:`, `fix!:`) or `BREAKING CHANGE:` footer" — update the r
 describe the anchored form and both footer spellings.
 
 **Files:** `docs/specs/04-versioning.md`. **Scope:** S. **Dependencies:** T91.
+
+> Reworded the major-bump row to `type!:` / `type(scope)!:` prefix (e.g. `feat!:`,
+> `fix(api)!:`) or a `BREAKING CHANGE:` / `BREAKING-CHANGE:` footer, matching
+> `internal/versioning/semver/bump.go`'s `breakingPrefixPattern`
+> (`^\w+(\([^)]*\))?!:`) and `isBreaking`'s footer check. Added a sentence after the
+> table (alongside the existing "highest applicable bump wins" sentence) spelling out
+> the anchoring rule in prose — a bare `!:` inside the description doesn't count — and
+> naming `BREAKING-CHANGE:` as a Conventional Commits 1.0.0 synonym, since the table
+> cell alone was getting too dense to scan.
 
 #### `[ ]` T103: `semver-per-env` — pre-release tags may still break `BumpAuto`
 

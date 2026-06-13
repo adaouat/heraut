@@ -32,13 +32,16 @@ since the last tag.
 
 | Commit pattern                                    | Bump level |
 |---------------------------------------------------|------------|
-| Any commit with `!` (e.g. `feat!:`, `fix!:`) or `BREAKING CHANGE:` footer | major |
+| `type!:` / `type(scope)!:` prefix (e.g. `feat!:`, `fix(api)!:`) or a `BREAKING CHANGE:` / `BREAKING-CHANGE:` footer | major |
 | Any `feat:` commit                                | minor      |
 | Any `fix:` commit                                 | patch      |
 | Only chore/docs/refactor/style/test/ci commits    | patch (fallback) |
 | No commits since last tag                         | error      |
 
 The highest applicable bump wins (e.g. a single `feat!:` outranks ten `fix:` commits).
+The `!` must sit immediately before the colon in the subject's type/scope prefix — a
+bare `!:` inside the description does not trigger a major bump. `BREAKING-CHANGE:` is
+treated as a synonym of `BREAKING CHANGE:`, per Conventional Commits 1.0.0.
 
 ### Prefix handling
 
