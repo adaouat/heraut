@@ -113,17 +113,7 @@ func RuntimeCheck(
 	// ── Platforms ─────────────────────────────────────────────────────────────
 	header("Platforms")
 
-	var platforms []config.Platform
-	if cfg != nil {
-		if cfg.Release != nil {
-			platforms = cfg.Release.Platforms
-		}
-		if env != "" {
-			if envCfg, ok := cfg.Environments[env]; ok && envCfg.Release != nil && len(envCfg.Release.Platforms) > 0 {
-				platforms = envCfg.Release.Platforms
-			}
-		}
-	}
+	platforms := config.EffectivePlatforms(cfg, env)
 
 	if len(platforms) > 0 {
 		// One row per effective platform entry: full check (binary + token +

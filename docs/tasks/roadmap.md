@@ -4254,7 +4254,7 @@ related spots were left as-is (out of T94's stated scope):
 >
 > Docs-only change; no code or tests touched. `go build ./...`/`go test ./...` unaffected.
 
-#### `[ ]` T105: Extract a shared effective-platforms helper — three duplicate implementations
+#### `[x]` T105: Extract a shared effective-platforms helper — three duplicate implementations
 
 T89 and T100 each independently reimplemented the same merge rule that
 `buildReleasePipelineConfig` already had: *effective platforms = `cfg.Release.Platforms`
@@ -4288,6 +4288,34 @@ changelog/notes/assets merge untouched.
 **Files:** `internal/config/` (new helper + tests), `internal/app/{pipeline.go,
 check.go,check_test.go}`, `internal/cmd/{release.go,release_internal_test.go}`.
 **Scope:** S. **Dependencies:** none.
+
+> TDD: wrote `internal/config/platforms_test.go` first — `TestEffectivePlatforms` with 9
+> subtests (nil cfg, nil `Release`, no env, unknown env, env without a `Release`
+> override, env `Release` with empty `Platforms`, env `Platforms` replacing root, and env
+> `Platforms` with a nil root `Release`) — confirmed it failed to compile
+> (`undefined: config.EffectivePlatforms`) before adding the implementation.
+>
+> `config.EffectivePlatforms(cfg *Config, env string) []Platform` lives in new
+> `internal/config/platforms.go`, doc-commented in the same bullet style as
+> `MergeContentDriver`. `cmd/release.go`'s `hasEffectivePlatforms` and `app/check.go`'s
+> `RuntimeCheck` Platforms block both now call it directly (`check.go`'s `cfg != nil`
+> wrapper is gone — the helper handles a nil `cfg`). `hasEffectivePlatforms` itself was
+> kept as a 1-line wrapper (`len(config.EffectivePlatforms(cfg, env)) > 0`) rather than
+> deleted, so T89's existing 8-case `TestHasEffectivePlatforms` keeps exercising the
+> boolean contract through the shared helper.
+>
+> `pipeline.go`'s `buildReleasePipelineConfig` had its `effectivePlatforms`
+> var-plus-two-assignment-branches replaced with one
+> `config.EffectivePlatforms(cfg, env)` call; the `effectiveChangelog`/`effectiveNotes`/
+> `releaseAssets`/`pCfg.Disable*` merge is untouched, per the task's stated scope. Side
+> benefit: grep found no existing test in `internal/app/pipeline_test.go` that sets
+> `cfg.Environments[...].Release.Platforms`, so this branch of
+> `buildReleasePipelineConfig` had no direct coverage before — it now inherits
+> `EffectivePlatforms`'s 9 cases transitively.
+>
+> Net: 3 call-site files at -29/+4 lines, plus the new helper + its tests. `go build
+> ./...`, `go vet ./...` clean; `go test ./...` → 967 passed, 22 packages (958 + 9 new);
+> `hk check` clean (golangci-lint 0 issues).
 
 ---
 

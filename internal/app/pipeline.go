@@ -139,13 +139,12 @@ func buildReleasePipelineConfig(runner port.Runner, cfg *config.Config, env stri
 	// Resolve effective config: start from root, apply per-env overrides.
 	effectiveChangelog := cfg.Changelog
 	var effectiveNotes *config.ContentDriver
-	var effectivePlatforms []config.Platform
 	var releaseAssets []string
 	if cfg.Release != nil {
 		effectiveNotes = cfg.Release.Notes
-		effectivePlatforms = cfg.Release.Platforms
 		releaseAssets = cfg.Release.Assets
 	}
+	effectivePlatforms := config.EffectivePlatforms(cfg, env)
 
 	if env != "" {
 		if envCfg, ok := cfg.Environments[env]; ok {
@@ -157,9 +156,6 @@ func buildReleasePipelineConfig(runner port.Runner, cfg *config.Config, env stri
 			if envCfg.Release != nil {
 				if envCfg.Release.Notes != nil {
 					effectiveNotes = config.MergeContentDriver(effectiveNotes, envCfg.Release.Notes)
-				}
-				if len(envCfg.Release.Platforms) > 0 {
-					effectivePlatforms = envCfg.Release.Platforms
 				}
 			}
 		}
