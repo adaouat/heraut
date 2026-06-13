@@ -433,22 +433,27 @@ Used inside `release.platforms` (and inside per-environment `release.platforms`)
 release:
   platforms:
     - platform: gitlab
+      name: gitlab                # required, unique within this platforms list (ADR-0025)
       project: $CI_PROJECT_PATH   # optional, defaults to $CI_PROJECT_PATH
       token_env: GITLAB_TOKEN     # optional, defaults to GITLAB_TOKEN
-      catalog: false              # optional, set true for a CI/CD Catalog release
+      base_url: https://gitlab.com  # optional, defaults to https://gitlab.com
       assets:
         - dist/myapp_*            # glob patterns for files to attach
 ```
 
-| Field       | Required | Default            | Description                                                                                |
-|-------------|----------|--------------------|--------------------------------------------------------------------------------------------|
-| `platform`  | Yes      | —                  | Must be `"gitlab"`.                                                                        |
-| `project`   | No       | `$CI_PROJECT_PATH` | GitLab project path in `namespace/repo` format.                                            |
-| `token_env` | No       | `GITLAB_TOKEN`     | Name of the env var holding the GitLab API token.                                          |
-| `catalog`   | No       | `false`            | When true, passes `--publish-to-catalog` to `glab release create`.                         |
-| `assets`    | No       | `[]`               | Glob patterns for files to upload as release assets.                                       |
+| Field       | Required | Default              | Description                                                                                |
+|-------------|----------|----------------------|--------------------------------------------------------------------------------------------|
+| `platform`  | Yes      | —                    | Must be `"gitlab"`.                                                                        |
+| `name`      | Yes      | —                    | Unique label for this entry within its `release.platforms` list (ADR-0025).               |
+| `project`   | No       | `$CI_PROJECT_PATH`   | GitLab project path in `namespace/repo` format.                                            |
+| `token_env` | No       | `GITLAB_TOKEN`       | Name of the env var holding the GitLab API token.                                          |
+| `base_url`  | No       | `https://gitlab.com` | Web base URL for a self-hosted GitLab instance (ADR-0025).                                 |
+| `assets`    | No       | `[]`                 | Glob patterns for files to upload as release assets.                                       |
 
-Implementation: shells out to `glab release create` + `glab release upload-asset`.
+A project registered with the GitLab CI/CD Catalog publishes automatically — there is no
+`catalog` field.
+
+Implementation: shells out to `glab release create` + `glab release upload --use-package-registry`.
 
 ### GitHub
 
@@ -456,8 +461,10 @@ Implementation: shells out to `glab release create` + `glab release upload-asset
 release:
   platforms:
     - platform: github
+      name: github                # required, unique within this platforms list (ADR-0025)
       repository: org/repo        # optional, defaults to $GITHUB_REPOSITORY
       token_env: GH_TOKEN         # optional, defaults to GH_TOKEN
+      base_url: https://github.com  # optional, defaults to https://github.com
       draft: false
       prerelease: false
       assets:
@@ -467,8 +474,10 @@ release:
 | Field        | Required | Default              | Description                                                                                |
 |--------------|----------|----------------------|--------------------------------------------------------------------------------------------|
 | `platform`   | Yes      | —                    | Must be `"github"`.                                                                        |
+| `name`       | Yes      | —                    | Unique label for this entry within its `release.platforms` list (ADR-0025).               |
 | `repository` | No       | `$GITHUB_REPOSITORY` | GitHub repo in `owner/repo` format.                                                        |
 | `token_env`  | No       | `GH_TOKEN`           | Name of the env var holding the GitHub token.                                              |
+| `base_url`   | No       | `https://github.com` | Web base URL for a GitHub Enterprise Server instance (ADR-0025).                           |
 | `draft`      | No       | `false`              | Create the release as a draft.                                                             |
 | `prerelease` | No       | `false`              | Mark the release as a pre-release.                                                         |
 | `assets`     | No       | `[]`                 | Glob patterns for files to upload as release assets.                                       |

@@ -335,3 +335,22 @@ The check is delegated to forge's shared `updatecheck` package and runs at most 
 hours (cached under `$XDG_CACHE_HOME/heraut/`). heraut does **not** self-replace its binary —
 upgrades go through the package manager (see [ADR-0014](../adr/0014-self-update-architecture.md),
 superseded). Disabled in `dev` builds and when `HERAUT_CHECK_UPDATE=false` is set.
+
+## `heraut whatsnew`
+
+Show release notes for every version newer than the running build, rendered as
+formatted markdown.
+
+```
+heraut whatsnew
+```
+
+Fetches release notes from the GitHub Releases API for `adaouat/heraut` and renders
+every version newer than the current `--version`. If the API is unreachable, falls back
+to a local cache (`$XDG_CACHE_HOME/heraut/`), and finally to the changelog embedded in
+the binary at build time — so the command still produces useful output offline.
+
+Delegated to forge's shared `updatecheck.WhatsNewCommand` (see
+[ADR-0014](../adr/0014-self-update-architecture.md), superseded) — heraut supplies its
+repo, current version, cache file, and embedded changelog; forge handles fetching,
+caching, version comparison, and rendering.

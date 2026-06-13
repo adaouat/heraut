@@ -3871,7 +3871,7 @@ and the changelog tag-push step) from `git push --tags` / `git push origin --tag
 criteria and pre-T93 decision notes elsewhere in this roadmap untouched — they document
 state at the time they were written, not current behavior.
 
-#### `[ ]` T94: Spec 02/03 — platform tables and command surface match the code
+#### `[x]` T94: Spec 02/03 — platform tables and command surface match the code
 
 Spec 02 platform tables: remove the `catalog:` field (no `Catalog` field exists in
 `config.Platform`; the strict loader rejects unknown keys, so a spec-faithful config
@@ -3883,6 +3883,20 @@ behavioral authority).
 
 **Files:** `docs/specs/{02-configuration.md,03-commands.md}`. **Scope:** S.
 **Dependencies:** none.
+
+Updated both Spec 02 "Platform drivers" sections (GitLab, GitHub): added the required
+`name` field and the optional `base_url` field (both ADR-0025) to the YAML examples and
+field tables, removed the `catalog` field/row (replaced with a sentence explaining
+CI/CD Catalog publishing is automatic — no config needed), and changed the GitLab
+"Implementation" line to `glab release create` + `glab release upload
+--use-package-registry`. Added a new `## heraut whatsnew` section to Spec 03 (after
+"Background update hint") documenting the command's behavior — renders release notes
+for versions newer than the running build via forge's `updatecheck.WhatsNewCommand`,
+with GitHub API → local cache → embedded changelog fallback — based on `internal/cmd/
+root.go`'s registration and `go doc github.com/adaouat/forge/updatecheck`. Pure docs
+change; no code or tests touched. Filed T104 for the spec 02 "Complete examples"
+(missing `name:` on every platform entry) and spec 05's matching `catalog`/
+`upload-asset` drift, found during this task but outside its stated file list.
 
 #### `[ ]` T95: CLAUDE.md — rewrite to post-forge reality
 
@@ -3991,6 +4005,23 @@ documenting the constraint in spec 04 § SemVer per environment.
 **Files:** `internal/versioning/perenv/{auto.go,auto_test.go}`,
 `internal/versioning/semver/bump.go`, `docs/specs/04-versioning.md`. **Scope:** S.
 **Dependencies:** T92.
+
+#### `[ ]` T104: Spec 02 examples and spec 05 — remaining `name`/`catalog`/`upload-asset` drift
+
+T94 fixed the spec 02 platform *driver tables* (GitLab/GitHub) to require `name`, document
+`base_url`, drop `catalog`, and use `glab release upload --use-package-registry`. Two
+related spots were left as-is (out of T94's stated scope):
+
+- Spec 02 § Complete examples: every `platforms` entry (Standard SemVer — GitHub, CalVer —
+  GitLab, SemVer per environment ×3, SemVer multi-platform ×2) omits the now-required
+  `name:` field, so a copy-pasted example fails `heraut check config`.
+- Spec 05 § Platforms → GitLab: still has a `catalog: false` field in its YAML example
+  (no `Catalog` field exists in `config.Platform`) and `glab release upload-asset` in its
+  **Invocation** block (the driver uses `glab release upload --use-package-registry`,
+  per `internal/platforms/gitlab/platform.go`).
+
+**Files:** `docs/specs/{02-configuration.md,05-generators-and-platforms.md}`. **Scope:** S.
+**Dependencies:** T94.
 
 ---
 
