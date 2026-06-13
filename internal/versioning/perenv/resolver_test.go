@@ -156,6 +156,37 @@ func TestResolve_Auto_Semver_CustomTagFormat(t *testing.T) {
 	assert.Equal(t, "1.0.1/dev", result.Tag)
 }
 
+// A pre-release tag (e.g. "dev/1.3.0-rc.1") can sort above its release under git's
+// default version:refname order without versionsort.suffix configured.
+// tagfmt.ParseVersion happily captures "1.3.0-rc.1" as {version}, but BumpVersion
+// cannot parse its "0-rc" patch component. Mirrors the skip policy
+// semver.resolveAuto applies for the plain semver strategy (T92).
+func TestResolve_Auto_Semver_SkipsPrereleaseTag(t *testing.T) {
+	mr := exectest.NewMockRunner()
+	mr.QueueResponse("dev/1.3.0-rc.1\ndev/1.2.3\n", "", nil)
+	mr.QueueResponse("fix: bugfix\x00", "", nil)
+
+	cfg := &config.Config{
+		Versioning: config.Versioning{
+			Strategy: "semver-per-env",
+		},
+		Environments: map[string]config.Environment{
+			"dev": {Bump: "auto", TagFormat: "dev/{version}"},
+		},
+	}
+
+	r := perenv.New(mr, cfg, "dev", false, semverCalc("0.1.0"))
+	result, err := r.Resolve()
+	require.NoError(t, err)
+
+	assert.Equal(t, "1.2.4", result.Version)
+	assert.Equal(t, "dev/1.2.4", result.Tag)
+	assert.Equal(t, "dev/1.2.3", result.CurrentTag)
+
+	require.Len(t, mr.Calls, 2)
+	assert.Equal(t, []string{"log", "dev/1.2.3..HEAD", "--format=%B%x00"}, mr.Calls[1].Args)
+}
+
 // ---- Auto mode: CalVer backend ----
 
 func TestResolve_Auto_Calver_NoTags_FirstRelease(t *testing.T) {

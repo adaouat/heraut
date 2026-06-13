@@ -95,7 +95,7 @@ func (r *Resolver) resolveAuto() (versioning.Result, error) {
 	var currentTag, currentVersion string
 	for _, tag := range tags {
 		bare := strings.TrimPrefix(tag, prefix)
-		if isBareVersion(bare) {
+		if IsBareVersion(bare) {
 			currentTag = tag
 			currentVersion = bare
 			break

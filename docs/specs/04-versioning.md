@@ -198,7 +198,9 @@ shared between both per-env strategies ([ADR-0009](../adr/0009-generic-perenv-re
 
 **`bump: auto`** — resolves the latest source-env tag by SemVer (not lexicographically,
 so `dev/1.10.0` beats `dev/1.9.0`), reads conventional commits since that tag, and
-increments the patch/minor/major component accordingly.
+increments the patch/minor/major component accordingly. The same pre-release-tag skip
+policy as plain SemVer applies (§ Pre-release tags): a tag like `dev/1.3.0-rc.1` is
+skipped in favor of `dev/1.2.3` when selecting the current tag.
 
 **`bump: promote`** — resolves the latest tag of the source environment, strips the
 source format to extract the bare version, and renders it under the destination format.

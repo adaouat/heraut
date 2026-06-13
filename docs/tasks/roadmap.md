@@ -4167,7 +4167,7 @@ describe the anchored form and both footer spellings.
 > naming `BREAKING-CHANGE:` as a Conventional Commits 1.0.0 synonym, since the table
 > cell alone was getting too dense to scan.
 
-#### `[ ]` T103: `semver-per-env` — pre-release tags may still break `BumpAuto`
+#### `[x]` T103: `semver-per-env` — pre-release tags may still break `BumpAuto`
 
 T92 fixed `internal/versioning/semver.Resolver.resolveAuto` (plain `semver` strategy) to
 skip git tags whose bare form isn't `MAJOR.MINOR.PATCH`. `internal/versioning/perenv.
@@ -4184,6 +4184,33 @@ documenting the constraint in spec 04 § SemVer per environment.
 **Files:** `internal/versioning/perenv/{auto.go,auto_test.go}`,
 `internal/versioning/semver/bump.go`, `docs/specs/04-versioning.md`. **Scope:** S.
 **Dependencies:** T92.
+
+> Confirmed reachable: `{version}` compiles to a greedy `(?P<version>.+)`, so
+> `tagfmt.ParseVersion("dev/{version}", "dev/1.3.0-rc.1")` happily captures
+> `"1.3.0-rc.1"` with no pre-release filter. Without `versionsort.suffix`, that tag can
+> sort above `dev/1.2.3` under `--sort=-version:refname`, becoming `bareVersions[0]` /
+> `currentVersion`, and `BumpVersion`'s `strconv.Atoi("0-rc.1")` on the patch segment
+> fails — the same "invalid patch" mode T92 fixed for plain `semver`.
+>
+> Exported `semver.isBareVersion` → `semver.IsBareVersion` (doc comment now covers both
+> call sites) and applied it in `perenv.resolveAuto`'s single shared tag-filter loop:
+> `if parseErr != nil || !semver.IsBareVersion(bare) { continue }`. The loop is shared
+> with `calver-per-env`, but `IsBareVersion` accepts any 3-part all-integer version
+> (every valid CalVer bare version qualifies), and `calver.BumpFromDate` already does
+> its own independent per-tag parse/skip via `ParseVersion(tokens, tag)` — so this is a
+> no-op for valid CalVer tags and consistent for malformed ones. No calver-per-env test
+> added: the task is scoped to `BumpAuto` (semver-per-env), and the shared-loop fix
+> doesn't change observable calver-per-env behavior for any tag shape.
+>
+> New test `TestResolve_Auto_Semver_SkipsPrereleaseTag` in
+> `internal/versioning/perenv/resolver_test.go` (no new `auto_test.go` — all other
+> `resolveAuto`-via-`Resolve()` tests already live in `resolver_test.go` as
+> `TestResolve_Auto_Semver_*`/`TestResolve_Auto_Calver_*`): a `dev/1.3.0-rc.1` tag
+> listed ahead of `dev/1.2.3` is skipped, `1.2.3` → `1.2.4` via `fix:`, and `git log` is
+> scoped to `dev/1.2.3..HEAD`. Spec 04 § SemVer per environment's `bump: auto`
+> paragraph now cross-references § Pre-release tags rather than duplicating it, since
+> the policy is identical. `go build ./...`, `go test ./...` (958 passed, 22 packages),
+> `hk check` clean.
 
 #### `[ ]` T104: Spec 02 examples and spec 05 — remaining `name`/`catalog`/`upload-asset` drift
 

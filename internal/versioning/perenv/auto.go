@@ -7,6 +7,7 @@ import (
 	"github.com/adaouat/heraut/internal/config"
 	"github.com/adaouat/heraut/internal/port"
 	"github.com/adaouat/heraut/internal/versioning"
+	"github.com/adaouat/heraut/internal/versioning/semver"
 	"github.com/adaouat/heraut/internal/versioning/tagfmt"
 )
 
@@ -25,17 +26,21 @@ func resolveAuto(runner port.Runner, cfg *config.Config, env string, calc Versio
 
 	rawTags := splitLines(stdout)
 
-	// Parse bare versions; skip tags that don't match the format.
+	// Parse bare versions; skip tags that don't match the format, or whose
+	// {version} portion isn't a plain MAJOR.MINOR.PATCH (e.g. a pre-release
+	// suffix like "1.3.0-rc.1"). Without versionsort.suffix, git can sort such
+	// a tag above its release — mirrors semver.resolveAuto's skip policy (T92).
 	var bareVersions []string
 	var latestTag string
 	for _, tag := range rawTags {
 		bare, parseErr := tagfmt.ParseVersion(tf, tag)
-		if parseErr == nil {
-			if latestTag == "" {
-				latestTag = tag
-			}
-			bareVersions = append(bareVersions, bare)
+		if parseErr != nil || !semver.IsBareVersion(bare) {
+			continue
 		}
+		if latestTag == "" {
+			latestTag = tag
+		}
+		bareVersions = append(bareVersions, bare)
 	}
 
 	var nextVersion string
