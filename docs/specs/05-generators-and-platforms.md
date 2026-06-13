@@ -238,7 +238,6 @@ release:
       project: $CI_PROJECT_PATH   # optional, defaults to $CI_PROJECT_PATH
       token_env: GITLAB_TOKEN     # optional, defaults to GITLAB_TOKEN
       base_url: https://gitlab.com  # optional, defaults to https://gitlab.com
-      catalog: false              # optional, set true for a CI/CD Catalog release
       assets:
         - dist/myapp_*
 ```
@@ -246,15 +245,15 @@ release:
 **Invocation**:
 
 ```
-glab release create <tag> --notes <notes> [--publish-to-catalog] -R <project>
-glab release upload-asset <tag> <file> -R <project>    # per asset, after release is created
+glab release create <tag> --notes <notes> -R <project>
+glab release upload <tag> --use-package-registry -R <project> <file>...   # all assets, after release is created
 ```
 
 - **Project** resolution: `cfg.Project` → `$CI_PROJECT_PATH` → error
 - **Token** is read from `$<TokenEnv>` (default `GITLAB_TOKEN`); `glab` picks it up
   automatically from the environment
-- **Catalog**: `catalog: true` adds `--publish-to-catalog` to enable a GitLab CI/CD
-  Catalog release
+- **Catalog**: GitLab automatically publishes to the CI/CD Catalog when the project is a
+  registered catalog resource — heraut has no separate config field or flag for this
 - **Release URL**: `<gitlab-base>/<project>/-/releases/<tag>`
 
 ### Self-hosted instances and multiple entries of the same type (ADR-0025)

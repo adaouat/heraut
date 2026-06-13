@@ -4212,7 +4212,7 @@ documenting the constraint in spec 04 § SemVer per environment.
 > the policy is identical. `go build ./...`, `go test ./...` (958 passed, 22 packages),
 > `hk check` clean.
 
-#### `[ ]` T104: Spec 02 examples and spec 05 — remaining `name`/`catalog`/`upload-asset` drift
+#### `[x]` T104: Spec 02 examples and spec 05 — remaining `name`/`catalog`/`upload-asset` drift
 
 T94 fixed the spec 02 platform *driver tables* (GitLab/GitHub) to require `name`, document
 `base_url`, drop `catalog`, and use `glab release upload --use-package-registry`. Two
@@ -4228,6 +4228,31 @@ related spots were left as-is (out of T94's stated scope):
 
 **Files:** `docs/specs/{02-configuration.md,05-generators-and-platforms.md}`. **Scope:** S.
 **Dependencies:** T94.
+
+> Confirmed both premises before editing: `internal/config/validator.go` rejects a
+> platform entry with an empty `Name` (`plat.Name == ""` → `ValidationError`), and
+> `config.Platform` has no `Catalog` field at all (grep found none) — so both drift
+> reports were real, not stale.
+>
+> Spec 02 § Complete examples: added the missing `name:` line to all 8 entries across the
+> 4 affected examples — Standard SemVer — GitHub (`name: github`), CalVer — monthly
+> releases, GitLab (`name: gitlab`), SemVer per environment — dev → staging → prod chain
+> (root `release.platforms` → `name: gitlab`; `dev` override → `name: gitlab`; `prod`
+> override → `name: gitlab` + `name: github`), and SemVer — multiple platforms with
+> binaries (`name: gitlab` + `name: github`). The two driver-table examples T94 already
+> fixed (§ Platform drivers → GitLab/GitHub) were left untouched.
+>
+> Spec 05 § Platforms → GitLab: removed the `catalog: false` line from the YAML example;
+> rewrote the **Invocation** block from `glab release create ... [--publish-to-catalog]`
+> / `glab release upload-asset <tag> <file> ...` (per asset) to the driver's actual calls
+> — `glab release create <tag> --notes <notes> -R <project>` and `glab release upload
+> <tag> --use-package-registry -R <project> <file>...` (all assets in one invocation),
+> read directly from `internal/platforms/gitlab/platform.go`'s `CreateRelease`/
+> `UploadAssets`. Rewrote the **Catalog** bullet: rather than describing a `catalog: true`
+> flag that doesn't exist, it now explains GitLab auto-publishes to the CI/CD Catalog when
+> the project is a registered catalog resource, with no heraut-side config.
+>
+> Docs-only change; no code or tests touched. `go build ./...`/`go test ./...` unaffected.
 
 ---
 

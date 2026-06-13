@@ -517,6 +517,7 @@ release:
     generator: git-cliff
   platforms:
     - platform: github
+      name: github
       repository: acme/widget
       token_env: GH_TOKEN
 ```
@@ -540,6 +541,7 @@ release:
     generator: git-cliff
   platforms:
     - platform: gitlab
+      name: gitlab
 ```
 
 ### SemVer per environment — dev → staging → prod chain
@@ -562,6 +564,7 @@ release:
     tag_pattern: "dev/*"
   platforms:
     - platform: gitlab
+      name: gitlab
 
 environments:
   dev:
@@ -571,6 +574,7 @@ environments:
     release:
       platforms:
         - platform: gitlab         # dev releases only go to GitLab
+          name: gitlab
   staging:
     branch: main
     bump: promote
@@ -582,7 +586,9 @@ environments:
     release:
       platforms:
         - platform: gitlab
+          name: gitlab
         - platform: github         # prod releases go to both
+          name: github
 ```
 
 ### SemVer — multiple platforms, with binaries
@@ -599,12 +605,14 @@ release:
     generator: git-cliff
   platforms:
     - platform: gitlab
+      name: gitlab
       token_env: GITLAB_TOKEN
       assets:
         - dist/myapp_linux_amd64.tar.gz
         - dist/myapp_darwin_arm64.tar.gz
         - dist/checksums.txt
     - platform: github
+      name: github
       repository: org/myapp
       token_env: GH_TOKEN
       assets:
