@@ -63,6 +63,23 @@ func BumpVersion(current string, bump versioning.BumpType) (string, error) {
 	return fmt.Sprintf("%d.%d.%d", major, minor, patch), nil
 }
 
+// isBareVersion reports whether s is a bare MAJOR.MINOR.PATCH version with no
+// pre-release or build metadata (e.g. "1.2.3", not "1.2.3-rc.1"). Used by the
+// resolver to skip git tags that don't conform when locating the most recent
+// release tag.
+func isBareVersion(s string) bool {
+	parts := strings.SplitN(s, ".", 3)
+	if len(parts) != 3 {
+		return false
+	}
+	for _, p := range parts {
+		if _, err := strconv.Atoi(p); err != nil {
+			return false
+		}
+	}
+	return true
+}
+
 func isBreaking(commit string) bool {
 	// type! or type(scope)! immediately before the colon
 	if breakingPrefixPattern.MatchString(firstLine(commit)) {

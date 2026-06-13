@@ -319,6 +319,56 @@ func TestResolve_Minor_Before_Patch_Priority(t *testing.T) {
 	assert.Equal(t, versioning.BumpMinor, result.Bump)
 }
 
+// Edge case: git's default version:refname sort orders "v1.3.0-rc.1" above
+// "v1.2.3" (without versionsort.suffix configured), so the pre-release tag
+// lands first. resolveAuto must skip it and use the first tag that parses as
+// bare MAJOR.MINOR.PATCH — mirroring the CalVer resolver's skip-unparsable
+// behavior — rather than failing BumpVersion on "3.0-rc.1".
+func TestResolve_SkipsPreReleaseTag(t *testing.T) {
+	mr := exectest.NewMockRunner()
+	mr.QueueResponse("v1.3.0-rc.1\nv1.2.3\n", "", nil)
+	mr.QueueResponse("fix: a small fix\x00", "", nil)
+
+	cfg := &config.Config{
+		Versioning: config.Versioning{Strategy: "semver", TagPrefix: strPtr("v")},
+	}
+
+	r := semver.New(mr, cfg)
+	result, err := r.Resolve()
+	require.NoError(t, err)
+
+	assert.Equal(t, "1.2.4", result.Version)
+	assert.Equal(t, "v1.2.4", result.Tag)
+	assert.Equal(t, "v1.2.3", result.CurrentTag)
+	assert.Equal(t, versioning.BumpPatch, result.Bump)
+
+	require.Len(t, mr.Calls, 2)
+	assert.Equal(t, []string{"log", "v1.2.3..HEAD", "--format=%B%x00"}, mr.Calls[1].Args)
+}
+
+// When every tag is a pre-release (none parse as bare MAJOR.MINOR.PATCH),
+// resolveAuto falls back to the initial version — same as having no tags at
+// all — instead of erroring on the unparsable pre-release version.
+func TestResolve_AllTagsPreRelease_UsesInitialVersion(t *testing.T) {
+	mr := exectest.NewMockRunner()
+	mr.QueueResponse("v1.0.0-rc.1\nv1.0.0-rc.0\n", "", nil)
+
+	cfg := &config.Config{
+		Versioning: config.Versioning{Strategy: "semver", TagPrefix: strPtr("v")},
+	}
+
+	r := semver.New(mr, cfg)
+	result, err := r.Resolve()
+	require.NoError(t, err)
+
+	assert.Equal(t, "0.1.0", result.Version)
+	assert.Equal(t, "v0.1.0", result.Tag)
+	assert.Equal(t, versioning.BumpNone, result.Bump)
+	assert.Empty(t, result.CurrentTag)
+
+	require.Len(t, mr.Calls, 1)
+}
+
 // Edge case: v1.9.0 → v1.10.0 (not v1.100.0)
 func TestBumpVersion_MinorDoesNotCorruptPatch(t *testing.T) {
 	got, err := semver.BumpVersion("1.9.0", versioning.BumpMinor)

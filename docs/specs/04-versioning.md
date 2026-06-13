@@ -46,6 +46,19 @@ The highest applicable bump wins (e.g. a single `feat!:` outranks ten `fix:` com
 Tags are sorted by SemVer order, not lexicographically — `v1.10.0` is newer than
 `v1.9.0`, and bumping `v1.9.0` produces `v1.10.0` (never `v1.100.0`).
 
+### Pre-release tags
+
+Without `versionsort.suffix` configured in the user's git config, git's default
+`version:refname` tag sort orders a pre-release tag *above* its corresponding release —
+e.g. `v1.3.0-rc.1` sorts above `v1.2.3`. The resolver skips any tag whose bare form (after
+stripping `tag_prefix`) is not a plain `MAJOR.MINOR.PATCH` — so `v1.3.0-rc.1` is skipped
+and `v1.2.3` becomes the current tag for bump resolution. If every tag matching the prefix
+is non-conforming, heraut behaves as if no tags exist and returns `initial_version`.
+
+Pre-release tags are therefore invisible to `semver` auto-resolution: they neither become
+the current tag nor block resolution. heraut does not produce pre-release tags itself;
+this only matters for repositories where pre-release tags were created by other tooling.
+
 ### Initial version
 
 When no tags matching the prefix exist, the resolver returns `initial_version` (default

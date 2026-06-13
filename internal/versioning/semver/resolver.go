@@ -86,7 +86,23 @@ func (r *Resolver) resolveAuto() (versioning.Result, error) {
 	}
 
 	tags := parseTags(stdout)
-	if len(tags) == 0 {
+
+	// Find the first tag whose bare form is a plain MAJOR.MINOR.PATCH version.
+	// Without versionsort.suffix, git's default version:refname sort orders a
+	// pre-release tag (e.g. "v1.3.0-rc.1") above its release (e.g. "v1.2.3"),
+	// and BumpVersion cannot parse the pre-release suffix. Skip such tags —
+	// mirrors the CalVer resolver's skip-unparsable behavior.
+	var currentTag, currentVersion string
+	for _, tag := range tags {
+		bare := strings.TrimPrefix(tag, prefix)
+		if isBareVersion(bare) {
+			currentTag = tag
+			currentVersion = bare
+			break
+		}
+	}
+
+	if currentTag == "" {
 		iv := r.initialVersion()
 		return versioning.Result{
 			Version: iv,
@@ -94,9 +110,6 @@ func (r *Resolver) resolveAuto() (versioning.Result, error) {
 			Bump:    versioning.BumpNone,
 		}, nil
 	}
-
-	currentTag := tags[0]
-	currentVersion := strings.TrimPrefix(currentTag, prefix)
 
 	// %B gives the full commit message; %x00 is a null-byte separator between commits.
 	stdout, _, err = r.runner.Run("git", "log", currentTag+"..HEAD", "--format=%B%x00")

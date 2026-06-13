@@ -3821,7 +3821,7 @@ through `DetermineBump`; a new file would split one function's coverage across t
 for no benefit. Deviation from the roadmap's stated `bump_test.go`, noted here per
 roadmap-discipline.
 
-#### `[ ]` T92: SemVer resolver — pre-release tag policy
+#### `[x]` T92: SemVer resolver — pre-release tag policy
 
 Git's default `version:refname` sort orders `v1.2.3-rc.1` *above* `v1.2.3` (without
 `versionsort.suffix`), and `BumpVersion("1.2.3-rc.1")` then fails with "invalid patch" —
@@ -3832,6 +3832,20 @@ message.
 
 **Files:** `internal/versioning/semver/{resolver.go,resolver_test.go}`,
 `docs/specs/04-versioning.md`. **Scope:** S. **Dependencies:** none.
+
+**Decision: skip, mirroring CalVer.** Added `isBareVersion(s string) bool` to `bump.go`
+(plain `MAJOR.MINOR.PATCH`, no pre-release/build metadata — used only for tag-skipping,
+kept separate from `BumpVersion`'s parsing so its specific "invalid major/minor/patch"
+error messages, which are load-bearing tests, stay untouched). `resolveAuto` now walks
+`tags` (already sorted newest-first) and picks the first whose bare form satisfies
+`isBareVersion`, exactly like the CalVer resolver's `ParseVersion`-skip loop; if none
+match, falls back to the "no tags" branch (`initial_version`). Added
+`TestResolve_SkipsPreReleaseTag` and `TestResolve_AllTagsPreRelease_UsesInitialVersion`.
+Added a "Pre-release tags" subsection to spec 04 documenting the skip behavior and the
+all-pre-release fallback. Scoped to `resolveAuto` only — `BumpAuto` (used by
+`semver-per-env` via `internal/versioning/perenv`) takes pre-filtered/stripped tags from
+its caller and is a separate code path; whether `perenv` has the same latent issue is
+unexplored and out of scope here (flagged as a follow-up below if needed).
 
 #### `[ ]` T93: Pipelines — push only the created tag
 
@@ -3933,6 +3947,35 @@ maps are exact-case while `app.buildGenerator`/`checkCliffDriver` use
 variable in `cmd/check.go`.
 
 **Files:** scattered (see list above). **Scope:** S. **Dependencies:** none.
+
+#### `[ ]` T102: Spec 04 — bump-determination table doesn't reflect T91's anchoring
+
+T91 anchored the breaking-change `!` to the conventional-commit type/scope prefix (so
+`!:` only inside a description no longer triggers a major bump) and added the hyphenated
+`BREAKING-CHANGE:` footer as a synonym of `BREAKING CHANGE:`. Spec 04's "Bump
+determination" table (`## SemVer` → `### Bump determination`) still says only "Any commit
+with `!` (e.g. `feat!:`, `fix!:`) or `BREAKING CHANGE:` footer" — update the row to
+describe the anchored form and both footer spellings.
+
+**Files:** `docs/specs/04-versioning.md`. **Scope:** S. **Dependencies:** T91.
+
+#### `[ ]` T103: `semver-per-env` — pre-release tags may still break `BumpAuto`
+
+T92 fixed `internal/versioning/semver.Resolver.resolveAuto` (plain `semver` strategy) to
+skip git tags whose bare form isn't `MAJOR.MINOR.PATCH`. `internal/versioning/perenv.
+resolveAuto` (used by `semver-per-env`) has a separate tag-listing loop: it extracts bare
+versions via `tagfmt.ParseVersion(tf, tag)` with no `isBareVersion`-style filter, then
+passes them to `calc.BumpAuto(bareVersions, commits)`, whose `currentVersion :=
+tags[0]` → `BumpVersion(...)` has the same "invalid patch" failure mode if a pre-release
+tag matches the env's `tag_format` and sorts first. Investigate whether this is reachable
+in practice (does `tagfmt.ParseVersion`'s `{version}` capture admit pre-release suffixes
+for typical formats?) and, if so, apply the same skip policy — likely by reusing
+`semver.isBareVersion` (would need exporting) in `perenv.resolveAuto`'s filter loop, or
+documenting the constraint in spec 04 § SemVer per environment.
+
+**Files:** `internal/versioning/perenv/{auto.go,auto_test.go}`,
+`internal/versioning/semver/bump.go`, `docs/specs/04-versioning.md`. **Scope:** S.
+**Dependencies:** T92.
 
 ---
 
