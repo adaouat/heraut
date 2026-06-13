@@ -48,7 +48,7 @@ func stepNames(steps []capturedStep) []string {
 func TestRun_Reporter_MinimalSequence(t *testing.T) {
 	mr := exectest.NewMockRunner()
 	mr.QueueResponse("", "", nil) // git tag
-	mr.QueueResponse("", "", nil) // git push --tags
+	mr.QueueResponse("", "", nil) // git push <tag>
 
 	platform := &testutil.MockPlatform{PlatformName: "github"}
 	cfg := &pipeline.Config{Platforms: []port.Platform{platform}}
@@ -82,7 +82,7 @@ func TestRun_Reporter_WithChangelog(t *testing.T) {
 	mr.QueueResponse("", "", nil) // git commit
 	mr.QueueResponse("", "", nil) // git push
 	mr.QueueResponse("", "", nil) // git tag
-	mr.QueueResponse("", "", nil) // git push --tags
+	mr.QueueResponse("", "", nil) // git push <tag>
 
 	changelog := &testutil.MockGenerator{}
 	platform := &testutil.MockPlatform{PlatformName: "github"}
@@ -114,7 +114,7 @@ func TestRun_Reporter_WithChangelog(t *testing.T) {
 func TestRun_Reporter_WithNotes(t *testing.T) {
 	mr := exectest.NewMockRunner()
 	mr.QueueResponse("", "", nil) // git tag
-	mr.QueueResponse("", "", nil) // git push --tags
+	mr.QueueResponse("", "", nil) // git push <tag>
 
 	notes := &testutil.MockGenerator{GenerateOut: "## Notes\n"}
 	platform := &testutil.MockPlatform{PlatformName: "github"}
@@ -144,7 +144,7 @@ func TestRun_Reporter_WithNotes(t *testing.T) {
 func TestRun_Reporter_AssetUploadSubResult(t *testing.T) {
 	mr := exectest.NewMockRunner()
 	mr.QueueResponse("", "", nil) // git tag
-	mr.QueueResponse("", "", nil) // git push --tags
+	mr.QueueResponse("", "", nil) // git push <tag>
 
 	platform := &testutil.MockPlatform{PlatformName: "github", HasAssetsVal: true}
 	cfg := &pipeline.Config{Platforms: []port.Platform{platform}}
@@ -170,7 +170,7 @@ func TestRun_Reporter_AssetUploadSubResult(t *testing.T) {
 func TestRun_Reporter_MultiplePlatformsEachGetStep(t *testing.T) {
 	mr := exectest.NewMockRunner()
 	mr.QueueResponse("", "", nil) // git tag
-	mr.QueueResponse("", "", nil) // git push --tags
+	mr.QueueResponse("", "", nil) // git push <tag>
 
 	p1 := &testutil.MockPlatform{PlatformName: "github"}
 	p2 := &testutil.MockPlatform{PlatformName: "gitlab"}
@@ -193,7 +193,7 @@ func TestRun_Reporter_MultiplePlatformsEachGetStep(t *testing.T) {
 func TestRun_Reporter_MultiPlatform_NotesFoldedIntoPublish(t *testing.T) {
 	mr := exectest.NewMockRunner()
 	mr.QueueResponse("", "", nil) // git tag
-	mr.QueueResponse("", "", nil) // git push --tags
+	mr.QueueResponse("", "", nil) // git push <tag>
 
 	notes := &testutil.MockGenerator{GenerateOut: "## notes\n"}
 	p1 := &testutil.MockPlatform{PlatformName: "github"}
@@ -224,7 +224,7 @@ func TestRun_Reporter_MultiPlatform_NotesFoldedIntoPublish(t *testing.T) {
 func TestRun_Reporter_DegradedNotes_EmitsSubResult(t *testing.T) {
 	mr := exectest.NewMockRunner()
 	mr.QueueResponse("", "", nil) // git tag
-	mr.QueueResponse("", "", nil) // git push --tags
+	mr.QueueResponse("", "", nil) // git push <tag>
 
 	notes := &testutil.MockGenerator{GenerateOut: "## notes\n", DegradedVal: true}
 	p1 := &testutil.MockPlatform{PlatformName: "github"}
@@ -250,7 +250,7 @@ func TestRun_Reporter_DegradedNotes_EmitsSubResult(t *testing.T) {
 func TestRun_BuildTag_PropagatesToPlatform(t *testing.T) {
 	mr := exectest.NewMockRunner()
 	mr.QueueResponse("", "", nil) // git tag
-	mr.QueueResponse("", "", nil) // git push --tags
+	mr.QueueResponse("", "", nil) // git push <tag>
 
 	notes := &testutil.MockGenerator{GenerateOut: "## notes\n"}
 	platform := &testutil.MockPlatform{PlatformName: "github"}
@@ -268,7 +268,7 @@ func TestRun_BuildTag_PropagatesToPlatform(t *testing.T) {
 func TestRun_Reporter_SinglePlatform_StandaloneNotesStep(t *testing.T) {
 	mr := exectest.NewMockRunner()
 	mr.QueueResponse("", "", nil) // git tag
-	mr.QueueResponse("", "", nil) // git push --tags
+	mr.QueueResponse("", "", nil) // git push <tag>
 
 	notes := &testutil.MockGenerator{GenerateOut: "## notes\n"}
 	platform := &testutil.MockPlatform{PlatformName: "github"}
@@ -343,7 +343,7 @@ func TestRun_Reporter_DryRunSequence(t *testing.T) {
 func TestRun_Reporter_SummaryContainsTag(t *testing.T) {
 	mr := exectest.NewMockRunner()
 	mr.QueueResponse("", "", nil) // git tag
-	mr.QueueResponse("", "", nil) // git push --tags
+	mr.QueueResponse("", "", nil) // git push <tag>
 
 	platform := &testutil.MockPlatform{PlatformName: "github"}
 	cfg := &pipeline.Config{Platforms: []port.Platform{platform}}
@@ -361,7 +361,7 @@ func TestRun_Reporter_SummaryContainsTag(t *testing.T) {
 func TestRun_Reporter_NilIsTransparent(t *testing.T) {
 	mr := exectest.NewMockRunner()
 	mr.QueueResponse("", "", nil) // git tag
-	mr.QueueResponse("", "", nil) // git push --tags
+	mr.QueueResponse("", "", nil) // git push <tag>
 
 	platform := &testutil.MockPlatform{PlatformName: "github"}
 	cfg := &pipeline.Config{Platforms: []port.Platform{platform}}

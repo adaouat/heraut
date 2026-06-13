@@ -88,7 +88,7 @@ heraut release [--version <version>] [--build <id>] [--dry-run] [--env <name>] [
 3. **Generate changelog** (if `changelog` is configured and not disabled for the env)
    — writes to `changelog.output` (default `CHANGELOG.md`)
 4. **Commit changelog + push** — `chore(release): <version>`, then `git push`
-5. **Create git tag** (annotated by default; set `versioning.tag_type: lightweight` to use a bare ref tag) on the changelog commit, then `git push --tags`
+5. **Create git tag** (annotated by default; set `versioning.tag_type: lightweight` to use a bare ref tag) on the changelog commit, then `git push origin <tag>`
 6. **Generate release notes** (if `release.notes` is configured and not disabled for
    the env) — the notes are needed at release-creation time, so they are produced before
    any platform call
@@ -139,7 +139,7 @@ heraut changelog [--commit] [--tag] [--no-push] [--version <version>] [--dry-run
 |--------------|----------------------------------------------------------------------------------------------------------|
 | `--commit`   | After generating, commit `CHANGELOG.md` and push.                                                        |
 | `--tag`      | After committing, create and push a git tag on that commit. Implies `--commit`.                          |
-| `--no-push`  | Commit and tag locally without pushing. Skips both `git push origin HEAD` and `git push origin --tags`. Only meaningful with `--commit`/`--tag`. |
+| `--no-push`  | Commit and tag locally without pushing. Skips both `git push origin HEAD` and `git push origin <tag>`. Only meaningful with `--commit`/`--tag`. |
 | `--version`  | Override the auto-computed version. Bypasses bump resolution. Same validation as `heraut release --version` — non-empty, no whitespace, format-agnostic. |
 | `--build`    | CI build ID appended to the tag via the `{build}` token in `tag_format`. Requires `--version`.           |
 | `--dry-run`  | Print the action plan; execute nothing.                                                                  |
@@ -151,7 +151,7 @@ heraut changelog [--commit] [--tag] [--no-push] [--version <version>] [--dry-run
 2. Generate and update `CHANGELOG.md` (only if `changelog` is configured)
 3. Commit and push — `chore(release): <version>` (push skipped with `--no-push`)
 4. Create a git tag (annotated by default; set `versioning.tag_type: lightweight` for a bare ref tag) on that commit
-5. Push tag (`git push --tags`) — skipped with `--no-push`
+5. Push tag (`git push origin <tag>`) — skipped with `--no-push`
 
 With `--no-push`, the commit and tag are created locally only; push them yourself (or
 let a CI job own pushing) afterwards. The flag is a no-op without `--commit`/`--tag`,

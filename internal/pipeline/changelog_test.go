@@ -64,7 +64,7 @@ func TestChangelogRun_WithTag(t *testing.T) {
 	mr.QueueResponse("", "", nil) // git commit
 	mr.QueueResponse("", "", nil) // git push
 	mr.QueueResponse("", "", nil) // git tag
-	mr.QueueResponse("", "", nil) // git push --tags
+	mr.QueueResponse("", "", nil) // git push <tag>
 
 	gen := &testutil.MockGenerator{}
 
@@ -83,14 +83,14 @@ func TestChangelogRun_WithTag(t *testing.T) {
 	assert.Equal(t, "commit", mr.Calls[1].Args[0])
 	assert.Equal(t, []string{"push", "origin", "HEAD"}, mr.Calls[2].Args)
 	assert.Equal(t, []string{"tag", "v1.2.3"}, mr.Calls[3].Args)
-	assert.Equal(t, []string{"push", "origin", "--tags"}, mr.Calls[4].Args)
+	assert.Equal(t, []string{"push", "origin", "v1.2.3"}, mr.Calls[4].Args)
 }
 
 // TestChangelogRun_TagWithoutChangelog verifies tag-only when no generator is configured.
 func TestChangelogRun_TagWithoutChangelog(t *testing.T) {
 	mr := exectest.NewMockRunner()
 	mr.QueueResponse("", "", nil) // git tag
-	mr.QueueResponse("", "", nil) // git push --tags
+	mr.QueueResponse("", "", nil) // git push <tag>
 
 	cfg := &pipeline.ChangelogConfig{
 		Tag: true,
@@ -101,7 +101,7 @@ func TestChangelogRun_TagWithoutChangelog(t *testing.T) {
 
 	require.Len(t, mr.Calls, 2)
 	assert.Equal(t, []string{"tag", "v1.2.3"}, mr.Calls[0].Args)
-	assert.Equal(t, []string{"push", "origin", "--tags"}, mr.Calls[1].Args)
+	assert.Equal(t, []string{"push", "origin", "v1.2.3"}, mr.Calls[1].Args)
 }
 
 // TestChangelogRun_WithCommit_NoPush verifies --no-push commits but does not push.
@@ -221,7 +221,7 @@ func TestChangelogRun_DisabledChangelog(t *testing.T) {
 func TestChangelogRun_AnnotatedTag(t *testing.T) {
 	mr := exectest.NewMockRunner()
 	mr.QueueResponse("", "", nil) // git tag
-	mr.QueueResponse("", "", nil) // git push --tags
+	mr.QueueResponse("", "", nil) // git push <tag>
 
 	cfg := &pipeline.ChangelogConfig{
 		Tag:           true,
@@ -233,14 +233,14 @@ func TestChangelogRun_AnnotatedTag(t *testing.T) {
 
 	require.Len(t, mr.Calls, 2)
 	assert.Equal(t, []string{"tag", "-a", "v1.2.3", "-m", "chore(release): 1.2.3"}, mr.Calls[0].Args)
-	assert.Equal(t, []string{"push", "origin", "--tags"}, mr.Calls[1].Args)
+	assert.Equal(t, []string{"push", "origin", "v1.2.3"}, mr.Calls[1].Args)
 }
 
 // TestChangelogRun_AnnotatedTagCustomMessage verifies the annotation reuses the commit_message template.
 func TestChangelogRun_AnnotatedTagCustomMessage(t *testing.T) {
 	mr := exectest.NewMockRunner()
 	mr.QueueResponse("", "", nil) // git tag
-	mr.QueueResponse("", "", nil) // git push --tags
+	mr.QueueResponse("", "", nil) // git push <tag>
 
 	cfg := &pipeline.ChangelogConfig{
 		Tag:           true,
@@ -258,7 +258,7 @@ func TestChangelogRun_AnnotatedTagCustomMessage(t *testing.T) {
 func TestChangelogRun_SignedTag(t *testing.T) {
 	mr := exectest.NewMockRunner()
 	mr.QueueResponse("", "", nil) // git tag -s
-	mr.QueueResponse("", "", nil) // git push --tags
+	mr.QueueResponse("", "", nil) // git push <tag>
 
 	cfg := &pipeline.ChangelogConfig{
 		Tag:           true,
@@ -336,7 +336,7 @@ func TestChangelogRun_CustomCommitMessage(t *testing.T) {
 func TestChangelogRun_DisabledChangelog_WithTag(t *testing.T) {
 	mr := exectest.NewMockRunner()
 	mr.QueueResponse("", "", nil) // git tag
-	mr.QueueResponse("", "", nil) // git push --tags
+	mr.QueueResponse("", "", nil) // git push <tag>
 
 	gen := &testutil.MockGenerator{}
 
@@ -354,7 +354,7 @@ func TestChangelogRun_DisabledChangelog_WithTag(t *testing.T) {
 	assert.Len(t, gen.GenerateCalls, 0)
 	require.Len(t, mr.Calls, 2)
 	assert.Equal(t, []string{"tag", "v1.2.3"}, mr.Calls[0].Args)
-	assert.Equal(t, []string{"push", "origin", "--tags"}, mr.Calls[1].Args)
+	assert.Equal(t, []string{"push", "origin", "v1.2.3"}, mr.Calls[1].Args)
 	assert.Contains(t, out.String(), "disabled")
 }
 

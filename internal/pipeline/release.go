@@ -89,7 +89,7 @@ func (p *Pipeline) Check() error {
 // Run executes the full release sequence:
 //  1. Resolve version
 //  2. (if changelog configured and not disabled) Generate changelog → git add → git commit → git push
-//  3. git tag → git push --tags
+//  3. git tag → git push origin <tag>
 //  4. (if notes configured, single platform only) Generate release notes
 //  5. For each platform: (if notes configured + multi-platform) regenerate notes with the
 //     platform's LinkContext, then CreateRelease
@@ -152,8 +152,8 @@ func (p *Pipeline) Run() error {
 
 	// Step 5: Push tag.
 	if err := p.runStep("Push tag", func() (string, []string, error) {
-		if err := p.git.run("git", "push", "origin", "--tags"); err != nil {
-			return "", nil, fmt.Errorf("git push --tags: %w", err)
+		if err := p.git.pushTag(result.Tag); err != nil {
+			return "", nil, err
 		}
 		return "", nil, nil
 	}); err != nil {
@@ -251,7 +251,7 @@ func (p *Pipeline) dryRunOutput(result versioning.Result) error {
 		return "[dry-run] would tag", nil, nil
 	})
 	_ = p.runStep("Push tag", func() (string, []string, error) {
-		return "[dry-run] would push", nil, nil
+		return fmt.Sprintf("[dry-run] would push %s", result.Tag), nil, nil
 	})
 
 	notesEnabled := p.cfg.Notes != nil && !p.cfg.DisableNotes

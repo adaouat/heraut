@@ -3847,7 +3847,7 @@ all-pre-release fallback. Scoped to `resolveAuto` only — `BumpAuto` (used by
 its caller and is a separate code path; whether `perenv` has the same latent issue is
 unexplored and out of scope here (flagged as a follow-up below if needed).
 
-#### `[ ]` T93: Pipelines — push only the created tag
+#### `[x]` T93: Pipelines — push only the created tag
 
 Both pipelines run `git push origin --tags`, publishing every local tag including stale
 or experimental ones. Push `result.Tag` explicitly (`git push origin <tag>`). Align the
@@ -3855,6 +3855,21 @@ step-name wording between the two pipelines ("Push tag" vs "Push tags") while th
 
 **Files:** `internal/pipeline/{release.go,changelog.go}` + tests,
 `docs/specs/03-commands.md` (action sequences). **Scope:** S. **Dependencies:** none.
+
+Added `gitHelper.pushTag(tag string) error` in `internal/pipeline/git.go` (`git push
+origin <tag>`, wrapped as `"git push %s: %w"`), used by both `Pipeline.Run` (Step 5) and
+`ChangelogPipeline.Run` (Step 5, the `Tag && !NoPush` branch) in place of the prior
+`git push origin --tags` calls. Renamed `ChangelogPipeline`'s "Push tags" step (real +
+dry-run) to "Push tag" to match the release pipeline, and updated the corresponding
+reporter-test assertions in `changelog_reporter_test.go`. Dry-run "Push tag" steps in
+both pipelines now report `[dry-run] would push <tag>` (previously a generic "would
+push"), naming the exact tag for clarity. Updated doc comments in both pipeline files and
+`docs/specs/03-commands.md` (lines describing the release action sequence, `--no-push`,
+and the changelog tag-push step) from `git push --tags` / `git push origin --tags` to
+`git push origin <tag>`. Left ADR-0011 and ADR-0017 (which describe `git push --tags` /
+"Push tags" as historical architecture decisions) and the historical T42 acceptance
+criteria and pre-T93 decision notes elsewhere in this roadmap untouched — they document
+state at the time they were written, not current behavior.
 
 #### `[ ]` T94: Spec 02/03 — platform tables and command surface match the code
 

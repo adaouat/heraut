@@ -73,7 +73,7 @@ func TestChangelogRun_Reporter_WithTag(t *testing.T) {
 	mr.QueueResponse("", "", nil) // git commit
 	mr.QueueResponse("", "", nil) // git push
 	mr.QueueResponse("", "", nil) // git tag
-	mr.QueueResponse("", "", nil) // git push --tags
+	mr.QueueResponse("", "", nil) // git push <tag>
 
 	gen := &testutil.MockGenerator{}
 
@@ -94,7 +94,7 @@ func TestChangelogRun_Reporter_WithTag(t *testing.T) {
 		"Generate changelog",
 		"Commit changelog",
 		fmt.Sprintf("Create tag %s", "v1.2.3"),
-		"Push tags",
+		"Push tag",
 	}, stepNames(captured))
 }
 
@@ -103,7 +103,7 @@ func TestChangelogRun_Reporter_WithTag(t *testing.T) {
 func TestChangelogRun_Reporter_TagWithoutChangelog(t *testing.T) {
 	mr := exectest.NewMockRunner()
 	mr.QueueResponse("", "", nil) // git tag
-	mr.QueueResponse("", "", nil) // git push --tags
+	mr.QueueResponse("", "", nil) // git push <tag>
 
 	cfg := &pipeline.ChangelogConfig{Tag: true}
 
@@ -116,7 +116,7 @@ func TestChangelogRun_Reporter_TagWithoutChangelog(t *testing.T) {
 	assert.Equal(t, []string{
 		"Resolve version",
 		"Create tag v1.2.3",
-		"Push tags",
+		"Push tag",
 	}, stepNames(captured))
 }
 
@@ -149,7 +149,7 @@ func TestChangelogRun_Reporter_DryRunSequence(t *testing.T) {
 	assert.Contains(t, names, "Generate changelog")
 	assert.Contains(t, names, "Commit changelog")
 	assert.Contains(t, names, fmt.Sprintf("Create tag %s", "v1.2.3"))
-	assert.Contains(t, names, "Push tags")
+	assert.Contains(t, names, "Push tag")
 }
 
 // TestChangelogRun_Reporter_DisabledChangelog verifies that the output contains
@@ -180,7 +180,7 @@ func TestChangelogRun_Reporter_DisabledChangelog(t *testing.T) {
 func TestChangelogRun_Reporter_DisabledChangelog_WithTag(t *testing.T) {
 	mr := exectest.NewMockRunner()
 	mr.QueueResponse("", "", nil) // git tag
-	mr.QueueResponse("", "", nil) // git push --tags
+	mr.QueueResponse("", "", nil) // git push <tag>
 
 	gen := &testutil.MockGenerator{}
 
@@ -202,7 +202,7 @@ func TestChangelogRun_Reporter_DisabledChangelog_WithTag(t *testing.T) {
 	assert.Equal(t, []string{
 		"Resolve version",
 		"Create tag v1.2.3",
-		"Push tags",
+		"Push tag",
 	}, stepNames(captured))
 	assert.Contains(t, out.String(), "disabled")
 }
@@ -233,7 +233,7 @@ func TestChangelogRun_DryRun_DisabledChangelog_WithTag(t *testing.T) {
 	assert.NotContains(t, names, "Generate changelog")
 	assert.NotContains(t, names, "Commit changelog")
 	assert.Contains(t, names, fmt.Sprintf("Create tag %s", "v1.2.3"))
-	assert.Contains(t, names, "Push tags")
+	assert.Contains(t, names, "Push tag")
 }
 
 // TestChangelogRun_Reporter_SummaryContainsTag verifies the output contains the

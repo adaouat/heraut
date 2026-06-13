@@ -30,7 +30,7 @@ func TestRun_LogsDiagnostics(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			mr := exectest.NewMockRunner()
 			mr.QueueResponse("", "", nil) // git tag
-			mr.QueueResponse("", "", nil) // git push --tags
+			mr.QueueResponse("", "", nil) // git push <tag>
 			platform := &testutil.MockPlatform{PlatformName: "github"}
 			cfg := &pipeline.Config{Platforms: []port.Platform{platform}}
 

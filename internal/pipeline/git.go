@@ -45,6 +45,13 @@ func (g *gitHelper) tag(tag, msg string, annotated, sign bool) error {
 	return g.run("git", "tag", tag)
 }
 
+func (g *gitHelper) pushTag(tag string) error {
+	if err := g.run("git", "push", "origin", tag); err != nil {
+		return fmt.Errorf("git push %s: %w", tag, err)
+	}
+	return nil
+}
+
 func commitMessage(template, version string) string {
 	if template == "" {
 		template = defaultCommitMessage

@@ -24,7 +24,7 @@ type ChangelogConfig struct {
 	// Tag creates a git tag after committing (implies Commit).
 	Tag bool
 	// NoPush keeps the commit and tag local: the changelog is committed (and the
-	// tag created) but neither `git push origin HEAD` nor `git push origin --tags`
+	// tag created) but neither `git push origin HEAD` nor `git push origin <tag>`
 	// runs. The zero value (false) preserves the default push behaviour.
 	NoPush bool
 	// AnnotatedTags creates annotated git tags (-a -m <commit_message>).
@@ -73,9 +73,9 @@ func (p *ChangelogPipeline) runStep(name string, fn func() (string, []string, er
 //  2. If DisableChangelog: print info and return
 //  3. If Changelog configured: generate changelog
 //  4. If Commit or Tag (and Changelog configured): git add → git commit → git push
-//  5. If Tag: git tag → git push --tags
+//  5. If Tag: git tag → git push origin <tag>
 //
-// When NoPush is set, both pushes (HEAD and --tags) are skipped — the commit and
+// When NoPush is set, both pushes (HEAD and the tag) are skipped — the commit and
 // tag are created locally only.
 func (p *ChangelogPipeline) Run() error {
 	// Step 1: Resolve version.
@@ -149,9 +149,9 @@ func (p *ChangelogPipeline) Run() error {
 		}
 
 		if !p.cfg.NoPush {
-			if err := p.runStep("Push tags", func() (string, []string, error) {
-				if err := p.git.run("git", "push", "origin", "--tags"); err != nil {
-					return "", nil, fmt.Errorf("git push: %w", err)
+			if err := p.runStep("Push tag", func() (string, []string, error) {
+				if err := p.git.pushTag(result.Tag); err != nil {
+					return "", nil, err
 				}
 				return "", nil, nil
 			}); err != nil {
@@ -214,8 +214,8 @@ func (p *ChangelogPipeline) dryRunOutput(result versioning.Result) error {
 			return "[dry-run] would tag", nil, nil
 		})
 		if !p.cfg.NoPush {
-			_ = p.runStep("Push tags", func() (string, []string, error) {
-				return "[dry-run] would push", nil, nil
+			_ = p.runStep("Push tag", func() (string, []string, error) {
+				return fmt.Sprintf("[dry-run] would push %s", result.Tag), nil, nil
 			})
 		}
 	}

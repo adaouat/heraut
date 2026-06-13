@@ -69,7 +69,7 @@ func TestCheck_PlatformFails(t *testing.T) {
 // TestRun_HappyPath_NoChangelog verifies the minimal release sequence (no changelog).
 func TestRun_HappyPath_NoChangelog(t *testing.T) {
 	mr := exectest.NewMockRunner()
-	// git tag + git push --tags
+	// git tag + git push <tag>
 	mr.QueueResponse("", "", nil)
 	mr.QueueResponse("", "", nil)
 
@@ -86,8 +86,8 @@ func TestRun_HappyPath_NoChangelog(t *testing.T) {
 	require.Len(t, mr.Calls, 2)
 	assert.Equal(t, "git", mr.Calls[0].Name)
 	assert.Equal(t, []string{"tag", "v1.2.3"}, mr.Calls[0].Args)
-	// git push --tags
-	assert.Equal(t, []string{"push", "origin", "--tags"}, mr.Calls[1].Args)
+	// git push <tag>
+	assert.Equal(t, []string{"push", "origin", "v1.2.3"}, mr.Calls[1].Args)
 
 	// platform.CreateRelease was called with the resolved tag
 	require.Len(t, platform.CreateReleaseCalls, 1)
@@ -105,7 +105,7 @@ func TestRun_WithChangelog(t *testing.T) {
 	mr.QueueResponse("", "", nil)
 	// git tag
 	mr.QueueResponse("", "", nil)
-	// git push --tags
+	// git push <tag>
 	mr.QueueResponse("", "", nil)
 
 	changelog := &testutil.MockGenerator{GenerateOut: ""}
@@ -123,20 +123,20 @@ func TestRun_WithChangelog(t *testing.T) {
 	require.Len(t, changelog.GenerateCalls, 1)
 	assert.Equal(t, "v1.2.3", changelog.GenerateCalls[0])
 
-	// git add → git commit → git push → git tag → git push --tags
+	// git add → git commit → git push → git tag → git push <tag>
 	require.Len(t, mr.Calls, 5)
 	assert.Equal(t, []string{"add", "CHANGELOG.md"}, mr.Calls[0].Args)
 	assert.Equal(t, "commit", mr.Calls[1].Args[0])
 	assert.Equal(t, []string{"push", "origin", "HEAD"}, mr.Calls[2].Args)
 	assert.Equal(t, []string{"tag", "v1.2.3"}, mr.Calls[3].Args)
-	assert.Equal(t, []string{"push", "origin", "--tags"}, mr.Calls[4].Args)
+	assert.Equal(t, []string{"push", "origin", "v1.2.3"}, mr.Calls[4].Args)
 }
 
 // TestRun_WithNotes verifies release notes are generated and passed to CreateRelease.
 func TestRun_WithNotes(t *testing.T) {
 	mr := exectest.NewMockRunner()
 	mr.QueueResponse("", "", nil) // git tag
-	mr.QueueResponse("", "", nil) // git push --tags
+	mr.QueueResponse("", "", nil) // git push <tag>
 
 	notes := &testutil.MockGenerator{GenerateOut: "## Features\n- add thing\n"}
 	platform := &testutil.MockPlatform{PlatformName: "github"}
@@ -171,7 +171,7 @@ func TestRun_SinglePlatform_PlatformContext(t *testing.T) {
 	clearAmbientCIEnv(t)
 	mr := exectest.NewMockRunner()
 	mr.QueueResponse("", "", nil) // git tag
-	mr.QueueResponse("", "", nil) // git push --tags
+	mr.QueueResponse("", "", nil) // git push <tag>
 
 	notes := &testutil.MockGenerator{GenerateOut: "## notes\n"}
 	lc := port.LinkContext{BaseURL: "https://github.com", Owner: "acme", Repo: "widget", Platform: "github"}
@@ -196,7 +196,7 @@ func TestRun_SinglePlatform_AmbientHostPreferred(t *testing.T) {
 	t.Setenv("CI_PROJECT_URL", "https://gitlab.example.com/grp/proj")
 	mr := exectest.NewMockRunner()
 	mr.QueueResponse("", "", nil) // git tag
-	mr.QueueResponse("", "", nil) // git push --tags
+	mr.QueueResponse("", "", nil) // git push <tag>
 
 	notes := &testutil.MockGenerator{GenerateOut: "n"}
 	gl := &testutil.MockPlatform{
@@ -221,7 +221,7 @@ func TestRun_SinglePlatform_AmbientMismatchIgnored(t *testing.T) {
 	t.Setenv("CI_PROJECT_URL", "https://gitlab.example.com/grp/proj") // gitlab CI
 	mr := exectest.NewMockRunner()
 	mr.QueueResponse("", "", nil) // git tag
-	mr.QueueResponse("", "", nil) // git push --tags
+	mr.QueueResponse("", "", nil) // git push <tag>
 
 	notes := &testutil.MockGenerator{GenerateOut: "n"}
 	lc := port.LinkContext{BaseURL: "https://github.com", Owner: "acme", Repo: "widget", Platform: "github"}
@@ -240,7 +240,7 @@ func TestRun_SinglePlatform_AmbientMismatchIgnored(t *testing.T) {
 func TestRun_MultiPlatform_NotesPerPlatform(t *testing.T) {
 	mr := exectest.NewMockRunner()
 	mr.QueueResponse("", "", nil) // git tag
-	mr.QueueResponse("", "", nil) // git push --tags
+	mr.QueueResponse("", "", nil) // git push <tag>
 
 	notes := &testutil.MockGenerator{GenerateOut: "## notes\n"}
 	gh := &testutil.MockPlatform{
@@ -270,7 +270,7 @@ func TestRun_MultiPlatform_NotesPerPlatform(t *testing.T) {
 func TestRun_WithAssets(t *testing.T) {
 	mr := exectest.NewMockRunner()
 	mr.QueueResponse("", "", nil) // git tag
-	mr.QueueResponse("", "", nil) // git push --tags
+	mr.QueueResponse("", "", nil) // git push <tag>
 
 	platform := &testutil.MockPlatform{
 		PlatformName: "github",
@@ -314,7 +314,7 @@ func TestRun_DryRun(t *testing.T) {
 func TestRun_DisableChangelog(t *testing.T) {
 	mr := exectest.NewMockRunner()
 	mr.QueueResponse("", "", nil) // git tag
-	mr.QueueResponse("", "", nil) // git push --tags
+	mr.QueueResponse("", "", nil) // git push <tag>
 
 	changelog := &testutil.MockGenerator{}
 	platform := &testutil.MockPlatform{PlatformName: "github"}
@@ -331,7 +331,7 @@ func TestRun_DisableChangelog(t *testing.T) {
 
 	// Generator.Generate should not have been called
 	assert.Len(t, changelog.GenerateCalls, 0)
-	// Only git tag + git push --tags (no add/commit/push for changelog)
+	// Only git tag + git push <tag> (no add/commit/push for changelog)
 	assert.Len(t, mr.Calls, 2)
 }
 
@@ -342,7 +342,7 @@ func TestRun_CommitMessage(t *testing.T) {
 	mr.QueueResponse("", "", nil) // git commit
 	mr.QueueResponse("", "", nil) // git push
 	mr.QueueResponse("", "", nil) // git tag
-	mr.QueueResponse("", "", nil) // git push --tags
+	mr.QueueResponse("", "", nil) // git push <tag>
 
 	changelog := &testutil.MockGenerator{}
 	platform := &testutil.MockPlatform{PlatformName: "github"}
@@ -369,7 +369,7 @@ func TestRun_CustomCommitMessage(t *testing.T) {
 	mr.QueueResponse("", "", nil) // git commit
 	mr.QueueResponse("", "", nil) // git push
 	mr.QueueResponse("", "", nil) // git tag
-	mr.QueueResponse("", "", nil) // git push --tags
+	mr.QueueResponse("", "", nil) // git push <tag>
 
 	changelog := &testutil.MockGenerator{}
 	platform := &testutil.MockPlatform{PlatformName: "github"}
@@ -392,7 +392,7 @@ func TestRun_CustomCommitMessage(t *testing.T) {
 func TestRun_AnnotatedTag(t *testing.T) {
 	mr := exectest.NewMockRunner()
 	mr.QueueResponse("", "", nil) // git tag
-	mr.QueueResponse("", "", nil) // git push --tags
+	mr.QueueResponse("", "", nil) // git push <tag>
 
 	cfg := &pipeline.Config{
 		AnnotatedTags: true,
@@ -403,7 +403,7 @@ func TestRun_AnnotatedTag(t *testing.T) {
 
 	require.Len(t, mr.Calls, 2)
 	assert.Equal(t, []string{"tag", "-a", "v1.2.3", "-m", "chore(release): 1.2.3"}, mr.Calls[0].Args)
-	assert.Equal(t, []string{"push", "origin", "--tags"}, mr.Calls[1].Args)
+	assert.Equal(t, []string{"push", "origin", "v1.2.3"}, mr.Calls[1].Args)
 }
 
 // TestRun_SignedTag verifies that SignTags:true produces "git tag -s <tag> -m <msg>"
@@ -411,7 +411,7 @@ func TestRun_AnnotatedTag(t *testing.T) {
 func TestRun_SignedTag(t *testing.T) {
 	mr := exectest.NewMockRunner()
 	mr.QueueResponse("", "", nil) // git tag -s
-	mr.QueueResponse("", "", nil) // git push --tags
+	mr.QueueResponse("", "", nil) // git push <tag>
 
 	cfg := &pipeline.Config{
 		SignTags:      true,
@@ -432,7 +432,7 @@ func TestRun_SignedTag(t *testing.T) {
 func TestRun_SignedTag_LightweightBase(t *testing.T) {
 	mr := exectest.NewMockRunner()
 	mr.QueueResponse("", "", nil) // git tag -s
-	mr.QueueResponse("", "", nil) // git push --tags
+	mr.QueueResponse("", "", nil) // git push <tag>
 
 	cfg := &pipeline.Config{
 		SignTags:      true,
@@ -450,7 +450,7 @@ func TestRun_SignedTag_LightweightBase(t *testing.T) {
 func TestRun_AnnotatedTagCustomMessage(t *testing.T) {
 	mr := exectest.NewMockRunner()
 	mr.QueueResponse("", "", nil) // git tag
-	mr.QueueResponse("", "", nil) // git push --tags
+	mr.QueueResponse("", "", nil) // git push <tag>
 
 	cfg := &pipeline.Config{
 		AnnotatedTags: true,
@@ -477,7 +477,7 @@ func TestRun_ResolverError(t *testing.T) {
 func TestRun_DisableNotes(t *testing.T) {
 	mr := exectest.NewMockRunner()
 	mr.QueueResponse("", "", nil) // git tag
-	mr.QueueResponse("", "", nil) // git push --tags
+	mr.QueueResponse("", "", nil) // git push <tag>
 
 	notes := &testutil.MockGenerator{GenerateOut: "## Notes\n"}
 	platform := &testutil.MockPlatform{PlatformName: "github"}
@@ -502,7 +502,7 @@ func TestRun_DisableNotes(t *testing.T) {
 func TestRun_MultiplePlatforms(t *testing.T) {
 	mr := exectest.NewMockRunner()
 	mr.QueueResponse("", "", nil) // git tag
-	mr.QueueResponse("", "", nil) // git push --tags
+	mr.QueueResponse("", "", nil) // git push <tag>
 
 	p1 := &testutil.MockPlatform{PlatformName: "github"}
 	p2 := &testutil.MockPlatform{PlatformName: "gitlab"}
@@ -580,7 +580,7 @@ func TestRun_DefaultChangelogFile(t *testing.T) {
 	mr.QueueResponse("", "", nil) // git commit
 	mr.QueueResponse("", "", nil) // git push
 	mr.QueueResponse("", "", nil) // git tag
-	mr.QueueResponse("", "", nil) // git push --tags
+	mr.QueueResponse("", "", nil) // git push <tag>
 
 	changelog := &testutil.MockGenerator{}
 	platform := &testutil.MockPlatform{PlatformName: "github"}
@@ -626,25 +626,25 @@ func TestRun_GitTagError(t *testing.T) {
 	assert.Contains(t, err.Error(), "git tag")
 }
 
-// TestRun_GitPushTagsError propagates git push --tags failures.
-func TestRun_GitPushTagsError(t *testing.T) {
+// TestRun_GitPushTagError propagates git push <tag> failures.
+func TestRun_GitPushTagError(t *testing.T) {
 	mr := exectest.NewMockRunner()
 	mr.QueueResponse("", "", nil)                         // git tag OK
-	mr.QueueResponse("", "", errors.New("push rejected")) // git push --tags fails
+	mr.QueueResponse("", "", errors.New("push rejected")) // git push <tag> fails
 
 	cfg := &pipeline.Config{}
 
 	p := pipeline.New(mr, &fakeResolver{result: resolvedResult("v1.2.3")}, cfg, &bytes.Buffer{}, false)
 	err := p.Run()
 	require.Error(t, err)
-	assert.Contains(t, err.Error(), "git push --tags")
+	assert.Contains(t, err.Error(), "git push v1.2.3")
 }
 
 // TestRun_ReleaseNotesError propagates release notes generation failures.
 func TestRun_ReleaseNotesError(t *testing.T) {
 	mr := exectest.NewMockRunner()
 	mr.QueueResponse("", "", nil) // git tag
-	mr.QueueResponse("", "", nil) // git push --tags
+	mr.QueueResponse("", "", nil) // git push <tag>
 
 	notes := &testutil.MockGenerator{GenerateErr: errors.New("cliff notes failed")}
 
@@ -662,7 +662,7 @@ func TestRun_ReleaseNotesError(t *testing.T) {
 func TestRun_CreateReleaseError(t *testing.T) {
 	mr := exectest.NewMockRunner()
 	mr.QueueResponse("", "", nil) // git tag
-	mr.QueueResponse("", "", nil) // git push --tags
+	mr.QueueResponse("", "", nil) // git push <tag>
 
 	platform := &testutil.MockPlatform{
 		PlatformName:     "github",
@@ -681,7 +681,7 @@ func TestRun_CreateReleaseError(t *testing.T) {
 func TestRun_UploadAssetsError(t *testing.T) {
 	mr := exectest.NewMockRunner()
 	mr.QueueResponse("", "", nil) // git tag
-	mr.QueueResponse("", "", nil) // git push --tags
+	mr.QueueResponse("", "", nil) // git push <tag>
 
 	platform := &testutil.MockPlatform{
 		PlatformName:    "github",
