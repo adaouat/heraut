@@ -3981,7 +3981,7 @@ to git-cliff, with an actionable hint.
 > — its `tag_pattern` entries are both already paired with `git-cliff`, no fixture
 > changes needed.
 
-#### `[ ]` T98: Command consistency pass — validation and no-config behavior
+#### `[x]` T98: Command consistency pass — validation and no-config behavior
 
 Three alignments: (1) `heraut version next/current` skip `config.Validate`, so per-env
 misconfigs surface as raw resolver errors instead of path/hint output; (2) bare
@@ -3991,6 +3991,24 @@ Runtime code even when only config-section errors failed — classify by what fa
 
 **Files:** `internal/cmd/{version.go,check.go}` + tests, `docs/specs/03-commands.md`.
 **Scope:** M. **Dependencies:** none.
+
+> (1) Both `version next` and `version current` now call `config.Validate` right after
+> `config.Load` and, on errors, print the same path/hint output as `check config` via
+> `printConfigErrors` and exit Config — before touching `CheckBranch` or the resolver.
+> Demonstrated with a 2-env promotion cycle (`prod.source: staging`,
+> `staging.source: prod`): previously this surfaced as a raw `E003: no source tags found`
+> (Promotion exit code) or "no tags found for prod/*" from deep inside the resolver;
+> now it's `environments.prod.source: cycle detected (prod → staging → prod)` with its
+> hint, exit Config. (2) Bare `check`'s config-load now mirrors `check runtime`:
+> `os.ErrNotExist` sets `cfg = nil` instead of hard-failing, `applyOfflineOverride` is
+> skipped, the Config section prints a "no config found … — skipping config validation"
+> warning, and the Cliff section prints "no git-cliff generators configured" (avoiding a
+> nil-pointer dereference in `runCliffChecks`, which assumes a non-nil `cfg`). (3)
+> Tracked config-section failures separately (`configFailed`) from the overall `failed`
+> count; the summary now exits Config if `configFailed > 0` (config errors are
+> foundational — fix those first, regardless of whether runtime/cliff also failed),
+> else Runtime. Five new tests across `version_test.go`, `exit_test.go`, and
+> `check_test.go` cover all three alignments.
 
 #### `[ ]` T99: `heraut init` update flow — round-trip advanced fields
 

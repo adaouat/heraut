@@ -197,6 +197,10 @@ version before invoking other tools.
 heraut version next [--env <name>] [--force]
 ```
 
+Before resolving, runs the same semantic validation as `heraut check config`. A config
+error prints the same path/hint output and exits with the Config code (2) without
+attempting resolution.
+
 Exits non-zero if a promotion guard trips (E001/E002/E003).
 
 > **`{build}` tag formats:** `version next` cannot render a tag that requires a build ID
@@ -220,6 +224,10 @@ By default prints the **raw tag** (including any `{build}` suffix). `--bare` pri
 bare semantic version instead: single-env strips the tag prefix; per-env parses the tag
 through the effective `tag_format`, so `main/7.4.1-158404` → `7.4.1` (and
 `main/7.4.1-rc.1-158404` → `7.4.1-rc.1`).
+
+Before resolving, runs the same semantic validation as `heraut check config`. A config
+error prints the same path/hint output and exits with the Config code (2) without
+attempting resolution.
 
 Exits non-zero if no tags exist.
 
@@ -251,6 +259,19 @@ heraut check cliff                 # validate the effective git-cliff config(s)
 heraut check cliff changelog       # only the changelog config
 heraut check cliff release-notes   # only the release-notes config
 ```
+
+Runs all three sections in sequence (Config, Runtime, Cliff) and reports a combined
+summary.
+
+**No config file found**: like `heraut check runtime`, bare `check` degrades instead of
+hard-failing — the Config section prints a warning and is skipped, the Runtime section
+falls back to the all-tools-required probe (see § `heraut check runtime` below), and the
+Cliff section reports no generators configured.
+
+**Exit code**: if the Config section reports any errors, `heraut check` exits with the
+Config code (2) — even if Runtime or Cliff also failed, since a broken config makes those
+results unreliable. Otherwise, if Runtime or Cliff failed, it exits with the Runtime code
+(3).
 
 ### `heraut check config`
 

@@ -32,20 +32,30 @@ func NewCheckCmd() *cobra.Command {
 			path, source := config.ResolvePathWithSource(cfgPath)
 			cfg, err := config.Load(path)
 			if err != nil {
-				return exitcode.Wrap(exitcode.Config, fmt.Errorf("loading config: %w", err))
+				if !errors.Is(err, os.ErrNotExist) {
+					return exitcode.Wrap(exitcode.Config, fmt.Errorf("loading config: %w", err))
+				}
+				cfg = nil
 			}
-			applyOfflineOverride(cmd, cfg)
+			if cfg != nil {
+				applyOfflineOverride(cmd, cfg)
+			}
 
-			var failed int
+			var failed, configFailed int
 
 			// Config section
 			ui.Header(out, "Config")
-			_, _ = fmt.Fprintln(out, ui.Info(out, fmt.Sprintf("%s  (from %s)", path, source)))
-			if errs := config.Validate(cfg); len(errs) > 0 {
-				printConfigErrors(errs, out)
-				failed += len(errs)
+			if cfg == nil {
+				_, _ = fmt.Fprintln(out, ui.Warn(out, fmt.Sprintf("no config found at %s — skipping config validation", path)))
 			} else {
-				_, _ = fmt.Fprintln(out, ui.Success(out, "config: ok"))
+				_, _ = fmt.Fprintln(out, ui.Info(out, fmt.Sprintf("%s  (from %s)", path, source)))
+				if errs := config.Validate(cfg); len(errs) > 0 {
+					printConfigErrors(errs, out)
+					configFailed = len(errs)
+					failed += configFailed
+				} else {
+					_, _ = fmt.Fprintln(out, ui.Success(out, "config: ok"))
+				}
 			}
 
 			// Runtime section (Git / Platforms / Generators — headers emitted by RuntimeCheck)
@@ -53,7 +63,9 @@ func NewCheckCmd() *cobra.Command {
 
 			// Cliff section (best-effort; skip if no git-cliff generators configured)
 			ui.Header(out, "Cliff")
-			if f := runCliffChecks(runner, cfg, out); f {
+			if cfg == nil {
+				_, _ = fmt.Fprintln(out, ui.Info(out, "no git-cliff generators configured"))
+			} else if f := runCliffChecks(runner, cfg, out); f {
 				failed++
 			}
 
@@ -62,6 +74,9 @@ func NewCheckCmd() *cobra.Command {
 			if failed > 0 {
 				_, _ = fmt.Fprintln(out, ui.Err(out, fmt.Sprintf("%d check(s) failed — fix the issues above before running heraut release", failed)))
 				code := exitcode.Runtime
+				if configFailed > 0 {
+					code = exitcode.Config
+				}
 				return exitcode.Wrap(code, fmt.Errorf("one or more checks failed"))
 			}
 			_, _ = fmt.Fprintln(out, ui.Success(out, "all checks passed"))

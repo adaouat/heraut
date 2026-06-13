@@ -94,3 +94,32 @@ echo ""
 	require.Error(t, err)
 	assert.Equal(t, exitcode.Runtime, cmd.ExitCode(err))
 }
+
+func TestExitCode_VersionNext_InvalidConfig_Config(t *testing.T) {
+	cfgPath := writeConfig(t, cyclicPerEnvConfig())
+	exectest.FakeBin(t, "git", `#!/bin/sh
+echo ""
+`)
+	_, err := executeRoot("version", "next", "--config", cfgPath, "--env", "prod")
+	require.Error(t, err)
+	assert.Equal(t, exitcode.Config, cmd.ExitCode(err))
+}
+
+func TestExitCode_CheckAll_ConfigOnlyFailure_Config(t *testing.T) {
+	cfgPath := writeConfig(t, `
+version: "1"
+versioning:
+  strategy: invalid-strategy
+`)
+	exectest.FakeBin(t, "git", `#!/bin/sh
+case "$*" in
+  "--version") echo "git version 2.x" ;;
+  "config user.name") echo "John Doe" ;;
+  "config user.email") echo "john@example.com" ;;
+  *) exit 0 ;;
+esac
+`)
+	_, err := executeRoot("check", "--config", cfgPath)
+	require.Error(t, err)
+	assert.Equal(t, exitcode.Config, cmd.ExitCode(err))
+}

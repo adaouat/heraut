@@ -40,6 +40,11 @@ func newVersionNextCmd() *cobra.Command {
 				return exitcode.Wrap(exitcode.Config, fmt.Errorf("loading config: %w", err))
 			}
 
+			if errs := config.Validate(cfg); len(errs) > 0 {
+				printConfigErrors(errs, cmd.OutOrStdout())
+				return exitcode.Wrap(exitcode.Config, fmt.Errorf("%d error(s) in config", len(errs)))
+			}
+
 			if err := app.CheckBranch(runner, cfg, env, force); err != nil {
 				return exitcode.Wrap(exitcode.Runtime, err)
 			}
@@ -77,6 +82,11 @@ func newVersionCurrentCmd() *cobra.Command {
 			cfg, err := config.Load(path)
 			if err != nil {
 				return exitcode.Wrap(exitcode.Config, fmt.Errorf("loading config: %w", err))
+			}
+
+			if errs := config.Validate(cfg); len(errs) > 0 {
+				printConfigErrors(errs, cmd.OutOrStdout())
+				return exitcode.Wrap(exitcode.Config, fmt.Errorf("%d error(s) in config", len(errs)))
 			}
 
 			if err := app.CheckBranch(runner, cfg, env, force); err != nil {

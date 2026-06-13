@@ -304,6 +304,46 @@ echo ""
 	require.Error(t, err)
 }
 
+// ---- config validation (T98) ----
+
+func cyclicPerEnvConfig() string {
+	return `
+version: "1"
+versioning:
+  strategy: semver-per-env
+  tag_format: "{env}/{version}"
+environments:
+  prod:
+    bump: promote
+    source: staging
+  staging:
+    bump: promote
+    source: prod
+`
+}
+
+func TestVersionNext_InvalidConfig_FailsValidation(t *testing.T) {
+	cfgPath := writeConfig(t, cyclicPerEnvConfig())
+	exectest.FakeBin(t, "git", `#!/bin/sh
+echo ""
+`)
+	out, err := executeRoot("version", "next", "--config", cfgPath, "--env", "prod")
+	require.Error(t, err)
+	assert.Contains(t, out, "environments.")
+	assert.Contains(t, out, "cycle detected")
+}
+
+func TestVersionCurrent_InvalidConfig_FailsValidation(t *testing.T) {
+	cfgPath := writeConfig(t, cyclicPerEnvConfig())
+	exectest.FakeBin(t, "git", `#!/bin/sh
+echo ""
+`)
+	out, err := executeRoot("version", "current", "--config", cfgPath, "--env", "prod")
+	require.Error(t, err)
+	assert.Contains(t, out, "environments.")
+	assert.Contains(t, out, "cycle detected")
+}
+
 // ---- version sprint bump ----
 
 func TestVersionSprintBump_IncrementsValue(t *testing.T) {

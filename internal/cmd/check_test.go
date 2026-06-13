@@ -441,3 +441,37 @@ versioning:
 	_, err := executeRoot("check", "--config", cfgPath)
 	require.Error(t, err)
 }
+
+func TestCheckAll_NoConfigFile_Degrades(t *testing.T) {
+	dir := t.TempDir()
+	t.Chdir(dir)
+	t.Setenv("HERAUT_FILE", "")
+
+	exectest.FakeBin(t, "git", `#!/bin/sh
+case "$*" in
+  "--version") echo "git version 2.x" ;;
+  "config user.name") echo "John Doe" ;;
+  "config user.email") echo "john@example.com" ;;
+  *) exit 0 ;;
+esac
+`)
+	exectest.FakeBin(t, "git-cliff", `#!/bin/sh
+echo "git-cliff 2.7.0"
+`)
+	exectest.FakeBin(t, "gh", `#!/bin/sh
+echo "gh 2.x"
+`)
+	exectest.FakeBin(t, "glab", `#!/bin/sh
+echo "glab 1.x"
+`)
+	exectest.FakeBin(t, "cog", `#!/bin/sh
+echo "cog 6.x"
+`)
+	exectest.FakeBin(t, "communique", `#!/bin/sh
+echo "communique 1.x"
+`)
+
+	out, err := executeRoot("check")
+	require.NoError(t, err)
+	assert.Contains(t, out, "no config found")
+}
