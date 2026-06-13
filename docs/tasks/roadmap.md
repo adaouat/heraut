@@ -8,7 +8,7 @@ described in `docs/specs/`. Each task carries an inline `[ ] / [x]` checkbox —
 headings for what to do next, read the surrounding prose for *why* and *how*.
 
 The behavioural authority is `docs/specs/` (six numbered specs); the architectural
-authority is `docs/adr/` (19 ADRs). Where this roadmap mentions "behaviour", the specs
+authority is `docs/adr/` (25 ADRs). Where this roadmap mentions "behaviour", the specs
 win; where it mentions a "decision", the ADR wins. If you find a disagreement between
 roadmap and spec/ADR, fix the roadmap.
 
@@ -23,14 +23,16 @@ roadmap captures the work to take it from an empty repo to a v1.0 release.
 The goals of v1.0:
 
 1. Implement the full feature set described in `docs/specs/` (four versioning
-   strategies, three generators, two platforms, init/check/cliff/self-update tooling).
+   strategies, three generators, two platforms, init/check/cliff/whatsnew tooling).
 2. Establish a clean public home with proper distribution: GitHub Releases (raw
    binaries) and a GHCR container image.
-3. Design internal packages with clear boundaries so the foundational ones
-   (`port`, `adapter/exec`, `testutil`, `ui`) can be extracted into a shared Go library
-   later when other CLIs need them.
+3. Design internal packages with clear boundaries so the foundational ones (exec runner,
+   config loading, exit codes, UI theming, update-check) could be extracted into a shared
+   Go library later when other CLIs need them. Done: `github.com/adaouat/forge` now
+   provides these (see [ADR-0014](../adr/0014-self-update-architecture.md), superseded,
+   for the self-update → forge/updatecheck migration).
 
-The `docs/specs/` (six numbered specs) and the 19 ADRs in `docs/adr/` are authoritative.
+The `docs/specs/` (six numbered specs) and the 25 ADRs in `docs/adr/` are authoritative.
 
 ---
 
@@ -1691,12 +1693,13 @@ Final coverage: 85.3% across 621 tests in 23 packages.
 
 ---
 
-### ✦ `[x]` CHECKPOINT I — v1.0.0 shipped via heraut
+### ✦ `[x]` CHECKPOINT I — Annotated tags, CI gates, and coverage threshold complete
 
 - [x] T28 resolved — lightweight confirmed or annotated implemented
 - [x] CI split: `lint` / `test` / `build` run as independent required checks
 - [x] Coverage ≥ 80% enforced in CI; actual coverage ≥ 85%
-- [ ] v1.0.0 cut by running `heraut release` on the heraut repo itself
+
+The v1.0.0 cut itself is tracked under CHECKPOINT K, the last item before the tag.
 
 ---
 
@@ -3929,7 +3932,7 @@ Rewrite the project-layout, tech-stack, ldflags, and command-surface sections.
 > code, found `internal/cmd/exit.go`'s doc comment still says "fang.Execute" — folded
 > as item (6) into T101's existing hygiene bundle rather than filing a new task.
 
-#### `[ ]` T96: Roadmap — reconcile the v1.0.0 checkpoint items and stale overview
+#### `[x]` T96: Roadmap — reconcile the v1.0.0 checkpoint items and stale overview
 
 CHECKPOINT I is titled "v1.0.0 shipped via heraut" and marked `[x]`, but its sub-item
 "v1.0.0 cut by running `heraut release` on the heraut repo itself" is `[ ]` (here and
@@ -3939,6 +3942,17 @@ the roadmap's Overview, which predates the forge extraction: "19 ADRs", "self-up
 tooling", and "extracted into a shared Go library later" (forge already exists).
 
 **Files:** `docs/tasks/roadmap.md`. **Scope:** S. **Dependencies:** none.
+
+> Retitled rather than cut v1.0.0 — actually running `heraut release` on this repo is an
+> irreversible action (tag push + GitHub release) well outside a docs-only task and
+> needs explicit user sign-off, not a roadmap edit. CHECKPOINT I's title no longer claims
+> "v1.0.0 shipped"; its three real sub-items (T28, CI split, coverage ≥80%) are all done
+> and stay `[x]`, and its duplicate `v1.0.0 cut` bullet was removed with a pointer to
+> CHECKPOINT K, which already carries that pending item plus the "all quality gates are
+> green" explanation. Overview: "19 ADRs" → "25 ADRs" (×2), "self-update" → "whatsnew" in
+> the v1.0 feature list, and goal 3 (extract `port`/`adapter/exec`/`testutil`/`ui` into a
+> shared library) is now marked Done — `github.com/adaouat/forge` is that library,
+> cross-referenced via ADR-0014 (the one heraut ADR documenting a forge supersession).
 
 #### `[ ]` T97: Validate `tag_pattern` is git-cliff-only
 
