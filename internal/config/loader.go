@@ -50,7 +50,7 @@ func normalizePlatforms(plats []Platform) {
 	for i := range plats {
 		plats[i].BaseURL = strings.TrimRight(plats[i].BaseURL, "/")
 		if plats[i].BaseURL == "" {
-			plats[i].BaseURL = defaultBaseURL(plats[i].Type)
+			plats[i].BaseURL = DefaultBaseURL(plats[i].Type)
 		}
 	}
 }

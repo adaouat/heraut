@@ -122,10 +122,10 @@ const (
 	defaultGitLabBaseURL = "https://gitlab.com"
 )
 
-// defaultBaseURL returns the default web base URL for a platform type, or "" when the
+// DefaultBaseURL returns the default web base URL for a platform type, or "" when the
 // type has no known default (e.g. an invalid platform — the type error is raised
 // separately by the validator).
-func defaultBaseURL(platformType string) string {
+func DefaultBaseURL(platformType string) string {
 	switch platformType {
 	case "github":
 		return defaultGitHubBaseURL

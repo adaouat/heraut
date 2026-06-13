@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"fmt"
+	"io"
 	"os"
 	"strings"
 
@@ -62,6 +63,7 @@ func NewInitCmd(version string) *cobra.Command {
 				if cfg, err := config.Load(path); err == nil {
 					answers = scaffold.ConfigToAnswers(cfg)
 					existingLoaded = true
+					printDroppedFieldsWarning(out, scaffold.DroppedFields(cfg))
 				}
 			}
 
@@ -109,4 +111,17 @@ func NewInitCmd(version string) *cobra.Command {
 
 	initCmd.Flags().Bool("defaults", false, "write opinionated defaults non-interactively")
 	return initCmd
+}
+
+// printDroppedFieldsWarning warns that the listed settings exist in the loaded config
+// but are not editable by the wizard, so continuing the "Update it?" flow will drop them
+// from the rewritten file. No-op when dropped is empty.
+func printDroppedFieldsWarning(out io.Writer, dropped []string) {
+	if len(dropped) == 0 {
+		return
+	}
+	_, _ = fmt.Fprintln(out, ui.Warn(out, "the following settings are not editable by the wizard and will be dropped if you continue:"))
+	for _, d := range dropped {
+		_, _ = fmt.Fprintf(out, "  - %s\n", d)
+	}
 }

@@ -4010,7 +4010,7 @@ Runtime code even when only config-section errors failed — classify by what fa
 > else Runtime. Five new tests across `version_test.go`, `exit_test.go`, and
 > `check_test.go` cover all three alignments.
 
-#### `[ ]` T99: `heraut init` update flow — round-trip advanced fields
+#### `[x]` T99: `heraut init` update flow — round-trip advanced fields
 
 `ConfigToAnswers` drops `tickets`, `remote_metadata`, `release.assets`, `base_url`,
 `draft`/`prerelease`, and env content overrides, so the "Update it?" flow silently
@@ -4020,6 +4020,32 @@ explicit "the following settings will be dropped" warning before the confirm pro
 
 **Files:** `internal/scaffold/{wizard.go,generate.go}` + tests, `internal/cmd/init.go`.
 **Scope:** M. **Dependencies:** none.
+
+> Chose the warning approach. "Carry through" doesn't fit cleanly: `runPlatformWizard`
+> and `runEnvWizard` reset `a.Platforms`/`a.Environments` to nil and rebuild them from
+> wizard prompts, so passthrough fields on the old entries would need identity-matching
+> (by type? by name?) against the rebuilt entries — ambiguous on rename/reorder/add/
+> remove, pushing this from Scope M to L. The warning is a single uniform mechanism for
+> all six field categories.
+>
+> Added `scaffold.DroppedFields(cfg *config.Config) []string` (new file
+> `internal/scaffold/dropped.go`) returning sorted YAML-path strings for any of the six
+> categories present in the loaded config — `tickets`, `remote_metadata`,
+> `release.assets`, per-platform `release.platforms.<name>.{base_url,draft,prerelease}`,
+> and per-env `environments.<name>.{changelog,release}`. For `base_url`, only a
+> non-default value is flagged (exported `config.DefaultBaseURL`, renamed from the
+> unexported `defaultBaseURL`, since `normalizePlatforms` always fills the field after
+> `config.Load` so emptiness is not a usable signal).
+>
+> `internal/cmd/init.go`'s "Update it?" branch calls `scaffold.DroppedFields(cfg)` right
+> after `ConfigToAnswers` and prints a warning (new unexported `printDroppedFieldsWarning`)
+> before the wizard runs, so the user sees the loss before investing time in the prompts.
+> `wizard.go`/`generate.go` (`Answers`, `ConfigToAnswers`, `answersToConfig`,
+> `GenerateYAML`) are unchanged — no behavior change for users who don't set these
+> fields. `printDroppedFieldsWarning` has a direct internal test
+> (`internal/cmd/init_internal_test.go`); the surrounding "Update it?" huh-prompt branch
+> has no end-to-end test, consistent with the existing suite (no test drives any
+> non-`--defaults` interactive `init` path — `huh` forms need a TTY).
 
 #### `[ ]` T100: `heraut check runtime --env` — check the env's effective platforms
 

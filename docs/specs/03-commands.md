@@ -43,6 +43,13 @@ heraut init --force        # overwrite an existing config without prompting
 (for per-env strategies, loops to add N envs). Existing config (if any) pre-populates
 the answers, so re-running `heraut init` updates instead of replacing.
 
+**Update warning**: the wizard does not have prompts for every field — `tickets`,
+`remote_metadata`, `release.assets`, a platform's `base_url` (when it differs from the
+type's default), `draft`/`prerelease`, and per-environment `changelog`/`release`
+overrides. If the loaded config has any of these set, `heraut init` prints a warning
+listing them before the wizard runs, since continuing will drop them from the rewritten
+file.
+
 For each platform step, the project/repository field is pre-populated from
 `git remote get-url origin` when the current directory is a git repo (SSH and HTTPS
 remotes are both supported; falls back silently if detection fails). When GitLab is
