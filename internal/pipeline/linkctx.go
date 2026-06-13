@@ -10,7 +10,7 @@ import (
 // ambientLinkContext resolves the link context from the ambient CI environment — the host
 // of the repository the pipeline is running against. This is the link-host fallback that
 // used to live in the embedded Tera templates, relocated into Go so the templates stay
-// branch-free (T75 / ADR-0022).
+// branch-free (ADR-0022).
 //
 // The BaseURL holds the full repo root (Owner/Repo stay empty); gitcliff.linkEnv composes
 // the same {remote} from it with no URL-splitting. Returns nil when no CI host is present,
@@ -31,7 +31,7 @@ func ambientLinkContext() *port.LinkContext {
 // ambient CI host when it describes the *same* platform (so a self-hosted instance — whose
 // real host only lives in the CI env — is honoured), otherwise the platform's own
 // base_url-derived context. The platform-match guard prevents a mismatched CI (e.g. a
-// GitHub release built in GitLab CI) from stamping the wrong host (T75 / ADR-0022).
+// GitHub release built in GitLab CI) from stamping the wrong host (ADR-0022).
 func (p *Pipeline) singlePlatformLinkContext() *port.LinkContext {
 	amb := ambientLinkContext()
 	if len(p.cfg.Platforms) == 0 {

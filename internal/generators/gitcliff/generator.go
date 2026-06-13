@@ -13,7 +13,7 @@ import (
 	"github.com/adaouat/heraut/internal/port"
 )
 
-// Remote-metadata policy values (T78). Empty resolves to remoteOptional.
+// Remote-metadata policy values. Empty resolves to remoteOptional.
 const (
 	remoteOptional = "optional"
 	remoteRequired = "required"
@@ -24,8 +24,8 @@ const (
 type Mode int
 
 const (
-	ModeChangelog    Mode = iota
-	ModeReleaseNotes Mode = iota
+	ModeChangelog Mode = iota
+	ModeReleaseNotes
 )
 
 // Generator implements port.Generator for git-cliff.
@@ -44,7 +44,7 @@ func New(runner port.Runner, cfg *config.ContentDriver, mode Mode) *Generator {
 }
 
 // Degraded reports whether the most recent Generate/CheckCliff fell back to --offline
-// because the remote metadata fetch failed under the "optional" policy (T78). Callers
+// because the remote metadata fetch failed under the "optional" policy. Callers
 // (pipeline / check) use it to warn that PR author / number were omitted.
 func (g *Generator) Degraded() bool { return g.degraded }
 
@@ -74,7 +74,7 @@ func (g *Generator) Validate() error {
 // When lc is non-nil, heraut-owned env vars (HERAUT_REMOTE_URL, HERAUT_PLATFORM) are
 // injected into the git-cliff process so the template resolves links against that
 // platform; when nil, git-cliff runs with the ambient environment and the template falls
-// through to its CI-var detection (ADR-0021 / T68).
+// through to its CI-var detection (ADR-0021).
 func (g *Generator) Generate(tag string, lc *port.LinkContext) (string, error) {
 	cfgPath, cleanup, err := g.prepareConfig()
 	if err != nil {
@@ -109,7 +109,7 @@ func (g *Generator) Generate(tag string, lc *port.LinkContext) (string, error) {
 	return stdout, nil
 }
 
-// runCliff runs git-cliff applying the remote-metadata policy (T78):
+// runCliff runs git-cliff applying the remote-metadata policy:
 //   - disabled: always pass --offline (never reach the platform API).
 //   - required: never pass --offline; a remote-fetch failure is fatal.
 //   - optional (default): try online; on any failure retry with --offline. If the offline
@@ -151,8 +151,8 @@ func (g *Generator) exec(args []string, lc *port.LinkContext) (string, error) {
 
 // linkEnv translates a LinkContext into the heraut-owned env vars the embedded git-cliff
 // template reads via get_env: HERAUT_REMOTE_URL (the repository root URL) and
-// HERAUT_PLATFORM (github|gitlab, for the PR vs MR link shape). T71 updates the template
-// to prefer these over the ambient CI-var chain.
+// HERAUT_PLATFORM (github|gitlab, for the PR vs MR link shape). The embedded template
+// prefers these over the ambient CI-var chain.
 func linkEnv(lc *port.LinkContext) []string {
 	remote := strings.TrimRight(lc.BaseURL, "/")
 	if lc.Owner != "" {
@@ -165,7 +165,7 @@ func linkEnv(lc *port.LinkContext) []string {
 	// GitLab routes everything below the project under /-/ (e.g. /-/merge_requests/);
 	// GitHub does not and uses /pull/. The label glyph differs too (! vs #). This is the
 	// only per-platform path knowledge — kept here in Go (table-tested) so the templates
-	// stay branch-free (T75 / ADR-0022).
+	// stay branch-free (ADR-0022).
 	infix, prPath, label := "", "pull", "#"
 	if lc.Platform == "gitlab" {
 		infix, prPath, label = "/-", "merge_requests", "!"

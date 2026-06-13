@@ -182,8 +182,7 @@ func (p *Pipeline) Run() error {
 		}
 	}
 
-	for _, platform := range p.cfg.Platforms {
-		plat := platform // capture loop variable
+	for _, plat := range p.cfg.Platforms {
 		if err := p.runStep(fmt.Sprintf("Publish to %s", plat.Name()), func() (string, []string, error) {
 			var subs []string
 			platNotes := notes
@@ -263,8 +262,7 @@ func (p *Pipeline) dryRunOutput(result versioning.Result) error {
 		})
 	}
 
-	for _, platform := range p.cfg.Platforms {
-		plat := platform
+	for _, plat := range p.cfg.Platforms {
 		_ = p.runStep(fmt.Sprintf("Publish to %s", plat.Name()), func() (string, []string, error) {
 			var subs []string
 			if notesEnabled && multiPlatform {
@@ -282,7 +280,7 @@ func (p *Pipeline) dryRunOutput(result versioning.Result) error {
 // degradedSubResult returns a one-element sub-result note when gen fell back to --offline
 // because the remote metadata fetch failed under the "optional" policy, so PR
 // authors/numbers were omitted; nil otherwise. Generators expose Degraded() through an
-// optional interface so the pipeline stays decoupled from the concrete generator (T78).
+// optional interface so the pipeline stays decoupled from the concrete generator.
 func degradedSubResult(gen port.Generator) []string {
 	if d, ok := gen.(interface{ Degraded() bool }); ok && d.Degraded() {
 		return []string{"remote metadata unavailable — PR authors/numbers omitted"}

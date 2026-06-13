@@ -172,7 +172,6 @@ func RuntimeCheck(
 		{"cocogitto", "cog", "cocogitto"},
 		{"communique", "communique", "communique"},
 	} {
-		og := og
 		required := usedGens[og.name]
 		dispatch(og.display, func() RuntimeCheckItem {
 			out, _, err := runner.Run(og.binary, "--version")

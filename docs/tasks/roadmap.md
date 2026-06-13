@@ -4077,7 +4077,7 @@ semantics).
 > documents the `--env` resolution under `heraut check runtime`, noting bare `heraut
 > check` applies the same logic.
 
-#### `[ ]` T101: Hygiene — comments, loop copies, enum style, case conventions
+#### `[x]` T101: Hygiene — comments, loop copies, enum style, case conventions
 
 Bundle of style-rule violations found in review: (1) 16 task-ID references
 (T68/T75/T78/T79...) in production comments across `internal/cmd/offline.go`,
@@ -4093,6 +4093,59 @@ variable in `cmd/check.go`. (6) `internal/cmd/exit.go`'s `ExitCode` doc comment 
 `forge/cli.Run`, not `fang.Execute` directly (found during T95).
 
 **Files:** scattered (see list above). **Scope:** S. **Dependencies:** none.
+
+> (1) Stripped the T-id from 14 production-comment references across the 8 named
+> non-test files (`offline.go` ×1, `pipeline/{release.go,linkctx.go}` ×3,
+> `config/config.go` ×2, `generators/{gitcliff,cocogitto,communique}/generator.go` ×6/1/1),
+> keeping the `(ADR-00xx)` pointer wherever one was present. The roadmap's count of 16
+> included `_test.go`/`_internal_test.go` files (gitcliff/cocogitto/communique
+> generator tests) — those document test-writing history rather than shipped behavior and
+> weren't in the task's named file list, so left as-is. `gitcliff/generator.go`'s
+> `linkEnv` doc comment ("T71 updates the template to prefer these over the ambient
+> CI-var chain") became a present-tense statement of current behavior ("The embedded
+> template prefers these over the ambient CI-var chain") rather than a historical
+> change-log entry.
+>
+> (2) Removed `og := og` (`app/check.go`) and both `plat := platform` copies
+> (`pipeline/release.go`, real-run and dry-run publish loops), renaming the range
+> variable to `plat`/`og` directly. All three were redundant even before Go 1.22 — each
+> closure runs synchronously inside the same iteration (via `dispatch`/`runStep`), so
+> there was never a cross-iteration capture to guard against; go.mod's `go 1.26.4` makes
+> them doubly so.
+>
+> (3) De-duplicated `= iota` for `versioning.BumpType`, `gitcliff.Mode`, and
+> `cocogitto.Mode` (the latter wasn't named explicitly but has the identical
+> `ModeChangelog/ModeReleaseNotes Mode = iota` ×2 pattern as gitcliff's — fixed both for
+> consistency). `calver.TokenKind` already used the single-`= iota`-then-bare-identifiers
+> idiom and needed no change.
+>
+> (4) Made `app.buildGenerator`'s switch and `cmd.checkCliffDriver`'s git-cliff check
+> exact-case (dropped `strings.ToLower`/`strings.EqualFold`), matching
+> `validator.go`'s `validGenerators`/`validPlatforms` maps and its `Generator !=
+> "git-cliff"` check (T97) — the convention named as the reference point. Grepped every
+> test fixture in the repo for mixed-case generator/platform values
+> (`"Git-Cliff"`, `"GitHub"`, etc.); none exist, so this is behavior-preserving for any
+> config that passes `config.Validate` (the only configs that can ever reach these
+> functions with a generator/platform string other than the validator's exact lowercase
+> set) — no ADR required. Removed the now-unused `"strings"` import from `cmd/check.go`.
+> Residual, not in scope: `app.buildPlatform` (same file) still uses
+> `strings.ToLower(cfg.Type)`, and `app/cliff.go`'s `EffectiveCliffConfig` plus
+> `validator.go`'s own `ticketsGeneratorSupported` (line 89) still use
+> `strings.EqualFold(..., "git-cliff")` — none of these three were named in item (4); a
+> full sweep would be a separate task.
+>
+> (5) Replaced the `code := exitcode.Runtime` / conditional-mutation pattern in bare
+> `check`'s summary with two explicit early returns —
+> `exitcode.Wrap(exitcode.Config, ...)` when `configFailed > 0`, else
+> `exitcode.Wrap(exitcode.Runtime, ...)` — same two outcomes, no intermediate variable.
+>
+> (6) `internal/cmd/exit.go`'s `ExitCode` doc comment now says "cmd/heraut passes the
+> error from forge/cli.Run here", matching `cmd/heraut/main.go`'s actual
+> `cli.Run(context.Background(), root, Version, ui.Accent())` call post-T95.
+>
+> All six items are mechanical/style-only with no behavior change for valid configs;
+> `go build ./...`, `go test ./...` (957 passed, 22 packages), and `hk check`
+> (golangci-lint 0 issues, go_fmt, typos) all pass.
 
 #### `[ ]` T102: Spec 04 — bump-determination table doesn't reflect T91's anchoring
 

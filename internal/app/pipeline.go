@@ -278,7 +278,7 @@ func withEnvDerivations(driver *config.ContentDriver, cfg *config.Config, env st
 }
 
 func buildGenerator(runner port.Runner, driver *config.ContentDriver, defaultMode gitcliff.Mode) (port.Generator, error) {
-	switch strings.ToLower(driver.Generator) {
+	switch driver.Generator {
 	case "git-cliff":
 		return gitcliff.New(runner, driver, defaultMode), nil
 	case "communique":

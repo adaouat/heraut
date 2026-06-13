@@ -11,11 +11,11 @@ type Config struct {
 	// platform API (author handle, PR number) to enrich changelog/release-notes:
 	// "required" (fetch, fail if unavailable), "optional" (fetch when possible, else warn +
 	// skip), "disabled" (never fetch). Empty resolves to "optional". Governs both changelog
-	// and release-notes generation (T78).
+	// and release-notes generation.
 	RemoteMetadata string `yaml:"remote_metadata,omitempty"`
 	// Tickets configures issue-tracker links: each entry's regex is matched in commit
 	// messages (subject/body/footer) and rendered as a link in the changelog and release
-	// notes. git-cliff only (T79 / ADR-0024).
+	// notes. git-cliff only (ADR-0024).
 	Tickets []Ticket `yaml:"tickets,omitempty"`
 }
 

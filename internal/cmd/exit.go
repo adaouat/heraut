@@ -7,7 +7,7 @@ import (
 
 // ExitCode maps the error returned from command execution to a process exit
 // code (see Spec 01 — Exit codes). cmd/heraut passes the error from
-// fang.Execute here to decide os.Exit's argument.
+// forge/cli.Run here to decide os.Exit's argument.
 func ExitCode(err error) int {
 	return exitcode.Resolve(err)
 }

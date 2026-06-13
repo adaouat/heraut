@@ -45,7 +45,7 @@ func (g *Generator) Validate() error {
 //
 // communique is opaque to heraut — link resolution lives entirely in the user's
 // communique config — so the per-platform LinkContext is accepted and ignored
-// (ADR-0021 / T73). Multi-platform users get identical notes across platforms.
+// (ADR-0021). Multi-platform users get identical notes across platforms.
 func (g *Generator) Generate(tag string, _ *port.LinkContext) (string, error) {
 	stdout, _, err := g.runner.Run("communique", "generate", "--config", g.cfg.Config, tag)
 	if err != nil {

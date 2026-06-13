@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"io"
 	"os"
-	"strings"
 
 	execadapter "github.com/adaouat/forge/exec"
 	forgeui "github.com/adaouat/forge/ui"
@@ -74,11 +73,10 @@ func NewCheckCmd() *cobra.Command {
 			_, _ = fmt.Fprintln(out)
 			if failed > 0 {
 				_, _ = fmt.Fprintln(out, ui.Err(out, fmt.Sprintf("%d check(s) failed — fix the issues above before running heraut release", failed)))
-				code := exitcode.Runtime
 				if configFailed > 0 {
-					code = exitcode.Config
+					return exitcode.Wrap(exitcode.Config, fmt.Errorf("one or more checks failed"))
 				}
-				return exitcode.Wrap(code, fmt.Errorf("one or more checks failed"))
+				return exitcode.Wrap(exitcode.Runtime, fmt.Errorf("one or more checks failed"))
 			}
 			_, _ = fmt.Fprintln(out, ui.Success(out, "all checks passed"))
 			return nil
@@ -286,7 +284,7 @@ func checkCliffDriver(runner port.Runner, driver *config.ContentDriver, mode, po
 		_, _ = fmt.Fprintln(out, ui.Warn(out, fmt.Sprintf("cliff %s: skip (not configured)", mode)))
 		return nil
 	}
-	if !strings.EqualFold(driver.Generator, "git-cliff") {
+	if driver.Generator != "git-cliff" {
 		_, _ = fmt.Fprintln(out, ui.Warn(out, fmt.Sprintf("cliff %s: skip (generator is %s, not git-cliff)", mode, driver.Generator)))
 		return nil
 	}

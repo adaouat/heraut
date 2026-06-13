@@ -21,8 +21,8 @@ const templatePlaceholder = `"<PATH_TEMPLATE.TERA>"`
 type Mode int
 
 const (
-	ModeChangelog    Mode = iota
-	ModeReleaseNotes Mode = iota
+	ModeChangelog Mode = iota
+	ModeReleaseNotes
 )
 
 // Generator implements port.Generator for cocogitto.
@@ -68,7 +68,7 @@ func (g *Generator) Validate() error {
 //
 // When lc is non-nil, the per-platform context is passed via cog's native
 // --remote/--owner/--repository flags (the host scheme is stripped — cog prepends
-// https://); when nil, no remote flags are added (ADR-0021 / T68).
+// https://); when nil, no remote flags are added (ADR-0021).
 func (g *Generator) Generate(tag string, lc *port.LinkContext) (string, error) {
 	cfgPath, cfgCleanup, err := g.resolveCogConfig()
 	if err != nil {

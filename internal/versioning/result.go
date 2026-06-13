@@ -4,10 +4,10 @@ package versioning
 type BumpType int
 
 const (
-	BumpNone  BumpType = iota
-	BumpPatch BumpType = iota
-	BumpMinor BumpType = iota
-	BumpMajor BumpType = iota
+	BumpNone BumpType = iota
+	BumpPatch
+	BumpMinor
+	BumpMajor
 )
 
 // Result is the output of a version resolution.
