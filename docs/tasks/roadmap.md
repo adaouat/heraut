@@ -4254,6 +4254,41 @@ related spots were left as-is (out of T94's stated scope):
 >
 > Docs-only change; no code or tests touched. `go build ./...`/`go test ./...` unaffected.
 
+#### `[ ]` T105: Extract a shared effective-platforms helper — three duplicate implementations
+
+T89 and T100 each independently reimplemented the same merge rule that
+`buildReleasePipelineConfig` already had: *effective platforms = `cfg.Release.Platforms`
+(empty if `cfg.Release == nil`), unless `env != ""` and `cfg.Environments[env].Release !=
+nil` and `len(envCfg.Release.Platforms) > 0`, in which case effective platforms =
+`envCfg.Release.Platforms` entirely (replace, not append/merge)*.
+
+Three copies of this rule now exist:
+
+- `internal/app/pipeline.go:142-166` — inline inside `buildReleasePipelineConfig`,
+  entangled with the changelog/notes/assets per-env merge (the original).
+- `internal/cmd/release.go:119-130` — `hasEffectivePlatforms` (T89), with a comment
+  acknowledging the duplication (`// matching buildReleasePipelineConfig's merge
+  semantics`).
+- `internal/app/check.go:116-126` — `RuntimeCheck`'s Platforms section (T100), no
+  comment; T100's roadmap entry already named T89 as a "shared effective-list semantics"
+  dependency without actually sharing code.
+
+The `cmd/release.go` and `app/check.go` copies are now byte-for-byte identical (modulo a
+`cfg != nil` guard `check.go` needs that `release.go` doesn't). A future change to the
+merge rule — e.g. append/inherit semantics, or an org-level default tier — would need to
+land in all three.
+
+Proposed fix: `config.EffectivePlatforms(cfg *Config, env string) []Platform` in
+`internal/config` (bottom of the layer stack — `internal/app` and `internal/cmd` already
+import `internal/config` directly, so no new import edges). Replace the `cmd/release.go`
+and `app/check.go` copies outright; in `pipeline.go`, replace only the
+`effectivePlatforms`-specific lines with a call to the helper, leaving the
+changelog/notes/assets merge untouched.
+
+**Files:** `internal/config/` (new helper + tests), `internal/app/{pipeline.go,
+check.go,check_test.go}`, `internal/cmd/{release.go,release_internal_test.go}`.
+**Scope:** S. **Dependencies:** none.
+
 ---
 
 ## Risks and mitigations
