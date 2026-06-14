@@ -4317,7 +4317,7 @@ check.go,check_test.go}`, `internal/cmd/{release.go,release_internal_test.go}`.
 > ./...`, `go vet ./...` clean; `go test ./...` → 967 passed, 22 packages (958 + 9 new);
 > `hk check` clean (golangci-lint 0 issues).
 
-#### `[ ]` T106: SemVer bump — `isBreaking`'s `BREAKING CHANGE:`/`BREAKING-CHANGE:` check is an unanchored substring match
+#### `[x]` T106: SemVer bump — `isBreaking`'s `BREAKING CHANGE:`/`BREAKING-CHANGE:` check is an unanchored substring match
 
 `isBreaking` (`internal/versioning/semver/bump.go`) anchors the `!:` breaking-change
 marker to the subject line (T91), but its footer check —
@@ -4344,6 +4344,32 @@ this incident.
 **Files:** `internal/versioning/semver/{bump.go,bump_test.go}`,
 `docs/specs/04-versioning.md` (if the bump-determination table needs a positioning
 caveat). **Scope:** S. **Dependencies:** T91, T102.
+
+> TDD: added two cases to `TestDetermineBump` in `resolver_test.go` (no separate
+> `bump_test.go` — all `isBreaking`/`DetermineBump` cases already live in
+> `resolver_test.go`, same precedent as T103's note on `perenv`) — a `fix:` commit whose
+> body mentions `BREAKING CHANGE:`/`BREAKING-CHANGE:` mid-sentence (mirroring f4a8e9e's
+> actual wording) — confirmed red: both expected `BumpPatch` but got `BumpMajor`.
+>
+> `isBreaking` now splits the commit on `\n`, trims each line, and checks
+> `strings.HasPrefix` for `"BREAKING CHANGE:"` / `"BREAKING-CHANGE:"`, replacing the
+> unanchored `strings.Contains`. Did not additionally restrict to the trailing
+> footer block (after the last blank line) — line-start alone fixes this incident's
+> class of false positive and keeps the change minimal; the existing footer-at-line-start
+> cases (T91's `"fix: y\n\nBREAKING CHANGE: boom"` / `"...BREAKING-CHANGE: boom"`, and
+> `TestResolve_BreakingChange_Footer`'s null-byte-terminated body) all still pass
+> unchanged.
+>
+> Spec 04 § Bump determination: appended a sentence after the existing `!:`-anchoring
+> caveat — "Either form must start its own line (a footer) — a mid-sentence mention does
+> not trigger a major bump" — parallel in structure to the `!:` caveat T102 added.
+>
+> `go build ./...`, `go vet ./...` clean; `golangci-lint run ./internal/versioning/semver/...`
+> clean. `go test ./...` → 969 passed, 22 packages (967 + 2 new). gopls flagged
+> `stringsseq`/`stringscut`/`newexpr` "modernize" hints on this file (new `for...range
+> strings.Split` and pre-existing `firstLine`/`strPtr` code) — none are in
+> `.golangci.yml`'s enabled linters (`errcheck`, `staticcheck`, `ineffassign` +
+> defaults), confirmed via a clean `golangci-lint run`; left untouched as out of scope.
 
 ---
 

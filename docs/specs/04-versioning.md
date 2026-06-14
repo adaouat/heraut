@@ -41,7 +41,9 @@ since the last tag.
 The highest applicable bump wins (e.g. a single `feat!:` outranks ten `fix:` commits).
 The `!` must sit immediately before the colon in the subject's type/scope prefix — a
 bare `!:` inside the description does not trigger a major bump. `BREAKING-CHANGE:` is
-treated as a synonym of `BREAKING CHANGE:`, per Conventional Commits 1.0.0.
+treated as a synonym of `BREAKING CHANGE:`, per Conventional Commits 1.0.0. Either form
+must start its own line (a footer) — a mid-sentence mention does not trigger a major
+bump.
 
 ### Prefix handling
 
