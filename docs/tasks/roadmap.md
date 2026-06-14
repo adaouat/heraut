@@ -4317,6 +4317,34 @@ check.go,check_test.go}`, `internal/cmd/{release.go,release_internal_test.go}`.
 > ./...`, `go vet ./...` clean; `go test ./...` → 967 passed, 22 packages (958 + 9 new);
 > `hk check` clean (golangci-lint 0 issues).
 
+#### `[ ]` T106: SemVer bump — `isBreaking`'s `BREAKING CHANGE:`/`BREAKING-CHANGE:` check is an unanchored substring match
+
+`isBreaking` (`internal/versioning/semver/bump.go`) anchors the `!:` breaking-change
+marker to the subject line (T91), but its footer check —
+`strings.Contains(commit, "BREAKING CHANGE:") || strings.Contains(commit, "BREAKING-CHANGE:")`
+— scans the *entire* commit message with no line-position requirement. Per Conventional
+Commits, `BREAKING CHANGE:`/`BREAKING-CHANGE:` is only meaningful as a footer token at the
+start of a line; the current check matches it anywhere, including mid-sentence prose.
+
+This is not theoretical: f4a8e9e (T91 itself) is a `fix:` commit whose body *describes*
+the `BREAKING-CHANGE:` footer synonym in prose ("Also recognize the hyphenated
+`BREAKING-CHANGE:` footer as a synonym of `BREAKING CHANGE:`..."). `isBreaking` matched
+that substring, `bump: auto` resolved `BumpMajor`, and the 2026-06-14 CI release run
+bumped 0.31.0 → 1.0.0 — a false positive that required deleting the published `v1.0.0`
+GitHub release (6 assets) and tag, reverting the CHANGELOG commit on `main`, and
+re-running the release workflow with a manual `--version v0.32.0` override.
+
+Fix: require the footer token to start a line (split on `\n`, check
+`strings.HasPrefix(strings.TrimSpace(line), "BREAKING CHANGE:")` /
+`"BREAKING-CHANGE:"`), rather than `strings.Contains` over the raw message. A stricter
+spec-faithful version would additionally require the footer to be in the trailing footer
+block (after the last blank line), but the line-start check alone would have prevented
+this incident.
+
+**Files:** `internal/versioning/semver/{bump.go,bump_test.go}`,
+`docs/specs/04-versioning.md` (if the bump-determination table needs a positioning
+caveat). **Scope:** S. **Dependencies:** T91, T102.
+
 ---
 
 ## Risks and mitigations
