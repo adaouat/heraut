@@ -1,58 +1,5 @@
 # Changelog
 
-## [1.0.0](https://github.com/adaouat/heraut/compare/v0.31.0..v1.0.0) - 2026-06-13
-
-### 🚀 Features
-
-- *(app)* Check runtime --env checks the env's effective platforms - ([74ae0e1](https://github.com/adaouat/heraut/commit/74ae0e1f1f4d222ff4f1f8ef6c0e49f2f9063a64)) by @bchatard
-
-- *(config)* Validate tag_pattern requires git-cliff generator - ([bcd9467](https://github.com/adaouat/heraut/commit/bcd9467dd5671b73d1660a09aae7d32f6bfb26b6)) by @bchatard
-
-- *(scaffold)* Warn before dropping unsupported settings on init update - ([1a0f3f9](https://github.com/adaouat/heraut/commit/1a0f3f9d94778290479efaacc4b3b38cf26427b0)) by @bchatard
-
-
-### 🐛 Bug Fixes
-
-- *(cmd)* Unify --version override validation across release/changelog - ([e269720](https://github.com/adaouat/heraut/commit/e2697206840e0567de991e48a3494497c5cbd9a3)) by @bchatard
-
-- *(cmd)* Align check/version validation, no-config, and exit codes - ([d2406b6](https://github.com/adaouat/heraut/commit/d2406b61f23695cbf33846a195559e38fda19968)) by @bchatard
-
-- *(cmd/release)* Inherit root platforms when env release omits platforms - ([1b5283e](https://github.com/adaouat/heraut/commit/1b5283eb7d850281d349dcea22175e9243a11ca3)) by @bchatard
-
-- *(pipeline)* Push only the resolved tag, not all local tags - ([8e08976](https://github.com/adaouat/heraut/commit/8e08976003c721da462b556e52de6f36bbfa32fd)) by @bchatard
-
-- *(platforms/gitlab)* Inject token_env into release-time glab calls - ([bd0bcb9](https://github.com/adaouat/heraut/commit/bd0bcb975bd84c68c9563bbbe325c324731a0a9a)) by @bchatard
-
-- *(versioning/perenv)* Skip pre-release tags in semver-per-env BumpAuto - ([938b911](https://github.com/adaouat/heraut/commit/938b91181f07b8fc418a5d017268f61834df719a)) by @bchatard
-
-- *(versioning/semver)* Anchor breaking-change bang to commit type prefix - ([f4a8e9e](https://github.com/adaouat/heraut/commit/f4a8e9e53c579f10f520f57d80f8dd1a9fd960fe)) by @bchatard
-
-- *(versioning/semver)* Skip pre-release tags when resolving current version - ([3e4b71a](https://github.com/adaouat/heraut/commit/3e4b71a75718abe1995e2a20788effbe4a270200)) by @bchatard
-
-
-### 🚜 Refactor
-
-- *(config)* Extract shared EffectivePlatforms helper (T105) - ([f9ec386](https://github.com/adaouat/heraut/commit/f9ec386ac7e296c0a2803a0d87323f097aedb51c)) by @bchatard
-
-- Hygiene pass — drop T-id comments, dedupe iota, unify case - ([8413f47](https://github.com/adaouat/heraut/commit/8413f4768a851b6c7942c421899f62bf30539582)) by @bchatard
-
-
-### 📚 Documentation
-
-- *(claude)* Rewrite CLAUDE.md to post-forge reality - ([6aa08e4](https://github.com/adaouat/heraut/commit/6aa08e459db06656f3dc1cd649f2f8356fdfabb3)) by @bchatard
-
-- *(roadmap)* Add phase 17 — full-project review remediation - ([0cdca6a](https://github.com/adaouat/heraut/commit/0cdca6ae4133cdc9a0fda057da6f92318e2bd3ce)) by @bchatard
-
-- *(roadmap)* Reconcile v1.0.0 checkpoints and refresh overview - ([98702f2](https://github.com/adaouat/heraut/commit/98702f244584a7891bcf958594c78fdc932d6c2b)) by @bchatard
-
-- *(roadmap)* Add T105 — extract shared effective-platforms helper - ([319d73b](https://github.com/adaouat/heraut/commit/319d73b98c2406e0cb40aaebaba5aa8d1d7b48c8)) by @bchatard
-
-- *(specs)* Sync platform tables and document whatsnew (T94) - ([b1ac326](https://github.com/adaouat/heraut/commit/b1ac326b2b5c809852c2d0364e80b81a2e060932)) by @bchatard
-
-- *(specs)* Reflect T91's anchored breaking-change detection in spec 04 - ([25be6cd](https://github.com/adaouat/heraut/commit/25be6cd18cc144f13817842cb7e1bb1a0349dac1)) by @bchatard
-
-- *(specs)* Fix remaining name/catalog/upload-asset drift - ([ba47155](https://github.com/adaouat/heraut/commit/ba47155b91038dd4d861732b0d203904cc8504d4)) by @bchatard
-
 ## [0.31.0](https://github.com/adaouat/heraut/compare/v0.30.2..v0.31.0) - 2026-06-12
 
 ### 🚀 Features
