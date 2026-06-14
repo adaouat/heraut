@@ -86,11 +86,17 @@ func isBreaking(commit string) bool {
 		return true
 	}
 	// BREAKING CHANGE / BREAKING-CHANGE footer — Conventional Commits 1.0.0 treats the
-	// hyphenated form as a synonym of the spaced form. A footer occupies its own line;
-	// a mid-sentence mention (e.g. a commit describing this very check) must not count.
-	for _, line := range strings.Split(commit, "\n") {
-		line = strings.TrimSpace(line)
-		if strings.HasPrefix(line, "BREAKING CHANGE:") || strings.HasPrefix(line, "BREAKING-CHANGE:") {
+	// hyphenated form as a synonym of the spaced form. A footer starts its own
+	// paragraph: the line must be the message's first line or immediately follow a
+	// blank line, so a wrapped body sentence that happens to start with the token
+	// (e.g. a commit describing this very check) must not count.
+	lines := strings.Split(commit, "\n")
+	for i, line := range lines {
+		trimmed := strings.TrimSpace(line)
+		if !strings.HasPrefix(trimmed, "BREAKING CHANGE:") && !strings.HasPrefix(trimmed, "BREAKING-CHANGE:") {
+			continue
+		}
+		if i == 0 || strings.TrimSpace(lines[i-1]) == "" {
 			return true
 		}
 	}

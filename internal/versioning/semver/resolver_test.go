@@ -406,6 +406,7 @@ func TestDetermineBump(t *testing.T) {
 		{"bang in description, not type prefix → not breaking", []string{"fix: handle the foo!: token"}, versioning.BumpPatch},
 		{"BREAKING CHANGE mentioned mid-sentence, not a footer → not breaking", []string{"fix: y\n\nThis is not a BREAKING CHANGE: just a mention."}, versioning.BumpPatch},
 		{"BREAKING-CHANGE mentioned mid-sentence, not a footer → not breaking", []string{"fix: y\n\nAlso recognize the hyphenated BREAKING-CHANGE: footer as a synonym."}, versioning.BumpPatch},
+		{"BREAKING CHANGE starts a wrapped body line, not its paragraph → not breaking", []string{"fix: y\n\nDiscussing isBreaking's\nBREAKING CHANGE: footer check here."}, versioning.BumpPatch},
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {

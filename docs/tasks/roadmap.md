@@ -4370,6 +4370,28 @@ caveat). **Scope:** S. **Dependencies:** T91, T102.
 > strings.Split` and pre-existing `firstLine`/`strPtr` code) — none are in
 > `.golangci.yml`'s enabled linters (`errcheck`, `staticcheck`, `ineffassign` +
 > defaults), confirmed via a clean `golangci-lint run`; left untouched as out of scope.
+>
+> **Second round, same session, before either commit was pushed**: `heraut version next`
+> on the resulting `main` returned `v1.0.0` instead of the expected `v0.32.1`. Cause: the
+> line-start check above is satisfied by *this task's own roadmap-filing commit*
+> (`7181aba`) — its body reads "Discovered via the v1.0.0 false-release incident:
+> isBreaking's\nBREAKING CHANGE:/BREAKING-CHANGE: footer check is an unanchored\n...",
+> where the second line, after trimming, starts with `"BREAKING CHANGE:"` even though
+> it's a wrapped continuation of the first line's sentence, not a footer. The exact gap
+> this entry's own "stricter spec-faithful version" paragraph anticipated — recurring a
+> second time, this time in the commit that documents the first incident.
+>
+> Fix, applied in the same `isBreaking` block: a matched line only counts as a footer if
+> it *begins its own paragraph* — `i == 0` or the previous line (trimmed) is empty.
+> Added a third case to `TestDetermineBump` mirroring `7181aba`'s exact shape (a wrapped
+> line starting with the token, preceded by a non-blank line) — confirmed red (got
+> `BumpMajor`, wanted `BumpPatch`), then green after the `i == 0 ||
+> strings.TrimSpace(lines[i-1]) == ""` guard. All prior cases (genuine footers preceded by
+> a blank line, both T91 mid-sentence cases) still pass. Spec 04 § Bump determination
+> reworded to "must begin its own paragraph... either the message's first line, or a line
+> immediately following a blank line". `go build`/`go vet`/`golangci-lint` clean; `go test
+> ./...` → 970 passed, 22 packages. `/tmp/heraut_check version next` on `main` now
+> correctly reports `v0.32.1`.
 
 ---
 
