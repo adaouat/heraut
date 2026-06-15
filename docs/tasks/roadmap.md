@@ -4395,6 +4395,63 @@ caveat). **Scope:** S. **Dependencies:** T91, T102.
 
 ---
 
+### Phase 18 — `heraut init` config round-trip
+
+T99 (Phase 17) added `scaffold.DroppedFields` to warn before the "Update it?" flow
+silently regenerates `.heraut.yml` without six categories of fields. Of those six, three
+are top-level/release-level values with no rebuild ambiguity and can be carried through
+directly (T107); the other three are per-platform/per-env overrides that T99 deferred
+because the wizard rebuilds `a.Platforms`/`a.Environments` from scratch (T108).
+
+#### `[ ]` T107: `heraut init` update flow — preserve top-level `release.assets`, `tickets`, `remote_metadata`
+
+Of the six field categories `DroppedFields` (T99) flags, three are single
+top-level/release-level values with no wizard-rebuild ambiguity: `release.assets`
+(`[]string` glob patterns), `tickets` (`[]config.Ticket`), and `remote_metadata`
+(string enum). Unlike per-platform `base_url`/`draft`/`prerelease` and per-env
+`changelog`/`release` overrides — which T99 deferred because `runPlatformWizard` and
+`runEnvWizard` reset `a.Platforms`/`a.Environments` to nil and rebuild them from wizard
+answers, leaving no stable identity to reattach passthrough values to — these three have
+exactly one value per config and can be copied through `Answers` verbatim.
+
+Add `Assets []string`, `Tickets []config.Ticket`, and `RemoteMetadata string` to
+`scaffold.Answers`. `ConfigToAnswers` copies them from `cfg.Release.Assets`,
+`cfg.Tickets`, and `cfg.RemoteMetadata`. `answersToConfig` writes them back — creating
+`cfg.Release` when `a.Assets` is non-empty even if no notes/platforms are configured.
+Remove these three categories from `DroppedFields`'s output (and its tests).
+
+**Files:** `internal/scaffold/{wizard.go,generate.go,dropped.go}` + tests,
+`internal/cmd/init_internal_test.go` (dropped-fields warning enumeration).
+**Scope:** S. **Dependencies:** T99.
+
+#### `[ ]` T108: `heraut init` update flow — carry through per-platform/per-env overrides (design spike + new feature)
+
+The remaining three categories `DroppedFields` (T99) flags are still silently dropped on
+"Update it?": `release.platforms.<name>.{base_url,draft,prerelease}` and
+`environments.<name>.{changelog,release}`. T99 explicitly rejected carrying these
+through in its first pass because `runPlatformWizard`/`runEnvWizard` reset
+`a.Platforms`/`a.Environments` to nil and rebuild them from wizard prompts — passthrough
+values on the old entries have no stable target once the user adds, removes, reorders, or
+renames platforms/environments during the wizard.
+
+This needs a design spike before implementation. Candidate approaches:
+
+- Match by `Platform.Name` (required per ADR-0025) / environment map key when unchanged
+  across the rebuild; drop + warn (as today) only for renamed/removed entries.
+- Skip `runPlatformWizard`/`runEnvWizard` by default on "Update it?" (preserving existing
+  platforms/environments verbatim including the dropped fields), and only run the
+  rebuild sub-flow if the user opts in to editing platforms or environments.
+
+Record the chosen approach (roadmap note or ADR addendum) before implementing — the
+mutation logic in `internal/scaffold/wizard.go` must not regress the existing
+add/remove/reorder UX for platforms and environments.
+
+**Files:** `internal/scaffold/{wizard.go,generate.go,dropped.go}` + tests,
+`internal/cmd/init.go`. **Scope:** L (design spike + implementation).
+**Dependencies:** T99, T107.
+
+---
+
 ## Risks and mitigations
 
 | Risk                                                                                | Impact            | Mitigation                                                                |
