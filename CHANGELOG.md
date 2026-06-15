@@ -1,5 +1,27 @@
 # Changelog
 
+## [0.33.0](https://github.com/adaouat/heraut/compare/v0.32.0..v0.33.0) - 2026-06-15
+
+### 🚀 Features
+
+- *(deps)* Bump forge to v0.17.0 - ([8feead4](https://github.com/adaouat/heraut/commit/8feead4698d652b88d20287dcfc5b80a2a76ee91)) by @bchatard
+
+- *(scaffold)* Preserve release.assets, tickets, remote_metadata on init update - ([c58327e](https://github.com/adaouat/heraut/commit/c58327efa35ab4305385923ffb2c0e4d00d0df74)) by @bchatard
+
+
+### 🐛 Bug Fixes
+
+- *(versioning/semver)* Anchor BREAKING CHANGE footer to line start (T106) - ([babd265](https://github.com/adaouat/heraut/commit/babd26541d22ed792e7de2e7df70a5a9d9129356)) by @bchatard
+
+- *(versioning/semver)* Require BREAKING CHANGE footer to start its paragraph - ([b370bfa](https://github.com/adaouat/heraut/commit/b370bfa14e26bcb2685fa871a6f92cd0826014fd)) by @bchatard
+
+
+### 📚 Documentation
+
+- *(roadmap)* Add T106 — fix isBreaking footer-anchoring false positive - ([7181aba](https://github.com/adaouat/heraut/commit/7181aba8b78ededa05b61c1a16559f3c90de63b1)) by @bchatard
+
+- *(roadmap)* Add T107/T108 — heraut init config round-trip - ([99e818e](https://github.com/adaouat/heraut/commit/99e818ec6d2bee0bebbc3d0397130aeaec39ab91)) by @bchatard
+
 ## [0.32.0](https://github.com/adaouat/heraut/compare/v0.31.0..v0.32.0) - 2026-06-14
 
 ### 🚀 Features
