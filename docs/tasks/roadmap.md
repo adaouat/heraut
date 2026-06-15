@@ -4401,7 +4401,8 @@ T99 (Phase 17) added `scaffold.DroppedFields` to warn before the "Update it?" fl
 silently regenerates `.heraut.yml` without six categories of fields. Of those six, three
 are top-level/release-level values with no rebuild ambiguity and can be carried through
 directly (T107); the other three are per-platform/per-env overrides that T99 deferred
-because the wizard rebuilds `a.Platforms`/`a.Environments` from scratch (T108).
+because the wizard rebuilds `a.Platforms`/`a.Environments` from scratch (T108 for
+platforms, T109 for environments).
 
 #### `[x]` T107: `heraut init` update flow — preserve top-level `release.assets`, `tickets`, `remote_metadata`
 
@@ -4436,8 +4437,8 @@ Remove these three categories from `DroppedFields`'s output (and its tests).
 >
 > Removed the three corresponding checks from `DroppedFields` (tickets,
 > remote_metadata, release.assets), leaving only the per-platform
-> (`base_url`/`draft`/`prerelease`) and per-env (`changelog`/`release`) checks T108
-> covers. `internal/cmd/init_internal_test.go`'s `printDroppedFieldsWarning` tests pass
+> (`base_url`/`draft`/`prerelease`, T108) and per-env (`changelog`/`release`, T109)
+> checks. `internal/cmd/init_internal_test.go`'s `printDroppedFieldsWarning` tests pass
 > arbitrary strings and needed no change.
 >
 > TDD: added `TestConfigToAnswers_PreservesAssetsTicketsRemoteMetadata` and
@@ -4449,31 +4450,65 @@ Remove these three categories from `DroppedFields`'s output (and its tests).
 > warn" framing, not a deleted assertion. `go build`/`go vet`/`golangci-lint` clean;
 > `go test ./...` → 972 passed, 22 packages (970 + 2 new).
 
-#### `[ ]` T108: `heraut init` update flow — carry through per-platform/per-env overrides (design spike + new feature)
+#### `[ ]` T108: `heraut init` update flow — carry through per-platform release overrides (`base_url`/`draft`/`prerelease`)
 
-The remaining three categories `DroppedFields` (T99) flags are still silently dropped on
-"Update it?": `release.platforms.<name>.{base_url,draft,prerelease}` and
-`environments.<name>.{changelog,release}`. T99 explicitly rejected carrying these
-through in its first pass because `runPlatformWizard`/`runEnvWizard` reset
-`a.Platforms`/`a.Environments` to nil and rebuild them from wizard prompts — passthrough
-values on the old entries have no stable target once the user adds, removes, reorders, or
-renames platforms/environments during the wizard.
+Design spike completed: `.claude/plans/t108-init-override-carryover-design.md`.
+**Approach A (type-scoped positional matching)**, chosen over skipping the
+`runPlatformWizard` rebuild by default — A is strictly additive (degrades to today's
+drop + warn on any mismatch) and adds no new prompts.
 
-This needs a design spike before implementation. Candidate approaches:
+`PlatformAnswer` gains passthrough fields `Name string`, `BaseURL string`,
+`Draft bool`, `Prerelease bool`, populated verbatim by `ConfigToAnswers` from
+`cfg.Release.Platforms[i]`. Before `runPlatformWizard` resets `a.Platforms = nil`, it
+snapshots the incoming slice grouped by `Type` (order preserved within each type). Each
+newly-built `PlatformAnswer` of type `T` is matched against the next unconsumed
+snapshot entry of type `T`; on match, `Name`/`BaseURL`/`Draft`/`Prerelease` are copied
+across. No match (new entry, or more entries of type `T` than before) → zero values
+(today's behavior: `answersToConfig` derives `Name` from `type`/`type-N`, `BaseURL`
+falls back to the type default, `Draft`/`Prerelease` default `false`).
+`answersToConfig` uses `p.Name` when non-empty, else falls back to the existing
+`type`/`type-N` derivation for genuinely new entries.
 
-- Match by `Platform.Name` (required per ADR-0025) / environment map key when unchanged
-  across the rebuild; drop + warn (as today) only for renamed/removed entries.
-- Skip `runPlatformWizard`/`runEnvWizard` by default on "Update it?" (preserving existing
-  platforms/environments verbatim including the dropped fields), and only run the
-  rebuild sub-flow if the user opts in to editing platforms or environments.
+Resolved open questions from the spike:
 
-Record the chosen approach (roadmap note or ADR addendum) before implementing — the
-mutation logic in `internal/scaffold/wizard.go` must not regress the existing
-add/remove/reorder UX for platforms and environments.
+- **`DroppedFields` timing**: move the platform `base_url`/`draft`/`prerelease` checks
+  from the pre-wizard warning (T99's placement) to a post-wizard check, comparing
+  against the rebuilt `a.Platforms` so the warning only fires on an actual mismatch
+  (reorder/add/remove/type-change) — one accurate warning instead of an
+  always-possible pre-wizard one. `internal/cmd/init.go`'s "Update it?" branch calls
+  this after `RunWizard` returns, before the "write this config?" confirm.
+- **`--defaults` on an existing config**: becomes fully lossless for these three
+  fields as a side effect (no `RunWizard` call on that path — `ConfigToAnswers` /
+  `answersToConfig` round-trip directly). Accepted as a strict improvement.
+- The "weak secondary key" refinement for reordered same-type platforms (spike's noted
+  edge case) is deferred — not implemented unless reported.
 
 **Files:** `internal/scaffold/{wizard.go,generate.go,dropped.go}` + tests,
-`internal/cmd/init.go`. **Scope:** L (design spike + implementation).
+`internal/cmd/init.go` (+ `init_internal_test.go`). **Scope:** M.
 **Dependencies:** T99, T107.
+
+#### `[ ]` T109: `heraut init` update flow — carry through per-env content overrides (`changelog`/`release`)
+
+Same design spike as T108 (`.claude/plans/t108-init-override-carryover-design.md`),
+applied to `environments.<name>.{changelog,release}`. Unlike platforms, `EnvAnswer`
+already has a stable `Name` (the `cfg.Environments` map key) — no new identity field
+needed.
+
+`EnvAnswer` gains passthrough fields `Changelog *config.ContentDriver` and
+`Release *config.EnvRelease`, populated by `ConfigToAnswers` from
+`cfg.Environments[name]`. Before `runEnvWizard` resets `a.Environments = nil`, it
+snapshots the incoming slice keyed by `Name`. A rebuilt entry whose `Name` matches a
+snapshot entry inherits that entry's `Changelog`/`Release`; a renamed or new env gets
+`nil` (dropped, same as today — `DroppedFields` continues to warn for *that* case).
+`answersToConfig` writes `Changelog`/`Release` onto `config.Environment` when non-nil.
+
+Apply the same post-wizard `DroppedFields` timing change as T108 (single combined
+post-wizard warning covering both platform and env mismatches, if T108 lands first —
+otherwise this task adds the env half of that check).
+
+**Files:** `internal/scaffold/{wizard.go,generate.go,dropped.go}` + tests,
+`internal/cmd/init.go` (+ `init_internal_test.go`). **Scope:** M.
+**Dependencies:** T99, T107, T108 (shares the snapshot/match pattern T108 introduces).
 
 ---
 
