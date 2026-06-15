@@ -28,31 +28,31 @@ func TestDroppedFields_DefaultsConfig(t *testing.T) {
 	assert.Empty(t, scaffold.DroppedFields(cfg), "defaults config should round-trip without warnings")
 }
 
-func TestDroppedFields_Tickets(t *testing.T) {
+func TestDroppedFields_Tickets_NotDropped(t *testing.T) {
 	cfg := &config.Config{
 		Version:    "1",
 		Versioning: config.Versioning{Strategy: "semver"},
 		Tickets:    []config.Ticket{{Pattern: `JIRA-(\d+)`, URL: "https://example.atlassian.net/browse/{ticket}"}},
 	}
-	assert.Equal(t, []string{"tickets"}, scaffold.DroppedFields(cfg))
+	assert.Empty(t, scaffold.DroppedFields(cfg), "tickets are preserved via Answers (T107)")
 }
 
-func TestDroppedFields_RemoteMetadata(t *testing.T) {
+func TestDroppedFields_RemoteMetadata_NotDropped(t *testing.T) {
 	cfg := &config.Config{
 		Version:        "1",
 		Versioning:     config.Versioning{Strategy: "semver"},
 		RemoteMetadata: "required",
 	}
-	assert.Equal(t, []string{"remote_metadata"}, scaffold.DroppedFields(cfg))
+	assert.Empty(t, scaffold.DroppedFields(cfg), "remote_metadata is preserved via Answers (T107)")
 }
 
-func TestDroppedFields_ReleaseAssets(t *testing.T) {
+func TestDroppedFields_ReleaseAssets_NotDropped(t *testing.T) {
 	cfg := &config.Config{
 		Version:    "1",
 		Versioning: config.Versioning{Strategy: "semver"},
 		Release:    &config.Release{Assets: []string{"dist/*.tar.gz"}},
 	}
-	assert.Equal(t, []string{"release.assets"}, scaffold.DroppedFields(cfg))
+	assert.Empty(t, scaffold.DroppedFields(cfg), "release.assets is preserved via Answers (T107)")
 }
 
 func TestDroppedFields_PlatformBaseURL_CustomFlagged(t *testing.T) {

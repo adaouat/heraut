@@ -44,6 +44,8 @@ func answersToConfig(a Answers) config.Config {
 		Versioning: config.Versioning{
 			Strategy: a.Strategy,
 		},
+		Tickets:        a.Tickets,
+		RemoteMetadata: a.RemoteMetadata,
 	}
 
 	// Always write prefix — even when empty — so the resolver does not fall
@@ -87,8 +89,9 @@ func answersToConfig(a Answers) config.Config {
 
 	hasNotes := a.NotesGenerator != ""
 	hasPlatforms := len(a.Platforms) > 0
-	if hasNotes || hasPlatforms {
-		cfg.Release = &config.Release{}
+	hasAssets := len(a.Assets) > 0
+	if hasNotes || hasPlatforms || hasAssets {
+		cfg.Release = &config.Release{Assets: a.Assets}
 		if hasNotes {
 			cfg.Release.Notes = &config.ContentDriver{
 				Generator: a.NotesGenerator,

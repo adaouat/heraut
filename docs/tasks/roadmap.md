@@ -4403,7 +4403,7 @@ are top-level/release-level values with no rebuild ambiguity and can be carried 
 directly (T107); the other three are per-platform/per-env overrides that T99 deferred
 because the wizard rebuilds `a.Platforms`/`a.Environments` from scratch (T108).
 
-#### `[ ]` T107: `heraut init` update flow — preserve top-level `release.assets`, `tickets`, `remote_metadata`
+#### `[x]` T107: `heraut init` update flow — preserve top-level `release.assets`, `tickets`, `remote_metadata`
 
 Of the six field categories `DroppedFields` (T99) flags, three are single
 top-level/release-level values with no wizard-rebuild ambiguity: `release.assets`
@@ -4423,6 +4423,31 @@ Remove these three categories from `DroppedFields`'s output (and its tests).
 **Files:** `internal/scaffold/{wizard.go,generate.go,dropped.go}` + tests,
 `internal/cmd/init_internal_test.go` (dropped-fields warning enumeration).
 **Scope:** S. **Dependencies:** T99.
+
+> Added `Assets []string`, `Tickets []config.Ticket`, and `RemoteMetadata string` to
+> `scaffold.Answers` (with a comment noting they're not wizard-editable, just
+> round-tripped). `ConfigToAnswers` copies them from `cfg.Tickets`/`cfg.RemoteMetadata`
+> (top-level) and `cfg.Release.Assets` (inside the existing `cfg.Release != nil` block).
+> `answersToConfig` writes `Tickets`/`RemoteMetadata` onto the new `config.Config{}`
+> literal directly, and extended the `cfg.Release` creation condition from `hasNotes ||
+> hasPlatforms` to also include `hasAssets := len(a.Assets) > 0`, initializing
+> `&config.Release{Assets: a.Assets}` — so a config with only `release.assets` (no
+> notes/platforms) still round-trips with a `release:` block.
+>
+> Removed the three corresponding checks from `DroppedFields` (tickets,
+> remote_metadata, release.assets), leaving only the per-platform
+> (`base_url`/`draft`/`prerelease`) and per-env (`changelog`/`release`) checks T108
+> covers. `internal/cmd/init_internal_test.go`'s `printDroppedFieldsWarning` tests pass
+> arbitrary strings and needed no change.
+>
+> TDD: added `TestConfigToAnswers_PreservesAssetsTicketsRemoteMetadata` and
+> `TestGenerateYAML_AssetsTicketsRemoteMetadata` (generate_test.go) — confirmed red
+> (compile errors, missing `Answers` fields) before implementing. Updated the three
+> existing `DroppedFields` tests (`TestDroppedFields_{Tickets,RemoteMetadata,
+> ReleaseAssets}`) to `*_NotDropped` variants asserting `DroppedFields` now returns
+> empty for these — a deliberate behavior change per T99's original "carry through vs.
+> warn" framing, not a deleted assertion. `go build`/`go vet`/`golangci-lint` clean;
+> `go test ./...` → 972 passed, 22 packages (970 + 2 new).
 
 #### `[ ]` T108: `heraut init` update flow — carry through per-platform/per-env overrides (design spike + new feature)
 

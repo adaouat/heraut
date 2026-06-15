@@ -40,6 +40,12 @@ type Answers struct {
 	// Per-env strategies only.
 	TagFormat    string
 	Environments []EnvAnswer
+
+	// Assets, Tickets, and RemoteMetadata are not wizard-editable; they are carried
+	// through verbatim from an existing config on "Update it?" (T107).
+	Assets         []string
+	Tickets        []config.Ticket
+	RemoteMetadata string
 }
 
 // PlatformAnswer holds answers for one release platform.
@@ -92,9 +98,11 @@ func Defaults() Answers {
 // ConfigToAnswers populates an Answers from an existing Config for wizard pre-population.
 func ConfigToAnswers(cfg *config.Config) Answers {
 	a := Answers{
-		Strategy:  cfg.Versioning.Strategy,
-		Format:    cfg.Versioning.Format,
-		TagFormat: cfg.Versioning.TagFormat,
+		Strategy:       cfg.Versioning.Strategy,
+		Format:         cfg.Versioning.Format,
+		TagFormat:      cfg.Versioning.TagFormat,
+		Tickets:        cfg.Tickets,
+		RemoteMetadata: cfg.RemoteMetadata,
 	}
 
 	if cfg.Versioning.TagPrefix != nil {
@@ -112,6 +120,7 @@ func ConfigToAnswers(cfg *config.Config) Answers {
 	}
 
 	if cfg.Release != nil {
+		a.Assets = cfg.Release.Assets
 		if cfg.Release.Notes != nil {
 			a.NotesGenerator = cfg.Release.Notes.Generator
 		}

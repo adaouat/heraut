@@ -14,16 +14,7 @@ import (
 func DroppedFields(cfg *config.Config) []string {
 	var dropped []string
 
-	if len(cfg.Tickets) > 0 {
-		dropped = append(dropped, "tickets")
-	}
-	if cfg.RemoteMetadata != "" {
-		dropped = append(dropped, "remote_metadata")
-	}
 	if cfg.Release != nil {
-		if len(cfg.Release.Assets) > 0 {
-			dropped = append(dropped, "release.assets")
-		}
 		for _, p := range cfg.Release.Platforms {
 			dropped = append(dropped, platformDroppedFields(p, "release.platforms."+p.Name)...)
 		}
