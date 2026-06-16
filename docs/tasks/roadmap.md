@@ -4509,7 +4509,7 @@ Resolved open questions from the spike:
 > no-mismatch, mismatch-longer, nil-release). Confirmed red before implementing.
 > `go build`/`go vet`/`golangci-lint` clean; `go test ./...` → 992 passed, 22 packages.
 
-#### `[ ]` T109: `heraut init` update flow — carry through per-env content overrides (`changelog`/`release`)
+#### `[x]` T109: `heraut init` update flow — carry through per-env content overrides (`changelog`/`release`)
 
 Same design spike as T108 (`.claude/plans/t108-init-override-carryover-design.md`),
 applied to `environments.<name>.{changelog,release}`. Unlike platforms, `EnvAnswer`
@@ -4531,6 +4531,15 @@ otherwise this task adds the env half of that check).
 **Files:** `internal/scaffold/{wizard.go,generate.go,dropped.go}` + tests,
 `internal/cmd/init.go` (+ `init_internal_test.go`). **Scope:** M.
 **Dependencies:** T99, T107, T108 (shares the snapshot/match pattern T108 introduces).
+
+**Completed 2026-06-16.** Added `matchEnvSnapshot` (name-based matching, analogous to
+T108's type-scoped `matchPlatformSnapshot`). `runEnvWizard` snapshots `a.Environments`
+before reset and calls `matchEnvSnapshot` after the loop to reattach `Changelog`/`Release`
+by name. `answersToConfig` writes both passthrough fields onto `config.Environment`.
+`DroppedFields` now returns nil (all wizard-handled fields are carried through); `DroppedEnvFields`
+replaces the old pre-wizard check with a targeted post-wizard warning, surfaced via a second
+`printDroppedFieldsWarning` call in `init.go`. Old tests for the removed `DroppedFields`
+env behavior deleted; 4 `matchEnvSnapshot` unit tests + 3 `DroppedEnvFields` tests added.
 
 ---
 

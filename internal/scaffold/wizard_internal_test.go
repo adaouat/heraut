@@ -3,6 +3,7 @@ package scaffold
 import (
 	"testing"
 
+	"github.com/adaouat/heraut/internal/config"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -130,6 +131,60 @@ func TestMatchPlatformSnapshot_TypeScoped(t *testing.T) {
 func TestMatchPlatformSnapshot_EmptyRebuilt(t *testing.T) {
 	original := []PlatformAnswer{{Type: "github", Name: "gh-com", Draft: true}}
 	result := matchPlatformSnapshot(original, nil)
+	assert.Empty(t, result)
+}
+
+func TestMatchEnvSnapshot_SingleMatch(t *testing.T) {
+	original := []EnvAnswer{
+		{Name: "prod", Bump: "auto", Changelog: &config.ContentDriver{Generator: "git-cliff"}},
+	}
+	rebuilt := []EnvAnswer{
+		{Name: "prod", Bump: "auto"},
+	}
+	result := matchEnvSnapshot(original, rebuilt)
+	require.Len(t, result, 1)
+	assert.Equal(t, "prod", result[0].Name)
+	require.NotNil(t, result[0].Changelog)
+	assert.Equal(t, "git-cliff", result[0].Changelog.Generator)
+}
+
+func TestMatchEnvSnapshot_NoMatchForRenamedEntry(t *testing.T) {
+	original := []EnvAnswer{
+		{Name: "prod", Bump: "auto", Changelog: &config.ContentDriver{Generator: "git-cliff"}},
+	}
+	rebuilt := []EnvAnswer{
+		{Name: "production", Bump: "auto"},
+	}
+	result := matchEnvSnapshot(original, rebuilt)
+	require.Len(t, result, 1)
+	assert.Equal(t, "production", result[0].Name)
+	assert.Nil(t, result[0].Changelog, "renamed entry has no snapshot match")
+}
+
+func TestMatchEnvSnapshot_MultipleEnvs(t *testing.T) {
+	driver := &config.ContentDriver{Generator: "git-cliff"}
+	rel := &config.EnvRelease{Notes: &config.ContentDriver{Generator: "communique"}}
+	original := []EnvAnswer{
+		{Name: "dev", Bump: "auto"},
+		{Name: "prod", Bump: "promote", Changelog: driver, Release: rel},
+	}
+	rebuilt := []EnvAnswer{
+		{Name: "dev", Bump: "auto"},
+		{Name: "prod", Bump: "promote"},
+	}
+	result := matchEnvSnapshot(original, rebuilt)
+	require.Len(t, result, 2)
+	assert.Nil(t, result[0].Changelog)
+	require.NotNil(t, result[1].Changelog)
+	assert.Equal(t, "git-cliff", result[1].Changelog.Generator)
+	require.NotNil(t, result[1].Release)
+}
+
+func TestMatchEnvSnapshot_EmptyRebuilt(t *testing.T) {
+	original := []EnvAnswer{
+		{Name: "prod", Changelog: &config.ContentDriver{Generator: "git-cliff"}},
+	}
+	result := matchEnvSnapshot(original, nil)
 	assert.Empty(t, result)
 }
 

@@ -306,6 +306,48 @@ func TestGenerateYAML_PlatformPassthroughFieldsRoundTrip(t *testing.T) {
 	assert.True(t, p.Prerelease)
 }
 
+func TestConfigToAnswers_PreservesEnvPassthroughFields(t *testing.T) {
+	driver := &config.ContentDriver{Generator: "git-cliff", Output: "CHANGELOG.md"}
+	cfg := &config.Config{
+		Version:    "1",
+		Versioning: config.Versioning{Strategy: "semver-per-env"},
+		Environments: map[string]config.Environment{
+			"prod": {
+				Bump:      "auto",
+				Changelog: driver,
+				Release:   &config.EnvRelease{Notes: &config.ContentDriver{Generator: "communique"}},
+			},
+		},
+	}
+	a := scaffold.ConfigToAnswers(cfg)
+	require.Len(t, a.Environments, 1)
+	assert.Equal(t, driver, a.Environments[0].Changelog)
+	assert.NotNil(t, a.Environments[0].Release)
+}
+
+func TestGenerateYAML_EnvPassthroughFieldsRoundTrip(t *testing.T) {
+	a := scaffold.Answers{
+		Strategy: "semver-per-env",
+		Environments: []scaffold.EnvAnswer{
+			{
+				Name:      "prod",
+				Bump:      "auto",
+				Changelog: &config.ContentDriver{Generator: "git-cliff", Output: "CHANGELOG.md"},
+				Release:   &config.EnvRelease{Notes: &config.ContentDriver{Generator: "communique"}},
+			},
+		},
+	}
+	out, err := scaffold.GenerateYAML(a, "dev")
+	require.NoError(t, err)
+	cfg, err := config.LoadFromReader(strings.NewReader(stripHeader(out)))
+	require.NoError(t, err)
+	prod := cfg.Environments["prod"]
+	require.NotNil(t, prod.Changelog)
+	assert.Equal(t, "git-cliff", prod.Changelog.Generator)
+	require.NotNil(t, prod.Release)
+	assert.Equal(t, "communique", prod.Release.Notes.Generator)
+}
+
 func TestConfigToAnswers_DefaultsEmptyChangelogOutput(t *testing.T) {
 	cfg := &config.Config{
 		Version: "1",

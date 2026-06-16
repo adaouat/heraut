@@ -72,6 +72,8 @@ func answersToConfig(a Answers) config.Config {
 				Branch:           e.Branch,
 				DisableChangelog: e.DisableChangelog,
 				DisableNotes:     e.DisableNotes,
+				Changelog:        e.Changelog,
+				Release:          e.Release,
 			}
 		}
 	}

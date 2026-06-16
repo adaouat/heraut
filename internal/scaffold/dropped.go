@@ -7,19 +7,31 @@ import (
 	"github.com/adaouat/heraut/internal/config"
 )
 
-// DroppedFields returns the YAML paths of settings present in cfg that ConfigToAnswers
-// and GenerateYAML do not preserve. The "Update it?" flow in `heraut init` uses this to
-// warn the user before regenerating the config, since these settings would otherwise be
-// silently dropped from the rewritten file.
-func DroppedFields(cfg *config.Config) []string {
-	var dropped []string
-
+// DroppedEnvFields returns the YAML paths of per-environment settings that could not be
+// matched after the wizard ran. An env is "lost" when the original config contained an
+// environment that no rebuilt entry matched by name — i.e. the user renamed or removed
+// an environment during the wizard.
+//
+// Call this after RunWizard (post-wizard) to emit a targeted warning only when carry-
+// through actually failed, rather than a pre-wizard "these might be dropped" notice.
+func DroppedEnvFields(cfg *config.Config, rebuilt []EnvAnswer) []string {
+	if len(cfg.Environments) == 0 {
+		return nil
+	}
+	rebuiltNames := make(map[string]bool, len(rebuilt))
+	for _, e := range rebuilt {
+		rebuiltNames[e.Name] = true
+	}
 	envNames := make([]string, 0, len(cfg.Environments))
 	for name := range cfg.Environments {
 		envNames = append(envNames, name)
 	}
 	sort.Strings(envNames)
+	var dropped []string
 	for _, name := range envNames {
+		if rebuiltNames[name] {
+			continue
+		}
 		env := cfg.Environments[name]
 		if env.Changelog != nil {
 			dropped = append(dropped, fmt.Sprintf("environments.%s.changelog", name))
@@ -28,8 +40,15 @@ func DroppedFields(cfg *config.Config) []string {
 			dropped = append(dropped, fmt.Sprintf("environments.%s.release", name))
 		}
 	}
-
 	return dropped
+}
+
+// DroppedFields returns the YAML paths of settings present in cfg that ConfigToAnswers
+// and GenerateYAML do not preserve. The "Update it?" flow in `heraut init` uses this to
+// warn the user before regenerating the config, since these settings would otherwise be
+// silently dropped from the rewritten file.
+func DroppedFields(cfg *config.Config) []string {
+	return nil
 }
 
 // DroppedPlatformFields returns the YAML paths of per-platform settings that could not

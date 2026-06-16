@@ -71,6 +71,10 @@ type EnvAnswer struct {
 	Branch           string
 	DisableChangelog bool
 	DisableNotes     bool
+
+	// Passthrough fields: not wizard-editable, carried verbatim from existing config (T109).
+	Changelog *config.ContentDriver
+	Release   *config.EnvRelease
 }
 
 // calverPresets lists opinionated CalVer format choices.
@@ -153,6 +157,8 @@ func ConfigToAnswers(cfg *config.Config) Answers {
 			Branch:           env.Branch,
 			DisableChangelog: env.DisableChangelog,
 			DisableNotes:     env.DisableNotes,
+			Changelog:        env.Changelog,
+			Release:          env.Release,
 		})
 	}
 
@@ -390,6 +396,25 @@ func matchPlatformSnapshot(original, rebuilt []PlatformAnswer) []PlatformAnswer 
 	return result
 }
 
+// matchEnvSnapshot carries passthrough fields (Changelog, Release) from the pre-wizard
+// snapshot to the rebuilt environment list using name-based matching. Rebuilt entries
+// with no name match in original are returned unchanged.
+func matchEnvSnapshot(original, rebuilt []EnvAnswer) []EnvAnswer {
+	byName := make(map[string]EnvAnswer, len(original))
+	for _, e := range original {
+		byName[e.Name] = e
+	}
+	result := make([]EnvAnswer, len(rebuilt))
+	for i, e := range rebuilt {
+		if orig, ok := byName[e.Name]; ok {
+			e.Changelog = orig.Changelog
+			e.Release = orig.Release
+		}
+		result[i] = e
+	}
+	return result
+}
+
 func runPlatformWizard(a *Answers) error {
 	snapshot := a.Platforms
 	a.Platforms = nil
@@ -527,6 +552,7 @@ func runPlatformWizard(a *Answers) error {
 }
 
 func runEnvWizard(a *Answers) error {
+	snapshot := a.Environments
 	a.Environments = nil
 	var addEnv bool
 
@@ -576,6 +602,7 @@ func runEnvWizard(a *Answers) error {
 		}
 	}
 
+	a.Environments = matchEnvSnapshot(snapshot, a.Environments)
 	return nil
 }
 

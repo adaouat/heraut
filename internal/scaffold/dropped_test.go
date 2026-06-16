@@ -118,7 +118,7 @@ func TestDroppedPlatformFields_NilRelease(t *testing.T) {
 	assert.Empty(t, scaffold.DroppedPlatformFields(cfg, nil))
 }
 
-func TestDroppedFields_EnvChangelogOverride(t *testing.T) {
+func TestDroppedFields_EnvChangelogOverride_NotDropped(t *testing.T) {
 	cfg := &config.Config{
 		Version:    "1",
 		Versioning: config.Versioning{Strategy: "semver-per-env"},
@@ -126,10 +126,10 @@ func TestDroppedFields_EnvChangelogOverride(t *testing.T) {
 			"prod": {Bump: "auto", Changelog: &config.ContentDriver{Generator: "git-cliff"}},
 		},
 	}
-	assert.Equal(t, []string{"environments.prod.changelog"}, scaffold.DroppedFields(cfg))
+	assert.Empty(t, scaffold.DroppedFields(cfg), "env.changelog is carried through via passthrough fields (T109)")
 }
 
-func TestDroppedFields_EnvReleaseOverride(t *testing.T) {
+func TestDroppedFields_EnvReleaseOverride_NotDropped(t *testing.T) {
 	cfg := &config.Config{
 		Version:    "1",
 		Versioning: config.Versioning{Strategy: "semver-per-env"},
@@ -137,17 +137,31 @@ func TestDroppedFields_EnvReleaseOverride(t *testing.T) {
 			"prod": {Bump: "auto", Release: &config.EnvRelease{Notes: &config.ContentDriver{Generator: "git-cliff"}}},
 		},
 	}
-	assert.Equal(t, []string{"environments.prod.release"}, scaffold.DroppedFields(cfg))
+	assert.Empty(t, scaffold.DroppedFields(cfg), "env.release is carried through via passthrough fields (T109)")
 }
 
-func TestDroppedFields_MultipleEnvsSortedByName(t *testing.T) {
+func TestDroppedEnvFields_NoMismatch(t *testing.T) {
 	cfg := &config.Config{
-		Version:    "1",
-		Versioning: config.Versioning{Strategy: "semver-per-env"},
 		Environments: map[string]config.Environment{
-			"staging": {Bump: "auto", Changelog: &config.ContentDriver{Generator: "git-cliff"}},
-			"prod":    {Bump: "auto", Changelog: &config.ContentDriver{Generator: "git-cliff"}},
+			"prod": {Bump: "auto", Changelog: &config.ContentDriver{Generator: "git-cliff"}},
 		},
 	}
-	assert.Equal(t, []string{"environments.prod.changelog", "environments.staging.changelog"}, scaffold.DroppedFields(cfg))
+	rebuilt := []scaffold.EnvAnswer{{Name: "prod", Bump: "auto"}}
+	assert.Empty(t, scaffold.DroppedEnvFields(cfg, rebuilt), "name matched → no drops")
+}
+
+func TestDroppedEnvFields_Mismatch_Renamed(t *testing.T) {
+	cfg := &config.Config{
+		Environments: map[string]config.Environment{
+			"prod": {Bump: "auto", Changelog: &config.ContentDriver{Generator: "git-cliff"}},
+		},
+	}
+	rebuilt := []scaffold.EnvAnswer{{Name: "production", Bump: "auto"}}
+	dropped := scaffold.DroppedEnvFields(cfg, rebuilt)
+	assert.Contains(t, dropped, "environments.prod.changelog")
+}
+
+func TestDroppedEnvFields_NoEnvironments(t *testing.T) {
+	cfg := &config.Config{}
+	assert.Empty(t, scaffold.DroppedEnvFields(cfg, nil))
 }

@@ -77,9 +77,10 @@ func NewInitCmd(version string) *cobra.Command {
 				if err := scaffold.RunWizard(&answers); err != nil {
 					return fmt.Errorf("wizard failed: %w", err)
 				}
-				// Post-wizard: warn about per-platform fields that couldn't be
-				// matched to the rebuilt platform list (add/remove/reorder/type-change).
+				// Post-wizard: warn about per-platform or per-env fields that couldn't
+				// be matched to the rebuilt lists (add/remove/reorder/rename/type-change).
 				printDroppedFieldsWarning(out, scaffold.DroppedPlatformFields(existingCfg, answers.Platforms))
+				printDroppedFieldsWarning(out, scaffold.DroppedEnvFields(existingCfg, answers.Environments))
 			}
 
 			content, err := scaffold.GenerateYAML(answers, version)
