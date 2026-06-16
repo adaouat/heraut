@@ -4514,7 +4514,7 @@ otherwise this task adds the env half of that check).
 
 ### Phase 19 — Branch-based environment auto-detection
 
-#### `[ ]` T110: `--env auto` — resolve target environment from current branch on per-env strategies
+#### `[x]` T110: `--env auto` — resolve target environment from current branch on per-env strategies
 
 Add `"auto"` as a sentinel value for the global `--env` flag. When `--env auto` is
 passed on a per-env strategy (`semver-per-env`, `calver-per-env`), heraut reads the
@@ -4542,6 +4542,26 @@ Branch matching is exact-string against `config.Environment.Branch` (the current
 **Files:** `internal/app/env.go` (new), `internal/app/env_test.go` (new),
 `internal/cmd/{release,changelog,version,cliff,check}.go` (one-liner each).
 **Scope:** S. **Dependencies:** none.
+
+> `app.ResolveEnv(env string, cfg *config.Config, runner port.Runner) (string, error)` in
+> `internal/app/env.go`: passthrough for `env != "auto"`; for `"auto"`, guards on nil
+> cfg (heraut check allows no config), then checks per-env strategy, runs
+> `git rev-parse --abbrev-ref HEAD`, fails on `"HEAD"` (detached), scans
+> `cfg.Environments` for `Branch` matches, returns the single match or fails with an
+> actionable message (no match / multiple matches). Multiple matches are sorted before
+> formatting so the error is deterministic.
+>
+> Five command files wired: `release.go`/`changelog.go` call with `readRunner` (non-dry-run
+> runner, consistent with how both already use it for read-only git calls); `version.go`
+> (next + current) and `check.go` (main + runtime sub-command) call with their existing
+> `runner`; `cliff.go` required adding `execadapter.New(false, false)` and importing
+> `execadapter` (both sub-commands share the same pattern).
+>
+> TDD: 9 test cases in `env_test.go` — passthrough (non-auto, empty), nil cfg, non-per-env
+> strategy (semver, calver), git error, detached HEAD, no match, single match, multiple
+> match. Confirmed red (compile error: `app.ResolveEnv` undefined) before implementing.
+> `go build`/`go vet`/`golangci-lint` clean; `go test ./...` → 983 passed, 22 packages
+> (972 + 9 new + 2 new from nil-cfg test added during wiring).
 
 ---
 

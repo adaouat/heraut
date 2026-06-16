@@ -58,6 +58,11 @@ func NewCheckCmd() *cobra.Command {
 				}
 			}
 
+			env, err = app.ResolveEnv(env, cfg, runner)
+			if err != nil {
+				return exitcode.Wrap(exitcode.Config, err)
+			}
+
 			// Runtime section (Git / Platforms / Generators — headers emitted by RuntimeCheck)
 			failed += runRuntimeCheck(runner, cfg, env, out)
 
@@ -135,6 +140,11 @@ func newCheckRuntimeCmd() *cobra.Command {
 				}
 				_, _ = fmt.Fprintln(out, ui.Warn(out, fmt.Sprintf("no config found at %s — all tools checked as required", path)))
 				cfg = nil
+			}
+
+			env, err = app.ResolveEnv(env, cfg, runner)
+			if err != nil {
+				return exitcode.Wrap(exitcode.Config, err)
 			}
 
 			if failed := runRuntimeCheck(runner, cfg, env, out); failed > 0 {

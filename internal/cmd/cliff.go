@@ -3,6 +3,7 @@ package cmd
 import (
 	"fmt"
 
+	execadapter "github.com/adaouat/forge/exec"
 	"github.com/adaouat/heraut/internal/app"
 	"github.com/adaouat/heraut/internal/config"
 	"github.com/adaouat/heraut/internal/exitcode"
@@ -34,6 +35,12 @@ func newCliffChangelogCmd() *cobra.Command {
 				return exitcode.Wrap(exitcode.Config, fmt.Errorf("loading config: %w", err))
 			}
 
+			runner := execadapter.New(false, false)
+			env, err = app.ResolveEnv(env, cfg, runner)
+			if err != nil {
+				return exitcode.Wrap(exitcode.Config, err)
+			}
+
 			toml, err := app.EffectiveCliffConfig(cfg, cfg.Changelog, "changelog", env)
 			if err != nil {
 				return exitcode.Wrap(exitcode.Runtime, err)
@@ -56,6 +63,12 @@ func newCliffReleaseNotesCmd() *cobra.Command {
 			cfg, err := config.Load(path)
 			if err != nil {
 				return exitcode.Wrap(exitcode.Config, fmt.Errorf("loading config: %w", err))
+			}
+
+			runner := execadapter.New(false, false)
+			env, err = app.ResolveEnv(env, cfg, runner)
+			if err != nil {
+				return exitcode.Wrap(exitcode.Config, err)
 			}
 
 			var notesDriver *config.ContentDriver

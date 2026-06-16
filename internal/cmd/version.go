@@ -45,6 +45,11 @@ func newVersionNextCmd() *cobra.Command {
 				return exitcode.Wrap(exitcode.Config, fmt.Errorf("%d error(s) in config", len(errs)))
 			}
 
+			env, err = app.ResolveEnv(env, cfg, runner)
+			if err != nil {
+				return exitcode.Wrap(exitcode.Config, err)
+			}
+
 			if err := app.CheckBranch(runner, cfg, env, force); err != nil {
 				return exitcode.Wrap(exitcode.Runtime, err)
 			}
@@ -87,6 +92,11 @@ func newVersionCurrentCmd() *cobra.Command {
 			if errs := config.Validate(cfg); len(errs) > 0 {
 				printConfigErrors(errs, cmd.OutOrStdout())
 				return exitcode.Wrap(exitcode.Config, fmt.Errorf("%d error(s) in config", len(errs)))
+			}
+
+			env, err = app.ResolveEnv(env, cfg, runner)
+			if err != nil {
+				return exitcode.Wrap(exitcode.Config, err)
 			}
 
 			if err := app.CheckBranch(runner, cfg, env, force); err != nil {

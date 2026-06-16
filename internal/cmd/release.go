@@ -65,6 +65,11 @@ func NewReleaseCmd() *cobra.Command {
 				return exitcode.Wrap(exitcode.Config, fmt.Errorf("configuration is invalid"))
 			}
 
+			env, err = app.ResolveEnv(env, cfg, readRunner)
+			if err != nil {
+				return exitcode.Wrap(exitcode.Config, err)
+			}
+
 			if !hasEffectivePlatforms(cfg, env) {
 				return exitcode.Wrap(exitcode.Config, fmt.Errorf(
 					"heraut release requires at least one entry in release.platforms — use 'heraut changelog' for tag-only workflows",

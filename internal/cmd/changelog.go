@@ -62,6 +62,11 @@ func NewChangelogCmd() *cobra.Command {
 				return exitcode.Wrap(exitcode.Config, fmt.Errorf("configuration is invalid"))
 			}
 
+			env, err = app.ResolveEnv(env, cfg, readRunner)
+			if err != nil {
+				return exitcode.Wrap(exitcode.Config, err)
+			}
+
 			resolver, err := app.NewResolver(cfg, env, force, versionOverride, buildID, readRunner)
 			if err != nil {
 				return exitcode.Wrap(exitcode.Config, err)
