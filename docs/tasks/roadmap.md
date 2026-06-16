@@ -4450,7 +4450,7 @@ Remove these three categories from `DroppedFields`'s output (and its tests).
 > warn" framing, not a deleted assertion. `go build`/`go vet`/`golangci-lint` clean;
 > `go test ./...` → 972 passed, 22 packages (970 + 2 new).
 
-#### `[ ]` T108: `heraut init` update flow — carry through per-platform release overrides (`base_url`/`draft`/`prerelease`)
+#### `[x]` T108: `heraut init` update flow — carry through per-platform release overrides (`base_url`/`draft`/`prerelease`)
 
 Design spike completed: `.claude/plans/t108-init-override-carryover-design.md`.
 **Approach A (type-scoped positional matching)**, chosen over skipping the
@@ -4486,6 +4486,28 @@ Resolved open questions from the spike:
 **Files:** `internal/scaffold/{wizard.go,generate.go,dropped.go}` + tests,
 `internal/cmd/init.go` (+ `init_internal_test.go`). **Scope:** M.
 **Dependencies:** T99, T107.
+
+> Added `Name string`, `BaseURL string`, `Draft bool`, `Prerelease bool` passthrough
+> fields to `PlatformAnswer`. `ConfigToAnswers` copies them from each
+> `cfg.Release.Platforms[i]`. `runPlatformWizard` snapshots `a.Platforms` before reset
+> and calls `matchPlatformSnapshot(snapshot, rebuilt)` after the wizard loop —
+> `matchPlatformSnapshot` groups original entries by `Type` and applies each type's
+> entries positionally to rebuilt entries of the same type; unmatched rebuilt entries
+> keep zero values (new-platform behavior). `answersToConfig` uses `p.Name` when
+> non-empty, else falls back to `type`/`type-N`; writes `BaseURL`/`Draft`/`Prerelease`
+> directly onto `config.Platform`. `DroppedFields` per-platform checks removed entirely;
+> replaced by `DroppedPlatformFields(cfg, rebuilt []PlatformAnswer)` (post-wizard) which
+> only warns for original entries whose type-ordinal exceeds the rebuilt list — i.e. only
+> on actual add/remove/reorder/type-change, not the common "re-run init, keep same
+> platforms" case. `internal/cmd/init.go` saves `existingCfg` and calls
+> `DroppedPlatformFields` after `RunWizard` returns (before the "write?" confirm).
+>
+> TDD: 3 new generate_test.go cases (ConfigToAnswers preserves fields; GenerateYAML uses
+> passthrough name; round-trip BaseURL/Draft/Prerelease); 4 wizard_internal_test.go cases
+> (single match, no-match-for-new-entry, type-scoped, empty-rebuilt); 5 dropped_test.go
+> cases (PlatformBaseURL/DraftPrerelease not-dropped variants; DroppedPlatformFields
+> no-mismatch, mismatch-longer, nil-release). Confirmed red before implementing.
+> `go build`/`go vet`/`golangci-lint` clean; `go test ./...` → 992 passed, 22 packages.
 
 #### `[ ]` T109: `heraut init` update flow — carry through per-env content overrides (`changelog`/`release`)
 

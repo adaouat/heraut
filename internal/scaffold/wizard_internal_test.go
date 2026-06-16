@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestBuildSchemaURL(t *testing.T) {
@@ -74,6 +75,62 @@ func TestParseRemoteProject(t *testing.T) {
 			assert.Equal(t, tc.want, parseRemoteProject(tc.url))
 		})
 	}
+}
+
+func TestMatchPlatformSnapshot_SingleMatch(t *testing.T) {
+	original := []PlatformAnswer{
+		{Type: "github", Name: "gh-internal", BaseURL: "https://github.example.com", Draft: true, Prerelease: true},
+	}
+	rebuilt := []PlatformAnswer{
+		{Type: "github", Repository: "org/repo", TokenEnv: "GH_TOKEN"},
+	}
+	result := matchPlatformSnapshot(original, rebuilt)
+	require.Len(t, result, 1)
+	assert.Equal(t, "gh-internal", result[0].Name)
+	assert.Equal(t, "https://github.example.com", result[0].BaseURL)
+	assert.True(t, result[0].Draft)
+	assert.True(t, result[0].Prerelease)
+	assert.Equal(t, "org/repo", result[0].Repository)
+	assert.Equal(t, "GH_TOKEN", result[0].TokenEnv)
+}
+
+func TestMatchPlatformSnapshot_NoMatchForNewEntry(t *testing.T) {
+	original := []PlatformAnswer{
+		{Type: "github", Name: "gh-one", Draft: true},
+	}
+	rebuilt := []PlatformAnswer{
+		{Type: "github", Repository: "org/repo-1"},
+		{Type: "github", Repository: "org/repo-2"},
+	}
+	result := matchPlatformSnapshot(original, rebuilt)
+	require.Len(t, result, 2)
+	assert.Equal(t, "gh-one", result[0].Name)
+	assert.True(t, result[0].Draft)
+	assert.Equal(t, "", result[1].Name, "extra rebuilt entry has no snapshot match")
+	assert.False(t, result[1].Draft)
+}
+
+func TestMatchPlatformSnapshot_TypeScoped(t *testing.T) {
+	original := []PlatformAnswer{
+		{Type: "github", Name: "gh-internal", BaseURL: "https://github.example.com"},
+		{Type: "gitlab", Name: "gl-com", BaseURL: "https://gitlab.com"},
+	}
+	rebuilt := []PlatformAnswer{
+		{Type: "github", Repository: "org/repo"},
+		{Type: "gitlab", Project: "ns/project"},
+	}
+	result := matchPlatformSnapshot(original, rebuilt)
+	require.Len(t, result, 2)
+	assert.Equal(t, "gh-internal", result[0].Name)
+	assert.Equal(t, "https://github.example.com", result[0].BaseURL)
+	assert.Equal(t, "gl-com", result[1].Name)
+	assert.Equal(t, "https://gitlab.com", result[1].BaseURL)
+}
+
+func TestMatchPlatformSnapshot_EmptyRebuilt(t *testing.T) {
+	original := []PlatformAnswer{{Type: "github", Name: "gh-com", Draft: true}}
+	result := matchPlatformSnapshot(original, nil)
+	assert.Empty(t, result)
 }
 
 func TestResolveTokenChoice(t *testing.T) {

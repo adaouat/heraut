@@ -38,6 +38,7 @@ func NewInitCmd(version string) *cobra.Command {
 
 			var answers scaffold.Answers
 			existingLoaded := false
+			var existingCfg *config.Config
 
 			_, statErr := os.Stat(path)
 			fileExists := statErr == nil
@@ -63,6 +64,7 @@ func NewInitCmd(version string) *cobra.Command {
 				if cfg, err := config.Load(path); err == nil {
 					answers = scaffold.ConfigToAnswers(cfg)
 					existingLoaded = true
+					existingCfg = cfg
 					printDroppedFieldsWarning(out, scaffold.DroppedFields(cfg))
 				}
 			}
@@ -75,6 +77,9 @@ func NewInitCmd(version string) *cobra.Command {
 				if err := scaffold.RunWizard(&answers); err != nil {
 					return fmt.Errorf("wizard failed: %w", err)
 				}
+				// Post-wizard: warn about per-platform fields that couldn't be
+				// matched to the rebuilt platform list (add/remove/reorder/type-change).
+				printDroppedFieldsWarning(out, scaffold.DroppedPlatformFields(existingCfg, answers.Platforms))
 			}
 
 			content, err := scaffold.GenerateYAML(answers, version)

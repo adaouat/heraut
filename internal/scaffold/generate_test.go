@@ -246,6 +246,66 @@ func TestGenerateYAML_AssetsTicketsRemoteMetadata(t *testing.T) {
 	assert.Equal(t, []string{"dist/*.tar.gz"}, cfg.Release.Assets)
 }
 
+func TestConfigToAnswers_PreservesPlatformPassthroughFields(t *testing.T) {
+	cfg := &config.Config{
+		Version:    "1",
+		Versioning: config.Versioning{Strategy: "semver"},
+		Release: &config.Release{
+			Platforms: []config.Platform{
+				{
+					Name: "gh-internal", Type: "github", Repository: "org/repo",
+					BaseURL: "https://github.example.com", Draft: true, Prerelease: true,
+					TokenEnv: "GH_TOKEN",
+				},
+			},
+		},
+	}
+	a := scaffold.ConfigToAnswers(cfg)
+	require.Len(t, a.Platforms, 1)
+	assert.Equal(t, "gh-internal", a.Platforms[0].Name)
+	assert.Equal(t, "https://github.example.com", a.Platforms[0].BaseURL)
+	assert.True(t, a.Platforms[0].Draft)
+	assert.True(t, a.Platforms[0].Prerelease)
+}
+
+func TestGenerateYAML_PlatformUsesPassthroughName(t *testing.T) {
+	a := scaffold.Answers{
+		Strategy:       "semver",
+		NotesGenerator: "git-cliff",
+		Platforms: []scaffold.PlatformAnswer{
+			{Name: "gh-internal", Type: "github", Repository: "org/repo", TokenEnv: "GH_TOKEN"},
+		},
+	}
+	out, err := scaffold.GenerateYAML(a, "dev")
+	require.NoError(t, err)
+	cfg, err := config.LoadFromReader(strings.NewReader(stripHeader(out)))
+	require.NoError(t, err)
+	require.Len(t, cfg.Release.Platforms, 1)
+	assert.Equal(t, "gh-internal", cfg.Release.Platforms[0].Name)
+}
+
+func TestGenerateYAML_PlatformPassthroughFieldsRoundTrip(t *testing.T) {
+	a := scaffold.Answers{
+		Strategy:       "semver",
+		NotesGenerator: "git-cliff",
+		Platforms: []scaffold.PlatformAnswer{
+			{
+				Name: "gh-internal", Type: "github", Repository: "org/repo", TokenEnv: "GH_TOKEN",
+				BaseURL: "https://github.example.com", Draft: true, Prerelease: true,
+			},
+		},
+	}
+	out, err := scaffold.GenerateYAML(a, "dev")
+	require.NoError(t, err)
+	cfg, err := config.LoadFromReader(strings.NewReader(stripHeader(out)))
+	require.NoError(t, err)
+	require.Len(t, cfg.Release.Platforms, 1)
+	p := cfg.Release.Platforms[0]
+	assert.Equal(t, "https://github.example.com", p.BaseURL)
+	assert.True(t, p.Draft)
+	assert.True(t, p.Prerelease)
+}
+
 func TestConfigToAnswers_DefaultsEmptyChangelogOutput(t *testing.T) {
 	cfg := &config.Config{
 		Version: "1",

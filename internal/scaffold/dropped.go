@@ -14,12 +14,6 @@ import (
 func DroppedFields(cfg *config.Config) []string {
 	var dropped []string
 
-	if cfg.Release != nil {
-		for _, p := range cfg.Release.Platforms {
-			dropped = append(dropped, platformDroppedFields(p, "release.platforms."+p.Name)...)
-		}
-	}
-
 	envNames := make([]string, 0, len(cfg.Environments))
 	for name := range cfg.Environments {
 		envNames = append(envNames, name)
@@ -38,19 +32,39 @@ func DroppedFields(cfg *config.Config) []string {
 	return dropped
 }
 
-// platformDroppedFields reports the fields of a single platform entry that are not
-// preserved by PlatformAnswer: a base_url overriding the type's default, draft, and
-// prerelease.
-func platformDroppedFields(p config.Platform, path string) []string {
+// DroppedPlatformFields returns the YAML paths of per-platform settings that could not
+// be carried through to the rebuilt platform list after the wizard ran. A field is
+// "dropped" only when the original config had more entries of a given platform type than
+// the rebuilt list — i.e. the user removed or changed the type of a platform during the
+// wizard, leaving a tail of original entries with no positional match.
+//
+// Call this after RunWizard (post-wizard) to emit a targeted warning only when carry-
+// through actually failed, rather than the pre-wizard "these might be dropped" notice
+// that T99 originally placed.
+func DroppedPlatformFields(cfg *config.Config, rebuilt []PlatformAnswer) []string {
+	if cfg.Release == nil {
+		return nil
+	}
+	rebuiltCount := make(map[string]int)
+	for _, p := range rebuilt {
+		rebuiltCount[p.Type]++
+	}
+	typeOrdinal := make(map[string]int)
 	var dropped []string
-	if p.BaseURL != "" && p.BaseURL != config.DefaultBaseURL(p.Type) {
-		dropped = append(dropped, path+".base_url")
-	}
-	if p.Draft {
-		dropped = append(dropped, path+".draft")
-	}
-	if p.Prerelease {
-		dropped = append(dropped, path+".prerelease")
+	for _, p := range cfg.Release.Platforms {
+		typeOrdinal[p.Type]++
+		if typeOrdinal[p.Type] > rebuiltCount[p.Type] {
+			path := "release.platforms." + p.Name
+			if p.BaseURL != "" && p.BaseURL != config.DefaultBaseURL(p.Type) {
+				dropped = append(dropped, path+".base_url")
+			}
+			if p.Draft {
+				dropped = append(dropped, path+".draft")
+			}
+			if p.Prerelease {
+				dropped = append(dropped, path+".prerelease")
+			}
+		}
 	}
 	return dropped
 }

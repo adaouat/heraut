@@ -100,9 +100,12 @@ func answersToConfig(a Answers) config.Config {
 		platformTypeCount := make(map[string]int)
 		for _, p := range a.Platforms {
 			platformTypeCount[p.Type]++
-			name := p.Type
-			if n := platformTypeCount[p.Type]; n > 1 {
-				name = fmt.Sprintf("%s-%d", p.Type, n)
+			name := p.Name
+			if name == "" {
+				name = p.Type
+				if n := platformTypeCount[p.Type]; n > 1 {
+					name = fmt.Sprintf("%s-%d", p.Type, n)
+				}
 			}
 			plat := config.Platform{
 				Name:       name,
@@ -110,6 +113,9 @@ func answersToConfig(a Answers) config.Config {
 				Repository: p.Repository,
 				Project:    p.Project,
 				TokenEnv:   p.TokenEnv,
+				BaseURL:    p.BaseURL,
+				Draft:      p.Draft,
+				Prerelease: p.Prerelease,
 			}
 			cfg.Release.Platforms = append(cfg.Release.Platforms, plat)
 		}

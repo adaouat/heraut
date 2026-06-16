@@ -54,6 +54,12 @@ type PlatformAnswer struct {
 	Repository string // github: "owner/repo"
 	Project    string // gitlab: "namespace/project"
 	TokenEnv   string
+
+	// Passthrough fields: not wizard-editable, carried verbatim from existing config (T108).
+	Name       string
+	BaseURL    string
+	Draft      bool
+	Prerelease bool
 }
 
 // EnvAnswer holds answers for one per-env environment.
@@ -130,6 +136,10 @@ func ConfigToAnswers(cfg *config.Config) Answers {
 				Repository: p.Repository,
 				Project:    p.Project,
 				TokenEnv:   p.TokenEnv,
+				Name:       p.Name,
+				BaseURL:    p.BaseURL,
+				Draft:      p.Draft,
+				Prerelease: p.Prerelease,
 			})
 		}
 	}
@@ -355,7 +365,33 @@ func resolveTokenChoice(platformType, existing string) (choice, custom string) {
 	return "custom", existing
 }
 
+// matchPlatformSnapshot applies passthrough fields (Name, BaseURL, Draft, Prerelease)
+// from the pre-rebuild snapshot to the rebuilt entries using type-scoped positional
+// matching: the n-th rebuilt entry of type T gets the fields from the n-th original
+// entry of type T. Rebuilt entries with no corresponding original get zero values.
+func matchPlatformSnapshot(original, rebuilt []PlatformAnswer) []PlatformAnswer {
+	byType := make(map[string][]PlatformAnswer)
+	for _, p := range original {
+		byType[p.Type] = append(byType[p.Type], p)
+	}
+	consumed := make(map[string]int)
+	result := make([]PlatformAnswer, len(rebuilt))
+	for i, p := range rebuilt {
+		if idx := consumed[p.Type]; idx < len(byType[p.Type]) {
+			orig := byType[p.Type][idx]
+			p.Name = orig.Name
+			p.BaseURL = orig.BaseURL
+			p.Draft = orig.Draft
+			p.Prerelease = orig.Prerelease
+		}
+		consumed[p.Type]++
+		result[i] = p
+	}
+	return result
+}
+
 func runPlatformWizard(a *Answers) error {
+	snapshot := a.Platforms
 	a.Platforms = nil
 	var addPlatform bool
 	first := true
@@ -486,6 +522,7 @@ func runPlatformWizard(a *Answers) error {
 		a.Platforms = append(a.Platforms, p)
 	}
 
+	a.Platforms = matchPlatformSnapshot(snapshot, a.Platforms)
 	return nil
 }
 
