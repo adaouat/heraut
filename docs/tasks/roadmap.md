@@ -4512,6 +4512,39 @@ otherwise this task adds the env half of that check).
 
 ---
 
+### Phase 19 — Branch-based environment auto-detection
+
+#### `[ ]` T110: `--env auto` — resolve target environment from current branch on per-env strategies
+
+Add `"auto"` as a sentinel value for the global `--env` flag. When `--env auto` is
+passed on a per-env strategy (`semver-per-env`, `calver-per-env`), heraut reads the
+current branch name and matches it against configured `environments.<name>.branch`
+values to resolve the env name, then runs the pipeline as if that name had been passed
+explicitly. `--env` remains mandatory for per-env strategies; `--env auto` is the only
+new behavior.
+
+Applies to all commands that accept `--env`:
+`heraut release`, `heraut changelog`, `heraut version next/current`, `heraut cliff`.
+
+**Edge cases — all fail before any pipeline work, with an actionable message:**
+
+| Condition | Error |
+|-----------|-------|
+| `--env auto` on a non-per-env strategy | `` `--env` is only valid with a per-env strategy `` |
+| Detached HEAD (`git rev-parse --abbrev-ref HEAD` returns `HEAD`) | `cannot auto-detect env: HEAD is detached — pass --env explicitly` |
+| No env has a `branch` value matching the current branch | `no env is linked to branch "<branch>" — pass --env explicitly` |
+| Multiple envs share the same `branch` value | `envs "<X>" and "<Y>" both use branch "<branch>" — pass --env explicitly` |
+
+**Implementation:** add `ResolveEnv(env string, cfg *config.Config, runner port.Runner) (string, error)` in `internal/app/` (new file `env.go`). All five `--env`-reading commands (`release.go`, `changelog.go`, `version.go`, `cliff.go`, `check.go`) call `app.ResolveEnv(env, cfg, runner)` immediately after reading the flag; the returned string replaces the raw flag value for the rest of that command's `RunE`. `ResolveEnv` is a no-op passthrough when `env != "auto"`, keeping all non-auto call sites unaffected.
+
+Branch matching is exact-string against `config.Environment.Branch` (the current field semantics). If `branch` is ever relaxed to globs, the multi-match edge case extends naturally.
+
+**Files:** `internal/app/env.go` (new), `internal/app/env_test.go` (new),
+`internal/cmd/{release,changelog,version,cliff,check}.go` (one-liner each).
+**Scope:** S. **Dependencies:** none.
+
+---
+
 ## Risks and mitigations
 
 | Risk                                                                                | Impact            | Mitigation                                                                |
