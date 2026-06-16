@@ -1,5 +1,18 @@
 # Changelog
 
+## [0.34.0](https://github.com/adaouat/heraut/compare/v0.33.0..v0.34.0) - 2026-06-16
+
+### 🚀 Features
+
+- *(cmd)* Add --env auto to resolve environment from current branch - ([801d3fc](https://github.com/adaouat/heraut/commit/801d3fccfbbfec477522a303e34f24e32956560b)) by @bchatard
+
+
+### 📚 Documentation
+
+- *(roadmap)* T108 design spike — choose positional-match carry-through - ([3d99ea5](https://github.com/adaouat/heraut/commit/3d99ea5fa2a7eda5c97ffd3cc94f5860e1f8a46a)) by @bchatard
+
+- *(roadmap)* Add T110 — `--env auto` branch-based env detection - ([16caa8a](https://github.com/adaouat/heraut/commit/16caa8a0950814327360505624d25ebca35b26fe)) by @bchatard
+
 ## [0.33.0](https://github.com/adaouat/heraut/compare/v0.32.0..v0.33.0) - 2026-06-15
 
 ### 🚀 Features
