@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.35.0](https://github.com/adaouat/heraut/compare/v0.34.0..v0.35.0) - 2026-06-16
+
+### 🚀 Features
+
+- *(scaffold)* Carry through per-platform overrides on heraut init update - ([b5cd66e](https://github.com/adaouat/heraut/commit/b5cd66e83b7a5c31f205e340af86d4bc377c0e39)) by @bchatard
+
+- *(scaffold)* Carry through per-env changelog/release on heraut init update (T109) - ([0298873](https://github.com/adaouat/heraut/commit/0298873208a10b414e59276bd907acb7d01c26b8)) by @bchatard
+
 ## [0.34.0](https://github.com/adaouat/heraut/compare/v0.33.0..v0.34.0) - 2026-06-16
 
 ### 🚀 Features
