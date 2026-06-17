@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.35.2](https://github.com/adaouat/heraut/compare/v0.35.1..v0.35.2) - 2026-06-17
+
+### 🐛 Bug Fixes
+
+- *(platforms/gitlab)* Skip token injection in CI autologin mode - ([26d30c9](https://github.com/adaouat/heraut/commit/26d30c92937e7dd2317cb9c4d675bb5f5e8280a8)) by @bchatard
+
 ## [0.35.1](https://github.com/adaouat/heraut/compare/v0.35.0..v0.35.1) - 2026-06-17
 
 ### 🐛 Bug Fixes
