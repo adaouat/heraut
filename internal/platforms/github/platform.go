@@ -109,10 +109,18 @@ func (p *Platform) checkAPIAuth(tokenMissing bool) error {
 	if tokenMissing {
 		return nil
 	}
+	// Use the explicit repository rather than {owner}/{repo} placeholders.
+	// gh resolves placeholders from git remotes, which fails when the remote points to a
+	// different host (e.g. GitLab CI triggering a GitHub release).
+	repo := p.repository()
+	if repo == "" {
+		return nil // Check() already reports the missing repository error.
+	}
+	endpoint := "repos/" + repo + "/releases?per_page=1"
 	env := append(p.tokenEnvSlice(), p.hostEnv()...)
-	_, stderr, err := p.runner.RunEnv(env, "gh", "api", "repos/{owner}/{repo}/releases?per_page=1")
+	_, stderr, err := p.runner.RunEnv(env, "gh", "api", endpoint)
 	if err != nil {
-		return fmt.Errorf("github: API call failed (gh api repos/{owner}/{repo}/releases): %s\n  hint: verify %s is valid and has the necessary scopes", strings.TrimSpace(stderr), p.tokenEnv())
+		return fmt.Errorf("github: API call failed (gh api %s): %s\n  hint: verify %s is valid and has the necessary scopes", endpoint, strings.TrimSpace(stderr), p.tokenEnv())
 	}
 	return nil
 }

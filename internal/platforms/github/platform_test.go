@@ -92,7 +92,6 @@ func TestCheck_RepositoryMissing(t *testing.T) {
 	t.Setenv("GITHUB_ACTIONS", "")
 	mr := exectest.NewMockRunner()
 	mr.QueueResponse("gh version 2.0.0", "", nil)
-	mr.QueueResponse(`[]`, "", nil) // API auth check still runs
 
 	t.Setenv("GH_TOKEN", "tok")
 	t.Setenv("GITHUB_REPOSITORY", "") // CI sets this automatically; clear it for this test
@@ -114,7 +113,7 @@ func TestCheck_OK(t *testing.T) {
 
 	require.Len(t, mr.Calls, 2)
 	assert.Equal(t, []string{"--version"}, mr.Calls[0].Args)
-	assert.Equal(t, []string{"api", "repos/{owner}/{repo}/releases?per_page=1"}, mr.Calls[1].Args)
+	assert.Equal(t, []string{"api", "repos/org/repo/releases?per_page=1"}, mr.Calls[1].Args)
 	assert.Contains(t, mr.Calls[1].Env, "GH_TOKEN=tok")
 }
 
@@ -129,6 +128,25 @@ func TestCheck_APIAuthFails(t *testing.T) {
 	err := p.Check()
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "API call failed")
+}
+
+// TestCheck_NonGitHubActions_UsesExplicitRepo ensures that outside GITHUB_ACTIONS (e.g.
+// GitLab CI triggering a GitHub release), the auth probe uses the explicit owner/repo from
+// config rather than {owner}/{repo} placeholders. gh resolves placeholders from git remotes,
+// which fails when the remote points to GitLab, not GitHub.
+func TestCheck_NonGitHubActions_UsesExplicitRepo(t *testing.T) {
+	t.Setenv("GITHUB_ACTIONS", "")
+	t.Setenv("GITHUB_REPOSITORY", "") // not set — simulating non-GitHub CI
+	mr := exectest.NewMockRunner()
+	mr.QueueResponse("gh version 2.0.0", "", nil)
+	mr.QueueResponse(`[]`, "", nil) // API auth check
+
+	t.Setenv("GH_TOKEN", "tok")
+	p := github.New(mr, &config.Platform{TokenEnv: "GH_TOKEN", Repository: "org/repo"})
+	require.NoError(t, p.Check())
+
+	require.Len(t, mr.Calls, 2)
+	assert.Equal(t, []string{"api", "repos/org/repo/releases?per_page=1"}, mr.Calls[1].Args)
 }
 
 func TestCheck_GitHubActions_OK(t *testing.T) {
@@ -511,6 +529,6 @@ func TestCheck_SelfHosted_SkipsActionsAutologin(t *testing.T) {
 	require.NoError(t, p.Check())
 
 	require.Len(t, mr.Calls, 2)
-	assert.Equal(t, []string{"api", "repos/{owner}/{repo}/releases?per_page=1"}, mr.Calls[1].Args)
+	assert.Equal(t, []string{"api", "repos/org/repo/releases?per_page=1"}, mr.Calls[1].Args)
 	assert.Equal(t, []string{"GH_TOKEN=ent-token", "GH_HOST=github.example.com", "GH_ENTERPRISE_TOKEN=ent-token"}, mr.Calls[1].Env)
 }
