@@ -1,5 +1,16 @@
 # Changelog
 
+## [0.36.0](https://github.com/adaouat/heraut/compare/v0.35.3..v0.36.0) - 2026-06-17
+
+### 🚀 Features
+
+- *(generators/gitcliff)* Forward platform token as GITHUB_TOKEN/GITLAB_TOKEN to git-cliff - ([bdfe96f](https://github.com/adaouat/heraut/commit/bdfe96f1d65e4f42bd043212c88abae6046f8bf1)) by @bchatard
+
+
+### 🐛 Bug Fixes
+
+- *(platforms)* Fall through to configured-token check when CI var is absent - ([55d7b76](https://github.com/adaouat/heraut/commit/55d7b76c5037f6bd29153599e1613add380b98af)) by @bchatard
+
 ## [0.35.3](https://github.com/adaouat/heraut/compare/v0.35.2..v0.35.3) - 2026-06-17
 
 ### 🐛 Bug Fixes
