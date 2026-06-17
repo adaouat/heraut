@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.35.1](https://github.com/adaouat/heraut/compare/v0.35.0..v0.35.1) - 2026-06-17
+
+### 🐛 Bug Fixes
+
+- *(platforms)* Write release notes to temp file to avoid ARG_MAX overflow - ([fc45bcb](https://github.com/adaouat/heraut/commit/fc45bcbf2dc5960d29a89763b500f1ae08654123)) by @bchatard
+
 ## [0.35.0](https://github.com/adaouat/heraut/compare/v0.34.0..v0.35.0) - 2026-06-16
 
 ### 🚀 Features
