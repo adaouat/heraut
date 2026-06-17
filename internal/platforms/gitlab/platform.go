@@ -34,11 +34,7 @@ func New(runner port.Runner, cfg *config.Platform) *Platform {
 func (p *Platform) Name() string { return p.cfg.Name }
 
 func (p *Platform) ReleaseURL(tag string) string {
-	baseURL := p.cfg.BaseURL
-	if baseURL == "" {
-		baseURL = gitlabBaseURL
-	}
-	return fmt.Sprintf("%s/%s/-/releases/%s", baseURL, p.project(), tag)
+	return fmt.Sprintf("%s/%s/-/releases/%s", p.resolveBaseURL(), p.project(), tag)
 }
 
 // LinkContext resolves this platform's link coordinates. GitLab projects may be nested
@@ -51,12 +47,8 @@ func (p *Platform) LinkContext() port.LinkContext {
 	if i := strings.LastIndex(proj, "/"); i >= 0 {
 		owner, repo = proj[:i], proj[i+1:]
 	}
-	baseURL := p.cfg.BaseURL
-	if baseURL == "" {
-		baseURL = gitlabBaseURL
-	}
 	return port.LinkContext{
-		BaseURL:  baseURL,
+		BaseURL:  p.resolveBaseURL(),
 		Owner:    owner,
 		Repo:     repo,
 		Platform: "gitlab",
@@ -263,4 +255,20 @@ func (p *Platform) tokenEnv() string {
 		return p.cfg.TokenEnv
 	}
 	return defaultTokenEnv
+}
+
+// resolveBaseURL returns the effective base URL: cfg.BaseURL when set, CI_SERVER_URL
+// when running in GitLab CI without explicit config, or the default gitlab.com host.
+// This ensures release links point at the actual GitLab instance in self-hosted CI
+// without requiring users to duplicate their server URL in .heraut.yml.
+func (p *Platform) resolveBaseURL() string {
+	if p.cfg.BaseURL != "" {
+		return p.cfg.BaseURL
+	}
+	if os.Getenv("GITLAB_CI") == "true" {
+		if u := os.Getenv("CI_SERVER_URL"); u != "" {
+			return u
+		}
+	}
+	return gitlabBaseURL
 }
