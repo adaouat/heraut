@@ -4596,6 +4596,54 @@ Branch matching is exact-string against `config.Environment.Branch` (the current
 
 ---
 
+### Phase 20 — Pipeline UX and error messages
+
+#### `[ ]` T111: graceful handling when changelog has no new entries to commit
+
+`git commit` exits 1 with "nothing to commit, working tree clean" when git-cliff
+regenerates a CHANGELOG.md whose content is identical to the last commit. This surfaces
+as an opaque `committing changelog: git commit: git: exit status 1` error that gives the
+user no hint of the actual cause.
+
+This legitimately happens in two scenarios:
+- **Re-run after partial success**: a previous heraut run committed the changelog but
+  failed before tagging. The second run regenerates identical content.
+- **No matching commits**: git-cliff found no commits since the last env tag that pass
+  its conventional-commit filter (e.g. all commits are `chore:` and the git-cliff config
+  excludes them, or there are simply no commits between the last matching tag and HEAD).
+  CalVer resolvers advance the version by calendar regardless, so the pipeline still
+  reaches the commit step.
+
+**Expected behavior:** when `git add <changelog>` stages nothing (detected via
+`git diff --cached --quiet` or by checking the `git add` exit code/output), emit a
+clearly labelled diagnostic warning instead of failing:
+
+```
+⚠ CHANGELOG.md unchanged — no new entries since the last <env>-* tag.
+  If this is unexpected, check your git-cliff config (commit types / tag pattern).
+  Continuing with tag and release.
+```
+
+The pipeline then continues to the tag and publish steps — skipping the `git commit` call
+entirely. Failing hard here is wrong for the re-run case and unhelpful for the no-commits
+case (the release should still be created).
+
+**Implementation:** in `internal/pipeline/git.go`, after `git add <file>`, run
+`git diff --cached --quiet` (exit 0 = nothing staged, exit 1 = changes staged). If
+nothing is staged, return a sentinel error or a `(bool, error)` pair so the caller
+(`release.go` step 2 / `changelog.go`) can emit the warning and skip the commit without
+aborting the pipeline. Alternatively, wrap `commitChangelog` to return a typed
+`ErrNothingToCommit` sentinel that the pipeline step checks via `errors.Is`. The warning
+should name the changelog file so it's actionable in multi-file setups.
+
+**Files:** `internal/pipeline/git.go`, `internal/pipeline/release.go`,
+`internal/pipeline/changelog.go`, `internal/pipeline/git_test.go` (new test for the
+nothing-staged path), `internal/pipeline/release_test.go`,
+`internal/pipeline/changelog_test.go`.
+**Scope:** S. **Dependencies:** none.
+
+---
+
 ## Risks and mitigations
 
 | Risk                                                                                | Impact            | Mitigation                                                                |
