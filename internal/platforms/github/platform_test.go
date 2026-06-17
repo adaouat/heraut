@@ -38,6 +38,7 @@ func TestReleaseURL_SelfHosted(t *testing.T) {
 }
 
 func TestLinkContext(t *testing.T) {
+	t.Setenv("GH_TOKEN", "")
 	cfg := &config.Platform{Repository: "acme/widget", BaseURL: "https://github.com"}
 	p := github.New(exectest.NewMockRunner(), cfg)
 	assert.Equal(t, port.LinkContext{
@@ -48,7 +49,22 @@ func TestLinkContext(t *testing.T) {
 	}, p.LinkContext())
 }
 
+func TestLinkContext_Token(t *testing.T) {
+	t.Setenv("GH_TOKEN", "mytoken")
+	cfg := &config.Platform{Repository: "acme/widget", BaseURL: "https://github.com", TokenEnv: "GH_TOKEN"}
+	lc := github.New(exectest.NewMockRunner(), cfg).LinkContext()
+	assert.Equal(t, "mytoken", lc.Token)
+}
+
+func TestLinkContext_Token_CustomEnv(t *testing.T) {
+	t.Setenv("CORP_GH_TOKEN", "corptoken")
+	cfg := &config.Platform{Repository: "acme/widget", TokenEnv: "CORP_GH_TOKEN"}
+	lc := github.New(exectest.NewMockRunner(), cfg).LinkContext()
+	assert.Equal(t, "corptoken", lc.Token)
+}
+
 func TestLinkContext_DefaultBaseURL(t *testing.T) {
+	t.Setenv("GH_TOKEN", "")
 	// BaseURL empty (config not normalized) → falls back to the default host.
 	cfg := &config.Platform{Repository: "acme/widget"}
 	lc := github.New(exectest.NewMockRunner(), cfg).LinkContext()
@@ -56,6 +72,7 @@ func TestLinkContext_DefaultBaseURL(t *testing.T) {
 }
 
 func TestLinkContext_FromEnv(t *testing.T) {
+	t.Setenv("GH_TOKEN", "")
 	t.Setenv("GITHUB_REPOSITORY", "envorg/envrepo")
 	lc := github.New(exectest.NewMockRunner(), &config.Platform{}).LinkContext()
 	assert.Equal(t, "envorg", lc.Owner)

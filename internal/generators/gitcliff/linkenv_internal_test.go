@@ -56,7 +56,64 @@ func TestLinkEnv(t *testing.T) {
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
+			t.Setenv("GITHUB_TOKEN", "")
+			t.Setenv("GITLAB_TOKEN", "")
 			assert.Equal(t, tc.want, linkEnv(&tc.lc))
+		})
+	}
+}
+
+func TestLinkEnv_TokenInjection(t *testing.T) {
+	tests := []struct {
+		name          string
+		lc            port.LinkContext
+		envOverride   map[string]string
+		wantTokenPair string // "KEY=val" expected in result, or "" if not expected
+	}{
+		{
+			name:          "github token injected when GITHUB_TOKEN not set",
+			lc:            port.LinkContext{BaseURL: "https://github.com", Owner: "acme", Repo: "w", Platform: "github", Token: "mytoken"},
+			envOverride:   map[string]string{"GITHUB_TOKEN": ""},
+			wantTokenPair: "GITHUB_TOKEN=mytoken",
+		},
+		{
+			name:          "github token not injected when GITHUB_TOKEN already set",
+			lc:            port.LinkContext{BaseURL: "https://github.com", Owner: "acme", Repo: "w", Platform: "github", Token: "mytoken"},
+			envOverride:   map[string]string{"GITHUB_TOKEN": "existing"},
+			wantTokenPair: "",
+		},
+		{
+			name:          "gitlab token injected when GITLAB_TOKEN not set",
+			lc:            port.LinkContext{BaseURL: "https://gitlab.com", Owner: "grp", Repo: "p", Platform: "gitlab", Token: "gltoken"},
+			envOverride:   map[string]string{"GITLAB_TOKEN": ""},
+			wantTokenPair: "GITLAB_TOKEN=gltoken",
+		},
+		{
+			name:          "gitlab token not injected when GITLAB_TOKEN already set",
+			lc:            port.LinkContext{BaseURL: "https://gitlab.com", Owner: "grp", Repo: "p", Platform: "gitlab", Token: "gltoken"},
+			envOverride:   map[string]string{"GITLAB_TOKEN": "existing"},
+			wantTokenPair: "",
+		},
+		{
+			name:          "no injection when Token is empty",
+			lc:            port.LinkContext{BaseURL: "https://github.com", Owner: "acme", Repo: "w", Platform: "github", Token: ""},
+			envOverride:   map[string]string{"GITHUB_TOKEN": ""},
+			wantTokenPair: "",
+		},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			for k, v := range tc.envOverride {
+				t.Setenv(k, v)
+			}
+			got := linkEnv(&tc.lc)
+			if tc.wantTokenPair != "" {
+				assert.Contains(t, got, tc.wantTokenPair)
+			} else {
+				for _, entry := range got {
+					assert.NotContains(t, entry, "TOKEN=")
+				}
+			}
 		})
 	}
 }

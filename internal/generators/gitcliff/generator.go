@@ -171,7 +171,7 @@ func linkEnv(lc *port.LinkContext) []string {
 		infix, prPath, label = "/-", "merge_requests", "!"
 	}
 
-	return []string{
+	env := []string{
 		"HERAUT_REMOTE_URL=" + remote,
 		"HERAUT_PLATFORM=" + lc.Platform,
 		"HERAUT_COMMIT_URL=" + remote + infix + "/commit/",
@@ -179,6 +179,21 @@ func linkEnv(lc *port.LinkContext) []string {
 		"HERAUT_PR_LABEL=" + label,
 		"HERAUT_COMPARE_URL=" + remote + infix + "/compare/",
 	}
+
+	// Inject the platform token as the standard var git-cliff expects (GITHUB_TOKEN or
+	// GITLAB_TOKEN), but only when not already set — avoids overriding a token the user
+	// explicitly configured in their CI environment.
+	if lc.Token != "" {
+		tokenVar := "GITHUB_TOKEN"
+		if lc.Platform == "gitlab" {
+			tokenVar = "GITLAB_TOKEN"
+		}
+		if os.Getenv(tokenVar) == "" {
+			env = append(env, tokenVar+"="+lc.Token)
+		}
+	}
+
+	return env
 }
 
 // EffectiveChangelogConfig returns the merged TOML for the changelog variant.

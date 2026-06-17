@@ -9,6 +9,7 @@ type LinkContext struct {
 	Owner    string // org / namespace (GitLab group[/subgroup])
 	Repo     string // repository / project name
 	Platform string // "github" | "gitlab" — selects PR (/pull/N) vs MR (/-/merge_requests/N) link shape
+	Token    string // optional; platform API token forwarded to git-cliff as GITHUB_TOKEN or GITLAB_TOKEN
 }
 
 // Generator produces changelog or release-notes text.
