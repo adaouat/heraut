@@ -1,5 +1,23 @@
 # Changelog
 
+## [0.35.3](https://github.com/adaouat/heraut/compare/v0.35.2..v0.35.3) - 2026-06-17
+
+### 🐛 Bug Fixes
+
+- *(platforms/github)* Use explicit repo path in auth probe instead of {owner}/{repo} - ([1c2244e](https://github.com/adaouat/heraut/commit/1c2244ec3e65751d5582d1ff24513e41db723a1b)) by @bchatard
+
+- *(platforms/gitlab)* Use CI_SERVER_URL as base URL fallback in GitLab CI - ([b808bc7](https://github.com/adaouat/heraut/commit/b808bc72f2d66fd8512b0424b238d5bdc22b891a)) by @bchatard
+
+
+### 📚 Documentation
+
+- *(roadmap)* Add T111 — graceful handling when changelog has no new entries - ([4020511](https://github.com/adaouat/heraut/commit/4020511cfb1d39fab2702ae7bdcf161f2de19673)) by @bchatard
+
+
+### ⚙️ Miscellaneous Tasks
+
+- *(gitlab)* Use full name for repo option - ([597a714](https://github.com/adaouat/heraut/commit/597a7144cd5e00d10b708698a8c18bac61ac0cab)) by @bchatard
+
 ## [0.35.2](https://github.com/adaouat/heraut/compare/v0.35.1..v0.35.2) - 2026-06-17
 
 ### 🐛 Bug Fixes
