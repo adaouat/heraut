@@ -75,7 +75,7 @@ func (p *Platform) Check() error {
 
 	tokenEnv := p.tokenEnv()
 	tokenMissing := os.Getenv(tokenEnv) == ""
-	if tokenMissing {
+	if tokenMissing && !p.inCIAutologin() {
 		errs = append(errs, fmt.Errorf("environment variable %s is not set", tokenEnv))
 	}
 
@@ -97,7 +97,7 @@ func (p *Platform) Check() error {
 // releases endpoint is probed via CI_PROJECT_ID. For self-hosted instances, and outside
 // CI, the configured token (plus GITLAB_HOST when self-hosted) is validated via /user.
 func (p *Platform) checkAPIAuth(tokenEnv string, tokenMissing bool) error {
-	if !p.selfHosted() && os.Getenv("GITLAB_CI") == "true" {
+	if p.inCIAutologin() {
 		projectID := os.Getenv("CI_PROJECT_ID")
 		if projectID == "" {
 			return nil
@@ -131,6 +131,13 @@ func (p *Platform) tokenEnvSlice(envName string) []string {
 // selfHosted reports whether this platform targets a non-default GitLab host.
 func (p *Platform) selfHosted() bool {
 	return p.cfg.BaseURL != "" && p.cfg.BaseURL != gitlabBaseURL
+}
+
+// inCIAutologin reports whether glab's CI autologin handles auth for this run.
+// When true, injecting GITLAB_TOKEN overrides the JOB-TOKEN flow and breaks
+// path-based project lookups (CI_JOB_TOKEN is not a valid PRIVATE-TOKEN).
+func (p *Platform) inCIAutologin() bool {
+	return !p.selfHosted() && os.Getenv("GITLAB_CI") == "true"
 }
 
 // hostEnv returns the env vars needed to point glab at a self-hosted instance.
@@ -185,9 +192,15 @@ func (p *Platform) CreateRelease(tag, notes string) error {
 		args = append(args, files...)
 	}
 
-	env := append(p.tokenEnvSlice(p.tokenEnv()), p.hostEnv()...)
-	if _, _, err := p.runner.RunEnv(env, "glab", args...); err != nil {
-		return fmt.Errorf("glab release create: %w", err)
+	if p.inCIAutologin() {
+		if _, _, err := p.runner.Run("glab", args...); err != nil {
+			return fmt.Errorf("glab release create: %w", err)
+		}
+	} else {
+		env := append(p.tokenEnvSlice(p.tokenEnv()), p.hostEnv()...)
+		if _, _, err := p.runner.RunEnv(env, "glab", args...); err != nil {
+			return fmt.Errorf("glab release create: %w", err)
+		}
 	}
 	return nil
 }
@@ -217,9 +230,15 @@ func (p *Platform) UploadAssets(tag string) error {
 	}
 
 	args := append([]string{"release", "upload", tag, "--use-package-registry", "-R", proj}, files...)
-	env := append(p.tokenEnvSlice(p.tokenEnv()), p.hostEnv()...)
-	if _, _, err := p.runner.RunEnv(env, "glab", args...); err != nil {
-		return fmt.Errorf("glab release upload: %w", err)
+	if p.inCIAutologin() {
+		if _, _, err := p.runner.Run("glab", args...); err != nil {
+			return fmt.Errorf("glab release upload: %w", err)
+		}
+	} else {
+		env := append(p.tokenEnvSlice(p.tokenEnv()), p.hostEnv()...)
+		if _, _, err := p.runner.RunEnv(env, "glab", args...); err != nil {
+			return fmt.Errorf("glab release upload: %w", err)
+		}
 	}
 	return nil
 }

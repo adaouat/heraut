@@ -79,6 +79,7 @@ func TestCheck_GlabMissing(t *testing.T) {
 }
 
 func TestCheck_TokenMissing(t *testing.T) {
+	t.Setenv("GITLAB_CI", "") // ensure CI autologin is not active
 	mr := exectest.NewMockRunner()
 	mr.QueueResponse("glab version 1.0.0", "", nil)
 
@@ -88,6 +89,21 @@ func TestCheck_TokenMissing(t *testing.T) {
 	err := p.Check()
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "GITLAB_TOKEN")
+}
+
+func TestCheck_InCI_TokenNotRequired(t *testing.T) {
+	// In CI autologin mode glab authenticates via JOB-TOKEN; heraut must not require
+	// an explicit token env var when GITLAB_CI=true and the platform is not self-hosted.
+	t.Setenv("GITLAB_CI", "true")
+	t.Setenv("CI_PROJECT_ID", "42")
+	t.Setenv("GITLAB_TOKEN", "") // deliberately absent
+
+	mr := exectest.NewMockRunner()
+	mr.QueueResponse("glab version 1.0.0", "", nil)
+	mr.QueueResponse(`[]`, "", nil) // CI auth check via numeric project ID
+
+	p := gitlab.New(mr, &config.Platform{Project: "grp/repo"})
+	require.NoError(t, p.Check())
 }
 
 func TestCheck_ProjectMissing(t *testing.T) {
@@ -414,6 +430,41 @@ func TestUploadAssets_SelfHosted_SetsGitlabHostEnv(t *testing.T) {
 
 	require.Len(t, mr.Calls, 1)
 	assert.Equal(t, []string{"GITLAB_TOKEN=tok", "GITLAB_HOST=gitlab.example.com"}, mr.Calls[0].Env)
+}
+
+func TestCreateRelease_InCI_NoEnvInjection(t *testing.T) {
+	// When GITLAB_CI=true and not self-hosted, heraut must not inject GITLAB_TOKEN.
+	// Injecting it switches glab from JOB-TOKEN to PRIVATE-TOKEN auth, breaking
+	// path-based project lookups on non-default gitlab.com runners.
+	t.Setenv("GITLAB_CI", "true")
+	t.Setenv("CI_JOB_TOKEN", "ci-job-token")
+	mr := exectest.NewMockRunner()
+	mr.QueueResponse("", "", nil)
+
+	p := gitlab.New(mr, &config.Platform{Project: "grp/repo", TokenEnv: "CI_JOB_TOKEN"})
+	require.NoError(t, p.CreateRelease("v1.0.0", "notes"))
+
+	require.Len(t, mr.Calls, 1)
+	assert.Nil(t, mr.Calls[0].Env, "must not inject env in CI autologin mode")
+}
+
+func TestUploadAssets_InCI_NoEnvInjection(t *testing.T) {
+	// Same as CreateRelease: CI autologin mode must not inject GITLAB_TOKEN.
+	t.Setenv("GITLAB_CI", "true")
+	t.Setenv("CI_JOB_TOKEN", "ci-job-token")
+
+	tmp := t.TempDir()
+	assetPath := filepath.Join(tmp, "myapp")
+	require.NoError(t, os.WriteFile(assetPath, []byte("binary"), 0o755))
+
+	mr := exectest.NewMockRunner()
+	mr.QueueResponse("", "", nil)
+
+	p := gitlab.New(mr, &config.Platform{Project: "grp/repo", Assets: []string{assetPath}, TokenEnv: "CI_JOB_TOKEN"})
+	require.NoError(t, p.UploadAssets("v1.0.0"))
+
+	require.Len(t, mr.Calls, 1)
+	assert.Nil(t, mr.Calls[0].Env, "must not inject env in CI autologin mode")
 }
 
 func TestCheck_SelfHosted_SkipsCIAutologin(t *testing.T) {
