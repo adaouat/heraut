@@ -128,11 +128,12 @@ func TestCreateRelease_BasicArgs(t *testing.T) {
 	require.Len(t, mr.Calls, 1)
 	call := mr.Calls[0]
 	assert.Equal(t, "glab", call.Name)
-	assert.Equal(t, []string{
-		"release", "create", "v1.2.3",
-		"--notes", "## Notes\n- thing\n",
-		"-R", "grp/repo",
-	}, call.Args)
+	// Notes are written to a temp file to avoid ARG_MAX limits on large changelogs.
+	require.Equal(t, []string{"release", "create", "v1.2.3"}, call.Args[:3])
+	assert.Equal(t, "--notes-file", call.Args[3])
+	assert.NotEmpty(t, call.Args[4], "notes file path must be non-empty")
+	assert.Equal(t, []string{"-R", "grp/repo"}, call.Args[5:])
+	assert.NotContains(t, call.Args, "--notes")
 }
 
 func TestCreateRelease_LenientAssets_IncludesFilesInCreate(t *testing.T) {

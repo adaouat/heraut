@@ -156,9 +156,24 @@ func (p *Platform) CreateRelease(tag, notes string) error {
 		return err
 	}
 
+	// Write notes to a temp file so large changelogs don't exceed ARG_MAX when
+	// passed as a --notes value. glab supports -F/--notes-file for exactly this.
+	notesFile, err := os.CreateTemp("", "heraut-notes-*")
+	if err != nil {
+		return fmt.Errorf("glab release create: write notes file: %w", err)
+	}
+	defer func() { _ = os.Remove(notesFile.Name()) }()
+	if _, err := notesFile.WriteString(notes); err != nil {
+		_ = notesFile.Close()
+		return fmt.Errorf("glab release create: write notes file: %w", err)
+	}
+	if err := notesFile.Close(); err != nil {
+		return fmt.Errorf("glab release create: write notes file: %w", err)
+	}
+
 	// GitLab automatically publishes to the CI/CD Catalog when the project is a
 	// registered catalog resource — no explicit publish step needed.
-	args := []string{"release", "create", tag, "--notes", notes, "-R", proj}
+	args := []string{"release", "create", tag, "--notes-file", notesFile.Name(), "-R", proj}
 
 	if p.cfg.LenientAssets && len(p.cfg.Assets) > 0 {
 		files, err := platforms.ResolveGlobsLenient(p.cfg.Assets, func(pattern string) {

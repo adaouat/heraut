@@ -128,7 +128,22 @@ func (p *Platform) CreateRelease(tag, notes string) error {
 		return err
 	}
 
-	args := []string{"release", "create", tag, "--notes", notes, "--repo", repo}
+	// Write notes to a temp file so large changelogs don't exceed ARG_MAX when
+	// passed as a --notes value. gh supports -F/--notes-file for exactly this.
+	notesFile, err := os.CreateTemp("", "heraut-notes-*")
+	if err != nil {
+		return fmt.Errorf("gh release create: write notes file: %w", err)
+	}
+	defer func() { _ = os.Remove(notesFile.Name()) }()
+	if _, err := notesFile.WriteString(notes); err != nil {
+		_ = notesFile.Close()
+		return fmt.Errorf("gh release create: write notes file: %w", err)
+	}
+	if err := notesFile.Close(); err != nil {
+		return fmt.Errorf("gh release create: write notes file: %w", err)
+	}
+
+	args := []string{"release", "create", tag, "--notes-file", notesFile.Name(), "--repo", repo}
 	if p.cfg.Draft {
 		args = append(args, "--draft")
 	}

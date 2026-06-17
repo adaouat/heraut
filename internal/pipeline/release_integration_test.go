@@ -27,8 +27,8 @@ import (
 // The external tools are FakeBins: a stand-in git-cliff that echoes the injected
 // $HERAUT_REMOTE_URL (standing in for "git-cliff rendered links against this host" —
 // actual Tera rendering is covered by the T71 manual PoC), and gh/glab that capture the
-// --notes they receive. git is faked to a no-op so `git tag`/`git push` never touch the
-// real repository this test runs in.
+// --notes-file content they receive. git is faked to a no-op so `git tag`/`git push` never
+// touch the real repository this test runs in.
 func TestRun_Integration_MultiPlatform_DistinctlyFlavoredNotes(t *testing.T) {
 	capture := t.TempDir()
 	ghNotes := filepath.Join(capture, "gh-notes.txt")
@@ -40,7 +40,7 @@ func TestRun_Integration_MultiPlatform_DistinctlyFlavoredNotes(t *testing.T) {
 	exectest.FakeBin(t, "git", "#!/bin/sh\nexit 0\n")
 	// git-cliff: echo the heraut-injected per-platform remote URL as the "notes".
 	exectest.FakeBin(t, "git-cliff", "#!/bin/sh\nprintf '%s' \"$HERAUT_REMOTE_URL\"\n")
-	// gh / glab: capture the --notes argument each was handed, to its own file.
+	// gh / glab: capture the --notes-file content each was handed, to its own file.
 	exectest.FakeBin(t, "gh", captureNotesScript("GH_CAPTURE"))
 	exectest.FakeBin(t, "glab", captureNotesScript("GLAB_CAPTURE"))
 
@@ -58,9 +58,9 @@ func TestRun_Integration_MultiPlatform_DistinctlyFlavoredNotes(t *testing.T) {
 	require.NoError(t, p.Run())
 
 	gh, err := os.ReadFile(ghNotes)
-	require.NoError(t, err, "gh fake should have captured --notes")
+	require.NoError(t, err, "gh fake should have captured --notes-file content")
 	gl, err := os.ReadFile(glNotes)
-	require.NoError(t, err, "glab fake should have captured --notes")
+	require.NoError(t, err, "glab fake should have captured --notes-file content")
 
 	// Each platform's notes carry that platform's own host (proving per-platform
 	// generation through the real exec env path) and not the other's.
@@ -70,13 +70,13 @@ func TestRun_Integration_MultiPlatform_DistinctlyFlavoredNotes(t *testing.T) {
 	assert.NotContains(t, string(gl), "github.com")
 }
 
-// captureNotesScript returns a /bin/sh FakeBin that writes the value following the first
-// --notes flag to the file named by the given environment variable.
+// captureNotesScript returns a /bin/sh FakeBin that reads the file following the first
+// --notes-file flag and writes its content to the file named by the given environment variable.
 func captureNotesScript(captureEnvVar string) string {
 	return `#!/bin/sh
 prev=""
 for a in "$@"; do
-  if [ "$prev" = "--notes" ]; then printf '%s' "$a" > "$` + captureEnvVar + `"; fi
+  if [ "$prev" = "--notes-file" ]; then cat "$a" > "$` + captureEnvVar + `"; fi
   prev="$a"
 done
 exit 0
