@@ -180,7 +180,7 @@ func (p *Platform) CreateRelease(tag, notes string) error {
 
 	// GitLab automatically publishes to the CI/CD Catalog when the project is a
 	// registered catalog resource — no explicit publish step needed.
-	args := []string{"release", "create", tag, "--notes-file", notesFile.Name(), "-R", proj}
+	args := []string{"release", "create", tag, "--notes-file", notesFile.Name(), "--repo", proj}
 
 	if p.cfg.LenientAssets && len(p.cfg.Assets) > 0 {
 		files, err := platforms.ResolveGlobsLenient(p.cfg.Assets, func(pattern string) {
@@ -229,7 +229,7 @@ func (p *Platform) UploadAssets(tag string) error {
 		return nil
 	}
 
-	args := append([]string{"release", "upload", tag, "--use-package-registry", "-R", proj}, files...)
+	args := append([]string{"release", "upload", tag, "--use-package-registry", "--repo", proj}, files...)
 	if p.inCIAutologin() {
 		if _, _, err := p.runner.Run("glab", args...); err != nil {
 			return fmt.Errorf("glab release upload: %w", err)

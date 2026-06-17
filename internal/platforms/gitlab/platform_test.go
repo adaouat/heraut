@@ -20,12 +20,14 @@ func TestName(t *testing.T) {
 }
 
 func TestReleaseURL(t *testing.T) {
+	t.Setenv("GITLAB_CI", "") // ensure CI_SERVER_URL fallback is not active
 	cfg := &config.Platform{Project: "mygroup/myrepo"}
 	p := gitlab.New(exectest.NewMockRunner(), cfg)
 	assert.Equal(t, "https://gitlab.com/mygroup/myrepo/-/releases/v1.2.3", p.ReleaseURL("v1.2.3"))
 }
 
 func TestReleaseURL_FromEnv(t *testing.T) {
+	t.Setenv("GITLAB_CI", "")
 	t.Setenv("CI_PROJECT_PATH", "envgroup/envrepo")
 	p := gitlab.New(exectest.NewMockRunner(), &config.Platform{})
 	assert.Equal(t, "https://gitlab.com/envgroup/envrepo/-/releases/v1.0.0", p.ReleaseURL("v1.0.0"))
@@ -35,6 +37,16 @@ func TestReleaseURL_SelfHosted(t *testing.T) {
 	cfg := &config.Platform{Project: "grp/repo", BaseURL: "https://gitlab.example.com"}
 	p := gitlab.New(exectest.NewMockRunner(), cfg)
 	assert.Equal(t, "https://gitlab.example.com/grp/repo/-/releases/v1.2.3", p.ReleaseURL("v1.2.3"))
+}
+
+func TestReleaseURL_InCI_NoBaseURL_UsesServerURL(t *testing.T) {
+	// When BaseURL is not configured and running in GitLab CI, the release link
+	// must use CI_SERVER_URL (the actual GitLab instance) instead of gitlab.com.
+	t.Setenv("GITLAB_CI", "true")
+	t.Setenv("CI_SERVER_URL", "https://git.example.com")
+	cfg := &config.Platform{Project: "grp/repo"}
+	p := gitlab.New(exectest.NewMockRunner(), cfg)
+	assert.Equal(t, "https://git.example.com/grp/repo/-/releases/v1.0.0", p.ReleaseURL("v1.0.0"))
 }
 
 func TestLinkContext_NestedGroup(t *testing.T) {
@@ -148,7 +160,7 @@ func TestCreateRelease_BasicArgs(t *testing.T) {
 	require.Equal(t, []string{"release", "create", "v1.2.3"}, call.Args[:3])
 	assert.Equal(t, "--notes-file", call.Args[3])
 	assert.NotEmpty(t, call.Args[4], "notes file path must be non-empty")
-	assert.Equal(t, []string{"-R", "grp/repo"}, call.Args[5:])
+	assert.Equal(t, []string{"--repo", "grp/repo"}, call.Args[5:])
 	assert.NotContains(t, call.Args, "--notes")
 }
 
@@ -215,7 +227,7 @@ func TestUploadAssets_SingleFile(t *testing.T) {
 	assert.Equal(t, []string{
 		"release", "upload", "v1.2.3",
 		"--use-package-registry",
-		"-R", "grp/repo",
+		"--repo", "grp/repo",
 		assetPath,
 	}, call.Args)
 }
