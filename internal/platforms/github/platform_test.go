@@ -202,18 +202,23 @@ func TestCheck_GitHubActions_AuthFails(t *testing.T) {
 }
 
 func TestCheck_GitHubActions_NoGITHUB_TOKEN(t *testing.T) {
+	// GITHUB_TOKEN absent (e.g. user uses a PAT via token_env): fall through to
+	// validate the configured token instead of silently skipping the auth check.
 	t.Setenv("GITHUB_ACTIONS", "true")
 	t.Setenv("GITHUB_TOKEN", "") // not available
 	t.Setenv("GITHUB_REPOSITORY", "org/repo")
 
 	mr := exectest.NewMockRunner()
 	mr.QueueResponse("gh version 2.0.0", "", nil)
+	mr.QueueResponse(`[]`, "", nil) // configured-token fallback API call
 
 	t.Setenv("GH_TOKEN", "tok")
 	p := github.New(mr, &config.Platform{TokenEnv: "GH_TOKEN", Repository: "org/repo"})
 	require.NoError(t, p.Check())
 
-	require.Len(t, mr.Calls, 1) // no API call when GITHUB_TOKEN is absent
+	require.Len(t, mr.Calls, 2)
+	assert.Equal(t, []string{"api", "repos/org/repo/releases?per_page=1"}, mr.Calls[1].Args)
+	assert.Contains(t, mr.Calls[1].Env, "GH_TOKEN=tok")
 }
 
 func TestCreateRelease_BasicArgs(t *testing.T) {

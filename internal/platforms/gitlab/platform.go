@@ -92,15 +92,15 @@ func (p *Platform) Check() error {
 func (p *Platform) checkAPIAuth(tokenEnv string, tokenMissing bool) error {
 	if p.inCIAutologin() {
 		projectID := os.Getenv("CI_PROJECT_ID")
-		if projectID == "" {
+		if projectID != "" {
+			endpoint := "projects/" + projectID + "/releases?per_page=1"
+			_, stderr, err := p.runner.Run("glab", "api", endpoint)
+			if err != nil {
+				return fmt.Errorf("gitlab: API call failed (glab api %s): %s\n  hint: ensure CI_JOB_TOKEN has read access (Settings > CI/CD > Job token permissions)", endpoint, strings.TrimSpace(stderr))
+			}
 			return nil
 		}
-		endpoint := "projects/" + projectID + "/releases?per_page=1"
-		_, stderr, err := p.runner.Run("glab", "api", endpoint)
-		if err != nil {
-			return fmt.Errorf("gitlab: API call failed (glab api %s): %s\n  hint: ensure CI_JOB_TOKEN has read access (Settings > CI/CD > Job token permissions)", endpoint, strings.TrimSpace(stderr))
-		}
-		return nil
+		// CI_PROJECT_ID absent: fall through to validate the configured token.
 	}
 	if tokenMissing {
 		return nil

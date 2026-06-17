@@ -411,17 +411,20 @@ func TestCheck_Auth_InCI_OK(t *testing.T) {
 }
 
 func TestCheck_Auth_InCI_NoProjectID(t *testing.T) {
-	// When CI_PROJECT_ID is unset, skip the auth check gracefully.
+	// CI_PROJECT_ID absent: fall through to validate the configured token instead
+	// of silently skipping the auth check.
 	t.Setenv("GITLAB_CI", "true")
 	t.Setenv("CI_PROJECT_ID", "")
 	mr := exectest.NewMockRunner()
 	mr.QueueResponse("glab version 1.0.0", "", nil)
-	// No second response needed — auth check is skipped
+	mr.QueueResponse(`{"username":"alice"}`, "", nil) // configured-token fallback API call
 
 	t.Setenv("GITLAB_TOKEN", "ci-token")
 	p := gitlab.New(mr, &config.Platform{TokenEnv: "GITLAB_TOKEN", Project: "grp/repo"})
 	require.NoError(t, p.Check())
-	require.Len(t, mr.Calls, 1) // only binary check
+	require.Len(t, mr.Calls, 2)
+	assert.Equal(t, []string{"api", "user"}, mr.Calls[1].Args)
+	assert.Contains(t, mr.Calls[1].Env, "GITLAB_TOKEN=ci-token")
 }
 
 // ---- Self-hosted (multi-instance, ADR-0025) ----------------------------------

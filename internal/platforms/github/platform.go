@@ -97,15 +97,15 @@ func (p *Platform) checkAPIAuth(tokenMissing bool) error {
 	if !p.selfHosted() && os.Getenv("GITHUB_ACTIONS") == "true" {
 		githubToken := os.Getenv("GITHUB_TOKEN")
 		repo := os.Getenv("GITHUB_REPOSITORY")
-		if githubToken == "" || repo == "" {
+		if githubToken != "" && repo != "" {
+			endpoint := "repos/" + repo + "/releases?per_page=1"
+			_, stderr, err := p.runner.RunEnv([]string{"GH_TOKEN=" + githubToken}, "gh", "api", endpoint)
+			if err != nil {
+				return fmt.Errorf("github: API call failed (gh api %s): %s\n  hint: verify GITHUB_TOKEN has read access to the repository", endpoint, strings.TrimSpace(stderr))
+			}
 			return nil
 		}
-		endpoint := "repos/" + repo + "/releases?per_page=1"
-		_, stderr, err := p.runner.RunEnv([]string{"GH_TOKEN=" + githubToken}, "gh", "api", endpoint)
-		if err != nil {
-			return fmt.Errorf("github: API call failed (gh api %s): %s\n  hint: verify GITHUB_TOKEN has read access to the repository", endpoint, strings.TrimSpace(stderr))
-		}
-		return nil
+		// GITHUB_TOKEN absent: fall through to validate the configured token.
 	}
 	if tokenMissing {
 		return nil
