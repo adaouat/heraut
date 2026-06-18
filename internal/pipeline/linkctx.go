@@ -27,6 +27,23 @@ func ambientLinkContext() *port.LinkContext {
 	return nil
 }
 
+// changelogLinkContext resolves the link context for the committed changelog. Like
+// ambientLinkContext it prefers the CI-provided host (origin). When no ambient host is
+// available (local/non-CI runs) and there is exactly one configured platform, that
+// platform's context is used as a fallback so commit links are rendered instead of
+// degrading to bare hashes. With multiple platforms the origin is ambiguous, so nil is
+// returned (bare hashes are safer than the wrong host). See ADR-0022.
+func (p *Pipeline) changelogLinkContext() *port.LinkContext {
+	if amb := ambientLinkContext(); amb != nil {
+		return amb
+	}
+	if len(p.cfg.Platforms) == 1 {
+		lc := p.cfg.Platforms[0].LinkContext()
+		return &lc
+	}
+	return nil
+}
+
 // singlePlatformLinkContext resolves the link context for a single-platform release: the
 // ambient CI host when it describes the *same* platform (so a self-hosted instance — whose
 // real host only lives in the CI env — is honoured), otherwise the platform's own

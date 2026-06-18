@@ -266,6 +266,97 @@ func TestRun_MultiPlatform_NotesPerPlatform(t *testing.T) {
 	require.Len(t, gl.CreateReleaseCalls, 1)
 }
 
+// TestRun_Changelog_PlatformFallback_WhenNoAmbient verifies that when there is no ambient
+// CI host and exactly one platform is configured, the changelog step receives that
+// platform's link context instead of nil so commit links are rendered for local/non-CI
+// runs instead of degrading to bare hashes.
+func TestRun_Changelog_PlatformFallback_WhenNoAmbient(t *testing.T) {
+	clearAmbientCIEnv(t)
+	mr := exectest.NewMockRunner()
+	mr.QueueResponse("", "", nil) // git add
+	mr.QueueResponse("", "", nil) // git commit
+	mr.QueueResponse("", "", nil) // git push HEAD
+	mr.QueueResponse("", "", nil) // git tag
+	mr.QueueResponse("", "", nil) // git push tag
+
+	changelog := &testutil.MockGenerator{}
+	lc := port.LinkContext{BaseURL: "https://gitlab.example.com", Owner: "grp", Repo: "proj", Platform: "gitlab"}
+	gl := &testutil.MockPlatform{PlatformName: "gitlab", LinkContextVal: lc}
+	cfg := &pipeline.Config{
+		Changelog:     changelog,
+		ChangelogFile: "CHANGELOG.md",
+		Platforms:     []port.Platform{gl},
+	}
+
+	p := pipeline.New(mr, &fakeResolver{result: resolvedResult("v1.2.3")}, cfg, &bytes.Buffer{}, false)
+	require.NoError(t, p.Run())
+
+	require.Len(t, changelog.GenerateContexts, 1)
+	require.NotNil(t, changelog.GenerateContexts[0], "changelog must receive platform context when no ambient CI env")
+	assert.Equal(t, lc, *changelog.GenerateContexts[0])
+}
+
+// TestRun_Changelog_AmbientPreferredForChangelog verifies that the ambient CI host wins
+// over the configured platform's base_url for the changelog, so a self-hosted instance URL
+// is honoured (the GitLab "base_url not set → CI_PROJECT_URL" scenario).
+func TestRun_Changelog_AmbientPreferredForChangelog(t *testing.T) {
+	clearAmbientCIEnv(t)
+	t.Setenv("CI_PROJECT_URL", "https://git.cross-systems.ch/bchatard/ecom-poc-release")
+	mr := exectest.NewMockRunner()
+	mr.QueueResponse("", "", nil) // git add
+	mr.QueueResponse("", "", nil) // git commit
+	mr.QueueResponse("", "", nil) // git push HEAD
+	mr.QueueResponse("", "", nil) // git tag
+	mr.QueueResponse("", "", nil) // git push tag
+
+	changelog := &testutil.MockGenerator{}
+	gl := &testutil.MockPlatform{
+		PlatformName:   "gitlab",
+		LinkContextVal: port.LinkContext{BaseURL: "https://gitlab.com", Owner: "bchatard", Repo: "ecom-poc-release", Platform: "gitlab"},
+	}
+	cfg := &pipeline.Config{
+		Changelog:     changelog,
+		ChangelogFile: "CHANGELOG.md",
+		Platforms:     []port.Platform{gl},
+	}
+
+	p := pipeline.New(mr, &fakeResolver{result: resolvedResult("v1.2.3")}, cfg, &bytes.Buffer{}, false)
+	require.NoError(t, p.Run())
+
+	require.Len(t, changelog.GenerateContexts, 1)
+	require.NotNil(t, changelog.GenerateContexts[0])
+	assert.Equal(t, "https://git.cross-systems.ch/bchatard/ecom-poc-release", changelog.GenerateContexts[0].BaseURL,
+		"ambient self-hosted URL must win over platform default for changelog")
+}
+
+// TestRun_Changelog_NilContext_MultiPlatform verifies that when there is no ambient CI host
+// and multiple platforms are configured, the changelog receives nil (origin is ambiguous —
+// bare hashes are safer than the wrong host).
+func TestRun_Changelog_NilContext_MultiPlatform(t *testing.T) {
+	clearAmbientCIEnv(t)
+	mr := exectest.NewMockRunner()
+	mr.QueueResponse("", "", nil) // git add
+	mr.QueueResponse("", "", nil) // git commit
+	mr.QueueResponse("", "", nil) // git push HEAD
+	mr.QueueResponse("", "", nil) // git tag
+	mr.QueueResponse("", "", nil) // git push tag
+
+	changelog := &testutil.MockGenerator{}
+	gh := &testutil.MockPlatform{PlatformName: "github", LinkContextVal: port.LinkContext{Platform: "github"}}
+	gl := &testutil.MockPlatform{PlatformName: "gitlab", LinkContextVal: port.LinkContext{Platform: "gitlab"}}
+	cfg := &pipeline.Config{
+		Changelog:     changelog,
+		ChangelogFile: "CHANGELOG.md",
+		Platforms:     []port.Platform{gh, gl},
+	}
+
+	p := pipeline.New(mr, &fakeResolver{result: resolvedResult("v1.2.3")}, cfg, &bytes.Buffer{}, false)
+	require.NoError(t, p.Run())
+
+	require.Len(t, changelog.GenerateContexts, 1)
+	assert.Nil(t, changelog.GenerateContexts[0], "changelog must get nil when multiple platforms and no ambient CI env")
+}
+
 // TestRun_WithAssets verifies UploadAssets is called after CreateRelease.
 func TestRun_WithAssets(t *testing.T) {
 	mr := exectest.NewMockRunner()

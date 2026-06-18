@@ -115,8 +115,9 @@ func (p *Pipeline) Run() error {
 
 	// Step 2+3: Generate and commit changelog (conditional). The committed changelog is
 	// singular and tied to origin, so it resolves links from the ambient CI host (ADR-0022).
+	// Falls back to the single configured platform context for local/non-CI runs.
 	if p.cfg.Changelog != nil && !p.cfg.DisableChangelog {
-		changelogCtx := ambientLinkContext()
+		changelogCtx := p.changelogLinkContext()
 		if err := p.runStep("Generate changelog", func() (string, []string, error) {
 			if _, err := p.cfg.Changelog.Generate(result.Tag, changelogCtx); err != nil {
 				return "", nil, fmt.Errorf("generating changelog: %w", err)
