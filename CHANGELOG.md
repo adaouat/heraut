@@ -1,5 +1,16 @@
 # Changelog
 
+## [0.36.2](https://github.com/adaouat/heraut/compare/v0.36.1..v0.36.2) - 2026-06-18
+
+### 🐛 Bug Fixes
+
+- *(pipeline)* Prefer ambient CI host for each matching platform in multi-platform notes - ([f33df86](https://github.com/adaouat/heraut/commit/f33df868d0971de8b65f850eed49c5a4fb674b7a)) by @bchatard
+
+
+### 🧪 Testing
+
+- *(pipeline)* Pin ambient CI env in integration multi-platform test - ([0fa28e4](https://github.com/adaouat/heraut/commit/0fa28e46d78ea12c8b1ded3e383c24305be43298)) by @bchatard
+
 ## [0.36.1](https://github.com/adaouat/heraut/compare/v0.36.0..v0.36.1) - 2026-06-18
 
 ### 🐛 Bug Fixes
