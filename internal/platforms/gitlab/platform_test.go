@@ -78,6 +78,7 @@ func TestLinkContext_Token_CustomEnv(t *testing.T) {
 }
 
 func TestLinkContext_SimpleProject(t *testing.T) {
+	t.Setenv("GITLAB_CI", "") // ensure CI_SERVER_URL fallback is not active
 	t.Setenv("GITLAB_TOKEN", "")
 	// BaseURL empty (config not normalized) → falls back to the default host.
 	cfg := &config.Platform{Project: "group/proj"}
@@ -88,11 +89,23 @@ func TestLinkContext_SimpleProject(t *testing.T) {
 }
 
 func TestLinkContext_FromEnv(t *testing.T) {
+	t.Setenv("GITLAB_CI", "")
 	t.Setenv("GITLAB_TOKEN", "")
 	t.Setenv("CI_PROJECT_PATH", "envgroup/envrepo")
 	lc := gitlab.New(exectest.NewMockRunner(), &config.Platform{}).LinkContext()
 	assert.Equal(t, "envgroup", lc.Owner)
 	assert.Equal(t, "envrepo", lc.Repo)
+}
+
+func TestLinkContext_InCI_NoBaseURL_UsesServerURL(t *testing.T) {
+	// LinkContext must also use CI_SERVER_URL so release-notes links resolve to the
+	// actual GitLab instance, not gitlab.com.
+	t.Setenv("GITLAB_CI", "true")
+	t.Setenv("CI_SERVER_URL", "https://git.example.com")
+	t.Setenv("GITLAB_TOKEN", "")
+	cfg := &config.Platform{Project: "grp/repo"}
+	lc := gitlab.New(exectest.NewMockRunner(), cfg).LinkContext()
+	assert.Equal(t, "https://git.example.com", lc.BaseURL)
 }
 
 func TestCheck_GlabMissing(t *testing.T) {
