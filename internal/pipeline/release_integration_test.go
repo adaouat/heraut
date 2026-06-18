@@ -30,6 +30,10 @@ import (
 // --notes-file content they receive. git is faked to a no-op so `git tag`/`git push` never
 // touch the real repository this test runs in.
 func TestRun_Integration_MultiPlatform_DistinctlyFlavoredNotes(t *testing.T) {
+	// Pin the ambient CI env so GitHub Actions / GitLab CI vars don't bleed into the
+	// platform link-context resolution under test.
+	clearAmbientCIEnv(t)
+
 	capture := t.TempDir()
 	ghNotes := filepath.Join(capture, "gh-notes.txt")
 	glNotes := filepath.Join(capture, "gl-notes.txt")
