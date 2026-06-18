@@ -4644,6 +4644,25 @@ nothing-staged path), `internal/pipeline/release_test.go`,
 
 ---
 
+#### `[x]` T112: Unify release URL resolution through `ReleaseURLFromContext`
+
+The displayed release URL in the publish step output and final summary was computed via
+`plat.ReleaseURL()` independently of the link context used for release-notes generation.
+This meant that in a self-hosted GitLab setup with no `base_url` in config, the notes
+correctly used `CI_PROJECT_URL` (via `ambientLinkContext()` / `platformLinkContext()`), but
+the URL shown in the heraut output still fell back to `gitlab.com`.
+
+Added `ReleaseURLFromContext(tag string, lc *LinkContext) string` to `port.Platform`. The
+pipeline now computes `lc := p.platformLinkContext(plat)` once per platform publish step
+and passes it to both notes generation and URL display. Ambient contexts (Owner/Repo empty,
+BaseURL is the full project URL) and platform contexts (BaseURL is the host, Owner/Repo set)
+are both handled; nil falls back to `ReleaseURL` for callers without context.
+
+Implemented on `platforms/gitlab` and `platforms/github`; mock updated with call recording
+for pipeline-level contract tests. Pipeline-level regression test added.
+
+---
+
 ## Risks and mitigations
 
 | Risk                                                                                | Impact            | Mitigation                                                                |
