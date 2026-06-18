@@ -72,6 +72,37 @@ func TestReleaseURL_NoGitlabCIVar_ProjectURLSuffices(t *testing.T) {
 	assert.Equal(t, "https://git.adaouat.dev/bchatard/ecom-poc-release/-/releases/v1.0.0", p.ReleaseURL("v1.0.0"))
 }
 
+// TestReleaseURLFromContext_* verify that ReleaseURLFromContext derives the URL from the
+// provided LinkContext rather than re-reading environment variables. This is the "one
+// place" fix: the pipeline passes the already-resolved platformLinkContext here so the
+// displayed URL is always consistent with the commit links in the release notes.
+
+func TestReleaseURLFromContext_AmbientContext(t *testing.T) {
+	// Ambient context (from CI_PROJECT_URL): Owner/Repo are empty, BaseURL is the
+	// full project URL. The release URL is built directly from BaseURL.
+	cfg := &config.Platform{Project: "bchatard/ecom-poc-release"}
+	p := gitlab.New(exectest.NewMockRunner(), cfg)
+	lc := &port.LinkContext{BaseURL: "https://git.adaouat.dev/bchatard/ecom-poc-release", Platform: "gitlab"}
+	assert.Equal(t, "https://git.adaouat.dev/bchatard/ecom-poc-release/-/releases/v1.0.0", p.ReleaseURLFromContext("v1.0.0", lc))
+}
+
+func TestReleaseURLFromContext_PlatformContext(t *testing.T) {
+	// Platform-derived context: BaseURL is just the host, Owner/Repo are populated.
+	// The release URL is assembled from host + configured project path.
+	cfg := &config.Platform{Project: "bchatard/ecom-poc-release"}
+	p := gitlab.New(exectest.NewMockRunner(), cfg)
+	lc := &port.LinkContext{BaseURL: "https://git.adaouat.dev", Owner: "bchatard", Repo: "ecom-poc-release", Platform: "gitlab"}
+	assert.Equal(t, "https://git.adaouat.dev/bchatard/ecom-poc-release/-/releases/v1.0.0", p.ReleaseURLFromContext("v1.0.0", lc))
+}
+
+func TestReleaseURLFromContext_Nil_FallsBackToReleaseURL(t *testing.T) {
+	t.Setenv("GITLAB_CI", "")
+	t.Setenv("CI_PROJECT_URL", "")
+	cfg := &config.Platform{Project: "grp/repo"}
+	p := gitlab.New(exectest.NewMockRunner(), cfg)
+	assert.Equal(t, p.ReleaseURL("v1.0.0"), p.ReleaseURLFromContext("v1.0.0", nil))
+}
+
 func TestLinkContext_NestedGroup(t *testing.T) {
 	t.Setenv("GITLAB_TOKEN", "")
 	// GitLab project paths split on the LAST slash: group/subgroup is the owner, the

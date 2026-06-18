@@ -187,8 +187,8 @@ func (p *Pipeline) Run() error {
 		if err := p.runStep(fmt.Sprintf("Publish to %s", plat.Name()), func() (string, []string, error) {
 			var subs []string
 			platNotes := notes
+			lc := p.platformLinkContext(plat)
 			if notesEnabled && multiPlatform {
-				lc := p.platformLinkContext(plat)
 				generated, genErr := p.cfg.Notes.Generate(result.Tag, lc)
 				if genErr != nil {
 					return "", nil, fmt.Errorf("platform %s: generating release notes: %w", plat.Name(), genErr)
@@ -206,7 +206,7 @@ func (p *Pipeline) Run() error {
 				}
 				subs = append(subs, "assets uploaded")
 			}
-			return plat.ReleaseURL(result.Tag), subs, nil
+			return plat.ReleaseURLFromContext(result.Tag, lc), subs, nil
 		}); err != nil {
 			return err
 		}
@@ -296,12 +296,14 @@ func (p *Pipeline) printSummary(result versioning.Result) {
 	if p.reporter != nil {
 		_, _ = fmt.Fprintf(p.out, "\nReleased %s\n", result.Tag)
 		for _, platform := range p.cfg.Platforms {
-			_, _ = fmt.Fprintf(p.out, "  › %-8s %s\n", platform.Name(), platform.ReleaseURL(result.Tag))
+			lc := p.platformLinkContext(platform)
+			_, _ = fmt.Fprintf(p.out, "  › %-8s %s\n", platform.Name(), platform.ReleaseURLFromContext(result.Tag, lc))
 		}
 		return
 	}
 	_, _ = fmt.Fprintf(p.out, "released %s\n", result.Tag)
 	for _, platform := range p.cfg.Platforms {
-		_, _ = fmt.Fprintf(p.out, "  %s: %s\n", platform.Name(), platform.ReleaseURL(result.Tag))
+		lc := p.platformLinkContext(platform)
+		_, _ = fmt.Fprintf(p.out, "  %s: %s\n", platform.Name(), platform.ReleaseURLFromContext(result.Tag, lc))
 	}
 }

@@ -394,6 +394,36 @@ func TestRun_MultiPlatform_Notes_AmbientForMatchingPlatform(t *testing.T) {
 		"non-matching platform must keep its own context")
 }
 
+// TestRun_PublishStep_UsesAmbientContextForReleaseURL verifies that the pipeline passes the
+// ambient-resolved link context to ReleaseURLFromContext (not the platform's default base_url),
+// so the displayed release URL in the step output and summary reflects the self-hosted host
+// when CI_PROJECT_URL is present (ADR-0022). This guards against the regression where the
+// publish step called plat.ReleaseURL() directly, bypassing the ambient URL resolution.
+func TestRun_PublishStep_UsesAmbientContextForReleaseURL(t *testing.T) {
+	clearAmbientCIEnv(t)
+	t.Setenv("CI_PROJECT_URL", "https://git.adaouat.dev/bchatard/ecom-poc-release")
+
+	mr := exectest.NewMockRunner()
+	mr.QueueResponse("", "", nil) // git tag
+	mr.QueueResponse("", "", nil) // git push <tag>
+
+	gl := &testutil.MockPlatform{
+		PlatformName:   "gitlab",
+		LinkContextVal: port.LinkContext{BaseURL: "https://gitlab.com", Owner: "bchatard", Repo: "ecom-poc-release", Platform: "gitlab"},
+	}
+	cfg := &pipeline.Config{Platforms: []port.Platform{gl}}
+
+	p := pipeline.New(mr, &fakeResolver{result: resolvedResult("v1.2.3")}, cfg, &bytes.Buffer{}, false)
+	require.NoError(t, p.Run())
+
+	require.NotEmpty(t, gl.ReleaseURLFromContextCalls, "ReleaseURLFromContext must be called (not ReleaseURL)")
+	for _, call := range gl.ReleaseURLFromContextCalls {
+		require.NotNil(t, call.LC, "ReleaseURLFromContext must receive the resolved link context")
+		assert.Equal(t, "https://git.adaouat.dev/bchatard/ecom-poc-release", call.LC.BaseURL,
+			"ambient self-hosted URL must be passed to ReleaseURLFromContext, not the platform default")
+	}
+}
+
 // TestRun_WithAssets verifies UploadAssets is called after CreateRelease.
 func TestRun_WithAssets(t *testing.T) {
 	mr := exectest.NewMockRunner()

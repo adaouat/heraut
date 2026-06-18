@@ -41,6 +41,21 @@ func (p *Platform) ReleaseURL(tag string) string {
 	return fmt.Sprintf("%s/%s/releases/tag/%s", baseURL, p.repository(), tag)
 }
 
+// ReleaseURLFromContext builds the release URL from a pre-resolved link context so the
+// displayed URL stays consistent with the one used to generate release notes (ADR-0022).
+// Ambient contexts carry the full project URL in BaseURL (Owner/Repo empty); platform
+// contexts carry the host in BaseURL with Owner and Repo set separately.
+func (p *Platform) ReleaseURLFromContext(tag string, lc *port.LinkContext) string {
+	if lc == nil {
+		return p.ReleaseURL(tag)
+	}
+	base := strings.TrimRight(lc.BaseURL, "/")
+	if lc.Owner == "" && lc.Repo == "" {
+		return base + "/releases/tag/" + tag
+	}
+	return base + "/" + lc.Owner + "/" + lc.Repo + "/releases/tag/" + tag
+}
+
 // LinkContext resolves this platform's link coordinates. GitHub repositories are
 // owner/repo, so the path splits on the first slash. BaseURL falls back to the default
 // host when unset (e.g. a config that was not run through the loader's normalize step).

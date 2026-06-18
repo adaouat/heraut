@@ -37,6 +37,32 @@ func TestReleaseURL_SelfHosted(t *testing.T) {
 	assert.Equal(t, "https://github.example.com/org/repo/releases/tag/v1.2.3", p.ReleaseURL("v1.2.3"))
 }
 
+// TestReleaseURLFromContext_* verify that ReleaseURLFromContext derives the release URL from
+// a pre-resolved link context rather than re-resolving from config/env, so the pipeline can
+// keep the displayed URL consistent with the one used to generate release notes (ADR-0022).
+func TestReleaseURLFromContext_AmbientContext(t *testing.T) {
+	// Ambient context: BaseURL is the full project URL (Owner/Repo empty) — built from
+	// GITHUB_SERVER_URL + GITHUB_REPOSITORY in ambientLinkContext().
+	cfg := &config.Platform{Repository: "test/gh-repo"}
+	p := github.New(exectest.NewMockRunner(), cfg)
+	lc := &port.LinkContext{BaseURL: "https://github.com/test/gh-repo", Platform: "github"}
+	assert.Equal(t, "https://github.com/test/gh-repo/releases/tag/v1.0.0", p.ReleaseURLFromContext("v1.0.0", lc))
+}
+
+func TestReleaseURLFromContext_PlatformContext(t *testing.T) {
+	// Platform context: BaseURL is the host (Owner/Repo set) — built from LinkContext().
+	cfg := &config.Platform{Repository: "test/gh-repo"}
+	p := github.New(exectest.NewMockRunner(), cfg)
+	lc := &port.LinkContext{BaseURL: "https://github.com", Owner: "test", Repo: "gh-repo", Platform: "github"}
+	assert.Equal(t, "https://github.com/test/gh-repo/releases/tag/v1.0.0", p.ReleaseURLFromContext("v1.0.0", lc))
+}
+
+func TestReleaseURLFromContext_Nil_FallsBackToReleaseURL(t *testing.T) {
+	cfg := &config.Platform{Repository: "org/repo"}
+	p := github.New(exectest.NewMockRunner(), cfg)
+	assert.Equal(t, p.ReleaseURL("v1.0.0"), p.ReleaseURLFromContext("v1.0.0", nil))
+}
+
 func TestLinkContext(t *testing.T) {
 	t.Setenv("GH_TOKEN", "")
 	cfg := &config.Platform{Repository: "acme/widget", BaseURL: "https://github.com"}
