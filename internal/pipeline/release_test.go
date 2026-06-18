@@ -357,6 +357,43 @@ func TestRun_Changelog_NilContext_MultiPlatform(t *testing.T) {
 	assert.Nil(t, changelog.GenerateContexts[0], "changelog must get nil when multiple platforms and no ambient CI env")
 }
 
+// TestRun_MultiPlatform_Notes_AmbientForMatchingPlatform verifies that in multi-platform
+// mode each platform's release notes prefer the ambient CI context when the platform type
+// matches — the self-hosted GitLab scenario: no base_url in config, CI_PROJECT_URL carries
+// the correct host, and only the matching platform should use it (ADR-0022).
+func TestRun_MultiPlatform_Notes_AmbientForMatchingPlatform(t *testing.T) {
+	clearAmbientCIEnv(t)
+	t.Setenv("CI_PROJECT_URL", "https://git.cross-systems.ch/bchatard/ecom-poc-release")
+
+	mr := exectest.NewMockRunner()
+	mr.QueueResponse("", "", nil) // git tag
+	mr.QueueResponse("", "", nil) // git push <tag>
+
+	notes := &testutil.MockGenerator{GenerateOut: "## notes\n"}
+	gl := &testutil.MockPlatform{
+		PlatformName:   "gitlab",
+		LinkContextVal: port.LinkContext{BaseURL: "https://gitlab.com", Owner: "bchatard", Repo: "ecom-poc-release", Platform: "gitlab"},
+	}
+	gh := &testutil.MockPlatform{
+		PlatformName:   "github",
+		LinkContextVal: port.LinkContext{BaseURL: "https://github.com", Owner: "bchatard", Repo: "ecom-poc-release", Platform: "github"},
+	}
+	cfg := &pipeline.Config{Notes: notes, Platforms: []port.Platform{gl, gh}}
+
+	p := pipeline.New(mr, &fakeResolver{result: resolvedResult("v1.2.3")}, cfg, &bytes.Buffer{}, false)
+	require.NoError(t, p.Run())
+
+	require.Len(t, notes.GenerateContexts, 2, "notes must be generated once per platform")
+	require.NotNil(t, notes.GenerateContexts[0])
+	require.NotNil(t, notes.GenerateContexts[1])
+	// GitLab platform matches ambient CI_PROJECT_URL → ambient self-hosted URL wins.
+	assert.Equal(t, "https://git.cross-systems.ch/bchatard/ecom-poc-release", notes.GenerateContexts[0].BaseURL,
+		"ambient self-hosted URL must win for the matching GitLab platform")
+	// GitHub platform does not match GitLab ambient → its own platform context is used.
+	assert.Equal(t, "https://github.com", notes.GenerateContexts[1].BaseURL,
+		"non-matching platform must keep its own context")
+}
+
 // TestRun_WithAssets verifies UploadAssets is called after CreateRelease.
 func TestRun_WithAssets(t *testing.T) {
 	mr := exectest.NewMockRunner()

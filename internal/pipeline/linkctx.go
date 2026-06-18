@@ -44,19 +44,25 @@ func (p *Pipeline) changelogLinkContext() *port.LinkContext {
 	return nil
 }
 
-// singlePlatformLinkContext resolves the link context for a single-platform release: the
-// ambient CI host when it describes the *same* platform (so a self-hosted instance — whose
-// real host only lives in the CI env — is honoured), otherwise the platform's own
-// base_url-derived context. The platform-match guard prevents a mismatched CI (e.g. a
-// GitHub release built in GitLab CI) from stamping the wrong host (ADR-0022).
-func (p *Pipeline) singlePlatformLinkContext() *port.LinkContext {
-	amb := ambientLinkContext()
-	if len(p.cfg.Platforms) == 0 {
-		return amb
-	}
-	lc := p.cfg.Platforms[0].LinkContext()
-	if amb != nil && amb.Platform == lc.Platform {
+// platformLinkContext resolves the link context for one platform: the ambient CI host when
+// it describes the *same* platform type (so a self-hosted instance whose real host only
+// lives in the CI env is honoured), otherwise the platform's own base_url-derived context.
+// The platform-match guard prevents a mismatched CI (e.g. a GitHub release built in
+// GitLab CI) from stamping the wrong host. Used for both single and multi-platform release
+// notes so the ambient-preference logic is consistent across both paths (ADR-0022).
+func (p *Pipeline) platformLinkContext(plat port.Platform) *port.LinkContext {
+	lc := plat.LinkContext()
+	if amb := ambientLinkContext(); amb != nil && amb.Platform == lc.Platform {
 		return amb
 	}
 	return &lc
+}
+
+// singlePlatformLinkContext resolves the link context for a single-platform release.
+// It falls back to the ambient CI context alone when no platform is configured.
+func (p *Pipeline) singlePlatformLinkContext() *port.LinkContext {
+	if len(p.cfg.Platforms) == 0 {
+		return ambientLinkContext()
+	}
+	return p.platformLinkContext(p.cfg.Platforms[0])
 }

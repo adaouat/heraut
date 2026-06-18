@@ -188,8 +188,8 @@ func (p *Pipeline) Run() error {
 			var subs []string
 			platNotes := notes
 			if notesEnabled && multiPlatform {
-				lc := plat.LinkContext()
-				generated, genErr := p.cfg.Notes.Generate(result.Tag, &lc)
+				lc := p.platformLinkContext(plat)
+				generated, genErr := p.cfg.Notes.Generate(result.Tag, lc)
 				if genErr != nil {
 					return "", nil, fmt.Errorf("platform %s: generating release notes: %w", plat.Name(), genErr)
 				}
