@@ -1,5 +1,16 @@
 # Changelog
 
+## [0.36.5](https://github.com/adaouat/heraut/compare/v0.36.4..v0.36.5) - 2026-06-18
+
+### 🐛 Bug Fixes
+
+- *(pipeline)* Unify release URL resolution through ReleaseURLFromContext - ([5d4124d](https://github.com/adaouat/heraut/commit/5d4124d111f76b74cdd50f0deb1d774981448e9d)) by @bchatard
+
+
+### 📚 Documentation
+
+- *(roadmap)* Add T112 — ReleaseURLFromContext unification (complete) - ([fd32271](https://github.com/adaouat/heraut/commit/fd3227198c44c28a2e3f0ca2c87647cf534d14b2)) by @bchatard
+
 ## [0.36.4](https://github.com/adaouat/heraut/compare/v0.36.3..v0.36.4) - 2026-06-18
 
 ### 🐛 Bug Fixes
