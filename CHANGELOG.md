@@ -1,5 +1,21 @@
 # Changelog
 
+## [0.36.1](https://github.com/adaouat/heraut/compare/v0.36.0..v0.36.1) - 2026-06-18
+
+### 🐛 Bug Fixes
+
+- *(pipeline)* Populate changelog link context from platform when ambient CI is absent - ([1211503](https://github.com/adaouat/heraut/commit/12115031cf6d324968e70d1296f2535642903d28)) by @bchatard
+
+
+### 📚 Documentation
+
+- *(e2e)* Add e2e integration test design spec - ([04864c0](https://github.com/adaouat/heraut/commit/04864c083846f44f37df922ca2705b358458cf76)) by @bchatard
+
+
+### 🧪 Testing
+
+- *(platforms/gitlab)* Guard LinkContext tests against GITLAB_CI leakage - ([b0afd00](https://github.com/adaouat/heraut/commit/b0afd0026bd901f0985460769cbaa8640362ff98)) by @bchatard
+
 ## [0.36.0](https://github.com/adaouat/heraut/compare/v0.35.3..v0.36.0) - 2026-06-17
 
 ### 🚀 Features
