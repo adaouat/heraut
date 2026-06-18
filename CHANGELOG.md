@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.36.3](https://github.com/adaouat/heraut/compare/v0.36.2..v0.36.3) - 2026-06-18
+
+### 🐛 Bug Fixes
+
+- *(platforms/gitlab)* Extract host from CI_PROJECT_URL when CI_SERVER_URL absent - ([e685447](https://github.com/adaouat/heraut/commit/e6854475747877ae3e8c9a3a525f5fd5dbb32a7c)) by @bchatard
+
 ## [0.36.2](https://github.com/adaouat/heraut/compare/v0.36.1..v0.36.2) - 2026-06-18
 
 ### 🐛 Bug Fixes
