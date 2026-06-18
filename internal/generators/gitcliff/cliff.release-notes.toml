@@ -115,15 +115,7 @@ topo_order_commits = true
 sort_commits = "oldest"
 recurse_submodules = false
 
-# Uncomment and fill in to enable PR/MR metadata fetching (authors, PR numbers).
-# For GitLab:
-# [remote.gitlab]
-# owner = "your-group/subgroup"
-# repo = "your-project"
-# # token read from GITLAB_TOKEN env var
-
-# For GitHub:
-# [remote.github]
-# owner = "your-org"
-# repo = "your-repo"
-# # token read from GITHUB_TOKEN env var
+# PR/MR metadata fetching (authors, PR numbers) is enabled automatically by heraut
+# when owner/repo are known from your release.platforms config — no manual config needed.
+# Token (GITHUB_TOKEN / GITLAB_TOKEN) and repo (GITHUB_REPO / GITLAB_REPO) are injected
+# from your heraut config. To override or extend, add [remote.github] or [remote.gitlab].

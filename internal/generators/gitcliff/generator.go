@@ -76,7 +76,7 @@ func (g *Generator) Validate() error {
 // platform; when nil, git-cliff runs with the ambient environment and the template falls
 // through to its CI-var detection (ADR-0021).
 func (g *Generator) Generate(tag string, lc *port.LinkContext) (string, error) {
-	cfgPath, cleanup, err := g.prepareConfig()
+	cfgPath, cleanup, err := g.prepareConfig(lc)
 	if err != nil {
 		return "", err
 	}
@@ -193,7 +193,51 @@ func linkEnv(lc *port.LinkContext) []string {
 		}
 	}
 
+	// Inject the repo coordinates git-cliff's [remote.*] feature reads (GITHUB_REPO or
+	// GITLAB_REPO in owner/repo format). Only inject when owner and repo are known from
+	// the platform context; ambient contexts (Owner/Repo empty) are skipped. Guards
+	// against overriding a value the user set explicitly in their CI environment.
+	if lc.Owner != "" && lc.Repo != "" {
+		repoVar := "GITHUB_REPO"
+		if lc.Platform == "gitlab" {
+			repoVar = "GITLAB_REPO"
+		}
+		if os.Getenv(repoVar) == "" {
+			env = append(env, repoVar+"="+lc.Owner+"/"+lc.Repo)
+		}
+	}
+
 	return env
+}
+
+// injectRemote appends [remote.github] or [remote.gitlab] to the merged TOML when the
+// link context carries owner and repo, so git-cliff can fetch PR/MR metadata without
+// requiring a custom config. Skipped when lc is nil, owner/repo are empty (ambient
+// context), or the user's override already declares [remote.<platform>].
+func injectRemote(merged string, lc *port.LinkContext) (string, error) {
+	if lc == nil || lc.Owner == "" || lc.Repo == "" {
+		return merged, nil
+	}
+	var doc map[string]any
+	if err := toml.Unmarshal([]byte(merged), &doc); err != nil {
+		return "", fmt.Errorf("parsing merged TOML for remote injection: %w", err)
+	}
+	remote, _ := doc["remote"].(map[string]any)
+	if remote != nil {
+		if _, exists := remote[lc.Platform]; exists {
+			return merged, nil
+		}
+	}
+	if remote == nil {
+		remote = make(map[string]any)
+		doc["remote"] = remote
+	}
+	remote[lc.Platform] = map[string]any{"owner": lc.Owner, "repo": lc.Repo}
+	out, err := toml.Marshal(doc)
+	if err != nil {
+		return "", fmt.Errorf("marshalling TOML after remote injection: %w", err)
+	}
+	return string(out), nil
 }
 
 // EffectiveChangelogConfig returns the merged TOML for the changelog variant.
@@ -307,7 +351,7 @@ func injectHeadingPostprocessor(merged, pattern string) (string, error) {
 // CheckCliff runs git-cliff --context --no-exec against the effective merged config.
 // Called by `heraut check cliff`.
 func (g *Generator) CheckCliff() error {
-	cfgPath, cleanup, err := g.prepareConfig()
+	cfgPath, cleanup, err := g.prepareConfig(nil)
 	if err != nil {
 		return err
 	}
@@ -321,7 +365,9 @@ func (g *Generator) CheckCliff() error {
 
 // prepareConfig writes the effective merged TOML to a temp file and returns its path
 // plus a cleanup function. The caller must call cleanup() to remove the temp file.
-func (g *Generator) prepareConfig() (string, func(), error) {
+// When lc is non-nil and carries owner/repo, injectRemote appends [remote.<platform>]
+// to the TOML so git-cliff's PR/MR metadata fetching works without a custom config.
+func (g *Generator) prepareConfig(lc *port.LinkContext) (string, func(), error) {
 	var base string
 	if g.mode == ModeChangelog {
 		base = embeddedChangelog
@@ -330,6 +376,11 @@ func (g *Generator) prepareConfig() (string, func(), error) {
 	}
 
 	merged, err := g.effectiveConfig(base)
+	if err != nil {
+		return "", func() {}, err
+	}
+
+	merged, err = injectRemote(merged, lc)
 	if err != nil {
 		return "", func() {}, err
 	}

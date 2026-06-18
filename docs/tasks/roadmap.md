@@ -4663,6 +4663,26 @@ for pipeline-level contract tests. Pipeline-level regression test added.
 
 ---
 
+#### `[x]` T113: Auto-inject `[remote.github]` / `[remote.gitlab]` into effective git-cliff config
+
+git-cliff's `[remote.*]` sections enable PR/MR metadata fetching (authors, PR numbers).
+Previously, users had to add and fill in the section manually in a custom git-cliff
+override config. Now heraut injects it automatically into the effective TOML temp file
+(alongside `GITHUB_TOKEN`/`GITLAB_TOKEN` that were already injected) — eliminating the
+need for any custom git-cliff config to get PR metadata.
+
+Two complementary mechanisms:
+- **TOML injection** (`injectRemote` in `generator.go`): `prepareConfig(lc)` appends
+  `[remote.<platform>]` with `owner` and `repo` from `lc` after building the merged TOML.
+  Skipped when lc is nil, owner/repo are empty (ambient context), or the user already
+  declared the section in their override config.
+- **Env var injection** (`linkEnv`): also injects `GITHUB_REPO`/`GITLAB_REPO` in
+  `owner/repo` format for users with custom git-cliff configs that rely on env vars.
+
+The embedded TOML comments updated to reflect that no manual config is needed.
+
+---
+
 ## Risks and mitigations
 
 | Risk                                                                                | Impact            | Mitigation                                                                |
