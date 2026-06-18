@@ -259,9 +259,9 @@ func (p *Platform) tokenEnv() string {
 }
 
 // resolveBaseURL returns the effective base URL: cfg.BaseURL when set, CI_SERVER_URL
-// when running in GitLab CI without explicit config, or the default gitlab.com host.
-// This ensures release links point at the actual GitLab instance in self-hosted CI
-// without requiring users to duplicate their server URL in .heraut.yml.
+// when running in GitLab CI without explicit config, or the scheme+host extracted from
+// CI_PROJECT_URL as a fallback (older GitLab instances and some CI containers do not
+// expose CI_SERVER_URL but always provide CI_PROJECT_URL). Falls back to gitlab.com.
 func (p *Platform) resolveBaseURL() string {
 	if p.cfg.BaseURL != "" {
 		return p.cfg.BaseURL
@@ -269,6 +269,11 @@ func (p *Platform) resolveBaseURL() string {
 	if os.Getenv("GITLAB_CI") == "true" {
 		if u := os.Getenv("CI_SERVER_URL"); u != "" {
 			return u
+		}
+		if u := os.Getenv("CI_PROJECT_URL"); u != "" {
+			if parsed, err := url.Parse(u); err == nil && parsed.Host != "" {
+				return parsed.Scheme + "://" + parsed.Host
+			}
 		}
 	}
 	return gitlabBaseURL

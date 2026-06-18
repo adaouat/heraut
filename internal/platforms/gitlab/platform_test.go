@@ -49,6 +49,19 @@ func TestReleaseURL_InCI_NoBaseURL_UsesServerURL(t *testing.T) {
 	assert.Equal(t, "https://git.example.com/grp/repo/-/releases/v1.0.0", p.ReleaseURL("v1.0.0"))
 }
 
+func TestReleaseURL_InCI_NoBaseURL_NoServerURL_FallsBackToProjectURL(t *testing.T) {
+	// Older self-hosted GitLab instances or misconfigured CI containers may not expose
+	// CI_SERVER_URL. CI_PROJECT_URL is the older, more broadly available variable and
+	// carries the full project URL including the host — extracting scheme+host from it
+	// gives the correct base URL for release links.
+	t.Setenv("GITLAB_CI", "true")
+	t.Setenv("CI_SERVER_URL", "")
+	t.Setenv("CI_PROJECT_URL", "https://git.adaouat.dev/bchatard/ecom-poc-release")
+	cfg := &config.Platform{Project: "bchatard/ecom-poc-release"}
+	p := gitlab.New(exectest.NewMockRunner(), cfg)
+	assert.Equal(t, "https://git.adaouat.dev/bchatard/ecom-poc-release/-/releases/v1.0.0", p.ReleaseURL("v1.0.0"))
+}
+
 func TestLinkContext_NestedGroup(t *testing.T) {
 	t.Setenv("GITLAB_TOKEN", "")
 	// GitLab project paths split on the LAST slash: group/subgroup is the owner, the

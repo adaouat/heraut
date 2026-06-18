@@ -301,7 +301,7 @@ func TestRun_Changelog_PlatformFallback_WhenNoAmbient(t *testing.T) {
 // is honoured (the GitLab "base_url not set → CI_PROJECT_URL" scenario).
 func TestRun_Changelog_AmbientPreferredForChangelog(t *testing.T) {
 	clearAmbientCIEnv(t)
-	t.Setenv("CI_PROJECT_URL", "https://git.cross-systems.ch/bchatard/ecom-poc-release")
+	t.Setenv("CI_PROJECT_URL", "https://git.adaouat.dev/bchatard/ecom-poc-release")
 	mr := exectest.NewMockRunner()
 	mr.QueueResponse("", "", nil) // git add
 	mr.QueueResponse("", "", nil) // git commit
@@ -325,7 +325,7 @@ func TestRun_Changelog_AmbientPreferredForChangelog(t *testing.T) {
 
 	require.Len(t, changelog.GenerateContexts, 1)
 	require.NotNil(t, changelog.GenerateContexts[0])
-	assert.Equal(t, "https://git.cross-systems.ch/bchatard/ecom-poc-release", changelog.GenerateContexts[0].BaseURL,
+	assert.Equal(t, "https://git.adaouat.dev/bchatard/ecom-poc-release", changelog.GenerateContexts[0].BaseURL,
 		"ambient self-hosted URL must win over platform default for changelog")
 }
 
@@ -363,7 +363,7 @@ func TestRun_Changelog_NilContext_MultiPlatform(t *testing.T) {
 // the correct host, and only the matching platform should use it (ADR-0022).
 func TestRun_MultiPlatform_Notes_AmbientForMatchingPlatform(t *testing.T) {
 	clearAmbientCIEnv(t)
-	t.Setenv("CI_PROJECT_URL", "https://git.cross-systems.ch/bchatard/ecom-poc-release")
+	t.Setenv("CI_PROJECT_URL", "https://git.adaouat.dev/bchatard/ecom-poc-release")
 
 	mr := exectest.NewMockRunner()
 	mr.QueueResponse("", "", nil) // git tag
@@ -387,7 +387,7 @@ func TestRun_MultiPlatform_Notes_AmbientForMatchingPlatform(t *testing.T) {
 	require.NotNil(t, notes.GenerateContexts[0])
 	require.NotNil(t, notes.GenerateContexts[1])
 	// GitLab platform matches ambient CI_PROJECT_URL → ambient self-hosted URL wins.
-	assert.Equal(t, "https://git.cross-systems.ch/bchatard/ecom-poc-release", notes.GenerateContexts[0].BaseURL,
+	assert.Equal(t, "https://git.adaouat.dev/bchatard/ecom-poc-release", notes.GenerateContexts[0].BaseURL,
 		"ambient self-hosted URL must win for the matching GitLab platform")
 	// GitHub platform does not match GitLab ambient → its own platform context is used.
 	assert.Equal(t, "https://github.com", notes.GenerateContexts[1].BaseURL,
