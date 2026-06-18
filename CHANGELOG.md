@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.36.4](https://github.com/adaouat/heraut/compare/v0.36.3..v0.36.4) - 2026-06-18
+
+### 🐛 Bug Fixes
+
+- *(platforms/gitlab)* Use CI_PROJECT_URL unconditionally, without GITLAB_CI gate - ([8af26a5](https://github.com/adaouat/heraut/commit/8af26a5968194e4d7826d1d082a0d7ad62c883db)) by @bchatard
+
 ## [0.36.3](https://github.com/adaouat/heraut/compare/v0.36.2..v0.36.3) - 2026-06-18
 
 ### 🐛 Bug Fixes
