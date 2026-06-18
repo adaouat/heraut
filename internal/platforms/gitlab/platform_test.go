@@ -50,11 +50,21 @@ func TestReleaseURL_InCI_NoBaseURL_UsesServerURL(t *testing.T) {
 }
 
 func TestReleaseURL_InCI_NoBaseURL_NoServerURL_FallsBackToProjectURL(t *testing.T) {
-	// Older self-hosted GitLab instances or misconfigured CI containers may not expose
-	// CI_SERVER_URL. CI_PROJECT_URL is the older, more broadly available variable and
-	// carries the full project URL including the host — extracting scheme+host from it
-	// gives the correct base URL for release links.
+	// GITLAB_CI=true, CI_SERVER_URL absent — CI_PROJECT_URL carries the host.
 	t.Setenv("GITLAB_CI", "true")
+	t.Setenv("CI_SERVER_URL", "")
+	t.Setenv("CI_PROJECT_URL", "https://git.adaouat.dev/bchatard/ecom-poc-release")
+	cfg := &config.Platform{Project: "bchatard/ecom-poc-release"}
+	p := gitlab.New(exectest.NewMockRunner(), cfg)
+	assert.Equal(t, "https://git.adaouat.dev/bchatard/ecom-poc-release/-/releases/v1.0.0", p.ReleaseURL("v1.0.0"))
+}
+
+func TestReleaseURL_NoGitlabCIVar_ProjectURLSuffices(t *testing.T) {
+	// CI_PROJECT_URL set but GITLAB_CI absent/false: some CI containers and custom
+	// setups expose CI_PROJECT_URL without the GITLAB_CI marker. resolveBaseURL must
+	// treat CI_PROJECT_URL as the authoritative source regardless — consistent with how
+	// ambientLinkContext() uses it unconditionally for notes/changelog link resolution.
+	t.Setenv("GITLAB_CI", "")
 	t.Setenv("CI_SERVER_URL", "")
 	t.Setenv("CI_PROJECT_URL", "https://git.adaouat.dev/bchatard/ecom-poc-release")
 	cfg := &config.Platform{Project: "bchatard/ecom-poc-release"}

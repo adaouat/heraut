@@ -258,10 +258,13 @@ func (p *Platform) tokenEnv() string {
 	return defaultTokenEnv
 }
 
-// resolveBaseURL returns the effective base URL: cfg.BaseURL when set, CI_SERVER_URL
-// when running in GitLab CI without explicit config, or the scheme+host extracted from
-// CI_PROJECT_URL as a fallback (older GitLab instances and some CI containers do not
-// expose CI_SERVER_URL but always provide CI_PROJECT_URL). Falls back to gitlab.com.
+// resolveBaseURL returns the effective base URL for this GitLab instance. Resolution order:
+//  1. cfg.BaseURL (explicit config — always wins)
+//  2. CI_SERVER_URL when GITLAB_CI=true (modern GitLab CI, guaranteed to be the instance URL)
+//  3. scheme+host extracted from CI_PROJECT_URL (no GITLAB_CI gate — mirrors how
+//     ambientLinkContext() uses CI_PROJECT_URL unconditionally; covers custom CI setups and
+//     containers that expose CI_PROJECT_URL without setting GITLAB_CI)
+//  4. gitlab.com (public fallback for local / non-CI runs without explicit config)
 func (p *Platform) resolveBaseURL() string {
 	if p.cfg.BaseURL != "" {
 		return p.cfg.BaseURL
@@ -270,10 +273,10 @@ func (p *Platform) resolveBaseURL() string {
 		if u := os.Getenv("CI_SERVER_URL"); u != "" {
 			return u
 		}
-		if u := os.Getenv("CI_PROJECT_URL"); u != "" {
-			if parsed, err := url.Parse(u); err == nil && parsed.Host != "" {
-				return parsed.Scheme + "://" + parsed.Host
-			}
+	}
+	if u := os.Getenv("CI_PROJECT_URL"); u != "" {
+		if parsed, err := url.Parse(u); err == nil && parsed.Host != "" {
+			return parsed.Scheme + "://" + parsed.Host
 		}
 	}
 	return gitlabBaseURL
