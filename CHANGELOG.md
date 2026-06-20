@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.37.1](https://github.com/adaouat/heraut/compare/v0.37.0..v0.37.1) - 2026-06-20
+
+### 🐛 Bug Fixes
+
+- Bump forge to v0.17.1 - ([e59eca2](https://github.com/adaouat/heraut/commit/e59eca2331b9efadf982e9b7772997d31f3e8841)) by @bchatard
+
 ## [0.37.0](https://github.com/adaouat/heraut/compare/v0.36.5..v0.37.0) - 2026-06-20
 
 ### 🚀 Features
