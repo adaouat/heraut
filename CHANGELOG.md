@@ -1,5 +1,16 @@
 # Changelog
 
+## [0.37.0](https://github.com/adaouat/heraut/compare/v0.36.5..v0.37.0) - 2026-06-20
+
+### 🚀 Features
+
+- *(generators/gitcliff)* Auto-inject [remote.*] and GITHUB_REPO/GITLAB_REPO - ([82d8c5e](https://github.com/adaouat/heraut/commit/82d8c5e768432970c2d307c5d5acddd39ab5424a)) by @bchatard
+
+
+### ⚙️ Miscellaneous Tasks
+
+- *(release)* Drop manual GITHUB_REPOSITORY now that heraut auto-injects GITHUB_REPO - ([e8b1a88](https://github.com/adaouat/heraut/commit/e8b1a88ec9f78c5aa7483dc509dbeddc4e72acfa)) by @bchatard
+
 ## [0.36.5](https://github.com/adaouat/heraut/compare/v0.36.4..v0.36.5) - 2026-06-18
 
 ### 🐛 Bug Fixes
