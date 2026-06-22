@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"io"
 
+	"github.com/adaouat/heraut/internal/config"
 	"github.com/adaouat/heraut/internal/port"
 	"github.com/adaouat/heraut/internal/ui"
 	"github.com/adaouat/heraut/internal/versioning"
@@ -15,6 +16,9 @@ type ChangelogConfig struct {
 	Changelog port.Generator
 	// ChangelogFile is the output path for the changelog.
 	ChangelogFile string
+	// ChangelogRemote is the effective changelog.remote block (ADR-0026), consumed ahead
+	// of the ambient CI-host fallback.
+	ChangelogRemote *config.Remote
 	// CommitMessage is the git commit message template. Defaults to "chore(release): ${version}".
 	CommitMessage string
 	// DisableChangelog skips all steps and exits 0 with an info message.
@@ -110,7 +114,10 @@ func (p *ChangelogPipeline) Run() error {
 	// Step 2: Generate changelog (skipped when DisableChangelog is true). The committed
 	// changelog is tied to origin, so it resolves links from the ambient CI host (ADR-0022).
 	if p.cfg.Changelog != nil && !p.cfg.DisableChangelog {
-		changelogCtx := ambientLinkContext()
+		changelogCtx := remoteLinkContext(p.cfg.ChangelogRemote)
+		if changelogCtx == nil {
+			changelogCtx = ambientLinkContext()
+		}
 		if err := p.runStep("Generate changelog", func() (string, []string, error) {
 			if _, err := p.cfg.Changelog.Generate(result.Tag, changelogCtx); err != nil {
 				return "", nil, fmt.Errorf("generating changelog: %w", err)

@@ -170,6 +170,7 @@ func buildReleasePipelineConfig(runner port.Runner, cfg *config.Config, env stri
 		}
 		pCfg.Changelog = gen
 		pCfg.ChangelogFile = effectiveChangelog.Output
+		pCfg.ChangelogRemote = driver.Remote
 	}
 
 	// Release notes generator
@@ -227,6 +228,7 @@ func buildChangelogPipelineConfig(runner port.Runner, cfg *config.Config, opts P
 		}
 		cCfg.Changelog = gen
 		cCfg.ChangelogFile = effectiveChangelog.Output
+		cCfg.ChangelogRemote = driver.Remote
 	}
 
 	cCfg.AnnotatedTags = cfg.Versioning.TagType != "lightweight"

@@ -36,6 +36,17 @@ func TestInjectRemote_GitLab_NestedGroup(t *testing.T) {
 	assert.NotContains(t, got, `[remote.github]`)
 }
 
+func TestInjectRemote_AzureDevOps(t *testing.T) {
+	// Confirms injectRemote is already generic: Owner carries "organization/project"
+	// (git-cliff's azure_devops owner shape), Repo carries the repository name alone.
+	lc := &port.LinkContext{BaseURL: "https://dev.azure.com", Owner: "group1/sub-group", Repo: "myApp", Platform: "azure_devops"}
+	got, err := injectRemote(minimalTOML, lc)
+	require.NoError(t, err)
+	assert.Contains(t, got, `[remote.azure_devops]`)
+	assert.Contains(t, got, `owner = 'group1/sub-group'`)
+	assert.Contains(t, got, `repo = 'myApp'`)
+}
+
 func TestInjectRemote_NilContext(t *testing.T) {
 	got, err := injectRemote(minimalTOML, nil)
 	require.NoError(t, err)

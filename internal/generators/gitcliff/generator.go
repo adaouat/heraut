@@ -151,9 +151,13 @@ func (g *Generator) exec(args []string, lc *port.LinkContext) (string, error) {
 
 // linkEnv translates a LinkContext into the heraut-owned env vars the embedded git-cliff
 // template reads via get_env: HERAUT_REMOTE_URL (the repository root URL) and
-// HERAUT_PLATFORM (github|gitlab, for the PR vs MR link shape). The embedded template
-// prefers these over the ambient CI-var chain.
+// HERAUT_PLATFORM (github|gitlab|azure_devops, for the PR vs MR link shape). The embedded
+// template prefers these over the ambient CI-var chain.
 func linkEnv(lc *port.LinkContext) []string {
+	if lc.Platform == "azure_devops" {
+		return azureDevOpsLinkEnv(lc)
+	}
+
 	remote := strings.TrimRight(lc.BaseURL, "/")
 	if lc.Owner != "" {
 		remote += "/" + lc.Owner
@@ -205,6 +209,52 @@ func linkEnv(lc *port.LinkContext) []string {
 		if os.Getenv(repoVar) == "" {
 			env = append(env, repoVar+"="+lc.Owner+"/"+lc.Repo)
 		}
+	}
+
+	return env
+}
+
+// azureDevOpsTokenEnvVar and azureDevOpsRepoEnvVar are the env vars git-cliff's
+// azure_devops remote integration reads, mirroring GITHUB_TOKEN/GITHUB_REPO and
+// GITLAB_TOKEN/GITLAB_REPO (ADR-0026).
+const (
+	azureDevOpsTokenEnvVar = "AZURE_DEVOPS_TOKEN"
+	azureDevOpsRepoEnvVar  = "AZURE_DEVOPS_REPO"
+)
+
+// azureDevOpsLinkEnv builds the heraut-owned env vars for an Azure DevOps remote
+// (ADR-0026). Azure Repos URLs are structurally different from GitHub/GitLab: the
+// repository root inserts /_git/ between the project and repository segments
+// (https://dev.azure.com/{org}/{project}/_git/{repo}), and there is no simple
+// prefix-concatenation compare URL — Azure Repos branch/tag comparison is query-string
+// based (?baseVersion=GT{old}&targetVersion=GT{new}&_a=commits), which doesn't fit the
+// "{prefix}{old}..{new}" shape the embedded template substitutes for every other
+// platform. HERAUT_COMPARE_URL is deliberately left unset rather than guessed; version
+// headings degrade the same way they already do for any other context-less run.
+func azureDevOpsLinkEnv(lc *port.LinkContext) []string {
+	remote := strings.TrimRight(lc.BaseURL, "/")
+	if lc.Owner != "" {
+		remote += "/" + lc.Owner
+	}
+	repoRoot := remote
+	if lc.Repo != "" {
+		repoRoot += "/_git/" + lc.Repo
+	}
+
+	env := []string{
+		"HERAUT_REMOTE_URL=" + repoRoot,
+		"HERAUT_PLATFORM=" + lc.Platform,
+		"HERAUT_COMMIT_URL=" + repoRoot + "/commit/",
+		"HERAUT_PR_URL=" + repoRoot + "/pullrequest/",
+		"HERAUT_PR_LABEL=#",
+	}
+
+	if lc.Token != "" && os.Getenv(azureDevOpsTokenEnvVar) == "" {
+		env = append(env, azureDevOpsTokenEnvVar+"="+lc.Token)
+	}
+
+	if lc.Owner != "" && lc.Repo != "" && os.Getenv(azureDevOpsRepoEnvVar) == "" {
+		env = append(env, azureDevOpsRepoEnvVar+"="+lc.Owner+"/"+lc.Repo)
 	}
 
 	return env

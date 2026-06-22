@@ -56,13 +56,30 @@ func TestLinkEnv(t *testing.T) {
 				"HERAUT_COMPARE_URL=https://gitlab.example.com/grp/proj/-/compare/",
 			},
 		},
+		{
+			// Azure DevOps repo roots insert /_git/ between the project and repository
+			// segments and have no simple prefix-concatenation compare URL (ADR-0026), so
+			// HERAUT_COMPARE_URL is deliberately omitted rather than guessed.
+			name: "azure_devops inserts _git and omits compare (no prefix-concat shape)",
+			lc:   port.LinkContext{BaseURL: "https://dev.azure.com", Owner: "group1/sub-group", Repo: "myApp", Platform: "azure_devops"},
+			want: []string{
+				"HERAUT_REMOTE_URL=https://dev.azure.com/group1/sub-group/_git/myApp",
+				"HERAUT_PLATFORM=azure_devops",
+				"HERAUT_COMMIT_URL=https://dev.azure.com/group1/sub-group/_git/myApp/commit/",
+				"HERAUT_PR_URL=https://dev.azure.com/group1/sub-group/_git/myApp/pullrequest/",
+				"HERAUT_PR_LABEL=#",
+				"AZURE_DEVOPS_REPO=group1/sub-group/myApp",
+			},
+		},
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Setenv("GITHUB_TOKEN", "")
 			t.Setenv("GITLAB_TOKEN", "")
+			t.Setenv("AZURE_DEVOPS_TOKEN", "")
 			t.Setenv("GITHUB_REPO", "")
 			t.Setenv("GITLAB_REPO", "")
+			t.Setenv("AZURE_DEVOPS_REPO", "")
 			assert.Equal(t, tc.want, linkEnv(&tc.lc))
 		})
 	}
@@ -105,11 +122,24 @@ func TestLinkEnv_TokenInjection(t *testing.T) {
 			envOverride:   map[string]string{"GITHUB_TOKEN": ""},
 			wantTokenPair: "",
 		},
+		{
+			name:          "azure_devops token injected when AZURE_DEVOPS_TOKEN not set",
+			lc:            port.LinkContext{BaseURL: "https://dev.azure.com", Owner: "org/proj", Repo: "repo", Platform: "azure_devops", Token: "adotoken"},
+			envOverride:   map[string]string{"AZURE_DEVOPS_TOKEN": ""},
+			wantTokenPair: "AZURE_DEVOPS_TOKEN=adotoken",
+		},
+		{
+			name:          "azure_devops token not injected when AZURE_DEVOPS_TOKEN already set",
+			lc:            port.LinkContext{BaseURL: "https://dev.azure.com", Owner: "org/proj", Repo: "repo", Platform: "azure_devops", Token: "adotoken"},
+			envOverride:   map[string]string{"AZURE_DEVOPS_TOKEN": "existing"},
+			wantTokenPair: "",
+		},
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Setenv("GITHUB_REPO", "")
 			t.Setenv("GITLAB_REPO", "")
+			t.Setenv("AZURE_DEVOPS_REPO", "")
 			for k, v := range tc.envOverride {
 				t.Setenv(k, v)
 			}
@@ -174,11 +204,24 @@ func TestLinkEnv_RepoInjection(t *testing.T) {
 			envOverride: map[string]string{"GITHUB_REPO": ""},
 			wantEntry:   "",
 		},
+		{
+			name:        "azure_devops repo injected as organization/project/repository",
+			lc:          port.LinkContext{BaseURL: "https://dev.azure.com", Owner: "group1/sub-group", Repo: "myApp", Platform: "azure_devops"},
+			envOverride: map[string]string{"AZURE_DEVOPS_REPO": ""},
+			wantEntry:   "AZURE_DEVOPS_REPO=group1/sub-group/myApp",
+		},
+		{
+			name:        "azure_devops repo not injected when AZURE_DEVOPS_REPO already set",
+			lc:          port.LinkContext{BaseURL: "https://dev.azure.com", Owner: "group1/sub-group", Repo: "myApp", Platform: "azure_devops"},
+			envOverride: map[string]string{"AZURE_DEVOPS_REPO": "existing"},
+			wantEntry:   "",
+		},
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Setenv("GITHUB_TOKEN", "")
 			t.Setenv("GITLAB_TOKEN", "")
+			t.Setenv("AZURE_DEVOPS_TOKEN", "")
 			for k, v := range tc.envOverride {
 				t.Setenv(k, v)
 			}
@@ -187,7 +230,7 @@ func TestLinkEnv_RepoInjection(t *testing.T) {
 				assert.Contains(t, got, tc.wantEntry)
 			} else {
 				for _, entry := range got {
-					assert.False(t, hasPrefix(entry, "GITHUB_REPO=") || hasPrefix(entry, "GITLAB_REPO="),
+					assert.False(t, hasPrefix(entry, "GITHUB_REPO=") || hasPrefix(entry, "GITLAB_REPO=") || hasPrefix(entry, "AZURE_DEVOPS_REPO="),
 						"unexpected repo entry injected: %s", entry)
 				}
 			}
