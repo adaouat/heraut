@@ -4683,6 +4683,81 @@ The embedded TOML comments updated to reflect that no manual config is needed.
 
 ---
 
+### Phase 21 — Configurable changelog remote (Azure DevOps and beyond)
+
+#### `[ ]` T114: Add `changelog.remote` — explicit metadata remote for git-cliff (Azure DevOps)
+
+git-cliff 2.13 supports an Azure DevOps remote for PR/author metadata enrichment
+(`[remote.azure_devops]` with `owner = "<organization>/<project>"` and
+`repo = "<repository>"`; `AZURE_DEVOPS_TOKEN`/`AZURE_DEVOPS_REPO` env vars — confirmed via
+git-cliff's `--azure-devops-token`/`--azure-devops-repo` CLI arg docs and an empirical
+`git-cliff --config` run). Unlike GitHub/GitLab, Azure DevOps is never a `release.platforms`
+entry here — there is no publish-to-Azure-DevOps requirement, only metadata enrichment. See
+[ADR-0026](../adr/0026-azure-devops-metadata-remote.md) for the full design rationale,
+including why this is deliberately *not* routed through `release.platforms`/`port.Platform`,
+and why it landed under `changelog:` specifically rather than as a top-level block.
+
+**Design (per ADR-0026):**
+
+```yaml
+changelog:
+  generator: git-cliff
+  remote:
+    type: azure_devops              # github | gitlab | azure_devops
+    organization: my-org            # azure_devops-specific
+    project: my-project             # azure_devops-specific
+    repository: my-repo
+    token_env: AZURE_DEVOPS_TOKEN   # default per type; overridable
+    api_url: https://dev.azure.com  # optional — Azure DevOps Server (on-prem) only
+```
+
+- `type` is generic (mirrors `Platform.Type`'s discriminator pattern), not Azure-DevOps-only
+  — `github`/`gitlab` values let a user explicitly pin the changelog's remote when
+  `changelogLinkContext()`'s existing ambient/single-platform fallback is ambiguous (multiple
+  platforms configured, or an unrecognized CI host).
+- Singular object, not a list — one changelog, one source-of-truth remote.
+- `release.notes` is untouched — it already gets a deterministic remote via
+  `platformLinkContext()` per platform being published to, so it has no equivalent gap.
+- git-cliff only, like `tickets:` (ADR-0024) — `changelog.remote` with `cocogitto`/
+  `communique` is a config error, not a silent no-op.
+
+**Implementation:**
+
+1. `internal/config/config.go`: new `Remote` struct (`Type`, `Organization`, `Project`,
+   `Repository`, `TokenEnv`, `APIURL`), added as `*Remote` field on `ContentDriver` (only
+   meaningful for `Changelog`, not `Release.Notes` — validator should reject it on the
+   latter).
+2. `internal/config/validator.go`: `type` enum (`github`/`gitlab`/`azure_devops`);
+   required-field-per-type (azure_devops needs organization+project+repository; github needs
+   repository; gitlab needs project); git-cliff-only gating; reject on `release.notes`.
+3. `internal/pipeline/linkctx.go`: `changelogLinkContext()` checks `cfg.Changelog.Remote`
+   first (constructing a matching `port.LinkContext`), before falling through to its existing
+   ambient → single-platform → nil chain.
+4. `internal/generators/gitcliff/generator.go`: generalize `injectRemote`/`linkEnv` from
+   their current two-armed `if lc.Platform == "gitlab" {...} else {...}` into a small table
+   keyed by remote type (TOML `owner`/`repo` shape + env var names — note Azure DevOps's
+   3-segment `organization/project/repository` addressing vs GitHub/GitLab's 2-segment
+   `owner/repo`). Reused by both the T113 auto-derived path and this new explicit path.
+5. Docs/schema checklist (per `coding.md`): `schema.json`, `docs/heraut.sample.yml`,
+   `docs/specs/05-generators-and-platforms.md` (which currently doesn't document the
+   `[remote.*]`/`GITHUB_REPO`/`GITLAB_REPO` auto-injection from T113 either — close that gap
+   in the same pass since this task documents the same mechanism generalized).
+
+**Tests:** table-driven unit tests for the generalized `injectRemote`/`linkEnv` (extend
+`remote_internal_test.go`/`linkenv_internal_test.go` with `azure_devops` rows), a
+`changelogLinkContext` test for the new explicit-remote-wins-over-ambient case, validator
+tests per type, and a schema fixture in `testdata/config/valid/`.
+
+**Files:** `internal/config/config.go`, `internal/config/validator.go`,
+`internal/pipeline/linkctx.go`, `internal/pipeline/linkctx_test.go`,
+`internal/generators/gitcliff/generator.go`, `internal/generators/gitcliff/remote_internal_test.go`,
+`internal/generators/gitcliff/linkenv_internal_test.go`, `schema.json`,
+`docs/heraut.sample.yml`, `docs/specs/05-generators-and-platforms.md`,
+`testdata/config/valid/`, `testdata/config/invalid/`.
+**Scope:** M. **Dependencies:** none.
+
+---
+
 ## Risks and mitigations
 
 | Risk                                                                                | Impact            | Mitigation                                                                |

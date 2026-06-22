@@ -30,3 +30,4 @@ trade-offs were accepted.
 | [0023](0023-remote-metadata-policy.md) | Remote-Metadata Policy for Content Generation | Accepted |
 | [0024](0024-ticket-linking.md) | Ticket Linking via git-cliff link_parsers | Accepted |
 | [0025](0025-multi-instance-platforms.md) | Multi-Instance Same-Platform Releases | Accepted |
+| [0026](0026-azure-devops-metadata-remote.md) | `changelog.remote` — Explicit Metadata Remote for git-cliff | Accepted |
