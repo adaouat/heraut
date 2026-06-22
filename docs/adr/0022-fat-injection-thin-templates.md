@@ -55,6 +55,27 @@ templates. The default templates read the four prefix vars (compare is changelog
 The GitLab `/-/` routing and the `#`/`!` glyph are the only per-platform knowledge, now in
 the table-tested `linkEnv`.
 
+#### Update (T115): `HERAUT_COMPARE_URL_MIDDLE`
+
+Azure DevOps support ([ADR-0026](0026-azure-devops-metadata-remote.md)) needed a compare
+URL the single-prefix shape above can't express: Azure Repos branch comparison is
+query-string based with two separately-prefixed refs
+(`?baseVersion=GT{old}&targetVersion=GT{new}`), not a path that takes `{old}..{new}` as one
+token. One more optional var extends the contract without breaking it:
+
+| Variable | GitHub / GitLab | Azure DevOps |
+|----------|------------------|--------------|
+| `HERAUT_COMPARE_URL_MIDDLE` (default `".."`) | unset (default applies) | `&targetVersion=GT` |
+
+The changelog template now interpolates
+`{{ HERAUT_COMPARE_URL }}{{ previous.version }}{{ HERAUT_COMPARE_URL_MIDDLE }}{{ version }}`.
+GitHub/GitLab never set the new var, so its default (`".."`) reproduces the exact pre-T115
+byte output — this is additive, not a behavior change for either platform. `linkEnv`
+gained a dedicated `azureDevOpsLinkEnv` rather than folding all three platforms into one
+table: the `_git`-rooted repo path and the query-string compare URL are structurally
+different enough from the `{base}/{owner}/{repo}` + infix shape that a shared abstraction
+would have been forced.
+
 ### Host resolution (ambient relocated Tera → Go)
 
 The effective host in each `LinkContext` is resolved in Go:

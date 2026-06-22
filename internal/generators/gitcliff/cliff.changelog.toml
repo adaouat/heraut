@@ -25,7 +25,7 @@ body = """
 {% if version %}\
     {% if previous.version %}\
         ## [{{ version | trim_start_matches(pat="v") }}]\
-          ({{ get_env(name="HERAUT_COMPARE_URL", default="") }}{{ previous.version }}..{{ version }}) - {{ timestamp | date(format="%Y-%m-%d") }}
+          ({{ get_env(name="HERAUT_COMPARE_URL", default="") }}{{ previous.version }}{{ get_env(name="HERAUT_COMPARE_URL_MIDDLE", default="..") }}{{ version }}) - {{ timestamp | date(format="%Y-%m-%d") }}
     {% else %}\
         ## [{{ version | trim_start_matches(pat="v") }}] - {{ timestamp | date(format="%Y-%m-%d") }}
     {% endif %}\
@@ -91,6 +91,8 @@ sort_commits = "oldest"
 recurse_submodules = false
 
 # PR/MR metadata fetching (authors, PR numbers) is enabled automatically by heraut
-# when owner/repo are known from your release.platforms config — no manual config needed.
-# Token (GITHUB_TOKEN / GITLAB_TOKEN) and repo (GITHUB_REPO / GITLAB_REPO) are injected
-# from your heraut config. To override or extend, add [remote.github] or [remote.gitlab].
+# when owner/repo are known from your release.platforms config, or from an explicit
+# changelog.remote block (ADR-0026) — no manual config needed. Token (GITHUB_TOKEN /
+# GITLAB_TOKEN / AZURE_DEVOPS_TOKEN) and repo (GITHUB_REPO / GITLAB_REPO /
+# AZURE_DEVOPS_REPO) are injected from your heraut config. To override or extend, add
+# [remote.github], [remote.gitlab], or [remote.azure_devops].

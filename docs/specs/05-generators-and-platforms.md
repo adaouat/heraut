@@ -104,12 +104,13 @@ only; setting it on `release.notes` (which already resolves this from
 
 Azure DevOps repository URLs are structurally different from GitHub/GitLab: the
 repository root inserts `/_git/` between the project and repository segments
-(`https://dev.azure.com/{organization}/{project}/_git/{repository}`). Commit and PR links
-are supported; the compare link (`HERAUT_COMPARE_URL`) is not — Azure Repos branch/tag
-comparison is query-string based (`?baseVersion=GT{old}&targetVersion=GT{new}&_a=commits`)
-and doesn't fit the `{prefix}{old}..{new}` shape the embedded template substitutes for
-every other platform. Version headings simply omit the compare link for `azure_devops`,
-the same degraded fallback as today's no-context case.
+(`https://dev.azure.com/{organization}/{project}/_git/{repository}`). Commit, PR, and
+compare links are all supported. The compare link is query-string based with two
+separately-prefixed refs (`?baseVersion=GT{old}&targetVersion=GT{new}`), which doesn't fit
+the single-prefix `{prefix}{old}..{new}` shape GitHub/GitLab use — the embedded changelog
+template substitutes an additional `HERAUT_COMPARE_URL_MIDDLE` var between `{old}` and
+`{new}` to support it (see [ADR-0022's update](../adr/0022-fat-injection-thin-templates.md)).
+GitHub/GitLab never set it, so their output is unchanged.
 
 ### communique
 

@@ -225,12 +225,13 @@ const (
 // azureDevOpsLinkEnv builds the heraut-owned env vars for an Azure DevOps remote
 // (ADR-0026). Azure Repos URLs are structurally different from GitHub/GitLab: the
 // repository root inserts /_git/ between the project and repository segments
-// (https://dev.azure.com/{org}/{project}/_git/{repo}), and there is no simple
-// prefix-concatenation compare URL — Azure Repos branch/tag comparison is query-string
-// based (?baseVersion=GT{old}&targetVersion=GT{new}&_a=commits), which doesn't fit the
-// "{prefix}{old}..{new}" shape the embedded template substitutes for every other
-// platform. HERAUT_COMPARE_URL is deliberately left unset rather than guessed; version
-// headings degrade the same way they already do for any other context-less run.
+// (https://dev.azure.com/{org}/{project}/_git/{repo}), and the compare URL is
+// query-string based with two separately-prefixed refs
+// (?baseVersion=GT{old}&targetVersion=GT{new}) rather than a single "{prefix}{old}..{new}"
+// path. HERAUT_COMPARE_URL carries the prefix only; HERAUT_COMPARE_URL_MIDDLE (T115 /
+// ADR-0022 update) carries the rest — the embedded template substitutes both around
+// {previous.version}/{version}. GitHub/GitLab never set MIDDLE, so the template's default
+// ("..") reproduces their exact pre-T115 output.
 func azureDevOpsLinkEnv(lc *port.LinkContext) []string {
 	remote := strings.TrimRight(lc.BaseURL, "/")
 	if lc.Owner != "" {
@@ -247,6 +248,8 @@ func azureDevOpsLinkEnv(lc *port.LinkContext) []string {
 		"HERAUT_COMMIT_URL=" + repoRoot + "/commit/",
 		"HERAUT_PR_URL=" + repoRoot + "/pullrequest/",
 		"HERAUT_PR_LABEL=#",
+		"HERAUT_COMPARE_URL=" + repoRoot + "/branchCompare?baseVersion=GT",
+		"HERAUT_COMPARE_URL_MIDDLE=&targetVersion=GT",
 	}
 
 	if lc.Token != "" && os.Getenv(azureDevOpsTokenEnvVar) == "" {

@@ -58,9 +58,11 @@ func TestLinkEnv(t *testing.T) {
 		},
 		{
 			// Azure DevOps repo roots insert /_git/ between the project and repository
-			// segments and have no simple prefix-concatenation compare URL (ADR-0026), so
-			// HERAUT_COMPARE_URL is deliberately omitted rather than guessed.
-			name: "azure_devops inserts _git and omits compare (no prefix-concat shape)",
+			// segments. The compare URL is query-string based with two separately-prefixed
+			// refs (T115 / ADR-0022 update), so HERAUT_COMPARE_URL carries the prefix only
+			// and HERAUT_COMPARE_URL_MIDDLE carries the rest — the embedded template
+			// substitutes both around {previous.version}/{version}.
+			name: "azure_devops inserts _git and uses a 2-part compare URL",
 			lc:   port.LinkContext{BaseURL: "https://dev.azure.com", Owner: "group1/sub-group", Repo: "myApp", Platform: "azure_devops"},
 			want: []string{
 				"HERAUT_REMOTE_URL=https://dev.azure.com/group1/sub-group/_git/myApp",
@@ -68,6 +70,8 @@ func TestLinkEnv(t *testing.T) {
 				"HERAUT_COMMIT_URL=https://dev.azure.com/group1/sub-group/_git/myApp/commit/",
 				"HERAUT_PR_URL=https://dev.azure.com/group1/sub-group/_git/myApp/pullrequest/",
 				"HERAUT_PR_LABEL=#",
+				"HERAUT_COMPARE_URL=https://dev.azure.com/group1/sub-group/_git/myApp/branchCompare?baseVersion=GT",
+				"HERAUT_COMPARE_URL_MIDDLE=&targetVersion=GT",
 				"AZURE_DEVOPS_REPO=group1/sub-group/myApp",
 			},
 		},
