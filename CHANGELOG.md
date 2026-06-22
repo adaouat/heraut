@@ -1,5 +1,25 @@
 # Changelog
 
+## [0.39.0](https://github.com/adaouat/heraut/compare/v0.38.0..v0.39.0) - 2026-06-22
+
+### 🚀 Features
+
+- *(generators/gitcliff)* Support Azure DevOps compare links (T115) - ([7e8fa41](https://github.com/adaouat/heraut/commit/7e8fa41e7133446f0e9868c83746c1f2a8a47caa)) by @bchatard
+
+
+### 🐛 Bug Fixes
+
+- *(config)* Consolidate changelog.remote.organization into project - ([5020f13](https://github.com/adaouat/heraut/commit/5020f13056a740a041d8e871ca5683b17fcc1cf3)) by @bchatard
+
+- *(generators/gitcliff)* Percent-encode Azure DevOps URL path segments - ([6b33c21](https://github.com/adaouat/heraut/commit/6b33c2113cbe181bfce0bc469998cdd5e37972da)) by @bchatard
+
+
+### 📚 Documentation
+
+- *(roadmap)* Mark T115 complete - ([a90774f](https://github.com/adaouat/heraut/commit/a90774f1047c7c4f93f88bb38a9f679725210038)) by @bchatard
+
+- *(roadmap)* Note the organization/project field consolidation on T114 - ([27adc69](https://github.com/adaouat/heraut/commit/27adc69539854496f14e23c48801c3634bb8a748)) by @bchatard
+
 ## [0.38.0](https://github.com/adaouat/heraut/compare/v0.37.1..v0.38.0) - 2026-06-22
 
 ### 🚀 Features
