@@ -4772,7 +4772,12 @@ it needs a template restructuring (an extra substitution var) that touches the e
 changelog TOML and ADR-0022's template contract — filed separately as T115 rather than
 expanding this task's scope (T115 implemented it; see below). The other two URL shapes
 (commit, PR) were confirmed against real Azure DevOps URLs provided by the user before
-implementation, not guessed.
+implementation, not guessed. **Post-completion fix:** the original design split
+`organization`/`project` into two separate fields; git-cliff's own `[remote.azure_devops]`
+TOML only has `owner`/`repo` (2 fields, `owner` already `"organization/project"`
+combined), so the redundant `Organization` field was removed — `project:
+"organization/project"` now matches git-cliff one-for-one, consistent with how `github`'s
+`repository` field already holds combined `owner/repo`.
 
 ---
 
