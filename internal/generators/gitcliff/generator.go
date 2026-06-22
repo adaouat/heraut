@@ -2,6 +2,7 @@ package gitcliff
 
 import (
 	"fmt"
+	"net/url"
 	"os"
 	"regexp"
 	"slices"
@@ -222,6 +223,18 @@ const (
 	azureDevOpsRepoEnvVar  = "AZURE_DEVOPS_REPO"
 )
 
+// urlPathSegments percent-encodes each "/"-delimited segment of s independently,
+// preserving the literal "/" separators. Azure DevOps organization/project/repository
+// names may contain spaces and other characters that are valid identifiers but invalid
+// unescaped in a URL path segment (e.g. "sub group" -> "sub%20group").
+func urlPathSegments(s string) string {
+	parts := strings.Split(s, "/")
+	for i, p := range parts {
+		parts[i] = url.PathEscape(p)
+	}
+	return strings.Join(parts, "/")
+}
+
 // azureDevOpsLinkEnv builds the heraut-owned env vars for an Azure DevOps remote
 // (ADR-0026). Azure Repos URLs are structurally different from GitHub/GitLab: the
 // repository root inserts /_git/ between the project and repository segments
@@ -235,11 +248,11 @@ const (
 func azureDevOpsLinkEnv(lc *port.LinkContext) []string {
 	remote := strings.TrimRight(lc.BaseURL, "/")
 	if lc.Owner != "" {
-		remote += "/" + lc.Owner
+		remote += "/" + urlPathSegments(lc.Owner)
 	}
 	repoRoot := remote
 	if lc.Repo != "" {
-		repoRoot += "/_git/" + lc.Repo
+		repoRoot += "/_git/" + url.PathEscape(lc.Repo)
 	}
 
 	env := []string{

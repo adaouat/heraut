@@ -75,6 +75,26 @@ func TestLinkEnv(t *testing.T) {
 				"AZURE_DEVOPS_REPO=group1/sub-group/myApp",
 			},
 		},
+		{
+			// Azure DevOps organization/project names may contain spaces and other
+			// characters that are valid identifiers but invalid unescaped in a URL path
+			// segment. Each "/"-delimited segment of Owner/Repo is percent-encoded
+			// independently; the literal "/" separators are not encoded. AZURE_DEVOPS_REPO
+			// stays raw (git-cliff does its own escaping for the API call), as do
+			// GITHUB_REPO/GITLAB_REPO already.
+			name: "azure_devops percent-encodes spaces in organization/project/repository",
+			lc:   port.LinkContext{BaseURL: "https://dev.azure.com", Owner: "group1/sub group", Repo: "my App", Platform: "azure_devops"},
+			want: []string{
+				"HERAUT_REMOTE_URL=https://dev.azure.com/group1/sub%20group/_git/my%20App",
+				"HERAUT_PLATFORM=azure_devops",
+				"HERAUT_COMMIT_URL=https://dev.azure.com/group1/sub%20group/_git/my%20App/commit/",
+				"HERAUT_PR_URL=https://dev.azure.com/group1/sub%20group/_git/my%20App/pullrequest/",
+				"HERAUT_PR_LABEL=#",
+				"HERAUT_COMPARE_URL=https://dev.azure.com/group1/sub%20group/_git/my%20App/branchCompare?baseVersion=GT",
+				"HERAUT_COMPARE_URL_MIDDLE=&targetVersion=GT",
+				"AZURE_DEVOPS_REPO=group1/sub group/my App",
+			},
+		},
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
