@@ -82,6 +82,33 @@ type ContentDriver struct {
 	// Tickets is the effective top-level Config.Tickets, propagated onto the driver by the
 	// app layer so the generator can inject link_parsers. Not user-configurable per-driver.
 	Tickets []Ticket `yaml:"-"`
+	// Remote configures an explicit, metadata-only remote for git-cliff PR/author
+	// enrichment. Only valid on the changelog driver — release.notes already resolves
+	// this from release.platforms and rejects Remote. git-cliff only. See ADR-0026.
+	Remote *Remote `yaml:"remote,omitempty"`
+}
+
+// Remote configures an explicit metadata-only remote for git-cliff PR/author enrichment
+// on the changelog content driver. Unlike release.platforms (which models where heraut
+// publishes a release), Remote never grants publish capability — it only tells git-cliff
+// where to fetch PR/MR metadata from. See ADR-0026.
+type Remote struct {
+	// Type is the remote discriminator: "github", "gitlab", or "azure_devops".
+	Type string `yaml:"type"`
+	// Organization is required for type: azure_devops.
+	Organization string `yaml:"organization,omitempty"`
+	// Project is required for type: gitlab ("namespace[/subgroup]/repo") and
+	// type: azure_devops.
+	Project string `yaml:"project,omitempty"`
+	// Repository is required for type: github ("owner/repo") and type: azure_devops
+	// (repository name only — organization/project are separate fields).
+	Repository string `yaml:"repository,omitempty"`
+	// TokenEnv overrides the default token env var read for this remote's type
+	// (GITHUB_TOKEN, GITLAB_TOKEN, or AZURE_DEVOPS_TOKEN).
+	TokenEnv string `yaml:"token_env,omitempty"`
+	// APIURL overrides the remote's default API host. Only meaningful for
+	// type: azure_devops (Azure DevOps Server / on-prem).
+	APIURL string `yaml:"api_url,omitempty"`
 }
 
 // Release holds release notes and platform settings.

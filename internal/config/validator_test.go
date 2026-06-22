@@ -1086,3 +1086,207 @@ environments:
 	require.NotNil(t, e)
 	assert.Contains(t, e.Message, "git-cliff")
 }
+
+// ── changelog.remote (ADR-0026) ─────────────────────────────────────────────
+
+func TestValidate_changelogRemoteAzureDevOpsValid(t *testing.T) {
+	cfg := mustLoad(t, `
+version: "1"
+versioning:
+  strategy: semver
+changelog:
+  generator: git-cliff
+  remote:
+    type: azure_devops
+    organization: my-org
+    project: my-project
+    repository: my-repo
+`)
+	errs := config.Validate(cfg)
+	for _, e := range errs {
+		assert.NotContains(t, e.Path, "remote", "unexpected error: %+v", e)
+	}
+}
+
+func TestValidate_changelogRemoteMissingType(t *testing.T) {
+	cfg := mustLoad(t, `
+version: "1"
+versioning:
+  strategy: semver
+changelog:
+  generator: git-cliff
+  remote:
+    repository: acme/widgets
+`)
+	e := findErr(config.Validate(cfg), "changelog.remote.type")
+	require.NotNil(t, e)
+	assert.Equal(t, "required", e.Message)
+}
+
+func TestValidate_changelogRemoteInvalidType(t *testing.T) {
+	cfg := mustLoad(t, `
+version: "1"
+versioning:
+  strategy: semver
+changelog:
+  generator: git-cliff
+  remote:
+    type: bitbucket
+    repository: acme/widgets
+`)
+	e := findErr(config.Validate(cfg), "changelog.remote.type")
+	require.NotNil(t, e)
+	assert.Contains(t, e.Message, "bitbucket")
+}
+
+func TestValidate_changelogRemoteAzureDevOpsMissingFields(t *testing.T) {
+	cfg := mustLoad(t, `
+version: "1"
+versioning:
+  strategy: semver
+changelog:
+  generator: git-cliff
+  remote:
+    type: azure_devops
+`)
+	errs := config.Validate(cfg)
+	require.NotNil(t, findErr(errs, "changelog.remote.organization"))
+	require.NotNil(t, findErr(errs, "changelog.remote.project"))
+	require.NotNil(t, findErr(errs, "changelog.remote.repository"))
+}
+
+func TestValidate_changelogRemoteGithubMissingRepository(t *testing.T) {
+	cfg := mustLoad(t, `
+version: "1"
+versioning:
+  strategy: semver
+changelog:
+  generator: git-cliff
+  remote:
+    type: github
+`)
+	e := findErr(config.Validate(cfg), "changelog.remote.repository")
+	require.NotNil(t, e)
+	assert.Contains(t, e.Message, "github")
+}
+
+func TestValidate_changelogRemoteGitlabMissingProject(t *testing.T) {
+	cfg := mustLoad(t, `
+version: "1"
+versioning:
+  strategy: semver
+changelog:
+  generator: git-cliff
+  remote:
+    type: gitlab
+`)
+	e := findErr(config.Validate(cfg), "changelog.remote.project")
+	require.NotNil(t, e)
+	assert.Contains(t, e.Message, "gitlab")
+}
+
+func TestValidate_changelogRemoteRequiresGitCliff(t *testing.T) {
+	cfg := mustLoad(t, `
+version: "1"
+versioning:
+  strategy: semver
+changelog:
+  generator: cocogitto
+  remote:
+    type: azure_devops
+    organization: my-org
+    project: my-project
+    repository: my-repo
+`)
+	e := findErr(config.Validate(cfg), "changelog.remote")
+	require.NotNil(t, e)
+	assert.Contains(t, e.Message, "git-cliff")
+}
+
+func TestValidate_changelogRemoteInvalidAPIURL(t *testing.T) {
+	cfg := mustLoad(t, `
+version: "1"
+versioning:
+  strategy: semver
+changelog:
+  generator: git-cliff
+  remote:
+    type: azure_devops
+    organization: my-org
+    project: my-project
+    repository: my-repo
+    api_url: "not-a-url"
+`)
+	e := findErr(config.Validate(cfg), "changelog.remote.api_url")
+	require.NotNil(t, e)
+}
+
+func TestValidate_releaseNotesRemoteRejected(t *testing.T) {
+	cfg := mustLoad(t, `
+version: "1"
+versioning:
+  strategy: semver
+release:
+  notes:
+    generator: git-cliff
+    remote:
+      type: azure_devops
+      organization: my-org
+      project: my-project
+      repository: my-repo
+`)
+	e := findErr(config.Validate(cfg), "release.notes.remote")
+	require.NotNil(t, e)
+	assert.Contains(t, e.Message, "changelog")
+}
+
+// A per-env changelog that only sets remote inherits the top-level git-cliff generator
+// via MergeContentDriver, so the effective driver is valid.
+func TestValidate_perEnvChangelogRemoteInheritsGitCliff(t *testing.T) {
+	cfg := mustLoad(t, `
+version: "1"
+versioning:
+  strategy: semver-per-env
+  tag_format: "{env}/{version}"
+changelog:
+  generator: git-cliff
+environments:
+  prod:
+    bump: auto
+    changelog:
+      remote:
+        type: azure_devops
+        organization: my-org
+        project: my-project
+        repository: my-repo
+`)
+	errs := config.Validate(cfg)
+	for _, e := range errs {
+		assert.NotContains(t, e.Path, "remote", "unexpected error: %+v", e)
+	}
+}
+
+func TestValidate_perEnvReleaseNotesRemoteRejected(t *testing.T) {
+	cfg := mustLoad(t, `
+version: "1"
+versioning:
+  strategy: semver-per-env
+  tag_format: "{env}/{version}"
+release:
+  notes:
+    generator: git-cliff
+environments:
+  prod:
+    bump: auto
+    release:
+      notes:
+        remote:
+          type: azure_devops
+          organization: my-org
+          project: my-project
+          repository: my-repo
+`)
+	e := findErr(config.Validate(cfg), "environments.prod.release.notes.remote")
+	require.NotNil(t, e)
+	assert.Contains(t, e.Message, "changelog")
+}

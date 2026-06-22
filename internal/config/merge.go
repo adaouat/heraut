@@ -39,5 +39,8 @@ func MergeContentDriver(base, override *ContentDriver) *ContentDriver {
 	if override.Template != "" {
 		merged.Template = override.Template
 	}
+	if override.Remote != nil {
+		merged.Remote = override.Remote
+	}
 	return &merged
 }

@@ -181,6 +181,94 @@ func validateContentDriver(d *ContentDriver, path string) []ValidationError {
 			Hint:    fmt.Sprintf("set generator to git-cliff, or remove tag_pattern (current generator: %s)", d.Generator),
 		})
 	}
+	errs = append(errs, validateContentDriverRemote(d, path)...)
+	return errs
+}
+
+// validateContentDriverRemote validates an explicit changelog.remote block (ADR-0026): it
+// is only valid on the changelog content driver (release notes already resolve PR/MR
+// metadata from release.platforms), requires the git-cliff generator, and requires a valid
+// type with that type's required fields.
+func validateContentDriverRemote(d *ContentDriver, path string) []ValidationError {
+	if d.Remote == nil {
+		return nil
+	}
+	remotePath := path + ".remote"
+	if strings.HasSuffix(path, ".notes") {
+		return []ValidationError{{
+			Path:    remotePath,
+			Message: "remote is only valid on the changelog content driver, not release notes",
+			Hint:    "release notes already resolve PR/MR metadata from release.platforms; remove this block",
+		}}
+	}
+	var errs []ValidationError
+	if d.Generator != "" && d.Generator != "git-cliff" {
+		errs = append(errs, ValidationError{
+			Path:    remotePath,
+			Message: "remote requires the git-cliff generator",
+			Hint:    fmt.Sprintf("set generator to git-cliff, or remove remote (current generator: %s)", d.Generator),
+		})
+	}
+	r := d.Remote
+	switch r.Type {
+	case "":
+		errs = append(errs, ValidationError{
+			Path:    remotePath + ".type",
+			Message: "required",
+			Hint:    "set type to one of: github, gitlab, azure_devops",
+		})
+	case "github":
+		if r.Repository == "" {
+			errs = append(errs, ValidationError{
+				Path:    remotePath + ".repository",
+				Message: "required for type: github",
+				Hint:    `set repository to "owner/repo"`,
+			})
+		}
+	case "gitlab":
+		if r.Project == "" {
+			errs = append(errs, ValidationError{
+				Path:    remotePath + ".project",
+				Message: "required for type: gitlab",
+				Hint:    `set project to "namespace/repo" (or "namespace/subgroup/repo")`,
+			})
+		}
+	case "azure_devops":
+		if r.Organization == "" {
+			errs = append(errs, ValidationError{
+				Path:    remotePath + ".organization",
+				Message: "required for type: azure_devops",
+				Hint:    "set organization to your Azure DevOps organization name",
+			})
+		}
+		if r.Project == "" {
+			errs = append(errs, ValidationError{
+				Path:    remotePath + ".project",
+				Message: "required for type: azure_devops",
+				Hint:    "set project to your Azure DevOps project name",
+			})
+		}
+		if r.Repository == "" {
+			errs = append(errs, ValidationError{
+				Path:    remotePath + ".repository",
+				Message: "required for type: azure_devops",
+				Hint:    "set repository to your Azure DevOps repository name",
+			})
+		}
+	default:
+		errs = append(errs, ValidationError{
+			Path:    remotePath + ".type",
+			Message: fmt.Sprintf("%q is not a valid remote type", r.Type),
+			Hint:    "valid types: github, gitlab, azure_devops",
+		})
+	}
+	if r.APIURL != "" && !isValidBaseURL(strings.TrimRight(r.APIURL, "/")) {
+		errs = append(errs, ValidationError{
+			Path:    remotePath + ".api_url",
+			Message: fmt.Sprintf("%q is not a valid URL", r.APIURL),
+			Hint:    "api_url must be an absolute http(s) URL, e.g. https://dev.azure.com",
+		})
+	}
 	return errs
 }
 

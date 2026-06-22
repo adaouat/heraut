@@ -61,6 +61,20 @@ func TestMergeContentDriver(t *testing.T) {
 		assert.Empty(t, base.Config, "base must be untouched")
 		assert.Empty(t, ovr.Output, "override must be untouched")
 	})
+
+	t.Run("override unset remote inherits base remote", func(t *testing.T) {
+		base := &config.ContentDriver{Generator: "git-cliff", Remote: &config.Remote{Type: "azure_devops"}}
+		ovr := &config.ContentDriver{Config: "c.toml"}
+		got := config.MergeContentDriver(base, ovr)
+		assert.Equal(t, base.Remote, got.Remote)
+	})
+
+	t.Run("override remote replaces base remote", func(t *testing.T) {
+		base := &config.ContentDriver{Generator: "git-cliff", Remote: &config.Remote{Type: "azure_devops"}}
+		ovr := &config.ContentDriver{Remote: &config.Remote{Type: "github", Repository: "acme/widgets"}}
+		got := config.MergeContentDriver(base, ovr)
+		assert.Equal(t, ovr.Remote, got.Remote)
+	})
 }
 
 func TestMergeContentDriver_BothNil(t *testing.T) {
