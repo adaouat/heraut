@@ -50,8 +50,8 @@ changelog:
   generator: git-cliff
   remote:
     type: azure_devops              # github | gitlab | azure_devops (room for bitbucket/gitea later)
-    organization: my-org            # azure_devops-specific
-    project: my-project             # azure_devops-specific
+    project: my-org/my-project      # azure_devops: "organization/project" — matches
+                                     # git-cliff's own azure_devops "owner" shape exactly
     repository: my-repo             # shared field name across types
     token_env: AZURE_DEVOPS_TOKEN   # default per type; overridable
     api_url: https://dev.azure.com  # optional — Azure DevOps Server (on-prem) only
@@ -72,10 +72,11 @@ ambient → single-platform → `nil` chain, so behavior is unchanged when it's 
 **git-cliff only**, like `tickets:` (ADR-0024) — `changelog.remote` with a non-git-cliff
 generator is a config error.
 
-Field naming for `repository`/`organization`/`project` mirrors `Platform`'s existing
-`Repository` (github, `owner/repo` string)/`Project` (gitlab, `namespace/.../repo` string)
-fields where the type allows reuse; the exact per-type field set is finalized during
-implementation, not fixed by this ADR.
+Field naming mirrors `Platform`'s existing convention of one combined-path field per type
+rather than splitting it: `repository` (github, `owner/repo` string), `project` (gitlab,
+`namespace/.../repo` string; azure_devops, `organization/project` string). Exactly two
+fields per type (`project`/`repository` for azure_devops), matching git-cliff's own
+`owner`/`repo` shape one-for-one — there is no separate `organization` field.
 
 ### Why not `release.platforms`
 

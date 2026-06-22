@@ -234,18 +234,11 @@ func validateContentDriverRemote(d *ContentDriver, path string) []ValidationErro
 			})
 		}
 	case "azure_devops":
-		if r.Organization == "" {
-			errs = append(errs, ValidationError{
-				Path:    remotePath + ".organization",
-				Message: "required for type: azure_devops",
-				Hint:    "set organization to your Azure DevOps organization name",
-			})
-		}
 		if r.Project == "" {
 			errs = append(errs, ValidationError{
 				Path:    remotePath + ".project",
 				Message: "required for type: azure_devops",
-				Hint:    "set project to your Azure DevOps project name",
+				Hint:    `set project to "organization/project"`,
 			})
 		}
 		if r.Repository == "" {

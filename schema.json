@@ -198,13 +198,9 @@
           ],
           "description": "Remote discriminator."
         },
-        "organization": {
-          "type": "string",
-          "description": "Azure DevOps organization name. Required for type: azure_devops."
-        },
         "project": {
           "type": "string",
-          "description": "GitLab project path (namespace[/subgroup]/repo). Required for type: gitlab. For type: azure_devops, the Azure DevOps project name (required)."
+          "description": "GitLab project path (namespace[/subgroup]/repo). Required for type: gitlab. For type: azure_devops, \"organization/project\" (required) — matches git-cliff's own azure_devops \"owner\" shape."
         },
         "repository": {
           "type": "string",

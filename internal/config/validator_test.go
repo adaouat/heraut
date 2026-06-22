@@ -1098,8 +1098,7 @@ changelog:
   generator: git-cliff
   remote:
     type: azure_devops
-    organization: my-org
-    project: my-project
+    project: my-org/my-project
     repository: my-repo
 `)
 	errs := config.Validate(cfg)
@@ -1150,7 +1149,6 @@ changelog:
     type: azure_devops
 `)
 	errs := config.Validate(cfg)
-	require.NotNil(t, findErr(errs, "changelog.remote.organization"))
 	require.NotNil(t, findErr(errs, "changelog.remote.project"))
 	require.NotNil(t, findErr(errs, "changelog.remote.repository"))
 }
@@ -1194,8 +1192,7 @@ changelog:
   generator: cocogitto
   remote:
     type: azure_devops
-    organization: my-org
-    project: my-project
+    project: my-org/my-project
     repository: my-repo
 `)
 	e := findErr(config.Validate(cfg), "changelog.remote")
@@ -1212,8 +1209,7 @@ changelog:
   generator: git-cliff
   remote:
     type: azure_devops
-    organization: my-org
-    project: my-project
+    project: my-org/my-project
     repository: my-repo
     api_url: "not-a-url"
 `)
@@ -1231,8 +1227,7 @@ release:
     generator: git-cliff
     remote:
       type: azure_devops
-      organization: my-org
-      project: my-project
+      project: my-org/my-project
       repository: my-repo
 `)
 	e := findErr(config.Validate(cfg), "release.notes.remote")
@@ -1256,8 +1251,7 @@ environments:
     changelog:
       remote:
         type: azure_devops
-        organization: my-org
-        project: my-project
+        project: my-org/my-project
         repository: my-repo
 `)
 	errs := config.Validate(cfg)
@@ -1282,8 +1276,7 @@ environments:
       notes:
         remote:
           type: azure_devops
-          organization: my-org
-          project: my-project
+          project: my-org/my-project
           repository: my-repo
 `)
 	e := findErr(config.Validate(cfg), "environments.prod.release.notes.remote")

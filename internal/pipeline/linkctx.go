@@ -52,7 +52,7 @@ func remoteLinkContext(r *config.Remote) *port.LinkContext {
 		}
 		return &port.LinkContext{
 			BaseURL:  baseURL,
-			Owner:    r.Organization + "/" + r.Project,
+			Owner:    r.Project,
 			Repo:     r.Repository,
 			Platform: "azure_devops",
 			Token:    os.Getenv(tokenEnvOrDefault(r.TokenEnv, azureDevOpsDefaultTokenEnv)),

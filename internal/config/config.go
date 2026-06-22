@@ -95,13 +95,12 @@ type ContentDriver struct {
 type Remote struct {
 	// Type is the remote discriminator: "github", "gitlab", or "azure_devops".
 	Type string `yaml:"type"`
-	// Organization is required for type: azure_devops.
-	Organization string `yaml:"organization,omitempty"`
 	// Project is required for type: gitlab ("namespace[/subgroup]/repo") and
-	// type: azure_devops.
+	// type: azure_devops ("organization/project" — git-cliff's own azure_devops
+	// "owner" shape; not just the project name alone).
 	Project string `yaml:"project,omitempty"`
 	// Repository is required for type: github ("owner/repo") and type: azure_devops
-	// (repository name only — organization/project are separate fields).
+	// (repository name only).
 	Repository string `yaml:"repository,omitempty"`
 	// TokenEnv overrides the default token env var read for this remote's type
 	// (GITHUB_TOKEN, GITLAB_TOKEN, or AZURE_DEVOPS_TOKEN).

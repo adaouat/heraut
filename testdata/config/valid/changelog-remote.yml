@@ -9,6 +9,5 @@ changelog:
   generator: git-cliff
   remote:
     type: azure_devops
-    organization: my-org
-    project: my-project
+    project: my-org/my-project
     repository: my-repo

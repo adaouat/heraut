@@ -105,19 +105,19 @@ func TestRemoteLinkContext(t *testing.T) {
 			want: &port.LinkContext{BaseURL: "https://gitlab.com", Owner: "grp", Repo: "proj", Platform: "gitlab", Token: "gltok"},
 		},
 		{
-			name: "azure_devops combines organization/project as owner",
-			r:    &config.Remote{Type: "azure_devops", Organization: "group1", Project: "sub-group", Repository: "myApp"},
+			name: "azure_devops uses project as owner directly (already organization/project)",
+			r:    &config.Remote{Type: "azure_devops", Project: "group1/sub-group", Repository: "myApp"},
 			want: &port.LinkContext{BaseURL: "https://dev.azure.com", Owner: "group1/sub-group", Repo: "myApp", Platform: "azure_devops"},
 		},
 		{
 			name:     "azure_devops reads default token env",
-			r:        &config.Remote{Type: "azure_devops", Organization: "group1", Project: "sub-group", Repository: "myApp"},
+			r:        &config.Remote{Type: "azure_devops", Project: "group1/sub-group", Repository: "myApp"},
 			tokenEnv: "AZURE_DEVOPS_TOKEN", token: "adotok",
 			want: &port.LinkContext{BaseURL: "https://dev.azure.com", Owner: "group1/sub-group", Repo: "myApp", Platform: "azure_devops", Token: "adotok"},
 		},
 		{
 			name: "azure_devops honours api_url override",
-			r:    &config.Remote{Type: "azure_devops", Organization: "group1", Project: "sub-group", Repository: "myApp", APIURL: "https://devops.example.com"},
+			r:    &config.Remote{Type: "azure_devops", Project: "group1/sub-group", Repository: "myApp", APIURL: "https://devops.example.com"},
 			want: &port.LinkContext{BaseURL: "https://devops.example.com", Owner: "group1/sub-group", Repo: "myApp", Platform: "azure_devops"},
 		},
 		{

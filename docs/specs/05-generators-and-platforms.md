@@ -85,8 +85,9 @@ changelog:
   generator: git-cliff
   remote:
     type: azure_devops              # github | gitlab | azure_devops
-    organization: my-org            # azure_devops only
-    project: my-project             # azure_devops (required) / gitlab (required: namespace[/subgroup]/repo)
+    project: my-org/my-project      # azure_devops (required: "organization/project", matching
+                                     # git-cliff's own azure_devops "owner" shape) / gitlab
+                                     # (required: namespace[/subgroup]/repo)
     repository: my-repo             # azure_devops (required) / github (required: owner/repo)
     token_env: AZURE_DEVOPS_TOKEN    # optional override
     api_url: https://dev.azure.com  # optional, Azure DevOps Server (on-prem) only
