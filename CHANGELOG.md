@@ -1,5 +1,22 @@
 # Changelog
 
+## [0.38.0](https://github.com/adaouat/heraut/compare/v0.37.1..v0.38.0) - 2026-06-22
+
+### 🚀 Features
+
+- *(config)* Add changelog.remote for explicit git-cliff metadata remotes - ([4c0ab0c](https://github.com/adaouat/heraut/commit/4c0ab0ca04e5522d5407f25e445803573c1aa7a8)) by @bchatard
+
+- *(generators/gitcliff)* Wire changelog.remote into link resolution - ([107999a](https://github.com/adaouat/heraut/commit/107999a53de85f8271ccb9b1446f6a4bbc660f4f)) by @bchatard
+
+
+### 📚 Documentation
+
+- *(adr)* Add ADR-0026 for changelog.remote and file T114 - ([9ae08b7](https://github.com/adaouat/heraut/commit/9ae08b785cdb2cbe8fabb18af8fe0c8b0ab87cd0)) by @bchatard
+
+- *(config)* Document changelog.remote in schema, sample, and spec - ([e304b91](https://github.com/adaouat/heraut/commit/e304b9170eeb7ffc4b68f27a9077731effbd5574)) by @bchatard
+
+- *(roadmap)* Mark T114 complete, file T115 for compare-link support - ([90849af](https://github.com/adaouat/heraut/commit/90849afa12108b9bf736dbc1d9c73553785dfeda)) by @bchatard
+
 ## [0.37.1](https://github.com/adaouat/heraut/compare/v0.37.0..v0.37.1) - 2026-06-20
 
 ### 🐛 Bug Fixes
