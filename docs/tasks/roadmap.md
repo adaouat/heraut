@@ -4765,48 +4765,53 @@ before writing any code. `linkEnv` was generalized by branching early to a dedic
 function — github/gitlab's `infix`-based URL composition and Azure DevOps's `_git`-rooted
 one are structurally different enough that a shared abstraction would have been forced.
 **Deviation:** `HERAUT_COMPARE_URL` is deliberately left unset for `azure_devops` — Azure
-Repos branch/tag comparison is query-string based
-(`?baseVersion=GT{old}&targetVersion=GT{new}&_a=commits`), which doesn't fit the
-`{prefix}{old}..{new}` concatenation the embedded Tera template substitutes for every
-other platform. Supporting it needs a template restructuring (prefix/middle/suffix
-substitution) that touches both embedded TOMLs and ADR-0022's template contract — filed
-separately as T115 rather than expanding this task's scope. The other two URL shapes
+Repos branch comparison is query-string based
+(`?baseVersion=GT{old}&targetVersion=GT{new}`), which doesn't fit the `{prefix}{old}..{new}`
+concatenation the embedded Tera template substitutes for every other platform. Supporting
+it needs a template restructuring (an extra substitution var) that touches the embedded
+changelog TOML and ADR-0022's template contract — filed separately as T115 rather than
+expanding this task's scope (T115 implemented it; see below). The other two URL shapes
 (commit, PR) were confirmed against real Azure DevOps URLs provided by the user before
 implementation, not guessed.
 
 ---
 
-#### `[ ]` T115: Azure DevOps compare-link support — restructure the embedded Tera template
+#### `[x]` T115: Azure DevOps compare-link support — restructure the embedded Tera template
 
 Deferred from T114 (above). `HERAUT_COMPARE_URL` is currently a single prefix string; the embedded template appends
 `{previous.version}..{version}` itself for each release section
 (`{{ get_env(name="HERAUT_COMPARE_URL", default="") }}{{ previous.version }}..{{ version }}`
-in both `cliff.changelog.toml` and `cliff.release-notes.toml`). That shape works for
-GitHub (`/compare/v1...v2`) and GitLab (`/-/compare/v1...v2`) but cannot express Azure
-Repos' compare URL, which is query-string based with two separately-prefixed refs:
+in `cliff.changelog.toml`). That shape works for GitHub (`/compare/v1...v2`) and GitLab
+(`/-/compare/v1...v2`) but cannot express Azure Repos' compare URL, which is query-string
+based with two separately-prefixed refs:
 
 ```
-https://dev.azure.com/{org}/{project}/_git/{repo}/branchCompare?baseVersion=GT{old}&targetVersion=GT{new}&_a=commits
+https://dev.azure.com/{org}/{project}/_git/{repo}/branchCompare?baseVersion=GT{old}&targetVersion=GT{new}
 ```
 
 **Expected behavior:** for `changelog.remote.type: azure_devops`, version headings render
 a working compare link instead of omitting it.
 
-**Implementation sketch:** restructure both embedded templates to substitute three pieces
-instead of one — e.g. `HERAUT_COMPARE_URL_PREFIX` (`.../branchCompare?baseVersion=GT`),
-`HERAUT_COMPARE_URL_MIDDLE` (`&targetVersion=GT`), `HERAUT_COMPARE_URL_SUFFIX`
-(`&_a=commits`) — with GitHub/GitLab setting prefix to the current `HERAUT_COMPARE_URL`
-value, middle to `..` or `...`, and suffix to `""`, so existing output is byte-identical.
-This is a change to ADR-0022's template contract (the `HERAUT_*` env var set), not just
-`linkEnv` — update or supersede ADR-0022 alongside the implementation, and add a real-CLI
-render assertion (`testutil.RealGitRepo`) locking in the exact Azure DevOps compare URL,
-since this is exactly the kind of rendered-output claim T114's design review found
-unverified for the existing platforms too.
+Implemented with a single additional substitution var, `HERAUT_COMPARE_URL_MIDDLE`
+(default `".."`), rather than the originally-sketched prefix/middle/suffix three-var
+design — once the URL was verified against real Azure DevOps URLs, the trailing
+`&_a=commits` query param turned out to be unnecessary, leaving exactly two pieces
+(`baseVersion=GT{old}` and `&targetVersion=GT{new}`), so no suffix var was needed.
+`linkEnv`/`azureDevOpsLinkEnv` and `cliff.changelog.toml` were updated;
+`cliff.release-notes.toml` was untouched (it has no compare-link construct at all —
+release notes render a single release, not a multi-version heading list). ADR-0022 was
+amended in place (not superseded) with the new var. **Deviation from the task's own
+suggestion:** no `testutil.RealGitRepo`-based render-output assertion was added — `testing.md`
+explicitly restricts those tests to config-acceptance smoke checks with no output
+assertions ("those stay byte-level / manual"), so the rendered output was instead verified
+manually against real `git-cliff` in a throwaway repo before closing the task, and locked
+in permanently via the existing pure-function `linkEnv` table tests instead.
 
 **Files:** `internal/generators/gitcliff/cliff.changelog.toml`,
-`internal/generators/gitcliff/cliff.release-notes.toml`,
 `internal/generators/gitcliff/generator.go` (`linkEnv`/`azureDevOpsLinkEnv`),
-`docs/adr/0022-fat-injection-thin-templates.md`.
+`internal/generators/gitcliff/linkenv_internal_test.go`,
+`docs/adr/0022-fat-injection-thin-templates.md`,
+`docs/specs/05-generators-and-platforms.md`.
 **Scope:** M. **Dependencies:** T114.
 
 ---
