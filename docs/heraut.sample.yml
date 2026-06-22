@@ -129,6 +129,29 @@ changelog:
   # template — path to a custom Tera template. cocogitto only (passed as -t).
   # template: .config/changelog.tera
 
+  # remote — explicit, metadata-only remote for git-cliff PR/author enrichment.
+  # git-cliff only. Changelog only — release.notes already resolves this from
+  # release.platforms, so it has no remote: field of its own. Unlike
+  # release.platforms, this never grants publish capability — heraut never
+  # publishes a release here, it only tells git-cliff where to fetch PR/MR
+  # metadata and commit/PR link shapes for the changelog. See ADR-0026.
+  #
+  # Use this when your changelog's commit history doesn't come from one of your
+  # release.platforms entries (e.g. code lives on Azure DevOps Repos but you
+  # publish releases elsewhere, or never publish at all), or to explicitly pin
+  # github/gitlab when ambient detection is ambiguous (multiple platforms
+  # configured, or an unrecognized CI host).
+  #
+  # type — required. One of: github, gitlab, azure_devops.
+  #
+  # remote:
+  #   type: azure_devops
+  #   organization: my-org           # azure_devops only; required
+  #   project: my-project            # azure_devops (required) / gitlab (required, namespace[/subgroup]/repo)
+  #   repository: my-repo            # azure_devops (required) / github (required, owner/repo)
+  #   token_env: AZURE_DEVOPS_TOKEN  # optional override; defaults to GITHUB_TOKEN / GITLAB_TOKEN / AZURE_DEVOPS_TOKEN
+  #   api_url: https://dev.azure.com # optional; Azure DevOps Server (on-prem) only
+
 # ── release ───────────────────────────────────────────────────────────────────
 #
 # Omit this block if you do not publish releases to any platform.

@@ -1,0 +1,10 @@
+version: "1"
+
+versioning:
+  strategy: semver
+
+changelog:
+  generator: git-cliff
+  remote:
+    type: bitbucket
+    repository: acme/widget

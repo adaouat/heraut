@@ -65,6 +65,52 @@ git-cliff --config <merged-tmp.toml> --tag <version> --latest [--tag-pattern <pa
 - `--output` is set for changelog mode (writes to `output:`); omitted for release-notes
   mode (stdout is captured)
 
+#### Remote metadata (PR/author enrichment)
+
+git-cliff's `[remote.*]` config sections enable PR/MR metadata fetching (author handle,
+PR number) via the platform API. heraut auto-injects this for both changelog and
+release-notes generation whenever owner/repo are known: `[remote.github]` /
+`[remote.gitlab]` is appended to the effective merged TOML, and `GITHUB_REPO` /
+`GITHUB_TOKEN` (or `GITLAB_REPO` / `GITLAB_TOKEN`) are set on the git-cliff subprocess
+environment when not already present — no manual git-cliff config is needed. Owner/repo
+are derived from whichever `release.platforms` entry the generation step is resolving
+against (see [`changelogLinkContext`/`platformLinkContext`](../adr/0022-fat-injection-thin-templates.md)
+for the resolution order). Whether the fetch itself is attempted at all (vs. skipped or
+gracefully degraded) is governed separately by [`remote_metadata`](../adr/0023-remote-metadata-policy.md).
+
+##### `changelog.remote` — explicit metadata remote (ADR-0026)
+
+```yaml
+changelog:
+  generator: git-cliff
+  remote:
+    type: azure_devops              # github | gitlab | azure_devops
+    organization: my-org            # azure_devops only
+    project: my-project             # azure_devops (required) / gitlab (required: namespace[/subgroup]/repo)
+    repository: my-repo             # azure_devops (required) / github (required: owner/repo)
+    token_env: AZURE_DEVOPS_TOKEN    # optional override
+    api_url: https://dev.azure.com  # optional, Azure DevOps Server (on-prem) only
+```
+
+Release notes always has a deterministic remote — it is generated per platform being
+published to. The changelog has no such anchor: it falls back through ambient CI
+detection, then the sole configured platform (if exactly one), then `nil` (bare hashes).
+`changelog.remote` fills that gap with an explicit, type-discriminated, metadata-only
+block, consumed ahead of that fallback chain. Unlike `release.platforms`, it never grants
+publish capability — heraut never publishes a release through this block, it only tells
+git-cliff/heraut where to source PR/MR metadata and commit/PR link shapes. `git-cliff`
+only; setting it on `release.notes` (which already resolves this from
+`release.platforms`) is a config error.
+
+Azure DevOps repository URLs are structurally different from GitHub/GitLab: the
+repository root inserts `/_git/` between the project and repository segments
+(`https://dev.azure.com/{organization}/{project}/_git/{repository}`). Commit and PR links
+are supported; the compare link (`HERAUT_COMPARE_URL`) is not — Azure Repos branch/tag
+comparison is query-string based (`?baseVersion=GT{old}&targetVersion=GT{new}&_a=commits`)
+and doesn't fit the `{prefix}{old}..{new}` shape the embedded template substitutes for
+every other platform. Version headings simply omit the compare link for `azure_devops`,
+the same degraded fallback as today's no-context case.
+
 ### communique
 
 ```yaml
