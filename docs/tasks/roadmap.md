@@ -4823,7 +4823,7 @@ in permanently via the existing pure-function `linkEnv` table tests instead.
 
 ### Phase 22 — Conventional-commit tooling
 
-#### `[ ]` T116: `heraut commit verify` — built-in conventional-commit checker
+#### `[x]` T116: `heraut commit verify` — built-in conventional-commit checker
 
 Per [ADR-0027](../adr/0027-builtin-conventional-commit-checker.md). heraut's own
 commit-msg hook (`.config/hk/config.pkl`) currently shells out to `cog verify`. Separately,
@@ -4902,6 +4902,31 @@ note — see `golang-benchmark` skill guidance during implementation for methodo
 `schema.json`, `docs/heraut.sample.yml`, `docs/specs/02-configuration.md`,
 `docs/specs/03-commands.md`, `.claude/rules/coding.md`.
 **Scope:** M. **Dependencies:** none.
+
+Implemented across six commits per ADR-0027, exactly as planned with zero functional
+deviations: `internal/conventionalcommit` (`a9b4ba5`) → `DetermineBump` refactored onto
+`conventionalcommit.Parse`, with its full pre-existing test table passing unmodified,
+confirming the refactor was behavior-preserving (`8f63ca6`) → optional `commit_lint.types`
+config override plus schema/sample/spec updates (`82b65c8`) → `internal/app.VerifyCommit` +
+`DefaultCommitTypes` (`094176c`) → `heraut commit verify` cobra command wired into
+`root.go` (`7323673`) → dev-hook cutover, `.config/hk/config.pkl`'s `commit-msg` step now
+runs `go run ./cmd/heraut commit verify`, `.config/cocogitto/config.toml` deleted, and the
+`cog` shell alias removed from `.config/mise/config.toml` (`cocogitto` itself stays in
+`[tools]` until T117) (`9d84662`). That last commit's own message was checked live by the
+new hook on creation — the feature's first real-world exercise, and it passed.
+
+One real bug surfaced during Task 4's self-review and was fixed in a follow-up commit
+(`18d79bc`): `VerifyCommit` had returned `conventionalcommit.Parse`'s error unwrapped,
+violating `coding.md`'s "always wrap with %w" rule; the same commit added two test cases
+the original plan's table had omitted (the `squash!` fixup-skip branch, and the
+empty-`CommitLint.Types`-falls-back-to-default branch). Two narrative-only inaccuracies in
+the plan's own prose were identified and correctly left alone, since they didn't affect any
+code: Task 3's brief described the TDD "RED" step as a Go compile error, when the actual
+failure mechanism is the strict YAML loader rejecting the unknown `commit_lint` key (same
+TDD evidence, different mechanism); and Task 5's docs claimed "eleven tests" where the test
+file actually defines ten, and stated the hook already ran `heraut commit verify` before
+T116 implemented it (true only after this task's own dev-hook cutover commit, deferred
+correctly since `.config/hk/config.pkl` was outside Task 5's file list).
 
 ---
 

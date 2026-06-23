@@ -2,5 +2,10 @@
 ignore-vcs = true
 extend-exclude = ["CHANGELOG.md"]
 
+[default]
+# Ignore backtick-quoted git SHAs cited in roadmap notes — their hex digits can
+# coincidentally spell near-words and trip the spell-checker.
+extend-ignore-re = ["`[0-9a-f]{7,40}`"]
+
 [default.extend-words]
 Ratatui = "Ratatui"
