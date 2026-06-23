@@ -50,8 +50,8 @@ hooks {
     fix = false
     steps {
       // your commit message should follow conventional commit
-      ["cocogitto"] {
-        check = "cog --config .config/cocogitto/config.toml verify --file {{ commit_msg_file }}"
+      ["heraut-commit-lint"] {
+        check = "go run ./cmd/heraut commit verify --file {{ commit_msg_file }}"
       }
     }
   }
