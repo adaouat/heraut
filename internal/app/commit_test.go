@@ -48,3 +48,15 @@ func TestVerifyCommit_FixupCommit_Skipped(t *testing.T) {
 	err := app.VerifyCommit(cfg, "fixup! docs: typo")
 	assert.NoError(t, err)
 }
+
+func TestVerifyCommit_SquashCommit_Skipped(t *testing.T) {
+	cfg := &config.Config{CommitLint: &config.CommitLint{Types: []string{"feat"}}}
+	err := app.VerifyCommit(cfg, "squash! docs: typo")
+	assert.NoError(t, err)
+}
+
+func TestVerifyCommit_EmptyConfiguredTypes_FallsBackToDefault(t *testing.T) {
+	cfg := &config.Config{CommitLint: &config.CommitLint{Types: []string{}}}
+	err := app.VerifyCommit(cfg, "feat: add x")
+	assert.NoError(t, err)
+}

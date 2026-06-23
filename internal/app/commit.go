@@ -25,7 +25,7 @@ func VerifyCommit(cfg *config.Config, message string) error {
 
 	c, err := conventionalcommit.Parse(message)
 	if err != nil {
-		return err
+		return fmt.Errorf("validating commit message: %w", err)
 	}
 
 	types := DefaultCommitTypes
