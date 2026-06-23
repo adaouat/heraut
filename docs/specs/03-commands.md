@@ -252,6 +252,33 @@ number and reset `PATCH` to `0`.
 
 `--dry-run` has no effect — this is a write-only command that requires confirmation.
 
+## `heraut commit verify`
+
+Validate a single commit message against the Conventional Commits grammar
+(`type(scope)!: description`, with structural body/footer parsing — see
+[ADR-0027](../adr/0027-builtin-conventional-commit-checker.md)).
+
+```
+heraut commit verify [message] [--file <path>]
+```
+
+| Flag     | Description                                                                          |
+|----------|---------------------------------------------------------------------------------------|
+| `--file` | Read the commit message from a file instead of the positional argument. `--file -` reads from stdin. |
+
+Exactly one of a positional `message` argument or `--file` must be given — both or
+neither is a usage error.
+
+Validates grammar, then checks the parsed type against `commit_lint.types` (or the
+default 10-type list — see [Spec 02 § `commit_lint`](02-configuration.md#commit_lint))
+— unless the message is a git-generated merge commit or a `fixup!`/`squash!` commit,
+which are always skipped. An invalid message exits with the Usage code (1); an invalid
+`.heraut.yml` (if one is present) exits with the Config code (2) — same semantic
+validation `heraut check config` runs.
+
+heraut's own `.config/hk/config.pkl` `commit-msg` hook runs this command via
+`go run ./cmd/heraut commit verify --file {{ commit_msg_file }}` instead of `cog verify`.
+
 ## `heraut check`
 
 Run preflight validations. Both `heraut release` and `heraut changelog` run these

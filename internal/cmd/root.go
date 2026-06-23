@@ -30,6 +30,7 @@ func NewRootCmd(version string) *cobra.Command {
 	root.AddCommand(NewCheckCmd())
 	root.AddCommand(NewCliffCmd())
 	root.AddCommand(NewVersionCmd())
+	root.AddCommand(NewCommitCmd())
 	root.AddCommand(NewInitCmd(version))
 	root.AddCommand(updatecheck.WhatsNewCommand(updatecheck.WhatsNewConfig{
 		Repo:      "adaouat/heraut",
