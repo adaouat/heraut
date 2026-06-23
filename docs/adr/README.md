@@ -33,3 +33,4 @@ trade-offs were accepted.
 | [0026](0026-azure-devops-metadata-remote.md) | `changelog.remote` — Explicit Metadata Remote for git-cliff | Accepted |
 | [0027](0027-builtin-conventional-commit-checker.md) | Built-in Conventional-Commit Checker | Accepted |
 | [0028](0028-drop-cocogitto-generator.md) | Drop the `cocogitto` Generator Entirely | Accepted |
+| [0029](0029-pkl-builtin-commit-verify.md) | Publish a Pkl Builtin for `heraut commit verify` | Accepted |

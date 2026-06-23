@@ -4971,6 +4971,51 @@ T117 only has to account for the generator feature's own consumers of the tool).
 
 ---
 
+#### `[ ]` T118: publish a Pkl builtin for `heraut commit verify`
+
+Per [ADR-0029](../adr/0029-pkl-builtin-commit-verify.md). `bifrost`, `forge`, and `hermes`
+all still run `cog verify` in their own `.config/hk/config.pkl` commit-msg hook — the exact
+pre-T116 pattern heraut itself just removed — and all three already depend on heraut for
+their own releases and already install `heraut` via the org's Homebrew tap. This task
+publishes the `heraut commit verify` hook definition as a real Pkl package (`PklProject` +
+`pkl project package`, distributed as a GitHub release asset versioned 1:1 with heraut's own
+tags), mirroring exactly how every one of these repos already imports hk's own
+`Builtins.pkl`. **Scope is publish-only** — switching bifrost/forge/hermes's own configs
+over to consume it is separate follow-up work in each of those repos, not part of this task.
+
+**Implementation:**
+
+1. Local spike with the `pkl` CLI already on this machine to confirm the exact
+   `pkl project package` mechanics (packaging scope, output filename, whether a bare
+   `PklProject` file is picked up by hk's existing `pkl`/`pkl_format` lint steps) before
+   writing anything into CI.
+2. `pkl/PklProject` + `pkl/Builtins.pkl` (`module heraut.Builtins`, one `commit_verify` Step
+   calling the `heraut` binary directly, not `go run`).
+3. One skippable real-CLI smoke test (per `testing.md`'s real-CLI smoke-test exception)
+   shelling out to `pkl project package` against a fixed test version, riding the existing
+   `go test ./...` gate.
+4. `.github/workflows/release.yml`: new "Package Pkl builtin" step between "Collect release
+   binaries" and "Attest build provenance" — rewrites `pkl/PklProject`'s `version` field to
+   `$VERSION`, runs `pkl project package`, outputs into `dist/`.
+5. `.config/heraut.yml`: new `release.assets` glob entry for the packaged zip, so the
+   existing `heraut release` upload step picks it up alongside the binaries/checksums it
+   already uploads.
+
+**Tests:** the real-CLI smoke test from step 3; otherwise no new application-layer tests —
+this task adds no new Go application code (`heraut release`'s asset upload is unchanged,
+contract-tested already).
+
+**Deferred (see ADR-0029):** provenance attestation for the Pkl zip; an automated
+post-release check that the published `package://` URL resolves (only verifiable after the
+first release that includes this).
+
+**Files:** `pkl/PklProject` (new), `pkl/Builtins.pkl` (new), a new smoke test (location
+confirmed by step 1's spike), `.github/workflows/release.yml`, `.config/heraut.yml`.
+**Scope:** S. **Dependencies:** T116 (publishes T116's command), scheduled after T117 (no
+hard dependency — sequencing choice, not a blocker).
+
+---
+
 **Future ideas (not yet scoped):** two follow-ons surfaced while designing T116/T117 —
 `heraut commit check <rev-range>` (the `cog check` equivalent: validate a whole commit
 range/history, for CI on a PR branch, vs. T116's single-message `verify`) and an
