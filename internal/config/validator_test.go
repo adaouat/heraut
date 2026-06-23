@@ -1283,3 +1283,74 @@ environments:
 	require.NotNil(t, e)
 	assert.Contains(t, e.Message, "changelog")
 }
+
+// ── commit_lint ──────────────────────────────────────────────────────────────
+
+func TestValidate_CommitLintValid(t *testing.T) {
+	cfg := mustLoad(t, `
+version: "1"
+versioning:
+  strategy: semver
+commit_lint:
+  types: [feat, fix, docs]
+`)
+	assert.Empty(t, config.Validate(cfg))
+}
+
+func TestValidate_CommitLintEmptyTypesList(t *testing.T) {
+	cfg := mustLoad(t, `
+version: "1"
+versioning:
+  strategy: semver
+commit_lint:
+  types: []
+`)
+	e := findErr(config.Validate(cfg), "commit_lint.types")
+	require.NotNil(t, e)
+}
+
+func TestValidate_CommitLintEmptyTypeEntry(t *testing.T) {
+	cfg := mustLoad(t, `
+version: "1"
+versioning:
+  strategy: semver
+commit_lint:
+  types: ["feat", ""]
+`)
+	e := findErr(config.Validate(cfg), "commit_lint.types[1]")
+	require.NotNil(t, e)
+}
+
+func TestValidate_CommitLintInvalidTypeName(t *testing.T) {
+	cfg := mustLoad(t, `
+version: "1"
+versioning:
+  strategy: semver
+commit_lint:
+  types: ["feat", "not a type"]
+`)
+	e := findErr(config.Validate(cfg), "commit_lint.types[1]")
+	require.NotNil(t, e)
+}
+
+func TestValidate_CommitLintDuplicateType(t *testing.T) {
+	cfg := mustLoad(t, `
+version: "1"
+versioning:
+  strategy: semver
+commit_lint:
+  types: [feat, feat]
+`)
+	e := findErr(config.Validate(cfg), "commit_lint.types[1]")
+	require.NotNil(t, e)
+	assert.Contains(t, e.Message, "duplicate")
+}
+
+func TestValidate_CommitLintAbsent_NoError(t *testing.T) {
+	cfg := mustLoad(t, `
+version: "1"
+versioning:
+  strategy: semver
+`)
+	assert.Empty(t, config.Validate(cfg))
+}

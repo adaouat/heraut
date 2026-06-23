@@ -62,9 +62,27 @@
           }
         }
       }
+    },
+    "commit_lint": {
+      "$ref": "#/definitions/CommitLint"
     }
   },
   "definitions": {
+    "CommitLint": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "types": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "minItems": 1,
+          "description": "Restricts which conventional-commit type words 'heraut commit verify' accepts. Replaces (does not extend) the default list when set: feat, fix, docs, chore, refactor, test, style, perf, ci, build."
+        }
+      },
+      "description": "Configures 'heraut commit verify''s type allow-list (ADR-0027). Optional — omit entirely to use the default list."
+    },
     "Versioning": {
       "type": "object",
       "required": [

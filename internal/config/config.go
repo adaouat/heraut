@@ -17,6 +17,9 @@ type Config struct {
 	// messages (subject/body/footer) and rendered as a link in the changelog and release
 	// notes. git-cliff only (ADR-0024).
 	Tickets []Ticket `yaml:"tickets,omitempty"`
+	// CommitLint configures heraut commit verify's type allow-list. git-cliff/generator-
+	// agnostic — unlike Tickets, this has nothing to do with changelog generation. ADR-0027.
+	CommitLint *CommitLint `yaml:"commit_lint,omitempty"`
 }
 
 // Ticket maps a commit ticket-ID pattern to a URL template. {ticket} in URL is the first
@@ -25,6 +28,15 @@ type Config struct {
 type Ticket struct {
 	Pattern string `yaml:"pattern"`
 	URL     string `yaml:"url"`
+}
+
+// CommitLint configures heraut commit verify's grammar/type-allow-list checking
+// (ADR-0027). Optional — when nil, the default type list applies.
+type CommitLint struct {
+	// Types restricts which conventional-commit type words heraut commit verify accepts.
+	// Replaces (does not extend) the default list when set: feat, fix, docs, chore,
+	// refactor, test, style, perf, ci, build.
+	Types []string `yaml:"types,omitempty"`
 }
 
 // Versioning holds version resolution settings.

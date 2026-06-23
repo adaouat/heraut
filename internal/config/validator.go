@@ -25,6 +25,7 @@ var (
 	validRemoteMetadata = map[string]bool{
 		"required": true, "optional": true, "disabled": true,
 	}
+	commitTypePattern = regexp.MustCompile(`^\w+$`)
 )
 
 // Validate runs all semantic validation layers against cfg.
@@ -39,6 +40,7 @@ func Validate(cfg *Config) ValidationErrors {
 	errs = append(errs, validateStrategySpecific(cfg)...)
 	errs = append(errs, validateEnvContradictions(cfg.Environments)...)
 	errs = append(errs, validateTickets(cfg)...)
+	errs = append(errs, validateCommitLint(cfg)...)
 	return errs
 }
 
@@ -73,6 +75,49 @@ func validateTickets(cfg *Config) []ValidationError {
 		if !isValidBaseURL(strings.ReplaceAll(t.URL, "{ticket}", "1")) {
 			errs = append(errs, ValidationError{Path: base + ".url", Message: "must be an absolute http(s) URL", Hint: "include the scheme, e.g. https://…"})
 		}
+	}
+	return errs
+}
+
+// validateCommitLint validates the optional commit_lint.types override: when present, the
+// list must be non-empty (an empty list would silently allow zero types — anyone wanting
+// "all default types" omits commit_lint entirely instead), each entry must be a non-empty
+// single-word type name, and entries must be unique.
+func validateCommitLint(cfg *Config) []ValidationError {
+	if cfg.CommitLint == nil {
+		return nil
+	}
+	var errs []ValidationError
+	if len(cfg.CommitLint.Types) == 0 {
+		return []ValidationError{{
+			Path:    "commit_lint.types",
+			Message: "must not be empty when commit_lint is set",
+			Hint:    "list at least one allowed type, or remove commit_lint to use the default list",
+		}}
+	}
+	seen := make(map[string]int)
+	for i, t := range cfg.CommitLint.Types {
+		path := fmt.Sprintf("commit_lint.types[%d]", i)
+		if t == "" {
+			errs = append(errs, ValidationError{Path: path, Message: "must not be empty"})
+			continue
+		}
+		if !commitTypePattern.MatchString(t) {
+			errs = append(errs, ValidationError{
+				Path:    path,
+				Message: fmt.Sprintf("%q is not a valid type name", t),
+				Hint:    "type names must be a single word (letters/digits/underscore), e.g. feat, fix, docs",
+			})
+			continue
+		}
+		if first, ok := seen[t]; ok {
+			errs = append(errs, ValidationError{
+				Path:    path,
+				Message: fmt.Sprintf("duplicate type %q (already listed at types[%d])", t, first),
+			})
+			continue
+		}
+		seen[t] = i
 	}
 	return errs
 }

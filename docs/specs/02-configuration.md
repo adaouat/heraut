@@ -407,6 +407,27 @@ heraut injects each entry as a git-cliff `link_parser` (appended after any user-
 ones); the link is appended to the commit line as `([TICKET](url))`. A ticket that appears in
 the subject shows both in the prose and as the appended link (append-only).
 
+## `commit_lint`
+
+A top-level, optional block configuring `heraut commit verify`'s type allow-list
+(ADR-0027). Works with zero config — the default type list is the 10 types in
+[`workflow.md`](../../.claude/rules/workflow.md)'s commit-type table:
+`feat, fix, docs, chore, refactor, test, style, perf, ci, build`.
+
+```yaml
+commit_lint:
+  types: [feat, fix, docs, chore, refactor, test, style, perf, ci, build]
+```
+
+| Field   | Meaning                                                                          |
+|---------|-----------------------------------------------------------------------------------|
+| `types` | The allowed conventional-commit type words. **Replaces**, does not extend, the default list. Must be non-empty and contain no duplicates. |
+
+Not generator-specific (unlike `tickets`) — `commit_lint` has nothing to do with
+changelog generation; it governs `heraut commit verify` only. Merge commits and
+`fixup!`/`squash!` commits are always skipped, unconditionally, regardless of this
+config.
+
 ## Content generators
 
 Used under `changelog` and `release.notes`. A project can use different generators for
