@@ -1,5 +1,41 @@
 # Changelog
 
+## [0.40.0](https://github.com/adaouat/heraut/compare/v0.39.0..v0.40.0) - 2026-06-23
+
+### 🚀 Features
+
+- *(app)* Add VerifyCommit policy layer over conventionalcommit - ([61dad2c](https://github.com/adaouat/heraut/commit/61dad2ceff7a9ee6a6eab6ec743390b13d1b478e)) by @bchatard
+
+- *(cmd)* Add heraut commit verify - ([c51366c](https://github.com/adaouat/heraut/commit/c51366c60eae23ff28d5bc50e348f928a3dd0015)) by @bchatard
+
+- *(config)* Add optional commit_lint.types override - ([742190b](https://github.com/adaouat/heraut/commit/742190bc4c86d5ba4afa60a1953a6801221d86aa)) by @bchatard
+
+- *(conventionalcommit)* Add Parse/IsMergeCommit/IsFixupCommit - ([20fe419](https://github.com/adaouat/heraut/commit/20fe4190d94341252f9cdb196815bc4503cb83fd)) by @bchatard
+
+
+### 🐛 Bug Fixes
+
+- *(app)* Wrap VerifyCommit's Parse error, add squash!/empty-types tests - ([ac49708](https://github.com/adaouat/heraut/commit/ac49708476f55e390d458f8d458ae15873366392)) by @bchatard
+
+
+### 🚜 Refactor
+
+- *(versioning/semver)* Use conventionalcommit.Parse in DetermineBump - ([0eae90a](https://github.com/adaouat/heraut/commit/0eae90a79558dca5e080422cdf537ed5a7a8d49a)) by @bchatard
+
+
+### 📚 Documentation
+
+- *(adr)* Add ADR-0027/0028 for built-in commit checker and cocogitto removal - ([f5f7e20](https://github.com/adaouat/heraut/commit/f5f7e204fb33bc956d4683892a3b79612202adfa)) by @bchatard
+
+- *(plans)* Add T116 implementation plan - ([6fca45c](https://github.com/adaouat/heraut/commit/6fca45cc488658faa45fbfc61f2c34fd4252bdfc)) by @bchatard
+
+- *(roadmap)* Mark T116 complete - ([5d1f3aa](https://github.com/adaouat/heraut/commit/5d1f3aa128ca6961556523b7cd086d299dc92ac8)) by @bchatard
+
+
+### ⚙️ Miscellaneous Tasks
+
+- *(hk)* Switch commit-msg hook from cog to heraut commit verify - ([6fc1fb8](https://github.com/adaouat/heraut/commit/6fc1fb8521485b8743633dc8eb1f361ec13ba7a2)) by @bchatard
+
 ## [0.39.0](https://github.com/adaouat/heraut/compare/v0.38.0..v0.39.0) - 2026-06-22
 
 ### 🚀 Features
