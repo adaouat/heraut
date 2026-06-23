@@ -39,12 +39,13 @@ internal/pipeline/            release + changelog flows (no factories)
 |----------------------|------------------------------------------------------------------------------------|
 | `cmd/heraut/`        | `internal/cmd/` only                                                               |
 | `internal/cmd/`      | `internal/app/`, `internal/ui/`, `internal/config/`                                |
-| `internal/app/`      | `internal/{port,config,pipeline,versioning,generators,platforms,adapter,ui}/`      |
+| `internal/app/`      | `internal/{port,config,pipeline,versioning,generators,platforms,adapter,ui,conventionalcommit}/` |
 | `internal/pipeline/` | `internal/{port,config,versioning,ui}/`                                            |
 | `internal/generators/*`, `internal/platforms/*` | `internal/{port,config}/`                              |
-| `internal/versioning/*` | `internal/{port,config,versioning}/`                                            |
+| `internal/versioning/*` | `internal/{port,config,versioning,conventionalcommit}/`                         |
 | `internal/config/`   | nothing from heraut (it is at the bottom)                                          |
 | `internal/port/`     | nothing from heraut (it is the contract)                                           |
+| `internal/conventionalcommit/` | nothing from heraut (pure, like port/config)                             |
 
 If you find yourself importing `up` the stack, the design is wrong — fix the dependency
 direction, do not add the import.

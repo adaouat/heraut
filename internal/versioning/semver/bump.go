@@ -2,27 +2,25 @@ package semver
 
 import (
 	"fmt"
-	"regexp"
 	"strconv"
 	"strings"
 
+	"github.com/adaouat/heraut/internal/conventionalcommit"
 	"github.com/adaouat/heraut/internal/versioning"
 )
-
-// breakingPrefixPattern matches a conventional-commit subject whose type (and
-// optional scope) is marked breaking with "!" immediately before the colon,
-// e.g. "feat!:" or "fix(api)!:". A bare "!:" elsewhere in the subject — such
-// as inside the description — does not count.
-var breakingPrefixPattern = regexp.MustCompile(`^\w+(\([^)]*\))?!:`)
 
 // DetermineBump scans conventional commit subjects and returns the highest applicable bump.
 func DetermineBump(commits []string) versioning.BumpType {
 	bump := versioning.BumpPatch // fallback
 	for _, c := range commits {
-		if isBreaking(c) {
+		parsed, err := conventionalcommit.Parse(c)
+		if err != nil {
+			continue // not a conventional commit — ignore for bump purposes, same as before
+		}
+		if parsed.Breaking {
 			return versioning.BumpMajor
 		}
-		if isFeat(c) && bump < versioning.BumpMinor {
+		if parsed.Type == "feat" && bump < versioning.BumpMinor {
 			bump = versioning.BumpMinor
 		}
 	}
@@ -78,40 +76,4 @@ func IsBareVersion(s string) bool {
 		}
 	}
 	return true
-}
-
-func isBreaking(commit string) bool {
-	// type! or type(scope)! immediately before the colon
-	if breakingPrefixPattern.MatchString(firstLine(commit)) {
-		return true
-	}
-	// BREAKING CHANGE / BREAKING-CHANGE footer — Conventional Commits 1.0.0 treats the
-	// hyphenated form as a synonym of the spaced form. A footer starts its own
-	// paragraph: the line must be the message's first line or immediately follow a
-	// blank line, so a wrapped body sentence that happens to start with the token
-	// (e.g. a commit describing this very check) must not count.
-	lines := strings.Split(commit, "\n")
-	for i, line := range lines {
-		trimmed := strings.TrimSpace(line)
-		if !strings.HasPrefix(trimmed, "BREAKING CHANGE:") && !strings.HasPrefix(trimmed, "BREAKING-CHANGE:") {
-			continue
-		}
-		if i == 0 || strings.TrimSpace(lines[i-1]) == "" {
-			return true
-		}
-	}
-	return false
-}
-
-func isFeat(commit string) bool {
-	subject := firstLine(commit)
-	// feat(...): or feat:
-	return strings.HasPrefix(subject, "feat(") || strings.HasPrefix(subject, "feat:")
-}
-
-func firstLine(s string) string {
-	if i := strings.IndexByte(s, '\n'); i >= 0 {
-		return s[:i]
-	}
-	return s
 }
