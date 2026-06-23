@@ -4821,6 +4821,142 @@ in permanently via the existing pure-function `linkEnv` table tests instead.
 
 ---
 
+### Phase 22 — Conventional-commit tooling
+
+#### `[ ]` T116: `heraut commit verify` — built-in conventional-commit checker
+
+Per [ADR-0027](../adr/0027-builtin-conventional-commit-checker.md). heraut's own
+commit-msg hook (`.config/hk/config.pkl`) currently shells out to `cog verify`. Separately,
+`internal/versioning/semver/bump.go` already hand-rolls a second, narrower
+conventional-commit parser (`isBreaking`/`isFeat`) purely for bump classification — two
+divergent parsers of the same grammar in one codebase. No existing Go package (evaluated:
+`leodido/go-conventionalcommits`, `conventionalcommit/commitlint`, `mkyc/go-conventional`,
+`gitlab.com/digitalxero/go-conventional-commit`) meets this project's stability bar, so the
+grammar is owned in-house.
+
+**Implementation:**
+
+1. New package `internal/conventionalcommit/` (peer to `internal/port`/`internal/config`,
+   not nested under `internal/versioning/`): `Parse(message string) (*Commit, error)`
+   (`Type`, `Scope`, `Breaking`, `Description`, `Body`, `Footers []Footer{Token, Value}`),
+   `IsMergeCommit`, `IsFixupCommit`. Grammar only — no type allow-list inside the package.
+   Body/footers are parsed structurally per the spec (blank-line-separated body, then
+   `token: value`/`token #value` footer pairs, `-` for spaces in multi-word tokens), not
+   pattern-matched — `Breaking` derives from the header `!` or a real `BREAKING CHANGE`/
+   `BREAKING-CHANGE` footer in `Footers`, not a raw-line regex scan. No commitlint-style
+   rule catalog (casing, length limits, `signed-off-by`, `trailer-exists`, etc.) —
+   `Footers` exists so `Breaking` detection is structurally correct, not to back a wider
+   rule set. See ADR-0027's "Explicitly still out of scope" note.
+   **Performance** (per ADR-0027): `Parse` is on two hot paths — the commit-msg hook and
+   `DetermineBump` (once per commit in a potentially large resolved range). Package-level
+   compiled `regexp` only (no per-call compilation), header pattern stays anchored/bounded
+   (no catastrophic-backtracking risk), single linear pass to extract `Body`/`Footers` (no
+   re-scanning the message more than once). Must not regress `DetermineBump`'s existing
+   per-commit cost.
+2. Refactor `internal/versioning/semver/bump.go`'s `DetermineBump` to call
+   `conventionalcommit.Parse` instead of its own `isBreaking`/`isFeat`/
+   `breakingPrefixPattern`. Parse errors are treated as "not feat, not breaking" (today's
+   fallback-to-patch behavior is unchanged) — bump resolution stays lenient; only the new
+   checker enforces strict validation. Delete the now-redundant regex/helper-functions.
+3. `internal/config/config.go`: new optional `CommitLint` struct with `Types []string`,
+   default `[feat, fix, docs, chore, refactor, test, style, perf, ci, build]` when the
+   block/field is absent (matches `workflow.md`'s commit-type table). No scope/casing/
+   length rules — deliberately out of scope (YAGNI; see ADR-0027's rationale on why
+   "semantic" validation beyond grammar isn't pursued).
+4. `internal/app/`: `VerifyCommit(cfg *config.Config, message string) error` — calls
+   `conventionalcommit.IsMergeCommit`/`IsFixupCommit` first (skip, no error), else `Parse`
+   + checks `.Type` against the configured/default allow-list.
+5. `internal/cmd/commit.go`: new `heraut commit` parent command (mirrors
+   `internal/cmd/version.go`'s pattern) with a `verify` subcommand:
+   `heraut commit verify [message] [--file <path>]` (supports `--file -` for stdin,
+   mirroring `cog verify`'s three input modes). Invalid message → `exitcode.Usage`.
+6. Dogfooding: `.config/hk/config.pkl`'s `commit-msg` step switches to
+   `go run ./cmd/heraut commit verify --file {{ commit_msg_file }}`. Delete
+   `.config/cocogitto/config.toml` and the `cog` entry in `.config/mise/config.toml`'s
+   `[shell_alias]` table (both existed solely for this hook). `cocogitto` stays in
+   `[tools]` for now — still needed by the generator feature (see T117).
+7. Layer table in [`coding.md`](../../.claude/rules/coding.md): add `conventionalcommit`
+   as an allowed import for `internal/versioning/*` and `internal/app/`.
+8. Docs/schema checklist: `schema.json`, `docs/heraut.sample.yml`,
+   `docs/specs/02-configuration.md` (new `commit_lint` block),
+   `docs/specs/03-commands.md` (new `heraut commit verify` command).
+
+**Tests:** table-driven unit tests for `Parse` (valid/invalid grammar, scope, breaking `!`,
+`BREAKING CHANGE`/`BREAKING-CHANGE` footer — preserve every existing edge case currently
+covered in `bump.go`'s tests, per `testing.md`'s "never delete a test row" rule, just
+relocated), plus new body/footer cases: body with no footers, multiple footers, a
+multi-word hyphenated token (e.g. `Acked-by:`), a multi-line footer value, and the false-
+positive `bump.go` couldn't previously rule out — a body paragraph that starts with literal
+"BREAKING CHANGE" text but isn't blank-line-separated into the footer block (must NOT set
+`Breaking`). `IsMergeCommit`/`IsFixupCommit` table tests, `VerifyCommit` contract-style
+tests (default types, configured override, merge/fixup skip), cobra command tests for
+`heraut commit verify`'s three input modes and exit code. Plus `BenchmarkParse`
+(header-only, header+body, header+multiple-footers inputs) per ADR-0027's performance
+note — see `golang-benchmark` skill guidance during implementation for methodology.
+
+**Files:** `internal/conventionalcommit/{conventionalcommit,conventionalcommit_test}.go`,
+`internal/versioning/semver/bump.go`, `internal/versioning/semver/resolver_test.go`,
+`internal/config/config.go`, `internal/config/validator.go`, `internal/app/commit.go` (new),
+`internal/app/commit_test.go` (new), `internal/cmd/commit.go` (new),
+`internal/cmd/commit_test.go` (new), `.config/hk/config.pkl`, `.config/mise/config.toml`,
+`schema.json`, `docs/heraut.sample.yml`, `docs/specs/02-configuration.md`,
+`docs/specs/03-commands.md`, `.claude/rules/coding.md`.
+**Scope:** M. **Dependencies:** none.
+
+---
+
+#### `[ ]` T117: drop the `cocogitto` generator entirely
+
+Per [ADR-0028](../adr/0028-drop-cocogitto-generator.md). `git-cliff` already covers
+everything `generator: cocogitto` does, more completely (Azure DevOps remotes,
+per-platform release-notes links, ticket linking — all landed on git-cliff first or
+exclusively in recent phases). `communique` covers the "opaque external tool" case.
+`cocogitto` is a redundant third option with no unique capability. Hard cutover — heraut
+is pre-v1.0, trunk-based, no installed external user base to protect through a deprecation
+window.
+
+**Implementation:**
+
+1. `internal/config/validator.go`: `generator: cocogitto` becomes a validation error with
+   a hint pointing to `git-cliff`/`communique`.
+2. Delete `internal/generators/cocogitto/` entirely (package, embedded `cog.toml`, Tera
+   templates, contract tests, real-CLI smoke test).
+3. `internal/app/`'s `buildGenerator` drops the `cocogitto` case.
+4. `.config/mise/config.toml`: remove `cocogitto` from `[tools]` — no remaining consumer
+   (T116 already removed the dev-hook usage).
+5. Dockerfile: remove `cog`/cocogitto from the bundled-CLI install list.
+   [ADR-0016](../adr/0016-bundled-docker-image.md)'s bundled-tool table is updated to match
+   (the one historical ADR this task amends — see ADR-0028's "What does not change").
+6. `schema.json`, `docs/heraut.sample.yml`, `docs/specs/05-generators-and-platforms.md`:
+   drop `cocogitto` from the `generator` enum/docs.
+7. `testdata/config/`: remove or migrate fixtures using `generator: cocogitto`.
+
+**Tests:** validator test asserting `generator: cocogitto` now fails with the migration
+hint; remove cocogitto-specific contract/smoke tests (they no longer have a subject);
+confirm `git-cliff`/`communique` fixture coverage in `testdata/config/valid/` is otherwise
+unaffected.
+
+**Files:** `internal/config/validator.go`, `internal/config/validator_test.go`,
+`internal/app/pipeline.go` (`buildGenerator`), `internal/generators/cocogitto/` (deleted),
+`.config/mise/config.toml`, `Dockerfile`, `docs/adr/0016-bundled-docker-image.md`,
+`schema.json`, `docs/heraut.sample.yml`, `docs/specs/05-generators-and-platforms.md`,
+`testdata/config/`.
+**Scope:** M. **Dependencies:** T116 (T116 removes the dev-hook's `cog` usage first, so
+T117 only has to account for the generator feature's own consumers of the tool).
+
+---
+
+**Future ideas (not yet scoped):** two follow-ons surfaced while designing T116/T117 —
+`heraut commit check <rev-range>` (the `cog check` equivalent: validate a whole commit
+range/history, for CI on a PR branch, vs. T116's single-message `verify`) and an
+interactive commit wizard (e.g. `heraut commit create`, akin to
+[meteor](https://github.com/stefanlogue/meteor), reusing T116's `conventionalcommit`
+package and `commit_lint` config). See
+[ADR-0027](../adr/0027-builtin-conventional-commit-checker.md)'s "Related future work".
+Neither is a task yet — each needs its own brainstorming session before a T-id is assigned.
+
+---
+
 ## Risks and mitigations
 
 | Risk                                                                                | Impact            | Mitigation                                                                |
