@@ -14,7 +14,7 @@ var (
 		"semver-per-env": true, "calver-per-env": true,
 	}
 	validGenerators = map[string]bool{
-		"git-cliff": true, "communique": true, "cocogitto": true,
+		"git-cliff": true, "communique": true,
 	}
 	validPlatforms = map[string]bool{
 		"github": true, "gitlab": true,
@@ -210,13 +210,13 @@ func validateContentDriver(d *ContentDriver, path string) []ValidationError {
 		errs = append(errs, ValidationError{
 			Path:    path + ".generator",
 			Message: "required",
-			Hint:    "set generator to one of: git-cliff, communique, cocogitto",
+			Hint:    "set generator to one of: git-cliff, communique",
 		})
 	} else if !validGenerators[d.Generator] {
 		errs = append(errs, ValidationError{
 			Path:    path + ".generator",
 			Message: fmt.Sprintf("%q is not a valid generator", d.Generator),
-			Hint:    "valid generators: git-cliff, communique, cocogitto",
+			Hint:    "valid generators: git-cliff, communique",
 		})
 	}
 	if d.TagPattern != "" && d.Generator != "" && d.Generator != "git-cliff" {

@@ -992,7 +992,7 @@ version: "1"
 versioning:
   strategy: semver
 changelog:
-  generator: cocogitto
+  generator: communique
 tickets:
   - pattern: '[A-Z]+-[0-9]+'
     url: 'https://x.test/{ticket}'
@@ -1010,12 +1010,28 @@ version: "1"
 versioning:
   strategy: semver
 changelog:
-  generator: cocogitto
+  generator: communique
   tag_pattern: "v[0-9]*"
 `)
 	e := findErr(config.Validate(cfg), "changelog.tag_pattern")
 	require.NotNil(t, e)
 	assert.Contains(t, e.Message, "git-cliff")
+}
+
+func TestValidate_GeneratorCocogittoRejected(t *testing.T) {
+	cfg := mustLoad(t, `
+version: "1"
+versioning:
+  strategy: semver
+changelog:
+  generator: cocogitto
+`)
+	e := findErr(config.Validate(cfg), "changelog.generator")
+	require.NotNil(t, e)
+	assert.Contains(t, e.Message, "cocogitto")
+	assert.Contains(t, e.Hint, "git-cliff")
+	assert.Contains(t, e.Hint, "communique")
+	assert.NotContains(t, e.Hint, "cocogitto")
 }
 
 func TestValidate_changelogTagPatternGitCliffValid(t *testing.T) {
@@ -1079,7 +1095,7 @@ environments:
   prod:
     bump: auto
     changelog:
-      generator: cocogitto
+      generator: communique
       tag_pattern: "prod/*"
 `)
 	e := findErr(config.Validate(cfg), "environments.prod.changelog.tag_pattern")
@@ -1189,7 +1205,7 @@ version: "1"
 versioning:
   strategy: semver
 changelog:
-  generator: cocogitto
+  generator: communique
   remote:
     type: azure_devops
     project: my-org/my-project
