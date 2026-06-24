@@ -50,7 +50,7 @@ func PreflightCheck(runner port.Runner) error {
 //	Git:        git binary → user.name → user.email → working tree
 //	Platforms:  one row per effective release.platforms entry, or
 //	            glab (GitLab) → gh (GitHub) as a binary-only fallback
-//	Generators: git-cliff → cocogitto → communique
+//	Generators: git-cliff → communique
 //
 // Configured tools are hard errors when missing; unconfigured-but-supported
 // tools warn when absent and succeed silently when present.
@@ -159,7 +159,6 @@ func RuntimeCheck(
 	usedGens := configuredGenerators(cfg)
 	for _, og := range []struct{ name, binary, display string }{
 		{"git-cliff", "git-cliff", "git-cliff"},
-		{"cocogitto", "cog", "cocogitto"},
 		{"communique", "communique", "communique"},
 	} {
 		required := usedGens[og.name]
@@ -181,7 +180,7 @@ func RuntimeCheck(
 // When cfg is nil (no config file found) all supported generators are required.
 func configuredGenerators(cfg *config.Config) map[string]bool {
 	if cfg == nil {
-		return map[string]bool{"git-cliff": true, "cocogitto": true, "communique": true}
+		return map[string]bool{"git-cliff": true, "communique": true}
 	}
 	m := make(map[string]bool)
 	if cfg.Changelog != nil {

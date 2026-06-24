@@ -52,13 +52,13 @@ func TestBuildPipeline_WithCommunique(t *testing.T) {
 	assert.NotNil(t, p)
 }
 
-func TestBuildPipeline_WithCocogitto(t *testing.T) {
+func TestBuildPipeline_CocogittoNoLongerSupported(t *testing.T) {
 	mr := exectest.NewMockRunner()
 	cfg := semverCfg()
 	cfg.Changelog = &config.ContentDriver{Generator: "cocogitto", Output: "CHANGELOG.md"}
-	p, err := app.BuildPipeline(mr, cfg, defaultResolver, defaultOpts)
-	require.NoError(t, err)
-	assert.NotNil(t, p)
+	_, err := app.BuildPipeline(mr, cfg, defaultResolver, defaultOpts)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "cocogitto")
 }
 
 func TestBuildPipeline_UnknownGenerator(t *testing.T) {

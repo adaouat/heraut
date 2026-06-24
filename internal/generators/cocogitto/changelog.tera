@@ -1,7 +1,0 @@
-{% if version %}## [{{ version.tag | trim_start_matches(pat="v") }}] - {{ date | date(format="%Y-%m-%d") }}
-{% else %}## [Unreleased]
-{% endif %}
-{% for group, commits in commits | group_by(attribute="type") %}{% if group != "" %}### {{ group }}
-{% for commit in commits %}- {% if commit.breaking_change %}**[BREAKING]** {% endif %}{% if commit.scope %}(**{{ commit.scope }}**) {% endif %}{{ commit.summary }}{% if repository_url %} - ([{{ commit.id | truncate(length=7, end="") }}]({{ repository_url }}/commit/{{ commit.id }})){% endif %}{% if commit.signature %} - {{ commit.signature }}{% endif %}
-{% endfor %}
-{% endif %}{% endfor %}

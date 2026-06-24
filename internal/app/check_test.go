@@ -24,9 +24,9 @@ func collectItems(mr *exectest.MockRunner, cfg *config.Config, env string) []app
 	return items
 }
 
-// queueSuccess queues the 9 runner.Run responses for semverCfg (no generators/platforms)
+// queueSuccess queues the 8 runner.Run responses for semverCfg (no generators/platforms)
 // with all tools present. Call order: git, user.name, user.email, git status,
-// glab, gh, git-cliff, cog, communique.
+// glab, gh, git-cliff, communique.
 func queueSuccess(mr *exectest.MockRunner) {
 	mr.QueueResponse("git version 2.40.0", "", nil) // git --version
 	mr.QueueResponse("Alice", "", nil)              // git config user.name
@@ -35,7 +35,6 @@ func queueSuccess(mr *exectest.MockRunner) {
 	mr.QueueResponse("glab 1.0.0", "", nil)         // glab --version
 	mr.QueueResponse("gh 2.0.0", "", nil)           // gh --version
 	mr.QueueResponse("git-cliff 2.9.0", "", nil)    // git-cliff --version
-	mr.QueueResponse("cog 7.0.0", "", nil)          // cog --version
 	mr.QueueResponse("communique 1.0.0", "", nil)   // communique --version
 }
 
@@ -88,7 +87,7 @@ func TestRuntimeCheck_MinimalConfig(t *testing.T) {
 
 	cfg := semverCfg()
 	items := collectItems(mr, cfg, "")
-	require.Len(t, items, 9)
+	require.Len(t, items, 8)
 
 	names := make([]string, len(items))
 	for i, it := range items {
@@ -109,7 +108,6 @@ func TestRuntimeCheck_GitValue(t *testing.T) {
 	mr.QueueResponse("glab 1.0", "", nil)             // glab
 	mr.QueueResponse("gh 2.0", "", nil)               // gh
 	mr.QueueResponse("git-cliff 2.0", "", nil)        // git-cliff
-	mr.QueueResponse("cog 7.0", "", nil)              // cog
 	mr.QueueResponse("communique 1.0", "", nil)       // communique
 
 	cfg := semverCfg()
@@ -134,7 +132,6 @@ func TestRuntimeCheck_UserNameValue(t *testing.T) {
 	mr.QueueResponse("glab 1.0", "", nil)            // glab
 	mr.QueueResponse("gh 2.0", "", nil)              // gh
 	mr.QueueResponse("git-cliff 2.0", "", nil)       // git-cliff
-	mr.QueueResponse("cog 7.0", "", nil)             // cog
 	mr.QueueResponse("communique 1.0", "", nil)      // communique
 
 	cfg := semverCfg()
@@ -159,7 +156,6 @@ func TestRuntimeCheck_WorkingTreeClean(t *testing.T) {
 	mr.QueueResponse("glab 1.0", "", nil)
 	mr.QueueResponse("gh 2.0", "", nil)
 	mr.QueueResponse("git-cliff 2.0", "", nil)
-	mr.QueueResponse("cog 7.0", "", nil)
 	mr.QueueResponse("communique 1.0", "", nil)
 
 	cfg := semverCfg()
@@ -185,7 +181,6 @@ func TestRuntimeCheck_WorkingTreeDirty(t *testing.T) {
 	mr.QueueResponse("glab 1.0", "", nil)
 	mr.QueueResponse("gh 2.0", "", nil)
 	mr.QueueResponse("git-cliff 2.0", "", nil)
-	mr.QueueResponse("cog 7.0", "", nil)
 	mr.QueueResponse("communique 1.0", "", nil)
 
 	cfg := semverCfg()
@@ -219,7 +214,7 @@ func TestRuntimeCheck_DispatchNames(t *testing.T) {
 	assert.Equal(t, []string{
 		"git", "git user.name", "git user.email", "working tree",
 		"glab", "gh",
-		"git-cliff", "cocogitto", "communique",
+		"git-cliff", "communique",
 	}, names)
 }
 
@@ -246,7 +241,6 @@ func TestRuntimeCheck_WithGitcliff(t *testing.T) {
 	mr.QueueResponse("glab 1.0", "", nil)           // glab (optional)
 	mr.QueueResponse("gh 2.0", "", nil)             // gh (optional)
 	mr.QueueResponse("git-cliff 2.9.0", "", nil)    // git-cliff (required)
-	mr.QueueResponse("cog 7.0", "", nil)            // cog (optional)
 	mr.QueueResponse("communique 1.0", "", nil)     // communique (optional)
 
 	cfg := semverCfg()
@@ -276,7 +270,6 @@ func TestRuntimeCheck_WithGitHubPlatform(t *testing.T) {
 	mr.QueueResponse("gh 2.67.0", "", nil)          // gh binary — inside p.Check()
 	mr.QueueResponse(`[]`, "", nil)                 // gh api auth — inside p.Check().checkAPIAuth()
 	mr.QueueResponse("git-cliff 2.0", "", nil)      // git-cliff (optional)
-	mr.QueueResponse("cog 7.0", "", nil)            // cog (optional)
 	mr.QueueResponse("communique 1.0", "", nil)     // communique (optional)
 
 	cfg := semverCfg()
@@ -307,7 +300,6 @@ func TestRuntimeCheck_WithGitHubPlatform_MissingToken(t *testing.T) {
 	mr.QueueResponse("gh 2.67.0", "", nil)          // gh binary — p.Check() runs binary before token
 	// token missing → checkAPIAuth skipped → no API runner call
 	mr.QueueResponse("git-cliff 2.0", "", nil)  // git-cliff (optional)
-	mr.QueueResponse("cog 7.0", "", nil)        // cog (optional)
 	mr.QueueResponse("communique 1.0", "", nil) // communique (optional)
 
 	cfg := semverCfg()
@@ -337,7 +329,6 @@ func TestRuntimeCheck_EnvPlatformOverrideReplacesRoot(t *testing.T) {
 	mr.QueueResponse("", "", nil)                   // git status
 	mr.QueueResponse("gh 2.67.0", "", nil)          // github-prod binary — only entry checked
 	mr.QueueResponse("git-cliff 2.0", "", nil)      // git-cliff (optional)
-	mr.QueueResponse("cog 7.0", "", nil)            // cog (optional)
 	mr.QueueResponse("communique 1.0", "", nil)     // communique (optional)
 
 	cfg := semverCfg()
@@ -374,7 +365,6 @@ func TestRuntimeCheck_EnvWithoutPlatformOverrideInheritsRoot(t *testing.T) {
 	mr.QueueResponse("", "", nil)                   // git status
 	mr.QueueResponse("gh 2.67.0", "", nil)          // github-root binary — only entry checked
 	mr.QueueResponse("git-cliff 2.0", "", nil)      // git-cliff (optional)
-	mr.QueueResponse("cog 7.0", "", nil)            // cog (optional)
 	mr.QueueResponse("communique 1.0", "", nil)     // communique (optional)
 
 	cfg := semverCfg()
@@ -397,7 +387,7 @@ func TestRuntimeCheck_EnvWithoutPlatformOverrideInheritsRoot(t *testing.T) {
 
 func TestRuntimeCheck_UnknownChangelogGenerator(t *testing.T) {
 	// "unknown-gen" is not a recognized generator; config validation would
-	// normally catch this. RuntimeCheck checks only the 3 supported generators.
+	// normally catch this. RuntimeCheck checks only the 2 supported generators.
 	// An unknown configured generator produces no runtime check item.
 	mr := exectest.NewMockRunner()
 	mr.QueueResponse("git version 2.40.0", "", nil) // git --version
@@ -407,7 +397,6 @@ func TestRuntimeCheck_UnknownChangelogGenerator(t *testing.T) {
 	mr.QueueResponse("glab 1.0", "", nil)           // glab (optional)
 	mr.QueueResponse("gh 2.0", "", nil)             // gh (optional)
 	mr.QueueResponse("git-cliff 2.0", "", nil)      // git-cliff (optional; "unknown-gen" ≠ "git-cliff")
-	mr.QueueResponse("cog 7.0", "", nil)            // cog (optional)
 	mr.QueueResponse("communique 1.0", "", nil)     // communique (optional)
 
 	cfg := semverCfg()
@@ -429,7 +418,6 @@ func TestRuntimeCheck_UnknownPlatform(t *testing.T) {
 	mr.QueueResponse("a@b.com", "", nil)            // user.email
 	mr.QueueResponse("", "", nil)                   // git status
 	mr.QueueResponse("git-cliff 2.0", "", nil)      // git-cliff (optional)
-	mr.QueueResponse("cog 7.0", "", nil)            // cog (optional)
 	mr.QueueResponse("communique 1.0", "", nil)     // communique (optional)
 
 	cfg := semverCfg()
@@ -463,7 +451,6 @@ func TestRuntimeCheck_MultipleSameTypePlatforms(t *testing.T) {
 	mr.QueueResponse("glab 1.0", "", nil) // gitlab-internal p.Check() binary
 	// token missing → checkAPIAuth skipped for gitlab-internal
 	mr.QueueResponse("git-cliff 2.0", "", nil)  // git-cliff (optional)
-	mr.QueueResponse("cog 7.0", "", nil)        // cog (optional)
 	mr.QueueResponse("communique 1.0", "", nil) // communique (optional)
 
 	cfg := semverCfg()
@@ -495,7 +482,6 @@ func TestRuntimeCheck_UserNameMissing(t *testing.T) {
 	mr.QueueResponse("glab 1.0", "", nil)
 	mr.QueueResponse("gh 2.0", "", nil)
 	mr.QueueResponse("git-cliff 2.0", "", nil)
-	mr.QueueResponse("cog 7.0", "", nil)
 	mr.QueueResponse("communique 1.0", "", nil)
 
 	cfg := semverCfg()
@@ -519,7 +505,6 @@ func TestRuntimeCheck_UserEmailMissing(t *testing.T) {
 	mr.QueueResponse("glab 1.0", "", nil)
 	mr.QueueResponse("gh 2.0", "", nil)
 	mr.QueueResponse("git-cliff 2.0", "", nil)
-	mr.QueueResponse("cog 7.0", "", nil)
 	mr.QueueResponse("communique 1.0", "", nil)
 
 	cfg := semverCfg()
@@ -543,7 +528,6 @@ func TestRuntimeCheck_WithReleaseNotes(t *testing.T) {
 	mr.QueueResponse("glab 1.0", "", nil)           // glab (optional)
 	mr.QueueResponse("gh 2.0", "", nil)             // gh (optional)
 	mr.QueueResponse("git-cliff 2.9.0", "", nil)    // git-cliff (required for notes)
-	mr.QueueResponse("cog 7.0", "", nil)            // cog (optional)
 	mr.QueueResponse("communique 1.0", "", nil)     // communique (optional)
 
 	cfg := semverCfg()
@@ -573,7 +557,6 @@ func TestRuntimeCheck_OptionalGeneratorsWarnWhenMissing(t *testing.T) {
 	mr.QueueResponse("glab 1.0.0", "", nil)                       // glab (optional, found)
 	mr.QueueResponse("gh 2.0.0", "", nil)                         // gh (optional, found)
 	mr.QueueResponse("", "", errors.New("git-cliff: not found"))  // git-cliff (optional, missing)
-	mr.QueueResponse("", "", errors.New("cog: not found"))        // cog (optional, missing)
 	mr.QueueResponse("", "", errors.New("communique: not found")) // communique (optional, missing)
 
 	cfg := semverCfg()
@@ -586,7 +569,6 @@ func TestRuntimeCheck_OptionalGeneratorsWarnWhenMissing(t *testing.T) {
 		}
 	}
 	assert.True(t, warnNames["git-cliff"], "expected optional warn for git-cliff")
-	assert.True(t, warnNames["cocogitto"], "expected optional warn for cocogitto")
 	assert.True(t, warnNames["communique"], "expected optional warn for communique")
 	assert.False(t, warnNames["glab"], "glab was found, no optional warn expected")
 	assert.False(t, warnNames["gh"], "gh was found, no optional warn expected")
@@ -601,7 +583,6 @@ func TestRuntimeCheck_OptionalPlatformsWarnWhenMissing(t *testing.T) {
 	mr.QueueResponse("", "", errors.New("glab: not found")) // glab (optional, missing)
 	mr.QueueResponse("", "", errors.New("gh: not found"))   // gh (optional, missing)
 	mr.QueueResponse("git-cliff 2.0.0", "", nil)            // git-cliff (optional, found)
-	mr.QueueResponse("cog 7.0.0", "", nil)                  // cog (optional, found)
 	mr.QueueResponse("communique 1.0.0", "", nil)           // communique (optional, found)
 
 	cfg := semverCfg()
@@ -641,7 +622,6 @@ func TestRuntimeCheck_ConfiguredGeneratorExcludedFromOptional(t *testing.T) {
 	mr.QueueResponse("glab 1.0", "", nil)                         // glab (optional)
 	mr.QueueResponse("gh 2.0", "", nil)                           // gh (optional)
 	mr.QueueResponse("git-cliff 2.9.0", "", nil)                  // git-cliff (required — IS configured)
-	mr.QueueResponse("", "", errors.New("cog: not found"))        // cog (optional, missing)
 	mr.QueueResponse("", "", errors.New("communique: not found")) // communique (optional, missing)
 
 	cfg := semverCfg()
@@ -659,7 +639,6 @@ func TestRuntimeCheck_ConfiguredGeneratorExcludedFromOptional(t *testing.T) {
 			warnNames[it.Name] = true
 		}
 	}
-	assert.True(t, warnNames["cocogitto"])
 	assert.True(t, warnNames["communique"])
 }
 
@@ -670,7 +649,7 @@ func TestRuntimeCheck_NilConfig_AllToolsPassWhenPresent(t *testing.T) {
 	queueSuccess(mr) // call order is identical to the non-nil config path
 
 	items := collectItems(mr, nil, "")
-	require.Len(t, items, 9)
+	require.Len(t, items, 8)
 	for _, it := range items {
 		if it.Name == "working tree" {
 			continue // always advisory regardless of config
@@ -689,7 +668,6 @@ func TestRuntimeCheck_NilConfig_MissingBinaryIsHardError(t *testing.T) {
 	mr.QueueResponse("", "", errors.New("glab: not found")) // glab missing
 	mr.QueueResponse("gh 2.0.0", "", nil)                   // gh
 	mr.QueueResponse("git-cliff 2.9.0", "", nil)            // git-cliff
-	mr.QueueResponse("cog 7.0.0", "", nil)                  // cog
 	mr.QueueResponse("communique 1.0.0", "", nil)           // communique
 
 	items := collectItems(mr, nil, "")
@@ -713,7 +691,6 @@ func TestRuntimeCheck_NilConfig_MissingGeneratorIsHardError(t *testing.T) {
 	mr.QueueResponse("glab 1.0.0", "", nil)                      // glab
 	mr.QueueResponse("gh 2.0.0", "", nil)                        // gh
 	mr.QueueResponse("", "", errors.New("git-cliff: not found")) // git-cliff missing
-	mr.QueueResponse("cog 7.0.0", "", nil)                       // cog
 	mr.QueueResponse("communique 1.0.0", "", nil)                // communique
 
 	items := collectItems(mr, nil, "")

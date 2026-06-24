@@ -8,7 +8,6 @@ import (
 
 	forgeui "github.com/adaouat/forge/ui"
 	"github.com/adaouat/heraut/internal/config"
-	"github.com/adaouat/heraut/internal/generators/cocogitto"
 	"github.com/adaouat/heraut/internal/generators/communique"
 	"github.com/adaouat/heraut/internal/generators/gitcliff"
 	"github.com/adaouat/heraut/internal/pipeline"
@@ -281,14 +280,8 @@ func buildGenerator(runner port.Runner, driver *config.ContentDriver, defaultMod
 		return gitcliff.New(runner, driver, defaultMode), nil
 	case "communique":
 		return communique.New(runner, driver), nil
-	case "cocogitto":
-		mode := cocogitto.ModeChangelog
-		if defaultMode == gitcliff.ModeReleaseNotes {
-			mode = cocogitto.ModeReleaseNotes
-		}
-		return cocogitto.New(runner, driver, mode), nil
 	default:
-		return nil, fmt.Errorf("unsupported generator %q (supported: git-cliff, communique, cocogitto)", driver.Generator)
+		return nil, fmt.Errorf("unsupported generator %q (supported: git-cliff, communique)", driver.Generator)
 	}
 }
 
