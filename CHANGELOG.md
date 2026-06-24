@@ -1,5 +1,30 @@
 # Changelog
 
+## [0.41.0](https://github.com/adaouat/heraut/compare/v0.40.0..v0.41.0) - 2026-06-24
+
+### 🚀 Features
+
+- *(pkl)* Add heraut.Builtins Pkl package source - ([2948986](https://github.com/adaouat/heraut/commit/294898643b15baea8a415b49267295659ce27fba)) by @bchatard
+
+
+### 📚 Documentation
+
+- *(adr)* Add ADR-0029, T118 for a published heraut commit verify Pkl builtin - ([7f76817](https://github.com/adaouat/heraut/commit/7f76817b115c19d5ea100682492a34bf04ab21d4)) by @bchatard
+
+- *(plans)* Add T118 implementation plan - ([6cd6305](https://github.com/adaouat/heraut/commit/6cd630590901028551a0309ea8bafcce83c540a4)) by @bchatard
+
+- *(roadmap)* Mark T118 complete - ([bf4c02f](https://github.com/adaouat/heraut/commit/bf4c02f2be5e3d792ad1e19f1046a31fe31ef246)) by @bchatard
+
+
+### 🧪 Testing
+
+- *(pkl)* Add real-CLI smoke test for heraut.Builtins packaging - ([8ae855a](https://github.com/adaouat/heraut/commit/8ae855a10ee995086c8a5f4f4fc442e532c99adb)) by @bchatard
+
+
+### ⚙️ Miscellaneous Tasks
+
+- *(release)* Package and upload the heraut.Builtins Pkl artifact - ([487ca22](https://github.com/adaouat/heraut/commit/487ca227d004751c42709e72117101f3019edb19)) by @bchatard
+
 ## [0.40.0](https://github.com/adaouat/heraut/compare/v0.39.0..v0.40.0) - 2026-06-23
 
 ### 🚀 Features
