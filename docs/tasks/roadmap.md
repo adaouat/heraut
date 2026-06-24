@@ -4971,7 +4971,7 @@ T117 only has to account for the generator feature's own consumers of the tool).
 
 ---
 
-#### `[ ]` T118: publish a Pkl builtin for `heraut commit verify`
+#### `[x]` T118: publish a Pkl builtin for `heraut commit verify`
 
 Per [ADR-0029](../adr/0029-pkl-builtin-commit-verify.md). `bifrost`, `forge`, and `hermes`
 all still run `cog verify` in their own `.config/hk/config.pkl` commit-msg hook — the exact
@@ -5013,6 +5013,34 @@ first release that includes this).
 confirmed by step 1's spike), `.github/workflows/release.yml`, `.config/heraut.yml`.
 **Scope:** S. **Dependencies:** T116 (publishes T116's command), scheduled after T117 (no
 hard dependency — sequencing choice, not a blocker).
+
+Implemented across three commits exactly as planned, after a hands-on local spike against
+the real `pkl` 0.31.1 binary (not asserted from documentation) nailed down several
+unverified mechanics ahead of time: `pkl/PklProject` + `pkl/Builtins.pkl` + a generated
+`PklProject.deps.json` lockfile, with `commit_verify` typed as a real `Config.Step` (a bare
+untyped `new { ... }` is rejected by any real consumer's `Mapping<String, Config.Step>` —
+confirmed by deliberately reproducing the rejection before writing the fix) → a real-CLI
+smoke test (`pkl_test.go`) that shells out to `pkl project package`, mirroring the existing
+git-cliff real-CLI smoke-test convention → the release-pipeline wiring (`release.yml`'s new
+"Package Pkl builtin" step, `.config/heraut.yml`'s new `dist/heraut@*` asset glob), reusing
+heraut's existing asset-upload path with zero new Go application code.
+
+One real implementation issue surfaced and was fixed mid-Task-1, authorized as an in-scope
+amendment: hk's existing repo-wide `pkl`/`pkl_format` lint steps tried to `pkl eval`/`pkl
+format` `pkl/Builtins.pkl` from the repo root and failed, because Pkl's project discovery
+(needed to resolve `pkl/Builtins.pkl`'s `@hk` dependency alias) walks up from the working
+directory, not the target file's own directory, and never finds `pkl/PklProject` from repo
+root. Fixed using hk's documented `dir` field (built for exactly this monorepo-subproject
+case): `pkl/**` is excluded from the two existing repo-wide steps, and two new dedicated
+steps (`pkl_builtins`, `pkl_builtins_format`) are scoped via `dir = "pkl"` plus a
+`dir`-relative glob (`"*.pkl"`, not `"pkl/*.pkl"` — discovered empirically that once `dir`
+is set, hk's glob matching becomes relative to that directory, not repo root).
+
+Also confirmed empirically rather than assumed: `baseUri`'s final path segment must be the
+bare package name with no `@version` suffix (writing `@\(version)` into `baseUri` produces a
+doubled `name@version@version` output filename — reproduced once, then avoided); and
+`packageZipUrl` must be a separately-spelled `https:` URL, not derived from `baseUri` (which
+is a `package://` value and fails Pkl's own type constraint if reused directly).
 
 ---
 
