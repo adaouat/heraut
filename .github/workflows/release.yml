@@ -54,6 +54,11 @@ jobs:
             dist/artifacts.json | while IFS=$'\t' read -r path name; do cp "$path" "dist/$name"; done
           echo "FRESH_BIN=dist/heraut_${VERSION#v}_linux_amd64" >> "$GITHUB_ENV"
 
+      - name: Package Pkl builtin
+        run: |
+          sed -i "s/^  version = .*/  version = \"${VERSION#v}\"/" pkl/PklProject
+          pkl project package pkl/ --output-path dist/ --skip-publish-check
+
       - name: Attest build provenance
         uses: actions/attest@59d89421af93a897026c735860bf21b6eb4f7b26 # v4
         with:
