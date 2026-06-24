@@ -1,0 +1,15 @@
+amends "pkl:Project"
+
+dependencies {
+  ["hk"] {
+    uri = "package://github.com/jdx/hk/releases/download/v1.46.0/hk@1.46.0"
+  }
+}
+
+package {
+  name = "heraut"
+  version = "0.0.0-dev"
+  baseUri = "package://github.com/adaouat/heraut/releases/download/v\(version)/\(name)"
+  packageZipUrl = "https://github.com/adaouat/heraut/releases/download/v\(version)/\(name)@\(version).zip"
+  description = "Pkl builtins for heraut (https://github.com/adaouat/heraut)"
+}

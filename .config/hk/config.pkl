@@ -7,8 +7,23 @@ exclude = List(".idea/**")
 local codeLinters = new Mapping<String, Step> {
   ["mise"] = Builtins.mise
   ["tombi_format"] = Builtins.tombi_format
-  ["pkl"] = Builtins.pkl
-  ["pkl_format"] = Builtins.pkl_format
+  // pkl/ is its own Pkl project (see pkl/PklProject) and must be linted with `dir`
+  // scoping below — running `pkl eval`/`pkl format` from the repo root cannot
+  // resolve its `@hk` package import.
+  ["pkl"] = (Builtins.pkl) {
+    exclude = List("pkl/**")
+  }
+  ["pkl_format"] = (Builtins.pkl_format) {
+    exclude = List("pkl/**")
+  }
+  ["pkl_builtins"] = (Builtins.pkl) {
+    dir = "pkl"
+    glob = "*.pkl"
+  }
+  ["pkl_builtins_format"] = (Builtins.pkl_format) {
+    dir = "pkl"
+    glob = "*.pkl"
+  }
   ["go_fmt"] = Builtins.go_fmt
   ["golangci_lint"] = Builtins.golangci_lint
   ["actionlint"] = Builtins.actionlint

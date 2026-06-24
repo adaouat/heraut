@@ -1,0 +1,9 @@
+module heraut.Builtins
+
+import "@hk/Config.pkl"
+
+/// Runs `heraut commit verify` against the commit message being authored.
+/// Mirrors heraut's own `.config/hk/config.pkl` `commit-msg` hook step.
+commit_verify: Config.Step = new {
+  check = "heraut commit verify --file {{ commit_msg_file }}"
+}
