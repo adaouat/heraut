@@ -4,7 +4,7 @@
 
 Héraut is a Go CLI that orchestrates a release: it resolves the next version, generates
 the changelog and release notes, creates the git tag, and publishes the release to
-GitHub and/or GitLab. It wraps existing tools (`git-cliff`, `glab`, `gh`, `cog`,
+GitHub and/or GitLab. It wraps existing tools (`git-cliff`, `glab`, `gh`,
 `communique`) and handles the custom logic those tools cannot handle natively — version
 resolution for prefixed tag strategies, generator/platform composition, strict config
 validation.
@@ -25,7 +25,7 @@ Project repo (consumer)
 
 heraut binary
 ├── reads .heraut.yml from project root
-├── invokes git, git-cliff, glab, gh, cog, communique via port.Runner
+├── invokes git, git-cliff, glab, gh, communique via port.Runner
 └── publishes release(s) on configured platforms
 ```
 
@@ -117,7 +117,7 @@ outside `/tmp`.
 
 ## What heraut does not do
 
-- It does not bundle the external CLIs (`git-cliff`, `glab`, `gh`, `cog`, `communique`).
+- It does not bundle the external CLIs (`git-cliff`, `glab`, `gh`, `communique`).
   Users install them separately. `heraut check runtime` verifies they are on `PATH`.
 - It does not commit your code. The user is responsible for the commits being released
   before `heraut release` runs. The one exception is the `CHANGELOG.md` commit that

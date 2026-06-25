@@ -49,7 +49,7 @@ behavioural spec.
 | **JSON Schema**               | `schema.json` for IDE validation of `.heraut.yml`                   |
 | **`//go:embed`**              | Embedded git-cliff defaults + `CHANGELOG.md` (offline fallback for `whatsnew`) |
 | **goreleaser**                | Cross-platform release builds, raw binaries (see [ADR-0013](docs/adr/0013-raw-binary-goreleaser-format.md)) |
-| **git-cliff / glab / gh / cog / communique** | External CLIs orchestrated by heraut (not bundled)       |
+| **git-cliff / glab / gh / communique** | External CLIs orchestrated by heraut (not bundled)       |
 
 ## Project layout
 

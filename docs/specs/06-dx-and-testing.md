@@ -84,7 +84,7 @@ Every exported function has tests. Table-driven where the input space is enumera
 
 `internal/testutil.MockRunner` records every `Run` / `RunEnv` call into `[]Call` and
 returns ordered `[]Response`. Used for every CLI invocation: `git`, `git-cliff`, `gh`,
-`glab`, `cog`, `communique`.
+`glab`, `communique`.
 
 A platform driver does not ship without contract tests. The tests assert the **exact
 CLI arguments** passed — flag names, value formats, order, env vars. Example shape:

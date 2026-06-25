@@ -21,7 +21,7 @@ Present on every subcommand. Defined on the root command in `internal/cmd/root.g
 
 Prints the heraut version banner (logo + tagline + `heraut <version>`), with the version
 string injected from ldflags. To check the external CLIs heraut orchestrates (`git`,
-`git-cliff`, `glab`, `gh`, `cog`, `communique`) — whether they are on `PATH` and which
+`git-cliff`, `glab`, `gh`, `communique`) — whether they are on `PATH` and which
 token env vars are set — use `heraut check runtime` instead.
 
 ## `heraut init`
@@ -345,7 +345,7 @@ Online checks:
   changelog commit)
 
 When no config file is found, `heraut check runtime` proceeds rather than failing. All
-supported tools (git, gh, glab, git-cliff, cog, communique) are treated as required —
+supported tools (git, gh, glab, git-cliff, communique) are treated as required —
 hard error if any binary is missing. The full platform check (token + API auth) is
 skipped in this case since there is no config to source token names from; only binary
 presence is verified.
