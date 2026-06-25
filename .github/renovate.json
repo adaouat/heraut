@@ -56,13 +56,6 @@
     {
       "customType": "regex",
       "fileMatch": ["^Dockerfile$"],
-      "matchStrings": ["ARG COCOGITTO_VERSION=(?<currentValue>[\\d.]+)"],
-      "depNameTemplate": "cocogitto/cocogitto",
-      "datasourceTemplate": "github-releases"
-    },
-    {
-      "customType": "regex",
-      "fileMatch": ["^Dockerfile$"],
       "matchStrings": ["ARG COMMUNIQUE_VERSION=(?<currentValue>[\\d.]+)"],
       "depNameTemplate": "jdx/communique",
       "datasourceTemplate": "github-releases"

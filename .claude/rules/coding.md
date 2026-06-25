@@ -16,7 +16,7 @@ internal/pipeline/            release + changelog flows (no factories)
    │
    ▼  ──→  internal/versioning/  (tagfmt, semver, calver, perenv)
    │
-   ├──→  internal/generators/   (gitcliff, communique, cocogitto)  ── implement port.Generator
+   ├──→  internal/generators/   (gitcliff, communique)  ── implement port.Generator
    │
    ├──→  internal/platforms/    (github, gitlab)                   ── implement port.Platform
    │
@@ -82,9 +82,8 @@ direction, do not add the import.
 
 ## Embedded assets
 
-- Default git-cliff TOMLs, cocogitto `cog.toml`, and Tera templates are embedded via
-  `//go:embed` directives in their owning packages
-  (`internal/generators/gitcliff/`, `internal/generators/cocogitto/`).
+- Default git-cliff TOMLs are embedded via a `//go:embed` directive in
+  `internal/generators/gitcliff/`.
 - Treat embedded TOML / Tera content as user-facing — changing the bytes changes the
   effective config for every user who relies on the defaults. See
   [ADR-0010](../../docs/adr/0010-embedded-cliff-toml-default.md).

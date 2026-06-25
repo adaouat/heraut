@@ -145,7 +145,6 @@ coverage:
 - CalVer `PATCH` reset on calendar period boundary
 - Per-env cycle detection in `source:` chains
 - E001 / E002 / E003 `--force` bypass semantics (E003 is not bypassable)
-- The four cocogitto config × template combinations
 - The git-cliff temp config file lifecycle (cleanup on early return)
 
 These cases are kept in the test suite indefinitely. A test row is removed only when the

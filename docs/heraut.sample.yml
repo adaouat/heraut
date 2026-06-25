@@ -115,13 +115,11 @@ changelog:
   # generator — required. Tool used to produce the changelog content.
   #   git-cliff   recommended; uses cliff.toml deep-merged with heraut's built-in default
   #   communique  requires config: pointing to a communique config file
-  #   cocogitto   uses cog.toml; heraut captures stdout and writes the output file
   generator: git-cliff
 
   # config — path to a generator config file (relative to project root).
   #   git-cliff:  optional partial cliff.toml; deep-merged with heraut's built-in default
   #   communique: required
-  #   cocogitto:  optional path to cog.toml
   # config: cliff.toml
 
   # output — path where the changelog file is written.
@@ -129,12 +127,12 @@ changelog:
 
   # tag_pattern — tag glob passed to the generator for commit filtering.
   # Required with prefixed-tag strategies so the generator only sees commits
-  # from the right namespace. Not used by communique or cocogitto.
+  # from the right namespace. Not used by communique.
   #   semver bare tags: "v[0-9]*"
   #   per-env prod:     "prod/*"
   # tag_pattern: "v[0-9]*"
 
-  # template — path to a custom Tera template. cocogitto only (passed as -t).
+  # template — path to a custom Tera template. Not used by git-cliff or communique.
   # template: .config/changelog.tera
 
   # remote — explicit, metadata-only remote for git-cliff PR/author enrichment.

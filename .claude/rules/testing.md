@@ -53,14 +53,14 @@ Reach for FakeBin sparingly — most behavior can be verified at the contract la
 
 ## Real-CLI smoke tests (embedded config validation)
 
-A narrow, deliberate exception to "mock the externals": a few **skippable** tests run the
-*real* `git-cliff` / `cog` against heraut's **embedded default configs** (via
+A narrow, deliberate exception to "mock the externals": a **skippable** test runs the
+*real* `git-cliff` against heraut's **embedded default config** (via
 `testutil.RealGitRepo`), asserting the tool *accepts* the config. MockRunner can't catch an
-embedded TOML the real tool rejects — that gap shipped a broken cocogitto default once (the
-embedded `cog.toml` used a field cog rejects). These tests `t.Skip` when the binary is
-absent and run in CI, where `mise` installs the pinned tools. Keep them to
-config-acceptance smoke checks (no output assertions — those stay byte-level / manual);
-they are local and deterministic (no network, `t.TempDir`).
+embedded TOML the real tool rejects — that gap once shipped a broken default for a
+generator heraut has since dropped (T117/ADR-0028). This test `t.Skip`s when the binary is
+absent and runs in CI, where `mise` installs the pinned tool. Keep it to a
+config-acceptance smoke check (no output assertions — those stay byte-level / manual);
+it is local and deterministic (no network, `t.TempDir`).
 
 ## Table-driven tests preferred
 
@@ -85,8 +85,7 @@ for _, tc := range tests {
 ## Preserve hard-won edge cases
 
 The test suite contains hard-won edge cases — `v1.9.0` → `v1.10.0` (not `v1.100.0`),
-CalVer `PATCH` reset on period boundary, per-env cycle detection, the 4 cocogitto
-config-path combinations, and more.
+CalVer `PATCH` reset on period boundary, per-env cycle detection, and more.
 
 **Never delete a test row to make a change easier.** If a test asserts something, that
 assertion is load-bearing until proven otherwise. Drop a row only when the behaviour it

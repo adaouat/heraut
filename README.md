@@ -22,7 +22,7 @@ The name is a French pun. *Héraut* means herald — the medieval messenger who 
 news — and it sounds like *hero*, which is what good release automation should feel like.
 
 It supports **four versioning strategies** (`semver`, `calver`, `semver-per-env`,
-`calver-per-env`), **three content generators** (`git-cliff`, `communique`, `cocogitto`),
+`calver-per-env`), **two content generators** (`git-cliff`, `communique`),
 and **two platforms** (`github`, `gitlab`).
 
 ## Install
@@ -104,7 +104,6 @@ The **Docker image** bundles all of them at pinned versions; no extra setup need
 |------|------------|
 | `git` | always |
 | `git-cliff` | `generator: git-cliff` |
-| `cog` (cocogitto) | `generator: cocogitto` |
 | `communique` | `generator: communique` |
 | `gh` | `platform: github` |
 | `glab` | `platform: gitlab` |

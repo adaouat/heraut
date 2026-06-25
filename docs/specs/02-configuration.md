@@ -387,7 +387,7 @@ Both `notes` and `platforms` are optional independently:
 
 A top-level list that links issue-tracker references found in commit messages — **subject,
 body, or footer** (e.g. `Refs: PROJ-123`) — in both the changelog and the release notes.
-**git-cliff only**; setting `tickets` with a `cocogitto`/`communique` generator is a
+**git-cliff only**; setting `tickets` with the `communique` generator is a
 configuration error (ADR-0024).
 
 ```yaml
@@ -435,11 +435,11 @@ each.
 
 | Field         | Required | Description                                                                                                                                                                                                                                                                       |
 |---------------|----------|-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| `generator`   | Yes      | One of: `git-cliff`, `communique`, `cocogitto`.                                                                                                                                                                                                                                   |
-| `config`      | No       | Path to the generator config file (relative to project root). For `git-cliff`: optional partial override, deep-merged with heraut's built-in default. For `communique`: required. For `cocogitto`: optional path to `cog.toml`.                                                  |
-| `output`      | No       | Output file path (e.g. `CHANGELOG.md`). For `cocogitto`, heraut captures stdout and writes this file (cog itself has no `--output` flag).                                                                                                                                          |
-| `tag_pattern` | No       | Tag pattern regex for `git-cliff` only. **For per-env strategies heraut auto-derives this from the effective `tag_format` so `--env <env>` only considers that environment's tags** (e.g. `{version}_{env}` + `--env prod` → `^.+_prod$`); set it explicitly to override the derivation. Setting `tag_pattern` with `communique` or `cocogitto` is a config validation error. |
-| `template`    | No       | Path to a custom Tera template for `cocogitto` (passed as `-t`). Not used by `git-cliff` or `communique`.                                                                                                                                                                          |
+| `generator`   | Yes      | One of: `git-cliff`, `communique`.                                                                                                                                                                                                                                                 |
+| `config`      | No       | Path to the generator config file (relative to project root). For `git-cliff`: optional partial override, deep-merged with heraut's built-in default. For `communique`: required.                                                                                              |
+| `output`      | No       | Output file path (e.g. `CHANGELOG.md`).                                                                                                                                                                                                                                            |
+| `tag_pattern` | No       | Tag pattern regex for `git-cliff` only. **For per-env strategies heraut auto-derives this from the effective `tag_format` so `--env <env>` only considers that environment's tags** (e.g. `{version}_{env}` + `--env prod` → `^.+_prod$`); set it explicitly to override the derivation. Setting `tag_pattern` with `communique` is a config validation error. |
+| `template`    | No       | Path to a custom Tera template. Not used by `git-cliff` or `communique` (vestigial field with no current consumer; kept for forward compatibility).                                                                                                                              |
 
 See [Spec 05 — Generators and Platforms](05-generators-and-platforms.md) for the full
 behaviour of each generator.

@@ -75,7 +75,7 @@ type EnvRelease struct {
 	Platforms []Platform     `yaml:"platforms,omitempty"`
 }
 
-// ContentDriver configures a content generator (git-cliff, communique, cocogitto).
+// ContentDriver configures a content generator (git-cliff, communique).
 type ContentDriver struct {
 	Generator  string `yaml:"generator"`
 	Config     string `yaml:"config,omitempty"`

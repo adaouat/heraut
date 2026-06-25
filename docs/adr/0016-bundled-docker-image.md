@@ -11,7 +11,7 @@
 ADR-0013 established raw binaries as the primary distribution format. GoReleaser was
 also configured to push a minimal Alpine container image to GHCR — just `ca-certificates`
 and the heraut binary. That image cannot actually run a release: heraut orchestrates
-`git`, `git-cliff`, `gh`, `glab`, `cog`, and `communique`, none of which are present.
+`git`, `git-cliff`, `gh`, `glab`, and `communique`, none of which are present.
 
 The thin image has no value over `go install` or downloading the raw binary. Its only
 realistic use case — running heraut in a container-based CI job — fails immediately
@@ -36,8 +36,7 @@ all tools heraut needs to run a full release. This image:
 | Tool          | Version     | Source                        |
 |---------------|-------------|-------------------------------|
 | git-cliff     | `2.13.1`    | `.config/mise/config.toml`    |
-| cocogitto     | `7.0.0`     | `.config/mise/config.toml`    |
-| glab          | `1.97.0`    | chosen for image              |
+| glab          | `1.99.0`    | chosen for image              |
 | gh            | `2.92.0`    | chosen for image              |
 | communique    | `1.1.3`     | chosen for image              |
 

@@ -59,7 +59,7 @@ constructs concrete implementations directly.
 `calver-per-env`. The strategy is selected in `.heraut.yml` and determines how the next
 version is computed. See [Spec 04 — Versioning](04-versioning.md).
 
-**Generator** — produces text. `git-cliff`, `communique`, or `cocogitto`. Used
+**Generator** — produces text. `git-cliff` or `communique`. Used
 independently for `changelog` (writes a `CHANGELOG.md` to the repo) and `release.notes`
 (text attached to the platform release). See
 [Spec 05 — Generators and Platforms](05-generators-and-platforms.md).
@@ -98,7 +98,7 @@ outside `/tmp`.
 - Single-repo projects (one `.heraut.yml`, one version per project)
 - Four versioning strategies: SemVer, CalVer, SemVer per env, CalVer per env
 - Two platforms: GitLab, GitHub
-- Three content generators: git-cliff, communique, cocogitto
+- Two content generators: git-cliff, communique
 - JSON Schema for IDE validation of `.heraut.yml`
 - Raw binary distribution via GitHub Releases + GHCR Docker image
 - Update-availability check via the GitHub Releases API — a daily hint with the upgrade

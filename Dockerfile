@@ -7,7 +7,6 @@ ARG MISE_VERSION=2026.5.15
 ARG GIT_CLIFF_VERSION=2.13.1
 ARG GLAB_VERSION=1.99.0
 ARG GH_VERSION=2.92.0
-ARG COCOGITTO_VERSION=7.0.0
 ARG COMMUNIQUE_VERSION=1.1.3
 
 # ── Stage 1: compile heraut ───────────────────────────────────────────────────
@@ -35,7 +34,6 @@ FROM ghcr.io/jdx/mise:${MISE_VERSION} AS tools
 ARG GIT_CLIFF_VERSION
 ARG GLAB_VERSION
 ARG GH_VERSION
-ARG COCOGITTO_VERSION
 ARG COMMUNIQUE_VERSION
 
 # mise use -g installs each tool globally and makes it active.
@@ -44,13 +42,11 @@ RUN mise use -g \
         git-cliff@${GIT_CLIFF_VERSION} \
         glab@${GLAB_VERSION} \
         gh@${GH_VERSION} \
-        cocogitto@${COCOGITTO_VERSION} \
         communique@${COMMUNIQUE_VERSION} \
     && mkdir /tools \
     && cp "$(mise which git-cliff)"  /tools/git-cliff \
     && cp "$(mise which glab)"       /tools/glab \
     && cp "$(mise which gh)"         /tools/gh \
-    && cp "$(mise which cog)"        /tools/cog \
     && cp "$(mise which communique)" /tools/communique
 
 # ── Stage 3: final image ──────────────────────────────────────────────────────

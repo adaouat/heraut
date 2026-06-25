@@ -26,7 +26,7 @@ heraut whatsnew         # release notes for versions newer than the running buil
 ```
 
 Four versioning strategies are supported (`semver`, `calver`, `semver-per-env`,
-`calver-per-env`), three content generators (`git-cliff`, `communique`, `cocogitto`),
+`calver-per-env`), two content generators (`git-cliff`, `communique`),
 and two platforms (`github`, `gitlab`). See [`docs/specs/`](docs/specs/) for the full
 behavioural spec.
 
@@ -47,7 +47,7 @@ behavioural spec.
 | **lipgloss v2**               | Terminal styling — heraut's gold accent, layered over `forge/ui`    |
 | **yaml.v3**                   | `.heraut.yml` parsing (see [ADR-0004](docs/adr/0004-config-format-yaml.md)) |
 | **JSON Schema**               | `schema.json` for IDE validation of `.heraut.yml`                   |
-| **`//go:embed`**              | Embedded git-cliff / cocogitto defaults + `CHANGELOG.md` (offline fallback for `whatsnew`) |
+| **`//go:embed`**              | Embedded git-cliff defaults + `CHANGELOG.md` (offline fallback for `whatsnew`) |
 | **goreleaser**                | Cross-platform release builds, raw binaries (see [ADR-0013](docs/adr/0013-raw-binary-goreleaser-format.md)) |
 | **git-cliff / glab / gh / cog / communique** | External CLIs orchestrated by heraut (not bundled)       |
 
@@ -83,7 +83,6 @@ internal/
    generators/
       gitcliff/                 embedded TOML defaults + user override merge
       communique/               wrapper around `communique generate`
-      cocogitto/                4-path config resolution + embedded cog.toml + Tera
    platforms/
       github/                   `gh release create` + asset upload (with contract tests)
       gitlab/                   `glab release create` + asset upload (with contract tests)
@@ -152,7 +151,7 @@ non-default path in CI pipelines without touching command invocations.
 
 ## Bundled external CLIs (not installed by heraut)
 
-heraut invokes `git`, `git-cliff`, `glab`, `gh`, `cog`, and `communique` via the
+heraut invokes `git`, `git-cliff`, `glab`, `gh`, and `communique` via the
 `port.Runner` abstraction. None of these are bundled with the heraut binary — users
 install them separately. `heraut check runtime` verifies they are on `PATH`.
 

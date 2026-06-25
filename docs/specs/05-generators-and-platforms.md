@@ -6,14 +6,13 @@ hosting service. They are independent concerns and combined in `.heraut.yml` und
 
 ## Generators
 
-Three generators are supported: `git-cliff`, `communique`, `cocogitto`. A project can
+Two generators are supported: `git-cliff`, `communique`. A project can
 use different generators for `changelog` and `release.notes`.
 
 | Generator   | Strengths                                                        | Limits                                                       |
 |-------------|------------------------------------------------------------------|--------------------------------------------------------------|
 | `git-cliff` | Embedded opinionated default; deep-merged TOML overrides; labels new commits with `--tag <version>` | TOML config only                                            |
 | `communique`| AI-assisted release notes from commit history                    | Requires a full config file; no embedded default              |
-| `cocogitto` | Native conventional-commit grouping; rich Tera templating         | Cannot label unreleased commits with a target version        |
 
 ### git-cliff
 
@@ -141,75 +140,8 @@ generator. Consequence: a release published to **more than one** platform (e.g. 
 GitLab) gets **identical** release notes — and identical links — on every platform.
 communique cannot tailor links to each platform's host or path shape. This is a known,
 accepted scope boundary, **not a bug**. Teams that need per-platform-flavored links across
-multiple platforms should use `git-cliff` or `cocogitto`
+multiple platforms should use `git-cliff`
 (see [ADR-0021](../adr/0021-per-platform-release-notes.md)).
-
-### cocogitto
-
-```yaml
-release:
-  notes:
-    generator: cocogitto
-    config: cog.toml        # optional
-    output: CHANGELOG.md    # optional (changelog mode only; written by heraut from stdout)
-    template: my.tera       # optional custom Tera template
-```
-
-**Four config-path combinations**:
-
-| `config:`  | `template:` | Effective behaviour                                                                          |
-|------------|-------------|----------------------------------------------------------------------------------------------|
-| _(none)_   | _(none)_    | embedded `cog.toml` + embedded Tera template (full opinionated defaults)                     |
-| _(none)_   | `my.tera`   | embedded `cog.toml` + user's Tera template                                                   |
-| `cog.toml` | _(none)_    | user's `cog.toml`, no `-t` flag (cog uses the template referenced in `cog.toml` or its own default) |
-| `cog.toml` | `my.tera`   | user's `cog.toml` + user's Tera template                                                     |
-
-The embedded `cog.toml` sets `tag_prefix = "v"`, `from_latest_tag = false`,
-`ignore_merge_commits = true`, and uses cog's top-level `[commit_types]` table to give the
-kept types emoji titles matching the git-cliff generator (🚀 Features, 🐛 Bug Fixes,
-🚜 Refactor, 📚 Documentation, ⚡ Performance) while omitting chore/ci/build/test/style via
-`omit_from_changelog`. The embedded Tera templates render grouped entries with the scope,
-a `**[BREAKING]**` marker, a commit link (when heraut supplies the platform context — see
-above), and the author (`commit.signature`).
-
-> **cog schema note:** type titling/omission uses cog's top-level `[commit_types]` table —
-> **not** a git-cliff-style commit-parser array under `[changelog]`, which cog rejects
-> ("unknown field"). Grouping itself is cog's built-in commit-type mapping.
-
-**Parity limits vs git-cliff** (cog exposes no such template context, so these are *not*
-available with the `cocogitto` generator, by design): PR/MR links, a "New Contributors"
-section, and the commit-statistics block. Teams that need those should use `git-cliff`.
-
-**Invocation**:
-
-- Changelog mode (full history): `cog [--config <path>] changelog [-t <template.tera>]`
-- Release notes mode (single release): `cog [--config <path>] changelog [-t <template.tera>] --at <tag>`
-
-`--config` is a **global** flag for the `cog` binary (must precede the subcommand);
-`-t` is a `changelog` subcommand flag.
-
-cocogitto always writes to stdout; there is no `--output` flag. When `output:` is set,
-heraut captures stdout and writes the file itself.
-
-**Differences from git-cliff**:
-
-| Aspect                                  | git-cliff                                      | cocogitto                                  |
-|-----------------------------------------|------------------------------------------------|--------------------------------------------|
-| Output file                             | `--output` flag (written by git-cliff)         | stdout redirect (written by heraut)        |
-| Embedded config                         | TOML partial-override, deep-merged at runtime  | TOML + Tera, written as temp files         |
-| Version label for unreleased commits    | `--tag <version>`                              | not supported                              |
-| Tag pattern                             | `--tag-pattern <regex>`                        | not supported                              |
-
-**Known limitation — changelog mode**: heraut creates the git tag *after* committing the
-changelog, so when cocogitto generates the full `CHANGELOG.md`, the new version's tag
-does not yet exist in the repository. As a result, the new commits appear under an
-"Unreleased" section rather than under the version heading. Teams that require a
-correctly versioned heading in `CHANGELOG.md` should use `git-cliff`, which supports
-`--tag <version>` to label unreleased commits with the target version.
-
-**`tag_pattern:` field**: not used by cocogitto. Setting `tag_pattern` when
-`generator: cocogitto` has no effect. For prefixed tag strategies, heraut passes the
-exact resolved tag via `--at` in release notes mode. Full changelog mode scans all tags.
 
 ### No generator
 
@@ -236,8 +168,8 @@ only embedded defaults), `Validate()` returns `nil`.
 heraut regenerates the release notes once per platform and passes that platform's
 `link` context (host, owner, repo, type) so commit/PR/MR links resolve to the correct
 host and path shape (see [ADR-0021](../adr/0021-per-platform-release-notes.md)).
-`git-cliff` and `cocogitto` consume this context. A single-platform release passes
-`nil`, and the generators fall through to ambient-CI link detection — today's unchanged
+`git-cliff` consumes this context. A single-platform release passes
+`nil`, and the generator falls through to ambient-CI link detection — today's unchanged
 behaviour. **communique does not consume the context** (see its section above).
 
 ## Platforms
@@ -359,7 +291,7 @@ platform later means: implement `port.Platform`, add contract tests, register in
 ## Generator/platform combinations
 
 heraut does not constrain combinations. Any generator can produce text for any
-platform. A common pattern: `cocogitto` for `release.notes` (rich Tera template for
+platform. A common pattern: `communique` for `release.notes` (AI-assisted summary for
 the release page) and `git-cliff` for `changelog` (versioned `CHANGELOG.md` in the
 repo, thanks to `--tag <version>`).
 

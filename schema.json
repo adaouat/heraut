@@ -172,8 +172,7 @@
           "type": "string",
           "enum": [
             "git-cliff",
-            "communique",
-            "cocogitto"
+            "communique"
           ],
           "description": "Content generator."
         },
