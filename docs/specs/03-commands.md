@@ -279,6 +279,28 @@ validation `heraut check config` runs.
 heraut's own `.config/hk/config.pkl` `commit-msg` hook runs this command via
 `go run ./cmd/heraut commit verify --file {{ commit_msg_file }}` instead of `cog verify`.
 
+## `heraut commit check`
+
+Validate every commit in a range — or the full history reachable from `HEAD` when no
+range is given — against the same grammar and type allow-list `heraut commit verify`
+checks for a single message (see [ADR-0030](../adr/0030-commit-check-rev-range-validation.md)).
+
+```
+heraut commit check [rev-range]
+```
+
+`rev-range` is passed straight through to `git log` — `A..B`, `A...B`, a single ref, or
+omitted entirely for every commit reachable from `HEAD`. No heraut-specific range syntax;
+git's own range syntax and its own errors on a malformed range are reused as-is.
+
+Every commit in the range is evaluated — an invalid commit does not stop the scan. Merge
+and fixup commits are skipped (the same unconditional skip `heraut commit verify` already
+applies). By default only invalid commits are printed (short SHA, subject, reason) plus a
+summary line (`N of M commits invalid`); the global `--verbose` flag additionally prints
+every commit, valid ones included. Exits with the Usage code (1) if any commit is invalid,
+or if the range itself cannot be resolved (e.g. malformed `rev-range`, git not on `PATH`)
+— same classification as `heraut commit verify`'s single-message case.
+
 ## `heraut check`
 
 Run preflight validations. Both `heraut release` and `heraut changelog` run these

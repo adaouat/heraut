@@ -5087,7 +5087,7 @@ is a `package://` value and fails Pkl's own type constraint if reused directly).
 
 ---
 
-#### `[ ]` T119: `heraut commit check` — rev-range conventional-commit validation
+#### `[x]` T119: `heraut commit check` — rev-range conventional-commit validation
 
 Per [ADR-0030](../adr/0030-commit-check-rev-range-validation.md). T116 shipped
 single-message `heraut commit verify`; this is the `cog check` equivalent — validating an
@@ -5119,6 +5119,26 @@ the non-git-repo error path.
 `internal/cmd/commit.go`, `internal/cmd/commit_test.go`, `internal/cmd/commit_internal_test.go`
 (new), `docs/specs/03-commands.md`.
 **Scope:** S. **Dependencies:** T116.
+
+Implemented across two feature commits, with the roadmap stub and the plan document
+committed separately around them: `d040916` (roadmap stub) → `b3efbac`
+(`internal/app/commit_check.go` — `CommitCheckResult{SHA, Subject string; Err error}` and
+`CheckCommitRange`, enumerating via `git log [rev-range] --format=%h%x01%s%x01%B%x00` by
+extending `internal/versioning/semver/resolver.go`'s existing NUL-delimited parsing
+pattern with one extra `\x01`-delimited field, calling T116's `VerifyCommit` unchanged per
+commit; 5 contract test functions, 9 sub-tests) → `65fef36` (plan document bookkeeping
+commit, not part of either task's deliverable) → `7677ad6` (`heraut commit check
+[rev-range]` cobra subcommand plus `printCommitCheckResults` in `internal/cmd/commit.go`;
+default output prints only failing commits + a summary count, `--verbose` prints every
+commit; both `CheckCommitRange`'s own error and the "N invalid" case map to
+`exitcode.Usage`; 6 new tests — 3 white-box renderer tests in a new
+`commit_internal_test.go`, 3 black-box cobra tests extending `commit_test.go`, two of which
+exercise the real `execadapter` runner against a genuine non-git temp directory). Both
+task reviews came back clean with no issues; a stale-diagnostics tool transiently (and
+incorrectly) flagged undefined-symbol errors mid-session for both tasks, re-verified each
+time by `go build`/`go test` to be a caching artifact rather than a real problem, so there
+is nothing to record as an actual deviation. No new config field, no new exit code, no new
+global flag — exactly as ADR-0030 scoped it.
 
 ---
 
