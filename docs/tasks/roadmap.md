@@ -5087,14 +5087,46 @@ is a `package://` value and fails Pkl's own type constraint if reused directly).
 
 ---
 
-**Future ideas (not yet scoped):** two follow-ons surfaced while designing T116/T117 —
-`heraut commit check <rev-range>` (the `cog check` equivalent: validate a whole commit
-range/history, for CI on a PR branch, vs. T116's single-message `verify`) and an
-interactive commit wizard (e.g. `heraut commit create`, akin to
-[meteor](https://github.com/stefanlogue/meteor), reusing T116's `conventionalcommit`
-package and `commit_lint` config). See
-[ADR-0027](../adr/0027-builtin-conventional-commit-checker.md)'s "Related future work".
-Neither is a task yet — each needs its own brainstorming session before a T-id is assigned.
+#### `[ ]` T119: `heraut commit check` — rev-range conventional-commit validation
+
+Per [ADR-0030](../adr/0030-commit-check-rev-range-validation.md). T116 shipped
+single-message `heraut commit verify`; this is the `cog check` equivalent — validating an
+entire commit range (or full history) for use as a CI gate on a PR branch.
+
+**Implementation:**
+
+1. `internal/app/commit_check.go`: `CommitCheckResult{SHA, Subject string; Err error}` and
+   `CheckCommitRange(runner port.Runner, cfg *config.Config, revRange string)
+   ([]CommitCheckResult, error)`. Enumerates via `git log [rev-range]
+   --format=%h%x01%s%x01%B%x00`, extending `internal/versioning/semver/resolver.go`'s
+   existing NUL-delimited parsing pattern with one extra `\x01`-delimited field. Calls
+   `VerifyCommit` unchanged per commit — no new validation logic, no new merge/fixup
+   handling (already covered by `VerifyCommit`'s existing skip).
+2. `internal/cmd/commit.go`: new `check` subcommand, `heraut commit check [rev-range]`.
+   Default output prints only failing commits + a summary count; `--verbose` (existing
+   root flag) prints every commit. `exitcode.Usage` when any commit is invalid or when
+   `CheckCommitRange` itself errors (bad range, git not found) — same classification
+   ADR-0027 used for single-message `verify`.
+3. `docs/specs/03-commands.md`: document the new command.
+
+**Tests:** contract tests for `CheckCommitRange` (range arg shape, multi-commit parsing
+including footers/blank lines, merge/fixup skip-through via `VerifyCommit`'s existing
+behavior, collect-all-not-fail-fast, configured type allowlist, git-log error path); a
+white-box test for the rendering helper (failures-only vs. verbose); a cobra-level test for
+the non-git-repo error path.
+
+**Files:** `internal/app/commit_check.go` (new), `internal/app/commit_check_test.go` (new),
+`internal/cmd/commit.go`, `internal/cmd/commit_test.go`, `internal/cmd/commit_internal_test.go`
+(new), `docs/specs/03-commands.md`.
+**Scope:** S. **Dependencies:** T116.
+
+---
+
+**Future ideas (not yet scoped):** an interactive commit wizard (e.g. `heraut commit
+create`, akin to [meteor](https://github.com/stefanlogue/meteor)), reusing T116's
+`conventionalcommit` package and `commit_lint` config — see
+[ADR-0027](../adr/0027-builtin-conventional-commit-checker.md)'s "Related future work". Not
+a task yet — needs its own brainstorming session before a T-id is assigned.
 
 ---
 
