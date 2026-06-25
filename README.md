@@ -14,7 +14,7 @@
 **Héraut** (`heraut`) is a Go CLI that orchestrates release management for git-based
 projects. One command resolves the next version, generates the changelog and release
 notes, creates the git tag, and publishes the release to GitHub and/or GitLab. It wraps
-the tools you already use — `git-cliff`, `gh`, `glab`, `cog`, `communique` — and handles
+the tools you already use — `git`, `git-cliff`, `gh`, `glab`, `communique` — and handles
 the glue they can't: version resolution for prefixed-tag strategies, generator/platform
 composition, and strict config validation.
 
