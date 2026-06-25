@@ -1,5 +1,28 @@
 # Changelog
 
+## [0.42.0](https://github.com/adaouat/heraut/compare/v0.41.0..v0.42.0) - 2026-06-25
+
+### 🚀 Features
+
+- *(app)* Remove the cocogitto generator and its package (ADR-0028) - ([bd36063](https://github.com/adaouat/heraut/commit/bd360631344926fda78b42667d4f23e7d37af017)) by @bchatard
+
+- *(config)* Reject generator: cocogitto (ADR-0028) - ([a334055](https://github.com/adaouat/heraut/commit/a334055e2eddd3e8aaa0c5502acef4f4f062997c)) by @bchatard
+
+- *(scaffold)* Remove cocogitto from the heraut init wizard (ADR-0028) - ([951a095](https://github.com/adaouat/heraut/commit/951a095007a2d2fff25b18c6ffe4d63ea3495286)) by @bchatard
+
+
+### 📚 Documentation
+
+- *(plans)* Add T117 implementation plan - ([8398e4b](https://github.com/adaouat/heraut/commit/8398e4bb9f993c30b269c20382ce5018d4dc3911)) by @bchatard
+
+- *(roadmap)* Mark T117 complete - ([44161d2](https://github.com/adaouat/heraut/commit/44161d2753b3d190a5d0c102bd63124369301849)) by @bchatard
+
+- Drop cocogitto from config schema and documentation (ADR-0028) - ([cc31e86](https://github.com/adaouat/heraut/commit/cc31e86ba8fb315b44095507dcf31be252ce6f6a)) by @bchatard
+
+- Remove stale cog mention from README intro (ADR-0028) - ([d283ef3](https://github.com/adaouat/heraut/commit/d283ef3f9dba8e2ed01618ea9b527aa52538fe08)) by @bchatard
+
+- Remove remaining stale cog references after cocogitto removal (ADR-0028) - ([b2aea3a](https://github.com/adaouat/heraut/commit/b2aea3a81d1735e6b569e5826ea93d136266ea42)) by @bchatard
+
 ## [0.41.0](https://github.com/adaouat/heraut/compare/v0.40.0..v0.41.0) - 2026-06-24
 
 ### 🚀 Features
