@@ -4930,7 +4930,7 @@ correctly since `.config/hk/config.pkl` was outside Task 5's file list).
 
 ---
 
-#### `[ ]` T117: drop the `cocogitto` generator entirely
+#### `[x]` T117: drop the `cocogitto` generator entirely
 
 Per [ADR-0028](../adr/0028-drop-cocogitto-generator.md). `git-cliff` already covers
 everything `generator: cocogitto` does, more completely (Azure DevOps remotes,
@@ -4968,6 +4968,49 @@ unaffected.
 `testdata/config/`.
 **Scope:** M. **Dependencies:** T116 (T116 removes the dev-hook's `cog` usage first, so
 T117 only has to account for the generator feature's own consumers of the tool).
+
+Implemented across five commits, split into smaller task-scoped slices than the plan's
+single numbered list: `a334055` (`internal/config/validator.go` rejects
+`generator: cocogitto`, with 4 existing test fixtures swapped from `cocogitto` to
+`communique` — they only ever used cocogitto as a stand-in "non-git-cliff generator" for
+unrelated rules — plus one new validator test); `bd36063` (removed cocogitto from
+`internal/app/pipeline.go`'s `buildGenerator` switch and `internal/app/check.go`'s
+runtime-check probe list, deleted `internal/generators/cocogitto/` entirely — 6 files,
+~650 lines — and fixed ~21 `exectest.MockRunner` queue lines across
+`internal/app/check_test.go`, since MockRunner is a strict FIFO queue and removing one
+probe call shifts every subsequent queued response; `TestBuildPipeline_WithCocogitto` was
+replaced with `TestBuildPipeline_CocogittoNoLongerSupported`, asserting the opposite);
+`951a095` (removed both `cocogitto` options from the `heraut init` wizard in
+`internal/scaffold/wizard.go` and deleted the now-dead `internal/scaffold/cog.go` —
+`IsCogGenerator`, confirmed no production caller — via a real `git mv` renaming
+`cliff_cog_test.go` to `cliff_test.go`, dropping `TestIsCogGenerator` and the `cocogitto`
+case from `TestIsCliffGenerator` while leaving `IsCliffGenerator` itself untouched); and
+`cc31e86` (the documentation/config-surface sweep: `schema.json`,
+`docs/heraut.sample.yml`, `Dockerfile`, `.config/mise/config.toml` + `mise.lock`,
+`.github/renovate.json`, `docs/adr/0016-bundled-docker-image.md` — the one historical ADR
+this task amends, per ADR-0028's "What does not change" — `README.md`, `CLAUDE.md`, five
+`docs/specs/` files, two `.claude/rules/` files, plus a one-line `internal/config/config.go`
+doc-comment fix that Task 1's review had flagged as a cross-task gap not in any task's
+original file list). A follow-up fix commit, `d283ef3`, corrected a real miss surfaced in
+Task 4's review: `README.md`'s intro paragraph still listed `cog` in a tool list (the
+string "cog" isn't caught by a "cocogitto" grep sweep) — fixed to `` `git`, `git-cliff`,
+`gh`, `glab`, `communique` `` (also adding `git`, which was missing from the original
+list). Three environment-driven adaptations during the docs sweep, all independently
+verified correct: this repo's `mise` version has no lockfile-prune subcommand, so the
+`cocogitto` block in `mise.lock` was hand-removed and confirmed stable across a
+`mise install` re-run; the originally-considered Python/PyYAML verification approach
+wasn't runnable here (no PyYAML installed), so a Go/`yaml.v3` equivalent check was
+substituted; and ADR-0016's bundled-tool table had its `glab` version synced from a stale
+`1.97.0` to the Dockerfile's actual current `1.99.0`, per that ADR's "living inventory"
+instruction. Final gate (`go build ./...`, `go test ./...` — 1115 tests across 22
+packages — `mise run lint:check`) is clean, and the stricter Go-only sweep
+(`grep -rln -i "cocogitto" --include="*.go" .`) finds exactly three intentional survivors:
+`TestBuildPipeline_CocogittoNoLongerSupported` and `TestValidate_GeneratorCocogittoRejected`
+(permanent regression tests explicitly called for by this task's own "Tests" section above,
+proving the generator stays rejected) and a historical comment in
+`internal/generators/gitcliff/generator_test.go` documenting the T76 embedded-config bug
+that motivated the real-CLI smoke-test pattern — none are a live reference to a working
+cocogitto generator.
 
 ---
 
