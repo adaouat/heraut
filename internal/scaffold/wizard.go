@@ -26,10 +26,10 @@ type Answers struct {
 	TagPrefix string // version prefix, e.g. "v" or ""
 	Format    string // CalVer format string, e.g. "YYYY.MM.PATCH"
 
-	ChangelogGenerator string // git-cliff, communique, cocogitto, or "" (none)
+	ChangelogGenerator string // git-cliff, communique, or "" (none)
 	ChangelogOutput    string // e.g. "CHANGELOG.md"
 
-	NotesGenerator string // git-cliff, communique, cocogitto, or "" (none)
+	NotesGenerator string // git-cliff, communique, or "" (none)
 
 	Platforms []PlatformAnswer
 
@@ -225,7 +225,6 @@ func RunWizard(a *Answers) error {
 				Options(
 					huh.NewOption("git-cliff", "git-cliff"),
 					huh.NewOption("communique", "communique"),
-					huh.NewOption("cocogitto", "cocogitto"),
 					huh.NewOption("None", ""),
 				).
 				Value(&a.ChangelogGenerator),
@@ -240,7 +239,6 @@ func RunWizard(a *Answers) error {
 				Options(
 					huh.NewOption("git-cliff", "git-cliff"),
 					huh.NewOption("communique", "communique"),
-					huh.NewOption("cocogitto", "cocogitto"),
 					huh.NewOption("None", ""),
 				).
 				Value(&a.NotesGenerator),
