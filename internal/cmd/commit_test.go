@@ -27,7 +27,7 @@ func executeRootWithStdin(stdin string, args ...string) (string, error) {
 
 func TestCommitCmd_Exists(t *testing.T) {
 	root := cmd.NewRootCmd("dev")
-	var commitCmd, verifyCmd bool
+	var commitCmd, verifyCmd, checkCmd bool
 	for _, c := range root.Commands() {
 		if c.Use == "commit" {
 			commitCmd = true
@@ -35,11 +35,15 @@ func TestCommitCmd_Exists(t *testing.T) {
 				if strings.HasPrefix(sc.Use, "verify") {
 					verifyCmd = true
 				}
+				if strings.HasPrefix(sc.Use, "check") {
+					checkCmd = true
+				}
 			}
 		}
 	}
 	assert.True(t, commitCmd, "commit command missing")
 	assert.True(t, verifyCmd, "commit verify missing")
+	assert.True(t, checkCmd, "commit check missing")
 }
 
 func TestCommitVerify_PositionalArg_Valid_NoConfig(t *testing.T) {
@@ -119,4 +123,22 @@ commit_lint:
 	_, err := executeRoot("commit", "verify", "feat: add x", "--config", cfgPath)
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "error(s) in config")
+}
+
+func TestCommitCheck_NonGitDirectory_ErrorsWithUsageExit(t *testing.T) {
+	dir := t.TempDir()
+	t.Chdir(dir)
+	missingCfg := filepath.Join(dir, ".heraut.yml")
+
+	_, err := executeRoot("commit", "check", "--config", missingCfg)
+	require.Error(t, err)
+}
+
+func TestCommitCheck_AcceptsOptionalRevRangeArg(t *testing.T) {
+	dir := t.TempDir()
+	t.Chdir(dir)
+	missingCfg := filepath.Join(dir, ".heraut.yml")
+
+	_, err := executeRoot("commit", "check", "main..HEAD", "--config", missingCfg)
+	require.Error(t, err) // still errors — dir is not a git repo — but the arg parses
 }
