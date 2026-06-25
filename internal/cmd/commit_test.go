@@ -3,11 +3,13 @@ package cmd_test
 import (
 	"bytes"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 	"testing"
 
 	"github.com/adaouat/heraut/internal/cmd"
+	"github.com/adaouat/heraut/internal/testutil"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -141,4 +143,18 @@ func TestCommitCheck_AcceptsOptionalRevRangeArg(t *testing.T) {
 
 	_, err := executeRoot("commit", "check", "main..HEAD", "--config", missingCfg)
 	require.Error(t, err) // still errors — dir is not a git repo — but the arg parses
+}
+
+func TestCommitCheck_InvalidCommit_ReturnsUsageError(t *testing.T) {
+	testutil.RealGitRepo(t, "v0.1.0")
+
+	cmd := exec.Command("git", "commit", "--allow-empty", "-m", "not a conventional commit at all")
+	if out, err := cmd.CombinedOutput(); err != nil {
+		t.Fatalf("git commit: %v\n%s", err, out)
+	}
+
+	missingCfg := filepath.Join(t.TempDir(), ".heraut.yml") // deliberately does not exist
+	out, err := executeRoot("commit", "check", "--config", missingCfg)
+	require.Error(t, err)
+	assert.Contains(t, out, "1 of")
 }

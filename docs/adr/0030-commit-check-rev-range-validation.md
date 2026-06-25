@@ -74,7 +74,11 @@ validation logic, no duplicated merge/fixup or type-allowlist checks.
 registered alongside the existing verify subcommand, reusing its exact config-loading
 boilerplate. Exit code is `exitcode.Usage` when any commit is invalid — the same
 classification ADR-0027 chose for single-message `verify` ("bad input, not a config or
-runtime failure"); no new exit code is introduced.
+runtime failure"); no new exit code is introduced. This classification deliberately
+diverges from `exitcode.Runtime` — which `wrapRunErr` uses for other git-subprocess
+failures — because a git-log failure in this context is most likely a malformed
+`rev-range` argument, not an environment or runtime failure, following the same
+bad-argument reasoning ADR-0027 applied to `commit verify`.
 
 ### Rejected alternatives
 
