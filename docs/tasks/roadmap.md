@@ -5142,11 +5142,36 @@ global flag — exactly as ADR-0030 scoped it.
 
 ---
 
-**Future ideas (not yet scoped):** an interactive commit wizard (e.g. `heraut commit
-create`, akin to [meteor](https://github.com/stefanlogue/meteor)), reusing T116's
-`conventionalcommit` package and `commit_lint` config — see
-[ADR-0027](../adr/0027-builtin-conventional-commit-checker.md)'s "Related future work". Not
-a task yet — needs its own brainstorming session before a T-id is assigned.
+#### `[x]` T120: `heraut commit create` — interactive commit wizard
+
+Per [ADR-0031](../adr/0031-interactive-commit-wizard.md). Interactive, TTY-only wizard
+(type → scope → subject → breaking → body → footers → preview-confirm) that assembles a
+Conventional Commits message via the new `conventionalcommit.Format`, validates it through
+the existing `app.VerifyCommit` guard, and runs `git commit -F <tmpfile>`. New
+`internal/commitwizard` package; new wizard-only `commit_lint.scopes`; lightweight
+stage-all prompt + `--all/-a`. Tickets / per-file staging / `--amend` deferred to v2.
+
+**Completion note:** Implemented across 8 feature commits (`045f15d..615b5b5`) plus one
+test-hardening commit (`ecca6dc`), following the 9-task plan
+`docs/superpowers/plans/2026-06-26-commit-wizard.md`. Key decisions: `conventionalcommit.Format`
+and `ParseFooterLine` complete the package's round-trip story (`ParseFooterLine` preserves
+the `#` separator of the `Token #value` footer form so it survives `Format`).
+`app.AllowedCommitTypes(cfg)` was extracted from `VerifyCommit` as the single source of
+truth for the type allow-list; the wizard's type step reads it and `finalize` runs the
+assembled message back through `app.VerifyCommit` as a guard — so wizard output is
+guaranteed to pass `heraut commit verify`. `internal/commitwizard/form.go` carries no unit
+tests (same precedent as `internal/scaffold/wizard.go`); the observable outputs are covered
+by tests in `commitwizard_test.go` and `git_test.go`. `fmt.Fprintln` uses `_, _ =` (project
+errcheck pattern). Error propagation is bare where the source already wraps with `%w`
+(idiomatic, matches sibling sites). No new exit code; all error paths map to `exitcode.Usage`
+consistent with `verify` and `check`.
+
+**Files:** `internal/conventionalcommit/conventionalcommit.go`, `internal/app/commit.go`,
+`internal/config/config.go`, `schema.json`, `docs/heraut.sample.yml`,
+`docs/specs/02-configuration.md`, `docs/specs/03-commands.md`,
+`internal/commitwizard/commitwizard.go`, `internal/commitwizard/git.go`,
+`internal/commitwizard/form.go` (+ tests), `internal/ui/status.go`,
+`internal/cmd/commit.go`, `docs/adr/0031-interactive-commit-wizard.md`.
 
 ---
 
