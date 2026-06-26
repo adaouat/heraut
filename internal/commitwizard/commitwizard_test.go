@@ -99,3 +99,17 @@ func TestFinalize_GuardBlocksInvalidType(t *testing.T) {
 	require.Error(t, err)
 	assert.Empty(t, mr.Calls)
 }
+
+func TestRun_NonTTYErrors(t *testing.T) {
+	mr := exectest.NewMockRunner()
+	var out bytes.Buffer // a *bytes.Buffer is never a TTY
+	err := Run(mr, nil, Options{Out: &out})
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "interactive terminal")
+	assert.Empty(t, mr.Calls, "no git calls when there is no TTY")
+}
+
+func TestTypeOptionLabel(t *testing.T) {
+	assert.Equal(t, "feat    A new feature", typeOptionLabel("feat"))
+	assert.Equal(t, "custom", typeOptionLabel("custom")) // unknown type → bare label
+}

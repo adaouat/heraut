@@ -5,6 +5,7 @@
 package commitwizard
 
 import (
+	"errors"
 	"fmt"
 	"io"
 	"strings"
@@ -71,6 +72,63 @@ func parseFooterLines(text string) ([]conventionalcommit.Footer, error) {
 		footers = append(footers, f)
 	}
 	return footers, nil
+}
+
+// Run drives the interactive wizard: TTY check → staging (unless --all or --dry-run) →
+// collect answers → finalize. Returns nil for clean no-ops (cancel/decline/dry-run).
+func Run(r port.Runner, cfg *config.Config, opts Options) error {
+	if !ui.IsTTY(opts.Out) {
+		return errors.New("commit create requires an interactive terminal")
+	}
+
+	if !opts.DryRun && !opts.All {
+		staged, err := hasStaged(r)
+		if err != nil {
+			return err
+		}
+		if !staged {
+			stage, err := confirmStageAll()
+			if err != nil {
+				return err
+			}
+			if !stage {
+				_, _ = fmt.Fprintln(opts.Out, ui.Info(opts.Out, "nothing staged — cancelled"))
+				return nil
+			}
+			if err := stageAll(r); err != nil {
+				return err
+			}
+		}
+	}
+
+	a, err := collectAnswers(cfg)
+	if err != nil {
+		return err
+	}
+	return finalize(r, cfg, a, opts, confirmCommit)
+}
+
+// commitTypeDescriptions are the one-line hints shown beside the 10 built-in types.
+var commitTypeDescriptions = map[string]string{
+	"feat":     "A new feature",
+	"fix":      "A bug fix",
+	"docs":     "Documentation only",
+	"chore":    "Tooling / housekeeping",
+	"refactor": "Code change, no behaviour change",
+	"test":     "Adding or fixing tests",
+	"style":    "Formatting / whitespace",
+	"perf":     "Performance improvement",
+	"ci":       "CI / release tooling",
+	"build":    "Build system / dependencies",
+}
+
+// typeOptionLabel renders the select-menu label for a commit type: "<type>  <description>"
+// for the built-in types, or the bare type for custom configured ones.
+func typeOptionLabel(t string) string {
+	if d, ok := commitTypeDescriptions[t]; ok {
+		return fmt.Sprintf("%-6s  %s", t, d)
+	}
+	return t
 }
 
 // finalize assembles, verifies, and (unless dry-run) commits. confirm is injected so the

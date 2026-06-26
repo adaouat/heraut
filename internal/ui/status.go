@@ -23,3 +23,6 @@ func Info(w io.Writer, msg string) string { return forgeui.Info(w, msg) }
 
 // Header writes a bold section title to w, surrounded by blank lines.
 func Header(w io.Writer, title string) { forgeui.Header(w, title) }
+
+// IsTTY reports whether w is an interactive terminal.
+func IsTTY(w io.Writer) bool { return forgeui.IsTTY(w) }
