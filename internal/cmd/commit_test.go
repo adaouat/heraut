@@ -158,3 +158,28 @@ func TestCommitCheck_InvalidCommit_ReturnsUsageError(t *testing.T) {
 	require.Error(t, err)
 	assert.Contains(t, out, "1 of")
 }
+
+func TestCommitCreate_Registered(t *testing.T) {
+	root := cmd.NewRootCmd("dev")
+	var found, hasAll bool
+	for _, c := range root.Commands() {
+		if c.Use != "commit" {
+			continue
+		}
+		for _, sc := range c.Commands() {
+			if strings.HasPrefix(sc.Use, "create") {
+				found = true
+				hasAll = sc.Flags().Lookup("all") != nil
+			}
+		}
+	}
+	assert.True(t, found, "commit create subcommand registered")
+	assert.True(t, hasAll, "--all flag present")
+}
+
+func TestCommitCreate_NonTTYErrors(t *testing.T) {
+	// executeRoot writes to a *bytes.Buffer (never a TTY) → wizard must refuse.
+	out, err := executeRoot("commit", "create")
+	require.Error(t, err)
+	assert.Contains(t, out+err.Error(), "interactive terminal")
+}

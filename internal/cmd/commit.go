@@ -10,6 +10,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/adaouat/heraut/internal/app"
+	"github.com/adaouat/heraut/internal/commitwizard"
 	"github.com/adaouat/heraut/internal/config"
 	"github.com/adaouat/heraut/internal/exitcode"
 	"github.com/adaouat/heraut/internal/ui"
@@ -23,6 +24,7 @@ func NewCommitCmd() *cobra.Command {
 	}
 	commitCmd.AddCommand(newCommitVerifyCmd())
 	commitCmd.AddCommand(newCommitCheckCmd())
+	commitCmd.AddCommand(newCommitCreateCmd())
 	return commitCmd
 }
 
@@ -105,6 +107,46 @@ func newCommitCheckCmd() *cobra.Command {
 			return nil
 		},
 	}
+	return cmd
+}
+
+func newCommitCreateCmd() *cobra.Command {
+	var all bool
+	cmd := &cobra.Command{
+		Use:   "create",
+		Short: "Interactively author a Conventional Commits message and commit it",
+		Args:  cobra.NoArgs,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			cfgPath, _ := cmd.Flags().GetString("config")
+			path := config.ResolvePath(cfgPath)
+			cfg, err := config.Load(path)
+			if err != nil {
+				if !errors.Is(err, os.ErrNotExist) {
+					return exitcode.Wrap(exitcode.Config, fmt.Errorf("loading config: %w", err))
+				}
+				cfg = nil
+			}
+			if cfg != nil {
+				if errs := config.Validate(cfg); len(errs) > 0 {
+					printConfigErrors(errs, cmd.OutOrStdout())
+					return exitcode.Wrap(exitcode.Config, fmt.Errorf("%d error(s) in config", len(errs)))
+				}
+			}
+
+			dryRun, _ := cmd.Flags().GetBool("dry-run")
+			verbose, _ := cmd.Flags().GetBool("verbose")
+			// Always a real runner: the wizard's only mutation (git commit) is gated by
+			// Options.DryRun in finalize, and read-only staging checks must really run.
+			runner := execadapter.New(false, verbose)
+
+			opts := commitwizard.Options{All: all, DryRun: dryRun, Out: cmd.OutOrStdout()}
+			if err := commitwizard.Run(runner, cfg, opts); err != nil {
+				return exitcode.Wrap(exitcode.Usage, err)
+			}
+			return nil
+		},
+	}
+	cmd.Flags().BoolVarP(&all, "all", "a", false, "stage all tracked modifications before committing (git commit -a)")
 	return cmd
 }
 

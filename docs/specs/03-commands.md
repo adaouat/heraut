@@ -301,6 +301,63 @@ every commit, valid ones included. Exits with the Usage code (1) if any commit i
 or if the range itself cannot be resolved (e.g. malformed `rev-range`, git not on `PATH`)
 — same classification as `heraut commit verify`'s single-message case.
 
+## `heraut commit create`
+
+Interactively author a Conventional Commits message and run `git commit`. Requires an
+interactive terminal (TTY); invoking it from a script or CI pipeline where stdout is not a
+TTY is a Usage error (exit code 1).
+
+```
+heraut commit create [--all/-a] [--dry-run] [--config <path>]
+```
+
+| Flag         | Description                                                                      |
+|--------------|----------------------------------------------------------------------------------|
+| `--all`/`-a` | Stage all tracked modifications before committing (`git commit -a`).             |
+| `--dry-run`  | Print the assembled commit message without staging or committing.                |
+| `--config`   | Path to `.heraut.yml` (inherits global default discovery).                       |
+
+**Interactive flow:**
+
+1. **Staging check** — if neither `--all` nor `--dry-run` is set and nothing is staged,
+   the wizard asks to confirm a `git add -A` before proceeding. Declining cancels cleanly
+   with exit code 0.
+2. **Type** — select from `commit_lint.types` in `.heraut.yml` (or the default 10-type
+   list when absent): `feat`, `fix`, `docs`, `chore`, `refactor`, `test`, `style`,
+   `perf`, `ci`, `build`. Each built-in type shows a one-line description in the menu.
+3. **Scope** — if `commit_lint.scopes` is configured, a select from the list; otherwise
+   a free-text field (optional, press Enter to skip).
+4. **Subject** — short, imperative description (the commit header after `type(scope): `).
+5. **Breaking change** — yes/no; if yes, an optional description populates the
+   `BREAKING CHANGE` footer and appends `!` to the header.
+6. **Body** — optional multi-line commit body (press Enter twice to finish).
+7. **Footers** — optional trailer lines in `Token: value` format (e.g.
+   `Closes: #123`); one per line, blank line to stop.
+8. **Preview + confirm** — the assembled message is shown in full; confirm to commit or
+   cancel (exit code 0, no commit made).
+
+The assembled message is validated with the same logic as `heraut commit verify` before
+the confirmation prompt. If validation fails (assembled message violates grammar or type
+allow-list), the wizard exits with the Usage code (1) and prints the error — this
+situation indicates a bug in the wizard rather than user error.
+
+**`--dry-run`** prints the assembled commit message and a `[dry-run] would run: git commit`
+line, then exits with code 0. Staging checks and the interactive confirmation prompt are
+both skipped.
+
+**Config** (optional — wizard works without `.heraut.yml`):
+
+- `commit_lint.types` narrows the type menu to the configured list.
+- `commit_lint.scopes` switches the scope field from free text to a select menu.
+
+**Exit codes:**
+
+| Code | Meaning                                                    |
+|------|------------------------------------------------------------|
+| 0    | Commit created, or cancelled/declined by user, or dry-run. |
+| 1    | Usage error: non-TTY, guard failure, invalid footer syntax. |
+| 2    | Config error: `.heraut.yml` fails to parse or validate.    |
+
 ## `heraut check`
 
 Run preflight validations. Both `heraut release` and `heraut changelog` run these
