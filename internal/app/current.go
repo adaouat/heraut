@@ -9,6 +9,9 @@ import (
 	"github.com/adaouat/heraut/internal/versioning/tagfmt"
 )
 
+// errNoTagsFound is the sentinel CurrentTag returns when no tags match the resolved glob.
+var errNoTagsFound = fmt.Errorf("no tags found")
+
 // CurrentTag returns the latest existing git tag for the given strategy and environment.
 // For single-env strategies, env is ignored. For per-env strategies, env is required.
 func CurrentTag(runner port.Runner, cfg *config.Config, env string) (string, error) {
@@ -28,7 +31,7 @@ func CurrentTag(runner port.Runner, cfg *config.Config, env string) (string, err
 			return line, nil
 		}
 	}
-	return "", fmt.Errorf("no tags found for %q", glob)
+	return "", fmt.Errorf("%w for %q", errNoTagsFound, glob)
 }
 
 // CurrentVersion returns the bare semantic version of the latest tag (the tag with

@@ -154,6 +154,13 @@ func TestResolveFromLatestTag(t *testing.T) {
 			wantNoTags:  true,
 		},
 		{
+			name:        "cfg nil, no tags (git describe: No tags can describe)",
+			cfg:         nil,
+			queueStderr: "fatal: No tags can describe 'abc1234'.",
+			queueErr:    errors.New("exit status 128"),
+			wantNoTags:  true,
+		},
+		{
 			name:        "cfg nil, git describe unexpected error",
 			cfg:         nil,
 			queueStderr: "fatal: not a git repository",
@@ -170,6 +177,8 @@ func TestResolveFromLatestTag(t *testing.T) {
 			gotRange, gotNoTags, err := app.ResolveFromLatestTag(mr, tc.cfg, tc.env)
 			if tc.wantErr {
 				require.Error(t, err)
+				assert.Equal(t, "", gotRange)
+				assert.False(t, gotNoTags)
 				return
 			}
 			require.NoError(t, err)

@@ -1,6 +1,7 @@
 package app
 
 import (
+	"errors"
 	"fmt"
 	"strings"
 
@@ -17,7 +18,7 @@ func ResolveFromLatestTag(runner port.Runner, cfg *config.Config, env string) (s
 	if cfg != nil {
 		tag, err := CurrentTag(runner, cfg, env)
 		if err != nil {
-			if strings.Contains(err.Error(), "no tags found") {
+			if errors.Is(err, errNoTagsFound) {
 				return "", true, nil
 			}
 			return "", false, fmt.Errorf("resolving latest tag: %w", err)
