@@ -19,6 +19,17 @@ func hasStaged(r port.Runner) (bool, error) {
 	return strings.TrimSpace(out) != "", nil
 }
 
+// hasWorkingTreeChanges reports whether there is anything to commit — staged, unstaged, or
+// untracked — via `git status --porcelain` (empty output = clean tree). hasStaged only sees
+// the index, so this is what distinguishes "nothing staged yet" from "nothing to commit".
+func hasWorkingTreeChanges(r port.Runner) (bool, error) {
+	out, _, err := r.Run("git", "status", "--porcelain")
+	if err != nil {
+		return false, fmt.Errorf("checking working tree status: %w", err)
+	}
+	return strings.TrimSpace(out) != "", nil
+}
+
 // stageAll runs `git add -A`.
 func stageAll(r port.Runner) error {
 	if _, _, err := r.Run("git", "add", "-A"); err != nil {

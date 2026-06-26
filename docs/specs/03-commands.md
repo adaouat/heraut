@@ -320,8 +320,10 @@ heraut commit create [--all/-a] [--dry-run] [--config <path>]
 **Interactive flow:**
 
 1. **Staging check** — if neither `--all` nor `--dry-run` is set and nothing is staged,
-   the wizard asks to confirm a `git add -A` before proceeding. Declining cancels cleanly
-   with exit code 0.
+   the wizard first inspects the working tree: a clean tree (nothing to commit) exits
+   cleanly with `nothing to commit — working tree clean`; otherwise it asks to confirm a
+   `git add -A` before proceeding. Declining cancels cleanly. All these no-ops exit with
+   code 0.
 2. **Type** — select from `commit_lint.types` in `.heraut.yml` (or the default 10-type
    list when absent): `feat`, `fix`, `docs`, `chore`, `refactor`, `test`, `style`,
    `perf`, `ci`, `build`. Each built-in type shows a one-line description in the menu.

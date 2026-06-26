@@ -133,3 +133,71 @@ func TestTypeOptionLabel(t *testing.T) {
 	assert.Equal(t, "feat    A new feature", typeOptionLabel("feat"))
 	assert.Equal(t, "custom", typeOptionLabel("custom")) // unknown type → bare label
 }
+
+func TestResolveStaging(t *testing.T) {
+	confirmYes := func() (bool, error) { return true, nil }
+	confirmNo := func() (bool, error) { return false, nil }
+
+	t.Run("already staged proceeds without prompting", func(t *testing.T) {
+		mr := exectest.NewMockRunner()
+		mr.QueueResponse("internal/x.go\n", "", nil) // git diff --cached: staged
+		var out bytes.Buffer
+		called := false
+		proceed, err := resolveStaging(mr, Options{Out: &out}, func() (bool, error) {
+			called = true
+			return true, nil
+		})
+		require.NoError(t, err)
+		assert.True(t, proceed)
+		assert.False(t, called, "must not prompt to stage when something is already staged")
+		require.Len(t, mr.Calls, 1)
+		assert.Equal(t, []string{"diff", "--cached", "--name-only"}, mr.Calls[0].Args)
+	})
+
+	t.Run("clean working tree aborts without prompting", func(t *testing.T) {
+		mr := exectest.NewMockRunner()
+		mr.QueueResponse("", "", nil) // git diff --cached: nothing staged
+		mr.QueueResponse("", "", nil) // git status --porcelain: clean
+		var out bytes.Buffer
+		called := false
+		proceed, err := resolveStaging(mr, Options{Out: &out}, func() (bool, error) {
+			called = true
+			return true, nil
+		})
+		require.NoError(t, err)
+		assert.False(t, proceed)
+		assert.False(t, called, "must not prompt to stage when there is nothing to stage")
+		assert.Contains(t, out.String(), "nothing to commit")
+		assert.Equal(t, []string{"status", "--porcelain"}, mr.Calls[1].Args)
+		for _, c := range mr.Calls {
+			assert.NotEqual(t, []string{"add", "-A"}, c.Args, "must not stage on a clean tree")
+		}
+	})
+
+	t.Run("dirty tree, user stages, proceeds", func(t *testing.T) {
+		mr := exectest.NewMockRunner()
+		mr.QueueResponse("", "", nil)                   // diff --cached: nothing staged
+		mr.QueueResponse(" M internal/x.go\n", "", nil) // status --porcelain: dirty
+		mr.QueueResponse("", "", nil)                   // add -A
+		var out bytes.Buffer
+		proceed, err := resolveStaging(mr, Options{Out: &out}, confirmYes)
+		require.NoError(t, err)
+		assert.True(t, proceed)
+		require.Len(t, mr.Calls, 3)
+		assert.Equal(t, []string{"add", "-A"}, mr.Calls[2].Args)
+	})
+
+	t.Run("dirty tree, user cancels, aborts", func(t *testing.T) {
+		mr := exectest.NewMockRunner()
+		mr.QueueResponse("", "", nil)            // diff --cached: nothing staged
+		mr.QueueResponse("?? new.go\n", "", nil) // status --porcelain: untracked
+		var out bytes.Buffer
+		proceed, err := resolveStaging(mr, Options{Out: &out}, confirmNo)
+		require.NoError(t, err)
+		assert.False(t, proceed)
+		assert.Contains(t, out.String(), "cancelled")
+		for _, c := range mr.Calls {
+			assert.NotEqual(t, []string{"add", "-A"}, c.Args, "must not stage when cancelled")
+		}
+	})
+}

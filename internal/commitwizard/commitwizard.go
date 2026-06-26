@@ -84,22 +84,12 @@ func Run(r port.Runner, cfg *config.Config, opts Options) error {
 	}
 
 	if !opts.DryRun && !opts.All {
-		staged, err := hasStaged(r)
+		proceed, err := resolveStaging(r, opts, confirmStageAll)
 		if err != nil {
 			return err
 		}
-		if !staged {
-			stage, err := confirmStageAll()
-			if err != nil {
-				return err
-			}
-			if !stage {
-				_, _ = fmt.Fprintln(opts.Out, ui.Info(opts.Out, "nothing staged — cancelled"))
-				return nil
-			}
-			if err := stageAll(r); err != nil {
-				return err
-			}
+		if !proceed {
+			return nil
 		}
 	}
 
@@ -108,6 +98,42 @@ func Run(r port.Runner, cfg *config.Config, opts Options) error {
 		return err
 	}
 	return finalize(r, cfg, a, opts, confirmCommit)
+}
+
+// resolveStaging ensures something is staged before the wizard collects a message, or
+// decides to stop. It returns proceed=false (after printing the reason) when the working
+// tree is clean (nothing to commit) or the user declines to stage. confirmStage is injected
+// so the decision is testable without a terminal; Run passes the interactive confirmStageAll.
+func resolveStaging(r port.Runner, opts Options, confirmStage func() (bool, error)) (bool, error) {
+	staged, err := hasStaged(r)
+	if err != nil {
+		return false, err
+	}
+	if staged {
+		return true, nil
+	}
+
+	dirty, err := hasWorkingTreeChanges(r)
+	if err != nil {
+		return false, err
+	}
+	if !dirty {
+		_, _ = fmt.Fprintln(opts.Out, ui.Info(opts.Out, "nothing to commit — working tree clean"))
+		return false, nil
+	}
+
+	stage, err := confirmStage()
+	if err != nil {
+		return false, err
+	}
+	if !stage {
+		_, _ = fmt.Fprintln(opts.Out, ui.Info(opts.Out, "nothing staged — cancelled"))
+		return false, nil
+	}
+	if err := stageAll(r); err != nil {
+		return false, err
+	}
+	return true, nil
 }
 
 // commitTypeDescriptions are the one-line hints shown beside the 10 built-in types.

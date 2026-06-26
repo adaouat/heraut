@@ -81,11 +81,16 @@ avoids any interface change and is fully testable via `MockRunner`.
 via the `port.Runner`:
 
 - `hasStaged(r)` — `git diff --cached --name-only` to detect whether anything is staged
-- `stageAll(r)` — `git add -A` (only called when `--all` / `-a` is set)
+- `hasWorkingTreeChanges(r)` — `git status --porcelain` to detect whether there is anything
+  to commit at all (staged, unstaged, or untracked); `hasStaged` only sees the index
+- `stageAll(r)` — `git add -A` (run when the user confirms the stage prompt)
 - `commit(r, message, all)` — writes the temp file and runs `git commit -F <tmpfile>`
 
-If nothing is staged and `--all` is not set, the wizard offers to stage everything or
-cancel (lightweight prompt, not a per-file picker — see Deferred section).
+When `--all`/`--dry-run` are unset and nothing is staged, `resolveStaging` inspects the
+working tree: a clean tree aborts early with "nothing to commit — working tree clean" (no
+prompt, no wasted form); otherwise the wizard offers to stage everything (`git add -A`) or
+cancel — a lightweight prompt, not a per-file picker (see Deferred section). `resolveStaging`
+takes the confirm function as a parameter, so the whole decision is unit-tested without a TTY.
 
 ### Package layout
 

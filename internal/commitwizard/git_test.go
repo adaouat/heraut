@@ -34,6 +34,31 @@ func TestHasStaged(t *testing.T) {
 	})
 }
 
+func TestHasWorkingTreeChanges(t *testing.T) {
+	t.Run("dirty when porcelain output is non-empty", func(t *testing.T) {
+		mr := exectest.NewMockRunner()
+		mr.QueueResponse(" M internal/x.go\n?? new.go\n", "", nil)
+		dirty, err := hasWorkingTreeChanges(mr)
+		require.NoError(t, err)
+		assert.True(t, dirty)
+		assert.Equal(t, "git", mr.Calls[0].Name)
+		assert.Equal(t, []string{"status", "--porcelain"}, mr.Calls[0].Args)
+	})
+	t.Run("clean when porcelain output is empty", func(t *testing.T) {
+		mr := exectest.NewMockRunner()
+		mr.QueueResponse("", "", nil)
+		dirty, err := hasWorkingTreeChanges(mr)
+		require.NoError(t, err)
+		assert.False(t, dirty)
+	})
+	t.Run("propagates runner error", func(t *testing.T) {
+		mr := exectest.NewMockRunner()
+		mr.QueueResponse("", "", errors.New("boom"))
+		_, err := hasWorkingTreeChanges(mr)
+		require.Error(t, err)
+	})
+}
+
 func TestStageAll(t *testing.T) {
 	mr := exectest.NewMockRunner()
 	mr.QueueResponse("", "", nil)
