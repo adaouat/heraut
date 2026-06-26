@@ -1,8 +1,11 @@
 package commitwizard
 
 import (
+	"bytes"
+	"io"
 	"testing"
 
+	"github.com/adaouat/forge/exec/exectest"
 	"github.com/adaouat/heraut/internal/conventionalcommit"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -50,4 +53,49 @@ func TestParseFooterLines(t *testing.T) {
 		require.NoError(t, err)
 		assert.Nil(t, got)
 	})
+}
+
+func alwaysConfirm(_ io.Writer, _ string) (bool, error) { return true, nil }
+func neverConfirm(_ io.Writer, _ string) (bool, error)  { return false, nil }
+
+func TestFinalize_CommitsOnConfirm(t *testing.T) {
+	mr := exectest.NewMockRunner()
+	mr.QueueResponse("", "", nil) // git commit
+	var out bytes.Buffer
+	err := finalize(mr, nil, Answers{Type: "feat", Subject: "x"},
+		Options{Out: &out}, alwaysConfirm)
+	require.NoError(t, err)
+	require.Len(t, mr.Calls, 1)
+	assert.Equal(t, "commit", mr.Calls[0].Args[0])
+}
+
+func TestFinalize_CancelOnDecline(t *testing.T) {
+	mr := exectest.NewMockRunner()
+	var out bytes.Buffer
+	err := finalize(mr, nil, Answers{Type: "feat", Subject: "x"},
+		Options{Out: &out}, neverConfirm)
+	require.NoError(t, err)
+	assert.Empty(t, mr.Calls, "no git commit on decline")
+	assert.Contains(t, out.String(), "feat: x")
+}
+
+func TestFinalize_DryRunPrintsAndSkipsCommit(t *testing.T) {
+	mr := exectest.NewMockRunner()
+	var out bytes.Buffer
+	err := finalize(mr, nil, Answers{Type: "feat", Subject: "x"},
+		Options{DryRun: true, Out: &out}, alwaysConfirm)
+	require.NoError(t, err)
+	assert.Empty(t, mr.Calls, "no git commit in dry-run")
+	assert.Contains(t, out.String(), "feat: x")
+	assert.Contains(t, out.String(), "dry-run")
+}
+
+func TestFinalize_GuardBlocksInvalidType(t *testing.T) {
+	mr := exectest.NewMockRunner()
+	var out bytes.Buffer
+	// "wip" is not in DefaultCommitTypes → VerifyCommit fails → no commit.
+	err := finalize(mr, nil, Answers{Type: "wip", Subject: "x"},
+		Options{Out: &out}, alwaysConfirm)
+	require.Error(t, err)
+	assert.Empty(t, mr.Calls)
 }

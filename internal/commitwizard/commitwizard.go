@@ -9,7 +9,11 @@ import (
 	"io"
 	"strings"
 
+	"github.com/adaouat/heraut/internal/app"
+	"github.com/adaouat/heraut/internal/config"
 	"github.com/adaouat/heraut/internal/conventionalcommit"
+	"github.com/adaouat/heraut/internal/port"
+	"github.com/adaouat/heraut/internal/ui"
 )
 
 // Answers is the data the interactive form collects.
@@ -67,4 +71,32 @@ func parseFooterLines(text string) ([]conventionalcommit.Footer, error) {
 		footers = append(footers, f)
 	}
 	return footers, nil
+}
+
+// finalize assembles, verifies, and (unless dry-run) commits. confirm is injected so the
+// pipeline is testable without a terminal; Run passes the interactive confirmCommit form.
+func finalize(r port.Runner, cfg *config.Config, a Answers, opts Options, confirm func(out io.Writer, msg string) (bool, error)) error {
+	msg := Assemble(a).Format()
+
+	if err := app.VerifyCommit(cfg, msg); err != nil {
+		return fmt.Errorf("assembled message failed validation: %w", err)
+	}
+
+	if opts.DryRun {
+		_, _ = fmt.Fprintln(opts.Out, msg)
+		_, _ = fmt.Fprintln(opts.Out, ui.Info(opts.Out, "[dry-run] would run: git commit"))
+		return nil
+	}
+
+	ok, err := confirm(opts.Out, msg)
+	if err != nil {
+		return err
+	}
+	if !ok {
+		_, _ = fmt.Fprintln(opts.Out, msg)
+		_, _ = fmt.Fprintln(opts.Out, ui.Info(opts.Out, "commit cancelled"))
+		return nil
+	}
+
+	return commit(r, msg, opts.All)
 }
