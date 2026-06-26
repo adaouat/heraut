@@ -33,6 +33,14 @@ func TestAssemble(t *testing.T) {
 		c := Assemble(Answers{Type: "feat", Subject: "x", Breaking: true})
 		assert.Equal(t, "feat!: x", c.Format())
 	})
+	t.Run("trims surrounding whitespace from subject and breaking description", func(t *testing.T) {
+		c := Assemble(Answers{Type: "feat", Subject: "  add x  ", Breaking: true, BreakingDesc: "  gone  "})
+		assert.Equal(t, "feat!: add x\n\nBREAKING CHANGE: gone", c.Format())
+	})
+	t.Run("breaking description of only whitespace adds no footer", func(t *testing.T) {
+		c := Assemble(Answers{Type: "feat", Subject: "x", Breaking: true, BreakingDesc: "   "})
+		assert.Equal(t, "feat!: x", c.Format())
+	})
 }
 
 func TestParseFooterLines(t *testing.T) {

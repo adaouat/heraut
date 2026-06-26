@@ -37,19 +37,21 @@ type Options struct {
 
 // Assemble maps collected Answers to a conventional-commit Commit. A breaking change adds
 // "!" to the header; a non-empty breaking description is prepended as a BREAKING CHANGE
-// footer ahead of the user's footers.
+// footer ahead of the user's footers. The subject and breaking description are trimmed so
+// stray whitespace never reaches the commit header or footer.
 func Assemble(a Answers) *conventionalcommit.Commit {
+	breakingDesc := strings.TrimSpace(a.BreakingDesc)
 	c := &conventionalcommit.Commit{
 		Type:        a.Type,
 		Scope:       a.Scope,
 		Breaking:    a.Breaking,
-		Description: a.Subject,
+		Description: strings.TrimSpace(a.Subject),
 		Body:        a.Body,
 	}
-	if a.Breaking && a.BreakingDesc != "" {
+	if a.Breaking && breakingDesc != "" {
 		c.Footers = append(c.Footers, conventionalcommit.Footer{
 			Token: "BREAKING CHANGE",
-			Value: a.BreakingDesc,
+			Value: breakingDesc,
 		})
 	}
 	c.Footers = append(c.Footers, a.Footers...)
