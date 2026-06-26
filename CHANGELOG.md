@@ -1,5 +1,28 @@
 # Changelog
 
+## [0.43.0](https://github.com/adaouat/heraut/compare/v0.42.0..v0.43.0) - 2026-06-26
+
+### 🚀 Features
+
+- *(app)* Add CheckCommitRange for rev-range commit validation (ADR-0030) - ([b3efbac](https://github.com/adaouat/heraut/commit/b3efbacbfada4c8709e47c56332ae830032e7deb)) by @bchatard
+
+- *(cmd)* Add heraut commit check (ADR-0030) - ([7677ad6](https://github.com/adaouat/heraut/commit/7677ad66b75ba75a7d2b08d7b91b111579b8e3d7)) by @bchatard
+
+
+### 📚 Documentation
+
+- *(adr)* Add ADR-0030 for heraut commit check (rev-range validation) - ([a9fc66b](https://github.com/adaouat/heraut/commit/a9fc66bb3f1444f5fb7d92f8ed77377b01d49181)) by @bchatard
+
+- *(adr)* Document exitcode.Usage divergence in commit check; add wiring integration test - ([5229cbd](https://github.com/adaouat/heraut/commit/5229cbde862e8954c2d6ccfebc2c78de2f204a1b)) by @bchatard
+
+- *(plans)* Add T119 implementation plan - ([65fef36](https://github.com/adaouat/heraut/commit/65fef363230f69dd936abc80b55fe01e65731acd)) by @bchatard
+
+- *(roadmap)* Add T119 task stub for heraut commit check - ([d040916](https://github.com/adaouat/heraut/commit/d040916f668d5617c982f4a0af482a805eaccb17)) by @bchatard
+
+- *(specs)* Design heraut commit check (cog check equivalent) - ([5a2e5cc](https://github.com/adaouat/heraut/commit/5a2e5cc853b2830a48658b59e7473fdca8ab719d)) by @bchatard
+
+- Document heraut commit check and close T119 (ADR-0030) - ([cf174ea](https://github.com/adaouat/heraut/commit/cf174ea771e518d50f3e81a53143bdef823237b4)) by @bchatard
+
 ## [0.42.0](https://github.com/adaouat/heraut/compare/v0.41.0..v0.42.0) - 2026-06-25
 
 ### 🚀 Features
