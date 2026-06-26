@@ -1,5 +1,27 @@
 # Changelog
 
+## [0.45.0](https://github.com/adaouat/heraut/compare/v0.44.0..v0.45.0) - 2026-06-26
+
+### 🚀 Features
+
+- *(app)* Add ResolveFromLatestTag for commit check - ([0566ee6](https://github.com/adaouat/heraut/commit/0566ee6159de4989c7082d32fc8701f30d3fbda1)) by @bchatard
+
+- *(cmd)* Add --from-latest-tag to heraut commit check - ([fb7b567](https://github.com/adaouat/heraut/commit/fb7b56737ac588a3b0b38c77b2fdb0249d6c22cf)) by @bchatard
+
+
+### 🐛 Bug Fixes
+
+- *(app)* Use errNoTagsFound sentinel instead of error string-match - ([70f6d4d](https://github.com/adaouat/heraut/commit/70f6d4dce2a55fd2ff036e29e8a9142561f42e26)) by @bchatard
+
+- *(app)* Use errors.New for errNoTagsFound sentinel; update T121 note - ([1d319ae](https://github.com/adaouat/heraut/commit/1d319aea1ef49570a38045100d980708341e38e8)) by @bchatard
+
+
+### 📚 Documentation
+
+- *(plans)* Add implementation plan for commit check --from-latest-tag - ([fbf9ea6](https://github.com/adaouat/heraut/commit/fbf9ea6083b945a559346a476e0e41b708f8f9b1)) by @bchatard
+
+- *(specs)* Add design for heraut commit check --from-latest-tag - ([95da2a4](https://github.com/adaouat/heraut/commit/95da2a4b844d8ccd50b4b040a493904aadc4f6e2)) by @bchatard
+
 ## [0.44.0](https://github.com/adaouat/heraut/compare/v0.43.0..v0.44.0) - 2026-06-26
 
 ### 🚀 Features
