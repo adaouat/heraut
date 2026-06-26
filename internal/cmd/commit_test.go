@@ -229,5 +229,6 @@ func TestCommitCheck_FromLatestTag_HappyPath_ChecksOnlyCommitsAfterTag(t *testin
 	missingCfg := filepath.Join(t.TempDir(), ".heraut.yml")
 	out, err := executeRoot("commit", "check", "--from-latest-tag", "--config", missingCfg)
 	require.NoError(t, err)
-	assert.Contains(t, out, "0 of 1 commits invalid")
+	assert.Contains(t, out, "all commits follow conventional commits")
+	assert.Contains(t, out, "1 commits analysed")
 }

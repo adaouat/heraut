@@ -22,7 +22,8 @@ func TestPrintCommitCheckResults_AllValid_NoVerbose_OnlySummary(t *testing.T) {
 	out := buf.String()
 	assert.NotContains(t, out, "aaa1111")
 	assert.NotContains(t, out, "bbb2222")
-	assert.Contains(t, out, "0 of 2 commits invalid")
+	assert.Contains(t, out, "all commits follow conventional commits")
+	assert.Contains(t, out, "2 commits analysed")
 }
 
 func TestPrintCommitCheckResults_SomeInvalid_NoVerbose_OnlyFailuresShown(t *testing.T) {

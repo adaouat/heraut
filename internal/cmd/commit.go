@@ -184,7 +184,12 @@ func printCommitCheckResults(results []app.CommitCheckResult, verbose bool, out 
 			_, _ = fmt.Fprintln(out, ui.Success(out, fmt.Sprintf("%s  %s", r.SHA, r.Subject)))
 		}
 	}
-	_, _ = fmt.Fprintf(out, "%d of %d commits invalid\n", failed, len(results))
+	if failed == 0 {
+		_, _ = fmt.Fprintln(out, ui.Success(out, "all commits follow conventional commits!"))
+		_, _ = fmt.Fprintf(out, "  %d commits analysed\n", len(results))
+	} else {
+		_, _ = fmt.Fprintf(out, "%d of %d commits invalid\n", failed, len(results))
+	}
 	return failed
 }
 
