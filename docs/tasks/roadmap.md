@@ -5196,6 +5196,27 @@ eliminates fragile string-match. `git describe` no-tag detection checks stderr f
 
 ---
 
+### Phase 23 — Native (built-in) content generator
+
+Per [ADR-0032](../adr/0032-native-content-generator.md): an opt-in, zero-dependency Go
+generator (`generator: native`) that renders changelogs / release notes in pure Go, without
+the external `git-cliff` binary — `git-cliff` stays the default. This epic is heavy and
+multi-phase, so its task breakdown **and live `[ ] / [x]` status** live in a dedicated
+roadmap:
+
+→ **[Native Content Generator Roadmap](native-generator-roadmap.md)** — T122+
+
+Summary of the arc (full detail, tests, and files in the dedicated file):
+
+- **Phase 1** — native renderer, parity with `git-cliff --offline`: T122 commit collection,
+  T123 classify / group / skip, T124 template renderer + view model, T125 wiring + config +
+  schema / docs, T126 golden-file parity harness.
+- **Phase 2** — remote enrichment via platform CLIs: T127 GitHub (`gh api`), T128 GitLab
+  (`glab api`), T129 Azure DevOps.
+- **Phase 3** — raw-HTTP clients to drop `gh` / `glab`: deferred behind a future ADR.
+
+---
+
 ## Risks and mitigations
 
 | Risk                                                                                | Impact            | Mitigation                                                                |
