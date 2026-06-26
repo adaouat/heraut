@@ -79,6 +79,13 @@
           },
           "minItems": 1,
           "description": "Restricts which conventional-commit type words 'heraut commit verify' accepts. Replaces (does not extend) the default list when set: feat, fix, docs, chore, refactor, test, style, perf, ci, build."
+        },
+        "scopes": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Optional scope allow-list used only by 'heraut commit create' to offer a scope picker. NOT enforced by 'heraut commit verify'/'check'. Omit for a free-text scope step."
         }
       },
       "description": "Configures 'heraut commit verify''s type allow-list (ADR-0027). Optional — omit entirely to use the default list."

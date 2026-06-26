@@ -37,6 +37,11 @@ type CommitLint struct {
 	// Replaces (does not extend) the default list when set: feat, fix, docs, chore,
 	// refactor, test, style, perf, ci, build.
 	Types []string `yaml:"types,omitempty"`
+
+	// Scopes is an optional allow-list used only by `heraut commit create` to offer a
+	// scope picker. It is NOT enforced by `heraut commit verify`/`check` (ADR-0027 keeps
+	// verify to types only). Empty/unset → the wizard uses a free-text scope step.
+	Scopes []string `yaml:"scopes,omitempty"`
 }
 
 // Versioning holds version resolution settings.

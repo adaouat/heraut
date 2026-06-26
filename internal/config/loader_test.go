@@ -1,6 +1,8 @@
 package config_test
 
 import (
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 
@@ -387,4 +389,21 @@ tickets:
 	require.Len(t, cfg.Tickets, 1)
 	assert.Equal(t, "[A-Z]+-[0-9]+", cfg.Tickets[0].Pattern)
 	assert.Equal(t, "https://acme.atlassian.net/browse/{ticket}", cfg.Tickets[0].URL)
+}
+
+func TestLoad_CommitLintScopes(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, ".heraut.yml")
+	require.NoError(t, os.WriteFile(path, []byte(`
+versioning:
+  strategy: semver
+commit_lint:
+  types: [feat, fix]
+  scopes: [cmd, config, versioning]
+`), 0o644))
+
+	cfg, err := config.Load(path)
+	require.NoError(t, err)
+	require.NotNil(t, cfg.CommitLint)
+	assert.Equal(t, []string{"cmd", "config", "versioning"}, cfg.CommitLint.Scopes)
 }

@@ -105,6 +105,9 @@ versioning:
 # replaces (does not extend) the default.
 # commit_lint:
 #   types: [feat, fix, docs, chore, refactor, test, style, perf, ci, build]
+#   # scopes: optional — used only by `heraut commit create` to offer a scope picker.
+#   # Not enforced by `heraut commit verify`. Omit for a free-text scope step.
+#   scopes: [cmd, config, versioning, ui]
 
 # ── changelog ─────────────────────────────────────────────────────────────────
 #

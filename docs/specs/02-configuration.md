@@ -417,11 +417,13 @@ A top-level, optional block configuring `heraut commit verify`'s type allow-list
 ```yaml
 commit_lint:
   types: [feat, fix, docs, chore, refactor, test, style, perf, ci, build]
+  scopes: [cmd, config, versioning, ui]   # optional — wizard-only
 ```
 
-| Field   | Meaning                                                                          |
-|---------|-----------------------------------------------------------------------------------|
-| `types` | The allowed conventional-commit type words. **Replaces**, does not extend, the default list. Must be non-empty and contain no duplicates. |
+| Field    | Meaning                                                                          |
+|----------|-----------------------------------------------------------------------------------|
+| `types`  | The allowed conventional-commit type words. **Replaces**, does not extend, the default list. Must be non-empty and contain no duplicates. |
+| `scopes` | Optional list of scope strings used **only** by `heraut commit create` to populate the scope picker. **Not enforced** by `heraut commit verify`/`check` — ADR-0027 keeps verification to `types` only. Omit (or leave empty) for a free-text scope step in the wizard. |
 
 Not generator-specific (unlike `tickets`) — `commit_lint` has nothing to do with
 changelog generation; it governs `heraut commit verify` only. Merge commits and
