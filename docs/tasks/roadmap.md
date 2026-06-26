@@ -5176,6 +5176,26 @@ consistent with `verify` and `check`.
 
 ---
 
+#### `[x]` T121: `heraut commit check --from-latest-tag`
+
+`cog check --from-latest-tag` equivalent. Adds `--from-latest-tag` bool flag to
+`newCommitCheckCmd`. New `app.ResolveFromLatestTag(runner, cfg, env)` resolves the
+latest tag: strategy-aware via `CurrentTag` when cfg is present; `git describe --tags
+--abbrev=0` fallback when cfg is nil. No-tags condition returns `("", true, nil)` — cmd
+layer warns and falls back to full history. Mutual exclusion with the positional rev-range
+arg enforced in the cmd layer (error: "cannot use both --from-latest-tag and a rev-range
+argument"). `CheckCommitRange` unchanged.
+
+**Completion note:** Implemented in 2 commits (app layer, then cmd layer). Key decision:
+string-match on `"no tags found"` to detect the no-tag sentinel from `CurrentTag` — same
+pattern already used in `current_test.go:105,194`. No new sentinel error exported; the
+match is internal to `app` package. `git describe` no-tag detection checks stderr for
+`"No names found"` (git 2.x) or `"No tags can describe"`.
+
+**Scope:** S. **Dependencies:** T119 (`heraut commit check` base command).
+
+---
+
 ## Risks and mitigations
 
 | Risk                                                                                | Impact            | Mitigation                                                                |

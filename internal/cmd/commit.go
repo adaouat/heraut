@@ -67,11 +67,16 @@ func newCommitVerifyCmd() *cobra.Command {
 }
 
 func newCommitCheckCmd() *cobra.Command {
+	var fromLatestTag bool
 	cmd := &cobra.Command{
 		Use:   "check [rev-range]",
 		Short: "Validate every commit in a range (or full history) against the conventional-commit grammar",
 		Args:  cobra.MaximumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
+			if fromLatestTag && len(args) == 1 {
+				return exitcode.Wrap(exitcode.Usage, errors.New("cannot use both --from-latest-tag and a rev-range argument"))
+			}
+
 			var revRange string
 			if len(args) == 1 {
 				revRange = args[0]
@@ -95,6 +100,20 @@ func newCommitCheckCmd() *cobra.Command {
 
 			verbose, _ := cmd.Flags().GetBool("verbose")
 			runner := execadapter.New(false, verbose)
+
+			if fromLatestTag {
+				env, _ := cmd.Flags().GetString("env")
+				resolved, noTags, err := app.ResolveFromLatestTag(runner, cfg, env)
+				if err != nil {
+					return exitcode.Wrap(exitcode.Usage, err)
+				}
+				if noTags {
+					_, _ = fmt.Fprintln(cmd.OutOrStdout(), ui.Warn(cmd.OutOrStdout(), "no tags found — checking full history"))
+				} else {
+					revRange = resolved
+				}
+			}
+
 			results, err := app.CheckCommitRange(runner, cfg, revRange)
 			if err != nil {
 				return exitcode.Wrap(exitcode.Usage, err)
@@ -107,6 +126,7 @@ func newCommitCheckCmd() *cobra.Command {
 			return nil
 		},
 	}
+	cmd.Flags().BoolVar(&fromLatestTag, "from-latest-tag", false, "check commits since the latest tag (mutually exclusive with rev-range)")
 	return cmd
 }
 

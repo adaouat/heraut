@@ -183,3 +183,51 @@ func TestCommitCreate_NonTTYErrors(t *testing.T) {
 	require.Error(t, err)
 	assert.Contains(t, out+err.Error(), "interactive terminal")
 }
+
+func TestCommitCheck_FromLatestTagAndRevRange_MutuallyExclusive(t *testing.T) {
+	missingCfg := filepath.Join(t.TempDir(), ".heraut.yml")
+	_, err := executeRoot("commit", "check", "v1.0.0..HEAD", "--from-latest-tag", "--config", missingCfg)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "cannot use both")
+}
+
+func TestCommitCheck_FromLatestTag_NoTags_WarnsAndChecksFullHistory(t *testing.T) {
+	if _, err := exec.LookPath("git"); err != nil {
+		t.Skip("git not on PATH")
+	}
+	dir := t.TempDir()
+	t.Chdir(dir)
+
+	// Real git repo with one conventional commit, no tag.
+	run := func(args ...string) {
+		t.Helper()
+		cmd := exec.Command("git", args...)
+		if out, err := cmd.CombinedOutput(); err != nil {
+			t.Fatalf("git %v: %v\n%s", args, err, out)
+		}
+	}
+	run("init")
+	run("config", "user.email", "test@example.com")
+	run("config", "user.name", "Test")
+	run("commit", "--allow-empty", "-m", "feat: initial")
+
+	missingCfg := filepath.Join(t.TempDir(), ".heraut.yml")
+	out, err := executeRoot("commit", "check", "--from-latest-tag", "--config", missingCfg)
+	require.NoError(t, err)
+	assert.Contains(t, out, "no tags found")
+}
+
+func TestCommitCheck_FromLatestTag_HappyPath_ChecksOnlyCommitsAfterTag(t *testing.T) {
+	testutil.RealGitRepo(t, "v0.1.0")
+
+	// Add a conventional commit after the tag — this should be checked.
+	addCmd := exec.Command("git", "commit", "--allow-empty", "-m", "feat: post-release feature")
+	if out, err := addCmd.CombinedOutput(); err != nil {
+		t.Fatalf("git commit: %v\n%s", err, out)
+	}
+
+	missingCfg := filepath.Join(t.TempDir(), ".heraut.yml")
+	out, err := executeRoot("commit", "check", "--from-latest-tag", "--config", missingCfg)
+	require.NoError(t, err)
+	assert.Contains(t, out, "0 of 1 commits invalid")
+}
