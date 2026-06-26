@@ -186,6 +186,91 @@ func TestIsFixupCommit(t *testing.T) {
 	}
 }
 
+func TestCommit_Format(t *testing.T) {
+	tests := []struct {
+		name string
+		in   conventionalcommit.Commit
+		want string
+	}{
+		{
+			name: "type + subject only",
+			in:   conventionalcommit.Commit{Type: "feat", Description: "add wizard"},
+			want: "feat: add wizard",
+		},
+		{
+			name: "scope",
+			in:   conventionalcommit.Commit{Type: "fix", Scope: "cmd", Description: "x"},
+			want: "fix(cmd): x",
+		},
+		{
+			name: "breaking bang",
+			in:   conventionalcommit.Commit{Type: "feat", Scope: "cmd", Breaking: true, Description: "drop flag"},
+			want: "feat(cmd)!: drop flag",
+		},
+		{
+			name: "body",
+			in:   conventionalcommit.Commit{Type: "feat", Description: "x", Body: "why line one\nwhy line two"},
+			want: "feat: x\n\nwhy line one\nwhy line two",
+		},
+		{
+			name: "breaking footer + user footer",
+			in: conventionalcommit.Commit{
+				Type: "feat", Description: "x", Breaking: true,
+				Footers: []conventionalcommit.Footer{
+					{Token: "BREAKING CHANGE", Value: "old removed"},
+					{Token: "Closes", Value: "#42"},
+				},
+			},
+			want: "feat!: x\n\nBREAKING CHANGE: old removed\nCloses: #42",
+		},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			assert.Equal(t, tc.want, tc.in.Format())
+		})
+	}
+}
+
+func TestCommit_Format_RoundTripsThroughParse(t *testing.T) {
+	original := conventionalcommit.Commit{
+		Type: "feat", Scope: "cmd", Breaking: true, Description: "add the wizard",
+		Body: "Guided prompts build the message.",
+		Footers: []conventionalcommit.Footer{
+			{Token: "BREAKING CHANGE", Value: "the old path is gone"},
+			{Token: "Closes", Value: "#42"},
+		},
+	}
+	reparsed, err := conventionalcommit.Parse(original.Format())
+	require.NoError(t, err)
+	assert.Equal(t, original.Type, reparsed.Type)
+	assert.Equal(t, original.Scope, reparsed.Scope)
+	assert.True(t, reparsed.Breaking)
+	assert.Equal(t, original.Description, reparsed.Description)
+	assert.Equal(t, original.Body, reparsed.Body)
+	assert.Equal(t, original.Footers, reparsed.Footers)
+}
+
+func TestParseFooterLine(t *testing.T) {
+	tests := []struct {
+		name   string
+		line   string
+		want   conventionalcommit.Footer
+		wantOK bool
+	}{
+		{"colon form", "Closes: #42", conventionalcommit.Footer{Token: "Closes", Value: "#42"}, true},
+		{"hash form preserves #", "Closes #42", conventionalcommit.Footer{Token: "Closes", Value: "#42"}, true},
+		{"breaking change token", "BREAKING CHANGE: gone", conventionalcommit.Footer{Token: "BREAKING CHANGE", Value: "gone"}, true},
+		{"not a footer", "just prose here", conventionalcommit.Footer{}, false},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			got, ok := conventionalcommit.ParseFooterLine(tc.line)
+			assert.Equal(t, tc.wantOK, ok)
+			assert.Equal(t, tc.want, got)
+		})
+	}
+}
+
 func BenchmarkParse(b *testing.B) {
 	inputs := map[string]string{
 		"header_only": "feat: add x",

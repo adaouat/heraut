@@ -150,6 +150,50 @@ func joinParagraphs(paragraphs [][]string) []string {
 	return out
 }
 
+// Format renders a Commit back to its canonical Conventional Commits message text.
+// It round-trips with Parse: Parse(c.Format()) reproduces c's structural fields.
+// Empty scope, body, and footer list are omitted; Breaking adds "!" to the header.
+func (c *Commit) Format() string {
+	var b strings.Builder
+	b.WriteString(c.Type)
+	if c.Scope != "" {
+		b.WriteString("(" + c.Scope + ")")
+	}
+	if c.Breaking {
+		b.WriteString("!")
+	}
+	b.WriteString(": " + c.Description)
+	if c.Body != "" {
+		b.WriteString("\n\n" + c.Body)
+	}
+	if len(c.Footers) > 0 {
+		b.WriteString("\n\n")
+		for i, f := range c.Footers {
+			if i > 0 {
+				b.WriteString("\n")
+			}
+			b.WriteString(f.Token + ": " + f.Value)
+		}
+	}
+	return b.String()
+}
+
+// ParseFooterLine parses a single footer trailer line for message construction
+// (the commit wizard). ok is false when line is not a valid footer. Unlike the
+// internal footer-block parser used by Parse, it preserves the leading "#" of the
+// "Token #value" form so the result round-trips through Format.
+func ParseFooterLine(line string) (Footer, bool) {
+	m := footerLinePattern.FindStringSubmatch(line)
+	if m == nil {
+		return Footer{}, false
+	}
+	value := m[3]
+	if m[2] == " #" {
+		value = "#" + value
+	}
+	return Footer{Token: m[1], Value: value}, true
+}
+
 func parseFooterBlock(lines []string) []Footer {
 	var footers []Footer
 	for _, line := range lines {
