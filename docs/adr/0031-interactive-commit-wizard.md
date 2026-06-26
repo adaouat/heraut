@@ -50,13 +50,14 @@ already used by `heraut init`):
 
 ### Assembly and guard
 
-A new `conventionalcommit.Format(commit)` serializer assembles the wire-format Conventional
-Commits message from the wizard's answers (`Answers` struct). `Format` is the inverse of
-the existing `conventionalcommit.Parse`: round-trip fidelity is verified in unit tests.
+`commitwizard.Assemble(a)` maps the wizard's `Answers` struct to a
+`*conventionalcommit.Commit`. Calling `.Format()` on that result serializes it to the
+Conventional Commits wire format — `Format` being a method on `*Commit` and the inverse of
+the existing `conventionalcommit.Parse`. Round-trip fidelity is verified in unit tests.
 
 A companion `conventionalcommit.ParseFooterLine(line) (Footer, bool)` handles individual
-footer lines (e.g. from the footers step). It preserves the `#` separator for the
-`Token #value` form so a round-trip through `Format` keeps the original wire format.
+footer lines (e.g. from the footers step). It preserves the `#` in `Footer.Value` so the
+issue reference survives `Format` (which normalizes the separator to `: `).
 
 Before writing the commit, `finalize` calls `app.VerifyCommit(cfg, assembled)` as a guard.
 Because `app.AllowedCommitTypes(cfg)` was extracted from `VerifyCommit` as part of this
@@ -153,7 +154,7 @@ is written; the temp-file path is never created.
   tests in `commitwizard_test.go` and `git_test.go`.
 - `internal/app/commit.go` now exports `AllowedCommitTypes` — a small surface expansion,
   but it eliminates duplicated type-list reads between `VerifyCommit` and the wizard.
-- The `conventionalcommit.Format` / `ParseFooterLine` additions complete the package's
+- The `(*Commit).Format()` method and `ParseFooterLine` addition complete the package's
   round-trip story: every caller that parses a commit can also serialize one without
   leaving the package.
 

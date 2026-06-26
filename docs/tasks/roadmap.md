@@ -5146,16 +5146,17 @@ global flag — exactly as ADR-0030 scoped it.
 
 Per [ADR-0031](../adr/0031-interactive-commit-wizard.md). Interactive, TTY-only wizard
 (type → scope → subject → breaking → body → footers → preview-confirm) that assembles a
-Conventional Commits message via the new `conventionalcommit.Format`, validates it through
-the existing `app.VerifyCommit` guard, and runs `git commit -F <tmpfile>`. New
+`*conventionalcommit.Commit` via `commitwizard.Assemble`, serializes it with `.Format()`,
+validates it through the existing `app.VerifyCommit` guard, and runs `git commit -F <tmpfile>`. New
 `internal/commitwizard` package; new wizard-only `commit_lint.scopes`; lightweight
 stage-all prompt + `--all/-a`. Tickets / per-file staging / `--amend` deferred to v2.
 
 **Completion note:** Implemented across 8 feature commits (`045f15d..615b5b5`) plus one
 test-hardening commit (`ecca6dc`), following the 9-task plan
-`docs/superpowers/plans/2026-06-26-commit-wizard.md`. Key decisions: `conventionalcommit.Format`
+`docs/superpowers/plans/2026-06-26-commit-wizard.md`. Key decisions: `(*conventionalcommit.Commit).Format()` (a method, not a package function)
 and `ParseFooterLine` complete the package's round-trip story (`ParseFooterLine` preserves
-the `#` separator of the `Token #value` footer form so it survives `Format`).
+the `#` in `Footer.Value` so the issue reference survives `Format`, which normalizes the
+separator to `: `).
 `app.AllowedCommitTypes(cfg)` was extracted from `VerifyCommit` as the single source of
 truth for the type allow-list; the wizard's type step reads it and `finalize` runs the
 assembled message back through `app.VerifyCommit` as a guard — so wizard output is
