@@ -36,3 +36,4 @@ trade-offs were accepted.
 | [0029](0029-pkl-builtin-commit-verify.md) | Publish a Pkl Builtin for `heraut commit verify` | Accepted |
 | [0030](0030-commit-check-rev-range-validation.md) | `heraut commit check` — Rev-Range Conventional-Commit Validation | Accepted |
 | [0031](0031-interactive-commit-wizard.md) | `heraut commit create` — Interactive Commit Wizard | Accepted |
+| [0032](0032-native-content-generator.md) | Built-in (Native) Content Generator | Accepted |
