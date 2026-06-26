@@ -111,3 +111,70 @@ func TestCheckCommitRange_GitLogError_ReturnsWrappedError(t *testing.T) {
 	assert.Contains(t, err.Error(), "bad..range")
 	assert.Nil(t, results)
 }
+
+func TestResolveFromLatestTag(t *testing.T) {
+	semverCfg := &config.Config{
+		Versioning: config.Versioning{Strategy: "semver"},
+	}
+
+	tests := []struct {
+		name        string
+		cfg         *config.Config
+		env         string
+		queueStdout string
+		queueStderr string
+		queueErr    error
+		wantRange   string
+		wantNoTags  bool
+		wantErr     bool
+	}{
+		{
+			name:        "cfg present, tag found",
+			cfg:         semverCfg,
+			queueStdout: "v1.2.3\nv1.2.2\n",
+			wantRange:   "v1.2.3..HEAD",
+		},
+		{
+			name:        "cfg present, no tags",
+			cfg:         semverCfg,
+			queueStdout: "", // git tag -l returns empty → CurrentTag returns "no tags found"
+			wantNoTags:  true,
+		},
+		{
+			name:        "cfg nil, tag found via git describe",
+			cfg:         nil,
+			queueStdout: "v2.0.0\n",
+			wantRange:   "v2.0.0..HEAD",
+		},
+		{
+			name:        "cfg nil, no tags (git describe: No names found)",
+			cfg:         nil,
+			queueStderr: "fatal: No names found, cannot describe anything.",
+			queueErr:    errors.New("exit status 128"),
+			wantNoTags:  true,
+		},
+		{
+			name:        "cfg nil, git describe unexpected error",
+			cfg:         nil,
+			queueStderr: "fatal: not a git repository",
+			queueErr:    errors.New("exit status 128"),
+			wantErr:     true,
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			mr := exectest.NewMockRunner()
+			mr.QueueResponse(tc.queueStdout, tc.queueStderr, tc.queueErr)
+
+			gotRange, gotNoTags, err := app.ResolveFromLatestTag(mr, tc.cfg, tc.env)
+			if tc.wantErr {
+				require.Error(t, err)
+				return
+			}
+			require.NoError(t, err)
+			assert.Equal(t, tc.wantRange, gotRange)
+			assert.Equal(t, tc.wantNoTags, gotNoTags)
+		})
+	}
+}

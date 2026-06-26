@@ -8,6 +8,33 @@ import (
 	"github.com/adaouat/heraut/internal/port"
 )
 
+// ResolveFromLatestTag returns a rev-range string of the form "<tag>..HEAD".
+// With cfg it delegates to CurrentTag (strategy-aware); without cfg it falls
+// back to git describe --tags --abbrev=0.
+// Returns ("", true, nil) when no tags exist — the caller should warn and check
+// full history. Returns ("", false, err) on unexpected git failures.
+func ResolveFromLatestTag(runner port.Runner, cfg *config.Config, env string) (string, bool, error) {
+	if cfg != nil {
+		tag, err := CurrentTag(runner, cfg, env)
+		if err != nil {
+			if strings.Contains(err.Error(), "no tags found") {
+				return "", true, nil
+			}
+			return "", false, fmt.Errorf("resolving latest tag: %w", err)
+		}
+		return tag + "..HEAD", false, nil
+	}
+
+	stdout, stderr, err := runner.Run("git", "describe", "--tags", "--abbrev=0")
+	if err != nil {
+		if strings.Contains(stderr, "No names found") || strings.Contains(stderr, "No tags can describe") {
+			return "", true, nil
+		}
+		return "", false, fmt.Errorf("resolving latest tag via git describe: %w", err)
+	}
+	return strings.TrimSpace(stdout) + "..HEAD", false, nil
+}
+
 // CommitCheckResult records the outcome of validating one commit in a range.
 type CommitCheckResult struct {
 	SHA     string // git's abbreviated hash (%h) — length varies with repo size/core.abbrev
