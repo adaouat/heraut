@@ -100,6 +100,18 @@ func TestFinalize_GuardBlocksInvalidType(t *testing.T) {
 	assert.Empty(t, mr.Calls)
 }
 
+func TestFinalize_GuardRunsBeforeDryRun(t *testing.T) {
+	mr := exectest.NewMockRunner()
+	var out bytes.Buffer
+	// The guard must run before the dry-run branch: an invalid type fails even
+	// in dry-run, rather than being printed as a "valid" message.
+	err := finalize(mr, nil, Answers{Type: "wip", Subject: "x"},
+		Options{DryRun: true, Out: &out}, alwaysConfirm)
+	require.Error(t, err)
+	assert.Empty(t, mr.Calls)
+	assert.NotContains(t, out.String(), "dry-run", "guard should fail before the dry-run print")
+}
+
 func TestRun_NonTTYErrors(t *testing.T) {
 	mr := exectest.NewMockRunner()
 	var out bytes.Buffer // a *bytes.Buffer is never a TTY
