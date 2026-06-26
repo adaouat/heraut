@@ -38,7 +38,7 @@ internal/pipeline/            release + changelog flows (no factories)
 | Layer                | Allowed to import                                                                  |
 |----------------------|------------------------------------------------------------------------------------|
 | `cmd/heraut/`        | `internal/cmd/` only                                                               |
-| `internal/cmd/`      | `internal/app/`, `internal/ui/`, `internal/config/`                                |
+| `internal/cmd/`      | `internal/{app,ui,config,scaffold,commitwizard}/`                                  |
 | `internal/app/`      | `internal/{port,config,pipeline,versioning,generators,platforms,adapter,ui,conventionalcommit}/` |
 | `internal/pipeline/` | `internal/{port,config,versioning,ui}/`                                            |
 | `internal/generators/*`, `internal/platforms/*` | `internal/{port,config}/`                              |
