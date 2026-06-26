@@ -60,3 +60,17 @@ func TestVerifyCommit_EmptyConfiguredTypes_FallsBackToDefault(t *testing.T) {
 	err := app.VerifyCommit(cfg, "feat: add x")
 	assert.NoError(t, err)
 }
+
+func TestAllowedCommitTypes(t *testing.T) {
+	t.Run("nil config returns defaults", func(t *testing.T) {
+		assert.Equal(t, app.DefaultCommitTypes, app.AllowedCommitTypes(nil))
+	})
+	t.Run("empty commit_lint returns defaults", func(t *testing.T) {
+		cfg := &config.Config{CommitLint: &config.CommitLint{}}
+		assert.Equal(t, app.DefaultCommitTypes, app.AllowedCommitTypes(cfg))
+	})
+	t.Run("configured types override", func(t *testing.T) {
+		cfg := &config.Config{CommitLint: &config.CommitLint{Types: []string{"feat", "fix"}}}
+		assert.Equal(t, []string{"feat", "fix"}, app.AllowedCommitTypes(cfg))
+	})
+}

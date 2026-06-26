@@ -15,6 +15,15 @@ var DefaultCommitTypes = []string{
 	"feat", "fix", "docs", "chore", "refactor", "test", "style", "perf", "ci", "build",
 }
 
+// AllowedCommitTypes returns the configured commit_lint.types when set, otherwise
+// DefaultCommitTypes. Single source of truth shared by VerifyCommit and the commit wizard.
+func AllowedCommitTypes(cfg *config.Config) []string {
+	if cfg != nil && cfg.CommitLint != nil && len(cfg.CommitLint.Types) > 0 {
+		return cfg.CommitLint.Types
+	}
+	return DefaultCommitTypes
+}
+
 // VerifyCommit validates message against the conventional-commit grammar and the
 // configured (or default) type allow-list. Merge and fixup commits are always skipped,
 // unconditionally. cfg may be nil (no .heraut.yml present) — the default type list applies.
@@ -28,10 +37,7 @@ func VerifyCommit(cfg *config.Config, message string) error {
 		return fmt.Errorf("validating commit message: %w", err)
 	}
 
-	types := DefaultCommitTypes
-	if cfg != nil && cfg.CommitLint != nil && len(cfg.CommitLint.Types) > 0 {
-		types = cfg.CommitLint.Types
-	}
+	types := AllowedCommitTypes(cfg)
 	for _, t := range types {
 		if c.Type == t {
 			return nil
