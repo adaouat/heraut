@@ -1,5 +1,57 @@
 # Changelog
 
+## [0.44.0](https://github.com/adaouat/heraut/compare/v0.43.0..v0.44.0) - 2026-06-26
+
+### 🚀 Features
+
+- *(cmd)* Add heraut commit create wizard - ([ac15649](https://github.com/adaouat/heraut/commit/ac15649bcefd285412ff7a5260e3543e6ea7e55a)) by @bchatard
+
+- *(commitwizard)* Add Answers, Assemble, footer parsing - ([8ea29ef](https://github.com/adaouat/heraut/commit/8ea29efbc61f7f22e3a4261a5ecd69550ce15f71)) by @bchatard
+
+- *(commitwizard)* Add git staging and commit helpers - ([6924876](https://github.com/adaouat/heraut/commit/69248764eac79a6c39e4dc14210548ef863fe5e5)) by @bchatard
+
+- *(commitwizard)* Add finalize with verify guard and dry-run - ([1a90aef](https://github.com/adaouat/heraut/commit/1a90aef72f9f7f2581b63285e4f11c38e60d3784)) by @bchatard
+
+- *(commitwizard)* Add interactive form and Run orchestrator - ([edacee2](https://github.com/adaouat/heraut/commit/edacee269ab51dfbb5d4db57b1c81f4a32d75323)) by @bchatard
+
+- *(config)* Add wizard-only commit_lint.scopes - ([f27752e](https://github.com/adaouat/heraut/commit/f27752eb495f7841843aa2ae3cc975061614f698)) by @bchatard
+
+- *(conventionalcommit)* Add Format and ParseFooterLine - ([f9bd6e7](https://github.com/adaouat/heraut/commit/f9bd6e7b98b6ff49c684d27b8a64fbaaee32419a)) by @bchatard
+
+
+### 🐛 Bug Fixes
+
+- *(commitwizard)* Trim whitespace from subject and breaking description - ([ceab3a3](https://github.com/adaouat/heraut/commit/ceab3a36b2615e12358d1e1f1864a228c746da41)) by @bchatard
+
+- *(commitwizard)* Abort commit create on a clean working tree - ([753bdf6](https://github.com/adaouat/heraut/commit/753bdf6d7fd9faa0b1d03fbdc6a1d222dc479336)) by @bchatard
+
+
+### 🚜 Refactor
+
+- *(app)* Extract AllowedCommitTypes from VerifyCommit - ([7738d41](https://github.com/adaouat/heraut/commit/7738d417020375330f382e64149508ff6c8441de)) by @bchatard
+
+
+### 📚 Documentation
+
+- *(adr)* Add 0031 interactive commit wizard; complete T120 - ([a66b3da](https://github.com/adaouat/heraut/commit/a66b3dae417139d50a3c0a16e926ffef5f444ba7)) by @bchatard
+
+- *(adr)* Correct Format/Assemble description in 0031 - ([1180aa9](https://github.com/adaouat/heraut/commit/1180aa9d8808aa737fd076e433249f2914e5351c)) by @bchatard
+
+- *(commit)* Add commit-wizard brainstorm design doc - ([11b7124](https://github.com/adaouat/heraut/commit/11b7124de9f7ae284a5990e23ab6bc552da30dcf)) by @bchatard
+
+- *(plans)* Add commit-wizard implementation plan (T120) - ([12748b3](https://github.com/adaouat/heraut/commit/12748b380bdfa830fef590d9fe43f388554c0153)) by @bchatard
+
+- Note cmd imports scaffold/commitwizard in the layer table - ([c1c04fc](https://github.com/adaouat/heraut/commit/c1c04fc1bcd48f9504ab736ee9b5693b3d9ec0f9)) by @bchatard
+
+
+### 🧪 Testing
+
+- *(app)* Lock that commit_lint.scopes is not enforced by verify - ([f8e4e8a](https://github.com/adaouat/heraut/commit/f8e4e8a045b00853bb8332183363267ab81f407f)) by @bchatard
+
+- *(commitwizard)* Lock guard-before-dry-run ordering in finalize - ([dac523e](https://github.com/adaouat/heraut/commit/dac523e77b98c3f24779142c15ea3eeeb6c0222b)) by @bchatard
+
+- *(commitwizard)* Round-trip a real git commit -F message - ([5b423dd](https://github.com/adaouat/heraut/commit/5b423ddf201c5e974fac620ac23793bc133fea0a)) by @bchatard
+
 ## [0.43.0](https://github.com/adaouat/heraut/compare/v0.42.0..v0.43.0) - 2026-06-26
 
 ### 🚀 Features
