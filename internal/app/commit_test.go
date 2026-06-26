@@ -18,6 +18,18 @@ func TestVerifyCommit_DefaultTypes_RejectsUnknownType(t *testing.T) {
 	assert.Error(t, err)
 }
 
+func TestVerifyCommit_ScopesNotEnforced(t *testing.T) {
+	// commit_lint.scopes is wizard-only (ADR-0031): VerifyCommit must accept any scope —
+	// including one outside the configured list, and no scope at all. This locks the
+	// contract so scope enforcement is never wired into verify by accident.
+	cfg := &config.Config{CommitLint: &config.CommitLint{
+		Types:  []string{"feat", "fix"},
+		Scopes: []string{"cmd", "config"},
+	}}
+	assert.NoError(t, app.VerifyCommit(cfg, "feat(elsewhere): outside the scope list"))
+	assert.NoError(t, app.VerifyCommit(cfg, "feat: no scope at all"))
+}
+
 func TestVerifyCommit_DefaultTypes_AllTenAccepted(t *testing.T) {
 	for _, typ := range app.DefaultCommitTypes {
 		err := app.VerifyCommit(nil, typ+": something")
