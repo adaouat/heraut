@@ -5186,10 +5186,10 @@ layer warns and falls back to full history. Mutual exclusion with the positional
 arg enforced in the cmd layer (error: "cannot use both --from-latest-tag and a rev-range
 argument"). `CheckCommitRange` unchanged.
 
-**Completion note:** Implemented in 2 commits (app layer, then cmd layer). Key decision:
-string-match on `"no tags found"` to detect the no-tag sentinel from `CurrentTag` — same
-pattern already used in `current_test.go:105,194`. No new sentinel error exported; the
-match is internal to `app` package. `git describe` no-tag detection checks stderr for
+**Completion note:** Implemented in 3 commits (app layer, cmd layer, fix pass). Key decision:
+unexported `errNoTagsFound = errors.New("no tags found")` sentinel in `current.go`, wrapped
+via `%w` in `CurrentTag`'s return, detected via `errors.Is` in `ResolveFromLatestTag` —
+eliminates fragile string-match. `git describe` no-tag detection checks stderr for
 `"No names found"` (git 2.x) or `"No tags can describe"`.
 
 **Scope:** S. **Dependencies:** T119 (`heraut commit check` base command).

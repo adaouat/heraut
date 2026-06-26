@@ -1,6 +1,7 @@
 package app
 
 import (
+	"errors"
 	"fmt"
 	"strings"
 
@@ -10,7 +11,7 @@ import (
 )
 
 // errNoTagsFound is the sentinel CurrentTag returns when no tags match the resolved glob.
-var errNoTagsFound = fmt.Errorf("no tags found")
+var errNoTagsFound = errors.New("no tags found")
 
 // CurrentTag returns the latest existing git tag for the given strategy and environment.
 // For single-env strategies, env is ignored. For per-env strategies, env is required.
