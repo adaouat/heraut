@@ -81,7 +81,7 @@ clean.
 
 ---
 
-#### `[ ]` T123: classify / group / skip engine
+#### `[x]` T123: classify / group / skip engine
 
 Map each raw commit through `internal/conventionalcommit.Parse`, apply the embedded default
 taxonomy (the same groups and ordering as the git-cliff defaults — feat → Features, fix →
@@ -97,6 +97,8 @@ exclusion (mirror the rows the git-cliff default encodes).
 
 **Files:** `internal/generators/native/group.go` (+ test).
 **Scope:** M. **Dependencies:** T122.
+
+**Completion note (2026-06-27):** Implemented three unexported types in `group.go`: `parsedCommit{raw rawCommit; parsed *conventionalcommit.Commit}` (nil parsed for non-conventional subjects), `group{name string; order int; commits []parsedCommit}`, and `matchRule` (the taxonomy row struct). The entry point is `func groupCommits(commits []rawCommit) []group`. The taxonomy is a package-level `[]matchRule` slice (`commitRules`) in exact TOML array order — array position = match priority (first-match-wins), `order` field = display sort position (the `<!-- N -->` prefix in git-cliff). The security rule uses `isBody: true` so its regex is matched against `rawCommit.Body` rather than Subject; it fires only when no earlier subject rule matched. Skip rules carry `skip: true` (no name/order needed). Within each group, `sort.SliceStable` puts scoped commits first (scope ascending), then unscoped, preserving input (oldest-first) order as the tiebreak. 38 new tests across 10 sub-tests in `TestGroupCommits_Taxonomy`, plus `SkipRules`, `MergeAndFixupExcluded`, `FirstMatchWins`, `SecurityBodyAfterSubjectRules`, `GroupDisplayOrder`, `DocRefactorDisplayOrder`, `WithinGroupOrdering`, `EmptyInput`, and `ParsedCommitFields`; full suite 1244 green; `hk check` clean.
 
 ---
 
