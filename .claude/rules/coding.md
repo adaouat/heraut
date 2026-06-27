@@ -41,7 +41,8 @@ internal/pipeline/            release + changelog flows (no factories)
 | `internal/cmd/`      | `internal/{app,ui,config,scaffold,commitwizard}/`                                  |
 | `internal/app/`      | `internal/{port,config,pipeline,versioning,generators,platforms,adapter,ui,conventionalcommit}/` |
 | `internal/pipeline/` | `internal/{port,config,versioning,ui}/`                                            |
-| `internal/generators/*`, `internal/platforms/*` | `internal/{port,config}/`                              |
+| `internal/generators/*` | `internal/{port,config,conventionalcommit}/` (conventionalcommit is a pure leaf — the native generator parses commits with it) |
+| `internal/platforms/*`  | `internal/{port,config}/`                                                          |
 | `internal/versioning/*` | `internal/{port,config,versioning,conventionalcommit}/`                         |
 | `internal/config/`   | nothing from heraut (it is at the bottom)                                          |
 | `internal/port/`     | nothing from heraut (it is the contract)                                           |
