@@ -102,7 +102,7 @@ exclusion (mirror the rows the git-cliff default encodes).
 
 ---
 
-#### `[ ]` T124: Go template renderer + view model (changelog + release-notes)
+#### `[x]` T124: Go template renderer + view model (changelog + release-notes)
 
 Assemble the view model and render both variants with `text/template`: version heading +
 compare link (composed from `port.LinkContext`, reusing the ADR-0022 link-shape knowledge
@@ -121,6 +121,46 @@ tests for the template funcs and link composition (GitHub / GitLab / Azure DevOp
 **Files:** `internal/generators/native/render.go`, embedded `*.tmpl` (+ tests, golden
 fixtures).
 **Scope:** L. **Dependencies:** T123.
+
+**Completion note (2026-06-27):** Implemented `render.go` (view-model builders + render
+entry points + helpers), `links.go` (URL composition mirroring gitcliff's linkEnv/
+azureDevOpsLinkEnv without importing that package), `changelog.tmpl`, and
+`release_notes.tmpl`. Entry-point signatures:
+
+```go
+func renderChangelogSection(
+    version, previousVersion string,
+    releaseDate time.Time,
+    groups []group,
+    lc *port.LinkContext,
+    tickets []config.Ticket,
+    headingVersionPattern string,
+) (string, error)
+
+func renderReleaseNotes(
+    version, previousVersion string,
+    releaseDate time.Time,
+    groups []group,
+    lc *port.LinkContext,
+    tickets []config.Ticket,
+    prevReleaseDate time.Time, // zero ⇒ omit "days passed since last release" stat
+) (string, error)
+
+const changelogHeader = "# Changelog\n\n"
+```
+
+Links live in `links.go` (`buildCommitURL`, `buildCompareURL`); ticket matching in
+`resolveTickets` (config order, full match text / capture-group-1 URL sub). The heading
+is pre-computed in Go (`buildChangelogView`); templates are dumb iterators over
+pre-populated view structs (`changelogView`, `notesView`). The release-notes commit block
+(`commitNoteView.Block`) is also pre-formatted in Go (`buildCommitBlock`), keeping the
+template branch-free. Intentional deviations from git-cliff --offline: (1) lc==nil
+renders bare 7-char hashes (no Markdown link) and omits the compare URL, whereas git-cliff
+still wraps in `([hash](hash))` with an empty base; (2) footer separator rendered as `: `
+(space after colon) rather than git-cliff's `:` (no space); (3) release-notes body starts
+directly with `### Group` (no leading `\n\n` as git-cliff produces). T126 will quantify
+these. 33 new tests (golden + link-composition table + ticket table + upperFirst); full
+suite 1277 green; `hk check` clean.
 
 ---
 

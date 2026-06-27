@@ -1,0 +1,7 @@
+{{.Heading}}
+{{range .Groups}}
+### {{.Name}}
+{{range .Commits}}
+- {{.Line}}
+{{end}}
+{{end}}

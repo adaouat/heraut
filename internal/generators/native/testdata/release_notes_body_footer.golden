@@ -1,0 +1,15 @@
+### 🚀 Features
+
+- *(auth)* Add oauth2 support - ([ddddddd](https://github.com/acme/widget/commit/dddddddddddddddddddddddddddddddddddddddd))
+
+    Implements the OAuth2 authorization_code flow.
+
+  Co-Authored-By: Eve <eve@example.com>
+
+
+### Commit Statistics
+
+- 1 commit(s) contributed to the release.
+- 0 day(s) passed between the first and last commit.
+- 1 commit(s) parsed as conventional.
+- 0 linked issue(s) detected in commits.

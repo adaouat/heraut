@@ -1,0 +1,12 @@
+## [1.2.3] - 2024-01-15
+
+### 🚀 Features
+
+- *(api)* Add new endpoint - aaaaaaa
+
+- *(ui)* [**breaking**] Redesign landing page - ccccccc
+
+
+### 🐛 Bug Fixes
+
+- Prevent null pointer - bbbbbbb

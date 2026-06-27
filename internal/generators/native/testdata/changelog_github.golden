@@ -1,0 +1,12 @@
+## [1.2.3](https://github.com/acme/widget/compare/v1.2.2..v1.2.3) - 2024-01-15
+
+### 🚀 Features
+
+- *(api)* Add new endpoint - ([aaaaaaa](https://github.com/acme/widget/commit/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa))
+
+- *(ui)* [**breaking**] Redesign landing page - ([ccccccc](https://github.com/acme/widget/commit/cccccccccccccccccccccccccccccccccccccccc))
+
+
+### 🐛 Bug Fixes
+
+- Prevent null pointer - ([bbbbbbb](https://github.com/acme/widget/commit/bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb))

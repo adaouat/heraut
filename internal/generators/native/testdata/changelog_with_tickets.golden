@@ -1,0 +1,5 @@
+## [2.0.0](https://github.com/acme/widget/compare/v1.9.9..v2.0.0) - 2024-01-15
+
+### 🐛 Bug Fixes
+
+- Resolve PROJ-42 and PROJ-99 - ([eeeeeee](https://github.com/acme/widget/commit/eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee)) ([PROJ-42](https://jira.example.com/browse/PROJ-42)) ([PROJ-99](https://jira.example.com/browse/PROJ-99))
