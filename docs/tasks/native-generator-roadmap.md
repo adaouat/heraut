@@ -46,7 +46,7 @@ single-binary, offline changelog and release-notes generation.
 New package: `internal/generators/native/` (implements `port.Generator`, peer to
 `internal/generators/gitcliff/` and `internal/generators/communique/`).
 
-#### `[ ]` T122: commit collection — walk a tag range into structured records
+#### `[x]` T122: commit collection — walk a tag range into structured records
 
 Walk git history for the target tag range and parse each commit into a structured record
 (hash, author name / email, date, subject, body). Resolve the previous tag for compare
@@ -65,6 +65,19 @@ multi-line body / footer parsing; table tests for tag-range / previous-tag resol
 
 **Files:** `internal/generators/native/commits.go` (+ test).
 **Scope:** M. **Dependencies:** ADR-0032.
+
+**Completion note (2026-06-26):** Implemented as unexported `collectCommits` / `previousTag`
+/ `rawCommit` with a white-box `commits_internal_test.go` (the repo's `_internal_test`
+convention), keeping the package surface minimal until T123/T125 consume them. `logFormat`
+is `%H\x01%an\x01%ae\x01%cI\x01%s\x01%b\x00` — committer date (`%cI`), RFC3339-parsed;
+`strings.SplitSeq` over the NUL separator. **Deviation from the task text:** `previousTag`
+takes the env glob as a *string* rather than computing it from `tagfmt` here —
+`internal/generators/*` may import only `port`/`config` (coding.md layering), so
+`tagfmt.GlobPattern` stays in the app/caller layer (T125). Previous-tag resolution delegates
+to `git describe --tags --abbrev=0 [--match <glob>] <tag>^` (git's topological ordering,
+matching git-cliff's tag walk) instead of list-and-sort; a first release returns `("", nil)`
+via the same stderr probes T121 uses. 9 contract tests; full suite 1206 green; `hk check`
+clean.
 
 ---
 
