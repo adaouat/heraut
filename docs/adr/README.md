@@ -31,9 +31,10 @@ trade-offs were accepted.
 | [0024](0024-ticket-linking.md) | Ticket Linking via git-cliff link_parsers | Accepted |
 | [0025](0025-multi-instance-platforms.md) | Multi-Instance Same-Platform Releases | Accepted |
 | [0026](0026-azure-devops-metadata-remote.md) | `changelog.remote` — Explicit Metadata Remote for git-cliff | Accepted |
-| [0027](0027-builtin-conventional-commit-checker.md) | Built-in Conventional-Commit Checker | Accepted |
+| [0027](0027-builtin-conventional-commit-checker.md) | Built-in Conventional-Commit Checker | Accepted (`commit_lint` superseded by 0033) |
 | [0028](0028-drop-cocogitto-generator.md) | Drop the `cocogitto` Generator Entirely | Accepted |
 | [0029](0029-pkl-builtin-commit-verify.md) | Publish a Pkl Builtin for `heraut commit verify` | Accepted |
 | [0030](0030-commit-check-rev-range-validation.md) | `heraut commit check` — Rev-Range Conventional-Commit Validation | Accepted |
 | [0031](0031-interactive-commit-wizard.md) | `heraut commit create` — Interactive Commit Wizard | Accepted |
-| [0032](0032-native-content-generator.md) | Built-in (Native) Content Generator | Accepted |
+| [0032](0032-native-content-generator.md) | Built-in (Native) Content Generator | Accepted (config model + opt-in framing superseded by 0033) |
+| [0033](0033-native-config-model.md) | Heraut-Native Config Model — `commits` + `rendering` | Accepted |
