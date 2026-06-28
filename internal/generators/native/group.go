@@ -107,7 +107,9 @@ func buildTypeIndex(types []config.TypeRule) map[string]typeInfo {
 }
 
 // buildExcludes splits the effective excludes into a type set and compiled subject regexes.
-// Regexes are pre-validated by the config validator, so MustCompile is safe here.
+// The config validator rejects invalid regexes upstream; compiling defensively (skip on error,
+// like resolveTickets) keeps the generator from panicking if it is ever run on unvalidated
+// config — e.g. heraut embedded as a library.
 func buildExcludes(excludes []config.Exclude) (map[string]bool, []*regexp.Regexp) {
 	types := make(map[string]bool)
 	var res []*regexp.Regexp
@@ -116,7 +118,11 @@ func buildExcludes(excludes []config.Exclude) (map[string]bool, []*regexp.Regexp
 			types[e.Type] = true
 		}
 		if e.Regex != "" {
-			res = append(res, regexp.MustCompile(e.Regex))
+			re, err := regexp.Compile(e.Regex)
+			if err != nil {
+				continue
+			}
+			res = append(res, re)
 		}
 	}
 	return types, res

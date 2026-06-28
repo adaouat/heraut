@@ -46,7 +46,7 @@ func TestCollectCommits_ParsesRecords(t *testing.T) {
 	// Exact git invocation (contract).
 	require.Len(t, mr.Calls, 1)
 	assert.Equal(t, "git", mr.Calls[0].Name)
-	assert.Equal(t, []string{"log", "v1.0.0..v1.1.0", "--format=" + logFormat}, mr.Calls[0].Args)
+	assert.Equal(t, []string{"log", "v1.0.0..v1.1.0", "--reverse", "--format=" + logFormat}, mr.Calls[0].Args)
 }
 
 func TestCollectCommits_FullHistoryOmitsRange(t *testing.T) {
@@ -57,7 +57,7 @@ func TestCollectCommits_FullHistoryOmitsRange(t *testing.T) {
 	require.NoError(t, err)
 
 	require.Len(t, mr.Calls, 1)
-	assert.Equal(t, []string{"log", "--format=" + logFormat}, mr.Calls[0].Args)
+	assert.Equal(t, []string{"log", "--reverse", "--format=" + logFormat}, mr.Calls[0].Args)
 }
 
 func TestCollectCommits_EmptyOutput(t *testing.T) {

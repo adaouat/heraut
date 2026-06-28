@@ -35,15 +35,16 @@ type rawCommit struct {
 	Body    string    // %b — body without the subject
 }
 
-// collectCommits runs `git log [revRange] --format=logFormat` and parses the output into
-// rawCommits. An empty revRange walks the full history (no range argument); a range like
-// "v1.0.0..v1.1.0" scopes the walk to that span.
+// collectCommits runs `git log [revRange] --reverse --format=logFormat` and parses the output
+// into rawCommits. An empty revRange walks the full history (no range argument); a range like
+// "v1.0.0..v1.1.0" scopes the walk to that span. --reverse yields oldest-first — the order
+// groupCommits documents and relies on as its stable within-group tiebreak.
 func collectCommits(runner port.Runner, revRange string) ([]rawCommit, error) {
 	args := []string{"log"}
 	if revRange != "" {
 		args = append(args, revRange)
 	}
-	args = append(args, "--format="+logFormat)
+	args = append(args, "--reverse", "--format="+logFormat)
 
 	stdout, _, err := runner.Run("git", args...)
 	if err != nil {

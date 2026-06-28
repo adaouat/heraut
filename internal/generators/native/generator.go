@@ -93,6 +93,9 @@ func (g *Generator) generateChangelog(tag string, lc *port.LinkContext) (string,
 		sections = append(sections, sec)
 	}
 
+	// Existing releases, newest-first. prev is the next-older tag by version refname (listTags
+	// is version-sorted); release-notes mode instead resolves prev via git-describe topology.
+	// Equivalent for linear history — the common case.
 	for i, t := range tags {
 		prev := ""
 		if i+1 < len(tags) {

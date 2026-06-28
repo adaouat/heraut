@@ -35,7 +35,7 @@ func TestGenerator_GenerateReleaseNotes(t *testing.T) {
 
 	require.Len(t, mr.Calls, 2)
 	assert.Equal(t, []string{"describe", "--tags", "--abbrev=0", "v1.1.0^"}, mr.Calls[0].Args)
-	assert.Equal(t, []string{"log", "v1.0.0..v1.1.0", "--format=" + logFormat}, mr.Calls[1].Args)
+	assert.Equal(t, []string{"log", "v1.0.0..v1.1.0", "--reverse", "--format=" + logFormat}, mr.Calls[1].Args)
 }
 
 func TestGenerator_GenerateChangelog_WritesFile(t *testing.T) {
@@ -75,5 +75,5 @@ func TestGenerator_GenerateChangelog_FirstRelease(t *testing.T) {
 
 	require.Len(t, mr.Calls, 2)
 	assert.Equal(t, []string{"tag", "-l", "--sort=-version:refname"}, mr.Calls[0].Args)
-	assert.Equal(t, []string{"log", "HEAD", "--format=" + logFormat}, mr.Calls[1].Args)
+	assert.Equal(t, []string{"log", "HEAD", "--reverse", "--format=" + logFormat}, mr.Calls[1].Args)
 }

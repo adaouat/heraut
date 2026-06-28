@@ -3,6 +3,7 @@ package native_test
 import (
 	"os"
 	"os/exec"
+	"strings"
 	"testing"
 
 	execadapter "github.com/adaouat/forge/exec"
@@ -18,7 +19,7 @@ import (
 // generator against the real git CLI and the real exec runner — the integration counterpart
 // to the MockRunner contract tests. Skips when git is unavailable.
 //
-// Release v0.1.0: feat / fix / docs / chore(deps) (excluded) / a non-conventional subject.
+// Release v0.1.0: feat ×2 (same scope) / fix / docs / chore(deps) (excluded) / non-conventional.
 // Unreleased:     feat / revert.
 func gitFixture(t *testing.T) {
 	t.Helper()
@@ -45,7 +46,8 @@ func gitFixture(t *testing.T) {
 	commit := func(msg string) { git("commit", "--allow-empty", "-m", msg) }
 
 	git("init")
-	commit("feat(auth): add login")
+	commit("feat(auth): add login")  // oldest in the Features group
+	commit("feat(auth): add logout") // same scope → oldest-first is the within-group tiebreak
 	commit("fix: correct null check")
 	commit("docs: update readme")
 	commit("chore(deps): bump some library") // excluded by the default rendering.excludes
@@ -71,6 +73,9 @@ func TestNativeGenerator_RealRepo_Changelog(t *testing.T) {
 	assert.Contains(t, out, "### 🚀 Features")
 	assert.Contains(t, out, "Add login")
 	assert.Contains(t, out, "Redesign the page")
+	// Within a group, commits render oldest-first (collectCommits passes --reverse).
+	assert.Less(t, strings.Index(out, "Add login"), strings.Index(out, "Add logout"),
+		"oldest-first within the Features group")
 	assert.Contains(t, out, "### 🐛 Bug Fixes")
 	assert.Contains(t, out, "Correct null check")
 	assert.Contains(t, out, "### 📚 Documentation")

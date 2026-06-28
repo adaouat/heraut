@@ -254,7 +254,10 @@ func buildNotesView(
 // When cuBase is "" (lc==nil), a bare 7-char hash is used with no Markdown link.
 func buildCommitLine(pc parsedCommit, cuBase string, tickets []config.Ticket) string {
 	scope, breaking, desc := commitLineDetails(pc)
-	hash7 := pc.raw.Hash[:7]
+	hash7 := pc.raw.Hash
+	if len(hash7) > 7 {
+		hash7 = hash7[:7]
+	}
 
 	var sb strings.Builder
 	if scope != "" {
