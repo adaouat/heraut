@@ -79,3 +79,23 @@ func TestEffectiveTypes_OverrideOrderAndRender(t *testing.T) {
 	assert.Equal(t, 9, *feat.Order)
 	assert.Equal(t, "Features!", feat.Render)
 }
+
+func TestDefaultTypes_CarryWizardDescriptions(t *testing.T) {
+	feat := findType(EffectiveTypes(nil), "feat")
+	require.NotNil(t, feat)
+	assert.Equal(t, "A new feature", feat.Description)
+}
+
+func TestEffectiveScopes_DropsRemoved(t *testing.T) {
+	scopes := []ScopeRule{
+		{Name: "cmd"},
+		{Name: "config"},
+		{Name: "versioning", Remove: true},
+		{Name: "ui"},
+	}
+	assert.Equal(t, []string{"cmd", "config", "ui"}, ScopeNames(EffectiveScopes(scopes)))
+}
+
+func TestEffectiveScopes_Empty(t *testing.T) {
+	assert.Empty(t, EffectiveScopes(nil))
+}

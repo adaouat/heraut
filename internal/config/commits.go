@@ -10,8 +10,9 @@ type Commits struct {
 	// (see EffectiveTypes). The effective set is the verify allow-list and the section taxonomy.
 	Types []TypeRule `yaml:"types,omitempty"`
 	// Scopes is the allowed scope list (offered by `heraut commit create`; enforced by
-	// `heraut commit verify` only when ScopesRestricted is true).
-	Scopes []string `yaml:"scopes,omitempty"`
+	// `heraut commit verify` only when ScopesRestricted is true). Each entry's description is
+	// shown beside the scope in the wizard picker.
+	Scopes []ScopeRule `yaml:"scopes,omitempty"`
 	// ScopesRestricted, when true, makes `heraut commit verify` reject scopes outside Scopes.
 	ScopesRestricted bool `yaml:"scopes_restricted,omitempty"`
 	// Tickets configures issue-tracker links matched in commit messages and rendered as links.
@@ -38,10 +39,11 @@ type Exclude struct {
 // built-in defaults by name (see EffectiveTypes): the type word, its changelog section
 // label and order, and whether to drop a default type from the effective set.
 type TypeRule struct {
-	Name   string `yaml:"name"`
-	Order  *int   `yaml:"order,omitempty"`  // nil = unordered (sorts after ordered types)
-	Render string `yaml:"render,omitempty"` // section label; empty = capitalize Name
-	Remove bool   `yaml:"remove,omitempty"` // drop this default type from the effective set
+	Name        string `yaml:"name"`
+	Order       *int   `yaml:"order,omitempty"`       // nil = unordered (sorts after ordered types)
+	Render      string `yaml:"render,omitempty"`      // section label; empty = capitalize Name
+	Remove      bool   `yaml:"remove,omitempty"`      // drop this default type from the effective set
+	Description string `yaml:"description,omitempty"` // one-line hint shown in the commit wizard picker
 }
 
 // defaultTypes is the built-in commit-type set merged under user config: the ADR-0027 verify
@@ -52,16 +54,16 @@ type TypeRule struct {
 func defaultTypes() []TypeRule {
 	order := func(n int) *int { return &n }
 	return []TypeRule{
-		{Name: "feat", Order: order(0), Render: "🚀 Features"},
-		{Name: "fix", Order: order(1), Render: "🐛 Bug Fixes"},
-		{Name: "refactor", Order: order(2), Render: "🚜 Refactor"},
-		{Name: "docs", Order: order(3), Render: "📚 Documentation"},
-		{Name: "perf", Order: order(4), Render: "⚡ Performance"},
-		{Name: "style", Order: order(5), Render: "🎨 Styling"},
-		{Name: "test", Order: order(6), Render: "🧪 Testing"},
-		{Name: "chore", Order: order(7), Render: "⚙️ Miscellaneous Tasks"},
-		{Name: "ci", Order: order(7), Render: "⚙️ Miscellaneous Tasks"},
-		{Name: "build"},
+		{Name: "feat", Order: order(0), Render: "🚀 Features", Description: "A new feature"},
+		{Name: "fix", Order: order(1), Render: "🐛 Bug Fixes", Description: "A bug fix"},
+		{Name: "refactor", Order: order(2), Render: "🚜 Refactor", Description: "Code change, no behaviour change"},
+		{Name: "docs", Order: order(3), Render: "📚 Documentation", Description: "Documentation only"},
+		{Name: "perf", Order: order(4), Render: "⚡ Performance", Description: "Performance improvement"},
+		{Name: "style", Order: order(5), Render: "🎨 Styling", Description: "Formatting / whitespace"},
+		{Name: "test", Order: order(6), Render: "🧪 Testing", Description: "Adding or fixing tests"},
+		{Name: "chore", Order: order(7), Render: "⚙️ Miscellaneous Tasks", Description: "Tooling / housekeeping"},
+		{Name: "ci", Order: order(7), Render: "⚙️ Miscellaneous Tasks", Description: "CI / release tooling"},
+		{Name: "build", Description: "Build system / dependencies"},
 	}
 }
 
@@ -116,4 +118,34 @@ func defaultExcludes() []Exclude {
 // user entries augment the defaults (they do not replace them).
 func EffectiveExcludes(user []Exclude) []Exclude {
 	return append(defaultExcludes(), user...)
+}
+
+// ScopeRule configures one allowed commit scope. Unlike TypeRule there are no built-in
+// default scopes to merge over (scopes are project-specific); remove is honoured for
+// consistency and forward-compatibility with config includes. description is shown beside the
+// scope in the `heraut commit create` wizard.
+type ScopeRule struct {
+	Name        string `yaml:"name"`
+	Remove      bool   `yaml:"remove,omitempty"`
+	Description string `yaml:"description,omitempty"`
+}
+
+// EffectiveScopes returns the configured scopes with any remove:true entries dropped.
+func EffectiveScopes(user []ScopeRule) []ScopeRule {
+	out := make([]ScopeRule, 0, len(user))
+	for _, s := range user {
+		if !s.Remove {
+			out = append(out, s)
+		}
+	}
+	return out
+}
+
+// ScopeNames returns the names of the given scopes, in order.
+func ScopeNames(scopes []ScopeRule) []string {
+	names := make([]string, len(scopes))
+	for i, s := range scopes {
+		names[i] = s.Name
+	}
+	return names
 }

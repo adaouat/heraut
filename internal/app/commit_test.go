@@ -24,7 +24,7 @@ func TestVerifyCommit_ScopesNotEnforcedByDefault(t *testing.T) {
 	// at all.
 	cfg := &config.Config{Commits: &config.Commits{
 		Types:  []config.TypeRule{{Name: "feat"}, {Name: "fix"}},
-		Scopes: []string{"cmd", "config"},
+		Scopes: []config.ScopeRule{{Name: "cmd"}, {Name: "config"}},
 	}}
 	assert.NoError(t, app.VerifyCommit(cfg, "feat(elsewhere): outside the scope list"))
 	assert.NoError(t, app.VerifyCommit(cfg, "feat: no scope at all"))
@@ -32,7 +32,7 @@ func TestVerifyCommit_ScopesNotEnforcedByDefault(t *testing.T) {
 
 func TestVerifyCommit_ScopesRestricted_RejectsOutsideList(t *testing.T) {
 	cfg := &config.Config{Commits: &config.Commits{
-		Scopes:           []string{"cmd", "config"},
+		Scopes:           []config.ScopeRule{{Name: "cmd"}, {Name: "config"}},
 		ScopesRestricted: true,
 	}}
 	assert.NoError(t, app.VerifyCommit(cfg, "feat(cmd): an allowed scope"))

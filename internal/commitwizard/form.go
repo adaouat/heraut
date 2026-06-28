@@ -7,7 +7,6 @@ import (
 
 	"charm.land/huh/v2"
 
-	"github.com/adaouat/heraut/internal/app"
 	"github.com/adaouat/heraut/internal/config"
 	"github.com/adaouat/heraut/internal/ui"
 )
@@ -28,8 +27,8 @@ func collectAnswers(cfg *config.Config) (Answers, error) {
 	var scopeChoice, customScope, footerText string
 
 	typeOpts := make([]huh.Option[string], 0)
-	for _, t := range app.AllowedCommitTypes(cfg) {
-		typeOpts = append(typeOpts, huh.NewOption(typeOptionLabel(t), t))
+	for _, t := range config.EffectiveTypes(commitsTypes(cfg)) {
+		typeOpts = append(typeOpts, huh.NewOption(optionLabel(t.Name, t.Description), t.Name))
 	}
 
 	groups := []*huh.Group{
@@ -38,11 +37,11 @@ func collectAnswers(cfg *config.Config) (Answers, error) {
 		),
 	}
 
-	scopes := configuredScopes(cfg)
+	scopes := config.EffectiveScopes(commitsScopes(cfg))
 	if len(scopes) > 0 {
 		scopeOpts := make([]huh.Option[string], 0, len(scopes)+2)
 		for _, s := range scopes {
-			scopeOpts = append(scopeOpts, huh.NewOption(s, s))
+			scopeOpts = append(scopeOpts, huh.NewOption(optionLabel(s.Name, s.Description), s.Name))
 		}
 		scopeOpts = append(scopeOpts, huh.NewOption("(custom…)", scopeCustom), huh.NewOption("(none)", scopeNone))
 		groups = append(groups,
@@ -117,7 +116,14 @@ func collectAnswers(cfg *config.Config) (Answers, error) {
 	return a, nil
 }
 
-func configuredScopes(cfg *config.Config) []string {
+func commitsTypes(cfg *config.Config) []config.TypeRule {
+	if cfg != nil && cfg.Commits != nil {
+		return cfg.Commits.Types
+	}
+	return nil
+}
+
+func commitsScopes(cfg *config.Config) []config.ScopeRule {
 	if cfg != nil && cfg.Commits != nil {
 		return cfg.Commits.Scopes
 	}

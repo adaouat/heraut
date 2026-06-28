@@ -58,8 +58,12 @@ func verifyScope(cfg *config.Config, scope string) error {
 	if cfg == nil || cfg.Commits == nil || !cfg.Commits.ScopesRestricted {
 		return nil
 	}
-	if scope == "" || slices.Contains(cfg.Commits.Scopes, scope) {
+	if scope == "" {
 		return nil
 	}
-	return fmt.Errorf("commit scope %q is not allowed (allowed: %s)", scope, strings.Join(cfg.Commits.Scopes, ", "))
+	names := config.ScopeNames(config.EffectiveScopes(cfg.Commits.Scopes))
+	if slices.Contains(names, scope) {
+		return nil
+	}
+	return fmt.Errorf("commit scope %q is not allowed (allowed: %s)", scope, strings.Join(names, ", "))
 }

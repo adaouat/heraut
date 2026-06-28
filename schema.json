@@ -58,10 +58,10 @@
         },
         "scopes": {
           "type": "array",
+          "description": "Allowed scopes. Offered by 'heraut commit create'; enforced by 'heraut commit verify' only when scopes_restricted is true.",
           "items": {
-            "type": "string"
-          },
-          "description": "Allowed scope list. Offered by 'heraut commit create'; enforced by 'heraut commit verify' only when scopes_restricted is true."
+            "$ref": "#/definitions/ScopeRule"
+          }
         },
         "scopes_restricted": {
           "type": "boolean",
@@ -124,6 +124,32 @@
         "remove": {
           "type": "boolean",
           "description": "Drop this default type from the effective set (removes it from the 'heraut commit verify' allow-list)."
+        },
+        "description": {
+          "type": "string",
+          "description": "One-line hint shown beside the type in the 'heraut commit create' wizard picker."
+        }
+      }
+    },
+    "ScopeRule": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "name"
+      ],
+      "description": "One allowed commit scope. 'description' is shown in the commit wizard picker; 'remove' is reserved for future config composition.",
+      "properties": {
+        "name": {
+          "type": "string",
+          "description": "The scope name."
+        },
+        "remove": {
+          "type": "boolean",
+          "description": "Reserved: drop this scope (for config composition / includes)."
+        },
+        "description": {
+          "type": "string",
+          "description": "One-line hint shown beside the scope in the 'heraut commit create' wizard picker."
         }
       }
     },

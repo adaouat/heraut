@@ -110,6 +110,25 @@ enforcement in `VerifyCommit` (`verifyScope` — a commit with no scope is alway
 present scope must be in `commits.scopes`). The validator already rejects `scopes_restricted`
 without a non-empty `scopes` list (T130). Full suite 1286 green.
 
+#### `[x]` T135: object `commits.scopes` + type / scope descriptions
+
+`commits.scopes` becomes a list of `{ name, remove?, description? }` objects (was `[]string`),
+mirroring the `commits.types` shape but simpler — no built-in defaults (scopes are
+project-specific), `remove` reserved for future config composition. `commits.types` gains a
+`description`. Both `description`s feed the `heraut commit create` wizard pickers; the
+built-in type descriptions move from a hardcoded wizard map into the default `commits.types`
+so they become user-overridable.
+
+**Completion note (2026-06-28):** Added `config.ScopeRule` + `EffectiveScopes` / `ScopeNames`
+and `TypeRule.Description` (with descriptions on the default types). The wizard now reads
+`config.EffectiveTypes` / `EffectiveScopes` and renders `optionLabel(name, description)` (the
+old `commitTypeDescriptions` map and `typeOptionLabel` are gone); `verifyScope` uses effective
+scope names; the validator validates scope names and uses effective scopes for the
+`scopes_restricted` check. `schema.json`, sample, spec 02, and ADR-0033 updated. Full suite
+green. **Scope:** M. **Dependencies:** T130, T131.
+
+---
+
 ### Native rendering (config-driven)
 
 New package: `internal/generators/native/` (implements `port.Generator`).

@@ -402,11 +402,14 @@ commits:
   types:
     - name: feat
     - name: fix
-  scopes: [cmd, config, versioning]
+  scopes:
+    - name: cmd
+    - name: config
+    - name: versioning
 `), 0o644))
 
 	cfg, err := config.Load(path)
 	require.NoError(t, err)
 	require.NotNil(t, cfg.Commits)
-	assert.Equal(t, []string{"cmd", "config", "versioning"}, cfg.Commits.Scopes)
+	assert.Equal(t, []string{"cmd", "config", "versioning"}, config.ScopeNames(cfg.Commits.Scopes))
 }

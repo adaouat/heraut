@@ -136,27 +136,13 @@ func resolveStaging(r port.Runner, opts Options, confirmStage func() (bool, erro
 	return true, nil
 }
 
-// commitTypeDescriptions are the one-line hints shown beside the 10 built-in types.
-var commitTypeDescriptions = map[string]string{
-	"feat":     "A new feature",
-	"fix":      "A bug fix",
-	"docs":     "Documentation only",
-	"chore":    "Tooling / housekeeping",
-	"refactor": "Code change, no behaviour change",
-	"test":     "Adding or fixing tests",
-	"style":    "Formatting / whitespace",
-	"perf":     "Performance improvement",
-	"ci":       "CI / release tooling",
-	"build":    "Build system / dependencies",
-}
-
-// typeOptionLabel renders the select-menu label for a commit type: "<type>  <description>"
-// for the built-in types, or the bare type for custom configured ones.
-func typeOptionLabel(t string) string {
-	if d, ok := commitTypeDescriptions[t]; ok {
-		return fmt.Sprintf("%-6s  %s", t, d)
+// optionLabel renders a wizard select-menu label for a type or scope: "<name>  <description>"
+// when a description is configured, or the bare name otherwise.
+func optionLabel(name, description string) string {
+	if description == "" {
+		return name
 	}
-	return t
+	return fmt.Sprintf("%-8s  %s", name, description)
 }
 
 // finalize assembles, verifies, and (unless dry-run) commits. confirm is injected so the

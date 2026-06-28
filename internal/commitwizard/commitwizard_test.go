@@ -129,9 +129,11 @@ func TestRun_NonTTYErrors(t *testing.T) {
 	assert.Empty(t, mr.Calls, "no git calls when there is no TTY")
 }
 
-func TestTypeOptionLabel(t *testing.T) {
-	assert.Equal(t, "feat    A new feature", typeOptionLabel("feat"))
-	assert.Equal(t, "custom", typeOptionLabel("custom")) // unknown type → bare label
+func TestOptionLabel(t *testing.T) {
+	assert.Equal(t, "custom", optionLabel("custom", ""), "no description → bare name")
+	got := optionLabel("feat", "A new feature")
+	assert.Contains(t, got, "feat")
+	assert.Contains(t, got, "A new feature")
 }
 
 func TestResolveStaging(t *testing.T) {

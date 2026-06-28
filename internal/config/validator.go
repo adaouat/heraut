@@ -113,7 +113,23 @@ func validateCommits(cfg *Config) []ValidationError {
 		}
 		seen[t.Name] = i
 	}
-	if cfg.Commits.ScopesRestricted && len(cfg.Commits.Scopes) == 0 {
+	scopeSeen := make(map[string]int)
+	for i, s := range cfg.Commits.Scopes {
+		path := fmt.Sprintf("commits.scopes[%d].name", i)
+		if s.Name == "" {
+			errs = append(errs, ValidationError{Path: path, Message: "required"})
+			continue
+		}
+		if first, ok := scopeSeen[s.Name]; ok {
+			errs = append(errs, ValidationError{
+				Path:    path,
+				Message: fmt.Sprintf("duplicate scope %q (already listed at scopes[%d])", s.Name, first),
+			})
+			continue
+		}
+		scopeSeen[s.Name] = i
+	}
+	if cfg.Commits.ScopesRestricted && len(EffectiveScopes(cfg.Commits.Scopes)) == 0 {
 		errs = append(errs, ValidationError{
 			Path:    "commits.scopes_restricted",
 			Message: "requires a non-empty commits.scopes list",

@@ -401,7 +401,10 @@ commits:
     - name: build
       remove: true                    # drop a default from the verify allow-list
   types_heading_level: 3              # heading depth for type sections in rendered output
-  scopes: [cmd, config, versioning, ui]
+  scopes:                             # objects: name (+ optional description / remove)
+    - name: cmd
+      description: CLI commands
+    - name: config
   scopes_restricted: false            # when true, verify rejects scopes outside the list
   remote_metadata: optional           # required | optional (default) | disabled
   tickets:
@@ -423,6 +426,7 @@ changelog section taxonomy.
 | `order`  | Display sort position for the changelog section; omit for unordered (sorts after ordered types). |
 | `render` | Section heading label (e.g. `🚀 Features`); omit to render the capitalized type name. |
 | `remove` | Drop this default type from the effective set — removes it from the verify allow-list. |
+| `description` | One-line hint shown beside the type in the `heraut commit create` wizard picker. |
 
 Because `types` **merges** (it does not replace), listing types does **not** narrow the
 verify allow-list to only those — to narrow it, `remove:` the unwanted defaults. The built-in
@@ -432,10 +436,12 @@ Merge and `fixup!`/`squash!` commits are always skipped by verify, unconditional
 
 ### `commits.scopes` / `commits.scopes_restricted`
 
-`scopes` is the allowed scope list. It populates `heraut commit create`'s scope picker, and
-when `scopes_restricted: true`, `heraut commit verify` also **rejects scopes outside the
-list** (`scopes_restricted` requires a non-empty `scopes`). With `scopes_restricted` unset
-(the default), scopes are not enforced by verify.
+Each scope is an object — `name` (required), plus an optional `description` (shown beside the
+scope in the wizard picker) and `remove` (reserved for future config composition). `scopes`
+populates `heraut commit create`'s scope picker, and when `scopes_restricted: true`, `heraut
+commit verify` also **rejects scopes outside the list** (`scopes_restricted` requires a
+non-empty `scopes`). With `scopes_restricted` unset (the default), scopes are not enforced by
+verify.
 
 ### `commits.tickets`
 

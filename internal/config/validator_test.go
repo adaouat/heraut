@@ -1377,6 +1377,20 @@ commits:
 	assert.Contains(t, e.Message, "duplicate")
 }
 
+func TestValidate_CommitsScopeNameRequired(t *testing.T) {
+	cfg := mustLoad(t, `
+version: "1"
+versioning:
+  strategy: semver
+commits:
+  scopes:
+    - name: cmd
+    - name: ""
+`)
+	e := findErr(config.Validate(cfg), "commits.scopes[1].name")
+	require.NotNil(t, e)
+}
+
 func TestValidate_CommitsScopesRestrictedRequiresScopes(t *testing.T) {
 	cfg := mustLoad(t, `
 version: "1"
