@@ -129,6 +129,21 @@ green. **Scope:** M. **Dependencies:** T130, T131.
 
 ---
 
+#### `[x]` T136: built-in default scopes (deps, deps-dev, release)
+
+`commits.scopes` becomes merge-over-defaults (like `commits.types`): a small built-in set —
+`deps`, `deps-dev`, `release` (dependabot/renovate + release-tooling conventions, aligned with
+the default `rendering.excludes`) — is merged under user scopes, so `remove` now drops a
+default (no longer a reserved no-op). `scopes_restricted` stays `false` by default, so the
+defaults are wizard suggestions, not a gate.
+
+**Completion note (2026-06-28):** `config.defaultScopes` + `EffectiveScopes` switched to the
+same by-name merge as `EffectiveTypes`. `scopes_restricted: true` is now satisfied by the
+defaults (error only when all defaults are removed and none added). Tests, sample, spec 02,
+ADR-0033 updated. Full suite 1295 green. **Scope:** S. **Dependencies:** T135.
+
+---
+
 ### Native rendering (config-driven)
 
 New package: `internal/generators/native/` (implements `port.Generator`).

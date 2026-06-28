@@ -24,6 +24,15 @@ func findType(types []TypeRule, name string) *TypeRule {
 	return nil
 }
 
+func findScope(scopes []ScopeRule, name string) *ScopeRule {
+	for i := range scopes {
+		if scopes[i].Name == name {
+			return &scopes[i]
+		}
+	}
+	return nil
+}
+
 func TestEffectiveTypes_DefaultsWhenEmpty(t *testing.T) {
 	got := EffectiveTypes(nil)
 	assert.Equal(t,
@@ -86,16 +95,21 @@ func TestDefaultTypes_CarryWizardDescriptions(t *testing.T) {
 	assert.Equal(t, "A new feature", feat.Description)
 }
 
-func TestEffectiveScopes_DropsRemoved(t *testing.T) {
+func TestEffectiveScopes_DefaultsWhenEmpty(t *testing.T) {
+	assert.Equal(t, []string{"deps", "deps-dev", "release"}, ScopeNames(EffectiveScopes(nil)))
+}
+
+func TestEffectiveScopes_UserMergesOverDefaultsAndRemove(t *testing.T) {
 	scopes := []ScopeRule{
 		{Name: "cmd"},
 		{Name: "config"},
-		{Name: "versioning", Remove: true},
-		{Name: "ui"},
+		{Name: "release", Remove: true}, // drop a built-in default scope
 	}
-	assert.Equal(t, []string{"cmd", "config", "ui"}, ScopeNames(EffectiveScopes(scopes)))
+	assert.Equal(t, []string{"deps", "deps-dev", "cmd", "config"}, ScopeNames(EffectiveScopes(scopes)))
 }
 
-func TestEffectiveScopes_Empty(t *testing.T) {
-	assert.Empty(t, EffectiveScopes(nil))
+func TestDefaultScopes_CarryDescriptions(t *testing.T) {
+	deps := findScope(EffectiveScopes(nil), "deps")
+	require.NotNil(t, deps)
+	assert.Equal(t, "Dependency updates", deps.Description)
 }

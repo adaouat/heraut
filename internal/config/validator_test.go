@@ -1391,13 +1391,35 @@ commits:
 	require.NotNil(t, e)
 }
 
-func TestValidate_CommitsScopesRestrictedRequiresScopes(t *testing.T) {
+func TestValidate_CommitsScopesRestrictedWithDefaultsOK(t *testing.T) {
+	// The built-in default scopes (deps/deps-dev/release) satisfy scopes_restricted, so it is
+	// valid with no user-listed scopes.
 	cfg := mustLoad(t, `
 version: "1"
 versioning:
   strategy: semver
 commits:
   scopes_restricted: true
+`)
+	assert.Empty(t, config.Validate(cfg))
+}
+
+func TestValidate_CommitsScopesRestrictedAllRemoved(t *testing.T) {
+	// With every default scope removed and none added, scopes_restricted has nothing to
+	// allow → error.
+	cfg := mustLoad(t, `
+version: "1"
+versioning:
+  strategy: semver
+commits:
+  scopes_restricted: true
+  scopes:
+    - name: deps
+      remove: true
+    - name: deps-dev
+      remove: true
+    - name: release
+      remove: true
 `)
 	e := findErr(config.Validate(cfg), "commits.scopes_restricted")
 	require.NotNil(t, e)

@@ -54,8 +54,8 @@ changelog's type→section taxonomy.
   - `description` (optional) — one-line hint shown beside the type in the `heraut commit
     create` wizard picker (T135).
 - `scopes:` — allowed scope list; each entry is a `{ name, remove?, description? }` object
-  (T135) — no built-in defaults (scopes are project-specific), `description` feeds the commit
-  wizard, `remove` reserved for config composition.
+  (T135), **merged over a small built-in default set** — `deps`, `deps-dev`, `release` (T136).
+  `description` feeds the commit wizard; `remove` drops a default scope.
 - `scopes_restricted:` (bool, default `false`) — when true, `heraut commit verify` rejects
   scopes outside `scopes:` (today `scopes` only feeds the `create` wizard; this newly lets
   it gate `verify`).

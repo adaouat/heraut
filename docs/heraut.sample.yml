@@ -91,9 +91,10 @@ versioning:
 #     - name: build
 #       remove: true                # drop build from the verify allow-list
 #   types_heading_level: 3          # heading depth (number of #) for type sections
-#   # scopes — allowed scopes (objects). Offered by `heraut commit create`; enforced by
-#   # `heraut commit verify` only when scopes_restricted is true. `description` shows in the
-#   # wizard picker; `remove` is reserved for future config composition.
+#   # scopes — allowed scopes (objects), MERGED over built-in defaults (deps, deps-dev,
+#   # release). Offered by `heraut commit create`; enforced by `heraut commit verify` only
+#   # when scopes_restricted is true. `description` shows in the wizard picker; `remove` drops
+#   # a default scope.
 #   scopes:
 #     - { name: cmd, description: "CLI commands" }
 #     - { name: config }

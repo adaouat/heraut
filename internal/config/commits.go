@@ -120,21 +120,52 @@ func EffectiveExcludes(user []Exclude) []Exclude {
 	return append(defaultExcludes(), user...)
 }
 
-// ScopeRule configures one allowed commit scope. Unlike TypeRule there are no built-in
-// default scopes to merge over (scopes are project-specific); remove is honoured for
-// consistency and forward-compatibility with config includes. description is shown beside the
-// scope in the `heraut commit create` wizard.
+// ScopeRule configures one allowed commit scope, merged over a small built-in default set
+// (dependency / release scopes — see defaultScopes) by name, like TypeRule. remove drops a
+// default; description is shown beside the scope in the `heraut commit create` wizard.
 type ScopeRule struct {
 	Name        string `yaml:"name"`
 	Remove      bool   `yaml:"remove,omitempty"`
 	Description string `yaml:"description,omitempty"`
 }
 
-// EffectiveScopes returns the configured scopes with any remove:true entries dropped.
+// defaultScopes is the built-in scope set merged under user config: the cross-project,
+// tooling-driven scopes (dependabot/renovate dependency bumps, release commits) that also
+// align with heraut's default rendering.excludes. Projects add their own scopes over these,
+// or drop one with remove:true.
+func defaultScopes() []ScopeRule {
+	return []ScopeRule{
+		{Name: "deps", Description: "Dependency updates"},
+		{Name: "deps-dev", Description: "Dev-dependency updates"},
+		{Name: "release", Description: "Release / version bumps"},
+	}
+}
+
+// EffectiveScopes merges user scope rules over the built-in defaults, keyed by name (like
+// EffectiveTypes): a listed scope replaces that default's entry, remove:true drops a name, an
+// unknown name is appended. The result is the wizard's scope list and — when
+// scopes_restricted is true — the verify allow-list.
 func EffectiveScopes(user []ScopeRule) []ScopeRule {
-	out := make([]ScopeRule, 0, len(user))
-	for _, s := range user {
-		if !s.Remove {
+	merged := make(map[string]ScopeRule)
+	order := make([]string, 0)
+	for _, s := range defaultScopes() {
+		merged[s.Name] = s
+		order = append(order, s.Name)
+	}
+	for _, u := range user {
+		_, exists := merged[u.Name]
+		if u.Remove {
+			delete(merged, u.Name)
+			continue
+		}
+		merged[u.Name] = u
+		if !exists {
+			order = append(order, u.Name)
+		}
+	}
+	out := make([]ScopeRule, 0, len(order))
+	for _, name := range order {
+		if s, ok := merged[name]; ok {
 			out = append(out, s)
 		}
 	}

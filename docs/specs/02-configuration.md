@@ -437,11 +437,13 @@ Merge and `fixup!`/`squash!` commits are always skipped by verify, unconditional
 ### `commits.scopes` / `commits.scopes_restricted`
 
 Each scope is an object — `name` (required), plus an optional `description` (shown beside the
-scope in the wizard picker) and `remove` (reserved for future config composition). `scopes`
+scope in the wizard picker) and `remove` (drops a built-in default). Scopes are **merged over a
+small built-in default set** — `deps`, `deps-dev`, `release` (the dependabot/renovate and
+release-tooling conventions, which also align with the default `rendering.excludes`). `scopes`
 populates `heraut commit create`'s scope picker, and when `scopes_restricted: true`, `heraut
-commit verify` also **rejects scopes outside the list** (`scopes_restricted` requires a
-non-empty `scopes`). With `scopes_restricted` unset (the default), scopes are not enforced by
-verify.
+commit verify` also **rejects scopes outside the effective list**. With `scopes_restricted`
+unset (the default), scopes are not enforced by verify — so the defaults are suggestions, not
+a gate.
 
 ### `commits.tickets`
 
