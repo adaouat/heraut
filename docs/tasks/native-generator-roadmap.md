@@ -31,7 +31,7 @@ no longer a parity target — heraut's rendering is its own spec, validated by g
 
 | Phase                                                | Tasks                  | Status      |
 |------------------------------------------------------|------------------------|-------------|
-| Phase 1 — config model + native canonical renderer   | T122–T126, T130–T134   | In progress |
+| Phase 1 — config model + native canonical renderer   | T122–T126, T130–T136   | Complete    |
 | Phase 2 — remote enrichment via platform CLIs        | T127 – T129            | Not started |
 | Phase 2.5 — remove the git-cliff package (own ADR)   | —                      | Deferred    |
 | Phase 3 — raw-HTTP clients (drop `gh` / `glab`)       | —                      | Deferred    |
