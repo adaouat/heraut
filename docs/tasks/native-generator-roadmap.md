@@ -89,7 +89,7 @@ regex compiles) and `scopes_restricted` requires a non-empty `scopes`. Full suit
 Deferred to a follow-up `docs` commit: specs 02/03/05 prose. git-cliff stays functional,
 reading `tickets` / `remote_metadata` from their new `commits.` home.
 
-#### `[ ]` T131: migrate `heraut commit verify` / `create` to `commits.types`
+#### `[x]` T131: migrate `heraut commit verify` / `create` to `commits.types`
 
 Per ADR-0033 (supersedes [ADR-0027](../adr/0027-builtin-conventional-commit-checker.md)'s
 `commit_lint` surface). The verify allow-list becomes the effective `commits.types` (built-in
@@ -101,6 +101,14 @@ defaults plus user overrides, minus `remove: true`). `scopes_restricted: true` n
 `internal/commitwizard`, plus cmd wiring. **Tests:** allow-list derivation incl. `remove`;
 `scopes_restricted` accept / reject; wizard type / scope sourcing.
 **Scope:** M. **Dependencies:** T130.
+
+**Completion note (2026-06-28):** Most of this landed inside T130 — the allow-list already
+derives from `commits.types` (`AllowedCommitTypes` → `EffectiveTypes`), and the `create`
+wizard already reads `commits.scopes` / `commits.types` (`configuredScopes` +
+`AllowedCommitTypes`). T131 adds the one remaining new behavior: `scopes_restricted: true`
+enforcement in `VerifyCommit` (`verifyScope` — a commit with no scope is always allowed; a
+present scope must be in `commits.scopes`). The validator already rejects `scopes_restricted`
+without a non-empty `scopes` list (T130). Full suite 1286 green.
 
 ### Native rendering (config-driven)
 

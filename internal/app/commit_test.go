@@ -30,6 +30,16 @@ func TestVerifyCommit_ScopesNotEnforcedByDefault(t *testing.T) {
 	assert.NoError(t, app.VerifyCommit(cfg, "feat: no scope at all"))
 }
 
+func TestVerifyCommit_ScopesRestricted_RejectsOutsideList(t *testing.T) {
+	cfg := &config.Config{Commits: &config.Commits{
+		Scopes:           []string{"cmd", "config"},
+		ScopesRestricted: true,
+	}}
+	assert.NoError(t, app.VerifyCommit(cfg, "feat(cmd): an allowed scope"))
+	assert.NoError(t, app.VerifyCommit(cfg, "feat: no scope is allowed under restriction"))
+	assert.Error(t, app.VerifyCommit(cfg, "feat(elsewhere): scope not in the list"))
+}
+
 func TestVerifyCommit_DefaultTypes_AllAccepted(t *testing.T) {
 	for _, typ := range app.DefaultCommitTypes {
 		err := app.VerifyCommit(nil, typ+": something")

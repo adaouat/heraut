@@ -46,8 +46,20 @@ func VerifyCommit(cfg *config.Config, message string) error {
 	}
 
 	types := AllowedCommitTypes(cfg)
-	if slices.Contains(types, c.Type) {
+	if !slices.Contains(types, c.Type) {
+		return fmt.Errorf("commit type %q is not allowed (allowed: %s)", c.Type, strings.Join(types, ", "))
+	}
+	return verifyScope(cfg, c.Scope)
+}
+
+// verifyScope rejects a scope outside commits.scopes when scopes_restricted is true. A commit
+// with no scope is always allowed — the restriction applies only to scopes that are present.
+func verifyScope(cfg *config.Config, scope string) error {
+	if cfg == nil || cfg.Commits == nil || !cfg.Commits.ScopesRestricted {
 		return nil
 	}
-	return fmt.Errorf("commit type %q is not allowed (allowed: %s)", c.Type, strings.Join(types, ", "))
+	if scope == "" || slices.Contains(cfg.Commits.Scopes, scope) {
+		return nil
+	}
+	return fmt.Errorf("commit scope %q is not allowed (allowed: %s)", scope, strings.Join(cfg.Commits.Scopes, ", "))
 }
