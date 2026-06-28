@@ -100,3 +100,20 @@ func EffectiveTypes(user []TypeRule) []TypeRule {
 	}
 	return out
 }
+
+// defaultExcludes is the built-in exclude set merged under user rendering.excludes: heraut's
+// own release commits plus common dependency / PR-merge noise.
+func defaultExcludes() []Exclude {
+	return []Exclude{
+		{Regex: `^chore\(release\):`},
+		{Regex: `^chore\(deps.*\)`},
+		{Regex: `^chore\(pr\)`},
+		{Regex: `^chore\(pull\)`},
+	}
+}
+
+// EffectiveExcludes returns the built-in default excludes followed by the user's excludes:
+// user entries augment the defaults (they do not replace them).
+func EffectiveExcludes(user []Exclude) []Exclude {
+	return append(defaultExcludes(), user...)
+}

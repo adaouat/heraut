@@ -232,7 +232,7 @@ suite 1277 green; `hk check` clean.
 
 ---
 
-#### `[ ]` T132: rework native taxonomy ← `commits.types` + `rendering.excludes`
+#### `[x]` T132: rework native taxonomy ← `commits.types` + `rendering.excludes`
 
 Re-point T123's grouping so the taxonomy (group names, display order, which types skip) comes
 from the effective `commits.types` + `rendering.excludes` instead of the hardcoded table in
@@ -241,6 +241,20 @@ from the effective `commits.types` + `rendering.excludes` instead of the hardcod
 **Tests:** grouping driven by a config fixture (custom `render` / `order`, a `remove`d type,
 an `exclude` regex), plus the default-config path still matching today's taxonomy.
 **Scope:** M. **Dependencies:** T130, T123.
+
+**Completion note (2026-06-28):** `groupCommits` is now config-driven —
+`groupCommits(commits, userTypes, userExcludes)`: type groups from
+`config.EffectiveTypes(userTypes)`, drops from `config.EffectiveExcludes(userExcludes)` (new
+`config.EffectiveExcludes`; built-in default excludes = `chore(release|deps|pr|pull)`).
+Classification shifted from subject-regex to **exact parsed type**, so `commits.types` names
+drive the groups; the built-in security body-rule, `revert`, and catch-all **Other** are
+preserved as renderer-owned fallbacks (unmatched / non-conventional commits are never
+dropped). Deliberate default-output changes (parity dropped): `build` → its own "Build" group
+(was Other), a non-type subject like `doc:` → Other, and the security body-rule fires only for
+unmatched-type commits. `group_internal_test.go` reworked with config-customization cases.
+Full suite 1289 green. **Note:** because the catch-all / revert / security built-ins are
+preserved here, T134's catch-all is already in place — T134 narrows to confirming + testing
+the `revert` / security body-rule rendering rules.
 
 ---
 
