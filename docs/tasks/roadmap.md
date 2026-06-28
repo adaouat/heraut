@@ -5198,21 +5198,23 @@ eliminates fragile string-match. `git describe` no-tag detection checks stderr f
 
 ### Phase 23 — Native (built-in) content generator
 
-Per [ADR-0032](../adr/0032-native-content-generator.md): an opt-in, zero-dependency Go
-generator (`generator: native`) that renders changelogs / release notes in pure Go, without
-the external `git-cliff` binary — `git-cliff` stays the default. This epic is heavy and
-multi-phase, so its task breakdown **and live `[ ] / [x]` status** live in a dedicated
-roadmap:
+Per [ADR-0032](../adr/0032-native-content-generator.md) (generator) and
+[ADR-0033](../adr/0033-native-config-model.md) (config model): a pure-Go `generator: native`
+that becomes heraut's **canonical** changelog / release-notes renderer, **driven by config**
+(unified `commits:` + `rendering:` blocks). git-cliff is dropped as the design anchor; its
+package removal is deferred (after native enrichment, own ADR). Heavy and multi-phase, so the
+task breakdown **and live `[ ] / [x]` status** live in a dedicated roadmap:
 
 → **[Native Content Generator Roadmap](native-generator-roadmap.md)** — T122+
 
 Summary of the arc (full detail, tests, and files in the dedicated file):
 
-- **Phase 1** — native renderer, parity with `git-cliff --offline`: T122 commit collection,
-  T123 classify / group / skip, T124 template renderer + view model, T125 wiring + config +
-  schema / docs, T126 golden-file parity harness.
+- **Phase 1** — config model + native canonical renderer: T130 `commits`/`rendering` config,
+  T131 migrate commit verify/create, T122 commit collection, T123/T124 (landed) reworked
+  config-driven by T132/T133, T125 wire native canonical, T126 canonical golden snapshots.
 - **Phase 2** — remote enrichment via platform CLIs: T127 GitHub (`gh api`), T128 GitLab
   (`glab api`), T129 Azure DevOps.
+- **Phase 2.5** — remove the git-cliff package: deferred, own ADR (after native enrichment).
 - **Phase 3** — raw-HTTP clients to drop `gh` / `glab`: deferred behind a future ADR.
 
 ---

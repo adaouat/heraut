@@ -1,18 +1,20 @@
 # Héraut — Native Content Generator Roadmap
 
-> Status: Planned
-> ADR: [ADR-0032](../adr/0032-native-content-generator.md)
+> Status: Active
+> ADRs: [ADR-0032](../adr/0032-native-content-generator.md) (generator) · [ADR-0033](../adr/0033-native-config-model.md) (config model)
 > Main roadmap: tracked as Phase 23 in [`roadmap.md`](roadmap.md)
 
-This roadmap breaks down the **native (built-in) content generator** epic
-([ADR-0032](../adr/0032-native-content-generator.md)) into incrementally shippable tasks.
-It lives in its own file because the work is heavy and multi-phase; the main roadmap keeps
-only a Phase 23 pointer here.
+This roadmap breaks down the **native content generator** epic into incrementally shippable
+tasks. It lives in its own file because the work is heavy and multi-phase; the main roadmap
+keeps only a Phase 23 pointer here.
 
-`native` is an **opt-in, zero-external-dependency** generator (`generator: native`) that
-renders changelogs / release notes in pure Go, without the external `git-cliff` binary.
-**`git-cliff` stays the default** and the power-user escape hatch — `native` does not aim
-for parity with its full TOML / Tera surface (see ADR-0032).
+`native` (`generator: native`) renders changelogs / release notes in pure Go, with no external
+`git-cliff` binary. Per [ADR-0033](../adr/0033-native-config-model.md) it is heraut's
+**canonical** renderer — git-cliff is dropped as the design anchor (the git-cliff *package*
+removal is sequenced after native enrichment, in a follow-up ADR), and rendering is **driven
+by config**: a unified `commits:` block (the single source of truth for commit types, also
+consumed by `heraut commit verify`/`create`) plus a `rendering:` block. git-cliff's output is
+no longer a parity target — heraut's rendering is its own spec, validated by golden snapshots.
 
 ## Conventions
 
@@ -27,24 +29,67 @@ for parity with its full TOML / Tera surface (see ADR-0032).
 
 ## Progress at a glance
 
-| Phase                                            | Tasks       | Status              |
-|--------------------------------------------------|-------------|---------------------|
-| Phase 1 — native renderer (no remote enrichment) | T122 – T126 | Not started         |
-| Phase 2 — remote enrichment via platform CLIs    | T127 – T129 | Not started         |
-| Phase 3 — raw-HTTP clients (drop `gh` / `glab`)   | —           | Deferred (new ADR)  |
+| Phase                                                | Tasks                  | Status      |
+|------------------------------------------------------|------------------------|-------------|
+| Phase 1 — config model + native canonical renderer   | T122–T126, T130–T133   | In progress |
+| Phase 2 — remote enrichment via platform CLIs        | T127 – T129            | Not started |
+| Phase 2.5 — remove the git-cliff package (own ADR)   | —                      | Deferred    |
+| Phase 3 — raw-HTTP clients (drop `gh` / `glab`)       | —                      | Deferred    |
 
 ---
 
-## Phase 1 — Native renderer (no remote enrichment)
+## Phase 1 — Config model + native canonical renderer (no remote enrichment)
 
-Goal: a selectable `generator: native` whose output reaches **parity with `git-cliff
---offline`** — full conventional-commit taxonomy, grouping, commit / compare links from the
-resolved `port.LinkContext` — but **without** PR author / number or the contributors block
-(those are Phase 2). This is the low-risk bulk of the epic and is independently useful:
-single-binary, offline changelog and release-notes generation.
+Goal: `generator: native` as heraut's canonical renderer, **driven by config** (ADR-0033) —
+full conventional-commit taxonomy + grouping from `commits.types`, `rendering.excludes`
+filtering, commit / compare links from the resolved `port.LinkContext` — but **without** PR
+author / number or contributors (Phase 2). No git-cliff parity target; heraut's output is its
+own spec (golden snapshots).
 
-New package: `internal/generators/native/` (implements `port.Generator`, peer to
-`internal/generators/gitcliff/` and `internal/generators/communique/`).
+Reshaped per [ADR-0033](../adr/0033-native-config-model.md) (2026-06-28): T122 stands;
+T123/T124 landed but are reworked to read config (T132/T133); two foundation tasks
+(T130/T131) land the `commits` / `rendering` config model first. New package
+`internal/generators/native/` (implements `port.Generator`).
+
+### Foundation — config model (ADR-0033)
+
+#### `[ ]` T130: `commits` + `rendering` config model
+
+Replace `commit_lint` and the top-level `tickets:` / `remote_metadata:` keys with two
+heraut-native blocks. `commits:` — `types` (list: `name`/`order`/`render`/`remove`,
+deep-merged over a built-in default type set), `scopes`, `scopes_restricted`, `tickets`,
+`remote_metadata`, `types_heading_level` — is the single source of truth for commit types.
+`rendering:` — `excludes` (`{type}` / `{regex}` filters dropping commits from output).
+Built-in defaults merge **under** minimal user config (no user `includes:`). Hard cutover
+(pre-v1.0): the old keys become parse errors.
+
+**Implementation:** `internal/config/config.go` (structs), the loader (strict — old keys
+error), an internal-defaults deep-merge, `internal/config/validator.go`, `schema.json`,
+`docs/heraut.sample.yml`. Migrate every consumer of `CommitLint` / `Tickets` /
+`RemoteMetadata` (app propagation to `ContentDriver`, gitcliff, commit tooling) to the new
+locations so the build stays green; git-cliff keeps working, reading `tickets` /
+`remote_metadata` from `commits.`.
+**Tests:** parsing (new shape + old-key rejection), the types deep-merge over defaults
+(add / override / `remove`), `scopes_restricted`, `rendering.excludes`, validator rules,
+schema fixtures.
+**Scope:** L. **Dependencies:** ADR-0033.
+
+#### `[ ]` T131: migrate `heraut commit verify` / `create` to `commits.types`
+
+Per ADR-0033 (supersedes [ADR-0027](../adr/0027-builtin-conventional-commit-checker.md)'s
+`commit_lint` surface). The verify allow-list becomes the effective `commits.types` (built-in
+defaults plus user overrides, minus `remove: true`). `scopes_restricted: true` newly makes
+`verify` reject scopes outside `commits.scopes`. The `create` wizard reads `commits.scopes` /
+`commits.types`.
+
+**Implementation:** `internal/app` (`AllowedCommitTypes`, `VerifyCommit`),
+`internal/commitwizard`, plus cmd wiring. **Tests:** allow-list derivation incl. `remove`;
+`scopes_restricted` accept / reject; wizard type / scope sourcing.
+**Scope:** M. **Dependencies:** T130.
+
+### Native rendering (config-driven)
+
+New package: `internal/generators/native/` (implements `port.Generator`).
 
 #### `[x]` T122: commit collection — walk a tag range into structured records
 
@@ -164,7 +209,31 @@ suite 1277 green; `hk check` clean.
 
 ---
 
-#### `[ ]` T125: native generator wiring + config + schema / docs (make it selectable)
+#### `[ ]` T132: rework native taxonomy ← `commits.types` + `rendering.excludes`
+
+Re-point T123's grouping so the taxonomy (group names, display order, which types skip) comes
+from the effective `commits.types` + `rendering.excludes` instead of the hardcoded table in
+`group.go`. The grouping / scope-sort algorithm survives; only the *source* changes.
+
+**Tests:** grouping driven by a config fixture (custom `render` / `order`, a `remove`d type,
+an `exclude` regex), plus the default-config path still matching today's taxonomy.
+**Scope:** M. **Dependencies:** T130, T123.
+
+---
+
+#### `[ ]` T133: rework native render ← config
+
+Re-point T124's renderer so type-section labels, order, and heading level come from `commits`
+(`render`, `order`, `types_heading_level`) and excluded commits are filtered per
+`rendering.excludes`. Templates stay internal (no public template engine yet — deferred).
+T124's three git-cliff "deviations" become heraut's canonical choices.
+
+**Tests:** golden snapshots over config fixtures (custom labels / heading level, excludes).
+**Scope:** M. **Dependencies:** T132, T124.
+
+---
+
+#### `[ ]` T125: wire `generator: native` as the canonical generator + config / schema / docs
 
 Make `generator: native` an end-to-end, documented option. Implement `port.Generator`
 (`Check` is trivial — no external binary; `Validate` checks the optional `template:` path;
@@ -188,7 +257,7 @@ for the accepted enum; a schema fixture in `testdata/config/`.
 
 ---
 
-#### `[ ]` T126: golden-file parity harness vs real `git-cliff --offline`
+#### `[ ]` T126: canonical golden snapshots (heraut's own output spec)
 
 The CHANGELOG-churn guard from ADR-0032. A **skippable** test (same precedent as the
 existing git-cliff embedded-config smoke test, `testing.md`) runs the *real* `git-cliff
