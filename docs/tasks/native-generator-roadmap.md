@@ -31,7 +31,7 @@ no longer a parity target — heraut's rendering is its own spec, validated by g
 
 | Phase                                                | Tasks                  | Status      |
 |------------------------------------------------------|------------------------|-------------|
-| Phase 1 — config model + native canonical renderer   | T122–T126, T130–T133   | In progress |
+| Phase 1 — config model + native canonical renderer   | T122–T126, T130–T134   | In progress |
 | Phase 2 — remote enrichment via platform CLIs        | T127 – T129            | Not started |
 | Phase 2.5 — remove the git-cliff package (own ADR)   | —                      | Deferred    |
 | Phase 3 — raw-HTTP clients (drop `gh` / `glab`)       | —                      | Deferred    |
@@ -230,6 +230,21 @@ T124's three git-cliff "deviations" become heraut's canonical choices.
 
 **Tests:** golden snapshots over config fixtures (custom labels / heading level, excludes).
 **Scope:** M. **Dependencies:** T132, T124.
+
+---
+
+#### `[ ]` T134: catch-all "Other" group for unmatched / non-conventional commits
+
+When a project did not use conventional commits from the start — or a commit's type is not in
+the effective `commits.types` — those commits must still appear in the changelog under a
+catch-all **"Other"** section rather than being silently dropped (mirroring git-cliff's
+catch-all). The `revert` group and the `security` body-rule are related rendering-only rules
+in the same category — preserve them here too. These are **rendering rules independent of the
+`commits.types` allow-list**: adding them as allow-list types would (incorrectly) make them
+valid for `heraut commit verify`.
+
+**Tests:** a non-conventional commit and an unmatched-type commit both render under "Other";
+revert / security body-rule rows. **Scope:** S. **Dependencies:** T132, T133.
 
 ---
 
