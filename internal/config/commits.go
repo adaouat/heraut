@@ -1,0 +1,68 @@
+package config
+
+// TypeRule configures one conventional-commit type. User entries are merged over the
+// built-in defaults by name (see EffectiveTypes): the type word, its changelog section
+// label and order, and whether to drop a default type from the effective set.
+type TypeRule struct {
+	Name   string `yaml:"name"`
+	Order  *int   `yaml:"order,omitempty"`  // nil = unordered (sorts after ordered types)
+	Render string `yaml:"render,omitempty"` // section label; empty = capitalize Name
+	Remove bool   `yaml:"remove,omitempty"` // drop this default type from the effective set
+}
+
+// defaultTypes is the built-in commit-type set merged under user config: the ADR-0027 verify
+// types, render-labeled and ordered for changelog sections. revert, the security body rule,
+// and the catch-all "Other" group are rendering concerns owned by the native renderer, not
+// allow-list types, so they are deliberately absent here (keeping the verify allow-list
+// behaviour identical to ADR-0027).
+func defaultTypes() []TypeRule {
+	order := func(n int) *int { return &n }
+	return []TypeRule{
+		{Name: "feat", Order: order(0), Render: "🚀 Features"},
+		{Name: "fix", Order: order(1), Render: "🐛 Bug Fixes"},
+		{Name: "refactor", Order: order(2), Render: "🚜 Refactor"},
+		{Name: "docs", Order: order(3), Render: "📚 Documentation"},
+		{Name: "perf", Order: order(4), Render: "⚡ Performance"},
+		{Name: "style", Order: order(5), Render: "🎨 Styling"},
+		{Name: "test", Order: order(6), Render: "🧪 Testing"},
+		{Name: "chore", Order: order(7), Render: "⚙️ Miscellaneous Tasks"},
+		{Name: "ci", Order: order(7), Render: "⚙️ Miscellaneous Tasks"},
+		{Name: "build"},
+	}
+}
+
+// EffectiveTypes merges user type rules over the built-in defaults, keyed by name:
+//   - a user entry for an existing name replaces that default entry wholesale, so omitting
+//     render/order means "no label / unordered", not "inherit the default";
+//   - remove:true drops the name from the effective set;
+//   - an unknown name is appended after the defaults.
+//
+// The result is the single effective type set consumed by `heraut commit verify`/`create`
+// (the allow-list) and by the native renderer (the section taxonomy). Default order is
+// preserved; user-added types follow.
+func EffectiveTypes(user []TypeRule) []TypeRule {
+	merged := make(map[string]TypeRule)
+	order := make([]string, 0)
+	for _, t := range defaultTypes() {
+		merged[t.Name] = t
+		order = append(order, t.Name)
+	}
+	for _, u := range user {
+		_, exists := merged[u.Name]
+		if u.Remove {
+			delete(merged, u.Name)
+			continue
+		}
+		merged[u.Name] = u
+		if !exists {
+			order = append(order, u.Name)
+		}
+	}
+	out := make([]TypeRule, 0, len(order))
+	for _, name := range order {
+		if t, ok := merged[name]; ok {
+			out = append(out, t)
+		}
+	}
+	return out
+}
