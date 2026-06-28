@@ -292,7 +292,7 @@ the `revert` / security body-rule rendering rules.
 
 ---
 
-#### `[ ]` T133: rework native render ← config
+#### `[x]` T133: rework native render ← config
 
 Re-point T124's renderer so type-section labels, order, and heading level come from `commits`
 (`render`, `order`, `types_heading_level`) and excluded commits are filtered per
@@ -301,6 +301,16 @@ T124's three git-cliff "deviations" become heraut's canonical choices.
 
 **Tests:** golden snapshots over config fixtures (custom labels / heading level, excludes).
 **Scope:** M. **Dependencies:** T132, T124.
+
+**Completion note (2026-06-28):** Most of T133 already landed in T132 — group section labels
+and order come from `commits.types` (the groups carry config-derived names / order) and
+`rendering.excludes` filtering happens at grouping. The remaining piece, **`types_heading_level`**,
+is wired here: a `headingPrefix(level)` helper (default 3 → `###`) feeds
+`changelogView` / `notesView.HeadingPrefix`, and the still-dumb templates use
+`{{ $.HeadingPrefix }}` for group headings and the sibling "Commit Statistics".
+`renderChangelogSection` / `renderReleaseNotes` gained a `typesHeadingLevel int` param (T125
+supplies `cfg.Commits.TypesHeadingLevel`). Default golden output unchanged; a level-2 test
+locks the override. Full suite 1296 green.
 
 ---
 

@@ -1,6 +1,6 @@
 {{.Heading}}
 {{range .Groups}}
-### {{.Name}}
+{{$.HeadingPrefix}} {{.Name}}
 {{range .Commits}}
 - {{.Line}}
 {{end}}

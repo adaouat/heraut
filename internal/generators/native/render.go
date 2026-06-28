@@ -65,12 +65,14 @@ type groupNoteView struct {
 
 // changelogView is the template data for renderChangelogSection.
 type changelogView struct {
-	Heading string      // full heading line, e.g. `## [1.2.3](compareURL) - 2024-01-15`
-	Groups  []groupView // display-ordered; commits already scope-sorted within each group
+	Heading       string      // full heading line, e.g. `## [1.2.3](compareURL) - 2024-01-15`
+	HeadingPrefix string      // "#"×types_heading_level — the depth of each group section heading
+	Groups        []groupView // display-ordered; commits already scope-sorted within each group
 }
 
 // notesView is the template data for renderReleaseNotes.
 type notesView struct {
+	HeadingPrefix     string // "#"×types_heading_level — depth of the group + statistics headings
 	Groups            []groupNoteView
 	CommitCount       int
 	CommitsTimespan   int // days between oldest and newest commit date
@@ -99,8 +101,9 @@ func renderChangelogSection(
 	lc *port.LinkContext,
 	tickets []config.Ticket,
 	headingVersionPattern string,
+	typesHeadingLevel int,
 ) (string, error) {
-	v := buildChangelogView(version, previousVersion, releaseDate, groups, lc, tickets)
+	v := buildChangelogView(version, previousVersion, releaseDate, groups, lc, tickets, typesHeadingLevel)
 	out, err := execTemplate("changelog", changelogTmpl, v)
 	if err != nil {
 		return "", fmt.Errorf("rendering changelog section: %w", err)
@@ -126,8 +129,9 @@ func renderReleaseNotes(
 	lc *port.LinkContext,
 	tickets []config.Ticket,
 	prevReleaseDate time.Time,
+	typesHeadingLevel int,
 ) (string, error) {
-	v := buildNotesView(version, previousVersion, releaseDate, groups, lc, tickets, prevReleaseDate)
+	v := buildNotesView(version, previousVersion, releaseDate, groups, lc, tickets, prevReleaseDate, typesHeadingLevel)
 	out, err := execTemplate("release_notes", releaseNotesTmpl, v)
 	if err != nil {
 		return "", fmt.Errorf("rendering release notes: %w", err)
@@ -143,6 +147,7 @@ func buildChangelogView(
 	groups []group,
 	lc *port.LinkContext,
 	tickets []config.Ticket,
+	typesHeadingLevel int,
 ) changelogView {
 	cuBase := buildCommitURL(lc)
 	compareURL := buildCompareURL(lc, previousVersion, version)
@@ -164,7 +169,7 @@ func buildChangelogView(
 		gviews = append(gviews, gv)
 	}
 
-	return changelogView{Heading: heading, Groups: gviews}
+	return changelogView{Heading: heading, HeadingPrefix: headingPrefix(typesHeadingLevel), Groups: gviews}
 }
 
 func buildNotesView(
@@ -174,6 +179,7 @@ func buildNotesView(
 	lc *port.LinkContext,
 	tickets []config.Ticket,
 	prevReleaseDate time.Time,
+	typesHeadingLevel int,
 ) notesView {
 	_ = version
 	_ = previousVersion
@@ -227,6 +233,7 @@ func buildNotesView(
 	}
 
 	return notesView{
+		HeadingPrefix:     headingPrefix(typesHeadingLevel),
 		Groups:            gnviews,
 		CommitCount:       commitCount,
 		CommitsTimespan:   timespan,
@@ -452,6 +459,15 @@ func applyHeadingPattern(content, pattern string) (string, error) {
 	lines := strings.SplitN(content, "\n", 2)
 	lines[0] = re.ReplaceAllString(lines[0], "[$1]")
 	return strings.Join(lines, "\n"), nil
+}
+
+// headingPrefix returns the Markdown heading prefix ("#" repeated) for type section headings,
+// from commits.types_heading_level. A non-positive level defaults to 3 ("###").
+func headingPrefix(level int) string {
+	if level <= 0 {
+		level = 3
+	}
+	return strings.Repeat("#", level)
 }
 
 // ─── template execution ───────────────────────────────────────────────────────
