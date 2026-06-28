@@ -111,8 +111,8 @@ func ConfigToAnswers(cfg *config.Config) Answers {
 		Strategy:       cfg.Versioning.Strategy,
 		Format:         cfg.Versioning.Format,
 		TagFormat:      cfg.Versioning.TagFormat,
-		Tickets:        cfg.Tickets,
-		RemoteMetadata: cfg.RemoteMetadata,
+		Tickets:        cfg.Tickets(),
+		RemoteMetadata: cfg.RemoteMetadata(),
 	}
 
 	if cfg.Versioning.TagPrefix != nil {

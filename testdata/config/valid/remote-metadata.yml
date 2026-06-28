@@ -6,7 +6,8 @@ versioning:
   strategy: semver
   bump: auto
 
-remote_metadata: disabled
+commits:
+  remote_metadata: disabled
 
 changelog:
   generator: git-cliff

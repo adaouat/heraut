@@ -14,6 +14,9 @@ func applyOfflineOverride(cmd *cobra.Command, cfg *config.Config) {
 		return
 	}
 	if offline, _ := cmd.Flags().GetBool("offline"); offline {
-		cfg.RemoteMetadata = "disabled"
+		if cfg.Commits == nil {
+			cfg.Commits = &config.Commits{}
+		}
+		cfg.Commits.RemoteMetadata = "disabled"
 	}
 }

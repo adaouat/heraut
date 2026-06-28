@@ -2,26 +2,34 @@ package app
 
 import (
 	"fmt"
+	"slices"
 	"strings"
 
 	"github.com/adaouat/heraut/internal/config"
 	"github.com/adaouat/heraut/internal/conventionalcommit"
 )
 
-// DefaultCommitTypes is the type allow-list VerifyCommit applies when no
-// commit_lint.types override is configured — the 10 types documented in
-// workflow.md's commit-type table.
-var DefaultCommitTypes = []string{
-	"feat", "fix", "docs", "chore", "refactor", "test", "style", "perf", "ci", "build",
+// DefaultCommitTypes is the type allow-list applied when commits.types adds no overrides:
+// the names of the built-in default type set (config.EffectiveTypes(nil)).
+var DefaultCommitTypes = commitTypeNames(config.EffectiveTypes(nil))
+
+func commitTypeNames(types []config.TypeRule) []string {
+	names := make([]string, len(types))
+	for i, t := range types {
+		names[i] = t.Name
+	}
+	return names
 }
 
-// AllowedCommitTypes returns the configured commit_lint.types when set, otherwise
-// DefaultCommitTypes. Single source of truth shared by VerifyCommit and the commit wizard.
+// AllowedCommitTypes returns the effective commit-type allow-list: the names of
+// config.EffectiveTypes(commits.types) — the built-in defaults with the user's commits.types
+// merged over them. Single source of truth shared by VerifyCommit and the commit wizard.
 func AllowedCommitTypes(cfg *config.Config) []string {
-	if cfg != nil && cfg.CommitLint != nil && len(cfg.CommitLint.Types) > 0 {
-		return cfg.CommitLint.Types
+	var user []config.TypeRule
+	if cfg != nil && cfg.Commits != nil {
+		user = cfg.Commits.Types
 	}
-	return DefaultCommitTypes
+	return commitTypeNames(config.EffectiveTypes(user))
 }
 
 // VerifyCommit validates message against the conventional-commit grammar and the
@@ -38,10 +46,8 @@ func VerifyCommit(cfg *config.Config, message string) error {
 	}
 
 	types := AllowedCommitTypes(cfg)
-	for _, t := range types {
-		if c.Type == t {
-			return nil
-		}
+	if slices.Contains(types, c.Type) {
+		return nil
 	}
 	return fmt.Errorf("commit type %q is not allowed (allowed: %s)", c.Type, strings.Join(types, ", "))
 }

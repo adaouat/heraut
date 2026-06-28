@@ -170,10 +170,11 @@ func TestValidate_invalidRemoteMetadata(t *testing.T) {
 version: "1"
 versioning:
   strategy: semver
-remote_metadata: sometimes
+commits:
+  remote_metadata: sometimes
 `)
 	errs := config.Validate(cfg)
-	e := findErr(errs, "remote_metadata")
+	e := findErr(errs, "commits.remote_metadata")
 	require.NotNil(t, e)
 	assert.Contains(t, e.Message, "sometimes")
 	assert.Contains(t, e.Hint, "required")
@@ -188,7 +189,8 @@ func TestValidate_validRemoteMetadata(t *testing.T) {
 version: "1"
 versioning:
   strategy: semver
-remote_metadata: `+v+`
+commits:
+  remote_metadata: `+v+`
 `)
 			assert.Empty(t, config.Validate(cfg))
 		})
@@ -951,9 +953,10 @@ versioning:
   strategy: semver
 changelog:
   generator: git-cliff
-tickets:
-  - pattern: '[A-Z]+-[0-9]+'
-    url: 'https://acme.atlassian.net/browse/{ticket}'
+commits:
+  tickets:
+    - pattern: '[A-Z]+-[0-9]+'
+      url: 'https://acme.atlassian.net/browse/{ticket}'
 `)
 	assert.Empty(t, config.Validate(cfg))
 }
@@ -963,11 +966,12 @@ func TestValidate_TicketsInvalidRegex(t *testing.T) {
 version: "1"
 versioning:
   strategy: semver
-tickets:
-  - pattern: '[A-Z'
-    url: 'https://x.test/{ticket}'
+commits:
+  tickets:
+    - pattern: '[A-Z'
+      url: 'https://x.test/{ticket}'
 `)
-	e := findErr(config.Validate(cfg), "tickets[0].pattern")
+	e := findErr(config.Validate(cfg), "commits.tickets[0].pattern")
 	require.NotNil(t, e)
 	assert.Contains(t, e.Message, "regex")
 }
@@ -977,11 +981,12 @@ func TestValidate_TicketsURLMissingPlaceholder(t *testing.T) {
 version: "1"
 versioning:
   strategy: semver
-tickets:
-  - pattern: '[A-Z]+-[0-9]+'
-    url: 'https://x.test/browse/'
+commits:
+  tickets:
+    - pattern: '[A-Z]+-[0-9]+'
+      url: 'https://x.test/browse/'
 `)
-	e := findErr(config.Validate(cfg), "tickets[0].url")
+	e := findErr(config.Validate(cfg), "commits.tickets[0].url")
 	require.NotNil(t, e)
 	assert.Contains(t, e.Message, "{ticket}")
 }
@@ -993,11 +998,12 @@ versioning:
   strategy: semver
 changelog:
   generator: communique
-tickets:
-  - pattern: '[A-Z]+-[0-9]+'
-    url: 'https://x.test/{ticket}'
+commits:
+  tickets:
+    - pattern: '[A-Z]+-[0-9]+'
+      url: 'https://x.test/{ticket}'
 `)
-	e := findErr(config.Validate(cfg), "tickets")
+	e := findErr(config.Validate(cfg), "commits.tickets")
 	require.NotNil(t, e)
 	assert.Contains(t, e.Message, "git-cliff")
 }
@@ -1300,69 +1306,90 @@ environments:
 	assert.Contains(t, e.Message, "changelog")
 }
 
-// ── commit_lint ──────────────────────────────────────────────────────────────
+// ── commits ──────────────────────────────────────────────────────────────────
 
-func TestValidate_CommitLintValid(t *testing.T) {
+func TestValidate_CommitsValid(t *testing.T) {
 	cfg := mustLoad(t, `
 version: "1"
 versioning:
   strategy: semver
-commit_lint:
-  types: [feat, fix, docs]
+commits:
+  types:
+    - name: feat
+    - name: fix
+    - name: docs
 `)
 	assert.Empty(t, config.Validate(cfg))
 }
 
-func TestValidate_CommitLintEmptyTypesList(t *testing.T) {
+func TestValidate_CommitsEmptyTypes_OK(t *testing.T) {
+	// An empty types list is valid under ADR-0033 — it means "use the built-in defaults".
 	cfg := mustLoad(t, `
 version: "1"
 versioning:
   strategy: semver
-commit_lint:
+commits:
   types: []
 `)
-	e := findErr(config.Validate(cfg), "commit_lint.types")
-	require.NotNil(t, e)
+	assert.Empty(t, config.Validate(cfg))
 }
 
-func TestValidate_CommitLintEmptyTypeEntry(t *testing.T) {
+func TestValidate_CommitsEmptyTypeName(t *testing.T) {
 	cfg := mustLoad(t, `
 version: "1"
 versioning:
   strategy: semver
-commit_lint:
-  types: ["feat", ""]
+commits:
+  types:
+    - name: feat
+    - name: ""
 `)
-	e := findErr(config.Validate(cfg), "commit_lint.types[1]")
+	e := findErr(config.Validate(cfg), "commits.types[1].name")
 	require.NotNil(t, e)
 }
 
-func TestValidate_CommitLintInvalidTypeName(t *testing.T) {
+func TestValidate_CommitsInvalidTypeName(t *testing.T) {
 	cfg := mustLoad(t, `
 version: "1"
 versioning:
   strategy: semver
-commit_lint:
-  types: ["feat", "not a type"]
+commits:
+  types:
+    - name: feat
+    - name: "not a type"
 `)
-	e := findErr(config.Validate(cfg), "commit_lint.types[1]")
+	e := findErr(config.Validate(cfg), "commits.types[1].name")
 	require.NotNil(t, e)
 }
 
-func TestValidate_CommitLintDuplicateType(t *testing.T) {
+func TestValidate_CommitsDuplicateType(t *testing.T) {
 	cfg := mustLoad(t, `
 version: "1"
 versioning:
   strategy: semver
-commit_lint:
-  types: [feat, feat]
+commits:
+  types:
+    - name: feat
+    - name: feat
 `)
-	e := findErr(config.Validate(cfg), "commit_lint.types[1]")
+	e := findErr(config.Validate(cfg), "commits.types[1].name")
 	require.NotNil(t, e)
 	assert.Contains(t, e.Message, "duplicate")
 }
 
-func TestValidate_CommitLintAbsent_NoError(t *testing.T) {
+func TestValidate_CommitsScopesRestrictedRequiresScopes(t *testing.T) {
+	cfg := mustLoad(t, `
+version: "1"
+versioning:
+  strategy: semver
+commits:
+  scopes_restricted: true
+`)
+	e := findErr(config.Validate(cfg), "commits.scopes_restricted")
+	require.NotNil(t, e)
+}
+
+func TestValidate_CommitsAbsent_NoError(t *testing.T) {
 	cfg := mustLoad(t, `
 version: "1"
 versioning:

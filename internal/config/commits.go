@@ -1,5 +1,39 @@
 package config
 
+// Commits is heraut's single source of truth for commit semantics and enrichment (ADR-0033):
+// the conventional-commit type set, scope rules, ticket links, and the remote-metadata policy.
+type Commits struct {
+	// TypesHeadingLevel is the heading depth (number of '#') for type sections in rendered
+	// output. Zero means the renderer's default.
+	TypesHeadingLevel int `yaml:"types_heading_level,omitempty"`
+	// Types are the conventional-commit type rules, merged over the built-in defaults by name
+	// (see EffectiveTypes). The effective set is the verify allow-list and the section taxonomy.
+	Types []TypeRule `yaml:"types,omitempty"`
+	// Scopes is the allowed scope list (offered by `heraut commit create`; enforced by
+	// `heraut commit verify` only when ScopesRestricted is true).
+	Scopes []string `yaml:"scopes,omitempty"`
+	// ScopesRestricted, when true, makes `heraut commit verify` reject scopes outside Scopes.
+	ScopesRestricted bool `yaml:"scopes_restricted,omitempty"`
+	// Tickets configures issue-tracker links matched in commit messages and rendered as links.
+	Tickets []Ticket `yaml:"tickets,omitempty"`
+	// RemoteMetadata is the PR/MR enrichment policy: "required", "optional" (default), or
+	// "disabled". Governs changelog and release-notes generation.
+	RemoteMetadata string `yaml:"remote_metadata,omitempty"`
+}
+
+// Rendering configures content output (ADR-0033).
+type Rendering struct {
+	// Excludes drop matched commits from the rendered changelog/release-notes.
+	Excludes []Exclude `yaml:"excludes,omitempty"`
+}
+
+// Exclude drops matched commits from rendered output. Exactly one of Type or Regex must be
+// set: Type matches the conventional-commit type; Regex matches the commit subject.
+type Exclude struct {
+	Type  string `yaml:"type,omitempty"`
+	Regex string `yaml:"regex,omitempty"`
+}
+
 // TypeRule configures one conventional-commit type. User entries are merged over the
 // built-in defaults by name (see EffectiveTypes): the type word, its changelog section
 // label and order, and whether to drop a default type from the effective set.

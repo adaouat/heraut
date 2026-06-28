@@ -118,8 +118,8 @@ func collectAnswers(cfg *config.Config) (Answers, error) {
 }
 
 func configuredScopes(cfg *config.Config) []string {
-	if cfg != nil && cfg.CommitLint != nil {
-		return cfg.CommitLint.Scopes
+	if cfg != nil && cfg.Commits != nil {
+		return cfg.Commits.Scopes
 	}
 	return nil
 }

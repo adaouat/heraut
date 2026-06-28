@@ -141,6 +141,10 @@ capability gap in between.
 - `heraut commit verify` / `create` (T116–T121) migrate from `commit_lint` to `commits`: the
   allow-list becomes `commits.types` minus `remove:`d defaults, and `scopes_restricted`
   newly gates `verify`.
+- **Allow-list semantics change (merge, not replace).** `commit_lint.types` *replaced* the
+  default allow-list; `commits.types` *merges* over it. Listing types no longer narrows the
+  allow-list to only those — to drop a default, `remove:` it. This deliberately changes the
+  verify allow-list's behaviour (the affected verify/validator tests were rewritten).
 - `internal/config/config.go`, `schema.json`, `docs/heraut.sample.yml`, and the relevant
   specs change; the breaking renames touch existing `testdata/` fixtures.
 - ADR-0032 is **superseded** beyond its config-model section: native is no longer "opt-in

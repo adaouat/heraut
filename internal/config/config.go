@@ -7,19 +7,32 @@ type Config struct {
 	Changelog    *ContentDriver         `yaml:"changelog,omitempty"`
 	Release      *Release               `yaml:"release,omitempty"`
 	Environments map[string]Environment `yaml:"environments,omitempty"`
-	// RemoteMetadata controls whether content generators fetch PR/MR metadata from the
-	// platform API (author handle, PR number) to enrich changelog/release-notes:
-	// "required" (fetch, fail if unavailable), "optional" (fetch when possible, else warn +
-	// skip), "disabled" (never fetch). Empty resolves to "optional". Governs both changelog
-	// and release-notes generation.
-	RemoteMetadata string `yaml:"remote_metadata,omitempty"`
-	// Tickets configures issue-tracker links: each entry's regex is matched in commit
-	// messages (subject/body/footer) and rendered as a link in the changelog and release
-	// notes. git-cliff only (ADR-0024).
-	Tickets []Ticket `yaml:"tickets,omitempty"`
-	// CommitLint configures heraut commit verify's type allow-list. git-cliff/generator-
-	// agnostic — unlike Tickets, this has nothing to do with changelog generation. ADR-0027.
-	CommitLint *CommitLint `yaml:"commit_lint,omitempty"`
+	// Commits is the single source of truth for commit semantics and enrichment (ADR-0033):
+	// the conventional-commit type set (consumed by both `heraut commit verify`/`create` and
+	// the native renderer's section taxonomy), scope rules, ticket links, and the
+	// remote-metadata policy. Replaces the former commit_lint block and the top-level
+	// tickets/remote_metadata keys.
+	Commits *Commits `yaml:"commits,omitempty"`
+	// Rendering configures content output (ADR-0033): the exclude rules that drop matched
+	// commits from the rendered changelog/release-notes.
+	Rendering *Rendering `yaml:"rendering,omitempty"`
+}
+
+// Tickets returns the configured ticket-link patterns (commits.tickets), or nil. Nil-safe.
+func (c *Config) Tickets() []Ticket {
+	if c.Commits == nil {
+		return nil
+	}
+	return c.Commits.Tickets
+}
+
+// RemoteMetadata returns the configured remote-metadata policy (commits.remote_metadata), or
+// "" (which the generators treat as "optional"). Nil-safe.
+func (c *Config) RemoteMetadata() string {
+	if c.Commits == nil {
+		return ""
+	}
+	return c.Commits.RemoteMetadata
 }
 
 // Ticket maps a commit ticket-ID pattern to a URL template. {ticket} in URL is the first
@@ -28,20 +41,6 @@ type Config struct {
 type Ticket struct {
 	Pattern string `yaml:"pattern"`
 	URL     string `yaml:"url"`
-}
-
-// CommitLint configures heraut commit verify's grammar/type-allow-list checking
-// (ADR-0027). Optional — when nil, the default type list applies.
-type CommitLint struct {
-	// Types restricts which conventional-commit type words heraut commit verify accepts.
-	// Replaces (does not extend) the default list when set: feat, fix, docs, chore,
-	// refactor, test, style, perf, ci, build.
-	Types []string `yaml:"types,omitempty"`
-
-	// Scopes is an optional allow-list used only by `heraut commit create` to offer a
-	// scope picker. It is NOT enforced by `heraut commit verify`/`check` (ADR-0027 keeps
-	// verify to types only). Empty/unset → the wizard uses a free-text scope step.
-	Scopes []string `yaml:"scopes,omitempty"`
 }
 
 // Versioning holds version resolution settings.

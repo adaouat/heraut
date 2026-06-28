@@ -53,7 +53,7 @@ T123/T124 landed but are reworked to read config (T132/T133); two foundation tas
 
 ### Foundation — config model (ADR-0033)
 
-#### `[ ]` T130: `commits` + `rendering` config model
+#### `[x]` T130: `commits` + `rendering` config model
 
 Replace `commit_lint` and the top-level `tickets:` / `remote_metadata:` keys with two
 heraut-native blocks. `commits:` — `types` (list: `name`/`order`/`render`/`remove`,
@@ -73,6 +73,21 @@ locations so the build stays green; git-cliff keeps working, reading `tickets` /
 (add / override / `remove`), `scopes_restricted`, `rendering.excludes`, validator rules,
 schema fixtures.
 **Scope:** L. **Dependencies:** ADR-0033.
+
+**Completion note (2026-06-28):** Landed across two commits — `EffectiveTypes` merge core
+(`a0ab7db`), then one atomic breaking commit over ~30 files (config structs + ~8 consumers +
+validator + `schema.json` + 4 testdata fixtures + sample + ~10 test files). `Config` gains
+`Commits` / `Rendering`; the old `CommitLint`, top-level `Tickets` and `RemoteMetadata` are
+removed, with nil-safe `(*Config).Tickets()` / `.RemoteMetadata()` accessors minimizing
+read-site churn. The strict loader now rejects the old keys (hard cutover). **Semantics
+change:** `commits.types` *merges* over the built-in defaults by name (was: `commit_lint.types`
+*replaced*) — to narrow the verify allow-list you `remove:` defaults; the affected
+verify/validator tests were rewritten and ADR-0033 records the change. Default types = the
+ADR-0027 verify 10, render-labeled; `revert` / security body-rule / catch-all "Other" remain
+rendering-only (T132/T134). New validation: `rendering.excludes` (exactly one of type/regex,
+regex compiles) and `scopes_restricted` requires a non-empty `scopes`. Full suite 1285 green.
+Deferred to a follow-up `docs` commit: specs 02/03/05 prose. git-cliff stays functional,
+reading `tickets` / `remote_metadata` from their new `commits.` home.
 
 #### `[ ]` T131: migrate `heraut commit verify` / `create` to `commits.types`
 

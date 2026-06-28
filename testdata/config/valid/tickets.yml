@@ -8,6 +8,7 @@ versioning:
 changelog:
   generator: git-cliff
 
-tickets:
-  - pattern: '[A-Z]+-[0-9]+'
-    url: 'https://acme.atlassian.net/browse/{ticket}'
+commits:
+  tickets:
+    - pattern: '[A-Z]+-[0-9]+'
+      url: 'https://acme.atlassian.net/browse/{ticket}'

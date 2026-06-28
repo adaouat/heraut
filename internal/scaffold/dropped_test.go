@@ -32,16 +32,16 @@ func TestDroppedFields_Tickets_NotDropped(t *testing.T) {
 	cfg := &config.Config{
 		Version:    "1",
 		Versioning: config.Versioning{Strategy: "semver"},
-		Tickets:    []config.Ticket{{Pattern: `JIRA-(\d+)`, URL: "https://example.atlassian.net/browse/{ticket}"}},
+		Commits:    &config.Commits{Tickets: []config.Ticket{{Pattern: `JIRA-(\d+)`, URL: "https://example.atlassian.net/browse/{ticket}"}}},
 	}
 	assert.Empty(t, scaffold.DroppedFields(cfg), "tickets are preserved via Answers (T107)")
 }
 
 func TestDroppedFields_RemoteMetadata_NotDropped(t *testing.T) {
 	cfg := &config.Config{
-		Version:        "1",
-		Versioning:     config.Versioning{Strategy: "semver"},
-		RemoteMetadata: "required",
+		Version:    "1",
+		Versioning: config.Versioning{Strategy: "semver"},
+		Commits:    &config.Commits{RemoteMetadata: "required"},
 	}
 	assert.Empty(t, scaffold.DroppedFields(cfg), "remote_metadata is preserved via Answers (T107)")
 }

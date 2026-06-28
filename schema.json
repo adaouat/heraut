@@ -31,64 +31,130 @@
       },
       "description": "Per-environment configuration. Required for semver-per-env and calver-per-env strategies."
     },
-    "remote_metadata": {
-      "type": "string",
-      "enum": [
-        "required",
-        "optional",
-        "disabled"
-      ],
-      "default": "optional",
-      "description": "Whether content generators fetch PR/MR metadata (author handle, PR number) from the platform API to enrich the changelog/release-notes. 'required': fetch and fail if unavailable. 'optional' (default): fetch when possible, otherwise generate without it and warn. 'disabled': never fetch (offline, no token). Governs both changelog and release-notes generation. The --offline flag forces 'disabled' for a single run."
+    "commits": {
+      "$ref": "#/definitions/Commits"
     },
-    "tickets": {
-      "type": "array",
-      "description": "Issue-tracker links. Each entry's regex is matched in commit messages (subject/body/footer) and rendered as a link in the changelog and release notes. git-cliff only.",
-      "items": {
-        "type": "object",
-        "additionalProperties": false,
-        "required": [
-          "pattern",
-          "url"
-        ],
-        "properties": {
-          "pattern": {
-            "type": "string",
-            "description": "Regex matching ticket IDs, e.g. [A-Z]+-[0-9]+. The first capture group (or the full match if there is no group) becomes {ticket}; the link label is always the full match."
-          },
-          "url": {
-            "type": "string",
-            "description": "URL template containing {ticket}, e.g. https://jira.example.com/browse/{ticket}."
-          }
-        }
-      }
-    },
-    "commit_lint": {
-      "$ref": "#/definitions/CommitLint"
+    "rendering": {
+      "$ref": "#/definitions/Rendering"
     }
   },
   "definitions": {
-    "CommitLint": {
+    "Commits": {
       "type": "object",
       "additionalProperties": false,
+      "description": "Single source of truth for commit semantics and enrichment (ADR-0033): the conventional-commit type set (used by 'heraut commit verify'/'create' and the native renderer), scope rules, ticket links, and the remote-metadata policy.",
       "properties": {
+        "types_heading_level": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "Heading depth (number of '#') for type sections in rendered output. Defaults to the renderer's default when omitted."
+        },
         "types": {
           "type": "array",
+          "description": "Conventional-commit type rules, merged over the built-in defaults by name. The effective set is both the 'heraut commit verify' allow-list and the changelog section taxonomy.",
           "items": {
-            "type": "string"
-          },
-          "minItems": 1,
-          "description": "Restricts which conventional-commit type words 'heraut commit verify' accepts. Replaces (does not extend) the default list when set: feat, fix, docs, chore, refactor, test, style, perf, ci, build."
+            "$ref": "#/definitions/TypeRule"
+          }
         },
         "scopes": {
           "type": "array",
           "items": {
             "type": "string"
           },
-          "description": "Optional scope allow-list used only by 'heraut commit create' to offer a scope picker. NOT enforced by 'heraut commit verify'/'check'. Omit for a free-text scope step."
+          "description": "Allowed scope list. Offered by 'heraut commit create'; enforced by 'heraut commit verify' only when scopes_restricted is true."
+        },
+        "scopes_restricted": {
+          "type": "boolean",
+          "description": "When true, 'heraut commit verify' rejects scopes outside the scopes list. Defaults to false."
+        },
+        "tickets": {
+          "type": "array",
+          "description": "Issue-tracker links. Each entry's regex is matched in commit messages and rendered as a link in the changelog and release notes.",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "pattern",
+              "url"
+            ],
+            "properties": {
+              "pattern": {
+                "type": "string",
+                "description": "Regex matching ticket IDs, e.g. [A-Z]+-[0-9]+. The first capture group (or full match) becomes {ticket}."
+              },
+              "url": {
+                "type": "string",
+                "description": "URL template containing {ticket}, e.g. https://jira.example.com/browse/{ticket}."
+              }
+            }
+          }
+        },
+        "remote_metadata": {
+          "type": "string",
+          "enum": [
+            "required",
+            "optional",
+            "disabled"
+          ],
+          "default": "optional",
+          "description": "Whether content generators fetch PR/MR metadata (author handle, PR number) to enrich changelog/release-notes. 'required': fetch and fail if unavailable. 'optional' (default): fetch when possible, else warn. 'disabled': never fetch. The --offline flag forces 'disabled' for a single run."
         }
-      },
-      "description": "Configures 'heraut commit verify''s type allow-list (ADR-0027). Optional — omit entirely to use the default list."
+      }
+    },
+    "TypeRule": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "name"
+      ],
+      "description": "One conventional-commit type rule, merged over the built-in defaults by name.",
+      "properties": {
+        "name": {
+          "type": "string",
+          "description": "The conventional-commit type word (e.g. feat, fix)."
+        },
+        "order": {
+          "type": "integer",
+          "description": "Display sort position for the changelog section. Omit for unordered (sorts after ordered types)."
+        },
+        "render": {
+          "type": "string",
+          "description": "Section heading label (e.g. \"🚀 Features\"). Omit to render the capitalized type name."
+        },
+        "remove": {
+          "type": "boolean",
+          "description": "Drop this default type from the effective set (removes it from the 'heraut commit verify' allow-list)."
+        }
+      }
+    },
+    "Rendering": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "Content output configuration (ADR-0033).",
+      "properties": {
+        "excludes": {
+          "type": "array",
+          "description": "Filters that drop matched commits from the rendered changelog/release-notes.",
+          "items": {
+            "$ref": "#/definitions/Exclude"
+          }
+        }
+      }
+    },
+    "Exclude": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "Drops matched commits from rendered output. Set exactly one of type or regex.",
+      "properties": {
+        "type": {
+          "type": "string",
+          "description": "Match commits of this conventional-commit type."
+        },
+        "regex": {
+          "type": "string",
+          "description": "Match commits whose subject matches this regex (e.g. \"^chore\\\\(deps\")."
+        }
+      }
     },
     "Versioning": {
       "type": "object",

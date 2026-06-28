@@ -40,26 +40,28 @@ func Validate(cfg *Config) ValidationErrors {
 	errs = append(errs, validateStrategySpecific(cfg)...)
 	errs = append(errs, validateEnvContradictions(cfg.Environments)...)
 	errs = append(errs, validateTickets(cfg)...)
-	errs = append(errs, validateCommitLint(cfg)...)
+	errs = append(errs, validateCommits(cfg)...)
+	errs = append(errs, validateRendering(cfg)...)
 	return errs
 }
 
 // validateTickets checks the ticket-link config: each pattern compiles as a regex, each url
 // is an absolute http(s) URL containing {ticket}, and tickets require the git-cliff generator.
 func validateTickets(cfg *Config) []ValidationError {
-	if len(cfg.Tickets) == 0 {
+	tickets := cfg.Tickets()
+	if len(tickets) == 0 {
 		return nil
 	}
 	var errs []ValidationError
 	if !ticketsGeneratorSupported(cfg) {
 		errs = append(errs, ValidationError{
-			Path:    "tickets",
+			Path:    "commits.tickets",
 			Message: "ticket linking requires the git-cliff generator",
 			Hint:    "set changelog.generator / release.notes.generator to git-cliff, or remove tickets",
 		})
 	}
-	for i, t := range cfg.Tickets {
-		base := fmt.Sprintf("tickets[%d]", i)
+	for i, t := range tickets {
+		base := fmt.Sprintf("commits.tickets[%d]", i)
 		if t.Pattern == "" {
 			errs = append(errs, ValidationError{Path: base + ".pattern", Message: "required", Hint: "a regex matching ticket IDs, e.g. [A-Z]+-[0-9]+"})
 		} else if _, err := regexp.Compile(t.Pattern); err != nil {
@@ -79,45 +81,67 @@ func validateTickets(cfg *Config) []ValidationError {
 	return errs
 }
 
-// validateCommitLint validates the optional commit_lint.types override: when present, the
-// list must be non-empty (an empty list would silently allow zero types — anyone wanting
-// "all default types" omits commit_lint entirely instead), each entry must be a non-empty
-// single-word type name, and entries must be unique.
-func validateCommitLint(cfg *Config) []ValidationError {
-	if cfg.CommitLint == nil {
+// validateCommits validates the commits block: each types[i] has a valid, unique type name,
+// and scopes_restricted requires a non-empty scopes list. An empty types list is valid — it
+// means "use the built-in defaults" (EffectiveTypes merges over them).
+func validateCommits(cfg *Config) []ValidationError {
+	if cfg.Commits == nil {
 		return nil
 	}
 	var errs []ValidationError
-	if len(cfg.CommitLint.Types) == 0 {
-		return []ValidationError{{
-			Path:    "commit_lint.types",
-			Message: "must not be empty when commit_lint is set",
-			Hint:    "list at least one allowed type, or remove commit_lint to use the default list",
-		}}
-	}
 	seen := make(map[string]int)
-	for i, t := range cfg.CommitLint.Types {
-		path := fmt.Sprintf("commit_lint.types[%d]", i)
-		if t == "" {
-			errs = append(errs, ValidationError{Path: path, Message: "must not be empty"})
+	for i, t := range cfg.Commits.Types {
+		path := fmt.Sprintf("commits.types[%d].name", i)
+		if t.Name == "" {
+			errs = append(errs, ValidationError{Path: path, Message: "required"})
 			continue
 		}
-		if !commitTypePattern.MatchString(t) {
+		if !commitTypePattern.MatchString(t.Name) {
 			errs = append(errs, ValidationError{
 				Path:    path,
-				Message: fmt.Sprintf("%q is not a valid type name", t),
+				Message: fmt.Sprintf("%q is not a valid type name", t.Name),
 				Hint:    "type names must be a single word (letters/digits/underscore), e.g. feat, fix, docs",
 			})
 			continue
 		}
-		if first, ok := seen[t]; ok {
+		if first, ok := seen[t.Name]; ok {
 			errs = append(errs, ValidationError{
 				Path:    path,
-				Message: fmt.Sprintf("duplicate type %q (already listed at types[%d])", t, first),
+				Message: fmt.Sprintf("duplicate type %q (already listed at types[%d])", t.Name, first),
 			})
 			continue
 		}
-		seen[t] = i
+		seen[t.Name] = i
+	}
+	if cfg.Commits.ScopesRestricted && len(cfg.Commits.Scopes) == 0 {
+		errs = append(errs, ValidationError{
+			Path:    "commits.scopes_restricted",
+			Message: "requires a non-empty commits.scopes list",
+			Hint:    "list the allowed scopes, or set scopes_restricted: false",
+		})
+	}
+	return errs
+}
+
+// validateRendering validates the rendering block: each exclude sets exactly one of type or
+// regex, and any regex compiles.
+func validateRendering(cfg *Config) []ValidationError {
+	if cfg.Rendering == nil {
+		return nil
+	}
+	var errs []ValidationError
+	for i, e := range cfg.Rendering.Excludes {
+		path := fmt.Sprintf("rendering.excludes[%d]", i)
+		switch {
+		case e.Type == "" && e.Regex == "":
+			errs = append(errs, ValidationError{Path: path, Message: "must set exactly one of type or regex", Hint: `e.g. {type: chore} or {regex: "^chore\\(deps"}`})
+		case e.Type != "" && e.Regex != "":
+			errs = append(errs, ValidationError{Path: path, Message: "set only one of type or regex, not both"})
+		case e.Regex != "":
+			if _, err := regexp.Compile(e.Regex); err != nil {
+				errs = append(errs, ValidationError{Path: path + ".regex", Message: fmt.Sprintf("invalid regex: %v", err)})
+			}
+		}
 	}
 	return errs
 }
@@ -179,10 +203,10 @@ func validateEnums(cfg *Config) []ValidationError {
 			Hint:    "valid tag types: annotated, lightweight",
 		})
 	}
-	if cfg.RemoteMetadata != "" && !validRemoteMetadata[cfg.RemoteMetadata] {
+	if rm := cfg.RemoteMetadata(); rm != "" && !validRemoteMetadata[rm] {
 		errs = append(errs, ValidationError{
-			Path:    "remote_metadata",
-			Message: fmt.Sprintf("%q is not a valid remote_metadata policy", cfg.RemoteMetadata),
+			Path:    "commits.remote_metadata",
+			Message: fmt.Sprintf("%q is not a valid remote_metadata policy", rm),
 			Hint:    "valid values: required, optional, disabled",
 		})
 	}

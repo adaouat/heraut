@@ -255,7 +255,9 @@ func withEnvDerivations(driver *config.ContentDriver, cfg *config.Config, env st
 		tagPat = tagfmt.DeriveTagPattern(tf, env)
 	}
 
-	if headingPat == "" && tagPat == "" && cfg.RemoteMetadata == "" && len(cfg.Tickets) == 0 {
+	rm := cfg.RemoteMetadata()
+	tickets := cfg.Tickets()
+	if headingPat == "" && tagPat == "" && rm == "" && len(tickets) == 0 {
 		return driver
 	}
 	clone := *driver
@@ -265,11 +267,11 @@ func withEnvDerivations(driver *config.ContentDriver, cfg *config.Config, env st
 	if tagPat != "" {
 		clone.TagPattern = tagPat
 	}
-	if cfg.RemoteMetadata != "" {
-		clone.RemoteMetadata = cfg.RemoteMetadata
+	if rm != "" {
+		clone.RemoteMetadata = rm
 	}
-	if len(cfg.Tickets) > 0 {
-		clone.Tickets = cfg.Tickets
+	if len(tickets) > 0 {
+		clone.Tickets = tickets
 	}
 	return &clone
 }

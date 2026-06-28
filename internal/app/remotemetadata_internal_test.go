@@ -10,7 +10,7 @@ import (
 
 func TestWithEnvDerivations_CarriesRemoteMetadata(t *testing.T) {
 	driver := &config.ContentDriver{Generator: "git-cliff"}
-	cfg := &config.Config{RemoteMetadata: "disabled", Changelog: driver}
+	cfg := &config.Config{Commits: &config.Commits{RemoteMetadata: "disabled"}, Changelog: driver}
 
 	got := withEnvDerivations(driver, cfg, "")
 	assert.Equal(t, "disabled", got.RemoteMetadata)

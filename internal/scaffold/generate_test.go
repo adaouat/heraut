@@ -216,11 +216,13 @@ func stripHeader(yaml string) string {
 
 func TestConfigToAnswers_PreservesAssetsTicketsRemoteMetadata(t *testing.T) {
 	cfg := &config.Config{
-		Version:        "1",
-		Versioning:     config.Versioning{Strategy: "semver"},
-		RemoteMetadata: "required",
-		Tickets:        []config.Ticket{{Pattern: `JIRA-(\d+)`, URL: "https://example.atlassian.net/browse/{ticket}"}},
-		Release:        &config.Release{Assets: []string{"dist/*.tar.gz"}},
+		Version:    "1",
+		Versioning: config.Versioning{Strategy: "semver"},
+		Commits: &config.Commits{
+			RemoteMetadata: "required",
+			Tickets:        []config.Ticket{{Pattern: `JIRA-(\d+)`, URL: "https://example.atlassian.net/browse/{ticket}"}},
+		},
+		Release: &config.Release{Assets: []string{"dist/*.tar.gz"}},
 	}
 	a := scaffold.ConfigToAnswers(cfg)
 	assert.Equal(t, "required", a.RemoteMetadata)
@@ -240,8 +242,8 @@ func TestGenerateYAML_AssetsTicketsRemoteMetadata(t *testing.T) {
 
 	cfg, err := config.LoadFromReader(strings.NewReader(stripHeader(out)))
 	require.NoError(t, err)
-	assert.Equal(t, "required", cfg.RemoteMetadata)
-	assert.Equal(t, []config.Ticket{{Pattern: `JIRA-(\d+)`, URL: "https://example.atlassian.net/browse/{ticket}"}}, cfg.Tickets)
+	assert.Equal(t, "required", cfg.RemoteMetadata())
+	assert.Equal(t, []config.Ticket{{Pattern: `JIRA-(\d+)`, URL: "https://example.atlassian.net/browse/{ticket}"}}, cfg.Tickets())
 	require.NotNil(t, cfg.Release)
 	assert.Equal(t, []string{"dist/*.tar.gz"}, cfg.Release.Assets)
 }

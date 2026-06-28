@@ -60,10 +60,10 @@ func TestCheckCommitRange_TableDriven(t *testing.T) {
 			wantValid: []bool{true, true},
 		},
 		{
-			name:   "configured type allowlist rejects out-of-list type",
+			name:   "removed type is rejected by the allow-list",
 			stdout: "aaa1111\x01docs: update\x01docs: update\x00",
 			cfg: &config.Config{
-				CommitLint: &config.CommitLint{Types: []string{"feat", "fix"}},
+				Commits: &config.Commits{Types: []config.TypeRule{{Name: "docs", Remove: true}}},
 			},
 			wantCount: 1,
 			wantValid: []bool{false},

@@ -382,28 +382,31 @@ func TestLoad_Tickets(t *testing.T) {
 version: "1"
 versioning:
   strategy: semver
-tickets:
-  - pattern: '[A-Z]+-[0-9]+'
-    url: 'https://acme.atlassian.net/browse/{ticket}'
+commits:
+  tickets:
+    - pattern: '[A-Z]+-[0-9]+'
+      url: 'https://acme.atlassian.net/browse/{ticket}'
 `)
-	require.Len(t, cfg.Tickets, 1)
-	assert.Equal(t, "[A-Z]+-[0-9]+", cfg.Tickets[0].Pattern)
-	assert.Equal(t, "https://acme.atlassian.net/browse/{ticket}", cfg.Tickets[0].URL)
+	require.Len(t, cfg.Tickets(), 1)
+	assert.Equal(t, "[A-Z]+-[0-9]+", cfg.Tickets()[0].Pattern)
+	assert.Equal(t, "https://acme.atlassian.net/browse/{ticket}", cfg.Tickets()[0].URL)
 }
 
-func TestLoad_CommitLintScopes(t *testing.T) {
+func TestLoad_CommitsScopes(t *testing.T) {
 	dir := t.TempDir()
 	path := filepath.Join(dir, ".heraut.yml")
 	require.NoError(t, os.WriteFile(path, []byte(`
 versioning:
   strategy: semver
-commit_lint:
-  types: [feat, fix]
+commits:
+  types:
+    - name: feat
+    - name: fix
   scopes: [cmd, config, versioning]
 `), 0o644))
 
 	cfg, err := config.Load(path)
 	require.NoError(t, err)
-	require.NotNil(t, cfg.CommitLint)
-	assert.Equal(t, []string{"cmd", "config", "versioning"}, cfg.CommitLint.Scopes)
+	require.NotNil(t, cfg.Commits)
+	assert.Equal(t, []string{"cmd", "config", "versioning"}, cfg.Commits.Scopes)
 }

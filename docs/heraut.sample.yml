@@ -71,43 +71,52 @@ versioning:
   # Can be overridden per environment in the environments block below.
   # tag_format: "{env}/{version}"
 
-# ── remote_metadata ───────────────────────────────────────────────────────────
+# ── commits ───────────────────────────────────────────────────────────────────
 #
-# Whether content generators (git-cliff) fetch PR/MR metadata — author handle and
-# PR number — from the GitHub/GitLab API to enrich the changelog and release notes.
-# Governs both changelog and release-notes generation. Default: optional.
-#
-#   required   fetch; fail if the API is unavailable (needs a token).
-#   optional   fetch when possible; otherwise generate without it and warn — never
-#              fails on a missing token, rate limit, or offline run.
-#   disabled   never fetch (fully offline, no token needed).
-#
-# git-cliff reads GITHUB_TOKEN / GITLAB_TOKEN. The --offline flag forces 'disabled'
-# for a single run.
-# remote_metadata: optional
-
-# ── tickets ───────────────────────────────────────────────────────────────────
-#
-# Link issue-tracker references found in commit messages (subject, body, or footer)
-# in the changelog and release notes. git-cliff only. Each entry's regex is matched;
-# {ticket} in the URL is the first capture group (or the whole match if there is no
-# group), and the link label is always the matched text.
-# tickets:
-#   - pattern: '[A-Z]+-[0-9]+'                          # Jira/Linear: PROJ-123 → /browse/PROJ-123
-#     url: 'https://acme.atlassian.net/browse/{ticket}'
-#   - pattern: 'GH-([0-9]+)'                            # GitHub issues: GH-123 → /issues/123
-#     url: 'https://github.com/acme/app/issues/{ticket}'
-
-# ── commit_lint ───────────────────────────────────────────────────────────────
-#
-# Restricts which conventional-commit type words `heraut commit verify` accepts.
-# Optional — omit entirely to use the default list shown below. When set, this list
-# replaces (does not extend) the default.
-# commit_lint:
-#   types: [feat, fix, docs, chore, refactor, test, style, perf, ci, build]
-#   # scopes: optional — used only by `heraut commit create` to offer a scope picker.
-#   # Not enforced by `heraut commit verify`. Omit for a free-text scope step.
+# Single source of truth for commit semantics and enrichment (ADR-0033). The type
+# set here is used by BOTH `heraut commit verify`/`create` AND the native renderer's
+# changelog section taxonomy.
+# commits:
+#   # types — conventional-commit type rules, MERGED over the built-in defaults by
+#   # name (feat → 🚀 Features, fix → 🐛 Bug Fixes, …). List only what you change:
+#   # add a render label / order, or remove a default. Listing a type does NOT
+#   # restrict the allow-list to only the listed types — use remove to drop one.
+#   types:
+#     - name: feat
+#       order: 1
+#       render: "🚀 Features"        # rendered as a "### 🚀 Features" section heading
+#     - name: docs
+#       # no render → the section heading is the capitalized type name ("Docs")
+#     - name: build
+#       remove: true                # drop build from the verify allow-list
+#   types_heading_level: 3          # heading depth (number of #) for type sections
+#   # scopes — allowed scopes. Offered by `heraut commit create`; enforced by
+#   # `heraut commit verify` only when scopes_restricted is true.
 #   scopes: [cmd, config, versioning, ui]
+#   scopes_restricted: false
+#   # remote_metadata — whether generators fetch PR/MR metadata (author, PR number)
+#   # to enrich changelog/release-notes: required | optional (default) | disabled.
+#   # The --offline flag forces 'disabled' for a single run.
+#   remote_metadata: optional
+#   # tickets — link issue-tracker references found in commit messages. Each entry's
+#   # regex is matched; {ticket} in the URL is the first capture group (or the whole
+#   # match), and the link label is the matched text.
+#   tickets:
+#     - pattern: '[A-Z]+-[0-9]+'                          # Jira/Linear: PROJ-123
+#       url: 'https://acme.atlassian.net/browse/{ticket}'
+#     - pattern: 'GH-([0-9]+)'                            # GitHub issues: GH-123
+#       url: 'https://github.com/acme/app/issues/{ticket}'
+
+# ── rendering ─────────────────────────────────────────────────────────────────
+#
+# Content output rules (ADR-0033).
+# rendering:
+#   # excludes — drop matched commits from the rendered changelog/release-notes.
+#   # Set exactly one of type or regex per entry. Independent of commits.types
+#   # remove (which governs the verify allow-list, not the rendered output).
+#   excludes:
+#     - regex: '^chore\(deps.*\)'
+#     - type: chore
 
 # ── changelog ─────────────────────────────────────────────────────────────────
 #

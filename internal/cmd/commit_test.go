@@ -107,8 +107,10 @@ func TestCommitVerify_MergeCommit_SkippedEvenWithStrictConfig(t *testing.T) {
 version: "1"
 versioning:
   strategy: semver
-commit_lint:
-  types: [feat]
+commits:
+  types:
+    - name: docs
+      remove: true
 `)
 	_, err := executeRoot("commit", "verify", "Merge branch 'main' into feature/x", "--config", cfgPath)
 	require.NoError(t, err)
@@ -119,8 +121,9 @@ func TestCommitVerify_MalformedConfig_IsConfigError(t *testing.T) {
 version: "1"
 versioning:
   strategy: semver
-commit_lint:
-  types: []
+commits:
+  types:
+    - name: "not a valid type"
 `)
 	_, err := executeRoot("commit", "verify", "feat: add x", "--config", cfgPath)
 	require.Error(t, err)
