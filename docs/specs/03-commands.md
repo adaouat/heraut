@@ -43,8 +43,8 @@ heraut init --force        # overwrite an existing config without prompting
 (for per-env strategies, loops to add N envs). Existing config (if any) pre-populates
 the answers, so re-running `heraut init` updates instead of replacing.
 
-**Update warning**: the wizard does not have prompts for every field — `tickets`,
-`remote_metadata`, `release.assets`, a platform's `base_url` (when it differs from the
+**Update warning**: the wizard does not have prompts for every field — `commits.tickets`,
+`commits.remote_metadata`, `release.assets`, a platform's `base_url` (when it differs from the
 type's default), `draft`/`prerelease`, and per-environment `changelog`/`release`
 overrides. If the loaded config has any of these set, `heraut init` prints a warning
 listing them before the wizard runs, since continuing will drop them from the rewritten
@@ -269,8 +269,8 @@ heraut commit verify [message] [--file <path>]
 Exactly one of a positional `message` argument or `--file` must be given — both or
 neither is a usage error.
 
-Validates grammar, then checks the parsed type against `commit_lint.types` (or the
-default 10-type list — see [Spec 02 § `commit_lint`](02-configuration.md#commit_lint))
+Validates grammar, then checks the parsed type against `commits.types` (or the
+default 10-type list — see [Spec 02 § `commits`](02-configuration.md#commits))
 — unless the message is a git-generated merge commit or a `fixup!`/`squash!` commit,
 which are always skipped. An invalid message exits with the Usage code (1); an invalid
 `.heraut.yml` (if one is present) exits with the Config code (2) — same semantic
@@ -324,10 +324,10 @@ heraut commit create [--all/-a] [--dry-run] [--config <path>]
    cleanly with `nothing to commit — working tree clean`; otherwise it asks to confirm a
    `git add -A` before proceeding. Declining cancels cleanly. All these no-ops exit with
    code 0.
-2. **Type** — select from `commit_lint.types` in `.heraut.yml` (or the default 10-type
+2. **Type** — select from `commits.types` in `.heraut.yml` (or the default 10-type
    list when absent): `feat`, `fix`, `docs`, `chore`, `refactor`, `test`, `style`,
    `perf`, `ci`, `build`. Each built-in type shows a one-line description in the menu.
-3. **Scope** — if `commit_lint.scopes` is configured, a select from the list; otherwise
+3. **Scope** — if `commits.scopes` is configured, a select from the list; otherwise
    a free-text field (optional, press Enter to skip).
 4. **Subject** — short, imperative description (the commit header after `type(scope): `).
 5. **Breaking change** — yes/no; if yes, an optional description populates the
@@ -349,8 +349,8 @@ both skipped.
 
 **Config** (optional — wizard works without `.heraut.yml`):
 
-- `commit_lint.types` narrows the type menu to the configured list.
-- `commit_lint.scopes` switches the scope field from free text to a select menu.
+- `commits.types` customizes the type menu — merged over the built-in defaults (`remove:` drops one).
+- `commits.scopes` switches the scope field from free text to a select menu (and, with `scopes_restricted: true`, is enforced by `heraut commit verify`).
 
 **Exit codes:**
 

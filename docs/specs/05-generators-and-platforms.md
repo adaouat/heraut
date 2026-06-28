@@ -75,7 +75,7 @@ environment when not already present — no manual git-cliff config is needed. O
 are derived from whichever `release.platforms` entry the generation step is resolving
 against (see [`changelogLinkContext`/`platformLinkContext`](../adr/0022-fat-injection-thin-templates.md)
 for the resolution order). Whether the fetch itself is attempted at all (vs. skipped or
-gracefully degraded) is governed separately by [`remote_metadata`](../adr/0023-remote-metadata-policy.md).
+gracefully degraded) is governed separately by [`commits.remote_metadata`](../adr/0023-remote-metadata-policy.md).
 
 ##### `changelog.remote` — explicit metadata remote (ADR-0026)
 

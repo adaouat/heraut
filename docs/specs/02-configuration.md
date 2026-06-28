@@ -383,52 +383,98 @@ Both `notes` and `platforms` are optional independently:
   Note: `heraut release` requires at least one entry in `platforms`; omitting the whole
   `release` block (or leaving `platforms` empty) is a configuration error for that command.
 
-## `tickets`
+## `commits`
 
-A top-level list that links issue-tracker references found in commit messages — **subject,
-body, or footer** (e.g. `Refs: PROJ-123`) — in both the changelog and the release notes.
-**git-cliff only**; setting `tickets` with the `communique` generator is a
-configuration error (ADR-0024).
+A top-level block that is the **single source of truth for commit semantics and enrichment**
+(ADR-0033): the conventional-commit **type set** — used by both `heraut commit verify` /
+`create` and the native renderer's changelog section taxonomy — plus scope rules, ticket
+links, and the remote-metadata policy. Every field is optional; with no `commits` block the
+built-in defaults apply.
 
 ```yaml
-tickets:
-  - pattern: '[A-Z]+-[0-9]+'                          # Jira/Linear: PROJ-123 → /browse/PROJ-123
-    url: 'https://acme.atlassian.net/browse/{ticket}'
-  - pattern: 'GH-([0-9]+)'                            # GitHub issues: GH-123 → /issues/123
-    url: 'https://github.com/acme/app/issues/{ticket}'
+commits:
+  types:                              # merged OVER the built-in defaults, by name
+    - name: feat
+      order: 1
+      render: "🚀 Features"
+    - name: docs                      # no render → capitalized type name ("Docs")
+    - name: build
+      remove: true                    # drop a default from the verify allow-list
+  types_heading_level: 3              # heading depth for type sections in rendered output
+  scopes: [cmd, config, versioning, ui]
+  scopes_restricted: false            # when true, verify rejects scopes outside the list
+  remote_metadata: optional           # required | optional (default) | disabled
+  tickets:
+    - pattern: '[A-Z]+-[0-9]+'
+      url: 'https://acme.atlassian.net/browse/{ticket}'
 ```
+
+### `commits.types`
+
+A list of type rules **deep-merged over the built-in defaults by name**: a listed type
+replaces that default's entry wholesale (an omitted `render`/`order` means "no label /
+unordered", not "inherit the default"); `remove: true` drops a default; an unknown name is
+appended. The effective set is **both** the `heraut commit verify` allow-list **and** the
+changelog section taxonomy.
+
+| Field    | Meaning |
+|----------|---------|
+| `name`   | The conventional-commit type word (required). |
+| `order`  | Display sort position for the changelog section; omit for unordered (sorts after ordered types). |
+| `render` | Section heading label (e.g. `🚀 Features`); omit to render the capitalized type name. |
+| `remove` | Drop this default type from the effective set — removes it from the verify allow-list. |
+
+Because `types` **merges** (it does not replace), listing types does **not** narrow the
+verify allow-list to only those — to narrow it, `remove:` the unwanted defaults. The built-in
+defaults are the 10 types in [`workflow.md`](../../.claude/rules/workflow.md)'s commit-type
+table (`feat, fix, docs, chore, refactor, test, style, perf, ci, build`), render-labeled.
+Merge and `fixup!`/`squash!` commits are always skipped by verify, unconditionally.
+
+### `commits.scopes` / `commits.scopes_restricted`
+
+`scopes` is the allowed scope list. It populates `heraut commit create`'s scope picker, and
+when `scopes_restricted: true`, `heraut commit verify` also **rejects scopes outside the
+list** (`scopes_restricted` requires a non-empty `scopes`). With `scopes_restricted` unset
+(the default), scopes are not enforced by verify.
+
+### `commits.tickets`
+
+Links issue-tracker references found in commit messages — **subject, body, or footer** (e.g.
+`Refs: PROJ-123`) — in the changelog and release notes. **git-cliff only** today; setting
+`tickets` with the `communique` generator is a configuration error (ADR-0024).
 
 | Field | Meaning |
 |---|---|
 | `pattern` | A regex matching ticket IDs. Each match is rendered as a link; the **label** is always the full match. |
-| `url` | A URL template containing `{ticket}`. `{ticket}` is the pattern's **first capture group**, or the **full match** when the pattern has no group — so a system whose URL needs only part of the token (GitHub `GH-123` → `…/issues/123`) wraps that part in `()`. |
+| `url` | A URL template containing `{ticket}` — the pattern's **first capture group**, or the **full match** when there is no group. |
 
-heraut injects each entry as a git-cliff `link_parser` (appended after any user-supplied
-ones); the link is appended to the commit line as `([TICKET](url))`. A ticket that appears in
-the subject shows both in the prose and as the appended link (append-only).
+For git-cliff, heraut injects each entry as a `link_parser`; the link is appended to the
+commit line as `([TICKET](url))`.
 
-## `commit_lint`
+### `commits.remote_metadata`
 
-A top-level, optional block configuring `heraut commit verify`'s type allow-list
-(ADR-0027). Works with zero config — the default type list is the 10 types in
-[`workflow.md`](../../.claude/rules/workflow.md)'s commit-type table:
-`feat, fix, docs, chore, refactor, test, style, perf, ci, build`.
+Whether content generators fetch PR/MR metadata (author handle, PR number) from the platform
+API to enrich the changelog and release notes: `required` (fetch, fail if unavailable),
+`optional` (default — fetch when possible, else warn), `disabled` (never fetch). The global
+`--offline` flag forces `disabled` for a single run (ADR-0023).
+
+## `rendering`
+
+A top-level block configuring content output (ADR-0033).
 
 ```yaml
-commit_lint:
-  types: [feat, fix, docs, chore, refactor, test, style, perf, ci, build]
-  scopes: [cmd, config, versioning, ui]   # optional — wizard-only
+rendering:
+  excludes:
+    - regex: '^chore\(deps.*\)'
+    - type: chore
 ```
 
-| Field    | Meaning                                                                          |
-|----------|-----------------------------------------------------------------------------------|
-| `types`  | The allowed conventional-commit type words. **Replaces**, does not extend, the default list. Must be non-empty and contain no duplicates. |
-| `scopes` | Optional list of scope strings used **only** by `heraut commit create` to populate the scope picker. **Not enforced** by `heraut commit verify`/`check` — ADR-0027 keeps verification to `types` only. Omit (or leave empty) for a free-text scope step in the wizard. |
+### `rendering.excludes`
 
-Not generator-specific (unlike `tickets`) — `commit_lint` has nothing to do with
-changelog generation; it governs `heraut commit verify` only. Merge commits and
-`fixup!`/`squash!` commits are always skipped, unconditionally, regardless of this
-config.
+A list of filters that drop matched commits from the rendered changelog / release-notes. Each
+entry sets **exactly one** of `type` (match a conventional-commit type) or `regex` (match the
+commit subject). This is independent of `commits.types` `remove`, which governs the verify
+allow-list rather than the rendered output.
 
 ## Content generators
 
