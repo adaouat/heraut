@@ -314,7 +314,7 @@ locks the override. Full suite 1296 green.
 
 ---
 
-#### `[ ]` T134: catch-all "Other" group for unmatched / non-conventional commits
+#### `[x]` T134: catch-all "Other" group for unmatched / non-conventional commits
 
 When a project did not use conventional commits from the start — or a commit's type is not in
 the effective `commits.types` — those commits must still appear in the changelog under a
@@ -326,6 +326,14 @@ valid for `heraut commit verify`.
 
 **Tests:** a non-conventional commit and an unmatched-type commit both render under "Other";
 revert / security body-rule rows. **Scope:** S. **Dependencies:** T132, T133.
+
+**Completion note (2026-06-28):** Subsumed by T132 and confirmed by T126. The catch-all
+"Other" group, the `revert` group, and the security body-rule are built-in renderer fallbacks
+in `group.go` (T132) — unmatched / non-conventional commits land in Other, `revert:` in Revert,
+a body matching `.*security` in Security — none are `commits.types` allow-list entries (which
+would change `commit verify`). Covered by `group_internal_test.go` (security-body, unknown-type
+/ non-conventional → Other) and asserted on real commits by the T126 integration test
+(Other + Revert). No separate implementation was needed.
 
 ---
 
@@ -369,7 +377,7 @@ green.
 
 ---
 
-#### `[ ]` T126: canonical golden snapshots (heraut's own output spec)
+#### `[x]` T126: canonical golden snapshots (heraut's own output spec)
 
 The CHANGELOG-churn guard from ADR-0032. A **skippable** test (same precedent as the
 existing git-cliff embedded-config smoke test, `testing.md`) runs the *real* `git-cliff
@@ -385,6 +393,16 @@ document any intentional deltas inline.
 
 **Files:** `internal/generators/native/parity_test.go`, fixture / golden data.
 **Scope:** M. **Dependencies:** T125.
+
+**Completion note (2026-06-28):** Re-scoped per ADR-0033 (parity dropped): instead of diffing
+against real `git-cliff --offline`, this is a **real-git integration test**
+(`internal/generators/native/integration_test.go` — `gitFixture` + the real `execadapter`
+runner) that builds a deterministic two-release repo and runs the actual native generator.
+It locks native's output **structurally** (group headings, descriptions, the catch-all Other
++ Revert built-ins, and the default `chore(deps)` exclusion) for both changelog and
+release-notes modes — robust to real hashes/dates, which T124's synthetic byte-exact goldens
+already cover. The fixture is hermetic (`GIT_CONFIG_GLOBAL`/`SYSTEM=/dev/null`) and skips when
+git is absent. Also smoke-tested manually against this repo (91 releases). Full suite 1305 green.
 
 ---
 
