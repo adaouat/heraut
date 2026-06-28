@@ -329,7 +329,7 @@ revert / security body-rule rows. **Scope:** S. **Dependencies:** T132, T133.
 
 ---
 
-#### `[ ]` T125: wire `generator: native` as the canonical generator + config / schema / docs
+#### `[x]` T125: wire `generator: native` as the canonical generator + config / schema / docs
 
 Make `generator: native` an end-to-end, documented option. Implement `port.Generator`
 (`Check` is trivial — no external binary; `Validate` checks the optional `template:` path;
@@ -350,6 +350,22 @@ for the accepted enum; a schema fixture in `testdata/config/`.
 `docs/heraut.sample.yml`, `docs/specs/05-generators-and-platforms.md`,
 `testdata/config/native-*.yml`.
 **Scope:** M. **Dependencies:** T124.
+
+**Completion note (2026-06-28):** `generator: native` is selectable end-to-end.
+`internal/generators/native/generator.go` implements `port.Generator`: `Check`/`Validate`
+trivial (no external binary; user templates deferred), `Degraded()` false (Phase 1), and
+`Generate` orchestrating `collectCommits → groupCommits → render`. Release-notes mode returns
+the latest release's notes; changelog mode regenerates the **full** `CHANGELOG.md` (a section
+for the unreleased tag + one per existing tag, newest-first) and writes it to `cfg.Output`.
+The app layer wires it: `buildGenerator` `case "native"` (+ `nativeMode` mapping), and
+`withEnvDerivations` propagates `commits.types` / `rendering.excludes` / `types_heading_level`
+onto the `ContentDriver` (beside the existing `tickets` / `remote_metadata`). The validator
+accepts `generator: native` and now allows `tickets` with it; `schema.json` enum, sample
+(native is the recommended default), and spec 05 updated. New `listTags` / `commitRange` /
+`releaseDate` helpers; contract tests for both modes + a schema fixture. **Deferred (noted):**
+per-env tag-glob scoping (native lists all tags — fine for the common semver case) and the
+release-notes "days between releases" stat (needs the previous tag's date). Full suite 1303
+green.
 
 ---
 

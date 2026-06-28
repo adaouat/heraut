@@ -98,6 +98,15 @@ type ContentDriver struct {
 	// Tickets is the effective top-level Config.Tickets, propagated onto the driver by the
 	// app layer so the generator can inject link_parsers. Not user-configurable per-driver.
 	Tickets []Ticket `yaml:"-"`
+	// Types is the effective commits.types, propagated by the app layer so the native generator
+	// drives its section taxonomy from config. Not user-configurable per-driver. (native only.)
+	Types []TypeRule `yaml:"-"`
+	// Excludes is the effective rendering.excludes, propagated by the app layer so the native
+	// generator filters commits from the output. Not user-configurable per-driver. (native only.)
+	Excludes []Exclude `yaml:"-"`
+	// TypesHeadingLevel is the effective commits.types_heading_level, propagated by the app
+	// layer for the native generator's section heading depth. (native only.)
+	TypesHeadingLevel int `yaml:"-"`
 	// Remote configures an explicit, metadata-only remote for git-cliff PR/author
 	// enrichment. Only valid on the changelog driver — release.notes already resolves
 	// this from release.platforms and rejects Remote. git-cliff only. See ADR-0026.

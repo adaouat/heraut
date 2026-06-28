@@ -270,6 +270,7 @@
         "generator": {
           "type": "string",
           "enum": [
+            "native",
             "git-cliff",
             "communique"
           ],

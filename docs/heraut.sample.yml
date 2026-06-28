@@ -132,9 +132,11 @@ versioning:
 
 changelog:
   # generator — required. Tool used to produce the changelog content.
-  #   git-cliff   recommended; uses cliff.toml deep-merged with heraut's built-in default
+  #   native      recommended; heraut's built-in renderer (no external binary), driven by
+  #               the commits / rendering config blocks
+  #   git-cliff   uses cliff.toml deep-merged with heraut's built-in default
   #   communique  requires config: pointing to a communique config file
-  generator: git-cliff
+  generator: native
 
   # config — path to a generator config file (relative to project root).
   #   git-cliff:  optional partial cliff.toml; deep-merged with heraut's built-in default

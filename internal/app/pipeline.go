@@ -10,6 +10,7 @@ import (
 	"github.com/adaouat/heraut/internal/config"
 	"github.com/adaouat/heraut/internal/generators/communique"
 	"github.com/adaouat/heraut/internal/generators/gitcliff"
+	"github.com/adaouat/heraut/internal/generators/native"
 	"github.com/adaouat/heraut/internal/pipeline"
 	"github.com/adaouat/heraut/internal/port"
 	"github.com/adaouat/heraut/internal/ui"
@@ -257,7 +258,9 @@ func withEnvDerivations(driver *config.ContentDriver, cfg *config.Config, env st
 
 	rm := cfg.RemoteMetadata()
 	tickets := cfg.Tickets()
-	if headingPat == "" && tagPat == "" && rm == "" && len(tickets) == 0 {
+	hasCommits := cfg.Commits != nil && (len(cfg.Commits.Types) > 0 || cfg.Commits.TypesHeadingLevel > 0)
+	hasRendering := cfg.Rendering != nil && len(cfg.Rendering.Excludes) > 0
+	if headingPat == "" && tagPat == "" && rm == "" && len(tickets) == 0 && !hasCommits && !hasRendering {
 		return driver
 	}
 	clone := *driver
@@ -273,6 +276,13 @@ func withEnvDerivations(driver *config.ContentDriver, cfg *config.Config, env st
 	if len(tickets) > 0 {
 		clone.Tickets = tickets
 	}
+	if cfg.Commits != nil {
+		clone.Types = cfg.Commits.Types
+		clone.TypesHeadingLevel = cfg.Commits.TypesHeadingLevel
+	}
+	if cfg.Rendering != nil {
+		clone.Excludes = cfg.Rendering.Excludes
+	}
 	return &clone
 }
 
@@ -282,9 +292,19 @@ func buildGenerator(runner port.Runner, driver *config.ContentDriver, defaultMod
 		return gitcliff.New(runner, driver, defaultMode), nil
 	case "communique":
 		return communique.New(runner, driver), nil
+	case "native":
+		return native.New(runner, driver, nativeMode(defaultMode)), nil
 	default:
-		return nil, fmt.Errorf("unsupported generator %q (supported: git-cliff, communique)", driver.Generator)
+		return nil, fmt.Errorf("unsupported generator %q (supported: native, git-cliff, communique)", driver.Generator)
 	}
+}
+
+// nativeMode maps the build-time gitcliff.Mode to the native generator's mode.
+func nativeMode(m gitcliff.Mode) native.Mode {
+	if m == gitcliff.ModeReleaseNotes {
+		return native.ModeReleaseNotes
+	}
+	return native.ModeChangelog
 }
 
 func buildPlatform(runner port.Runner, cfg *config.Platform) (port.Platform, error) {

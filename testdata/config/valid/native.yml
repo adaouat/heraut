@@ -1,0 +1,23 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/adaouat/heraut/main/schema.json
+
+version: "1"
+
+versioning:
+  strategy: semver
+
+changelog:
+  generator: native
+  output: CHANGELOG.md
+
+commits:
+  types_heading_level: 3
+  types:
+    - name: feat
+      order: 0
+      render: "🚀 Features"
+      description: A new feature
+
+rendering:
+  excludes:
+    - regex: '^chore\(deps'
+    - type: chore

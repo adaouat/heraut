@@ -1008,6 +1008,35 @@ commits:
 	assert.Contains(t, e.Message, "git-cliff")
 }
 
+// ── native generator ──────────────────────────────────────────────────────────
+
+func TestValidate_NativeGenerator(t *testing.T) {
+	cfg := mustLoad(t, `
+version: "1"
+versioning:
+  strategy: semver
+changelog:
+  generator: native
+  output: CHANGELOG.md
+`)
+	assert.Empty(t, config.Validate(cfg))
+}
+
+func TestValidate_TicketsNativeGeneratorOK(t *testing.T) {
+	cfg := mustLoad(t, `
+version: "1"
+versioning:
+  strategy: semver
+changelog:
+  generator: native
+commits:
+  tickets:
+    - pattern: '[A-Z]+-[0-9]+'
+      url: 'https://x.test/{ticket}'
+`)
+	assert.Empty(t, config.Validate(cfg))
+}
+
 // ── tag_pattern ──────────────────────────────────────────────────────────────
 
 func TestValidate_changelogTagPatternRequiresGitCliff(t *testing.T) {

@@ -14,7 +14,7 @@ var (
 		"semver-per-env": true, "calver-per-env": true,
 	}
 	validGenerators = map[string]bool{
-		"git-cliff": true, "communique": true,
+		"native": true, "git-cliff": true, "communique": true,
 	}
 	validPlatforms = map[string]bool{
 		"github": true, "gitlab": true,
@@ -56,8 +56,8 @@ func validateTickets(cfg *Config) []ValidationError {
 	if !ticketsGeneratorSupported(cfg) {
 		errs = append(errs, ValidationError{
 			Path:    "commits.tickets",
-			Message: "ticket linking requires the git-cliff generator",
-			Hint:    "set changelog.generator / release.notes.generator to git-cliff, or remove tickets",
+			Message: "ticket linking requires the git-cliff or native generator",
+			Hint:    "set changelog.generator / release.notes.generator to git-cliff or native, or remove tickets",
 		})
 	}
 	for i, t := range tickets {
@@ -171,7 +171,7 @@ func ticketsGeneratorSupported(cfg *Config) bool {
 		drivers = append(drivers, cfg.Release.Notes)
 	}
 	for _, d := range drivers {
-		if d != nil && d.Generator != "" && !strings.EqualFold(d.Generator, "git-cliff") {
+		if d != nil && d.Generator != "" && !strings.EqualFold(d.Generator, "git-cliff") && !strings.EqualFold(d.Generator, "native") {
 			return false
 		}
 	}
@@ -250,13 +250,13 @@ func validateContentDriver(d *ContentDriver, path string) []ValidationError {
 		errs = append(errs, ValidationError{
 			Path:    path + ".generator",
 			Message: "required",
-			Hint:    "set generator to one of: git-cliff, communique",
+			Hint:    "set generator to one of: native, git-cliff, communique",
 		})
 	} else if !validGenerators[d.Generator] {
 		errs = append(errs, ValidationError{
 			Path:    path + ".generator",
 			Message: fmt.Sprintf("%q is not a valid generator", d.Generator),
-			Hint:    "valid generators: git-cliff, communique",
+			Hint:    "valid generators: native, git-cliff, communique",
 		})
 	}
 	if d.TagPattern != "" && d.Generator != "" && d.Generator != "git-cliff" {

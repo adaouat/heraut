@@ -6,13 +6,31 @@ hosting service. They are independent concerns and combined in `.heraut.yml` und
 
 ## Generators
 
-Two generators are supported: `git-cliff`, `communique`. A project can
-use different generators for `changelog` and `release.notes`.
+Three generators are supported: `native` (heraut's canonical built-in renderer), `git-cliff`,
+and `communique`. A project can use different generators for `changelog` and `release.notes`.
 
 | Generator   | Strengths                                                        | Limits                                                       |
 |-------------|------------------------------------------------------------------|--------------------------------------------------------------|
+| `native`    | Built-in renderer, no external binary; changelog / release-notes driven by `commits` / `rendering` config | Phase 1: no PR/author enrichment yet (arrives in Phase 2)   |
 | `git-cliff` | Embedded opinionated default; deep-merged TOML overrides; labels new commits with `--tag <version>` | TOML config only                                            |
 | `communique`| AI-assisted release notes from commit history                    | Requires a full config file; no embedded default              |
+
+### native
+
+heraut's built-in, zero-external-dependency renderer (ADR-0032 / ADR-0033). It walks git
+history, classifies commits per the `commits.types` taxonomy and `rendering.excludes`, and
+renders Markdown with internal templates — no `git-cliff` binary required.
+
+```yaml
+changelog:
+  generator: native
+  output: CHANGELOG.md
+```
+
+Section labels, order, and heading depth come from `commits.types` and
+`commits.types_heading_level`; `rendering.excludes` drops matched commits from the output.
+Phase 1 renders without remote enrichment (no PR author / number / contributors — those
+arrive in Phase 2). See [ADR-0033](../adr/0033-native-config-model.md).
 
 ### git-cliff
 

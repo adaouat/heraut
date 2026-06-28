@@ -112,3 +112,44 @@ func noEarlierTag(stderr string) bool {
 	s := strings.ToLower(stderr)
 	return strings.Contains(s, "no names found") || strings.Contains(s, "no tags can describe")
 }
+
+// listTags returns tags matching glob (all tags when glob is "") sorted newest-first by
+// version refname. The native changelog renders one section per release in this order.
+func listTags(runner port.Runner, glob string) ([]string, error) {
+	args := []string{"tag", "-l", "--sort=-version:refname"}
+	if glob != "" {
+		args = []string{"tag", "-l", glob, "--sort=-version:refname"}
+	}
+	stdout, _, err := runner.Run("git", args...)
+	if err != nil {
+		return nil, fmt.Errorf("listing git tags: %w", err)
+	}
+	var tags []string
+	for line := range strings.SplitSeq(strings.TrimSpace(stdout), "\n") {
+		if t := strings.TrimSpace(line); t != "" {
+			tags = append(tags, t)
+		}
+	}
+	return tags, nil
+}
+
+// commitRange returns the git revision range for a release: "prev..ref", or just "ref" when
+// prev is empty (full history up to ref).
+func commitRange(prev, ref string) string {
+	if prev == "" {
+		return ref
+	}
+	return prev + ".." + ref
+}
+
+// releaseDate returns the newest committer date among commits (used as the release date), or
+// the zero time when there are none.
+func releaseDate(commits []rawCommit) time.Time {
+	var newest time.Time
+	for _, c := range commits {
+		if newest.IsZero() || c.Date.After(newest) {
+			newest = c.Date
+		}
+	}
+	return newest
+}
