@@ -1037,6 +1037,29 @@ commits:
 	assert.Empty(t, config.Validate(cfg))
 }
 
+func TestValidate_NativePerEnvRejected(t *testing.T) {
+	cfg := mustLoad(t, `
+version: "1"
+versioning:
+  strategy: semver-per-env
+  tag_format: "{env}/{version}"
+environments:
+  dev:
+    branch: develop
+    bump: auto
+  prod:
+    branch: main
+    bump: promote
+    source: dev
+changelog:
+  generator: native
+  output: CHANGELOG.md
+`)
+	err := findErr(config.Validate(cfg), "changelog.generator")
+	require.NotNil(t, err, "native generator must be rejected under a per-env strategy")
+	assert.Contains(t, err.Message, "per-env")
+}
+
 // ── tag_pattern ──────────────────────────────────────────────────────────────
 
 func TestValidate_changelogTagPatternRequiresGitCliff(t *testing.T) {

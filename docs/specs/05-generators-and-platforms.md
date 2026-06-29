@@ -30,7 +30,9 @@ changelog:
 Section labels, order, and heading depth come from `commits.types` and
 `commits.types_heading_level`; `rendering.excludes` drops matched commits from the output.
 Phase 1 renders without remote enrichment (no PR author / number / contributors — those
-arrive in Phase 2). See [ADR-0033](../adr/0033-native-config-model.md).
+arrive in Phase 2). It also does not yet support per-env tag scoping: `generator: native`
+with a `*-per-env` strategy is rejected at config-validation time (use `git-cliff` there for
+now). See [ADR-0033](../adr/0033-native-config-model.md).
 
 ### git-cliff
 
