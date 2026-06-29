@@ -1,5 +1,64 @@
 # Changelog
 
+## [0.46.0](https://github.com/adaouat/heraut/compare/v0.45.0..v0.46.0) - 2026-06-29
+
+### 🚀 Features
+
+- *(app)* Enforce scopes_restricted in commit verify (T131) - ([6e51cc6](https://github.com/adaouat/heraut/commit/6e51cc65406e7a18b02b27a3b164e0b7d07bbdd5)) by @bchatard
+
+- *(cmd)* Show positive summary when all commits pass check - ([d5a1237](https://github.com/adaouat/heraut/commit/d5a123732310bbfa76208bf157fbbb96dad91ca0)) by @bchatard
+
+- *(config)* Add commits.types merge over built-in defaults - ([a0ab7db](https://github.com/adaouat/heraut/commit/a0ab7db0882bf953d1eeaf131f1b7d1c69e61883)) by @bchatard
+
+- *(config)* Unify commit config into commits + rendering (T130) - ([2fbdcca](https://github.com/adaouat/heraut/commit/2fbdccac611cc38b76eb7ee70f1635e96759536b)) by @bchatard
+
+- *(config)* Object commits.scopes + type/scope descriptions (T135) - ([2ef6e18](https://github.com/adaouat/heraut/commit/2ef6e189c7314b1f966871aae2c56a2e072093fc)) by @bchatard
+
+- *(config)* Built-in default scopes deps/deps-dev/release (T136) - ([e0b27d2](https://github.com/adaouat/heraut/commit/e0b27d2366e17ea090b6fa7fb3c735c2b1257e50)) by @bchatard
+
+- *(config)* Reject native generator under per-env strategy - ([a6414d2](https://github.com/adaouat/heraut/commit/a6414d27ef00fe105195a9defa6112e2eb98c633)) by @bchatard
+
+- *(generators/native)* Commit collection + previous-tag resolution - ([718880a](https://github.com/adaouat/heraut/commit/718880a263116849f3bb4b21e6522c895b611286)) by @bchatard
+
+- *(generators/native)* Classify/group/skip engine (T123) - ([2549665](https://github.com/adaouat/heraut/commit/2549665b9c4ae2b2787b2c24c1a36e34b77d68a7)) by @bchatard
+
+- *(generators/native)* Add T124 Go template renderer + view model - ([e94486d](https://github.com/adaouat/heraut/commit/e94486d848ebb7b0a55addfc549335d59f9ba18e)) by @bchatard
+
+- *(generators/native)* Drive taxonomy from commits config (T132) - ([a2f98aa](https://github.com/adaouat/heraut/commit/a2f98aae3058802770fb67eadf2d5041c01df654)) by @bchatard
+
+- *(generators/native)* Wire types_heading_level into render (T133) - ([a46e870](https://github.com/adaouat/heraut/commit/a46e870d03d5f5f490059d65f2c894ab993cd65c)) by @bchatard
+
+- *(generators/native)* Wire generator: native end-to-end (T125) - ([895142b](https://github.com/adaouat/heraut/commit/895142b4713c7a6527c9bc70a159ac58bd718971)) by @bchatard
+
+
+### 🐛 Bug Fixes
+
+- *(generators/native)* Collect commits oldest-first with --reverse - ([f2ef9d5](https://github.com/adaouat/heraut/commit/f2ef9d528e9c6d0b0e1026a5a08f6572266cccee)) by @bchatard
+
+
+### 📚 Documentation
+
+- *(adr)* Add 0032 built-in (native) content generator - ([5156d49](https://github.com/adaouat/heraut/commit/5156d49910dc83031e58123607122225e587d6e5)) by @bchatard
+
+- *(adr)* Add 0033 native config model (commits + rendering) - ([b911206](https://github.com/adaouat/heraut/commit/b9112061a3a77bf9131427807e25d68851719086)) by @bchatard
+
+- *(roadmap)* Add native-generator roadmap + phase 23 pointer - ([cea8ad4](https://github.com/adaouat/heraut/commit/cea8ad4882b66917899c0f135d4bbf67e15afd3d)) by @bchatard
+
+- *(roadmap)* Restructure native Phase 1 around config model (ADR-0033) - ([0d85089](https://github.com/adaouat/heraut/commit/0d85089e0760e24615608db4b283a26b197c863b)) by @bchatard
+
+- *(roadmap)* Add T134 catch-all Other group for unmatched commits - ([ea867e4](https://github.com/adaouat/heraut/commit/ea867e46f8d2c2ca33d37f48b9643386180bce24)) by @bchatard
+
+- *(roadmap)* Mark native Phase 1 complete - ([5217e1a](https://github.com/adaouat/heraut/commit/5217e1aa8868b5e9b2aa52421edb2c05f6c1d7db)) by @bchatard
+
+- *(rules)* Allow generators to import conventionalcommit - ([5dabf28](https://github.com/adaouat/heraut/commit/5dabf28d65eab21f570d784c2be46830b645f54e)) by @bchatard
+
+- *(specs)* Update 02/03/05 for commits + rendering (ADR-0033) - ([5ed7385](https://github.com/adaouat/heraut/commit/5ed73856a3374a19885afb15d509f6cb4ad06b7b)) by @bchatard
+
+
+### 🧪 Testing
+
+- *(generators/native)* Real-git integration test for native (T126) - ([981c6d5](https://github.com/adaouat/heraut/commit/981c6d5fa553e0051d60fd373d6321ac6ab53a49)) by @bchatard
+
 ## [0.45.0](https://github.com/adaouat/heraut/compare/v0.44.0..v0.45.0) - 2026-06-26
 
 ### 🚀 Features
