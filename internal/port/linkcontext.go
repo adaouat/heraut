@@ -5,7 +5,7 @@ import "net/url"
 // APIEnv returns the CLI authentication environment variables for this platform context.
 // For GitHub, it returns ["GH_TOKEN=<token>"] when Token is set, plus "GH_HOST=<host>"
 // when BaseURL is a non-github.com host (GHES). Returns nil when lc is nil.
-// GitLab support (GITLAB_TOKEN) is added in T128.
+// Only GitHub is wired today; other platforms return nil.
 func (lc *LinkContext) APIEnv() []string {
 	if lc == nil {
 		return nil
@@ -14,7 +14,7 @@ func (lc *LinkContext) APIEnv() []string {
 	case "github":
 		return gitHubAPIEnv(lc.Token, lc.BaseURL)
 	default:
-		// GitLab (T128) and Azure DevOps (T129): not yet implemented.
+		// GitLab and Azure DevOps: not yet implemented.
 		return nil
 	}
 }

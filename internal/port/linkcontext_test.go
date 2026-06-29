@@ -1,6 +1,7 @@
 package port_test
 
 import (
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -49,7 +50,7 @@ func TestLinkContext_APIEnv_GHESEmptyToken(t *testing.T) {
 	env := lc.APIEnv()
 	assert.Contains(t, env, "GH_HOST=ghes.example.com")
 	for _, e := range env {
-		assert.False(t, len(e) >= len("GH_TOKEN=") && e[:len("GH_TOKEN=")] == "GH_TOKEN=",
+		assert.False(t, strings.HasPrefix(e, "GH_TOKEN="),
 			"no GH_TOKEN= entry when Token is empty, got %q", e)
 	}
 }
@@ -60,7 +61,7 @@ func TestLinkContext_APIEnv_Nil(t *testing.T) {
 }
 
 func TestLinkContext_APIEnv_UnknownPlatform(t *testing.T) {
-	// GitLab support is added in T128; the current stub returns nil.
+	// GitLab support is not yet implemented; the current stub returns nil.
 	lc := &port.LinkContext{
 		Platform: "gitlab",
 		Token:    "secret",

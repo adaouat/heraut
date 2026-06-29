@@ -13,7 +13,6 @@ const (
 	// the query size and staying well within GitHub's API node limits.
 	ghChunkSize = 50
 
-	// prFragment is the GraphQL inline fragment selecting PR data for each commit alias.
 	prFragment = "...on Commit{associatedPullRequests(first:1){nodes{number url author{login}authorAssociation}}}"
 )
 
@@ -72,7 +71,6 @@ func buildGitHubQuery(owner, repo string, shas []string) string {
 	return sb.String()
 }
 
-// graphQLResponse is the top-level structure returned by gh api graphql.
 type graphQLResponse struct {
 	Data struct {
 		Repository map[string]*graphQLCommit `json:"repository"`
@@ -82,14 +80,12 @@ type graphQLResponse struct {
 	} `json:"errors"`
 }
 
-// graphQLCommit is the commit object within a GraphQL repository query.
 type graphQLCommit struct {
 	AssociatedPullRequests struct {
 		Nodes []graphQLPR `json:"nodes"`
 	} `json:"associatedPullRequests"`
 }
 
-// graphQLPR is a pull request node in the GraphQL response.
 type graphQLPR struct {
 	Number int    `json:"number"`
 	URL    string `json:"url"`
