@@ -1,7 +1,7 @@
 # Héraut — Native Content Generator Roadmap
 
 > Status: Active
-> ADRs: [ADR-0032](../adr/0032-native-content-generator.md) (generator) · [ADR-0033](../adr/0033-native-config-model.md) (config model)
+> ADRs: [ADR-0032](../adr/0032-native-content-generator.md) (generator) · [ADR-0033](../adr/0033-native-config-model.md) (config model) · [ADR-0034](../adr/0034-native-remote-enrichment.md) (enrichment)
 > Main roadmap: tracked as Phase 23 in [`roadmap.md`](roadmap.md)
 
 This roadmap breaks down the **native content generator** epic into incrementally shippable
@@ -414,46 +414,54 @@ auth checks in `internal/platforms/`). Gated by the existing `remote_metadata` p
 ([ADR-0023](../adr/0023-remote-metadata-policy.md)) and surfaced through the existing
 `Degraded()` signal. Contract-tested with `MockRunner` — **no real network**.
 
-#### `[ ]` T127: GitHub enrichment via `gh api`
+#### `[ ]` T127: GitHub enrichment via `gh api` (batched)
 
-Per commit SHA, resolve the associated PR (number, author handle) and first-time-contributor
-status via `gh api` (e.g. `repos/{repo}/commits/{sha}/pulls`), fold the result into the
-T124 view model, and populate the contributors block. Honour `remote_metadata`:
-`required` (fatal on failure), `optional` (fall back to bare output + set `Degraded()`),
-`disabled` (never call). Reuse the token / host env plumbing from the GitHub platform driver.
+Enrich every rendered commit with its PR (number, author handle, link) and first-time-
+contributor status via a **batched** `gh api graphql` fetch (`associatedPullRequests`,
+paginated — bounded, not per-commit; ADR-0034 §4), correlate to the rendered commits, fold
+into the T124 view model, and populate the `### New Contributors` block. Enrich **all**
+releases in both modes (ADR-0034 §5). Honour `remote_metadata`: `required` (fatal on failure),
+`optional` (fall back to bare output + set `Degraded()`), `disabled` (never call). Auth rides
+`LinkContext.Token` / `BaseURL` — **do not import `internal/platforms`** (layer rule); lift a
+helper onto `port.LinkContext` if sharing is needed.
 
-**Tests:** contract tests (`MockRunner`) queueing API JSON, asserting endpoints + args, and
-covering each `remote_metadata` branch incl. the degraded fallback.
+**Tests:** contract tests (`MockRunner`) queueing GraphQL/API JSON, asserting the exact
+`gh api` argv + env, the commit↔PR correlation, and each `remote_metadata` branch incl. the
+degraded fallback and malformed-JSON.
 
 **Files:** `internal/generators/native/enrich_github.go` (+ test); view-model + render
-updates for author / contributors.
-**Scope:** L. **Dependencies:** T125.
+updates for author / contributors; possibly `port.LinkContext.APIEnv()`.
+**Scope:** L. **Dependencies:** T125. **Design:** [ADR-0034](../adr/0034-native-remote-enrichment.md).
 
 ---
 
-#### `[ ]` T128: GitLab enrichment via `glab api`
+#### `[ ]` T128: GitLab enrichment via `glab api` (batched)
 
-The GitLab equivalent of T127 — resolve the associated MR (number, author) and contributors
-via `glab api`, with the same `remote_metadata` gating and `Degraded()` behaviour. MR link
-shape (`!`, `/-/merge_requests/`) already lives in Go (ADR-0022).
+The GitLab equivalent of T127 — a **batched** `glab api` fetch of merged MRs
+(`projects/{id}/merge_requests?state=merged`, paginated), correlated to commits by
+`merge_commit_sha` / `squash_commit_sha` (ADR-0034 §4), with the same `remote_metadata`
+gating, `Degraded()` behaviour, and `LinkContext`-based auth as T127. MR link shape (`!`,
+`/-/merge_requests/`) already lives in Go (ADR-0022).
 
-**Tests:** contract tests (`MockRunner`) for the GitLab endpoints + each policy branch.
+**Tests:** contract tests (`MockRunner`) for the GitLab endpoints + correlation + each policy branch.
 
 **Files:** `internal/generators/native/enrich_gitlab.go` (+ test).
-**Scope:** M. **Dependencies:** T127.
+**Scope:** M. **Dependencies:** T127. **Design:** [ADR-0034](../adr/0034-native-remote-enrichment.md).
 
 ---
 
-#### `[ ]` T129: Azure DevOps enrichment
+#### `[ ]` T129: Azure DevOps enrichment via `az` (optional)
 
-Bring the native path to ADR-0026 parity — Azure DevOps PR / author enrichment via its API
-(through the runner), reusing the Azure URL composition already in Go. Lower priority than
-GitHub / GitLab; sequence last in Phase 2.
+Bring the native path to ADR-0026 parity — Azure DevOps PR / author enrichment via the **`az`
+CLI** (`az repos pr`, the `azure-devops` extension; token `AZURE_DEVOPS_EXT_PAT`) through the
+runner, correlating PRs to commits (Azure has no direct "PRs for a commit" call), reusing the
+Azure URL composition already in Go. **Optional** — a new dependency for a platform with no
+heraut publish driver; do only when Azure attribution is wanted (ADR-0034 §3). Sequence last.
 
-**Tests:** contract tests for the Azure DevOps endpoints + policy branches.
+**Tests:** contract tests for the `az repos pr` invocation + correlation + policy branches.
 
 **Files:** `internal/generators/native/enrich_azure.go` (+ test).
-**Scope:** M. **Dependencies:** T127.
+**Scope:** M. **Dependencies:** T127. **Design:** [ADR-0034](../adr/0034-native-remote-enrichment.md).
 
 ---
 
