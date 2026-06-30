@@ -1,5 +1,39 @@
 # Changelog
 
+## [0.47.0](https://github.com/adaouat/heraut/compare/v0.46.0..v0.47.0) - 2026-06-30
+
+### 🚀 Features
+
+- *(generators/native)* Add GitHub enrichment data layer (T127a) - ([9cb3670](https://github.com/adaouat/heraut/commit/9cb3670642e3a82c0b566c0bb4e0f571d9f9268a)) by @bchatard
+
+- *(generators/native)* Wire GitHub PR enrichment + policy (T127b) - ([ab3e018](https://github.com/adaouat/heraut/commit/ab3e018316ded8c84f003c190e17624af86dacfd)) by @bchatard
+
+- *(generators/native)* Add GitLab MR enrichment (T128) - ([3888057](https://github.com/adaouat/heraut/commit/38880575954ed74153abde75c8118afddba4f4a1)) by @bchatard
+
+- *(port)* Add LinkContext.APIEnv() for CLI auth env construction - ([6774dd2](https://github.com/adaouat/heraut/commit/6774dd2ad61f2e11448837c5627d640e622fcd70)) by @bchatard
+
+
+### 🐛 Bug Fixes
+
+- *(generators/native)* Address T127b review findings - ([67a55a0](https://github.com/adaouat/heraut/commit/67a55a0f4361c8430236f7b8a7a893643b0123d6)) by @bchatard
+
+- *(generators/native)* Bound changelog enrichment to the new release - ([4870205](https://github.com/adaouat/heraut/commit/48702050486771e65de59f83f72e241821ba5d04)) by @bchatard
+
+
+### 📚 Documentation
+
+- *(adr)* Add 0034 native remote enrichment (Phase 2 design) - ([a41893b](https://github.com/adaouat/heraut/commit/a41893be9337769ca07184e01199caed562475b4)) by @bchatard
+
+
+### 🎨 Styling
+
+- *(generators/native)* Address T127a review nits - ([e2a4445](https://github.com/adaouat/heraut/commit/e2a4445d3f3ef270e9ddd1b64531e6ed722edc6a)) by @bchatard
+
+
+### 🧪 Testing
+
+- *(generators/native)* Fill T128 GitLab test gaps from review - ([951ac9a](https://github.com/adaouat/heraut/commit/951ac9af556e9f91725c479c90e9810a83c4a695)) by @bchatard
+
 ## [0.46.0](https://github.com/adaouat/heraut/compare/v0.45.0..v0.46.0) - 2026-06-29
 
 ### 🚀 Features
