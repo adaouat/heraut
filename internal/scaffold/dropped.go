@@ -15,7 +15,7 @@ import (
 // Call this after RunWizard (post-wizard) to emit a targeted warning only when carry-
 // through actually failed, rather than a pre-wizard "these might be dropped" notice.
 func DroppedEnvFields(cfg *config.Config, rebuilt []EnvAnswer) []string {
-	if len(cfg.Environments) == 0 {
+	if cfg == nil || len(cfg.Environments) == 0 {
 		return nil
 	}
 	rebuiltNames := make(map[string]bool, len(rebuilt))
@@ -61,7 +61,7 @@ func DroppedFields(cfg *config.Config) []string {
 // through actually failed, rather than the pre-wizard "these might be dropped" notice
 // that T99 originally placed.
 func DroppedPlatformFields(cfg *config.Config, rebuilt []PlatformAnswer) []string {
-	if cfg.Release == nil {
+	if cfg == nil || cfg.Release == nil {
 		return nil
 	}
 	rebuiltCount := make(map[string]int)

@@ -113,6 +113,10 @@ func TestDroppedPlatformFields_Mismatch_OriginalLonger(t *testing.T) {
 	assert.Contains(t, dropped, "release.platforms.github-ent.draft")
 }
 
+func TestDroppedPlatformFields_NilCfg(t *testing.T) {
+	assert.Empty(t, scaffold.DroppedPlatformFields(nil, nil), "nil cfg (fresh init) must not panic")
+}
+
 func TestDroppedPlatformFields_NilRelease(t *testing.T) {
 	cfg := &config.Config{}
 	assert.Empty(t, scaffold.DroppedPlatformFields(cfg, nil))
@@ -159,6 +163,10 @@ func TestDroppedEnvFields_Mismatch_Renamed(t *testing.T) {
 	rebuilt := []scaffold.EnvAnswer{{Name: "production", Bump: "auto"}}
 	dropped := scaffold.DroppedEnvFields(cfg, rebuilt)
 	assert.Contains(t, dropped, "environments.prod.changelog")
+}
+
+func TestDroppedEnvFields_NilCfg(t *testing.T) {
+	assert.Empty(t, scaffold.DroppedEnvFields(nil, nil), "nil cfg (fresh init) must not panic")
 }
 
 func TestDroppedEnvFields_NoEnvironments(t *testing.T) {
