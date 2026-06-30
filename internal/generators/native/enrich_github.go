@@ -21,7 +21,8 @@ type prInfo struct {
 	Number      int
 	URL         string
 	AuthorLogin string
-	FirstTimer  bool // authorAssociation == "FIRST_TIME_CONTRIBUTOR"
+	FirstTimer  bool   // GitHub authorAssociation == "FIRST_TIME_CONTRIBUTOR"
+	RefPrefix   string // "#" for GitHub PRs, "!" for GitLab MRs; empty defaults to "#"
 }
 
 // enrichGitHub fetches the associated pull request for each SHA via batched gh api graphql

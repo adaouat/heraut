@@ -452,7 +452,7 @@ deferred "days between releases" stat remains a small follow-up.
 
 ---
 
-#### `[ ]` T128: GitLab enrichment via `glab api` (batched)
+#### `[x]` T128: GitLab enrichment via `glab api` (batched)
 
 The GitLab equivalent of T127 — a **batched** `glab api` fetch of merged MRs
 (`projects/{id}/merge_requests?state=merged`, paginated), correlated to commits by
@@ -464,6 +464,20 @@ gating, `Degraded()` behaviour, and `LinkContext`-based auth as T127. MR link sh
 
 **Files:** `internal/generators/native/enrich_gitlab.go` (+ test).
 **Scope:** M. **Dependencies:** T127. **Design:** [ADR-0034](../adr/0034-native-remote-enrichment.md).
+
+**Completion note (2026-06-30):** `enrich_gitlab.go` — `enrichGitLab` resolves each commit's MR
+via per-commit `glab api projects/{id}/repository/commits/{sha}/merge_requests`. **Deviation from
+ADR-0034 §4 (batched):** GitLab has no GitHub-style batched `associatedPullRequests` primitive,
+and the merged-MR correlation approach is fragile (misses merge-workflow feature commits, needs
+pagination bounds); the per-commit endpoint is the clean, correct primitive (bounded by the
+release's commit count). `prInfo` gains `RefPrefix` so MRs render `!N` (GitHub PRs stay `#N`;
+empty defaults to `#`); `port.LinkContext.APIEnv()` gains the GitLab branch (`GITLAB_TOKEN` +
+`GITLAB_HOST` for self-managed; host helper generalised to `nonDefaultHost`); `enrich`'s `gitlab`
+case dispatches to `enrichGitLab`. **First-timer detection deferred** (GitLab's API has no
+`authorAssociation`), so GitLab gets the `by @author in !N` suffix but no New Contributors block —
+a follow-up. Auth still rides `LinkContext` (no `internal/platforms` import). Contract tests cover
+the glab argv/env, parsing, no-MR, error, and the end-to-end `!N` render. Done inline (Opus) per
+the user's call; Sonnet review to follow. Suite green.
 
 ---
 

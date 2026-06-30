@@ -60,11 +60,19 @@ func TestLinkContext_APIEnv_Nil(t *testing.T) {
 	assert.Nil(t, lc.APIEnv())
 }
 
+func TestLinkContext_APIEnv_GitLab(t *testing.T) {
+	lc := &port.LinkContext{Platform: "gitlab", BaseURL: "https://gitlab.com", Token: "t"}
+	assert.Equal(t, []string{"GITLAB_TOKEN=t"}, lc.APIEnv())
+}
+
+func TestLinkContext_APIEnv_GitLabSelfManaged(t *testing.T) {
+	lc := &port.LinkContext{Platform: "gitlab", BaseURL: "https://gitlab.example.com", Token: "t"}
+	env := lc.APIEnv()
+	assert.Contains(t, env, "GITLAB_TOKEN=t")
+	assert.Contains(t, env, "GITLAB_HOST=gitlab.example.com")
+}
+
 func TestLinkContext_APIEnv_UnknownPlatform(t *testing.T) {
-	// GitLab support is not yet implemented; the current stub returns nil.
-	lc := &port.LinkContext{
-		Platform: "gitlab",
-		Token:    "secret",
-	}
+	lc := &port.LinkContext{Platform: "azure_devops", Token: "secret"}
 	assert.Nil(t, lc.APIEnv())
 }

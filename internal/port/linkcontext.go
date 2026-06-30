@@ -5,7 +5,7 @@ import "net/url"
 // APIEnv returns the CLI authentication environment variables for this platform context.
 // For GitHub, it returns ["GH_TOKEN=<token>"] when Token is set, plus "GH_HOST=<host>"
 // when BaseURL is a non-github.com host (GHES). Returns nil when lc is nil.
-// Only GitHub is wired today; other platforms return nil.
+// GitHub and GitLab are wired; Azure DevOps returns nil.
 func (lc *LinkContext) APIEnv() []string {
 	if lc == nil {
 		return nil
@@ -13,8 +13,10 @@ func (lc *LinkContext) APIEnv() []string {
 	switch lc.Platform {
 	case "github":
 		return gitHubAPIEnv(lc.Token, lc.BaseURL)
+	case "gitlab":
+		return gitLabAPIEnv(lc.Token, lc.BaseURL)
 	default:
-		// GitLab and Azure DevOps: not yet implemented.
+		// Azure DevOps: not yet implemented.
 		return nil
 	}
 }
@@ -26,23 +28,33 @@ func gitHubAPIEnv(token, baseURL string) []string {
 	if token != "" {
 		env = append(env, "GH_TOKEN="+token)
 	}
-	if host := ghesHost(baseURL); host != "" {
+	if host := nonDefaultHost(baseURL, "github.com"); host != "" {
 		env = append(env, "GH_HOST="+host)
 	}
 	return env
 }
 
-// ghesHost returns the hostname for a self-hosted GitHub Enterprise Server URL.
-// Returns "" for the default github.com host, an empty BaseURL, or an unparsable URL.
-func ghesHost(baseURL string) string {
+// gitLabAPIEnv builds the env slice for glab CLI authentication. GITLAB_TOKEN is omitted when
+// token is empty; GITLAB_HOST is added only for a non-gitlab.com (self-managed) BaseURL.
+func gitLabAPIEnv(token, baseURL string) []string {
+	var env []string
+	if token != "" {
+		env = append(env, "GITLAB_TOKEN="+token)
+	}
+	if host := nonDefaultHost(baseURL, "gitlab.com"); host != "" {
+		env = append(env, "GITLAB_HOST="+host)
+	}
+	return env
+}
+
+// nonDefaultHost returns baseURL's host when it is a self-hosted instance (not defaultHost),
+// or "" for the default host, an empty BaseURL, or an unparsable URL.
+func nonDefaultHost(baseURL, defaultHost string) string {
 	if baseURL == "" {
 		return ""
 	}
 	u, err := url.Parse(baseURL)
-	if err != nil || u.Host == "" {
-		return ""
-	}
-	if u.Host == "github.com" {
+	if err != nil || u.Host == "" || u.Host == defaultHost {
 		return ""
 	}
 	return u.Host

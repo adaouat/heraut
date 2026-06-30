@@ -300,7 +300,7 @@ func buildCommitLine(pc parsedCommit, cuBase string, tickets []config.Ticket, en
 			sb.WriteString(pr.AuthorLogin)
 		}
 		if pr.Number > 0 {
-			fmt.Fprintf(&sb, " in [#%d](%s)", pr.Number, pr.URL)
+			fmt.Fprintf(&sb, " in [%s](%s)", prRef(pr), pr.URL)
 		}
 	}
 
@@ -327,6 +327,16 @@ func commitLineDetails(pc parsedCommit) (scope string, breaking bool, desc strin
 		return pc.parsed.Scope, pc.parsed.Breaking, upperFirst(pc.parsed.Description)
 	}
 	return "", false, upperFirst(pc.raw.Subject)
+}
+
+// prRef renders a PR/MR reference label: "#42" for GitHub, "!42" for GitLab (per RefPrefix),
+// defaulting to "#".
+func prRef(pr prInfo) string {
+	prefix := pr.RefPrefix
+	if prefix == "" {
+		prefix = "#"
+	}
+	return fmt.Sprintf("%s%d", prefix, pr.Number)
 }
 
 // upperFirst returns s with its first Unicode rune upper-cased.
@@ -427,7 +437,7 @@ func buildContributors(commits []parsedCommit, enrichment map[string]prInfo) []c
 		seen[pr.AuthorLogin] = true
 		line := "* @" + pr.AuthorLogin + " made their first contribution"
 		if pr.Number > 0 {
-			line += fmt.Sprintf(" in [#%d](%s)", pr.Number, pr.URL)
+			line += fmt.Sprintf(" in [%s](%s)", prRef(pr), pr.URL)
 		}
 		out = append(out, contributorView{Line: line})
 	}

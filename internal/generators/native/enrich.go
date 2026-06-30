@@ -14,15 +14,15 @@ func (g *Generator) enrich(lc *port.LinkContext, commits []rawCommit) (map[strin
 	if lc == nil {
 		return nil, nil
 	}
+	shas := make([]string, 0, len(commits))
+	for _, c := range commits {
+		shas = append(shas, c.Hash)
+	}
 	switch lc.Platform {
 	case "github":
-		shas := make([]string, 0, len(commits))
-		for _, c := range commits {
-			shas = append(shas, c.Hash)
-		}
 		return enrichGitHub(g.runner, lc, shas)
 	case "gitlab":
-		return nil, nil // GitLab enrichment — not yet implemented
+		return enrichGitLab(g.runner, lc, shas)
 	default:
 		return nil, nil
 	}
