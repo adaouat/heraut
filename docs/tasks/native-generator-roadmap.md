@@ -441,10 +441,11 @@ imports `internal/platforms`. **T127b** — `enrich.go` adds the platform-dispat
 + `enrichForRelease` applying the `remote_metadata` policy (`disabled` skips / `required` fatal /
 `optional` degrades with a real `Degraded()` + warn-once); `render.go` threads `enrichment` like
 `tickets` — `by @login in [#N](url)` after the hash link, and a `### New Contributors ❤️` block
-from first-timers; golden output unchanged (nil enrichment). **Deviation (reviewer-accepted):**
-enrichment is **per-release**, not ADR-0034 §4's single cross-release batched fetch — changelog
-usually runs against a tokenless ambient `LinkContext` and skips enrichment, release-notes is
-single-release; the cross-release batch is a deferred optimization. Execution: T127a Sonnet
+from first-timers; golden output unchanged (nil enrichment). **Enrichment scope (refined in the final review):**
+release-notes fully enriched; **changelog enriches only the new/unreleased section** (historical
+sections render from git alone), keeping a full regeneration O(1) API calls — the original
+per-release approach would cost O(releases) in CI (the ambient `LinkContext` carries a platform
+even without a token; see ADR-0034 §5). The cross-release batched fetch (§4) stays deferred. Execution: T127a Sonnet
 impl + Sonnet review + Opus nit-fix; T127b Opus **inline** (after two subagent infra failures —
 a stall and a connection-close, each leaving a clean tree) + Sonnet review + Opus fix-pass
 (warn-once changelog test, ticket-ordering test, comment/doc nits). Suite 1328 green; the

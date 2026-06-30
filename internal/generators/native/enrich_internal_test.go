@@ -149,23 +149,27 @@ func TestGenerate_Enrich_RequiredFailure_Errors(t *testing.T) {
 	assert.Contains(t, err.Error(), "required")
 }
 
-// Changelog mode enriches each release; an optional fetch that fails on every release must
-// degrade (not error) and set Degraded() — exercising the warn-once guard across releases.
-func TestGenerate_Enrich_ChangelogOptionalFailure_DegradesAcrossReleases(t *testing.T) {
+// Changelog mode enriches only the new (unreleased) section, not historical releases, so a
+// full regeneration stays O(1) API calls regardless of release count (ADR-0034 §5).
+func TestGenerate_Enrich_ChangelogEnrichesOnlyNewRelease(t *testing.T) {
 	mr := exectest.NewMockRunner()
-	mr.QueueResponse("v1.0.0\n", "", nil) // listTags (one existing tag)
-	// New release (v1.0.0..HEAD): commits then a failing gh fetch.
-	mr.QueueResponse(record("aaa1111111", "A", "a@example.com", "2026-02-01T00:00:00Z", "feat: new", ""), "", nil)
-	mr.QueueResponse("", "API rate limit exceeded", errors.New("exit status 1"))
-	// Existing v1.0.0: commits then a second failing gh fetch (the warn-once guard must hold).
-	mr.QueueResponse(record("bbb2222222", "B", "b@example.com", "2026-01-01T00:00:00Z", "fix: old", ""), "", nil)
-	mr.QueueResponse("", "API rate limit exceeded", errors.New("exit status 1"))
+	mr.QueueResponse("v1.0.0\n", "", nil)                                                                          // listTags (one existing tag)
+	mr.QueueResponse(record("aaa1111111", "A", "a@example.com", "2026-02-01T00:00:00Z", "feat: new", ""), "", nil) // new release commits
+	mr.QueueResponse(ghGraphQLResponse(50, "https://github.com/o/r/pull/50", "octocat", "MEMBER"), "", nil)        // new release enrich
+	mr.QueueResponse(record("bbb2222222", "B", "b@example.com", "2026-01-01T00:00:00Z", "fix: old", ""), "", nil)  // existing v1.0.0 commits (no enrich)
 	g := New(mr, &config.ContentDriver{Generator: "native", RemoteMetadata: "optional"}, ModeChangelog)
 
 	body, err := g.Generate("v1.1.0", ghLC())
-	require.NoError(t, err, "optional degrades across every release, never fatal")
-	assert.True(t, g.Degraded())
+	require.NoError(t, err)
 	assert.Contains(t, body, "## [1.1.0]")
-	assert.Contains(t, body, "## [1.0.0]")
-	assert.NotContains(t, body, "by @", "rendered bare on degrade")
+	assert.Contains(t, body, "by @octocat in [#50]", "new section is enriched")
+	assert.Contains(t, body, "## [1.0.0]", "historical section present but bare")
+
+	ghCalls := 0
+	for _, c := range mr.Calls {
+		if c.Name == "gh" {
+			ghCalls++
+		}
+	}
+	assert.Equal(t, 1, ghCalls, "only the new release triggers enrichment")
 }

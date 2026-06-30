@@ -79,7 +79,8 @@ func (g *Generator) generateReleaseNotes(tag string, lc *port.LinkContext) (stri
 // generateChangelog regenerates the full CHANGELOG.md: a section for the release being created
 // (its commits are everything since the latest existing tag — the changelog runs before the
 // tag is created) followed by one section per existing tag, newest-first. Written to cfg.Output
-// when set, and also returned.
+// when set, and also returned. Only the new release's section is remote-enriched (ADR-0034 §5);
+// historical sections render from git alone, keeping regeneration to O(1) API calls.
 func (g *Generator) generateChangelog(tag string, lc *port.LinkContext) (string, error) {
 	tags, err := listTags(g.runner, "")
 	if err != nil {
@@ -92,7 +93,7 @@ func (g *Generator) generateChangelog(tag string, lc *port.LinkContext) (string,
 	if len(tags) > 0 {
 		latest = tags[0]
 	}
-	if sec, err := g.renderRelease(tag, latest, commitRange(latest, "HEAD"), lc); err != nil {
+	if sec, err := g.renderRelease(tag, latest, commitRange(latest, "HEAD"), lc, true); err != nil {
 		return "", err
 	} else if sec != "" {
 		sections = append(sections, sec)
@@ -106,7 +107,7 @@ func (g *Generator) generateChangelog(tag string, lc *port.LinkContext) (string,
 		if i+1 < len(tags) {
 			prev = tags[i+1]
 		}
-		if sec, err := g.renderRelease(t, prev, commitRange(prev, t), lc); err != nil {
+		if sec, err := g.renderRelease(t, prev, commitRange(prev, t), lc, false); err != nil {
 			return "", err
 		} else if sec != "" {
 			sections = append(sections, sec)
@@ -123,8 +124,10 @@ func (g *Generator) generateChangelog(tag string, lc *port.LinkContext) (string,
 }
 
 // renderRelease renders one changelog release section, or "" when the range has no
-// classifiable commits.
-func (g *Generator) renderRelease(version, prev, rng string, lc *port.LinkContext) (string, error) {
+// classifiable commits. enrichEnabled gates remote PR enrichment: only the unreleased (newest)
+// section is enriched, so a full changelog regeneration costs O(1) API calls rather than one
+// fetch per historical release (ADR-0034 §5).
+func (g *Generator) renderRelease(version, prev, rng string, lc *port.LinkContext, enrichEnabled bool) (string, error) {
 	commits, err := collectCommits(g.runner, rng)
 	if err != nil {
 		return "", err
@@ -133,9 +136,11 @@ func (g *Generator) renderRelease(version, prev, rng string, lc *port.LinkContex
 	if len(groups) == 0 {
 		return "", nil
 	}
-	enrichment, err := g.enrichForRelease(lc, commits)
-	if err != nil {
-		return "", err
+	var enrichment map[string]prInfo
+	if enrichEnabled {
+		if enrichment, err = g.enrichForRelease(lc, commits); err != nil {
+			return "", err
+		}
 	}
 	return renderChangelogSection(version, prev, releaseDate(commits), groups, lc, g.cfg.Tickets, g.cfg.HeadingVersionPattern, g.cfg.TypesHeadingLevel, enrichment)
 }

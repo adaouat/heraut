@@ -106,19 +106,24 @@ FIRST_TIME_CONTRIBUTOR`; GitLab from whether the author appears in any earlier r
 The exact query / pagination shape is an implementation detail of T127 / T128; the
 **decision** is batched-bounded, not per-commit.
 
-### 5. Full-changelog enrichment (every release uniform)
-
-Both modes enrich **all** the commits they render:
+### 5. Enrichment scope: release-notes fully, changelog new section only
 
 - **Release-notes mode** (single release): fully enriched.
-- **Changelog mode** (full regeneration): **every** release section is enriched, matching
-  git-cliff. The batched fetch (§4) keeps this bounded, so a heraut / template / config change
-  re-renders *and* re-enriches the whole changelog uniformly on the next run — no asymmetry
-  where only the newest release carries `by @author`.
+- **Changelog mode** (full regeneration): only the **new / unreleased** section is enriched;
+  historical sections render from git alone.
 
-This depends on a token being available on the changelog path (§2). When the changelog runs
-against a tokenless ambient `LinkContext`, enrichment degrades under the `optional` policy
-(§6) — the changelog still regenerates, just without attribution that run.
+**Why not every release** (the original intent, refined during implementation + final review):
+enrichment is *not* gated on a token — `enrich` short-circuits only on a nil or
+unsupported-platform `LinkContext`. In CI the ambient `LinkContext` carries
+`Platform: github|gitlab` (and `gh` / `glab` authenticate via the runner's ambient
+credentials), so enriching every historical release would cost **one fetch per release on
+every regeneration** — O(releases), exactly the cost §4's batched fetch was meant to avoid.
+Scoping changelog enrichment to the new section keeps a full regeneration at **O(1)** API
+calls. The newest changelog section carries the same `by @author` attribution as its
+release-notes; older sections stay plain (they were plain before native too).
+
+Full **cross-release** changelog enrichment — uniform `by @author` across all releases via the
+single batched fetch (§4), matching git-cliff — remains a deferred optimization.
 
 ### 6. Policy — native implements the three `remote_metadata` branches itself
 
