@@ -414,7 +414,7 @@ auth checks in `internal/platforms/`). Gated by the existing `remote_metadata` p
 ([ADR-0023](../adr/0023-remote-metadata-policy.md)) and surfaced through the existing
 `Degraded()` signal. Contract-tested with `MockRunner` — **no real network**.
 
-#### `[ ]` T127: GitHub enrichment via `gh api` (batched)
+#### `[x]` T127: GitHub enrichment via `gh api` (batched)
 
 Enrich every rendered commit with its PR (number, author handle, link) and first-time-
 contributor status via a **batched** `gh api graphql` fetch (`associatedPullRequests`,
@@ -432,6 +432,23 @@ degraded fallback and malformed-JSON.
 **Files:** `internal/generators/native/enrich_github.go` (+ test); view-model + render
 updates for author / contributors; possibly `port.LinkContext.APIEnv()`.
 **Scope:** L. **Dependencies:** T125. **Design:** [ADR-0034](../adr/0034-native-remote-enrichment.md).
+
+**Completion note (2026-06-30):** Delivered in two slices. **T127a** — `enrich_github.go`:
+`enrichGitHub` runs batched `gh api graphql` (aliased `associatedPullRequests`, ≤50 SHAs/chunk)
+→ `map[string]prInfo{Number,URL,AuthorLogin,FirstTimer}`; `port.LinkContext.APIEnv()` builds the
+`gh` auth env (`GH_TOKEN` + `GH_HOST` for GHES). Auth rides the `LinkContext` — native never
+imports `internal/platforms`. **T127b** — `enrich.go` adds the platform-dispatch seam (`enrich`)
++ `enrichForRelease` applying the `remote_metadata` policy (`disabled` skips / `required` fatal /
+`optional` degrades with a real `Degraded()` + warn-once); `render.go` threads `enrichment` like
+`tickets` — `by @login in [#N](url)` after the hash link, and a `### New Contributors ❤️` block
+from first-timers; golden output unchanged (nil enrichment). **Deviation (reviewer-accepted):**
+enrichment is **per-release**, not ADR-0034 §4's single cross-release batched fetch — changelog
+usually runs against a tokenless ambient `LinkContext` and skips enrichment, release-notes is
+single-release; the cross-release batch is a deferred optimization. Execution: T127a Sonnet
+impl + Sonnet review + Opus nit-fix; T127b Opus **inline** (after two subagent infra failures —
+a stall and a connection-close, each leaving a clean tree) + Sonnet review + Opus fix-pass
+(warn-once changelog test, ticket-ordering test, comment/doc nits). Suite 1328 green; the
+deferred "days between releases" stat remains a small follow-up.
 
 ---
 

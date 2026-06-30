@@ -48,6 +48,20 @@ func TestBuildCommitLine_NoEnrichment(t *testing.T) {
 	assert.NotContains(t, buildCommitLine(pc, "", nil, nil), "by @")
 }
 
+func TestBuildCommitLine_EnrichedBeforeTickets(t *testing.T) {
+	pc := parsedFrom("abc1234def", "fix: resolve PROJ-7")
+	enrichment := map[string]prInfo{
+		"abc1234def": {Number: 42, URL: "https://github.com/o/r/pull/42", AuthorLogin: "octocat"},
+	}
+	tickets := []config.Ticket{{Pattern: `PROJ-(\d+)`, URL: "https://jira.example.com/PROJ-{ticket}"}}
+	line := buildCommitLine(pc, "https://github.com/o/r/commit/", tickets, enrichment)
+
+	assert.Contains(t, line, "by @octocat in [#42]")
+	assert.Contains(t, line, "([PROJ-7]")
+	assert.Less(t, strings.Index(line, "by @octocat"), strings.Index(line, "([PROJ-7]"),
+		"PR suffix comes before ticket links")
+}
+
 // ─── render: New Contributors block ─────────────────────────────────────────────
 
 func TestRenderReleaseNotes_NewContributors(t *testing.T) {
@@ -133,4 +147,25 @@ func TestGenerate_Enrich_RequiredFailure_Errors(t *testing.T) {
 	_, err := g.Generate("v1.1.0", ghLC())
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "required")
+}
+
+// Changelog mode enriches each release; an optional fetch that fails on every release must
+// degrade (not error) and set Degraded() — exercising the warn-once guard across releases.
+func TestGenerate_Enrich_ChangelogOptionalFailure_DegradesAcrossReleases(t *testing.T) {
+	mr := exectest.NewMockRunner()
+	mr.QueueResponse("v1.0.0\n", "", nil) // listTags (one existing tag)
+	// New release (v1.0.0..HEAD): commits then a failing gh fetch.
+	mr.QueueResponse(record("aaa1111111", "A", "a@example.com", "2026-02-01T00:00:00Z", "feat: new", ""), "", nil)
+	mr.QueueResponse("", "API rate limit exceeded", errors.New("exit status 1"))
+	// Existing v1.0.0: commits then a second failing gh fetch (the warn-once guard must hold).
+	mr.QueueResponse(record("bbb2222222", "B", "b@example.com", "2026-01-01T00:00:00Z", "fix: old", ""), "", nil)
+	mr.QueueResponse("", "API rate limit exceeded", errors.New("exit status 1"))
+	g := New(mr, &config.ContentDriver{Generator: "native", RemoteMetadata: "optional"}, ModeChangelog)
+
+	body, err := g.Generate("v1.1.0", ghLC())
+	require.NoError(t, err, "optional degrades across every release, never fatal")
+	assert.True(t, g.Degraded())
+	assert.Contains(t, body, "## [1.1.0]")
+	assert.Contains(t, body, "## [1.0.0]")
+	assert.NotContains(t, body, "by @", "rendered bare on degrade")
 }

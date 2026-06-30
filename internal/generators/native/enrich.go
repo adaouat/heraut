@@ -9,7 +9,7 @@ import (
 
 // enrich resolves PR/MR enrichment for commits via the platform's CLI, returning a SHA→prInfo
 // map. Returns nil when lc is nil or the platform has no enrichment support yet. This is the
-// platform-dispatch seam: GitLab (T128) and Azure DevOps slot in as new cases.
+// platform-dispatch seam: GitLab and Azure DevOps slot in as additional cases.
 func (g *Generator) enrich(lc *port.LinkContext, commits []rawCommit) (map[string]prInfo, error) {
 	if lc == nil {
 		return nil, nil
@@ -21,6 +21,8 @@ func (g *Generator) enrich(lc *port.LinkContext, commits []rawCommit) (map[strin
 			shas = append(shas, c.Hash)
 		}
 		return enrichGitHub(g.runner, lc, shas)
+	case "gitlab":
+		return nil, nil // GitLab enrichment — not yet implemented
 	default:
 		return nil, nil
 	}

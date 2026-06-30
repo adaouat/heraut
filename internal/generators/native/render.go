@@ -128,7 +128,6 @@ func renderChangelogSection(
 
 // renderReleaseNotes renders the release-notes body for one release.
 // The body starts with the group sections followed by the commit-statistics block.
-// Phase-1 omissions: PR author ("by @…"), PR number ("in #N"), contributors block.
 // prevReleaseDate being zero causes the "days passed between releases" stat to be omitted.
 func renderReleaseNotes(
 	version, previousVersion string,
