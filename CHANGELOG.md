@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.47.1](https://github.com/adaouat/heraut/compare/v0.47.0..v0.47.1) - 2026-06-30
+
+### 🐛 Bug Fixes
+
+- *(scaffold)* Guard DroppedPlatformFields and DroppedEnvFields against nil cfg - ([e62b6d8](https://github.com/adaouat/heraut/commit/e62b6d8653ef5d06a543dbf22423c51be7a8d030)) by @bchatard
+
 ## [0.47.0](https://github.com/adaouat/heraut/compare/v0.46.0..v0.47.0) - 2026-06-30
 
 ### 🚀 Features
