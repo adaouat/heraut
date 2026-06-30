@@ -21,11 +21,13 @@ const (
 // Generator is heraut's built-in, zero-external-dependency content generator (ADR-0032). It
 // walks git history, classifies commits against the effective commits.types / rendering.excludes
 // (propagated onto the ContentDriver by the app layer), and renders Markdown with internal
-// templates. Phase 1 performs no remote enrichment, so Degraded always reports false.
+// templates. With a platform LinkContext it enriches commits with PR metadata via gh/glab
+// (ADR-0034), honouring the remote_metadata policy; Degraded reports an optional fetch failure.
 type Generator struct {
-	runner port.Runner
-	cfg    *config.ContentDriver
-	mode   Mode
+	runner   port.Runner
+	cfg      *config.ContentDriver
+	mode     Mode
+	degraded bool
 }
 
 var _ port.Generator = (*Generator)(nil)
@@ -43,9 +45,8 @@ func (g *Generator) Check() error { return nil }
 // templates are deferred — ADR-0033), so it always succeeds.
 func (g *Generator) Validate() error { return nil }
 
-// Degraded reports whether remote metadata was unavailable. Phase 1 performs no enrichment,
-// so native is never degraded.
-func (g *Generator) Degraded() bool { return false }
+// Degraded reports whether an optional remote-enrichment fetch failed during the last run.
+func (g *Generator) Degraded() bool { return g.degraded }
 
 // Generate produces the changelog (writing it to cfg.Output when set) or the release-notes
 // string for tag, resolving commit/compare links against lc.
@@ -65,10 +66,14 @@ func (g *Generator) generateReleaseNotes(tag string, lc *port.LinkContext) (stri
 	if err != nil {
 		return "", err
 	}
+	enrichment, err := g.enrichForRelease(lc, commits)
+	if err != nil {
+		return "", err
+	}
 	groups := groupCommits(commits, g.cfg.Types, g.cfg.Excludes)
-	// prevReleaseDate is omitted in Phase 1 (the "days between releases" stat is a follow-up):
-	// it needs the previous tag's date.
-	return renderReleaseNotes(tag, prev, releaseDate(commits), groups, lc, g.cfg.Tickets, time.Time{}, g.cfg.TypesHeadingLevel)
+	// prevReleaseDate is omitted (the "days between releases" stat is a follow-up): it needs
+	// the previous tag's date.
+	return renderReleaseNotes(tag, prev, releaseDate(commits), groups, lc, g.cfg.Tickets, time.Time{}, g.cfg.TypesHeadingLevel, enrichment)
 }
 
 // generateChangelog regenerates the full CHANGELOG.md: a section for the release being created
@@ -128,5 +133,9 @@ func (g *Generator) renderRelease(version, prev, rng string, lc *port.LinkContex
 	if len(groups) == 0 {
 		return "", nil
 	}
-	return renderChangelogSection(version, prev, releaseDate(commits), groups, lc, g.cfg.Tickets, g.cfg.HeadingVersionPattern, g.cfg.TypesHeadingLevel)
+	enrichment, err := g.enrichForRelease(lc, commits)
+	if err != nil {
+		return "", err
+	}
+	return renderChangelogSection(version, prev, releaseDate(commits), groups, lc, g.cfg.Tickets, g.cfg.HeadingVersionPattern, g.cfg.TypesHeadingLevel, enrichment)
 }

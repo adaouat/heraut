@@ -42,6 +42,12 @@ type commitNoteView struct {
 	Block string // full formatted commit section, no leading/trailing "\n"
 }
 
+// contributorView is a pre-rendered "New Contributors" line for the release-notes variant,
+// e.g. `* @octocat made their first contribution in [#42](url)`. Templates only iterate.
+type contributorView struct {
+	Line string
+}
+
 type ticketLink struct {
 	Text string
 	Href string
@@ -74,6 +80,7 @@ type changelogView struct {
 type notesView struct {
 	HeadingPrefix     string // "#"×types_heading_level — depth of the group + statistics headings
 	Groups            []groupNoteView
+	Contributors      []contributorView // first-time contributors (enrichment); empty omits the block
 	CommitCount       int
 	CommitsTimespan   int // days between oldest and newest commit date
 	ConventionalCount int
@@ -102,8 +109,9 @@ func renderChangelogSection(
 	tickets []config.Ticket,
 	headingVersionPattern string,
 	typesHeadingLevel int,
+	enrichment map[string]prInfo,
 ) (string, error) {
-	v := buildChangelogView(version, previousVersion, releaseDate, groups, lc, tickets, typesHeadingLevel)
+	v := buildChangelogView(version, previousVersion, releaseDate, groups, lc, tickets, typesHeadingLevel, enrichment)
 	out, err := execTemplate("changelog", changelogTmpl, v)
 	if err != nil {
 		return "", fmt.Errorf("rendering changelog section: %w", err)
@@ -130,8 +138,9 @@ func renderReleaseNotes(
 	tickets []config.Ticket,
 	prevReleaseDate time.Time,
 	typesHeadingLevel int,
+	enrichment map[string]prInfo,
 ) (string, error) {
-	v := buildNotesView(version, previousVersion, releaseDate, groups, lc, tickets, prevReleaseDate, typesHeadingLevel)
+	v := buildNotesView(version, previousVersion, releaseDate, groups, lc, tickets, prevReleaseDate, typesHeadingLevel, enrichment)
 	out, err := execTemplate("release_notes", releaseNotesTmpl, v)
 	if err != nil {
 		return "", fmt.Errorf("rendering release notes: %w", err)
@@ -148,6 +157,7 @@ func buildChangelogView(
 	lc *port.LinkContext,
 	tickets []config.Ticket,
 	typesHeadingLevel int,
+	enrichment map[string]prInfo,
 ) changelogView {
 	cuBase := buildCommitURL(lc)
 	compareURL := buildCompareURL(lc, previousVersion, version)
@@ -164,7 +174,7 @@ func buildChangelogView(
 	for _, g := range groups {
 		gv := groupView{Name: g.name}
 		for _, pc := range g.commits {
-			gv.Commits = append(gv.Commits, commitView{Line: buildCommitLine(pc, cuBase, tickets)})
+			gv.Commits = append(gv.Commits, commitView{Line: buildCommitLine(pc, cuBase, tickets, enrichment)})
 		}
 		gviews = append(gviews, gv)
 	}
@@ -180,6 +190,7 @@ func buildNotesView(
 	tickets []config.Ticket,
 	prevReleaseDate time.Time,
 	typesHeadingLevel int,
+	enrichment map[string]prInfo,
 ) notesView {
 	_ = version
 	_ = previousVersion
@@ -226,7 +237,7 @@ func buildNotesView(
 	for _, g := range groups {
 		gnv := groupNoteView{Name: g.name}
 		for _, pc := range g.commits {
-			block := buildCommitBlock(pc, cuBase, tickets)
+			block := buildCommitBlock(pc, cuBase, tickets, enrichment)
 			gnv.Commits = append(gnv.Commits, commitNoteView{Block: block})
 		}
 		gnviews = append(gnviews, gnv)
@@ -235,6 +246,7 @@ func buildNotesView(
 	return notesView{
 		HeadingPrefix:     headingPrefix(typesHeadingLevel),
 		Groups:            gnviews,
+		Contributors:      buildContributors(allCommits, enrichment),
 		CommitCount:       commitCount,
 		CommitsTimespan:   timespan,
 		ConventionalCount: conventionalCount,
@@ -252,7 +264,7 @@ func buildNotesView(
 //	{*(scope)* }{[**breaking**] }Description - {([hash7](URL))|hash7}{ ([ticket](href))...}
 //
 // When cuBase is "" (lc==nil), a bare 7-char hash is used with no Markdown link.
-func buildCommitLine(pc parsedCommit, cuBase string, tickets []config.Ticket) string {
+func buildCommitLine(pc parsedCommit, cuBase string, tickets []config.Ticket, enrichment map[string]prInfo) string {
 	scope, breaking, desc := commitLineDetails(pc)
 	hash7 := pc.raw.Hash
 	if len(hash7) > 7 {
@@ -279,6 +291,18 @@ func buildCommitLine(pc parsedCommit, cuBase string, tickets []config.Ticket) st
 		sb.WriteString("))")
 	} else {
 		sb.WriteString(hash7)
+	}
+
+	// Remote enrichment: PR author + number (ADR-0034). Placed after the hash link and before
+	// ticket links, mirroring the git-cliff release-notes template.
+	if pr, ok := enrichment[pc.raw.Hash]; ok {
+		if pr.AuthorLogin != "" {
+			sb.WriteString(" by @")
+			sb.WriteString(pr.AuthorLogin)
+		}
+		if pr.Number > 0 {
+			fmt.Fprintf(&sb, " in [#%d](%s)", pr.Number, pr.URL)
+		}
 	}
 
 	// Ticket links: search the full commit text (subject + body).
@@ -387,6 +411,30 @@ func buildStatTicketLinks(commits []parsedCommit, tickets []config.Ticket) []sta
 	return result
 }
 
+// buildContributors returns the distinct first-time contributors across commits (in first-seen
+// order) as pre-rendered "New Contributors" lines. Empty when there is no enrichment or no
+// first-timer, which omits the block entirely.
+func buildContributors(commits []parsedCommit, enrichment map[string]prInfo) []contributorView {
+	if len(enrichment) == 0 {
+		return nil
+	}
+	seen := make(map[string]bool)
+	var out []contributorView
+	for _, pc := range commits {
+		pr, ok := enrichment[pc.raw.Hash]
+		if !ok || !pr.FirstTimer || pr.AuthorLogin == "" || seen[pr.AuthorLogin] {
+			continue
+		}
+		seen[pr.AuthorLogin] = true
+		line := "* @" + pr.AuthorLogin + " made their first contribution"
+		if pr.Number > 0 {
+			line += fmt.Sprintf(" in [#%d](%s)", pr.Number, pr.URL)
+		}
+		out = append(out, contributorView{Line: line})
+	}
+	return out
+}
+
 // ─── body / footer helpers ────────────────────────────────────────────────────
 
 // buildCommitBlock assembles the full commit section string for the release-notes
@@ -398,8 +446,8 @@ func buildStatTicketLinks(commits []parsedCommit, tickets []config.Ticket) []sta
 // Body lines are indented 4 spaces; footer lines are indented 2 spaces with
 // "Token: Value" format. The block has no leading or trailing "\n" — those are
 // added by the release_notes.tmpl per-commit iteration.
-func buildCommitBlock(pc parsedCommit, cuBase string, tickets []config.Ticket) string {
-	line := "- " + buildCommitLine(pc, cuBase, tickets)
+func buildCommitBlock(pc parsedCommit, cuBase string, tickets []config.Ticket, enrichment map[string]prInfo) string {
+	line := "- " + buildCommitLine(pc, cuBase, tickets, enrichment)
 
 	bodyText := ""
 	var footerLines []string

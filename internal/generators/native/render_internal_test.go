@@ -121,7 +121,7 @@ func TestRenderChangelogSection_Golden(t *testing.T) {
 	releaseDate := time.Date(2024, 1, 15, 0, 0, 0, 0, time.UTC)
 	got, err := renderChangelogSection(
 		"v1.2.3", "v1.2.2", releaseDate,
-		fixtureGroups(), githubLC, nil, "", 3,
+		fixtureGroups(), githubLC, nil, "", 3, nil,
 	)
 	require.NoError(t, err)
 
@@ -135,7 +135,7 @@ func TestRenderChangelogSection_NoPrevious(t *testing.T) {
 	releaseDate := time.Date(2024, 1, 15, 0, 0, 0, 0, time.UTC)
 	got, err := renderChangelogSection(
 		"v1.0.0", "", releaseDate,
-		fixtureGroups(), githubLC, nil, "", 3,
+		fixtureGroups(), githubLC, nil, "", 3, nil,
 	)
 	require.NoError(t, err)
 
@@ -149,7 +149,7 @@ func TestRenderChangelogSection_NoLinks(t *testing.T) {
 	releaseDate := time.Date(2024, 1, 15, 0, 0, 0, 0, time.UTC)
 	got, err := renderChangelogSection(
 		"v1.2.3", "v1.2.2", releaseDate,
-		fixtureGroups(), nil, nil, "", 3,
+		fixtureGroups(), nil, nil, "", 3, nil,
 	)
 	require.NoError(t, err)
 
@@ -179,7 +179,7 @@ func TestRenderChangelogSection_WithTickets(t *testing.T) {
 	releaseDate := time.Date(2024, 1, 15, 0, 0, 0, 0, time.UTC)
 	got, err := renderChangelogSection(
 		"v2.0.0", "v1.9.9", releaseDate,
-		groups, githubLC, tickets, "", 3,
+		groups, githubLC, tickets, "", 3, nil,
 	)
 	require.NoError(t, err)
 
@@ -197,7 +197,7 @@ func TestRenderChangelogSection_HeadingPattern(t *testing.T) {
 	got, err := renderChangelogSection(
 		"prod/v1.2.3", "prod/v1.2.2", releaseDate,
 		fixtureGroups(), githubLC, nil,
-		`\[prod/(v[^\]]+)\]`, 3,
+		`\[prod/(v[^\]]+)\]`, 3, nil,
 	)
 	require.NoError(t, err)
 
@@ -211,7 +211,7 @@ func TestRenderChangelogSection_TypesHeadingLevel(t *testing.T) {
 	releaseDate := time.Date(2024, 1, 15, 0, 0, 0, 0, time.UTC)
 	got, err := renderChangelogSection(
 		"v1.2.3", "v1.2.2", releaseDate,
-		fixtureGroups(), githubLC, nil, "", 2,
+		fixtureGroups(), githubLC, nil, "", 2, nil,
 	)
 	require.NoError(t, err)
 	assert.Contains(t, got, "\n## 🚀 Features", "types_heading_level 2 → ## group headings")
@@ -226,7 +226,7 @@ func TestRenderReleaseNotes_Golden(t *testing.T) {
 
 	got, err := renderReleaseNotes(
 		"v1.2.3", "v1.2.2", releaseDate,
-		fixtureGroups(), githubLC, nil, prevDate, 3,
+		fixtureGroups(), githubLC, nil, prevDate, 3, nil,
 	)
 	require.NoError(t, err)
 
@@ -241,7 +241,7 @@ func TestRenderReleaseNotes_NoPrevDate(t *testing.T) {
 
 	got, err := renderReleaseNotes(
 		"v1.0.0", "", releaseDate,
-		fixtureGroups(), githubLC, nil, time.Time{}, 3,
+		fixtureGroups(), githubLC, nil, time.Time{}, 3, nil,
 	)
 	require.NoError(t, err)
 
@@ -256,7 +256,7 @@ func TestRenderReleaseNotes_WithBodyAndFooter(t *testing.T) {
 
 	got, err := renderReleaseNotes(
 		"v1.1.0", "v1.0.0", releaseDate,
-		fixtureGroupsWithBodyFooter(), githubLC, nil, time.Time{}, 3,
+		fixtureGroupsWithBodyFooter(), githubLC, nil, time.Time{}, 3, nil,
 	)
 	require.NoError(t, err)
 

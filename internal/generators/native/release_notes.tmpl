@@ -3,7 +3,10 @@
 {{.Block}}
 {{end}}
 {{end}}
-{{.HeadingPrefix}} Commit Statistics
+{{if .Contributors}}{{.HeadingPrefix}} New Contributors ❤️
+{{range .Contributors}}{{.Line}}
+{{end}}
+{{end}}{{.HeadingPrefix}} Commit Statistics
 
 - {{.CommitCount}} commit(s) contributed to the release.
 - {{.CommitsTimespan}} day(s) passed between the first and last commit.
