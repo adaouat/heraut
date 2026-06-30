@@ -30,7 +30,7 @@ func enrichGitLab(runner port.Runner, lc *port.LinkContext, shas []string) (map[
 		if len(mrs) == 0 {
 			continue
 		}
-		mr := mrs[0]
+		mr := mrs[0] // first association wins (matches GitHub's associatedPullRequests first:1)
 		result[sha] = prInfo{
 			Number:      mr.IID,
 			URL:         mr.WebURL,

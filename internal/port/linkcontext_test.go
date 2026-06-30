@@ -72,6 +72,20 @@ func TestLinkContext_APIEnv_GitLabSelfManaged(t *testing.T) {
 	assert.Contains(t, env, "GITLAB_HOST=gitlab.example.com")
 }
 
+func TestLinkContext_APIEnv_GitLabEmptyToken(t *testing.T) {
+	lc := &port.LinkContext{Platform: "gitlab", BaseURL: "https://gitlab.com", Token: ""}
+	assert.Empty(t, lc.APIEnv())
+}
+
+func TestLinkContext_APIEnv_GitLabSelfManagedEmptyToken(t *testing.T) {
+	lc := &port.LinkContext{Platform: "gitlab", BaseURL: "https://gitlab.example.com", Token: ""}
+	env := lc.APIEnv()
+	assert.Contains(t, env, "GITLAB_HOST=gitlab.example.com")
+	for _, e := range env {
+		assert.False(t, strings.HasPrefix(e, "GITLAB_TOKEN="), "no GITLAB_TOKEN= when token empty, got %q", e)
+	}
+}
+
 func TestLinkContext_APIEnv_UnknownPlatform(t *testing.T) {
 	lc := &port.LinkContext{Platform: "azure_devops", Token: "secret"}
 	assert.Nil(t, lc.APIEnv())

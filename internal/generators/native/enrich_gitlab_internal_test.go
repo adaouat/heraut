@@ -49,6 +49,26 @@ func TestEnrichGitLab_ErrorWrapped(t *testing.T) {
 	assert.Contains(t, err.Error(), "merge_requests")
 }
 
+func TestEnrichGitLab_MalformedJSON(t *testing.T) {
+	mr := exectest.NewMockRunner()
+	mr.QueueResponse("not json", "", nil)
+
+	_, err := enrichGitLab(mr, gitlabLC(), []string{"abc123"})
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "parsing glab api merge_requests response")
+}
+
+func TestEnrichGitLab_Subgroup(t *testing.T) {
+	mr := exectest.NewMockRunner()
+	mr.QueueResponse(`[{"iid":3,"web_url":"u","author":{"username":"bob"}}]`, "", nil)
+	lc := &port.LinkContext{Platform: "gitlab", BaseURL: "https://gitlab.com", Owner: "group/subgroup", Repo: "project", Token: "tok"}
+
+	_, err := enrichGitLab(mr, lc, []string{"deadbeef"})
+	require.NoError(t, err)
+	require.Len(t, mr.Calls, 1)
+	assert.Equal(t, []string{"api", "projects/group%2Fsubgroup%2Fproject/repository/commits/deadbeef/merge_requests"}, mr.Calls[0].Args)
+}
+
 // End-to-end: GitLab release-notes enrichment renders "!N" (not "#N").
 func TestGenerate_Enrich_GitLab(t *testing.T) {
 	mr := exectest.NewMockRunner()
