@@ -18,20 +18,42 @@ func (g *gitHelper) run(name string, args ...string) error {
 	return err
 }
 
-func (g *gitHelper) commitChangelog(file, msg string, push bool) error {
+// commitChangelog stages file and commits it with msg, pushing when push is set. It
+// reports whether a commit was actually created: when `git add` stages nothing — the
+// changelog is byte-identical to the last commit, e.g. a re-run after a partial release
+// or a release with no changelog-worthy commits — it returns (false, nil) without
+// committing so the caller can warn and continue to tag/publish rather than failing on
+// git's "nothing to commit" exit.
+func (g *gitHelper) commitChangelog(file, msg string, push bool) (bool, error) {
 	if err := g.run("git", "add", file); err != nil {
-		return fmt.Errorf("git add: %w", err)
+		return false, fmt.Errorf("git add: %w", err)
+	}
+	staged, err := g.hasStagedChanges()
+	if err != nil {
+		return false, err
+	}
+	if !staged {
+		return false, nil
 	}
 	if err := g.run("git", "commit", "-m", msg); err != nil {
-		return fmt.Errorf("git commit: %w", err)
+		return false, fmt.Errorf("git commit: %w", err)
 	}
-	if !push {
-		return nil
+	if push {
+		if err := g.run("git", "push", "origin", "HEAD"); err != nil {
+			return false, fmt.Errorf("git push: %w", err)
+		}
 	}
-	if err := g.run("git", "push", "origin", "HEAD"); err != nil {
-		return fmt.Errorf("git push: %w", err)
+	return true, nil
+}
+
+// hasStagedChanges reports whether the index holds any staged change. A genuine git
+// failure is returned as an error rather than misread as "nothing staged".
+func (g *gitHelper) hasStagedChanges() (bool, error) {
+	out, _, err := g.runner.Run("git", "diff", "--cached", "--name-only")
+	if err != nil {
+		return false, fmt.Errorf("git diff --cached: %w", err)
 	}
-	return nil
+	return strings.TrimSpace(out) != "", nil
 }
 
 func (g *gitHelper) tag(tag, msg string, annotated, sign bool) error {

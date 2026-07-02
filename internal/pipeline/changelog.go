@@ -133,13 +133,19 @@ func (p *ChangelogPipeline) Run() error {
 			if file == "" {
 				file = "CHANGELOG.md"
 			}
+			var committed bool
 			if err := p.runStep("Commit changelog", func() (string, []string, error) {
-				if err := p.git.commitChangelog(file, commitMessage(p.cfg.CommitMessage, result.Version), !p.cfg.NoPush); err != nil {
-					return "", nil, fmt.Errorf("committing changelog: %w", err)
+				var cerr error
+				committed, cerr = p.git.commitChangelog(file, commitMessage(p.cfg.CommitMessage, result.Version), !p.cfg.NoPush)
+				if cerr != nil {
+					return "", nil, fmt.Errorf("committing changelog: %w", cerr)
 				}
 				return "", nil, nil
 			}); err != nil {
 				return err
+			}
+			if !committed {
+				warnNothingToCommit(p.out, file)
 			}
 		}
 	}

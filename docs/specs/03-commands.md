@@ -94,7 +94,11 @@ heraut release [--version <version>] [--build <id>] [--dry-run] [--env <name>] [
 2. **Resolve next version** — strategy-specific (see [Spec 04](04-versioning.md))
 3. **Generate changelog** (if `changelog` is configured and not disabled for the env)
    — writes to `changelog.output` (default `CHANGELOG.md`)
-4. **Commit changelog + push** — `chore(release): <version>`, then `git push`
+4. **Commit changelog + push** — `chore(release): <version>`, then `git push`. If the
+   regenerated changelog is byte-identical to the last commit (`git add` stages nothing —
+   a re-run after a partial release, or a release with no changelog-worthy commits), the
+   commit and push are **skipped** with a warning naming the file, and the pipeline
+   continues to tag and publish rather than failing on git's "nothing to commit" exit.
 5. **Create git tag** (annotated by default; set `versioning.tag_type: lightweight` to use a bare ref tag) on the changelog commit, then `git push origin <tag>`
 6. **Generate release notes** (if `release.notes` is configured and not disabled for
    the env) — the notes are needed at release-creation time, so they are produced before
@@ -156,7 +160,10 @@ heraut changelog [--commit] [--tag] [--no-push] [--version <version>] [--dry-run
 
 1. Resolve next version (or use `--version`)
 2. Generate and update `CHANGELOG.md` (only if `changelog` is configured)
-3. Commit and push — `chore(release): <version>` (push skipped with `--no-push`)
+3. Commit and push — `chore(release): <version>` (push skipped with `--no-push`). If
+   `git add` stages nothing (the changelog is byte-identical to the last commit), the
+   commit and its push are skipped with a warning naming the file; with `--tag` the tag
+   is still created on the current `HEAD`.
 4. Create a git tag (annotated by default; set `versioning.tag_type: lightweight` for a bare ref tag) on that commit
 5. Push tag (`git push origin <tag>`) — skipped with `--no-push`
 

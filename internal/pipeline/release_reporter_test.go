@@ -78,11 +78,12 @@ func TestRun_Reporter_MinimalSequence(t *testing.T) {
 // resolve and tag when changelog is configured.
 func TestRun_Reporter_WithChangelog(t *testing.T) {
 	mr := exectest.NewMockRunner()
-	mr.QueueResponse("", "", nil) // git add
-	mr.QueueResponse("", "", nil) // git commit
-	mr.QueueResponse("", "", nil) // git push
-	mr.QueueResponse("", "", nil) // git tag
-	mr.QueueResponse("", "", nil) // git push <tag>
+	mr.QueueResponse("", "", nil)               // git add
+	mr.QueueResponse("CHANGELOG.md\n", "", nil) // git diff --cached --name-only (staged)
+	mr.QueueResponse("", "", nil)               // git commit
+	mr.QueueResponse("", "", nil)               // git push
+	mr.QueueResponse("", "", nil)               // git tag
+	mr.QueueResponse("", "", nil)               // git push <tag>
 
 	changelog := &testutil.MockGenerator{}
 	platform := &testutil.MockPlatform{PlatformName: "github"}

@@ -35,9 +35,10 @@ func TestChangelogRun_GenerateOnly(t *testing.T) {
 // TestChangelogRun_WithCommit verifies generate + git add + commit + push.
 func TestChangelogRun_WithCommit(t *testing.T) {
 	mr := exectest.NewMockRunner()
-	mr.QueueResponse("", "", nil) // git add
-	mr.QueueResponse("", "", nil) // git commit
-	mr.QueueResponse("", "", nil) // git push
+	mr.QueueResponse("", "", nil)               // git add
+	mr.QueueResponse("CHANGELOG.md\n", "", nil) // git diff --cached --name-only (staged)
+	mr.QueueResponse("", "", nil)               // git commit
+	mr.QueueResponse("", "", nil)               // git push
 
 	gen := &testutil.MockGenerator{}
 
@@ -51,20 +52,22 @@ func TestChangelogRun_WithCommit(t *testing.T) {
 	require.NoError(t, p.Run())
 
 	require.Len(t, gen.GenerateCalls, 1)
-	require.Len(t, mr.Calls, 3)
+	require.Len(t, mr.Calls, 4)
 	assert.Equal(t, []string{"add", "CHANGELOG.md"}, mr.Calls[0].Args)
-	assert.Equal(t, "commit", mr.Calls[1].Args[0])
-	assert.Equal(t, []string{"push", "origin", "HEAD"}, mr.Calls[2].Args)
+	assert.Equal(t, []string{"diff", "--cached", "--name-only"}, mr.Calls[1].Args)
+	assert.Equal(t, "commit", mr.Calls[2].Args[0])
+	assert.Equal(t, []string{"push", "origin", "HEAD"}, mr.Calls[3].Args)
 }
 
 // TestChangelogRun_WithTag verifies --tag implies commit: generate + commit + push + tag + push --tags.
 func TestChangelogRun_WithTag(t *testing.T) {
 	mr := exectest.NewMockRunner()
-	mr.QueueResponse("", "", nil) // git add
-	mr.QueueResponse("", "", nil) // git commit
-	mr.QueueResponse("", "", nil) // git push
-	mr.QueueResponse("", "", nil) // git tag
-	mr.QueueResponse("", "", nil) // git push <tag>
+	mr.QueueResponse("", "", nil)               // git add
+	mr.QueueResponse("CHANGELOG.md\n", "", nil) // git diff --cached --name-only (staged)
+	mr.QueueResponse("", "", nil)               // git commit
+	mr.QueueResponse("", "", nil)               // git push
+	mr.QueueResponse("", "", nil)               // git tag
+	mr.QueueResponse("", "", nil)               // git push <tag>
 
 	gen := &testutil.MockGenerator{}
 
@@ -78,12 +81,13 @@ func TestChangelogRun_WithTag(t *testing.T) {
 	require.NoError(t, p.Run())
 
 	require.Len(t, gen.GenerateCalls, 1)
-	require.Len(t, mr.Calls, 5)
+	require.Len(t, mr.Calls, 6)
 	assert.Equal(t, []string{"add", "CHANGELOG.md"}, mr.Calls[0].Args)
-	assert.Equal(t, "commit", mr.Calls[1].Args[0])
-	assert.Equal(t, []string{"push", "origin", "HEAD"}, mr.Calls[2].Args)
-	assert.Equal(t, []string{"tag", "v1.2.3"}, mr.Calls[3].Args)
-	assert.Equal(t, []string{"push", "origin", "v1.2.3"}, mr.Calls[4].Args)
+	assert.Equal(t, []string{"diff", "--cached", "--name-only"}, mr.Calls[1].Args)
+	assert.Equal(t, "commit", mr.Calls[2].Args[0])
+	assert.Equal(t, []string{"push", "origin", "HEAD"}, mr.Calls[3].Args)
+	assert.Equal(t, []string{"tag", "v1.2.3"}, mr.Calls[4].Args)
+	assert.Equal(t, []string{"push", "origin", "v1.2.3"}, mr.Calls[5].Args)
 }
 
 // TestChangelogRun_TagWithoutChangelog verifies tag-only when no generator is configured.
@@ -107,8 +111,9 @@ func TestChangelogRun_TagWithoutChangelog(t *testing.T) {
 // TestChangelogRun_WithCommit_NoPush verifies --no-push commits but does not push.
 func TestChangelogRun_WithCommit_NoPush(t *testing.T) {
 	mr := exectest.NewMockRunner()
-	mr.QueueResponse("", "", nil) // git add
-	mr.QueueResponse("", "", nil) // git commit
+	mr.QueueResponse("", "", nil)               // git add
+	mr.QueueResponse("CHANGELOG.md\n", "", nil) // git diff --cached --name-only (staged)
+	mr.QueueResponse("", "", nil)               // git commit
 
 	gen := &testutil.MockGenerator{}
 
@@ -123,9 +128,10 @@ func TestChangelogRun_WithCommit_NoPush(t *testing.T) {
 	require.NoError(t, p.Run())
 
 	require.Len(t, gen.GenerateCalls, 1)
-	require.Len(t, mr.Calls, 2)
+	require.Len(t, mr.Calls, 3)
 	assert.Equal(t, []string{"add", "CHANGELOG.md"}, mr.Calls[0].Args)
-	assert.Equal(t, "commit", mr.Calls[1].Args[0])
+	assert.Equal(t, []string{"diff", "--cached", "--name-only"}, mr.Calls[1].Args)
+	assert.Equal(t, "commit", mr.Calls[2].Args[0])
 	for _, c := range mr.Calls {
 		assert.NotEqual(t, "push", c.Args[0], "no git push expected with NoPush")
 	}
@@ -134,9 +140,10 @@ func TestChangelogRun_WithCommit_NoPush(t *testing.T) {
 // TestChangelogRun_WithTag_NoPush verifies --tag --no-push commits and tags but pushes neither.
 func TestChangelogRun_WithTag_NoPush(t *testing.T) {
 	mr := exectest.NewMockRunner()
-	mr.QueueResponse("", "", nil) // git add
-	mr.QueueResponse("", "", nil) // git commit
-	mr.QueueResponse("", "", nil) // git tag
+	mr.QueueResponse("", "", nil)               // git add
+	mr.QueueResponse("CHANGELOG.md\n", "", nil) // git diff --cached --name-only (staged)
+	mr.QueueResponse("", "", nil)               // git commit
+	mr.QueueResponse("", "", nil)               // git tag
 
 	gen := &testutil.MockGenerator{}
 
@@ -150,10 +157,11 @@ func TestChangelogRun_WithTag_NoPush(t *testing.T) {
 	p := pipeline.NewChangelog(mr, &fakeResolver{result: resolvedResult("v1.2.3")}, cfg, &bytes.Buffer{}, false)
 	require.NoError(t, p.Run())
 
-	require.Len(t, mr.Calls, 3)
+	require.Len(t, mr.Calls, 4)
 	assert.Equal(t, []string{"add", "CHANGELOG.md"}, mr.Calls[0].Args)
-	assert.Equal(t, "commit", mr.Calls[1].Args[0])
-	assert.Equal(t, []string{"tag", "v1.2.3"}, mr.Calls[2].Args)
+	assert.Equal(t, []string{"diff", "--cached", "--name-only"}, mr.Calls[1].Args)
+	assert.Equal(t, "commit", mr.Calls[2].Args[0])
+	assert.Equal(t, []string{"tag", "v1.2.3"}, mr.Calls[3].Args)
 	for _, c := range mr.Calls {
 		assert.NotEqual(t, "push", c.Args[0], "no git push expected with NoPush")
 	}
@@ -288,9 +296,10 @@ func TestChangelogRun_ResolverError(t *testing.T) {
 // TestChangelogRun_DefaultCommitMessage verifies the default commit message contains the version.
 func TestChangelogRun_DefaultCommitMessage(t *testing.T) {
 	mr := exectest.NewMockRunner()
-	mr.QueueResponse("", "", nil) // git add
-	mr.QueueResponse("", "", nil) // git commit
-	mr.QueueResponse("", "", nil) // git push
+	mr.QueueResponse("", "", nil)               // git add
+	mr.QueueResponse("CHANGELOG.md\n", "", nil) // git diff --cached --name-only (staged)
+	mr.QueueResponse("", "", nil)               // git commit
+	mr.QueueResponse("", "", nil)               // git push
 
 	gen := &testutil.MockGenerator{}
 
@@ -303,7 +312,7 @@ func TestChangelogRun_DefaultCommitMessage(t *testing.T) {
 	p := pipeline.NewChangelog(mr, &fakeResolver{result: resolvedResult("v1.2.3")}, cfg, &bytes.Buffer{}, false)
 	require.NoError(t, p.Run())
 
-	commitCall := mr.Calls[1]
+	commitCall := mr.Calls[2]
 	assert.Equal(t, "commit", commitCall.Args[0])
 	assert.Equal(t, "-m", commitCall.Args[1])
 	assert.Contains(t, commitCall.Args[2], "1.2.3")
@@ -312,9 +321,10 @@ func TestChangelogRun_DefaultCommitMessage(t *testing.T) {
 // TestChangelogRun_CustomCommitMessage verifies commit message template substitution.
 func TestChangelogRun_CustomCommitMessage(t *testing.T) {
 	mr := exectest.NewMockRunner()
-	mr.QueueResponse("", "", nil) // git add
-	mr.QueueResponse("", "", nil) // git commit
-	mr.QueueResponse("", "", nil) // git push
+	mr.QueueResponse("", "", nil)               // git add
+	mr.QueueResponse("CHANGELOG.md\n", "", nil) // git diff --cached --name-only (staged)
+	mr.QueueResponse("", "", nil)               // git commit
+	mr.QueueResponse("", "", nil)               // git push
 
 	gen := &testutil.MockGenerator{}
 
@@ -328,7 +338,7 @@ func TestChangelogRun_CustomCommitMessage(t *testing.T) {
 	p := pipeline.NewChangelog(mr, &fakeResolver{result: resolvedResult("v1.2.3")}, cfg, &bytes.Buffer{}, false)
 	require.NoError(t, p.Run())
 
-	assert.Equal(t, "docs: update changelog for v1.2.3", mr.Calls[1].Args[2])
+	assert.Equal(t, "docs: update changelog for v1.2.3", mr.Calls[2].Args[2])
 }
 
 // TestChangelogRun_DisabledChangelog_WithTag verifies that when DisableChangelog is true
@@ -358,6 +368,40 @@ func TestChangelogRun_DisabledChangelog_WithTag(t *testing.T) {
 	assert.Contains(t, out.String(), "disabled")
 }
 
+// TestChangelogRun_NothingToCommit verifies that when git add stages nothing (the
+// regenerated changelog is byte-identical to the last commit), the commit and its push
+// are skipped with a warning, and the tag is still created when Tag is set.
+func TestChangelogRun_NothingToCommit(t *testing.T) {
+	mr := exectest.NewMockRunner()
+	mr.QueueResponse("", "", nil) // git add
+	mr.QueueResponse("", "", nil) // git diff --cached --name-only (empty: nothing staged)
+	mr.QueueResponse("", "", nil) // git tag
+	mr.QueueResponse("", "", nil) // git push <tag>
+
+	gen := &testutil.MockGenerator{}
+
+	cfg := &pipeline.ChangelogConfig{
+		Changelog:     gen,
+		ChangelogFile: "CHANGELOG.md",
+		Tag:           true,
+	}
+
+	out := &bytes.Buffer{}
+	p := pipeline.NewChangelog(mr, &fakeResolver{result: resolvedResult("v1.2.3")}, cfg, out, false)
+	require.NoError(t, p.Run())
+
+	for _, c := range mr.Calls {
+		require.NotEqual(t, "commit", c.Args[0], "git commit must be skipped when nothing is staged")
+	}
+	require.Len(t, mr.Calls, 4)
+	assert.Equal(t, []string{"add", "CHANGELOG.md"}, mr.Calls[0].Args)
+	assert.Equal(t, []string{"diff", "--cached", "--name-only"}, mr.Calls[1].Args)
+	assert.Equal(t, []string{"tag", "v1.2.3"}, mr.Calls[2].Args)
+	assert.Equal(t, []string{"push", "origin", "v1.2.3"}, mr.Calls[3].Args)
+
+	assert.Contains(t, out.String(), "CHANGELOG.md unchanged")
+}
+
 // TestChangelogRun_GitAddError propagates git add failures.
 func TestChangelogRun_GitAddError(t *testing.T) {
 	mr := exectest.NewMockRunner()
@@ -381,6 +425,7 @@ func TestChangelogRun_GitAddError(t *testing.T) {
 func TestChangelogRun_GitCommitError(t *testing.T) {
 	mr := exectest.NewMockRunner()
 	mr.QueueResponse("", "", nil)                             // git add OK
+	mr.QueueResponse("CHANGELOG.md\n", "", nil)               // git diff --cached (staged)
 	mr.QueueResponse("", "", errors.New("nothing to commit")) // git commit fails
 
 	gen := &testutil.MockGenerator{}
@@ -401,6 +446,7 @@ func TestChangelogRun_GitCommitError(t *testing.T) {
 func TestChangelogRun_GitPushError(t *testing.T) {
 	mr := exectest.NewMockRunner()
 	mr.QueueResponse("", "", nil)                         // git add OK
+	mr.QueueResponse("CHANGELOG.md\n", "", nil)           // git diff --cached (staged)
 	mr.QueueResponse("", "", nil)                         // git commit OK
 	mr.QueueResponse("", "", errors.New("push rejected")) // git push fails
 
@@ -421,9 +467,10 @@ func TestChangelogRun_GitPushError(t *testing.T) {
 // TestChangelogRun_DefaultChangelogFile verifies "CHANGELOG.md" is used when ChangelogFile is empty.
 func TestChangelogRun_DefaultChangelogFile(t *testing.T) {
 	mr := exectest.NewMockRunner()
-	mr.QueueResponse("", "", nil) // git add
-	mr.QueueResponse("", "", nil) // git commit
-	mr.QueueResponse("", "", nil) // git push
+	mr.QueueResponse("", "", nil)               // git add
+	mr.QueueResponse("CHANGELOG.md\n", "", nil) // git diff --cached --name-only (staged)
+	mr.QueueResponse("", "", nil)               // git commit
+	mr.QueueResponse("", "", nil)               // git push
 
 	gen := &testutil.MockGenerator{}
 

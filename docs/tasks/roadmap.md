@@ -4598,7 +4598,7 @@ Branch matching is exact-string against `config.Environment.Branch` (the current
 
 ### Phase 20 — Pipeline UX and error messages
 
-#### `[ ]` T111: graceful handling when changelog has no new entries to commit
+#### `[x]` T111: graceful handling when changelog has no new entries to commit
 
 `git commit` exits 1 with "nothing to commit, working tree clean" when git-cliff
 regenerates a CHANGELOG.md whose content is identical to the last commit. This surfaces
@@ -4641,6 +4641,22 @@ should name the changelog file so it's actionable in multi-file setups.
 nothing-staged path), `internal/pipeline/release_test.go`,
 `internal/pipeline/changelog_test.go`.
 **Scope:** S. **Dependencies:** none.
+
+**Completion note (2026-07-02):** `commitChangelog` now runs `git diff --cached
+--name-only` after `git add` and returns `(committed bool, error)` — a `(bool, error)`
+pair rather than the roadmap's suggested sentinel, since within-package callers read it
+directly and "nothing staged" is a normal outcome, not an error. **Deviation from the
+roadmap's `git diff --cached --quiet` suggestion:** `--name-only` with an empty-stdout
+check is used instead, so a genuine `git diff` failure surfaces as a real error rather
+than being misread as "nothing staged" (which the exit-code approach would conflate).
+Both `Pipeline.Run` (release) and `ChangelogPipeline.Run` detect `committed == false` and
+call a shared `warnNothingToCommit(w, file)` that writes the warning to `p.out` (visible
+in both reporter and plain/CI modes — the plain path discards step `result`/`subs`, and
+CI re-runs are exactly where this surfaces), then continue to tag + publish. New
+helper-level unit tests in `git_test.go` (staged / nothing-staged / diff-error) plus
+pipeline-level tests on both flows; every existing changelog-commit test gained the
+interleaved `git diff --cached` call and shifted `Calls` indices. Specs 03 (`heraut
+release` step 4, `heraut changelog` step 3) updated. Suite 1345 green.
 
 ---
 

@@ -41,9 +41,10 @@ func TestChangelogRun_Reporter_GenerateOnly(t *testing.T) {
 // when Commit is true.
 func TestChangelogRun_Reporter_WithCommit(t *testing.T) {
 	mr := exectest.NewMockRunner()
-	mr.QueueResponse("", "", nil) // git add
-	mr.QueueResponse("", "", nil) // git commit
-	mr.QueueResponse("", "", nil) // git push
+	mr.QueueResponse("", "", nil)               // git add
+	mr.QueueResponse("CHANGELOG.md\n", "", nil) // git diff --cached --name-only (staged)
+	mr.QueueResponse("", "", nil)               // git commit
+	mr.QueueResponse("", "", nil)               // git push
 
 	gen := &testutil.MockGenerator{}
 
@@ -69,11 +70,12 @@ func TestChangelogRun_Reporter_WithCommit(t *testing.T) {
 // TestChangelogRun_Reporter_WithTag verifies the full step sequence when Tag is true.
 func TestChangelogRun_Reporter_WithTag(t *testing.T) {
 	mr := exectest.NewMockRunner()
-	mr.QueueResponse("", "", nil) // git add
-	mr.QueueResponse("", "", nil) // git commit
-	mr.QueueResponse("", "", nil) // git push
-	mr.QueueResponse("", "", nil) // git tag
-	mr.QueueResponse("", "", nil) // git push <tag>
+	mr.QueueResponse("", "", nil)               // git add
+	mr.QueueResponse("CHANGELOG.md\n", "", nil) // git diff --cached --name-only (staged)
+	mr.QueueResponse("", "", nil)               // git commit
+	mr.QueueResponse("", "", nil)               // git push
+	mr.QueueResponse("", "", nil)               // git tag
+	mr.QueueResponse("", "", nil)               // git push <tag>
 
 	gen := &testutil.MockGenerator{}
 

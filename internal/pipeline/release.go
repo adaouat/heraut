@@ -131,13 +131,19 @@ func (p *Pipeline) Run() error {
 		if file == "" {
 			file = "CHANGELOG.md"
 		}
+		var committed bool
 		if err := p.runStep("Commit changelog", func() (string, []string, error) {
-			if err := p.git.commitChangelog(file, commitMessage(p.cfg.CommitMessage, result.Version), true); err != nil {
-				return "", nil, fmt.Errorf("committing changelog: %w", err)
+			var cerr error
+			committed, cerr = p.git.commitChangelog(file, commitMessage(p.cfg.CommitMessage, result.Version), true)
+			if cerr != nil {
+				return "", nil, fmt.Errorf("committing changelog: %w", cerr)
 			}
 			return "", nil, nil
 		}); err != nil {
 			return err
+		}
+		if !committed {
+			warnNothingToCommit(p.out, file)
 		}
 	}
 
@@ -276,6 +282,16 @@ func (p *Pipeline) dryRunOutput(result versioning.Result) error {
 		})
 	}
 	return nil
+}
+
+// warnNothingToCommit emits an actionable warning, naming the changelog file, when a
+// regenerated changelog is byte-identical to the last commit so nothing was staged. It
+// writes to w (both reporter and plain modes) so the diagnostic is visible in CI, where
+// this most often surfaces (re-run after a partial release, or no changelog-worthy
+// commits). The pipeline continues to tag and publish.
+func warnNothingToCommit(w io.Writer, file string) {
+	_, _ = fmt.Fprintln(w, ui.Warn(w, fmt.Sprintf(
+		"%s unchanged — no new entries to commit; skipping commit, continuing to tag and release", file)))
 }
 
 // degradedSubResult returns a one-element sub-result note when gen fell back to --offline
