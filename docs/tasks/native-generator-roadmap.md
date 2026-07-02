@@ -32,7 +32,7 @@ no longer a parity target — heraut's rendering is its own spec, validated by g
 | Phase                                                | Tasks                  | Status      |
 |------------------------------------------------------|------------------------|-------------|
 | Phase 1 — config model + native canonical renderer   | T122–T126, T130–T136   | Complete    |
-| Phase 2 — remote enrichment via platform CLIs        | T127 – T129            | Not started |
+| Phase 2 — remote enrichment via platform CLIs        | T127, T128 (done); T137, T129 (open) | In progress |
 | Phase 2.5 — remove the git-cliff package (own ADR)   | —                      | Deferred    |
 | Phase 3 — raw-HTTP clients (drop `gh` / `glab`)       | —                      | Deferred    |
 
@@ -479,6 +479,51 @@ case dispatches to `enrichGitLab`. **First-timer detection deferred** (GitLab's 
 a follow-up. Auth still rides `LinkContext` (no `internal/platforms` import). Contract tests cover
 the glab argv/env, parsing, no-MR, error, and the end-to-end `!N` render. Done inline (Opus) per
 the user's call; Sonnet review to follow. Suite green.
+
+---
+
+#### `[x]` T137: GitLab "New Contributors" block (first-time contributors)
+
+Closes the first-timer gap deferred in T128. The renderer already emits the
+`### New Contributors ❤️` block from `prInfo.FirstTimer` (shared with GitHub) — GitLab just
+never sets it, because GitLab's MR API has no `authorAssociation`. Per
+[ADR-0034](../adr/0034-native-remote-enrichment.md) §4, a GitLab author is a first-timer when
+they do **not** appear in any earlier release's MRs. Realise that with one bounded `glab api`
+call per **distinct** release author:
+`projects/{id}/merge_requests?author_username={login}&state=merged&order_by=created_at&sort=asc&per_page=1`
+returns the author's earliest merged MR; the author is a first-timer iff that MR's `iid` is not
+less than the smallest MR `iid` they have in this release (i.e. their first-ever merged MR *is*
+in this release). Calls are bounded by distinct authors (small), not commit count.
+
+Gated by the same `remote_metadata` policy as the MR fetch (ADR-0034 §6): a failed first-timer
+query propagates and is handled by `enrichForRelease` (`required` → fatal, `optional` →
+degrade all enrichment). `RefPrefix: "!"` is preserved so the block renders `[!N]`.
+
+**Tests:** contract tests (`MockRunner`) for the earliest-MR argv/env, first-timer vs
+returning-contributor, multi-author dedup, and the end-to-end `### New Contributors` block with
+`[!N]`.
+
+**Files:** `internal/generators/native/enrich_gitlab.go` (+ test).
+**Scope:** S. **Dependencies:** T128. **Design:** [ADR-0034](../adr/0034-native-remote-enrichment.md).
+
+**Completion note (2026-07-02):** `enrich_gitlab.go` gains `markGitLabFirstTimers` (called
+after the per-commit MR map is built) and `gitLabEarliestMergedMR`. For each **distinct** MR
+author it issues one `glab api merge_requests?author_username={login}&state=merged&order_by=created_at&sort=asc&per_page=1`,
+and sets `FirstTimer` on that author's `result` entries when their earliest merged MR `iid` is
+`>= min(their release MR iids)` — i.e. their first-ever merged MR is in this release. **Realises
+ADR-0034 §4's "author appears in any earlier release's MRs" as a per-author earliest-MR lookup**
+(the concrete query shape the ADR left to implementation; T128 had already deviated from the
+batched merged-MR list to a per-commit fetch, so the full corpus isn't otherwise available).
+Calls are bounded by distinct authors, not commits, and an author on multiple commits is queried
+once. `earliest == 0` (no merged MR returned) is treated conservatively as not-new. Failures
+propagate through `enrich` → `enrichForRelease`, so the `remote_metadata` policy is applied
+uniformly (`required` fatal, `optional` degrades all enrichment) — no partial-degrade path was
+added. The renderer (`buildContributors`, template) was already generic, so no render change was
+needed; `RefPrefix: "!"` flows through and the block renders `[!N]`. Contract tests cover the
+earliest-MR argv/env, first-timer vs returning, single-query dedup, multi-author sorted order,
+query-error propagation, and the end-to-end `### New Contributors ❤️` block. GitHub was
+unaffected. Suite 1350 green. **Deferred:** best-effort first-timer degrade (keep `by @author`
+when only the first-timer lookup fails) — not added to preserve ADR-0034 §6's single error model.
 
 ---
 
