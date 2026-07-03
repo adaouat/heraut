@@ -23,6 +23,8 @@ func (g *Generator) enrich(lc *port.LinkContext, commits []rawCommit) (map[strin
 		return enrichGitHub(g.runner, lc, shas)
 	case "gitlab":
 		return enrichGitLab(g.runner, lc, shas)
+	case "azure_devops":
+		return enrichAzure(g.httpClient, lc, shas)
 	default:
 		return nil, nil
 	}

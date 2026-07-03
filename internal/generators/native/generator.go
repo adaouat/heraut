@@ -2,6 +2,7 @@ package native
 
 import (
 	"fmt"
+	"net/http"
 	"os"
 	"strings"
 	"time"
@@ -24,17 +25,24 @@ const (
 // templates. With a platform LinkContext it enriches commits with PR metadata via gh/glab
 // (ADR-0034), honouring the remote_metadata policy; Degraded reports an optional fetch failure.
 type Generator struct {
-	runner   port.Runner
-	cfg      *config.ContentDriver
-	mode     Mode
-	degraded bool
+	runner     port.Runner
+	httpClient *http.Client
+	cfg        *config.ContentDriver
+	mode       Mode
+	degraded   bool
 }
 
 var _ port.Generator = (*Generator)(nil)
 
-// New constructs a native Generator.
+// New constructs a native Generator. The httpClient is used only by the Azure DevOps
+// enrichment path (ADR-0035); GitHub/GitLab enrichment rides the runner via gh/glab.
 func New(runner port.Runner, cfg *config.ContentDriver, mode Mode) *Generator {
-	return &Generator{runner: runner, cfg: cfg, mode: mode}
+	return &Generator{
+		runner:     runner,
+		httpClient: &http.Client{Timeout: 30 * time.Second},
+		cfg:        cfg,
+		mode:       mode,
+	}
 }
 
 // Check verifies the generator is usable. native has no external dependency, so it always

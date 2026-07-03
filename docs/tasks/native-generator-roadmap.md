@@ -32,7 +32,7 @@ no longer a parity target — heraut's rendering is its own spec, validated by g
 | Phase                                                | Tasks                  | Status      |
 |------------------------------------------------------|------------------------|-------------|
 | Phase 1 — config model + native canonical renderer   | T122–T126, T130–T136   | Complete    |
-| Phase 2 — remote enrichment via platform CLIs        | T127, T128 (done); T137, T129 (open) | In progress |
+| Phase 2 — remote enrichment (GitHub/GitLab CLI, Azure HTTP) | T127, T128, T137, T129 | Complete    |
 | Phase 2.5 — remove the git-cliff package (own ADR)   | —                      | Deferred    |
 | Phase 3 — raw-HTTP clients (drop `gh` / `glab`)       | —                      | Deferred    |
 
@@ -527,7 +527,7 @@ when only the first-timer lookup fails) — not added to preserve ADR-0034 §6's
 
 ---
 
-#### `[ ]` T129: Azure DevOps enrichment via a native `net/http` client (optional)
+#### `[x]` T129: Azure DevOps enrichment via a native `net/http` client (optional)
 
 Bring the native path to ADR-0026 parity — Azure DevOps PR / author enrichment. Per
 [ADR-0035](../adr/0035-azure-enrichment-native-http.md) (which **supersedes ADR-0034 §3's `az`-CLI
@@ -549,6 +549,22 @@ header, request body; canned JSON) + correlation + each `remote_metadata` policy
 `*http.Client`; `enrich.go` gains the `azure_devops` dispatch case.
 **Scope:** M. **Dependencies:** T127. **Design:** [ADR-0035](../adr/0035-azure-enrichment-native-http.md),
 [ADR-0034](../adr/0034-native-remote-enrichment.md).
+
+**Completion note (2026-07-03):** Implemented via ADR-0035's native `net/http` path (the `az`-CLI
+reversal is recorded there). `enrich_azure.go` — `enrichAzure(client, lc, shas)` issues one batched
+`POST …/pullrequestquery?api-version=7.1` with `type: lastMergeCommit`, correlates `results[0][sha]
+→ prInfo` (first PR wins), composing the PR web URL via `azureRepoRoot` + `/pullrequest/{id}` and
+`RefPrefix "!"`. Auth is `Authorization: Basic base64(":"+lc.Token)` (PAT from `AZURE_DEVOPS_TOKEN`);
+`org`/`project` split from `lc.Owner`. Non-2xx / transport / decode errors wrap `pullrequestquery`
+so `enrichForRelease` applies the policy unchanged. `generator.go` gained an `*http.Client`
+(30s timeout, used only by this path); `enrich.go` dispatches `azure_devops`. **Zero new deps
+(stdlib only).** Tested with `httptest.Server` (the HTTP analog of MockRunner): request contract
+(method/path/api-version/`Authorization`/body), PR mapping, no-PR-absent, `uniqueName` local-part
+vs `displayName` fallback, non-2xx error, malformed JSON, empty-shas-no-call, and the end-to-end
+`by @jane in [!42](…)` render. **Author handle:** `uniqueName` local-part before `@`, else
+`displayName`. **First-timer deferred** (Azure PRs have no `authorAssociation`) — no New Contributors
+block for Azure yet. `port.LinkContext.APIEnv()` stays `nil` for azure_devops (unused). Suite 1357
+green. **This completes Phase 2.**
 
 ---
 
