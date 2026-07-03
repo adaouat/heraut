@@ -1037,7 +1037,10 @@ commits:
 	assert.Empty(t, config.Validate(cfg))
 }
 
-func TestValidate_NativePerEnvRejected(t *testing.T) {
+// TestValidate_NativePerEnvAccepted verifies native is now supported under a per-env strategy
+// (T138): the app layer scopes native's tag walk to the env via the derived TagGlob, so the
+// former blanket rejection is gone.
+func TestValidate_NativePerEnvAccepted(t *testing.T) {
 	cfg := mustLoad(t, `
 version: "1"
 versioning:
@@ -1055,9 +1058,8 @@ changelog:
   generator: native
   output: CHANGELOG.md
 `)
-	err := findErr(config.Validate(cfg), "changelog.generator")
-	require.NotNil(t, err, "native generator must be rejected under a per-env strategy")
-	assert.Contains(t, err.Message, "per-env")
+	assert.Nil(t, findErr(config.Validate(cfg), "changelog.generator"),
+		"native is now supported under a per-env strategy")
 }
 
 // ── tag_pattern ──────────────────────────────────────────────────────────────

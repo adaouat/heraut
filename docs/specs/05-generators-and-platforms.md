@@ -29,10 +29,12 @@ changelog:
 
 Section labels, order, and heading depth come from `commits.types` and
 `commits.types_heading_level`; `rendering.excludes` drops matched commits from the output.
-Phase 1 renders without remote enrichment (no PR author / number / contributors — those
-arrive in Phase 2). It also does not yet support per-env tag scoping: `generator: native`
-with a `*-per-env` strategy is rejected at config-validation time (use `git-cliff` there for
-now). See [ADR-0033](../adr/0033-native-config-model.md).
+Remote enrichment adds PR/MR author + number attribution for GitHub, GitLab, and Azure
+DevOps (plus a "New Contributors" block on GitHub and GitLab), gated by the `remote_metadata`
+policy. Per-env strategies are supported: under a `*-per-env` strategy native scopes its tag
+walk to the active environment's tags, derived from `tag_format`. See
+[ADR-0033](../adr/0033-native-config-model.md) and
+[ADR-0034](../adr/0034-native-remote-enrichment.md).
 
 ### git-cliff
 

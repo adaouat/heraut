@@ -38,6 +38,39 @@ func TestGenerator_GenerateReleaseNotes(t *testing.T) {
 	assert.Equal(t, []string{"log", "v1.0.0..v1.1.0", "--reverse", "--format=" + logFormat}, mr.Calls[1].Args)
 }
 
+// TestGenerator_GenerateReleaseNotes_TagGlob verifies native scopes the previous-tag lookup to
+// the env glob (per-env strategy support, T138): git describe gains --match <glob>.
+func TestGenerator_GenerateReleaseNotes_TagGlob(t *testing.T) {
+	mr := exectest.NewMockRunner()
+	mr.QueueResponse("prod/v1.0.0\n", "", nil) // previousTag: git describe --match prod/v*
+	mr.QueueResponse(record("abc1234567", "Alice", "alice@example.com",
+		"2026-01-02T00:00:00Z", "feat: add the thing", ""), "", nil) // collectCommits
+
+	g := New(mr, &config.ContentDriver{Generator: "native", TagGlob: "prod/v*"}, ModeReleaseNotes)
+	_, err := g.Generate("prod/v1.1.0", nil)
+	require.NoError(t, err)
+
+	require.Len(t, mr.Calls, 2)
+	assert.Equal(t, []string{"describe", "--tags", "--abbrev=0", "--match", "prod/v*", "prod/v1.1.0^"}, mr.Calls[0].Args)
+	assert.Equal(t, []string{"log", "prod/v1.0.0..prod/v1.1.0", "--reverse", "--format=" + logFormat}, mr.Calls[1].Args)
+}
+
+// TestGenerator_GenerateChangelog_TagGlob verifies native scopes tag listing to the env glob.
+func TestGenerator_GenerateChangelog_TagGlob(t *testing.T) {
+	mr := exectest.NewMockRunner()
+	mr.QueueResponse("prod/v1.0.0\n", "", nil) // listTags: git tag -l prod/v*
+	mr.QueueResponse(record("aaa1111111", "A", "a@example.com",
+		"2026-02-01T00:00:00Z", "feat: brand new", ""), "", nil) // new release: prod/v1.0.0..HEAD
+	mr.QueueResponse(record("bbb2222222", "B", "b@example.com",
+		"2026-01-01T00:00:00Z", "fix: an old bug", ""), "", nil) // existing prod/v1.0.0
+
+	g := New(mr, &config.ContentDriver{Generator: "native", TagGlob: "prod/v*"}, ModeChangelog)
+	_, err := g.Generate("prod/v1.1.0", nil)
+	require.NoError(t, err)
+
+	assert.Equal(t, []string{"tag", "-l", "prod/v*", "--sort=-version:refname"}, mr.Calls[0].Args)
+}
+
 func TestGenerator_GenerateChangelog_WritesFile(t *testing.T) {
 	mr := exectest.NewMockRunner()
 	mr.QueueResponse("v1.0.0\n", "", nil) // listTags: git tag -l (one existing tag)

@@ -576,7 +576,7 @@ package removal (Phase 2.5). Prioritised order below. **User-customizable templa
 git-cliff-only feature) is intentionally excluded here: it gets its own brainstorm/ADR after
 these land and are validated on a real repo.
 
-#### `[ ]` T138: native per-env tag scoping
+#### `[x]` T138: native per-env tag scoping
 
 The one thing blocking "native for all strategies": the validator (`validateNativePerEnv`)
 rejects native under `*-per-env` strategies because native's `listTags` / `previousTag` walk all
@@ -594,6 +594,16 @@ propagation); native's `generateReleaseNotes` / `generateChangelog` pass `g.cfg.
 --match <glob>`; app-layer test that `withEnvDerivations` sets `TagGlob` for a per-env strategy and
 leaves it empty otherwise; validator test that native + `*-per-env` is now accepted; spec 05 update.
 **Scope:** M. **Dependencies:** none.
+
+**Completion note (2026-07-03):** Landed exactly as planned — it was a wiring task, the scoping
+primitives already existed. Added `ContentDriver.TagGlob` (`yaml:"-"`, app-computed);
+`withEnvDerivations` derives it via `tagfmt.GlobPattern(tf, env)` **only** when the format carries
+`{env}` and env is non-empty and the user set no explicit `TagPattern` (so non-per-env keeps
+`TagGlob == ""` = all tags, unchanged). `generator.go` now passes `g.cfg.TagGlob` to `previousTag`
+(→ `git describe … --match <glob>`) and `listTags` (→ `git tag -l <glob>`). Removed
+`validateNativePerEnv` entirely and flipped its test to `TestValidate_NativePerEnvAccepted`. Spec 05
+updated (also corrected a stale "no remote enrichment" line now that Phase 2 shipped). Native is now
+valid for **all four strategies**. Suite 1361 green.
 
 #### `[ ]` T139: native explicit `tag_pattern` support
 

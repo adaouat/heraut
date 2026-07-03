@@ -66,7 +66,7 @@ func (g *Generator) Generate(tag string, lc *port.LinkContext) (string, error) {
 }
 
 func (g *Generator) generateReleaseNotes(tag string, lc *port.LinkContext) (string, error) {
-	prev, err := previousTag(g.runner, tag, "")
+	prev, err := previousTag(g.runner, tag, g.cfg.TagGlob)
 	if err != nil {
 		return "", err
 	}
@@ -90,7 +90,7 @@ func (g *Generator) generateReleaseNotes(tag string, lc *port.LinkContext) (stri
 // when set, and also returned. Only the new release's section is remote-enriched (ADR-0034 §5);
 // historical sections render from git alone, keeping regeneration to O(1) API calls.
 func (g *Generator) generateChangelog(tag string, lc *port.LinkContext) (string, error) {
-	tags, err := listTags(g.runner, "")
+	tags, err := listTags(g.runner, g.cfg.TagGlob)
 	if err != nil {
 		return "", err
 	}

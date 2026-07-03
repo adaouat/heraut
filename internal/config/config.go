@@ -107,6 +107,10 @@ type ContentDriver struct {
 	// TypesHeadingLevel is the effective commits.types_heading_level, propagated by the app
 	// layer for the native generator's section heading depth. (native only.)
 	TypesHeadingLevel int `yaml:"-"`
+	// TagGlob is the app-computed git tag glob scoping the native generator to the active
+	// environment's tags under a per-env strategy (tagfmt.GlobPattern). Empty means "all tags"
+	// (non-per-env). Not user-configurable — the user-facing knob is TagPattern. (native only.)
+	TagGlob string `yaml:"-"`
 	// Remote configures an explicit, metadata-only remote for git-cliff PR/author
 	// enrichment. Only valid on the changelog driver — release.notes already resolves
 	// this from release.platforms and rejects Remote. git-cliff only. See ADR-0026.

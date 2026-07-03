@@ -42,40 +42,6 @@ func Validate(cfg *Config) ValidationErrors {
 	errs = append(errs, validateTickets(cfg)...)
 	errs = append(errs, validateCommits(cfg)...)
 	errs = append(errs, validateRendering(cfg)...)
-	errs = append(errs, validateNativePerEnv(cfg)...)
-	return errs
-}
-
-// validateNativePerEnv rejects the native generator under a *-per-env strategy. native lists
-// all tags regardless of environment (per-env tag-glob scoping is a later phase), so it would
-// mix every environment's tags into one changelog; git-cliff scopes via tag_pattern. The base
-// drivers are checked directly; per-env overrides are checked raw — an override that omits
-// generator inherits the base (already checked), so only one that sets native adds a violation.
-func validateNativePerEnv(cfg *Config) []ValidationError {
-	if !strings.HasSuffix(cfg.Versioning.Strategy, "-per-env") {
-		return nil
-	}
-	var errs []ValidationError
-	check := func(d *ContentDriver, path string) {
-		if d != nil && strings.EqualFold(d.Generator, "native") {
-			errs = append(errs, ValidationError{
-				Path:    path + ".generator",
-				Message: "the native generator does not yet support per-env tag scoping",
-				Hint:    "use generator: git-cliff with a per-env strategy, or choose a non-per-env strategy",
-			})
-		}
-	}
-	check(cfg.Changelog, "changelog")
-	if cfg.Release != nil {
-		check(cfg.Release.Notes, "release.notes")
-	}
-	for envName, env := range cfg.Environments {
-		base := "environments." + envName
-		check(env.Changelog, base+".changelog")
-		if env.Release != nil {
-			check(env.Release.Notes, base+".release.notes")
-		}
-	}
 	return errs
 }
 

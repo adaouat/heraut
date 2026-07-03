@@ -251,16 +251,24 @@ func withEnvDerivations(driver *config.ContentDriver, cfg *config.Config, env st
 	tf := cfg.EffectiveTagFormat(env)
 	headingPat := tagfmt.DeriveHeadingVersionPattern(tf)
 
-	var tagPat string
+	var tagPat, tagGlob string
 	if driver.TagPattern == "" {
 		tagPat = tagfmt.DeriveTagPattern(tf, env)
+		// The git glob is the native equivalent of git-cliff's --tag-pattern regex: it scopes
+		// listTags / previousTag to the active env's tags. Derived only for a per-env format
+		// ({env} present) — otherwise native keeps walking all tags.
+		if env != "" && strings.Contains(tf, "{env}") {
+			if g, err := tagfmt.GlobPattern(tf, env); err == nil {
+				tagGlob = g
+			}
+		}
 	}
 
 	rm := cfg.RemoteMetadata()
 	tickets := cfg.Tickets()
 	hasCommits := cfg.Commits != nil && (len(cfg.Commits.Types) > 0 || cfg.Commits.TypesHeadingLevel > 0)
 	hasRendering := cfg.Rendering != nil && len(cfg.Rendering.Excludes) > 0
-	if headingPat == "" && tagPat == "" && rm == "" && len(tickets) == 0 && !hasCommits && !hasRendering {
+	if headingPat == "" && tagPat == "" && tagGlob == "" && rm == "" && len(tickets) == 0 && !hasCommits && !hasRendering {
 		return driver
 	}
 	clone := *driver
@@ -269,6 +277,9 @@ func withEnvDerivations(driver *config.ContentDriver, cfg *config.Config, env st
 	}
 	if tagPat != "" {
 		clone.TagPattern = tagPat
+	}
+	if tagGlob != "" {
+		clone.TagGlob = tagGlob
 	}
 	if rm != "" {
 		clone.RemoteMetadata = rm
