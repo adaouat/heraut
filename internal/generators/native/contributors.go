@@ -38,6 +38,26 @@ func toParsedCommits(commits []rawCommit) []parsedCommit {
 	return out
 }
 
+// renderedCommits returns the subset of commits (original order) that survive classification —
+// those present in groups after rendering.excludes filtering. Contributors are computed from these
+// so an author whose only commits are excluded (e.g. a bot's chore(deps)) is not celebrated in the
+// "New Contributors" block (T149) — "new contributors" are the authors whose work is shown.
+func renderedCommits(commits []rawCommit, groups []group) []rawCommit {
+	shown := make(map[string]bool)
+	for _, g := range groups {
+		for _, pc := range g.commits {
+			shown[pc.raw.Hash] = true
+		}
+	}
+	out := make([]rawCommit, 0, len(commits))
+	for _, c := range commits {
+		if shown[c.Hash] {
+			out = append(out, c)
+		}
+	}
+	return out
+}
+
 // collectContributors returns the release's distinct contributors (first-seen order, deduped by
 // git author email). IsFirstTime is true when the email is absent from before. The PR handle /
 // number / url are overlaid from the author's **first PR-bearing commit** in the release — their

@@ -116,7 +116,7 @@ func (g *Generator) generateReleaseNotes(tag string, lc *port.LinkContext) (stri
 		return "", err
 	}
 	groups := groupCommits(commits, g.cfg.Types, g.cfg.Excludes)
-	contributors := collectContributors(toParsedCommits(commits), before, enrichment)
+	contributors := collectContributors(toParsedCommits(renderedCommits(commits, groups)), before, enrichment)
 	return renderReleaseNotes(tag, prev, releaseDate(commits), groups, lc, g.cfg.Tickets, prevDate, g.cfg.TypesHeadingLevel, enrichment, contributors)
 }
 

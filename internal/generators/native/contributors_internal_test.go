@@ -92,3 +92,17 @@ func TestCollectContributors_EmptyEmailSkipped(t *testing.T) {
 	require.Len(t, got, 1)
 	assert.Equal(t, "bob@x", got[0].Author.Email)
 }
+
+// TestRenderedCommits_FiltersToGroups: only commits that survive classification (present in the
+// rendered groups) feed contributor computation, so excluded-type authors (e.g. a bot's
+// chore(deps)) are not celebrated (T149). Original order is preserved.
+func TestRenderedCommits_FiltersToGroups(t *testing.T) {
+	all := []rawCommit{{Hash: "aaa"}, {Hash: "bbb"}, {Hash: "ccc"}}
+	groups := []group{{commits: []parsedCommit{{raw: rawCommit{Hash: "aaa"}}, {raw: rawCommit{Hash: "ccc"}}}}}
+
+	got := renderedCommits(all, groups)
+
+	require.Len(t, got, 2, "bbb (not in any group → excluded) is dropped")
+	assert.Equal(t, "aaa", got[0].Hash)
+	assert.Equal(t, "ccc", got[1].Hash, "order preserved")
+}
