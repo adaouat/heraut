@@ -1,5 +1,64 @@
 # Changelog
 
+## [0.48.0](https://github.com/adaouat/heraut/compare/v0.47.1..v0.48.0) - 2026-07-03
+
+### 🚀 Features
+
+- *(generators/native)* GitLab New Contributors block (T137) - ([80c1e25](https://github.com/adaouat/heraut/commit/80c1e255794e1fa194c9297ed3ad54715c38f143)) by @bchatard
+
+- *(generators/native)* Azure DevOps enrichment via net/http (T129) - ([8e25e35](https://github.com/adaouat/heraut/commit/8e25e35ab7f243a647651ccf1606a2e10a89d856)) by @bchatard
+
+- *(generators/native)* Support per-env strategies (T138) - ([31306b0](https://github.com/adaouat/heraut/commit/31306b07bbda347ae8de5a39925e47ad3e2d89e4)) by @bchatard
+
+- *(generators/native)* Honor explicit tag_pattern as a regex (T139) - ([bd3c749](https://github.com/adaouat/heraut/commit/bd3c749d32ba82e3af278ae646fc58efe2964aae)) by @bchatard
+
+- *(generators/native)* Days-between-releases stat in notes (T140) - ([027be7e](https://github.com/adaouat/heraut/commit/027be7e817ad4fb9a724c638579b2afa6b047cb1)) by @bchatard
+
+- *(generators/native)* Local git tier for contributors + first_time - ([a8ba356](https://github.com/adaouat/heraut/commit/a8ba35685f0a0d613afef8e79f8de18bbaa57b73)) by @bchatard
+
+- *(generators/native)* Render New Contributors from local tier - ([d299ecd](https://github.com/adaouat/heraut/commit/d299ecdb631bcef63389f641391c37fa14e37d3b)) by @bchatard
+
+- *(generators/native)* Fetch PR title + labels for GitHub - ([0ecbd47](https://github.com/adaouat/heraut/commit/0ecbd475169b2cb0b377008783ad339d9dae6170)) by @bchatard
+
+- *(generators/native)* Fetch MR title + labels for GitLab - ([38e5e4f](https://github.com/adaouat/heraut/commit/38e5e4f6bf0257d59b5f06695615b72cbff462ed)) by @bchatard
+
+- *(generators/native)* Fetch PR title + labels for Azure DevOps - ([7a12303](https://github.com/adaouat/heraut/commit/7a123035e081f83168c431cbbed482336dc30ce6)) by @bchatard
+
+
+### 🐛 Bug Fixes
+
+- *(generators/native)* Overlay PR from first PR-bearing commit (T149) - ([4647c1d](https://github.com/adaouat/heraut/commit/4647c1d1e74969175a45eab4dd6c6070dfcd502a)) by @bchatard
+
+- *(generators/native)* Contributors from rendered commits only (T149) - ([560cc71](https://github.com/adaouat/heraut/commit/560cc71eba6f518718d37e8570657d5dff73713a)) by @bchatard
+
+- *(pipeline)* Skip changelog commit when nothing staged - ([1b3e3d2](https://github.com/adaouat/heraut/commit/1b3e3d27a3c2a715e031d671c0c2363ef8a1c687)) by @bchatard
+
+
+### 🚜 Refactor
+
+- *(generators/native)* Rename prInfo to PullRequest model - ([00d57ec](https://github.com/adaouat/heraut/commit/00d57ec6dc4305f2e6704a09becd2b27986a272d)) by @bchatard
+
+- *(generators/native)* Remove per-platform first-timer paths - ([4e5aa3f](https://github.com/adaouat/heraut/commit/4e5aa3f3dfe2491530948628b360769b1ade051f)) by @bchatard
+
+
+### 📚 Documentation
+
+- *(adr)* 0035 Azure enrichment via native net/http - ([40ba73c](https://github.com/adaouat/heraut/commit/40ba73c1bae96bde2b6e55dc67bd4479f6b16c26)) by @bchatard
+
+- *(adr)* 0036 unified enrichment model; close Phase 2.7 - ([a838fec](https://github.com/adaouat/heraut/commit/a838fec4e7b1fa784ca223bbb159ba5348feeba8)) by @bchatard
+
+- *(roadmap)* Plan Phase 2.6 native/git-cliff parity (T138-T141) - ([ab36c57](https://github.com/adaouat/heraut/commit/ab36c57e1a48339d676d9e98a5d5ccffffe05931)) by @bchatard
+
+- *(roadmap)* File T149 native enrichment follow-ups - ([6611765](https://github.com/adaouat/heraut/commit/6611765cd2fa2518d0f4e1215b90c91e97e105eb)) by @bchatard
+
+- Unified cross-platform enrichment model design - ([bbfb7e6](https://github.com/adaouat/heraut/commit/bbfb7e68407f11effcafdfa5e04d1bb5ced2d743)) by @bchatard
+
+- Unified enrichment model implementation plan (Phase 2.7) - ([4f72d4a](https://github.com/adaouat/heraut/commit/4f72d4a0d4457166f9c6656df8666d0033e97625)) by @bchatard
+
+- Fix ADR-0036/roadmap/spec accuracy nits - ([d52b977](https://github.com/adaouat/heraut/commit/d52b9779ad0b8bac5800fa1680b576faa6475b1b)) by @bchatard
+
+- Mark T149 done; ADR-0036 contributor-scope resolved - ([7969d26](https://github.com/adaouat/heraut/commit/7969d26325529402b89d45e674ca7dde115c239f)) by @bchatard
+
 ## [0.47.1](https://github.com/adaouat/heraut/compare/v0.47.0..v0.47.1) - 2026-06-30
 
 ### 🐛 Bug Fixes
