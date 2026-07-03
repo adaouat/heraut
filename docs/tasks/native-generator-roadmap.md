@@ -743,6 +743,33 @@ extra `expand` request added). This completes Phase 2.7 — see
 that contributor computation runs over all release commits, before `rendering.excludes`
 type-filtering (deferred follow-up). **Scope:** S. **Dependencies:** T145.
 
+#### `[ ]` T149: native enrichment follow-ups (deferred from Phase 2.7)
+
+Small, non-blocking polish items surfaced by the Phase 2.7 final whole-branch review
+([ADR-0036](../adr/0036-unified-enrichment-model.md)). None affect correctness of the shipped
+model; bundle when convenient.
+
+- **Offline `authorsBefore` guard.** `generateReleaseNotes` runs `git log <prev> --format=%ae`
+  unconditionally, even under `remote_metadata: disabled` where the result is unused today (no
+  Username is set, so `before` never affects output). On a large repo that is a full-history walk
+  with no offline benefit *yet*. Guard it (skip when `enrichment == nil`) once the future offline
+  user-templates consumer's needs are pinned — the local tier is "always on" by design for that
+  consumer, so this is a deliberate trade, not a bug.
+- **First-commit-no-PR omission.** `collectContributors` overlays the PR from the *first commit
+  seen per email*; a genuine first-timer whose earliest (`git log --reverse`) commit is not
+  PR-linked but whose later commit is will render with no handle → dropped from New Contributors
+  even online. Bounded (squash-merge maps every commit to a PR). Add a test pinning the behavior,
+  and decide whether to search for the first PR-bearing commit instead.
+- **Bot / excluded-type contributors.** Contributors derive from *all* release commits (before
+  `rendering.excludes`), so a first-time bot `chore(deps)` PR (excluded from the body) can still
+  surface in New Contributors. Decide on bot / excluded-commit filtering.
+- **Dead test helper.** Drop the now-inert `association` param and `authorAssociation` JSON field
+  from `ghGraphQLResponse` (`enrich_internal_test.go`) — the last remnant of the retired GitHub
+  first-timer mechanism.
+- **Empty-email guard test.** Cover the `email == ""` branch in `collectContributors`.
+
+**Scope:** S. **Dependencies:** Phase 2.7.
+
 ---
 
 ## Phase 3 — Raw-HTTP platform clients (deferred)
