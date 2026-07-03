@@ -739,35 +739,34 @@ merge-request response already carries both); `enrichGitLab`'s `PullRequest{...}
 string}` field; `enrichAzure`'s `PullRequest{...}` literal sets `Title`/`Labels` from the
 `pullrequestquery` response (labels stay empty if a given response omits them — best-effort, no
 extra `expand` request added). This completes Phase 2.7 — see
-[ADR-0036](../adr/0036-unified-enrichment-model.md) for the full model and the known limitation
-that contributor computation runs over all release commits, before `rendering.excludes`
-type-filtering (deferred follow-up). **Scope:** S. **Dependencies:** T145.
+[ADR-0036](../adr/0036-unified-enrichment-model.md) for the full model. (The initial "contributors
+over all commits" behavior was refined to rendered-commits scope in T149.) **Scope:** S.
+**Dependencies:** T145.
 
-#### `[ ]` T149: native enrichment follow-ups (deferred from Phase 2.7)
+#### `[x]` T149: native enrichment follow-ups (from Phase 2.7 final review)
 
-Small, non-blocking polish items surfaced by the Phase 2.7 final whole-branch review
-([ADR-0036](../adr/0036-unified-enrichment-model.md)). None affect correctness of the shipped
-model; bundle when convenient.
+Non-blocking polish items surfaced by the Phase 2.7 final whole-branch review
+([ADR-0036](../adr/0036-unified-enrichment-model.md)). Four of five landed; the fifth is folded
+into the future user-templates task (its offline consumer).
 
-- **Offline `authorsBefore` guard.** `generateReleaseNotes` runs `git log <prev> --format=%ae`
-  unconditionally, even under `remote_metadata: disabled` where the result is unused today (no
-  Username is set, so `before` never affects output). On a large repo that is a full-history walk
-  with no offline benefit *yet*. Guard it (skip when `enrichment == nil`) once the future offline
-  user-templates consumer's needs are pinned — the local tier is "always on" by design for that
-  consumer, so this is a deliberate trade, not a bug.
-- **First-commit-no-PR omission.** `collectContributors` overlays the PR from the *first commit
-  seen per email*; a genuine first-timer whose earliest (`git log --reverse`) commit is not
-  PR-linked but whose later commit is will render with no handle → dropped from New Contributors
-  even online. Bounded (squash-merge maps every commit to a PR). Add a test pinning the behavior,
-  and decide whether to search for the first PR-bearing commit instead.
-- **Bot / excluded-type contributors.** Contributors derive from *all* release commits (before
-  `rendering.excludes`), so a first-time bot `chore(deps)` PR (excluded from the body) can still
-  surface in New Contributors. Decide on bot / excluded-commit filtering.
-- **Dead test helper.** Drop the now-inert `association` param and `authorAssociation` JSON field
-  from `ghGraphQLResponse` (`enrich_internal_test.go`) — the last remnant of the retired GitHub
-  first-timer mechanism.
-- **Empty-email guard test.** Cover the `email == ""` branch in `collectContributors`.
+- **[x] First-PR-bearing-commit overlay** (`4647c1d`). `collectContributors` now overlays a
+  first-timer's PR from their *first PR-bearing* commit (was: only the first commit seen), so a
+  first-timer whose earliest commit is unlinked but a later one has a PR still renders online.
+- **[x] Contributors from rendered commits** (`560cc71`). `renderedCommits` filters to commits that
+  survive `rendering.excludes` before `collectContributors`, so a first-time bot `chore(deps)`
+  (excluded) no longer surfaces in "New Contributors" — the celebrated set is the authors whose
+  work is shown.
+- **[x] Dead test helper + empty-email test** (`4647c1d`). Dropped the inert `association` param
+  and `authorAssociation` JSON from `ghGraphQLResponse` (last remnant of the retired GitHub
+  first-timer path); added an `email == ""` guard test for `collectContributors`.
+- **[ ] Deferred — offline `authorsBefore` guard.** `generateReleaseNotes` runs `git log <prev>
+  --format=%ae` even under `remote_metadata: disabled`, where the result is unused *today*. Left
+  "always on" deliberately: the local tier is the source the future offline user-customizable
+  templates will consume, so the guard (skip when `enrichment == nil`) belongs with that task once
+  its offline needs are pinned — tracked there, not here.
 
+**Completion note (2026-07-04):** landed across `4647c1d` + `560cc71`; #3 (rendered-commits scope)
+was a user decision — "new contributors" are the authors whose work is shown. Full suite 1372 green.
 **Scope:** S. **Dependencies:** Phase 2.7.
 
 ---

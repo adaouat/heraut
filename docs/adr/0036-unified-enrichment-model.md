@@ -113,16 +113,16 @@ template. Defining the schema now — flat core fields plus the `Platforms` esca
 makes that future shift tractable: this model *is* the template-facing contract that task will
 expose, chosen with that consumer in mind.
 
-## Known limitation
+## Contributor scope
 
-Contributors are currently derived from **all** of the release's raw commits, before
-`rendering.excludes` type-filtering is applied (`collectContributors` in `contributors.go` is
-called with `toParsedCommits(commits)` — the unfiltered `collectCommits` output — not the grouped,
-excludes-filtered commits `groupCommits` produces). Consequence: a bot's first-ever commit that
-happens to be an excluded type (e.g. `chore(deps)` from Renovate/Dependabot, excluded by default —
-[ADR-0033](0033-native-config-model.md)) can still surface that bot in the "New Contributors"
-block, even though none of its commits render in the changelog body. Bot / excluded-commit
-filtering for the contributor computation is a **deferred follow-up**, not addressed by this ADR.
+Contributors are derived from the release's **rendered** commits — those that survive
+`rendering.excludes` type-filtering (`renderedCommits` filters `collectCommits`'s output to the set
+`groupCommits` keeps, and `collectContributors` runs over that). "New contributors" are therefore
+the authors whose work is actually shown in the notes: a bot's first-ever commit that is an excluded
+type (e.g. `chore(deps)` from Renovate/Dependabot, excluded by default —
+[ADR-0033](0033-native-config-model.md)) does **not** surface that bot in the "New Contributors"
+block, since none of its commits render in the body. (Initially this ran over all raw commits; the
+rendered-commits scoping landed as a T149 follow-up.)
 
 ## Consequences
 
@@ -151,9 +151,9 @@ filtering for the contributor computation is a **deferred follow-up**, not addre
   `merge_status`, …). Deferred: there is no consumer until user-customizable templates land: the
   built-in template only needs the common fields. Adding it now would be speculative surface with
   no test coverage driving it.
-- **Filter bot/excluded commits out of the contributor computation now.** Deferred (see "Known
-  limitation" above) to keep this epic scoped to the model unification; it is a narrower,
-  separable follow-up once the model has shipped and been observed on a real repo.
+- **Filter bot/excluded commits out of the contributor computation.** Was deferred out of the core
+  epic to keep it scoped to the model unification; landed shortly after as a T149 follow-up (see
+  "Contributor scope" above) — contributors now derive from rendered commits.
 
 ## References
 
