@@ -17,10 +17,10 @@ import (
 )
 
 // ghGraphQLResponse builds a one-PR gh api graphql JSON body for alias s0.
-func ghGraphQLResponse(number int, url, login, association string) string {
+func ghGraphQLResponse(number int, url, login string) string {
 	return fmt.Sprintf(
-		`{"data":{"repository":{"s0":{"associatedPullRequests":{"nodes":[{"number":%d,"url":%q,"author":{"login":%q},"authorAssociation":%q}]}}}}}`,
-		number, url, login, association)
+		`{"data":{"repository":{"s0":{"associatedPullRequests":{"nodes":[{"number":%d,"url":%q,"author":{"login":%q}}]}}}}}`,
+		number, url, login)
 }
 
 func parsedFrom(hash, subject string) parsedCommit {
@@ -127,7 +127,7 @@ func TestGenerate_Enrich_Disabled_NoAPICall(t *testing.T) {
 func TestGenerate_Enrich_OptionalSuccess(t *testing.T) {
 	mr := exectest.NewMockRunner()
 	queueReleaseNotesGit(mr)
-	mr.QueueResponse(ghGraphQLResponse(42, "https://github.com/o/r/pull/42", "octocat", "MEMBER"), "", nil)
+	mr.QueueResponse(ghGraphQLResponse(42, "https://github.com/o/r/pull/42", "octocat"), "", nil)
 	// authorsBefore runs after platform enrich, so its response is queued last (T140-style ripple).
 	mr.QueueResponse("bob@x\n", "", nil) // authorsBefore: git log v1.0.0 --format=%ae
 	g := New(mr, &config.ContentDriver{Generator: "native", RemoteMetadata: "optional"}, ModeReleaseNotes)
@@ -175,7 +175,7 @@ func TestGenerate_Enrich_ChangelogEnrichesOnlyNewRelease(t *testing.T) {
 	mr := exectest.NewMockRunner()
 	mr.QueueResponse("v1.0.0\n", "", nil)                                                                          // listTags (one existing tag)
 	mr.QueueResponse(record("aaa1111111", "A", "a@example.com", "2026-02-01T00:00:00Z", "feat: new", ""), "", nil) // new release commits
-	mr.QueueResponse(ghGraphQLResponse(50, "https://github.com/o/r/pull/50", "octocat", "MEMBER"), "", nil)        // new release enrich
+	mr.QueueResponse(ghGraphQLResponse(50, "https://github.com/o/r/pull/50", "octocat"), "", nil)                  // new release enrich
 	mr.QueueResponse(record("bbb2222222", "B", "b@example.com", "2026-01-01T00:00:00Z", "fix: old", ""), "", nil)  // existing v1.0.0 commits (no enrich)
 	g := New(mr, &config.ContentDriver{Generator: "native", RemoteMetadata: "optional"}, ModeChangelog)
 

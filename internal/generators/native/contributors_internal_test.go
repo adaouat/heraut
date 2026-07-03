@@ -63,3 +63,32 @@ func TestCollectContributors_DedupByEmail_OfflineNoPR(t *testing.T) {
 	assert.Nil(t, got[0].PR)
 	assert.True(t, got[0].IsFirstTime)
 }
+
+// TestCollectContributors_OverlaysFirstPRBearingCommit: a first-timer whose earliest commit is
+// not PR-linked but a later commit is should still render, using the later commit's PR (T149).
+func TestCollectContributors_OverlaysFirstPRBearingCommit(t *testing.T) {
+	commits := []parsedCommit{
+		pc("aaa", "Alice", "alice@x"), // no PR
+		pc("bbb", "Alice", "alice@x"), // has the PR
+	}
+	prs := map[string]PullRequest{
+		"bbb": {Number: 9, URL: "u9", AuthorLogin: "alice-gh", RefPrefix: "#"},
+	}
+
+	got := collectContributors(commits, map[string]bool{}, prs)
+
+	require.Len(t, got, 1)
+	assert.Equal(t, "alice-gh", got[0].Author.Username, "PR overlaid from the first PR-bearing commit")
+	require.NotNil(t, got[0].PR)
+	assert.Equal(t, 9, got[0].PR.Number)
+}
+
+// TestCollectContributors_EmptyEmailSkipped: a commit with no author email is skipped, not
+// collapsed into a single empty-email contributor.
+func TestCollectContributors_EmptyEmailSkipped(t *testing.T) {
+	commits := []parsedCommit{pc("aaa", "Nameless", ""), pc("bbb", "Bob", "bob@x")}
+	got := collectContributors(commits, map[string]bool{}, nil)
+
+	require.Len(t, got, 1)
+	assert.Equal(t, "bob@x", got[0].Author.Email)
+}

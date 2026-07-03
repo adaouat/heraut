@@ -39,13 +39,15 @@ func toParsedCommits(commits []rawCommit) []parsedCommit {
 }
 
 // collectContributors returns the release's distinct contributors (first-seen order, deduped by
-// git author email). IsFirstTime is true when the email is absent from before. When a PR is known
-// for the author's first contributing commit, its handle/number/url are overlaid. Only first-time
-// contributors are returned — the "New Contributors" block renders exactly this list.
+// git author email). IsFirstTime is true when the email is absent from before. The PR handle /
+// number / url are overlaid from the author's **first PR-bearing commit** in the release — their
+// earliest commit may be unlinked while a later one carries the PR, and the built-in template
+// only renders a contributor once a handle is known. Only first-time contributors are returned —
+// the "New Contributors" block renders exactly this list.
 func collectContributors(commits []parsedCommit, before map[string]bool, prs map[string]PullRequest) []Contributor {
 	seen := make(map[string]bool)
 	var out []Contributor
-	for _, c := range commits {
+	for i, c := range commits {
 		email := c.raw.Email
 		if email == "" || seen[email] {
 			continue
@@ -58,10 +60,16 @@ func collectContributors(commits []parsedCommit, before map[string]bool, prs map
 			Author:      Author{Name: c.raw.Author, Email: email},
 			IsFirstTime: true,
 		}
-		if pr, ok := prs[c.raw.Hash]; ok {
-			contrib.Author.Username = pr.AuthorLogin
-			prCopy := pr
-			contrib.PR = &prCopy
+		for _, c2 := range commits[i:] {
+			if c2.raw.Email != email {
+				continue
+			}
+			if pr, ok := prs[c2.raw.Hash]; ok {
+				contrib.Author.Username = pr.AuthorLogin
+				prCopy := pr
+				contrib.PR = &prCopy
+				break
+			}
 		}
 		out = append(out, contrib)
 	}
