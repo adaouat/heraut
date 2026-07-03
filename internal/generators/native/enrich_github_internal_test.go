@@ -43,11 +43,11 @@ func TestEnrichGitHub_TwoCommitsWithPRs(t *testing.T) {
 			"repository": {
 				"s0": {"associatedPullRequests": {"nodes": [
 					{"number": 42, "url": "https://github.com/owner/repo/pull/42",
-					 "author": {"login": "alice"}, "authorAssociation": "CONTRIBUTOR"}
+					 "author": {"login": "alice"}}
 				]}},
 				"s1": {"associatedPullRequests": {"nodes": [
 					{"number": 43, "url": "https://github.com/owner/repo/pull/43",
-					 "author": {"login": "bob"}, "authorAssociation": "FIRST_TIME_CONTRIBUTOR"}
+					 "author": {"login": "bob"}}
 				]}}
 			}
 		}
@@ -61,12 +61,10 @@ func TestEnrichGitHub_TwoCommitsWithPRs(t *testing.T) {
 	assert.Equal(t, 42, pi1.Number)
 	assert.Equal(t, "https://github.com/owner/repo/pull/42", pi1.URL)
 	assert.Equal(t, "alice", pi1.AuthorLogin)
-	assert.False(t, pi1.FirstTimer)
 
 	pi2 := result[sha2]
 	assert.Equal(t, 43, pi2.Number)
 	assert.Equal(t, "bob", pi2.AuthorLogin)
-	assert.True(t, pi2.FirstTimer)
 
 	// Contract: exact argv and env (single batched call).
 	require.Len(t, mr.Calls, 1)
@@ -101,11 +99,11 @@ func TestEnrichGitHub_Chunking(t *testing.T) {
 
 	// First chunk (50 SHAs): only shas[0] has a PR; absent aliases are treated as no-PR.
 	mr.QueueResponse(`{"data":{"repository":{`+
-		`"s0":{"associatedPullRequests":{"nodes":[{"number":1,"url":"https://github.com/owner/repo/pull/1","author":{"login":"alice"},"authorAssociation":"CONTRIBUTOR"}]}}`+
+		`"s0":{"associatedPullRequests":{"nodes":[{"number":1,"url":"https://github.com/owner/repo/pull/1","author":{"login":"alice"}}]}}`+
 		`}}}`, "", nil)
 	// Second chunk (1 SHA): shas[50] has PR #51 (aliased as s0 in its own chunk).
 	mr.QueueResponse(`{"data":{"repository":{`+
-		`"s0":{"associatedPullRequests":{"nodes":[{"number":51,"url":"https://github.com/owner/repo/pull/51","author":{"login":"carol"},"authorAssociation":"CONTRIBUTOR"}]}}`+
+		`"s0":{"associatedPullRequests":{"nodes":[{"number":51,"url":"https://github.com/owner/repo/pull/51","author":{"login":"carol"}}]}}`+
 		`}}}`, "", nil)
 
 	result, err := enrichGitHub(mr, lc, shas)

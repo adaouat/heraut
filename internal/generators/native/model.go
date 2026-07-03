@@ -14,7 +14,6 @@ type PullRequest struct {
 	Number      int
 	URL         string
 	AuthorLogin string // PR author handle (drives "by @login")
-	FirstTimer  bool   // TRANSITIONAL — removed in Task 4 once the local tier owns first_time
 	RefPrefix   string
 	Title       string
 	Labels      []string
