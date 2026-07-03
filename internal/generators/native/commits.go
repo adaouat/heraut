@@ -6,6 +6,7 @@ package native
 
 import (
 	"fmt"
+	"regexp"
 	"strings"
 	"time"
 
@@ -132,6 +133,45 @@ func listTags(runner port.Runner, glob string) ([]string, error) {
 		}
 	}
 	return tags, nil
+}
+
+// filterByTagPattern keeps the tags matching pattern (a Go regex, T139), preserving order. An
+// empty pattern returns tags unchanged. An invalid pattern is an error. Used when the user sets
+// an explicit tag_pattern with the native generator — the regex analogue of git-cliff's
+// --tag-pattern, applied in Go since `git tag -l` only speaks globs.
+func filterByTagPattern(tags []string, pattern string) ([]string, error) {
+	if pattern == "" {
+		return tags, nil
+	}
+	re, err := regexp.Compile(pattern)
+	if err != nil {
+		return nil, fmt.Errorf("compiling tag_pattern %q: %w", pattern, err)
+	}
+	out := make([]string, 0, len(tags))
+	for _, t := range tags {
+		if re.MatchString(t) {
+			out = append(out, t)
+		}
+	}
+	return out, nil
+}
+
+// previousInList resolves the tag preceding tag within an already-scoped, newest-first list. When
+// tag is present, the next (older) entry is its predecessor; when tag is absent (a new release not
+// yet tagged), the newest existing tag is the predecessor. Returns "" for a first release.
+func previousInList(tag string, tags []string) string {
+	for i, t := range tags {
+		if t == tag {
+			if i+1 < len(tags) {
+				return tags[i+1]
+			}
+			return ""
+		}
+	}
+	if len(tags) > 0 {
+		return tags[0]
+	}
+	return ""
 }
 
 // commitRange returns the git revision range for a release: "prev..ref", or just "ref" when

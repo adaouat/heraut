@@ -259,12 +259,23 @@ func validateContentDriver(d *ContentDriver, path string) []ValidationError {
 			Hint:    "valid generators: native, git-cliff, communique",
 		})
 	}
-	if d.TagPattern != "" && d.Generator != "" && d.Generator != "git-cliff" {
+	if d.TagPattern != "" && d.Generator != "" &&
+		!strings.EqualFold(d.Generator, "git-cliff") && !strings.EqualFold(d.Generator, "native") {
 		errs = append(errs, ValidationError{
 			Path:    path + ".tag_pattern",
-			Message: "tag_pattern requires the git-cliff generator",
-			Hint:    fmt.Sprintf("set generator to git-cliff, or remove tag_pattern (current generator: %s)", d.Generator),
+			Message: "tag_pattern requires the git-cliff or native generator",
+			Hint:    fmt.Sprintf("set generator to git-cliff or native, or remove tag_pattern (current generator: %s)", d.Generator),
 		})
+	}
+	// With native, tag_pattern is a Go regex applied in-process; validate it compiles.
+	if d.TagPattern != "" && strings.EqualFold(d.Generator, "native") {
+		if _, err := regexp.Compile(d.TagPattern); err != nil {
+			errs = append(errs, ValidationError{
+				Path:    path + ".tag_pattern",
+				Message: fmt.Sprintf("invalid regex: %v", err),
+				Hint:    "with generator: native, tag_pattern is a Go regex (e.g. ^v.*-prod$)",
+			})
+		}
 	}
 	errs = append(errs, validateContentDriverRemote(d, path)...)
 	return errs

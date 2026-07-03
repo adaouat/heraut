@@ -605,7 +605,7 @@ primitives already existed. Added `ContentDriver.TagGlob` (`yaml:"-"`, app-compu
 updated (also corrected a stale "no remote enrichment" line now that Phase 2 shipped). Native is now
 valid for **all four strategies**. Suite 1361 green.
 
-#### `[ ]` T139: native explicit `tag_pattern` support
+#### `[x]` T139: native explicit `tag_pattern` support
 
 Today `tag_pattern` requires git-cliff (`validator.go`). Allow it with native and have native honour
 it. **Open decision:** native `tag_pattern` as a **glob** (simple, matches native's glob plumbing)
@@ -613,6 +613,19 @@ vs **regex** (drop-in git-cliff parity, filter tags in Go). An explicit `tag_pat
 T138 auto-derived glob (`withEnvDerivations` already suppresses auto-derivation when the user sets
 one). Update validator + `schema.json` + `docs/heraut.sample.yml` + spec.
 **Scope:** S–M. **Dependencies:** T138.
+
+**Completion note (2026-07-03):** Decision (user): **regex**, so the same `tag_pattern` value means
+one thing across generators. Native scoping precedence is now `TagGlob` (T138 per-env auto glob) →
+explicit `TagPattern` (Go regex, in-process filter) → all tags; the two never collide because
+`withEnvDerivations` suppresses the auto glob when the user sets `tag_pattern`. New pure helpers
+`filterByTagPattern` (regexp filter) and `previousInList` (predecessor from a scoped, newest-first
+list, incl. the "new release not yet tagged → newest existing" case); `generator.go` routes through
+new `scopedTags` / `scopedPreviousTag` (glob/regex/unscoped). Validator now accepts `tag_pattern`
+with native and rejects a non-compiling regex. Corrected the long-standing docs bug that described
+`tag_pattern` as a *glob* with glob-shaped examples (`dev/*`, `v[0-9]*`) — it is a regex for
+git-cliff too; schema/sample/spec now say regex with anchored examples (`^v[0-9]`, `^prod/`).
+Kept T138's glob path (it is an equivalent matcher to the auto regex, and git-side `git tag -l
+<glob>` is cheaper) rather than reworking it. Suite 1366 green.
 
 #### `[ ]` T140: native "days between releases" stat
 

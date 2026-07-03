@@ -146,12 +146,14 @@ changelog:
   # output — path where the changelog file is written.
   output: CHANGELOG.md
 
-  # tag_pattern — tag glob passed to the generator for commit filtering.
-  # Required with prefixed-tag strategies so the generator only sees commits
-  # from the right namespace. Not used by communique.
-  #   semver bare tags: "v[0-9]*"
-  #   per-env prod:     "prod/*"
-  # tag_pattern: "v[0-9]*"
+  # tag_pattern — regex selecting this scope's release tags. Passed to
+  # git-cliff as --tag-pattern (Rust regex) and applied in-process by native
+  # (Go regex); not used by communique. Handy with prefixed-tag / per-env
+  # strategies to keep the generator scoped to one namespace. (Per-env strategies
+  # auto-derive this from tag_format — set it only to override.)
+  #   semver bare tags: "^v[0-9]"
+  #   per-env prod:     "^prod/"
+  # tag_pattern: "^v[0-9]"
 
   # template — path to a custom Tera template. Not used by git-cliff or communique.
   # template: .config/changelog.tera
@@ -306,7 +308,7 @@ release:
 #     # changelog override — replace root changelog config for this environment.
 #     # changelog:
 #     #   generator: git-cliff
-#     #   tag_pattern: "dev/*"
+#     #   tag_pattern: "^dev/"
 #
 #     # release overrides — independently override notes and/or platforms.
 #     # release:

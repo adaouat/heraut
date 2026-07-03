@@ -71,6 +71,48 @@ func TestGenerator_GenerateChangelog_TagGlob(t *testing.T) {
 	assert.Equal(t, []string{"tag", "-l", "prod/v*", "--sort=-version:refname"}, mr.Calls[0].Args)
 }
 
+// TestGenerator_GenerateReleaseNotes_TagPatternRegex verifies native honours an explicit
+// tag_pattern as a Go regex (T139): it lists ALL tags (no git-side glob) and Go-filters, then
+// resolves the previous tag from the filtered list.
+func TestGenerator_GenerateReleaseNotes_TagPatternRegex(t *testing.T) {
+	mr := exectest.NewMockRunner()
+	mr.QueueResponse("v2.0.0-prod\nv1.0.0-dev\nv1.0.0-prod\n", "", nil) // scopedTags: git tag -l (all)
+	mr.QueueResponse(record("abc1234567", "A", "a@example.com",
+		"2026-02-02T00:00:00Z", "feat: x", ""), "", nil) // collectCommits
+
+	g := New(mr, &config.ContentDriver{Generator: "native", TagPattern: `-prod$`}, ModeReleaseNotes)
+	_, err := g.Generate("v2.0.0-prod", nil)
+	require.NoError(t, err)
+
+	require.Len(t, mr.Calls, 2)
+	assert.Equal(t, []string{"tag", "-l", "--sort=-version:refname"}, mr.Calls[0].Args,
+		"regex mode lists all tags; filtering happens in Go")
+	assert.Equal(t, []string{"log", "v1.0.0-prod..v2.0.0-prod", "--reverse", "--format=" + logFormat}, mr.Calls[1].Args,
+		"prev resolved from the -prod-filtered list, skipping v1.0.0-dev")
+}
+
+func TestFilterByTagPattern(t *testing.T) {
+	tags := []string{"v2.0.0-prod", "v1.0.0-dev", "v1.0.0-prod"}
+	got, err := filterByTagPattern(tags, `-prod$`)
+	require.NoError(t, err)
+	assert.Equal(t, []string{"v2.0.0-prod", "v1.0.0-prod"}, got)
+
+	all, err := filterByTagPattern(tags, "")
+	require.NoError(t, err)
+	assert.Equal(t, tags, all, "empty pattern keeps every tag")
+
+	_, err = filterByTagPattern(tags, `[`)
+	require.Error(t, err, "invalid regex is an error")
+}
+
+func TestPreviousInList(t *testing.T) {
+	tags := []string{"v3-prod", "v2-prod", "v1-prod"} // newest-first
+	assert.Equal(t, "v2-prod", previousInList("v3-prod", tags))
+	assert.Equal(t, "", previousInList("v1-prod", tags), "oldest has no predecessor")
+	assert.Equal(t, "v3-prod", previousInList("v4-prod", tags), "new release → newest existing")
+	assert.Equal(t, "", previousInList("v1", nil), "empty list")
+}
+
 func TestGenerator_GenerateChangelog_WritesFile(t *testing.T) {
 	mr := exectest.NewMockRunner()
 	mr.QueueResponse("v1.0.0\n", "", nil) // listTags: git tag -l (one existing tag)

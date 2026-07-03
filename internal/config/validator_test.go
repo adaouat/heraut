@@ -1078,6 +1078,36 @@ changelog:
 	assert.Contains(t, e.Message, "git-cliff")
 }
 
+// TestValidate_NativeTagPatternAccepted verifies an explicit tag_pattern is now valid with native
+// (T139), treated as a Go regex.
+func TestValidate_NativeTagPatternAccepted(t *testing.T) {
+	cfg := mustLoad(t, `
+version: "1"
+versioning:
+  strategy: semver
+changelog:
+  generator: native
+  tag_pattern: "^v.*-prod$"
+`)
+	assert.Nil(t, findErr(config.Validate(cfg), "changelog.tag_pattern"),
+		"native accepts an explicit tag_pattern (Go regex)")
+}
+
+// TestValidate_NativeTagPatternInvalidRegex rejects a tag_pattern that does not compile as a Go regex.
+func TestValidate_NativeTagPatternInvalidRegex(t *testing.T) {
+	cfg := mustLoad(t, `
+version: "1"
+versioning:
+  strategy: semver
+changelog:
+  generator: native
+  tag_pattern: "["
+`)
+	e := findErr(config.Validate(cfg), "changelog.tag_pattern")
+	require.NotNil(t, e)
+	assert.Contains(t, e.Message, "invalid regex")
+}
+
 func TestValidate_GeneratorCocogittoRejected(t *testing.T) {
 	cfg := mustLoad(t, `
 version: "1"

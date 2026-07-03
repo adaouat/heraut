@@ -286,7 +286,7 @@
         },
         "tag_pattern": {
           "type": "string",
-          "description": "Git tag glob for filtering commits (e.g. \"dev/*\")."
+          "description": "Regex selecting this scope's release tags — passed to git-cliff as --tag-pattern (Rust regex) and applied in-process by the native generator (Go regex). Not used by communique. E.g. \"^v[0-9]\" for bare semver or \"^prod/\" for a per-env prefix."
         },
         "template": {
           "type": "string",

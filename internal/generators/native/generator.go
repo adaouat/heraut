@@ -65,8 +65,35 @@ func (g *Generator) Generate(tag string, lc *port.LinkContext) (string, error) {
 	return g.generateChangelog(tag, lc)
 }
 
+// scopedTags returns the release tags for the active scope, newest-first: the env glob (per-env
+// auto, T138) takes precedence, else an explicit tag_pattern regex filter (T139), else all tags.
+func (g *Generator) scopedTags() ([]string, error) {
+	if g.cfg.TagGlob != "" {
+		return listTags(g.runner, g.cfg.TagGlob)
+	}
+	all, err := listTags(g.runner, "")
+	if err != nil {
+		return nil, err
+	}
+	return filterByTagPattern(all, g.cfg.TagPattern)
+}
+
+// scopedPreviousTag resolves the tag preceding tag within the active scope. An explicit
+// tag_pattern (regex) resolves from the Go-filtered list; the glob / unscoped cases delegate to
+// git describe (--match <glob> for per-env auto).
+func (g *Generator) scopedPreviousTag(tag string) (string, error) {
+	if g.cfg.TagGlob == "" && g.cfg.TagPattern != "" {
+		tags, err := g.scopedTags()
+		if err != nil {
+			return "", err
+		}
+		return previousInList(tag, tags), nil
+	}
+	return previousTag(g.runner, tag, g.cfg.TagGlob)
+}
+
 func (g *Generator) generateReleaseNotes(tag string, lc *port.LinkContext) (string, error) {
-	prev, err := previousTag(g.runner, tag, g.cfg.TagGlob)
+	prev, err := g.scopedPreviousTag(tag)
 	if err != nil {
 		return "", err
 	}
@@ -90,7 +117,7 @@ func (g *Generator) generateReleaseNotes(tag string, lc *port.LinkContext) (stri
 // when set, and also returned. Only the new release's section is remote-enriched (ADR-0034 §5);
 // historical sections render from git alone, keeping regeneration to O(1) API calls.
 func (g *Generator) generateChangelog(tag string, lc *port.LinkContext) (string, error) {
-	tags, err := listTags(g.runner, g.cfg.TagGlob)
+	tags, err := g.scopedTags()
 	if err != nil {
 		return "", err
 	}

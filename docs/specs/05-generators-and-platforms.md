@@ -32,7 +32,8 @@ Section labels, order, and heading depth come from `commits.types` and
 Remote enrichment adds PR/MR author + number attribution for GitHub, GitLab, and Azure
 DevOps (plus a "New Contributors" block on GitHub and GitLab), gated by the `remote_metadata`
 policy. Per-env strategies are supported: under a `*-per-env` strategy native scopes its tag
-walk to the active environment's tags, derived from `tag_format`. See
+walk to the active environment's tags, derived from `tag_format`. An explicit `tag_pattern`
+(a Go regex, matching git-cliff's semantics) overrides that auto-scoping. See
 [ADR-0033](../adr/0033-native-config-model.md) and
 [ADR-0034](../adr/0034-native-remote-enrichment.md).
 
@@ -43,7 +44,7 @@ changelog:
   generator: git-cliff
   config: .config/cliff/cliff.toml   # optional partial override
   output: CHANGELOG.md               # optional, defaults to CHANGELOG.md
-  tag_pattern: "dev/*"               # required for prefixed-tag strategies
+  tag_pattern: "^dev/"               # regex; scopes prefixed-tag / per-env strategies
 ```
 
 heraut ships two embedded `cliff.toml` defaults (see
