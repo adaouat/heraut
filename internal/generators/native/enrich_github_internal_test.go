@@ -115,6 +115,20 @@ func TestEnrichGitHub_Chunking(t *testing.T) {
 	assert.Len(t, result, 2, "only two commits had PRs")
 }
 
+func TestEnrichGitHub_TitleAndLabels(t *testing.T) {
+	mr := exectest.NewMockRunner()
+	sha := "aa11bb22cc33dd44ee55ff6677889900aabbccdd"
+	lc := makeGitHubLC("owner", "repo", "tok")
+	mr.QueueResponse(`{"data":{"repository":{"s0":{"associatedPullRequests":{"nodes":[
+		{"number":42,"url":"u","title":"Add OAuth","author":{"login":"alice"},
+		 "labels":{"nodes":[{"name":"enhancement"},{"name":"area/auth"}]}}]}}}}}`, "", nil)
+
+	got, err := enrichGitHub(mr, lc, []string{sha})
+	require.NoError(t, err)
+	assert.Equal(t, "Add OAuth", got[sha].Title)
+	assert.Equal(t, []string{"enhancement", "area/auth"}, got[sha].Labels)
+}
+
 func TestEnrichGitHub_GhError(t *testing.T) {
 	mr := exectest.NewMockRunner()
 	lc := makeGitHubLC("owner", "repo", "tok")

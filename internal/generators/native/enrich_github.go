@@ -13,7 +13,7 @@ const (
 	// the query size and staying well within GitHub's API node limits.
 	ghChunkSize = 50
 
-	prFragment = "...on Commit{associatedPullRequests(first:1){nodes{number url title author{login}}}}"
+	prFragment = "...on Commit{associatedPullRequests(first:1){nodes{number url title author{login}labels(first:20){nodes{name}}}}}"
 )
 
 // enrichGitHub fetches the associated pull request for each SHA via batched gh api graphql
@@ -81,9 +81,15 @@ type graphQLCommit struct {
 type graphQLPR struct {
 	Number int    `json:"number"`
 	URL    string `json:"url"`
+	Title  string `json:"title"`
 	Author struct {
 		Login string `json:"login"`
 	} `json:"author"`
+	Labels struct {
+		Nodes []struct {
+			Name string `json:"name"`
+		} `json:"nodes"`
+	} `json:"labels"`
 }
 
 // parseGitHubResponse decodes the gh api graphql JSON and maps each SHA to its PullRequest.
@@ -104,10 +110,16 @@ func parseGitHubResponse(stdout string, shas []string) (map[string]PullRequest, 
 			continue
 		}
 		pr := commit.AssociatedPullRequests.Nodes[0]
+		var labels []string
+		for _, l := range pr.Labels.Nodes {
+			labels = append(labels, l.Name)
+		}
 		result[sha] = PullRequest{
 			Number:      pr.Number,
 			URL:         pr.URL,
+			Title:       pr.Title,
 			AuthorLogin: pr.Author.Login,
+			Labels:      labels,
 		}
 	}
 	return result, nil
