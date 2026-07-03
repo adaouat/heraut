@@ -33,7 +33,9 @@ func enrichGitLab(runner port.Runner, lc *port.LinkContext, shas []string) (map[
 		result[sha] = PullRequest{
 			Number:      mr.IID,
 			URL:         mr.WebURL,
+			Title:       mr.Title,
 			AuthorLogin: mr.Author.Username,
+			Labels:      mr.Labels,
 			RefPrefix:   "!",
 		}
 	}
@@ -41,8 +43,10 @@ func enrichGitLab(runner port.Runner, lc *port.LinkContext, shas []string) (map[
 }
 
 type gitLabMR struct {
-	IID    int    `json:"iid"`
-	WebURL string `json:"web_url"`
+	IID    int      `json:"iid"`
+	WebURL string   `json:"web_url"`
+	Title  string   `json:"title"`
+	Labels []string `json:"labels"`
 	Author struct {
 		Username string `json:"username"`
 	} `json:"author"`

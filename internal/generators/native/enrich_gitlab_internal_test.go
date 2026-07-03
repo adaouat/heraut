@@ -31,6 +31,16 @@ func TestEnrichGitLab_MapsMR(t *testing.T) {
 	assert.Equal(t, []string{"GITLAB_TOKEN=tok"}, mr.Calls[0].Env)
 }
 
+func TestEnrichGitLab_TitleAndLabels(t *testing.T) {
+	mr := exectest.NewMockRunner()
+	mr.QueueResponse(`[{"iid":7,"web_url":"u","title":"Add OAuth","author":{"username":"alice"},"labels":["enhancement","area/auth"]}]`, "", nil)
+
+	got, err := enrichGitLab(mr, gitlabLC(), []string{"abc123"})
+	require.NoError(t, err)
+	assert.Equal(t, "Add OAuth", got["abc123"].Title)
+	assert.Equal(t, []string{"enhancement", "area/auth"}, got["abc123"].Labels)
+}
+
 func TestEnrichGitLab_NoMR_Absent(t *testing.T) {
 	mr := exectest.NewMockRunner()
 	mr.QueueResponse(`[]`, "", nil)
