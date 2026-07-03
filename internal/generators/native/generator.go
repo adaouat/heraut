@@ -111,8 +111,13 @@ func (g *Generator) generateReleaseNotes(tag string, lc *port.LinkContext) (stri
 	if err != nil {
 		return "", err
 	}
+	before, err := authorsBefore(g.runner, prev)
+	if err != nil {
+		return "", err
+	}
 	groups := groupCommits(commits, g.cfg.Types, g.cfg.Excludes)
-	return renderReleaseNotes(tag, prev, releaseDate(commits), groups, lc, g.cfg.Tickets, prevDate, g.cfg.TypesHeadingLevel, enrichment)
+	contributors := collectContributors(toParsedCommits(commits), before, enrichment)
+	return renderReleaseNotes(tag, prev, releaseDate(commits), groups, lc, g.cfg.Tickets, prevDate, g.cfg.TypesHeadingLevel, enrichment, contributors)
 }
 
 // generateChangelog regenerates the full CHANGELOG.md: a section for the release being created

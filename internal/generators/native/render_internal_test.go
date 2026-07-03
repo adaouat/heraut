@@ -226,7 +226,7 @@ func TestRenderReleaseNotes_Golden(t *testing.T) {
 
 	got, err := renderReleaseNotes(
 		"v1.2.3", "v1.2.2", releaseDate,
-		fixtureGroups(), githubLC, nil, prevDate, 3, nil,
+		fixtureGroups(), githubLC, nil, prevDate, 3, nil, nil,
 	)
 	require.NoError(t, err)
 
@@ -241,7 +241,7 @@ func TestRenderReleaseNotes_NoPrevDate(t *testing.T) {
 
 	got, err := renderReleaseNotes(
 		"v1.0.0", "", releaseDate,
-		fixtureGroups(), githubLC, nil, time.Time{}, 3, nil,
+		fixtureGroups(), githubLC, nil, time.Time{}, 3, nil, nil,
 	)
 	require.NoError(t, err)
 
@@ -256,7 +256,7 @@ func TestRenderReleaseNotes_WithBodyAndFooter(t *testing.T) {
 
 	got, err := renderReleaseNotes(
 		"v1.1.0", "v1.0.0", releaseDate,
-		fixtureGroupsWithBodyFooter(), githubLC, nil, time.Time{}, 3, nil,
+		fixtureGroupsWithBodyFooter(), githubLC, nil, time.Time{}, 3, nil, nil,
 	)
 	require.NoError(t, err)
 

@@ -27,6 +27,17 @@ func authorsBefore(runner port.Runner, prev string) (map[string]bool, error) {
 	return set, nil
 }
 
+// toParsedCommits wraps raw commits for collectContributors, which only reads c.raw — contributor
+// identity and first-time status are independent of conventional-commit classification, so no
+// parsing (or the group/excludes filtering that goes with it) is needed here.
+func toParsedCommits(commits []rawCommit) []parsedCommit {
+	out := make([]parsedCommit, len(commits))
+	for i, rc := range commits {
+		out[i] = parsedCommit{raw: rc}
+	}
+	return out
+}
+
 // collectContributors returns the release's distinct contributors (first-seen order, deduped by
 // git author email). IsFirstTime is true when the email is absent from before. When a PR is known
 // for the author's first contributing commit, its handle/number/url are overlaid. Only first-time

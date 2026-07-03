@@ -154,6 +154,8 @@ func TestGenerate_Enrich_GitLab(t *testing.T) {
 	mr.QueueResponse(record("abc1234567", "A", "a@example.com", "2026-01-02T00:00:00Z", "feat: x", ""), "", nil) // collectCommits
 	mr.QueueResponse(`[{"iid":7,"web_url":"https://gitlab.com/g/p/-/merge_requests/7","author":{"username":"alice"}}]`, "", nil)
 	mr.QueueResponse(`[{"iid":7}]`, "", nil) // alice's earliest merged MR == this one → first-timer
+	// authorsBefore runs after platform enrich; commit author (a@example.com) stays a first-timer.
+	mr.QueueResponse("bob@x\n", "", nil) // authorsBefore: git log v1.0.0 --format=%ae
 	g := New(mr, &config.ContentDriver{Generator: "native", RemoteMetadata: "optional"}, ModeReleaseNotes)
 
 	out, err := g.Generate("v1.1.0", gitlabLC())
@@ -161,4 +163,7 @@ func TestGenerate_Enrich_GitLab(t *testing.T) {
 	assert.Contains(t, out, "by @alice in [!7](https://gitlab.com/g/p/-/merge_requests/7)")
 	assert.Contains(t, out, "### New Contributors ❤️")
 	assert.Contains(t, out, "* @alice made their first contribution in [!7](https://gitlab.com/g/p/-/merge_requests/7)")
+
+	require.Len(t, mr.Calls, 6)
+	assert.Equal(t, []string{"log", "v1.0.0", "--format=%ae"}, mr.Calls[5].Args)
 }

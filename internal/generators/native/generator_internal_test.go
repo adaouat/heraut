@@ -25,6 +25,7 @@ func TestGenerator_GenerateReleaseNotes(t *testing.T) {
 	mr.QueueResponse("2026-01-01T00:00:00Z\n", "", nil) // tagDate: git log -1 --format=%cI v1.0.0
 	mr.QueueResponse(record("abc1234567", "Alice", "alice@example.com",
 		"2026-01-02T00:00:00Z", "feat: add the thing", ""), "", nil) // collectCommits: git log
+	mr.QueueResponse("alice@example.com\n", "", nil) // authorsBefore: git log v1.0.0 --format=%ae
 
 	g := New(mr, &config.ContentDriver{Generator: "native"}, ModeReleaseNotes)
 	out, err := g.Generate("v1.1.0", nil)
@@ -34,10 +35,11 @@ func TestGenerator_GenerateReleaseNotes(t *testing.T) {
 	assert.Contains(t, out, "Add the thing")
 	assert.Contains(t, out, "Commit Statistics")
 
-	require.Len(t, mr.Calls, 3)
+	require.Len(t, mr.Calls, 4)
 	assert.Equal(t, []string{"describe", "--tags", "--abbrev=0", "v1.1.0^"}, mr.Calls[0].Args)
 	assert.Equal(t, []string{"log", "-1", "--format=%cI", "v1.0.0"}, mr.Calls[1].Args)
 	assert.Equal(t, []string{"log", "v1.0.0..v1.1.0", "--reverse", "--format=" + logFormat}, mr.Calls[2].Args)
+	assert.Equal(t, []string{"log", "v1.0.0", "--format=%ae"}, mr.Calls[3].Args)
 }
 
 // TestGenerator_GenerateReleaseNotes_TagGlob verifies native scopes the previous-tag lookup to
@@ -48,15 +50,17 @@ func TestGenerator_GenerateReleaseNotes_TagGlob(t *testing.T) {
 	mr.QueueResponse("2026-01-01T00:00:00Z\n", "", nil) // tagDate: git log -1 --format=%cI prod/v1.0.0
 	mr.QueueResponse(record("abc1234567", "Alice", "alice@example.com",
 		"2026-01-02T00:00:00Z", "feat: add the thing", ""), "", nil) // collectCommits
+	mr.QueueResponse("alice@example.com\n", "", nil) // authorsBefore: git log prod/v1.0.0 --format=%ae
 
 	g := New(mr, &config.ContentDriver{Generator: "native", TagGlob: "prod/v*"}, ModeReleaseNotes)
 	_, err := g.Generate("prod/v1.1.0", nil)
 	require.NoError(t, err)
 
-	require.Len(t, mr.Calls, 3)
+	require.Len(t, mr.Calls, 4)
 	assert.Equal(t, []string{"describe", "--tags", "--abbrev=0", "--match", "prod/v*", "prod/v1.1.0^"}, mr.Calls[0].Args)
 	assert.Equal(t, []string{"log", "-1", "--format=%cI", "prod/v1.0.0"}, mr.Calls[1].Args)
 	assert.Equal(t, []string{"log", "prod/v1.0.0..prod/v1.1.0", "--reverse", "--format=" + logFormat}, mr.Calls[2].Args)
+	assert.Equal(t, []string{"log", "prod/v1.0.0", "--format=%ae"}, mr.Calls[3].Args)
 }
 
 // TestGenerator_GenerateChangelog_TagGlob verifies native scopes tag listing to the env glob.
@@ -84,17 +88,19 @@ func TestGenerator_GenerateReleaseNotes_TagPatternRegex(t *testing.T) {
 	mr.QueueResponse("2026-02-01T00:00:00Z\n", "", nil)                 // tagDate: git log -1 --format=%cI v1.0.0-prod
 	mr.QueueResponse(record("abc1234567", "A", "a@example.com",
 		"2026-02-02T00:00:00Z", "feat: x", ""), "", nil) // collectCommits
+	mr.QueueResponse("a@example.com\n", "", nil) // authorsBefore: git log v1.0.0-prod --format=%ae
 
 	g := New(mr, &config.ContentDriver{Generator: "native", TagPattern: `-prod$`}, ModeReleaseNotes)
 	_, err := g.Generate("v2.0.0-prod", nil)
 	require.NoError(t, err)
 
-	require.Len(t, mr.Calls, 3)
+	require.Len(t, mr.Calls, 4)
 	assert.Equal(t, []string{"tag", "-l", "--sort=-version:refname"}, mr.Calls[0].Args,
 		"regex mode lists all tags; filtering happens in Go")
 	assert.Equal(t, []string{"log", "-1", "--format=%cI", "v1.0.0-prod"}, mr.Calls[1].Args,
 		"prev (v1.0.0-prod) resolved from the -prod-filtered list, skipping v1.0.0-dev")
 	assert.Equal(t, []string{"log", "v1.0.0-prod..v2.0.0-prod", "--reverse", "--format=" + logFormat}, mr.Calls[2].Args)
+	assert.Equal(t, []string{"log", "v1.0.0-prod", "--format=%ae"}, mr.Calls[3].Args)
 }
 
 func TestFilterByTagPattern(t *testing.T) {
@@ -127,12 +133,14 @@ func TestGenerator_GenerateReleaseNotes_DaysBetweenReleases(t *testing.T) {
 	mr.QueueResponse("2026-01-01T00:00:00Z\n", "", nil) // tagDate: git log -1 --format=%cI v1.0.0
 	mr.QueueResponse(record("abc1234567", "A", "a@example.com",
 		"2026-01-11T00:00:00Z", "feat: x", ""), "", nil) // collectCommits (release date +10 days)
+	mr.QueueResponse("a@example.com\n", "", nil) // authorsBefore: git log v1.0.0 --format=%ae
 
 	g := New(mr, &config.ContentDriver{Generator: "native"}, ModeReleaseNotes)
 	out, err := g.Generate("v1.1.0", nil)
 	require.NoError(t, err)
 
 	assert.Equal(t, []string{"log", "-1", "--format=%cI", "v1.0.0"}, mr.Calls[1].Args)
+	assert.Equal(t, []string{"log", "v1.0.0", "--format=%ae"}, mr.Calls[3].Args)
 	assert.Contains(t, out, "10 day(s) passed between releases")
 }
 

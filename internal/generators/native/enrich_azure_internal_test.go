@@ -131,10 +131,14 @@ func TestGenerate_Enrich_Azure(t *testing.T) {
 	mr.QueueResponse("v1.0.0\n", "", nil)                                                                        // previousTag
 	mr.QueueResponse("2026-01-01T00:00:00Z\n", "", nil)                                                          // tagDate
 	mr.QueueResponse(record("abc1234567", "A", "a@example.com", "2026-01-02T00:00:00Z", "feat: x", ""), "", nil) // collectCommits
+	mr.QueueResponse("bob@x\n", "", nil)                                                                         // authorsBefore: git log v1.0.0 --format=%ae
 	g := New(mr, &config.ContentDriver{Generator: "native", RemoteMetadata: "optional"}, ModeReleaseNotes)
 
 	out, err := g.Generate("v1.1.0", azureLC(srv.URL))
 	require.NoError(t, err)
 	assert.Contains(t, out, "by @jane in [!42]("+srv.URL+"/myorg/myproj/_git/myrepo/pullrequest/42)")
 	assert.False(t, g.Degraded())
+
+	require.Len(t, mr.Calls, 4)
+	assert.Equal(t, []string{"log", "v1.0.0", "--format=%ae"}, mr.Calls[3].Args)
 }

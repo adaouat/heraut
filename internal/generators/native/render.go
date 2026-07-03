@@ -137,9 +137,10 @@ func renderReleaseNotes(
 	tickets []config.Ticket,
 	prevReleaseDate time.Time,
 	typesHeadingLevel int,
-	enrichment map[string]PullRequest,
+	prs map[string]PullRequest,
+	contributors []Contributor,
 ) (string, error) {
-	v := buildNotesView(version, previousVersion, releaseDate, groups, lc, tickets, prevReleaseDate, typesHeadingLevel, enrichment)
+	v := buildNotesView(version, previousVersion, releaseDate, groups, lc, tickets, prevReleaseDate, typesHeadingLevel, prs, contributors)
 	out, err := execTemplate("release_notes", releaseNotesTmpl, v)
 	if err != nil {
 		return "", fmt.Errorf("rendering release notes: %w", err)
@@ -189,7 +190,8 @@ func buildNotesView(
 	tickets []config.Ticket,
 	prevReleaseDate time.Time,
 	typesHeadingLevel int,
-	enrichment map[string]PullRequest,
+	prs map[string]PullRequest,
+	contributors []Contributor,
 ) notesView {
 	_ = version
 	_ = previousVersion
@@ -236,7 +238,7 @@ func buildNotesView(
 	for _, g := range groups {
 		gnv := groupNoteView{Name: g.name}
 		for _, pc := range g.commits {
-			block := buildCommitBlock(pc, cuBase, tickets, enrichment)
+			block := buildCommitBlock(pc, cuBase, tickets, prs)
 			gnv.Commits = append(gnv.Commits, commitNoteView{Block: block})
 		}
 		gnviews = append(gnviews, gnv)
@@ -245,7 +247,7 @@ func buildNotesView(
 	return notesView{
 		HeadingPrefix:     headingPrefix(typesHeadingLevel),
 		Groups:            gnviews,
-		Contributors:      buildContributors(allCommits, enrichment),
+		Contributors:      buildContributorViews(contributors),
 		CommitCount:       commitCount,
 		CommitsTimespan:   timespan,
 		ConventionalCount: conventionalCount,
@@ -420,24 +422,18 @@ func buildStatTicketLinks(commits []parsedCommit, tickets []config.Ticket) []sta
 	return result
 }
 
-// buildContributors returns the distinct first-time contributors across commits (in first-seen
-// order) as pre-rendered "New Contributors" lines. Empty when there is no enrichment or no
-// first-timer, which omits the block entirely.
-func buildContributors(commits []parsedCommit, enrichment map[string]PullRequest) []contributorView {
-	if len(enrichment) == 0 {
-		return nil
-	}
-	seen := make(map[string]bool)
+// buildContributorViews renders the New Contributors lines from the local-tier contributors.
+// Online, a contributor carries a Username (and usually a PR) → "* @user made their first
+// contribution in [#N](url)"; offline the block is empty (no Username) so the template omits it.
+func buildContributorViews(contributors []Contributor) []contributorView {
 	var out []contributorView
-	for _, pc := range commits {
-		pr, ok := enrichment[pc.raw.Hash]
-		if !ok || !pr.FirstTimer || pr.AuthorLogin == "" || seen[pr.AuthorLogin] {
-			continue
+	for _, c := range contributors {
+		if c.Author.Username == "" {
+			continue // built-in template shows the block only with a remote handle (ADR-0036)
 		}
-		seen[pr.AuthorLogin] = true
-		line := "* @" + pr.AuthorLogin + " made their first contribution"
-		if pr.Number > 0 {
-			line += fmt.Sprintf(" in [%s](%s)", prRef(pr), pr.URL)
+		line := "* @" + c.Author.Username + " made their first contribution"
+		if c.PR != nil && c.PR.Number > 0 {
+			line += fmt.Sprintf(" in [%s](%s)", prRef(*c.PR), c.PR.URL)
 		}
 		out = append(out, contributorView{Line: line})
 	}

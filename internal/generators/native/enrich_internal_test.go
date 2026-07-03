@@ -66,10 +66,15 @@ func TestBuildCommitLine_EnrichedBeforeTickets(t *testing.T) {
 
 func TestRenderReleaseNotes_NewContributors(t *testing.T) {
 	groups := []group{{name: "🚀 Features", order: 0, commits: []parsedCommit{parsedFrom("aaaaaaa", "feat: add thing")}}}
-	enrichment := map[string]PullRequest{
-		"aaaaaaa": {Number: 7, URL: "https://github.com/o/r/pull/7", AuthorLogin: "newbie", FirstTimer: true},
+	prs := map[string]PullRequest{
+		"aaaaaaa": {Number: 7, URL: "https://github.com/o/r/pull/7", AuthorLogin: "newbie", RefPrefix: "#"},
 	}
-	got, err := renderReleaseNotes("v1.0.0", "", fixedDate1, groups, githubLC, nil, time.Time{}, 3, enrichment)
+	contributors := []Contributor{{
+		Author:      Author{Name: "New Bie", Email: "newbie@x", Username: "newbie"},
+		IsFirstTime: true,
+		PR:          &PullRequest{Number: 7, URL: "https://github.com/o/r/pull/7", AuthorLogin: "newbie", RefPrefix: "#"},
+	}}
+	got, err := renderReleaseNotes("v1.0.0", "", fixedDate1, groups, githubLC, nil, time.Time{}, 3, prs, contributors)
 	require.NoError(t, err)
 
 	assert.Contains(t, got, "### New Contributors ❤️")
@@ -80,9 +85,9 @@ func TestRenderReleaseNotes_NewContributors(t *testing.T) {
 func TestRenderReleaseNotes_NoFirstTimers_NoBlock(t *testing.T) {
 	groups := []group{{name: "🚀 Features", order: 0, commits: []parsedCommit{parsedFrom("bbbbbbb", "feat: x")}}}
 	enrichment := map[string]PullRequest{
-		"bbbbbbb": {Number: 9, URL: "https://github.com/o/r/pull/9", AuthorLogin: "veteran", FirstTimer: false},
+		"bbbbbbb": {Number: 9, URL: "https://github.com/o/r/pull/9", AuthorLogin: "veteran"},
 	}
-	got, err := renderReleaseNotes("v1.0.0", "", fixedDate1, groups, githubLC, nil, time.Time{}, 3, enrichment)
+	got, err := renderReleaseNotes("v1.0.0", "", fixedDate1, groups, githubLC, nil, time.Time{}, 3, enrichment, nil)
 	require.NoError(t, err)
 
 	assert.NotContains(t, got, "New Contributors", "no first-timers → no block")
@@ -104,6 +109,7 @@ func queueReleaseNotesGit(mr *exectest.MockRunner) {
 func TestGenerate_Enrich_Disabled_NoAPICall(t *testing.T) {
 	mr := exectest.NewMockRunner()
 	queueReleaseNotesGit(mr)
+	mr.QueueResponse("bob@x\n", "", nil) // authorsBefore: git log v1.0.0 --format=%ae
 	g := New(mr, &config.ContentDriver{Generator: "native", RemoteMetadata: "disabled"}, ModeReleaseNotes)
 
 	out, err := g.Generate("v1.1.0", ghLC())
@@ -113,30 +119,43 @@ func TestGenerate_Enrich_Disabled_NoAPICall(t *testing.T) {
 		assert.NotEqual(t, "gh", c.Name, "disabled must never call gh")
 	}
 	assert.False(t, g.Degraded())
+
+	require.Len(t, mr.Calls, 4)
+	assert.Equal(t, []string{"log", "v1.0.0", "--format=%ae"}, mr.Calls[3].Args)
 }
 
 func TestGenerate_Enrich_OptionalSuccess(t *testing.T) {
 	mr := exectest.NewMockRunner()
 	queueReleaseNotesGit(mr)
 	mr.QueueResponse(ghGraphQLResponse(42, "https://github.com/o/r/pull/42", "octocat", "MEMBER"), "", nil)
+	// authorsBefore runs after platform enrich, so its response is queued last (T140-style ripple).
+	mr.QueueResponse("bob@x\n", "", nil) // authorsBefore: git log v1.0.0 --format=%ae
 	g := New(mr, &config.ContentDriver{Generator: "native", RemoteMetadata: "optional"}, ModeReleaseNotes)
 
 	out, err := g.Generate("v1.1.0", ghLC())
 	require.NoError(t, err)
 	assert.Contains(t, out, "by @octocat in [#42]")
 	assert.False(t, g.Degraded())
+
+	require.Len(t, mr.Calls, 5)
+	assert.Equal(t, []string{"log", "v1.0.0", "--format=%ae"}, mr.Calls[4].Args)
 }
 
 func TestGenerate_Enrich_OptionalFailure_Degrades(t *testing.T) {
 	mr := exectest.NewMockRunner()
 	queueReleaseNotesGit(mr)
 	mr.QueueResponse("", "API rate limit exceeded", errors.New("exit status 1"))
+	// optional degrades on the gh failure (no error returned) and proceeds to authorsBefore.
+	mr.QueueResponse("bob@x\n", "", nil) // authorsBefore: git log v1.0.0 --format=%ae
 	g := New(mr, &config.ContentDriver{Generator: "native", RemoteMetadata: "optional"}, ModeReleaseNotes)
 
 	out, err := g.Generate("v1.1.0", ghLC())
 	require.NoError(t, err, "optional degrades, does not fail")
 	assert.NotContains(t, out, "by @", "rendered bare on degrade")
 	assert.True(t, g.Degraded())
+
+	require.Len(t, mr.Calls, 5)
+	assert.Equal(t, []string{"log", "v1.0.0", "--format=%ae"}, mr.Calls[4].Args)
 }
 
 func TestGenerate_Enrich_RequiredFailure_Errors(t *testing.T) {
