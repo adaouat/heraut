@@ -48,6 +48,7 @@ func TestEnrichAzure_MapsPR(t *testing.T) {
 		URL:         srv.URL + "/myorg/myproj/_git/myrepo/pullrequest/42",
 		AuthorLogin: "jane",
 		RefPrefix:   "!",
+		Title:       "feat: x",
 	}, result["abc123"])
 
 	assert.Equal(t, http.MethodPost, gotMethod)
@@ -118,6 +119,21 @@ func TestEnrichAzure_NoShas_NoCall(t *testing.T) {
 	require.NoError(t, err)
 	assert.Empty(t, result)
 	assert.False(t, called, "no commits → no HTTP call")
+}
+
+// TestEnrichAzure_TitleAndLabels: title and labels are populated best-effort from the response.
+func TestEnrichAzure_TitleAndLabels(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		_, _ = io.WriteString(w, `{"results":[{"abc123":[{"pullRequestId":42,"title":"Add OAuth",
+			"createdBy":{"displayName":"Jane","uniqueName":"jane@x"},
+			"labels":[{"name":"enhancement"},{"name":"area/auth"}]}]}]}`)
+	}))
+	defer srv.Close()
+
+	got, err := enrichAzure(srv.Client(), azureLC(srv.URL), []string{"abc123"})
+	require.NoError(t, err)
+	assert.Equal(t, "Add OAuth", got["abc123"].Title)
+	assert.Equal(t, []string{"enhancement", "area/auth"}, got["abc123"].Labels)
 }
 
 // End-to-end: Azure release-notes enrichment renders "by @author in [!N]".

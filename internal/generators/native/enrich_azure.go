@@ -18,11 +18,11 @@ const azureAPIVersion = "7.1"
 
 // enrichAzure resolves the pull request associated with each commit SHA via one batched
 // Azure DevOps `pullrequestquery` POST (ADR-0035): a single request for the whole release,
-// correlating `results[0][sha] → PR`. Commits with no PR are absent from the map. First-time
-// contributor status is not derived (Azure PRs carry no authorAssociation), so FirstTimer stays
-// false and no New Contributors block is produced. Auth is a PAT (LinkContext.Token) via HTTP
-// Basic; any transport error or non-2xx status is wrapped so enrichForRelease applies the
-// remote_metadata policy.
+// correlating `results[0][sha] → PR`. Commits with no PR are absent from the map. Title and
+// labels are populated best-effort from the response (labels may be empty if the API requires
+// an expand); first-timer detection and the New Contributors block are computed by the shared
+// local git tier, not here. Auth is a PAT (LinkContext.Token) via HTTP Basic; any transport
+// error or non-2xx status is wrapped so enrichForRelease applies the remote_metadata policy.
 func enrichAzure(client *http.Client, lc *port.LinkContext, shas []string) (map[string]PullRequest, error) {
 	result := make(map[string]PullRequest)
 	if len(shas) == 0 {
@@ -74,11 +74,17 @@ func enrichAzure(client *http.Client, lc *port.LinkContext, shas []string) (map[
 			continue
 		}
 		pr := prs[0] // first association wins, matching the GitHub/GitLab drivers
+		var labels []string
+		for _, l := range pr.Labels {
+			labels = append(labels, l.Name)
+		}
 		result[sha] = PullRequest{
 			Number:      pr.PullRequestID,
 			URL:         prWebBase + strconv.Itoa(pr.PullRequestID),
 			AuthorLogin: azureAuthorLogin(pr.CreatedBy),
 			RefPrefix:   "!",
+			Title:       pr.Title,
+			Labels:      labels,
 		}
 	}
 	return result, nil
@@ -122,6 +128,9 @@ type azurePR struct {
 	PullRequestID int              `json:"pullRequestId"`
 	Title         string           `json:"title"`
 	CreatedBy     azureIdentityRef `json:"createdBy"`
+	Labels        []struct {
+		Name string `json:"name"`
+	} `json:"labels"`
 }
 
 type azureIdentityRef struct {
