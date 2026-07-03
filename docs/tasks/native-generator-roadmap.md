@@ -33,6 +33,7 @@ no longer a parity target — heraut's rendering is its own spec, validated by g
 |------------------------------------------------------|------------------------|-------------|
 | Phase 1 — config model + native canonical renderer   | T122–T126, T130–T136   | Complete    |
 | Phase 2 — remote enrichment (GitHub/GitLab CLI, Azure HTTP) | T127, T128, T137, T129 | Complete    |
+| Phase 2.6 — native ↔ git-cliff parity (prereq for 2.5) | T138 – T141            | Not started |
 | Phase 2.5 — remove the git-cliff package (own ADR)   | —                      | Deferred    |
 | Phase 3 — raw-HTTP clients (drop `gh` / `glab`)       | —                      | Deferred    |
 
@@ -565,6 +566,62 @@ vs `displayName` fallback, non-2xx error, malformed JSON, empty-shas-no-call, an
 `displayName`. **First-timer deferred** (Azure PRs have no `authorAssociation`) — no New Contributors
 block for Azure yet. `port.LinkContext.APIEnv()` stays `nil` for azure_devops (unused). Suite 1357
 green. **This completes Phase 2.**
+
+---
+
+## Phase 2.6 — Native ↔ git-cliff parity (prerequisite for Phase 2.5)
+
+Gaps that keep native from being a full git-cliff replacement — so they gate the git-cliff
+package removal (Phase 2.5). Prioritised order below. **User-customizable templates** (the last
+git-cliff-only feature) is intentionally excluded here: it gets its own brainstorm/ADR after
+these land and are validated on a real repo.
+
+#### `[ ]` T138: native per-env tag scoping
+
+The one thing blocking "native for all strategies": the validator (`validateNativePerEnv`)
+rejects native under `*-per-env` strategies because native's `listTags` / `previousTag` walk all
+tags regardless of environment. The scoping plumbing already exists — both helpers accept a git
+glob, and `tagfmt.GlobPattern(tag_format, env)` derives the per-env glob (e.g. `*/prod`) — native
+just passes `""`. native can't import `tagfmt` (layer rule), so the app layer computes the glob.
+
+**Approach:** add app-set `ContentDriver.TagGlob` (`yaml:"-"`, computed in `withEnvDerivations` via
+`tagfmt.GlobPattern` when the tag format has `{env}`, like the existing `TagPattern`/`Types`
+propagation); native's `generateReleaseNotes` / `generateChangelog` pass `g.cfg.TagGlob` to
+`previousTag` and `listTags`; **remove `validateNativePerEnv`**. Non-per-env keeps `TagGlob == ""`
+(all tags — unchanged behaviour).
+
+**Tests:** contract tests that native passes the glob to `git tag -l <glob>` / `git describe
+--match <glob>`; app-layer test that `withEnvDerivations` sets `TagGlob` for a per-env strategy and
+leaves it empty otherwise; validator test that native + `*-per-env` is now accepted; spec 05 update.
+**Scope:** M. **Dependencies:** none.
+
+#### `[ ]` T139: native explicit `tag_pattern` support
+
+Today `tag_pattern` requires git-cliff (`validator.go`). Allow it with native and have native honour
+it. **Open decision:** native `tag_pattern` as a **glob** (simple, matches native's glob plumbing)
+vs **regex** (drop-in git-cliff parity, filter tags in Go). An explicit `tag_pattern` overrides the
+T138 auto-derived glob (`withEnvDerivations` already suppresses auto-derivation when the user sets
+one). Update validator + `schema.json` + `docs/heraut.sample.yml` + spec.
+**Scope:** S–M. **Dependencies:** T138.
+
+#### `[ ]` T140: native "days between releases" stat
+
+Deferred in T125/T127. `generateReleaseNotes` passes `time.Time{}` for `prevReleaseDate`, so the
+`renderReleaseNotes` `DaysSincePrev` / `HasDaysSincePrev` path (already built) stays dormant.
+**Approach:** resolve the previous tag's commit date (`git log -1 --format=%cI <prev>`) and pass it.
+**Tests:** contract test for the date resolution + a render assertion that the stat line appears.
+**Scope:** S. **Dependencies:** none.
+
+#### `[ ]` T141: Azure "New Contributors" block — **reconsider**
+
+**git-cliff has no Azure first-timer logic** (verified against `git-cliff-core/src/remote/azure_devops.rs`:
+it attributes authors via `created_by.display_name`/`unique_name` but computes no first-time status).
+So this **cannot mirror git-cliff** — matching git-cliff means Azure has attribution (`by @a in !N`,
+already shipped in T129) but *no* contributors block. Doing it anyway would be net-new, GitLab-T137
+style: per distinct PR author, query their earliest PR (`pullrequests?searchCriteria.creatorId={guid}`)
+and mark first-timer when it falls in this release — more API calls, lowest-value platform.
+**Decision pending:** implement net-new, or drop/defer. Sequence last.
+**Scope:** M. **Dependencies:** T129.
 
 ---
 
