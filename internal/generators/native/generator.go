@@ -175,7 +175,7 @@ func (g *Generator) renderRelease(version, prev, rng string, lc *port.LinkContex
 	if len(groups) == 0 {
 		return "", nil
 	}
-	var enrichment map[string]prInfo
+	var enrichment map[string]PullRequest
 	if enrichEnabled {
 		if enrichment, err = g.enrichForRelease(lc, commits); err != nil {
 			return "", err

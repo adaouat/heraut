@@ -109,7 +109,7 @@ func renderChangelogSection(
 	tickets []config.Ticket,
 	headingVersionPattern string,
 	typesHeadingLevel int,
-	enrichment map[string]prInfo,
+	enrichment map[string]PullRequest,
 ) (string, error) {
 	v := buildChangelogView(version, previousVersion, releaseDate, groups, lc, tickets, typesHeadingLevel, enrichment)
 	out, err := execTemplate("changelog", changelogTmpl, v)
@@ -137,7 +137,7 @@ func renderReleaseNotes(
 	tickets []config.Ticket,
 	prevReleaseDate time.Time,
 	typesHeadingLevel int,
-	enrichment map[string]prInfo,
+	enrichment map[string]PullRequest,
 ) (string, error) {
 	v := buildNotesView(version, previousVersion, releaseDate, groups, lc, tickets, prevReleaseDate, typesHeadingLevel, enrichment)
 	out, err := execTemplate("release_notes", releaseNotesTmpl, v)
@@ -156,7 +156,7 @@ func buildChangelogView(
 	lc *port.LinkContext,
 	tickets []config.Ticket,
 	typesHeadingLevel int,
-	enrichment map[string]prInfo,
+	enrichment map[string]PullRequest,
 ) changelogView {
 	cuBase := buildCommitURL(lc)
 	compareURL := buildCompareURL(lc, previousVersion, version)
@@ -189,7 +189,7 @@ func buildNotesView(
 	tickets []config.Ticket,
 	prevReleaseDate time.Time,
 	typesHeadingLevel int,
-	enrichment map[string]prInfo,
+	enrichment map[string]PullRequest,
 ) notesView {
 	_ = version
 	_ = previousVersion
@@ -263,7 +263,7 @@ func buildNotesView(
 //	{*(scope)* }{[**breaking**] }Description - {([hash7](URL))|hash7}{ ([ticket](href))...}
 //
 // When cuBase is "" (lc==nil), a bare 7-char hash is used with no Markdown link.
-func buildCommitLine(pc parsedCommit, cuBase string, tickets []config.Ticket, enrichment map[string]prInfo) string {
+func buildCommitLine(pc parsedCommit, cuBase string, tickets []config.Ticket, enrichment map[string]PullRequest) string {
 	scope, breaking, desc := commitLineDetails(pc)
 	hash7 := pc.raw.Hash
 	if len(hash7) > 7 {
@@ -331,7 +331,7 @@ func commitLineDetails(pc parsedCommit) (scope string, breaking bool, desc strin
 
 // prRef renders a PR/MR reference label: "#42" for GitHub, "!42" for GitLab (per RefPrefix),
 // defaulting to "#".
-func prRef(pr prInfo) string {
+func prRef(pr PullRequest) string {
 	prefix := pr.RefPrefix
 	if prefix == "" {
 		prefix = "#"
@@ -423,7 +423,7 @@ func buildStatTicketLinks(commits []parsedCommit, tickets []config.Ticket) []sta
 // buildContributors returns the distinct first-time contributors across commits (in first-seen
 // order) as pre-rendered "New Contributors" lines. Empty when there is no enrichment or no
 // first-timer, which omits the block entirely.
-func buildContributors(commits []parsedCommit, enrichment map[string]prInfo) []contributorView {
+func buildContributors(commits []parsedCommit, enrichment map[string]PullRequest) []contributorView {
 	if len(enrichment) == 0 {
 		return nil
 	}
@@ -455,7 +455,7 @@ func buildContributors(commits []parsedCommit, enrichment map[string]prInfo) []c
 // Body lines are indented 4 spaces; footer lines are indented 2 spaces with
 // "Token: Value" format. The block has no leading or trailing "\n" — those are
 // added by the release_notes.tmpl per-commit iteration.
-func buildCommitBlock(pc parsedCommit, cuBase string, tickets []config.Ticket, enrichment map[string]prInfo) string {
+func buildCommitBlock(pc parsedCommit, cuBase string, tickets []config.Ticket, enrichment map[string]PullRequest) string {
 	line := "- " + buildCommitLine(pc, cuBase, tickets, enrichment)
 
 	bodyText := ""

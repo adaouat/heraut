@@ -27,7 +27,7 @@ func azurePRQueryBody(sha string, prID int, display, unique string) string {
 }
 
 // TestEnrichAzure_MapsPR asserts the request contract (method, path, api-version, auth, body)
-// and the mapped prInfo.
+// and the mapped PullRequest.
 func TestEnrichAzure_MapsPR(t *testing.T) {
 	var gotMethod, gotPath, gotQuery, gotAuth, gotCType string
 	var gotBody azurePRQuery
@@ -43,7 +43,7 @@ func TestEnrichAzure_MapsPR(t *testing.T) {
 	result, err := enrichAzure(srv.Client(), azureLC(srv.URL), []string{"abc123"})
 	require.NoError(t, err)
 	require.Len(t, result, 1)
-	assert.Equal(t, prInfo{
+	assert.Equal(t, PullRequest{
 		Number:      42,
 		URL:         srv.URL + "/myorg/myproj/_git/myrepo/pullrequest/42",
 		AuthorLogin: "jane",

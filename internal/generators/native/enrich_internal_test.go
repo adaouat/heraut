@@ -33,7 +33,7 @@ func parsedFrom(hash, subject string) parsedCommit {
 
 func TestBuildCommitLine_Enriched(t *testing.T) {
 	pc := parsedFrom("abc1234def", "feat: add thing")
-	enrichment := map[string]prInfo{
+	enrichment := map[string]PullRequest{
 		"abc1234def": {Number: 42, URL: "https://github.com/o/r/pull/42", AuthorLogin: "octocat"},
 	}
 	line := buildCommitLine(pc, "https://github.com/o/r/commit/", nil, enrichment)
@@ -50,7 +50,7 @@ func TestBuildCommitLine_NoEnrichment(t *testing.T) {
 
 func TestBuildCommitLine_EnrichedBeforeTickets(t *testing.T) {
 	pc := parsedFrom("abc1234def", "fix: resolve PROJ-7")
-	enrichment := map[string]prInfo{
+	enrichment := map[string]PullRequest{
 		"abc1234def": {Number: 42, URL: "https://github.com/o/r/pull/42", AuthorLogin: "octocat"},
 	}
 	tickets := []config.Ticket{{Pattern: `PROJ-(\d+)`, URL: "https://jira.example.com/PROJ-{ticket}"}}
@@ -66,7 +66,7 @@ func TestBuildCommitLine_EnrichedBeforeTickets(t *testing.T) {
 
 func TestRenderReleaseNotes_NewContributors(t *testing.T) {
 	groups := []group{{name: "🚀 Features", order: 0, commits: []parsedCommit{parsedFrom("aaaaaaa", "feat: add thing")}}}
-	enrichment := map[string]prInfo{
+	enrichment := map[string]PullRequest{
 		"aaaaaaa": {Number: 7, URL: "https://github.com/o/r/pull/7", AuthorLogin: "newbie", FirstTimer: true},
 	}
 	got, err := renderReleaseNotes("v1.0.0", "", fixedDate1, groups, githubLC, nil, time.Time{}, 3, enrichment)
@@ -79,7 +79,7 @@ func TestRenderReleaseNotes_NewContributors(t *testing.T) {
 
 func TestRenderReleaseNotes_NoFirstTimers_NoBlock(t *testing.T) {
 	groups := []group{{name: "🚀 Features", order: 0, commits: []parsedCommit{parsedFrom("bbbbbbb", "feat: x")}}}
-	enrichment := map[string]prInfo{
+	enrichment := map[string]PullRequest{
 		"bbbbbbb": {Number: 9, URL: "https://github.com/o/r/pull/9", AuthorLogin: "veteran", FirstTimer: false},
 	}
 	got, err := renderReleaseNotes("v1.0.0", "", fixedDate1, groups, githubLC, nil, time.Time{}, 3, enrichment)

@@ -15,9 +15,9 @@ import (
 // call per commit (the enrichment range is the bounded release). Commits with no MR are absent
 // from the map. First-time-contributor status is then resolved per distinct author (see
 // markGitLabFirstTimers) since GitLab's MR API carries no authorAssociation field.
-func enrichGitLab(runner port.Runner, lc *port.LinkContext, shas []string) (map[string]prInfo, error) {
+func enrichGitLab(runner port.Runner, lc *port.LinkContext, shas []string) (map[string]PullRequest, error) {
 	project := url.PathEscape(lc.Owner + "/" + lc.Repo)
-	result := make(map[string]prInfo)
+	result := make(map[string]PullRequest)
 	for _, sha := range shas {
 		endpoint := "projects/" + project + "/repository/commits/" + sha + "/merge_requests"
 		stdout, _, err := runner.RunEnv(lc.APIEnv(), "glab", "api", endpoint)
@@ -32,7 +32,7 @@ func enrichGitLab(runner port.Runner, lc *port.LinkContext, shas []string) (map[
 			continue
 		}
 		mr := mrs[0] // first association wins (matches GitHub's associatedPullRequests first:1)
-		result[sha] = prInfo{
+		result[sha] = PullRequest{
 			Number:      mr.IID,
 			URL:         mr.WebURL,
 			AuthorLogin: mr.Author.Username,
@@ -52,7 +52,7 @@ func enrichGitLab(runner port.Runner, lc *port.LinkContext, shas []string) (map[
 // is a first-timer when that MR's iid is not lower than the smallest MR iid they have in this
 // release (i.e. their earliest merged MR *is* one of this release's MRs). Query failures
 // propagate so enrichForRelease applies the remote_metadata policy uniformly.
-func markGitLabFirstTimers(runner port.Runner, lc *port.LinkContext, project string, result map[string]prInfo) error {
+func markGitLabFirstTimers(runner port.Runner, lc *port.LinkContext, project string, result map[string]PullRequest) error {
 	minIID := make(map[string]int)
 	for _, pr := range result {
 		if pr.AuthorLogin == "" {

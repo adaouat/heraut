@@ -7,10 +7,10 @@ import (
 	"github.com/adaouat/heraut/internal/port"
 )
 
-// enrich resolves PR/MR enrichment for commits via the platform's CLI, returning a SHA→prInfo
+// enrich resolves PR/MR enrichment for commits via the platform's CLI, returning a SHA→PullRequest
 // map. Returns nil when lc is nil or the platform has no enrichment support yet. This is the
 // platform-dispatch seam: GitLab and Azure DevOps slot in as additional cases.
-func (g *Generator) enrich(lc *port.LinkContext, commits []rawCommit) (map[string]prInfo, error) {
+func (g *Generator) enrich(lc *port.LinkContext, commits []rawCommit) (map[string]PullRequest, error) {
 	if lc == nil {
 		return nil, nil
 	}
@@ -37,7 +37,7 @@ func (g *Generator) enrich(lc *port.LinkContext, commits []rawCommit) (map[strin
 //     degraded, and warn once. Rendering then proceeds without PR attribution.
 //
 // A nil / unsupported platform is not a failure — it simply yields no enrichment.
-func (g *Generator) enrichForRelease(lc *port.LinkContext, commits []rawCommit) (map[string]prInfo, error) {
+func (g *Generator) enrichForRelease(lc *port.LinkContext, commits []rawCommit) (map[string]PullRequest, error) {
 	if g.cfg.RemoteMetadata == "disabled" {
 		return nil, nil
 	}

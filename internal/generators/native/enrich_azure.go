@@ -23,8 +23,8 @@ const azureAPIVersion = "7.1"
 // false and no New Contributors block is produced. Auth is a PAT (LinkContext.Token) via HTTP
 // Basic; any transport error or non-2xx status is wrapped so enrichForRelease applies the
 // remote_metadata policy.
-func enrichAzure(client *http.Client, lc *port.LinkContext, shas []string) (map[string]prInfo, error) {
-	result := make(map[string]prInfo)
+func enrichAzure(client *http.Client, lc *port.LinkContext, shas []string) (map[string]PullRequest, error) {
+	result := make(map[string]PullRequest)
 	if len(shas) == 0 {
 		return result, nil
 	}
@@ -74,7 +74,7 @@ func enrichAzure(client *http.Client, lc *port.LinkContext, shas []string) (map[
 			continue
 		}
 		pr := prs[0] // first association wins, matching the GitHub/GitLab drivers
-		result[sha] = prInfo{
+		result[sha] = PullRequest{
 			Number:      pr.PullRequestID,
 			URL:         prWebBase + strconv.Itoa(pr.PullRequestID),
 			AuthorLogin: azureAuthorLogin(pr.CreatedBy),

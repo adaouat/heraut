@@ -16,20 +16,11 @@ const (
 	prFragment = "...on Commit{associatedPullRequests(first:1){nodes{number url author{login}authorAssociation}}}"
 )
 
-// prInfo holds enrichment data for the pull request associated with a commit.
-type prInfo struct {
-	Number      int
-	URL         string
-	AuthorLogin string
-	FirstTimer  bool   // GitHub authorAssociation == "FIRST_TIME_CONTRIBUTOR"
-	RefPrefix   string // "#" for GitHub PRs, "!" for GitLab MRs; empty defaults to "#"
-}
-
 // enrichGitHub fetches the associated pull request for each SHA via batched gh api graphql
 // calls (at most ghChunkSize SHAs per query). Commits with no associated PR are absent from
 // the returned map. All errors are wrapped before being returned.
-func enrichGitHub(runner port.Runner, lc *port.LinkContext, shas []string) (map[string]prInfo, error) {
-	result := make(map[string]prInfo)
+func enrichGitHub(runner port.Runner, lc *port.LinkContext, shas []string) (map[string]PullRequest, error) {
+	result := make(map[string]PullRequest)
 	for i := 0; i < len(shas); i += ghChunkSize {
 		end := i + ghChunkSize
 		if end > len(shas) {
@@ -47,8 +38,8 @@ func enrichGitHub(runner port.Runner, lc *port.LinkContext, shas []string) (map[
 }
 
 // fetchGitHubChunk issues one gh api graphql call for a chunk of SHAs and returns the
-// sha→prInfo map for that chunk. Aliases are local to the chunk (s0, s1, …).
-func fetchGitHubChunk(runner port.Runner, lc *port.LinkContext, shas []string) (map[string]prInfo, error) {
+// sha→PullRequest map for that chunk. Aliases are local to the chunk (s0, s1, …).
+func fetchGitHubChunk(runner port.Runner, lc *port.LinkContext, shas []string) (map[string]PullRequest, error) {
 	query := buildGitHubQuery(lc.Owner, lc.Repo, shas)
 	stdout, _, err := runner.RunEnv(lc.APIEnv(), "gh", "api", "graphql", "-f", "query="+query)
 	if err != nil {
@@ -96,9 +87,9 @@ type graphQLPR struct {
 	AuthorAssociation string `json:"authorAssociation"`
 }
 
-// parseGitHubResponse decodes the gh api graphql JSON and maps each SHA to its prInfo.
+// parseGitHubResponse decodes the gh api graphql JSON and maps each SHA to its PullRequest.
 // Aliases absent from the response or with empty nodes are silently skipped (no PR).
-func parseGitHubResponse(stdout string, shas []string) (map[string]prInfo, error) {
+func parseGitHubResponse(stdout string, shas []string) (map[string]PullRequest, error) {
 	var resp graphQLResponse
 	if err := json.Unmarshal([]byte(stdout), &resp); err != nil {
 		return nil, fmt.Errorf("parsing gh api graphql response: %w", err)
@@ -106,7 +97,7 @@ func parseGitHubResponse(stdout string, shas []string) (map[string]prInfo, error
 	if len(resp.Errors) > 0 {
 		return nil, fmt.Errorf("gh api graphql: %s", resp.Errors[0].Message)
 	}
-	result := make(map[string]prInfo)
+	result := make(map[string]PullRequest)
 	for i, sha := range shas {
 		alias := fmt.Sprintf("s%d", i)
 		commit, ok := resp.Data.Repository[alias]
@@ -114,7 +105,7 @@ func parseGitHubResponse(stdout string, shas []string) (map[string]prInfo, error
 			continue
 		}
 		pr := commit.AssociatedPullRequests.Nodes[0]
-		result[sha] = prInfo{
+		result[sha] = PullRequest{
 			Number:      pr.Number,
 			URL:         pr.URL,
 			AuthorLogin: pr.Author.Login,

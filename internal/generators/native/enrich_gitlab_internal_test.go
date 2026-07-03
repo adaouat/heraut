@@ -24,7 +24,7 @@ func TestEnrichGitLab_MapsMR(t *testing.T) {
 	result, err := enrichGitLab(mr, gitlabLC(), []string{"abc123"})
 	require.NoError(t, err)
 	require.Len(t, result, 1)
-	assert.Equal(t, prInfo{Number: 7, URL: "https://gitlab.com/g/p/-/merge_requests/7", AuthorLogin: "alice", RefPrefix: "!"}, result["abc123"])
+	assert.Equal(t, PullRequest{Number: 7, URL: "https://gitlab.com/g/p/-/merge_requests/7", AuthorLogin: "alice", RefPrefix: "!"}, result["abc123"])
 
 	require.Len(t, mr.Calls, 2)
 	assert.Equal(t, "glab", mr.Calls[0].Name)
