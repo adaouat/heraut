@@ -527,18 +527,28 @@ when only the first-timer lookup fails) — not added to preserve ADR-0034 §6's
 
 ---
 
-#### `[ ]` T129: Azure DevOps enrichment via `az` (optional)
+#### `[ ]` T129: Azure DevOps enrichment via a native `net/http` client (optional)
 
-Bring the native path to ADR-0026 parity — Azure DevOps PR / author enrichment via the **`az`
-CLI** (`az repos pr`, the `azure-devops` extension; token `AZURE_DEVOPS_EXT_PAT`) through the
-runner, correlating PRs to commits (Azure has no direct "PRs for a commit" call), reusing the
-Azure URL composition already in Go. **Optional** — a new dependency for a platform with no
-heraut publish driver; do only when Azure attribution is wanted (ADR-0034 §3). Sequence last.
+Bring the native path to ADR-0026 parity — Azure DevOps PR / author enrichment. Per
+[ADR-0035](../adr/0035-azure-enrichment-native-http.md) (which **supersedes ADR-0034 §3's `az`-CLI
+choice**): a thin native `net/http` client, **not** the `az` CLI (bundling `az` = bundling Python
+in the Docker image, and heraut does not already require `az` — net-new weight for the lowest-value
+platform). One batched `POST {base}/{org}/{project}/_apis/git/repositories/{repo}/pullrequestquery?api-version=7.1`
+with `{"queries":[{"type":"lastMergeCommit","items":[<release SHAs>]}]}`, correlating
+`results[0][sha] → PR`. Auth: `Authorization: Basic base64(":"+LinkContext.Token)` (PAT from
+`AZURE_DEVOPS_TOKEN` via ADR-0026 — no new env var). Reuse `azureRepoRoot` for the PR web URL;
+`RefPrefix "!"`. Routed through the `enrich` / `enrichForRelease` seam so `remote_metadata` +
+`Degraded()` behave like GitHub/GitLab. **Optional** — do only when Azure attribution is wanted.
+**First-timer detection deferred** (Azure PRs have no `authorAssociation`; parity follow-up, like
+GitLab pre-T137). Sequence last.
 
-**Tests:** contract tests for the `az repos pr` invocation + correlation + policy branches.
+**Tests:** `httptest.Server` contract tests (assert method, path, api-version, `Authorization`
+header, request body; canned JSON) + correlation + each `remote_metadata` policy branch. No network.
 
-**Files:** `internal/generators/native/enrich_azure.go` (+ test).
-**Scope:** M. **Dependencies:** T127. **Design:** [ADR-0034](../adr/0034-native-remote-enrichment.md).
+**Files:** `internal/generators/native/enrich_azure.go` (+ test); `generator.go` gains an
+`*http.Client`; `enrich.go` gains the `azure_devops` dispatch case.
+**Scope:** M. **Dependencies:** T127. **Design:** [ADR-0035](../adr/0035-azure-enrichment-native-http.md),
+[ADR-0034](../adr/0034-native-remote-enrichment.md).
 
 ---
 

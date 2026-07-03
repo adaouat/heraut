@@ -38,3 +38,5 @@ trade-offs were accepted.
 | [0031](0031-interactive-commit-wizard.md) | `heraut commit create` — Interactive Commit Wizard | Accepted |
 | [0032](0032-native-content-generator.md) | Built-in (Native) Content Generator | Accepted (config model + opt-in framing superseded by 0033) |
 | [0033](0033-native-config-model.md) | Heraut-Native Config Model — `commits` + `rendering` | Accepted |
+| [0034](0034-native-remote-enrichment.md) | Native Remote Enrichment via Platform CLIs | Accepted (§3 Azure transport superseded by 0035) |
+| [0035](0035-azure-enrichment-native-http.md) | Azure DevOps Enrichment via a Native `net/http` Client | Accepted |

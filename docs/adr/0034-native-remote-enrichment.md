@@ -75,6 +75,14 @@ or CI) that has no token → enrichment cannot authenticate and degrades (see §
 
 ### 3. Scope — GitHub (T127) → GitLab (T128); Azure via `az` (T129) last
 
+> **Superseded by [ADR-0035](0035-azure-enrichment-native-http.md) (Azure transport only).**
+> The `az`-CLI choice below was reversed: bundling `az` means bundling a Python runtime in the
+> Docker image, and — unlike `gh`/`glab` — heraut does not already require `az`, so it would be
+> net-new weight for the lowest-value platform. Azure enrichment instead uses a thin native
+> `net/http` client against `pullrequestquery`, authenticating off `LinkContext.Token`
+> (`AZURE_DEVOPS_TOKEN`, not `AZURE_DEVOPS_EXT_PAT`). The GitHub/GitLab decisions in this ADR
+> stand. The rest of this section is retained for historical context.
+
 GitHub and GitLab have bundled CLIs heraut already requires and platform drivers that resolve
 owner/repo/token. **Azure DevOps (T129) is sequenced last and stays optional.** It is viable
 through the **`az` CLI** (`az repos pr`, the `azure-devops` extension) on the same
