@@ -34,6 +34,7 @@ no longer a parity target — heraut's rendering is its own spec, validated by g
 | Phase 1 — config model + native canonical renderer   | T122–T126, T130–T136   | Complete    |
 | Phase 2 — remote enrichment (GitHub/GitLab CLI, Azure HTTP) | T127, T128, T137, T129 | Complete    |
 | Phase 2.6 — native ↔ git-cliff parity (prereq for 2.5) | T138 – T141            | Not started |
+| Phase 2.7 — unified enrichment model                 | T142 – T148            | Complete    |
 | Phase 2.5 — remove the git-cliff package (own ADR)   | —                      | Deferred    |
 | Phase 3 — raw-HTTP clients (drop `gh` / `glab`)       | —                      | Deferred    |
 
@@ -654,6 +655,91 @@ style: per distinct PR author, query their earliest PR (`pullrequests?searchCrit
 and mark first-timer when it falls in this release — more API calls, lowest-value platform.
 **Decision pending:** implement net-new, or drop/defer. Sequence last.
 **Scope:** M. **Dependencies:** T129.
+
+**Resolution note (2026-07-03):** Resolved by Phase 2.7 (below), not implemented as originally
+scoped here. The unified enrichment model (ADR-0036) computes `first_time` from git author-email
+history — a **local, platform-agnostic** signal independent of any platform's API — so Azure gets
+the "New Contributors" block automatically, with **no per-author Azure query** and no net-new API
+surface. This also retires the "implement net-new vs. drop" choice above: neither GitLab's T137
+per-author approach nor a from-scratch Azure equivalent is needed going forward (T137 itself was
+removed in T145).
+
+---
+
+## Phase 2.7 — Unified enrichment model
+
+Goal: replace native's three divergent per-platform first-timer mechanisms (GitHub
+`authorAssociation`, GitLab's T137 earliest-MR query, Azure's none/T141) and the ad hoc `prInfo`
+struct with **one two-tier model** — a git-derived local tier (`authorsBefore` /
+`collectContributors`, `first_time` from git author-email history) plus a normalized remote tier
+(`Author`/`PullRequest`/`Contributor`, `Title`/`Labels` common fields, a `Platforms` escape hatch).
+Design: [ADR-0036](../adr/0036-unified-enrichment-model.md), which supersedes the first-timer
+portions of [ADR-0034](../adr/0034-native-remote-enrichment.md). Plan:
+`docs/superpowers/plans/2026-07-03-unified-enrichment-model.md`.
+
+#### `[x]` T142: rename `prInfo` → `PullRequest` in a new `model.go` (behavior-neutral)
+
+**Completion note (2026-07-03):** Mechanical rename, additive fields. `internal/generators/native/model.go`
+now holds `Author`, `PullRequest` (renamed from `prInfo`, gaining unused `Title`/`Labels`/`Platforms`
+and a transitional `FirstTimer` kept for this commit only), and `Contributor`. Every `prInfo`
+reference across `enrich_github.go` / `enrich_gitlab.go` / `enrich_azure.go` / `enrich.go` /
+`render.go` (and their tests) became `PullRequest`. No behavior change. **Scope:** S.
+
+#### `[x]` T143: local git tier — `authorsBefore` + `collectContributors`
+
+**Completion note (2026-07-03):** New `internal/generators/native/contributors.go`.
+`authorsBefore(runner, prev)` issues one `git log <prev> --format=%ae` and returns the set of
+author emails reachable from `prev`; an empty `prev` (first release) short-circuits with no git
+call. `collectContributors(commits, before, prs)` returns the release's distinct first-time
+contributors (dedup by email, first-seen order), overlaying the PR (handle/number/URL) from the
+author's first contributing commit that has one. Purely additive — nothing called it yet. **Scope:** M.
+**Dependencies:** T142.
+
+#### `[x]` T144: render New Contributors from the git-based local tier
+
+**Completion note (2026-07-03):** `render.go`'s old enrichment-scanning contributors helper was
+replaced by `buildContributorViews([]Contributor)`, which renders a contributor line only when
+`Author.Username != ""` (a remote handle was resolved) — so offline built-in output is byte-identical
+to before. `generateReleaseNotes` (`generator.go`) now calls `authorsBefore` + `collectContributors`
+after `enrichForRelease` and threads `[]Contributor` into `renderReleaseNotes`; the changelog path
+(`renderChangelogSection`) has no contributors block and was untouched. This adds one `git log
+<prev> --format=%ae` call per release-notes generation with a predecessor — rippled through the
+`MockRunner`-based release-notes contract tests (one more queued response each), mirroring the
+T140 `tagDate` ripple. No golden-snapshot fixture under `testdata/` renders the New Contributors
+block, so no re-baselining was required in practice — the design's re-baseline-and-review guidance
+was moot for this repo's existing goldens. **Scope:** M. **Dependencies:** T143.
+
+#### `[x]` T145: remove per-platform first-timer paths
+
+**Completion note (2026-07-03):** `PullRequest.FirstTimer` deleted from `model.go`. GitHub:
+`prFragment` and `graphQLPR` drop `authorAssociation`; `parseGitHubResponse` no longer derives
+`FirstTimer`. GitLab: `markGitLabFirstTimers` and `gitLabEarliestMergedMR` (T137) deleted outright,
+along with their per-author `merge_requests?author_username=…` calls and five now-obsolete tests
+(`TestEnrichGitLab_FirstTimer*`, `_ReturningContributor`, `_FirstTimerQueryError`); `enrichGitLab`
+no longer calls them. One local git computation now fully replaces the three platform-specific
+mechanisms. **Scope:** S. **Dependencies:** T144.
+
+#### `[x]` T146: fetch PR `title` + `labels` — GitHub
+
+**Completion note (2026-07-03):** `prFragment` (GraphQL) extended to request `title` and
+`labels(first:20){nodes{name}}`; `graphQLPR` gained `Title`/`Labels` fields; `parseGitHubResponse`
+populates `PullRequest.Title`/`.Labels`. **Scope:** S. **Dependencies:** T145.
+
+#### `[x]` T147: fetch MR `title` + `labels` — GitLab
+
+**Completion note (2026-07-03):** `gitLabMR` gained `Title string` / `Labels []string` (GitLab's
+merge-request response already carries both); `enrichGitLab`'s `PullRequest{...}` literal now sets
+`Title`/`Labels` from the fetched MR. **Scope:** S. **Dependencies:** T145.
+
+#### `[x]` T148: fetch PR `title` (+ labels best-effort) — Azure
+
+**Completion note (2026-07-03):** `azurePR` gained `Title string` and a `Labels []struct{Name
+string}` field; `enrichAzure`'s `PullRequest{...}` literal sets `Title`/`Labels` from the
+`pullrequestquery` response (labels stay empty if a given response omits them — best-effort, no
+extra `expand` request added). This completes Phase 2.7 — see
+[ADR-0036](../adr/0036-unified-enrichment-model.md) for the full model and the known limitation
+that contributor computation runs over all release commits, before `rendering.excludes`
+type-filtering (deferred follow-up). **Scope:** S. **Dependencies:** T145.
 
 ---
 

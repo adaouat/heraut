@@ -29,13 +29,16 @@ changelog:
 
 Section labels, order, and heading depth come from `commits.types` and
 `commits.types_heading_level`; `rendering.excludes` drops matched commits from the output.
-Remote enrichment adds PR/MR author + number attribution for GitHub, GitLab, and Azure
-DevOps (plus a "New Contributors" block on GitHub and GitLab), gated by the `remote_metadata`
-policy. Per-env strategies are supported: under a `*-per-env` strategy native scopes its tag
-walk to the active environment's tags, derived from `tag_format`. An explicit `tag_pattern`
-(a Go regex, matching git-cliff's semantics) overrides that auto-scoping. See
-[ADR-0033](../adr/0033-native-config-model.md) and
-[ADR-0034](../adr/0034-native-remote-enrichment.md).
+PR/MR author + number attribution and the "New Contributors" block derive from a unified,
+platform-agnostic model (`Author`/`PullRequest`/`Contributor`): a **local tier** always
+computes contributors and `first_time` from git author history (one `git log`, available
+offline, identical across GitHub/GitLab/Azure DevOps), while a **remote tier** — gated by the
+`remote_metadata` policy — fetches PR/MR metadata (number, URL, title, labels, author handle)
+and overlays it onto that local model. Because `first_time` no longer depends on
+platform-specific data, the "New Contributors" block is available for all three platforms,
+including Azure DevOps. See [ADR-0033](../adr/0033-native-config-model.md),
+[ADR-0034](../adr/0034-native-remote-enrichment.md), and
+[ADR-0036](../adr/0036-unified-enrichment-model.md).
 
 ### git-cliff
 
