@@ -129,6 +129,7 @@ func TestGenerate_Enrich_Azure(t *testing.T) {
 
 	mr := exectest.NewMockRunner()
 	mr.QueueResponse("v1.0.0\n", "", nil)                                                                        // previousTag
+	mr.QueueResponse("2026-01-01T00:00:00Z\n", "", nil)                                                          // tagDate
 	mr.QueueResponse(record("abc1234567", "A", "a@example.com", "2026-01-02T00:00:00Z", "feat: x", ""), "", nil) // collectCommits
 	g := New(mr, &config.ContentDriver{Generator: "native", RemoteMetadata: "optional"}, ModeReleaseNotes)
 

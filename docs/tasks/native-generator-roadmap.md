@@ -627,13 +627,22 @@ git-cliff too; schema/sample/spec now say regex with anchored examples (`^v[0-9]
 Kept T138's glob path (it is an equivalent matcher to the auto regex, and git-side `git tag -l
 <glob>` is cheaper) rather than reworking it. Suite 1366 green.
 
-#### `[ ]` T140: native "days between releases" stat
+#### `[x]` T140: native "days between releases" stat
 
 Deferred in T125/T127. `generateReleaseNotes` passes `time.Time{}` for `prevReleaseDate`, so the
 `renderReleaseNotes` `DaysSincePrev` / `HasDaysSincePrev` path (already built) stays dormant.
 **Approach:** resolve the previous tag's commit date (`git log -1 --format=%cI <prev>`) and pass it.
 **Tests:** contract test for the date resolution + a render assertion that the stat line appears.
 **Scope:** S. **Dependencies:** none.
+
+**Completion note (2026-07-03):** Added `tagDate(runner, tag)` (`git log -1 --format=%cI <tag>`,
+%cI matches the commit collector) and wired `generateReleaseNotes` to resolve the previous tag's
+date and pass it as `prevReleaseDate` (only when a previous tag exists — first releases keep the
+zero time, so the stat is omitted). The `renderReleaseNotes` `DaysSincePrev` / `HasDaysSincePrev`
+path was already built, so no render change. Cost: one extra `git log -1` per release-notes run
+with a predecessor, which rippled through the 9 release-notes contract tests (shared
+`queueReleaseNotesGit` helper updated once; the rest inline) — mechanical, no assertions dropped.
+Suite 1367 green.
 
 #### `[ ]` T141: Azure "New Contributors" block — **reconsider**
 

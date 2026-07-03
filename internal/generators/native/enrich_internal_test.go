@@ -97,6 +97,7 @@ func ghLC() *port.LinkContext {
 
 func queueReleaseNotesGit(mr *exectest.MockRunner) {
 	mr.QueueResponse("v1.0.0\n", "", nil)                                                                        // previousTag: git describe
+	mr.QueueResponse("2026-01-01T00:00:00Z\n", "", nil)                                                          // tagDate: git log -1 --format=%cI
 	mr.QueueResponse(record("abc1234567", "A", "a@example.com", "2026-01-02T00:00:00Z", "feat: x", ""), "", nil) // collectCommits: git log
 }
 

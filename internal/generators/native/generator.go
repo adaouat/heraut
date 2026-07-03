@@ -97,6 +97,12 @@ func (g *Generator) generateReleaseNotes(tag string, lc *port.LinkContext) (stri
 	if err != nil {
 		return "", err
 	}
+	var prevDate time.Time
+	if prev != "" {
+		if prevDate, err = tagDate(g.runner, prev); err != nil {
+			return "", err
+		}
+	}
 	commits, err := collectCommits(g.runner, commitRange(prev, tag))
 	if err != nil {
 		return "", err
@@ -106,9 +112,7 @@ func (g *Generator) generateReleaseNotes(tag string, lc *port.LinkContext) (stri
 		return "", err
 	}
 	groups := groupCommits(commits, g.cfg.Types, g.cfg.Excludes)
-	// prevReleaseDate is omitted (the "days between releases" stat is a follow-up): it needs
-	// the previous tag's date.
-	return renderReleaseNotes(tag, prev, releaseDate(commits), groups, lc, g.cfg.Tickets, time.Time{}, g.cfg.TypesHeadingLevel, enrichment)
+	return renderReleaseNotes(tag, prev, releaseDate(commits), groups, lc, g.cfg.Tickets, prevDate, g.cfg.TypesHeadingLevel, enrichment)
 }
 
 // generateChangelog regenerates the full CHANGELOG.md: a section for the release being created

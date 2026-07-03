@@ -150,6 +150,7 @@ func TestEnrichGitLab_Subgroup(t *testing.T) {
 func TestGenerate_Enrich_GitLab(t *testing.T) {
 	mr := exectest.NewMockRunner()
 	mr.QueueResponse("v1.0.0\n", "", nil)                                                                        // previousTag
+	mr.QueueResponse("2026-01-01T00:00:00Z\n", "", nil)                                                          // tagDate
 	mr.QueueResponse(record("abc1234567", "A", "a@example.com", "2026-01-02T00:00:00Z", "feat: x", ""), "", nil) // collectCommits
 	mr.QueueResponse(`[{"iid":7,"web_url":"https://gitlab.com/g/p/-/merge_requests/7","author":{"username":"alice"}}]`, "", nil)
 	mr.QueueResponse(`[{"iid":7}]`, "", nil) // alice's earliest merged MR == this one → first-timer

@@ -115,6 +115,25 @@ func noEarlierTag(stderr string) bool {
 	return strings.Contains(s, "no names found") || strings.Contains(s, "no tags can describe")
 }
 
+// tagDate returns the committer date of the commit the given tag points to
+// (`git log -1 --format=%cI <tag>`), used for the release-notes "days between releases" stat.
+// An empty output yields the zero time (no error).
+func tagDate(runner port.Runner, tag string) (time.Time, error) {
+	stdout, _, err := runner.Run("git", "log", "-1", "--format=%cI", tag)
+	if err != nil {
+		return time.Time{}, fmt.Errorf("resolving date for tag %s: %w", tag, err)
+	}
+	s := strings.TrimSpace(stdout)
+	if s == "" {
+		return time.Time{}, nil
+	}
+	d, err := time.Parse(time.RFC3339, s)
+	if err != nil {
+		return time.Time{}, fmt.Errorf("parsing tag date %q: %w", s, err)
+	}
+	return d, nil
+}
+
 // listTags returns tags matching glob (all tags when glob is "") sorted newest-first by
 // version refname. The native changelog renders one section per release in this order.
 func listTags(runner port.Runner, glob string) ([]string, error) {
