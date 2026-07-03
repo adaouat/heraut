@@ -64,7 +64,7 @@ type PullRequest struct {
     Number      int
     URL         string
     AuthorLogin string
-    RefPrefix   string // "#" GitHub/Azure, "!" GitLab — set per-platform at fetch time
+    RefPrefix   string // "!" for GitLab MRs and Azure DevOps PRs; GitHub leaves it empty and prRef defaults it to "#"
     Title       string
     Labels      []string
     Platforms   map[string]any // platform-unique escape hatch
@@ -135,9 +135,10 @@ filtering for the contributor computation is a **deferred follow-up**, not addre
   "reconsider" decision pending in the roadmap is closed by this design, not by new Azure code.
 - GitLab and Azure each save an API round trip per distinct release author (GitLab's earliest-MR
   query is gone entirely; Azure never needed one).
-- Golden snapshots: online output can shift where New-Contributors membership differs
-  (git-based vs the old `authorAssociation` / earliest-MR signal) — this diff was reviewed and
-  re-baselined deliberately, not blanket-accepted. Offline golden output is unchanged.
+- Golden snapshots: **no** golden fixture under `testdata/` exercises the New Contributors
+  block — every golden-covered fixture passes `nil` contributors, so the `{{if .Contributors}}`
+  block never renders — so no golden re-baseline occurred in practice. Offline golden output is
+  byte-identical.
 - The model is now the schema a future user-customizable-templates task will expose to
   `text/template` — this ADR is that task's dependency, not its implementation.
 

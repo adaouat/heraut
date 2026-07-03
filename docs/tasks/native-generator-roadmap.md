@@ -33,7 +33,7 @@ no longer a parity target — heraut's rendering is its own spec, validated by g
 |------------------------------------------------------|------------------------|-------------|
 | Phase 1 — config model + native canonical renderer   | T122–T126, T130–T136   | Complete    |
 | Phase 2 — remote enrichment (GitHub/GitLab CLI, Azure HTTP) | T127, T128, T137, T129 | Complete    |
-| Phase 2.6 — native ↔ git-cliff parity (prereq for 2.5) | T138 – T141            | Not started |
+| Phase 2.6 — native ↔ git-cliff parity (prereq for 2.5) | T138 – T141            | Complete    |
 | Phase 2.7 — unified enrichment model                 | T142 – T148            | Complete    |
 | Phase 2.5 — remove the git-cliff package (own ADR)   | —                      | Deferred    |
 | Phase 3 — raw-HTTP clients (drop `gh` / `glab`)       | —                      | Deferred    |
@@ -645,7 +645,7 @@ with a predecessor, which rippled through the 9 release-notes contract tests (sh
 `queueReleaseNotesGit` helper updated once; the rest inline) — mechanical, no assertions dropped.
 Suite 1367 green.
 
-#### `[ ]` T141: Azure "New Contributors" block — **reconsider**
+#### `[x]` T141: Azure "New Contributors" block — **reconsider**
 
 **git-cliff has no Azure first-timer logic** (verified against `git-cliff-core/src/remote/azure_devops.rs`:
 it attributes authors via `created_by.display_name`/`unique_name` but computes no first-time status).
@@ -692,7 +692,9 @@ reference across `enrich_github.go` / `enrich_gitlab.go` / `enrich_azure.go` / `
 author emails reachable from `prev`; an empty `prev` (first release) short-circuits with no git
 call. `collectContributors(commits, before, prs)` returns the release's distinct first-time
 contributors (dedup by email, first-seen order), overlaying the PR (handle/number/URL) from the
-author's first contributing commit that has one. Purely additive — nothing called it yet. **Scope:** M.
+first commit seen for that author's email — the email is marked seen immediately, so if that
+first commit has no PR, none is attached even when a later commit by the same author does.
+Purely additive — nothing called it yet. **Scope:** M.
 **Dependencies:** T142.
 
 #### `[x]` T144: render New Contributors from the git-based local tier

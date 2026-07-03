@@ -11,7 +11,7 @@ and `communique`. A project can use different generators for `changelog` and `re
 
 | Generator   | Strengths                                                        | Limits                                                       |
 |-------------|------------------------------------------------------------------|--------------------------------------------------------------|
-| `native`    | Built-in renderer, no external binary; changelog / release-notes driven by `commits` / `rendering` config | Phase 1: no PR/author enrichment yet (arrives in Phase 2)   |
+| `native`    | Built-in renderer, no external binary; changelog / release-notes driven by `commits` / `rendering` config | No user-customizable templates yet (fat-injection rendering) |
 | `git-cliff` | Embedded opinionated default; deep-merged TOML overrides; labels new commits with `--tag <version>` | TOML config only                                            |
 | `communique`| AI-assisted release notes from commit history                    | Requires a full config file; no embedded default              |
 

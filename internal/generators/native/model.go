@@ -9,7 +9,8 @@ type Author struct {
 }
 
 // PullRequest is the normalized PR/MR for a commit: flat common fields plus a per-platform
-// escape hatch. RefPrefix is "#" (GitHub/Azure) or "!" (GitLab); it is derived at fetch time.
+// escape hatch. RefPrefix is "!" for GitLab MRs and Azure DevOps PRs; GitHub leaves it empty
+// and prRef (render.go) defaults it to "#". It is derived at fetch time.
 type PullRequest struct {
 	Number      int
 	URL         string
