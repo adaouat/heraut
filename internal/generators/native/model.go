@@ -1,5 +1,7 @@
 package native
 
+import "time"
+
 // Author is a contributor identity: git-first (Name/Email always present), with an optional
 // platform handle resolved from remote enrichment. Email is the first_time identity key.
 type Author struct {
@@ -19,6 +21,13 @@ type PullRequest struct {
 	Title       string
 	Labels      []string
 	Platforms   map[string]any
+	// CreatedAt / MergedAt are the PR/MR creation and merge timestamps (remote-only, zero offline).
+	CreatedAt time.Time
+	MergedAt  time.Time
+	// MergedBy is the actor who merged the PR/MR (remote-only; empty Author when unknown).
+	MergedBy Author
+	// Approvers are the reviewers who approved (best-effort: GitHub + Azure; empty on GitLab).
+	Approvers []Author
 }
 
 // Contributor is a per-release contributor for the "New Contributors" block.
