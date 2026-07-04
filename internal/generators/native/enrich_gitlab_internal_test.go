@@ -3,6 +3,7 @@ package native
 import (
 	"errors"
 	"testing"
+	"time"
 
 	"github.com/adaouat/forge/exec/exectest"
 	"github.com/stretchr/testify/assert"
@@ -11,6 +12,21 @@ import (
 	"github.com/adaouat/heraut/internal/config"
 	"github.com/adaouat/heraut/internal/port"
 )
+
+func TestEnrichGitLab_ReviewFields(t *testing.T) {
+	mr := exectest.NewMockRunner()
+	mr.QueueResponse(`[{"iid":7,"web_url":"u","title":"t","author":{"username":"alice"},"labels":[],
+		"created_at":"2026-01-01T00:00:00Z","merged_at":"2026-01-02T00:00:00Z",
+		"merged_by":{"username":"maint"}}]`, "", nil)
+
+	got, err := enrichGitLab(mr, gitlabLC(), []string{"abc123"})
+	require.NoError(t, err)
+	pr := got["abc123"]
+	assert.Equal(t, "2026-01-01T00:00:00Z", pr.CreatedAt.UTC().Format(time.RFC3339))
+	assert.Equal(t, "2026-01-02T00:00:00Z", pr.MergedAt.UTC().Format(time.RFC3339))
+	assert.Equal(t, "maint", pr.MergedBy.Username)
+	assert.Nil(t, pr.Approvers, "GitLab approvers are best-effort empty (no extra call)")
+}
 
 func gitlabLC() *port.LinkContext {
 	return &port.LinkContext{Platform: "gitlab", BaseURL: "https://gitlab.com", Owner: "g", Repo: "p", Token: "tok"}

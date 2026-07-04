@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/url"
+	"time"
 
 	"github.com/adaouat/heraut/internal/port"
 )
@@ -37,6 +38,11 @@ func enrichGitLab(runner port.Runner, lc *port.LinkContext, shas []string) (map[
 			AuthorLogin: mr.Author.Username,
 			Labels:      mr.Labels,
 			RefPrefix:   "!",
+			CreatedAt:   mr.CreatedAt,
+			MergedAt:    mr.MergedAt,
+			MergedBy:    Author{Username: mr.MergedBy.Username},
+			// Approvers intentionally left nil — the per-commit MR object has no approvers; a
+			// separate /approvals call per MR is not paid (best-effort, ADR-0036 / spec).
 		}
 	}
 	return result, nil
@@ -50,6 +56,11 @@ type gitLabMR struct {
 	Author struct {
 		Username string `json:"username"`
 	} `json:"author"`
+	CreatedAt time.Time `json:"created_at"`
+	MergedAt  time.Time `json:"merged_at"`
+	MergedBy  struct {
+		Username string `json:"username"`
+	} `json:"merged_by"`
 }
 
 func parseGitLabMRs(stdout string) ([]gitLabMR, error) {
