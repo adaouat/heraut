@@ -7,6 +7,7 @@ import (
 	"net/http/httptest"
 	"strconv"
 	"testing"
+	"time"
 
 	"github.com/adaouat/forge/exec/exectest"
 	"github.com/stretchr/testify/assert"
@@ -15,6 +16,26 @@ import (
 	"github.com/adaouat/heraut/internal/config"
 	"github.com/adaouat/heraut/internal/port"
 )
+
+func TestEnrichAzure_ReviewFields(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		_, _ = io.WriteString(w, `{"results":[{"abc123":[{"pullRequestId":42,"title":"t",
+			"createdBy":{"displayName":"Jane","uniqueName":"jane@x"},
+			"creationDate":"2026-01-01T00:00:00Z","closedDate":"2026-01-02T00:00:00Z",
+			"closedBy":{"displayName":"Maint","uniqueName":"maint@x"},
+			"reviewers":[{"uniqueName":"rev1@x","vote":10},{"uniqueName":"rev2@x","vote":-10}]}]}]}`)
+	}))
+	defer srv.Close()
+
+	got, err := enrichAzure(srv.Client(), azureLC(srv.URL), []string{"abc123"})
+	require.NoError(t, err)
+	pr := got["abc123"]
+	assert.Equal(t, "2026-01-01T00:00:00Z", pr.CreatedAt.UTC().Format(time.RFC3339))
+	assert.Equal(t, "2026-01-02T00:00:00Z", pr.MergedAt.UTC().Format(time.RFC3339))
+	assert.Equal(t, "maint", pr.MergedBy.Username)
+	require.Len(t, pr.Approvers, 1, "only vote >= 10 counts as approved")
+	assert.Equal(t, "rev1", pr.Approvers[0].Username)
+}
 
 func azureLC(baseURL string) *port.LinkContext {
 	return &port.LinkContext{Platform: "azure_devops", BaseURL: baseURL, Owner: "myorg/myproj", Repo: "myrepo", Token: "tok"}

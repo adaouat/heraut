@@ -9,6 +9,7 @@ import (
 	"net/url"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/adaouat/heraut/internal/port"
 )
@@ -78,6 +79,12 @@ func enrichAzure(client *http.Client, lc *port.LinkContext, shas []string) (map[
 		for _, l := range pr.Labels {
 			labels = append(labels, l.Name)
 		}
+		var approvers []Author
+		for _, r := range pr.Reviewers {
+			if r.Vote >= 10 {
+				approvers = append(approvers, Author{Username: azureAuthorLogin(azureIdentityRef{DisplayName: r.DisplayName, UniqueName: r.UniqueName})})
+			}
+		}
 		result[sha] = PullRequest{
 			Number:      pr.PullRequestID,
 			URL:         prWebBase + strconv.Itoa(pr.PullRequestID),
@@ -85,6 +92,10 @@ func enrichAzure(client *http.Client, lc *port.LinkContext, shas []string) (map[
 			RefPrefix:   "!",
 			Title:       pr.Title,
 			Labels:      labels,
+			CreatedAt:   pr.CreationDate,
+			MergedAt:    pr.ClosedDate,
+			MergedBy:    Author{Username: azureAuthorLogin(pr.ClosedBy)},
+			Approvers:   approvers,
 		}
 	}
 	return result, nil
@@ -131,6 +142,14 @@ type azurePR struct {
 	Labels        []struct {
 		Name string `json:"name"`
 	} `json:"labels"`
+	CreationDate time.Time        `json:"creationDate"`
+	ClosedDate   time.Time        `json:"closedDate"`
+	ClosedBy     azureIdentityRef `json:"closedBy"`
+	Reviewers    []struct {
+		UniqueName  string `json:"uniqueName"`
+		DisplayName string `json:"displayName"`
+		Vote        int    `json:"vote"`
+	} `json:"reviewers"`
 }
 
 type azureIdentityRef struct {
