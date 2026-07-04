@@ -21,20 +21,21 @@ once exposed, it is a compatibility commitment.
 
 ## Decision
 
-Expose a public template API through **one mechanism** — inline Go-template snippets as config keys
-under `rendering.templates.<block>`, overridable per-driver and per-env — that scales from the
-common case to the power case:
+Expose a public template API with **two entry points**, right-sized to the job:
 
-1. **Block overrides** (the common case) — override a leaf block (`commit`, `group`, …) to reformat
-   one thing in a single YAML line; everything else stays built-in. Schema-documented (IDE
-   autocomplete), no external files.
-2. **Whole-document replacement** (the power case) — override a *root* block (`changelog` /
-   `release-notes`) with a full template (YAML block scalar) for total layout control. Same
-   mechanism, just a bigger snippet.
+1. **Inline block overrides** (the common case) — short Go-template snippets as config keys under
+   `rendering.templates.<block>`, overridable per-driver and per-env. Reformat the commit line in
+   one YAML line; everything else stays built-in. Schema-documented (IDE autocomplete).
+2. **A full template file** (the power case) — `<driver>.template: <path>` points at a real
+   `.tmpl` file authored with proper tooling (syntax highlighting, version control, no YAML
+   escaping). The file is parsed on top of the built-ins and may redefine the **root** block
+   (whole-document replacement) and/or any set of blocks.
 
-All of it uses the **same Go `text/template` engine and the same public data contract**. The
-built-in templates are **rewritten from fat-injection onto that contract** (dogfooded — our own
-output is the reference implementation, guaranteeing the contract works).
+Both entry points feed the **same Go `text/template` block set + data contract** — a file that
+`{{ define "commit" }}` and an inline `rendering.templates.commit` do the identical thing; the file
+is just the ergonomic home for large or multi-block customization. The built-in templates are
+**rewritten from fat-injection onto that contract** (dogfooded — our own output is the reference
+implementation, guaranteeing the contract works).
 
 ---
 
@@ -101,10 +102,8 @@ calls. Documented as such.
 
 ## Config surface
 
-**One mechanism: inline `rendering.templates.<block>` keys.** Every override point — including the
-whole-document roots — is a config key. Overriding a leaf block reformats one thing; overriding a
-root block (`changelog` / `release-notes`) is whole-document replacement. No separate file field.
-Multiline templates use a YAML block scalar (`|`).
+Two entry points, same underlying blocks: **inline `rendering.templates.<block>` keys** for quick
+overrides, and a **`<driver>.template` file** for full / multi-block templates.
 
 ```yaml
 rendering:                     # global (shared by changelog + release-notes)
@@ -116,10 +115,10 @@ rendering:                     # global (shared by changelog + release-notes)
 
 changelog:
   generator: native
-  rendering:                                   # optional: per-driver override of the rendering block
+  template: .config/heraut/changelog.tmpl      # optional: a full template FILE (whole doc or blocks)
+  rendering:                                   # optional: per-driver inline overrides
     templates:
       header: "# Changelog\n\nAll notable changes.\n"
-      commit: "- {{ .Description }} ({{ .ShortHash }}){{ if .PR }} (#{{ .PR.Number }}){{ end }}"
 
 release:
   notes:
@@ -127,16 +126,24 @@ release:
     # inherits the global `commit`/`footer`; no per-driver override
 ```
 
+The `<driver>.template` file is a Go template parsed on top of the built-ins. It authors full
+customization with real tooling and may `{{ define }}` the root block (whole-document replacement)
+and/or any set of blocks:
+
+```gotmpl
+{{/* .config/heraut/changelog.tmpl — override just two blocks, inherit the rest */}}
+{{ define "commit" }}- {{ .Description }}{{ if .PR }} ([{{ .PR.Ref }}]({{ .PR.URL }})){{ end }}{{ end }}
+{{ define "group" }}## {{ .Name }}{{ end }}
+```
+
 - **`<driver>.rendering`** is the *same* `rendering` block as the global one (fields: `templates`,
   `excludes`), **deep-merged over global** — so `excludes` is also per-driver overridable for free
   (a nice consequence, not special-cased).
-- **Precedence (per block key, lowest → highest):** built-in → `rendering.*` (global) →
-  `<driver>.rendering.*` → `environments.<env>.<driver>.rendering.*` (via the existing per-env
-  content-driver merge, [ADR-0019](../adr/0019-perenv-content-driver-merge.md)). Each level
-  overrides only the keys it sets; unset keys fall through.
-- Multiline whole-document replacement is just the `changelog` / `release-notes` root key set to a
-  block-scalar template. (If large inline templates ever get unwieldy, a `file:` loading convention
-  is an additive follow-up — see Out of scope.)
+- **Precedence (per block key, lowest → highest):** built-in → `rendering.*` inline (global) →
+  `<driver>.rendering.*` inline → `environments.<env>.<driver>.rendering.*` inline →
+  **`<driver>.template` file** (parsed last, wins for whatever it defines). Per-env merge via
+  [ADR-0019](../adr/0019-perenv-content-driver-merge.md). Each level overrides only the keys/blocks
+  it sets; unset ones fall through.
 
 ### Override points (blocks)
 
@@ -150,12 +157,13 @@ The common, friendly set:
 | `contributor` | `Contributor` | one "New Contributors" line |
 | `footer` | root (`Changelog` / `Release`) | document footer (e.g. a "generated by" line) |
 
-Advanced/structural blocks (also inline-settable, for bigger reshapes or whole-document control):
+Advanced/structural blocks (settable inline for small ones, but typically authored in the
+`<driver>.template` file since they're larger — this is what whole-document control means):
 `contributors` (`[]Contributor`), `stats` (`Stats`), `release` (`Release`), `changelog`
 (`Changelog`), `release-notes` (`Release`). Internally the built-in `release` renders `header` →
 iterates groups (`group` heading + `commit` loop) → `contributors` → `stats` → `footer`. Inline
-snippets are synthesized into `{{ define "<key>" }}<snippet>{{ end }}` and parsed on top of the
-built-ins.
+snippets are synthesized into `{{ define "<key>" }}<snippet>{{ end }}` and parsed together with the
+`template` file on top of the built-ins.
 
 ### Template funcs
 
@@ -177,11 +185,12 @@ and diff-reviewed to confirm the diff is empty.
 
 ## Errors & validation
 
-- An inline template that **fails to parse or execute** fails the run with a clear error naming the
-  offending block key — never silent broken output. Parse errors are caught at config-validation
-  time where feasible (the snippets are known statically); exec errors surface at generation.
-- `rendering.templates` **requires `generator: native`** (config error otherwise, like
-  `tag_pattern`).
+- A template (inline snippet or `template` file) that **fails to parse or execute** fails the run
+  with a clear error naming the offending block key / file path — never silent broken output. Parse
+  errors are caught at config-validation time where feasible (snippets and the file are known
+  statically); exec errors surface at generation.
+- `rendering.templates` and `<driver>.template` **require `generator: native`** (config error
+  otherwise, like `tag_pattern`); the `template` file must exist and be readable/parseable.
 
 ## Determinism note
 
@@ -201,16 +210,17 @@ would break in CI.
 
 - Golden snapshots re-baselined (built-in output unchanged — the load-bearing check).
 - New tests: each inline override (`header`/`group`/`commit`/`contributor`/`footer`); the merge
-  precedence (global < driver < env); a whole-document root-block (`changelog` / `release-notes`)
-  replacement; parse-error and exec-error paths; the new fetch fields per platform (contract tests,
-  incl. GitLab approvers empty); a `templates` requires-native validator test.
+  precedence (global < driver < env < file); a `<driver>.template` **file** that both whole-replaces
+  a root and overrides individual blocks; parse-error, exec-error, and missing-file paths; the new
+  fetch fields per platform (contract tests, incl. GitLab approvers empty); a
+  `templates`/`template` requires-native validator test.
 - Determinism preserved (MockRunner / httptest; no network; injected clock for `GeneratedAt`).
 
 ## Out of scope
 
 - Non-`native` generators (git-cliff keeps its own TOML/Tera).
 - Arbitrary/unsafe template funcs (shell, file, network).
-- **External template files** (`file:`-valued keys). Everything is inline for v1; a file-loading
-  convention is an additive follow-up if large inline templates prove painful.
+- Per-block file references for the *inline* keys (a block key's value is always a literal snippet;
+  file-based authoring goes through `<driver>.template`).
 - GitLab approvers via the extra `/approvals` call (deferred; field stays empty there).
 - A stable/versioned contract guarantee (experimental in v1; revisit at v1.0).
