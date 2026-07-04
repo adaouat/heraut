@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"testing"
+	"time"
 
 	"github.com/adaouat/forge/exec/exectest"
 	"github.com/stretchr/testify/assert"
@@ -11,6 +12,28 @@ import (
 
 	"github.com/adaouat/heraut/internal/port"
 )
+
+func TestEnrichGitHub_ReviewFields(t *testing.T) {
+	mr := exectest.NewMockRunner()
+	sha := "aa11bb22cc33dd44ee55ff6677889900aabbccdd"
+	lc := makeGitHubLC("owner", "repo", "tok")
+	mr.QueueResponse(`{"data":{"repository":{"s0":{"associatedPullRequests":{"nodes":[
+		{"number":42,"url":"u","title":"t","author":{"login":"alice"},
+		 "createdAt":"2026-01-01T00:00:00Z","mergedAt":"2026-01-02T00:00:00Z",
+		 "mergedBy":{"login":"maint"},
+		 "labels":{"nodes":[]},
+		 "latestReviews":{"nodes":[{"state":"APPROVED","author":{"login":"rev1"}},
+		                           {"state":"CHANGES_REQUESTED","author":{"login":"rev2"}}]}}]}}}}}`, "", nil)
+
+	got, err := enrichGitHub(mr, lc, []string{sha})
+	require.NoError(t, err)
+	pr := got[sha]
+	assert.Equal(t, "2026-01-01T00:00:00Z", pr.CreatedAt.UTC().Format(time.RFC3339))
+	assert.Equal(t, "2026-01-02T00:00:00Z", pr.MergedAt.UTC().Format(time.RFC3339))
+	assert.Equal(t, "maint", pr.MergedBy.Username)
+	require.Len(t, pr.Approvers, 1, "only APPROVED reviews count")
+	assert.Equal(t, "rev1", pr.Approvers[0].Username)
+}
 
 // makeGitHubLC returns a test LinkContext for github.com with the given credentials.
 func makeGitHubLC(owner, repo, token string) *port.LinkContext {

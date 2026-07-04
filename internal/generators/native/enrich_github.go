@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"strings"
+	"time"
 
 	"github.com/adaouat/heraut/internal/port"
 )
@@ -13,7 +14,7 @@ const (
 	// the query size and staying well within GitHub's API node limits.
 	ghChunkSize = 50
 
-	prFragment = "...on Commit{associatedPullRequests(first:1){nodes{number url title author{login}labels(first:20){nodes{name}}}}}"
+	prFragment = "...on Commit{associatedPullRequests(first:1){nodes{number url title author{login}labels(first:20){nodes{name}}createdAt mergedAt mergedBy{login}latestReviews(first:20){nodes{state author{login}}}}}}"
 )
 
 // enrichGitHub fetches the associated pull request for each SHA via batched gh api graphql
@@ -90,6 +91,19 @@ type graphQLPR struct {
 			Name string `json:"name"`
 		} `json:"nodes"`
 	} `json:"labels"`
+	CreatedAt time.Time `json:"createdAt"`
+	MergedAt  time.Time `json:"mergedAt"`
+	MergedBy  struct {
+		Login string `json:"login"`
+	} `json:"mergedBy"`
+	LatestReviews struct {
+		Nodes []struct {
+			State  string `json:"state"`
+			Author struct {
+				Login string `json:"login"`
+			} `json:"author"`
+		} `json:"nodes"`
+	} `json:"latestReviews"`
 }
 
 // parseGitHubResponse decodes the gh api graphql JSON and maps each SHA to its PullRequest.
@@ -114,12 +128,22 @@ func parseGitHubResponse(stdout string, shas []string) (map[string]PullRequest, 
 		for _, l := range pr.Labels.Nodes {
 			labels = append(labels, l.Name)
 		}
+		var approvers []Author
+		for _, r := range pr.LatestReviews.Nodes {
+			if r.State == "APPROVED" && r.Author.Login != "" {
+				approvers = append(approvers, Author{Username: r.Author.Login})
+			}
+		}
 		result[sha] = PullRequest{
 			Number:      pr.Number,
 			URL:         pr.URL,
 			Title:       pr.Title,
 			AuthorLogin: pr.Author.Login,
 			Labels:      labels,
+			CreatedAt:   pr.CreatedAt,
+			MergedAt:    pr.MergedAt,
+			MergedBy:    Author{Username: pr.MergedBy.Login},
+			Approvers:   approvers,
 		}
 	}
 	return result, nil
