@@ -1,0 +1,16 @@
+{{define "group"}}{{ .HeadingPrefix }} {{ .Name }}{{end}}
+{{define "commit"}}- {{ if .Scope }}*({{ .Scope }})* {{ end }}{{ if .Breaking }}[**breaking**] {{ end }}{{ .Description }} - {{ if .CommitURL }}([{{ .ShortHash }}]({{ .CommitURL }})){{ else }}{{ .ShortHash }}{{ end }}{{ if .PR }}{{ if .PR.Author.Username }} by @{{ .PR.Author.Username }}{{ end }}{{ if .PR.Number }} in [{{ .PR.Ref }}]({{ .PR.URL }}){{ end }}{{ end }}{{ range .Tickets }} ([{{ .Text }}]({{ .Href }})){{ end }}{{end}}
+{{define "contributor"}}* @{{ .Author.Username }} made their first contribution{{ if .PR }}{{ if .PR.Number }} in [{{ .PR.Ref }}]({{ .PR.URL }}){{ end }}{{ end }}{{end}}
+{{define "contributors"}}{{ .HeadingPrefix }} New Contributors ❤️
+{{ range .Contributors }}{{ template "contributor" . }}
+{{ end }}
+{{end}}
+{{define "stats"}}{{ .HeadingPrefix }} Commit Statistics
+
+- {{ .Stats.CommitCount }} commit(s) contributed to the release.
+- {{ .Stats.TimespanDays }} day(s) passed between the first and last commit.
+- {{ .Stats.ConventionalCount }} commit(s) parsed as conventional.
+- {{ len .Stats.Tickets }} linked issue(s) detected in commits.{{ range .Stats.Tickets }}
+  - [{{ .Text }}]({{ .Href }}) (referenced {{ .Count }} time(s)){{ end }}{{ if .Stats.HasDaysSincePrev }}
+- {{ .Stats.DaysSincePrev }} day(s) passed between releases.{{ end }}{{end}}
+{{define "footer"}}{{end}}

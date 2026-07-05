@@ -240,12 +240,14 @@ func tplPRFrom(pr PullRequest) *tplPR {
 }
 
 // buildContributors maps local-tier Contributors into the public tplContributor slice.
+// Contributors without a platform handle are dropped: the built-in New Contributors block is
+// remote-handle-gated (ADR-0036), so offline the slice is empty and the block is omitted.
 func buildContributors(contributors []Contributor) []tplContributor {
-	if len(contributors) == 0 {
-		return nil
-	}
-	out := make([]tplContributor, 0, len(contributors))
+	var out []tplContributor
 	for _, c := range contributors {
+		if c.Author.Username == "" {
+			continue
+		}
 		var pr *tplPR
 		if c.PR != nil {
 			pr = tplPRFrom(*c.PR)

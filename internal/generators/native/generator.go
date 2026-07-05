@@ -19,6 +19,9 @@ const (
 	ModeReleaseNotes
 )
 
+// herautProjectURL is heraut's public repository, exposed to templates as .Heraut.URL.
+const herautProjectURL = "https://github.com/adaouat/heraut"
+
 // Generator is heraut's built-in, zero-external-dependency content generator (ADR-0032). It
 // walks git history, classifies commits against the effective commits.types / rendering.excludes
 // (propagated onto the ContentDriver by the app layer), and renders Markdown with internal
@@ -30,6 +33,7 @@ type Generator struct {
 	cfg        *config.ContentDriver
 	mode       Mode
 	degraded   bool
+	now        func() time.Time // injected clock for .Heraut.GeneratedAt; defaults to time.Now
 }
 
 var _ port.Generator = (*Generator)(nil)
@@ -42,7 +46,13 @@ func New(runner port.Runner, cfg *config.ContentDriver, mode Mode) *Generator {
 		httpClient: &http.Client{Timeout: 30 * time.Second},
 		cfg:        cfg,
 		mode:       mode,
+		now:        time.Now,
 	}
+}
+
+// herautMeta builds the document-meta value passed to templates as .Heraut.
+func (g *Generator) herautMeta() tplHeraut {
+	return tplHeraut{URL: herautProjectURL, GeneratedAt: g.now()}
 }
 
 // Check verifies the generator is usable. native has no external dependency, so it always
@@ -117,7 +127,7 @@ func (g *Generator) generateReleaseNotes(tag string, lc *port.LinkContext) (stri
 	}
 	groups := groupCommits(commits, g.cfg.Types, g.cfg.Excludes)
 	contributors := collectContributors(toParsedCommits(renderedCommits(commits, groups)), before, enrichment)
-	return renderReleaseNotes(tag, prev, releaseDate(commits), groups, lc, g.cfg.Tickets, prevDate, g.cfg.TypesHeadingLevel, enrichment, contributors)
+	return renderReleaseNotes(tag, prev, releaseDate(commits), groups, lc, g.cfg.Tickets, prevDate, g.cfg.TypesHeadingLevel, enrichment, contributors, g.herautMeta())
 }
 
 // generateChangelog regenerates the full CHANGELOG.md: a section for the release being created
@@ -186,5 +196,5 @@ func (g *Generator) renderRelease(version, prev, rng string, lc *port.LinkContex
 			return "", err
 		}
 	}
-	return renderChangelogSection(version, prev, releaseDate(commits), groups, lc, g.cfg.Tickets, g.cfg.HeadingVersionPattern, g.cfg.TypesHeadingLevel, enrichment)
+	return renderChangelogSection(version, prev, releaseDate(commits), groups, lc, g.cfg.Tickets, g.cfg.HeadingVersionPattern, g.cfg.TypesHeadingLevel, enrichment, g.herautMeta())
 }

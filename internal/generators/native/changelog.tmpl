@@ -1,7 +1,8 @@
-{{.Heading}}
+{{define "header"}}## [{{ .Version }}]{{ if .CompareURL }}({{ .CompareURL }}){{ end }} - {{ date "2006-01-02" .Date }}{{end}}
+{{define "changelog"}}{{ template "header" . }}
 {{range .Groups}}
-{{$.HeadingPrefix}} {{.Name}}
+{{ template "group" . }}
 {{range .Commits}}
-- {{.Line}}
+{{ template "commit" . }}
 {{end}}
-{{end}}
+{{end}}{{ template "footer" . }}{{end}}
