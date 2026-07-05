@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"io"
 	"log/slog"
+	"maps"
 	"strings"
 
 	forgeui "github.com/adaouat/forge/ui"
@@ -266,9 +267,10 @@ func withEnvDerivations(driver *config.ContentDriver, cfg *config.Config, env st
 
 	rm := cfg.RemoteMetadata()
 	tickets := cfg.Tickets()
+	templates := effectiveTemplates(cfg, driver)
 	hasCommits := cfg.Commits != nil && (len(cfg.Commits.Types) > 0 || cfg.Commits.TypesHeadingLevel > 0)
 	hasRendering := cfg.Rendering != nil && len(cfg.Rendering.Excludes) > 0
-	if headingPat == "" && tagPat == "" && tagGlob == "" && rm == "" && len(tickets) == 0 && !hasCommits && !hasRendering {
+	if headingPat == "" && tagPat == "" && tagGlob == "" && rm == "" && len(tickets) == 0 && !hasCommits && !hasRendering && len(templates) == 0 {
 		return driver
 	}
 	clone := *driver
@@ -294,7 +296,29 @@ func withEnvDerivations(driver *config.ContentDriver, cfg *config.Config, env st
 	if cfg.Rendering != nil {
 		clone.Excludes = cfg.Rendering.Excludes
 	}
+	if len(templates) > 0 {
+		clone.EffectiveTemplates = templates
+	}
 	return &clone
+}
+
+// effectiveTemplates overlays the driver's rendering.templates over the global rendering.templates
+// (driver wins per key; unset keys fall through). Returns nil when neither level sets any template.
+func effectiveTemplates(cfg *config.Config, driver *config.ContentDriver) map[string]string {
+	var global, perDriver map[string]string
+	if cfg.Rendering != nil {
+		global = cfg.Rendering.Templates
+	}
+	if driver.Rendering != nil {
+		perDriver = driver.Rendering.Templates
+	}
+	if len(global) == 0 && len(perDriver) == 0 {
+		return nil
+	}
+	eff := make(map[string]string, len(global)+len(perDriver))
+	maps.Copy(eff, global)
+	maps.Copy(eff, perDriver)
+	return eff
 }
 
 func buildGenerator(runner port.Runner, driver *config.ContentDriver, defaultMode gitcliff.Mode) (port.Generator, error) {

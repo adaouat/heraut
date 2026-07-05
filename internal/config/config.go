@@ -86,6 +86,9 @@ type ContentDriver struct {
 	Output     string `yaml:"output,omitempty"`
 	TagPattern string `yaml:"tag_pattern,omitempty"`
 	Template   string `yaml:"template,omitempty"`
+	// Rendering holds per-driver rendering overrides (template snippets + excludes),
+	// deep-merged over the global rendering block. native only (ADR-0037).
+	Rendering *Rendering `yaml:"rendering,omitempty"`
 	// HeadingVersionPattern is set by the app layer when the effective tag_format contains
 	// {env} or {build}. It is injected into the effective git-cliff TOML as a postprocessor
 	// that strips the env prefix/suffix and build ID from version headings (leaving just the
@@ -104,6 +107,10 @@ type ContentDriver struct {
 	// Excludes is the effective rendering.excludes, propagated by the app layer so the native
 	// generator filters commits from the output. Not user-configurable per-driver. (native only.)
 	Excludes []Exclude `yaml:"-"`
+	// EffectiveTemplates is the app-computed template-block override map (global rendering.templates
+	// overlaid by this driver's rendering.templates), propagated for the native generator. Not
+	// user-configurable directly — the knobs are rendering.templates. (native only.)
+	EffectiveTemplates map[string]string `yaml:"-"`
 	// TypesHeadingLevel is the effective commits.types_heading_level, propagated by the app
 	// layer for the native generator's section heading depth. (native only.)
 	TypesHeadingLevel int `yaml:"-"`

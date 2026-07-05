@@ -1,5 +1,7 @@
 package config
 
+import "maps"
+
 // MergeContentDriver returns the effective ContentDriver for a per-environment override
 // applied over a top-level base, per ADR-0019:
 //
@@ -39,8 +41,32 @@ func MergeContentDriver(base, override *ContentDriver) *ContentDriver {
 	if override.Template != "" {
 		merged.Template = override.Template
 	}
+	merged.Rendering = mergeRendering(base.Rendering, override.Rendering)
 	if override.Remote != nil {
 		merged.Remote = override.Remote
+	}
+	return &merged
+}
+
+// mergeRendering deep-merges a per-env rendering override over a base: Excludes are replaced
+// wholesale when the override sets them; Templates merge key-by-key (override wins per key,
+// unset keys inherit). A nil side contributes nothing; both nil yields nil.
+func mergeRendering(base, override *Rendering) *Rendering {
+	if override == nil {
+		return base
+	}
+	if base == nil {
+		return override
+	}
+	merged := *base
+	if len(override.Excludes) > 0 {
+		merged.Excludes = override.Excludes
+	}
+	if len(override.Templates) > 0 {
+		templates := make(map[string]string, len(base.Templates)+len(override.Templates))
+		maps.Copy(templates, base.Templates)
+		maps.Copy(templates, override.Templates)
+		merged.Templates = templates
 	}
 	return &merged
 }

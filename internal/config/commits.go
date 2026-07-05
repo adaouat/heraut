@@ -26,6 +26,10 @@ type Commits struct {
 type Rendering struct {
 	// Excludes drop matched commits from the rendered changelog/release-notes.
 	Excludes []Exclude `yaml:"excludes,omitempty"`
+	// Templates overrides built-in native template blocks by key (e.g. "commit", "group",
+	// "contributor", "header", "footer"): each value is a Go text/template snippet. native
+	// only — deep-merged global → per-driver → per-env (ADR-0037).
+	Templates map[string]string `yaml:"templates,omitempty"`
 }
 
 // Exclude drops matched commits from rendered output. Exactly one of Type or Regex must be

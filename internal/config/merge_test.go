@@ -80,3 +80,42 @@ func TestMergeContentDriver(t *testing.T) {
 func TestMergeContentDriver_BothNil(t *testing.T) {
 	require.Nil(t, config.MergeContentDriver(nil, nil))
 }
+
+func TestMergeContentDriver_Rendering(t *testing.T) {
+	t.Run("templates merge key-by-key, override wins", func(t *testing.T) {
+		base := &config.ContentDriver{
+			Generator: "native",
+			Rendering: &config.Rendering{Templates: map[string]string{"commit": "base-commit", "group": "base-group"}},
+		}
+		ovr := &config.ContentDriver{
+			Rendering: &config.Rendering{Templates: map[string]string{"commit": "env-commit"}},
+		}
+		got := config.MergeContentDriver(base, ovr)
+		assert.Equal(t, "env-commit", got.Rendering.Templates["commit"], "override wins per key")
+		assert.Equal(t, "base-group", got.Rendering.Templates["group"], "unset key inherits")
+		assert.Equal(t, "base-commit", base.Rendering.Templates["commit"], "base is not mutated")
+	})
+
+	t.Run("nil override rendering inherits base", func(t *testing.T) {
+		base := &config.ContentDriver{
+			Generator: "native",
+			Rendering: &config.Rendering{Templates: map[string]string{"commit": "base-commit"}},
+		}
+		got := config.MergeContentDriver(base, &config.ContentDriver{})
+		require.NotNil(t, got.Rendering)
+		assert.Equal(t, "base-commit", got.Rendering.Templates["commit"])
+	})
+
+	t.Run("override excludes replace base excludes", func(t *testing.T) {
+		base := &config.ContentDriver{
+			Generator: "native",
+			Rendering: &config.Rendering{Excludes: []config.Exclude{{Type: "chore"}}},
+		}
+		ovr := &config.ContentDriver{
+			Rendering: &config.Rendering{Excludes: []config.Exclude{{Type: "ci"}}},
+		}
+		got := config.MergeContentDriver(base, ovr)
+		require.Len(t, got.Rendering.Excludes, 1)
+		assert.Equal(t, "ci", got.Rendering.Excludes[0].Type)
+	})
+}
