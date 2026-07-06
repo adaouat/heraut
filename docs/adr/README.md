@@ -41,3 +41,4 @@ trade-offs were accepted.
 | [0034](0034-native-remote-enrichment.md) | Native Remote Enrichment via Platform CLIs | Accepted (§3 Azure transport superseded by 0035; first-timer mechanism superseded by 0036) |
 | [0035](0035-azure-enrichment-native-http.md) | Azure DevOps Enrichment via a Native `net/http` Client | Accepted |
 | [0036](0036-unified-enrichment-model.md) | Unified Cross-Platform Enrichment Model | Accepted |
+| [0037](0037-native-template-api.md) | Native Generator Public Template API | Accepted |

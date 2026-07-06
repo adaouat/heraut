@@ -11,7 +11,7 @@ and `communique`. A project can use different generators for `changelog` and `re
 
 | Generator   | Strengths                                                        | Limits                                                       |
 |-------------|------------------------------------------------------------------|--------------------------------------------------------------|
-| `native`    | Built-in renderer, no external binary; changelog / release-notes driven by `commits` / `rendering` config | No user-customizable templates yet (fat-injection rendering) |
+| `native`    | Built-in renderer, no external binary; changelog / release-notes driven by `commits` / `rendering` config; user-customizable templates (ADR-0037) | Go `text/template` only; git-cliff still owns Tera |
 | `git-cliff` | Embedded opinionated default; deep-merged TOML overrides; labels new commits with `--tag <version>` | TOML config only                                            |
 | `communique`| AI-assisted release notes from commit history                    | Requires a full config file; no embedded default              |
 
@@ -39,6 +39,51 @@ platform-specific data, the "New Contributors" block is available for all three 
 including Azure DevOps. See [ADR-0033](../adr/0033-native-config-model.md),
 [ADR-0034](../adr/0034-native-remote-enrichment.md), and
 [ADR-0036](../adr/0036-unified-enrichment-model.md).
+
+#### User-customizable templates (ADR-0037)
+
+The native generator exposes a public template API with **two entry points**:
+
+- **Inline block overrides** — short Go `text/template` snippets under `rendering.templates.<block>`
+  (global), `<driver>.rendering.templates` (per-driver), or per-env. Reformat one block in a
+  single line; everything else stays built-in.
+- **A full template file** — `<driver>.template: <path>` points at a `.tmpl` file parsed on top of
+  the built-ins; it may redefine the document root and/or any block (whole-document control).
+
+```yaml
+rendering:
+  templates:
+    commit: "- {{ upperFirst .Description }} ({{ .ShortHash }})"
+    contributor: "* @{{ .Author.Username }} — first contribution 🎉"
+
+changelog:
+  generator: native
+  template: .config/heraut/changelog.tmpl   # optional full template file
+  rendering:
+    templates:
+      header: "# Changelog\n\nAll notable changes.\n"
+```
+
+**Overridable blocks:** `header`, `group`, `commit`, `contributor`, `contributors`, `stats`,
+`footer`, and the roots `changelog` / `release-notes`. The changelog renders a one-line commit;
+the release-notes root wraps the shared `commit` block with indented body/footers.
+
+**Template funcs** (safe set, no OS/file/network): `upperFirst`, `date`, `join`, `list`, `indent`,
+`trim`.
+
+**Data model.** The root is a `Release` exposing `.Version` `.Tag` `.PreviousTag` `.CompareURL`
+`.Date` `.Groups` `.Contributors` `.Stats` `.Heraut`; a `Group` exposes `.Name` `.Commits`; a
+`Commit` exposes `.Type` `.Scope` `.Breaking` `.Description` `.Body` `.Hash` `.ShortHash`
+`.CommitURL` `.Date` `.Author` `.PR` `.Tickets` `.Footers`; `.PR` (nil when absent) exposes
+`.Number` `.URL` `.Title` `.Ref` `.Labels` `.Author` `.CreatedAt` `.MergedAt` `.MergedBy`
+`.Approvers` (approvers best-effort: GitHub + Azure, empty on GitLab); `.Heraut` exposes
+`.Version` `.URL` `.GeneratedAt`. All `.PR.*` fields are remote-only (empty offline). Field names
+are the **experimental-in-v1** public API — additive changes are free.
+
+**Precedence** (lowest → highest): built-in → global `rendering.templates` →
+`<driver>.rendering.templates` → per-env → `<driver>.template` file. `rendering.templates` and
+`template` require `generator: native`; each snippet and the file are parse-validated at config
+load.
 
 ### git-cliff
 

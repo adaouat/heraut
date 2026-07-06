@@ -35,6 +35,7 @@ no longer a parity target — heraut's rendering is its own spec, validated by g
 | Phase 2 — remote enrichment (GitHub/GitLab CLI, Azure HTTP) | T127, T128, T137, T129 | Complete    |
 | Phase 2.6 — native ↔ git-cliff parity (prereq for 2.5) | T138 – T141            | Complete    |
 | Phase 2.7 — unified enrichment model                 | T142 – T148            | Complete    |
+| Phase 2.8 — user-customizable templates (ADR-0037)   | TT1 – TT11             | Complete    |
 | Phase 2.5 — remove the git-cliff package (own ADR)   | —                      | Deferred    |
 | Phase 3 — raw-HTTP clients (drop `gh` / `glab`)       | —                      | Deferred    |
 
@@ -768,6 +769,38 @@ into the future user-templates task (its offline consumer).
 **Completion note (2026-07-04):** landed across `4647c1d` + `560cc71`; #3 (rendered-commits scope)
 was a user decision — "new contributors" are the authors whose work is shown. Full suite 1372 green.
 **Scope:** S. **Dependencies:** Phase 2.7.
+
+---
+
+## Phase 2.8 — User-customizable templates (ADR-0037)
+
+The last major native ↔ git-cliff parity feature: a public template API for the native generator.
+Design spec: [`docs/superpowers/specs/2026-07-04-user-customizable-templates-design.md`](../superpowers/specs/2026-07-04-user-customizable-templates-design.md);
+plan: [`docs/superpowers/plans/2026-07-04-user-customizable-templates.md`](../superpowers/plans/2026-07-04-user-customizable-templates.md).
+
+- `[x]` **TT1–TT4** — PR review fields (`CreatedAt`/`MergedAt`/`MergedBy`/`Approvers`) on the
+  normalized `PullRequest`, fetched per platform (GitHub GraphQL, GitLab MR, Azure PR). Approvers
+  best-effort: GitHub + Azure only, empty on GitLab.
+- `[x]` **TT5–TT6** — the public `tpl*` template model (`templatemodel.go`) + `buildRelease`
+  builder bridging the internal render data onto the contract (reuses the render.go helpers).
+- `[x]` **TT7** — `templateFuncs()` (`upperFirst`/`date`/`join`/`list`/`indent`/`trim`).
+- `[x]` **TT8** — **the load-bearing rewrite:** built-in changelog / release-notes templates
+  rewritten as named blocks over `tplRelease` (dogfooded). Built-in output is **byte-identical** —
+  golden snapshots pass unchanged, no re-baseline. Fat-injection view models / line-builders
+  deleted; `indent` is per-line; the release-notes body/footer tail wraps the shared `commit` block.
+- `[x]` **TT9** — config: `rendering.templates` + per-driver `rendering`, deep-merged
+  global → driver → env; app-computed `ContentDriver.EffectiveTemplates`. Schema + sample synced.
+- `[x]` **TT10** — `buildTemplateSet` (built-in → inline snippets → `template` file precedence)
+  wired through the render path; validator requires `generator: native` and parse-checks snippets +
+  the template file.
+- `[x]` **TT11** — end-to-end override tests (inline + file), ADR-0037, spec 05, schema, sample,
+  this roadmap.
+
+**Completion note (2026-07-06):** executed inline (subagents session-limited) with full TDD and the
+golden byte-identity gate as the objective check for TT8. New PR fields are additive; the contract
+ships **experimental in v1**. No new dependencies; layer rule held (the config validator parses
+snippets with a stub func-map mirroring the native names rather than importing `native`). **Scope:**
+L. **Dependencies:** Phase 2.7 (unified enrichment model).
 
 ---
 

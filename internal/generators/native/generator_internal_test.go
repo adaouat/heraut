@@ -183,3 +183,41 @@ func TestGenerator_GenerateChangelog_FirstRelease(t *testing.T) {
 	assert.Equal(t, []string{"tag", "-l", "--sort=-version:refname"}, mr.Calls[0].Args)
 	assert.Equal(t, []string{"log", "HEAD", "--reverse", "--format=" + logFormat}, mr.Calls[1].Args)
 }
+
+func TestGenerate_InlineCommitOverride(t *testing.T) {
+	mr := exectest.NewMockRunner()
+	mr.QueueResponse("v1.0.0\n", "", nil)               // previousTag
+	mr.QueueResponse("2026-01-01T00:00:00Z\n", "", nil) // tagDate
+	mr.QueueResponse(record("abc1234567", "A", "a@example.com", "2026-01-02T00:00:00Z", "feat: add x", ""), "", nil)
+	mr.QueueResponse("bob@x\n", "", nil) // authorsBefore
+	g := New(mr, &config.ContentDriver{
+		Generator:          "native",
+		EffectiveTemplates: map[string]string{"commit": "CUSTOM {{ .Description }}"},
+	}, ModeReleaseNotes)
+
+	out, err := g.Generate("v1.1.0", nil)
+	require.NoError(t, err)
+	assert.Contains(t, out, "CUSTOM Add x", "inline commit override is applied")
+	assert.NotContains(t, out, "- *(", "built-in commit format is replaced")
+}
+
+func TestGenerate_TemplateFileOverride(t *testing.T) {
+	dir := t.TempDir()
+	file := filepath.Join(dir, "notes.tmpl")
+	require.NoError(t, os.WriteFile(file, []byte(
+		`{{ define "release-notes" }}FILE-NOTES{{ range .Groups }}{{ range .Commits }}
+- {{ .Description }}{{ end }}{{ end }}{{ end }}`), 0o644))
+
+	mr := exectest.NewMockRunner()
+	mr.QueueResponse("v1.0.0\n", "", nil)               // previousTag
+	mr.QueueResponse("2026-01-01T00:00:00Z\n", "", nil) // tagDate
+	mr.QueueResponse(record("abc1234567", "A", "a@example.com", "2026-01-02T00:00:00Z", "feat: add x", ""), "", nil)
+	mr.QueueResponse("bob@x\n", "", nil) // authorsBefore
+	g := New(mr, &config.ContentDriver{Generator: "native", Template: file}, ModeReleaseNotes)
+
+	out, err := g.Generate("v1.1.0", nil)
+	require.NoError(t, err)
+	assert.Contains(t, out, "FILE-NOTES", "the template file replaces the release-notes root")
+	assert.Contains(t, out, "- Add x")
+	assert.NotContains(t, out, "Commit Statistics", "the file root drops the built-in stats block")
+}
