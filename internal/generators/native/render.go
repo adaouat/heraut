@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"regexp"
 	"strings"
-	"text/template"
 	"time"
 	"unicode"
 	"unicode/utf8"
@@ -59,9 +58,11 @@ func renderChangelogSection(
 	typesHeadingLevel int,
 	enrichment map[string]PullRequest,
 	heraut tplHeraut,
+	snippets map[string]string,
+	templateFile string,
 ) (string, error) {
 	rel := buildRelease(version, previousVersion, releaseDate, time.Time{}, groups, lc, tickets, typesHeadingLevel, enrichment, nil, heraut)
-	out, err := execBlocks("changelog", changelogTmpl, rel)
+	out, err := execBlocks("changelog", changelogTmpl, snippets, templateFile, rel)
 	if err != nil {
 		return "", fmt.Errorf("rendering changelog section: %w", err)
 	}
@@ -89,9 +90,11 @@ func renderReleaseNotes(
 	prs map[string]PullRequest,
 	contributors []Contributor,
 	heraut tplHeraut,
+	snippets map[string]string,
+	templateFile string,
 ) (string, error) {
 	rel := buildRelease(version, previousVersion, releaseDate, prevReleaseDate, groups, lc, tickets, typesHeadingLevel, prs, contributors, heraut)
-	out, err := execBlocks("release-notes", releaseNotesTmpl, rel)
+	out, err := execBlocks("release-notes", releaseNotesTmpl, snippets, templateFile, rel)
 	if err != nil {
 		return "", fmt.Errorf("rendering release notes: %w", err)
 	}
@@ -228,20 +231,17 @@ func headingPrefix(level int) string {
 
 // ─── template execution ───────────────────────────────────────────────────────
 
-// execBlocks parses the shared built-in blocks plus the doc-specific root template into one
-// template set (with templateFuncs) and executes the named root block over data. The built-in
-// changelog / release-notes output is produced entirely through this block set (ADR-0037) — the
-// same path a user template will extend.
-func execBlocks(rootName, rootTmpl string, data any) (string, error) {
-	t := template.New("native").Funcs(templateFuncs())
-	if _, err := t.Parse(blocksTmpl); err != nil {
-		return "", fmt.Errorf("parsing built-in blocks: %w", err)
-	}
-	if _, err := t.Parse(rootTmpl); err != nil {
-		return "", fmt.Errorf("parsing %q template: %w", rootName, err)
+// execBlocks parses the shared built-in blocks plus the doc-specific root, then layers the user's
+// inline snippets and optional template file on top (buildTemplateSet), and executes the named
+// root block over data. The built-in changelog / release-notes output is produced entirely through
+// this block set (ADR-0037) — the same path a user template extends.
+func execBlocks(rootName, rootTmpl string, snippets map[string]string, templateFile string, data any) (string, error) {
+	ts, err := buildTemplateSet(blocksTmpl+"\n"+rootTmpl, snippets, templateFile)
+	if err != nil {
+		return "", err
 	}
 	var sb strings.Builder
-	if err := t.ExecuteTemplate(&sb, rootName, data); err != nil {
+	if err := ts.ExecuteTemplate(&sb, rootName, data); err != nil {
 		return "", fmt.Errorf("executing %q template: %w", rootName, err)
 	}
 	return sb.String(), nil

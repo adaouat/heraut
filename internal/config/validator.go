@@ -3,9 +3,11 @@ package config
 import (
 	"fmt"
 	"net/url"
+	"os"
 	"regexp"
 	"sort"
 	"strings"
+	"text/template"
 )
 
 var (
@@ -159,7 +161,67 @@ func validateRendering(cfg *Config) []ValidationError {
 			}
 		}
 	}
+	if len(cfg.Rendering.Templates) > 0 && !allContentGeneratorsNative(cfg) {
+		errs = append(errs, ValidationError{
+			Path:    "rendering.templates",
+			Message: "rendering.templates requires the native generator",
+			Hint:    "set changelog.generator / release.notes.generator to native, or remove rendering.templates",
+		})
+	}
+	errs = append(errs, validateTemplateSnippets(cfg.Rendering.Templates, "rendering.templates")...)
 	return errs
+}
+
+// allContentGeneratorsNative reports whether every configured content generator is native
+// (the only generator whose output is driven by rendering.templates / the template file).
+// An empty generator (inherits the default) is allowed.
+func allContentGeneratorsNative(cfg *Config) bool {
+	drivers := []*ContentDriver{cfg.Changelog}
+	if cfg.Release != nil {
+		drivers = append(drivers, cfg.Release.Notes)
+	}
+	for _, d := range drivers {
+		if d != nil && d.Generator != "" && !strings.EqualFold(d.Generator, "native") {
+			return false
+		}
+	}
+	return true
+}
+
+// validateTemplateSnippets parses each inline template snippet under pathPrefix, reporting a
+// clear error keyed by block name when one fails to parse (ADR-0037).
+func validateTemplateSnippets(snippets map[string]string, pathPrefix string) []ValidationError {
+	var errs []ValidationError
+	keys := make([]string, 0, len(snippets))
+	for k := range snippets {
+		keys = append(keys, k)
+	}
+	sort.Strings(keys)
+	for _, k := range keys {
+		if err := parseTemplateSnippet(snippets[k]); err != nil {
+			errs = append(errs, ValidationError{
+				Path:    pathPrefix + "." + k,
+				Message: fmt.Sprintf("invalid template: %v", err),
+				Hint:    "must be a valid Go text/template snippet",
+			})
+		}
+	}
+	return errs
+}
+
+// parseTemplateSnippet reports whether s parses as a Go text/template with the native funcs
+// available. The funcs are stubs — validation only checks that the snippet parses. The names
+// must mirror internal/generators/native.templateFuncs (config cannot import native).
+func parseTemplateSnippet(s string) error {
+	_, err := template.New("snippet").Funcs(templateFuncStubs()).Parse(s)
+	return err
+}
+
+func templateFuncStubs() template.FuncMap {
+	stub := func(...any) any { return nil }
+	return template.FuncMap{
+		"upperFirst": stub, "date": stub, "join": stub, "list": stub, "indent": stub, "trim": stub,
+	}
 }
 
 // ticketsGeneratorSupported reports whether every configured top-level content generator is
@@ -277,7 +339,52 @@ func validateContentDriver(d *ContentDriver, path string) []ValidationError {
 			})
 		}
 	}
+	errs = append(errs, validateContentDriverTemplates(d, path)...)
 	errs = append(errs, validateContentDriverRemote(d, path)...)
+	return errs
+}
+
+// validateContentDriverTemplates validates a driver's native template customization (ADR-0037):
+// rendering.templates and the template file require generator: native; each inline snippet parses;
+// the template file, when set, exists and parses.
+func validateContentDriverTemplates(d *ContentDriver, path string) []ValidationError {
+	isNative := strings.EqualFold(d.Generator, "native")
+	hasInline := d.Rendering != nil && len(d.Rendering.Templates) > 0
+	var errs []ValidationError
+
+	if d.Template != "" && d.Generator != "" && !isNative {
+		errs = append(errs, ValidationError{
+			Path:    path + ".template",
+			Message: "template requires the native generator",
+			Hint:    fmt.Sprintf("set generator to native, or remove template (current generator: %s)", d.Generator),
+		})
+	}
+	if hasInline && d.Generator != "" && !isNative {
+		errs = append(errs, ValidationError{
+			Path:    path + ".rendering.templates",
+			Message: "rendering.templates requires the native generator",
+			Hint:    fmt.Sprintf("set generator to native, or remove rendering.templates (current generator: %s)", d.Generator),
+		})
+	}
+
+	if hasInline {
+		errs = append(errs, validateTemplateSnippets(d.Rendering.Templates, path+".rendering.templates")...)
+	}
+	if d.Template != "" && (isNative || d.Generator == "") {
+		if b, err := os.ReadFile(d.Template); err != nil {
+			errs = append(errs, ValidationError{
+				Path:    path + ".template",
+				Message: fmt.Sprintf("template file not readable: %v", err),
+				Hint:    "the path is relative to the project root; check it exists and is readable",
+			})
+		} else if perr := parseTemplateSnippet(string(b)); perr != nil {
+			errs = append(errs, ValidationError{
+				Path:    path + ".template",
+				Message: fmt.Sprintf("invalid template: %v", perr),
+				Hint:    "the file must be a valid Go text/template",
+			})
+		}
+	}
 	return errs
 }
 

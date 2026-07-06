@@ -127,7 +127,7 @@ func (g *Generator) generateReleaseNotes(tag string, lc *port.LinkContext) (stri
 	}
 	groups := groupCommits(commits, g.cfg.Types, g.cfg.Excludes)
 	contributors := collectContributors(toParsedCommits(renderedCommits(commits, groups)), before, enrichment)
-	return renderReleaseNotes(tag, prev, releaseDate(commits), groups, lc, g.cfg.Tickets, prevDate, g.cfg.TypesHeadingLevel, enrichment, contributors, g.herautMeta())
+	return renderReleaseNotes(tag, prev, releaseDate(commits), groups, lc, g.cfg.Tickets, prevDate, g.cfg.TypesHeadingLevel, enrichment, contributors, g.herautMeta(), g.cfg.EffectiveTemplates, g.cfg.Template)
 }
 
 // generateChangelog regenerates the full CHANGELOG.md: a section for the release being created
@@ -196,5 +196,5 @@ func (g *Generator) renderRelease(version, prev, rng string, lc *port.LinkContex
 			return "", err
 		}
 	}
-	return renderChangelogSection(version, prev, releaseDate(commits), groups, lc, g.cfg.Tickets, g.cfg.HeadingVersionPattern, g.cfg.TypesHeadingLevel, enrichment, g.herautMeta())
+	return renderChangelogSection(version, prev, releaseDate(commits), groups, lc, g.cfg.Tickets, g.cfg.HeadingVersionPattern, g.cfg.TypesHeadingLevel, enrichment, g.herautMeta(), g.cfg.EffectiveTemplates, g.cfg.Template)
 }

@@ -86,7 +86,7 @@ func TestRenderReleaseNotes_NewContributors(t *testing.T) {
 		IsFirstTime: true,
 		PR:          &PullRequest{Number: 7, URL: "https://github.com/o/r/pull/7", AuthorLogin: "newbie", RefPrefix: "#"},
 	}}
-	got, err := renderReleaseNotes("v1.0.0", "", fixedDate1, groups, githubLC, nil, time.Time{}, 3, prs, contributors, tplHeraut{})
+	got, err := renderReleaseNotes("v1.0.0", "", fixedDate1, groups, githubLC, nil, time.Time{}, 3, prs, contributors, tplHeraut{}, nil, "")
 	require.NoError(t, err)
 
 	assert.Contains(t, got, "### New Contributors ❤️")
@@ -99,7 +99,7 @@ func TestRenderReleaseNotes_NoFirstTimers_NoBlock(t *testing.T) {
 	enrichment := map[string]PullRequest{
 		"bbbbbbb": {Number: 9, URL: "https://github.com/o/r/pull/9", AuthorLogin: "veteran"},
 	}
-	got, err := renderReleaseNotes("v1.0.0", "", fixedDate1, groups, githubLC, nil, time.Time{}, 3, enrichment, nil, tplHeraut{})
+	got, err := renderReleaseNotes("v1.0.0", "", fixedDate1, groups, githubLC, nil, time.Time{}, 3, enrichment, nil, tplHeraut{}, nil, "")
 	require.NoError(t, err)
 
 	assert.NotContains(t, got, "New Contributors", "no first-timers → no block")

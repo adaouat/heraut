@@ -1037,6 +1037,83 @@ commits:
 	assert.Empty(t, config.Validate(cfg))
 }
 
+// ── rendering.templates / template (native only) ──────────────────────────────
+
+func TestValidate_RenderingTemplatesRequiresNative(t *testing.T) {
+	cfg := mustLoad(t, `
+version: "1"
+versioning:
+  strategy: semver
+changelog:
+  generator: communique
+  config: communique.toml
+rendering:
+  templates:
+    commit: "- {{ .Description }}"
+`)
+	e := findErr(config.Validate(cfg), "rendering.templates")
+	require.NotNil(t, e)
+	assert.Contains(t, e.Message, "native")
+}
+
+func TestValidate_RenderingTemplatesNativeValid(t *testing.T) {
+	cfg := mustLoad(t, `
+version: "1"
+versioning:
+  strategy: semver
+changelog:
+  generator: native
+rendering:
+  templates:
+    commit: "- {{ upperFirst .Description }} ({{ .ShortHash }})"
+`)
+	assert.Empty(t, config.Validate(cfg))
+}
+
+func TestValidate_RenderingTemplatesBadSnippet(t *testing.T) {
+	cfg := mustLoad(t, `
+version: "1"
+versioning:
+  strategy: semver
+changelog:
+  generator: native
+rendering:
+  templates:
+    commit: "{{ .Description "
+`)
+	e := findErr(config.Validate(cfg), "rendering.templates.commit")
+	require.NotNil(t, e)
+	assert.Contains(t, e.Message, "template")
+}
+
+func TestValidate_DriverTemplateRequiresNative(t *testing.T) {
+	cfg := mustLoad(t, `
+version: "1"
+versioning:
+  strategy: semver
+changelog:
+  generator: communique
+  config: communique.toml
+  template: .config/heraut/changelog.tmpl
+`)
+	e := findErr(config.Validate(cfg), "changelog.template")
+	require.NotNil(t, e)
+	assert.Contains(t, e.Message, "native")
+}
+
+func TestValidate_DriverTemplateFileMissing(t *testing.T) {
+	cfg := mustLoad(t, `
+version: "1"
+versioning:
+  strategy: semver
+changelog:
+  generator: native
+  template: .config/heraut/does-not-exist.tmpl
+`)
+	e := findErr(config.Validate(cfg), "changelog.template")
+	require.NotNil(t, e)
+}
+
 // TestValidate_NativePerEnvAccepted verifies native is now supported under a per-env strategy
 // (T138): the app layer scopes native's tag walk to the env via the derived TagGlob, so the
 // former blanket rejection is gone.
