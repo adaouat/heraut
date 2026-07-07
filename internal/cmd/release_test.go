@@ -11,7 +11,7 @@ import (
 )
 
 func TestRelease_Structural(t *testing.T) {
-	c := cmd.NewReleaseCmd()
+	c := cmd.NewReleaseCmd("v0.0.0-test")
 	require.NotNil(t, c)
 	assert.Equal(t, "release", c.Use)
 	assert.NotEmpty(t, c.Short)

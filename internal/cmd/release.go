@@ -12,7 +12,7 @@ import (
 )
 
 // NewReleaseCmd constructs the `heraut release` command.
-func NewReleaseCmd() *cobra.Command {
+func NewReleaseCmd(version string) *cobra.Command {
 	var (
 		versionOverride string
 		buildID         string
@@ -88,6 +88,7 @@ func NewReleaseCmd() *cobra.Command {
 				Env:             env,
 				Out:             cmd.OutOrStdout(),
 				SignTags:        app.ReadGPGSign(readRunner),
+				HerautVersion:   version,
 				Logger:          logger,
 			}
 			pipe, err := app.BuildPipeline(runner, cfg, resolver, opts)

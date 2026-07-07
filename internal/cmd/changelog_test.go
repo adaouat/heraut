@@ -11,7 +11,7 @@ import (
 )
 
 func TestNewChangelogCmd(t *testing.T) {
-	c := cmd.NewChangelogCmd()
+	c := cmd.NewChangelogCmd("v0.0.0-test")
 	require.NotNil(t, c)
 	assert.Equal(t, "changelog", c.Use)
 	assert.NotEmpty(t, c.Short)

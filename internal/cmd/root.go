@@ -25,8 +25,8 @@ func NewRootCmd(version string) *cobra.Command {
 	pf.Bool("force", false, "bypass E001/E002 promotion errors")
 	pf.Bool("offline", false, "skip remote PR/MR metadata enrichment (forces remote_metadata: disabled)")
 
-	root.AddCommand(NewReleaseCmd())
-	root.AddCommand(NewChangelogCmd())
+	root.AddCommand(NewReleaseCmd(version))
+	root.AddCommand(NewChangelogCmd(version))
 	root.AddCommand(NewCheckCmd())
 	root.AddCommand(NewCliffCmd())
 	root.AddCommand(NewVersionCmd())

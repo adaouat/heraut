@@ -111,6 +111,10 @@ type ContentDriver struct {
 	// overlaid by this driver's rendering.templates), propagated for the native generator. Not
 	// user-configurable directly — the knobs are rendering.templates. (native only.)
 	EffectiveTemplates map[string]string `yaml:"-"`
+	// HerautVersion is the running heraut binary's version, propagated by the app layer so the
+	// native generator can expose it to templates as .Heraut.Version. Not user-configurable.
+	// (native only.)
+	HerautVersion string `yaml:"-"`
 	// TypesHeadingLevel is the effective commits.types_heading_level, propagated by the app
 	// layer for the native generator's section heading depth. (native only.)
 	TypesHeadingLevel int `yaml:"-"`

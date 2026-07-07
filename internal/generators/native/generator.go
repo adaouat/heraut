@@ -52,7 +52,7 @@ func New(runner port.Runner, cfg *config.ContentDriver, mode Mode) *Generator {
 
 // herautMeta builds the document-meta value passed to templates as .Heraut.
 func (g *Generator) herautMeta() tplHeraut {
-	return tplHeraut{URL: herautProjectURL, GeneratedAt: g.now()}
+	return tplHeraut{Version: g.cfg.HerautVersion, URL: herautProjectURL, GeneratedAt: g.now()}
 }
 
 // Check verifies the generator is usable. native has no external dependency, so it always

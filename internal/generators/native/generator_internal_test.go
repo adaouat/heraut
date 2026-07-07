@@ -4,6 +4,7 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
+	"time"
 
 	"github.com/adaouat/forge/exec/exectest"
 	"github.com/stretchr/testify/assert"
@@ -220,4 +221,25 @@ func TestGenerate_TemplateFileOverride(t *testing.T) {
 	assert.Contains(t, out, "FILE-NOTES", "the template file replaces the release-notes root")
 	assert.Contains(t, out, "- Add x")
 	assert.NotContains(t, out, "Commit Statistics", "the file root drops the built-in stats block")
+}
+
+func TestGenerate_HerautMetaInFooter(t *testing.T) {
+	mr := exectest.NewMockRunner()
+	mr.QueueResponse("v1.0.0\n", "", nil)               // previousTag
+	mr.QueueResponse("2026-01-01T00:00:00Z\n", "", nil) // tagDate
+	mr.QueueResponse(record("abc1234567", "A", "a@example.com", "2026-01-02T00:00:00Z", "feat: add x", ""), "", nil)
+	mr.QueueResponse("bob@x\n", "", nil) // authorsBefore
+	g := New(mr, &config.ContentDriver{
+		Generator:     "native",
+		HerautVersion: "9.9.9",
+		EffectiveTemplates: map[string]string{
+			"footer": "\n-- heraut {{ .Heraut.Version }} @ {{ date \"2006-01-02\" .Heraut.GeneratedAt }} ({{ .Heraut.URL }})",
+		},
+	}, ModeReleaseNotes)
+	g.now = func() time.Time { return time.Date(2026, 7, 6, 0, 0, 0, 0, time.UTC) }
+
+	out, err := g.Generate("v1.1.0", nil)
+	require.NoError(t, err)
+	assert.Contains(t, out, "-- heraut 9.9.9 @ 2026-07-06 (https://github.com/adaouat/heraut)",
+		"the footer template renders .Heraut.Version + injected GeneratedAt + URL")
 }

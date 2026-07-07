@@ -13,13 +13,7 @@ import (
 // nested values. Field names are the stable/experimental public API per ADR-0037 — additive
 // changes are free, renames/removals are avoided and would be called out.
 
-// tplChangelog is the root passed to a changelog template.
-type tplChangelog struct {
-	Releases []tplRelease
-	Heraut   tplHeraut
-}
-
-// tplRelease is the root passed to a release-notes template, and one entry in a changelog.
+// tplRelease is the root passed to both the release-notes and the changelog-section templates.
 type tplRelease struct {
 	Version       string
 	Tag           string
@@ -115,11 +109,6 @@ type tplFooter struct {
 }
 
 // ─── template-model builders ──────────────────────────────────────────────────
-
-// buildChangelog wraps a set of releases with document meta for a changelog template root.
-func buildChangelog(releases []tplRelease, heraut tplHeraut) tplChangelog {
-	return tplChangelog{Releases: releases, Heraut: heraut}
-}
 
 // buildRelease maps the internal render data (grouped commits + enrichment + tickets + stats +
 // previous-release date + heraut meta) into the public tplRelease contract. It reuses the

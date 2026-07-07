@@ -11,7 +11,7 @@ import (
 )
 
 // NewChangelogCmd constructs the `heraut changelog` command.
-func NewChangelogCmd() *cobra.Command {
+func NewChangelogCmd(version string) *cobra.Command {
 	var (
 		commit          bool
 		tag             bool
@@ -73,13 +73,14 @@ func NewChangelogCmd() *cobra.Command {
 			}
 
 			opts := app.PipelineOpts{
-				DryRun:   dryRun,
-				Env:      env,
-				Out:      cmd.OutOrStdout(),
-				Commit:   commit,
-				Tag:      tag,
-				NoPush:   noPush,
-				SignTags: app.ReadGPGSign(readRunner),
+				DryRun:        dryRun,
+				Env:           env,
+				Out:           cmd.OutOrStdout(),
+				Commit:        commit,
+				Tag:           tag,
+				NoPush:        noPush,
+				SignTags:      app.ReadGPGSign(readRunner),
+				HerautVersion: version,
 			}
 			if !dryRun {
 				if err := app.CheckBranch(readRunner, cfg, env, force); err != nil {

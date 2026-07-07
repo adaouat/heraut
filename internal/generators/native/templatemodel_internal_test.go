@@ -35,11 +35,6 @@ func TestBuildRelease_MapsTree(t *testing.T) {
 	assert.Equal(t, "PR title", c.PR.Title)
 	require.Len(t, r.Contributors, 1)
 	assert.Equal(t, 1, r.Stats.CommitCount)
-
-	cl := buildChangelog([]tplRelease{r}, tplHeraut{Version: "0.48.0"})
-	require.Len(t, cl.Releases, 1)
-	assert.Equal(t, "1.2.3", cl.Releases[0].Version)
-	assert.Equal(t, "0.48.0", cl.Heraut.Version)
 }
 
 func TestTemplateModel_FieldsPresent(t *testing.T) {
@@ -58,6 +53,5 @@ func TestTemplateModel_FieldsPresent(t *testing.T) {
 	assert.Equal(t, "#42", r.Groups[0].Commits[0].PR.Ref)
 	assert.Equal(t, "Refs", r.Groups[0].Commits[0].Footers[0].Token)
 	assert.Equal(t, 1, r.Stats.CommitCount)
-	c := tplChangelog{Releases: []tplRelease{r}, Heraut: tplHeraut{Version: "0.48.0"}}
-	assert.Len(t, c.Releases, 1)
+	assert.Equal(t, "0.48.0", r.Heraut.Version)
 }

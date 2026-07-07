@@ -476,3 +476,30 @@ func TestUpperFirst(t *testing.T) {
 func TestChangelogHeader(t *testing.T) {
 	assert.Equal(t, "# Changelog\n\n", changelogHeader)
 }
+
+// TestRenderReleaseNotes_Contributors_Golden locks in the "New Contributors" block output — the
+// one built-in path not covered by the other goldens (they pass nil contributors). It exercises
+// the commit PR-suffix, the contributors block, and the stats block together.
+func TestRenderReleaseNotes_Contributors_Golden(t *testing.T) {
+	releaseDate := time.Date(2024, 1, 15, 0, 0, 0, 0, time.UTC)
+	prevDate := time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC)
+	prs := map[string]PullRequest{
+		rc1.Hash: {Number: 7, URL: "https://github.com/acme/widget/pull/7", AuthorLogin: "alice", RefPrefix: "#"},
+	}
+	contribs := []Contributor{{
+		Author:      Author{Name: "Alice", Email: "alice@example.com", Username: "alice"},
+		IsFirstTime: true,
+		PR:          &PullRequest{Number: 7, URL: "https://github.com/acme/widget/pull/7", AuthorLogin: "alice", RefPrefix: "#"},
+	}}
+
+	got, err := renderReleaseNotes(
+		"v1.2.3", "v1.2.2", releaseDate,
+		fixtureGroups(), githubLC, nil, prevDate, 3, prs, contribs, tplHeraut{}, nil, "",
+	)
+	require.NoError(t, err)
+
+	const golden = "release_notes_contributors.golden"
+	writeGolden(t, golden, got)
+	want := readGolden(t, golden)
+	assert.Equal(t, want, got)
+}
