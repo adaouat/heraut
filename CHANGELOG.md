@@ -1,5 +1,50 @@
 # Changelog
 
+## [0.49.0](https://github.com/adaouat/heraut/compare/v0.48.0..v0.49.0) - 2026-07-07
+
+### 🚀 Features
+
+- *(config)* Rendering.templates + per-driver rendering overrides - ([c42fca5](https://github.com/adaouat/heraut/commit/c42fca54dcf0402a81512d9ff96067a05f13a98e)) by @bchatard
+
+- *(generators/native)* Add PR review fields to the model - ([899f606](https://github.com/adaouat/heraut/commit/899f60621353e4c32919f66a1fa86cf79755613b)) by @bchatard
+
+- *(generators/native)* Fetch PR dates/mergedBy/approvers (GitHub) - ([9f8ce17](https://github.com/adaouat/heraut/commit/9f8ce17653834c6f409825f28cee22996faab941)) by @bchatard
+
+- *(generators/native)* Fetch MR dates/mergedBy (GitLab) - ([8a62add](https://github.com/adaouat/heraut/commit/8a62add4d5196f0899927222c1055c2b372d1c90)) by @bchatard
+
+- *(generators/native)* Fetch PR dates/mergedBy/approvers (Azure) - ([8e4632e](https://github.com/adaouat/heraut/commit/8e4632e6e472507a24384362d83af61d65a3e4b1)) by @bchatard
+
+- *(generators/native)* Public template model structs - ([728729f](https://github.com/adaouat/heraut/commit/728729f89ad76a3e7115cafd4395ef9788db02d2)) by @bchatard
+
+- *(generators/native)* BuildRelease template-model builder - ([868cd52](https://github.com/adaouat/heraut/commit/868cd52cd1dd9a8acb9d0e4f7289d3fe5b48f8c3)) by @bchatard
+
+- *(generators/native)* Template func map - ([2134de5](https://github.com/adaouat/heraut/commit/2134de54ed3d9ac847197d429ae3e49c2c4387b4)) by @bchatard
+
+- *(generators/native)* Layer user snippets + template file over built-ins - ([e10b991](https://github.com/adaouat/heraut/commit/e10b9911f10b075c14156e76670530d0754d6b0b)) by @bchatard
+
+
+### 🐛 Bug Fixes
+
+- *(generators/native)* Wire heraut version into .Heraut.Version - ([a1a1385](https://github.com/adaouat/heraut/commit/a1a13855901b7c39e8e55e8d28b6c65b37037e51)) by @bchatard
+
+
+### 🚜 Refactor
+
+- *(generators/native)* Render built-ins from the template model - ([2ad3820](https://github.com/adaouat/heraut/commit/2ad38208e3d66d48aa07fa2e236ae9d932967674)) by @bchatard
+
+
+### 📚 Documentation
+
+- *(adr)* 0037 native template API; e2e override tests - ([0897a95](https://github.com/adaouat/heraut/commit/0897a95b4622c53443bf7170a622b3cba16c4c42)) by @bchatard
+
+- User-customizable templates design (native generator) - ([8908d73](https://github.com/adaouat/heraut/commit/8908d732b0e7d386cc7b812ac3ae79d1a2bd52eb)) by @bchatard
+
+- Refine templates spec per review - ([94894f0](https://github.com/adaouat/heraut/commit/94894f049df9ceb517f41781e5ac374e9fa58174)) by @bchatard
+
+- Restore full-template file entry point in templates spec - ([fab50e7](https://github.com/adaouat/heraut/commit/fab50e77484b1107788327c8a5398a527e006278)) by @bchatard
+
+- User-customizable templates implementation plan - ([86dc9d6](https://github.com/adaouat/heraut/commit/86dc9d6a1feb0ced6083fcad1395e9af9c889361)) by @bchatard
+
 ## [0.48.0](https://github.com/adaouat/heraut/compare/v0.47.1..v0.48.0) - 2026-07-03
 
 ### 🚀 Features
