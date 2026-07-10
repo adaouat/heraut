@@ -48,7 +48,8 @@ changelog's type→section taxonomy.
   - `order` (optional) — display sort position for changelog sections; types without
     `order` sort after ordered ones (stable/natural).
   - `render` (optional) — the section heading label (e.g. `🚀 Features`); when absent, the
-    type name is capitalized (`Chore`).
+    type joins the catch-all `💼 Other` group (matching git-cliff's `.*` parser — e.g. the
+    default `build` type), rather than forming a bare capitalized section.
   - `remove: true` — drop this default type from the **allow-list** (so `heraut commit
     verify` rejects it) without re-listing every other type.
   - `description` (optional) — one-line hint shown beside the type in the `heraut commit

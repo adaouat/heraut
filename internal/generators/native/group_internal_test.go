@@ -26,8 +26,9 @@ func ptr(n int) *int { return &n }
 
 // TestGroupCommits_DefaultTaxonomy exercises the default type set (config.EffectiveTypes(nil))
 // plus the built-in security / revert / catch-all fallbacks. Under ADR-0033 classification is
-// by exact parsed type: `build` is now its own capitalized group, and a non-default type
-// (e.g. `doc`, `wip`) falls to the fallbacks rather than matching a `^doc` prefix.
+// by exact parsed type: `build` has no render label so it joins the catch-all "💼 Other" group
+// (matching git-cliff's `.*` parser), and a non-default type (e.g. `doc`, `wip`) falls to the
+// fallbacks rather than matching a `^doc` prefix.
 func TestGroupCommits_DefaultTaxonomy(t *testing.T) {
 	tests := []struct {
 		name      string
@@ -46,7 +47,7 @@ func TestGroupCommits_DefaultTaxonomy(t *testing.T) {
 		{"test → Testing", "test: add unit tests", "", "🧪 Testing", 6},
 		{"chore → Miscellaneous Tasks", "chore: update lock", "", "⚙️ Miscellaneous Tasks", 7},
 		{"ci → Miscellaneous Tasks", "ci: update pipeline", "", "⚙️ Miscellaneous Tasks", 7},
-		{"build (no render) → capitalized Build", "build: compile", "", "Build", 100},
+		{"build (no render) → Other", "build: compile", "", "💼 Other", 103},
 		{
 			// The security body-rule fires only for a commit whose type is NOT a configured
 			// type (here "wip"), so it is not grouped as a type first.

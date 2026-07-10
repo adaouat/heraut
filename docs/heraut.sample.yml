@@ -87,7 +87,7 @@ versioning:
 #       render: "🚀 Features"        # rendered as a "### 🚀 Features" section heading
 #       description: "A new feature" # one-line hint in the commit-create wizard picker
 #     - name: docs
-#       # no render → the section heading is the capitalized type name ("Docs")
+#       # no render → the type joins the catch-all "💼 Other" section (like the default build type)
 #     - name: build
 #       remove: true                # drop build from the verify allow-list
 #   types_heading_level: 3          # heading depth (number of #) for type sections

@@ -119,7 +119,7 @@
         },
         "render": {
           "type": "string",
-          "description": "Section heading label (e.g. \"🚀 Features\"). Omit to render the capitalized type name."
+          "description": "Section heading label (e.g. \"🚀 Features\"). Omit to route the type into the catch-all \"💼 Other\" group (like the default build type)."
         },
         "remove": {
           "type": "boolean",

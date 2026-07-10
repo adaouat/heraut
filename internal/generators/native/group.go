@@ -87,21 +87,22 @@ type typeInfo struct {
 	order int
 }
 
-// buildTypeIndex maps each effective type name to its section label and display order. An
-// empty render label renders as the capitalized type name; an unset order sorts the type
-// after the ordered ones (but before the built-in fallbacks).
+// buildTypeIndex maps each effective type name to its section label and display order. A type
+// with no render label joins the catch-all "Other" group (matching git-cliff's `.*` parser —
+// e.g. the default `build` type), rather than forming a bare capitalized section. An unset order
+// sorts a labelled type after the ordered ones (but before the built-in fallbacks).
 func buildTypeIndex(types []config.TypeRule) map[string]typeInfo {
 	idx := make(map[string]typeInfo, len(types))
 	for _, t := range types {
+		if t.Render == "" {
+			idx[t.Name] = typeInfo{label: otherGroup, order: orderOther}
+			continue
+		}
 		order := unorderedTypeOrder
 		if t.Order != nil {
 			order = *t.Order
 		}
-		label := t.Render
-		if label == "" {
-			label = upperFirst(t.Name)
-		}
-		idx[t.Name] = typeInfo{label: label, order: order}
+		idx[t.Name] = typeInfo{label: t.Render, order: order}
 	}
 	return idx
 }

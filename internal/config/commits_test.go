@@ -54,7 +54,7 @@ func TestEffectiveTypes_UserEntryReplacesDefaultWholesale(t *testing.T) {
 
 	chore := findType(got, "chore")
 	require.NotNil(t, chore)
-	assert.Equal(t, "", chore.Render, "listed chore without render keeps render empty (renderer capitalizes)")
+	assert.Equal(t, "", chore.Render, "listed chore without render keeps render empty (renderer routes to Other)")
 	assert.Nil(t, chore.Order, "listed chore without order is unordered")
 
 	// untouched defaults keep their labels
