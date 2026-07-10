@@ -147,6 +147,19 @@ with the foreign-anchorless error (the current `CHANGELOG.md` is git-cliff's, no
 that release once with `--regenerate-changelog` rebuilds the file with anchors and full historical
 attribution; every subsequent release is incremental and preserves the history.
 
+heraut releases itself in CI — `.github/workflows/release.yml` is `workflow_dispatch` and runs
+`heraut release --version "$VERSION"` — so the migration is handled with a **one-time workflow
+input**, not a code edit:
+
+- Add a boolean `regenerate_changelog` input to the release `workflow_dispatch` (default `false`),
+  and append `--regenerate-changelog` to the `heraut release` invocation only when it is set.
+- The **first** native release is dispatched with the box checked → that run rebuilds the full
+  anchored, re-enriched changelog. Every later release leaves it unchecked → plain incremental.
+- The foreign-anchorless stop-error is the safety net: forgetting the box fails the release loudly
+  (naming `--regenerate`) instead of silently stripping history — re-dispatch with it checked.
+- heraut's remote is GitHub (batched GraphQL, `GITHUB_TOKEN` already in CI), so the one-time full
+  re-enrichment is cheap and the GitLab cost warning never fires.
+
 ## Out of scope
 
 - Non-native generators (git-cliff keeps its own regenerate-with-enrichment behavior).
