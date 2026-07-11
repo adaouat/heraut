@@ -31,4 +31,8 @@ type Config struct {
 	// SignTags creates GPG-signed tags (-s -m <commit_message>), overriding AnnotatedTags.
 	// Populated from git config tag.gpgSign by the app layer.
 	SignTags bool
+	// RegenerateChangelog mirrors the native generator's --regenerate mode: when true, the
+	// changelog step re-enriches every section rather than splicing only the new one. Used
+	// here to decide whether gitlabRegenWarning applies.
+	RegenerateChangelog bool
 }

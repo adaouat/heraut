@@ -37,6 +37,10 @@ type ChangelogConfig struct {
 	// SignTags creates GPG-signed tags (-s -m <commit_message>), overriding AnnotatedTags.
 	// Populated from git config tag.gpgSign by the app layer.
 	SignTags bool
+	// RegenerateChangelog mirrors the native generator's --regenerate mode: when true, the
+	// changelog step re-enriches every section rather than splicing only the new one. Used
+	// here to decide whether gitlabRegenWarning applies.
+	RegenerateChangelog bool
 }
 
 // ChangelogPipeline executes the changelog-only flow.
@@ -122,7 +126,8 @@ func (p *ChangelogPipeline) Run() error {
 			if _, err := p.cfg.Changelog.Generate(result.Tag, changelogCtx); err != nil {
 				return "", nil, fmt.Errorf("generating changelog: %w", err)
 			}
-			return "", degradedSubResult(p.cfg.Changelog), nil
+			subs := append(gitlabRegenWarning(p.cfg.RegenerateChangelog, changelogCtx), degradedSubResult(p.cfg.Changelog)...)
+			return "", subs, nil
 		}); err != nil {
 			return err
 		}
