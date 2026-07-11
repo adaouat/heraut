@@ -38,6 +38,9 @@ type PipelineOpts struct {
 	// HerautVersion is the running heraut binary's version, propagated to the native generator
 	// so templates can render .Heraut.Version. Empty for dev builds.
 	HerautVersion string
+	// RegenerateChangelog forces the native changelog generator to rebuild + re-enrich the whole
+	// file instead of incrementally splicing the new section. Native only.
+	RegenerateChangelog bool
 	// Logger receives operator-debug diagnostics (nil discards them). See forge ADR-0011.
 	Logger *slog.Logger
 }
@@ -56,7 +59,7 @@ func ReadGPGSign(runner port.Runner) bool {
 // BuildPipeline constructs a release Pipeline from config. All generator and platform
 // instances are created here — none are created in internal/cmd/.
 func BuildPipeline(runner port.Runner, cfg *config.Config, resolver versioning.Resolver, opts PipelineOpts) (*pipeline.Pipeline, error) {
-	pipelineCfg, err := buildReleasePipelineConfig(runner, cfg, opts.Env, opts.HerautVersion)
+	pipelineCfg, err := buildReleasePipelineConfig(runner, cfg, opts.Env, opts.HerautVersion, opts.RegenerateChangelog)
 	if err != nil {
 		return nil, err
 	}
@@ -137,7 +140,7 @@ func changelogStepTotal(cfg *pipeline.ChangelogConfig) int {
 	return total
 }
 
-func buildReleasePipelineConfig(runner port.Runner, cfg *config.Config, env, herautVersion string) (*pipeline.Config, error) {
+func buildReleasePipelineConfig(runner port.Runner, cfg *config.Config, env, herautVersion string, regenerateChangelog bool) (*pipeline.Config, error) {
 	pCfg := &pipeline.Config{}
 
 	// Resolve effective config: start from root, apply per-env overrides.
@@ -168,7 +171,7 @@ func buildReleasePipelineConfig(runner port.Runner, cfg *config.Config, env, her
 	// Changelog generator
 	if effectiveChangelog != nil {
 		driver := withEnvDerivations(effectiveChangelog, cfg, env)
-		gen, err := buildGenerator(runner, driver, gitcliff.ModeChangelog, herautVersion)
+		gen, err := buildGenerator(runner, driver, gitcliff.ModeChangelog, herautVersion, regenerateChangelog)
 		if err != nil {
 			return nil, fmt.Errorf("changelog generator: %w", err)
 		}
@@ -180,7 +183,7 @@ func buildReleasePipelineConfig(runner port.Runner, cfg *config.Config, env, her
 	// Release notes generator
 	if effectiveNotes != nil {
 		driver := withEnvDerivations(effectiveNotes, cfg, env)
-		gen, err := buildGenerator(runner, driver, gitcliff.ModeReleaseNotes, herautVersion)
+		gen, err := buildGenerator(runner, driver, gitcliff.ModeReleaseNotes, herautVersion, regenerateChangelog)
 		if err != nil {
 			return nil, fmt.Errorf("release notes generator: %w", err)
 		}
@@ -226,7 +229,7 @@ func buildChangelogPipelineConfig(runner port.Runner, cfg *config.Config, opts P
 
 	if effectiveChangelog != nil {
 		driver := withEnvDerivations(effectiveChangelog, cfg, opts.Env)
-		gen, err := buildGenerator(runner, driver, gitcliff.ModeChangelog, opts.HerautVersion)
+		gen, err := buildGenerator(runner, driver, gitcliff.ModeChangelog, opts.HerautVersion, opts.RegenerateChangelog)
 		if err != nil {
 			return nil, fmt.Errorf("changelog generator: %w", err)
 		}
@@ -324,7 +327,7 @@ func effectiveTemplates(cfg *config.Config, driver *config.ContentDriver) map[st
 	return eff
 }
 
-func buildGenerator(runner port.Runner, driver *config.ContentDriver, defaultMode gitcliff.Mode, herautVersion string) (port.Generator, error) {
+func buildGenerator(runner port.Runner, driver *config.ContentDriver, defaultMode gitcliff.Mode, herautVersion string, regenerateChangelog bool) (port.Generator, error) {
 	switch driver.Generator {
 	case "git-cliff":
 		return gitcliff.New(runner, driver, defaultMode), nil
@@ -334,6 +337,7 @@ func buildGenerator(runner port.Runner, driver *config.ContentDriver, defaultMod
 		// Copy so setting the running version never mutates the shared config.
 		nativeDriver := *driver
 		nativeDriver.HerautVersion = herautVersion
+		nativeDriver.RegenerateChangelog = regenerateChangelog
 		return native.New(runner, &nativeDriver, nativeMode(defaultMode)), nil
 	default:
 		return nil, fmt.Errorf("unsupported generator %q (supported: native, git-cliff, communique)", driver.Generator)

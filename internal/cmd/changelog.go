@@ -18,6 +18,7 @@ func NewChangelogCmd(version string) *cobra.Command {
 		noPush          bool
 		versionOverride string
 		buildID         string
+		regenerate      bool
 	)
 
 	changelogCmd := &cobra.Command{
@@ -73,14 +74,15 @@ func NewChangelogCmd(version string) *cobra.Command {
 			}
 
 			opts := app.PipelineOpts{
-				DryRun:        dryRun,
-				Env:           env,
-				Out:           cmd.OutOrStdout(),
-				Commit:        commit,
-				Tag:           tag,
-				NoPush:        noPush,
-				SignTags:      app.ReadGPGSign(readRunner),
-				HerautVersion: version,
+				DryRun:              dryRun,
+				Env:                 env,
+				Out:                 cmd.OutOrStdout(),
+				Commit:              commit,
+				Tag:                 tag,
+				NoPush:              noPush,
+				SignTags:            app.ReadGPGSign(readRunner),
+				HerautVersion:       version,
+				RegenerateChangelog: regenerate,
 			}
 			if !dryRun {
 				if err := app.CheckBranch(readRunner, cfg, env, force); err != nil {
@@ -105,6 +107,8 @@ func NewChangelogCmd(version string) *cobra.Command {
 	changelogCmd.Flags().BoolVar(&noPush, "no-push", false, "commit and tag locally without pushing (only meaningful with --commit/--tag)")
 	changelogCmd.Flags().StringVar(&versionOverride, "version", "", "override the resolved version — with or without tag prefix (e.g. 1.2.3 or v1.2.3)")
 	changelogCmd.Flags().StringVar(&buildID, "build", "", "build ID appended to the tag via the {build} token in tag_format (requires --version)")
+	changelogCmd.Flags().BoolVar(&regenerate, "regenerate", false,
+		"rebuild the entire changelog and re-fetch PR attribution (instead of incrementally adding the new section)")
 
 	return changelogCmd
 }

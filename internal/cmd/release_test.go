@@ -20,6 +20,13 @@ func TestRelease_Structural(t *testing.T) {
 	}
 }
 
+func TestNewReleaseCmd_RegenerateChangelogFlag(t *testing.T) {
+	c := cmd.NewReleaseCmd("v0.0.0-test")
+	f := c.Flags().Lookup("regenerate-changelog")
+	require.NotNil(t, f, "release has a --regenerate-changelog flag")
+	assert.Equal(t, "false", f.DefValue)
+}
+
 func TestRelease_BuildRequiresVersion(t *testing.T) {
 	cfgPath := writeConfig(t, `
 version: "1"

@@ -21,6 +21,13 @@ func TestNewChangelogCmd(t *testing.T) {
 	}
 }
 
+func TestNewChangelogCmd_RegenerateFlag(t *testing.T) {
+	c := cmd.NewChangelogCmd("v0.0.0-test")
+	f := c.Flags().Lookup("regenerate")
+	require.NotNil(t, f, "changelog has a --regenerate flag")
+	assert.Equal(t, "false", f.DefValue)
+}
+
 func TestChangelog_BuildRejectsInvalidValue(t *testing.T) {
 	cfgPath := writeConfig(t, `
 version: "1"

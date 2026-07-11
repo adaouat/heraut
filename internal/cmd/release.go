@@ -14,8 +14,9 @@ import (
 // NewReleaseCmd constructs the `heraut release` command.
 func NewReleaseCmd(version string) *cobra.Command {
 	var (
-		versionOverride string
-		buildID         string
+		versionOverride     string
+		buildID             string
+		regenerateChangelog bool
 	)
 
 	releaseCmd := &cobra.Command{
@@ -82,14 +83,15 @@ func NewReleaseCmd(version string) *cobra.Command {
 			}
 
 			opts := app.PipelineOpts{
-				DryRun:          dryRun,
-				Force:           force,
-				VersionOverride: versionOverride,
-				Env:             env,
-				Out:             cmd.OutOrStdout(),
-				SignTags:        app.ReadGPGSign(readRunner),
-				HerautVersion:   version,
-				Logger:          logger,
+				DryRun:              dryRun,
+				Force:               force,
+				VersionOverride:     versionOverride,
+				Env:                 env,
+				Out:                 cmd.OutOrStdout(),
+				SignTags:            app.ReadGPGSign(readRunner),
+				HerautVersion:       version,
+				RegenerateChangelog: regenerateChangelog,
+				Logger:              logger,
 			}
 			pipe, err := app.BuildPipeline(runner, cfg, resolver, opts)
 			if err != nil {
@@ -114,6 +116,8 @@ func NewReleaseCmd(version string) *cobra.Command {
 
 	releaseCmd.Flags().StringVar(&versionOverride, "version", "", "override the resolved version — with or without tag prefix (e.g. 1.2.3 or v1.2.3)")
 	releaseCmd.Flags().StringVar(&buildID, "build", "", "build ID appended to the tag via the {build} token in tag_format (requires --version)")
+	releaseCmd.Flags().BoolVar(&regenerateChangelog, "regenerate-changelog", false,
+		"rebuild the entire changelog and re-fetch PR attribution (needed once when migrating a changelog to the native generator)")
 
 	return releaseCmd
 }
