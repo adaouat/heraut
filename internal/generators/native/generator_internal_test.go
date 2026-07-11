@@ -3,6 +3,7 @@ package native
 import (
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 
@@ -242,4 +243,95 @@ func TestGenerate_HerautMetaInFooter(t *testing.T) {
 	require.NoError(t, err)
 	assert.Contains(t, out, "-- heraut 9.9.9 @ 2026-07-06 (https://github.com/adaouat/heraut)",
 		"the footer template renders .Heraut.Version + injected GeneratedAt + URL")
+}
+
+func TestGenerateChangelog_BootstrapAnchored(t *testing.T) {
+	dir := t.TempDir()
+	out := filepath.Join(dir, "CHANGELOG.md")
+	mr := exectest.NewMockRunner()
+	mr.QueueResponse("", "", nil)                                                                            // scopedTags: no tags
+	mr.QueueResponse(record("aaa1111111", "A", "a@x", "2026-01-01T00:00:00Z", "feat: initial", ""), "", nil) // latest..HEAD
+	g := New(mr, &config.ContentDriver{Generator: "native", Output: out}, ModeChangelog)
+
+	body, err := g.Generate("v0.1.0", nil)
+	require.NoError(t, err)
+	assert.Contains(t, body, "<!-- heraut-release: v0.1.0 -->", "bootstrap stamps an anchor")
+	assert.Contains(t, body, "## [0.1.0]")
+	written, _ := os.ReadFile(out)
+	assert.Equal(t, body, string(written))
+}
+
+func TestGenerateChangelog_IncrementalInserts(t *testing.T) {
+	dir := t.TempDir()
+	out := filepath.Join(dir, "CHANGELOG.md")
+	require.NoError(t, os.WriteFile(out, []byte(
+		"# Changelog\n\n<!-- heraut-release: v1.0.0 -->\n## [1.0.0] - 2026-01-01\n\n### 🚀 Features\n\n- old by @carol\n"), 0o644))
+	mr := exectest.NewMockRunner()
+	mr.QueueResponse("v1.0.0\n", "", nil)                                                                      // scopedTags
+	mr.QueueResponse(record("bbb2222222", "B", "b@x", "2026-02-01T00:00:00Z", "feat: new thing", ""), "", nil) // v1.0.0..HEAD
+	g := New(mr, &config.ContentDriver{Generator: "native", Output: out}, ModeChangelog)
+
+	body, err := g.Generate("v1.1.0", nil)
+	require.NoError(t, err)
+	assert.Contains(t, body, "<!-- heraut-release: v1.1.0 -->")
+	assert.Contains(t, body, "New thing")
+	assert.Contains(t, body, "- old by @carol", "existing section preserved verbatim (attribution kept)")
+	assert.Less(t, strings.Index(body, "v1.1.0"), strings.Index(body, "v1.0.0"), "new section on top")
+}
+
+func TestGenerateChangelog_ForeignFileErrors(t *testing.T) {
+	dir := t.TempDir()
+	out := filepath.Join(dir, "CHANGELOG.md")
+	foreign := "# Changelog\n\n## [1.0.0] - 2026-01-01\n\n- git-cliff line by @dave\n"
+	require.NoError(t, os.WriteFile(out, []byte(foreign), 0o644))
+	mr := exectest.NewMockRunner()
+	mr.QueueResponse("v1.0.0\n", "", nil)
+	mr.QueueResponse(record("bbb2222222", "B", "b@x", "2026-02-01T00:00:00Z", "feat: x", ""), "", nil)
+	g := New(mr, &config.ContentDriver{Generator: "native", Output: out}, ModeChangelog)
+
+	_, err := g.Generate("v1.1.0", nil)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "--regenerate")
+	unchanged, _ := os.ReadFile(out)
+	assert.Equal(t, foreign, string(unchanged), "foreign file left untouched")
+}
+
+func TestGenerateChangelog_RegenerateEnrichesAllSections(t *testing.T) {
+	dir := t.TempDir()
+	out := filepath.Join(dir, "CHANGELOG.md")
+	mr := exectest.NewMockRunner()
+	mr.QueueResponse("v1.0.0\n", "", nil) // scopedTags
+	// new (v1.0.0..HEAD) — none classifiable → skipped
+	mr.QueueResponse("", "", nil) // collectCommits latest..HEAD (empty)
+	// existing tag v1.0.0 section: commits + enrichment (regenerate enriches history)
+	mr.QueueResponse(record("ccc3333333", "C", "c@x", "2026-01-01T00:00:00Z", "feat: shipped", ""), "", nil) // collectCommits ""..v1.0.0
+	mr.QueueResponse(ghGraphQLResponse(7, "https://github.com/o/r/pull/7", "carol"), "", nil)                // gh enrich historical section
+	g := New(mr, &config.ContentDriver{Generator: "native", Output: out, RegenerateChangelog: true}, ModeChangelog)
+
+	body, err := g.Generate("v1.1.0", ghLC())
+	require.NoError(t, err)
+	assert.Contains(t, body, "by @carol", "regenerate enriches historical sections")
+	assert.Contains(t, body, "<!-- heraut-release: v1.0.0 -->")
+}
+
+func TestGenerateChangelog_IncrementalWithCustomHeader(t *testing.T) {
+	// A custom header block does not break splicing: the anchor is emitted by the assembly layer,
+	// not the header, so the parser still finds section boundaries (ADR-0037 + ADR-0038).
+	dir := t.TempDir()
+	out := filepath.Join(dir, "CHANGELOG.md")
+	require.NoError(t, os.WriteFile(out, []byte(
+		"# Changelog\n\n<!-- heraut-release: v1.0.0 -->\n=== 1.0.0 ===\n\n- old\n"), 0o644))
+	mr := exectest.NewMockRunner()
+	mr.QueueResponse("v1.0.0\n", "", nil)
+	mr.QueueResponse(record("bbb2222222", "B", "b@x", "2026-02-01T00:00:00Z", "feat: new", ""), "", nil)
+	g := New(mr, &config.ContentDriver{
+		Generator:          "native",
+		Output:             out,
+		EffectiveTemplates: map[string]string{"header": "=== {{ .Version }} ==="},
+	}, ModeChangelog)
+
+	body, err := g.Generate("v1.1.0", nil)
+	require.NoError(t, err)
+	assert.Contains(t, body, "<!-- heraut-release: v1.1.0 -->\n=== 1.1.0 ===", "custom header still splices under the structural anchor")
+	assert.Contains(t, body, "- old", "history preserved")
 }

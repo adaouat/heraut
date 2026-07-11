@@ -111,6 +111,10 @@ type ContentDriver struct {
 	// overlaid by this driver's rendering.templates), propagated for the native generator. Not
 	// user-configurable directly — the knobs are rendering.templates. (native only.)
 	EffectiveTemplates map[string]string `yaml:"-"`
+	// RegenerateChangelog forces the native generator to rebuild the entire changelog and
+	// re-enrich every section, instead of incrementally splicing only the new release's section.
+	// Set by the app layer from the --regenerate / --regenerate-changelog flag. (native only.)
+	RegenerateChangelog bool `yaml:"-"`
 	// HerautVersion is the running heraut binary's version, propagated by the app layer so the
 	// native generator can expose it to templates as .Heraut.Version. Not user-configurable.
 	// (native only.)
