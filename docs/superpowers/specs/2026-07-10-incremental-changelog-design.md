@@ -92,13 +92,18 @@ Only the new section's commits are enriched → **O(1) API calls**, regardless o
 ## Full regeneration (`--regenerate`)
 
 Ignore the existing file's contents. Build every section from all tags (each anchored), enrich
-**all** sections, and overwrite `Output`. Enrichment is batched per the existing drivers:
+**all** sections, and overwrite `Output`. Enrichment happens **per section**, not once for the
+whole file — each release is rendered and enriched independently, so a platform's batch primitive
+only ever covers one release's commits:
 
 | Platform | Batch primitive | Cost for full history |
 |----------|-----------------|-----------------------|
-| GitHub   | GraphQL, 50 SHAs/query | O(commits / 50) |
-| Azure    | one `pullrequestquery` POST | ~O(1) |
-| GitLab   | per-commit `glab api` | **O(commits)** |
+| GitHub   | GraphQL, 50 SHAs/query, per release | O(releases) |
+| Azure    | one `pullrequestquery` POST per release | O(releases) |
+| GitLab   | per-commit `glab api` call | **O(commits)** |
+
+GitHub/Azure only need more than one call for a given release when that release alone has more
+than 50 commits; GitLab's per-commit cost is unaffected by how commits are grouped into releases.
 
 When full regeneration runs against a **GitLab** remote, the changelog pipeline step emits a
 warning that enrichment is one API call per commit and may be slow / rate-limited. (The warning is

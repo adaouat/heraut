@@ -58,13 +58,19 @@ The existing `Output` file is branched on its state:
 ### 2. Full regeneration (`--regenerate` / `--regenerate-changelog`)
 
 Ignore the existing file's contents. Build every section from all tags (each anchored), enrich
-**all** sections, and overwrite `Output`. Enrichment is batched per the existing drivers:
+**all** sections, and overwrite `Output`. Enrichment happens **per section** — `buildAllSections`
+calls `renderRelease` → `enrichForRelease` once per release tag — so each platform's batching
+primitive is applied within a single release, not across the whole file:
 
 | Platform | Batch primitive | Cost for full history |
 |----------|-----------------|-----------------------|
-| GitHub | GraphQL, 50 SHAs/query | O(commits / 50) |
-| Azure | one `pullrequestquery` POST | ~O(1) |
-| GitLab | per-commit `glab api` | **O(commits)** |
+| GitHub | GraphQL, 50 SHAs/query, issued once per release | O(releases) |
+| Azure | one `pullrequestquery` POST per release | O(releases) |
+| GitLab | per-commit `glab api` call | **O(commits)** |
+
+GitHub and Azure only exceed one call per release when a single release's commit count outgrows
+the batch (>50 SHAs on GitHub); GitLab pays one call per commit regardless of how those commits
+are distributed across releases.
 
 When full regeneration targets a **GitLab** remote, the changelog pipeline step (not the
 generator — it alone knows both the flag and the resolved platform) emits a warning that

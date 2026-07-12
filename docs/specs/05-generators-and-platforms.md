@@ -113,9 +113,11 @@ calls) and splices it into the existing file, leaving every other section untouc
   left byte-for-byte unchanged.
 
 **Full regeneration (`--regenerate` / `--regenerate-changelog`).** Ignores the existing file,
-rebuilds every section from all tags, and **re-enriches all of them** — batched per platform
-(GitHub GraphQL, one Azure `pullrequestquery` call) except GitLab, which pays one `glab api` call
-per commit; the changelog pipeline step warns when a GitLab remote is being fully regenerated.
+rebuilds every section from all tags, and **re-enriches all of them** — each section is enriched
+independently, so GitHub (GraphQL, 50 SHAs/query) and Azure (one `pullrequestquery` POST) each
+batch *within* a release, costing roughly one API call per release (O(releases)), while GitLab
+pays one `glab api` call per commit (O(commits)); the changelog pipeline step warns when a GitLab
+remote is being fully regenerated.
 This is the required one-time step when migrating a changelog onto `native` (or repairing a
 previously-anchorless file) — see [ADR-0038](../adr/0038-incremental-changelog.md) for the full
 migration story, including the `regenerate_changelog` `workflow_dispatch` input heraut's own CI
