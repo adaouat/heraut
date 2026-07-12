@@ -85,6 +85,42 @@ are the **experimental-in-v1** public API — additive changes are free.
 `template` require `generator: native`; each snippet and the file are parse-validated at config
 load.
 
+#### Changelog structure & incremental generation (ADR-0038)
+
+A `native`-managed `CHANGELOG.md` is a **preamble** (free-form content before the first section,
+e.g. the `# Changelog` title) followed by **anchored sections**, newest first. Each section is
+preceded by a structural HTML comment on its own line:
+
+```
+<!-- heraut-release: v0.49.0 -->
+```
+
+The anchor carries the release **tag**, is invisible in every Markdown renderer, and is emitted by
+the assembly layer — never by a template block — so it is non-overridable and independent of the
+customizable `header` block (ADR-0037): reformatting the header can neither remove the anchor nor
+change its shape.
+
+**Incremental (default).** Each run renders and enriches only the new release's section (O(1) API
+calls) and splices it into the existing file, leaving every other section untouched:
+
+- **Missing or empty file** → bootstrap: build every section from all tags (anchored), enriching
+  only the newest. No warning.
+- **File with ≥1 anchor** → splice: the new section replaces the top one if its tag matches
+  (idempotent re-run), otherwise it is inserted above it. All other sections are preserved
+  verbatim, including their historical PR/MR attribution.
+- **Non-empty file with no anchors** (produced by another tool, e.g. `git-cliff`, or predating this
+  feature) → the run **stops with an error** directing the operator to `--regenerate`; the file is
+  left byte-for-byte unchanged.
+
+**Full regeneration (`--regenerate` / `--regenerate-changelog`).** Ignores the existing file,
+rebuilds every section from all tags, and **re-enriches all of them** — batched per platform
+(GitHub GraphQL, one Azure `pullrequestquery` call) except GitLab, which pays one `glab api` call
+per commit; the changelog pipeline step warns when a GitLab remote is being fully regenerated.
+This is the required one-time step when migrating a changelog onto `native` (or repairing a
+previously-anchorless file) — see [ADR-0038](../adr/0038-incremental-changelog.md) for the full
+migration story, including the `regenerate_changelog` `workflow_dispatch` input heraut's own CI
+uses for its own migration.
+
 ### git-cliff
 
 ```yaml

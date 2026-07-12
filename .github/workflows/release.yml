@@ -7,6 +7,10 @@ on:
         description: "Override version (e.g. v1.2.3). Leave empty to use `heraut version next`."
         required: false
         default: ""
+      regenerate_changelog:
+        description: "Rebuild the whole changelog + re-fetch PR attribution (once, when migrating to the native generator)."
+        type: boolean
+        default: false
 
 jobs:
   release:
@@ -86,7 +90,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Release
-        run: '"./$FRESH_BIN" release --version "$VERSION"'
+        run: '"./$FRESH_BIN" release --version "$VERSION" ${{ inputs.regenerate_changelog && ''--regenerate-changelog'' || '''' }}'
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           # git-cliff reads GITHUB_TOKEN (not GH_TOKEN) for PR-metadata API auth.

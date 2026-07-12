@@ -36,6 +36,7 @@ no longer a parity target — heraut's rendering is its own spec, validated by g
 | Phase 2.6 — native ↔ git-cliff parity (prereq for 2.5) | T138 – T141            | Complete    |
 | Phase 2.7 — unified enrichment model                 | T142 – T148            | Complete    |
 | Phase 2.8 — user-customizable templates (ADR-0037)   | TT1 – TT11             | Complete    |
+| Phase 2.9 — incremental changelog (ADR-0038)          | —                      | Complete    |
 | Phase 2.5 — remove the git-cliff package (own ADR)   | —                      | Deferred    |
 | Phase 3 — raw-HTTP clients (drop `gh` / `glab`)       | —                      | Deferred    |
 
@@ -801,6 +802,29 @@ golden byte-identity gate as the objective check for TT8. New PR fields are addi
 ships **experimental in v1**. No new dependencies; layer rule held (the config validator parses
 snippets with a stub func-map mirroring the native names rather than importing `native`). **Scope:**
 L. **Dependencies:** Phase 2.7 (unified enrichment model).
+
+---
+
+## Phase 2.9 — Incremental changelog (ADR-0038)
+
+`[x]` Give the native generator's changelog two modes so a generator switch (or any regular
+release) no longer strips historical PR-author attribution. Design spec:
+[`docs/superpowers/specs/2026-07-10-incremental-changelog-design.md`](../superpowers/specs/2026-07-10-incremental-changelog-design.md).
+
+**Completion note (2026-07-10):** incremental splicing is now the default — only the new
+release's section is rendered, enriched (O(1) API calls), and spliced past a structural
+`<!-- heraut-release: <tag> -->` anchor (assembly-layer only, never a template block, so it stays
+decoupled from the ADR-0037 customizable `header`), leaving every historical section verbatim. A
+missing/empty file bootstraps a full build; a non-empty anchorless file (foreign, e.g.
+`git-cliff`-produced) stops the run with an error naming `--regenerate`, file untouched.
+`heraut changelog --regenerate` / `heraut release --regenerate-changelog` force a full rebuild
+that re-enriches every section (batched on GitHub/Azure; a pipeline warning fires for the
+per-commit GitLab cost). heraut's own CI migration is a one-time `regenerate_changelog`
+`workflow_dispatch` input on `.github/workflows/release.yml` rather than a code change — dispatch
+once with it checked to adopt `native` with full attribution, then leave it unchecked. Documented
+in [ADR-0038](../adr/0038-incremental-changelog.md), Spec 05 (changelog structure & incremental
+generation), and Spec 03 (both flags). **Scope:** M. **Dependencies:** Phase 2.7 (unified
+enrichment model), Phase 2.8 (ADR-0037, for the anchor/header decoupling).
 
 ---
 

@@ -42,3 +42,4 @@ trade-offs were accepted.
 | [0035](0035-azure-enrichment-native-http.md) | Azure DevOps Enrichment via a Native `net/http` Client | Accepted |
 | [0036](0036-unified-enrichment-model.md) | Unified Cross-Platform Enrichment Model | Accepted |
 | [0037](0037-native-template-api.md) | Native Generator Public Template API | Accepted |
+| [0038](0038-incremental-changelog.md) | Incremental Changelog Generation (native) | Accepted |
