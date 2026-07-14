@@ -8,12 +8,12 @@ versioning:
   bump: auto
 
 changelog:
-  generator: git-cliff
+  generator: native
   output: CHANGELOG.md
 
 release:
   notes:
-    generator: git-cliff
+    generator: native
   platforms:
     - platform: github
       name: github
