@@ -291,9 +291,43 @@ func TestGenerateChangelog_ForeignFileErrors(t *testing.T) {
 
 	_, err := g.Generate("v1.1.0", nil)
 	require.Error(t, err)
+	assert.Contains(t, err.Error(), "--regenerate-changelog", "names the heraut release flag too")
 	assert.Contains(t, err.Error(), "--regenerate")
 	unchanged, _ := os.ReadFile(out)
 	assert.Equal(t, foreign, string(unchanged), "foreign file left untouched")
+}
+
+// TestGenerateChangelog_ForeignFileErrors_BeforeEnrichment proves the anchor check runs BEFORE
+// any rendering/enrichment: with remote_metadata "required" and a real GitHub LinkContext but no
+// queued `gh` response, the old code path (render+enrich, then splice) would attempt a `gh` call
+// and — since RemoteMetadata is "required" — return a masking "remote enrichment (required)"
+// error instead of the actionable anchor error. The fixed code checks anchors first, so it never
+// touches git/gh at all and returns the anchor error naming both --regenerate flags.
+func TestGenerateChangelog_ForeignFileErrors_BeforeEnrichment(t *testing.T) {
+	dir := t.TempDir()
+	out := filepath.Join(dir, "CHANGELOG.md")
+	foreign := "# Changelog\n\n## [1.0.0] - 2026-01-01\n\n- git-cliff line by @dave\n"
+	require.NoError(t, os.WriteFile(out, []byte(foreign), 0o644))
+	mr := exectest.NewMockRunner()
+	// Only the git calls the OLD (pre-reorder) code would make before reaching spliceSection:
+	// scopedTags (git tag -l) and renderRelease's collectCommits (git log). No `gh` response is
+	// queued — the reordered code must never attempt one.
+	mr.QueueResponse("v1.0.0\n", "", nil)
+	mr.QueueResponse(record("bbb2222222", "B", "b@x", "2026-02-01T00:00:00Z", "feat: x", ""), "", nil)
+	g := New(mr, &config.ContentDriver{Generator: "native", Output: out, RemoteMetadata: "required"}, ModeChangelog)
+
+	_, err := g.Generate("v1.1.0", ghLC())
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "--regenerate-changelog")
+	assert.Contains(t, err.Error(), "--regenerate")
+	assert.ErrorIs(t, err, ErrNoAnchors)
+
+	unchanged, _ := os.ReadFile(out)
+	assert.Equal(t, foreign, string(unchanged), "foreign file left untouched")
+
+	for _, c := range mr.Calls {
+		assert.NotEqual(t, "gh", c.Name, "anchor check must run before enrichment; no gh call should occur")
+	}
 }
 
 func TestGenerateChangelog_RegenerateEnrichesAllSections(t *testing.T) {
