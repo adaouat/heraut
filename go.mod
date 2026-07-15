@@ -1,6 +1,6 @@
 module github.com/adaouat/heraut
 
-go 1.26.4
+go 1.26.5
 
 require (
 	charm.land/huh/v2 v2.0.3
@@ -26,7 +26,7 @@ require (
 	github.com/go-logfmt/logfmt v0.6.0 // indirect
 	github.com/gorilla/css v1.0.1 // indirect
 	github.com/microcosm-cc/bluemonday v1.0.27 // indirect
-	github.com/yuin/goldmark v1.7.8 // indirect
+	github.com/yuin/goldmark v1.7.17 // indirect
 	github.com/yuin/goldmark-emoji v1.0.5 // indirect
 	golang.org/x/exp v0.0.0-20231006140011-7918f672742d // indirect
 	golang.org/x/net v0.39.0 // indirect
