@@ -270,3 +270,15 @@ func TestGroupCommits_UserExcludeByRegex(t *testing.T) {
 	require.Len(t, groups, 1)
 	assert.Equal(t, "🚀 Features", groups[0].name)
 }
+
+// TestOverlayAuthorHandles verifies overlayAuthorHandles stamps the resolved handle onto the
+// matching commit by SHA, leaving commits without a resolved handle untouched.
+func TestOverlayAuthorHandles(t *testing.T) {
+	groups := []group{{name: "🚀 Features", order: 0, commits: []parsedCommit{
+		parsedFrom("aaaaaaa", "feat: x"),
+		parsedFrom("bbbbbbb", "feat: y"),
+	}}}
+	overlayAuthorHandles(groups, map[string]string{"aaaaaaa": "alice"})
+	assert.Equal(t, "alice", groups[0].commits[0].raw.AuthorHandle)
+	assert.Equal(t, "", groups[0].commits[1].raw.AuthorHandle, "no handle → empty")
+}

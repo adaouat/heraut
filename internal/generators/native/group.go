@@ -195,3 +195,18 @@ func commitScope(pc parsedCommit) string {
 	}
 	return ""
 }
+
+// overlayAuthorHandles stamps each commit's resolved author handle (sha → handle) onto the grouped
+// commits, so the renderer can credit the commit author independently of any associated PR.
+func overlayAuthorHandles(groups []group, authors map[string]string) {
+	if len(authors) == 0 {
+		return
+	}
+	for gi := range groups {
+		for ci := range groups[gi].commits {
+			if h, ok := authors[groups[gi].commits[ci].raw.Hash]; ok {
+				groups[gi].commits[ci].raw.AuthorHandle = h
+			}
+		}
+	}
+}

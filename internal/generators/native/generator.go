@@ -118,7 +118,7 @@ func (g *Generator) generateReleaseNotes(tag string, lc *port.LinkContext) (stri
 	if err != nil {
 		return "", err
 	}
-	enrichment, err := g.enrichForRelease(lc, commits)
+	er, err := g.enrichForRelease(lc, commits)
 	if err != nil {
 		return "", err
 	}
@@ -127,8 +127,9 @@ func (g *Generator) generateReleaseNotes(tag string, lc *port.LinkContext) (stri
 		return "", err
 	}
 	groups := groupCommits(commits, g.cfg.Types, g.cfg.Excludes)
-	contributors := collectContributors(toParsedCommits(renderedCommits(commits, groups)), before, enrichment)
-	return renderReleaseNotes(tag, prev, releaseDate(commits), groups, lc, g.cfg.Tickets, prevDate, g.cfg.TypesHeadingLevel, enrichment, contributors, g.herautMeta(), g.cfg.EffectiveTemplates, g.cfg.Template)
+	overlayAuthorHandles(groups, er.authors)
+	contributors := collectContributors(toParsedCommits(renderedCommits(commits, groups)), before, er.prs)
+	return renderReleaseNotes(tag, prev, releaseDate(commits), groups, lc, g.cfg.Tickets, prevDate, g.cfg.TypesHeadingLevel, er.prs, contributors, g.herautMeta(), g.cfg.EffectiveTemplates, g.cfg.Template)
 }
 
 // generateChangelog produces CHANGELOG.md: incrementally, splicing only the new release's
@@ -270,11 +271,14 @@ func (g *Generator) renderRelease(version, prev, rng string, lc *port.LinkContex
 	if len(groups) == 0 {
 		return "", nil
 	}
-	var enrichment map[string]PullRequest
+	var prs map[string]PullRequest
 	if enrichEnabled {
-		if enrichment, err = g.enrichForRelease(lc, commits); err != nil {
+		er, err := g.enrichForRelease(lc, commits)
+		if err != nil {
 			return "", err
 		}
+		prs = er.prs
+		overlayAuthorHandles(groups, er.authors)
 	}
-	return renderChangelogSection(version, prev, releaseDate(commits), groups, lc, g.cfg.Tickets, g.cfg.HeadingVersionPattern, g.cfg.TypesHeadingLevel, enrichment, g.herautMeta(), g.cfg.EffectiveTemplates, g.cfg.Template)
+	return renderChangelogSection(version, prev, releaseDate(commits), groups, lc, g.cfg.Tickets, g.cfg.HeadingVersionPattern, g.cfg.TypesHeadingLevel, prs, g.herautMeta(), g.cfg.EffectiveTemplates, g.cfg.Template)
 }

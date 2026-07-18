@@ -34,6 +34,9 @@ type rawCommit struct {
 	Date    time.Time // %cI — committer date (strict ISO-8601)
 	Subject string    // %s — subject line
 	Body    string    // %b — body without the subject
+	// AuthorHandle is the commit author's platform handle (e.g. GitHub login), overlaid by
+	// enrichment after collection; empty from git alone and for platforms without resolution.
+	AuthorHandle string
 }
 
 // collectCommits runs `git log [revRange] --reverse --format=logFormat` and parses the output

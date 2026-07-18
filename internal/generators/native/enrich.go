@@ -7,12 +7,18 @@ import (
 	"github.com/adaouat/heraut/internal/port"
 )
 
-// enrich resolves PR/MR enrichment for commits via the platform's CLI, returning a SHA→PullRequest
-// map. Returns nil when lc is nil or the platform has no enrichment support yet. This is the
-// platform-dispatch seam: GitLab and Azure DevOps slot in as additional cases.
-func (g *Generator) enrich(lc *port.LinkContext, commits []rawCommit) (map[string]PullRequest, error) {
+// enrichResult bundles per-commit remote data: associated PRs and commit-author handles.
+type enrichResult struct {
+	prs     map[string]PullRequest
+	authors map[string]string
+}
+
+// enrich resolves PR/MR enrichment for commits via the platform's CLI, returning an enrichResult.
+// Returns a zero enrichResult when lc is nil or the platform has no enrichment support yet. This
+// is the platform-dispatch seam: GitLab and Azure DevOps slot in as additional cases.
+func (g *Generator) enrich(lc *port.LinkContext, commits []rawCommit) (enrichResult, error) {
 	if lc == nil {
-		return nil, nil
+		return enrichResult{}, nil
 	}
 	shas := make([]string, 0, len(commits))
 	for _, c := range commits {
@@ -20,14 +26,16 @@ func (g *Generator) enrich(lc *port.LinkContext, commits []rawCommit) (map[strin
 	}
 	switch lc.Platform {
 	case "github":
-		prs, _, err := enrichGitHub(g.runner, lc, shas)
-		return prs, err
+		prs, authors, err := enrichGitHub(g.runner, lc, shas)
+		return enrichResult{prs: prs, authors: authors}, err
 	case "gitlab":
-		return enrichGitLab(g.runner, lc, shas)
+		prs, err := enrichGitLab(g.runner, lc, shas)
+		return enrichResult{prs: prs}, err
 	case "azure_devops":
-		return enrichAzure(g.httpClient, lc, shas)
+		prs, err := enrichAzure(g.httpClient, lc, shas)
+		return enrichResult{prs: prs}, err
 	default:
-		return nil, nil
+		return enrichResult{}, nil
 	}
 }
 
@@ -38,20 +46,20 @@ func (g *Generator) enrich(lc *port.LinkContext, commits []rawCommit) (map[strin
 //     degraded, and warn once. Rendering then proceeds without PR attribution.
 //
 // A nil / unsupported platform is not a failure — it simply yields no enrichment.
-func (g *Generator) enrichForRelease(lc *port.LinkContext, commits []rawCommit) (map[string]PullRequest, error) {
+func (g *Generator) enrichForRelease(lc *port.LinkContext, commits []rawCommit) (enrichResult, error) {
 	if g.cfg.RemoteMetadata == "disabled" {
-		return nil, nil
+		return enrichResult{}, nil
 	}
-	enrichment, err := g.enrich(lc, commits)
+	er, err := g.enrich(lc, commits)
 	if err != nil {
 		if g.cfg.RemoteMetadata == "required" {
-			return nil, fmt.Errorf("remote enrichment (required): %w", err)
+			return enrichResult{}, fmt.Errorf("remote enrichment (required): %w", err)
 		}
 		if !g.degraded {
 			fmt.Fprintf(os.Stderr, "warning: remote enrichment unavailable; rendering without PR attribution: %v\n", err)
 		}
 		g.degraded = true
-		return nil, nil
+		return enrichResult{}, nil
 	}
-	return enrichment, nil
+	return er, nil
 }
