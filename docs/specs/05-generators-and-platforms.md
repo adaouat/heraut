@@ -29,7 +29,14 @@ changelog:
 
 Section labels, order, and heading depth come from `commits.types` and
 `commits.types_heading_level`; `rendering.excludes` drops matched commits from the output.
-PR/MR author + number attribution and the "New Contributors" block derive from a unified,
+Each commit line credits the **commit author** — `by @<handle>` — resolved from the platform,
+independent of any associated pull request; the PR/MR, when present, contributes only its
+`in [#N](url)` reference link. When the committer differs from the PR/MR author, the committer
+is credited (matching git-cliff). **GitHub only, this cut**: GitLab and Azure DevOps do not yet
+resolve a commit-author handle, so their commit lines render no `by @` (tracked follow-ups). See
+[ADR-0039](../adr/0039-commit-author-attribution.md).
+
+PR/MR number attribution and the "New Contributors" block derive from a unified,
 platform-agnostic model (`Author`/`PullRequest`/`Contributor`): a **local tier** always
 computes contributors and `first_time` from git author history (one `git log`, available
 offline, identical across GitHub/GitLab/Azure DevOps), while a **remote tier** — gated by the

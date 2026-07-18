@@ -37,6 +37,7 @@ no longer a parity target — heraut's rendering is its own spec, validated by g
 | Phase 2.7 — unified enrichment model                 | T142 – T148            | Complete    |
 | Phase 2.8 — user-customizable templates (ADR-0037)   | TT1 – TT11             | Complete    |
 | Phase 2.9 — incremental changelog (ADR-0038)          | —                      | Complete    |
+| Phase 2.10 — commit-author attribution (ADR-0039)    | T150, T151 (follow-ups) | Complete — GitHub |
 | Phase 2.5 — remove the git-cliff package (own ADR)   | —                      | Deferred    |
 | Phase 3 — raw-HTTP clients (drop `gh` / `glab`)       | —                      | Deferred    |
 
@@ -825,6 +826,60 @@ once with it checked to adopt `native` with full attribution, then leave it unch
 in [ADR-0038](../adr/0038-incremental-changelog.md), Spec 05 (changelog structure & incremental
 generation), and Spec 03 (both flags). **Scope:** M. **Dependencies:** Phase 2.7 (unified
 enrichment model), Phase 2.8 (ADR-0037, for the anchor/header decoupling).
+
+---
+
+## Phase 2.10 — Commit-author attribution (ADR-0039)
+
+`[x]` Credit the **commit author** — `by @<handle>` — on every native commit line, independent
+of any associated pull request; the PR now contributes only its `in [#N](url)` reference link.
+Closes the gap dogfooding surfaced: heraut's own direct-commit trunk (no PRs) rendered zero
+attribution under native's previous PR-author-only model, where git-cliff always showed
+`by @bchatard`. Design spec:
+[`docs/superpowers/specs/2026-07-17-commit-author-attribution-design.md`](../superpowers/specs/2026-07-17-commit-author-attribution-design.md).
+
+**Completion note (2026-07-18):** GitHub only, this cut. `enrich_github.go`'s existing batched
+`gh api graphql` query (one call per ≤50 commit SHAs) gained `author{user{login}}` on the
+`Commit` fragment, resolving a `sha → authorHandle` map at zero extra API calls; the map rides
+`enrichForRelease` → `renderRelease`/`renderChangelogSection`/`renderReleaseNotes` and is stamped
+onto each grouped commit by `overlayAuthorHandles` before `buildCommit` reads it into
+`Author.Username`. `blocks.tmpl`'s `commit` block now renders `by @{{ .Author.Username }}`
+unconditionally (was: gated on `{{ if .PR }}`, sourced from the PR author), with the PR
+contributing only `in [{{ .PR.Ref }}](...)`. Committer ≠ PR author → committer wins, matching
+git-cliff. Unlinked author (`author.user == null`) or offline → no `by @`, unchanged. Byte-identity
+held for every golden passing `nil` enrichment; `release_notes_contributors.golden` was the one
+intended change (a commit line gains ` by @alice`). GitLab and Azure are unchanged — no
+commit-author handle is resolved on either, so their commit lines render no `by @` until the
+follow-up tasks below land. **Scope:** M. **Dependencies:** Phase 2.7 (unified enrichment model).
+
+#### `[ ]` T150: GitLab commit-author handle
+
+GitLab's REST API cannot resolve an arbitrary commit-author email to a user (privacy-restricted).
+Whether GitLab's **GraphQL** API can — and whether it can batch the way the GitHub query does —
+is unconfirmed against the live schema. Start with a **schema spike**: use `glab api graphql`
+introspection (or `/-/graphql-explorer`) to check whether `mergeRequests(commitSha: ...)`, a
+commit-by-SHA field, or `Commit.author { username }` exist on the current GitLab schema, and
+whether any of them can be queried for multiple SHAs in one round trip (mirroring GitHub's
+aliased batch) rather than one call per commit. If a batchable path exists, extend
+`enrich_gitlab.go`'s `sha → authorHandle` map the same way `enrich_github.go` does; if only a
+per-commit path exists, weigh the added API cost against ADR-0038's GitLab full-regeneration
+warning (already O(commits)) before deciding whether to ship it. **Scope:** M (spike) + S–M
+(implementation, pending spike result). **Dependencies:** Phase 2.10 (GitHub cut).
+
+#### `[ ]` T151: Azure DevOps commit-author handle
+
+Azure needs a separate identity lookup to map a commit's author email to an Azure DevOps
+identity — there is no equivalent to GitHub's `author.user.login` riding the existing PR-fetch
+call. Investigate the identity API (e.g. `_apis/identities` or the `pullrequestquery` response's
+committer fields) for a batchable resolution path before implementing; until then `enrich_azure.go`
+continues to return no author-handle data and Azure commit lines render no `by @`. **Scope:** M.
+**Dependencies:** Phase 2.10 (GitHub cut).
+
+Both follow-ups could also feed the "New Contributors" block once resolved: that block's handle
+today is still overlaid from a contributor's first PR/MR (unchanged by
+[ADR-0039](../adr/0039-commit-author-attribution.md) — see the design spec's "out of scope"
+section), so a platform's `sha → authorHandle` map could, as a further extension, also drive
+first-timer credit for direct-commit contributors — noted here, not scheduled.
 
 ---
 
