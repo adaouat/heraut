@@ -25,7 +25,7 @@ func TestEnrichGitHub_ReviewFields(t *testing.T) {
 		 "latestReviews":{"nodes":[{"state":"APPROVED","author":{"login":"rev1"}},
 		                           {"state":"CHANGES_REQUESTED","author":{"login":"rev2"}}]}}]}}}}}`, "", nil)
 
-	got, err := enrichGitHub(mr, lc, []string{sha})
+	got, _, err := enrichGitHub(mr, lc, []string{sha})
 	require.NoError(t, err)
 	pr := got[sha]
 	assert.Equal(t, "2026-01-01T00:00:00Z", pr.CreatedAt.UTC().Format(time.RFC3339))
@@ -76,7 +76,7 @@ func TestEnrichGitHub_TwoCommitsWithPRs(t *testing.T) {
 		}
 	}`, "", nil)
 
-	result, err := enrichGitHub(mr, lc, []string{sha1, sha2})
+	result, _, err := enrichGitHub(mr, lc, []string{sha1, sha2})
 	require.NoError(t, err)
 	require.Len(t, result, 2)
 
@@ -105,7 +105,7 @@ func TestEnrichGitHub_CommitNoPR(t *testing.T) {
 
 	mr.QueueResponse(`{"data":{"repository":{"s0":{"associatedPullRequests":{"nodes":[]}}}}}`, "", nil)
 
-	result, err := enrichGitHub(mr, lc, []string{sha})
+	result, _, err := enrichGitHub(mr, lc, []string{sha})
 	require.NoError(t, err)
 	assert.Empty(t, result, "commit with no associated PR must be absent from the map")
 }
@@ -129,7 +129,7 @@ func TestEnrichGitHub_Chunking(t *testing.T) {
 		`"s0":{"associatedPullRequests":{"nodes":[{"number":51,"url":"https://github.com/owner/repo/pull/51","author":{"login":"carol"}}]}}`+
 		`}}}`, "", nil)
 
-	result, err := enrichGitHub(mr, lc, shas)
+	result, _, err := enrichGitHub(mr, lc, shas)
 	require.NoError(t, err)
 
 	assert.Len(t, mr.Calls, 2, "exactly two gh api graphql calls for 51 SHAs")
@@ -146,7 +146,7 @@ func TestEnrichGitHub_TitleAndLabels(t *testing.T) {
 		{"number":42,"url":"u","title":"Add OAuth","author":{"login":"alice"},
 		 "labels":{"nodes":[{"name":"enhancement"},{"name":"area/auth"}]}}]}}}}}`, "", nil)
 
-	got, err := enrichGitHub(mr, lc, []string{sha})
+	got, _, err := enrichGitHub(mr, lc, []string{sha})
 	require.NoError(t, err)
 	assert.Equal(t, "Add OAuth", got[sha].Title)
 	assert.Equal(t, []string{"enhancement", "area/auth"}, got[sha].Labels)
@@ -157,7 +157,7 @@ func TestEnrichGitHub_GhError(t *testing.T) {
 	lc := makeGitHubLC("owner", "repo", "tok")
 	mr.QueueResponse("", "error from gh", errors.New("exit status 1"))
 
-	_, err := enrichGitHub(mr, lc, []string{"deadbeef1234567890abcdef1234567890abcdef"})
+	_, _, err := enrichGitHub(mr, lc, []string{"deadbeef1234567890abcdef1234567890abcdef"})
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "gh api graphql")
 }
@@ -167,7 +167,36 @@ func TestEnrichGitHub_MalformedJSON(t *testing.T) {
 	lc := makeGitHubLC("owner", "repo", "tok")
 	mr.QueueResponse("not-valid-json", "", nil)
 
-	_, err := enrichGitHub(mr, lc, []string{"deadbeef1234567890abcdef1234567890abcdef"})
+	_, _, err := enrichGitHub(mr, lc, []string{"deadbeef1234567890abcdef1234567890abcdef"})
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "parsing")
+}
+
+func TestEnrichGitHub_CommitAuthorHandle(t *testing.T) {
+	mr := exectest.NewMockRunner()
+	sha := "aa11bb22cc33dd44ee55ff6677889900aabbccdd"
+	lc := makeGitHubLC("owner", "repo", "tok")
+	// Commit has an author linked to a GitHub user, but NO associated PR.
+	mr.QueueResponse(`{"data":{"repository":{"s0":{
+		"author":{"user":{"login":"alice"}},
+		"associatedPullRequests":{"nodes":[]}}}}}`, "", nil)
+
+	prs, authors, err := enrichGitHub(mr, lc, []string{sha})
+	require.NoError(t, err)
+	assert.Empty(t, prs, "no associated PR")
+	assert.Equal(t, "alice", authors[sha], "commit-author handle resolved")
+}
+
+func TestEnrichGitHub_CommitAuthorUnlinked(t *testing.T) {
+	mr := exectest.NewMockRunner()
+	sha := "bb22cc33dd44ee55ff6677889900aabbccddeeff"
+	lc := makeGitHubLC("owner", "repo", "tok")
+	mr.QueueResponse(`{"data":{"repository":{"s0":{
+		"author":{"user":null},
+		"associatedPullRequests":{"nodes":[]}}}}}`, "", nil)
+
+	_, authors, err := enrichGitHub(mr, lc, []string{sha})
+	require.NoError(t, err)
+	_, ok := authors[sha]
+	assert.False(t, ok, "unlinked author yields no handle entry")
 }

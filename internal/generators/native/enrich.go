@@ -20,7 +20,8 @@ func (g *Generator) enrich(lc *port.LinkContext, commits []rawCommit) (map[strin
 	}
 	switch lc.Platform {
 	case "github":
-		return enrichGitHub(g.runner, lc, shas)
+		prs, _, err := enrichGitHub(g.runner, lc, shas)
+		return prs, err
 	case "gitlab":
 		return enrichGitLab(g.runner, lc, shas)
 	case "azure_devops":

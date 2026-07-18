@@ -17,11 +17,13 @@ import (
 	"github.com/adaouat/heraut/internal/port"
 )
 
-// ghGraphQLResponse builds a one-PR gh api graphql JSON body for alias s0.
+// ghGraphQLResponse builds a one-PR gh api graphql JSON body for alias s0. The commit author's
+// login is set equal to the PR author's login, so downstream `by @<login>` assertions hold
+// regardless of which source (commit author vs. PR author) the renderer credits.
 func ghGraphQLResponse(number int, url, login string) string {
 	return fmt.Sprintf(
-		`{"data":{"repository":{"s0":{"associatedPullRequests":{"nodes":[{"number":%d,"url":%q,"author":{"login":%q}}]}}}}}`,
-		number, url, login)
+		`{"data":{"repository":{"s0":{"author":{"user":{"login":%q}},"associatedPullRequests":{"nodes":[{"number":%d,"url":%q,"author":{"login":%q}}]}}}}}`,
+		login, number, url, login)
 }
 
 func parsedFrom(hash, subject string) parsedCommit {
