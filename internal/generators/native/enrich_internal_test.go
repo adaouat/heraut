@@ -47,6 +47,7 @@ func renderCommitBlock(t *testing.T, c tplCommit) string {
 
 func TestCommitBlock_Enriched(t *testing.T) {
 	pc := parsedFrom("abc1234def", "feat: add thing")
+	pc.raw.AuthorHandle = "octocat" // commit author, resolved via enrichment overlay
 	enrichment := map[string]PullRequest{
 		"abc1234def": {Number: 42, URL: "https://github.com/o/r/pull/42", AuthorLogin: "octocat"},
 	}
@@ -64,6 +65,7 @@ func TestCommitBlock_NoEnrichment(t *testing.T) {
 
 func TestCommitBlock_EnrichedBeforeTickets(t *testing.T) {
 	pc := parsedFrom("abc1234def", "fix: resolve PROJ-7")
+	pc.raw.AuthorHandle = "octocat" // commit author, resolved via enrichment overlay
 	enrichment := map[string]PullRequest{
 		"abc1234def": {Number: 42, URL: "https://github.com/o/r/pull/42", AuthorLogin: "octocat"},
 	}
@@ -76,10 +78,38 @@ func TestCommitBlock_EnrichedBeforeTickets(t *testing.T) {
 		"PR suffix comes before ticket links")
 }
 
+func TestCommitBlock_ByCommitAuthor_NoPR(t *testing.T) {
+	pc := parsedFrom("abc1234def", "feat: add thing")
+	pc.raw.AuthorHandle = "alice"
+	line := renderCommitBlock(t, buildCommit(pc, "https://github.com/o/r/commit/", nil, nil))
+	assert.Contains(t, line, " by @alice")
+	assert.NotContains(t, line, "in [#", "no PR → no reference link")
+}
+
+func TestCommitBlock_ByCommitAuthor_WithPR(t *testing.T) {
+	pc := parsedFrom("abc1234def", "feat: add thing")
+	pc.raw.AuthorHandle = "alice" // commit author
+	enrichment := map[string]PullRequest{
+		"abc1234def": {Number: 42, URL: "https://github.com/o/r/pull/42", AuthorLogin: "maintainer"}, // PR opened by someone else
+	}
+	line := renderCommitBlock(t, buildCommit(pc, "https://github.com/o/r/commit/", nil, enrichment))
+	assert.Contains(t, line, " by @alice in [#42](https://github.com/o/r/pull/42)",
+		"commit author credited; PR only provides the link (not the PR author)")
+	assert.NotContains(t, line, "@maintainer")
+}
+
+func TestCommitBlock_NoHandle_NoAttribution(t *testing.T) {
+	pc := parsedFrom("abc1234def", "feat: add thing") // AuthorHandle empty
+	line := renderCommitBlock(t, buildCommit(pc, "https://github.com/o/r/commit/", nil, nil))
+	assert.NotContains(t, line, "by @")
+}
+
 // ─── render: New Contributors block ─────────────────────────────────────────────
 
 func TestRenderReleaseNotes_NewContributors(t *testing.T) {
-	groups := []group{{name: "🚀 Features", order: 0, commits: []parsedCommit{parsedFrom("aaaaaaa", "feat: add thing")}}}
+	pc := parsedFrom("aaaaaaa", "feat: add thing")
+	pc.raw.AuthorHandle = "newbie" // commit author, resolved via enrichment overlay
+	groups := []group{{name: "🚀 Features", order: 0, commits: []parsedCommit{pc}}}
 	prs := map[string]PullRequest{
 		"aaaaaaa": {Number: 7, URL: "https://github.com/o/r/pull/7", AuthorLogin: "newbie", RefPrefix: "#"},
 	}
@@ -97,7 +127,9 @@ func TestRenderReleaseNotes_NewContributors(t *testing.T) {
 }
 
 func TestRenderReleaseNotes_NoFirstTimers_NoBlock(t *testing.T) {
-	groups := []group{{name: "🚀 Features", order: 0, commits: []parsedCommit{parsedFrom("bbbbbbb", "feat: x")}}}
+	pc := parsedFrom("bbbbbbb", "feat: x")
+	pc.raw.AuthorHandle = "veteran" // commit author, resolved via enrichment overlay
+	groups := []group{{name: "🚀 Features", order: 0, commits: []parsedCommit{pc}}}
 	enrichment := map[string]PullRequest{
 		"bbbbbbb": {Number: 9, URL: "https://github.com/o/r/pull/9", AuthorLogin: "veteran"},
 	}

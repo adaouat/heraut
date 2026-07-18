@@ -95,7 +95,9 @@ func TestEnrichGitLab_Subgroup(t *testing.T) {
 	assert.Equal(t, []string{"api", "projects/group%2Fsubgroup%2Fproject/repository/commits/deadbeef/merge_requests"}, mr.Calls[0].Args)
 }
 
-// End-to-end: GitLab release-notes enrichment renders "!N" (not "#N").
+// End-to-end: GitLab release-notes enrichment renders "!N" (not "#N"). GitLab does not yet
+// resolve the commit-author handle (GitHub-only in this cut), so the commit line carries only
+// the MR reference link — no "by @" — even though the MR itself has an author.
 func TestGenerate_Enrich_GitLab(t *testing.T) {
 	mr := exectest.NewMockRunner()
 	mr.QueueResponse("v1.0.0\n", "", nil)                                                                        // previousTag
@@ -107,7 +109,8 @@ func TestGenerate_Enrich_GitLab(t *testing.T) {
 
 	out, err := g.Generate("v1.1.0", gitlabLC())
 	require.NoError(t, err)
-	assert.Contains(t, out, "by @alice in [!7](https://gitlab.com/g/p/-/merge_requests/7)")
+	assert.Contains(t, out, "in [!7](https://gitlab.com/g/p/-/merge_requests/7)")
+	assert.NotContains(t, out, "by @", "GitLab commit-author handle resolution is not yet implemented")
 
 	require.Len(t, mr.Calls, 5)
 	assert.Equal(t, []string{"log", "v1.0.0", "--format=%ae"}, mr.Calls[4].Args)

@@ -187,11 +187,9 @@ func buildCommit(pc parsedCommit, cuBase string, tickets []config.Ticket, enrich
 		links = append(links, tplLink(tl))
 	}
 
-	username := ""
 	var pr *tplPR
 	if p, ok := enrichment[pc.raw.Hash]; ok {
 		pr = tplPRFrom(p)
-		username = p.AuthorLogin
 	}
 
 	return tplCommit{
@@ -205,7 +203,7 @@ func buildCommit(pc parsedCommit, cuBase string, tickets []config.Ticket, enrich
 		ShortHash:   shortHash,
 		CommitURL:   commitURL,
 		Date:        pc.raw.Date,
-		Author:      Author{Name: pc.raw.Author, Email: pc.raw.Email, Username: username},
+		Author:      Author{Name: pc.raw.Author, Email: pc.raw.Email, Username: pc.raw.AuthorHandle},
 		PR:          pr,
 		Tickets:     links,
 		Footers:     footers,

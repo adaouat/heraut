@@ -13,6 +13,7 @@ func TestBuildRelease_MapsTree(t *testing.T) {
 	pc.raw.Email = "jane@x"
 	pc.raw.Author = "Jane"
 	pc.raw.Date = fixedDate1
+	pc.raw.AuthorHandle = "jane" // commit author, resolved via enrichment overlay
 	groups := []group{{name: "🚀 Features", order: 0, commits: []parsedCommit{pc}}}
 	enrichment := map[string]PullRequest{
 		"abc1234def": {Number: 42, URL: "https://github.com/o/r/pull/42", AuthorLogin: "jane", RefPrefix: "#", Title: "PR title"},

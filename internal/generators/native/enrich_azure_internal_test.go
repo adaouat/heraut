@@ -157,7 +157,9 @@ func TestEnrichAzure_TitleAndLabels(t *testing.T) {
 	assert.Equal(t, []string{"enhancement", "area/auth"}, got["abc123"].Labels)
 }
 
-// End-to-end: Azure release-notes enrichment renders "by @author in [!N]".
+// End-to-end: Azure release-notes enrichment renders "in [!N]". Azure does not yet resolve the
+// commit-author handle (GitHub-only in this cut), so the commit line carries only the PR
+// reference link — no "by @" — even though the PR itself has an author.
 func TestGenerate_Enrich_Azure(t *testing.T) {
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		_, _ = io.WriteString(w, azurePRQueryBody("abc1234567", 42, "Jane Doe", "jane@corp.com"))
@@ -173,7 +175,8 @@ func TestGenerate_Enrich_Azure(t *testing.T) {
 
 	out, err := g.Generate("v1.1.0", azureLC(srv.URL))
 	require.NoError(t, err)
-	assert.Contains(t, out, "by @jane in [!42]("+srv.URL+"/myorg/myproj/_git/myrepo/pullrequest/42)")
+	assert.Contains(t, out, "in [!42]("+srv.URL+"/myorg/myproj/_git/myrepo/pullrequest/42)")
+	assert.NotContains(t, out, "by @", "Azure commit-author handle resolution is not yet implemented")
 	assert.False(t, g.Degraded())
 
 	require.Len(t, mr.Calls, 4)

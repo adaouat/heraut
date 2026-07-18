@@ -492,9 +492,11 @@ func TestRenderReleaseNotes_Contributors_Golden(t *testing.T) {
 		PR:          &PullRequest{Number: 7, URL: "https://github.com/acme/widget/pull/7", AuthorLogin: "alice", RefPrefix: "#"},
 	}}
 
+	groups := fixtureGroups()
+	overlayAuthorHandles(groups, map[string]string{rc1.Hash: "alice"})
 	got, err := renderReleaseNotes(
 		"v1.2.3", "v1.2.2", releaseDate,
-		fixtureGroups(), githubLC, nil, prevDate, 3, prs, contribs, tplHeraut{}, nil, "",
+		groups, githubLC, nil, prevDate, 3, prs, contribs, tplHeraut{}, nil, "",
 	)
 	require.NoError(t, err)
 
