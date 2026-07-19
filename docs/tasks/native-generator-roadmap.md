@@ -847,10 +847,12 @@ onto each grouped commit by `overlayAuthorHandles` before `buildCommit` reads it
 unconditionally (was: gated on `{{ if .PR }}`, sourced from the PR author), with the PR
 contributing only `in [{{ .PR.Ref }}](...)`. Committer ≠ PR author → committer wins, matching
 git-cliff. Unlinked author (`author.user == null`) or offline → no `by @`, unchanged. Byte-identity
-held for every golden passing `nil` enrichment; `release_notes_contributors.golden` was the one
-intended change (a commit line gains ` by @alice`). GitLab and Azure are unchanged — no
-commit-author handle is resolved on either, so their commit lines render no `by @` until the
-follow-up tasks below land. **Scope:** M. **Dependencies:** Phase 2.7 (unified enrichment model).
+held for **every** golden — including `release_notes_contributors.golden`: its fixture's PR-author
+login already equalled the overlaid commit-author handle (`alice`), so the source switch produced
+identical bytes and no golden changed at all (the switch was proven instead by a dedicated test
+using differing PR-author vs commit-author logins). GitLab and Azure resolve no commit-author
+handle, so their commit lines now render no `by @` — they lose the previous PR/MR-author credit but
+keep the `in [!N]` reference link — until the follow-up tasks below land. **Scope:** M. **Dependencies:** Phase 2.7 (unified enrichment model).
 
 #### `[ ]` T150: GitLab commit-author handle
 
