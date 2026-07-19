@@ -854,6 +854,18 @@ using differing PR-author vs commit-author logins). GitLab and Azure resolve no 
 handle, so their commit lines now render no `by @` — they lose the previous PR/MR-author credit but
 keep the `in [!N]` reference link — until the follow-up tasks below land. **Scope:** M. **Dependencies:** Phase 2.7 (unified enrichment model).
 
+**Regression fix (2026-07-19):** v0.51.0 shipped the attribution feature but heraut's own
+changelog still rendered zero `by @` in CI. Root cause was pre-existing (latent since the v0.50.0
+native switch, invisible until this feature depended on it): `pipeline.ambientLinkContext()` set
+`BaseURL` to the full `host/owner/repo` and left `Owner`/`Repo` empty, so native's
+`buildGitHubQuery` addressed `repository(owner:"",name:"")` and the enrichment `gh api graphql`
+call 404'd — degrading silently to no attribution. Fix: `ambientLinkContext` now sets `BaseURL` to
+the host only and splits `Owner`/`Repo` from `GITHUB_REPOSITORY` (and, for GitLab, from
+`CI_SERVER_URL` + `CI_PROJECT_PATH` via `splitProjectPath`, which keeps subgroups in the owner).
+git-cliff's `linkEnv` composes the identical `{remote}` from `BaseURL`+`Owner`+`Repo`, so its links
+are unchanged; the `CI_PROJECT_URL`-only branch remains a links-only GitLab fallback. Covered by
+`TestAmbientLinkContext` (github/gitlab-split cases now assert populated `Owner`/`Repo`).
+
 #### `[ ]` T150: GitLab commit-author handle
 
 GitLab's REST API cannot resolve an arbitrary commit-author email to a user (privacy-restricted).

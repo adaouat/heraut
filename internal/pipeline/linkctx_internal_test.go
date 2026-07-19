@@ -16,29 +16,45 @@ func TestAmbientLinkContext(t *testing.T) {
 	tests := []struct {
 		name     string
 		ciURL    string // CI_PROJECT_URL
+		ciServer string // CI_SERVER_URL
+		ciPath   string // CI_PROJECT_PATH
 		ghServer string // GITHUB_SERVER_URL
 		ghRepo   string // GITHUB_REPOSITORY
 		want     *port.LinkContext
 	}{
 		{
-			name:  "gitlab from CI_PROJECT_URL (full self-hosted root)",
+			name:     "gitlab from CI_SERVER_URL + CI_PROJECT_PATH (owner/repo split, subgroup)",
+			ciServer: "https://gitlab.example.com",
+			ciPath:   "grp/sub/proj",
+			want:     &port.LinkContext{BaseURL: "https://gitlab.example.com", Owner: "grp/sub", Repo: "proj", Platform: "gitlab"},
+		},
+		{
+			name:  "gitlab from CI_PROJECT_URL only (fallback — links only, no enrichment)",
 			ciURL: "https://gitlab.example.com/grp/proj",
 			want:  &port.LinkContext{BaseURL: "https://gitlab.example.com/grp/proj", Platform: "gitlab"},
 		},
 		{
-			name:     "github from GITHUB_SERVER_URL + GITHUB_REPOSITORY",
+			name:     "github from GITHUB_SERVER_URL + GITHUB_REPOSITORY (owner/repo populated)",
 			ghServer: "https://github.com",
 			ghRepo:   "acme/widget",
-			want:     &port.LinkContext{BaseURL: "https://github.com/acme/widget", Platform: "github"},
+			want:     &port.LinkContext{BaseURL: "https://github.com", Owner: "acme", Repo: "widget", Platform: "github"},
 		},
 		{
 			name:     "github enterprise host",
 			ghServer: "https://github.acme.com",
 			ghRepo:   "acme/widget",
-			want:     &port.LinkContext{BaseURL: "https://github.acme.com/acme/widget", Platform: "github"},
+			want:     &port.LinkContext{BaseURL: "https://github.acme.com", Owner: "acme", Repo: "widget", Platform: "github"},
 		},
 		{
-			name:     "CI_PROJECT_URL wins when both present",
+			name:     "gitlab split wins when github also present",
+			ciServer: "https://gitlab.example.com",
+			ciPath:   "grp/proj",
+			ghServer: "https://github.com",
+			ghRepo:   "acme/widget",
+			want:     &port.LinkContext{BaseURL: "https://gitlab.example.com", Owner: "grp", Repo: "proj", Platform: "gitlab"},
+		},
+		{
+			name:     "CI_PROJECT_URL fallback wins over github",
 			ciURL:    "https://gitlab.example.com/grp/proj",
 			ghServer: "https://github.com",
 			ghRepo:   "acme/widget",
@@ -57,6 +73,8 @@ func TestAmbientLinkContext(t *testing.T) {
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Setenv("CI_PROJECT_URL", tc.ciURL)
+			t.Setenv("CI_SERVER_URL", tc.ciServer)
+			t.Setenv("CI_PROJECT_PATH", tc.ciPath)
 			t.Setenv("GITHUB_SERVER_URL", tc.ghServer)
 			t.Setenv("GITHUB_REPOSITORY", tc.ghRepo)
 			assert.Equal(t, tc.want, ambientLinkContext())

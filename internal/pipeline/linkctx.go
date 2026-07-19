@@ -69,24 +69,45 @@ func tokenEnvOrDefault(configured, def string) string {
 	return def
 }
 
-// ambientLinkContext resolves the link context from the ambient CI environment — the host
-// of the repository the pipeline is running against. This is the link-host fallback that
-// used to live in the embedded Tera templates, relocated into Go so the templates stay
+// ambientLinkContext resolves the link context from the ambient CI environment — the host and
+// owner/repo of the repository the pipeline is running against. This is the link-host fallback
+// that used to live in the embedded Tera templates, relocated into Go so the templates stay
 // branch-free (ADR-0022).
 //
-// The BaseURL holds the full repo root (Owner/Repo stay empty); gitcliff.linkEnv composes
-// the same {remote} from it with no URL-splitting. Returns nil when no CI host is present,
-// in which case the caller falls through to a configured platform's context or to nil.
+// BaseURL is the host only, with Owner/Repo split from the CI-provided path: git-cliff's linkEnv
+// composes the same {remote} from BaseURL+Owner+Repo, and — crucially — native's remote enrichment
+// needs Owner/Repo to address the GitHub/GitLab API. Leaving them empty made native's ambient
+// enrichment query `owner:""` and 404 (silently degrading with no attribution). The GitLab
+// CI_PROJECT_URL branch is a links-only fallback for when CI_SERVER_URL / CI_PROJECT_PATH are
+// absent — enrichment stays degraded there, but links still resolve. Returns nil when no CI host
+// is present, in which case the caller falls through to a configured platform's context or to nil.
 func ambientLinkContext() *port.LinkContext {
+	// GitLab CI: split CI_SERVER_URL + CI_PROJECT_PATH so native enrichment can address the project.
+	if server := os.Getenv("CI_SERVER_URL"); server != "" {
+		if path := os.Getenv("CI_PROJECT_PATH"); path != "" {
+			owner, repo := splitProjectPath(path)
+			return &port.LinkContext{BaseURL: strings.TrimRight(server, "/"), Owner: owner, Repo: repo, Platform: "gitlab"}
+		}
+	}
 	if u := os.Getenv("CI_PROJECT_URL"); u != "" {
-		return &port.LinkContext{BaseURL: u, Platform: "gitlab"}
+		return &port.LinkContext{BaseURL: u, Platform: "gitlab"} // links-only fallback
 	}
 	if server := os.Getenv("GITHUB_SERVER_URL"); server != "" {
 		if repo := os.Getenv("GITHUB_REPOSITORY"); repo != "" {
-			return &port.LinkContext{BaseURL: strings.TrimRight(server, "/") + "/" + repo, Platform: "github"}
+			owner, name, _ := strings.Cut(repo, "/")
+			return &port.LinkContext{BaseURL: strings.TrimRight(server, "/"), Owner: owner, Repo: name, Platform: "github"}
 		}
 	}
 	return nil
+}
+
+// splitProjectPath splits a GitLab project path ("group[/subgroup]/project") into the owner
+// (everything up to the last segment) and the project name (the last segment).
+func splitProjectPath(path string) (owner, project string) {
+	if i := strings.LastIndex(path, "/"); i >= 0 {
+		return path[:i], path[i+1:]
+	}
+	return "", path
 }
 
 // changelogLinkContext resolves the link context for the committed changelog. An
