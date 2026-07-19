@@ -1,5 +1,27 @@
 # Changelog
 
+<!-- heraut-release: v0.51.0 -->
+## [0.51.0](https://github.com/adaouat/heraut/compare/v0.50.0..v0.51.0) - 2026-07-19
+
+### 🚀 Features
+
+- *(generators/native)* Resolve commit-author handle (GitHub) - ([b0b8aca](https://github.com/adaouat/heraut/commit/b0b8aca53bc8bc035ef6fc349d1ef94146cdfe30))
+
+- *(generators/native)* Carry commit-author handle onto commits - ([038f25e](https://github.com/adaouat/heraut/commit/038f25ee3214e61371243f64408ea0ec53c22870))
+
+- *(generators/native)* Credit the commit author on commit lines - ([afe8d0d](https://github.com/adaouat/heraut/commit/afe8d0d135fb52c98e017856b9c81ab6be4a769b))
+
+
+### 📚 Documentation
+
+- *(adr)* 0039 commit-author attribution; spec, roadmap, follow-ups - ([ef3b050](https://github.com/adaouat/heraut/commit/ef3b050661c08692ac7d195c87f6c5bc8d452afd))
+
+- *(roadmap)* Correct the Phase 2.10 golden note - ([79f696b](https://github.com/adaouat/heraut/commit/79f696b6efbb36e0451bbc4962a54d9c80a5fde4))
+
+- Commit-author attribution design (native, GitHub-first) - ([2dbd5c4](https://github.com/adaouat/heraut/commit/2dbd5c49bc656966aca33a876444f1e356d8e1a1))
+
+- Commit-author attribution implementation plan - ([3a0346d](https://github.com/adaouat/heraut/commit/3a0346d3bcdb482d51fb5a5b30003c5d2533567e))
+
 <!-- heraut-release: v0.50.0 -->
 ## [0.50.0](https://github.com/adaouat/heraut/compare/v0.49.0..v0.50.0) - 2026-07-15
 
