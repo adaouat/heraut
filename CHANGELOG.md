@@ -1,5 +1,32 @@
 # Changelog
 
+<!-- heraut-release: v0.52.0 -->
+## [0.52.0](https://github.com/adaouat/heraut/compare/v0.51.1..v0.52.0) - 2026-07-22
+
+### 🚀 Features
+
+- *(config)* Base_url host override on changelog.remote (replaces api_url) - ([74d5ccd](https://github.com/adaouat/heraut/commit/74d5ccd819d87fa5ccd56a7ce22fb406dd1570d8)) by @bchatard
+
+- *(config)* Allow changelog.remote with the native generator - ([6843367](https://github.com/adaouat/heraut/commit/6843367db8c729a6fec7c4bf792555a5c2407e96)) by @bchatard
+
+
+### 📚 Documentation
+
+- *(adr)* 0040 changelog.remote for native + base_url - ([8e292b8](https://github.com/adaouat/heraut/commit/8e292b83167b8dd737b8de7c7b01da37a61986fe)) by @bchatard
+
+- *(config)* Sync schema + sample + fixtures for remote base_url - ([3b5b29d](https://github.com/adaouat/heraut/commit/3b5b29dc250a2c1a6ffb56f95afd83410c562a93)) by @bchatard
+
+- *(plans)* Implementation plan for changelog.remote native + base_url - ([d88a09f](https://github.com/adaouat/heraut/commit/d88a09f57db649e846c7ba6cca5490c1d70116a4)) by @bchatard
+
+- *(roadmap)* Annotate T114 example as superseded by ADR-0040 - ([28f4060](https://github.com/adaouat/heraut/commit/28f40603508df23833328a6da1f0a6380f0a0569)) by @bchatard
+
+- *(specs)* Design changelog.remote for native + base_url host override - ([96f647b](https://github.com/adaouat/heraut/commit/96f647b818e55636948c9c83cc583f06cc27c40a)) by @bchatard
+
+
+### 💼 Other
+
+- *(deps)* Bump golang.org/x/text to v0.39.0 (GO-2026-5970) - ([32865e2](https://github.com/adaouat/heraut/commit/32865e23b4f42411a197af6e344cc7f652a4d588)) by @bchatard
+
 <!-- heraut-release: v0.51.1 -->
 ## [0.51.1](https://github.com/adaouat/heraut/compare/v0.51.0..v0.51.1) - 2026-07-20
 
