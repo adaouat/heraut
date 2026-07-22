@@ -179,11 +179,11 @@ changelog:
   #   templates:
   #     header: "# Changelog\n\nAll notable changes to this project.\n"
 
-  # remote — explicit, metadata-only remote for git-cliff PR/author enrichment.
-  # git-cliff only. Changelog only — release.notes already resolves this from
+  # remote — explicit, metadata-only remote for PR/author enrichment (git-cliff or
+  # native). Changelog only — release.notes already resolves this from
   # release.platforms, so it has no remote: field of its own. Unlike
   # release.platforms, this never grants publish capability — heraut never
-  # publishes a release here, it only tells git-cliff where to fetch PR/MR
+  # publishes a release here, it only tells heraut where to fetch PR/MR
   # metadata and commit/PR link shapes for the changelog. See ADR-0026.
   #
   # Use this when your changelog's commit history doesn't come from one of your
@@ -201,7 +201,8 @@ changelog:
   #                                   # (required, namespace[/subgroup]/repo)
   #   repository: my-repo            # azure_devops (required) / github (required, owner/repo)
   #   token_env: AZURE_DEVOPS_TOKEN  # optional override; defaults to GITHUB_TOKEN / GITLAB_TOKEN / AZURE_DEVOPS_TOKEN
-  #   api_url: https://dev.azure.com # optional; Azure DevOps Server (on-prem) only
+  #   base_url: https://git.example.com # optional host override; all types (GHES /
+  #                                     # self-managed GitLab / on-prem Azure). Absolute http(s) URL.
 
 # ── release ───────────────────────────────────────────────────────────────────
 #

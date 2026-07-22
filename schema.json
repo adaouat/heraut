@@ -305,7 +305,7 @@
         },
         "remote": {
           "$ref": "#/definitions/Remote",
-          "description": "Explicit metadata-only remote for git-cliff PR/author enrichment. Changelog only — release notes already resolve this from release.platforms and reject this block. git-cliff only. See ADR-0026."
+          "description": "Explicit metadata remote for PR/author enrichment and link hosts (git-cliff or native). Changelog only — release notes resolve this from release.platforms and reject this block. See ADR-0026 / ADR-0040."
         }
       }
     },
@@ -315,7 +315,7 @@
         "type"
       ],
       "additionalProperties": false,
-      "description": "Explicit, metadata-only remote for git-cliff PR/author enrichment. Unlike release.platforms, this never grants publish capability.",
+      "description": "Explicit, metadata-only remote for PR/author enrichment (git-cliff or native). Unlike release.platforms, this never grants publish capability.",
       "properties": {
         "type": {
           "type": "string",
@@ -338,9 +338,9 @@
           "type": "string",
           "description": "Environment variable holding the API token. Defaults to GITHUB_TOKEN / GITLAB_TOKEN / AZURE_DEVOPS_TOKEN depending on type."
         },
-        "api_url": {
+        "base_url": {
           "type": "string",
-          "description": "API/web host override. Azure DevOps Server (on-prem) only; defaults to https://dev.azure.com."
+          "description": "Web/API host override for all types: github (github.com / GHES), gitlab (gitlab.com / self-managed), azure_devops (dev.azure.com / on-prem Server). Must be an absolute http(s) URL. Defaults per type when unset."
         }
       }
     },

@@ -1,5 +1,3 @@
-# yaml-language-server: $schema=https://raw.githubusercontent.com/adaouat/heraut/main/schema.json
-
 version: "1"
 
 versioning:
@@ -11,4 +9,4 @@ changelog:
     type: azure_devops
     project: my-org/my-project
     repository: my-repo
-    base_url: https://devops.example.com
+    api_url: https://dev.azure.com

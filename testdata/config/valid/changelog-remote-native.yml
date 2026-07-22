@@ -6,9 +6,9 @@ versioning:
   strategy: semver
 
 changelog:
-  generator: git-cliff
+  generator: native
+  output: CHANGELOG.md
   remote:
-    type: azure_devops
-    project: my-org/my-project
-    repository: my-repo
-    base_url: https://devops.example.com
+    type: gitlab
+    project: internal-tools/ci-cd/catalog/release-notes
+    base_url: https://git.cross-systems.ch
