@@ -4703,6 +4703,11 @@ The embedded TOML comments updated to reflect that no manual config is needed.
 
 #### `[x]` T114: Add `changelog.remote` — explicit metadata remote for git-cliff (Azure DevOps)
 
+> **Historical note:** the config example below predates later changes. `changelog.remote` is
+> no longer git-cliff-only (works with `native` too), the `api_url` field was replaced by
+> `base_url`, and the `organization:` key was folded into `project:` — all superseded by
+> [ADR-0040](../adr/0040-changelog-remote-native-base-url.md). Kept as a point-in-time record.
+
 git-cliff 2.13 supports an Azure DevOps remote for PR/author metadata enrichment
 (`[remote.azure_devops]` with `owner = "<organization>/<project>"` and
 `repo = "<repository>"`; `AZURE_DEVOPS_TOKEN`/`AZURE_DEVOPS_REPO` env vars — confirmed via
