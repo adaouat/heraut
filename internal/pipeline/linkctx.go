@@ -27,7 +27,7 @@ func remoteLinkContext(r *config.Remote) *port.LinkContext {
 	case "github":
 		owner, repo, _ := strings.Cut(r.Repository, "/")
 		return &port.LinkContext{
-			BaseURL:  config.DefaultBaseURL("github"),
+			BaseURL:  remoteBaseURL(r.BaseURL, "github"),
 			Owner:    owner,
 			Repo:     repo,
 			Platform: "github",
@@ -39,19 +39,15 @@ func remoteLinkContext(r *config.Remote) *port.LinkContext {
 			owner, repo = r.Project[:i], r.Project[i+1:]
 		}
 		return &port.LinkContext{
-			BaseURL:  config.DefaultBaseURL("gitlab"),
+			BaseURL:  remoteBaseURL(r.BaseURL, "gitlab"),
 			Owner:    owner,
 			Repo:     repo,
 			Platform: "gitlab",
 			Token:    os.Getenv(tokenEnvOrDefault(r.TokenEnv, gitlabDefaultTokenEnv)),
 		}
 	case "azure_devops":
-		baseURL := r.APIURL
-		if baseURL == "" {
-			baseURL = azureDevOpsDefaultBaseURL
-		}
 		return &port.LinkContext{
-			BaseURL:  baseURL,
+			BaseURL:  remoteBaseURL(r.BaseURL, "azure_devops"),
 			Owner:    r.Project,
 			Repo:     r.Repository,
 			Platform: "azure_devops",
@@ -60,6 +56,19 @@ func remoteLinkContext(r *config.Remote) *port.LinkContext {
 	default:
 		return nil
 	}
+}
+
+// remoteBaseURL returns the configured base URL (trailing slash trimmed) when set, else the
+// per-type default web/API host. azure_devops has no config.DefaultBaseURL entry, so its
+// default is applied here.
+func remoteBaseURL(configured, platformType string) string {
+	if configured != "" {
+		return strings.TrimRight(configured, "/")
+	}
+	if platformType == "azure_devops" {
+		return azureDevOpsDefaultBaseURL
+	}
+	return config.DefaultBaseURL(platformType)
 }
 
 func tokenEnvOrDefault(configured, def string) string {

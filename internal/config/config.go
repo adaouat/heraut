@@ -149,9 +149,11 @@ type Remote struct {
 	// TokenEnv overrides the default token env var read for this remote's type
 	// (GITHUB_TOKEN, GITLAB_TOKEN, or AZURE_DEVOPS_TOKEN).
 	TokenEnv string `yaml:"token_env,omitempty"`
-	// APIURL overrides the remote's default API host. Only meaningful for
-	// type: azure_devops (Azure DevOps Server / on-prem).
-	APIURL string `yaml:"api_url,omitempty"`
+	// BaseURL overrides the remote's default web/API host. Applies to every type:
+	// github (github.com / GitHub Enterprise Server), gitlab (gitlab.com /
+	// self-managed), and azure_devops (dev.azure.com / on-prem Server). Empty uses
+	// the per-type default.
+	BaseURL string `yaml:"base_url,omitempty"`
 }
 
 // Release holds release notes and platform settings.

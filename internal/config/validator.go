@@ -458,11 +458,11 @@ func validateContentDriverRemote(d *ContentDriver, path string) []ValidationErro
 			Hint:    "valid types: github, gitlab, azure_devops",
 		})
 	}
-	if r.APIURL != "" && !isValidBaseURL(strings.TrimRight(r.APIURL, "/")) {
+	if r.BaseURL != "" && !isValidBaseURL(strings.TrimRight(r.BaseURL, "/")) {
 		errs = append(errs, ValidationError{
-			Path:    remotePath + ".api_url",
-			Message: fmt.Sprintf("%q is not a valid URL", r.APIURL),
-			Hint:    "api_url must be an absolute http(s) URL, e.g. https://dev.azure.com",
+			Path:    remotePath + ".base_url",
+			Message: fmt.Sprintf("%q is not a valid URL", r.BaseURL),
+			Hint:    "base_url must be an absolute http(s) URL, e.g. https://git.example.com",
 		})
 	}
 	return errs

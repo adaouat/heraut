@@ -95,6 +95,18 @@ func TestEnrichGitLab_Subgroup(t *testing.T) {
 	assert.Equal(t, []string{"api", "projects/group%2Fsubgroup%2Fproject/repository/commits/deadbeef/merge_requests"}, mr.Calls[0].Args)
 }
 
+func TestEnrichGitLab_SelfHostedHostInAPIEnv(t *testing.T) {
+	mr := exectest.NewMockRunner()
+	mr.QueueResponse(`[{"iid":7,"web_url":"https://git.example.com/g/p/-/merge_requests/7","author":{"username":"alice"}}]`, "", nil)
+	lc := &port.LinkContext{Platform: "gitlab", BaseURL: "https://git.example.com", Owner: "g", Repo: "p", Token: "tok"}
+
+	_, err := enrichGitLab(mr, lc, []string{"abc123"})
+	require.NoError(t, err)
+	require.Len(t, mr.Calls, 1)
+	assert.Contains(t, mr.Calls[0].Env, "GITLAB_TOKEN=tok")
+	assert.Contains(t, mr.Calls[0].Env, "GITLAB_HOST=git.example.com")
+}
+
 // End-to-end: GitLab release-notes enrichment renders "!N" (not "#N"). GitLab does not yet
 // resolve the commit-author handle (GitHub-only in this cut), so the commit line carries only
 // the MR reference link — no "by @" — even though the MR itself has an author.

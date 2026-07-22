@@ -134,9 +134,24 @@ func TestRemoteLinkContext(t *testing.T) {
 			want: &port.LinkContext{BaseURL: "https://dev.azure.com", Owner: "group1/sub-group", Repo: "myApp", Platform: "azure_devops", Token: "adotok"},
 		},
 		{
-			name: "azure_devops honours api_url override",
-			r:    &config.Remote{Type: "azure_devops", Project: "group1/sub-group", Repository: "myApp", APIURL: "https://devops.example.com"},
+			name: "azure_devops honours base_url override",
+			r:    &config.Remote{Type: "azure_devops", Project: "group1/sub-group", Repository: "myApp", BaseURL: "https://devops.example.com"},
 			want: &port.LinkContext{BaseURL: "https://devops.example.com", Owner: "group1/sub-group", Repo: "myApp", Platform: "azure_devops"},
+		},
+		{
+			name: "github honours base_url (GHES)",
+			r:    &config.Remote{Type: "github", Repository: "acme/widget", BaseURL: "https://github.acme.com"},
+			want: &port.LinkContext{BaseURL: "https://github.acme.com", Owner: "acme", Repo: "widget", Platform: "github"},
+		},
+		{
+			name: "gitlab honours base_url (self-managed, subgroup)",
+			r:    &config.Remote{Type: "gitlab", Project: "internal-tools/ci-cd/catalog/release-notes", BaseURL: "https://git.cross-systems.ch"},
+			want: &port.LinkContext{BaseURL: "https://git.cross-systems.ch", Owner: "internal-tools/ci-cd/catalog", Repo: "release-notes", Platform: "gitlab"},
+		},
+		{
+			name: "base_url trailing slash trimmed",
+			r:    &config.Remote{Type: "gitlab", Project: "grp/proj", BaseURL: "https://git.example.com/"},
+			want: &port.LinkContext{BaseURL: "https://git.example.com", Owner: "grp", Repo: "proj", Platform: "gitlab"},
 		},
 		{
 			name: "unrecognized type returns nil",

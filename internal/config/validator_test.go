@@ -1383,7 +1383,7 @@ changelog:
 	assert.Contains(t, e.Message, "git-cliff")
 }
 
-func TestValidate_changelogRemoteInvalidAPIURL(t *testing.T) {
+func TestValidate_changelogRemoteInvalidBaseURL(t *testing.T) {
 	cfg := mustLoad(t, `
 version: "1"
 versioning:
@@ -1391,12 +1391,11 @@ versioning:
 changelog:
   generator: git-cliff
   remote:
-    type: azure_devops
-    project: my-org/my-project
-    repository: my-repo
-    api_url: "not-a-url"
+    type: gitlab
+    project: my-org/my-repo
+    base_url: "not-a-url"
 `)
-	e := findErr(config.Validate(cfg), "changelog.remote.api_url")
+	e := findErr(config.Validate(cfg), "changelog.remote.base_url")
 	require.NotNil(t, e)
 }
 

@@ -413,3 +413,21 @@ commits:
 	require.NotNil(t, cfg.Commits)
 	assert.Equal(t, []string{"cmd", "config", "versioning"}, config.ScopeNames(cfg.Commits.Scopes))
 }
+
+func TestLoadFromReader_rejectsRemovedRemoteAPIURLKey(t *testing.T) {
+	src := `
+version: "1"
+versioning:
+  strategy: semver
+changelog:
+  generator: git-cliff
+  remote:
+    type: azure_devops
+    project: my-org/my-project
+    repository: my-repo
+    api_url: https://dev.azure.com
+`
+	_, err := config.LoadFromReader(strings.NewReader(src))
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "api_url")
+}
