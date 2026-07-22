@@ -895,6 +895,18 @@ today is still overlaid from a contributor's first PR/MR (unchanged by
 section), so a platform's `sha → authorHandle` map could, as a further extension, also drive
 first-timer credit for direct-commit contributors — noted here, not scheduled.
 
+#### `[x]` T152: changelog.remote for native + base_url host override (ADR-0040)
+
+`heraut changelog --regenerate` locally on self-hosted GitLab produced no links/attribution
+because the changelog-only pipeline's link-context chain is `changelog.remote → ambient`,
+and locally the block was rejected for native and `remoteLinkContext()` hardcoded gitlab.com.
+Lifted the git-cliff-only gate on `changelog.remote` and replaced `api_url` with a unified
+`base_url` host override across github/gitlab/azure_devops. Because `LinkContext.BaseURL`
+already drives both links and `APIEnv()` host routing, no generator/enrichment plumbing
+changed. Breaking (pre-v1.0): `api_url` removed. GitLab commit-author `by @` stays out of
+scope (T150); an offline attribution fallback was deferred. **Scope:** S. **Dependencies:**
+Phase 2.7 (unified enrichment), ADR-0026.
+
 ---
 
 ## Phase 3 — Raw-HTTP platform clients (deferred)

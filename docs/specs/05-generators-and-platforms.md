@@ -205,7 +205,8 @@ changelog:
                                      # (required: namespace[/subgroup]/repo)
     repository: my-repo             # azure_devops (required) / github (required: owner/repo)
     token_env: AZURE_DEVOPS_TOKEN    # optional override
-    api_url: https://dev.azure.com  # optional, Azure DevOps Server (on-prem) only
+    base_url: https://git.example.com  # optional host override; all types (GHES /
+                                       # self-managed GitLab / on-prem Azure). Absolute http(s) URL.
 ```
 
 Release notes always has a deterministic remote — it is generated per platform being
@@ -214,9 +215,10 @@ detection, then the sole configured platform (if exactly one), then `nil` (bare 
 `changelog.remote` fills that gap with an explicit, type-discriminated, metadata-only
 block, consumed ahead of that fallback chain. Unlike `release.platforms`, it never grants
 publish capability — heraut never publishes a release through this block, it only tells
-git-cliff/heraut where to source PR/MR metadata and commit/PR link shapes. `git-cliff`
-only; setting it on `release.notes` (which already resolves this from
-`release.platforms`) is a config error.
+the active generator where to source PR/MR metadata and commit/PR link shapes. It is
+changelog-only; setting it on `release.notes` (which already resolves this from
+`release.platforms`) is a config error. Valid with both the `git-cliff` and `native`
+generators (ADR-0040).
 
 Azure DevOps repository URLs are structurally different from GitHub/GitLab: the
 repository root inserts `/_git/` between the project and repository segments

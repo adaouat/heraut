@@ -30,7 +30,7 @@ trade-offs were accepted.
 | [0023](0023-remote-metadata-policy.md) | Remote-Metadata Policy for Content Generation | Accepted |
 | [0024](0024-ticket-linking.md) | Ticket Linking via git-cliff link_parsers | Accepted |
 | [0025](0025-multi-instance-platforms.md) | Multi-Instance Same-Platform Releases | Accepted |
-| [0026](0026-azure-devops-metadata-remote.md) | `changelog.remote` — Explicit Metadata Remote for git-cliff | Accepted |
+| [0026](0026-azure-devops-metadata-remote.md) | `changelog.remote` — Explicit Metadata Remote for git-cliff | Accepted (git-cliff-only gate + `api_url` superseded by 0040) |
 | [0027](0027-builtin-conventional-commit-checker.md) | Built-in Conventional-Commit Checker | Accepted (`commit_lint` superseded by 0033) |
 | [0028](0028-drop-cocogitto-generator.md) | Drop the `cocogitto` Generator Entirely | Accepted |
 | [0029](0029-pkl-builtin-commit-verify.md) | Publish a Pkl Builtin for `heraut commit verify` | Accepted |
@@ -39,8 +39,9 @@ trade-offs were accepted.
 | [0032](0032-native-content-generator.md) | Built-in (Native) Content Generator | Accepted (config model + opt-in framing superseded by 0033) |
 | [0033](0033-native-config-model.md) | Heraut-Native Config Model — `commits` + `rendering` | Accepted |
 | [0034](0034-native-remote-enrichment.md) | Native Remote Enrichment via Platform CLIs | Accepted (§3 Azure transport superseded by 0035; first-timer mechanism superseded by 0036) |
-| [0035](0035-azure-enrichment-native-http.md) | Azure DevOps Enrichment via a Native `net/http` Client | Accepted |
+| [0035](0035-azure-enrichment-native-http.md) | Azure DevOps Enrichment via a Native `net/http` Client | Accepted (`changelog.remote.api_url` reference superseded by 0040) |
 | [0036](0036-unified-enrichment-model.md) | Unified Cross-Platform Enrichment Model | Accepted |
 | [0037](0037-native-template-api.md) | Native Generator Public Template API | Accepted |
 | [0038](0038-incremental-changelog.md) | Incremental Changelog Generation (native) | Accepted |
 | [0039](0039-commit-author-attribution.md) | Commit-Author Attribution (native) | Accepted |
+| [0040](0040-changelog-remote-native-base-url.md) | `changelog.remote` for native + unified `base_url` host override | Accepted |
