@@ -390,8 +390,8 @@ func validateContentDriverTemplates(d *ContentDriver, path string) []ValidationE
 
 // validateContentDriverRemote validates an explicit changelog.remote block (ADR-0026): it
 // is only valid on the changelog content driver (release notes already resolve PR/MR
-// metadata from release.platforms), requires the git-cliff generator, and requires a valid
-// type with that type's required fields.
+// metadata from release.platforms), and requires a valid type with that type's required
+// fields.
 func validateContentDriverRemote(d *ContentDriver, path string) []ValidationError {
 	if d.Remote == nil {
 		return nil
@@ -405,13 +405,6 @@ func validateContentDriverRemote(d *ContentDriver, path string) []ValidationErro
 		}}
 	}
 	var errs []ValidationError
-	if d.Generator != "" && d.Generator != "git-cliff" {
-		errs = append(errs, ValidationError{
-			Path:    remotePath,
-			Message: "remote requires the git-cliff generator",
-			Hint:    fmt.Sprintf("set generator to git-cliff, or remove remote (current generator: %s)", d.Generator),
-		})
-	}
 	r := d.Remote
 	switch r.Type {
 	case "":

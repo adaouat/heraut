@@ -1366,21 +1366,22 @@ changelog:
 	assert.Contains(t, e.Message, "gitlab")
 }
 
-func TestValidate_changelogRemoteRequiresGitCliff(t *testing.T) {
+func TestValidate_changelogRemoteAllowsNative(t *testing.T) {
 	cfg := mustLoad(t, `
 version: "1"
 versioning:
   strategy: semver
 changelog:
-  generator: communique
+  generator: native
   remote:
-    type: azure_devops
-    project: my-org/my-project
-    repository: my-repo
+    type: gitlab
+    project: my-org/my-repo
+    base_url: https://git.example.com
 `)
-	e := findErr(config.Validate(cfg), "changelog.remote")
-	require.NotNil(t, e)
-	assert.Contains(t, e.Message, "git-cliff")
+	errs := config.Validate(cfg)
+	for _, e := range errs {
+		assert.NotContains(t, e.Path, "remote", "unexpected remote error: %+v", e)
+	}
 }
 
 func TestValidate_changelogRemoteInvalidBaseURL(t *testing.T) {
