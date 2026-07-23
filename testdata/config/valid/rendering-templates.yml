@@ -1,0 +1,16 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/adaouat/heraut/main/schema.json
+
+version: "1"
+
+versioning:
+  strategy: semver
+
+changelog:
+  generator: native
+  output: CHANGELOG.md
+
+rendering:
+  templates:
+    commit: "- {{ .Description }} ({{ .ShortHash }})"
+    group: "{{ .HeadingPrefix }} {{ .Name }}"
+    release-notes: '{{range .Groups}}{{ template "group" . }}{{end}}'

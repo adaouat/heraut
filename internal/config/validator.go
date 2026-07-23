@@ -190,6 +190,18 @@ func allContentGeneratorsNative(cfg *Config) bool {
 
 // validateTemplateSnippets parses each inline template snippet under pathPrefix, reporting a
 // clear error keyed by block name when one fails to parse (ADR-0037).
+// validTemplateBlocks is the set of native template blocks that rendering.templates may override.
+// It must stay in sync with the {{define "…"}} blocks embedded in internal/generators/native
+// (blocks.tmpl / changelog.tmpl / release_notes.tmpl) and with schema.json. config cannot import
+// native (layer rule), so the list is maintained here.
+var validTemplateBlocks = map[string]bool{
+	"header": true, "footer": true, "group": true, "commit": true,
+	"contributor": true, "contributors": true, "stats": true,
+	"changelog": true, "release-notes": true,
+}
+
+const validTemplateBlocksHint = "valid blocks: changelog, commit, contributor, contributors, footer, group, header, release-notes, stats"
+
 func validateTemplateSnippets(snippets map[string]string, pathPrefix string) []ValidationError {
 	var errs []ValidationError
 	keys := make([]string, 0, len(snippets))
@@ -198,6 +210,14 @@ func validateTemplateSnippets(snippets map[string]string, pathPrefix string) []V
 	}
 	sort.Strings(keys)
 	for _, k := range keys {
+		if !validTemplateBlocks[k] {
+			errs = append(errs, ValidationError{
+				Path:    pathPrefix + "." + k,
+				Message: fmt.Sprintf("unknown template block %q", k),
+				Hint:    validTemplateBlocksHint,
+			})
+			continue
+		}
 		if err := parseTemplateSnippet(snippets[k]); err != nil {
 			errs = append(errs, ValidationError{
 				Path:    pathPrefix + "." + k,

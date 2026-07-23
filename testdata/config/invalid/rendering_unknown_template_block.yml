@@ -1,0 +1,11 @@
+version: "1"
+
+versioning:
+  strategy: semver
+
+changelog:
+  generator: native
+
+rendering:
+  templates:
+    commits: "- {{ .Description }}"

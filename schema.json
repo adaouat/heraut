@@ -167,9 +167,45 @@
         },
         "templates": {
           "type": "object",
-          "description": "Override built-in native template blocks by key (e.g. commit, group, contributor, header, footer): each value is a Go text/template snippet. native only; deep-merged global -> per-driver -> per-env (ADR-0037).",
-          "additionalProperties": {
-            "type": "string"
+          "description": "Override built-in native template blocks. Each value is a Go text/template snippet. native only; deep-merged global -> per-driver -> per-env (ADR-0037).",
+          "additionalProperties": false,
+          "properties": {
+            "header": {
+              "type": "string",
+              "description": "Version heading line. Changelog default: '## [version](compare-url) - date'. Release-notes default: empty."
+            },
+            "group": {
+              "type": "string",
+              "description": "Commit-type group heading (e.g. '### 🚀 Features')."
+            },
+            "commit": {
+              "type": "string",
+              "description": "One commit line: description, scope, breaking marker, hash link, 'by @author', PR/MR reference, ticket links."
+            },
+            "contributor": {
+              "type": "string",
+              "description": "One entry in the New Contributors block for a first-time contributor."
+            },
+            "contributors": {
+              "type": "string",
+              "description": "The 'New Contributors ❤️' block wrapping the contributor entries (release notes)."
+            },
+            "stats": {
+              "type": "string",
+              "description": "The Commit Statistics block (commit/issue counts, timespan) in release notes."
+            },
+            "footer": {
+              "type": "string",
+              "description": "Trailing content appended after the body. Empty by default."
+            },
+            "changelog": {
+              "type": "string",
+              "description": "Root changelog-section template composing header, group, and commit blocks."
+            },
+            "release-notes": {
+              "type": "string",
+              "description": "Root release-notes template composing header, group, commit, contributors, and stats blocks."
+            }
           }
         }
       }

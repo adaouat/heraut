@@ -1086,6 +1086,37 @@ rendering:
 	assert.Contains(t, e.Message, "template")
 }
 
+func TestValidate_RenderingTemplatesUnknownBlock(t *testing.T) {
+	cfg := mustLoad(t, `
+version: "1"
+versioning:
+  strategy: semver
+changelog:
+  generator: native
+rendering:
+  templates:
+    commits: "- {{ .Description }}"
+`)
+	e := findErr(config.Validate(cfg), "rendering.templates.commits")
+	require.NotNil(t, e)
+	assert.Contains(t, e.Message, "unknown template block")
+}
+
+// release-notes (hyphenated) is a valid overridable block — guard against a naive [a-z_] key check.
+func TestValidate_RenderingTemplatesHyphenatedBlockValid(t *testing.T) {
+	cfg := mustLoad(t, `
+version: "1"
+versioning:
+  strategy: semver
+changelog:
+  generator: native
+rendering:
+  templates:
+    release-notes: "{{range .Groups}}{{ template \"group\" . }}{{end}}"
+`)
+	assert.Empty(t, config.Validate(cfg))
+}
+
 func TestValidate_DriverTemplateRequiresNative(t *testing.T) {
 	cfg := mustLoad(t, `
 version: "1"

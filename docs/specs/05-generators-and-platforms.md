@@ -73,7 +73,9 @@ changelog:
 
 **Overridable blocks:** `header`, `group`, `commit`, `contributor`, `contributors`, `stats`,
 `footer`, and the roots `changelog` / `release-notes`. The changelog renders a one-line commit;
-the release-notes root wraps the shared `commit` block with indented body/footers.
+the release-notes root wraps the shared `commit` block with indented body/footers. Any other key
+under `rendering.templates` is a **config error** (a misspelled block would otherwise be silently
+ignored); `schema.json` enumerates the same set for editor autocompletion.
 
 **Template funcs** (safe set, no OS/file/network): `upperFirst`, `date`, `join`, `list`, `indent`,
 `trim`.
