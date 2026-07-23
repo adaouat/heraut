@@ -38,8 +38,7 @@ type ChangelogConfig struct {
 	// Populated from git config tag.gpgSign by the app layer.
 	SignTags bool
 	// RegenerateChangelog mirrors the native generator's --regenerate mode: when true, the
-	// changelog step re-enriches every section rather than splicing only the new one. Used
-	// here to decide whether gitlabRegenWarning applies.
+	// changelog step re-enriches every section rather than splicing only the new one.
 	RegenerateChangelog bool
 }
 
@@ -126,7 +125,7 @@ func (p *ChangelogPipeline) Run() error {
 			if _, err := p.cfg.Changelog.Generate(result.Tag, changelogCtx); err != nil {
 				return "", nil, fmt.Errorf("generating changelog: %w", err)
 			}
-			detail, subs := changelogGenResult(p.cfg.RegenerateChangelog, changelogCtx, p.cfg.Changelog)
+			detail, subs := changelogGenResult(p.cfg.Changelog)
 			return detail, subs, nil
 		}); err != nil {
 			return err
