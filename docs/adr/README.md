@@ -45,3 +45,4 @@ trade-offs were accepted.
 | [0038](0038-incremental-changelog.md) | Incremental Changelog Generation (native) | Accepted |
 | [0039](0039-commit-author-attribution.md) | Commit-Author Attribution (native) | Accepted |
 | [0040](0040-changelog-remote-native-base-url.md) | `changelog.remote` for native + unified `base_url` host override | Accepted |
+| [0041](0041-remote-metadata-required-enforcement-and-force.md) | `remote_metadata: required` enforcement and `--force` override | Accepted |

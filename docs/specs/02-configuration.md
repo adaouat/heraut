@@ -462,9 +462,12 @@ commit line as `([TICKET](url))`.
 ### `commits.remote_metadata`
 
 Whether content generators fetch PR/MR metadata (author handle, PR number) from the platform
-API to enrich the changelog and release notes: `required` (fetch, fail if unavailable),
-`optional` (default — fetch when possible, else warn), `disabled` (never fetch). The global
-`--offline` flag forces `disabled` for a single run (ADR-0023).
+API to enrich the changelog and release notes: `required` (fetch, and **fail** when the metadata
+cannot be fetched — the remote is unavailable/unreachable, *or* no changelog remote / release
+platform is configured to fetch from), `optional` (default — fetch when possible, else warn),
+`disabled` (never fetch). `--force` downgrades `required` to `optional` for a single run (degrade
+with a warning instead of failing). The global `--offline` flag forces `disabled` for a single run
+(ADR-0023).
 
 ## `rendering`
 
