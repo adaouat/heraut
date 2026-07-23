@@ -1,7 +1,6 @@
 package native
 
 import (
-	"errors"
 	"testing"
 	"time"
 
@@ -13,97 +12,19 @@ import (
 	"github.com/adaouat/heraut/internal/port"
 )
 
-func TestEnrichGitLab_ReviewFields(t *testing.T) {
-	mr := exectest.NewMockRunner()
-	mr.QueueResponse(`[{"iid":7,"web_url":"u","title":"t","author":{"username":"alice"},"labels":[],
-		"created_at":"2026-01-01T00:00:00Z","merged_at":"2026-01-02T00:00:00Z",
-		"merged_by":{"username":"maint"}}]`, "", nil)
-
-	got, err := enrichGitLab(mr, gitlabLC(), []string{"abc123"})
-	require.NoError(t, err)
-	pr := got["abc123"]
-	assert.Equal(t, "2026-01-01T00:00:00Z", pr.CreatedAt.UTC().Format(time.RFC3339))
-	assert.Equal(t, "2026-01-02T00:00:00Z", pr.MergedAt.UTC().Format(time.RFC3339))
-	assert.Equal(t, "maint", pr.MergedBy.Username)
-	assert.Nil(t, pr.Approvers, "GitLab approvers are best-effort empty (no extra call)")
-}
-
 func gitlabLC() *port.LinkContext {
 	return &port.LinkContext{Platform: "gitlab", BaseURL: "https://gitlab.com", Owner: "g", Repo: "p", Token: "tok"}
 }
 
-func TestEnrichGitLab_MapsMR(t *testing.T) {
-	mr := exectest.NewMockRunner()
-	mr.QueueResponse(`[{"iid":7,"web_url":"https://gitlab.com/g/p/-/merge_requests/7","author":{"username":"alice"}}]`, "", nil)
-
-	result, err := enrichGitLab(mr, gitlabLC(), []string{"abc123"})
-	require.NoError(t, err)
-	require.Len(t, result, 1)
-	assert.Equal(t, PullRequest{Number: 7, URL: "https://gitlab.com/g/p/-/merge_requests/7", AuthorLogin: "alice", RefPrefix: "!"}, result["abc123"])
-
-	require.Len(t, mr.Calls, 1)
-	assert.Equal(t, "glab", mr.Calls[0].Name)
-	assert.Equal(t, []string{"api", "projects/g%2Fp/repository/commits/abc123/merge_requests"}, mr.Calls[0].Args)
-	assert.Equal(t, []string{"GITLAB_TOKEN=tok"}, mr.Calls[0].Env)
-}
-
-func TestEnrichGitLab_TitleAndLabels(t *testing.T) {
-	mr := exectest.NewMockRunner()
-	mr.QueueResponse(`[{"iid":7,"web_url":"u","title":"Add OAuth","author":{"username":"alice"},"labels":["enhancement","area/auth"]}]`, "", nil)
-
-	got, err := enrichGitLab(mr, gitlabLC(), []string{"abc123"})
-	require.NoError(t, err)
-	assert.Equal(t, "Add OAuth", got["abc123"].Title)
-	assert.Equal(t, []string{"enhancement", "area/auth"}, got["abc123"].Labels)
-}
-
-func TestEnrichGitLab_NoMR_Absent(t *testing.T) {
-	mr := exectest.NewMockRunner()
-	mr.QueueResponse(`[]`, "", nil)
-
-	result, err := enrichGitLab(mr, gitlabLC(), []string{"abc123"})
-	require.NoError(t, err)
-	assert.Empty(t, result)
-}
-
-func TestEnrichGitLab_ErrorWrapped(t *testing.T) {
-	mr := exectest.NewMockRunner()
-	mr.QueueResponse("", "401 Unauthorized", errors.New("exit status 1"))
-
-	_, err := enrichGitLab(mr, gitlabLC(), []string{"abc123"})
-	require.Error(t, err)
-	assert.Contains(t, err.Error(), "merge_requests")
-}
-
-func TestEnrichGitLab_MalformedJSON(t *testing.T) {
-	mr := exectest.NewMockRunner()
-	mr.QueueResponse("not json", "", nil)
-
-	_, err := enrichGitLab(mr, gitlabLC(), []string{"abc123"})
-	require.Error(t, err)
-	assert.Contains(t, err.Error(), "parsing glab api merge_requests response")
-}
-
-func TestEnrichGitLab_Subgroup(t *testing.T) {
-	mr := exectest.NewMockRunner()
-	mr.QueueResponse(`[{"iid":3,"web_url":"u","author":{"username":"bob"}}]`, "", nil)
-	lc := &port.LinkContext{Platform: "gitlab", BaseURL: "https://gitlab.com", Owner: "group/subgroup", Repo: "project", Token: "tok"}
-
-	_, err := enrichGitLab(mr, lc, []string{"deadbeef"})
-	require.NoError(t, err)
-	require.Len(t, mr.Calls, 1)
-	assert.Equal(t, []string{"api", "projects/group%2Fsubgroup%2Fproject/repository/commits/deadbeef/merge_requests"}, mr.Calls[0].Args)
-}
-
 func TestEnrichGitLab_SelfHostedHostInAPIEnv(t *testing.T) {
 	mr := exectest.NewMockRunner()
-	mr.QueueResponse(`[{"iid":7,"web_url":"https://git.example.com/g/p/-/merge_requests/7","author":{"username":"alice"}}]`, "", nil)
+	mr.QueueResponse(`{"data":{"project":{"repository":{"commits":{"nodes":[],"pageInfo":{"endCursor":"","hasNextPage":false}}}}}}`, "", nil)
+	mr.QueueResponse(`{"data":{"project":{"mergeRequests":{"nodes":[],"pageInfo":{"endCursor":"","hasNextPage":false}}}}}`, "", nil)
 	lc := &port.LinkContext{Platform: "gitlab", BaseURL: "https://git.example.com", Owner: "g", Repo: "p", Token: "tok"}
 
-	_, err := enrichGitLab(mr, lc, []string{"abc123"})
+	_, _, err := enrichGitLab(mr, lc, []string{"abc123"}, time.Time{}, "abc123")
 	require.NoError(t, err)
-	require.Len(t, mr.Calls, 1)
-	assert.Contains(t, mr.Calls[0].Env, "GITLAB_TOKEN=tok")
+	require.Len(t, mr.Calls, 2)
 	assert.Contains(t, mr.Calls[0].Env, "GITLAB_HOST=git.example.com")
 }
 
@@ -192,23 +113,23 @@ func TestFetchGitLabMRs_ErrorsArray(t *testing.T) {
 	assert.Contains(t, err.Error(), "bad mr query")
 }
 
-// End-to-end: GitLab release-notes enrichment renders "!N" (not "#N"). GitLab does not yet
-// resolve the commit-author handle (GitHub-only in this cut), so the commit line carries only
-// the MR reference link — no "by @" — even though the MR itself has an author.
+// End-to-end: GitLab enrichment now renders "by @<commit author> in [!N]" from two batched
+// GraphQL queries (commits for authors, mergeRequests for the ref).
 func TestGenerate_Enrich_GitLab(t *testing.T) {
 	mr := exectest.NewMockRunner()
 	mr.QueueResponse("v1.0.0\n", "", nil)                                                                        // previousTag
 	mr.QueueResponse("2026-01-01T00:00:00Z\n", "", nil)                                                          // tagDate
 	mr.QueueResponse(record("abc1234567", "A", "a@example.com", "2026-01-02T00:00:00Z", "feat: x", ""), "", nil) // collectCommits
-	mr.QueueResponse(`[{"iid":7,"web_url":"https://gitlab.com/g/p/-/merge_requests/7","author":{"username":"alice"}}]`, "", nil)
+	// authors query (commits connection):
+	mr.QueueResponse(`{"data":{"project":{"repository":{"commits":{"nodes":[{"sha":"abc1234567","author":{"username":"alice"}}],"pageInfo":{"endCursor":"","hasNextPage":false}}}}}}`, "", nil)
+	// mergeRequests query (merge commit == the release commit):
+	mr.QueueResponse(`{"data":{"project":{"mergeRequests":{"nodes":[{"iid":"7","webUrl":"https://gitlab.com/g/p/-/merge_requests/7","author":{"username":"bob"},"mergeCommitSha":"abc1234567","commits":{"nodes":[]}}],"pageInfo":{"endCursor":"","hasNextPage":false}}}}}`, "", nil)
 	mr.QueueResponse("bob@x\n", "", nil) // authorsBefore: git log v1.0.0 --format=%ae
 	g := New(mr, &config.ContentDriver{Generator: "native", RemoteMetadata: "optional"}, ModeReleaseNotes)
 
 	out, err := g.Generate("v1.1.0", gitlabLC())
 	require.NoError(t, err)
-	assert.Contains(t, out, "in [!7](https://gitlab.com/g/p/-/merge_requests/7)")
-	assert.NotContains(t, out, "by @", "GitLab commit-author handle resolution is not yet implemented")
-
-	require.Len(t, mr.Calls, 5)
-	assert.Equal(t, []string{"log", "v1.0.0", "--format=%ae"}, mr.Calls[4].Args)
+	assert.Contains(t, out, "by @alice in [!7](https://gitlab.com/g/p/-/merge_requests/7)",
+		"commit author @alice (not MR author @bob), MR ref !7")
+	assert.False(t, g.Degraded())
 }

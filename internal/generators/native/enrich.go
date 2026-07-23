@@ -2,6 +2,7 @@ package native
 
 import (
 	"fmt"
+	"time"
 
 	"github.com/adaouat/heraut/internal/port"
 )
@@ -28,14 +29,38 @@ func (g *Generator) enrich(lc *port.LinkContext, commits []rawCommit) (enrichRes
 		prs, authors, err := enrichGitHub(g.runner, lc, shas)
 		return enrichResult{prs: prs, authors: authors}, err
 	case "gitlab":
-		prs, err := enrichGitLab(g.runner, lc, shas)
-		return enrichResult{prs: prs}, err
+		prs, authors, err := enrichGitLab(g.runner, lc, shas, oldestCommitDate(commits), newestSHA(commits))
+		return enrichResult{prs: prs, authors: authors}, err
 	case "azure_devops":
 		prs, err := enrichAzure(g.httpClient, lc, shas)
 		return enrichResult{prs: prs}, err
 	default:
 		return enrichResult{}, nil
 	}
+}
+
+// oldestCommitDate returns the minimum committed date over commits (bounds the GitLab fetch), or
+// the zero time when empty.
+func oldestCommitDate(commits []rawCommit) time.Time {
+	var oldest time.Time
+	for _, c := range commits {
+		if oldest.IsZero() || c.Date.Before(oldest) {
+			oldest = c.Date
+		}
+	}
+	return oldest
+}
+
+// newestSHA returns the hash of the newest-dated commit (the range tip; the commits(ref:) anchor),
+// or "" when empty.
+func newestSHA(commits []rawCommit) string {
+	var newest rawCommit
+	for _, c := range commits {
+		if newest.Date.IsZero() || c.Date.After(newest.Date) {
+			newest = c
+		}
+	}
+	return newest.Hash
 }
 
 // enrichable reports whether lc has a platform this generator can fetch metadata from. Under
