@@ -126,8 +126,8 @@ func (p *ChangelogPipeline) Run() error {
 			if _, err := p.cfg.Changelog.Generate(result.Tag, changelogCtx); err != nil {
 				return "", nil, fmt.Errorf("generating changelog: %w", err)
 			}
-			subs := append(gitlabRegenWarning(p.cfg.RegenerateChangelog, changelogCtx), degradedSubResult(p.cfg.Changelog)...)
-			return "", subs, nil
+			detail, subs := changelogGenResult(p.cfg.RegenerateChangelog, changelogCtx, p.cfg.Changelog)
+			return detail, subs, nil
 		}); err != nil {
 			return err
 		}

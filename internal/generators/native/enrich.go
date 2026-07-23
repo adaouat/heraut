@@ -2,7 +2,6 @@ package native
 
 import (
 	"fmt"
-	"os"
 
 	"github.com/adaouat/heraut/internal/port"
 )
@@ -77,7 +76,7 @@ func (g *Generator) enrichForRelease(lc *port.LinkContext, commits []rawCommit) 
 			return enrichResult{}, fmt.Errorf("remote enrichment (required): %w", err)
 		}
 		if !g.degraded {
-			fmt.Fprintf(os.Stderr, "warning: remote enrichment unavailable; rendering without PR attribution: %v\n", err)
+			g.degradedReason = fmt.Sprintf("remote enrichment unavailable; rendering without PR attribution: %v", err)
 		}
 		g.degraded = true
 		return enrichResult{}, nil

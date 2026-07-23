@@ -11,6 +11,7 @@ type MockGenerator struct {
 	GenerateCalls    []string            // tags passed to Generate
 	GenerateContexts []*port.LinkContext // link context passed alongside each tag (nil = single-platform)
 	DegradedVal      bool                // value returned by Degraded()
+	DegradedReasonV  string              // value returned by DegradedReason()
 }
 
 func (m *MockGenerator) Check() error { return m.CheckErr }
@@ -26,3 +27,7 @@ func (m *MockGenerator) Generate(tag string, lc *port.LinkContext) (string, erro
 // Degraded reports whether the generator fell back to offline mode (T78). It mirrors the
 // optional Degraded() method the pipeline type-asserts on real generators.
 func (m *MockGenerator) Degraded() bool { return m.DegradedVal }
+
+// DegradedReason mirrors the optional DegradedReason() method the pipeline type-asserts on the
+// native generator to surface the enrichment-failure reason as a step sub-result.
+func (m *MockGenerator) DegradedReason() string { return m.DegradedReasonV }

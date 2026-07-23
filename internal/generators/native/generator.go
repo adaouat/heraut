@@ -29,12 +29,13 @@ const herautProjectURL = "https://github.com/adaouat/heraut"
 // templates. With a platform LinkContext it enriches commits with PR metadata via gh/glab
 // (ADR-0034), honouring the remote_metadata policy; Degraded reports an optional fetch failure.
 type Generator struct {
-	runner     port.Runner
-	httpClient *http.Client
-	cfg        *config.ContentDriver
-	mode       Mode
-	degraded   bool
-	now        func() time.Time // injected clock for .Heraut.GeneratedAt; defaults to time.Now
+	runner         port.Runner
+	httpClient     *http.Client
+	cfg            *config.ContentDriver
+	mode           Mode
+	degraded       bool
+	degradedReason string
+	now            func() time.Time // injected clock for .Heraut.GeneratedAt; defaults to time.Now
 }
 
 var _ port.Generator = (*Generator)(nil)
@@ -66,6 +67,11 @@ func (g *Generator) Validate() error { return nil }
 
 // Degraded reports whether an optional remote-enrichment fetch failed during the last run.
 func (g *Generator) Degraded() bool { return g.degraded }
+
+// DegradedReason returns the human-readable reason enrichment was skipped (the underlying fetch
+// failure), or "" when the run did not degrade. The pipeline surfaces it as a step sub-result
+// rather than writing it to os.Stderr mid-step, where it collided with the live spinner line.
+func (g *Generator) DegradedReason() string { return g.degradedReason }
 
 // Generate produces the changelog (writing it to cfg.Output when set) or the release-notes
 // string for tag, resolving commit/compare links against lc.

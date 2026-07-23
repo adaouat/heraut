@@ -204,6 +204,23 @@ func TestGenerate_Enrich_OptionalFailure_Degrades(t *testing.T) {
 	assert.Equal(t, []string{"log", "v1.0.0", "--format=%ae"}, mr.Calls[4].Args)
 }
 
+// On an optional degrade the failure reason is captured on the generator (surfaced by the
+// pipeline as a step sub-result) rather than written straight to os.Stderr, where it collided
+// with the live spinner line.
+func TestGenerate_Enrich_OptionalFailure_CapturesReason(t *testing.T) {
+	mr := exectest.NewMockRunner()
+	queueReleaseNotesGit(mr)
+	mr.QueueResponse("", "API rate limit exceeded", errors.New("exit status 1"))
+	mr.QueueResponse("bob@x\n", "", nil) // authorsBefore
+	g := New(mr, &config.ContentDriver{Generator: "native", RemoteMetadata: "optional"}, ModeReleaseNotes)
+
+	_, err := g.Generate("v1.1.0", ghLC())
+	require.NoError(t, err)
+	require.True(t, g.Degraded())
+	assert.Contains(t, g.DegradedReason(), "remote enrichment unavailable")
+	assert.Contains(t, g.DegradedReason(), "gh api graphql", "reason carries the underlying failure detail")
+}
+
 func TestGenerate_Enrich_RequiredFailure_Errors(t *testing.T) {
 	mr := exectest.NewMockRunner()
 	queueReleaseNotesGit(mr)

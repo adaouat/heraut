@@ -122,8 +122,8 @@ func (p *Pipeline) Run() error {
 			if _, err := p.cfg.Changelog.Generate(result.Tag, changelogCtx); err != nil {
 				return "", nil, fmt.Errorf("generating changelog: %w", err)
 			}
-			subs := append(gitlabRegenWarning(p.cfg.RegenerateChangelog, changelogCtx), degradedSubResult(p.cfg.Changelog)...)
-			return "", subs, nil
+			detail, subs := changelogGenResult(p.cfg.RegenerateChangelog, changelogCtx, p.cfg.Changelog)
+			return detail, subs, nil
 		}); err != nil {
 			return err
 		}
@@ -184,7 +184,7 @@ func (p *Pipeline) Run() error {
 			if genErr != nil {
 				return "", nil, fmt.Errorf("generating release notes: %w", genErr)
 			}
-			return "", degradedSubResult(p.cfg.Notes), nil
+			return "", degradedSubs(p.cfg.Notes), nil
 		}); err != nil {
 			return err
 		}
@@ -202,7 +202,7 @@ func (p *Pipeline) Run() error {
 				}
 				platNotes = generated
 				subs = append(subs, "notes generated")
-				subs = append(subs, degradedSubResult(p.cfg.Notes)...)
+				subs = append(subs, degradedSubs(p.cfg.Notes)...)
 			}
 			if err := plat.CreateRelease(result.Tag, platNotes); err != nil {
 				return "", nil, fmt.Errorf("platform %s: create release: %w", plat.Name(), err)
@@ -293,17 +293,6 @@ func (p *Pipeline) dryRunOutput(result versioning.Result) error {
 func warnNothingToCommit(w io.Writer, file string) {
 	_, _ = fmt.Fprintln(w, ui.Warn(w, fmt.Sprintf(
 		"%s unchanged — no new entries to commit; skipping commit, continuing to tag and release", file)))
-}
-
-// degradedSubResult returns a one-element sub-result note when gen fell back to --offline
-// because the remote metadata fetch failed under the "optional" policy, so PR
-// authors/numbers were omitted; nil otherwise. Generators expose Degraded() through an
-// optional interface so the pipeline stays decoupled from the concrete generator.
-func degradedSubResult(gen port.Generator) []string {
-	if d, ok := gen.(interface{ Degraded() bool }); ok && d.Degraded() {
-		return []string{"remote metadata unavailable — PR authors/numbers omitted"}
-	}
-	return nil
 }
 
 // printSummary writes the post-run summary to p.out.
