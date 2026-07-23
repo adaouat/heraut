@@ -25,7 +25,7 @@ GitLab enrichment uses two batched `glab api graphql` connection queries:
 2. **MR references** — `mergeRequests(state: merged, mergedAfter: <oldest range date>)`, paginated,
    inverted by indexing each MR under its `mergeCommitSha` and each source `commits.nodes.sha`
    (covering merge-commit, squash-with-merge-commit, and fast-forward merges) → `in [!N]` plus MR
-   review-metadata (`mergeUser`, `mergedAt`, labels, title). GitLab GraphQL exposes no squashed-commit
+   review-metadata (`createdAt`, `mergeUser`, `mergedAt`, labels, title). GitLab GraphQL exposes no squashed-commit
    SHA (only a `squashOnMerge` bool), so a squash+fast-forward MR matches no target commit and that
    commit renders no ref — a graceful omission.
 

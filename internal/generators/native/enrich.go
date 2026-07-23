@@ -52,7 +52,9 @@ func oldestCommitDate(commits []rawCommit) time.Time {
 }
 
 // newestSHA returns the hash of the newest-dated commit (the range tip; the commits(ref:) anchor),
-// or "" when empty.
+// or "" when empty. Accepted heuristic: under rewritten committer dates (rebase/amend) the
+// max-date commit may not be an ancestor of the true tip, so those commits' authors won't
+// resolve — graceful (missing `by @`, never wrong data), since SHA match remains authoritative.
 func newestSHA(commits []rawCommit) string {
 	var newest rawCommit
 	for _, c := range commits {

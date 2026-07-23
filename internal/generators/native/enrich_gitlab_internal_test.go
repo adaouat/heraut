@@ -59,6 +59,19 @@ func TestFetchGitLabAuthors_Paginates(t *testing.T) {
 	assert.Contains(t, mr.Calls[1].Args[3], `after:"C1"`)
 }
 
+func TestFetchGitLabAuthors_StopsWhenAllSeenDespiteMorePages(t *testing.T) {
+	mr := exectest.NewMockRunner()
+	mr.QueueResponse(`{"data":{"project":{"repository":{"commits":{"nodes":[
+		{"sha":"aaa","author":{"username":"alice"}},
+		{"sha":"bbb","author":{"username":"bob"}}
+	],"pageInfo":{"endCursor":"C1","hasNextPage":true}}}}}}`, "", nil)
+
+	got, err := fetchGitLabAuthors(mr, gitlabLC(), "tagsha", "", map[string]bool{"aaa": true, "bbb": true})
+	require.NoError(t, err)
+	assert.Equal(t, map[string]string{"aaa": "alice", "bbb": "bob"}, got)
+	require.Len(t, mr.Calls, 1, "all wanted SHAs seen on page 1 must short-circuit, ignoring hasNextPage")
+}
+
 func TestFetchGitLabAuthors_ErrorsArray(t *testing.T) {
 	mr := exectest.NewMockRunner()
 	mr.QueueResponse(`{"errors":[{"message":"boom"}]}`, "", nil)
@@ -71,7 +84,7 @@ func TestFetchGitLabMRs_InvertsMergeAndSourceShas(t *testing.T) {
 	mr := exectest.NewMockRunner()
 	mr.QueueResponse(`{"data":{"project":{"mergeRequests":{"nodes":[
 		{"iid":"7","webUrl":"https://gitlab.com/g/p/-/merge_requests/7","title":"Add x",
-		 "author":{"username":"alice"},"mergedAt":"2026-01-02T00:00:00Z","mergeUser":{"username":"maint"},
+		 "author":{"username":"alice"},"createdAt":"2026-01-01T00:00:00Z","mergedAt":"2026-01-02T00:00:00Z","mergeUser":{"username":"maint"},
 		 "labels":{"nodes":[{"title":"enhancement"}]},
 		 "mergeCommitSha":"merge1","commits":{"nodes":[{"sha":"src1"},{"sha":"src2"}]}}
 	],"pageInfo":{"endCursor":"","hasNextPage":false}}}}}`, "", nil)
@@ -81,11 +94,12 @@ func TestFetchGitLabMRs_InvertsMergeAndSourceShas(t *testing.T) {
 
 	want := PullRequest{Number: 7, URL: "https://gitlab.com/g/p/-/merge_requests/7", Title: "Add x",
 		AuthorLogin: "alice", Labels: []string{"enhancement"}, RefPrefix: "!",
-		MergedAt: got["merge1"].MergedAt, MergedBy: Author{Username: "maint"}}
+		CreatedAt: got["merge1"].CreatedAt, MergedAt: got["merge1"].MergedAt, MergedBy: Author{Username: "maint"}}
 	assert.Equal(t, want, got["merge1"], "merge commit sha maps to the MR (iid 7 parsed from string)")
 	assert.Equal(t, 7, got["src1"].Number, "source commit sha maps to the MR")
 	assert.NotContains(t, got, "src2", "src2 not in want")
 	assert.NotContains(t, got, "nope", "no MR → absent")
+	assert.Equal(t, "2026-01-01T00:00:00Z", got["merge1"].CreatedAt.UTC().Format(time.RFC3339))
 	assert.Equal(t, "2026-01-02T00:00:00Z", got["merge1"].MergedAt.UTC().Format(time.RFC3339))
 
 	require.Len(t, mr.Calls, 1)
@@ -103,6 +117,20 @@ func TestFetchGitLabMRs_Paginates(t *testing.T) {
 	assert.Equal(t, 2, got["m2"].Number)
 	require.Len(t, mr.Calls, 2)
 	assert.Contains(t, mr.Calls[1].Args[3], `after:"C1"`)
+}
+
+func TestFetchGitLabMRs_StopsWhenAllMatchedDespiteMorePages(t *testing.T) {
+	mr := exectest.NewMockRunner()
+	mr.QueueResponse(`{"data":{"project":{"mergeRequests":{"nodes":[
+		{"iid":"1","webUrl":"u1","author":{"username":"a"},"mergeCommitSha":"m1","commits":{"nodes":[]}},
+		{"iid":"2","webUrl":"u2","author":{"username":"b"},"mergeCommitSha":"m2","commits":{"nodes":[]}}
+	],"pageInfo":{"endCursor":"C1","hasNextPage":true}}}}}`, "", nil)
+
+	got, err := fetchGitLabMRs(mr, gitlabLC(), "", map[string]bool{"m1": true, "m2": true})
+	require.NoError(t, err)
+	assert.Equal(t, 1, got["m1"].Number)
+	assert.Equal(t, 2, got["m2"].Number)
+	require.Len(t, mr.Calls, 1, "all wanted SHAs matched on page 1 must short-circuit, ignoring hasNextPage")
 }
 
 func TestFetchGitLabMRs_ErrorsArray(t *testing.T) {

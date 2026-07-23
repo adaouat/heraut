@@ -110,6 +110,11 @@ func fetchGitLabAuthors(runner port.Runner, lc *port.LinkContext, ref, committed
 		if !c.PageInfo.HasNextPage || len(seen) == len(want) {
 			return authors, nil
 		}
+		if c.PageInfo.EndCursor == "" {
+			// Malformed hasNextPage:true with no cursor to advance on — stop instead of refetching
+			// page 1 forever.
+			return authors, nil
+		}
 		after = c.PageInfo.EndCursor
 	}
 }
@@ -122,7 +127,7 @@ func gitLabMRsQuery(project, mergedAfter, after string) string {
 	if after != "" {
 		fmt.Fprintf(&extra, `,after:"%s"`, after)
 	}
-	return fmt.Sprintf(`{project(fullPath:"%s"){mergeRequests(state:merged%s,first:100){nodes{iid webUrl title author{username}mergedAt mergeUser{username}labels{nodes{title}}mergeCommitSha commits{nodes{sha}}}pageInfo{endCursor hasNextPage}}}}`,
+	return fmt.Sprintf(`{project(fullPath:"%s"){mergeRequests(state:merged%s,first:100){nodes{iid webUrl title author{username}createdAt mergedAt mergeUser{username}labels{nodes{title}}mergeCommitSha commits{nodes{sha}}}pageInfo{endCursor hasNextPage}}}}`,
 		project, extra.String())
 }
 
@@ -135,6 +140,7 @@ type gitLabMRNode struct {
 	Author struct {
 		Username string `json:"username"`
 	} `json:"author"`
+	CreatedAt time.Time `json:"createdAt"`
 	MergedAt  time.Time `json:"mergedAt"`
 	MergeUser struct {
 		Username string `json:"username"`
@@ -180,7 +186,7 @@ func mrNodeToPR(n gitLabMRNode) PullRequest {
 	num, _ := strconv.Atoi(n.IID) // GitLab GraphQL iid is a String; unparsable → 0
 	return PullRequest{
 		Number: num, URL: n.WebURL, Title: n.Title, AuthorLogin: n.Author.Username,
-		Labels: labels, RefPrefix: "!", MergedAt: n.MergedAt,
+		Labels: labels, RefPrefix: "!", CreatedAt: n.CreatedAt, MergedAt: n.MergedAt,
 		MergedBy: Author{Username: n.MergeUser.Username},
 	}
 }
@@ -228,6 +234,11 @@ func fetchGitLabMRs(runner port.Runner, lc *port.LinkContext, mergedAfter string
 			}
 		}
 		if !mrs.PageInfo.HasNextPage || len(prs) == len(want) {
+			return prs, nil
+		}
+		if mrs.PageInfo.EndCursor == "" {
+			// Malformed hasNextPage:true with no cursor to advance on — stop instead of refetching
+			// page 1 forever.
 			return prs, nil
 		}
 		after = mrs.PageInfo.EndCursor
