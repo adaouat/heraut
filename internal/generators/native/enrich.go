@@ -39,6 +39,21 @@ func (g *Generator) enrich(lc *port.LinkContext, commits []rawCommit) (enrichRes
 	}
 }
 
+// enrichable reports whether lc has a platform this generator can fetch metadata from. Under
+// remote_metadata: required, an lc that is not enrichable (nil, or an unsupported platform) means
+// the requirement cannot be satisfied. Keep the platform set in sync with enrich()'s switch.
+func enrichable(lc *port.LinkContext) bool {
+	if lc == nil {
+		return false
+	}
+	switch lc.Platform {
+	case "github", "gitlab", "azure_devops":
+		return true
+	default:
+		return false
+	}
+}
+
 // enrichForRelease applies the remote_metadata policy (ADR-0023 / ADR-0034 §6) around enrich:
 //   - "disabled": never fetch.
 //   - "required": fetch; any failure is fatal.
@@ -49,6 +64,9 @@ func (g *Generator) enrich(lc *port.LinkContext, commits []rawCommit) (enrichRes
 func (g *Generator) enrichForRelease(lc *port.LinkContext, commits []rawCommit) (enrichResult, error) {
 	if g.cfg.RemoteMetadata == "disabled" {
 		return enrichResult{}, nil
+	}
+	if g.cfg.RemoteMetadata == "required" && !enrichable(lc) {
+		return enrichResult{}, fmt.Errorf("remote enrichment (required): no changelog remote or release platform configured to fetch PR/MR metadata from")
 	}
 	er, err := g.enrich(lc, commits)
 	if err != nil {

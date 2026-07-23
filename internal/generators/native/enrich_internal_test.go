@@ -215,6 +215,20 @@ func TestGenerate_Enrich_RequiredFailure_Errors(t *testing.T) {
 	assert.Contains(t, err.Error(), "required")
 }
 
+// required with no resolvable remote (nil LinkContext) cannot be satisfied — there is nothing to
+// fetch from — so it must be a hard error, not a silent metadata-less render. Regression guard for
+// the state native was permanently in before changelog.remote worked with the native generator.
+func TestGenerate_Enrich_RequiredNilContext_Errors(t *testing.T) {
+	mr := exectest.NewMockRunner()
+	queueReleaseNotesGit(mr)
+	mr.QueueResponse("bob@x\n", "", nil) // authorsBefore — reached only if required is (wrongly) not enforced
+	g := New(mr, &config.ContentDriver{Generator: "native", RemoteMetadata: "required"}, ModeReleaseNotes)
+
+	_, err := g.Generate("v1.1.0", nil) // no remote / platform → required cannot be satisfied
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "required")
+}
+
 // Changelog mode enriches only the new (unreleased) section, not historical releases, so a
 // full regeneration stays O(1) API calls regardless of release count (ADR-0034 §5).
 func TestGenerate_Enrich_ChangelogEnrichesOnlyNewRelease(t *testing.T) {
