@@ -37,7 +37,7 @@ no longer a parity target — heraut's rendering is its own spec, validated by g
 | Phase 2.7 — unified enrichment model                 | T142 – T148            | Complete    |
 | Phase 2.8 — user-customizable templates (ADR-0037)   | TT1 – TT11             | Complete    |
 | Phase 2.9 — incremental changelog (ADR-0038)          | —                      | Complete    |
-| Phase 2.10 — commit-author attribution (ADR-0039)    | T150, T151 (follow-ups) | Complete — GitHub |
+| Phase 2.10 — commit-author attribution (ADR-0039)    | T151 (follow-up)       | Complete — GitHub, GitLab |
 | Phase 2.5 — remove the git-cliff package (own ADR)   | —                      | Deferred    |
 | Phase 3 — raw-HTTP clients (drop `gh` / `glab`)       | —                      | Deferred    |
 
@@ -866,7 +866,7 @@ git-cliff's `linkEnv` composes the identical `{remote}` from `BaseURL`+`Owner`+`
 are unchanged; the `CI_PROJECT_URL`-only branch remains a links-only GitLab fallback. Covered by
 `TestAmbientLinkContext` (github/gitlab-split cases now assert populated `Owner`/`Repo`).
 
-#### `[ ]` T150: GitLab commit-author handle
+#### `[x]` T150: GitLab commit-author handle + MR refs (batched GraphQL)
 
 GitLab's REST API cannot resolve an arbitrary commit-author email to a user (privacy-restricted).
 Whether GitLab's **GraphQL** API can — and whether it can batch the way the GitHub query does —
@@ -880,6 +880,21 @@ per-commit path exists, weigh the added API cost against ADR-0038's GitLab full-
 warning (already O(commits)) before deciding whether to ship it. **Scope:** M (spike) + S–M
 (implementation, pending spike result). **Dependencies:** Phase 2.10 (GitHub cut).
 
+**Completion note (2026-07-23):** The spike found no commit→MR field on GitLab's GraphQL schema,
+but two independently batchable connection queries cover both gaps (ADR-0042): `commits(ref:,
+committedAfter:)`, paginated, resolves `sha → author.username` for the `by @<handle>` credit —
+GitLab's per-commit-email-lookup restriction doesn't apply here, since the query walks commits by
+ref rather than looking up an email. `mergeRequests(state: merged, mergedAfter:)`, also paginated,
+is inverted into a `commitSha → MR` map keyed by `mergeCommitSha` and every `commits.nodes.sha`
+(merge-commit, squash-with-merge-commit, and fast-forward merges all land on one of those SHAs) for
+the `in [!N]` reference plus MR review-metadata (`mergeUser`, `mergedAt`, labels, title). GitLab
+exposes no squashed-commit SHA (only a `squashOnMerge` bool), so a squash+fast-forward merge
+matches no commit and that commit renders no ref — a graceful, documented gap, not a bug. The old
+per-commit `glab api projects/{id}/repository/commits/{sha}/merge_requests` REST call (T128) is
+dropped entirely: GitLab moves from O(commits) to O(pages), and the ADR-0038 `--regenerate`
+GitLab rate-limit warning no longer applies and was removed (`gitlabRegenWarning` deleted from
+`internal/pipeline/warn.go`). Files: `internal/generators/native/enrich_gitlab.go` (+ tests).
+
 #### `[ ]` T151: Azure DevOps commit-author handle
 
 Azure needs a separate identity lookup to map a commit's author email to an Azure DevOps
@@ -889,10 +904,10 @@ committer fields) for a batchable resolution path before implementing; until the
 continues to return no author-handle data and Azure commit lines render no `by @`. **Scope:** M.
 **Dependencies:** Phase 2.10 (GitHub cut).
 
-Both follow-ups could also feed the "New Contributors" block once resolved: that block's handle
-today is still overlaid from a contributor's first PR/MR (unchanged by
-[ADR-0039](../adr/0039-commit-author-attribution.md) — see the design spec's "out of scope"
-section), so a platform's `sha → authorHandle` map could, as a further extension, also drive
+A platform's `sha → authorHandle` map (shipped for GitLab in T150, still open for Azure in T151)
+could also feed the "New Contributors" block: that block's handle today is still overlaid from a
+contributor's first PR/MR (unchanged by [ADR-0039](../adr/0039-commit-author-attribution.md) — see
+the design spec's "out of scope" section), so the map could, as a further extension, also drive
 first-timer credit for direct-commit contributors — noted here, not scheduled.
 
 #### `[x]` T152: changelog.remote for native + base_url host override (ADR-0040)

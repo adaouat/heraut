@@ -32,9 +32,15 @@ Section labels, order, and heading depth come from `commits.types` and
 Each commit line credits the **commit author** — `by @<handle>` — resolved from the platform,
 independent of any associated pull request; the PR/MR, when present, contributes only its
 `in [#N](url)` reference link. When the committer differs from the PR/MR author, the committer
-is credited (matching git-cliff). **GitHub only, this cut**: GitLab and Azure DevOps do not yet
-resolve a commit-author handle, so their commit lines render no `by @` (tracked follow-ups). See
-[ADR-0039](../adr/0039-commit-author-attribution.md).
+is credited (matching git-cliff). GitHub resolves the handle at no extra cost, riding its existing
+batched PR-fetch query (ADR-0039). GitLab resolves it via a batched `commits` GraphQL query, and
+separately inverts a batched `mergeRequests` query into a `commitSha → MR` map for the `in [!N]`
+reference plus MR review-metadata; a commit attributable to no MR (e.g. a squash-with-fast-forward
+merge, for which GitLab's GraphQL schema exposes no squashed-commit SHA) renders no ref — a
+graceful omission, not an error (ADR-0042). **Azure DevOps only, this cut**: it does not yet
+resolve a commit-author handle, so its commit lines render no `by @` (tracked follow-up). See
+[ADR-0039](../adr/0039-commit-author-attribution.md) and
+[ADR-0042](../adr/0042-gitlab-graphql-enrichment.md).
 
 PR/MR number attribution and the "New Contributors" block derive from a unified,
 platform-agnostic model (`Author`/`PullRequest`/`Contributor`): a **local tier** always
@@ -123,10 +129,12 @@ calls) and splices it into the existing file, leaving every other section untouc
 
 **Full regeneration (`--regenerate` / `--regenerate-changelog`).** Ignores the existing file,
 rebuilds every section from all tags, and **re-enriches all of them** — each section is enriched
-independently, so GitHub (GraphQL, 50 SHAs/query) and Azure (one `pullrequestquery` POST) each
-batch *within* a release, costing roughly one API call per release (O(releases)), while GitLab
-pays one `glab api` call per commit (O(commits)); the changelog pipeline step warns when a GitLab
-remote is being fully regenerated.
+independently, so GitHub (GraphQL, 50 SHAs/query), GitLab (two batched `glab api graphql`
+connection queries — commit authors via `commits`, MR refs via inverted `mergeRequests`,
+[ADR-0042](../adr/0042-gitlab-graphql-enrichment.md)), and Azure (one `pullrequestquery` POST) each
+batch *within* a release, costing roughly one API call per release (O(releases)); no platform pays
+a per-commit cost, so the changelog pipeline step no longer warns on a fully-regenerated GitLab
+remote.
 This is the required one-time step when migrating a changelog onto `native` (or repairing a
 previously-anchorless file) — see [ADR-0038](../adr/0038-incremental-changelog.md) for the full
 migration story, including the `regenerate_changelog` `workflow_dispatch` input heraut's own CI
