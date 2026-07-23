@@ -1,5 +1,26 @@
 # Changelog
 
+<!-- heraut-release: v0.53.0 -->
+## [0.53.0](https://github.com/adaouat/heraut/compare/v0.52.0..v0.53.0) - 2026-07-23
+
+### 🚀 Features
+
+- *(cmd)* --force downgrades remote_metadata: required to optional - ([a24286a](https://github.com/adaouat/heraut/commit/a24286a81f0ff46bc6b23876ee08b292ec0d3a82)) by @bchatard
+
+- *(config)* Enumerate rendering.templates blocks; reject unknown keys - ([4857706](https://github.com/adaouat/heraut/commit/4857706ab55a5993d0e8283188dfb3378a8b8038)) by @bchatard
+
+
+### 🐛 Bug Fixes
+
+- *(cmd)* Drop redundant "loading config" prefix on config-load errors - ([5e98727](https://github.com/adaouat/heraut/commit/5e98727a6d63291c60a64bf61134c0f5708cc03c)) by @bchatard
+
+- *(generators/native)* Enforce remote_metadata: required with no remote - ([3c7283e](https://github.com/adaouat/heraut/commit/3c7283ebc6c0834548ea8169e17521223dd81bda)) by @bchatard
+
+
+### 📚 Documentation
+
+- *(adr)* 0041 remote_metadata required enforcement + --force override - ([35c270c](https://github.com/adaouat/heraut/commit/35c270caab46b1f993115a41695b10e581d275fb)) by @bchatard
+
 <!-- heraut-release: v0.52.0 -->
 ## [0.52.0](https://github.com/adaouat/heraut/compare/v0.51.1..v0.52.0) - 2026-07-22
 
