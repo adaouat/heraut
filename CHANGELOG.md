@@ -1,5 +1,50 @@
 # Changelog
 
+<!-- heraut-release: v0.54.0 -->
+## [0.54.0](https://github.com/adaouat/heraut/compare/v0.53.0..v0.54.0) - 2026-07-23
+
+### 🚀 Features
+
+- *(generators/native)* Fetch GitLab commit-author handles via GraphQL - ([4eeb2a3](https://github.com/adaouat/heraut/commit/4eeb2a3df12b7d951bd1b98d1e311718352953ed)) by @bchatard
+
+- *(generators/native)* Fetch GitLab MRs via GraphQL, invert to sha map - ([b5a564b](https://github.com/adaouat/heraut/commit/b5a564bf1e7edf0c53512f501e3053b0b22c85df)) by @bchatard
+
+- *(generators/native)* GitLab enrichment via batched GraphQL (authors + MR refs) - ([e8dcbaa](https://github.com/adaouat/heraut/commit/e8dcbaacab52ad169add9eaecfa5ab3e9f0778b4)) by @bchatard
+
+
+### 🐛 Bug Fixes
+
+- *(generators/native)* Restore GitLab MR CreatedAt + pagination guards - ([5e643e3](https://github.com/adaouat/heraut/commit/5e643e39463566a9f28d8096f73b1a734bc67ed0)) by @bchatard
+
+- *(generators/native)* Escape interpolated GraphQL query values - ([edb074d](https://github.com/adaouat/heraut/commit/edb074d7bce6db5ef30ac23d189bb9511eaa2698)) by @bchatard
+
+- *(pipeline)* Surface enrichment degrade as a step sub-result - ([a9295c7](https://github.com/adaouat/heraut/commit/a9295c731f33398027071d535d046f8a5c3c7392)) by @bchatard
+
+
+### 🚜 Refactor
+
+- *(pipeline)* Drop GitLab regen rate-limit warning (now batched) - ([ecc3cf5](https://github.com/adaouat/heraut/commit/ecc3cf514411a4c58ea401011a1eb35bfe1a0429)) by @bchatard
+
+
+### 📚 Documentation
+
+- *(adr)* 0042 GitLab enrichment via batched GraphQL - ([18c526f](https://github.com/adaouat/heraut/commit/18c526fbc8a97239496195e2b1687ee6cf0c2c07)) by @bchatard
+
+- *(plans)* Implementation plan for GitLab GraphQL enrichment - ([c7436f7](https://github.com/adaouat/heraut/commit/c7436f790497a7d376f9d1d73bba4cd37ddd9c19)) by @bchatard
+
+- *(plans)* Fix Args[3] query-string index in Task 3 test (matches glab call shape) - ([b6110d2](https://github.com/adaouat/heraut/commit/b6110d288fb11356d1fe6b23a696ee183b454adc)) by @bchatard
+
+- *(roadmap)* Add T153 — GitLab enrichment ref-anchor follow-up - ([1079752](https://github.com/adaouat/heraut/commit/10797525a0762eb68d52105baeb240c18cde6bf3)) by @bchatard
+
+- *(specs)* Design GitLab commit-author attribution via batched GraphQL - ([9d96785](https://github.com/adaouat/heraut/commit/9d967858a873087e3a518cfdb32ac700c54c77c3)) by @bchatard
+
+- *(specs)* Revise GitLab enrichment design to keep MR refs (batched) - ([08aaf7b](https://github.com/adaouat/heraut/commit/08aaf7b9b38455c20609463c651314b9849cfd5f)) by @bchatard
+
+
+### 🧪 Testing
+
+- *(config)* Replace real host/project data with synthetic placeholders - ([f10acef](https://github.com/adaouat/heraut/commit/f10acef2483524fdf586d4a9b3fdce72846439cb)) by @bchatard
+
 <!-- heraut-release: v0.53.0 -->
 ## [0.53.0](https://github.com/adaouat/heraut/compare/v0.52.0..v0.53.0) - 2026-07-23
 
