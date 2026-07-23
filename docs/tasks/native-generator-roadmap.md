@@ -910,6 +910,20 @@ contributor's first PR/MR (unchanged by [ADR-0039](../adr/0039-commit-author-att
 the design spec's "out of scope" section), so the map could, as a further extension, also drive
 first-timer credit for direct-commit contributors — noted here, not scheduled.
 
+#### `[ ]` T153: GitLab enrichment ref-anchor — use the topological range tip
+
+`enrichGitLab` anchors its `commits(ref:)` query on `newestSHA(commits)` — the commit with the
+newest committer date (`%cI`). `collectCommits` runs `git log --reverse` with git's default date
+ordering (not `--topo-order`), so this is the true range tip in normal history. Under **rewritten
+committer dates** (rebase / amend / cherry-pick), an ancestor commit can carry a newer date than
+the real range head, so the anchor may not have every range commit as an ancestor and those
+commits' authors won't resolve → no `by @` (graceful — missing attribution, never wrong data; see
+ADR-0042). A precise fix threads the actual range head as the ref — the tag for a historical
+section, the HEAD commit SHA for the unreleased section (the new tag isn't on the remote yet) —
+through `enrichForRelease` → `enrich`; alternatively `--topo-order` in `collectCommits` would make
+`commits[len-1]` the true tip but reorders output for every consumer (golden-snapshot impact), so
+it needs its own review. **Scope:** S–M. **Dependencies:** T150.
+
 #### `[x]` T152: changelog.remote for native + base_url host override (ADR-0040)
 
 `heraut changelog --regenerate` locally on self-hosted GitLab produced no links/attribution
