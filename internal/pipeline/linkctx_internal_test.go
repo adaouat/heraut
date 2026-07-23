@@ -145,8 +145,8 @@ func TestRemoteLinkContext(t *testing.T) {
 		},
 		{
 			name: "gitlab honours base_url (self-managed, subgroup)",
-			r:    &config.Remote{Type: "gitlab", Project: "internal-tools/ci-cd/catalog/release-notes", BaseURL: "https://git.cross-systems.ch"},
-			want: &port.LinkContext{BaseURL: "https://git.cross-systems.ch", Owner: "internal-tools/ci-cd/catalog", Repo: "release-notes", Platform: "gitlab"},
+			r:    &config.Remote{Type: "gitlab", Project: "group/subgroup/project", BaseURL: "https://git.example.com"},
+			want: &port.LinkContext{BaseURL: "https://git.example.com", Owner: "group/subgroup", Repo: "project", Platform: "gitlab"},
 		},
 		{
 			name: "base_url trailing slash trimmed",

@@ -215,23 +215,22 @@ git commit -m "feat(generators/native): fetch GitLab commit-author handles via G
 - [ ] **Step 1: Write the failing test**
 
 ```go
-func TestFetchGitLabMRs_InvertsAllShaSources(t *testing.T) {
+func TestFetchGitLabMRs_InvertsMergeAndSourceShas(t *testing.T) {
 	mr := exectest.NewMockRunner()
 	mr.QueueResponse(`{"data":{"project":{"mergeRequests":{"nodes":[
-		{"iid":7,"webUrl":"https://gitlab.com/g/p/-/merge_requests/7","title":"Add x",
-		 "author":{"username":"alice"},"mergedAt":"2026-01-02T00:00:00Z","mergedBy":{"username":"maint"},
+		{"iid":"7","webUrl":"https://gitlab.com/g/p/-/merge_requests/7","title":"Add x",
+		 "author":{"username":"alice"},"mergedAt":"2026-01-02T00:00:00Z","mergeUser":{"username":"maint"},
 		 "labels":{"nodes":[{"title":"enhancement"}]},
-		 "mergeCommitSha":"merge1","squashCommitSha":"squash1","commits":{"nodes":[{"sha":"src1"},{"sha":"src2"}]}}
+		 "mergeCommitSha":"merge1","commits":{"nodes":[{"sha":"src1"},{"sha":"src2"}]}}
 	],"pageInfo":{"endCursor":"","hasNextPage":false}}}}}`, "", nil)
 
-	got, err := fetchGitLabMRs(mr, gitlabLC(), "2026-01-01T00:00:00Z", map[string]bool{"merge1": true, "squash1": true, "src1": true, "nope": true})
+	got, err := fetchGitLabMRs(mr, gitlabLC(), "2026-01-01T00:00:00Z", map[string]bool{"merge1": true, "src1": true, "nope": true})
 	require.NoError(t, err)
 
 	want := PullRequest{Number: 7, URL: "https://gitlab.com/g/p/-/merge_requests/7", Title: "Add x",
 		AuthorLogin: "alice", Labels: []string{"enhancement"}, RefPrefix: "!",
 		MergedAt: got["merge1"].MergedAt, MergedBy: Author{Username: "maint"}}
-	assert.Equal(t, want, got["merge1"])
-	assert.Equal(t, 7, got["squash1"].Number, "squashCommitSha maps to the MR")
+	assert.Equal(t, want, got["merge1"], "merge commit sha maps to the MR (iid 7 parsed from string)")
 	assert.Equal(t, 7, got["src1"].Number, "source commit sha maps to the MR")
 	assert.NotContains(t, got, "src2", "src2 not in want")
 	assert.NotContains(t, got, "nope", "no MR → absent")
@@ -243,8 +242,8 @@ func TestFetchGitLabMRs_InvertsAllShaSources(t *testing.T) {
 
 func TestFetchGitLabMRs_Paginates(t *testing.T) {
 	mr := exectest.NewMockRunner()
-	mr.QueueResponse(`{"data":{"project":{"mergeRequests":{"nodes":[{"iid":1,"webUrl":"u1","author":{"username":"a"},"mergeCommitSha":"m1","commits":{"nodes":[]}}],"pageInfo":{"endCursor":"C1","hasNextPage":true}}}}}`, "", nil)
-	mr.QueueResponse(`{"data":{"project":{"mergeRequests":{"nodes":[{"iid":2,"webUrl":"u2","author":{"username":"b"},"mergeCommitSha":"m2","commits":{"nodes":[]}}],"pageInfo":{"endCursor":"","hasNextPage":false}}}}}`, "", nil)
+	mr.QueueResponse(`{"data":{"project":{"mergeRequests":{"nodes":[{"iid":"1","webUrl":"u1","author":{"username":"a"},"mergeCommitSha":"m1","commits":{"nodes":[]}}],"pageInfo":{"endCursor":"C1","hasNextPage":true}}}}}`, "", nil)
+	mr.QueueResponse(`{"data":{"project":{"mergeRequests":{"nodes":[{"iid":"2","webUrl":"u2","author":{"username":"b"},"mergeCommitSha":"m2","commits":{"nodes":[]}}],"pageInfo":{"endCursor":"","hasNextPage":false}}}}}`, "", nil)
 
 	got, err := fetchGitLabMRs(mr, gitlabLC(), "", map[string]bool{"m1": true, "m2": true})
 	require.NoError(t, err)
@@ -281,29 +280,30 @@ func gitLabMRsQuery(project, mergedAfter, after string) string {
 	if after != "" {
 		fmt.Fprintf(&extra, `,after:"%s"`, after)
 	}
-	return fmt.Sprintf(`{project(fullPath:"%s"){mergeRequests(state:merged%s,first:100){nodes{iid webUrl title author{username}mergedAt mergedBy{username}labels{nodes{title}}mergeCommitSha squashCommitSha commits{nodes{sha}}}pageInfo{endCursor hasNextPage}}}}`,
+	return fmt.Sprintf(`{project(fullPath:"%s"){mergeRequests(state:merged%s,first:100){nodes{iid webUrl title author{username}mergedAt mergeUser{username}labels{nodes{title}}mergeCommitSha commits{nodes{sha}}}pageInfo{endCursor hasNextPage}}}}`,
 		project, extra.String())
 }
 
+// gitLabMRNode: GitLab GraphQL scalars — iid is a String, the merger is mergeUser (not mergedBy),
+// and there is no squashCommitSha field (only squashOnMerge bool), confirmed by the Task 1 spike.
 type gitLabMRNode struct {
-	IID    int    `json:"iid"`
+	IID    string `json:"iid"`
 	WebURL string `json:"webUrl"`
 	Title  string `json:"title"`
 	Author struct {
 		Username string `json:"username"`
 	} `json:"author"`
-	MergedAt time.Time `json:"mergedAt"`
-	MergedBy struct {
+	MergedAt  time.Time `json:"mergedAt"`
+	MergeUser struct {
 		Username string `json:"username"`
-	} `json:"mergedBy"`
+	} `json:"mergeUser"`
 	Labels struct {
 		Nodes []struct {
 			Title string `json:"title"`
 		} `json:"nodes"`
 	} `json:"labels"`
-	MergeCommitSHA  string `json:"mergeCommitSha"`
-	SquashCommitSHA string `json:"squashCommitSha"`
-	Commits         struct {
+	MergeCommitSHA string `json:"mergeCommitSha"`
+	Commits        struct {
 		Nodes []struct {
 			SHA string `json:"sha"`
 		} `json:"nodes"`
@@ -335,22 +335,22 @@ func mrNodeToPR(n gitLabMRNode) PullRequest {
 	if len(labels) == 0 {
 		labels = nil
 	}
+	num, _ := strconv.Atoi(n.IID) // GitLab GraphQL iid is a String; unparsable → 0
 	return PullRequest{
-		Number: n.IID, URL: n.WebURL, Title: n.Title, AuthorLogin: n.Author.Username,
+		Number: num, URL: n.WebURL, Title: n.Title, AuthorLogin: n.Author.Username,
 		Labels: labels, RefPrefix: "!", MergedAt: n.MergedAt,
-		MergedBy: Author{Username: n.MergedBy.Username},
+		MergedBy: Author{Username: n.MergeUser.Username},
 	}
 }
 
-// landingSHAs are every SHA by which an MR can match a target-branch commit: the merge commit,
-// the squash commit, and each source commit (fast-forward merges land those directly).
+// landingSHAs are the SHAs by which an MR can match a target-branch commit: the merge commit
+// (merge-commit and squash-with-merge-commit merges) and each source commit (fast-forward merges
+// land those directly). GitLab GraphQL exposes no squashed-commit SHA, so a squash+fast-forward MR
+// matches nothing and its commit renders no ref — a graceful omission.
 func landingSHAs(n gitLabMRNode) []string {
-	shas := make([]string, 0, len(n.Commits.Nodes)+2)
+	shas := make([]string, 0, len(n.Commits.Nodes)+1)
 	if n.MergeCommitSHA != "" {
 		shas = append(shas, n.MergeCommitSHA)
-	}
-	if n.SquashCommitSHA != "" {
-		shas = append(shas, n.SquashCommitSHA)
 	}
 	for _, c := range n.Commits.Nodes {
 		shas = append(shas, c.SHA)
@@ -393,6 +393,8 @@ func fetchGitLabMRs(runner port.Runner, lc *port.LinkContext, mergedAfter string
 }
 ```
 
+Add `"strconv"` to the `enrich_gitlab.go` import block (used by `mrNodeToPR`).
+
 - [ ] **Step 4: Run to verify it passes**
 
 Run: `go test ./internal/generators/native/ -run TestFetchGitLabMRs`
@@ -433,7 +435,7 @@ func TestGenerate_Enrich_GitLab(t *testing.T) {
 	// authors query (commits connection):
 	mr.QueueResponse(`{"data":{"project":{"repository":{"commits":{"nodes":[{"sha":"abc1234567","author":{"username":"alice"}}],"pageInfo":{"endCursor":"","hasNextPage":false}}}}}}`, "", nil)
 	// mergeRequests query (merge commit == the release commit):
-	mr.QueueResponse(`{"data":{"project":{"mergeRequests":{"nodes":[{"iid":7,"webUrl":"https://gitlab.com/g/p/-/merge_requests/7","author":{"username":"bob"},"mergeCommitSha":"abc1234567","commits":{"nodes":[]}}],"pageInfo":{"endCursor":"","hasNextPage":false}}}}}`, "", nil)
+	mr.QueueResponse(`{"data":{"project":{"mergeRequests":{"nodes":[{"iid":"7","webUrl":"https://gitlab.com/g/p/-/merge_requests/7","author":{"username":"bob"},"mergeCommitSha":"abc1234567","commits":{"nodes":[]}}],"pageInfo":{"endCursor":"","hasNextPage":false}}}}}`, "", nil)
 	mr.QueueResponse("bob@x\n", "", nil) // authorsBefore: git log v1.0.0 --format=%ae
 	g := New(mr, &config.ContentDriver{Generator: "native", RemoteMetadata: "optional"}, ModeReleaseNotes)
 
@@ -542,7 +544,7 @@ func newestSHA(commits []rawCommit) string {
 
 Add `"time"` to `enrich.go` imports.
 
-> Spike contingency (Task 1): if `commits(ref:)` rejects a SHA, add `func currentBranch(runner port.Runner) (string, error)` (`git branch --show-current`) and pass its result as `ref` instead of `newestSHA(commits)`; the end-to-end test then queues one extra `git branch --show-current` response.
+> Spike (Task 1) confirmed `commits(ref:"<SHA>")` accepts a commit SHA, so `newestSHA(commits)` is the ref — no branch fallback needed.
 
 - [ ] **Step 5: Run to verify it passes**
 
@@ -667,9 +669,11 @@ GitLab enrichment uses two batched `glab api graphql` connection queries:
 1. **Commit authors** — `commits(ref: <range tip>, committedAfter: <oldest range date>)`, paginated,
    filtered to the range SHAs → `by @<commit author>`.
 2. **MR references** — `mergeRequests(state: merged, mergedAfter: <oldest range date>)`, paginated,
-   inverted by indexing each MR under its `mergeCommitSha`, `squashCommitSha`, and each source
-   `commits.nodes.sha` (covering merge / squash / fast-forward strategies) → `in [!N]` plus MR
-   review-metadata.
+   inverted by indexing each MR under its `mergeCommitSha` and each source `commits.nodes.sha`
+   (covering merge-commit, squash-with-merge-commit, and fast-forward merges) → `in [!N]` plus MR
+   review-metadata (`mergeUser`, `mergedAt`, labels, title). GitLab GraphQL exposes no squashed-commit
+   SHA (only a `squashOnMerge` bool), so a squash+fast-forward MR matches no target commit and that
+   commit renders no ref — a graceful omission.
 
 SHA match is authoritative; the date bounds only cap pagination. A commit with no MR renders no
 `in [!N]`; an unlinked author renders no `by @`. The per-commit MR REST enrichment is removed, so

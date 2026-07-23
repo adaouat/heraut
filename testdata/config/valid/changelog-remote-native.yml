@@ -10,5 +10,5 @@ changelog:
   output: CHANGELOG.md
   remote:
     type: gitlab
-    project: internal-tools/ci-cd/catalog/release-notes
-    base_url: https://git.cross-systems.ch
+    project: group/subgroup/project
+    base_url: https://git.example.com

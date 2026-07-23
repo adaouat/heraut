@@ -13,7 +13,7 @@ Running `heraut changelog --regenerate` **locally** against a self-hosted GitLab
 (config: `changelog.generator: native`, one `release.platforms` GitLab entry, no
 `changelog.remote`) produces a changelog with **no attribution, no commit links, and no
 compare/tag links**. Verified in `/tmp/release-notes` (remote
-`git@gitssh.cross-systems.ch:internal-tools/ci-cd/catalog/release-notes.git`): the
+`git@git.example.com:group/subgroup/project.git`): the
 `--verbose` trace shows **zero `glab api` calls** — the native generator received a `nil`
 `LinkContext` and skipped all link rendering and enrichment.
 
@@ -79,8 +79,8 @@ changelog:
   output: CHANGELOG.md
   remote:
     type: gitlab
-    project: internal-tools/ci-cd/catalog/release-notes
-    base_url: https://git.cross-systems.ch   # was hardcoded to gitlab.com
+    project: group/subgroup/project
+    base_url: https://git.example.com   # was hardcoded to gitlab.com
     # token_env: GITLAB_TOKEN (default)
 ```
 
@@ -185,7 +185,7 @@ Unit + contract, TDD (failing test first) per repo rules:
 - **`remoteLinkContext` (`linkctx_internal_test.go`):**
   - `github` with `base_url` → `BaseURL` honored; without → `github.com`.
   - `gitlab` with `base_url` → honored (incl. self-hosted host like
-    `https://git.cross-systems.ch`) and subgroup owner/repo split preserved; without →
+    `https://git.example.com`) and subgroup owner/repo split preserved; without →
     `gitlab.com`.
   - `azure_devops` with `base_url` → replaces the old `api_url` case; without →
     `https://dev.azure.com`.

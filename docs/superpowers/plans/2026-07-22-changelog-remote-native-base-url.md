@@ -64,8 +64,8 @@ with:
 		},
 		{
 			name: "gitlab honours base_url (self-managed, subgroup)",
-			r:    &config.Remote{Type: "gitlab", Project: "internal-tools/ci-cd/catalog/release-notes", BaseURL: "https://git.cross-systems.ch"},
-			want: &port.LinkContext{BaseURL: "https://git.cross-systems.ch", Owner: "internal-tools/ci-cd/catalog", Repo: "release-notes", Platform: "gitlab"},
+			r:    &config.Remote{Type: "gitlab", Project: "group/subgroup/project", BaseURL: "https://git.example.com"},
+			want: &port.LinkContext{BaseURL: "https://git.example.com", Owner: "group/subgroup", Repo: "release-notes", Platform: "gitlab"},
 		},
 		{
 			name: "base_url trailing slash trimmed",
@@ -433,8 +433,8 @@ changelog:
   output: CHANGELOG.md
   remote:
     type: gitlab
-    project: internal-tools/ci-cd/catalog/release-notes
-    base_url: https://git.cross-systems.ch
+    project: group/subgroup/project
+    base_url: https://git.example.com
 ```
 
 - [ ] **Step 5: Create the invalid `api_url` fixture + register it**
@@ -611,10 +611,10 @@ git commit -m "docs(adr): 0040 changelog.remote for native + base_url"
 - [ ] Run the full suite: `go test ./...` → all PASS.
 - [ ] Run `hk check` (or `mise run lint:check`) → clean.
 - [ ] Manual integration check against `/tmp/release-notes`: add
-  `base_url: https://git.cross-systems.ch` under `changelog.remote` (type gitlab, project
-  `internal-tools/ci-cd/catalog/release-notes`) with `generator: native`, then run
+  `base_url: https://git.example.com` under `changelog.remote` (type gitlab, project
+  `group/subgroup/project`) with `generator: native`, then run
   `./heraut changelog --regenerate --verbose` and confirm (a) `glab api` calls now appear in
-  the trace, (b) version headers render `## [x.y.z](…git.cross-systems.ch/…/compare/…)`,
-  (c) commit lines render `([sha](…git.cross-systems.ch/…/commit/…))`, (d) `in [!N]` MR
+  the trace, (b) version headers render `## [x.y.z](…git.example.com/…/compare/…)`,
+  (c) commit lines render `([sha](…git.example.com/…/commit/…))`, (d) `in [!N]` MR
   references appear. Expect **no** `by @` (T150). Do not commit or push in that repo.
 ```
