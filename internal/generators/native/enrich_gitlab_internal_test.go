@@ -107,6 +107,45 @@ func TestEnrichGitLab_SelfHostedHostInAPIEnv(t *testing.T) {
 	assert.Contains(t, mr.Calls[0].Env, "GITLAB_HOST=git.example.com")
 }
 
+func TestFetchGitLabAuthors_MapsAndOmitsNull(t *testing.T) {
+	mr := exectest.NewMockRunner()
+	mr.QueueResponse(`{"data":{"project":{"repository":{"commits":{"nodes":[
+		{"sha":"aaa","author":{"username":"alice"}},
+		{"sha":"bbb","author":null},
+		{"sha":"ccc","author":{"username":"carol"}}
+	],"pageInfo":{"endCursor":"","hasNextPage":false}}}}}}`, "", nil)
+
+	got, err := fetchGitLabAuthors(mr, gitlabLC(), "tagsha", "2026-01-01T00:00:00Z", map[string]bool{"aaa": true, "bbb": true, "ccc": true})
+	require.NoError(t, err)
+	assert.Equal(t, map[string]string{"aaa": "alice", "ccc": "carol"}, got)
+
+	require.Len(t, mr.Calls, 1)
+	assert.Equal(t, "glab", mr.Calls[0].Name)
+	assert.Equal(t, "graphql", mr.Calls[0].Args[1])
+	assert.Contains(t, mr.Calls[0].Args[3], `commits(ref:"tagsha",committedAfter:"2026-01-01T00:00:00Z",first:100`)
+	assert.Contains(t, mr.Calls[0].Env, "GITLAB_TOKEN=tok")
+}
+
+func TestFetchGitLabAuthors_Paginates(t *testing.T) {
+	mr := exectest.NewMockRunner()
+	mr.QueueResponse(`{"data":{"project":{"repository":{"commits":{"nodes":[{"sha":"aaa","author":{"username":"alice"}}],"pageInfo":{"endCursor":"C1","hasNextPage":true}}}}}}`, "", nil)
+	mr.QueueResponse(`{"data":{"project":{"repository":{"commits":{"nodes":[{"sha":"bbb","author":{"username":"bob"}}],"pageInfo":{"endCursor":"","hasNextPage":false}}}}}}`, "", nil)
+
+	got, err := fetchGitLabAuthors(mr, gitlabLC(), "tagsha", "", map[string]bool{"aaa": true, "bbb": true})
+	require.NoError(t, err)
+	assert.Equal(t, map[string]string{"aaa": "alice", "bbb": "bob"}, got)
+	require.Len(t, mr.Calls, 2)
+	assert.Contains(t, mr.Calls[1].Args[3], `after:"C1"`)
+}
+
+func TestFetchGitLabAuthors_ErrorsArray(t *testing.T) {
+	mr := exectest.NewMockRunner()
+	mr.QueueResponse(`{"errors":[{"message":"boom"}]}`, "", nil)
+	_, err := fetchGitLabAuthors(mr, gitlabLC(), "tagsha", "", map[string]bool{"aaa": true})
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "boom")
+}
+
 // End-to-end: GitLab release-notes enrichment renders "!N" (not "#N"). GitLab does not yet
 // resolve the commit-author handle (GitHub-only in this cut), so the commit line carries only
 // the MR reference link — no "by @" — even though the MR itself has an author.
