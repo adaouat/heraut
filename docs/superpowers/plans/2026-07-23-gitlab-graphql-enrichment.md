@@ -237,7 +237,7 @@ func TestFetchGitLabMRs_InvertsMergeAndSourceShas(t *testing.T) {
 	assert.Equal(t, "2026-01-02T00:00:00Z", got["merge1"].MergedAt.UTC().Format(time.RFC3339))
 
 	require.Len(t, mr.Calls, 1)
-	assert.Contains(t, mr.Calls[0].Args[2], `mergeRequests(state:merged,mergedAfter:"2026-01-01T00:00:00Z",first:100`)
+	assert.Contains(t, mr.Calls[0].Args[3], `mergeRequests(state:merged,mergedAfter:"2026-01-01T00:00:00Z",first:100`)
 }
 
 func TestFetchGitLabMRs_Paginates(t *testing.T) {
@@ -250,7 +250,7 @@ func TestFetchGitLabMRs_Paginates(t *testing.T) {
 	assert.Equal(t, 1, got["m1"].Number)
 	assert.Equal(t, 2, got["m2"].Number)
 	require.Len(t, mr.Calls, 2)
-	assert.Contains(t, mr.Calls[1].Args[2], `after:"C1"`)
+	assert.Contains(t, mr.Calls[1].Args[3], `after:"C1"`)
 }
 
 func TestFetchGitLabMRs_ErrorsArray(t *testing.T) {
