@@ -115,6 +115,10 @@ type ContentDriver struct {
 	// re-enrich every section, instead of incrementally splicing only the new release's section.
 	// Set by the app layer from the --regenerate / --regenerate-changelog flag. (native only.)
 	RegenerateChangelog bool `yaml:"-"`
+	// Force downgrades remote_metadata: required to optional for this run: an unavailable or
+	// unconfigured remote degrades (warn + render bare) instead of erroring. Set by the app layer
+	// from the --force flag. (native only.)
+	Force bool `yaml:"-"`
 	// HerautVersion is the running heraut binary's version, propagated by the app layer so the
 	// native generator can expose it to templates as .Heraut.Version. Not user-configurable.
 	// (native only.)

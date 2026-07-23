@@ -80,6 +80,7 @@ func NewChangelogCmd(version string) *cobra.Command {
 				Commit:              commit,
 				Tag:                 tag,
 				NoPush:              noPush,
+				Force:               force,
 				SignTags:            app.ReadGPGSign(readRunner),
 				HerautVersion:       version,
 				RegenerateChangelog: regenerate,

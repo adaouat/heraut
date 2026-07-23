@@ -65,12 +65,15 @@ func (g *Generator) enrichForRelease(lc *port.LinkContext, commits []rawCommit) 
 	if g.cfg.RemoteMetadata == "disabled" {
 		return enrichResult{}, nil
 	}
-	if g.cfg.RemoteMetadata == "required" && !enrichable(lc) {
+	// --force downgrades required to optional: an unavailable or unconfigured remote degrades
+	// instead of erroring.
+	required := g.cfg.RemoteMetadata == "required" && !g.cfg.Force
+	if required && !enrichable(lc) {
 		return enrichResult{}, fmt.Errorf("remote enrichment (required): no changelog remote or release platform configured to fetch PR/MR metadata from")
 	}
 	er, err := g.enrich(lc, commits)
 	if err != nil {
-		if g.cfg.RemoteMetadata == "required" {
+		if required {
 			return enrichResult{}, fmt.Errorf("remote enrichment (required): %w", err)
 		}
 		if !g.degraded {
