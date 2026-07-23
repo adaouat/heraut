@@ -17,6 +17,15 @@ import (
 	"github.com/adaouat/heraut/internal/port"
 )
 
+// gqlString renders values as GraphQL string literals so interpolated project paths / refs /
+// cursors / SHAs cannot break out of the query (defense in depth; git/config inputs are not
+// attacker-controlled, but a stray quote would otherwise produce an invalid query).
+func TestGqlString_QuotesAndEscapes(t *testing.T) {
+	assert.Equal(t, `"plain"`, gqlString("plain"), "quote-free value is byte-identical to the old \"%s\" form")
+	assert.Equal(t, `"a\"b"`, gqlString(`a"b`), "embedded double-quote is escaped")
+	assert.Equal(t, `"a\\b"`, gqlString(`a\b`), "backslash is escaped")
+}
+
 // ghGraphQLResponse builds a one-PR gh api graphql JSON body for alias s0. The commit author's
 // login is set equal to the PR author's login, so downstream `by @<login>` assertions hold
 // regardless of which source (commit author vs. PR author) the renderer credits.

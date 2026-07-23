@@ -1,11 +1,21 @@
 package native
 
 import (
+	"encoding/json"
 	"fmt"
 	"time"
 
 	"github.com/adaouat/heraut/internal/port"
 )
+
+// gqlString renders s as a GraphQL string literal (surrounding quotes + escaping), so values
+// interpolated into a query (project paths, refs, cursors, SHAs) cannot break out of it. A JSON
+// string literal is a valid GraphQL string literal for these inputs; for quote-free values the
+// output is byte-identical to the previous `"%s"` interpolation.
+func gqlString(s string) string {
+	b, _ := json.Marshal(s)
+	return string(b)
+}
 
 // enrichResult bundles per-commit remote data: associated PRs and commit-author handles.
 type enrichResult struct {

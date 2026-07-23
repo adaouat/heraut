@@ -43,13 +43,13 @@ func projectPath(lc *port.LinkContext) string { return lc.Owner + "/" + lc.Repo 
 func gitLabAuthorsQuery(project, ref, committedAfter, after string) string {
 	var extra strings.Builder
 	if committedAfter != "" {
-		fmt.Fprintf(&extra, `,committedAfter:"%s"`, committedAfter)
+		fmt.Fprintf(&extra, `,committedAfter:%s`, gqlString(committedAfter))
 	}
 	if after != "" {
-		fmt.Fprintf(&extra, `,after:"%s"`, after)
+		fmt.Fprintf(&extra, `,after:%s`, gqlString(after))
 	}
-	return fmt.Sprintf(`{project(fullPath:"%s"){repository{commits(ref:"%s"%s,first:100){nodes{sha author{username}}pageInfo{endCursor hasNextPage}}}}}`,
-		project, ref, extra.String())
+	return fmt.Sprintf(`{project(fullPath:%s){repository{commits(ref:%s%s,first:100){nodes{sha author{username}}pageInfo{endCursor hasNextPage}}}}}`,
+		gqlString(project), gqlString(ref), extra.String())
 }
 
 type gitLabCommitsResponse struct {
@@ -122,13 +122,13 @@ func fetchGitLabAuthors(runner port.Runner, lc *port.LinkContext, ref, committed
 func gitLabMRsQuery(project, mergedAfter, after string) string {
 	var extra strings.Builder
 	if mergedAfter != "" {
-		fmt.Fprintf(&extra, `,mergedAfter:"%s"`, mergedAfter)
+		fmt.Fprintf(&extra, `,mergedAfter:%s`, gqlString(mergedAfter))
 	}
 	if after != "" {
-		fmt.Fprintf(&extra, `,after:"%s"`, after)
+		fmt.Fprintf(&extra, `,after:%s`, gqlString(after))
 	}
-	return fmt.Sprintf(`{project(fullPath:"%s"){mergeRequests(state:merged%s,first:100){nodes{iid webUrl title author{username}createdAt mergedAt mergeUser{username}labels{nodes{title}}mergeCommitSha commits{nodes{sha}}}pageInfo{endCursor hasNextPage}}}}`,
-		project, extra.String())
+	return fmt.Sprintf(`{project(fullPath:%s){mergeRequests(state:merged%s,first:100){nodes{iid webUrl title author{username}createdAt mergedAt mergeUser{username}labels{nodes{title}}mergeCommitSha commits{nodes{sha}}}pageInfo{endCursor hasNextPage}}}}`,
+		gqlString(project), extra.String())
 }
 
 // gitLabMRNode: GitLab GraphQL scalars — iid is a String, the merger is mergeUser (not mergedBy),

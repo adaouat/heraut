@@ -58,13 +58,13 @@ func fetchGitHubChunk(runner port.Runner, lc *port.LinkContext, shas []string) (
 // buildGitHubQuery constructs a compact batched GraphQL query: one aliased object per SHA.
 func buildGitHubQuery(owner, repo string, shas []string) string {
 	var sb strings.Builder
-	sb.WriteString(`{repository(owner:"`)
-	sb.WriteString(owner)
-	sb.WriteString(`",name:"`)
-	sb.WriteString(repo)
-	sb.WriteString(`"){`)
+	sb.WriteString(`{repository(owner:`)
+	sb.WriteString(gqlString(owner))
+	sb.WriteString(`,name:`)
+	sb.WriteString(gqlString(repo))
+	sb.WriteString(`){`)
 	for i, sha := range shas {
-		fmt.Fprintf(&sb, `s%d:object(oid:"%s"){%s}`, i, sha, prFragment)
+		fmt.Fprintf(&sb, `s%d:object(oid:%s){%s}`, i, gqlString(sha), prFragment)
 	}
 	sb.WriteString("}}")
 	return sb.String()
