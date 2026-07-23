@@ -33,7 +33,7 @@ func NewCheckCmd() *cobra.Command {
 			cfg, err := config.Load(path)
 			if err != nil {
 				if !errors.Is(err, os.ErrNotExist) {
-					return exitcode.Wrap(exitcode.Config, fmt.Errorf("loading config: %w", err))
+					return exitcode.Wrap(exitcode.Config, err)
 				}
 				cfg = nil
 			}
@@ -106,7 +106,7 @@ func newCheckConfigCmd() *cobra.Command {
 			path, source := config.ResolvePathWithSource(cfgPath)
 			cfg, err := config.Load(path)
 			if err != nil {
-				return exitcode.Wrap(exitcode.Config, fmt.Errorf("loading config: %w", err))
+				return exitcode.Wrap(exitcode.Config, err)
 			}
 
 			_, _ = fmt.Fprintln(out, ui.Info(out, fmt.Sprintf("%s  (from %s)", path, source)))
@@ -136,7 +136,7 @@ func newCheckRuntimeCmd() *cobra.Command {
 			cfg, err := config.Load(path)
 			if err != nil {
 				if !errors.Is(err, os.ErrNotExist) {
-					return exitcode.Wrap(exitcode.Config, fmt.Errorf("loading config: %w", err))
+					return exitcode.Wrap(exitcode.Config, err)
 				}
 				_, _ = fmt.Fprintln(out, ui.Warn(out, fmt.Sprintf("no config found at %s — all tools checked as required", path)))
 				cfg = nil
@@ -172,7 +172,7 @@ func newCheckCliffCmd() *cobra.Command {
 			path := config.ResolvePath(cfgPath)
 			cfg, err := config.Load(path)
 			if err != nil {
-				return exitcode.Wrap(exitcode.Config, fmt.Errorf("loading config: %w", err))
+				return exitcode.Wrap(exitcode.Config, err)
 			}
 			applyOfflineOverride(cmd, cfg)
 
@@ -203,7 +203,7 @@ func newCheckCliffChangelogCmd() *cobra.Command {
 			path := config.ResolvePath(cfgPath)
 			cfg, err := config.Load(path)
 			if err != nil {
-				return exitcode.Wrap(exitcode.Config, fmt.Errorf("loading config: %w", err))
+				return exitcode.Wrap(exitcode.Config, err)
 			}
 
 			applyOfflineOverride(cmd, cfg)
@@ -225,7 +225,7 @@ func newCheckCliffReleaseNotesCmd() *cobra.Command {
 			path := config.ResolvePath(cfgPath)
 			cfg, err := config.Load(path)
 			if err != nil {
-				return exitcode.Wrap(exitcode.Config, fmt.Errorf("loading config: %w", err))
+				return exitcode.Wrap(exitcode.Config, err)
 			}
 
 			applyOfflineOverride(cmd, cfg)

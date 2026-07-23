@@ -37,7 +37,7 @@ func newVersionNextCmd() *cobra.Command {
 
 			cfg, err := config.Load(path)
 			if err != nil {
-				return exitcode.Wrap(exitcode.Config, fmt.Errorf("loading config: %w", err))
+				return exitcode.Wrap(exitcode.Config, err)
 			}
 
 			if errs := config.Validate(cfg); len(errs) > 0 {
@@ -86,7 +86,7 @@ func newVersionCurrentCmd() *cobra.Command {
 
 			cfg, err := config.Load(path)
 			if err != nil {
-				return exitcode.Wrap(exitcode.Config, fmt.Errorf("loading config: %w", err))
+				return exitcode.Wrap(exitcode.Config, err)
 			}
 
 			if errs := config.Validate(cfg); len(errs) > 0 {

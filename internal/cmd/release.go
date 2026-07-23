@@ -56,7 +56,7 @@ func NewReleaseCmd(version string) *cobra.Command {
 
 			cfg, err := config.Load(path)
 			if err != nil {
-				return exitcode.Wrap(exitcode.Config, fmt.Errorf("loading config: %w", err))
+				return exitcode.Wrap(exitcode.Config, err)
 			}
 			logger.Debug("config resolved", "path", path)
 			applyOfflineOverride(cmd, cfg)

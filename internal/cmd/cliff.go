@@ -32,7 +32,7 @@ func newCliffChangelogCmd() *cobra.Command {
 
 			cfg, err := config.Load(path)
 			if err != nil {
-				return exitcode.Wrap(exitcode.Config, fmt.Errorf("loading config: %w", err))
+				return exitcode.Wrap(exitcode.Config, err)
 			}
 
 			runner := execadapter.New(false, false)
@@ -62,7 +62,7 @@ func newCliffReleaseNotesCmd() *cobra.Command {
 
 			cfg, err := config.Load(path)
 			if err != nil {
-				return exitcode.Wrap(exitcode.Config, fmt.Errorf("loading config: %w", err))
+				return exitcode.Wrap(exitcode.Config, err)
 			}
 
 			runner := execadapter.New(false, false)

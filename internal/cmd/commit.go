@@ -45,7 +45,7 @@ func newCommitVerifyCmd() *cobra.Command {
 			cfg, err := config.Load(path)
 			if err != nil {
 				if !errors.Is(err, os.ErrNotExist) {
-					return exitcode.Wrap(exitcode.Config, fmt.Errorf("loading config: %w", err))
+					return exitcode.Wrap(exitcode.Config, err)
 				}
 				cfg = nil
 			}
@@ -87,7 +87,7 @@ func newCommitCheckCmd() *cobra.Command {
 			cfg, err := config.Load(path)
 			if err != nil {
 				if !errors.Is(err, os.ErrNotExist) {
-					return exitcode.Wrap(exitcode.Config, fmt.Errorf("loading config: %w", err))
+					return exitcode.Wrap(exitcode.Config, err)
 				}
 				cfg = nil
 			}
@@ -142,7 +142,7 @@ func newCommitCreateCmd() *cobra.Command {
 			cfg, err := config.Load(path)
 			if err != nil {
 				if !errors.Is(err, os.ErrNotExist) {
-					return exitcode.Wrap(exitcode.Config, fmt.Errorf("loading config: %w", err))
+					return exitcode.Wrap(exitcode.Config, err)
 				}
 				cfg = nil
 			}
