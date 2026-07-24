@@ -98,7 +98,7 @@ fixture is validated against the real JSON-Schema validator (`testdata/config/va
 via `TestSchema_ValidFixtures`). Review clean — two cosmetic minors: a co-author-trailer bracket
 typo (fixed by amend) and `Config.Forges` field ordering. Commit `8e992a1`.
 
-#### `[ ]` T156: config validation + migration error
+#### `[x]` T156: config validation + migration error
 
 Semantic validation (`internal/config/validator.go`): `enrichment_forge` optional with one forge
 (defaults to it), **required** with >1, error on unknown name; `api_mode: graphql` requires a
@@ -107,6 +107,21 @@ must reference a known forge (optional with a single forge). Emit a **clear migr
 the removed `changelog.remote` / `release.platforms` / `commits.remote_metadata` keys are present,
 mapping old → new with a before/after hint (no silent alias). Tests: table-driven validation +
 migration-error fixtures.
+
+**Completion note (2026-07-24):** Landed the static, additive half of this task's scope:
+`validateForges` in `internal/config/validator.go` enforces forge `name` non-empty + unique,
+`platform` ∈ `{github, gitlab, azure_devops}`, `api_mode` ∈ `{"", rest, graphql}`,
+`commits.enrichment_policy` ∈ `{"", disabled, optional, required}`, and that
+`commits.enrichment_forge` / `release.targets[].forge` name a known forge and are required only
+when more than one forge is configured. Deliberately deferred, per the Plan A/B split this doc's
+own phase intro describes (line ~61: "the rename and migration error land in T160, not in
+T155/T156"): the `api_mode: graphql` + job-token check (resolution-time, not static config — goes
+to T157) and the migration error for removed `changelog.remote` / `release.platforms` /
+`commits.remote_metadata` (T160 cutover, since those keys are not yet removed). **Note:** this
+task heading's own body text (above) still asks for the migration error here, which contradicts
+the phase intro's Plan A/B split — flagging for whoever picks up T160 to confirm the migration
+error belongs there, not here. Tests: `internal/config/validator_forge_test.go`
+(`TestValidate_Forges`, table-driven, 6 cases). Commit `6f4be94`.
 
 #### `[ ]` T157: forge identity resolution (config / CI / git / ambiguity)
 
