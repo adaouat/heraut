@@ -47,3 +47,4 @@ trade-offs were accepted.
 | [0040](0040-changelog-remote-native-base-url.md) | `changelog.remote` for native + unified `base_url` host override | Accepted |
 | [0041](0041-remote-metadata-required-enforcement-and-force.md) | `remote_metadata: required` enforcement and `--force` override | Accepted |
 | [0042](0042-gitlab-graphql-enrichment.md) | GitLab enrichment via batched GraphQL | Accepted |
+| [0043](0043-forge-abstraction.md) | Forge abstraction + unified forges: config | Accepted |
