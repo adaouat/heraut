@@ -123,7 +123,7 @@ description above have since been reconciled to match this split. Tests:
 `internal/config/validator_forge_test.go`
 (`TestValidate_Forges`, table-driven, 6 cases). Commit `6f4be94`.
 
-#### `[ ]` T157: forge identity resolution (config / CI / git / ambiguity)
+#### `[x]` T157: forge identity resolution (config / CI / git / ambiguity)
 
 Resolve `{host, apiURL, project, token, tokenKind}` per forge with precedence **explicit config →
 CI env → git `origin` → none**. CI detection: GitLab (`GITLAB_CI` → `CI_SERVER_URL` / `CI_API_V4_URL`
@@ -133,6 +133,28 @@ CI env → git `origin` → none**. CI detection: GitLab (`GITLAB_CI` → `CI_SE
 one forge; **fail loud** on ambiguity (nothing pins a single type + multiple forge tokens). git
 `origin` parse yields host + project for known public hosts. Tests: table-driven with `t.Setenv`;
 CI-env, origin-parse, precedence, and ambiguity-error cases.
+
+**Completion note (2026-07-24):** New package `internal/forge` (`detect.go` + `resolve.go`),
+importing only `internal/{port,config}` + stdlib — all env access via an injected
+`getenv func(string) string`, no direct `os.Getenv`. `detectCIForge` reads the GitLab/GitHub/Azure
+markers and vars per the design spec §3 table; `parseGitOrigin` handles both `git@host:path.git`
+and `https://host/path.git`, mapping `github.com`/`gitlab.com`/`dev.azure.com` to their types.
+`Resolve` dispatches to `resolveExplicit` (one identity per `cfg.Forges` entry, filling
+host/apiURL/project/token per-field from CI — when its type matches the entry's `platform` — then
+git origin, then a type default; `token_env` always wins and is stamped `TokenPrivate`) or
+`resolveAuto` (CI → git origin → a single unambiguous token-implied candidate → offline;
+`ErrAmbiguousForge` when more than one candidate token is present and nothing pins a type).
+Tests: `internal/forge/resolve_test.go`, the five brief-specified cases verbatim (GitLab-CI
+zero-config, git-origin local GitLab, ambiguous zero-config, explicit-forge-fills-from-CI,
+no-forge-offline) — all pass; `go test ./...` (1455 tests) and `hk check` clean throughout.
+**Deferred, not implemented here:** the `api_mode: graphql` + job-token-only validation error
+that T156's note and the design spec's §"Error handling" assign to this task/resolution-time —
+the task-4 brief this session executed against defines T157's scope as exactly the five tests
+(CI/origin/config resolution + ambiguity) and does not include that check or a test for it; adding
+it would have been undocumented scope expansion. The roadmap still needs reconciling on exactly
+where that check lands (T157 resolution-time vs. T159's "the validation error from T156" wording,
+which itself conflicts with T156's completion note deferring it away). Flagged for the next
+task/roadmap-reconciliation pass rather than guessed at.
 
 #### `[ ]` T158: GitLab REST forge (native `net/http`)
 
