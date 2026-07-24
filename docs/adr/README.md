@@ -43,7 +43,7 @@ trade-offs were accepted.
 | [0036](0036-unified-enrichment-model.md) | Unified Cross-Platform Enrichment Model | Accepted |
 | [0037](0037-native-template-api.md) | Native Generator Public Template API | Accepted |
 | [0038](0038-incremental-changelog.md) | Incremental Changelog Generation (native) | Accepted (GitLab full-regeneration rate-limit warning superseded by 0042) |
-| [0039](0039-commit-author-attribution.md) | Commit-Author Attribution (native) | Accepted (GitLab GitHub-only scope superseded by 0042) |
+| [0039](0039-commit-author-attribution.md) | Commit-Author Attribution (native) | Accepted (GitHub-only scope superseded — GitLab by 0042, Azure by T151) |
 | [0040](0040-changelog-remote-native-base-url.md) | `changelog.remote` for native + unified `base_url` host override | Accepted |
 | [0041](0041-remote-metadata-required-enforcement-and-force.md) | `remote_metadata: required` enforcement and `--force` override | Accepted |
 | [0042](0042-gitlab-graphql-enrichment.md) | GitLab enrichment via batched GraphQL | Accepted |

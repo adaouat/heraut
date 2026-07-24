@@ -8,6 +8,14 @@
 
 ---
 
+> **Update (2026-07-24):** The "GitHub only" scope of this cut has since been extended to all three
+> platforms. GitLab commit-author `by @` shipped in
+> [ADR-0042](0042-gitlab-graphql-enrichment.md) (roadmap T150), and Azure DevOps in roadmap T151 —
+> rendered from the local git author email's local-part, since no Azure identity is resolvable from
+> a git email (no new ADR; see the spec and `docs/tasks/native-generator-roadmap.md` Phase 2.10).
+> The "Scope of this cut: GitHub only" limitation in the Decision and the GitLab/Azure regression in
+> the Consequences below are therefore historical, not current behavior.
+
 ## Context
 
 Native's commit line rendered `by @<login>` only when a commit had an associated pull request,
