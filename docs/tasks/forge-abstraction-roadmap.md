@@ -184,9 +184,16 @@ semantics; `--offline` forces disabled); the native generator consumes `port.For
 reads `release.targets` (default: the single resolved forge with default options). GitHub and Azure
 are adapted to *feed* the resolver (transports unchanged). Perform the breaking config migration:
 rename `commits.remote_metadata` → `commits.enrichment_policy`, remove the now-dead
-`changelog.remote` / `release.platforms` config paths and the `enrich()` GitLab-graphql-via-glab
-path, and emit a **clear migration error** when any removed key is present (map old → new with a
-before/after hint; no silent alias). Tests:
+`changelog.remote` config path, and emit a **clear migration error** when any removed key is
+present (map old → new with a before/after hint; no silent alias).
+
+**Scope decision (2026-07-24) — enrichment-first.** This task originally also removed
+`release.platforms`. That key is consumed by **17 non-test files including `internal/scaffold/`**
+(the `heraut init` wizard), whose rewrite is deliberately **P4, last**. Removing it here would drag
+P4 forward, so: T160 wires the forge for **enrichment** (changelog + release notes) and derives the
+render `LinkContext` from the resolved forge, and **`release.platforms` stays** for publishing until
+**P3**, which already owns "fold publishing into `port.Forge`". `release.targets` remains
+parsed-and-validated but unused until then — expected, not dead code. Tests:
 integration — zero-config GitLab CI changelog (enriched via `CI_JOB_TOKEN`); happy-path + dry-run
 release to a resolved forge.
 
