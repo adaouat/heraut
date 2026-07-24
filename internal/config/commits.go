@@ -20,6 +20,12 @@ type Commits struct {
 	// RemoteMetadata is the PR/MR enrichment policy: "required", "optional" (default), or
 	// "disabled". Governs changelog and release-notes generation.
 	RemoteMetadata string `yaml:"remote_metadata,omitempty"`
+	// EnrichmentForge references a forges[].name used as the PR/MR metadata source for
+	// changelog and release-notes generation (ADR-0043). Additive alongside RemoteMetadata.
+	EnrichmentForge string `yaml:"enrichment_forge,omitempty"`
+	// EnrichmentPolicy is the PR/MR enrichment policy sourced from EnrichmentForge:
+	// "required", "optional" (default), or "disabled". Additive alongside RemoteMetadata.
+	EnrichmentPolicy string `yaml:"enrichment_policy,omitempty"`
 }
 
 // Rendering configures content output (ADR-0033).

@@ -36,6 +36,13 @@
     },
     "rendering": {
       "$ref": "#/definitions/Rendering"
+    },
+    "forges": {
+      "type": "array",
+      "description": "Code-hosting platforms heraut talks to (ADR-0043): connection/identity only. What to publish (draft/assets) lives in release.targets; the enrichment source is commits.enrichment_forge. Additive alongside changelog.remote / release.platforms.",
+      "items": {
+        "$ref": "#/definitions/Forge"
+      }
     }
   },
   "definitions": {
@@ -98,6 +105,20 @@
           ],
           "default": "optional",
           "description": "Whether content generators fetch PR/MR metadata (author handle, PR number) to enrich changelog/release-notes. 'required': fetch and fail if unavailable. 'optional' (default): fetch when possible, else warn. 'disabled': never fetch. The --offline flag forces 'disabled' for a single run."
+        },
+        "enrichment_forge": {
+          "type": "string",
+          "description": "References a forges[].name used as the PR/MR metadata source for changelog and release-notes generation (ADR-0043). Additive alongside remote_metadata."
+        },
+        "enrichment_policy": {
+          "type": "string",
+          "enum": [
+            "disabled",
+            "optional",
+            "required"
+          ],
+          "default": "optional",
+          "description": "PR/MR enrichment policy sourced from enrichment_forge: 'required': fetch and fail if unavailable. 'optional' (default): fetch when possible, else warn. 'disabled': never fetch. Additive alongside remote_metadata."
         }
       }
     },
@@ -399,6 +420,92 @@
           "items": {
             "type": "string"
           }
+        },
+        "targets": {
+          "type": "array",
+          "description": "Release publish destinations, each referencing a forges[].name (ADR-0043). Additive alongside platforms.",
+          "items": {
+            "$ref": "#/definitions/Target"
+          }
+        }
+      }
+    },
+    "Forge": {
+      "type": "object",
+      "required": [
+        "name",
+        "platform"
+      ],
+      "additionalProperties": false,
+      "description": "One code-hosting platform heraut talks to — connection/identity only (ADR-0043). What to publish (draft/assets) lives in release.targets; the enrichment source is commits.enrichment_forge.",
+      "properties": {
+        "name": {
+          "type": "string",
+          "description": "Unique identifier for this forge entry, referenced by release.targets[].forge and commits.enrichment_forge."
+        },
+        "platform": {
+          "type": "string",
+          "enum": [
+            "github",
+            "gitlab",
+            "azure_devops"
+          ],
+          "description": "Forge type."
+        },
+        "project": {
+          "type": "string",
+          "description": "GitLab project path (namespace[/subgroup]/repo). GitLab. For azure_devops, \"organization/project\" (matches git-cliff's own azure_devops \"owner\" shape)."
+        },
+        "repository": {
+          "type": "string",
+          "description": "GitHub repository (owner/repo). GitHub. For azure_devops, the repository name."
+        },
+        "base_url": {
+          "type": "string",
+          "description": "Web base URL of the forge instance (e.g. https://gitlab.example.com for a self-hosted instance). Defaults per type when unset."
+        },
+        "api_url": {
+          "type": "string",
+          "description": "API host override, when it differs from base_url. Defaults per type when unset."
+        },
+        "api_mode": {
+          "type": "string",
+          "enum": [
+            "rest",
+            "graphql"
+          ],
+          "default": "rest",
+          "description": "API access mode. \"rest\" (default) or \"graphql\"."
+        },
+        "token_env": {
+          "type": "string",
+          "description": "Environment variable holding the API token. Defaults per type when unset."
+        }
+      }
+    },
+    "Target": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "One release publish destination: a reference to a forges[].name plus publish options (ADR-0043).",
+      "properties": {
+        "forge": {
+          "type": "string",
+          "description": "References a forges[].name. Optional when exactly one forge is configured."
+        },
+        "draft": {
+          "type": "boolean",
+          "description": "Create as draft release."
+        },
+        "prerelease": {
+          "type": "boolean",
+          "description": "Mark as a pre-release."
+        },
+        "assets": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Target-specific glob patterns for files to attach to the release. When set, overrides release.assets entirely for this target. Omit to inherit release.assets."
         }
       }
     },

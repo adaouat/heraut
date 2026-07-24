@@ -16,6 +16,10 @@ type Config struct {
 	// Rendering configures content output (ADR-0033): the exclude rules that drop matched
 	// commits from the rendered changelog/release-notes.
 	Rendering *Rendering `yaml:"rendering,omitempty"`
+	// Forges lists the code-hosting platforms heraut talks to (ADR-0043). Consumed by
+	// release.targets (publish destinations) and commits.enrichment_forge (PR/MR metadata
+	// source). Additive alongside changelog.remote / release.platforms for now.
+	Forges []Forge `yaml:"forges,omitempty"`
 }
 
 // Tickets returns the configured ticket-link patterns (commits.tickets), or nil. Nil-safe.
@@ -168,6 +172,32 @@ type Release struct {
 	// Globs are expanded at release time; a pattern matching nothing emits a warning
 	// but does not abort the release. Applied to all configured platforms.
 	Assets []string `yaml:"assets,omitempty"`
+	// Targets lists release publish destinations, each referencing a forges[].name
+	// (ADR-0043). Additive alongside Platforms for now.
+	Targets []Target `yaml:"targets,omitempty"`
+}
+
+// Forge is one code-hosting platform heraut talks to — connection/identity only. What to
+// publish (draft/assets) lives in release.targets; the enrichment source is
+// commits.enrichment_forge. See ADR-0043.
+type Forge struct {
+	Name       string `yaml:"name"`
+	Type       string `yaml:"platform"`             // discriminator; "platform" key avoids Forge.Forge self-reference (ADR-0006)
+	Project    string `yaml:"project,omitempty"`    // gitlab: group[/subgroup]/repo; azure: organization/project
+	Repository string `yaml:"repository,omitempty"` // github: owner/repo; azure: repo name
+	BaseURL    string `yaml:"base_url,omitempty"`
+	APIURL     string `yaml:"api_url,omitempty"`
+	APIMode    string `yaml:"api_mode,omitempty"` // "rest" (default) | "graphql"
+	TokenEnv   string `yaml:"token_env,omitempty"`
+}
+
+// Target is one release publish destination: a reference to a forges[].name plus publish
+// options.
+type Target struct {
+	Forge      string   `yaml:"forge,omitempty"` // → forges[].name; optional when exactly one forge
+	Draft      bool     `yaml:"draft,omitempty"`
+	Prerelease bool     `yaml:"prerelease,omitempty"`
+	Assets     []string `yaml:"assets,omitempty"`
 }
 
 // Platform holds settings for one release platform (github or gitlab).

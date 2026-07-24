@@ -1,0 +1,20 @@
+version: "1"
+versioning:
+  strategy: semver
+  tag_prefix: ""
+changelog:
+  generator: native
+  output: CHANGELOG.md
+commits:
+  enrichment_forge: Primary GitLab
+  enrichment_policy: optional
+forges:
+  - name: Primary GitLab
+    platform: gitlab
+    api_mode: rest
+release:
+  notes:
+    generator: native
+  targets:
+    - forge: Primary GitLab
+      draft: false
