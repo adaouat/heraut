@@ -54,7 +54,7 @@ GitLab forge (REST default, GraphQL opt-in) + links + the breaking-config migrat
 and Azure are temporarily adapted to *feed* the resolver; their transports are unchanged (migrated
 in P2).
 
-#### `[ ]` T154: ADR-0043 + `port.Forge` contract
+#### `[x]` T154: ADR-0043 + `port.Forge` contract
 
 Write **ADR-0043** (forge abstraction + config unification), distilled from the design spec — the
 permanent decision record that anchors the epic. Add the `port.Forge` interface (`Type`,
@@ -63,6 +63,14 @@ permanent decision record that anchors the epic. Add the `port.Forge` interface 
 Move the enrichment result types (`Enrichment` = `{prs, authors}`, `PullRequest`, `Author`) into
 `port` (or a shared leaf) so the native generator consumes them through the port. No behavior yet —
 contract + record. Tests: interface compiles; type round-trips.
+
+Landed as planned: `internal/port/forge.go` adds `TokenKind` (`TokenNone|TokenJob|TokenPrivate`),
+`ForgeIdentity`, `Author`, `PullRequest`, `Enrichment`, `Commit`, and the `Forge` interface, with
+`TestForge_InterfaceComposes` proving a fake implementation satisfies it and the value types
+compose end to end. `docs/adr/0043-forge-abstraction.md` records the decision, mirroring
+ADR-0042's section layout plus `Alternatives considered` and `References`. No consumer wired yet —
+by design, this task is contract-only; T155–T160 build config, validation, resolution, and the
+GitLab forge on top of it. Commit `0512b43`.
 
 #### `[ ]` T155: config — `forges:` + `release.targets:` + `commits.enrichment_*`
 
