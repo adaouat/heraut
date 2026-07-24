@@ -5240,6 +5240,33 @@ Summary of the arc (full detail, tests, and files in the dedicated file):
 
 ---
 
+### Phase 24 — Forge abstraction + unified `forges:` config
+
+A single top-level `forges:` list (a forge = one code-hosting platform heraut talks to) replaces
+`changelog.remote` + `release.platforms`, and a new `port.Forge` resolves its identity from **CI env
+or git `origin`** (fail loud on ambiguity), builds links, and fetches enrichment metadata. GitLab
+gains a native `net/http` enricher (REST default, `JOB-TOKEN`-aware) so `CI_JOB_TOKEN` enriches with
+**zero config** — no manual PAT — plus an opt-in GraphQL path (`api_mode: graphql`) for linked
+commit-author handles. Consumers reference a forge by name: `commits.enrichment_forge` and
+`release.targets[].forge`; `commits.remote_metadata` → `commits.enrichment_policy`. Breaking config
+change (pre-v1.0) under new ADR-0043. Heavy and multi-phase, so the task breakdown **and live
+`[ ] / [x]` status** live in a dedicated roadmap:
+
+→ **[Forge Abstraction Roadmap](forge-abstraction-roadmap.md)** — T154+
+
+Design: [`docs/superpowers/specs/2026-07-24-forge-abstraction-design.md`](../superpowers/specs/2026-07-24-forge-abstraction-design.md).
+
+Summary of the arc (full detail, tests, and files in the dedicated file):
+
+- **P1** — GitLab-first: `port.Forge` + config (`forges:` / `release.targets:` /
+  `commits.enrichment_*`) + resolution + native REST/GraphQL forge + links + migration (T154–T160).
+- **P2** — migrate GitHub + Azure onto `port.Forge`, retire the enrich switch (T161, T162).
+- **P3** — fold publishing into `port.Forge` (T163).
+- **P4 (last)** — `heraut init` wizard generates the forge config, after the schema is
+  battle-tested (T164).
+
+---
+
 ## Risks and mitigations
 
 | Risk                                                                                | Impact            | Mitigation                                                                |
