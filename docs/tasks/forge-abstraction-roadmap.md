@@ -152,6 +152,12 @@ retire the `release.platforms`-era `port.Platform` split, and have `release.targ
 through the forge. A forge becomes the single object for enrich + links + publish. Tests: contract
 tests for `gh`/`glab` (or native) release create, fed the resolved identity.
 
+**Publishing HTTP client — own ADR (decided here).** Whether release-create + asset-upload use
+stdlib `net/http` or official SDKs (`go-github` / `gitlab-org/api/client-go`) is decided in this
+phase, informed by the P1/P2 build. A generic client like `resty` is rejected (an SDK gives typed
+endpoints for the same dependency cost). Enrichment (P1/P2) is stdlib; the `port.Forge` abstraction
+lets the GitLab/GitHub impls swap to the SDK too, if chosen, without consumer churn.
+
 ---
 
 ## Phase 4 (last) — `heraut init` wizard

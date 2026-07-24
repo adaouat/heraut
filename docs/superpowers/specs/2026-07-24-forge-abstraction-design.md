@@ -318,7 +318,12 @@ Each phase is its own implementation plan; the **design** (this spec) is landed 
 - **P2 — GitHub + Azure onto `port.Forge`.** Migrate GitHub (`gh api graphql`) and Azure
   (`net/http`) to implement `Forge`; retire the enrichment `switch`.
 - **P3 — Fold publishing into `Forge`.** Retire `release.platforms` internals; a forge becomes the
-  single object for enrich + links + publish.
+  single object for enrich + links + publish. **The publishing HTTP client is decided in P3's own
+  ADR** — stdlib `net/http` vs official SDKs (`github.com/google/go-github`,
+  `gitlab.com/gitlab-org/api/client-go`) for release-create + asset-upload — informed by the P1/P2
+  build. A generic client like `resty` is rejected: an SDK gives typed endpoints for the same
+  dependency cost. Enrichment (P1/P2) stays stdlib; because impls live behind `port.Forge`, adopting
+  an SDK later would swap a forge's internals with no consumer churn.
 - **P4 (last) — `heraut init` wizard.** Update the scaffold wizard (`internal/scaffold`) to generate
   `forges:` / `release.targets:` / `commits.enrichment_forge` (auto-detection defaults, `api_mode` prompt).
   Deliberately the **final** phase: the wizard is a convenience that codifies the config shape, so
