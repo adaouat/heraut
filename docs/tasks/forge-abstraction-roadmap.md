@@ -169,9 +169,12 @@ request-shape + header-selection + mapping + `by @git-name` render.
 
 `api_mode: graphql` path: reuse the batched query logic (ADR-0042 — `commits(ref:){author{username}}`
 + `mergeRequests`) POSTed via native `net/http` with `PRIVATE-TOKEN`, rendering the **linked
-`@username`** commit-author handle. Guard: graphql + only a job token → the validation error from
-T156 (no network call). Tests: `httptest.Server` GraphQL path; `PRIVATE-TOKEN` header; linked-handle
-render; job-token → error.
+`@username`** commit-author handle. **Guard (owned by this task):** graphql + only a job token → a
+validation error with a hint (GraphQL rejects job tokens; use `api_mode: rest` or supply a `read_api`
+token), no network call. This check lives here, not in T156/T157: it is only reachable once the
+GraphQL path exists and needs the resolved `TokenKind` (T157's `port.ForgeIdentity`) — T156 (static
+config validation) and T157 (identity resolution) both deliberately left it out. Tests:
+`httptest.Server` GraphQL path; `PRIVATE-TOKEN` header; linked-handle render; job-token → error.
 
 #### `[ ]` T160: pipeline wiring + old-path removal
 
