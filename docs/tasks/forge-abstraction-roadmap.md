@@ -190,6 +190,24 @@ before/after hint; no silent alias). Tests:
 integration — zero-config GitLab CI changelog (enriched via `CI_JOB_TOKEN`); happy-path + dry-run
 release to a resolved forge.
 
+### Plan B / P2 handoff notes (from Plan A's final whole-branch review)
+
+Carried forward so they are not rediscovered once a consumer wires `port.Forge` / `forge.Resolve`
+(all three are **inert in Plan A** — no consumer yet):
+
+- **`port` vs `native` PR/Author field delta.** `port.PullRequest`/`port.Author` are near-mirrors of
+  `internal/generators/native`'s types, **not** identical: native's `PullRequest` also carries
+  `Platforms map[string]any` and native's `Author` carries `Name`/`Email` (not just `Username`). When
+  P2 unifies native onto the `port` types, the boundary converter **must preserve** `Platforms` and
+  `Name`/`Email`, or that data is silently lost.
+- **Azure zero-config `APIURL`.** `detectCIForge` returns `APIURL: ""` for Azure (there is no
+  `CI_API_V4_URL`-equivalent); the Azure API URL must be derived (from `SYSTEM_COLLECTIONURI` / host)
+  when the Azure forge driver needs it.
+- **git-origin gate is type-match, not host-match.** `resolveExplicit` fills git-origin fields when
+  `originType == forge.Type` (behaviorally equivalent to host-match today, since `parseGitOrigin`
+  returns `ok=false` for non-public hosts). Revisit if a self-hosted explicit forge must draw its
+  project/host from `origin`.
+
 ---
 
 ## Phase 2 — migrate GitHub + Azure onto `port.Forge`

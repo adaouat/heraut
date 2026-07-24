@@ -6,9 +6,10 @@ import (
 	"github.com/adaouat/heraut/internal/port"
 )
 
-// Default web hosts and token env var names per forge type, copied from
-// internal/pipeline/linkctx.go (internal/forge must not import internal/pipeline — it sits
-// below it in the layer stack).
+// Default web hosts and token env var names per forge type. The github/gitlab hosts mirror
+// config.go's DefaultBaseURL; the azure host and all three token-env names mirror
+// internal/pipeline/linkctx.go. They are copied (not imported) because internal/forge sits
+// below internal/pipeline in the layer stack and must not import it.
 const (
 	githubDefaultHost      = "https://github.com"
 	gitlabDefaultHost      = "https://gitlab.com"
