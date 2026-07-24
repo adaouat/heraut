@@ -37,9 +37,10 @@ batched PR-fetch query (ADR-0039). GitLab resolves it via a batched `commits` Gr
 separately inverts a batched `mergeRequests` query into a `commitSha → MR` map for the `in [!N]`
 reference plus MR review-metadata; a commit attributable to no MR (e.g. a squash-with-fast-forward
 merge, for which GitLab's GraphQL schema exposes no squashed-commit SHA) renders no ref — a
-graceful omission, not an error (ADR-0042). **Azure DevOps only, this cut**: it does not yet
-resolve a commit-author handle, so its commit lines render no `by @` (tracked follow-up). See
-[ADR-0039](../adr/0039-commit-author-attribution.md) and
+graceful omission, not an error (ADR-0042). **Azure DevOps** resolves no identity from a commit's
+git author email (no API can map it — confirmed by a live spike, T151), so its `by @<author>` is
+rendered from the local git author email's local-part instead — a text attribution, not a
+clickable Azure @mention. See [ADR-0039](../adr/0039-commit-author-attribution.md) and
 [ADR-0042](../adr/0042-gitlab-graphql-enrichment.md).
 
 PR/MR number attribution and the "New Contributors" block derive from a unified,

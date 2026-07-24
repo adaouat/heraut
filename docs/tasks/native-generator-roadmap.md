@@ -37,7 +37,7 @@ no longer a parity target — heraut's rendering is its own spec, validated by g
 | Phase 2.7 — unified enrichment model                 | T142 – T148            | Complete    |
 | Phase 2.8 — user-customizable templates (ADR-0037)   | TT1 – TT11             | Complete    |
 | Phase 2.9 — incremental changelog (ADR-0038)          | —                      | Complete    |
-| Phase 2.10 — commit-author attribution (ADR-0039)    | T151 (follow-up)       | Complete — GitHub, GitLab |
+| Phase 2.10 — commit-author attribution (ADR-0039)    | T151 (follow-up)       | Complete — GitHub, GitLab, Azure |
 | Phase 2.5 — remove the git-cliff package (own ADR)   | —                      | Deferred    |
 | Phase 3 — raw-HTTP clients (drop `gh` / `glab`)       | —                      | Deferred    |
 
@@ -895,7 +895,7 @@ dropped entirely: GitLab moves from O(commits) to O(pages), and the ADR-0038 `--
 GitLab rate-limit warning no longer applies and was removed (`gitlabRegenWarning` deleted from
 `internal/pipeline/warn.go`). Files: `internal/generators/native/enrich_gitlab.go` (+ tests).
 
-#### `[ ]` T151: Azure DevOps commit-author handle
+#### `[x]` T151: Azure DevOps commit-author handle
 
 Azure needs a separate identity lookup to map a commit's author email to an Azure DevOps
 identity — there is no equivalent to GitHub's `author.user.login` riding the existing PR-fetch
@@ -904,7 +904,16 @@ committer fields) for a batchable resolution path before implementing; until the
 continues to return no author-handle data and Azure commit lines render no `by @`. **Scope:** M.
 **Dependencies:** Phase 2.10 (GitHub cut).
 
-A platform's `sha → authorHandle` map (shipped for GitLab in T150, still open for Azure in T151)
+**Completion note (2026-07-24):** A live spike proved Azure exposes no identity resolvable from a
+git commit email — the Commits API carries only git `name`/`email`, and both `_apis/identities`
+and Graph `subjectquery` returned no match for the author email. So the Azure commit-author handle
+is rendered from the **local git author email local-part** (via the existing `azureAuthorLogin`,
+the same rendering Azure PR authors use) — no new API call. It rides `enrich()` → `enrichForRelease`,
+so it is gated by `remote_metadata` like GitHub/GitLab (absent under `disabled`/offline or a
+degraded `pullrequestquery`). It is a text attribution, not a clickable Azure @mention (inherent to
+Azure). **Scope:** S.
+
+A platform's `sha → authorHandle` map (shipped for GitLab in T150 and Azure in T151)
 could also feed the "New Contributors" block: that block's handle today is still overlaid from a
 contributor's first PR/MR (unchanged by [ADR-0039](../adr/0039-commit-author-attribution.md) — see
 the design spec's "out of scope" section), so the map could, as a further extension, also drive
