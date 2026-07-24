@@ -54,6 +54,14 @@ GitLab forge (REST default, GraphQL opt-in) + links + the breaking-config migrat
 and Azure are temporarily adapted to *feed* the resolver; their transports are unchanged (migrated
 in P2).
 
+**Execution split (Plan A / Plan B).** P1 is executed as two implementation plans. *Plan A —
+foundation (T154–T157)* is **additive and green**: new keys are added **alongside** the old ones
+(no removals), so `commits.enrichment_policy` is added next to `commits.remote_metadata` and nothing
+breaks. *Plan B — GitLab forge + cutover (T158–T160)* adds the native GitLab forge, wires the
+pipeline, and performs the **breaking rename/removal** (`remote_metadata` → `enrichment_policy`, drop
+`changelog.remote` / `release.platforms`) **plus the migration error** — all in **T160**. So the
+rename and migration error land in T160, not in T155/T156.
+
 #### `[x]` T154: ADR-0043 + `port.Forge` contract
 
 Write **ADR-0043** (forge abstraction + config unification), distilled from the design spec — the
@@ -72,14 +80,23 @@ ADR-0042's section layout plus `Alternatives considered` and `References`. No co
 by design, this task is contract-only; T155–T160 build config, validation, resolution, and the
 GitLab forge on top of it. Commit `0512b43`.
 
-#### `[ ]` T155: config — `forges:` + `release.targets:` + `commits.enrichment_*`
+#### `[x]` T155: config — `forges:` + `release.targets:` + `commits.enrichment_*`
 
 Add the config structs: `Forge` (`name`, `platform`, `project`/`repository`, `base_url`, `api_url`,
 `api_mode`, `token_env`), `release.targets[]` (`forge`, `draft`, `prerelease`, `assets`); add
-`commits.enrichment_forge` and rename `commits.remote_metadata` → `commits.enrichment_policy`.
-Strict loader (unknown keys → error with line numbers). Sync **`schema.json`** and
+`commits.enrichment_forge` and **add** `commits.enrichment_policy` **alongside**
+`commits.remote_metadata` (Plan A is additive; the rename/removal is deferred to T160). Strict
+loader (unknown keys → error with line numbers). Sync **`schema.json`** and
 **`docs/heraut.sample.yml`** in lockstep (coding rules). Tests: strict-parse fixtures per `platform`
 and `api_mode`; schema validates each valid fixture.
+
+**Completion note (2026-07-24):** Landed additively (Plan A). Added `Forge`/`Target` structs,
+`Config.Forges`, `Release.Targets`, and `Commits.EnrichmentForge`/`EnrichmentPolicy` in
+`internal/config/{config.go,commits.go}`, left the old `changelog.remote` / `release.platforms` /
+`commits.remote_metadata` intact, and synced `schema.json` + `docs/heraut.sample.yml`. The new
+fixture is validated against the real JSON-Schema validator (`testdata/config/valid/forge-minimal.yml`
+via `TestSchema_ValidFixtures`). Review clean — two cosmetic minors: a co-author-trailer bracket
+typo (fixed by amend) and `Config.Forges` field ordering. Commit `8e992a1`.
 
 #### `[ ]` T156: config validation + migration error
 
