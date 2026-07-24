@@ -98,15 +98,16 @@ fixture is validated against the real JSON-Schema validator (`testdata/config/va
 via `TestSchema_ValidFixtures`). Review clean — two cosmetic minors: a co-author-trailer bracket
 typo (fixed by amend) and `Config.Forges` field ordering. Commit `8e992a1`.
 
-#### `[x]` T156: config validation + migration error
+#### `[x]` T156: config validation (new keys)
 
-Semantic validation (`internal/config/validator.go`): `enrichment_forge` optional with one forge
-(defaults to it), **required** with >1, error on unknown name; `api_mode: graphql` requires a
-resolvable token (error, with hint, when only a job token is available); `release.targets[].forge`
-must reference a known forge (optional with a single forge). Emit a **clear migration error** when
-the removed `changelog.remote` / `release.platforms` / `commits.remote_metadata` keys are present,
-mapping old → new with a before/after hint (no silent alias). Tests: table-driven validation +
-migration-error fixtures.
+Static semantic validation (`internal/config/validator.go`) of the new keys: forge `name`
+non-empty + unique, `platform` ∈ `{github, gitlab, azure_devops}`, `api_mode` ∈ `{"", rest,
+graphql}`, `commits.enrichment_policy` ∈ `{"", disabled, optional, required}`; and
+`commits.enrichment_forge` / `release.targets[].forge` must name a known forge (required with >1
+forge, optional with one). Two related checks live elsewhere per the Plan A/B split: the
+`api_mode: graphql` requires-a-token check is **resolution-time** (T157), and the **migration
+error** for the removed old keys is the **T160 cutover** (Plan A is additive — the old keys still
+exist). Tests: table-driven validation.
 
 **Completion note (2026-07-24):** Landed the static, additive half of this task's scope:
 `validateForges` in `internal/config/validator.go` enforces forge `name` non-empty + unique,
@@ -117,10 +118,9 @@ when more than one forge is configured. Deliberately deferred, per the Plan A/B 
 own phase intro describes (line ~61: "the rename and migration error land in T160, not in
 T155/T156"): the `api_mode: graphql` + job-token check (resolution-time, not static config — goes
 to T157) and the migration error for removed `changelog.remote` / `release.platforms` /
-`commits.remote_metadata` (T160 cutover, since those keys are not yet removed). **Note:** this
-task heading's own body text (above) still asks for the migration error here, which contradicts
-the phase intro's Plan A/B split — flagging for whoever picks up T160 to confirm the migration
-error belongs there, not here. Tests: `internal/config/validator_forge_test.go`
+`commits.remote_metadata` (T160 cutover, since those keys are not yet removed). The heading and
+description above have since been reconciled to match this split. Tests:
+`internal/config/validator_forge_test.go`
 (`TestValidate_Forges`, table-driven, 6 cases). Commit `6f4be94`.
 
 #### `[ ]` T157: forge identity resolution (config / CI / git / ambiguity)
@@ -157,8 +157,11 @@ Wire the forge end-to-end: changelog + release-notes enrichment resolves the `po
 `commits.enrichment_forge` and applies `commits.enrichment_policy` (unchanged degrade/required
 semantics; `--offline` forces disabled); the native generator consumes `port.Forge`. Publishing
 reads `release.targets` (default: the single resolved forge with default options). GitHub and Azure
-are adapted to *feed* the resolver (transports unchanged). Remove the now-dead `changelog.remote` /
-`release.platforms` config paths and the `enrich()` GitLab-graphql-via-glab path. Tests:
+are adapted to *feed* the resolver (transports unchanged). Perform the breaking config migration:
+rename `commits.remote_metadata` → `commits.enrichment_policy`, remove the now-dead
+`changelog.remote` / `release.platforms` config paths and the `enrich()` GitLab-graphql-via-glab
+path, and emit a **clear migration error** when any removed key is present (map old → new with a
+before/after hint; no silent alias). Tests:
 integration — zero-config GitLab CI changelog (enriched via `CI_JOB_TOKEN`); happy-path + dry-run
 release to a resolved forge.
 
