@@ -122,6 +122,20 @@ func azureAuthorLogin(id azureIdentityRef) string {
 	return id.DisplayName
 }
 
+// azureCommitAuthors maps each commit SHA to its author handle — the git author email's
+// local-part, via the existing azureAuthorLogin. Azure exposes no identity resolvable from a git
+// email (T151 spike), so this local render is the only source and it makes no API call. Commits
+// whose author yields no handle are omitted.
+func azureCommitAuthors(commits []rawCommit) map[string]string {
+	authors := make(map[string]string, len(commits))
+	for _, c := range commits {
+		if h := azureAuthorLogin(azureIdentityRef{DisplayName: c.Author, UniqueName: c.Email}); h != "" {
+			authors[c.Hash] = h
+		}
+	}
+	return authors
+}
+
 type azurePRQuery struct {
 	Queries []azurePRQueryInput `json:"queries"`
 }

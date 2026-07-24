@@ -157,9 +157,9 @@ func TestEnrichAzure_TitleAndLabels(t *testing.T) {
 	assert.Equal(t, []string{"enhancement", "area/auth"}, got["abc123"].Labels)
 }
 
-// End-to-end: Azure release-notes enrichment renders "in [!N]". Azure does not yet resolve the
-// commit-author handle (GitHub-only in this cut), so the commit line carries only the PR
-// reference link — no "by @" — even though the PR itself has an author.
+// End-to-end: Azure release-notes enrichment renders "in [!N]" plus "by @" for the commit author,
+// rendered from the local git author email's local-part (T151) — Azure exposes no identity
+// resolvable from a git commit email, so this local render is the only source.
 func TestGenerate_Enrich_Azure(t *testing.T) {
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		_, _ = io.WriteString(w, azurePRQueryBody("abc1234567", 42, "Jane Doe", "jane@corp.com"))
@@ -175,10 +175,19 @@ func TestGenerate_Enrich_Azure(t *testing.T) {
 
 	out, err := g.Generate("v1.1.0", azureLC(srv.URL))
 	require.NoError(t, err)
-	assert.Contains(t, out, "in [!42]("+srv.URL+"/myorg/myproj/_git/myrepo/pullrequest/42)")
-	assert.NotContains(t, out, "by @", "Azure commit-author handle resolution is not yet implemented")
+	assert.Contains(t, out, "by @a in [!42]("+srv.URL+"/myorg/myproj/_git/myrepo/pullrequest/42)",
+		"Azure renders the commit-author from the local git email local-part (a@example.com → a)")
 	assert.False(t, g.Degraded())
 
 	require.Len(t, mr.Calls, 4)
 	assert.Equal(t, []string{"log", "v1.0.0", "--format=%ae"}, mr.Calls[3].Args)
+}
+
+func TestAzureCommitAuthors(t *testing.T) {
+	got := azureCommitAuthors([]rawCommit{
+		{Hash: "aaa", Author: "Alice", Email: "alice@example.com"}, // email → local-part
+		{Hash: "bbb", Author: "Bob", Email: ""},                    // no email → git name fallback
+		{Hash: "ccc", Author: "", Email: ""},                       // nothing → omitted
+	})
+	assert.Equal(t, map[string]string{"aaa": "alice", "bbb": "Bob"}, got)
 }

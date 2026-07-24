@@ -43,7 +43,7 @@ func (g *Generator) enrich(lc *port.LinkContext, commits []rawCommit) (enrichRes
 		return enrichResult{prs: prs, authors: authors}, err
 	case "azure_devops":
 		prs, err := enrichAzure(g.httpClient, lc, shas)
-		return enrichResult{prs: prs}, err
+		return enrichResult{prs: prs, authors: azureCommitAuthors(commits)}, err
 	default:
 		return enrichResult{}, nil
 	}
