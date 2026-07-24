@@ -34,7 +34,7 @@
 
 ---
 
-### Task T154: `port.Forge` contract + ADR-0043
+### Task 1 (T154): `port.Forge` contract + ADR-0043
 
 **Files:**
 - Create: `internal/port/forge.go`
@@ -198,7 +198,7 @@ git commit -m "feat(port): add Forge contract + ADR-0043 (forge abstraction)"
 
 ---
 
-### Task T155: config — `forges:` / `release.targets:` / `commits.enrichment_*`
+### Task 2 (T155): config — `forges:` / `release.targets:` / `commits.enrichment_*`
 
 **Files:**
 - Modify: `internal/config/config.go`
@@ -356,7 +356,7 @@ git commit -m "feat(config): add forges/release.targets/commits.enrichment_* (ad
 
 ---
 
-### Task T156: validation of the new keys
+### Task 3 (T156): validation of the new keys
 
 **Files:**
 - Modify: `internal/config/validator.go`
@@ -467,7 +467,7 @@ git commit -m "feat(config): validate forges/enrichment_forge/targets (additive)
 
 ---
 
-### Task T157: forge identity resolution (config / CI / git / ambiguity)
+### Task 4 (T157): forge identity resolution (config / CI / git / ambiguity)
 
 **Files:**
 - Create: `internal/forge/detect.go`
