@@ -21,6 +21,15 @@ var (
 	validPlatforms = map[string]bool{
 		"github": true, "gitlab": true,
 	}
+	validForgePlatforms = map[string]bool{
+		"github": true, "gitlab": true, "azure_devops": true,
+	}
+	validAPIModes = map[string]bool{
+		"": true, "rest": true, "graphql": true,
+	}
+	validEnrichmentPolicies = map[string]bool{
+		"": true, "disabled": true, "optional": true, "required": true,
+	}
 	validTagTypes = map[string]bool{
 		"annotated": true, "lightweight": true,
 	}
@@ -44,6 +53,7 @@ func Validate(cfg *Config) ValidationErrors {
 	errs = append(errs, validateTickets(cfg)...)
 	errs = append(errs, validateCommits(cfg)...)
 	errs = append(errs, validateRendering(cfg)...)
+	errs = append(errs, validateForges(cfg)...)
 	return errs
 }
 
@@ -138,6 +148,105 @@ func validateCommits(cfg *Config) []ValidationError {
 			Hint:    "list the allowed scopes, or set scopes_restricted: false",
 		})
 	}
+	return errs
+}
+
+// validateForges validates the new forges/release.targets/commits.enrichment_* keys
+// (ADR-0043, additive alongside changelog.remote / release.platforms / commits.remote_metadata):
+// each forge's name is non-empty and unique, its platform and api_mode are valid enums;
+// commits.enrichment_policy is a valid enum; commits.enrichment_forge and each
+// release.targets[].forge, when set, must name a known forge, and are required when more than
+// one forge is configured (unambiguous with exactly one). Resolution-time concerns (e.g.
+// api_mode: graphql requiring a resolvable token) are out of scope here — see T157.
+func validateForges(cfg *Config) []ValidationError {
+	var errs []ValidationError
+
+	knownForges := make(map[string]bool, len(cfg.Forges))
+	seen := make(map[string]int, len(cfg.Forges))
+	for i, f := range cfg.Forges {
+		path := fmt.Sprintf("forges[%d]", i)
+		if f.Name == "" {
+			errs = append(errs, ValidationError{
+				Path:    path + ".name",
+				Message: "required",
+				Hint:    `set a unique name for this forge, e.g. "gitlab"`,
+			})
+		} else if first, ok := seen[f.Name]; ok {
+			errs = append(errs, ValidationError{
+				Path:    path + ".name",
+				Message: fmt.Sprintf("duplicate forge name %q (already used by forges[%d])", f.Name, first),
+				Hint:    "forge names must be unique within forges",
+			})
+		} else {
+			seen[f.Name] = i
+			knownForges[f.Name] = true
+		}
+		if f.Type == "" {
+			errs = append(errs, ValidationError{
+				Path:    path + ".platform",
+				Message: "required",
+				Hint:    "set platform to one of: github, gitlab, azure_devops",
+			})
+		} else if !validForgePlatforms[f.Type] {
+			errs = append(errs, ValidationError{
+				Path:    path + ".platform",
+				Message: fmt.Sprintf("%q is not a valid platform", f.Type),
+				Hint:    "valid platforms: github, gitlab, azure_devops",
+			})
+		}
+		if !validAPIModes[f.APIMode] {
+			errs = append(errs, ValidationError{
+				Path:    path + ".api_mode",
+				Message: fmt.Sprintf("%q is not a valid api_mode", f.APIMode),
+				Hint:    "valid api_mode values: rest, graphql",
+			})
+		}
+	}
+
+	if cfg.Commits != nil {
+		if !validEnrichmentPolicies[cfg.Commits.EnrichmentPolicy] {
+			errs = append(errs, ValidationError{
+				Path:    "commits.enrichment_policy",
+				Message: fmt.Sprintf("%q is not a valid enrichment_policy", cfg.Commits.EnrichmentPolicy),
+				Hint:    "valid values: disabled, optional, required",
+			})
+		}
+		switch ef := cfg.Commits.EnrichmentForge; {
+		case ef != "" && !knownForges[ef]:
+			errs = append(errs, ValidationError{
+				Path:    "commits.enrichment_forge",
+				Message: fmt.Sprintf("unknown forge %q", ef),
+				Hint:    "must match one of forges[].name",
+			})
+		case ef == "" && len(cfg.Forges) > 1:
+			errs = append(errs, ValidationError{
+				Path:    "commits.enrichment_forge",
+				Message: "required when more than one forge is configured",
+				Hint:    "set commits.enrichment_forge to one of forges[].name",
+			})
+		}
+	}
+
+	if cfg.Release != nil {
+		for i, t := range cfg.Release.Targets {
+			path := fmt.Sprintf("release.targets[%d].forge", i)
+			switch {
+			case t.Forge != "" && !knownForges[t.Forge]:
+				errs = append(errs, ValidationError{
+					Path:    path,
+					Message: fmt.Sprintf("unknown forge %q", t.Forge),
+					Hint:    "must match one of forges[].name",
+				})
+			case t.Forge == "" && len(cfg.Forges) > 1:
+				errs = append(errs, ValidationError{
+					Path:    path,
+					Message: "required when more than one forge is configured",
+					Hint:    "set forge to one of forges[].name",
+				})
+			}
+		}
+	}
+
 	return errs
 }
 
