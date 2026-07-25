@@ -299,3 +299,20 @@ Deliberately last: the wizard codifies the config shape, so it lands only after 
 Update the scaffold wizard (`internal/scaffold`) to generate `forges:` / `release.targets:` /
 `commits.enrichment_forge` / `commits.enrichment_policy`, with auto-detection defaults and an
 `api_mode` prompt. Tests: wizard-output fixtures validate against `schema.json`.
+
+---
+
+## Follow-ups
+
+#### `[ ]` T165: dedicated `forges:` section in `docs/specs/02-configuration.md`
+
+T160's docs pass migrated every stale `changelog.remote` / `commits.remote_metadata` reference in
+`docs/specs/` to the new model, but pointed the prose at `docs/heraut.sample.yml` and ADR-0043
+rather than a dedicated spec section — `docs/specs/02-configuration.md` has **no `## forges`
+section**, because none existed to update. Since `docs/specs/` is this project's behavioural
+authority (ranked above ADRs in `CLAUDE.md`'s source-of-truth hierarchy), the epic's headline config
+surface should be specified there, not only in a sample file and a decision record. Write the
+section: every `forges[]` field (`name`, `platform`, `project`/`repository`, `base_url`, `api_url`,
+`api_mode`, `token_env`), the identity-resolution precedence (explicit config → CI env → git
+`origin` → offline) with the fail-on-ambiguity rule, `commits.enrichment_forge` /
+`enrichment_policy`, and `release.targets[]`. **Scope:** S.
