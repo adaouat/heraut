@@ -27,6 +27,17 @@ type enrichResult struct {
 // Returns a zero enrichResult when lc is nil or the platform has no enrichment support yet. This
 // is the platform-dispatch seam: GitLab and Azure DevOps slot in as additional cases.
 func (g *Generator) enrich(lc *port.LinkContext, commits []rawCommit) (enrichResult, error) {
+	if g.forge != nil {
+		pc := make([]port.Commit, 0, len(commits))
+		for _, c := range commits {
+			pc = append(pc, port.Commit{Hash: c.Hash, Author: c.Author, Email: c.Email, Date: c.Date})
+		}
+		en, err := g.forge.Enrich(pc)
+		if err != nil {
+			return enrichResult{}, err
+		}
+		return enrichResult{prs: fromPortPRs(en.PRs), authors: en.Authors}, nil
+	}
 	if lc == nil {
 		return enrichResult{}, nil
 	}
@@ -119,4 +130,27 @@ func (g *Generator) enrichForRelease(lc *port.LinkContext, commits []rawCommit) 
 		return enrichResult{}, nil
 	}
 	return er, nil
+}
+
+// fromPortPRs converts port.PullRequest values into the native render model. Platforms stays nil
+// (the port model carries no per-platform bag) and Author.Name/Email stay empty — native's
+// contributors tier fills those from local git, not from remote enrichment.
+func fromPortPRs(in map[string]port.PullRequest) map[string]PullRequest {
+	out := make(map[string]PullRequest, len(in))
+	for sha, p := range in {
+		approvers := make([]Author, 0, len(p.Approvers))
+		for _, a := range p.Approvers {
+			approvers = append(approvers, Author{Username: a.Username})
+		}
+		if len(approvers) == 0 {
+			approvers = nil
+		}
+		out[sha] = PullRequest{
+			Number: p.Number, URL: p.URL, AuthorLogin: p.AuthorLogin, RefPrefix: p.RefPrefix,
+			Title: p.Title, Labels: p.Labels, CreatedAt: p.CreatedAt, MergedAt: p.MergedAt,
+			MergedBy:  Author{Username: p.MergedBy.Username},
+			Approvers: approvers,
+		}
+	}
+	return out
 }

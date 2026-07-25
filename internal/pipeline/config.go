@@ -14,6 +14,10 @@ type Config struct {
 	// ChangelogRemote is the effective changelog.remote block (ADR-0026), consumed by
 	// changelogLinkContext() ahead of its ambient/single-platform fallback chain.
 	ChangelogRemote *config.Remote
+	// ForgeIdentity is the resolved enrichment forge (ADR-0043), consumed by
+	// changelogLinkContext() ahead of the ambient/single-platform fallback chain but after an
+	// explicit ChangelogRemote override.
+	ForgeIdentity *port.ForgeIdentity
 	// Notes is the optional release-notes generator (generates release page text).
 	Notes port.Generator
 	// Platforms is the list of platforms to publish to.

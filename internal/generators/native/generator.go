@@ -33,6 +33,7 @@ type Generator struct {
 	httpClient     *http.Client
 	cfg            *config.ContentDriver
 	mode           Mode
+	forge          port.Forge
 	degraded       bool
 	degradedReason string
 	now            func() time.Time // injected clock for .Heraut.GeneratedAt; defaults to time.Now
@@ -42,14 +43,27 @@ var _ port.Generator = (*Generator)(nil)
 
 // New constructs a native Generator. The httpClient is used only by the Azure DevOps
 // enrichment path (ADR-0035); GitHub/GitLab enrichment rides the runner via gh/glab.
-func New(runner port.Runner, cfg *config.ContentDriver, mode Mode) *Generator {
-	return &Generator{
+func New(runner port.Runner, cfg *config.ContentDriver, mode Mode, opts ...Option) *Generator {
+	g := &Generator{
 		runner:     runner,
 		httpClient: &http.Client{Timeout: 30 * time.Second},
 		cfg:        cfg,
 		mode:       mode,
 		now:        time.Now,
 	}
+	for _, opt := range opts {
+		opt(g)
+	}
+	return g
+}
+
+// Option customizes a Generator at construction.
+type Option func(*Generator)
+
+// WithForge injects the resolved enrichment forge (ADR-0043). When set, it supersedes the legacy
+// per-platform CLI dispatch for fetching PR/MR metadata.
+func WithForge(f port.Forge) Option {
+	return func(g *Generator) { g.forge = f }
 }
 
 // herautMeta builds the document-meta value passed to templates as .Heraut.

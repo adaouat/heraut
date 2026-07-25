@@ -19,6 +19,9 @@ type ChangelogConfig struct {
 	// ChangelogRemote is the effective changelog.remote block (ADR-0026), consumed ahead
 	// of the ambient CI-host fallback.
 	ChangelogRemote *config.Remote
+	// ForgeIdentity is the resolved enrichment forge (ADR-0043), consumed ahead of the
+	// ambient CI-host fallback but after an explicit ChangelogRemote override.
+	ForgeIdentity *port.ForgeIdentity
 	// CommitMessage is the git commit message template. Defaults to "chore(release): ${version}".
 	CommitMessage string
 	// DisableChangelog skips all steps and exits 0 with an info message.

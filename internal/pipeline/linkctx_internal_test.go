@@ -197,3 +197,48 @@ func TestChangelogLinkContext_FallsThroughWithoutExplicitRemote(t *testing.T) {
 	require.NotNil(t, got)
 	assert.Equal(t, "gitlab", got.Platform)
 }
+
+// TestLinkContextFromIdentity covers the resolved-forge → LinkContext translation (ADR-0043):
+// links resolve from the same source as enrichment.
+func TestLinkContextFromIdentity(t *testing.T) {
+	tests := []struct {
+		name string
+		id   port.ForgeIdentity
+		want *port.LinkContext
+	}{
+		{name: "zero identity → nil", id: port.ForgeIdentity{}, want: nil},
+		{name: "missing type → nil", id: port.ForgeIdentity{Host: "https://gitlab.example.com", Project: "group/proj"}, want: nil},
+		{name: "missing host → nil", id: port.ForgeIdentity{Type: "gitlab", Project: "group/proj"}, want: nil},
+		{
+			name: "gitlab nested subgroup",
+			id:   port.ForgeIdentity{Type: "gitlab", Host: "https://gitlab.example.com", Project: "group/subgroup/project", Token: "tok"},
+			want: &port.LinkContext{BaseURL: "https://gitlab.example.com", Owner: "group/subgroup", Repo: "project", Platform: "gitlab", Token: "tok"},
+		},
+		{
+			name: "host trailing slash trimmed",
+			id:   port.ForgeIdentity{Type: "github", Host: "https://github.com/", Project: "acme/widget"},
+			want: &port.LinkContext{BaseURL: "https://github.com", Owner: "acme", Repo: "widget", Platform: "github"},
+		},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			assert.Equal(t, tc.want, linkContextFromIdentity(tc.id))
+		})
+	}
+}
+
+// TestChangelogLinkContext_ForgeIdentityWinsOverAmbient confirms a resolved forge identity
+// (ADR-0043) takes priority over ambient CI detection, mirroring the explicit-remote case.
+func TestChangelogLinkContext_ForgeIdentityWinsOverAmbient(t *testing.T) {
+	t.Setenv("CI_PROJECT_URL", "https://gitlab.example.com/grp/proj")
+	t.Setenv("GITHUB_SERVER_URL", "")
+	t.Setenv("GITHUB_REPOSITORY", "")
+
+	id := port.ForgeIdentity{Type: "gitlab", Host: "https://gitlab.example.com", Project: "group/subgroup/project"}
+	p := &Pipeline{cfg: &Config{ForgeIdentity: &id}}
+	got := p.changelogLinkContext()
+	require.NotNil(t, got)
+	assert.Equal(t, "gitlab", got.Platform)
+	assert.Equal(t, "group/subgroup", got.Owner)
+	assert.Equal(t, "project", got.Repo)
+}

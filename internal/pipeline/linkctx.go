@@ -119,17 +119,38 @@ func splitProjectPath(path string) (owner, project string) {
 	return "", path
 }
 
+// linkContextFromIdentity converts a resolved forge identity into the link context used to render
+// commit/MR links, so links resolve from the same source as enrichment (ADR-0043).
+func linkContextFromIdentity(id port.ForgeIdentity) *port.LinkContext {
+	if id.Type == "" || id.Host == "" {
+		return nil
+	}
+	owner, repo := splitProjectPath(id.Project)
+	return &port.LinkContext{
+		BaseURL:  strings.TrimRight(id.Host, "/"),
+		Owner:    owner,
+		Repo:     repo,
+		Platform: id.Type,
+		Token:    id.Token,
+	}
+}
+
 // changelogLinkContext resolves the link context for the committed changelog. An
 // explicit changelog.remote block (ADR-0026) takes priority — it is a deliberate user
-// override. Otherwise, like ambientLinkContext, it prefers the CI-provided host (origin).
-// When no ambient host is available (local/non-CI runs) and there is exactly one
-// configured platform, that platform's context is used as a fallback so commit links are
-// rendered instead of degrading to bare hashes. With multiple platforms the origin is
-// ambiguous, so nil is returned (bare hashes are safer than the wrong host). See
-// ADR-0022.
+// override. Next is the resolved forge identity (ADR-0043), then, like ambientLinkContext,
+// the CI-provided host (origin). When no ambient host is available (local/non-CI runs) and
+// there is exactly one configured platform, that platform's context is used as a fallback
+// so commit links are rendered instead of degrading to bare hashes. With multiple platforms
+// the origin is ambiguous, so nil is returned (bare hashes are safer than the wrong host).
+// See ADR-0022.
 func (p *Pipeline) changelogLinkContext() *port.LinkContext {
 	if lc := remoteLinkContext(p.cfg.ChangelogRemote); lc != nil {
 		return lc
+	}
+	if p.cfg.ForgeIdentity != nil {
+		if lc := linkContextFromIdentity(*p.cfg.ForgeIdentity); lc != nil {
+			return lc
+		}
 	}
 	if amb := ambientLinkContext(); amb != nil {
 		return amb

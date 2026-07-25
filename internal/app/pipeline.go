@@ -5,10 +5,13 @@ import (
 	"io"
 	"log/slog"
 	"maps"
+	"os"
 	"strings"
 
 	forgeui "github.com/adaouat/forge/ui"
 	"github.com/adaouat/heraut/internal/config"
+	"github.com/adaouat/heraut/internal/forge"
+	gitlabforge "github.com/adaouat/heraut/internal/forge/gitlab"
 	"github.com/adaouat/heraut/internal/generators/communique"
 	"github.com/adaouat/heraut/internal/generators/gitcliff"
 	"github.com/adaouat/heraut/internal/generators/native"
@@ -168,22 +171,28 @@ func buildReleasePipelineConfig(runner port.Runner, cfg *config.Config, env, her
 		}
 	}
 
+	enrichForge, forgeID, err := resolveEnrichForgeIfNeeded(runner, cfg, effectiveChangelog, effectiveNotes)
+	if err != nil {
+		return nil, err
+	}
+
 	// Changelog generator
 	if effectiveChangelog != nil {
 		driver := withEnvDerivations(effectiveChangelog, cfg, env)
-		gen, err := buildGenerator(runner, driver, gitcliff.ModeChangelog, herautVersion, regenerateChangelog, force)
+		gen, err := buildGenerator(runner, driver, gitcliff.ModeChangelog, herautVersion, regenerateChangelog, force, enrichForge)
 		if err != nil {
 			return nil, fmt.Errorf("changelog generator: %w", err)
 		}
 		pCfg.Changelog = gen
 		pCfg.ChangelogFile = effectiveChangelog.Output
 		pCfg.ChangelogRemote = driver.Remote
+		pCfg.ForgeIdentity = forgeID
 	}
 
 	// Release notes generator
 	if effectiveNotes != nil {
 		driver := withEnvDerivations(effectiveNotes, cfg, env)
-		gen, err := buildGenerator(runner, driver, gitcliff.ModeReleaseNotes, herautVersion, regenerateChangelog, force)
+		gen, err := buildGenerator(runner, driver, gitcliff.ModeReleaseNotes, herautVersion, regenerateChangelog, force, enrichForge)
 		if err != nil {
 			return nil, fmt.Errorf("release notes generator: %w", err)
 		}
@@ -229,14 +238,19 @@ func buildChangelogPipelineConfig(runner port.Runner, cfg *config.Config, opts P
 	}
 
 	if effectiveChangelog != nil {
+		enrichForge, forgeID, err := resolveEnrichForgeIfNeeded(runner, cfg, effectiveChangelog, nil)
+		if err != nil {
+			return nil, err
+		}
 		driver := withEnvDerivations(effectiveChangelog, cfg, opts.Env)
-		gen, err := buildGenerator(runner, driver, gitcliff.ModeChangelog, opts.HerautVersion, opts.RegenerateChangelog, opts.Force)
+		gen, err := buildGenerator(runner, driver, gitcliff.ModeChangelog, opts.HerautVersion, opts.RegenerateChangelog, opts.Force, enrichForge)
 		if err != nil {
 			return nil, fmt.Errorf("changelog generator: %w", err)
 		}
 		cCfg.Changelog = gen
 		cCfg.ChangelogFile = effectiveChangelog.Output
 		cCfg.ChangelogRemote = driver.Remote
+		cCfg.ForgeIdentity = forgeID
 	}
 
 	cCfg.AnnotatedTags = cfg.Versioning.TagType != "lightweight"
@@ -329,7 +343,7 @@ func effectiveTemplates(cfg *config.Config, driver *config.ContentDriver) map[st
 	return eff
 }
 
-func buildGenerator(runner port.Runner, driver *config.ContentDriver, defaultMode gitcliff.Mode, herautVersion string, regenerateChangelog, force bool) (port.Generator, error) {
+func buildGenerator(runner port.Runner, driver *config.ContentDriver, defaultMode gitcliff.Mode, herautVersion string, regenerateChangelog, force bool, enrichForge port.Forge) (port.Generator, error) {
 	switch driver.Generator {
 	case "git-cliff":
 		return gitcliff.New(runner, driver, defaultMode), nil
@@ -341,10 +355,59 @@ func buildGenerator(runner port.Runner, driver *config.ContentDriver, defaultMod
 		nativeDriver.HerautVersion = herautVersion
 		nativeDriver.RegenerateChangelog = regenerateChangelog
 		nativeDriver.Force = force
-		return native.New(runner, &nativeDriver, nativeMode(defaultMode)), nil
+		var opts []native.Option
+		if enrichForge != nil {
+			opts = append(opts, native.WithForge(enrichForge))
+		}
+		return native.New(runner, &nativeDriver, nativeMode(defaultMode), opts...), nil
 	default:
 		return nil, fmt.Errorf("unsupported generator %q (supported: native, git-cliff, communique)", driver.Generator)
 	}
+}
+
+// usesNative reports whether either content driver is configured for the native generator —
+// the forge is only consumed there (gitcliff/communique dispatch remotes themselves).
+func usesNative(drivers ...*config.ContentDriver) bool {
+	for _, d := range drivers {
+		if d != nil && d.Generator == "native" {
+			return true
+		}
+	}
+	return false
+}
+
+// resolveEnrichForgeIfNeeded resolves the configured/ambient forge and constructs the matching
+// port.Forge, but only when a native generator is actually in play — forge.Resolve shells out to
+// `git remote get-url origin`, a cost/side-effect skipped for the common gitcliff/communique
+// setups. Returns (nil, nil, nil) when no driver is native.
+func resolveEnrichForgeIfNeeded(runner port.Runner, cfg *config.Config, drivers ...*config.ContentDriver) (port.Forge, *port.ForgeIdentity, error) {
+	if !usesNative(drivers...) {
+		return nil, nil, nil
+	}
+	resolved, err := forge.Resolve(cfg, os.Getenv, gitOriginURL(runner))
+	if err != nil {
+		return nil, nil, fmt.Errorf("resolving forge: %w", err)
+	}
+	var enrichForge port.Forge
+	var forgeID *port.ForgeIdentity
+	if len(resolved.Forges) > 0 {
+		id := resolved.Forges[resolved.EnrichmentIndex]
+		forgeID = &id
+		if id.Type == "gitlab" {
+			enrichForge = gitlabforge.New(id, nil)
+		}
+	}
+	return enrichForge, forgeID, nil
+}
+
+// gitOriginURL returns the origin remote URL, or "" when there is no origin (forge resolution
+// then falls back to CI env or offline).
+func gitOriginURL(runner port.Runner) string {
+	out, _, err := runner.Run("git", "remote", "get-url", "origin")
+	if err != nil {
+		return ""
+	}
+	return strings.TrimSpace(out)
 }
 
 // nativeMode maps the build-time gitcliff.Mode to the native generator's mode.
