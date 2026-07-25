@@ -78,14 +78,6 @@ func (f *Forge) Enrich(commits []port.Commit) (port.Enrichment, error) {
 	return f.enrichREST(commits)
 }
 
-// enrichGraphQL is the api_mode: graphql transport. Not yet implemented — it lands in T159
-// (see docs/tasks/forge-abstraction-roadmap.md), which reuses ADR-0042's batched query logic and
-// owns the graphql+job-token validation guard. This stub keeps Enrich's dispatch compiling ahead
-// of that task without inventing GraphQL behavior here.
-func (f *Forge) enrichGraphQL(_ []port.Commit) (port.Enrichment, error) {
-	return port.Enrichment{}, fmt.Errorf("gitlab: api_mode: graphql is not yet implemented (T159)")
-}
-
 // gitAuthors maps sha → the local git author name, falling back to the email local-part. REST
 // commit payloads expose no linked GitLab username, so this is the only `by @` source in REST
 // mode (the same trade-off Azure makes; see ADR-0043).
