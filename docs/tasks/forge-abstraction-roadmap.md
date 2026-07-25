@@ -315,4 +315,32 @@ surface should be specified there, not only in a sample file and a decision reco
 section: every `forges[]` field (`name`, `platform`, `project`/`repository`, `base_url`, `api_url`,
 `api_mode`, `token_env`), the identity-resolution precedence (explicit config → CI env → git
 `origin` → offline) with the fail-on-ambiguity rule, `commits.enrichment_forge` /
-`enrichment_policy`, and `release.targets[]`. **Scope:** S.
+`enrichment_policy`, and `release.targets[]`. **Timing:** before the release that ships the breaking
+config change, not open-ended — `docs/specs/` outranks ADRs in this repo's source-of-truth
+hierarchy. **Scope:** S.
+
+#### `[ ]` T166: decide whether `forges:` resolves for non-native generators
+
+`cfg.Forges` has exactly one non-validator consumer — `resolveEnrichForgeIfNeeded`
+(`internal/app/pipeline.go`), gated on `usesNative(...)`. But the removed `changelog.remote` was a
+**git-cliff** feature (ADR-0026). So a git-cliff user hitting the T160 migration error is told to
+"replace with a top-level `forges:` entry and point `commits.enrichment_forge` at it" — which today
+changes nothing for them: `ForgeIdentity` stays nil and git-cliff loses its explicit remote pin.
+Worse, the behaviour is conditional in a user-invisible way: if the *release-notes* driver happens
+to be native, `usesNative` is true and the git-cliff changelog *does* pick up the forge host.
+Decide and implement one of: (a) resolve whenever `cfg.Forges` is non-empty regardless of generator
+and feed git-cliff's `[remote.*]` injection from it, or (b) state plainly in the migration hint that
+explicit enrichment pinning for git-cliff lands later. Found by Plan B's final review. **Scope:** M.
+
+#### `[ ]` T167: restore GraphQL enrichment's time-bounding (and pagination)
+
+`internal/forge/gitlab/graphql.go` issues a single `commits(ref:,first:100)` +
+`mergeRequests(state:merged,first:100)`, while the legacy path it replaces
+(`internal/generators/native/enrich_gitlab.go`) both **paged** (`pageInfo{endCursor hasNextPage}`)
+and **time-bounded** (`committedAfter`/`mergedAfter`, oldest commit − 1 min). The missing
+`mergedAfter` is the more serious half: `mergeRequests(state:merged, first:100)` specifies no sort,
+so *which* 100 MRs return depends on GitLab's default ordering rather than the release window — a
+long-lived project could get MRs unrelated to the release and miss the relevant ones. Restore
+`committedAfter`/`mergedAfter` at minimum, then add cursor pagination. Only affects the opt-in
+`api_mode: graphql` path (REST is per-commit and unaffected). Found by Plan B's final review.
+**Scope:** S–M.
