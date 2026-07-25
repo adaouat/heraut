@@ -107,7 +107,9 @@ func enrichable(lc *port.LinkContext) bool {
 //   - "optional" / "" (default): fetch; on failure, drop enrichment, mark the generator
 //     degraded, and warn once. Rendering then proceeds without PR attribution.
 //
-// A nil / unsupported platform is not a failure — it simply yields no enrichment.
+// A nil / unsupported platform is not a failure — it simply yields no enrichment. An injected
+// forge (ADR-0043) satisfies "required" on its own: it carries its own identity and enrich()
+// ignores lc entirely on that path, so a nil lc is not the "nothing configured" case.
 func (g *Generator) enrichForRelease(lc *port.LinkContext, commits []rawCommit) (enrichResult, error) {
 	if g.cfg.RemoteMetadata == "disabled" {
 		return enrichResult{}, nil
@@ -115,7 +117,7 @@ func (g *Generator) enrichForRelease(lc *port.LinkContext, commits []rawCommit) 
 	// --force downgrades required to optional: an unavailable or unconfigured remote degrades
 	// instead of erroring.
 	required := g.cfg.RemoteMetadata == "required" && !g.cfg.Force
-	if required && !enrichable(lc) {
+	if required && g.forge == nil && !enrichable(lc) {
 		return enrichResult{}, fmt.Errorf("remote enrichment (required): no changelog remote or release platform configured to fetch PR/MR metadata from")
 	}
 	er, err := g.enrich(lc, commits)

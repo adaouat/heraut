@@ -242,3 +242,57 @@ func TestChangelogLinkContext_ForgeIdentityWinsOverAmbient(t *testing.T) {
 	assert.Equal(t, "group/subgroup", got.Owner)
 	assert.Equal(t, "project", got.Repo)
 }
+
+// TestChangelogPipelineLinkContext covers the standalone `heraut changelog` flow: it resolves
+// the same precedence chain as the release pipeline (explicit remote → resolved forge → ambient),
+// so a forge resolved from the git origin renders links outside CI instead of bare hashes.
+func TestChangelogPipelineLinkContext(t *testing.T) {
+	forgeID := port.ForgeIdentity{Type: "gitlab", Host: "https://gitlab.example.com", Project: "group/subgroup/project"}
+
+	tests := []struct {
+		name string
+		cfg  *ChangelogConfig
+		amb  string // CI_PROJECT_URL, when the ambient fallback should apply
+		want *port.LinkContext
+	}{
+		{
+			name: "forge identity used when nothing else is configured",
+			cfg:  &ChangelogConfig{ForgeIdentity: &forgeID},
+			want: &port.LinkContext{BaseURL: "https://gitlab.example.com", Owner: "group/subgroup", Repo: "project", Platform: "gitlab"},
+		},
+		{
+			name: "forge identity wins over ambient CI",
+			cfg:  &ChangelogConfig{ForgeIdentity: &forgeID},
+			amb:  "https://gitlab.example.com/other/proj",
+			want: &port.LinkContext{BaseURL: "https://gitlab.example.com", Owner: "group/subgroup", Repo: "project", Platform: "gitlab"},
+		},
+		{
+			name: "explicit changelog.remote still wins over the forge",
+			cfg:  &ChangelogConfig{ChangelogRemote: &config.Remote{Type: "github", Repository: "acme/widget"}, ForgeIdentity: &forgeID},
+			want: &port.LinkContext{BaseURL: "https://github.com", Owner: "acme", Repo: "widget", Platform: "github"},
+		},
+		{
+			name: "falls back to ambient when no forge is resolved",
+			cfg:  &ChangelogConfig{},
+			amb:  "https://gitlab.example.com/grp/proj",
+			want: &port.LinkContext{BaseURL: "https://gitlab.example.com/grp/proj", Platform: "gitlab"},
+		},
+		{
+			name: "nil when nothing resolves",
+			cfg:  &ChangelogConfig{},
+			want: nil,
+		},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Setenv("CI_PROJECT_URL", tc.amb)
+			t.Setenv("CI_SERVER_URL", "")
+			t.Setenv("CI_PROJECT_PATH", "")
+			t.Setenv("GITHUB_SERVER_URL", "")
+			t.Setenv("GITHUB_REPOSITORY", "")
+
+			p := &ChangelogPipeline{cfg: tc.cfg}
+			assert.Equal(t, tc.want, p.changelogLinkContext())
+		})
+	}
+}

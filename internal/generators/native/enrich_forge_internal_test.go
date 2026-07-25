@@ -65,3 +65,32 @@ func TestEnrich_NoForgeFallsBackToLegacy(t *testing.T) {
 	require.NoError(t, err)
 	assert.Empty(t, er.prs)
 }
+
+// An injected forge satisfies remote_metadata: required on its own — it carries its own
+// identity, so a nil (or unsupported) LinkContext is not the "nothing configured" case.
+func TestEnrichForRelease_RequiredSatisfiedByForgeWithNilLinkContext(t *testing.T) {
+	sf := &stubForge{en: port.Enrichment{
+		PRs:     map[string]port.PullRequest{"abc": {Number: 7, RefPrefix: "!"}},
+		Authors: map[string]string{"abc": "alice"},
+	}}
+	driver := testDriver()
+	driver.RemoteMetadata = "required"
+	g := New(nil, driver, ModeChangelog, WithForge(sf))
+
+	er, err := g.enrichForRelease(nil, []rawCommit{{Hash: "abc", Author: "Alice"}})
+	require.NoError(t, err, "an injected forge must satisfy the required policy")
+	assert.Equal(t, 7, er.prs["abc"].Number)
+	assert.Equal(t, "alice", er.authors["abc"])
+	assert.False(t, g.Degraded())
+}
+
+// The required-policy error still fires when there is neither a forge nor an enrichable lc.
+func TestEnrichForRelease_RequiredStillErrorsWithoutForgeOrLinkContext(t *testing.T) {
+	driver := testDriver()
+	driver.RemoteMetadata = "required"
+	g := New(nil, driver, ModeChangelog)
+
+	_, err := g.enrichForRelease(nil, []rawCommit{{Hash: "abc"}})
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "remote enrichment (required)")
+}

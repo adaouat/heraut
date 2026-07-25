@@ -162,6 +162,22 @@ func (p *Pipeline) changelogLinkContext() *port.LinkContext {
 	return nil
 }
 
+// changelogLinkContext resolves the link context for the standalone `heraut changelog` flow.
+// It mirrors the release pipeline's precedence — explicit changelog.remote override (ADR-0026),
+// then the resolved forge identity (ADR-0043), then the ambient CI host (ADR-0022) — minus the
+// single-platform fallback, since a changelog-only run configures no release platforms.
+func (p *ChangelogPipeline) changelogLinkContext() *port.LinkContext {
+	if lc := remoteLinkContext(p.cfg.ChangelogRemote); lc != nil {
+		return lc
+	}
+	if p.cfg.ForgeIdentity != nil {
+		if lc := linkContextFromIdentity(*p.cfg.ForgeIdentity); lc != nil {
+			return lc
+		}
+	}
+	return ambientLinkContext()
+}
+
 // platformLinkContext resolves the link context for one platform: the ambient CI host when
 // it describes the *same* platform type (so a self-hosted instance whose real host only
 // lives in the CI env is honoured), otherwise the platform's own base_url-derived context.
