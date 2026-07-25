@@ -36,7 +36,7 @@ targets); `commits.remote_metadata` is renamed `commits.enrichment_policy`.
 
 | Phase                                                    | Tasks       | Status      |
 |----------------------------------------------------------|-------------|-------------|
-| P1 — GitLab-first: `port.Forge` + config + resolution + native REST/GraphQL + links | T154–T160 | Not started |
+| P1 — GitLab-first: `port.Forge` + config + resolution + native REST/GraphQL + links | T154–T160 | Complete |
 | P2 — migrate GitHub + Azure onto `port.Forge`            | T161, T162  | Not started |
 | P3 — fold publishing into `port.Forge`                   | T163        | Not started |
 | P4 (last) — `heraut init` wizard                         | T164        | Not started |
@@ -156,7 +156,7 @@ where that check lands (T157 resolution-time vs. T159's "the validation error fr
 which itself conflicts with T156's completion note deferring it away). Flagged for the next
 task/roadmap-reconciliation pass rather than guessed at.
 
-#### `[ ]` T158: GitLab REST forge (native `net/http`)
+#### `[x]` T158: GitLab REST forge (native `net/http`)
 
 `internal/forge/gitlab` implementing `port.Forge` over native `net/http` (no `glab`). REST default:
 per-commit `GET /projects/:id/repository/commits/:sha/merge_requests` for MR refs
@@ -165,7 +165,12 @@ per-commit `GET /projects/:id/repository/commits/:sha/merge_requests` for MR ref
 `PRIVATE-TOKEN`**. Links (`CommitURL` / `ChangeURL` `!N` / `CompareURL`). Tests: `httptest.Server`
 request-shape + header-selection + mapping + `by @git-name` render.
 
-#### `[ ]` T159: GitLab GraphQL forge mode (opt-in)
+Implemented as planned: `internal/forge/gitlab/rest.go` + `gitlab.go` cover the REST default path,
+with `httptest.Server` contract tests asserting the request shape, `JOB-TOKEN`/`PRIVATE-TOKEN`
+header selection by `TokenKind`, MR-to-render-model mapping, and the local-git-name `by @` fallback
+when no linked handle is available.
+
+#### `[x]` T159: GitLab GraphQL forge mode (opt-in)
 
 `api_mode: graphql` path: reuse the batched query logic (ADR-0042 — `commits(ref:){author{username}}`
 + `mergeRequests`) POSTed via native `net/http` with `PRIVATE-TOKEN`, rendering the **linked
@@ -176,7 +181,12 @@ GraphQL path exists and needs the resolved `TokenKind` (T157's `port.ForgeIdenti
 config validation) and T157 (identity resolution) both deliberately left it out. Tests:
 `httptest.Server` GraphQL path; `PRIVATE-TOKEN` header; linked-handle render; job-token → error.
 
-#### `[ ]` T160: pipeline wiring + old-path removal
+Implemented as planned: `internal/forge/gitlab/graphql.go` reuses the ADR-0042 batched query,
+POSTed via `net/http` with `PRIVATE-TOKEN`; the job-token + graphql guard rejects before any network
+call, with a hint pointing at `api_mode: rest` or a `read_api` token. Contract tests cover the
+GraphQL request shape, the header, the linked-`@username` render, and the guard's error path.
+
+#### `[x]` T160: pipeline wiring + old-path removal
 
 Wire the forge end-to-end: changelog + release-notes enrichment resolves the `port.Forge` from
 `commits.enrichment_forge` and applies `commits.enrichment_policy` (unchanged degrade/required
@@ -196,6 +206,32 @@ render `LinkContext` from the resolved forge, and **`release.platforms` stays** 
 parsed-and-validated but unused until then — expected, not dead code. Tests:
 integration — zero-config GitLab CI changelog (enriched via `CI_JOB_TOKEN`); happy-path + dry-run
 release to a resolved forge.
+
+Landed in two slices: **T160a** (pipeline wiring, prior session) resolved the enrichment forge in
+`internal/app/pipeline.go` and injected it into the native generator, deriving `LinkContext` from
+the resolved identity ahead of the ambient/single-platform fallback. **T160b** (this session) did the
+breaking config cutover: deleted `config.Remote` and `ContentDriver.Remote` (`changelog.remote` is
+gone entirely — no per-driver replacement; `forges:` is the top-level equivalent), deleted
+`Commits.RemoteMetadata` in favor of the already-existing `Commits.EnrichmentPolicy`, renamed the
+`*Config` accessor `RemoteMetadata()` → `EnrichmentPolicy()`, and removed `ChangelogRemote` /
+`remoteLinkContext` / `remoteBaseURL` / `tokenEnvOrDefault` from `internal/pipeline`. Added
+`config.ErrRemovedConfigKey` plus `checkRemovedKeys`, run against the raw YAML bytes in both
+`Load` and `LoadFromReader` ahead of the strict decode, so a removed key gets a mapped,
+actionable error instead of a generic "unknown key". `internal/scaffold/` needed a mechanical
+two-line rename (`Commits.RemoteMetadata` → `Commits.EnrichmentPolicy`, `cfg.RemoteMetadata()` →
+`cfg.EnrichmentPolicy()`) to keep compiling — the wizard's `Answers.RemoteMetadata` field and its
+`forges:`/`release.targets:` UI are untouched, deferred to **P4/T164** as planned.
+`release.platforms` publishing and its removal remain deferred to **P3** ("fold publishing into
+`port.Forge`"), per the 2026-07-24 scope decision above — this task only removed the enrichment-side
+`changelog.remote` / `commits.remote_metadata` keys, not the publish-side `release.platforms`.
+Migrated (not deleted) the fixtures/tests covering a still-supported feature: `commits.remote_metadata`
+→ `commits.enrichment_policy` in `testdata/config/valid/enrichment-policy.yml` (renamed from
+`remote-metadata.yml`) and in `validator_test.go`'s enum tests. Deleted the fixtures/tests whose
+feature is gone with no replacement shape: `changelog-remote.yml`, `changelog-remote-native.yml`,
+`invalid_remote_type.yml`, `remote_api_url_removed.yml`, the `validateContentDriverRemote` test
+block, and `TestRemoteLinkContext` — `forges:` is a different (top-level, not per-driver) shape, so
+there is no like-for-like migration for those cases. `go test ./...` (1469 tests) and `hk check` are
+clean.
 
 ### Plan B / P2 handoff notes (from Plan A's final whole-branch review)
 

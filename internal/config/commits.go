@@ -17,14 +17,12 @@ type Commits struct {
 	ScopesRestricted bool `yaml:"scopes_restricted,omitempty"`
 	// Tickets configures issue-tracker links matched in commit messages and rendered as links.
 	Tickets []Ticket `yaml:"tickets,omitempty"`
-	// RemoteMetadata is the PR/MR enrichment policy: "required", "optional" (default), or
-	// "disabled". Governs changelog and release-notes generation.
-	RemoteMetadata string `yaml:"remote_metadata,omitempty"`
 	// EnrichmentForge references a forges[].name used as the PR/MR metadata source for
-	// changelog and release-notes generation (ADR-0043). Additive alongside RemoteMetadata.
+	// changelog and release-notes generation (ADR-0043).
 	EnrichmentForge string `yaml:"enrichment_forge,omitempty"`
 	// EnrichmentPolicy is the PR/MR enrichment policy sourced from EnrichmentForge:
-	// "required", "optional" (default), or "disabled". Additive alongside RemoteMetadata.
+	// "required", "optional" (default), or "disabled". Governs changelog and release-notes
+	// generation (ADR-0043; renamed from the removed remote_metadata).
 	EnrichmentPolicy string `yaml:"enrichment_policy,omitempty"`
 }
 

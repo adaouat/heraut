@@ -41,9 +41,9 @@ func TestDroppedFields_RemoteMetadata_NotDropped(t *testing.T) {
 	cfg := &config.Config{
 		Version:    "1",
 		Versioning: config.Versioning{Strategy: "semver"},
-		Commits:    &config.Commits{RemoteMetadata: "required"},
+		Commits:    &config.Commits{EnrichmentPolicy: "required"},
 	}
-	assert.Empty(t, scaffold.DroppedFields(cfg), "remote_metadata is preserved via Answers (T107)")
+	assert.Empty(t, scaffold.DroppedFields(cfg), "enrichment_policy is preserved via Answers (T107)")
 }
 
 func TestDroppedFields_ReleaseAssets_NotDropped(t *testing.T) {

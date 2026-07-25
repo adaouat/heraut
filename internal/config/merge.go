@@ -42,9 +42,6 @@ func MergeContentDriver(base, override *ContentDriver) *ContentDriver {
 		merged.Template = override.Template
 	}
 	merged.Rendering = mergeRendering(base.Rendering, override.Rendering)
-	if override.Remote != nil {
-		merged.Remote = override.Remote
-	}
 	return &merged
 }
 

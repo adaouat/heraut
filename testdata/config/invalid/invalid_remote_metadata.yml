@@ -4,4 +4,4 @@ versioning:
   strategy: semver
 
 commits:
-  remote_metadata: sometimes
+  enrichment_policy: sometimes

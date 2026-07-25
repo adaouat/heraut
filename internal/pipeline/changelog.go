@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"io"
 
-	"github.com/adaouat/heraut/internal/config"
 	"github.com/adaouat/heraut/internal/port"
 	"github.com/adaouat/heraut/internal/ui"
 	"github.com/adaouat/heraut/internal/versioning"
@@ -16,11 +15,8 @@ type ChangelogConfig struct {
 	Changelog port.Generator
 	// ChangelogFile is the output path for the changelog.
 	ChangelogFile string
-	// ChangelogRemote is the effective changelog.remote block (ADR-0026), consumed ahead
-	// of the ambient CI-host fallback.
-	ChangelogRemote *config.Remote
 	// ForgeIdentity is the resolved enrichment forge (ADR-0043), consumed ahead of the
-	// ambient CI-host fallback but after an explicit ChangelogRemote override.
+	// ambient CI-host fallback.
 	ForgeIdentity *port.ForgeIdentity
 	// CommitMessage is the git commit message template. Defaults to "chore(release): ${version}".
 	CommitMessage string

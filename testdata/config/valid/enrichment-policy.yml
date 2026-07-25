@@ -4,11 +4,11 @@ version: "1"
 
 versioning:
   strategy: semver
+  bump: auto
+
+commits:
+  enrichment_policy: disabled
 
 changelog:
   generator: git-cliff
-  remote:
-    type: azure_devops
-    project: my-org/my-project
-    repository: my-repo
-    base_url: https://devops.example.com
+  output: CHANGELOG.md

@@ -15,16 +15,16 @@ func TestApplyOfflineOverride_ForcesDisabled(t *testing.T) {
 	cmd.Flags().Bool("offline", false, "")
 	require.NoError(t, cmd.Flags().Set("offline", "true"))
 
-	cfg := &config.Config{Commits: &config.Commits{RemoteMetadata: "optional"}}
+	cfg := &config.Config{Commits: &config.Commits{EnrichmentPolicy: "optional"}}
 	applyOfflineOverride(cmd, cfg)
-	assert.Equal(t, "disabled", cfg.RemoteMetadata())
+	assert.Equal(t, "disabled", cfg.EnrichmentPolicy())
 }
 
 func TestApplyOfflineOverride_UnsetLeavesPolicy(t *testing.T) {
 	cmd := &cobra.Command{}
 	cmd.Flags().Bool("offline", false, "")
 
-	cfg := &config.Config{Commits: &config.Commits{RemoteMetadata: "required"}}
+	cfg := &config.Config{Commits: &config.Commits{EnrichmentPolicy: "required"}}
 	applyOfflineOverride(cmd, cfg)
-	assert.Equal(t, "required", cfg.RemoteMetadata())
+	assert.Equal(t, "required", cfg.EnrichmentPolicy())
 }

@@ -1,17 +1,63 @@
 package config
 
 import (
+	"bytes"
+	"errors"
+	"fmt"
 	"io"
+	"os"
 	"strings"
 
 	forgeconfig "github.com/adaouat/forge/config"
+	"gopkg.in/yaml.v3"
 )
+
+// ErrRemovedConfigKey reports a config key removed by the forge migration (ADR-0043).
+var ErrRemovedConfigKey = errors.New("removed config key")
+
+// removedKeys maps a removed config path to its replacement guidance.
+var removedKeys = []struct{ path, hint string }{
+	{"changelog.remote", "replace with a top-level `forges:` entry and point `commits.enrichment_forge` at it"},
+	{"commits.remote_metadata", "rename to `commits.enrichment_policy` (same values: disabled | optional | required)"},
+}
+
+// checkRemovedKeys reports the first removed key present in the raw YAML, with migration guidance.
+func checkRemovedKeys(raw []byte) error {
+	var probe struct {
+		Changelog struct {
+			Remote any `yaml:"remote"`
+		} `yaml:"changelog"`
+		Commits struct {
+			RemoteMetadata any `yaml:"remote_metadata"`
+		} `yaml:"commits"`
+	}
+	if err := yaml.Unmarshal(raw, &probe); err != nil {
+		return nil // malformed YAML surfaces from the strict parse with better context
+	}
+	present := map[string]bool{
+		"changelog.remote":        probe.Changelog.Remote != nil,
+		"commits.remote_metadata": probe.Commits.RemoteMetadata != nil,
+	}
+	for _, k := range removedKeys {
+		if present[k.path] {
+			return fmt.Errorf("%w: `%s` — %s", ErrRemovedConfigKey, k.path, k.hint)
+		}
+	}
+	return nil
+}
 
 // Load reads and strictly parses the config file at path, then applies heraut's
 // post-parse defaults. Unknown YAML fields are rejected.
 func Load(path string) (*Config, error) {
+	raw, err := os.ReadFile(path)
+	if err != nil {
+		return nil, fmt.Errorf("reading config: %w", err)
+	}
+	if err := checkRemovedKeys(raw); err != nil {
+		return nil, err
+	}
 	var cfg Config
-	if err := forgeconfig.Load(path, &cfg); err != nil {
+	if err := forgeconfig.Decode(bytes.NewReader(raw), &cfg); err != nil {
 		return nil, err
 	}
 	normalize(&cfg)
@@ -20,8 +66,15 @@ func Load(path string) (*Config, error) {
 
 // LoadFromReader strictly parses config from r, then applies heraut's defaults.
 func LoadFromReader(r io.Reader) (*Config, error) {
+	raw, err := io.ReadAll(r)
+	if err != nil {
+		return nil, fmt.Errorf("reading config: %w", err)
+	}
+	if err := checkRemovedKeys(raw); err != nil {
+		return nil, err
+	}
 	var cfg Config
-	if err := forgeconfig.Decode(r, &cfg); err != nil {
+	if err := forgeconfig.Decode(bytes.NewReader(raw), &cfg); err != nil {
 		return nil, err
 	}
 	normalize(&cfg)

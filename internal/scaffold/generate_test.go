@@ -219,8 +219,8 @@ func TestConfigToAnswers_PreservesAssetsTicketsRemoteMetadata(t *testing.T) {
 		Version:    "1",
 		Versioning: config.Versioning{Strategy: "semver"},
 		Commits: &config.Commits{
-			RemoteMetadata: "required",
-			Tickets:        []config.Ticket{{Pattern: `JIRA-(\d+)`, URL: "https://example.atlassian.net/browse/{ticket}"}},
+			EnrichmentPolicy: "required",
+			Tickets:          []config.Ticket{{Pattern: `JIRA-(\d+)`, URL: "https://example.atlassian.net/browse/{ticket}"}},
 		},
 		Release: &config.Release{Assets: []string{"dist/*.tar.gz"}},
 	}
@@ -242,7 +242,7 @@ func TestGenerateYAML_AssetsTicketsRemoteMetadata(t *testing.T) {
 
 	cfg, err := config.LoadFromReader(strings.NewReader(stripHeader(out)))
 	require.NoError(t, err)
-	assert.Equal(t, "required", cfg.RemoteMetadata())
+	assert.Equal(t, "required", cfg.EnrichmentPolicy())
 	assert.Equal(t, []config.Ticket{{Pattern: `JIRA-(\d+)`, URL: "https://example.atlassian.net/browse/{ticket}"}}, cfg.Tickets())
 	require.NotNil(t, cfg.Release)
 	assert.Equal(t, []string{"dist/*.tar.gz"}, cfg.Release.Assets)

@@ -39,7 +39,7 @@
     },
     "forges": {
       "type": "array",
-      "description": "Code-hosting platforms heraut talks to (ADR-0043): connection/identity only. What to publish (draft/assets) lives in release.targets; the enrichment source is commits.enrichment_forge. Additive alongside changelog.remote / release.platforms.",
+      "description": "Code-hosting platforms heraut talks to (ADR-0043): connection/identity only. What to publish (draft/assets) lives in release.targets; the enrichment source is commits.enrichment_forge. Additive alongside release.platforms (removal is a later phase).",
       "items": {
         "$ref": "#/definitions/Forge"
       }
@@ -96,19 +96,9 @@
             }
           }
         },
-        "remote_metadata": {
-          "type": "string",
-          "enum": [
-            "required",
-            "optional",
-            "disabled"
-          ],
-          "default": "optional",
-          "description": "Whether content generators fetch PR/MR metadata (author handle, PR number) to enrich changelog/release-notes. 'required': fetch and fail if unavailable. 'optional' (default): fetch when possible, else warn. 'disabled': never fetch. The --offline flag forces 'disabled' for a single run."
-        },
         "enrichment_forge": {
           "type": "string",
-          "description": "References a forges[].name used as the PR/MR metadata source for changelog and release-notes generation (ADR-0043). Additive alongside remote_metadata."
+          "description": "References a forges[].name used as the PR/MR metadata source for changelog and release-notes generation (ADR-0043)."
         },
         "enrichment_policy": {
           "type": "string",
@@ -118,7 +108,7 @@
             "required"
           ],
           "default": "optional",
-          "description": "PR/MR enrichment policy sourced from enrichment_forge: 'required': fetch and fail if unavailable. 'optional' (default): fetch when possible, else warn. 'disabled': never fetch. Additive alongside remote_metadata."
+          "description": "PR/MR enrichment policy sourced from enrichment_forge: 'required': fetch and fail if unavailable. 'optional' (default): fetch when possible, else warn. 'disabled': never fetch. The --offline flag forces 'disabled' for a single run. Renamed from remote_metadata (removed, ADR-0043)."
         }
       }
     },
@@ -359,45 +349,6 @@
         "rendering": {
           "$ref": "#/definitions/Rendering",
           "description": "Per-driver rendering overrides (template snippets + excludes), deep-merged over the global rendering block. native only (ADR-0037)."
-        },
-        "remote": {
-          "$ref": "#/definitions/Remote",
-          "description": "Explicit metadata remote for PR/author enrichment and link hosts (git-cliff or native). Changelog only — release notes resolve this from release.platforms and reject this block. See ADR-0026 / ADR-0040."
-        }
-      }
-    },
-    "Remote": {
-      "type": "object",
-      "required": [
-        "type"
-      ],
-      "additionalProperties": false,
-      "description": "Explicit, metadata-only remote for PR/author enrichment (git-cliff or native). Unlike release.platforms, this never grants publish capability.",
-      "properties": {
-        "type": {
-          "type": "string",
-          "enum": [
-            "github",
-            "gitlab",
-            "azure_devops"
-          ],
-          "description": "Remote discriminator."
-        },
-        "project": {
-          "type": "string",
-          "description": "GitLab project path (namespace[/subgroup]/repo). Required for type: gitlab. For type: azure_devops, \"organization/project\" (required) — matches git-cliff's own azure_devops \"owner\" shape."
-        },
-        "repository": {
-          "type": "string",
-          "description": "GitHub repository (owner/repo). Required for type: github. For type: azure_devops, the Azure DevOps repository name (required)."
-        },
-        "token_env": {
-          "type": "string",
-          "description": "Environment variable holding the API token. Defaults to GITHUB_TOKEN / GITLAB_TOKEN / AZURE_DEVOPS_TOKEN depending on type."
-        },
-        "base_url": {
-          "type": "string",
-          "description": "Web/API host override for all types: github (github.com / GHES), gitlab (gitlab.com / self-managed), azure_devops (dev.azure.com / on-prem Server). Must be an absolute http(s) URL. Defaults per type when unset."
         }
       }
     },

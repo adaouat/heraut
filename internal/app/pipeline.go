@@ -185,7 +185,6 @@ func buildReleasePipelineConfig(runner port.Runner, cfg *config.Config, env, her
 		}
 		pCfg.Changelog = gen
 		pCfg.ChangelogFile = effectiveChangelog.Output
-		pCfg.ChangelogRemote = driver.Remote
 		pCfg.ForgeIdentity = forgeID
 	}
 
@@ -249,7 +248,6 @@ func buildChangelogPipelineConfig(runner port.Runner, cfg *config.Config, opts P
 		}
 		cCfg.Changelog = gen
 		cCfg.ChangelogFile = effectiveChangelog.Output
-		cCfg.ChangelogRemote = driver.Remote
 		cCfg.ForgeIdentity = forgeID
 	}
 
@@ -260,12 +258,12 @@ func buildChangelogPipelineConfig(runner port.Runner, cfg *config.Config, opts P
 }
 
 // withEnvDerivations returns a ContentDriver copy with env-derived scoping applied
-// from the effective tag format, plus the top-level remote_metadata policy:
+// from the effective tag format, plus the top-level enrichment_policy:
 //   - HeadingVersionPattern: strips env prefix/suffix and build from changelog headings
 //     (when {env} or {build} is present)
 //   - TagPattern: scopes git-cliff to the active env's tags (when {env} and the user has
 //     not set an explicit tag_pattern)
-//   - RemoteMetadata: the top-level Config.RemoteMetadata policy, so the generator honours
+//   - RemoteMetadata: the top-level Config.EnrichmentPolicy, so the generator honours
 //     it (empty is left empty — the generator treats that as "optional")
 //   - Tickets: the top-level Config.Tickets, so the generator can inject link_parsers
 //
@@ -287,7 +285,7 @@ func withEnvDerivations(driver *config.ContentDriver, cfg *config.Config, env st
 		}
 	}
 
-	rm := cfg.RemoteMetadata()
+	rm := cfg.EnrichmentPolicy()
 	tickets := cfg.Tickets()
 	templates := effectiveTemplates(cfg, driver)
 	hasCommits := cfg.Commits != nil && (len(cfg.Commits.Types) > 0 || cfg.Commits.TypesHeadingLevel > 0)

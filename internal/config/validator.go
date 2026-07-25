@@ -33,9 +33,6 @@ var (
 	validTagTypes = map[string]bool{
 		"annotated": true, "lightweight": true,
 	}
-	validRemoteMetadata = map[string]bool{
-		"required": true, "optional": true, "disabled": true,
-	}
 	commitTypePattern = regexp.MustCompile(`^\w+$`)
 )
 
@@ -152,7 +149,7 @@ func validateCommits(cfg *Config) []ValidationError {
 }
 
 // validateForges validates the new forges/release.targets/commits.enrichment_* keys
-// (ADR-0043, additive alongside changelog.remote / release.platforms / commits.remote_metadata):
+// (ADR-0043, additive alongside release.platforms — removal is P3):
 // each forge's name is non-empty and unique, its platform and api_mode are valid enums;
 // commits.enrichment_policy is a valid enum; commits.enrichment_forge and each
 // release.targets[].forge, when set, must name a known forge, and are required when more than
@@ -410,13 +407,6 @@ func validateEnums(cfg *Config) []ValidationError {
 			Hint:    "valid tag types: annotated, lightweight",
 		})
 	}
-	if rm := cfg.RemoteMetadata(); rm != "" && !validRemoteMetadata[rm] {
-		errs = append(errs, ValidationError{
-			Path:    "commits.remote_metadata",
-			Message: fmt.Sprintf("%q is not a valid remote_metadata policy", rm),
-			Hint:    "valid values: required, optional, disabled",
-		})
-	}
 	errs = append(errs, validateContentDriver(cfg.Changelog, "changelog")...)
 	errs = append(errs, validateRelease(cfg.Release, "release")...)
 	for envName, env := range cfg.Environments {
@@ -469,7 +459,6 @@ func validateContentDriver(d *ContentDriver, path string) []ValidationError {
 		}
 	}
 	errs = append(errs, validateContentDriverTemplates(d, path)...)
-	errs = append(errs, validateContentDriverRemote(d, path)...)
 	return errs
 }
 
@@ -513,79 +502,6 @@ func validateContentDriverTemplates(d *ContentDriver, path string) []ValidationE
 				Hint:    "the file must be a valid Go text/template",
 			})
 		}
-	}
-	return errs
-}
-
-// validateContentDriverRemote validates an explicit changelog.remote block (ADR-0026): it
-// is only valid on the changelog content driver (release notes already resolve PR/MR
-// metadata from release.platforms), and requires a valid type with that type's required
-// fields.
-func validateContentDriverRemote(d *ContentDriver, path string) []ValidationError {
-	if d.Remote == nil {
-		return nil
-	}
-	remotePath := path + ".remote"
-	if strings.HasSuffix(path, ".notes") {
-		return []ValidationError{{
-			Path:    remotePath,
-			Message: "remote is only valid on the changelog content driver, not release notes",
-			Hint:    "release notes already resolve PR/MR metadata from release.platforms; remove this block",
-		}}
-	}
-	var errs []ValidationError
-	r := d.Remote
-	switch r.Type {
-	case "":
-		errs = append(errs, ValidationError{
-			Path:    remotePath + ".type",
-			Message: "required",
-			Hint:    "set type to one of: github, gitlab, azure_devops",
-		})
-	case "github":
-		if r.Repository == "" {
-			errs = append(errs, ValidationError{
-				Path:    remotePath + ".repository",
-				Message: "required for type: github",
-				Hint:    `set repository to "owner/repo"`,
-			})
-		}
-	case "gitlab":
-		if r.Project == "" {
-			errs = append(errs, ValidationError{
-				Path:    remotePath + ".project",
-				Message: "required for type: gitlab",
-				Hint:    `set project to "namespace/repo" (or "namespace/subgroup/repo")`,
-			})
-		}
-	case "azure_devops":
-		if r.Project == "" {
-			errs = append(errs, ValidationError{
-				Path:    remotePath + ".project",
-				Message: "required for type: azure_devops",
-				Hint:    `set project to "organization/project"`,
-			})
-		}
-		if r.Repository == "" {
-			errs = append(errs, ValidationError{
-				Path:    remotePath + ".repository",
-				Message: "required for type: azure_devops",
-				Hint:    "set repository to your Azure DevOps repository name",
-			})
-		}
-	default:
-		errs = append(errs, ValidationError{
-			Path:    remotePath + ".type",
-			Message: fmt.Sprintf("%q is not a valid remote type", r.Type),
-			Hint:    "valid types: github, gitlab, azure_devops",
-		})
-	}
-	if r.BaseURL != "" && !isValidBaseURL(strings.TrimRight(r.BaseURL, "/")) {
-		errs = append(errs, ValidationError{
-			Path:    remotePath + ".base_url",
-			Message: fmt.Sprintf("%q is not a valid URL", r.BaseURL),
-			Hint:    "base_url must be an absolute http(s) URL, e.g. https://git.example.com",
-		})
 	}
 	return errs
 }

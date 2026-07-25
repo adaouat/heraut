@@ -1,7 +1,6 @@
 package pipeline
 
 import (
-	"github.com/adaouat/heraut/internal/config"
 	"github.com/adaouat/heraut/internal/port"
 )
 
@@ -11,12 +10,8 @@ type Config struct {
 	Changelog port.Generator
 	// ChangelogFile is the output path for the changelog (from cfg.Changelog.Output).
 	ChangelogFile string
-	// ChangelogRemote is the effective changelog.remote block (ADR-0026), consumed by
-	// changelogLinkContext() ahead of its ambient/single-platform fallback chain.
-	ChangelogRemote *config.Remote
 	// ForgeIdentity is the resolved enrichment forge (ADR-0043), consumed by
-	// changelogLinkContext() ahead of the ambient/single-platform fallback chain but after an
-	// explicit ChangelogRemote override.
+	// changelogLinkContext() ahead of its ambient/single-platform fallback chain.
 	ForgeIdentity *port.ForgeIdentity
 	// Notes is the optional release-notes generator (generates release page text).
 	Notes port.Generator

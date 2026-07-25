@@ -18,7 +18,7 @@ type Config struct {
 	Rendering *Rendering `yaml:"rendering,omitempty"`
 	// Forges lists the code-hosting platforms heraut talks to (ADR-0043). Consumed by
 	// release.targets (publish destinations) and commits.enrichment_forge (PR/MR metadata
-	// source). Additive alongside changelog.remote / release.platforms for now.
+	// source). Additive alongside release.platforms for now (release.platforms removal is P3).
 	Forges []Forge `yaml:"forges,omitempty"`
 }
 
@@ -30,13 +30,13 @@ func (c *Config) Tickets() []Ticket {
 	return c.Commits.Tickets
 }
 
-// RemoteMetadata returns the configured remote-metadata policy (commits.remote_metadata), or
-// "" (which the generators treat as "optional"). Nil-safe.
-func (c *Config) RemoteMetadata() string {
+// EnrichmentPolicy returns the configured PR/MR enrichment policy (commits.enrichment_policy),
+// or "" (which the generators treat as "optional"). Nil-safe.
+func (c *Config) EnrichmentPolicy() string {
 	if c.Commits == nil {
 		return ""
 	}
-	return c.Commits.RemoteMetadata
+	return c.Commits.EnrichmentPolicy
 }
 
 // Ticket maps a commit ticket-ID pattern to a URL template. {ticket} in URL is the first
@@ -98,7 +98,7 @@ type ContentDriver struct {
 	// that strips the env prefix/suffix and build ID from version headings (leaving just the
 	// version). Not user-configurable.
 	HeadingVersionPattern string `yaml:"-"`
-	// RemoteMetadata is the effective top-level Config.RemoteMetadata policy, propagated onto
+	// RemoteMetadata is the effective top-level Config.EnrichmentPolicy, propagated onto
 	// the driver by the app layer so the generator can honour it. Empty means "optional".
 	// Not user-configurable at the driver level (the user sets it once at the top level).
 	RemoteMetadata string `yaml:"-"`
@@ -134,34 +134,6 @@ type ContentDriver struct {
 	// environment's tags under a per-env strategy (tagfmt.GlobPattern). Empty means "all tags"
 	// (non-per-env). Not user-configurable — the user-facing knob is TagPattern. (native only.)
 	TagGlob string `yaml:"-"`
-	// Remote configures an explicit, metadata-only remote for git-cliff PR/author
-	// enrichment. Only valid on the changelog driver — release.notes already resolves
-	// this from release.platforms and rejects Remote. git-cliff only. See ADR-0026.
-	Remote *Remote `yaml:"remote,omitempty"`
-}
-
-// Remote configures an explicit metadata-only remote for git-cliff PR/author enrichment
-// on the changelog content driver. Unlike release.platforms (which models where heraut
-// publishes a release), Remote never grants publish capability — it only tells git-cliff
-// where to fetch PR/MR metadata from. See ADR-0026.
-type Remote struct {
-	// Type is the remote discriminator: "github", "gitlab", or "azure_devops".
-	Type string `yaml:"type"`
-	// Project is required for type: gitlab ("namespace[/subgroup]/repo") and
-	// type: azure_devops ("organization/project" — git-cliff's own azure_devops
-	// "owner" shape; not just the project name alone).
-	Project string `yaml:"project,omitempty"`
-	// Repository is required for type: github ("owner/repo") and type: azure_devops
-	// (repository name only).
-	Repository string `yaml:"repository,omitempty"`
-	// TokenEnv overrides the default token env var read for this remote's type
-	// (GITHUB_TOKEN, GITLAB_TOKEN, or AZURE_DEVOPS_TOKEN).
-	TokenEnv string `yaml:"token_env,omitempty"`
-	// BaseURL overrides the remote's default web/API host. Applies to every type:
-	// github (github.com / GitHub Enterprise Server), gitlab (gitlab.com /
-	// self-managed), and azure_devops (dev.azure.com / on-prem Server). Empty uses
-	// the per-type default.
-	BaseURL string `yaml:"base_url,omitempty"`
 }
 
 // Release holds release notes and platform settings.

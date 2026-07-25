@@ -207,7 +207,7 @@ func newCheckCliffChangelogCmd() *cobra.Command {
 			}
 
 			applyOfflineOverride(cmd, cfg)
-			return exitcode.Wrap(exitcode.Runtime, checkCliffDriver(runner, cfg.Changelog, "changelog", cfg.RemoteMetadata(), out))
+			return exitcode.Wrap(exitcode.Runtime, checkCliffDriver(runner, cfg.Changelog, "changelog", cfg.EnrichmentPolicy(), out))
 		},
 	}
 }
@@ -233,7 +233,7 @@ func newCheckCliffReleaseNotesCmd() *cobra.Command {
 			if cfg.Release != nil {
 				notesDriver = cfg.Release.Notes
 			}
-			return exitcode.Wrap(exitcode.Runtime, checkCliffDriver(runner, notesDriver, "release-notes", cfg.RemoteMetadata(), out))
+			return exitcode.Wrap(exitcode.Runtime, checkCliffDriver(runner, notesDriver, "release-notes", cfg.EnrichmentPolicy(), out))
 		},
 	}
 }
@@ -272,12 +272,12 @@ func runRuntimeCheck(runner port.Runner, cfg *config.Config, env string, out io.
 func runCliffChecks(runner port.Runner, cfg *config.Config, out io.Writer) bool {
 	var failed bool
 	if cfg.Changelog != nil {
-		if err := checkCliffDriver(runner, cfg.Changelog, "changelog", cfg.RemoteMetadata(), out); err != nil {
+		if err := checkCliffDriver(runner, cfg.Changelog, "changelog", cfg.EnrichmentPolicy(), out); err != nil {
 			failed = true
 		}
 	}
 	if cfg.Release != nil && cfg.Release.Notes != nil {
-		if err := checkCliffDriver(runner, cfg.Release.Notes, "release-notes", cfg.RemoteMetadata(), out); err != nil {
+		if err := checkCliffDriver(runner, cfg.Release.Notes, "release-notes", cfg.EnrichmentPolicy(), out); err != nil {
 			failed = true
 		}
 	}

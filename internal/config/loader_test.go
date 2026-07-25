@@ -414,6 +414,10 @@ commits:
 	assert.Equal(t, []string{"cmd", "config", "versioning"}, config.ScopeNames(cfg.Commits.Scopes))
 }
 
+// TestLoadFromReader_rejectsRemovedRemoteAPIURLKey covered a removed sub-key
+// (changelog.remote.api_url) surfacing a specific error. changelog.remote itself is now
+// fully removed (T160): loading it hits the migration error (superseded by
+// TestLoad_RemovedKeys in migration_test.go), which is what this test now asserts.
 func TestLoadFromReader_rejectsRemovedRemoteAPIURLKey(t *testing.T) {
 	src := `
 version: "1"
@@ -429,5 +433,6 @@ changelog:
 `
 	_, err := config.LoadFromReader(strings.NewReader(src))
 	require.Error(t, err)
-	assert.Contains(t, err.Error(), "api_url")
+	assert.ErrorIs(t, err, config.ErrRemovedConfigKey)
+	assert.Contains(t, err.Error(), "changelog.remote")
 }
