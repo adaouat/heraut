@@ -6,6 +6,15 @@
 
 ---
 
+> **Update (2026-07-24):** The `changelog.remote` block this ADR defines was **removed** by
+> [ADR-0043](0043-forge-abstraction.md), which unifies it with the connection half of
+> `release.platforms` into a single top-level `forges:` list. A `forges` entry supplies the same
+> connection/identity facts (`platform`/`type`, `project`/`repository`, `base_url`, `api_url`,
+> `token_env`) plus the new `api_mode`; `commits.enrichment_forge` names which `forges` entry
+> supplies changelog/release-notes PR/MR metadata, replacing the implicit changelog-only fallback
+> chain this ADR introduced. Loading a config with `changelog.remote` now fails with a migration
+> error pointing at `forges:` / `commits.enrichment_forge`.
+
 ## Context
 
 [T113](../tasks/roadmap.md) taught heraut to auto-inject git-cliff's `[remote.github]` /

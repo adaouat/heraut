@@ -6,6 +6,12 @@
 
 ---
 
+> **Update (2026-07-24):** The top-level `remote_metadata` key this ADR defines was moved under
+> `commits` (`commits.remote_metadata`) by [ADR-0033](0033-native-config-model.md), and then
+> **renamed to `commits.enrichment_policy`** by [ADR-0043](0043-forge-abstraction.md) as part of
+> the forge-abstraction config unification. The policy semantics (`required` / `optional` /
+> `disabled`, `--force` degrade, `--offline` override) are unchanged — only the key name moved.
+
 ## Context
 
 heraut's embedded git-cliff templates reference `commit.remote.username` and

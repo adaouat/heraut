@@ -27,10 +27,10 @@ trade-offs were accepted.
 | [0020](0020-platform-base-url.md) | Per-Platform `base_url` for Self-Hosted Instances | Superseded by ADR-0025 |
 | [0021](0021-per-platform-release-notes.md) | Release Notes Regenerated Per Platform | Accepted |
 | [0022](0022-fat-injection-thin-templates.md) | Fat Injection / Thin git-cliff Templates | Accepted |
-| [0023](0023-remote-metadata-policy.md) | Remote-Metadata Policy for Content Generation | Accepted |
+| [0023](0023-remote-metadata-policy.md) | Remote-Metadata Policy for Content Generation | Accepted (`remote_metadata` key renamed to `commits.enrichment_policy` by 0043) |
 | [0024](0024-ticket-linking.md) | Ticket Linking via git-cliff link_parsers | Accepted |
 | [0025](0025-multi-instance-platforms.md) | Multi-Instance Same-Platform Releases | Accepted |
-| [0026](0026-azure-devops-metadata-remote.md) | `changelog.remote` — Explicit Metadata Remote for git-cliff | Accepted (git-cliff-only gate + `api_url` superseded by 0040) |
+| [0026](0026-azure-devops-metadata-remote.md) | `changelog.remote` — Explicit Metadata Remote for git-cliff | Accepted (git-cliff-only gate + `api_url` superseded by 0040; `changelog.remote` block removed and replaced by `forges:` + `commits.enrichment_forge` by 0043) |
 | [0027](0027-builtin-conventional-commit-checker.md) | Built-in Conventional-Commit Checker | Accepted (`commit_lint` superseded by 0033) |
 | [0028](0028-drop-cocogitto-generator.md) | Drop the `cocogitto` Generator Entirely | Accepted |
 | [0029](0029-pkl-builtin-commit-verify.md) | Publish a Pkl Builtin for `heraut commit verify` | Accepted |

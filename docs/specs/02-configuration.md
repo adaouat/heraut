@@ -388,7 +388,7 @@ Both `notes` and `platforms` are optional independently:
 A top-level block that is the **single source of truth for commit semantics and enrichment**
 (ADR-0033): the conventional-commit **type set** — used by both `heraut commit verify` /
 `create` and the native renderer's changelog section taxonomy — plus scope rules, ticket
-links, and the remote-metadata policy. Every field is optional; with no `commits` block the
+links, and the enrichment forge/policy. Every field is optional; with no `commits` block the
 built-in defaults apply.
 
 ```yaml
@@ -406,7 +406,8 @@ commits:
       description: CLI commands
     - name: config
   scopes_restricted: false            # when true, verify rejects scopes outside the list
-  remote_metadata: optional           # required | optional (default) | disabled
+  enrichment_forge: gitlab-saas        # references a top-level forges[].name
+  enrichment_policy: optional          # required | optional (default) | disabled
   tickets:
     - pattern: '[A-Z]+-[0-9]+'
       url: 'https://acme.atlassian.net/browse/{ticket}'
@@ -459,15 +460,22 @@ Links issue-tracker references found in commit messages — **subject, body, or 
 For git-cliff, heraut injects each entry as a `link_parser`; the link is appended to the
 commit line as `([TICKET](url))`.
 
-### `commits.remote_metadata`
+### `commits.enrichment_forge` / `commits.enrichment_policy`
 
-Whether content generators fetch PR/MR metadata (author handle, PR number) from the platform
-API to enrich the changelog and release notes: `required` (fetch, and **fail** when the metadata
-cannot be fetched — the remote is unavailable/unreachable, *or* no changelog remote / release
-platform is configured to fetch from), `optional` (default — fetch when possible, else warn),
+`enrichment_forge` names which entry of the top-level `forges:` list (connection/identity for a
+code-hosting platform heraut talks to — see `docs/heraut.sample.yml` and
+[ADR-0043](../adr/0043-forge-abstraction.md)) supplies PR/MR metadata (author handle, PR number)
+for changelog and release-notes generation. With a single `forges` entry (or none, relying on
+auto-detection from CI environment or `git remote get-url origin`), `enrichment_forge` can be
+omitted; it becomes required when multiple forges are configured and heraut cannot pick one
+unambiguously.
+
+`enrichment_policy` governs **whether** that fetch happens at all: `required` (fetch, and **fail**
+when the metadata cannot be fetched — the forge is unavailable/unreachable, *or* no forge is
+configured or auto-detected to fetch from), `optional` (default — fetch when possible, else warn),
 `disabled` (never fetch). `--force` downgrades `required` to `optional` for a single run (degrade
 with a warning instead of failing). The global `--offline` flag forces `disabled` for a single run
-(ADR-0023).
+(ADR-0023; renamed from `commits.remote_metadata` by ADR-0043 — semantics unchanged).
 
 ## `rendering`
 

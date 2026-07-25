@@ -13,7 +13,7 @@ Present on every subcommand. Defined on the root command in `internal/cmd/root.g
 | `--dry-run`          | `false`     | Print actions without executing them. No git writes, no network calls, no file writes outside `/tmp`. Read-only git calls (tag list, log) still execute so the resolved version is accurate. |
 | `--verbose`          | `false`     | Log each external command (`[exec] <cmd> <args>`) before running it, then echo its captured output (indented).              |
 | `--env <name>`       | `""`        | Active environment override. Required for per-env strategies; ignored by single-env strategies.                            |
-| `--force`            | `false`     | Bypass promotion guards E001 and E002 (per [ADR-0007](../adr/0007-version-promotion-error-handling.md)). E003 is not bypassed. Also downgrades `commits.remote_metadata: required` to `optional` for the run (degrade instead of failing when metadata is unavailable). |
+| `--force`            | `false`     | Bypass promotion guards E001 and E002 (per [ADR-0007](../adr/0007-version-promotion-error-handling.md)). E003 is not bypassed. Also downgrades `commits.enrichment_policy: required` to `optional` for the run (degrade instead of failing when metadata is unavailable). |
 | `--version` / `-v`   | —           | Print the heraut version (see § `heraut --version` below).                                                                 |
 | `--help` / `-h`      | —           | Print usage and exit.                                                                                                      |
 
@@ -44,7 +44,7 @@ heraut init --force        # overwrite an existing config without prompting
 the answers, so re-running `heraut init` updates instead of replacing.
 
 **Update warning**: the wizard does not have prompts for every field — `commits.tickets`,
-`commits.remote_metadata`, `release.assets`, a platform's `base_url` (when it differs from the
+`commits.enrichment_policy`, `release.assets`, a platform's `base_url` (when it differs from the
 type's default), `draft`/`prerelease`, and per-environment `changelog`/`release`
 overrides. If the loaded config has any of these set, `heraut init` prints a warning
 listing them before the wizard runs, since continuing will drop them from the rewritten

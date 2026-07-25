@@ -47,8 +47,8 @@ PR/MR number attribution and the "New Contributors" block derive from a unified,
 platform-agnostic model (`Author`/`PullRequest`/`Contributor`): a **local tier** always
 computes contributors and `first_time` from git author history (one `git log`, available
 offline, identical across GitHub/GitLab/Azure DevOps), while a **remote tier** — gated by the
-`remote_metadata` policy — fetches PR/MR metadata (number, URL, title, labels, author handle)
-and overlays it onto that local model. Because `first_time` no longer depends on
+`commits.enrichment_policy` policy — fetches PR/MR metadata (number, URL, title, labels, author
+handle) and overlays it onto that local model. Because `first_time` no longer depends on
 platform-specific data, the "New Contributors" block is available for all three platforms,
 including Azure DevOps. See [ADR-0033](../adr/0033-native-config-model.md),
 [ADR-0034](../adr/0034-native-remote-enrichment.md), and
@@ -199,37 +199,45 @@ release-notes generation whenever owner/repo are known: `[remote.github]` /
 `[remote.gitlab]` is appended to the effective merged TOML, and `GITHUB_REPO` /
 `GITHUB_TOKEN` (or `GITLAB_REPO` / `GITLAB_TOKEN`) are set on the git-cliff subprocess
 environment when not already present — no manual git-cliff config is needed. Owner/repo
-are derived from whichever `release.platforms` entry the generation step is resolving
-against (see [`changelogLinkContext`/`platformLinkContext`](../adr/0022-fat-injection-thin-templates.md)
-for the resolution order). Whether the fetch itself is attempted at all (vs. skipped or
-gracefully degraded) is governed separately by [`commits.remote_metadata`](../adr/0023-remote-metadata-policy.md).
+are derived from whichever forge the generation step resolves against — the
+`commits.enrichment_forge` entry in the top-level `forges:` list when set, otherwise
+auto-detected from ambient CI or `git remote get-url origin` (see
+[`changelogLinkContext`/`platformLinkContext`](../adr/0022-fat-injection-thin-templates.md)
+for the resolution order predating this auto-detection, and
+[ADR-0043](../adr/0043-forge-abstraction.md) for the forge resolver that supersedes it).
+Whether the fetch itself is attempted at all (vs. skipped or gracefully degraded) is
+governed separately by `commits.enrichment_policy`.
 
-##### `changelog.remote` — explicit metadata remote (ADR-0026)
+##### `forges` — explicit metadata forge (ADR-0043)
 
 ```yaml
-changelog:
-  generator: git-cliff
-  remote:
-    type: azure_devops              # github | gitlab | azure_devops
-    project: my-org/my-project      # azure_devops (required: "organization/project", matching
-                                     # git-cliff's own azure_devops "owner" shape) / gitlab
-                                     # (required: namespace[/subgroup]/repo)
-    repository: my-repo             # azure_devops (required) / github (required: owner/repo)
-    token_env: AZURE_DEVOPS_TOKEN    # optional override
+forges:
+  - name: azure-devops
+    platform: azure_devops           # github | gitlab | azure_devops
+    project: my-org/my-project       # azure_devops (required: "organization/project", matching
+                                      # git-cliff's own azure_devops "owner" shape) / gitlab
+                                      # (required: namespace[/subgroup]/repo)
+    repository: my-repo              # azure_devops (required) / github (required: owner/repo)
+    token_env: AZURE_DEVOPS_TOKEN     # optional override
     base_url: https://git.example.com  # optional host override; all types (GHES /
-                                       # self-managed GitLab / on-prem Azure). Absolute http(s) URL.
+                                        # self-managed GitLab / on-prem Azure). Absolute http(s) URL.
+
+commits:
+  enrichment_forge: azure-devops     # names the forges[] entry above as the metadata source
 ```
 
-Release notes always has a deterministic remote — it is generated per platform being
-published to. The changelog has no such anchor: it falls back through ambient CI
-detection, then the sole configured platform (if exactly one), then `nil` (bare hashes).
-`changelog.remote` fills that gap with an explicit, type-discriminated, metadata-only
-block, consumed ahead of that fallback chain. Unlike `release.platforms`, it never grants
-publish capability — heraut never publishes a release through this block, it only tells
-the active generator where to source PR/MR metadata and commit/PR link shapes. It is
-changelog-only; setting it on `release.notes` (which already resolves this from
-`release.platforms`) is a config error. Valid with both the `git-cliff` and `native`
-generators (ADR-0040).
+Release notes always has a deterministic forge — it is generated per publish target being
+published to (`release.targets`, each referencing a `forges[].name`). The changelog has no
+such anchor: it falls back through ambient CI detection, then `git remote get-url origin`,
+then the sole configured `forges` entry (if exactly one), then `nil` (bare hashes). An
+explicit `forges` entry named by `commits.enrichment_forge` is consumed ahead of that
+fallback chain. `forges` entries are connection/identity only — they never grant publish
+capability on their own; heraut never publishes a release through a `forges` entry, it only
+tells the active generator where to source PR/MR metadata and commit/PR link shapes.
+Publishing is a separate concern (`release.targets`, each referencing a forge by name).
+Valid as the enrichment source for both the `git-cliff` and `native` generators (originally
+introduced for `changelog.remote` by ADR-0026/ADR-0040; unified into the top-level `forges:`
+list by ADR-0043).
 
 Azure DevOps repository URLs are structurally different from GitHub/GitLab: the
 repository root inserts `/_git/` between the project and repository segments
