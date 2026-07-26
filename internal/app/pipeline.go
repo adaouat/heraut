@@ -185,7 +185,7 @@ func buildReleasePipelineConfig(runner, readRunner port.Runner, cfg *config.Conf
 		}
 	}
 
-	enrichForge, forgeID, err := resolveEnrichForgeIfNeeded(readRunner, cfg, effectiveChangelog, effectiveNotes)
+	enrichForge, forgeID, err := resolveEnrichForgeIfNeeded(readRunner, os.Getenv, cfg, effectiveChangelog, effectiveNotes)
 	if err != nil {
 		return nil, err
 	}
@@ -251,7 +251,7 @@ func buildChangelogPipelineConfig(runner, readRunner port.Runner, cfg *config.Co
 	}
 
 	if effectiveChangelog != nil {
-		enrichForge, forgeID, err := resolveEnrichForgeIfNeeded(readRunner, cfg, effectiveChangelog, nil)
+		enrichForge, forgeID, err := resolveEnrichForgeIfNeeded(readRunner, os.Getenv, cfg, effectiveChangelog, nil)
 		if err != nil {
 			return nil, err
 		}
@@ -397,14 +397,19 @@ func usesNative(drivers ...*config.ContentDriver) bool {
 // resolution is skipped entirely rather than attempted and its error discarded: enrichment being
 // switched off must never be able to *cause* a failure, e.g. an ambiguous multi-token environment
 // that forge.Resolve can't disambiguate should not block an explicitly offline run.
-func resolveEnrichForgeIfNeeded(runner port.Runner, cfg *config.Config, drivers ...*config.ContentDriver) (port.Forge, *port.ForgeIdentity, error) {
+//
+// getenv is injected rather than reaching for os.Getenv directly: forge.Resolve keys off CI
+// markers (GITHUB_ACTIONS, GITLAB_CI, TF_BUILD), so a hardcoded os.Getenv would let the ambient
+// CI environment of heraut's *own* pipeline decide what a test resolves — which is exactly how
+// this function's tests broke on GitHub Actions while passing locally.
+func resolveEnrichForgeIfNeeded(runner port.Runner, getenv func(string) string, cfg *config.Config, drivers ...*config.ContentDriver) (port.Forge, *port.ForgeIdentity, error) {
 	if !usesNative(drivers...) {
 		return nil, nil, nil
 	}
 	if cfg.EnrichmentPolicy() == "disabled" {
 		return nil, nil, nil
 	}
-	resolved, err := forge.Resolve(cfg, os.Getenv, gitOriginURL(runner))
+	resolved, err := forge.Resolve(cfg, getenv, gitOriginURL(runner))
 	if err != nil {
 		return nil, nil, fmt.Errorf("resolving forge: %w", err)
 	}

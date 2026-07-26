@@ -41,11 +41,31 @@ func TestGitOriginURL(t *testing.T) {
 	})
 }
 
+// fakeEnv returns a getenv backed by m, so a test's resolution outcome depends only on the
+// variables it declares. Reading the real environment here made these tests pass locally and fail
+// on GitHub Actions, whose own GITHUB_ACTIONS / GITHUB_REPOSITORY variables pin a github forge.
+func fakeEnv(m map[string]string) func(string) string {
+	return func(k string) string { return m[k] }
+}
+
+// clearCIEnv neutralizes every CI marker forge detection keys off. Needed only by tests that
+// exercise a path still reading os.Getenv internally.
+func clearCIEnv(t *testing.T) {
+	t.Helper()
+	for _, k := range []string{
+		"GITHUB_ACTIONS", "GITHUB_SERVER_URL", "GITHUB_API_URL", "GITHUB_REPOSITORY", "GITHUB_TOKEN",
+		"GITLAB_CI", "CI_SERVER_URL", "CI_API_V4_URL", "CI_PROJECT_PATH", "CI_JOB_TOKEN", "GITLAB_TOKEN",
+		"TF_BUILD", "SYSTEM_COLLECTIONURI", "SYSTEM_TEAMPROJECT", "SYSTEM_ACCESSTOKEN", "AZURE_DEVOPS_TOKEN",
+	} {
+		t.Setenv(k, "")
+	}
+}
+
 func TestResolveEnrichForgeIfNeeded(t *testing.T) {
 	t.Run("skips resolution when no driver is native", func(t *testing.T) {
 		mr := exectest.NewMockRunner() // no response queued: a git call here would error
 		cfg := &config.Config{}
-		f, id, err := resolveEnrichForgeIfNeeded(mr, cfg, &config.ContentDriver{Generator: "git-cliff"})
+		f, id, err := resolveEnrichForgeIfNeeded(mr, fakeEnv(nil), cfg, &config.ContentDriver{Generator: "git-cliff"})
 		require.NoError(t, err)
 		assert.Nil(t, f)
 		assert.Nil(t, id)
@@ -56,7 +76,7 @@ func TestResolveEnrichForgeIfNeeded(t *testing.T) {
 		mr := exectest.NewMockRunner()
 		mr.QueueResponse("https://gitlab.com/group/subgroup/project.git\n", "", nil)
 		cfg := &config.Config{}
-		f, id, err := resolveEnrichForgeIfNeeded(mr, cfg, &config.ContentDriver{Generator: "native"})
+		f, id, err := resolveEnrichForgeIfNeeded(mr, fakeEnv(nil), cfg, &config.ContentDriver{Generator: "native"})
 		require.NoError(t, err)
 		require.NotNil(t, id)
 		assert.Equal(t, "gitlab", id.Type)
@@ -68,7 +88,7 @@ func TestResolveEnrichForgeIfNeeded(t *testing.T) {
 		mr := exectest.NewMockRunner()
 		mr.QueueResponse("", "", assertNoOriginErr)
 		cfg := &config.Config{Forges: []config.Forge{{Name: "gh", Type: "github", Repository: "acme/widget"}}}
-		f, id, err := resolveEnrichForgeIfNeeded(mr, cfg, &config.ContentDriver{Generator: "native"})
+		f, id, err := resolveEnrichForgeIfNeeded(mr, fakeEnv(nil), cfg, &config.ContentDriver{Generator: "native"})
 		require.NoError(t, err)
 		require.NotNil(t, id)
 		assert.Equal(t, "github", id.Type)
@@ -78,10 +98,9 @@ func TestResolveEnrichForgeIfNeeded(t *testing.T) {
 	t.Run("ambiguous forge propagates as an error", func(t *testing.T) {
 		mr := exectest.NewMockRunner()
 		mr.QueueResponse("", "", assertNoOriginErr)
-		t.Setenv("GITLAB_TOKEN", "glpat")
-		t.Setenv("GITHUB_TOKEN", "ghp")
+		env := fakeEnv(map[string]string{"GITLAB_TOKEN": "glpat", "GITHUB_TOKEN": "ghp"})
 		cfg := &config.Config{}
-		_, _, err := resolveEnrichForgeIfNeeded(mr, cfg, &config.ContentDriver{Generator: "native"})
+		_, _, err := resolveEnrichForgeIfNeeded(mr, env, cfg, &config.ContentDriver{Generator: "native"})
 		require.Error(t, err)
 	})
 
@@ -92,14 +111,16 @@ func TestResolveEnrichForgeIfNeeded(t *testing.T) {
 		// the queued response is a fixed local string, no network.
 		mr := exectest.NewMockRunner()
 		mr.QueueResponse("https://gitlab.com/other/project.git\n", "", nil)
-		t.Setenv("GITLAB_CI", "true")
-		t.Setenv("CI_SERVER_URL", "https://gitlab.example.com")
-		t.Setenv("CI_API_V4_URL", "https://gitlab.example.com/api/v4")
-		t.Setenv("CI_PROJECT_PATH", "group/subgroup/project")
-		t.Setenv("CI_JOB_TOKEN", "job-token-xyz")
+		env := fakeEnv(map[string]string{
+			"GITLAB_CI":       "true",
+			"CI_SERVER_URL":   "https://gitlab.example.com",
+			"CI_API_V4_URL":   "https://gitlab.example.com/api/v4",
+			"CI_PROJECT_PATH": "group/subgroup/project",
+			"CI_JOB_TOKEN":    "job-token-xyz",
+		})
 
 		cfg := &config.Config{}
-		f, id, err := resolveEnrichForgeIfNeeded(mr, cfg, &config.ContentDriver{Generator: "native"})
+		f, id, err := resolveEnrichForgeIfNeeded(mr, env, cfg, &config.ContentDriver{Generator: "native"})
 		require.NoError(t, err)
 
 		require.NotNil(t, id)
@@ -117,10 +138,9 @@ func TestResolveEnrichForgeIfNeeded(t *testing.T) {
 
 	t.Run("policy disabled skips resolution even when the environment is ambiguous", func(t *testing.T) {
 		mr := exectest.NewMockRunner() // no response queued: a git call here would error
-		t.Setenv("GITLAB_TOKEN", "glpat")
-		t.Setenv("GITHUB_TOKEN", "ghp")
+		env := fakeEnv(map[string]string{"GITLAB_TOKEN": "glpat", "GITHUB_TOKEN": "ghp"})
 		cfg := &config.Config{Commits: &config.Commits{EnrichmentPolicy: "disabled"}}
-		f, id, err := resolveEnrichForgeIfNeeded(mr, cfg, &config.ContentDriver{Generator: "native"})
+		f, id, err := resolveEnrichForgeIfNeeded(mr, env, cfg, &config.ContentDriver{Generator: "native"})
 		require.NoError(t, err)
 		assert.Nil(t, f)
 		assert.Nil(t, id)
@@ -135,6 +155,7 @@ func TestResolveEnrichForgeIfNeeded(t *testing.T) {
 // `git remote get-url origin`, silently producing an empty origin and falling into the
 // token-only/ambiguous branches of forge.Resolve.
 func TestBuildReleasePipelineConfig_UsesReadRunnerForForgeResolution(t *testing.T) {
+	clearCIEnv(t)                              // buildReleasePipelineConfig passes os.Getenv, so the ambient CI env must not leak in
 	pipelineRunner := exectest.NewMockRunner() // stands in for a dry-run runner: no response queued
 	readRunner := exectest.NewMockRunner()
 	readRunner.QueueResponse("https://gitlab.com/group/subgroup/project.git\n", "", nil)
