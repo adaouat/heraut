@@ -5,6 +5,7 @@ import (
 
 	"github.com/adaouat/forge/exec/exectest"
 	"github.com/adaouat/heraut/internal/config"
+	"github.com/adaouat/heraut/internal/port"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -83,6 +84,77 @@ func TestResolveEnrichForgeIfNeeded(t *testing.T) {
 		_, _, err := resolveEnrichForgeIfNeeded(mr, cfg, &config.ContentDriver{Generator: "native"})
 		require.Error(t, err)
 	})
+
+	t.Run("GitLab CI end-to-end: resolution, job-token header selection, and forge construction compose (T160)", func(t *testing.T) {
+		// GITLAB_CI env detection wins over the git origin regardless of what it resolves to
+		// (forge.Resolve always reads the origin, but resolveAuto's CI branch ignores it); the
+		// constructed forge must carry the CI-provided host/project + job token. Kept hermetic:
+		// the queued response is a fixed local string, no network.
+		mr := exectest.NewMockRunner()
+		mr.QueueResponse("https://gitlab.com/other/project.git\n", "", nil)
+		t.Setenv("GITLAB_CI", "true")
+		t.Setenv("CI_SERVER_URL", "https://gitlab.example.com")
+		t.Setenv("CI_API_V4_URL", "https://gitlab.example.com/api/v4")
+		t.Setenv("CI_PROJECT_PATH", "group/subgroup/project")
+		t.Setenv("CI_JOB_TOKEN", "job-token-xyz")
+
+		cfg := &config.Config{}
+		f, id, err := resolveEnrichForgeIfNeeded(mr, cfg, &config.ContentDriver{Generator: "native"})
+		require.NoError(t, err)
+
+		require.NotNil(t, id)
+		assert.Equal(t, "gitlab", id.Type)
+		assert.Equal(t, "https://gitlab.example.com", id.Host)
+		assert.Equal(t, "https://gitlab.example.com/api/v4", id.APIURL)
+		assert.Equal(t, "group/subgroup/project", id.Project)
+		assert.Equal(t, "job-token-xyz", id.Token)
+		assert.Equal(t, port.TokenJob, id.TokenKind)
+
+		require.NotNil(t, f, "a concrete gitlab.Forge must be constructed for the resolved identity")
+		assert.Equal(t, "gitlab", f.Type())
+		assert.Equal(t, port.TokenJob, f.Identity().TokenKind, "the constructed forge's identity must carry the job-token kind through to header selection")
+	})
+
+	t.Run("policy disabled skips resolution even when the environment is ambiguous", func(t *testing.T) {
+		mr := exectest.NewMockRunner() // no response queued: a git call here would error
+		t.Setenv("GITLAB_TOKEN", "glpat")
+		t.Setenv("GITHUB_TOKEN", "ghp")
+		cfg := &config.Config{Commits: &config.Commits{EnrichmentPolicy: "disabled"}}
+		f, id, err := resolveEnrichForgeIfNeeded(mr, cfg, &config.ContentDriver{Generator: "native"})
+		require.NoError(t, err)
+		assert.Nil(t, f)
+		assert.Nil(t, id)
+		assert.Empty(t, mr.Calls, "disabled policy must skip resolution entirely, not just swallow the error")
+	})
+}
+
+// TestBuildReleasePipelineConfig_UsesReadRunnerForForgeResolution proves that
+// buildReleasePipelineConfig resolves the forge's git origin via a dedicated read-only runner —
+// not the (possibly dry-run) pipeline runner passed for everything else. Before the fix, a
+// dry-run runner (which returns ("", "", nil) with no error, per forge/exec) was used directly for
+// `git remote get-url origin`, silently producing an empty origin and falling into the
+// token-only/ambiguous branches of forge.Resolve.
+func TestBuildReleasePipelineConfig_UsesReadRunnerForForgeResolution(t *testing.T) {
+	pipelineRunner := exectest.NewMockRunner() // stands in for a dry-run runner: no response queued
+	readRunner := exectest.NewMockRunner()
+	readRunner.QueueResponse("https://gitlab.com/group/subgroup/project.git\n", "", nil)
+
+	cfg := &config.Config{
+		Version:    "1",
+		Versioning: config.Versioning{Strategy: "semver"},
+		Changelog:  &config.ContentDriver{Generator: "native", Output: "CHANGELOG.md"},
+	}
+
+	pCfg, err := buildReleasePipelineConfig(pipelineRunner, readRunner, cfg, "", "", false, false)
+	require.NoError(t, err)
+	require.NotNil(t, pCfg.ForgeIdentity)
+	assert.Equal(t, "gitlab", pCfg.ForgeIdentity.Type)
+	assert.Equal(t, "https://gitlab.com", pCfg.ForgeIdentity.Host)
+	assert.Equal(t, "group/subgroup/project", pCfg.ForgeIdentity.Project)
+
+	assert.Empty(t, pipelineRunner.Calls, "the pipeline (dry-run-capable) runner must not be used for origin detection")
+	require.Len(t, readRunner.Calls, 1)
+	assert.Equal(t, []string{"remote", "get-url", "origin"}, readRunner.Calls[0].Args)
 }
 
 // assertNoOriginErr simulates `git remote get-url origin` failing (no origin configured).

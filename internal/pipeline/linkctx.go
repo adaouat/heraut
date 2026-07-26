@@ -50,8 +50,19 @@ func splitProjectPath(path string) (owner, project string) {
 
 // linkContextFromIdentity converts a resolved forge identity into the link context used to render
 // commit/MR links, so links resolve from the same source as enrichment (ADR-0043).
+//
+// A partial identity must never outrank the ambient/platform fallbacks below it: an empty
+// Project (e.g. the token-only auto-detection branch in forge.Resolve, which cannot infer a
+// project from a bare token env var) would otherwise stamp a host with no owner/repo, breaking
+// both links and enrichment (a self-hosted GitLab/GHES 404s on `…/projects//…`).
+//
+// azure_devops is excluded outright: port.ForgeIdentity has no Repository field, and splitting
+// its "organization/project" Project into Owner/Repo does not match what
+// internal/generators/native/enrich_azure.go requires (LinkContext.Owner ==
+// "organization/project", unsplit). Azure keeps enriching via the legacy dispatch until a later
+// phase adds a Repository field plus an azure-specific owner/repo mapping.
 func linkContextFromIdentity(id port.ForgeIdentity) *port.LinkContext {
-	if id.Type == "" || id.Host == "" {
+	if id.Type == "" || id.Host == "" || id.Project == "" || id.Type == "azure_devops" {
 		return nil
 	}
 	owner, repo := splitProjectPath(id.Project)

@@ -84,6 +84,7 @@ func NewChangelogCmd(version string) *cobra.Command {
 				SignTags:            app.ReadGPGSign(readRunner),
 				HerautVersion:       version,
 				RegenerateChangelog: regenerate,
+				ReadRunner:          readRunner,
 			}
 			if !dryRun {
 				if err := app.CheckBranch(readRunner, cfg, env, force); err != nil {

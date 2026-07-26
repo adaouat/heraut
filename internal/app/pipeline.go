@@ -41,6 +41,12 @@ type PipelineOpts struct {
 	// HerautVersion is the running heraut binary's version, propagated to the native generator
 	// so templates can render .Heraut.Version. Empty for dev builds.
 	HerautVersion string
+	// ReadRunner performs read-only operations (currently: forge git-origin detection) with a
+	// real, non-dry-run runner so `--dry-run` never changes what is resolved — only what is
+	// executed. Mirrors the readRunner already threaded into ResolveEnv/NewResolver/ReadGPGSign
+	// in internal/cmd. Falls back to the pipeline runner passed to BuildPipeline /
+	// BuildChangelogPipeline when nil (that runner is a real runner outside dry-run anyway).
+	ReadRunner port.Runner
 	// RegenerateChangelog forces the native changelog generator to rebuild + re-enrich the whole
 	// file instead of incrementally splicing the new section. Native only.
 	RegenerateChangelog bool
@@ -62,7 +68,11 @@ func ReadGPGSign(runner port.Runner) bool {
 // BuildPipeline constructs a release Pipeline from config. All generator and platform
 // instances are created here — none are created in internal/cmd/.
 func BuildPipeline(runner port.Runner, cfg *config.Config, resolver versioning.Resolver, opts PipelineOpts) (*pipeline.Pipeline, error) {
-	pipelineCfg, err := buildReleasePipelineConfig(runner, cfg, opts.Env, opts.HerautVersion, opts.RegenerateChangelog, opts.Force)
+	readRunner := opts.ReadRunner
+	if readRunner == nil {
+		readRunner = runner
+	}
+	pipelineCfg, err := buildReleasePipelineConfig(runner, readRunner, cfg, opts.Env, opts.HerautVersion, opts.RegenerateChangelog, opts.Force)
 	if err != nil {
 		return nil, err
 	}
@@ -110,7 +120,11 @@ func releaseStepTotal(cfg *pipeline.Config) int {
 
 // BuildChangelogPipeline constructs a ChangelogPipeline from config.
 func BuildChangelogPipeline(runner port.Runner, cfg *config.Config, resolver versioning.Resolver, opts PipelineOpts) (*pipeline.ChangelogPipeline, error) {
-	changelogCfg, err := buildChangelogPipelineConfig(runner, cfg, opts)
+	readRunner := opts.ReadRunner
+	if readRunner == nil {
+		readRunner = runner
+	}
+	changelogCfg, err := buildChangelogPipelineConfig(runner, readRunner, cfg, opts)
 	if err != nil {
 		return nil, err
 	}
@@ -143,7 +157,7 @@ func changelogStepTotal(cfg *pipeline.ChangelogConfig) int {
 	return total
 }
 
-func buildReleasePipelineConfig(runner port.Runner, cfg *config.Config, env, herautVersion string, regenerateChangelog, force bool) (*pipeline.Config, error) {
+func buildReleasePipelineConfig(runner, readRunner port.Runner, cfg *config.Config, env, herautVersion string, regenerateChangelog, force bool) (*pipeline.Config, error) {
 	pCfg := &pipeline.Config{}
 
 	// Resolve effective config: start from root, apply per-env overrides.
@@ -171,7 +185,7 @@ func buildReleasePipelineConfig(runner port.Runner, cfg *config.Config, env, her
 		}
 	}
 
-	enrichForge, forgeID, err := resolveEnrichForgeIfNeeded(runner, cfg, effectiveChangelog, effectiveNotes)
+	enrichForge, forgeID, err := resolveEnrichForgeIfNeeded(readRunner, cfg, effectiveChangelog, effectiveNotes)
 	if err != nil {
 		return nil, err
 	}
@@ -218,7 +232,7 @@ func buildReleasePipelineConfig(runner port.Runner, cfg *config.Config, env, her
 	return pCfg, nil
 }
 
-func buildChangelogPipelineConfig(runner port.Runner, cfg *config.Config, opts PipelineOpts) (*pipeline.ChangelogConfig, error) {
+func buildChangelogPipelineConfig(runner, readRunner port.Runner, cfg *config.Config, opts PipelineOpts) (*pipeline.ChangelogConfig, error) {
 	cCfg := &pipeline.ChangelogConfig{
 		Commit: opts.Commit || opts.Tag,
 		Tag:    opts.Tag,
@@ -237,7 +251,7 @@ func buildChangelogPipelineConfig(runner port.Runner, cfg *config.Config, opts P
 	}
 
 	if effectiveChangelog != nil {
-		enrichForge, forgeID, err := resolveEnrichForgeIfNeeded(runner, cfg, effectiveChangelog, nil)
+		enrichForge, forgeID, err := resolveEnrichForgeIfNeeded(readRunner, cfg, effectiveChangelog, nil)
 		if err != nil {
 			return nil, err
 		}
@@ -378,8 +392,16 @@ func usesNative(drivers ...*config.ContentDriver) bool {
 // port.Forge, but only when a native generator is actually in play — forge.Resolve shells out to
 // `git remote get-url origin`, a cost/side-effect skipped for the common gitcliff/communique
 // setups. Returns (nil, nil, nil) when no driver is native.
+//
+// When the effective enrichment policy is "disabled" (including via --offline, which forces it),
+// resolution is skipped entirely rather than attempted and its error discarded: enrichment being
+// switched off must never be able to *cause* a failure, e.g. an ambiguous multi-token environment
+// that forge.Resolve can't disambiguate should not block an explicitly offline run.
 func resolveEnrichForgeIfNeeded(runner port.Runner, cfg *config.Config, drivers ...*config.ContentDriver) (port.Forge, *port.ForgeIdentity, error) {
 	if !usesNative(drivers...) {
+		return nil, nil, nil
+	}
+	if cfg.EnrichmentPolicy() == "disabled" {
 		return nil, nil, nil
 	}
 	resolved, err := forge.Resolve(cfg, os.Getenv, gitOriginURL(runner))

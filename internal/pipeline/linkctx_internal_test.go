@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	"github.com/adaouat/heraut/internal/port"
+	"github.com/adaouat/heraut/internal/testutil"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -105,6 +106,8 @@ func TestLinkContextFromIdentity(t *testing.T) {
 		{name: "zero identity → nil", id: port.ForgeIdentity{}, want: nil},
 		{name: "missing type → nil", id: port.ForgeIdentity{Host: "https://gitlab.example.com", Project: "group/proj"}, want: nil},
 		{name: "missing host → nil", id: port.ForgeIdentity{Type: "gitlab", Project: "group/proj"}, want: nil},
+		{name: "missing project → nil", id: port.ForgeIdentity{Type: "gitlab", Host: "https://gitlab.example.com"}, want: nil},
+		{name: "azure_devops → nil (no Repository field yet, see enrich_azure.go)", id: port.ForgeIdentity{Type: "azure_devops", Host: "https://dev.azure.com", Project: "organization/project"}, want: nil},
 		{
 			name: "gitlab nested subgroup",
 			id:   port.ForgeIdentity{Type: "gitlab", Host: "https://gitlab.example.com", Project: "group/subgroup/project", Token: "tok"},
@@ -137,6 +140,37 @@ func TestChangelogLinkContext_ForgeIdentityWinsOverAmbient(t *testing.T) {
 	assert.Equal(t, "gitlab", got.Platform)
 	assert.Equal(t, "group/subgroup", got.Owner)
 	assert.Equal(t, "project", got.Repo)
+}
+
+// TestChangelogLinkContext_IncompleteIdentityFallsThroughToPlatform confirms a partially
+// resolved forge identity (e.g. a token-only auto-detection with no known Project, or an
+// azure_devops identity linkContextFromIdentity can't yet consume) does not pre-empt the
+// release.platforms[0] fallback — regression coverage for the self-hosted/azure findings.
+func TestChangelogLinkContext_IncompleteIdentityFallsThroughToPlatform(t *testing.T) {
+	t.Setenv("CI_PROJECT_URL", "")
+	t.Setenv("CI_SERVER_URL", "")
+	t.Setenv("CI_PROJECT_PATH", "")
+	t.Setenv("GITHUB_SERVER_URL", "")
+	t.Setenv("GITHUB_REPOSITORY", "")
+
+	tests := []struct {
+		name string
+		id   port.ForgeIdentity
+	}{
+		{name: "empty project (token-only auto-detection)", id: port.ForgeIdentity{Type: "gitlab", Host: "https://gitlab.com"}},
+		{name: "azure_devops identity", id: port.ForgeIdentity{Type: "azure_devops", Host: "https://dev.azure.com", Project: "organization/project"}},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			plat := &testutil.MockPlatform{LinkContextVal: port.LinkContext{BaseURL: "https://github.com", Owner: "acme", Repo: "widget", Platform: "github"}}
+			p := &Pipeline{cfg: &Config{ForgeIdentity: &tc.id, Platforms: []port.Platform{plat}}}
+			got := p.changelogLinkContext()
+			require.NotNil(t, got)
+			assert.Equal(t, "github", got.Platform)
+			assert.Equal(t, "acme", got.Owner)
+			assert.Equal(t, "widget", got.Repo)
+		})
+	}
 }
 
 // TestChangelogPipelineLinkContext covers the standalone `heraut changelog` flow: it resolves

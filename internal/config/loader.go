@@ -5,7 +5,9 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"maps"
 	"os"
+	"slices"
 	"strings"
 
 	forgeconfig "github.com/adaouat/forge/config"
@@ -21,7 +23,10 @@ var removedKeys = []struct{ path, hint string }{
 	{"commits.remote_metadata", "rename to `commits.enrichment_policy` (same values: disabled | optional | required)"},
 }
 
-// checkRemovedKeys reports the first removed key present in the raw YAML, with migration guidance.
+// checkRemovedKeys reports the first removed key present in the raw YAML, with migration
+// guidance. environments.<env>.changelog.remote is probed alongside the top-level keys: per-env
+// remotes were explicitly supported before the forge migration (ADR-0043) removed changelog.remote,
+// and without this probe they fail with a generic strict-decode error instead of the migration hint.
 func checkRemovedKeys(raw []byte) error {
 	var probe struct {
 		Changelog struct {
@@ -30,6 +35,11 @@ func checkRemovedKeys(raw []byte) error {
 		Commits struct {
 			RemoteMetadata any `yaml:"remote_metadata"`
 		} `yaml:"commits"`
+		Environments map[string]struct {
+			Changelog struct {
+				Remote any `yaml:"remote"`
+			} `yaml:"changelog"`
+		} `yaml:"environments"`
 	}
 	if err := yaml.Unmarshal(raw, &probe); err != nil {
 		return nil // malformed YAML surfaces from the strict parse with better context
@@ -41,6 +51,11 @@ func checkRemovedKeys(raw []byte) error {
 	for _, k := range removedKeys {
 		if present[k.path] {
 			return fmt.Errorf("%w: `%s` — %s", ErrRemovedConfigKey, k.path, k.hint)
+		}
+	}
+	for _, env := range slices.Sorted(maps.Keys(probe.Environments)) {
+		if probe.Environments[env].Changelog.Remote != nil {
+			return fmt.Errorf("%w: `environments.%s.changelog.remote` — replace with a top-level `forges:` entry and point `commits.enrichment_forge` at it", ErrRemovedConfigKey, env)
 		}
 	}
 	return nil

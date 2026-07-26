@@ -49,7 +49,7 @@
     "Commits": {
       "type": "object",
       "additionalProperties": false,
-      "description": "Single source of truth for commit semantics and enrichment (ADR-0033): the conventional-commit type set (used by 'heraut commit verify'/'create' and the native renderer), scope rules, ticket links, and the remote-metadata policy.",
+      "description": "Single source of truth for commit semantics and enrichment (ADR-0033): the conventional-commit type set (used by 'heraut commit verify'/'create' and the native renderer), scope rules, ticket links, and the enrichment_policy.",
       "properties": {
         "types_heading_level": {
           "type": "integer",

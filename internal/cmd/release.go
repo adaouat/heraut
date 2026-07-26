@@ -92,6 +92,7 @@ func NewReleaseCmd(version string) *cobra.Command {
 				HerautVersion:       version,
 				RegenerateChangelog: regenerateChangelog,
 				Logger:              logger,
+				ReadRunner:          readRunner,
 			}
 			pipe, err := app.BuildPipeline(runner, cfg, resolver, opts)
 			if err != nil {
