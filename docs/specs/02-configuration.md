@@ -390,7 +390,7 @@ see § Forges below), but it does **not** yet drive publishing: `release.platfor
 the surface that actually creates releases. Publishing folds into the forge abstraction in a
 later phase ([ADR-0043](../adr/0043-forge-abstraction.md) phase P3).
 
-## Forges
+## `forges`
 
 A top-level **`forges:`** list — each entry is one code-hosting platform heraut talks to:
 **connection and identity only** ([ADR-0043](../adr/0043-forge-abstraction.md)). A forge
@@ -456,7 +456,7 @@ than one candidate is found (e.g. both `GITLAB_TOKEN` and `GITHUB_TOKEN` are set
 markers and no recognized git origin) heraut fails with:
 
 ```
-ambiguous forge: detected candidates [gitlab, github] and no CI/origin to disambiguate
+detected candidates [gitlab github] and no CI/origin to disambiguate: ambiguous forge
 ```
 
 Declare an explicit `forges:` block to resolve the ambiguity. Publishing to multiple forges,
