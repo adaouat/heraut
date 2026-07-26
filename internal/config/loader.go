@@ -19,7 +19,7 @@ var ErrRemovedConfigKey = errors.New("removed config key")
 
 // removedKeys maps a removed config path to its replacement guidance.
 var removedKeys = []struct{ path, hint string }{
-	{"changelog.remote", "replace with a top-level `forges:` entry and point `commits.enrichment_forge` at it"},
+	{"changelog.remote", "replace with a top-level `forges:` entry and point `commits.enrichment_forge` at it (this drives enrichment for `generator: native`; explicit remote pinning for `generator: git-cliff` is not carried over)"},
 	{"commits.remote_metadata", "rename to `commits.enrichment_policy` (same values: disabled | optional | required)"},
 }
 
@@ -55,7 +55,7 @@ func checkRemovedKeys(raw []byte) error {
 	}
 	for _, env := range slices.Sorted(maps.Keys(probe.Environments)) {
 		if probe.Environments[env].Changelog.Remote != nil {
-			return fmt.Errorf("%w: `environments.%s.changelog.remote` — replace with a top-level `forges:` entry and point `commits.enrichment_forge` at it", ErrRemovedConfigKey, env)
+			return fmt.Errorf("%w: `environments.%s.changelog.remote` — replace with a top-level `forges:` entry and point `commits.enrichment_forge` at it (this drives enrichment for `generator: native`; explicit remote pinning for `generator: git-cliff` is not carried over)", ErrRemovedConfigKey, env)
 		}
 	}
 	return nil

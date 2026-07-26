@@ -319,7 +319,7 @@ section: every `forges[]` field (`name`, `platform`, `project`/`repository`, `ba
 config change, not open-ended — `docs/specs/` outranks ADRs in this repo's source-of-truth
 hierarchy. **Scope:** S.
 
-#### `[ ]` T166: decide whether `forges:` resolves for non-native generators
+#### `[x]` T166: decide whether `forges:` resolves for non-native generators
 
 `cfg.Forges` has exactly one non-validator consumer — `resolveEnrichForgeIfNeeded`
 (`internal/app/pipeline.go`), gated on `usesNative(...)`. But the removed `changelog.remote` was a
@@ -331,6 +331,18 @@ to be native, `usesNative` is true and the git-cliff changelog *does* pick up th
 Decide and implement one of: (a) resolve whenever `cfg.Forges` is non-empty regardless of generator
 and feed git-cliff's `[remote.*]` injection from it, or (b) state plainly in the migration hint that
 explicit enrichment pinning for git-cliff lands later. Found by Plan B's final review. **Scope:** M.
+
+Chose option (b): reworded both `changelog.remote` migration-error sites in
+`internal/config/loader.go` (the `removedKeys` table entry and the per-env
+`environments.%s.changelog.remote` message) to state plainly that the `forges:` replacement drives
+enrichment for `generator: native` only, and that explicit remote pinning for `generator: git-cliff`
+is not carried over. Option (a) was rejected — wiring `forges:` into git-cliff would add plumbing to
+a package slated for removal in the native-generator roadmap (Phase 2.5), so the honest-wording fix
+is the correct stopping point rather than new integration work. No changes to `internal/app` or to
+what `forges:` resolves for. Added
+`TestLoad_RemovedKey_ChangelogRemoteHintMentionsNativeOnly` in `internal/config/migration_test.go`
+asserting the message contains both `forges:` and `native`; existing migration tests asserting on
+`forges:` alone are unaffected.
 
 #### `[x]` T167: restore GraphQL enrichment's time-bounding (and pagination)
 

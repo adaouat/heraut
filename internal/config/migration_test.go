@@ -92,6 +92,24 @@ environments:
 	assert.Contains(t, err.Error(), "forges:", "the error must name the replacement")
 }
 
+// A git-cliff user's changelog.remote has no working replacement yet, so the migration error must
+// say so rather than prescribe a forges: entry that is inert for them.
+func TestLoad_RemovedKey_ChangelogRemoteHintMentionsNativeOnly(t *testing.T) {
+	_, err := config.Load(writeCfg(t, `version: "1"
+versioning: {strategy: semver}
+changelog:
+  generator: git-cliff
+  output: CHANGELOG.md
+  remote:
+    type: gitlab
+    project: group/subgroup/project
+`))
+	require.Error(t, err)
+	require.True(t, errors.Is(err, config.ErrRemovedConfigKey))
+	assert.Contains(t, err.Error(), "forges:", "the replacement is still named")
+	assert.Contains(t, err.Error(), "native", "the hint must state the forges: path applies to the native generator")
+}
+
 // release.platforms is deliberately NOT removed in this cut — it must still load.
 func TestLoad_PlatformsStillSupported(t *testing.T) {
 	_, err := config.Load(writeCfg(t, `version: "1"
