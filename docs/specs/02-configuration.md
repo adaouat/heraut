@@ -383,6 +383,137 @@ Both `notes` and `platforms` are optional independently:
   Note: `heraut release` requires at least one entry in `platforms`; omitting the whole
   `release` block (or leaving `platforms` empty) is a configuration error for that command.
 
+### `release.targets[]` (not yet functional)
+
+`release.targets` is parsed and validated today (each entry references a `forges[].name` —
+see § Forges below), but it does **not** yet drive publishing: `release.platforms` remains
+the surface that actually creates releases. Publishing folds into the forge abstraction in a
+later phase ([ADR-0043](../adr/0043-forge-abstraction.md) phase P3).
+
+## Forges
+
+A top-level **`forges:`** list — each entry is one code-hosting platform heraut talks to:
+**connection and identity only** ([ADR-0043](../adr/0043-forge-abstraction.md)). A forge
+does not itself say what to publish or draft — that lives on `release.targets[]` — and it is
+not the same block as `release.platforms`, which remains the publishing surface until a
+later phase (see § `release.targets[]` above). The block is additive: `release.platforms`
+keeps working unchanged, and `forges:` is entirely optional in the common case, since heraut
+auto-detects a single forge from the CI environment or the git remote when the block is
+omitted.
+
+```yaml
+forges:
+  - name: gitlab-saas          # referenced by release.targets[].forge and commits.enrichment_forge
+    platform: gitlab           # github | gitlab | azure_devops
+    project: group/subgroup/project
+    api_mode: rest              # rest (default) | graphql
+```
+
+### Fields
+
+| Field         | Required | Default              | Description                                                                                          |
+|---------------|----------|-----------------------|-------------------------------------------------------------------------------------------------------|
+| `name`        | Yes      | —                     | Unique identifier for this forge entry within `forges:`, referenced by `release.targets[].forge` and `commits.enrichment_forge`. |
+| `platform`    | Yes      | —                     | One of: `github`, `gitlab`, `azure_devops`.                                                            |
+| `project`     | No       | Inferred (see below)  | GitLab project path (`namespace[/subgroup]/repo`). For `azure_devops`, `organization/project`.        |
+| `repository`  | No       | Inferred (see below)  | GitHub repository (`owner/repo`). For `azure_devops`, the repository name.                            |
+| `base_url`    | No       | Per-type default (see below) | Web base URL of the forge instance, e.g. `https://gitlab.example.com` for a self-hosted instance. |
+| `api_url`     | No       | Derived from `base_url` | API host override, when it differs from `base_url`.                                                 |
+| `api_mode`    | No       | `rest`                | `rest` or `graphql` — see § `api_mode` trade-off below.                                               |
+| `token_env`   | No       | Per-type default (see below) | Env var holding the API token.                                                                 |
+
+Only `name` and `platform` are required. `project`/`repository`, `base_url`, `api_url`, and
+`token_env` are all filled in when omitted — see § Identity resolution.
+
+### Identity resolution
+
+Each field of a `forges:` entry (or, with no `forges:` block at all, the single
+auto-detected forge) is resolved in this precedence order, stopping at the first source
+that supplies a value:
+
+1. **Explicit config** — the value set directly on the `forges:` entry.
+2. **CI environment** — when the entry's `platform` matches the CI system detected from
+   ambient environment variables:
+
+   | CI system    | Marker           | Host             | API URL            | Project/repo         | Token            |
+   |--------------|------------------|-------------------|---------------------|-----------------------|------------------|
+   | GitLab CI    | `GITLAB_CI`      | `CI_SERVER_URL`   | `CI_API_V4_URL`     | `CI_PROJECT_PATH`     | `CI_JOB_TOKEN`   |
+   | GitHub Actions | `GITHUB_ACTIONS` | `GITHUB_SERVER_URL` | `GITHUB_API_URL`  | `GITHUB_REPOSITORY`   | `GITHUB_TOKEN`   |
+   | Azure Pipelines | `TF_BUILD`    | `SYSTEM_COLLECTIONURI` | —              | `SYSTEM_TEAMPROJECT`  | `SYSTEM_ACCESSTOKEN` |
+
+   Detection checks GitLab, then GitHub, then Azure, and stops at the first marker present.
+3. **`git remote get-url origin`** — when the origin host is a known public host
+   (`github.com`, `gitlab.com`, `dev.azure.com`), its type, host, and `owner/repo` path are
+   used (both the SSH `git@host:path` and HTTPS `https://host/path` forms are parsed).
+4. **Offline fallback** — a per-type default host (`https://github.com`,
+   `https://gitlab.com`, `https://dev.azure.com`) and default token env var
+   (`GITHUB_TOKEN`, `GITLAB_TOKEN`, `AZURE_DEVOPS_TOKEN`).
+
+With **no `forges:` block**, heraut auto-detects at most one forge the same way: CI markers
+first, then git origin, then — if neither applies — it looks for exactly one of the three
+default token env vars set in the environment. Auto-detection **never guesses**: if more
+than one candidate is found (e.g. both `GITLAB_TOKEN` and `GITHUB_TOKEN` are set with no CI
+markers and no recognized git origin) heraut fails with:
+
+```
+ambiguous forge: detected candidates [gitlab, github] and no CI/origin to disambiguate
+```
+
+Declare an explicit `forges:` block to resolve the ambiguity. Publishing to multiple forges,
+or choosing an enrichment source among several, always requires an explicit `forges:` block —
+zero-config resolution is single-forge by definition.
+
+### `commits.enrichment_forge` / `commits.enrichment_policy`
+
+`enrichment_forge` names which `forges:` entry supplies PR/MR metadata; `enrichment_policy`
+governs whether that fetch happens at all. Both are fields of the `commits:` block — see
+§ `commits.enrichment_forge` / `commits.enrichment_policy` under § `commits` below for the
+full reference.
+
+### `api_mode` trade-off (GitLab)
+
+`api_mode` chooses the transport heraut's GitLab forge uses for PR/MR enrichment:
+
+- **`rest` (default)** — works out of the box with the CI job token
+  (`CI_JOB_TOKEN`): merge-request association comes from
+  `GET /projects/:id/repository/commits/:sha/merge_requests`, an endpoint GitLab allows a job
+  token to call. Commit authors render as `by @<name>` using the local git author name (REST
+  carries no linked handle).
+- **`graphql` (opt-in)** — requires a `read_api` personal or project access token and renders
+  the linked `@username` instead of the plain author name. GitLab's GraphQL API structurally
+  rejects job tokens ("You cannot use job tokens to authenticate GraphQL requests"), so
+  resolving a job token (e.g. the CI-provided `CI_JOB_TOKEN`) as the token for
+  `api_mode: graphql` fails at enrichment time — set `api_mode: rest`, or supply a `read_api`
+  token via `token_env`.
+
+### Zero-config example (GitLab CI)
+
+No `forges:` block at all — the common case in GitLab CI, where `CI_JOB_TOKEN` is always
+present:
+
+```yaml
+version: "1"
+
+versioning:
+  strategy: semver
+
+changelog:
+  generator: native
+```
+
+heraut auto-detects the GitLab forge from `GITLAB_CI` / `CI_SERVER_URL` /
+`CI_PROJECT_PATH` / `CI_JOB_TOKEN`, with `api_mode: rest` (the auto-detected default),
+requiring no host, project, or token configuration.
+
+### Minimal explicit example
+
+```yaml
+forges:
+  - name: gitlab-saas
+    platform: gitlab
+    project: group/subgroup/project
+```
+
 ## `commits`
 
 A top-level block that is the **single source of truth for commit semantics and enrichment**

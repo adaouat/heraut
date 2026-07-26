@@ -304,7 +304,7 @@ Update the scaffold wizard (`internal/scaffold`) to generate `forges:` / `releas
 
 ## Follow-ups
 
-#### `[ ]` T165: dedicated `forges:` section in `docs/specs/02-configuration.md`
+#### `[x]` T165: dedicated `forges:` section in `docs/specs/02-configuration.md`
 
 T160's docs pass migrated every stale `changelog.remote` / `commits.remote_metadata` reference in
 `docs/specs/` to the new model, but pointed the prose at `docs/heraut.sample.yml` and ADR-0043
@@ -318,6 +318,25 @@ section: every `forges[]` field (`name`, `platform`, `project`/`repository`, `ba
 `enrichment_policy`, and `release.targets[]`. **Timing:** before the release that ships the breaking
 config change, not open-ended — `docs/specs/` outranks ADRs in this repo's source-of-truth
 hierarchy. **Scope:** S.
+
+Added a `## Forges` section to `docs/specs/02-configuration.md`, placed between `## release`
+(with a new `### release.targets[] (not yet functional)` subsection stating plainly that
+targets are parsed/validated but do not drive publishing until P3) and `## commits` (whose
+existing `enrichment_forge`/`enrichment_policy` subsection already referenced the not-yet-written
+forges block). Covered: the field table (`name`, `platform` required; `project`, `repository`,
+`base_url`, `api_url`, `api_mode`, `token_env` all inferred when omitted); identity resolution
+precedence (explicit config → CI env → git origin → offline) with the exact per-platform CI
+variables read (verified against `internal/forge/detect.go`) and the verbatim ambiguity error
+(verified against `internal/forge/resolve.go`'s `ErrAmbiguousForge` wrapping); a cross-reference
+to the existing `commits.enrichment_forge`/`enrichment_policy` prose instead of duplicating it;
+the `rest` (default, job-token-friendly, `by @<name>`) vs `graphql` (opt-in, `read_api` token,
+linked `@username`) trade-off, verified against `internal/forge/gitlab/{gitlab,graphql,rest}.go`
+and ADR-0043 (the job-token-on-graphql failure is a resolution/enrichment-time error, not a
+config-schema validation error — `internal/config/validator.go`'s `validateForges` comment says
+resolution-time concerns are explicitly out of its scope); and a zero-config GitLab-CI example
+plus a minimal explicit one, both with synthetic placeholders only. No Go code, `schema.json`,
+or `docs/heraut.sample.yml` changed — verified `git diff --stat` is docs-only and
+`go test ./internal/config/` stays green.
 
 #### `[x]` T166: decide whether `forges:` resolves for non-native generators
 
