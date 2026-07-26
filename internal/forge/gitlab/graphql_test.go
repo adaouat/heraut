@@ -2,9 +2,12 @@ package gitlab_test
 
 import (
 	"errors"
+	"io"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
+	"time"
 
 	"github.com/adaouat/heraut/internal/forge/gitlab"
 	"github.com/adaouat/heraut/internal/port"
@@ -84,4 +87,123 @@ func TestEnrichGraphQL_APIError(t *testing.T) {
 	_, err := f.Enrich([]port.Commit{{Hash: "abc123"}})
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "insufficient scope")
+}
+
+// The release window must bound both connections: an unbounded mergeRequests(first:100) returns
+// whatever GitLab orders first, which on a long-lived project can exclude the release's own MRs.
+func TestEnrichGraphQL_SendsReleaseWindowBounds(t *testing.T) {
+	var bodies []string
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		b, _ := io.ReadAll(r.Body)
+		bodies = append(bodies, string(b))
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{"data":{"project":{
+			"repository":{"commits":{"nodes":[],"pageInfo":{"endCursor":"","hasNextPage":false}}},
+			"mergeRequests":{"nodes":[],"pageInfo":{"endCursor":"","hasNextPage":false}}
+		}}}`))
+	}))
+	defer srv.Close()
+
+	f := gitlab.New(port.ForgeIdentity{
+		Host: srv.URL, APIURL: srv.URL + "/api/v4", Project: "group/subgroup/project",
+		Token: "pat", TokenKind: port.TokenPrivate, APIMode: "graphql",
+	}, srv.Client())
+
+	oldest := time.Date(2026, 7, 1, 12, 0, 0, 0, time.UTC)
+	_, err := f.Enrich([]port.Commit{
+		{Hash: "aaa", Author: "Alice", Date: oldest},
+		{Hash: "bbb", Author: "Bob", Date: oldest.Add(48 * time.Hour)},
+	})
+	require.NoError(t, err)
+
+	all := strings.Join(bodies, "\n")
+	assert.Contains(t, all, "committedAfter", "commits must be bounded to the release window")
+	assert.Contains(t, all, "mergedAfter", "merged MRs must be bounded to the release window")
+	// The bound is the OLDEST commit (minus a small buffer), not the newest.
+	assert.Contains(t, all, "2026-07-01T11:59:00Z")
+}
+
+// Both connections must follow cursors until exhausted, so a release with >100 commits/MRs
+// resolves fully instead of silently truncating at the first page.
+func TestEnrichGraphQL_PaginatesBothConnections(t *testing.T) {
+	var calls int
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		calls++
+		b, _ := io.ReadAll(r.Body)
+		body := string(b)
+		w.Header().Set("Content-Type", "application/json")
+		switch {
+		// commits, page 1 → one more page
+		case strings.Contains(body, "commits(") && !strings.Contains(body, "CURSOR-C"):
+			_, _ = w.Write([]byte(`{"data":{"project":{"repository":{"commits":{
+				"nodes":[{"sha":"aaa","author":{"username":"alice-gl"}}],
+				"pageInfo":{"endCursor":"CURSOR-C","hasNextPage":true}}}}}}`))
+		// commits, page 2 → done
+		case strings.Contains(body, "commits("):
+			_, _ = w.Write([]byte(`{"data":{"project":{"repository":{"commits":{
+				"nodes":[{"sha":"bbb","author":{"username":"bob-gl"}}],
+				"pageInfo":{"endCursor":"","hasNextPage":false}}}}}}`))
+		// MRs, page 1 → one more page
+		case !strings.Contains(body, "CURSOR-M"):
+			_, _ = w.Write([]byte(`{"data":{"project":{"mergeRequests":{
+				"nodes":[{"iid":"1","title":"first","mergeCommitSha":"aaa","commits":{"nodes":[]},
+				          "labels":{"nodes":[]},"author":{"username":"alice-gl"}}],
+				"pageInfo":{"endCursor":"CURSOR-M","hasNextPage":true}}}}}`))
+		// MRs, page 2 → done
+		default:
+			_, _ = w.Write([]byte(`{"data":{"project":{"mergeRequests":{
+				"nodes":[{"iid":"2","title":"second","mergeCommitSha":"bbb","commits":{"nodes":[]},
+				          "labels":{"nodes":[]},"author":{"username":"bob-gl"}}],
+				"pageInfo":{"endCursor":"","hasNextPage":false}}}}}`))
+		}
+	}))
+	defer srv.Close()
+
+	f := gitlab.New(port.ForgeIdentity{
+		Host: srv.URL, APIURL: srv.URL + "/api/v4", Project: "group/subgroup/project",
+		Token: "pat", TokenKind: port.TokenPrivate, APIMode: "graphql",
+	}, srv.Client())
+
+	en, err := f.Enrich([]port.Commit{
+		{Hash: "aaa", Author: "Alice", Date: time.Now().Add(-48 * time.Hour)},
+		{Hash: "bbb", Author: "Bob", Date: time.Now()},
+	})
+	require.NoError(t, err)
+
+	assert.Equal(t, "alice-gl", en.Authors["aaa"], "page 1 authors")
+	assert.Equal(t, "bob-gl", en.Authors["bbb"], "page 2 authors must not be lost to truncation")
+	assert.Equal(t, 1, en.PRs["aaa"].Number)
+	assert.Equal(t, 2, en.PRs["bbb"].Number, "page 2 MRs must not be lost to truncation")
+	assert.GreaterOrEqual(t, calls, 4, "both connections paginate")
+}
+
+// A malformed hasNextPage:true with no cursor must stop, not refetch page 1 forever.
+func TestEnrichGraphQL_StopsOnEmptyCursor(t *testing.T) {
+	var calls int
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		calls++
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{"data":{"project":{
+			"repository":{"commits":{"nodes":[],"pageInfo":{"endCursor":"","hasNextPage":true}}},
+			"mergeRequests":{"nodes":[],"pageInfo":{"endCursor":"","hasNextPage":true}}
+		}}}`))
+	}))
+	defer srv.Close()
+
+	f := gitlab.New(port.ForgeIdentity{
+		Host: srv.URL, APIURL: srv.URL + "/api/v4", Project: "group/subgroup/project",
+		Token: "pat", TokenKind: port.TokenPrivate, APIMode: "graphql",
+	}, srv.Client())
+
+	done := make(chan struct{})
+	go func() {
+		_, _ = f.Enrich([]port.Commit{{Hash: "aaa", Author: "Alice", Date: time.Now()}})
+		close(done)
+	}()
+	select {
+	case <-done:
+	case <-time.After(5 * time.Second):
+		t.Fatal("Enrich did not terminate on an empty cursor — infinite pagination loop")
+	}
+	assert.Less(t, calls, 10, "must stop promptly, not spin")
 }

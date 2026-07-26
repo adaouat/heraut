@@ -16,16 +16,52 @@ import (
 // ErrJobTokenGraphQL reports the one combination GitLab forbids: a CI job token on GraphQL.
 var ErrJobTokenGraphQL = errors.New("gitlab graphql: CI job tokens cannot authenticate GraphQL")
 
-// gqlQuery is one batched query fetching commit-author handles and merged MRs for the project.
-// mergeCommitSha and commits.nodes.sha are the SHAs by which an MR can match a target-branch
-// commit (ADR-0042); GraphQL exposes no squashed-commit SHA.
-const gqlQuery = `query($path:ID!,$ref:String!){project(fullPath:$path){` +
-	`repository{commits(ref:$ref,first:100){nodes{sha author{username}}}}` +
-	`mergeRequests(state:merged,first:100){nodes{iid webUrl title author{username}` +
-	`createdAt mergedAt mergeUser{username}labels{nodes{title}}mergeCommitSha commits{nodes{sha}}}}` +
-	`}}`
+// gqlCommitsQuery fetches commit-author handles for the release window, one page at a time.
+// committedAfter bounds the scan to the window; after advances the cursor. Arguments are inlined
+// (quoted via gqlString) exactly as the live-validated legacy query does (see enrichGraphQL) rather
+// than declared as typed GraphQL variables.
+func gqlCommitsQuery(project, ref, committedAfter, after string) string {
+	var extra strings.Builder
+	if committedAfter != "" {
+		fmt.Fprintf(&extra, `,committedAfter:%s`, gqlString(committedAfter))
+	}
+	if after != "" {
+		fmt.Fprintf(&extra, `,after:%s`, gqlString(after))
+	}
+	return fmt.Sprintf(`{project(fullPath:%s){repository{commits(ref:%s%s,first:100){`+
+		`nodes{sha author{username}}pageInfo{endCursor hasNextPage}}}}}`,
+		gqlString(project), gqlString(ref), extra.String())
+}
 
-type gqlResponse struct {
+// gqlMRsQuery fetches merged MRs for the release window, one page at a time. mergedAfter is what
+// keeps an unsorted connection from returning MRs unrelated to this release.
+func gqlMRsQuery(project, mergedAfter, after string) string {
+	var extra strings.Builder
+	if mergedAfter != "" {
+		fmt.Fprintf(&extra, `,mergedAfter:%s`, gqlString(mergedAfter))
+	}
+	if after != "" {
+		fmt.Fprintf(&extra, `,after:%s`, gqlString(after))
+	}
+	return fmt.Sprintf(`{project(fullPath:%s){mergeRequests(state:merged%s,first:100){`+
+		`nodes{iid webUrl title author{username}createdAt mergedAt mergeUser{username}`+
+		`labels{nodes{title}}mergeCommitSha commits{nodes{sha}}}`+
+		`pageInfo{endCursor hasNextPage}}}}`,
+		gqlString(project), extra.String())
+}
+
+// gqlString renders s as a GraphQL string literal so an interpolated value cannot break out of it.
+func gqlString(s string) string {
+	b, _ := json.Marshal(s)
+	return string(b)
+}
+
+type gqlPageInfo struct {
+	EndCursor   string `json:"endCursor"`
+	HasNextPage bool   `json:"hasNextPage"`
+}
+
+type gqlCommitsResponse struct {
 	Data struct {
 		Project struct {
 			Repository struct {
@@ -36,10 +72,22 @@ type gqlResponse struct {
 							Username string `json:"username"`
 						} `json:"author"`
 					} `json:"nodes"`
+					PageInfo gqlPageInfo `json:"pageInfo"`
 				} `json:"commits"`
 			} `json:"repository"`
+		} `json:"project"`
+	} `json:"data"`
+	Errors []struct {
+		Message string `json:"message"`
+	} `json:"errors"`
+}
+
+type gqlMRsResponse struct {
+	Data struct {
+		Project struct {
 			MergeRequests struct {
-				Nodes []gqlMR `json:"nodes"`
+				Nodes    []gqlMR     `json:"nodes"`
+				PageInfo gqlPageInfo `json:"pageInfo"`
 			} `json:"mergeRequests"`
 		} `json:"project"`
 	} `json:"data"`
@@ -70,9 +118,21 @@ type gqlMR struct {
 	} `json:"commits"`
 }
 
-// enrichGraphQL resolves linked commit-author handles and MR refs in one batched query. It
-// requires a personal/project access token: GitLab rejects job tokens on GraphQL outright, so the
-// guard trips before any request is issued.
+// oldestCommitDate returns the minimum commit date — the lower bound of the release window — or
+// the zero time when commits is empty.
+func oldestCommitDate(commits []port.Commit) time.Time {
+	var oldest time.Time
+	for _, c := range commits {
+		if oldest.IsZero() || c.Date.Before(oldest) {
+			oldest = c.Date
+		}
+	}
+	return oldest
+}
+
+// enrichGraphQL resolves linked commit-author handles and MR refs via two paginated, release-window
+// bounded queries. It requires a personal/project access token: GitLab rejects job tokens on
+// GraphQL outright, so the guard trips before any request is issued.
 func (f *Forge) enrichGraphQL(commits []port.Commit) (port.Enrichment, error) {
 	if f.id.TokenKind == port.TokenJob {
 		return port.Enrichment{}, fmt.Errorf(
@@ -84,45 +144,112 @@ func (f *Forge) enrichGraphQL(commits []port.Commit) (port.Enrichment, error) {
 		want[c.Hash] = true
 	}
 
-	resp, err := f.postGraphQL(newestHash(commits))
+	since := ""
+	if oldest := oldestCommitDate(commits); !oldest.IsZero() {
+		// Subtract a small buffer so a boundary commit/MR at exactly `oldest` is not excluded by an
+		// exclusive committedAfter/mergedAfter. SHA matching remains authoritative; this only bounds
+		// pagination.
+		since = oldest.Add(-time.Minute).UTC().Format(time.RFC3339)
+	}
+
+	authors, err := f.fetchGraphQLAuthors(newestHash(commits), since, want)
 	if err != nil {
 		return port.Enrichment{}, err
 	}
-
-	authors := make(map[string]string)
-	for _, n := range resp.Data.Project.Repository.Commits.Nodes {
-		if want[n.SHA] && n.Author != nil && n.Author.Username != "" {
-			authors[n.SHA] = n.Author.Username
-		}
-	}
-
-	prs := make(map[string]port.PullRequest)
-	for _, n := range resp.Data.Project.MergeRequests.Nodes {
-		pr := gqlMRToPullRequest(n)
-		for _, sha := range landingSHAs(n) {
-			if want[sha] {
-				if _, seen := prs[sha]; !seen {
-					prs[sha] = pr
-				}
-			}
-		}
+	prs, err := f.fetchGraphQLMRs(since, want)
+	if err != nil {
+		return port.Enrichment{}, err
 	}
 	return port.Enrichment{PRs: prs, Authors: authors}, nil
 }
 
-// postGraphQL issues the batched query against the instance's /api/graphql endpoint.
-func (f *Forge) postGraphQL(ref string) (*gqlResponse, error) {
+// fetchGraphQLAuthors pages through project.repository.commits(ref:) to resolve a
+// sha→author.username map for the SHAs in want. Paging stops early once every SHA in want has been
+// seen, even if GitLab reports more pages.
+func (f *Forge) fetchGraphQLAuthors(ref, committedAfter string, want map[string]bool) (map[string]string, error) {
+	authors := make(map[string]string)
+	seen := make(map[string]bool)
+	after := ""
+	for {
+		query := gqlCommitsQuery(f.id.Project, ref, committedAfter, after)
+		var resp gqlCommitsResponse
+		if err := f.postGraphQL(query, &resp); err != nil {
+			return nil, fmt.Errorf("gitlab graphql commits: %w", err)
+		}
+		if len(resp.Errors) > 0 {
+			return nil, fmt.Errorf("gitlab graphql commits: %s", resp.Errors[0].Message)
+		}
+		c := resp.Data.Project.Repository.Commits
+		for _, n := range c.Nodes {
+			if !want[n.SHA] {
+				continue
+			}
+			seen[n.SHA] = true
+			if n.Author != nil && n.Author.Username != "" {
+				authors[n.SHA] = n.Author.Username
+			}
+		}
+		if !c.PageInfo.HasNextPage || len(seen) == len(want) {
+			return authors, nil
+		}
+		if c.PageInfo.EndCursor == "" {
+			// Malformed hasNextPage:true with no cursor to advance on — stop instead of refetching
+			// page 1 forever.
+			return authors, nil
+		}
+		after = c.PageInfo.EndCursor
+	}
+}
+
+// fetchGraphQLMRs pages through project.mergeRequests(state:merged) to resolve a sha→PR map for the
+// SHAs in want. Paging stops early once every SHA in want has a resolved PR.
+func (f *Forge) fetchGraphQLMRs(mergedAfter string, want map[string]bool) (map[string]port.PullRequest, error) {
+	prs := make(map[string]port.PullRequest)
+	after := ""
+	for {
+		query := gqlMRsQuery(f.id.Project, mergedAfter, after)
+		var resp gqlMRsResponse
+		if err := f.postGraphQL(query, &resp); err != nil {
+			return nil, fmt.Errorf("gitlab graphql merge_requests: %w", err)
+		}
+		if len(resp.Errors) > 0 {
+			return nil, fmt.Errorf("gitlab graphql merge_requests: %s", resp.Errors[0].Message)
+		}
+		mrs := resp.Data.Project.MergeRequests
+		for _, n := range mrs.Nodes {
+			pr := gqlMRToPullRequest(n)
+			for _, sha := range landingSHAs(n) {
+				if want[sha] {
+					if _, seen := prs[sha]; !seen {
+						prs[sha] = pr
+					}
+				}
+			}
+		}
+		if !mrs.PageInfo.HasNextPage || len(prs) == len(want) {
+			return prs, nil
+		}
+		if mrs.PageInfo.EndCursor == "" {
+			// Malformed hasNextPage:true with no cursor to advance on — stop instead of refetching
+			// page 1 forever.
+			return prs, nil
+		}
+		after = mrs.PageInfo.EndCursor
+	}
+}
+
+// postGraphQL issues query against the instance's /api/graphql endpoint and decodes the response
+// into out. Arguments are inlined into the query string itself (see gqlCommitsQuery/gqlMRsQuery),
+// so the request carries no variables object.
+func (f *Forge) postGraphQL(query string, out any) error {
 	endpoint := strings.TrimSuffix(f.apiBase(), "/api/v4") + "/api/graphql"
-	body, err := json.Marshal(map[string]any{
-		"query":     gqlQuery,
-		"variables": map[string]string{"path": f.id.Project, "ref": ref},
-	})
+	body, err := json.Marshal(map[string]any{"query": query})
 	if err != nil {
-		return nil, fmt.Errorf("gitlab graphql: encoding request: %w", err)
+		return fmt.Errorf("gitlab graphql: encoding request: %w", err)
 	}
 	req, err := http.NewRequest(http.MethodPost, endpoint, bytes.NewReader(body))
 	if err != nil {
-		return nil, fmt.Errorf("gitlab graphql: building request: %w", err)
+		return fmt.Errorf("gitlab graphql: building request: %w", err)
 	}
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Accept", "application/json")
@@ -130,21 +257,17 @@ func (f *Forge) postGraphQL(ref string) (*gqlResponse, error) {
 
 	httpResp, err := f.client.Do(req)
 	if err != nil {
-		return nil, fmt.Errorf("gitlab graphql: %w", err)
+		return fmt.Errorf("gitlab graphql: %w", err)
 	}
 	defer func() { _ = httpResp.Body.Close() }()
 	if httpResp.StatusCode < 200 || httpResp.StatusCode >= 300 {
-		return nil, fmt.Errorf("gitlab graphql: unexpected status %s", httpResp.Status)
+		return fmt.Errorf("gitlab graphql: unexpected status %s", httpResp.Status)
 	}
 
-	var out gqlResponse
-	if err := json.NewDecoder(httpResp.Body).Decode(&out); err != nil {
-		return nil, fmt.Errorf("gitlab graphql: decoding response: %w", err)
+	if err := json.NewDecoder(httpResp.Body).Decode(out); err != nil {
+		return fmt.Errorf("gitlab graphql: decoding response: %w", err)
 	}
-	if len(out.Errors) > 0 {
-		return nil, fmt.Errorf("gitlab graphql: %s", out.Errors[0].Message)
-	}
-	return &out, nil
+	return nil
 }
 
 // gqlMRToPullRequest normalizes a GraphQL merge request; iid is a String scalar, so it is parsed

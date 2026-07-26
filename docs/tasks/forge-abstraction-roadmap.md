@@ -332,7 +332,7 @@ Decide and implement one of: (a) resolve whenever `cfg.Forges` is non-empty rega
 and feed git-cliff's `[remote.*]` injection from it, or (b) state plainly in the migration hint that
 explicit enrichment pinning for git-cliff lands later. Found by Plan B's final review. **Scope:** M.
 
-#### `[ ]` T167: restore GraphQL enrichment's time-bounding (and pagination)
+#### `[x]` T167: restore GraphQL enrichment's time-bounding (and pagination)
 
 `internal/forge/gitlab/graphql.go` issues a single `commits(ref:,first:100)` +
 `mergeRequests(state:merged,first:100)`, while the legacy path it replaces
@@ -344,3 +344,17 @@ long-lived project could get MRs unrelated to the release and miss the relevant 
 `committedAfter`/`mergedAfter` at minimum, then add cursor pagination. Only affects the opt-in
 `api_mode: graphql` path (REST is per-commit and unaffected). Found by Plan B's final review.
 **Scope:** S–M.
+
+Restored by mirroring `internal/generators/native/enrich_gitlab.go` exactly: split the single query
+into `gqlCommitsQuery`/`gqlMRsQuery`, each paginated via `pageInfo{endCursor hasNextPage}` with an
+empty-cursor guard (a malformed `hasNextPage:true` with no cursor stops instead of looping), and
+each bounded to the release window via inlined `committedAfter`/`mergedAfter` (oldest commit date −
+1 minute buffer, RFC3339, computed by the new `oldestCommitDate` helper). Arguments are inlined as
+quoted strings via a local `gqlString` helper — deliberately **not** typed GraphQL variables —
+because `httptest`-based tests perform no GraphQL validation and would pass either way; the inlined
+shape is what was validated against a live instance during ADR-0042's spike. `postGraphQL` no
+longer sends a `variables` object since all arguments are now embedded in the query string. Both
+loops early-stop once every wanted SHA is resolved, matching the legacy optimization. No fixture
+changes were needed for the pre-existing `TestEnrichGraphQL_LinkedUsernameAndHeader` test: a JSON
+fixture omitting `pageInfo` decodes to the zero value (`hasNextPage: false`), which correctly
+terminates pagination after one page.
