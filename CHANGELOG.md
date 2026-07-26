@@ -1,5 +1,93 @@
 # Changelog
 
+<!-- heraut-release: v1.0.0 -->
+## [1.0.0](https://github.com/adaouat/heraut/compare/v0.54.0..v1.0.0) - 2026-07-26
+
+### 🚀 Features
+
+- *(app)* Wire the resolved forge into native enrichment (T160a) - ([6b24d01](https://github.com/adaouat/heraut/commit/6b24d0101864960c0b6db69f661a6f38219dc0b6)) by @bchatard
+
+- *(config)* Add forges/release.targets/commits.enrichment_* (additive) - ([8e992a1](https://github.com/adaouat/heraut/commit/8e992a12d06bf6ac369f84307b1aa0db5771bfc2)) by @bchatard
+
+- *(config)* Validate forges/enrichment_forge/targets (additive) - ([6f4be94](https://github.com/adaouat/heraut/commit/6f4be941d1b7400cce494880812ac059ce21864a)) by @bchatard
+
+- *(config)* [**breaking**] Remove changelog.remote, rename remote_metadata (T160) - ([7a9e15f](https://github.com/adaouat/heraut/commit/7a9e15f1a23e5c47a079080f32140017591350f1)) by @bchatard
+
+- *(forge)* Resolve ForgeIdentity from config/CI/git with ambiguity guard - ([4330f11](https://github.com/adaouat/heraut/commit/4330f117f5c20540505363a29f022e87f3e1c0ed)) by @bchatard
+
+- *(forge/gitlab)* REST enrichment over native net/http (T158) - ([aa89c24](https://github.com/adaouat/heraut/commit/aa89c240329556c368d4957775722d1ff0caa47b)) by @bchatard
+
+- *(forge/gitlab)* Opt-in GraphQL mode + job-token guard (T159) - ([9b0765d](https://github.com/adaouat/heraut/commit/9b0765d5d0051a97d2eda4e6d681fe1075a91938)) by @bchatard
+
+- *(generators/native)* Azure commit-author by @ from local git email - ([5032b27](https://github.com/adaouat/heraut/commit/5032b270a62f86f7350deca3e60267f814a219a7)) by @bchatard
+
+- *(port)* Add Forge contract + ADR-0043 (forge abstraction) - ([0512b43](https://github.com/adaouat/heraut/commit/0512b43a305e87cb29a3b8352adac6becb8fd63f)) by @bchatard
+
+
+### 🐛 Bug Fixes
+
+- *(app)* Inject getenv into forge resolution so CI env cannot leak into tests - ([0f9f201](https://github.com/adaouat/heraut/commit/0f9f201a65edc504001e43e3e7d27d3ae27b55de)) by @bchatard
+
+- *(config)* State that changelog.remote's forges: replacement is native-only (T166) - ([37dc0ef](https://github.com/adaouat/heraut/commit/37dc0efecc5d9ee58255d674cc7c7804e848cb4d)) by @bchatard
+
+- *(forge)* Guard partial identities, dry-run resolution, and disabled-policy errors - ([622484d](https://github.com/adaouat/heraut/commit/622484d6062d60879a2747426a1df8463c5badcd)) by @bchatard
+
+- *(forge/gitlab)* Bound and paginate GraphQL enrichment (T167) - ([25eacef](https://github.com/adaouat/heraut/commit/25eacefdca20d2b8f3fe21a24477322542f8eb93)) by @bchatard
+
+- *(generators/native)* Honour the injected forge in policy + changelog links - ([dcc4bb1](https://github.com/adaouat/heraut/commit/dcc4bb193df8f6c09d9244cf2f9e90c7e921fa91)) by @bchatard
+
+
+### 📚 Documentation
+
+- *(adr)* Note 0039 GitHub-only scope superseded for GitLab + Azure - ([c954e6a](https://github.com/adaouat/heraut/commit/c954e6a62909621ffc8e96694696ed62b2423f0f)) by @bchatard
+
+- *(plans)* Implementation plan for Azure commit-author by @ (T151) - ([bcd0694](https://github.com/adaouat/heraut/commit/bcd069439b6d364021a3cdc40d7ca5b1f1afd403)) by @bchatard
+
+- *(plans)* P1 foundation plan for the forge abstraction (T154–T157) - ([cb3095d](https://github.com/adaouat/heraut/commit/cb3095deff69aef6bdb4000119c7d806e87507e0)) by @bchatard
+
+- *(plans)* Number forge-foundation tasks (T154–T157) for SDD tooling - ([2ec25d8](https://github.com/adaouat/heraut/commit/2ec25d871d594b57630244d0801a0d7e2fdd7683)) by @bchatard
+
+- *(plans)* Plan B — GitLab forge + enrichment cutover (T158–T160) - ([da74ae0](https://github.com/adaouat/heraut/commit/da74ae078a01e2afca08927feacd6ec88ccb28b0)) by @bchatard
+
+- *(plans)* P1 follow-ups — T167, T166, T165 - ([1c3193d](https://github.com/adaouat/heraut/commit/1c3193d5eb1ae0f4aa565e34e8fc9a0d6a77c0bb)) by @bchatard
+
+- *(roadmap)* Add Forge Abstraction roadmap (T154–T164) - ([8cd4182](https://github.com/adaouat/heraut/commit/8cd418279c61bf6aa95561bbc9f49d5f8bc89e4a)) by @bchatard
+
+- *(roadmap)* Mark T154 done in forge-abstraction roadmap - ([a3c05e2](https://github.com/adaouat/heraut/commit/a3c05e267cc7c3417da9ef9fd149976e470848f3)) by @bchatard
+
+- *(roadmap)* Mark T155 done + note Plan A/B additive-vs-cutover split - ([2d7c556](https://github.com/adaouat/heraut/commit/2d7c556884cf68354526c04b6c2b1deeaa908a9d)) by @bchatard
+
+- *(roadmap)* Mark T156 done + flag migration-error scope conflict - ([32be3ab](https://github.com/adaouat/heraut/commit/32be3ab58859e047542cb4b1fb23a1c9ddbcce0f)) by @bchatard
+
+- *(roadmap)* Reconcile T156 scope (migration error -> T160) - ([603e2ff](https://github.com/adaouat/heraut/commit/603e2ffc506c7b5f4494392b77ae96121226782a)) by @bchatard
+
+- *(roadmap)* Assign the graphql+job-token guard to T159 - ([faa096e](https://github.com/adaouat/heraut/commit/faa096e3d4c7e4e2b2c984d5f03688668b5ff516)) by @bchatard
+
+- *(roadmap)* Add T165 — dedicated forges: section in spec 02 - ([d06ad1b](https://github.com/adaouat/heraut/commit/d06ad1b07e540d3dedbda7301659581a438de95f)) by @bchatard
+
+- *(roadmap)* Log T166/T167 from Plan B's final review - ([c438cd8](https://github.com/adaouat/heraut/commit/c438cd8042ae52953a9b469476bdb8d9b5be2330)) by @bchatard
+
+- *(specs)* Design Azure commit-author by @ from local git (T151) - ([ad7f22d](https://github.com/adaouat/heraut/commit/ad7f22dcf79d3f9bb40ded7d9316d68b727c7f12)) by @bchatard
+
+- *(specs)* Design the Forge abstraction + unified forges: config - ([ca9d117](https://github.com/adaouat/heraut/commit/ca9d117d8c0725c66f73150879aa5ed93d6a3ca6)) by @bchatard
+
+- *(specs)* Migrate remote_metadata/changelog.remote to forges model - ([af9e350](https://github.com/adaouat/heraut/commit/af9e35005f2cd9076fc649bb3c4c4c9012d71ffb)) by @bchatard
+
+- *(specs)* Specify the forges: configuration surface (T165) - ([9978b37](https://github.com/adaouat/heraut/commit/9978b378e90f6c4654b52b65648f6ea97e9aa657)) by @bchatard
+
+- *(specs)* Correct the verbatim ambiguity error and forges heading (T165) - ([24511db](https://github.com/adaouat/heraut/commit/24511dbbef6fa34c029dd19a093062b91a39814c)) by @bchatard
+
+- Mark T151 done — Azure commit-author from local git email - ([c4d95e6](https://github.com/adaouat/heraut/commit/c4d95e66391201f84baa68547d8ad1980ee4b803)) by @bchatard
+
+- Defer P3 publishing-client choice (stdlib vs SDK) to its own ADR - ([a28b03d](https://github.com/adaouat/heraut/commit/a28b03d15ce29181d145907a5cc31ff4746f1757)) by @bchatard
+
+- Fix forge detect.go provenance comment + Plan B handoff notes - ([78f78f0](https://github.com/adaouat/heraut/commit/78f78f0380251a847a1d97461b5fe402eb6a5d52)) by @bchatard
+
+
+### 💼 Other
+
+- *(deps)* Bump forge to v0.17.2 - ([8bd98a7](https://github.com/adaouat/heraut/commit/8bd98a774e180d42eb1a6d116f99c364c7563458)) by @bchatard
+
 <!-- heraut-release: v0.54.0 -->
 ## [0.54.0](https://github.com/adaouat/heraut/compare/v0.53.0..v0.54.0) - 2026-07-23
 
