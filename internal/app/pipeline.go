@@ -187,9 +187,20 @@ func buildReleasePipelineConfig(runner, readRunner port.Runner, cfg *config.Conf
 		}
 	}
 
-	enrichForge, forgeID, err := resolveEnrichForgeIfNeeded(readRunner, os.Getenv, cfg, effectiveChangelog, effectiveNotes)
+	// Resolve the forges once and share the result between enrichment and publishing — a second
+	// forge.Resolve call would add a duplicate `git remote get-url origin` invocation (and could
+	// break MockRunner's FIFO response ordering in tests). Publishing needs this resolution
+	// regardless of the native generator or the enrichment policy: --offline only disables PR/MR
+	// enrichment, not publish-target resolution, which is local (config/CI-env/git-origin), not a
+	// network call.
+	resolved, err := resolveForge(readRunner, os.Getenv, cfg)
 	if err != nil {
 		return nil, err
+	}
+	var enrichForge port.Forge
+	var forgeID *port.ForgeIdentity
+	if usesNative(effectiveChangelog, effectiveNotes) && cfg.EnrichmentPolicy() != "disabled" {
+		enrichForge, forgeID = enrichForgeFrom(resolved)
 	}
 
 	// Changelog generator
@@ -214,8 +225,9 @@ func buildReleasePipelineConfig(runner, readRunner port.Runner, cfg *config.Conf
 		pCfg.Notes = gen
 	}
 
-	// Platforms — propagate release.assets (top-level) to each platform with lenient
-	// glob semantics (warn on no-match instead of error).
+	// Platforms (release.platforms — still supported this task; removal is a later task).
+	// Propagate release.assets (top-level) to each platform with lenient glob semantics (warn on
+	// no-match instead of error).
 	for i, platCfg := range effectivePlatforms {
 		if len(releaseAssets) > 0 && len(effectivePlatforms[i].Assets) == 0 {
 			effectivePlatforms[i].Assets = releaseAssets
@@ -228,10 +240,92 @@ func buildReleasePipelineConfig(runner, readRunner port.Runner, cfg *config.Conf
 		pCfg.Platforms = append(pCfg.Platforms, p)
 	}
 
+	// Targets (release.targets — ADR-0043, additive alongside release.platforms).
+	targetPlatforms, err := buildTargetPlatforms(runner, cfg, env, releaseAssets, resolved, len(effectivePlatforms) > 0)
+	if err != nil {
+		return nil, err
+	}
+	pCfg.Platforms = append(pCfg.Platforms, targetPlatforms...)
+
 	pCfg.AnnotatedTags = cfg.Versioning.TagType != "lightweight"
 	pCfg.RegenerateChangelog = regenerateChangelog
 
 	return pCfg, nil
+}
+
+// buildTargetPlatforms builds one port.Platform per effective release.targets entry (ADR-0043),
+// resolving each target's forge reference (or the sole/enrichment forge when a target — or the
+// whole list — leaves it implicit) against resolved. When targets is empty but resolved found at
+// least one forge, a single default target is synthesized for the enrichment/sole forge so
+// zero-config repos (no forges:, no release.targets, no release.platforms) still publish —
+// hasEffectivePlatforms guards this against configs still on release.platforms, which must not
+// gain a silent second, zero-config-detected publish target alongside their configured one.
+// release.assets propagates to targets that declare none, with LenientAssets = true, mirroring
+// release.platforms.
+func buildTargetPlatforms(runner port.Runner, cfg *config.Config, env string, releaseAssets []string, resolved forge.Resolved, hasEffectivePlatforms bool) ([]port.Platform, error) {
+	targets := config.EffectiveTargets(cfg, env)
+	if len(targets) == 0 {
+		if hasEffectivePlatforms || len(resolved.Forges) == 0 {
+			return nil, nil
+		}
+		targets = []config.Target{{}}
+	}
+
+	var platforms []port.Platform
+	for i, t := range targets {
+		f, id, err := resolveTargetForge(cfg, t, resolved)
+		if err != nil {
+			return nil, fmt.Errorf("release.targets[%d]: %w", i, err)
+		}
+		platCfg := platformConfigFromTarget(t, f, id)
+		if len(releaseAssets) > 0 && len(platCfg.Assets) == 0 {
+			platCfg.Assets = releaseAssets
+			platCfg.LenientAssets = true
+		}
+		p, err := buildPlatform(runner, &platCfg)
+		if err != nil {
+			return nil, fmt.Errorf("release.targets[%d] (%s): %w", i, platCfg.Type, err)
+		}
+		platforms = append(platforms, p)
+	}
+	return platforms, nil
+}
+
+// resolveTargetForge finds the config.Forge and resolved port.ForgeIdentity a target refers to:
+// by name (t.Forge) when set, or the sole configured forge when cfg.Forges has exactly one entry,
+// or the enrichment/sole resolved identity for zero-config repos (cfg.Forges empty). Config
+// validation (validateForges) already rejects an empty t.Forge with more than one forge configured,
+// so that ambiguity is not re-checked here.
+func resolveTargetForge(cfg *config.Config, t config.Target, resolved forge.Resolved) (config.Forge, port.ForgeIdentity, error) {
+	if len(cfg.Forges) == 0 {
+		if len(resolved.Forges) == 0 {
+			return config.Forge{}, port.ForgeIdentity{}, fmt.Errorf("no forge resolved for target")
+		}
+		return config.Forge{}, resolved.Forges[resolved.EnrichmentIndex], nil
+	}
+
+	idx := -1
+	switch {
+	case t.Forge != "":
+		for i, f := range cfg.Forges {
+			if f.Name == t.Forge {
+				idx = i
+				break
+			}
+		}
+		if idx == -1 {
+			return config.Forge{}, port.ForgeIdentity{}, fmt.Errorf("unknown forge %q", t.Forge)
+		}
+	case len(cfg.Forges) == 1:
+		idx = 0
+	default:
+		return config.Forge{}, port.ForgeIdentity{}, fmt.Errorf("forge is required when more than one forge is configured")
+	}
+
+	if idx >= len(resolved.Forges) {
+		return config.Forge{}, port.ForgeIdentity{}, fmt.Errorf("forge %q did not resolve", cfg.Forges[idx].Name)
+	}
+	return cfg.Forges[idx], resolved.Forges[idx], nil
 }
 
 func buildChangelogPipelineConfig(runner, readRunner port.Runner, cfg *config.Config, opts PipelineOpts) (*pipeline.ChangelogConfig, error) {
@@ -411,25 +505,44 @@ func resolveEnrichForgeIfNeeded(runner port.Runner, getenv func(string) string, 
 	if cfg.EnrichmentPolicy() == "disabled" {
 		return nil, nil, nil
 	}
+	resolved, err := resolveForge(runner, getenv, cfg)
+	if err != nil {
+		return nil, nil, err
+	}
+	enrichForge, forgeID := enrichForgeFrom(resolved)
+	return enrichForge, forgeID, nil
+}
+
+// resolveForge is the single call site for forge.Resolve: it shells out to
+// `git remote get-url origin` via runner and wraps any resolution error (e.g.
+// forge.ErrAmbiguousForge). Callers that need both the enrichment forge and the full set of
+// resolved identities (publishing) must call this once and derive both from its result — a
+// second call would add a duplicate git subprocess invocation.
+func resolveForge(runner port.Runner, getenv func(string) string, cfg *config.Config) (forge.Resolved, error) {
 	resolved, err := forge.Resolve(cfg, getenv, gitOriginURL(runner))
 	if err != nil {
-		return nil, nil, fmt.Errorf("resolving forge: %w", err)
+		return forge.Resolved{}, fmt.Errorf("resolving forge: %w", err)
 	}
+	return resolved, nil
+}
+
+// enrichForgeFrom constructs the concrete port.Forge (and its identity) for resolved's
+// enrichment index. Returns (nil, nil) when resolution found no forge at all.
+func enrichForgeFrom(resolved forge.Resolved) (port.Forge, *port.ForgeIdentity) {
+	if len(resolved.Forges) == 0 {
+		return nil, nil
+	}
+	id := resolved.Forges[resolved.EnrichmentIndex]
 	var enrichForge port.Forge
-	var forgeID *port.ForgeIdentity
-	if len(resolved.Forges) > 0 {
-		id := resolved.Forges[resolved.EnrichmentIndex]
-		forgeID = &id
-		switch id.Type {
-		case "gitlab":
-			enrichForge = gitlabforge.New(id, nil)
-		case "github":
-			enrichForge = githubforge.New(id, nil)
-		case "azure_devops":
-			enrichForge = azureforge.New(id, nil)
-		}
+	switch id.Type {
+	case "gitlab":
+		enrichForge = gitlabforge.New(id, nil)
+	case "github":
+		enrichForge = githubforge.New(id, nil)
+	case "azure_devops":
+		enrichForge = azureforge.New(id, nil)
 	}
-	return enrichForge, forgeID, nil
+	return enrichForge, &id
 }
 
 // gitOriginURL returns the origin remote URL, or "" when there is no origin (forge resolution
