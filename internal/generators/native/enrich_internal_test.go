@@ -290,6 +290,13 @@ func TestGenerate_Enrich_RequiredNilContext_Errors(t *testing.T) {
 	_, err := g.Generate("v1.1.0", nil) // no remote / platform → required cannot be satisfied
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "required")
+	// M2: the message must name what's actually missing under the current forge-based
+	// enrichment model — changelog.remote was removed and release.platforms no longer
+	// participates in enrichment, so the old wording ("no changelog remote or release
+	// platform configured") is stale and misleading.
+	assert.Contains(t, err.Error(), "forge", "must name a resolvable forge as the missing piece")
+	assert.NotContains(t, err.Error(), "changelog remote", "changelog.remote was removed and no longer participates in enrichment")
+	assert.NotContains(t, err.Error(), "release platform", "release.platforms no longer participates in enrichment")
 }
 
 // Changelog mode enriches only the new (unreleased) section, not historical releases, so a

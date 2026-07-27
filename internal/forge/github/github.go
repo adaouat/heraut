@@ -44,7 +44,7 @@ func (f *Forge) CompareURL(from, to string) string {
 	return fmt.Sprintf("%s/compare/%s...%s", f.webBase(), from, to)
 }
 
-// apiBase returns the GraphQL API root: the explicit APIURL when set (GitHub Actions provides
+// apiBase returns the REST API root: the explicit APIURL when set (GitHub Actions provides
 // GITHUB_API_URL), else api.github.com for github.com and {host}/api/v3 for GitHub Enterprise.
 func (f *Forge) apiBase() string {
 	if f.id.APIURL != "" {
@@ -55,6 +55,19 @@ func (f *Forge) apiBase() string {
 		return "https://api.github.com"
 	}
 	return host + "/api/v3"
+}
+
+// graphqlEndpoint returns the GraphQL API endpoint. github.com serves it at
+// https://api.github.com/graphql; GitHub Enterprise Server serves it at {host}/api/graphql — a
+// sibling of /api/v3 (REST), not nested under it. An explicit APIURL (as GITHUB_API_URL sets it on
+// GHES, "{host}/api/v3") is normalized the same way: strip a trailing /api/v3 before appending
+// /graphql.
+func (f *Forge) graphqlEndpoint() string {
+	base := f.apiBase()
+	if base == "https://api.github.com" {
+		return base + "/graphql"
+	}
+	return strings.TrimSuffix(base, "/api/v3") + "/api/graphql"
 }
 
 // Enrich resolves each commit's associated pull request and linked commit-author handle via

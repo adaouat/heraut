@@ -41,7 +41,7 @@ func Resolve(cfg *config.Config, getenv func(string) string, gitOrigin string) (
 // explicit config → CI env (when the CI type matches the entry's platform) → git origin (when
 // its detected type matches the entry's platform) → a type default (host, token env).
 func resolveExplicit(cfg *config.Config, getenv func(string) string, gitOrigin string) (Resolved, error) {
-	ciType, ciHost, ciAPIURL, ciProject, _, ciToken, ciKind, ciOK := detectCIForge(getenv)
+	ciType, ciHost, ciAPIURL, ciProject, ciRepository, ciToken, ciKind, ciOK := detectCIForge(getenv)
 	originType, originHost, originProject, originOK := parseGitOrigin(gitOrigin)
 
 	forges := make([]port.ForgeIdentity, len(cfg.Forges))
@@ -61,7 +61,7 @@ func resolveExplicit(cfg *config.Config, getenv func(string) string, gitOrigin s
 			Host:       resolveField(f.BaseURL, ciMatches, ciHost, originMatches, originHost, defaultHostFor(f.Type)),
 			APIURL:     resolveField(f.APIURL, ciMatches, ciAPIURL, false, "", ""),
 			Project:    resolveField(configProject(f), ciMatches, ciProject, originMatches, originProject, ""),
-			Repository: repositoryFor(f),
+			Repository: resolveField(repositoryFor(f), ciMatches, ciRepository, false, "", ""),
 			Token:      token,
 			TokenKind:  kind,
 			APIMode:    apiMode,

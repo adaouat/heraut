@@ -56,10 +56,15 @@ func TestResolve_AmbiguousZeroConfig(t *testing.T) {
 	assert.True(t, errors.Is(err, forge.ErrAmbiguousForge))
 }
 
+// Modern form: SYSTEM_COLLECTIONURI carries the org as its first path segment
+// ("https://dev.azure.com/myorg/"). The org must appear exactly once across Host+Project — Host
+// keeps the org path segment (there is nowhere else to park it), so Project is the team project
+// alone. This is the ground truth from the C2 fix: composing Host+"/"+Project must never
+// double the org (regression coverage for the duplicated-org bug).
 func TestResolve_AzureCIZeroConfig(t *testing.T) {
 	got, err := forge.Resolve(&config.Config{}, env(map[string]string{
 		"TF_BUILD":              "true",
-		"SYSTEM_COLLECTIONURI":  "https://dev.azure.example.com/myorg/",
+		"SYSTEM_COLLECTIONURI":  "https://dev.azure.com/myorg/",
 		"SYSTEM_TEAMPROJECT":    "myproject",
 		"BUILD_REPOSITORY_NAME": "myrepo",
 		"SYSTEM_ACCESSTOKEN":    "tok",
@@ -68,12 +73,17 @@ func TestResolve_AzureCIZeroConfig(t *testing.T) {
 	require.Len(t, got.Forges, 1)
 	f := got.Forges[got.EnrichmentIndex]
 	assert.Equal(t, "azure_devops", f.Type)
-	assert.Equal(t, "myorg/myproject", f.Project)
+	assert.Equal(t, "https://dev.azure.com/myorg", f.Host)
+	assert.Equal(t, "myproject", f.Project)
 	assert.Equal(t, "myrepo", f.Repository)
 	assert.Equal(t, "tok", f.Token)
 	assert.Equal(t, port.TokenPrivate, f.TokenKind)
 }
 
+// Legacy form: SYSTEM_COLLECTIONURI carries the org as the Host's subdomain
+// ("https://myorg.visualstudio.com/"), with no org path segment. Project must NOT re-add the org
+// as a path segment — Host's subdomain is the only place it appears — or the org is duplicated
+// (the exact C2 bug: API path became /myorg/myorg/myproject/...).
 func TestResolve_AzureCIZeroConfigLegacyCollectionURI(t *testing.T) {
 	got, err := forge.Resolve(&config.Config{}, env(map[string]string{
 		"TF_BUILD":              "true",
@@ -86,7 +96,8 @@ func TestResolve_AzureCIZeroConfigLegacyCollectionURI(t *testing.T) {
 	require.Len(t, got.Forges, 1)
 	f := got.Forges[got.EnrichmentIndex]
 	assert.Equal(t, "azure_devops", f.Type)
-	assert.Equal(t, "myorg/myproject", f.Project)
+	assert.Equal(t, "https://myorg.visualstudio.com", f.Host)
+	assert.Equal(t, "myproject", f.Project)
 	assert.Equal(t, "myrepo", f.Repository)
 }
 
@@ -114,6 +125,25 @@ func TestResolve_ExplicitAzureForgeSplitsProjectAndRepository(t *testing.T) {
 	require.NoError(t, err)
 	f := got.Forges[0]
 	assert.Equal(t, "myorg/myproject", f.Project)
+	assert.Equal(t, "myrepo", f.Repository)
+}
+
+// I1: an explicit azure_devops forge entry with no repository: must still fall back to the CI's
+// BUILD_REPOSITORY_NAME, the same way Host/APIURL/Project already fall back to CI. Before this
+// fix, Repository was read from config only (detectCIForge's repository return was discarded),
+// so this case produced Repository == "" and a malformed request/links downstream.
+func TestResolve_ExplicitAzureForgeRepositoryFallsBackToCI(t *testing.T) {
+	cfg := &config.Config{Forges: []config.Forge{{
+		Name: "A", Type: "azure_devops", Project: "myorg/myproject",
+	}}}
+	got, err := forge.Resolve(cfg, env(map[string]string{
+		"TF_BUILD":              "true",
+		"SYSTEM_COLLECTIONURI":  "https://dev.azure.com/myorg/",
+		"SYSTEM_TEAMPROJECT":    "myproject",
+		"BUILD_REPOSITORY_NAME": "myrepo",
+	}), "")
+	require.NoError(t, err)
+	f := got.Forges[0]
 	assert.Equal(t, "myrepo", f.Repository)
 }
 

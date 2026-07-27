@@ -317,6 +317,25 @@ was deleted outright (it tested only the deleted `gqlString` helper, not policy)
 and the simulated `GITHUB_ACTIONS=true` run both pass at 1470 tests; `internal/generators/native`
 now imports no forge package.
 
+**Post-hoc correction (final review, C1/C2/I1/I2/I3/I5/M2):** the org-in-`Project` design
+described above for Azure CI detection was wrong for two reasons a final review caught with
+`httptest`-pinned request-path assertions (the original migration had dropped the old exact-shape
+assertions, which is exactly how both shipped). (1) GitHub Enterprise Server's GraphQL endpoint is
+`{host}/api/graphql`, not `{host}/api/v3/graphql` — fixed with a `graphqlEndpoint()` method
+mirroring GitLab's `apiBase()`-suffix-trim pattern. (2) Azure `detectCIForge` concatenated the org
+onto `SYSTEM_TEAMPROJECT` AND left the org inside `SYSTEM_COLLECTIONURI`-derived `Host`, so
+`Host+"/"+Project` composed the organization twice in both the API endpoint and every rendered
+link; it also silently mishandled the legacy `{org}.visualstudio.com` subdomain form (org lives in
+the host, not a path segment). Fixed by making `Host` the trimmed `SYSTEM_COLLECTIONURI` verbatim
+(org included only when it is genuinely a path segment) and `Project` the team project alone for
+CI-detected identities; `internal/forge/azure/prquery.go` no longer splits `Project` into
+org/project (dropped `splitProject`), composing the endpoint the same way `webBase()` always did.
+`azureOrgFromCollectionURI` became dead code under the new design and was deleted along with its
+test. Also: `Repository` never fell back to the CI-detected value the way `Host`/`APIURL`/`Project`
+did (I1) — fixed in `resolve.go`; `port.LinkContext.APIEnv()` was orphaned production code with no
+remaining caller (I5) — deleted with its ~90 lines of tests. See
+`.superpowers/sdd/p2-final-fix-report.md` for the full RED/GREEN evidence per finding.
+
 ---
 
 ## Phase 3 — fold publishing into `port.Forge`

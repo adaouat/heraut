@@ -60,40 +60,11 @@ func detectCIForge(getenv func(string) string) (typ, host, apiURL, project, repo
 		return "github", getenv("GITHUB_SERVER_URL"), getenv("GITHUB_API_URL"), getenv("GITHUB_REPOSITORY"), "", getenv("GITHUB_TOKEN"), port.TokenPrivate, true
 	}
 	if getenv("TF_BUILD") != "" {
-		org := azureOrgFromCollectionURI(getenv("SYSTEM_COLLECTIONURI"))
+		host := strings.TrimRight(getenv("SYSTEM_COLLECTIONURI"), "/")
 		teamProject := getenv("SYSTEM_TEAMPROJECT")
-		project := teamProject
-		if org != "" && teamProject != "" {
-			project = org + "/" + teamProject
-		}
-		return "azure_devops", getenv("SYSTEM_COLLECTIONURI"), "", project, getenv("BUILD_REPOSITORY_NAME"), getenv("SYSTEM_ACCESSTOKEN"), port.TokenPrivate, true
+		return "azure_devops", host, "", teamProject, getenv("BUILD_REPOSITORY_NAME"), getenv("SYSTEM_ACCESSTOKEN"), port.TokenPrivate, true
 	}
 	return "", "", "", "", "", "", port.TokenNone, false
-}
-
-// azureOrgFromCollectionURI extracts the organization name from an Azure Pipelines
-// SYSTEM_COLLECTIONURI. It recognizes both forms Azure Pipelines emits: the modern form, where
-// the org is the first path segment (e.g. "https://dev.azure.com/myorg/" → "myorg"), and the
-// legacy form, still active for older/on-prem/grandfathered organizations, where the org is the
-// subdomain and there is no org path segment (e.g. "https://myorg.visualstudio.com/" → "myorg").
-// Returns "" when the URI has neither a usable path segment nor a ".visualstudio.com" subdomain
-// (malformed or unset).
-func azureOrgFromCollectionURI(uri string) string {
-	trimmed := strings.Trim(strings.TrimPrefix(strings.TrimPrefix(uri, "https://"), "http://"), "/")
-	host, path, found := strings.Cut(trimmed, "/")
-	if !found {
-		host = trimmed
-	}
-	if found {
-		org, _, _ := strings.Cut(path, "/")
-		if org != "" {
-			return org
-		}
-	}
-	if org, ok := strings.CutSuffix(host, ".visualstudio.com"); ok && org != "" {
-		return org
-	}
-	return ""
 }
 
 // parseGitOrigin extracts a forge type, host, and project path from a git origin URL, handling

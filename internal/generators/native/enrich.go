@@ -45,7 +45,7 @@ func (g *Generator) enrichForRelease(lc *port.LinkContext, commits []rawCommit) 
 	// instead of erroring.
 	required := g.cfg.RemoteMetadata == "required" && !g.cfg.Force
 	if required && g.forge == nil {
-		return enrichResult{}, fmt.Errorf("remote enrichment (required): no changelog remote or release platform configured to fetch PR/MR metadata from")
+		return enrichResult{}, fmt.Errorf("remote enrichment (required): no forge resolved to fetch PR/MR metadata from — configure a forges: entry, run in a supported CI environment, or use a recognised git origin")
 	}
 	er, err := g.enrich(lc, commits)
 	if err != nil {

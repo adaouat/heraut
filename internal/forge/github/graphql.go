@@ -63,7 +63,7 @@ func (f *Forge) fetchChunk(owner, repo string, shas []string) (map[string]port.P
 		return nil, nil, fmt.Errorf("marshaling GraphQL request: %w", err)
 	}
 
-	req, err := http.NewRequest(http.MethodPost, f.apiBase()+"/graphql", bytes.NewReader(body))
+	req, err := http.NewRequest(http.MethodPost, f.graphqlEndpoint(), bytes.NewReader(body))
 	if err != nil {
 		return nil, nil, fmt.Errorf("building GraphQL request: %w", err)
 	}

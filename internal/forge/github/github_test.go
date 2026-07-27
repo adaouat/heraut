@@ -109,14 +109,21 @@ func TestEnrich_GraphQLErrorAndStatus(t *testing.T) {
 }
 
 // More than one chunk's worth of SHAs must be fetched in multiple batched queries, and results
-// merged — the legacy driver chunked at 50 to stay within GitHub's node limits.
+// merged — the legacy driver chunked at 50 to stay within GitHub's node limits. Aliases restart at
+// s0 in each chunk, so a merge bug (e.g. the second chunk's response overwriting or shadowing the
+// first's) hides exactly there: each request here returns a DIFFERENT PR number under the same s0
+// alias, and both the first-chunk SHA (sha00, alias s0 of request 1) and the second-chunk SHA
+// (sha50, alias s0 of request 2) must resolve to their own distinct, correct PR in the merged map.
 func TestEnrich_ChunksLargeCommitSets(t *testing.T) {
 	var queries int
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		queries++
+		prNumber := 100 + queries // request 1 → 101, request 2 → 102: distinct per chunk
 		w.Header().Set("Content-Type", "application/json")
-		_, _ = w.Write([]byte(`{"data":{"repository":{"s0":{
-			"author":{"user":{"login":"alice"}},"associatedPullRequests":{"nodes":[]}}}}}`))
+		_, _ = fmt.Fprintf(w, `{"data":{"repository":{"s0":{
+			"author":{"user":{"login":"alice"}},
+			"associatedPullRequests":{"nodes":[{"number":%d,"url":"https://github.com/acme/widget/pull/%d","title":"chunk %d"}]}}}}}`,
+			prNumber, prNumber, queries)
 	}))
 	defer srv.Close()
 
@@ -125,9 +132,14 @@ func TestEnrich_ChunksLargeCommitSets(t *testing.T) {
 		commits = append(commits, port.Commit{Hash: fmt.Sprintf("sha%02d", i), Author: "Alice"})
 	}
 	f := github.New(port.ForgeIdentity{Host: srv.URL, APIURL: srv.URL, Project: "acme/widget"}, srv.Client())
-	_, err := f.Enrich(commits)
+	en, err := f.Enrich(commits)
 	require.NoError(t, err)
 	assert.Equal(t, 2, queries, "51 SHAs must be split into 2 chunks of at most 50")
+
+	require.Contains(t, en.PRs, "sha00", "first-chunk SHA (alias s0 of request 1) must resolve")
+	assert.Equal(t, 101, en.PRs["sha00"].Number, "first-chunk SHA must resolve to the FIRST request's PR, not the second's")
+	require.Contains(t, en.PRs, "sha50", "second-chunk SHA (alias s0 of request 2) must resolve")
+	assert.Equal(t, 102, en.PRs["sha50"].Number, "second-chunk SHA must resolve to the SECOND request's PR, not the first's")
 }
 
 func TestEnrich_NoCommits(t *testing.T) {
@@ -136,4 +148,27 @@ func TestEnrich_NoCommits(t *testing.T) {
 	require.NoError(t, err)
 	assert.Empty(t, en.PRs)
 	assert.Empty(t, en.Authors)
+}
+
+// The GraphQL endpoint must land on the correct path for a GHES identity carrying an explicit
+// APIURL, as GitHub Actions sets GITHUB_API_URL on GHES runners: "{host}/api/v3". GitHub
+// Enterprise Server serves GraphQL at {host}/api/graphql — a sibling of /api/v3 (REST), not nested
+// under it. A httptest server can't stand in for github.com itself (apiBase special-cases that
+// literal host string), so the github.com/host-only shapes are pinned in the internal,
+// white-box TestGraphqlEndpoint instead.
+func TestEnrich_GraphQLEndpointGHESExplicitAPIURL(t *testing.T) {
+	var gotPath string
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		gotPath = r.URL.Path
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{"data":{"repository":{"s0":{"author":{"user":null},"associatedPullRequests":{"nodes":[]}}}}}`))
+	}))
+	defer srv.Close()
+
+	f := github.New(port.ForgeIdentity{
+		Host: "https://github.example.com", APIURL: srv.URL + "/api/v3", Project: "acme/widget",
+	}, srv.Client())
+	_, err := f.Enrich([]port.Commit{{Hash: "abc123"}})
+	require.NoError(t, err)
+	assert.Equal(t, "/api/graphql", gotPath)
 }

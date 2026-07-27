@@ -30,13 +30,19 @@ func (f *Forge) enrichPRs(shas []string) (map[string]port.PullRequest, error) {
 		return result, nil
 	}
 
-	org, project, ok := splitProject(f.id.Project)
-	if !ok {
-		return nil, fmt.Errorf("azure pullrequestquery: Project %q is not organization/project", f.id.Project)
+	if f.id.Project == "" {
+		return nil, fmt.Errorf("azure pullrequestquery: Project is empty")
 	}
-	endpoint := fmt.Sprintf("%s/%s/%s/_apis/git/repositories/%s/pullrequestquery?api-version=%s",
-		strings.TrimRight(f.id.Host, "/"),
-		url.PathEscape(org), url.PathEscape(project), url.PathEscape(f.id.Repository), apiVersion)
+	if f.id.Repository == "" {
+		return nil, fmt.Errorf("azure pullrequestquery: Repository is empty")
+	}
+	// Project is appended as-is (never split): the organization lives in Host when Host is the
+	// dev.azure.com form ("https://dev.azure.com/myorg"), or in Host's subdomain when it's the
+	// legacy visualstudio.com form — either way Host already carries it exactly once, so Project
+	// composes here as one opaque segment, matching webBase()'s formula (C2: composing an
+	// org-splitting Project on top of an org-bearing Host duplicated the organization).
+	endpoint := fmt.Sprintf("%s/%s/_apis/git/repositories/%s/pullrequestquery?api-version=%s",
+		strings.TrimRight(f.id.Host, "/"), f.id.Project, url.PathEscape(f.id.Repository), apiVersion)
 
 	body, err := json.Marshal(prQuery{Queries: []prQueryInput{{Type: "lastMergeCommit", Items: shas}}})
 	if err != nil {
@@ -99,16 +105,6 @@ func (f *Forge) enrichPRs(shas []string) (map[string]port.PullRequest, error) {
 		}
 	}
 	return result, nil
-}
-
-// splitProject splits an Azure "organization/project" Project field (ADR-0026) into its two
-// segments.
-func splitProject(project string) (org, proj string, ok bool) {
-	org, proj, ok = strings.Cut(project, "/")
-	if !ok || org == "" || proj == "" {
-		return "", "", false
-	}
-	return org, proj, true
 }
 
 type prQuery struct {
