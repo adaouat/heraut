@@ -74,6 +74,22 @@ func TestResolve_AzureCIZeroConfig(t *testing.T) {
 	assert.Equal(t, port.TokenPrivate, f.TokenKind)
 }
 
+func TestResolve_AzureCIZeroConfigLegacyCollectionURI(t *testing.T) {
+	got, err := forge.Resolve(&config.Config{}, env(map[string]string{
+		"TF_BUILD":              "true",
+		"SYSTEM_COLLECTIONURI":  "https://myorg.visualstudio.com/",
+		"SYSTEM_TEAMPROJECT":    "myproject",
+		"BUILD_REPOSITORY_NAME": "myrepo",
+		"SYSTEM_ACCESSTOKEN":    "tok",
+	}), "")
+	require.NoError(t, err)
+	require.Len(t, got.Forges, 1)
+	f := got.Forges[got.EnrichmentIndex]
+	assert.Equal(t, "azure_devops", f.Type)
+	assert.Equal(t, "myorg/myproject", f.Project)
+	assert.Equal(t, "myrepo", f.Repository)
+}
+
 func TestResolve_ExplicitForgeFillsFromCI(t *testing.T) {
 	cfg := &config.Config{Forges: []config.Forge{{Name: "P", Type: "gitlab", APIMode: "graphql", TokenEnv: "MY_PAT"}}}
 	got, err := forge.Resolve(cfg, env(map[string]string{

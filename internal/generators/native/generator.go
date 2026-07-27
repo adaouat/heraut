@@ -56,8 +56,8 @@ func New(runner port.Runner, cfg *config.ContentDriver, mode Mode, opts ...Optio
 // Option customizes a Generator at construction.
 type Option func(*Generator)
 
-// WithForge injects the resolved enrichment forge (ADR-0043). When set, it supersedes the legacy
-// per-platform CLI dispatch for fetching PR/MR metadata.
+// WithForge injects the resolved enrichment forge (ADR-0043) the generator uses to fetch PR/MR
+// metadata.
 func WithForge(f port.Forge) Option {
 	return func(g *Generator) { g.forge = f }
 }

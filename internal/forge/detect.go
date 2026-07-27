@@ -72,16 +72,28 @@ func detectCIForge(getenv func(string) string) (typ, host, apiURL, project, repo
 }
 
 // azureOrgFromCollectionURI extracts the organization name from an Azure Pipelines
-// SYSTEM_COLLECTIONURI, e.g. "https://dev.azure.com/myorg/" → "myorg". Returns "" when the URI
-// has no path segment (malformed or unset).
+// SYSTEM_COLLECTIONURI. It recognizes both forms Azure Pipelines emits: the modern form, where
+// the org is the first path segment (e.g. "https://dev.azure.com/myorg/" → "myorg"), and the
+// legacy form, still active for older/on-prem/grandfathered organizations, where the org is the
+// subdomain and there is no org path segment (e.g. "https://myorg.visualstudio.com/" → "myorg").
+// Returns "" when the URI has neither a usable path segment nor a ".visualstudio.com" subdomain
+// (malformed or unset).
 func azureOrgFromCollectionURI(uri string) string {
 	trimmed := strings.Trim(strings.TrimPrefix(strings.TrimPrefix(uri, "https://"), "http://"), "/")
-	_, path, found := strings.Cut(trimmed, "/")
+	host, path, found := strings.Cut(trimmed, "/")
 	if !found {
-		return ""
+		host = trimmed
 	}
-	org, _, _ := strings.Cut(path, "/")
-	return org
+	if found {
+		org, _, _ := strings.Cut(path, "/")
+		if org != "" {
+			return org
+		}
+	}
+	if org, ok := strings.CutSuffix(host, ".visualstudio.com"); ok && org != "" {
+		return org
+	}
+	return ""
 }
 
 // parseGitOrigin extracts a forge type, host, and project path from a git origin URL, handling
