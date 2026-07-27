@@ -370,6 +370,49 @@ Update the scaffold wizard (`internal/scaffold`) to generate `forges:` / `releas
 
 ## Follow-ups
 
+#### `[ ]` T168: decide the fate of `port.Forge`'s link methods (and the dead `lc` parameter)
+
+`port.Forge` declares `CommitURL` / `ChangeURL` / `CompareURL`, implemented and tested in all three
+forges — but they have **no production caller**. Link rendering still runs through
+`port.LinkContext` → `internal/generators/native/links.go`. (`webBase()` *is* used internally by the
+Azure driver for PR URLs; it is the three interface methods that are dead.) That produced a real
+coverage illusion during P2: the azure link tests exercised a path nothing calls, while the live
+path went untested — which is part of why the org-duplication bug shipped. Decide: wire the
+interface methods into rendering (collapsing two link-building implementations into one), or mark
+them explicitly as P3 publishing surface. Fold in the related cleanup: `enrich`/`enrichForRelease`
+still take an `lc *port.LinkContext` parameter neither reads — two production call sites, no lint
+rule enforcing it, but it implies a coupling P2 deliberately deleted. Found by P2's final review.
+**Scope:** S–M.
+
+#### `[ ]` T169: document the self-hosted / GHES enrichment requirement, and fix ADR drift
+
+Two related doc gaps found by P2's final review. (1) **Capability regression, undocumented:** before
+P2, a `generator: native` user on a self-hosted GitHub Enterprise / GitLab host enriched via the
+legacy dispatch using the platform-derived `LinkContext`. Now `parseGitOrigin` only recognises the
+public hosts (`github.com`, `gitlab.com`, `dev.azure.com`), so a self-hosted origin resolves no
+forge — enrichment degrades under `optional` and hard-errors under `required`. The fix for those
+users is to declare an explicit `forges:` entry, but nothing tells them so. Document it in
+`docs/specs/05-generators-and-platforms.md` and consider naming it in the required-policy error.
+(2) **ADR drift:** ADR-0034 is still `Accepted` while describing `gh api` as GitHub's enrichment
+transport (deleted in T162), ADR-0043 says "GitHub and Azure keep their current transports", and
+spec 05 still describes GitLab enrichment as "two batched `glab api graphql` connection queries".
+Since ADRs outrank the roadmap in this repo's source-of-truth hierarchy, leaving them stale inverts
+that hierarchy. **Scope:** S.
+
+#### `[ ]` T170: cross-forge consistency (author fallback, Azure `api_url` / `api_mode`)
+
+Two divergences between the three forges, found by P2's final review. (1) **Author-handle fallback
+differs:** when no linked handle is available, GitLab renders the git author **name** (`by @Alice
+Smith` — a space inside an `@handle`) while Azure renders the email **local-part** (`by @alice`).
+Both are the same "no linked identity" fallback and should render identically; the local-part reads
+better as a handle. (2) **Azure ignores `api_url` and `api_mode`:** `config.Forge` accepts both for
+any platform and the validator only enum-checks `api_mode`, but Azure honours neither (it derives
+the API root from `Host`). At minimum document the per-platform applicability on the struct fields
+and in spec 02; ideally have Azure prefer `APIURL` when set. Consider a cross-forge conformance
+table test (empty commits → non-nil empty maps; non-2xx → wrapped error naming the status; partial
+identity → clear error) to keep three parallel implementations honest as P3 adds publishing.
+**Scope:** S–M.
+
 #### `[x]` T165: dedicated `forges:` section in `docs/specs/02-configuration.md`
 
 T160's docs pass migrated every stale `changelog.remote` / `commits.remote_metadata` reference in
