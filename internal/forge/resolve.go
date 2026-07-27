@@ -41,7 +41,7 @@ func Resolve(cfg *config.Config, getenv func(string) string, gitOrigin string) (
 // explicit config → CI env (when the CI type matches the entry's platform) → git origin (when
 // its detected type matches the entry's platform) → a type default (host, token env).
 func resolveExplicit(cfg *config.Config, getenv func(string) string, gitOrigin string) (Resolved, error) {
-	ciType, ciHost, ciAPIURL, ciProject, ciToken, ciKind, ciOK := detectCIForge(getenv)
+	ciType, ciHost, ciAPIURL, ciProject, _, ciToken, ciKind, ciOK := detectCIForge(getenv)
 	originType, originHost, originProject, originOK := parseGitOrigin(gitOrigin)
 
 	forges := make([]port.ForgeIdentity, len(cfg.Forges))
@@ -86,7 +86,7 @@ func resolveExplicit(cfg *config.Config, getenv func(string) string, gitOrigin s
 // ambient tokens are inspected to find a single unambiguous candidate. Zero candidates means
 // offline (empty Resolved, not an error) and more than one means ErrAmbiguousForge.
 func resolveAuto(getenv func(string) string, gitOrigin string) (Resolved, error) {
-	if ciType, ciHost, ciAPIURL, ciProject, ciToken, ciKind, ok := detectCIForge(getenv); ok {
+	if ciType, ciHost, ciAPIURL, ciProject, ciRepository, ciToken, ciKind, ok := detectCIForge(getenv); ok {
 		token, kind := ciToken, ciKind
 		if token == "" {
 			token, kind = tokenFromDefaultEnv(getenv, defaultTokenEnvFor(ciType))
@@ -96,13 +96,14 @@ func resolveAuto(getenv func(string) string, gitOrigin string) (Resolved, error)
 			host = defaultHostFor(ciType)
 		}
 		return single(port.ForgeIdentity{
-			Type:      ciType,
-			Host:      host,
-			APIURL:    ciAPIURL,
-			Project:   ciProject,
-			Token:     token,
-			TokenKind: kind,
-			APIMode:   "rest",
+			Type:       ciType,
+			Host:       host,
+			APIURL:     ciAPIURL,
+			Project:    ciProject,
+			Repository: ciRepository,
+			Token:      token,
+			TokenKind:  kind,
+			APIMode:    "rest",
 		}), nil
 	}
 

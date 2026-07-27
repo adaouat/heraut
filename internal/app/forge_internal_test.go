@@ -96,6 +96,20 @@ func TestResolveEnrichForgeIfNeeded(t *testing.T) {
 		assert.Equal(t, "github", f.Type())
 	})
 
+	t.Run("resolves and constructs an azure forge for a native driver", func(t *testing.T) {
+		mr := exectest.NewMockRunner()
+		mr.QueueResponse("", "", assertNoOriginErr)
+		cfg := &config.Config{Forges: []config.Forge{{
+			Name: "az", Type: "azure_devops", Project: "myorg/myproject", Repository: "myrepo",
+		}}}
+		f, id, err := resolveEnrichForgeIfNeeded(mr, fakeEnv(nil), cfg, &config.ContentDriver{Generator: "native"})
+		require.NoError(t, err)
+		require.NotNil(t, id)
+		assert.Equal(t, "azure_devops", id.Type)
+		require.NotNil(t, f, "a concrete azure.Forge must be constructed and assigned through the interface")
+		assert.Equal(t, "azure_devops", f.Type())
+	})
+
 	t.Run("ambiguous forge propagates as an error", func(t *testing.T) {
 		mr := exectest.NewMockRunner()
 		mr.QueueResponse("", "", assertNoOriginErr)

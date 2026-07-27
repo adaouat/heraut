@@ -12,6 +12,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/adaouat/heraut/internal/config"
+	"github.com/adaouat/heraut/internal/port"
 )
 
 func TestGenerator_CheckValidateDegraded(t *testing.T) {
@@ -298,22 +299,17 @@ func TestGenerateChangelog_ForeignFileErrors(t *testing.T) {
 }
 
 // TestGenerateChangelog_ForeignFileErrors_BeforeEnrichment proves the anchor check runs BEFORE
-// any rendering/enrichment: with remote_metadata "required" and a real GitHub LinkContext but no
-// queued `gh` response, the old code path (render+enrich, then splice) would attempt a `gh` call
-// and — since RemoteMetadata is "required" — return a masking "remote enrichment (required)"
-// error instead of the actionable anchor error. The fixed code checks anchors first, so it never
-// touches git/gh at all and returns the anchor error naming both --regenerate flags.
+// any rendering/enrichment: with remote_metadata "required" and no forge configured, the old code
+// path (render+enrich, then splice) would attempt enrichment and — since RemoteMetadata is
+// "required" — return a masking "remote enrichment (required)" error instead of the actionable
+// anchor error. The fixed code checks anchors first, so it never touches git/enrichment at all and
+// returns the anchor error naming both --regenerate flags.
 func TestGenerateChangelog_ForeignFileErrors_BeforeEnrichment(t *testing.T) {
 	dir := t.TempDir()
 	out := filepath.Join(dir, "CHANGELOG.md")
 	foreign := "# Changelog\n\n## [1.0.0] - 2026-01-01\n\n- git-cliff line by @dave\n"
 	require.NoError(t, os.WriteFile(out, []byte(foreign), 0o644))
-	mr := exectest.NewMockRunner()
-	// Only the git calls the OLD (pre-reorder) code would make before reaching spliceSection:
-	// scopedTags (git tag -l) and renderRelease's collectCommits (git log). No `gh` response is
-	// queued — the reordered code must never attempt one.
-	mr.QueueResponse("v1.0.0\n", "", nil)
-	mr.QueueResponse(record("bbb2222222", "B", "b@x", "2026-02-01T00:00:00Z", "feat: x", ""), "", nil)
+	mr := exectest.NewMockRunner() // no response queued: the anchor check must return before any git/enrichment call
 	g := New(mr, &config.ContentDriver{Generator: "native", Output: out, RemoteMetadata: "required"}, ModeChangelog)
 
 	_, err := g.Generate("v1.1.0", ghLC())
@@ -325,9 +321,7 @@ func TestGenerateChangelog_ForeignFileErrors_BeforeEnrichment(t *testing.T) {
 	unchanged, _ := os.ReadFile(out)
 	assert.Equal(t, foreign, string(unchanged), "foreign file left untouched")
 
-	for _, c := range mr.Calls {
-		assert.NotEqual(t, "gh", c.Name, "anchor check must run before enrichment; no gh call should occur")
-	}
+	assert.Empty(t, mr.Calls, "anchor check must run before enrichment; no further call should occur")
 }
 
 func TestGenerateChangelog_RegenerateEnrichesAllSections(t *testing.T) {
@@ -339,8 +333,11 @@ func TestGenerateChangelog_RegenerateEnrichesAllSections(t *testing.T) {
 	mr.QueueResponse("", "", nil) // collectCommits latest..HEAD (empty)
 	// existing tag v1.0.0 section: commits + enrichment (regenerate enriches history)
 	mr.QueueResponse(record("ccc3333333", "C", "c@x", "2026-01-01T00:00:00Z", "feat: shipped", ""), "", nil) // collectCommits ""..v1.0.0
-	mr.QueueResponse(ghGraphQLResponse(7, "https://github.com/o/r/pull/7", "carol"), "", nil)                // gh enrich historical section
-	g := New(mr, &config.ContentDriver{Generator: "native", Output: out, RegenerateChangelog: true}, ModeChangelog)
+	forge := &countingForge{en: port.Enrichment{
+		PRs:     map[string]port.PullRequest{"ccc3333333": {Number: 7, URL: "https://github.com/o/r/pull/7", RefPrefix: "#"}},
+		Authors: map[string]string{"ccc3333333": "carol"},
+	}}
+	g := New(mr, &config.ContentDriver{Generator: "native", Output: out, RegenerateChangelog: true}, ModeChangelog, WithForge(forge))
 
 	body, err := g.Generate("v1.1.0", ghLC())
 	require.NoError(t, err)

@@ -54,16 +54,25 @@ func splitProjectPath(path string) (owner, project string) {
 // A partial identity must never outrank the ambient/platform fallbacks below it: an empty
 // Project (e.g. the token-only auto-detection branch in forge.Resolve, which cannot infer a
 // project from a bare token env var) would otherwise stamp a host with no owner/repo, breaking
-// both links and enrichment (a self-hosted GitLab/GHES 404s on `…/projects//…`).
-//
-// azure_devops is excluded outright: port.ForgeIdentity has no Repository field, and splitting
-// its "organization/project" Project into Owner/Repo does not match what
-// internal/generators/native/enrich_azure.go requires (LinkContext.Owner ==
-// "organization/project", unsplit). Azure keeps enriching via the legacy dispatch until a later
-// phase adds a Repository field plus an azure-specific owner/repo mapping.
+// both links and enrichment (a self-hosted GitLab/GHES 404s on `…/projects//…`). azure_devops
+// addresses a repo as organization/project + a separate repository name (Project stays unsplit as
+// Owner, matching what internal/forge/azure expects), so an azure identity with an empty
+// Repository is likewise treated as partial and falls through to nil.
 func linkContextFromIdentity(id port.ForgeIdentity) *port.LinkContext {
-	if id.Type == "" || id.Host == "" || id.Project == "" || id.Type == "azure_devops" {
+	if id.Type == "" || id.Host == "" || id.Project == "" {
 		return nil
+	}
+	if id.Type == "azure_devops" {
+		if id.Repository == "" {
+			return nil
+		}
+		return &port.LinkContext{
+			BaseURL:  strings.TrimRight(id.Host, "/"),
+			Owner:    id.Project,
+			Repo:     id.Repository,
+			Platform: id.Type,
+			Token:    id.Token,
+		}
 	}
 	owner, repo := splitProjectPath(id.Project)
 	return &port.LinkContext{

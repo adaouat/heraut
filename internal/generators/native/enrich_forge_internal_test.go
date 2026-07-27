@@ -58,8 +58,8 @@ func TestEnrich_ForgeErrorPropagates(t *testing.T) {
 	assert.True(t, errors.Is(err, sentinel))
 }
 
-// Without an injected forge, the legacy per-platform dispatch is unchanged.
-func TestEnrich_NoForgeFallsBackToLegacy(t *testing.T) {
+// Without an injected forge, enrichment yields nothing (no transport left to fall back to).
+func TestEnrich_NoForgeYieldsNoEnrichment(t *testing.T) {
 	g := New(nil, testDriver(), ModeChangelog)
 	er, err := g.enrich(nil, []rawCommit{{Hash: "abc"}})
 	require.NoError(t, err)
@@ -84,7 +84,7 @@ func TestEnrichForRelease_RequiredSatisfiedByForgeWithNilLinkContext(t *testing.
 	assert.False(t, g.Degraded())
 }
 
-// The required-policy error still fires when there is neither a forge nor an enrichable lc.
+// The required-policy error still fires when there is no forge configured.
 func TestEnrichForRelease_RequiredStillErrorsWithoutForgeOrLinkContext(t *testing.T) {
 	driver := testDriver()
 	driver.RemoteMetadata = "required"

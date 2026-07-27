@@ -11,6 +11,7 @@ import (
 	forgeui "github.com/adaouat/forge/ui"
 	"github.com/adaouat/heraut/internal/config"
 	"github.com/adaouat/heraut/internal/forge"
+	azureforge "github.com/adaouat/heraut/internal/forge/azure"
 	githubforge "github.com/adaouat/heraut/internal/forge/github"
 	gitlabforge "github.com/adaouat/heraut/internal/forge/gitlab"
 	"github.com/adaouat/heraut/internal/generators/communique"
@@ -424,6 +425,8 @@ func resolveEnrichForgeIfNeeded(runner port.Runner, getenv func(string) string, 
 			enrichForge = gitlabforge.New(id, nil)
 		case "github":
 			enrichForge = githubforge.New(id, nil)
+		case "azure_devops":
+			enrichForge = azureforge.New(id, nil)
 		}
 	}
 	return enrichForge, forgeID, nil

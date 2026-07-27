@@ -37,7 +37,7 @@ targets); `commits.remote_metadata` is renamed `commits.enrichment_policy`.
 | Phase                                                    | Tasks       | Status      |
 |----------------------------------------------------------|-------------|-------------|
 | P1 — GitLab-first: `port.Forge` + config + resolution + native REST/GraphQL + links | T154–T160 | Complete |
-| P2 — migrate GitHub + Azure onto `port.Forge`            | T161, T162  | In progress |
+| P2 — migrate GitHub + Azure onto `port.Forge`            | T161, T162  | Complete    |
 | P3 — fold publishing into `port.Forge`                   | T163        | Not started |
 | P4 (last) — `heraut init` wizard                         | T164        | Not started |
 
@@ -279,11 +279,43 @@ inside each case. Updated the stale `forge_internal_test.go` subtest that previo
 forge for github" to assert one is constructed with `Type() == "github"`. `gh` is still used for
 publishing (`internal/platforms/github`) — untouched, out of scope for this task.
 
-#### `[ ]` T162: Azure forge onto `port.Forge` + retire the switch
+#### `[x]` T162: Azure forge onto `port.Forge` + retire the switch
 
 Wrap the existing Azure `net/http` enrichment (ADR-0035) as `internal/forge/azure` implementing
 `port.Forge`; remove the per-platform `enrich()` dispatch switch in favor of the interface. Tests:
 Azure contract parity; switch removal doesn't regress GitHub/GitLab.
+
+Implemented `internal/forge/azure` (`azure.go` + `prquery.go`) over stdlib `net/http`, porting the
+`pullrequestquery` POST, result types, `authorLogin`, and `commitAuthors` verbatim from
+`internal/generators/native/enrich_azure.go` — only the org/project/repo source changed (now
+`id.Project` split + `id.Repository`, instead of `LinkContext.Owner`/`Repo`) and the result types
+(native's own structs → `port.PullRequest`/`port.Author`). Preserved api-version `7.1`, HTTP Basic
+auth with an empty username, `RefPrefix: "!"`, `vote >= 10` approvers, and the local
+email-local-part commit-author render (Azure exposes no linked handle). Completed Azure CI
+identity resolution in `internal/forge/detect.go`: `SYSTEM_COLLECTIONURI` now supplies the
+organization (parsed from its first path segment) so `Project` becomes `"{org}/{teamProject}"`,
+and `BUILD_REPOSITORY_NAME` supplies `Repository`, threaded through `resolveAuto`'s CI branch.
+Wired `azureforge.New` into `internal/app/pipeline.go`'s `resolveEnrichForgeIfNeeded` switch
+alongside gitlab/github, and restored Azure in `internal/pipeline/linkctx.go`'s
+`linkContextFromIdentity`: `Owner` maps to the full unsplit `Project` (organization/project) and
+`Repo` to `Repository`, with an empty-`Repository` guard falling through to nil (mirroring the
+existing empty-`Project` guard) — this replaces the outright `azure_devops` exclusion that existed
+only because `ForgeIdentity` had no `Repository` field before T161. Retired the legacy `enrich()`
+per-platform switch in `internal/generators/native/enrich.go`, deleting `enrich_github.go`,
+`enrich_gitlab.go`, `enrich_azure.go` and their test files along with now-dead helpers
+(`gqlString`, `oldestCommitDate`, `newestSHA`, `enrichable`) and the now-unused `httpClient` field
+on `Generator` (Azure enrichment no longer lives in `native`). `enrichForRelease`'s required
+condition simplified from `required && g.forge == nil && !enrichable(lc)` to `required && g.forge
+== nil`, since a forge is now the only enrichment source. The policy-behaviour tests in
+`enrich_internal_test.go` (disabled/optional-degrade/required-fatal/`--force`-downgrade,
+changelog-scoped-to-new-release) were rewritten against a local `countingForge` stub instead of
+`gh`-via-MockRunner responses — same assertions, transport swapped, per the brief's "preserve
+behaviour, not code" instruction — and two `generator_internal_test.go` cases
+(`TestGenerateChangelog_ForeignFileErrors_BeforeEnrichment`,
+`TestGenerateChangelog_RegenerateEnrichesAllSections`) were adjusted the same way. `TestGqlString_QuotesAndEscapes`
+was deleted outright (it tested only the deleted `gqlString` helper, not policy). `go test ./...`
+and the simulated `GITHUB_ACTIONS=true` run both pass at 1470 tests; `internal/generators/native`
+now imports no forge package.
 
 ---
 

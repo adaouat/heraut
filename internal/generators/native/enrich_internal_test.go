@@ -2,7 +2,6 @@ package native
 
 import (
 	"errors"
-	"fmt"
 	"strings"
 	"testing"
 	"text/template"
@@ -16,24 +15,6 @@ import (
 	"github.com/adaouat/heraut/internal/conventionalcommit"
 	"github.com/adaouat/heraut/internal/port"
 )
-
-// gqlString renders values as GraphQL string literals so interpolated project paths / refs /
-// cursors / SHAs cannot break out of the query (defense in depth; git/config inputs are not
-// attacker-controlled, but a stray quote would otherwise produce an invalid query).
-func TestGqlString_QuotesAndEscapes(t *testing.T) {
-	assert.Equal(t, `"plain"`, gqlString("plain"), "quote-free value is byte-identical to the old \"%s\" form")
-	assert.Equal(t, `"a\"b"`, gqlString(`a"b`), "embedded double-quote is escaped")
-	assert.Equal(t, `"a\\b"`, gqlString(`a\b`), "backslash is escaped")
-}
-
-// ghGraphQLResponse builds a one-PR gh api graphql JSON body for alias s0. The commit author's
-// login is set equal to the PR author's login, so downstream `by @<login>` assertions hold
-// regardless of which source (commit author vs. PR author) the renderer credits.
-func ghGraphQLResponse(number int, url, login string) string {
-	return fmt.Sprintf(
-		`{"data":{"repository":{"s0":{"author":{"user":{"login":%q}},"associatedPullRequests":{"nodes":[{"number":%d,"url":%q,"author":{"login":%q}}]}}}}}`,
-		login, number, url, login)
-}
 
 func parsedFrom(hash, subject string) parsedCommit {
 	pc := parsedCommit{raw: rawCommit{Hash: hash, Subject: subject, Date: fixedDate1}}
@@ -150,6 +131,11 @@ func TestRenderReleaseNotes_NoFirstTimers_NoBlock(t *testing.T) {
 }
 
 // ─── Generate: remote_metadata policy branches (contract) ───────────────────────
+//
+// These exercise enrichForRelease's policy semantics (disabled / optional-degrade /
+// required-fatal / --force downgrade) through an injected port.Forge (ADR-0043) rather than the
+// retired per-platform CLI dispatch — the policy behaviour under test is unchanged, only the
+// enrichment transport is (a stub satisfying port.Forge instead of `gh`/MockRunner responses).
 
 func ghLC() *port.LinkContext {
 	return &port.LinkContext{Platform: "github", BaseURL: "https://github.com", Owner: "o", Repo: "r", Token: "tok"}
@@ -161,18 +147,37 @@ func queueReleaseNotesGit(mr *exectest.MockRunner) {
 	mr.QueueResponse(record("abc1234567", "A", "a@example.com", "2026-01-02T00:00:00Z", "feat: x", ""), "", nil) // collectCommits: git log
 }
 
+// countingForge records how many times Enrich was called and returns a canned result or error.
+type countingForge struct {
+	calls int
+	en    port.Enrichment
+	err   error
+}
+
+func (f *countingForge) Type() string                     { return "github" }
+func (f *countingForge) Identity() port.ForgeIdentity     { return port.ForgeIdentity{Type: "github"} }
+func (f *countingForge) CommitURL(sha string) string      { return "" }
+func (f *countingForge) ChangeURL(int) string             { return "" }
+func (f *countingForge) CompareURL(string, string) string { return "" }
+func (f *countingForge) Enrich(c []port.Commit) (port.Enrichment, error) {
+	f.calls++
+	return f.en, f.err
+}
+
 func TestGenerate_Enrich_Disabled_NoAPICall(t *testing.T) {
 	mr := exectest.NewMockRunner()
 	queueReleaseNotesGit(mr)
 	mr.QueueResponse("bob@x\n", "", nil) // authorsBefore: git log v1.0.0 --format=%ae
-	g := New(mr, &config.ContentDriver{Generator: "native", RemoteMetadata: "disabled"}, ModeReleaseNotes)
+	forge := &countingForge{en: port.Enrichment{
+		PRs:     map[string]port.PullRequest{"abc1234567": {Number: 42, RefPrefix: "#"}},
+		Authors: map[string]string{"abc1234567": "octocat"},
+	}}
+	g := New(mr, &config.ContentDriver{Generator: "native", RemoteMetadata: "disabled"}, ModeReleaseNotes, WithForge(forge))
 
 	out, err := g.Generate("v1.1.0", ghLC())
 	require.NoError(t, err)
 	assert.NotContains(t, out, "by @")
-	for _, c := range mr.Calls {
-		assert.NotEqual(t, "gh", c.Name, "disabled must never call gh")
-	}
+	assert.Equal(t, 0, forge.calls, "disabled must never call the forge")
 	assert.False(t, g.Degraded())
 
 	require.Len(t, mr.Calls, 4)
@@ -182,35 +187,39 @@ func TestGenerate_Enrich_Disabled_NoAPICall(t *testing.T) {
 func TestGenerate_Enrich_OptionalSuccess(t *testing.T) {
 	mr := exectest.NewMockRunner()
 	queueReleaseNotesGit(mr)
-	mr.QueueResponse(ghGraphQLResponse(42, "https://github.com/o/r/pull/42", "octocat"), "", nil)
-	// authorsBefore runs after platform enrich, so its response is queued last (T140-style ripple).
+	// authorsBefore runs after forge enrich, so its response is queued last (T140-style ripple).
 	mr.QueueResponse("bob@x\n", "", nil) // authorsBefore: git log v1.0.0 --format=%ae
-	g := New(mr, &config.ContentDriver{Generator: "native", RemoteMetadata: "optional"}, ModeReleaseNotes)
+	forge := &countingForge{en: port.Enrichment{
+		PRs:     map[string]port.PullRequest{"abc1234567": {Number: 42, URL: "https://github.com/o/r/pull/42", RefPrefix: "#"}},
+		Authors: map[string]string{"abc1234567": "octocat"},
+	}}
+	g := New(mr, &config.ContentDriver{Generator: "native", RemoteMetadata: "optional"}, ModeReleaseNotes, WithForge(forge))
 
 	out, err := g.Generate("v1.1.0", ghLC())
 	require.NoError(t, err)
 	assert.Contains(t, out, "by @octocat in [#42]")
 	assert.False(t, g.Degraded())
+	assert.Equal(t, 1, forge.calls)
 
-	require.Len(t, mr.Calls, 5)
-	assert.Equal(t, []string{"log", "v1.0.0", "--format=%ae"}, mr.Calls[4].Args)
+	require.Len(t, mr.Calls, 4)
+	assert.Equal(t, []string{"log", "v1.0.0", "--format=%ae"}, mr.Calls[3].Args)
 }
 
 func TestGenerate_Enrich_OptionalFailure_Degrades(t *testing.T) {
 	mr := exectest.NewMockRunner()
 	queueReleaseNotesGit(mr)
-	mr.QueueResponse("", "API rate limit exceeded", errors.New("exit status 1"))
-	// optional degrades on the gh failure (no error returned) and proceeds to authorsBefore.
+	// optional degrades on the forge failure (no error returned) and proceeds to authorsBefore.
 	mr.QueueResponse("bob@x\n", "", nil) // authorsBefore: git log v1.0.0 --format=%ae
-	g := New(mr, &config.ContentDriver{Generator: "native", RemoteMetadata: "optional"}, ModeReleaseNotes)
+	forge := &countingForge{err: errors.New("API rate limit exceeded")}
+	g := New(mr, &config.ContentDriver{Generator: "native", RemoteMetadata: "optional"}, ModeReleaseNotes, WithForge(forge))
 
 	out, err := g.Generate("v1.1.0", ghLC())
 	require.NoError(t, err, "optional degrades, does not fail")
 	assert.NotContains(t, out, "by @", "rendered bare on degrade")
 	assert.True(t, g.Degraded())
 
-	require.Len(t, mr.Calls, 5)
-	assert.Equal(t, []string{"log", "v1.0.0", "--format=%ae"}, mr.Calls[4].Args)
+	require.Len(t, mr.Calls, 4)
+	assert.Equal(t, []string{"log", "v1.0.0", "--format=%ae"}, mr.Calls[3].Args)
 }
 
 // On an optional degrade the failure reason is captured on the generator (surfaced by the
@@ -219,22 +228,22 @@ func TestGenerate_Enrich_OptionalFailure_Degrades(t *testing.T) {
 func TestGenerate_Enrich_OptionalFailure_CapturesReason(t *testing.T) {
 	mr := exectest.NewMockRunner()
 	queueReleaseNotesGit(mr)
-	mr.QueueResponse("", "API rate limit exceeded", errors.New("exit status 1"))
 	mr.QueueResponse("bob@x\n", "", nil) // authorsBefore
-	g := New(mr, &config.ContentDriver{Generator: "native", RemoteMetadata: "optional"}, ModeReleaseNotes)
+	forge := &countingForge{err: errors.New("API rate limit exceeded")}
+	g := New(mr, &config.ContentDriver{Generator: "native", RemoteMetadata: "optional"}, ModeReleaseNotes, WithForge(forge))
 
 	_, err := g.Generate("v1.1.0", ghLC())
 	require.NoError(t, err)
 	require.True(t, g.Degraded())
 	assert.Contains(t, g.DegradedReason(), "remote enrichment unavailable")
-	assert.Contains(t, g.DegradedReason(), "gh api graphql", "reason carries the underlying failure detail")
+	assert.Contains(t, g.DegradedReason(), "API rate limit exceeded", "reason carries the underlying failure detail")
 }
 
 func TestGenerate_Enrich_RequiredFailure_Errors(t *testing.T) {
 	mr := exectest.NewMockRunner()
 	queueReleaseNotesGit(mr)
-	mr.QueueResponse("", "API rate limit exceeded", errors.New("exit status 1"))
-	g := New(mr, &config.ContentDriver{Generator: "native", RemoteMetadata: "required"}, ModeReleaseNotes)
+	forge := &countingForge{err: errors.New("API rate limit exceeded")}
+	g := New(mr, &config.ContentDriver{Generator: "native", RemoteMetadata: "required"}, ModeReleaseNotes, WithForge(forge))
 
 	_, err := g.Generate("v1.1.0", ghLC())
 	require.Error(t, err)
@@ -246,9 +255,9 @@ func TestGenerate_Enrich_RequiredFailure_Errors(t *testing.T) {
 func TestGenerate_Enrich_RequiredFailure_ForceDegrades(t *testing.T) {
 	mr := exectest.NewMockRunner()
 	queueReleaseNotesGit(mr)
-	mr.QueueResponse("", "API rate limit exceeded", errors.New("exit status 1"))
 	mr.QueueResponse("bob@x\n", "", nil) // authorsBefore — reached because force degrades past the failure
-	g := New(mr, &config.ContentDriver{Generator: "native", RemoteMetadata: "required", Force: true}, ModeReleaseNotes)
+	forge := &countingForge{err: errors.New("API rate limit exceeded")}
+	g := New(mr, &config.ContentDriver{Generator: "native", RemoteMetadata: "required", Force: true}, ModeReleaseNotes, WithForge(forge))
 
 	out, err := g.Generate("v1.1.0", ghLC())
 	require.NoError(t, err, "--force downgrades required to optional")
@@ -256,7 +265,8 @@ func TestGenerate_Enrich_RequiredFailure_ForceDegrades(t *testing.T) {
 	assert.True(t, g.Degraded())
 }
 
-// --force also downgrades the nil-context (unconfigured remote) case: render bare, no error.
+// --force also downgrades the nil-context / no-forge (unconfigured remote) case: render bare, no
+// error.
 func TestGenerate_Enrich_RequiredNilContext_ForceDegrades(t *testing.T) {
 	mr := exectest.NewMockRunner()
 	queueReleaseNotesGit(mr)
@@ -267,9 +277,10 @@ func TestGenerate_Enrich_RequiredNilContext_ForceDegrades(t *testing.T) {
 	require.NoError(t, err, "--force downgrades required even with no remote configured")
 }
 
-// required with no resolvable remote (nil LinkContext) cannot be satisfied — there is nothing to
-// fetch from — so it must be a hard error, not a silent metadata-less render. Regression guard for
-// the state native was permanently in before changelog.remote worked with the native generator.
+// required with no resolvable remote (nil LinkContext, no injected forge) cannot be satisfied —
+// there is nothing to fetch from — so it must be a hard error, not a silent metadata-less render.
+// Regression guard for the state native was permanently in before changelog.remote worked with
+// the native generator.
 func TestGenerate_Enrich_RequiredNilContext_Errors(t *testing.T) {
 	mr := exectest.NewMockRunner()
 	queueReleaseNotesGit(mr)
@@ -282,14 +293,17 @@ func TestGenerate_Enrich_RequiredNilContext_Errors(t *testing.T) {
 }
 
 // Changelog mode enriches only the new (unreleased) section, not historical releases, so a
-// full regeneration stays O(1) API calls regardless of release count (ADR-0034 §5).
+// full regeneration stays O(1) enrichment calls regardless of release count (ADR-0034 §5).
 func TestGenerate_Enrich_ChangelogEnrichesOnlyNewRelease(t *testing.T) {
 	mr := exectest.NewMockRunner()
 	mr.QueueResponse("v1.0.0\n", "", nil)                                                                          // listTags (one existing tag)
 	mr.QueueResponse(record("aaa1111111", "A", "a@example.com", "2026-02-01T00:00:00Z", "feat: new", ""), "", nil) // new release commits
-	mr.QueueResponse(ghGraphQLResponse(50, "https://github.com/o/r/pull/50", "octocat"), "", nil)                  // new release enrich
 	mr.QueueResponse(record("bbb2222222", "B", "b@example.com", "2026-01-01T00:00:00Z", "fix: old", ""), "", nil)  // existing v1.0.0 commits (no enrich)
-	g := New(mr, &config.ContentDriver{Generator: "native", RemoteMetadata: "optional"}, ModeChangelog)
+	forge := &countingForge{en: port.Enrichment{
+		PRs:     map[string]port.PullRequest{"aaa1111111": {Number: 50, URL: "https://github.com/o/r/pull/50", RefPrefix: "#"}},
+		Authors: map[string]string{"aaa1111111": "octocat"},
+	}}
+	g := New(mr, &config.ContentDriver{Generator: "native", RemoteMetadata: "optional"}, ModeChangelog, WithForge(forge))
 
 	body, err := g.Generate("v1.1.0", ghLC())
 	require.NoError(t, err)
@@ -297,11 +311,5 @@ func TestGenerate_Enrich_ChangelogEnrichesOnlyNewRelease(t *testing.T) {
 	assert.Contains(t, body, "by @octocat in [#50]", "new section is enriched")
 	assert.Contains(t, body, "## [1.0.0]", "historical section present but bare")
 
-	ghCalls := 0
-	for _, c := range mr.Calls {
-		if c.Name == "gh" {
-			ghCalls++
-		}
-	}
-	assert.Equal(t, 1, ghCalls, "only the new release triggers enrichment")
+	assert.Equal(t, 1, forge.calls, "only the new release triggers enrichment")
 }

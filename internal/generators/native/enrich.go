@@ -1,21 +1,10 @@
 package native
 
 import (
-	"encoding/json"
 	"fmt"
-	"time"
 
 	"github.com/adaouat/heraut/internal/port"
 )
-
-// gqlString renders s as a GraphQL string literal (surrounding quotes + escaping), so values
-// interpolated into a query (project paths, refs, cursors, SHAs) cannot break out of it. A JSON
-// string literal is a valid GraphQL string literal for these inputs; for quote-free values the
-// output is byte-identical to the previous `"%s"` interpolation.
-func gqlString(s string) string {
-	b, _ := json.Marshal(s)
-	return string(b)
-}
 
 // enrichResult bundles per-commit remote data: associated PRs and commit-author handles.
 type enrichResult struct {
@@ -23,82 +12,21 @@ type enrichResult struct {
 	authors map[string]string
 }
 
-// enrich resolves PR/MR enrichment for commits via the platform's CLI, returning an enrichResult.
-// Returns a zero enrichResult when lc is nil or the platform has no enrichment support yet. This
-// is the platform-dispatch seam: GitLab and Azure DevOps slot in as additional cases.
+// enrich resolves PR/MR enrichment for commits via the injected port.Forge (ADR-0043), returning
+// an enrichResult. Returns a zero enrichResult when no forge is configured.
 func (g *Generator) enrich(lc *port.LinkContext, commits []rawCommit) (enrichResult, error) {
-	if g.forge != nil {
-		pc := make([]port.Commit, 0, len(commits))
-		for _, c := range commits {
-			pc = append(pc, port.Commit{Hash: c.Hash, Author: c.Author, Email: c.Email, Date: c.Date})
-		}
-		en, err := g.forge.Enrich(pc)
-		if err != nil {
-			return enrichResult{}, err
-		}
-		return enrichResult{prs: fromPortPRs(en.PRs), authors: en.Authors}, nil
-	}
-	if lc == nil {
+	if g.forge == nil {
 		return enrichResult{}, nil
 	}
-	shas := make([]string, 0, len(commits))
+	pc := make([]port.Commit, 0, len(commits))
 	for _, c := range commits {
-		shas = append(shas, c.Hash)
+		pc = append(pc, port.Commit{Hash: c.Hash, Author: c.Author, Email: c.Email, Date: c.Date})
 	}
-	switch lc.Platform {
-	case "github":
-		prs, authors, err := enrichGitHub(g.runner, lc, shas)
-		return enrichResult{prs: prs, authors: authors}, err
-	case "gitlab":
-		prs, authors, err := enrichGitLab(g.runner, lc, shas, oldestCommitDate(commits), newestSHA(commits))
-		return enrichResult{prs: prs, authors: authors}, err
-	case "azure_devops":
-		prs, err := enrichAzure(g.httpClient, lc, shas)
-		return enrichResult{prs: prs, authors: azureCommitAuthors(commits)}, err
-	default:
-		return enrichResult{}, nil
+	en, err := g.forge.Enrich(pc)
+	if err != nil {
+		return enrichResult{}, err
 	}
-}
-
-// oldestCommitDate returns the minimum committed date over commits (bounds the GitLab fetch), or
-// the zero time when empty.
-func oldestCommitDate(commits []rawCommit) time.Time {
-	var oldest time.Time
-	for _, c := range commits {
-		if oldest.IsZero() || c.Date.Before(oldest) {
-			oldest = c.Date
-		}
-	}
-	return oldest
-}
-
-// newestSHA returns the hash of the newest-dated commit (the range tip; the commits(ref:) anchor),
-// or "" when empty. Accepted heuristic: under rewritten committer dates (rebase/amend) the
-// max-date commit may not be an ancestor of the true tip, so those commits' authors won't
-// resolve — graceful (missing `by @`, never wrong data), since SHA match remains authoritative.
-func newestSHA(commits []rawCommit) string {
-	var newest rawCommit
-	for _, c := range commits {
-		if newest.Date.IsZero() || c.Date.After(newest.Date) {
-			newest = c
-		}
-	}
-	return newest.Hash
-}
-
-// enrichable reports whether lc has a platform this generator can fetch metadata from. Under
-// remote_metadata: required, an lc that is not enrichable (nil, or an unsupported platform) means
-// the requirement cannot be satisfied. Keep the platform set in sync with enrich()'s switch.
-func enrichable(lc *port.LinkContext) bool {
-	if lc == nil {
-		return false
-	}
-	switch lc.Platform {
-	case "github", "gitlab", "azure_devops":
-		return true
-	default:
-		return false
-	}
+	return enrichResult{prs: fromPortPRs(en.PRs), authors: en.Authors}, nil
 }
 
 // enrichForRelease applies the remote_metadata policy (ADR-0023 / ADR-0034 §6) around enrich:
@@ -107,9 +35,8 @@ func enrichable(lc *port.LinkContext) bool {
 //   - "optional" / "" (default): fetch; on failure, drop enrichment, mark the generator
 //     degraded, and warn once. Rendering then proceeds without PR attribution.
 //
-// A nil / unsupported platform is not a failure — it simply yields no enrichment. An injected
-// forge (ADR-0043) satisfies "required" on its own: it carries its own identity and enrich()
-// ignores lc entirely on that path, so a nil lc is not the "nothing configured" case.
+// No forge configured is not itself a failure — it simply yields no enrichment — except under
+// "required", where an unconfigured forge cannot satisfy the policy and is a hard error.
 func (g *Generator) enrichForRelease(lc *port.LinkContext, commits []rawCommit) (enrichResult, error) {
 	if g.cfg.RemoteMetadata == "disabled" {
 		return enrichResult{}, nil
@@ -117,7 +44,7 @@ func (g *Generator) enrichForRelease(lc *port.LinkContext, commits []rawCommit) 
 	// --force downgrades required to optional: an unavailable or unconfigured remote degrades
 	// instead of erroring.
 	required := g.cfg.RemoteMetadata == "required" && !g.cfg.Force
-	if required && g.forge == nil && !enrichable(lc) {
+	if required && g.forge == nil {
 		return enrichResult{}, fmt.Errorf("remote enrichment (required): no changelog remote or release platform configured to fetch PR/MR metadata from")
 	}
 	er, err := g.enrich(lc, commits)

@@ -107,7 +107,12 @@ func TestLinkContextFromIdentity(t *testing.T) {
 		{name: "missing type → nil", id: port.ForgeIdentity{Host: "https://gitlab.example.com", Project: "group/proj"}, want: nil},
 		{name: "missing host → nil", id: port.ForgeIdentity{Type: "gitlab", Project: "group/proj"}, want: nil},
 		{name: "missing project → nil", id: port.ForgeIdentity{Type: "gitlab", Host: "https://gitlab.example.com"}, want: nil},
-		{name: "azure_devops → nil (no Repository field yet, see enrich_azure.go)", id: port.ForgeIdentity{Type: "azure_devops", Host: "https://dev.azure.com", Project: "organization/project"}, want: nil},
+		{
+			name: "azure_devops maps Owner to the full organization/project and Repo to Repository",
+			id:   port.ForgeIdentity{Type: "azure_devops", Host: "https://dev.azure.com", Project: "myorg/myproject", Repository: "myrepo", Token: "tok"},
+			want: &port.LinkContext{BaseURL: "https://dev.azure.com", Owner: "myorg/myproject", Repo: "myrepo", Platform: "azure_devops", Token: "tok"},
+		},
+		{name: "azure_devops with empty Repository → nil", id: port.ForgeIdentity{Type: "azure_devops", Host: "https://dev.azure.com", Project: "myorg/myproject"}, want: nil},
 		{
 			name: "gitlab nested subgroup",
 			id:   port.ForgeIdentity{Type: "gitlab", Host: "https://gitlab.example.com", Project: "group/subgroup/project", Token: "tok"},
@@ -144,8 +149,8 @@ func TestChangelogLinkContext_ForgeIdentityWinsOverAmbient(t *testing.T) {
 
 // TestChangelogLinkContext_IncompleteIdentityFallsThroughToPlatform confirms a partially
 // resolved forge identity (e.g. a token-only auto-detection with no known Project, or an
-// azure_devops identity linkContextFromIdentity can't yet consume) does not pre-empt the
-// release.platforms[0] fallback — regression coverage for the self-hosted/azure findings.
+// azure_devops identity missing its Repository) does not pre-empt the release.platforms[0]
+// fallback — regression coverage for the self-hosted/azure findings.
 func TestChangelogLinkContext_IncompleteIdentityFallsThroughToPlatform(t *testing.T) {
 	t.Setenv("CI_PROJECT_URL", "")
 	t.Setenv("CI_SERVER_URL", "")
@@ -158,7 +163,7 @@ func TestChangelogLinkContext_IncompleteIdentityFallsThroughToPlatform(t *testin
 		id   port.ForgeIdentity
 	}{
 		{name: "empty project (token-only auto-detection)", id: port.ForgeIdentity{Type: "gitlab", Host: "https://gitlab.com"}},
-		{name: "azure_devops identity", id: port.ForgeIdentity{Type: "azure_devops", Host: "https://dev.azure.com", Project: "organization/project"}},
+		{name: "azure_devops identity with no Repository", id: port.ForgeIdentity{Type: "azure_devops", Host: "https://dev.azure.com", Project: "myorg/myproject"}},
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
