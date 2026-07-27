@@ -344,12 +344,14 @@ release:
 #     #   generator: git-cliff
 #     #   tag_pattern: "^dev/"
 #
-#     # release overrides — independently override notes and/or platforms.
+#     # release overrides — independently override notes and/or platforms/targets.
 #     # release:
 #     #   notes:
 #     #     generator: git-cliff
 #     #   platforms:
 #     #     - platform: gitlab
+#     #   targets:              # ADR-0043; additive alongside platforms
+#     #     - forge: gitlab-saas
 #
 #   staging:
 #     bump: promote

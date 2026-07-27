@@ -528,6 +528,13 @@
             "$ref": "#/definitions/Platform"
           },
           "description": "Override platforms for this environment."
+        },
+        "targets": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/Target"
+          },
+          "description": "Override release publish targets for this environment (ADR-0043). Additive alongside platforms."
         }
       }
     },

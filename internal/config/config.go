@@ -81,6 +81,9 @@ type Environment struct {
 type EnvRelease struct {
 	Notes     *ContentDriver `yaml:"notes,omitempty"`
 	Platforms []Platform     `yaml:"platforms,omitempty"`
+	// Targets lists per-environment release publish destinations, mirroring Release.Targets
+	// (ADR-0043). Additive alongside Platforms for now.
+	Targets []Target `yaml:"targets,omitempty"`
 }
 
 // ContentDriver configures a content generator (git-cliff, communique).
