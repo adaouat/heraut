@@ -1,5 +1,28 @@
 # Changelog
 
+<!-- heraut-release: v0.56.0 -->
+## [0.56.0](https://github.com/adaouat/heraut/compare/v0.55.0..v0.56.0) - 2026-07-27
+
+### 🚀 Features
+
+- *(forge/azure)* Implement port.Forge and retire the enrich switch (T162) - ([df4d94b](https://github.com/adaouat/heraut/commit/df4d94b72543f1d2eeaeeb9a25ee9de53ce921b3)) by @bchatard
+
+- *(forge/github)* Implement port.Forge over native net/http (T161) - ([4730514](https://github.com/adaouat/heraut/commit/4730514aec2b0f25516e18c7597414eee4b4a80e)) by @bchatard
+
+
+### 🐛 Bug Fixes
+
+- *(forge)* Parse legacy Azure visualstudio.com SYSTEM_COLLECTIONURI - ([95af7dd](https://github.com/adaouat/heraut/commit/95af7dd92c909be21e507b708607c780191133b9)) by @bchatard
+
+- *(forge)* Correct GHES GraphQL endpoint and Azure org duplication - ([b832ea3](https://github.com/adaouat/heraut/commit/b832ea3cab8addc6d8f67c512149e66942e4940d)) by @bchatard
+
+
+### 📚 Documentation
+
+- *(plans)* P2 — GitHub + Azure onto port.Forge (T161, T162) - ([fba116a](https://github.com/adaouat/heraut/commit/fba116a3ccbdd04b0f55e7642ae35dd80bbfe92d)) by @bchatard
+
+- *(roadmap)* Log T168-T170 from P2's final review - ([7824198](https://github.com/adaouat/heraut/commit/78241986bd7f3481280db662ae2bedeccc611de0)) by @bchatard
+
 <!-- heraut-release: v0.55.0 -->
 ## [0.55.0](https://github.com/adaouat/heraut/compare/v0.54.0..v0.55.0) - 2026-07-26
 
