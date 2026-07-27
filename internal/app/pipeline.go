@@ -11,6 +11,7 @@ import (
 	forgeui "github.com/adaouat/forge/ui"
 	"github.com/adaouat/heraut/internal/config"
 	"github.com/adaouat/heraut/internal/forge"
+	githubforge "github.com/adaouat/heraut/internal/forge/github"
 	gitlabforge "github.com/adaouat/heraut/internal/forge/gitlab"
 	"github.com/adaouat/heraut/internal/generators/communique"
 	"github.com/adaouat/heraut/internal/generators/gitcliff"
@@ -418,8 +419,11 @@ func resolveEnrichForgeIfNeeded(runner port.Runner, getenv func(string) string, 
 	if len(resolved.Forges) > 0 {
 		id := resolved.Forges[resolved.EnrichmentIndex]
 		forgeID = &id
-		if id.Type == "gitlab" {
+		switch id.Type {
+		case "gitlab":
 			enrichForge = gitlabforge.New(id, nil)
+		case "github":
+			enrichForge = githubforge.New(id, nil)
 		}
 	}
 	return enrichForge, forgeID, nil

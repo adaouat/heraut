@@ -15,13 +15,17 @@ const (
 
 // ForgeIdentity is a forge's fully resolved connection facts (from config, CI env, or git origin).
 type ForgeIdentity struct {
-	Type      string // "github" | "gitlab" | "azure_devops"
-	Host      string // web host, e.g. "https://gitlab.example.com"
-	APIURL    string // API base, e.g. "https://gitlab.example.com/api/v4"
-	Project   string // "owner/repo" | "group/subgroup/project" | "organization/project"
-	Token     string
-	TokenKind TokenKind
-	APIMode   string // "rest" | "graphql"
+	Type    string // "github" | "gitlab" | "azure_devops"
+	Host    string // web host, e.g. "https://gitlab.example.com"
+	APIURL  string // API base, e.g. "https://gitlab.example.com/api/v4"
+	Project string // "owner/repo" | "group/subgroup/project" | "organization/project"
+	// Repository is the repository name when a forge separates it from the project path — Azure
+	// DevOps addresses a repo as organization/project + repository. GitHub and GitLab carry the
+	// full path in Project and leave this empty.
+	Repository string
+	Token      string
+	TokenKind  TokenKind
+	APIMode    string // "rest" | "graphql"
 }
 
 // Author is a resolved platform user handle.

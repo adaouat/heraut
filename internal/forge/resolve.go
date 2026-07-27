@@ -57,13 +57,14 @@ func resolveExplicit(cfg *config.Config, getenv func(string) string, gitOrigin s
 		token, kind := resolveToken(f.TokenEnv, getenv, ciMatches, ciToken, ciKind, defaultTokenEnvFor(f.Type))
 
 		forges[i] = port.ForgeIdentity{
-			Type:      f.Type,
-			Host:      resolveField(f.BaseURL, ciMatches, ciHost, originMatches, originHost, defaultHostFor(f.Type)),
-			APIURL:    resolveField(f.APIURL, ciMatches, ciAPIURL, false, "", ""),
-			Project:   resolveField(configProject(f), ciMatches, ciProject, originMatches, originProject, ""),
-			Token:     token,
-			TokenKind: kind,
-			APIMode:   apiMode,
+			Type:       f.Type,
+			Host:       resolveField(f.BaseURL, ciMatches, ciHost, originMatches, originHost, defaultHostFor(f.Type)),
+			APIURL:     resolveField(f.APIURL, ciMatches, ciAPIURL, false, "", ""),
+			Project:    resolveField(configProject(f), ciMatches, ciProject, originMatches, originProject, ""),
+			Repository: repositoryFor(f),
+			Token:      token,
+			TokenKind:  kind,
+			APIMode:    apiMode,
 		}
 	}
 
@@ -154,6 +155,16 @@ func configProject(f config.Forge) string {
 		return f.Repository
 	}
 	return f.Project
+}
+
+// repositoryFor returns the identity's Repository field: only azure_devops separates the
+// repository name from the project path (organization/project + repository). GitHub and GitLab
+// carry the full path in Project and leave this empty.
+func repositoryFor(f config.Forge) string {
+	if f.Type == "azure_devops" {
+		return f.Repository
+	}
+	return ""
 }
 
 // resolveField fills a single field's gap, in precedence order: explicit → CI (when it applies)

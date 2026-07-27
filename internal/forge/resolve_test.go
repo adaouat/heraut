@@ -72,6 +72,17 @@ func TestResolve_ExplicitForgeFillsFromCI(t *testing.T) {
 	assert.Equal(t, "graphql", f.APIMode)                 // explicit
 }
 
+func TestResolve_ExplicitAzureForgeSplitsProjectAndRepository(t *testing.T) {
+	cfg := &config.Config{Forges: []config.Forge{{
+		Name: "A", Type: "azure_devops", Project: "myorg/myproject", Repository: "myrepo",
+	}}}
+	got, err := forge.Resolve(cfg, env(nil), "")
+	require.NoError(t, err)
+	f := got.Forges[0]
+	assert.Equal(t, "myorg/myproject", f.Project)
+	assert.Equal(t, "myrepo", f.Repository)
+}
+
 func TestResolve_NoForgeOffline(t *testing.T) {
 	got, err := forge.Resolve(&config.Config{}, env(map[string]string{}), "")
 	require.NoError(t, err)

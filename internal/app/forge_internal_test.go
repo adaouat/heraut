@@ -84,7 +84,7 @@ func TestResolveEnrichForgeIfNeeded(t *testing.T) {
 		assert.Equal(t, "gitlab", f.Type())
 	})
 
-	t.Run("non-gitlab resolved forge yields no enrich forge but keeps the identity", func(t *testing.T) {
+	t.Run("resolves and constructs a github forge for a native driver", func(t *testing.T) {
 		mr := exectest.NewMockRunner()
 		mr.QueueResponse("", "", assertNoOriginErr)
 		cfg := &config.Config{Forges: []config.Forge{{Name: "gh", Type: "github", Repository: "acme/widget"}}}
@@ -92,7 +92,8 @@ func TestResolveEnrichForgeIfNeeded(t *testing.T) {
 		require.NoError(t, err)
 		require.NotNil(t, id)
 		assert.Equal(t, "github", id.Type)
-		assert.Nil(t, f, "no port.Forge implementation exists yet for github")
+		require.NotNil(t, f, "a concrete github.Forge must be constructed and assigned through the interface")
+		assert.Equal(t, "github", f.Type())
 	})
 
 	t.Run("ambiguous forge propagates as an error", func(t *testing.T) {

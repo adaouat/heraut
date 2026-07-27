@@ -37,7 +37,7 @@ targets); `commits.remote_metadata` is renamed `commits.enrichment_policy`.
 | Phase                                                    | Tasks       | Status      |
 |----------------------------------------------------------|-------------|-------------|
 | P1 — GitLab-first: `port.Forge` + config + resolution + native REST/GraphQL + links | T154–T160 | Complete |
-| P2 — migrate GitHub + Azure onto `port.Forge`            | T161, T162  | Not started |
+| P2 — migrate GitHub + Azure onto `port.Forge`            | T161, T162  | In progress |
 | P3 — fold publishing into `port.Forge`                   | T163        | Not started |
 | P4 (last) — `heraut init` wizard                         | T164        | Not started |
 
@@ -258,11 +258,26 @@ Carried forward so they are not rediscovered once a consumer wires `port.Forge` 
 Bring the other two platforms under the interface so enrichment is uniform and the `enrich()` switch
 retires.
 
-#### `[ ]` T161: GitHub forge onto `port.Forge`
+#### `[x]` T161: GitHub forge onto `port.Forge`
 
 Migrate GitHub enrichment (`gh api graphql`, `GITHUB_TOKEN`) to a `internal/forge/github`
 implementing `port.Forge`. Transport may stay `gh api` (its token works everywhere) or move to
 native http — decided at plan time. Tests: contract parity with today's GitHub enrichment.
+
+Implemented `internal/forge/github` over stdlib `net/http` (not `gh api`), matching the transport
+decision already made for GitLab in P1 — `heraut changelog` now needs no `gh` CLI on PATH for
+GitHub enrichment. The GraphQL query (`prFragment`, aliased `s0…sN` batching, 50-SHA chunking) and
+response-mapping logic were ported verbatim from `internal/generators/native/enrich_github.go`,
+changing only the transport (POST to `{apiBase}/graphql` with a bearer token) and the result types
+(`port.PullRequest`/`port.Author` instead of the native package's own structs). Added `Repository`
+to `port.ForgeIdentity` for forges (Azure DevOps) that separate the repo name from the project
+path; GitHub/GitLab continue to carry the full path in `Project` and leave it empty.
+`internal/forge/resolve.go` populates it for `azure_devops` only, with a dedicated resolve_test.go
+row. Wired into `internal/app/pipeline.go`'s `resolveEnrichForgeIfNeeded` type switch alongside
+`gitlab`, guarding the typed-nil hazard by assigning to the `port.Forge` interface variable only
+inside each case. Updated the stale `forge_internal_test.go` subtest that previously asserted "no
+forge for github" to assert one is constructed with `Type() == "github"`. `gh` is still used for
+publishing (`internal/platforms/github`) — untouched, out of scope for this task.
 
 #### `[ ]` T162: Azure forge onto `port.Forge` + retire the switch
 
