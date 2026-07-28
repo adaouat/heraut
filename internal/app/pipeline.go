@@ -171,6 +171,7 @@ func buildReleasePipelineConfig(runner, readRunner port.Runner, cfg *config.Conf
 		releaseAssets = cfg.Release.Assets
 	}
 	effectivePlatforms := config.EffectivePlatforms(cfg, env)
+	effectiveTargets := config.EffectiveTargets(cfg, env)
 
 	if env != "" {
 		if envCfg, ok := cfg.Environments[env]; ok {
@@ -187,16 +188,28 @@ func buildReleasePipelineConfig(runner, readRunner port.Runner, cfg *config.Conf
 		}
 	}
 
-	// Resolve the forges once and share the result between enrichment and publishing — a second
-	// forge.Resolve call would add a duplicate `git remote get-url origin` invocation (and could
-	// break MockRunner's FIFO response ordering in tests). Publishing needs this resolution
-	// regardless of the native generator or the enrichment policy: --offline only disables PR/MR
-	// enrichment, not publish-target resolution, which is local (config/CI-env/git-origin), not a
-	// network call.
-	resolved, err := resolveForge(readRunner, os.Getenv, cfg)
-	if err != nil {
-		return nil, err
+	// Enrichment and publishing share one forge resolution — a second forge.Resolve call would add
+	// a duplicate `git remote get-url origin` invocation (and could break MockRunner's FIFO
+	// response ordering in tests). It runs, and is allowed to be fatal, only when something
+	// actually consumes it: enrichment (a native generator with the policy not disabled), an
+	// explicit release.targets list, or the zero-config publish synthesis path in
+	// buildTargetPlatforms. Resolution is local (config / CI env / git origin) but can still fail —
+	// an ambiguous multi-token machine yields forge.ErrAmbiguousForge — and a release.platforms-only
+	// config consumes none of it, so that failure must not abort its release. The disabled-policy
+	// exclusion preserves resolveEnrichForgeIfNeeded's guarantee that switching enrichment off
+	// (including via --offline) can never itself *cause* a failure.
+	needsForge := (usesNative(effectiveChangelog, effectiveNotes) && cfg.EnrichmentPolicy() != "disabled") ||
+		len(effectiveTargets) > 0 ||
+		(len(effectivePlatforms) == 0 && len(effectiveTargets) == 0)
+
+	var resolved forge.Resolved
+	if needsForge {
+		var err error
+		if resolved, err = resolveForge(readRunner, os.Getenv, cfg); err != nil {
+			return nil, err
+		}
 	}
+
 	var enrichForge port.Forge
 	var forgeID *port.ForgeIdentity
 	if usesNative(effectiveChangelog, effectiveNotes) && cfg.EnrichmentPolicy() != "disabled" {
@@ -241,7 +254,7 @@ func buildReleasePipelineConfig(runner, readRunner port.Runner, cfg *config.Conf
 	}
 
 	// Targets (release.targets — ADR-0043, additive alongside release.platforms).
-	targetPlatforms, err := buildTargetPlatforms(runner, cfg, env, releaseAssets, resolved, len(effectivePlatforms) > 0)
+	targetPlatforms, err := buildTargetPlatforms(runner, cfg, effectiveTargets, releaseAssets, resolved, len(effectivePlatforms) > 0)
 	if err != nil {
 		return nil, err
 	}
@@ -262,8 +275,7 @@ func buildReleasePipelineConfig(runner, readRunner port.Runner, cfg *config.Conf
 // gain a silent second, zero-config-detected publish target alongside their configured one.
 // release.assets propagates to targets that declare none, with LenientAssets = true, mirroring
 // release.platforms.
-func buildTargetPlatforms(runner port.Runner, cfg *config.Config, env string, releaseAssets []string, resolved forge.Resolved, hasEffectivePlatforms bool) ([]port.Platform, error) {
-	targets := config.EffectiveTargets(cfg, env)
+func buildTargetPlatforms(runner port.Runner, cfg *config.Config, targets []config.Target, releaseAssets []string, resolved forge.Resolved, hasEffectivePlatforms bool) ([]port.Platform, error) {
 	if len(targets) == 0 {
 		if hasEffectivePlatforms || len(resolved.Forges) == 0 {
 			return nil, nil

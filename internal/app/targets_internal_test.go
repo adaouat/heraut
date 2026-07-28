@@ -5,6 +5,7 @@ import (
 
 	"github.com/adaouat/forge/exec/exectest"
 	"github.com/adaouat/heraut/internal/config"
+	"github.com/adaouat/heraut/internal/forge"
 	"github.com/adaouat/heraut/internal/port"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -195,5 +196,124 @@ func TestBuildReleasePipelineConfig_TargetsWiring(t *testing.T) {
 		_, err := buildReleasePipelineConfig(runner, readRunner, cfg, "", "", false, false)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "does-not-exist")
+	})
+}
+
+// TestBuildReleasePipelineConfig_ForgeResolutionErrorScope pins when a forge-resolution failure is
+// allowed to abort a release. Resolution is local (config / CI env / git origin) and can fail on a
+// plain developer machine — e.g. both GITHUB_TOKEN and GITLAB_TOKEN exported, the standard default
+// token envs for gh/glab, outside CI with no recognised origin, which forge.Resolve reports as
+// ErrAmbiguousForge. That must only be fatal when something actually consumes the resolution:
+// enrichment (native + policy not disabled), a non-empty release.targets, or the zero-config
+// publish synthesis path. A release.platforms-only config consumes none of it and must publish
+// exactly as it did before publishing started resolving forges at all.
+func TestBuildReleasePipelineConfig_ForgeResolutionErrorScope(t *testing.T) {
+	// ambiguousEnv makes forge.Resolve's zero-config auto-detection fail with ErrAmbiguousForge:
+	// two candidate token envs and nothing (CI marker, git origin) to disambiguate them.
+	ambiguousEnv := func(t *testing.T) {
+		t.Helper()
+		clearCIEnv(t)
+		t.Setenv("GITHUB_TOKEN", "ghp-placeholder")
+		t.Setenv("GITLAB_TOKEN", "glpat-placeholder")
+	}
+
+	t.Run("not fatal when nothing consumes the resolution (git-cliff + release.platforms only)", func(t *testing.T) {
+		ambiguousEnv(t)
+		runner := exectest.NewMockRunner()
+		readRunner := exectest.NewMockRunner()
+		readRunner.QueueResponse("", "", assertNoOriginErr)
+
+		cfg := &config.Config{
+			Version:    "1",
+			Versioning: config.Versioning{Strategy: "semver"},
+			Changelog:  &config.ContentDriver{Generator: "git-cliff", Output: "CHANGELOG.md"},
+			Release: &config.Release{
+				Platforms: []config.Platform{{Type: "github", Name: "gh", Repository: "acme/widget"}},
+			},
+		}
+
+		pCfg, err := buildReleasePipelineConfig(runner, readRunner, cfg, "", "", false, false)
+		require.NoError(t, err, "an unusable forge must not abort a release that never consults one")
+		require.Len(t, pCfg.Platforms, 1, "release.platforms must still build its declared platform")
+		assert.Nil(t, pCfg.ForgeIdentity, "no forge-derived identity when resolution was not consumed")
+	})
+
+	t.Run("fatal when release.targets needs the resolution", func(t *testing.T) {
+		ambiguousEnv(t)
+		runner := exectest.NewMockRunner()
+		readRunner := exectest.NewMockRunner()
+		readRunner.QueueResponse("", "", assertNoOriginErr)
+
+		cfg := &config.Config{
+			Version:    "1",
+			Versioning: config.Versioning{Strategy: "semver"},
+			Release: &config.Release{
+				Targets: []config.Target{{}},
+			},
+		}
+
+		_, err := buildReleasePipelineConfig(runner, readRunner, cfg, "", "", false, false)
+		require.Error(t, err, "a target that cannot be resolved to a forge must abort the release")
+		assert.ErrorIs(t, err, forge.ErrAmbiguousForge)
+	})
+
+	t.Run("fatal when the zero-config publish synthesis path needs the resolution", func(t *testing.T) {
+		ambiguousEnv(t)
+		runner := exectest.NewMockRunner()
+		readRunner := exectest.NewMockRunner()
+		readRunner.QueueResponse("", "", assertNoOriginErr)
+
+		cfg := &config.Config{
+			Version:    "1",
+			Versioning: config.Versioning{Strategy: "semver"},
+		}
+
+		_, err := buildReleasePipelineConfig(runner, readRunner, cfg, "", "", false, false)
+		require.Error(t, err)
+		assert.ErrorIs(t, err, forge.ErrAmbiguousForge)
+	})
+
+	t.Run("fatal when enrichment needs the resolution (native generator)", func(t *testing.T) {
+		ambiguousEnv(t)
+		runner := exectest.NewMockRunner()
+		readRunner := exectest.NewMockRunner()
+		readRunner.QueueResponse("", "", assertNoOriginErr)
+
+		cfg := &config.Config{
+			Version:    "1",
+			Versioning: config.Versioning{Strategy: "semver"},
+			Changelog:  &config.ContentDriver{Generator: "native", Output: "CHANGELOG.md"},
+			Release: &config.Release{
+				Platforms: []config.Platform{{Type: "github", Name: "gh", Repository: "acme/widget"}},
+			},
+		}
+
+		_, err := buildReleasePipelineConfig(runner, readRunner, cfg, "", "", false, false)
+		require.Error(t, err)
+		assert.ErrorIs(t, err, forge.ErrAmbiguousForge)
+	})
+
+	t.Run("not fatal when the native generator has enrichment disabled", func(t *testing.T) {
+		// --offline (and enrichment_policy: disabled) must never let an unusable forge cause a
+		// failure — the pre-existing guarantee in resolveEnrichForgeIfNeeded's contract.
+		ambiguousEnv(t)
+		runner := exectest.NewMockRunner()
+		readRunner := exectest.NewMockRunner()
+		readRunner.QueueResponse("", "", assertNoOriginErr)
+
+		cfg := &config.Config{
+			Version:    "1",
+			Versioning: config.Versioning{Strategy: "semver"},
+			Changelog:  &config.ContentDriver{Generator: "native", Output: "CHANGELOG.md"},
+			Commits:    &config.Commits{EnrichmentPolicy: "disabled"},
+			Release: &config.Release{
+				Platforms: []config.Platform{{Type: "github", Name: "gh", Repository: "acme/widget"}},
+			},
+		}
+
+		pCfg, err := buildReleasePipelineConfig(runner, readRunner, cfg, "", "", false, false)
+		require.NoError(t, err)
+		require.Len(t, pCfg.Platforms, 1)
+		assert.Nil(t, pCfg.ForgeIdentity)
 	})
 }
