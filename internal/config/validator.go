@@ -194,6 +194,20 @@ func validateForges(cfg *Config) []ValidationError {
 				Hint:    "valid api_mode values: rest, graphql",
 			})
 		}
+		if f.BaseURL != "" && !isValidBaseURL(f.BaseURL) {
+			errs = append(errs, ValidationError{
+				Path:    path + ".base_url",
+				Message: fmt.Sprintf("%q is not a valid URL", f.BaseURL),
+				Hint:    "base_url must be an absolute http(s) URL, e.g. https://gitlab.example.com",
+			})
+		}
+		if f.APIURL != "" && !isValidBaseURL(f.APIURL) {
+			errs = append(errs, ValidationError{
+				Path:    path + ".api_url",
+				Message: fmt.Sprintf("%q is not a valid URL", f.APIURL),
+				Hint:    "api_url must be an absolute http(s) URL, e.g. https://gitlab.example.com/api",
+			})
+		}
 	}
 
 	if cfg.Commits != nil {
@@ -221,25 +235,44 @@ func validateForges(cfg *Config) []ValidationError {
 	}
 
 	if cfg.Release != nil {
-		for i, t := range cfg.Release.Targets {
-			path := fmt.Sprintf("release.targets[%d].forge", i)
-			switch {
-			case t.Forge != "" && !knownForges[t.Forge]:
-				errs = append(errs, ValidationError{
-					Path:    path,
-					Message: fmt.Sprintf("unknown forge %q", t.Forge),
-					Hint:    "must match one of forges[].name",
-				})
-			case t.Forge == "" && len(cfg.Forges) > 1:
-				errs = append(errs, ValidationError{
-					Path:    path,
-					Message: "required when more than one forge is configured",
-					Hint:    "set forge to one of forges[].name",
-				})
-			}
-		}
+		errs = append(errs, validateTargetForges(cfg.Release.Targets, knownForges, len(cfg.Forges), "release.targets")...)
 	}
 
+	for _, envName := range sortedEnvKeys(cfg.Environments) {
+		env := cfg.Environments[envName]
+		if env.Release == nil {
+			continue
+		}
+		path := fmt.Sprintf("environments.%s.release.targets", envName)
+		errs = append(errs, validateTargetForges(env.Release.Targets, knownForges, len(cfg.Forges), path)...)
+	}
+
+	return errs
+}
+
+// validateTargetForges validates a release.targets list (top-level or per-environment): each
+// entry's forge, when set, must name a known forge, and is required when more than one forge is
+// configured (unambiguous with exactly one). pathPrefix is "release.targets" at the top level or
+// "environments.<env>.release.targets" for a per-env override.
+func validateTargetForges(targets []Target, knownForges map[string]bool, forgeCount int, pathPrefix string) []ValidationError {
+	var errs []ValidationError
+	for i, t := range targets {
+		path := fmt.Sprintf("%s[%d].forge", pathPrefix, i)
+		switch {
+		case t.Forge != "" && !knownForges[t.Forge]:
+			errs = append(errs, ValidationError{
+				Path:    path,
+				Message: fmt.Sprintf("unknown forge %q", t.Forge),
+				Hint:    "must match one of forges[].name",
+			})
+		case t.Forge == "" && forgeCount > 1:
+			errs = append(errs, ValidationError{
+				Path:    path,
+				Message: "required when more than one forge is configured",
+				Hint:    "set forge to one of forges[].name",
+			})
+		}
+	}
 	return errs
 }
 

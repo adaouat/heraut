@@ -8,6 +8,7 @@ import (
 	"maps"
 	"os"
 	"slices"
+	"strings"
 
 	forgeconfig "github.com/adaouat/forge/config"
 	"gopkg.in/yaml.v3"
@@ -116,5 +117,19 @@ func LoadFromReader(r io.Reader) (*Config, error) {
 func normalize(cfg *Config) {
 	if cfg.Changelog != nil && cfg.Changelog.Output == "" {
 		cfg.Changelog.Output = "CHANGELOG.md"
+	}
+	normalizeForges(cfg.Forges)
+}
+
+// normalizeForges trims a trailing slash from each forge's base_url and api_url, mirroring
+// the deleted normalizePlatforms (ADR-0020/ADR-0043). Unlike normalizePlatforms, it does NOT
+// fill a per-type default host when base_url is empty: internal/forge.Resolve already applies
+// defaultHostFor(f.Type) as the last-resort fallback in its resolution precedence
+// (explicit config -> CI env -> git origin -> type default), so filling it here would just be
+// a redundant, earlier application of the same default with none of Resolve's other sources.
+func normalizeForges(forges []Forge) {
+	for i := range forges {
+		forges[i].BaseURL = strings.TrimRight(forges[i].BaseURL, "/")
+		forges[i].APIURL = strings.TrimRight(forges[i].APIURL, "/")
 	}
 }
