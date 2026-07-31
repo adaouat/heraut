@@ -86,7 +86,7 @@ jobs:
           # git-cliff reads GITHUB_TOKEN (not GH_TOKEN) to authenticate its PR-metadata API
           # calls; without it the calls are unauthenticated and hit GitHub's 60/hr shared-IP
           # rate limit. GITHUB_REPO (owner/repo) is injected automatically by heraut from
-          # release.platforms[].repository — no manual env var needed.
+          # forges[].repository — no manual env var needed.
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Release

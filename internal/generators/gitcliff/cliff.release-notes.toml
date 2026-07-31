@@ -116,7 +116,7 @@ sort_commits = "oldest"
 recurse_submodules = false
 
 # PR/MR metadata fetching (authors, PR numbers) is enabled automatically by heraut
-# when owner/repo are known from your release.platforms config — no manual config needed.
+# when owner/repo are known from your forges config — no manual config needed.
 # Token (GITHUB_TOKEN / GITLAB_TOKEN / AZURE_DEVOPS_TOKEN) and repo (GITHUB_REPO /
 # GITLAB_REPO / AZURE_DEVOPS_REPO) are injected from your heraut config. To override or
 # extend, add [remote.github], [remote.gitlab], or [remote.azure_devops].

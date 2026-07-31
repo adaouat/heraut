@@ -109,8 +109,8 @@ outside `/tmp`.
 
 - **Monorepo support** — multiple packages with independent versions in one repo
 - **Artifact publishing** — npm publish, PyPI, Docker Hub, etc. heraut creates the
-  release and uploads pre-built assets via `release.platforms[*].assets`, but it does
-  not build or publish the assets themselves
+  release and uploads pre-built assets via `release.assets` / `release.targets[*].assets`,
+  but it does not build or publish the assets themselves
 - **Rollback** — no command to undo a release
 - **Notification integrations** — Slack, email, etc. on release
 - **Plugin system** — custom platforms / generators require modifying the heraut source

@@ -2,7 +2,7 @@
 
 Generators produce changelog and release-notes text. Platforms publish releases on a
 hosting service. They are independent concerns and combined in `.heraut.yml` under
-`changelog`, `release.notes`, and `release.platforms`.
+`changelog`, `release.notes`, and `release.targets` (each target referencing a `forges[].name`).
 
 ## Generators
 
@@ -283,7 +283,8 @@ multiple platforms should use `git-cliff`
 ### No generator
 
 Omitting `changelog` or `release.notes` skips that output. The release is still
-created on the platforms (if `release.platforms` is configured).
+created on the configured platforms (an explicit `release.targets` entry, or the single
+resolved forge with default options when `release.targets` is omitted).
 
 ## Generator interface
 
@@ -312,18 +313,24 @@ behaviour. **communique does not consume the context** (see its section above).
 ## Platforms
 
 Two platforms are supported: `github` (via `gh`) and `gitlab` (via `glab`). A release
-can be published to one or both — `release.platforms` is a list.
+can be published to one or both — `release.targets` is a list, each entry referencing a
+`forges[].name` ([ADR-0044](../adr/0044-publishing-config-unification.md)). Connection
+fields (`repository`/`project`, `token_env`, `base_url`) live on the `forges:` entry;
+publish behavior (`draft`, `prerelease`, `assets`) lives on the `release.targets` entry.
 
 ### GitHub
 
 ```yaml
+forges:
+  - name: github
+    platform: github
+    repository: org/repo        # optional, defaults to $GITHUB_REPOSITORY
+    token_env: GH_TOKEN         # optional, defaults to GH_TOKEN
+    base_url: https://github.com  # optional, defaults to https://github.com
+
 release:
-  platforms:
-    - platform: github
-      name: github               # required, must be unique within this platforms list
-      repository: org/repo        # optional, defaults to $GITHUB_REPOSITORY
-      token_env: GH_TOKEN         # optional, defaults to GH_TOKEN
-      base_url: https://github.com  # optional, defaults to https://github.com
+  targets:
+    - forge: github              # optional when exactly one forge is configured
       draft: false
       prerelease: false
       assets:
@@ -348,13 +355,16 @@ gh release upload <tag> <file> --repo <repository>     # per asset, after releas
 ### GitLab
 
 ```yaml
+forges:
+  - name: gitlab
+    platform: gitlab
+    project: $CI_PROJECT_PATH   # optional, defaults to $CI_PROJECT_PATH
+    token_env: GITLAB_TOKEN     # optional, defaults to GITLAB_TOKEN
+    base_url: https://gitlab.com  # optional, defaults to https://gitlab.com
+
 release:
-  platforms:
-    - platform: gitlab
-      name: gitlab               # required, must be unique within this platforms list
-      project: $CI_PROJECT_PATH   # optional, defaults to $CI_PROJECT_PATH
-      token_env: GITLAB_TOKEN     # optional, defaults to GITLAB_TOKEN
-      base_url: https://gitlab.com  # optional, defaults to https://gitlab.com
+  targets:
+    - forge: gitlab               # optional when exactly one forge is configured
       assets:
         - dist/myapp_*
 ```
@@ -385,25 +395,29 @@ platform's default (`github.com` / `gitlab.com`). When `base_url` is self-hosted
   target — and instead always validates the configured `token_env`.
 - Resolves `ReleaseURL`/`LinkContext` against `base_url` instead of the type default.
 
-Because `release.platforms` is a list, multiple entries of the *same* platform type are
+Because `forges` is a list, multiple entries of the *same* platform type are
 supported — e.g. publishing to both `gitlab.com` and a self-hosted
 `gitlab.example.com`:
 
 ```yaml
+forges:
+  - name: gitlab-com
+    platform: gitlab
+    project: acme/widget-catalog
+  - name: gitlab-internal
+    platform: gitlab
+    project: acme/widget
+    base_url: https://gitlab.example.com
+
 release:
-  platforms:
-    - platform: gitlab
-      name: gitlab-com
-      project: acme/widget-catalog
-    - platform: gitlab
-      name: gitlab-internal
-      project: acme/widget
-      base_url: https://gitlab.example.com
+  targets:
+    - forge: gitlab-com
+    - forge: gitlab-internal
 ```
 
-Each entry's `name` must be unique within its `release.platforms` list and is used to
-label that entry's row in `heraut check runtime`'s Platforms section and in any
-per-entry error message.
+Each `forges[]` entry's `name` must be unique and is referenced by its `release.targets`
+entry; the name is used to label that entry's row in `heraut check runtime`'s Platforms
+section and in any per-entry error message.
 
 ### Platform interface
 

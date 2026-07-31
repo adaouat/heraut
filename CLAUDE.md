@@ -157,8 +157,9 @@ install them separately. `heraut check runtime` verifies they are on `PATH`.
 
 ## Non-obvious constraints
 
-- `heraut release` requires at least one entry in `release.platforms` — omitting the
-  `release` block (or leaving `platforms` empty) is a config error, not a silent no-op.
+- `heraut release` requires at least one **resolvable** publish destination — an explicit
+  `release.targets` entry, or a forge that auto-detects from CI/git origin. Omitting the
+  `release` block with zero resolvable destinations is a config error, not a silent no-op.
 - `disable_changelog: true` per-env skips changelog generation and the commit, but **not**
   the tag when `--tag` is also passed. Use `heraut changelog --tag --env <env>` for
   tag-only flows on environments where changelog is disabled.

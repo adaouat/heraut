@@ -163,21 +163,26 @@ changelog:
   generator: git-cliff
   output: CHANGELOG.md
 
+forges:
+  - name: github
+    platform: github
+    repository: acme/widget
+    token_env: GH_TOKEN
+
 release:
   notes:
     generator: git-cliff
-  platforms:
-    - platform: github
-      repository: acme/widget
-      token_env: GH_TOKEN
+  targets:
+    - forge: github
 ```
 
 | Block | Purpose |
 |-------|---------|
 | `versioning` | Strategy and options (`semver` / `calver` / `*-per-env`) |
 | `changelog` | Generator for `CHANGELOG.md` (committed during `release`) |
+| `forges` | Code-hosting connections heraut talks to (`github` / `gitlab`, or both); optional when auto-detected from CI or git origin |
 | `release.notes` | Generator for the release-page notes |
-| `release.platforms` | Where to publish (`github`, `gitlab`, or both) |
+| `release.targets` | Publish destinations, each referencing a `forges[].name` |
 | `environments` | Per-environment config for `*-per-env` strategies (bump mode, tag format, promotion source, changelog/release overrides) |
 
 This is the short version. See [Spec 02 — Configuration](docs/specs/02-configuration.md)

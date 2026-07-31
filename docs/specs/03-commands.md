@@ -104,7 +104,8 @@ heraut release [--version <version>] [--build <id>] [--regenerate-changelog] [--
 6. **Generate release notes** (if `release.notes` is configured and not disabled for
    the env) — the notes are needed at release-creation time, so they are produced before
    any platform call
-7. **For each platform** in `release.platforms` (in declared order):
+7. **For each target** in `release.targets` (in declared order, or the single resolved
+   forge with default options when `release.targets` is omitted):
    1. Create the release via `gh release create` / `glab release create`, passing the
       notes from step 6 (`--notes`)
    2. Upload assets matching glob patterns
@@ -202,7 +203,8 @@ versioning:
 # No changelog block, no release block — heraut changelog --tag still works.
 ```
 
-Unlike `heraut release`, this command does **not** require a `release.platforms` entry.
+Unlike `heraut release`, this command does **not** require a resolvable `release.targets`
+entry.
 
 ## `heraut version next`
 
@@ -440,12 +442,13 @@ hard error if any binary is missing. The full platform check (token + API auth) 
 skipped in this case since there is no config to source token names from; only binary
 presence is verified.
 
-**`--env`**: the Platforms section checks the *effective* `release.platforms` list for
-the given environment — the env's `release.platforms` when non-empty, replacing the root
+**`--env`**: the Platforms section checks the *effective* `release.targets` list for
+the given environment — the env's `release.targets` when non-empty, replacing the root
 list entirely; otherwise the root list (same replace semantics as the release pipeline,
-see [ADR-0025](../adr/0025-multi-instance-platforms.md)). Without `--env`, or for an env
-with no `release.platforms` override, the root list is checked. `heraut check` (bare)
-applies the same `--env`-aware resolution.
+see [ADR-0025](../adr/0025-multi-instance-platforms.md)/[ADR-0044](../adr/0044-publishing-config-unification.md)).
+Without `--env`, or for an env with no `release.targets` override, the root list is
+checked (or the single resolved forge with default options when `release.targets` is
+empty). `heraut check` (bare) applies the same `--env`-aware resolution.
 
 ### `heraut check cliff`
 
