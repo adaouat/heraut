@@ -71,6 +71,59 @@ versioning:
   # Can be overridden per environment in the environments block below.
   # tag_format: "{env}/{version}"
 
+# ── environments ───────────────────────────────────────────────────────────────
+#
+# Required for semver-per-env and calver-per-env strategies.
+# One entry per deployment environment.
+# Versioning fields drive version resolution; content fields override changelog/release.
+# Using environments with semver or calver is a hard error.
+#
+# environments:
+#   dev:
+#     # bump mode for this environment:
+#     #   auto    infer from conventional commits since the last tag in this namespace
+#     #   promote copy the version from another environment's latest tag
+#     bump: auto
+#
+#     # tag_format override for this environment only (overrides versioning.tag_format).
+#     # tag_format: "dev/{version}"
+#
+#     # branch restriction: heraut refuses to run here unless this branch is active.
+#     # omit or leave empty for no restriction (the default).
+#     # branch: develop
+#
+#     # disable_changelog: skip changelog generation for this environment.
+#     # disable_changelog: true
+#
+#     # disable_notes: skip release notes generation for this environment.
+#     # disable_notes: true
+#
+#     # changelog override — replace root changelog config for this environment.
+#     # changelog:
+#     #   generator: git-cliff
+#     #   tag_pattern: "^dev/"
+#
+#     # release overrides — independently override notes and/or targets.
+#     # release:
+#     #   notes:
+#     #     generator: git-cliff
+#     #   targets:              # ADR-0043/ADR-0044; replaces the root list entirely for this env
+#     #     - forge: gitlab-saas
+#
+#   staging:
+#     bump: promote
+#     source: dev        # environment to promote from
+#     disable_changelog: true
+#     disable_notes: true
+#
+#   prod:
+#     bump: promote
+#     source: staging    # staging must exist and have a tag before prod can promote
+#     release:
+#       targets:
+#         - forge: gitlab-saas
+#         - forge: github
+
 # ── commits ───────────────────────────────────────────────────────────────────
 #
 # Single source of truth for commit semantics and enrichment (ADR-0033). The type
@@ -174,6 +227,23 @@ forges:
 #   api_mode: rest              # rest (default) | graphql
 #   # token_env: GITLAB_TOKEN   # defaults per type when unset
 
+# ── Multiple instances of the same forge type (ADR-0025/ADR-0044) ─────────────
+# Declare multiple forges: entries (distinct name:, base_url:, token_env:) and
+# reference each from its own release.targets entry to publish to both instances:
+# forges:
+#   - name: gitlab-saas
+#     platform: gitlab
+#     project: acme/widget
+#   - name: gitlab-internal
+#     platform: gitlab
+#     project: tools/widget-mirror
+#     base_url: https://gitlab.example.com
+#     token_env: GITLAB_INTERNAL_TOKEN
+# release:
+#   targets:
+#     - forge: gitlab-saas
+#     - forge: gitlab-internal
+
 # ── changelog ─────────────────────────────────────────────────────────────────
 #
 # Omit this block if you do not want heraut to manage a CHANGELOG.md.
@@ -254,72 +324,3 @@ release:
     # forge — references a forges[].name. Optional when exactly one forge is
     # configured (or auto-detected); required when more than one is configured.
     - forge: github
-      # ── Multiple instances of the same forge type (ADR-0025/ADR-0044) ─────────────
-      # Declare multiple forges: entries (distinct name:, base_url:, token_env:) and
-      # reference each from its own release.targets entry to publish to both instances:
-      # forges:
-      #   - name: gitlab-saas
-      #     platform: gitlab
-      #     project: acme/widget
-      #   - name: gitlab-internal
-      #     platform: gitlab
-      #     project: tools/widget-mirror
-      #     base_url: https://gitlab.example.com
-      #     token_env: GITLAB_INTERNAL_TOKEN
-      # release:
-      #   targets:
-      #     - forge: gitlab-saas
-      #     - forge: gitlab-internal
-
-      # ── environments ───────────────────────────────────────────────────────────────
-      #
-      # Required for semver-per-env and calver-per-env strategies.
-      # One entry per deployment environment.
-      # Versioning fields drive version resolution; content fields override changelog/release.
-      # Using environments with semver or calver is a hard error.
-      #
-      # environments:
-      #   dev:
-      #     # bump mode for this environment:
-      #     #   auto    infer from conventional commits since the last tag in this namespace
-      #     #   promote copy the version from another environment's latest tag
-      #     bump: auto
-      #
-      #     # tag_format override for this environment only (overrides versioning.tag_format).
-      #     # tag_format: "dev/{version}"
-      #
-      #     # branch restriction: heraut refuses to run here unless this branch is active.
-      #     # omit or leave empty for no restriction (the default).
-      #     # branch: develop
-      #
-      #     # disable_changelog: skip changelog generation for this environment.
-      #     # disable_changelog: true
-      #
-      #     # disable_notes: skip release notes generation for this environment.
-      #     # disable_notes: true
-      #
-      #     # changelog override — replace root changelog config for this environment.
-      #     # changelog:
-      #     #   generator: git-cliff
-      #     #   tag_pattern: "^dev/"
-      #
-      #     # release overrides — independently override notes and/or targets.
-      #     # release:
-      #     #   notes:
-      #     #     generator: git-cliff
-      #     #   targets:              # ADR-0043/ADR-0044; replaces the root list entirely for this env
-      #     #     - forge: gitlab-saas
-      #
-      #   staging:
-      #     bump: promote
-      #     source: dev        # environment to promote from
-      #     disable_changelog: true
-      #     disable_notes: true
-      #
-      #   prod:
-      #     bump: promote
-      #     source: staging    # staging must exist and have a tag before prod can promote
-      #     release:
-      #       targets:
-      #         - forge: gitlab-saas
-      #         - forge: github

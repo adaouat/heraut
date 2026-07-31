@@ -381,7 +381,11 @@ Both `notes` and `targets` are optional independently:
 - **Neither, with `targets` omitted entirely** — the release still publishes to the single
   resolved forge with default options (zero-config publishing; see § Identity resolution
   under § `forges` below). This is the common CI shape: no `forges:`, no `release.targets`,
-  and heraut auto-detects the destination from the CI environment or git origin.
+  and heraut auto-detects the destination from the CI environment or git origin. On GitHub
+  Actions this still requires `GH_TOKEN` to be exported: the identity's token is resolved for
+  enrichment but is not passed to the `gh`-based driver, and `gh`'s own check has no CI
+  exemption (unlike GitLab CI, where `glab`'s job-token autologin covers this case — see
+  `inCIAutologin` in the GitLab driver).
 
 - **`release:` omitted entirely** — valid when `heraut release` is not used. Note: `heraut
   release` itself requires at least one **resolvable** publish destination — an explicit
