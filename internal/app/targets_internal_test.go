@@ -40,6 +40,28 @@ func TestPlatformConfigFromTarget(t *testing.T) {
 		assert.Empty(t, got.Repository)
 		assert.Empty(t, got.TokenEnv, "no token_env leaves the driver's per-type default in force")
 	})
+
+	// I2: zero-config publishing (no forges: entry, so f.Name is "") must still render a
+	// meaningful platform label everywhere Platform.Name() surfaces — "Publish to <name>",
+	// the dry-run line, error wrapping, the final release URL line, and heraut check's
+	// Platforms row — instead of a blank string.
+	t.Run("zero-config (empty forge name) falls back to the resolved forge type", func(t *testing.T) {
+		got := platformConfigFromTarget(
+			config.Target{},
+			config.Forge{}, // no forges: entry — Name is empty
+			port.ForgeIdentity{Type: "github", Host: "https://github.com", Project: "acme/widget"},
+		)
+		assert.Equal(t, "github", got.Name)
+	})
+
+	t.Run("explicit forge name is never overridden by the fallback", func(t *testing.T) {
+		got := platformConfigFromTarget(
+			config.Target{Forge: "gl-internal"},
+			config.Forge{Name: "gl-internal", Type: "gitlab"},
+			port.ForgeIdentity{Type: "gitlab", Host: "https://gitlab.example.com", Project: "group/subgroup/project"},
+		)
+		assert.Equal(t, "gl-internal", got.Name)
+	})
 }
 
 // TestBuildReleasePipelineConfig_TargetsWiring proves buildReleasePipelineConfig builds
@@ -124,6 +146,54 @@ func TestBuildReleasePipelineConfig_TargetsWiring(t *testing.T) {
 		pCfg, err := buildReleasePipelineConfig(runner, readRunner, cfg, "", "", false, false)
 		require.NoError(t, err)
 		require.Len(t, pCfg.Platforms, 1)
+		assert.True(t, pCfg.Platforms[0].HasAssets(), "release.assets must reach a target that declares none")
+	})
+
+	t.Run("target-level assets override release.assets entirely (no merge)", func(t *testing.T) {
+		clearCIEnv(t)
+		runner := exectest.NewMockRunner()
+		readRunner := exectest.NewMockRunner()
+		readRunner.QueueResponse("", "", assertNoOriginErr)
+
+		cfg := &config.Config{
+			Version:    "1",
+			Versioning: config.Versioning{Strategy: "semver"},
+			Forges: []config.Forge{
+				{Name: "gh", Type: "github", Repository: "acme/widget"},
+			},
+			Release: &config.Release{
+				Targets: []config.Target{{Forge: "gh", Assets: []string{"dist/target-only.tar.gz"}}},
+				Assets:  []string{"dist/*"},
+			},
+		}
+
+		pCfg, err := buildReleasePipelineConfig(runner, readRunner, cfg, "", "", false, false)
+		require.NoError(t, err)
+		require.Len(t, pCfg.Platforms, 1)
+		assert.True(t, pCfg.Platforms[0].HasAssets(), "target-level assets must reach the platform")
+	})
+
+	t.Run("no release.assets and no target assets: HasAssets is false", func(t *testing.T) {
+		clearCIEnv(t)
+		runner := exectest.NewMockRunner()
+		readRunner := exectest.NewMockRunner()
+		readRunner.QueueResponse("", "", assertNoOriginErr)
+
+		cfg := &config.Config{
+			Version:    "1",
+			Versioning: config.Versioning{Strategy: "semver"},
+			Forges: []config.Forge{
+				{Name: "gh", Type: "github", Repository: "acme/widget"},
+			},
+			Release: &config.Release{
+				Targets: []config.Target{{Forge: "gh"}},
+			},
+		}
+
+		pCfg, err := buildReleasePipelineConfig(runner, readRunner, cfg, "", "", false, false)
+		require.NoError(t, err)
+		require.Len(t, pCfg.Platforms, 1)
+		assert.False(t, pCfg.Platforms[0].HasAssets())
 	})
 
 	t.Run("multi-instance publishing: multiple targets yield multiple drivers (ADR-0025)", func(t *testing.T) {

@@ -168,6 +168,12 @@ esac
 	out, err := executeRoot("release", "--config", cfgPath, "--dry-run")
 	require.NoError(t, err)
 	assert.Contains(t, out, "[dry-run]")
+	// Zero-config publishing must still render a meaningful platform label — not a blank
+	// name ("Publish to  —" with nothing between the space and the em dash). See I2:
+	// platformConfigFromTarget falls back to the resolved forge type when no forges: entry
+	// supplies f.Name.
+	assert.Contains(t, out, "Publish to github")
+	assert.NotContains(t, out, "Publish to  ", "platform name must not render blank")
 }
 
 func TestRelease_VersionFlag_InvalidFormat(t *testing.T) {

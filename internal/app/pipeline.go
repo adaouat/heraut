@@ -311,8 +311,11 @@ func buildTargetPlatforms(runner port.Runner, cfg *config.Config, targets []conf
 // resolveTargetForge finds the config.Forge and resolved port.ForgeIdentity a target refers to:
 // by name (t.Forge) when set, or the sole configured forge when cfg.Forges has exactly one entry,
 // or the enrichment/sole resolved identity for zero-config repos (cfg.Forges empty). Config
-// validation (validateForges) already rejects an empty t.Forge with more than one forge configured,
-// so that ambiguity is not re-checked here.
+// validation (validateForges) rejects an empty t.Forge with more than one forge configured for
+// both release.targets and every environments.<env>.release.targets — but the default: branch
+// below re-checks the same ambiguity at runtime rather than assuming validation ran: BuildPipeline
+// is reachable from paths that do not call config.Validate first (e.g. programmatic callers,
+// tests constructing a *config.Config directly), so this is defense in depth, not dead code.
 func resolveTargetForge(cfg *config.Config, t config.Target, resolved forge.Resolved) (config.Forge, port.ForgeIdentity, error) {
 	if len(cfg.Forges) == 0 {
 		if len(resolved.Forges) == 0 {
