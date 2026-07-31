@@ -126,14 +126,35 @@ func answersToConfig(a Answers) config.Config {
 		}
 		// commits.enrichment_forge is required once more than one forge is configured
 		// (validateForges) — the wizard has no forge-selection question yet (that redesign is
-		// T164/P4), so the first configured forge is the deliberate, unambiguous default.
+		// T164/P4). Preserve an existing choice carried through Answers.EnrichmentForge (I7:
+		// silently repointing it at the first forge on every re-run of `heraut init` changed
+		// which host PR/MR metadata comes from with no warning); only fall back to the first
+		// configured forge — the deliberate, unambiguous stopgap default — when there is no
+		// prior choice, or it no longer names one of the rebuilt forges.
 		if len(cfg.Forges) > 1 {
 			if cfg.Commits == nil {
 				cfg.Commits = &config.Commits{}
 			}
-			cfg.Commits.EnrichmentForge = cfg.Forges[0].Name
+			enrichmentForge := a.EnrichmentForge
+			if !forgeNameExists(cfg.Forges, enrichmentForge) {
+				enrichmentForge = cfg.Forges[0].Name
+			}
+			cfg.Commits.EnrichmentForge = enrichmentForge
 		}
 	}
 
 	return cfg
+}
+
+// forgeNameExists reports whether name matches one of forges[].name.
+func forgeNameExists(forges []config.Forge, name string) bool {
+	if name == "" {
+		return false
+	}
+	for _, f := range forges {
+		if f.Name == name {
+			return true
+		}
+	}
+	return false
 }

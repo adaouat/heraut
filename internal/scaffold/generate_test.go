@@ -380,3 +380,62 @@ func TestGenerateYAML_DefaultsEmptyChangelogOutput(t *testing.T) {
 	require.NoError(t, err)
 	assert.Contains(t, out, "output: CHANGELOG.md")
 }
+
+// TestConfigToAnswers_PreservesEnrichmentForge pins I7: ConfigToAnswers never read back
+// commits.enrichment_forge, so re-running `heraut init` on a two-forge config whose enrichment
+// source is the *second* forge silently repointed it at the first (answersToConfig's
+// stopgap default) — with no warning. Round-tripping through Answers (without running the
+// wizard, which never edits forge selection — that redesign is T164/P4) must preserve the
+// existing choice.
+func TestConfigToAnswers_PreservesEnrichmentForge(t *testing.T) {
+	cfg := &config.Config{
+		Version:    "1",
+		Versioning: config.Versioning{Strategy: "semver"},
+		Commits:    &config.Commits{EnrichmentForge: "gitlab-internal", EnrichmentPolicy: "optional"},
+		Forges: []config.Forge{
+			{Name: "github", Type: "github", Repository: "acme/widget"},
+			{Name: "gitlab-internal", Type: "gitlab", Project: "acme/widget"},
+		},
+		Release: &config.Release{
+			Targets: []config.Target{{Forge: "github"}, {Forge: "gitlab-internal"}},
+		},
+	}
+	a := scaffold.ConfigToAnswers(cfg)
+	assert.Equal(t, "gitlab-internal", a.EnrichmentForge)
+}
+
+func TestGenerateYAML_PreservesEnrichmentForgeOnSecondForge(t *testing.T) {
+	a := scaffold.Answers{
+		Strategy:        "semver",
+		EnrichmentForge: "gitlab-internal",
+		Platforms: []scaffold.PlatformAnswer{
+			{Name: "github", Type: "github", Repository: "acme/widget"},
+			{Name: "gitlab-internal", Type: "gitlab", Project: "acme/widget"},
+		},
+	}
+	out, err := scaffold.GenerateYAML(a, "dev")
+	require.NoError(t, err)
+	cfg, err := config.LoadFromReader(strings.NewReader(stripHeader(out)))
+	require.NoError(t, err)
+	require.NotNil(t, cfg.Commits)
+	assert.Equal(t, "gitlab-internal", cfg.Commits.EnrichmentForge,
+		"re-running heraut init must not silently repoint enrichment_forge at the first forge")
+	assert.Empty(t, config.Validate(cfg))
+}
+
+func TestGenerateYAML_EnrichmentForgeDefaultsToFirstWhenUnset(t *testing.T) {
+	a := scaffold.Answers{
+		Strategy: "semver",
+		Platforms: []scaffold.PlatformAnswer{
+			{Type: "github", Repository: "acme/widget"},
+			{Type: "gitlab", Project: "acme/widget"},
+		},
+	}
+	out, err := scaffold.GenerateYAML(a, "dev")
+	require.NoError(t, err)
+	cfg, err := config.LoadFromReader(strings.NewReader(stripHeader(out)))
+	require.NoError(t, err)
+	require.NotNil(t, cfg.Commits)
+	assert.Equal(t, cfg.Forges[0].Name, cfg.Commits.EnrichmentForge,
+		"first-forge default remains the stopgap when no prior choice exists")
+}
