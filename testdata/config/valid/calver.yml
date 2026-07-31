@@ -9,9 +9,12 @@ changelog:
   generator: git-cliff
   output: CHANGELOG.md
 
+forges:
+  - name: gitlab
+    platform: gitlab
+
 release:
   notes:
     generator: git-cliff
-  platforms:
-    - platform: gitlab
-      name: gitlab
+  targets:
+    - forge: gitlab

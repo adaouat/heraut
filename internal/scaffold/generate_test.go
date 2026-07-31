@@ -148,10 +148,15 @@ func TestGenerateYAML_PlatformNamesDefaultedAndDeduped(t *testing.T) {
 	require.NoError(t, err)
 	assert.Empty(t, config.Validate(cfg))
 
-	require.Len(t, cfg.Release.Platforms, 3)
-	assert.Equal(t, "github", cfg.Release.Platforms[0].Name)
-	assert.Equal(t, "gitlab", cfg.Release.Platforms[1].Name)
-	assert.Equal(t, "gitlab-2", cfg.Release.Platforms[2].Name)
+	require.Len(t, cfg.Forges, 3)
+	assert.Equal(t, "github", cfg.Forges[0].Name)
+	assert.Equal(t, "gitlab", cfg.Forges[1].Name)
+	assert.Equal(t, "gitlab-2", cfg.Forges[2].Name)
+
+	require.Len(t, cfg.Release.Targets, 3)
+	assert.Equal(t, "github", cfg.Release.Targets[0].Forge)
+	assert.Equal(t, "gitlab", cfg.Release.Targets[1].Forge)
+	assert.Equal(t, "gitlab-2", cfg.Release.Targets[2].Forge)
 }
 
 func TestGenerateYAML_CalVerSprint(t *testing.T) {
@@ -252,14 +257,14 @@ func TestConfigToAnswers_PreservesPlatformPassthroughFields(t *testing.T) {
 	cfg := &config.Config{
 		Version:    "1",
 		Versioning: config.Versioning{Strategy: "semver"},
-		Release: &config.Release{
-			Platforms: []config.Platform{
-				{
-					Name: "gh-internal", Type: "github", Repository: "org/repo",
-					BaseURL: "https://github.example.com", Draft: true, Prerelease: true,
-					TokenEnv: "GH_TOKEN",
-				},
+		Forges: []config.Forge{
+			{
+				Name: "gh-internal", Type: "github", Repository: "org/repo",
+				BaseURL: "https://github.example.com", TokenEnv: "GH_TOKEN",
 			},
+		},
+		Release: &config.Release{
+			Targets: []config.Target{{Forge: "gh-internal", Draft: true, Prerelease: true}},
 		},
 	}
 	a := scaffold.ConfigToAnswers(cfg)
@@ -282,8 +287,10 @@ func TestGenerateYAML_PlatformUsesPassthroughName(t *testing.T) {
 	require.NoError(t, err)
 	cfg, err := config.LoadFromReader(strings.NewReader(stripHeader(out)))
 	require.NoError(t, err)
-	require.Len(t, cfg.Release.Platforms, 1)
-	assert.Equal(t, "gh-internal", cfg.Release.Platforms[0].Name)
+	require.Len(t, cfg.Forges, 1)
+	assert.Equal(t, "gh-internal", cfg.Forges[0].Name)
+	require.Len(t, cfg.Release.Targets, 1)
+	assert.Equal(t, "gh-internal", cfg.Release.Targets[0].Forge)
 }
 
 func TestGenerateYAML_PlatformPassthroughFieldsRoundTrip(t *testing.T) {
@@ -301,11 +308,12 @@ func TestGenerateYAML_PlatformPassthroughFieldsRoundTrip(t *testing.T) {
 	require.NoError(t, err)
 	cfg, err := config.LoadFromReader(strings.NewReader(stripHeader(out)))
 	require.NoError(t, err)
-	require.Len(t, cfg.Release.Platforms, 1)
-	p := cfg.Release.Platforms[0]
-	assert.Equal(t, "https://github.example.com", p.BaseURL)
-	assert.True(t, p.Draft)
-	assert.True(t, p.Prerelease)
+	require.Len(t, cfg.Forges, 1)
+	assert.Equal(t, "https://github.example.com", cfg.Forges[0].BaseURL)
+	require.Len(t, cfg.Release.Targets, 1)
+	target := cfg.Release.Targets[0]
+	assert.True(t, target.Draft)
+	assert.True(t, target.Prerelease)
 }
 
 func TestConfigToAnswers_PreservesEnvPassthroughFields(t *testing.T) {

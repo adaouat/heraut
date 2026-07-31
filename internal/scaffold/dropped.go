@@ -68,19 +68,31 @@ func DroppedPlatformFields(cfg *config.Config, rebuilt []PlatformAnswer) []strin
 	for _, p := range rebuilt {
 		rebuiltCount[p.Type]++
 	}
+	forgesByName := make(map[string]config.Forge, len(cfg.Forges))
+	for _, f := range cfg.Forges {
+		forgesByName[f.Name] = f
+	}
 	typeOrdinal := make(map[string]int)
 	var dropped []string
-	for _, p := range cfg.Release.Platforms {
-		typeOrdinal[p.Type]++
-		if typeOrdinal[p.Type] > rebuiltCount[p.Type] {
-			path := "release.platforms." + p.Name
-			if p.BaseURL != "" && p.BaseURL != config.DefaultBaseURL(p.Type) {
+	for _, t := range cfg.Release.Targets {
+		name := t.Forge
+		if name == "" && len(cfg.Forges) == 1 {
+			name = cfg.Forges[0].Name
+		}
+		f, ok := forgesByName[name]
+		if !ok {
+			continue
+		}
+		typeOrdinal[f.Type]++
+		if typeOrdinal[f.Type] > rebuiltCount[f.Type] {
+			path := "release.targets." + f.Name
+			if f.BaseURL != "" && f.BaseURL != config.DefaultBaseURL(f.Type) {
 				dropped = append(dropped, path+".base_url")
 			}
-			if p.Draft {
+			if t.Draft {
 				dropped = append(dropped, path+".draft")
 			}
-			if p.Prerelease {
+			if t.Prerelease {
 				dropped = append(dropped, path+".prerelease")
 			}
 		}

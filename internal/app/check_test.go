@@ -24,18 +24,34 @@ func collectItems(mr *exectest.MockRunner, cfg *config.Config, env string) []app
 	return items
 }
 
-// queueSuccess queues the 8 runner.Run responses for semverCfg (no generators/platforms)
-// with all tools present. Call order: git, user.name, user.email, git status,
-// glab, gh, git-cliff, communique.
+// clearCIEnv neutralizes every CI marker forge.Resolve keys off, so a test's outcome depends only
+// on what it explicitly sets — not the ambient CI environment this suite happens to run in
+// (RuntimeCheck's Platforms section now resolves a forge via os.Getenv for every non-nil config).
+func clearCIEnv(t *testing.T) {
+	t.Helper()
+	for _, k := range []string{
+		"GITHUB_ACTIONS", "GITHUB_SERVER_URL", "GITHUB_API_URL", "GITHUB_REPOSITORY", "GITHUB_TOKEN",
+		"GITLAB_CI", "CI_SERVER_URL", "CI_API_V4_URL", "CI_PROJECT_PATH", "CI_JOB_TOKEN", "GITLAB_TOKEN",
+		"TF_BUILD", "SYSTEM_COLLECTIONURI", "SYSTEM_TEAMPROJECT", "SYSTEM_ACCESSTOKEN", "AZURE_DEVOPS_TOKEN",
+	} {
+		t.Setenv(k, "")
+	}
+}
+
+// queueSuccess queues the 9 runner.Run responses for semverCfg (no generators/forges/targets)
+// with all tools present. Call order: git, user.name, user.email, git status, git remote
+// get-url origin (forge resolution — errors, no origin configured), glab, gh, git-cliff,
+// communique.
 func queueSuccess(mr *exectest.MockRunner) {
-	mr.QueueResponse("git version 2.40.0", "", nil) // git --version
-	mr.QueueResponse("Alice", "", nil)              // git config user.name
-	mr.QueueResponse("a@b.com", "", nil)            // git config user.email
-	mr.QueueResponse("", "", nil)                   // git status --porcelain (clean)
-	mr.QueueResponse("glab 1.0.0", "", nil)         // glab --version
-	mr.QueueResponse("gh 2.0.0", "", nil)           // gh --version
-	mr.QueueResponse("git-cliff 2.9.0", "", nil)    // git-cliff --version
-	mr.QueueResponse("communique 1.0.0", "", nil)   // communique --version
+	mr.QueueResponse("git version 2.40.0", "", nil)   // git --version
+	mr.QueueResponse("Alice", "", nil)                // git config user.name
+	mr.QueueResponse("a@b.com", "", nil)              // git config user.email
+	mr.QueueResponse("", "", nil)                     // git status --porcelain (clean)
+	mr.QueueResponse("", "", errors.New("no origin")) // git remote get-url origin (forge resolution)
+	mr.QueueResponse("glab 1.0.0", "", nil)           // glab --version
+	mr.QueueResponse("gh 2.0.0", "", nil)             // gh --version
+	mr.QueueResponse("git-cliff 2.9.0", "", nil)      // git-cliff --version
+	mr.QueueResponse("communique 1.0.0", "", nil)     // communique --version
 }
 
 // ---- PreflightCheck -----------------------------------------------------------
@@ -82,6 +98,7 @@ func TestPreflightCheck_UserEmailMissing(t *testing.T) {
 // ---- RuntimeCheck ------------------------------------------------------------
 
 func TestRuntimeCheck_MinimalConfig(t *testing.T) {
+	clearCIEnv(t)
 	mr := exectest.NewMockRunner()
 	queueSuccess(mr)
 
@@ -100,11 +117,13 @@ func TestRuntimeCheck_MinimalConfig(t *testing.T) {
 }
 
 func TestRuntimeCheck_GitValue(t *testing.T) {
+	clearCIEnv(t)
 	mr := exectest.NewMockRunner()
 	mr.QueueResponse("git version 2.49.0\n", "", nil) // git --version
 	mr.QueueResponse("Alice", "", nil)                // user.name
 	mr.QueueResponse("a@b.com", "", nil)              // user.email
 	mr.QueueResponse("", "", nil)                     // git status
+	mr.QueueResponse("", "", errors.New("no origin")) // git remote get-url origin (forge resolution)
 	mr.QueueResponse("glab 1.0", "", nil)             // glab
 	mr.QueueResponse("gh 2.0", "", nil)               // gh
 	mr.QueueResponse("git-cliff 2.0", "", nil)        // git-cliff
@@ -124,15 +143,17 @@ func TestRuntimeCheck_GitValue(t *testing.T) {
 }
 
 func TestRuntimeCheck_UserNameValue(t *testing.T) {
+	clearCIEnv(t)
 	mr := exectest.NewMockRunner()
-	mr.QueueResponse("git version 2.40.0", "", nil)  // git --version
-	mr.QueueResponse("Alice Smith\n", "", nil)       // user.name
-	mr.QueueResponse("alice@example.com\n", "", nil) // user.email
-	mr.QueueResponse("", "", nil)                    // git status
-	mr.QueueResponse("glab 1.0", "", nil)            // glab
-	mr.QueueResponse("gh 2.0", "", nil)              // gh
-	mr.QueueResponse("git-cliff 2.0", "", nil)       // git-cliff
-	mr.QueueResponse("communique 1.0", "", nil)      // communique
+	mr.QueueResponse("git version 2.40.0", "", nil)   // git --version
+	mr.QueueResponse("Alice Smith\n", "", nil)        // user.name
+	mr.QueueResponse("alice@example.com\n", "", nil)  // user.email
+	mr.QueueResponse("", "", nil)                     // git status
+	mr.QueueResponse("", "", errors.New("no origin")) // git remote get-url origin (forge resolution)
+	mr.QueueResponse("glab 1.0", "", nil)             // glab
+	mr.QueueResponse("gh 2.0", "", nil)               // gh
+	mr.QueueResponse("git-cliff 2.0", "", nil)        // git-cliff
+	mr.QueueResponse("communique 1.0", "", nil)       // communique
 
 	cfg := semverCfg()
 	items := collectItems(mr, cfg, "")
@@ -148,11 +169,13 @@ func TestRuntimeCheck_UserNameValue(t *testing.T) {
 }
 
 func TestRuntimeCheck_WorkingTreeClean(t *testing.T) {
+	clearCIEnv(t)
 	mr := exectest.NewMockRunner()
-	mr.QueueResponse("git version 2.40.0", "", nil) // git --version
-	mr.QueueResponse("Alice", "", nil)              // user.name
-	mr.QueueResponse("a@b.com", "", nil)            // user.email
-	mr.QueueResponse("", "", nil)                   // git status --porcelain (clean)
+	mr.QueueResponse("git version 2.40.0", "", nil)   // git --version
+	mr.QueueResponse("Alice", "", nil)                // user.name
+	mr.QueueResponse("a@b.com", "", nil)              // user.email
+	mr.QueueResponse("", "", nil)                     // git status --porcelain (clean)
+	mr.QueueResponse("", "", errors.New("no origin")) // git remote get-url origin (forge resolution)
 	mr.QueueResponse("glab 1.0", "", nil)
 	mr.QueueResponse("gh 2.0", "", nil)
 	mr.QueueResponse("git-cliff 2.0", "", nil)
@@ -173,11 +196,13 @@ func TestRuntimeCheck_WorkingTreeClean(t *testing.T) {
 }
 
 func TestRuntimeCheck_WorkingTreeDirty(t *testing.T) {
+	clearCIEnv(t)
 	mr := exectest.NewMockRunner()
 	mr.QueueResponse("git version 2.40.0", "", nil)                       // git --version
 	mr.QueueResponse("Alice", "", nil)                                    // user.name
 	mr.QueueResponse("a@b.com", "", nil)                                  // user.email
 	mr.QueueResponse(" M internal/foo.go\n M internal/bar.go\n", "", nil) // git status
+	mr.QueueResponse("", "", errors.New("no origin"))                     // git remote get-url origin (forge resolution)
 	mr.QueueResponse("glab 1.0", "", nil)
 	mr.QueueResponse("gh 2.0", "", nil)
 	mr.QueueResponse("git-cliff 2.0", "", nil)
@@ -198,6 +223,7 @@ func TestRuntimeCheck_WorkingTreeDirty(t *testing.T) {
 }
 
 func TestRuntimeCheck_DispatchNames(t *testing.T) {
+	clearCIEnv(t)
 	mr := exectest.NewMockRunner()
 	queueSuccess(mr)
 
@@ -219,6 +245,7 @@ func TestRuntimeCheck_DispatchNames(t *testing.T) {
 }
 
 func TestRuntimeCheck_SectionHeaders(t *testing.T) {
+	clearCIEnv(t)
 	mr := exectest.NewMockRunner()
 	queueSuccess(mr)
 
@@ -233,15 +260,17 @@ func TestRuntimeCheck_SectionHeaders(t *testing.T) {
 }
 
 func TestRuntimeCheck_WithGitcliff(t *testing.T) {
+	clearCIEnv(t)
 	mr := exectest.NewMockRunner()
-	mr.QueueResponse("git version 2.40.0", "", nil) // git --version
-	mr.QueueResponse("Alice", "", nil)              // user.name
-	mr.QueueResponse("a@b.com", "", nil)            // user.email
-	mr.QueueResponse("", "", nil)                   // git status
-	mr.QueueResponse("glab 1.0", "", nil)           // glab (optional)
-	mr.QueueResponse("gh 2.0", "", nil)             // gh (optional)
-	mr.QueueResponse("git-cliff 2.9.0", "", nil)    // git-cliff (required)
-	mr.QueueResponse("communique 1.0", "", nil)     // communique (optional)
+	mr.QueueResponse("git version 2.40.0", "", nil)   // git --version
+	mr.QueueResponse("Alice", "", nil)                // user.name
+	mr.QueueResponse("a@b.com", "", nil)              // user.email
+	mr.QueueResponse("", "", nil)                     // git status
+	mr.QueueResponse("", "", errors.New("no origin")) // git remote get-url origin (forge resolution)
+	mr.QueueResponse("glab 1.0", "", nil)             // glab (optional)
+	mr.QueueResponse("gh 2.0", "", nil)               // gh (optional)
+	mr.QueueResponse("git-cliff 2.9.0", "", nil)      // git-cliff (required)
+	mr.QueueResponse("communique 1.0", "", nil)       // communique (optional)
 
 	cfg := semverCfg()
 	cfg.Changelog = &config.ContentDriver{Generator: "git-cliff"}
@@ -259,22 +288,24 @@ func TestRuntimeCheck_WithGitcliff(t *testing.T) {
 }
 
 func TestRuntimeCheck_WithGitHubPlatform(t *testing.T) {
+	clearCIEnv(t)
 	t.Setenv("GH_TOKEN", "test-token")
-	t.Setenv("GITHUB_ACTIONS", "") // non-CI path
 
 	mr := exectest.NewMockRunner()
-	mr.QueueResponse("git version 2.40.0", "", nil) // git --version
-	mr.QueueResponse("Alice", "", nil)              // user.name
-	mr.QueueResponse("a@b.com", "", nil)            // user.email
-	mr.QueueResponse("", "", nil)                   // git status
-	mr.QueueResponse("gh 2.67.0", "", nil)          // gh binary — inside p.Check()
-	mr.QueueResponse(`[]`, "", nil)                 // gh api auth — inside p.Check().checkAPIAuth()
-	mr.QueueResponse("git-cliff 2.0", "", nil)      // git-cliff (optional)
-	mr.QueueResponse("communique 1.0", "", nil)     // communique (optional)
+	mr.QueueResponse("git version 2.40.0", "", nil)   // git --version
+	mr.QueueResponse("Alice", "", nil)                // user.name
+	mr.QueueResponse("a@b.com", "", nil)              // user.email
+	mr.QueueResponse("", "", nil)                     // git status
+	mr.QueueResponse("", "", errors.New("no origin")) // git remote get-url origin (forge resolution)
+	mr.QueueResponse("gh 2.67.0", "", nil)            // gh binary — inside p.Check()
+	mr.QueueResponse(`[]`, "", nil)                   // gh api auth — inside p.Check().checkAPIAuth()
+	mr.QueueResponse("git-cliff 2.0", "", nil)        // git-cliff (optional)
+	mr.QueueResponse("communique 1.0", "", nil)       // communique (optional)
 
 	cfg := semverCfg()
+	cfg.Forges = []config.Forge{{Name: "gh", Type: "github", Repository: "org/repo"}}
 	cfg.Release = &config.Release{
-		Platforms: []config.Platform{{Type: "github", Name: "gh", Repository: "org/repo"}},
+		Targets: []config.Target{{Forge: "gh"}},
 	}
 	items := collectItems(mr, cfg, "")
 
@@ -289,22 +320,24 @@ func TestRuntimeCheck_WithGitHubPlatform(t *testing.T) {
 }
 
 func TestRuntimeCheck_WithGitHubPlatform_MissingToken(t *testing.T) {
+	clearCIEnv(t)
 	t.Setenv("GH_TOKEN", "")
-	t.Setenv("GITHUB_ACTIONS", "")
 
 	mr := exectest.NewMockRunner()
-	mr.QueueResponse("git version 2.40.0", "", nil) // git --version
-	mr.QueueResponse("Alice", "", nil)              // user.name
-	mr.QueueResponse("a@b.com", "", nil)            // user.email
-	mr.QueueResponse("", "", nil)                   // git status
-	mr.QueueResponse("gh 2.67.0", "", nil)          // gh binary — p.Check() runs binary before token
+	mr.QueueResponse("git version 2.40.0", "", nil)   // git --version
+	mr.QueueResponse("Alice", "", nil)                // user.name
+	mr.QueueResponse("a@b.com", "", nil)              // user.email
+	mr.QueueResponse("", "", nil)                     // git status
+	mr.QueueResponse("", "", errors.New("no origin")) // git remote get-url origin (forge resolution)
+	mr.QueueResponse("gh 2.67.0", "", nil)            // gh binary — p.Check() runs binary before token
 	// token missing → checkAPIAuth skipped → no API runner call
 	mr.QueueResponse("git-cliff 2.0", "", nil)  // git-cliff (optional)
 	mr.QueueResponse("communique 1.0", "", nil) // communique (optional)
 
 	cfg := semverCfg()
+	cfg.Forges = []config.Forge{{Name: "gh", Type: "github", Repository: "org/repo"}}
 	cfg.Release = &config.Release{
-		Platforms: []config.Platform{{Type: "github", Name: "gh", Repository: "org/repo"}},
+		Targets: []config.Target{{Forge: "gh"}},
 	}
 	items := collectItems(mr, cfg, "")
 
@@ -318,28 +351,33 @@ func TestRuntimeCheck_WithGitHubPlatform_MissingToken(t *testing.T) {
 	t.Fatal("expected gh item")
 }
 
-func TestRuntimeCheck_EnvPlatformOverrideReplacesRoot(t *testing.T) {
+func TestRuntimeCheck_EnvTargetOverrideReplacesRoot(t *testing.T) {
+	clearCIEnv(t)
 	t.Setenv("GH_TOKEN", "")
-	t.Setenv("GITHUB_ACTIONS", "")
 
 	mr := exectest.NewMockRunner()
-	mr.QueueResponse("git version 2.40.0", "", nil) // git --version
-	mr.QueueResponse("Alice", "", nil)              // user.name
-	mr.QueueResponse("a@b.com", "", nil)            // user.email
-	mr.QueueResponse("", "", nil)                   // git status
-	mr.QueueResponse("gh 2.67.0", "", nil)          // github-prod binary — only entry checked
-	mr.QueueResponse("git-cliff 2.0", "", nil)      // git-cliff (optional)
-	mr.QueueResponse("communique 1.0", "", nil)     // communique (optional)
+	mr.QueueResponse("git version 2.40.0", "", nil)   // git --version
+	mr.QueueResponse("Alice", "", nil)                // user.name
+	mr.QueueResponse("a@b.com", "", nil)              // user.email
+	mr.QueueResponse("", "", nil)                     // git status
+	mr.QueueResponse("", "", errors.New("no origin")) // git remote get-url origin (forge resolution)
+	mr.QueueResponse("gh 2.67.0", "", nil)            // github-prod binary — only entry checked
+	mr.QueueResponse("git-cliff 2.0", "", nil)        // git-cliff (optional)
+	mr.QueueResponse("communique 1.0", "", nil)       // communique (optional)
 
 	cfg := semverCfg()
+	cfg.Forges = []config.Forge{
+		{Name: "github-root", Type: "github", Repository: "org/root"},
+		{Name: "github-prod", Type: "github", Repository: "org/prod"},
+	}
 	cfg.Release = &config.Release{
-		Platforms: []config.Platform{{Type: "github", Name: "github-root", Repository: "org/root"}},
+		Targets: []config.Target{{Forge: "github-root"}},
 	}
 	cfg.Environments = map[string]config.Environment{
 		"prod": {
 			Bump: "auto",
 			Release: &config.EnvRelease{
-				Platforms: []config.Platform{{Type: "github", Name: "github-prod", Repository: "org/prod"}},
+				Targets: []config.Target{{Forge: "github-prod"}},
 			},
 		},
 	}
@@ -351,28 +389,30 @@ func TestRuntimeCheck_EnvPlatformOverrideReplacesRoot(t *testing.T) {
 			names = append(names, it.Name)
 		}
 	}
-	assert.Equal(t, []string{"github-prod"}, names, "env release.platforms should replace root platforms entirely")
+	assert.Equal(t, []string{"github-prod"}, names, "env release.targets should replace root targets entirely")
 }
 
-func TestRuntimeCheck_EnvWithoutPlatformOverrideInheritsRoot(t *testing.T) {
+func TestRuntimeCheck_EnvWithoutTargetOverrideInheritsRoot(t *testing.T) {
+	clearCIEnv(t)
 	t.Setenv("GH_TOKEN", "")
-	t.Setenv("GITHUB_ACTIONS", "")
 
 	mr := exectest.NewMockRunner()
-	mr.QueueResponse("git version 2.40.0", "", nil) // git --version
-	mr.QueueResponse("Alice", "", nil)              // user.name
-	mr.QueueResponse("a@b.com", "", nil)            // user.email
-	mr.QueueResponse("", "", nil)                   // git status
-	mr.QueueResponse("gh 2.67.0", "", nil)          // github-root binary — only entry checked
-	mr.QueueResponse("git-cliff 2.0", "", nil)      // git-cliff (optional)
-	mr.QueueResponse("communique 1.0", "", nil)     // communique (optional)
+	mr.QueueResponse("git version 2.40.0", "", nil)   // git --version
+	mr.QueueResponse("Alice", "", nil)                // user.name
+	mr.QueueResponse("a@b.com", "", nil)              // user.email
+	mr.QueueResponse("", "", nil)                     // git status
+	mr.QueueResponse("", "", errors.New("no origin")) // git remote get-url origin (forge resolution)
+	mr.QueueResponse("gh 2.67.0", "", nil)            // github-root binary — only entry checked
+	mr.QueueResponse("git-cliff 2.0", "", nil)        // git-cliff (optional)
+	mr.QueueResponse("communique 1.0", "", nil)       // communique (optional)
 
 	cfg := semverCfg()
+	cfg.Forges = []config.Forge{{Name: "github-root", Type: "github", Repository: "org/root"}}
 	cfg.Release = &config.Release{
-		Platforms: []config.Platform{{Type: "github", Name: "github-root", Repository: "org/root"}},
+		Targets: []config.Target{{Forge: "github-root"}},
 	}
 	cfg.Environments = map[string]config.Environment{
-		"staging": {Bump: "auto"}, // no release override → inherits root platforms
+		"staging": {Bump: "auto"}, // no release override → inherits root targets
 	}
 	items := collectItems(mr, cfg, "staging")
 
@@ -382,22 +422,24 @@ func TestRuntimeCheck_EnvWithoutPlatformOverrideInheritsRoot(t *testing.T) {
 			names = append(names, it.Name)
 		}
 	}
-	assert.Equal(t, []string{"github-root"}, names, "env without release.platforms should inherit root")
+	assert.Equal(t, []string{"github-root"}, names, "env without release.targets should inherit root")
 }
 
 func TestRuntimeCheck_UnknownChangelogGenerator(t *testing.T) {
 	// "unknown-gen" is not a recognized generator; config validation would
 	// normally catch this. RuntimeCheck checks only the 2 supported generators.
 	// An unknown configured generator produces no runtime check item.
+	clearCIEnv(t)
 	mr := exectest.NewMockRunner()
-	mr.QueueResponse("git version 2.40.0", "", nil) // git --version
-	mr.QueueResponse("Alice", "", nil)              // user.name
-	mr.QueueResponse("a@b.com", "", nil)            // user.email
-	mr.QueueResponse("", "", nil)                   // git status
-	mr.QueueResponse("glab 1.0", "", nil)           // glab (optional)
-	mr.QueueResponse("gh 2.0", "", nil)             // gh (optional)
-	mr.QueueResponse("git-cliff 2.0", "", nil)      // git-cliff (optional; "unknown-gen" ≠ "git-cliff")
-	mr.QueueResponse("communique 1.0", "", nil)     // communique (optional)
+	mr.QueueResponse("git version 2.40.0", "", nil)   // git --version
+	mr.QueueResponse("Alice", "", nil)                // user.name
+	mr.QueueResponse("a@b.com", "", nil)              // user.email
+	mr.QueueResponse("", "", nil)                     // git status
+	mr.QueueResponse("", "", errors.New("no origin")) // git remote get-url origin (forge resolution)
+	mr.QueueResponse("glab 1.0", "", nil)             // glab (optional)
+	mr.QueueResponse("gh 2.0", "", nil)               // gh (optional)
+	mr.QueueResponse("git-cliff 2.0", "", nil)        // git-cliff (optional; "unknown-gen" ≠ "git-cliff")
+	mr.QueueResponse("communique 1.0", "", nil)       // communique (optional)
 
 	cfg := semverCfg()
 	cfg.Changelog = &config.ContentDriver{Generator: "unknown-gen"}
@@ -409,20 +451,23 @@ func TestRuntimeCheck_UnknownChangelogGenerator(t *testing.T) {
 }
 
 func TestRuntimeCheck_UnknownPlatform(t *testing.T) {
-	// An unrecognized platform type is normally caught by config validation before
-	// RuntimeCheck runs, but RuntimeCheck still reports a hard error for the entry
+	// An unrecognized forge platform type is normally caught by config validation before
+	// RuntimeCheck runs, but RuntimeCheck still reports a hard error for the resolved entry
 	// (labeled by its configured name) rather than silently skipping it.
+	clearCIEnv(t)
 	mr := exectest.NewMockRunner()
-	mr.QueueResponse("git version 2.40.0", "", nil) // git --version
-	mr.QueueResponse("Alice", "", nil)              // user.name
-	mr.QueueResponse("a@b.com", "", nil)            // user.email
-	mr.QueueResponse("", "", nil)                   // git status
-	mr.QueueResponse("git-cliff 2.0", "", nil)      // git-cliff (optional)
-	mr.QueueResponse("communique 1.0", "", nil)     // communique (optional)
+	mr.QueueResponse("git version 2.40.0", "", nil)   // git --version
+	mr.QueueResponse("Alice", "", nil)                // user.name
+	mr.QueueResponse("a@b.com", "", nil)              // user.email
+	mr.QueueResponse("", "", nil)                     // git status
+	mr.QueueResponse("", "", errors.New("no origin")) // git remote get-url origin (forge resolution)
+	mr.QueueResponse("git-cliff 2.0", "", nil)        // git-cliff (optional)
+	mr.QueueResponse("communique 1.0", "", nil)       // communique (optional)
 
 	cfg := semverCfg()
+	cfg.Forges = []config.Forge{{Name: "unknown-plat", Type: "unknown-plat"}}
 	cfg.Release = &config.Release{
-		Platforms: []config.Platform{{Type: "unknown-plat", Name: "unknown-plat"}},
+		Targets: []config.Target{{Forge: "unknown-plat"}},
 	}
 	items := collectItems(mr, cfg, "")
 
@@ -437,16 +482,17 @@ func TestRuntimeCheck_UnknownPlatform(t *testing.T) {
 }
 
 func TestRuntimeCheck_MultipleSameTypePlatforms(t *testing.T) {
+	clearCIEnv(t)
 	t.Setenv("GH_TOKEN", "")
 	t.Setenv("GITLAB_TOKEN", "")
-	t.Setenv("GITLAB_CI", "")
 
 	mr := exectest.NewMockRunner()
-	mr.QueueResponse("git version 2.40.0", "", nil) // git --version
-	mr.QueueResponse("Alice", "", nil)              // user.name
-	mr.QueueResponse("a@b.com", "", nil)            // user.email
-	mr.QueueResponse("", "", nil)                   // git status
-	mr.QueueResponse("glab 1.0", "", nil)           // gitlab-com p.Check() binary
+	mr.QueueResponse("git version 2.40.0", "", nil)   // git --version
+	mr.QueueResponse("Alice", "", nil)                // user.name
+	mr.QueueResponse("a@b.com", "", nil)              // user.email
+	mr.QueueResponse("", "", nil)                     // git status
+	mr.QueueResponse("", "", errors.New("no origin")) // git remote get-url origin (forge resolution)
+	mr.QueueResponse("glab 1.0", "", nil)             // gitlab-com p.Check() binary
 	// token missing → checkAPIAuth skipped for gitlab-com
 	mr.QueueResponse("glab 1.0", "", nil) // gitlab-internal p.Check() binary
 	// token missing → checkAPIAuth skipped for gitlab-internal
@@ -454,11 +500,13 @@ func TestRuntimeCheck_MultipleSameTypePlatforms(t *testing.T) {
 	mr.QueueResponse("communique 1.0", "", nil) // communique (optional)
 
 	cfg := semverCfg()
+	cfg.Forges = []config.Forge{
+		{Name: "gitlab-com", Type: "gitlab", Project: "acme/widget"},
+		{Name: "gitlab-internal", Type: "gitlab", Project: "acme/widget", BaseURL: "https://gitlab.example.com"},
+	}
+	cfg.Commits = &config.Commits{EnrichmentForge: "gitlab-com"}
 	cfg.Release = &config.Release{
-		Platforms: []config.Platform{
-			{Type: "gitlab", Name: "gitlab-com", Project: "acme/widget"},
-			{Type: "gitlab", Name: "gitlab-internal", Project: "acme/widget", BaseURL: "https://gitlab.example.com"},
-		},
+		Targets: []config.Target{{Forge: "gitlab-com"}, {Forge: "gitlab-internal"}},
 	}
 	items := collectItems(mr, cfg, "")
 
@@ -474,11 +522,13 @@ func TestRuntimeCheck_MultipleSameTypePlatforms(t *testing.T) {
 }
 
 func TestRuntimeCheck_UserNameMissing(t *testing.T) {
+	clearCIEnv(t)
 	mr := exectest.NewMockRunner()
-	mr.QueueResponse("git version 2.40.0", "", nil) // git --version
-	mr.QueueResponse("", "", nil)                   // user.name empty
-	mr.QueueResponse("a@b.com", "", nil)            // user.email
-	mr.QueueResponse("", "", nil)                   // git status
+	mr.QueueResponse("git version 2.40.0", "", nil)   // git --version
+	mr.QueueResponse("", "", nil)                     // user.name empty
+	mr.QueueResponse("a@b.com", "", nil)              // user.email
+	mr.QueueResponse("", "", nil)                     // git status
+	mr.QueueResponse("", "", errors.New("no origin")) // git remote get-url origin (forge resolution)
 	mr.QueueResponse("glab 1.0", "", nil)
 	mr.QueueResponse("gh 2.0", "", nil)
 	mr.QueueResponse("git-cliff 2.0", "", nil)
@@ -497,11 +547,13 @@ func TestRuntimeCheck_UserNameMissing(t *testing.T) {
 }
 
 func TestRuntimeCheck_UserEmailMissing(t *testing.T) {
+	clearCIEnv(t)
 	mr := exectest.NewMockRunner()
-	mr.QueueResponse("git version 2.40.0", "", nil) // git --version
-	mr.QueueResponse("Alice", "", nil)              // user.name OK
-	mr.QueueResponse("", "", nil)                   // user.email empty
-	mr.QueueResponse("", "", nil)                   // git status
+	mr.QueueResponse("git version 2.40.0", "", nil)   // git --version
+	mr.QueueResponse("Alice", "", nil)                // user.name OK
+	mr.QueueResponse("", "", nil)                     // user.email empty
+	mr.QueueResponse("", "", nil)                     // git status
+	mr.QueueResponse("", "", errors.New("no origin")) // git remote get-url origin (forge resolution)
 	mr.QueueResponse("glab 1.0", "", nil)
 	mr.QueueResponse("gh 2.0", "", nil)
 	mr.QueueResponse("git-cliff 2.0", "", nil)
@@ -520,15 +572,17 @@ func TestRuntimeCheck_UserEmailMissing(t *testing.T) {
 }
 
 func TestRuntimeCheck_WithReleaseNotes(t *testing.T) {
+	clearCIEnv(t)
 	mr := exectest.NewMockRunner()
-	mr.QueueResponse("git version 2.40.0", "", nil) // git --version
-	mr.QueueResponse("Alice", "", nil)              // user.name
-	mr.QueueResponse("a@b.com", "", nil)            // user.email
-	mr.QueueResponse("", "", nil)                   // git status
-	mr.QueueResponse("glab 1.0", "", nil)           // glab (optional)
-	mr.QueueResponse("gh 2.0", "", nil)             // gh (optional)
-	mr.QueueResponse("git-cliff 2.9.0", "", nil)    // git-cliff (required for notes)
-	mr.QueueResponse("communique 1.0", "", nil)     // communique (optional)
+	mr.QueueResponse("git version 2.40.0", "", nil)   // git --version
+	mr.QueueResponse("Alice", "", nil)                // user.name
+	mr.QueueResponse("a@b.com", "", nil)              // user.email
+	mr.QueueResponse("", "", nil)                     // git status
+	mr.QueueResponse("", "", errors.New("no origin")) // git remote get-url origin (forge resolution)
+	mr.QueueResponse("glab 1.0", "", nil)             // glab (optional)
+	mr.QueueResponse("gh 2.0", "", nil)               // gh (optional)
+	mr.QueueResponse("git-cliff 2.9.0", "", nil)      // git-cliff (required for notes)
+	mr.QueueResponse("communique 1.0", "", nil)       // communique (optional)
 
 	cfg := semverCfg()
 	cfg.Release = &config.Release{
@@ -549,11 +603,13 @@ func TestRuntimeCheck_WithReleaseNotes(t *testing.T) {
 // ---- Optional tool checks -------------------------------------------------------
 
 func TestRuntimeCheck_OptionalGeneratorsWarnWhenMissing(t *testing.T) {
+	clearCIEnv(t)
 	mr := exectest.NewMockRunner()
 	mr.QueueResponse("git version 2.40.0", "", nil)               // git --version
 	mr.QueueResponse("Alice", "", nil)                            // user.name
 	mr.QueueResponse("a@b.com", "", nil)                          // user.email
 	mr.QueueResponse("", "", nil)                                 // git status
+	mr.QueueResponse("", "", errors.New("no origin"))             // git remote get-url origin (forge resolution)
 	mr.QueueResponse("glab 1.0.0", "", nil)                       // glab (optional, found)
 	mr.QueueResponse("gh 2.0.0", "", nil)                         // gh (optional, found)
 	mr.QueueResponse("", "", errors.New("git-cliff: not found"))  // git-cliff (optional, missing)
@@ -575,11 +631,13 @@ func TestRuntimeCheck_OptionalGeneratorsWarnWhenMissing(t *testing.T) {
 }
 
 func TestRuntimeCheck_OptionalPlatformsWarnWhenMissing(t *testing.T) {
+	clearCIEnv(t)
 	mr := exectest.NewMockRunner()
 	mr.QueueResponse("git version 2.40.0", "", nil)         // git --version
 	mr.QueueResponse("Alice", "", nil)                      // user.name
 	mr.QueueResponse("a@b.com", "", nil)                    // user.email
 	mr.QueueResponse("", "", nil)                           // git status
+	mr.QueueResponse("", "", errors.New("no origin"))       // git remote get-url origin (forge resolution)
 	mr.QueueResponse("", "", errors.New("glab: not found")) // glab (optional, missing)
 	mr.QueueResponse("", "", errors.New("gh: not found"))   // gh (optional, missing)
 	mr.QueueResponse("git-cliff 2.0.0", "", nil)            // git-cliff (optional, found)
@@ -600,6 +658,7 @@ func TestRuntimeCheck_OptionalPlatformsWarnWhenMissing(t *testing.T) {
 }
 
 func TestRuntimeCheck_OptionalToolsSilentWhenPresent(t *testing.T) {
+	clearCIEnv(t)
 	mr := exectest.NewMockRunner()
 	queueSuccess(mr)
 
@@ -614,11 +673,13 @@ func TestRuntimeCheck_OptionalToolsSilentWhenPresent(t *testing.T) {
 }
 
 func TestRuntimeCheck_ConfiguredGeneratorExcludedFromOptional(t *testing.T) {
+	clearCIEnv(t)
 	mr := exectest.NewMockRunner()
 	mr.QueueResponse("git version 2.40.0", "", nil)               // git --version
 	mr.QueueResponse("Alice", "", nil)                            // user.name
 	mr.QueueResponse("a@b.com", "", nil)                          // user.email
 	mr.QueueResponse("", "", nil)                                 // git status
+	mr.QueueResponse("", "", errors.New("no origin"))             // git remote get-url origin (forge resolution)
 	mr.QueueResponse("glab 1.0", "", nil)                         // glab (optional)
 	mr.QueueResponse("gh 2.0", "", nil)                           // gh (optional)
 	mr.QueueResponse("git-cliff 2.9.0", "", nil)                  // git-cliff (required — IS configured)
@@ -644,9 +705,24 @@ func TestRuntimeCheck_ConfiguredGeneratorExcludedFromOptional(t *testing.T) {
 
 // ---- RuntimeCheck with nil config -------------------------------------------
 
+// queueSuccessNilConfig queues the 8 runner.Run responses for the nil-config path: unlike a
+// non-nil config, effectiveTargetPlatforms short-circuits before ever resolving a forge (nothing
+// to resolve against), so no git remote get-url origin call happens. Call order: git, user.name,
+// user.email, git status, glab, gh, git-cliff, communique.
+func queueSuccessNilConfig(mr *exectest.MockRunner) {
+	mr.QueueResponse("git version 2.40.0", "", nil) // git --version
+	mr.QueueResponse("Alice", "", nil)              // git config user.name
+	mr.QueueResponse("a@b.com", "", nil)            // git config user.email
+	mr.QueueResponse("", "", nil)                   // git status --porcelain (clean)
+	mr.QueueResponse("glab 1.0.0", "", nil)         // glab --version
+	mr.QueueResponse("gh 2.0.0", "", nil)           // gh --version
+	mr.QueueResponse("git-cliff 2.9.0", "", nil)    // git-cliff --version
+	mr.QueueResponse("communique 1.0.0", "", nil)   // communique --version
+}
+
 func TestRuntimeCheck_NilConfig_AllToolsPassWhenPresent(t *testing.T) {
 	mr := exectest.NewMockRunner()
-	queueSuccess(mr) // call order is identical to the non-nil config path
+	queueSuccessNilConfig(mr)
 
 	items := collectItems(mr, nil, "")
 	require.Len(t, items, 8)

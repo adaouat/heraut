@@ -128,17 +128,22 @@ func TestLoadFromReader_withRelease(t *testing.T) {
 version: "1"
 versioning:
   strategy: semver
+forges:
+  - name: gh
+    platform: github
+    repository: acme/widget
+    token_env: GH_TOKEN
+  - name: gl
+    platform: gitlab
+    project: acme/widget
+    token_env: GITLAB_TOKEN
 release:
   notes:
     generator: git-cliff
-  platforms:
-    - platform: github
-      repository: acme/widget
-      token_env: GH_TOKEN
+  targets:
+    - forge: gh
       draft: true
-    - platform: gitlab
-      project: acme/widget
-      token_env: GITLAB_TOKEN
+    - forge: gl
       assets:
         - dist/myapp_*
 `
@@ -147,17 +152,14 @@ release:
 	require.NotNil(t, cfg.Release)
 	require.NotNil(t, cfg.Release.Notes)
 	assert.Equal(t, "git-cliff", cfg.Release.Notes.Generator)
-	require.Len(t, cfg.Release.Platforms, 2)
+	require.Len(t, cfg.Release.Targets, 2)
 
-	gh := cfg.Release.Platforms[0]
-	assert.Equal(t, "github", gh.Type)
-	assert.Equal(t, "acme/widget", gh.Repository)
-	assert.Equal(t, "GH_TOKEN", gh.TokenEnv)
+	gh := cfg.Release.Targets[0]
+	assert.Equal(t, "gh", gh.Forge)
 	assert.True(t, gh.Draft)
 
-	gl := cfg.Release.Platforms[1]
-	assert.Equal(t, "gitlab", gl.Type)
-	assert.Equal(t, "acme/widget", gl.Project)
+	gl := cfg.Release.Targets[1]
+	assert.Equal(t, "gl", gl.Forge)
 	assert.Equal(t, []string{"dist/myapp_*"}, gl.Assets)
 }
 
@@ -167,27 +169,34 @@ version: "1"
 versioning:
   strategy: semver-per-env
   tag_format: "{env}/{version}"
+forges:
+  - name: gl
+    platform: gitlab
+  - name: gh
+    platform: github
+commits:
+  enrichment_forge: gl
 environments:
   dev:
     bump: auto
     release:
-      platforms:
-        - platform: gitlab
+      targets:
+        - forge: gl
   prod:
     bump: promote
     release:
-      platforms:
-        - platform: gitlab
-        - platform: github
+      targets:
+        - forge: gl
+        - forge: gh
 `
 	cfg, err := config.LoadFromReader(strings.NewReader(src))
 	require.NoError(t, err)
 	require.Contains(t, cfg.Environments, "dev")
 	require.Contains(t, cfg.Environments, "prod")
 	require.NotNil(t, cfg.Environments["dev"].Release)
-	require.Len(t, cfg.Environments["dev"].Release.Platforms, 1)
-	assert.Equal(t, "gitlab", cfg.Environments["dev"].Release.Platforms[0].Type)
-	require.Len(t, cfg.Environments["prod"].Release.Platforms, 2)
+	require.Len(t, cfg.Environments["dev"].Release.Targets, 1)
+	assert.Equal(t, "gl", cfg.Environments["dev"].Release.Targets[0].Forge)
+	require.Len(t, cfg.Environments["prod"].Release.Targets, 2)
 }
 
 func TestLoadFromReader_withEnvVersioningDisableFlags(t *testing.T) {
@@ -233,15 +242,15 @@ versioning:
 	assert.Contains(t, err.Error(), "typo_key")
 }
 
-func TestLoadFromReader_rejectsUnknownPlatformKey(t *testing.T) {
+func TestLoadFromReader_rejectsUnknownForgeKey(t *testing.T) {
 	src := `
 version: "1"
 versioning:
   strategy: semver
-release:
-  platforms:
-    - platform: github
-      completely_unknown: true
+forges:
+  - name: gh
+    platform: github
+    completely_unknown: true
 `
 	_, err := config.LoadFromReader(strings.NewReader(src))
 	require.Error(t, err)
@@ -343,10 +352,13 @@ version: "1"
 versioning:
   strategy: semver
   tag_prefix: "v"
+forges:
+  - name: gh
+    platform: github
+    repository: owner/repo
 release:
-  platforms:
-    - platform: github
-      repository: owner/repo
+  targets:
+    - forge: gh
   assets:
     - "dist/heraut_*_linux_amd64"
     - "dist/checksums.txt"
@@ -366,10 +378,13 @@ version: "1"
 versioning:
   strategy: semver
   tag_prefix: "v"
+forges:
+  - name: gh
+    platform: github
+    repository: owner/repo
 release:
-  platforms:
-    - platform: github
-      repository: owner/repo
+  targets:
+    - forge: gh
 `
 	cfg, err := config.LoadFromReader(strings.NewReader(src))
 	require.NoError(t, err)

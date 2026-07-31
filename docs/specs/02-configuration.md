@@ -169,7 +169,7 @@ are optional unless noted.
 | `disable_changelog` | `false` | When `true`, skips changelog generation and the git commit for this env. If `--tag` is also requested, the tag is still created. Takes precedence over `changelog:` when both are set. |
 | `disable_notes`     | `false` | When `true`, skips release notes generation. The platform release is still created, but without attached notes. Takes precedence over `release.notes:` when both are set. |
 | `changelog`         | —       | Override the root `changelog` for this env. Deep-merges field-by-field (see § Content override semantics). Absent means use the root default.                              |
-| `release`           | —       | Override `release.notes` (deep-merge) and/or `release.platforms` (replace) for this env (see § Content override semantics below).                                          |
+| `release`           | —       | Override `release.notes` (deep-merge) and/or `release.targets` (replace) for this env (see § Content override semantics below).                                            |
 
 ### Content override semantics
 
@@ -199,13 +199,13 @@ the root sets (there is no explicit "unset").
 `disable_changelog` / `disable_notes: true` take precedence over `changelog:` / `release.notes:`
 when both are set on the same env.
 
-**Lists stay replace** — `release.platforms` is replaced wholesale per env (merging lists
+**Lists stay replace** — `release.targets` is replaced wholesale per env (merging lists
 is ambiguous); absent means use the root list:
 
-| Sub-field           | Absent in env                 | Present in env                |
-|---------------------|-------------------------------|-------------------------------|
-| `release.platforms` | Use root `release.platforms`  | Replace entirely for this env |
-| `release.notes`     | Use root `release.notes`      | **Deep-merge** over root      |
+| Sub-field         | Absent in env               | Present in env                |
+|-------------------|------------------------------|--------------------------------|
+| `release.targets` | Use root `release.targets`  | Replace entirely for this env |
+| `release.notes`   | Use root `release.notes`    | **Deep-merge** over root       |
 
 Setting contradictory flags (e.g. `disable_changelog: true` and `changelog:` on the same
 env) produces a non-zero exit from `heraut check config` with an actionable hint
@@ -356,50 +356,96 @@ Controls release notes generation and where releases are published.
 release:
   notes:                  # optional — release notes generator
     generator: git-cliff
-  platforms:              # optional — target platforms
-    - platform: gitlab
-    - platform: github
+  targets:                 # optional — publish destinations
+    - forge: gitlab-saas
+    - forge: github
 ```
 
-Both `notes` and `platforms` are optional independently:
+Both `notes` and `targets` are optional independently:
 
-- **`platforms` only (no `notes`)** — the release is published on each platform with no
+- **`targets` only (no `notes`)** — the release is published to each target with no
   inline content. This is intentional and valid: the CHANGELOG.md in the repository (or
-  the platform's own auto-generate feature) serves as the record. Use a comment to make
+  the forge's own auto-generate feature) serves as the record. Use a comment to make
   the intent explicit:
 
   ```yaml
   release:
     # No inline release notes — CHANGELOG.md in the repo is the record.
-    platforms:
-      - platform: github
-        repository: org/repo
+    targets:
+      - forge: github
   ```
 
-- **`notes` only (no `platforms`)** — notes are generated but no platform release is
-  created. Useful for previewing or piping output to another tool.
+- **`notes` only (no `targets`)** — notes are generated but no release is published.
+  Useful for previewing or piping output to another tool.
 
-- **Neither** — `release:` may be omitted entirely when `heraut release` is not used.
-  Note: `heraut release` requires at least one entry in `platforms`; omitting the whole
-  `release` block (or leaving `platforms` empty) is a configuration error for that command.
+- **Neither, with `targets` omitted entirely** — the release still publishes to the single
+  resolved forge with default options (zero-config publishing; see § Identity resolution
+  under § `forges` below). This is the common CI shape: no `forges:`, no `release.targets`,
+  and heraut auto-detects the destination from the CI environment or git origin.
 
-### `release.targets[]` (not yet functional)
+- **`release:` omitted entirely** — valid when `heraut release` is not used. Note: `heraut
+  release` itself requires at least one **resolvable** publish destination — an explicit
+  `release.targets` entry, or a forge that auto-detects. Zero resolvable destinations (no
+  targets, no forge, no CI/origin to detect one) is a configuration error for that command.
 
-`release.targets` is parsed and validated today (each entry references a `forges[].name` —
-see § Forges below), but it does **not** yet drive publishing: `release.platforms` remains
-the surface that actually creates releases. Publishing folds into the forge abstraction in a
-later phase ([ADR-0043](../adr/0043-forge-abstraction.md) phase P3).
+### `release.targets[]`
+
+`release.targets` is the publishing surface ([ADR-0044](../adr/0044-publishing-config-unification.md)).
+Each entry references a `forges[].name` (see § `forges` below) and carries only publish
+behaviour:
+
+```yaml
+release:
+  targets:
+    - forge: gitlab-saas   # → forges[].name; optional when exactly one forge is configured
+      draft: false          # GitHub only
+      prerelease: false     # GitHub only
+      assets:                # optional — overrides release.assets entirely for this target
+        - "dist/myapp_*"
+```
+
+| Field        | Required                              | Default | Description                                                                                    |
+|--------------|----------------------------------------|---------|--------------------------------------------------------------------------------------------------|
+| `forge`      | Conditional                            | —       | References a `forges[].name`. Optional when exactly one forge is configured/resolved; required when more than one is configured. |
+| `draft`      | No                                      | `false` | Create the release as a draft. GitHub only.                                                     |
+| `prerelease` | No                                      | `false` | Mark as a pre-release. GitHub only.                                                              |
+| `assets`     | No                                      | —       | Target-specific glob patterns. When set, overrides `release.assets` entirely for this target (no merging). |
+
+Publishing constructs the existing GitHub/GitLab drivers from the resolved
+`forges[].name` identity — host, project/repository, and token are inherited from the same
+CI/git-origin auto-detection that drives enrichment (§ Identity resolution below), so a
+target typically needs no more than `forge:` (or nothing at all, in the single-forge case).
+
+Multi-instance publishing (same platform type, multiple hosts — [ADR-0025](../adr/0025-multi-instance-platforms.md))
+is expressed as multiple `forges:` entries, each referenced by its own `release.targets`
+entry:
+
+```yaml
+forges:
+  - name: gitlab-saas
+    platform: gitlab
+    project: acme/widget
+  - name: gitlab-internal
+    platform: gitlab
+    project: tools/widget-mirror
+    base_url: https://gitlab.example.com
+    token_env: GITLAB_INTERNAL_TOKEN
+
+release:
+  targets:
+    - forge: gitlab-saas
+    - forge: gitlab-internal
+```
 
 ## `forges`
 
 A top-level **`forges:`** list — each entry is one code-hosting platform heraut talks to:
-**connection and identity only** ([ADR-0043](../adr/0043-forge-abstraction.md)). A forge
-does not itself say what to publish or draft — that lives on `release.targets[]` — and it is
-not the same block as `release.platforms`, which remains the publishing surface until a
-later phase (see § `release.targets[]` above). The block is additive: `release.platforms`
-keeps working unchanged, and `forges:` is entirely optional in the common case, since heraut
-auto-detects a single forge from the CI environment or the git remote when the block is
-omitted.
+**connection and identity only** ([ADR-0043](../adr/0043-forge-abstraction.md),
+[ADR-0044](../adr/0044-publishing-config-unification.md)). A forge does not itself say what
+to publish or draft — that lives on `release.targets[]` (see above) — and it is not the
+enrichment source, either — that is `commits.enrichment_forge` (see below). `forges:` is
+entirely optional in the common case, since heraut auto-detects a single forge from the CI
+environment or the git remote when the block is omitted.
 
 ```yaml
 forges:
@@ -644,30 +690,28 @@ behaviour of each generator.
 
 ## Platform drivers
 
-Used inside `release.platforms` (and inside per-environment `release.platforms`).
+Publishing is driven by a `release.targets[]` entry (draft/prerelease/assets) plus the
+`forges[].name` it references (host, project/repository, token) — see § `release.targets[]`
+and § `forges` above. The drivers themselves (`gh`/`glab`) are unchanged by ADR-0044: only
+how they are configured and constructed changed, from a standalone `release.platforms` entry
+to a resolved `forges:` identity.
 
 ### GitLab
 
 ```yaml
+forges:
+  - name: gitlab
+    platform: gitlab
+    project: $CI_PROJECT_PATH   # optional, defaults to $CI_PROJECT_PATH
+    token_env: GITLAB_TOKEN     # optional, defaults to GITLAB_TOKEN
+    base_url: https://gitlab.com  # optional, defaults to https://gitlab.com
+
 release:
-  platforms:
-    - platform: gitlab
-      name: gitlab                # required, unique within this platforms list (ADR-0025)
-      project: $CI_PROJECT_PATH   # optional, defaults to $CI_PROJECT_PATH
-      token_env: GITLAB_TOKEN     # optional, defaults to GITLAB_TOKEN
-      base_url: https://gitlab.com  # optional, defaults to https://gitlab.com
+  targets:
+    - forge: gitlab
       assets:
         - dist/myapp_*            # glob patterns for files to attach
 ```
-
-| Field       | Required | Default              | Description                                                                                |
-|-------------|----------|----------------------|--------------------------------------------------------------------------------------------|
-| `platform`  | Yes      | —                    | Must be `"gitlab"`.                                                                        |
-| `name`      | Yes      | —                    | Unique label for this entry within its `release.platforms` list (ADR-0025).               |
-| `project`   | No       | `$CI_PROJECT_PATH`   | GitLab project path in `namespace/repo` format.                                            |
-| `token_env` | No       | `GITLAB_TOKEN`       | Name of the env var holding the GitLab API token.                                          |
-| `base_url`  | No       | `https://gitlab.com` | Web base URL for a self-hosted GitLab instance (ADR-0025).                                 |
-| `assets`    | No       | `[]`                 | Glob patterns for files to upload as release assets.                                       |
 
 A project registered with the GitLab CI/CD Catalog publishes automatically — there is no
 `catalog` field.
@@ -677,29 +721,21 @@ Implementation: shells out to `glab release create` + `glab release upload --use
 ### GitHub
 
 ```yaml
+forges:
+  - name: github
+    platform: github
+    repository: org/repo        # optional, defaults to $GITHUB_REPOSITORY
+    token_env: GH_TOKEN         # optional, defaults to GH_TOKEN
+    base_url: https://github.com  # optional, defaults to https://github.com
+
 release:
-  platforms:
-    - platform: github
-      name: github                # required, unique within this platforms list (ADR-0025)
-      repository: org/repo        # optional, defaults to $GITHUB_REPOSITORY
-      token_env: GH_TOKEN         # optional, defaults to GH_TOKEN
-      base_url: https://github.com  # optional, defaults to https://github.com
+  targets:
+    - forge: github
       draft: false
       prerelease: false
       assets:
         - dist/myapp_*
 ```
-
-| Field        | Required | Default              | Description                                                                                |
-|--------------|----------|----------------------|--------------------------------------------------------------------------------------------|
-| `platform`   | Yes      | —                    | Must be `"github"`.                                                                        |
-| `name`       | Yes      | —                    | Unique label for this entry within its `release.platforms` list (ADR-0025).               |
-| `repository` | No       | `$GITHUB_REPOSITORY` | GitHub repo in `owner/repo` format.                                                        |
-| `token_env`  | No       | `GH_TOKEN`           | Name of the env var holding the GitHub token.                                              |
-| `base_url`   | No       | `https://github.com` | Web base URL for a GitHub Enterprise Server instance (ADR-0025).                           |
-| `draft`      | No       | `false`              | Create the release as a draft.                                                             |
-| `prerelease` | No       | `false`              | Mark the release as a pre-release.                                                         |
-| `assets`     | No       | `[]`                 | Glob patterns for files to upload as release assets.                                       |
 
 Implementation: shells out to `gh release create` + `gh release upload`.
 
@@ -731,14 +767,17 @@ changelog:
   generator: git-cliff
   output: CHANGELOG.md
 
+forges:
+  - name: github
+    platform: github
+    repository: acme/widget
+    token_env: GH_TOKEN
+
 release:
   notes:
     generator: git-cliff
-  platforms:
-    - platform: github
-      name: github
-      repository: acme/widget
-      token_env: GH_TOKEN
+  targets:
+    - forge: github
 ```
 
 ### CalVer — monthly releases, GitLab
@@ -755,12 +794,15 @@ changelog:
   generator: git-cliff
   output: CHANGELOG.md
 
+forges:
+  - name: gitlab
+    platform: gitlab
+
 release:
   notes:
     generator: git-cliff
-  platforms:
-    - platform: gitlab
-      name: gitlab
+  targets:
+    - forge: gitlab
 ```
 
 ### SemVer per environment — dev → staging → prod chain
@@ -777,13 +819,21 @@ changelog:
   output: CHANGELOG.md
   tag_pattern: "dev/*"
 
+forges:
+  - name: gitlab
+    platform: gitlab
+  - name: github
+    platform: github
+
+commits:
+  enrichment_forge: gitlab
+
 release:
   notes:
     generator: git-cliff
     tag_pattern: "dev/*"
-  platforms:
-    - platform: gitlab
-      name: gitlab
+  targets:
+    - forge: gitlab
 
 environments:
   dev:
@@ -791,9 +841,8 @@ environments:
     bump: auto
     disable_changelog: true        # no CHANGELOG commit on dev
     release:
-      platforms:
-        - platform: gitlab         # dev releases only go to GitLab
-          name: gitlab
+      targets:
+        - forge: gitlab            # dev releases only go to GitLab
   staging:
     branch: main
     bump: promote
@@ -803,11 +852,9 @@ environments:
     bump: promote
     source: staging                # prod ← staging ← dev
     release:
-      platforms:
-        - platform: gitlab
-          name: gitlab
-        - platform: github         # prod releases go to both
-          name: github
+      targets:
+        - forge: gitlab
+        - forge: github            # prod releases go to both
 ```
 
 ### SemVer — multiple platforms, with binaries
@@ -819,21 +866,28 @@ versioning:
   strategy: semver
   tag_prefix: "v"
 
+forges:
+  - name: gitlab
+    platform: gitlab
+    token_env: GITLAB_TOKEN
+  - name: github
+    platform: github
+    repository: org/myapp
+    token_env: GH_TOKEN
+
+commits:
+  enrichment_forge: gitlab
+
 release:
   notes:
     generator: git-cliff
-  platforms:
-    - platform: gitlab
-      name: gitlab
-      token_env: GITLAB_TOKEN
+  targets:
+    - forge: gitlab
       assets:
         - dist/myapp_linux_amd64.tar.gz
         - dist/myapp_darwin_arm64.tar.gz
         - dist/checksums.txt
-    - platform: github
-      name: github
-      repository: org/myapp
-      token_env: GH_TOKEN
+    - forge: github
       assets:
         - dist/myapp_*
 ```

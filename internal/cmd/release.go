@@ -71,9 +71,9 @@ func NewReleaseCmd(version string) *cobra.Command {
 				return exitcode.Wrap(exitcode.Config, err)
 			}
 
-			if !hasEffectivePlatforms(cfg, env) {
+			if !app.HasResolvablePublishTarget(readRunner, cfg, env) {
 				return exitcode.Wrap(exitcode.Config, fmt.Errorf(
-					"heraut release requires at least one entry in release.platforms — use 'heraut changelog' for tag-only workflows",
+					"heraut release requires at least one resolvable publish destination — declare release.targets (with a forges: entry) or run where a forge auto-detects (CI env or git origin); use 'heraut changelog' for tag-only workflows",
 				))
 			}
 
@@ -121,10 +121,4 @@ func NewReleaseCmd(version string) *cobra.Command {
 		"rebuild the entire changelog and re-fetch PR attribution (needed once when migrating a changelog to the native generator)")
 
 	return releaseCmd
-}
-
-// hasEffectivePlatforms reports whether cfg has at least one release platform
-// after applying env overrides (see config.EffectivePlatforms).
-func hasEffectivePlatforms(cfg *config.Config, env string) bool {
-	return len(config.EffectivePlatforms(cfg, env)) > 0
 }

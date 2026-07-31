@@ -11,13 +11,16 @@ changelog:
   generator: native
   output: CHANGELOG.md
 
+forges:
+  - name: github
+    platform: github
+    repository: adaouat/heraut
+
 release:
   notes:
     generator: native
-  platforms:
-    - platform: github
-      name: github
-      repository: adaouat/heraut
+  targets:
+    - forge: github
   assets:
     - "dist/heraut_*_linux_amd64"
     - "dist/heraut_*_linux_arm64"

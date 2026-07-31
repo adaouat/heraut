@@ -72,9 +72,11 @@ func TestBuildPipeline_UnknownGenerator(t *testing.T) {
 
 func TestBuildPipeline_WithGitHubPlatform(t *testing.T) {
 	mr := exectest.NewMockRunner()
+	mr.QueueResponse("", "", errors.New("no origin")) // git remote get-url origin (forge resolution)
 	cfg := semverCfg()
+	cfg.Forges = []config.Forge{{Name: "gh", Type: "github", Repository: "acme/widget"}}
 	cfg.Release = &config.Release{
-		Platforms: []config.Platform{{Type: "github"}},
+		Targets: []config.Target{{Forge: "gh"}},
 	}
 	p, err := app.BuildPipeline(mr, cfg, defaultResolver, defaultOpts)
 	require.NoError(t, err)
@@ -83,9 +85,11 @@ func TestBuildPipeline_WithGitHubPlatform(t *testing.T) {
 
 func TestBuildPipeline_WithGitLabPlatform(t *testing.T) {
 	mr := exectest.NewMockRunner()
+	mr.QueueResponse("", "", errors.New("no origin")) // git remote get-url origin (forge resolution)
 	cfg := semverCfg()
+	cfg.Forges = []config.Forge{{Name: "gl", Type: "gitlab", Project: "group/subgroup/project"}}
 	cfg.Release = &config.Release{
-		Platforms: []config.Platform{{Type: "gitlab"}},
+		Targets: []config.Target{{Forge: "gl"}},
 	}
 	p, err := app.BuildPipeline(mr, cfg, defaultResolver, defaultOpts)
 	require.NoError(t, err)
@@ -94,9 +98,11 @@ func TestBuildPipeline_WithGitLabPlatform(t *testing.T) {
 
 func TestBuildPipeline_UnknownPlatform(t *testing.T) {
 	mr := exectest.NewMockRunner()
+	mr.QueueResponse("", "", errors.New("no origin")) // git remote get-url origin (forge resolution)
 	cfg := semverCfg()
+	cfg.Forges = []config.Forge{{Name: "bad", Type: "unknown-plat"}}
 	cfg.Release = &config.Release{
-		Platforms: []config.Platform{{Type: "unknown-plat"}},
+		Targets: []config.Target{{Forge: "bad"}},
 	}
 	_, err := app.BuildPipeline(mr, cfg, defaultResolver, defaultOpts)
 	require.Error(t, err)
@@ -305,9 +311,11 @@ func TestBuildPipeline_ReleaseAssets_PropagatesToPlatforms(t *testing.T) {
 	// release.assets at the top level should build successfully — the platform
 	// contract tests verify the actual upload behavior with LenientAssets=true.
 	mr := exectest.NewMockRunner()
+	mr.QueueResponse("", "", errors.New("no origin")) // git remote get-url origin (forge resolution)
 	cfg := semverCfg()
+	cfg.Forges = []config.Forge{{Name: "gh", Type: "github", Repository: "org/repo"}}
 	cfg.Release = &config.Release{
-		Platforms: []config.Platform{{Type: "github", Repository: "org/repo"}},
+		Targets: []config.Target{{Forge: "gh"}},
 		Assets: []string{
 			"dist/heraut_*_linux_amd64",
 			"dist/checksums.txt",

@@ -90,11 +90,13 @@ func TestConfigToAnswers_Platforms(t *testing.T) {
 	cfg := &config.Config{
 		Version:    "1",
 		Versioning: config.Versioning{Strategy: "semver"},
+		Forges: []config.Forge{
+			{Name: "github", Type: "github", Repository: "acme/widget", TokenEnv: "GH_TOKEN"},
+			{Name: "gitlab", Type: "gitlab", Project: "acme/widget"},
+		},
+		Commits: &config.Commits{EnrichmentForge: "github"},
 		Release: &config.Release{
-			Platforms: []config.Platform{
-				{Type: "github", Repository: "acme/widget", TokenEnv: "GH_TOKEN"},
-				{Type: "gitlab", Project: "acme/widget"},
-			},
+			Targets: []config.Target{{Forge: "github"}, {Forge: "gitlab"}},
 		},
 	}
 	a := scaffold.ConfigToAnswers(cfg)

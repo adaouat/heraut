@@ -4,15 +4,23 @@ versioning:
   strategy: semver-per-env
   tag_format: "{env}/{version}"
 
+forges:
+  - name: gitlab
+    platform: gitlab
+  - name: github
+    platform: github
+
+commits:
+  enrichment_forge: gitlab
+
 environments:
   dev:
     branch: develop
     bump: auto
     disable_changelog: true
     release:
-      platforms:
-        - platform: gitlab
-          name: gitlab
+      targets:
+        - forge: gitlab
   staging:
     branch: main
     bump: promote
@@ -22,11 +30,9 @@ environments:
     bump: promote
     source: staging
     release:
-      platforms:
-        - platform: gitlab
-          name: gitlab
-        - platform: github
-          name: github
+      targets:
+        - forge: gitlab
+        - forge: github
 
 changelog:
   generator: git-cliff
@@ -37,6 +43,5 @@ release:
   notes:
     generator: git-cliff
     tag_pattern: "dev/*"
-  platforms:
-    - platform: gitlab
-      name: gitlab
+  targets:
+    - forge: gitlab

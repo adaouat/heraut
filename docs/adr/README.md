@@ -29,7 +29,7 @@ trade-offs were accepted.
 | [0022](0022-fat-injection-thin-templates.md) | Fat Injection / Thin git-cliff Templates | Accepted |
 | [0023](0023-remote-metadata-policy.md) | Remote-Metadata Policy for Content Generation | Accepted (`remote_metadata` key renamed to `commits.enrichment_policy` by 0043) |
 | [0024](0024-ticket-linking.md) | Ticket Linking via git-cliff link_parsers | Accepted |
-| [0025](0025-multi-instance-platforms.md) | Multi-Instance Same-Platform Releases | Accepted |
+| [0025](0025-multi-instance-platforms.md) | Multi-Instance Same-Platform Releases | Accepted (config surface — `release.platforms` list with unique `name`s — superseded by multiple `forges:` entries + `release.targets` by 0044) |
 | [0026](0026-azure-devops-metadata-remote.md) | `changelog.remote` — Explicit Metadata Remote for git-cliff | Accepted (git-cliff-only gate + `api_url` superseded by 0040; `changelog.remote` block removed and replaced by `forges:` + `commits.enrichment_forge` by 0043) |
 | [0027](0027-builtin-conventional-commit-checker.md) | Built-in Conventional-Commit Checker | Accepted (`commit_lint` superseded by 0033) |
 | [0028](0028-drop-cocogitto-generator.md) | Drop the `cocogitto` Generator Entirely | Accepted |
@@ -47,4 +47,5 @@ trade-offs were accepted.
 | [0040](0040-changelog-remote-native-base-url.md) | `changelog.remote` for native + unified `base_url` host override | Accepted |
 | [0041](0041-remote-metadata-required-enforcement-and-force.md) | `remote_metadata: required` enforcement and `--force` override | Accepted |
 | [0042](0042-gitlab-graphql-enrichment.md) | GitLab enrichment via batched GraphQL | Accepted |
-| [0043](0043-forge-abstraction.md) | Forge abstraction + unified forges: config | Accepted |
+| [0043](0043-forge-abstraction.md) | Forge abstraction + unified forges: config | Accepted (P3 framing — publishing folds into `port.Forge` with a transport change — superseded by 0044, which keeps `gh`/`glab` and unifies config only) |
+| [0044](0044-publishing-config-unification.md) | Publishing config unification — `release.targets` replaces `release.platforms` | Accepted |

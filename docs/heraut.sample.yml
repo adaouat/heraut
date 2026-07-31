@@ -142,19 +142,37 @@ versioning:
 
 # ── forges ────────────────────────────────────────────────────────────────────
 #
-# Code-hosting platforms heraut talks to (ADR-0043): connection/identity only.
-# What to publish (draft/assets) lives in release.targets below; the PR/MR
-# enrichment source is commits.enrichment_forge above. Additive alongside
-# release.platforms for now — release.platforms removal is a later phase.
-# forges:
-#   - name: gitlab-saas          # referenced by release.targets[].forge and commits.enrichment_forge
-#     platform: gitlab           # github | gitlab | azure_devops
-#     project: group/subgroup/project  # gitlab: namespace[/subgroup]/repo
-#     # repository: acme/widget        # github / azure_devops: owner/repo (or repo name)
-#     # base_url: https://gitlab.example.com  # self-hosted host override
-#     # api_url: https://gitlab.example.com/api  # API host override, when it differs from base_url
-#     api_mode: rest              # rest (default) | graphql
-#     # token_env: GITLAB_TOKEN   # defaults per type when unset
+# Code-hosting platforms heraut talks to (ADR-0043/ADR-0044): connection/identity
+# only. What to publish (draft/assets) lives in release.targets below; the PR/MR
+# enrichment source is commits.enrichment_forge above. Optional in the common case:
+# heraut auto-detects a single forge from the CI environment or the git remote
+# when this block is omitted (zero-config publishing).
+forges:
+  # ── GitHub ───────────────────────────────────────────────────────────────
+  - name: github # referenced by release.targets[].forge and commits.enrichment_forge
+    platform: github # github | gitlab | azure_devops
+
+    # repository — owner/repo on GitHub. Required.
+    repository: acme/widget
+
+    # token_env — env var holding a GitHub token with contents:write scope.
+    # Defaults to GH_TOKEN if omitted.
+    token_env: GH_TOKEN
+
+    # base_url — web base URL of the forge instance. Defaults to
+    # https://github.com (GitHub) / https://gitlab.com (GitLab).
+    # Self-hosted (non-default) values are supported (ADR-0025).
+    # base_url: https://github.com
+
+# ── GitLab ───────────────────────────────────────────────────────────────
+# - name: gitlab-saas
+#   platform: gitlab
+#   project: group/subgroup/project  # gitlab: namespace[/subgroup]/repo
+#   # repository: acme/widget        # github / azure_devops: owner/repo (or repo name)
+#   # base_url: https://gitlab.example.com  # self-hosted host override
+#   # api_url: https://gitlab.example.com/api  # API host override, when it differs from base_url
+#   api_mode: rest              # rest (default) | graphql
+#   # token_env: GITLAB_TOKEN   # defaults per type when unset
 
 # ── changelog ─────────────────────────────────────────────────────────────────
 #
@@ -199,10 +217,9 @@ changelog:
   #   templates:
   #     header: "# Changelog\n\nAll notable changes to this project.\n"
 
-  # PR/MR enrichment for the changelog's commit history is now sourced from the top-level
+  # PR/MR enrichment for the changelog's commit history is sourced from the top-level
   # forges: block plus commits.enrichment_forge / commits.enrichment_policy above — see
-  # the forges block for pinning a specific host when ambient detection is ambiguous, or
-  # when the changelog's commit history doesn't come from a release.platforms entry.
+  # the forges block for pinning a specific host when ambient detection is ambiguous.
 
 # ── release ───────────────────────────────────────────────────────────────────
 #
@@ -216,12 +233,12 @@ release:
     # config, tag_pattern, template — same semantics as the changelog block above.
     # tag_pattern: "v[0-9]*"
 
-  # assets — glob patterns for files to attach to the release, applied to all platforms.
+  # assets — glob patterns for files to attach to the release, applied to all targets.
   # Globs are expanded at release time; a pattern matching nothing emits a warning
   # but does not abort the release.
-  # Precedence: if a platform entry also defines assets:, the platform-level list
-  # takes full precedence and release.assets is ignored for that platform. Use
-  # release.assets as a shared default; use platform.assets for platform-specific overrides.
+  # Precedence: if a target also defines assets:, the target-level list takes full
+  # precedence and release.assets is ignored for that target. Use release.assets as
+  # a shared default; use target.assets for target-specific overrides.
   # assets:
   #   - "dist/myapp_*_linux_amd64"
   #   - "dist/myapp_*_linux_arm64"
@@ -230,139 +247,79 @@ release:
   #   - "dist/myapp_*_windows_amd64.exe"
   #   - "dist/checksums.txt"
 
-  # platforms — one entry per target platform.
-  # Both github and gitlab can coexist; heraut publishes to all listed platforms.
-  platforms:
-    # ── GitHub ───────────────────────────────────────────────────────────────
-    - platform: github
+  # targets — release publish destinations, each referencing a forges[].name (see
+  # the forges block above). Omitting targets entirely publishes to the single
+  # resolved forge with default options (zero-config publishing) — see ADR-0044.
+  targets:
+    # forge — references a forges[].name. Optional when exactly one forge is
+    # configured (or auto-detected); required when more than one is configured.
+    - forge: github
+      # ── Multiple instances of the same forge type (ADR-0025/ADR-0044) ─────────
+      # Declare multiple forges: entries (distinct name:, base_url:, token_env:) and
+      # reference each from its own release.targets entry to publish to both instances:
+      # forges:
+      #   - name: gitlab-saas
+      #     platform: gitlab
+      #     project: acme/widget
+      #   - name: gitlab-internal
+      #     platform: gitlab
+      #     project: tools/widget-mirror
+      #     base_url: https://gitlab.example.com
+      #     token_env: GITLAB_INTERNAL_TOKEN
+      # release:
+      #   targets:
+      #     - forge: gitlab-saas
+      #     - forge: gitlab-internal
 
-      # name — required. Unique identifier for this entry within this
-      # release.platforms list (top-level, or a single environment override).
-      # Used to label this platform in `heraut check runtime` output.
-      name: github
-
-      # repository — owner/repo on GitHub. Required.
-      repository: acme/widget
-
-      # token_env — env var holding a GitHub token with contents:write scope.
-      # Defaults to GH_TOKEN if omitted.
-      token_env: GH_TOKEN
-
-      # base_url — web base URL of the platform instance. Defaults to
-      # https://github.com (GitHub) / https://gitlab.com (GitLab).
-      # Self-hosted (non-default) values are supported (ADR-0025): heraut points
-      # gh/glab at the configured host via GH_HOST / GITLAB_HOST.
-      # base_url: https://github.com
-
-      # draft — create the release as a draft (not publicly visible until published).
-      # draft: true
-
-      # prerelease — mark as a pre-release on the GitHub UI.
-      # prerelease: true
-
-      # assets — platform-specific glob patterns. When set, overrides release.assets
-      # entirely for this platform (no merging). Omit to inherit release.assets.
-      # assets:
-      #   - dist/myapp_*
-      #   - dist/checksums.txt
-
-  # ── GitLab ───────────────────────────────────────────────────────────────
-  # - platform: gitlab
-  #
-  #   # name — required, unique within this release.platforms list.
-  #   name: gitlab
-  #
-  #   # project — GitLab namespace/project path.
-  #   # Defaults to $CI_PROJECT_PATH if omitted (convenient in CI).
-  #   project: acme/widget
-  #
-  #   # token_env — env var holding a GitLab token with api scope.
-  #   # Defaults to GITLAB_TOKEN if omitted.
-  #   token_env: GITLAB_TOKEN
-  #
-  #   # base_url — defaults to https://gitlab.com. Self-hosted values are
-  #   # supported (ADR-0025).
-  #   # base_url: https://gitlab.com
-  #
-  #   # assets — platform-specific overrides (overrides release.assets entirely for this platform).
-  #   # assets:
-  #   #   - dist/myapp_*
-
-  # ── Multiple instances of the same platform type (ADR-0025) ───────────────
-  # Two entries with the same `platform:` but different `name:`, `base_url:`,
-  # and `token_env:` publish the release to both instances:
-  # - platform: gitlab
-  #   name: gitlab-saas
-  #   project: acme/widget
-  # - platform: gitlab
-  #   name: gitlab-internal
-  #   project: tools/widget-mirror
-  #   base_url: https://gitlab.example.com
-  #   token_env: GITLAB_INTERNAL_TOKEN
-
-  # ── targets (ADR-0043) ────────────────────────────────────────────────────
-  # Release publish destinations, each referencing a forges[].name (see the
-  # forges block above). Additive alongside platforms — a later config
-  # revision consolidates the two.
-  # targets:
-  #   - forge: gitlab-saas   # → forges[].name; optional when exactly one forge is configured
-  #     draft: false
-  #     prerelease: false
-  #     # assets — target-specific overrides (overrides release.assets entirely for this target).
-  #     # assets:
-  #     #   - dist/myapp_*
-
-# ── environments ─────────────────────────────────────────────────────────────
-#
-# Required for semver-per-env and calver-per-env strategies.
-# One entry per deployment environment.
-# Versioning fields drive version resolution; content fields override changelog/release.
-# Using environments with semver or calver is a hard error.
-#
-# environments:
-#   dev:
-#     # bump mode for this environment:
-#     #   auto    infer from conventional commits since the last tag in this namespace
-#     #   promote copy the version from another environment's latest tag
-#     bump: auto
-#
-#     # tag_format override for this environment only (overrides versioning.tag_format).
-#     # tag_format: "dev/{version}"
-#
-#     # branch restriction: heraut refuses to run here unless this branch is active.
-#     # omit or leave empty for no restriction (the default).
-#     # branch: develop
-#
-#     # disable_changelog: skip changelog generation for this environment.
-#     # disable_changelog: true
-#
-#     # disable_notes: skip release notes generation for this environment.
-#     # disable_notes: true
-#
-#     # changelog override — replace root changelog config for this environment.
-#     # changelog:
-#     #   generator: git-cliff
-#     #   tag_pattern: "^dev/"
-#
-#     # release overrides — independently override notes and/or platforms/targets.
-#     # release:
-#     #   notes:
-#     #     generator: git-cliff
-#     #   platforms:
-#     #     - platform: gitlab
-#     #   targets:              # ADR-0043; additive alongside platforms
-#     #     - forge: gitlab-saas
-#
-#   staging:
-#     bump: promote
-#     source: dev        # environment to promote from
-#     disable_changelog: true
-#     disable_notes: true
-#
-#   prod:
-#     bump: promote
-#     source: staging    # staging must exist and have a tag before prod can promote
-#     release:
-#       platforms:
-#         - platform: gitlab
-#         - platform: github
+      # ── environments ─────────────────────────────────────────────────────────────
+      #
+      # Required for semver-per-env and calver-per-env strategies.
+      # One entry per deployment environment.
+      # Versioning fields drive version resolution; content fields override changelog/release.
+      # Using environments with semver or calver is a hard error.
+      #
+      # environments:
+      #   dev:
+      #     # bump mode for this environment:
+      #     #   auto    infer from conventional commits since the last tag in this namespace
+      #     #   promote copy the version from another environment's latest tag
+      #     bump: auto
+      #
+      #     # tag_format override for this environment only (overrides versioning.tag_format).
+      #     # tag_format: "dev/{version}"
+      #
+      #     # branch restriction: heraut refuses to run here unless this branch is active.
+      #     # omit or leave empty for no restriction (the default).
+      #     # branch: develop
+      #
+      #     # disable_changelog: skip changelog generation for this environment.
+      #     # disable_changelog: true
+      #
+      #     # disable_notes: skip release notes generation for this environment.
+      #     # disable_notes: true
+      #
+      #     # changelog override — replace root changelog config for this environment.
+      #     # changelog:
+      #     #   generator: git-cliff
+      #     #   tag_pattern: "^dev/"
+      #
+      #     # release overrides — independently override notes and/or targets.
+      #     # release:
+      #     #   notes:
+      #     #     generator: git-cliff
+      #     #   targets:              # ADR-0043/ADR-0044; replaces the root list entirely for this env
+      #     #     - forge: gitlab-saas
+      #
+      #   staging:
+      #     bump: promote
+      #     source: dev        # environment to promote from
+      #     disable_changelog: true
+      #     disable_notes: true
+      #
+      #   prod:
+      #     bump: promote
+      #     source: staging    # staging must exist and have a tag before prod can promote
+      #     release:
+      #       targets:
+      #         - forge: gitlab-saas
+      #         - forge: github

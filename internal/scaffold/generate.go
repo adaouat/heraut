@@ -110,17 +110,28 @@ func answersToConfig(a Answers) config.Config {
 					name = fmt.Sprintf("%s-%d", p.Type, n)
 				}
 			}
-			plat := config.Platform{
+			cfg.Forges = append(cfg.Forges, config.Forge{
 				Name:       name,
 				Type:       p.Type,
 				Repository: p.Repository,
 				Project:    p.Project,
 				TokenEnv:   p.TokenEnv,
 				BaseURL:    p.BaseURL,
+			})
+			cfg.Release.Targets = append(cfg.Release.Targets, config.Target{
+				Forge:      name,
 				Draft:      p.Draft,
 				Prerelease: p.Prerelease,
+			})
+		}
+		// commits.enrichment_forge is required once more than one forge is configured
+		// (validateForges) — the wizard has no forge-selection question yet (that redesign is
+		// T164/P4), so the first configured forge is the deliberate, unambiguous default.
+		if len(cfg.Forges) > 1 {
+			if cfg.Commits == nil {
+				cfg.Commits = &config.Commits{}
 			}
-			cfg.Release.Platforms = append(cfg.Release.Platforms, plat)
+			cfg.Commits.EnrichmentForge = cfg.Forges[0].Name
 		}
 	}
 

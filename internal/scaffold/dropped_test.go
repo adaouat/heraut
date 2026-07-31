@@ -59,10 +59,11 @@ func TestDroppedFields_PlatformBaseURL_NotDropped(t *testing.T) {
 	cfg := &config.Config{
 		Version:    "1",
 		Versioning: config.Versioning{Strategy: "semver"},
+		Forges: []config.Forge{
+			{Name: "github", Type: "github", BaseURL: "https://github.example.com"},
+		},
 		Release: &config.Release{
-			Platforms: []config.Platform{
-				{Name: "github", Type: "github", BaseURL: "https://github.example.com"},
-			},
+			Targets: []config.Target{{Forge: "github"}},
 		},
 	}
 	assert.Empty(t, scaffold.DroppedFields(cfg), "base_url is carried through via passthrough fields (T108)")
@@ -72,10 +73,11 @@ func TestDroppedFields_PlatformDraftAndPrerelease_NotDropped(t *testing.T) {
 	cfg := &config.Config{
 		Version:    "1",
 		Versioning: config.Versioning{Strategy: "semver"},
+		Forges: []config.Forge{
+			{Name: "github", Type: "github", BaseURL: "https://github.com"},
+		},
 		Release: &config.Release{
-			Platforms: []config.Platform{
-				{Name: "github", Type: "github", BaseURL: "https://github.com", Draft: true, Prerelease: true},
-			},
+			Targets: []config.Target{{Forge: "github", Draft: true, Prerelease: true}},
 		},
 	}
 	assert.Empty(t, scaffold.DroppedFields(cfg), "draft/prerelease are carried through via passthrough fields (T108)")
@@ -83,10 +85,11 @@ func TestDroppedFields_PlatformDraftAndPrerelease_NotDropped(t *testing.T) {
 
 func TestDroppedPlatformFields_NoMismatch(t *testing.T) {
 	cfg := &config.Config{
+		Forges: []config.Forge{
+			{Name: "github", Type: "github", BaseURL: "https://github.example.com"},
+		},
 		Release: &config.Release{
-			Platforms: []config.Platform{
-				{Name: "github", Type: "github", BaseURL: "https://github.example.com", Draft: true},
-			},
+			Targets: []config.Target{{Forge: "github", Draft: true}},
 		},
 	}
 	rebuilt := []scaffold.PlatformAnswer{
@@ -98,10 +101,14 @@ func TestDroppedPlatformFields_NoMismatch(t *testing.T) {
 func TestDroppedPlatformFields_Mismatch_OriginalLonger(t *testing.T) {
 	// original had 2 github entries with overrides; rebuilt has only 1 → 2nd is lost
 	cfg := &config.Config{
+		Forges: []config.Forge{
+			{Name: "github-com", Type: "github", BaseURL: "https://github.com"},
+			{Name: "github-ent", Type: "github", BaseURL: "https://github.example.com"},
+		},
 		Release: &config.Release{
-			Platforms: []config.Platform{
-				{Name: "github-com", Type: "github", BaseURL: "https://github.com"},
-				{Name: "github-ent", Type: "github", BaseURL: "https://github.example.com", Draft: true},
+			Targets: []config.Target{
+				{Forge: "github-com"},
+				{Forge: "github-ent", Draft: true},
 			},
 		},
 	}
@@ -109,8 +116,8 @@ func TestDroppedPlatformFields_Mismatch_OriginalLonger(t *testing.T) {
 		{Type: "github", Name: "github-com"},
 	}
 	dropped := scaffold.DroppedPlatformFields(cfg, rebuilt)
-	assert.Contains(t, dropped, "release.platforms.github-ent.base_url")
-	assert.Contains(t, dropped, "release.platforms.github-ent.draft")
+	assert.Contains(t, dropped, "release.targets.github-ent.base_url")
+	assert.Contains(t, dropped, "release.targets.github-ent.draft")
 }
 
 func TestDroppedPlatformFields_NilCfg(t *testing.T) {

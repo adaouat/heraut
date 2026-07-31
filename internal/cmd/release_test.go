@@ -61,11 +61,13 @@ versioning:
 environments:
   uat:
     bump: auto
+forges:
+  - name: github
+    platform: github
+    repository: test/repo
 release:
-  platforms:
-    - platform: github
-      name: github
-      repository: test/repo
+  targets:
+    - forge: github
 `)
 	out, err := executeRoot("release", "--config", cfgPath, "--env", "uat",
 		"--version", "7.4.1", "--build", "158404", "--dry-run")
@@ -96,11 +98,13 @@ version: "1"
 versioning:
   strategy: semver
   tag_prefix: "v"
+forges:
+  - name: github
+    platform: github
+    repository: test/repo
 release:
-  platforms:
-    - platform: github
-      name: github
-      repository: test/repo
+  targets:
+    - forge: github
 `)
 	exectest.FakeBin(t, "git", `#!/bin/sh
 case "$*" in
@@ -116,6 +120,7 @@ esac
 }
 
 func TestRelease_NoPlatforms_Error(t *testing.T) {
+	clearCIEnv(t)
 	cfgPath := writeConfig(t, `
 version: "1"
 versioning:
@@ -125,25 +130,44 @@ changelog:
   generator: git-cliff
   output: CHANGELOG.md
 `)
+	dir := t.TempDir()
+	t.Chdir(dir)
+	exectest.FakeBin(t, "git", `#!/bin/sh
+case "$*" in
+  "remote get-url origin") exit 1 ;;
+  *) exit 0 ;;
+esac
+`)
 	_, err := executeRoot("release", "--config", cfgPath, "--dry-run")
 	require.Error(t, err)
 	assert.Equal(t, exitcode.Config, cmd.ExitCode(err))
-	assert.Contains(t, err.Error(), "platform")
+	assert.Contains(t, err.Error(), "publish destination")
 }
 
-func TestRelease_EmptyPlatforms_Error(t *testing.T) {
+func TestRelease_EmptyTargets_ZeroConfigResolves(t *testing.T) {
+	// release.targets: [] with no forges: configured is not itself an error — it is the
+	// zero-config shape, which is valid as long as a forge auto-detects (CI env or git origin).
+	// Only "nothing resolves at all" (TestRelease_NoPlatforms_Error) is the hard config error.
+	clearCIEnv(t)
 	cfgPath := writeConfig(t, `
 version: "1"
 versioning:
   strategy: semver
   tag_prefix: "v"
 release:
-  platforms: []
+  targets: []
 `)
-	_, err := executeRoot("release", "--config", cfgPath, "--dry-run")
-	require.Error(t, err)
-	assert.Equal(t, exitcode.Config, cmd.ExitCode(err))
-	assert.Contains(t, err.Error(), "platform")
+	exectest.FakeBin(t, "git", `#!/bin/sh
+case "$*" in
+  "remote get-url origin") echo "https://github.com/acme/widget.git" ;;
+  "tag -l v* --sort=-version:refname") echo "v1.0.0" ;;
+  "log v1.0.0..HEAD --format=%B"*) printf "feat: new feature\x00" ;;
+  *) exit 1 ;;
+esac
+`)
+	out, err := executeRoot("release", "--config", cfgPath, "--dry-run")
+	require.NoError(t, err)
+	assert.Contains(t, out, "[dry-run]")
 }
 
 func TestRelease_VersionFlag_InvalidFormat(t *testing.T) {
@@ -152,11 +176,13 @@ version: "1"
 versioning:
   strategy: semver
   tag_prefix: "v"
+forges:
+  - name: github
+    platform: github
+    repository: test/repo
 release:
-  platforms:
-    - platform: github
-      name: github
-      repository: test/repo
+  targets:
+    - forge: github
 `)
 	tests := []struct {
 		name    string
@@ -182,11 +208,13 @@ version: "1"
 versioning:
   strategy: semver
   tag_prefix: "v"
+forges:
+  - name: github
+    platform: github
+    repository: test/repo
 release:
-  platforms:
-    - platform: github
-      name: github
-      repository: test/repo
+  targets:
+    - forge: github
 `)
 	tests := []struct {
 		name    string
@@ -220,13 +248,17 @@ version: "1"
 versioning:
   strategy: semver
   tag_prefix: "v"
+forges:
+  - name: github
+    platform: github
+    repository: test/repo
 release:
-  platforms:
-    - platform: github
-      name: github
-      repository: test/repo
+  targets:
+    - forge: github
 `)
-	// git --version succeeds; everything else (config user.name, config user.email) exits 1.
+	// git --version succeeds; everything else (config user.name, config user.email,
+	// remote get-url origin) exits 1 — the origin failure is swallowed by forge resolution
+	// (an explicit forges: entry never depends on it), so it never masks the preflight failure.
 	exectest.FakeBin(t, "git", `#!/bin/sh
 case "$*" in
   "--version") echo "git version 2.49.0" ;;

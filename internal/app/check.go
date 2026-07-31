@@ -2,6 +2,7 @@ package app
 
 import (
 	"fmt"
+	"os"
 	"strings"
 
 	"github.com/adaouat/heraut/internal/config"
@@ -40,16 +41,18 @@ func PreflightCheck(runner port.Runner) error {
 // runs; the run function performs the check and returns the result.
 //
 // env selects the active environment for the Platforms section: when non-empty
-// and cfg.Environments[env].Release.Platforms is non-empty, it replaces the root
-// release.platforms list entirely (same semantics as the release pipeline's
-// effective-platforms resolution). An empty env, or an env with no platform
+// and cfg.Environments[env].Release.Targets is non-empty, it replaces the root
+// release.targets list entirely (same semantics as the release pipeline's
+// effective-targets resolution). An empty env, or an env with no target
 // override, checks the root list.
 //
 // Check order:
 //
 //	Git:        git binary → user.name → user.email → working tree
-//	Platforms:  one row per effective release.platforms entry, or
-//	            glab (GitLab) → gh (GitHub) as a binary-only fallback
+//	Platforms:  one row per effective release.targets entry (resolved against
+//	            forges:/CI env/git origin, same as `heraut release`), or
+//	            glab (GitLab) → gh (GitHub) as a binary-only fallback when
+//	            nothing resolves
 //	Generators: git-cliff → communique
 //
 // Configured tools are hard errors when missing; unconfigured-but-supported
@@ -113,13 +116,21 @@ func RuntimeCheck(
 	// ── Platforms ─────────────────────────────────────────────────────────────
 	header("Platforms")
 
-	platforms := config.EffectivePlatforms(cfg, env)
+	platCfgs, resolveErr := effectiveTargetPlatforms(runner, cfg, env)
 
-	if len(platforms) > 0 {
-		// One row per effective platform entry: full check (binary + token +
-		// project/repository + API auth), labeled by the entry's configured name.
-		for i := range platforms {
-			platCfg := &platforms[i]
+	switch {
+	case resolveErr != nil:
+		// Forge resolution failed (e.g. an ambiguous multi-token machine with no CI/origin to
+		// disambiguate) — report it as a single failing row instead of silently falling back to
+		// the binary-only probe, which would hide the reason `heraut release` will also fail.
+		dispatch("forge", func() RuntimeCheckItem {
+			return RuntimeCheckItem{Name: "forge", Err: resolveErr}
+		})
+	case len(platCfgs) > 0:
+		// One row per effective target's resolved platform: full check (binary + token +
+		// project/repository + API auth), labeled by the resolved forge name.
+		for i := range platCfgs {
+			platCfg := &platCfgs[i]
 			name := platCfg.Name
 			dispatch(name, func() RuntimeCheckItem {
 				p, buildErr := buildPlatform(runner, platCfg)
@@ -132,10 +143,10 @@ func RuntimeCheck(
 				return RuntimeCheckItem{Name: name}
 			})
 		}
-	} else {
-		// No platforms configured: fall back to a binary-only probe of both
-		// supported CLIs. Required (hard error) when cfg is nil (no config file
-		// found, so both could plausibly be needed); advisory otherwise.
+	default:
+		// No target resolves to a publishable platform: fall back to a binary-only probe of both
+		// supported CLIs. Required (hard error) when cfg is nil (no config file found, so both
+		// could plausibly be needed); advisory otherwise.
 		required := cfg == nil
 		for _, bin := range []string{"glab", "gh"} {
 			dispatch(bin, func() RuntimeCheckItem {
@@ -174,6 +185,42 @@ func RuntimeCheck(
 			return RuntimeCheckItem{Name: og.display, Value: strings.TrimSpace(out)}
 		})
 	}
+}
+
+// effectiveTargetPlatforms resolves the config.Platform heraut would build for each effective
+// release.targets entry (or the zero-config synthesized target when the list is empty), mirroring
+// buildTargetPlatforms/resolveTargetForge without constructing the port.Platform driver — the
+// check needs the resolved name/type before deciding whether to build it. Returns (nil, nil) when
+// cfg is nil (no config file found — nothing to resolve against) or when no target resolves to a
+// forge; returns a non-nil error only when resolution itself fails (e.g. an ambiguous zero-config
+// environment), matching heraut release's own forge-resolution failure mode.
+func effectiveTargetPlatforms(runner port.Runner, cfg *config.Config, env string) ([]config.Platform, error) {
+	if cfg == nil {
+		return nil, nil
+	}
+
+	targets := config.EffectiveTargets(cfg, env)
+	resolved, err := resolveForge(runner, os.Getenv, cfg)
+	if err != nil {
+		return nil, err
+	}
+
+	if len(targets) == 0 {
+		if len(resolved.Forges) == 0 {
+			return nil, nil
+		}
+		targets = []config.Target{{}}
+	}
+
+	platCfgs := make([]config.Platform, 0, len(targets))
+	for _, t := range targets {
+		f, id, err := resolveTargetForge(cfg, t, resolved)
+		if err != nil {
+			return nil, err
+		}
+		platCfgs = append(platCfgs, platformConfigFromTarget(t, f, id))
+	}
+	return platCfgs, nil
 }
 
 // configuredGenerators returns the set of generator names active in cfg.

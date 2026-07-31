@@ -12,17 +12,24 @@ changelog:
   generator: git-cliff
   output: CHANGELOG.md
 
+forges:
+  - name: github
+    platform: github
+    repository: acme/widget
+    base_url: https://github.com
+    token_env: GH_TOKEN
+  - name: gitlab
+    platform: gitlab
+    project: acme/widget
+    base_url: https://gitlab.com
+    token_env: GITLAB_TOKEN
+
+commits:
+  enrichment_forge: github
+
 release:
   notes:
     generator: git-cliff
-  platforms:
-    - platform: github
-      name: github
-      repository: acme/widget
-      base_url: https://github.com
-      token_env: GH_TOKEN
-    - platform: gitlab
-      name: gitlab
-      project: acme/widget
-      base_url: https://gitlab.com
-      token_env: GITLAB_TOKEN
+  targets:
+    - forge: github
+    - forge: gitlab

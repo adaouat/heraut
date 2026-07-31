@@ -138,10 +138,13 @@ versioning:
   strategy: semver
 changelog:
   generator: git-cliff
+forges:
+  - name: github
+    platform: github
+    repository: acme/widget
 release:
-  platforms:
-    - platform: github
-      name: github
+  targets:
+    - forge: github
 `)
 	exectest.FakeBin(t, "git", `#!/bin/sh
 case "$*" in
@@ -408,6 +411,7 @@ esac
 // ---- check (bare) ----
 
 func TestCheckAll_PassesAll(t *testing.T) {
+	clearCIEnv(t)
 	cfgPath := writeConfig(t, `
 version: "1"
 versioning:
@@ -420,6 +424,7 @@ case "$*" in
   "--version") echo "git version 2.x" ;;
   "config user.name") echo "John Doe" ;;
   "config user.email") echo "john@example.com" ;;
+  "remote get-url origin") exit 1 ;;
   *) exit 0 ;;
 esac
 `)

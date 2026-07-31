@@ -38,7 +38,7 @@ targets); `commits.remote_metadata` is renamed `commits.enrichment_policy`.
 |----------------------------------------------------------|-------------|-------------|
 | P1 — GitLab-first: `port.Forge` + config + resolution + native REST/GraphQL + links | T154–T160 | Complete |
 | P2 — migrate GitHub + Azure onto `port.Forge`            | T161, T162  | Complete    |
-| P3 — fold publishing into `port.Forge`                   | T163        | Not started |
+| P3 — publishing via `release.targets` (config unification, not transport) | T163 | Complete |
 | P4 (last) — `heraut init` wizard                         | T164        | Not started |
 
 Phases run in order. P2–P4 tasks are stubs to be fleshed out when reached; **P1 is the phase to
@@ -338,20 +338,65 @@ remaining caller (I5) — deleted with its ~90 lines of tests. See
 
 ---
 
-## Phase 3 — fold publishing into `port.Forge`
+## Phase 3 — publishing via `release.targets` (config unification, not transport)
 
-#### `[ ]` T163: publishing via `port.Forge`
+#### `[x]` T163: `release.targets` replaces `release.platforms`
 
-Give `port.Forge` a publish capability (or a sibling constructed from the same resolved identity),
-retire the `release.platforms`-era `port.Platform` split, and have `release.targets` drive publish
-through the forge. A forge becomes the single object for enrich + links + publish. Tests: contract
-tests for `gh`/`glab` (or native) release create, fed the resolved identity.
+**Scope decision (2026-07-27, recorded in ADR-0044):** P3 shipped as a **config unification**,
+not the transport fold this section originally described. `release.targets[]` (added in T155)
+becomes the publishing surface; `release.platforms` is removed with a migration error
+(`ErrRemovedConfigKey`) naming the `forges:` + `release.targets[].forge` replacement.
+`internal/platforms/{github,gitlab}` and `port.Platform` are **unchanged** — publishing still
+shells out to `gh`/`glab`; only how those drivers are configured and constructed changed (from a
+standalone `config.Platform` block to `platformConfigFromTarget`, fed by the same resolved
+`port.ForgeIdentity` enrichment already uses). See ADR-0044 for the three reasons the transport
+stayed put (no config-goal dependency on it, the original `CI_JOB_TOKEN` pain was already solved
+in P1, and P2's two shipped defects demonstrate the risk of hand-rolled request shapes on the
+artifact path). Native publishing (which would actually drop the `gh`/`glab` dependency) remains
+a future, separately-motivated task — nothing here forecloses it, since the drivers already sit
+behind `port.Platform`.
 
-**Publishing HTTP client — own ADR (decided here).** Whether release-create + asset-upload use
-stdlib `net/http` or official SDKs (`go-github` / `gitlab-org/api/client-go`) is decided in this
-phase, informed by the P1/P2 build. A generic client like `resty` is rejected (an SDK gives typed
-endpoints for the same dependency cost). Enrichment (P1/P2) is stdlib; the `port.Forge` abstraction
-lets the GitLab/GitHub impls swap to the SDK too, if chosen, without consumer churn.
+**What changed:** `config.Release.Platforms` / `config.EnvRelease.Platforms` / `config.EffectivePlatforms`
+deleted; `hasEffectivePlatforms` in `internal/cmd/release.go` replaced by
+`app.HasResolvablePublishTarget` (has ≥1 effective `release.targets` entry, or a forge that
+auto-resolves); `internal/app/check.go`'s `RuntimeCheck` Platforms section now resolves
+`EffectiveTargets` + `forges:` (via the same `forge.Resolve` enrichment uses) instead of reading
+`release.platforms` directly, so `heraut check` shows the auto-detected identity per target.
+`buildTargetPlatforms`'s `hasEffectivePlatforms` guard parameter — which existed only to stop a
+`release.platforms` config from also gaining a silent zero-config-synthesized target — was
+removed outright along with the field it guarded; publishing's forge resolution is now
+unconditional (previously conditional on nothing else needing it). `internal/scaffold` changed
+mechanically only, per the brief's boundary: `wizard.go`'s `PlatformAnswer` type, prompts, and
+flow are untouched; `generate.go` now emits a `forges:` entry + `release.targets` entry per
+platform answer (defaulting `commits.enrichment_forge` to the first forge when more than one is
+configured, since the wizard has no forge-selection question yet); `ConfigToAnswers`/`dropped.go`
+read back through `cfg.Forges` joined with `cfg.Release.Targets` by name. The wizard's redesign
+(forge-aware prompts, an `api_mode` question, auto-detection defaults) stays T164/P4, untouched
+here.
+
+**Deferred, out of this task's file list:** `docs/specs/03-commands.md`,
+`docs/specs/05-generators-and-platforms.md`, `docs/specs/01-overview.md`, and this repo's
+`CLAUDE.md` still reference `release.platforms` in prose (e.g. the "requires ≥1 entry in
+release.platforms" constraint). Only `docs/specs/02-configuration.md` was in this task's file
+list and is fully migrated; the remaining spec-doc reconciliation is left as a follow-up (not
+silently expanded here).
+
+**Tests:** `internal/config/migration_test.go` gained `TestLoad_RemovedKey_ReleasePlatforms`
+(top-level + per-env). Validator/loader/schema tests carrying `release.platforms` as filler were
+migrated to `forges:`/`release.targets:`; tests asserting deleted validation logic
+(`validatePlatformEntries`, name/base_url checks scoped to `release.platforms`) were deleted
+outright — that behavior is superseded by `validator_forge_test.go`'s existing `forges:`
+coverage, not silently dropped. `internal/app/check_test.go` and `internal/app/pipeline_test.go`
+needed a `clearCIEnv` helper (mirroring the one already `internal/app`-internal) because
+`RuntimeCheck`'s Platforms section and `BuildPipeline` now call `forge.Resolve` — and therefore
+`os.Getenv` — for every non-nil config, so tests that don't explicitly isolate CI env can flip
+outcomes under real CI. Two `internal/cmd` integration tests
+(`TestCheckAll_PassesAll`, `TestRelease_NoPlatforms_Error`) failed only under the simulated-CI
+run (`GITHUB_ACTIONS=true …`) during this task's own verification, for the same reason, and
+needed the same isolation — confirming the project's existing CI-leakage guard against this
+class of bug is warranted. `go test ./...` and the simulated-CI run both pass; `git diff --stat`
+against `internal/platforms/` and `internal/port/platform.go` is empty, confirmed before
+committing.
 
 ---
 

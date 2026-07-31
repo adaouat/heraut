@@ -240,7 +240,7 @@ func newCheckCliffReleaseNotesCmd() *cobra.Command {
 
 // runRuntimeCheck dispatches each runtime check with a spinner and returns
 // the number of hard failures (warnings do not count). env selects the
-// effective release.platforms list (root or env override) for the Platforms
+// effective release.targets list (root or env override) for the Platforms
 // section; pass "" to check the root list.
 func runRuntimeCheck(runner port.Runner, cfg *config.Config, env string, out io.Writer) int {
 	var failed int

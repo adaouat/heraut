@@ -8,7 +8,6 @@ import (
 	"maps"
 	"os"
 	"slices"
-	"strings"
 
 	forgeconfig "github.com/adaouat/forge/config"
 	"gopkg.in/yaml.v3"
@@ -17,16 +16,23 @@ import (
 // ErrRemovedConfigKey reports a config key removed by the forge migration (ADR-0043).
 var ErrRemovedConfigKey = errors.New("removed config key")
 
+// releasePlatformsHint is the migration guidance for release.platforms, shared by the top-level
+// and per-env probes: declare a forges: entry carrying base_url/token_env/repository-or-project,
+// then reference it from release.targets[].forge, keeping draft/prerelease/assets on the target.
+const releasePlatformsHint = "declare a `forges:` entry carrying `base_url` / `token_env` / `repository`-or-`project`, then reference it from `release.targets[].forge`, keeping `draft` / `prerelease` / `assets` on the target"
+
 // removedKeys maps a removed config path to its replacement guidance.
 var removedKeys = []struct{ path, hint string }{
 	{"changelog.remote", "replace with a top-level `forges:` entry and point `commits.enrichment_forge` at it (this drives enrichment for `generator: native`; explicit remote pinning for `generator: git-cliff` is not carried over)"},
 	{"commits.remote_metadata", "rename to `commits.enrichment_policy` (same values: disabled | optional | required)"},
+	{"release.platforms", releasePlatformsHint},
 }
 
 // checkRemovedKeys reports the first removed key present in the raw YAML, with migration
-// guidance. environments.<env>.changelog.remote is probed alongside the top-level keys: per-env
-// remotes were explicitly supported before the forge migration (ADR-0043) removed changelog.remote,
-// and without this probe they fail with a generic strict-decode error instead of the migration hint.
+// guidance. environments.<env>.changelog.remote and environments.<env>.release.platforms are
+// probed alongside the top-level keys: both were explicitly supported before the forge migration
+// (ADR-0043) removed their top-level counterparts, and without this probe they fail with a
+// generic strict-decode error instead of the migration hint.
 func checkRemovedKeys(raw []byte) error {
 	var probe struct {
 		Changelog struct {
@@ -35,10 +41,16 @@ func checkRemovedKeys(raw []byte) error {
 		Commits struct {
 			RemoteMetadata any `yaml:"remote_metadata"`
 		} `yaml:"commits"`
+		Release struct {
+			Platforms any `yaml:"platforms"`
+		} `yaml:"release"`
 		Environments map[string]struct {
 			Changelog struct {
 				Remote any `yaml:"remote"`
 			} `yaml:"changelog"`
+			Release struct {
+				Platforms any `yaml:"platforms"`
+			} `yaml:"release"`
 		} `yaml:"environments"`
 	}
 	if err := yaml.Unmarshal(raw, &probe); err != nil {
@@ -47,6 +59,7 @@ func checkRemovedKeys(raw []byte) error {
 	present := map[string]bool{
 		"changelog.remote":        probe.Changelog.Remote != nil,
 		"commits.remote_metadata": probe.Commits.RemoteMetadata != nil,
+		"release.platforms":       probe.Release.Platforms != nil,
 	}
 	for _, k := range removedKeys {
 		if present[k.path] {
@@ -56,6 +69,9 @@ func checkRemovedKeys(raw []byte) error {
 	for _, env := range slices.Sorted(maps.Keys(probe.Environments)) {
 		if probe.Environments[env].Changelog.Remote != nil {
 			return fmt.Errorf("%w: `environments.%s.changelog.remote` — replace with a top-level `forges:` entry and point `commits.enrichment_forge` at it (this drives enrichment for `generator: native`; explicit remote pinning for `generator: git-cliff` is not carried over)", ErrRemovedConfigKey, env)
+		}
+		if probe.Environments[env].Release.Platforms != nil {
+			return fmt.Errorf("%w: `environments.%s.release.platforms` — %s", ErrRemovedConfigKey, env, releasePlatformsHint)
 		}
 	}
 	return nil
@@ -100,25 +116,5 @@ func LoadFromReader(r io.Reader) (*Config, error) {
 func normalize(cfg *Config) {
 	if cfg.Changelog != nil && cfg.Changelog.Output == "" {
 		cfg.Changelog.Output = "CHANGELOG.md"
-	}
-	if cfg.Release != nil {
-		normalizePlatforms(cfg.Release.Platforms)
-	}
-	for _, env := range cfg.Environments {
-		if env.Release != nil {
-			normalizePlatforms(env.Release.Platforms)
-		}
-	}
-}
-
-// normalizePlatforms trims a trailing slash from each platform's base_url and fills in
-// the per-type default when it is empty, so cfg.Platform.BaseURL is the single
-// trailing-slash-free source of truth for that platform's host (ADR-0020).
-func normalizePlatforms(plats []Platform) {
-	for i := range plats {
-		plats[i].BaseURL = strings.TrimRight(plats[i].BaseURL, "/")
-		if plats[i].BaseURL == "" {
-			plats[i].BaseURL = DefaultBaseURL(plats[i].Type)
-		}
 	}
 }

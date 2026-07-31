@@ -134,16 +134,28 @@ func ConfigToAnswers(cfg *config.Config) Answers {
 		if cfg.Release.Notes != nil {
 			a.NotesGenerator = cfg.Release.Notes.Generator
 		}
-		for _, p := range cfg.Release.Platforms {
+		forgesByName := make(map[string]config.Forge, len(cfg.Forges))
+		for _, f := range cfg.Forges {
+			forgesByName[f.Name] = f
+		}
+		for _, t := range cfg.Release.Targets {
+			name := t.Forge
+			if name == "" && len(cfg.Forges) == 1 {
+				name = cfg.Forges[0].Name
+			}
+			f, ok := forgesByName[name]
+			if !ok {
+				continue // target references a forge that does not resolve; nothing to round-trip
+			}
 			a.Platforms = append(a.Platforms, PlatformAnswer{
-				Type:       p.Type,
-				Repository: p.Repository,
-				Project:    p.Project,
-				TokenEnv:   p.TokenEnv,
-				Name:       p.Name,
-				BaseURL:    p.BaseURL,
-				Draft:      p.Draft,
-				Prerelease: p.Prerelease,
+				Type:       f.Type,
+				Repository: f.Repository,
+				Project:    f.Project,
+				TokenEnv:   f.TokenEnv,
+				Name:       f.Name,
+				BaseURL:    f.BaseURL,
+				Draft:      t.Draft,
+				Prerelease: t.Prerelease,
 			})
 		}
 	}

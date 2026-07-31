@@ -18,9 +18,6 @@ var (
 	validGenerators = map[string]bool{
 		"native": true, "git-cliff": true, "communique": true,
 	}
-	validPlatforms = map[string]bool{
-		"github": true, "gitlab": true,
-	}
 	validForgePlatforms = map[string]bool{
 		"github": true, "gitlab": true, "azure_devops": true,
 	}
@@ -148,9 +145,8 @@ func validateCommits(cfg *Config) []ValidationError {
 	return errs
 }
 
-// validateForges validates the new forges/release.targets/commits.enrichment_* keys
-// (ADR-0043, additive alongside release.platforms — removal is P3):
-// each forge's name is non-empty and unique, its platform and api_mode are valid enums;
+// validateForges validates the forges/release.targets/commits.enrichment_* keys
+// (ADR-0043/ADR-0044): each forge's name is non-empty and unique, its platform and api_mode are valid enums;
 // commits.enrichment_policy is a valid enum; commits.enrichment_forge and each
 // release.targets[].forge, when set, must name a known forge, and are required when more than
 // one forge is configured (unambiguous with exactly one). Resolution-time concerns (e.g.
@@ -510,70 +506,7 @@ func validateRelease(r *Release, path string) []ValidationError {
 	if r == nil {
 		return nil
 	}
-	var errs []ValidationError
-	errs = append(errs, validateContentDriver(r.Notes, path+".notes")...)
-	errs = append(errs, validatePlatformEntries(r.Platforms, path)...)
-	return errs
-}
-
-// validatePlatformEntries validates one release.platforms list (top-level or a single
-// environment override): each entry's platform type, its required unique name
-// (scoped to this list — ADR-0025), and its base_url.
-func validatePlatformEntries(platforms []Platform, path string) []ValidationError {
-	var errs []ValidationError
-	seen := make(map[string]int)
-	for i, plat := range platforms {
-		platPath := fmt.Sprintf("%s.platforms[%d]", path, i)
-		if plat.Type == "" {
-			errs = append(errs, ValidationError{
-				Path:    platPath + ".platform",
-				Message: "required",
-				Hint:    "set platform to one of: github, gitlab",
-			})
-		} else if !validPlatforms[plat.Type] {
-			errs = append(errs, ValidationError{
-				Path:    platPath + ".platform",
-				Message: fmt.Sprintf("%q is not a valid platform", plat.Type),
-				Hint:    "valid platforms: github, gitlab",
-			})
-		}
-		if plat.Name == "" {
-			errs = append(errs, ValidationError{
-				Path:    platPath + ".name",
-				Message: "required",
-				Hint:    `set a unique name for this platform entry, e.g. "gitlab-saas"`,
-			})
-		} else if first, ok := seen[plat.Name]; ok {
-			errs = append(errs, ValidationError{
-				Path:    platPath + ".name",
-				Message: fmt.Sprintf("duplicate platform name %q (already used by platforms[%d])", plat.Name, first),
-				Hint:    "platform names must be unique within this release.platforms list",
-			})
-		} else {
-			seen[plat.Name] = i
-		}
-		errs = append(errs, validatePlatformBaseURL(plat, platPath)...)
-	}
-	return errs
-}
-
-// validatePlatformBaseURL validates a platform's base_url: it must be a well-formed
-// absolute http(s) URL. An empty value means "use the platform-type default" and is
-// always accepted. Self-hosted (non-default) hosts are accepted — see ADR-0025, which
-// supersedes ADR-0020's gate.
-func validatePlatformBaseURL(plat Platform, platPath string) []ValidationError {
-	if plat.BaseURL == "" {
-		return nil
-	}
-	raw := strings.TrimRight(plat.BaseURL, "/")
-	if !isValidBaseURL(raw) {
-		return []ValidationError{{
-			Path:    platPath + ".base_url",
-			Message: fmt.Sprintf("%q is not a valid URL", plat.BaseURL),
-			Hint:    "base_url must be an absolute http(s) URL, e.g. https://gitlab.example.com",
-		}}
-	}
-	return nil
+	return validateContentDriver(r.Notes, path+".notes")
 }
 
 func isValidBaseURL(s string) bool {
@@ -598,7 +531,6 @@ func validateEnvRelease(r *EnvRelease, topRelease *Release, path string) []Valid
 		}
 		errs = append(errs, validateContentDriver(MergeContentDriver(topNotes, r.Notes), path+".notes")...)
 	}
-	errs = append(errs, validatePlatformEntries(r.Platforms, path)...)
 	return errs
 }
 

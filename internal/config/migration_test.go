@@ -110,15 +110,40 @@ changelog:
 	assert.Contains(t, err.Error(), "native", "the hint must state the forges: path applies to the native generator")
 }
 
-// release.platforms is deliberately NOT removed in this cut — it must still load.
-func TestLoad_PlatformsStillSupported(t *testing.T) {
-	_, err := config.Load(writeCfg(t, `version: "1"
+func TestLoad_RemovedKey_ReleasePlatforms(t *testing.T) {
+	tests := []struct{ name, body string }{
+		{
+			name: "top-level",
+			body: `version: "1"
 versioning: {strategy: semver}
 release:
   platforms:
     - name: gl
       platform: gitlab
       project: group/subgroup/project
-`))
-	require.NoError(t, err)
+`,
+		},
+		{
+			name: "per-environment",
+			body: `version: "1"
+versioning: {strategy: semver}
+environments:
+  staging:
+    release:
+      platforms:
+        - name: gl
+          platform: gitlab
+          project: group/subgroup/project
+`,
+		},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			_, err := config.Load(writeCfg(t, tc.body))
+			require.Error(t, err)
+			assert.True(t, errors.Is(err, config.ErrRemovedConfigKey))
+			assert.Contains(t, err.Error(), "release.targets", "the error must name the replacement")
+			assert.Contains(t, err.Error(), "forges:", "and where the coordinates move to")
+		})
+	}
 }

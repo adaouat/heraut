@@ -32,6 +32,20 @@ func writeConfig(t *testing.T, content string) string {
 	return path
 }
 
+// clearCIEnv neutralizes every CI marker forge.Resolve keys off, so a test's outcome depends only
+// on what it explicitly sets — not the ambient CI environment this suite happens to run in (a
+// release/check without an explicit forges: block now auto-resolves one for publishing).
+func clearCIEnv(t *testing.T) {
+	t.Helper()
+	for _, k := range []string{
+		"GITHUB_ACTIONS", "GITHUB_SERVER_URL", "GITHUB_API_URL", "GITHUB_REPOSITORY", "GITHUB_TOKEN",
+		"GITLAB_CI", "CI_SERVER_URL", "CI_API_V4_URL", "CI_PROJECT_PATH", "CI_JOB_TOKEN", "GITLAB_TOKEN",
+		"TF_BUILD", "SYSTEM_COLLECTIONURI", "SYSTEM_TEAMPROJECT", "SYSTEM_ACCESSTOKEN", "AZURE_DEVOPS_TOKEN",
+	} {
+		t.Setenv(k, "")
+	}
+}
+
 // ---- Structural tests ----
 
 func TestVersionCmd_Exists(t *testing.T) {

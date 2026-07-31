@@ -18,7 +18,7 @@ type Config struct {
 	Rendering *Rendering `yaml:"rendering,omitempty"`
 	// Forges lists the code-hosting platforms heraut talks to (ADR-0043). Consumed by
 	// release.targets (publish destinations) and commits.enrichment_forge (PR/MR metadata
-	// source). Additive alongside release.platforms for now (release.platforms removal is P3).
+	// source).
 	Forges []Forge `yaml:"forges,omitempty"`
 }
 
@@ -79,10 +79,9 @@ type Environment struct {
 // Nil fields mean "inherit from root release", which differs from root Release
 // where nil means "disabled".
 type EnvRelease struct {
-	Notes     *ContentDriver `yaml:"notes,omitempty"`
-	Platforms []Platform     `yaml:"platforms,omitempty"`
+	Notes *ContentDriver `yaml:"notes,omitempty"`
 	// Targets lists per-environment release publish destinations, mirroring Release.Targets
-	// (ADR-0043). Additive alongside Platforms for now.
+	// (ADR-0043).
 	Targets []Target `yaml:"targets,omitempty"`
 }
 
@@ -139,16 +138,15 @@ type ContentDriver struct {
 	TagGlob string `yaml:"-"`
 }
 
-// Release holds release notes and platform settings.
+// Release holds release notes and publish target settings.
 type Release struct {
-	Notes     *ContentDriver `yaml:"notes,omitempty"`
-	Platforms []Platform     `yaml:"platforms,omitempty"`
+	Notes *ContentDriver `yaml:"notes,omitempty"`
 	// Assets lists glob patterns for files to attach to the GitHub/GitLab release.
 	// Globs are expanded at release time; a pattern matching nothing emits a warning
-	// but does not abort the release. Applied to all configured platforms.
+	// but does not abort the release. Applied to all configured targets.
 	Assets []string `yaml:"assets,omitempty"`
 	// Targets lists release publish destinations, each referencing a forges[].name
-	// (ADR-0043). Additive alongside Platforms for now.
+	// (ADR-0043).
 	Targets []Target `yaml:"targets,omitempty"`
 }
 
@@ -175,12 +173,12 @@ type Target struct {
 	Assets     []string `yaml:"assets,omitempty"`
 }
 
-// Platform holds settings for one release platform (github or gitlab).
-// Type is the platform discriminator ("github" or "gitlab") mapping to yaml:"platform";
-// using Type avoids the Platform.Platform self-reference (ADR-0006).
+// Platform is the config shape the internal/platforms/{github,gitlab} drivers accept. It has no
+// YAML surface of its own — internal/app builds one per release.targets entry from the resolved
+// port.ForgeIdentity (platformConfigFromTarget), so the drivers stay unchanged while the user-facing
+// config moved to forges:/release.targets (ADR-0043/ADR-0044).
 type Platform struct {
-	// Name uniquely identifies this platform entry within its release.platforms list
-	// (top-level or a single environment override). Required — see ADR-0025.
+	// Name identifies this platform instance, propagated from the owning forges[].name.
 	Name string `yaml:"name"`
 	Type string `yaml:"platform"`
 	// GitHub-specific

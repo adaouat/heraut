@@ -39,7 +39,7 @@
     },
     "forges": {
       "type": "array",
-      "description": "Code-hosting platforms heraut talks to (ADR-0043): connection/identity only. What to publish (draft/assets) lives in release.targets; the enrichment source is commits.enrichment_forge. Additive alongside release.platforms (removal is a later phase).",
+      "description": "Code-hosting platforms heraut talks to (ADR-0043/ADR-0044): connection/identity only. What to publish (draft/assets) lives in release.targets; the enrichment source is commits.enrichment_forge.",
       "items": {
         "$ref": "#/definitions/Forge"
       }
@@ -359,22 +359,16 @@
         "notes": {
           "$ref": "#/definitions/ContentDriver"
         },
-        "platforms": {
-          "type": "array",
-          "items": {
-            "$ref": "#/definitions/Platform"
-          }
-        },
         "assets": {
           "type": "array",
-          "description": "Glob patterns for files to attach to the release, applied to all platforms. Globs are expanded at release time; a pattern matching nothing emits a warning but does not abort the release. If a platform entry also defines assets, the platform-level list takes full precedence for that platform (no merging).",
+          "description": "Glob patterns for files to attach to the release, applied to all targets. Globs are expanded at release time; a pattern matching nothing emits a warning but does not abort the release. If a target also defines assets, the target-level list takes full precedence for that target (no merging).",
           "items": {
             "type": "string"
           }
         },
         "targets": {
           "type": "array",
-          "description": "Release publish destinations, each referencing a forges[].name (ADR-0043). Additive alongside platforms.",
+          "description": "Release publish destinations, each referencing a forges[].name (ADR-0043/ADR-0044).",
           "items": {
             "$ref": "#/definitions/Target"
           }
@@ -388,7 +382,7 @@
         "platform"
       ],
       "additionalProperties": false,
-      "description": "One code-hosting platform heraut talks to — connection/identity only (ADR-0043). What to publish (draft/assets) lives in release.targets; the enrichment source is commits.enrichment_forge.",
+      "description": "One code-hosting platform heraut talks to — connection/identity only (ADR-0043/ADR-0044). What to publish (draft/assets) lives in release.targets; the enrichment source is commits.enrichment_forge.",
       "properties": {
         "name": {
           "type": "string",
@@ -460,59 +454,6 @@
         }
       }
     },
-    "Platform": {
-      "type": "object",
-      "required": [
-        "platform",
-        "name"
-      ],
-      "additionalProperties": false,
-      "properties": {
-        "name": {
-          "type": "string",
-          "description": "Unique identifier for this platform entry within its release.platforms list (top-level or a single environment override). Required."
-        },
-        "platform": {
-          "type": "string",
-          "enum": [
-            "github",
-            "gitlab"
-          ],
-          "description": "Platform type."
-        },
-        "repository": {
-          "type": "string",
-          "description": "GitHub repository (owner/repo). GitHub only."
-        },
-        "draft": {
-          "type": "boolean",
-          "description": "Create as draft release. GitHub only."
-        },
-        "prerelease": {
-          "type": "boolean",
-          "description": "Mark as pre-release. GitHub only."
-        },
-        "project": {
-          "type": "string",
-          "description": "GitLab project path (namespace/project). GitLab only."
-        },
-        "base_url": {
-          "type": "string",
-          "description": "Web base URL of the platform instance (e.g. https://gitlab.example.com for a self-hosted instance). Defaults to https://github.com / https://gitlab.com. Self-hosted (non-default) values are supported — see ADR-0025."
-        },
-        "token_env": {
-          "type": "string",
-          "description": "Environment variable holding the API token."
-        },
-        "assets": {
-          "type": "array",
-          "items": {
-            "type": "string"
-          },
-          "description": "Platform-specific glob patterns for files to attach to the release. When set, overrides release.assets entirely for this platform. Omit to inherit release.assets."
-        }
-      }
-    },
     "EnvRelease": {
       "type": "object",
       "additionalProperties": false,
@@ -522,19 +463,12 @@
           "$ref": "#/definitions/ContentDriver",
           "description": "Override release notes generator for this environment."
         },
-        "platforms": {
-          "type": "array",
-          "items": {
-            "$ref": "#/definitions/Platform"
-          },
-          "description": "Override platforms for this environment."
-        },
         "targets": {
           "type": "array",
           "items": {
             "$ref": "#/definitions/Target"
           },
-          "description": "Override release publish targets for this environment (ADR-0043). Additive alongside platforms."
+          "description": "Override release publish targets for this environment (ADR-0043/ADR-0044)."
         }
       }
     },

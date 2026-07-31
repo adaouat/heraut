@@ -5261,7 +5261,8 @@ Summary of the arc (full detail, tests, and files in the dedicated file):
 - **P1** — GitLab-first: `port.Forge` + config (`forges:` / `release.targets:` /
   `commits.enrichment_*`) + resolution + native REST/GraphQL forge + links + migration (T154–T160).
 - **P2** — migrate GitHub + Azure onto `port.Forge`, retire the enrich switch (T161, T162).
-- **P3** — fold publishing into `port.Forge` (T163).
+- **P3** — `release.targets` replaces `release.platforms` as the publishing surface; the
+  transport (`gh`/`glab`) deliberately stays unchanged — see ADR-0044 (T163).
 - **P4 (last)** — `heraut init` wizard generates the forge config, after the schema is
   battle-tested (T164).
 
