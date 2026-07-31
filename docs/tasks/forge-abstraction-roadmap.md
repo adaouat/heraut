@@ -415,6 +415,39 @@ Update the scaffold wizard (`internal/scaffold`) to generate `forges:` / `releas
 
 ## Follow-ups
 
+#### `[ ]` T171: duplicate publish targets can resolve to the same destination
+
+With no `forges:` block, `resolveTargetForge` returns the same auto-detected identity for every
+target, so `release: targets: [{}, {draft: true}]` builds two drivers pointing at one repository.
+The second `release create` then fails **mid-pipeline, after the tag has already been pushed** — the
+worst point to fail. Cheap to reject in `validateForges`: more than one target with no `forge:` and
+no `forges:` block is unsatisfiable. Found by P3's final review. **Scope:** S.
+
+#### `[ ]` T172: `heraut check` hard-fails for changelog-only users in an ambiguous environment
+
+`internal/app/check.go` resolves a forge unconditionally, so a user with no `forges:` block, both
+`GITHUB_TOKEN` and `GITLAB_TOKEN` exported, and an origin `parseGitOrigin` doesn't recognise (any
+self-hosted host) gets a failing `forge` row from `heraut check` — even if they never publish.
+Previously that config produced binary-probe warnings only. `heraut check` is commonly a CI gate, so
+a false failure is costly. Narrow the trigger to users who actually need a publish destination.
+Found by P3's final review. **Scope:** S.
+
+#### `[ ]` T173: P3 cleanups — dead `needsForge` guard, double resolution, migration hint, test helpers
+
+A cluster of small items from P3's final review, none behaviour-affecting on their own:
+`needsForge` (`internal/app/pipeline.go`) is now a tautology — `(A && B) || len(t) > 0 || len(t) == 0`
+is always true — so it reads as a safety guard while doing nothing; replace it with an unconditional
+call plus a comment, or the next reader will assume `--offline` still skips resolution.
+`HasResolvablePublishTarget` dereferences `cfg.Forges` without the nil-guard its sibling
+`effectiveTargetPlatforms` has. Zero-config resolves the forge twice per release (once in
+`internal/cmd`, once in `internal/app`), spawning two `git remote get-url origin` subprocesses where
+the sharing was meant to be end-to-end. The migration hint for the removed `release.platforms` names
+`base_url`/`token_env`/`repository`-or-`project` but omits the **required** `name` and `platform`, so
+a user following it literally hits a second round of errors; the per-env variant should also say
+`forges:` is top-level only. Finally, `clearCIEnv` is now triplicated across three test files
+(`internal/testutil` is its natural home) and `config.Platform` still carries YAML tags despite its
+doc comment saying it has no YAML surface. **Scope:** S–M.
+
 #### `[ ]` T168: decide the fate of `port.Forge`'s link methods (and the dead `lc` parameter)
 
 `port.Forge` declares `CommitURL` / `ChangeURL` / `CompareURL`, implemented and tested in all three
