@@ -121,10 +121,15 @@ func RuntimeCheck(
 	switch {
 	case resolveErr != nil:
 		// Forge resolution failed (e.g. an ambiguous multi-token machine with no CI/origin to
-		// disambiguate) — report it as a single failing row instead of silently falling back to
-		// the binary-only probe, which would hide the reason `heraut release` will also fail.
+		// disambiguate). Whether that is a hard failure depends on whether the user actually asked
+		// for a publish destination: explicit forges: or a non-empty effective release.targets
+		// means `heraut release` will hit this same error, so report it as a hard failure. With
+		// neither configured, heraut was only attempting zero-config detection for a user who may
+		// be changelog-only and never publish — report it as an advisory warning instead, so
+		// `heraut check` (commonly a CI gate) doesn't fail on a destination nobody asked for.
+		wantsForge := len(cfg.Forges) > 0 || len(config.EffectiveTargets(cfg, env)) > 0
 		dispatch("forge", func() RuntimeCheckItem {
-			return RuntimeCheckItem{Name: "forge", Err: resolveErr}
+			return RuntimeCheckItem{Name: "forge", Err: resolveErr, IsWarn: !wantsForge}
 		})
 	case len(platCfgs) > 0:
 		// One row per effective target's resolved platform: full check (binary + token +

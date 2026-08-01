@@ -450,6 +450,65 @@ func TestRuntimeCheck_UnknownChangelogGenerator(t *testing.T) {
 	}
 }
 
+func TestRuntimeCheck_AmbiguousForgeIsWarnWithoutPublishConfig(t *testing.T) {
+	clearCIEnv(t)
+	t.Setenv("GITHUB_TOKEN", "gh")
+	t.Setenv("GITLAB_TOKEN", "gl")
+
+	t.Run("no publish config -> advisory warning", func(t *testing.T) {
+		mr := exectest.NewMockRunner()
+		mr.QueueResponse("git version 2.40.0", "", nil)   // git --version
+		mr.QueueResponse("Alice", "", nil)                // user.name
+		mr.QueueResponse("a@b.com", "", nil)              // user.email
+		mr.QueueResponse("", "", nil)                     // git status
+		mr.QueueResponse("", "", errors.New("no origin")) // git remote get-url origin (forge resolution)
+		mr.QueueResponse("git-cliff 2.0", "", nil)        // git-cliff (optional)
+		mr.QueueResponse("communique 1.0", "", nil)       // communique (optional)
+
+		cfg := semverCfg()
+		items := collectItems(mr, cfg, "")
+
+		found := false
+		for _, it := range items {
+			if it.Name == "forge" {
+				found = true
+				assert.True(t, it.IsWarn, "a user who configured no publishing must not fail the check")
+				require.Error(t, it.Err, "the row must still explain what failed")
+			}
+		}
+		assert.True(t, found, "expected forge item")
+	})
+
+	// No forges: block (so resolution still runs zero-config auto-detection and hits the same
+	// ambiguity), but a release.targets entry means the user explicitly asked for a publish
+	// destination — resolveTargetForge never reaches the point of using a forges[] entry, so the
+	// ambiguity in resolveForge itself is what must surface as a hard error here.
+	t.Run("release.targets configured -> hard failure", func(t *testing.T) {
+		mr := exectest.NewMockRunner()
+		mr.QueueResponse("git version 2.40.0", "", nil)   // git --version
+		mr.QueueResponse("Alice", "", nil)                // user.name
+		mr.QueueResponse("a@b.com", "", nil)              // user.email
+		mr.QueueResponse("", "", nil)                     // git status
+		mr.QueueResponse("", "", errors.New("no origin")) // git remote get-url origin (forge resolution)
+		mr.QueueResponse("git-cliff 2.0", "", nil)        // git-cliff (optional)
+		mr.QueueResponse("communique 1.0", "", nil)       // communique (optional)
+
+		cfg := semverCfg()
+		cfg.Release = &config.Release{Targets: []config.Target{{}}}
+		items := collectItems(mr, cfg, "")
+
+		found := false
+		for _, it := range items {
+			if it.Name == "forge" {
+				found = true
+				assert.False(t, it.IsWarn, "explicit publish config means a resolution failure is real")
+				require.Error(t, it.Err)
+			}
+		}
+		assert.True(t, found, "expected forge item")
+	})
+}
+
 func TestRuntimeCheck_UnknownPlatform(t *testing.T) {
 	// An unrecognized forge platform type is normally caught by config validation before
 	// RuntimeCheck runs, but RuntimeCheck still reports a hard error for the resolved entry

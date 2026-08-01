@@ -426,15 +426,23 @@ no `forges:` block is unsatisfiable. Found by P3's final review. **Scope:** S.
 Implemented in `validateTargetForges` (`internal/config/validator.go`), not `validateForges` as
 originally scoped — `validateTargetForges` is the helper that already walks each target list (top-level
 and per-env) and was the natural place to add the check without duplicating logic at both call sites.
-The rule is stated generally — no two targets may resolve to the same forge — covering both an
-explicit duplicate (`[{forge: A}, {forge: A}]`) and more than one bare target when `forgeCount <= 1`
-(with `forgeCount > 1` a bare target is already rejected by the existing ambiguity rule, so the two
-cases are exhaustive). One error is emitted at the list path (e.g. `release.targets`, not
-`release.targets[1].forge`) so a duplicate set produces a single diagnostic. `internal/app/pipeline.go`
-itself was not touched — the fix is a validation-time rejection, not a change to `resolveTargetForge`'s
-runtime resolution.
+The rule is implemented as stated — no two targets may resolve to the same forge — rather than as an
+enumeration of the shapes it takes: each target is **normalized to the forge it will actually resolve
+to** (new `resolvedForgeName`, mirroring `internal/app`'s `resolveTargetForge` — explicit `forge: X`
+→ `X`; bare with exactly one configured forge → `forges[0].Name`; bare with none → a shared
+`autoDetectedForge` sentinel), and any duplicate in that normalized list is the error. A first pass
+enumerated two cases — a duplicate explicit name, or more than one bare target when `forgeCount <= 1`
+— and called them exhaustive; **they are not.** With exactly one configured forge, a bare target and
+an explicit `forge: A` both resolve to A, and neither case sees it (`heraut check config` reported
+`✓ config: ok` for that config). Normalizing subsumes all three shapes without special-casing and
+cannot drift out of sync with `resolveTargetForge` the way an enumeration does. Targets already
+rejected per-entry (unknown forge, or bare with more than one forge configured) are skipped in the
+duplicate scan, so one mistake never draws two errors. One error is emitted at the list path (e.g.
+`release.targets`, not `release.targets[1].forge`) so a duplicate set produces a single diagnostic.
+`internal/app/pipeline.go` itself was not touched — the fix is a validation-time rejection, not a
+change to `resolveTargetForge`'s runtime resolution.
 
-#### `[ ]` T172: `heraut check` hard-fails for changelog-only users in an ambiguous environment
+#### `[x]` T172: `heraut check` hard-fails for changelog-only users in an ambiguous environment
 
 `internal/app/check.go` resolves a forge unconditionally, so a user with no `forges:` block, both
 `GITHUB_TOKEN` and `GITLAB_TOKEN` exported, and an origin `parseGitOrigin` doesn't recognise (any
@@ -442,6 +450,27 @@ self-hosted host) gets a failing `forge` row from `heraut check` — even if the
 Previously that config produced binary-probe warnings only. `heraut check` is commonly a CI gate, so
 a false failure is costly. Narrow the trigger to users who actually need a publish destination.
 Found by P3's final review. **Scope:** S.
+
+Implemented in the `resolveErr != nil` branch of `RuntimeCheck` (`internal/app/check.go`): the row's
+`IsWarn` is now `!wantsForge`, where `wantsForge := len(cfg.Forges) > 0 ||
+len(config.EffectiveTargets(cfg, env)) > 0` — the same "did the user ask for a forge" test the task
+brief specified. `cfg` is guaranteed non-nil in this branch (`effectiveTargetPlatforms` short-circuits
+to `(nil, nil)` before calling `resolveForge` when `cfg == nil`), so no extra nil-guard was needed. The
+row's message is unchanged — it already carries the underlying resolution error (e.g. "detected
+candidates [gitlab github] and no CI/origin to disambiguate") — so both the warn and error cases stay
+equally informative; only the severity flag changes. The branch comment was rewritten to state the
+warn/error distinction instead of unconditionally justifying a hard failure. One test gap surfaced
+while writing the RED test: the task brief's suggested "explicit forges -> hard failure" fixture
+(two `forges:` entries, `release.targets: [{forge: A}]`) does not actually exercise
+`resolveErr != nil` — `forge.Resolve` takes the `resolveExplicit` path whenever `cfg.Forges` is
+non-empty, and that path never returns an error (per-forge gaps are filled independently; there is no
+ambiguity to detect). The test was adapted to a config that does reach the error path with explicit
+intent: no `forges:` block, but a non-empty `release.targets`, which still triggers `resolveAuto`'s
+ambiguity check while satisfying the "explicitly asked for a forge" half of the rule via `Targets`
+rather than `Forges`. This also means the `len(cfg.Forges) > 0` disjunct is currently unreachable in
+combination with `resolveErr != nil` (there is no config shape that makes `resolveExplicit` fail) —
+implemented anyway per the brief's stated rule, and left as a defensive/future-proof condition rather
+than removed, since a future change to `resolveExplicit` could introduce a real error path.
 
 #### `[ ]` T173: P3 cleanups — dead `needsForge` guard, double resolution, migration hint, test helpers
 
