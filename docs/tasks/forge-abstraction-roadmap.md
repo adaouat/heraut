@@ -467,10 +467,21 @@ non-empty, and that path never returns an error (per-forge gaps are filled indep
 ambiguity to detect). The test was adapted to a config that does reach the error path with explicit
 intent: no `forges:` block, but a non-empty `release.targets`, which still triggers `resolveAuto`'s
 ambiguity check while satisfying the "explicitly asked for a forge" half of the rule via `Targets`
-rather than `Forges`. This also means the `len(cfg.Forges) > 0` disjunct is currently unreachable in
-combination with `resolveErr != nil` (there is no config shape that makes `resolveExplicit` fail) —
-implemented anyway per the brief's stated rule, and left as a defensive/future-proof condition rather
-than removed, since a future change to `resolveExplicit` could introduce a real error path.
+rather than `Forges`.
+
+**Both disjuncts of `wantsForge` are reachable and covered** (corrects an inaccurate claim in the
+first version of this note, caught in review). `resolveExplicit` indeed never errors — but it is not
+the only error source funneled into `resolveErr`: `effectiveTargetPlatforms` also calls
+`resolveTargetForge` once per target, and *that* errors with a non-empty `forges:` block, either
+`unknown forge %q` (a target naming a forge that isn't declared) or "forge is required when more than
+one forge is configured" (a bare target with several forges). In production `config.Load` →
+`validateTargetForges` normally rejects those configs first, but `check_test.go` builds `*config.Config`
+from struct literals and so bypasses validation — which is how the tests reach it. Two subtests were
+added: a target naming an unknown forge, and — the only shape that *isolates* the first disjunct —
+two forges with an empty `release.targets` (so `EffectiveTargets` is empty and cannot carry the
+result). Verified by mutation: deleting `len(cfg.Forges) > 0` from `wantsForge` flips that second row
+to a warning and fails the test, while the unknown-forge fixture keeps passing (its target list is
+non-empty, so the second disjunct still covers it).
 
 #### `[ ]` T173: P3 cleanups — dead `needsForge` guard, double resolution, migration hint, test helpers
 

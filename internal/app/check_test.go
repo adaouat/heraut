@@ -507,6 +507,70 @@ func TestRuntimeCheck_AmbiguousForgeIsWarnWithoutPublishConfig(t *testing.T) {
 		}
 		assert.True(t, found, "expected forge item")
 	})
+
+	// resolveExplicit never errors, but it is not the only error source funneled into resolveErr:
+	// effectiveTargetPlatforms also calls resolveTargetForge per target, which does error with a
+	// non-empty forges: block. config.Load would reject both configs below via validateTargetForges,
+	// but a *config.Config built as a struct literal bypasses that — which is exactly how these
+	// reach the resolveErr branch with len(cfg.Forges) > 0.
+	t.Run("forges configured, target names an unknown forge -> hard failure", func(t *testing.T) {
+		mr := exectest.NewMockRunner()
+		mr.QueueResponse("git version 2.40.0", "", nil)   // git --version
+		mr.QueueResponse("Alice", "", nil)                // user.name
+		mr.QueueResponse("a@b.com", "", nil)              // user.email
+		mr.QueueResponse("", "", nil)                     // git status
+		mr.QueueResponse("", "", errors.New("no origin")) // git remote get-url origin (forge resolution)
+		mr.QueueResponse("git-cliff 2.0", "", nil)        // git-cliff (optional)
+		mr.QueueResponse("communique 1.0", "", nil)       // communique (optional)
+
+		cfg := semverCfg()
+		cfg.Forges = []config.Forge{{Name: "A", Type: "gitlab", Project: "group/subgroup/project"}}
+		cfg.Release = &config.Release{Targets: []config.Target{{Forge: "Z"}}}
+		items := collectItems(mr, cfg, "")
+
+		found := false
+		for _, it := range items {
+			if it.Name == "forge" {
+				found = true
+				assert.False(t, it.IsWarn, "a configured forges: block means a resolution failure is real")
+				require.Error(t, it.Err, "the row must still explain what failed")
+				assert.Contains(t, it.Err.Error(), "Z", "the message must name the unresolvable forge")
+			}
+		}
+		assert.True(t, found, "expected forge item")
+	})
+
+	// The only shape that isolates wantsForge's first disjunct: forges: is non-empty while the
+	// effective release.targets list is empty, so len(config.EffectiveTargets(cfg, env)) > 0 cannot
+	// carry the result. Drop `len(cfg.Forges) > 0` from wantsForge and this row flips to a warning.
+	t.Run("two forges, no targets -> hard failure via forges: alone", func(t *testing.T) {
+		mr := exectest.NewMockRunner()
+		mr.QueueResponse("git version 2.40.0", "", nil)   // git --version
+		mr.QueueResponse("Alice", "", nil)                // user.name
+		mr.QueueResponse("a@b.com", "", nil)              // user.email
+		mr.QueueResponse("", "", nil)                     // git status
+		mr.QueueResponse("", "", errors.New("no origin")) // git remote get-url origin (forge resolution)
+		mr.QueueResponse("git-cliff 2.0", "", nil)        // git-cliff (optional)
+		mr.QueueResponse("communique 1.0", "", nil)       // communique (optional)
+
+		cfg := semverCfg()
+		cfg.Forges = []config.Forge{
+			{Name: "A", Type: "gitlab", Project: "group/subgroup/project"},
+			{Name: "B", Type: "github", Repository: "acme/widget"},
+		}
+		require.Empty(t, config.EffectiveTargets(cfg, ""), "fixture must leave release.targets empty")
+		items := collectItems(mr, cfg, "")
+
+		found := false
+		for _, it := range items {
+			if it.Name == "forge" {
+				found = true
+				assert.False(t, it.IsWarn, "forges: alone must make a resolution failure a hard error")
+				require.Error(t, it.Err, "the row must still explain what failed")
+			}
+		}
+		assert.True(t, found, "expected forge item")
+	})
 }
 
 func TestRuntimeCheck_UnknownPlatform(t *testing.T) {
