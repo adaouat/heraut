@@ -17,10 +17,15 @@ import (
 // ErrRemovedConfigKey reports a config key removed by the forge migration (ADR-0043).
 var ErrRemovedConfigKey = errors.New("removed config key")
 
-// releasePlatformsHint is the migration guidance for release.platforms, shared by the top-level
-// and per-env probes: declare a forges: entry carrying base_url/token_env/repository-or-project,
-// then reference it from release.targets[].forge, keeping draft/prerelease/assets on the target.
-const releasePlatformsHint = "declare a `forges:` entry carrying `base_url` / `token_env` / `repository`-or-`project`, then reference it from `release.targets[].forge`, keeping `draft` / `prerelease` / `assets` on the target"
+// releasePlatformsHint is the migration guidance for top-level release.platforms: declare a
+// forges: entry with the required name/platform plus the optional base_url/token_env/
+// repository-or-project coordinates, then reference it from release.targets[].forge, keeping
+// draft/prerelease/assets on the target.
+const releasePlatformsHint = "declare a `forges:` entry with `name` / `platform` (required) plus `base_url` / `token_env` / `repository`-or-`project` (as needed), then reference it from `release.targets[].forge`, keeping `draft` / `prerelease` / `assets` on the target"
+
+// releasePlatformsHintPerEnv is releasePlatformsHint plus the reminder that forges: has no
+// per-environment counterpart — it is declared once, top-level, and shared across environments.
+const releasePlatformsHintPerEnv = releasePlatformsHint + "; `forges:` is top-level only, there is no `environments.<env>.forges`"
 
 // removedKeys maps a removed config path to its replacement guidance.
 var removedKeys = []struct{ path, hint string }{
@@ -72,7 +77,7 @@ func checkRemovedKeys(raw []byte) error {
 			return fmt.Errorf("%w: `environments.%s.changelog.remote` — replace with a top-level `forges:` entry and point `commits.enrichment_forge` at it (this drives enrichment for `generator: native`; explicit remote pinning for `generator: git-cliff` is not carried over)", ErrRemovedConfigKey, env)
 		}
 		if probe.Environments[env].Release.Platforms != nil {
-			return fmt.Errorf("%w: `environments.%s.release.platforms` — %s", ErrRemovedConfigKey, env, releasePlatformsHint)
+			return fmt.Errorf("%w: `environments.%s.release.platforms` — %s", ErrRemovedConfigKey, env, releasePlatformsHintPerEnv)
 		}
 	}
 	return nil

@@ -252,10 +252,16 @@ func validateForges(cfg *Config) []ValidationError {
 
 // validateTargetForges validates a release.targets list (top-level or per-environment): each
 // entry's forge, when set, must name a known forge, and is required when more than one forge is
-// configured (unambiguous with exactly one). pathPrefix is "release.targets" at the top level or
-// "environments.<env>.release.targets" for a per-env override.
+// configured (unambiguous with exactly one). It also rejects a target set that is unsatisfiable —
+// two or more targets that would resolve to the same forge — since that lets the first
+// `release create` succeed and the second fail after the tag has already been pushed (T171).
+// pathPrefix is "release.targets" at the top level or "environments.<env>.release.targets" for a
+// per-env override.
 func validateTargetForges(targets []Target, knownForges map[string]bool, forgeCount int, pathPrefix string) []ValidationError {
 	var errs []ValidationError
+	bareCount := 0
+	seenForge := map[string]bool{}
+	duplicateForge := false
 	for i, t := range targets {
 		path := fmt.Sprintf("%s[%d].forge", pathPrefix, i)
 		switch {
@@ -272,6 +278,20 @@ func validateTargetForges(targets []Target, knownForges map[string]bool, forgeCo
 				Hint:    "set forge to one of forges[].name",
 			})
 		}
+		if t.Forge == "" {
+			bareCount++
+		} else if seenForge[t.Forge] {
+			duplicateForge = true
+		} else {
+			seenForge[t.Forge] = true
+		}
+	}
+	if duplicateForge || (bareCount > 1 && forgeCount <= 1) {
+		errs = append(errs, ValidationError{
+			Path:    pathPrefix,
+			Message: "more than one target resolves to the same forge",
+			Hint:    "declare a forges: entry per destination and set forge on each target to disambiguate",
+		})
 	}
 	return errs
 }

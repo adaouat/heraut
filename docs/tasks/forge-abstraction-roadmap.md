@@ -415,13 +415,24 @@ Update the scaffold wizard (`internal/scaffold`) to generate `forges:` / `releas
 
 ## Follow-ups
 
-#### `[ ]` T171: duplicate publish targets can resolve to the same destination
+#### `[x]` T171: duplicate publish targets can resolve to the same destination
 
 With no `forges:` block, `resolveTargetForge` returns the same auto-detected identity for every
 target, so `release: targets: [{}, {draft: true}]` builds two drivers pointing at one repository.
 The second `release create` then fails **mid-pipeline, after the tag has already been pushed** — the
 worst point to fail. Cheap to reject in `validateForges`: more than one target with no `forge:` and
 no `forges:` block is unsatisfiable. Found by P3's final review. **Scope:** S.
+
+Implemented in `validateTargetForges` (`internal/config/validator.go`), not `validateForges` as
+originally scoped — `validateTargetForges` is the helper that already walks each target list (top-level
+and per-env) and was the natural place to add the check without duplicating logic at both call sites.
+The rule is stated generally — no two targets may resolve to the same forge — covering both an
+explicit duplicate (`[{forge: A}, {forge: A}]`) and more than one bare target when `forgeCount <= 1`
+(with `forgeCount > 1` a bare target is already rejected by the existing ambiguity rule, so the two
+cases are exhaustive). One error is emitted at the list path (e.g. `release.targets`, not
+`release.targets[1].forge`) so a duplicate set produces a single diagnostic. `internal/app/pipeline.go`
+itself was not touched — the fix is a validation-time rejection, not a change to `resolveTargetForge`'s
+runtime resolution.
 
 #### `[ ]` T172: `heraut check` hard-fails for changelog-only users in an ambiguous environment
 
@@ -447,6 +458,14 @@ a user following it literally hits a second round of errors; the per-env variant
 `forges:` is top-level only. Finally, `clearCIEnv` is now triplicated across three test files
 (`internal/testutil` is its natural home) and `config.Platform` still carries YAML tags despite its
 doc comment saying it has no YAML surface. **Scope:** S–M.
+
+**Migration-hint half done** (as part of T171's session): `releasePlatformsHint`
+(`internal/config/loader.go`) now names `name` / `platform` as required alongside the optional
+`base_url` / `token_env` / `repository`-or-`project` coordinates, and the per-env probe uses a new
+`releasePlatformsHintPerEnv` (hint + "`forges:` is top-level only, there is no
+`environments.<env>.forges`"). The remaining items in this cluster — `needsForge`,
+`HasResolvablePublishTarget`'s nil-guard, double forge resolution, `clearCIEnv` triplication, and
+`config.Platform`'s stray YAML tags — are still open.
 
 #### `[ ]` T168: decide the fate of `port.Forge`'s link methods (and the dead `lc` parameter)
 

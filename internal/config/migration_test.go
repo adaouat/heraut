@@ -147,3 +147,38 @@ environments:
 		})
 	}
 }
+
+// The hint must name every field a forges: entry REQUIRES, or a user following it literally hits a
+// second round of validation errors.
+func TestLoad_RemovedKey_ReleasePlatformsHintNamesRequiredFields(t *testing.T) {
+	_, err := config.Load(writeCfg(t, `version: "1"
+versioning: {strategy: semver}
+release:
+  platforms:
+    - name: gl
+      platform: gitlab
+      project: group/subgroup/project
+`))
+	require.Error(t, err)
+	require.True(t, errors.Is(err, config.ErrRemovedConfigKey))
+	assert.Contains(t, err.Error(), "name", "the hint must name the required `name` field")
+	assert.Contains(t, err.Error(), "platform", "the hint must name the required `platform` field")
+	assert.Contains(t, err.Error(), "release.targets")
+}
+
+// The per-env message must additionally say forges: is top-level only.
+func TestLoad_RemovedKey_PerEnvHintSaysForgesIsTopLevel(t *testing.T) {
+	_, err := config.Load(writeCfg(t, `version: "1"
+versioning: {strategy: semver}
+environments:
+  staging:
+    release:
+      platforms:
+        - name: gl
+          platform: gitlab
+          project: group/subgroup/project
+`))
+	require.Error(t, err)
+	require.True(t, errors.Is(err, config.ErrRemovedConfigKey))
+	assert.Contains(t, err.Error(), "top-level")
+}

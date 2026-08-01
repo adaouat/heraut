@@ -127,6 +127,74 @@ func TestValidate_EnvironmentReleaseTargets_Forge(t *testing.T) {
 	})
 }
 
+// TestValidate_UnsatisfiableTargets pins T171: no two targets may resolve to the same forge.
+// Two bare targets with zero or one forges[] entry collapse to the same auto-detected identity,
+// and two targets naming the same forge explicitly collapse likewise — both let the first
+// `release create` succeed and the second fail after the tag has already been pushed.
+func TestValidate_UnsatisfiableTargets(t *testing.T) {
+	tests := []struct {
+		name    string
+		forges  []config.Forge
+		targets []config.Target
+		want    string // substring expected in some error; "" = valid
+	}{
+		{
+			name:    "zero-config single bare target is fine",
+			forges:  nil,
+			targets: []config.Target{{}},
+			want:    "",
+		},
+		{
+			name:    "zero-config with two bare targets is unsatisfiable",
+			forges:  nil,
+			targets: []config.Target{{}, {Draft: true}},
+			want:    "release.targets",
+		},
+		{
+			name:    "one forge with two bare targets is unsatisfiable",
+			forges:  []config.Forge{{Name: "A", Type: "gitlab"}},
+			targets: []config.Target{{}, {Draft: true}},
+			want:    "release.targets",
+		},
+		{
+			name:    "two forges, each target names one",
+			forges:  []config.Forge{{Name: "A", Type: "gitlab"}, {Name: "B", Type: "github"}},
+			targets: []config.Target{{Forge: "A"}, {Forge: "B"}},
+			want:    "",
+		},
+		{
+			name:    "two targets naming the SAME forge is unsatisfiable",
+			forges:  []config.Forge{{Name: "A", Type: "gitlab"}, {Name: "B", Type: "github"}},
+			targets: []config.Target{{Forge: "A"}, {Forge: "A", Draft: true}},
+			want:    "release.targets",
+		},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			cfg := &config.Config{
+				Version:    "1",
+				Versioning: config.Versioning{Strategy: "semver"},
+				Forges:     tc.forges,
+				Release:    &config.Release{Targets: tc.targets},
+			}
+			errs := config.Validate(cfg)
+			if tc.want == "" {
+				for _, e := range errs {
+					assert.NotContains(t, e.Path, "release.targets", "unexpected target error: %v", e)
+				}
+				return
+			}
+			found := false
+			for _, e := range errs {
+				if strings.Contains(e.Path, tc.want) || strings.Contains(e.Message, tc.want) {
+					found = true
+				}
+			}
+			assert.True(t, found, "expected an error mentioning %q, got %v", tc.want, errs)
+		})
+	}
+}
+
 // TestValidate_platformBaseURLMalformed pins the C1 regression: forges[].base_url with no
 // scheme (the likeliest typo, e.g. "gitlab.example.com") must fail validation with a clear
 // "not a valid URL"-shaped message rather than silently reaching platformConfigFromTarget,
