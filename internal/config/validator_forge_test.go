@@ -128,9 +128,9 @@ func TestValidate_EnvironmentReleaseTargets_Forge(t *testing.T) {
 }
 
 // TestValidate_UnsatisfiableTargets pins T171: no two targets may resolve to the same forge.
-// Two bare targets with zero or one forges[] entry collapse to the same auto-detected identity,
-// and two targets naming the same forge explicitly collapse likewise — both let the first
-// `release create` succeed and the second fail after the tag has already been pushed.
+// Whatever shape the collision takes — two bare targets, two targets naming the same forge, or a
+// bare target and an explicit one that resolve to the same single configured forge — it lets the
+// first `release create` succeed and the second fail after the tag has already been pushed.
 func TestValidate_UnsatisfiableTargets(t *testing.T) {
 	tests := []struct {
 		name    string
@@ -168,6 +168,22 @@ func TestValidate_UnsatisfiableTargets(t *testing.T) {
 			targets: []config.Target{{Forge: "A"}, {Forge: "A", Draft: true}},
 			want:    "release.targets",
 		},
+		{
+			// With exactly one forge, a bare target resolves to forges[0] — the same
+			// destination an explicit `forge: A` names. Neither a bare-target count nor a
+			// duplicate-name scan sees this alone; only normalizing every target to the
+			// forge it will actually resolve to catches it.
+			name:    "one forge: a bare target collides with an explicit target naming it",
+			forges:  []config.Forge{{Name: "A", Type: "gitlab"}},
+			targets: []config.Target{{}, {Forge: "A", Draft: true}},
+			want:    "release.targets",
+		},
+		{
+			name:    "one forge: explicit-then-bare collides in either order",
+			forges:  []config.Forge{{Name: "A", Type: "gitlab"}},
+			targets: []config.Target{{Forge: "A"}, {Draft: true}},
+			want:    "release.targets",
+		},
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
@@ -193,6 +209,49 @@ func TestValidate_UnsatisfiableTargets(t *testing.T) {
 			assert.True(t, found, "expected an error mentioning %q, got %v", tc.want, errs)
 		})
 	}
+}
+
+// TestValidate_UnsatisfiableTargets_NoDoubleErrorForAmbiguousTargets guards the normalization's
+// skip branches: a target already rejected per-entry (bare with more than one forge configured,
+// or naming an unknown forge) must not resolve into the duplicate scan too, or one mistake yields
+// both a per-entry error and a list-level "same forge" error.
+func TestValidate_UnsatisfiableTargets_NoDoubleErrorForAmbiguousTargets(t *testing.T) {
+	listPathErr := func(errs config.ValidationErrors) *config.ValidationError {
+		for i, e := range errs {
+			if e.Path == "release.targets" {
+				return &errs[i]
+			}
+		}
+		return nil
+	}
+
+	t.Run("two bare targets with more than one forge error per entry only", func(t *testing.T) {
+		cfg := &config.Config{
+			Version:    "1",
+			Versioning: config.Versioning{Strategy: "semver"},
+			Forges:     []config.Forge{{Name: "A", Type: "gitlab"}, {Name: "B", Type: "github"}},
+			Release:    &config.Release{Targets: []config.Target{{}, {Draft: true}}},
+		}
+		errs := config.Validate(cfg)
+		assert.NotNil(t, findErr(errs, "release.targets[0].forge"), "the per-entry error stands, got %v", errs)
+		assert.NotNil(t, findErr(errs, "release.targets[1].forge"), "the per-entry error stands, got %v", errs)
+		assert.Nil(t, listPathErr(errs), "no list-level duplicate error on top of the per-entry ones: %v", errs)
+	})
+
+	t.Run("two targets naming the same unknown forge error per entry only", func(t *testing.T) {
+		cfg := &config.Config{
+			Version:    "1",
+			Versioning: config.Versioning{Strategy: "semver"},
+			Forges:     []config.Forge{{Name: "A", Type: "gitlab"}},
+			Release: &config.Release{Targets: []config.Target{
+				{Forge: "does-not-exist"},
+				{Forge: "does-not-exist", Draft: true},
+			}},
+		}
+		errs := config.Validate(cfg)
+		assert.NotNil(t, findErr(errs, "release.targets[0].forge"), "the per-entry error stands, got %v", errs)
+		assert.Nil(t, listPathErr(errs), "no list-level duplicate error on top of the per-entry ones: %v", errs)
+	})
 }
 
 // TestValidate_platformBaseURLMalformed pins the C1 regression: forges[].base_url with no

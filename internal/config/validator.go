@@ -235,7 +235,7 @@ func validateForges(cfg *Config) []ValidationError {
 	}
 
 	if cfg.Release != nil {
-		errs = append(errs, validateTargetForges(cfg.Release.Targets, knownForges, len(cfg.Forges), "release.targets")...)
+		errs = append(errs, validateTargetForges(cfg.Release.Targets, knownForges, cfg.Forges, "release.targets")...)
 	}
 
 	for _, envName := range sortedEnvKeys(cfg.Environments) {
@@ -244,11 +244,16 @@ func validateForges(cfg *Config) []ValidationError {
 			continue
 		}
 		path := fmt.Sprintf("environments.%s.release.targets", envName)
-		errs = append(errs, validateTargetForges(env.Release.Targets, knownForges, len(cfg.Forges), path)...)
+		errs = append(errs, validateTargetForges(env.Release.Targets, knownForges, cfg.Forges, path)...)
 	}
 
 	return errs
 }
+
+// autoDetectedForge stands in for the identity every bare target shares when no forges: entry is
+// configured — internal/app's resolveTargetForge hands them all the same auto-detected forge, so
+// they collide with each other. The NUL prefix keeps it distinct from any user-supplied name.
+const autoDetectedForge = "\x00auto-detected"
 
 // validateTargetForges validates a release.targets list (top-level or per-environment): each
 // entry's forge, when set, must name a known forge, and is required when more than one forge is
@@ -257,11 +262,10 @@ func validateForges(cfg *Config) []ValidationError {
 // `release create` succeed and the second fail after the tag has already been pushed (T171).
 // pathPrefix is "release.targets" at the top level or "environments.<env>.release.targets" for a
 // per-env override.
-func validateTargetForges(targets []Target, knownForges map[string]bool, forgeCount int, pathPrefix string) []ValidationError {
+func validateTargetForges(targets []Target, knownForges map[string]bool, forges []Forge, pathPrefix string) []ValidationError {
 	var errs []ValidationError
-	bareCount := 0
-	seenForge := map[string]bool{}
-	duplicateForge := false
+	seen := map[string]bool{}
+	duplicate := false
 	for i, t := range targets {
 		path := fmt.Sprintf("%s[%d].forge", pathPrefix, i)
 		switch {
@@ -271,22 +275,23 @@ func validateTargetForges(targets []Target, knownForges map[string]bool, forgeCo
 				Message: fmt.Sprintf("unknown forge %q", t.Forge),
 				Hint:    "must match one of forges[].name",
 			})
-		case t.Forge == "" && forgeCount > 1:
+		case t.Forge == "" && len(forges) > 1:
 			errs = append(errs, ValidationError{
 				Path:    path,
 				Message: "required when more than one forge is configured",
 				Hint:    "set forge to one of forges[].name",
 			})
-		}
-		if t.Forge == "" {
-			bareCount++
-		} else if seenForge[t.Forge] {
-			duplicateForge = true
-		} else {
-			seenForge[t.Forge] = true
+		default:
+			// Only targets that resolve at all take part in the duplicate scan: an entry
+			// already rejected above would otherwise draw a second error for one mistake.
+			dest := resolvedForgeName(t, forges)
+			if seen[dest] {
+				duplicate = true
+			}
+			seen[dest] = true
 		}
 	}
-	if duplicateForge || (bareCount > 1 && forgeCount <= 1) {
+	if duplicate {
 		errs = append(errs, ValidationError{
 			Path:    pathPrefix,
 			Message: "more than one target resolves to the same forge",
@@ -294,6 +299,20 @@ func validateTargetForges(targets []Target, knownForges map[string]bool, forgeCo
 		})
 	}
 	return errs
+}
+
+// resolvedForgeName is the forge a target will resolve to at release time, mirroring
+// internal/app's resolveTargetForge: an explicit forge names itself, a bare target takes the sole
+// configured forge, and with no forges: at all every bare target shares the auto-detected identity.
+func resolvedForgeName(t Target, forges []Forge) string {
+	switch {
+	case t.Forge != "":
+		return t.Forge
+	case len(forges) == 1:
+		return forges[0].Name
+	default:
+		return autoDetectedForge
+	}
 }
 
 // validateRendering validates the rendering block: each exclude sets exactly one of type or
