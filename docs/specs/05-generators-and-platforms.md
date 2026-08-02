@@ -256,9 +256,11 @@ back to, so auto-detection resolves **no forge** for that project.
 
 What happens next is governed by `commits.enrichment_policy`: under `optional` (the default),
 generation proceeds with no PR/MR enrichment — commit lines render with no `by @` handle and no
-`in [#N]` reference — and the generator reports itself degraded; under `required`, the run fails
-with an actionable error naming the missing forge instead of producing an unenriched changelog
-(`--force` downgrades `required` to the same degrade-and-warn behavior as `optional`, per
+`in [#N]` reference — silently, with no warning and no `Degraded()` signal (that signal is
+reserved for a *configured* forge whose fetch fails, not for the absence of a forge); under
+`required`, the run fails outright with an error explaining that no forge was resolved and
+naming the three ways to supply one (`forges:` entry, supported CI, recognised git origin)
+(`--force` downgrades `required` to the same silent-no-enrichment behavior as `optional`, per
 [ADR-0041](../adr/0041-remote-metadata-required-enforcement-and-force.md)).
 
 The remedy is an explicit `forges:` entry naming the self-hosted `base_url` and the

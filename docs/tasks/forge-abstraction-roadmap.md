@@ -540,9 +540,14 @@ Added a new "Auto-detection and self-hosted hosts" subsection to
 `docs/specs/05-generators-and-platforms.md`, placed directly after the `forges` fallback-chain
 paragraph in the `##### forges — explicit metadata forge` section: which two sources fill gaps
 (CI markers, then `git remote get-url origin`), that origin detection recognises only
-`github.com`/`gitlab.com`/`dev.azure.com`, the degrade-vs-error split by `commits.enrichment_policy`
-(verified against `enrichForRelease` in `internal/generators/native/enrich.go`, including the
-`--force` downgrade), and the explicit `forges:` remedy with synthetic placeholders
+`github.com`/`gitlab.com`/`dev.azure.com`, and the `commits.enrichment_policy` split when no
+forge resolves (verified against `enrichForRelease` in `internal/generators/native/enrich.go`,
+including the `--force` downgrade) — caught and corrected a drafting error here: `optional` with
+no forge does **not** set `Degraded()` (that flag only fires when a *configured* forge's fetch
+fails, per `enrich.go`'s nil-error early return at line 18-20 when `g.forge == nil`), so it
+silently produces unenriched output with no warning at all, not a "degraded" warning as first
+drafted; `required` fails outright naming the three remedies. Also added the explicit `forges:`
+remedy with synthetic placeholders
 (`gitlab.example.com`, `group/subgroup/project`). Did **not** name the gap in the required-policy
 error string itself (`internal/generators/native/enrich.go`) — that's a code change and out of
 scope for a docs-only task; the brief only asked to "consider" it, and the error text already
