@@ -415,6 +415,22 @@ Update the scaffold wizard (`internal/scaffold`) to generate `forges:` / `releas
 
 ## Follow-ups
 
+#### `[ ]` T174: `enrichment_policy: required` is not enforced for the git-cliff generator
+
+`required` is a guarantee — fail rather than ship unenriched notes. It holds for `native`
+(`internal/generators/native/enrich.go` errors when the policy is `required` and no forge is
+resolvable), but **not** for git-cliff: `runCliff`'s `case remoteRequired: return g.exec(args, lc)`
+only suppresses the `--offline` retry. With no forge resolved, `injectRemote` injects no
+`[remote.*]` section, git-cliff runs and **exits 0 with unenriched output and no error**. Its own
+doc comment says "a remote-fetch failure is fatal", which is true only when a fetch is actually
+attempted — with nothing configured, none is. So a user who sets `required` specifically to prevent
+shipping unenriched release notes gets exactly that, silently. Two generators diverging on a
+user-facing policy guarantee is the defect; either make git-cliff assert a resolvable forge before
+running, or document the divergence as intended. Found while fact-checking T169's docs (2026-08-02);
+pre-existing, not introduced by the forge epic. Note git-cliff is itself slated for removal
+(native-generator roadmap Phase 2.5), which may make documenting-and-deferring the right call.
+**Scope:** S.
+
 #### `[x]` T171: duplicate publish targets can resolve to the same destination
 
 With no `forges:` block, `resolveTargetForge` returns the same auto-detected identity for every
