@@ -527,8 +527,9 @@ full reference.
 - **`rest` (default)** — works out of the box with the CI job token
   (`CI_JOB_TOKEN`): merge-request association comes from
   `GET /projects/:id/repository/commits/:sha/merge_requests`, an endpoint GitLab allows a job
-  token to call. Commit authors render as `by @<name>` using the local git author name (REST
-  carries no linked handle).
+  token to call. REST carries no linked handle, so commit authors render as `by @<local-part>`
+  using the git author email's local-part, falling back to the git author name when no email is
+  present (matching the Azure DevOps forge's fallback).
 - **`graphql` (opt-in)** — requires a `read_api` personal or project access token and renders
   the linked `@username` instead of the plain author name. GitLab's GraphQL API structurally
   rejects job tokens ("You cannot use job tokens to authenticate GraphQL requests"), so

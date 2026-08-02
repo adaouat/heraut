@@ -59,8 +59,8 @@ func TestEnrichREST_JobToken(t *testing.T) {
 	assert.Equal(t, []string{"feature"}, pr.Labels)
 	assert.Equal(t, "bob", pr.MergedBy.Username)
 	assert.False(t, pr.MergedAt.IsZero())
-	// REST commits carry no linked handle: `by @` falls back to the local git author name.
-	assert.Equal(t, "Alice", en.Authors["abc123"])
+	// REST commits carry no linked handle: `by @` falls back to the git author email's local-part.
+	assert.Equal(t, "alice", en.Authors["abc123"])
 }
 
 func TestEnrichREST_PrivateTokenHeader(t *testing.T) {

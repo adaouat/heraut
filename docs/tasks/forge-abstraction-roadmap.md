@@ -536,7 +536,7 @@ spec 05 still describes GitLab enrichment as "two batched `glab api graphql` con
 Since ADRs outrank the roadmap in this repo's source-of-truth hierarchy, leaving them stale inverts
 that hierarchy. **Scope:** S.
 
-#### `[ ]` T170: cross-forge consistency (author fallback, Azure `api_url` / `api_mode`)
+#### `[x]` T170: cross-forge consistency (author fallback, Azure `api_url` / `api_mode`)
 
 Two divergences between the three forges, found by P2's final review. (1) **Author-handle fallback
 differs:** when no linked handle is available, GitLab renders the git author **name** (`by @Alice
@@ -549,6 +549,21 @@ and in spec 02; ideally have Azure prefer `APIURL` when set. Consider a cross-fo
 table test (empty commits → non-nil empty maps; non-2xx → wrapped error naming the status; partial
 identity → clear error) to keep three parallel implementations honest as P3 adds publishing.
 **Scope:** S–M.
+
+Closed the author-fallback half only (1); the Azure `api_url`/`api_mode` half (2) remains open.
+`gitAuthors` in `internal/forge/gitlab/gitlab.go` now prefers the git author email's local-part,
+falling back to the git author name, matching `authorLogin` in `internal/forge/azure/azure.go`
+(ADR-0043 / T151) — an `@handle` should not contain spaces. This is a deliberate, user-visible
+changelog output change for GitLab in `api_mode: rest` (the default): `by @Alice Smith` now
+renders `by @alice` when an email is present. `api_mode: graphql` is unaffected — it resolves a
+real linked `@username` and never reaches this fallback. Updated
+`docs/specs/05-generators-and-platforms.md` (the native generator's REST-vs-GraphQL author
+description) and `docs/specs/02-configuration.md` (the `api_mode` trade-off table) to match.
+Re-pointed `TestEnrichREST_JobToken` in `internal/forge/gitlab/gitlab_test.go` from `"Alice"` to
+`"alice"` — the commit fixture carries both a name and an email, so the expected handle changes
+under the new precedence; the assertion still proves a handle renders. Added
+`internal/forge/gitlab/gitlab_internal_test.go` (`package gitlab`, testing the unexported
+`gitAuthors` directly) since the existing `gitlab_test.go` is an external `gitlab_test` package.
 
 #### `[x]` T165: dedicated `forges:` section in `docs/specs/02-configuration.md`
 

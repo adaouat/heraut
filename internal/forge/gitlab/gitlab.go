@@ -78,18 +78,20 @@ func (f *Forge) Enrich(commits []port.Commit) (port.Enrichment, error) {
 	return f.enrichREST(commits)
 }
 
-// gitAuthors maps sha → the local git author name, falling back to the email local-part. REST
-// commit payloads expose no linked GitLab username, so this is the only `by @` source in REST
-// mode (the same trade-off Azure makes; see ADR-0043).
+// gitAuthors maps sha → the git author email's local-part, falling back to the git author name.
+// REST commit payloads expose no linked GitLab username, so this is the only `by @` source in
+// REST mode. The local-part is preferred because an `@handle` should not contain spaces — a git
+// display name like "Alice Smith" is not handle-shaped — matching the Azure forge's fallback (see
+// ADR-0043). Commits with neither are omitted.
 func gitAuthors(commits []port.Commit) map[string]string {
 	authors := make(map[string]string, len(commits))
 	for _, c := range commits {
-		if c.Author != "" {
-			authors[c.Hash] = c.Author
-			continue
-		}
 		if local, _, ok := strings.Cut(c.Email, "@"); ok && local != "" {
 			authors[c.Hash] = local
+			continue
+		}
+		if c.Author != "" {
+			authors[c.Hash] = c.Author
 		}
 	}
 	return authors

@@ -33,14 +33,19 @@ Each commit line credits the **commit author** — `by @<handle>` — resolved f
 independent of any associated pull request; the PR/MR, when present, contributes only its
 `in [#N](url)` reference link. When the committer differs from the PR/MR author, the committer
 is credited (matching git-cliff). GitHub resolves the handle at no extra cost, riding its existing
-batched PR-fetch query (ADR-0039). GitLab resolves it via a batched `commits` GraphQL query, and
-separately inverts a batched `mergeRequests` query into a `commitSha → MR` map for the `in [!N]`
-reference plus MR review-metadata; a commit attributable to no MR (e.g. a squash-with-fast-forward
-merge, for which GitLab's GraphQL schema exposes no squashed-commit SHA) renders no ref — a
-graceful omission, not an error (ADR-0042). **Azure DevOps** resolves no identity from a commit's
-git author email (no API can map it — confirmed by a live spike, T151), so its `by @<author>` is
-rendered from the local git author email's local-part instead — a text attribution, not a
-clickable Azure @mention. See [ADR-0039](../adr/0039-commit-author-attribution.md) and
+batched PR-fetch query (ADR-0039). **GitLab** in `api_mode: graphql` (opt-in) resolves it via a
+batched `commits` GraphQL query, and separately inverts a batched `mergeRequests` query into a
+`commitSha → MR` map for the `in [!N]` reference plus MR review-metadata; a commit attributable to
+no MR (e.g. a squash-with-fast-forward merge, for which GitLab's GraphQL schema exposes no
+squashed-commit SHA) renders no ref — a graceful omission, not an error (ADR-0042). GitLab in
+`api_mode: rest` (the default) exposes no linked username on its commit payloads, so its `by
+@<author>` is rendered from the git author email's local-part instead, falling back to the git
+author name when no email is present — the same local rendering Azure DevOps uses, and for the same
+reason: an `@handle` should not contain spaces. **Azure DevOps** resolves no identity from a
+commit's git author email (no API can map it — confirmed by a live spike, T151), so its
+`by @<author>` is rendered from the local git author email's local-part instead — a text
+attribution, not a clickable Azure @mention. See
+[ADR-0039](../adr/0039-commit-author-attribution.md) and
 [ADR-0042](../adr/0042-gitlab-graphql-enrichment.md).
 
 PR/MR number attribution and the "New Contributors" block derive from a unified,
