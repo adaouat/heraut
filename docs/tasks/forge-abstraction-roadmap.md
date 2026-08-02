@@ -540,27 +540,35 @@ Added a new "Auto-detection and self-hosted hosts" subsection to
 `docs/specs/05-generators-and-platforms.md`, placed directly after the `forges` fallback-chain
 paragraph in the `##### forges — explicit metadata forge` section: which two sources fill gaps
 (CI markers, then `git remote get-url origin`), that origin detection recognises only
-`github.com`/`gitlab.com`/`dev.azure.com`, and the `commits.enrichment_policy` split when no
-forge resolves (verified against `enrichForRelease` in `internal/generators/native/enrich.go`,
-including the `--force` downgrade) — caught and corrected a drafting error here: `optional` with
-no forge does **not** set `Degraded()` (that flag only fires when a *configured* forge's fetch
-fails, per `enrich.go`'s nil-error early return at line 18-20 when `g.forge == nil`), so it
-silently produces unenriched output with no warning at all, not a "degraded" warning as first
-drafted; `required` fails outright naming the three remedies. Also added the explicit `forges:`
-remedy with synthetic placeholders
-(`gitlab.example.com`, `group/subgroup/project`). Did **not** name the gap in the required-policy
-error string itself (`internal/generators/native/enrich.go`) — that's a code change and out of
-scope for a docs-only task; the brief only asked to "consider" it, and the error text already
-names the three general remedies (`forges:` entry, supported CI, recognised git origin) without
-enumerating hosts. Added dated `> **Update (2026-08-02):**` blockquotes (matching ADR-0039's
-style) to both ADR-0034 and ADR-0043, recording that GitHub's enrichment migrated onto native
-`net/http` (`internal/forge/github`) in ADR-0043's P2 phase, alongside GitLab (P1) and Azure
-(ADR-0035) — no enrichment path shells out to `gh api`/`glab api` anymore — while publishing still
-does (`gh`/`glab`, ADR-0044, unchanged). Annotated both ADRs' `docs/adr/README.md` rows to match.
-Left spec 05's "two batched `glab api graphql` connection queries" line (in the unrelated
-full-regeneration/incremental-changelog section) untouched: it is real drift too, but the task
-brief scoped ADR-drift fixes to ADR-0034/0043 plus the self-hosted spec gap, not a full sweep of
-every stale transport mention in spec 05 — flagging it here rather than silently expanding scope.
+`github.com`/`gitlab.com`/`dev.azure.com`, and the `commits.enrichment_policy` behaviour when no
+forge resolves — stated **per generator**, since the two enforce the policy independently and do
+**not** agree. `native` (`enrichForRelease`, `internal/generators/native/enrich.go`): `optional`
+proceeds silently and does **not** set `Degraded()` (that flag only fires when a *configured*
+forge's fetch fails — `enrich` returns a nil error via its `g.forge == nil` early return, so the
+`err != nil` branch that sets the flag is never reached); `required` fails outright naming the
+three remedies, with `--force` downgrading it. `git-cliff` (`runCliff` / `injectRemote` /
+`linkEnv`, `internal/generators/gitcliff/generator.go`): with no forge resolved there is no
+owner/repo, so no `[remote.*]` is injected and no `GITHUB_REPO`/`GITLAB_REPO` is set — git-cliff
+fetches nothing and exits 0, meaning **both** `optional` and `required` yield unenriched output
+with no error and no degraded flag (`required` only suppresses the `--offline` retry; it asserts
+nothing about a forge existing). Confirmed no upstream enforcement compensates: the only
+`required` handling in the tree is inside those two generators. Also added the explicit `forges:`
+remedy with synthetic placeholders (`gitlab.example.com`, `group/subgroup/project`). Did **not**
+name the gap in the required-policy error string itself — that's a code change, out of scope for a
+docs-only task. Added dated `> **Update (2026-08-02):**` blockquotes (matching ADR-0039's style)
+to both ADR-0034 and ADR-0043, recording that GitHub's enrichment migrated onto native `net/http`
+(`internal/forge/github`) in ADR-0043's P2 phase, alongside GitLab (P1) and Azure (ADR-0035) — no
+enrichment path shells out to `gh api`/`glab api` anymore — while publishing still does
+(`gh`/`glab`, ADR-0044, unchanged). Annotated both ADRs' `docs/adr/README.md` rows to match.
+Also corrected the full-regeneration paragraph's stale "two batched `glab api graphql` connection
+queries" (GitLab enrichment is native `net/http`, `internal/forge/gitlab`), and — found while
+verifying it — its "no platform pays a per-commit cost" claim, which is false for the **default**
+`api_mode: rest`: `enrichREST` (`internal/forge/gitlab/rest.go`) issues one
+`GET /projects/:id/repository/commits/:sha/merge_requests` per commit, so a full regeneration
+there is O(commits), not O(releases). The batched two-connection-query description remains
+accurate but only for the opt-in `api_mode: graphql` (`enrichGraphQL`,
+`internal/forge/gitlab/graphql.go`), and is now scoped that way. GitHub's "50 SHAs/query"
+(`ghChunkSize`) and Azure's single `pullrequestquery` POST were re-verified and left as-is.
 Did not touch any Go code or test; `git diff --stat` is docs-only.
 
 #### `[x]` T170: cross-forge consistency (author fallback, Azure `api_url` / `api_mode`)

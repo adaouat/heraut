@@ -135,12 +135,17 @@ calls) and splices it into the existing file, leaving every other section untouc
 
 **Full regeneration (`--regenerate` / `--regenerate-changelog`).** Ignores the existing file,
 rebuilds every section from all tags, and **re-enriches all of them** — each section is enriched
-independently, so GitHub (GraphQL, 50 SHAs/query), GitLab (two batched `glab api graphql`
-connection queries — commit authors via `commits`, MR refs via inverted `mergeRequests`,
+independently, so GitHub (batched GraphQL, 50 SHAs/query), GitLab in `api_mode: graphql` (two
+batched connection queries — commit authors via `commits`, MR refs via inverted `mergeRequests`,
 [ADR-0042](../adr/0042-gitlab-graphql-enrichment.md)), and Azure (one `pullrequestquery` POST) each
-batch *within* a release, costing roughly one API call per release (O(releases)); no platform pays
-a per-commit cost, so the changelog pipeline step no longer warns on a fully-regenerated GitLab
-remote.
+batch *within* a release, costing roughly one API call per release (O(releases)). All of these run
+over heraut's own `net/http` forge clients — no `gh` or `glab` process is spawned for enrichment
+([ADR-0043](../adr/0043-forge-abstraction.md)). The one exception is GitLab in `api_mode: rest`
+(the **default**), which resolves MRs with one
+`GET /projects/:id/repository/commits/:sha/merge_requests` **per commit**: a full regeneration
+there costs O(commits), so prefer `api_mode: graphql` (or an incremental run) on a long history.
+The changelog pipeline step itself no longer carries a dedicated GitLab full-regeneration warning;
+the only warning it emits is the degraded note raised when an enrichment fetch actually fails.
 This is the required one-time step when migrating a changelog onto `native` (or repairing a
 previously-anchorless file) — see [ADR-0038](../adr/0038-incremental-changelog.md) for the full
 migration story, including the `regenerate_changelog` `workflow_dispatch` input heraut's own CI
@@ -254,14 +259,23 @@ both the SSH and HTTPS remote forms. A **self-hosted** GitHub Enterprise or GitL
 other host outside that list) does not match, and outside CI there is no other signal to fall
 back to, so auto-detection resolves **no forge** for that project.
 
-What happens next is governed by `commits.enrichment_policy`: under `optional` (the default),
-generation proceeds with no PR/MR enrichment — commit lines render with no `by @` handle and no
-`in [#N]` reference — silently, with no warning and no `Degraded()` signal (that signal is
-reserved for a *configured* forge whose fetch fails, not for the absence of a forge); under
-`required`, the run fails outright with an error explaining that no forge was resolved and
-naming the three ways to supply one (`forges:` entry, supported CI, recognised git origin)
-(`--force` downgrades `required` to the same silent-no-enrichment behavior as `optional`, per
-[ADR-0041](../adr/0041-remote-metadata-required-enforcement-and-force.md)).
+What happens next depends on `commits.enrichment_policy` **and on the generator** — each enforces
+the policy itself, and they do not behave identically when no forge resolves:
+
+- **`native`** — under `optional` (the default), generation proceeds with no PR/MR enrichment:
+  commit lines render with no `by @` handle and no `in [#N]` reference, silently, with no warning
+  and no `Degraded()` signal (that signal is reserved for a *configured* forge whose fetch fails,
+  not for the absence of a forge). Under `required`, the run **fails outright**, with an error
+  explaining that no forge was resolved and naming the three ways to supply one — a `forges:`
+  entry, a supported CI environment, or a recognised git origin. `--force` downgrades `required`
+  to the `optional` behavior above
+  ([ADR-0041](../adr/0041-remote-metadata-required-enforcement-and-force.md)).
+- **`git-cliff`** — with no forge resolved there is no owner/repo to pass on, so heraut injects
+  neither a `[remote.*]` section into the effective TOML nor `GITHUB_REPO`/`GITLAB_REPO` into the
+  subprocess environment; git-cliff then has no remote to query, fetches nothing, and exits
+  cleanly. **Both** `optional` and `required` therefore yield unenriched output with no error and
+  no degraded warning — `required` only suppresses the `--offline` retry, it does not assert that
+  a forge exists. Do not rely on `required` to catch a missing forge under `git-cliff`.
 
 The remedy is an explicit `forges:` entry naming the self-hosted `base_url` and the
 `project`/`repository` path, since nothing else can supply them:
