@@ -6,6 +6,16 @@
 
 ---
 
+> **Update (2026-08-02):** The `gh api` / `glab api` transport described below (Decision §1) has
+> since been replaced. [ADR-0043](0043-forge-abstraction.md) introduced `port.Forge`, and GitHub's
+> enrichment migrated onto a native `net/http` client (`internal/forge/github`) in ADR-0043's P2
+> phase — the same native transport GitLab (ADR-0043 P1) and Azure DevOps
+> ([ADR-0035](0035-azure-enrichment-native-http.md)) already used. No enrichment path shells out to
+> `gh api` or `glab api` today. Publishing is unaffected: `gh`/`glab` remain the publish transport
+> ([ADR-0044](0044-publishing-config-unification.md)). This ADR's design rationale (batched,
+> bounded fetch; auth via `LinkContext`/`ForgeIdentity`; the three `remote_metadata` policy
+> branches) still holds — only the mechanism in §1 changed.
+
 ## Context
 
 [ADR-0032](0032-native-content-generator.md) added the `native` generator and sequenced its

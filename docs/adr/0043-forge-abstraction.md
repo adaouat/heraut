@@ -17,6 +17,16 @@
 
 ---
 
+> **Update (2026-08-02):** The Decision section's "GitHub and Azure keep their current transports
+> (`gh api graphql`, …) in this phase" is true only as of the P1 (GitLab-first) phase described
+> here. This ADR's own Phasing (Consequences) already scheduled **P2 — GitHub and Azure migrate
+> onto `port.Forge`**; that phase has since shipped, and GitHub's enrichment now runs over a native
+> `net/http` client (`internal/forge/github`), matching GitLab (P1) and Azure DevOps
+> ([ADR-0035](0035-azure-enrichment-native-http.md)). No enrichment transport shells out to `gh
+> api` or `glab api` anymore. Publishing (`gh`/`glab`) is unaffected — see
+> [ADR-0044](0044-publishing-config-unification.md), which also supersedes this ADR's P3 framing
+> (publishing was *not* folded into `port.Forge`; the transport there stays `gh`/`glab`).
+
 ## Context
 
 Three problems, one root cause — the "remote" heraut talks to is not a first-class,

@@ -244,6 +244,41 @@ Valid as the enrichment source for both the `git-cliff` and `native` generators 
 introduced for `changelog.remote` by ADR-0026/ADR-0040; unified into the top-level `forges:`
 list by ADR-0043).
 
+##### Auto-detection and self-hosted hosts
+
+When no explicit `forges:` entry supplies a field, the fallback chain above resolves it from
+two sources, in order: the ambient CI environment (`GITLAB_CI` / `GITHUB_ACTIONS` / `TF_BUILD`
+markers pin the type unambiguously), then `git remote get-url origin`. Origin-based detection
+recognises only the **public** hosts — `github.com`, `gitlab.com`, `dev.azure.com` — parsed from
+both the SSH and HTTPS remote forms. A **self-hosted** GitHub Enterprise or GitLab host (or any
+other host outside that list) does not match, and outside CI there is no other signal to fall
+back to, so auto-detection resolves **no forge** for that project.
+
+What happens next is governed by `commits.enrichment_policy`: under `optional` (the default),
+generation proceeds with no PR/MR enrichment — commit lines render with no `by @` handle and no
+`in [#N]` reference — and the generator reports itself degraded; under `required`, the run fails
+with an actionable error naming the missing forge instead of producing an unenriched changelog
+(`--force` downgrades `required` to the same degrade-and-warn behavior as `optional`, per
+[ADR-0041](../adr/0041-remote-metadata-required-enforcement-and-force.md)).
+
+The remedy is an explicit `forges:` entry naming the self-hosted `base_url` and the
+`project`/`repository` path, since nothing else can supply them:
+
+```yaml
+forges:
+  - name: gitlab-internal
+    platform: gitlab
+    base_url: https://gitlab.example.com
+    project: group/subgroup/project
+
+commits:
+  enrichment_forge: gitlab-internal
+```
+
+Once declared, that entry's still-unset fields (token, API URL) continue to fill from CI or a
+type default as usual — only the fields self-hosted detection cannot infer (`base_url`,
+`project`/`repository`) must be given explicitly.
+
 Azure DevOps repository URLs are structurally different from GitHub/GitLab: the
 repository root inserts `/_git/` between the project and repository segments
 (`https://dev.azure.com/{organization}/{project}/_git/{repository}`). Commit, PR, and

@@ -521,7 +521,7 @@ still take an `lc *port.LinkContext` parameter neither reads — two production 
 rule enforcing it, but it implies a coupling P2 deliberately deleted. Found by P2's final review.
 **Scope:** S–M.
 
-#### `[ ]` T169: document the self-hosted / GHES enrichment requirement, and fix ADR drift
+#### `[x]` T169: document the self-hosted / GHES enrichment requirement, and fix ADR drift
 
 Two related doc gaps found by P2's final review. (1) **Capability regression, undocumented:** before
 P2, a `generator: native` user on a self-hosted GitHub Enterprise / GitLab host enriched via the
@@ -535,6 +535,28 @@ transport (deleted in T162), ADR-0043 says "GitHub and Azure keep their current 
 spec 05 still describes GitLab enrichment as "two batched `glab api graphql` connection queries".
 Since ADRs outrank the roadmap in this repo's source-of-truth hierarchy, leaving them stale inverts
 that hierarchy. **Scope:** S.
+
+Added a new "Auto-detection and self-hosted hosts" subsection to
+`docs/specs/05-generators-and-platforms.md`, placed directly after the `forges` fallback-chain
+paragraph in the `##### forges — explicit metadata forge` section: which two sources fill gaps
+(CI markers, then `git remote get-url origin`), that origin detection recognises only
+`github.com`/`gitlab.com`/`dev.azure.com`, the degrade-vs-error split by `commits.enrichment_policy`
+(verified against `enrichForRelease` in `internal/generators/native/enrich.go`, including the
+`--force` downgrade), and the explicit `forges:` remedy with synthetic placeholders
+(`gitlab.example.com`, `group/subgroup/project`). Did **not** name the gap in the required-policy
+error string itself (`internal/generators/native/enrich.go`) — that's a code change and out of
+scope for a docs-only task; the brief only asked to "consider" it, and the error text already
+names the three general remedies (`forges:` entry, supported CI, recognised git origin) without
+enumerating hosts. Added dated `> **Update (2026-08-02):**` blockquotes (matching ADR-0039's
+style) to both ADR-0034 and ADR-0043, recording that GitHub's enrichment migrated onto native
+`net/http` (`internal/forge/github`) in ADR-0043's P2 phase, alongside GitLab (P1) and Azure
+(ADR-0035) — no enrichment path shells out to `gh api`/`glab api` anymore — while publishing still
+does (`gh`/`glab`, ADR-0044, unchanged). Annotated both ADRs' `docs/adr/README.md` rows to match.
+Left spec 05's "two batched `glab api graphql` connection queries" line (in the unrelated
+full-regeneration/incremental-changelog section) untouched: it is real drift too, but the task
+brief scoped ADR-drift fixes to ADR-0034/0043 plus the self-hosted spec gap, not a full sweep of
+every stale transport mention in spec 05 — flagging it here rather than silently expanding scope.
+Did not touch any Go code or test; `git diff --stat` is docs-only.
 
 #### `[x]` T170: cross-forge consistency (author fallback, Azure `api_url` / `api_mode`)
 
