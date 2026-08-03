@@ -202,11 +202,11 @@ func TestValidate_UnsatisfiableTargets(t *testing.T) {
 			}
 			found := false
 			for _, e := range errs {
-				if strings.Contains(e.Path, tc.want) || strings.Contains(e.Message, tc.want) {
+				if e.Path == tc.want {
 					found = true
 				}
 			}
-			assert.True(t, found, "expected an error mentioning %q, got %v", tc.want, errs)
+			assert.True(t, found, "expected the list-level duplicate error at path %q, got %v", tc.want, errs)
 		})
 	}
 }

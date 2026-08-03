@@ -162,7 +162,7 @@ release:
 	require.Error(t, err)
 	require.True(t, errors.Is(err, config.ErrRemovedConfigKey))
 	assert.Contains(t, err.Error(), "name", "the hint must name the required `name` field")
-	assert.Contains(t, err.Error(), "platform", "the hint must name the required `platform` field")
+	assert.Contains(t, err.Error(), "`name` / `platform` (required)", "the hint must mark `name`/`platform` as required")
 	assert.Contains(t, err.Error(), "release.targets")
 }
 
