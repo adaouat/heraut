@@ -415,6 +415,33 @@ Update the scaffold wizard (`internal/scaffold`) to generate `forges:` / `releas
 
 ## Follow-ups
 
+#### `[ ]` T175: `heraut check` and `heraut changelog` disagree about the same config
+
+T172 made `heraut check` warn (rather than fail) when forge resolution fails and **publishing** is
+unconfigured. But resolution is also consumed by **enrichment**: `resolveEnrichForgeIfNeeded`
+(`internal/app/pipeline.go`) calls `resolveForge` whenever a driver is `generator: native` and the
+policy is not `disabled`, and propagates the error. So for `changelog: {generator: native}` with no
+`forges:` and no `release.targets`, on an ambiguous machine, `heraut check` prints an advisory and
+exits 0 while `heraut changelog` hard-fails on the identical error — and the check no longer predicts
+that failure, for exactly the changelog-only user T172 set out to protect. Two fixes, in opposite
+directions: widen `wantsForge` to include enrichment consumers, or fix the deeper asymmetry —
+`optional` promises "on failure, degrade" (`internal/generators/native/enrich.go`), yet a
+*resolution* error under `optional` is fatal today. The second is the better behaviour and would make
+T172's warning correct by construction. Found by the hardening phase's final review (2026-08-02).
+**Scope:** S–M.
+
+#### `[ ]` T176: T171 rejects duplicate forge *names*, not duplicate *destinations*
+
+`resolvedForgeName` (`internal/config/validator.go`) compares forge **names**, so two distinctly-named
+`forges:` entries that resolve to the same place still pass — e.g. two `platform: github` entries with
+no explicit `repository`, both filled from the same CI env or git origin, targeted separately. The
+second `release create` still fails after the tag is pushed, which is the hazard T171 exists to
+prevent. Exact coordinate comparison is impossible in `internal/config` (no runner, no env), but a
+cheap config-level approximation catches precisely the both-empty case: reject two `forges:` entries
+sharing an identical `(platform, base_url, project/repository)` tuple. Either implement it or record
+the residual gap in T171's note so it doesn't read as fully closed. Found by the hardening phase's
+final review. **Scope:** S.
+
 #### `[ ]` T174: `enrichment_policy: required` is not enforced for the git-cliff generator
 
 `required` is a guarantee — fail rather than ship unenriched notes. It holds for `native`
