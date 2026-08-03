@@ -252,30 +252,60 @@ list by ADR-0043).
 ##### Auto-detection and self-hosted hosts
 
 When no explicit `forges:` entry supplies a field, the fallback chain above resolves it from
-two sources, in order: the ambient CI environment (`GITLAB_CI` / `GITHUB_ACTIONS` / `TF_BUILD`
-markers pin the type unambiguously), then `git remote get-url origin`. Origin-based detection
-recognises only the **public** hosts — `github.com`, `gitlab.com`, `dev.azure.com` — parsed from
-both the SSH and HTTPS remote forms. A **self-hosted** GitHub Enterprise or GitLab host (or any
-other host outside that list) does not match, and outside CI there is no other signal to fall
-back to, so auto-detection resolves **no forge** for that project.
+three sources, in order (`internal/forge/resolve.go`'s `resolveAuto`): the ambient CI environment
+(`GITLAB_CI` / `GITHUB_ACTIONS` / `TF_BUILD` markers pin the type unambiguously), then
+`git remote get-url origin`, then — when neither pins a type — the ambient *default* token env
+vars (`GITLAB_TOKEN`, `GITHUB_TOKEN`, `AZURE_DEVOPS_TOKEN`). Origin-based detection recognises
+only the **public** hosts — `github.com`, `gitlab.com`, `dev.azure.com` — parsed from both the
+SSH and HTTPS remote forms. A **self-hosted** GitHub Enterprise or GitLab host (or any other host
+outside that list) does not match, so outside CI a self-hosted project falls through to the
+token-env step. That step's outcome depends on how many of the three token vars are set:
 
-What happens next depends on `commits.enrichment_policy` **and on the generator** — each enforces
-the policy itself, and they do not behave identically when no forge resolves:
+- **Exactly one set** — auto-detection resolves *a* forge of that token's type, but with
+  `Host` set to the type's **public** default host (`https://gitlab.com` for `GITLAB_TOKEN`,
+  and so on) and an **empty** `Project`, since a bare token env var carries no host or project
+  path. For a self-hosted user this is worse than no forge: requests go to the public host with
+  an empty project segment, and a token minted for the user's own instance is sent to
+  `gitlab.com`/`github.com` instead. This is pre-existing behaviour of the token-env fallback,
+  not something this phase introduced — it is exactly why the explicit `forges:` remedy below
+  matters for a self-hosted setup.
+- **Two or more set** — ambiguous; `Resolve` returns `forge.ErrAmbiguousForge` and the run fails.
+- **None set** — auto-detection resolves **no forge** for that project, same as if the token-env
+  step didn't exist.
 
-- **`native`** — under `optional` (the default), generation proceeds with no PR/MR enrichment:
-  commit lines render with no `by @` handle and no `in [#N]` reference, silently, with no warning
-  and no `Degraded()` signal (that signal is reserved for a *configured* forge whose fetch fails,
-  not for the absence of a forge). Under `required`, the run **fails outright**, with an error
-  explaining that no forge was resolved and naming the three ways to supply one — a `forges:`
-  entry, a supported CI environment, or a recognised git origin. `--force` downgrades `required`
-  to the `optional` behavior above
-  ([ADR-0041](../adr/0041-remote-metadata-required-enforcement-and-force.md)).
-- **`git-cliff`** — with no forge resolved there is no owner/repo to pass on, so heraut injects
-  neither a `[remote.*]` section into the effective TOML nor `GITHUB_REPO`/`GITLAB_REPO` into the
-  subprocess environment; git-cliff then has no remote to query, fetches nothing, and exits
-  cleanly. **Both** `optional` and `required` therefore yield unenriched output with no error and
-  no degraded warning — `required` only suppresses the `--offline` retry, it does not assert that
-  a forge exists. Do not rely on `required` to catch a missing forge under `git-cliff`.
+What happens next depends on `commits.enrichment_policy`, **the generator**, and **which of the
+three outcomes above occurred** — `native` and `git-cliff` do not behave identically, and the
+single-token outcome does not affect them identically either:
+
+- **`native`** — the single-token outcome does *not* short-circuit to "no forge": a real
+  `port.Forge` is constructed against the public host with an empty project, so enrichment is
+  attempted and fails. GitLab's `enrichREST` (`internal/forge/gitlab/rest.go`), for example,
+  builds `https://gitlab.com/api/v4/projects//repository/commits/<sha>/merge_requests` (empty
+  project segment) and gets a 404. Under `optional` (the default), `enrichForRelease`
+  (`internal/generators/native/enrich.go`) catches that error, drops enrichment, and sets
+  `Degraded()` with the wrapped HTTP error as the reason — commit lines render with no `by @`
+  handle and no `in [#N]` reference, but the degraded warning names an HTTP failure, not a
+  missing forge. Under `required`, the run **fails outright** with that same wrapped 404 (not
+  the "no forge resolved" message below). `--force` downgrades `required` to the `optional`
+  behavior above ([ADR-0041](../adr/0041-remote-metadata-required-enforcement-and-force.md)).
+  Only the **zero-token** outcome (nothing resolves at all — no CI marker, no recognised origin,
+  no ambient token) reaches the "no forge" behavior: under `optional`, generation proceeds with
+  no PR/MR enrichment, silently, with no warning and no `Degraded()` signal (that signal is
+  reserved for a *configured* forge whose fetch fails, not for the absence of one); under
+  `required`, the run fails with an error explaining that no forge was resolved and naming the
+  three ways to supply one — a `forges:` entry, a supported CI environment, or a recognised git
+  origin.
+- **`git-cliff`** — unaffected by the single-token outcome: git-cliff's remote injection never
+  consumes `forge.Resolve`'s result. It resolves its own owner/repo via a separate, narrower
+  fallback (`internal/pipeline/linkctx.go`) that explicitly treats a partial identity — including
+  the token-only branch's empty `Project` — as absent and falls through rather than stamping a
+  broken host (see the `linkContextFromIdentity` guard). So for git-cliff, both the single-token
+  and zero-token outcomes behave the same: with no owner/repo to pass on, heraut injects neither a
+  `[remote.*]` section into the effective TOML nor `GITHUB_REPO`/`GITLAB_REPO` into the subprocess
+  environment; git-cliff then has no remote to query, fetches nothing, and exits cleanly. **Both**
+  `optional` and `required` therefore yield unenriched output with no error and no degraded
+  warning — `required` only suppresses the `--offline` retry, it does not assert that a forge
+  exists. Do not rely on `required` to catch a missing forge under `git-cliff`.
 
 The remedy is an explicit `forges:` entry naming the self-hosted `base_url` and the
 `project`/`repository` path, since nothing else can supply them:
