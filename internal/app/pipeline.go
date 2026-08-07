@@ -242,7 +242,7 @@ func buildReleasePipelineConfig(runner, readRunner port.Runner, cfg *config.Conf
 	// Changelog generator
 	if effectiveChangelog != nil {
 		driver := withEnvDerivations(effectiveChangelog, cfg, env)
-		gen, err := buildGenerator(runner, driver, gitcliff.ModeChangelog, herautVersion, regenerateChangelog, force, enrichForge)
+		gen, err := buildGenerator(runner, driver, gitcliff.ModeChangelog, herautVersion, regenerateChangelog, force, enrichForge, "")
 		if err != nil {
 			return nil, fmt.Errorf("changelog generator: %w", err)
 		}
@@ -254,7 +254,7 @@ func buildReleasePipelineConfig(runner, readRunner port.Runner, cfg *config.Conf
 	// Release notes generator
 	if effectiveNotes != nil {
 		driver := withEnvDerivations(effectiveNotes, cfg, env)
-		gen, err := buildGenerator(runner, driver, gitcliff.ModeReleaseNotes, herautVersion, regenerateChangelog, force, enrichForge)
+		gen, err := buildGenerator(runner, driver, gitcliff.ModeReleaseNotes, herautVersion, regenerateChangelog, force, enrichForge, "")
 		if err != nil {
 			return nil, fmt.Errorf("release notes generator: %w", err)
 		}
@@ -367,12 +367,12 @@ func buildChangelogPipelineConfig(runner, readRunner port.Runner, cfg *config.Co
 	}
 
 	if effectiveChangelog != nil {
-		enrichForge, forgeID, err := resolveEnrichForgeIfNeeded(readRunner, os.Getenv, cfg, effectiveChangelog, nil)
+		enrichForge, forgeID, degradedReason, err := resolveEnrichForgeIfNeeded(readRunner, os.Getenv, cfg, opts.Force, effectiveChangelog, nil)
 		if err != nil {
 			return nil, err
 		}
 		driver := withEnvDerivations(effectiveChangelog, cfg, opts.Env)
-		gen, err := buildGenerator(runner, driver, gitcliff.ModeChangelog, opts.HerautVersion, opts.RegenerateChangelog, opts.Force, enrichForge)
+		gen, err := buildGenerator(runner, driver, gitcliff.ModeChangelog, opts.HerautVersion, opts.RegenerateChangelog, opts.Force, enrichForge, degradedReason)
 		if err != nil {
 			return nil, fmt.Errorf("changelog generator: %w", err)
 		}
@@ -471,7 +471,7 @@ func effectiveTemplates(cfg *config.Config, driver *config.ContentDriver) map[st
 	return eff
 }
 
-func buildGenerator(runner port.Runner, driver *config.ContentDriver, defaultMode gitcliff.Mode, herautVersion string, regenerateChangelog, force bool, enrichForge port.Forge) (port.Generator, error) {
+func buildGenerator(runner port.Runner, driver *config.ContentDriver, defaultMode gitcliff.Mode, herautVersion string, regenerateChangelog, force bool, enrichForge port.Forge, degradedReason string) (port.Generator, error) {
 	switch driver.Generator {
 	case "git-cliff":
 		return gitcliff.New(runner, driver, defaultMode), nil
@@ -486,6 +486,9 @@ func buildGenerator(runner port.Runner, driver *config.ContentDriver, defaultMod
 		var opts []native.Option
 		if enrichForge != nil {
 			opts = append(opts, native.WithForge(enrichForge))
+		}
+		if degradedReason != "" {
+			opts = append(opts, native.WithDegraded(degradedReason))
 		}
 		return native.New(runner, &nativeDriver, nativeMode(defaultMode), opts...), nil
 	default:
@@ -507,30 +510,44 @@ func usesNative(drivers ...*config.ContentDriver) bool {
 // resolveEnrichForgeIfNeeded resolves the configured/ambient forge and constructs the matching
 // port.Forge, but only when a native generator is actually in play — forge.Resolve shells out to
 // `git remote get-url origin`, a cost/side-effect skipped for the common gitcliff/communique
-// setups. Returns (nil, nil, nil) when no driver is native.
+// setups. Returns (nil, nil, "", nil) when no driver is native.
 //
 // When the effective enrichment policy is "disabled" (including via --offline, which forces it),
 // resolution is skipped entirely rather than attempted and its error discarded: enrichment being
 // switched off must never be able to *cause* a failure, e.g. an ambiguous multi-token environment
 // that forge.Resolve can't disambiguate should not block an explicitly offline run.
 //
+// A resolution failure under any other policy is fatal only when the policy is "required" and not
+// downgraded by force — matching enrichForRelease's "required fails outright" contract
+// (internal/generators/native/enrich.go). Under the default/optional policy, which promises "on
+// failure, degrade", a resolution failure degrades the same way a post-resolution fetch failure
+// does: the returned forge/identity are nil and the third return value carries a non-empty reason
+// for the caller to seed onto the generator (native.WithDegraded), instead of failing the whole
+// pipeline (T175 — without this, heraut check's warn-only severity for an unconfigured, ambiguous
+// changelog-only environment (T172) predicted success while heraut changelog hard-failed on the
+// identical resolution error).
+//
 // getenv is injected rather than reaching for os.Getenv directly: forge.Resolve keys off CI
 // markers (GITHUB_ACTIONS, GITLAB_CI, TF_BUILD), so a hardcoded os.Getenv would let the ambient
 // CI environment of heraut's *own* pipeline decide what a test resolves — which is exactly how
 // this function's tests broke on GitHub Actions while passing locally.
-func resolveEnrichForgeIfNeeded(runner port.Runner, getenv func(string) string, cfg *config.Config, drivers ...*config.ContentDriver) (port.Forge, *port.ForgeIdentity, error) {
+func resolveEnrichForgeIfNeeded(runner port.Runner, getenv func(string) string, cfg *config.Config, force bool, drivers ...*config.ContentDriver) (port.Forge, *port.ForgeIdentity, string, error) {
 	if !usesNative(drivers...) {
-		return nil, nil, nil
+		return nil, nil, "", nil
 	}
-	if cfg.EnrichmentPolicy() == "disabled" {
-		return nil, nil, nil
+	policy := cfg.EnrichmentPolicy()
+	if policy == "disabled" {
+		return nil, nil, "", nil
 	}
 	resolved, err := resolveForge(runner, getenv, cfg)
 	if err != nil {
-		return nil, nil, err
+		if policy == "required" && !force {
+			return nil, nil, "", err
+		}
+		return nil, nil, fmt.Sprintf("remote enrichment unavailable; rendering without PR attribution: %v", err), nil
 	}
 	enrichForge, forgeID := enrichForgeFrom(resolved)
-	return enrichForge, forgeID, nil
+	return enrichForge, forgeID, "", nil
 }
 
 // resolveForge is the single call site for forge.Resolve: it shells out to

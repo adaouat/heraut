@@ -62,6 +62,17 @@ func WithForge(f port.Forge) Option {
 	return func(g *Generator) { g.forge = f }
 }
 
+// WithDegraded seeds a degraded state at construction time — used when the pipeline could not
+// resolve an enrichment forge under a non-required policy (T175): the run proceeds without PR
+// attribution, the same outcome as a post-resolution fetch failure under "optional", rather than
+// failing outright.
+func WithDegraded(reason string) Option {
+	return func(g *Generator) {
+		g.degraded = true
+		g.degradedReason = reason
+	}
+}
+
 // herautMeta builds the document-meta value passed to templates as .Heraut.
 func (g *Generator) herautMeta() tplHeraut {
 	return tplHeraut{Version: g.cfg.HerautVersion, URL: herautProjectURL, GeneratedAt: g.now()}

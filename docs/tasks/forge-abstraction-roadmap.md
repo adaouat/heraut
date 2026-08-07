@@ -415,7 +415,7 @@ Update the scaffold wizard (`internal/scaffold`) to generate `forges:` / `releas
 
 ## Follow-ups
 
-#### `[ ]` T175: `heraut check` and `heraut changelog` disagree about the same config
+#### `[x]` T175: `heraut check` and `heraut changelog` disagree about the same config
 
 T172 made `heraut check` warn (rather than fail) when forge resolution fails and **publishing** is
 unconfigured. But resolution is also consumed by **enrichment**: `resolveEnrichForgeIfNeeded`
@@ -429,6 +429,35 @@ directions: widen `wantsForge` to include enrichment consumers, or fix the deepe
 *resolution* error under `optional` is fatal today. The second is the better behaviour and would make
 T172's warning correct by construction. Found by the hardening phase's final review (2026-08-02).
 **Scope:** S–M.
+
+Implemented the second (recommended) fix, scoped to the changelog-only pipeline where the
+divergence actually manifests: `resolveEnrichForgeIfNeeded` (`internal/app/pipeline.go`) gained a
+`force bool` parameter and a third `string` return value (a degraded reason), computed the same way
+`enrichForRelease`'s `required := ... && !g.cfg.Force` already does. A `resolveForge` failure is
+fatal only when `enrichment_policy: required` and not downgraded by `--force`; under the
+default/optional policy (or `required` + `--force`) it now returns a nil forge/identity plus a
+non-empty degraded reason instead of an error — the same "on failure, degrade" contract
+`enrichForRelease` already promises for post-resolution fetch failures, just applied one step
+earlier, at resolution. `buildChangelogPipelineConfig` threads that reason into a new
+`native.WithDegraded(reason)` constructor option (`internal/generators/native/generator.go`),
+seeding `g.degraded`/`g.degradedReason` before generation runs, so the existing
+`internal/pipeline/warn.go` sub-result rendering picks it up unchanged — no new UI plumbing needed.
+`buildReleasePipelineConfig` was deliberately **not** touched: it resolves the forge unconditionally
+for publishing (not just enrichment) via its own inlined `needsForge`/`resolveForge` call, and
+`heraut release`'s pre-flight (`HasResolvablePublishTarget`) already gates that command before this
+code is reached when there is no resolvable publish target — the divergence T175 describes is
+specific to `heraut changelog`, which has no equivalent pre-flight and no publish-side reason to
+ever fail on enrichment alone. `buildGenerator` gained a matching `degradedReason string` parameter;
+its two `buildReleasePipelineConfig` call sites pass `""` (unaffected by this fix). Tests (TDD,
+`internal/app/forge_internal_test.go`): replaced the "ambiguous forge propagates as an error" case
+with three — default policy degrades (asserts a non-empty reason, nil forge/identity, no error),
+`required` policy still errors, and `required` + `--force` degrades like a fetch failure would; all
+other `resolveEnrichForgeIfNeeded` call sites updated for the new signature. Added
+`TestWithDegraded_SeedsDegradedState` in `internal/generators/native` for the new option, and
+`TestBuildChangelogPipelineConfig_AmbiguousForgeDegradesUnderOptionalPolicy` as an end-to-end proof
+that `buildChangelogPipelineConfig` no longer errors for this exact config and the built generator
+reports `Degraded() == true`. `go test ./...` (both plain and simulated `GITHUB_ACTIONS=true`) and
+`hk check` are clean.
 
 #### `[ ]` T176: T171 rejects duplicate forge *names*, not duplicate *destinations*
 

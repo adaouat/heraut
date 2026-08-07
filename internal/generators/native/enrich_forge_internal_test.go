@@ -94,3 +94,12 @@ func TestEnrichForRelease_RequiredStillErrorsWithoutForgeOrLinkContext(t *testin
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "remote enrichment (required)")
 }
+
+// WithDegraded seeds a degraded state at construction — used by the pipeline (T175) when it could
+// not resolve an enrichment forge under a non-required policy, so the run is already marked
+// degraded before any commit is generated.
+func TestWithDegraded_SeedsDegradedState(t *testing.T) {
+	g := New(nil, testDriver(), ModeChangelog, WithDegraded("resolving forge: ambiguous forge"))
+	assert.True(t, g.Degraded())
+	assert.Equal(t, "resolving forge: ambiguous forge", g.DegradedReason())
+}

@@ -65,10 +65,11 @@ func TestResolveEnrichForgeIfNeeded(t *testing.T) {
 	t.Run("skips resolution when no driver is native", func(t *testing.T) {
 		mr := exectest.NewMockRunner() // no response queued: a git call here would error
 		cfg := &config.Config{}
-		f, id, err := resolveEnrichForgeIfNeeded(mr, fakeEnv(nil), cfg, &config.ContentDriver{Generator: "git-cliff"})
+		f, id, degradedReason, err := resolveEnrichForgeIfNeeded(mr, fakeEnv(nil), cfg, false, &config.ContentDriver{Generator: "git-cliff"})
 		require.NoError(t, err)
 		assert.Nil(t, f)
 		assert.Nil(t, id)
+		assert.Empty(t, degradedReason)
 		assert.Empty(t, mr.Calls, "no git call when no driver is native")
 	})
 
@@ -76,24 +77,26 @@ func TestResolveEnrichForgeIfNeeded(t *testing.T) {
 		mr := exectest.NewMockRunner()
 		mr.QueueResponse("https://gitlab.com/group/subgroup/project.git\n", "", nil)
 		cfg := &config.Config{}
-		f, id, err := resolveEnrichForgeIfNeeded(mr, fakeEnv(nil), cfg, &config.ContentDriver{Generator: "native"})
+		f, id, degradedReason, err := resolveEnrichForgeIfNeeded(mr, fakeEnv(nil), cfg, false, &config.ContentDriver{Generator: "native"})
 		require.NoError(t, err)
 		require.NotNil(t, id)
 		assert.Equal(t, "gitlab", id.Type)
 		require.NotNil(t, f, "a concrete gitlab.Forge must be constructed and assigned through the interface")
 		assert.Equal(t, "gitlab", f.Type())
+		assert.Empty(t, degradedReason)
 	})
 
 	t.Run("resolves and constructs a github forge for a native driver", func(t *testing.T) {
 		mr := exectest.NewMockRunner()
 		mr.QueueResponse("", "", assertNoOriginErr)
 		cfg := &config.Config{Forges: []config.Forge{{Name: "gh", Type: "github", Repository: "acme/widget"}}}
-		f, id, err := resolveEnrichForgeIfNeeded(mr, fakeEnv(nil), cfg, &config.ContentDriver{Generator: "native"})
+		f, id, degradedReason, err := resolveEnrichForgeIfNeeded(mr, fakeEnv(nil), cfg, false, &config.ContentDriver{Generator: "native"})
 		require.NoError(t, err)
 		require.NotNil(t, id)
 		assert.Equal(t, "github", id.Type)
 		require.NotNil(t, f, "a concrete github.Forge must be constructed and assigned through the interface")
 		assert.Equal(t, "github", f.Type())
+		assert.Empty(t, degradedReason)
 	})
 
 	t.Run("resolves and constructs an azure forge for a native driver", func(t *testing.T) {
@@ -102,21 +105,53 @@ func TestResolveEnrichForgeIfNeeded(t *testing.T) {
 		cfg := &config.Config{Forges: []config.Forge{{
 			Name: "az", Type: "azure_devops", Project: "myorg/myproject", Repository: "myrepo",
 		}}}
-		f, id, err := resolveEnrichForgeIfNeeded(mr, fakeEnv(nil), cfg, &config.ContentDriver{Generator: "native"})
+		f, id, degradedReason, err := resolveEnrichForgeIfNeeded(mr, fakeEnv(nil), cfg, false, &config.ContentDriver{Generator: "native"})
 		require.NoError(t, err)
 		require.NotNil(t, id)
 		assert.Equal(t, "azure_devops", id.Type)
 		require.NotNil(t, f, "a concrete azure.Forge must be constructed and assigned through the interface")
 		assert.Equal(t, "azure_devops", f.Type())
+		assert.Empty(t, degradedReason)
 	})
 
-	t.Run("ambiguous forge propagates as an error", func(t *testing.T) {
+	// T175: optional (the default) promises "on failure, degrade" — a resolution failure is just
+	// another enrichment failure, so it must not be fatal. This is what makes heraut check's
+	// warn-only severity (T172) for this exact config correct by construction, instead of check
+	// predicting success while heraut changelog hard-fails.
+	t.Run("ambiguous forge under the default policy degrades instead of erroring (T175)", func(t *testing.T) {
 		mr := exectest.NewMockRunner()
 		mr.QueueResponse("", "", assertNoOriginErr)
 		env := fakeEnv(map[string]string{"GITLAB_TOKEN": "glpat", "GITHUB_TOKEN": "ghp"})
 		cfg := &config.Config{}
-		_, _, err := resolveEnrichForgeIfNeeded(mr, env, cfg, &config.ContentDriver{Generator: "native"})
-		require.Error(t, err)
+		f, id, degradedReason, err := resolveEnrichForgeIfNeeded(mr, env, cfg, false, &config.ContentDriver{Generator: "native"})
+		require.NoError(t, err)
+		assert.Nil(t, f)
+		assert.Nil(t, id)
+		assert.NotEmpty(t, degradedReason, "the caller must be able to mark the generator degraded")
+	})
+
+	t.Run("ambiguous forge under enrichment_policy: required still propagates as an error", func(t *testing.T) {
+		mr := exectest.NewMockRunner()
+		mr.QueueResponse("", "", assertNoOriginErr)
+		env := fakeEnv(map[string]string{"GITLAB_TOKEN": "glpat", "GITHUB_TOKEN": "ghp"})
+		cfg := &config.Config{Commits: &config.Commits{EnrichmentPolicy: "required"}}
+		f, id, degradedReason, err := resolveEnrichForgeIfNeeded(mr, env, cfg, false, &config.ContentDriver{Generator: "native"})
+		require.Error(t, err, "required is a guarantee — a resolution failure must stay fatal")
+		assert.Nil(t, f)
+		assert.Nil(t, id)
+		assert.Empty(t, degradedReason)
+	})
+
+	t.Run("--force downgrades a required-policy resolution failure to degrade, same as a fetch failure", func(t *testing.T) {
+		mr := exectest.NewMockRunner()
+		mr.QueueResponse("", "", assertNoOriginErr)
+		env := fakeEnv(map[string]string{"GITLAB_TOKEN": "glpat", "GITHUB_TOKEN": "ghp"})
+		cfg := &config.Config{Commits: &config.Commits{EnrichmentPolicy: "required"}}
+		f, id, degradedReason, err := resolveEnrichForgeIfNeeded(mr, env, cfg, true, &config.ContentDriver{Generator: "native"})
+		require.NoError(t, err)
+		assert.Nil(t, f)
+		assert.Nil(t, id)
+		assert.NotEmpty(t, degradedReason)
 	})
 
 	t.Run("GitLab CI end-to-end: resolution, job-token header selection, and forge construction compose (T160)", func(t *testing.T) {
@@ -135,7 +170,7 @@ func TestResolveEnrichForgeIfNeeded(t *testing.T) {
 		})
 
 		cfg := &config.Config{}
-		f, id, err := resolveEnrichForgeIfNeeded(mr, env, cfg, &config.ContentDriver{Generator: "native"})
+		f, id, degradedReason, err := resolveEnrichForgeIfNeeded(mr, env, cfg, false, &config.ContentDriver{Generator: "native"})
 		require.NoError(t, err)
 
 		require.NotNil(t, id)
@@ -149,18 +184,49 @@ func TestResolveEnrichForgeIfNeeded(t *testing.T) {
 		require.NotNil(t, f, "a concrete gitlab.Forge must be constructed for the resolved identity")
 		assert.Equal(t, "gitlab", f.Type())
 		assert.Equal(t, port.TokenJob, f.Identity().TokenKind, "the constructed forge's identity must carry the job-token kind through to header selection")
+		assert.Empty(t, degradedReason)
 	})
 
 	t.Run("policy disabled skips resolution even when the environment is ambiguous", func(t *testing.T) {
 		mr := exectest.NewMockRunner() // no response queued: a git call here would error
 		env := fakeEnv(map[string]string{"GITLAB_TOKEN": "glpat", "GITHUB_TOKEN": "ghp"})
 		cfg := &config.Config{Commits: &config.Commits{EnrichmentPolicy: "disabled"}}
-		f, id, err := resolveEnrichForgeIfNeeded(mr, env, cfg, &config.ContentDriver{Generator: "native"})
+		f, id, degradedReason, err := resolveEnrichForgeIfNeeded(mr, env, cfg, false, &config.ContentDriver{Generator: "native"})
 		require.NoError(t, err)
 		assert.Nil(t, f)
 		assert.Nil(t, id)
+		assert.Empty(t, degradedReason)
 		assert.Empty(t, mr.Calls, "disabled policy must skip resolution entirely, not just swallow the error")
 	})
+}
+
+// TestBuildChangelogPipelineConfig_AmbiguousForgeDegradesUnderOptionalPolicy is the end-to-end
+// proof for T175: a changelog-only pipeline (generator: native, default/optional policy, no
+// forges:, no release.targets) on an ambiguous machine no longer hard-fails the way heraut
+// changelog used to — it builds successfully, and the resulting generator reports Degraded(),
+// the same outcome heraut check already predicts for this config (T172).
+func TestBuildChangelogPipelineConfig_AmbiguousForgeDegradesUnderOptionalPolicy(t *testing.T) {
+	clearCIEnv(t)
+	t.Setenv("GITLAB_TOKEN", "glpat")
+	t.Setenv("GITHUB_TOKEN", "ghp")
+
+	runner := exectest.NewMockRunner()
+	readRunner := exectest.NewMockRunner()
+	readRunner.QueueResponse("", "", assertNoOriginErr)
+
+	cfg := &config.Config{
+		Version:    "1",
+		Versioning: config.Versioning{Strategy: "semver"},
+		Changelog:  &config.ContentDriver{Generator: "native"},
+	}
+
+	cCfg, err := buildChangelogPipelineConfig(runner, readRunner, cfg, PipelineOpts{})
+	require.NoError(t, err, "an ambiguous forge under the default policy must degrade, not hard-fail")
+	require.NotNil(t, cCfg.Changelog)
+
+	degraded, ok := cCfg.Changelog.(interface{ Degraded() bool })
+	require.True(t, ok, "the native generator exposes Degraded()")
+	assert.True(t, degraded.Degraded())
 }
 
 // TestBuildReleasePipelineConfig_UsesReadRunnerForForgeResolution proves that
