@@ -14,7 +14,7 @@ type enrichResult struct {
 
 // enrich resolves PR/MR enrichment for commits via the injected port.Forge (ADR-0043), returning
 // an enrichResult. Returns a zero enrichResult when no forge is configured.
-func (g *Generator) enrich(lc *port.LinkContext, commits []rawCommit) (enrichResult, error) {
+func (g *Generator) enrich(commits []rawCommit) (enrichResult, error) {
 	if g.forge == nil {
 		return enrichResult{}, nil
 	}
@@ -37,7 +37,7 @@ func (g *Generator) enrich(lc *port.LinkContext, commits []rawCommit) (enrichRes
 //
 // No forge configured is not itself a failure — it simply yields no enrichment — except under
 // "required", where an unconfigured forge cannot satisfy the policy and is a hard error.
-func (g *Generator) enrichForRelease(lc *port.LinkContext, commits []rawCommit) (enrichResult, error) {
+func (g *Generator) enrichForRelease(commits []rawCommit) (enrichResult, error) {
 	if g.cfg.RemoteMetadata == "disabled" {
 		return enrichResult{}, nil
 	}
@@ -47,7 +47,7 @@ func (g *Generator) enrichForRelease(lc *port.LinkContext, commits []rawCommit) 
 	if required && g.forge == nil {
 		return enrichResult{}, fmt.Errorf("remote enrichment (required): no forge resolved to fetch PR/MR metadata from — configure a forges: entry, run in a supported CI environment, or use a recognised git origin")
 	}
-	er, err := g.enrich(lc, commits)
+	er, err := g.enrich(commits)
 	if err != nil {
 		if required {
 			return enrichResult{}, fmt.Errorf("remote enrichment (required): %w", err)

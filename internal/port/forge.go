@@ -67,8 +67,18 @@ type Commit struct {
 type Forge interface {
 	Type() string
 	Identity() ForgeIdentity
+
+	// CommitURL, ChangeURL, and CompareURL are reserved publishing-surface link builders
+	// (T168) — implemented and tested in every internal/forge/* driver, but not yet called from
+	// production rendering, which still resolves links through LinkContext
+	// (internal/generators/native/links.go). Decided (2026-08-08) not to collapse the two
+	// link-building paths into one: the risk of a regression on a live, well-tested rendering
+	// path outweighed the duplication for now. Keep implementing and testing them for every new
+	// forge, and keep them out of the enrich/enrichForRelease call path — that coupling was
+	// deliberately removed in P2 (T168).
 	CommitURL(sha string) string
 	ChangeURL(number int) string
 	CompareURL(from, to string) string
+
 	Enrich(commits []Commit) (Enrichment, error)
 }

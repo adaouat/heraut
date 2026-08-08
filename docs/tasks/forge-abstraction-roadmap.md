@@ -664,7 +664,7 @@ doc comment saying it has no YAML surface. **Scope:** S–M.
 
 `go test ./...`, the simulated `GITHUB_ACTIONS=true` run, and `hk check` are all clean.
 
-#### `[ ]` T168: decide the fate of `port.Forge`'s link methods (and the dead `lc` parameter)
+#### `[x]` T168: decide the fate of `port.Forge`'s link methods (and the dead `lc` parameter)
 
 `port.Forge` declares `CommitURL` / `ChangeURL` / `CompareURL`, implemented and tested in all three
 forges — but they have **no production caller**. Link rendering still runs through
@@ -677,6 +677,28 @@ them explicitly as P3 publishing surface. Fold in the related cleanup: `enrich`/
 still take an `lc *port.LinkContext` parameter neither reads — two production call sites, no lint
 rule enforcing it, but it implies a coupling P2 deliberately deleted. Found by P2's final review.
 **Scope:** S–M.
+
+**Decision (2026-08-08, user-confirmed):** mark as reserved surface, don't wire in. Collapsing the
+two link-building implementations would touch all three forges' rendering paths at once — real
+regression risk on a live, well-tested path, for a payoff (removing duplication) that isn't worth
+it against a still-open publishing-surface question. `port.Forge`'s doc comment
+(`internal/port/forge.go`) now states this explicitly next to `CommitURL`/`ChangeURL`/`CompareURL`:
+they're reserved for future publishing-surface use, implemented and tested by every forge driver,
+deliberately not called from rendering — so the next reader sees an intentional decision, not
+apparent dead code (the exact "coverage illusion" this task's own text warns about). Closed the
+related cleanup unconditionally, since it doesn't depend on the wire-in/reserve choice: `enrich`
+and `enrichForRelease` (`internal/generators/native/enrich.go`) dropped their unread
+`lc *port.LinkContext` parameter — golangci-lint's `unusedparams` linter was already flagging `enrich`'s
+(surfaced as an inline diagnostic during the T175 session, left for this task rather than
+fixed opportunistically). Updated both call sites in `internal/generators/native/generator.go`
+(`generateReleaseNotes`, `renderRelease` — both still take their own `lc`, used elsewhere for actual
+link rendering; only the pass-through into enrich stopped) and every test call site in
+`internal/generators/native/enrich_forge_internal_test.go`, renaming the two tests whose names
+described the now-removed parameter
+(`TestEnrichForRelease_RequiredSatisfiedByForgeWithNilLinkContext` →
+`_RequiredSatisfiedByInjectedForge`, `_RequiredStillErrorsWithoutForgeOrLinkContext` →
+`_RequiredStillErrorsWithoutForge`) so they still describe what they assert. No behavior change —
+the parameter was never read. `go test ./...` and `hk check` are clean.
 
 #### `[x]` T169: document the self-hosted / GHES enrichment requirement, and fix ADR drift
 

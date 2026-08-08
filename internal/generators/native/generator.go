@@ -145,7 +145,7 @@ func (g *Generator) generateReleaseNotes(tag string, lc *port.LinkContext) (stri
 	if err != nil {
 		return "", err
 	}
-	er, err := g.enrichForRelease(lc, commits)
+	er, err := g.enrichForRelease(commits)
 	if err != nil {
 		return "", err
 	}
@@ -300,7 +300,7 @@ func (g *Generator) renderRelease(version, prev, rng string, lc *port.LinkContex
 	}
 	var prs map[string]PullRequest
 	if enrichEnabled {
-		er, err := g.enrichForRelease(lc, commits)
+		er, err := g.enrichForRelease(commits)
 		if err != nil {
 			return "", err
 		}

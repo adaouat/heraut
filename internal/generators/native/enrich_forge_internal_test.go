@@ -38,8 +38,7 @@ func TestEnrich_PrefersInjectedForge(t *testing.T) {
 	}}
 	g := New(nil, testDriver(), ModeChangelog, WithForge(sf))
 
-	er, err := g.enrich(&port.LinkContext{Platform: "gitlab"},
-		[]rawCommit{{Hash: "abc", Author: "Alice", Email: "alice@example.com"}})
+	er, err := g.enrich([]rawCommit{{Hash: "abc", Author: "Alice", Email: "alice@example.com"}})
 	require.NoError(t, err)
 
 	require.Len(t, sf.got, 1, "the forge receives the collected commits")
@@ -53,7 +52,7 @@ func TestEnrich_PrefersInjectedForge(t *testing.T) {
 func TestEnrich_ForgeErrorPropagates(t *testing.T) {
 	sentinel := errors.New("boom")
 	g := New(nil, testDriver(), ModeChangelog, WithForge(&stubForge{err: sentinel}))
-	_, err := g.enrich(&port.LinkContext{Platform: "gitlab"}, []rawCommit{{Hash: "abc"}})
+	_, err := g.enrich([]rawCommit{{Hash: "abc"}})
 	require.Error(t, err)
 	assert.True(t, errors.Is(err, sentinel))
 }
@@ -61,14 +60,14 @@ func TestEnrich_ForgeErrorPropagates(t *testing.T) {
 // Without an injected forge, enrichment yields nothing (no transport left to fall back to).
 func TestEnrich_NoForgeYieldsNoEnrichment(t *testing.T) {
 	g := New(nil, testDriver(), ModeChangelog)
-	er, err := g.enrich(nil, []rawCommit{{Hash: "abc"}})
+	er, err := g.enrich([]rawCommit{{Hash: "abc"}})
 	require.NoError(t, err)
 	assert.Empty(t, er.prs)
 }
 
-// An injected forge satisfies remote_metadata: required on its own — it carries its own
-// identity, so a nil (or unsupported) LinkContext is not the "nothing configured" case.
-func TestEnrichForRelease_RequiredSatisfiedByForgeWithNilLinkContext(t *testing.T) {
+// An injected forge satisfies remote_metadata: required on its own — it carries its own identity,
+// so nothing else needs to be configured for the "nothing configured" case to not apply.
+func TestEnrichForRelease_RequiredSatisfiedByInjectedForge(t *testing.T) {
 	sf := &stubForge{en: port.Enrichment{
 		PRs:     map[string]port.PullRequest{"abc": {Number: 7, RefPrefix: "!"}},
 		Authors: map[string]string{"abc": "alice"},
@@ -77,7 +76,7 @@ func TestEnrichForRelease_RequiredSatisfiedByForgeWithNilLinkContext(t *testing.
 	driver.RemoteMetadata = "required"
 	g := New(nil, driver, ModeChangelog, WithForge(sf))
 
-	er, err := g.enrichForRelease(nil, []rawCommit{{Hash: "abc", Author: "Alice"}})
+	er, err := g.enrichForRelease([]rawCommit{{Hash: "abc", Author: "Alice"}})
 	require.NoError(t, err, "an injected forge must satisfy the required policy")
 	assert.Equal(t, 7, er.prs["abc"].Number)
 	assert.Equal(t, "alice", er.authors["abc"])
@@ -85,12 +84,12 @@ func TestEnrichForRelease_RequiredSatisfiedByForgeWithNilLinkContext(t *testing.
 }
 
 // The required-policy error still fires when there is no forge configured.
-func TestEnrichForRelease_RequiredStillErrorsWithoutForgeOrLinkContext(t *testing.T) {
+func TestEnrichForRelease_RequiredStillErrorsWithoutForge(t *testing.T) {
 	driver := testDriver()
 	driver.RemoteMetadata = "required"
 	g := New(nil, driver, ModeChangelog)
 
-	_, err := g.enrichForRelease(nil, []rawCommit{{Hash: "abc"}})
+	_, err := g.enrichForRelease([]rawCommit{{Hash: "abc"}})
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "remote enrichment (required)")
 }
