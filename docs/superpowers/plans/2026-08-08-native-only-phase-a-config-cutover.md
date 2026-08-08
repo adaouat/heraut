@@ -419,7 +419,169 @@ tests), `testify` (assert/require).
   ```
 
   This commit is expected to leave `go test ./internal/config/...` red. That's fine — proceed to
-  Task 2 immediately in the same session; do not stop here.
+  Step 7 immediately in the same session; do not stop here.
+
+- [ ] **Step 7 (plan amendment, added mid-execution): remove validator.go's "required" check — this
+  cannot wait for Task 4**
+
+  This step exists because Step 6's commit, landed alone, deadlocks every commit in this repository.
+  `internal/cmd/commit.go`'s `newCommitVerifyCmd` — this repo's own `heraut commit verify`, which
+  runs as the project's `commit-msg` hook (`.config/hk/config.pkl`) — calls `config.Load` **and then
+  `config.Validate`**, failing the whole command on any validation error. `.config/heraut.yml` (this
+  repo's own dogfooded config) has `generator: native` under both `changelog:` and `release.notes:`.
+  After Step 6 alone:
+  - `generator:` present → `config.Load` rejects it (Step 6's new removed-key check).
+  - `generator:` absent → `config.Validate` still rejects it (`validateContentDriver`'s pre-existing
+    "required" check, untouched by Step 6, not scheduled for removal until Task 4).
+
+  There is no valid state for `.config/heraut.yml` in between — which means no commit in this
+  repository can pass its own hook until this is fixed. The original plan deferred removing the
+  "required" check to Task 4 on the theory that the loader change (Step 6) and the validator change
+  were independent; they are not — for any *real* config going through the full
+  `Load`-then-`Validate` path (not just the `Load`-only path this plan's own tests use), they are two
+  halves of one atomic change and must land together. Task 4 still removes the *enum* check
+  (`validGenerators`) and the `tag_pattern` generator-gate later — those don't block an *absent*
+  generator, only a *present-but-invalid* one, so they can still wait.
+
+  - [ ] **Step 7a: Write the failing test**
+
+    In `internal/config/validator_test.go`, delete `TestValidate_changelogMissingGenerator` (its
+    exact opposite assertion — that a missing `generator:` is a "required" error — is what this step
+    removes) and replace it with:
+
+    ```go
+    // TestValidate_changelogAbsentGeneratorIsValid pins the T177 follow-up (Step 7): once
+    // generator: is a removed key, an absent generator must not also be a validator error — native
+    // is implicit. This specific test exists ahead of T180's broader cleanup because a real config
+    // going through Load-then-Validate (e.g. this repo's own .config/heraut.yml, loaded by
+    // `heraut commit verify`, this project's commit-msg hook) has no valid state otherwise.
+    func TestValidate_changelogAbsentGeneratorIsValid(t *testing.T) {
+    	cfg := mustLoad(t, `
+    version: "1"
+    versioning:
+      strategy: semver
+    changelog:
+      output: CHANGELOG.md
+    `)
+    	errs := config.Validate(cfg)
+    	assert.Nil(t, findErr(errs, "changelog.generator"))
+    }
+    ```
+
+    Run: `go test ./internal/config/... -run TestValidate_changelogAbsentGeneratorIsValid -v`
+
+    Expected: FAIL — `findErr` returns a non-nil `"required"` error.
+
+  - [ ] **Step 7b: Implement**
+
+    In `internal/config/validator.go`, find `validateContentDriver` and replace:
+
+    ```go
+    	if d.Generator == "" {
+    		errs = append(errs, ValidationError{
+    			Path:    path + ".generator",
+    			Message: "required",
+    			Hint:    "set generator to one of: native, git-cliff, communique",
+    		})
+    	} else if !validGenerators[d.Generator] {
+    ```
+
+    with:
+
+    ```go
+    	// Empty is valid — native is implicit (T177). Only a present-but-unknown value errors;
+    	// validGenerators and this whole branch are fully removed in T180, once nothing can ever
+    	// set Generator to a non-empty value at all.
+    	if d.Generator != "" && !validGenerators[d.Generator] {
+    ```
+
+    (The `else` disappears along with the `if`; the following `errs = append(...)` block for the
+    "not a valid generator" message is unchanged, now under the single `if`.)
+
+  - [ ] **Step 7c: Run tests to verify they pass**
+
+    Run: `go test ./internal/config/... -run TestValidate_changelogAbsentGeneratorIsValid -v`
+
+    Expected: PASS.
+
+    Run: `go test ./internal/config/... 2>&1 | tail -10`
+
+    Expected: the failure count drops by exactly one relative to Step 6's closing run (only
+    `TestValidate_changelogMissingGenerator` is gone, replaced by the new test) — everything else is
+    still the expected ~30 removed-key failures Task 2a fixes next.
+
+  - [ ] **Step 7d: Fix `.config/heraut.yml`**
+
+    This repo's own config still has the now-invalid `generator:` keys. Edit
+    `.config/heraut.yml`:
+    - Remove the line `  generator: native` from under `changelog:` (keep `output:` and anything
+      else under `changelog:`).
+    - Under `release:`, change
+      ```yaml
+      release:
+        notes:
+          generator: native
+      ```
+      to
+      ```yaml
+      release:
+        notes: {}
+      ```
+      (keep `notes:` present as an empty mapping, not absent — an absent `notes:` key disables
+      release-notes generation entirely, since `internal/app/pipeline.go` treats `cfg.Release.Notes
+      == nil` as "no release-notes driver configured"; that would be a silent functional regression
+      for this repo's own releases, not just a config-key cleanup).
+
+    Verify: `go run ./cmd/heraut check config` (from the repo root) reports the config valid, and
+    `echo "chore: test" | go run ./cmd/heraut commit verify` succeeds.
+
+  - [ ] **Step 7e: Run the full suite and `hk check`**
+
+    Run: `go test ./... 2>&1 | grep -v ^ok` — expect only `internal/config` and `internal/cmd`
+    failures (the known, still-pending Task 2a/2b collateral damage) — nothing new.
+
+    Run: `hk check 2>&1 | tail -30` — fix anything flagged (`hk fix`).
+
+  - [ ] **Step 7f: Update the roadmap and commit**
+
+    In `docs/tasks/native-generator-roadmap.md`: change the line
+    ```
+    #### `[ ]` T178: fix collateral test damage from T177 (`internal/config`)
+    ```
+    to two lines
+    ```
+    #### `[ ]` T178a: fix collateral test damage from T177 (`internal/config`)
+
+    #### `[ ]` T178b: fix collateral test damage from T177 (`internal/cmd`)
+    ```
+    (This reflects the Task 2a/2b split documented in this plan file itself — Task 1's original
+    scope didn't anticipate `internal/cmd`'s own collateral damage; see Task 2a's amendment note.)
+
+    Flip T177's own checkbox to `[x]` and add a short completion note covering both the original
+    loader.go/migration_test.go work (Steps 1-6) and this atomicity fix (Step 7) — name the
+    `heraut commit verify` / `.config/heraut.yml` deadlock explicitly, since it's the reason Task 4's
+    scope shrank (the "required" check moved here) and it's non-obvious from the code alone.
+
+    ```bash
+    git add internal/config/validator.go internal/config/validator_test.go .config/heraut.yml docs/tasks/native-generator-roadmap.md
+    git commit -m "fix(config): drop the generator-required check — can't wait for T180
+
+    heraut commit verify (this repo's own commit-msg hook) calls
+    config.Validate, not just config.Load. Between T177's removed-key
+    rejection and T180's planned enum-check removal, no config could
+    satisfy both a present generator: (rejected) and an absent one
+    (still \"required\") — deadlocking every commit in this repository,
+    including this one, until fixed. The loader and validator halves of
+    this change are not independently stageable for any config that
+    goes through the full Load-then-Validate path; only the enum check
+    and tag_pattern gate (which don't fire on an absent generator) can
+    still wait for T180.
+
+    Also fixes .config/heraut.yml, this repo's own dogfooded config,
+    which still had the now-removed generator: keys.
+
+    Roadmap: docs/tasks/native-generator-roadmap.md -> T177"
+    ```
 
 ---
 
@@ -456,30 +618,33 @@ tests), `testify` (assert/require).
   and use the output to locate each function named below (don't assume the line numbers in this
   plan are still exact).
 
-- [ ] **Step 2: Delete these 17 test functions from `internal/config/validator_test.go`**
+- [ ] **Step 2: Delete these 16 test functions from `internal/config/validator_test.go`**
 
   Each of these tests exercises a generator-required/enum/gate/switch behavior that is being
   removed later in this plan (Tasks 4-6) — the test can never pass again once that removal lands,
   and can't even reach its own assertion today because `mustLoad`/`config.Load` now errors first
-  (Task 1). Delete each function in full (signature through closing brace):
+  (Task 1). Delete each function in full (signature through closing brace). (Note: this list was
+  originally 17 items; `TestValidate_changelogMissingGenerator` was already deleted — and replaced
+  with `TestValidate_changelogAbsentGeneratorIsValid` — by Task 1's own Step 7, added mid-execution
+  to fix a commit-hook deadlock. If you still find the old test present, delete it now; don't touch
+  its replacement.)
 
-  1. `TestValidate_changelogMissingGenerator`
-  2. `TestValidate_changelogInvalidGenerator`
-  3. `TestValidate_releaseNotesInvalidGenerator`
-  4. `TestValidate_perEnvChangelogInheritsGenerator`
-  5. `TestValidate_perEnvChangelogNoGeneratorAnywhere`
-  6. `TestValidate_TicketsNonGitCliffGenerator`
-  7. `TestValidate_NativeGenerator`
-  8. `TestValidate_TicketsNativeGeneratorOK`
-  9. `TestValidate_RenderingTemplatesRequiresNative`
-  10. `TestValidate_DriverTemplateRequiresNative`
-  11. `TestValidate_NativePerEnvAccepted`
-  12. `TestValidate_changelogTagPatternRequiresGitCliff`
-  13. `TestValidate_GeneratorCocogittoRejected`
-  14. `TestValidate_changelogTagPatternGitCliffValid`
-  15. `TestValidate_releaseNotesTagPatternRequiresGitCliff`
-  16. `TestValidate_perEnvTagPatternInheritsGitCliff`
-  17. `TestValidate_perEnvTagPatternGeneratorSwitchRejected`
+  1. `TestValidate_changelogInvalidGenerator`
+  2. `TestValidate_releaseNotesInvalidGenerator`
+  3. `TestValidate_perEnvChangelogInheritsGenerator`
+  4. `TestValidate_perEnvChangelogNoGeneratorAnywhere`
+  5. `TestValidate_TicketsNonGitCliffGenerator`
+  6. `TestValidate_NativeGenerator`
+  7. `TestValidate_TicketsNativeGeneratorOK`
+  8. `TestValidate_RenderingTemplatesRequiresNative`
+  9. `TestValidate_DriverTemplateRequiresNative`
+  10. `TestValidate_NativePerEnvAccepted`
+  11. `TestValidate_changelogTagPatternRequiresGitCliff`
+  12. `TestValidate_GeneratorCocogittoRejected`
+  13. `TestValidate_changelogTagPatternGitCliffValid`
+  14. `TestValidate_releaseNotesTagPatternRequiresGitCliff`
+  15. `TestValidate_perEnvTagPatternInheritsGitCliff`
+  16. `TestValidate_perEnvTagPatternGeneratorSwitchRejected`
 
   If any section comment (e.g. `// ── native generator ──...`) is left with no tests under it
   after these deletions, remove the now-empty section comment too.
@@ -567,10 +732,11 @@ tests), `testify` (assert/require).
 
   ~30 existing tests used generator:/config: as inline-YAML filler and
   broke the instant T177 rejected those keys at load time. Deleted the
-  17 whose entire premise (generator-required/enum/gate/switch
-  behavior) is being removed in this same phase (T180-T182); edited
-  the 11 testing unrelated behavior to drop the now-illegal filler
-  line.
+  16 whose entire premise (generator-enum/gate/switch behavior) is
+  being removed in this same phase (T180-T182) — one more,
+  TestValidate_changelogMissingGenerator, was already handled by
+  T177's own Step 7; edited the 11 testing unrelated behavior to drop
+  the now-illegal filler line.
 
   Roadmap: docs/tasks/native-generator-roadmap.md -> T178a"
   ```
@@ -714,6 +880,162 @@ valid config, not tests being weakened.
 
 ---
 
+### Task 2c (T178c): Fix `heraut init` — it now generates configs it can't load
+
+> **Plan amendment (mid-execution):** discovered while fixing Task 1's own deadlock (its Step 7):
+> `internal/scaffold/generate.go` marshals a real `config.Config` via `yaml.Encoder`, and
+> unconditionally sets `Generator: a.ChangelogGenerator` / `Generator: a.NotesGenerator` on the
+> emitted `ContentDriver` values whenever the wizard's generator prompt was answered (which it is by
+> default — `ChangelogGenerator`/`NotesGenerator` default to `"git-cliff"`). This is not test
+> collateral like 2a/2b — it's a real product regression: **`heraut init`, run today, produces a
+> `.heraut.yml` that fails to load on the very next `heraut` invocation.** Unlike 2a/2b, this task
+> touches production code, not just tests — a third letter under the same T178 roadmap slot, for the
+> same reason as before (avoid renumbering every later task).
+
+**Files:**
+- Modify: `internal/config/config.go` (one yaml tag)
+- Modify: `internal/scaffold/generate.go` (drop 2 field assignments)
+
+**Interfaces:**
+- Consumes: nothing new.
+- Produces: nothing new — `GenerateYAML`/`answersToConfig` keep their existing signatures.
+
+The wizard's generator-choice prompt itself (`internal/scaffold/wizard.go`) is untouched here — it
+still asks "Changelog generator" / "Release notes generator" with git-cliff/communique/none options,
+and the project's own Global Constraints for this plan say not to touch `internal/scaffold/`'s
+wizard UI. That prompt becoming pointless (its answer no longer reaches the emitted config) is
+exactly the gap Phase C (wizard simplification, a separate not-yet-written plan) closes properly, by
+removing the question. This task's only job is to stop `heraut init` from producing broken output in
+the meantime — the minimum fix, not the redesign.
+
+- [ ] **Step 1: Confirm the current failure**
+
+  Run: `go test ./internal/scaffold/... -v 2>&1 | grep -c '^--- FAIL'`
+
+  Expected: `11` — all 11 fail with `Received unexpected error: removed config key:
+  changelog.generator` (or `release.notes.generator`, or the per-env variant), because every one of
+  these tests calls `scaffold.GenerateYAML(...)` and then round-trips the result through
+  `config.LoadFromReader`/`config.Load`. None of the 11 need their own assertions changed — they
+  will pass again once the production fix below lands, because the round-trip will start succeeding.
+  Confirm this by reading two or three of them (e.g. `TestGenerateYAML_SemVer` in
+  `internal/scaffold/generate_test.go`, `TestDroppedFields_DefaultsConfig` in
+  `internal/scaffold/dropped_test.go`) — each sets `ChangelogGenerator`/`NotesGenerator` on the
+  `Answers` struct (the wizard's *internal* answer representation, not the emitted YAML), generates,
+  reloads, and asserts no error — nothing in any of the 11 asserts on the literal string `"generator"`
+  appearing in the output.
+
+- [ ] **Step 2: Implement**
+
+  In `internal/config/config.go`, in the `ContentDriver` struct, change:
+
+  ```go
+  	Generator  string `yaml:"generator"`
+  ```
+
+  to:
+
+  ```go
+  	Generator  string `yaml:"generator,omitempty"`
+  ```
+
+  (`.Config`'s tag already has `omitempty` — this was a pre-existing inconsistency between the two
+  fields, not something T177 introduced. Without this, any future code that marshals a zero-value
+  `ContentDriver` — not just `internal/scaffold` — would emit a literal `generator: ""`, which is
+  just as rejected as `generator: native`, since the removed-key probe checks *presence*, not value.)
+
+  In `internal/scaffold/generate.go`'s `answersToConfig`, remove the `Generator:` field from both
+  `ContentDriver` literals:
+
+  ```go
+  	if a.ChangelogGenerator != "" {
+  		output := a.ChangelogOutput
+  		if output == "" {
+  			output = "CHANGELOG.md"
+  		}
+  		cfg.Changelog = &config.ContentDriver{
+  			Generator: a.ChangelogGenerator,
+  			Output:    output,
+  		}
+  	}
+  ```
+
+  becomes:
+
+  ```go
+  	if a.ChangelogGenerator != "" {
+  		output := a.ChangelogOutput
+  		if output == "" {
+  			output = "CHANGELOG.md"
+  		}
+  		cfg.Changelog = &config.ContentDriver{
+  			Output: output,
+  		}
+  	}
+  ```
+
+  and:
+
+  ```go
+  		if hasNotes {
+  			cfg.Release.Notes = &config.ContentDriver{
+  				Generator: a.NotesGenerator,
+  			}
+  		}
+  ```
+
+  becomes:
+
+  ```go
+  		if hasNotes {
+  			cfg.Release.Notes = &config.ContentDriver{}
+  		}
+  ```
+
+  Leave the `if a.ChangelogGenerator != ""` / `hasNotes := a.NotesGenerator != ""` conditions
+  themselves unchanged — they still gate *whether* a `changelog:`/`release.notes:` block is emitted
+  at all (a real, still-meaningful choice: "do you want a changelog"), just no longer which generator
+  string ends up inside it.
+
+- [ ] **Step 3: Run tests to verify they pass**
+
+  Run: `go test ./internal/scaffold/... -v 2>&1 | tail -20`
+
+  Expected: all 11 previously-failing tests PASS now, with no test-file changes. If any test still
+  fails, read its specific assertion — it means this task's research missed a case where the test
+  asserts something beyond round-trip success (e.g. a literal string check), and that one test needs
+  its assertion updated to match the new output, following the same "only touch what actually
+  changed" principle as 2a/2b.
+
+  Run: `go test ./... 2>&1 | grep -v ^ok`
+
+  Expected: only the known-pending `internal/config` (Task 2a) and `internal/cmd` (Task 2b) failures
+  remain — `internal/scaffold` is fully green.
+
+- [ ] **Step 4: Commit**
+
+  ```bash
+  git add internal/config/config.go internal/scaffold/generate.go
+  git commit -m "fix(scaffold): stop heraut init from generating unloadable configs
+
+  answersToConfig unconditionally wrote generator: <choice> into the
+  emitted YAML — a real product regression, not just test collateral:
+  heraut init, run today, produces a .heraut.yml that fails to load on
+  the very next heraut invocation, since generator: is now a removed
+  key (T177). Dropped the Generator field from both emitted
+  ContentDriver literals; the wizard's generator-choice prompt itself
+  is untouched (Phase C removes it properly). Also added omitempty to
+  ContentDriver.Generator's yaml tag, matching .Config's existing tag,
+  so no future struct-marshal path can reintroduce this class of bug.
+
+  Roadmap: docs/tasks/native-generator-roadmap.md -> T178c"
+  ```
+
+  Also update `docs/tasks/native-generator-roadmap.md`: add a third line under the T178 split,
+  `#### \`[ ]\` T178c: fix heraut init — it now generates configs it can't load (\`internal/scaffold\`)`,
+  alongside the existing T178a/T178b lines.
+
+---
+
 ### Task 3 (T179): Empty `Generator` builds native end-to-end
 
 **Files:**
@@ -851,14 +1173,22 @@ valid config, not tests being weakened.
 - Produces: nothing new — `validateContentDriver` keeps its existing signature
   `func(d *ContentDriver, path string) []ValidationError`.
 
-Task 2 already deleted every test whose assertion depended on this behavior
-(`TestValidate_changelogMissingGenerator`, `TestValidate_changelogInvalidGenerator`,
-`TestValidate_releaseNotesInvalidGenerator`, `TestValidate_GeneratorCocogittoRejected`,
-`TestValidate_changelogTagPatternRequiresGitCliff`, `TestValidate_changelogTagPatternGitCliffValid`,
-`TestValidate_releaseNotesTagPatternRequiresGitCliff`) — this task is pure code removal against an
-already-green suite, verified by re-running the suite at the end, not by a new RED/GREEN pair.
+> **Plan amendment (mid-execution):** Task 1's Step 7 (added after Task 1's own review surfaced a
+> commit-hook deadlock — see Task 1's plan text) already removed the "required" half of
+> `validateContentDriver`'s generator check, ahead of schedule, because it could not wait. The
+> "before" code block below reflects that: it is `validateContentDriver`'s state **after** Task 1's
+> Step 7, not its original pre-Task-1 state. This task now only removes the *enum* check
+> (`validGenerators`) and the `tag_pattern` git-cliff/native gate — a smaller diff than originally
+> planned.
 
-- [ ] **Step 1: Implement — remove the generator-required/enum checks**
+Task 2a already deleted every test whose assertion depended on this behavior
+(`TestValidate_changelogInvalidGenerator`, `TestValidate_releaseNotesInvalidGenerator`,
+`TestValidate_GeneratorCocogittoRejected`, `TestValidate_changelogTagPatternRequiresGitCliff`,
+`TestValidate_changelogTagPatternGitCliffValid`, `TestValidate_releaseNotesTagPatternRequiresGitCliff`)
+— this task is pure code removal against an already-green suite, verified by re-running the suite at
+the end, not by a new RED/GREEN pair.
+
+- [ ] **Step 1: Implement — remove the generator-enum + tag_pattern-gate checks**
 
   In `internal/config/validator.go`, remove the `validGenerators` map entirely from the `var (...)`
   block (lines 13-34):
@@ -869,8 +1199,9 @@ already-green suite, verified by re-running the suite at the end, not by a new R
   	}
   ```
 
-  Replace `validateContentDriver` (lines 521-559 — read the file first to get its exact current
-  body, since Task 3 didn't touch this file but confirm nothing else shifted it):
+  Replace `validateContentDriver` (read the file first to get its exact current body — Task 1's
+  Step 7 already changed it from what an earlier draft of this plan showed here, and Task 3 didn't
+  touch this file):
 
   ```go
   func validateContentDriver(d *ContentDriver, path string) []ValidationError {
@@ -878,13 +1209,10 @@ already-green suite, verified by re-running the suite at the end, not by a new R
   		return nil
   	}
   	var errs []ValidationError
-  	if d.Generator == "" {
-  		errs = append(errs, ValidationError{
-  			Path:    path + ".generator",
-  			Message: "required",
-  			Hint:    "set generator to one of: native, git-cliff, communique",
-  		})
-  	} else if !validGenerators[d.Generator] {
+  	// Empty is valid — native is implicit (T177). Only a present-but-unknown value errors;
+  	// validGenerators and this whole branch are fully removed in T180, once nothing can ever
+  	// set Generator to a non-empty value at all.
+  	if d.Generator != "" && !validGenerators[d.Generator] {
   		errs = append(errs, ValidationError{
   			Path:    path + ".generator",
   			Message: fmt.Sprintf("%q is not a valid generator", d.Generator),
@@ -1684,3 +2012,15 @@ already-green suite.
   errors — via `findErr`/`assert.Contains`, not literal error-message string matches). Consolidated
   all test repair into one dedicated Task 2, immediately after Task 1, so Tasks 4-6's own code
   changes land against an already-green suite and don't need their own test-discovery step.
+- **Two corrections made during Task 1's execution (not caught by planning-time self-review):**
+  (1) Task 1's own review found `internal/cmd` has 17 more `generator:`/`config:` occurrences across
+  4 files that this plan never accounted for — split the T178 slot into 2a/2b rather than renumber
+  every later task. (2) Task 1's own implementer, then its fix pass, both independently discovered
+  that `internal/cmd/commit.go`'s `newCommitVerifyCmd` (this repo's own `commit-msg` hook) calls
+  `config.Validate`, not just `config.Load` — meaning the loader-rejects-the-key change (Task 1) and
+  the validator-stops-requiring-it change (originally all of Task 4) are not independently stageable
+  for any config on the full Load-then-Validate path, including this repository's own
+  `.config/heraut.yml`. Moved the "required" check removal into Task 1 itself (its Step 7); Task 4
+  kept only the enum check and `tag_pattern` gate, which don't fire on an absent generator. Neither
+  gap was visible from reading the plan's target code in isolation — both only surfaced once a real
+  implementer tried to make an actual commit against the actual repository mid-task.
