@@ -16,6 +16,7 @@ forges:
     repository: adaouat/heraut
 
 release:
+  notes: {}
   targets:
     - forge: github
   assets:

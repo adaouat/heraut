@@ -254,7 +254,12 @@ environments:
 
 // ── generators ───────────────────────────────────────────────────────────────
 
-func TestValidate_changelogMissingGenerator(t *testing.T) {
+// TestValidate_changelogAbsentGeneratorIsValid pins the T177 follow-up (Step 7): once
+// generator: is a removed key, an absent generator must not also be a validator error — native
+// is implicit. This specific test exists ahead of T180's broader cleanup because a real config
+// going through Load-then-Validate (e.g. this repo's own .config/heraut.yml, loaded by
+// `heraut commit verify`, this project's commit-msg hook) has no valid state otherwise.
+func TestValidate_changelogAbsentGeneratorIsValid(t *testing.T) {
 	cfg := mustLoad(t, `
 version: "1"
 versioning:
@@ -263,9 +268,7 @@ changelog:
   output: CHANGELOG.md
 `)
 	errs := config.Validate(cfg)
-	e := findErr(errs, "changelog.generator")
-	require.NotNil(t, e)
-	assert.Contains(t, e.Message, "required")
+	assert.Nil(t, findErr(errs, "changelog.generator"))
 }
 
 func TestValidate_changelogInvalidGenerator(t *testing.T) {

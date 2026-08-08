@@ -958,9 +958,34 @@ keys (hard error, no deprecation window — matching ADR-0028's cocogitto-remova
 Native becomes implicit. `git-cliff`/`communique` package deletion, the `heraut cliff` command,
 and wizard simplification are separate, later phases in this same file.
 
-#### `[ ]` T177: reject `generator:`/`config:` keys at load time
+#### `[x]` T177: reject `generator:`/`config:` keys at load time
 
-#### `[ ]` T178: fix collateral test damage from T177 (`internal/config`)
+Extended the existing `ErrRemovedConfigKey`/`checkRemovedKeys` mechanism (built by
+T160/T163 for `changelog.remote`/`release.platforms`) with four new entries
+(`changelog.generator`, `changelog.config`, `release.notes.generator`,
+`release.notes.config`, plus their per-env variants) — commit 5a5a069. Note that this
+task's own review found and required reverting an out-of-scope `validator.go` edit
+(fixed in this commit) and required a properly-scoped fix to `.config/heraut.yml` (also
+fixed in this commit) — both documented in more detail in the plan's Task 2a amendment
+note.
+
+A follow-up (Step 7, added mid-execution — see the plan doc) then found that the loader
+change and `.config/heraut.yml`'s fix alone deadlocked every commit in this repository:
+`heraut commit verify` (this project's own `commit-msg` hook) runs `config.Load` *and*
+`config.Validate`, so a present `generator:` key was rejected by the new removed-key
+check while an absent one still tripped `validateContentDriver`'s pre-existing
+"required" check — no valid `.config/heraut.yml` existed in between. The loader and
+validator halves of this change turned out not to be independently stageable for any
+config on the full Load-then-Validate path, so the "required" check's removal was pulled
+forward into this task instead of waiting for T180: `TestValidate_changelogMissingGenerator`
+was replaced with `TestValidate_changelogAbsentGeneratorIsValid`, and
+`validateContentDriver` no longer errors on an empty `Generator`. The *enum* check
+(`validGenerators`) and the `tag_pattern` generator gate stay deferred to T180/T181, since
+neither fires on an absent generator, only a present-but-invalid one.
+
+#### `[ ]` T178a: fix collateral test damage from T177 (`internal/config`)
+
+#### `[ ]` T178b: fix collateral test damage from T177 (`internal/cmd`)
 
 #### `[ ]` T179: empty `Generator` builds native end-to-end
 
