@@ -459,7 +459,7 @@ that `buildChangelogPipelineConfig` no longer errors for this exact config and t
 reports `Degraded() == true`. `go test ./...` (both plain and simulated `GITHUB_ACTIONS=true`) and
 `hk check` are clean.
 
-#### `[ ]` T176: T171 rejects duplicate forge *names*, not duplicate *destinations*
+#### `[x]` T176: T171 rejects duplicate forge *names*, not duplicate *destinations*
 
 `resolvedForgeName` (`internal/config/validator.go`) compares forge **names**, so two distinctly-named
 `forges:` entries that resolve to the same place still pass — e.g. two `platform: github` entries with
@@ -470,6 +470,25 @@ cheap config-level approximation catches precisely the both-empty case: reject t
 sharing an identical `(platform, base_url, project/repository)` tuple. Either implement it or record
 the residual gap in T171's note so it doesn't read as fully closed. Found by the hardening phase's
 final review. **Scope:** S.
+
+Implemented as the cheap config-level approximation described above, in `validateForges`
+(`internal/config/validator.go`), the loop that already walks `cfg.Forges` for T156's per-entry
+checks. A new `forgeDestination{Type, BaseURL, Project, Repository}` tuple is computed per entry and
+tracked in a `seenDest map[forgeDestination]int`; a second entry hitting an already-seen tuple gets
+a per-entry error at `forges[i]` naming the earlier index, mirroring the existing duplicate-*name*
+error's style (`"resolves to the same destination as forges[%d]"`). Only entries with a valid
+platform participate — an entry that already failed the `.platform` check (missing or unknown) is
+skipped, the same "don't draw two errors for one mistake" guard `validateTargetForges` (T171) uses
+for its own duplicate scan; both share the identical structural pattern (`seen`/`seenDest` map,
+skip-on-prior-rejection, one clear message naming the collision), just one level up — `forges:`
+itself rather than `release.targets` referencing it. Tests (TDD,
+`internal/config/validator_forge_test.go`): `TestValidate_DuplicateForgeDestination`
+(both-empty collision, disambiguation via `repository` alone, via `base_url` alone, no collision
+across different platforms even with identical empty coordinates, and a three-forge case proving
+the collision is reported against the correct earlier index) plus
+`TestValidate_DuplicateForgeDestination_NoDoubleErrorForInvalidPlatform` guarding the skip. `go test
+./...` and `hk check` are clean; no existing fixture in `testdata/config/valid/` declared two forges
+with colliding coordinates, so nothing needed migrating.
 
 #### `[ ]` T174: `enrichment_policy: required` is not enforced for the git-cliff generator
 

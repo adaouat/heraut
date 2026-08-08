@@ -72,6 +72,85 @@ func TestValidate_Forges(t *testing.T) {
 	}
 }
 
+// TestValidate_DuplicateForgeDestination pins T176: resolvedForgeName (T171) only compares forge
+// *names*, so two distinctly-named forges: entries that resolve to the same place still pass —
+// e.g. two `platform: github` entries with no explicit repository, both filled from the same CI
+// env or git origin at release time. That lets the first `release create` succeed and the second
+// fail after the tag has already been pushed, the exact hazard T171 exists to prevent, just one
+// level up (forges: itself, not release.targets referencing it).
+func TestValidate_DuplicateForgeDestination(t *testing.T) {
+	tests := []struct {
+		name   string
+		forges []config.Forge
+		want   string // exact ValidationError.Path expected; "" = no duplicate-destination error
+	}{
+		{
+			name:   "two github forges with nothing else set collide (the both-empty case)",
+			forges: []config.Forge{{Name: "gh1", Type: "github"}, {Name: "gh2", Type: "github"}},
+			want:   "forges[1]",
+		},
+		{
+			name: "distinct repository disambiguates",
+			forges: []config.Forge{
+				{Name: "gh1", Type: "github", Repository: "acme/widget"},
+				{Name: "gh2", Type: "github", Repository: "acme/gizmo"},
+			},
+			want: "",
+		},
+		{
+			name: "distinct base_url disambiguates otherwise-identical entries",
+			forges: []config.Forge{
+				{Name: "gl1", Type: "gitlab", Project: "group/project"},
+				{Name: "gl2", Type: "gitlab", Project: "group/project", BaseURL: "https://gitlab.example.com"},
+			},
+			want: "",
+		},
+		{
+			name:   "different platforms never collide even with identical (empty) coordinates",
+			forges: []config.Forge{{Name: "a", Type: "github"}, {Name: "b", Type: "gitlab"}},
+			want:   "",
+		},
+		{
+			name: "three forges: the third collides with the first, not the second",
+			forges: []config.Forge{
+				{Name: "gh1", Type: "github"},
+				{Name: "gl1", Type: "gitlab"},
+				{Name: "gh2", Type: "github"},
+			},
+			want: "forges[2]",
+		},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			enrichForge := ""
+			if len(tc.forges) > 1 {
+				enrichForge = tc.forges[0].Name // avoid an unrelated "required" error crowding the assertion
+			}
+			cfg := cfgWithForges(tc.forges, enrichForge)
+			errs := config.Validate(cfg)
+			if tc.want == "" {
+				assert.False(t, forgeErr(errs, "same destination"), "unexpected duplicate-destination error: %v", errs)
+				return
+			}
+			e := findErr(errs, tc.want)
+			if assert.NotNil(t, e, "expected a duplicate-destination error at %q, got %v", tc.want, errs) {
+				assert.Contains(t, e.Message, "same destination")
+			}
+		})
+	}
+}
+
+// TestValidate_DuplicateForgeDestination_NoDoubleErrorForInvalidPlatform guards the skip: an
+// entry that already failed platform validation must not also draw a duplicate-destination error
+// (both entries share the same "" platform), or one mistake yields two errors.
+func TestValidate_DuplicateForgeDestination_NoDoubleErrorForInvalidPlatform(t *testing.T) {
+	cfg := cfgWithForges([]config.Forge{{Name: "a"}, {Name: "b"}}, "a")
+	errs := config.Validate(cfg)
+	assert.NotNil(t, findErr(errs, "forges[0].platform"), "the per-entry error stands, got %v", errs)
+	assert.NotNil(t, findErr(errs, "forges[1].platform"), "the per-entry error stands, got %v", errs)
+	assert.False(t, forgeErr(errs, "same destination"), "no duplicate-destination error stacked on the per-entry platform errors: %v", errs)
+}
+
 // TestValidate_EnvironmentReleaseTargets_Forge pins I4: environments.<env>.release.targets was
 // never validated (only the top-level release.targets was), so a per-env target naming an
 // unknown forge — or omitting forge with more than one forge configured — passed

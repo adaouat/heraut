@@ -151,11 +151,23 @@ func validateCommits(cfg *Config) []ValidationError {
 // release.targets[].forge, when set, must name a known forge, and are required when more than
 // one forge is configured (unambiguous with exactly one). Resolution-time concerns (e.g.
 // api_mode: graphql requiring a resolvable token) are out of scope here — see T157.
+// forgeDestination is the coordinate tuple two forges: entries collide on when they point at the
+// same place — comparing names alone (as duplicate-name detection does) misses two distinctly
+// named entries that resolve identically at runtime, e.g. two `platform: github` entries with no
+// explicit repository, both filled from the same CI env or git origin (T176).
+type forgeDestination struct {
+	Type       string
+	BaseURL    string
+	Project    string
+	Repository string
+}
+
 func validateForges(cfg *Config) []ValidationError {
 	var errs []ValidationError
 
 	knownForges := make(map[string]bool, len(cfg.Forges))
 	seen := make(map[string]int, len(cfg.Forges))
+	seenDest := make(map[forgeDestination]int, len(cfg.Forges))
 	for i, f := range cfg.Forges {
 		path := fmt.Sprintf("forges[%d]", i)
 		if f.Name == "" {
@@ -207,6 +219,22 @@ func validateForges(cfg *Config) []ValidationError {
 				Message: fmt.Sprintf("%q is not a valid URL", f.APIURL),
 				Hint:    "api_url must be an absolute http(s) URL, e.g. https://gitlab.example.com/api",
 			})
+		}
+
+		// Only entries with a valid platform take part in the destination scan: an entry
+		// already rejected above (missing/unknown platform) would otherwise draw a second
+		// error for one mistake (T176, mirroring validateTargetForges's own skip).
+		if f.Type != "" && validForgePlatforms[f.Type] {
+			dest := forgeDestination{Type: f.Type, BaseURL: f.BaseURL, Project: f.Project, Repository: f.Repository}
+			if first, ok := seenDest[dest]; ok {
+				errs = append(errs, ValidationError{
+					Path:    path,
+					Message: fmt.Sprintf("resolves to the same destination as forges[%d] (identical platform/base_url/project/repository)", first),
+					Hint:    "set an explicit base_url and/or project/repository to disambiguate, or remove the duplicate forge",
+				})
+			} else {
+				seenDest[dest] = i
+			}
 		}
 	}
 
