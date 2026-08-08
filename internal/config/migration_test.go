@@ -61,6 +61,45 @@ environments:
 `,
 			wantHint: "forges:",
 		},
+		{
+			name: "changelog.generator",
+			body: `version: "1"
+versioning: {strategy: semver}
+changelog:
+  generator: native
+  output: CHANGELOG.md
+`,
+			wantHint: "native is heraut's only generator",
+		},
+		{
+			name: "changelog.config",
+			body: `version: "1"
+versioning: {strategy: semver}
+changelog:
+  config: cliff.toml
+`,
+			wantHint: "rendering.templates",
+		},
+		{
+			name: "release.notes.generator",
+			body: `version: "1"
+versioning: {strategy: semver}
+release:
+  notes:
+    generator: native
+`,
+			wantHint: "native is heraut's only generator",
+		},
+		{
+			name: "release.notes.config",
+			body: `version: "1"
+versioning: {strategy: semver}
+release:
+  notes:
+    config: comm.yaml
+`,
+			wantHint: "rendering.templates",
+		},
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
@@ -90,6 +129,82 @@ environments:
 	assert.True(t, errors.Is(err, config.ErrRemovedConfigKey), "must be the removed-key sentinel")
 	assert.Contains(t, err.Error(), "staging", "the error must name which environment carries the removed key")
 	assert.Contains(t, err.Error(), "forges:", "the error must name the replacement")
+}
+
+// TestLoad_RemovedKeys_PerEnvGenerator checks the per-env removed-key error for
+// environments.<env>.changelog.generator and environments.<env>.release.notes.generator, names
+// the specific environment, and carries the same hint as the top-level case.
+func TestLoad_RemovedKeys_PerEnvGenerator(t *testing.T) {
+	tests := []struct{ name, body string }{
+		{
+			name: "changelog.generator",
+			body: `version: "1"
+versioning: {strategy: semver}
+environments:
+  staging:
+    changelog:
+      generator: native
+      output: CHANGELOG.md
+`,
+		},
+		{
+			name: "release.notes.generator",
+			body: `version: "1"
+versioning: {strategy: semver}
+environments:
+  staging:
+    release:
+      notes:
+        generator: native
+`,
+		},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			_, err := config.Load(writeCfg(t, tc.body))
+			require.Error(t, err)
+			assert.True(t, errors.Is(err, config.ErrRemovedConfigKey), "must be the removed-key sentinel")
+			assert.Contains(t, err.Error(), "staging", "the error must name which environment carries the removed key")
+			assert.Contains(t, err.Error(), "native is heraut's only generator", "the hint must be present")
+		})
+	}
+}
+
+// TestLoad_RemovedKeys_PerEnvConfig mirrors TestLoad_RemovedKeys_PerEnvGenerator for the
+// config: key (external generator config file path — meaningless without git-cliff/communique).
+func TestLoad_RemovedKeys_PerEnvConfig(t *testing.T) {
+	tests := []struct{ name, body string }{
+		{
+			name: "changelog.config",
+			body: `version: "1"
+versioning: {strategy: semver}
+environments:
+  staging:
+    changelog:
+      config: cliff.toml
+`,
+		},
+		{
+			name: "release.notes.config",
+			body: `version: "1"
+versioning: {strategy: semver}
+environments:
+  staging:
+    release:
+      notes:
+        config: comm.yaml
+`,
+		},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			_, err := config.Load(writeCfg(t, tc.body))
+			require.Error(t, err)
+			assert.True(t, errors.Is(err, config.ErrRemovedConfigKey), "must be the removed-key sentinel")
+			assert.Contains(t, err.Error(), "staging", "the error must name which environment carries the removed key")
+			assert.Contains(t, err.Error(), "rendering.templates", "the hint must point at the native replacement")
+		})
+	}
 }
 
 // A git-cliff user's changelog.remote has no working replacement yet, so the migration error must

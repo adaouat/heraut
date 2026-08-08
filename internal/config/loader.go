@@ -27,11 +27,25 @@ const releasePlatformsHint = "declare a `forges:` entry with `name` / `platform`
 // per-environment counterpart — it is declared once, top-level, and shared across environments.
 const releasePlatformsHintPerEnv = releasePlatformsHint + "; `forges:` is top-level only, there is no `environments.<env>.forges`"
 
+// generatorRemovedHint is the migration guidance for changelog.generator / release.notes.generator
+// (and their per-env variants): native is now heraut's only generator, so the key carries no
+// information and is removed rather than enum-shrunk to one value.
+const generatorRemovedHint = "native is heraut's only generator now; remove this key"
+
+// configKeyRemovedHint is the migration guidance for changelog.config / release.notes.config (the
+// external git-cliff/communique config-file path): native has no external config file — use
+// rendering.templates (ADR-0037) for template customization instead.
+const configKeyRemovedHint = "generator-specific config files are gone; use rendering.templates (ADR-0037) for template customization instead"
+
 // removedKeys maps a removed config path to its replacement guidance.
 var removedKeys = []struct{ path, hint string }{
 	{"changelog.remote", "replace with a top-level `forges:` entry and point `commits.enrichment_forge` at it (this drives enrichment for `generator: native`; explicit remote pinning for `generator: git-cliff` is not carried over)"},
 	{"commits.remote_metadata", "rename to `commits.enrichment_policy` (same values: disabled | optional | required)"},
 	{"release.platforms", releasePlatformsHint},
+	{"changelog.generator", generatorRemovedHint},
+	{"changelog.config", configKeyRemovedHint},
+	{"release.notes.generator", generatorRemovedHint},
+	{"release.notes.config", configKeyRemovedHint},
 }
 
 // checkRemovedKeys reports the first removed key present in the raw YAML, with migration
@@ -42,20 +56,32 @@ var removedKeys = []struct{ path, hint string }{
 func checkRemovedKeys(raw []byte) error {
 	var probe struct {
 		Changelog struct {
-			Remote any `yaml:"remote"`
+			Remote    any `yaml:"remote"`
+			Generator any `yaml:"generator"`
+			Config    any `yaml:"config"`
 		} `yaml:"changelog"`
 		Commits struct {
 			RemoteMetadata any `yaml:"remote_metadata"`
 		} `yaml:"commits"`
 		Release struct {
 			Platforms any `yaml:"platforms"`
+			Notes     struct {
+				Generator any `yaml:"generator"`
+				Config    any `yaml:"config"`
+			} `yaml:"notes"`
 		} `yaml:"release"`
 		Environments map[string]struct {
 			Changelog struct {
-				Remote any `yaml:"remote"`
+				Remote    any `yaml:"remote"`
+				Generator any `yaml:"generator"`
+				Config    any `yaml:"config"`
 			} `yaml:"changelog"`
 			Release struct {
 				Platforms any `yaml:"platforms"`
+				Notes     struct {
+					Generator any `yaml:"generator"`
+					Config    any `yaml:"config"`
+				} `yaml:"notes"`
 			} `yaml:"release"`
 		} `yaml:"environments"`
 	}
@@ -66,6 +92,10 @@ func checkRemovedKeys(raw []byte) error {
 		"changelog.remote":        probe.Changelog.Remote != nil,
 		"commits.remote_metadata": probe.Commits.RemoteMetadata != nil,
 		"release.platforms":       probe.Release.Platforms != nil,
+		"changelog.generator":     probe.Changelog.Generator != nil,
+		"changelog.config":        probe.Changelog.Config != nil,
+		"release.notes.generator": probe.Release.Notes.Generator != nil,
+		"release.notes.config":    probe.Release.Notes.Config != nil,
 	}
 	for _, k := range removedKeys {
 		if present[k.path] {
@@ -73,11 +103,24 @@ func checkRemovedKeys(raw []byte) error {
 		}
 	}
 	for _, env := range slices.Sorted(maps.Keys(probe.Environments)) {
-		if probe.Environments[env].Changelog.Remote != nil {
+		envProbe := probe.Environments[env]
+		if envProbe.Changelog.Remote != nil {
 			return fmt.Errorf("%w: `environments.%s.changelog.remote` — replace with a top-level `forges:` entry and point `commits.enrichment_forge` at it (this drives enrichment for `generator: native`; explicit remote pinning for `generator: git-cliff` is not carried over)", ErrRemovedConfigKey, env)
 		}
-		if probe.Environments[env].Release.Platforms != nil {
+		if envProbe.Release.Platforms != nil {
 			return fmt.Errorf("%w: `environments.%s.release.platforms` — %s", ErrRemovedConfigKey, env, releasePlatformsHintPerEnv)
+		}
+		if envProbe.Changelog.Generator != nil {
+			return fmt.Errorf("%w: `environments.%s.changelog.generator` — %s", ErrRemovedConfigKey, env, generatorRemovedHint)
+		}
+		if envProbe.Changelog.Config != nil {
+			return fmt.Errorf("%w: `environments.%s.changelog.config` — %s", ErrRemovedConfigKey, env, configKeyRemovedHint)
+		}
+		if envProbe.Release.Notes.Generator != nil {
+			return fmt.Errorf("%w: `environments.%s.release.notes.generator` — %s", ErrRemovedConfigKey, env, generatorRemovedHint)
+		}
+		if envProbe.Release.Notes.Config != nil {
+			return fmt.Errorf("%w: `environments.%s.release.notes.config` — %s", ErrRemovedConfigKey, env, configKeyRemovedHint)
 		}
 	}
 	return nil

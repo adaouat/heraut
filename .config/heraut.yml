@@ -8,7 +8,6 @@ versioning:
   bump: auto
 
 changelog:
-  generator: native
   output: CHANGELOG.md
 
 forges:
@@ -17,8 +16,6 @@ forges:
     repository: adaouat/heraut
 
 release:
-  notes:
-    generator: native
   targets:
     - forge: github
   assets:

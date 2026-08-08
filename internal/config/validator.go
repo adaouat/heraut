@@ -523,13 +523,9 @@ func validateContentDriver(d *ContentDriver, path string) []ValidationError {
 		return nil
 	}
 	var errs []ValidationError
-	if d.Generator == "" {
-		errs = append(errs, ValidationError{
-			Path:    path + ".generator",
-			Message: "required",
-			Hint:    "set generator to one of: native, git-cliff, communique",
-		})
-	} else if !validGenerators[d.Generator] {
+	// As of T177, generator is a removed key; native is now implicit (empty means native).
+	// No error on empty generator.
+	if d.Generator != "" && !validGenerators[d.Generator] {
 		errs = append(errs, ValidationError{
 			Path:    path + ".generator",
 			Message: fmt.Sprintf("%q is not a valid generator", d.Generator),
@@ -545,7 +541,8 @@ func validateContentDriver(d *ContentDriver, path string) []ValidationError {
 		})
 	}
 	// With native, tag_pattern is a Go regex applied in-process; validate it compiles.
-	if d.TagPattern != "" && strings.EqualFold(d.Generator, "native") {
+	// Empty generator means native (implicit).
+	if d.TagPattern != "" && (d.Generator == "" || strings.EqualFold(d.Generator, "native")) {
 		if _, err := regexp.Compile(d.TagPattern); err != nil {
 			errs = append(errs, ValidationError{
 				Path:    path + ".tag_pattern",
@@ -562,7 +559,8 @@ func validateContentDriver(d *ContentDriver, path string) []ValidationError {
 // rendering.templates and the template file require generator: native; each inline snippet parses;
 // the template file, when set, exists and parses.
 func validateContentDriverTemplates(d *ContentDriver, path string) []ValidationError {
-	isNative := strings.EqualFold(d.Generator, "native")
+	// As of T177, generator is a removed key; empty means native (implicit).
+	isNative := d.Generator == "" || strings.EqualFold(d.Generator, "native")
 	hasInline := d.Rendering != nil && len(d.Rendering.Templates) > 0
 	var errs []ValidationError
 
