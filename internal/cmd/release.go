@@ -47,8 +47,11 @@ func NewReleaseCmd(version string) *cobra.Command {
 
 			runner := execadapter.New(dryRun, verbose)
 			// Resolver only performs read-only git calls (tag list, log); use a real
-			// runner so dry-run still shows the correct resolved version.
-			readRunner := execadapter.New(false, verbose)
+			// runner so dry-run still shows the correct resolved version. Memoized so
+			// HasResolvablePublishTarget's pre-flight forge resolution and BuildPipeline's
+			// own (internal) resolution — both read-only, both reached before any write —
+			// share one `git remote get-url origin` subprocess instead of spawning two (T173).
+			readRunner := app.NewMemoizingRunner(execadapter.New(false, verbose))
 
 			logger := forgelog.New(cmd.ErrOrStderr(), forgelog.LevelFor(verbose))
 

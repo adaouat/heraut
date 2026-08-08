@@ -8,6 +8,7 @@ import (
 	"github.com/adaouat/forge/exec/exectest"
 	"github.com/adaouat/heraut/internal/app"
 	"github.com/adaouat/heraut/internal/config"
+	"github.com/adaouat/heraut/internal/testutil"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -22,20 +23,6 @@ func collectItems(mr *exectest.MockRunner, cfg *config.Config, env string) []app
 		},
 	)
 	return items
-}
-
-// clearCIEnv neutralizes every CI marker forge.Resolve keys off, so a test's outcome depends only
-// on what it explicitly sets — not the ambient CI environment this suite happens to run in
-// (RuntimeCheck's Platforms section now resolves a forge via os.Getenv for every non-nil config).
-func clearCIEnv(t *testing.T) {
-	t.Helper()
-	for _, k := range []string{
-		"GITHUB_ACTIONS", "GITHUB_SERVER_URL", "GITHUB_API_URL", "GITHUB_REPOSITORY", "GITHUB_TOKEN",
-		"GITLAB_CI", "CI_SERVER_URL", "CI_API_V4_URL", "CI_PROJECT_PATH", "CI_JOB_TOKEN", "GITLAB_TOKEN",
-		"TF_BUILD", "SYSTEM_COLLECTIONURI", "SYSTEM_TEAMPROJECT", "SYSTEM_ACCESSTOKEN", "AZURE_DEVOPS_TOKEN",
-	} {
-		t.Setenv(k, "")
-	}
 }
 
 // queueSuccess queues the 9 runner.Run responses for semverCfg (no generators/forges/targets)
@@ -98,7 +85,7 @@ func TestPreflightCheck_UserEmailMissing(t *testing.T) {
 // ---- RuntimeCheck ------------------------------------------------------------
 
 func TestRuntimeCheck_MinimalConfig(t *testing.T) {
-	clearCIEnv(t)
+	testutil.ClearCIEnv(t)
 	mr := exectest.NewMockRunner()
 	queueSuccess(mr)
 
@@ -117,7 +104,7 @@ func TestRuntimeCheck_MinimalConfig(t *testing.T) {
 }
 
 func TestRuntimeCheck_GitValue(t *testing.T) {
-	clearCIEnv(t)
+	testutil.ClearCIEnv(t)
 	mr := exectest.NewMockRunner()
 	mr.QueueResponse("git version 2.49.0\n", "", nil) // git --version
 	mr.QueueResponse("Alice", "", nil)                // user.name
@@ -143,7 +130,7 @@ func TestRuntimeCheck_GitValue(t *testing.T) {
 }
 
 func TestRuntimeCheck_UserNameValue(t *testing.T) {
-	clearCIEnv(t)
+	testutil.ClearCIEnv(t)
 	mr := exectest.NewMockRunner()
 	mr.QueueResponse("git version 2.40.0", "", nil)   // git --version
 	mr.QueueResponse("Alice Smith\n", "", nil)        // user.name
@@ -169,7 +156,7 @@ func TestRuntimeCheck_UserNameValue(t *testing.T) {
 }
 
 func TestRuntimeCheck_WorkingTreeClean(t *testing.T) {
-	clearCIEnv(t)
+	testutil.ClearCIEnv(t)
 	mr := exectest.NewMockRunner()
 	mr.QueueResponse("git version 2.40.0", "", nil)   // git --version
 	mr.QueueResponse("Alice", "", nil)                // user.name
@@ -196,7 +183,7 @@ func TestRuntimeCheck_WorkingTreeClean(t *testing.T) {
 }
 
 func TestRuntimeCheck_WorkingTreeDirty(t *testing.T) {
-	clearCIEnv(t)
+	testutil.ClearCIEnv(t)
 	mr := exectest.NewMockRunner()
 	mr.QueueResponse("git version 2.40.0", "", nil)                       // git --version
 	mr.QueueResponse("Alice", "", nil)                                    // user.name
@@ -223,7 +210,7 @@ func TestRuntimeCheck_WorkingTreeDirty(t *testing.T) {
 }
 
 func TestRuntimeCheck_DispatchNames(t *testing.T) {
-	clearCIEnv(t)
+	testutil.ClearCIEnv(t)
 	mr := exectest.NewMockRunner()
 	queueSuccess(mr)
 
@@ -245,7 +232,7 @@ func TestRuntimeCheck_DispatchNames(t *testing.T) {
 }
 
 func TestRuntimeCheck_SectionHeaders(t *testing.T) {
-	clearCIEnv(t)
+	testutil.ClearCIEnv(t)
 	mr := exectest.NewMockRunner()
 	queueSuccess(mr)
 
@@ -260,7 +247,7 @@ func TestRuntimeCheck_SectionHeaders(t *testing.T) {
 }
 
 func TestRuntimeCheck_WithGitcliff(t *testing.T) {
-	clearCIEnv(t)
+	testutil.ClearCIEnv(t)
 	mr := exectest.NewMockRunner()
 	mr.QueueResponse("git version 2.40.0", "", nil)   // git --version
 	mr.QueueResponse("Alice", "", nil)                // user.name
@@ -288,7 +275,7 @@ func TestRuntimeCheck_WithGitcliff(t *testing.T) {
 }
 
 func TestRuntimeCheck_WithGitHubPlatform(t *testing.T) {
-	clearCIEnv(t)
+	testutil.ClearCIEnv(t)
 	t.Setenv("GH_TOKEN", "test-token")
 
 	mr := exectest.NewMockRunner()
@@ -320,7 +307,7 @@ func TestRuntimeCheck_WithGitHubPlatform(t *testing.T) {
 }
 
 func TestRuntimeCheck_WithGitHubPlatform_MissingToken(t *testing.T) {
-	clearCIEnv(t)
+	testutil.ClearCIEnv(t)
 	t.Setenv("GH_TOKEN", "")
 
 	mr := exectest.NewMockRunner()
@@ -352,7 +339,7 @@ func TestRuntimeCheck_WithGitHubPlatform_MissingToken(t *testing.T) {
 }
 
 func TestRuntimeCheck_EnvTargetOverrideReplacesRoot(t *testing.T) {
-	clearCIEnv(t)
+	testutil.ClearCIEnv(t)
 	t.Setenv("GH_TOKEN", "")
 
 	mr := exectest.NewMockRunner()
@@ -393,7 +380,7 @@ func TestRuntimeCheck_EnvTargetOverrideReplacesRoot(t *testing.T) {
 }
 
 func TestRuntimeCheck_EnvWithoutTargetOverrideInheritsRoot(t *testing.T) {
-	clearCIEnv(t)
+	testutil.ClearCIEnv(t)
 	t.Setenv("GH_TOKEN", "")
 
 	mr := exectest.NewMockRunner()
@@ -429,7 +416,7 @@ func TestRuntimeCheck_UnknownChangelogGenerator(t *testing.T) {
 	// "unknown-gen" is not a recognized generator; config validation would
 	// normally catch this. RuntimeCheck checks only the 2 supported generators.
 	// An unknown configured generator produces no runtime check item.
-	clearCIEnv(t)
+	testutil.ClearCIEnv(t)
 	mr := exectest.NewMockRunner()
 	mr.QueueResponse("git version 2.40.0", "", nil)   // git --version
 	mr.QueueResponse("Alice", "", nil)                // user.name
@@ -451,7 +438,7 @@ func TestRuntimeCheck_UnknownChangelogGenerator(t *testing.T) {
 }
 
 func TestRuntimeCheck_AmbiguousForgeIsWarnWithoutPublishConfig(t *testing.T) {
-	clearCIEnv(t)
+	testutil.ClearCIEnv(t)
 	t.Setenv("GITHUB_TOKEN", "gh")
 	t.Setenv("GITLAB_TOKEN", "gl")
 
@@ -577,7 +564,7 @@ func TestRuntimeCheck_UnknownPlatform(t *testing.T) {
 	// An unrecognized forge platform type is normally caught by config validation before
 	// RuntimeCheck runs, but RuntimeCheck still reports a hard error for the resolved entry
 	// (labeled by its configured name) rather than silently skipping it.
-	clearCIEnv(t)
+	testutil.ClearCIEnv(t)
 	mr := exectest.NewMockRunner()
 	mr.QueueResponse("git version 2.40.0", "", nil)   // git --version
 	mr.QueueResponse("Alice", "", nil)                // user.name
@@ -605,7 +592,7 @@ func TestRuntimeCheck_UnknownPlatform(t *testing.T) {
 }
 
 func TestRuntimeCheck_MultipleSameTypePlatforms(t *testing.T) {
-	clearCIEnv(t)
+	testutil.ClearCIEnv(t)
 	t.Setenv("GH_TOKEN", "")
 	t.Setenv("GITLAB_TOKEN", "")
 
@@ -645,7 +632,7 @@ func TestRuntimeCheck_MultipleSameTypePlatforms(t *testing.T) {
 }
 
 func TestRuntimeCheck_UserNameMissing(t *testing.T) {
-	clearCIEnv(t)
+	testutil.ClearCIEnv(t)
 	mr := exectest.NewMockRunner()
 	mr.QueueResponse("git version 2.40.0", "", nil)   // git --version
 	mr.QueueResponse("", "", nil)                     // user.name empty
@@ -670,7 +657,7 @@ func TestRuntimeCheck_UserNameMissing(t *testing.T) {
 }
 
 func TestRuntimeCheck_UserEmailMissing(t *testing.T) {
-	clearCIEnv(t)
+	testutil.ClearCIEnv(t)
 	mr := exectest.NewMockRunner()
 	mr.QueueResponse("git version 2.40.0", "", nil)   // git --version
 	mr.QueueResponse("Alice", "", nil)                // user.name OK
@@ -695,7 +682,7 @@ func TestRuntimeCheck_UserEmailMissing(t *testing.T) {
 }
 
 func TestRuntimeCheck_WithReleaseNotes(t *testing.T) {
-	clearCIEnv(t)
+	testutil.ClearCIEnv(t)
 	mr := exectest.NewMockRunner()
 	mr.QueueResponse("git version 2.40.0", "", nil)   // git --version
 	mr.QueueResponse("Alice", "", nil)                // user.name
@@ -726,7 +713,7 @@ func TestRuntimeCheck_WithReleaseNotes(t *testing.T) {
 // ---- Optional tool checks -------------------------------------------------------
 
 func TestRuntimeCheck_OptionalGeneratorsWarnWhenMissing(t *testing.T) {
-	clearCIEnv(t)
+	testutil.ClearCIEnv(t)
 	mr := exectest.NewMockRunner()
 	mr.QueueResponse("git version 2.40.0", "", nil)               // git --version
 	mr.QueueResponse("Alice", "", nil)                            // user.name
@@ -754,7 +741,7 @@ func TestRuntimeCheck_OptionalGeneratorsWarnWhenMissing(t *testing.T) {
 }
 
 func TestRuntimeCheck_OptionalPlatformsWarnWhenMissing(t *testing.T) {
-	clearCIEnv(t)
+	testutil.ClearCIEnv(t)
 	mr := exectest.NewMockRunner()
 	mr.QueueResponse("git version 2.40.0", "", nil)         // git --version
 	mr.QueueResponse("Alice", "", nil)                      // user.name
@@ -781,7 +768,7 @@ func TestRuntimeCheck_OptionalPlatformsWarnWhenMissing(t *testing.T) {
 }
 
 func TestRuntimeCheck_OptionalToolsSilentWhenPresent(t *testing.T) {
-	clearCIEnv(t)
+	testutil.ClearCIEnv(t)
 	mr := exectest.NewMockRunner()
 	queueSuccess(mr)
 
@@ -796,7 +783,7 @@ func TestRuntimeCheck_OptionalToolsSilentWhenPresent(t *testing.T) {
 }
 
 func TestRuntimeCheck_ConfiguredGeneratorExcludedFromOptional(t *testing.T) {
-	clearCIEnv(t)
+	testutil.ClearCIEnv(t)
 	mr := exectest.NewMockRunner()
 	mr.QueueResponse("git version 2.40.0", "", nil)               // git --version
 	mr.QueueResponse("Alice", "", nil)                            // user.name

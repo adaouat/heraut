@@ -171,6 +171,9 @@ func changelogStepTotal(cfg *pipeline.ChangelogConfig) int {
 // "not resolvable" rather than propagated: BuildPipeline performs the same resolution again and
 // surfaces that error with full context, so this pre-flight only needs a yes/no answer.
 func HasResolvablePublishTarget(runner port.Runner, cfg *config.Config, env string) bool {
+	if cfg == nil {
+		return false
+	}
 	if len(config.EffectiveTargets(cfg, env)) > 0 {
 		return true
 	}
@@ -211,26 +214,19 @@ func buildReleasePipelineConfig(runner, readRunner port.Runner, cfg *config.Conf
 
 	// Enrichment and publishing share one forge resolution — a second forge.Resolve call would add
 	// a duplicate `git remote get-url origin` invocation (and could break MockRunner's FIFO
-	// response ordering in tests). It runs, and is allowed to be fatal, only when something actually
-	// consumes it: enrichment (a native generator with the policy not disabled), or publishing. With
-	// release.platforms gone, release.targets is the only publish surface — an explicit list, or,
-	// when empty, the zero-config synthesis path in buildTargetPlatforms — so publishing now needs
-	// forge resolution unconditionally; the two publish-related disjuncts below (len(targets) > 0
-	// and len(targets) == 0) are jointly exhaustive rather than one of them being dead. The
-	// disabled-policy exclusion on the enrichment disjunct preserves resolveEnrichForgeIfNeeded's
-	// guarantee that switching enrichment off (including via --offline) can never itself *cause* a
-	// failure — that guarantee only concerns the enrichment identity, not the resolution publishing
-	// still needs.
-	needsForge := (usesNative(effectiveChangelog, effectiveNotes) && cfg.EnrichmentPolicy() != "disabled") ||
-		len(effectiveTargets) > 0 ||
-		len(effectiveTargets) == 0
-
-	var resolved forge.Resolved
-	if needsForge {
-		var err error
-		if resolved, err = resolveForge(readRunner, os.Getenv, cfg); err != nil {
-			return nil, err
-		}
+	// response ordering in tests). This call is unconditional, not gated on --offline or on
+	// whether a native generator is in play: with release.platforms gone, release.targets is the
+	// only publish surface — an explicit list, or, when empty, the zero-config synthesis path in
+	// buildTargetPlatforms — so this pipeline (used only by `heraut release`, which requires at
+	// least one resolvable publish destination) always needs forge resolution for publishing,
+	// regardless of what enrichment needs. A prior version of this comment described a `needsForge`
+	// guard combining an enrichment disjunct with the two publish-target-length disjuncts
+	// (len(targets) > 0 || len(targets) == 0) — that guard was a tautology (always true) and was
+	// removed (T173); resolveEnrichForgeIfNeeded (used by the changelog-only pipeline, not this
+	// one) is what actually gates resolution on --offline/enrichment policy.
+	resolved, err := resolveForge(readRunner, os.Getenv, cfg)
+	if err != nil {
+		return nil, err
 	}
 
 	var enrichForge port.Forge

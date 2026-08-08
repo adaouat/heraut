@@ -7,6 +7,7 @@ import (
 	"github.com/adaouat/heraut/internal/config"
 	"github.com/adaouat/heraut/internal/forge"
 	"github.com/adaouat/heraut/internal/port"
+	"github.com/adaouat/heraut/internal/testutil"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -71,7 +72,7 @@ func TestPlatformConfigFromTarget(t *testing.T) {
 // that contract).
 func TestBuildReleasePipelineConfig_TargetsWiring(t *testing.T) {
 	t.Run("target with no forge: resolves against the sole configured forge", func(t *testing.T) {
-		clearCIEnv(t)
+		testutil.ClearCIEnv(t)
 		runner := exectest.NewMockRunner()
 		readRunner := exectest.NewMockRunner()
 		readRunner.QueueResponse("", "", assertNoOriginErr)
@@ -94,7 +95,7 @@ func TestBuildReleasePipelineConfig_TargetsWiring(t *testing.T) {
 	})
 
 	t.Run("zero-config: no release.targets at all, one auto-detected forge yields one driver", func(t *testing.T) {
-		clearCIEnv(t)
+		testutil.ClearCIEnv(t)
 		runner := exectest.NewMockRunner()
 		readRunner := exectest.NewMockRunner()
 		readRunner.QueueResponse("https://gitlab.com/group/subgroup/project.git\n", "", nil)
@@ -110,7 +111,7 @@ func TestBuildReleasePipelineConfig_TargetsWiring(t *testing.T) {
 	})
 
 	t.Run("no forge resolves at all: zero platforms, no error", func(t *testing.T) {
-		clearCIEnv(t)
+		testutil.ClearCIEnv(t)
 		runner := exectest.NewMockRunner()
 		readRunner := exectest.NewMockRunner()
 		readRunner.QueueResponse("", "", assertNoOriginErr)
@@ -126,7 +127,7 @@ func TestBuildReleasePipelineConfig_TargetsWiring(t *testing.T) {
 	})
 
 	t.Run("release.assets propagates to targets that declare none", func(t *testing.T) {
-		clearCIEnv(t)
+		testutil.ClearCIEnv(t)
 		runner := exectest.NewMockRunner()
 		readRunner := exectest.NewMockRunner()
 		readRunner.QueueResponse("", "", assertNoOriginErr)
@@ -150,7 +151,7 @@ func TestBuildReleasePipelineConfig_TargetsWiring(t *testing.T) {
 	})
 
 	t.Run("target-level assets override release.assets entirely (no merge)", func(t *testing.T) {
-		clearCIEnv(t)
+		testutil.ClearCIEnv(t)
 		runner := exectest.NewMockRunner()
 		readRunner := exectest.NewMockRunner()
 		readRunner.QueueResponse("", "", assertNoOriginErr)
@@ -174,7 +175,7 @@ func TestBuildReleasePipelineConfig_TargetsWiring(t *testing.T) {
 	})
 
 	t.Run("no release.assets and no target assets: HasAssets is false", func(t *testing.T) {
-		clearCIEnv(t)
+		testutil.ClearCIEnv(t)
 		runner := exectest.NewMockRunner()
 		readRunner := exectest.NewMockRunner()
 		readRunner.QueueResponse("", "", assertNoOriginErr)
@@ -197,7 +198,7 @@ func TestBuildReleasePipelineConfig_TargetsWiring(t *testing.T) {
 	})
 
 	t.Run("multi-instance publishing: multiple targets yield multiple drivers (ADR-0025)", func(t *testing.T) {
-		clearCIEnv(t)
+		testutil.ClearCIEnv(t)
 		runner := exectest.NewMockRunner()
 		readRunner := exectest.NewMockRunner()
 		readRunner.QueueResponse("", "", assertNoOriginErr)
@@ -220,7 +221,7 @@ func TestBuildReleasePipelineConfig_TargetsWiring(t *testing.T) {
 	})
 
 	t.Run("unknown forge name in a target errors clearly", func(t *testing.T) {
-		clearCIEnv(t)
+		testutil.ClearCIEnv(t)
 		runner := exectest.NewMockRunner()
 		readRunner := exectest.NewMockRunner()
 		readRunner.QueueResponse("", "", assertNoOriginErr)
@@ -255,7 +256,7 @@ func TestBuildReleasePipelineConfig_ForgeResolutionErrorScope(t *testing.T) {
 	// two candidate token envs and nothing (CI marker, git origin) to disambiguate them.
 	ambiguousEnv := func(t *testing.T) {
 		t.Helper()
-		clearCIEnv(t)
+		testutil.ClearCIEnv(t)
 		t.Setenv("GITHUB_TOKEN", "ghp-placeholder")
 		t.Setenv("GITLAB_TOKEN", "glpat-placeholder")
 	}

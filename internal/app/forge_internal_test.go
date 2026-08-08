@@ -6,6 +6,7 @@ import (
 	"github.com/adaouat/forge/exec/exectest"
 	"github.com/adaouat/heraut/internal/config"
 	"github.com/adaouat/heraut/internal/port"
+	"github.com/adaouat/heraut/internal/testutil"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -46,19 +47,6 @@ func TestGitOriginURL(t *testing.T) {
 // on GitHub Actions, whose own GITHUB_ACTIONS / GITHUB_REPOSITORY variables pin a github forge.
 func fakeEnv(m map[string]string) func(string) string {
 	return func(k string) string { return m[k] }
-}
-
-// clearCIEnv neutralizes every CI marker forge detection keys off. Needed only by tests that
-// exercise a path still reading os.Getenv internally.
-func clearCIEnv(t *testing.T) {
-	t.Helper()
-	for _, k := range []string{
-		"GITHUB_ACTIONS", "GITHUB_SERVER_URL", "GITHUB_API_URL", "GITHUB_REPOSITORY", "GITHUB_TOKEN",
-		"GITLAB_CI", "CI_SERVER_URL", "CI_API_V4_URL", "CI_PROJECT_PATH", "CI_JOB_TOKEN", "GITLAB_TOKEN",
-		"TF_BUILD", "SYSTEM_COLLECTIONURI", "SYSTEM_TEAMPROJECT", "SYSTEM_ACCESSTOKEN", "AZURE_DEVOPS_TOKEN",
-	} {
-		t.Setenv(k, "")
-	}
 }
 
 func TestResolveEnrichForgeIfNeeded(t *testing.T) {
@@ -206,7 +194,7 @@ func TestResolveEnrichForgeIfNeeded(t *testing.T) {
 // changelog used to — it builds successfully, and the resulting generator reports Degraded(),
 // the same outcome heraut check already predicts for this config (T172).
 func TestBuildChangelogPipelineConfig_AmbiguousForgeDegradesUnderOptionalPolicy(t *testing.T) {
-	clearCIEnv(t)
+	testutil.ClearCIEnv(t)
 	t.Setenv("GITLAB_TOKEN", "glpat")
 	t.Setenv("GITHUB_TOKEN", "ghp")
 
@@ -229,6 +217,19 @@ func TestBuildChangelogPipelineConfig_AmbiguousForgeDegradesUnderOptionalPolicy(
 	assert.True(t, degraded.Degraded())
 }
 
+// TestHasResolvablePublishTarget_NilConfig guards a nil-pointer panic (T173): its sibling
+// effectiveTargetPlatforms (internal/app/check.go) nil-guards cfg before calling resolveForge,
+// but HasResolvablePublishTarget did not — forge.Resolve dereferences cfg.Forges directly, so a
+// nil cfg panicked instead of returning false.
+func TestHasResolvablePublishTarget_NilConfig(t *testing.T) {
+	mr := exectest.NewMockRunner()
+	var got bool
+	require.NotPanics(t, func() {
+		got = HasResolvablePublishTarget(mr, nil, "")
+	})
+	assert.False(t, got)
+}
+
 // TestBuildReleasePipelineConfig_UsesReadRunnerForForgeResolution proves that
 // buildReleasePipelineConfig resolves the forge's git origin via a dedicated read-only runner —
 // not the (possibly dry-run) pipeline runner passed for everything else. Before the fix, a
@@ -236,7 +237,7 @@ func TestBuildChangelogPipelineConfig_AmbiguousForgeDegradesUnderOptionalPolicy(
 // `git remote get-url origin`, silently producing an empty origin and falling into the
 // token-only/ambiguous branches of forge.Resolve.
 func TestBuildReleasePipelineConfig_UsesReadRunnerForForgeResolution(t *testing.T) {
-	clearCIEnv(t)                              // buildReleasePipelineConfig passes os.Getenv, so the ambient CI env must not leak in
+	testutil.ClearCIEnv(t)                     // buildReleasePipelineConfig passes os.Getenv, so the ambient CI env must not leak in
 	pipelineRunner := exectest.NewMockRunner() // stands in for a dry-run runner: no response queued
 	readRunner := exectest.NewMockRunner()
 	readRunner.QueueResponse("https://gitlab.com/group/subgroup/project.git\n", "", nil)

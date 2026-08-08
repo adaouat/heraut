@@ -592,7 +592,7 @@ result). Verified by mutation: deleting `len(cfg.Forges) > 0` from `wantsForge` 
 to a warning and fails the test, while the unknown-forge fixture keeps passing (its target list is
 non-empty, so the second disjunct still covers it).
 
-#### `[ ]` T173: P3 cleanups — dead `needsForge` guard, double resolution, migration hint, test helpers
+#### `[x]` T173: P3 cleanups — dead `needsForge` guard, double resolution, migration hint, test helpers
 
 A cluster of small items from P3's final review, none behaviour-affecting on their own:
 `needsForge` (`internal/app/pipeline.go`) is now a tautology — `(A && B) || len(t) > 0 || len(t) == 0`
@@ -615,6 +615,54 @@ doc comment saying it has no YAML surface. **Scope:** S–M.
 `environments.<env>.forges`"). The remaining items in this cluster — `needsForge`,
 `HasResolvablePublishTarget`'s nil-guard, double forge resolution, `clearCIEnv` triplication, and
 `config.Platform`'s stray YAML tags — are still open.
+
+**Remaining items closed:**
+
+- **`needsForge` tautology** (`internal/app/pipeline.go`, `buildReleasePipelineConfig`): removed
+  the dead guard variable and its `if needsForge` branch; `resolveForge` is now called
+  unconditionally, with a rewritten comment explaining why (this pipeline is reached only by
+  `heraut release`, which always needs forge resolution for publishing) and pointing at
+  `resolveEnrichForgeIfNeeded` as the function that actually gates resolution on `--offline`/policy
+  for the changelog-only pipeline. No behavior change — the removed condition was always true.
+- **`HasResolvablePublishTarget` nil-guard**: added `if cfg == nil { return false }` at the top,
+  mirroring `effectiveTargetPlatforms`'s existing guard. Previously `forge.Resolve` dereferenced
+  `cfg.Forges` on a nil `*config.Config`, which panics rather than returning a sane "no" — pinned
+  by a RED test (`TestHasResolvablePublishTarget_NilConfig`,
+  `internal/app/forge_internal_test.go`) that reproduced the panic before the fix.
+- **Double forge resolution**: `internal/cmd/release.go` calls `app.HasResolvablePublishTarget`
+  as a pre-flight, then `app.BuildPipeline`, which resolves the forge again internally — two
+  `git remote get-url origin` subprocesses per zero-config release. Threading the resolved value
+  across the `internal/cmd` → `internal/app` boundary was ruled out: `forge.Resolved` lives in
+  `internal/forge`, and this repo's layer rules (`.claude/rules/coding.md`) restrict
+  `internal/cmd/` to importing only `internal/{app,ui,config,scaffold,commitwizard}/`, not
+  `internal/forge/` — so `PipelineOpts` can't carry a pre-resolved `forge.Resolved` without a
+  layering violation. Instead, added `app.NewMemoizingRunner` (`internal/app/memo_runner.go`): a
+  `port.Runner` decorator caching each `Run` call by its exact `(name, args)` key, safe because
+  everything routed through `readRunner` in this phase of `heraut release` is read-only and runs
+  before any write. `internal/cmd/release.go` now wraps `readRunner` in it once, so both
+  `HasResolvablePublishTarget` and `BuildPipeline`'s internal resolution share the same cached git
+  call — no `forge` package leaks across the layer boundary, and both callers keep their
+  independent, documented reasons for resolving (the pre-flight's friendly error vs. `BuildPipeline`
+  surfacing the full-context error). TDD: `TestNewMemoizingRunner_CachesIdenticalCalls` (only one
+  underlying `Run` for two identical calls), `_DistinctArgsNotConflated` (different `(name, args)`
+  never share a cache entry), `_CachesErrors` (a cached error is also replayed, not re-executed) —
+  all in `internal/app/memo_runner_test.go`.
+- **`clearCIEnv` triplication**: moved to `testutil.ClearCIEnv` (`internal/testutil/env.go`,
+  matching the file's existing role as shared test infrastructure with no dedicated tests of its
+  own — mirroring `mock_generator.go`/`mock_platform.go`/`realgit.go`). Deleted the three identical
+  local copies (`internal/cmd/version_test.go`, `internal/app/check_test.go`,
+  `internal/app/forge_internal_test.go`) and repointed all 37 call sites (across those three plus
+  `internal/cmd/release_test.go`, `internal/cmd/check_test.go`, and
+  `internal/app/targets_internal_test.go`, which called the package-local copies without defining
+  their own) at `testutil.ClearCIEnv(t)`.
+- **`config.Platform`'s stray YAML tags**: removed every `yaml:"..."` tag from the struct
+  (`internal/config/config.go`) — confirmed first that nothing decodes YAML into it (`grep` found
+  its only construction site is `internal/app/platforms.go`'s `platformConfigFromTarget`, building
+  it programmatically from a resolved `port.ForgeIdentity`) and that nothing marshals it either, so
+  the doc comment's "no YAML surface of its own" claim is accurate and the tags were pure
+  leftover baggage from before ADR-0043/ADR-0044 moved the user-facing config to `forges:`.
+
+`go test ./...`, the simulated `GITHUB_ACTIONS=true` run, and `hk check` are all clean.
 
 #### `[ ]` T168: decide the fate of `port.Forge`'s link methods (and the dead `lc` parameter)
 

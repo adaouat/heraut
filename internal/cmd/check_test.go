@@ -6,6 +6,7 @@ import (
 
 	"github.com/adaouat/forge/exec/exectest"
 	"github.com/adaouat/heraut/internal/cmd"
+	"github.com/adaouat/heraut/internal/testutil"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -411,7 +412,7 @@ esac
 // ---- check (bare) ----
 
 func TestCheckAll_PassesAll(t *testing.T) {
-	clearCIEnv(t)
+	testutil.ClearCIEnv(t)
 	cfgPath := writeConfig(t, `
 version: "1"
 versioning:

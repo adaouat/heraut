@@ -176,24 +176,25 @@ type Target struct {
 // Platform is the config shape the internal/platforms/{github,gitlab} drivers accept. It has no
 // YAML surface of its own — internal/app builds one per release.targets entry from the resolved
 // port.ForgeIdentity (platformConfigFromTarget), so the drivers stay unchanged while the user-facing
-// config moved to forges:/release.targets (ADR-0043/ADR-0044).
+// config moved to forges:/release.targets (ADR-0043/ADR-0044). No field carries a yaml tag: none of
+// them are ever decoded from a .heraut.yml file (T173).
 type Platform struct {
 	// Name identifies this platform instance, propagated from the owning forges[].name.
-	Name string `yaml:"name"`
-	Type string `yaml:"platform"`
+	Name string
+	Type string
 	// GitHub-specific
-	Repository string `yaml:"repository,omitempty"`
-	Draft      bool   `yaml:"draft,omitempty"`
-	Prerelease bool   `yaml:"prerelease,omitempty"`
+	Repository string
+	Draft      bool
+	Prerelease bool
 	// GitLab-specific
-	Project string `yaml:"project,omitempty"`
+	Project string
 	// Shared
-	BaseURL  string   `yaml:"base_url,omitempty"`
-	TokenEnv string   `yaml:"token_env,omitempty"`
-	Assets   []string `yaml:"assets,omitempty"`
+	BaseURL  string
+	TokenEnv string
+	Assets   []string
 	// LenientAssets is set programmatically when assets come from release.assets (top-level).
 	// When true, a glob pattern that matches nothing emits a warning instead of an error.
-	LenientAssets bool `yaml:"-"`
+	LenientAssets bool
 }
 
 const (

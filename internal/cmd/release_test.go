@@ -6,6 +6,7 @@ import (
 	"github.com/adaouat/forge/exec/exectest"
 	"github.com/adaouat/heraut/internal/cmd"
 	"github.com/adaouat/heraut/internal/exitcode"
+	"github.com/adaouat/heraut/internal/testutil"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -120,7 +121,7 @@ esac
 }
 
 func TestRelease_NoPlatforms_Error(t *testing.T) {
-	clearCIEnv(t)
+	testutil.ClearCIEnv(t)
 	cfgPath := writeConfig(t, `
 version: "1"
 versioning:
@@ -148,7 +149,7 @@ func TestRelease_EmptyTargets_ZeroConfigResolves(t *testing.T) {
 	// release.targets: [] with no forges: configured is not itself an error — it is the
 	// zero-config shape, which is valid as long as a forge auto-detects (CI env or git origin).
 	// Only "nothing resolves at all" (TestRelease_NoPlatforms_Error) is the hard config error.
-	clearCIEnv(t)
+	testutil.ClearCIEnv(t)
 	cfgPath := writeConfig(t, `
 version: "1"
 versioning:
