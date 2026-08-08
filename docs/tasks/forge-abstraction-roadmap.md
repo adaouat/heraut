@@ -490,7 +490,7 @@ the collision is reported against the correct earlier index) plus
 ./...` and `hk check` are clean; no existing fixture in `testdata/config/valid/` declared two forges
 with colliding coordinates, so nothing needed migrating.
 
-#### `[ ]` T174: `enrichment_policy: required` is not enforced for the git-cliff generator
+#### `[x]` T174: `enrichment_policy: required` is not enforced for the git-cliff generator
 
 `required` is a guarantee — fail rather than ship unenriched notes. It holds for `native`
 (`internal/generators/native/enrich.go` errors when the policy is `required` and no forge is
@@ -505,6 +505,24 @@ running, or document the divergence as intended. Found while fact-checking T169'
 pre-existing, not introduced by the forge epic. Note git-cliff is itself slated for removal
 (native-generator roadmap Phase 2.5), which may make documenting-and-deferring the right call.
 **Scope:** S.
+
+**Decision (2026-08-08, user-confirmed):** document as intended, not fix. Native-generator Phase
+2.5 (git-cliff package removal) is listed as **Deferred** with no ETA, so git-cliff will likely
+stay in active use for a while — but making `required` mean something for a generator on its way
+out isn't worth new plumbing (`injectRemote`/`runCliff` would need to grow forge-resolution
+awareness solely to assert-and-fail, duplicating what `native` already does the moment before
+git-cliff itself is slated to disappear). The divergence was, in fact, **already fully documented**
+by T169's "Auto-detection and self-hosted hosts" subsection
+(`docs/specs/05-generators-and-platforms.md`), written the same day this task was found — it
+already states plainly: "Do not rely on `required` to catch a missing forge under `git-cliff`."
+What remained: the misleading in-code doc comment T174 quotes ("a remote-fetch failure is fatal")
+implied a stronger guarantee than the code delivers — fixed in `runCliff`'s doc comment
+(`internal/generators/gitcliff/generator.go`) to state the caveat explicitly and point at the spec
+section. Also added `TestGenerate_RemoteRequired_NoForgeResolvedSucceedsSilently`
+(`internal/generators/gitcliff/generator_test.go`) — a characterization test, not a TDD RED/GREEN
+pair, since no behavior changed: it pins the documented quirk (required + `lc == nil` succeeds with
+no error, unlike native) against future regression, so a well-meaning future change doesn't
+silently "fix" this into an inconsistent half-state. `go test ./...` and `hk check` are clean.
 
 #### `[x]` T171: duplicate publish targets can resolve to the same destination
 

@@ -354,6 +354,30 @@ func TestGenerate_RemoteRequired_NoOfflineFailsHard(t *testing.T) {
 	assertNotHasFlag(t, mr.Calls[0].Args, "--offline")
 }
 
+// TestGenerate_RemoteRequired_NoForgeResolvedSucceedsSilently pins a documented divergence from
+// native (T174, docs/specs/05-generators-and-platforms.md "Auto-detection and self-hosted
+// hosts"): required only suppresses the --offline retry, it does not assert that a forge exists.
+// With lc nil (no forge resolved), injectRemote adds no [remote.*] section, so git-cliff has
+// nothing to fetch and exits cleanly — required and optional are indistinguishable here, unlike
+// native's enrichForRelease, which hard-errors under required when no forge is resolvable. This
+// is intentional, accepted divergence (not a bug to fix): git-cliff removal is deferred with no
+// ETA, so the behavior stays as documented rather than growing new plumbing for code slated for
+// eventual removal.
+func TestGenerate_RemoteRequired_NoForgeResolvedSucceedsSilently(t *testing.T) {
+	mr := exectest.NewMockRunner()
+	mr.QueueResponse("notes", "", nil)
+
+	cfg := &config.ContentDriver{Generator: "git-cliff", RemoteMetadata: "required"}
+	gen := gitcliff.New(mr, cfg, gitcliff.ModeReleaseNotes)
+
+	out, err := gen.Generate("v1.2.3", nil)
+	require.NoError(t, err, "required does not assert that a forge exists — see docs/specs/05-generators-and-platforms.md")
+	assert.Equal(t, "notes", out)
+	require.Len(t, mr.Calls, 1) // no retry under 'required'
+	assertNotHasFlag(t, mr.Calls[0].Args, "--offline")
+	assert.False(t, gen.Degraded())
+}
+
 func TestGenerate_RemoteOptional_SuccessNoRetry(t *testing.T) {
 	mr := exectest.NewMockRunner()
 	mr.QueueResponse("notes", "", nil)

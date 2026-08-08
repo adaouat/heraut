@@ -112,7 +112,12 @@ func (g *Generator) Generate(tag string, lc *port.LinkContext) (string, error) {
 
 // runCliff runs git-cliff applying the remote-metadata policy:
 //   - disabled: always pass --offline (never reach the platform API).
-//   - required: never pass --offline; a remote-fetch failure is fatal.
+//   - required: never pass --offline; a remote-fetch failure is fatal — but only when a fetch is
+//     actually attempted. With no forge resolved (lc nil / no owner-repo), injectRemote adds no
+//     [remote.*] section, so git-cliff has nothing to fetch and exits cleanly with unenriched
+//     output and no error: required does not assert that a forge exists (T174, documented
+//     divergence from native — see docs/specs/05-generators-and-platforms.md "Auto-detection and
+//     self-hosted hosts").
 //   - optional (default): try online; on any failure retry with --offline. If the offline
 //     retry succeeds the run is marked degraded; if it also fails the original (online)
 //     error is returned so a genuine config error still surfaces.
