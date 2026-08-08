@@ -38,7 +38,7 @@ no longer a parity target — heraut's rendering is its own spec, validated by g
 | Phase 2.8 — user-customizable templates (ADR-0037)   | TT1 – TT11             | Complete    |
 | Phase 2.9 — incremental changelog (ADR-0038)          | —                      | Complete    |
 | Phase 2.10 — commit-author attribution (ADR-0039)    | T151 (follow-up)       | Complete — GitHub, GitLab, Azure |
-| Phase 2.5 — remove the git-cliff package (own ADR)   | —                      | Deferred    |
+| Phase 2.5 — remove the git-cliff package (own ADR)   | T177–T184              | Active      |
 | Phase 3 — raw-HTTP clients (drop `gh` / `glab`)       | —                      | Deferred    |
 
 ---
@@ -944,6 +944,35 @@ already drives both links and `APIEnv()` host routing, no generator/enrichment p
 changed. Breaking (pre-v1.0): `api_url` removed. GitLab commit-author `by @` stays out of
 scope (T150); an offline attribution fallback was deferred. **Scope:** S. **Dependencies:**
 Phase 2.7 (unified enrichment), ADR-0026.
+
+---
+
+## Phase 2.5 — Remove the git-cliff package (own ADR)
+
+> See `docs/superpowers/specs/2026-08-08-native-only-generator-design.md` for the full design
+> (drops `communique` too, in a later phase of this same epic) and ADR-0045 (written as part of
+> this phase) for the decision record.
+
+Config cutover: `generator:` / `config:` under `changelog:` and `release.notes:` become removed
+keys (hard error, no deprecation window — matching ADR-0028's cocogitto-removal precedent).
+Native becomes implicit. `git-cliff`/`communique` package deletion, the `heraut cliff` command,
+and wizard simplification are separate, later phases in this same file.
+
+#### `[ ]` T177: reject `generator:`/`config:` keys at load time
+
+#### `[ ]` T178: fix collateral test damage from T177 (`internal/config`)
+
+#### `[ ]` T179: empty `Generator` builds native end-to-end
+
+#### `[ ]` T180: validator — drop generator-required/enum + tag_pattern generator gate
+
+#### `[ ]` T181: validator — drop template/tickets/rendering generator gates
+
+#### `[ ]` T182: merge — drop the generator-switch full-replacement branch
+
+#### `[ ]` T183: schema.json + testdata fixtures go native-only
+
+#### `[ ]` T184: `docs/heraut.sample.yml` drops `generator:`/`config:`
 
 ---
 
