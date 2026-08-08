@@ -20,12 +20,17 @@ each degrades gracefully to a permanent no-op/skip state and gets properly delet
 depends on this phase landing first.
 
 **IMPORTANT — bigger blast radius than it looks:** the new removed-key check fires inside
-`config.Load`/`config.LoadFromReader`, which is also what `internal/config`'s own test helper
-`mustLoad` calls. Roughly 30 existing tests across `validator_test.go` and `loader_test.go` build
-their fixture YAML inline with a `generator:`/`config:` line as filler — every one of them breaks
-the instant Task 1 lands, whether or not they have anything to do with generators. Task 2 exists
-specifically to fix all of that collateral damage in one pass, so Tasks 3-6 (the actual
-validator.go/merge.go logic changes) each start from a green suite.
+`config.Load`/`config.LoadFromReader`, used by `internal/config`'s own `mustLoad` test helper AND by
+`internal/cmd`'s `writeConfig`/`executeRoot` test helpers. Roughly 30 existing tests in
+`internal/config` (`validator_test.go`, `loader_test.go`) and 17 more in `internal/cmd`
+(`check_test.go`, `cliff_test.go`, `release_test.go`, `changelog_test.go`) build their fixture YAML
+inline with a `generator:`/`config:` line as filler — every one of them breaks the instant Task 1
+lands, whether or not they have anything to do with generators. **Task 2 lands in two slices, 2a
+(`internal/config`) and 2b (`internal/cmd`)** — both under the single T178 roadmap slot — so Tasks
+3-6 (the actual validator.go/merge.go logic changes) each start from a green suite. (The
+`internal/cmd` half was discovered during Task 1's own task review, not during the original planning
+pass — this note was added then, along with Task 2b itself; see Task 2a's amendment note for the
+full story.)
 
 **Tech Stack:** Go 1.26, `gopkg.in/yaml.v3`, `github.com/santhosh-tekuri/jsonschema/v6` (schema
 tests), `testify` (assert/require).
@@ -38,7 +43,9 @@ tests), `testify` (assert/require).
   bypass hooks (`.claude/rules/workflow.md`).
 - `go test ./...` and `hk check` must be clean after **every** task's commit — no task leaves the
   build or test suite broken, even temporarily. (Task 1 is the one narrow exception, explicitly
-  called out in its own commit step, and is fixed by Task 2 immediately after in the same session.)
+  called out in its own commit step, and is fixed by Tasks 2a+2b immediately after in the same
+  session — run the full `go test ./...` at the end of 2b, not just `internal/config`, to confirm
+  nothing is still red.)
 - Task IDs continue the global sequence from **T177** (see
   `docs/superpowers/specs/2026-08-08-native-only-generator-design.md`).
 - Line numbers cited throughout this plan were read directly from the source at planning time.
@@ -416,7 +423,17 @@ tests), `testify` (assert/require).
 
 ---
 
-### Task 2 (T178): Fix collateral test damage from T177
+### Task 2a (T178a): Fix collateral test damage from T177 — `internal/config`
+
+> **Plan amendment (mid-execution):** Task 1's implementer over-scoped into `internal/config/validator.go`
+> and `.config/heraut.yml` (neither in Task 1's Files list) while chasing test failures, and Task 1's
+> own review surfaced a second gap this plan had missed entirely: ~17 more `generator:` occurrences
+> across 4 files in `internal/cmd` break the same way once T177 lands, and no task in the original
+> plan owned them. Rather than renumber every task after T178 (the roadmap skeleton already committed
+> by Task 1 names T177–T184), this single slot splits into 2a (`internal/config`, this task —
+> unchanged from the original plan text below) and 2b (`internal/cmd`, new) — mirroring this
+> project's own precedent for landing one task ID in lettered slices (see T160a/T160b in
+> `docs/tasks/forge-abstraction-roadmap.md`).
 
 **Files:**
 - Modify: `internal/config/validator_test.go` (~28 test functions — 17 deleted, 11 edited)
@@ -555,7 +572,144 @@ tests), `testify` (assert/require).
   the 11 testing unrelated behavior to drop the now-illegal filler
   line.
 
-  Roadmap: docs/tasks/native-generator-roadmap.md -> T178"
+  Roadmap: docs/tasks/native-generator-roadmap.md -> T178a"
+  ```
+
+---
+
+### Task 2b (T178b): Fix collateral test damage from T177 — `internal/cmd`
+
+**Files:**
+- Modify: `internal/cmd/check_test.go` (10 occurrences across 10 functions — 8 deleted, 2 edited)
+- Modify: `internal/cmd/cliff_test.go` (4 occurrences across 4 functions — all 4 deleted)
+- Modify: `internal/cmd/release_test.go` (1 occurrence, 1 function edited)
+- Modify: `internal/cmd/changelog_test.go` (2 occurrences across 2 functions — both edited)
+
+**Interfaces:**
+- Consumes: nothing new.
+- Produces: nothing new — pure test-suite repair, no production code touched in this task.
+
+These tests all go through `writeConfig`/`executeRoot`, which load real YAML through `config.Load` —
+the same removed-key check Task 1 added. The `heraut cliff` command and `heraut check`'s `cliff`
+subsection are both git-cliff-specific features slated for wholesale deletion in Phase B (a separate,
+not-yet-written plan) — most of the deletions below are tests that can no longer be reached with any
+valid config, not tests being weakened.
+
+- [ ] **Step 1: Confirm current locations**
+
+  ```bash
+  grep -n "^func Test" internal/cmd/check_test.go internal/cmd/cliff_test.go internal/cmd/release_test.go internal/cmd/changelog_test.go
+  ```
+
+  Line numbers below were accurate at the time this task was added to the plan (mid-execution, after
+  Task 1's review) but may have shifted.
+
+- [ ] **Step 2: Delete these 8 test functions from `internal/cmd/check_test.go`**
+
+  Each requires `generator: git-cliff`/`communique` to reach its assertion — none of these scenarios
+  can be constructed with a valid config anymore, and all test `heraut check cliff` /
+  `heraut check runtime`'s git-cliff-specific behavior, which Phase B removes entirely:
+
+  1. `TestCheckRuntime_GeneratorMissing`
+  2. `TestCheckCliffChangelog_Valid`
+  3. `TestCheckCliffChangelog_Invalid`
+  4. `TestCheckCliffChangelog_NotGitCliff`
+  5. `TestCheckCliff_WithChangelog_Valid`
+  6. `TestCheckCliff_WithChangelog_Invalid`
+  7. `TestCheckCliffReleaseNotes_Valid`
+  8. `TestCheckCliffReleaseNotes_Invalid`
+
+  Leave `TestCheckCliff_ConfigNotFound`, `TestCheckCliff_NoGeneratorsConfigured`,
+  `TestCheckCliffReleaseNotes_ConfigNotFound`, `TestCheckCliffReleaseNotes_NotConfigured` untouched —
+  none of them set `generator:`, and `TestCheckCliff_NoGeneratorsConfigured`'s "no git-cliff
+  generators configured" assertion is now the universal case for `heraut check cliff` (bare), not a
+  special one — still correct, still worth keeping until Phase B deletes the command.
+
+- [ ] **Step 3: Edit 2 test functions in `internal/cmd/check_test.go`**
+
+  **`TestCheckRuntime_AllGood`** — remove the line `  generator: git-cliff` from the inline YAML
+  (leave `forges:`/`release:` as-is). This test's purpose is the overall `check runtime` happy path,
+  not git-cliff specifically — `assert.Contains(t, out, "git")` doesn't depend on which content
+  generator is configured.
+
+  **`TestCheckAll_PassesAll`** — remove the line `  generator: git-cliff` from the inline YAML
+  (leave `changelog:` present with no other change). Same reasoning — this is the overall `heraut
+  check` composite happy path.
+
+- [ ] **Step 4: Delete these 4 test functions from `internal/cmd/cliff_test.go`**
+
+  All 4 need `generator: git-cliff`/`communique` to reach their assertion; `heraut cliff` prints the
+  *effective* git-cliff config regardless of what's configured (its own doc comment: "if driver is
+  nil or has no generator set, the embedded default TOML is returned") — so once `generator:
+  git-cliff` can't be configured, these 4 become redundant with `TestCliffChangelog_NoChangelogConfigured_PrintsDefault`
+  / `TestCliffReleaseNotes_NotConfigured_PrintsDefault`, which stay:
+
+  1. `TestCliffChangelog_WithGitCliff_PrintsTOML`
+  2. `TestCliffChangelog_BuildFormat_ShowsPostprocessor`
+  3. `TestCliffChangelog_NotGitCliff_Error`
+  4. `TestCliffReleaseNotes_WithGitCliff_PrintsTOML`
+
+  Leave `TestCliffCmd_Structure` (structural, no config), `TestCliffChangelog_NoChangelogConfigured_PrintsDefault`,
+  and `TestCliffReleaseNotes_NotConfigured_PrintsDefault` untouched.
+
+- [ ] **Step 5: Edit `internal/cmd/release_test.go`**
+
+  **`TestRelease_NoPlatforms_Error`** — replace the two lines
+  ```
+  changelog:
+    generator: git-cliff
+    output: CHANGELOG.md
+  ```
+  with
+  ```
+  changelog:
+    output: CHANGELOG.md
+  ```
+  This test is about the "no resolvable publish destination" error, unrelated to which generator
+  would have produced the changelog.
+
+- [ ] **Step 6: Edit `internal/cmd/changelog_test.go`**
+
+  **`TestChangelog_DryRun_OutputsVersion`** and **`TestChangelog_DryRun_NoPush`** — in each, replace
+  ```
+  changelog:
+    generator: git-cliff
+    output: CHANGELOG.md
+  ```
+  with
+  ```
+  changelog:
+    output: CHANGELOG.md
+  ```
+  Both tests assert on the resolved version string and dry-run/no-push messaging, never on changelog
+  content — confirmed by the FakeBin `git` script in each test having no `git-cliff` entry at all, so
+  the generator binary was never actually invoked even before this change (`--dry-run` doesn't
+  generate).
+
+- [ ] **Step 7: Run tests to verify they pass**
+
+  Run: `go test ./internal/cmd/... 2>&1 | tail -60`
+
+  Expected: PASS. Then run the full suite:
+
+  Run: `go test ./... 2>&1 | grep -v ^ok`
+
+  Expected: no output (every package passes) — this is the check Task 1's brief asked for and that
+  task's implementer skipped; do not skip it here.
+
+- [ ] **Step 8: Commit**
+
+  ```bash
+  git add internal/cmd/check_test.go internal/cmd/cliff_test.go internal/cmd/release_test.go internal/cmd/changelog_test.go
+  git commit -m "test(cmd): fix collateral damage from the generator:/config: cutover
+
+  12 tests exercising heraut cliff / heraut check cliff's git-cliff-
+  specific behavior can no longer be reached with any valid config
+  (both features are removed wholesale in the separate, not-yet-
+  written Phase B plan) — deleted. 5 more used generator: as inert
+  filler on tests about something else — stripped the line.
+
+  Roadmap: docs/tasks/native-generator-roadmap.md -> T178b"
   ```
 
 ---
