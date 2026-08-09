@@ -542,7 +542,7 @@ func validateContentDriver(d *ContentDriver, path string) []ValidationError {
 		})
 	}
 	// With native, tag_pattern is a Go regex applied in-process; validate it compiles.
-	if d.TagPattern != "" && strings.EqualFold(d.Generator, "native") {
+	if d.TagPattern != "" && (d.Generator == "" || strings.EqualFold(d.Generator, "native")) {
 		if _, err := regexp.Compile(d.TagPattern); err != nil {
 			errs = append(errs, ValidationError{
 				Path:    path + ".tag_pattern",

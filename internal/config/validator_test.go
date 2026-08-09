@@ -271,35 +271,6 @@ changelog:
 	assert.Nil(t, findErr(errs, "changelog.generator"))
 }
 
-func TestValidate_changelogInvalidGenerator(t *testing.T) {
-	cfg := mustLoad(t, `
-version: "1"
-versioning:
-  strategy: semver
-changelog:
-  generator: bad-gen
-`)
-	errs := config.Validate(cfg)
-	e := findErr(errs, "changelog.generator")
-	require.NotNil(t, e)
-	assert.Contains(t, e.Message, "bad-gen")
-}
-
-func TestValidate_releaseNotesInvalidGenerator(t *testing.T) {
-	cfg := mustLoad(t, `
-version: "1"
-versioning:
-  strategy: semver
-release:
-  notes:
-    generator: not-valid
-`)
-	errs := config.Validate(cfg)
-	e := findErr(errs, "release.notes.generator")
-	require.NotNil(t, e)
-	assert.Contains(t, e.Message, "not-valid")
-}
-
 // ── per-env strategy ─────────────────────────────────────────────────────────
 
 func TestValidate_perEnvNoEnvironments(t *testing.T) {
@@ -541,7 +512,6 @@ version: "2"
 versioning:
   strategy: not-valid
 changelog:
-  generator: bad-gen
 forges:
   - name: gh
     platform: aws
@@ -550,7 +520,6 @@ forges:
 	assert.GreaterOrEqual(t, len(errs), 3, "expected at least 3 errors")
 	assert.NotNil(t, findErr(errs, "version"))
 	assert.NotNil(t, findErr(errs, "versioning.strategy"))
-	assert.NotNil(t, findErr(errs, "changelog.generator"))
 	assert.NotNil(t, findErr(errs, "forges[0].platform"))
 }
 
@@ -588,11 +557,6 @@ func TestValidate_invalidFixtures(t *testing.T) {
 			fixture:     "../../testdata/config/invalid/invalid_strategy.yml",
 			wantPath:    "versioning.strategy",
 			wantMessage: "not-a-strategy",
-		},
-		{
-			fixture:     "../../testdata/config/invalid/invalid_generator.yml",
-			wantPath:    "changelog.generator",
-			wantMessage: "unknown-generator",
 		},
 		{
 			fixture:     "../../testdata/config/invalid/perenv_no_environments.yml",
@@ -669,7 +633,7 @@ environments:
     tag_format: "dev/{version}"
     disable_changelog: true
     changelog:
-      generator: git-cliff
+      output: CHANGELOG.md
 `)
 	errs := config.Validate(cfg)
 	e := findErr(errs, "environments.dev.changelog")
@@ -689,53 +653,12 @@ environments:
     disable_notes: true
     release:
       notes:
-        generator: git-cliff
+        tag_pattern: "v[0-9]*"
 `)
 	errs := config.Validate(cfg)
 	e := findErr(errs, "environments.dev.release.notes")
 	require.NotNil(t, e)
 	assert.Contains(t, e.Message, "unreachable")
-}
-
-// ADR-0019: per-env content drivers merge over the top-level. A partial per-env
-// changelog block (no generator) inherits the top-level generator and is valid.
-func TestValidate_perEnvChangelogInheritsGenerator(t *testing.T) {
-	cfg := mustLoad(t, `
-version: "1"
-versioning:
-  strategy: semver-per-env
-  tag_format: "{env}/{version}"
-changelog:
-  generator: git-cliff
-  output: CHANGELOG.md
-environments:
-  prod:
-    bump: auto
-    changelog:
-      config: cliff.prod.toml
-`)
-	errs := config.Validate(cfg)
-	assert.Nil(t, findErr(errs, "environments.prod.changelog.generator"),
-		"per-env block should inherit the top-level generator")
-}
-
-// A per-env changelog with no generator and no top-level changelog to inherit from
-// is still invalid — the merged driver has no generator.
-func TestValidate_perEnvChangelogNoGeneratorAnywhere(t *testing.T) {
-	cfg := mustLoad(t, `
-version: "1"
-versioning:
-  strategy: semver-per-env
-  tag_format: "{env}/{version}"
-environments:
-  prod:
-    bump: auto
-    changelog:
-      config: cliff.prod.toml
-`)
-	errs := config.Validate(cfg)
-	assert.NotNil(t, findErr(errs, "environments.prod.changelog.generator"),
-		"no generator at either level must still fail")
 }
 
 // ── tickets ──────────────────────────────────────────────────────────────────
@@ -745,8 +668,6 @@ func TestValidate_TicketsValid(t *testing.T) {
 version: "1"
 versioning:
   strategy: semver
-changelog:
-  generator: git-cliff
 commits:
   tickets:
     - pattern: '[A-Z]+-[0-9]+'
@@ -785,78 +706,13 @@ commits:
 	assert.Contains(t, e.Message, "{ticket}")
 }
 
-func TestValidate_TicketsNonGitCliffGenerator(t *testing.T) {
-	cfg := mustLoad(t, `
-version: "1"
-versioning:
-  strategy: semver
-changelog:
-  generator: communique
-commits:
-  tickets:
-    - pattern: '[A-Z]+-[0-9]+'
-      url: 'https://x.test/{ticket}'
-`)
-	e := findErr(config.Validate(cfg), "commits.tickets")
-	require.NotNil(t, e)
-	assert.Contains(t, e.Message, "git-cliff")
-}
-
-// ── native generator ──────────────────────────────────────────────────────────
-
-func TestValidate_NativeGenerator(t *testing.T) {
-	cfg := mustLoad(t, `
-version: "1"
-versioning:
-  strategy: semver
-changelog:
-  generator: native
-  output: CHANGELOG.md
-`)
-	assert.Empty(t, config.Validate(cfg))
-}
-
-func TestValidate_TicketsNativeGeneratorOK(t *testing.T) {
-	cfg := mustLoad(t, `
-version: "1"
-versioning:
-  strategy: semver
-changelog:
-  generator: native
-commits:
-  tickets:
-    - pattern: '[A-Z]+-[0-9]+'
-      url: 'https://x.test/{ticket}'
-`)
-	assert.Empty(t, config.Validate(cfg))
-}
-
 // ── rendering.templates / template (native only) ──────────────────────────────
-
-func TestValidate_RenderingTemplatesRequiresNative(t *testing.T) {
-	cfg := mustLoad(t, `
-version: "1"
-versioning:
-  strategy: semver
-changelog:
-  generator: communique
-  config: communique.toml
-rendering:
-  templates:
-    commit: "- {{ .Description }}"
-`)
-	e := findErr(config.Validate(cfg), "rendering.templates")
-	require.NotNil(t, e)
-	assert.Contains(t, e.Message, "native")
-}
 
 func TestValidate_RenderingTemplatesNativeValid(t *testing.T) {
 	cfg := mustLoad(t, `
 version: "1"
 versioning:
   strategy: semver
-changelog:
-  generator: native
 rendering:
   templates:
     commit: "- {{ upperFirst .Description }} ({{ .ShortHash }})"
@@ -869,8 +725,6 @@ func TestValidate_RenderingTemplatesBadSnippet(t *testing.T) {
 version: "1"
 versioning:
   strategy: semver
-changelog:
-  generator: native
 rendering:
   templates:
     commit: "{{ .Description "
@@ -885,8 +739,6 @@ func TestValidate_RenderingTemplatesUnknownBlock(t *testing.T) {
 version: "1"
 versioning:
   strategy: semver
-changelog:
-  generator: native
 rendering:
   templates:
     commits: "- {{ .Description }}"
@@ -902,28 +754,11 @@ func TestValidate_RenderingTemplatesHyphenatedBlockValid(t *testing.T) {
 version: "1"
 versioning:
   strategy: semver
-changelog:
-  generator: native
 rendering:
   templates:
     release-notes: "{{range .Groups}}{{ template \"group\" . }}{{end}}"
 `)
 	assert.Empty(t, config.Validate(cfg))
-}
-
-func TestValidate_DriverTemplateRequiresNative(t *testing.T) {
-	cfg := mustLoad(t, `
-version: "1"
-versioning:
-  strategy: semver
-changelog:
-  generator: communique
-  config: communique.toml
-  template: .config/heraut/changelog.tmpl
-`)
-	e := findErr(config.Validate(cfg), "changelog.template")
-	require.NotNil(t, e)
-	assert.Contains(t, e.Message, "native")
 }
 
 func TestValidate_DriverTemplateFileMissing(t *testing.T) {
@@ -932,53 +767,13 @@ version: "1"
 versioning:
   strategy: semver
 changelog:
-  generator: native
   template: .config/heraut/does-not-exist.tmpl
 `)
 	e := findErr(config.Validate(cfg), "changelog.template")
 	require.NotNil(t, e)
 }
 
-// TestValidate_NativePerEnvAccepted verifies native is now supported under a per-env strategy
-// (T138): the app layer scopes native's tag walk to the env via the derived TagGlob, so the
-// former blanket rejection is gone.
-func TestValidate_NativePerEnvAccepted(t *testing.T) {
-	cfg := mustLoad(t, `
-version: "1"
-versioning:
-  strategy: semver-per-env
-  tag_format: "{env}/{version}"
-environments:
-  dev:
-    branch: develop
-    bump: auto
-  prod:
-    branch: main
-    bump: promote
-    source: dev
-changelog:
-  generator: native
-  output: CHANGELOG.md
-`)
-	assert.Nil(t, findErr(config.Validate(cfg), "changelog.generator"),
-		"native is now supported under a per-env strategy")
-}
-
 // ── tag_pattern ──────────────────────────────────────────────────────────────
-
-func TestValidate_changelogTagPatternRequiresGitCliff(t *testing.T) {
-	cfg := mustLoad(t, `
-version: "1"
-versioning:
-  strategy: semver
-changelog:
-  generator: communique
-  tag_pattern: "v[0-9]*"
-`)
-	e := findErr(config.Validate(cfg), "changelog.tag_pattern")
-	require.NotNil(t, e)
-	assert.Contains(t, e.Message, "git-cliff")
-}
 
 // TestValidate_NativeTagPatternAccepted verifies an explicit tag_pattern is now valid with native
 // (T139), treated as a Go regex.
@@ -988,7 +783,6 @@ version: "1"
 versioning:
   strategy: semver
 changelog:
-  generator: native
   tag_pattern: "^v.*-prod$"
 `)
 	assert.Nil(t, findErr(config.Validate(cfg), "changelog.tag_pattern"),
@@ -1002,97 +796,11 @@ version: "1"
 versioning:
   strategy: semver
 changelog:
-  generator: native
   tag_pattern: "["
 `)
 	e := findErr(config.Validate(cfg), "changelog.tag_pattern")
 	require.NotNil(t, e)
 	assert.Contains(t, e.Message, "invalid regex")
-}
-
-func TestValidate_GeneratorCocogittoRejected(t *testing.T) {
-	cfg := mustLoad(t, `
-version: "1"
-versioning:
-  strategy: semver
-changelog:
-  generator: cocogitto
-`)
-	e := findErr(config.Validate(cfg), "changelog.generator")
-	require.NotNil(t, e)
-	assert.Contains(t, e.Message, "cocogitto")
-	assert.Contains(t, e.Hint, "git-cliff")
-	assert.Contains(t, e.Hint, "communique")
-	assert.NotContains(t, e.Hint, "cocogitto")
-}
-
-func TestValidate_changelogTagPatternGitCliffValid(t *testing.T) {
-	cfg := mustLoad(t, `
-version: "1"
-versioning:
-  strategy: semver
-changelog:
-  generator: git-cliff
-  tag_pattern: "v[0-9]*"
-`)
-	assert.Nil(t, findErr(config.Validate(cfg), "changelog.tag_pattern"))
-}
-
-func TestValidate_releaseNotesTagPatternRequiresGitCliff(t *testing.T) {
-	cfg := mustLoad(t, `
-version: "1"
-versioning:
-  strategy: semver
-release:
-  notes:
-    generator: communique
-    tag_pattern: "v[0-9]*"
-`)
-	e := findErr(config.Validate(cfg), "release.notes.tag_pattern")
-	require.NotNil(t, e)
-	assert.Contains(t, e.Message, "git-cliff")
-}
-
-// A per-env changelog that only sets tag_pattern inherits the top-level git-cliff
-// generator via MergeContentDriver, so the effective driver is valid.
-func TestValidate_perEnvTagPatternInheritsGitCliff(t *testing.T) {
-	cfg := mustLoad(t, `
-version: "1"
-versioning:
-  strategy: semver-per-env
-  tag_format: "{env}/{version}"
-changelog:
-  generator: git-cliff
-environments:
-  prod:
-    bump: auto
-    changelog:
-      tag_pattern: "prod/*"
-`)
-	assert.Nil(t, findErr(config.Validate(cfg), "environments.prod.changelog.tag_pattern"))
-}
-
-// A per-env changelog that switches to a non-git-cliff generator and sets tag_pattern
-// fully replaces the inherited driver (ADR-0019), so the effective generator is the
-// override's — and tag_pattern is rejected.
-func TestValidate_perEnvTagPatternGeneratorSwitchRejected(t *testing.T) {
-	cfg := mustLoad(t, `
-version: "1"
-versioning:
-  strategy: semver-per-env
-  tag_format: "{env}/{version}"
-changelog:
-  generator: git-cliff
-environments:
-  prod:
-    bump: auto
-    changelog:
-      generator: communique
-      tag_pattern: "prod/*"
-`)
-	e := findErr(config.Validate(cfg), "environments.prod.changelog.tag_pattern")
-	require.NotNil(t, e)
-	assert.Contains(t, e.Message, "git-cliff")
 }
 
 // ── commits ──────────────────────────────────────────────────────────────────

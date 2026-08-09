@@ -111,14 +111,12 @@ version: "1"
 versioning:
   strategy: semver
 changelog:
-  generator: git-cliff
   output: CHANGELOG.md
   tag_pattern: "dev/*"
 `
 	cfg, err := config.LoadFromReader(strings.NewReader(src))
 	require.NoError(t, err)
 	require.NotNil(t, cfg.Changelog)
-	assert.Equal(t, "git-cliff", cfg.Changelog.Generator)
 	assert.Equal(t, "CHANGELOG.md", cfg.Changelog.Output)
 	assert.Equal(t, "dev/*", cfg.Changelog.TagPattern)
 }
@@ -138,8 +136,7 @@ forges:
     project: acme/widget
     token_env: GITLAB_TOKEN
 release:
-  notes:
-    generator: git-cliff
+  notes: {}
   targets:
     - forge: gh
       draft: true
@@ -151,7 +148,6 @@ release:
 	require.NoError(t, err)
 	require.NotNil(t, cfg.Release)
 	require.NotNil(t, cfg.Release.Notes)
-	assert.Equal(t, "git-cliff", cfg.Release.Notes.Generator)
 	require.Len(t, cfg.Release.Targets, 2)
 
 	gh := cfg.Release.Targets[0]
@@ -321,7 +317,6 @@ version: "1"
 versioning:
   strategy: semver
 changelog:
-  generator: git-cliff
   output: ""
 `,
 		},
@@ -331,8 +326,7 @@ changelog:
 version: "1"
 versioning:
   strategy: semver
-changelog:
-  generator: git-cliff
+changelog: {}
 `,
 		},
 	}
