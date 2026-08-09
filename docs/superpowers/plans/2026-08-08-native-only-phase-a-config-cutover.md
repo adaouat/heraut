@@ -923,19 +923,38 @@ valid config, not tests being weakened.
   ```
   Both tests assert on the resolved version string and dry-run/no-push messaging, never on changelog
   content — confirmed by the FakeBin `git` script in each test having no `git-cliff` entry at all, so
-  the generator binary was never actually invoked even before this change (`--dry-run` doesn't
-  generate).
+  the generator binary was never actually *invoked* even before this change.
 
-- [ ] **Step 7: Run tests to verify they pass**
+  > **Correction (plan amendment, added mid-execution):** the reasoning above about the binary never
+  > being invoked is correct but incomplete — it doesn't mean the *generator object* is never
+  > constructed. `internal/app/pipeline.go`'s `buildGenerator` runs unconditionally, `--dry-run` or
+  > not, and its `switch driver.Generator` has no case for `""` until Task 3 (T179) adds one. **These
+  > two tests will not pass until Task 3 lands** — this was discovered by Task 2b's own implementer,
+  > who correctly stopped rather than guess a fix in `internal/app` (forbidden for this task) or
+  > commit a suite that wasn't green. **Dispatch/land Task 3 (T179) before Step 7 below**, even though
+  > it appears later in this document — the two tasks' actual dependency runs the opposite direction
+  > from their reading order. Once T179 lands, these two tests need no further edit; they'll simply
+  > pass.
+
+- [ ] **Step 7: Run tests to verify they pass (after Task 3/T179 has landed — see the correction
+  above)**
 
   Run: `go test ./internal/cmd/... 2>&1 | tail -60`
 
-  Expected: PASS. Then run the full suite:
+  Expected: PASS.
 
   Run: `go test ./... 2>&1 | grep -v ^ok`
 
-  Expected: no output (every package passes) — this is the check Task 1's brief asked for and that
-  task's implementer skipped; do not skip it here.
+  Expected: **not fully clean, and that's expected** — Task 1's original brief predicted this check
+  would show nothing, but that was wrong (see the corrections accumulated across T177/T178a's own
+  execution). At this point in the plan, the only remaining failures should be: `internal/scaffold`
+  and `internal/cmd/init_test.go`'s `TestInitCmd_DefaultsProducesValidConfig` (Task 2c/T178c, not yet
+  dispatched), and in `internal/config`: `TestLoad_fromFixtures`, `TestValidate_validFixtures`,
+  `TestLoad_ForgesAndTargets`, and `TestShippedExamples_LoadAndValidate` (all four blocked on Task
+  7/T183's fixture migration — including `internal/config/testdata/forge-minimal.yml`, a
+  **second, package-local copy** of the fixture Task 7's original file list names only once, at
+  `testdata/config/valid/forge-minimal.yml` — see Task 7's own amendment note). If anything else
+  appears, stop and report it rather than assuming it's one of these.
 
 - [ ] **Step 8: Commit**
 
@@ -947,7 +966,10 @@ valid config, not tests being weakened.
   specific behavior can no longer be reached with any valid config
   (both features are removed wholesale in the separate, not-yet-
   written Phase B plan) — deleted. 5 more used generator: as inert
-  filler on tests about something else — stripped the line.
+  filler on tests about something else — stripped the line. Two of
+  those five (the changelog dry-run tests) only pass once T179 lands
+  (buildGenerator didn't yet treat an empty Generator as native) —
+  landed out of reading order for exactly that reason.
 
   Roadmap: docs/tasks/native-generator-roadmap.md -> T178b"
   ```
@@ -1722,6 +1744,10 @@ already-green suite.
 - Modify: `schema.json:317-352` (the `ContentDriver` definition)
 - Modify: `testdata/config/valid/{enrichment-policy,calver,platform-base-url,forge-minimal,semver-per-env,native,rendering-templates,tickets,semver}.yml`
   (9 files — drop every `generator: ...` line)
+- Modify: `internal/config/testdata/forge-minimal.yml` (a **second, package-local copy** of
+  `testdata/config/valid/forge-minimal.yml`, used by `TestLoad_ForgesAndTargets` in
+  `internal/config/loader_forge_test.go` — found by Task 2b, not in this plan's original research;
+  drop the same two `generator:` lines)
 - Modify: `testdata/config/invalid/rendering_unknown_template_block.yml` (drop its `generator: native`
   line so it purely tests the unknown-template-block scenario it's named for)
 - Modify: `internal/config/schema_test.go:73` (relabel the `invalid_generator.yml` reason)
@@ -1842,6 +1868,11 @@ already-green suite.
   After editing each file, re-run `grep -rn "generator:" testdata/config/valid/*.yml` — expect zero
   output.
 
+  Also fix `internal/config/testdata/forge-minimal.yml` — a separate, package-local copy of the file
+  above (not a symlink; a real duplicate with a slightly different header) — remove its two
+  `generator:` lines the same way. Verify with
+  `go test ./internal/config/... -run TestLoad_ForgesAndTargets -v` (PASS).
+
   Also fix `testdata/config/invalid/rendering_unknown_template_block.yml`: remove its
   `  generator: native` line (under `changelog:`), so the fixture purely tests the unknown
   `rendering.templates` block name it's named for, without incidentally also tripping the new
@@ -1898,7 +1929,7 @@ already-green suite.
 - [ ] **Step 6: Commit**
 
   ```bash
-  git add schema.json testdata/config/valid testdata/config/invalid/rendering_unknown_template_block.yml internal/config/schema_test.go
+  git add schema.json testdata/config/valid internal/config/testdata/forge-minimal.yml testdata/config/invalid/rendering_unknown_template_block.yml internal/config/schema_test.go
   git commit -m "feat(schema): drop generator/config from ContentDriver
 
   generator and config are no longer valid ContentDriver properties —
