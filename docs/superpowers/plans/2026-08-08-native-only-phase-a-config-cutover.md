@@ -598,12 +598,16 @@ tests), `testify` (assert/require).
 > `docs/tasks/forge-abstraction-roadmap.md`).
 
 **Files:**
-- Modify: `internal/config/validator_test.go` (~28 test functions — 17 deleted, 11 edited)
+- Modify: `internal/config/validator_test.go` (16 deleted, 11 edited, 1 more row dropped — see
+  Step 4.5)
 - Modify: `internal/config/loader_test.go` (3 test functions edited, 1 verified unchanged)
+- Modify: `internal/config/validator.go` (one line — see Step 4.5; added mid-execution, not the
+  original scope)
 
 **Interfaces:**
 - Consumes: nothing new.
-- Produces: nothing new — pure test-suite repair, no production code touched in this task.
+- Produces: nothing new — mostly test-suite repair; the one production-code line (Step 4.5a) doesn't
+  change any function's signature.
 
 - [ ] **Step 1: Confirm current locations**
 
@@ -713,21 +717,82 @@ tests), `testify` (assert/require).
   already asserts the `changelog.remote` error specifically, which still fires first. Confirm this
   by running it in isolation in Step 5 rather than skipping it.
 
+  **Deviation, discovered during implementation, confirmed correct:** `TestLoadFromReader_withRelease`
+  needs one more line than the brief above states — removing just `generator: git-cliff` leaves a
+  bare `notes:` key (parses to YAML `null`, same pitfall as `DefaultsChangelogOutput`'s "omitted
+  field" case). Apply the same fix: `notes: {}` instead of a bare `notes:` key.
+
+- [ ] **Step 4.5 (plan amendment, added mid-execution): two more fixes this task's own scope
+  surfaced**
+
+  Two of Task 2a's own 30 assigned fixes exposed problems the original plan didn't anticipate.
+  Both are small, both are squarely within (or directly adjacent to and required by) this task's
+  work — fix them here rather than leaving Task 2a red or inventing yet another task letter.
+
+  **(a) `internal/config/validator.go:545` has the same "doesn't treat empty Generator as native"
+  bug Task 1's Step 7 already fixed once, in a sibling check.** After editing
+  `TestValidate_NativeTagPatternInvalidRegex` per Step 3 above (removing `generator: native`, keeping
+  `tag_pattern: "["`), it still fails — `find Err` returns nil where the test expects an invalid-regex
+  error. The cause: the tag_pattern regex-compile check requires `Generator` to be **literally**
+  `"native"`:
+
+  ```go
+  	// With native, tag_pattern is a Go regex applied in-process; validate it compiles.
+  	if d.TagPattern != "" && strings.EqualFold(d.Generator, "native") {
+  ```
+
+  Since `Generator` can now only ever be `""`, this branch is permanently unreachable — tag_pattern
+  regex validation is silently disabled for every config, right now, on `main`. This is the same
+  bug class as the "required" check Task 1's Step 7 fixed (a generator-gate that never learned empty
+  means native), just a sibling check three lines further down that Step 7 didn't touch. It can't
+  wait for T180 for the same reason Step 7 couldn't: it's a live, silent validation gap affecting any
+  real config right now. Fix:
+
+  ```go
+  	// With native, tag_pattern is a Go regex applied in-process; validate it compiles.
+  	if d.TagPattern != "" && (d.Generator == "" || strings.EqualFold(d.Generator, "native")) {
+  ```
+
+  This is the only change to make in `validator.go` — do not touch the enum check or the
+  `tag_pattern`-requires-git-cliff-or-native gate above it; both stay exactly as they are for T180.
+  After this fix, also re-verify `TestValidate_NativeTagPatternAccepted` (the sibling positive-case
+  test) — it was passing before for the wrong reason (the branch was skipped, not because the regex
+  was judged valid); confirm it still passes now that the branch actually runs.
+
+  **(b) `TestValidate_invalidFixtures`'s `invalid_generator.yml` row.** This table-driven test (in
+  `validator_test.go`, not `schema_test.go` — a different test from the one Task 7/T183 relabels)
+  calls `config.Load(tc.fixture)` with `require.NoError(t, err, "fixture should load without parse
+  error")`, then checks a semantic-validation error. Its row for
+  `testdata/config/invalid/invalid_generator.yml` now fails at the `Load` step (removed-key error)
+  before ever reaching `Validate` — the whole scenario the row exercises (a config that loads fine
+  but fails semantic *generator-enum* validation) no longer exists once `generator:` is rejected at
+  load time. Delete that one row from the table (find it via
+  `grep -n "invalid_generator.yml" internal/config/validator_test.go` — it's in a different function
+  from the schema-level test of a similar name). Leave every other row in that table untouched.
+
+  **Explicitly out of scope for this task (confirmed, not overlooked):** `TestLoad_fromFixtures` and
+  `TestValidate_validFixtures` (both in this task's own files) will stay red until Task 7 (T183)
+  migrates the `testdata/config/valid/*.yml` fixtures they load — no code in `validator_test.go` or
+  `loader_test.go` can fix them, only the external fixture files can, and that's T183's job. Do not
+  attempt to fix them here; Step 5 below accounts for this.
+
 - [ ] **Step 5: Run tests to verify they pass**
 
   Run: `go test ./internal/config/... 2>&1 | tail -60`
 
-  Expected: PASS for everything in `validator_test.go` and `loader_test.go`. Remaining failures (if
-  any) are in `merge_test.go` and `schema_test.go` — out of scope for this task, handled by Tasks 6
-  and 7. Confirm the failure count/location matches that expectation before moving on (if
-  `validator_test.go` or `loader_test.go` still has a red test, you missed one of the 30 —
-  re-run `grep -rn "generator:" internal/config/validator_test.go internal/config/loader_test.go`
-  and it should now report zero matches).
+  Expected: every test in `validator_test.go` and `loader_test.go` passes **except**
+  `TestLoad_fromFixtures` and `TestValidate_validFixtures`, which stay red until T183 lands (see
+  Step 4.5) — that's expected, not a miss. Remaining failures outside these two files (in
+  `merge_test.go`, `schema_test.go`, `loader_forge_test.go`, `shipped_examples_test.go`) are out of
+  scope for this task, handled by Tasks 6/7/8. Confirm the failure set matches this expectation
+  before moving on — re-run `grep -rn "generator:" internal/config/validator_test.go
+  internal/config/loader_test.go` and it should report exactly one match (the untouched
+  `TestLoadFromReader_rejectsRemovedRemoteAPIURLKey`).
 
 - [ ] **Step 6: Commit**
 
   ```bash
-  git add internal/config/validator_test.go internal/config/loader_test.go
+  git add internal/config/validator_test.go internal/config/loader_test.go internal/config/validator.go
   git commit -m "test(config): fix collateral damage from the generator:/config: cutover
 
   ~30 existing tests used generator:/config: as inline-YAML filler and
@@ -736,7 +801,16 @@ tests), `testify` (assert/require).
   being removed in this same phase (T180-T182) — one more,
   TestValidate_changelogMissingGenerator, was already handled by
   T177's own Step 7; edited the 11 testing unrelated behavior to drop
-  the now-illegal filler line.
+  the now-illegal filler line; dropped one more row from
+  TestValidate_invalidFixtures whose scenario no longer exists.
+
+  Also fixes a second validator.go generator-gate that never learned
+  empty means native (the tag_pattern regex-compile check) — same bug
+  class as T177's Step 7, silently disabling regex validation for
+  every config until now.
+
+  TestLoad_fromFixtures and TestValidate_validFixtures stay red until
+  T183 migrates their fixtures.
 
   Roadmap: docs/tasks/native-generator-roadmap.md -> T178a"
   ```
@@ -1173,13 +1247,16 @@ the meantime — the minimum fix, not the redesign.
 - Produces: nothing new — `validateContentDriver` keeps its existing signature
   `func(d *ContentDriver, path string) []ValidationError`.
 
-> **Plan amendment (mid-execution):** Task 1's Step 7 (added after Task 1's own review surfaced a
-> commit-hook deadlock — see Task 1's plan text) already removed the "required" half of
-> `validateContentDriver`'s generator check, ahead of schedule, because it could not wait. The
-> "before" code block below reflects that: it is `validateContentDriver`'s state **after** Task 1's
-> Step 7, not its original pre-Task-1 state. This task now only removes the *enum* check
-> (`validGenerators`) and the `tag_pattern` git-cliff/native gate — a smaller diff than originally
-> planned.
+> **Plan amendment (mid-execution):** Two earlier tasks each removed one more piece of
+> `validateContentDriver` ahead of schedule, because each could not wait (a real, live bug/deadlock,
+> not a preference): Task 1's Step 7 removed the "required" check (fixing a commit-hook deadlock),
+> and Task 2a's Step 4.5a fixed the `tag_pattern` regex-compile check's own instance of the same
+> "doesn't treat empty Generator as native" bug (it was silently disabling regex validation for every
+> config). The "before" code block below reflects `validateContentDriver`'s state **after both**
+> fixes, not its original pre-Task-1 state. This task now only removes the *enum* check
+> (`validGenerators`) and the `tag_pattern` git-cliff/native **gate** (the first `tag_pattern` `if`
+> block, which restricts which generators may use it at all — a different check from the
+> regex-compile one Task 2a already fixed) — a smaller diff than originally planned.
 
 Task 2a already deleted every test whose assertion depended on this behavior
 (`TestValidate_changelogInvalidGenerator`, `TestValidate_releaseNotesInvalidGenerator`,
@@ -1228,7 +1305,7 @@ the end, not by a new RED/GREEN pair.
   		})
   	}
   	// With native, tag_pattern is a Go regex applied in-process; validate it compiles.
-  	if d.TagPattern != "" && strings.EqualFold(d.Generator, "native") {
+  	if d.TagPattern != "" && (d.Generator == "" || strings.EqualFold(d.Generator, "native")) {
   		if _, err := regexp.Compile(d.TagPattern); err != nil {
   			errs = append(errs, ValidationError{
   				Path:    path + ".tag_pattern",
@@ -1794,8 +1871,15 @@ already-green suite.
 
   Run: `go test ./internal/config/... 2>&1 | tail -40`
 
-  Expected: full `internal/config` package PASSES — this is the last task touching this package in
-  Phase A, so confirm zero failures, not just fewer.
+  Expected: full `internal/config` package PASSES, **including** `TestLoad_fromFixtures` and
+  `TestValidate_validFixtures` (in `loader_test.go`/`validator_test.go` respectively) — Task 2a left
+  those two red deliberately, since only this task's fixture migration (Step 3) can fix them; they
+  should self-resolve here with no test-code changes. Also confirm `TestLoad_ForgesAndTargets`
+  (`internal/config/loader_forge_test.go`, not otherwise touched by this plan) now passes — it loads
+  `testdata/config/valid/forge-minimal.yml`, already in this task's Step 3 migration list.
+
+  This is the last task touching `internal/config` in Phase A, so confirm zero failures in that
+  package, not just fewer.
 
   Run: `go build ./... 2>&1`
 
@@ -1804,9 +1888,12 @@ already-green suite.
 
   Run: `go test ./... 2>&1 | tail -40`
 
-  Expected: full repo test suite PASSES. If anything outside `internal/config`/`internal/app` still
-  fails, it's a fixture this plan's research didn't find — grep the failure's package for
-  `generator:`/`.Generator` usage and apply the same fix pattern.
+  Expected: full repo test suite PASSES, **except** `internal/config/shipped_examples_test.go`'s
+  `TestShippedExamples_LoadAndValidate` — its `docs/heraut.sample.yml` subtest self-resolves once
+  Task 8 (T184) lands, and its `README.md` subtest needs Task 8's own new step (README.md wasn't in
+  this plan at all until that step was added — see Task 8). If anything else outside
+  `internal/config`/`internal/app` still fails, it's a fixture this plan's research didn't find —
+  grep the failure's package for `generator:`/`.Generator` usage and apply the same fix pattern.
 
 - [ ] **Step 6: Commit**
 
@@ -1828,6 +1915,7 @@ already-green suite.
 
 **Files:**
 - Modify: `docs/heraut.sample.yml` (four locations)
+- Modify: `README.md` (two locations — see Step 2.5; added mid-execution, not the original scope)
 
 **Interfaces:**
 - Consumes: nothing.
@@ -1944,6 +2032,28 @@ already-green suite.
 
   Expected after the edits above: no output.
 
+- [ ] **Step 2.5 (plan amendment, added mid-execution): `README.md` also needs fixing**
+
+  Discovered during Task 2a: `internal/config/shipped_examples_test.go`'s
+  `TestShippedExamples_LoadAndValidate` extracts every full (`version:`-containing) fenced ` ```yaml `
+  block from `README.md` and round-trips it through `config.LoadFromReader` + `config.Validate`. No
+  task in this plan's original scope touched `README.md` at all, even though it has the identical
+  problem `docs/heraut.sample.yml` had.
+
+  In `README.md`, find the full example config block (`grep -n "generator:" README.md` — expect two
+  hits inside a fenced yaml block, plus two more in a prose comparison table further down that are
+  NOT inside a loadable block and don't need to change here — confirm which is which before editing;
+  the table is prose describing generator choice, in scope for Phase B's docs pass alongside specs
+  02/05, not this task).
+
+  In the fenced yaml block, remove the `generator: git-cliff` line under `changelog:` and the
+  `generator: git-cliff` line under `release: notes:` (leave `output: CHANGELOG.md` and everything
+  else in the block untouched).
+
+  Verify: `go test ./internal/config/... -run TestShippedExamples_LoadAndValidate -v` — expect PASS
+  (both the `docs/heraut.sample.yml` subtest, fixed by Step 2 above, and every `README.md` block
+  subtest).
+
 - [ ] **Step 3: Run the full suite one last time to close out Phase A**
 
   Run: `go test ./... 2>&1 | tail -40`
@@ -1956,15 +2066,21 @@ already-green suite.
 
 - [ ] **Step 4: Update the roadmap — close out Phase 2.5's config-cutover tasks**
 
-  In `docs/tasks/native-generator-roadmap.md`, flip all eight task checkboxes from Task 1's
-  skeleton (`#### [ ] T177: ...` through `#### [ ] T184: ...`) to `[x]`, and add one consolidated
-  completion note after the last one (`T184`), summarizing: the `ErrRemovedConfigKey` extension
-  (T177), the ~30-test collateral-damage sweep and why it was needed (T178), the
-  `buildGenerator`/`usesNative` compatibility shim and why it's temporary (T179), the
-  validator/merge cleanup and which functions were deleted (T180-T182), the schema + 9+1 fixture
-  migration (T183), the sample.yml pass (T184), and explicitly note that Phase B (package deletion,
-  `heraut cliff` removal, `docs/specs/02`'s "Content generators" section + `docs/specs/05` rewrite)
-  is a separate, not-yet-started plan.
+  In `docs/tasks/native-generator-roadmap.md`, flip all remaining task checkboxes (`T178a`/`T178b`/
+  `T178c` and `T179` through `T184`; `T177` is already `[x]` with its own note) to `[x]`, and add one
+  consolidated completion note after the last one (`T184`), summarizing: the `ErrRemovedConfigKey`
+  extension and the validator "required"-check fix forced together by the commit-hook deadlock
+  (T177); the three-way collateral-damage split and why (T178a `internal/config` — including a
+  second validator.go generator-gate bug found and fixed along the way, and a dropped
+  `TestValidate_invalidFixtures` row; T178b `internal/cmd`; T178c `internal/scaffold`, a real
+  product regression in `heraut init`, not just tests); the `buildGenerator`/`usesNative`
+  compatibility shim and why it's temporary (T179); the validator/merge cleanup and which functions
+  were deleted (T180-T182); the schema + fixture migration, including the extra fixes this plan's
+  original research missed — `internal/config/loader_forge_test.go`'s `TestLoad_ForgesAndTargets`
+  self-resolving via the same fixture list (T183); the sample.yml **and README.md** pass, README
+  having no owning task until Task 2a found it (T184). Explicitly note that Phase B (package
+  deletion, `heraut cliff` removal, `docs/specs/02`'s "Content generators" section + `docs/specs/05`
+  rewrite) is a separate, not-yet-started plan.
 
   Also update the progress table row — e.g.
   `| Phase 2.5 — remove the git-cliff package (own ADR) | T177–T184 | Config cutover complete; package deletion pending |`.
@@ -1972,11 +2088,14 @@ already-green suite.
 - [ ] **Step 5: Commit**
 
   ```bash
-  git add docs/heraut.sample.yml docs/tasks/native-generator-roadmap.md
-  git commit -m "docs(sample): drop generator:/config: from heraut.sample.yml
+  git add docs/heraut.sample.yml README.md docs/tasks/native-generator-roadmap.md
+  git commit -m "docs(sample): drop generator:/config: from heraut.sample.yml and README
 
   Closes out Phase A (config cutover) of the native-only-generator
-  epic: native is implicit everywhere in the sample config now.
+  epic: native is implicit everywhere in the sample config and the
+  README's example now. The README half was missing from this plan's
+  original scope — found by Task 2a via
+  TestShippedExamples_LoadAndValidate.
 
   Roadmap: docs/tasks/native-generator-roadmap.md -> T184"
   ```
