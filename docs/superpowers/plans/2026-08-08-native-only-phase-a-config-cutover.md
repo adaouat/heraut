@@ -991,6 +991,8 @@ valid config, not tests being weakened.
 **Files:**
 - Modify: `internal/config/config.go` (one yaml tag)
 - Modify: `internal/scaffold/generate.go` (drop 2 field assignments)
+- Modify: `internal/scaffold/generate_test.go` (one test, swap its passthrough-field example — see
+  Step 2.5; added mid-execution, not the original scope)
 
 **Interfaces:**
 - Consumes: nothing new.
@@ -1092,25 +1094,85 @@ the meantime — the minimum fix, not the redesign.
   at all (a real, still-meaningful choice: "do you want a changelog"), just no longer which generator
   string ends up inside it.
 
+- [ ] **Step 2.5 (plan amendment, added mid-execution): one test doesn't self-resolve**
+
+  10 of the 11 originally-failing tests self-resolve with zero test-file changes, as predicted. One
+  doesn't: `TestGenerateYAML_EnvPassthroughFieldsRoundTrip`
+  (`internal/scaffold/generate_test.go:338-359`) constructs a per-environment `EnvAnswer.Changelog`/
+  `.Release` **directly** (not via the wizard), deliberately populating `Generator: "git-cliff"` /
+  `Generator: "communique"` as its example of a field that should survive
+  `answersToConfig`'s per-env passthrough (`internal/scaffold/generate.go`'s `Changelog: e.Changelog,
+  Release: e.Release` — copied verbatim, unlike the two top-level literals Step 2 above touches).
+  Since `Generator` specifically can no longer round-trip by design (that's this whole task's point),
+  the test's choice of *which* field to use as its passthrough example is now wrong — not the
+  passthrough mechanism itself, which still works correctly for every other field.
+
+  Confirmed this path is unreachable from real `heraut init` usage: every production caller of
+  `EnvAnswer.Changelog`/`.Release` (`wizard.ConfigToAnswers`, `wizard.matchEnvSnapshot`) only ever
+  copies from a `*config.Config` that already passed `config.Load` — and since `config.Load` rejects
+  `generator:` at every nesting level including per-env (T177), no such config can ever carry a
+  non-empty `Generator` anywhere. Only a test that constructs the struct directly, bypassing `Load`,
+  can hit this. **Do not change the production fix (Step 2) to also strip `Generator` from the
+  per-env passthrough** — that would be defense-in-depth for a path this trace confirms is dead, not
+  a fix for a live bug, and would touch a third file this task doesn't otherwise need.
+
+  Fix the test itself instead — swap its passthrough-field example from `Generator` to `TagPattern`
+  (a field that, unlike `Generator`, is still meaningful and still round-trips):
+
+  ```go
+  			Changelog: &config.ContentDriver{Generator: "git-cliff", Output: "CHANGELOG.md"},
+  			Release:   &config.EnvRelease{Notes: &config.ContentDriver{Generator: "communique"}},
+  ```
+
+  becomes:
+
+  ```go
+  			Changelog: &config.ContentDriver{TagPattern: "prod/changelog/*", Output: "CHANGELOG.md"},
+  			Release:   &config.EnvRelease{Notes: &config.ContentDriver{TagPattern: "prod/notes/*"}},
+  ```
+
+  and:
+
+  ```go
+  	assert.Equal(t, "git-cliff", prod.Changelog.Generator)
+  	require.NotNil(t, prod.Release)
+  	assert.Equal(t, "communique", prod.Release.Notes.Generator)
+  ```
+
+  becomes:
+
+  ```go
+  	assert.Equal(t, "prod/changelog/*", prod.Changelog.TagPattern)
+  	require.NotNil(t, prod.Release)
+  	assert.Equal(t, "prod/notes/*", prod.Release.Notes.TagPattern)
+  ```
+
+  The test's actual purpose (proving per-env `Changelog`/`Release` fields survive the
+  generate-then-reload round trip verbatim) is unchanged — only the specific field used to prove it.
+
 - [ ] **Step 3: Run tests to verify they pass**
 
   Run: `go test ./internal/scaffold/... -v 2>&1 | tail -20`
 
-  Expected: all 11 previously-failing tests PASS now, with no test-file changes. If any test still
-  fails, read its specific assertion — it means this task's research missed a case where the test
-  asserts something beyond round-trip success (e.g. a literal string check), and that one test needs
-  its assertion updated to match the new output, following the same "only touch what actually
-  changed" principle as 2a/2b.
+  Expected: all 11 previously-failing tests PASS now — 10 self-resolved by Step 2, 1
+  (`TestGenerateYAML_EnvPassthroughFieldsRoundTrip`) by Step 2.5. If any *other* test still fails,
+  read its specific assertion — it means this task's research missed another case, and that one test
+  needs its assertion updated too, following the same "only touch what actually changed" principle.
 
   Run: `go test ./... 2>&1 | grep -v ^ok`
 
-  Expected: only the known-pending `internal/config` (Task 2a) and `internal/cmd` (Task 2b) failures
-  remain — `internal/scaffold` is fully green.
+  Expected: only the known-pending `internal/config` (Task 2a — but see the note below) and
+  `internal/cmd` (Task 2b) failures remain — `internal/scaffold` is fully green. By this point in
+  execution, Tasks 2a and 2b may have already landed and left a *smaller*, specific residual set
+  (`TestLoad_fromFixtures`, `TestValidate_validFixtures`, `TestLoad_ForgesAndTargets`,
+  `TestShippedExamples_LoadAndValidate` — all blocked on Task 7/8's fixture and doc migration) rather
+  than the full original ~47-test count; either way, confirm `internal/scaffold` itself shows zero
+  failures and nothing appears outside the already-tracked set.
 
 - [ ] **Step 4: Commit**
 
   ```bash
-  git add internal/config/config.go internal/scaffold/generate.go
+  git add internal/config/config.go internal/scaffold/generate.go internal/scaffold/generate_test.go
   git commit -m "fix(scaffold): stop heraut init from generating unloadable configs
 
   answersToConfig unconditionally wrote generator: <choice> into the
@@ -1122,6 +1184,12 @@ the meantime — the minimum fix, not the redesign.
   is untouched (Phase C removes it properly). Also added omitempty to
   ContentDriver.Generator's yaml tag, matching .Config's existing tag,
   so no future struct-marshal path can reintroduce this class of bug.
+
+  TestGenerateYAML_EnvPassthroughFieldsRoundTrip used Generator as its
+  example of a per-env passthrough field, which no longer round-trips
+  by design — swapped to TagPattern; confirmed the path it exercised
+  (populating per-env Generator directly, bypassing config.Load) is
+  unreachable from any real heraut init flow.
 
   Roadmap: docs/tasks/native-generator-roadmap.md -> T178c"
   ```
