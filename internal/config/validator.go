@@ -15,9 +15,6 @@ var (
 		"semver": true, "calver": true,
 		"semver-per-env": true, "calver-per-env": true,
 	}
-	validGenerators = map[string]bool{
-		"native": true, "git-cliff": true, "communique": true,
-	}
 	validForgePlatforms = map[string]bool{
 		"github": true, "gitlab": true, "azure_devops": true,
 	}
@@ -523,31 +520,14 @@ func validateContentDriver(d *ContentDriver, path string) []ValidationError {
 		return nil
 	}
 	var errs []ValidationError
-	// Empty is valid — native is implicit (T177). Only a present-but-unknown value errors;
-	// validGenerators and this whole branch are fully removed in T180, once nothing can ever
-	// set Generator to a non-empty value at all.
-	if d.Generator != "" && !validGenerators[d.Generator] {
-		errs = append(errs, ValidationError{
-			Path:    path + ".generator",
-			Message: fmt.Sprintf("%q is not a valid generator", d.Generator),
-			Hint:    "valid generators: native, git-cliff, communique",
-		})
-	}
-	if d.TagPattern != "" && d.Generator != "" &&
-		!strings.EqualFold(d.Generator, "git-cliff") && !strings.EqualFold(d.Generator, "native") {
-		errs = append(errs, ValidationError{
-			Path:    path + ".tag_pattern",
-			Message: "tag_pattern requires the git-cliff or native generator",
-			Hint:    fmt.Sprintf("set generator to git-cliff or native, or remove tag_pattern (current generator: %s)", d.Generator),
-		})
-	}
-	// With native, tag_pattern is a Go regex applied in-process; validate it compiles.
-	if d.TagPattern != "" && (d.Generator == "" || strings.EqualFold(d.Generator, "native")) {
+	// tag_pattern is a Go regex applied in-process by the (only) generator, native; validate it
+	// compiles. No generator gate needed — native is the only generator (T177/T180).
+	if d.TagPattern != "" {
 		if _, err := regexp.Compile(d.TagPattern); err != nil {
 			errs = append(errs, ValidationError{
 				Path:    path + ".tag_pattern",
 				Message: fmt.Sprintf("invalid regex: %v", err),
-				Hint:    "with generator: native, tag_pattern is a Go regex (e.g. ^v.*-prod$)",
+				Hint:    "tag_pattern is a Go regex (e.g. ^v.*-prod$)",
 			})
 		}
 	}
