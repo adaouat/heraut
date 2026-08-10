@@ -473,7 +473,10 @@ func buildGenerator(runner port.Runner, driver *config.ContentDriver, defaultMod
 		return gitcliff.New(runner, driver, defaultMode), nil
 	case "communique":
 		return communique.New(runner, driver), nil
-	case "native":
+	case "", "native":
+		// Empty is the only value Generator ever takes once generator: is a removed key
+		// (T177) — git-cliff/communique below are unreachable in practice but kept until
+		// Phase B deletes their packages and this whole switch collapses to native only.
 		// Copy so setting the running version never mutates the shared config.
 		nativeDriver := *driver
 		nativeDriver.HerautVersion = herautVersion
@@ -493,10 +496,13 @@ func buildGenerator(runner port.Runner, driver *config.ContentDriver, defaultMod
 }
 
 // usesNative reports whether either content driver is configured for the native generator —
-// the forge is only consumed there (gitcliff/communique dispatch remotes themselves).
+// the forge is only consumed there (gitcliff/communique dispatch remotes themselves). Empty
+// counts as native (T179): generator: is a removed key (T177), so every driver that loads has
+// Generator == "" — the empty check will become the only check once Phase B removes the
+// git-cliff/communique cases from buildGenerator.
 func usesNative(drivers ...*config.ContentDriver) bool {
 	for _, d := range drivers {
-		if d != nil && d.Generator == "native" {
+		if d != nil && (d.Generator == "" || d.Generator == "native") {
 			return true
 		}
 	}

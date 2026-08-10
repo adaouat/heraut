@@ -21,6 +21,7 @@ func TestUsesNative(t *testing.T) {
 		{name: "nil driver only", drivers: []*config.ContentDriver{nil}, want: false},
 		{name: "git-cliff only", drivers: []*config.ContentDriver{{Generator: "git-cliff"}}, want: false},
 		{name: "native changelog", drivers: []*config.ContentDriver{{Generator: "native"}, nil}, want: true},
+		{name: "empty generator counts as native (T179)", drivers: []*config.ContentDriver{{}}, want: true},
 		{name: "native notes among others", drivers: []*config.ContentDriver{{Generator: "git-cliff"}, {Generator: "native"}}, want: true},
 	}
 	for _, tc := range tests {

@@ -52,6 +52,18 @@ func TestBuildPipeline_WithCommunique(t *testing.T) {
 	assert.NotNil(t, p)
 }
 
+// TestBuildPipeline_EmptyGeneratorBuildsNative pins T179: once generator: is a removed key
+// (T177), every ContentDriver that loads has Generator == "" — this must build a native
+// generator, not fail with "unsupported generator".
+func TestBuildPipeline_EmptyGeneratorBuildsNative(t *testing.T) {
+	mr := exectest.NewMockRunner()
+	cfg := semverCfg()
+	cfg.Changelog = &config.ContentDriver{Output: "CHANGELOG.md"} // no Generator set
+	p, err := app.BuildPipeline(mr, cfg, defaultResolver, defaultOpts)
+	require.NoError(t, err)
+	assert.NotNil(t, p)
+}
+
 func TestBuildPipeline_CocogittoNoLongerSupported(t *testing.T) {
 	mr := exectest.NewMockRunner()
 	cfg := semverCfg()
