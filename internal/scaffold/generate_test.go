@@ -342,8 +342,8 @@ func TestGenerateYAML_EnvPassthroughFieldsRoundTrip(t *testing.T) {
 			{
 				Name:      "prod",
 				Bump:      "auto",
-				Changelog: &config.ContentDriver{Generator: "git-cliff", Output: "CHANGELOG.md"},
-				Release:   &config.EnvRelease{Notes: &config.ContentDriver{Generator: "communique"}},
+				Changelog: &config.ContentDriver{TagPattern: "prod/changelog/*", Output: "CHANGELOG.md"},
+				Release:   &config.EnvRelease{Notes: &config.ContentDriver{TagPattern: "prod/notes/*"}},
 			},
 		},
 	}
@@ -353,9 +353,9 @@ func TestGenerateYAML_EnvPassthroughFieldsRoundTrip(t *testing.T) {
 	require.NoError(t, err)
 	prod := cfg.Environments["prod"]
 	require.NotNil(t, prod.Changelog)
-	assert.Equal(t, "git-cliff", prod.Changelog.Generator)
+	assert.Equal(t, "prod/changelog/*", prod.Changelog.TagPattern)
 	require.NotNil(t, prod.Release)
-	assert.Equal(t, "communique", prod.Release.Notes.Generator)
+	assert.Equal(t, "prod/notes/*", prod.Release.Notes.TagPattern)
 }
 
 func TestConfigToAnswers_DefaultsEmptyChangelogOutput(t *testing.T) {

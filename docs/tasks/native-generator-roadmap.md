@@ -987,6 +987,8 @@ neither fires on an absent generator, only a present-but-invalid one.
 
 #### `[ ]` T178b: fix collateral test damage from T177 (`internal/cmd`)
 
+#### `[ ]` T178c: fix heraut init — it now generates configs it can't load (`internal/scaffold`)
+
 #### `[ ]` T179: empty `Generator` builds native end-to-end
 
 #### `[ ]` T180: validator — drop generator-required/enum + tag_pattern generator gate

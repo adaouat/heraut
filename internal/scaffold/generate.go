@@ -85,8 +85,7 @@ func answersToConfig(a Answers) config.Config {
 			output = "CHANGELOG.md"
 		}
 		cfg.Changelog = &config.ContentDriver{
-			Generator: a.ChangelogGenerator,
-			Output:    output,
+			Output: output,
 		}
 	}
 
@@ -96,9 +95,7 @@ func answersToConfig(a Answers) config.Config {
 	if hasNotes || hasPlatforms || hasAssets {
 		cfg.Release = &config.Release{Assets: a.Assets}
 		if hasNotes {
-			cfg.Release.Notes = &config.ContentDriver{
-				Generator: a.NotesGenerator,
-			}
+			cfg.Release.Notes = &config.ContentDriver{}
 		}
 		platformTypeCount := make(map[string]int)
 		for _, p := range a.Platforms {
