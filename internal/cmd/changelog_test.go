@@ -102,7 +102,6 @@ versioning:
   strategy: semver
   tag_prefix: "v"
 changelog:
-  generator: git-cliff
   output: CHANGELOG.md
 `)
 	exectest.FakeBin(t, "git", `#!/bin/sh
@@ -125,7 +124,6 @@ versioning:
   strategy: semver
   tag_prefix: "v"
 changelog:
-  generator: git-cliff
   output: CHANGELOG.md
 `)
 	exectest.FakeBin(t, "git", `#!/bin/sh

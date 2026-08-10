@@ -128,7 +128,6 @@ versioning:
   strategy: semver
   tag_prefix: "v"
 changelog:
-  generator: git-cliff
   output: CHANGELOG.md
 `)
 	dir := t.TempDir()

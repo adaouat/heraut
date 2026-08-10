@@ -138,7 +138,6 @@ version: "1"
 versioning:
   strategy: semver
 changelog:
-  generator: git-cliff
 forges:
   - name: github
     platform: github
@@ -176,30 +175,6 @@ versioning:
   strategy: semver
 `)
 	exectest.FakeBin(t, "git", `#!/bin/sh
-exit 127
-`)
-
-	_, err := executeRoot("check", "runtime", "--config", cfgPath)
-	require.Error(t, err)
-}
-
-func TestCheckRuntime_GeneratorMissing(t *testing.T) {
-	cfgPath := writeConfig(t, `
-version: "1"
-versioning:
-  strategy: semver
-changelog:
-  generator: git-cliff
-`)
-	exectest.FakeBin(t, "git", `#!/bin/sh
-case "$*" in
-  "--version") echo "git version 2.x" ;;
-  "config user.name") echo "John Doe" ;;
-  "config user.email") echo "john@example.com" ;;
-  *) exit 0 ;;
-esac
-`)
-	exectest.FakeBin(t, "git-cliff", `#!/bin/sh
 exit 127
 `)
 
@@ -247,58 +222,6 @@ esac
 
 // ---- check cliff ----
 
-func TestCheckCliffChangelog_Valid(t *testing.T) {
-	cfgPath := writeConfig(t, `
-version: "1"
-versioning:
-  strategy: semver
-changelog:
-  generator: git-cliff
-`)
-	exectest.FakeBin(t, "git-cliff", `#!/bin/sh
-echo "git-cliff 2.7.0"
-exit 0
-`)
-
-	out, err := executeRoot("check", "cliff", "changelog", "--config", cfgPath)
-	require.NoError(t, err)
-	assert.Contains(t, out, "valid")
-}
-
-func TestCheckCliffChangelog_Invalid(t *testing.T) {
-	cfgPath := writeConfig(t, `
-version: "1"
-versioning:
-  strategy: semver
-changelog:
-  generator: git-cliff
-`)
-	exectest.FakeBin(t, "git-cliff", `#!/bin/sh
-case "$1" in
-  "--version") echo "git-cliff 2.7.0" ;;
-  "--context") echo "error: invalid config" >&2; exit 1 ;;
-  *) exit 0 ;;
-esac
-`)
-
-	_, err := executeRoot("check", "cliff", "changelog", "--config", cfgPath)
-	require.Error(t, err)
-}
-
-func TestCheckCliffChangelog_NotGitCliff(t *testing.T) {
-	cfgPath := writeConfig(t, `
-version: "1"
-versioning:
-  strategy: semver
-changelog:
-  generator: communique
-  config: myconfig.yaml
-`)
-	out, err := executeRoot("check", "cliff", "changelog", "--config", cfgPath)
-	require.NoError(t, err)
-	assert.Contains(t, out, "skip")
-}
-
 // ---- check cliff (bare) ----
 
 func TestCheckCliff_ConfigNotFound(t *testing.T) {
@@ -315,42 +238,6 @@ versioning:
 	out, err := executeRoot("check", "cliff", "--config", cfgPath)
 	require.NoError(t, err)
 	assert.Contains(t, out, "no git-cliff generators configured")
-}
-
-func TestCheckCliff_WithChangelog_Valid(t *testing.T) {
-	cfgPath := writeConfig(t, `
-version: "1"
-versioning:
-  strategy: semver
-changelog:
-  generator: git-cliff
-`)
-	exectest.FakeBin(t, "git-cliff", `#!/bin/sh
-echo "git-cliff 2.7.0"
-exit 0
-`)
-	out, err := executeRoot("check", "cliff", "--config", cfgPath)
-	require.NoError(t, err)
-	assert.Contains(t, out, "valid")
-}
-
-func TestCheckCliff_WithChangelog_Invalid(t *testing.T) {
-	cfgPath := writeConfig(t, `
-version: "1"
-versioning:
-  strategy: semver
-changelog:
-  generator: git-cliff
-`)
-	exectest.FakeBin(t, "git-cliff", `#!/bin/sh
-case "$1" in
-  "--version") echo "git-cliff 2.7.0" ;;
-  "--context") echo "error: bad config" >&2; exit 1 ;;
-  *) exit 0 ;;
-esac
-`)
-	_, err := executeRoot("check", "cliff", "--config", cfgPath)
-	require.Error(t, err)
 }
 
 // ---- check cliff release-notes ----
@@ -371,44 +258,6 @@ versioning:
 	assert.Contains(t, out, "skip")
 }
 
-func TestCheckCliffReleaseNotes_Valid(t *testing.T) {
-	cfgPath := writeConfig(t, `
-version: "1"
-versioning:
-  strategy: semver
-release:
-  notes:
-    generator: git-cliff
-`)
-	exectest.FakeBin(t, "git-cliff", `#!/bin/sh
-echo "git-cliff 2.7.0"
-exit 0
-`)
-	out, err := executeRoot("check", "cliff", "release-notes", "--config", cfgPath)
-	require.NoError(t, err)
-	assert.Contains(t, out, "valid")
-}
-
-func TestCheckCliffReleaseNotes_Invalid(t *testing.T) {
-	cfgPath := writeConfig(t, `
-version: "1"
-versioning:
-  strategy: semver
-release:
-  notes:
-    generator: git-cliff
-`)
-	exectest.FakeBin(t, "git-cliff", `#!/bin/sh
-case "$1" in
-  "--version") echo "git-cliff 2.7.0" ;;
-  "--context") echo "error: bad config" >&2; exit 1 ;;
-  *) exit 0 ;;
-esac
-`)
-	_, err := executeRoot("check", "cliff", "release-notes", "--config", cfgPath)
-	require.Error(t, err)
-}
-
 // ---- check (bare) ----
 
 func TestCheckAll_PassesAll(t *testing.T) {
@@ -418,7 +267,6 @@ version: "1"
 versioning:
   strategy: semver
 changelog:
-  generator: git-cliff
 `)
 	exectest.FakeBin(t, "git", `#!/bin/sh
 case "$*" in
