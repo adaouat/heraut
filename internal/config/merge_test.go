@@ -23,35 +23,26 @@ func TestMergeContentDriver(t *testing.T) {
 
 	t.Run("partial override inherits unset fields", func(t *testing.T) {
 		base := &config.ContentDriver{Generator: "git-cliff", Output: "CHANGELOG.md"}
-		ovr := &config.ContentDriver{Config: "cliff.prod.toml"}
+		ovr := &config.ContentDriver{TagPattern: "v{version}"}
 		got := config.MergeContentDriver(base, ovr)
 		assert.Equal(t, "git-cliff", got.Generator, "generator inherited")
 		assert.Equal(t, "CHANGELOG.md", got.Output, "output inherited")
-		assert.Equal(t, "cliff.prod.toml", got.Config, "config overridden")
+		assert.Equal(t, "v{version}", got.TagPattern, "tag pattern overridden")
 	})
 
 	t.Run("same generator merges fields", func(t *testing.T) {
-		base := &config.ContentDriver{Generator: "git-cliff", Config: "a.toml", Output: "OUT.md"}
-		ovr := &config.ContentDriver{Generator: "git-cliff", Config: "b.toml"}
+		base := &config.ContentDriver{Generator: "git-cliff", Template: "a.tmpl", Output: "OUT.md"}
+		ovr := &config.ContentDriver{Generator: "git-cliff", Template: "b.tmpl"}
 		got := config.MergeContentDriver(base, ovr)
-		assert.Equal(t, "b.toml", got.Config)
+		assert.Equal(t, "b.tmpl", got.Template)
 		assert.Equal(t, "OUT.md", got.Output, "inherited")
 	})
 
-	t.Run("different generator is full replace", func(t *testing.T) {
-		base := &config.ContentDriver{Generator: "git-cliff", Config: "cliff.toml", Output: "OUT.md"}
-		ovr := &config.ContentDriver{Generator: "communique", Config: "comm.yaml"}
-		got := config.MergeContentDriver(base, ovr)
-		assert.Equal(t, "communique", got.Generator)
-		assert.Equal(t, "comm.yaml", got.Config)
-		assert.Empty(t, got.Output, "must NOT inherit git-cliff output when switching generator")
-	})
-
 	t.Run("override every field", func(t *testing.T) {
-		base := &config.ContentDriver{Generator: "git-cliff", Config: "a", Output: "o", TagPattern: "p", Template: "t"}
-		ovr := &config.ContentDriver{Generator: "git-cliff", Config: "A", Output: "O", TagPattern: "P", Template: "T"}
+		base := &config.ContentDriver{Generator: "git-cliff", Output: "o", TagPattern: "p", Template: "t"}
+		ovr := &config.ContentDriver{Generator: "git-cliff", Output: "O", TagPattern: "P", Template: "T"}
 		got := config.MergeContentDriver(base, ovr)
-		assert.Equal(t, &config.ContentDriver{Generator: "git-cliff", Config: "A", Output: "O", TagPattern: "P", Template: "T"}, got)
+		assert.Equal(t, &config.ContentDriver{Generator: "git-cliff", Output: "O", TagPattern: "P", Template: "T"}, got)
 	})
 
 	t.Run("does not mutate base or override", func(t *testing.T) {
