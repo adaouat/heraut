@@ -48,21 +48,14 @@ func Validate(cfg *Config) ValidationErrors {
 	return errs
 }
 
-// validateTickets checks the ticket-link config: each pattern compiles as a regex, each url
-// is an absolute http(s) URL containing {ticket}, and tickets require the git-cliff generator.
+// validateTickets checks the ticket-link config: each pattern compiles as a regex, and each url
+// is an absolute http(s) URL containing {ticket}.
 func validateTickets(cfg *Config) []ValidationError {
 	tickets := cfg.Tickets()
 	if len(tickets) == 0 {
 		return nil
 	}
 	var errs []ValidationError
-	if !ticketsGeneratorSupported(cfg) {
-		errs = append(errs, ValidationError{
-			Path:    "commits.tickets",
-			Message: "ticket linking requires the git-cliff or native generator",
-			Hint:    "set changelog.generator / release.notes.generator to git-cliff or native, or remove tickets",
-		})
-	}
 	for i, t := range tickets {
 		base := fmt.Sprintf("commits.tickets[%d]", i)
 		if t.Pattern == "" {
@@ -360,31 +353,8 @@ func validateRendering(cfg *Config) []ValidationError {
 			}
 		}
 	}
-	if len(cfg.Rendering.Templates) > 0 && !allContentGeneratorsNative(cfg) {
-		errs = append(errs, ValidationError{
-			Path:    "rendering.templates",
-			Message: "rendering.templates requires the native generator",
-			Hint:    "set changelog.generator / release.notes.generator to native, or remove rendering.templates",
-		})
-	}
 	errs = append(errs, validateTemplateSnippets(cfg.Rendering.Templates, "rendering.templates")...)
 	return errs
-}
-
-// allContentGeneratorsNative reports whether every configured content generator is native
-// (the only generator whose output is driven by rendering.templates / the template file).
-// An empty generator (inherits the default) is allowed.
-func allContentGeneratorsNative(cfg *Config) bool {
-	drivers := []*ContentDriver{cfg.Changelog}
-	if cfg.Release != nil {
-		drivers = append(drivers, cfg.Release.Notes)
-	}
-	for _, d := range drivers {
-		if d != nil && d.Generator != "" && !strings.EqualFold(d.Generator, "native") {
-			return false
-		}
-	}
-	return true
 }
 
 // validateTemplateSnippets parses each inline template snippet under pathPrefix, reporting a
@@ -441,22 +411,6 @@ func templateFuncStubs() template.FuncMap {
 	return template.FuncMap{
 		"upperFirst": stub, "date": stub, "join": stub, "list": stub, "indent": stub, "trim": stub,
 	}
-}
-
-// ticketsGeneratorSupported reports whether every configured top-level content generator is
-// git-cliff (the only generator with a link mechanism). An empty generator (inherits the
-// default) is allowed.
-func ticketsGeneratorSupported(cfg *Config) bool {
-	drivers := []*ContentDriver{cfg.Changelog}
-	if cfg.Release != nil {
-		drivers = append(drivers, cfg.Release.Notes)
-	}
-	for _, d := range drivers {
-		if d != nil && d.Generator != "" && !strings.EqualFold(d.Generator, "git-cliff") && !strings.EqualFold(d.Generator, "native") {
-			return false
-		}
-	}
-	return true
 }
 
 func validateRequired(cfg *Config) []ValidationError {
@@ -535,33 +489,17 @@ func validateContentDriver(d *ContentDriver, path string) []ValidationError {
 	return errs
 }
 
-// validateContentDriverTemplates validates a driver's native template customization (ADR-0037):
-// rendering.templates and the template file require generator: native; each inline snippet parses;
-// the template file, when set, exists and parses.
+// validateContentDriverTemplates validates a driver's template customization (ADR-0037): each
+// inline rendering.templates snippet parses, and the template file, when set, exists and parses.
+// No generator gate — native is the only generator (T177/T181).
 func validateContentDriverTemplates(d *ContentDriver, path string) []ValidationError {
-	isNative := strings.EqualFold(d.Generator, "native")
 	hasInline := d.Rendering != nil && len(d.Rendering.Templates) > 0
 	var errs []ValidationError
-
-	if d.Template != "" && d.Generator != "" && !isNative {
-		errs = append(errs, ValidationError{
-			Path:    path + ".template",
-			Message: "template requires the native generator",
-			Hint:    fmt.Sprintf("set generator to native, or remove template (current generator: %s)", d.Generator),
-		})
-	}
-	if hasInline && d.Generator != "" && !isNative {
-		errs = append(errs, ValidationError{
-			Path:    path + ".rendering.templates",
-			Message: "rendering.templates requires the native generator",
-			Hint:    fmt.Sprintf("set generator to native, or remove rendering.templates (current generator: %s)", d.Generator),
-		})
-	}
 
 	if hasInline {
 		errs = append(errs, validateTemplateSnippets(d.Rendering.Templates, path+".rendering.templates")...)
 	}
-	if d.Template != "" && (isNative || d.Generator == "") {
+	if d.Template != "" {
 		if b, err := os.ReadFile(d.Template); err != nil {
 			errs = append(errs, ValidationError{
 				Path:    path + ".template",
