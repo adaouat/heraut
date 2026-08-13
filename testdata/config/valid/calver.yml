@@ -6,7 +6,6 @@ versioning:
   tag_prefix: ""
 
 changelog:
-  generator: git-cliff
   output: CHANGELOG.md
 
 forges:
@@ -14,7 +13,6 @@ forges:
     platform: gitlab
 
 release:
-  notes:
-    generator: git-cliff
+  notes: {}
   targets:
     - forge: gitlab

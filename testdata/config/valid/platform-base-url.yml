@@ -9,7 +9,6 @@ versioning:
   bump: auto
 
 changelog:
-  generator: git-cliff
   output: CHANGELOG.md
 
 forges:
@@ -28,8 +27,7 @@ commits:
   enrichment_forge: github
 
 release:
-  notes:
-    generator: git-cliff
+  notes: {}
   targets:
     - forge: github
     - forge: gitlab

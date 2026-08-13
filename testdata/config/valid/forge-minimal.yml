@@ -7,7 +7,6 @@ versioning:
   tag_prefix: ""
 
 changelog:
-  generator: native
   output: CHANGELOG.md
 
 commits:
@@ -20,8 +19,7 @@ forges:
     api_mode: rest
 
 release:
-  notes:
-    generator: native
+  notes: {}
   targets:
     - forge: Primary GitLab
       draft: false

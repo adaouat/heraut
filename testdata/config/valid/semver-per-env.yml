@@ -35,13 +35,11 @@ environments:
         - forge: github
 
 changelog:
-  generator: git-cliff
   output: CHANGELOG.md
   tag_pattern: "dev/*"
 
 release:
   notes:
-    generator: git-cliff
     tag_pattern: "dev/*"
   targets:
     - forge: gitlab

@@ -3,7 +3,6 @@ versioning:
   strategy: semver
   tag_prefix: ""
 changelog:
-  generator: native
   output: CHANGELOG.md
 commits:
   enrichment_forge: Primary GitLab
@@ -13,8 +12,7 @@ forges:
     platform: gitlab
     api_mode: rest
 release:
-  notes:
-    generator: native
+  notes: {}
   targets:
     - forge: Primary GitLab
       draft: false

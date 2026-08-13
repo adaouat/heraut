@@ -316,39 +316,23 @@
     },
     "ContentDriver": {
       "type": "object",
-      "required": [
-        "generator"
-      ],
       "additionalProperties": false,
       "properties": {
-        "generator": {
-          "type": "string",
-          "enum": [
-            "native",
-            "git-cliff",
-            "communique"
-          ],
-          "description": "Content generator."
-        },
-        "config": {
-          "type": "string",
-          "description": "Path to a generator-specific config file."
-        },
         "output": {
           "type": "string",
           "description": "Changelog output file path (e.g. \"CHANGELOG.md\")."
         },
         "tag_pattern": {
           "type": "string",
-          "description": "Regex selecting this scope's release tags — passed to git-cliff as --tag-pattern (Rust regex) and applied in-process by the native generator (Go regex). Not used by communique. E.g. \"^v[0-9]\" for bare semver or \"^prod/\" for a per-env prefix."
+          "description": "Regex selecting this scope's release tags, applied in-process (Go regex). E.g. \"^v[0-9]\" for bare semver or \"^prod/\" for a per-env prefix."
         },
         "template": {
           "type": "string",
-          "description": "Path to a full native template file (Go text/template) parsed on top of the built-in blocks: it may redefine the document root and/or any block. native only; parsed last, so it wins over inline rendering.templates for whatever it defines (ADR-0037)."
+          "description": "Path to a full template file (Go text/template) parsed on top of the built-in blocks: it may redefine the document root and/or any block; parsed last, so it wins over inline rendering.templates for whatever it defines (ADR-0037)."
         },
         "rendering": {
           "$ref": "#/definitions/Rendering",
-          "description": "Per-driver rendering overrides (template snippets + excludes), deep-merged over the global rendering block. native only (ADR-0037)."
+          "description": "Per-driver rendering overrides (template snippets + excludes), deep-merged over the global rendering block (ADR-0037)."
         }
       }
     },

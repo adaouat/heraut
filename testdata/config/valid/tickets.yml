@@ -5,8 +5,7 @@ version: "1"
 versioning:
   strategy: semver
 
-changelog:
-  generator: git-cliff
+changelog: {}
 
 commits:
   tickets:

@@ -70,7 +70,7 @@ func TestSchema_InvalidFixtures(t *testing.T) {
 	}{
 		{"missing_version.yml", "missing required field version"},
 		{"invalid_strategy.yml", "strategy enum violation"},
-		{"invalid_generator.yml", "generator enum violation"},
+		{"invalid_generator.yml", "generator is a disallowed property (removed key, T177)"},
 		{"invalid_enrichment_policy.yml", "enrichment_policy enum violation"},
 		{"invalid_tickets.yml", "tickets item missing required url"},
 		{"rendering_unknown_template_block.yml", "rendering.templates unknown block additionalProperties violation"},

@@ -10,5 +10,4 @@ commits:
   enrichment_policy: disabled
 
 changelog:
-  generator: git-cliff
   output: CHANGELOG.md

@@ -6,7 +6,6 @@ versioning:
   strategy: semver
 
 changelog:
-  generator: native
   output: CHANGELOG.md
 
 rendering:
