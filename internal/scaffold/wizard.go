@@ -130,7 +130,11 @@ func ConfigToAnswers(cfg *config.Config) Answers {
 	a.Sprint = cfg.Versioning.Sprint
 
 	if cfg.Changelog != nil {
-		a.ChangelogGenerator = cfg.Changelog.Generator
+		// cfg.Changelog.Generator is always "" post-T177 (config.Load hard-rejects a present
+		// generator: key) — presence of the block is what the wizard's generator prompt must
+		// encode, so pre-select a non-empty sentinel rather than propagating the now-meaningless
+		// empty string (which would match the "None" option and drop the block on re-run).
+		a.ChangelogGenerator = "git-cliff"
 		a.ChangelogOutput = cfg.Changelog.Output
 		if a.ChangelogOutput == "" {
 			a.ChangelogOutput = "CHANGELOG.md"
@@ -140,7 +144,7 @@ func ConfigToAnswers(cfg *config.Config) Answers {
 	if cfg.Release != nil {
 		a.Assets = cfg.Release.Assets
 		if cfg.Release.Notes != nil {
-			a.NotesGenerator = cfg.Release.Notes.Generator
+			a.NotesGenerator = "git-cliff"
 		}
 		forgesByName := make(map[string]config.Forge, len(cfg.Forges))
 		for _, f := range cfg.Forges {

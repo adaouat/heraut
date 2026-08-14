@@ -1,11 +1,13 @@
 package scaffold_test
 
 import (
+	"strings"
 	"testing"
 
 	"github.com/adaouat/heraut/internal/config"
 	"github.com/adaouat/heraut/internal/scaffold"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestDefaults_Strategy(t *testing.T) {
@@ -70,10 +72,13 @@ func TestConfigToAnswers_ChangelogGenerator(t *testing.T) {
 	cfg := &config.Config{
 		Version:    "1",
 		Versioning: config.Versioning{Strategy: "semver"},
-		Changelog:  &config.ContentDriver{Generator: "communique", Output: "CHANGELOG.md"},
+		// Generator is stale data on a directly-constructed struct — config.Load can never
+		// produce a non-empty value here post-T177 — so ConfigToAnswers ignores it and derives
+		// the pre-populated Select value from block presence alone (the "git-cliff" sentinel).
+		Changelog: &config.ContentDriver{Generator: "communique", Output: "CHANGELOG.md"},
 	}
 	a := scaffold.ConfigToAnswers(cfg)
-	assert.Equal(t, "communique", a.ChangelogGenerator)
+	assert.Equal(t, "git-cliff", a.ChangelogGenerator)
 	assert.Equal(t, "CHANGELOG.md", a.ChangelogOutput)
 }
 
@@ -158,6 +163,42 @@ func TestConfigToAnswers_NotesGenerator(t *testing.T) {
 	}
 	a := scaffold.ConfigToAnswers(cfg)
 	assert.Equal(t, "git-cliff", a.NotesGenerator)
+}
+
+// TestConfigToAnswers_GeneratorPresenceSurvivesLoadRoundTrip guards against a regression where
+// ConfigToAnswers pre-populated the wizard's generator Select prompts from cfg.Changelog.Generator /
+// cfg.Release.Notes.Generator. Since config.Load hard-rejects any `generator:` key (native is the
+// only generator), those fields are always "" on anything that went through the real loader — which
+// is exactly the empty string bound to the Select's "None" option. Re-running `heraut init` against
+// an existing config and accepting the pre-populated defaults silently dropped changelog/release
+// notes generation. A struct literal (as the older ChangelogGenerator/NotesGenerator tests use)
+// can carry a non-empty Generator and would not have caught this — this test must go through
+// config.LoadFromReader, the real path a re-run of `heraut init` uses.
+func TestConfigToAnswers_GeneratorPresenceSurvivesLoadRoundTrip(t *testing.T) {
+	yaml := `
+version: "1"
+versioning:
+  strategy: semver
+  tag_prefix: ""
+changelog:
+  output: CHANGELOG.md
+forges:
+  - name: Primary GitLab
+    platform: gitlab
+release:
+  notes: {}
+  targets:
+    - forge: Primary GitLab
+`
+	cfg, err := config.LoadFromReader(strings.NewReader(yaml))
+	require.NoError(t, err)
+
+	a := scaffold.ConfigToAnswers(cfg)
+
+	assert.NotEmpty(t, a.ChangelogGenerator,
+		"ChangelogGenerator must not be the wizard's \"None\"-matching empty string when the loaded config has a changelog: block")
+	assert.NotEmpty(t, a.NotesGenerator,
+		"NotesGenerator must not be the wizard's \"None\"-matching empty string when the loaded config has a release.notes: block")
 }
 
 func TestValidateCalVerFormat(t *testing.T) {
