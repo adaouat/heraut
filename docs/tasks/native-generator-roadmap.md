@@ -38,7 +38,7 @@ no longer a parity target — heraut's rendering is its own spec, validated by g
 | Phase 2.8 — user-customizable templates (ADR-0037)   | TT1 – TT11             | Complete    |
 | Phase 2.9 — incremental changelog (ADR-0038)          | —                      | Complete    |
 | Phase 2.10 — commit-author attribution (ADR-0039)    | T151 (follow-up)       | Complete — GitHub, GitLab, Azure |
-| Phase 2.5 — remove the git-cliff package (own ADR)   | T177–T184              | Active      |
+| Phase 2.5 — remove the git-cliff package (own ADR)   | T177–T184              | Config cutover complete; package deletion pending |
 | Phase 3 — raw-HTTP clients (drop `gh` / `glab`)       | —                      | Deferred    |
 
 ---
@@ -983,23 +983,69 @@ was replaced with `TestValidate_changelogAbsentGeneratorIsValid`, and
 (`validGenerators`) and the `tag_pattern` generator gate stay deferred to T180/T181, since
 neither fires on an absent generator, only a present-but-invalid one.
 
-#### `[ ]` T178a: fix collateral test damage from T177 (`internal/config`)
+#### `[x]` T178a: fix collateral test damage from T177 (`internal/config`)
 
-#### `[ ]` T178b: fix collateral test damage from T177 (`internal/cmd`)
+#### `[x]` T178b: fix collateral test damage from T177 (`internal/cmd`)
 
-#### `[ ]` T178c: fix heraut init — it now generates configs it can't load (`internal/scaffold`)
+#### `[x]` T178c: fix heraut init — it now generates configs it can't load (`internal/scaffold`)
 
-#### `[ ]` T179: empty `Generator` builds native end-to-end
+#### `[x]` T179: empty `Generator` builds native end-to-end
 
-#### `[ ]` T180: validator — drop generator-required/enum + tag_pattern generator gate
+#### `[x]` T180: validator — drop generator-required/enum + tag_pattern generator gate
 
-#### `[ ]` T181: validator — drop template/tickets/rendering generator gates
+#### `[x]` T181: validator — drop template/tickets/rendering generator gates
 
-#### `[ ]` T182: merge — drop the generator-switch full-replacement branch
+#### `[x]` T182: merge — drop the generator-switch full-replacement branch
 
-#### `[ ]` T183: schema.json + testdata fixtures go native-only
+#### `[x]` T183: schema.json + testdata fixtures go native-only
 
-#### `[ ]` T184: `docs/heraut.sample.yml` drops `generator:`/`config:`
+#### `[x]` T184: `docs/heraut.sample.yml` drops `generator:`/`config:`
+
+**Completion note (2026-08-14):** Phase 2.5's config cutover is done — nine tasks landed
+against a seven-task original estimate, every added task or same-scope fix found by an
+implementer or reviewer stopping to verify empirically rather than trusting the plan's
+research. T177 (the `ErrRemovedConfigKey` loader extension) had to absorb the validator's
+"required"-check removal, originally slated for T180: `heraut commit verify` — this repo's
+own commit-msg hook — runs the full Load-then-Validate path, so the loader-rejects and
+validator-stops-requiring halves were not independently stageable for any config on that
+path, including this repository's own `.config/heraut.yml`. T178 grew from one task into
+three because the plan's research had only mapped the `internal/config` slice of the
+blast radius: T178a (`internal/config`, ~30 tests) also found and fixed a second
+validator.go bug — the `tag_pattern` regex-compile check had the same "doesn't treat an
+empty `Generator` as native" flaw T177 had just fixed elsewhere — and dropped a
+`TestValidate_invalidFixtures` row whose fixture stopped being invalid; T178b
+(`internal/cmd`, 17 tests) surfaced a real cross-task ordering dependency — two of its own
+tests couldn't pass until `buildGenerator` stopped unconditionally constructing a
+generator in dry-run mode, pulling T179 forward out of its normal reading-order position
+to unblock it; T178c (`internal/scaffold`) fixed a genuine product regression, not just
+tests — `heraut init` was generating `.heraut.yml` files that failed to load on the very
+next invocation — and swapped one scaffold test's "arbitrary passthrough field" example
+from `Generator` to `TagPattern` after confirming the original code path is unreachable
+from any real `heraut init` flow. T179–T182 landed as pure mechanical follow-through:
+`buildGenerator`/`usesNative` (T179), then validator cleanup (T180–T181), then the
+generator-switch merge branch deletion (T182). T183 (schema + fixtures) found a second
+package-local copy of `forge-minimal.yml` the plan's file list had missed, and a review
+round caught an initial fix that deleted whole `release.notes`/`changelog` blocks instead
+of using `{}` — which would have silently flipped six fixtures from "generation
+configured" to "disabled" per `internal/app/pipeline.go`'s nil-pointer gate, even though no
+test happened to catch it; `internal/config/loader_forge_test.go`'s
+`TestLoad_ForgesAndTargets` self-resolved off the same fixture list. T184 closes the phase:
+`docs/heraut.sample.yml`'s four `generator:`/`config:` sites are gone, and — added mid-plan
+by Task 2a, no task in the original scope had ever touched `README.md` — the two
+`generator: git-cliff` lines inside the fenced yaml block `TestShippedExamples_LoadAndValidate`
+loads and validates are gone too (the two further hits in README's prose comparison table
+are untouched, deferred to Phase B). T184's own self-review hit the same "dangling empty
+YAML key" class of bug T183 had already hit once: leaving `release.notes:` with nothing (or
+only comments) under it collapses to a nil `*ContentDriver` in yaml.v3, and
+`cfg.Release.Notes != nil` is the live gate both `internal/app/pipeline.go` and
+`internal/pipeline/release.go` use to decide whether release notes generate at all —
+silently contradicting the adjacent "Omit if you want ... no description body" comment in
+both files. Fixed with `notes: {}` in both `docs/heraut.sample.yml` and `README.md`
+(matching the `{}` precedent already used in T184's own per-env example edit), verified
+with a throwaway test asserting `cfg.Release.Notes` is non-nil after load. The full suite
+and `hk check` are clean. **Phase B** — deleting the `git-cliff`/`communique` packages,
+removing `heraut cliff`, and rewriting `docs/specs/02`'s "Content generators" section and
+`docs/specs/05` — is a separate, not-yet-started plan.
 
 ---
 

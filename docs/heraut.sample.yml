@@ -100,13 +100,11 @@ versioning:
 #
 #     # changelog override — replace root changelog config for this environment.
 #     # changelog:
-#     #   generator: git-cliff
 #     #   tag_pattern: "^dev/"
 #
 #     # release overrides — independently override notes and/or targets.
 #     # release:
-#     #   notes:
-#     #     generator: git-cliff
+#     #   notes: {}
 #     #   targets:              # ADR-0043/ADR-0044; replaces the root list entirely for this env
 #     #     - forge: gitlab-saas
 #
@@ -250,26 +248,12 @@ forges:
 # When present, `heraut release` writes the file, commits it, and then tags.
 
 changelog:
-  # generator — required. Tool used to produce the changelog content.
-  #   native      recommended; heraut's built-in renderer (no external binary), driven by
-  #               the commits / rendering config blocks
-  #   git-cliff   uses cliff.toml deep-merged with heraut's built-in default
-  #   communique  requires config: pointing to a communique config file
-  generator: native
-
-  # config — path to a generator config file (relative to project root).
-  #   git-cliff:  optional partial cliff.toml; deep-merged with heraut's built-in default
-  #   communique: required
-  # config: cliff.toml
-
   # output — path where the changelog file is written.
   output: CHANGELOG.md
 
-  # tag_pattern — regex selecting this scope's release tags. Passed to
-  # git-cliff as --tag-pattern (Rust regex) and applied in-process by native
-  # (Go regex); not used by communique. Handy with prefixed-tag / per-env
-  # strategies to keep the generator scoped to one namespace. (Per-env strategies
-  # auto-derive this from tag_format — set it only to override.)
+  # tag_pattern — regex (Go regexp syntax) selecting this scope's release tags. Handy
+  # with prefixed-tag / per-env strategies to keep generation scoped to one namespace.
+  # (Per-env strategies auto-derive this from tag_format — set it only to override.)
   #   semver bare tags: "^v[0-9]"
   #   per-env prod:     "^prod/"
   # tag_pattern: "^v[0-9]"
@@ -298,10 +282,9 @@ changelog:
 release:
   # notes — generator for the release-page description text.
   # Omit if you want the platform release created with no description body.
-  notes:
-    generator: git-cliff
-    # config, tag_pattern, template — same semantics as the changelog block above.
-    # tag_pattern: "v[0-9]*"
+  notes: {}
+  # tag_pattern, template — same semantics as the changelog block above.
+  # tag_pattern: "v[0-9]*"
 
   # assets — glob patterns for files to attach to the release, applied to all targets.
   # Globs are expanded at release time; a pattern matching nothing emits a warning

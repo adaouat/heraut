@@ -160,7 +160,6 @@ versioning:
   bump: auto
 
 changelog:
-  generator: git-cliff
   output: CHANGELOG.md
 
 forges:
@@ -170,8 +169,7 @@ forges:
     token_env: GH_TOKEN
 
 release:
-  notes:
-    generator: git-cliff
+  notes: {}
   targets:
     - forge: github
 ```
