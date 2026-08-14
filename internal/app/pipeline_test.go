@@ -34,52 +34,13 @@ func TestBuildPipeline_Minimal(t *testing.T) {
 	assert.NotNil(t, p)
 }
 
-func TestBuildPipeline_WithGitcliff(t *testing.T) {
+func TestBuildPipeline_ChangelogBuildsNative(t *testing.T) {
 	mr := exectest.NewMockRunner()
 	cfg := semverCfg()
-	cfg.Changelog = &config.ContentDriver{Generator: "git-cliff", Output: "CHANGELOG.md"}
+	cfg.Changelog = &config.ContentDriver{Output: "CHANGELOG.md"}
 	p, err := app.BuildPipeline(mr, cfg, defaultResolver, defaultOpts)
 	require.NoError(t, err)
 	assert.NotNil(t, p)
-}
-
-func TestBuildPipeline_WithCommunique(t *testing.T) {
-	mr := exectest.NewMockRunner()
-	cfg := semverCfg()
-	cfg.Changelog = &config.ContentDriver{Generator: "communique", Output: "CHANGELOG.md"}
-	p, err := app.BuildPipeline(mr, cfg, defaultResolver, defaultOpts)
-	require.NoError(t, err)
-	assert.NotNil(t, p)
-}
-
-// TestBuildPipeline_EmptyGeneratorBuildsNative pins T179: once generator: is a removed key
-// (T177), every ContentDriver that loads has Generator == "" — this must build a native
-// generator, not fail with "unsupported generator".
-func TestBuildPipeline_EmptyGeneratorBuildsNative(t *testing.T) {
-	mr := exectest.NewMockRunner()
-	cfg := semverCfg()
-	cfg.Changelog = &config.ContentDriver{Output: "CHANGELOG.md"} // no Generator set
-	p, err := app.BuildPipeline(mr, cfg, defaultResolver, defaultOpts)
-	require.NoError(t, err)
-	assert.NotNil(t, p)
-}
-
-func TestBuildPipeline_CocogittoNoLongerSupported(t *testing.T) {
-	mr := exectest.NewMockRunner()
-	cfg := semverCfg()
-	cfg.Changelog = &config.ContentDriver{Generator: "cocogitto", Output: "CHANGELOG.md"}
-	_, err := app.BuildPipeline(mr, cfg, defaultResolver, defaultOpts)
-	require.Error(t, err)
-	assert.Contains(t, err.Error(), "cocogitto")
-}
-
-func TestBuildPipeline_UnknownGenerator(t *testing.T) {
-	mr := exectest.NewMockRunner()
-	cfg := semverCfg()
-	cfg.Changelog = &config.ContentDriver{Generator: "unknown-gen"}
-	_, err := app.BuildPipeline(mr, cfg, defaultResolver, defaultOpts)
-	require.Error(t, err)
-	assert.Contains(t, err.Error(), "unknown-gen")
 }
 
 func TestBuildPipeline_WithGitHubPlatform(t *testing.T) {
@@ -125,22 +86,11 @@ func TestBuildPipeline_WithNotes(t *testing.T) {
 	mr := exectest.NewMockRunner()
 	cfg := semverCfg()
 	cfg.Release = &config.Release{
-		Notes: &config.ContentDriver{Generator: "git-cliff"},
+		Notes: &config.ContentDriver{},
 	}
 	p, err := app.BuildPipeline(mr, cfg, defaultResolver, defaultOpts)
 	require.NoError(t, err)
 	assert.NotNil(t, p)
-}
-
-func TestBuildPipeline_UnknownNotesGenerator(t *testing.T) {
-	mr := exectest.NewMockRunner()
-	cfg := semverCfg()
-	cfg.Release = &config.Release{
-		Notes: &config.ContentDriver{Generator: "unknown-notes"},
-	}
-	_, err := app.BuildPipeline(mr, cfg, defaultResolver, defaultOpts)
-	require.Error(t, err)
-	assert.Contains(t, err.Error(), "unknown-notes")
 }
 
 func TestBuildPipeline_AnnotatedTagsDefault(t *testing.T) {
@@ -174,26 +124,6 @@ func TestBuildPipeline_PerEnvDisableFlags(t *testing.T) {
 	assert.NotNil(t, p)
 }
 
-func TestBuildChangelogPipeline_WithGitcliff(t *testing.T) {
-	mr := exectest.NewMockRunner()
-	cfg := semverCfg()
-	cfg.Changelog = &config.ContentDriver{Generator: "git-cliff", Output: "CHANGELOG.md"}
-	opts := app.PipelineOpts{Out: &bytes.Buffer{}}
-	p, err := app.BuildChangelogPipeline(mr, cfg, defaultResolver, opts)
-	require.NoError(t, err)
-	assert.NotNil(t, p)
-}
-
-func TestBuildChangelogPipeline_UnknownGenerator(t *testing.T) {
-	mr := exectest.NewMockRunner()
-	cfg := semverCfg()
-	cfg.Changelog = &config.ContentDriver{Generator: "unknown-gen"}
-	opts := app.PipelineOpts{Out: &bytes.Buffer{}}
-	_, err := app.BuildChangelogPipeline(mr, cfg, defaultResolver, opts)
-	require.Error(t, err)
-	assert.Contains(t, err.Error(), "unknown-gen")
-}
-
 func TestBuildChangelogPipeline_WithCommitAndTag(t *testing.T) {
 	mr := exectest.NewMockRunner()
 	cfg := semverCfg()
@@ -212,110 +142,6 @@ func TestBuildChangelogPipeline_PerEnvDisable(t *testing.T) {
 	opts := app.PipelineOpts{Out: &bytes.Buffer{}, Env: "staging"}
 	p, err := app.BuildChangelogPipeline(mr, cfg, defaultResolver, opts)
 	require.NoError(t, err)
-	assert.NotNil(t, p)
-}
-
-func TestBuildChangelogPipeline_PerEnvDerivesTagPattern(t *testing.T) {
-	mr := exectest.NewMockRunner()
-	mr.QueueResponse("", "", nil) // git-cliff generate
-
-	cfg := &config.Config{
-		Version: "1",
-		Versioning: config.Versioning{
-			Strategy:  "calver-per-env",
-			Format:    "YYYY.SPRINT.PATCH",
-			TagFormat: "{version}_{env}",
-		},
-		Changelog: &config.ContentDriver{Generator: "git-cliff", Output: "CHANGELOG.md"},
-		Environments: map[string]config.Environment{
-			"prod": {Bump: "auto"},
-		},
-	}
-	res := &fakeResolver{result: versioning.Result{Version: "2026.3.1", Tag: "2026.3.1_prod"}}
-	opts := app.PipelineOpts{Env: "prod", Out: &bytes.Buffer{}}
-
-	p, err := app.BuildChangelogPipeline(mr, cfg, res, opts)
-	require.NoError(t, err)
-	require.NoError(t, p.Run())
-
-	var cliffArgs []string
-	for _, c := range mr.Calls {
-		if c.Name == "git-cliff" {
-			cliffArgs = c.Args
-		}
-	}
-	require.NotNil(t, cliffArgs, "expected a git-cliff call")
-	// --tag-pattern scoped to the prod env must be present.
-	var got string
-	for i, a := range cliffArgs {
-		if a == "--tag-pattern" && i+1 < len(cliffArgs) {
-			got = cliffArgs[i+1]
-		}
-	}
-	assert.Equal(t, "^.+_prod$", got)
-}
-
-func TestBuildChangelogPipeline_ExplicitTagPatternWins(t *testing.T) {
-	mr := exectest.NewMockRunner()
-	mr.QueueResponse("", "", nil)
-
-	cfg := &config.Config{
-		Version: "1",
-		Versioning: config.Versioning{
-			Strategy:  "semver-per-env",
-			TagFormat: "{version}_{env}",
-		},
-		Changelog: &config.ContentDriver{
-			Generator:  "git-cliff",
-			Output:     "CHANGELOG.md",
-			TagPattern: "custom-pattern",
-		},
-		Environments: map[string]config.Environment{
-			"prod": {Bump: "auto"},
-		},
-	}
-	res := &fakeResolver{result: versioning.Result{Version: "1.2.3", Tag: "1.2.3_prod"}}
-	opts := app.PipelineOpts{Env: "prod", Out: &bytes.Buffer{}}
-
-	p, err := app.BuildChangelogPipeline(mr, cfg, res, opts)
-	require.NoError(t, err)
-	require.NoError(t, p.Run())
-
-	var got string
-	for _, c := range mr.Calls {
-		if c.Name == "git-cliff" {
-			for i, a := range c.Args {
-				if a == "--tag-pattern" && i+1 < len(c.Args) {
-					got = c.Args[i+1]
-				}
-			}
-		}
-	}
-	assert.Equal(t, "custom-pattern", got, "explicit user tag_pattern must win over derivation")
-}
-
-func TestBuildChangelogPipeline_PerEnvPartialOverrideMerges(t *testing.T) {
-	// ADR-0019: per-env changelog with only `config` inherits the top-level
-	// generator + output. The pipeline must build (no "generator required" error)
-	// and use the inherited output file.
-	mr := exectest.NewMockRunner()
-	cfg := &config.Config{
-		Version: "1",
-		Versioning: config.Versioning{
-			Strategy:  "semver-per-env",
-			TagFormat: "{env}/{version}",
-		},
-		Changelog: &config.ContentDriver{Generator: "git-cliff", Output: "CHANGELOG.md"},
-		Environments: map[string]config.Environment{
-			"prod": {
-				Bump:      "auto",
-				Changelog: &config.ContentDriver{Config: "cliff.prod.toml"},
-			},
-		},
-	}
-	opts := app.PipelineOpts{Env: "prod", Out: &bytes.Buffer{}}
-	p, err := app.BuildChangelogPipeline(mr, cfg, defaultResolver, opts)
-	require.NoError(t, err, "partial per-env override must inherit the generator")
 	assert.NotNil(t, p)
 }
 

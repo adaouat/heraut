@@ -11,26 +11,6 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestUsesNative(t *testing.T) {
-	tests := []struct {
-		name    string
-		drivers []*config.ContentDriver
-		want    bool
-	}{
-		{name: "no drivers", drivers: nil, want: false},
-		{name: "nil driver only", drivers: []*config.ContentDriver{nil}, want: false},
-		{name: "git-cliff only", drivers: []*config.ContentDriver{{Generator: "git-cliff"}}, want: false},
-		{name: "native changelog", drivers: []*config.ContentDriver{{Generator: "native"}, nil}, want: true},
-		{name: "empty generator counts as native (T179)", drivers: []*config.ContentDriver{{}}, want: true},
-		{name: "native notes among others", drivers: []*config.ContentDriver{{Generator: "git-cliff"}, {Generator: "native"}}, want: true},
-	}
-	for _, tc := range tests {
-		t.Run(tc.name, func(t *testing.T) {
-			assert.Equal(t, tc.want, usesNative(tc.drivers...))
-		})
-	}
-}
-
 func TestGitOriginURL(t *testing.T) {
 	t.Run("returns trimmed origin", func(t *testing.T) {
 		mr := exectest.NewMockRunner()
@@ -51,22 +31,11 @@ func fakeEnv(m map[string]string) func(string) string {
 }
 
 func TestResolveEnrichForgeIfNeeded(t *testing.T) {
-	t.Run("skips resolution when no driver is native", func(t *testing.T) {
-		mr := exectest.NewMockRunner() // no response queued: a git call here would error
-		cfg := &config.Config{}
-		f, id, degradedReason, err := resolveEnrichForgeIfNeeded(mr, fakeEnv(nil), cfg, false, &config.ContentDriver{Generator: "git-cliff"})
-		require.NoError(t, err)
-		assert.Nil(t, f)
-		assert.Nil(t, id)
-		assert.Empty(t, degradedReason)
-		assert.Empty(t, mr.Calls, "no git call when no driver is native")
-	})
-
 	t.Run("resolves and constructs a gitlab forge for a native driver", func(t *testing.T) {
 		mr := exectest.NewMockRunner()
 		mr.QueueResponse("https://gitlab.com/group/subgroup/project.git\n", "", nil)
 		cfg := &config.Config{}
-		f, id, degradedReason, err := resolveEnrichForgeIfNeeded(mr, fakeEnv(nil), cfg, false, &config.ContentDriver{Generator: "native"})
+		f, id, degradedReason, err := resolveEnrichForgeIfNeeded(mr, fakeEnv(nil), cfg, false, &config.ContentDriver{})
 		require.NoError(t, err)
 		require.NotNil(t, id)
 		assert.Equal(t, "gitlab", id.Type)
@@ -79,7 +48,7 @@ func TestResolveEnrichForgeIfNeeded(t *testing.T) {
 		mr := exectest.NewMockRunner()
 		mr.QueueResponse("", "", assertNoOriginErr)
 		cfg := &config.Config{Forges: []config.Forge{{Name: "gh", Type: "github", Repository: "acme/widget"}}}
-		f, id, degradedReason, err := resolveEnrichForgeIfNeeded(mr, fakeEnv(nil), cfg, false, &config.ContentDriver{Generator: "native"})
+		f, id, degradedReason, err := resolveEnrichForgeIfNeeded(mr, fakeEnv(nil), cfg, false, &config.ContentDriver{})
 		require.NoError(t, err)
 		require.NotNil(t, id)
 		assert.Equal(t, "github", id.Type)
@@ -94,7 +63,7 @@ func TestResolveEnrichForgeIfNeeded(t *testing.T) {
 		cfg := &config.Config{Forges: []config.Forge{{
 			Name: "az", Type: "azure_devops", Project: "myorg/myproject", Repository: "myrepo",
 		}}}
-		f, id, degradedReason, err := resolveEnrichForgeIfNeeded(mr, fakeEnv(nil), cfg, false, &config.ContentDriver{Generator: "native"})
+		f, id, degradedReason, err := resolveEnrichForgeIfNeeded(mr, fakeEnv(nil), cfg, false, &config.ContentDriver{})
 		require.NoError(t, err)
 		require.NotNil(t, id)
 		assert.Equal(t, "azure_devops", id.Type)
@@ -112,7 +81,7 @@ func TestResolveEnrichForgeIfNeeded(t *testing.T) {
 		mr.QueueResponse("", "", assertNoOriginErr)
 		env := fakeEnv(map[string]string{"GITLAB_TOKEN": "glpat", "GITHUB_TOKEN": "ghp"})
 		cfg := &config.Config{}
-		f, id, degradedReason, err := resolveEnrichForgeIfNeeded(mr, env, cfg, false, &config.ContentDriver{Generator: "native"})
+		f, id, degradedReason, err := resolveEnrichForgeIfNeeded(mr, env, cfg, false, &config.ContentDriver{})
 		require.NoError(t, err)
 		assert.Nil(t, f)
 		assert.Nil(t, id)
@@ -124,7 +93,7 @@ func TestResolveEnrichForgeIfNeeded(t *testing.T) {
 		mr.QueueResponse("", "", assertNoOriginErr)
 		env := fakeEnv(map[string]string{"GITLAB_TOKEN": "glpat", "GITHUB_TOKEN": "ghp"})
 		cfg := &config.Config{Commits: &config.Commits{EnrichmentPolicy: "required"}}
-		f, id, degradedReason, err := resolveEnrichForgeIfNeeded(mr, env, cfg, false, &config.ContentDriver{Generator: "native"})
+		f, id, degradedReason, err := resolveEnrichForgeIfNeeded(mr, env, cfg, false, &config.ContentDriver{})
 		require.Error(t, err, "required is a guarantee — a resolution failure must stay fatal")
 		assert.Nil(t, f)
 		assert.Nil(t, id)
@@ -136,7 +105,7 @@ func TestResolveEnrichForgeIfNeeded(t *testing.T) {
 		mr.QueueResponse("", "", assertNoOriginErr)
 		env := fakeEnv(map[string]string{"GITLAB_TOKEN": "glpat", "GITHUB_TOKEN": "ghp"})
 		cfg := &config.Config{Commits: &config.Commits{EnrichmentPolicy: "required"}}
-		f, id, degradedReason, err := resolveEnrichForgeIfNeeded(mr, env, cfg, true, &config.ContentDriver{Generator: "native"})
+		f, id, degradedReason, err := resolveEnrichForgeIfNeeded(mr, env, cfg, true, &config.ContentDriver{})
 		require.NoError(t, err)
 		assert.Nil(t, f)
 		assert.Nil(t, id)
@@ -159,7 +128,7 @@ func TestResolveEnrichForgeIfNeeded(t *testing.T) {
 		})
 
 		cfg := &config.Config{}
-		f, id, degradedReason, err := resolveEnrichForgeIfNeeded(mr, env, cfg, false, &config.ContentDriver{Generator: "native"})
+		f, id, degradedReason, err := resolveEnrichForgeIfNeeded(mr, env, cfg, false, &config.ContentDriver{})
 		require.NoError(t, err)
 
 		require.NotNil(t, id)
@@ -180,7 +149,7 @@ func TestResolveEnrichForgeIfNeeded(t *testing.T) {
 		mr := exectest.NewMockRunner() // no response queued: a git call here would error
 		env := fakeEnv(map[string]string{"GITLAB_TOKEN": "glpat", "GITHUB_TOKEN": "ghp"})
 		cfg := &config.Config{Commits: &config.Commits{EnrichmentPolicy: "disabled"}}
-		f, id, degradedReason, err := resolveEnrichForgeIfNeeded(mr, env, cfg, false, &config.ContentDriver{Generator: "native"})
+		f, id, degradedReason, err := resolveEnrichForgeIfNeeded(mr, env, cfg, false, &config.ContentDriver{})
 		require.NoError(t, err)
 		assert.Nil(t, f)
 		assert.Nil(t, id)
