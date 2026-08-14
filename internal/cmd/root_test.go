@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	"github.com/adaouat/heraut/internal/cmd"
+	"github.com/stretchr/testify/assert"
 )
 
 func TestNewRootCmd(t *testing.T) {
@@ -34,4 +35,11 @@ func TestNewRootCmd_RegistersWhatsNew(t *testing.T) {
 		}
 	}
 	t.Error("whatsnew subcommand not registered")
+}
+
+func TestRootCmd_NoCliffCommand(t *testing.T) {
+	root := cmd.NewRootCmd("dev")
+	for _, c := range root.Commands() {
+		assert.NotEqual(t, "cliff", c.Name(), "heraut cliff must be removed (Phase B)")
+	}
 }
