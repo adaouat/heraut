@@ -280,11 +280,14 @@ changelog:
 # Omit this block if you do not publish releases to any platform.
 
 release:
-  # notes — generator for the release-page description text.
-  # Omit if you want the platform release created with no description body.
+  # notes — release-page description text, generated natively. Omit (leave as `notes: {}`)
+  # if you want the platform release created with no description body.
+  #
+  # tag_pattern, template — same semantics as the changelog block above. To set them,
+  # replace notes: {} below with:
+  #   notes:
+  #     tag_pattern: "v[0-9]*"
   notes: {}
-  # tag_pattern, template — same semantics as the changelog block above.
-  # tag_pattern: "v[0-9]*"
 
   # assets — glob patterns for files to attach to the release, applied to all targets.
   # Globs are expanded at release time; a pattern matching nothing emits a warning
