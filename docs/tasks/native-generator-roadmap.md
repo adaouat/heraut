@@ -1091,6 +1091,29 @@ into Phase B's scope rather than losing them:
   (harmless today, same bug class, worth a pass when that file gets touched for Phase B
   anyway).
 
+**Phase B execution** (started 2026-08-14, plan at
+`docs/superpowers/plans/2026-08-14-native-only-generator-phase-b.md`, executed via
+`superpowers:subagent-driven-development`, task IDs continue from T185):
+
+#### `[x]` T185: collapse `buildGenerator` to native-only; delete `usesNative`
+
+Collapsed `internal/app/pipeline.go`'s `buildGenerator` from a three-way switch to an
+unconditional `native.New(...)` call, dropping its `error` return and retyping its mode
+parameter from `gitcliff.Mode` to `native.Mode`; deleted `usesNative` and `nativeMode`
+entirely, and the `usesNative` conjunct/guard at both of its two call sites. Eight tests
+whose scenario depended on a non-empty `Generator` value reaching `buildGenerator` (now
+structurally impossible pre-T188, since the field still exists but nothing routes a
+non-empty value there via `config.Load`) were deleted; two — `PerEnvDerivesTagPattern` and
+`ExplicitTagPatternWins` — covered a still-real behavior (env-scoped `TagPattern`
+derivation) via a mechanism (asserting on a mocked `git-cliff` subprocess's CLI args) that
+no longer applies to native, so they were rewritten as direct `withEnvDerivations` unit
+tests in `tagglob_internal_test.go` instead of dropped. Review flagged one pre-existing
+plan imprecision (the brief incorrectly asserted Go tooling never flags unused
+parameters) as a named risk; the reviewer verified empirically that this repo's actual
+`.golangci.yml` doesn't enable `unusedparams`, so `resolveEnrichForgeIfNeeded`'s now-dead
+`drivers` parameter is non-blocking and deliberately deferred to T188's sweep. Commits
+`208eba7..eec5e62`; review clean, zero Critical/Important findings.
+
 ---
 
 ## Phase 3 — Raw-HTTP platform clients (deferred)
