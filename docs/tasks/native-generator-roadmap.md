@@ -1043,9 +1043,53 @@ silently contradicting the adjacent "Omit if you want ... no description body" c
 both files. Fixed with `notes: {}` in both `docs/heraut.sample.yml` and `README.md`
 (matching the `{}` precedent already used in T184's own per-env example edit), verified
 with a throwaway test asserting `cfg.Release.Notes` is non-nil after load. The full suite
-and `hk check` are clean. **Phase B** — deleting the `git-cliff`/`communique` packages,
-removing `heraut cliff`, and rewriting `docs/specs/02`'s "Content generators" section and
-`docs/specs/05` — is a separate, not-yet-started plan.
+and `hk check` are clean.
+
+**Final whole-branch review (2026-08-14):** a review across the full `f526dd9..37a8bd5` diff
+(all 9 tasks at once) found 1 Critical + 2 Important issues no per-task review had caught,
+since each was only visible looking at the phase as a whole. Critical: `heraut init`'s update
+path (`ConfigToAnswers` in `internal/scaffold/wizard.go`) was still reading
+`cfg.Changelog.Generator`/`cfg.Release.Notes.Generator` to pre-populate the wizard's generator
+prompts — post-T177 those fields are structurally always `""`, which is exactly the wizard's
+"None" option's bound value, so re-running `heraut init` against any existing config and
+accepting the pre-populated defaults silently dropped `changelog:`/`release.notes:` from the
+regenerated file. Important: `docs/heraut.sample.yml`'s commented `tag_pattern` example ended
+up at the wrong YAML nesting level once `notes: {}` flattened onto one line (a flow-style `{}`
+can't carry an indented child comment); and the "dangling empty key parses to YAML `null`"
+bug class that had already been hit reactively three times in this phase (T177, T183, T184)
+still had no permanent test guarding against a fourth occurrence. Fixed in commits `90d94ad`
+(wizard: derive the generator sentinel from block presence, not the stale field — TDD, new
+test goes through the real `config.LoadFromReader` path so it can't miss this class of bug
+again), `78b91be` (sample.yml: rewrote the tag_pattern example to the file's existing
+block-style-comment convention), and `40bbe31` (added `cfg.Changelog`/`cfg.Release.Notes`
+non-nil assertions to `TestShippedExamples_LoadAndValidate` — a permanent net for the
+bug class, not another reactive fix). Re-reviewed independently (red/green repro, hand-traced
+YAML, throwaway load tests, `hk check`) — clean, zero findings. Phase A is done.
+
+**Phase B scope** — deleting the `git-cliff`/`communique` packages, removing `heraut cliff`,
+and rewriting `docs/specs/02`'s "Content generators" section and `docs/specs/05` — is a
+separate, not-yet-started plan. Both reviews of this phase surfaced items that are stale or
+misleading today but out of Phase A's scope by the plan's own Global Constraints; carry these
+into Phase B's scope rather than losing them:
+- `README.md`'s prerequisites table (`generator: git-cliff`/`generator: communique` lines) and
+  its "Generator for…" prose in the config-reference section.
+- `docs/specs/02-configuration.md` and `docs/specs/05-generators-and-platforms.md` still
+  document `generator:`/`config:` as live and, in one place, `config` as "required" for
+  communique.
+- `internal/app/check.go`'s `configuredGenerators(nil)` still hard-requires both `git-cliff`
+  and `communique` on `PATH` when no config file is found, even though the no-config case is
+  now unambiguously native.
+- `internal/cmd/check.go`'s `heraut check cliff` output renders `generator is , not
+  git-cliff` (empty string) for every valid config now, not just an edge case — the skip
+  message needs updating or the command needs to go straight to removal.
+- `internal/scaffold/wizard.go`'s "Changelog generator"/"Release notes generator"
+  `huh.Select` prompts still offer `git-cliff`/`communique`/`None` as live choices even though
+  neither of the first two is ever written to the emitted config anymore (Phase A only fixed
+  the presence-tracking regression, not the prompt's stale option list — see the wizard
+  simplification note this phase already carries below).
+- `internal/cmd/check_test.go` has two remaining test-only dangling `changelog:` keys
+  (harmless today, same bug class, worth a pass when that file gets touched for Phase B
+  anyway).
 
 ---
 
