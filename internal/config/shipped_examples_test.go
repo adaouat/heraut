@@ -25,6 +25,15 @@ func TestShippedExamples_LoadAndValidate(t *testing.T) {
 		require.NoError(t, err, "docs/heraut.sample.yml must parse as shipped")
 		errs := config.Validate(cfg)
 		assert.Empty(t, errs, "docs/heraut.sample.yml must validate cleanly: %v", errs)
+
+		// Guards the "dangling empty key parses to nil" bug class: a generator: line removed
+		// from under changelog:/notes: leaves the key with nothing (or only comments) under it,
+		// which parses to YAML null and silently flips these from "configured" to "disabled".
+		// This exact regression was caught reactively three times (T177, T183, T184) with no
+		// permanent guard until now.
+		require.NotNil(t, cfg.Changelog, "docs/heraut.sample.yml must keep changelog configured, not collapse to nil")
+		require.NotNil(t, cfg.Release, "docs/heraut.sample.yml must keep a release block configured")
+		require.NotNil(t, cfg.Release.Notes, "docs/heraut.sample.yml must keep release.notes configured, not collapse to nil")
 	})
 
 	blocks := readmeYAMLConfigBlocks(t, "../../README.md")
