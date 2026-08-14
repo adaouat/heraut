@@ -19,7 +19,7 @@ heraut changelog        # changelog only (optionally commit + tag)
 heraut version next     # print the next version without side effects
 heraut version current  # print the latest released tag (per active strategy / env)
 heraut version sprint bump  # increment sprint counter in .heraut.yml (CalVer)
-heraut check            # preflight: config + runtime + cliff (effective config)
+heraut check            # preflight: config + runtime
 heraut cliff <mode>     # show the effective merged git-cliff TOML
 heraut init             # interactive wizard to generate .heraut.yml
 heraut whatsnew         # release notes for versions newer than the running build

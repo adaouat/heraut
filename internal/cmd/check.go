@@ -17,7 +17,7 @@ import (
 )
 
 // NewCheckCmd constructs the `heraut check` parent command.
-// When called without a subcommand it runs config + runtime + cliff checks.
+// When called without a subcommand it runs config + runtime checks.
 func NewCheckCmd() *cobra.Command {
 	checkCmd := &cobra.Command{
 		Use:   "check",
@@ -63,16 +63,8 @@ func NewCheckCmd() *cobra.Command {
 				return exitcode.Wrap(exitcode.Config, err)
 			}
 
-			// Runtime section (Git / Platforms / Generators — headers emitted by RuntimeCheck)
+			// Runtime section (Git / Platforms — headers emitted by RuntimeCheck)
 			failed += runRuntimeCheck(runner, cfg, env, out)
-
-			// Cliff section (best-effort; skip if no git-cliff generators configured)
-			ui.Header(out, "Cliff")
-			if cfg == nil {
-				_, _ = fmt.Fprintln(out, ui.Info(out, "no git-cliff generators configured"))
-			} else if f := runCliffChecks(runner, cfg, out); f {
-				failed++
-			}
 
 			// Summary
 			_, _ = fmt.Fprintln(out)
@@ -90,7 +82,6 @@ func NewCheckCmd() *cobra.Command {
 
 	checkCmd.AddCommand(newCheckConfigCmd())
 	checkCmd.AddCommand(newCheckRuntimeCmd())
-	checkCmd.AddCommand(newCheckCliffCmd())
 
 	return checkCmd
 }
@@ -159,85 +150,6 @@ func newCheckRuntimeCmd() *cobra.Command {
 	}
 }
 
-func newCheckCliffCmd() *cobra.Command {
-	cliffCmd := &cobra.Command{
-		Use:   "cliff",
-		Short: "Validate the effective git-cliff config(s)",
-		RunE: func(cmd *cobra.Command, args []string) error {
-			cfgPath, _ := cmd.Flags().GetString("config")
-			verbose, _ := cmd.Flags().GetBool("verbose")
-			runner := execadapter.New(false, verbose)
-			out := cmd.OutOrStdout()
-
-			path := config.ResolvePath(cfgPath)
-			cfg, err := config.Load(path)
-			if err != nil {
-				return exitcode.Wrap(exitcode.Config, err)
-			}
-			applyOfflineOverride(cmd, cfg)
-
-			ui.Header(out, "Cliff")
-			if failed := runCliffChecks(runner, cfg, out); failed {
-				return exitcode.Wrap(exitcode.Runtime, fmt.Errorf("git-cliff config validation failed"))
-			}
-			return nil
-		},
-	}
-
-	cliffCmd.AddCommand(newCheckCliffChangelogCmd())
-	cliffCmd.AddCommand(newCheckCliffReleaseNotesCmd())
-
-	return cliffCmd
-}
-
-func newCheckCliffChangelogCmd() *cobra.Command {
-	return &cobra.Command{
-		Use:   "changelog",
-		Short: "Validate the effective git-cliff changelog config",
-		RunE: func(cmd *cobra.Command, args []string) error {
-			cfgPath, _ := cmd.Flags().GetString("config")
-			verbose, _ := cmd.Flags().GetBool("verbose")
-			runner := execadapter.New(false, verbose)
-			out := cmd.OutOrStdout()
-
-			path := config.ResolvePath(cfgPath)
-			cfg, err := config.Load(path)
-			if err != nil {
-				return exitcode.Wrap(exitcode.Config, err)
-			}
-
-			applyOfflineOverride(cmd, cfg)
-			return exitcode.Wrap(exitcode.Runtime, checkCliffDriver(runner, cfg.Changelog, "changelog", cfg.EnrichmentPolicy(), out))
-		},
-	}
-}
-
-func newCheckCliffReleaseNotesCmd() *cobra.Command {
-	return &cobra.Command{
-		Use:   "release-notes",
-		Short: "Validate the effective git-cliff release-notes config",
-		RunE: func(cmd *cobra.Command, args []string) error {
-			cfgPath, _ := cmd.Flags().GetString("config")
-			verbose, _ := cmd.Flags().GetBool("verbose")
-			runner := execadapter.New(false, verbose)
-			out := cmd.OutOrStdout()
-
-			path := config.ResolvePath(cfgPath)
-			cfg, err := config.Load(path)
-			if err != nil {
-				return exitcode.Wrap(exitcode.Config, err)
-			}
-
-			applyOfflineOverride(cmd, cfg)
-			var notesDriver *config.ContentDriver
-			if cfg.Release != nil {
-				notesDriver = cfg.Release.Notes
-			}
-			return exitcode.Wrap(exitcode.Runtime, checkCliffDriver(runner, notesDriver, "release-notes", cfg.EnrichmentPolicy(), out))
-		},
-	}
-}
-
 // runRuntimeCheck dispatches each runtime check with a spinner and returns
 // the number of hard failures (warnings do not count). env selects the
 // effective release.targets list (root or env override) for the Platforms
@@ -265,50 +177,6 @@ func runRuntimeCheck(runner port.Runner, cfg *config.Config, env string, out io.
 		},
 	)
 	return failed
-}
-
-// runCliffChecks checks all configured git-cliff generators and reports results.
-// Returns true if any check failed.
-func runCliffChecks(runner port.Runner, cfg *config.Config, out io.Writer) bool {
-	var failed bool
-	if cfg.Changelog != nil {
-		if err := checkCliffDriver(runner, cfg.Changelog, "changelog", cfg.EnrichmentPolicy(), out); err != nil {
-			failed = true
-		}
-	}
-	if cfg.Release != nil && cfg.Release.Notes != nil {
-		if err := checkCliffDriver(runner, cfg.Release.Notes, "release-notes", cfg.EnrichmentPolicy(), out); err != nil {
-			failed = true
-		}
-	}
-	if cfg.Changelog == nil && (cfg.Release == nil || cfg.Release.Notes == nil) {
-		_, _ = fmt.Fprintln(out, ui.Info(out, "no git-cliff generators configured"))
-	}
-	return failed
-}
-
-// checkCliffDriver validates one git-cliff config. Returns nil if skipped (non-gitcliff
-// generator) or if git-cliff accepts the config.
-func checkCliffDriver(runner port.Runner, driver *config.ContentDriver, mode, policy string, out io.Writer) error {
-	if driver == nil {
-		_, _ = fmt.Fprintln(out, ui.Warn(out, fmt.Sprintf("cliff %s: skip (not configured)", mode)))
-		return nil
-	}
-	if driver.Generator != "git-cliff" {
-		_, _ = fmt.Fprintln(out, ui.Warn(out, fmt.Sprintf("cliff %s: skip (generator is %s, not git-cliff)", mode, driver.Generator)))
-		return nil
-	}
-	return forgeui.NewSpinner(out, forgeui.Human).Run(fmt.Sprintf("cliff %s", mode), func() (forgeui.Result, error) {
-		degraded, err := app.CheckCliff(runner, driver, mode, policy)
-		if err != nil {
-			return forgeui.Result{}, err
-		}
-		detail := "valid"
-		if degraded {
-			detail = "valid (offline — remote metadata unavailable)"
-		}
-		return forgeui.Result{Detail: detail}, nil
-	})
 }
 
 // printConfigErrors writes validation errors to out.

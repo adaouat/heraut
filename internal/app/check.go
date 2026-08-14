@@ -6,7 +6,6 @@ import (
 	"strings"
 
 	"github.com/adaouat/heraut/internal/config"
-	"github.com/adaouat/heraut/internal/generators/gitcliff"
 	"github.com/adaouat/heraut/internal/port"
 )
 
@@ -35,9 +34,9 @@ func PreflightCheck(runner port.Runner) error {
 	return nil
 }
 
-// RuntimeCheck verifies all runtime dependencies, grouped into three sections:
-// Git, Platforms, and Generators. header is called once per section before its
-// items. dispatch is called once per item with the label shown while the check
+// RuntimeCheck verifies all runtime dependencies, grouped into two sections:
+// Git and Platforms. header is called once per section before its items.
+// dispatch is called once per item with the label shown while the check
 // runs; the run function performs the check and returns the result.
 //
 // env selects the active environment for the Platforms section: when non-empty
@@ -53,7 +52,6 @@ func PreflightCheck(runner port.Runner) error {
 //	            forges:/CI env/git origin, same as `heraut release`), or
 //	            glab (GitLab) → gh (GitHub) as a binary-only fallback when
 //	            nothing resolves
-//	Generators: git-cliff → communique
 //
 // Configured tools are hard errors when missing; unconfigured-but-supported
 // tools warn when absent and succeed silently when present.
@@ -168,28 +166,6 @@ func RuntimeCheck(
 			})
 		}
 	}
-
-	// ── Generators ────────────────────────────────────────────────────────────
-	header("Generators")
-
-	usedGens := configuredGenerators(cfg)
-	for _, og := range []struct{ name, binary, display string }{
-		{"git-cliff", "git-cliff", "git-cliff"},
-		{"communique", "communique", "communique"},
-	} {
-		required := usedGens[og.name]
-		dispatch(og.display, func() RuntimeCheckItem {
-			out, _, err := runner.Run(og.binary, "--version")
-			if err != nil {
-				if required {
-					return RuntimeCheckItem{Name: og.display, Err: fmt.Errorf("%s: not found on PATH", og.binary)}
-				}
-				return RuntimeCheckItem{Name: og.display, IsWarn: true,
-					Err: fmt.Errorf("not found (not required by this config)")}
-			}
-			return RuntimeCheckItem{Name: og.display, Value: strings.TrimSpace(out)}
-		})
-	}
 }
 
 // effectiveTargetPlatforms resolves the config.Platform heraut would build for each effective
@@ -226,39 +202,4 @@ func effectiveTargetPlatforms(runner port.Runner, cfg *config.Config, env string
 		platCfgs = append(platCfgs, platformConfigFromTarget(t, f, id))
 	}
 	return platCfgs, nil
-}
-
-// configuredGenerators returns the set of generator names active in cfg.
-// When cfg is nil (no config file found) all supported generators are required.
-func configuredGenerators(cfg *config.Config) map[string]bool {
-	if cfg == nil {
-		return map[string]bool{"git-cliff": true, "communique": true}
-	}
-	m := make(map[string]bool)
-	if cfg.Changelog != nil {
-		m[cfg.Changelog.Generator] = true
-	}
-	if cfg.Release != nil && cfg.Release.Notes != nil {
-		m[cfg.Release.Notes.Generator] = true
-	}
-	return m
-}
-
-// CheckCliff runs git-cliff --context --no-exec against the effective merged config
-// for the given content driver, applying the remote_metadata policy. mode must be
-// "changelog" or "release-notes". Returns whether the check fell back to --offline
-// (degraded, optional policy) and an error if git-cliff rejected the config. The
-// caller's driver is never mutated — the policy is applied to a copy.
-func CheckCliff(runner port.Runner, driver *config.ContentDriver, mode, policy string) (bool, error) {
-	m := gitcliff.ModeChangelog
-	if mode == "release-notes" {
-		m = gitcliff.ModeReleaseNotes
-	}
-	d := *driver
-	d.RemoteMetadata = policy
-	gen := gitcliff.New(runner, &d, m)
-	if err := gen.CheckCliff(); err != nil {
-		return false, err
-	}
-	return gen.Degraded(), nil
 }
