@@ -1114,6 +1114,14 @@ parameters) as a named risk; the reviewer verified empirically that this repo's 
 `drivers` parameter is non-blocking and deliberately deferred to T188's sweep. Commits
 `208eba7..eec5e62`; review clean, zero Critical/Important findings.
 
+#### `[x]` T186: delete the `heraut cliff` command
+
+Deleted `internal/cmd/cliff.go`, `internal/app/cliff.go`, and their orphaned test files
+(`internal/cmd/cliff_test.go`, `internal/app/cliff_test.go`); removed
+`root.AddCommand(NewCliffCmd())` from `internal/cmd/root.go`; added
+`TestRootCmd_NoCliffCommand` to `internal/cmd/root_test.go`. Pure deletion, no other files
+touched. Commits `739405e..bd309d7`; review clean, zero Critical/Important findings.
+
 ---
 
 ## Phase 3 — Raw-HTTP platform clients (deferred)
