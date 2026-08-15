@@ -659,6 +659,28 @@ git commit -m "feat(cmd): remove heraut check cliff and the git-cliff/communique
 
 ### Task 188: Delete the `gitcliff`/`communique` packages and the `Generator`/`Config` struct fields
 
+> **Amendment (2026-08-15, during execution):** this task's original file list undercounted the
+> `Generator:`/`.Config` literal blast radius substantially — `internal/generators/native/generator_internal_test.go`
+> alone needed 14 literals fixed, not 3, and 9 more files across `internal/app/` and
+> `internal/generators/native/` needed the same fix but were never listed. It also missed a real,
+> functional (not inert-literal) consumer: `internal/pipeline/release_integration_test.go`'s
+> `TestRun_Integration_MultiPlatform_DistinctlyFlavoredNotes` genuinely imported and called
+> `gitcliff.New(...)` — deleted in full (ruling: its specific purpose, proving `HERAUT_REMOTE_URL`
+> propagates through a *real* subprocess, is structurally moot once native — which never shells out
+> for generation — is the only generator; the broader per-platform-distinct-notes behavior it also
+> covered is already proven, generator-agnostically, by `internal/pipeline/release_test.go:243`
+> `TestRun_MultiPlatform_NotesPerPlatform`). It also missed that `internal/scaffold`'s 4 *test* files
+> (`wizard_internal_test.go`, `wizard_test.go`, `generate_test.go`, `dropped_test.go` — as opposed to
+> its 4 *production* files, which this task's Global Constraints correctly forbid touching) construct
+> `ContentDriver{Generator: ...}` literals and, in `wizard_internal_test.go`, read `.Generator` back
+> off a result — both break once the fields are deleted. Ruling: fix these 4 scaffold test files too
+> (literal strips + adapting the 2 field-read assertions to a different mechanism, same discipline as
+> the `merge_test.go` fixes below), since the plan's Global Constraints, read literally, only forbid
+> editing scaffold's 4 named *production* files — the directory-wide "OUT OF SCOPE" framing was about
+> not doing Phase C's wizard-redesign work, not about leaving the build broken, and "no phase lands
+> with a broken build even temporarily" is this repo's own explicit, repeated, higher-order rule. Full
+> reasoning in the SDD ledger (`.superpowers/sdd/2026-08-14-native-only-generator-phase-b/progress.md`).
+
 **Files:**
 - Delete: `internal/generators/gitcliff/` (entire directory: `cliff.changelog.toml`,
   `cliff.release-notes.toml`, `embed.go`, `generator.go`, `generator_test.go`,
