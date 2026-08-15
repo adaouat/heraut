@@ -1122,6 +1122,30 @@ Deleted `internal/cmd/cliff.go`, `internal/app/cliff.go`, and their orphaned tes
 `TestRootCmd_NoCliffCommand` to `internal/cmd/root_test.go`. Pure deletion, no other files
 touched. Commits `739405e..bd309d7`; review clean, zero Critical/Important findings.
 
+#### `[x]` T187: delete `heraut check cliff` and the git-cliff/communique runtime probes
+
+Deleted `newCheckCliffCmd`/`newCheckCliffChangelogCmd`/`newCheckCliffReleaseNotesCmd`/
+`runCliffChecks`/`checkCliffDriver` and the default-output "Cliff" section from
+`internal/cmd/check.go`; deleted `configuredGenerators`/`CheckCliff` and `RuntimeCheck`'s
+"Generators" probe section from `internal/app/check.go`. Also deleted
+`internal/app/checkcliff_test.go` and 3 `TestAppCheckCliff_*` tests from
+`internal/app/check_test.go` (not in the plan's explicit file list, but required —
+compile-necessity, they called the now-deleted `app.CheckCliff` directly) and stripped
+git-cliff/communique FakeBin setup from a 4th test beyond the plan's named 3 (same
+unused-setup pattern). After this task, zero non-test code in `internal/app/`/`internal/cmd/`
+imports `internal/generators/gitcliff` or `communique` — verified, unblocking T188's package
+deletion. Review found 2 Important findings, both about documentation rather than the code
+itself: the implementer's report omitted 3 of the test deletions from its own accounting
+(fixed by completing the report — no code change), and `CLAUDE.md` still documented the
+now-deleted `heraut cliff` command and an inflated generator count in 4 places the plan
+hadn't anticipated (2 flagged by review, 2 more found by the controller reading the file
+directly: the "Project layout" file-tree's second mention of `check.go`'s subcommands, and
+the `cliff.go` file-tree row itself). Fixed in one fix round; the fix also caught 2 further
+stale CLAUDE.md references beyond the 4 named (a Tech-stack table row and the "Bundled
+external CLIs" section, both directly falsified by this task's own probe removal, not
+premature Task 188 scope). Commits `11eb39c..8b74989`; re-review clean, all findings
+addressed, no new breakage.
+
 ---
 
 ## Phase 3 — Raw-HTTP platform clients (deferred)
