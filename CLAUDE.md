@@ -20,15 +20,13 @@ heraut version next     # print the next version without side effects
 heraut version current  # print the latest released tag (per active strategy / env)
 heraut version sprint bump  # increment sprint counter in .heraut.yml (CalVer)
 heraut check            # preflight: config + runtime
-heraut cliff <mode>     # show the effective merged git-cliff TOML
 heraut init             # interactive wizard to generate .heraut.yml
 heraut whatsnew         # release notes for versions newer than the running build
 ```
 
 Four versioning strategies are supported (`semver`, `calver`, `semver-per-env`,
-`calver-per-env`), two content generators (`git-cliff`, `communique`),
-and two platforms (`github`, `gitlab`). See [`docs/specs/`](docs/specs/) for the full
-behavioural spec.
+`calver-per-env`) and two platforms (`github`, `gitlab`). See [`docs/specs/`](docs/specs/)
+for the full behavioural spec.
 
 ## Docs
 
@@ -49,7 +47,7 @@ behavioural spec.
 | **JSON Schema**               | `schema.json` for IDE validation of `.heraut.yml`                   |
 | **`//go:embed`**              | Embedded git-cliff defaults + `CHANGELOG.md` (offline fallback for `whatsnew`) |
 | **goreleaser**                | Cross-platform release builds, raw binaries (see [ADR-0013](docs/adr/0013-raw-binary-goreleaser-format.md)) |
-| **git-cliff / glab / gh / communique** | External CLIs orchestrated by heraut (not bundled)       |
+| **glab / gh**                 | External CLIs orchestrated by heraut (not bundled)                  |
 
 ## Project layout
 
@@ -64,8 +62,7 @@ internal/
       changelog.go              heraut changelog
       version.go                heraut version next / current
       version_sprint.go         heraut version sprint bump
-      check.go                  heraut check config / runtime / cliff
-      cliff.go                  heraut cliff changelog / release-notes
+      check.go                  heraut check config / runtime
       init.go                   heraut init
       offline.go                --offline flag → forces remote_metadata: disabled
       exit.go                   maps pipeline errors to internal/exitcode codes
@@ -151,9 +148,9 @@ non-default path in CI pipelines without touching command invocations.
 
 ## Bundled external CLIs (not installed by heraut)
 
-heraut invokes `git`, `git-cliff`, `glab`, `gh`, and `communique` via the
-`port.Runner` abstraction. None of these are bundled with the heraut binary — users
-install them separately. `heraut check runtime` verifies they are on `PATH`.
+heraut invokes `git`, `glab`, and `gh` via the `port.Runner` abstraction. None of these
+are bundled with the heraut binary — users install them separately. `heraut check
+runtime` verifies they are on `PATH`.
 
 ## Non-obvious constraints
 
