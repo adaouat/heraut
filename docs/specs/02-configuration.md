@@ -55,12 +55,12 @@ environments: ...     # optional — per-environment overrides for changelog/rel
 - **Root config is the default**; environment blocks are shallow-merged overrides.
 - **`changelog` and `release.notes` are independent** — a project can have one, both, or
   neither.
-- **Each generator/platform section is opaque to heraut** — the core tool passes the
-  section as-is to the relevant driver, so adding generator/platform-specific fields
+- **Platform sections are opaque to heraut** — the core tool passes `forges:` entries and
+  `release.targets[]` as-is to the relevant driver, so adding driver-specific fields
   does not require changes to the core.
 - **Unknown keys fail validation** — the schema is strict; typos surface immediately.
-  See [ADR-0006](../adr/0006-config-naming-generator-platform.md) for the naming
-  convention (`generator: …`, `platform: …`).
+  See [ADR-0006](../adr/0006-config-naming-generator-platform.md) for the platform naming
+  convention (`platform: …`).
 
 ## `versioning`
 
