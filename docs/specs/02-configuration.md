@@ -179,19 +179,15 @@ per-env wins; a field you omit inherits from the root. So you can override just 
 
 ```yaml
 changelog:
-  generator: git-cliff
+  tag_pattern: "^v[0-9]+"  # include only v* tags
   output: CHANGELOG.md
 
 environments:
   prod:
     changelog:
-      config: cliff.prod.toml   # inherits generator + output from root
+      tag_pattern: "^v[0-9]+_prod$"  # prod-only tags
+      # output inherits from root
 ```
-
-**Generator switch is the exception.** If the per-env block sets a `generator` that differs
-from the root, it is used as-is with no inheritance (generator-specific fields like `config`
-/ `template` do not carry across generators). Same generator (or unset) → field-merge;
-different generator → fresh block.
 
 **Limitation:** because an empty field inherits, a per-env block cannot blank out a value
 the root sets (there is no explicit "unset").
@@ -273,10 +269,10 @@ environments:
 A per-environment `tag_format` always overrides the common one.
 
 **Changelog headings are cleaned automatically.** When `tag_format` carries an `{env}`
-(prefix or suffix) or `{build}` token, heraut injects a git-cliff postprocessor that strips
-those tokens from the version heading, leaving just the version: `prod/1.0.0` → `1.0.0`,
-`2026.3.0_prod` → `2026.3.0`, `uat/7.4.1-158404` → `7.4.1` (SemVer pre-release preserved:
-`7.4.1-rc.1`). Compare links still use the full tags.
+(prefix or suffix) or `{build}` token, native strips those tokens from the version heading,
+leaving just the version: `prod/1.0.0` → `1.0.0`, `2026.3.0_prod` → `2026.3.0`,
+`uat/7.4.1-158404` → `7.4.1` (SemVer pre-release preserved: `7.4.1-rc.1`). Compare links
+still use the full tags.
 
 ### `{build}` token — CI build IDs
 
@@ -322,12 +318,12 @@ the tag from git history cannot render one (no build ID is available) and will e
 build-per-release teams. Passing both `--version` and `--build` is the explicit opt-in;
 heraut does not guard or warn (mirrors `changelog --build`).
 
-**Changelog note:** git-cliff generates one section per tag boundary. Multiple builds
+**Changelog note:** Native generates one section per tag boundary. Multiple builds
 of the same semantic version produce multiple sections with the same heading. For a clean
 per-version changelog, set `disable_changelog: true` on UAT environments and only
 generate the changelog on the production/main release. Use `tag_pattern` scoped to the
-production env; heraut automatically injects a postprocessor that strips the env prefix
-and build ID from version headings (`[uat/7.4.1-158404]` → `[7.4.1]`).
+production env; heraut automatically strips the env prefix and build ID from version
+headings (`[uat/7.4.1-158404]` → `[7.4.1]`).
 
 ## `changelog`
 
@@ -335,10 +331,9 @@ Controls how `CHANGELOG.md` is generated and committed.
 
 ```yaml
 changelog:
-  generator: git-cliff
-  config: cliff.toml      # optional
   output: CHANGELOG.md    # optional, defaults to CHANGELOG.md
   tag_pattern: "dev/*"    # optional, for prefixed-tag strategies
+  template: path/to/my-template.tmpl  # optional, custom Go template
 ```
 
 When `changelog` is present, heraut generates the changelog and commits it to the
@@ -346,7 +341,7 @@ release branch as part of `heraut release`. Omit this block entirely to skip cha
 generation. The commit ownership is described in
 [ADR-0012](../adr/0012-changelog-commit-ownership.md).
 
-See § Content generators below for generator-specific fields.
+See § Content generation below for native generator fields.
 
 ## `release`
 
@@ -354,8 +349,7 @@ Controls release notes generation and where releases are published.
 
 ```yaml
 release:
-  notes:                  # optional — release notes generator
-    generator: git-cliff
+  notes: {}               # optional — release notes config (empty uses defaults)
   targets:                 # optional — publish destinations
     - forge: gitlab-saas
     - forge: github
@@ -548,8 +542,7 @@ version: "1"
 versioning:
   strategy: semver
 
-changelog:
-  generator: native
+changelog: {}
 ```
 
 heraut auto-detects the GitLab forge from `GITLAB_CI` / `CI_SERVER_URL` /
@@ -631,16 +624,15 @@ a gate.
 ### `commits.tickets`
 
 Links issue-tracker references found in commit messages — **subject, body, or footer** (e.g.
-`Refs: PROJ-123`) — in the changelog and release notes. **git-cliff only** today; setting
-`tickets` with the `communique` generator is a configuration error (ADR-0024).
+`Refs: PROJ-123`) — in the changelog and release notes.
 
 | Field | Meaning |
 |---|---|
 | `pattern` | A regex matching ticket IDs. Each match is rendered as a link; the **label** is always the full match. |
 | `url` | A URL template containing `{ticket}` — the pattern's **first capture group**, or the **full match** when there is no group. |
 
-For git-cliff, heraut injects each entry as a `link_parser`; the link is appended to the
-commit line as `([TICKET](url))`.
+Heraut injects each entry as a link parser; the link is appended to the commit line as
+`([TICKET](url))`.
 
 ### `commits.enrichment_forge` / `commits.enrichment_policy`
 
@@ -677,21 +669,20 @@ entry sets **exactly one** of `type` (match a conventional-commit type) or `rege
 commit subject). This is independent of `commits.types` `remove`, which governs the verify
 allow-list rather than the rendered output.
 
-## Content generators
+## Content generation
 
-Used under `changelog` and `release.notes`. A project can use different generators for
-each.
+Configured under `changelog` and `release.notes`. `native`, heraut's built-in renderer, is the
+only generator (ADR-0045) — there is no `generator:` key to set; an empty `changelog: {}` /
+`release: {notes: {}}` block means "generate with native, using defaults."
 
 | Field         | Required | Description                                                                                                                                                                                                                                                                       |
 |---------------|----------|-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| `generator`   | Yes      | One of: `git-cliff`, `communique`.                                                                                                                                                                                                                                                 |
-| `config`      | No       | Path to the generator config file (relative to project root). For `git-cliff`: optional partial override, deep-merged with heraut's built-in default. For `communique`: required.                                                                                              |
 | `output`      | No       | Output file path (e.g. `CHANGELOG.md`).                                                                                                                                                                                                                                            |
-| `tag_pattern` | No       | Tag pattern regex for `git-cliff` only. **For per-env strategies heraut auto-derives this from the effective `tag_format` so `--env <env>` only considers that environment's tags** (e.g. `{version}_{env}` + `--env prod` → `^.+_prod$`); set it explicitly to override the derivation. Setting `tag_pattern` with `communique` is a config validation error. |
-| `template`    | No       | Path to a custom Tera template. Not used by `git-cliff` or `communique` (vestigial field with no current consumer; kept for forward compatibility).                                                                                                                              |
+| `tag_pattern` | No       | Tag pattern regex scoping which tags are considered. **For per-env strategies heraut auto-derives this from the effective `tag_format` so `--env <env>` only considers that environment's tags** (e.g. `{version}_{env}` + `--env prod` → `^.+_prod$`); set it explicitly to override the derivation. |
+| `template`    | No       | Path to a full custom Go `text/template` file, parsed on top of native's built-ins (ADR-0037). See [Spec 05 § User-customizable templates](05-generators-and-platforms.md#user-customizable-templates-adr-0037). |
 
 See [Spec 05 — Generators and Platforms](05-generators-and-platforms.md) for the full
-behaviour of each generator.
+behaviour of the native generator.
 
 ## Platform drivers
 
@@ -769,7 +760,6 @@ versioning:
   bump: auto
 
 changelog:
-  generator: git-cliff
   output: CHANGELOG.md
 
 forges:
@@ -779,8 +769,7 @@ forges:
     token_env: GH_TOKEN
 
 release:
-  notes:
-    generator: git-cliff
+  notes: {}
   targets:
     - forge: github
 ```
@@ -796,7 +785,6 @@ versioning:
   tag_prefix: ""
 
 changelog:
-  generator: git-cliff
   output: CHANGELOG.md
 
 forges:
@@ -804,8 +792,7 @@ forges:
     platform: gitlab
 
 release:
-  notes:
-    generator: git-cliff
+  notes: {}
   targets:
     - forge: gitlab
 ```
@@ -820,7 +807,6 @@ versioning:
   tag_format: "{env}/{version}"    # common format: dev/1.0.0, staging/1.0.0, prod/1.0.0
 
 changelog:
-  generator: git-cliff
   output: CHANGELOG.md
   tag_pattern: "dev/*"
 
@@ -835,7 +821,6 @@ commits:
 
 release:
   notes:
-    generator: git-cliff
     tag_pattern: "dev/*"
   targets:
     - forge: gitlab
@@ -884,8 +869,7 @@ commits:
   enrichment_forge: gitlab
 
 release:
-  notes:
-    generator: git-cliff
+  notes: {}
   targets:
     - forge: gitlab
       assets:
