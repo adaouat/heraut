@@ -14,16 +14,15 @@
 **Héraut** (`heraut`) is a Go CLI that orchestrates release management for git-based
 projects. One command resolves the next version, generates the changelog and release
 notes, creates the git tag, and publishes the release to GitHub and/or GitLab. It wraps
-the tools you already use — `git`, `git-cliff`, `gh`, `glab`, `communique` — and handles
-the glue they can't: version resolution for prefixed-tag strategies, generator/platform
-composition, and strict config validation.
+the tools you already use — `git`, `gh`, `glab` — and handles the glue they can't: version
+resolution for prefixed-tag strategies, platform composition, and strict config validation.
 
 The name is a French pun. *Héraut* means herald — the medieval messenger who announces
 news — and it sounds like *hero*, which is what good release automation should feel like.
 
 It supports **four versioning strategies** (`semver`, `calver`, `semver-per-env`,
-`calver-per-env`), **two content generators** (`git-cliff`, `communique`),
-and **two platforms** (`github`, `gitlab`).
+`calver-per-env`), a **built-in content generator** (`native` — no external binary
+required), and **two platforms** (`github`, `gitlab`).
 
 ## Install
 
@@ -103,10 +102,11 @@ The **Docker image** bundles all of them at pinned versions; no extra setup need
 | Tool | Needed for |
 |------|------------|
 | `git` | always |
-| `git-cliff` | `generator: git-cliff` |
-| `communique` | `generator: communique` |
 | `gh` | `platform: github` |
 | `glab` | `platform: gitlab` |
+
+Changelog and release-notes generation needs no external binary — `native` (heraut's built-in
+generator) ships in the `heraut` binary itself.
 
 Run `heraut check runtime` to verify the tools and tokens for your config are available.
 
@@ -135,8 +135,7 @@ heraut release
 | `heraut version next` | Print the next version without side effects |
 | `heraut version current` | Print the latest released tag for the active strategy / env |
 | `heraut version sprint bump` | Increment the CalVer sprint counter in `.heraut.yml` |
-| `heraut check` | Preflight: config + runtime + cliff (`config` / `runtime` / `cliff` subcommands) |
-| `heraut cliff <mode>` | Print the effective merged git-cliff TOML (`changelog` / `release-notes`) |
+| `heraut check` | Preflight: config + runtime (`config` / `runtime` subcommands) |
 | `heraut init` | Interactive wizard to generate `.heraut.yml` |
 
 Global flags (on every command): `--config`, `--dry-run`, `--verbose`, `--env`,
@@ -177,9 +176,9 @@ release:
 | Block | Purpose |
 |-------|---------|
 | `versioning` | Strategy and options (`semver` / `calver` / `*-per-env`) |
-| `changelog` | Generator for `CHANGELOG.md` (committed during `release`) |
+| `changelog` | `CHANGELOG.md` generation (committed during `release`) |
 | `forges` | Code-hosting connections heraut talks to (`github` / `gitlab`, or both); optional when auto-detected from CI or git origin |
-| `release.notes` | Generator for the release-page notes |
+| `release.notes` | Release-page notes generation |
 | `release.targets` | Publish destinations, each referencing a `forges[].name` |
 | `environments` | Per-environment config for `*-per-env` strategies (bump mode, tag format, promotion source, changelog/release overrides) |
 
