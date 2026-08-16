@@ -1250,6 +1250,16 @@ breakage. The hardest judgment call in the whole task — correctly separating s
 from git-cliff-exclusive content within one nested section — was executed correctly in both
 directions on the first pass, per independent reviewer verification.
 
+#### `[x]` T193: update `docs/tasks/roadmap.md`'s intro line
+
+Deliberately narrow — dropped `git-cliff`/`communique` from the intro sentence's tool list
+(kept `cog`, heraut's own commit-msg hook tool, unrelated to this epic), touching only that
+one line. `docs/tasks/roadmap.md`'s other, much older staleness (cocogitto, a pre-forge-
+extraction package layout, "14 ADRs") is out of scope — a separate, unrelated documentation-
+debt concern predating even Phase A, left untouched per the plan's own explicit instruction.
+(CLAUDE.md's stale command references, also originally slated for this task, were already
+fully handled by T187's fix round.) Commit `e40bcbf..49e059a`; review clean.
+
 ---
 
 ## Phase 3 — Raw-HTTP platform clients (deferred)
