@@ -1179,6 +1179,22 @@ against the diff, including a direct re-check of the scaffold production-file bo
 Critical/Important findings, 2 Minor prose-staleness items deferred (a stale doc comment on
 `ContentDriver` and a stale doc comment on one scaffold test, both non-behavioral).
 
+#### `[x]` T189: remove the Real-CLI smoke-test exception from testing docs
+
+Replaced `.claude/rules/testing.md`'s "Real-CLI smoke tests" section (its only remaining
+example, git-cliff's, is gone; cocogitto's was already dropped by ADR-0028) with a one-line
+note that the category has no live example today. Updated `docs/specs/06-dx-and-testing.md`'s
+Unit-layer target list, Contract-layer tool list, and "Hard-won edge cases" list to match.
+Also fixed two directly-adjacent, actively-broken references in the same
+`.claude/rules/testing.md` file the review flagged as beyond the brief's literal steps: the
+"Four test layers" table's Contract row still listed `git-cliff` as a live example CLI two
+sections above this task's own rewrite saying it's gone, and the MockRunner code example
+still invoked `gitcliff.New(mr, cfg)`, a package T188 already deleted — both would have
+self-contradicted the section this task exists to fix, in a file loaded into every Claude
+Code session via `CLAUDE.md`. Adjudicated as in-scope consistency, not scope creep. Commits
+`549aee0..897076b`; review found no code/content defects, one process-labeled finding
+adjudicated as not-a-defect (reasoning above and in the SDD ledger).
+
 ---
 
 ## Phase 3 — Raw-HTTP platform clients (deferred)
