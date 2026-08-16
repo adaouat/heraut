@@ -1195,6 +1195,17 @@ Code session via `CLAUDE.md`. Adjudicated as in-scope consistency, not scope cre
 `549aee0..897076b`; review found no code/content defects, one process-labeled finding
 adjudicated as not-a-defect (reasoning above and in the SDD ledger).
 
+#### `[x]` T190: rewrite `README.md`
+
+Rewrote the intro prose (drops `git-cliff`/`communique` from the tool list, "generator/platform
+composition" → "platform composition"), the strategy/generator/platform summary line ("two
+content generators" → "a built-in content generator (`native` — no external binary
+required)"), the Prerequisites table (drops both rows, adds a note that generation ships in the
+binary), the Commands table (drops `heraut cliff <mode>`, `heraut check`'s description drops
+"cliff"), and the config field table (`changelog`/`release.notes` rows drop "Generator for..."
+phrasing). Pure prose/table edit, single file. Commits `f322de7..1fd3cff`; review clean, zero
+Critical/Important findings.
+
 ---
 
 ## Phase 3 — Raw-HTTP platform clients (deferred)
