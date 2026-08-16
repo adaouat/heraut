@@ -16,8 +16,8 @@ roadmap and spec/ADR, fix the roadmap.
 
 ## Overview
 
-Héraut is a Go CLI that orchestrates `git-cliff`, `glab`, `gh`, `cog`, and `communique`
-to resolve versions, generate changelogs, and publish releases to GitHub / GitLab. This
+Héraut is a Go CLI that orchestrates `glab`, `gh`, and `cog` to resolve versions, generate
+changelogs, and publish releases to GitHub / GitLab. This
 roadmap captures the work to take it from an empty repo to a v1.0 release.
 
 The goals of v1.0:
