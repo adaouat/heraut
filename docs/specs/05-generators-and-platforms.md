@@ -54,7 +54,7 @@ including Azure DevOps. See [ADR-0033](../adr/0033-native-config-model.md),
 [ADR-0034](../adr/0034-native-remote-enrichment.md), and
 [ADR-0036](../adr/0036-unified-enrichment-model.md).
 
-#### User-customizable templates (ADR-0037)
+### User-customizable templates (ADR-0037)
 
 The native generator exposes a public template API with **two entry points**:
 
@@ -101,7 +101,7 @@ are the **experimental-in-v1** public API — additive changes are free.
 `template` require `generator: native`; each snippet and the file are parse-validated at config
 load.
 
-#### Changelog structure & incremental generation (ADR-0038)
+### Changelog structure & incremental generation (ADR-0038)
 
 A `native`-managed `CHANGELOG.md` is a **preamble** (free-form content before the first section,
 e.g. the `# Changelog` title) followed by **anchored sections**, newest first. Each section is
