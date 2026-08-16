@@ -76,15 +76,13 @@ Four layers, with strict discipline:
 
 - `internal/versioning/{tagfmt,semver,calver,perenv}/`
 - `internal/config/` (loader, path, validator)
-- `internal/generators/gitcliff/merge.go`
 
 Every exported function has tests. Table-driven where the input space is enumerable.
 
 ### Contract
 
 `internal/testutil.MockRunner` records every `Run` / `RunEnv` call into `[]Call` and
-returns ordered `[]Response`. Used for every CLI invocation: `git`, `git-cliff`, `gh`,
-`glab`, `communique`.
+returns ordered `[]Response`. Used for every CLI invocation: `git`, `gh`, `glab`.
 
 A platform driver does not ship without contract tests. The tests assert the **exact
 CLI arguments** passed — flag names, value formats, order, env vars. Example shape:
@@ -145,7 +143,6 @@ coverage:
 - CalVer `PATCH` reset on calendar period boundary
 - Per-env cycle detection in `source:` chains
 - E001 / E002 / E003 `--force` bypass semantics (E003 is not bypassable)
-- The git-cliff temp config file lifecycle (cleanup on early return)
 
 These cases are kept in the test suite indefinitely. A test row is removed only when the
 behaviour it covers is deliberately changed, with an ADR documenting the change.

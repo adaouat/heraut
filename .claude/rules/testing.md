@@ -14,7 +14,7 @@ silently agree.
 | Layer       | Scope                                                               | Tooling                              |
 |-------------|---------------------------------------------------------------------|--------------------------------------|
 | Unit        | Pure functions (version resolvers, config parsers, tag format)      | `go test ./...`                      |
-| Contract    | External CLI interactions (`gh`, `glab`, `git-cliff`, `cog`, …)     | `testutil.MockRunner`                |
+| Contract    | External CLI interactions (`git`, `gh`, `glab`, …)                  | `testutil.MockRunner`                |
 | Integration | Full pipeline against a real git repo + fake binaries in `PATH`     | `go test` + `testutil.FakeBin`       |
 | Schema      | `.heraut.yml` validates against `schema.json`                       | JSON Schema + fixtures               |
 
@@ -30,13 +30,12 @@ asserting the exact arguments passed.
 mr := testutil.NewMockRunner()
 mr.QueueResponse("", "", nil) // stdout, stderr, err — ordered FIFO
 
-gen := gitcliff.New(mr, cfg)
-_, err := gen.Generate("v1.2.3")
-require.NoError(t, err)
+plat := github.New(mr, github.Config{Repository: "acme/widget", TokenEnv: "GH_TOKEN"})
+require.NoError(t, plat.CreateRelease("v1.2.3", "release notes body"))
 
 require.Len(t, mr.Calls, 1)
-assert.Equal(t, "git-cliff", mr.Calls[0].Name)
-assert.Equal(t, []string{"--config", "<tmpfile>", "--tag", "v1.2.3", ...}, mr.Calls[0].Args)
+assert.Equal(t, "gh", mr.Calls[0].Name)
+assert.Equal(t, []string{"release", "create", "v1.2.3", "--notes", "release notes body", "--repo", "acme/widget"}, mr.Calls[0].Args)
 ```
 
 When the assertion is about *which CLI args were passed*, use `MockRunner`. Never reach
@@ -51,16 +50,13 @@ codes map to errors).
 
 Reach for FakeBin sparingly — most behavior can be verified at the contract layer.
 
-## Real-CLI smoke tests (embedded config validation)
+## Real-CLI smoke tests
 
-A narrow, deliberate exception to "mock the externals": a **skippable** test runs the
-*real* `git-cliff` against heraut's **embedded default config** (via
-`testutil.RealGitRepo`), asserting the tool *accepts* the config. MockRunner can't catch an
-embedded TOML the real tool rejects — that gap once shipped a broken default for a
-generator heraut has since dropped (T117/ADR-0028). This test `t.Skip`s when the binary is
-absent and runs in CI, where `mise` installs the pinned tool. Keep it to a
-config-acceptance smoke check (no output assertions — those stay byte-level / manual);
-it is local and deterministic (no network, `t.TempDir`).
+heraut previously carved out a narrow exception here for testing embedded external-tool configs
+against the real binary (git-cliff, then cocogitto — both since removed, see ADR-0028 and
+ADR-0045). `native`, heraut's sole generator since ADR-0045, has zero external-binary dependency
+for generation, so this exception category currently has no live example. Revive this pattern if a
+future external dependency needs the same "MockRunner can't catch a real-tool rejection" coverage.
 
 ## Table-driven tests preferred
 
