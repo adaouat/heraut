@@ -1,10 +1,15 @@
 # ADR-0010: Embedded `cliff.toml` Default with Optional User Override
 
-- **Status**: Accepted
+- **Status**: Superseded by [ADR-0045](0045-native-sole-generator.md)
 - **Date**: 2026-05-23
 - **Deciders**: bchatard
 
 ---
+
+> **Superseded (2026-08-14).** heraut no longer ships `git-cliff` as a generator — `native` is
+> its sole content generator ([ADR-0045](0045-native-sole-generator.md)). This ADR's entire
+> subject — the embedded `cliff.toml` defaults and their merge semantics — is gone along with
+> `internal/generators/gitcliff/`. Kept as a historical record of the decision at the time.
 
 ## Context
 

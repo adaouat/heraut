@@ -14,7 +14,7 @@ trade-offs were accepted.
 | [0007](0007-version-promotion-error-handling.md) | Version Promotion Error Handling (E001 / E002 / E003) | Accepted |
 | [0008](0008-promote-source-env.md) | Explicit `source` Field for `bump: promote` Environments | Accepted |
 | [0009](0009-generic-perenv-resolver.md) | Generic Per-Env Resolver Design (`perenv` + `tagfmt`) | Accepted |
-| [0010](0010-embedded-cliff-toml-default.md) | Embedded `cliff.toml` Default with Optional User Override | Accepted |
+| [0010](0010-embedded-cliff-toml-default.md) | Embedded `cliff.toml` Default with Optional User Override | Superseded by ADR-0045 |
 | [0011](0011-single-pipeline-release-via-pre-computation.md) | Single-Pipeline Release via Version Pre-computation | Accepted |
 | [0012](0012-changelog-commit-ownership.md) | Changelog Commit Ownership and Release Workflow Order | Accepted |
 | [0013](0013-raw-binary-goreleaser-format.md) | Raw Binary GoReleaser Format (No Archives) | Accepted |
@@ -49,3 +49,4 @@ trade-offs were accepted.
 | [0042](0042-gitlab-graphql-enrichment.md) | GitLab enrichment via batched GraphQL | Accepted |
 | [0043](0043-forge-abstraction.md) | Forge abstraction + unified forges: config | Accepted (P3 framing — publishing folds into `port.Forge` with a transport change — superseded by 0044, which keeps `gh`/`glab` and unifies config only; "GitHub and Azure keep their current transports" now stale — GitHub's P2 migration to native `net/http` shipped) |
 | [0044](0044-publishing-config-unification.md) | Publishing config unification — `release.targets` replaces `release.platforms` | Accepted |
+| [0045](0045-native-sole-generator.md) | Native as Heraut's Sole Content Generator | Accepted |
