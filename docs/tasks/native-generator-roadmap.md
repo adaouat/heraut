@@ -1225,6 +1225,31 @@ context in the first pass, reworded in the fix round to drop the stale example (
 naming convention, generator opacity principle rescoped to platforms). Commits
 `ecac173..763b487` (2 commits); re-review clean, finding addressed, no new breakage.
 
+#### `[x]` T192: rewrite Spec 05 for native as heraut's sole generator
+
+The biggest single doc edit in Phase B. Replaced the 3-generator comparison table with a
+single `## Generator` intro; promoted `### native` to `## native`, content unchanged;
+deleted git-cliff-exclusive content (TOML embed description, `heraut cliff` invocation
+blocks, `[remote.*]` injection paragraph) and the whole `### communique` section; correctly
+identified that two subsections nested under the old `### git-cliff` heading —
+`forges` (explicit metadata forge, ADR-0043) and `Auto-detection and self-hosted hosts` — were
+**not** actually git-cliff-exclusive (general `forges:` config and a fallback chain shared
+with native), kept both, promoted `#####`→`###`, re-homed after native's own content, reworded
+their "both git-cliff and native" framing to native-only, and deleted only the
+git-cliff-specific bullet within the auto-detection divergence prose (the native bullet
+stands, describing real current behavior). `### No generator` renamed/reworded to
+`### Omitting changelog or release notes`. `## Generator interface`'s `Validate()` line and
+"Per-platform link resolution" paragraph updated to drop git-cliff/communique framing.
+`## Platforms` and `## Extensibility` untouched, verified zero diff. One fix round: promoting
+only the top `### native`→`## native` heading (per the plan's literal Step 2 text) left two
+of native's own nested `#### ...` sub-headings under-promoted relative to the newly re-homed
+`###` siblings — a plan gap (Step 2 didn't anticipate the cascading depth effect), not an
+implementer error — fixed by promoting both to `###` (heading markers only, no prose
+changed). Commits `553d6ae..b59f8f5` (2 commits); re-review clean, finding addressed, no new
+breakage. The hardest judgment call in the whole task — correctly separating shared content
+from git-cliff-exclusive content within one nested section — was executed correctly in both
+directions on the first pass, per independent reviewer verification.
+
 ---
 
 ## Phase 3 — Raw-HTTP platform clients (deferred)
