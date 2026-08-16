@@ -1,21 +1,16 @@
 # Spec 05 — Generators and Platforms
 
-Generators produce changelog and release-notes text. Platforms publish releases on a
+The `native` generator produces changelog and release-notes text. Platforms publish releases on a
 hosting service. They are independent concerns and combined in `.heraut.yml` under
 `changelog`, `release.notes`, and `release.targets` (each target referencing a `forges[].name`).
 
-## Generators
+## Generator
 
-Three generators are supported: `native` (heraut's canonical built-in renderer), `git-cliff`,
-and `communique`. A project can use different generators for `changelog` and `release.notes`.
+`native` is heraut's sole content generator (ADR-0045) — a built-in, zero-external-dependency
+renderer driven by `commits` / `rendering` config, with a user-customizable template API
+(ADR-0037).
 
-| Generator   | Strengths                                                        | Limits                                                       |
-|-------------|------------------------------------------------------------------|--------------------------------------------------------------|
-| `native`    | Built-in renderer, no external binary; changelog / release-notes driven by `commits` / `rendering` config; user-customizable templates (ADR-0037) | Go `text/template` only; git-cliff still owns Tera |
-| `git-cliff` | Embedded opinionated default; deep-merged TOML overrides; labels new commits with `--tag <version>` | TOML config only                                            |
-| `communique`| AI-assisted release notes from commit history                    | Requires a full config file; no embedded default              |
-
-### native
+## native
 
 heraut's built-in, zero-external-dependency renderer (ADR-0032 / ADR-0033). It walks git
 history, classifies commits per the `commits.types` taxonomy and `rendering.excludes`, and
@@ -151,74 +146,7 @@ previously-anchorless file) — see [ADR-0038](../adr/0038-incremental-changelog
 migration story, including the `regenerate_changelog` `workflow_dispatch` input heraut's own CI
 uses for its own migration.
 
-### git-cliff
-
-```yaml
-changelog:
-  generator: git-cliff
-  config: .config/cliff/cliff.toml   # optional partial override
-  output: CHANGELOG.md               # optional, defaults to CHANGELOG.md
-  tag_pattern: "^dev/"               # regex; scopes prefixed-tag / per-env strategies
-```
-
-heraut ships two embedded `cliff.toml` defaults (see
-[ADR-0010](../adr/0010-embedded-cliff-toml-default.md)):
-
-- **Changelog variant** — includes a stats block, version header, and the full Conventional
-  Commits taxonomy
-- **Release-notes variant** — no header, no stats; just the body suitable for the
-  release page
-
-When `config:` is set in `.heraut.yml`, heraut deep-merges it with the embedded default at
-runtime — you only need to override what differs. Inspect the effective merged TOML with:
-
-```
-heraut cliff changelog
-heraut cliff release-notes
-```
-
-**Invocation** (changelog mode):
-
-```
-git-cliff --config <merged-tmp.toml> --tag <version> [--tag-pattern <pattern>] --output <file>
-```
-
-**Invocation** (release-notes mode):
-
-```
-git-cliff --config <merged-tmp.toml> --tag <version> --latest [--tag-pattern <pattern>]
-```
-
-- `--config` points at a temp file containing the merged TOML (cleaned up after run)
-- `--tag` is always set to the resolved version, so unreleased commits get the new
-  version's heading in `CHANGELOG.md`
-- No range flag in changelog mode — git-cliff processes the full commit history so that
-  `CHANGELOG.md` always contains every release, not just the current one
-- `--latest` in release-notes mode — the tag is already pushed by the time release notes
-  are generated (step 6 of the release pipeline), so `--unreleased` would return nothing;
-  `--latest` returns the commits in the tag just created
-- `--tag-pattern` is set from `tag_pattern:` when configured
-- `--output` is set for changelog mode (writes to `output:`); omitted for release-notes
-  mode (stdout is captured)
-
-#### Remote metadata (PR/author enrichment)
-
-git-cliff's `[remote.*]` config sections enable PR/MR metadata fetching (author handle,
-PR number) via the platform API. heraut auto-injects this for both changelog and
-release-notes generation whenever owner/repo are known: `[remote.github]` /
-`[remote.gitlab]` is appended to the effective merged TOML, and `GITHUB_REPO` /
-`GITHUB_TOKEN` (or `GITLAB_REPO` / `GITLAB_TOKEN`) are set on the git-cliff subprocess
-environment when not already present — no manual git-cliff config is needed. Owner/repo
-are derived from whichever forge the generation step resolves against — the
-`commits.enrichment_forge` entry in the top-level `forges:` list when set, otherwise
-auto-detected from ambient CI or `git remote get-url origin` (see
-[`changelogLinkContext`/`platformLinkContext`](../adr/0022-fat-injection-thin-templates.md)
-for the resolution order predating this auto-detection, and
-[ADR-0043](../adr/0043-forge-abstraction.md) for the forge resolver that supersedes it).
-Whether the fetch itself is attempted at all (vs. skipped or gracefully degraded) is
-governed separately by `commits.enrichment_policy`.
-
-##### `forges` — explicit metadata forge (ADR-0043)
+### forges — explicit metadata forge (ADR-0043)
 
 ```yaml
 forges:
@@ -245,11 +173,11 @@ fallback chain. `forges` entries are connection/identity only — they never gra
 capability on their own; heraut never publishes a release through a `forges` entry, it only
 tells the active generator where to source PR/MR metadata and commit/PR link shapes.
 Publishing is a separate concern (`release.targets`, each referencing a forge by name).
-Valid as the enrichment source for both the `git-cliff` and `native` generators (originally
+Valid as the enrichment source for `native` (originally
 introduced for `changelog.remote` by ADR-0026/ADR-0040; unified into the top-level `forges:`
 list by ADR-0043).
 
-##### Auto-detection and self-hosted hosts
+### Auto-detection and self-hosted hosts
 
 When no explicit `forges:` entry supplies a field, the fallback chain above resolves it from
 three sources, in order (`internal/forge/resolve.go`'s `resolveAuto`): the ambient CI environment
@@ -273,9 +201,8 @@ token-env step. That step's outcome depends on how many of the three token vars 
 - **None set** — auto-detection resolves **no forge** for that project, same as if the token-env
   step didn't exist.
 
-What happens next depends on `commits.enrichment_policy`, **the generator**, and **which of the
-three outcomes above occurred** — `native` and `git-cliff` do not behave identically, and the
-single-token outcome does not affect them identically either:
+What happens next depends on `commits.enrichment_policy` and which of the three outcomes above
+occurred:
 
 - **`native`** — the single-token outcome does *not* short-circuit to "no forge": a real
   `port.Forge` is constructed against the public host with an empty project, so enrichment is
@@ -295,17 +222,6 @@ single-token outcome does not affect them identically either:
   `required`, the run fails with an error explaining that no forge was resolved and naming the
   three ways to supply one — a `forges:` entry, a supported CI environment, or a recognised git
   origin.
-- **`git-cliff`** — unaffected by the single-token outcome: git-cliff's remote injection never
-  consumes `forge.Resolve`'s result. It resolves its own owner/repo via a separate, narrower
-  fallback (`internal/pipeline/linkctx.go`) that explicitly treats a partial identity — including
-  the token-only branch's empty `Project` — as absent and falls through rather than stamping a
-  broken host (see the `linkContextFromIdentity` guard). So for git-cliff, both the single-token
-  and zero-token outcomes behave the same: with no owner/repo to pass on, heraut injects neither a
-  `[remote.*]` section into the effective TOML nor `GITHUB_REPO`/`GITLAB_REPO` into the subprocess
-  environment; git-cliff then has no remote to query, fetches nothing, and exits cleanly. **Both**
-  `optional` and `required` therefore yield unenriched output with no error and no degraded
-  warning — `required` only suppresses the `--offline` retry, it does not assert that a forge
-  exists. Do not rely on `required` to catch a missing forge under `git-cliff`.
 
 The remedy is an explicit `forges:` entry naming the self-hosted `base_url` and the
 `project`/`repository` path, since nothing else can supply them:
@@ -335,41 +251,10 @@ template substitutes an additional `HERAUT_COMPARE_URL_MIDDLE` var between `{old
 `{new}` to support it (see [ADR-0022's update](../adr/0022-fat-injection-thin-templates.md)).
 GitHub/GitLab never set it, so their output is unchanged.
 
-### communique
+### Omitting changelog or release notes
 
-```yaml
-release:
-  notes:
-    generator: communique
-    config: communique.toml   # required for communique
-```
-
-Simple wrapper. heraut does not embed any default — `config:` must point at a file the
-user supplies.
-
-**Invocation**:
-
-```
-communique generate --config <file> <tag>
-```
-
-stdout is captured and used as the release notes content.
-
-**Known limitation — multi-platform links**: communique is opaque to heraut. Link
-resolution lives entirely inside the user's `communique.toml`; heraut has no template
-surface to inject per-platform context, so the link context heraut passes to `Generate`
-(see [Generator interface](#generator-interface)) is **ignored** by the communique
-generator. Consequence: a release published to **more than one** platform (e.g. GitHub +
-GitLab) gets **identical** release notes — and identical links — on every platform.
-communique cannot tailor links to each platform's host or path shape. This is a known,
-accepted scope boundary, **not a bug**. Teams that need per-platform-flavored links across
-multiple platforms should use `git-cliff`
-(see [ADR-0021](../adr/0021-per-platform-release-notes.md)).
-
-### No generator
-
-Omitting `changelog` or `release.notes` skips that output. The release is still
-created on the configured platforms (an explicit `release.targets` entry, or the single
+Omitting `changelog` or `release.notes` from `.heraut.yml` skips that output. The release is
+still created on the configured platforms (an explicit `release.targets` entry, or the single
 resolved forge with default options when `release.targets` is omitted).
 
 ## Generator interface
@@ -384,17 +269,14 @@ type Generator interface {
 }
 ```
 
-`Validate()` is called by `heraut check config` and `heraut check cliff` and before
-the pipeline runs. For generators with no config-file dependency (e.g. git-cliff with
-only embedded defaults), `Validate()` returns `nil`.
+`Validate()` is called by `heraut check config` and before the pipeline runs.
 
 **Per-platform link resolution**: when a release targets **more than one** platform,
 heraut regenerates the release notes once per platform and passes that platform's
 `link` context (host, owner, repo, type) so commit/PR/MR links resolve to the correct
-host and path shape (see [ADR-0021](../adr/0021-per-platform-release-notes.md)).
-`git-cliff` consumes this context. A single-platform release passes
-`nil`, and the generator falls through to ambient-CI link detection — today's unchanged
-behaviour. **communique does not consume the context** (see its section above).
+host and path shape (see [ADR-0021](../adr/0021-per-platform-release-notes.md)). A
+single-platform release passes `nil`, and the generator falls through to ambient-CI
+link detection.
 
 ## Platforms
 
@@ -524,13 +406,6 @@ Both implementations are contract-tested with `MockRunner` — every CLI argumen
 heraut passes to `gh` and `glab` is asserted in the test suite. Adding a third
 platform later means: implement `port.Platform`, add contract tests, register in
 `app.BuildPipeline`.
-
-## Generator/platform combinations
-
-heraut does not constrain combinations. Any generator can produce text for any
-platform. A common pattern: `communique` for `release.notes` (AI-assisted summary for
-the release page) and `git-cliff` for `changelog` (versioned `CHANGELOG.md` in the
-repo, thanks to `--tag <version>`).
 
 ## Extensibility
 
