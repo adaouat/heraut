@@ -1206,6 +1206,25 @@ binary), the Commands table (drops `heraut cliff <mode>`, `heraut check`'s descr
 phrasing). Pure prose/table edit, single file. Commits `f322de7..1fd3cff`; review clean, zero
 Critical/Important findings.
 
+#### `[x]` T191: rewrite Spec 02's content-generators field table
+
+Replaced the "Content generators" field table (`generator`/`config`/`output`/`tag_pattern`/
+`template` rows) with a "Content generation" section: `generator`/`config` rows dropped
+(fields no longer exist), `tag_pattern` reworded to drop "for git-cliff only" (native uses it
+too), `template` reworded to describe native's real ADR-0037 usage instead of the stale
+"vestigial, no current consumer" claim. The task's own final sweep found and fixed 12 further
+issues in the same file — 8 worked-example YAML blocks still using the now-invalid
+`generator:`/`config:` keys (independently verified schema-invalid against `schema.json`'s
+`ContentDriver` definition before the fix), 2 prose passages attributing native's own behavior
+(heading-pattern stripping, one-section-per-tag rendering) to git-cliff, and 2 cross-references
+to the renamed heading — all confirmed accurate and in-category by review. One fix round: the
+sweep itself missed a self-contradiction its own grep had surfaced — a "Design principles"
+bullet (line 62) still citing `generator: …` in present tense as a live naming convention, 40
+lines above the section now correctly saying no such key exists — dismissed as historical
+context in the first pass, reworded in the fix round to drop the stale example (platform-only
+naming convention, generator opacity principle rescoped to platforms). Commits
+`ecac173..763b487` (2 commits); re-review clean, finding addressed, no new breakage.
+
 ---
 
 ## Phase 3 — Raw-HTTP platform clients (deferred)
