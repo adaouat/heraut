@@ -1146,6 +1146,39 @@ external CLIs" section, both directly falsified by this task's own probe removal
 premature Task 188 scope). Commits `11eb39c..8b74989`; re-review clean, all findings
 addressed, no new breakage.
 
+#### `[x]` T188: delete `gitcliff`/`communique` packages + `ContentDriver.Generator`/`.Config` fields
+
+Deleted `internal/generators/gitcliff/` and `internal/generators/communique/` wholesale (11
+files) and `ContentDriver.Generator`/`.Config` from `internal/config/config.go` — the payoff
+commit T177 (Phase A) anticipated when it made `generator:`/`config:` removed YAML keys. The
+brief's file list undercounted the blast radius substantially (one native test file alone
+needed 14 literal fixes, not 3; 9 more files across `internal/app/`/`internal/generators/native/`
+were never listed) — all found and fixed, each checked individually for a companion field-read
+before stripping, not just blindly stripped. Two controller rulings expanded scope mid-task,
+both investigated directly before ruling rather than taken on the implementer's word: (1)
+`internal/pipeline/release_integration_test.go` — a real functional `gitcliff.New` consumer the
+brief's `_test.go`-excluding verification grep missed — deleted in full; its specific purpose
+(proving `HERAUT_REMOTE_URL` propagates through a *real* subprocess) is structurally moot once
+native, which never shells out for its own generation, is the sole generator, and the broader
+per-platform-distinct-notes behavior it also covered is separately proven by
+`internal/pipeline/release_test.go:243`'s `TestRun_MultiPlatform_NotesPerPlatform`. (2) a narrow
+exception granted to fix 4 `internal/scaffold` **test** files
+(`wizard_internal_test.go`/`wizard_test.go`/`generate_test.go`/`dropped_test.go`) whose compile
+depended on the deleted fields — the 4 **production** files (`wizard.go`/`generate.go`/`cliff.go`/
+`dropped.go`, Phase C's actual scope) stayed completely untouched, verified independently by the
+reviewer via a direct `git diff` on each. This resolved a genuine tension in the plan's own
+wording between "internal/scaffold is out of scope" (directory-wide framing, meant to protect
+Phase C's wizard-redesign work) and "no phase lands with a broken build even temporarily" (a
+higher-order, repo-wide invariant) — full reasoning in the SDD ledger. One controller error along
+the way: an unrelated `git add`/`git commit` accidentally swept up the implementer's
+already-staged package deletions into a commit (`a052da5`) whose message only describes a
+plan-doc amendment — not rewritten per this repo's norms against amending, noted here so a future
+`git log` reader isn't misled; the remaining work landed accurately in `74b3972`. Commits
+`f6383c1..74b3972` (2 commits); review clean (reviewer independently re-verified all 3 rulings
+against the diff, including a direct re-check of the scaffold production-file boundary), zero
+Critical/Important findings, 2 Minor prose-staleness items deferred (a stale doc comment on
+`ContentDriver` and a stale doc comment on one scaffold test, both non-behavioral).
+
 ---
 
 ## Phase 3 — Raw-HTTP platform clients (deferred)
