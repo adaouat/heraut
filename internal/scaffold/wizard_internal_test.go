@@ -136,7 +136,7 @@ func TestMatchPlatformSnapshot_EmptyRebuilt(t *testing.T) {
 
 func TestMatchEnvSnapshot_SingleMatch(t *testing.T) {
 	original := []EnvAnswer{
-		{Name: "prod", Bump: "auto", Changelog: &config.ContentDriver{Generator: "git-cliff"}},
+		{Name: "prod", Bump: "auto", Changelog: &config.ContentDriver{Output: "CHANGELOG.md"}},
 	}
 	rebuilt := []EnvAnswer{
 		{Name: "prod", Bump: "auto"},
@@ -145,12 +145,12 @@ func TestMatchEnvSnapshot_SingleMatch(t *testing.T) {
 	require.Len(t, result, 1)
 	assert.Equal(t, "prod", result[0].Name)
 	require.NotNil(t, result[0].Changelog)
-	assert.Equal(t, "git-cliff", result[0].Changelog.Generator)
+	assert.Equal(t, "CHANGELOG.md", result[0].Changelog.Output)
 }
 
 func TestMatchEnvSnapshot_NoMatchForRenamedEntry(t *testing.T) {
 	original := []EnvAnswer{
-		{Name: "prod", Bump: "auto", Changelog: &config.ContentDriver{Generator: "git-cliff"}},
+		{Name: "prod", Bump: "auto", Changelog: &config.ContentDriver{Output: "CHANGELOG.md"}},
 	}
 	rebuilt := []EnvAnswer{
 		{Name: "production", Bump: "auto"},
@@ -162,8 +162,8 @@ func TestMatchEnvSnapshot_NoMatchForRenamedEntry(t *testing.T) {
 }
 
 func TestMatchEnvSnapshot_MultipleEnvs(t *testing.T) {
-	driver := &config.ContentDriver{Generator: "git-cliff"}
-	rel := &config.EnvRelease{Notes: &config.ContentDriver{Generator: "communique"}}
+	driver := &config.ContentDriver{Output: "CHANGELOG.md"}
+	rel := &config.EnvRelease{Notes: &config.ContentDriver{}}
 	original := []EnvAnswer{
 		{Name: "dev", Bump: "auto"},
 		{Name: "prod", Bump: "promote", Changelog: driver, Release: rel},
@@ -176,13 +176,13 @@ func TestMatchEnvSnapshot_MultipleEnvs(t *testing.T) {
 	require.Len(t, result, 2)
 	assert.Nil(t, result[0].Changelog)
 	require.NotNil(t, result[1].Changelog)
-	assert.Equal(t, "git-cliff", result[1].Changelog.Generator)
+	assert.Equal(t, "CHANGELOG.md", result[1].Changelog.Output)
 	require.NotNil(t, result[1].Release)
 }
 
 func TestMatchEnvSnapshot_EmptyRebuilt(t *testing.T) {
 	original := []EnvAnswer{
-		{Name: "prod", Changelog: &config.ContentDriver{Generator: "git-cliff"}},
+		{Name: "prod", Changelog: &config.ContentDriver{Output: "CHANGELOG.md"}},
 	}
 	result := matchEnvSnapshot(original, nil)
 	assert.Empty(t, result)

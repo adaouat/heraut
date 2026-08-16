@@ -175,7 +175,7 @@ func TestBuildChangelogPipelineConfig_AmbiguousForgeDegradesUnderOptionalPolicy(
 	cfg := &config.Config{
 		Version:    "1",
 		Versioning: config.Versioning{Strategy: "semver"},
-		Changelog:  &config.ContentDriver{Generator: "native"},
+		Changelog:  &config.ContentDriver{},
 	}
 
 	cCfg, err := buildChangelogPipelineConfig(runner, readRunner, cfg, PipelineOpts{})
@@ -215,7 +215,7 @@ func TestBuildReleasePipelineConfig_UsesReadRunnerForForgeResolution(t *testing.
 	cfg := &config.Config{
 		Version:    "1",
 		Versioning: config.Versioning{Strategy: "semver"},
-		Changelog:  &config.ContentDriver{Generator: "native", Output: "CHANGELOG.md"},
+		Changelog:  &config.ContentDriver{Output: "CHANGELOG.md"},
 	}
 
 	pCfg, err := buildReleasePipelineConfig(pipelineRunner, readRunner, cfg, "", "", false, false)

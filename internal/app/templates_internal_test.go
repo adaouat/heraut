@@ -10,7 +10,6 @@ import (
 
 func TestWithEnvDerivations_MergesTemplates(t *testing.T) {
 	driver := &config.ContentDriver{
-		Generator: "native",
 		Rendering: &config.Rendering{Templates: map[string]string{"commit": "driver-commit"}},
 	}
 	cfg := &config.Config{

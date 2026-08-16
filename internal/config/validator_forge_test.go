@@ -12,7 +12,7 @@ func cfgWithForges(forges []config.Forge, enrichForge string) *config.Config {
 	return &config.Config{
 		Version:    "1",
 		Versioning: config.Versioning{Strategy: "semver"},
-		Changelog:  &config.ContentDriver{Generator: "native", Output: "CHANGELOG.md"},
+		Changelog:  &config.ContentDriver{Output: "CHANGELOG.md"},
 		Commits:    &config.Commits{EnrichmentForge: enrichForge, EnrichmentPolicy: "optional"},
 		Forges:     forges,
 	}

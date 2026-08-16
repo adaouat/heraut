@@ -317,7 +317,7 @@ func TestGenerateYAML_PlatformPassthroughFieldsRoundTrip(t *testing.T) {
 }
 
 func TestConfigToAnswers_PreservesEnvPassthroughFields(t *testing.T) {
-	driver := &config.ContentDriver{Generator: "git-cliff", Output: "CHANGELOG.md"}
+	driver := &config.ContentDriver{Output: "CHANGELOG.md"}
 	cfg := &config.Config{
 		Version:    "1",
 		Versioning: config.Versioning{Strategy: "semver-per-env"},
@@ -325,7 +325,7 @@ func TestConfigToAnswers_PreservesEnvPassthroughFields(t *testing.T) {
 			"prod": {
 				Bump:      "auto",
 				Changelog: driver,
-				Release:   &config.EnvRelease{Notes: &config.ContentDriver{Generator: "communique"}},
+				Release:   &config.EnvRelease{Notes: &config.ContentDriver{}},
 			},
 		},
 	}
@@ -362,8 +362,7 @@ func TestConfigToAnswers_DefaultsEmptyChangelogOutput(t *testing.T) {
 	cfg := &config.Config{
 		Version: "1",
 		Changelog: &config.ContentDriver{
-			Generator: "git-cliff",
-			Output:    "",
+			Output: "",
 		},
 	}
 	a := scaffold.ConfigToAnswers(cfg)

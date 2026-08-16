@@ -10,7 +10,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func testDriver() *config.ContentDriver { return &config.ContentDriver{Generator: "native"} }
+func testDriver() *config.ContentDriver { return &config.ContentDriver{} }
 
 // stubForge records the commits it was handed and returns canned enrichment.
 type stubForge struct {

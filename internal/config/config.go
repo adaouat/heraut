@@ -87,8 +87,6 @@ type EnvRelease struct {
 
 // ContentDriver configures a content generator (git-cliff, communique).
 type ContentDriver struct {
-	Generator  string `yaml:"generator,omitempty"`
-	Config     string `yaml:"config,omitempty"`
 	Output     string `yaml:"output,omitempty"`
 	TagPattern string `yaml:"tag_pattern,omitempty"`
 	Template   string `yaml:"template,omitempty"`

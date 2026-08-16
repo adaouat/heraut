@@ -16,7 +16,7 @@ import (
 )
 
 func TestGenerator_CheckValidateDegraded(t *testing.T) {
-	g := New(exectest.NewMockRunner(), &config.ContentDriver{Generator: "native"}, ModeChangelog)
+	g := New(exectest.NewMockRunner(), &config.ContentDriver{}, ModeChangelog)
 	assert.NoError(t, g.Check(), "no external binary → Check always succeeds")
 	assert.NoError(t, g.Validate())
 	assert.False(t, g.Degraded(), "Phase 1 has no enrichment → never degraded")
@@ -30,7 +30,7 @@ func TestGenerator_GenerateReleaseNotes(t *testing.T) {
 		"2026-01-02T00:00:00Z", "feat: add the thing", ""), "", nil) // collectCommits: git log
 	mr.QueueResponse("alice@example.com\n", "", nil) // authorsBefore: git log v1.0.0 --format=%ae
 
-	g := New(mr, &config.ContentDriver{Generator: "native"}, ModeReleaseNotes)
+	g := New(mr, &config.ContentDriver{}, ModeReleaseNotes)
 	out, err := g.Generate("v1.1.0", nil)
 	require.NoError(t, err)
 
@@ -55,7 +55,7 @@ func TestGenerator_GenerateReleaseNotes_TagGlob(t *testing.T) {
 		"2026-01-02T00:00:00Z", "feat: add the thing", ""), "", nil) // collectCommits
 	mr.QueueResponse("alice@example.com\n", "", nil) // authorsBefore: git log prod/v1.0.0 --format=%ae
 
-	g := New(mr, &config.ContentDriver{Generator: "native", TagGlob: "prod/v*"}, ModeReleaseNotes)
+	g := New(mr, &config.ContentDriver{TagGlob: "prod/v*"}, ModeReleaseNotes)
 	_, err := g.Generate("prod/v1.1.0", nil)
 	require.NoError(t, err)
 
@@ -75,7 +75,7 @@ func TestGenerator_GenerateChangelog_TagGlob(t *testing.T) {
 	mr.QueueResponse(record("bbb2222222", "B", "b@example.com",
 		"2026-01-01T00:00:00Z", "fix: an old bug", ""), "", nil) // existing prod/v1.0.0
 
-	g := New(mr, &config.ContentDriver{Generator: "native", TagGlob: "prod/v*"}, ModeChangelog)
+	g := New(mr, &config.ContentDriver{TagGlob: "prod/v*"}, ModeChangelog)
 	_, err := g.Generate("prod/v1.1.0", nil)
 	require.NoError(t, err)
 
@@ -93,7 +93,7 @@ func TestGenerator_GenerateReleaseNotes_TagPatternRegex(t *testing.T) {
 		"2026-02-02T00:00:00Z", "feat: x", ""), "", nil) // collectCommits
 	mr.QueueResponse("a@example.com\n", "", nil) // authorsBefore: git log v1.0.0-prod --format=%ae
 
-	g := New(mr, &config.ContentDriver{Generator: "native", TagPattern: `-prod$`}, ModeReleaseNotes)
+	g := New(mr, &config.ContentDriver{TagPattern: `-prod$`}, ModeReleaseNotes)
 	_, err := g.Generate("v2.0.0-prod", nil)
 	require.NoError(t, err)
 
@@ -138,7 +138,7 @@ func TestGenerator_GenerateReleaseNotes_DaysBetweenReleases(t *testing.T) {
 		"2026-01-11T00:00:00Z", "feat: x", ""), "", nil) // collectCommits (release date +10 days)
 	mr.QueueResponse("a@example.com\n", "", nil) // authorsBefore: git log v1.0.0 --format=%ae
 
-	g := New(mr, &config.ContentDriver{Generator: "native"}, ModeReleaseNotes)
+	g := New(mr, &config.ContentDriver{}, ModeReleaseNotes)
 	out, err := g.Generate("v1.1.0", nil)
 	require.NoError(t, err)
 
@@ -157,7 +157,7 @@ func TestGenerator_GenerateChangelog_WritesFile(t *testing.T) {
 
 	dir := t.TempDir()
 	outPath := filepath.Join(dir, "CHANGELOG.md")
-	g := New(mr, &config.ContentDriver{Generator: "native", Output: outPath}, ModeChangelog)
+	g := New(mr, &config.ContentDriver{Output: outPath}, ModeChangelog)
 
 	body, err := g.Generate("v1.1.0", nil)
 	require.NoError(t, err)
@@ -177,7 +177,7 @@ func TestGenerator_GenerateChangelog_FirstRelease(t *testing.T) {
 	mr.QueueResponse(record("ccc3333333", "C", "c@example.com",
 		"2026-01-01T00:00:00Z", "feat: initial", ""), "", nil) // new release: full history (HEAD)
 
-	g := New(mr, &config.ContentDriver{Generator: "native"}, ModeChangelog)
+	g := New(mr, &config.ContentDriver{}, ModeChangelog)
 	body, err := g.Generate("v0.1.0", nil)
 	require.NoError(t, err)
 	assert.Contains(t, body, "## [0.1.0]")
@@ -194,7 +194,6 @@ func TestGenerate_InlineCommitOverride(t *testing.T) {
 	mr.QueueResponse(record("abc1234567", "A", "a@example.com", "2026-01-02T00:00:00Z", "feat: add x", ""), "", nil)
 	mr.QueueResponse("bob@x\n", "", nil) // authorsBefore
 	g := New(mr, &config.ContentDriver{
-		Generator:          "native",
 		EffectiveTemplates: map[string]string{"commit": "CUSTOM {{ .Description }}"},
 	}, ModeReleaseNotes)
 
@@ -216,7 +215,7 @@ func TestGenerate_TemplateFileOverride(t *testing.T) {
 	mr.QueueResponse("2026-01-01T00:00:00Z\n", "", nil) // tagDate
 	mr.QueueResponse(record("abc1234567", "A", "a@example.com", "2026-01-02T00:00:00Z", "feat: add x", ""), "", nil)
 	mr.QueueResponse("bob@x\n", "", nil) // authorsBefore
-	g := New(mr, &config.ContentDriver{Generator: "native", Template: file}, ModeReleaseNotes)
+	g := New(mr, &config.ContentDriver{Template: file}, ModeReleaseNotes)
 
 	out, err := g.Generate("v1.1.0", nil)
 	require.NoError(t, err)
@@ -232,7 +231,6 @@ func TestGenerate_HerautMetaInFooter(t *testing.T) {
 	mr.QueueResponse(record("abc1234567", "A", "a@example.com", "2026-01-02T00:00:00Z", "feat: add x", ""), "", nil)
 	mr.QueueResponse("bob@x\n", "", nil) // authorsBefore
 	g := New(mr, &config.ContentDriver{
-		Generator:     "native",
 		HerautVersion: "9.9.9",
 		EffectiveTemplates: map[string]string{
 			"footer": "\n-- heraut {{ .Heraut.Version }} @ {{ date \"2006-01-02\" .Heraut.GeneratedAt }} ({{ .Heraut.URL }})",
@@ -252,7 +250,7 @@ func TestGenerateChangelog_BootstrapAnchored(t *testing.T) {
 	mr := exectest.NewMockRunner()
 	mr.QueueResponse("", "", nil)                                                                            // scopedTags: no tags
 	mr.QueueResponse(record("aaa1111111", "A", "a@x", "2026-01-01T00:00:00Z", "feat: initial", ""), "", nil) // latest..HEAD
-	g := New(mr, &config.ContentDriver{Generator: "native", Output: out}, ModeChangelog)
+	g := New(mr, &config.ContentDriver{Output: out}, ModeChangelog)
 
 	body, err := g.Generate("v0.1.0", nil)
 	require.NoError(t, err)
@@ -270,7 +268,7 @@ func TestGenerateChangelog_IncrementalInserts(t *testing.T) {
 	mr := exectest.NewMockRunner()
 	mr.QueueResponse("v1.0.0\n", "", nil)                                                                      // scopedTags
 	mr.QueueResponse(record("bbb2222222", "B", "b@x", "2026-02-01T00:00:00Z", "feat: new thing", ""), "", nil) // v1.0.0..HEAD
-	g := New(mr, &config.ContentDriver{Generator: "native", Output: out}, ModeChangelog)
+	g := New(mr, &config.ContentDriver{Output: out}, ModeChangelog)
 
 	body, err := g.Generate("v1.1.0", nil)
 	require.NoError(t, err)
@@ -288,7 +286,7 @@ func TestGenerateChangelog_ForeignFileErrors(t *testing.T) {
 	mr := exectest.NewMockRunner()
 	mr.QueueResponse("v1.0.0\n", "", nil)
 	mr.QueueResponse(record("bbb2222222", "B", "b@x", "2026-02-01T00:00:00Z", "feat: x", ""), "", nil)
-	g := New(mr, &config.ContentDriver{Generator: "native", Output: out}, ModeChangelog)
+	g := New(mr, &config.ContentDriver{Output: out}, ModeChangelog)
 
 	_, err := g.Generate("v1.1.0", nil)
 	require.Error(t, err)
@@ -310,7 +308,7 @@ func TestGenerateChangelog_ForeignFileErrors_BeforeEnrichment(t *testing.T) {
 	foreign := "# Changelog\n\n## [1.0.0] - 2026-01-01\n\n- git-cliff line by @dave\n"
 	require.NoError(t, os.WriteFile(out, []byte(foreign), 0o644))
 	mr := exectest.NewMockRunner() // no response queued: the anchor check must return before any git/enrichment call
-	g := New(mr, &config.ContentDriver{Generator: "native", Output: out, RemoteMetadata: "required"}, ModeChangelog)
+	g := New(mr, &config.ContentDriver{Output: out, RemoteMetadata: "required"}, ModeChangelog)
 
 	_, err := g.Generate("v1.1.0", ghLC())
 	require.Error(t, err)
@@ -337,7 +335,7 @@ func TestGenerateChangelog_RegenerateEnrichesAllSections(t *testing.T) {
 		PRs:     map[string]port.PullRequest{"ccc3333333": {Number: 7, URL: "https://github.com/o/r/pull/7", RefPrefix: "#"}},
 		Authors: map[string]string{"ccc3333333": "carol"},
 	}}
-	g := New(mr, &config.ContentDriver{Generator: "native", Output: out, RegenerateChangelog: true}, ModeChangelog, WithForge(forge))
+	g := New(mr, &config.ContentDriver{Output: out, RegenerateChangelog: true}, ModeChangelog, WithForge(forge))
 
 	body, err := g.Generate("v1.1.0", ghLC())
 	require.NoError(t, err)
@@ -356,7 +354,6 @@ func TestGenerateChangelog_IncrementalWithCustomHeader(t *testing.T) {
 	mr.QueueResponse("v1.0.0\n", "", nil)
 	mr.QueueResponse(record("bbb2222222", "B", "b@x", "2026-02-01T00:00:00Z", "feat: new", ""), "", nil)
 	g := New(mr, &config.ContentDriver{
-		Generator:          "native",
 		Output:             out,
 		EffectiveTemplates: map[string]string{"header": "=== {{ .Version }} ==="},
 	}, ModeChangelog)

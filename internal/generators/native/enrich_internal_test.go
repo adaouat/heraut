@@ -172,7 +172,7 @@ func TestGenerate_Enrich_Disabled_NoAPICall(t *testing.T) {
 		PRs:     map[string]port.PullRequest{"abc1234567": {Number: 42, RefPrefix: "#"}},
 		Authors: map[string]string{"abc1234567": "octocat"},
 	}}
-	g := New(mr, &config.ContentDriver{Generator: "native", RemoteMetadata: "disabled"}, ModeReleaseNotes, WithForge(forge))
+	g := New(mr, &config.ContentDriver{RemoteMetadata: "disabled"}, ModeReleaseNotes, WithForge(forge))
 
 	out, err := g.Generate("v1.1.0", ghLC())
 	require.NoError(t, err)
@@ -193,7 +193,7 @@ func TestGenerate_Enrich_OptionalSuccess(t *testing.T) {
 		PRs:     map[string]port.PullRequest{"abc1234567": {Number: 42, URL: "https://github.com/o/r/pull/42", RefPrefix: "#"}},
 		Authors: map[string]string{"abc1234567": "octocat"},
 	}}
-	g := New(mr, &config.ContentDriver{Generator: "native", RemoteMetadata: "optional"}, ModeReleaseNotes, WithForge(forge))
+	g := New(mr, &config.ContentDriver{RemoteMetadata: "optional"}, ModeReleaseNotes, WithForge(forge))
 
 	out, err := g.Generate("v1.1.0", ghLC())
 	require.NoError(t, err)
@@ -211,7 +211,7 @@ func TestGenerate_Enrich_OptionalFailure_Degrades(t *testing.T) {
 	// optional degrades on the forge failure (no error returned) and proceeds to authorsBefore.
 	mr.QueueResponse("bob@x\n", "", nil) // authorsBefore: git log v1.0.0 --format=%ae
 	forge := &countingForge{err: errors.New("API rate limit exceeded")}
-	g := New(mr, &config.ContentDriver{Generator: "native", RemoteMetadata: "optional"}, ModeReleaseNotes, WithForge(forge))
+	g := New(mr, &config.ContentDriver{RemoteMetadata: "optional"}, ModeReleaseNotes, WithForge(forge))
 
 	out, err := g.Generate("v1.1.0", ghLC())
 	require.NoError(t, err, "optional degrades, does not fail")
@@ -230,7 +230,7 @@ func TestGenerate_Enrich_OptionalFailure_CapturesReason(t *testing.T) {
 	queueReleaseNotesGit(mr)
 	mr.QueueResponse("bob@x\n", "", nil) // authorsBefore
 	forge := &countingForge{err: errors.New("API rate limit exceeded")}
-	g := New(mr, &config.ContentDriver{Generator: "native", RemoteMetadata: "optional"}, ModeReleaseNotes, WithForge(forge))
+	g := New(mr, &config.ContentDriver{RemoteMetadata: "optional"}, ModeReleaseNotes, WithForge(forge))
 
 	_, err := g.Generate("v1.1.0", ghLC())
 	require.NoError(t, err)
@@ -243,7 +243,7 @@ func TestGenerate_Enrich_RequiredFailure_Errors(t *testing.T) {
 	mr := exectest.NewMockRunner()
 	queueReleaseNotesGit(mr)
 	forge := &countingForge{err: errors.New("API rate limit exceeded")}
-	g := New(mr, &config.ContentDriver{Generator: "native", RemoteMetadata: "required"}, ModeReleaseNotes, WithForge(forge))
+	g := New(mr, &config.ContentDriver{RemoteMetadata: "required"}, ModeReleaseNotes, WithForge(forge))
 
 	_, err := g.Generate("v1.1.0", ghLC())
 	require.Error(t, err)
@@ -257,7 +257,7 @@ func TestGenerate_Enrich_RequiredFailure_ForceDegrades(t *testing.T) {
 	queueReleaseNotesGit(mr)
 	mr.QueueResponse("bob@x\n", "", nil) // authorsBefore — reached because force degrades past the failure
 	forge := &countingForge{err: errors.New("API rate limit exceeded")}
-	g := New(mr, &config.ContentDriver{Generator: "native", RemoteMetadata: "required", Force: true}, ModeReleaseNotes, WithForge(forge))
+	g := New(mr, &config.ContentDriver{RemoteMetadata: "required", Force: true}, ModeReleaseNotes, WithForge(forge))
 
 	out, err := g.Generate("v1.1.0", ghLC())
 	require.NoError(t, err, "--force downgrades required to optional")
@@ -271,7 +271,7 @@ func TestGenerate_Enrich_RequiredNilContext_ForceDegrades(t *testing.T) {
 	mr := exectest.NewMockRunner()
 	queueReleaseNotesGit(mr)
 	mr.QueueResponse("bob@x\n", "", nil) // authorsBefore
-	g := New(mr, &config.ContentDriver{Generator: "native", RemoteMetadata: "required", Force: true}, ModeReleaseNotes)
+	g := New(mr, &config.ContentDriver{RemoteMetadata: "required", Force: true}, ModeReleaseNotes)
 
 	_, err := g.Generate("v1.1.0", nil)
 	require.NoError(t, err, "--force downgrades required even with no remote configured")
@@ -285,7 +285,7 @@ func TestGenerate_Enrich_RequiredNilContext_Errors(t *testing.T) {
 	mr := exectest.NewMockRunner()
 	queueReleaseNotesGit(mr)
 	mr.QueueResponse("bob@x\n", "", nil) // authorsBefore — reached only if required is (wrongly) not enforced
-	g := New(mr, &config.ContentDriver{Generator: "native", RemoteMetadata: "required"}, ModeReleaseNotes)
+	g := New(mr, &config.ContentDriver{RemoteMetadata: "required"}, ModeReleaseNotes)
 
 	_, err := g.Generate("v1.1.0", nil) // no remote / platform → required cannot be satisfied
 	require.Error(t, err)
@@ -310,7 +310,7 @@ func TestGenerate_Enrich_ChangelogEnrichesOnlyNewRelease(t *testing.T) {
 		PRs:     map[string]port.PullRequest{"aaa1111111": {Number: 50, URL: "https://github.com/o/r/pull/50", RefPrefix: "#"}},
 		Authors: map[string]string{"aaa1111111": "octocat"},
 	}}
-	g := New(mr, &config.ContentDriver{Generator: "native", RemoteMetadata: "optional"}, ModeChangelog, WithForge(forge))
+	g := New(mr, &config.ContentDriver{RemoteMetadata: "optional"}, ModeChangelog, WithForge(forge))
 
 	body, err := g.Generate("v1.1.0", ghLC())
 	require.NoError(t, err)

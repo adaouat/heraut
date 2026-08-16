@@ -59,7 +59,7 @@ func gitFixture(t *testing.T) {
 
 func TestNativeGenerator_RealRepo_Changelog(t *testing.T) {
 	gitFixture(t)
-	g := native.New(execadapter.New(false, false), &config.ContentDriver{Generator: "native"}, native.ModeChangelog)
+	g := native.New(execadapter.New(false, false), &config.ContentDriver{}, native.ModeChangelog)
 
 	out, err := g.Generate("v0.2.0", nil)
 	require.NoError(t, err)
@@ -91,7 +91,7 @@ func TestNativeGenerator_RealRepo_Changelog(t *testing.T) {
 
 func TestNativeGenerator_RealRepo_ReleaseNotes(t *testing.T) {
 	gitFixture(t)
-	g := native.New(execadapter.New(false, false), &config.ContentDriver{Generator: "native"}, native.ModeReleaseNotes)
+	g := native.New(execadapter.New(false, false), &config.ContentDriver{}, native.ModeReleaseNotes)
 
 	// Release notes for the first tag — its commit range is the full history up to v0.1.0.
 	out, err := g.Generate("v0.1.0", nil)

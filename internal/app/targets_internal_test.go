@@ -309,7 +309,7 @@ func TestBuildReleasePipelineConfig_ForgeResolutionErrorScope(t *testing.T) {
 		cfg := &config.Config{
 			Version:    "1",
 			Versioning: config.Versioning{Strategy: "semver"},
-			Changelog:  &config.ContentDriver{Generator: "native", Output: "CHANGELOG.md"},
+			Changelog:  &config.ContentDriver{Output: "CHANGELOG.md"},
 		}
 
 		_, err := buildReleasePipelineConfig(runner, readRunner, cfg, "", "", false, false)
@@ -330,7 +330,7 @@ func TestBuildReleasePipelineConfig_ForgeResolutionErrorScope(t *testing.T) {
 		cfg := &config.Config{
 			Version:    "1",
 			Versioning: config.Versioning{Strategy: "semver"},
-			Changelog:  &config.ContentDriver{Generator: "native", Output: "CHANGELOG.md"},
+			Changelog:  &config.ContentDriver{Output: "CHANGELOG.md"},
 			Commits:    &config.Commits{EnrichmentPolicy: "disabled"},
 			Forges: []config.Forge{
 				{Name: "gh", Type: "github", Repository: "acme/widget"},

@@ -9,7 +9,7 @@ import (
 )
 
 func TestWithEnvDerivations_CarriesRemoteMetadata(t *testing.T) {
-	driver := &config.ContentDriver{Generator: "git-cliff"}
+	driver := &config.ContentDriver{}
 	cfg := &config.Config{Commits: &config.Commits{EnrichmentPolicy: "disabled"}, Changelog: driver}
 
 	got := withEnvDerivations(driver, cfg, "")
@@ -18,7 +18,7 @@ func TestWithEnvDerivations_CarriesRemoteMetadata(t *testing.T) {
 }
 
 func TestWithEnvDerivations_EmptyPolicyLeavesDriverUnchanged(t *testing.T) {
-	driver := &config.ContentDriver{Generator: "git-cliff"}
+	driver := &config.ContentDriver{}
 	cfg := &config.Config{Changelog: driver}
 
 	got := withEnvDerivations(driver, cfg, "")

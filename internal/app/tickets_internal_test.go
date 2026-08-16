@@ -9,7 +9,7 @@ import (
 )
 
 func TestWithEnvDerivations_CarriesTickets(t *testing.T) {
-	driver := &config.ContentDriver{Generator: "git-cliff"}
+	driver := &config.ContentDriver{}
 	cfg := &config.Config{
 		Changelog: driver,
 		Commits:   &config.Commits{Tickets: []config.Ticket{{Pattern: "[A-Z]+-[0-9]+", URL: "https://x.test/{ticket}"}}},

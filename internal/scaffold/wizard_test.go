@@ -72,10 +72,9 @@ func TestConfigToAnswers_ChangelogGenerator(t *testing.T) {
 	cfg := &config.Config{
 		Version:    "1",
 		Versioning: config.Versioning{Strategy: "semver"},
-		// Generator is stale data on a directly-constructed struct — config.Load can never
-		// produce a non-empty value here post-T177 — so ConfigToAnswers ignores it and derives
-		// the pre-populated Select value from block presence alone (the "git-cliff" sentinel).
-		Changelog: &config.ContentDriver{Generator: "communique", Output: "CHANGELOG.md"},
+		// ChangelogGenerator is derived from block presence alone (the "git-cliff" sentinel) —
+		// ContentDriver carries no generator field to read (native is the only generator).
+		Changelog: &config.ContentDriver{Output: "CHANGELOG.md"},
 	}
 	a := scaffold.ConfigToAnswers(cfg)
 	assert.Equal(t, "git-cliff", a.ChangelogGenerator)
@@ -158,7 +157,7 @@ func TestConfigToAnswers_NotesGenerator(t *testing.T) {
 		Version:    "1",
 		Versioning: config.Versioning{Strategy: "semver"},
 		Release: &config.Release{
-			Notes: &config.ContentDriver{Generator: "git-cliff"},
+			Notes: &config.ContentDriver{},
 		},
 	}
 	a := scaffold.ConfigToAnswers(cfg)

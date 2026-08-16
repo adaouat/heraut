@@ -134,7 +134,7 @@ func TestDroppedFields_EnvChangelogOverride_NotDropped(t *testing.T) {
 		Version:    "1",
 		Versioning: config.Versioning{Strategy: "semver-per-env"},
 		Environments: map[string]config.Environment{
-			"prod": {Bump: "auto", Changelog: &config.ContentDriver{Generator: "git-cliff"}},
+			"prod": {Bump: "auto", Changelog: &config.ContentDriver{}},
 		},
 	}
 	assert.Empty(t, scaffold.DroppedFields(cfg), "env.changelog is carried through via passthrough fields (T109)")
@@ -145,7 +145,7 @@ func TestDroppedFields_EnvReleaseOverride_NotDropped(t *testing.T) {
 		Version:    "1",
 		Versioning: config.Versioning{Strategy: "semver-per-env"},
 		Environments: map[string]config.Environment{
-			"prod": {Bump: "auto", Release: &config.EnvRelease{Notes: &config.ContentDriver{Generator: "git-cliff"}}},
+			"prod": {Bump: "auto", Release: &config.EnvRelease{Notes: &config.ContentDriver{}}},
 		},
 	}
 	assert.Empty(t, scaffold.DroppedFields(cfg), "env.release is carried through via passthrough fields (T109)")
@@ -154,7 +154,7 @@ func TestDroppedFields_EnvReleaseOverride_NotDropped(t *testing.T) {
 func TestDroppedEnvFields_NoMismatch(t *testing.T) {
 	cfg := &config.Config{
 		Environments: map[string]config.Environment{
-			"prod": {Bump: "auto", Changelog: &config.ContentDriver{Generator: "git-cliff"}},
+			"prod": {Bump: "auto", Changelog: &config.ContentDriver{}},
 		},
 	}
 	rebuilt := []scaffold.EnvAnswer{{Name: "prod", Bump: "auto"}}
@@ -164,7 +164,7 @@ func TestDroppedEnvFields_NoMismatch(t *testing.T) {
 func TestDroppedEnvFields_Mismatch_Renamed(t *testing.T) {
 	cfg := &config.Config{
 		Environments: map[string]config.Environment{
-			"prod": {Bump: "auto", Changelog: &config.ContentDriver{Generator: "git-cliff"}},
+			"prod": {Bump: "auto", Changelog: &config.ContentDriver{}},
 		},
 	}
 	rebuilt := []scaffold.EnvAnswer{{Name: "production", Bump: "auto"}}

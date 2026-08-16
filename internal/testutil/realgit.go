@@ -6,11 +6,9 @@ import (
 )
 
 // RealGitRepo creates a temporary git repository with a single tagged conventional commit
-// and chdirs into it (restored on test cleanup). It is for the real-CLI smoke tests (T77)
-// that run the actual git-cliff / cog against heraut's embedded default configs — the one
-// place the suite uses real external binaries rather than MockRunner/FakeBin, because that
-// is the only way to catch an embedded config the real tool rejects. Skips the test when
-// git is not on PATH.
+// and chdirs into it (restored on test cleanup). Used by tests that need a real git binary
+// rather than MockRunner/FakeBin — e.g. commit-verification integration tests. Skips the
+// test when git is not on PATH.
 func RealGitRepo(t *testing.T, tag string) {
 	t.Helper()
 	if _, err := exec.LookPath("git"); err != nil {
