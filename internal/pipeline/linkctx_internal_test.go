@@ -109,14 +109,14 @@ func TestLinkContextFromIdentity(t *testing.T) {
 		{name: "missing project → nil", id: port.ForgeIdentity{Type: "gitlab", Host: "https://gitlab.example.com"}, want: nil},
 		{
 			name: "azure_devops maps Owner to the full organization/project and Repo to Repository",
-			id:   port.ForgeIdentity{Type: "azure_devops", Host: "https://dev.azure.com", Project: "myorg/myproject", Repository: "myrepo", Token: "tok"},
-			want: &port.LinkContext{BaseURL: "https://dev.azure.com", Owner: "myorg/myproject", Repo: "myrepo", Platform: "azure_devops", Token: "tok"},
+			id:   port.ForgeIdentity{Type: "azure_devops", Host: "https://dev.azure.com", Project: "myorg/myproject", Repository: "myrepo"},
+			want: &port.LinkContext{BaseURL: "https://dev.azure.com", Owner: "myorg/myproject", Repo: "myrepo", Platform: "azure_devops"},
 		},
 		{name: "azure_devops with empty Repository → nil", id: port.ForgeIdentity{Type: "azure_devops", Host: "https://dev.azure.com", Project: "myorg/myproject"}, want: nil},
 		{
 			name: "gitlab nested subgroup",
-			id:   port.ForgeIdentity{Type: "gitlab", Host: "https://gitlab.example.com", Project: "group/subgroup/project", Token: "tok"},
-			want: &port.LinkContext{BaseURL: "https://gitlab.example.com", Owner: "group/subgroup", Repo: "project", Platform: "gitlab", Token: "tok"},
+			id:   port.ForgeIdentity{Type: "gitlab", Host: "https://gitlab.example.com", Project: "group/subgroup/project"},
+			want: &port.LinkContext{BaseURL: "https://gitlab.example.com", Owner: "group/subgroup", Repo: "project", Platform: "gitlab"},
 		},
 		{
 			name: "host trailing slash trimmed",

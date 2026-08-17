@@ -37,7 +37,7 @@ func TestWithEnvDerivations_NoTagGlobForNonPerEnv(t *testing.T) {
 
 // TestWithEnvDerivations_DerivesTagPatternForPerEnv verifies the app layer derives a regex
 // TagPattern from the effective tag_format for a per-env strategy, mirroring the TagGlob
-// derivation above but for the regex form some generators/tests scope by.
+// derivation above but for the regex form the generator scopes by.
 func TestWithEnvDerivations_DerivesTagPatternForPerEnv(t *testing.T) {
 	driver := &config.ContentDriver{}
 	cfg := &config.Config{

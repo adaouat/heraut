@@ -67,7 +67,6 @@ func (p *Platform) LinkContext() port.LinkContext {
 		Owner:    owner,
 		Repo:     repo,
 		Platform: "gitlab",
-		Token:    os.Getenv(p.tokenEnv()),
 	}
 }
 

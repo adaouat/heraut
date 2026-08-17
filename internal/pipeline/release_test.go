@@ -43,13 +43,13 @@ func TestCheck_Passes(t *testing.T) {
 
 func TestCheck_GeneratorFails(t *testing.T) {
 	mr := exectest.NewMockRunner()
-	gen := &testutil.MockGenerator{CheckErr: errors.New("git-cliff not found")}
+	gen := &testutil.MockGenerator{CheckErr: errors.New("generator check failed")}
 
 	cfg := &pipeline.Config{Changelog: gen}
 	p := pipeline.New(mr, &fakeResolver{result: resolvedResult("v1.2.3")}, cfg, &bytes.Buffer{}, false)
 	err := p.Check()
 	require.Error(t, err)
-	assert.Contains(t, err.Error(), "git-cliff not found")
+	assert.Contains(t, err.Error(), "generator check failed")
 }
 
 func TestCheck_PlatformFails(t *testing.T) {
@@ -865,7 +865,7 @@ func TestRun_UploadAssetsError(t *testing.T) {
 
 // TestCheck_ChangelogGeneratorError propagates changelog generator check failures.
 func TestCheck_ChangelogGeneratorError(t *testing.T) {
-	changelog := &testutil.MockGenerator{CheckErr: errors.New("git-cliff not found")}
+	changelog := &testutil.MockGenerator{CheckErr: errors.New("generator check failed")}
 	cfg := &pipeline.Config{Changelog: changelog}
 
 	p := pipeline.New(exectest.NewMockRunner(), &fakeResolver{}, cfg, &bytes.Buffer{}, false)

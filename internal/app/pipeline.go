@@ -355,7 +355,7 @@ func buildChangelogPipelineConfig(runner, readRunner port.Runner, cfg *config.Co
 	}
 
 	if effectiveChangelog != nil {
-		enrichForge, forgeID, degradedReason, err := resolveEnrichForgeIfNeeded(readRunner, os.Getenv, cfg, opts.Force, effectiveChangelog, nil)
+		enrichForge, forgeID, degradedReason, err := resolveEnrichForgeIfNeeded(readRunner, os.Getenv, cfg, opts.Force)
 		if err != nil {
 			return nil, err
 		}
@@ -376,8 +376,8 @@ func buildChangelogPipelineConfig(runner, readRunner port.Runner, cfg *config.Co
 // from the effective tag format, plus the top-level enrichment_policy:
 //   - HeadingVersionPattern: strips env prefix/suffix and build from changelog headings
 //     (when {env} or {build} is present)
-//   - TagPattern: scopes git-cliff to the active env's tags (when {env} and the user has
-//     not set an explicit tag_pattern)
+//   - TagPattern: scopes native's tag walk to the active env's tags (when {env} and the user
+//     has not set an explicit tag_pattern)
 //   - RemoteMetadata: the top-level Config.EnrichmentPolicy, so the generator honours
 //     it (empty is left empty — the generator treats that as "optional")
 //   - Tickets: the top-level Config.Tickets, so the generator can inject link_parsers
@@ -494,7 +494,7 @@ func buildGenerator(runner port.Runner, driver *config.ContentDriver, defaultMod
 // markers (GITHUB_ACTIONS, GITLAB_CI, TF_BUILD), so a hardcoded os.Getenv would let the ambient
 // CI environment of heraut's *own* pipeline decide what a test resolves — which is exactly how
 // this function's tests broke on GitHub Actions while passing locally.
-func resolveEnrichForgeIfNeeded(runner port.Runner, getenv func(string) string, cfg *config.Config, force bool, drivers ...*config.ContentDriver) (port.Forge, *port.ForgeIdentity, string, error) {
+func resolveEnrichForgeIfNeeded(runner port.Runner, getenv func(string) string, cfg *config.Config, force bool) (port.Forge, *port.ForgeIdentity, string, error) {
 	policy := cfg.EnrichmentPolicy()
 	if policy == "disabled" {
 		return nil, nil, "", nil

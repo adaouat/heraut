@@ -71,7 +71,6 @@ func linkContextFromIdentity(id port.ForgeIdentity) *port.LinkContext {
 			Owner:    id.Project,
 			Repo:     id.Repository,
 			Platform: id.Type,
-			Token:    id.Token,
 		}
 	}
 	owner, repo := splitProjectPath(id.Project)
@@ -80,7 +79,6 @@ func linkContextFromIdentity(id port.ForgeIdentity) *port.LinkContext {
 		Owner:    owner,
 		Repo:     repo,
 		Platform: id.Type,
-		Token:    id.Token,
 	}
 }
 

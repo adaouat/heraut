@@ -117,20 +117,6 @@ func TestLinkContext_NestedGroup(t *testing.T) {
 	}, p.LinkContext())
 }
 
-func TestLinkContext_Token(t *testing.T) {
-	t.Setenv("GITLAB_TOKEN", "gltoken")
-	cfg := &config.Platform{Project: "grp/repo", TokenEnv: "GITLAB_TOKEN"}
-	lc := gitlab.New(exectest.NewMockRunner(), cfg).LinkContext()
-	assert.Equal(t, "gltoken", lc.Token)
-}
-
-func TestLinkContext_Token_CustomEnv(t *testing.T) {
-	t.Setenv("CORP_GL_TOKEN", "corptoken")
-	cfg := &config.Platform{Project: "grp/repo", TokenEnv: "CORP_GL_TOKEN"}
-	lc := gitlab.New(exectest.NewMockRunner(), cfg).LinkContext()
-	assert.Equal(t, "corptoken", lc.Token)
-}
-
 func TestLinkContext_SimpleProject(t *testing.T) {
 	t.Setenv("GITLAB_CI", "") // ensure CI_SERVER_URL fallback is not active
 	t.Setenv("GITLAB_TOKEN", "")

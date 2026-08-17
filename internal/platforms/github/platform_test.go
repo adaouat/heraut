@@ -75,20 +75,6 @@ func TestLinkContext(t *testing.T) {
 	}, p.LinkContext())
 }
 
-func TestLinkContext_Token(t *testing.T) {
-	t.Setenv("GH_TOKEN", "mytoken")
-	cfg := &config.Platform{Repository: "acme/widget", BaseURL: "https://github.com", TokenEnv: "GH_TOKEN"}
-	lc := github.New(exectest.NewMockRunner(), cfg).LinkContext()
-	assert.Equal(t, "mytoken", lc.Token)
-}
-
-func TestLinkContext_Token_CustomEnv(t *testing.T) {
-	t.Setenv("CORP_GH_TOKEN", "corptoken")
-	cfg := &config.Platform{Repository: "acme/widget", TokenEnv: "CORP_GH_TOKEN"}
-	lc := github.New(exectest.NewMockRunner(), cfg).LinkContext()
-	assert.Equal(t, "corptoken", lc.Token)
-}
-
 func TestLinkContext_DefaultBaseURL(t *testing.T) {
 	t.Setenv("GH_TOKEN", "")
 	// BaseURL empty (config not normalized) → falls back to the default host.

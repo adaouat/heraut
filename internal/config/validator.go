@@ -61,7 +61,7 @@ func validateTickets(cfg *Config) []ValidationError {
 		if t.Pattern == "" {
 			errs = append(errs, ValidationError{Path: base + ".pattern", Message: "required", Hint: "a regex matching ticket IDs, e.g. [A-Z]+-[0-9]+"})
 		} else if _, err := regexp.Compile(t.Pattern); err != nil {
-			errs = append(errs, ValidationError{Path: base + ".pattern", Message: fmt.Sprintf("invalid regex: %v", err), Hint: "use a valid git-cliff (Rust) / Go regex"})
+			errs = append(errs, ValidationError{Path: base + ".pattern", Message: fmt.Sprintf("invalid regex: %v", err), Hint: "use a valid Go regex"})
 		}
 		if t.URL == "" {
 			errs = append(errs, ValidationError{Path: base + ".url", Message: "required", Hint: "an http(s) URL containing {ticket}, e.g. https://jira.example.com/browse/{ticket}"})

@@ -85,7 +85,7 @@ type EnvRelease struct {
 	Targets []Target `yaml:"targets,omitempty"`
 }
 
-// ContentDriver configures a content generator (git-cliff, communique).
+// ContentDriver configures native, heraut's sole content generator (ADR-0045).
 type ContentDriver struct {
 	Output     string `yaml:"output,omitempty"`
 	TagPattern string `yaml:"tag_pattern,omitempty"`
@@ -94,9 +94,9 @@ type ContentDriver struct {
 	// deep-merged over the global rendering block. native only (ADR-0037).
 	Rendering *Rendering `yaml:"rendering,omitempty"`
 	// HeadingVersionPattern is set by the app layer when the effective tag_format contains
-	// {env} or {build}. It is injected into the effective git-cliff TOML as a postprocessor
-	// that strips the env prefix/suffix and build ID from version headings (leaving just the
-	// version). Not user-configurable.
+	// {env} or {build}. native regex-replaces the heading's version bracket with it after
+	// rendering, stripping the env prefix/suffix and build ID from version headings (leaving
+	// just the version). Not user-configurable.
 	HeadingVersionPattern string `yaml:"-"`
 	// RemoteMetadata is the effective top-level Config.EnrichmentPolicy, propagated onto
 	// the driver by the app layer so the generator can honour it. Empty means "optional".

@@ -138,7 +138,7 @@ func TestRenderReleaseNotes_NoFirstTimers_NoBlock(t *testing.T) {
 // enrichment transport is (a stub satisfying port.Forge instead of `gh`/MockRunner responses).
 
 func ghLC() *port.LinkContext {
-	return &port.LinkContext{Platform: "github", BaseURL: "https://github.com", Owner: "o", Repo: "r", Token: "tok"}
+	return &port.LinkContext{Platform: "github", BaseURL: "https://github.com", Owner: "o", Repo: "r"}
 }
 
 func queueReleaseNotesGit(mr *exectest.MockRunner) {

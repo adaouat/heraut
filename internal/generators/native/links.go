@@ -24,7 +24,7 @@ func buildCommitURL(lc *port.LinkContext) string {
 // buildCompareURL returns the full compare URL between prev and version.
 // Returns "" when lc is nil or prev is empty (first release — no previous tag).
 //
-// URL shapes mirror internal/generators/gitcliff/generator.go linkEnv/azureDevOpsLinkEnv:
+// URL shapes by platform:
 //   - GitHub:      root+"/compare/"+prev+".."+version
 //   - GitLab:      root+"/-/compare/"+prev+".."+version
 //   - Azure DevOps: root+"/branchCompare?baseVersion=GT"+prev+"&targetVersion=GT"+version
@@ -44,8 +44,7 @@ func buildCompareURL(lc *port.LinkContext, prev, version string) string {
 }
 
 // repoRoot builds the repository root URL from a LinkContext.
-// For Azure DevOps, the root inserts /_git/ between the project and repository
-// (see ADR-0026 and the mirrored azureDevOpsLinkEnv in the gitcliff package).
+// For Azure DevOps, the root inserts /_git/ between the project and repository (see ADR-0026).
 // For GitHub/GitLab and ambient contexts (Owner/Repo empty), the root is TrimRight(BaseURL)
 // with Owner and Repo appended when present.
 func repoRoot(lc *port.LinkContext) string {
@@ -64,7 +63,6 @@ func repoRoot(lc *port.LinkContext) string {
 
 // azureRepoRoot builds the repository root URL for an Azure DevOps remote.
 // URL shape: TrimRight(BaseURL)+"/"+PathEscape(Owner)+"/_git/"+PathEscape(Repo).
-// Mirrors azureDevOpsLinkEnv in internal/generators/gitcliff/generator.go.
 func azureRepoRoot(lc *port.LinkContext) string {
 	root := strings.TrimRight(lc.BaseURL, "/")
 	if lc.Owner != "" {
@@ -77,7 +75,7 @@ func azureRepoRoot(lc *port.LinkContext) string {
 }
 
 // urlPathSegments percent-encodes each "/"-delimited segment of s independently,
-// preserving the literal "/" separators. Mirrors the same helper in the gitcliff package.
+// preserving the literal "/" separators.
 func urlPathSegments(s string) string {
 	parts := strings.Split(s, "/")
 	for i, p := range parts {

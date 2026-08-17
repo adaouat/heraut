@@ -39,7 +39,7 @@ func stageAll(r port.Runner) error {
 }
 
 // commit writes message to a temp file and runs `git commit -F <file>` (plus -a when all),
-// matching the temp-file pattern the gitcliff generator uses. The temp file is always
+// avoiding shell-escaping issues with multi-line commit messages. The temp file is always
 // removed, including on error paths.
 func commit(r port.Runner, message string, all bool) error {
 	f, err := os.CreateTemp("", "heraut-commit-*.txt")

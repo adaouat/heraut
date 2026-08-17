@@ -140,7 +140,7 @@ func upperFirst(s string) string {
 // resolveTickets finds all ticket matches in text for each configured ticket pattern
 // (in config order) and returns the corresponding ticketLinks. Multiple matches of
 // the same pattern generate multiple links. Patterns with no capture group use the
-// full match as the URL substitution value (mirroring gitcliff.injectLinkParsers).
+// full match as the URL substitution value.
 func resolveTickets(text string, tickets []config.Ticket) []ticketLink {
 	if len(tickets) == 0 {
 		return nil
@@ -207,9 +207,8 @@ func buildStatTicketLinks(commits []parsedCommit, tickets []config.Ticket) []sta
 // ─── heading post-processing ──────────────────────────────────────────────────
 
 // applyHeadingPattern applies headingVersionPattern (a regex) to the first line
-// of content, replacing the bracketed version match with [$1]. This mirrors
-// injectHeadingPostprocessor in the gitcliff package — native receives the derived
-// pattern as a string so it does not need to import tagfmt.
+// of content, replacing the bracketed version match with [$1]. native receives the
+// derived pattern as a string so it does not need to import tagfmt.
 func applyHeadingPattern(content, pattern string) (string, error) {
 	re, err := regexp.Compile(pattern)
 	if err != nil {

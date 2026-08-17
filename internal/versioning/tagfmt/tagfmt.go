@@ -62,9 +62,9 @@ func ParseVersion(template, tag string) (string, error) {
 	return match[idx], nil
 }
 
-// DeriveHeadingVersionPattern returns a git-cliff postprocessor regex that strips every
-// non-{version} token (env prefix/suffix and build) from a changelog version heading,
-// leaving only the version. The replacement is "[$1]". Examples:
+// DeriveHeadingVersionPattern returns a heading-postprocessor regex, consumed by native, that
+// strips every non-{version} token (env prefix/suffix and build) from a changelog version
+// heading, leaving only the version. The replacement is "[$1]". Examples:
 //
 //	{version}_{env}          [2026.3.0_prod]      → [2026.3.0]
 //	{env}/{version}-{build}  [uat/7.4.1-158404]   → [7.4.1]
@@ -122,9 +122,9 @@ func ValidateVersionOverride(version string) error {
 	return nil
 }
 
-// DeriveTagPattern returns an anchored regex (for git-cliff --tag-pattern) that matches
-// only the given environment's tags. {env} becomes the literal env, {version} and {build}
-// become wildcards. Returns "" when the template has no {env} token or env is empty —
+// DeriveTagPattern returns an anchored regex, consumed by native to scope its tag walk, that
+// matches only the given environment's tags. {env} becomes the literal env, {version} and
+// {build} become wildcards. Returns "" when the template has no {env} token or env is empty —
 // there is nothing to scope in those cases.
 func DeriveTagPattern(template, env string) string {
 	if env == "" || !strings.Contains(template, envToken) {

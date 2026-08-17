@@ -37,9 +37,13 @@ const generatorRemovedHint = "native is heraut's only generator now; remove this
 // rendering.templates (ADR-0037) for template customization instead.
 const configKeyRemovedHint = "generator-specific config files are gone; use rendering.templates (ADR-0037) for template customization instead"
 
+// changelogRemoteRemovedHint is the migration guidance for changelog.remote / release.notes.remote
+// (and their per-env variants): remote metadata now comes from a top-level forges: entry.
+const changelogRemoteRemovedHint = "replace with a top-level `forges:` entry and point `commits.enrichment_forge` at it"
+
 // removedKeys maps a removed config path to its replacement guidance.
 var removedKeys = []struct{ path, hint string }{
-	{"changelog.remote", "replace with a top-level `forges:` entry and point `commits.enrichment_forge` at it (this drives enrichment for `generator: native`; explicit remote pinning for `generator: git-cliff` is not carried over)"},
+	{"changelog.remote", changelogRemoteRemovedHint},
 	{"commits.remote_metadata", "rename to `commits.enrichment_policy` (same values: disabled | optional | required)"},
 	{"release.platforms", releasePlatformsHint},
 	{"changelog.generator", generatorRemovedHint},
@@ -105,7 +109,7 @@ func checkRemovedKeys(raw []byte) error {
 	for _, env := range slices.Sorted(maps.Keys(probe.Environments)) {
 		envProbe := probe.Environments[env]
 		if envProbe.Changelog.Remote != nil {
-			return fmt.Errorf("%w: `environments.%s.changelog.remote` — replace with a top-level `forges:` entry and point `commits.enrichment_forge` at it (this drives enrichment for `generator: native`; explicit remote pinning for `generator: git-cliff` is not carried over)", ErrRemovedConfigKey, env)
+			return fmt.Errorf("%w: `environments.%s.changelog.remote` — %s", ErrRemovedConfigKey, env, changelogRemoteRemovedHint)
 		}
 		if envProbe.Release.Platforms != nil {
 			return fmt.Errorf("%w: `environments.%s.release.platforms` — %s", ErrRemovedConfigKey, env, releasePlatformsHintPerEnv)
