@@ -31,7 +31,7 @@ for the full behavioural spec.
 ## Docs
 
 - [`docs/specs/`](docs/specs/) — behavioural specification (read before changing CLI surface or config schema)
-- [`docs/adr/`](docs/adr/) — architecture decision records (25 ADRs, numbered consecutively)
+- [`docs/adr/`](docs/adr/) — architecture decision records (45 ADRs, numbered consecutively)
 - [`docs/tasks/`](docs/tasks/) — build roadmap with inline task checklist (`roadmap.md`)
 
 ## Tech stack
@@ -45,7 +45,7 @@ for the full behavioural spec.
 | **lipgloss v2**               | Terminal styling — heraut's gold accent, layered over `forge/ui`    |
 | **yaml.v3**                   | `.heraut.yml` parsing (see [ADR-0004](docs/adr/0004-config-format-yaml.md)) |
 | **JSON Schema**               | `schema.json` for IDE validation of `.heraut.yml`                   |
-| **`//go:embed`**              | Embedded git-cliff defaults + `CHANGELOG.md` (offline fallback for `whatsnew`) |
+| **`//go:embed`**              | Embedded native generator templates (`internal/generators/native/`) + `CHANGELOG.md` (offline fallback for `whatsnew`) |
 | **goreleaser**                | Cross-platform release builds, raw binaries (see [ADR-0013](docs/adr/0013-raw-binary-goreleaser-format.md)) |
 | **glab / gh**                 | External CLIs orchestrated by heraut (not bundled)                  |
 
@@ -78,8 +78,7 @@ internal/
       calver/                   token parser (YYYY/MM/DD/WW/QQ/SS/SPRINT/PATCH)
       perenv/                   generic per-env wrapper over a VersionCalculator
    generators/
-      gitcliff/                 embedded TOML defaults + user override merge
-      communique/               wrapper around `communique generate`
+      native/                   built-in, zero-external-dependency generator — commit walk + classification + embedded template rendering (ADR-0032)
    platforms/
       github/                   `gh release create` + asset upload (with contract tests)
       gitlab/                   `glab release create` + asset upload (with contract tests)
@@ -93,7 +92,7 @@ internal/
 testdata/                       repo-wide read-only test fixtures (.heraut.yml samples, …)
 
 docs/specs/                     6 numbered specs (behavioural authority)
-docs/adr/                       25 ADRs (architectural decisions)
+docs/adr/                       45 ADRs (architectural decisions)
 docs/tasks/                     roadmap.md (build plan + inline task checklist)
 
 schema.json                     published JSON Schema for .heraut.yml IDE validation

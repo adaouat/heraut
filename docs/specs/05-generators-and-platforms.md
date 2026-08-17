@@ -259,13 +259,13 @@ resolved forge with default options when `release.targets` is omitted).
 
 ## Generator interface
 
-All generators implement `port.Generator`:
+The generator implements `port.Generator`:
 
 ```go
 type Generator interface {
-    Check() error                                            // binary in PATH
-    Validate() error                                         // user config files exist if specified
-    Generate(tag string, link *port.LinkContext) (string, error) // run the binary, return stdout
+    Check() error                                            // no-op: no external binary to verify
+    Validate() error                                         // no-op: no external config file to verify
+    Generate(tag string, link *port.LinkContext) (string, error) // render in-process, return the rendered string
 }
 ```
 

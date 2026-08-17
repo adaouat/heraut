@@ -13,7 +13,8 @@ heraut shipped three changelog/release-notes generators: `native` (pure Go, no e
 (fully opaque, shells out to `communique generate`). `native` has been heraut's **canonical**
 renderer since [ADR-0032](0032-native-content-generator.md)/[ADR-0033](0033-native-config-model.md)
 — git-cliff was explicitly named the *design anchor* to eventually drop then, with its own package
-removal "sequenced after native enrichment, in a follow-up ADR." That follow-up point arrived once
+removal deliberately sequenced after native reached remote-enrichment parity, in a separate
+follow-up ADR. That follow-up point arrived once
 native reached full parity: remote enrichment across GitHub/GitLab/Azure DevOps
 ([ADR-0034](0034-native-remote-enrichment.md)/[ADR-0042](0042-gitlab-graphql-enrichment.md)),
 user-customizable templates ([ADR-0037](0037-native-template-api.md)), incremental changelog
