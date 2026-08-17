@@ -1260,7 +1260,42 @@ debt concern predating even Phase A, left untouched per the plan's own explicit 
 (CLAUDE.md's stale command references, also originally slated for this task, were already
 fully handled by T187's fix round.) Commit `e40bcbf..49e059a`; review clean.
 
+#### `[x]` T194: author ADR-0045; update the ADR index; supersede ADR-0010
+
+Wrote `docs/adr/0045-native-sole-generator.md`, modeled on ADR-0028's structure (the direct
+precedent for a hard-cutover generator removal). The plan's own draft text was written
+speculatively before T185-T193 executed; the implementer correctly reconciled it against
+what actually shipped rather than transcribing it verbatim — moving schema.json/`docs/
+heraut.sample.yml`/testdata changes back to Phase A (T183/T184) where they actually
+happened, adding T190's README.md rewrite (missing from the draft's Decision list), and
+adding T188's actual scope (the `release_integration_test.go` deletion and the narrow
+scaffold-test-file exception, neither anticipated by the draft). Added ADR-0045's row to
+`docs/adr/README.md` and, beyond the plan's literal instruction, synced ADR-0010's Status
+*column* in that same index table (not just its own file header) to "Superseded by
+ADR-0045" — matching the established convention already used for ADR-0014/ADR-0020's rows,
+confirmed by review. `docs/adr/0010-embedded-cliff-toml-default.md` got the Status-line +
+blockquote supersession treatment, rest of the file untouched. Commit `8005976..9ed5b15`;
+review independently cross-checked every Decision/Consequences claim against the roadmap's
+own T177/T185-T192 completion notes and current repo state — zero Critical/Important
+findings, two Minor items deferred (a paraphrase presented in quotation marks, inherited
+unchanged from the plan's own draft text; a cosmetic ADR-date observation, within this
+repo's existing precedent range).
+
 ---
+
+**Phase B is done.** All 10 tasks (T185-T194) landed on `main`, each with an independent task
+review and, where findings surfaced, a fix round verified by a scoped re-review — 5 of 10 tasks
+needed at least one fix round (T187, T191, T192 on controller-adjudicated or genuine findings;
+T188 hit two real BLOCKED escalations, both resolved by controller rulings investigated
+firsthand rather than taken on faith). `git-cliff` and `communique` are fully gone: no
+package, no command, no config field, no runtime probe, no doc describing either as live.
+`internal/scaffold/`'s production wizard code is untouched, exactly as scoped — its 4 test
+files needed a narrow, ruled exception to keep compiling once the struct fields were deleted.
+Phase C (wizard simplification) and Phase D (Docker/mise infra cleanup) remain separate,
+not-yet-started plans, each still needing its own brainstorm→plan→SDD cycle per this epic's
+established pattern. Final whole-branch review pending — see the SDD ledger at
+`.superpowers/sdd/2026-08-14-native-only-generator-phase-b/progress.md` for the full
+per-task ruling record.
 
 ## Phase 3 — Raw-HTTP platform clients (deferred)
 
