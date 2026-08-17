@@ -1293,9 +1293,27 @@ package, no command, no config field, no runtime probe, no doc describing either
 files needed a narrow, ruled exception to keep compiling once the struct fields were deleted.
 Phase C (wizard simplification) and Phase D (Docker/mise infra cleanup) remain separate,
 not-yet-started plans, each still needing its own brainstorm→plan→SDD cycle per this epic's
-established pattern. Final whole-branch review pending — see the SDD ledger at
-`.superpowers/sdd/2026-08-14-native-only-generator-phase-b/progress.md` for the full
-per-task ruling record.
+established pattern. The final whole-branch review (Opus) found zero Critical findings and 5
+Important + several Minor ones — all fixed in one wave, re-reviewed clean; the SDD ledger
+that recorded every ruling made along the way has been deleted per this project's standing
+process (`git log` on commits `79fbd73..dc0861f` is the permanent record now — 27 commits,
+one rebase reword applied to `a052da5`/now `3636186` to fix a misleading commit message
+before push, everything else landed as originally authored).
+
+**Phase C scope note (added 2026-08-17):** not yet started, but two things are already
+confirmed and worth carrying forward rather than rediscovering:
+- `internal/scaffold/wizard.go`'s `huh.Select` prompts still offer `git-cliff`/`communique`/
+  `None` as live-looking choices, but this is decorative-not-broken today —
+  `internal/scaffold/generate.go`'s `answersToConfig` only reads
+  `Answers.ChangelogGenerator`/`NotesGenerator`'s presence as a boolean gate and never emits a
+  `generator:` key regardless of which option is picked, so `heraut init` always produces a
+  loadable config. Real UX debt (the question has no live consequence), not a config-generation
+  bug — state this plainly in Phase C's brief so it isn't mistaken for an urgent fix.
+- Phase B's own final review found stale git-cliff/communique prose survives in plain comments/
+  doc strings that a symbol-focused grep (`\.Generator\b|GitCliff|Communique`) doesn't catch —
+  three separate times, reactively. Phase C touches `wizard.go`, the densest remaining cluster
+  of this; build a raw `grep -rn "gitcliff\|git-cliff\|communique"` sweep into Phase C's own
+  plan from the start instead of finding it the same way a fourth time.
 
 ## Phase 3 — Raw-HTTP platform clients (deferred)
 
