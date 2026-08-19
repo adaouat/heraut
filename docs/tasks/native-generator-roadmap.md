@@ -38,7 +38,8 @@ no longer a parity target — heraut's rendering is its own spec, validated by g
 | Phase 2.8 — user-customizable templates (ADR-0037)   | TT1 – TT11             | Complete    |
 | Phase 2.9 — incremental changelog (ADR-0038)          | —                      | Complete    |
 | Phase 2.10 — commit-author attribution (ADR-0039)    | T151 (follow-up)       | Complete — GitHub, GitLab, Azure |
-| Phase 2.5 — remove the git-cliff package (own ADR)   | T177–T184              | Config cutover complete; package deletion pending |
+| Phase 2.5 — remove the git-cliff package (own ADR)   | T177–T194              | Done        |
+| Phase C — wizard simplification (supersedes T164)    | T195–T202              | Not started |
 | Phase 3 — raw-HTTP clients (drop `gh` / `glab`)       | —                      | Deferred    |
 
 ---
@@ -1314,6 +1315,38 @@ confirmed and worth carrying forward rather than rediscovering:
   three separate times, reactively. Phase C touches `wizard.go`, the densest remaining cluster
   of this; build a raw `grep -rn "gitcliff\|git-cliff\|communique"` sweep into Phase C's own
   plan from the start instead of finding it the same way a fourth time.
+
+## Phase C — Wizard simplification (supersedes T164)
+
+> See `docs/superpowers/specs/2026-08-08-native-only-generator-design.md` §4 (original high-level
+> scope) and `docs/superpowers/specs/2026-08-17-native-only-generator-phase-c-wizard-design.md`
+> (detailed design: exact wizard flow, field renames, the `internal/forge` export decision) for
+> the full design. Plan: `docs/superpowers/plans/2026-08-19-native-only-generator-phase-c.md`.
+
+Drops `internal/scaffold/wizard.go`'s decorative generator-choice step (`git-cliff`/`communique`/
+`None` — options with no live effect since Phase A removed the `generator:` config key entirely)
+and builds the forge/target questions `docs/tasks/forge-abstraction-roadmap.md`'s T164 originally
+scoped, plus what T164 didn't anticipate: an `api_mode` prompt and wizard-editable
+`commits.enrichment_forge`/`enrichment_policy`. Supersedes T164, which stays `[ ]` there with a
+pointer note rather than being implemented twice.
+
+#### `[ ]` T195: export a CI/git-origin type detector from `internal/forge`
+
+#### `[ ]` T196: `internal/scaffold` layer-rule + wire platform-type pre-fill into `runPlatformWizard`
+
+#### `[ ]` T197: `Answers.ChangelogGenerator`/`NotesGenerator` → `EnableChangelog`/`EnableReleaseNotes` bools
+
+#### `[ ]` T198: `Answers.RemoteMetadata` → `EnrichmentPolicy` rename
+
+#### `[ ]` T199: independent "Publish releases?" confirm replaces the `NotesGenerator`-gated trigger
+
+#### `[ ]` T200: `api_mode` prompt in the GitLab platform branch
+
+#### `[ ]` T201: enrichment policy/forge prompts; `EnrichmentForge` becomes wizard-editable
+
+#### `[ ]` T202: delete `internal/scaffold/cliff.go`; cleanup sweep; manual wizard verification
+
+---
 
 ## Phase 3 — Raw-HTTP platform clients (deferred)
 

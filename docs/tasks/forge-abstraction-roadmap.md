@@ -411,6 +411,12 @@ Update the scaffold wizard (`internal/scaffold`) to generate `forges:` / `releas
 `commits.enrichment_forge` / `commits.enrichment_policy`, with auto-detection defaults and an
 `api_mode` prompt. Tests: wizard-output fixtures validate against `schema.json`.
 
+**Superseded by `docs/tasks/native-generator-roadmap.md`'s Phase C (T195-T202, 2026-08-19).** The
+native-only-generator epic's wizard simplification (dropping the now-decorative generator-choice
+step) needed this exact same forge/target work done at the same time, built once against the
+final generator-free config shape instead of twice. Stays `[ ]` here as a pointer, not
+implemented in this file.
+
 ---
 
 ## Follow-ups
