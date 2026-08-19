@@ -57,12 +57,24 @@ depend on (`internal/forge` gains public API) and requires a **layer-rule change
 `internal/cmd` has a row, and it already lists `internal/scaffold` as one of its *allowed
 imports*, not as an import*er* in its own right. This phase adds a new row for
 `internal/scaffold`, permitting what it already imports (`internal/{config,ui,versioning}/`, per
-`wizard.go`/`dropped.go`) plus the new `internal/forge` dependency. `internal/scaffold`'s own
-`detectRemoteProject`/`parseRemoteProject` are deleted once the shared implementation replaces
-them — no two competing detectors survive.
+`wizard.go`/`dropped.go`) plus the new `internal/forge` dependency.
 
-The exact exported shape (a single function returning type + host + project/repo + token-env, vs.
-several smaller exports) is left to `writing-plans`/implementation — a mechanical decision, not a
+**Correction from this document's first draft:** `detectRemoteProject`/`parseRemoteProject`
+(`wizard.go:334-364`) are **not** deleted. `internal/forge`'s `parseGitOrigin` only recognizes
+three known public hosts (`github.com`/`gitlab.com`/`dev.azure.com`) — it exists to *type* a
+forge, which self-hosted instances structurally can't be from a URL alone. The wizard's own
+`parseRemoteProject` handles *any* host and is the only thing that pre-fills the project/repo path
+for self-hosted GitLab/GitHub Enterprise remotes today, pinned by
+`TestParseRemoteProject`'s "self-hosted https" case (`wizard_internal_test.go:70`) — deleting it
+would silently drop auto-fill for every self-hosted user. The two detectors were never doing the
+same job: scaffold's has always been path-only, never attempted type detection at all. The new
+`internal/forge` export adds **type** pre-fill (a capability that did not exist before) via CI
+env/known-host detection; `parseRemoteProject` stays as the broader, any-host path fallback used
+when forge detection doesn't apply (self-hosted, or no CI markers) or returns a type the wizard's
+platform Select doesn't offer (anything other than `github`/`gitlab` — Azure DevOps is not a
+wizard-supported platform type today, a pre-existing gap this phase does not expand).
+
+The exact exported shape is left to `writing-plans`/implementation — a mechanical decision, not a
 design one, as long as it does not widen `internal/forge`'s already-careful unexported surface
 (`resolveAuto`, `resolveExplicit`, `candidateTypes`, `defaultHostFor`, `defaultTokenEnvFor` stay
 unexported; only the CI/origin-detection primitives the wizard needs become public).
@@ -148,8 +160,9 @@ skipped (nothing to choose among).
 - `runPlatformWizard`'s GitLab branch gains the `api_mode` step (Decision 4).
 - A new function (name left to implementation) runs the enrichment prompts (Decision 5) after the
   platform loop returns.
-- `detectRemoteProject`/`parseRemoteProject` deleted; call sites use the new `internal/forge`
-  export (Decision 1).
+- `detectRemoteProject`/`parseRemoteProject` stay (see Decision 1's correction); a new call ahead
+  of Step 1 uses the `internal/forge` export to pre-seed `p.Type`, falling back to today's
+  any-host, path-only behavior when forge detection doesn't apply.
 - `Answers` struct: `ChangelogGenerator string` / `NotesGenerator string` → `EnableChangelog bool`
   / `EnableReleaseNotes bool`. `RemoteMetadata string` → renamed `EnrichmentPolicy string` (its
   current name is a stale holdover from the pre-ADR-0043 `remote_metadata` key and collides
