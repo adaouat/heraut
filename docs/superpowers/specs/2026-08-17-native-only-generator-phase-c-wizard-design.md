@@ -83,10 +83,21 @@ unexported; only the CI/origin-detection primitives the wizard needs become publ
 
 The two `huh.NewSelect` "Changelog generator" / "Release notes generator" groups
 (`wizard.go:246-269`), each offering git-cliff/communique/None, are replaced by two
-`huh.NewConfirm()`s: **"Generate a changelog?"** and **"Generate release notes?"** (both default
-`true`, matching today's `Defaults()` behavior). A "no" answer produces the same end state as
-today's "None" choice — no `changelog:`/`release.notes:` block emitted — but the question is now
-honest: no decorative options with zero live effect (per the memory note: today's selects don't
+`huh.NewConfirm()`s: **"Generate a changelog?"** and **"Generate release notes?"**, bound directly
+to the new bool fields with no special default-seeding in `RunWizard`. This preserves exact
+current behavior on every path: `ConfigToAnswers` (update flow) already sets the correct bool from
+the loaded config's block presence before `RunWizard` runs; a genuinely fresh interactive
+`heraut init` (no existing file, no `--defaults`) passes a zero-valued `Answers{}` today too
+(`internal/cmd/init.go` has no seeding branch for that case) — and today's zero-valued
+`ChangelogGenerator == ""` already exactly matches the `"None"` option's value, so the *existing*
+fresh-interactive default is already "no changelog" pre-selected. A `false` zero-value bool
+reproduces that exact behavior; forcing a `true` default inside `RunWizard` would instead silently
+flip a loaded config's deliberate "no changelog" back to "yes" on every re-run — the same silent
+double-write bug class this codebase has hit before (I7, T178c). `--defaults`'s opinionated
+"everything on" stance is unaffected — it is `Defaults()`'s job alone, not `RunWizard`'s, and
+`Defaults()` already sets these explicitly (see Mechanical changes below). A "no" answer produces
+the same end state as today's "None" choice — no `changelog:`/`release.notes:` block emitted — but
+the question is now honest: no decorative options with zero live effect (today's selects don't
 even affect emitted YAML, since `generator:` was removed from config entirely in Phase A).
 
 The existing "Changelog output file" input stays, now hidden via `WithHideFunc` when "Generate a
@@ -100,8 +111,11 @@ control flow at the same position the `NotesGenerator` gate occupies today (`wiz
 after the sprint-wizard step, before the per-env branch. Only its *trigger condition* changes, not
 its position in the flow. This decouples "generate notes content" from "have somewhere to publish
 to," matching how `CLAUDE.md` already frames publishing as its own concern (`heraut release`
-requires a resolvable publish destination independent of changelog/notes configuration). A "no"
-answer leaves `a.Platforms` empty, same as `heraut init` producing a config with no
+requires a resolvable publish destination independent of changelog/notes configuration). Like the
+changelog/notes confirms, this binds directly to a new `PublishReleases bool` field with no
+special default-seeding — `false` on a fresh interactive run, matching today's
+`a.NotesGenerator != ""` gate (also false/not-triggered by default on a fresh run, for the same
+zero-value reason explained in Decision 2). A "no" answer leaves `a.Platforms` empty, same as `heraut init` producing a config with no
 `forges:`/`release.targets:` block today when no platform is configured — valid, since heraut's
 runtime auto-detects a forge from CI/git-origin at zero-config time
 (`docs/specs/02-configuration.md:496-504`).
