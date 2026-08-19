@@ -120,9 +120,19 @@ its place, when publishing is off):
   **only when `len(a.Platforms) >= 2`**. With 0 or 1 configured platform, resolution is
   unambiguous (matches `docs/specs/02-configuration.md:506-508`: "disambiguation is only needed
   with multiple forges") and the field stays unset, relying on runtime auto-detection or the
-  single configured forge. This replaces `generate.go`'s current default-to-first-forge stopgap
-  (lines 124-140, explicitly flagged there as the T164/P4 placeholder) with a real choice exactly
-  when the choice is actually ambiguous.
+  single configured forge.
+
+`generate.go`'s existing default-to-first-forge fallback (lines 124-140) **stays**, contrary to
+this document's first draft, which called it deleted — `commits.enrichment_forge == ""` with
+`len(cfg.Forges) > 1` is a hard validator error (`internal/config/validator.go:246-250`), and
+`answersToConfig`/`GenerateYAML` are public `scaffold` API exercised directly by
+`TestGenerateYAML_EnrichmentForgeDefaultsToFirstWhenUnset` and by `--defaults`, not only by the
+interactive wizard. Deleting the fallback would let a non-wizard caller (a future test, a
+hand-built `Answers`, or `--defaults` if it ever grows a second default platform) emit an invalid
+config. The fallback's *comment* is updated to note the wizard now asks explicitly when the choice
+is ambiguous (2+ platforms), so the fallback path is a defensive default for direct/non-wizard
+callers, not the primary UX anymore — but the code and its test stay, per this project's "never
+delete a load-bearing test row" rule.
 
 If publishing is off (0 platforms) and content generation is on, "Enrichment policy" is still
 asked (governs whether zero-config runtime enrichment happens at all); "Enrichment forge" is
@@ -163,7 +173,8 @@ skipped (nothing to choose among).
   presence gates only.
 - `EnrichmentForge`/`EnrichmentPolicy` feed `cfg.Commits` the same way `Tickets` already does
   (line 48-49) — extended, not restructured.
-- The default-to-first-forge stopgap (lines 124-140) is deleted per Decision 5.
+- The default-to-first-forge fallback (lines 124-140) **stays** — see the correction in Decision 5
+  above. Only its comment changes, to reflect that the wizard now asks explicitly when ambiguous.
 
 ### `internal/scaffold/cliff.go`
 
