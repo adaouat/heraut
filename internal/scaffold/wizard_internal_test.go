@@ -78,6 +78,44 @@ func TestParseRemoteProject(t *testing.T) {
 	}
 }
 
+func TestDetectPlatform_GitLabCI(t *testing.T) {
+	typ, project := detectPlatform(func(k string) string {
+		m := map[string]string{"GITLAB_CI": "true", "CI_PROJECT_PATH": "group/project"}
+		return m[k]
+	}, "")
+	assert.Equal(t, "gitlab", typ)
+	assert.Equal(t, "group/project", project)
+}
+
+// TestDetectPlatform_SelfHostedFallsBackToAnyHostParsing pins that self-hosted GitLab/GitHub
+// Enterprise remotes — which forge.DetectForWizard cannot type, since parseGitOrigin only
+// recognizes github.com/gitlab.com/dev.azure.com — still get their project path pre-filled via
+// parseRemoteProject's any-host parsing, exactly like today.
+func TestDetectPlatform_SelfHostedFallsBackToAnyHostParsing(t *testing.T) {
+	typ, project := detectPlatform(func(string) string { return "" }, "https://git.company.com/team/service.git")
+	assert.Equal(t, "", typ)
+	assert.Equal(t, "team/service", project)
+}
+
+// TestDetectPlatform_AzureDevOpsNotOfferedByWizardFallsBackToPathParsing pins that a detected
+// azure_devops type — not one of the wizard's two platform Select options (gitlab/github) — is
+// discarded, falling back to any-host path parsing instead of feeding an invalid type into the
+// Select.
+func TestDetectPlatform_AzureDevOpsNotOfferedByWizardFallsBackToPathParsing(t *testing.T) {
+	typ, project := detectPlatform(func(k string) string {
+		m := map[string]string{"TF_BUILD": "true", "SYSTEM_TEAMPROJECT": "myproject", "BUILD_REPOSITORY_NAME": "myrepo"}
+		return m[k]
+	}, "https://dev.azure.com/myorg/myproject/_git/myrepo")
+	assert.Equal(t, "", typ)
+	assert.Equal(t, "myorg/myproject/_git/myrepo", project)
+}
+
+func TestDetectPlatform_NoDetection(t *testing.T) {
+	typ, project := detectPlatform(func(string) string { return "" }, "")
+	assert.Equal(t, "", typ)
+	assert.Equal(t, "", project)
+}
+
 func TestMatchPlatformSnapshot_SingleMatch(t *testing.T) {
 	original := []PlatformAnswer{
 		{Type: "github", Name: "gh-internal", BaseURL: "https://github.example.com", Draft: true, Prerelease: true},

@@ -2,6 +2,7 @@ package scaffold
 
 import (
 	"fmt"
+	"os"
 	"os/exec"
 	"regexp"
 	"slices"
@@ -11,6 +12,7 @@ import (
 	"charm.land/huh/v2"
 
 	"github.com/adaouat/heraut/internal/config"
+	"github.com/adaouat/heraut/internal/forge"
 	"github.com/adaouat/heraut/internal/ui"
 	"github.com/adaouat/heraut/internal/versioning/calver"
 )
@@ -331,14 +333,29 @@ func runSprintWizard(a *Answers) error {
 	return nil
 }
 
-// detectRemoteProject runs git remote get-url origin and returns the parsed
-// namespace/project string. Returns "" when not in a git repo or on any error.
-func detectRemoteProject() string {
+// gitRemoteOriginURL runs `git remote get-url origin` and returns its raw output, or "" when not
+// in a git repo or on any error.
+func gitRemoteOriginURL() string {
 	out, err := exec.Command("git", "remote", "get-url", "origin").Output()
 	if err != nil {
 		return ""
 	}
-	return parseRemoteProject(strings.TrimSpace(string(out)))
+	return strings.TrimSpace(string(out))
+}
+
+// detectPlatform pre-fills a new platform's type and project/repository path: CI
+// environment/known-host detection (via internal/forge) identifies the type when possible; the
+// project/repository path falls back to parseRemoteProject's any-host parsing when forge
+// detection doesn't apply (self-hosted instances, no CI markers) or names a type the wizard's
+// platform Select doesn't offer (only "github"/"gitlab" are wizard-supported today).
+func detectPlatform(getenv func(string) string, gitOrigin string) (typ, projectOrRepo string) {
+	if t, p, ok := forge.DetectForWizard(getenv, gitOrigin); ok && (t == "github" || t == "gitlab") {
+		if p == "" {
+			p = parseRemoteProject(gitOrigin)
+		}
+		return t, p
+	}
+	return "", parseRemoteProject(gitOrigin)
 }
 
 // parseRemoteProject extracts "namespace/project" (or "owner/repo") from a git
@@ -463,6 +480,11 @@ func runPlatformWizard(a *Answers) error {
 
 		p := PlatformAnswer{}
 
+		// Pre-fill type and project/repository path from CI env / git origin, when detectable.
+		origin := gitRemoteOriginURL()
+		detectedType, detectedProject := detectPlatform(os.Getenv, origin)
+		p.Type = detectedType
+
 		// Step 1: platform type.
 		if err := themedForm(
 			huh.NewGroup(
@@ -479,12 +501,10 @@ func runPlatformWizard(a *Answers) error {
 		}
 
 		// Step 2: platform-specific fields.
-		// Pre-fill from git remote when the field is still empty.
-		detected := detectRemoteProject()
 		switch p.Type {
 		case "github":
 			if p.Repository == "" {
-				p.Repository = detected
+				p.Repository = detectedProject
 			}
 			if err := themedForm(
 				huh.NewGroup(
@@ -504,7 +524,7 @@ func runPlatformWizard(a *Answers) error {
 			}
 		case "gitlab":
 			if p.Project == "" {
-				p.Project = detected
+				p.Project = detectedProject
 			}
 			if err := themedForm(
 				huh.NewGroup(
