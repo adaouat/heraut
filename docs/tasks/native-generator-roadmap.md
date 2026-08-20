@@ -1330,7 +1330,9 @@ scoped, plus what T164 didn't anticipate: an `api_mode` prompt and wizard-editab
 `commits.enrichment_forge`/`enrichment_policy`. Supersedes T164, which stays `[ ]` there with a
 pointer note rather than being implemented twice.
 
-#### `[ ]` T195: export a CI/git-origin type detector from `internal/forge`
+#### `[x]` T195: export a CI/git-origin type detector from `internal/forge`
+
+Implemented `forge.DetectForWizard(getenv func(string) string, gitOrigin string) (typ, projectOrRepo string, ok bool)` as a new exported wrapper combining the existing unexported `detectCIForge` and `parseGitOrigin` helpers. CI environment detection (GitLab/GitHub/Azure) takes priority; falls back to parsing git origin URL for public hosts (github.com/gitlab.com/dev.azure.com). Unlike `Resolve`'s zero-config path, never falls back to inspecting ambient token env vars — the wizard asks users to pick/confirm type explicitly when detection is inconclusive. Tests added in `internal/forge/detect_test.go` (reused `env` helper from `resolve_test.go`). Full suite 56 tests green.
 
 #### `[ ]` T196: `internal/scaffold` layer-rule + wire platform-type pre-fill into `runPlatformWizard`
 

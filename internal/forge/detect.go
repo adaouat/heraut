@@ -104,3 +104,23 @@ func parseGitOrigin(url string) (typ, host, project string, ok bool) {
 		return "", "", "", false
 	}
 }
+
+// DetectForWizard identifies a forge's platform type and project/repository path for wizard
+// pre-fill: CI environment markers take priority, then a git origin URL matching one of the
+// three known public hosts. ok is false when neither source identifies a recognized type —
+// unlike Resolve's zero-config path, this never falls back to inspecting ambient token env vars,
+// since the wizard always asks the user to pick (or confirm) a type explicitly when detection is
+// inconclusive rather than guessing from which token happens to be set.
+func DetectForWizard(getenv func(string) string, gitOrigin string) (typ, projectOrRepo string, ok bool) {
+	if ciType, _, _, ciProject, ciRepository, _, _, ciOK := detectCIForge(getenv); ciOK {
+		project := ciProject
+		if project == "" {
+			project = ciRepository
+		}
+		return ciType, project, true
+	}
+	if originType, _, originProject, originOK := parseGitOrigin(gitOrigin); originOK {
+		return originType, originProject, true
+	}
+	return "", "", false
+}
