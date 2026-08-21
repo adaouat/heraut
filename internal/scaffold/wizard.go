@@ -37,6 +37,8 @@ type Answers struct {
 
 	// PublishReleases gates whether runPlatformWizard runs; it is not itself a config field —
 	// once populated, Platforms alone determines whether forges:/release.targets: are emitted.
+	// A false answer clears Platforms (see applyPublishChoice) so a stale, pre-populated slice
+	// from an edit-existing-config round trip can't survive into GenerateYAML.
 	PublishReleases bool
 
 	// Sprint is the current sprint counter, required when Format contains SPRINT.
@@ -290,12 +292,8 @@ func RunWizard(a *Answers) error {
 		return err
 	}
 
-	if a.PublishReleases {
-		if err := runPlatformWizard(a); err != nil {
-			return err
-		}
-	} else {
-		a.Platforms = nil
+	if err := applyPublishChoice(a); err != nil {
+		return err
 	}
 
 	if err := runEnrichmentWizard(a); err != nil {
@@ -468,6 +466,17 @@ func matchEnvSnapshot(original, rebuilt []EnvAnswer) []EnvAnswer {
 		result[i] = e
 	}
 	return result
+}
+
+// applyPublishChoice enforces the invariant that a.Platforms reflects the user's actual publish
+// choice: a false PublishReleases must not leave a stale, pre-populated Platforms slice (from an
+// edit-existing-config ConfigToAnswers round trip) surviving into GenerateYAML.
+func applyPublishChoice(a *Answers) error {
+	if a.PublishReleases {
+		return runPlatformWizard(a)
+	}
+	a.Platforms = nil
+	return nil
 }
 
 func runPlatformWizard(a *Answers) error {

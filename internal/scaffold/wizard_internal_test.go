@@ -273,6 +273,25 @@ func TestShouldPromptEnrichmentForge(t *testing.T) {
 	assert.True(t, shouldPromptEnrichmentForge([]PlatformAnswer{{Type: "github"}, {Type: "gitlab"}}))
 }
 
+// TestApplyPublishChoice_DeclinedClearsStalePlatforms pins the T199 bug fix: on the
+// edit-existing-config path, ConfigToAnswers pre-populates a.Platforms from the on-disk config
+// before RunWizard ever runs. If the user then declines "Publish releases?", a.Platforms must be
+// cleared — otherwise the stale, pre-populated slice survives into GenerateYAML even though the
+// user said no.
+func TestApplyPublishChoice_DeclinedClearsStalePlatforms(t *testing.T) {
+	a := &Answers{
+		PublishReleases: false,
+		Platforms: []PlatformAnswer{
+			{Type: "github", Repository: "acme/widget", TokenEnv: "GH_TOKEN"},
+		},
+	}
+
+	err := applyPublishChoice(a)
+
+	require.NoError(t, err)
+	assert.Empty(t, a.Platforms, "declining publish must clear stale pre-populated platforms")
+}
+
 func TestHideAPIMode(t *testing.T) {
 	tests := []struct {
 		name         string
