@@ -257,6 +257,22 @@ func TestResolveTokenChoice(t *testing.T) {
 	}
 }
 
+func TestPlatformDisplayNames(t *testing.T) {
+	names := platformDisplayNames([]PlatformAnswer{
+		{Type: "github"},
+		{Type: "gitlab"},
+		{Type: "gitlab"},
+		{Type: "github", Name: "gh-internal"},
+	})
+	assert.Equal(t, []string{"github", "gitlab", "gitlab-2", "gh-internal"}, names)
+}
+
+func TestShouldPromptEnrichmentForge(t *testing.T) {
+	assert.False(t, shouldPromptEnrichmentForge(nil))
+	assert.False(t, shouldPromptEnrichmentForge([]PlatformAnswer{{Type: "github"}}))
+	assert.True(t, shouldPromptEnrichmentForge([]PlatformAnswer{{Type: "github"}, {Type: "gitlab"}}))
+}
+
 func TestHideAPIMode(t *testing.T) {
 	tests := []struct {
 		name         string

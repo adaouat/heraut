@@ -47,11 +47,8 @@ type Answers struct {
 	TagFormat    string
 	Environments []EnvAnswer
 
-	// Assets, Tickets, and EnrichmentForge are not wizard-editable; they are carried through
-	// verbatim from an existing config on "Update it?" (T107). EnrichmentForge references a
-	// forges[].name (by the pre-rebuild name, matched positionally like Platforms' passthrough
-	// fields — see matchPlatformSnapshot); forge selection has no wizard prompt yet (that
-	// redesign is T164/P4).
+	// Assets and Tickets are not wizard-editable; they are carried through verbatim from an
+	// existing config on "Update it?" (T107).
 	Assets           []string
 	Tickets          []config.Ticket
 	EnrichmentPolicy string
@@ -299,6 +296,10 @@ func RunWizard(a *Answers) error {
 		}
 	} else {
 		a.Platforms = nil
+	}
+
+	if err := runEnrichmentWizard(a); err != nil {
+		return err
 	}
 
 	if a.Strategy == "semver-per-env" || a.Strategy == "calver-per-env" {
@@ -627,6 +628,60 @@ func runPlatformWizard(a *Answers) error {
 
 	a.Platforms = matchPlatformSnapshot(snapshot, a.Platforms)
 	return nil
+}
+
+// shouldPromptEnrichmentForge reports whether the enrichment-forge select should be shown: only
+// when 2+ platforms are configured, since with 0 or 1 the choice is unambiguous and the field is
+// left for runtime auto-detection or the single configured forge to resolve.
+func shouldPromptEnrichmentForge(platforms []PlatformAnswer) bool {
+	return len(platforms) >= 2
+}
+
+// runEnrichmentWizard asks the PR/MR enrichment policy whenever changelog or release-notes
+// generation is enabled — independent of whether publishing is configured, since enrichment can
+// work off a zero-config auto-detected forge even with no explicit forges: block — and, only
+// when the choice is actually ambiguous (2+ configured platforms), which one supplies the data.
+func runEnrichmentWizard(a *Answers) error {
+	if !a.EnableChangelog && !a.EnableReleaseNotes {
+		return nil
+	}
+
+	if a.EnrichmentPolicy == "" {
+		a.EnrichmentPolicy = "optional"
+	}
+
+	groups := []*huh.Group{
+		huh.NewGroup(
+			huh.NewSelect[string]().
+				Title("PR/MR enrichment policy").
+				Options(
+					huh.NewOption("optional (fetch when possible, else warn)", "optional"),
+					huh.NewOption("required (fail if unavailable)", "required"),
+					huh.NewOption("disabled (never fetch)", "disabled"),
+				).
+				Value(&a.EnrichmentPolicy),
+		),
+	}
+
+	if shouldPromptEnrichmentForge(a.Platforms) {
+		names := platformDisplayNames(a.Platforms)
+		forgeOpts := make([]huh.Option[string], len(names))
+		for i, name := range names {
+			forgeOpts[i] = huh.NewOption(name, name)
+		}
+		if !slices.Contains(names, a.EnrichmentForge) {
+			a.EnrichmentForge = names[0]
+		}
+		groups = append(groups, huh.NewGroup(
+			huh.NewSelect[string]().
+				Title("Enrichment forge").
+				Description("Which platform supplies PR/MR metadata?").
+				Options(forgeOpts...).
+				Value(&a.EnrichmentForge),
+		))
+	}
+
+	return themedForm(groups...).Run()
 }
 
 func runEnvWizard(a *Answers) error {

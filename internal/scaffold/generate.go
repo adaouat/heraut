@@ -97,16 +97,9 @@ func answersToConfig(a Answers) config.Config {
 		if hasNotes {
 			cfg.Release.Notes = &config.ContentDriver{}
 		}
-		platformTypeCount := make(map[string]int)
-		for _, p := range a.Platforms {
-			platformTypeCount[p.Type]++
-			name := p.Name
-			if name == "" {
-				name = p.Type
-				if n := platformTypeCount[p.Type]; n > 1 {
-					name = fmt.Sprintf("%s-%d", p.Type, n)
-				}
-			}
+		names := platformDisplayNames(a.Platforms)
+		for i, p := range a.Platforms {
+			name := names[i]
 			cfg.Forges = append(cfg.Forges, config.Forge{
 				Name:       name,
 				Type:       p.Type,
@@ -123,12 +116,12 @@ func answersToConfig(a Answers) config.Config {
 			})
 		}
 		// commits.enrichment_forge is required once more than one forge is configured
-		// (validateForges) — the wizard has no forge-selection question yet (that redesign is
-		// T164/P4). Preserve an existing choice carried through Answers.EnrichmentForge (I7:
-		// silently repointing it at the first forge on every re-run of `heraut init` changed
-		// which host PR/MR metadata comes from with no warning); only fall back to the first
-		// configured forge — the deliberate, unambiguous stopgap default — when there is no
-		// prior choice, or it no longer names one of the rebuilt forges.
+		// (validateForges). The wizard (runEnrichmentWizard) now asks explicitly whenever
+		// there are 2+ platforms, so a.EnrichmentForge is normally already set correctly by the
+		// time this runs. This fallback exists for direct/non-wizard callers of answersToConfig
+		// (e.g. a hand-built Answers, or a future --defaults preset with multiple platforms):
+		// preserve an existing choice when it still names one of the rebuilt forges, else fall
+		// back to the first configured forge.
 		if len(cfg.Forges) > 1 {
 			if cfg.Commits == nil {
 				cfg.Commits = &config.Commits{}
@@ -142,6 +135,27 @@ func answersToConfig(a Answers) config.Config {
 	}
 
 	return cfg
+}
+
+// platformDisplayNames returns the forges[].name each platform in ps will be assigned once
+// generated — type-based, deduplicated with a "-N" suffix for repeats. answersToConfig and the
+// wizard's enrichment-forge prompt both need the exact same computation so the names offered to
+// the user match what GenerateYAML actually writes.
+func platformDisplayNames(ps []PlatformAnswer) []string {
+	names := make([]string, len(ps))
+	typeCount := make(map[string]int)
+	for i, p := range ps {
+		typeCount[p.Type]++
+		name := p.Name
+		if name == "" {
+			name = p.Type
+			if n := typeCount[p.Type]; n > 1 {
+				name = fmt.Sprintf("%s-%d", p.Type, n)
+			}
+		}
+		names[i] = name
+	}
+	return names
 }
 
 // forgeNameExists reports whether name matches one of forges[].name.
