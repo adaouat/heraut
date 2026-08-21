@@ -117,94 +117,49 @@ func TestDetectPlatform_NoDetection(t *testing.T) {
 }
 
 func TestMatchPlatformSnapshot_SingleMatch(t *testing.T) {
-	original := []PlatformAnswer{
-		{Type: "github", Name: "gh-internal", BaseURL: "https://github.example.com", Draft: true, Prerelease: true},
+	snapshot := []PlatformAnswer{
+		{Type: "github", Name: "gh-internal", BaseURL: "https://github.example.com", Draft: true, Prerelease: true, TokenEnv: "GH_TOKEN", APIMode: "graphql"},
 	}
-	rebuilt := []PlatformAnswer{
-		{Type: "github", Repository: "org/repo", TokenEnv: "GH_TOKEN"},
-	}
-	result := matchPlatformSnapshot(original, rebuilt)
-	require.Len(t, result, 1)
-	assert.Equal(t, "gh-internal", result[0].Name)
-	assert.Equal(t, "https://github.example.com", result[0].BaseURL)
-	assert.True(t, result[0].Draft)
-	assert.True(t, result[0].Prerelease)
-	assert.Equal(t, "org/repo", result[0].Repository)
-	assert.Equal(t, "GH_TOKEN", result[0].TokenEnv)
+	orig, ok := matchPlatformSnapshot(snapshot, nil, "github")
+	require.True(t, ok)
+	assert.Equal(t, "gh-internal", orig.Name)
+	assert.Equal(t, "https://github.example.com", orig.BaseURL)
+	assert.True(t, orig.Draft)
+	assert.True(t, orig.Prerelease)
+	assert.Equal(t, "GH_TOKEN", orig.TokenEnv)
+	assert.Equal(t, "graphql", orig.APIMode)
 }
 
 func TestMatchPlatformSnapshot_NoMatchForNewEntry(t *testing.T) {
-	original := []PlatformAnswer{
-		{Type: "github", Name: "gh-one", Draft: true},
-	}
-	rebuilt := []PlatformAnswer{
-		{Type: "github", Repository: "org/repo-1"},
-		{Type: "github", Repository: "org/repo-2"},
-	}
-	result := matchPlatformSnapshot(original, rebuilt)
-	require.Len(t, result, 2)
-	assert.Equal(t, "gh-one", result[0].Name)
-	assert.True(t, result[0].Draft)
-	assert.Equal(t, "", result[1].Name, "extra rebuilt entry has no snapshot match")
-	assert.False(t, result[1].Draft)
-}
-
-func TestMatchPlatformSnapshot_TypeScoped(t *testing.T) {
-	original := []PlatformAnswer{
-		{Type: "github", Name: "gh-internal", BaseURL: "https://github.example.com"},
-		{Type: "gitlab", Name: "gl-com", BaseURL: "https://gitlab.com"},
-	}
-	rebuilt := []PlatformAnswer{
-		{Type: "github", Repository: "org/repo"},
-		{Type: "gitlab", Project: "ns/project"},
-	}
-	result := matchPlatformSnapshot(original, rebuilt)
-	require.Len(t, result, 2)
-	assert.Equal(t, "gh-internal", result[0].Name)
-	assert.Equal(t, "https://github.example.com", result[0].BaseURL)
-	assert.Equal(t, "gl-com", result[1].Name)
-	assert.Equal(t, "https://gitlab.com", result[1].BaseURL)
-}
-
-func TestMatchPlatformSnapshot_EmptyRebuilt(t *testing.T) {
-	original := []PlatformAnswer{{Type: "github", Name: "gh-com", Draft: true}}
-	result := matchPlatformSnapshot(original, nil)
-	assert.Empty(t, result)
-}
-
-func TestSnapshotTokenAndAPIMode_SingleMatch(t *testing.T) {
 	snapshot := []PlatformAnswer{
-		{Type: "gitlab", TokenEnv: "GITLAB_TOKEN", APIMode: "graphql"},
-	}
-	tokenEnv, apiMode, ok := snapshotTokenAndAPIMode(snapshot, nil, "gitlab")
-	assert.True(t, ok)
-	assert.Equal(t, "GITLAB_TOKEN", tokenEnv)
-	assert.Equal(t, "graphql", apiMode)
-}
-
-func TestSnapshotTokenAndAPIMode_NoMatchForNewEntry(t *testing.T) {
-	snapshot := []PlatformAnswer{
-		{Type: "github", TokenEnv: "GH_TOKEN"},
+		{Type: "github", Name: "gh-one", Draft: true, TokenEnv: "GH_TOKEN"},
 	}
 	rebuiltSoFar := []PlatformAnswer{
-		{Type: "github", TokenEnv: "GH_TOKEN"},
+		{Type: "github", Repository: "org/repo-1"},
 	}
-	_, _, ok := snapshotTokenAndAPIMode(snapshot, rebuiltSoFar, "github")
+	_, ok := matchPlatformSnapshot(snapshot, rebuiltSoFar, "github")
 	assert.False(t, ok, "second github entry has no snapshot match")
 }
 
-func TestSnapshotTokenAndAPIMode_TypeScoped(t *testing.T) {
+func TestMatchPlatformSnapshot_TypeScoped(t *testing.T) {
 	snapshot := []PlatformAnswer{
-		{Type: "github", TokenEnv: "GH_TOKEN"},
-		{Type: "gitlab", TokenEnv: "CI_JOB_TOKEN", APIMode: ""},
+		{Type: "github", Name: "gh-internal", BaseURL: "https://github.example.com", TokenEnv: "GH_TOKEN"},
+		{Type: "gitlab", Name: "gl-com", BaseURL: "https://gitlab.com", TokenEnv: "CI_JOB_TOKEN"},
 	}
-	tokenEnv, apiMode, ok := snapshotTokenAndAPIMode(snapshot, nil, "gitlab")
-	assert.True(t, ok)
-	assert.Equal(t, "CI_JOB_TOKEN", tokenEnv)
-	assert.Equal(t, "", apiMode)
+	origGitHub, ok := matchPlatformSnapshot(snapshot, nil, "github")
+	require.True(t, ok)
+	assert.Equal(t, "gh-internal", origGitHub.Name)
+	assert.Equal(t, "https://github.example.com", origGitHub.BaseURL)
+	assert.Equal(t, "GH_TOKEN", origGitHub.TokenEnv)
+
+	origGitLab, ok := matchPlatformSnapshot(snapshot, nil, "gitlab")
+	require.True(t, ok)
+	assert.Equal(t, "gl-com", origGitLab.Name)
+	assert.Equal(t, "https://gitlab.com", origGitLab.BaseURL)
+	assert.Equal(t, "CI_JOB_TOKEN", origGitLab.TokenEnv)
 }
 
-func TestSnapshotTokenAndAPIMode_SecondEntryOfSameType(t *testing.T) {
+func TestMatchPlatformSnapshot_SecondEntryOfSameType(t *testing.T) {
 	snapshot := []PlatformAnswer{
 		{Type: "gitlab", Name: "gitlab", TokenEnv: "GITLAB_TOKEN", APIMode: "rest"},
 		{Type: "gitlab", Name: "gitlab-2", TokenEnv: "CI_JOB_TOKEN", APIMode: ""},
@@ -212,15 +167,45 @@ func TestSnapshotTokenAndAPIMode_SecondEntryOfSameType(t *testing.T) {
 	rebuiltSoFar := []PlatformAnswer{
 		{Type: "gitlab", TokenEnv: "GITLAB_TOKEN", APIMode: "rest"},
 	}
-	tokenEnv, apiMode, ok := snapshotTokenAndAPIMode(snapshot, rebuiltSoFar, "gitlab")
-	assert.True(t, ok)
-	assert.Equal(t, "CI_JOB_TOKEN", tokenEnv)
-	assert.Equal(t, "", apiMode)
+	orig, ok := matchPlatformSnapshot(snapshot, rebuiltSoFar, "gitlab")
+	require.True(t, ok)
+	assert.Equal(t, "gitlab-2", orig.Name)
+	assert.Equal(t, "CI_JOB_TOKEN", orig.TokenEnv)
+	assert.Equal(t, "", orig.APIMode)
 }
 
-func TestSnapshotTokenAndAPIMode_EmptySnapshot(t *testing.T) {
-	_, _, ok := snapshotTokenAndAPIMode(nil, nil, "gitlab")
+func TestMatchPlatformSnapshot_EmptySnapshot(t *testing.T) {
+	_, ok := matchPlatformSnapshot(nil, nil, "gitlab")
 	assert.False(t, ok)
+}
+
+// TestMatchPlatformSnapshot_InterleavedTypes proves the positional algorithm correctly separates
+// same-type repeats from an interleaved different-type entry — the scenario T203's review flagged
+// as the single most important one to verify, since a wrong match here would silently apply one
+// platform's TokenEnv/APIMode/passthrough fields to a different platform on wizard re-edit.
+func TestMatchPlatformSnapshot_InterleavedTypes(t *testing.T) {
+	snapshot := []PlatformAnswer{
+		{Type: "gitlab", Name: "gitlab", TokenEnv: "GITLAB_TOKEN", APIMode: "rest"},
+		{Type: "github", Name: "github", TokenEnv: "GH_TOKEN"},
+		{Type: "gitlab", Name: "gitlab-2", TokenEnv: "CI_JOB_TOKEN", APIMode: ""},
+	}
+
+	firstGitLab, ok := matchPlatformSnapshot(snapshot, nil, "gitlab")
+	require.True(t, ok)
+	assert.Equal(t, "gitlab", firstGitLab.Name)
+	assert.Equal(t, "GITLAB_TOKEN", firstGitLab.TokenEnv)
+
+	rebuiltSoFar := []PlatformAnswer{firstGitLab}
+	gitHub, ok := matchPlatformSnapshot(snapshot, rebuiltSoFar, "github")
+	require.True(t, ok)
+	assert.Equal(t, "github", gitHub.Name)
+	assert.Equal(t, "GH_TOKEN", gitHub.TokenEnv)
+
+	rebuiltSoFar = append(rebuiltSoFar, gitHub)
+	secondGitLab, ok := matchPlatformSnapshot(snapshot, rebuiltSoFar, "gitlab")
+	require.True(t, ok)
+	assert.Equal(t, "gitlab-2", secondGitLab.Name)
+	assert.Equal(t, "CI_JOB_TOKEN", secondGitLab.TokenEnv)
 }
 
 func TestMatchEnvSnapshot_SingleMatch(t *testing.T) {

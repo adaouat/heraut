@@ -426,15 +426,18 @@ func hideAPIMode(platformType, tokenChoice string) bool {
 	return platformType != "gitlab" || tokenChoice == "CI_JOB_TOKEN"
 }
 
-// snapshotTokenAndAPIMode looks up the TokenEnv/APIMode a previously-configured platform of the
-// same type used, by type-scoped position: the n-th platform of a type appended so far in this
-// wizard run (rebuiltSoFar) matches the n-th snapshot entry of that type — the same algorithm
-// matchPlatformSnapshot uses for the passthrough fields it restores after the whole platform loop
-// completes. Unlike matchPlatformSnapshot, this must run per-iteration, before Step 3 renders:
-// Step 3 needs TokenEnv/APIMode already seeded on p to correctly pre-fill the token/api_mode
-// prompts, and matching only after the loop (like matchPlatformSnapshot does) is too late to
-// affect what the user is shown.
-func snapshotTokenAndAPIMode(snapshot, rebuiltSoFar []PlatformAnswer, platformType string) (tokenEnv, apiMode string, ok bool) {
+// matchPlatformSnapshot looks up the previously-configured platform of the given type that
+// corresponds to the platform currently being built, by type-scoped position: the n-th platform of
+// a type appended so far in this wizard run (rebuiltSoFar) matches the n-th snapshot entry of that
+// type. Called once per loop iteration in runPlatformWizard, right after Step 1 sets p.Type — early
+// enough that Step 3's token/api_mode prompts can pre-fill from the match, unlike a post-loop batch
+// pass which would see every prompt already rendered. The same call also supplies the passthrough
+// fields (Name, BaseURL, Draft, Prerelease), which aren't read by any prompt but are matched here
+// too so every field on a given platform always comes from the same original snapshot entry —
+// splitting this into two independent matching algorithms (one for TokenEnv/APIMode, one for the
+// passthrough fields) let them silently drift apart if either changed without the other; unifying
+// them into one lookup closes that risk structurally instead of by convention (T204).
+func matchPlatformSnapshot(snapshot, rebuiltSoFar []PlatformAnswer, platformType string) (PlatformAnswer, bool) {
 	index := 0
 	for _, p := range rebuiltSoFar {
 		if p.Type == platformType {
@@ -448,35 +451,10 @@ func snapshotTokenAndAPIMode(snapshot, rebuiltSoFar []PlatformAnswer, platformTy
 		}
 		n++
 		if n == index {
-			return p.TokenEnv, p.APIMode, true
+			return p, true
 		}
 	}
-	return "", "", false
-}
-
-// matchPlatformSnapshot applies passthrough fields (Name, BaseURL, Draft, Prerelease)
-// from the pre-rebuild snapshot to the rebuilt entries using type-scoped positional
-// matching: the n-th rebuilt entry of type T gets the fields from the n-th original
-// entry of type T. Rebuilt entries with no corresponding original get zero values.
-func matchPlatformSnapshot(original, rebuilt []PlatformAnswer) []PlatformAnswer {
-	byType := make(map[string][]PlatformAnswer)
-	for _, p := range original {
-		byType[p.Type] = append(byType[p.Type], p)
-	}
-	consumed := make(map[string]int)
-	result := make([]PlatformAnswer, len(rebuilt))
-	for i, p := range rebuilt {
-		if idx := consumed[p.Type]; idx < len(byType[p.Type]) {
-			orig := byType[p.Type][idx]
-			p.Name = orig.Name
-			p.BaseURL = orig.BaseURL
-			p.Draft = orig.Draft
-			p.Prerelease = orig.Prerelease
-		}
-		consumed[p.Type]++
-		result[i] = p
-	}
-	return result
+	return PlatformAnswer{}, false
 }
 
 // matchEnvSnapshot carries passthrough fields (Changelog, Release) from the pre-wizard
@@ -555,11 +533,17 @@ func runPlatformWizard(a *Answers) error {
 			return err
 		}
 
-		// Re-seed TokenEnv/APIMode from the pre-existing snapshot now that p.Type is known — Step
-		// 3 below needs these already set to correctly pre-fill the token/api_mode prompts.
-		if tokenEnv, apiMode, ok := snapshotTokenAndAPIMode(snapshot, a.Platforms, p.Type); ok {
-			p.TokenEnv = tokenEnv
-			p.APIMode = apiMode
+		// Re-seed the full set of snapshot fields now that p.Type is known: TokenEnv/APIMode must
+		// be set before Step 3 below so its prompts pre-fill correctly; Name/BaseURL/Draft/
+		// Prerelease aren't read by any prompt but are matched here too so every field comes from
+		// the same original snapshot entry.
+		if orig, ok := matchPlatformSnapshot(snapshot, a.Platforms, p.Type); ok {
+			p.Name = orig.Name
+			p.BaseURL = orig.BaseURL
+			p.Draft = orig.Draft
+			p.Prerelease = orig.Prerelease
+			p.TokenEnv = orig.TokenEnv
+			p.APIMode = orig.APIMode
 		}
 
 		// Step 2: platform-specific fields.
@@ -672,7 +656,6 @@ func runPlatformWizard(a *Answers) error {
 		a.Platforms = append(a.Platforms, p)
 	}
 
-	a.Platforms = matchPlatformSnapshot(snapshot, a.Platforms)
 	return nil
 }
 
