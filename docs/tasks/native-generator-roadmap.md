@@ -1400,7 +1400,7 @@ policy/forge prompts (the forge prompt shown only when genuinely ambiguous, i.e.
 
 ## Follow-ups
 
-#### `[ ]` T203: `PlatformAnswer.TokenEnv`/`APIMode` lost on wizard re-edit
+#### `[x]` T203: `PlatformAnswer.TokenEnv`/`APIMode` lost on wizard re-edit
 
 `runPlatformWizard` rebuilds each platform from a fresh `PlatformAnswer{}` inside its per-platform
 loop (`internal/scaffold/wizard.go`), so `TokenEnv` and `APIMode` are never re-seeded from the
@@ -1417,6 +1417,19 @@ fix-wave patch warrants. Fixing both requires seeding `p` from the type-scoped p
 match (similar to what `matchPlatformSnapshot` already does for `Name`/`BaseURL`/`Draft`/
 `Prerelease`) *before* the token/api_mode prompts render in Step 3, not after the platform loop
 completes. **Scope:** S–M.
+
+**Fixed 2026-08-21** (commit `32d6d39`). Added `snapshotTokenAndAPIMode(snapshot, rebuiltSoFar
+[]PlatformAnswer, platformType string) (tokenEnv, apiMode string, ok bool)` — a pure, unit-tested
+function using the same type-scoped positional algorithm as `matchPlatformSnapshot`, but called
+per-iteration in `runPlatformWizard` right after Step 1 (once `p.Type` is known) instead of once
+after the whole loop, so it seeds `p.TokenEnv`/`p.APIMode` before Step 3 builds its prompts.
+`matchPlatformSnapshot` itself is unchanged — it still restores `Name`/`BaseURL`/`Draft`/
+`Prerelease` in its existing post-loop pass, since those fields aren't read by any prompt and don't
+need to be seeded early. `runPlatformWizard` remains untestable directly (interactive `huh` forms,
+no harness anywhere in this package); TDD coverage lives entirely in the new pure function, with one
+test per scenario matching the existing `TestMatchPlatformSnapshot_*` style (single match,
+type-scoped, second entry of the same type, no match for a new entry, empty snapshot). Full suite +
+`hk check` clean.
 
 ---
 
