@@ -1398,6 +1398,28 @@ policy/forge prompts (the forge prompt shown only when genuinely ambiguous, i.e.
 
 ---
 
+## Follow-ups
+
+#### `[ ]` T203: `PlatformAnswer.TokenEnv`/`APIMode` lost on wizard re-edit
+
+`runPlatformWizard` rebuilds each platform from a fresh `PlatformAnswer{}` inside its per-platform
+loop (`internal/scaffold/wizard.go`), so `TokenEnv` and `APIMode` are never re-seeded from the
+pre-existing snapshot before the Step 3 (token/api_mode) prompts render. Only
+`matchPlatformSnapshot` — applied *after* the loop completes — carries passthrough fields (`Name`,
+`BaseURL`, `Draft`, `Prerelease`) forward via type-scoped positional matching; `TokenEnv`/`APIMode`
+are not in that passthrough set. Practical effect: re-running `heraut init` on an existing config
+with `api_mode: graphql` set silently reverts to `"rest"` (Step 3's own default when
+`p.APIMode == ""`), and a pre-existing `TokenEnv` similarly reverts to `resolveTokenChoice`'s
+platform default instead of staying selected — both because Step 3 sees a zero-value `p`, not the
+snapshot's value. Found by the whole-branch Phase C final review (2026-08-20); explicitly deferred
+from that fix wave because it shares this root cause with a bigger, pre-existing restructure than a
+fix-wave patch warrants. Fixing both requires seeding `p` from the type-scoped positional snapshot
+match (similar to what `matchPlatformSnapshot` already does for `Name`/`BaseURL`/`Draft`/
+`Prerelease`) *before* the token/api_mode prompts render in Step 3, not after the platform loop
+completes. **Scope:** S–M.
+
+---
+
 ## Phase 3 — Raw-HTTP platform clients (deferred)
 
 **Not scheduled.** Replacing `gh` / `glab` with direct `net/http` platform clients — which

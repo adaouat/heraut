@@ -40,7 +40,7 @@ internal/pipeline/            release + changelog flows (no factories)
 | `cmd/heraut/`        | `internal/cmd/` only                                                               |
 | `internal/cmd/`      | `internal/{app,ui,config,scaffold,commitwizard}/`                                  |
 | `internal/scaffold/` | `internal/{config,ui,versioning,forge}/`                                           |
-| `internal/app/`      | `internal/{port,config,pipeline,versioning,generators,platforms,adapter,ui,conventionalcommit}/` |
+| `internal/app/`      | `internal/{port,config,pipeline,versioning,generators,platforms,adapter,ui,conventionalcommit,forge}/` |
 | `internal/pipeline/` | `internal/{port,config,versioning,ui}/`                                            |
 | `internal/generators/*` | `internal/{port,config,conventionalcommit}/` (conventionalcommit is a pure leaf — the native generator parses commits with it) |
 | `internal/platforms/*`  | `internal/{port,config}/`                                                          |

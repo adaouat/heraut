@@ -37,7 +37,7 @@ func TestDroppedFields_Tickets_NotDropped(t *testing.T) {
 	assert.Empty(t, scaffold.DroppedFields(cfg), "tickets are preserved via Answers (T107)")
 }
 
-func TestDroppedFields_RemoteMetadata_NotDropped(t *testing.T) {
+func TestDroppedFields_EnrichmentPolicy_NotDropped(t *testing.T) {
 	cfg := &config.Config{
 		Version:    "1",
 		Versioning: config.Versioning{Strategy: "semver"},

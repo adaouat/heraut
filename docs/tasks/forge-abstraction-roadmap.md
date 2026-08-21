@@ -39,7 +39,7 @@ targets); `commits.remote_metadata` is renamed `commits.enrichment_policy`.
 | P1 — GitLab-first: `port.Forge` + config + resolution + native REST/GraphQL + links | T154–T160 | Complete |
 | P2 — migrate GitHub + Azure onto `port.Forge`            | T161, T162  | Complete    |
 | P3 — publishing via `release.targets` (config unification, not transport) | T163 | Complete |
-| P4 (last) — `heraut init` wizard                         | T164        | Not started |
+| P4 (last) — `heraut init` wizard                         | T164        | Superseded  |
 
 Phases run in order. P2–P4 tasks are stubs to be fleshed out when reached; **P1 is the phase to
 plan first** (via `superpowers:writing-plans` → subagent-driven execution).

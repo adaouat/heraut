@@ -51,8 +51,10 @@ type Answers struct {
 
 	// Assets and Tickets are not wizard-editable; they are carried through verbatim from an
 	// existing config on "Update it?" (T107).
-	Assets           []string
-	Tickets          []config.Ticket
+	Assets  []string
+	Tickets []config.Ticket
+
+	// EnrichmentPolicy and EnrichmentForge are wizard-editable via runEnrichmentWizard (T201).
 	EnrichmentPolicy string
 	EnrichmentForge  string
 }
