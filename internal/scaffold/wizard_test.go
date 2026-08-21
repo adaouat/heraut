@@ -20,9 +20,10 @@ func TestDefaults_Prefix(t *testing.T) {
 	assert.Equal(t, "v", a.TagPrefix)
 }
 
-func TestDefaults_Generator(t *testing.T) {
+func TestDefaults_EnableChangelogAndNotes(t *testing.T) {
 	a := scaffold.Defaults()
-	assert.Equal(t, "git-cliff", a.ChangelogGenerator)
+	assert.True(t, a.EnableChangelog)
+	assert.True(t, a.EnableReleaseNotes)
 }
 
 func TestDefaults_Platform(t *testing.T) {
@@ -68,16 +69,14 @@ func TestConfigToAnswers_CalVerFormat(t *testing.T) {
 	assert.Equal(t, "YYYY.MM.PATCH", a.Format)
 }
 
-func TestConfigToAnswers_ChangelogGenerator(t *testing.T) {
+func TestConfigToAnswers_EnableChangelog(t *testing.T) {
 	cfg := &config.Config{
 		Version:    "1",
 		Versioning: config.Versioning{Strategy: "semver"},
-		// ChangelogGenerator is derived from block presence alone (the "git-cliff" sentinel) —
-		// ContentDriver carries no generator field to read (native is the only generator).
-		Changelog: &config.ContentDriver{Output: "CHANGELOG.md"},
+		Changelog:  &config.ContentDriver{Output: "CHANGELOG.md"},
 	}
 	a := scaffold.ConfigToAnswers(cfg)
-	assert.Equal(t, "git-cliff", a.ChangelogGenerator)
+	assert.True(t, a.EnableChangelog)
 	assert.Equal(t, "CHANGELOG.md", a.ChangelogOutput)
 }
 
@@ -87,7 +86,7 @@ func TestConfigToAnswers_NoChangelog(t *testing.T) {
 		Versioning: config.Versioning{Strategy: "semver"},
 	}
 	a := scaffold.ConfigToAnswers(cfg)
-	assert.Equal(t, "", a.ChangelogGenerator)
+	assert.False(t, a.EnableChangelog)
 }
 
 func TestConfigToAnswers_Platforms(t *testing.T) {
@@ -152,7 +151,7 @@ func TestConfigToAnswers_SprintZeroWhenAbsent(t *testing.T) {
 	assert.Equal(t, 0, a.Sprint)
 }
 
-func TestConfigToAnswers_NotesGenerator(t *testing.T) {
+func TestConfigToAnswers_EnableReleaseNotes(t *testing.T) {
 	cfg := &config.Config{
 		Version:    "1",
 		Versioning: config.Versioning{Strategy: "semver"},
@@ -161,19 +160,15 @@ func TestConfigToAnswers_NotesGenerator(t *testing.T) {
 		},
 	}
 	a := scaffold.ConfigToAnswers(cfg)
-	assert.Equal(t, "git-cliff", a.NotesGenerator)
+	assert.True(t, a.EnableReleaseNotes)
 }
 
-// TestConfigToAnswers_GeneratorPresenceSurvivesLoadRoundTrip guards against a regression where
-// ConfigToAnswers pre-populated the wizard's generator Select prompts from cfg.Changelog.Generator /
-// cfg.Release.Notes.Generator. Since config.Load hard-rejects any `generator:` key (native is the
-// only generator), those fields are always "" on anything that went through the real loader — which
-// is exactly the empty string bound to the Select's "None" option. Re-running `heraut init` against
-// an existing config and accepting the pre-populated defaults silently dropped changelog/release
-// notes generation. A struct literal (as the older ChangelogGenerator/NotesGenerator tests use)
-// can carry a non-empty Generator and would not have caught this — this test must go through
-// config.LoadFromReader, the real path a re-run of `heraut init` uses.
-func TestConfigToAnswers_GeneratorPresenceSurvivesLoadRoundTrip(t *testing.T) {
+// TestConfigToAnswers_ChangelogAndNotesPresenceSurviveLoadRoundTrip guards against a regression
+// where ConfigToAnswers under-reports block presence after a real config.Load round trip (as
+// opposed to a hand-built struct literal, which could carry any value and would not catch a
+// derivation bug). Re-running `heraut init` against an existing config and accepting the
+// pre-populated defaults must not silently drop changelog/release-notes generation.
+func TestConfigToAnswers_ChangelogAndNotesPresenceSurviveLoadRoundTrip(t *testing.T) {
 	yaml := `
 version: "1"
 versioning:
@@ -194,10 +189,8 @@ release:
 
 	a := scaffold.ConfigToAnswers(cfg)
 
-	assert.NotEmpty(t, a.ChangelogGenerator,
-		"ChangelogGenerator must not be the wizard's \"None\"-matching empty string when the loaded config has a changelog: block")
-	assert.NotEmpty(t, a.NotesGenerator,
-		"NotesGenerator must not be the wizard's \"None\"-matching empty string when the loaded config has a release.notes: block")
+	assert.True(t, a.EnableChangelog)
+	assert.True(t, a.EnableReleaseNotes)
 }
 
 func TestValidateCalVerFormat(t *testing.T) {

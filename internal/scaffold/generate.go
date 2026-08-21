@@ -79,7 +79,7 @@ func answersToConfig(a Answers) config.Config {
 		}
 	}
 
-	if a.ChangelogGenerator != "" {
+	if a.EnableChangelog {
 		output := a.ChangelogOutput
 		if output == "" {
 			output = "CHANGELOG.md"
@@ -89,7 +89,7 @@ func answersToConfig(a Answers) config.Config {
 		}
 	}
 
-	hasNotes := a.NotesGenerator != ""
+	hasNotes := a.EnableReleaseNotes
 	hasPlatforms := len(a.Platforms) > 0
 	hasAssets := len(a.Assets) > 0
 	if hasNotes || hasPlatforms || hasAssets {

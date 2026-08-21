@@ -28,10 +28,10 @@ type Answers struct {
 	TagPrefix string // version prefix, e.g. "v" or ""
 	Format    string // CalVer format string, e.g. "YYYY.MM.PATCH"
 
-	ChangelogGenerator string // git-cliff, communique, or "" (none)
-	ChangelogOutput    string // e.g. "CHANGELOG.md"
+	EnableChangelog bool
+	ChangelogOutput string // e.g. "CHANGELOG.md"
 
-	NotesGenerator string // git-cliff, communique, or "" (none)
+	EnableReleaseNotes bool
 
 	Platforms []PlatformAnswer
 
@@ -99,14 +99,14 @@ var calverPresets = []struct {
 }
 
 // Defaults returns opinionated non-interactive defaults: semver, prefix "v",
-// git-cliff changelog, gitlab platform.
+// changelog + release notes enabled, gitlab platform.
 func Defaults() Answers {
 	return Answers{
 		Strategy:           "semver",
 		TagPrefix:          "v",
-		ChangelogGenerator: "git-cliff",
+		EnableChangelog:    true,
 		ChangelogOutput:    "CHANGELOG.md",
-		NotesGenerator:     "git-cliff",
+		EnableReleaseNotes: true,
 		Platforms:          []PlatformAnswer{{Type: "gitlab"}},
 	}
 }
@@ -132,11 +132,7 @@ func ConfigToAnswers(cfg *config.Config) Answers {
 	a.Sprint = cfg.Versioning.Sprint
 
 	if cfg.Changelog != nil {
-		// cfg.Changelog.Generator is always "" post-T177 (config.Load hard-rejects a present
-		// generator: key) — presence of the block is what the wizard's generator prompt must
-		// encode, so pre-select a non-empty sentinel rather than propagating the now-meaningless
-		// empty string (which would match the "None" option and drop the block on re-run).
-		a.ChangelogGenerator = "git-cliff"
+		a.EnableChangelog = true
 		a.ChangelogOutput = cfg.Changelog.Output
 		if a.ChangelogOutput == "" {
 			a.ChangelogOutput = "CHANGELOG.md"
@@ -145,9 +141,7 @@ func ConfigToAnswers(cfg *config.Config) Answers {
 
 	if cfg.Release != nil {
 		a.Assets = cfg.Release.Assets
-		if cfg.Release.Notes != nil {
-			a.NotesGenerator = "git-cliff"
-		}
+		a.EnableReleaseNotes = cfg.Release.Notes != nil
 		forgesByName := make(map[string]config.Forge, len(cfg.Forges))
 		for _, f := range cfg.Forges {
 			forgesByName[f.Name] = f
@@ -246,28 +240,20 @@ func RunWizard(a *Answers) error {
 				Value(&a.TagFormat),
 		).WithHideFunc(isNotPerEnv),
 		huh.NewGroup(
-			huh.NewSelect[string]().
-				Title("Changelog generator").
-				Options(
-					huh.NewOption("git-cliff", "git-cliff"),
-					huh.NewOption("communique", "communique"),
-					huh.NewOption("None", ""),
-				).
-				Value(&a.ChangelogGenerator),
+			huh.NewConfirm().
+				Title("Generate a changelog?").
+				Value(&a.EnableChangelog),
+		),
+		huh.NewGroup(
 			huh.NewInput().
 				Title("Changelog output file").
 				Description(`e.g. "CHANGELOG.md"`).
 				Value(&a.ChangelogOutput),
-		),
+		).WithHideFunc(func() bool { return !a.EnableChangelog }),
 		huh.NewGroup(
-			huh.NewSelect[string]().
-				Title("Release notes generator").
-				Options(
-					huh.NewOption("git-cliff", "git-cliff"),
-					huh.NewOption("communique", "communique"),
-					huh.NewOption("None", ""),
-				).
-				Value(&a.NotesGenerator),
+			huh.NewConfirm().
+				Title("Generate release notes?").
+				Value(&a.EnableReleaseNotes),
 		),
 	)
 
@@ -288,7 +274,7 @@ func RunWizard(a *Answers) error {
 		}
 	}
 
-	if a.NotesGenerator != "" {
+	if a.EnableReleaseNotes {
 		if err := runPlatformWizard(a); err != nil {
 			return err
 		}

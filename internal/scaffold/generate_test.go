@@ -39,9 +39,9 @@ func TestGenerateYAML_SemVer(t *testing.T) {
 	a := scaffold.Answers{
 		Strategy:           "semver",
 		TagPrefix:          "v",
-		ChangelogGenerator: "git-cliff",
+		EnableChangelog:    true,
 		ChangelogOutput:    "CHANGELOG.md",
-		NotesGenerator:     "git-cliff",
+		EnableReleaseNotes: true,
 		Platforms:          []scaffold.PlatformAnswer{{Type: "github", Repository: "org/repo"}},
 	}
 	out, err := scaffold.GenerateYAML(a, "dev")
@@ -60,12 +60,12 @@ func TestGenerateYAML_SemVer(t *testing.T) {
 
 func TestGenerateYAML_CalVer(t *testing.T) {
 	a := scaffold.Answers{
-		Strategy:           "calver",
-		TagPrefix:          "",
-		Format:             "YYYY.MM.PATCH",
-		ChangelogGenerator: "git-cliff",
-		ChangelogOutput:    "CHANGELOG.md",
-		Platforms:          []scaffold.PlatformAnswer{{Type: "gitlab"}},
+		Strategy:        "calver",
+		TagPrefix:       "",
+		Format:          "YYYY.MM.PATCH",
+		EnableChangelog: true,
+		ChangelogOutput: "CHANGELOG.md",
+		Platforms:       []scaffold.PlatformAnswer{{Type: "gitlab"}},
 	}
 	out, err := scaffold.GenerateYAML(a, "dev")
 	require.NoError(t, err)
@@ -105,11 +105,11 @@ func TestGenerateYAML_EmptyPrefix_ExplicitlyWritten(t *testing.T) {
 
 func TestGenerateYAML_PerEnv(t *testing.T) {
 	a := scaffold.Answers{
-		Strategy:           "semver-per-env",
-		TagFormat:          "{env}/{version}",
-		ChangelogGenerator: "git-cliff",
-		ChangelogOutput:    "CHANGELOG.md",
-		Platforms:          []scaffold.PlatformAnswer{{Type: "gitlab"}},
+		Strategy:        "semver-per-env",
+		TagFormat:       "{env}/{version}",
+		EnableChangelog: true,
+		ChangelogOutput: "CHANGELOG.md",
+		Platforms:       []scaffold.PlatformAnswer{{Type: "gitlab"}},
 		Environments: []scaffold.EnvAnswer{
 			{Name: "dev", Bump: "auto"},
 			{Name: "prod", Bump: "promote", Source: "dev"},
@@ -131,9 +131,9 @@ func TestGenerateYAML_PerEnv(t *testing.T) {
 
 func TestGenerateYAML_PlatformNamesDefaultedAndDeduped(t *testing.T) {
 	a := scaffold.Answers{
-		Strategy:           "semver",
-		ChangelogGenerator: "git-cliff",
-		ChangelogOutput:    "CHANGELOG.md",
+		Strategy:        "semver",
+		EnableChangelog: true,
+		ChangelogOutput: "CHANGELOG.md",
 		Platforms: []scaffold.PlatformAnswer{
 			{Type: "github", Repository: "acme/widget"},
 			{Type: "gitlab", Project: "acme/widget"},
@@ -161,12 +161,12 @@ func TestGenerateYAML_PlatformNamesDefaultedAndDeduped(t *testing.T) {
 
 func TestGenerateYAML_CalVerSprint(t *testing.T) {
 	a := scaffold.Answers{
-		Strategy:           "calver",
-		Format:             "YYYY.SPRINT.PATCH",
-		Sprint:             3,
-		ChangelogGenerator: "git-cliff",
-		ChangelogOutput:    "CHANGELOG.md",
-		Platforms:          []scaffold.PlatformAnswer{{Type: "gitlab"}},
+		Strategy:        "calver",
+		Format:          "YYYY.SPRINT.PATCH",
+		Sprint:          3,
+		EnableChangelog: true,
+		ChangelogOutput: "CHANGELOG.md",
+		Platforms:       []scaffold.PlatformAnswer{{Type: "gitlab"}},
 	}
 	out, err := scaffold.GenerateYAML(a, "dev")
 	require.NoError(t, err)
@@ -194,8 +194,8 @@ func TestGenerateYAML_SprintOmittedWhenZero(t *testing.T) {
 
 func TestGenerateYAML_NoPlatforms(t *testing.T) {
 	a := scaffold.Answers{
-		Strategy:           "semver",
-		ChangelogGenerator: "git-cliff",
+		Strategy:        "semver",
+		EnableChangelog: true,
 	}
 	out, err := scaffold.GenerateYAML(a, "dev")
 	require.NoError(t, err)
@@ -277,8 +277,8 @@ func TestConfigToAnswers_PreservesPlatformPassthroughFields(t *testing.T) {
 
 func TestGenerateYAML_PlatformUsesPassthroughName(t *testing.T) {
 	a := scaffold.Answers{
-		Strategy:       "semver",
-		NotesGenerator: "git-cliff",
+		Strategy:           "semver",
+		EnableReleaseNotes: true,
 		Platforms: []scaffold.PlatformAnswer{
 			{Name: "gh-internal", Type: "github", Repository: "org/repo", TokenEnv: "GH_TOKEN"},
 		},
@@ -295,8 +295,8 @@ func TestGenerateYAML_PlatformUsesPassthroughName(t *testing.T) {
 
 func TestGenerateYAML_PlatformPassthroughFieldsRoundTrip(t *testing.T) {
 	a := scaffold.Answers{
-		Strategy:       "semver",
-		NotesGenerator: "git-cliff",
+		Strategy:           "semver",
+		EnableReleaseNotes: true,
 		Platforms: []scaffold.PlatformAnswer{
 			{
 				Name: "gh-internal", Type: "github", Repository: "org/repo", TokenEnv: "GH_TOKEN",
@@ -371,9 +371,9 @@ func TestConfigToAnswers_DefaultsEmptyChangelogOutput(t *testing.T) {
 
 func TestGenerateYAML_DefaultsEmptyChangelogOutput(t *testing.T) {
 	a := scaffold.Answers{
-		Strategy:           "semver",
-		ChangelogGenerator: "git-cliff",
-		ChangelogOutput:    "",
+		Strategy:        "semver",
+		EnableChangelog: true,
+		ChangelogOutput: "",
 	}
 	out, err := scaffold.GenerateYAML(a, "dev")
 	require.NoError(t, err)
