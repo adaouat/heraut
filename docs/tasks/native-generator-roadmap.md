@@ -1431,6 +1431,27 @@ test per scenario matching the existing `TestMatchPlatformSnapshot_*` style (sin
 type-scoped, second entry of the same type, no match for a new entry, empty snapshot). Full suite +
 `hk check` clean.
 
+#### `[ ]` T204: unify the two platform-snapshot-matching algorithms in `wizard.go`
+
+T203's fix added `snapshotTokenAndAPIMode` (`internal/scaffold/wizard.go`), a second, independent
+implementation of "type-scoped positional matching" alongside the pre-existing
+`matchPlatformSnapshot` — one is a per-iteration two-linear-scans-with-a-counter function, the other
+is a post-loop map+consumed-counter batch function. T203's own review (2026-08-21) hand-traced and
+2000-trial-fuzzed the two against each other and confirmed they currently agree in every case, but
+nothing structurally enforces that agreement: a future change to either algorithm (e.g. switching
+one to name-based matching, or changing how ties/gaps are handled) could silently desync the other,
+reintroducing the exact "wrong snapshot entry restored" bug class T203 just closed — a config
+data-loss risk on wizard re-edit, not just a cosmetic split. Fix direction: have `runPlatformWizard`
+compute the matched snapshot entry once per loop iteration (via a single lookup, run right after
+Step 1 when `p.Type` is known) and reuse that same match both to seed `TokenEnv`/`APIMode` before
+Step 3 renders, and to populate `Name`/`BaseURL`/`Draft`/`Prerelease` on `p` before it's appended to
+`a.Platforms` — collapsing the current post-loop `matchPlatformSnapshot` pass entirely, since every
+rebuilt platform would already carry its full matched snapshot data by the time it's appended.
+`TestMatchPlatformSnapshot_*` and `TestSnapshotTokenAndAPIMode_*` would need to be reconciled into a
+single test suite for whatever the unified lookup function ends up being — per this project's "never
+delete a load-bearing test row" rule, every scenario either suite currently covers must survive in
+the merged suite, not just the union's line count. **Scope:** S.
+
 ---
 
 ## Phase 3 — Raw-HTTP platform clients (deferred)
