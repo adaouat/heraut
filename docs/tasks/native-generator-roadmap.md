@@ -39,7 +39,7 @@ no longer a parity target — heraut's rendering is its own spec, validated by g
 | Phase 2.9 — incremental changelog (ADR-0038)          | —                      | Complete    |
 | Phase 2.10 — commit-author attribution (ADR-0039)    | T151 (follow-up)       | Complete — GitHub, GitLab, Azure |
 | Phase 2.5 — remove the git-cliff package (own ADR)   | T177–T194              | Done        |
-| Phase C — wizard simplification (supersedes T164)    | T195–T202              | Not started |
+| Phase C — wizard simplification (supersedes T164)    | T195–T202              | Done        |
 | Phase 3 — raw-HTTP clients (drop `gh` / `glab`)       | —                      | Deferred    |
 
 ---
@@ -1358,7 +1358,43 @@ Added `PlatformAnswer.APIMode string` and a new `hideAPIMode(platformType, token
 
 Added `runEnrichmentWizard(a *Answers) error`, run in `RunWizard`'s post-form flow right after the `PublishReleases`-gated `runPlatformWizard` call: it always shows a "PR/MR enrichment policy" select (optional/required/disabled) whenever changelog or release-notes generation is enabled, and additionally shows an "Enrichment forge" select — gated by the new `shouldPromptEnrichmentForge(platforms []PlatformAnswer) bool` (true only for 2+ platforms, since with 0 or 1 the choice is unambiguous) — offering the exact forge names `GenerateYAML` will assign. Extracted `platformDisplayNames(ps []PlatformAnswer) []string` in `generate.go` from the inline dedup loop previously embedded in `answersToConfig`'s forge-building block, so both the wizard's forge-choice list and the actual forges written to YAML compute names identically; this is a pure refactor; the pre-existing `TestGenerateYAML_PlatformNamesDefaultedAndDeduped`, `TestGenerateYAML_PreservesEnrichmentForgeOnSecondForge`, and `TestGenerateYAML_EnrichmentForgeDefaultsToFirstWhenUnset` tests pass unchanged, confirming behavior-preservation. The first-forge-fallback block in `answersToConfig` (`if len(cfg.Forges) > 1 { ... }`) is kept exactly as-is per the design doc's correction — it remains the required fallback for non-wizard callers of `answersToConfig` (hand-built `Answers`, or a future `--defaults` preset with 2+ platforms) — only its comment was updated to note that the wizard now asks explicitly. `Answers`' struct comment was trimmed to drop the stale "EnrichmentForge not wizard-editable" note now that both `EnrichmentPolicy` and `EnrichmentForge` are wizard-editable. Two new tests landed verbatim per the brief: `TestPlatformDisplayNames`, `TestShouldPromptEnrichmentForge`. Confirmed RED (`undefined: platformDisplayNames`, `undefined: shouldPromptEnrichmentForge`) before implementing; full `internal/scaffold` suite (85 tests) and `go build ./...` green after.
 
-#### `[ ]` T202: delete `internal/scaffold/cliff.go`; cleanup sweep; manual wizard verification
+#### `[x]` T202: delete `internal/scaffold/cliff.go`; cleanup sweep; manual wizard verification
+
+Deleted `internal/scaffold/cliff.go` and `internal/scaffold/cliff_test.go` — the single-function
+`IsCliffGenerator` helper had no callers outside its own test, confirmed by a repo-wide grep before
+deletion. `go build ./...` green immediately after. The cleanup sweep (`grep -rn
+"gitcliff|git-cliff|communique" internal/scaffold/`) returned no output — T197's earlier work had
+already removed every such reference from `wizard.go`/`generate.go` and their tests, so this task's
+deletion is the clean final step, not a discovery of new stragglers. Full suite green (1402 tests,
+26 packages) and `hk check` clean (0 files to lint, since the change is a pure deletion). Manual
+verification of `heraut init --defaults --config <scratch>` produced a config that
+`heraut check config` confirms is valid, exercising `Defaults()`'s new bool fields
+(`EnableChangelog`/`EnableReleaseNotes`/`PublishReleases`) end-to-end through the non-interactive
+path. No TTY was available in this execution environment, so the interactive wizard flow itself
+(the `huh` form wiring — toggles, hide-funcs, group gating) was not manually stepped through; per
+the brief, this is stated explicitly rather than claimed, and is consistent with this package's
+existing pattern of leaving `RunWizard`'s interactive path to the pure-function unit tests
+(`hideAPIMode`, `shouldPromptEnrichmentForge`, `detectPlatform`, `platformDisplayNames`) rather than
+a driven end-to-end test.
+
+---
+
+**Phase C is done.** All 8 tasks (T195-T202) landed on `main`, each with an independent task
+review. T199 was the only task needing a fix round: the reviewer found that declining the new
+"Publish releases?" confirm on the edit-existing-config path left stale pre-populated platforms in
+`a.Platforms` (only `runPlatformWizard` cleared it, and declining skipped that call) — fixed with a
+one-line `else { a.Platforms = nil }`, verified by a clean scoped re-review. The other 7 tasks
+passed their first review with zero Critical/Important findings — only Minor, non-actionable notes,
+mostly inherited verbatim from the plan/brief's own prescribed test code or comments rather than
+implementer defects. `internal/scaffold`'s wizard now has an honest, generator-free flow: two
+independent confirms for changelog/notes generation (replacing decorative git-cliff/communique/None
+selects that had zero live effect since Phase A removed the `generator:` config key entirely), an
+independent "Publish releases?" toggle decoupling publishing from notes generation, CI/git-origin
+platform-type pre-fill via a new `internal/forge.DetectForWizard` export, a GitLab-only `api_mode`
+prompt hidden when the chosen token can't support it (`CI_JOB_TOKEN`), and enrichment
+policy/forge prompts (the forge prompt shown only when genuinely ambiguous, i.e. 2+ platforms).
+`cliff.go`/`cliff_test.go` are deleted; the cleanup sweep found nothing outstanding. This closes out
+`docs/tasks/forge-abstraction-roadmap.md`'s T164, already marked there as superseded by this phase.
 
 ---
 
