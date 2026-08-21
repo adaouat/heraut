@@ -295,6 +295,8 @@ func RunWizard(a *Answers) error {
 		if err := runPlatformWizard(a); err != nil {
 			return err
 		}
+	} else {
+		a.Platforms = nil
 	}
 
 	if a.Strategy == "semver-per-env" || a.Strategy == "calver-per-env" {
