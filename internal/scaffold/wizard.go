@@ -43,15 +43,15 @@ type Answers struct {
 	TagFormat    string
 	Environments []EnvAnswer
 
-	// Assets, Tickets, RemoteMetadata, and EnrichmentForge are not wizard-editable; they are
-	// carried through verbatim from an existing config on "Update it?" (T107). EnrichmentForge
-	// references a forges[].name (by the pre-rebuild name, matched positionally like Platforms'
-	// passthrough fields — see matchPlatformSnapshot); forge selection has no wizard prompt yet
-	// (that redesign is T164/P4).
-	Assets          []string
-	Tickets         []config.Ticket
-	RemoteMetadata  string
-	EnrichmentForge string
+	// Assets, Tickets, and EnrichmentForge are not wizard-editable; they are carried through
+	// verbatim from an existing config on "Update it?" (T107). EnrichmentForge references a
+	// forges[].name (by the pre-rebuild name, matched positionally like Platforms' passthrough
+	// fields — see matchPlatformSnapshot); forge selection has no wizard prompt yet (that
+	// redesign is T164/P4).
+	Assets           []string
+	Tickets          []config.Ticket
+	EnrichmentPolicy string
+	EnrichmentForge  string
 }
 
 // PlatformAnswer holds answers for one release platform.
@@ -114,11 +114,11 @@ func Defaults() Answers {
 // ConfigToAnswers populates an Answers from an existing Config for wizard pre-population.
 func ConfigToAnswers(cfg *config.Config) Answers {
 	a := Answers{
-		Strategy:       cfg.Versioning.Strategy,
-		Format:         cfg.Versioning.Format,
-		TagFormat:      cfg.Versioning.TagFormat,
-		Tickets:        cfg.Tickets(),
-		RemoteMetadata: cfg.EnrichmentPolicy(),
+		Strategy:         cfg.Versioning.Strategy,
+		Format:           cfg.Versioning.Format,
+		TagFormat:        cfg.Versioning.TagFormat,
+		Tickets:          cfg.Tickets(),
+		EnrichmentPolicy: cfg.EnrichmentPolicy(),
 	}
 
 	if cfg.Commits != nil {

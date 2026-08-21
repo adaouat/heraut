@@ -219,7 +219,7 @@ func stripHeader(yaml string) string {
 	return strings.Join(out, "\n")
 }
 
-func TestConfigToAnswers_PreservesAssetsTicketsRemoteMetadata(t *testing.T) {
+func TestConfigToAnswers_PreservesAssetsTicketsEnrichmentPolicy(t *testing.T) {
 	cfg := &config.Config{
 		Version:    "1",
 		Versioning: config.Versioning{Strategy: "semver"},
@@ -230,17 +230,17 @@ func TestConfigToAnswers_PreservesAssetsTicketsRemoteMetadata(t *testing.T) {
 		Release: &config.Release{Assets: []string{"dist/*.tar.gz"}},
 	}
 	a := scaffold.ConfigToAnswers(cfg)
-	assert.Equal(t, "required", a.RemoteMetadata)
+	assert.Equal(t, "required", a.EnrichmentPolicy)
 	assert.Equal(t, []config.Ticket{{Pattern: `JIRA-(\d+)`, URL: "https://example.atlassian.net/browse/{ticket}"}}, a.Tickets)
 	assert.Equal(t, []string{"dist/*.tar.gz"}, a.Assets)
 }
 
-func TestGenerateYAML_AssetsTicketsRemoteMetadata(t *testing.T) {
+func TestGenerateYAML_AssetsTicketsEnrichmentPolicy(t *testing.T) {
 	a := scaffold.Answers{
-		Strategy:       "semver",
-		RemoteMetadata: "required",
-		Tickets:        []config.Ticket{{Pattern: `JIRA-(\d+)`, URL: "https://example.atlassian.net/browse/{ticket}"}},
-		Assets:         []string{"dist/*.tar.gz"},
+		Strategy:         "semver",
+		EnrichmentPolicy: "required",
+		Tickets:          []config.Ticket{{Pattern: `JIRA-(\d+)`, URL: "https://example.atlassian.net/browse/{ticket}"}},
+		Assets:           []string{"dist/*.tar.gz"},
 	}
 	out, err := scaffold.GenerateYAML(a, "dev")
 	require.NoError(t, err)

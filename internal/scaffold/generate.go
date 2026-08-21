@@ -45,8 +45,8 @@ func answersToConfig(a Answers) config.Config {
 			Strategy: a.Strategy,
 		},
 	}
-	if len(a.Tickets) > 0 || a.RemoteMetadata != "" {
-		cfg.Commits = &config.Commits{Tickets: a.Tickets, EnrichmentPolicy: a.RemoteMetadata}
+	if len(a.Tickets) > 0 || a.EnrichmentPolicy != "" {
+		cfg.Commits = &config.Commits{Tickets: a.Tickets, EnrichmentPolicy: a.EnrichmentPolicy}
 	}
 
 	// Always write prefix — even when empty — so the resolver does not fall
