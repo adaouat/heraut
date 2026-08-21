@@ -222,3 +222,30 @@ func TestValidateCalVerFormat(t *testing.T) {
 		})
 	}
 }
+
+func TestDefaults_PublishReleases(t *testing.T) {
+	a := scaffold.Defaults()
+	assert.True(t, a.PublishReleases)
+}
+
+func TestConfigToAnswers_PublishReleasesWhenPlatformsExist(t *testing.T) {
+	cfg := &config.Config{
+		Version:    "1",
+		Versioning: config.Versioning{Strategy: "semver"},
+		Forges:     []config.Forge{{Name: "github", Type: "github", Repository: "acme/widget"}},
+		Release: &config.Release{
+			Targets: []config.Target{{Forge: "github"}},
+		},
+	}
+	a := scaffold.ConfigToAnswers(cfg)
+	assert.True(t, a.PublishReleases)
+}
+
+func TestConfigToAnswers_NoPublishReleasesWhenNoPlatforms(t *testing.T) {
+	cfg := &config.Config{
+		Version:    "1",
+		Versioning: config.Versioning{Strategy: "semver"},
+	}
+	a := scaffold.ConfigToAnswers(cfg)
+	assert.False(t, a.PublishReleases)
+}

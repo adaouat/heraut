@@ -1346,7 +1346,9 @@ Replaced the two decorative `huh.NewSelect` "generator" prompts (git-cliff/commu
 
 Mechanical rename in `internal/scaffold`: the stale field name `RemoteMetadata` (a leftover from pre-rename config keys) becomes `EnrichmentPolicy` to reflect its actual content. Updated both test cases (`TestConfigToAnswers_PreservesAssetsTicketsEnrichmentPolicy` / `TestGenerateYAML_AssetsTicketsEnrichmentPolicy`), the `Answers` struct in `wizard.go`, the `ConfigToAnswers` function, and the usage in `generate.go`. All tests pass; no scope creep beyond the rename target. **Scope:** S. **Dependencies:** none.
 
-#### `[ ]` T199: independent "Publish releases?" confirm replaces the `NotesGenerator`-gated trigger
+#### `[x]` T199: independent "Publish releases?" confirm replaces the `NotesGenerator`-gated trigger
+
+Added a new `Answers.PublishReleases bool` field and an independent `huh.NewConfirm()` prompt ("Publish releases to a platform (GitHub/GitLab)?") that gates `runPlatformWizard` execution. This decouples platform setup from release-notes generation, resolving the temporary coupling that T197 introduced when it mechanically renamed `NotesGenerator` to `EnableReleaseNotes` while keeping the post-form gate on the old field. `ConfigToAnswers` now derives `PublishReleases` from platform presence (`len(a.Platforms) > 0`). Three new tests added: `TestDefaults_PublishReleases` (true by default), `TestConfigToAnswers_PublishReleasesWhenPlatformsExist` (true when platforms exist), `TestConfigToAnswers_NoPublishReleasesWhenNoPlatforms` (false when none). The field is a wizard-flow-control device only — it is never consumed by `generate.go`, since `answersToConfig`'s existing `hasPlatforms` check on `len(a.Platforms)` already correctly reflects platform presence. Full suite 114 tests green.
 
 #### `[ ]` T200: `api_mode` prompt in the GitLab platform branch
 

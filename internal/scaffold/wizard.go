@@ -35,6 +35,10 @@ type Answers struct {
 
 	Platforms []PlatformAnswer
 
+	// PublishReleases gates whether runPlatformWizard runs; it is not itself a config field —
+	// once populated, Platforms alone determines whether forges:/release.targets: are emitted.
+	PublishReleases bool
+
 	// Sprint is the current sprint counter, required when Format contains SPRINT.
 	// Not clock-derived: advance it with `heraut version sprint bump`.
 	Sprint int
@@ -107,6 +111,7 @@ func Defaults() Answers {
 		EnableChangelog:    true,
 		ChangelogOutput:    "CHANGELOG.md",
 		EnableReleaseNotes: true,
+		PublishReleases:    true,
 		Platforms:          []PlatformAnswer{{Type: "gitlab"}},
 	}
 }
@@ -181,6 +186,8 @@ func ConfigToAnswers(cfg *config.Config) Answers {
 			Release:          env.Release,
 		})
 	}
+
+	a.PublishReleases = len(a.Platforms) > 0
 
 	return a
 }
@@ -274,7 +281,17 @@ func RunWizard(a *Answers) error {
 		}
 	}
 
-	if a.EnableReleaseNotes {
+	if err := themedForm(
+		huh.NewGroup(
+			huh.NewConfirm().
+				Title("Publish releases to a platform (GitHub/GitLab)?").
+				Value(&a.PublishReleases),
+		),
+	).Run(); err != nil {
+		return err
+	}
+
+	if a.PublishReleases {
 		if err := runPlatformWizard(a); err != nil {
 			return err
 		}
