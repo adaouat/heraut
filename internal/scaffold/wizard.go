@@ -426,6 +426,34 @@ func hideAPIMode(platformType, tokenChoice string) bool {
 	return platformType != "gitlab" || tokenChoice == "CI_JOB_TOKEN"
 }
 
+// snapshotTokenAndAPIMode looks up the TokenEnv/APIMode a previously-configured platform of the
+// same type used, by type-scoped position: the n-th platform of a type appended so far in this
+// wizard run (rebuiltSoFar) matches the n-th snapshot entry of that type — the same algorithm
+// matchPlatformSnapshot uses for the passthrough fields it restores after the whole platform loop
+// completes. Unlike matchPlatformSnapshot, this must run per-iteration, before Step 3 renders:
+// Step 3 needs TokenEnv/APIMode already seeded on p to correctly pre-fill the token/api_mode
+// prompts, and matching only after the loop (like matchPlatformSnapshot does) is too late to
+// affect what the user is shown.
+func snapshotTokenAndAPIMode(snapshot, rebuiltSoFar []PlatformAnswer, platformType string) (tokenEnv, apiMode string, ok bool) {
+	index := 0
+	for _, p := range rebuiltSoFar {
+		if p.Type == platformType {
+			index++
+		}
+	}
+	n := -1
+	for _, p := range snapshot {
+		if p.Type != platformType {
+			continue
+		}
+		n++
+		if n == index {
+			return p.TokenEnv, p.APIMode, true
+		}
+	}
+	return "", "", false
+}
+
 // matchPlatformSnapshot applies passthrough fields (Name, BaseURL, Draft, Prerelease)
 // from the pre-rebuild snapshot to the rebuilt entries using type-scoped positional
 // matching: the n-th rebuilt entry of type T gets the fields from the n-th original
@@ -525,6 +553,13 @@ func runPlatformWizard(a *Answers) error {
 			),
 		).Run(); err != nil {
 			return err
+		}
+
+		// Re-seed TokenEnv/APIMode from the pre-existing snapshot now that p.Type is known — Step
+		// 3 below needs these already set to correctly pre-fill the token/api_mode prompts.
+		if tokenEnv, apiMode, ok := snapshotTokenAndAPIMode(snapshot, a.Platforms, p.Type); ok {
+			p.TokenEnv = tokenEnv
+			p.APIMode = apiMode
 		}
 
 		// Step 2: platform-specific fields.

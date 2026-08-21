@@ -172,6 +172,57 @@ func TestMatchPlatformSnapshot_EmptyRebuilt(t *testing.T) {
 	assert.Empty(t, result)
 }
 
+func TestSnapshotTokenAndAPIMode_SingleMatch(t *testing.T) {
+	snapshot := []PlatformAnswer{
+		{Type: "gitlab", TokenEnv: "GITLAB_TOKEN", APIMode: "graphql"},
+	}
+	tokenEnv, apiMode, ok := snapshotTokenAndAPIMode(snapshot, nil, "gitlab")
+	assert.True(t, ok)
+	assert.Equal(t, "GITLAB_TOKEN", tokenEnv)
+	assert.Equal(t, "graphql", apiMode)
+}
+
+func TestSnapshotTokenAndAPIMode_NoMatchForNewEntry(t *testing.T) {
+	snapshot := []PlatformAnswer{
+		{Type: "github", TokenEnv: "GH_TOKEN"},
+	}
+	rebuiltSoFar := []PlatformAnswer{
+		{Type: "github", TokenEnv: "GH_TOKEN"},
+	}
+	_, _, ok := snapshotTokenAndAPIMode(snapshot, rebuiltSoFar, "github")
+	assert.False(t, ok, "second github entry has no snapshot match")
+}
+
+func TestSnapshotTokenAndAPIMode_TypeScoped(t *testing.T) {
+	snapshot := []PlatformAnswer{
+		{Type: "github", TokenEnv: "GH_TOKEN"},
+		{Type: "gitlab", TokenEnv: "CI_JOB_TOKEN", APIMode: ""},
+	}
+	tokenEnv, apiMode, ok := snapshotTokenAndAPIMode(snapshot, nil, "gitlab")
+	assert.True(t, ok)
+	assert.Equal(t, "CI_JOB_TOKEN", tokenEnv)
+	assert.Equal(t, "", apiMode)
+}
+
+func TestSnapshotTokenAndAPIMode_SecondEntryOfSameType(t *testing.T) {
+	snapshot := []PlatformAnswer{
+		{Type: "gitlab", Name: "gitlab", TokenEnv: "GITLAB_TOKEN", APIMode: "rest"},
+		{Type: "gitlab", Name: "gitlab-2", TokenEnv: "CI_JOB_TOKEN", APIMode: ""},
+	}
+	rebuiltSoFar := []PlatformAnswer{
+		{Type: "gitlab", TokenEnv: "GITLAB_TOKEN", APIMode: "rest"},
+	}
+	tokenEnv, apiMode, ok := snapshotTokenAndAPIMode(snapshot, rebuiltSoFar, "gitlab")
+	assert.True(t, ok)
+	assert.Equal(t, "CI_JOB_TOKEN", tokenEnv)
+	assert.Equal(t, "", apiMode)
+}
+
+func TestSnapshotTokenAndAPIMode_EmptySnapshot(t *testing.T) {
+	_, _, ok := snapshotTokenAndAPIMode(nil, nil, "gitlab")
+	assert.False(t, ok)
+}
+
 func TestMatchEnvSnapshot_SingleMatch(t *testing.T) {
 	original := []EnvAnswer{
 		{Name: "prod", Bump: "auto", Changelog: &config.ContentDriver{Output: "CHANGELOG.md"}},
