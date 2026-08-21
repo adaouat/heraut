@@ -256,3 +256,22 @@ func TestResolveTokenChoice(t *testing.T) {
 		})
 	}
 }
+
+func TestHideAPIMode(t *testing.T) {
+	tests := []struct {
+		name         string
+		platformType string
+		tokenChoice  string
+		want         bool
+	}{
+		{"github always hidden", "github", "GH_TOKEN", true},
+		{"gitlab with CI_JOB_TOKEN hidden", "gitlab", "CI_JOB_TOKEN", true},
+		{"gitlab with GITLAB_TOKEN shown", "gitlab", "GITLAB_TOKEN", false},
+		{"gitlab with custom token shown", "gitlab", "custom", false},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			assert.Equal(t, tc.want, hideAPIMode(tc.platformType, tc.tokenChoice))
+		})
+	}
+}

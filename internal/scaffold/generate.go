@@ -113,6 +113,7 @@ func answersToConfig(a Answers) config.Config {
 				Repository: p.Repository,
 				Project:    p.Project,
 				TokenEnv:   p.TokenEnv,
+				APIMode:    p.APIMode,
 				BaseURL:    p.BaseURL,
 			})
 			cfg.Release.Targets = append(cfg.Release.Targets, config.Target{

@@ -316,6 +316,37 @@ func TestGenerateYAML_PlatformPassthroughFieldsRoundTrip(t *testing.T) {
 	assert.True(t, target.Prerelease)
 }
 
+func TestGenerateYAML_PlatformAPIMode(t *testing.T) {
+	a := scaffold.Answers{
+		Strategy:           "semver",
+		EnableReleaseNotes: true,
+		Platforms: []scaffold.PlatformAnswer{
+			{Type: "gitlab", Project: "acme/widget", TokenEnv: "GITLAB_TOKEN", APIMode: "graphql"},
+		},
+	}
+	out, err := scaffold.GenerateYAML(a, "dev")
+	require.NoError(t, err)
+	cfg, err := config.LoadFromReader(strings.NewReader(stripHeader(out)))
+	require.NoError(t, err)
+	require.Len(t, cfg.Forges, 1)
+	assert.Equal(t, "graphql", cfg.Forges[0].APIMode)
+	assert.Empty(t, config.Validate(cfg))
+}
+
+func TestConfigToAnswers_PreservesAPIMode(t *testing.T) {
+	cfg := &config.Config{
+		Version:    "1",
+		Versioning: config.Versioning{Strategy: "semver"},
+		Forges:     []config.Forge{{Name: "gitlab", Type: "gitlab", Project: "acme/widget", APIMode: "graphql"}},
+		Release: &config.Release{
+			Targets: []config.Target{{Forge: "gitlab"}},
+		},
+	}
+	a := scaffold.ConfigToAnswers(cfg)
+	require.Len(t, a.Platforms, 1)
+	assert.Equal(t, "graphql", a.Platforms[0].APIMode)
+}
+
 func TestConfigToAnswers_PreservesEnvPassthroughFields(t *testing.T) {
 	driver := &config.ContentDriver{Output: "CHANGELOG.md"}
 	cfg := &config.Config{

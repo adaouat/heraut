@@ -64,6 +64,7 @@ type PlatformAnswer struct {
 	Repository string // github: "owner/repo"
 	Project    string // gitlab: "namespace/project"
 	TokenEnv   string
+	APIMode    string // gitlab only: "rest" (default) or "graphql"
 
 	// Passthrough fields: not wizard-editable, carried verbatim from existing config (T108).
 	Name       string
@@ -165,6 +166,7 @@ func ConfigToAnswers(cfg *config.Config) Answers {
 				Repository: f.Repository,
 				Project:    f.Project,
 				TokenEnv:   f.TokenEnv,
+				APIMode:    f.APIMode,
 				Name:       f.Name,
 				BaseURL:    f.BaseURL,
 				Draft:      t.Draft,
@@ -415,6 +417,14 @@ func resolveTokenChoice(platformType, existing string) (choice, custom string) {
 	return "custom", existing
 }
 
+// hideAPIMode reports whether the api_mode prompt should stay hidden: for any non-GitLab
+// platform, or when CI_JOB_TOKEN is the chosen token — GitLab's GraphQL API structurally rejects
+// job tokens, so offering graphql there would let the wizard produce a config guaranteed to fail
+// at enrichment time.
+func hideAPIMode(platformType, tokenChoice string) bool {
+	return platformType != "gitlab" || tokenChoice == "CI_JOB_TOKEN"
+}
+
 // matchPlatformSnapshot applies passthrough fields (Name, BaseURL, Draft, Prerelease)
 // from the pre-rebuild snapshot to the rebuilt entries using type-scoped positional
 // matching: the n-th rebuilt entry of type T gets the fields from the n-th original
@@ -563,6 +573,11 @@ func runPlatformWizard(a *Answers) error {
 		}
 		tokenOpts = append(tokenOpts, huh.NewOption("Custom", "custom"))
 
+		apiMode := p.APIMode
+		if apiMode == "" {
+			apiMode = "rest"
+		}
+
 		if err := themedForm(
 			huh.NewGroup(
 				huh.NewSelect[string]().
@@ -581,6 +596,16 @@ func runPlatformWizard(a *Answers) error {
 						return nil
 					}),
 			).WithHideFunc(func() bool { return tokenChoice != "custom" }),
+			huh.NewGroup(
+				huh.NewSelect[string]().
+					Title("API mode").
+					Description("graphql renders linked @usernames but needs a read_api token — CI_JOB_TOKEN cannot use it").
+					Options(
+						huh.NewOption("rest", "rest"),
+						huh.NewOption("graphql", "graphql"),
+					).
+					Value(&apiMode),
+			).WithHideFunc(func() bool { return hideAPIMode(p.Type, tokenChoice) }),
 		).Run(); err != nil {
 			return err
 		}
@@ -589,6 +614,12 @@ func runPlatformWizard(a *Answers) error {
 			p.TokenEnv = strings.TrimSpace(customToken)
 		} else {
 			p.TokenEnv = tokenChoice
+		}
+
+		if !hideAPIMode(p.Type, tokenChoice) {
+			p.APIMode = apiMode
+		} else {
+			p.APIMode = ""
 		}
 
 		a.Platforms = append(a.Platforms, p)
