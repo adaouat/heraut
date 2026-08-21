@@ -1431,7 +1431,7 @@ test per scenario matching the existing `TestMatchPlatformSnapshot_*` style (sin
 type-scoped, second entry of the same type, no match for a new entry, empty snapshot). Full suite +
 `hk check` clean.
 
-#### `[ ]` T204: unify the two platform-snapshot-matching algorithms in `wizard.go`
+#### `[x]` T204: unify the two platform-snapshot-matching algorithms in `wizard.go`
 
 T203's fix added `snapshotTokenAndAPIMode` (`internal/scaffold/wizard.go`), a second, independent
 implementation of "type-scoped positional matching" alongside the pre-existing
@@ -1451,6 +1451,23 @@ rebuilt platform would already carry its full matched snapshot data by the time 
 single test suite for whatever the unified lookup function ends up being — per this project's "never
 delete a load-bearing test row" rule, every scenario either suite currently covers must survive in
 the merged suite, not just the union's line count. **Scope:** S.
+
+**Fixed 2026-08-21** (commit `2ba6942`). `matchPlatformSnapshot` is now the single lookup: same
+type-scoped positional algorithm, but its signature changed from a post-loop batch function
+(`(original, rebuilt []PlatformAnswer) []PlatformAnswer`) to a per-iteration single-match function
+(`(snapshot, rebuiltSoFar []PlatformAnswer, platformType string) (PlatformAnswer, bool)`), called
+once right after Step 1 sets `p.Type` in `runPlatformWizard`. It returns the whole matched entry;
+the call site copies all six fields (`Name`, `BaseURL`, `Draft`, `Prerelease`, `TokenEnv`,
+`APIMode`) from it in one place, so a platform's TokenEnv/APIMode seed and its passthrough fields
+are now structurally guaranteed to come from the same snapshot entry — not just proven to agree by
+a one-time fuzz check, as T203's review had to do. `snapshotTokenAndAPIMode` and the old
+`matchPlatformSnapshot` are both deleted; the post-loop `a.Platforms = matchPlatformSnapshot(...)`
+call is gone, since every rebuilt platform now already carries its matched snapshot data by the
+time it's appended. Test suites merged into one covering every scenario both prior suites had
+(single match, no match for a new entry, type-scoped, second entry of the same type, empty
+snapshot), plus a new `TestMatchPlatformSnapshot_InterleavedTypes` case combining repeats of one
+type with an interleaved different-type entry — the scenario T203's review flagged as untested by
+either prior suite. Net diff: +87/-119 lines. Full suite + `hk check` clean.
 
 ---
 
