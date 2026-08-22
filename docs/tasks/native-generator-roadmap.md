@@ -1486,9 +1486,10 @@ touching `.github/workflows/release.yml` needs explicit user confirmation per
 Two Renovate custom regex managers (lines ~38–39, ~59–60) scan `Dockerfile` for `ARG
 GIT_CLIFF_VERSION=`/`ARG COMMUNIQUE_VERSION=` to drive automated version-bump PRs for
 `orhun/git-cliff` and `jdx/communique`. T205 deleted both ARGs from the Dockerfile, so neither
-`matchStrings` pattern matches anything anymore — the managers don't error, they just silently
-produce zero PRs for dependencies that no longer exist in the image, dead configuration left
-behind by the Dockerfile edit. `.github/renovate.json` is CI/CD-adjacent automation config;
+`matchStrings` pattern matches anything anymore — the managers don't error, they just produce
+zero PRs for dependencies that no longer exist (Renovate may surface this as a Config Warning
+on the Dependency Dashboard rather than fully silently), dead configuration left behind by the
+Dockerfile edit. `.github/renovate.json` is CI/CD-adjacent automation config;
 touching it needs explicit user confirmation per `.claude/rules/claude.md`'s CI/CD-modification
 rule, the same treatment as T209, so it wasn't done inline during Phase D (discovered by T208's
 repo-wide sweep, out of that task's own scope). **Scope:** S.
@@ -1506,6 +1507,25 @@ docs-only, but it wasn't on Phase D's task list at all — it surfaced only from
 repo-wide sweep, not from any file Phase D's own tasks were already touching. Per
 `.claude/rules/claude.md`'s roadmap discipline ("never implement anything not on the current
 roadmap without asking first"), it is filed here rather than fixed inline. **Scope:** S.
+
+#### `[ ]` T212: `docs/specs/01-overview.md` / `03-commands.md` still document `heraut cliff` as live
+
+Both files fully document `heraut cliff` / `heraut check cliff` as working commands — Spec 03
+has a complete `### heraut check cliff` section (~line 453) and `## heraut cliff` section
+(~line 462) with example invocations, and Spec 01's architecture description and generator
+explanation (~lines 7-8, 28, 62, 101, 120) still list `git-cliff`/`communique` as things heraut
+wraps/generates through. Both commands were removed in Phase B
+(`internal/cmd/check_test.go:24`, `internal/cmd/root_test.go:43` — both assert "must be removed
+(Phase B)"), and `generator:`/`config:` config keys became load-time errors in Phase 2.5
+(ADR-0045) — so these sections don't just describe history, they document a currently-broken
+surface as if it works. `docs/specs/README.md:9` has the smaller, adjacent staleness of still
+billing Spec 05 as "git-cliff, communique + GitHub, GitLab" though Spec 05 itself was already
+rewritten native-only. Discovered by T208's repo-wide sweep and initially misclassified there as
+historical narration (it isn't — present tense, describes commands that don't exist); found and
+corrected by the final whole-branch review. Filed rather than fixed inline for the same reason
+as T211: not on Phase D's own task list, no CI/CD gate, but roadmap discipline still applies.
+**Scope:** M — Spec 03 needs two whole sections removed, not a word swap; Spec 01 and the
+README line are smaller prose edits.
 
 ---
 
@@ -1631,9 +1651,12 @@ diagnostic image was removed after verification.
 ---
 
 **Phase D is done — this closes out the native-only-generator epic's last remaining phase.**
-All 4 tasks (T205–T208) landed on `main`. `git-cliff` and `communique` are now gone from
-every layer: no package (Phase A/B), no wizard option (Phase C), no config field (Phase A),
-and now no Docker image bundling and no dev-toolchain pin (Phase D). A real `docker build`
+All 4 tasks (T205–T208) landed on `main`. `git-cliff` and `communique` are gone from every
+layer this epic's phases directly targeted: no package (Phase A/B), no wizard option
+(Phase C), no config field (Phase A), and now no Docker image bundling and no dev-toolchain
+pin (Phase D). One documentation gap survived all of that: Spec 01/03 still describe `heraut
+cliff`/`heraut check cliff` as live commands (filed as T212, found by this phase's own sweep
+and the final whole-branch review, not fixed by any prior phase). A real `docker build`
 verified the final image works end-to-end with just `heraut`, `gh`, and `glab` — down from
 334MB to 307MB locally. T208's repo-wide sweep surfaced a broader set of remaining
 `git-cliff`/`communique` mentions than the plan's exclusion list enumerated by name (675 lines
@@ -1641,16 +1664,18 @@ across 65 files, not the 2 originally called out) — all but two confirmed as a
 or comparative narration (older ADRs, specs, the main `docs/tasks/roadmap.md` /
 `forge-abstraction-roadmap.md`, and pre-existing code comments/tests), the same category the
 brief already carved out for ADR-0010/0028/0045/CHANGELOG.md, just under-enumerated rather than
-wrong. Three genuinely discovered-but-deferred items were filed rather than fixed inline: T209
+wrong. Four genuinely discovered-but-deferred items were filed rather than fixed inline: T209
 (a stale git-cliff comment pair in `.github/workflows/release.yml`), T210 (two orphaned
 git-cliff/communique custom managers in `.github/renovate.json`, dead since T205 removed the
-Dockerfile ARGs they matched), and T211 (a broken `generator: git-cliff` example in
-`docs/guides/mobile-ci-tagging.md`, invalid since Phase 2.5/ADR-0045). T209 and T210 are
-CI/CD-adjacent and need explicit user confirmation before touching; T211 is docs-only but wasn't
-on this phase's task list, so per `.claude/rules/claude.md`'s roadmap discipline it was filed
-rather than fixed inline too. The only remaining item in this epic's roadmap is Phase 3
-(raw-HTTP platform clients, replacing `gh`/`glab` — explicitly deferred behind its own future
-ADR, not scheduled).
+Dockerfile ARGs they matched), T211 (a broken `generator: git-cliff` example in
+`docs/guides/mobile-ci-tagging.md`, invalid since Phase 2.5/ADR-0045), and T212 (Spec 01/03
+still documenting `heraut cliff`/`heraut check cliff` as live commands, docs-only staleness
+missed by T208's own sweep and caught only by the final review). T209 and T210 are
+CI/CD-adjacent and need explicit user confirmation before touching; T211 and T212 are docs-only
+but weren't on this phase's task list, so per `.claude/rules/claude.md`'s roadmap discipline
+both were filed rather than fixed inline too. The only remaining phase in this epic's roadmap
+is Phase 3 (raw-HTTP platform clients, replacing `gh`/`glab` — explicitly deferred behind its
+own future ADR, not scheduled).
 
 ---
 
