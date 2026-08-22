@@ -1483,7 +1483,7 @@ The last remaining traces of `git-cliff`/`communique` outside code and wizard fl
 removed in Phases A–C): the Docker image still bundles both, the dev-toolchain `mise` config
 still pins `git-cliff`, and ADR-0016's bundled-CLI inventory still lists both.
 
-#### `[ ]` T205: Dockerfile — drop git-cliff/communique
+#### `[x]` T205: Dockerfile — drop git-cliff/communique
 
 Drop the `GIT_CLIFF_VERSION`/`COMMUNIQUE_VERSION` ARGs, their `mise use -g` install entries,
 and their `cp` steps from the tools stage. `gh`/`glab` stay (ADR-0044, unrelated to this
@@ -1496,6 +1496,24 @@ blocker.
 
 **Files:** `Dockerfile`.
 **Scope:** S. **Dependencies:** none.
+
+Dropped `GIT_CLIFF_VERSION`/`COMMUNIQUE_VERSION` from the top-of-file ARGs block, both from
+their `mise use -g` invocation and their `cp` lines in the tools stage, and the now-unused
+`ARG GIT_CLIFF_VERSION`/`ARG COMMUNIQUE_VERSION` re-declarations inside that stage. Only
+`GLAB_VERSION`/`GH_VERSION` remain. The stage-3 base-image comment previously attributed the
+`debian:trixie-slim`-over-`alpine` choice to communique needing glibc for dynamic linking; a
+real `docker build --target tools` + `file` on the extracted binaries (run during planning,
+reconfirmed here) showed `gh` and `glab` are both statically-linked Go binaries — communique
+was the *only* dynamically-linked tool in the old stage, so with it gone the remaining reason
+to stay on a glibc-based distro is Debian's `apt`-installed `git`/`ca-certificates` in stage 3,
+not the bundled CLI tools. The comment was rewritten to say so; `golang:trixie` (the builder
+stage) stays consistent with that base to avoid glibc version surprises. `hadolint Dockerfile`
+passed clean before and after (no lint drift). Verified with a full local build: `docker build
+--target tools` followed by `ls /tools` showed only `gh`/`glab` (no `git-cliff`, no
+`communique`); a full `docker build` of the final image, `heraut --version` printed the version
+banner, and `gh --version`/`glab --version`/`git --version` inside the container all reported
+correctly, with `/usr/local/bin` containing only `gh`, `glab`, `heraut`. Diagnostic images
+(`heraut-t205-tools-check`, `heraut-t205-check`) were removed after verification.
 
 #### `[ ]` T206: `.config/mise/config.toml` — drop the git-cliff tool pin
 
