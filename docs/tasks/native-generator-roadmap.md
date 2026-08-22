@@ -1470,7 +1470,7 @@ snapshot), plus a new `TestMatchPlatformSnapshot_InterleavedTypes` case combinin
 type with an interleaved different-type entry — the scenario T203's review flagged as untested by
 either prior suite. Net diff: +87/-119 lines. Full suite + `hk check` clean.
 
-#### `[ ]` T209: stale git-cliff comments in `.github/workflows/release.yml`
+#### `[x]` T209: stale git-cliff comments in `.github/workflows/release.yml`
 
 Two comments (~lines 86, 96) explain why `GITHUB_TOKEN` is set for "git-cliff's PR-metadata
 API auth" — stale since native (heraut's sole generator as of ADR-0045) never shells out to
@@ -1480,6 +1480,18 @@ almost certainly still wants it) — this is a comment-accuracy fix, not a behav
 touching `.github/workflows/release.yml` needs explicit user confirmation per
 `.claude/rules/claude.md`'s CI/CD-modification rule, so it wasn't done inline during Phase D
 (discovered by T208's repo-wide sweep, out of that task's own scope). **Scope:** S.
+
+Confirmed the token requirement is still real, but corrected which subsystem actually reads
+it: `internal/generators/native/enrich_github.go` no longer exists — enrichment now goes
+through a forge abstraction (`internal/generators/native/enrich.go`'s `g.forge.Enrich(pc)`,
+dispatching to `internal/forge/github/graphql.go`, which sets `Authorization: bearer <token>`
+directly against GitHub's GraphQL API). The token itself is still sourced from `GITHUB_TOKEN`
+specifically: `internal/forge/detect.go`'s `detectCIForge` reads `getenv("GITHUB_TOKEN")` on
+the GitHub Actions branch (`GITHUB_ACTIONS` env check), matching this workflow's ambient env.
+Both comments rewritten to attribute the requirement to "heraut's own forge-based enrichment"
+rather than git-cliff, without changing which env vars are set or any workflow behavior.
+Verified with `actionlint .github/workflows/release.yml` (clean) and a grep confirming zero
+remaining `git-cliff`/`communique` references in the file.
 
 #### `[ ]` T210: orphaned git-cliff/communique custom managers in `.github/renovate.json`
 

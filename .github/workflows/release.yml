@@ -83,18 +83,20 @@ jobs:
         run: '"./$FRESH_BIN" check'
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          # git-cliff reads GITHUB_TOKEN (not GH_TOKEN) to authenticate its PR-metadata API
-          # calls; without it the calls are unauthenticated and hit GitHub's 60/hr shared-IP
-          # rate limit. GITHUB_REPO (owner/repo) is injected automatically by heraut from
-          # forges[].repository — no manual env var needed.
+          # heraut's own forge-based enrichment (internal/forge, GitHub Actions branch of
+          # detectCIForge) reads GITHUB_TOKEN — not GH_TOKEN — to authenticate its
+          # PR-attribution GraphQL calls; without it the calls are unauthenticated and hit
+          # GitHub's 60/hr shared-IP rate limit. GITHUB_REPO (owner/repo) is injected
+          # automatically by heraut from forges[].repository — no manual env var needed.
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Release
         run: '"./$FRESH_BIN" release --version "$VERSION" ${{ inputs.regenerate_changelog && ''--regenerate-changelog'' || '''' }}'
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          # git-cliff reads GITHUB_TOKEN (not GH_TOKEN) for PR-metadata API auth.
-          # GITHUB_REPO is injected automatically by heraut — no manual env var needed.
+          # heraut's own forge-based enrichment reads GITHUB_TOKEN (not GH_TOKEN) for its
+          # PR-attribution GraphQL calls. GITHUB_REPO is injected automatically by heraut —
+          # no manual env var needed.
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Publish Homebrew cask
