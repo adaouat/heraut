@@ -40,6 +40,7 @@ no longer a parity target — heraut's rendering is its own spec, validated by g
 | Phase 2.10 — commit-author attribution (ADR-0039)    | T151 (follow-up)       | Complete — GitHub, GitLab, Azure |
 | Phase 2.5 — remove the git-cliff package (own ADR)   | T177–T194              | Done        |
 | Phase C — wizard simplification (supersedes T164)    | T195–T202              | Done        |
+| Phase D — infra housekeeping (Dockerfile / mise / ADR-0016) | T205–T208       | Active      |
 | Phase 3 — raw-HTTP clients (drop `gh` / `glab`)       | —                      | Deferred    |
 
 ---
@@ -1468,6 +1469,60 @@ time it's appended. Test suites merged into one covering every scenario both pri
 snapshot), plus a new `TestMatchPlatformSnapshot_InterleavedTypes` case combining repeats of one
 type with an interleaved different-type entry — the scenario T203's review flagged as untested by
 either prior suite. Net diff: +87/-119 lines. Full suite + `hk check` clean.
+
+---
+
+## Phase D — Infra housekeeping (Dockerfile / mise / ADR-0016)
+
+> See `docs/superpowers/specs/2026-08-08-native-only-generator-design.md` §5 ("Infra
+> housekeeping (Phase D)") for the full scope — already a complete, unambiguous spec, so no
+> separate design doc was written. Plan:
+> `docs/superpowers/plans/2026-08-22-native-only-generator-phase-d.md`.
+
+The last remaining traces of `git-cliff`/`communique` outside code and wizard flow (already
+removed in Phases A–C): the Docker image still bundles both, the dev-toolchain `mise` config
+still pins `git-cliff`, and ADR-0016's bundled-CLI inventory still lists both.
+
+#### `[ ]` T205: Dockerfile — drop git-cliff/communique
+
+Drop the `GIT_CLIFF_VERSION`/`COMMUNIQUE_VERSION` ARGs, their `mise use -g` install entries,
+and their `cp` steps from the tools stage. `gh`/`glab` stay (ADR-0044, unrelated to this
+epic). Rewrite the stage-3 base-image comment, which currently attributes the
+`debian:trixie-slim`-over-`alpine` choice to communique's dynamic linking — verify via a real
+`docker build --target tools` + `file` on the extracted binaries whether git-cliff also drove
+that choice, or whether gh/glab alone still require it (i.e. whether the base image could
+simplify further, or not) — an implementation-time check per the design doc, not a design
+blocker.
+
+**Files:** `Dockerfile`.
+**Scope:** S. **Dependencies:** none.
+
+#### `[ ]` T206: `.config/mise/config.toml` — drop the git-cliff tool pin
+
+Drop the `git-cliff = "2.13"` line from `[tools]`. Regenerate/edit `.config/mise/mise.lock`
+accordingly (the orphaned `[[tools.git-cliff]]` block).
+
+**Files:** `.config/mise/config.toml`, `.config/mise/mise.lock`.
+**Scope:** S. **Dependencies:** none.
+
+#### `[ ]` T207: `docs/adr/0016-bundled-docker-image.md` — update the bundled-CLI inventory
+
+Update the bundled-CLI table and surrounding prose (tool-orchestration list, Decision bullet,
+table, base-image-choice rationale, Consequences' version-isolation and image-size examples)
+to drop `git-cliff`/`communique`, per ADR-0028's established precedent that this specific
+table is a living inventory, not a frozen historical record.
+
+**Files:** `docs/adr/0016-bundled-docker-image.md`.
+**Scope:** S. **Dependencies:** T205 (cites its verification findings).
+
+#### `[ ]` T208: final sweep, verification, and phase close-out
+
+Repo-wide grep sweep for any remaining `git-cliff`/`communique` reference this phase should
+have caught, full `go build`/`go test`/`hk check` regression pass, a final real `docker build`
++ smoke test, and closing out the Phase D roadmap section.
+
+**Files:** `docs/tasks/native-generator-roadmap.md` (+ read-only checks across the repo).
+**Scope:** S. **Dependencies:** T205, T206, T207.
 
 ---
 
