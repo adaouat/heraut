@@ -1589,7 +1589,7 @@ than fixed here — a different file than T212's own filed scope, same roadmap-d
 reasoning as T210/T211/T212 themselves. Verified with `grep -rn "git-cliff\|communique"` across
 all three edited files (clean) and `hk check` (clean, typos only).
 
-#### `[ ]` T213: `docs/specs/05-generators-and-platforms.md`'s own example still writes `generator: native`
+#### `[x]` T213: `docs/specs/05-generators-and-platforms.md`'s own example still writes `generator: native`
 
 Spec 05 (already rewritten native-only by Phase B's T192) has a `generator: native` line in
 its own `## native` example YAML (~line 21). `generator:` became a load-time config error
@@ -1604,6 +1604,23 @@ inline: it's a different file than what T212 was actually filed to cover, and pe
 `.claude/rules/claude.md`'s roadmap discipline, a task's own scope doesn't stretch to cover
 a sibling file just because the fix would be easy. **Scope:** S — delete one line, verify the
 example still loads (same `heraut check config` scratch-file technique T211 used).
+
+The filed estimate ("one line ~21") undercounted the blast radius: a repo-wide
+`grep -n "generator:" docs/specs/05-generators-and-platforms.md` before editing found a
+**second** invalid `generator: native` line (~line 73, inside the "User-customizable
+templates" section's own YAML example) and a stale prose requirement ("`rendering.templates`
+and `template` require `generator: native`", ~line 100) — same root defect (T192's Phase B
+rewrite left the explicit key in more than one spot), same file, so fixed as part of this task
+rather than filed separately. Both YAML examples verified to actually load: the first via
+`heraut check config` on a scratch `.heraut.yml`; the second (which also references an
+external `.config/heraut/changelog.tmpl` file) via a built binary run from inside a scratch
+directory with a matching template file present, since `go run` resolves relative paths
+against the current module root, not the target config's directory — a real gap the first
+check alone wouldn't have caught. The stale prose was reworded to state the now-true fact
+(native is heraut's sole generator, so there is no `generator:` key to require) rather than
+just deleted, since the underlying precedence information it introduces is still needed.
+`grep -n "generator:"` after editing shows only the corrected prose line, no YAML key
+remaining. `hk check` and `go build ./...` clean.
 
 ---
 

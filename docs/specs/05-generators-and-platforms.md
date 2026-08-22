@@ -18,7 +18,6 @@ renders Markdown with internal templates — no `git-cliff` binary required.
 
 ```yaml
 changelog:
-  generator: native
   output: CHANGELOG.md
 ```
 
@@ -71,7 +70,6 @@ rendering:
     contributor: "* @{{ .Author.Username }} — first contribution 🎉"
 
 changelog:
-  generator: native
   template: .config/heraut/changelog.tmpl   # optional full template file
   rendering:
     templates:
@@ -98,8 +96,8 @@ are the **experimental-in-v1** public API — additive changes are free.
 
 **Precedence** (lowest → highest): built-in → global `rendering.templates` →
 `<driver>.rendering.templates` → per-env → `<driver>.template` file. `rendering.templates` and
-`template` require `generator: native`; each snippet and the file are parse-validated at config
-load.
+`template` are native's own template API (heraut's sole generator — no `generator:` key to set);
+each snippet and the file are parse-validated at config load.
 
 ### Changelog structure & incremental generation (ADR-0038)
 
