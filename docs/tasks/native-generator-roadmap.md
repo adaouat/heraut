@@ -1493,7 +1493,7 @@ rather than git-cliff, without changing which env vars are set or any workflow b
 Verified with `actionlint .github/workflows/release.yml` (clean) and a grep confirming zero
 remaining `git-cliff`/`communique` references in the file.
 
-#### `[ ]` T210: orphaned git-cliff/communique custom managers in `.github/renovate.json`
+#### `[x]` T210: orphaned git-cliff/communique custom managers in `.github/renovate.json`
 
 Two Renovate custom regex managers (lines ~38–39, ~59–60) scan `Dockerfile` for `ARG
 GIT_CLIFF_VERSION=`/`ARG COMMUNIQUE_VERSION=` to drive automated version-bump PRs for
@@ -1505,6 +1505,16 @@ Dockerfile edit. `.github/renovate.json` is CI/CD-adjacent automation config;
 touching it needs explicit user confirmation per `.claude/rules/claude.md`'s CI/CD-modification
 rule, the same treatment as T209, so it wasn't done inline during Phase D (discovered by T208's
 repo-wide sweep, out of that task's own scope). **Scope:** S.
+
+Removed both orphaned custom managers (the `orhun/git-cliff` and `jdx/communique` entries)
+from `customManagers`; the three remaining entries (`jdx/mise`, `gitlab-org/cli`, `cli/cli`)
+are untouched, same order, same shape. Verified valid JSON (`python3 -c "import json;
+json.load(open('.github/renovate.json'))"`) and a grep confirming zero remaining
+`git-cliff`/`communique` references in the file. No `renovate-config-validator` binary was
+available locally to check full schema conformance beyond JSON validity — the edit is a pure
+deletion of two well-formed entries with no structural change to the surrounding array, so
+this is treated as low-risk; worth a real Renovate dry-run (or waiting for its next scheduled
+run) to confirm end-to-end if you want extra confidence.
 
 #### `[ ]` T211: broken `generator: git-cliff` example in `docs/guides/mobile-ci-tagging.md`
 
