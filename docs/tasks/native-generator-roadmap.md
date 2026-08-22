@@ -1515,13 +1515,30 @@ banner, and `gh --version`/`glab --version`/`git --version` inside the container
 correctly, with `/usr/local/bin` containing only `gh`, `glab`, `heraut`. Diagnostic images
 (`heraut-t205-tools-check`, `heraut-t205-check`) were removed after verification.
 
-#### `[ ]` T206: `.config/mise/config.toml` — drop the git-cliff tool pin
+#### `[x]` T206: `.config/mise/config.toml` — drop the git-cliff tool pin
 
 Drop the `git-cliff = "2.13"` line from `[tools]`. Regenerate/edit `.config/mise/mise.lock`
 accordingly (the orphaned `[[tools.git-cliff]]` block).
 
 **Files:** `.config/mise/config.toml`, `.config/mise/mise.lock`.
 **Scope:** S. **Dependencies:** none.
+
+Removed the `git-cliff = "2.13"` pin from `config.toml`'s `[tools]` block (alphabetical
+order preserved for the remaining entries). `mise.lock`'s orphaned `[[tools.git-cliff]]`
+block was deleted by hand rather than via a fresh `mise lock` run: a bare `mise lock`
+regenerate was tried during planning on a mise version newer than whatever produced the
+committed lockfile, and it rewrote unrelated `url_api` metadata across every other pinned
+tool (~63 unrelated added/changed lines, none of them meaningful) — pure out-of-scope
+churn for a task about removing one tool. The manual edit removes exactly the orphaned
+block and preserves the single blank line before `[[tools.go]]`, matching the file's
+existing spacing convention. Also fixed `CLAUDE.md`'s "Tooling (mise)" section, which
+claimed git-cliff was installed via mise — now false the moment the pin is dropped, so
+the line was updated to list only Go, golangci-lint, and goreleaser, per the same
+directly-adjacent-stale-reference precedent as T189. Verified with
+`grep -n "git-cliff" .config/mise/config.toml .config/mise/mise.lock CLAUDE.md` (no
+output, exit 1) and `mise install --locked` (no error mentioning `git-cliff`; the only
+errors were pre-existing `claude`/`rtk` resolution failures from the user's global mise
+config outside this repo, explicitly out of scope per the task brief).
 
 #### `[ ]` T207: `docs/adr/0016-bundled-docker-image.md` — update the bundled-CLI inventory
 

@@ -119,7 +119,7 @@ mise run run -- <args>    # run the CLI in dev mode (e.g. mise run run -- releas
 For targeted lint fixes: `hk fix -S <linter>` (e.g. `hk fix -S golangci-lint`,
 `hk fix -S yamlfmt`).
 
-Go, golangci-lint, goreleaser, and git-cliff are installed via mise (see
+Go, golangci-lint, and goreleaser are installed via mise (see
 `.config/mise/config.toml`).
 
 ## ldflags invariant
