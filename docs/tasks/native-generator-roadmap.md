@@ -1542,7 +1542,7 @@ something git-cliff ever owned. Verified the corrected example config end-to-end
 it into a scratch `.heraut.yml` and running `heraut check config` against it — `✓ config: ok`,
 confirming it is not just stale-reference-free but actually loadable.
 
-#### `[ ]` T212: `docs/specs/01-overview.md` / `03-commands.md` still document `heraut cliff` as live
+#### `[x]` T212: `docs/specs/01-overview.md` / `03-commands.md` still document `heraut cliff` as live
 
 Both files fully document `heraut cliff` / `heraut check cliff` as working commands — Spec 03
 has a complete `### heraut check cliff` section (~line 453) and `## heraut cliff` section
@@ -1560,6 +1560,50 @@ corrected by the final whole-branch review. Filed rather than fixed inline for t
 as T211: not on Phase D's own task list, no CI/CD gate, but roadmap discipline still applies.
 **Scope:** M — Spec 03 needs two whole sections removed, not a word swap; Spec 01 and the
 README line are smaller prose edits.
+
+Deleted Spec 03's `### heraut check cliff` and `## heraut cliff` sections wholesale (the
+commands no longer exist); rewrote `heraut check`'s bare invocation (two sections — Config,
+Runtime — not three), `heraut check runtime`'s tool list and no-config fallback ("git, gh,
+glab", not "git-cliff, communique"), `heraut init`'s `--defaults` description and wizard-flow
+line (rewritten to the actual current flow: changelog/notes toggles → publish-releases
+confirm → enrichment policy/forge → environments — not the pre-Phase-C "generator(s)" step),
+and `heraut --version`'s runtime-check pointer. One directly-adjacent bonus fix in the same
+`heraut init` section: the "Update warning" field list still named `commits.enrichment_policy`
+as wizard-inaccessible, contradicted by Phase C's own `runEnrichmentWizard` (T201) — removed
+from that list, same "directly-adjacent, actively-broken reference" precedent as T189/T191.
+Spec 01 rewritten across 5 spots (intro, architecture diagram, Generator/boundaries/
+what-heraut-does-not-do) to describe `native` as heraut's sole built-in generator instead of
+listing git-cliff/communique as wrapped tools. `docs/specs/README.md:9` now bills Spec 05 as
+"native generator + GitHub, GitLab". Every current-CLI-behavior claim was verified against the
+real code before writing it (`internal/cmd/check.go`'s two-subcommand structure,
+`internal/app/check.go`'s `[]string{"glab", "gh"}` no-config fallback, `internal/scaffold/
+wizard.go`'s actual `RunWizard` group sequence and `runEnrichmentWizard`, `internal/scaffold/
+wizard.go`'s `Defaults()`) rather than guessed from the old prose. **One further discovery,
+explicitly left unfixed and out of this task's scope:** `docs/specs/05-generators-and-platforms.md`
+itself — already rewritten native-only by Phase B's T192 — still has a `generator: native`
+line in its own example YAML (line ~21), which is now equally invalid (`generator:` is a
+load-time error regardless of value, confirmed via `internal/config/loader.go`'s
+`checkRemovedKeys`). Neither T208's sweep nor the final review caught this, since it names no
+retired tool and so never matched a `git-cliff`/`communique` grep. Filed as **T213** rather
+than fixed here — a different file than T212's own filed scope, same roadmap-discipline
+reasoning as T210/T211/T212 themselves. Verified with `grep -rn "git-cliff\|communique"` across
+all three edited files (clean) and `hk check` (clean, typos only).
+
+#### `[ ]` T213: `docs/specs/05-generators-and-platforms.md`'s own example still writes `generator: native`
+
+Spec 05 (already rewritten native-only by Phase B's T192) has a `generator: native` line in
+its own `## native` example YAML (~line 21). `generator:` became a load-time config error
+regardless of value once Phase A/2.5 (ADR-0045) removed the key entirely — `internal/config/
+loader.go`'s `checkRemovedKeys` rejects it unconditionally, confirmed by reading the code, not
+inferred. So this spec's own worked example is invalid: a reader copying it verbatim hits a
+config-load error, the same failure mode T211 fixed in the mobile-CI guide. Discovered while
+implementing T212 — neither T208's original sweep nor the final whole-branch review caught it,
+because the string match everyone was grepping for (`git-cliff`/`communique`) doesn't appear
+here; the staleness is a removed *key*, not a removed *tool name*. Filed rather than fixed
+inline: it's a different file than what T212 was actually filed to cover, and per
+`.claude/rules/claude.md`'s roadmap discipline, a task's own scope doesn't stretch to cover
+a sibling file just because the fix would be easy. **Scope:** S — delete one line, verify the
+example still loads (same `heraut check config` scratch-file technique T211 used).
 
 ---
 

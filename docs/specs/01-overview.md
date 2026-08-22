@@ -4,10 +4,10 @@
 
 Héraut is a Go CLI that orchestrates a release: it resolves the next version, generates
 the changelog and release notes, creates the git tag, and publishes the release to
-GitHub and/or GitLab. It wraps existing tools (`git-cliff`, `glab`, `gh`,
-`communique`) and handles the custom logic those tools cannot handle natively — version
-resolution for prefixed tag strategies, generator/platform composition, strict config
-validation.
+GitHub and/or GitLab. Changelog/release-notes generation is built in (the `native`
+generator, no external binary — ADR-0045); publishing wraps `glab`/`gh`. Héraut handles
+the custom logic those tools cannot handle natively — version resolution for prefixed
+tag strategies, platform composition, strict config validation.
 
 **Primary users**: developers and release engineers who want a single command to drive
 the full release pipeline of a Go / Node / Python / … project, without writing custom
@@ -25,7 +25,7 @@ Project repo (consumer)
 
 heraut binary
 ├── reads .heraut.yml from project root
-├── invokes git, git-cliff, glab, gh, communique via port.Runner
+├── invokes git, glab, gh via port.Runner (changelog/release-notes generation is built in)
 └── publishes release(s) on configured platforms
 ```
 
@@ -59,7 +59,7 @@ constructs concrete implementations directly.
 `calver-per-env`. The strategy is selected in `.heraut.yml` and determines how the next
 version is computed. See [Spec 04 — Versioning](04-versioning.md).
 
-**Generator** — produces text. `git-cliff` or `communique`. Used
+**Generator** — produces text. `native`, heraut's sole built-in generator (ADR-0045), used
 independently for `changelog` (writes a `CHANGELOG.md` to the repo) and `release.notes`
 (text attached to the platform release). See
 [Spec 05 — Generators and Platforms](05-generators-and-platforms.md).
@@ -98,7 +98,7 @@ outside `/tmp`.
 - Single-repo projects (one `.heraut.yml`, one version per project)
 - Four versioning strategies: SemVer, CalVer, SemVer per env, CalVer per env
 - Two platforms: GitLab, GitHub
-- Two content generators: git-cliff, communique
+- One built-in content generator: `native` (no external binary — ADR-0045)
 - JSON Schema for IDE validation of `.heraut.yml`
 - Raw binary distribution via GitHub Releases + GHCR Docker image
 - Update-availability check via the GitHub Releases API — a daily hint with the upgrade
@@ -117,7 +117,7 @@ outside `/tmp`.
 
 ## What heraut does not do
 
-- It does not bundle the external CLIs (`git-cliff`, `glab`, `gh`, `communique`).
+- It does not bundle the external CLIs (`glab`, `gh`).
   Users install them separately. `heraut check runtime` verifies they are on `PATH`.
 - It does not commit your code. The user is responsible for the commits being released
   before `heraut release` runs. The one exception is the `CHANGELOG.md` commit that

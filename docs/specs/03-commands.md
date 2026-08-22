@@ -21,8 +21,8 @@ Present on every subcommand. Defined on the root command in `internal/cmd/root.g
 
 Prints the heraut version banner (logo + tagline + `heraut <version>`), with the version
 string injected from ldflags. To check the external CLIs heraut orchestrates (`git`,
-`git-cliff`, `glab`, `gh`, `communique`) — whether they are on `PATH` and which
-token env vars are set — use `heraut check runtime` instead.
+`glab`, `gh`) — whether they are on `PATH` and which token env vars are set —
+use `heraut check runtime` instead.
 
 ## `heraut init`
 
@@ -36,19 +36,21 @@ heraut init --force        # overwrite an existing config without prompting
 
 | Flag         | Default | Description                                                                                                  |
 |--------------|---------|--------------------------------------------------------------------------------------------------------------|
-| `--defaults` | `false` | Write a non-interactive default config (semver, prefix `"v"`, git-cliff, GitLab). Skip the wizard.           |
+| `--defaults` | `false` | Write a non-interactive default config (semver, prefix `"v"`, GitLab). Skip the wizard.                      |
 | `--force`    | `false` | Overwrite an existing config file. Without it, heraut prompts before overwriting.                            |
 
-**Wizard flow**: strategy → prefix / format → sprint (if format uses `SPRINT`) → generator(s) → platform(s) → environments
-(for per-env strategies, loops to add N envs). Existing config (if any) pre-populates
-the answers, so re-running `heraut init` updates instead of replacing.
+**Wizard flow**: strategy → prefix / format → sprint (if format uses `SPRINT`) → generate
+changelog? → generate release notes? → publish releases to a platform? (if yes, platform
+setup) → PR/MR enrichment policy (+ enrichment forge, only when 2+ platforms are
+configured) → environments (for per-env strategies, loops to add N envs). Existing config
+(if any) pre-populates the answers, so re-running `heraut init` updates instead of
+replacing.
 
 **Update warning**: the wizard does not have prompts for every field — `commits.tickets`,
-`commits.enrichment_policy`, `release.assets`, a platform's `base_url` (when it differs from the
-type's default), `draft`/`prerelease`, and per-environment `changelog`/`release`
-overrides. If the loaded config has any of these set, `heraut init` prints a warning
-listing them before the wizard runs, since continuing will drop them from the rewritten
-file.
+`release.assets`, a platform's `base_url` (when it differs from the type's default),
+`draft`/`prerelease`, and per-environment `changelog`/`release` overrides. If the loaded
+config has any of these set, `heraut init` prints a warning listing them before the
+wizard runs, since continuing will drop them from the rewritten file.
 
 For each platform step, the project/repository field is pre-populated from
 `git remote get-url origin` when the current directory is a git repo (SSH and HTTPS
@@ -378,26 +380,20 @@ automatically before doing any work; running them directly is useful in CI as a
 separate validation step.
 
 ```
-heraut check                       # runs config + runtime + cliff
+heraut check                       # runs config + runtime
 heraut check config                # offline only: parse + semantic validation
 heraut check runtime               # online: binaries + tokens + git user
-heraut check cliff                 # validate the effective git-cliff config(s)
-heraut check cliff changelog       # only the changelog config
-heraut check cliff release-notes   # only the release-notes config
 ```
 
-Runs all three sections in sequence (Config, Runtime, Cliff) and reports a combined
-summary.
+Runs both sections in sequence (Config, then Runtime) and reports a combined summary.
 
 **No config file found**: like `heraut check runtime`, bare `check` degrades instead of
-hard-failing — the Config section prints a warning and is skipped, the Runtime section
-falls back to the all-tools-required probe (see § `heraut check runtime` below), and the
-Cliff section reports no generators configured.
+hard-failing — the Config section prints a warning and is skipped, and the Runtime
+section falls back to the all-tools-required probe (see § `heraut check runtime` below).
 
 **Exit code**: if the Config section reports any errors, `heraut check` exits with the
-Config code (2) — even if Runtime or Cliff also failed, since a broken config makes those
-results unreliable. Otherwise, if Runtime or Cliff failed, it exits with the Runtime code
-(3).
+Config code (2) — even if Runtime also failed, since a broken config makes that result
+unreliable. Otherwise, if Runtime failed, it exits with the Runtime code (3).
 
 ### `heraut check config`
 
@@ -430,17 +426,16 @@ Example output (with errors):
 
 Online checks:
 
-- Each external CLI in use (`git`, plus the configured generators and platforms) is on
-  `PATH`
+- Each external CLI in use (`git`, plus the configured platforms) is on `PATH`
+  (the `native` generator has no external binary of its own)
 - The token env var for each configured platform is set
 - `git config user.name` and `git config user.email` are set (required for the
   changelog commit)
 
 When no config file is found, `heraut check runtime` proceeds rather than failing. All
-supported tools (git, gh, glab, git-cliff, communique) are treated as required —
-hard error if any binary is missing. The full platform check (token + API auth) is
-skipped in this case since there is no config to source token names from; only binary
-presence is verified.
+supported tools (git, gh, glab) are treated as required — hard error if any binary
+is missing. The full platform check (token + API auth) is skipped in this case since
+there is no config to source token names from; only binary presence is verified.
 
 **`--env`**: the Platforms section checks the *effective* `release.targets` list for
 the given environment — the env's `release.targets` when non-empty, replacing the root
@@ -449,31 +444,6 @@ see [ADR-0025](../adr/0025-multi-instance-platforms.md)/[ADR-0044](../adr/0044-p
 Without `--env`, or for an env with no `release.targets` override, the root list is
 checked (or the single resolved forge with default options when `release.targets` is
 empty). `heraut check` (bare) applies the same `--env`-aware resolution.
-
-### `heraut check cliff`
-
-Invokes `git-cliff --context --no-exec` against the effective merged config (embedded
-default + user override). Exits non-zero if git-cliff rejects the config — catches
-broken regex, malformed TOML, missing template references, etc.
-
-`heraut check cliff changelog` scopes to the changelog generator only.
-`heraut check cliff release-notes` scopes to the release-notes generator only.
-
-## `heraut cliff`
-
-Print the effective merged git-cliff TOML — what heraut actually feeds to `git-cliff`.
-
-```
-heraut cliff changelog        # effective config for `changelog`
-heraut cliff release-notes    # effective config for `release.notes`
-```
-
-Output is valid TOML on stdout; pipe it to a file if you want to commit a frozen
-version, or to `git-cliff` directly to reproduce heraut's invocation.
-
-`--env <name>` is honoured so the per-environment effective config is shown. When
-`versioning.tag_format` contains `{build}`, the auto-injected build-id postprocessor
-appears in the output — matching exactly what the pipeline feeds `git-cliff`.
 
 ## Background update hint
 
