@@ -5,7 +5,6 @@ go 1.26.5
 require (
 	charm.land/huh/v2 v2.0.3
 	charm.land/lipgloss/v2 v2.0.2
-	github.com/pelletier/go-toml/v2 v2.3.1
 	github.com/santhosh-tekuri/jsonschema/v6 v6.0.2
 	github.com/spf13/cobra v1.10.2
 	github.com/stretchr/testify v1.11.1
