@@ -1516,7 +1516,7 @@ deletion of two well-formed entries with no structural change to the surrounding
 this is treated as low-risk; worth a real Renovate dry-run (or waiting for its next scheduled
 run) to confirm end-to-end if you want extra confidence.
 
-#### `[ ]` T211: broken `generator: git-cliff` example in `docs/guides/mobile-ci-tagging.md`
+#### `[x]` T211: broken `generator: git-cliff` example in `docs/guides/mobile-ci-tagging.md`
 
 The guide's example config (~line 32) sets `generator: git-cliff` and its surrounding comment
 (~line 33) and prose (~lines 92, 104–106) describe git-cliff-specific behavior ("heraut's
@@ -1529,6 +1529,18 @@ docs-only, but it wasn't on Phase D's task list at all — it surfaced only from
 repo-wide sweep, not from any file Phase D's own tasks were already touching. Per
 `.claude/rules/claude.md`'s roadmap discipline ("never implement anything not on the current
 roadmap without asking first"), it is filed here rather than fixed inline. **Scope:** S.
+
+Removed the `generator: git-cliff` line entirely (native is implicit — omitting `generator:`
+is the only valid form since Phase A). Reworded the `tag_pattern` comment and both prose
+passages (the "Version display" section's postprocessor explanation and its closing
+`tag_pattern` mention) from git-cliff-specific to generic/native-accurate language — confirmed
+the heading-postprocessor behavior described (env-prefix + build-ID stripping,
+`-{digits}`-suffix requirement) is real and unchanged: it is native's own
+`applyHeadingPattern` (`internal/generators/native/render.go`), fed a pattern auto-derived
+from `tag_format` (`tagfmt.DeriveHeadingVersionPattern`, `internal/app/pipeline.go`), not
+something git-cliff ever owned. Verified the corrected example config end-to-end by extracting
+it into a scratch `.heraut.yml` and running `heraut check config` against it — `✓ config: ok`,
+confirming it is not just stale-reference-free but actually loadable.
 
 #### `[ ]` T212: `docs/specs/01-overview.md` / `03-commands.md` still document `heraut cliff` as live
 

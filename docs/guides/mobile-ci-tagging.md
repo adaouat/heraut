@@ -29,8 +29,7 @@ versioning:
   tag_format: "{env}/{version}-{build}"
 
 changelog:
-  generator: git-cliff
-  # tag_pattern scopes git-cliff to the production env only.
+  # tag_pattern scopes changelog generation to the production env only.
   # UAT builds skip changelog entirely (disable_changelog: true).
   tag_pattern: "main/[0-9]+\\.[0-9]+\\.[0-9]+-[0-9]+"
 
@@ -89,9 +88,10 @@ and pushes the changelog, then pushes the tag.
 
 ## Version display in the changelog
 
-heraut's embedded git-cliff config already handles build-id tags. A
-postprocessor strips the env prefix and trailing numeric build ID from every
-version heading, so the output reads `7.4.1` instead of `main/7.4.1-159001`:
+heraut's native generator already handles build-id tags. A heading
+postprocessor, auto-derived from `tag_format`, strips the env prefix and
+trailing numeric build ID from every version heading, so the output reads
+`7.4.1` instead of `main/7.4.1-159001`:
 
 | Tag | Displayed as |
 |---|---|
@@ -102,8 +102,8 @@ version heading, so the output reads `7.4.1` instead of `main/7.4.1-159001`:
 
 The postprocessor requires a trailing `-{digits}` segment to match, so
 standard semver tags are unaffected. No extra config file is needed — just
-set `changelog.tag_pattern` in `.heraut.yml` to scope git-cliff to the
-production env as shown above.
+set `changelog.tag_pattern` in `.heraut.yml` to scope changelog generation to
+the production env as shown above.
 
 ---
 
