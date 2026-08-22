@@ -1,5 +1,262 @@
 # Changelog
 
+<!-- heraut-release: v0.57.0 -->
+## [0.57.0](https://github.com/adaouat/heraut/compare/v0.56.0..v0.57.0) - 2026-08-22
+
+### 🚀 Features
+
+- *(app)* Build publish platforms from resolved forge identities (T163) - ([83b6622](https://github.com/adaouat/heraut/commit/83b662273898d8ac74d842e35ab1cddfee8f25e9)) by @bchatard
+
+- *(app)* Empty ContentDriver.Generator builds native - ([cbe2670](https://github.com/adaouat/heraut/commit/cbe26702272a69a4929b79a42aa5beb616a7ce72)) by @bchatard
+
+- *(cmd)* Remove the heraut cliff command - ([bd309d7](https://github.com/adaouat/heraut/commit/bd309d779c9dbd03bf9998fa4680651c41b1a639)) by @bchatard
+
+- *(cmd)* Remove heraut check cliff and the git-cliff/communique runtime probes - ([2580336](https://github.com/adaouat/heraut/commit/258033613eec8e7b164c053376e93ad5300cfe99)) by @bchatard
+
+- *(config)* Add EffectiveTargets with per-env replacement (T163) - ([db371de](https://github.com/adaouat/heraut/commit/db371de411dfa2b9b505584d9e6f7eb5930fa593)) by @bchatard
+
+- *(config)* [**breaking**] Publish via release.targets, remove release.platforms (T163) - ([366906b](https://github.com/adaouat/heraut/commit/366906b1a5bb528fb9aa0a01311d083d98dadbe6)) by @bchatard
+
+- *(config)* Reject generator:/config: keys, native is now implicit - ([5a5a069](https://github.com/adaouat/heraut/commit/5a5a0697683a396d1999f23a9a7b83eda05aaf51)) by @bchatard
+
+- *(forge)* Export DetectForWizard for wizard platform pre-fill - ([997d538](https://github.com/adaouat/heraut/commit/997d538b039159b1e07439ad9e17edaad1a954b1)) by @bchatard
+
+- *(scaffold)* Pre-fill platform type from CI/git-origin detection - ([cc17e28](https://github.com/adaouat/heraut/commit/cc17e281e60ef052bb115e8ddefb1d618f6aebe7)) by @bchatard
+
+- *(scaffold)* Decouple platform setup from notes generation - ([dc01655](https://github.com/adaouat/heraut/commit/dc01655b0a3dd61b8d60fcaf28a54267f9b0928f)) by @bchatard
+
+- *(scaffold)* Add api_mode prompt for GitLab platforms - ([abc399b](https://github.com/adaouat/heraut/commit/abc399be5362dba5aa00738dd838500f49b1306c)) by @bchatard
+
+- *(scaffold)* Add enrichment policy/forge prompts - ([d377486](https://github.com/adaouat/heraut/commit/d3774861feb90fcbc07c9019f38c75416bae14ea)) by @bchatard
+
+- *(schema)* Drop generator/config from ContentDriver - ([8d141e3](https://github.com/adaouat/heraut/commit/8d141e39b577e215be029598267d0610bd6384ab)) by @bchatard
+
+
+### 🐛 Bug Fixes
+
+- *(app)* Only fail a release when forge resolution is consumed (T163) - ([b7199ca](https://github.com/adaouat/heraut/commit/b7199caa3848ed7725dc5f533c65fc7a9e2673cc)) by @bchatard
+
+- *(app)* Label zero-config publish targets and prove assets propagation (I2, I3) - ([9213fa8](https://github.com/adaouat/heraut/commit/9213fa83807ff55abe8e97042358ab7d39809f06)) by @bchatard
+
+- *(app)* Warn instead of failing check when no publishing is configured (T172) - ([7bf144e](https://github.com/adaouat/heraut/commit/7bf144eae01275829a4840b609d6559586172055)) by @bchatard
+
+- *(app)* Degrade instead of hard-fail on forge resolution errors - ([aba0877](https://github.com/adaouat/heraut/commit/aba08777a5dbcb807b5288223bcc293efdc04920)) by @bchatard
+
+- *(config)* Validate/normalize forges[].base_url and per-env targets (C1, I4) - ([38da631](https://github.com/adaouat/heraut/commit/38da631d7f842830a5d306212668ae070b7add40)) by @bchatard
+
+- *(config)* Reject unsatisfiable release.targets and fix the migration hint (T171) - ([6da4139](https://github.com/adaouat/heraut/commit/6da41397631b67df7cd3ab238abc8edda5733a3c)) by @bchatard
+
+- *(config)* Detect target/forge collisions by normalized destination (T171) - ([fbcf50a](https://github.com/adaouat/heraut/commit/fbcf50a19b35a1258d7ec7bf80f4426837f255d0)) by @bchatard
+
+- *(config)* Reject forges: entries that resolve to the same destination - ([fcd6d61](https://github.com/adaouat/heraut/commit/fcd6d611f016305dca423c24425e1eafaf0624d7)) by @bchatard
+
+- *(config)* Drop the generator-required check — can't wait for T180 - ([d79fdb5](https://github.com/adaouat/heraut/commit/d79fdb501f6bae6ef70ab5356a11e913c39ed1fb)) by @bchatard
+
+- *(forge/gitlab)* Render the author handle from the email local-part (T170) - ([95b8fc9](https://github.com/adaouat/heraut/commit/95b8fc9011db6af4eaa7bc0ec2f85ccb7fc33eed)) by @bchatard
+
+- *(scaffold)* Preserve commits.enrichment_forge across heraut init reruns (I7) - ([ea42609](https://github.com/adaouat/heraut/commit/ea426091a446c8633a773aee8895d836e180162a)) by @bchatard
+
+- *(scaffold)* Stop heraut init from generating unloadable configs - ([9ffd37d](https://github.com/adaouat/heraut/commit/9ffd37dd9a4b8db33c51fea352fe5a1d8932af7a)) by @bchatard
+
+- *(scaffold)* Stop pre-selecting "None" for existing changelog/notes - ([90d94ad](https://github.com/adaouat/heraut/commit/90d94ad69e1598b683996ac0b03b5da822cde427)) by @bchatard
+
+- *(scaffold)* Clear platforms when publish is declined - ([160e805](https://github.com/adaouat/heraut/commit/160e8051ee9fd3b2419ca177207722d75115a3b2)) by @bchatard
+
+- *(scaffold)* Re-seed TokenEnv/APIMode from snapshot before Step 3 - ([32d6d39](https://github.com/adaouat/heraut/commit/32d6d39007066186ba1f6441de5f0d67eb092a25)) by @bchatard
+
+
+### 🚜 Refactor
+
+- *(app)* P3 cleanup cluster — dead guard, nil panic, double resolution, dedup - ([733e4af](https://github.com/adaouat/heraut/commit/733e4af2663a11a5ae1d3698293e23e241f5e17c)) by @bchatard
+
+- *(app)* Collapse buildGenerator to native-only, delete usesNative - ([eec5e62](https://github.com/adaouat/heraut/commit/eec5e62323f29cd8d79fe6d53ee3053ca75d42e0)) by @bchatard
+
+- *(config)* Drop generator-required/enum validation - ([4bc1448](https://github.com/adaouat/heraut/commit/4bc14484f59ce9e7ff5b82c247af82ca9a76fbe1)) by @bchatard
+
+- *(config)* Drop template/tickets/rendering generator gates - ([11c2336](https://github.com/adaouat/heraut/commit/11c2336fdc2878b6a52ee9bba113bff320fe0f7e)) by @bchatard
+
+- *(config)* Drop MergeContentDriver's generator-switch branch - ([b1643d6](https://github.com/adaouat/heraut/commit/b1643d6ee1fd92fc4ace36fb92f28f4632b35c8a)) by @bchatard
+
+- *(config)* Delete gitcliff/communique packages and ContentDriver.Generator/.Config fields - ([3c82886](https://github.com/adaouat/heraut/commit/3c82886f9d00ce4aad643ee315280fa4e9c208e6)) by @bchatard
+
+- *(generators)* Delete gitcliff/communique packages (T188) - ([3636186](https://github.com/adaouat/heraut/commit/3636186b09f08b89064b507f7332a65dfb0845bc)) by @bchatard
+
+- *(port,app,config,pipeline,platforms)* Drop git-cliff leftovers from final review - ([31d164f](https://github.com/adaouat/heraut/commit/31d164f3675d031a8e12d15add7e91ab89ee2dc2)) by @bchatard
+
+- *(scaffold)* Replace decorative generator selects with confirms - ([49308cd](https://github.com/adaouat/heraut/commit/49308cd856c19b0a3e0bda5eb0efd295bbff15ac)) by @bchatard
+
+- *(scaffold)* Rename Answers.RemoteMetadata to EnrichmentPolicy - ([5dc546e](https://github.com/adaouat/heraut/commit/5dc546e1482356edef1e84dd4b5f36dd6c606add)) by @bchatard
+
+- *(scaffold)* Unify platform-snapshot-matching into one lookup - ([2ba6942](https://github.com/adaouat/heraut/commit/2ba69420e34af85c3607cc302f7724f4b74f53b9)) by @bchatard
+
+
+### 📚 Documentation
+
+- *(adr)* Add ADR-0045, native as heraut's sole content generator - ([ab268eb](https://github.com/adaouat/heraut/commit/ab268eb40f256d60d67108ff4bb79ba09951e37a)) by @bchatard
+
+- *(adr)* Drop git-cliff/communique from ADR-0016's bundled-CLI inventory - ([b355617](https://github.com/adaouat/heraut/commit/b3556172f90d9f6f034f46e5794eeb5a594f0b63)) by @bchatard
+
+- *(ci)* Fix stale git-cliff attribution in release.yml comments - ([59beeac](https://github.com/adaouat/heraut/commit/59beeac935246a8b7f667772e4503eb2ace452bc)) by @bchatard
+
+- *(claude,specs,adr)* Drop git-cliff leftovers from final review - ([dc0861f](https://github.com/adaouat/heraut/commit/dc0861fca1080a69ea4b5f882ba7a4dc818462cc)) by @bchatard
+
+- *(cmd)* Fix CLAUDE.md staleness left by heraut cliff/check cliff removal - ([8b74989](https://github.com/adaouat/heraut/commit/8b7498979c21967f9b328449beaa54740a98e330)) by @bchatard
+
+- *(generators/gitcliff)* Document required policy's forge-resolution gap - ([c229863](https://github.com/adaouat/heraut/commit/c2298631e6768b4da9940103d8dadfb9d9d4f6cb)) by @bchatard
+
+- *(guides)* Fix broken git-cliff example in mobile-ci-tagging guide - ([90053b2](https://github.com/adaouat/heraut/commit/90053b2b959a165dd3c723cc26efd4e66b154545)) by @bchatard
+
+- *(plans)* P3 — publishing via release.targets (T163) - ([126a35d](https://github.com/adaouat/heraut/commit/126a35daf5e57ba3c30f00fd1674eb22631293b3)) by @bchatard
+
+- *(plans)* Forge hardening — user-facing fixes (T169–T173) - ([72461c6](https://github.com/adaouat/heraut/commit/72461c686b4a4b0b96b9231494b33d5754d7a5d5)) by @bchatard
+
+- *(plans)* Add native-only-generator Phase B implementation plan - ([208eba7](https://github.com/adaouat/heraut/commit/208eba77126d80ba511bc4ac0aaea6cd90b001e4)) by @bchatard
+
+- *(plans)* Add Phase C implementation plan (T195-T202) - ([8d6f607](https://github.com/adaouat/heraut/commit/8d6f607db1d21a4ef9a5c15cf7115e13865147e7)) by @bchatard
+
+- *(port)* Mark Forge's link methods as reserved surface, drop dead lc param - ([e74ef87](https://github.com/adaouat/heraut/commit/e74ef8783bf65d5c89fa897e94162bf2bd461009)) by @bchatard
+
+- *(readme)* Fix versioning.prefix -> tag_prefix in the quickstart - ([b42516f](https://github.com/adaouat/heraut/commit/b42516f3fc8a82143f2c7b579b2f8aa473f9872b)) by @bchatard
+
+- *(readme)* Drop git-cliff/communique, native is heraut's sole generator - ([c4cf2d8](https://github.com/adaouat/heraut/commit/c4cf2d8b330d7b215c910585732db6b8ed654a84)) by @bchatard
+
+- *(roadmap)* Log T171-T173 from P3's final review - ([de6d293](https://github.com/adaouat/heraut/commit/de6d293e63463d3c9fab9ed4300863a11ea3d776)) by @bchatard
+
+- *(roadmap)* Log T174 — required policy unenforced for git-cliff - ([1b2f56a](https://github.com/adaouat/heraut/commit/1b2f56a97cd67e146f0af8e0c9c55256744da10d)) by @bchatard
+
+- *(roadmap)* Log T175/T176 from the hardening final review - ([7ca0450](https://github.com/adaouat/heraut/commit/7ca0450edf328086bc8a5278bc2389d8e6ff3a2e)) by @bchatard
+
+- *(roadmap)* Open Phase 2.5 — remove the git-cliff package - ([f0836b6](https://github.com/adaouat/heraut/commit/f0836b6f2ac1484c657420c368a2eb5fc38eb818)) by @bchatard
+
+- *(roadmap)* Close out Phase A with final-review findings + Phase B scope - ([79fbd73](https://github.com/adaouat/heraut/commit/79fbd73b1686d6e5f28eb9d660a9d6ff835e37be)) by @bchatard
+
+- *(roadmap)* Mark T185 complete (buildGenerator collapse) - ([739405e](https://github.com/adaouat/heraut/commit/739405e64822c8ae99d8e52c56c442c17c8c87c3)) by @bchatard
+
+- *(roadmap)* Mark T186 complete (delete heraut cliff command) - ([11eb39c](https://github.com/adaouat/heraut/commit/11eb39cb33e27c22a39b9ce5df79e0fd233fe0d2)) by @bchatard
+
+- *(roadmap)* Mark T187 complete (delete heraut check cliff) - ([f6383c1](https://github.com/adaouat/heraut/commit/f6383c17e8f7362b8b3e7a487e3464b63f2fd08e)) by @bchatard
+
+- *(roadmap)* Mark T188 complete (delete gitcliff/communique packages) - ([efa50aa](https://github.com/adaouat/heraut/commit/efa50aad0161020f2c56c9924089b06af96638fb)) by @bchatard
+
+- *(roadmap)* Mark T189 complete (remove smoke-test docs) - ([8a13517](https://github.com/adaouat/heraut/commit/8a13517d543a46ae3042f3685afc51a756521828)) by @bchatard
+
+- *(roadmap)* Mark T190 complete (rewrite README.md) - ([56baefb](https://github.com/adaouat/heraut/commit/56baefbb6195c21f36c8ecb298c0404e50308861)) by @bchatard
+
+- *(roadmap)* Mark T191 complete (rewrite specs/02 table) - ([0393ff5](https://github.com/adaouat/heraut/commit/0393ff58b7273dedbf43701a72f59c44922cb6b6)) by @bchatard
+
+- *(roadmap)* Mark T192 complete (rewrite specs/05) - ([463e2ab](https://github.com/adaouat/heraut/commit/463e2ab7e8a359e2c910b9c32b4157bfa58734cb)) by @bchatard
+
+- *(roadmap)* Drop git-cliff/communique from the build-roadmap intro line - ([5fc4522](https://github.com/adaouat/heraut/commit/5fc45222f6e1bf37cc8e08d973cc51f1eef9846b)) by @bchatard
+
+- *(roadmap)* Mark T193 complete (roadmap.md intro line) - ([eb7f292](https://github.com/adaouat/heraut/commit/eb7f292e782eefa7d9ac863b92781751e7db7fc4)) by @bchatard
+
+- *(roadmap)* Mark T194 complete, close out Phase B (native-only-generator epic) - ([a2d06d5](https://github.com/adaouat/heraut/commit/a2d06d5ff1782dbaa4406149619776adac64508f)) by @bchatard
+
+- *(roadmap)* Close out Phase B with final-review outcome + Phase C scope note - ([e621910](https://github.com/adaouat/heraut/commit/e6219109c319f65405bc7b4888da966610ad1c47)) by @bchatard
+
+- *(roadmap)* Register Phase C tasks (T195-T202), point T164 at it - ([fda4fce](https://github.com/adaouat/heraut/commit/fda4fce58ec4c56d9cb195389cabc8fa37c2ed0e)) by @bchatard
+
+- *(roadmap)* Mark T203 done - ([d300857](https://github.com/adaouat/heraut/commit/d300857a41bb9283a3bb41263c3e265390a96399)) by @bchatard
+
+- *(roadmap)* File T204 to unify platform-snapshot-matching algorithms - ([29c37dd](https://github.com/adaouat/heraut/commit/29c37dd59d4440a82a0a784853c8a48e617c6c4b)) by @bchatard
+
+- *(roadmap)* Mark T204 done - ([af3d0e6](https://github.com/adaouat/heraut/commit/af3d0e6335e27bfc9cf782951b5f006683a9420d)) by @bchatard
+
+- *(roadmap)* File T205-T208 for Phase D infra housekeeping - ([16d0f5e](https://github.com/adaouat/heraut/commit/16d0f5e0063acc44eaf49c456685e06a81a56fca)) by @bchatard
+
+- *(roadmap)* Close out Phase D and the native-only-generator epic - ([54125ff](https://github.com/adaouat/heraut/commit/54125ff91565e59906d6b5a1564cbaa71cef7ca1)) by @bchatard
+
+- *(roadmap)* File T212 and correct Phase D's closing-summary overstatement - ([269f00d](https://github.com/adaouat/heraut/commit/269f00d5101b09780f462cc49d18f6d109ac9a0f)) by @bchatard
+
+- *(sample)* Drop generator:/config: from heraut.sample.yml and README - ([37a8bd5](https://github.com/adaouat/heraut/commit/37a8bd5e397e5c617250af754e8f80fd068fbe39)) by @bchatard
+
+- *(sample)* Fix broken tag_pattern comment nesting under release.notes - ([78b91be](https://github.com/adaouat/heraut/commit/78b91be0b9cf961aea74717994dcc6932a8ccce8)) by @bchatard
+
+- *(scaffold)* Fix stale test name, comments, and layer-rule table - ([a214151](https://github.com/adaouat/heraut/commit/a21415138766ad0fdd02e0351b10d453d74af8fb)) by @bchatard
+
+- *(specs)* Design P3 — publishing config unification (release.targets) - ([b5c1f31](https://github.com/adaouat/heraut/commit/b5c1f3110cfb4c4fdeaee39d021249e98ae71e30)) by @bchatard
+
+- *(specs)* Fix self-hosted auto-detection fallback chain claims - ([063564a](https://github.com/adaouat/heraut/commit/063564a3d316d1b3cfb952eda9bfb191da6a773a)) by @bchatard
+
+- *(specs)* Drop generator/config fields from Spec 02's content-generation table - ([1542d38](https://github.com/adaouat/heraut/commit/1542d380f42634fabcc32bd51210a158ecc8556c)) by @bchatard
+
+- *(specs)* Fix stale generator: naming-convention example in Spec 02 - ([bd9ac7b](https://github.com/adaouat/heraut/commit/bd9ac7b47f85f56c5290e3154dc87816b634d8b7)) by @bchatard
+
+- *(specs)* Rewrite Spec 05 for native as heraut's sole generator - ([e65dac9](https://github.com/adaouat/heraut/commit/e65dac9a7ac67039088d54a587d06d7ef69f24db)) by @bchatard
+
+- *(specs)* Fix heading-depth inconsistency under Spec 05's native section - ([00cc496](https://github.com/adaouat/heraut/commit/00cc4967bc008e538e5e80e6e2f2727cadd5f77a)) by @bchatard
+
+- *(specs)* Add Phase C wizard design (native-only-generator epic) - ([8ebb385](https://github.com/adaouat/heraut/commit/8ebb385d4f0d6cedf6ac704fd7ad876f827898b3)) by @bchatard
+
+- *(specs)* Correct Phase C spec — keep the first-forge fallback - ([0bbf6d4](https://github.com/adaouat/heraut/commit/0bbf6d48cf61cf7d4ade3c9488a38092de69533b)) by @bchatard
+
+- *(specs)* Correct Phase C spec — keep parseRemoteProject too - ([285f81f](https://github.com/adaouat/heraut/commit/285f81ffc222bdc6f38e8dc556d7cb78462cff60)) by @bchatard
+
+- *(specs)* Correct Phase C spec — no forced default-seeding - ([2851654](https://github.com/adaouat/heraut/commit/2851654cae50e15f5011a57ebecf1d23fefa4888)) by @bchatard
+
+- *(specs)* Drop heraut cliff / git-cliff / communique from specs 01, 03, README - ([73164ee](https://github.com/adaouat/heraut/commit/73164ee6bb71cc05aaa9a532aa97a921c3a7984c)) by @bchatard
+
+- *(specs)* Drop the last generator: native keys from spec 05's examples - ([1ba7a6e](https://github.com/adaouat/heraut/commit/1ba7a6e30190323b2b8de4e2a34f4535eaa97748)) by @bchatard
+
+- *(superpowers)* Design — drop git-cliff and communique, native only - ([6eca7cb](https://github.com/adaouat/heraut/commit/6eca7cbeb0db96ee7d27dde197ab0cedd6610782)) by @bchatard
+
+- *(superpowers)* Implementation plan for Phase A config cutover - ([f526dd9](https://github.com/adaouat/heraut/commit/f526dd9211ba9676edf353303b447e04b72eb1a4)) by @bchatard
+
+- *(superpowers)* Amend Phase A plan — split T178 into 2a/2b - ([cd6158a](https://github.com/adaouat/heraut/commit/cd6158ad904ff9cb012ea14e73946b4835a37b86)) by @bchatard
+
+- *(superpowers)* Amend Phase A plan — add T178c for internal/scaffold - ([d2de63b](https://github.com/adaouat/heraut/commit/d2de63ba09bba4132a622924e8b1e072d78bcd2b)) by @bchatard
+
+- *(superpowers)* Amend Phase A plan — Task 2a's own scope surfaced 3 more gaps - ([6deb79d](https://github.com/adaouat/heraut/commit/6deb79d0d0441737e89269242a6a9b7702947165)) by @bchatard
+
+- *(superpowers)* Amend Phase A plan — Task 2b found a T179 dependency + a second fixture copy - ([7b46616](https://github.com/adaouat/heraut/commit/7b46616fe1d98d012a3697bb003aa2d3590d5c90)) by @bchatard
+
+- *(superpowers)* Amend Phase A plan — T178c's own test needs one fix - ([8e9a2a0](https://github.com/adaouat/heraut/commit/8e9a2a0829c85a82236884f1f6d8aa605cd08f3f)) by @bchatard
+
+- *(testing)* Drop the git-cliff real-CLI smoke-test exception - ([2952385](https://github.com/adaouat/heraut/commit/29523850dc25d97fedf09be3f72adf805e664c68)) by @bchatard
+
+- Migrate release.platforms references to forges/release.targets - ([edf9054](https://github.com/adaouat/heraut/commit/edf905402a2435402c301862874c90df4e0416df)) by @bchatard
+
+- Fix sample.yml indentation drift and document zero-config GH_TOKEN need (I6, I5) - ([003723e](https://github.com/adaouat/heraut/commit/003723e2403024558c7e09042060e3bab50c13f9)) by @bchatard
+
+- Document self-hosted enrichment requirement and fix ADR drift (T169) - ([04a40f4](https://github.com/adaouat/heraut/commit/04a40f403af9e02b4728728b2362dfbc0dd38ce6)) by @bchatard
+
+- Correct Degraded() claim in T169's self-hosted enrichment note - ([d10581f](https://github.com/adaouat/heraut/commit/d10581f61b3cce191074c76492fe1fbce130b1d6)) by @bchatard
+
+- Scope T169 enrichment claims per generator, fix stale glab transport - ([1d5c1d1](https://github.com/adaouat/heraut/commit/1d5c1d17d08e3c649ff11b222afff919fed16eab)) by @bchatard
+
+
+### 🧪 Testing
+
+- *(app)* Cover the forges-configured half of the check warn/error rule (T172) - ([66bb1bd](https://github.com/adaouat/heraut/commit/66bb1bd52e7a387b5d96fb10278dce4742ed734a)) by @bchatard
+
+- *(cmd)* Fix collateral damage from the generator:/config: cutover - ([149a2b0](https://github.com/adaouat/heraut/commit/149a2b0ab34f4923494cd77c59ce91445bd44714)) by @bchatard
+
+- *(config)* Tighten two migration/validator assertions - ([e13b620](https://github.com/adaouat/heraut/commit/e13b6204c4cf19ba4d81e9dbc353e84d740f804b)) by @bchatard
+
+- *(config)* Fix collateral damage from the generator:/config: cutover - ([3018320](https://github.com/adaouat/heraut/commit/3018320064569c1918485e48403134c698ca6186)) by @bchatard
+
+- *(config)* Guard docs/heraut.sample.yml against nil changelog/notes - ([40bbe31](https://github.com/adaouat/heraut/commit/40bbe31e1f69bb025c0e10ee22ba92b5498eb41d)) by @bchatard
+
+- *(scaffold)* Add regression test for publish-decline platform clearing - ([4a120ec](https://github.com/adaouat/heraut/commit/4a120ec8c3c28e4b27cfbc026a8d548b32817d28)) by @bchatard
+
+
+### ⚙️ Miscellaneous Tasks
+
+- *(docker)* Drop git-cliff/communique from the bundled image - ([6281cdf](https://github.com/adaouat/heraut/commit/6281cdf70f64947709ea10482fdaab714bb1c87e)) by @bchatard
+
+- *(mise)* Drop the git-cliff dev-toolchain pin - ([d65d6bc](https://github.com/adaouat/heraut/commit/d65d6bc8e6be006286dde41c0d14be02434b2d7f)) by @bchatard
+
+- *(renovate)* Drop orphaned git-cliff/communique custom managers - ([6f3f1cf](https://github.com/adaouat/heraut/commit/6f3f1cff30c96188f685c2f55c02b7f2cb494f6d)) by @bchatard
+
+- *(scaffold)* Delete dead git-cliff scaffold helper - ([472fa07](https://github.com/adaouat/heraut/commit/472fa076e2b0a8a98d59df6ff89701fe5f4dc282)) by @bchatard
+
+
+### 💼 Other
+
+- *(deps)* Drop go-toml/v2, orphaned since the gitcliff generator's removal - ([cbf15a9](https://github.com/adaouat/heraut/commit/cbf15a9e7a6cb415d57443efd8b266a95358448d)) by @bchatard
+
+- *(deps)* Bump forge to v0.17.3 - ([4821c90](https://github.com/adaouat/heraut/commit/4821c908eabb3c03415d132641f75ad69e966b9a)) by @bchatard
+
 <!-- heraut-release: v0.56.0 -->
 ## [0.56.0](https://github.com/adaouat/heraut/compare/v0.55.0..v0.56.0) - 2026-07-27
 
