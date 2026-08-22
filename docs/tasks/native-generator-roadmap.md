@@ -40,7 +40,7 @@ no longer a parity target — heraut's rendering is its own spec, validated by g
 | Phase 2.10 — commit-author attribution (ADR-0039)    | T151 (follow-up)       | Complete — GitHub, GitLab, Azure |
 | Phase 2.5 — remove the git-cliff package (own ADR)   | T177–T194              | Done        |
 | Phase C — wizard simplification (supersedes T164)    | T195–T202              | Done        |
-| Phase D — infra housekeeping (Dockerfile / mise / ADR-0016) | T205–T208       | Active      |
+| Phase D — infra housekeeping (Dockerfile / mise / ADR-0016) | T205–T208       | Done        |
 | Phase 3 — raw-HTTP clients (drop `gh` / `glab`)       | —                      | Deferred    |
 
 ---
@@ -1470,6 +1470,43 @@ snapshot), plus a new `TestMatchPlatformSnapshot_InterleavedTypes` case combinin
 type with an interleaved different-type entry — the scenario T203's review flagged as untested by
 either prior suite. Net diff: +87/-119 lines. Full suite + `hk check` clean.
 
+#### `[ ]` T209: stale git-cliff comments in `.github/workflows/release.yml`
+
+Two comments (~lines 86, 96) explain why `GITHUB_TOKEN` is set for "git-cliff's PR-metadata
+API auth" — stale since native (heraut's sole generator as of ADR-0045) never shells out to
+git-cliff; its own enrichment (`internal/generators/native/enrich_github.go`) reads the same
+token directly. `GITHUB_TOKEN` itself likely still needs to stay set (native's enrichment
+almost certainly still wants it) — this is a comment-accuracy fix, not a behavior change, but
+touching `.github/workflows/release.yml` needs explicit user confirmation per
+`.claude/rules/claude.md`'s CI/CD-modification rule, so it wasn't done inline during Phase D
+(discovered by T208's repo-wide sweep, out of that task's own scope). **Scope:** S.
+
+#### `[ ]` T210: orphaned git-cliff/communique custom managers in `.github/renovate.json`
+
+Two Renovate custom regex managers (lines ~38–39, ~59–60) scan `Dockerfile` for `ARG
+GIT_CLIFF_VERSION=`/`ARG COMMUNIQUE_VERSION=` to drive automated version-bump PRs for
+`orhun/git-cliff` and `jdx/communique`. T205 deleted both ARGs from the Dockerfile, so neither
+`matchStrings` pattern matches anything anymore — the managers don't error, they just silently
+produce zero PRs for dependencies that no longer exist in the image, dead configuration left
+behind by the Dockerfile edit. `.github/renovate.json` is CI/CD-adjacent automation config;
+touching it needs explicit user confirmation per `.claude/rules/claude.md`'s CI/CD-modification
+rule, the same treatment as T209, so it wasn't done inline during Phase D (discovered by T208's
+repo-wide sweep, out of that task's own scope). **Scope:** S.
+
+#### `[ ]` T211: broken `generator: git-cliff` example in `docs/guides/mobile-ci-tagging.md`
+
+The guide's example config (~line 32) sets `generator: git-cliff` and its surrounding comment
+(~line 33) and prose (~lines 92, 104–106) describe git-cliff-specific behavior ("heraut's
+embedded git-cliff config already handles build-id tags"). Since T177 (Phase 2.5) made the
+`generator:`/`config:` keys load-time errors and ADR-0045 made `native` heraut's sole generator,
+this example is no longer just stale narration — it is an **actively broken config** a reader
+would hit a load error copying verbatim, and the prose no longer matches which generator does
+the work. Unlike T209/T210, this file isn't CI/CD-adjacent and the fix itself is small and
+docs-only, but it wasn't on Phase D's task list at all — it surfaced only from T208's general
+repo-wide sweep, not from any file Phase D's own tasks were already touching. Per
+`.claude/rules/claude.md`'s roadmap discipline ("never implement anything not on the current
+roadmap without asking first"), it is filed here rather than fixed inline. **Scope:** S.
+
 ---
 
 ## Phase D — Infra housekeeping (Dockerfile / mise / ADR-0016)
@@ -1566,7 +1603,7 @@ against the task brief's "Expected: no output" for that check, not treated as a 
 with a file argument on the installed hk version, so it ran without `--all`, which is
 equivalent for a single explicit file).
 
-#### `[ ]` T208: final sweep, verification, and phase close-out
+#### `[x]` T208: final sweep, verification, and phase close-out
 
 Repo-wide grep sweep for any remaining `git-cliff`/`communique` reference this phase should
 have caught, full `go build`/`go test`/`hk check` regression pass, a final real `docker build`
@@ -1574,6 +1611,46 @@ have caught, full `go build`/`go test`/`hk check` regression pass, a final real 
 
 **Files:** `docs/tasks/native-generator-roadmap.md` (+ read-only checks across the repo).
 **Scope:** S. **Dependencies:** T205, T206, T207.
+
+Ran the exact repo-wide sweep the plan specifies; it found far more than the two hits the
+brief enumerated — 675 lines across 65 files, not 2. Investigated rather than assumed: ~63 of
+those files are historical ADRs (0001–0040, beyond the three the brief named by example),
+specs, earlier-phase `docs/superpowers/*` plans/specs, the two main historical roadmaps
+(`docs/tasks/roadmap.md`, `docs/tasks/forge-abstraction-roadmap.md`), and seven production-code
+comment/test files — all accurate past-tense or comparative narration, the same category the
+brief already carved out for ADR-0010/0028/0045/CHANGELOG.md, just under-enumerated rather than
+wrong. The remaining two were genuine, non-historical staleness the brief hadn't anticipated:
+`.github/renovate.json`'s two orphaned custom regex managers (dead since T205 removed the ARGs
+they matched) and `docs/guides/mobile-ci-tagging.md`'s broken `generator: git-cliff` example
+(invalid since T177/ADR-0045). Both were filed as new follow-ups (T210, T211) rather than fixed
+inline, alongside the originally-expected T209. `go build ./...`, `go test ./... -count=1`, and
+`hk check` all passed clean. A final `docker build` + smoke test confirmed the version banner,
+`gh`/`glab`/`git` versions, and `/usr/local/bin` containing exactly `gh`, `glab`, `heraut`; the
+diagnostic image was removed after verification.
+
+---
+
+**Phase D is done — this closes out the native-only-generator epic's last remaining phase.**
+All 4 tasks (T205–T208) landed on `main`. `git-cliff` and `communique` are now gone from
+every layer: no package (Phase A/B), no wizard option (Phase C), no config field (Phase A),
+and now no Docker image bundling and no dev-toolchain pin (Phase D). A real `docker build`
+verified the final image works end-to-end with just `heraut`, `gh`, and `glab` — down from
+334MB to 307MB locally. T208's repo-wide sweep surfaced a broader set of remaining
+`git-cliff`/`communique` mentions than the plan's exclusion list enumerated by name (675 lines
+across 65 files, not the 2 originally called out) — all but two confirmed as accurate historical
+or comparative narration (older ADRs, specs, the main `docs/tasks/roadmap.md` /
+`forge-abstraction-roadmap.md`, and pre-existing code comments/tests), the same category the
+brief already carved out for ADR-0010/0028/0045/CHANGELOG.md, just under-enumerated rather than
+wrong. Three genuinely discovered-but-deferred items were filed rather than fixed inline: T209
+(a stale git-cliff comment pair in `.github/workflows/release.yml`), T210 (two orphaned
+git-cliff/communique custom managers in `.github/renovate.json`, dead since T205 removed the
+Dockerfile ARGs they matched), and T211 (a broken `generator: git-cliff` example in
+`docs/guides/mobile-ci-tagging.md`, invalid since Phase 2.5/ADR-0045). T209 and T210 are
+CI/CD-adjacent and need explicit user confirmation before touching; T211 is docs-only but wasn't
+on this phase's task list, so per `.claude/rules/claude.md`'s roadmap discipline it was filed
+rather than fixed inline too. The only remaining item in this epic's roadmap is Phase 3
+(raw-HTTP platform clients, replacing `gh`/`glab` — explicitly deferred behind its own future
+ADR, not scheduled).
 
 ---
 
