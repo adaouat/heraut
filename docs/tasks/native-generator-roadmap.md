@@ -1540,7 +1540,7 @@ output, exit 1) and `mise install --locked` (no error mentioning `git-cliff`; th
 errors were pre-existing `claude`/`rtk` resolution failures from the user's global mise
 config outside this repo, explicitly out of scope per the task brief).
 
-#### `[ ]` T207: `docs/adr/0016-bundled-docker-image.md` — update the bundled-CLI inventory
+#### `[x]` T207: `docs/adr/0016-bundled-docker-image.md` — update the bundled-CLI inventory
 
 Update the bundled-CLI table and surrounding prose (tool-orchestration list, Decision bullet,
 table, base-image-choice rationale, Consequences' version-isolation and image-size examples)
@@ -1549,6 +1549,22 @@ table is a living inventory, not a frozen historical record.
 
 **Files:** `docs/adr/0016-bundled-docker-image.md`.
 **Scope:** S. **Dependencies:** T205 (cites its verification findings).
+
+Updated the Context tool-orchestration list, the Decision bullet's base-image line, the
+bundled-tool-versions table (now just `glab`/`gh`), the "Base image choice" section, and the
+Consequences' "Version isolation" and "Image size" paragraphs, using the plan's exact
+replacement text. The rewritten "Base image choice" section and "Image size" paragraph both
+retain historical mentions of `git-cliff`/`communique` by name — narrating *why* they no
+longer bear on the base-image decision and citing the measured size drop from removing them,
+per ADR-0045. This is narrative, not inventory: it follows the same pattern as other historical
+ADRs that mention removed tools in passing, distinct from ADR-0028's living-inventory
+precedent, which applies specifically to the bundled-tool-versions *table* (now clean of both
+tools). `grep -n "git-cliff\|communique" docs/adr/0016-bundled-docker-image.md` therefore still
+matches 4 lines, all inside this intentional historical narration — flagged as a discrepancy
+against the task brief's "Expected: no output" for that check, not treated as a defect.
+`hk check docs/adr/0016-bundled-docker-image.md` passed clean (`--all` couldn't be combined
+with a file argument on the installed hk version, so it ran without `--all`, which is
+equivalent for a single explicit file).
 
 #### `[ ]` T208: final sweep, verification, and phase close-out
 

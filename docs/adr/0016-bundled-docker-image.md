@@ -11,7 +11,7 @@
 ADR-0013 established raw binaries as the primary distribution format. GoReleaser was
 also configured to push a minimal Alpine container image to GHCR — just `ca-certificates`
 and the heraut binary. That image cannot actually run a release: heraut orchestrates
-`git`, `git-cliff`, `gh`, `glab`, and `communique`, none of which are present.
+`git`, `gh`, and `glab`, none of which are present.
 
 The thin image has no value over `go install` or downloading the raw binary. Its only
 realistic use case — running heraut in a container-based CI job — fails immediately
@@ -25,8 +25,8 @@ all tools heraut needs to run a full release. This image:
 - Builds heraut from source in a dedicated builder stage (same ldflags as ADR-0013).
 - Installs all external CLIs at pinned versions via a `mise`-based stage, then copies
   the plain binaries into the final image (no mise runtime in production).
-- Uses `debian:trixie-slim` as the final base to satisfy the glibc requirements of
-  dynamically-linked tools (`gh`, `glab`, `communique`).
+- Uses `debian:trixie-slim` as the final base — `git`/`ca-certificates` come from `apt`,
+  which requires a glibc-based distro (see "Base image choice" below).
 - Is built and pushed by its own steps in the release workflow using
   `docker/build-push-action` + `docker/metadata-action`, **not** by GoReleaser. The
   `dockers:` block in `.goreleaser.yml` is removed; `Dockerfile.goreleaser` is deleted.
@@ -35,10 +35,8 @@ all tools heraut needs to run a full release. This image:
 
 | Tool          | Version     | Source                        |
 |---------------|-------------|-------------------------------|
-| git-cliff     | `2.13.1`    | `.config/mise/config.toml`    |
 | glab          | `1.99.0`    | chosen for image              |
 | gh            | `2.92.0`    | chosen for image              |
-| communique    | `1.1.3`     | chosen for image              |
 
 `git` and `ca-certificates` are installed via `apt` from the Debian package index (no
 version pin; they track the Debian stable release for the chosen base).
@@ -64,11 +62,15 @@ move them (handled automatically by `metadata-action`'s `is_default_branch` cond
 
 ### Base image choice: debian:trixie-slim over alpine
 
-`gh`, `glab`, and `communique` ship dynamically-linked glibc binaries; they do not
-provide musl builds. Alpine (musl libc) would require either static builds (not
-available for all tools) or a compatibility shim (added complexity, fragile). Debian
-trixie-slim (glibc 2.40+) is the simplest compatible base. The `golang:trixie` builder
-stage is kept consistent with the final image to avoid glibc version surprises.
+`git` and `ca-certificates` come from Debian's `apt` package index, which requires a
+glibc-based distro — moving to Alpine (musl libc) would mean replacing `apt` with `apk`,
+a larger change than this ADR's scope. The bundled CLI binaries impose no glibc
+requirement of their own: `gh` and `glab` are statically-linked Go binaries, confirmed by
+running `file` against the tools stage's output. `communique`, removed along with
+`git-cliff` in [ADR-0045](0045-native-sole-generator.md), was the one dynamically-linked,
+glibc-only binary in the original lineup — `git-cliff` was a static musl build, so it
+never actually drove this choice. The `golang:trixie` builder stage is kept consistent
+with this base to avoid glibc version surprises.
 
 ## Consequences
 
@@ -77,7 +79,7 @@ stage is kept consistent with the final image to avoid glibc version surprises.
 without any setup — all required tools are present at known versions.
 
 **Version isolation.**  
-Tool versions are pinned as Dockerfile ARGs. Upgrading git-cliff means bumping one
+Tool versions are pinned as Dockerfile ARGs. Upgrading gh or glab means bumping one
 line; the change is reviewable and trackable in git history.
 
 **GoReleaser scope reduced.**  
@@ -85,9 +87,11 @@ GoReleaser now handles only binary builds and GitHub Release creation. Container
 publishing is fully decoupled from the binary release pipeline.
 
 **Image size.**  
-The image is larger than the previous thin image. This is intentional and unavoidable —
-bundling five CLIs costs ~200–400 MB depending on compression. Users who only want the
-binary use the raw binary (ADR-0013).
+The image is larger than the previous thin image. Dropping `git-cliff` and `communique`
+(ADR-0045) shrank it somewhat: a local `arm64` build went from 334MB to 307MB (`docker
+images`, uncompressed layer size) after this cleanup. The remaining weight is the Debian
+base plus `gh`/`glab` themselves, both kept for publishing (ADR-0044). Users who only
+want the binary use the raw binary (ADR-0013).
 
 **Tool update lag.**  
 Pinned versions mean the image may lag behind the latest patch releases of bundled
