@@ -132,8 +132,11 @@ func oldestCommitDate(commits []port.Commit) time.Time {
 
 // enrichGraphQL resolves linked commit-author handles and MR refs via two paginated, release-window
 // bounded queries. It requires a personal/project access token: GitLab rejects job tokens on
-// GraphQL outright, so the guard trips before any request is issued.
-func (f *Forge) enrichGraphQL(commits []port.Commit) (port.Enrichment, error) {
+// GraphQL outright, so the guard trips before any request is issued. ref anchors the
+// commits(ref:) walk to the release window's true range tip — the caller resolves it (a tag name,
+// or a commit SHA for the unreleased section), rather than this function guessing it from commit
+// dates, which breaks under rewritten committer dates (rebase/amend/cherry-pick — T153).
+func (f *Forge) enrichGraphQL(commits []port.Commit, ref string) (port.Enrichment, error) {
 	if f.id.TokenKind == port.TokenJob {
 		return port.Enrichment{}, fmt.Errorf(
 			"%w; set api_mode: rest, or supply a read_api token via token_env", ErrJobTokenGraphQL)
@@ -152,7 +155,7 @@ func (f *Forge) enrichGraphQL(commits []port.Commit) (port.Enrichment, error) {
 		since = oldest.Add(-time.Minute).UTC().Format(time.RFC3339)
 	}
 
-	authors, err := f.fetchGraphQLAuthors(newestHash(commits), since, want)
+	authors, err := f.fetchGraphQLAuthors(ref, since, want)
 	if err != nil {
 		return port.Enrichment{}, err
 	}
@@ -299,15 +302,4 @@ func landingSHAs(n gqlMR) []string {
 		shas = append(shas, c.SHA)
 	}
 	return shas
-}
-
-// newestHash returns the hash of the newest-dated commit — the commits(ref:) anchor.
-func newestHash(commits []port.Commit) string {
-	var newest port.Commit
-	for _, c := range commits {
-		if newest.Date.IsZero() || c.Date.After(newest.Date) {
-			newest = c
-		}
-	}
-	return newest.Hash
 }

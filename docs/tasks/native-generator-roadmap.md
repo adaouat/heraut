@@ -921,7 +921,7 @@ contributor's first PR/MR (unchanged by [ADR-0039](../adr/0039-commit-author-att
 the design spec's "out of scope" section), so the map could, as a further extension, also drive
 first-timer credit for direct-commit contributors — noted here, not scheduled.
 
-#### `[ ]` T153: GitLab enrichment ref-anchor — use the topological range tip
+#### `[x]` T153: GitLab enrichment ref-anchor — use the topological range tip
 
 `enrichGitLab` anchors its `commits(ref:)` query on `newestSHA(commits)` — the commit with the
 newest committer date (`%cI`). `collectCommits` runs `git log --reverse` with git's default date
@@ -934,6 +934,31 @@ section, the HEAD commit SHA for the unreleased section (the new tag isn't on th
 through `enrichForRelease` → `enrich`; alternatively `--topo-order` in `collectCommits` would make
 `commits[len-1]` the true tip but reorders output for every consumer (golden-snapshot impact), so
 it needs its own review. **Scope:** S–M. **Dependencies:** T150.
+
+**Completion note (2026-08-24):** The task predates the forge-abstraction epic (Phase 24):
+`enrichGitLab`/`newestSHA` no longer exist — the GraphQL walk lives in
+`internal/forge/gitlab/graphql.go`'s `enrichGraphQL`/`fetchGraphQLAuthors` behind `port.Forge`.
+Implemented the "precise fix" branch: `port.Forge.Enrich` gained a `ref string` parameter (the
+git-resolvable range tip — a tag name, or a commit SHA), threaded from
+`native.renderRelease`/`generateReleaseNotes` through `enrichForRelease` → `enrich` →
+`forge.Enrich`. GitHub and Azure ignore it (their enrichment is per-commit, not ref-anchored);
+GitLab's REST path also ignores it (same reason) — only GraphQL's `commits(ref:)` walk consumes
+it, replacing the removed `newestHash(commits)` guess. For the unreleased section the caller
+passes the literal `"HEAD"`; `native.resolveEnrichRef` resolves it to the real SHA via `git
+rev-parse HEAD` (a remote forge API doesn't understand the local "HEAD" shorthand), lazily — only
+when a forge is actually configured and about to be called, so the vast majority of tests (no
+forge injected) never see the extra git call. For `generateReleaseNotes`, `tag` is used directly:
+by the time release notes render, the pipeline has already created and pushed the tag (verified
+against `internal/pipeline/release.go`'s step ordering), so no resolution is needed there. The
+`--topo-order` alternative was not pursued, per the task's own note about golden-snapshot impact
+across every consumer. New regression test:
+`TestEnrichGraphQL_AnchorsOnCallerSuppliedRef_NotNewestCommitDate` in
+`internal/forge/gitlab/graphql_test.go`, verified red (asserted, then reverted the fix locally to
+confirm the test fails against the old newest-commit-date guess, then restored) before going
+green. `TestGenerate_Enrich_ChangelogEnrichesOnlyNewRelease` gained an assertion that the resolved
+HEAD SHA (not "HEAD" itself) reaches the injected forge. `port.Forge`'s three implementations plus
+their contract tests were updated for the new signature (mechanical — placeholder ref values where
+unused). No behavior change for GitHub, Azure, or GitLab REST.
 
 #### `[x]` T152: changelog.remote for native + base_url host override (ADR-0040)
 

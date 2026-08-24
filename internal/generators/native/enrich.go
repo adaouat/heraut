@@ -13,20 +13,36 @@ type enrichResult struct {
 }
 
 // enrich resolves PR/MR enrichment for commits via the injected port.Forge (ADR-0043), returning
-// an enrichResult. Returns a zero enrichResult when no forge is configured.
-func (g *Generator) enrich(commits []rawCommit) (enrichResult, error) {
+// an enrichResult. Returns a zero enrichResult when no forge is configured. ref is the
+// git-resolvable tip of the release window — a tag name, or the literal "HEAD" for the unreleased
+// section — passed on to the forge as the true range anchor (T153).
+func (g *Generator) enrich(commits []rawCommit, ref string) (enrichResult, error) {
 	if g.forge == nil {
 		return enrichResult{}, nil
+	}
+	resolvedRef, err := g.resolveEnrichRef(ref)
+	if err != nil {
+		return enrichResult{}, fmt.Errorf("resolving enrichment ref: %w", err)
 	}
 	pc := make([]port.Commit, 0, len(commits))
 	for _, c := range commits {
 		pc = append(pc, port.Commit{Hash: c.Hash, Author: c.Author, Email: c.Email, Date: c.Date})
 	}
-	en, err := g.forge.Enrich(pc)
+	en, err := g.forge.Enrich(pc, resolvedRef)
 	if err != nil {
 		return enrichResult{}, err
 	}
 	return enrichResult{prs: fromPortPRs(en.PRs), authors: en.Authors}, nil
+}
+
+// resolveEnrichRef resolves ref to a value a remote forge API can look up. "HEAD" is a local git
+// shorthand no forge understands, so it is resolved to the actual commit SHA via `git rev-parse
+// HEAD`; any other value (a tag name) is already forge-resolvable and returned unchanged (T153).
+func (g *Generator) resolveEnrichRef(ref string) (string, error) {
+	if ref != "HEAD" {
+		return ref, nil
+	}
+	return headSHA(g.runner)
 }
 
 // enrichForRelease applies the remote_metadata policy (ADR-0023 / ADR-0034 §6) around enrich:
@@ -36,8 +52,9 @@ func (g *Generator) enrich(commits []rawCommit) (enrichResult, error) {
 //     degraded, and warn once. Rendering then proceeds without PR attribution.
 //
 // No forge configured is not itself a failure — it simply yields no enrichment — except under
-// "required", where an unconfigured forge cannot satisfy the policy and is a hard error.
-func (g *Generator) enrichForRelease(commits []rawCommit) (enrichResult, error) {
+// "required", where an unconfigured forge cannot satisfy the policy and is a hard error. ref is
+// the release window's git-resolvable tip, forwarded to enrich (T153).
+func (g *Generator) enrichForRelease(commits []rawCommit, ref string) (enrichResult, error) {
 	if g.cfg.RemoteMetadata == "disabled" {
 		return enrichResult{}, nil
 	}
@@ -47,7 +64,7 @@ func (g *Generator) enrichForRelease(commits []rawCommit) (enrichResult, error) 
 	if required && g.forge == nil {
 		return enrichResult{}, fmt.Errorf("remote enrichment (required): no forge resolved to fetch PR/MR metadata from — configure a forges: entry, run in a supported CI environment, or use a recognised git origin")
 	}
-	er, err := g.enrich(commits)
+	er, err := g.enrich(commits, ref)
 	if err != nil {
 		if required {
 			return enrichResult{}, fmt.Errorf("remote enrichment (required): %w", err)

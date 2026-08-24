@@ -46,8 +46,9 @@ func (f *Forge) CompareURL(from, to string) string {
 }
 
 // Enrich resolves the pull request associated with each commit SHA plus a local commit-author
-// handle via one batched Azure DevOps pullrequestquery POST.
-func (f *Forge) Enrich(commits []port.Commit) (port.Enrichment, error) {
+// handle via one batched Azure DevOps pullrequestquery POST. ref is unused: Azure resolves
+// per-commit, not via a ref-anchored walk.
+func (f *Forge) Enrich(commits []port.Commit, _ string) (port.Enrichment, error) {
 	if len(commits) == 0 {
 		return port.Enrichment{PRs: map[string]port.PullRequest{}, Authors: map[string]string{}}, nil
 	}

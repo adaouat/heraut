@@ -145,7 +145,10 @@ func (g *Generator) generateReleaseNotes(tag string, lc *port.LinkContext) (stri
 	if err != nil {
 		return "", err
 	}
-	er, err := g.enrichForRelease(commits)
+	// tag is already a pushed ref by the time release notes are generated (the release pipeline
+	// tags and pushes before this step), so it anchors enrichment directly — no HEAD resolution
+	// needed (T153).
+	er, err := g.enrichForRelease(commits, tag)
 	if err != nil {
 		return "", err
 	}
@@ -188,7 +191,7 @@ func (g *Generator) buildAllSections(tag string, lc *port.LinkContext, enrichAll
 	if len(tags) > 0 {
 		latest = tags[0]
 	}
-	if sec, err := g.renderRelease(tag, latest, commitRange(latest, "HEAD"), lc, true); err != nil {
+	if sec, err := g.renderRelease(tag, latest, "HEAD", lc, true); err != nil {
 		return "", err
 	} else if sec != "" {
 		blocks = append(blocks, anchorLine(tag)+"\n"+sec)
@@ -202,7 +205,7 @@ func (g *Generator) buildAllSections(tag string, lc *port.LinkContext, enrichAll
 		if i+1 < len(tags) {
 			prev = tags[i+1]
 		}
-		if sec, err := g.renderRelease(t, prev, commitRange(prev, t), lc, enrichAll); err != nil {
+		if sec, err := g.renderRelease(t, prev, t, lc, enrichAll); err != nil {
 			return "", err
 		} else if sec != "" {
 			blocks = append(blocks, anchorLine(t)+"\n"+sec)
@@ -246,7 +249,7 @@ func (g *Generator) generateIncremental(tag string, lc *port.LinkContext) (strin
 	if len(tags) > 0 {
 		latest = tags[0]
 	}
-	newBody, err := g.renderRelease(tag, latest, commitRange(latest, "HEAD"), lc, true)
+	newBody, err := g.renderRelease(tag, latest, "HEAD", lc, true)
 	if err != nil {
 		return "", err
 	}
@@ -288,9 +291,11 @@ func (g *Generator) writeChangelog(body string) (string, error) {
 // renderRelease renders one changelog release section, or "" when the range has no
 // classifiable commits. enrichEnabled gates remote PR enrichment: only the unreleased (newest)
 // section is enriched, so a full changelog regeneration costs O(1) API calls rather than one
-// fetch per historical release (ADR-0034 §5).
-func (g *Generator) renderRelease(version, prev, rng string, lc *port.LinkContext, enrichEnabled bool) (string, error) {
-	commits, err := collectCommits(g.runner, rng)
+// fetch per historical release (ADR-0034 §5). tip is the range's git-resolvable upper bound — a
+// tag name for a historical release, or the literal "HEAD" for the unreleased section — used both
+// to collect the range's commits and, when enrichment runs, as the enrichment ref (T153).
+func (g *Generator) renderRelease(version, prev, tip string, lc *port.LinkContext, enrichEnabled bool) (string, error) {
+	commits, err := collectCommits(g.runner, commitRange(prev, tip))
 	if err != nil {
 		return "", err
 	}
@@ -300,7 +305,7 @@ func (g *Generator) renderRelease(version, prev, rng string, lc *port.LinkContex
 	}
 	var prs map[string]PullRequest
 	if enrichEnabled {
-		er, err := g.enrichForRelease(commits)
+		er, err := g.enrichForRelease(commits, tip)
 		if err != nil {
 			return "", err
 		}

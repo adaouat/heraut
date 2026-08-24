@@ -50,7 +50,7 @@ func TestEnrich_MapsPRsAndAuthors(t *testing.T) {
 		Token: "ghtok", TokenKind: port.TokenPrivate,
 	}, srv.Client())
 
-	en, err := f.Enrich([]port.Commit{{Hash: "abc123", Author: "Alice", Email: "alice@example.com", Date: time.Now()}})
+	en, err := f.Enrich([]port.Commit{{Hash: "abc123", Author: "Alice", Email: "alice@example.com", Date: time.Now()}}, "")
 	require.NoError(t, err)
 
 	assert.Equal(t, "bearer ghtok", gotAuth, "GitHub GraphQL authenticates with a bearer token")
@@ -78,7 +78,7 @@ func TestEnrich_UnlinkedAuthorAndNoPR(t *testing.T) {
 	defer srv.Close()
 
 	f := github.New(port.ForgeIdentity{Host: srv.URL, APIURL: srv.URL, Project: "acme/widget"}, srv.Client())
-	en, err := f.Enrich([]port.Commit{{Hash: "abc123", Author: "Alice"}})
+	en, err := f.Enrich([]port.Commit{{Hash: "abc123", Author: "Alice"}}, "")
 	require.NoError(t, err)
 	assert.Empty(t, en.Authors)
 	assert.Empty(t, en.PRs)
@@ -91,7 +91,7 @@ func TestEnrich_GraphQLErrorAndStatus(t *testing.T) {
 		}))
 		defer srv.Close()
 		f := github.New(port.ForgeIdentity{Host: srv.URL, APIURL: srv.URL, Project: "acme/widget"}, srv.Client())
-		_, err := f.Enrich([]port.Commit{{Hash: "abc123"}})
+		_, err := f.Enrich([]port.Commit{{Hash: "abc123"}}, "")
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "Bad credentials")
 	})
@@ -102,7 +102,7 @@ func TestEnrich_GraphQLErrorAndStatus(t *testing.T) {
 		}))
 		defer srv.Close()
 		f := github.New(port.ForgeIdentity{Host: srv.URL, APIURL: srv.URL, Project: "acme/widget"}, srv.Client())
-		_, err := f.Enrich([]port.Commit{{Hash: "abc123"}})
+		_, err := f.Enrich([]port.Commit{{Hash: "abc123"}}, "")
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "401")
 	})
@@ -132,7 +132,7 @@ func TestEnrich_ChunksLargeCommitSets(t *testing.T) {
 		commits = append(commits, port.Commit{Hash: fmt.Sprintf("sha%02d", i), Author: "Alice"})
 	}
 	f := github.New(port.ForgeIdentity{Host: srv.URL, APIURL: srv.URL, Project: "acme/widget"}, srv.Client())
-	en, err := f.Enrich(commits)
+	en, err := f.Enrich(commits, "")
 	require.NoError(t, err)
 	assert.Equal(t, 2, queries, "51 SHAs must be split into 2 chunks of at most 50")
 
@@ -144,7 +144,7 @@ func TestEnrich_ChunksLargeCommitSets(t *testing.T) {
 
 func TestEnrich_NoCommits(t *testing.T) {
 	f := github.New(port.ForgeIdentity{Host: "https://github.com", Project: "acme/widget"}, nil)
-	en, err := f.Enrich(nil)
+	en, err := f.Enrich(nil, "")
 	require.NoError(t, err)
 	assert.Empty(t, en.PRs)
 	assert.Empty(t, en.Authors)
@@ -168,7 +168,7 @@ func TestEnrich_GraphQLEndpointGHESExplicitAPIURL(t *testing.T) {
 	f := github.New(port.ForgeIdentity{
 		Host: "https://github.example.com", APIURL: srv.URL + "/api/v3", Project: "acme/widget",
 	}, srv.Client())
-	_, err := f.Enrich([]port.Commit{{Hash: "abc123"}})
+	_, err := f.Enrich([]port.Commit{{Hash: "abc123"}}, "")
 	require.NoError(t, err)
 	assert.Equal(t, "/api/graphql", gotPath)
 }

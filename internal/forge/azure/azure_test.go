@@ -49,7 +49,7 @@ func TestEnrich_MapsPRsAndLocalAuthors(t *testing.T) {
 		Token: "pat", TokenKind: port.TokenPrivate,
 	}, srv.Client())
 
-	en, err := f.Enrich([]port.Commit{{Hash: "abc123", Author: "Alice", Email: "alice@example.com", Date: time.Now()}})
+	en, err := f.Enrich([]port.Commit{{Hash: "abc123", Author: "Alice", Email: "alice@example.com", Date: time.Now()}}, "")
 	require.NoError(t, err)
 
 	assert.Contains(t, gotPath, "/myorg/myproject/_apis/git/repositories/myrepo/pullrequestquery")
@@ -78,14 +78,14 @@ func TestEnrich_ErrorsAndEmpty(t *testing.T) {
 		}))
 		defer srv.Close()
 		f := azure.New(port.ForgeIdentity{Host: srv.URL, Project: "myorg/myproject", Repository: "myrepo"}, srv.Client())
-		_, err := f.Enrich([]port.Commit{{Hash: "abc123"}})
+		_, err := f.Enrich([]port.Commit{{Hash: "abc123"}}, "")
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "401")
 	})
 
 	t.Run("empty project is an error", func(t *testing.T) {
 		f := azure.New(port.ForgeIdentity{Host: "https://dev.azure.com", Project: "", Repository: "myrepo"}, nil)
-		_, err := f.Enrich([]port.Commit{{Hash: "abc123"}})
+		_, err := f.Enrich([]port.Commit{{Hash: "abc123"}}, "")
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "Project")
 	})
@@ -95,7 +95,7 @@ func TestEnrich_ErrorsAndEmpty(t *testing.T) {
 	// malformed "repositories//pullrequestquery" request.
 	t.Run("empty repository is an error", func(t *testing.T) {
 		f := azure.New(port.ForgeIdentity{Host: "https://dev.azure.com", Project: "myorg/myproject", Repository: ""}, nil)
-		_, err := f.Enrich([]port.Commit{{Hash: "abc123"}})
+		_, err := f.Enrich([]port.Commit{{Hash: "abc123"}}, "")
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "Repository")
 	})
@@ -110,13 +110,13 @@ func TestEnrich_ErrorsAndEmpty(t *testing.T) {
 		}))
 		defer srv.Close()
 		f := azure.New(port.ForgeIdentity{Host: srv.URL, Project: "myproject", Repository: "myrepo"}, srv.Client())
-		_, err := f.Enrich([]port.Commit{{Hash: "abc123"}})
+		_, err := f.Enrich([]port.Commit{{Hash: "abc123"}}, "")
 		require.NoError(t, err)
 	})
 
 	t.Run("no commits", func(t *testing.T) {
 		f := azure.New(port.ForgeIdentity{Host: "https://dev.azure.example.com", Project: "myorg/myproject", Repository: "myrepo"}, nil)
-		en, err := f.Enrich(nil)
+		en, err := f.Enrich(nil, "")
 		require.NoError(t, err)
 		assert.Empty(t, en.PRs)
 	})
@@ -185,7 +185,7 @@ func TestEndpoint_NoDuplicateOrganization(t *testing.T) {
 					Body:       io.NopCloser(strings.NewReader(`{"results":[{}]}`)),
 				}, nil
 			}}})
-			_, err = f.Enrich([]port.Commit{{Hash: "abc123"}})
+			_, err = f.Enrich([]port.Commit{{Hash: "abc123"}}, "")
 			require.NoError(t, err)
 			assert.Equal(t, tc.wantEndpoint, gotURL)
 		})
@@ -219,7 +219,7 @@ func TestEnrich_RequestShape(t *testing.T) {
 	defer srv.Close()
 
 	f := azure.New(port.ForgeIdentity{Host: srv.URL, Project: "myorg/myproject", Repository: "myrepo"}, srv.Client())
-	_, err := f.Enrich([]port.Commit{{Hash: "abc123"}, {Hash: "def456"}})
+	_, err := f.Enrich([]port.Commit{{Hash: "abc123"}, {Hash: "def456"}}, "")
 	require.NoError(t, err)
 
 	assert.Equal(t, http.MethodPost, gotMethod)

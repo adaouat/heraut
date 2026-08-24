@@ -18,7 +18,7 @@ func (f fakeForge) ChangeURL(n int) string       { return f.id.Host + "/-/merge_
 func (f fakeForge) CompareURL(from, to string) string {
 	return f.id.Host + "/-/compare/" + from + "..." + to
 }
-func (f fakeForge) Enrich(_ []port.Commit) (port.Enrichment, error) {
+func (f fakeForge) Enrich(_ []port.Commit, _ string) (port.Enrichment, error) {
 	return port.Enrichment{
 		PRs:     map[string]port.PullRequest{"abc": {Number: 42, RefPrefix: "!", MergedBy: port.Author{Username: "bob"}}},
 		Authors: map[string]string{"abc": "alice"},
@@ -34,7 +34,7 @@ func TestForge_InterfaceComposes(t *testing.T) {
 	assert.Equal(t, port.TokenJob, f.Identity().TokenKind)
 	assert.Equal(t, "https://gitlab.example.com/-/commit/deadbeef", f.CommitURL("deadbeef"))
 
-	en, err := f.Enrich([]port.Commit{{Hash: "abc", Author: "Alice", Email: "alice@example.com", Date: time.Now()}})
+	en, err := f.Enrich([]port.Commit{{Hash: "abc", Author: "Alice", Email: "alice@example.com", Date: time.Now()}}, "v1.0.0")
 	assert.NoError(t, err)
 	assert.Equal(t, "alice", en.Authors["abc"])
 	assert.Equal(t, "!", en.PRs["abc"].RefPrefix)

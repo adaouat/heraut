@@ -421,6 +421,32 @@ implemented in this file.
 
 ## Follow-ups
 
+#### `[ ]` T214: `release.notes`-only config still synthesizes an implicit publish target
+
+`docs/specs/02-configuration.md` documents three distinct `release:` shapes: `targets` only
+publishes with no inline notes; **"`notes` only (no `targets`) — notes are generated but no
+release is published"**; and neither key present is the zero-config-publishing "common CI shape."
+But `buildTargetPlatforms` (`internal/app/pipeline.go`) and `effectiveTargetPlatforms`
+(`internal/app/check.go`) both decide whether to synthesize a default publish target purely from
+`len(targets) == 0 && len(resolved.Forges) > 0` — neither checks whether `release.notes` was set,
+so the "notes only" and "neither" shapes are code-identical: a config with `release: { notes: {}
+}` and no `release.targets` still gets a synthesized default target, and `heraut
+check`/`heraut release` both run a full platform `Check()` (binary + token + project + API auth)
+against it, contradicting the documented "no release is published" outcome.
+
+Found while explaining a user's `heraut check` failure: a self-hosted GitLab CI config (`forges:
+[{name: ..., platform: gitlab}]`, `release: { notes: {} }`, no `targets`) failed with
+"environment variable GITLAB_TOKEN is not set" even though the user never asked to publish
+anything — compounded by [ADR-0025](0025-multi-instance-platforms.md) §4: a self-hosted
+`base_url` (auto-filled here from `CI_SERVER_URL`, since the entry left it unset) always requires
+an explicit `token_env`, CI autologin or not, even when the self-hosted host is the CI runner's
+own instance rather than a genuinely separate one.
+
+Either implement the documented distinction (only synthesize a default target when
+`release.notes` is *also* unset), or correct the spec to match the current always-synthesize
+behavior if that's intended. **Scope:** S–M. **Files:** `internal/app/pipeline.go`,
+`internal/app/check.go`, `docs/specs/02-configuration.md`.
+
 #### `[x]` T175: `heraut check` and `heraut changelog` disagree about the same config
 
 T172 made `heraut check` warn (rather than fail) when forge resolution fails and **publishing** is

@@ -80,5 +80,11 @@ type Forge interface {
 	ChangeURL(number int) string
 	CompareURL(from, to string) string
 
-	Enrich(commits []Commit) (Enrichment, error)
+	// Enrich resolves per-commit PR/MR + author-handle metadata. ref is the git-resolvable commit
+	// that terminates the release window — a tag name for a historical release, or a commit SHA
+	// for the unreleased section (never the literal "HEAD": a remote forge API does not understand
+	// local git shorthand). It anchors ref-scoped queries such as GitLab's GraphQL
+	// commits(ref:) walk (T153); implementations that resolve enrichment per-commit (GitHub,
+	// Azure, GitLab REST) ignore it.
+	Enrich(commits []Commit, ref string) (Enrichment, error)
 }

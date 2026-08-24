@@ -149,9 +149,10 @@ func queueReleaseNotesGit(mr *exectest.MockRunner) {
 
 // countingForge records how many times Enrich was called and returns a canned result or error.
 type countingForge struct {
-	calls int
-	en    port.Enrichment
-	err   error
+	calls  int
+	gotRef string
+	en     port.Enrichment
+	err    error
 }
 
 func (f *countingForge) Type() string                     { return "github" }
@@ -159,8 +160,9 @@ func (f *countingForge) Identity() port.ForgeIdentity     { return port.ForgeIde
 func (f *countingForge) CommitURL(sha string) string      { return "" }
 func (f *countingForge) ChangeURL(int) string             { return "" }
 func (f *countingForge) CompareURL(string, string) string { return "" }
-func (f *countingForge) Enrich(c []port.Commit) (port.Enrichment, error) {
+func (f *countingForge) Enrich(c []port.Commit, ref string) (port.Enrichment, error) {
 	f.calls++
+	f.gotRef = ref
 	return f.en, f.err
 }
 
@@ -305,6 +307,7 @@ func TestGenerate_Enrich_ChangelogEnrichesOnlyNewRelease(t *testing.T) {
 	mr := exectest.NewMockRunner()
 	mr.QueueResponse("v1.0.0\n", "", nil)                                                                          // listTags (one existing tag)
 	mr.QueueResponse(record("aaa1111111", "A", "a@example.com", "2026-02-01T00:00:00Z", "feat: new", ""), "", nil) // new release commits
+	mr.QueueResponse("aaa1111111\n", "", nil)                                                                      // resolveEnrichRef("HEAD"): git rev-parse HEAD
 	mr.QueueResponse(record("bbb2222222", "B", "b@example.com", "2026-01-01T00:00:00Z", "fix: old", ""), "", nil)  // existing v1.0.0 commits (no enrich)
 	forge := &countingForge{en: port.Enrichment{
 		PRs:     map[string]port.PullRequest{"aaa1111111": {Number: 50, URL: "https://github.com/o/r/pull/50", RefPrefix: "#"}},
@@ -319,4 +322,6 @@ func TestGenerate_Enrich_ChangelogEnrichesOnlyNewRelease(t *testing.T) {
 	assert.Contains(t, body, "## [1.0.0]", "historical section present but bare")
 
 	assert.Equal(t, 1, forge.calls, "only the new release triggers enrichment")
+	assert.Equal(t, "aaa1111111", forge.gotRef,
+		"the unreleased section's literal \"HEAD\" is resolved to the real commit SHA (T153)")
 }

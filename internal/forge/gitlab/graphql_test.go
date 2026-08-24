@@ -28,7 +28,7 @@ func TestEnrichGraphQL_JobTokenRejected(t *testing.T) {
 		Token: "jobtok", TokenKind: port.TokenJob, APIMode: "graphql",
 	}, srv.Client())
 
-	_, err := f.Enrich([]port.Commit{{Hash: "abc123", Author: "Alice"}})
+	_, err := f.Enrich([]port.Commit{{Hash: "abc123", Author: "Alice"}}, "v1.0.0")
 	require.Error(t, err)
 	assert.True(t, errors.Is(err, gitlab.ErrJobTokenGraphQL))
 	assert.Contains(t, err.Error(), "api_mode: rest", "the error must point at the fix")
@@ -59,7 +59,7 @@ func TestEnrichGraphQL_LinkedUsernameAndHeader(t *testing.T) {
 		Token: "pat", TokenKind: port.TokenPrivate, APIMode: "graphql",
 	}, srv.Client())
 
-	en, err := f.Enrich([]port.Commit{{Hash: "abc123", Author: "Alice", Email: "alice@example.com"}})
+	en, err := f.Enrich([]port.Commit{{Hash: "abc123", Author: "Alice", Email: "alice@example.com"}}, "v1.0.0")
 	require.NoError(t, err)
 
 	assert.Equal(t, "pat", gotPrivate, "GraphQL uses PRIVATE-TOKEN")
@@ -84,7 +84,7 @@ func TestEnrichGraphQL_APIError(t *testing.T) {
 		Host: srv.URL, APIURL: srv.URL + "/api/v4", Project: "group/project",
 		Token: "pat", TokenKind: port.TokenPrivate, APIMode: "graphql",
 	}, srv.Client())
-	_, err := f.Enrich([]port.Commit{{Hash: "abc123"}})
+	_, err := f.Enrich([]port.Commit{{Hash: "abc123"}}, "v1.0.0")
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "insufficient scope")
 }
@@ -113,7 +113,7 @@ func TestEnrichGraphQL_SendsReleaseWindowBounds(t *testing.T) {
 	_, err := f.Enrich([]port.Commit{
 		{Hash: "aaa", Author: "Alice", Date: oldest},
 		{Hash: "bbb", Author: "Bob", Date: oldest.Add(48 * time.Hour)},
-	})
+	}, "v1.0.0")
 	require.NoError(t, err)
 
 	all := strings.Join(bodies, "\n")
@@ -121,6 +121,41 @@ func TestEnrichGraphQL_SendsReleaseWindowBounds(t *testing.T) {
 	assert.Contains(t, all, "mergedAfter", "merged MRs must be bounded to the release window")
 	// The bound is the OLDEST commit (minus a small buffer), not the newest.
 	assert.Contains(t, all, "2026-07-01T11:59:00Z")
+}
+
+// Under rewritten committer dates (rebase/amend/cherry-pick), the commit with the newest
+// committer date is not necessarily the true range tip (T153) — the caller resolves the real tip
+// (a tag, or the unreleased section's HEAD SHA) and passes it as ref. enrichGraphQL must anchor
+// commits(ref:) on that value, never re-derive it from commit dates.
+func TestEnrichGraphQL_AnchorsOnCallerSuppliedRef_NotNewestCommitDate(t *testing.T) {
+	var bodies []string
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		b, _ := io.ReadAll(r.Body)
+		bodies = append(bodies, string(b))
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{"data":{"project":{
+			"repository":{"commits":{"nodes":[],"pageInfo":{"endCursor":"","hasNextPage":false}}},
+			"mergeRequests":{"nodes":[],"pageInfo":{"endCursor":"","hasNextPage":false}}
+		}}}`))
+	}))
+	defer srv.Close()
+
+	f := gitlab.New(port.ForgeIdentity{
+		Host: srv.URL, APIURL: srv.URL + "/api/v4", Project: "group/subgroup/project",
+		Token: "pat", TokenKind: port.TokenPrivate, APIMode: "graphql",
+	}, srv.Client())
+
+	// "bbb" carries the newest committer date (rewritten by a rebase), but it is an ancestor, not
+	// the range tip — "ccc-the-real-head-sha" (resolved by the caller) is.
+	_, err := f.Enrich([]port.Commit{
+		{Hash: "aaa", Author: "Alice", Date: time.Date(2026, 7, 1, 0, 0, 0, 0, time.UTC)},
+		{Hash: "bbb", Author: "Bob", Date: time.Date(2026, 7, 10, 0, 0, 0, 0, time.UTC)},
+	}, "ccc-the-real-head-sha")
+	require.NoError(t, err)
+
+	all := strings.Join(bodies, "\n")
+	assert.Contains(t, all, `ref:\"ccc-the-real-head-sha\"`, "commits(ref:) must anchor on the caller-supplied ref")
+	assert.NotContains(t, all, `ref:\"bbb\"`, "must not re-derive the anchor from the newest-dated commit")
 }
 
 // Both connections must follow cursors until exhausted, so a release with >100 commits/MRs
@@ -167,7 +202,7 @@ func TestEnrichGraphQL_PaginatesBothConnections(t *testing.T) {
 	en, err := f.Enrich([]port.Commit{
 		{Hash: "aaa", Author: "Alice", Date: time.Now().Add(-48 * time.Hour)},
 		{Hash: "bbb", Author: "Bob", Date: time.Now()},
-	})
+	}, "v1.0.0")
 	require.NoError(t, err)
 
 	assert.Equal(t, "alice-gl", en.Authors["aaa"], "page 1 authors")
@@ -197,7 +232,7 @@ func TestEnrichGraphQL_StopsOnEmptyCursor(t *testing.T) {
 
 	done := make(chan struct{})
 	go func() {
-		_, _ = f.Enrich([]port.Commit{{Hash: "aaa", Author: "Alice", Date: time.Now()}})
+		_, _ = f.Enrich([]port.Commit{{Hash: "aaa", Author: "Alice", Date: time.Now()}}, "v1.0.0")
 		close(done)
 	}()
 	select {

@@ -137,6 +137,17 @@ func tagDate(runner port.Runner, tag string) (time.Time, error) {
 	return d, nil
 }
 
+// headSHA resolves the commit HEAD currently points to (`git rev-parse HEAD`). Used to anchor
+// remote enrichment on the unreleased section's true range tip (T153): "HEAD" is a local git
+// shorthand a remote forge API cannot resolve.
+func headSHA(runner port.Runner) (string, error) {
+	stdout, _, err := runner.Run("git", "rev-parse", "HEAD")
+	if err != nil {
+		return "", fmt.Errorf("resolving HEAD: %w", err)
+	}
+	return strings.TrimSpace(stdout), nil
+}
+
 // listTags returns tags matching glob (all tags when glob is "") sorted newest-first by
 // version refname. The native changelog renders one section per release in this order.
 func listTags(runner port.Runner, glob string) ([]string, error) {
