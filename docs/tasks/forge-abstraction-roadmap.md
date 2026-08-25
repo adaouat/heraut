@@ -421,7 +421,7 @@ implemented in this file.
 
 ## Follow-ups
 
-#### `[ ]` T215: self-hosted GitLab CI publishing regressed from v0.51.1 — `CI_JOB_TOKEN` no longer trusted
+#### `[x]` T215: self-hosted GitLab CI publishing regressed from v0.51.1 — `CI_JOB_TOKEN` no longer trusted
 
 A user config that published successfully at v0.51.1 (`release.platforms: [{name, platform:
 gitlab, project}]`, no `base_url:`, running in self-hosted GitLab CI, relying on `CI_JOB_TOKEN`)
@@ -467,7 +467,41 @@ to the publish target. A `forges:` entry with only `name:`/`platform:` is alread
 per-project-free shape this user wants — confirmed by reading, not by a new test (no code path
 changed).
 
-#### `[ ]` T214: `release.notes`-only config still synthesizes an implicit publish target
+**Completion note (2026-08-25):** Implemented exactly the narrowing scoped above. `inCIAutologin()`
+(`internal/platforms/gitlab/platform.go`) now short-circuits on `GITLAB_CI != "true"` first, trusts
+autologin unconditionally when not self-hosted (unchanged), and — when self-hosted — delegates to a
+new `sameGitLabHost(a, b string) bool` helper comparing `p.cfg.BaseURL` against
+`os.Getenv("CI_SERVER_URL")` by parsed host only (scheme/trailing-slash differences ignored; either
+side missing or unparsable is `false`, so an empty `CI_SERVER_URL` — outside CI, or a CI system that
+doesn't expose it — never accidentally matches). `hostEnv()`/`GITLAB_HOST` needed no change: the
+CI-autologin branches in `CreateRelease`/`UploadAssets`/`checkAPIAuth` already call `glab` via a bare
+`runner.Run` with no env injection at all in that mode, relying entirely on `glab`'s own ambient
+`CI_SERVER_URL`/`CI_JOB_TOKEN` detection — which already targets the right self-hosted host on its
+own, self-hosted or not, once autologin is trusted.
+
+TDD (`internal/platforms/gitlab/platform_test.go`): `TestCheck_SelfHosted_MatchesCIServerURL_TrustsCIAutologin`
+(the regression itself — self-hosted `base_url` equals `CI_SERVER_URL`, no token set, `Check()`
+succeeds via the CI-autologin path, confirmed RED against the pre-fix code with the user's exact
+error message: "environment variable GITLAB_TOKEN is not set") and
+`TestCreateRelease_SelfHosted_MatchesCIServerURL_NoEnvInjection` (same shape through the publish
+path — no env injected, matching the non-self-hosted CI case). A third test,
+`TestCheck_SelfHosted_DifferentCIServerURL_StillRequiresToken` (self-hosted `base_url` differs from
+`CI_SERVER_URL` — ADR-0025's actual multi-instance scenario), was written alongside them and passed
+immediately against the pre-fix code too, proving the narrowing doesn't broaden past what it should:
+a genuinely separate self-hosted target still hits the hard `token_env` requirement. All pre-existing
+self-hosted/CI tests (`TestCheck_SelfHosted_SkipsCIAutologin`, `TestCreateRelease_SelfHosted_*`,
+`TestUploadAssets_SelfHosted_*`) pass unchanged — none of them set `CI_SERVER_URL`, so they still
+exercise the "self-hosted, no match" path. `go test ./...` (excluding the pre-existing,
+unrelated-to-this-change GPG-signing environment flake in `internal/cmd`/`internal/commitwizard`)
+and `hk check` are clean.
+
+Added a dated addendum to [ADR-0025](0025-multi-instance-platforms.md) §4 recording the narrowed
+rule, why the original blanket rationale didn't hold for this shape, the exact regression window
+(v0.56.0 → v0.57.0, T163), and that the narrowing is GitLab-only — GitHub Enterprise Server
+(`internal/platforms/github`) keeps the original blanket self-hosted requirement, out of this
+task's scope.
+
+#### `[x]` T214: `release.notes`-only config still synthesizes an implicit publish target
 
 `docs/specs/02-configuration.md` documents three distinct `release:` shapes: `targets` only
 publishes with no inline notes; **"`notes` only (no `targets`) — notes are generated but no
@@ -492,6 +526,37 @@ Either implement the documented distinction (only synthesize a default target wh
 `release.notes` is *also* unset), or correct the spec to match the current always-synthesize
 behavior if that's intended. **Scope:** S–M. **Files:** `internal/app/pipeline.go`,
 `internal/app/check.go`, `docs/specs/02-configuration.md`.
+
+**Completion note (2026-08-25):** Implemented the documented distinction — the spec's wording was
+already correct; the code was wrong. Added `config.EffectiveReleaseNotes(cfg, env) *ContentDriver`
+(`internal/config/platforms.go`), mirroring `EffectiveTargets`'s per-env-merge shape (via the
+existing `MergeContentDriver`): a nil result means release-notes generation was never configured,
+root or per-env. Extracted the "empty targets → synthesize one default target, or not" decision
+both callers duplicated into a single `synthesizeDefaultTarget(notesConfigured bool, resolved
+forge.Resolved) []config.Target` (`internal/app/platforms.go`) — returns `nil` (no synthesis) when
+`notesConfigured` is true *or* no forge resolved, else the single implicit target as before.
+`buildTargetPlatforms` (`internal/app/pipeline.go`, `heraut release`'s path) gained a
+`notesConfigured bool` parameter, fed by the effective-notes value `buildReleasePipelineConfig`
+already computes inline for the generator wiring (`effectiveNotes != nil` — left that existing
+per-env merge untouched rather than swapping it for the new helper, since it's intertwined with
+unrelated per-env fields in the same block and the task didn't ask for that refactor).
+`effectiveTargetPlatforms` (`internal/app/check.go`, `heraut check`'s path) had no equivalent
+per-env notes computation at all, so it calls the new `config.EffectiveReleaseNotes` directly. No
+`docs/specs/02-configuration.md` change was needed — verified its existing three-shape wording is
+exactly what the fixed code now does.
+
+TDD: `TestEffectiveReleaseNotes` (`internal/config/platforms_test.go`, table-driven — nil config, no
+release block, top-level only, per-env inherits/merges/stands-alone, unknown env). A new subtest in
+`TestBuildReleasePipelineConfig_TargetsWiring` (`internal/app/targets_internal_test.go`) — a forge
+resolves (zero-config git-origin detection) but `release.notes` is set with no `release.targets` —
+asserts `pCfg.Platforms` is empty; confirmed RED against the pre-fix code (a synthesized platform
+was present) before adding the guard. `TestRuntimeCheck_NotesOnlyNoTargets_SkipsPublishCheck`
+(`internal/app/check_test.go`) covers the same shape through `heraut check`'s path — an explicit
+`forges:` entry resolves, `release.notes` is set with no `release.targets` — and asserts the
+Platforms section never runs a named per-target `Check()`, only the advisory glab/gh binary-only
+fallback (the same branch already used for the "nothing resolves at all" case); also confirmed RED
+first. `go test ./...` (excluding the pre-existing GPG-signing environment flake in
+`internal/cmd`/`internal/commitwizard`, unrelated to this change) and `hk check` are clean.
 
 #### `[x]` T175: `heraut check` and `heraut changelog` disagree about the same config
 
