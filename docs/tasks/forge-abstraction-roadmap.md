@@ -421,6 +421,52 @@ implemented in this file.
 
 ## Follow-ups
 
+#### `[ ]` T215: self-hosted GitLab CI publishing regressed from v0.51.1 — `CI_JOB_TOKEN` no longer trusted
+
+A user config that published successfully at v0.51.1 (`release.platforms: [{name, platform:
+gitlab, project}]`, no `base_url:`, running in self-hosted GitLab CI, relying on `CI_JOB_TOKEN`)
+now fails `heraut check`/`heraut release` at v0.57.0 with "environment variable GITLAB_TOKEN is
+not set" — a real regression, not a config change on the user's part. Root cause traced to commit
+`83b6622` (T163, landed between v0.56.0 and v0.57.0):
+
+- **Before T163**, `release.platforms[]` entries fed `internal/platforms/gitlab.Platform` straight
+  from YAML with no forge-identity resolution. An unset `base_url:` left `config.Platform.BaseURL`
+  `""`. `selfHosted()` (`internal/platforms/gitlab/platform.go`) checks `cfg.BaseURL != "" &&
+  cfg.BaseURL != gitlabBaseURL` — empty `BaseURL` always read as "not self-hosted," so
+  `inCIAutologin()` (`!selfHosted() && GITLAB_CI == "true"`) trusted `CI_JOB_TOKEN` even for a
+  genuinely self-hosted instance. It worked, but only because heraut never actually knew the real
+  host — a latent gap in self-hosted detection, not a deliberate exemption.
+- **Since T163**, `platformConfigFromTarget` (`internal/app/platforms.go`) sets `BaseURL: id.Host`
+  — the fully resolved host, auto-filled from `CI_SERVER_URL` even when `base_url:` is never set
+  in config. This is a deliberate, correct improvement (self-hosted hosts now resolve without
+  requiring `base_url:` at all) that, as a side effect, makes `selfHosted()` correctly detect
+  self-hosted for the first time in exactly this zero-`base_url` shape — which trips the
+  pre-existing [ADR-0025](0025-multi-instance-platforms.md) §4 rule: self-hosted always requires an
+  explicit `token_env`, no CI-autologin exception, because "autologin always targets the CI
+  runner's own host, never a separately-configured self-hosted target."
+
+That rationale doesn't hold for this user's shape: their CI *is* running on the self-hosted
+instance they'd publish to — not a separate, third host. `inCIAutologin()` doesn't distinguish
+"self-hosted `base_url` that happens to equal the CI's own `CI_SERVER_URL`" from "self-hosted
+`base_url` that's a genuinely different, separately-configured host" (ADR-0025's actual multi-
+instance scenario — e.g. a second internal mirror alongside `gitlab.com`). Narrow the exemption
+instead of reverting to the old blanket-empty-BaseURL loophole: trust CI autologin when
+self-hosted **and** `p.cfg.BaseURL` matches the ambient `CI_SERVER_URL`, so a target that is a
+genuinely different self-hosted host still hits the hard `token_env` requirement ADR-0025 intends.
+Verify `hostEnv()`/`GITLAB_HOST` injection still resolves the same instance in this branch. Update
+ADR-0025 with an addendum recording the narrowed rule and why. **Scope:** S–M. **Dependencies:**
+none. **Files:** `internal/platforms/gitlab/platform.go` (+ contract tests),
+`docs/adr/0025-multi-instance-platforms.md`.
+
+**Related, not a blocker:** the same user asked whether `project:` also needs to stay unset for
+config portability across projects (GitLab's predefined `CI_PROJECT_PATH`) — verified already
+true today, no fix needed: `resolveExplicit` (`internal/forge/resolve.go`) fills a forge's
+`Project` from `CI_PROJECT_PATH` whenever the entry's `platform` matches the detected CI type and
+`project:` is left unset, and `platformConfigFromTarget` carries that same resolved value through
+to the publish target. A `forges:` entry with only `name:`/`platform:` is already the portable,
+per-project-free shape this user wants — confirmed by reading, not by a new test (no code path
+changed).
+
 #### `[ ]` T214: `release.notes`-only config still synthesizes an implicit publish target
 
 `docs/specs/02-configuration.md` documents three distinct `release:` shapes: `targets` only
