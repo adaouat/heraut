@@ -104,6 +104,26 @@ CI-autologin branch entirely and always validates the configured `token_env` via
 self-hosted entry with no token configured is a `Check()` failure, even in CI, because
 there is no autologin path that could possibly reach it.
 
+> **Update (2026-08-25, T215):** narrowed for `glab` only. The premise above — "autologin
+> always targets the CI runner's own host, never a self-hosted target configured
+> separately" — assumed the self-hosted target is necessarily a *different* host from the
+> one CI is running on. It doesn't hold when a project runs its own GitLab CI entirely on
+> its own self-hosted instance and publishes back to that same instance: `CI_SERVER_URL`
+> (the CI runner's own host) and the configured `base_url` are then identical, and `glab`'s
+> CI-native detection reaches that host correctly, same as it does for `gitlab.com`. This
+> regressed silently between v0.56.0 and v0.57.0: pre-T163, `release.platforms[].base_url`
+> was never auto-filled from CI env, so an unset `base_url` always read as "not
+> self-hosted" and CI autologin was (accidentally) trusted; T163's correct host resolution
+> made `selfHosted()` fire for the first time in that same zero-`base_url` shape, newly
+> requiring an explicit `token_env` a working self-hosted-CI pipeline hadn't needed before.
+> `internal/platforms/gitlab/platform.go`'s `inCIAutologin()` now trusts CI autologin when
+> self-hosted *and* the configured `base_url` names the same host as `CI_SERVER_URL`
+> (`sameGitLabHost`) — a self-hosted `base_url` naming a genuinely different instance (this
+> ADR's actual multi-instance scenario) still hits the hard requirement above unchanged.
+> GitHub Enterprise Server (`internal/platforms/github`) was not part of T215's scope and
+> keeps the original blanket self-hosted requirement described above; GHES's own CI
+> (`GITHUB_ACTIONS` on a GHES-hosted runner) was not evaluated for the same narrowing.
+
 ### 5. `Name()`, `ReleaseURL()`, `LinkContext()` honor configured values
 
 - `Name()` returns `p.cfg.Name` (was a hardcoded `"github"`/`"gitlab"`).

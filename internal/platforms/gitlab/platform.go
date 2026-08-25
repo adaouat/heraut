@@ -143,8 +143,31 @@ func (p *Platform) selfHosted() bool {
 // inCIAutologin reports whether glab's CI autologin handles auth for this run.
 // When true, injecting GITLAB_TOKEN overrides the JOB-TOKEN flow and breaks
 // path-based project lookups (CI_JOB_TOKEN is not a valid PRIVATE-TOKEN).
+//
+// It applies to the default gitlab.com host, and — as of T215 — to a self-hosted base_url naming
+// the exact instance the CI job itself is running on (CI_SERVER_URL): glab's own CI-native
+// detection reaches that host too, so it isn't the "separately configured" self-hosted target
+// ADR-0025 §4 guards against. A self-hosted base_url naming a genuinely different instance still
+// requires the configured token — autologin cannot reach a host other than its own.
 func (p *Platform) inCIAutologin() bool {
-	return !p.selfHosted() && os.Getenv("GITLAB_CI") == "true"
+	if os.Getenv("GITLAB_CI") != "true" {
+		return false
+	}
+	if !p.selfHosted() {
+		return true
+	}
+	return sameGitLabHost(p.cfg.BaseURL, os.Getenv("CI_SERVER_URL"))
+}
+
+// sameGitLabHost reports whether a and b name the same GitLab instance, comparing only the host
+// (scheme and trailing-slash differences are ignored). Either side missing or unparsable is "no".
+func sameGitLabHost(a, b string) bool {
+	ua, errA := url.Parse(a)
+	ub, errB := url.Parse(b)
+	if errA != nil || errB != nil || ua.Host == "" || ub.Host == "" {
+		return false
+	}
+	return ua.Host == ub.Host
 }
 
 // hostEnv returns the env vars needed to point glab at a self-hosted instance.

@@ -574,3 +574,75 @@ func TestCheck_SelfHosted_SkipsCIAutologin(t *testing.T) {
 	assert.Equal(t, []string{"api", "user"}, mr.Calls[1].Args)
 	assert.Equal(t, []string{"GITLAB_TOKEN=ci-token", "GITLAB_HOST=gitlab.example.com"}, mr.Calls[1].Env)
 }
+
+// TestCheck_SelfHosted_MatchesCIServerURL_TrustsCIAutologin covers T215: a self-hosted base_url
+// naming the CI runner's own instance (CI_SERVER_URL) is not a "separately configured" target in
+// ADR-0025's sense — glab's own CI-native detection reaches it too, so no explicit token is
+// required, mirroring TestCheck_InCI_TokenNotRequired for the non-self-hosted case.
+func TestCheck_SelfHosted_MatchesCIServerURL_TrustsCIAutologin(t *testing.T) {
+	t.Setenv("GITLAB_CI", "true")
+	t.Setenv("CI_SERVER_URL", "https://gitlab.example.com")
+	t.Setenv("CI_PROJECT_ID", "42")
+	t.Setenv("GITLAB_TOKEN", "") // deliberately absent
+
+	mr := exectest.NewMockRunner()
+	mr.QueueResponse("glab version 1.0.0", "", nil)
+	mr.QueueResponse(`[]`, "", nil) // CI auth check via numeric project ID
+
+	p := gitlab.New(mr, &config.Platform{
+		Project: "grp/repo",
+		BaseURL: "https://gitlab.example.com",
+	})
+	require.NoError(t, p.Check())
+
+	require.Len(t, mr.Calls, 2)
+	assert.Equal(t, []string{"api", "projects/42/releases?per_page=1"}, mr.Calls[1].Args)
+	assert.Nil(t, mr.Calls[1].Env, "no token/host env injected — glab's own CI autologin targets CI_SERVER_URL")
+}
+
+// TestCheck_SelfHosted_DifferentCIServerURL_StillRequiresToken proves the T215 narrowing doesn't
+// over-broaden: a self-hosted base_url naming a genuinely different instance than the CI runner's
+// own host (ADR-0025's actual multi-instance scenario — e.g. publishing to a second internal
+// mirror from a gitlab.com-hosted runner) must still authenticate via the configured token, even
+// with GITLAB_CI=true.
+func TestCheck_SelfHosted_DifferentCIServerURL_StillRequiresToken(t *testing.T) {
+	t.Setenv("GITLAB_CI", "true")
+	t.Setenv("CI_SERVER_URL", "https://gitlab.com")
+	t.Setenv("CI_PROJECT_ID", "42")
+	mr := exectest.NewMockRunner()
+	mr.QueueResponse("glab version 1.0.0", "", nil)
+	mr.QueueResponse(`{"username":"alice"}`, "", nil)
+
+	t.Setenv("GITLAB_TOKEN", "ci-token")
+	p := gitlab.New(mr, &config.Platform{
+		TokenEnv: "GITLAB_TOKEN",
+		Project:  "grp/repo",
+		BaseURL:  "https://gitlab.example.com",
+	})
+	require.NoError(t, p.Check())
+
+	require.Len(t, mr.Calls, 2)
+	assert.Equal(t, []string{"api", "user"}, mr.Calls[1].Args)
+	assert.Equal(t, []string{"GITLAB_TOKEN=ci-token", "GITLAB_HOST=gitlab.example.com"}, mr.Calls[1].Env)
+}
+
+// TestCreateRelease_SelfHosted_MatchesCIServerURL_NoEnvInjection covers T215's CreateRelease path:
+// autologin is trusted (no token/host env injected) when the self-hosted base_url matches the CI
+// runner's own CI_SERVER_URL.
+func TestCreateRelease_SelfHosted_MatchesCIServerURL_NoEnvInjection(t *testing.T) {
+	t.Setenv("GITLAB_CI", "true")
+	t.Setenv("CI_SERVER_URL", "https://gitlab.example.com")
+	t.Setenv("CI_JOB_TOKEN", "ci-job-token")
+	mr := exectest.NewMockRunner()
+	mr.QueueResponse("", "", nil)
+
+	p := gitlab.New(mr, &config.Platform{
+		Project:  "grp/repo",
+		BaseURL:  "https://gitlab.example.com",
+		TokenEnv: "CI_JOB_TOKEN",
+	})
+	require.NoError(t, p.CreateRelease("v1.0.0", "notes"))
+
+	require.Len(t, mr.Calls, 1)
+	assert.Nil(t, mr.Calls[0].Env, "must not inject env in CI autologin mode")
+}
