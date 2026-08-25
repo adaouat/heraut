@@ -63,3 +63,61 @@ func TestEffectiveTargets(t *testing.T) {
 		})
 	}
 }
+
+func TestEffectiveReleaseNotes(t *testing.T) {
+	base := &config.ContentDriver{Output: "NOTES.md"}
+	envNotes := &config.ContentDriver{Template: "custom.tmpl"}
+
+	tests := []struct {
+		name string
+		cfg  *config.Config
+		env  string
+		want *config.ContentDriver
+	}{
+		{name: "nil config", cfg: nil, env: "", want: nil},
+		{name: "no release block", cfg: &config.Config{}, env: "", want: nil},
+		{
+			name: "top-level only",
+			cfg:  &config.Config{Release: &config.Release{Notes: base}},
+			env:  "", want: base,
+		},
+		{
+			name: "env with no notes override inherits top-level",
+			cfg: &config.Config{
+				Release:      &config.Release{Notes: base},
+				Environments: map[string]config.Environment{"staging": {}},
+			},
+			env: "staging", want: base,
+		},
+		{
+			name: "env override merges onto top-level",
+			cfg: &config.Config{
+				Release: &config.Release{Notes: base},
+				Environments: map[string]config.Environment{
+					"staging": {Release: &config.EnvRelease{Notes: envNotes}},
+				},
+			},
+			env:  "staging",
+			want: &config.ContentDriver{Output: "NOTES.md", Template: "custom.tmpl"},
+		},
+		{
+			name: "env-only notes with no top-level notes",
+			cfg: &config.Config{
+				Environments: map[string]config.Environment{
+					"staging": {Release: &config.EnvRelease{Notes: envNotes}},
+				},
+			},
+			env: "staging", want: envNotes,
+		},
+		{
+			name: "unknown env keeps top-level",
+			cfg:  &config.Config{Release: &config.Release{Notes: base}},
+			env:  "nope", want: base,
+		},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			assert.Equal(t, tc.want, config.EffectiveReleaseNotes(tc.cfg, tc.env))
+		})
+	}
+}

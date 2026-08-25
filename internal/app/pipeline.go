@@ -250,7 +250,7 @@ func buildReleasePipelineConfig(runner, readRunner port.Runner, cfg *config.Conf
 	}
 
 	// Targets (release.targets — ADR-0043/ADR-0044, the only publish surface).
-	targetPlatforms, err := buildTargetPlatforms(runner, cfg, effectiveTargets, releaseAssets, resolved)
+	targetPlatforms, err := buildTargetPlatforms(runner, cfg, effectiveTargets, releaseAssets, resolved, effectiveNotes != nil)
 	if err != nil {
 		return nil, err
 	}
@@ -266,14 +266,12 @@ func buildReleasePipelineConfig(runner, readRunner port.Runner, cfg *config.Conf
 // resolving each target's forge reference (or the sole/enrichment forge when a target — or the
 // whole list — leaves it implicit) against resolved. When targets is empty but resolved found at
 // least one forge, a single default target is synthesized for the enrichment/sole forge so
-// zero-config repos (no forges:, no release.targets) still publish. release.assets propagates to
-// targets that declare none, with LenientAssets = true.
-func buildTargetPlatforms(runner port.Runner, cfg *config.Config, targets []config.Target, releaseAssets []string, resolved forge.Resolved) ([]port.Platform, error) {
+// zero-config repos (no forges:, no release.targets) still publish — unless notesConfigured is
+// true, in which case the empty list means "notes only, no publish" instead (T214).
+// release.assets propagates to targets that declare none, with LenientAssets = true.
+func buildTargetPlatforms(runner port.Runner, cfg *config.Config, targets []config.Target, releaseAssets []string, resolved forge.Resolved, notesConfigured bool) ([]port.Platform, error) {
 	if len(targets) == 0 {
-		if len(resolved.Forges) == 0 {
-			return nil, nil
-		}
-		targets = []config.Target{{}}
+		targets = synthesizeDefaultTarget(notesConfigured, resolved)
 	}
 
 	var platforms []port.Platform

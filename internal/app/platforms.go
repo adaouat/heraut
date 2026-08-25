@@ -2,6 +2,7 @@ package app
 
 import (
 	"github.com/adaouat/heraut/internal/config"
+	"github.com/adaouat/heraut/internal/forge"
 	"github.com/adaouat/heraut/internal/platforms/github"
 	"github.com/adaouat/heraut/internal/platforms/gitlab"
 	"github.com/adaouat/heraut/internal/port"
@@ -45,4 +46,16 @@ func platformConfigFromTarget(t config.Target, f config.Forge, id port.ForgeIden
 		cfg.Repository = id.Repository
 	}
 	return cfg
+}
+
+// synthesizeDefaultTarget decides what an empty release.targets list means: zero-config
+// publishing (one implicit default target for the resolved forge), or no publish target at all.
+// notesConfigured distinguishes the two per docs/specs/02-configuration.md (T214): release.notes
+// set with no release.targets is the documented "notes only, no release published" shape, not
+// zero-config publishing, even when a forge resolves.
+func synthesizeDefaultTarget(notesConfigured bool, resolved forge.Resolved) []config.Target {
+	if notesConfigured || len(resolved.Forges) == 0 {
+		return nil
+	}
+	return []config.Target{{}}
 }

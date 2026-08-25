@@ -110,6 +110,24 @@ func TestBuildReleasePipelineConfig_TargetsWiring(t *testing.T) {
 		require.Len(t, pCfg.Platforms, 1, "zero-config: one resolved forge must yield one driver")
 	})
 
+	t.Run("release.notes set, no release.targets: notes-only yields zero platforms (T214)", func(t *testing.T) {
+		testutil.ClearCIEnv(t)
+		runner := exectest.NewMockRunner()
+		readRunner := exectest.NewMockRunner()
+		readRunner.QueueResponse("https://gitlab.com/group/subgroup/project.git\n", "", nil)
+
+		cfg := &config.Config{
+			Version:    "1",
+			Versioning: config.Versioning{Strategy: "semver"},
+			Release:    &config.Release{Notes: &config.ContentDriver{}},
+		}
+
+		pCfg, err := buildReleasePipelineConfig(runner, readRunner, cfg, "", "", false, false)
+		require.NoError(t, err)
+		assert.Empty(t, pCfg.Platforms,
+			"a forge resolves, but release.notes with no release.targets means notes-only, no publish")
+	})
+
 	t.Run("no forge resolves at all: zero platforms, no error", func(t *testing.T) {
 		testutil.ClearCIEnv(t)
 		runner := exectest.NewMockRunner()

@@ -172,8 +172,9 @@ func RuntimeCheck(
 // release.targets entry (or the zero-config synthesized target when the list is empty), mirroring
 // buildTargetPlatforms/resolveTargetForge without constructing the port.Platform driver — the
 // check needs the resolved name/type before deciding whether to build it. Returns (nil, nil) when
-// cfg is nil (no config file found — nothing to resolve against) or when no target resolves to a
-// forge; returns a non-nil error only when resolution itself fails (e.g. an ambiguous zero-config
+// cfg is nil (no config file found — nothing to resolve against), when no target resolves to a
+// forge, or when release.notes is configured with no release.targets ("notes only, no publish" —
+// T214); returns a non-nil error only when resolution itself fails (e.g. an ambiguous zero-config
 // environment), matching heraut release's own forge-resolution failure mode.
 func effectiveTargetPlatforms(runner port.Runner, cfg *config.Config, env string) ([]config.Platform, error) {
 	if cfg == nil {
@@ -187,10 +188,8 @@ func effectiveTargetPlatforms(runner port.Runner, cfg *config.Config, env string
 	}
 
 	if len(targets) == 0 {
-		if len(resolved.Forges) == 0 {
-			return nil, nil
-		}
-		targets = []config.Target{{}}
+		notesConfigured := config.EffectiveReleaseNotes(cfg, env) != nil
+		targets = synthesizeDefaultTarget(notesConfigured, resolved)
 	}
 
 	platCfgs := make([]config.Platform, 0, len(targets))
