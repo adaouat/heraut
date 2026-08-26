@@ -50,3 +50,4 @@ trade-offs were accepted.
 | [0043](0043-forge-abstraction.md) | Forge abstraction + unified forges: config | Accepted (P3 framing — publishing folds into `port.Forge` with a transport change — superseded by 0044, which keeps `gh`/`glab` and unifies config only; "GitHub and Azure keep their current transports" now stale — GitHub's P2 migration to native `net/http` shipped) |
 | [0044](0044-publishing-config-unification.md) | Publishing config unification — `release.targets` replaces `release.platforms` | Accepted |
 | [0045](0045-native-sole-generator.md) | Native as Heraut's Sole Content Generator | Accepted |
+| [0046](0046-release-block-atomicity.md) | Release block is one intent, not two | Accepted |

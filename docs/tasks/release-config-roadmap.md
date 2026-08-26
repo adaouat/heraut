@@ -41,7 +41,7 @@ T214's mechanism.
 | T216 | Release atomicity: default-populate `Release.Notes`, remove T214's synthesis gate | Done |
 | T217 | Rename per-env `disable_notes` → `disable_release` (removed-key migration)   | Done |
 | T218 | Docs: spec 02, sample config, schema                                          | Done |
-| T219 | ADR-0046 — "Release block is one intent, not two"                            | Not started |
+| T219 | ADR-0046 — "Release block is one intent, not two"                            | Done |
 | T220 | `heraut init` wizard: collapse the notes/publish questions, rename per-env `DisableNotes` | Not started |
 
 Single pass, not phased — see the design doc's "Implementation sequencing." T216 and T217 touch
@@ -212,7 +212,7 @@ now say `disable_release`. `schema.json` renamed the property with an updated de
 
 ---
 
-#### `[ ]` T219: ADR-0046 — "Release block is one intent, not two"
+#### `[x]` T219: ADR-0046 — "Release block is one intent, not two"
 
 Context: `release.notes` and `release.targets` as independently-optional axes created an ambiguous
 config shape whose "notes only" corner produced no observable output (traced via `Run()`); the
@@ -228,3 +228,17 @@ configs hard-fail with an actionable rename hint rather than silently changing m
 
 **Files:** `docs/adr/0046-release-block-atomicity.md` (or final chosen filename), `docs/adr/README.md`.
 **Scope:** S. **Dependencies:** T216, T217 (records the decision as implemented).
+
+Implemented as designed, filename as pinned by T218's spec cross-reference
+(`docs/adr/0046-release-block-atomicity.md`). Followed ADR-0045's structure (Context / Decision /
+What does not change / Consequences / Alternatives considered / References) as the closest
+precedent — same epic lineage, same pre-v1.0 hard-cutover framing. Context section traces the
+`Run()` dead-string bug directly rather than just asserting it, matching how the design doc itself
+established the case. Added an explicit "Alternatives considered" entry for reusing T214's gate
+inverted, since that was a real design fork this session considered and rejected (the gate's
+precondition — an independently-reachable "notes only" state — no longer exists once
+default-population makes `Notes` non-nil unconditionally, so inverting the same gate would suppress
+zero-config publishing exactly when it should fire). Registered in `docs/adr/README.md`'s index
+table alongside 0043–0045. `go test ./...` and `hk check` both clean (no Go code touched).
+
+---
