@@ -5268,6 +5268,27 @@ Summary of the arc (full detail, tests, and files in the dedicated file):
 
 ---
 
+### Phase 25 — Release config simplification
+
+`release:` collapses from two independently-optional axes (`notes`, `targets`) into one atomic
+intent: block presence (even `release: {}`) means "generate notes and publish them," root and
+per-environment alike — no config shape splits the two anymore. `release.notes` stops being an
+on/off toggle and becomes a rendering-customization sub-block, default-populated the same way
+`changelog: {}` already defaults `Output` to `CHANGELOG.md`. Supersedes T214 (this session): its
+`notesConfigured` synthesis gate protected a "notes only, no publish" state that traced to nothing —
+`heraut release` generated the notes string and discarded it when there was no publish target,
+confirmed by tracing `Run()` end to end; no command ever surfaced it. Per-environment `disable_notes`
+is renamed `disable_release` (turns off the whole block for that environment, not half of it) via a
+hard removed-key error — pre-v1.0, no deprecation window, matching ADR-0028's precedent. New
+ADR-0046. Breaking config change, lands before the v1.0.0 cut. Small, single-pass epic, so the task
+breakdown **and live `[ ] / [x]` status** live in a dedicated roadmap:
+
+→ **[Release Config Roadmap](release-config-roadmap.md)** — T216+
+
+Design: [`docs/superpowers/specs/2026-08-26-release-config-simplification-design.md`](../superpowers/specs/2026-08-26-release-config-simplification-design.md).
+
+---
+
 ## Risks and mitigations
 
 | Risk                                                                                | Impact            | Mitigation                                                                |
