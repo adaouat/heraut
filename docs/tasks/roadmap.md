@@ -5289,6 +5289,65 @@ Design: [`docs/superpowers/specs/2026-08-26-release-config-simplification-design
 
 ---
 
+### Phase 26 — Publish-target driver-support awareness
+
+#### `[ ]` T221: recognize forges with no publish driver as non-resolvable targets
+
+**Found while reviewing Phase 25's release-atomicity change against Azure DevOps.** Azure DevOps
+has no equivalent of a GitHub/GitLab Release — no tag-attached page for notes + binary assets, only
+Azure Pipelines' unrelated multi-stage deployment "Releases" concept and Azure Artifacts package
+feeds. Confirmed: there is no `internal/platforms/azure` package, and `buildPlatform`
+(`internal/app/pipeline.go`) only handles `"github"`/`"gitlab"`, erroring
+`unsupported platform %q (supported: github, gitlab)` for anything else. This is correct and not
+itself a bug — there is nothing to build a driver against.
+
+The gap: `synthesizeDefaultTarget` (`internal/app/platforms.go`) synthesizes a zero-config target
+for *any* resolved forge — including `azure_devops` — whenever `len(resolved.Forges) > 0`, with no
+awareness of which types `buildPlatform` can actually construct. `HasResolvablePublishTarget`
+(`internal/app/pipeline.go`) has the same blind spot: it treats any resolved forge as "resolvable,"
+so `heraut release`'s preflight gate doesn't catch this either. The result: on Azure Pipelines CI
+(auto-detected via `TF_BUILD`), or with an explicit `forges: [{platform: azure_devops}]` entry and
+no other forge configured, declaring `release:` in any shape causes `heraut release` to fail deep in
+`buildTargetPlatforms` with the generic "unsupported platform" error — instead of failing at
+preflight with a clear, specific message, or (for the zero-config auto-detection case) not
+attempting a publish target at all.
+
+Before Phase 25, T214's now-removed `notesConfigured` gate accidentally papered over the *specific*
+shape of `release.notes` set with `release.targets` empty (treating it as "notes only, no publish"),
+which incidentally let an Azure DevOps-only setup generate enriched release-notes text via `heraut
+release` without ever reaching the publish step. Phase 25 removed that gate on purpose — no config
+shape should split notes from publish — which means this narrow escape hatch is gone too. That
+change was correct on its own terms (the gate was never meant to be an Azure-DevOps-awareness
+mechanism), but it removes the only way an Azure DevOps user had to get release-notes generation
+without a doomed publish attempt. `heraut changelog` is unaffected (it never touches `release:` or
+publish) and remains the only fully-supported path for Azure DevOps today.
+
+**Direction (exact shape TBD at implementation time):**
+
+- Give `synthesizeDefaultTarget` (or its caller) awareness of which forge types have a publish
+  driver — likely a small shared lookup consulted by `buildPlatform`, `synthesizeDefaultTarget`, and
+  `HasResolvablePublishTarget`, so "supported for publish" is defined once, not re-derived in three
+  places.
+- Zero-config auto-detection resolving *only* to a driver-less forge type should behave like "no
+  forge resolved" for target-synthesis purposes — consistent with today's already-documented
+  philosophy that zero resolvable destinations is a config error for `heraut release`, not a silent
+  no-op or a deep pipeline crash.
+- Decide whether an *explicit* `release.targets[].forge` naming a driver-less forge should get the
+  same early/clear treatment, or whether today's `buildPlatform` error (arguably already clear
+  enough for a user-authored mistake) is sufficient as-is.
+- `heraut check`'s `effectiveTargetPlatforms` (`internal/app/check.go`) should stay consistent with
+  whatever `heraut release` decides, so its Platforms/binary-fallback branching doesn't diverge from
+  actual release behavior.
+- Consider whether this needs an ADR-0046 addendum (documenting the Azure DevOps limitation
+  explicitly) or is scoped narrowly enough to be a plain bugfix — decide once the fix shape is clear.
+
+**Files (expected):** `internal/app/platforms.go`, `internal/app/pipeline.go`,
+`internal/app/check.go` (+ their test files); possibly `docs/specs/02-configuration.md` /
+`docs/adr/0046-release-block-atomicity.md` if documentation needs updating.
+**Scope:** S–M. **Dependencies:** none (Phase 25 already shipped).
+
+---
+
 ## Risks and mitigations
 
 | Risk                                                                                | Impact            | Mitigation                                                                |
