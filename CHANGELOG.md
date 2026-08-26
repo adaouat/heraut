@@ -1,5 +1,38 @@
 # Changelog
 
+<!-- heraut-release: v0.58.0 -->
+## [0.58.0](https://github.com/adaouat/heraut/compare/v0.57.0..v0.58.0) - 2026-08-26
+
+### 🚀 Features
+
+- *(config,app)* Release block atomicity — default-populate notes, drop T214 gate - ([d6559bc](https://github.com/adaouat/heraut/commit/d6559bca030c732c49245992708cee39899f221f)) by @bchatard
+
+- *(config,app)* Rename per-env disable_notes to disable_release - ([80de909](https://github.com/adaouat/heraut/commit/80de9096c3550f7b54e106f77296417f737094b0)) by @bchatard
+
+- *(scaffold)* Collapse wizard notes/publish questions into one - ([a871e70](https://github.com/adaouat/heraut/commit/a871e70f637565eb6887c7cf8833760c92807718)) by @bchatard
+
+
+### 🐛 Bug Fixes
+
+- *(app)* Notes-only release config no longer synthesizes a publish target - ([3452198](https://github.com/adaouat/heraut/commit/345219817f1b09148b466c633dfdad28d188734d)) by @bchatard
+
+- *(forge/gitlab)* Anchor GraphQL enrichment on the real range tip - ([c8c9794](https://github.com/adaouat/heraut/commit/c8c9794829570a717c6552b6a3318f90fe85076c)) by @bchatard
+
+- *(platforms/gitlab)* Trust CI autologin for a self-hosted target matching CI_SERVER_URL - ([9931092](https://github.com/adaouat/heraut/commit/9931092a100ade0c2f8b16e2042e94667434a5b4)) by @bchatard
+
+
+### 📚 Documentation
+
+- *(adr)* Add ADR-0046 — release block is one intent, not two - ([ba8c162](https://github.com/adaouat/heraut/commit/ba8c16296d3d0c9d4f0e11eee4f4449683dbd201)) by @bchatard
+
+- *(config)* Document release block atomicity in spec, sample, schema - ([233db19](https://github.com/adaouat/heraut/commit/233db1939fa77b424cd6b15a3810c3ba87f084ff)) by @bchatard
+
+- *(roadmap)* File T214/T215 — publish-target synthesis and self-hosted CI regression - ([e4a497e](https://github.com/adaouat/heraut/commit/e4a497ec3c7d81ed7dd176c1abfd5591735b6e7f)) by @bchatard
+
+- *(roadmap)* Close out T215 and T214 - ([15c129b](https://github.com/adaouat/heraut/commit/15c129bd587a62b4f61a993a20663454f98ab492)) by @bchatard
+
+- *(roadmap)* Approve release config atomicity design, file T216-T220 - ([26484c0](https://github.com/adaouat/heraut/commit/26484c0d93644f040f7002ca8a5a894d69284bc5)) by @bchatard
+
 <!-- heraut-release: v0.57.0 -->
 ## [0.57.0](https://github.com/adaouat/heraut/compare/v0.56.0..v0.57.0) - 2026-08-22
 
