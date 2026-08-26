@@ -41,6 +41,12 @@ const configKeyRemovedHint = "generator-specific config files are gone; use rend
 // (and their per-env variants): remote metadata now comes from a top-level forges: entry.
 const changelogRemoteRemovedHint = "replace with a top-level `forges:` entry and point `commits.enrichment_forge` at it"
 
+// disableNotesRemovedHint is the migration guidance for environments.<env>.disable_notes
+// (T216/T217, release-atomicity design): disable_release replaces it but changes meaning — it now
+// turns off the entire release: behavior (notes and publish together) for the environment, not
+// just the notes text while still publishing.
+const disableNotesRemovedHint = "rename to `disable_release` — it now turns off the entire `release:` behavior (notes and publish together) for that environment, not just the notes text"
+
 // removedKeys maps a removed config path to its replacement guidance.
 var removedKeys = []struct{ path, hint string }{
 	{"changelog.remote", changelogRemoteRemovedHint},
@@ -75,7 +81,8 @@ func checkRemovedKeys(raw []byte) error {
 			} `yaml:"notes"`
 		} `yaml:"release"`
 		Environments map[string]struct {
-			Changelog struct {
+			DisableNotes any `yaml:"disable_notes"`
+			Changelog    struct {
 				Remote    any `yaml:"remote"`
 				Generator any `yaml:"generator"`
 				Config    any `yaml:"config"`
@@ -108,6 +115,9 @@ func checkRemovedKeys(raw []byte) error {
 	}
 	for _, env := range slices.Sorted(maps.Keys(probe.Environments)) {
 		envProbe := probe.Environments[env]
+		if envProbe.DisableNotes != nil {
+			return fmt.Errorf("%w: `environments.%s.disable_notes` — %s", ErrRemovedConfigKey, env, disableNotesRemovedHint)
+		}
 		if envProbe.Changelog.Remote != nil {
 			return fmt.Errorf("%w: `environments.%s.changelog.remote` — %s", ErrRemovedConfigKey, env, changelogRemoteRemovedHint)
 		}

@@ -116,7 +116,7 @@ func TestBuildPipeline_PerEnvDisableFlags(t *testing.T) {
 	mr := exectest.NewMockRunner()
 	cfg := semverCfg()
 	cfg.Environments = map[string]config.Environment{
-		"prod": {DisableChangelog: true, DisableNotes: true},
+		"prod": {DisableChangelog: true, DisableRelease: true},
 	}
 	opts := app.PipelineOpts{Out: &bytes.Buffer{}, Env: "prod"}
 	p, err := app.BuildPipeline(mr, cfg, defaultResolver, opts)

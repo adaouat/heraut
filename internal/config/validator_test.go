@@ -641,7 +641,11 @@ environments:
 	assert.Contains(t, e.Message, "unreachable")
 }
 
-func TestValidate_disableNotesAndNotesOverride(t *testing.T) {
+// TestValidate_disableReleaseAndReleaseOverride covers T217: disable_release: true now turns off
+// the entire release: behavior for the environment (notes and publish together), so ANY
+// environments.<env>.release override — not just release.notes — becomes unreachable, unlike the
+// pre-T217 disable_notes toggle which only shadowed the notes sub-block.
+func TestValidate_disableReleaseAndReleaseOverride(t *testing.T) {
 	cfg := mustLoad(t, `
 version: "1"
 versioning:
@@ -650,13 +654,13 @@ environments:
   dev:
     bump: auto
     tag_format: "dev/{version}"
-    disable_notes: true
+    disable_release: true
     release:
       notes:
         tag_pattern: "v[0-9]*"
 `)
 	errs := config.Validate(cfg)
-	e := findErr(errs, "environments.dev.release.notes")
+	e := findErr(errs, "environments.dev.release")
 	require.NotNil(t, e)
 	assert.Contains(t, e.Message, "unreachable")
 }

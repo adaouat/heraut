@@ -72,7 +72,7 @@ func answersToConfig(a Answers) config.Config {
 				Source:           e.Source,
 				Branch:           e.Branch,
 				DisableChangelog: e.DisableChangelog,
-				DisableNotes:     e.DisableNotes,
+				DisableRelease:   e.DisableNotes,
 				Changelog:        e.Changelog,
 				Release:          e.Release,
 			}

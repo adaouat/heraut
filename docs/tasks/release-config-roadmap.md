@@ -39,7 +39,7 @@ T214's mechanism.
 | Task | Description                                                                 | Status      |
 |------|-------------------------------------------------------------------------------|-------------|
 | T216 | Release atomicity: default-populate `Release.Notes`, remove T214's synthesis gate | Done |
-| T217 | Rename per-env `disable_notes` → `disable_release` (removed-key migration)   | Not started |
+| T217 | Rename per-env `disable_notes` → `disable_release` (removed-key migration)   | Done |
 | T218 | Docs: spec 02, sample config, schema                                          | Not started |
 | T219 | ADR-0046 — "Release block is one intent, not two"                            | Not started |
 | T220 | `heraut init` wizard: collapse the notes/publish questions, rename per-env `DisableNotes` | Not started |
@@ -96,7 +96,7 @@ clean.
 
 ---
 
-#### `[ ]` T217: rename per-environment `disable_notes` → `disable_release`
+#### `[x]` T217: rename per-environment `disable_notes` → `disable_release`
 
 `Environment.DisableNotes` (`environments.<env>.disable_notes`) is renamed to
 `Environment.DisableRelease` (`environments.<env>.disable_release`) in
@@ -120,6 +120,25 @@ invocation. `disable_changelog` is untouched — a different, unrelated toggle, 
 **Files:** `internal/config/config.go`, `internal/config/loader.go` (+ removed-key migration test,
 mirroring `TestLoad_RemovedKey_ReleasePlatforms`'s shape), `internal/app/pipeline.go`.
 **Scope:** S. **Dependencies:** none.
+
+Implemented as designed, plus three necessary compile-preserving touches outside the stated file
+list: `internal/config/validator.go`'s `validateEnvContradictions` referenced the old field
+directly (`env.DisableNotes && env.Release != nil && env.Release.Notes != nil` →
+`"disable_notes: true makes the release notes override unreachable"`), so it was updated to
+`env.DisableRelease && env.Release != nil` with a broadened message — any `release:` override
+(not just `.notes`) is unreachable once the whole block is disabled, not only the notes sub-block —
+and its test (`TestValidate_disableNotesAndNotesOverride`) was renamed and rewritten accordingly.
+`internal/scaffold/generate.go` and `wizard.go` both read/wrote the old field name in
+`config.Environment{...}` literals; both got the minimal rename needed to keep compiling
+(`DisableRelease: e.DisableNotes` / `DisableNotes: env.DisableRelease`), deliberately leaving the
+wizard's own `EnvAnswer.DisableNotes` field and prompt untouched — that's T220's actual scope
+(collapsing the wizard questions), not a rename side-effect. `buildReleasePipelineConfig`
+(`internal/app/pipeline.go`) now also skips building publish targets entirely when
+`envCfg.DisableRelease` is set (guarding the `buildTargetPlatforms` call on `pCfg.DisableNotes`,
+which now carries the renamed field's value) — achieving the "notes and publish together" half of
+atomicity purely at this call site, with no change to `internal/pipeline/*.go`'s own `DisableNotes`
+field (that remains a pipeline-internal knob, gated at runtime exactly as `DisableChangelog` is).
+`go test ./...` and `hk check` both clean.
 
 ---
 

@@ -712,11 +712,11 @@ func validateEnvContradictions(envs map[string]Environment) []ValidationError {
 				Hint:    "remove either disable_changelog: true (to apply the override) or the changelog: block (to keep the step disabled)",
 			})
 		}
-		if env.DisableNotes && env.Release != nil && env.Release.Notes != nil {
+		if env.DisableRelease && env.Release != nil {
 			errs = append(errs, ValidationError{
-				Path:    base + ".release.notes",
-				Message: "disable_notes: true makes the release notes override unreachable",
-				Hint:    "remove either disable_notes: true (to apply the override) or the release.notes: block (to keep the step disabled)",
+				Path:    base + ".release",
+				Message: "disable_release: true makes the release override unreachable",
+				Hint:    "remove either disable_release: true (to apply the override) or the release: block (to keep the whole step disabled)",
 			})
 		}
 	}

@@ -184,7 +184,7 @@ func ConfigToAnswers(cfg *config.Config) Answers {
 			Source:           env.Source,
 			Branch:           env.Branch,
 			DisableChangelog: env.DisableChangelog,
-			DisableNotes:     env.DisableNotes,
+			DisableNotes:     env.DisableRelease,
 			Changelog:        env.Changelog,
 			Release:          env.Release,
 		})

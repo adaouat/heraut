@@ -279,3 +279,21 @@ environments:
 	require.True(t, errors.Is(err, config.ErrRemovedConfigKey))
 	assert.Contains(t, err.Error(), "top-level")
 }
+
+// TestLoad_RemovedKey_DisableNotes covers T217: environments.<env>.disable_notes is a hard
+// removed-key error, not a silent reinterpretation — disable_release's meaning ("turn off the
+// entire release: behavior") differs from disable_notes's old meaning ("keep publishing, skip
+// the notes text"), so a config relying on the old semantics must fail loudly rather than start
+// silently going quiet on an environment that used to publish.
+func TestLoad_RemovedKey_DisableNotes(t *testing.T) {
+	_, err := config.Load(writeCfg(t, `version: "1"
+versioning: {strategy: semver}
+environments:
+  staging:
+    disable_notes: true
+`))
+	require.Error(t, err)
+	assert.True(t, errors.Is(err, config.ErrRemovedConfigKey), "must be the removed-key sentinel")
+	assert.Contains(t, err.Error(), "staging", "the error must name which environment carries the removed key")
+	assert.Contains(t, err.Error(), "disable_release", "the error must name the replacement")
+}

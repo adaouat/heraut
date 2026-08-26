@@ -69,10 +69,13 @@ type Environment struct {
 	Source    string `yaml:"source,omitempty"`
 
 	// Content fields
-	DisableChangelog bool           `yaml:"disable_changelog,omitempty"`
-	DisableNotes     bool           `yaml:"disable_notes,omitempty"`
-	Changelog        *ContentDriver `yaml:"changelog,omitempty"`
-	Release          *EnvRelease    `yaml:"release,omitempty"`
+	DisableChangelog bool `yaml:"disable_changelog,omitempty"`
+	// DisableRelease turns off the entire release: behavior (notes generation and publishing,
+	// together) for this environment (T217, release-atomicity design) — renamed from
+	// disable_notes, which only silenced the notes text while still publishing.
+	DisableRelease bool           `yaml:"disable_release,omitempty"`
+	Changelog      *ContentDriver `yaml:"changelog,omitempty"`
+	Release        *EnvRelease    `yaml:"release,omitempty"`
 }
 
 // EnvRelease holds per-environment release overrides.

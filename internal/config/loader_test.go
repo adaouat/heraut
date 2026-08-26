@@ -238,13 +238,13 @@ environments:
     tag_format: "dev/{version}"
     bump: auto
     disable_changelog: true
-    disable_notes: true
+    disable_release: true
 `
 	cfg, err := config.LoadFromReader(strings.NewReader(src))
 	require.NoError(t, err)
 	dev := cfg.Environments["dev"]
 	assert.True(t, dev.DisableChangelog)
-	assert.True(t, dev.DisableNotes)
+	assert.True(t, dev.DisableRelease)
 }
 
 func TestLoadFromReader_rejectsUnknownTopLevelKey(t *testing.T) {

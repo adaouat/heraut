@@ -198,7 +198,11 @@ func buildReleasePipelineConfig(runner, readRunner port.Runner, cfg *config.Conf
 	if env != "" {
 		if envCfg, ok := cfg.Environments[env]; ok {
 			pCfg.DisableChangelog = envCfg.DisableChangelog
-			pCfg.DisableNotes = envCfg.DisableNotes
+			// disable_release turns off the entire release: behavior for this environment (T217)
+			// — pCfg.DisableNotes gates notes generation at runtime (internal/pipeline/release.go)
+			// exactly like disable_notes used to, and is also used below to skip building publish
+			// targets entirely, since there is no longer a way to disable just one half.
+			pCfg.DisableNotes = envCfg.DisableRelease
 			if envCfg.Changelog != nil {
 				effectiveChangelog = config.MergeContentDriver(effectiveChangelog, envCfg.Changelog)
 			}
@@ -249,10 +253,15 @@ func buildReleasePipelineConfig(runner, readRunner port.Runner, cfg *config.Conf
 		pCfg.Notes = gen
 	}
 
-	// Targets (release.targets — ADR-0043/ADR-0044, the only publish surface).
-	targetPlatforms, err := buildTargetPlatforms(runner, cfg, effectiveTargets, releaseAssets, resolved)
-	if err != nil {
-		return nil, err
+	// Targets (release.targets — ADR-0043/ADR-0044, the only publish surface). Skipped entirely
+	// when disable_release is set for this environment (pCfg.DisableNotes) — the whole release:
+	// behavior is off, so no target is built even when release.targets is explicit (T217).
+	var targetPlatforms []port.Platform
+	if !pCfg.DisableNotes {
+		targetPlatforms, err = buildTargetPlatforms(runner, cfg, effectiveTargets, releaseAssets, resolved)
+		if err != nil {
+			return nil, err
+		}
 	}
 	pCfg.Platforms = append(pCfg.Platforms, targetPlatforms...)
 

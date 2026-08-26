@@ -261,6 +261,37 @@ func TestBuildReleasePipelineConfig_TargetsWiring(t *testing.T) {
 	})
 }
 
+// TestBuildReleasePipelineConfig_DisableRelease covers T217: environments.<env>.disable_release
+// turns off the entire release: behavior for that environment — notes generation and publishing
+// together — unlike the pre-T217 disable_notes toggle, which only silenced the notes text while
+// still publishing.
+func TestBuildReleasePipelineConfig_DisableRelease(t *testing.T) {
+	testutil.ClearCIEnv(t)
+	runner := exectest.NewMockRunner()
+	readRunner := exectest.NewMockRunner()
+	readRunner.QueueResponse("", "", assertNoOriginErr)
+
+	cfg := &config.Config{
+		Version:    "1",
+		Versioning: config.Versioning{Strategy: "semver"},
+		Forges: []config.Forge{
+			{Name: "gh", Type: "github", Repository: "acme/widget"},
+		},
+		Release: &config.Release{
+			Notes:   &config.ContentDriver{},
+			Targets: []config.Target{{Forge: "gh"}},
+		},
+		Environments: map[string]config.Environment{
+			"staging": {Bump: "auto", DisableRelease: true},
+		},
+	}
+
+	pCfg, err := buildReleasePipelineConfig(runner, readRunner, cfg, "staging", "", false, false)
+	require.NoError(t, err)
+	assert.Empty(t, pCfg.Platforms, "disable_release must skip publishing entirely, even with explicit release.targets")
+	assert.True(t, pCfg.DisableNotes, "disable_release must also gate off notes generation")
+}
+
 // TestBuildReleasePipelineConfig_ForgeResolutionErrorScope pins when a forge-resolution failure is
 // allowed to abort a release. Resolution is local (config / CI env / git origin) and can fail on a
 // plain developer machine — e.g. both GITHUB_TOKEN and GITLAB_TOKEN exported, the standard default
