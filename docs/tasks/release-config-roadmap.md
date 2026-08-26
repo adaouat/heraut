@@ -38,7 +38,7 @@ T214's mechanism.
 
 | Task | Description                                                                 | Status      |
 |------|-------------------------------------------------------------------------------|-------------|
-| T216 | Release atomicity: default-populate `Release.Notes`, remove T214's synthesis gate | Not started |
+| T216 | Release atomicity: default-populate `Release.Notes`, remove T214's synthesis gate | Done |
 | T217 | Rename per-env `disable_notes` → `disable_release` (removed-key migration)   | Not started |
 | T218 | Docs: spec 02, sample config, schema                                          | Not started |
 | T219 | ADR-0046 — "Release block is one intent, not two"                            | Not started |
@@ -51,7 +51,7 @@ describe real behavior rather than intent.
 
 ---
 
-#### `[ ]` T216: Release atomicity — default-populate `Release.Notes`, remove T214's synthesis gate
+#### `[x]` T216: Release atomicity — default-populate `Release.Notes`, remove T214's synthesis gate
 
 Two changes that must land together (an intermediate state with one but not the other is
 incoherent — see design doc "Implementation sequencing"):
@@ -79,6 +79,20 @@ two anymore.
 **Files:** `internal/config/loader.go` (+ tests), `internal/app/platforms.go`,
 `internal/app/pipeline.go`, `internal/app/check.go`, `internal/app/targets_internal_test.go`,
 `internal/app/check_test.go`. **Scope:** M. **Dependencies:** none.
+
+Implemented as designed, both halves in one commit. `normalize()` in `internal/config/loader.go`
+now default-populates `Release.Notes` right after the existing `Changelog.Output` default, guarded
+identically (`cfg.Release != nil && cfg.Release.Notes == nil`). `synthesizeDefaultTarget` dropped
+the `notesConfigured bool` parameter entirely and reverted to `len(resolved.Forges) == 0`; both
+call sites (`buildTargetPlatforms`, `effectiveTargetPlatforms`) dropped the argument they passed.
+`check.go`'s `effectiveTargetPlatforms` also dropped its now-unused `config.EffectiveReleaseNotes`
+call. Left `config.EffectiveReleaseNotes` itself in place (`internal/config/platforms.go`) even
+though its only production call site is now gone — it wasn't in this task's file list, it's still
+exported/tested, and deleting it would be a scope call belonging to whoever next audits for dead
+exports, not this task. The two T214 tests were replaced with new assertions proving the reverted,
+fully-atomic behavior (a forge resolves + `release.notes` set with no `release.targets` → publishes
+regardless), matching the design doc's testing plan exactly. `go test ./...` and `hk check` both
+clean.
 
 ---
 

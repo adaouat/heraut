@@ -170,6 +170,12 @@ func normalize(cfg *Config) {
 	if cfg.Changelog != nil && cfg.Changelog.Output == "" {
 		cfg.Changelog.Output = "CHANGELOG.md"
 	}
+	// release: presence always means "generate notes and publish" (T216, release-atomicity
+	// design): a nil Notes here would look identical to the pre-T216 "notes disabled" state, so
+	// release: {} default-populates it exactly as an explicitly-written notes: {} already does.
+	if cfg.Release != nil && cfg.Release.Notes == nil {
+		cfg.Release.Notes = &ContentDriver{}
+	}
 	normalizeForges(cfg.Forges)
 }
 

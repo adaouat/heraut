@@ -159,6 +159,39 @@ release:
 	assert.Equal(t, []string{"dist/myapp_*"}, gl.Assets)
 }
 
+// TestLoadFromReader_releaseDefaultsNotes proves release: {} default-populates Notes to a
+// zero-value ContentDriver, mirroring how changelog: {} already defaults Output to CHANGELOG.md
+// (T216 — release atomicity: block presence always means "generate notes and publish").
+func TestLoadFromReader_releaseDefaultsNotes(t *testing.T) {
+	src := `
+version: "1"
+versioning:
+  strategy: semver
+release: {}
+`
+	cfg, err := config.LoadFromReader(strings.NewReader(src))
+	require.NoError(t, err)
+	require.NotNil(t, cfg.Release)
+	assert.NotNil(t, cfg.Release.Notes, "release: {} must default-populate Notes exactly as an explicitly-written notes: {} already does")
+}
+
+// TestLoadFromReader_releaseWithExplicitNotesUnaffected proves the default-population only fills
+// a nil Notes — an explicitly-written notes: {} (or with fields set) is left untouched.
+func TestLoadFromReader_releaseWithExplicitNotesUnaffected(t *testing.T) {
+	src := `
+version: "1"
+versioning:
+  strategy: semver
+release:
+  notes:
+    tag_pattern: "prod/*"
+`
+	cfg, err := config.LoadFromReader(strings.NewReader(src))
+	require.NoError(t, err)
+	require.NotNil(t, cfg.Release.Notes)
+	assert.Equal(t, "prod/*", cfg.Release.Notes.TagPattern)
+}
+
 func TestLoadFromReader_withEnvOverrides(t *testing.T) {
 	src := `
 version: "1"

@@ -618,37 +618,34 @@ func TestRuntimeCheck_OptionalPlatformsWarnWhenMissing(t *testing.T) {
 	assert.True(t, warnNames["gh"], "expected optional warn for gh")
 }
 
-// TestRuntimeCheck_NotesOnlyNoTargets_SkipsPublishCheck covers T214: release.notes set with no
-// release.targets means "notes only, no publish" (docs/specs/02-configuration.md) — even though a
-// forge resolves (a configured forges: entry here), heraut check must not run a full
-// publish-credential Check() against it, only the advisory binary-only fallback.
-func TestRuntimeCheck_NotesOnlyNoTargets_SkipsPublishCheck(t *testing.T) {
+// TestRuntimeCheck_ReleaseWithoutTargets_RunsPublishCheck covers T216: release atomicity means
+// release.notes set with no release.targets no longer signals "notes only, no publish" (T214's
+// model) — release: presence, however minimal, always resolves and publishes to the configured
+// forge, so heraut check must run the full publish-credential Check() against it, not the
+// advisory binary-only fallback.
+func TestRuntimeCheck_ReleaseWithoutTargets_RunsPublishCheck(t *testing.T) {
 	testutil.ClearCIEnv(t)
 	mr := exectest.NewMockRunner()
-	mr.QueueResponse("git version 2.40.0", "", nil)         // git --version
-	mr.QueueResponse("Alice", "", nil)                      // user.name
-	mr.QueueResponse("a@b.com", "", nil)                    // user.email
-	mr.QueueResponse("", "", nil)                           // git status
-	mr.QueueResponse("", "", errors.New("no origin"))       // git remote get-url origin (forge resolution)
-	mr.QueueResponse("", "", errors.New("glab: not found")) // glab (binary-only fallback probe)
-	mr.QueueResponse("", "", errors.New("gh: not found"))   // gh (binary-only fallback probe)
+	mr.QueueResponse("git version 2.40.0", "", nil)   // git --version
+	mr.QueueResponse("Alice", "", nil)                // user.name
+	mr.QueueResponse("a@b.com", "", nil)              // user.email
+	mr.QueueResponse("", "", nil)                     // git status
+	mr.QueueResponse("", "", errors.New("no origin")) // git remote get-url origin (forge resolution)
+	mr.QueueResponse("glab 1.60.0", "", nil)          // glab binary — inside p.Check()
+	// GITLAB_TOKEN unset and not in CI autologin → checkAPIAuth returns nil without a further call
 
 	cfg := semverCfg()
 	cfg.Forges = []config.Forge{{Name: "gl", Type: "gitlab", Project: "group/repo"}}
 	cfg.Release = &config.Release{Notes: &config.ContentDriver{}}
 	items := collectItems(mr, cfg, "")
 
+	found := false
 	for _, it := range items {
-		assert.NotEqual(t, "gl", it.Name, "notes-only must not run a per-target publish check")
-	}
-	warnNames := make(map[string]bool)
-	for _, it := range items {
-		if it.IsWarn {
-			warnNames[it.Name] = true
+		if it.Name == "gl" {
+			found = true
 		}
 	}
-	assert.True(t, warnNames["glab"], "falls back to the advisory binary-only probe")
-	assert.True(t, warnNames["gh"], "falls back to the advisory binary-only probe")
+	assert.True(t, found, "release: presence with no explicit targets must still resolve and run a full publish check against the configured forge")
 }
 
 func TestRuntimeCheck_OptionalToolsSilentWhenPresent(t *testing.T) {

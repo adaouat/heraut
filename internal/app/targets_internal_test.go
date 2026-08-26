@@ -110,7 +110,7 @@ func TestBuildReleasePipelineConfig_TargetsWiring(t *testing.T) {
 		require.Len(t, pCfg.Platforms, 1, "zero-config: one resolved forge must yield one driver")
 	})
 
-	t.Run("release.notes set, no release.targets: notes-only yields zero platforms (T214)", func(t *testing.T) {
+	t.Run("release.notes set, no release.targets: zero-config publish still fires (T216 atomicity)", func(t *testing.T) {
 		testutil.ClearCIEnv(t)
 		runner := exectest.NewMockRunner()
 		readRunner := exectest.NewMockRunner()
@@ -124,8 +124,8 @@ func TestBuildReleasePipelineConfig_TargetsWiring(t *testing.T) {
 
 		pCfg, err := buildReleasePipelineConfig(runner, readRunner, cfg, "", "", false, false)
 		require.NoError(t, err)
-		assert.Empty(t, pCfg.Platforms,
-			"a forge resolves, but release.notes with no release.targets means notes-only, no publish")
+		require.Len(t, pCfg.Platforms, 1,
+			"release: presence (with or without an explicit notes: sub-block) always means generate and publish, together — there is no config-expressible 'notes only' state anymore")
 	})
 
 	t.Run("no forge resolves at all: zero platforms, no error", func(t *testing.T) {
