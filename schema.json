@@ -485,9 +485,9 @@
           "type": "boolean",
           "description": "Disable changelog generation for this environment."
         },
-        "disable_notes": {
+        "disable_release": {
           "type": "boolean",
-          "description": "Disable release notes for this environment."
+          "description": "Disable the entire release: behavior (notes generation and publishing, together) for this environment."
         },
         "changelog": {
           "$ref": "#/definitions/ContentDriver",

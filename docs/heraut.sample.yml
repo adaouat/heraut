@@ -95,24 +95,26 @@ versioning:
 #     # disable_changelog: skip changelog generation for this environment.
 #     # disable_changelog: true
 #
-#     # disable_notes: skip release notes generation for this environment.
-#     # disable_notes: true
+#     # disable_release: turn off the entire release: behavior (notes + publish,
+#     # together) for this environment.
+#     # disable_release: true
 #
 #     # changelog override — replace root changelog config for this environment.
 #     # changelog:
 #     #   tag_pattern: "^dev/"
 #
-#     # release overrides — independently override notes and/or targets.
+#     # release overrides — release.notes deep-merges over root, release.targets
+#     # replaces the root list entirely for this env (ADR-0043/ADR-0044). Both
+#     # still generate + publish together — see the release block below.
 #     # release:
-#     #   notes: {}
-#     #   targets:              # ADR-0043/ADR-0044; replaces the root list entirely for this env
+#     #   targets:
 #     #     - forge: gitlab-saas
 #
 #   staging:
 #     bump: promote
 #     source: dev        # environment to promote from
 #     disable_changelog: true
-#     disable_notes: true
+#     disable_release: true
 #
 #   prod:
 #     bump: promote
@@ -277,17 +279,17 @@ changelog:
 
 # ── release ───────────────────────────────────────────────────────────────────
 #
-# Omit this block if you do not publish releases to any platform.
+# Omit this block if you do not publish releases to any platform. Presence — even
+# empty (release: {}) — always means "generate release notes and publish them,"
+# together; there is no config shape that gets one without the other (ADR-0046).
 
 release:
-  # notes — release-page description text, generated natively. Omit (leave as `notes: {}`)
-  # if you want the platform release created with no description body.
+  # notes — rendering overrides for the release-page description text, generated
+  # natively. Omit entirely to use native's defaults (equivalent to `notes: {}`).
   #
-  # tag_pattern, template — same semantics as the changelog block above. To set them,
-  # replace notes: {} below with:
-  #   notes:
-  #     tag_pattern: "v[0-9]*"
-  notes: {}
+  # tag_pattern, template — same semantics as the changelog block above.
+  # notes:
+  #   tag_pattern: "v[0-9]*"
 
   # assets — glob patterns for files to attach to the release, applied to all targets.
   # Globs are expanded at release time; a pattern matching nothing emits a warning

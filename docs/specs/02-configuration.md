@@ -167,7 +167,7 @@ are optional unless noted.
 | Field               | Default | Description                                                                                                                                                               |
 |---------------------|---------|---------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
 | `disable_changelog` | `false` | When `true`, skips changelog generation and the git commit for this env. If `--tag` is also requested, the tag is still created. Takes precedence over `changelog:` when both are set. |
-| `disable_notes`     | `false` | When `true`, skips release notes generation. The platform release is still created, but without attached notes. Takes precedence over `release.notes:` when both are set. |
+| `disable_release`   | `false` | When `true`, turns off the entire `release:` behavior for this env — notes generation *and* publishing, together, since the two can no longer be split (see § `release` below). Takes precedence over `release:` when both are set. |
 | `changelog`         | —       | Override the root `changelog` for this env. Deep-merges field-by-field (see § Content override semantics). Absent means use the root default.                              |
 | `release`           | —       | Override `release.notes` (deep-merge) and/or `release.targets` (replace) for this env (see § Content override semantics below).                                            |
 
@@ -192,7 +192,7 @@ environments:
 **Limitation:** because an empty field inherits, a per-env block cannot blank out a value
 the root sets (there is no explicit "unset").
 
-`disable_changelog` / `disable_notes: true` take precedence over `changelog:` / `release.notes:`
+`disable_changelog` / `disable_release: true` take precedence over `changelog:` / `release:`
 when both are set on the same env.
 
 **Lists stay replace** — `release.targets` is replaced wholesale per env (merging lists
@@ -345,46 +345,39 @@ See § Content generation below for native generator fields.
 
 ## `release`
 
-Controls release notes generation and where releases are published.
+Controls release notes generation and where releases are published — together, as one
+atomic intent ([ADR-0046](../adr/0046-release-block-atomicity.md)). `release:` presence,
+however minimal, always means "generate release notes and publish them"; there is no
+config-expressible way to get one without the other, root or per-environment.
 
 ```yaml
-release:
-  notes: {}               # optional — release notes config (empty uses defaults)
-  targets:                 # optional — publish destinations
-    - forge: gitlab-saas
-    - forge: github
+release: {}   # generate notes with native defaults, publish to the resolved forge
 ```
 
-Both `notes` and `targets` are optional independently:
+Two states only:
 
-- **`targets` only (no `notes`)** — the release is published to each target with no
-  inline content. This is intentional and valid: the CHANGELOG.md in the repository (or
-  the forge's own auto-generate feature) serves as the record. Use a comment to make
-  the intent explicit:
+- **`release:` present, even empty (`release: {}`)** — notes are generated (`release.notes`,
+  if set, supplies rendering overrides — see § Content generation below; a nil `notes:`
+  default-populates to the same effective config as an explicit `notes: {}`) and the release
+  is published to every entry in `release.targets`, or, when `targets` is omitted/empty, to
+  the single resolved forge (zero-config publishing; see § Identity resolution under
+  § `forges` below). This is the common CI shape: no `forges:`, no `release.targets`,
+  `release: {}`. On GitHub Actions this still requires `GH_TOKEN` to be exported: the
+  identity's token is resolved for enrichment but is not passed to the `gh`-based driver, and
+  `gh`'s own check has no CI exemption (unlike GitLab CI, where `glab`'s job-token autologin
+  covers this case — see `inCIAutologin` in the GitLab driver).
 
-  ```yaml
-  release:
-    # No inline release notes — CHANGELOG.md in the repo is the record.
-    targets:
-      - forge: github
-  ```
+- **`release:` omitted entirely** — no notes, no publish. Valid when `heraut release` is not
+  used. Note: `heraut release` itself requires at least one **resolvable** publish
+  destination — an explicit `release.targets` entry, or a forge that auto-detects. Zero
+  resolvable destinations (no targets, no forge, no CI/origin to detect one) is a
+  configuration error for that command.
 
-- **`notes` only (no `targets`)** — notes are generated but no release is published.
-  Useful for previewing or piping output to another tool.
-
-- **Neither, with `targets` omitted entirely** — the release still publishes to the single
-  resolved forge with default options (zero-config publishing; see § Identity resolution
-  under § `forges` below). This is the common CI shape: no `forges:`, no `release.targets`,
-  and heraut auto-detects the destination from the CI environment or git origin. On GitHub
-  Actions this still requires `GH_TOKEN` to be exported: the identity's token is resolved for
-  enrichment but is not passed to the `gh`-based driver, and `gh`'s own check has no CI
-  exemption (unlike GitLab CI, where `glab`'s job-token autologin covers this case — see
-  `inCIAutologin` in the GitLab driver).
-
-- **`release:` omitted entirely** — valid when `heraut release` is not used. Note: `heraut
-  release` itself requires at least one **resolvable** publish destination — an explicit
-  `release.targets` entry, or a forge that auto-detects. Zero resolvable destinations (no
-  targets, no forge, no CI/origin to detect one) is a configuration error for that command.
+`release.notes` is a rendering-customization sub-block, not an on/off toggle — set fields
+there (`template`, `tag_pattern`, etc.) to override native's defaults for the release-notes
+render; it cannot disable notes generation, or publishing, on its own. The only way to turn
+off release behavior for one environment is `disable_release: true` (see § Per-environment
+fields above), which disables both together.
 
 ### `release.targets[]`
 
@@ -673,7 +666,7 @@ allow-list rather than the rendered output.
 
 Configured under `changelog` and `release.notes`. `native`, heraut's built-in renderer, is the
 only generator (ADR-0045) — there is no `generator:` key to set; an empty `changelog: {}` /
-`release: {notes: {}}` block means "generate with native, using defaults."
+`release: {}` block means "generate with native, using defaults."
 
 | Field         | Required | Description                                                                                                                                                                                                                                                                       |
 |---------------|----------|-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|

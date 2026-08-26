@@ -40,7 +40,7 @@ T214's mechanism.
 |------|-------------------------------------------------------------------------------|-------------|
 | T216 | Release atomicity: default-populate `Release.Notes`, remove T214's synthesis gate | Done |
 | T217 | Rename per-env `disable_notes` → `disable_release` (removed-key migration)   | Done |
-| T218 | Docs: spec 02, sample config, schema                                          | Not started |
+| T218 | Docs: spec 02, sample config, schema                                          | Done |
 | T219 | ADR-0046 — "Release block is one intent, not two"                            | Not started |
 | T220 | `heraut init` wizard: collapse the notes/publish questions, rename per-env `DisableNotes` | Not started |
 
@@ -177,7 +177,7 @@ shape, not the old one).
 
 ---
 
-#### `[ ]` T218: docs — spec 02, sample config, schema
+#### `[x]` T218: docs — spec 02, sample config, schema
 
 - `docs/specs/02-configuration.md`'s `## release` section: the current four-shape enumeration
   (`targets` only / `notes` only / neither / release omitted) is replaced with the two-state model
@@ -193,6 +193,22 @@ shape, not the old one).
 **Files:** `docs/specs/02-configuration.md`, `docs/heraut.sample.yml`, `schema.json`,
 `testdata/config/valid/*.yml`. **Scope:** S. **Dependencies:** T216, T217 (documents their actual
 behavior, not intent ahead of it).
+
+Implemented as designed. Spec 02's `## release` section now states the two-state model directly
+(`release:` absent → nothing; present, however minimal → notes + publish, unconditionally) with a
+forward reference to ADR-0046 (written next, in T219 — the filename `docs/adr/0046-release-block-
+atomicity.md` is pinned here to match). The four-shape enumeration and its "use a comment to make
+intent explicit" targets-only example are gone; the GH_TOKEN zero-config caveat and the
+resolvable-destination requirement for `heraut release` both carried forward unchanged. The
+per-environment content-fields table and its "takes precedence" prose were updated for
+`disable_release`; the `release.targets`/`release.notes` override-semantics table was left as-is
+(unaffected — it already documented per-sub-field merge behavior, not the disable toggle).
+`docs/heraut.sample.yml`'s active `release:` block dropped its always-on `notes: {}` line (now
+commented as an example override, since it's default-populated) and its per-env comments/examples
+now say `disable_release`. `schema.json` renamed the property with an updated description; no
+`testdata/config/valid/*.yml` fixture used `disable_notes`, so nothing there needed migrating.
+`go test ./...` and `hk check` both clean (schema.json's JSON validity double-checked directly, and
+`internal/config/schema_test.go` doesn't assert this field by name).
 
 ---
 
