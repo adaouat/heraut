@@ -42,7 +42,7 @@ T214's mechanism.
 | T217 | Rename per-env `disable_notes` → `disable_release` (removed-key migration)   | Done |
 | T218 | Docs: spec 02, sample config, schema                                          | Done |
 | T219 | ADR-0046 — "Release block is one intent, not two"                            | Done |
-| T220 | `heraut init` wizard: collapse the notes/publish questions, rename per-env `DisableNotes` | Not started |
+| T220 | `heraut init` wizard: collapse the notes/publish questions, rename per-env `DisableNotes` | Done |
 
 Single pass, not phased — see the design doc's "Implementation sequencing." T216 and T217 touch
 disjoint code (loader defaulting + target synthesis vs. a config-key rename) and can be built in
@@ -142,7 +142,7 @@ field (that remains a pipeline-internal knob, gated at runtime exactly as `Disab
 
 ---
 
-#### `[ ]` T220: `heraut init` wizard — collapse the notes/publish questions, rename per-env `DisableNotes`
+#### `[x]` T220: `heraut init` wizard — collapse the notes/publish questions, rename per-env `DisableNotes`
 
 `internal/scaffold/wizard.go`'s main form asks three independent `huh.NewConfirm()` questions today:
 "Generate a changelog?" (`EnableChangelog`), "Generate release notes?" (`EnableReleaseNotes`), and
@@ -174,6 +174,33 @@ the collapsed field ends up being named.
 `internal/scaffold/wizard_internal_test.go`, `internal/scaffold/generate_test.go`).
 **Scope:** M. **Dependencies:** T216, T217 (the wizard must emit the final, post-atomicity config
 shape, not the old one).
+
+Implemented as designed, with `Answers.EnableReleaseNotes` dropped entirely in favor of
+`PublishReleases` alone (per the task's own suggested option), and its question removed from
+`mainForm`; the remaining, now-collapsed question ("Publish releases to a platform (GitHub/GitLab)?")
+was retitled to "Create a release (generate notes and publish) on your forge?". `EnvAnswer.DisableNotes`
+renamed to `DisableRelease`; confirmed at implementation time (per the task's own open question) that
+no interactive prompt ever set this field — `runEnvWizard`'s form asks name/bump/tag_format/branch/
+source only — so it is purely a passthrough field for the edit-existing-config round trip, and the
+rename needed no label changes. `runEnrichmentWizard`'s gate became
+`!a.EnableChangelog && !a.PublishReleases`.
+
+Found and fixed a real regression the task description's own hint would have reintroduced:
+`ConfigToAnswers` used to derive `PublishReleases` from `len(a.Platforms) > 0`, but `a.Platforms` is
+only populated from `release.targets` entries that resolve against `cfg.Forges` — a zero-config
+release (`release: {}`, no `forges:`, no `release.targets` — the common CI shape this whole epic's
+design doc calls out) has nothing to populate it from, so that derivation would silently drop
+`release:` on an edit-existing-config wizard round trip. Fixed by setting `a.PublishReleases = true`
+directly inside `if cfg.Release != nil` in `ConfigToAnswers`, and by keeping `a.PublishReleases`
+(not just `hasPlatforms || hasAssets`, the task's own literal suggestion) in `generate.go`'s
+Release-emission trigger — `hasPlatforms`/`hasAssets` stay as defensive fallbacks for a hand-built
+`Answers` that populates one without going through the collapsed question. Added
+`TestConfigToAnswers_PublishReleasesZeroConfig_NoResolvedPlatforms` and
+`TestGenerateYAML_PublishReleasesWithoutPlatforms_EmitsReleaseBlock` as regression tests for exactly
+this shape. `generate.go` also stopped writing `cfg.Release.Notes = &config.ContentDriver{}`
+explicitly — the loader default-populates it (T216), so omitting it keeps the wizard's generated
+YAML minimal, matching the `release: {}` idiom `docs/heraut.sample.yml` now documents.
+`go test ./...` and `hk check` both clean.
 
 ---
 

@@ -20,10 +20,10 @@ func TestDefaults_Prefix(t *testing.T) {
 	assert.Equal(t, "v", a.TagPrefix)
 }
 
-func TestDefaults_EnableChangelogAndNotes(t *testing.T) {
+func TestDefaults_EnableChangelogAndRelease(t *testing.T) {
 	a := scaffold.Defaults()
 	assert.True(t, a.EnableChangelog)
-	assert.True(t, a.EnableReleaseNotes)
+	assert.True(t, a.PublishReleases)
 }
 
 func TestDefaults_Platform(t *testing.T) {
@@ -151,7 +151,12 @@ func TestConfigToAnswers_SprintZeroWhenAbsent(t *testing.T) {
 	assert.Equal(t, 0, a.Sprint)
 }
 
-func TestConfigToAnswers_EnableReleaseNotes(t *testing.T) {
+// TestConfigToAnswers_PublishReleasesFromReleasePresence covers T220 (release atomicity):
+// PublishReleases must reflect release: block presence, not just whether any target resolved to
+// a known forge — release.notes is no longer an independent signal (T216 default-populates it
+// unconditionally), so a bare Release{} with no forges: entry must still round-trip as "release
+// wanted."
+func TestConfigToAnswers_PublishReleasesFromReleasePresence(t *testing.T) {
 	cfg := &config.Config{
 		Version:    "1",
 		Versioning: config.Versioning{Strategy: "semver"},
@@ -160,15 +165,32 @@ func TestConfigToAnswers_EnableReleaseNotes(t *testing.T) {
 		},
 	}
 	a := scaffold.ConfigToAnswers(cfg)
-	assert.True(t, a.EnableReleaseNotes)
+	assert.True(t, a.PublishReleases)
 }
 
-// TestConfigToAnswers_ChangelogAndNotesPresenceSurviveLoadRoundTrip guards against a regression
+// TestConfigToAnswers_PublishReleasesZeroConfig_NoResolvedPlatforms guards the specific regression
+// this task fixes: a zero-config release (release: {}, no forges:, no release.targets — the common
+// CI shape per docs/specs/02-configuration.md) has zero entries in a.Platforms because
+// ConfigToAnswers only populates Platforms from targets that resolve against cfg.Forges. Before
+// T220, PublishReleases was derived from len(a.Platforms) > 0 and would wrongly come back false,
+// silently dropping the release: block on an edit-existing-config wizard round trip.
+func TestConfigToAnswers_PublishReleasesZeroConfig_NoResolvedPlatforms(t *testing.T) {
+	cfg := &config.Config{
+		Version:    "1",
+		Versioning: config.Versioning{Strategy: "semver"},
+		Release:    &config.Release{Notes: &config.ContentDriver{}},
+	}
+	a := scaffold.ConfigToAnswers(cfg)
+	assert.Empty(t, a.Platforms, "zero-config release has no forges: entries to resolve targets against")
+	assert.True(t, a.PublishReleases, "release: presence alone must round-trip as PublishReleases, independent of resolved platforms")
+}
+
+// TestConfigToAnswers_ChangelogAndReleasePresenceSurviveLoadRoundTrip guards against a regression
 // where ConfigToAnswers under-reports block presence after a real config.Load round trip (as
 // opposed to a hand-built struct literal, which could carry any value and would not catch a
 // derivation bug). Re-running `heraut init` against an existing config and accepting the
-// pre-populated defaults must not silently drop changelog/release-notes generation.
-func TestConfigToAnswers_ChangelogAndNotesPresenceSurviveLoadRoundTrip(t *testing.T) {
+// pre-populated defaults must not silently drop changelog/release generation.
+func TestConfigToAnswers_ChangelogAndReleasePresenceSurviveLoadRoundTrip(t *testing.T) {
 	yaml := `
 version: "1"
 versioning:
@@ -190,7 +212,7 @@ release:
 	a := scaffold.ConfigToAnswers(cfg)
 
 	assert.True(t, a.EnableChangelog)
-	assert.True(t, a.EnableReleaseNotes)
+	assert.True(t, a.PublishReleases)
 }
 
 func TestValidateCalVerFormat(t *testing.T) {

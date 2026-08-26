@@ -31,13 +31,13 @@ type Answers struct {
 	EnableChangelog bool
 	ChangelogOutput string // e.g. "CHANGELOG.md"
 
-	EnableReleaseNotes bool
-
 	Platforms []PlatformAnswer
 
-	// PublishReleases gates whether runPlatformWizard runs; it is not itself a config field —
-	// once populated, Platforms alone determines whether forges:/release.targets: are emitted.
-	// A false answer clears Platforms (see applyPublishChoice) so a stale, pre-populated slice
+	// PublishReleases answers the single collapsed "create a release?" question (T220,
+	// release-atomicity design): release: presence always means "generate notes and publish,"
+	// together, so there is no longer an independent notes toggle. PublishReleases gates both
+	// whether runPlatformWizard runs and whether cfg.Release is emitted at all in generate.go. A
+	// false answer clears Platforms (see applyPublishChoice) so a stale, pre-populated slice
 	// from an edit-existing-config round trip can't survive into GenerateYAML.
 	PublishReleases bool
 
@@ -82,7 +82,9 @@ type EnvAnswer struct {
 	Source           string
 	Branch           string
 	DisableChangelog bool
-	DisableNotes     bool
+	// DisableRelease matches config.Environment.DisableRelease (T217): turns off the entire
+	// release: behavior (notes and publish, together) for this environment, not just notes.
+	DisableRelease bool
 
 	// Passthrough fields: not wizard-editable, carried verbatim from existing config (T109).
 	Changelog *config.ContentDriver
@@ -105,16 +107,15 @@ var calverPresets = []struct {
 }
 
 // Defaults returns opinionated non-interactive defaults: semver, prefix "v",
-// changelog + release notes enabled, gitlab platform.
+// changelog + release enabled, gitlab platform.
 func Defaults() Answers {
 	return Answers{
-		Strategy:           "semver",
-		TagPrefix:          "v",
-		EnableChangelog:    true,
-		ChangelogOutput:    "CHANGELOG.md",
-		EnableReleaseNotes: true,
-		PublishReleases:    true,
-		Platforms:          []PlatformAnswer{{Type: "gitlab"}},
+		Strategy:        "semver",
+		TagPrefix:       "v",
+		EnableChangelog: true,
+		ChangelogOutput: "CHANGELOG.md",
+		PublishReleases: true,
+		Platforms:       []PlatformAnswer{{Type: "gitlab"}},
 	}
 }
 
@@ -147,8 +148,11 @@ func ConfigToAnswers(cfg *config.Config) Answers {
 	}
 
 	if cfg.Release != nil {
+		// release: presence alone means "wanted" (T216 atomicity) — independent of whether any
+		// target resolves to a known forge, since a zero-config release (no forges:, no
+		// release.targets) legitimately has nothing to populate a.Platforms from.
+		a.PublishReleases = true
 		a.Assets = cfg.Release.Assets
-		a.EnableReleaseNotes = cfg.Release.Notes != nil
 		forgesByName := make(map[string]config.Forge, len(cfg.Forges))
 		for _, f := range cfg.Forges {
 			forgesByName[f.Name] = f
@@ -184,13 +188,11 @@ func ConfigToAnswers(cfg *config.Config) Answers {
 			Source:           env.Source,
 			Branch:           env.Branch,
 			DisableChangelog: env.DisableChangelog,
-			DisableNotes:     env.DisableRelease,
+			DisableRelease:   env.DisableRelease,
 			Changelog:        env.Changelog,
 			Release:          env.Release,
 		})
 	}
-
-	a.PublishReleases = len(a.Platforms) > 0
 
 	return a
 }
@@ -260,11 +262,6 @@ func RunWizard(a *Answers) error {
 				Description(`e.g. "CHANGELOG.md"`).
 				Value(&a.ChangelogOutput),
 		).WithHideFunc(func() bool { return !a.EnableChangelog }),
-		huh.NewGroup(
-			huh.NewConfirm().
-				Title("Generate release notes?").
-				Value(&a.EnableReleaseNotes),
-		),
 	)
 
 	if err := mainForm.Run(); err != nil {
@@ -287,7 +284,7 @@ func RunWizard(a *Answers) error {
 	if err := themedForm(
 		huh.NewGroup(
 			huh.NewConfirm().
-				Title("Publish releases to a platform (GitHub/GitLab)?").
+				Title("Create a release (generate notes and publish) on your forge?").
 				Value(&a.PublishReleases),
 		),
 	).Run(); err != nil {
@@ -666,12 +663,12 @@ func shouldPromptEnrichmentForge(platforms []PlatformAnswer) bool {
 	return len(platforms) >= 2
 }
 
-// runEnrichmentWizard asks the PR/MR enrichment policy whenever changelog or release-notes
-// generation is enabled — independent of whether publishing is configured, since enrichment can
-// work off a zero-config auto-detected forge even with no explicit forges: block — and, only
-// when the choice is actually ambiguous (2+ configured platforms), which one supplies the data.
+// runEnrichmentWizard asks the PR/MR enrichment policy whenever changelog generation or a release
+// (notes + publish, together — T216 atomicity) is wanted; enrichment can work off a zero-config
+// auto-detected forge even with no explicit forges: block, and only prompts which one supplies the
+// data when the choice is actually ambiguous (2+ configured platforms).
 func runEnrichmentWizard(a *Answers) error {
-	if !a.EnableChangelog && !a.EnableReleaseNotes {
+	if !a.EnableChangelog && !a.PublishReleases {
 		return nil
 	}
 

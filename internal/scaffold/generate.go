@@ -72,7 +72,7 @@ func answersToConfig(a Answers) config.Config {
 				Source:           e.Source,
 				Branch:           e.Branch,
 				DisableChangelog: e.DisableChangelog,
-				DisableRelease:   e.DisableNotes,
+				DisableRelease:   e.DisableRelease,
 				Changelog:        e.Changelog,
 				Release:          e.Release,
 			}
@@ -89,14 +89,19 @@ func answersToConfig(a Answers) config.Config {
 		}
 	}
 
-	hasNotes := a.EnableReleaseNotes
+	// PublishReleases is the single collapsed "create a release?" answer (T220, release
+	// atomicity): release: presence always means notes + publish together, so it alone is the
+	// trigger — not len(a.Platforms), which would wrongly stay empty for a zero-config release
+	// (no forges: entry) and silently drop the release: block. hasPlatforms/hasAssets remain as
+	// defensive triggers for a hand-built Answers that populates one without PublishReleases.
 	hasPlatforms := len(a.Platforms) > 0
 	hasAssets := len(a.Assets) > 0
-	if hasNotes || hasPlatforms || hasAssets {
+	if a.PublishReleases || hasPlatforms || hasAssets {
+		// Notes stays nil here — the loader default-populates release.notes to a zero-value
+		// ContentDriver whenever release: is present (T216), so leaving it unset in the
+		// generated YAML is equivalent to writing notes: {} explicitly and keeps the output
+		// minimal, matching the release: {} idiom documented in docs/heraut.sample.yml.
 		cfg.Release = &config.Release{Assets: a.Assets}
-		if hasNotes {
-			cfg.Release.Notes = &config.ContentDriver{}
-		}
 		names := platformDisplayNames(a.Platforms)
 		for i, p := range a.Platforms {
 			name := names[i]

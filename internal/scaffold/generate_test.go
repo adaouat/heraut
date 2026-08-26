@@ -35,14 +35,32 @@ func TestGenerateYAML_DefaultsRoundTrip(t *testing.T) {
 	assert.Empty(t, errs, "defaults YAML did not pass validation: %v", errs)
 }
 
+// TestGenerateYAML_PublishReleasesWithoutPlatforms_EmitsReleaseBlock covers T220: PublishReleases
+// alone (no explicit Platforms — a zero-config release, the common CI shape) must still emit a
+// release: block. Before this task, only hasPlatforms/hasAssets triggered cfg.Release, which would
+// have silently dropped release: entirely for this exact shape.
+func TestGenerateYAML_PublishReleasesWithoutPlatforms_EmitsReleaseBlock(t *testing.T) {
+	a := scaffold.Answers{
+		Strategy:        "semver",
+		PublishReleases: true,
+	}
+	out, err := scaffold.GenerateYAML(a, "dev")
+	require.NoError(t, err)
+	cfg, err := config.LoadFromReader(strings.NewReader(stripHeader(out)))
+	require.NoError(t, err)
+	require.NotNil(t, cfg.Release, "PublishReleases alone must emit release:, even with zero explicit platforms")
+	assert.Empty(t, cfg.Release.Targets)
+	assert.Empty(t, config.Validate(cfg))
+}
+
 func TestGenerateYAML_SemVer(t *testing.T) {
 	a := scaffold.Answers{
-		Strategy:           "semver",
-		TagPrefix:          "v",
-		EnableChangelog:    true,
-		ChangelogOutput:    "CHANGELOG.md",
-		EnableReleaseNotes: true,
-		Platforms:          []scaffold.PlatformAnswer{{Type: "github", Repository: "org/repo"}},
+		Strategy:        "semver",
+		TagPrefix:       "v",
+		EnableChangelog: true,
+		ChangelogOutput: "CHANGELOG.md",
+		PublishReleases: true,
+		Platforms:       []scaffold.PlatformAnswer{{Type: "github", Repository: "org/repo"}},
 	}
 	out, err := scaffold.GenerateYAML(a, "dev")
 	require.NoError(t, err)
@@ -277,8 +295,8 @@ func TestConfigToAnswers_PreservesPlatformPassthroughFields(t *testing.T) {
 
 func TestGenerateYAML_PlatformUsesPassthroughName(t *testing.T) {
 	a := scaffold.Answers{
-		Strategy:           "semver",
-		EnableReleaseNotes: true,
+		Strategy:        "semver",
+		PublishReleases: true,
 		Platforms: []scaffold.PlatformAnswer{
 			{Name: "gh-internal", Type: "github", Repository: "org/repo", TokenEnv: "GH_TOKEN"},
 		},
@@ -295,8 +313,8 @@ func TestGenerateYAML_PlatformUsesPassthroughName(t *testing.T) {
 
 func TestGenerateYAML_PlatformPassthroughFieldsRoundTrip(t *testing.T) {
 	a := scaffold.Answers{
-		Strategy:           "semver",
-		EnableReleaseNotes: true,
+		Strategy:        "semver",
+		PublishReleases: true,
 		Platforms: []scaffold.PlatformAnswer{
 			{
 				Name: "gh-internal", Type: "github", Repository: "org/repo", TokenEnv: "GH_TOKEN",
@@ -318,8 +336,8 @@ func TestGenerateYAML_PlatformPassthroughFieldsRoundTrip(t *testing.T) {
 
 func TestGenerateYAML_PlatformAPIMode(t *testing.T) {
 	a := scaffold.Answers{
-		Strategy:           "semver",
-		EnableReleaseNotes: true,
+		Strategy:        "semver",
+		PublishReleases: true,
 		Platforms: []scaffold.PlatformAnswer{
 			{Type: "gitlab", Project: "acme/widget", TokenEnv: "GITLAB_TOKEN", APIMode: "graphql"},
 		},
@@ -364,6 +382,37 @@ func TestConfigToAnswers_PreservesEnvPassthroughFields(t *testing.T) {
 	require.Len(t, a.Environments, 1)
 	assert.Equal(t, driver, a.Environments[0].Changelog)
 	assert.NotNil(t, a.Environments[0].Release)
+}
+
+// TestConfigToAnswers_DisableRelease covers T220's rename of the per-env wizard field to match
+// T217's config.Environment.DisableRelease rename.
+func TestConfigToAnswers_DisableRelease(t *testing.T) {
+	cfg := &config.Config{
+		Version:    "1",
+		Versioning: config.Versioning{Strategy: "semver-per-env"},
+		Environments: map[string]config.Environment{
+			"staging": {Bump: "auto", DisableRelease: true},
+		},
+	}
+	a := scaffold.ConfigToAnswers(cfg)
+	require.Len(t, a.Environments, 1)
+	assert.True(t, a.Environments[0].DisableRelease)
+}
+
+// TestGenerateYAML_EnvDisableRelease proves EnvAnswer.DisableRelease round-trips into the
+// renamed config.Environment.DisableRelease field (T220/T217).
+func TestGenerateYAML_EnvDisableRelease(t *testing.T) {
+	a := scaffold.Answers{
+		Strategy: "semver-per-env",
+		Environments: []scaffold.EnvAnswer{
+			{Name: "staging", Bump: "auto", DisableRelease: true},
+		},
+	}
+	out, err := scaffold.GenerateYAML(a, "dev")
+	require.NoError(t, err)
+	cfg, err := config.LoadFromReader(strings.NewReader(stripHeader(out)))
+	require.NoError(t, err)
+	assert.True(t, cfg.Environments["staging"].DisableRelease)
 }
 
 func TestGenerateYAML_EnvPassthroughFieldsRoundTrip(t *testing.T) {
