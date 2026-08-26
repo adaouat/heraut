@@ -200,6 +200,27 @@ func TestHasResolvablePublishTarget_NilConfig(t *testing.T) {
 	assert.False(t, got)
 }
 
+// TestHasResolvablePublishTarget_AzureOnlyIsNotResolvable covers T221: a forge with no publish
+// driver (azure_devops) must not count as a resolvable publish destination — before this fix,
+// `heraut release` would pass this preflight check, then fail deep inside buildPlatform with
+// "unsupported platform" instead of this function's own clear, existing
+// "requires at least one resolvable publish destination" error (internal/cmd/release.go).
+func TestHasResolvablePublishTarget_AzureOnlyIsNotResolvable(t *testing.T) {
+	testutil.ClearCIEnv(t)
+	mr := exectest.NewMockRunner()
+	mr.QueueResponse("", "", assertNoOriginErr)
+
+	cfg := &config.Config{
+		Version:    "1",
+		Versioning: config.Versioning{Strategy: "semver"},
+		Forges: []config.Forge{
+			{Name: "az", Type: "azure_devops", Project: "org/proj", Repository: "repo"},
+		},
+	}
+
+	assert.False(t, HasResolvablePublishTarget(mr, cfg, ""))
+}
+
 // TestBuildReleasePipelineConfig_UsesReadRunnerForForgeResolution proves that
 // buildReleasePipelineConfig resolves the forge's git origin via a dedicated read-only runner —
 // not the (possibly dry-run) pipeline runner passed for everything else. Before the fix, a

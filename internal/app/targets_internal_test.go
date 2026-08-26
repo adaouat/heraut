@@ -65,6 +65,31 @@ func TestPlatformConfigFromTarget(t *testing.T) {
 	})
 }
 
+// TestSynthesizeDefaultTarget_RequiresAPublishDriver covers T221: a resolved forge with no publish
+// driver (azure_devops — no internal/platforms/azure package exists, since Azure DevOps has no
+// equivalent of a GitHub/GitLab Release to build one against) must not be treated as a usable
+// zero-config publish target, unlike a resolved github/gitlab forge.
+func TestSynthesizeDefaultTarget_RequiresAPublishDriver(t *testing.T) {
+	t.Run("azure_devops-only resolution: no target synthesized", func(t *testing.T) {
+		resolved := forge.Resolved{Forges: []port.ForgeIdentity{{Type: "azure_devops"}}}
+		assert.Empty(t, synthesizeDefaultTarget(resolved))
+	})
+
+	t.Run("github resolution: target still synthesized", func(t *testing.T) {
+		resolved := forge.Resolved{Forges: []port.ForgeIdentity{{Type: "github"}}}
+		assert.Len(t, synthesizeDefaultTarget(resolved), 1)
+	})
+
+	t.Run("gitlab resolution: target still synthesized", func(t *testing.T) {
+		resolved := forge.Resolved{Forges: []port.ForgeIdentity{{Type: "gitlab"}}}
+		assert.Len(t, synthesizeDefaultTarget(resolved), 1)
+	})
+
+	t.Run("no forge resolved: no target synthesized", func(t *testing.T) {
+		assert.Empty(t, synthesizeDefaultTarget(forge.Resolved{}))
+	})
+}
+
 // TestBuildReleasePipelineConfig_TargetsWiring proves buildReleasePipelineConfig builds
 // pCfg.Platforms from config.EffectiveTargets + the resolved forge identities, sharing a single
 // forge.Resolve call with enrichment (no duplicate git call — see
@@ -142,6 +167,29 @@ func TestBuildReleasePipelineConfig_TargetsWiring(t *testing.T) {
 		pCfg, err := buildReleasePipelineConfig(runner, readRunner, cfg, "", "", false, false)
 		require.NoError(t, err)
 		assert.Empty(t, pCfg.Platforms)
+	})
+
+	// T221: only an azure_devops forge resolves (no forges: entry with a publish driver, and no
+	// explicit release.targets) — zero platforms, no error, instead of failing deep inside
+	// buildPlatform with "unsupported platform". Azure DevOps has no equivalent of a GitHub/GitLab
+	// Release to publish, so this must behave exactly like "no forge resolved at all."
+	t.Run("zero-config: only an azure_devops forge resolves, zero platforms, no error", func(t *testing.T) {
+		testutil.ClearCIEnv(t)
+		runner := exectest.NewMockRunner()
+		readRunner := exectest.NewMockRunner()
+		readRunner.QueueResponse("", "", assertNoOriginErr)
+
+		cfg := &config.Config{
+			Version:    "1",
+			Versioning: config.Versioning{Strategy: "semver"},
+			Forges: []config.Forge{
+				{Name: "az", Type: "azure_devops", Project: "org/proj", Repository: "repo"},
+			},
+		}
+
+		pCfg, err := buildReleasePipelineConfig(runner, readRunner, cfg, "", "", false, false)
+		require.NoError(t, err)
+		assert.Empty(t, pCfg.Platforms, "azure_devops has no publish driver, so no target should be synthesized for it")
 	})
 
 	t.Run("release.assets propagates to targets that declare none", func(t *testing.T) {

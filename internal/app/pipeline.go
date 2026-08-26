@@ -159,11 +159,18 @@ func changelogStepTotal(cfg *pipeline.ChangelogConfig) int {
 
 // HasResolvablePublishTarget reports whether cfg has at least one publish destination for env: a
 // non-empty effective release.targets list, or — when that list is empty — a forge that resolves
-// from cfg/CI env/git origin (the zero-config synthesis buildTargetPlatforms performs). This is
-// heraut release's pre-flight gate: with release.platforms gone, "no entry in release.targets and
-// nothing auto-detects" is the only shape left that must hard-fail before the pipeline runs (see
+// to a type with a publish driver, from cfg/CI env/git origin (the same zero-config synthesis
+// buildTargetPlatforms performs, via synthesizeDefaultTarget — T221 taught both to treat a
+// driver-less resolved forge, e.g. azure_devops, as equivalent to no forge resolved at all, so this
+// preflight and the pipeline's own behavior can never disagree). This is heraut release's pre-flight
+// gate: with release.platforms gone, "no entry in release.targets and nothing auto-detects to a
+// publishable forge" is the only shape left that must hard-fail before the pipeline runs (see
 // buildTargetPlatforms — resolving zero forges is not itself an error, since a changelog-only flow
 // legitimately needs no publish target at all).
+//
+// An *explicit* release.targets entry naming a driver-less forge is deliberately not caught here —
+// that is a user-authored reference, and buildPlatform's own "unsupported platform" error is already
+// specific and actionable when the pipeline actually tries to build it (T221).
 //
 // A forge-resolution error here (e.g. an ambiguous multi-token machine) is deliberately treated as
 // "not resolvable" rather than propagated: BuildPipeline performs the same resolution again and
@@ -179,7 +186,7 @@ func HasResolvablePublishTarget(runner port.Runner, cfg *config.Config, env stri
 	if err != nil {
 		return false
 	}
-	return len(resolved.Forges) > 0
+	return len(synthesizeDefaultTarget(resolved)) > 0
 }
 
 func buildReleasePipelineConfig(runner, readRunner port.Runner, cfg *config.Config, env, herautVersion string, regenerateChangelog, force bool) (*pipeline.Config, error) {
@@ -560,12 +567,9 @@ func gitOriginURL(runner port.Runner) string {
 }
 
 func buildPlatform(runner port.Runner, cfg *config.Platform) (port.Platform, error) {
-	switch strings.ToLower(cfg.Type) {
-	case "github":
-		return buildGitHubPlatform(runner, cfg)
-	case "gitlab":
-		return buildGitLabPlatform(runner, cfg)
-	default:
+	build, ok := platformBuilders[strings.ToLower(cfg.Type)]
+	if !ok {
 		return nil, fmt.Errorf("unsupported platform %q (supported: github, gitlab)", cfg.Type)
 	}
+	return build(runner, cfg)
 }

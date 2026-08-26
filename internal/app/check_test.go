@@ -648,6 +648,39 @@ func TestRuntimeCheck_ReleaseWithoutTargets_RunsPublishCheck(t *testing.T) {
 	assert.True(t, found, "release: presence with no explicit targets must still resolve and run a full publish check against the configured forge")
 }
 
+// TestRuntimeCheck_AzureOnlyFallsBackToBinaryProbe covers T221: effectiveTargetPlatforms delegates
+// to synthesizeDefaultTarget, so a resolved forge with no publish driver (azure_devops) must not
+// synthesize a per-target row here either — it must fall back to the same advisory binary-only
+// probe as "no forge resolved at all," staying consistent with heraut release's own behavior.
+func TestRuntimeCheck_AzureOnlyFallsBackToBinaryProbe(t *testing.T) {
+	testutil.ClearCIEnv(t)
+	mr := exectest.NewMockRunner()
+	mr.QueueResponse("git version 2.40.0", "", nil)         // git --version
+	mr.QueueResponse("Alice", "", nil)                      // user.name
+	mr.QueueResponse("a@b.com", "", nil)                    // user.email
+	mr.QueueResponse("", "", nil)                           // git status
+	mr.QueueResponse("", "", errors.New("no origin"))       // git remote get-url origin (forge resolution)
+	mr.QueueResponse("", "", errors.New("glab: not found")) // glab (advisory binary-only probe)
+	mr.QueueResponse("", "", errors.New("gh: not found"))   // gh (advisory binary-only probe)
+
+	cfg := semverCfg()
+	cfg.Forges = []config.Forge{{Name: "az", Type: "azure_devops", Project: "org/proj", Repository: "repo"}}
+	cfg.Release = &config.Release{Notes: &config.ContentDriver{}}
+	items := collectItems(mr, cfg, "")
+
+	for _, it := range items {
+		assert.NotEqual(t, "az", it.Name, "azure_devops has no publish driver; it must not get a per-target publish check row")
+	}
+	warnNames := make(map[string]bool)
+	for _, it := range items {
+		if it.IsWarn {
+			warnNames[it.Name] = true
+		}
+	}
+	assert.True(t, warnNames["glab"], "falls back to the advisory binary-only probe")
+	assert.True(t, warnNames["gh"], "falls back to the advisory binary-only probe")
+}
+
 func TestRuntimeCheck_OptionalToolsSilentWhenPresent(t *testing.T) {
 	testutil.ClearCIEnv(t)
 	mr := exectest.NewMockRunner()

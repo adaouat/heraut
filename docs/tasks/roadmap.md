@@ -5291,7 +5291,7 @@ Design: [`docs/superpowers/specs/2026-08-26-release-config-simplification-design
 
 ### Phase 26 — Publish-target driver-support awareness
 
-#### `[ ]` T221: recognize forges with no publish driver as non-resolvable targets
+#### `[x]` T221: recognize forges with no publish driver as non-resolvable targets
 
 **Found while reviewing Phase 25's release-atomicity change against Azure DevOps.** Azure DevOps
 has no equivalent of a GitHub/GitLab Release — no tag-attached page for notes + binary assets, only
@@ -5345,6 +5345,32 @@ publish) and remains the only fully-supported path for Azure DevOps today.
 `internal/app/check.go` (+ their test files); possibly `docs/specs/02-configuration.md` /
 `docs/adr/0046-release-block-atomicity.md` if documentation needs updating.
 **Scope:** S–M. **Dependencies:** none (Phase 25 already shipped).
+
+Implemented as a plain bugfix, no new ADR needed — this tightens existing behavior
+(ADR-0043/0044/0046's "zero resolvable destinations is a config error, not a silent no-op"
+philosophy) rather than introducing new architecture. Added `platformBuilders`
+(`internal/app/platforms.go`), a `map[string]func(...) (port.Platform, error)` that is now the one
+source of truth for publish-driver support: `buildPlatform` (`internal/app/pipeline.go`) dispatches
+from it directly instead of a hand-written switch, and the new `supportsPublish` helper checks
+membership in the same map — so the two can never drift apart. `synthesizeDefaultTarget` now skips
+any resolved forge without a publish driver instead of synthesizing a target for whichever forge
+happened to resolve; `HasResolvablePublishTarget`'s zero-config branch now calls
+`synthesizeDefaultTarget` directly rather than re-deriving its own "any forge resolved" check, so
+`heraut release`'s preflight and its actual publish behavior are structurally guaranteed to agree.
+`heraut check`'s `effectiveTargetPlatforms` needed no separate change — it already delegated to
+`synthesizeDefaultTarget` (T216), so it inherited the fix automatically; a dedicated test
+(`TestRuntimeCheck_AzureOnlyFallsBackToBinaryProbe`) confirms this rather than leaving it as an
+unverified inference.
+
+Scoped the fix to auto-detected/zero-config resolution only, per explicit user confirmation during
+implementation: an *explicit* `release.targets[].forge` naming an azure_devops entry still surfaces
+`buildPlatform`'s existing "unsupported platform" error, unchanged — a deliberate user-authored
+reference already gets a specific, actionable error, and catching it earlier would require
+re-deriving per-target forge resolution just for a preflight yes/no, which isn't worth the
+duplication for an already-clear failure mode. Added a short "GitHub and GitLab only" note to
+`docs/specs/02-configuration.md`'s "Platform drivers" section explaining Azure DevOps's structural
+lack of a Release equivalent, closing the loop for anyone reading the spec rather than only
+discovering this by hitting the error. `go test ./...` and `hk check` both clean.
 
 ---
 

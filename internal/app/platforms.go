@@ -1,6 +1,8 @@
 package app
 
 import (
+	"strings"
+
 	"github.com/adaouat/heraut/internal/config"
 	"github.com/adaouat/heraut/internal/forge"
 	"github.com/adaouat/heraut/internal/platforms/github"
@@ -14,6 +16,25 @@ func buildGitHubPlatform(runner port.Runner, cfg *config.Platform) (port.Platfor
 
 func buildGitLabPlatform(runner port.Runner, cfg *config.Platform) (port.Platform, error) {
 	return gitlab.New(runner, cfg), nil
+}
+
+// platformBuilders maps a resolved forge type to its publish-driver constructor — the one source
+// of truth for which forge types support publishing (T221). buildPlatform dispatches from it
+// directly; supportsPublish (consulted by synthesizeDefaultTarget and, transitively,
+// HasResolvablePublishTarget) checks membership in the same map, so the two can never drift apart.
+// Azure DevOps has no entry and never will: it has no equivalent of a GitHub/GitLab Release (a
+// tag-attached page for notes + downloadable assets) to build a driver against — Azure Pipelines'
+// own "Releases" is an unrelated multi-stage deployment-orchestration feature, not a publishable
+// artifact.
+var platformBuilders = map[string]func(port.Runner, *config.Platform) (port.Platform, error){
+	"github": buildGitHubPlatform,
+	"gitlab": buildGitLabPlatform,
+}
+
+// supportsPublish reports whether platformType has a publish driver.
+func supportsPublish(platformType string) bool {
+	_, ok := platformBuilders[strings.ToLower(platformType)]
+	return ok
 }
 
 // platformConfigFromTarget builds the config.Platform an existing platform driver accepts from a
@@ -49,12 +70,19 @@ func platformConfigFromTarget(t config.Target, f config.Forge, id port.ForgeIden
 }
 
 // synthesizeDefaultTarget decides what an empty release.targets list means: zero-config
-// publishing (one implicit default target for the resolved forge) when a forge resolves, or no
-// publish target at all otherwise. release: presence always means "publish" (T216, release
-// atomicity) — there is no longer a config-expressible "notes only" state to protect against.
+// publishing (one implicit default target for the resolved forge) when a forge resolves to a type
+// with a publish driver, or no publish target at all otherwise. release: presence always means
+// "publish" (T216, release atomicity) — there is no longer a config-expressible "notes only" state
+// to protect against — but a resolved forge with no publish driver (T221 — e.g. azure_devops) is
+// not a usable publish target either, so it must not be synthesized as one: doing so would carry
+// the pipeline all the way to buildPlatform's generic "unsupported platform" error instead of
+// behaving like "no forge resolved," which is what heraut release's own preflight check
+// (HasResolvablePublishTarget) already reports clearly.
 func synthesizeDefaultTarget(resolved forge.Resolved) []config.Target {
-	if len(resolved.Forges) == 0 {
-		return nil
+	for _, f := range resolved.Forges {
+		if supportsPublish(f.Type) {
+			return []config.Target{{}}
+		}
 	}
-	return []config.Target{{}}
+	return nil
 }

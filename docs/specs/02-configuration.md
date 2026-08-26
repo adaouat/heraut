@@ -685,6 +685,17 @@ and § `forges` above. The drivers themselves (`gh`/`glab`) are unchanged by ADR
 how they are configured and constructed changed, from a standalone `release.platforms` entry
 to a resolved `forges:` identity.
 
+**GitHub and GitLab only.** `azure_devops` is a valid `forges:` entry for PR/MR enrichment
+(`commits.enrichment_forge`, § `commits` below) and, transitively, for release-notes
+generation — but it has no publish driver and never will: Azure DevOps has no equivalent of a
+GitHub/GitLab Release (a tag-attached page for notes + downloadable assets). Azure Pipelines'
+own "Releases" feature is an unrelated multi-stage deployment-orchestration mechanism, not a
+publishable artifact `heraut` could target. A `release.targets[].forge` naming an
+`azure_devops` entry fails with an actionable `unsupported platform` error; an auto-detected
+or zero-config forge that resolves only to `azure_devops` is treated the same as no forge
+resolving at all — `heraut release` reports no resolvable publish destination rather than
+attempting one (T221).
+
 ### GitLab
 
 ```yaml
