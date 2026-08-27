@@ -47,7 +47,7 @@ reviewed, and tested on their own merits.
 | T233  | `docs/specs/05-generators-and-platforms.md` reconciliation                            | Done        |
 | T234  | `docs/specs/06-dx-and-testing.md` reconciliation                                      | Done        |
 | T235  | `schema.json` + `docs/heraut.sample.yml` cleanup                                      | Done        |
-| T236  | `CLAUDE.md` + `README.md` reconciliation                                              | Not started |
+| T236  | `CLAUDE.md` + `README.md` reconciliation                                              | Done        |
 | T237  | `.claude/rules/{coding,testing,workflow}.md` reconciliation                           | Not started |
 | T238  | `docs/adr/README.md` + affected ADR bodies — status annotations and stale references  | Not started |
 
@@ -750,7 +750,7 @@ valid JSON and `docs/heraut.sample.yml` stays `yamlfmt`-clean after the comment 
 
 ---
 
-#### `[ ]` T236: `CLAUDE.md` + `README.md` reconciliation
+#### `[x]` T236: `CLAUDE.md` + `README.md` reconciliation
 
 - **ADR count**: `CLAUDE.md:34,95` say "45 ADRs" — actual count is 46 (0001–0046, ADR-0046 landed
   in commit `ba8c162` without the count bump). `docs/tasks/roadmap.md` itself self-describes "25
@@ -795,6 +795,29 @@ valid JSON and `docs/heraut.sample.yml` stays `yamlfmt`-clean after the comment 
 
 **Files:** `CLAUDE.md`, `README.md`, `docs/tasks/roadmap.md` (ADR-count line only). **Scope:** M.
 **Dependencies:** land the publish-destination bullet as-is (T221 already shipped this session).
+
+Fixed all listed items in both files: ADR count (45→46, three occurrences across CLAUDE.md and
+roadmap.md's overview); `remote_metadata`→`commits.enrichment_policy`; the project-layout tree
+gained `internal/forge/`, `internal/commitwizard/`, `internal/conventionalcommit/`, `pkl/`,
+`LICENSE.md`, `docs/guides/`, and the missing files in `internal/cmd/`, `internal/pipeline/`,
+`internal/versioning/`, `internal/port/`; `heraut commit` added to both files' command lists; "two
+platforms" reworded everywhere to distinguish three forge types from two publish drivers;
+"Bundled external CLIs" now states enrichment is native HTTP, not CLI-based; the T221 publish-
+destination wording updated to state the driver-support requirement explicitly; the GHA build-arg
+expression and the mise `lint:go:*`/`hk fix -S golangci-lint` (wrong step id, missing underscore)
+corrected; the release-workflow one-liner in CLAUDE.md's layout tree corrected to match T234's
+fix in spec 06 (no tag trigger, GoReleaser build-only, heraut creates its own release), and
+`osv-scan.yml` added to the workflows list; `docs/tasks/` description now mentions the dedicated
+per-epic roadmaps. README: Docker tag table's stuck real version replaced with a generic `X.Y.Z`
+pattern (won't go stale again); global-flags line corrected (`--offline` added, `--version`/`-v`'s
+root-only/dual-meaning nature explained — verified live: `heraut check --version` errors);
+`docs/guides/` added to the Documentation section. Also fixed `docs/tasks/roadmap.md`'s own
+overview-section ADR-count mentions (2 more occurrences) while there, per this task's own file
+list. Left roadmap.md's other overview staleness (`cog`, "three generators", `init/check/cliff/
+whatsnew tooling`) untouched — genuinely out of this task's scoped "ADR-count line only," and
+roadmap.md is a build log, not one of the four audited behavioral-doc surfaces; worth a future
+follow-up if the roadmap's own overview prose matters going forward. `hk check` (typos) clean; no
+code changes, so no test suite to run.
 
 ---
 

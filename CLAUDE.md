@@ -21,18 +21,23 @@ heraut version current  # print the latest released tag (per active strategy / e
 heraut version sprint bump  # increment sprint counter in .heraut.yml (CalVer)
 heraut check            # preflight: config + runtime
 heraut init             # interactive wizard to generate .heraut.yml
+heraut commit verify/check/create  # conventional-commit validation + interactive authoring
 heraut whatsnew         # release notes for versions newer than the running build
 ```
 
 Four versioning strategies are supported (`semver`, `calver`, `semver-per-env`,
-`calver-per-env`) and two platforms (`github`, `gitlab`). See [`docs/specs/`](docs/specs/)
-for the full behavioural spec.
+`calver-per-env`). Forges (`github`, `gitlab`, `azure_devops`) supply PR/MR commit
+enrichment; only `github` and `gitlab` also have a publish driver — Azure DevOps has no
+equivalent of a GitHub/GitLab Release. See [`docs/specs/`](docs/specs/) for the full
+behavioural spec.
 
 ## Docs
 
 - [`docs/specs/`](docs/specs/) — behavioural specification (read before changing CLI surface or config schema)
-- [`docs/adr/`](docs/adr/) — architecture decision records (45 ADRs, numbered consecutively)
-- [`docs/tasks/`](docs/tasks/) — build roadmap with inline task checklist (`roadmap.md`)
+- [`docs/adr/`](docs/adr/) — architecture decision records (46 ADRs, numbered consecutively)
+- [`docs/tasks/`](docs/tasks/) — build roadmap (`roadmap.md`) plus dedicated per-epic roadmaps
+  (`forge-abstraction-roadmap.md`, `native-generator-roadmap.md`, `release-config-roadmap.md`,
+  `docs-audit-roadmap.md`) that `roadmap.md` points to for large, multi-task epics
 
 ## Tech stack
 
@@ -64,21 +69,27 @@ internal/
       version_sprint.go         heraut version sprint bump
       check.go                  heraut check config / runtime
       init.go                   heraut init
-      offline.go                --offline flag → forces remote_metadata: disabled
+      offline.go                --offline flag → forces commits.enrichment_policy: disabled
       exit.go                   maps pipeline errors to internal/exitcode codes
-   port/                        interfaces — Runner (alias to forge/exec.Runner), Generator, Platform
+      commit.go                 heraut commit verify / check / create
+   port/                        interfaces — Runner (alias to forge/exec.Runner), Generator, Platform, Forge
    exitcode/                    re-exports forge/exitcode + heraut's own Promotion (E001/E002/E003) code
-   testutil/                    MockGenerator, MockPlatform, RealGitRepo, binary-name constants
+   testutil/                    MockGenerator, MockPlatform, RealGitRepo, CI-env-clearing helpers
    ui/                          gold accent + huh theme (wrapping forge/ui), version banner, StepFn
    config/                      structs, loader, path resolution, validator, errors
+   forge/                       forge identity resolution (config/CI/git-origin) + direct net/http
+                                 PR/MR-enrichment clients — github/, gitlab/, azure/ (ADR-0043)
+   commitwizard/                interactive Conventional Commits authoring, backs `heraut commit create`
+   conventionalcommit/          pure commit-message parser (type/scope/breaking/footers), no heraut imports
    versioning/
       result.go                 shared Result type
-      tagfmt/                   {version}/{env} substitution + glob patterns
+      resolver.go, static.go    Resolver interface + the --version/--build override path
+      tagfmt/                   {version}/{env}/{build} substitution + glob patterns
       semver/                   conventional-commit bump + version arithmetic
       calver/                   token parser (YYYY/MM/DD/WW/QQ/SS/SPRINT/PATCH)
       perenv/                   generic per-env wrapper over a VersionCalculator
    generators/
-      native/                   built-in, zero-external-dependency generator — commit walk + classification + embedded template rendering (ADR-0032)
+      native/                   built-in, zero-external-dependency generator — commit walk + classification + embedded template rendering (ADR-0032, sole generator since ADR-0045)
    platforms/
       github/                   `gh release create` + asset upload (with contract tests)
       gitlab/                   `glab release create` + asset upload (with contract tests)
@@ -86,19 +97,25 @@ internal/
       release.go                full release flow (resolve → changelog → tag → publish)
       changelog.go              changelog-only flow
       config.go                 Pipeline.Config struct
+      git.go, linkctx.go, warn.go   git plumbing, link-context derivation, degraded-run warnings
    app/                         wiring layer — NewResolver(), BuildPipeline(), BuildChangelogPipeline()
    scaffold/                    heraut init wizard + YAML generation
 
+pkl/                            Pkl builtin used by `heraut commit verify`'s own commit-msg hook (ADR-0029)
 testdata/                       repo-wide read-only test fixtures (.heraut.yml samples, …)
 
 docs/specs/                     6 numbered specs (behavioural authority)
-docs/adr/                       45 ADRs (architectural decisions)
-docs/tasks/                     roadmap.md (build plan + inline task checklist)
+docs/adr/                       46 ADRs (architectural decisions)
+docs/tasks/                     roadmap.md + dedicated per-epic roadmaps (see § Docs above)
+docs/guides/                    task-oriented how-tos, distinct from the behavioural specs
 
+LICENSE.md                      project license
 schema.json                     published JSON Schema for .heraut.yml IDE validation
 .goreleaser.yml                 raw-binary release config (no archives — see ADR-0013)
 Dockerfile                      bundled image: heraut + all external CLIs (see ADR-0016)
-.github/workflows/              ci.yml (PR build/test/lint), release.yml (tag → GoReleaser + Docker push)
+.github/workflows/              ci.yml (PR test/lint/build), release.yml (workflow_dispatch —
+                                 builds via GoReleaser, then the fresh heraut binary creates its
+                                 own tag/release — ADR-0018), osv-scan.yml (dependency scanning)
 ```
 
 ## Tooling (mise)
@@ -111,13 +128,14 @@ mise run build            # compile to ./heraut
 mise run test             # go test ./...
 mise run lint:check       # hk check — all linters
 mise run lint:fix         # hk fix   — auto-fix all linters
-mise run lint:go:check    # golangci-lint run
-mise run lint:go:fix      # golangci-lint run --fix
+mise run lint:go:check    # hk check -S golangci_lint
+mise run lint:go:fix      # hk fix -S golangci_lint
 mise run run -- <args>    # run the CLI in dev mode (e.g. mise run run -- release --dry-run)
 ```
 
-For targeted lint fixes: `hk fix -S <linter>` (e.g. `hk fix -S golangci-lint`,
-`hk fix -S yamlfmt`).
+For targeted lint fixes: `hk fix -S <linter>` (e.g. `hk fix -S golangci_lint`,
+`hk fix -S yamlfmt`) — note the underscore in `golangci_lint`, the actual `.config/hk/config.pkl`
+step id; a hyphenated `golangci-lint` matches no step.
 
 Go, golangci-lint, and goreleaser are installed via mise (see
 `.config/mise/config.toml`).
@@ -127,7 +145,8 @@ Go, golangci-lint, and goreleaser are installed via mise (see
 `Dockerfile` and `.goreleaser.yml` both inject the build-time version via `-ldflags`.
 **They must stay identical.** GoReleaser is the source of truth; the Dockerfile carries
 a comment pointing there. The Dockerfile receives the version via `--build-arg
-HERAUT_VERSION=${{ github.ref_name }}` in the release workflow.
+HERAUT_VERSION=${{ needs.release.outputs.tag }}` in the release workflow (`workflow_dispatch`-only
+— see [ADR-0018](docs/adr/0018-ci-build-then-release-pipeline.md); there is no `v*` tag trigger).
 
 | ldflag         | Purpose                                              |
 |----------------|------------------------------------------------------|
@@ -147,21 +166,25 @@ non-default path in CI pipelines without touching command invocations.
 
 ## Bundled external CLIs (not installed by heraut)
 
-heraut invokes `git`, `glab`, and `gh` via the `port.Runner` abstraction. None of these
-are bundled with the heraut binary — users install them separately. `heraut check
-runtime` verifies they are on `PATH`.
+heraut invokes `git`, `glab`, and `gh` via the `port.Runner` abstraction for **publishing**
+and git plumbing. None of these are bundled with the heraut binary — users install them
+separately. `heraut check runtime` verifies they are on `PATH`. PR/MR commit **enrichment**
+is a separate concern and does *not* shell out to `gh`/`glab`: `internal/forge/{github,
+gitlab,azure}` talk to each platform's API directly over `net/http` (ADR-0043).
 
 ## Non-obvious constraints
 
 - `heraut release` requires at least one **resolvable** publish destination — an explicit
-  `release.targets` entry, or a forge that auto-detects from CI/git origin. Omitting the
-  `release` block with zero resolvable destinations is a config error, not a silent no-op.
+  `release.targets` entry, or a forge that auto-detects from CI/git origin *and* has a
+  publish driver (`github`/`gitlab`; an auto-detected `azure_devops`-only forge does not
+  count, since Azure DevOps has no publish driver at all). Omitting the `release` block
+  with zero resolvable destinations is a config error, not a silent no-op.
 - `disable_changelog: true` per-env skips changelog generation and the commit, but **not**
   the tag when `--tag` is also passed. Use `heraut changelog --tag --env <env>` for
   tag-only flows on environments where changelog is disabled.
-- The global `--offline` flag overrides config: it forces `remote_metadata: disabled` for
-  the run regardless of what `.heraut.yml` sets, skipping PR/MR enrichment in changelog and
-  release-notes generation (`internal/cmd/offline.go`).
+- The global `--offline` flag overrides config: it forces `commits.enrichment_policy:
+  disabled` for the run regardless of what `.heraut.yml` sets, skipping PR/MR enrichment in
+  changelog and release-notes generation (`internal/cmd/offline.go`).
 
 ## When in doubt
 

@@ -22,7 +22,8 @@ news — and it sounds like *hero*, which is what good release automation should
 
 It supports **four versioning strategies** (`semver`, `calver`, `semver-per-env`,
 `calver-per-env`), a **built-in content generator** (`native` — no external binary
-required), and **two platforms** (`github`, `gitlab`).
+required), and three forge types for commit enrichment (`github`, `gitlab`,
+`azure_devops`) — two of which (`github`, `gitlab`) also publish releases.
 
 ## Install
 
@@ -89,9 +90,9 @@ Available tags (Docker images do not carry the `v` prefix that git tags use):
 | Tag | Meaning |
 |-----|---------|
 | `latest` | Latest release |
-| `0.9.0` | Exact version |
-| `0.9` | Latest patch of 0.9.x |
-| `0` | Latest release of major 0 |
+| `X.Y.Z` | Exact version, e.g. `0.58.0` |
+| `X.Y` | Latest patch of that minor, e.g. `0.58` |
+| `X` | Latest release of that major, e.g. `0` |
 
 ## Prerequisites
 
@@ -137,9 +138,12 @@ heraut release
 | `heraut version sprint bump` | Increment the CalVer sprint counter in `.heraut.yml` |
 | `heraut check` | Preflight: config + runtime (`config` / `runtime` subcommands) |
 | `heraut init` | Interactive wizard to generate `.heraut.yml` |
+| `heraut commit verify` / `check` / `create` | Conventional-commit validation and interactive authoring |
 
 Global flags (on every command): `--config`, `--dry-run`, `--verbose`, `--env`,
-`--force`, `--version`/`-v`, `--help`/`-h`. See
+`--force`, `--offline`, `--help`/`-h`. `--version`/`-v` prints the heraut version and is
+root-only — `heraut release`/`heraut changelog` separately define their own `--version
+<value>` flag to override the resolved version, an unrelated meaning. See
 [Spec 03 — Commands](docs/specs/03-commands.md) for the full reference.
 
 ## Configuration
@@ -177,7 +181,7 @@ release:
 |-------|---------|
 | `versioning` | Strategy and options (`semver` / `calver` / `*-per-env`) |
 | `changelog` | `CHANGELOG.md` generation (committed during `release`) |
-| `forges` | Code-hosting connections heraut talks to (`github` / `gitlab`, or both); optional when auto-detected from CI or git origin |
+| `forges` | Code-hosting connections heraut talks to (`github` / `gitlab` / `azure_devops`); optional when auto-detected from CI or git origin. Only `github`/`gitlab` can be a publish target. |
 | `release.notes` | Release-page notes generation |
 | `release.targets` | Publish destinations, each referencing a `forges[].name` |
 | `environments` | Per-environment config for `*-per-env` strategies (bump mode, tag format, promotion source, changelog/release overrides) |
@@ -200,6 +204,7 @@ heraut does not self-replace its binary: upgrades go through your install method
 
 - [`docs/specs/`](docs/specs/) — behavioural specification (the authority for users)
 - [`docs/adr/`](docs/adr/) — architecture decision records
+- [`docs/guides/`](docs/guides/) — task-oriented how-tos
 
 ## License
 
