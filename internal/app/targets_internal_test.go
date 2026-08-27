@@ -340,6 +340,33 @@ func TestBuildReleasePipelineConfig_DisableRelease(t *testing.T) {
 	assert.True(t, pCfg.DisableNotes, "disable_release must also gate off notes generation")
 }
 
+// TestBuildReleasePipelineConfig_EnvOnlyReleaseGetsNotes covers T223: a per-environment-only
+// release: block (no top-level release: at all) must still produce a non-nil notes generator —
+// the loader's normalize() only default-populates the top-level Release.Notes (T216), so without
+// this the release would publish with an empty body, exactly the notes/publish split ADR-0046 was
+// written to eliminate, just one level down.
+func TestBuildReleasePipelineConfig_EnvOnlyReleaseGetsNotes(t *testing.T) {
+	testutil.ClearCIEnv(t)
+	runner := exectest.NewMockRunner()
+	readRunner := exectest.NewMockRunner()
+	readRunner.QueueResponse("", "", assertNoOriginErr)
+
+	cfg := &config.Config{
+		Version:    "1",
+		Versioning: config.Versioning{Strategy: "semver"},
+		Forges: []config.Forge{
+			{Name: "gh", Type: "github", Repository: "acme/widget"},
+		},
+		Environments: map[string]config.Environment{
+			"staging": {Bump: "auto", Release: &config.EnvRelease{Targets: []config.Target{{Forge: "gh"}}}},
+		},
+	}
+
+	pCfg, err := buildReleasePipelineConfig(runner, readRunner, cfg, "staging", "", false, false)
+	require.NoError(t, err)
+	assert.NotNil(t, pCfg.Notes, "a per-env-only release: block must still generate release notes, not publish with an empty body")
+}
+
 // TestBuildReleasePipelineConfig_ForgeResolutionErrorScope pins when a forge-resolution failure is
 // allowed to abort a release. Resolution is local (config / CI env / git origin) and can fail on a
 // plain developer machine — e.g. both GITHUB_TOKEN and GITLAB_TOKEN exported, the standard default

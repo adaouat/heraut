@@ -194,10 +194,12 @@ func buildReleasePipelineConfig(runner, readRunner port.Runner, cfg *config.Conf
 
 	// Resolve effective config: start from root, apply per-env overrides.
 	effectiveChangelog := cfg.Changelog
-	var effectiveNotes *config.ContentDriver
+	// EffectiveReleaseNotes owns the root/per-env merge and ADR-0046 default-populate together
+	// (T223) — duplicating that logic here previously missed the per-env-only case, since the
+	// loader's normalize() only default-populates the top-level Release.Notes.
+	effectiveNotes := config.EffectiveReleaseNotes(cfg, env)
 	var releaseAssets []string
 	if cfg.Release != nil {
-		effectiveNotes = cfg.Release.Notes
 		releaseAssets = cfg.Release.Assets
 	}
 	effectiveTargets := config.EffectiveTargets(cfg, env)
@@ -212,11 +214,6 @@ func buildReleasePipelineConfig(runner, readRunner port.Runner, cfg *config.Conf
 			pCfg.DisableNotes = envCfg.DisableRelease
 			if envCfg.Changelog != nil {
 				effectiveChangelog = config.MergeContentDriver(effectiveChangelog, envCfg.Changelog)
-			}
-			if envCfg.Release != nil {
-				if envCfg.Release.Notes != nil {
-					effectiveNotes = config.MergeContentDriver(effectiveNotes, envCfg.Release.Notes)
-				}
 			}
 		}
 	}

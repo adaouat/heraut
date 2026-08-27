@@ -34,7 +34,7 @@ reviewed, and tested on their own merits.
 | Task  | Description                                                                          | Status      |
 |-------|---------------------------------------------------------------------------------------|-------------|
 | T222  | `--version`/`--build` override ignores `tag_prefix` / per-env `tag_format`            | Done        |
-| T223  | Per-environment `release:` never gets `Notes` default-populated (ADR-0046 gap)        | Not started |
+| T223  | Per-environment `release:` never gets `Notes` default-populated (ADR-0046 gap)        | Done        |
 | T224  | Per-driver `rendering.excludes` is never consumed                                     | Not started |
 | T225  | Root `versioning.bump` enum and `sprint:` requiredness are unvalidated                | Not started |
 | T226  | Environment promotion doesn't filter pre-release source tags like auto-resolve does   | Not started |
@@ -101,7 +101,7 @@ cases the bug report called out. `go test ./...` and `hk check` both clean.
 
 ---
 
-#### `[ ]` T223: per-environment `release:` never gets `Notes` default-populated (ADR-0046 gap)
+#### `[x]` T223: per-environment `release:` never gets `Notes` default-populated (ADR-0046 gap)
 
 **Found while auditing `docs/specs/02-configuration.md`'s claim that ADR-0046 atomicity applies
 "root or per-environment."** `internal/config/loader.go:186-188`'s `normalize()` default-populates
@@ -121,6 +121,17 @@ non-empty effective notes driver.
 **Files (expected):** `internal/config/loader.go` or `internal/config/merge.go` (wherever per-env
 `Release` resolution lives), `internal/app/pipeline.go` (if the defaulting belongs there instead).
 **Scope:** S. **Dependencies:** none.
+
+The defaulting and the root/per-env merge were already duplicated in two places:
+`config.EffectiveReleaseNotes` (`internal/config/platforms.go`, unused in production — a leftover
+from before `internal/app/pipeline.go`'s `buildReleasePipelineConfig` grew its own inline copy) and
+that inline copy itself, both carrying the identical gap. Fixed the shared helper once — a
+`released` bool now tracks whether `release:` is present at either level and default-populates
+`Notes` to `&ContentDriver{}` only when neither level set one explicitly — then rewired
+`buildReleasePipelineConfig` to call it instead of re-deriving the merge inline, removing the
+duplicate (buggy) copy entirely rather than fixing it twice. Added a `TestEffectiveReleaseNotes`
+table row for the env-only case, plus `TestBuildReleasePipelineConfig_EnvOnlyReleaseGetsNotes`
+exercising the actual production call site. `go test ./...` and `hk check` both clean.
 
 ---
 

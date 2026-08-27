@@ -110,6 +110,20 @@ func TestEffectiveReleaseNotes(t *testing.T) {
 			env: "staging", want: envNotes,
 		},
 		{
+			// ADR-0046 release-block atomicity applies per-environment exactly like it does
+			// at the root (T216 default-populates root Notes in the loader; this is the
+			// per-env equivalent, since a per-env release: block never passes through the
+			// root normalize() step). Without this, a per-env-only release config with no
+			// explicit notes: sub-block would publish a release with an empty body.
+			name: "env-only release with no notes and no top-level release defaults to empty notes",
+			cfg: &config.Config{
+				Environments: map[string]config.Environment{
+					"staging": {Release: &config.EnvRelease{Targets: []config.Target{{Draft: true}}}},
+				},
+			},
+			env: "staging", want: &config.ContentDriver{},
+		},
+		{
 			name: "unknown env keeps top-level",
 			cfg:  &config.Config{Release: &config.Release{Notes: base}},
 			env:  "nope", want: base,
