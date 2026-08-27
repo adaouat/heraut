@@ -110,7 +110,7 @@ func TestNewResolver_VersionOverride_SemverPerEnv(t *testing.T) {
 		Version:    "1",
 		Versioning: config.Versioning{Strategy: "semver-per-env"},
 		Environments: map[string]config.Environment{
-			"prod": {Bump: "auto", TagFormat: "prod/${version}"},
+			"prod": {Bump: "auto", TagFormat: "prod/{version}"},
 		},
 	}
 	r, err := app.NewResolver(cfg, "prod", false, "v1.5.0", "", mr)
@@ -118,8 +118,76 @@ func TestNewResolver_VersionOverride_SemverPerEnv(t *testing.T) {
 
 	result, err := r.Resolve()
 	require.NoError(t, err)
-	assert.Equal(t, "v1.5.0", result.Tag)
+	assert.Equal(t, "prod/1.5.0", result.Tag, "override must render through the env's tag_format, not bypass it")
+	assert.Equal(t, "1.5.0", result.Version)
 	assert.Empty(t, mr.Calls, "static resolver must not call git")
+}
+
+func TestNewResolver_VersionOverride_CalverPerEnv(t *testing.T) {
+	mr := exectest.NewMockRunner()
+	cfg := &config.Config{
+		Version:    "1",
+		Versioning: config.Versioning{Strategy: "calver-per-env", Format: "YYYY.MM.PATCH"},
+		Environments: map[string]config.Environment{
+			"uat": {Bump: "auto", TagFormat: "{env}/{version}"},
+		},
+	}
+	r, err := app.NewResolver(cfg, "uat", false, "2026.05.3", "", mr)
+	require.NoError(t, err)
+
+	result, err := r.Resolve()
+	require.NoError(t, err)
+	assert.Equal(t, "uat/2026.05.3", result.Tag)
+	assert.Equal(t, "2026.05.3", result.Version)
+	assert.Empty(t, mr.Calls, "static resolver must not call git")
+}
+
+func TestNewResolver_VersionOverride_CustomTagPrefix_BareVersion(t *testing.T) {
+	mr := exectest.NewMockRunner()
+	prefix := "release-"
+	cfg := &config.Config{
+		Version:    "1",
+		Versioning: config.Versioning{Strategy: "semver", TagPrefix: &prefix},
+	}
+	r, err := app.NewResolver(cfg, "", false, "1.2.3", "", mr)
+	require.NoError(t, err)
+
+	result, err := r.Resolve()
+	require.NoError(t, err)
+	assert.Equal(t, "release-1.2.3", result.Tag, "override must apply the configured tag_prefix, not the hardcoded default")
+	assert.Equal(t, "1.2.3", result.Version)
+}
+
+func TestNewResolver_VersionOverride_CustomTagPrefix_FullTag(t *testing.T) {
+	mr := exectest.NewMockRunner()
+	prefix := "release-"
+	cfg := &config.Config{
+		Version:    "1",
+		Versioning: config.Versioning{Strategy: "semver", TagPrefix: &prefix},
+	}
+	r, err := app.NewResolver(cfg, "", false, "release-1.2.3", "", mr)
+	require.NoError(t, err)
+
+	result, err := r.Resolve()
+	require.NoError(t, err)
+	assert.Equal(t, "release-1.2.3", result.Tag, "a full tag already carrying the configured prefix must not be double-prefixed")
+	assert.Equal(t, "1.2.3", result.Version)
+}
+
+func TestNewResolver_VersionOverride_EmptyTagPrefix(t *testing.T) {
+	mr := exectest.NewMockRunner()
+	empty := ""
+	cfg := &config.Config{
+		Version:    "1",
+		Versioning: config.Versioning{Strategy: "semver", TagPrefix: &empty},
+	}
+	r, err := app.NewResolver(cfg, "", false, "1.2.3", "", mr)
+	require.NoError(t, err)
+
+	result, err := r.Resolve()
+	require.NoError(t, err)
+	assert.Equal(t, "1.2.3", result.Tag, "an explicit empty tag_prefix must not fall back to the semver default of \"v\"")
+	assert.Equal(t, "1.2.3", result.Version)
 }
 
 func TestNewResolver_BuildID_RendersTag(t *testing.T) {

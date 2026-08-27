@@ -33,7 +33,7 @@ reviewed, and tested on their own merits.
 
 | Task  | Description                                                                          | Status      |
 |-------|---------------------------------------------------------------------------------------|-------------|
-| T222  | `--version`/`--build` override ignores `tag_prefix` / per-env `tag_format`            | Not started |
+| T222  | `--version`/`--build` override ignores `tag_prefix` / per-env `tag_format`            | Done        |
 | T223  | Per-environment `release:` never gets `Notes` default-populated (ADR-0046 gap)        | Not started |
 | T224  | Per-driver `rendering.excludes` is never consumed                                     | Not started |
 | T225  | Root `versioning.bump` enum and `sprint:` requiredness are unvalidated                | Not started |
@@ -59,7 +59,7 @@ than needing a second pass.
 
 ## Code bugs
 
-#### `[ ]` T222: `--version`/`--build` override ignores `tag_prefix` / per-env `tag_format`
+#### `[x]` T222: `--version`/`--build` override ignores `tag_prefix` / per-env `tag_format`
 
 **Found while auditing `docs/specs/04-versioning.md` and `03-commands.md`'s claims about manual
 version overrides.** `internal/app/resolver.go:27-43` short-circuits any non-empty
@@ -79,6 +79,25 @@ with the active strategy's configured format — not a bypass of it. Decide whet
 
 **Files (expected):** `internal/app/resolver.go`, `internal/versioning/static.go` (or equivalent),
 `internal/versioning/tagfmt/tagfmt.go` (if reused). **Scope:** S–M. **Dependencies:** none.
+
+Implemented in `internal/app/resolver.go` only — no change needed to `static.go` or `tagfmt.go`.
+`NewResolver` now computes the effective tag format once (`cfg.EffectiveTagFormat(env)` when no
+`--build`, or the existing `effectiveTagFmt` validation when `--build` is set) and branches: when a
+`tag_format` is in effect, the override renders through `tagfmt.Render` exactly like the `--build`
+path already did, so a per-env `{version}`/`{env}` template now applies to plain `--version` too.
+When no `tag_format` applies, a new unexported `defaultTagPrefix(strategy)` supplies the correct
+strategy-specific default ("v" for SemVer-based strategies, "" for CalVer-based ones — mirroring
+`semver.Resolver.prefix()` and `calver.Resolver.prefix()`, which stay untouched and are not called
+from this path) so an explicit `versioning.tag_prefix` is honoured, and the *actual* configured
+prefix is stripped from a full-tag override instead of a hardcoded `"v"` — fixing double-prefixing
+and non-stripping for non-default prefixes. `TestNewResolver_VersionOverride_SemverPerEnv` asserted
+the pre-fix (buggy) behavior directly; updated to the corrected expectation and its `TagFormat`
+fixture corrected from a non-existent `${version}` token to the real `{version}` token, per this
+project's own testing rule that a changed assertion needs its behavior change stated, not just
+deleted — this is a plain bugfix, no ADR needed (same precedent as T221). Added
+`TestNewResolver_VersionOverride_CalverPerEnv`, `_CustomTagPrefix_BareVersion`,
+`_CustomTagPrefix_FullTag`, and `_EmptyTagPrefix` to cover the strategy-default and explicit-prefix
+cases the bug report called out. `go test ./...` and `hk check` both clean.
 
 ---
 

@@ -25,19 +25,35 @@ func NewResolver(cfg *config.Config, env string, force bool, versionOverride, bu
 		return nil, fmt.Errorf("--build requires --version: build ID cannot be combined with automatic version resolution")
 	}
 	if versionOverride != "" {
-		// Strip any leading "v" to derive the bare version component used in commit
-		// messages and changelog templates. The full tag is used as-is.
-		version := strings.TrimPrefix(versionOverride, "v")
-		tag := versionOverride
+		var tf string
 		if buildID != "" {
-			tf, err := effectiveTagFmt(cfg, env)
+			var err error
+			tf, err = effectiveTagFmt(cfg, env)
 			if err != nil {
 				return nil, err
 			}
+		} else {
+			tf = cfg.EffectiveTagFormat(env)
+		}
+
+		var tag, version string
+		if tf != "" {
+			// Strip any leading "v" to derive the bare version component fed into the
+			// {version} token — a tag_format template has no single "prefix" to strip,
+			// so this heuristic (not the configured tag_prefix) applies here.
+			version = strings.TrimPrefix(versionOverride, "v")
+			var err error
 			tag, err = tagfmt.Render(tf, env, version, buildID)
 			if err != nil {
-				return nil, fmt.Errorf("rendering tag with build ID: %w", err)
+				return nil, fmt.Errorf("rendering tag: %w", err)
 			}
+		} else {
+			prefix := defaultTagPrefix(cfg.Versioning.Strategy)
+			if cfg.Versioning.TagPrefix != nil {
+				prefix = *cfg.Versioning.TagPrefix
+			}
+			version = strings.TrimPrefix(versionOverride, prefix)
+			tag = prefix + version
 		}
 		return versioning.NewStaticResolver(tag, version), nil
 	}
@@ -69,6 +85,19 @@ func ValidateBuildID(build string) error {
 // versioning layer directly.
 func ValidateVersionOverride(version string) error {
 	return tagfmt.ValidateVersionOverride(version)
+}
+
+// defaultTagPrefix mirrors the unexported default each strategy resolver falls back to when
+// versioning.tag_prefix is unset (semver.Resolver.prefix, calver.Resolver.prefix): "v" for
+// SemVer-based strategies, "" for CalVer-based ones, where a version like 2026.05.3 already
+// reads as a tag without help from a prefix.
+func defaultTagPrefix(strategy string) string {
+	switch strategy {
+	case "semver", "semver-per-env":
+		return "v"
+	default:
+		return ""
+	}
 }
 
 // effectiveTagFmt returns the tag format to use for build ID rendering and
