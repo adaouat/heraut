@@ -141,16 +141,19 @@ func TestInitCmd_ExplicitFlagWinsOverEnvVar(t *testing.T) {
 	assert.True(t, os.IsNotExist(err), "env.yml should not be created when --config flag is set")
 }
 
-func TestInitCmd_DefaultsWithExistingNoForceOverwrites(t *testing.T) {
-	// --defaults is always non-interactive: existing file is overwritten without prompt.
+func TestInitCmd_DefaultsWithExistingNoForceErrors(t *testing.T) {
+	// T227: --defaults must not silently overwrite an existing config — require --force,
+	// consistent with the rest of the CLI's destructive-action posture (e.g. promotion
+	// guards). Previously this overwrote without prompt or --force; deliberately changed.
 	dir := t.TempDir()
 	cfgPath := filepath.Join(dir, ".heraut.yml")
 	require.NoError(t, os.WriteFile(cfgPath, []byte("existing content"), 0o644))
 
 	_, err := executeRoot("init", "--defaults", "--config", cfgPath)
-	require.NoError(t, err)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "--force")
 
 	data, err := os.ReadFile(cfgPath)
 	require.NoError(t, err)
-	assert.Contains(t, string(data), "semver")
+	assert.Equal(t, "existing content", string(data), "the existing file must be left untouched")
 }

@@ -43,6 +43,13 @@ func NewInitCmd(version string) *cobra.Command {
 			_, statErr := os.Stat(path)
 			fileExists := statErr == nil
 
+			// --defaults is the non-interactive path: it must not silently overwrite an
+			// existing config (T227) — consistent with the rest of the CLI's
+			// destructive-action posture (e.g. promotion guards also require --force).
+			if defaults && fileExists && !force {
+				return fmt.Errorf("%s already exists (use --force to overwrite with --defaults)", path)
+			}
+
 			if fileExists && !defaults {
 				if !force {
 					var update bool

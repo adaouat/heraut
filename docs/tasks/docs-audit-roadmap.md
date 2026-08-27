@@ -38,7 +38,7 @@ reviewed, and tested on their own merits.
 | T224  | Per-driver `rendering.excludes` is never consumed                                     | Not started |
 | T225  | Root `versioning.bump` enum and `sprint:` requiredness are unvalidated                | Done        |
 | T226  | Environment promotion doesn't filter pre-release source tags like auto-resolve does   | Done        |
-| T227  | `heraut init --defaults` overwrites an existing config with no confirmation           | Not started |
+| T227  | `heraut init --defaults` overwrites an existing config with no confirmation           | Done        |
 | T228  | Asset-glob failure semantics for `release.targets[].assets` (direction TBD)           | Not started |
 | T229  | `docs/specs/01-overview.md` reconciliation                                            | Not started |
 | T230  | `docs/specs/02-configuration.md` reconciliation                                       | Not started |
@@ -227,7 +227,7 @@ clean.
 
 ---
 
-#### `[ ]` T227: `heraut init --defaults` overwrites an existing config with no confirmation
+#### `[x]` T227: `heraut init --defaults` overwrites an existing config with no confirmation
 
 **Found while auditing `docs/specs/03-commands.md`'s init-command flag table.**
 `internal/cmd/init.go:46` — the interactive overwrite prompt is gated on `if fileExists &&
@@ -245,6 +245,18 @@ way, since this is a behavior change either direction.
 
 **Files (expected):** `internal/cmd/init.go` (+ tests), `docs/specs/03-commands.md`.
 **Scope:** S. **Dependencies:** none.
+
+Decided (user confirmed): require `--force` to overwrite, matching the rest of the CLI's
+destructive-action posture. `heraut init --defaults` on an existing config now errors immediately
+("`<path>` already exists (use --force to overwrite with --defaults)") and leaves the file
+untouched, before any prompt/generation logic runs; `--force` bypasses it exactly like the
+interactive path already did. `TestInitCmd_DefaultsWithExistingNoForceOverwrites` pinned the old
+(buggy) silent-overwrite behavior directly — renamed to
+`TestInitCmd_DefaultsWithExistingNoForceErrors` and rewritten to assert the new behavior, per this
+project's testing rule that a changed assertion needs its behavior change stated, not deleted; a
+plain bugfix per explicit user decision, no ADR needed. Left `docs/specs/03-commands.md` for T231,
+which already scoped this exact bullet as dependent on T227 landing first. `go test ./...` and
+`hk check` both clean.
 
 ---
 
