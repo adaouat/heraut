@@ -39,7 +39,7 @@ reviewed, and tested on their own merits.
 | T225  | Root `versioning.bump` enum and `sprint:` requiredness are unvalidated                | Done        |
 | T226  | Environment promotion doesn't filter pre-release source tags like auto-resolve does   | Done        |
 | T227  | `heraut init --defaults` overwrites an existing config with no confirmation           | Done        |
-| T228  | Asset-glob failure semantics for `release.targets[].assets` (direction TBD)           | Not started |
+| T228  | Asset-glob failure semantics for `release.targets[].assets` (direction TBD)           | Done        |
 | T229  | `docs/specs/01-overview.md` reconciliation                                            | Not started |
 | T230  | `docs/specs/02-configuration.md` reconciliation                                       | Not started |
 | T231  | `docs/specs/03-commands.md` reconciliation                                            | Not started |
@@ -260,7 +260,7 @@ which already scoped this exact bullet as dependent on T227 landing first. `go t
 
 ---
 
-#### `[ ]` T228: asset-glob failure semantics for `release.targets[].assets` (direction TBD)
+#### `[x]` T228: asset-glob failure semantics for `release.targets[].assets` (direction TBD)
 
 **Found while auditing `docs/specs/02-configuration.md:403`, `schema.json:432-438`, and
 `heraut.sample.yml:294-299`**, all of which describe asset-glob failures as a warn-and-skip
@@ -284,6 +284,21 @@ created.
 **Files (expected):** `internal/app/pipeline.go`, `internal/pipeline/release.go`,
 `internal/platforms/globs.go`, `docs/specs/02-configuration.md`, `schema.json`,
 `docs/heraut.sample.yml`. **Scope:** S–M. **Dependencies:** none.
+
+Decided (user confirmed): Option A — target-level assets are now lenient too, matching top-level
+`release.assets`. Implemented entirely in `internal/app/pipeline.go`'s `buildTargetPlatforms`:
+`platCfg.LenientAssets` is now set to `len(platCfg.Assets) > 0` unconditionally, after the existing
+inherit-from-`releaseAssets` step, rather than only inside that step's own branch — so it covers
+assets from either source uniformly. No change needed in `internal/pipeline/release.go` or
+`internal/platforms/globs.go`; both already branch on `LenientAssets` correctly; only the wiring
+decision of when to set it was wrong. Updated `config.Platform.LenientAssets`'s doc comment (it
+previously claimed to be top-level-origin-only). Added
+`TestBuildTargetPlatforms_TargetOwnAssetsAreLenient`, verified red without the fix (temporarily
+reverted, confirmed it fails with `no files matched asset pattern`) and green with it. Left the
+doc-side corrections (`02-configuration.md`, `schema.json`, `heraut.sample.yml` all currently
+describe only the lenient case as if universal, which is now actually true) for T230/T233, which
+already scoped those exact bullets as dependent on this landing. `go test ./...` and `hk check`
+both clean.
 
 ---
 

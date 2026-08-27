@@ -65,6 +65,29 @@ func TestPlatformConfigFromTarget(t *testing.T) {
 	})
 }
 
+// TestBuildTargetPlatforms_TargetOwnAssetsAreLenient covers T228: a release.targets[].assets glob
+// declared directly on a target — not inherited from top-level release.assets — must resolve
+// leniently (warn and skip a non-matching pattern) just like top-level release.assets already did.
+// Previously only inherited assets got LenientAssets = true; a target's own assets stayed strict,
+// which could abort the release after the tag was already created and pushed.
+func TestBuildTargetPlatforms_TargetOwnAssetsAreLenient(t *testing.T) {
+	mr := exectest.NewMockRunner()
+	cfg := &config.Config{
+		Forges: []config.Forge{{Name: "gh", Type: "github"}},
+	}
+	targets := []config.Target{
+		{Forge: "gh", Assets: []string{"no-such-file-*.tar.gz"}},
+	}
+	resolved := forge.Resolved{Forges: []port.ForgeIdentity{{Type: "github", Project: "acme/widget"}}}
+
+	platforms, err := buildTargetPlatforms(mr, cfg, targets, nil, resolved)
+	require.NoError(t, err)
+	require.Len(t, platforms, 1)
+
+	err = platforms[0].UploadAssets("v1.0.0")
+	assert.NoError(t, err, "a target-declared asset glob matching nothing must warn and skip, not fail the release")
+}
+
 // TestSynthesizeDefaultTarget_RequiresAPublishDriver covers T221: a resolved forge with no publish
 // driver (azure_devops — no internal/platforms/azure package exists, since Azure DevOps has no
 // equivalent of a GitHub/GitLab Release to build one against) must not be treated as a usable

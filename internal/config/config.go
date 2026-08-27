@@ -193,8 +193,11 @@ type Platform struct {
 	BaseURL  string
 	TokenEnv string
 	Assets   []string
-	// LenientAssets is set programmatically when assets come from release.assets (top-level).
-	// When true, a glob pattern that matches nothing emits a warning instead of an error.
+	// LenientAssets is set programmatically whenever this target has any assets to resolve —
+	// inherited from release.assets or declared on the target itself (T228). When true, a glob
+	// pattern that matches nothing emits a warning instead of an error: by the time assets are
+	// resolved the tag has already been created and pushed, so a strict failure here would leave
+	// the repository in a partially-completed state.
 	LenientAssets bool
 }
 
