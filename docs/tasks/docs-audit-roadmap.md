@@ -43,7 +43,7 @@ reviewed, and tested on their own merits.
 | T229  | `docs/specs/01-overview.md` reconciliation                                            | Done        |
 | T230  | `docs/specs/02-configuration.md` reconciliation                                       | Done        |
 | T231  | `docs/specs/03-commands.md` reconciliation                                            | Done        |
-| T232  | `docs/specs/04-versioning.md` reconciliation                                          | Not started |
+| T232  | `docs/specs/04-versioning.md` reconciliation                                          | Done        |
 | T233  | `docs/specs/05-generators-and-platforms.md` reconciliation                            | Not started |
 | T234  | `docs/specs/06-dx-and-testing.md` reconciliation                                      | Not started |
 | T235  | `schema.json` + `docs/heraut.sample.yml` cleanup                                      | Not started |
@@ -514,7 +514,7 @@ longer exists in the corrected, more accurate message. `go test ./...` and `hk c
 
 ---
 
-#### `[ ]` T232: `docs/specs/04-versioning.md` reconciliation
+#### `[x]` T232: `docs/specs/04-versioning.md` reconciliation
 
 - **Line 231**: E002 threshold described as `>=`; code uses strict `>` (`internal/versioning/perenv/promote.go:202`)
   — an equal destination version doesn't trip E002 (E001 catches it instead). Fix the doc to match
@@ -558,6 +558,22 @@ longer exists in the corrected, more accurate message. `go test ./...` and `hk c
 **Files:** `docs/specs/04-versioning.md`. **Scope:** M. **Dependencies:** land the manual-mode-exit-code
 bullet only after a team decision (doc vs. code fix); land the `--version` bullet after T222; land
 the promote-filter bullet after T226.
+
+Manual-mode exit code: documented the actual current behavior (runtime error, exit 3) rather than
+asserting a "should be" reclassification — that's a code-behavior judgment call outside a docs
+task's scope, not something to decide unilaterally while reconciling prose to reality. Fixed: the
+bump-determination table and prose (patch is an unconditional floor, not a `fix:`-specific rule —
+matches T232's sibling finding in the config/commands audit almost verbatim); `PATCH`'s
+"always the last component" claim (now "last non-literal token"); `bump: auto`'s "source-env tag"
+wording (it's the *active* environment's own tag; `source:` is promote-only); E002's `>=` vs strict
+`>` (with a note that an equal version is already caught by E001); the CalVer-per-env "separate
+ordering" claim (one `compareVersionStrings` serves both strategies); the version-resolution step
+order (candidate is rendered before E001/E002 are checked, not after); and the stale git-cliff
+`tag_pattern` advisory (replaced with an accurate native-focused note). Added: a `{build}` token
+mention with a cross-reference to spec 02's full treatment (previously absent from this file
+entirely), a top-level `versioning.tag_format` cross-reference, a note that `--version` applies
+across all four strategies (T222), and the promote pre-release-skip fix (T226) documented as
+current behavior. `hk check` (typos) clean; no code changes, so no test suite to run.
 
 ---
 

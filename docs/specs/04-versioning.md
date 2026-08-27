@@ -33,12 +33,16 @@ since the last tag.
 | Commit pattern                                    | Bump level |
 |---------------------------------------------------|------------|
 | `type!:` / `type(scope)!:` prefix (e.g. `feat!:`, `fix(api)!:`) or a `BREAKING CHANGE:` / `BREAKING-CHANGE:` footer | major |
-| Any `feat:` commit                                | minor      |
-| Any `fix:` commit                                 | patch      |
-| Only chore/docs/refactor/style/test/ci commits    | patch (fallback) |
+| Any `feat:` commit (and no breaking change)       | minor      |
+| Anything else (including `fix:`, chore/docs/refactor/style/test/ci, or unparsable commits) | patch (floor) |
 | No commits since last tag                         | error      |
 
-The highest applicable bump wins (e.g. a single `feat!:` outranks ten `fix:` commits).
+`patch` is the unconditional floor, not a `fix:`-specific rule: the determination only
+ever *raises* the bump above `patch` when it finds a breaking-change marker (→ major) or
+a `feat:` commit with no breaking change (→ minor). A `fix:` commit does not itself cause
+a patch bump — ten non-conventional commits with no recognized type produce the same
+`patch` result as ten `fix:` commits, because there is nothing in the batch to raise the
+floor. The highest applicable bump wins (e.g. a single `feat!:` outranks ten `fix:` commits).
 The `!` must sit immediately before the colon in the subject's type/scope prefix — a
 bare `!:` inside the description does not trigger a major bump. `BREAKING-CHANGE:` is
 treated as a synonym of `BREAKING CHANGE:`, per Conventional Commits 1.0.0. Either form
@@ -74,8 +78,13 @@ When no tags matching the prefix exist, the resolver returns `initial_version` (
 ### Manual mode
 
 `bump: manual` requires `--version X.Y.Z` to be passed to `heraut release` (or
-`heraut version next`). If omitted, the command fails with a config error before any
-git operations.
+`heraut version next`). If omitted, the command fails immediately with a runtime error
+(exit code 3 — see [Spec 01 § Exit codes](01-overview.md#exit-codes)) before any git
+operations.
+
+`--version` is not exclusive to manual mode — passed to *any* strategy, it short-circuits
+bump resolution entirely and bypasses git calls, exactly as described here (see also
+[Spec 03 § `heraut release`](03-commands.md#heraut-release)).
 
 ---
 
@@ -104,7 +113,8 @@ the calendar period changes.
 | `SPRINT` | Manually-managed sprint counter    | `5`           |
 | `PATCH`  | Auto-incrementing patch (required) | `0`, `3`      |
 
-`PATCH` is mandatory and always the last component. It resets to `0` whenever the
+`PATCH` is mandatory and must be the last *non-literal* token — a trailing literal
+suffix after it (e.g. `YYYY.MM.PATCH-rc`) is allowed. It resets to `0` whenever the
 period defined by the other tokens changes (e.g. new month for `YYYY.MM.PATCH`), and
 increments by one for each release within the same period.
 
@@ -198,17 +208,31 @@ mandatory `{version}` token. The token can appear anywhere, enabling any orderin
 The `{version}` / `{env}` substitution is implemented in `internal/versioning/tagfmt/`,
 shared between both per-env strategies ([ADR-0009](../adr/0009-generic-perenv-resolver.md)).
 
+Instead of repeating an identical `tag_format` on every environment, set it once at the
+top-level `versioning.tag_format` using `{env}`; a per-environment `tag_format` always
+overrides the common one when both are set. See
+[Spec 02 § Common `tag_format`](02-configuration.md#common-tag_format).
+
+A third token, `{build}`, is available for CI build IDs (e.g. `"{env}/{version}-{build}"`
+→ `uat/7.4.1-158404`) — populated by `--build <id>` on `heraut changelog`/`heraut release`,
+requires `--version` to also be passed. See
+[Spec 02 § `{build}` token](02-configuration.md#build-token--ci-build-ids) for the full
+reference.
+
 ### Bump modes
 
-**`bump: auto`** — resolves the latest source-env tag by SemVer (not lexicographically,
-so `dev/1.10.0` beats `dev/1.9.0`), reads conventional commits since that tag, and
+**`bump: auto`** — resolves the latest tag in **this environment's own** namespace by
+SemVer (not lexicographically, so `dev/1.10.0` beats `dev/1.9.0`), reads conventional
+commits since that tag, and
 increments the patch/minor/major component accordingly. The same pre-release-tag skip
 policy as plain SemVer applies (§ Pre-release tags): a tag like `dev/1.3.0-rc.1` is
 skipped in favor of `dev/1.2.3` when selecting the current tag.
 
 **`bump: promote`** — resolves the latest tag of the source environment, strips the
 source format to extract the bare version, and renders it under the destination format.
-Example: `dev/1.0.2` → `prod/1.0.2`.
+Example: `dev/1.0.2` → `prod/1.0.2`. Applies the same pre-release-tag skip policy as
+`bump: auto` (§ Pre-release tags above) — a pre-release tag sorting first in the source
+environment is never selected as the promotion candidate.
 
 The source environment is determined by the optional `source:` field (see
 [ADR-0008](../adr/0008-promote-source-env.md)):
@@ -228,25 +252,37 @@ Three hard-fail conditions are checked before any tag is created
 | Code | Condition                                                                | Bypassed by `--force`?   |
 |------|--------------------------------------------------------------------------|--------------------------|
 | E001 | The candidate target tag already exists                                  | Yes                      |
-| E002 | The destination environment is already at a version >= the candidate    | Yes                      |
+| E002 | The destination environment is already at a version strictly greater than the candidate | Yes           |
 | E003 | The source environment has no tags yet (nothing to promote)              | No — `--force` has no effect |
 
 Each error message includes the source env, destination env, candidate version, and
-the latest tag(s) involved.
+the latest tag(s) involved. A destination already at *exactly* the candidate version
+doesn't reach E002's strict-greater-than check — E001 already caught it, since the
+candidate tag would already exist.
 
 ### Version resolution logic
 
-1. List all tags matching the active environment's glob (derived from `tag_format` via
-   `tagfmt.GlobPattern`)
-2. Sort by SemVer (not lexicographically)
-3. Determine next version based on `bump` mode
-4. Check E001/E002/E003
-5. Render the candidate version under the destination's `tag_format`
-6. Pass resolved tag to downstream generators / platforms
+For `bump: promote` (the path the E001/E002/E003 guards apply to):
 
-> **Note**: `git-cliff` and similar tools default to `v*` tag patterns. When using
-> prefixed tags, the generator config must override `tag_pattern`. heraut injects the
-> resolved tag into driver calls; it does not rely on drivers to resolve it.
+1. List all tags matching the **source** environment's glob (derived from its
+   `tag_format` via `tagfmt.GlobPattern`)
+2. Sort by version order (not lexicographically), skipping any pre-release tag
+   (§ Pre-release tags) — **E003** fires here if no qualifying source tag remains
+3. Extract the bare version from the latest qualifying source tag
+4. Render the candidate tag under the destination environment's `tag_format`
+5. Check **E001** (candidate tag already exists)
+6. Check **E002** (destination already ahead of the candidate)
+7. Pass the resolved tag to downstream generators / platforms
+
+`bump: auto` follows the same list → sort → skip-pre-release shape (§ Bump modes above)
+but computes the next version from commits or the clock instead of promoting one, and
+has no E001/E002/E003 guards — there's nothing to promote, so nothing to guard against.
+
+heraut resolves the tag itself and passes it to the changelog/release-notes generator and
+publish drivers directly — it does not rely on any of them to independently re-derive a
+tag pattern from `tag_prefix`/`tag_format`. `changelog.tag_pattern` (native's own tag-walk
+scope) is a separate, generator-level concern — see
+[Spec 02 § Content generation](02-configuration.md#content-generation).
 
 ---
 
@@ -279,8 +315,10 @@ Unlike `semver-per-env`, **no conventional commit parsing** is performed — the
 version advances purely from the date.
 
 **`bump: promote`** — same source resolution, `source:` field semantics, and
-E001/E002/E003 checks as `semver-per-env`, but the regression check (E002) uses CalVer
-ordering instead of SemVer ordering.
+E001/E002/E003 checks as `semver-per-env`, including E002's regression check — one
+dot-separated-integer comparison implements it for both strategies, since both SemVer
+(`1.2.3`) and CalVer (`2026.05.3`) versions compare correctly component-by-component this
+way. There is no separate CalVer-specific ordering.
 
 ---
 
