@@ -11,9 +11,10 @@ Present on every subcommand. Defined on the root command in `internal/cmd/root.g
 |----------------------|-------------|----------------------------------------------------------------------------------------------------------------------------|
 | `--config <path>`    | _(auto)_    | Path to `.heraut.yml`. Defaults to `.config/heraut.yml` if present, else `.heraut.yml`. See [ADR-0005](../adr/0005-config-file-discovery.md). |
 | `--dry-run`          | `false`     | Print actions without executing them. No git writes, no network calls, no file writes outside `/tmp`. Read-only git calls (tag list, log) still execute so the resolved version is accurate. |
-| `--verbose`          | `false`     | Log each external command (`[exec] <cmd> <args>`) before running it, then echo its captured output (indented).              |
-| `--env <name>`       | `""`        | Active environment override. Required for per-env strategies; ignored by single-env strategies.                            |
-| `--force`            | `false`     | Bypass promotion guards E001 and E002 (per [ADR-0007](../adr/0007-version-promotion-error-handling.md)). E003 is not bypassed. Also downgrades `commits.enrichment_policy: required` to `optional` for the run (degrade instead of failing when metadata is unavailable). |
+| `--verbose`          | `false`     | Log each external command (`[exec] <cmd> <args>`) before running it, then echo its captured output (indented). Also raises the pipeline's structured logger to debug level. |
+| `--env <name>`       | `""`        | Active environment override. Required for per-env strategies; ignored by single-env strategies. `auto` resolves the active environment from the current git branch against each environment's `branch:` instead of naming one explicitly. |
+| `--force`            | `false`     | Bypass promotion guards E001 and E002 (per [ADR-0007](../adr/0007-version-promotion-error-handling.md)). E003 is not bypassed. Also downgrades `commits.enrichment_policy: required` to `optional` for the run (degrade instead of failing when metadata is unavailable), and required to overwrite an existing config with `heraut init --defaults` (see § `heraut init` below). |
+| `--offline`          | `false`     | Forces `commits.enrichment_policy: disabled` for the run regardless of what `.heraut.yml` sets, skipping PR/MR enrichment in changelog and release-notes generation. |
 | `--version` / `-v`   | —           | Print the heraut version (see § `heraut --version` below).                                                                 |
 | `--help` / `-h`      | —           | Print usage and exit.                                                                                                      |
 
@@ -36,21 +37,29 @@ heraut init --force        # overwrite an existing config without prompting
 
 | Flag         | Default | Description                                                                                                  |
 |--------------|---------|--------------------------------------------------------------------------------------------------------------|
-| `--defaults` | `false` | Write a non-interactive default config (semver, prefix `"v"`, GitLab). Skip the wizard.                      |
-| `--force`    | `false` | Overwrite an existing config file. Without it, heraut prompts before overwriting.                            |
+| `--defaults` | `false` | Write a non-interactive default config (semver, prefix `"v"`, GitLab). Skip the wizard. Requires `--force` when a config already exists at the destination — see `--force` below. |
+| `--force`    | `false` | Interactive mode: overwrite an existing config file without prompting. `--defaults` mode: **required** to overwrite an existing config at all — without it, `heraut init --defaults` errors rather than silently replacing the file. |
 
-**Wizard flow**: strategy → prefix / format → sprint (if format uses `SPRINT`) → generate
-changelog? → generate release notes? → publish releases to a platform? (if yes, platform
-setup) → PR/MR enrichment policy (+ enrichment forge, only when 2+ platforms are
-configured) → environments (for per-env strategies, loops to add N envs). Existing config
-(if any) pre-populates the answers, so re-running `heraut init` updates instead of
-replacing.
+**Wizard flow**: strategy → version prefix (or CalVer format, with a custom-format option)
+→ common tag format (per-env strategies only) → generate a changelog? (if yes, changelog
+output file) → sprint number (only when the CalVer format uses the `SPRINT` token) →
+create a release (generate notes and publish) on your forge? (if yes, platform setup —
+platform type, repository/project, GitLab CI/CD advisory, token env, API mode) → PR/MR
+enrichment policy (+ enrichment forge, only when 2+ forges are configured) →
+environments (for per-env strategies, loops to add N envs). Existing config (if any)
+pre-populates the answers, so re-running `heraut init` updates instead of replacing.
 
-**Update warning**: the wizard does not have prompts for every field — `commits.tickets`,
-`release.assets`, a platform's `base_url` (when it differs from the type's default),
-`draft`/`prerelease`, and per-environment `changelog`/`release` overrides. If the loaded
-config has any of these set, `heraut init` prints a warning listing them before the
-wizard runs, since continuing will drop them from the rewritten file.
+**Fields the wizard cannot preserve.** The wizard has no prompt for `commits.tickets`,
+`release.assets`, `commits.types`/`scopes`/`scopes_restricted`/`types_heading_level`,
+`versioning.initial_version`, `versioning.tag_type`, `changelog.tag_pattern`,
+`changelog.template`, `rendering.*` (global or per-driver), `release.notes` rendering
+overrides, a forge's `api_url`, or per-environment `changelog`/`release` overrides. On a
+config that already has any of these set, re-running `heraut init` silently drops them
+from the rewritten file — there is currently no pre-wizard warning naming them. The only
+warnings `heraut init` prints are narrower, post-wizard ones: if the platform list or the
+environment list itself was edited (an entry added, removed, reordered, or its type
+changed) such that the rebuilt list can no longer be positionally matched to the original,
+it lists exactly which per-platform or per-environment fields couldn't carry through.
 
 For each platform step, the project/repository field is pre-populated from
 `git remote get-url origin` when the current directory is a git repo (SSH and HTTPS
@@ -64,10 +73,10 @@ When `SPRINT` is chosen as part of the CalVer format, the wizard adds an extra s
 asking for the current sprint number. This value is written to `versioning.sprint` and
 can be advanced later with `heraut version sprint bump`.
 
-**Output**: writes to `.config/heraut.yml` if the `.config/` directory already exists,
-else to `.heraut.yml`. Pass `--config <path>` to write to an explicit location instead.
-The file starts with a `# yaml-language-server: $schema=…` header so IDEs pick up the
-schema automatically.
+**Output destination**, in priority order: `--config <path>` if passed, else the
+`HERAUT_FILE` environment variable if set, else `.config/heraut.yml` if that directory
+already exists, else `.heraut.yml`. The file starts with a
+`# yaml-language-server: $schema=…` header so IDEs pick up the schema automatically.
 
 ## `heraut release`
 
@@ -79,7 +88,7 @@ heraut release [--version <version>] [--build <id>] [--regenerate-changelog] [--
 
 | Flag                     | Description                                                                          |
 |--------------------------|--------------------------------------------------------------------------------------|
-| `--version`              | Override the auto-computed version. Bypasses bump resolution. Accepts any non-empty value with no whitespace — heraut does not enforce a SemVer/CalVer shape; an optional leading `v` is stripped and the rest is used verbatim as the tag/version. |
+| `--version`              | Override the auto-computed version for **any** strategy. Bypasses bump resolution entirely — no git calls are made to resolve it. Accepts any non-empty value with no whitespace; an optional leading `v` is stripped, then the result is rendered through the active strategy's tag shape exactly like an auto-resolved version would be: through the effective `tag_format` when one applies (per-env strategies, or a top-level `tag_format`), otherwise through `versioning.tag_prefix` (default `"v"` for SemVer strategies, `""` for CalVer). A full tag already carrying the right prefix round-trips unchanged. |
 | `--build`                | CI build ID appended to the tag via the `{build}` token in `tag_format`. Requires `--version`. |
 | `--regenerate-changelog` | Native generator only: rebuild the entire changelog and re-enrich every section (batched per platform; one API call per commit on GitLab) instead of incrementally splicing just the new section. See [ADR-0038](../adr/0038-incremental-changelog.md). |
 | `--dry-run`              | Print the action plan; execute nothing.                                              |
@@ -91,9 +100,19 @@ heraut release [--version <version>] [--build <id>] [--regenerate-changelog] [--
 > platform release per build, by design. See
 > [Spec 02 § `{build}` token](02-configuration.md#build-token--ci-build-ids).
 
+`heraut release` requires at least one **resolvable** publish destination — an explicit
+`release.targets` entry, or a forge that auto-detects from CI/git origin and has a publish
+driver (`github`/`gitlab`; `azure_devops` never counts, see
+[Spec 02 § Platform drivers](02-configuration.md#platform-drivers)). Zero resolvable
+destinations is a configuration error for this command specifically — `heraut changelog`
+has no such requirement (see § Tag-only workflow below).
+
 **Action sequence** ([ADR-0011](../adr/0011-single-pipeline-release-via-pre-computation.md), [ADR-0012](../adr/0012-changelog-commit-ownership.md)):
 
-1. **Preflight** — run `heraut check config` + `heraut check runtime` checks
+1. **Preflight** — always: `config.Validate`. Unless `--dry-run`: also the branch guard
+   (§ Per-environment fields → `branch` in [Spec 02](02-configuration.md)) and a runtime
+   check (`git` on `PATH`, `git config user.name`/`user.email` set). There is no
+   working-tree cleanliness check.
 2. **Resolve next version** — strategy-specific (see [Spec 04](04-versioning.md))
 3. **Generate changelog** (if `changelog` is configured and not disabled for the env)
    — writes to `changelog.output` (default `CHANGELOG.md`)
@@ -103,14 +122,19 @@ heraut release [--version <version>] [--build <id>] [--regenerate-changelog] [--
    commit and push are **skipped** with a warning naming the file, and the pipeline
    continues to tag and publish rather than failing on git's "nothing to commit" exit.
 5. **Create git tag** (annotated by default; set `versioning.tag_type: lightweight` to use a bare ref tag) on the changelog commit, then `git push origin <tag>`
-6. **Generate release notes** (if `release.notes` is configured and not disabled for
-   the env) — the notes are needed at release-creation time, so they are produced before
-   any platform call
-7. **For each target** in `release.targets` (in declared order, or the single resolved
+6. **For each target** in `release.targets` (in declared order, or the single resolved
    forge with default options when `release.targets` is omitted):
-   1. Create the release via `gh release create` / `glab release create`, passing the
-      notes from step 6 (`--notes`)
-   2. Upload assets matching glob patterns
+   1. **Generate release notes** — regenerated independently for *this* target, using
+      *its* link context, since a multi-target release can point at different forges
+      with different URLs. `release.notes` (defaulted per [ADR-0046](../adr/0046-release-block-atomicity.md)
+      when `release:` is present at all — see [Spec 02 § `release`](02-configuration.md#release))
+      supplies rendering overrides.
+   2. Create the release via `gh release create` / `glab release create`, writing the
+      notes to a temp file and passing `--notes-file`/`-F` — not `--notes` — so a large
+      changelog can't exceed `ARG_MAX`.
+   3. Upload assets matching glob patterns (or, when the assets came from a lenient
+      source, attach them directly to the create call instead of a separate upload —
+      see [Spec 05](05-generators-and-platforms.md)).
 
 The version is pre-computed in step 2 and re-used in every subsequent step
 ([ADR-0011](../adr/0011-single-pipeline-release-via-pre-computation.md)) — no driver
@@ -224,15 +248,16 @@ attempting resolution.
 Exits non-zero if a promotion guard trips (E001/E002/E003).
 
 > **`{build}` tag formats:** `version next` cannot render a tag that requires a build ID
-> and will error. The build-id flow is changelog-only (see
-> [Spec 02 § `{build}` token](02-configuration.md#build-token--ci-build-ids)).
+> and will error — it infers the tag from git history with no `--build` flag to supply one.
+> `heraut changelog --build` and `heraut release --build` are the two commands that can
+> render one (see [Spec 02 § `{build}` token](02-configuration.md#build-token--ci-build-ids)).
 
 ## `heraut version current`
 
 Print the latest released tag for the active strategy / environment.
 
 ```
-heraut version current [--env <name>] [--bare]
+heraut version current [--env <name>] [--bare] [--force]
 ```
 
 For single-env strategies, prints the latest tag overall. For per-env strategies,
@@ -263,7 +288,7 @@ heraut version sprint bump
 Run this at the start of each sprint. The next `heraut release` will use the new sprint
 number and reset `PATCH` to `0`.
 
-`--dry-run` has no effect — this is a write-only command that requires confirmation.
+`--dry-run` has no effect — the file is written immediately, with no confirmation prompt.
 
 ## `heraut commit verify`
 
@@ -299,12 +324,17 @@ range is given — against the same grammar and type allow-list `heraut commit v
 checks for a single message (see [ADR-0030](../adr/0030-commit-check-rev-range-validation.md)).
 
 ```
-heraut commit check [rev-range]
+heraut commit check [rev-range] [--from-latest-tag]
 ```
 
 `rev-range` is passed straight through to `git log` — `A..B`, `A...B`, a single ref, or
 omitted entirely for every commit reachable from `HEAD`. No heraut-specific range syntax;
 git's own range syntax and its own errors on a malformed range are reused as-is.
+
+`--from-latest-tag` checks only commits since the latest tag (for the active `--env`, on
+per-env strategies) instead — mutually exclusive with a positional `rev-range` (passing
+both is a Usage error). When no tags exist yet, it warns "no tags found — checking full
+history" and falls back to the same full-history scan as no range at all.
 
 Every commit in the range is evaluated — an invalid commit does not stop the scan. Merge
 and fixup commits are skipped (the same unconditional skip `heraut commit verify` already
@@ -431,6 +461,13 @@ Online checks:
 - The token env var for each configured platform is set
 - `git config user.name` and `git config user.email` are set (required for the
   changelog commit)
+- **Working tree** (advisory) — `git status --porcelain`; a dirty tree prints the count
+  of uncommitted changes as a warning, never a hard failure.
+- **Forge resolution** — hard failure if it fails *and* a publish destination was
+  actually requested (an explicit `forges:` block, or a non-empty effective
+  `release.targets`); otherwise (zero-config auto-detection with nothing configured)
+  the same failure is only an advisory warning, since a changelog-only user may never
+  publish.
 
 When no config file is found, `heraut check runtime` proceeds rather than failing. All
 supported tools (git, gh, glab) are treated as required — hard error if any binary

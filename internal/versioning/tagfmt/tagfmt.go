@@ -22,8 +22,8 @@ func Render(template, env, version, build string) (string, error) {
 	}
 	if strings.Contains(template, buildToken) && build == "" {
 		return "", fmt.Errorf("tag format template contains %s but no build ID was provided; "+
-			"this format is changelog-only — run `heraut changelog --build <id>` "+
-			"(heraut release / version next do not accept a build ID)", buildToken)
+			"pass --build <id> to `heraut changelog` or `heraut release` "+
+			"(version next infers the tag from git history, so it cannot supply one)", buildToken)
 	}
 	result := strings.ReplaceAll(template, versionToken, version)
 	result = strings.ReplaceAll(result, envToken, env)

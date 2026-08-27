@@ -132,8 +132,12 @@ func TestRender_BuildRequiredButEmpty(t *testing.T) {
 	_, err := tagfmt.Render("{env}/{version}-{build}", "uat", "7.4.1", "")
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "{build}")
-	// The error must point the user toward the changelog --build flow.
-	assert.Contains(t, err.Error(), "changelog --build")
+	// The error must point the user toward --build on either command that accepts it —
+	// heraut release --build exists too (T222/T231), not changelog-only as this message
+	// used to imply.
+	assert.Contains(t, err.Error(), "--build")
+	assert.Contains(t, err.Error(), "heraut changelog")
+	assert.Contains(t, err.Error(), "heraut release")
 }
 
 func TestParseVersion(t *testing.T) {

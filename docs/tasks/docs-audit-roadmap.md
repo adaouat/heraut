@@ -42,7 +42,7 @@ reviewed, and tested on their own merits.
 | T228  | Asset-glob failure semantics for `release.targets[].assets` (direction TBD)           | Done        |
 | T229  | `docs/specs/01-overview.md` reconciliation                                            | Done        |
 | T230  | `docs/specs/02-configuration.md` reconciliation                                       | Done        |
-| T231  | `docs/specs/03-commands.md` reconciliation                                            | Not started |
+| T231  | `docs/specs/03-commands.md` reconciliation                                            | Done        |
 | T232  | `docs/specs/04-versioning.md` reconciliation                                          | Not started |
 | T233  | `docs/specs/05-generators-and-platforms.md` reconciliation                            | Not started |
 | T234  | `docs/specs/06-dx-and-testing.md` reconciliation                                      | Not started |
@@ -427,7 +427,7 @@ test suite to run.
 
 ---
 
-#### `[ ]` T231: `docs/specs/03-commands.md` reconciliation
+#### `[x]` T231: `docs/specs/03-commands.md` reconciliation
 
 - **Lines 42-47**: init wizard flow still shows two separate "generate release notes?" / "publish
   releases?" questions — collapsed into one by T220 (`internal/scaffold/wizard.go:284-292`,
@@ -489,6 +489,28 @@ test suite to run.
 **Files:** `docs/specs/03-commands.md`, `internal/versioning/tagfmt/tagfmt.go` (error-text fix, if
 picked up here rather than as its own tiny follow-up). **Scope:** M–L. **Dependencies:** the
 `--version`/tag-prefix bullet after T222; the init-overwrite bullet after T227.
+
+Landed after T222/T227/T228, so those bullets document the corrected behavior directly rather than
+flagging a bug. Fixed: wizard flow order (sprint actually runs *after* the changelog questions,
+right before the single T220-collapsed "create a release" question — the doc had it right after
+strategy/format) and added the three missing prompts (changelog output file, common per-env tag
+format, GitLab API mode); rewrote "Update warning" entirely — `DroppedFields` returns `nil`
+unconditionally (no pre-wizard warning exists at all), replaced with an accurate list of fields the
+wizard has no prompt for at all (silently dropped on regeneration) versus the two narrow post-wizard
+warnings that do exist (platform-list / env-list positional-match failures); `--version`'s
+description now states the T222-fixed rendering behavior (tag_format or tag_prefix, not a verbatim
+pass-through); release step 1 (preflight) now states the real `!dryRun`-gated shape (no working-tree
+check); step 6 (was step 6+7.1) now describes per-target notes regeneration and `--notes-file` (not
+a single shared `--notes` string) matching T233's identical platform-driver finding; added the
+explicit "requires a resolvable publish destination" statement to `heraut release`'s own section
+rather than leaving it only implied from `heraut changelog`'s contrast; fixed `version sprint bump`'s
+false "requires confirmation" claim; added `--offline`/`--force`'s init-overwrite meaning to the
+global flags table; added `--from-latest-tag` to `heraut commit check`; added `--force` to `version
+current`'s usage line; added the working-tree/forge-resolution rows to `check runtime`. Also fixed
+`internal/versioning/tagfmt/tagfmt.go`'s error text (was "heraut release / version next do not
+accept a build ID," false since T222 made `--build` work uniformly across `--version` overrides) and
+updated `TestRender_BuildRequiredButEmpty`'s assertion to match — the substring it checked for no
+longer exists in the corrected, more accurate message. `go test ./...` and `hk check` both clean.
 
 ---
 
