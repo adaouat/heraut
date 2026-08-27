@@ -86,13 +86,19 @@ ignored); `schema.json` enumerates the same set for editor autocompletion.
 `trim`.
 
 **Data model.** The root is a `Release` exposing `.Version` `.Tag` `.PreviousTag` `.CompareURL`
-`.Date` `.Groups` `.Contributors` `.Stats` `.Heraut`; a `Group` exposes `.Name` `.Commits`; a
-`Commit` exposes `.Type` `.Scope` `.Breaking` `.Description` `.Body` `.Hash` `.ShortHash`
+`.Date` `.Groups` `.Contributors` `.Stats` `.Heraut` `.HeadingPrefix` (leading `#`s for the
+contributors/stats headings); a `Group` exposes `.Name` `.Commits` `.HeadingPrefix`; a
+`Commit` exposes `.Type` `.Scope` `.Breaking` `.Description` `.Subject` (the raw commit
+subject line, distinct from `.Description`) `.Body` `.Hash` `.ShortHash`
 `.CommitURL` `.Date` `.Author` `.PR` `.Tickets` `.Footers`; `.PR` (nil when absent) exposes
 `.Number` `.URL` `.Title` `.Ref` `.Labels` `.Author` `.CreatedAt` `.MergedAt` `.MergedBy`
 `.Approvers` (approvers best-effort: GitHub + Azure, empty on GitLab); `.Heraut` exposes
 `.Version` `.URL` `.GeneratedAt`. All `.PR.*` fields are remote-only (empty offline). Field names
 are the **experimental-in-v1** public API — additive changes are free.
+
+`contributors` and `stats` render **only from the `release-notes` root template** — a
+`changelog`-level override of either block has no effect, since the changelog's own root never
+invokes them.
 
 **Precedence** (lowest → highest): built-in → global `rendering.templates` →
 `<driver>.rendering.templates` → per-env → `<driver>.template` file. `rendering.templates` and
@@ -127,7 +133,10 @@ calls) and splices it into the existing file, leaving every other section untouc
   left byte-for-byte unchanged.
 
 **Full regeneration (`--regenerate` / `--regenerate-changelog`).** Ignores the existing file,
-rebuilds every section from all tags, and **re-enriches all of them** — each section is enriched
+rebuilds every section from all tags, and **re-enriches all of them**. The preamble is not
+preserved: regeneration replaces whatever free-form content preceded the first section with a
+fixed `# Changelog\n\n` header, discarding any custom preamble text that was there before —
+this is the one case where "free-form preamble" doesn't mean "yours to keep." Each section is enriched
 independently, so GitHub (batched GraphQL, 50 SHAs/query), GitLab in `api_mode: graphql` (two
 batched connection queries — commit authors via `commits`, MR refs via inverted `mergeRequests`,
 [ADR-0042](../adr/0042-gitlab-graphql-enrichment.md)), and Azure (one `pullrequestquery` POST) each
@@ -150,8 +159,7 @@ uses for its own migration.
 forges:
   - name: azure-devops
     platform: azure_devops           # github | gitlab | azure_devops
-    project: my-org/my-project       # azure_devops (required: "organization/project", matching
-                                      # git-cliff's own azure_devops "owner" shape) / gitlab
+    project: my-org/my-project       # azure_devops (required: "organization/project") / gitlab
                                       # (required: namespace[/subgroup]/repo)
     repository: my-repo              # azure_devops (required) / github (required: owner/repo)
     token_env: AZURE_DEVOPS_TOKEN     # optional override
@@ -164,16 +172,21 @@ commits:
 
 Release notes always has a deterministic forge — it is generated per publish target being
 published to (`release.targets`, each referencing a `forges[].name`). The changelog has no
-such anchor: it falls back through ambient CI detection, then `git remote get-url origin`,
-then the sole configured `forges` entry (if exactly one), then `nil` (bare hashes). An
-explicit `forges` entry named by `commits.enrichment_forge` is consumed ahead of that
-fallback chain. `forges` entries are connection/identity only — they never grant publish
-capability on their own; heraut never publishes a release through a `forges` entry, it only
-tells the active generator where to source PR/MR metadata and commit/PR link shapes.
-Publishing is a separate concern (`release.targets`, each referencing a forge by name).
-Valid as the enrichment source for `native` (originally
-introduced for `changelog.remote` by ADR-0026/ADR-0040; unified into the top-level `forges:`
-list by ADR-0043).
+such anchor, so it resolves the enrichment forge the same way any zero-config forge
+resolves: a **non-empty `forges:` block always wins** — each entry's still-unset fields
+(host, project, token) are filled from CI env or git origin, but the block's own presence
+and its entries are never bypassed. Only an **empty `forges:`** (or no block at all) falls
+through to auto-detection: ambient CI markers, then `git remote get-url origin`, then a
+single unambiguous default token env var; `nil` (bare hashes, no enrichment) if none of
+those resolve anything. With multiple configured `forges:` entries and no explicit
+`commits.enrichment_forge`, the **first** entry is used, not an error — name one explicitly
+once you have more than one and enrichment shouldn't default to the first. `forges` entries
+are connection/identity only — they never grant publish capability on their own; heraut
+never publishes a release through a `forges` entry, it only tells the active generator
+where to source PR/MR metadata and commit/PR link shapes. Publishing is a separate concern
+(`release.targets`, each referencing a forge by name). Valid as the enrichment source for
+`native` (originally introduced for `changelog.remote` by ADR-0026/ADR-0040; unified into
+the top-level `forges:` list by ADR-0043).
 
 ### Auto-detection and self-hosted hosts
 
@@ -195,31 +208,37 @@ token-env step. That step's outcome depends on how many of the three token vars 
   `gitlab.com`/`github.com` instead. This is pre-existing behaviour of the token-env fallback,
   not something this phase introduced — it is exactly why the explicit `forges:` remedy below
   matters for a self-hosted setup.
-- **Two or more set** — ambiguous; `Resolve` returns `forge.ErrAmbiguousForge` and the run fails.
+- **Two or more set** — ambiguous; `Resolve` returns `forge.ErrAmbiguousForge`. Whether that
+  aborts the run depends on `commits.enrichment_policy`, same as any other resolution failure
+  below — it is not automatically fatal.
 - **None set** — auto-detection resolves **no forge** for that project, same as if the token-env
   step didn't exist.
 
-What happens next depends on `commits.enrichment_policy` and which of the three outcomes above
-occurred:
+`commits.enrichment_policy` (`disabled` / `optional`, the default / `required`) governs what
+happens with whichever outcome above occurred:
 
-- **`native`** — the single-token outcome does *not* short-circuit to "no forge": a real
-  `port.Forge` is constructed against the public host with an empty project, so enrichment is
-  attempted and fails. GitLab's `enrichREST` (`internal/forge/gitlab/rest.go`), for example,
-  builds `https://gitlab.com/api/v4/projects//repository/commits/<sha>/merge_requests` (empty
-  project segment) and gets a 404. Under `optional` (the default), `enrichForRelease`
+- **`disabled`** — forge resolution for enrichment is skipped entirely; generation proceeds
+  with no PR/MR metadata, unconditionally, regardless of which of the outcomes above would
+  otherwise apply.
+- **`optional` / `required`, single-token outcome** — this does *not* short-circuit to "no
+  forge": a real `port.Forge` is constructed against the public host with an empty project, so
+  enrichment is attempted and fails. GitLab's `enrichREST` (`internal/forge/gitlab/rest.go`),
+  for example, builds `https://gitlab.com/api/v4/projects//repository/commits/<sha>/merge_requests`
+  (empty project segment) and gets a 404. Under `optional`, `enrichForRelease`
   (`internal/generators/native/enrich.go`) catches that error, drops enrichment, and sets
   `Degraded()` with the wrapped HTTP error as the reason — commit lines render with no `by @`
   handle and no `in [#N]` reference, but the degraded warning names an HTTP failure, not a
   missing forge. Under `required`, the run **fails outright** with that same wrapped 404 (not
   the "no forge resolved" message below). `--force` downgrades `required` to the `optional`
-  behavior above ([ADR-0041](../adr/0041-remote-metadata-required-enforcement-and-force.md)).
-  Only the **zero-token** outcome (nothing resolves at all — no CI marker, no recognised origin,
-  no ambient token) reaches the "no forge" behavior: under `optional`, generation proceeds with
-  no PR/MR enrichment, silently, with no warning and no `Degraded()` signal (that signal is
-  reserved for a *configured* forge whose fetch fails, not for the absence of one); under
-  `required`, the run fails with an error explaining that no forge was resolved and naming the
-  three ways to supply one — a `forges:` entry, a supported CI environment, or a recognised git
-  origin.
+  behavior above ([ADR-0041](../adr/0041-remote-metadata-required-enforcement-and-force.md));
+  this is also what downgrades the ambiguous-token-env case above from a hard failure.
+- **`optional` / `required`, zero-token (or ambiguous, under `--force`) outcome** — nothing
+  resolves at all: no CI marker, no recognised origin, no ambient token (or an ambiguity that
+  got downgraded). Under `optional`, generation proceeds with no PR/MR enrichment, silently,
+  with no warning and no `Degraded()` signal (that signal is reserved for a *configured* forge
+  whose fetch fails, not for the absence of one); under `required` (without `--force`), the run
+  fails with an error explaining that no forge was resolved and naming the three ways to supply
+  one — a `forges:` entry, a supported CI environment, or a recognised git origin.
 
 The remedy is an explicit `forges:` entry naming the self-hosted `base_url` and the
 `project`/`repository` path, since nothing else can supply them:
@@ -267,7 +286,11 @@ type Generator interface {
 }
 ```
 
-`Validate()` is called by `heraut check config` and before the pipeline runs.
+`Validate()` has no production call site today — `heraut check config` validates the parsed
+`Config` struct directly (`config.Validate`), and `Pipeline.Check` calls `Generator.Check()`,
+not `Validate()`. It exists on the interface for a generator implementation that has its own
+config to validate independently of `.heraut.yml`; `native` correctly no-ops it since it has
+none.
 
 **Per-platform link resolution**: when a release targets **more than one** platform,
 heraut regenerates the release notes once per platform and passes that platform's
@@ -283,6 +306,12 @@ can be published to one or both — `release.targets` is a list, each entry refe
 `forges[].name` ([ADR-0044](../adr/0044-publishing-config-unification.md)). Connection
 fields (`repository`/`project`, `token_env`, `base_url`) live on the `forges:` entry;
 publish behavior (`draft`, `prerelease`, `assets`) lives on the `release.targets` entry.
+
+`azure_devops` is a valid `forges:` platform (§ forges above) but has no publish driver and
+never will — Azure DevOps has no equivalent of a GitHub/GitLab Release. A `release.targets[]`
+entry naming an `azure_devops` forge is rejected with an actionable error; an auto-detected or
+zero-config forge that resolves only to `azure_devops` is treated the same as no forge resolving
+at all, so `heraut release` reports no resolvable publish destination rather than attempting one.
 
 ### GitHub
 
@@ -306,15 +335,17 @@ release:
 **Invocation**:
 
 ```
-gh release create <tag> --notes <notes> --repo <repository> [--draft] [--prerelease]
-gh release upload <tag> <file> --repo <repository>     # per asset, after release is created
+gh release create <tag> --notes-file <tmpfile> --repo <repository> [--draft] [--prerelease] [<asset-file>...]
 ```
+
+Notes are written to a temp file and passed via `--notes-file` (not `--notes`), so a large
+changelog can't exceed `ARG_MAX`. Resolved asset files are appended as positional args to
+`release create` directly — see § Asset resolution below; there is no separate
+`gh release upload` call in the normal `heraut release` flow.
 
 - **Repository** resolution: `cfg.Repository` → `$GITHUB_REPOSITORY` → error
 - **Token** is read from `$<TokenEnv>` (default `GH_TOKEN`); `gh` picks it up
   automatically from the environment
-- **Asset upload** resolves each glob against the working directory; non-matching globs
-  fail the run with an actionable error
 - **Release URL**: `https://github.com/<repo>/releases/tag/<tag>` — used in the
   post-release log line
 
@@ -326,7 +357,7 @@ forges:
     platform: gitlab
     project: $CI_PROJECT_PATH   # optional, defaults to $CI_PROJECT_PATH
     token_env: GITLAB_TOKEN     # optional, defaults to GITLAB_TOKEN
-    base_url: https://gitlab.com  # optional, defaults to https://gitlab.com
+    base_url: https://gitlab.com  # optional — see the resolution chain below
 
 release:
   targets:
@@ -335,12 +366,21 @@ release:
         - dist/myapp_*
 ```
 
+**`base_url` resolution**, when omitted: `CI_SERVER_URL` (when `GITLAB_CI=true`), else the
+scheme+host of `CI_PROJECT_URL`, else `https://gitlab.com`. On a self-hosted GitLab CI
+runner this resolves to the instance's own host with no config at all — `base_url:
+https://gitlab.com` is only the *outermost* fallback, not a blanket default.
+
 **Invocation**:
 
 ```
-glab release create <tag> --notes <notes> -R <project>
-glab release upload <tag> --use-package-registry -R <project> <file>...   # all assets, after release is created
+glab release create <tag> --notes-file <tmpfile> --repo <project> [<asset-file>...]
 ```
+
+Notes are written to a temp file and passed via `--notes-file` (not `--notes`), and the
+project flag is `--repo` (not `-R`). Resolved asset files are appended as positional args
+to `release create` directly — see § Asset resolution below; there is no separate `glab
+release upload` call in the normal `heraut release` flow.
 
 - **Project** resolution: `cfg.Project` → `$CI_PROJECT_PATH` → error
 - **Token** is read from `$<TokenEnv>` (default `GITLAB_TOKEN`); `glab` picks it up
@@ -348,6 +388,19 @@ glab release upload <tag> --use-package-registry -R <project> <file>...   # all 
 - **Catalog**: GitLab automatically publishes to the CI/CD Catalog when the project is a
   registered catalog resource — heraut has no separate config field or flag for this
 - **Release URL**: `<gitlab-base>/<project>/-/releases/<tag>`
+
+### Asset resolution
+
+`release.assets` and `release.targets[].assets` (see [Spec 02](02-configuration.md#releaseassets))
+both resolve **leniently**: each glob is expanded against the working directory, and a pattern
+matching nothing emits a warning and is skipped rather than failing the release — by the time
+assets are resolved the tag has already been created and pushed, so a strict failure here would
+leave the repository in a partially-completed state (tag exists, no platform release). Resolved
+files are appended as positional arguments to the `release create` call itself (GitHub: `gh
+release create ... <files>`; GitLab: `glab release create ... <files>`) rather than uploaded via a
+separate call — GitHub's API rejects a separate upload to an already-created release with HTTP 422
+("Cannot upload assets to an immutable release"), so attaching them atomically at creation time
+avoids that failure mode entirely on both platforms.
 
 ### Self-hosted instances and multiple entries of the same type (ADR-0025)
 
@@ -393,12 +446,19 @@ All platforms implement `port.Platform`:
 type Platform interface {
     Name() string                                  // the configured platform entry's name
     ReleaseURL(tag string) string                  // canonical URL
+    ReleaseURLFromContext(tag string, lc *port.LinkContext) string // URL consistent with a given link context (ADR-0022); falls back to ReleaseURL when lc is nil
+    LinkContext() port.LinkContext                 // this platform's link-resolution coordinates (host, owner, repo, type)
     Check() error                                  // binary + token + project/repo resolved
     CreateRelease(tag, notes string) error         // create the release
     HasAssets() bool                               // true if cfg.Assets is non-empty
-    UploadAssets(tag string) error                 // resolve globs + upload each match
+    UploadAssets(tag string) error                 // no-op today — see § Asset resolution above
 }
 ```
+
+`ReleaseURLFromContext`/`LinkContext`, not the plain `ReleaseURL`, are what the pipeline
+actually calls to produce the post-release URL and to keep it consistent with the link
+context passed to the release-notes generator in the multi-platform case (§ Generator
+interface above).
 
 Both implementations are contract-tested with `MockRunner` — every CLI argument
 heraut passes to `gh` and `glab` is asserted in the test suite. Adding a third

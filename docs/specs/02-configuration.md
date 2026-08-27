@@ -755,7 +755,7 @@ forges:
     platform: gitlab
     project: $CI_PROJECT_PATH   # optional, defaults to $CI_PROJECT_PATH
     token_env: GITLAB_TOKEN     # optional, defaults to GITLAB_TOKEN
-    base_url: https://gitlab.com  # optional, defaults to https://gitlab.com
+    base_url: https://gitlab.com  # optional — see Spec 05's base_url resolution chain
 
 release:
   targets:

@@ -44,7 +44,7 @@ reviewed, and tested on their own merits.
 | T230  | `docs/specs/02-configuration.md` reconciliation                                       | Done        |
 | T231  | `docs/specs/03-commands.md` reconciliation                                            | Done        |
 | T232  | `docs/specs/04-versioning.md` reconciliation                                          | Done        |
-| T233  | `docs/specs/05-generators-and-platforms.md` reconciliation                            | Not started |
+| T233  | `docs/specs/05-generators-and-platforms.md` reconciliation                            | Done        |
 | T234  | `docs/specs/06-dx-and-testing.md` reconciliation                                      | Not started |
 | T235  | `schema.json` + `docs/heraut.sample.yml` cleanup                                      | Not started |
 | T236  | `CLAUDE.md` + `README.md` reconciliation                                              | Not started |
@@ -577,7 +577,7 @@ current behavior. `hk check` (typos) clean; no code changes, so no test suite to
 
 ---
 
-#### `[ ]` T233: `docs/specs/05-generators-and-platforms.md` reconciliation
+#### `[x]` T233: `docs/specs/05-generators-and-platforms.md` reconciliation
 
 - **Line 309**: `gh release create` invocation shown with `--notes <notes>` — code writes a temp
   file and passes `--notes-file <path>` (`internal/platforms/github/platform.go:169`); `--notes` is
@@ -632,8 +632,32 @@ current behavior. `hk check` (typos) clean; no code changes, so no test suite to
   (`internal/generators/native/render.go:18`), which the "free-form preamble" description doesn't
   convey.
 
-**Files:** `docs/specs/05-generators-and-platforms.md`. **Scope:** M. **Dependencies:** land the
-asset-glob bullet after T228.
+**Files:** `docs/specs/05-generators-and-platforms.md`, `docs/specs/02-configuration.md`
+(opportunistic — same duplicated stale line found while here). **Scope:** M. **Dependencies:**
+land the asset-glob bullet after T228.
+
+Landed after T228, so the asset-glob rewrite documents the now-uniform lenient behavior rather
+than the old strict/lenient split — and turned out to require more than a wording tweak: T228
+made every target-with-assets lenient, which means the separate `gh release upload`/`glab release
+upload` calls this file's Invocation blocks documented are now **dead** for the normal `heraut
+release` flow (`UploadAssets` no-ops whenever `LenientAssets` is true, and it's now true whenever
+`Assets` is non-empty) — assets are always appended as positional args to `release create` itself.
+Rewrote both Invocation blocks accordingly, plus a shared new "Asset resolution" subsection
+explaining why (GitHub's HTTP 422 on uploading to an already-created release). Also fixed:
+`--notes`/`-R` → `--notes-file`/`--repo` (matches the parallel fix in T231's spec 03 finding);
+`Validate()`'s claimed call site (has none); the forges fallback-chain description (a non-empty
+`forges:` always wins over CI/origin, which only fill per-field gaps — not the reverse); the
+ambiguous-multi-token claim (policy-gated, not unconditionally fatal); the vestigial single-bullet
+"native" framing under the enrichment-policy walkthrough (flattened now that there's only one
+generator); added the missing `enrichment_policy: disabled` case; added the Azure-DevOps-never-a-
+publish-target statement to Platforms' own intro (previously only implied); added
+`ReleaseURLFromContext`/`LinkContext` to the `Platform` interface listing; added `HeadingPrefix`/
+`Subject` to the template data model plus the contributors/stats release-notes-only note and the
+`--regenerate` preamble-replacement caveat; corrected the GitLab `base_url` resolution chain
+(`CI_SERVER_URL` → `CI_PROJECT_URL` scheme+host → `gitlab.com`, not a blanket default) and, while
+here, fixed the identical stale comment in spec 02's own GitLab example plus a stray git-cliff
+reference in this file's Azure DevOps example (same one-line class of fix as `schema.json`'s
+still-open copy, left for T235). `hk check` (typos) clean; no code changes, so no test suite to run.
 
 ---
 
