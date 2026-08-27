@@ -40,7 +40,7 @@ reviewed, and tested on their own merits.
 | T226  | Environment promotion doesn't filter pre-release source tags like auto-resolve does   | Done        |
 | T227  | `heraut init --defaults` overwrites an existing config with no confirmation           | Done        |
 | T228  | Asset-glob failure semantics for `release.targets[].assets` (direction TBD)           | Done        |
-| T229  | `docs/specs/01-overview.md` reconciliation                                            | Not started |
+| T229  | `docs/specs/01-overview.md` reconciliation                                            | Done        |
 | T230  | `docs/specs/02-configuration.md` reconciliation                                       | Not started |
 | T231  | `docs/specs/03-commands.md` reconciliation                                            | Not started |
 | T232  | `docs/specs/04-versioning.md` reconciliation                                          | Not started |
@@ -321,7 +321,7 @@ both clean.
 
 ## Documentation reconciliation
 
-#### `[ ]` T229: `docs/specs/01-overview.md` reconciliation
+#### `[x]` T229: `docs/specs/01-overview.md` reconciliation
 
 - **Architecture diagram / hexagonal prose (lines ~22-52)**: describes `internal/adapter/exec/` as
   the Runner adapter — that package doesn't exist; the concrete runner (`CmdRunner`, `DryRun` flag)
@@ -338,6 +338,16 @@ both clean.
 
 **Files:** `docs/specs/01-overview.md`. **Scope:** S. **Dependencies:** none (informational only —
 no code change).
+
+Fixed all four bullets. Architecture diagrams: split the "invokes git/glab/gh" bullet into
+publish-transport (CLI) vs. enrichment (direct HTTP, ADR-0043) and added `internal/forge/` to the
+internal-package diagram, replacing the non-existent `internal/adapter/exec/` with `forge/exec
+(github.com/adaouat/forge)` and noting `port.Runner` is a type alias onto it. Added a **Forge**
+concept bullet (three forge types, two with a publish driver) since "Platform" alone was letting
+Azure DevOps's enrichment-only role go undocumented — this is the same distinction the "In scope"
+bullet needed, so both got fixed together for consistency. Dry-run bullet now states the
+version-resolution exception verbatim from spec 06 rather than contradicting it, with a
+cross-reference instead of duplicating the full explanation.
 
 ---
 
