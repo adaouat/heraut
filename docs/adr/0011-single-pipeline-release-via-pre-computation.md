@@ -46,6 +46,15 @@ Pipeline.Run():
    8. for each platform: attach notes to release
 ```
 
+> **Update (T238, 2026-08-27).** Steps 5-8's sketch (create the release, *then* generate
+> notes and attach them) never shipped this way and is superseded by
+> [ADR-0021](0021-per-platform-release-notes.md): the actual order in
+> `internal/pipeline/release.go` is tag → push tag → generate notes (regenerated per
+> target when there is more than one) → `CreateRelease(tag, notes)` per target, with asset
+> upload folded into that same per-target step (see [Spec 03 —
+> Commands](../specs/03-commands.md#heraut-release)). The pre-computation decision this ADR
+> makes is unaffected — the version is still resolved once and threaded through every step.
+
 No driver re-resolves. The resolved `version.Tag` is the only tag value passed around.
 This applies to the dry-run path too: the resolver runs (read-only), the resolved tag is
 printed, and every downstream step displays the actions it *would* take against that

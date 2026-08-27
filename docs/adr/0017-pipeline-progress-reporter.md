@@ -16,8 +16,8 @@ experience: the user cannot tell whether the command is working or hung.
 
 The `heraut check` command (T36) already solved the same problem at the check layer via
 a streaming dispatch pattern: `app.RuntimeCheck(runner, cfg, func(name string, run func()
-RuntimeCheckItem))` calls the provided callback for each check item, and `cmd/check.go`
-wraps each call with a `ui.StartStep` spinner. That solution is local to the check layer
+RuntimeCheckItem))` calls the provided callback for each check item, and
+`internal/cmd/check.go` wraps each call with a `ui.StartStep` spinner. That solution is local to the check layer
 and does not generalise to the release/changelog pipelines.
 
 The question: **how should the pipeline layer communicate per-step progress to the UI

@@ -49,7 +49,7 @@ reviewed, and tested on their own merits.
 | T235  | `schema.json` + `docs/heraut.sample.yml` cleanup                                      | Done        |
 | T236  | `CLAUDE.md` + `README.md` reconciliation                                              | Done        |
 | T237  | `.claude/rules/{coding,testing,workflow}.md` reconciliation                           | Done        |
-| T238  | `docs/adr/README.md` + affected ADR bodies — status annotations and stale references  | Not started |
+| T238  | `docs/adr/README.md` + affected ADR bodies — status annotations and stale references  | Done        |
 
 No fixed order within each group. Suggested sequencing: bug tasks first (T222–T228, any order,
 disjoint code areas), then doc tasks (T229–T238) so they describe the post-fix behavior rather
@@ -888,7 +888,7 @@ release — ADR-0018). `hk check` (typos) clean; no code changes, so no test sui
 
 ---
 
-#### `[ ]` T238: `docs/adr/README.md` + affected ADR bodies — status annotations and stale references
+#### `[x]` T238: `docs/adr/README.md` + affected ADR bodies — status annotations and stale references
 
 **Incorrectly-marked status (add a "Superseded by ADR-00XX" / forward-pointer annotation; the decision
 itself doesn't need editing, only the pointer):**
@@ -963,3 +963,42 @@ status):**
 `0044-*.md`, `0045-*.md`. **Scope:** L (many small edits across many files — consider splitting
 into "index + status annotations" and "stale-detail body edits" sub-passes if it proves too large
 for one sitting). **Dependencies:** none.
+
+Fixed every item in all four categories, but split the work by a different axis than "index vs.
+body" — by whether the ADR's original text was **accurate when written and later moved/renamed**
+(README-only annotation, body left as a historical record) vs. **inherently unreachable now, or
+predicting future work that's since landed** (body addendum, since the claim needs correcting for
+a reader relying on it today, not just flagging in the index). This mirrors the project's own
+established convention — ADR-0028's explicit rule, which ADR-0045 itself quotes: "historical ADRs
+… remain as accurate records of the decisions made *at the time* … not rewritten," with narrow,
+explicitly-named exceptions when an ADR's entire subject (not just a mention) becomes moot.
+
+**README.md** (all 11 status/title items): added forward-pointer annotations to ADR-0006, 0022
+(now `Superseded by ADR-0045`, matching 0010's precedent), 0024 (`Superseded by ADR-0033`), 0031,
+0032 (extended its existing annotation), 0033, 0039, 0040 (now `Superseded by ADR-0043`), 0041,
+0042, 0044; fixed title mismatches for 0016, 0034, 0035 (restored its `(not the az CLI)` suffix),
+0033 (restored "Unified"); fixed 0014's cosmetic status-wording drift found while in the
+neighborhood. ADR-0021's finding also landed as a README annotation rather than a body edit — its
+"Context-injection shape" section is substantial dead prose (three adapter examples), and the
+index note is what a reader deciding whether to trust that section actually consults first.
+
+**Body addendums** (blockquote `> **Update (T238, 2026-08-27).**` notes, preserving original
+prose): ADR-0003 (entry point/path correction), ADR-0011 and ADR-0012 (real step order, cross-
+referencing each other and ADR-0021), ADR-0019 (generator-switch claim never true post-ADR-0045;
+stale example), ADR-0045 (its own Consequences bullet about the wizard resolved by Phase C/T202;
+corrected its "mentions git-cliff in passing" range to carve out ADR-0022 as a second deliberate
+exception alongside ADR-0010, matching the README treatment). ADR-0044's example got a **direct**
+fix instead (removed the dead `generator: native` line with an inline comment) since it's a
+copy-pasteable code block, not decision prose — the one deliberate exception to "addendum, don't
+edit," on the theory that a reader copying a broken example is worse than losing one historical
+detail from a still-valid YAML block.
+
+**Broken references**: fixed ADR-0017's `cmd/check.go` → `internal/cmd/check.go` directly, since
+that path was never correct (a shorthand/typo from day one, not a later relocation). Left
+ADR-0035's and ADR-0039's own `enrich_azure.go`/`enrich_github.go` citations untouched — both were
+accurate when written and moved later by ADR-0043 — and instead added the relocation to each's
+README annotation (already covered above). Left ADR-0026:115's `gitcliff/generator.go` citation
+untouched for the same reason; already annotated in the README, per the task's own "low severity"
+note.
+
+`hk check` (typos) clean across all 8 touched files; no code changes, so no test suite to run.

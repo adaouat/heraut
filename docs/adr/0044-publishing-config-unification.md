@@ -44,8 +44,7 @@ commits:
   enrichment_policy: optional
 
 release:
-  notes:
-    generator: native
+  notes: {}   # generator: native was valid at the time this ADR was written; removed by ADR-0045
   targets:
     - forge: gitlab-saas
       draft: false

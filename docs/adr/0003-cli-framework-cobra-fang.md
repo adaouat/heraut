@@ -68,6 +68,14 @@ Within heraut:
   etc.) and exposes a constructor function returning `*cobra.Command`.
 - Commands use `RunE` (never `Run`) so errors bubble up to fang's styled error handler.
 
+> **Update (T238, 2026-08-27).** The bullets above describe the original direct-fang
+> integration. Since the `github.com/adaouat/forge` extraction, `cmd/heraut/main.go` calls
+> `forge/cli.Run(ctx, cmd.NewRootCmd(version), version, …)` instead — `forge/cli` wraps
+> cobra+fang internally, so the framework decision this ADR made still holds, but heraut no
+> longer calls `fang.Execute` directly. Every cobra command now lives in `internal/cmd/`
+> (package `cmd`), not `cmd/heraut/*.go` — `cmd/heraut/` is reserved for the trivial entry
+> point.
+
 ## Consequences
 
 **Positive**

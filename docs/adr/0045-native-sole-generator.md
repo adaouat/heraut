@@ -86,13 +86,14 @@ brought the remaining docs in line:
 
 ### What does not change
 
-Historical ADRs that mention git-cliff/communique in passing (0006, 0010, 0011, 0012, 0021-0026,
+Historical ADRs that mention git-cliff/communique in passing (0006, 0011, 0012, 0021, 0023-0026,
 0032-0043...) remain as accurate records of the decisions made *at the time* — they are not
 rewritten, per ADR-0028's own explicit rule for this exact situation.
-[ADR-0010](0010-embedded-cliff-toml-default.md) is the one deliberate exception: its entire
-subject — which embedded TOML defaults heraut ships for git-cliff — becomes moot, not just
-tangentially mentioned, so it is marked `Superseded by ADR-0045` (see that ADR's own updated
-status).
+[ADR-0010](0010-embedded-cliff-toml-default.md) and [ADR-0022](0022-fat-injection-thin-templates.md)
+are the two deliberate exceptions: each one's entire subject — which embedded TOML defaults heraut
+ships for git-cliff (0010), and the fat-injection env-var mechanism feeding git-cliff's own
+templates (0022) — becomes moot, not just tangentially mentioned, so both are marked `Superseded
+by ADR-0045` in `docs/adr/README.md` (see also T238, 2026-08-27).
 
 ## Consequences
 
@@ -109,5 +110,10 @@ status).
   as live options today, a known-stale leftover this phase deliberately does not touch beyond the
   minimum test-file compile fixes described above) is simplified in a later, separate phase of this
   epic — see that phase's own scope note in `docs/tasks/native-generator-roadmap.md`.
+  **Update (T238, 2026-08-27): resolved.** Phase C (T195-T202,
+  `docs/tasks/native-generator-roadmap.md`) landed the wizard simplification; `wizard.go` has no
+  generator-choice prompt at all today, and `internal/scaffold/cliff.go` (cited above as a
+  production file left untouched) no longer exists — Phase C removed it along with the rest of the
+  generator-choice machinery.
 - Future changelog-generator additions (if any) are evaluated against `native`'s existing coverage
   first, to avoid reintroducing a generator-dispatch tax this epic just removed.

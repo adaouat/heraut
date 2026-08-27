@@ -66,6 +66,16 @@ helper, used in two places:
   value the top-level set (e.g. force "no output" when the top-level sets `output`). This is
   an accepted limitation; it has not come up for the string-only `ContentDriver` fields.
 
+> **Update (T238, 2026-08-27).** The core merge mechanism (`config.MergeContentDriver`,
+> field-by-field, per-env wins over top-level) is unchanged and still exactly as described.
+> Everything specific to a live `generator:` choice is gone, since ADR-0045 made `native`
+> the sole generator and removed the `generator:` key entirely — there is no "generator
+> switch" branch to trigger, because there is no generator field to switch. `release.
+> platforms` is `release.targets` since ADR-0044. The `{ config: cliff.prod.toml }` example
+> above and line 61's `release.assets`-non-overridable claim are both stale: `config:` was a
+> git-cliff-only field (gone), and `release.assets`/target-level `assets` are both real,
+> overridable fields today (see [Spec 02](../specs/02-configuration.md#releaseassets)).
+
 ## Consequences
 
 **Positive**

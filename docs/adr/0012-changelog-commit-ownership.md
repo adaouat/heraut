@@ -31,6 +31,12 @@ not need to handle it. The workflow mirrors the `cocogitto bump` pattern:
 8. Generate and attach release notes (if configured separately from changelog)
 ```
 
+> **Update (T238, 2026-08-27).** Steps 7-8 are reversed from the actual pipeline order:
+> release notes are generated *before* publishing, not after — see
+> [ADR-0021](0021-per-platform-release-notes.md) and ADR-0011's own T238 update note for
+> the real step order. The commit-ownership decision this ADR makes (steps 1-6) is
+> unaffected and still holds exactly as written.
+
 **The tag always points to the changelog commit**, never to the previous commit. This
 means the release is self-contained: checking out the tag gives you the code and the
 changelog for that version simultaneously.
