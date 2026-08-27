@@ -48,7 +48,7 @@ reviewed, and tested on their own merits.
 | T234  | `docs/specs/06-dx-and-testing.md` reconciliation                                      | Done        |
 | T235  | `schema.json` + `docs/heraut.sample.yml` cleanup                                      | Done        |
 | T236  | `CLAUDE.md` + `README.md` reconciliation                                              | Done        |
-| T237  | `.claude/rules/{coding,testing,workflow}.md` reconciliation                           | Not started |
+| T237  | `.claude/rules/{coding,testing,workflow}.md` reconciliation                           | Done        |
 | T238  | `docs/adr/README.md` + affected ADR bodies — status annotations and stale references  | Not started |
 
 No fixed order within each group. Suggested sequencing: bug tasks first (T222–T228, any order,
@@ -821,7 +821,7 @@ code changes, so no test suite to run.
 
 ---
 
-#### `[ ]` T237: `.claude/rules/{coding,testing,workflow}.md` reconciliation
+#### `[x]` T237: `.claude/rules/{coding,testing,workflow}.md` reconciliation
 
 - **`coding.md`** "Embedded assets" section (lines ~85-93): entirely about the removed
   `gitcliff`/`communique` packages and `EffectiveChangelogConfig()`/`EffectiveReleaseNotesConfig()`,
@@ -864,6 +864,27 @@ code changes, so no test suite to run.
 
 **Files:** `.claude/rules/coding.md`, `.claude/rules/testing.md`, `.claude/rules/workflow.md`.
 **Scope:** M. **Dependencies:** none.
+
+Fixed all listed items across the three files. `coding.md`: architecture diagram
+(`fang.Execute`→`forge/cli.Run`, `gitcliff`/`communique`→`native`, non-existent
+`internal/adapter/exec/`→`github.com/adaouat/forge/exec`), the `port.Forge` interface added
+to the contracts bullet, "Embedded assets" rewritten for native's Go `text/template` files
+(was entirely about the deleted `gitcliff` package), `--offline` added to "Global flags on
+root". Layer rules table: added missing rows for `internal/forge/*`, `internal/commitwizard/`,
+`internal/exitcode/`, `internal/testutil/` (imports verified via `go list`, not guessed), fixed
+`internal/cmd/`'s row (also imports `exitcode`/`port`) and `internal/app/`'s row (dropped the
+non-existent `adapter` package). `testing.md`: `MockRunner`/`FakeBin` relocated to
+`github.com/adaouat/forge/exec/exectest` (mirroring T234's identical spec 06 fix — same stale
+claim, same correction), the four-test-layers table given a row for `internal/forge/*`'s
+`httptest`-based contract tests, the self-update/TOML determinism claims replaced, and the
+coverage-discipline `generator` fixture claim corrected (removed key, not a value set). 
+`workflow.md`: the commit-msg hook description (`cog` → `heraut-commit-lint` running `heraut
+commit verify`, dogfooding), the stale `fix(generators/gitcliff)` example scope, the
+hyphenated `hk fix -S golangci-lint` step id (also present here, not just CLAUDE.md — same
+underscore fix as T236), and the "Releases are cut by pushing a `v*` tag" claim — the single
+most consequential fix in this task, since it directly contradicted this project's own actual
+release process (`workflow_dispatch`-only, GoReleaser build-only, heraut creates its own
+release — ADR-0018). `hk check` (typos) clean; no code changes, so no test suite to run.
 
 ---
 

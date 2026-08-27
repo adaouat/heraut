@@ -37,7 +37,7 @@ All commits must follow [Conventional Commits](https://www.conventionalcommits.o
 **Scope** matches the affected package or subcommand. Examples:
 
 - `feat(versioning/perenv): add cycle detection in source chains`
-- `fix(generators/gitcliff): clean up temp config on early return`
+- `fix(generators/native): drop trailing whitespace from rendered headings`
 - `feat(cmd): wire heraut release end-to-end`
 - `docs(adr): add 0009 generic perenv design`
 - `test(platforms/github): contract test for asset upload`
@@ -72,7 +72,9 @@ roadmap a living document.
 Hooks live in `.config/hk/config.pkl`. They run on every commit:
 
 - **pre-commit**: linters against staged files
-- **commit-msg**: validates conventional commit format via `cog`
+- **commit-msg** (`heraut-commit-lint` step): validates conventional commit format via
+  `heraut commit verify` itself — dogfooding, not `cog` (removed, ADR-0028; see
+  ADR-0029/ADR-0030 for the builtin checker this replaced it with)
 - **prepare-commit-msg**: `typos` on the commit message
 
 **Never** pass `--no-verify`, `--no-gpg-sign`, or any flag that bypasses hooks. If a hook
@@ -85,7 +87,7 @@ When a hook reports a lint failure, fix it through `hk`:
 
 ```bash
 hk fix             # fix everything fixable
-hk fix -S <linter> # target one linter (e.g. hk fix -S golangci-lint, hk fix -S yamlfmt)
+hk fix -S <linter> # target one linter (e.g. hk fix -S golangci_lint, hk fix -S yamlfmt)
 ```
 
 Do **not** invoke the underlying tool (`gofmt`, `yamlfmt`, etc.) directly — `hk fix`
@@ -124,6 +126,10 @@ Roadmap: docs/tasks/roadmap.md → T07
 
 ## Releases
 
-Releases are cut by pushing a `v*` tag. GoReleaser handles cross-platform builds and the
-GitHub Release. Never push tags directly to remote without confirming the GoReleaser
-config is current. See `docs/adr/0013-raw-binary-goreleaser-format.md`.
+Releases are cut by manually running the `Release` workflow (`workflow_dispatch` —
+`.github/workflows/release.yml`), not by pushing a tag. GoReleaser is **build-only**
+there (cross-compiles the binaries; `release: disable: true` in `.goreleaser.yml`) — the
+freshly-built `heraut` binary then runs `heraut release` against itself to create the git
+tag and the GitHub Release (dogfooding). See
+`docs/adr/0013-raw-binary-goreleaser-format.md` and
+`docs/adr/0018-ci-build-then-release-pipeline.md`.

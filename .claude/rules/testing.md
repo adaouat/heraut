@@ -14,28 +14,33 @@ silently agree.
 | Layer       | Scope                                                               | Tooling                              |
 |-------------|---------------------------------------------------------------------|--------------------------------------|
 | Unit        | Pure functions (version resolvers, config parsers, tag format)      | `go test ./...`                      |
-| Contract    | External CLI interactions (`git`, `gh`, `glab`, …)                  | `testutil.MockRunner`                |
-| Integration | Full pipeline against a real git repo + fake binaries in `PATH`     | `go test` + `testutil.FakeBin`       |
+| Contract    | CLI invocation (`git`, `gh`, `glab`) or direct HTTP (`internal/forge/*` enrichment) | `exectest.MockRunner` (CLI) / `httptest.Server` (HTTP) |
+| Integration | Full pipeline against a real git repo, or cobra commands in-process | `go test` + `exectest.FakeBin` / `internal/testutil.RealGitRepo` |
 | Schema      | `.heraut.yml` validates against `schema.json`                       | JSON Schema + fixtures               |
 
 Every code change needs unit tests. Contract tests are mandatory for every CLI invocation
 of an external tool — no platform driver, no generator, no `git` subcall ships without
-asserting the exact arguments passed.
+asserting the exact arguments passed. The `internal/forge/*` HTTP enrichment clients get
+the same rigor against a real `httptest.Server` instead, since there's no CLI invocation
+to assert arguments on.
 
 ## MockRunner — the contract test workhorse
 
-`internal/testutil/mock_runner.go` implements `port.Runner` and records every call:
+`github.com/adaouat/forge/exec/exectest.MockRunner` (not `internal/testutil` — that package
+holds only heraut-specific fixtures: `MockGenerator`, `MockPlatform`, `RealGitRepo`,
+CI-env-clearing helpers) implements `port.Runner` and records every call:
 
 ```go
-mr := testutil.NewMockRunner()
+mr := exectest.NewMockRunner()
 mr.QueueResponse("", "", nil) // stdout, stderr, err — ordered FIFO
 
-plat := github.New(mr, github.Config{Repository: "acme/widget", TokenEnv: "GH_TOKEN"})
+plat := github.New(mr, &config.Platform{Repository: "acme/widget", TokenEnv: "GH_TOKEN"})
 require.NoError(t, plat.CreateRelease("v1.2.3", "release notes body"))
 
 require.Len(t, mr.Calls, 1)
 assert.Equal(t, "gh", mr.Calls[0].Name)
-assert.Equal(t, []string{"release", "create", "v1.2.3", "--notes", "release notes body", "--repo", "acme/widget"}, mr.Calls[0].Args)
+assert.Contains(t, mr.Calls[0].Args, "--notes-file") // notes go to a temp file, never passed inline
+assert.Contains(t, mr.Calls[0].Args, "acme/widget")
 ```
 
 When the assertion is about *which CLI args were passed*, use `MockRunner`. Never reach
@@ -43,10 +48,10 @@ for actual exec.
 
 ## FakeBin — integration tests
 
-`internal/testutil/fakebin.go` installs a fake binary in `PATH` so the production
-`exec.Runner` can find it. Use this when the test needs the real exec path (e.g. testing
-that `Runner.Run` correctly forwards stdin/stdout, that env vars propagate, that exit
-codes map to errors).
+`github.com/adaouat/forge/exec/exectest.FakeBin` installs a fake binary in `PATH` so the
+production `exec.Runner` can find it. Use this when the test needs the real exec path (e.g.
+testing that `Runner.Run` correctly forwards stdin/stdout, that env vars propagate, that
+exit codes map to errors).
 
 Reach for FakeBin sparingly — most behavior can be verified at the contract layer.
 
@@ -91,21 +96,27 @@ tested is deliberately changed — and only after writing an ADR documenting the
 
 - No time-of-day dependencies. CalVer resolver takes a `now func() time.Time` so tests
   can fix the clock.
-- No network calls. Self-update tests use an `httptest.Server`. Platform tests use
-  MockRunner — never call the real GitHub/GitLab API.
-- No filesystem outside `t.TempDir()`. Embedded TOML defaults are tested by reading
-  through the production accessor, not by reaching into the source tree.
+- No network calls. Platform driver tests use `MockRunner` — never call the real
+  GitHub/GitLab API. `internal/forge/*` enrichment clients use a real `httptest.Server`
+  instead (§ Four test layers above). heraut has no self-update mechanism to test
+  (superseded by forge ADR-0005; update checking is `forge/updatecheck`'s responsibility).
+- No filesystem outside `t.TempDir()`. Embedded native template defaults
+  (`internal/generators/native/*.tmpl`) are tested by reading through the production
+  accessor, not by reaching into the source tree.
 - No environment leakage. If a test needs `GH_TOKEN`, set it with `t.Setenv("GH_TOKEN", …)`
   so it is restored on test exit.
 
 ## Coverage discipline
 
 - Unit + contract: every exported function in `internal/versioning/`, `internal/config/`,
-  `internal/generators/`, `internal/platforms/`, `internal/app/` has tests.
+  `internal/generators/`, `internal/platforms/`, `internal/forge/`, `internal/app/` has
+  tests.
 - Integration: reserved for the full release/changelog pipeline flows. One happy-path +
   one dry-run path per pipeline is the minimum.
-- Schema: every value of `versioning.strategy`, every value of `platform`, and every
-  value of `generator` has at least one valid fixture in `testdata/config/`.
+- Schema: every value of `versioning.strategy` and every value of `forges[].platform` has
+  at least one valid fixture in `testdata/config/valid/`. `generator:` is a removed config
+  key (ADR-0045) — `testdata/config/invalid/invalid_generator.yml` covers its removal, not
+  a set of generator values to enumerate.
 
 ## When a hook or test fails
 
