@@ -35,7 +35,7 @@ reviewed, and tested on their own merits.
 |-------|---------------------------------------------------------------------------------------|-------------|
 | T222  | `--version`/`--build` override ignores `tag_prefix` / per-env `tag_format`            | Done        |
 | T223  | Per-environment `release:` never gets `Notes` default-populated (ADR-0046 gap)        | Done        |
-| T224  | Per-driver `rendering.excludes` is never consumed                                     | Not started |
+| T224  | Per-driver `rendering.excludes` is never consumed                                     | Done        |
 | T225  | Root `versioning.bump` enum and `sprint:` requiredness are unvalidated                | Done        |
 | T226  | Environment promotion doesn't filter pre-release source tags like auto-resolve does   | Done        |
 | T227  | `heraut init --defaults` overwrites an existing config with no confirmation           | Done        |
@@ -135,7 +135,7 @@ exercising the actual production call site. `go test ./...` and `hk check` both 
 
 ---
 
-#### `[ ]` T224: per-driver `rendering.excludes` is never consumed
+#### `[x]` T224: per-driver `rendering.excludes` is never consumed
 
 **Found while auditing `docs/specs/02-configuration.md`, `schema.json:333-336`, and
 `heraut.sample.yml:270-274`**, all three of which document a per-`ContentDriver` `rendering.excludes`
@@ -154,6 +154,23 @@ confirms the field is currently dead, not which resolution is intended.
 **Files (expected):** `internal/app/pipeline.go`, `internal/config/config.go`,
 `internal/config/commits.go` (`EffectiveExcludes`), `schema.json`, `docs/heraut.sample.yml`.
 **Scope:** S–M. **Dependencies:** none.
+
+Decided: wire it up, matching what the docs/schema/sample already promise, rather than removing
+the field — the least-surprising fix given three artifacts already document it as functional.
+Added `effectiveExcludes(cfg, driver)` in `internal/app/pipeline.go`, mirroring the existing
+`effectiveTemplates` helper's shape exactly, but additive (`append`) rather than per-key overlay,
+since excludes are independent drop rules, not a single value one level should replace. `hasRendering`
+in `withEnvDerivations` now derives from `len(excludes) > 0` instead of re-checking
+`cfg.Rendering.Excludes` directly, so the short-circuit "nothing to clone" path also correctly
+accounts for a driver-only exclude with no global excludes set. `internal/config/commits.go`'s
+`EffectiveExcludes` (which prepends the built-in default excludes) is unaffected — it's a separate,
+lower-level concern (native's own default-exclude merge, consumed by `group.go`), untouched by this
+per-driver/global merge. Added a small `TestWithEnvDerivations_*Excludes` cluster mirroring the
+existing `TestWithEnvDerivations_MergesTemplates` pattern; verified red without the fix (temporarily
+reverted `pipeline.go`) — global-only case passed trivially (already worked), the two driver-only/
+merge cases failed as expected. No `schema.json` or sample changes needed — the field was already
+described as functional; this closes the gap between docs and code rather than the other way
+around. `go test ./...` and `hk check` both clean.
 
 ---
 

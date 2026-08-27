@@ -418,8 +418,9 @@ func withEnvDerivations(driver *config.ContentDriver, cfg *config.Config, env st
 	rm := cfg.EnrichmentPolicy()
 	tickets := cfg.Tickets()
 	templates := effectiveTemplates(cfg, driver)
+	excludes := effectiveExcludes(cfg, driver)
 	hasCommits := cfg.Commits != nil && (len(cfg.Commits.Types) > 0 || cfg.Commits.TypesHeadingLevel > 0)
-	hasRendering := cfg.Rendering != nil && len(cfg.Rendering.Excludes) > 0
+	hasRendering := len(excludes) > 0
 	if headingPat == "" && tagPat == "" && tagGlob == "" && rm == "" && len(tickets) == 0 && !hasCommits && !hasRendering && len(templates) == 0 {
 		return driver
 	}
@@ -443,8 +444,8 @@ func withEnvDerivations(driver *config.ContentDriver, cfg *config.Config, env st
 		clone.Types = cfg.Commits.Types
 		clone.TypesHeadingLevel = cfg.Commits.TypesHeadingLevel
 	}
-	if cfg.Rendering != nil {
-		clone.Excludes = cfg.Rendering.Excludes
+	if len(excludes) > 0 {
+		clone.Excludes = excludes
 	}
 	if len(templates) > 0 {
 		clone.EffectiveTemplates = templates
@@ -469,6 +470,21 @@ func effectiveTemplates(cfg *config.Config, driver *config.ContentDriver) map[st
 	maps.Copy(eff, global)
 	maps.Copy(eff, perDriver)
 	return eff
+}
+
+// effectiveExcludes concatenates the global rendering.excludes with this driver's own
+// rendering.excludes (ADR-0037 per-driver rendering overrides, T224) — additive, not
+// overriding: excludes are independent drop rules, not a single value where one level should
+// replace the other, unlike effectiveTemplates' per-key overlay.
+func effectiveExcludes(cfg *config.Config, driver *config.ContentDriver) []config.Exclude {
+	var excludes []config.Exclude
+	if cfg.Rendering != nil {
+		excludes = append(excludes, cfg.Rendering.Excludes...)
+	}
+	if driver.Rendering != nil {
+		excludes = append(excludes, driver.Rendering.Excludes...)
+	}
+	return excludes
 }
 
 func buildGenerator(runner port.Runner, driver *config.ContentDriver, defaultMode native.Mode, herautVersion string, regenerateChangelog, force bool, enrichForge port.Forge, degradedReason string) port.Generator {
