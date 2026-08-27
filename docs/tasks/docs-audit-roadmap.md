@@ -36,7 +36,7 @@ reviewed, and tested on their own merits.
 | T222  | `--version`/`--build` override ignores `tag_prefix` / per-env `tag_format`            | Done        |
 | T223  | Per-environment `release:` never gets `Notes` default-populated (ADR-0046 gap)        | Done        |
 | T224  | Per-driver `rendering.excludes` is never consumed                                     | Not started |
-| T225  | Root `versioning.bump` enum and `sprint:` requiredness are unvalidated                | Not started |
+| T225  | Root `versioning.bump` enum and `sprint:` requiredness are unvalidated                | Done        |
 | T226  | Environment promotion doesn't filter pre-release source tags like auto-resolve does   | Not started |
 | T227  | `heraut init --defaults` overwrites an existing config with no confirmation           | Not started |
 | T228  | Asset-glob failure semantics for `release.targets[].assets` (direction TBD)           | Not started |
@@ -157,7 +157,7 @@ confirms the field is currently dead, not which resolution is intended.
 
 ---
 
-#### `[ ]` T225: root `versioning.bump` enum and `sprint:` requiredness are unvalidated
+#### `[x]` T225: root `versioning.bump` enum and `sprint:` requiredness are unvalidated
 
 **Found while auditing `docs/specs/02-configuration.md`'s field-by-field validation claims.** Two
 related validation gaps in `internal/config/validator.go`:
@@ -180,6 +180,19 @@ semantic validation rule: if `format` contains the `SPRINT` token, `sprint` must
 
 **Files (expected):** `internal/config/validator.go` (+ tests), `docs/specs/02-configuration.md` if
 the requiredness wording needs tightening after the fix. **Scope:** S. **Dependencies:** none.
+
+Added a `validBumpModes` enum map (`{"auto", "manual"}`) checked in `validateEnums` alongside the
+existing `strategy`/`tag_type` checks — same style, root-level, strategy-agnostic (mirrors how
+those two are already checked without gating on which strategy is active). Added the `sprint`
+semantic check inside `validateStrategySpecific`'s existing `calver`/`calver-per-env` branch,
+right after the format-required check it already has: `format` containing the literal `SPRINT`
+substring with `Sprint < 1` (covers both "field omitted" and "explicitly set to a non-positive
+value," which `schema.json`'s own `minimum: 1` already rejects) now produces a
+`versioning.sprint` error. Left `schema.json` untouched — a cross-field conditional requirement
+("required only if another field's *value* contains a substring") isn't expressible as a JSON
+Schema constraint, so this had to be a semantic-validator check, not a schema one; the spec
+doc's existing "required when format contains the SPRINT token" wording (`02-configuration.md:79`)
+was already correct, just previously unenforced. `go test ./...` and `hk check` both clean.
 
 ---
 

@@ -132,6 +132,37 @@ versioning:
 	assert.Contains(t, e.Message, "foobar")
 }
 
+// ── bump (root-level, T225) ──────────────────────────────────────────────────
+
+func TestValidate_invalidBump(t *testing.T) {
+	cfg := mustLoad(t, `
+version: "1"
+versioning:
+  strategy: semver
+  bump: sometimes
+`)
+	errs := config.Validate(cfg)
+	e := findErr(errs, "versioning.bump")
+	require.NotNil(t, e)
+	assert.Contains(t, e.Message, "sometimes")
+	assert.Contains(t, e.Hint, "auto")
+	assert.Contains(t, e.Hint, "manual")
+}
+
+func TestValidate_validBumpModes(t *testing.T) {
+	for _, bump := range []string{"auto", "manual"} {
+		t.Run(bump, func(t *testing.T) {
+			cfg := mustLoad(t, `
+version: "1"
+versioning:
+  strategy: semver
+  bump: `+bump+`
+`)
+			assert.Empty(t, config.Validate(cfg))
+		})
+	}
+}
+
 // ── tag_type ──────────────────────────────────────────────────────────────────
 
 func TestValidate_invalidTagType(t *testing.T) {
@@ -250,6 +281,42 @@ environments:
 	e := findErr(errs, "versioning.format")
 	require.NotNil(t, e)
 	assert.Contains(t, e.Message, "required")
+}
+
+// ── sprint (required when format contains the SPRINT token, T225) ──────────────
+
+func TestValidate_sprintRequiredWithSprintToken(t *testing.T) {
+	cfg := mustLoad(t, `
+version: "1"
+versioning:
+  strategy: calver
+  format: "YYYY.SPRINT.PATCH"
+`)
+	errs := config.Validate(cfg)
+	e := findErr(errs, "versioning.sprint")
+	require.NotNil(t, e)
+	assert.Contains(t, e.Message, "required")
+}
+
+func TestValidate_sprintSetSatisfiesSprintToken(t *testing.T) {
+	cfg := mustLoad(t, `
+version: "1"
+versioning:
+  strategy: calver
+  format: "YYYY.SPRINT.PATCH"
+  sprint: 3
+`)
+	assert.Empty(t, config.Validate(cfg))
+}
+
+func TestValidate_sprintNotRequiredWithoutSprintToken(t *testing.T) {
+	cfg := mustLoad(t, `
+version: "1"
+versioning:
+  strategy: calver
+  format: "YYYY.MM.PATCH"
+`)
+	assert.Nil(t, findErr(config.Validate(cfg), "versioning.sprint"))
 }
 
 // ── generators ───────────────────────────────────────────────────────────────

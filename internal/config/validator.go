@@ -27,6 +27,9 @@ var (
 	validTagTypes = map[string]bool{
 		"annotated": true, "lightweight": true,
 	}
+	validBumpModes = map[string]bool{
+		"auto": true, "manual": true,
+	}
 	commitTypePattern = regexp.MustCompile(`^\w+$`)
 )
 
@@ -454,6 +457,13 @@ func validateEnums(cfg *Config) []ValidationError {
 			Hint:    "valid tag types: annotated, lightweight",
 		})
 	}
+	if cfg.Versioning.Bump != "" && !validBumpModes[cfg.Versioning.Bump] {
+		errs = append(errs, ValidationError{
+			Path:    "versioning.bump",
+			Message: fmt.Sprintf("%q is not a valid bump mode", cfg.Versioning.Bump),
+			Hint:    "valid modes: auto, manual",
+		})
+	}
 	errs = append(errs, validateContentDriver(cfg.Changelog, "changelog")...)
 	errs = append(errs, validateRelease(cfg.Release, "release")...)
 	for envName, env := range cfg.Environments {
@@ -575,6 +585,12 @@ func validateStrategySpecific(cfg *Config) []ValidationError {
 				Path:    "versioning.format",
 				Message: fmt.Sprintf("required for %s strategy", cfg.Versioning.Strategy),
 				Hint:    `set a CalVer format string, e.g. "YYYY.MM.PATCH"`,
+			})
+		} else if strings.Contains(cfg.Versioning.Format, "SPRINT") && cfg.Versioning.Sprint < 1 {
+			errs = append(errs, ValidationError{
+				Path:    "versioning.sprint",
+				Message: "required: format contains the SPRINT token but sprint is unset",
+				Hint:    "set sprint to a positive integer, e.g. sprint: 1, and advance it with `heraut version sprint bump`",
 			})
 		}
 	}
