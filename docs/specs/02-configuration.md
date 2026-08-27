@@ -38,8 +38,11 @@ version: "1"          # required — schema version, currently only "1"
 
 versioning: ...       # required — how the next version is determined
 changelog: ...        # optional — how to generate and commit CHANGELOG.md
-release: ...          # optional — where to publish releases
-environments: ...     # optional — per-environment overrides for changelog/release
+release: ...          # optional — release notes + where to publish, together
+environments: ...     # optional — per-environment overrides for versioning/changelog/release
+commits: ...           # optional — commit type set, scopes, tickets, enrichment forge/policy
+rendering: ...         # optional — global exclude rules + template-block snippets
+forges: ...            # optional — code-hosting platforms for publishing and/or enrichment
 ```
 
 | Field          | Required | Description                                                                                                                |
@@ -49,15 +52,20 @@ environments: ...     # optional — per-environment overrides for changelog/rel
 | `changelog`    | No       | Changelog generator. When present, heraut generates and commits `CHANGELOG.md` during release.                             |
 | `release`      | No       | Release notes generator and target platforms.                                                                              |
 | `environments` | No       | Per-environment settings (versioning and content). Only valid with `semver-per-env` or `calver-per-env`. |
+| `commits`      | No       | Conventional-commit type set, scopes, tickets, and enrichment forge/policy (see § `commits` below). |
+| `rendering`    | No       | Global content-output overrides: exclude rules and template-block snippets (see § `rendering` below). |
+| `forges`       | No       | Code-hosting platforms heraut talks to for publishing and/or commit enrichment (see § `forges` below). |
 
 ### Design principles
 
 - **Root config is the default**; environment blocks are shallow-merged overrides.
-- **`changelog` and `release.notes` are independent** — a project can have one, both, or
-  neither.
-- **Platform sections are opaque to heraut** — the core tool passes `forges:` entries and
-  `release.targets[]` as-is to the relevant driver, so adding driver-specific fields
-  does not require changes to the core.
+- **`release:` presence is one atomic intent** — notes generation and publishing always
+  happen together, root or per-environment; there is no config-expressible way to get one
+  without the other (see § `release` below and [ADR-0046](../adr/0046-release-block-atomicity.md)).
+- **The config surface is closed, not opaque** — every key under `forges:` and
+  `release.targets[]` is a typed field on `Config` and listed in `schema.json`
+  (`additionalProperties: false`); an unrecognized driver-specific key is a parse error,
+  not a pass-through.
 - **Unknown keys fail validation** — the schema is strict; typos surface immediately.
   See [ADR-0006](../adr/0006-config-naming-generator-platform.md) for the platform naming
   convention (`platform: …`).
@@ -79,6 +87,11 @@ versioning:
 | `sprint`          | Conditional | —                                        | Current sprint number. Required when `format` contains the `SPRINT` token. Advance with `heraut version sprint bump`.                                                                                                      |
 | `tag_format`      | No          | —                                        | Common tag format for all environments (per-env strategies). `{env}` is replaced with the environment name; `{version}` with the resolved version. Per-environment `tag_format` overrides this.                            |
 | `tag_type`        | No          | `annotated`                              | Git tag type: `annotated` (default) creates tags with `-a -m <commit_message>` so they carry a tagger, timestamp, and message. `lightweight` creates bare ref tags (`git tag <tag>`).                                     |
+
+**Git-level tag signing overrides `tag_type`.** If the repository's own `git config
+tag.gpgSign` is `true`, heraut creates a signed tag (`git tag -s`) regardless of
+`versioning.tag_type` — signing is checked first. This is not a heraut config option; set
+or unset `tag.gpgSign` at the git level to control it.
 
 See [Spec 04 — Versioning](04-versioning.md) for strategy-specific behaviour.
 
@@ -159,7 +172,7 @@ are optional unless noted.
 |--------------|---------------|---------|-------------------------------------------------------------------------------------------------------------------------------------------------------|
 | `bump`       | Yes (per-env) | —       | `auto` or `promote` (see § Bump modes).                                                                                                               |
 | `tag_format` | Conditional   | —       | Tag format for this environment. Must contain `{version}`. Overrides `versioning.tag_format` when set. Required if no common `tag_format` is defined. |
-| `branch`     | No            | —       | Branch this environment is operated from. **Enforced**: heraut refuses any `--env <env>` command (release, changelog, version next/current) unless the current git branch matches. Bypass with `--force`. **Omit (or leave empty) to impose no branch restriction** — the default. |
+| `branch`     | No            | —       | Branch this environment is operated from. **Enforced**: heraut refuses `--env <env>` on `version next`/`version current` unless the current git branch matches, and on `release`/`changelog` unless the current git branch matches or `--dry-run` is passed (the guard is skipped in dry-run for those two commands only). Bypass with `--force`. **Omit (or leave empty) to impose no branch restriction** — the default. Also consumed by `--env auto` (see [Spec 03 — Commands](03-commands.md#heraut-release)), which resolves the active environment from the current branch instead of naming one explicitly. |
 | `source`     | No            | —       | Source environment for `bump: promote`. See § Bump modes → promote.                                                                                   |
 
 ### Content fields
@@ -379,6 +392,22 @@ render; it cannot disable notes generation, or publishing, on its own. The only 
 off release behavior for one environment is `disable_release: true` (see § Per-environment
 fields above), which disables both together.
 
+### `release.assets`
+
+A top-level (root `release`) list of glob patterns for files to attach to every target that
+doesn't declare its own `assets:` (see § `release.targets[]` below — a target's own `assets:`
+overrides this entirely for that target, no merging). Resolved leniently: a pattern matching no
+files emits a warning and is skipped rather than failing the release, whether the pattern came
+from here or from a target's own `assets:` — by the time assets are resolved the tag has already
+been created and pushed, so a strict failure at this point would leave the repository in a
+partially-completed state.
+
+```yaml
+release:
+  assets:
+    - dist/myapp_*
+```
+
 ### `release.targets[]`
 
 `release.targets` is the publishing surface ([ADR-0044](../adr/0044-publishing-config-unification.md)).
@@ -400,7 +429,7 @@ release:
 | `forge`      | Conditional                            | —       | References a `forges[].name`. Optional when exactly one forge is configured/resolved; required when more than one is configured. |
 | `draft`      | No                                      | `false` | Create the release as a draft. GitHub only.                                                     |
 | `prerelease` | No                                      | `false` | Mark as a pre-release. GitHub only.                                                              |
-| `assets`     | No                                      | —       | Target-specific glob patterns. When set, overrides `release.assets` entirely for this target (no merging). |
+| `assets`     | No                                      | —       | Target-specific glob patterns. When set, overrides `release.assets` entirely for this target (no merging). Resolved leniently, same as `release.assets` (see § `release.assets` above) — a non-matching pattern warns and is skipped. |
 
 Publishing constructs the existing GitHub/GitLab drivers from the resolved
 `forges[].name` identity — host, project/repository, and token are inherited from the same
@@ -565,10 +594,10 @@ commits:
     - name: feat
       order: 1
       render: "🚀 Features"
-    - name: docs                      # no render → capitalized type name ("Docs")
+    - name: docs                      # no render → joins the catch-all "💼 Other" section
     - name: build
       remove: true                    # drop a default from the verify allow-list
-  types_heading_level: 3              # heading depth for type sections in rendered output
+  types_heading_level: 3              # heading depth for type sections; defaults to 3 ("###") when omitted or non-positive
   scopes:                             # objects: name (+ optional description / remove)
     - name: cmd
       description: CLI commands
@@ -593,7 +622,7 @@ changelog section taxonomy.
 |----------|---------|
 | `name`   | The conventional-commit type word (required). |
 | `order`  | Display sort position for the changelog section; omit for unordered (sorts after ordered types). |
-| `render` | Section heading label (e.g. `🚀 Features`); omit to render the capitalized type name. |
+| `render` | Section heading label (e.g. `🚀 Features`); omit to have commits of this type join the catch-all `💼 Other` section instead of getting their own. |
 | `remove` | Drop this default type from the effective set — removes it from the verify allow-list. |
 | `description` | One-line hint shown beside the type in the `heraut commit create` wizard picker. |
 
@@ -653,6 +682,8 @@ rendering:
   excludes:
     - regex: '^chore\(deps.*\)'
     - type: chore
+  templates:
+    commit: "- {{ .Subject }} (@{{ .Author }})"
 ```
 
 ### `rendering.excludes`
@@ -661,6 +692,25 @@ A list of filters that drop matched commits from the rendered changelog / releas
 entry sets **exactly one** of `type` (match a conventional-commit type) or `regex` (match the
 commit subject). This is independent of `commits.types` `remove`, which governs the verify
 allow-list rather than the rendered output.
+
+**Built-in defaults are always applied, in addition to your entries.** heraut prepends four
+default excludes — `^chore\(release\):`, `^chore\(deps.*\)`, `^chore\(pr\)`, `^chore\(pull\)`
+(dependabot/renovate and release-tooling noise) — ahead of whatever you list here; your entries
+add to that set, they do not replace it. There is currently no way to remove a built-in default
+exclude.
+
+A `changelog`/`release.notes` block's own `rendering.excludes` (see § Content generation below)
+**adds to** this global list — the effective set for that driver is the built-in defaults, plus
+the global list, plus the driver's own list, all additive.
+
+### `rendering.templates`
+
+Overrides one or more built-in native template blocks by key — each value is a Go
+`text/template` snippet. Keys correspond to the overridable blocks documented in
+[Spec 05 § User-customizable templates](05-generators-and-platforms.md#user-customizable-templates-adr-0037)
+(e.g. `commit`, `group`, `contributor`, `header`, `footer`). A `changelog`/`release.notes`
+block's own `rendering.templates` overlays this global map key-by-key — the driver's value wins
+for a given key, an unset key falls through to the global one.
 
 ## Content generation
 
@@ -673,6 +723,7 @@ only generator (ADR-0045) — there is no `generator:` key to set; an empty `cha
 | `output`      | No       | Output file path (e.g. `CHANGELOG.md`).                                                                                                                                                                                                                                            |
 | `tag_pattern` | No       | Tag pattern regex scoping which tags are considered. **For per-env strategies heraut auto-derives this from the effective `tag_format` so `--env <env>` only considers that environment's tags** (e.g. `{version}_{env}` + `--env prod` → `^.+_prod$`); set it explicitly to override the derivation. |
 | `template`    | No       | Path to a full custom Go `text/template` file, parsed on top of native's built-ins (ADR-0037). See [Spec 05 § User-customizable templates](05-generators-and-platforms.md#user-customizable-templates-adr-0037). |
+| `rendering`   | No       | Per-driver exclude rules and template-block snippets, layered over the global `rendering` block (see § `rendering` above). |
 
 See [Spec 05 — Generators and Platforms](05-generators-and-platforms.md) for the full
 behaviour of the native generator.
@@ -738,6 +789,15 @@ release:
 ```
 
 Implementation: shells out to `gh release create` + `gh release upload`.
+
+**`token_env`'s default differs by subsystem when omitted.** Forge-identity resolution (enrichment,
+§ Identity resolution above) falls back to `GITHUB_TOKEN` — the token GitHub Actions provides
+automatically. The `gh`-based publish driver shown here falls back independently to `GH_TOKEN` —
+`gh`'s own convention, not automatically populated by GitHub Actions. On GitHub Actions with no
+explicit `token_env` set, enrichment works out of the box but publishing does not: export
+`GH_TOKEN` (e.g. `GH_TOKEN: ${{ github.token }}` in the workflow) for `heraut release` to publish.
+Setting `token_env` explicitly on the `forges:` entry applies to both subsystems uniformly and
+avoids this gap.
 
 ## `environments`
 

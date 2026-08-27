@@ -41,7 +41,7 @@ reviewed, and tested on their own merits.
 | T227  | `heraut init --defaults` overwrites an existing config with no confirmation           | Done        |
 | T228  | Asset-glob failure semantics for `release.targets[].assets` (direction TBD)           | Done        |
 | T229  | `docs/specs/01-overview.md` reconciliation                                            | Done        |
-| T230  | `docs/specs/02-configuration.md` reconciliation                                       | Not started |
+| T230  | `docs/specs/02-configuration.md` reconciliation                                       | Done        |
 | T231  | `docs/specs/03-commands.md` reconciliation                                            | Not started |
 | T232  | `docs/specs/04-versioning.md` reconciliation                                          | Not started |
 | T233  | `docs/specs/05-generators-and-platforms.md` reconciliation                            | Not started |
@@ -351,7 +351,7 @@ cross-reference instead of duplicating the full explanation.
 
 ---
 
-#### `[ ]` T230: `docs/specs/02-configuration.md` reconciliation
+#### `[x]` T230: `docs/specs/02-configuration.md` reconciliation
 
 - **Lines 56-57**: design-principle bullet claims changelog/`release.notes` independence "a
   project can have one, both, or neither" — false since ADR-0046; contradicts the spec's own §
@@ -404,6 +404,26 @@ cross-reference instead of duplicating the full explanation.
 **Files:** `docs/specs/02-configuration.md`. **Scope:** M. **Dependencies:** land the `sprint`
 bullet after T225; land the per-env notes-independence bullet after T223; land the `release.assets`
 bullet after T228.
+
+Landed after T223/T224/T225/T228, so several bullets were already true by the time this was
+written rather than needing a behavior-change caveat: the per-env notes-independence claim
+(T223), `sprint` requiredness (T225), and `release.assets`/target-`assets` leniency (T228, now
+uniform — documented as such rather than as two different behaviors). Fixed: the false
+changelog/`release.notes` "independent" design principle (now states the ADR-0046 one-intent
+model); the "opaque, no core changes needed" platform-sections claim (now states the config
+surface is closed/typed); `render:` omission behavior (joins the `💼 Other` group, not a
+capitalized-type-name fallback) in both the field table and the inline YAML example comment;
+added a `rendering.templates` subsection (previously undocumented entirely) and a note on
+`rendering.excludes`' built-in-default prepending; added `release.assets` its own subsection;
+added `commits`/`rendering`/`forges` to the top-level structure table and code block; added a
+tag-signing note (`git config tag.gpgSign` silently overrides `tag_type`); added
+`types_heading_level`'s default; softened the branch-guard claim to state its actual per-command
+dry-run-skip scope precisely, and added a pointer to `--env auto`; added a `token_env` subsystem-
+default note cross-referencing the existing GitHub Actions `GH_TOKEN`-vs-`GITHUB_TOKEN` gotcha
+(which the doc already explained well in one place but not where a reader would land first).
+Left the minor nits (schema URL pinning, zero-config example omitting `release:`) unaddressed —
+genuinely marginal and not worth the edit risk. `hk check` (typos) clean; no code changes, so no
+test suite to run.
 
 ---
 
