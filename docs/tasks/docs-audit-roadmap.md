@@ -45,7 +45,7 @@ reviewed, and tested on their own merits.
 | T231  | `docs/specs/03-commands.md` reconciliation                                            | Done        |
 | T232  | `docs/specs/04-versioning.md` reconciliation                                          | Done        |
 | T233  | `docs/specs/05-generators-and-platforms.md` reconciliation                            | Done        |
-| T234  | `docs/specs/06-dx-and-testing.md` reconciliation                                      | Not started |
+| T234  | `docs/specs/06-dx-and-testing.md` reconciliation                                      | Done        |
 | T235  | `schema.json` + `docs/heraut.sample.yml` cleanup                                      | Not started |
 | T236  | `CLAUDE.md` + `README.md` reconciliation                                              | Not started |
 | T237  | `.claude/rules/{coding,testing,workflow}.md` reconciliation                           | Not started |
@@ -661,7 +661,7 @@ still-open copy, left for T235). `hk check` (typos) clean; no code changes, so n
 
 ---
 
-#### `[ ]` T234: `docs/specs/06-dx-and-testing.md` reconciliation
+#### `[x]` T234: `docs/specs/06-dx-and-testing.md` reconciliation
 
 - **Lines 84, 90-104**: `MockRunner` contract-test example — `internal/testutil/` no longer has
   `mock_runner.go`; the type is `github.com/adaouat/forge/exec/exectest.NewMockRunner`. The example
@@ -694,6 +694,22 @@ still-open copy, left for T235). `hk check` (typos) clean; no code changes, so n
   (`testdata/{config,invalid,valid}`, not one flat `testdata/config/`).
 
 **Files:** `docs/specs/06-dx-and-testing.md`. **Scope:** S–M. **Dependencies:** none.
+
+Fixed all listed items: `MockRunner`/`FakeBin` relocated to `github.com/adaouat/forge/exec/exectest`
+(with a clarifying note on what `internal/testutil` actually still holds), the contract-test code
+sample corrected (`New(runner, *config.Platform)`, no `github.Config`, `--notes-file` not
+`--notes`); the Integration section rewritten to describe what the suite actually does (in-process
+cobra + the native generator's own real-repo test) instead of a binary-execution test that doesn't
+exist; the golden-output claim for `heraut check config` corrected (golden comparison is a native
+render-output mechanism, unrelated to config-check); embedded-asset and self-update claims replaced
+(Go `text/template`, not TOML/Tera; no self-update to test, superseded by forge ADR-0005); and the
+three-step CI description replaced with the real three-job shape (`ci` delegating to forge's
+reusable workflow with an 85% coverage gate, `build`, `hk`). Also fixed, found while re-reading this
+file rather than from the original audit list: the release-workflow paragraph claimed a `v*`-tag
+trigger and that GoReleaser creates the GitHub Release — both wrong (`workflow_dispatch`-only;
+GoReleaser is build-only per ADR-0018, and the freshly-built `heraut` binary creates the tag/release
+itself by running `heraut release` against itself in CI). `hk check` (typos) clean; no code
+changes, so no test suite to run.
 
 ---
 

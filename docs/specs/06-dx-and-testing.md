@@ -81,37 +81,45 @@ Every exported function has tests. Table-driven where the input space is enumera
 
 ### Contract
 
-`internal/testutil.MockRunner` records every `Run` / `RunEnv` call into `[]Call` and
-returns ordered `[]Response`. Used for every CLI invocation: `git`, `gh`, `glab`.
+`github.com/adaouat/forge/exec/exectest.MockRunner` (heraut's shared plumbing dependency —
+not `internal/testutil`, which holds only heraut-specific fixtures: `MockGenerator`,
+`MockPlatform`, `RealGitRepo`, and CI-env-clearing helpers) records every `Run` / `RunEnv`
+call into `[]Call` and returns ordered `[]Response`. Used for every CLI invocation: `git`,
+`gh`, `glab`.
 
 A platform driver does not ship without contract tests. The tests assert the **exact
 CLI arguments** passed — flag names, value formats, order, env vars. Example shape:
 
 ```go
-mr := testutil.NewMockRunner()
+mr := exectest.NewMockRunner()
 mr.QueueResponse("", "", nil)
-plat := github.New(mr, github.Config{Repository: "acme/widget", TokenEnv: "GH_TOKEN"})
+plat := github.New(mr, &config.Platform{Repository: "acme/widget", TokenEnv: "GH_TOKEN"})
 
 require.NoError(t, plat.CreateRelease("v1.2.3", "release notes body"))
 
 require.Len(t, mr.Calls, 1)
 assert.Equal(t, "gh", mr.Calls[0].Name)
-assert.Equal(t, []string{
-    "release", "create", "v1.2.3",
-    "--notes", "release notes body",
-    "--repo", "acme/widget",
-}, mr.Calls[0].Args)
+assert.Equal(t, "release", mr.Calls[0].Args[0])
+assert.Contains(t, mr.Calls[0].Args, "--notes-file") // notes go to a temp file, never passed inline
+assert.Contains(t, mr.Calls[0].Args, "acme/widget")
 ```
+
+The `internal/forge/{github,gitlab,azure}` HTTP enrichment clients (ADR-0043) are contract-
+tested differently, against a real `httptest.Server` rather than `MockRunner` — there is no
+CLI invocation to assert arguments on for a direct HTTP call.
 
 ### Integration
 
-`internal/testutil.FakeBin(t, name, script)` installs a shell script as a fake binary in
-`PATH` for the test. Used when the test needs the production `exec.Runner` path —
-verifying env-var propagation, exit-code mapping, stdin/stdout forwarding.
+`github.com/adaouat/forge/exec/exectest.FakeBin(t, name, script)` installs a shell script as
+a fake binary in `PATH` for the test. Used when the test needs the production `exec.Runner`
+path — verifying env-var propagation, exit-code mapping, stdin/stdout forwarding.
 
-Integration tests target a real local git repo (created with `git init` in `t.TempDir()`).
-The test sequence is: set up repo → create commits → run `heraut release --dry-run`
-through the binary → assert on the printed action plan or on the resulting tags.
+Integration tests target a real local git repo (`internal/testutil.RealGitRepo`, `git init`
+in `t.TempDir()`) exercised through cobra commands in-process (`internal/cmd/*_test.go`) or
+through the native generator's own integration test
+(`internal/generators/native/integration_test.go`), which drives real git history through
+`forge/exec`. No test builds or executes the `heraut` binary itself today — that would be a
+genuinely stronger guarantee for the full CLI wiring, but it isn't part of the current suite.
 
 ### Schema
 
@@ -121,16 +129,22 @@ JSON Schema fixtures live in the repo-root `testdata/config/`:
 - `testdata/config/invalid/<reason>.yml` — one config per validation failure, each
   paired with the expected error message
 
-`heraut check config` is tested against these fixtures both via the validator directly
-and via the binary (golden output comparison).
+`heraut check config` is tested against these fixtures via the validator/schema directly
+(`internal/config/schema_test.go`). Golden-output comparison is a separate, unrelated
+mechanism used for native's rendered changelog/release-notes output
+(`internal/generators/native/render_internal_test.go`), not for config-check output.
 
 ## Determinism
 
 - **No real time.** Calver resolver takes a `now func() time.Time` so tests can fix the
-  clock. Self-update tests use `httptest.Server` instead of the real GitHub API.
-- **No real network.** Platform tests use `MockRunner`; `gh`/`glab` are never invoked.
-- **No filesystem outside `t.TempDir()`.** Embedded TOML / Tera content is accessed
-  through production functions, not by reading the source tree.
+  clock.
+- **No real network.** Platform driver tests use `MockRunner`; `gh`/`glab` are never
+  invoked. The `internal/forge/*` HTTP enrichment clients use a real `httptest.Server`
+  instead (§ Contract above) — heraut has no self-update mechanism to test (superseded by
+  forge ADR-0005; update checking is `forge/updatecheck`'s responsibility).
+- **No filesystem outside `t.TempDir()`.** Embedded Go `text/template` content
+  (`internal/generators/native/*.tmpl`) is accessed through production functions, not by
+  reading the source tree.
 - **No environment leakage.** Tests that depend on env vars set them with
   `t.Setenv(...)`.
 
@@ -149,18 +163,30 @@ behaviour it covers is deliberately changed, with an ADR documenting the change.
 
 ## CI
 
-`.github/workflows/ci.yml` runs on every PR:
+`.github/workflows/ci.yml` runs three jobs on every PR:
 
-1. `go build ./...`
-2. `go test ./...`
-3. `golangci-lint run`
+1. **`ci`** — delegates to forge's shared reusable workflow
+   (`adaouat/forge/.github/workflows/go-ci.yml`), which runs `go test ./...` and
+   `golangci-lint run` with an 85% coverage threshold enforced.
+2. **`build`** — `go build ./cmd/heraut/` plus `goreleaser check` (validates
+   `.goreleaser.yml` without building).
+3. **`hk`** — `hk check --all --check --skip-step golangci_lint`: every other linter
+   configured in `.config/hk/config.pkl` (hadolint, actionlint, yamlfmt, typos, pkl, go
+   fmt, …) against the full tree, not just staged files. `golangci_lint` is skipped here
+   since the `ci` job already ran it.
 
-A failing job blocks merge. Branch protection on `main` requires the CI workflow to
-pass. Linters are configured in `.golangci.yml`.
+A failing job blocks merge. Branch protection on `main` requires all three. Go linters are
+configured in `.golangci.yml`; everything else in `.config/hk/config.pkl`.
 
-`.github/workflows/release.yml` triggers on `v*` tags and `workflow_dispatch`. It runs
-`goreleaser release --clean`, which builds the cross-platform binaries, creates the
-GitHub Release, uploads `checksums.txt`, and pushes the `ghcr.io/adaouat/heraut` image.
+`.github/workflows/release.yml` triggers only on `workflow_dispatch` — there is no `v*`
+tag push trigger; cutting a release is a manually-invoked action, not a reaction to a
+tag someone already pushed. GoReleaser is **build-only** here (`release: disable: true`
+in `.goreleaser.yml`, [ADR-0018](../adr/0018-ci-build-then-release-pipeline.md)): it
+cross-compiles the binaries and nothing else. The freshly-built `heraut` binary then runs
+`heraut release --version <version>` **against itself** — this is what actually creates
+the git tag and the GitHub Release (dogfooding), uploads the checksums/binaries as
+release assets, and attaches build-provenance attestation. Separate `docker-build` /
+`docker-merge` jobs build and push the multi-arch `ghcr.io/adaouat/heraut` image.
 
 ## Resolved questions
 
