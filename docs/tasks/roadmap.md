@@ -5374,6 +5374,20 @@ discovering this by hitting the error. `go test ./...` and `hk check` both clean
 
 ---
 
+### Phase 27 — Documentation vs. code audit reconciliation
+
+A full audit (four parallel Opus passes over specs, ADRs, `CLAUDE.md`/`.claude/rules/`, and
+`schema.json`/`heraut.sample.yml` against current code) found 142 doc/code mismatches, seven of
+which are real code bugs the docs happened to expose rather than pure documentation drift (e.g.
+`--version` ignoring `tag_prefix`, per-environment `release:` never getting `Notes`
+default-populated per ADR-0046, dead `rendering.excludes`). Too large for one task; broken out —
+bug fixes kept separate from doc-only reconciliation so they can be prioritized and reviewed
+independently:
+
+→ **[Documentation Audit Roadmap](docs-audit-roadmap.md)** — T222+
+
+---
+
 ## Risks and mitigations
 
 | Risk                                                                                | Impact            | Mitigation                                                                |
