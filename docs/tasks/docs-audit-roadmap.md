@@ -37,7 +37,7 @@ reviewed, and tested on their own merits.
 | T223  | Per-environment `release:` never gets `Notes` default-populated (ADR-0046 gap)        | Done        |
 | T224  | Per-driver `rendering.excludes` is never consumed                                     | Not started |
 | T225  | Root `versioning.bump` enum and `sprint:` requiredness are unvalidated                | Done        |
-| T226  | Environment promotion doesn't filter pre-release source tags like auto-resolve does   | Not started |
+| T226  | Environment promotion doesn't filter pre-release source tags like auto-resolve does   | Done        |
 | T227  | `heraut init --defaults` overwrites an existing config with no confirmation           | Not started |
 | T228  | Asset-glob failure semantics for `release.targets[].assets` (direction TBD)           | Not started |
 | T229  | `docs/specs/01-overview.md` reconciliation                                            | Not started |
@@ -196,7 +196,7 @@ was already correct, just previously unenforced. `go test ./...` and `hk check` 
 
 ---
 
-#### `[ ]` T226: environment promotion doesn't filter pre-release source tags like auto-resolve does
+#### `[x]` T226: environment promotion doesn't filter pre-release source tags like auto-resolve does
 
 **Found while auditing `docs/specs/04-versioning.md`'s bump-mode and pre-release sections.**
 `internal/versioning/perenv/auto.go:37`'s `resolveAuto` filters candidate tags with
@@ -213,6 +213,17 @@ bare tag: `resolvePromote` must select the bare one.
 
 **Files (expected):** `internal/versioning/perenv/promote.go` (+ tests).
 **Scope:** S. **Dependencies:** none.
+
+`resolvePromote`'s tag-selection loop now mirrors `resolveAuto`'s exactly: iterate the
+`--sort=-version:refname` source-tag list, skip any tag whose `{version}` doesn't parse or isn't
+`semver.IsBareVersion`, and take the first survivor. `ErrNoSourceTags`/E003 is now also returned
+when tags exist but none are bare releases (previously only the "zero tags at all" case hit it) —
+reusing the existing sentinel rather than adding a new one, since from promotion's perspective
+there is equally no usable source tag either way, and E003's message/remediation ("create a source
+release first") already reads correctly for both. Added
+`TestResolve_Promote_SkipsPrereleaseSourceTag`, mirroring the existing
+`TestResolve_Auto_Semver_SkipsPrereleaseTag` fixture shape. `go test ./...` and `hk check` both
+clean.
 
 ---
 

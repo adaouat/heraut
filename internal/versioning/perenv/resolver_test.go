@@ -328,6 +328,32 @@ func TestResolve_Promote_HappyPath(t *testing.T) {
 	}
 }
 
+// TestResolve_Promote_SkipsPrereleaseSourceTag covers T226: promotion must apply the same
+// pre-release skip policy resolveAuto already applies (TestResolve_Auto_Semver_SkipsPrereleaseTag)
+// so a pre-release tag sorting first in the source environment (e.g. "dev/1.3.0-rc.1") is never
+// promoted — it is not a tag resolveAuto itself would ever have selected as a release candidate.
+func TestResolve_Promote_SkipsPrereleaseSourceTag(t *testing.T) {
+	mr := exectest.NewMockRunner()
+	mr.QueueResponse("dev/1.3.0-rc.1\ndev/1.2.3\n", "", nil) // git tag -l dev/* (pre-release sorts first)
+	mr.QueueResponse("", "", nil)                            // git tag -l prod/1.2.3 → does not exist
+	mr.QueueResponse("", "", nil)                            // git tag -l prod/* → no dest tags yet
+
+	cfg := &config.Config{
+		Versioning: config.Versioning{Strategy: "semver-per-env"},
+		Environments: map[string]config.Environment{
+			"dev":  {Bump: "auto", TagFormat: "dev/{version}"},
+			"prod": {Bump: "promote", TagFormat: "prod/{version}"},
+		},
+	}
+
+	r := perenv.New(mr, cfg, "prod", false, semverCalc("0.1.0"))
+	result, err := r.Resolve()
+	require.NoError(t, err)
+
+	assert.Equal(t, "1.2.3", result.Version)
+	assert.Equal(t, "prod/1.2.3", result.Tag)
+}
+
 func TestResolve_Promote_E001_NoForce(t *testing.T) {
 	for _, b := range promoteBackends {
 		t.Run(b.name, func(t *testing.T) {

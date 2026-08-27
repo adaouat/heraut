@@ -8,6 +8,7 @@ import (
 	"github.com/adaouat/heraut/internal/config"
 	"github.com/adaouat/heraut/internal/port"
 	"github.com/adaouat/heraut/internal/versioning"
+	"github.com/adaouat/heraut/internal/versioning/semver"
 	"github.com/adaouat/heraut/internal/versioning/tagfmt"
 )
 
@@ -144,20 +145,26 @@ func resolvePromote(runner port.Runner, cfg *config.Config, env string, force bo
 	}
 
 	srcTags := splitLines(stdout)
-	if len(srcTags) == 0 {
+
+	// 3. Extract the bare version from the latest source tag that is a plain release (not a
+	// pre-release like "1.3.0-rc.1") — mirrors resolveAuto's own skip policy (T92) so promotion
+	// never selects a tag auto-resolve itself would never have produced as a release candidate.
+	var latestSrcTag, candidateVersion string
+	for _, tag := range srcTags {
+		bare, parseErr := tagfmt.ParseVersion(srcTF, tag)
+		if parseErr != nil || !semver.IsBareVersion(bare) {
+			continue
+		}
+		latestSrcTag, candidateVersion = tag, bare
+		break
+	}
+	if latestSrcTag == "" {
 		return versioning.Result{}, &PromotionError{
 			sentinel: ErrNoSourceTags,
 			srcEnv:   srcEnv,
 			destEnv:  env,
 			srcGlob:  srcGlob,
 		}
-	}
-
-	// 3. Extract the bare version from the latest source tag.
-	latestSrcTag := srcTags[0]
-	candidateVersion, err := tagfmt.ParseVersion(srcTF, latestSrcTag)
-	if err != nil {
-		return versioning.Result{}, fmt.Errorf("parsing source tag %q: %w", latestSrcTag, err)
 	}
 
 	// 4. Render the candidate tag under the destination format.
