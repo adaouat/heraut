@@ -46,7 +46,7 @@ reviewed, and tested on their own merits.
 | T232  | `docs/specs/04-versioning.md` reconciliation                                          | Done        |
 | T233  | `docs/specs/05-generators-and-platforms.md` reconciliation                            | Done        |
 | T234  | `docs/specs/06-dx-and-testing.md` reconciliation                                      | Done        |
-| T235  | `schema.json` + `docs/heraut.sample.yml` cleanup                                      | Not started |
+| T235  | `schema.json` + `docs/heraut.sample.yml` cleanup                                      | Done        |
 | T236  | `CLAUDE.md` + `README.md` reconciliation                                              | Not started |
 | T237  | `.claude/rules/{coding,testing,workflow}.md` reconciliation                           | Not started |
 | T238  | `docs/adr/README.md` + affected ADR bodies — status annotations and stale references  | Not started |
@@ -713,7 +713,7 @@ changes, so no test suite to run.
 
 ---
 
-#### `[ ]` T235: `schema.json` + `docs/heraut.sample.yml` cleanup
+#### `[x]` T235: `schema.json` + `docs/heraut.sample.yml` cleanup
 
 - **`schema.json:386`**: comment still references git-cliff ("matches git-cliff's own
   azure_devops \"owner\" shape") — removed by ADR-0028/ADR-0045. Reword without the git-cliff
@@ -734,6 +734,19 @@ changes, so no test suite to run.
 **Files:** `schema.json`, `docs/heraut.sample.yml`. **Scope:** S. **Dependencies:** land the
 `ScopeRule.remove` and per-driver-`rendering.excludes` schema comments after T224's direction is
 decided, since T224 may change what's actually true about `rendering.excludes`.
+
+Landed after T224 (wired up, not removed — see T224's note), so no `rendering.excludes` schema
+comment needed changing; it was already accurate. Fixed: the git-cliff azure_devops "owner shape"
+reference (already fixed in spec 05's copy during T233; this was the other copy); `ScopeRule.remove`
+described as "Reserved" in two places (the field description and the parent object description) —
+both now state it drops a built-in default scope, matching `TypeRule.remove`'s sibling description,
+which was already correct and served as the template for the fix; `docs/heraut.sample.yml`'s
+`bump: manual` comment (claimed a non-existent `--bump` flag; actual is `--version`) and its
+"semver / semver-per-env only" scope claim for the root `bump` field (semver-per-env uses each
+environment's own `bump: auto`/`promote` instead — the root field is semver-only); the `prefix`
+comment header renamed to `tag_prefix` to match the actual field name. Verified `schema.json` stays
+valid JSON and `docs/heraut.sample.yml` stays `yamlfmt`-clean after the comment edits. `hk check`
+(typos + yamlfmt) clean; no code changes, so no test suite to run.
 
 ---
 

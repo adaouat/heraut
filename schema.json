@@ -148,7 +148,7 @@
       "required": [
         "name"
       ],
-      "description": "One allowed commit scope. 'description' is shown in the commit wizard picker; 'remove' is reserved for future config composition.",
+      "description": "One allowed commit scope. 'description' is shown in the commit wizard picker; 'remove' drops a built-in default scope.",
       "properties": {
         "name": {
           "type": "string",
@@ -156,7 +156,7 @@
         },
         "remove": {
           "type": "boolean",
-          "description": "Reserved: drop this scope (for config composition / includes)."
+          "description": "Drop this scope from the effective set — used to remove a built-in default (deps, deps-dev, release)."
         },
         "description": {
           "type": "string",
@@ -383,7 +383,7 @@
         },
         "project": {
           "type": "string",
-          "description": "GitLab project path (namespace[/subgroup]/repo). GitLab. For azure_devops, \"organization/project\" (matches git-cliff's own azure_devops \"owner\" shape)."
+          "description": "GitLab project path (namespace[/subgroup]/repo). GitLab. For azure_devops, \"organization/project\"."
         },
         "repository": {
           "type": "string",

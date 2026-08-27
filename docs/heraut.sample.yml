@@ -26,7 +26,7 @@ versioning:
   #   calver-per-env CalVer with a separate tag namespace per environment
   strategy: semver
 
-  # prefix — string prepended to every version tag.
+  # tag_prefix — string prepended to every version tag.
   # "v" produces v1.2.3. Set to "" (or omit) for bare tags like 1.2.3.
   tag_prefix: "v"
 
@@ -34,9 +34,10 @@ versioning:
   # semver and semver-per-env only.
   initial_version: "0.1.0"
 
-  # bump — how to determine the version increment. semver / semver-per-env only.
+  # bump — how to determine the version increment. semver only (semver-per-env
+  # uses each environment's own bump: auto/promote instead — see environments below).
   #   auto   inspect conventional-commit types since the last tag
-  #   manual require an explicit --bump flag on the CLI
+  #   manual require --version on the CLI (heraut release --version / version next --version)
   bump: auto
 
   # tag_type — git tag type. Omit for the default (annotated).
