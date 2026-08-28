@@ -5336,7 +5336,7 @@ template (scope, breaking marker, description, hash, author, PR ref, and tickets
 - Add `"ticket"` to `validTemplateBlocks` (`internal/config/validator.go`) and
   `validTemplateBlocksHint`.
 - Update `schema.json`'s block-name enum, `docs/heraut.sample.yml`, and
-  [Spec 05 § User-customizable templates](05-generators-and-platforms.md#user-customizable-templates-adr-0037)'s
+  [Spec 05 § User-customizable templates](05-generators-and-platforms.md#user-customizable-templates-adr-0037-adr-0048)'s
   overridable-blocks list.
 
 **Files (expected):** `internal/generators/native/blocks.tmpl`, `internal/config/validator.go`,
@@ -5353,7 +5353,7 @@ Verified the extraction is byte-identical for the default path (existing golden 
 `TestRenderChangelogSection_TicketBlockOverride` proving an override changes only the ticket
 fragment — the rest of the commit line is untouched. Added `"ticket"` to `validTemplateBlocks` /
 `validTemplateBlocksHint`, `schema.json`'s block enum, `docs/heraut.sample.yml`'s example, and
-[Spec 05](05-generators-and-platforms.md#user-customizable-templates-adr-0037)'s overridable-blocks
+[Spec 05](05-generators-and-platforms.md#user-customizable-templates-adr-0037-adr-0048)'s overridable-blocks
 list and data-model description (documented `tplLink`'s `.Text`/`.Href` shape, since a user
 writing a `ticket` override needs to know it). `go test ./...` and `hk check` both clean.
 

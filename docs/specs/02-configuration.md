@@ -724,8 +724,8 @@ the global list, plus the driver's own list, all additive.
 
 Overrides one or more built-in native template blocks by key — each value is a Go
 `text/template` snippet. Keys correspond to the overridable blocks documented in
-[Spec 05 § User-customizable templates](05-generators-and-platforms.md#user-customizable-templates-adr-0037)
-(e.g. `commit`, `group`, `contributor`, `header`, `footer`). A `changelog`/`release.notes`
+[Spec 05 § User-customizable templates](05-generators-and-platforms.md#user-customizable-templates-adr-0037-adr-0048)
+(e.g. `commit`, `group`, `contributor`, `release_header`, `footer`). A `changelog`/`release.notes`
 block's own `rendering.templates` overlays this global map key-by-key — the driver's value wins
 for a given key, an unset key falls through to the global one.
 
@@ -739,7 +739,7 @@ only generator (ADR-0045) — there is no `generator:` key to set; an empty `cha
 |---------------|----------|-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
 | `output`      | No       | Output file path (e.g. `CHANGELOG.md`). `changelog.output` (not `release.notes.output`, which is never written to disk) may contain rotation tokens for a periodic file — see § Rotating changelog output below. |
 | `tag_pattern` | No       | Tag pattern regex scoping which tags are considered. **For per-env strategies heraut auto-derives this from the effective `tag_format` so `--env <env>` only considers that environment's tags** (e.g. `{version}_{env}` + `--env prod` → `^.+_prod$`); set it explicitly to override the derivation. |
-| `template`    | No       | Path to a full custom Go `text/template` file, parsed on top of native's built-ins (ADR-0037). See [Spec 05 § User-customizable templates](05-generators-and-platforms.md#user-customizable-templates-adr-0037). |
+| `template`    | No       | Path to a full custom Go `text/template` file, parsed on top of native's built-ins (ADR-0037). See [Spec 05 § User-customizable templates](05-generators-and-platforms.md#user-customizable-templates-adr-0037-adr-0048). |
 | `rendering`   | No       | Per-driver exclude rules and template-block snippets, layered over the global `rendering` block (see § `rendering` above). |
 
 See [Spec 05 — Generators and Platforms](05-generators-and-platforms.md) for the full

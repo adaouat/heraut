@@ -355,6 +355,16 @@ execute against `.Heraut` directly, not a `Release`. Compare `release_header` ab
   blocks; overriding them under `changelog.rendering.templates` is accepted but has no effect.
 - **No per-forge scoping** — route forge-specific formatting through an environment instead.
 - **A `template:` file wins outright**, even over a more specific per-env inline override, for
-  whatever blocks it defines — it's parsed last in the precedence chain.
+  whatever blocks it defines — it's parsed last in the precedence chain. **Exception:** nulling
+  a built-in with an explicit `title: ""` / `subtitle: ""` snippet override (via
+  `rendering.templates`/per-driver/per-env) currently wins even over a `<driver>.template` file
+  that redefines the same block with non-empty content — the one case where the file does not
+  win outright.
+- **`title`/`subtitle` live outside the document root.** They're rendered by Go code (once per
+  document, via `renderPreamble`) *before* the `changelog`/`release_notes` root template runs —
+  so a custom `<driver>.template` file that fully redefines the root cannot suppress or
+  reposition them. If that custom root also invokes `{{ template "title" . }}` itself, it
+  executes there against a full `Release` (not the bare `.Heraut` context `renderPreamble`
+  uses) — same block name, different context, potentially different output, rendered twice.
 - **Rendering `.Heraut.GeneratedAt`** makes output non-deterministic run-to-run; the built-ins
   deliberately never do.

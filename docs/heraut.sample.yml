@@ -205,8 +205,6 @@ versioning:
 #   # built-in -> rendering.templates (global) -> <driver>.rendering.templates ->
 #   # environments.<env>.<driver>.rendering.templates -> <driver>.template file.
 #   templates:
-#     title: "# MyApp Changelog"
-#     subtitle: "All notable changes, by version."
 #     release_header: '## [{{ .Version }}]'
 #     commit: '- {{ .Description }} ({{ .ShortHash }})'
 #     ticket: '🎫[{{ .Text }}]({{ .Href }})'
@@ -303,7 +301,8 @@ changelog:
   # without touching release notes (or vice-versa). See the global rendering block above.
   # rendering:
   #   templates:
-  #     title: "# Changelog\n\nAll notable changes to this project.\n"
+  #     title: "# Changelog"
+  #     subtitle: "All notable changes to this project."
 
   # PR/MR enrichment for the changelog's commit history is sourced from the top-level
   # forges: block plus commits.enrichment_forge / commits.enrichment_policy above — see

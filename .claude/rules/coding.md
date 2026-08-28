@@ -100,7 +100,7 @@ direction, do not add the import.
   effective output for every user who relies on the defaults.
 - `rendering.templates` (global and per-driver) overrides individual blocks on top of
   these embedded defaults at render time — see
-  [Spec 05 § User-customizable templates](../../docs/specs/05-generators-and-platforms.md#user-customizable-templates-adr-0037).
+  [Spec 05 § User-customizable templates](../../docs/specs/05-generators-and-platforms.md#user-customizable-templates-adr-0037-adr-0048).
 
 ## CLI commands
 
