@@ -45,6 +45,58 @@ func TestGenerator_GenerateReleaseNotes(t *testing.T) {
 	assert.Equal(t, []string{"log", "v1.0.0", "--format=%ae"}, mr.Calls[3].Args)
 }
 
+func TestGenerator_GenerateReleaseNotes_TitleSubtitle(t *testing.T) {
+	mr := exectest.NewMockRunner()
+	mr.QueueResponse("v1.0.0\n", "", nil)
+	mr.QueueResponse("2026-01-01T00:00:00Z\n", "", nil)
+	mr.QueueResponse(record("abc1234567", "Alice", "alice@example.com",
+		"2026-01-02T00:00:00Z", "feat: add the thing", ""), "", nil)
+	mr.QueueResponse("alice@example.com\n", "", nil)
+
+	g := New(mr, &config.ContentDriver{
+		EffectiveTemplates: map[string]string{
+			"title":    "MyApp v1.1.0 Release",
+			"subtitle": "Highlights below.",
+		},
+	}, ModeReleaseNotes)
+	out, err := g.Generate("v1.1.0", nil)
+	require.NoError(t, err)
+
+	assert.True(t, strings.HasPrefix(out, "MyApp v1.1.0 Release\n\nHighlights below.\n\n"))
+}
+
+func TestGenerator_GenerateReleaseNotes_TitleSubtitleEmptyByDefault(t *testing.T) {
+	mr := exectest.NewMockRunner()
+	mr.QueueResponse("v1.0.0\n", "", nil)
+	mr.QueueResponse("2026-01-01T00:00:00Z\n", "", nil)
+	mr.QueueResponse(record("abc1234567", "Alice", "alice@example.com",
+		"2026-01-02T00:00:00Z", "feat: add the thing", ""), "", nil)
+	mr.QueueResponse("alice@example.com\n", "", nil)
+
+	g := New(mr, &config.ContentDriver{}, ModeReleaseNotes)
+	out, err := g.Generate("v1.1.0", nil)
+	require.NoError(t, err)
+
+	assert.True(t, strings.HasPrefix(out, "### 🚀 Features"),
+		"release notes has no document-level title by default — output starts with the first group heading, byte-identical to before this change")
+}
+
+func TestGenerator_GenerateReleaseNotes_TitleContextIsHerautOnly(t *testing.T) {
+	mr := exectest.NewMockRunner()
+	mr.QueueResponse("v1.0.0\n", "", nil)
+	mr.QueueResponse("2026-01-01T00:00:00Z\n", "", nil)
+	mr.QueueResponse(record("abc1234567", "Alice", "alice@example.com",
+		"2026-01-02T00:00:00Z", "feat: add the thing", ""), "", nil)
+	mr.QueueResponse("alice@example.com\n", "", nil)
+
+	g := New(mr, &config.ContentDriver{
+		EffectiveTemplates: map[string]string{"title": "{{ .Tag }}"}, // .Tag exists on Release, not tplHeraut
+	}, ModeReleaseNotes)
+	_, err := g.Generate("v1.1.0", nil)
+	require.Error(t, err, "title only receives .Heraut's own fields — .Tag must fail to execute")
+	assert.Contains(t, err.Error(), "title")
+}
+
 // TestGenerator_GenerateReleaseNotes_TagGlob verifies native scopes the previous-tag lookup to
 // the env glob (per-env strategy support, T138): git describe gains --match <glob>.
 func TestGenerator_GenerateReleaseNotes_TagGlob(t *testing.T) {

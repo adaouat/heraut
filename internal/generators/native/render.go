@@ -90,11 +90,15 @@ func renderReleaseNotes(
 	templateFile string,
 ) (string, error) {
 	rel := buildRelease(version, previousVersion, releaseDate, prevReleaseDate, groups, lc, tickets, typesHeadingLevel, prs, contributors, heraut)
+	preamble, err := renderPreamble(releaseNotesTmpl, snippets, templateFile, heraut)
+	if err != nil {
+		return "", fmt.Errorf("rendering release notes title: %w", err)
+	}
 	out, err := execBlocks("release_notes", releaseNotesTmpl, snippets, templateFile, rel)
 	if err != nil {
 		return "", fmt.Errorf("rendering release notes: %w", err)
 	}
-	return strings.TrimSpace(out), nil
+	return strings.TrimSpace(preamble + out), nil
 }
 
 // ─── commit-line helpers ──────────────────────────────────────────────────────
