@@ -5274,6 +5274,148 @@ independently:
 
 ---
 
+### Phase 28 — Commit tooling enhancements
+
+Five user-requested features around commit/changelog customization, sized during a 2026-08-28
+effort review. Four are small-to-medium and independent of each other; the fifth (rotating
+changelog files) forks on a real design question and gets a design spike first rather than an
+implementation task.
+
+#### `[ ]` T239: customizable release commit message
+
+`pipeline.Config.CommitMessage` and `pipeline.ChangelogConfig.CommitMessage` already exist —
+`internal/pipeline/git.go`'s `commitMessage(template, version)` does `${version}` substitution
+with a `"chore(release): ${version}"` default, and both fields are already exercised by
+`internal/pipeline/{release,changelog}_test.go`. Nothing in `internal/app` ever sets them, so the
+mechanism is fully built and tested but unreachable from `.heraut.yml` — this task is wiring, not
+new mechanism.
+
+**Direction:**
+- Add a config field (exact key TBD at implementation time — `changelog.commit_message` reads
+  naturally, but the same string is also passed as the **annotated tag's** message
+  (`internal/pipeline/release.go:153`, `changelog.go:157`), so it isn't purely a changelog
+  concern; decide the field's home when implementing, and confirm with the user if it's not
+  obvious once the surrounding config shape is in view).
+- Wire it through `internal/app/pipeline.go`'s `buildReleasePipelineConfig` /
+  `buildChangelogPipelineConfig` into `pCfg.CommitMessage`.
+- Document the coupling with `commits`'s built-in default exclude
+  `^chore\(release\):` (`internal/config/commits.go`'s `defaultExcludes`) — a custom message
+  that drops the `chore(release):` prefix will make the release commit show up in the rendered
+  changelog unless the user also adds their own exclude.
+
+**Files (expected):** `internal/config/config.go` (or `commits.go`), `internal/app/pipeline.go`,
+`schema.json`, `docs/heraut.sample.yml`, `docs/specs/02-configuration.md` (+ tests).
+**Scope:** S. **Dependencies:** none.
+
+---
+
+#### `[ ]` T240: dedicated overridable template block for ticket rendering
+
+Ticket links (`([{{.Text}}]({{.Href}}))`) render inline inside the `commit` template block
+(`internal/generators/native/blocks.tmpl`), which is already user-overridable via
+`rendering.templates.commit` (ADR-0037) — so full customization is technically possible today,
+just clumsy: overriding ticket rendering alone requires restating the entire commit-line
+template (scope, breaking marker, description, hash, author, PR ref, and tickets together).
+
+**Direction:**
+- Extract the ticket-link fragment into its own named block:
+  `{{define "ticket"}}([{{ .Text }}]({{ .Href }})){{end}}`, referenced from `commit` via
+  `{{ range .Tickets }}{{ template "ticket" . }}{{ end }}`.
+- Add `"ticket"` to `validTemplateBlocks` (`internal/config/validator.go`) and
+  `validTemplateBlocksHint`.
+- Update `schema.json`'s block-name enum, `docs/heraut.sample.yml`, and
+  [Spec 05 § User-customizable templates](05-generators-and-platforms.md#user-customizable-templates-adr-0037)'s
+  overridable-blocks list.
+
+**Files (expected):** `internal/generators/native/blocks.tmpl`, `internal/config/validator.go`,
+`schema.json`, `docs/heraut.sample.yml`, `docs/specs/05-generators-and-platforms.md` (+ tests).
+**Scope:** S. **Dependencies:** none.
+
+---
+
+#### `[ ]` T241: `heraut commit check --tickets` (or similar) — validate ticket patterns against a range
+
+No such command exists today. `app.ResolveFromLatestTag` and `app.CheckCommitRange`
+(`internal/app/commit_check.go`) already resolve a rev-range and walk `git log` with the same
+NUL/SOH-delimited parsing this needs; the missing piece is ticket-pattern matching
+(`resolveTickets`, `internal/generators/native/render.go`), currently unexported inside `native`.
+Exporting it (or a thin equivalent) is not a layering problem — `internal/app` is already allowed
+to import `internal/generators/*` per the Layer rules table in `.claude/rules/coding.md`.
+
+**Direction:**
+- Export a ticket-matching function from `native` (or extract it one level down — decide which
+  reads cleaner once in the code) for `internal/app` to call against each commit in a range.
+- Decide the report shape before implementing: per-commit ticket matches, a per-pattern
+  match-count summary (useful for "is my regex just broken"), or both — ask the user if it's not
+  obvious from how the command is meant to be used day-to-day.
+- New subcommand or flag on the existing `heraut commit check` (reusing its `[rev-range]` /
+  `--from-latest-tag` flags rather than inventing a parallel rev-range UI).
+
+**Files (expected):** `internal/generators/native/render.go` (export), `internal/app/commit_check.go`
+(or a new file), `internal/cmd/commit.go`, `docs/specs/03-commands.md` (+ tests).
+**Scope:** M. **Dependencies:** none (soft overlap with T242's ticket-detection reuse — land in
+either order).
+
+---
+
+#### `[ ]` T242: `heraut commit verify` — cocogitto-style recap output
+
+`app.VerifyCommit` (`internal/app/commit.go`) already parses the message into a full
+`*conventionalcommit.Commit` (`Type`, `Scope`, `Breaking`, `Description`, `Body`, `Footers`) but
+discards it after validating — it only ever returns an error or `nil`. `heraut commit create`'s
+existing step-8 "preview + confirm" (`internal/commitwizard/`) already renders something in this
+spirit; check whether the two can share one recap renderer instead of drifting into two different
+looks.
+
+**Direction:**
+- Have `VerifyCommit` return the parsed `*conventionalcommit.Commit` (or add a sibling function)
+  so `internal/cmd/commit.go`'s verify path can print a styled summary via `internal/ui/`.
+- Detect and list matched tickets using the same matcher exported for T241 (land whichever of
+  T241/T242 comes first without the export; wire the other to reuse it).
+- Compare against `commitwizard`'s preview rendering and reuse/align if it doesn't cost more than
+  it saves.
+
+**Files (expected):** `internal/app/commit.go`, `internal/cmd/commit.go`, `internal/ui/`,
+possibly `internal/commitwizard/` (+ tests). **Scope:** S–M. **Dependencies:** soft overlap with
+T241 (ticket-matcher export) — land in either order.
+
+---
+
+#### `[ ]` T243: design spike — rotating changelog file naming (CalVer-style tokens)
+
+Not sized S/M/L — this is a design spike, not an implementation task. `changelog.output` is a
+single static path (e.g. `CHANGELOG.md`); the ask is CalVer-style tokens in the filename (e.g.
+`CHANGELOG_{YYYY}.md`) so the changelog rotates per period. Genuinely open questions, not just
+implementation detail:
+
+- **Scope**: CalVer versions embed the date in the version string itself, so a period (e.g. the
+  year) is derivable the same way `calver`'s existing period-key logic already derives it for
+  `PATCH` reset. SemVer versions carry no calendar information at all — rotating a SemVer
+  project's changelog would have to key off the **tag's git date** instead, a wholly different
+  mechanism. Decide: CalVer-only, or both (and if both, accept two independent implementations)?
+- **Tag-scoping**: native's existing anchor/bootstrap/splice algorithm
+  (`internal/generators/native/generator.go`) likely needs **no changes at all** if the app layer
+  hands it a period-scoped tag set — `changelog.tag_pattern` already exists as exactly this kind
+  of scoping mechanism. Does the tag-scoping regex auto-derive from the same period tokens as the
+  output path, or does the user set `tag_pattern` by hand alongside a tokenized `output`?
+- **Rollover UX**: the first release of a new period has no existing file — does native's current
+  "missing file → bootstrap" path just work once tags are correctly pre-scoped, or does period
+  rollover need its own explicit step (e.g. requiring `--regenerate` at the boundary)?
+- **Cross-command impact**: does `heraut whatsnew` or `heraut check` need to be aware that more
+  than one changelog file can exist on disk at once?
+- **Interaction**: per-env `disable_changelog` / per-env `changelog` overrides, and
+  `--regenerate` semantics, once output is no longer a fixed path.
+
+**Direction:** produce a written design doc resolving these (following the release-config
+epic's precedent — see `docs/superpowers/specs/2026-08-26-release-config-simplification-design.md`
+— a design doc preceded that epic's own dedicated roadmap). Once settled, file T244+ as normal
+implementation tasks against the agreed design, broken down the same way the release-config epic
+was (`release-config-roadmap.md`) if it turns out to be more than one task's worth of work.
+
+**Files (expected):** a new design doc under `docs/superpowers/specs/`. **Dependencies:** none.
+
+---
+
 ## Risks and mitigations
 
 | Risk                                                                                | Impact            | Mitigation                                                                |
