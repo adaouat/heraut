@@ -16,14 +16,18 @@ roadmap and spec/ADR, fix the roadmap.
 
 ## Overview
 
-Héraut is a Go CLI that orchestrates `glab`, `gh`, and `cog` to resolve versions, generate
-changelogs, and publish releases to GitHub / GitLab. This
-roadmap captures the work to take it from an empty repo to a v1.0 release.
+Héraut is a Go CLI that resolves versions, generates changelogs, and publishes releases to
+GitHub / GitLab — wrapping `git`, `gh`, and `glab` for git operations and publishing, with
+changelog/release-notes generation built in (`native`, no external generator dependency —
+ADR-0045) and PR/MR commit enrichment via direct HTTP against the GitHub/GitLab/Azure DevOps
+APIs (ADR-0043). This roadmap captures the work to take it from an empty repo to a v1.0
+release.
 
 The goals of v1.0:
 
 1. Implement the full feature set described in `docs/specs/` (four versioning
-   strategies, three generators, two platforms, init/check/cliff/whatsnew tooling).
+   strategies, one built-in generator, two publish platforms plus a third forge type for
+   enrichment-only, init/check/commit/whatsnew tooling).
 2. Establish a clean public home with proper distribution: GitHub Releases (raw
    binaries) and a GHCR container image.
 3. Design internal packages with clear boundaries so the foundational ones (exec runner,
