@@ -1,7 +1,7 @@
 # syntax=docker/dockerfile:1
 
 # Tool versions — bump here to upgrade across all stages.
-ARG GO_VERSION=1.26
+ARG GO_VERSION=1.27
 ARG HERAUT_VERSION=dev
 ARG MISE_VERSION=2026.5.15
 ARG GLAB_VERSION=1.99.0

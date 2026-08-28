@@ -4,10 +4,10 @@ experimental = true
 
 [tools]
 actionlint = "latest"
-go = "1.26"
+go = "1.27"
 "go:golang.org/x/tools/gopls" = "latest"
 "go:golang.org/x/vuln/cmd/govulncheck" = "latest"
-golangci-lint = "2.12"
+golangci-lint = "2.13"
 goreleaser = "2.16"
 hadolint = "latest"
 hk = "1.46"
