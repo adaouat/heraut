@@ -5522,15 +5522,51 @@ title/subtitle → release-notes title/subtitle → docs → roadmap close-out).
 
 Design: [`docs/superpowers/specs/2026-08-28-changelog-title-subtitle-design.md`](../superpowers/specs/2026-08-28-changelog-title-subtitle-design.md).
 
-Shipped as designed, no deviations. `title`/`subtitle` execute against a bare `tplHeraut`
-(`.Version`/`.URL`/`.GeneratedAt` directly, not `.Heraut.Version` — a deliberate, documented
-asymmetry with every other block) via a new shared `renderPreamble` helper
-(`internal/generators/native/render.go`), called once by `buildAllSections` for the changelog
-driver (bootstrap/`--regenerate` only — an ordinary incremental splice never touches the preamble,
-unchanged from before) and once per render by `renderReleaseNotes` for the release-notes driver.
-Default output is byte-identical on both drivers. The rename (`header`→`release_header`,
-`release-notes`→`release_notes`) is breaking with no alias, consistent with the project's pre-v1.0
-stance; both old keys now fail config validation with an actionable error naming the new one.
+Shipped via subagent-driven development (5 tasks + a final whole-branch review on Opus, one fix
+wave). `title`/`subtitle` execute against a bare `tplHeraut` (`.Version`/`.URL`/`.GeneratedAt`
+directly, not `.Heraut.Version` — a deliberate, documented asymmetry with every other block) via a
+new shared `renderPreamble` helper (`internal/generators/native/render.go`), called once by
+`buildAllSections` for the changelog driver (bootstrap/`--regenerate` only — an ordinary
+incremental splice never touches the preamble, unchanged from before) and once per render by
+`renderReleaseNotes` for the release-notes driver. Default output is byte-identical on both
+drivers. The rename (`header`→`release_header`, `release-notes`→`release_notes`) is breaking with
+no alias, consistent with the project's pre-v1.0 stance; both old keys now fail config validation
+with an actionable error naming the new one. Two implementation-level deviations from the plan's
+literal code, both verified correct by task review: a small `execPreambleBlock` helper works
+around Go `text/template`'s whitespace-only-`{{define}}`-is-a-no-op quirk (the plan's literal
+`execBlocks` call couldn't null a non-empty built-in via `title: ""`), and two tests' probe field
+changed from `.Version` to `.Tag` (the brief incorrectly assumed `.Version` didn't exist on
+`tplHeraut` — it does, heraut's own running version). The final whole-branch review found and
+fixed nine documentation/hygiene gaps (stale cross-references, a schema-fixture coverage gap, a
+misleading error-wrap prefix, wrong worked examples in the sample config) in one fix wave; see
+Phase 31 for the one gap deliberately parked rather than fixed.
+
+---
+
+### Phase 31 — Uniform empty/whitespace block-override handling (deferred)
+
+**Not scheduled.** Phase 30's `title`/`subtitle` blocks needed a workaround
+(`execPreambleBlock` in `internal/generators/native/render.go`) for a Go `text/template` quirk:
+`Parse` treats a whitespace-only `{{define}}` body as a no-op, so it silently won't replace an
+existing non-empty built-in — meaning `rendering.templates.title: ""` couldn't reach the engine to
+null out `title`'s default without a special case. The workaround has two known gaps, both found
+by Phase 30's final whole-branch review and deliberately left unfixed there (narrow, and a correct
+fix needs its own design/test pass, not a one-shot patch with no second review):
+
+1. `execPreambleBlock`'s empty-string short-circuit runs *before* consulting `templateFile`, so
+   `title: ""` wins even over a `<driver>.template` file that also redefines `title` — inverting
+   the documented "a template file always wins outright" precedence for this one case. A correct
+   fix needs to detect whether the file itself redefines the specific block before short-circuiting.
+2. The short-circuit only matches an exact `""` string — a whitespace-only override (e.g. `"   "`)
+   hits the same underlying Go quirk and is silently swallowed the same way `title: ""` used to be,
+   with no special case to catch it.
+
+Both are currently documented as known limitations in `docs/guides/template-customization.md`'s
+Gotchas section rather than fixed in code. Scope for a future task: generalize the null-override
+handling so it works uniformly for **every** block (not just `title`/`subtitle`), across both the
+inline-snippet and `<driver>.template`-file entry points — likely retiring `execPreambleBlock` as
+a special case once the general mechanism exists. Listed here only so the gap is visible; do not
+start it without re-reading Phase 30's final-review findings first.
 
 ---
 
