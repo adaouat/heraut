@@ -11,8 +11,13 @@ Add the schema comment at the top of your file to get inline validation and
 autocompletion in VS Code, IntelliJ, and any editor with YAML Language Server support:
 
 ```yaml
-# yaml-language-server: $schema=https://raw.githubusercontent.com/adaouat/heraut/main/schema.json
+# yaml-language-server: $schema=https://raw.githubusercontent.com/adaouat/heraut/<version>/schema.json
 ```
+
+`<version>` is the exact tag your `heraut` binary was built from (e.g. `v0.58.0`) — `heraut
+init` fills it in automatically, pinning the schema to the version you're running so
+autocomplete never drifts ahead of your actual config surface. A `dev` build (no version
+embedded) falls back to `main`.
 
 Run `heraut init` to generate a pre-filled file interactively, or
 `heraut init --defaults` for a non-interactive opinionated default.
@@ -565,11 +570,15 @@ versioning:
   strategy: semver
 
 changelog: {}
+
+release: {}
 ```
 
 heraut auto-detects the GitLab forge from `GITLAB_CI` / `CI_SERVER_URL` /
 `CI_PROJECT_PATH` / `CI_JOB_TOKEN`, with `api_mode: rest` (the auto-detected default),
-requiring no host, project, or token configuration.
+requiring no host, project, or token configuration — the same auto-detection covers
+`release: {}`'s zero-config publish target too, so this config can run both `heraut
+changelog` and `heraut release` (see § `release` above).
 
 ### Minimal explicit example
 
@@ -813,7 +822,7 @@ See § Per-environment fields (`environments.<name>`) for the full field referen
 ### Standard SemVer — GitHub
 
 ```yaml
-# yaml-language-server: $schema=https://raw.githubusercontent.com/adaouat/heraut/main/schema.json
+# yaml-language-server: $schema=https://raw.githubusercontent.com/adaouat/heraut/<version>/schema.json
 
 version: "1"
 

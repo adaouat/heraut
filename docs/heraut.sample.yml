@@ -8,7 +8,10 @@
 # Versioning strategies: docs/specs/04-versioning.md
 # ─────────────────────────────────────────────────────────────────────────────
 
-# yaml-language-server: $schema=https://raw.githubusercontent.com/adaouat/heraut/main/schema.json
+# yaml-language-server: $schema=https://raw.githubusercontent.com/adaouat/heraut/<version>/schema.json
+# heraut init fills in <version> automatically (e.g. v0.58.0), pinned to your installed
+# heraut. Editing this file by hand? Replace <version> with your `heraut --version` output,
+# or use "main" for the latest schema on the default branch.
 
 # Schema version. Must be "1".
 version: "1"

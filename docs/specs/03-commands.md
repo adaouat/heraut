@@ -420,6 +420,9 @@ Runs both sections in sequence (Config, then Runtime) and reports a combined sum
 **No config file found**: like `heraut check runtime`, bare `check` degrades instead of
 hard-failing — the Config section prints a warning and is skipped, and the Runtime
 section falls back to the all-tools-required probe (see § `heraut check runtime` below).
+**`heraut check config` run standalone does not degrade** — with no config file, it
+hard-fails with the Config exit code (2), since running the config subcommand at all is an
+explicit request to validate a specific file; there is nothing to skip.
 
 **Exit code**: if the Config section reports any errors, `heraut check` exits with the
 Config code (2) — even if Runtime also failed, since a broken config makes that result

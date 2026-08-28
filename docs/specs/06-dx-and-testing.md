@@ -8,7 +8,7 @@
 reference it from `.heraut.yml` with:
 
 ```yaml
-# yaml-language-server: $schema=https://raw.githubusercontent.com/adaouat/heraut/main/schema.json
+# yaml-language-server: $schema=https://raw.githubusercontent.com/adaouat/heraut/<version>/schema.json
 ```
 
 This gives IDE autocomplete and inline error highlighting in VS Code, IntelliJ, Helix,
