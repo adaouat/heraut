@@ -53,7 +53,7 @@ including Azure DevOps. See [ADR-0033](../adr/0033-native-config-model.md),
 [ADR-0034](../adr/0034-native-remote-enrichment.md), and
 [ADR-0036](../adr/0036-unified-enrichment-model.md).
 
-### User-customizable templates (ADR-0037)
+### User-customizable templates (ADR-0037, ADR-0048)
 
 The native generator exposes a public template API with **two entry points**:
 
@@ -73,11 +73,16 @@ changelog:
   template: .config/heraut/changelog.tmpl   # optional full template file
   rendering:
     templates:
-      header: "# Changelog\n\nAll notable changes.\n"
+      title: "# Changelog"
+      subtitle: "All notable changes."
 ```
 
-**Overridable blocks:** `header`, `group`, `commit`, `ticket`, `contributor`, `contributors`,
-`stats`, `footer`, and the roots `changelog` / `release-notes`. The changelog renders a one-line
+**Overridable blocks:** `title`, `subtitle`, `release_header`, `group`, `commit`, `ticket`,
+`contributor`, `contributors`, `stats`, `footer`, and the roots `changelog` / `release_notes`.
+`title`/`subtitle` are document-level — they fire exactly **once per document**, unlike every
+other block (which fires once per rendered release); they execute against `.Heraut`'s own fields
+directly (`.Version` `.URL` `.GeneratedAt`), **not** `.Heraut.Version` like `footer`/
+`release_header` do, since their root isn't a `Release`. The changelog renders a one-line
 commit; the release-notes root wraps the shared `commit` block with indented body/footers.
 `ticket` renders one matched ticket link (`commits.tickets`) within a commit line — `commit`
 calls it once per match, so overriding just `ticket` customizes ticket rendering without
@@ -101,7 +106,7 @@ subject line, distinct from `.Description`) `.Body` `.Hash` `.ShortHash`
 `.Version` `.URL` `.GeneratedAt`. All `.PR.*` fields are remote-only (empty offline). Field names
 are the **experimental-in-v1** public API — additive changes are free.
 
-`contributors` and `stats` render **only from the `release-notes` root template** — a
+`contributors` and `stats` render **only from the `release_notes` root template** — a
 `changelog`-level override of either block has no effect, since the changelog's own root never
 invokes them.
 
@@ -122,8 +127,8 @@ preceded by a structural HTML comment on its own line:
 
 The anchor carries the release **tag**, is invisible in every Markdown renderer, and is emitted by
 the assembly layer — never by a template block — so it is non-overridable and independent of the
-customizable `header` block (ADR-0037): reformatting the header can neither remove the anchor nor
-change its shape.
+customizable `release_header` block (ADR-0037, ADR-0048): reformatting the header can neither
+remove the anchor nor change its shape.
 
 **Incremental (default).** Each run renders and enriches only the new release's section (O(1) API
 calls) and splices it into the existing file, leaving every other section untouched:
@@ -139,9 +144,10 @@ calls) and splices it into the existing file, leaving every other section untouc
 
 **Full regeneration (`--regenerate` / `--regenerate-changelog`).** Ignores the existing file,
 rebuilds every section from all tags, and **re-enriches all of them**. The preamble is not
-preserved: regeneration replaces whatever free-form content preceded the first section with a
-fixed `# Changelog\n\n` header, discarding any custom preamble text that was there before —
-this is the one case where "free-form preamble" doesn't mean "yours to keep." Each section is enriched
+preserved: regeneration replaces whatever free-form content preceded the first section with the
+freshly-rendered `title`/`subtitle` blocks (ADR-0048) — `# Changelog` by default, or the
+operator's override — discarding any custom preamble text that was there before — this is the
+one case where "free-form preamble" doesn't mean "yours to keep." Each section is enriched
 independently, so GitHub (batched GraphQL, 50 SHAs/query), GitLab in `api_mode: graphql` (two
 batched connection queries — commit authors via `commits`, MR refs via inverted `mergeRequests`,
 [ADR-0042](../adr/0042-gitlab-graphql-enrichment.md)), and Azure (one `pullrequestquery` POST) each

@@ -42,6 +42,10 @@ the contract cannot rot without breaking heraut's own golden tests.
 
 ### Block set
 
+> **Superseded by [ADR-0048](0048-changelog-title-subtitle-blocks.md):** `header` → `release_header`,
+> `release-notes` → `release_notes`, and new `title`/`subtitle` blocks. The table below reflects the
+> block set as originally shipped; see ADR-0048 for the current set.
+
 `internal/generators/native/blocks.tmpl` (shared) + the two roots (`changelog.tmpl`,
 `release_notes.tmpl`). Overridable block keys:
 

@@ -193,16 +193,21 @@ versioning:
 #   excludes:
 #     - regex: '^chore\(deps.*\)'
 #     - type: chore
-#   # templates — override built-in native template blocks (ADR-0037). native only.
+#   # templates — override built-in native template blocks (ADR-0037, ADR-0048). native only.
 #   # Each value is a Go text/template snippet; unset blocks keep their built-in.
-#   # Overridable keys: header, group, commit, ticket, contributor, footer (+ the
-#   # structural contributors, stats, changelog, release-notes for whole-section
-#   # control). ticket renders one commits.tickets match within a commit line —
-#   # override it alone to restyle ticket links without restating "commit".
+#   # Overridable keys: title, subtitle (document-level, fire once — see below), release_header,
+#   # group, commit, ticket, contributor, footer (+ the structural contributors, stats,
+#   # changelog, release_notes for whole-section control). ticket renders one commits.tickets
+#   # match within a commit line — override it alone to restyle ticket links without restating
+#   # "commit". title/subtitle execute against .Heraut's own fields directly (.Version .URL
+#   # .GeneratedAt) — not the full release data, and not .Heraut.Version like every other block.
 #   # Data & funcs: see the native template contract in the docs. Precedence:
 #   # built-in -> rendering.templates (global) -> <driver>.rendering.templates ->
 #   # environments.<env>.<driver>.rendering.templates -> <driver>.template file.
 #   templates:
+#     title: "# MyApp Changelog"
+#     subtitle: "All notable changes, by version."
+#     release_header: '## [{{ .Version }}]'
 #     commit: '- {{ .Description }} ({{ .ShortHash }})'
 #     ticket: '🎫[{{ .Text }}]({{ .Href }})'
 #     contributor: '* @{{ .Author.Username }} — first contribution 🎉'
@@ -298,7 +303,7 @@ changelog:
   # without touching release notes (or vice-versa). See the global rendering block above.
   # rendering:
   #   templates:
-  #     header: "# Changelog\n\nAll notable changes to this project.\n"
+  #     title: "# Changelog\n\nAll notable changes to this project.\n"
 
   # PR/MR enrichment for the changelog's commit history is sourced from the top-level
   # forges: block plus commits.enrichment_forge / commits.enrichment_policy above — see
