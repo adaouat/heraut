@@ -1,0 +1,13 @@
+version: "1"
+
+versioning:
+  strategy: calver-per-env
+  format: "YYYY.MM.PATCH"
+
+changelog:
+  output: "CHANGELOG_{YYYY}.md"
+
+environments:
+  dev:
+    tag_format: "dev/{version}"
+    bump: auto

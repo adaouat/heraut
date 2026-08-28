@@ -599,6 +599,8 @@ func TestValidate_validFixtures(t *testing.T) {
 		"../../testdata/config/valid/semver-per-env.yml",
 		"../../testdata/config/valid/calver-per-env.yml",
 		"../../testdata/config/valid/platform-base-url.yml",
+		"../../testdata/config/valid/changelog-rotation-calver.yml",
+		"../../testdata/config/valid/changelog-rotation-semver.yml",
 	}
 	for _, path := range fixtures {
 		t.Run(path, func(t *testing.T) {
@@ -639,6 +641,21 @@ func TestValidate_invalidFixtures(t *testing.T) {
 			fixture:     "../../testdata/config/invalid/source_ambiguous.yml",
 			wantPath:    "environments.prod.source",
 			wantMessage: "ambiguous",
+		},
+		{
+			fixture:     "../../testdata/config/invalid/changelog_rotation_wrong_family.yml",
+			wantPath:    "changelog.output",
+			wantMessage: "YYYY",
+		},
+		{
+			fixture:     "../../testdata/config/invalid/changelog_rotation_not_prefix.yml",
+			wantPath:    "changelog.output",
+			wantMessage: "prefix",
+		},
+		{
+			fixture:     "../../testdata/config/invalid/changelog_rotation_per_env.yml",
+			wantPath:    "changelog.output",
+			wantMessage: "per-env",
 		},
 	}
 	for _, tc := range tests {
@@ -1014,4 +1031,167 @@ versioning:
   strategy: semver
 `)
 	assert.Empty(t, config.Validate(cfg))
+}
+
+// ── changelog rotation tokens (T246) ─────────────────────────────────────────
+
+func TestValidate_rotationOutput_NoTokens_Valid(t *testing.T) {
+	cfg := mustLoad(t, `
+version: "1"
+versioning:
+  strategy: semver
+changelog:
+  output: CHANGELOG.md
+`)
+	assert.Empty(t, config.Validate(cfg))
+}
+
+func TestValidate_rotationOutput_CalverSingleToken_Valid(t *testing.T) {
+	cfg := mustLoad(t, `
+version: "1"
+versioning:
+  strategy: calver
+  format: "YYYY.MM.PATCH"
+changelog:
+  output: "CHANGELOG_{YYYY}.md"
+`)
+	assert.Empty(t, config.Validate(cfg))
+}
+
+func TestValidate_rotationOutput_CalverMultiToken_Valid(t *testing.T) {
+	cfg := mustLoad(t, `
+version: "1"
+versioning:
+  strategy: calver
+  format: "YYYY.MM.PATCH"
+changelog:
+  output: "CHANGELOG_{YYYY}_{MM}.md"
+`)
+	assert.Empty(t, config.Validate(cfg))
+}
+
+func TestValidate_rotationOutput_CalverNotAPrefix_Error(t *testing.T) {
+	cfg := mustLoad(t, `
+version: "1"
+versioning:
+  strategy: calver
+  format: "YYYY.MM.PATCH"
+changelog:
+  output: "CHANGELOG_{MM}.md"
+`)
+	e := findErr(config.Validate(cfg), "changelog.output")
+	require.NotNil(t, e)
+	assert.Contains(t, e.Message, "prefix")
+}
+
+func TestValidate_rotationOutput_CalverTokenNotInFormat_Error(t *testing.T) {
+	cfg := mustLoad(t, `
+version: "1"
+versioning:
+  strategy: calver
+  format: "YYYY.MM.PATCH"
+changelog:
+  output: "CHANGELOG_{QQ}.md"
+`)
+	e := findErr(config.Validate(cfg), "changelog.output")
+	require.NotNil(t, e)
+	assert.Contains(t, e.Message, "QQ")
+}
+
+func TestValidate_rotationOutput_CalverDuplicateToken_Error(t *testing.T) {
+	cfg := mustLoad(t, `
+version: "1"
+versioning:
+  strategy: calver
+  format: "YYYY.MM.PATCH"
+changelog:
+  output: "CHANGELOG_{YYYY}_{YYYY}.md"
+`)
+	e := findErr(config.Validate(cfg), "changelog.output")
+	require.NotNil(t, e)
+	assert.Contains(t, e.Message, "once")
+}
+
+func TestValidate_rotationOutput_SemverMajorOnly_Valid(t *testing.T) {
+	cfg := mustLoad(t, `
+version: "1"
+versioning:
+  strategy: semver
+changelog:
+  output: "CHANGELOG_{MAJOR}.md"
+`)
+	assert.Empty(t, config.Validate(cfg))
+}
+
+func TestValidate_rotationOutput_SemverMajorMinor_Valid(t *testing.T) {
+	cfg := mustLoad(t, `
+version: "1"
+versioning:
+  strategy: semver
+changelog:
+  output: "CHANGELOG_{MAJOR}_{MINOR}.md"
+`)
+	assert.Empty(t, config.Validate(cfg))
+}
+
+func TestValidate_rotationOutput_SemverMinorAlone_Error(t *testing.T) {
+	cfg := mustLoad(t, `
+version: "1"
+versioning:
+  strategy: semver
+changelog:
+  output: "CHANGELOG_{MINOR}.md"
+`)
+	e := findErr(config.Validate(cfg), "changelog.output")
+	require.NotNil(t, e)
+	assert.Contains(t, e.Message, "MAJOR")
+}
+
+func TestValidate_rotationOutput_WrongFamily_Error(t *testing.T) {
+	cfg := mustLoad(t, `
+version: "1"
+versioning:
+  strategy: semver
+changelog:
+  output: "CHANGELOG_{YYYY}.md"
+`)
+	e := findErr(config.Validate(cfg), "changelog.output")
+	require.NotNil(t, e)
+	assert.Contains(t, e.Message, "YYYY")
+}
+
+func TestValidate_rotationOutput_PerEnvStrategy_RootOutput_Error(t *testing.T) {
+	cfg := mustLoad(t, `
+version: "1"
+versioning:
+  strategy: calver-per-env
+  format: "YYYY.MM.PATCH"
+changelog:
+  output: "CHANGELOG_{YYYY}.md"
+environments:
+  dev:
+    tag_format: "dev/{version}"
+    bump: auto
+`)
+	e := findErr(config.Validate(cfg), "changelog.output")
+	require.NotNil(t, e)
+	assert.Contains(t, e.Message, "per-env")
+}
+
+func TestValidate_rotationOutput_PerEnvStrategy_EnvOutput_Error(t *testing.T) {
+	cfg := mustLoad(t, `
+version: "1"
+versioning:
+  strategy: calver-per-env
+  format: "YYYY.MM.PATCH"
+environments:
+  dev:
+    tag_format: "dev/{version}"
+    bump: auto
+    changelog:
+      output: "CHANGELOG_{YYYY}.md"
+`)
+	e := findErr(config.Validate(cfg), "environments.dev.changelog.output")
+	require.NotNil(t, e)
+	assert.Contains(t, e.Message, "per-env")
 }

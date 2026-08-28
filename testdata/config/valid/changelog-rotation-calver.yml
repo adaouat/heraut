@@ -1,0 +1,18 @@
+version: "1"
+
+versioning:
+  strategy: calver
+  format: "YYYY.MM.PATCH"
+  tag_prefix: ""
+
+changelog:
+  output: "CHANGELOG_{YYYY}.md"
+
+forges:
+  - name: gitlab
+    platform: gitlab
+
+release:
+  notes: {}
+  targets:
+    - forge: gitlab

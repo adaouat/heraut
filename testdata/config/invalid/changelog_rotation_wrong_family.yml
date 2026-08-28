@@ -1,0 +1,7 @@
+version: "1"
+
+versioning:
+  strategy: semver
+
+changelog:
+  output: "CHANGELOG_{YYYY}.md"

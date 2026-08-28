@@ -1,0 +1,8 @@
+version: "1"
+
+versioning:
+  strategy: calver
+  format: "YYYY.MM.PATCH"
+
+changelog:
+  output: "CHANGELOG_{MM}.md"

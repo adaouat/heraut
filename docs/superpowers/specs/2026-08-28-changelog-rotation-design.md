@@ -120,6 +120,18 @@ checks in `internal/config/validator.go`), a new check parses `{TOKEN}` placehol
 This means a broken rotation pattern is caught before a release ever runs, matching how strategy
 and enum validation already work — never surfaced for the first time mid-`heraut release`.
 
+> **Update (T246, 2026-08-28).** `internal/config` sits at the bottom of the layer graph and must
+> import nothing else from this repo, so this check cannot call §1's `calver.ValidateRotationTokens`
+> or reference `calver.TokenKind` — it reimplements a small, intentionally-duplicated token scanner
+> instead (`internal/config/changelog_rotation.go`), consistent with how the existing SPRINT check
+> in `validateStrategySpecific` already uses a crude `strings.Contains` rather than
+> `calver.ParseFormat`. One consequence: T244's "rotation boundary must be followed by a literal
+> separator" refinement needs literal-segment tracking that this lighter scanner doesn't do, so it
+> is **not** re-checked here — a config with an ambiguous boundary (e.g. `YYYYMM.PATCH` rotating by
+> `{YYYY}` alone) passes `heraut check config` but fails for real once §3's decorator calls
+> `calver.ValidateRotationTokens` at generate time. Accepted as a v1 gap for a rare format shape
+> rather than duplicating calver's full tokenizer across the layer wall.
+
 ### 3. Where substitution happens: a thin `port.Generator` decorator in `internal/app`, resolved at `Generate()` time
 
 Per the Problem section, the concrete output path can only be computed once the tag is resolved —

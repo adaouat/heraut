@@ -1,0 +1,21 @@
+version: "1"
+
+versioning:
+  strategy: semver
+  tag_prefix: "v"
+  initial_version: "0.1.0"
+  bump: auto
+
+changelog:
+  output: "CHANGELOG_{MAJOR}.md"
+
+forges:
+  - name: github
+    platform: github
+    repository: acme/widget
+    token_env: GH_TOKEN
+
+release:
+  notes: {}
+  targets:
+    - forge: github

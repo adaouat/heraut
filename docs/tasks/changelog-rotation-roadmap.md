@@ -36,7 +36,7 @@ scope for this pass (see design doc "Non-goals").
 |------|---------------------------------------------------------------------------------------|--------|
 | T244 | `calver`: generalize `periodKey` into a caller-scoped prefix-key + literal-prefix-regex helper | Done |
 | T245 | `semver`: add `MAJOR`/`MINOR` extraction helper                                        | Done |
-| T246 | `internal/config/validator.go`: static token-vocabulary + prefix-order + per-env-rejection checks | Not started |
+| T246 | `internal/config/validator.go`: static token-vocabulary + prefix-order + per-env-rejection checks | Done |
 | T247 | `internal/app`: `port.Generator` rotation decorator + wiring into `buildChangelogPipelineConfig` | Not started |
 | T248 | Integration test: real-git-repo rotation run across a simulated period boundary        | Not started |
 | T249 | Docs: `schema.json`, `docs/heraut.sample.yml`, spec, new ADR-0047                       | Not started |
@@ -114,7 +114,7 @@ or "MAJOR+MINOR" (never PATCH, per the design's goals), which is a T246 (config 
 check rather than something this package needs to gate itself. `go test ./...` and `hk check` both
 clean.
 
-#### `[ ]` T246: config validation — token vocabulary, prefix-order, per-env rejection
+#### `[x]` T246: config validation — token vocabulary, prefix-order, per-env rejection
 
 At `heraut check config` / load-time validation (`internal/config/validator.go`), parse `{TOKEN}`
 placeholders out of `changelog.output` (root and any per-env override) and reject:
@@ -130,6 +130,36 @@ invalid fixture per rejected case.
 
 **Files (expected):** `internal/config/validator.go` + `internal/config/validator_test.go` +
 `testdata/config/` fixtures. **Scope:** S. **Dependencies:** T244, T245.
+
+**Important correction found during implementation, worth flagging explicitly:** `internal/config`
+sits at the bottom of the layer graph and must import nothing else from this repo
+(`.claude/rules/coding.md`'s layer table) — it cannot call T244's `calver.ValidateRotationTokens`
+or reference `calver.TokenKind` at all. Confirmed this is a real, already-enforced wall (not a
+theoretical rule) by checking `validateStrategySpecific`'s existing SPRINT check, which uses a
+crude `strings.Contains(format, "SPRINT")` rather than `calver.ParseFormat` — `internal/config` has
+never had access to calver's real tokenizer. New `internal/config/changelog_rotation.go`
+reimplements a small, intentionally-duplicated token scanner (`calverTokenOrder`,
+`calverRotationTokens`, `semverRotationTokens`) rather than reusing T244/T245 directly, with a
+comment pointing at calver's `knownTokens` as the source of truth to keep in sync if it changes.
+One deliberate scope cut from this duplication: T244's "rotation boundary must be followed by a
+literal separator" refinement is **not** re-implemented here (it needs literal-segment tracking,
+not just keyword order) — that authoritative check still runs for real in T247, at the point the
+`internal/app` decorator calls `calver.ValidateRotationTokens` directly with a resolved version.
+This means a config with an ambiguous rotation boundary (e.g. `YYYYMM.PATCH` rotating by `{YYYY}`
+alone) currently passes `heraut check config` but fails at actual `heraut changelog`/`release` time
+— an acceptable v1 gap for a genuinely rare format shape, rather than deep-duplicating calver's full
+tokenizer across the layer wall for it.
+
+Wired into `validateEnums` (both the root `changelog.output` call site and the per-env loop, using
+the same already-merged effective driver `validateContentDriver` uses) rather than a top-level
+function that re-walks environments itself. Deliberately **not** wired into `release.notes`'
+`validateContentDriver` call sites — rotation is changelog-only (design doc's non-goals:
+`release.notes.output` is never written to disk). Five fixtures added: two valid
+(`changelog-rotation-calver.yml`, `changelog-rotation-semver.yml`) and three invalid
+(`changelog_rotation_wrong_family.yml`, `changelog_rotation_not_prefix.yml`,
+`changelog_rotation_per_env.yml`), plus inline `mustLoad`-based tests for the finer-grained cases
+(duplicate token, `{MINOR}` without `{MAJOR}`, multi-token valid combinations) matching the existing
+test file's mix of fixture- and inline-driven coverage. `go test ./...` and `hk check` both clean.
 
 #### `[ ]` T247: `internal/app` rotation decorator + wiring
 

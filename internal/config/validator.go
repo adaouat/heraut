@@ -465,6 +465,7 @@ func validateEnums(cfg *Config) []ValidationError {
 		})
 	}
 	errs = append(errs, validateContentDriver(cfg.Changelog, "changelog")...)
+	errs = append(errs, validateChangelogRotation(cfg.Changelog, cfg, "changelog")...)
 	errs = append(errs, validateRelease(cfg.Release, "release")...)
 	for envName, env := range cfg.Environments {
 		base := "environments." + envName
@@ -473,6 +474,7 @@ func validateEnums(cfg *Config) []ValidationError {
 		if env.Changelog != nil {
 			eff := MergeContentDriver(cfg.Changelog, env.Changelog)
 			errs = append(errs, validateContentDriver(eff, base+".changelog")...)
+			errs = append(errs, validateChangelogRotation(eff, cfg, base+".changelog")...)
 		}
 		errs = append(errs, validateEnvRelease(env.Release, cfg.Release, base+".release")...)
 	}
