@@ -314,6 +314,12 @@ which are always skipped. An invalid message exits with the Usage code (1); an i
 `.heraut.yml` (if one is present) exits with the Config code (2) — same semantic
 validation `heraut check config` runs.
 
+On success, prints a recap of the parsed commit — type, scope (when present), the
+breaking flag, the description, and any `commits.tickets` matches (matched text and
+resolved URL) found anywhere in the message, using the same matching
+[`heraut commit tickets`](#heraut-commit-tickets) applies. A skipped merge/fixup commit
+prints nothing, same as before this recap existed.
+
 heraut's own `.config/hk/config.pkl` `commit-msg` hook runs this command via
 `go run ./cmd/heraut commit verify --file {{ commit_msg_file }}` instead of `cog verify`.
 

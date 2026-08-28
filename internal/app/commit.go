@@ -7,6 +7,7 @@ import (
 
 	"github.com/adaouat/heraut/internal/config"
 	"github.com/adaouat/heraut/internal/conventionalcommit"
+	"github.com/adaouat/heraut/internal/generators/native"
 )
 
 // DefaultCommitTypes is the type allow-list applied when commits.types adds no overrides:
@@ -32,24 +33,50 @@ func AllowedCommitTypes(cfg *config.Config) []string {
 	return commitTypeNames(config.EffectiveTypes(user))
 }
 
+// CommitSummary is a verified commit's structural breakdown plus any detected
+// commits.tickets references, for `heraut commit verify`'s recap output (T242).
+type CommitSummary struct {
+	Type        string
+	Scope       string
+	Breaking    bool
+	Description string
+	Tickets     []native.TicketMatch
+}
+
 // VerifyCommit validates message against the conventional-commit grammar and the
 // configured (or default) type allow-list. Merge and fixup commits are always skipped,
-// unconditionally. cfg may be nil (no .heraut.yml present) — the default type list applies.
-func VerifyCommit(cfg *config.Config, message string) error {
+// unconditionally — nil, nil in that case, since there is no commit to summarize. cfg may
+// be nil (no .heraut.yml present) — the default type list applies and no tickets are
+// configured to match against.
+func VerifyCommit(cfg *config.Config, message string) (*CommitSummary, error) {
 	if conventionalcommit.IsMergeCommit(message) || conventionalcommit.IsFixupCommit(message) {
-		return nil
+		return nil, nil
 	}
 
 	c, err := conventionalcommit.Parse(message)
 	if err != nil {
-		return fmt.Errorf("validating commit message: %w", err)
+		return nil, fmt.Errorf("validating commit message: %w", err)
 	}
 
 	types := AllowedCommitTypes(cfg)
 	if !slices.Contains(types, c.Type) {
-		return fmt.Errorf("commit type %q is not allowed (allowed: %s)", c.Type, strings.Join(types, ", "))
+		return nil, fmt.Errorf("commit type %q is not allowed (allowed: %s)", c.Type, strings.Join(types, ", "))
 	}
-	return verifyScope(cfg, c.Scope)
+	if err := verifyScope(cfg, c.Scope); err != nil {
+		return nil, err
+	}
+
+	var tickets []config.Ticket
+	if cfg != nil {
+		tickets = cfg.Tickets()
+	}
+	return &CommitSummary{
+		Type:        c.Type,
+		Scope:       c.Scope,
+		Breaking:    c.Breaking,
+		Description: c.Description,
+		Tickets:     native.MatchTickets(message, tickets),
+	}, nil
 }
 
 // verifyScope rejects a scope outside commits.scopes when scopes_restricted is true. A commit

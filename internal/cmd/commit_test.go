@@ -130,6 +130,36 @@ commits:
 	assert.Contains(t, err.Error(), "error(s) in config")
 }
 
+// TestCommitVerify_PrintsRecap covers T242: a successfully verified commit prints a
+// cocogitto-style recap (type/scope/breaking/description/tickets) instead of exiting
+// silently.
+func TestCommitVerify_PrintsRecap(t *testing.T) {
+	cfgPath := writeConfig(t, `
+version: "1"
+versioning:
+  strategy: semver
+commits:
+  tickets:
+    - pattern: 'PROJ-([0-9]+)'
+      url: 'https://jira.example.com/browse/PROJ-{ticket}'
+`)
+	out, err := executeRoot("commit", "verify", "fix(cmd)!: resolve PROJ-42", "--config", cfgPath)
+	require.NoError(t, err)
+	assert.Contains(t, out, "type:        fix")
+	assert.Contains(t, out, "scope:       cmd")
+	assert.Contains(t, out, "breaking:    true")
+	assert.Contains(t, out, "description: resolve PROJ-42")
+	assert.Contains(t, out, "PROJ-42 (https://jira.example.com/browse/PROJ-42)")
+}
+
+// TestCommitVerify_MergeCommit_NoRecap covers the flip side: a skipped merge/fixup commit
+// prints nothing, matching the pre-T242 silent-success behavior for those.
+func TestCommitVerify_MergeCommit_NoRecap(t *testing.T) {
+	out, err := executeRoot("commit", "verify", "Merge branch 'main' into feature/x")
+	require.NoError(t, err)
+	assert.Empty(t, out)
+}
+
 func TestCommitCheck_NonGitDirectory_ErrorsWithUsageExit(t *testing.T) {
 	dir := t.TempDir()
 	t.Chdir(dir)

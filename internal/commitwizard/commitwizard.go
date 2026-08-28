@@ -150,7 +150,7 @@ func optionLabel(name, description string) string {
 func finalize(r port.Runner, cfg *config.Config, a Answers, opts Options, confirm func(out io.Writer, msg string) (bool, error)) error {
 	msg := Assemble(a).Format()
 
-	if err := app.VerifyCommit(cfg, msg); err != nil {
+	if _, err := app.VerifyCommit(cfg, msg); err != nil {
 		return fmt.Errorf("assembled message failed validation: %w", err)
 	}
 

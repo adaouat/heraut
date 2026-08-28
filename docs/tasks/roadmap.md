@@ -5405,7 +5405,7 @@ this command answers "will this actually get linked" rather than a subtly differ
 
 ---
 
-#### `[ ]` T242: `heraut commit verify` — cocogitto-style recap output
+#### `[x]` T242: `heraut commit verify` — cocogitto-style recap output
 
 `app.VerifyCommit` (`internal/app/commit.go`) already parses the message into a full
 `*conventionalcommit.Commit` (`Type`, `Scope`, `Breaking`, `Description`, `Body`, `Footers`) but
@@ -5425,6 +5425,23 @@ looks.
 **Files (expected):** `internal/app/commit.go`, `internal/cmd/commit.go`, `internal/ui/`,
 possibly `internal/commitwizard/` (+ tests). **Scope:** S–M. **Dependencies:** soft overlap with
 T241 (ticket-matcher export) — land in either order.
+
+Checked `commitwizard`'s existing "preview + confirm" step first, as scoped: it prints the raw
+**assembled message text** (`fmt.Fprintln(opts.Out, msg)`), not a structured field breakdown —
+already the right thing for confirming exactly what will be committed, and not something this
+recap should replace or unify with; the two views answer different questions. No reuse needed.
+
+Changed `VerifyCommit`'s signature to `(*CommitSummary, error)` — `CommitSummary` holds
+`Type`/`Scope`/`Breaking`/`Description` plus `Tickets []native.TicketMatch` (T241's export,
+matched against the full message text). `nil, nil` for a skipped merge/fixup commit, preserving
+the exact prior silent-success behavior for those. Updated the two other call sites
+(`CheckCommitRange`, `commitwizard.finalize`) to discard the summary and keep only the error — both
+only ever needed the error. `internal/cmd/commit.go`'s new `printCommitSummary` accesses
+`s.Tickets[i].Text`/`.Href` via type inference without importing `internal/generators/native`
+directly, same pattern as T241's printer. Rewrote all ~18 existing `VerifyCommit` call sites in
+`internal/app/commit_test.go` to the two-return-value form, preserving every existing assertion
+unchanged — a mechanical signature migration, not a loosened test. `go test ./...` and `hk check`
+both clean.
 
 ---
 

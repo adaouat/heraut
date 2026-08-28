@@ -70,10 +70,11 @@ func CheckCommitRange(runner port.Runner, cfg *config.Config, revRange string) (
 		if len(fields) != 3 {
 			continue
 		}
+		_, err := VerifyCommit(cfg, fields[2])
 		results = append(results, CommitCheckResult{
 			SHA:     fields[0],
 			Subject: fields[1],
-			Err:     VerifyCommit(cfg, fields[2]),
+			Err:     err,
 		})
 	}
 	return results, nil

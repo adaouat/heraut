@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"strings"
 
 	execadapter "github.com/adaouat/forge/exec"
 	"github.com/spf13/cobra"
@@ -57,9 +58,11 @@ func newCommitVerifyCmd() *cobra.Command {
 				}
 			}
 
-			if err := app.VerifyCommit(cfg, message); err != nil {
+			summary, err := app.VerifyCommit(cfg, message)
+			if err != nil {
 				return exitcode.Wrap(exitcode.Usage, err)
 			}
+			printCommitSummary(summary, cmd.OutOrStdout())
 			return nil
 		},
 	}
@@ -258,6 +261,30 @@ func printTicketCheckResults(results []app.TicketCheckResult, verbose bool, out 
 		return
 	}
 	_, _ = fmt.Fprintf(out, "%d ticket reference(s) found across %d commit(s) analysed.\n", total, len(results))
+}
+
+// printCommitSummary prints a cocogitto-style recap of a successfully verified commit:
+// type, scope, breaking, description, and any detected commits.tickets references. nil
+// summary (a skipped merge/fixup commit) prints nothing, preserving the previous silent
+// success behavior for those.
+func printCommitSummary(s *app.CommitSummary, out io.Writer) {
+	if s == nil {
+		return
+	}
+	_, _ = fmt.Fprintln(out, ui.Success(out, "commit message is valid"))
+	_, _ = fmt.Fprintf(out, "  type:        %s\n", s.Type)
+	if s.Scope != "" {
+		_, _ = fmt.Fprintf(out, "  scope:       %s\n", s.Scope)
+	}
+	_, _ = fmt.Fprintf(out, "  breaking:    %t\n", s.Breaking)
+	_, _ = fmt.Fprintf(out, "  description: %s\n", s.Description)
+	if len(s.Tickets) > 0 {
+		refs := make([]string, len(s.Tickets))
+		for i, t := range s.Tickets {
+			refs[i] = fmt.Sprintf("%s (%s)", t.Text, t.Href)
+		}
+		_, _ = fmt.Fprintf(out, "  tickets:     %s\n", strings.Join(refs, ", "))
+	}
 }
 
 func printCommitCheckResults(results []app.CommitCheckResult, verbose bool, out io.Writer) int {
