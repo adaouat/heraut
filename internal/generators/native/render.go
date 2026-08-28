@@ -36,8 +36,8 @@ type statsTicketLink struct {
 // ─── render entry points ─────────────────────────────────────────────────────
 
 // renderChangelogSection renders a single release section for a CHANGELOG.md.
-// The returned string is trimmed of leading/trailing whitespace so T125 can join
-// multiple sections with "\n\n" and prepend changelogHeader.
+// The returned string is trimmed of leading/trailing whitespace so buildAllSections can join
+// multiple sections and prepend the rendered title/subtitle preamble (renderPreamble).
 //
 // version and previousVersion are raw tag strings (e.g. "v1.2.3"). When lc is nil,
 // commit lines show bare 7-char hashes (no Markdown link) and the heading omits the
@@ -92,7 +92,7 @@ func renderReleaseNotes(
 	rel := buildRelease(version, previousVersion, releaseDate, prevReleaseDate, groups, lc, tickets, typesHeadingLevel, prs, contributors, heraut)
 	preamble, err := renderPreamble(releaseNotesTmpl, snippets, templateFile, heraut)
 	if err != nil {
-		return "", fmt.Errorf("rendering release notes title: %w", err)
+		return "", fmt.Errorf("rendering release notes preamble: %w", err)
 	}
 	out, err := execBlocks("release_notes", releaseNotesTmpl, snippets, templateFile, rel)
 	if err != nil {
@@ -280,11 +280,11 @@ func execPreambleBlock(name, rootTmpl string, snippets map[string]string, templa
 func renderPreamble(rootTmpl string, snippets map[string]string, templateFile string, heraut tplHeraut) (string, error) {
 	title, err := execPreambleBlock("title", rootTmpl, snippets, templateFile, heraut)
 	if err != nil {
-		return "", fmt.Errorf("rendering title: %w", err)
+		return "", err
 	}
 	subtitle, err := execPreambleBlock("subtitle", rootTmpl, snippets, templateFile, heraut)
 	if err != nil {
-		return "", fmt.Errorf("rendering subtitle: %w", err)
+		return "", err
 	}
 	var parts []string
 	if t := strings.TrimSpace(title); t != "" {

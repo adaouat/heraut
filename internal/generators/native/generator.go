@@ -204,7 +204,7 @@ func (g *Generator) buildAllSections(tag string, lc *port.LinkContext, enrichAll
 
 	preamble, err := renderPreamble(changelogTmpl, g.cfg.EffectiveTemplates, g.cfg.Template, g.herautMeta())
 	if err != nil {
-		return "", fmt.Errorf("rendering changelog title: %w", err)
+		return "", fmt.Errorf("rendering changelog preamble: %w", err)
 	}
 
 	var blocks []string
