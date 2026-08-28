@@ -41,7 +41,7 @@ func newVersionNextCmd() *cobra.Command {
 			}
 
 			if errs := config.Validate(cfg); len(errs) > 0 {
-				printConfigErrors(errs, cmd.OutOrStdout())
+				printConfigErrors(errs, cmd.ErrOrStderr())
 				return exitcode.Wrap(exitcode.Config, fmt.Errorf("%d error(s) in config", len(errs)))
 			}
 
@@ -90,7 +90,7 @@ func newVersionCurrentCmd() *cobra.Command {
 			}
 
 			if errs := config.Validate(cfg); len(errs) > 0 {
-				printConfigErrors(errs, cmd.OutOrStdout())
+				printConfigErrors(errs, cmd.ErrOrStderr())
 				return exitcode.Wrap(exitcode.Config, fmt.Errorf("%d error(s) in config", len(errs)))
 			}
 

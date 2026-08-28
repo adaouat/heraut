@@ -344,6 +344,51 @@ echo ""
 	assert.Contains(t, out, "cycle detected")
 }
 
+// executeRootSeparateStreams is like executeRoot but keeps stdout and stderr apart, so a
+// test can assert which stream error output actually landed on — executeRoot merges both
+// into one buffer and can't distinguish them. SilenceUsage/SilenceErrors are set to mirror
+// what fang.Execute (the real cmd/heraut/main.go entry point, via forge/cli.Run) does in
+// production; without them, cobra's own default of dumping the usage block to stdout on
+// any error would masquerade as a bug this test is trying to catch.
+func executeRootSeparateStreams(args ...string) (stdout, stderr string, err error) {
+	root := cmd.NewRootCmd("dev")
+	root.SilenceUsage = true
+	root.SilenceErrors = true
+	var outBuf, errBuf bytes.Buffer
+	root.SetOut(&outBuf)
+	root.SetErr(&errBuf)
+	root.SetArgs(args)
+	_, err = root.ExecuteC()
+	return outBuf.String(), errBuf.String(), err
+}
+
+// TestVersionNext_InvalidConfig_ErrorsOnStderr covers nit #44 from the docs audit: version
+// next/current are meant to print a clean value to stdout for scripts to capture
+// (VERSION=$(heraut version next)) — a config error must not land on stdout, or a script
+// would capture the error text as if it were the version. release/changelog already write
+// config errors to stderr; version next/current must match.
+func TestVersionNext_InvalidConfig_ErrorsOnStderr(t *testing.T) {
+	cfgPath := writeConfig(t, cyclicPerEnvConfig())
+	exectest.FakeBin(t, "git", `#!/bin/sh
+echo ""
+`)
+	stdout, stderr, err := executeRootSeparateStreams("version", "next", "--config", cfgPath, "--env", "prod")
+	require.Error(t, err)
+	assert.Empty(t, stdout, "config errors must not pollute stdout")
+	assert.Contains(t, stderr, "cycle detected")
+}
+
+func TestVersionCurrent_InvalidConfig_ErrorsOnStderr(t *testing.T) {
+	cfgPath := writeConfig(t, cyclicPerEnvConfig())
+	exectest.FakeBin(t, "git", `#!/bin/sh
+echo ""
+`)
+	stdout, stderr, err := executeRootSeparateStreams("version", "current", "--config", cfgPath, "--env", "prod")
+	require.Error(t, err)
+	assert.Empty(t, stdout, "config errors must not pollute stdout")
+	assert.Contains(t, stderr, "cycle detected")
+}
+
 // ---- version sprint bump ----
 
 func TestVersionSprintBump_IncrementsValue(t *testing.T) {
