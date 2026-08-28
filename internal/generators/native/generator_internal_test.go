@@ -264,7 +264,7 @@ func TestGenerate_TemplateFileOverride(t *testing.T) {
 	dir := t.TempDir()
 	file := filepath.Join(dir, "notes.tmpl")
 	require.NoError(t, os.WriteFile(file, []byte(
-		`{{ define "release-notes" }}FILE-NOTES{{ range .Groups }}{{ range .Commits }}
+		`{{ define "release_notes" }}FILE-NOTES{{ range .Groups }}{{ range .Commits }}
 - {{ .Description }}{{ end }}{{ end }}{{ end }}`), 0o644))
 
 	mr := exectest.NewMockRunner()
@@ -412,7 +412,7 @@ func TestGenerateChangelog_IncrementalWithCustomHeader(t *testing.T) {
 	mr.QueueResponse(record("bbb2222222", "B", "b@x", "2026-02-01T00:00:00Z", "feat: new", ""), "", nil)
 	g := New(mr, &config.ContentDriver{
 		Output:             out,
-		EffectiveTemplates: map[string]string{"header": "=== {{ .Version }} ==="},
+		EffectiveTemplates: map[string]string{"release_header": "=== {{ .Version }} ==="},
 	}, ModeChangelog)
 
 	body, err := g.Generate("v1.1.0", nil)

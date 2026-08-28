@@ -1,5 +1,5 @@
-{{define "header"}}{{end}}
-{{define "release-notes"}}{{ template "header" . }}{{range .Groups}}{{ template "group" . }}
+{{define "release_header"}}{{end}}
+{{define "release_notes"}}{{ template "release_header" . }}{{range .Groups}}{{ template "group" . }}
 {{range .Commits}}
 {{ template "commit" . }}{{ if .Body }}
 

@@ -94,7 +94,7 @@ func renderReleaseNotes(
 	templateFile string,
 ) (string, error) {
 	rel := buildRelease(version, previousVersion, releaseDate, prevReleaseDate, groups, lc, tickets, typesHeadingLevel, prs, contributors, heraut)
-	out, err := execBlocks("release-notes", releaseNotesTmpl, snippets, templateFile, rel)
+	out, err := execBlocks("release_notes", releaseNotesTmpl, snippets, templateFile, rel)
 	if err != nil {
 		return "", fmt.Errorf("rendering release notes: %w", err)
 	}

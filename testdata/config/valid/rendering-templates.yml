@@ -12,4 +12,4 @@ rendering:
   templates:
     commit: "- {{ .Description }} ({{ .ShortHash }})"
     group: "{{ .HeadingPrefix }} {{ .Name }}"
-    release-notes: '{{range .Groups}}{{ template "group" . }}{{end}}'
+    release_notes: '{{range .Groups}}{{ template "group" . }}{{end}}'

@@ -178,12 +178,12 @@
         },
         "templates": {
           "type": "object",
-          "description": "Override built-in native template blocks. Each value is a Go text/template snippet. native only; deep-merged global -> per-driver -> per-env (ADR-0037).",
+          "description": "Override built-in native template blocks. Each value is a Go text/template snippet. native only; deep-merged global -> per-driver -> per-env (ADR-0037, ADR-0048).",
           "additionalProperties": false,
           "properties": {
-            "header": {
+            "release_header": {
               "type": "string",
-              "description": "Version heading line. Changelog default: '## [version](compare-url) - date'. Release-notes default: empty."
+              "description": "One release's version heading, fired once per rendered release. Changelog default: '## [version](compare-url) - date'. Release-notes default: empty."
             },
             "group": {
               "type": "string",
@@ -215,11 +215,11 @@
             },
             "changelog": {
               "type": "string",
-              "description": "Root changelog-section template composing header, group, and commit blocks."
+              "description": "Root changelog-section template composing release_header, group, and commit blocks."
             },
-            "release-notes": {
+            "release_notes": {
               "type": "string",
-              "description": "Root release-notes template composing header, group, commit, contributors, and stats blocks."
+              "description": "Root release-notes template composing release_header, group, commit, contributors, and stats blocks."
             }
           }
         }

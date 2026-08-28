@@ -850,8 +850,36 @@ rendering:
 	assert.Contains(t, e.Message, "unknown template block")
 }
 
-// release-notes (hyphenated) is a valid overridable block — guard against a naive [a-z_] key check.
-func TestValidate_RenderingTemplatesHyphenatedBlockValid(t *testing.T) {
+func TestValidate_RenderingTemplatesRenamedBlocksValid(t *testing.T) {
+	cfg := mustLoad(t, `
+version: "1"
+versioning:
+  strategy: semver
+rendering:
+  templates:
+    release_header: "## [{{ .Version }}]"
+    release_notes: "{{range .Groups}}{{ template \"group\" . }}{{end}}"
+`)
+	assert.Empty(t, config.Validate(cfg))
+}
+
+// The pre-rename block names are config errors after ADR-0048 — no deprecated-alias shim.
+func TestValidate_RenderingTemplatesOldHeaderKeyRejected(t *testing.T) {
+	cfg := mustLoad(t, `
+version: "1"
+versioning:
+  strategy: semver
+rendering:
+  templates:
+    header: "## [{{ .Version }}]"
+`)
+	e := findErr(config.Validate(cfg), "rendering.templates.header")
+	require.NotNil(t, e)
+	assert.Contains(t, e.Message, "unknown template block")
+	assert.Contains(t, e.Hint, "release_header")
+}
+
+func TestValidate_RenderingTemplatesOldHyphenatedReleaseNotesKeyRejected(t *testing.T) {
 	cfg := mustLoad(t, `
 version: "1"
 versioning:
@@ -860,7 +888,10 @@ rendering:
   templates:
     release-notes: "{{range .Groups}}{{ template \"group\" . }}{{end}}"
 `)
-	assert.Empty(t, config.Validate(cfg))
+	e := findErr(config.Validate(cfg), "rendering.templates.release-notes")
+	require.NotNil(t, e)
+	assert.Contains(t, e.Message, "unknown template block")
+	assert.Contains(t, e.Hint, "release_notes")
 }
 
 func TestValidate_DriverTemplateFileMissing(t *testing.T) {

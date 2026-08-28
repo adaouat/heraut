@@ -5510,6 +5510,20 @@ Design: [`docs/superpowers/specs/2026-08-28-changelog-rotation-design.md`](../su
 
 ---
 
+### Phase 30 — Changelog/release-notes title & subtitle blocks
+
+Renames the native generator's `header` template block to `release_header` (it fires once per
+rendered release, not once per document — the old name was confusing enough to hide a real gap)
+and `release-notes` to `release_notes` (separator consistency across every block key). Adds new
+`title`/`subtitle` blocks that fire exactly once per document, closing the gap where the
+changelog's `# Changelog` line was a hardcoded Go constant unreachable from any template override.
+New ADR-0048 (supersedes the block-set table in ADR-0037). Five tasks (rename → changelog
+title/subtitle → release-notes title/subtitle → docs → roadmap close-out).
+
+Design: [`docs/superpowers/specs/2026-08-28-changelog-title-subtitle-design.md`](../superpowers/specs/2026-08-28-changelog-title-subtitle-design.md).
+
+---
+
 ## Risks and mitigations
 
 | Risk                                                                                | Impact            | Mitigation                                                                |
