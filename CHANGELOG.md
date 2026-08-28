@@ -1,5 +1,98 @@
 # Changelog
 
+<!-- heraut-release: v0.59.0 -->
+## [0.59.0](https://github.com/adaouat/heraut/compare/v0.58.0..v0.59.0) - 2026-08-28
+
+### 🚀 Features
+
+- *(app,cmd)* Cocogitto-style recap on heraut commit verify - ([0fbf8cd](https://github.com/adaouat/heraut/commit/0fbf8cd2d195bcbafe9e88c75a607f2324304f6d)) by @bchatard
+
+- *(app,pipeline)* Resolve rotating changelog output at generate time - ([992d692](https://github.com/adaouat/heraut/commit/992d6922f7e628b77161840aa009b8ae7f26764e)) by @bchatard
+
+- *(cmd,app,generators/native)* Add heraut commit tickets - ([079c769](https://github.com/adaouat/heraut/commit/079c769afa83f90cc6730180e255b9d92af9bfc2)) by @bchatard
+
+- *(config)* Validate rotation tokens in changelog.output - ([3dbb183](https://github.com/adaouat/heraut/commit/3dbb1838e845c7bb914d52e39c1fcc815eb8ccef)) by @bchatard
+
+- *(config,app)* Add versioning.commit_message - ([92ff020](https://github.com/adaouat/heraut/commit/92ff0205fd563fe68fb094ca7f3a356d4cbdea9a)) by @bchatard
+
+- *(generators/native)* Add dedicated ticket template block - ([1b3847a](https://github.com/adaouat/heraut/commit/1b3847a701832af701e036f41d69702614a59189)) by @bchatard
+
+- *(versioning/calver)* Add rotation bucket-key + tag-scoping regex helpers - ([e482873](https://github.com/adaouat/heraut/commit/e482873df1cf7de461b43953ec7555bf924c4849)) by @bchatard
+
+- *(versioning/semver)* Add MAJOR/MINOR extraction helper - ([b226cdb](https://github.com/adaouat/heraut/commit/b226cdb0d67a1969e0e63868c13617f5e1fc7e51)) by @bchatard
+
+
+### 🐛 Bug Fixes
+
+- *(app)* Treat driver-less forges as non-resolvable publish targets - ([b99b840](https://github.com/adaouat/heraut/commit/b99b8404f6032415bf9df4841da8a78f3ece2fe2)) by @bchatard
+
+- *(app)* Apply tag_prefix/tag_format to --version and --build overrides - ([648a08b](https://github.com/adaouat/heraut/commit/648a08bb12a7bc710a6a4f607c3e9016af29ed96)) by @bchatard
+
+- *(app)* Make target-declared release assets lenient too - ([35c3119](https://github.com/adaouat/heraut/commit/35c3119cb306375d9caefd6de70bba6641765ade)) by @bchatard
+
+- *(app)* Wire up per-driver rendering.excludes - ([d50b8b5](https://github.com/adaouat/heraut/commit/d50b8b5b9586e1aad60b1f428ca75872a0f2e6e5)) by @bchatard
+
+- *(cmd)* Require --force to overwrite an existing config with init --defaults - ([b203628](https://github.com/adaouat/heraut/commit/b203628e5780a08e552beef8e488e97eab07445e)) by @bchatard
+
+- *(cmd)* Print version next/current config errors to stderr - ([a8e5d07](https://github.com/adaouat/heraut/commit/a8e5d070760f40226c5069f2e5d4a88287976101)) by @bchatard
+
+- *(cmd)* Stop repeating the detailed error in fang's error panel - ([a23eafd](https://github.com/adaouat/heraut/commit/a23eafd98e0776fd7b45c486e071db703596812e)) by @bchatard
+
+- *(config)* Validate root versioning.bump enum and sprint requiredness - ([6bfa750](https://github.com/adaouat/heraut/commit/6bfa750edb49e86abfb7ef02ab768b36a0bad4cd)) by @bchatard
+
+- *(config,app)* Default-populate per-env release.notes (ADR-0046 gap) - ([bc52c66](https://github.com/adaouat/heraut/commit/bc52c668b25c2ca6276edf13f40a004ba5726e9b)) by @bchatard
+
+- *(versioning/perenv)* Skip pre-release tags when promoting - ([2f32b1a](https://github.com/adaouat/heraut/commit/2f32b1abf230fd4c92a2ee8f72f98527bc05486d)) by @bchatard
+
+
+### 📚 Documentation
+
+- *(adr)* Reconcile README index and stale ADR bodies - ([5589f6d](https://github.com/adaouat/heraut/commit/5589f6debc4bd6c7f4588c1c970a9c915fb70f0a)) by @bchatard
+
+- *(adr)* Document changelog rotation — schema, sample, spec, ADR-0047 - ([93f6d58](https://github.com/adaouat/heraut/commit/93f6d586f3fe8e74c65a91a8aabfe2aaf0d2eb5f)) by @bchatard
+
+- *(roadmap)* File T221 — publish-target driver-support awareness - ([ba7d887](https://github.com/adaouat/heraut/commit/ba7d8876e0ad3c0805a5873f354e61e12675b76f)) by @bchatard
+
+- *(roadmap)* File T222-T238 — documentation vs. code audit reconciliation - ([0ce48a7](https://github.com/adaouat/heraut/commit/0ce48a7c691dd2f61988ee83bd11833072a76d10)) by @bchatard
+
+- *(roadmap)* Fix stale overview - cog, three generators, cliff tooling - ([9887c14](https://github.com/adaouat/heraut/commit/9887c1443ab32b475cf3c981ef95f0d0128c68c5)) by @bchatard
+
+- *(roadmap)* Replace stale Architecture section with a CLAUDE.md pointer - ([1c70b36](https://github.com/adaouat/heraut/commit/1c70b36a59013e4d5b6e87e3bf4b687be413bf2a)) by @bchatard
+
+- *(roadmap)* File T239-T243 - commit tooling enhancements - ([6022a43](https://github.com/adaouat/heraut/commit/6022a43ce798d856b74ac9a1716b3c6369acc188)) by @bchatard
+
+- *(roadmap)* Settle T243 design — rotating changelog file naming - ([6c4015f](https://github.com/adaouat/heraut/commit/6c4015f9cbd1506bf9e785201e721d3bf0e87081)) by @bchatard
+
+- *(rules)* Reconcile .claude/rules with current architecture - ([75ba74a](https://github.com/adaouat/heraut/commit/75ba74aa6e82e762faaef96b65cb32b0519fc181)) by @bchatard
+
+- *(schema)* Fix stale ScopeRule.remove and git-cliff references - ([4d3b988](https://github.com/adaouat/heraut/commit/4d3b9889e9b8caa6c08ea53535ed33d66a9cf1d9)) by @bchatard
+
+- *(specs)* Reconcile 01-overview.md with current architecture - ([7aa063c](https://github.com/adaouat/heraut/commit/7aa063c522437de97f817227f81e14ebeb2fe6df)) by @bchatard
+
+- *(specs)* Reconcile 02-configuration.md with current config model - ([60e0ea3](https://github.com/adaouat/heraut/commit/60e0ea3770ee919378cb4cf26f0bf3476abf1cbb)) by @bchatard
+
+- *(specs)* Reconcile 03-commands.md with current CLI behavior - ([e89f1c9](https://github.com/adaouat/heraut/commit/e89f1c9c849b0df263ead60ead10acc466c8928f)) by @bchatard
+
+- *(specs)* Reconcile 04-versioning.md with resolver behavior - ([6c44ac5](https://github.com/adaouat/heraut/commit/6c44ac58df8644dd054d4165b5ff0546ab6aa0ab)) by @bchatard
+
+- *(specs)* Reconcile 05-generators-and-platforms.md with current drivers - ([3a869ef](https://github.com/adaouat/heraut/commit/3a869efeccbb7630b4da4e7cbb53d5c738d549e6)) by @bchatard
+
+- *(specs)* Reconcile 06-dx-and-testing.md with current test/CI setup - ([5b349fe](https://github.com/adaouat/heraut/commit/5b349fe2d0584fb8e85a668cc8001448c3af7a65)) by @bchatard
+
+- Reconcile CLAUDE.md and README.md with current architecture - ([0c8d0ad](https://github.com/adaouat/heraut/commit/0c8d0ad9e53b76cfef640a266a6236ac9b21fe44)) by @bchatard
+
+- Fix remaining docs-audit nits (schema URL, check config, zero-config example) - ([9f1d71a](https://github.com/adaouat/heraut/commit/9f1d71a608448ba6e611bde0263d6b6559ba3a88)) by @bchatard
+
+
+### 🧪 Testing
+
+- *(app)* Real-git-repo proof of changelog rotation across a period boundary - ([79eb3d7](https://github.com/adaouat/heraut/commit/79eb3d7839c7a1d2a6bcf0b21c6ead2fcd341568)) by @bchatard
+
+
+### 💼 Other
+
+- Bump Go toolchain to 1.27, forge to v0.17.4 - ([427da07](https://github.com/adaouat/heraut/commit/427da0781da967ddeda7d121a7f76906e080db36)) by @bchatard
+
 <!-- heraut-release: v0.58.0 -->
 ## [0.58.0](https://github.com/adaouat/heraut/compare/v0.57.0..v0.58.0) - 2026-08-26
 
