@@ -147,27 +147,7 @@ func valuesFromTime(t time.Time, sprint int) Values {
 // the given values, based on which non-PATCH tokens appear in the format.
 // Two Values with the same period key are in the same period (PATCH increments).
 func periodKey(tokens []Token, v Values) string {
-	var parts []string
-	for _, t := range tokens {
-		switch t.Kind {
-		case KindYYYY:
-			parts = append(parts, fmt.Sprintf("%04d", v.Year))
-		case KindMM:
-			parts = append(parts, fmt.Sprintf("%02d", v.Month))
-		case KindDD:
-			parts = append(parts, fmt.Sprintf("%02d", v.Day))
-		case KindWW:
-			parts = append(parts, fmt.Sprintf("%02d", v.Week))
-		case KindQQ:
-			parts = append(parts, fmt.Sprintf("%d", v.Quarter))
-		case KindSS:
-			parts = append(parts, fmt.Sprintf("%d", v.Semester))
-		case KindSPRINT:
-			parts = append(parts, fmt.Sprintf("%d", v.Sprint))
-		}
-		// KindPATCH and KindLiteral are not part of the period key.
-	}
-	return strings.Join(parts, "|")
+	return bucketKey(nonPatchOrder(tokens), v)
 }
 
 func splitLines(s string) []string {

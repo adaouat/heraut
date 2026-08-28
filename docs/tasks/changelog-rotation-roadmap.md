@@ -34,7 +34,7 @@ scope for this pass (see design doc "Non-goals").
 
 | Task | Description                                                                          | Status |
 |------|---------------------------------------------------------------------------------------|--------|
-| T244 | `calver`: generalize `periodKey` into a caller-scoped prefix-key + literal-prefix-regex helper | Not started |
+| T244 | `calver`: generalize `periodKey` into a caller-scoped prefix-key + literal-prefix-regex helper | Done |
 | T245 | `semver`: add `MAJOR`/`MINOR` extraction helper                                        | Not started |
 | T246 | `internal/config/validator.go`: static token-vocabulary + prefix-order + per-env-rejection checks | Not started |
 | T247 | `internal/app`: `port.Generator` rotation decorator + wiring into `buildChangelogPipelineConfig` | Not started |
@@ -49,7 +49,7 @@ documents the settled behavior and lands last, alongside ADR-0047.
 
 ---
 
-#### `[ ]` T244: `calver` — caller-scoped prefix-key + literal-prefix-regex helper
+#### `[x]` T244: `calver` — caller-scoped prefix-key + literal-prefix-regex helper
 
 `internal/versioning/calver/resolver.go`'s existing `periodKey(tokens, values)` builds a key from
 *every* non-`PATCH`, non-literal token in the format, in format order — used today only for
@@ -68,6 +68,25 @@ tag-scoping derivable from the version string alone, no git-date lookups ever.
 
 **Files (expected):** `internal/versioning/calver/resolver.go` (or a new file in the same package)
 + tests. **Scope:** S. **Dependencies:** none.
+
+Landed as planned, plus one refinement found during implementation: `ValidateRotationTokens` also
+rejects a rotation boundary that isn't immediately followed by a literal separator in the format
+(e.g. `YYYYMM.PATCH` rotating by `{YYYY}` alone — `YYYY` runs straight into `MM` with no separating
+character). Without this, `BucketPattern` would need a generic non-digit-or-end fallback guard that
+can incorrectly reject a valid tag when the token right after the boundary has no separator before
+it either (traced through concretely: format `YYYY.MMPATCH` rotating by `{YYYY, MM}` would render
+patch values with no separator, e.g. `2026.055` for MM=05/PATCH=5, and the fallback guard rejects
+this even though it's in the right bucket). Rejecting the ambiguous case at validation time — a
+clear config error — was judged better than shipping a bucket-scoping regex that's correct only for
+some patch values. `BucketKey`/`BucketPattern` both call `ValidateRotationTokens` internally, so
+this same rule applies uniformly regardless of which one a caller reaches for.
+
+Refactored `RenderVersion` and the existing (unexported, previously untested-in-isolation)
+`periodKey` to share a new `renderToken(kind, Values) string` helper instead of duplicating the
+same per-token-kind switch three times (`RenderVersion`, `periodKey`, and the new
+`BucketKey`/`BucketPattern`) — a pure refactor, confirmed behavior-preserving by every pre-existing
+`TestRenderVersion`/`TestResolve_*`/`TestBumpFromDate_*` case passing unchanged. `go test ./...` and
+`hk check` both clean.
 
 #### `[ ]` T245: `semver` — `MAJOR`/`MINOR` extraction helper
 

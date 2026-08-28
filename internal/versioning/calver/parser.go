@@ -22,6 +22,16 @@ const (
 	KindPATCH
 )
 
+// String returns the format-token spelling for k (e.g. "YYYY"), for use in error messages.
+func (k TokenKind) String() string {
+	for _, kt := range knownTokens {
+		if kt.kind == k {
+			return kt.text
+		}
+	}
+	return "LITERAL"
+}
+
 // Token is one component of a parsed CalVer format string.
 type Token struct {
 	Kind    TokenKind
@@ -150,28 +160,39 @@ func ParseVersion(tokens []Token, version string) (Values, error) {
 func RenderVersion(tokens []Token, v Values) string {
 	var sb strings.Builder
 	for _, t := range tokens {
-		switch t.Kind {
-		case KindLiteral:
+		if t.Kind == KindLiteral {
 			sb.WriteString(t.Literal)
-		case KindYYYY:
-			fmt.Fprintf(&sb, "%04d", v.Year)
-		case KindMM:
-			fmt.Fprintf(&sb, "%02d", v.Month)
-		case KindDD:
-			fmt.Fprintf(&sb, "%02d", v.Day)
-		case KindWW:
-			fmt.Fprintf(&sb, "%02d", v.Week)
-		case KindQQ:
-			fmt.Fprintf(&sb, "%d", v.Quarter)
-		case KindSS:
-			fmt.Fprintf(&sb, "%d", v.Semester)
-		case KindSPRINT:
-			fmt.Fprintf(&sb, "%d", v.Sprint)
-		case KindPATCH:
-			fmt.Fprintf(&sb, "%d", v.Patch)
+			continue
 		}
+		sb.WriteString(renderToken(t.Kind, v))
 	}
 	return sb.String()
+}
+
+// renderToken formats the value v holds for a single non-literal token kind. Shared by
+// RenderVersion (whole-version rendering) and the rotation helpers in rotation.go (partial,
+// bucket-prefix rendering) so the two never drift on padding (e.g. "%04d" for YYYY).
+func renderToken(kind TokenKind, v Values) string {
+	switch kind {
+	case KindYYYY:
+		return fmt.Sprintf("%04d", v.Year)
+	case KindMM:
+		return fmt.Sprintf("%02d", v.Month)
+	case KindDD:
+		return fmt.Sprintf("%02d", v.Day)
+	case KindWW:
+		return fmt.Sprintf("%02d", v.Week)
+	case KindQQ:
+		return fmt.Sprintf("%d", v.Quarter)
+	case KindSS:
+		return fmt.Sprintf("%d", v.Semester)
+	case KindSPRINT:
+		return fmt.Sprintf("%d", v.Sprint)
+	case KindPATCH:
+		return fmt.Sprintf("%d", v.Patch)
+	default:
+		return ""
+	}
 }
 
 func buildParseRegex(tokens []Token) (*regexp.Regexp, error) {
