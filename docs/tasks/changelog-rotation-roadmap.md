@@ -35,7 +35,7 @@ scope for this pass (see design doc "Non-goals").
 | Task | Description                                                                          | Status |
 |------|---------------------------------------------------------------------------------------|--------|
 | T244 | `calver`: generalize `periodKey` into a caller-scoped prefix-key + literal-prefix-regex helper | Done |
-| T245 | `semver`: add `MAJOR`/`MINOR` extraction helper                                        | Not started |
+| T245 | `semver`: add `MAJOR`/`MINOR` extraction helper                                        | Done |
 | T246 | `internal/config/validator.go`: static token-vocabulary + prefix-order + per-env-rejection checks | Not started |
 | T247 | `internal/app`: `port.Generator` rotation decorator + wiring into `buildChangelogPipelineConfig` | Not started |
 | T248 | Integration test: real-git-repo rotation run across a simulated period boundary        | Not started |
@@ -88,7 +88,7 @@ same per-token-kind switch three times (`RenderVersion`, `periodKey`, and the ne
 `TestRenderVersion`/`TestResolve_*`/`TestBumpFromDate_*` case passing unchanged. `go test ./...` and
 `hk check` both clean.
 
-#### `[ ]` T245: `semver` — `MAJOR`/`MINOR` extraction helper
+#### `[x]` T245: `semver` — `MAJOR`/`MINOR` extraction helper
 
 Given a bare SemVer version string, extract `MAJOR` and `MINOR` as separate values for substitution
 into `{MAJOR}`/`{MINOR}` tokens. Simpler than T244 — no format-token parsing needed, SemVer's
@@ -98,6 +98,21 @@ in this codebase can carry them (check `internal/versioning/semver/bump.go`'s ex
 
 **Files (expected):** `internal/versioning/semver/` (new file or extend `bump.go`) + tests.
 **Scope:** XS. **Dependencies:** none.
+
+Landed as a new `rotation.go` (mirroring `calver`'s file for this epic, rather than extending
+`bump.go`) with a single `MajorMinor(version string) (major, minor int, err error)`. Confirmed via
+`tagfmt.ValidateVersionOverride` that a manual `--version` is only checked for emptiness/whitespace
+— heraut is strategy-agnostic about override shape — so a pre-release/build-metadata-suffixed
+version (e.g. `1.4.2-rc.1`) can genuinely reach this function; `MajorMinor` handles it correctly
+since the suffix always attaches to PATCH (`strings.SplitN(version, ".", 3)`, same splitting
+convention `BumpVersion`/`IsBareVersion` already use), never to MAJOR or MINOR. Requires a full
+`MAJOR.MINOR.PATCH` shape (rejects a bare `"1.4"` with PATCH missing entirely) rather than only
+requiring 2 components — a resolved semver version missing PATCH is malformed for this strategy, not
+a case to accept quietly. No semver-equivalent of `ValidateRotationTokens` (T244) is needed — unlike
+CalVer, there's no format-dependent constraint; the only two valid rotation shapes are "MAJOR alone"
+or "MAJOR+MINOR" (never PATCH, per the design's goals), which is a T246 (config validator) vocabulary
+check rather than something this package needs to gate itself. `go test ./...` and `hk check` both
+clean.
 
 #### `[ ]` T246: config validation — token vocabulary, prefix-order, per-env rejection
 
