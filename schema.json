@@ -289,6 +289,10 @@
             "lightweight"
           ],
           "description": "Git tag type. \"annotated\" (default) creates tags with a tagger, timestamp, and message. \"lightweight\" creates bare ref tags."
+        },
+        "commit_message": {
+          "type": "string",
+          "description": "Commit message template for the changelog commit, and (when tag_type is \"annotated\") the tag's own annotation message. \"${version}\" is substituted with the resolved version. Defaults to \"chore(release): ${version}\"."
         }
       },
       "allOf": [

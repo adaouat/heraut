@@ -187,6 +187,25 @@ func TestBuildChangelogPipelineConfig_AmbiguousForgeDegradesUnderOptionalPolicy(
 	assert.True(t, degraded.Degraded())
 }
 
+// TestBuildChangelogPipelineConfig_CommitMessage covers T239's changelog-only half: `heraut
+// changelog --commit`/`--tag` shares the same commitMessage() template as `heraut release`
+// (internal/pipeline/git.go), so versioning.commit_message must reach ChangelogConfig too.
+func TestBuildChangelogPipelineConfig_CommitMessage(t *testing.T) {
+	testutil.ClearCIEnv(t)
+	runner := exectest.NewMockRunner()
+	readRunner := exectest.NewMockRunner()
+	readRunner.QueueResponse("", "", assertNoOriginErr)
+
+	cfg := &config.Config{
+		Version:    "1",
+		Versioning: config.Versioning{Strategy: "semver", CommitMessage: "release: ${version}"},
+	}
+
+	cCfg, err := buildChangelogPipelineConfig(runner, readRunner, cfg, PipelineOpts{})
+	require.NoError(t, err)
+	assert.Equal(t, "release: ${version}", cCfg.CommitMessage)
+}
+
 // TestHasResolvablePublishTarget_NilConfig guards a nil-pointer panic (T173): its sibling
 // effectiveTargetPlatforms (internal/app/check.go) nil-guards cfg before calling resolveForge,
 // but HasResolvablePublishTarget did not — forge.Resolve dereferences cfg.Forges directly, so a

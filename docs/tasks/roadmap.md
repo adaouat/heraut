@@ -5281,7 +5281,7 @@ effort review. Four are small-to-medium and independent of each other; the fifth
 changelog files) forks on a real design question and gets a design spike first rather than an
 implementation task.
 
-#### `[ ]` T239: customizable release commit message
+#### `[x]` T239: customizable release commit message
 
 `pipeline.Config.CommitMessage` and `pipeline.ChangelogConfig.CommitMessage` already exist —
 `internal/pipeline/git.go`'s `commitMessage(template, version)` does `${version}` substitution
@@ -5306,6 +5306,18 @@ new mechanism.
 **Files (expected):** `internal/config/config.go` (or `commits.go`), `internal/app/pipeline.go`,
 `schema.json`, `docs/heraut.sample.yml`, `docs/specs/02-configuration.md` (+ tests).
 **Scope:** S. **Dependencies:** none.
+
+Decided (user confirmed): `versioning.commit_message`, alongside `tag_prefix`/`tag_type`/
+`tag_format` — correctly reflects that the same template feeds both the changelog commit and the
+annotated tag's message, and avoids adding a field to the shared `ContentDriver` struct that
+`changelog:`/`release.notes:` both use (which would have made it nonsensically settable under
+`release.notes:` too). Added `Versioning.CommitMessage string` and wired it into both
+`buildReleasePipelineConfig` and `buildChangelogPipelineConfig` (`internal/app/pipeline.go`) —
+`internal/pipeline`'s `commitMessage()` template substitution already existed and was already
+tested at that layer; this was purely a wiring gap. Documented the coupling with the built-in
+`^chore\(release\):` default changelog exclude explicitly in both the sample and spec 02, since
+changing the prefix without also adding a matching exclude would put the release commit back into
+the rendered changelog. `go test ./...` and `hk check` both clean.
 
 ---
 

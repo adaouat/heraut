@@ -92,11 +92,19 @@ versioning:
 | `sprint`          | Conditional | —                                        | Current sprint number. Required when `format` contains the `SPRINT` token. Advance with `heraut version sprint bump`.                                                                                                      |
 | `tag_format`      | No          | —                                        | Common tag format for all environments (per-env strategies). `{env}` is replaced with the environment name; `{version}` with the resolved version. Per-environment `tag_format` overrides this.                            |
 | `tag_type`        | No          | `annotated`                              | Git tag type: `annotated` (default) creates tags with `-a -m <commit_message>` so they carry a tagger, timestamp, and message. `lightweight` creates bare ref tags (`git tag <tag>`).                                     |
+| `commit_message`  | No          | `"chore(release): ${version}"`           | Template for the changelog commit's message, and — when `tag_type` is `annotated` — the tag's own annotation message too. `${version}` is substituted with the resolved version.                                        |
 
 **Git-level tag signing overrides `tag_type`.** If the repository's own `git config
 tag.gpgSign` is `true`, heraut creates a signed tag (`git tag -s`) regardless of
 `versioning.tag_type` — signing is checked first. This is not a heraut config option; set
 or unset `tag.gpgSign` at the git level to control it.
+
+**Changing `commit_message`'s prefix affects the default changelog exclude.** The built-in
+default excludes (§ `rendering.excludes` below) include a regex scoped to the literal
+`chore(release):` prefix, so the release commit itself never appears as an entry in the
+rendered changelog. If you change `commit_message` to a different prefix, add a matching
+`rendering.excludes` entry yourself — otherwise the release commit will show up in the next
+changelog.
 
 See [Spec 04 — Versioning](04-versioning.md) for strategy-specific behaviour.
 

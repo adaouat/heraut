@@ -57,6 +57,11 @@ type Versioning struct {
 	Sprint         int     `yaml:"sprint,omitempty"`
 	TagFormat      string  `yaml:"tag_format,omitempty"`
 	TagType        string  `yaml:"tag_type,omitempty"`
+	// CommitMessage is the git commit message template for the changelog commit heraut
+	// creates, and — when the tag is annotated (TagType != "lightweight") — the tag's own
+	// annotation message too (internal/pipeline/git.go's commitMessage()). "${version}" is
+	// substituted with the resolved version. Defaults to "chore(release): ${version}".
+	CommitMessage string `yaml:"commit_message,omitempty"`
 }
 
 // Environment holds all per-environment configuration under the root environments map.

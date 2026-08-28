@@ -271,6 +271,7 @@ func buildReleasePipelineConfig(runner, readRunner port.Runner, cfg *config.Conf
 
 	pCfg.AnnotatedTags = cfg.Versioning.TagType != "lightweight"
 	pCfg.RegenerateChangelog = regenerateChangelog
+	pCfg.CommitMessage = cfg.Versioning.CommitMessage
 
 	return pCfg, nil
 }
@@ -383,6 +384,7 @@ func buildChangelogPipelineConfig(runner, readRunner port.Runner, cfg *config.Co
 
 	cCfg.AnnotatedTags = cfg.Versioning.TagType != "lightweight"
 	cCfg.RegenerateChangelog = opts.RegenerateChangelog
+	cCfg.CommitMessage = cfg.Versioning.CommitMessage
 
 	return cCfg, nil
 }

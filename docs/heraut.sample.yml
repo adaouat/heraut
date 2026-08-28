@@ -48,6 +48,14 @@ versioning:
   #   lightweight bare ref; no metadata (useful for ephemeral env tags)
   # tag_type: lightweight
 
+  # commit_message — template for the changelog commit (and, when tag_type is
+  # annotated, the tag's own message too). ${version} is substituted. Defaults to
+  # "chore(release): ${version}". If you change the prefix away from "chore(release):",
+  # add a matching entry to rendering.excludes — the built-in default exclude for the
+  # release commit is a regex on that exact prefix, so a different prefix stops being
+  # filtered out of the rendered changelog.
+  # commit_message: "release: ${version} :rocket:"
+
   # ── CalVer fields (strategy: calver or calver-per-env) ───────────────────
   #
   # format — required for calver / calver-per-env.

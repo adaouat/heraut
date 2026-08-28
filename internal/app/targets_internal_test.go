@@ -65,6 +65,26 @@ func TestPlatformConfigFromTarget(t *testing.T) {
 	})
 }
 
+// TestBuildReleasePipelineConfig_CommitMessage covers T239: versioning.commit_message must
+// reach pipeline.Config.CommitMessage, which internal/pipeline already applies to both the
+// changelog commit and the annotated tag's message (commitMessage() in
+// internal/pipeline/git.go) — this wiring is the only missing piece.
+func TestBuildReleasePipelineConfig_CommitMessage(t *testing.T) {
+	testutil.ClearCIEnv(t)
+	runner := exectest.NewMockRunner()
+	readRunner := exectest.NewMockRunner()
+	readRunner.QueueResponse("", "", assertNoOriginErr)
+
+	cfg := &config.Config{
+		Version:    "1",
+		Versioning: config.Versioning{Strategy: "semver", CommitMessage: "release: ${version}"},
+	}
+
+	pCfg, err := buildReleasePipelineConfig(runner, readRunner, cfg, "", "", false, false)
+	require.NoError(t, err)
+	assert.Equal(t, "release: ${version}", pCfg.CommitMessage)
+}
+
 // TestBuildTargetPlatforms_TargetOwnAssetsAreLenient covers T228: a release.targets[].assets glob
 // declared directly on a target — not inherited from top-level release.assets — must resolve
 // leniently (warn and skip a non-matching pattern) just like top-level release.assets already did.
