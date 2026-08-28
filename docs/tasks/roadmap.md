@@ -5510,7 +5510,7 @@ Design: [`docs/superpowers/specs/2026-08-28-changelog-rotation-design.md`](../su
 
 ---
 
-### Phase 30 — Changelog/release-notes title & subtitle blocks
+### Phase 30 — Changelog/release-notes title & subtitle blocks ✅
 
 Renames the native generator's `header` template block to `release_header` (it fires once per
 rendered release, not once per document — the old name was confusing enough to hide a real gap)
@@ -5521,6 +5521,16 @@ New ADR-0048 (supersedes the block-set table in ADR-0037). Five tasks (rename �
 title/subtitle → release-notes title/subtitle → docs → roadmap close-out).
 
 Design: [`docs/superpowers/specs/2026-08-28-changelog-title-subtitle-design.md`](../superpowers/specs/2026-08-28-changelog-title-subtitle-design.md).
+
+Shipped as designed, no deviations. `title`/`subtitle` execute against a bare `tplHeraut`
+(`.Version`/`.URL`/`.GeneratedAt` directly, not `.Heraut.Version` — a deliberate, documented
+asymmetry with every other block) via a new shared `renderPreamble` helper
+(`internal/generators/native/render.go`), called once by `buildAllSections` for the changelog
+driver (bootstrap/`--regenerate` only — an ordinary incremental splice never touches the preamble,
+unchanged from before) and once per render by `renderReleaseNotes` for the release-notes driver.
+Default output is byte-identical on both drivers. The rename (`header`→`release_header`,
+`release-notes`→`release_notes`) is breaking with no alias, consistent with the project's pre-v1.0
+stance; both old keys now fail config validation with an actionable error naming the new one.
 
 ---
 
