@@ -82,6 +82,28 @@ func ValidateRotationTokens(tokens []Token, requested []TokenKind) error {
 	return nil
 }
 
+// TokenKindFromName returns the TokenKind for a format-token spelling (e.g. "YYYY"), or false if
+// name isn't a recognized token — the inverse of TokenKind.String(). Used by callers (e.g.
+// internal/app's changelog-rotation decorator) that parse {TOKEN} placeholders out of a
+// user-authored string and need the typed value BucketKey/BucketPattern/ValidateRotationTokens
+// expect.
+func TokenKindFromName(name string) (TokenKind, bool) {
+	for _, kt := range knownTokens {
+		if kt.text == name {
+			return kt.kind, true
+		}
+	}
+	return 0, false
+}
+
+// RenderToken formats the value v holds for a single non-literal token kind — the same
+// per-token-kind formatting RenderVersion and the bucket helpers use internally, exported so a
+// caller substituting individual {TOKEN} placeholders (rather than rendering a whole version
+// string) doesn't need to duplicate the padding rules (e.g. "%04d" for YYYY).
+func RenderToken(kind TokenKind, v Values) string {
+	return renderToken(kind, v)
+}
+
 func tokenNames(kinds []TokenKind) []string {
 	names := make([]string, len(kinds))
 	for i, k := range kinds {

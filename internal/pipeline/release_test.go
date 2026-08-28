@@ -524,6 +524,37 @@ func TestRun_CommitMessage(t *testing.T) {
 	assert.Contains(t, commitCall.Args[2], "1.2.3")
 }
 
+// TestRun_UsesRotatedChangelogOutputPath mirrors
+// TestChangelogRun_WithCommit_UsesRotatedOutputPath for the full release pipeline: when the
+// generator reports a resolved output path (T247: rotation tokens in changelog.output), the
+// commit step must target that concrete file, not the raw "{TOKEN}" pattern known at
+// config-build time.
+func TestRun_UsesRotatedChangelogOutputPath(t *testing.T) {
+	mr := exectest.NewMockRunner()
+	mr.QueueResponse("", "", nil)                    // git add
+	mr.QueueResponse("CHANGELOG_2026.md\n", "", nil) // git diff --cached --name-only (staged)
+	mr.QueueResponse("", "", nil)                    // git commit
+	mr.QueueResponse("", "", nil)                    // git push
+	mr.QueueResponse("", "", nil)                    // git tag
+	mr.QueueResponse("", "", nil)                    // git push <tag>
+
+	changelog := &testutil.MockGenerator{LastOutputPathV: "CHANGELOG_2026.md"}
+	platform := &testutil.MockPlatform{PlatformName: "github"}
+
+	cfg := &pipeline.Config{
+		Changelog:     changelog,
+		ChangelogFile: "CHANGELOG_{YYYY}.md",
+		Platforms:     []port.Platform{platform},
+	}
+
+	p := pipeline.New(mr, &fakeResolver{result: resolvedResult("2026.05.0")}, cfg, &bytes.Buffer{}, false)
+	require.NoError(t, p.Run())
+
+	addCall := mr.Calls[0]
+	assert.Equal(t, []string{"add", "CHANGELOG_2026.md"}, addCall.Args,
+		"commit step must target the resolved rotated file, not the raw {YYYY} pattern")
+}
+
 // TestRun_CustomCommitMessage verifies commit message template substitution.
 func TestRun_CustomCommitMessage(t *testing.T) {
 	mr := exectest.NewMockRunner()

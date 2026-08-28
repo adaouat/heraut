@@ -128,10 +128,7 @@ func (p *Pipeline) Run() error {
 			return err
 		}
 
-		file := p.cfg.ChangelogFile
-		if file == "" {
-			file = "CHANGELOG.md"
-		}
+		file := resolvedChangelogFile(p.cfg.Changelog, p.cfg.ChangelogFile)
 		var committed bool
 		if err := p.runStep("Commit changelog", func() (string, []string, error) {
 			var cerr error
@@ -240,10 +237,7 @@ func (p *Pipeline) dryRunOutput(result versioning.Result) error {
 	}
 
 	// Reporter path: emit one informational step per would-be action.
-	file := p.cfg.ChangelogFile
-	if file == "" {
-		file = "CHANGELOG.md"
-	}
+	file := resolvedChangelogFile(p.cfg.Changelog, p.cfg.ChangelogFile)
 
 	if p.cfg.Changelog != nil && !p.cfg.DisableChangelog {
 		_ = p.runStep("Generate changelog", func() (string, []string, error) {

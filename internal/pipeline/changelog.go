@@ -130,10 +130,7 @@ func (p *ChangelogPipeline) Run() error {
 
 		// Step 3: Commit changelog (conditional).
 		if p.cfg.Commit || p.cfg.Tag {
-			file := p.cfg.ChangelogFile
-			if file == "" {
-				file = "CHANGELOG.md"
-			}
+			file := resolvedChangelogFile(p.cfg.Changelog, p.cfg.ChangelogFile)
 			var committed bool
 			if err := p.runStep("Commit changelog", func() (string, []string, error) {
 				var cerr error
@@ -204,10 +201,7 @@ func (p *ChangelogPipeline) dryRunOutput(result versioning.Result) error {
 	}
 
 	// Reporter path: emit one informational step per would-be action.
-	file := p.cfg.ChangelogFile
-	if file == "" {
-		file = "CHANGELOG.md"
-	}
+	file := resolvedChangelogFile(p.cfg.Changelog, p.cfg.ChangelogFile)
 
 	if p.cfg.Changelog != nil && !p.cfg.DisableChangelog {
 		_ = p.runStep("Generate changelog", func() (string, []string, error) {
@@ -243,10 +237,7 @@ func (p *ChangelogPipeline) printSummary(result versioning.Result) {
 	if p.reporter != nil {
 		_, _ = fmt.Fprintf(p.out, "\nChangelog updated for %s\n", result.Tag)
 		if (p.cfg.Commit || p.cfg.Tag) && p.cfg.Changelog != nil {
-			file := p.cfg.ChangelogFile
-			if file == "" {
-				file = "CHANGELOG.md"
-			}
+			file := resolvedChangelogFile(p.cfg.Changelog, p.cfg.ChangelogFile)
 			if p.cfg.NoPush {
 				_, _ = fmt.Fprintf(p.out, "  %s committed (not pushed)\n", file)
 			} else {

@@ -59,6 +59,34 @@ func TestChangelogRun_WithCommit(t *testing.T) {
 	assert.Equal(t, []string{"push", "origin", "HEAD"}, mr.Calls[3].Args)
 }
 
+// TestChangelogRun_WithCommit_UsesRotatedOutputPath verifies that when the generator reports a
+// resolved output path (T247: rotation tokens in changelog.output), the commit step targets that
+// concrete file — not the raw, unsubstituted ChangelogFile pattern. ChangelogFile can't be
+// resolved at config-build time (it's known only once Generate() runs with the actual tag), so the
+// pipeline must prefer the generator's own report when one is available.
+func TestChangelogRun_WithCommit_UsesRotatedOutputPath(t *testing.T) {
+	mr := exectest.NewMockRunner()
+	mr.QueueResponse("", "", nil)                    // git add
+	mr.QueueResponse("CHANGELOG_2026.md\n", "", nil) // git diff --cached --name-only (staged)
+	mr.QueueResponse("", "", nil)                    // git commit
+	mr.QueueResponse("", "", nil)                    // git push
+
+	gen := &testutil.MockGenerator{LastOutputPathV: "CHANGELOG_2026.md"}
+
+	cfg := &pipeline.ChangelogConfig{
+		Changelog:     gen,
+		ChangelogFile: "CHANGELOG_{YYYY}.md",
+		Commit:        true,
+	}
+
+	p := pipeline.NewChangelog(mr, &fakeResolver{result: resolvedResult("2026.05.0")}, cfg, &bytes.Buffer{}, false)
+	require.NoError(t, p.Run())
+
+	require.Len(t, mr.Calls, 4)
+	assert.Equal(t, []string{"add", "CHANGELOG_2026.md"}, mr.Calls[0].Args,
+		"commit step must target the resolved rotated file, not the raw {YYYY} pattern")
+}
+
 // TestChangelogRun_WithTag verifies --tag implies commit: generate + commit + push + tag + push --tags.
 func TestChangelogRun_WithTag(t *testing.T) {
 	mr := exectest.NewMockRunner()

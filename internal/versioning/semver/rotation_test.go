@@ -1,6 +1,7 @@
 package semver_test
 
 import (
+	"regexp"
 	"testing"
 
 	"github.com/adaouat/heraut/internal/versioning/semver"
@@ -45,6 +46,46 @@ func TestMajorMinor_ZeroValues(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, 0, major)
 	assert.Equal(t, 0, minor)
+}
+
+func TestRotationPattern_MajorOnly(t *testing.T) {
+	pattern, err := semver.RotationPattern([]string{"MAJOR"}, 1, 4)
+	require.NoError(t, err)
+
+	re := regexp.MustCompile(pattern)
+	assert.True(t, re.MatchString("1.9.9"))
+	assert.False(t, re.MatchString("2.0.0"))
+	// A malformed version whose major digits merely start with "1" must not partial-match.
+	assert.False(t, re.MatchString("10.0.0"))
+}
+
+func TestRotationPattern_MajorMinor(t *testing.T) {
+	pattern, err := semver.RotationPattern([]string{"MAJOR", "MINOR"}, 1, 4)
+	require.NoError(t, err)
+
+	re := regexp.MustCompile(pattern)
+	assert.True(t, re.MatchString("1.4.9"))
+	assert.False(t, re.MatchString("1.40.0"))
+	assert.False(t, re.MatchString("1.5.0"))
+}
+
+func TestRotationPattern_OrderIndependent(t *testing.T) {
+	p1, err := semver.RotationPattern([]string{"MAJOR", "MINOR"}, 1, 4)
+	require.NoError(t, err)
+	p2, err := semver.RotationPattern([]string{"MINOR", "MAJOR"}, 1, 4)
+	require.NoError(t, err)
+	assert.Equal(t, p1, p2)
+}
+
+func TestRotationPattern_MinorAlone_Error(t *testing.T) {
+	_, err := semver.RotationPattern([]string{"MINOR"}, 1, 4)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "MAJOR")
+}
+
+func TestRotationPattern_InvalidToken_Error(t *testing.T) {
+	_, err := semver.RotationPattern([]string{"MAJOR", "PATCH"}, 1, 4)
+	require.Error(t, err)
 }
 
 func TestMajorMinor_InvalidVersion_Error(t *testing.T) {

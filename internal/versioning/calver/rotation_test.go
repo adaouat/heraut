@@ -146,3 +146,44 @@ func TestBucketPattern_InvalidTokens_Error(t *testing.T) {
 	_, err := calver.BucketPattern(tokens, []calver.TokenKind{calver.KindYYYY}, calver.Values{Year: 2026})
 	require.Error(t, err)
 }
+
+func TestTokenKindFromName(t *testing.T) {
+	tests := []struct {
+		name string
+		want calver.TokenKind
+	}{
+		{"YYYY", calver.KindYYYY},
+		{"MM", calver.KindMM},
+		{"DD", calver.KindDD},
+		{"WW", calver.KindWW},
+		{"QQ", calver.KindQQ},
+		{"SS", calver.KindSS},
+		{"SPRINT", calver.KindSPRINT},
+		{"PATCH", calver.KindPATCH},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			kind, ok := calver.TokenKindFromName(tc.name)
+			require.True(t, ok)
+			assert.Equal(t, tc.want, kind)
+		})
+	}
+}
+
+func TestTokenKindFromName_Unknown(t *testing.T) {
+	_, ok := calver.TokenKindFromName("BOGUS")
+	assert.False(t, ok)
+}
+
+func TestRenderToken(t *testing.T) {
+	v := calver.Values{Year: 2026, Month: 5, Day: 3, Week: 9, Quarter: 2, Semester: 1, Sprint: 4, Patch: 7}
+
+	assert.Equal(t, "2026", calver.RenderToken(calver.KindYYYY, v))
+	assert.Equal(t, "05", calver.RenderToken(calver.KindMM, v))
+	assert.Equal(t, "03", calver.RenderToken(calver.KindDD, v))
+	assert.Equal(t, "09", calver.RenderToken(calver.KindWW, v))
+	assert.Equal(t, "2", calver.RenderToken(calver.KindQQ, v))
+	assert.Equal(t, "1", calver.RenderToken(calver.KindSS, v))
+	assert.Equal(t, "4", calver.RenderToken(calver.KindSPRINT, v))
+	assert.Equal(t, "7", calver.RenderToken(calver.KindPATCH, v))
+}

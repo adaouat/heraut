@@ -53,10 +53,10 @@ func calverTokenOrder(format string) []string {
 	return order
 }
 
-// extractRotationTokens returns the {TOKEN} placeholder names present in output, in the order
+// ExtractRotationTokens returns the {TOKEN} placeholder names present in output, in the order
 // they appear. Returns nil when output has none — the common case, and the signal that a
 // changelog.output value is a plain literal path with no rotation behavior at all.
-func extractRotationTokens(output string) []string {
+func ExtractRotationTokens(output string) []string {
 	matches := rotationTokenPattern.FindAllStringSubmatch(output, -1)
 	if len(matches) == 0 {
 		return nil
@@ -77,7 +77,7 @@ func validateChangelogRotation(d *ContentDriver, cfg *Config, path string) []Val
 	if d == nil {
 		return nil
 	}
-	tokens := extractRotationTokens(d.Output)
+	tokens := ExtractRotationTokens(d.Output)
 	if len(tokens) == 0 {
 		return nil
 	}

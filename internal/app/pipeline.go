@@ -245,7 +245,7 @@ func buildReleasePipelineConfig(runner, readRunner port.Runner, cfg *config.Conf
 	if effectiveChangelog != nil {
 		driver := withEnvDerivations(effectiveChangelog, cfg, env)
 		gen := buildGenerator(runner, driver, native.ModeChangelog, herautVersion, regenerateChangelog, force, enrichForge, "")
-		pCfg.Changelog = gen
+		pCfg.Changelog = wrapWithRotation(gen, runner, cfg, driver, herautVersion, regenerateChangelog, force, enrichForge, "")
 		pCfg.ChangelogFile = effectiveChangelog.Output
 		pCfg.ForgeIdentity = forgeID
 	}
@@ -377,7 +377,7 @@ func buildChangelogPipelineConfig(runner, readRunner port.Runner, cfg *config.Co
 		}
 		driver := withEnvDerivations(effectiveChangelog, cfg, opts.Env)
 		gen := buildGenerator(runner, driver, native.ModeChangelog, opts.HerautVersion, opts.RegenerateChangelog, opts.Force, enrichForge, degradedReason)
-		cCfg.Changelog = gen
+		cCfg.Changelog = wrapWithRotation(gen, runner, cfg, driver, opts.HerautVersion, opts.RegenerateChangelog, opts.Force, enrichForge, degradedReason)
 		cCfg.ChangelogFile = effectiveChangelog.Output
 		cCfg.ForgeIdentity = forgeID
 	}

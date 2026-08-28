@@ -37,7 +37,7 @@ scope for this pass (see design doc "Non-goals").
 | T244 | `calver`: generalize `periodKey` into a caller-scoped prefix-key + literal-prefix-regex helper | Done |
 | T245 | `semver`: add `MAJOR`/`MINOR` extraction helper                                        | Done |
 | T246 | `internal/config/validator.go`: static token-vocabulary + prefix-order + per-env-rejection checks | Done |
-| T247 | `internal/app`: `port.Generator` rotation decorator + wiring into `buildChangelogPipelineConfig` | Not started |
+| T247 | `internal/app`: `port.Generator` rotation decorator + wiring into `buildChangelogPipelineConfig` | Done |
 | T248 | Integration test: real-git-repo rotation run across a simulated period boundary        | Not started |
 | T249 | Docs: `schema.json`, `docs/heraut.sample.yml`, spec, new ADR-0047                       | Not started |
 
@@ -161,7 +161,7 @@ function that re-walks environments itself. Deliberately **not** wired into `rel
 (duplicate token, `{MINOR}` without `{MAJOR}`, multi-token valid combinations) matching the existing
 test file's mix of fixture- and inline-driven coverage. `go test ./...` and `hk check` both clean.
 
-#### `[ ]` T247: `internal/app` rotation decorator + wiring
+#### `[x]` T247: `internal/app` rotation decorator + wiring
 
 New unexported `port.Generator` decorator (design doc §3) wrapping the constructed
 `native.Generator`. On `Generate(tag, ctx)`: no tokens present in the raw `Output` → delegate
@@ -176,6 +176,49 @@ hasn't already set an explicit one, same precedence `withEnvDerivations` already
 
 **Files (expected):** new `internal/app/changelog_rotation.go` + test, `internal/app/pipeline.go`.
 **Scope:** M. **Dependencies:** T244, T245, T246.
+
+Landed as a `rotatingGenerator` (`internal/app/changelog_rotation.go`) implementing `port.Generator`,
+wired into both `buildChangelogPipelineConfig` (`heraut changelog`) and `buildReleasePipelineConfig`
+(`heraut release`) — the roadmap's "Files (expected)" only named the former, but `heraut release`
+builds its own changelog generator independently and needed the identical wrap. `resolveDriver`
+strips `versioning.tag_prefix` (reusing T222's existing `defaultTagPrefix` helper) then dispatches to
+calver (`calver.ParseFormat`/`ParseVersion`/`BucketPattern`) or semver
+(`semver.MajorMinor`/`RotationPattern`) to compute the concrete `Output` and — only when the user
+hasn't already set an explicit `tag_pattern` — the derived `TagPattern`, before delegating to a
+freshly-built `native.Generator` via the same `buildGenerator` constructor. Two small additions to
+calver (`TokenKindFromName`, the inverse of T244's `TokenKind.String()`; `RenderToken`, an exported
+single-token formatter) and one to semver (`RotationPattern`, mirroring `calver.BucketPattern`'s
+contract for the MAJOR/MAJOR.MINOR case) were needed to let the decorator convert parsed `{TOKEN}`
+names into concrete values and a tag-scoping regex — kept in their own versioning packages rather
+than inlined in `internal/app`, for the same testability-at-the-right-layer reason T244/T245 exist as
+separate packages at all.
+
+**Real bug found and fixed along the way, not anticipated in the design doc:**
+`pipeline.ChangelogConfig.ChangelogFile` / `pipeline.Config.ChangelogFile` are resolved once at
+config-build time (before the tag is known) and consumed later by the "Commit changelog" step and
+the dry-run/summary display in both `internal/pipeline/changelog.go` and `internal/pipeline/release.go`.
+For a rotating `output`, this field would have stayed the literal, unsubstituted `"CHANGELOG_{YYYY}.md"`
+string forever — `git add`-ing a file that was never written, while the real
+`CHANGELOG_2026.md` sat uncommitted. Fixed with a new structural `outputPathReporter` interface
+(`internal/pipeline/changelog_output.go`, `LastOutputPath() string`) that `rotatingGenerator`
+implements; the commit/summary steps now call a shared `resolvedChangelogFile(gen, configured)`
+helper that prefers the generator's own post-`Generate()` report when present, falling back to the
+static field unchanged for every non-rotating config. `testutil.MockGenerator` gained a matching
+`LastOutputPathV` field, mirroring the existing `DegradedVal`/`DegradedReasonV` optional-method
+pattern exactly. One accepted, explicitly-scoped gap: dry-run's informational "`[dry-run] would
+write …`" line still shows the raw pattern, since dry-run never calls `Generate()` and so has
+nothing concrete to report — a cosmetic-only limitation (dry-run performs no writes either way),
+not the correctness bug the commit-step fix addresses.
+
+Tests: unit tests for `TokenKindFromName`/`RenderToken` (calver) and `RotationPattern` (semver);
+`resolveDriver`-level tests in `internal/app` covering calver single/multi-token, semver
+MAJOR/MAJOR+MINOR, tag-prefix stripping, explicit-`tag_pattern`-wins precedence, and both an invalid
+manual-version-override error and an unsupported-strategy error; one full `Generate()` round-trip
+test (`TestRotatingGenerator_Generate_WritesConcreteFile`) proving the concrete file is actually
+written to disk and the literal `{YYYY}` pattern never is; two pipeline-level regression tests
+(`TestChangelogRun_WithCommit_UsesRotatedOutputPath`, `TestRun_UsesRotatedChangelogOutputPath`)
+reproducing the `ChangelogFile` bug before the fix and proving it after. `go test ./...` and
+`hk check` both clean.
 
 #### `[ ]` T248: integration test — rotation across a simulated period boundary
 
