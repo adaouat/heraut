@@ -1,6 +1,9 @@
 package cmd_test
 
 import (
+	"fmt"
+	"os"
+	"path/filepath"
 	"testing"
 
 	"github.com/adaouat/forge/exec/exectest"
@@ -74,6 +77,58 @@ release:
 		"--version", "7.4.1", "--build", "158404", "--dry-run")
 	require.NoError(t, err)
 	assert.Contains(t, out, "uat/7.4.1-158404")
+}
+
+// TestRelease_ForeignFile_ShortSummaryNotRepeated mirrors
+// TestChangelog_ForeignFile_ShortSummaryNotRepeated for `heraut release`'s own pipe.Run() call
+// site — the fix (exitcode.WrapSummary, forge v0.18.0) must apply symmetrically to both.
+func TestRelease_ForeignFile_ShortSummaryNotRepeated(t *testing.T) {
+	t.Setenv("GH_TOKEN", "test-token")
+	changelogDir := t.TempDir()
+	outPath := filepath.Join(changelogDir, "CHANGELOG.md")
+	require.NoError(t, os.WriteFile(outPath, []byte("# Changelog\n\nsome content with no anchors\n"), 0o644))
+
+	cfgPath := writeConfig(t, fmt.Sprintf(`
+version: "1"
+versioning:
+  strategy: semver
+  tag_prefix: "v"
+changelog:
+  output: %s
+forges:
+  - name: github
+    platform: github
+    repository: test/repo
+release:
+  targets:
+    - forge: github
+`, outPath))
+
+	exectest.FakeBin(t, "git", `#!/bin/sh
+case "$*" in
+  "--version") echo "git version 2.49.0" ;;
+  "config user.name") echo "Test User" ;;
+  "config user.email") echo "test@example.com" ;;
+  "tag -l v* --sort=-version:refname") echo "v1.0.0" ;;
+  "log v1.0.0..HEAD --format=%B"*) printf "feat: new feature\x00" ;;
+  *) exit 1 ;;
+esac
+`)
+	exectest.FakeBin(t, "gh", `#!/bin/sh
+case "$*" in
+  "--version") echo "gh version 2.x" ;;
+  "api repos/test/repo/releases?per_page=1") echo "[]" ;;
+  *) exit 1 ;;
+esac
+`)
+
+	out, err := executeRoot("release", "--config", cfgPath)
+	require.Error(t, err)
+	assert.Contains(t, out, "no heraut-release anchors",
+		"the step reporter must still show the detailed error once")
+	assert.NotContains(t, err.Error(), "no heraut-release anchors",
+		"the returned error (fang's display) must be a short summary, not a repeat of the detail")
+	assert.Equal(t, exitcode.Runtime, cmd.ExitCode(err))
 }
 
 func TestRelease_ConfigNotFound(t *testing.T) {

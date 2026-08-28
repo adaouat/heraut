@@ -114,7 +114,7 @@ func NewReleaseCmd(version string) *cobra.Command {
 				}
 			}
 
-			return wrapRunErr(pipe.Run())
+			return wrapRunErr(pipe.Run(), "release failed")
 		},
 	}
 

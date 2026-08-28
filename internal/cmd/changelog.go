@@ -100,7 +100,7 @@ func NewChangelogCmd(version string) *cobra.Command {
 				return exitcode.Wrap(exitcode.Config, err)
 			}
 
-			return wrapRunErr(pipe.Run())
+			return wrapRunErr(pipe.Run(), "changelog generation failed")
 		},
 	}
 

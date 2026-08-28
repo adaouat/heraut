@@ -21,6 +21,14 @@ const (
 // Wrap annotates err with an exit code; the first/innermost classification wins.
 func Wrap(code int, err error) error { return forgeexit.Wrap(code, err) }
 
+// WrapSummary annotates err with an exit code and a short display summary, while keeping err
+// reachable via Unwrap for errors.Is/errors.As classification — use it at a boundary where the
+// full error was already shown elsewhere (e.g. a step reporter) so the top-level error display
+// doesn't repeat it. Like Wrap, the first/innermost classification wins.
+func WrapSummary(code int, err error, summary string) error {
+	return forgeexit.WrapSummary(code, err, summary)
+}
+
 // Resolve maps an error to an exit code: nil → OK, a coded error → that code,
 // anything else → Usage (heraut's historic exit-1 default).
 func Resolve(err error) int { return forgeexit.Resolve(err) }

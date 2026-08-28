@@ -33,6 +33,28 @@ func TestWrap_PreservesMessageAndUnwrap(t *testing.T) {
 	assert.Equal(t, exitcode.Config, exitcode.Resolve(wrapped))
 }
 
+func TestWrapSummary_Nil_ReturnsNil(t *testing.T) {
+	assert.NoError(t, exitcode.WrapSummary(exitcode.Runtime, nil, "summary"))
+}
+
+func TestWrapSummary_DisplaysSummaryNotFullError(t *testing.T) {
+	base := errors.New("very long detailed error already shown by a step reporter")
+	wrapped := exitcode.WrapSummary(exitcode.Runtime, base, "release failed")
+
+	require.Error(t, wrapped)
+	assert.Equal(t, "release failed", wrapped.Error())
+	assert.Equal(t, base, errors.Unwrap(wrapped))
+	assert.Equal(t, exitcode.Runtime, exitcode.Resolve(wrapped))
+}
+
+func TestWrapSummary_AlreadyClassified_FirstCodeWins(t *testing.T) {
+	inner := exitcode.Wrap(exitcode.Promotion, errors.New("guard"))
+	outer := exitcode.WrapSummary(exitcode.Runtime, inner, "release failed")
+
+	assert.Equal(t, exitcode.Promotion, exitcode.Resolve(outer))
+	assert.Equal(t, "release failed", outer.Error(), "the summary still attaches even when the code is preserved")
+}
+
 func TestResolve_FindsCodeThroughFmtErrorf(t *testing.T) {
 	base := exitcode.Wrap(exitcode.Promotion, errors.New("E001"))
 	chained := fmt.Errorf("running pipeline: %w", base)

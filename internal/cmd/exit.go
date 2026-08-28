@@ -15,12 +15,22 @@ func ExitCode(err error) int {
 // wrapRunErr classifies an error from resolving a version or running a pipeline:
 // promotion guards (E001/E002/E003) map to exit code 4, everything else to the
 // runtime code. Returns nil when err is nil.
-func wrapRunErr(err error) error {
+//
+// summary is optional. When given, the returned error displays summary instead of err's own
+// message (exitcode.WrapSummary) — used after a ui.Spinner-reported pipeline run has already
+// shown the detailed error once, so fang's top-level error panel doesn't repeat it verbatim.
+// version.go's bare resolver error (no step reporter involved) omits it, so its only display
+// of the error is the one fang shows.
+func wrapRunErr(err error, summary ...string) error {
 	if err == nil {
 		return nil
 	}
+	code := exitcode.Runtime
 	if app.IsPromotionGuard(err) {
-		return exitcode.Wrap(exitcode.Promotion, err)
+		code = exitcode.Promotion
 	}
-	return exitcode.Wrap(exitcode.Runtime, err)
+	if len(summary) > 0 {
+		return exitcode.WrapSummary(code, err, summary[0])
+	}
+	return exitcode.Wrap(code, err)
 }
