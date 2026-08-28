@@ -5445,7 +5445,7 @@ both clean.
 
 ---
 
-#### `[ ]` T243: design spike — rotating changelog file naming (CalVer-style tokens)
+#### `[x]` T243: design spike — rotating changelog file naming (CalVer-style tokens)
 
 Not sized S/M/L — this is a design spike, not an implementation task. `changelog.output` is a
 single static path (e.g. `CHANGELOG.md`); the ask is CalVer-style tokens in the filename (e.g.
@@ -5477,6 +5477,36 @@ implementation tasks against the agreed design, broken down the same way the rel
 was (`release-config-roadmap.md`) if it turns out to be more than one task's worth of work.
 
 **Files (expected):** a new design doc under `docs/superpowers/specs/`. **Dependencies:** none.
+
+Settled on both CalVer and SemVer (the user's own SemVer proposal — extracting `{MAJOR}`/`{MINOR}`
+straight from the resolved version string — removed the original "SemVer has no calendar info"
+blocker without needing a git-tag-date lookup). Key finding from reading the actual resolver/
+generator/pipeline code rather than assuming: `internal/pipeline/changelog.go`'s `Run()` resolves
+the version *before* calling `Generate(tag, ctx)`, so token substitution must happen at that call
+site (an `internal/app` decorator around `port.Generator`), never at `buildChangelogPipelineConfig`
+time or inside `internal/generators/native` itself — the latter would violate the layer rule
+barring native from importing `internal/versioning/*`. Rotation tokens are constrained to a prefix
+of `versioning.format`'s own token order for CalVer (no independent date lookups, ever), and to
+`MAJOR`/`MAJOR.MINOR` for SemVer. Per-env strategies and `heraut init` wizard support are both
+explicitly out of scope for v1 (user-confirmed), SPRINT is included in the CalVer vocabulary
+(user-confirmed). Full design, rejected alternatives, and the new-ADR outline (ADR-0047) are in
+[`docs/superpowers/specs/2026-08-28-changelog-rotation-design.md`](../superpowers/specs/2026-08-28-changelog-rotation-design.md).
+T244+ filed as their own dedicated roadmap — see Phase 29 below.
+
+---
+
+### Phase 29 — Rotating changelog file naming
+
+`changelog.output` (and its per-env override) gains optional CalVer/SemVer tokens (`{YYYY}`,
+`{MAJOR}`, …) so a project's changelog can rotate into one file per calendar period or per release
+line, with tag-scoping auto-derived from the same tokens — no second field to keep in sync, no
+change to native's anchor/bootstrap/splice algorithm. Resolves T243. New ADR-0047. Six tasks
+(pure-function token helpers → config validation → app-layer wiring → docs), so the task breakdown
+and live `[ ] / [x]` status live in a dedicated roadmap:
+
+→ **[Changelog Rotation Roadmap](changelog-rotation-roadmap.md)** — T244+
+
+Design: [`docs/superpowers/specs/2026-08-28-changelog-rotation-design.md`](../superpowers/specs/2026-08-28-changelog-rotation-design.md).
 
 ---
 
