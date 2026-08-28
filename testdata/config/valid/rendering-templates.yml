@@ -10,6 +10,9 @@ changelog:
 
 rendering:
   templates:
+    title: "# Changelog"
+    subtitle: "All notable changes to this project."
+    release_header: "## {{ .Version }}"
     commit: "- {{ .Description }} ({{ .ShortHash }})"
     group: "{{ .HeadingPrefix }} {{ .Name }}"
     release_notes: '{{range .Groups}}{{ template "group" . }}{{end}}'
