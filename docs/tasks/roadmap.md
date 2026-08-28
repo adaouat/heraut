@@ -65,136 +65,18 @@ TDD is required — write the failing test before writing implementation code.
 
 ## Architecture
 
-### Key design choices
+The current package layout and tech stack live in [`CLAUDE.md`](../../CLAUDE.md) — its
+`## Tech stack` and `## Project layout` sections — kept up to date as the codebase
+evolves, rather than duplicated here where an earlier, pre-implementation version of this
+same tree drifted badly from reality (found and replaced with this pointer, 2026-08-28,
+following the docs-audit epic in `docs-audit-roadmap.md`).
 
-| Concern                          | Choice                                                                  |
-|----------------------------------|-------------------------------------------------------------------------|
-| Architecture style               | Hexagonal — `internal/port/` interfaces, `internal/adapter/exec/` implementations |
-| Strategy selection               | Single `app.NewResolver()` factory; never an `if` ladder in `cmd/`      |
-| Per-env strategies               | Generic `internal/versioning/perenv/` wrapping a `VersionCalculator` interface ([ADR-0009](../adr/0009-generic-perenv-resolver.md)) |
-| Tag format substitution          | Shared `internal/versioning/tagfmt/` package ([ADR-0009](../adr/0009-generic-perenv-resolver.md)) |
-| Domain wiring                    | `internal/app/` owns all factory logic; `internal/cmd/` is a thin CLI layer |
-| Generator interface              | `Check()` + `Validate()` + `Generate(tag)` — three methods, validate before run |
-| Platform drivers                 | Contract-tested with `MockRunner` — every CLI argument is asserted      |
-| Config validation                | Strict YAML + composed semantic validators with `{Path, Message, Hint}` |
-| CLI framework                    | `cobra` + `fang` ([ADR-0003](../adr/0003-cli-framework-cobra-fang.md))  |
-| Self-update                      | GitHub Releases API directly ([ADR-0014](../adr/0014-self-update-architecture.md)) |
-| Binary distribution              | Raw binaries via GoReleaser + GHCR image ([ADR-0013](../adr/0013-raw-binary-goreleaser-format.md)) |
-| Testing                          | Table-driven unit + contract tests with `MockRunner` + integration via `testutil.FakeBin` |
-
-### Package structure
-
-```
-heraut/
-├── cmd/heraut/
-│   └── main.go                 entry point — fang.Execute(cmd.NewRootCmd())
-│
-├── internal/
-│   ├── cmd/                    cobra commands (package cmd) — flags, app.*, UI
-│   │   ├── root.go             root command, persistent flags
-│   │   ├── release.go          heraut release
-│   │   ├── changelog.go        heraut changelog
-│   │   ├── version.go          heraut version next / current
-│   │   ├── version_sprint.go   heraut version sprint bump
-│   │   ├── check.go            heraut check
-│   │   ├── cliff.go            heraut cliff
-│   │   ├── init.go             heraut init
-│   │   └── self_update.go      heraut self-update
-│   │
-│   ├── port/                   interfaces — extractable later
-│   │   ├── runner.go           Runner interface
-│   │   ├── generator.go        Generator interface (Check, Validate, Generate)
-│   │   └── platform.go         Platform interface
-│   │
-│   ├── adapter/exec/           shell runner — extractable later
-│   │   └── runner.go
-│   │
-│   ├── testutil/               MockRunner, FakeBin — extractable later
-│   │   ├── mock_runner.go
-│   │   ├── fakebin.go
-│   │   └── constants.go
-│   │
-│   ├── ui/                     terminal UI — extractable later
-│   │   ├── step.go
-│   │   ├── styles.go
-│   │   └── version.go
-│   │
-│   ├── config/
-│   │   ├── config.go           structs
-│   │   ├── loader.go           YAML parsing (strict)
-│   │   ├── path.go             path resolution
-│   │   ├── validator.go        composed validation (semantic + strategy-specific)
-│   │   └── error.go            ValidationError, ValidationErrors
-│   │
-│   ├── versioning/
-│   │   ├── result.go           shared Result type
-│   │   ├── tagfmt/             NEW: shared tag format package
-│   │   │   └── tagfmt.go       TagFormat.Render(), ParseFromTag(), GlobPattern()
-│   │   ├── semver/
-│   │   │   ├── resolver.go
-│   │   │   └── bump.go
-│   │   ├── calver/
-│   │   │   ├── resolver.go
-│   │   │   ├── parser.go
-│   │   │   └── format.go
-│   │   └── perenv/             NEW: generic per-env resolver
-│   │       ├── resolver.go     wraps VersionCalculator interface
-│   │       ├── promote.go      promote mode + E001/E002/E003
-│   │       └── auto.go         auto mode
-│   │
-│   ├── generators/
-│   │   ├── gitcliff/
-│   │   │   ├── generator.go
-│   │   │   └── merge.go        TOML config merging
-│   │   ├── communique/
-│   │   │   └── generator.go
-│   │   └── cocogitto/
-│   │       └── generator.go
-│   │
-│   ├── platforms/
-│   │   ├── gitlab/
-│   │   │   ├── platform.go
-│   │   │   └── platform_test.go    contract tests
-│   │   └── github/
-│   │       ├── platform.go
-│   │       └── platform_test.go    contract tests
-│   │
-│   ├── pipeline/
-│   │   ├── release.go          Release pipeline (git ops + platform publish)
-│   │   ├── changelog.go        Changelog-only pipeline
-│   │   └── config.go           Pipeline.Config struct
-│   │
-│   ├── app/                    NEW: domain coordination layer
-│   │   ├── resolver.go         NewResolver() — central strategy factory
-│   │   └── pipeline.go         BuildPipeline(), BuildChangelogPipeline()
-│   │
-│   ├── scaffold/
-│   │   ├── wizard.go
-│   │   ├── generate.go
-│   │   ├── cliff.go
-│   │   └── cog.go
-│   │
-│   └── selfupdate/
-│       ├── updater.go
-│       ├── manifest.go
-│       └── github.go           GitHub Releases API
-│
-├── testdata/                   repo-wide read-only test fixtures (.heraut.yml samples, …)
-│
-├── docs/
-│   ├── README.md               index of the docs tree
-│   ├── specs/                  six numbered behavioural specs
-│   ├── adr/                    14 architectural decision records
-│   └── tasks/                  roadmap.md (build plan + inline task checklist)
-│
-├── schema.json
-├── .goreleaser.yml             GitHub Releases + GHCR
-├── Dockerfile                  builds from source; ldflags point to github.com
-├── .github/workflows/
-│   ├── ci.yml                  PR pipeline (build + test + lint)
-│   └── release.yml             release pipeline (goreleaser + ghcr)
-└── go.mod                      module: github.com/adaouat/heraut
-```
+For the *rationale* behind specific design choices, see the relevant ADR: strategy
+selection and per-env resolution ([ADR-0009](../adr/0009-generic-perenv-resolver.md)),
+CLI framework ([ADR-0003](../adr/0003-cli-framework-cobra-fang.md)), binary distribution
+([ADR-0013](../adr/0013-raw-binary-goreleaser-format.md)), forge abstraction
+([ADR-0043](../adr/0043-forge-abstraction.md)), native as sole generator
+([ADR-0045](../adr/0045-native-sole-generator.md)).
 
 ---
 
