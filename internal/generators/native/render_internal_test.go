@@ -505,10 +505,51 @@ func TestUpperFirst(t *testing.T) {
 	}
 }
 
-// ─── changelogHeader constant ─────────────────────────────────────────────────
+// ─── renderPreamble (title/subtitle) ──────────────────────────────────────────
 
-func TestChangelogHeader(t *testing.T) {
-	assert.Equal(t, "# Changelog\n\n", changelogHeader)
+func TestRenderPreamble_ChangelogDefault(t *testing.T) {
+	out, err := renderPreamble(changelogTmpl, nil, "", tplHeraut{})
+	require.NoError(t, err)
+	assert.Equal(t, "# Changelog\n\n", out, "byte-identical to the former changelogHeader constant")
+}
+
+func TestRenderPreamble_ChangelogTitleOnly(t *testing.T) {
+	out, err := renderPreamble(changelogTmpl, map[string]string{"title": "# MyApp"}, "", tplHeraut{})
+	require.NoError(t, err)
+	assert.Equal(t, "# MyApp\n\n", out)
+}
+
+func TestRenderPreamble_ChangelogTitleAndSubtitle(t *testing.T) {
+	out, err := renderPreamble(changelogTmpl, map[string]string{
+		"title":    "# MyApp",
+		"subtitle": "All notable changes.",
+	}, "", tplHeraut{})
+	require.NoError(t, err)
+	assert.Equal(t, "# MyApp\n\nAll notable changes.\n\n", out)
+}
+
+func TestRenderPreamble_ChangelogSubtitleOnly(t *testing.T) {
+	out, err := renderPreamble(changelogTmpl, map[string]string{
+		"title":    "",
+		"subtitle": "Just a subtitle.",
+	}, "", tplHeraut{})
+	require.NoError(t, err)
+	assert.Equal(t, "Just a subtitle.\n\n", out, "no leading blank line when title is explicitly nulled")
+}
+
+func TestRenderPreamble_ChangelogBothEmpty(t *testing.T) {
+	out, err := renderPreamble(changelogTmpl, map[string]string{"title": ""}, "", tplHeraut{})
+	require.NoError(t, err)
+	assert.Empty(t, out, "an explicitly nulled title with no subtitle renders nothing, no stray blank line")
+}
+
+func TestRenderPreamble_HerautContextIsBareFields(t *testing.T) {
+	out, err := renderPreamble(changelogTmpl, map[string]string{
+		"title": "Changelog (heraut v{{ .Version }})",
+	}, "", tplHeraut{Version: "0.59.0"})
+	require.NoError(t, err)
+	assert.Equal(t, "Changelog (heraut v0.59.0)\n\n", out,
+		"title's root IS tplHeraut directly — .Version, not .Heraut.Version")
 }
 
 // TestRenderReleaseNotes_Contributors_Golden locks in the "New Contributors" block output — the

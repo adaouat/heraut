@@ -181,6 +181,14 @@
           "description": "Override built-in native template blocks. Each value is a Go text/template snippet. native only; deep-merged global -> per-driver -> per-env (ADR-0037, ADR-0048).",
           "additionalProperties": false,
           "properties": {
+            "title": {
+              "type": "string",
+              "description": "Document-level title, fired once per document (not once per release). Executes against .Heraut's own fields directly (.Version .URL .GeneratedAt), not the full release data — write {{ .Version }}, not {{ .Heraut.Version }}. Changelog default: '# Changelog'. Release-notes default: empty."
+            },
+            "subtitle": {
+              "type": "string",
+              "description": "Document-level subtitle rendered under title, fired once per document. Same .Heraut-only context as title. Empty by default on both drivers."
+            },
             "release_header": {
               "type": "string",
               "description": "One release's version heading, fired once per rendered release. Changelog default: '## [version](compare-url) - date'. Release-notes default: empty."

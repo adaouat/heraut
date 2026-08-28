@@ -1,3 +1,5 @@
+{{define "title"}}# Changelog{{end}}
+{{define "subtitle"}}{{end}}
 {{define "release_header"}}## [{{ .Version }}]{{ if .CompareURL }}({{ .CompareURL }}){{ end }} - {{ date "2006-01-02" .Date }}{{end}}
 {{define "changelog"}}{{ template "release_header" . }}
 {{range .Groups}}

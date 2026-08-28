@@ -822,6 +822,19 @@ rendering:
 	assert.Empty(t, config.Validate(cfg))
 }
 
+func TestValidate_RenderingTemplatesTitleSubtitleValid(t *testing.T) {
+	cfg := mustLoad(t, `
+version: "1"
+versioning:
+  strategy: semver
+rendering:
+  templates:
+    title: "# MyApp Changelog"
+    subtitle: "All notable changes."
+`)
+	assert.Empty(t, config.Validate(cfg))
+}
+
 func TestValidate_RenderingTemplatesBadSnippet(t *testing.T) {
 	cfg := mustLoad(t, `
 version: "1"

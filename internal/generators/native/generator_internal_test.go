@@ -171,6 +171,102 @@ func TestGenerator_GenerateChangelog_WritesFile(t *testing.T) {
 	assert.Equal(t, body, string(written), "changelog is also written to cfg.Output")
 }
 
+func TestGenerator_GenerateChangelog_TitleSubtitleFireOncePerDocument(t *testing.T) {
+	mr := exectest.NewMockRunner()
+	mr.QueueResponse("v1.0.0\n", "", nil) // listTags: git tag -l (one existing tag)
+	mr.QueueResponse(record("aaa1111111", "A", "a@example.com",
+		"2026-02-01T00:00:00Z", "feat: brand new", ""), "", nil) // new release: v1.0.0..HEAD
+	mr.QueueResponse(record("bbb2222222", "B", "b@example.com",
+		"2026-01-01T00:00:00Z", "fix: an old bug", ""), "", nil) // existing v1.0.0
+
+	dir := t.TempDir()
+	g := New(mr, &config.ContentDriver{
+		Output: filepath.Join(dir, "CHANGELOG.md"),
+		EffectiveTemplates: map[string]string{
+			"title":    "# MyApp Changelog",
+			"subtitle": "All notable changes.",
+		},
+	}, ModeChangelog)
+
+	body, err := g.Generate("v1.1.0", nil)
+	require.NoError(t, err)
+
+	assert.Equal(t, 1, strings.Count(body, "# MyApp Changelog"),
+		"title renders once for the whole document, not once per section")
+	assert.Equal(t, 1, strings.Count(body, "All notable changes."))
+	assert.True(t, strings.HasPrefix(body, "# MyApp Changelog\n\nAll notable changes.\n\n"),
+		"title+subtitle open the file")
+}
+
+func TestGenerator_GenerateChangelog_IncrementalPreservesExistingTitle(t *testing.T) {
+	mr := exectest.NewMockRunner()
+	mr.QueueResponse("v1.0.0\n", "", nil) // scopedTags for the splice path's latest lookup
+	mr.QueueResponse(record("ccc3333333", "C", "c@example.com",
+		"2026-03-01T00:00:00Z", "feat: another one", ""), "", nil) // new range v1.0.0..HEAD
+
+	dir := t.TempDir()
+	outPath := filepath.Join(dir, "CHANGELOG.md")
+	existing := "# Totally Custom Title\n\nHand-edited subtitle.\n\n<!-- heraut-release: v1.0.0 -->\n## [1.0.0]\n\n### Features\n\n- first\n"
+	require.NoError(t, os.WriteFile(outPath, []byte(existing), 0o644))
+
+	g := New(mr, &config.ContentDriver{
+		Output:             outPath,
+		EffectiveTemplates: map[string]string{"title": "# Should Not Appear"},
+	}, ModeChangelog)
+
+	body, err := g.Generate("v1.1.0", nil)
+	require.NoError(t, err)
+
+	assert.True(t, strings.HasPrefix(body, "# Totally Custom Title\n\nHand-edited subtitle.\n\n"),
+		"an ordinary incremental splice never re-renders the preamble, even with a title override configured")
+	assert.NotContains(t, body, "Should Not Appear")
+}
+
+func TestGenerator_GenerateChangelog_RegenerateRerendersTitle(t *testing.T) {
+	mr := exectest.NewMockRunner()
+	mr.QueueResponse("v1.0.0\n", "", nil) // listTags: git tag -l
+	mr.QueueResponse(record("aaa1111111", "A", "a@example.com",
+		"2026-02-01T00:00:00Z", "feat: brand new", ""), "", nil) // new release: v1.0.0..HEAD
+	mr.QueueResponse(record("bbb2222222", "B", "b@example.com",
+		"2026-01-01T00:00:00Z", "fix: an old bug", ""), "", nil) // existing v1.0.0
+
+	dir := t.TempDir()
+	outPath := filepath.Join(dir, "CHANGELOG.md")
+	require.NoError(t, os.WriteFile(outPath, []byte(
+		"# Stale Title\n\n<!-- heraut-release: v1.0.0 -->\n## [1.0.0]\n\n### Features\n\n- first\n"), 0o644))
+
+	g := New(mr, &config.ContentDriver{
+		Output:              outPath,
+		RegenerateChangelog: true,
+		EffectiveTemplates:  map[string]string{"title": "# Fresh Title"},
+	}, ModeChangelog)
+
+	body, err := g.Generate("v1.1.0", nil)
+	require.NoError(t, err)
+
+	assert.True(t, strings.HasPrefix(body, "# Fresh Title\n\n"),
+		"--regenerate re-renders the title from the current config, discarding the stale preamble")
+	assert.NotContains(t, body, "Stale Title")
+}
+
+func TestGenerator_GenerateChangelog_TitleContextIsHerautOnly(t *testing.T) {
+	mr := exectest.NewMockRunner()
+	mr.QueueResponse("v1.0.0\n", "", nil)
+	mr.QueueResponse(record("aaa1111111", "A", "a@example.com",
+		"2026-02-01T00:00:00Z", "feat: brand new", ""), "", nil)
+	mr.QueueResponse(record("bbb2222222", "B", "b@example.com",
+		"2026-01-01T00:00:00Z", "fix: an old bug", ""), "", nil)
+
+	dir := t.TempDir()
+	g := New(mr, &config.ContentDriver{
+		Output:             filepath.Join(dir, "CHANGELOG.md"),
+		EffectiveTemplates: map[string]string{"title": "{{ .Tag }}"}, // .Tag exists on Release, not tplHeraut
+	}, ModeChangelog)
+	_, err := g.Generate("v1.1.0", nil)
+	require.Error(t, err, "title only receives .Heraut's own fields — .Tag must fail to execute")
+	assert.Contains(t, err.Error(), "title")
+}
+
 // TestGenerator_GenerateChangelog_PreviousTagOverride_BoundsBootstrapRange covers T248's finding:
 // a rotating changelog's tag_pattern correctly excludes prior-bucket tags from the scoped tag
 // list, but that also leaves the new bucket's first release with no in-scope previous tag to

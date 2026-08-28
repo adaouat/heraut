@@ -202,6 +202,11 @@ func (g *Generator) buildAllSections(tag string, lc *port.LinkContext, enrichAll
 		return "", err
 	}
 
+	preamble, err := renderPreamble(changelogTmpl, g.cfg.EffectiveTemplates, g.cfg.Template, g.herautMeta())
+	if err != nil {
+		return "", fmt.Errorf("rendering changelog title: %w", err)
+	}
+
 	var blocks []string
 
 	latest := g.newSectionBound(tags)
@@ -226,7 +231,7 @@ func (g *Generator) buildAllSections(tag string, lc *port.LinkContext, enrichAll
 		}
 	}
 
-	return changelogHeader + strings.Join(blocks, "\n\n") + "\n", nil
+	return preamble + strings.Join(blocks, "\n\n") + "\n", nil
 }
 
 // generateIncremental splices only the new release's section into the existing changelog,

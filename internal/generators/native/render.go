@@ -13,10 +13,6 @@ import (
 	"github.com/adaouat/heraut/internal/port"
 )
 
-// changelogHeader is the fixed file-level header for a CHANGELOG.md.
-// Release-notes have no header (the platform renders the version heading).
-const changelogHeader = "# Changelog\n\n"
-
 //go:embed blocks.tmpl
 var blocksTmpl string
 
@@ -257,4 +253,44 @@ func execBlocks(rootName, rootTmpl string, snippets map[string]string, templateF
 		return "", fmt.Errorf("executing %q template: %w", rootName, err)
 	}
 	return sb.String(), nil
+}
+
+// execPreambleBlock executes one title/subtitle block, special-casing an explicit empty-string
+// snippet override. text/template.Parse treats a whitespace-only {{define}} body as a no-op
+// redefinition — it will not replace an existing non-empty template body — so
+// snippets["title"] == "" can never reach the engine to null out a non-empty built-in (e.g. the
+// changelog's "# Changelog" default). Forcing it to "" directly is the only way to honor an
+// explicit override to nothing.
+func execPreambleBlock(name, rootTmpl string, snippets map[string]string, templateFile string, heraut tplHeraut) (string, error) {
+	if v, ok := snippets[name]; ok && v == "" {
+		return "", nil
+	}
+	return execBlocks(name, rootTmpl, snippets, templateFile, heraut)
+}
+
+// renderPreamble renders a driver's document-level title+subtitle blocks (ADR-0048): unlike every
+// other block, these fire once per document, not once per rendered release, so they execute
+// against a bare tplHeraut (not a Release) — snippets write .Version/.URL/.GeneratedAt directly,
+// not .Heraut.Version. Each is independently trimmed and blank-line-joined: an unset block
+// contributes nothing, so no stray blank line survives whether both, one, or neither is set.
+func renderPreamble(rootTmpl string, snippets map[string]string, templateFile string, heraut tplHeraut) (string, error) {
+	title, err := execPreambleBlock("title", rootTmpl, snippets, templateFile, heraut)
+	if err != nil {
+		return "", fmt.Errorf("rendering title: %w", err)
+	}
+	subtitle, err := execPreambleBlock("subtitle", rootTmpl, snippets, templateFile, heraut)
+	if err != nil {
+		return "", fmt.Errorf("rendering subtitle: %w", err)
+	}
+	var parts []string
+	if t := strings.TrimSpace(title); t != "" {
+		parts = append(parts, t)
+	}
+	if s := strings.TrimSpace(subtitle); s != "" {
+		parts = append(parts, s)
+	}
+	if len(parts) == 0 {
+		return "", nil
+	}
+	return strings.Join(parts, "\n\n") + "\n\n", nil
 }
