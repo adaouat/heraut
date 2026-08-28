@@ -189,6 +189,40 @@ func TestRenderChangelogSection_WithTickets(t *testing.T) {
 	assert.Equal(t, want, got)
 }
 
+// TestRenderChangelogSection_TicketBlockOverride covers T240: rendering.templates.ticket must
+// override just the per-ticket link fragment, without requiring the caller to restate the whole
+// commit block — the "ticket" block is called from "commit" via {{ template "ticket" . }}, so
+// overriding it alone changes ticket rendering and nothing else about the commit line.
+func TestRenderChangelogSection_TicketBlockOverride(t *testing.T) {
+	rcTicket := rawCommit{
+		Hash:    "eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
+		Author:  "Eve",
+		Email:   "eve@example.com",
+		Date:    fixedDate1,
+		Subject: "fix: resolve PROJ-42",
+		Body:    "",
+	}
+	pcTicket := parsedCommit{raw: rcTicket}
+	pcTicket.parsed, _ = conventionalcommit.Parse(rcTicket.Subject)
+
+	groups := []group{{name: "🐛 Bug Fixes", order: 1, commits: []parsedCommit{pcTicket}}}
+	tickets := []config.Ticket{
+		{Pattern: `PROJ-(\d+)`, URL: "https://jira.example.com/browse/PROJ-{ticket}"},
+	}
+	snippets := map[string]string{"ticket": "🎫[{{ .Text }}]({{ .Href }})"}
+
+	releaseDate := time.Date(2024, 1, 15, 0, 0, 0, 0, time.UTC)
+	got, err := renderChangelogSection(
+		"v2.0.0", "v1.9.9", releaseDate,
+		groups, githubLC, tickets, "", 3, nil, tplHeraut{}, snippets, "",
+	)
+	require.NoError(t, err)
+
+	assert.Contains(t, got, "🎫[PROJ-42](https://jira.example.com/browse/PROJ-42)")
+	assert.NotContains(t, got, "([PROJ-42]", "the default ( ) wrapper must be gone once overridden")
+	assert.Contains(t, got, "Resolve PROJ-42", "the rest of the commit line must be untouched")
+}
+
 func TestRenderChangelogSection_HeadingPattern(t *testing.T) {
 	releaseDate := time.Date(2024, 1, 15, 0, 0, 0, 0, time.UTC)
 	// Simulates a per-env tag like "prod/v1.2.3" where the pattern strips "prod/".

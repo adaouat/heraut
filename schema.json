@@ -193,6 +193,10 @@
               "type": "string",
               "description": "One commit line: description, scope, breaking marker, hash link, 'by @author', PR/MR reference, ticket links."
             },
+            "ticket": {
+              "type": "string",
+              "description": "One ticket link within a commit line (called once per match from the commit block). Default: '([TICKET](url))'."
+            },
             "contributor": {
               "type": "string",
               "description": "One entry in the New Contributors block for a first-time contributor."

@@ -791,6 +791,20 @@ rendering:
 	assert.Empty(t, config.Validate(cfg))
 }
 
+// TestValidate_RenderingTemplatesTicketValid covers T240: "ticket" is a valid overridable
+// block, added alongside "commit" so ticket-link rendering can be customized in isolation.
+func TestValidate_RenderingTemplatesTicketValid(t *testing.T) {
+	cfg := mustLoad(t, `
+version: "1"
+versioning:
+  strategy: semver
+rendering:
+  templates:
+    ticket: "🎫[{{ .Text }}]({{ .Href }})"
+`)
+	assert.Empty(t, config.Validate(cfg))
+}
+
 func TestValidate_RenderingTemplatesBadSnippet(t *testing.T) {
 	cfg := mustLoad(t, `
 version: "1"

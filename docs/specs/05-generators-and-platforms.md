@@ -76,11 +76,14 @@ changelog:
       header: "# Changelog\n\nAll notable changes.\n"
 ```
 
-**Overridable blocks:** `header`, `group`, `commit`, `contributor`, `contributors`, `stats`,
-`footer`, and the roots `changelog` / `release-notes`. The changelog renders a one-line commit;
-the release-notes root wraps the shared `commit` block with indented body/footers. Any other key
-under `rendering.templates` is a **config error** (a misspelled block would otherwise be silently
-ignored); `schema.json` enumerates the same set for editor autocompletion.
+**Overridable blocks:** `header`, `group`, `commit`, `ticket`, `contributor`, `contributors`,
+`stats`, `footer`, and the roots `changelog` / `release-notes`. The changelog renders a one-line
+commit; the release-notes root wraps the shared `commit` block with indented body/footers.
+`ticket` renders one matched ticket link (`commits.tickets`) within a commit line — `commit`
+calls it once per match, so overriding just `ticket` customizes ticket rendering without
+restating the whole commit-line template. Any other key under `rendering.templates` is a
+**config error** (a misspelled block would otherwise be silently ignored); `schema.json`
+enumerates the same set for editor autocompletion.
 
 **Template funcs** (safe set, no OS/file/network): `upperFirst`, `date`, `join`, `list`, `indent`,
 `trim`.
@@ -90,7 +93,9 @@ ignored); `schema.json` enumerates the same set for editor autocompletion.
 contributors/stats headings); a `Group` exposes `.Name` `.Commits` `.HeadingPrefix`; a
 `Commit` exposes `.Type` `.Scope` `.Breaking` `.Description` `.Subject` (the raw commit
 subject line, distinct from `.Description`) `.Body` `.Hash` `.ShortHash`
-`.CommitURL` `.Date` `.Author` `.PR` `.Tickets` `.Footers`; `.PR` (nil when absent) exposes
+`.CommitURL` `.Date` `.Author` `.PR` `.Tickets` `.Footers`; each entry of `.Tickets` (what the
+`ticket` block receives) exposes `.Text` (the matched ticket text) `.Href` (the resolved URL);
+`.PR` (nil when absent) exposes
 `.Number` `.URL` `.Title` `.Ref` `.Labels` `.Author` `.CreatedAt` `.MergedAt` `.MergedBy`
 `.Approvers` (approvers best-effort: GitHub + Azure, empty on GitLab); `.Heraut` exposes
 `.Version` `.URL` `.GeneratedAt`. All `.PR.*` fields are remote-only (empty offline). Field names

@@ -5321,7 +5321,7 @@ the rendered changelog. `go test ./...` and `hk check` both clean.
 
 ---
 
-#### `[ ]` T240: dedicated overridable template block for ticket rendering
+#### `[x]` T240: dedicated overridable template block for ticket rendering
 
 Ticket links (`([{{.Text}}]({{.Href}}))`) render inline inside the `commit` template block
 (`internal/generators/native/blocks.tmpl`), which is already user-overridable via
@@ -5342,6 +5342,20 @@ template (scope, breaking marker, description, hash, author, PR ref, and tickets
 **Files (expected):** `internal/generators/native/blocks.tmpl`, `internal/config/validator.go`,
 `schema.json`, `docs/heraut.sample.yml`, `docs/specs/05-generators-and-platforms.md` (+ tests).
 **Scope:** S. **Dependencies:** none.
+
+Implemented exactly as scoped. Extracted `{{define "ticket"}}([{{ .Text }}]({{ .Href }})){{end}}`
+into `blocks.tmpl`, with `commit` now calling `{{ template "ticket" . }}` per match instead of
+inlining the fragment — Go's `text/template` resolves `{{template "name"}}` against the current
+definition in the set at execution time, so a `rendering.templates.ticket` override propagates
+through `commit` automatically, the same mechanism already used for `group`/`contributor`.
+Verified the extraction is byte-identical for the default path (existing golden test
+`changelog_with_tickets.golden` passes unchanged, no diff), then added
+`TestRenderChangelogSection_TicketBlockOverride` proving an override changes only the ticket
+fragment — the rest of the commit line is untouched. Added `"ticket"` to `validTemplateBlocks` /
+`validTemplateBlocksHint`, `schema.json`'s block enum, `docs/heraut.sample.yml`'s example, and
+[Spec 05](05-generators-and-platforms.md#user-customizable-templates-adr-0037)'s overridable-blocks
+list and data-model description (documented `tplLink`'s `.Text`/`.Href` shape, since a user
+writing a `ticket` override needs to know it). `go test ./...` and `hk check` both clean.
 
 ---
 

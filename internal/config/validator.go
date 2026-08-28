@@ -367,12 +367,12 @@ func validateRendering(cfg *Config) []ValidationError {
 // (blocks.tmpl / changelog.tmpl / release_notes.tmpl) and with schema.json. config cannot import
 // native (layer rule), so the list is maintained here.
 var validTemplateBlocks = map[string]bool{
-	"header": true, "footer": true, "group": true, "commit": true,
+	"header": true, "footer": true, "group": true, "commit": true, "ticket": true,
 	"contributor": true, "contributors": true, "stats": true,
 	"changelog": true, "release-notes": true,
 }
 
-const validTemplateBlocksHint = "valid blocks: changelog, commit, contributor, contributors, footer, group, header, release-notes, stats"
+const validTemplateBlocksHint = "valid blocks: changelog, commit, contributor, contributors, footer, group, header, release-notes, stats, ticket"
 
 func validateTemplateSnippets(snippets map[string]string, pathPrefix string) []ValidationError {
 	var errs []ValidationError

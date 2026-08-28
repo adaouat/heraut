@@ -1,5 +1,6 @@
 {{define "group"}}{{ .HeadingPrefix }} {{ .Name }}{{end}}
-{{define "commit"}}- {{ if .Scope }}*({{ .Scope }})* {{ end }}{{ if .Breaking }}[**breaking**] {{ end }}{{ .Description }} - {{ if .CommitURL }}([{{ .ShortHash }}]({{ .CommitURL }})){{ else }}{{ .ShortHash }}{{ end }}{{ if .Author.Username }} by @{{ .Author.Username }}{{ end }}{{ if .PR }}{{ if .PR.Number }} in [{{ .PR.Ref }}]({{ .PR.URL }}){{ end }}{{ end }}{{ range .Tickets }} ([{{ .Text }}]({{ .Href }})){{ end }}{{end}}
+{{define "ticket"}}([{{ .Text }}]({{ .Href }})){{end}}
+{{define "commit"}}- {{ if .Scope }}*({{ .Scope }})* {{ end }}{{ if .Breaking }}[**breaking**] {{ end }}{{ .Description }} - {{ if .CommitURL }}([{{ .ShortHash }}]({{ .CommitURL }})){{ else }}{{ .ShortHash }}{{ end }}{{ if .Author.Username }} by @{{ .Author.Username }}{{ end }}{{ if .PR }}{{ if .PR.Number }} in [{{ .PR.Ref }}]({{ .PR.URL }}){{ end }}{{ end }}{{ range .Tickets }} {{ template "ticket" . }}{{ end }}{{end}}
 {{define "contributor"}}* @{{ .Author.Username }} made their first contribution{{ if .PR }}{{ if .PR.Number }} in [{{ .PR.Ref }}]({{ .PR.URL }}){{ end }}{{ end }}{{end}}
 {{define "contributors"}}{{ .HeadingPrefix }} New Contributors ❤️
 {{ range .Contributors }}{{ template "contributor" . }}
