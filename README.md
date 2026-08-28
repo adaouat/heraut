@@ -138,7 +138,7 @@ heraut release
 | `heraut version sprint bump` | Increment the CalVer sprint counter in `.heraut.yml` |
 | `heraut check` | Preflight: config + runtime (`config` / `runtime` subcommands) |
 | `heraut init` | Interactive wizard to generate `.heraut.yml` |
-| `heraut commit verify` / `check` / `create` | Conventional-commit validation and interactive authoring |
+| `heraut commit verify` / `check` / `tickets` / `create` | Conventional-commit validation, ticket-pattern testing, and interactive authoring |
 
 Global flags (on every command): `--config`, `--dry-run`, `--verbose`, `--env`,
 `--force`, `--offline`, `--help`/`-h`. `--version`/`-v` prints the heraut version and is

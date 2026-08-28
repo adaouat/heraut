@@ -137,6 +137,19 @@ func upperFirst(s string) string {
 
 // ─── ticket helpers ───────────────────────────────────────────────────────────
 
+// TicketMatch is one ticket reference found in commit text: the matched display text and
+// its resolved URL. Exported so callers outside native (internal/app is allowed to import
+// internal/generators/* per the Layer rules table in .claude/rules/coding.md) can verify
+// commits.tickets patterns against real commit text — heraut commit tickets (T241) — using
+// the exact same matching logic that drives changelog/release-notes ticket-link rendering.
+type TicketMatch = ticketLink
+
+// MatchTickets finds every match of each configured ticket pattern in text, in config
+// order. It is resolveTickets exported under a stable name for callers outside native.
+func MatchTickets(text string, tickets []config.Ticket) []TicketMatch {
+	return resolveTickets(text, tickets)
+}
+
 // resolveTickets finds all ticket matches in text for each configured ticket pattern
 // (in config order) and returns the corresponding ticketLinks. Multiple matches of
 // the same pattern generate multiple links. Patterns with no capture group use the

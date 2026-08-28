@@ -5359,7 +5359,7 @@ writing a `ticket` override needs to know it). `go test ./...` and `hk check` bo
 
 ---
 
-#### `[ ]` T241: `heraut commit check --tickets` (or similar) — validate ticket patterns against a range
+#### `[x]` T241: `heraut commit check --tickets` (or similar) — validate ticket patterns against a range
 
 No such command exists today. `app.ResolveFromLatestTag` and `app.CheckCommitRange`
 (`internal/app/commit_check.go`) already resolve a rev-range and walk `git log` with the same
@@ -5381,6 +5381,27 @@ to import `internal/generators/*` per the Layer rules table in `.claude/rules/co
 (or a new file), `internal/cmd/commit.go`, `docs/specs/03-commands.md` (+ tests).
 **Scope:** M. **Dependencies:** none (soft overlap with T242's ticket-detection reuse — land in
 either order).
+
+Decided the shape: a new sibling subcommand `heraut commit tickets [rev-range] [--from-latest-tag]`
+rather than a flag on `heraut commit check` — grammar checking and ticket-pattern testing are
+different concerns with different report shapes, and this keeps `check`'s existing output
+completely unchanged. Decided the report shape: no per-pattern breakdown (would have required
+adding a `Pattern` field to `native.ticketLink`, which cascades into `tplLink` since the two
+convert directly — a public-template-API change for a CLI diagnostic need); instead, per-commit
+matches (SHA, subject, matched text + resolved URL) plus a total-count summary, with a warning
+(not a failure — this is a diagnostic tool, not a gate) when the total across the whole range is
+zero, since that's the single most actionable "your regex is probably broken" signal without
+needing per-pattern granularity.
+
+Exported `native.TicketMatch` (a type alias for the existing `ticketLink`, so no allocation or
+duplication) and `native.MatchTickets`, tested from `native_test` (external package) to prove it's
+actually usable from outside — `internal/app` importing `internal/generators/native` is already
+permitted by the Layer rules table. Added `app.CheckTicketsInRange`, matching text against
+`%s`+`%b` (subject + body-without-subject) exactly like `buildCommit`'s own `text := subject; if
+body != "" { text += "\n" + body }` — the same text native tests when rendering ticket links, so
+this command answers "will this actually get linked" rather than a subtly different question.
+`heraut commit tickets` requires `commits.tickets` to be configured (Usage error otherwise, unlike
+`check`/`verify` which tolerate a missing config file). `go test ./...` and `hk check` both clean.
 
 ---
 

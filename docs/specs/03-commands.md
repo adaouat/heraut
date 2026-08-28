@@ -344,6 +344,33 @@ every commit, valid ones included. Exits with the Usage code (1) if any commit i
 or if the range itself cannot be resolved (e.g. malformed `rev-range`, git not on `PATH`)
 — same classification as `heraut commit verify`'s single-message case.
 
+## `heraut commit tickets`
+
+Validate `commits.tickets` patterns against a range of commits — or the full history
+reachable from `HEAD` when no range is given — using the exact same matching
+`heraut release`/`heraut changelog` apply when rendering ticket links in the changelog and
+release notes (subject, then body on its own line when non-empty).
+
+```
+heraut commit tickets [rev-range] [--from-latest-tag]
+```
+
+`rev-range` and `--from-latest-tag` behave identically to
+[`heraut commit check`](#heraut-commit-check) above (same git range syntax, same
+mutual-exclusivity error, same "no tags found" fallback).
+
+Requires at least one `commits.tickets` entry to be configured — with none configured,
+the command exits with the Usage code (1) rather than silently reporting zero matches,
+since running it with nothing to check is a configuration oversight, not a valid result.
+
+For each commit with at least one match, prints the commit (short SHA, subject) followed
+by one line per matched ticket (matched text and the resolved URL); `--verbose` also lists
+commits with no matches. Always prints a summary line
+(`N ticket reference(s) found across M commit(s) analysed`). This is a diagnostic tool, not
+a gate: even when **no** commit in the range matches **any** configured pattern — the
+strongest signal that a pattern's regex is broken — the command prints a warning but still
+exits 0, since a genuinely quiet range (no ticket-referencing work) is also possible.
+
 ## `heraut commit create`
 
 Interactively author a Conventional Commits message and run `git commit`. Requires an
