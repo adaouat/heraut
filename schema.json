@@ -328,7 +328,7 @@
       "properties": {
         "output": {
           "type": "string",
-          "description": "Changelog output file path (e.g. \"CHANGELOG.md\")."
+          "description": "Changelog output file path (e.g. \"CHANGELOG.md\"). For changelog.output only (not release.notes.output, which is never written to disk): may contain rotation tokens for a periodic file, e.g. \"CHANGELOG_{YYYY}.md\" (calver: YYYY, MM, DD, WW, QQ, SS, SPRINT) or \"CHANGELOG_{MAJOR}.md\" (semver: MAJOR, MINOR). See docs/specs/02-configuration.md § Rotating changelog output."
         },
         "tag_pattern": {
           "type": "string",

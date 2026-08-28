@@ -268,6 +268,18 @@ changelog:
   # output — path where the changelog file is written.
   output: CHANGELOG.md
 
+  # output may instead rotate into one file per release line/period — {TOKEN} placeholders
+  # are substituted from the resolved version, and tag-scoping is derived automatically
+  # (no separate field to keep in sync). A literal path with no {...} is unaffected.
+  #   semver (strategy: semver above): MAJOR, MINOR — never PATCH (ADR-0047)
+  # output: "CHANGELOG_{MAJOR}.md"          # one file per major version
+  # output: "CHANGELOG_{MAJOR}_{MINOR}.md"  # one file per minor release line
+  #   calver (strategy: calver, format: "YYYY.MM.PATCH"): tokens must be a leading
+  #   prefix of the format's own token order — YYYY, MM, DD, WW, QQ, SS, SPRINT
+  # output: "CHANGELOG_{YYYY}.md"           # one file per year
+  # output: "CHANGELOG_{YYYY}_{MM}.md"      # one file per month
+  # Not yet supported: semver-per-env / calver-per-env strategies, or the init wizard.
+
   # tag_pattern — regex (Go regexp syntax) selecting this scope's release tags. Handy
   # with prefixed-tag / per-env strategies to keep generation scoped to one namespace.
   # (Per-env strategies auto-derive this from tag_format — set it only to override.)

@@ -51,3 +51,4 @@ trade-offs were accepted.
 | [0044](0044-publishing-config-unification.md) | Publishing config unification — `release.targets` replaces `release.platforms` | Accepted (decision holds; the migration example's `release.notes.generator` key is itself removed by 0045 — see body note) |
 | [0045](0045-native-sole-generator.md) | Native as Heraut's Sole Content Generator | Accepted |
 | [0046](0046-release-block-atomicity.md) | Release block is one intent, not two | Accepted |
+| [0047](0047-changelog-output-resolves-after-version.md) | Changelog output resolves after version, not at config-build time | Accepted |

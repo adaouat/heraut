@@ -8,7 +8,7 @@ described in `docs/specs/`. Each task carries an inline `[ ] / [x]` checkbox —
 headings for what to do next, read the surrounding prose for *why* and *how*.
 
 The behavioural authority is `docs/specs/` (six numbered specs); the architectural
-authority is `docs/adr/` (46 ADRs). Where this roadmap mentions "behaviour", the specs
+authority is `docs/adr/` (47 ADRs). Where this roadmap mentions "behaviour", the specs
 win; where it mentions a "decision", the ADR wins. If you find a disagreement between
 roadmap and spec/ADR, fix the roadmap.
 
@@ -36,7 +36,7 @@ The goals of v1.0:
    provides these (see [ADR-0014](../adr/0014-self-update-architecture.md), superseded,
    for the self-update → forge/updatecheck migration).
 
-The `docs/specs/` (six numbered specs) and the 46 ADRs in `docs/adr/` are authoritative.
+The `docs/specs/` (six numbered specs) and the 47 ADRs in `docs/adr/` are authoritative.
 
 ---
 

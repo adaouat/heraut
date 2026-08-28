@@ -737,13 +737,39 @@ only generator (ADR-0045) — there is no `generator:` key to set; an empty `cha
 
 | Field         | Required | Description                                                                                                                                                                                                                                                                       |
 |---------------|----------|-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| `output`      | No       | Output file path (e.g. `CHANGELOG.md`).                                                                                                                                                                                                                                            |
+| `output`      | No       | Output file path (e.g. `CHANGELOG.md`). `changelog.output` (not `release.notes.output`, which is never written to disk) may contain rotation tokens for a periodic file — see § Rotating changelog output below. |
 | `tag_pattern` | No       | Tag pattern regex scoping which tags are considered. **For per-env strategies heraut auto-derives this from the effective `tag_format` so `--env <env>` only considers that environment's tags** (e.g. `{version}_{env}` + `--env prod` → `^.+_prod$`); set it explicitly to override the derivation. |
 | `template`    | No       | Path to a full custom Go `text/template` file, parsed on top of native's built-ins (ADR-0037). See [Spec 05 § User-customizable templates](05-generators-and-platforms.md#user-customizable-templates-adr-0037). |
 | `rendering`   | No       | Per-driver exclude rules and template-block snippets, layered over the global `rendering` block (see § `rendering` above). |
 
 See [Spec 05 — Generators and Platforms](05-generators-and-platforms.md) for the full
 behaviour of the native generator.
+
+### Rotating changelog output
+
+`changelog.output` (root and per-environment) accepts `{TOKEN}` placeholders so the changelog
+rotates into one file per calendar period or per release line, instead of a single growing
+`CHANGELOG.md`. A literal path with no `{...}` behaves exactly as before — this is purely
+additive. Tag-scoping for the rotated file is derived automatically from the same tokens; there
+is no second field to keep in sync (ADR-0047).
+
+**CalVer** (`calver` strategy only): tokens are drawn from `versioning.format`'s own vocabulary —
+`YYYY`, `MM`, `DD`, `WW`, `QQ`, `SS`, `SPRINT` — and must form a contiguous *prefix* of the
+format's token order. With `format: "YYYY.MM.PATCH"`, `output: "CHANGELOG_{YYYY}.md"` rotates
+yearly and `output: "CHANGELOG_{YYYY}_{MM}.md"` rotates monthly; `output: "CHANGELOG_{MM}.md"`
+(skipping `YYYY`) is a config error — a changelog can only rotate by a dimension the version
+format itself already tracks, in the order it tracks it, so heraut never has to fall back to a
+tag's git commit date to figure out which bucket it belongs to.
+
+**SemVer** (`semver` strategy only): tokens are `MAJOR` and `MINOR` — `output:
+"CHANGELOG_{MAJOR}.md"` rotates per major version, `output: "CHANGELOG_{MAJOR}_{MINOR}.md"`
+rotates per minor release line. `{MINOR}` alone (without `{MAJOR}`) is a config error, and
+`{PATCH}` is never a valid rotation token — rotating per patch would create a new file on every
+release, defeating the point of a changelog.
+
+**Not yet supported:** `semver-per-env` / `calver-per-env` strategies (a config error if
+`changelog.output` uses rotation tokens under one), and the `heraut init` wizard (no prompt for
+this yet — hand-edit `.heraut.yml`). Both are deliberate scope cuts, not oversights.
 
 ## Platform drivers
 

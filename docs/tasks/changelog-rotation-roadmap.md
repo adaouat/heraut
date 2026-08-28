@@ -39,7 +39,7 @@ scope for this pass (see design doc "Non-goals").
 | T246 | `internal/config/validator.go`: static token-vocabulary + prefix-order + per-env-rejection checks | Done |
 | T247 | `internal/app`: `port.Generator` rotation decorator + wiring into `buildChangelogPipelineConfig` | Done |
 | T248 | Integration test: real-git-repo rotation run across a simulated period boundary        | Done |
-| T249 | Docs: `schema.json`, `docs/heraut.sample.yml`, spec, new ADR-0047                       | Not started |
+| T249 | Docs: `schema.json`, `docs/heraut.sample.yml`, spec, new ADR-0047                       | Done |
 
 Sequencing follows the design doc's "Roadmap placement": T244/T245 are pure-function unit tests with
 no dependency on each other (can build in either order or in parallel). T246 depends on both (needs
@@ -275,7 +275,7 @@ SetsPreviousTagOverride`, `..._NoPriorTags_EmptyOverride`) pinning `resolveDrive
 in isolation. Design doc (§5) and T247's own note above both carry a dated correction rather than
 being silently rewritten. `go test ./...` and `hk check` both clean.
 
-#### `[ ]` T249: docs — schema, sample, spec, ADR-0047
+#### `[x]` T249: docs — schema, sample, spec, ADR-0047
 
 Update `schema.json` (`changelog.output` description/pattern examples), `docs/heraut.sample.yml`
 (a commented rotation example per strategy family), and wherever `changelog.output` is documented
@@ -286,3 +286,26 @@ obvious-looking placements (native itself; config-build time) are both wrong.
 **Files (expected):** `schema.json`, `docs/heraut.sample.yml`, `docs/specs/02-configuration.md` (or
 wherever applicable), `docs/adr/0047-changelog-output-resolves-after-version.md`,
 `docs/adr/README.md`. **Scope:** S. **Dependencies:** T247.
+
+`schema.json`'s shared `ContentDriver.output` description now covers rotation-token syntax with a
+note that it applies to `changelog.output` only (`release.notes.output` is never written to disk —
+an existing, undocumented quirk this task didn't try to fully resolve, just didn't paper over).
+`docs/heraut.sample.yml` gained four commented examples (calver yearly/monthly, semver
+major/major+minor) right under the active `output: CHANGELOG.md` line, matching the file's existing
+convention of showing the inactive strategy's fields commented out under whichever strategy is
+active. `docs/specs/02-configuration.md` gained a new "Rotating changelog output" subsection
+covering both token vocabularies, the CalVer prefix-order constraint, and the two explicit
+non-goals (per-env strategies, the `init` wizard) — plus a table-row pointer from `output`'s own
+description. `docs/specs/05-generators-and-platforms.md`'s existing bootstrap/splice algorithm
+description gained a short cross-reference explaining that rotation reuses that path unchanged
+except for the `PreviousTagOverride` bound (T248), rather than leaving a reader of that section to
+wonder how the two interact.
+
+Wrote ADR-0047 per the design doc's outline, folding in T248's `PreviousTagOverride` finding as its
+own dedicated paragraph (per the design doc's own "Also document" note) rather than treating it as
+a footnote — it's a real, if narrow, correction to the ADR's central "native needs no changes"
+framing, and burying it would misrepresent what actually shipped. Bumped the "46 ADRs" count to 47
+in the three places `CLAUDE.md`/`docs/tasks/roadmap.md` cited it. `go build ./...` and `hk check`
+both clean (docs-only change set — no Go logic touched).
+
+This closes the changelog-rotation epic (T244–T249). See Phase 29 in the main roadmap.

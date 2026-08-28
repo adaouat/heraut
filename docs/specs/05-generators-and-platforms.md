@@ -158,6 +158,14 @@ previously-anchorless file) — see [ADR-0038](../adr/0038-incremental-changelog
 migration story, including the `regenerate_changelog` `workflow_dispatch` input heraut's own CI
 uses for its own migration.
 
+**Rotating `changelog.output`** (see [Spec 02 § Rotating changelog output](02-configuration.md#rotating-changelog-output))
+reuses this same bootstrap path unchanged for each new file: the first release in a new period/
+release-line bucket hits "missing file → bootstrap" exactly as above. The one addition is bounding
+that bootstrap's new section correctly — with the tag-scoping a rotation bucket implies, the scoped
+tag list is empty for a brand-new bucket, which would otherwise default this step's range to "since
+the beginning of history" and duplicate every prior bucket's entries into the new file. See
+[ADR-0047](../adr/0047-changelog-output-resolves-after-version.md) for how this is bounded instead.
+
 ### forges — explicit metadata forge (ADR-0043)
 
 ```yaml
