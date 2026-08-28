@@ -142,6 +142,14 @@ type ContentDriver struct {
 	// environment's tags under a per-env strategy (tagfmt.GlobPattern). Empty means "all tags"
 	// (non-per-env). Not user-configurable — the user-facing knob is TagPattern. (native only.)
 	TagGlob string `yaml:"-"`
+	// PreviousTagOverride, when set, bounds a freshly-bootstrapped or spliced release section's
+	// commit range explicitly, instead of native deriving it from the tag_pattern/tag_glob-scoped
+	// tag list. Set by the app layer's rotation decorator (T247) for a rotating changelog.output:
+	// tag-scoping a bucket like "^2026\." correctly excludes prior-bucket tags from the historical
+	// walk, but also leaves the *new* bucket's first release with no in-scope previous tag to bound
+	// it by — which would otherwise default to "since the beginning of history" and duplicate every
+	// prior bucket's entries into the new file. Not user-configurable. (native only.)
+	PreviousTagOverride string `yaml:"-"`
 }
 
 // Release holds release notes and publish target settings.

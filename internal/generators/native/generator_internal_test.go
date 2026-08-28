@@ -171,6 +171,63 @@ func TestGenerator_GenerateChangelog_WritesFile(t *testing.T) {
 	assert.Equal(t, body, string(written), "changelog is also written to cfg.Output")
 }
 
+// TestGenerator_GenerateChangelog_PreviousTagOverride_BoundsBootstrapRange covers T248's finding:
+// a rotating changelog's tag_pattern correctly excludes prior-bucket tags from the scoped tag
+// list, but that also leaves the new bucket's first release with no in-scope previous tag to
+// bound its commit range by — defaulting to "since the beginning of history" and duplicating
+// every prior bucket's entries into the new file. PreviousTagOverride (set by the app layer's
+// rotation decorator) bounds it explicitly instead.
+func TestGenerator_GenerateChangelog_PreviousTagOverride_BoundsBootstrapRange(t *testing.T) {
+	mr := exectest.NewMockRunner()
+	mr.QueueResponse("", "", nil) // listTags: tag_pattern scopes out every existing (prior-bucket) tag
+	mr.QueueResponse(record("aaa1111111", "A", "a@example.com",
+		"2026-01-05T00:00:00Z", "feat: new bucket release", ""), "", nil) // range: override..HEAD, not full history
+
+	dir := t.TempDir()
+	outPath := filepath.Join(dir, "CHANGELOG_2026.md")
+	g := New(mr, &config.ContentDriver{
+		Output:              outPath,
+		TagPattern:          `^2026\.`,
+		PreviousTagOverride: "2025.12.0",
+	}, ModeChangelog)
+
+	_, err := g.Generate("2026.01.0", nil)
+	require.NoError(t, err)
+
+	require.Len(t, mr.Calls, 2)
+	assert.Equal(t, []string{"log", "2025.12.0..HEAD", "--reverse", "--format=" + logFormat}, mr.Calls[1].Args,
+		"the new section's range must be bounded by the override, not fall back to full history")
+}
+
+// TestGenerator_GenerateChangelog_PreviousTagOverride_SpliceUsesOverride covers the splice path
+// (an already-existing rotated file gaining a new section): the override must bound the new
+// section's range there too, for consistency, even though the in-scope tag list is typically
+// already correct once a bucket has its own history.
+func TestGenerator_GenerateChangelog_PreviousTagOverride_SpliceUsesOverride(t *testing.T) {
+	mr := exectest.NewMockRunner()
+	mr.QueueResponse("", "", nil) // scopedTags for the splice path's own latest lookup
+	mr.QueueResponse(record("bbb2222222", "B", "b@example.com",
+		"2026-02-01T00:00:00Z", "feat: second in bucket", ""), "", nil) // range: override..HEAD
+
+	dir := t.TempDir()
+	outPath := filepath.Join(dir, "CHANGELOG_2026.md")
+	existing := "# Changelog\n\n<!-- heraut-release: 2026.01.0 -->\n## [2026.01.0]\n\n### Features\n\n- first\n"
+	require.NoError(t, os.WriteFile(outPath, []byte(existing), 0o644))
+
+	g := New(mr, &config.ContentDriver{
+		Output:              outPath,
+		TagPattern:          `^2026\.`,
+		PreviousTagOverride: "2026.01.0",
+	}, ModeChangelog)
+
+	_, err := g.Generate("2026.02.0", nil)
+	require.NoError(t, err)
+
+	require.Len(t, mr.Calls, 2)
+	assert.Equal(t, []string{"log", "2026.01.0..HEAD", "--reverse", "--format=" + logFormat}, mr.Calls[1].Args,
+		"the spliced section's range must be bounded by the override")
+}
+
 func TestGenerator_GenerateChangelog_FirstRelease(t *testing.T) {
 	mr := exectest.NewMockRunner()
 	mr.QueueResponse("", "", nil) // listTags: no tags yet

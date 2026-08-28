@@ -110,12 +110,36 @@ func (r *rotatingGenerator) resolveDriver(tag string) (*config.ContentDriver, er
 		return nil, err
 	}
 
+	truePrev, err := latestMatchingTag(r.runner, prefix)
+	if err != nil {
+		return nil, err
+	}
+
 	clone := *r.driver
 	clone.Output = output
 	if clone.TagPattern == "" {
 		clone.TagPattern = tagPattern
 	}
+	clone.PreviousTagOverride = truePrev
 	return &clone, nil
+}
+
+// latestMatchingTag returns the most recent tag matching prefix (unscoped by any rotation
+// bucket), or "" when none exist. Mirrors the calver/semver resolvers' own git tag -l invocation
+// (they need the same "what's the true previous release" answer for their own bump/period-key
+// computation), but resolveDriver needs it independently: it runs after resolution, from a
+// wrapped generator that has no access to the resolver's internal state.
+func latestMatchingTag(runner port.Runner, prefix string) (string, error) {
+	stdout, _, err := runner.Run("git", "tag", "-l", prefix+"*", "--sort=-version:refname")
+	if err != nil {
+		return "", fmt.Errorf("listing git tags: %w", err)
+	}
+	for line := range strings.SplitSeq(stdout, "\n") {
+		if line = strings.TrimSpace(line); line != "" {
+			return line, nil
+		}
+	}
+	return "", nil
 }
 
 func (r *rotatingGenerator) resolveCalver(bareVersion string) (output, tagPattern string, err error) {

@@ -38,7 +38,7 @@ scope for this pass (see design doc "Non-goals").
 | T245 | `semver`: add `MAJOR`/`MINOR` extraction helper                                        | Done |
 | T246 | `internal/config/validator.go`: static token-vocabulary + prefix-order + per-env-rejection checks | Done |
 | T247 | `internal/app`: `port.Generator` rotation decorator + wiring into `buildChangelogPipelineConfig` | Done |
-| T248 | Integration test: real-git-repo rotation run across a simulated period boundary        | Not started |
+| T248 | Integration test: real-git-repo rotation run across a simulated period boundary        | Done |
 | T249 | Docs: `schema.json`, `docs/heraut.sample.yml`, spec, new ADR-0047                       | Not started |
 
 Sequencing follows the design doc's "Roadmap placement": T244/T245 are pure-function unit tests with
@@ -220,7 +220,14 @@ written to disk and the literal `{YYYY}` pattern never is; two pipeline-level re
 reproducing the `ChangelogFile` bug before the fix and proving it after. `go test ./...` and
 `hk check` both clean.
 
-#### `[ ]` T248: integration test — rotation across a simulated period boundary
+**Correction (T248).** A second real bug surfaced only once T248's real-git-repo test existed: the
+new bucket's first release has no in-scope previous tag to bound its commit range by, so it silently
+absorbed the *entire prior bucket's* history too. `internal/generators/native` gained one small
+field (`ContentDriver.PreviousTagOverride`) to fix it — see T248's note and the design doc's §5
+addendum for the full explanation. "Native needs zero changes" (this note's own framing above) was
+not quite accurate; corrected there rather than rewritten here.
+
+#### `[x]` T248: integration test — rotation across a simulated period boundary
 
 Using the existing real-git-repo integration harness, drive a changelog run producing two tags in
 different rotation buckets (e.g. two CalVer tags a year apart) and assert two separate output files
@@ -229,6 +236,44 @@ path produces correct rotation with zero changes to its own algorithm (design do
 
 **Files (expected):** an integration test file alongside the existing pipeline integration tests.
 **Scope:** S. **Dependencies:** T247.
+
+Landed as `internal/app/changelog_rotation_realrepo_internal_test.go` (package `app`, not `app_test`
+— it calls the unexported `buildGenerator`/`wrapWithRotation` directly, following the same
+`_internal_test.go` convention as T247's other tests rather than native's own external-package
+`integration_test.go`, since there's no exported entry point at this layer for "build a rotation-
+wrapped changelog generator"). Real git repo, real exec runner (`execadapter.New`), no MockRunner:
+one commit + `Generate("2025.12.0", ...)` (before the tag exists, matching the real pipeline's
+generate-then-tag sequencing) + `git tag 2025.12.0`, then a second commit +
+`Generate("2026.01.0", ...)`.
+
+**This is the test that found T247's `PreviousTagOverride` gap**, before any fix code was written:
+the first real assertion attempt showed `CHANGELOG_2026.md` containing both "First feature" and
+"Second feature" — the 2025 entry duplicated into the 2026 file. Traced to `buildAllSections`'s
+`latest := tags[0]` (used identically by `generateIncremental`'s splice path): with the bucket-scoped
+`tag_pattern` correctly excluding every 2025 tag, `scopedTags()` returns empty for the new bucket,
+`latest` becomes `""`, and `commitRange("", "HEAD")` returns bare `"HEAD"` — full history, not
+`"2025.12.0..HEAD"`. Fixed with `ContentDriver.PreviousTagOverride` (`internal/config/config.go`) and
+a new `Generator.newSectionBound(scopedTags)` helper (`internal/generators/native/generator.go`)
+that both `buildAllSections` and the splice path now call instead of inlining the same `tags[0]`
+check; `internal/app`'s `resolveDriver` sets it via a new `latestMatchingTag` helper — one extra,
+unscoped `git tag -l <prefix>*` query, the same incantation calver/semver's own resolvers already
+run internally, needed because `rotatingGenerator` has no access to the version resolver's own
+`Result.CurrentTag` (the `port.Generator.Generate(tag, lc)` interface never carries it through).
+
+Verified non-vacuous the same way T242's recap test was: temporarily removed the
+`PreviousTagOverride` computation, re-ran this test, watched it fail with the exact duplicated-entry
+symptom described above, then restored the fix and confirmed green again. Added matching
+narrower-scope regression coverage at the layer the bug actually lives in: two new MockRunner
+contract tests in `internal/generators/native` (`TestGenerator_GenerateChangelog_
+PreviousTagOverride_BoundsBootstrapRange` for the bootstrap path, `..._SpliceUsesOverride` for the
+splice path) asserting the exact `git log` range argument, since MockRunner doesn't interpret git
+ranges — a body-content assertion alone (my first draft of these) doesn't actually discriminate
+between "HEAD" and "prevTag..HEAD" when there's only one commit in the fixture, which is why the
+first version of this integration test needed the args-level assertion to genuinely fail before the
+fix; also two new `internal/app` unit tests (`TestRotatingGenerator_ResolveDriver_
+SetsPreviousTagOverride`, `..._NoPriorTags_EmptyOverride`) pinning `resolveDriver`'s own contribution
+in isolation. Design doc (§5) and T247's own note above both carry a dated correction rather than
+being silently rewritten. `go test ./...` and `hk check` both clean.
 
 #### `[ ]` T249: docs — schema, sample, spec, ADR-0047
 

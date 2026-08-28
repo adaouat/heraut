@@ -176,6 +176,23 @@ func (g *Generator) generateChangelog(tag string, lc *port.LinkContext) (string,
 	return g.generateIncremental(tag, lc)
 }
 
+// newSectionBound returns the previous-tag bound for the newest (unreleased) release section:
+// cfg.PreviousTagOverride when set, else the newest of the scoped tags. The override exists for a
+// rotating changelog.output (T247): tag-scoping a bucket (e.g. "^2026\.") correctly excludes
+// prior-bucket tags from the historical walk below, but that also leaves a brand-new bucket's
+// first release with no in-scope previous tag — defaulting to "since the beginning of history"
+// and duplicating every prior bucket's entries into the new file. The app layer sets the override
+// to the true previous tag (regardless of bucket) to bound it correctly instead.
+func (g *Generator) newSectionBound(scopedTags []string) string {
+	if g.cfg.PreviousTagOverride != "" {
+		return g.cfg.PreviousTagOverride
+	}
+	if len(scopedTags) > 0 {
+		return scopedTags[0]
+	}
+	return ""
+}
+
 // buildAllSections renders every release section (newest-first), each prefixed with its anchor.
 // The newest (unreleased) section is always enriched; historical sections are enriched only when
 // enrichAll is true (--regenerate). Matches the pre-incremental full-regen layout plus anchors.
@@ -187,10 +204,7 @@ func (g *Generator) buildAllSections(tag string, lc *port.LinkContext, enrichAll
 
 	var blocks []string
 
-	latest := ""
-	if len(tags) > 0 {
-		latest = tags[0]
-	}
+	latest := g.newSectionBound(tags)
 	if sec, err := g.renderRelease(tag, latest, "HEAD", lc, true); err != nil {
 		return "", err
 	} else if sec != "" {
@@ -245,10 +259,7 @@ func (g *Generator) generateIncremental(tag string, lc *port.LinkContext) (strin
 	if err != nil {
 		return "", err
 	}
-	latest := ""
-	if len(tags) > 0 {
-		latest = tags[0]
-	}
+	latest := g.newSectionBound(tags)
 	newBody, err := g.renderRelease(tag, latest, "HEAD", lc, true)
 	if err != nil {
 		return "", err

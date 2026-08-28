@@ -50,10 +50,18 @@ func TestWrapWithRotation_WithTokens_DelegatesCheckAndValidate(t *testing.T) {
 	assert.ErrorIs(t, got.Validate(), wantErr)
 }
 
+// noTagsMockRunner returns a MockRunner pre-queued with an empty git-tag-list response, for
+// resolveDriver tests that don't care about PreviousTagOverride's value.
+func noTagsMockRunner() *exectest.MockRunner {
+	mr := exectest.NewMockRunner()
+	mr.QueueResponse("", "", nil)
+	return mr
+}
+
 func TestRotatingGenerator_ResolveDriver_CalverSingleToken(t *testing.T) {
 	driver := &config.ContentDriver{Output: "CHANGELOG_{YYYY}.md"}
 	cfg := &config.Config{Versioning: config.Versioning{Strategy: "calver", Format: "YYYY.MM.PATCH"}}
-	rg := &rotatingGenerator{cfg: cfg, driver: driver, tokens: []string{"YYYY"}}
+	rg := &rotatingGenerator{cfg: cfg, driver: driver, tokens: []string{"YYYY"}, runner: noTagsMockRunner()}
 
 	got, err := rg.resolveDriver("2026.05.3")
 	require.NoError(t, err)
@@ -64,7 +72,7 @@ func TestRotatingGenerator_ResolveDriver_CalverSingleToken(t *testing.T) {
 func TestRotatingGenerator_ResolveDriver_CalverMultiToken(t *testing.T) {
 	driver := &config.ContentDriver{Output: "CHANGELOG_{YYYY}_{MM}.md"}
 	cfg := &config.Config{Versioning: config.Versioning{Strategy: "calver", Format: "YYYY.MM.PATCH"}}
-	rg := &rotatingGenerator{cfg: cfg, driver: driver, tokens: []string{"YYYY", "MM"}}
+	rg := &rotatingGenerator{cfg: cfg, driver: driver, tokens: []string{"YYYY", "MM"}, runner: noTagsMockRunner()}
 
 	got, err := rg.resolveDriver("2026.05.3")
 	require.NoError(t, err)
@@ -76,7 +84,7 @@ func TestRotatingGenerator_ResolveDriver_CalverStripsTagPrefix(t *testing.T) {
 	prefix := "v"
 	driver := &config.ContentDriver{Output: "CHANGELOG_{YYYY}.md"}
 	cfg := &config.Config{Versioning: config.Versioning{Strategy: "calver", Format: "YYYY.MM.PATCH", TagPrefix: &prefix}}
-	rg := &rotatingGenerator{cfg: cfg, driver: driver, tokens: []string{"YYYY"}}
+	rg := &rotatingGenerator{cfg: cfg, driver: driver, tokens: []string{"YYYY"}, runner: noTagsMockRunner()}
 
 	got, err := rg.resolveDriver("v2026.05.3")
 	require.NoError(t, err)
@@ -86,7 +94,7 @@ func TestRotatingGenerator_ResolveDriver_CalverStripsTagPrefix(t *testing.T) {
 func TestRotatingGenerator_ResolveDriver_SemverMajorOnly(t *testing.T) {
 	driver := &config.ContentDriver{Output: "CHANGELOG_{MAJOR}.md"}
 	cfg := &config.Config{Versioning: config.Versioning{Strategy: "semver"}}
-	rg := &rotatingGenerator{cfg: cfg, driver: driver, tokens: []string{"MAJOR"}}
+	rg := &rotatingGenerator{cfg: cfg, driver: driver, tokens: []string{"MAJOR"}, runner: noTagsMockRunner()}
 
 	got, err := rg.resolveDriver("v1.4.2")
 	require.NoError(t, err)
@@ -97,7 +105,7 @@ func TestRotatingGenerator_ResolveDriver_SemverMajorOnly(t *testing.T) {
 func TestRotatingGenerator_ResolveDriver_SemverMajorMinor(t *testing.T) {
 	driver := &config.ContentDriver{Output: "CHANGELOG_{MAJOR}_{MINOR}.md"}
 	cfg := &config.Config{Versioning: config.Versioning{Strategy: "semver"}}
-	rg := &rotatingGenerator{cfg: cfg, driver: driver, tokens: []string{"MAJOR", "MINOR"}}
+	rg := &rotatingGenerator{cfg: cfg, driver: driver, tokens: []string{"MAJOR", "MINOR"}, runner: noTagsMockRunner()}
 
 	got, err := rg.resolveDriver("v1.4.2")
 	require.NoError(t, err)
@@ -108,11 +116,39 @@ func TestRotatingGenerator_ResolveDriver_SemverMajorMinor(t *testing.T) {
 func TestRotatingGenerator_ResolveDriver_ExplicitTagPatternWins(t *testing.T) {
 	driver := &config.ContentDriver{Output: "CHANGELOG_{YYYY}.md", TagPattern: "custom-pattern"}
 	cfg := &config.Config{Versioning: config.Versioning{Strategy: "calver", Format: "YYYY.MM.PATCH"}}
-	rg := &rotatingGenerator{cfg: cfg, driver: driver, tokens: []string{"YYYY"}}
+	rg := &rotatingGenerator{cfg: cfg, driver: driver, tokens: []string{"YYYY"}, runner: noTagsMockRunner()}
 
 	got, err := rg.resolveDriver("2026.05.3")
 	require.NoError(t, err)
 	assert.Equal(t, "custom-pattern", got.TagPattern, "explicit user tag_pattern must win over derivation")
+}
+
+// TestRotatingGenerator_ResolveDriver_SetsPreviousTagOverride covers T248's finding: the true
+// previous tag (regardless of rotation bucket) must be propagated so native can bound a new
+// bucket's first release correctly instead of defaulting to full history.
+func TestRotatingGenerator_ResolveDriver_SetsPreviousTagOverride(t *testing.T) {
+	mr := exectest.NewMockRunner()
+	mr.QueueResponse("2025.12.0\n", "", nil)
+
+	driver := &config.ContentDriver{Output: "CHANGELOG_{YYYY}.md"}
+	cfg := &config.Config{Versioning: config.Versioning{Strategy: "calver", Format: "YYYY.MM.PATCH"}}
+	rg := &rotatingGenerator{cfg: cfg, driver: driver, tokens: []string{"YYYY"}, runner: mr}
+
+	got, err := rg.resolveDriver("2026.01.0")
+	require.NoError(t, err)
+	assert.Equal(t, "2025.12.0", got.PreviousTagOverride)
+}
+
+// TestRotatingGenerator_ResolveDriver_NoPriorTags_EmptyOverride covers the true first-ever
+// release: no override to set, native's own (also-empty) scoped-tag fallback applies unchanged.
+func TestRotatingGenerator_ResolveDriver_NoPriorTags_EmptyOverride(t *testing.T) {
+	driver := &config.ContentDriver{Output: "CHANGELOG_{YYYY}.md"}
+	cfg := &config.Config{Versioning: config.Versioning{Strategy: "calver", Format: "YYYY.MM.PATCH"}}
+	rg := &rotatingGenerator{cfg: cfg, driver: driver, tokens: []string{"YYYY"}, runner: noTagsMockRunner()}
+
+	got, err := rg.resolveDriver("2026.01.0")
+	require.NoError(t, err)
+	assert.Empty(t, got.PreviousTagOverride)
 }
 
 func TestRotatingGenerator_ResolveDriver_InvalidVersion_Error(t *testing.T) {
@@ -150,6 +186,7 @@ func record(hash, author, email, date, subject, body string) string {
 // T248's job; this confirms the wiring itself is correct.
 func TestRotatingGenerator_Generate_WritesConcreteFile(t *testing.T) {
 	mr := exectest.NewMockRunner()
+	mr.QueueResponse("", "", nil) // latestMatchingTag: no prior tags (first release ever)
 	mr.QueueResponse("", "", nil) // listTags: no tags yet (first release)
 	mr.QueueResponse(record("aaa1111111", "A", "a@example.com",
 		"2026-05-01T00:00:00Z", "feat: initial", ""), "", nil) // new release: full history

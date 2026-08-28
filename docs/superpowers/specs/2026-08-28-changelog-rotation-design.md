@@ -187,6 +187,26 @@ one entry gets written. If rotation is turned on for an existing project mid-per
 exist in the new bucket with no rotated file for it yet), bootstrap correctly backfills all of
 them — which is the *right* behavior, not an edge case to special-case around.
 
+> **Correction (T248, 2026-08-28).** The claim above is only half right, and the missed half is the
+> *normal* case, not an edge case: at the exact boundary — the new bucket's genuinely first release,
+> immediately following the old bucket's last one — the scoped tag list is empty, so native's own
+> `tags[0]`-derived bound for the new section is also empty, which `commitRange` treats as "since
+> the beginning of history." Confirmed with a real-git-repo test before touching any code: a 2026
+> bucket's first release absorbed the 2025 bucket's commits too. Fixed with one small,
+> **deliberate** exception to Design §3's "native needs no changes" framing: a new
+> `ContentDriver.PreviousTagOverride` field (internal, `yaml:"-"`, alongside the existing
+> `HerautVersion`/`RegenerateChangelog`/`Force` app→native signaling fields) that native's
+> `buildAllSections`/`generateIncremental` prefer over their own scoped-tag derivation when set.
+> `internal/app`'s decorator sets it to the true previous tag (an independent, unscoped `git tag -l`
+> query — the same incantation `calver`/`semver`'s own resolvers already use) whenever one exists;
+> this is always safe, never just for the boundary case, since the current bucket's own latest tag
+> (when one exists) is by construction *also* the global latest tag — there's never a case where the
+> two disagree except exactly the one being fixed. Native remains ignorant of *why* the override is
+> set — it never learns about calver/semver/rotation semantics — so this doesn't reopen the
+> layer-import question Design §3 exists to answer, but it does mean "zero changes to native" was
+> not quite true; "no changes to native's *tag-scoping* mechanism, one small addition to its
+> *range-bounding* logic" is the accurate version.
+
 ## New ADR-0047 outline
 
 **Title**: Changelog output resolves after version, not at config-build time.
@@ -204,6 +224,11 @@ future contributor could easily get wrong — "just compute the rotated filename
 overrides make that wrong. It also establishes the decorator-around-`port.Generator` shape as the
 project's answer to "config value needs the resolved version," which is a pattern other future
 version-dependent generator config could reuse.
+
+**Also document** (found during T248, see the §5 correction above): `ContentDriver.PreviousTagOverride`
+— native's one small addition — and why it's safe to set unconditionally (the current bucket's
+latest tag, when one exists, is always also the global latest tag) rather than only at a detected
+boundary crossing.
 
 ## Roadmap placement
 
