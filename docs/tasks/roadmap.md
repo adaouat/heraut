@@ -5543,15 +5543,14 @@ Phase 31 for the one gap deliberately parked rather than fixed.
 
 ---
 
-### Phase 31 — Uniform empty/whitespace block-override handling (deferred)
+### Phase 31 — Uniform empty/whitespace block-override handling
 
-**Not scheduled.** Phase 30's `title`/`subtitle` blocks needed a workaround
-(`execPreambleBlock` in `internal/generators/native/render.go`) for a Go `text/template` quirk:
-`Parse` treats a whitespace-only `{{define}}` body as a no-op, so it silently won't replace an
-existing non-empty built-in — meaning `rendering.templates.title: ""` couldn't reach the engine to
-null out `title`'s default without a special case. The workaround has two known gaps, both found
-by Phase 30's final whole-branch review and deliberately left unfixed there (narrow, and a correct
-fix needs its own design/test pass, not a one-shot patch with no second review):
+Phase 30's `title`/`subtitle` blocks needed a workaround (`execPreambleBlock` in
+`internal/generators/native/render.go`) for a Go `text/template` quirk: `Parse` treats a
+whitespace-only `{{define}}` body as a no-op, so it silently won't replace an existing non-empty
+built-in — meaning `rendering.templates.title: ""` couldn't reach the engine to null out `title`'s
+default without a special case. The workaround has two known gaps, both found by Phase 30's final
+whole-branch review and deliberately left unfixed there:
 
 1. `execPreambleBlock`'s empty-string short-circuit runs *before* consulting `templateFile`, so
    `title: ""` wins even over a `<driver>.template` file that also redefines `title` — inverting
@@ -5562,11 +5561,95 @@ fix needs its own design/test pass, not a one-shot patch with no second review):
    with no special case to catch it.
 
 Both are currently documented as known limitations in `docs/guides/template-customization.md`'s
-Gotchas section rather than fixed in code. Scope for a future task: generalize the null-override
-handling so it works uniformly for **every** block (not just `title`/`subtitle`), across both the
-inline-snippet and `<driver>.template`-file entry points — likely retiring `execPreambleBlock` as
-a special case once the general mechanism exists. Listed here only so the gap is visible; do not
-start it without re-reading Phase 30's final-review findings first.
+Gotchas section. The user has confirmed the fix should generalize to **every** block (`footer`,
+`release_header`, `contributors`, `stats`, `group`, `commit`, `ticket`, `contributor` — not just
+`title`/`subtitle`), across both the inline-snippet and `<driver>.template`-file entry points.
+
+That generalization is materially bigger than the two title/subtitle gaps above: `title`/`subtitle`
+are the *only* blocks Go code invokes directly (`renderPreamble` → `execPreambleBlock`), which is
+what lets a Go-level short-circuit intercept them before the template engine ever runs. Every other
+block is invoked via nested `{{ template "x" . }}` calls *inside* `blocks.tmpl`/`changelog.tmpl`/
+`release_notes.tmpl`'s own root templates — there is no Go call site to intercept, and some
+(`group`, `commit`, `ticket`, `contributor`) execute per-item inside a `range`, where "null" may not
+even be a meaningful operation. Fixing this uniformly requires deciding how block inclusion is
+guarded or invoked, not just adding more copies of `execPreambleBlock`'s pattern — hence T250 below.
+
+#### `[x]` T250: design spike — uniform null-override handling for every block
+
+Not sized S/M/L — this is a design spike, not an implementation task, following T243's precedent.
+Genuinely open questions, not just implementation detail:
+
+- **Mechanism.** How does an empty/whitespace override actually null a block, uniformly, given
+  most blocks have no Go call site to short-circuit? Candidates to evaluate: (a) a template func
+  guarding every `{{ template "x" . }}` call site (e.g. `{{ if not (isNulled "footer") }}...{{ end
+  }}`), requiring every root/nested template to route inclusion through it; (b) moving every
+  block's execution out of nested `{{ template }}` calls into Go code, the way `title`/`subtitle`
+  already work, and having the root templates assemble Go-produced strings instead of resolving
+  `{{ template }}` internally — complicated by the per-item blocks executing inside a `range`; (c)
+  bypassing the underlying Go quirk directly at the `*template.Template` level (e.g.
+  `AddParseTree` instead of re-parsing `{{define}}` text) — verify during the spike whether that
+  API actually sidesteps the empty-body special case before relying on it.
+- **Precedence fix.** Whichever mechanism is chosen, "does `templateFile` redefine this block?"
+  must be checked *before* any null-override short-circuit applies, for every block — not just
+  title/subtitle — to stop inverting the documented file-wins-outright rule (gap 1 above).
+- **Per-item blocks.** `group`/`commit`/`ticket`/`contributor` render once per loop iteration.
+  Does "null" apply uniformly to every block name, or only to document-level/once-per-render
+  blocks (`title`, `subtitle`, `footer`, `release_header`, `contributors`, `stats`)? If the latter,
+  what happens when a user nulls a per-item block anyway — reject at config-validation time, or
+  silently allow (blanking every line)?
+- **Whitespace boundary.** Exact trim semantics for "counts as null" — `strings.TrimSpace(v) ==
+  ""`, or something narrower?
+- **ADR.** Is this a bugfix against existing ADR-0037/ADR-0048 behavior (no new user-facing config
+  surface, so a spec/guide update suffices), or does the chosen mechanism change something
+  ADR-worthy on its own?
+
+**Direction:** produce a written design doc resolving these (`docs/superpowers/specs/`, following
+T243's precedent). Once settled, file implementation tasks as normal against the agreed design,
+broken down into a dedicated roadmap (mirroring `changelog-rotation-roadmap.md`) if it turns out to
+be more than one task's worth of work — likely, given the mechanism question alone. Re-read Phase
+30's final-review findings before starting.
+
+**Files (expected):** a new design doc under `docs/superpowers/specs/`. **Dependencies:** none.
+
+Turned out smaller than the "likely a dedicated roadmap" framing above expected. Verified
+empirically (small `text/template` experiments, not inferred from the doc alone) that Go's "empty
+`{{define}}` body doesn't override" special case is defeated by encoding a null override as a real
+but inert action node (`{{if false}}{{end}}`) instead of literal empty/whitespace text — and that
+`AddParseTree` does **not** bypass the special case, ruling out the mechanism (c) candidate from
+the open-questions list above. Because every block (nested or top-level) resolves against the same
+merged `*template.Template` at execution time, fixing the encoding once inside
+`buildTemplateSet`'s snippet-registration loop generalizes to all twelve `validTemplateBlocks`
+names for free — no per-block Go-level short-circuits, no restructuring of how blocks are invoked.
+Fixing gap 2 (whitespace) this way also fixes gap 1 (precedence) as a side effect: removing
+`execPreambleBlock`'s out-of-band short-circuit restores the normal snippets-then-file parse
+ordering, so a `<driver>.template` file redefining a block naturally wins again. Per-item blocks
+(`group`/`commit`/`ticket`/`contributor`) get the same uniform treatment with no nullability
+restriction — deliberately not adding a second special case for "which blocks may be nulled" on top
+of the one just removed. No new ADR (restores already-documented ADR-0037/ADR-0048 behavior, not a
+new decision). Full design, the empirical mechanism table, and rejected alternatives are in
+[`docs/superpowers/specs/2026-08-29-block-override-null-handling-design.md`](../superpowers/specs/2026-08-29-block-override-null-handling-design.md).
+Filed as a single implementation task, T251, below — not a dedicated roadmap.
+
+---
+
+#### `[ ]` T251: fix uniform empty/whitespace block-override handling
+
+Implement the T250 design: move null-override handling from `execPreambleBlock`
+(`internal/generators/native/render.go`, title/subtitle-only) into `buildTemplateSet`
+(`internal/generators/native/templateset.go`, every block) by encoding an empty/whitespace snippet
+as `{{if false}}{{end}}` instead of literal text when registering it via `ts.Parse`, then deleting
+`execPreambleBlock` and calling `execBlocks` directly for `title`/`subtitle` from `renderPreamble`.
+
+TDD per the design's test list: a null override on a non-preamble block (e.g. `footer: ""`, proves
+generalization), a whitespace-only override (`"   "`, proves gap 2), a `<driver>.template` file
+redefining a block winning over a null snippet override for the same block (proves gap 1 restored),
+and the existing Phase 30 `title`/`subtitle` null-override tests passing unchanged through the new
+path (proves no regression from retiring `execPreambleBlock`). Update
+`docs/guides/template-customization.md`'s Gotchas section to remove the two now-fixed limitation
+entries.
+
+**Files (expected):** `internal/generators/native/{templateset,render}.go` + tests,
+`docs/guides/template-customization.md`. **Scope:** S. **Dependencies:** T250.
 
 ---
 
