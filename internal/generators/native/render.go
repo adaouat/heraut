@@ -259,30 +259,19 @@ func execBlocks(rootName, rootTmpl string, snippets map[string]string, templateF
 	return sb.String(), nil
 }
 
-// execPreambleBlock executes one title/subtitle block, special-casing an explicit empty-string
-// snippet override. text/template.Parse treats a whitespace-only {{define}} body as a no-op
-// redefinition — it will not replace an existing non-empty template body — so
-// snippets["title"] == "" can never reach the engine to null out a non-empty built-in (e.g. the
-// changelog's "# Changelog" default). Forcing it to "" directly is the only way to honor an
-// explicit override to nothing.
-func execPreambleBlock(name, rootTmpl string, snippets map[string]string, templateFile string, heraut tplHeraut) (string, error) {
-	if v, ok := snippets[name]; ok && v == "" {
-		return "", nil
-	}
-	return execBlocks(name, rootTmpl, snippets, templateFile, heraut)
-}
-
 // renderPreamble renders a driver's document-level title+subtitle blocks (ADR-0048): unlike every
 // other block, these fire once per document, not once per rendered release, so they execute
 // against a bare tplHeraut (not a Release) — snippets write .Version/.URL/.GeneratedAt directly,
 // not .Heraut.Version. Each is independently trimmed and blank-line-joined: an unset block
-// contributes nothing, so no stray blank line survives whether both, one, or neither is set.
+// contributes nothing, so no stray blank line survives whether both, one, or neither is set. An
+// empty-or-whitespace snippet override nulls a block via buildTemplateSet's null-body encoding —
+// the same mechanism every other block's null override uses (T251), so no special-casing here.
 func renderPreamble(rootTmpl string, snippets map[string]string, templateFile string, heraut tplHeraut) (string, error) {
-	title, err := execPreambleBlock("title", rootTmpl, snippets, templateFile, heraut)
+	title, err := execBlocks("title", rootTmpl, snippets, templateFile, heraut)
 	if err != nil {
 		return "", err
 	}
-	subtitle, err := execPreambleBlock("subtitle", rootTmpl, snippets, templateFile, heraut)
+	subtitle, err := execBlocks("subtitle", rootTmpl, snippets, templateFile, heraut)
 	if err != nil {
 		return "", err
 	}

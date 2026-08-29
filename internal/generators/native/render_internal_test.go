@@ -543,6 +543,20 @@ func TestRenderPreamble_ChangelogBothEmpty(t *testing.T) {
 	assert.Empty(t, out, "an explicitly nulled title with no subtitle renders nothing, no stray blank line")
 }
 
+// TestRenderPreamble_FileWinsOverNullTitleSnippet proves a <driver>.template file redefining
+// title wins over a null (empty-string) snippet override — the documented "a template file always
+// wins outright" rule, previously inverted for title/subtitle by execPreambleBlock's Go-level
+// short-circuit returning before templateFile was ever consulted.
+func TestRenderPreamble_FileWinsOverNullTitleSnippet(t *testing.T) {
+	dir := t.TempDir()
+	file := filepath.Join(dir, "custom.tmpl")
+	require.NoError(t, os.WriteFile(file, []byte(`{{ define "title" }}# From File{{ end }}`), 0o644))
+
+	out, err := renderPreamble(changelogTmpl, map[string]string{"title": ""}, file, tplHeraut{})
+	require.NoError(t, err)
+	assert.Equal(t, "# From File\n\n", out, "the template file wins over a null title snippet override")
+}
+
 func TestRenderPreamble_HerautContextIsBareFields(t *testing.T) {
 	out, err := renderPreamble(changelogTmpl, map[string]string{
 		"title": "Changelog (heraut v{{ .Version }})",

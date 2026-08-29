@@ -116,6 +116,11 @@ identically to every other block.
 | Per env | `environments.<env>.changelog.rendering.templates.<block>` / `environments.<env>.release.notes.rendering.templates.<block>` | Just that environment's runs |
 | Full file | `changelog.template: path.tmpl` / `release.notes.template: path.tmpl` (also settable per-env) | Whatever the file redefines — parsed on top of everything above |
 
+**Nulling a block.** An empty or whitespace-only override (`""`, `"   "`) at any of the four layers
+above renders that block as nothing — the same precedence rules apply, so a higher layer (or the
+template file) can still redefine it with real content and win. This works uniformly for every
+block name, not just `title`/`subtitle`.
+
 **No per-forge axis.** Templates aren't scoped by publish target (`forges:` / `release.targets`).
 A release published to multiple forges regenerates release notes once per platform so
 commit/PR links resolve to the right host — but it's the *same* template each time, just fed
@@ -354,12 +359,8 @@ execute against `.Heraut` directly, not a `Release`. Compare `release_header` ab
 - **`contributors`/`stats` never fire from the `changelog` driver** — they're release-notes-only
   blocks; overriding them under `changelog.rendering.templates` is accepted but has no effect.
 - **No per-forge scoping** — route forge-specific formatting through an environment instead.
-- **A `template:` file wins outright**, even over a more specific per-env inline override, for
-  whatever blocks it defines — it's parsed last in the precedence chain. **Exception:** nulling
-  a built-in with an explicit `title: ""` / `subtitle: ""` snippet override (via
-  `rendering.templates`/per-driver/per-env) currently wins even over a `<driver>.template` file
-  that redefines the same block with non-empty content — the one case where the file does not
-  win outright.
+- **A `template:` file wins outright**, even over a more specific per-env inline override or a
+  null (`""`) override, for whatever blocks it defines — it's parsed last in the precedence chain.
 - **`title`/`subtitle` live outside the document root.** They're rendered by Go code (once per
   document, via `renderPreamble`) *before* the `changelog`/`release_notes` root template runs —
   so a custom `<driver>.template` file that fully redefines the root cannot suppress or
