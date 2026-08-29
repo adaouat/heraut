@@ -5632,7 +5632,7 @@ Filed as a single implementation task, T251, below — not a dedicated roadmap.
 
 ---
 
-#### `[ ]` T251: fix uniform empty/whitespace block-override handling
+#### `[x]` T251: fix uniform empty/whitespace block-override handling
 
 Implement the T250 design: move null-override handling from `execPreambleBlock`
 (`internal/generators/native/render.go`, title/subtitle-only) into `buildTemplateSet`
@@ -5650,6 +5650,20 @@ entries.
 
 **Files (expected):** `internal/generators/native/{templateset,render}.go` + tests,
 `docs/guides/template-customization.md`. **Scope:** S. **Dependencies:** T250.
+
+Landed exactly as designed (`dc29c50`). `buildTemplateSet` now substitutes `{{if false}}{{end}}`
+for any snippet whose `strings.TrimSpace` is empty before registering it via `ts.Parse`, unifying
+null-handling across all twelve `validTemplateBlocks` names; `execPreambleBlock` is deleted and
+`renderPreamble` calls `execBlocks` directly for `title`/`subtitle`, same as every other block. Four
+new tests lock in the fix: a non-preamble block (`commit`) nulled via `""`, the same via a
+whitespace-only `"   "`, a `<driver>.template` file winning over a null snippet override at the
+`buildTemplateSet` layer, and the same file-wins-over-null-title-snippet check reproduced at the
+`renderPreamble` call path (the exact place the original precedence bug was observed). All four
+existing Phase 30 `title`/`subtitle` null-override tests pass unchanged through the new path — no
+regression from retiring `execPreambleBlock`. `docs/guides/template-customization.md`'s two
+now-fixed Gotchas entries were removed and replaced with a positive statement (§ "Where to set
+overrides") that nulling works uniformly across all four override layers for any block name. Full
+suite green, `hk check` clean.
 
 ---
 
