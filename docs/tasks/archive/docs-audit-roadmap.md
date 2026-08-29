@@ -1,0 +1,952 @@
+# Archived task detail — docs-audit-roadmap.md
+
+> Moved from [`docs/tasks/docs-audit-roadmap.md`](../docs-audit-roadmap.md) on 2026-08-29 to keep the live file lean.
+> Every task here is `Done`. See the live file's "Progress at a glance" table for the
+> current status index; this file is the full implementation history.
+
+
+## Code bugs
+
+#### `[x]` T222: `--version`/`--build` override ignores `tag_prefix` / per-env `tag_format`
+
+**Found while auditing `docs/specs/04-versioning.md` and `03-commands.md`'s claims about manual
+version overrides.** `internal/app/resolver.go:27-43` short-circuits any non-empty
+`versionOverride` straight to `versioning.NewStaticResolver(tag, version)` with `tag :=
+versionOverride` used **verbatim** — `semver.Resolver.SetVersionOverride`'s prefix-normalization
+logic (`internal/versioning/semver/resolver.go:68-72`) is never called in production (grep confirms
+it has no call site outside its own definition). Consequence: `heraut release --version 1.2.3`
+under `tag_prefix: "v"` creates tag `1.2.3`, not `v1.2.3`; under a per-env `tag_format` it creates
+`1.2.3`, not e.g. `prod/1.2.3`. `--build` is the one path that *does* render correctly, because it
+routes through `tagfmt.Render` (`internal/versioning/tagfmt/tagfmt.go`) instead.
+
+**Direction:** `NewStaticResolver`'s call site (or the resolver itself) needs to render the override
+through the same `tagfmt`/prefix logic used elsewhere, so `--version` produces a tag consistent
+with the active strategy's configured format — not a bypass of it. Decide whether this belongs in
+`internal/app/resolver.go` (call `tagfmt.Render` before constructing the static resolver) or inside
+`versioning.NewStaticResolver` itself.
+
+**Files (expected):** `internal/app/resolver.go`, `internal/versioning/static.go` (or equivalent),
+`internal/versioning/tagfmt/tagfmt.go` (if reused). **Scope:** S–M. **Dependencies:** none.
+
+Implemented in `internal/app/resolver.go` only — no change needed to `static.go` or `tagfmt.go`.
+`NewResolver` now computes the effective tag format once (`cfg.EffectiveTagFormat(env)` when no
+`--build`, or the existing `effectiveTagFmt` validation when `--build` is set) and branches: when a
+`tag_format` is in effect, the override renders through `tagfmt.Render` exactly like the `--build`
+path already did, so a per-env `{version}`/`{env}` template now applies to plain `--version` too.
+When no `tag_format` applies, a new unexported `defaultTagPrefix(strategy)` supplies the correct
+strategy-specific default ("v" for SemVer-based strategies, "" for CalVer-based ones — mirroring
+`semver.Resolver.prefix()` and `calver.Resolver.prefix()`, which stay untouched and are not called
+from this path) so an explicit `versioning.tag_prefix` is honoured, and the *actual* configured
+prefix is stripped from a full-tag override instead of a hardcoded `"v"` — fixing double-prefixing
+and non-stripping for non-default prefixes. `TestNewResolver_VersionOverride_SemverPerEnv` asserted
+the pre-fix (buggy) behavior directly; updated to the corrected expectation and its `TagFormat`
+fixture corrected from a non-existent `${version}` token to the real `{version}` token, per this
+project's own testing rule that a changed assertion needs its behavior change stated, not just
+deleted — this is a plain bugfix, no ADR needed (same precedent as T221). Added
+`TestNewResolver_VersionOverride_CalverPerEnv`, `_CustomTagPrefix_BareVersion`,
+`_CustomTagPrefix_FullTag`, and `_EmptyTagPrefix` to cover the strategy-default and explicit-prefix
+cases the bug report called out. `go test ./...` and `hk check` both clean.
+
+---
+
+#### `[x]` T223: per-environment `release:` never gets `Notes` default-populated (ADR-0046 gap)
+
+**Found while auditing `docs/specs/02-configuration.md`'s claim that ADR-0046 atomicity applies
+"root or per-environment."** `internal/config/loader.go:186-188`'s `normalize()` default-populates
+`Release.Notes = &ContentDriver{}` only for the **root** `Release` block. `EnvRelease.Notes` is
+never populated by the equivalent per-env path (`internal/app/pipeline.go:196-221`). Consequence: a
+config with no root `release:` but `environments.prod.release: {targets: […]}` reaches
+`config.EffectiveTargets` with `effectiveNotes == nil`, and the platform driver creates a release
+with an **empty body** — exactly the notes/publish split ADR-0046 was written to eliminate, just
+one level down.
+
+**Direction:** Mirror T216's root-level fix (`internal/config/loader.go`'s `normalize()`) for the
+per-environment case — whichever code path resolves an environment's effective `Release` block
+needs the same `Notes = &ContentDriver{}` default whenever that environment's `Release` is
+non-nil. Add a contract test asserting a per-env-only `release:` config produces a non-nil,
+non-empty effective notes driver.
+
+**Files (expected):** `internal/config/loader.go` or `internal/config/merge.go` (wherever per-env
+`Release` resolution lives), `internal/app/pipeline.go` (if the defaulting belongs there instead).
+**Scope:** S. **Dependencies:** none.
+
+The defaulting and the root/per-env merge were already duplicated in two places:
+`config.EffectiveReleaseNotes` (`internal/config/platforms.go`, unused in production — a leftover
+from before `internal/app/pipeline.go`'s `buildReleasePipelineConfig` grew its own inline copy) and
+that inline copy itself, both carrying the identical gap. Fixed the shared helper once — a
+`released` bool now tracks whether `release:` is present at either level and default-populates
+`Notes` to `&ContentDriver{}` only when neither level set one explicitly — then rewired
+`buildReleasePipelineConfig` to call it instead of re-deriving the merge inline, removing the
+duplicate (buggy) copy entirely rather than fixing it twice. Added a `TestEffectiveReleaseNotes`
+table row for the env-only case, plus `TestBuildReleasePipelineConfig_EnvOnlyReleaseGetsNotes`
+exercising the actual production call site. `go test ./...` and `hk check` both clean.
+
+---
+
+#### `[x]` T224: per-driver `rendering.excludes` is never consumed
+
+**Found while auditing `docs/specs/02-configuration.md`, `schema.json:333-336`, and
+`heraut.sample.yml:270-274`**, all three of which document a per-`ContentDriver` `rendering.excludes`
+that layers on top of the global `rendering.excludes`. `internal/app/pipeline.go:421,445-447` reads
+only the **global** `cfg.Rendering.Excludes` — `ContentDriver.Rendering.Excludes` has no read site
+anywhere in `internal/`. The validator doesn't flag it either, so a user setting it gets silent
+no-op behavior with no error and no effect.
+
+**Direction:** Either wire the per-driver value into the exclude-pattern resolution actually used
+by `changelog`/`release.notes` generation (additive with the global list, matching how
+`rendering.templates` already merges per-driver), or — if per-driver excludes were never meant to
+be a real axis — remove the field from `config.go`/`schema.json`/the sample and document that
+excludes are global-only. Needs a direction decision at implementation time; the audit only
+confirms the field is currently dead, not which resolution is intended.
+
+**Files (expected):** `internal/app/pipeline.go`, `internal/config/config.go`,
+`internal/config/commits.go` (`EffectiveExcludes`), `schema.json`, `docs/heraut.sample.yml`.
+**Scope:** S–M. **Dependencies:** none.
+
+Decided: wire it up, matching what the docs/schema/sample already promise, rather than removing
+the field — the least-surprising fix given three artifacts already document it as functional.
+Added `effectiveExcludes(cfg, driver)` in `internal/app/pipeline.go`, mirroring the existing
+`effectiveTemplates` helper's shape exactly, but additive (`append`) rather than per-key overlay,
+since excludes are independent drop rules, not a single value one level should replace. `hasRendering`
+in `withEnvDerivations` now derives from `len(excludes) > 0` instead of re-checking
+`cfg.Rendering.Excludes` directly, so the short-circuit "nothing to clone" path also correctly
+accounts for a driver-only exclude with no global excludes set. `internal/config/commits.go`'s
+`EffectiveExcludes` (which prepends the built-in default excludes) is unaffected — it's a separate,
+lower-level concern (native's own default-exclude merge, consumed by `group.go`), untouched by this
+per-driver/global merge. Added a small `TestWithEnvDerivations_*Excludes` cluster mirroring the
+existing `TestWithEnvDerivations_MergesTemplates` pattern; verified red without the fix (temporarily
+reverted `pipeline.go`) — global-only case passed trivially (already worked), the two driver-only/
+merge cases failed as expected. No `schema.json` or sample changes needed — the field was already
+described as functional; this closes the gap between docs and code rather than the other way
+around. `go test ./...` and `hk check` both clean.
+
+---
+
+#### `[x]` T225: root `versioning.bump` enum and `sprint:` requiredness are unvalidated
+
+**Found while auditing `docs/specs/02-configuration.md`'s field-by-field validation claims.** Two
+related validation gaps in `internal/config/validator.go`:
+
+- `versioning.bump`'s enum is declared in `schema.json:264-271` but `validateEnums`
+  (`validator.go:441-469`) checks only `strategy` and `tag_type` at the root level — `bump:
+  nonsense` passes `heraut check config` and is silently treated as `auto` by the resolver. The
+  per-environment `bump` field *is* validated (`validator.go:628-634`); the root field's validation
+  was apparently never added to match.
+- `sprint:` is documented as "required when `format` contains the `SPRINT` token"
+  (`docs/specs/02-configuration.md:79`) but nothing enforces it — no check in `validator.go`, and
+  `schema.json:276-280` has only `minimum: 1`, no conditional `required`. `format:
+  "YYYY.SPRINT.PATCH"` with no `sprint:` set passes `heraut check config` and silently renders
+  `2026.0.0`.
+
+**Direction:** Add the missing root-level `bump` enum check (mirror the per-env one). Add a
+semantic validation rule: if `format` contains the `SPRINT` token, `sprint` must be set and `>= 1`
+— surfaced as a `ValidationErrors` entry with `Path`/`Message`/`Hint`, not a schema-only constraint
+(JSON Schema can't express "required if another field contains a substring").
+
+**Files (expected):** `internal/config/validator.go` (+ tests), `docs/specs/02-configuration.md` if
+the requiredness wording needs tightening after the fix. **Scope:** S. **Dependencies:** none.
+
+Added a `validBumpModes` enum map (`{"auto", "manual"}`) checked in `validateEnums` alongside the
+existing `strategy`/`tag_type` checks — same style, root-level, strategy-agnostic (mirrors how
+those two are already checked without gating on which strategy is active). Added the `sprint`
+semantic check inside `validateStrategySpecific`'s existing `calver`/`calver-per-env` branch,
+right after the format-required check it already has: `format` containing the literal `SPRINT`
+substring with `Sprint < 1` (covers both "field omitted" and "explicitly set to a non-positive
+value," which `schema.json`'s own `minimum: 1` already rejects) now produces a
+`versioning.sprint` error. Left `schema.json` untouched — a cross-field conditional requirement
+("required only if another field's *value* contains a substring") isn't expressible as a JSON
+Schema constraint, so this had to be a semantic-validator check, not a schema one; the spec
+doc's existing "required when format contains the SPRINT token" wording (`02-configuration.md:79`)
+was already correct, just previously unenforced. `go test ./...` and `hk check` both clean.
+
+---
+
+#### `[x]` T226: environment promotion doesn't filter pre-release source tags like auto-resolve does
+
+**Found while auditing `docs/specs/04-versioning.md`'s bump-mode and pre-release sections.**
+`internal/versioning/perenv/auto.go:37`'s `resolveAuto` filters candidate tags with
+`semver.IsBareVersion` before picking the latest. `resolvePromote`
+(`internal/versioning/perenv/promote.go:157`) takes `srcTags[0]` **raw**, with no equivalent filter.
+Consequence: if a pre-release tag (e.g. `dev/1.3.0-rc.1`) sorts first in the source environment's
+tag list, `bump: promote` will promote it to the destination environment — a tag `auto` mode would
+never have selected as a release candidate in the first place.
+
+**Direction:** Apply the same `semver.IsBareVersion` filter (or equivalent) to the source-tag
+selection in `resolvePromote`, so promotion and auto-resolution agree on what counts as a
+promotable/releasable tag. Add a table-driven test case: source env has both a pre-release and a
+bare tag: `resolvePromote` must select the bare one.
+
+**Files (expected):** `internal/versioning/perenv/promote.go` (+ tests).
+**Scope:** S. **Dependencies:** none.
+
+`resolvePromote`'s tag-selection loop now mirrors `resolveAuto`'s exactly: iterate the
+`--sort=-version:refname` source-tag list, skip any tag whose `{version}` doesn't parse or isn't
+`semver.IsBareVersion`, and take the first survivor. `ErrNoSourceTags`/E003 is now also returned
+when tags exist but none are bare releases (previously only the "zero tags at all" case hit it) —
+reusing the existing sentinel rather than adding a new one, since from promotion's perspective
+there is equally no usable source tag either way, and E003's message/remediation ("create a source
+release first") already reads correctly for both. Added
+`TestResolve_Promote_SkipsPrereleaseSourceTag`, mirroring the existing
+`TestResolve_Auto_Semver_SkipsPrereleaseTag` fixture shape. `go test ./...` and `hk check` both
+clean.
+
+---
+
+#### `[x]` T227: `heraut init --defaults` overwrites an existing config with no confirmation
+
+**Found while auditing `docs/specs/03-commands.md`'s init-command flag table.**
+`internal/cmd/init.go:46` — the interactive overwrite prompt is gated on `if fileExists &&
+!defaults`. With `--defaults` passed, the write at `init.go:109` proceeds unconditionally: an
+existing `.heraut.yml` is silently replaced, with no prompt and without requiring the global
+`--force` flag. This is inconsistent with the rest of the CLI's irreversible-action posture (e.g.
+promotion guards require `--force` per ADR-0007).
+
+**Direction:** Decide the intended UX — either `--defaults` should still refuse to overwrite an
+existing config without `--force` (consistent with other destructive-by-default guards), or the
+behavior is intentional for non-interactive/CI use of `--defaults` and only needs documenting.
+Given `--defaults` is explicitly the non-interactive path (CI-friendly scaffolding), lean toward
+documenting-as-intentional unless the user says otherwise — but confirm before implementing either
+way, since this is a behavior change either direction.
+
+**Files (expected):** `internal/cmd/init.go` (+ tests), `docs/specs/03-commands.md`.
+**Scope:** S. **Dependencies:** none.
+
+Decided (user confirmed): require `--force` to overwrite, matching the rest of the CLI's
+destructive-action posture. `heraut init --defaults` on an existing config now errors immediately
+("`<path>` already exists (use --force to overwrite with --defaults)") and leaves the file
+untouched, before any prompt/generation logic runs; `--force` bypasses it exactly like the
+interactive path already did. `TestInitCmd_DefaultsWithExistingNoForceOverwrites` pinned the old
+(buggy) silent-overwrite behavior directly — renamed to
+`TestInitCmd_DefaultsWithExistingNoForceErrors` and rewritten to assert the new behavior, per this
+project's testing rule that a changed assertion needs its behavior change stated, not deleted; a
+plain bugfix per explicit user decision, no ADR needed. Left `docs/specs/03-commands.md` for T231,
+which already scoped this exact bullet as dependent on T227 landing first. `go test ./...` and
+`hk check` both clean.
+
+---
+
+#### `[x]` T228: asset-glob failure semantics for `release.targets[].assets` (direction TBD)
+
+**Found while auditing `docs/specs/02-configuration.md:403`, `schema.json:432-438`, and
+`heraut.sample.yml:294-299`**, all of which describe asset-glob failures as a warn-and-skip
+(lenient) behavior. `internal/app/pipeline.go:287,302` sets `LenientAssets = true` only for globs
+sourced from the top-level `release.assets`; `release.targets[*].assets` goes through
+`ResolveGlobs` (`internal/platforms/globs.go:11-25`), which hard-errors with `no files matched
+asset pattern %q` on any non-match. Because target resolution happens **after** the tag has already
+been created and pushed (`internal/pipeline/release.go`'s step order), a target-level asset-glob
+typo aborts the release in a partially-completed state: tag exists, no GitHub/GitLab release was
+created.
+
+**Direction (exact shape TBD at implementation time):**
+- Option A: make target-level assets lenient too, matching top-level — simplest, but silently
+  drops assets a user explicitly scoped to one target, which may be worse than failing loudly.
+- Option B: keep target-level assets strict, but move glob resolution earlier in the pipeline (before
+  tagging) so a bad pattern fails at preflight instead of after the tag is live.
+- Whichever direction is chosen, update the docs (`02-configuration.md`, `schema.json`,
+  `heraut.sample.yml`) to state the real behavior precisely, since all three currently describe
+  only the lenient case as if it were universal.
+
+**Files (expected):** `internal/app/pipeline.go`, `internal/pipeline/release.go`,
+`internal/platforms/globs.go`, `docs/specs/02-configuration.md`, `schema.json`,
+`docs/heraut.sample.yml`. **Scope:** S–M. **Dependencies:** none.
+
+Decided (user confirmed): Option A — target-level assets are now lenient too, matching top-level
+`release.assets`. Implemented entirely in `internal/app/pipeline.go`'s `buildTargetPlatforms`:
+`platCfg.LenientAssets` is now set to `len(platCfg.Assets) > 0` unconditionally, after the existing
+inherit-from-`releaseAssets` step, rather than only inside that step's own branch — so it covers
+assets from either source uniformly. No change needed in `internal/pipeline/release.go` or
+`internal/platforms/globs.go`; both already branch on `LenientAssets` correctly; only the wiring
+decision of when to set it was wrong. Updated `config.Platform.LenientAssets`'s doc comment (it
+previously claimed to be top-level-origin-only). Added
+`TestBuildTargetPlatforms_TargetOwnAssetsAreLenient`, verified red without the fix (temporarily
+reverted, confirmed it fails with `no files matched asset pattern`) and green with it. Left the
+doc-side corrections (`02-configuration.md`, `schema.json`, `heraut.sample.yml` all currently
+describe only the lenient case as if universal, which is now actually true) for T230/T233, which
+already scoped those exact bullets as dependent on this landing. `go test ./...` and `hk check`
+both clean.
+
+---
+
+## Documentation reconciliation
+
+#### `[x]` T229: `docs/specs/01-overview.md` reconciliation
+
+- **Architecture diagram / hexagonal prose (lines ~22-52)**: describes `internal/adapter/exec/` as
+  the Runner adapter — that package doesn't exist; the concrete runner (`CmdRunner`, `DryRun` flag)
+  lives in `github.com/adaouat/forge/exec`, aliased at `internal/port/runner.go:7`. Same section
+  never mentions `internal/forge/{github,gitlab,azure}` (direct `net/http` PR/MR-enrichment
+  clients, ADR-0043) — a whole layer missing from the tool's own architecture picture.
+- **§ Key concepts, dry-run (line ~80)**: states dry-run performs "no git operations." Contradicts
+  `06-dx-and-testing.md`'s own documented exception (version resolution runs on a real runner during
+  dry-run so the printed next-version is accurate) — spec 01 is the side that's wrong; align it
+  with spec 06's description.
+- **§ Boundaries (line ~100)**: "Two platforms: GitLab, GitHub" — `internal/config/validator.go:19`
+  also accepts `azure_devops` as a `forges[].platform` (metadata-only, no publish driver — see
+  ADR-0043/ADR-0046 addendum). Reword to distinguish forge types (3) from publish platforms (2).
+
+**Files:** `docs/specs/01-overview.md`. **Scope:** S. **Dependencies:** none (informational only —
+no code change).
+
+Fixed all four bullets. Architecture diagrams: split the "invokes git/glab/gh" bullet into
+publish-transport (CLI) vs. enrichment (direct HTTP, ADR-0043) and added `internal/forge/` to the
+internal-package diagram, replacing the non-existent `internal/adapter/exec/` with `forge/exec
+(github.com/adaouat/forge)` and noting `port.Runner` is a type alias onto it. Added a **Forge**
+concept bullet (three forge types, two with a publish driver) since "Platform" alone was letting
+Azure DevOps's enrichment-only role go undocumented — this is the same distinction the "In scope"
+bullet needed, so both got fixed together for consistency. Dry-run bullet now states the
+version-resolution exception verbatim from spec 06 rather than contradicting it, with a
+cross-reference instead of duplicating the full explanation.
+
+---
+
+#### `[x]` T230: `docs/specs/02-configuration.md` reconciliation
+
+- **Lines 56-57**: design-principle bullet claims changelog/`release.notes` independence "a
+  project can have one, both, or neither" — false since ADR-0046; contradicts the spec's own §
+  `release` further down. Rewrite to state the release block's one-intent atomicity.
+- **Lines 349-352**: "no config-expressible way to get one without the other, root or
+  per-environment" — false per-environment today (see T223); once T223 lands, this becomes true and
+  should stay as-is, but land this doc fix *after* T223, not before.
+- **Lines 58-60**: "Platform sections are opaque to heraut… adding driver-specific fields does not
+  require changes to the core" — false; `forgeconfig.Decode` uses `KnownFields(true)` and both
+  `config.go` structs and `schema.json` (`additionalProperties: false`) reject unknown keys.
+  Rewrite to describe the actual (typed, closed) config surface.
+- **Line 596 / YAML comment at 575**: a type with `render` omitted "renders the capitalized type
+  name" — actually joins the `"💼 Other"` catch-all group (`internal/generators/native/group.go:96-99`).
+  `schema.json:133` and `heraut.sample.yml:141` already have this right; fix spec 02 to match.
+- **Line 79**: `sprint` "required when `format` contains `SPRINT`" — currently unenforced (T225);
+  land this doc fix alongside or after T225 so the claim is true when read.
+- **Missing**: default `rendering.excludes` (`^chore\(release\):`, `^chore\(deps.*\)`,
+  `^chore\(pr\)`, `^chore\(pull\)` — `internal/config/commits.go:116-129`) are undocumented, and the
+  sample's own example pattern is already a built-in default, making it look meaningful when it's a
+  no-op. Document that `EffectiveExcludes` **prepends** built-ins (augment, not replace).
+- **Missing**: `--env auto` (`internal/app/env.go:16-61` — resolves the active env from the current
+  git branch via each env's `branch:`).
+- **Missing**: `release.assets` has no dedicated field entry in § `release` (lines 346-380 cover
+  only `notes`/`targets`); document it alongside the strict-vs-lenient distinction from T228 once
+  that's resolved.
+- **Missing**: § Content generation table (lines ~671-676) omits the per-driver `rendering` key.
+- **Missing**: § `rendering` (lines 647-663) omits `rendering.templates` (nine overridable blocks,
+  documented in `schema.json:179-221`/sample/spec 05, but not here).
+- **Missing**: § Top-level structure (lines 36-51, both code block and table) lists 5 of 8 top-level
+  keys — `commits`, `rendering`, `forges` are absent from the doc's own index.
+- **Wrong**: two contradictory `token_env` defaults for GitHub — line 487 says offline fallback is
+  `GITHUB_TOKEN`; lines 727-728 say "defaults to `GH_TOKEN`". Both are true for different
+  subsystems (`internal/forge/detect.go:18` enrichment identity vs.
+  `internal/platforms/github/platform.go:16` publish driver) — document which applies where.
+- **Missing**: tag signing via git's `tag.gpgSign` (`internal/app/pipeline.go:57-66`,
+  `internal/pipeline/git.go:59-67` — signing silently overrides `versioning.tag_type: lightweight`).
+- **Missing**: `types_heading_level`'s default (3, i.e. `###` — `internal/generators/native/render.go:224-229`)
+  is shown only in an example, never stated as the documented default.
+- **Missing**: top-level `versioning.tag_format` (`internal/config/config.go:58`,
+  `internal/config/tagformat.go:7`) and `versioning.tag_type` (`config.go:59`,
+  `internal/app/pipeline.go:275,383`) are absent — see T232 for the corresponding gap in spec 04;
+  pick one spec as the canonical home and cross-reference from the other.
+- **Missing/inconsistent**: the branch guard "refuses any `--env <env>` command" (line 162) is
+  skipped in `--dry-run` for `release`/`changelog` but runs unconditionally for `version
+  next`/`current` — not uniform as implied.
+- **Nits** (see `/private/tmp/claude-501/-Users-bchatard-Developer-Adaouat-heraut/76bab33a-9dcf-44ab-bd57-b4ed5e2d623c/scratchpad/audit-config-commands.md`
+  for full text): stale T214 comment on `config.EffectiveReleaseNotes`; zero-config example omits
+  `release:`.
+
+**Files:** `docs/specs/02-configuration.md`. **Scope:** M. **Dependencies:** land the `sprint`
+bullet after T225; land the per-env notes-independence bullet after T223; land the `release.assets`
+bullet after T228.
+
+Landed after T223/T224/T225/T228, so several bullets were already true by the time this was
+written rather than needing a behavior-change caveat: the per-env notes-independence claim
+(T223), `sprint` requiredness (T225), and `release.assets`/target-`assets` leniency (T228, now
+uniform — documented as such rather than as two different behaviors). Fixed: the false
+changelog/`release.notes` "independent" design principle (now states the ADR-0046 one-intent
+model); the "opaque, no core changes needed" platform-sections claim (now states the config
+surface is closed/typed); `render:` omission behavior (joins the `💼 Other` group, not a
+capitalized-type-name fallback) in both the field table and the inline YAML example comment;
+added a `rendering.templates` subsection (previously undocumented entirely) and a note on
+`rendering.excludes`' built-in-default prepending; added `release.assets` its own subsection;
+added `commits`/`rendering`/`forges` to the top-level structure table and code block; added a
+tag-signing note (`git config tag.gpgSign` silently overrides `tag_type`); added
+`types_heading_level`'s default; softened the branch-guard claim to state its actual per-command
+dry-run-skip scope precisely, and added a pointer to `--env auto`; added a `token_env` subsystem-
+default note cross-referencing the existing GitHub Actions `GH_TOKEN`-vs-`GITHUB_TOKEN` gotcha
+(which the doc already explained well in one place but not where a reader would land first).
+Left the minor nits (schema URL pinning, zero-config example omitting `release:`) unaddressed —
+genuinely marginal and not worth the edit risk. `hk check` (typos) clean; no code changes, so no
+test suite to run.
+
+---
+
+#### `[x]` T231: `docs/specs/03-commands.md` reconciliation
+
+- **Lines 42-47**: init wizard flow still shows two separate "generate release notes?" / "publish
+  releases?" questions — collapsed into one by T220 (`internal/scaffold/wizard.go:284-292`,
+  commit `a871e70`). Same block has the sprint prompt in the wrong position and omits three real
+  prompts: changelog output file, common per-env tag format, GitLab-only API-mode select
+  (`wizard.go:627-636`).
+- **Lines 49-53**: "Update warning" block describes a pre-wizard dropped-fields warning that
+  doesn't exist — `internal/scaffold/dropped.go:50-52`'s `DroppedFields()` returns `nil`
+  unconditionally. `commits.tickets`/`release.assets` are carried through verbatim, not dropped.
+- **Missing**: `heraut init` silently drops many fields with no warning at all —
+  `internal/scaffold/generate.go:41-143` never emits `versioning.initial_version`,
+  `versioning.bump`, `versioning.tag_type`, `changelog.tag_pattern`, `changelog.template`,
+  `changelog.rendering`, `rendering.*`, `commits.types`, `commits.scopes`,
+  `commits.scopes_restricted`, `commits.types_heading_level`, `release.notes`, `forges[].api_url`.
+  Document this as a known limitation (or file a separate follow-up task if the fix is to actually
+  preserve these on re-run — that's out of this audit's scope to decide).
+- **Lines 226-228**: "`version next`… build-id flow is changelog-only" — false; `heraut release
+  --build` exists (`internal/cmd/release.go:122`) and is documented as supported in spec 02
+  (306-319). The runtime error text at `internal/versioning/tagfmt/tagfmt.go:24-26` has the same
+  stale claim and should be corrected alongside the doc.
+- **Line 82 (and 158)**: "`--version`: an optional leading `v` is stripped and the rest is used
+  verbatim as the tag/version" — the `v` is stripped only from the *version*, the *tag* keeps it
+  (`internal/app/resolver.go:30-31`). Reword precisely once T222 is decided (the fix may change
+  what's true here — land after T222).
+- **Lines 112-113**: release step 7.1 says notes are passed via `--notes` — both drivers actually
+  write a temp file and pass `--notes-file` (`internal/platforms/github/platform.go:169`,
+  `internal/platforms/gitlab/platform.go:213`).
+- **Line 266**: `version sprint bump` "requires confirmation" — it doesn't
+  (`internal/cmd/version_sprint.go:21-39`, writes immediately).
+- **Missing**: `--offline` absent from the global-flags table (lines 10-18) despite being a root
+  persistent flag (`internal/cmd/root.go:26`).
+- **Missing**: `heraut commit check --from-latest-tag` undocumented (`internal/cmd/commit.go:70,76-78,104-115,129`).
+- **Missing**: § `heraut release` (lines 72-117) never states the "requires at least one resolvable
+  publish destination" gate (`internal/cmd/release.go:77-81`) — present in spec 02 and CLAUDE.md,
+  referenced *from* the changelog section, but absent from release's own section.
+- **Wrong**: release step 1 "Preflight — run `heraut check config` + `heraut check runtime`" (line
+  96) — actual: `config.Validate` always, but branch/runtime preflight (`CheckBranch`,
+  `app.PreflightCheck`, `pipe.Check()`) only when `!dryRun`; no working-tree check anywhere in this
+  path.
+- **Wrong**: release steps 6-7 (lines 106-113) imply notes are generated once, before any platform
+  call — with multiple targets, notes are regenerated per-target with that target's `LinkContext`
+  (`internal/pipeline/release.go:175-206`).
+- **Stale**: line 106-107 phrasing "if `release.notes` is configured" implies omitting `notes:`
+  skips notes generation — false since ADR-0046 (root case; see T223 for the per-env gap).
+- **Missing**: init's write-destination resolution order (`--config` → `HERAUT_FILE` →
+  `config.InitDest()`) — spec documents only `--config` and the `.config/` heuristic.
+- **Wrong**: init flags — `heraut init --defaults` overwrites an existing config unconditionally
+  (see T227); also `--force` here is the *global* root flag, but the global-flags table (line 16)
+  documents it only as the promotion-guard bypass, never its init-overwrite meaning. Land after
+  T227 lands (or is documented-as-intentional).
+- **Missing**: `check runtime` (lines 425-438) omits the advisory working-tree check
+  (`internal/app/check.go:99-112`) and the `forge` resolution-failure row (`check.go:119-131`).
+- **Missing**: `--verbose` also enables structured debug logging
+  (`internal/cmd/release.go:56` → `forgelog.LevelFor` → `PipelineOpts.Logger`), documented only as
+  the `[exec]` echo.
+- **Missing**: `heraut version current [--env] [--bare]` omits `--force` in its own usage line
+  (line 235), unlike `version next` (line 217) which lists it.
+
+**Files:** `docs/specs/03-commands.md`, `internal/versioning/tagfmt/tagfmt.go` (error-text fix, if
+picked up here rather than as its own tiny follow-up). **Scope:** M–L. **Dependencies:** the
+`--version`/tag-prefix bullet after T222; the init-overwrite bullet after T227.
+
+Landed after T222/T227/T228, so those bullets document the corrected behavior directly rather than
+flagging a bug. Fixed: wizard flow order (sprint actually runs *after* the changelog questions,
+right before the single T220-collapsed "create a release" question — the doc had it right after
+strategy/format) and added the three missing prompts (changelog output file, common per-env tag
+format, GitLab API mode); rewrote "Update warning" entirely — `DroppedFields` returns `nil`
+unconditionally (no pre-wizard warning exists at all), replaced with an accurate list of fields the
+wizard has no prompt for at all (silently dropped on regeneration) versus the two narrow post-wizard
+warnings that do exist (platform-list / env-list positional-match failures); `--version`'s
+description now states the T222-fixed rendering behavior (tag_format or tag_prefix, not a verbatim
+pass-through); release step 1 (preflight) now states the real `!dryRun`-gated shape (no working-tree
+check); step 6 (was step 6+7.1) now describes per-target notes regeneration and `--notes-file` (not
+a single shared `--notes` string) matching T233's identical platform-driver finding; added the
+explicit "requires a resolvable publish destination" statement to `heraut release`'s own section
+rather than leaving it only implied from `heraut changelog`'s contrast; fixed `version sprint bump`'s
+false "requires confirmation" claim; added `--offline`/`--force`'s init-overwrite meaning to the
+global flags table; added `--from-latest-tag` to `heraut commit check`; added `--force` to `version
+current`'s usage line; added the working-tree/forge-resolution rows to `check runtime`. Also fixed
+`internal/versioning/tagfmt/tagfmt.go`'s error text (was "heraut release / version next do not
+accept a build ID," false since T222 made `--build` work uniformly across `--version` overrides) and
+updated `TestRender_BuildRequiredButEmpty`'s assertion to match — the substring it checked for no
+longer exists in the corrected, more accurate message. `go test ./...` and `hk check` both clean.
+
+---
+
+#### `[x]` T232: `docs/specs/04-versioning.md` reconciliation
+
+- **Line 231**: E002 threshold described as `>=`; code uses strict `>` (`internal/versioning/perenv/promote.go:202`)
+  — an equal destination version doesn't trip E002 (E001 catches it instead). Fix the doc to match
+  code, unless the team decides `>=` was the intended behavior — that would be a code change, not a
+  doc one; confirm intent before touching either.
+- **Lines 282-283**: claims CalVer per-env E002 "uses CalVer ordering instead of SemVer ordering" —
+  there is one `compareVersionStrings` function used identically for both strategies
+  (`internal/versioning/perenv/promote.go:262`); no CalVer-specific comparator exists.
+- **Line 203**: `bump: auto` described as resolving "the latest source-env tag" — it actually globs
+  the *active* env's own `tag_format` (`internal/versioning/perenv/auto.go:14-27`); `source:` is
+  only consumed by the promote path.
+- **Line 77**: manual-mode failure "fails with a config error" — actually a runtime error, exit
+  code 3, not `exitcode.Config` (2) (`internal/versioning/semver/resolver.go:67`,
+  `internal/cmd/exit.go:25`). Decide with the team whether this is a doc fix or a code fix (missing
+  `--version` in manual mode arguably *is* a config problem) before landing either.
+- **Line 107**: "`PATCH` is mandatory and always the last component" — a trailing literal (e.g.
+  `YYYY.MM.PATCH-rc`) parses fine; the actual check is `lastNonLiteral != KindPATCH`
+  (`internal/versioning/calver/parser.go:105`). Reword to "the last non-literal token."
+- **Line 37**: bump table implies `fix:` commits are what produce a patch bump — `DetermineBump`
+  (`internal/versioning/semver/bump.go:13-28`) only inspects `Breaking` and `Type == "feat"`;
+  `BumpPatch` is the unconditional floor, so unparsable/non-conventional commits also yield patch.
+  Reword to describe the actual floor-based mechanism.
+- **Lines 237-244**: § Version resolution logic lists "check E001/E002/E003 → render the
+  candidate" — code renders the candidate tag *before* checking E001/E002 (E003 is checked
+  earliest) (`internal/versioning/perenv/promote.go:147,165,171-216`). Fix the step order.
+- **Lines 247-249**: git-cliff `tag_pattern` advisory — git-cliff is gone (ADR-0045); `tag_pattern`
+  is now a native regex scoping the tag walk (`internal/config/config.go:93`,
+  `internal/generators/native/generator.go:108-131`), unrelated to the git-cliff glob this note
+  describes. Rewrite or remove.
+- **Missing**: `{build}` tag-format token entirely undocumented
+  (`internal/versioning/tagfmt/tagfmt.go:13` — `buildToken`, consumed by `Render`, `GlobPattern`,
+  `ParseVersion`, `DeriveHeadingVersionPattern`, `DeriveTagPattern`, `ValidateBuildID`).
+- **Missing**: top-level `versioning.tag_format` / `versioning.tag_type` — see T230 for the
+  parallel gap in spec 02; pick one canonical home.
+- **Missing**: `--version` bypasses **all four** strategies via `NewStaticResolver`
+  (`internal/app/resolver.go:27-43`), not just `bump: manual` — document as a cross-strategy
+  override; land after T222 so the documented tag shape is correct.
+- **Missing**: promote path's missing pre-release filter (see T226) — document the fixed behavior
+  after T226 lands.
+
+**Files:** `docs/specs/04-versioning.md`. **Scope:** M. **Dependencies:** land the manual-mode-exit-code
+bullet only after a team decision (doc vs. code fix); land the `--version` bullet after T222; land
+the promote-filter bullet after T226.
+
+Manual-mode exit code: documented the actual current behavior (runtime error, exit 3) rather than
+asserting a "should be" reclassification — that's a code-behavior judgment call outside a docs
+task's scope, not something to decide unilaterally while reconciling prose to reality. Fixed: the
+bump-determination table and prose (patch is an unconditional floor, not a `fix:`-specific rule —
+matches T232's sibling finding in the config/commands audit almost verbatim); `PATCH`'s
+"always the last component" claim (now "last non-literal token"); `bump: auto`'s "source-env tag"
+wording (it's the *active* environment's own tag; `source:` is promote-only); E002's `>=` vs strict
+`>` (with a note that an equal version is already caught by E001); the CalVer-per-env "separate
+ordering" claim (one `compareVersionStrings` serves both strategies); the version-resolution step
+order (candidate is rendered before E001/E002 are checked, not after); and the stale git-cliff
+`tag_pattern` advisory (replaced with an accurate native-focused note). Added: a `{build}` token
+mention with a cross-reference to spec 02's full treatment (previously absent from this file
+entirely), a top-level `versioning.tag_format` cross-reference, a note that `--version` applies
+across all four strategies (T222), and the promote pre-release-skip fix (T226) documented as
+current behavior. `hk check` (typos) clean; no code changes, so no test suite to run.
+
+---
+
+#### `[x]` T233: `docs/specs/05-generators-and-platforms.md` reconciliation
+
+- **Line 309**: `gh release create` invocation shown with `--notes <notes>` — code writes a temp
+  file and passes `--notes-file <path>` (`internal/platforms/github/platform.go:169`); `--notes` is
+  never used.
+- **Line 341**: `glab release create` shown with `--notes <notes> -R <project>` — code passes
+  `--notes-file <tmpfile> --repo <proj>` (`internal/platforms/gitlab/platform.go:213`); neither
+  `--notes` nor `-R` are used.
+- **Line 342**: `glab release upload` shown with `-R` — actual flag is `--repo`
+  (`internal/platforms/gitlab/platform.go:262`).
+- **Line 270**: "`Validate()` is called by `heraut check config` and before the pipeline runs" —
+  grep finds zero production call sites for `Generator.Validate()`; `check.go` calls only
+  `config.Validate(cfg)`, and `Pipeline.Check` calls `Generator.Check()`, never `Validate()`.
+  Either wire up the dead call site (code fix — flag to the team as a possible gap, not just a doc
+  fix) or correct the doc to describe what's actually called.
+- **Line 167**: enrichment-forge fallback chain description is backwards — a **non-empty**
+  `cfg.Forges` takes `resolveExplicit` (config wins, CI/origin only fill gaps per-field); `resolveAuto`
+  (CI → origin → ambient token env) runs only when `cfg.Forges` is empty
+  (`internal/forge/resolve.go:33-38,173`). Also: with several forges and no
+  `commits.enrichment_forge`, `EnrichmentIndex` defaults to index **0**, not "nil unless exactly
+  one."
+- **Line 198**: "two or more [ambient tokens] set → ambiguous, run fails" — only fatal when
+  `enrichment_policy: required && !force`; otherwise the run continues degraded
+  (`internal/app/pipeline.go:511-521`).
+- **Line 316**: "non-matching globs fail the run" stated as universal — see T228; there are two
+  modes (strict/lenient) and the doc only describes one. Land after T228's direction is decided.
+- **Line 205**: the single-bullet "what happens next" framing under a generator-name label is
+  vestigial pre-ADR-0045 branch structure now that `native` is the sole generator — simplify to
+  drop the implied second-generator branch.
+- **Missing**: § Platforms should state the type-level rule that Azure DevOps forges can never be a
+  publish target (`internal/app/platforms.go:30-35,80` — `platformBuilders`/`supportsPublish`, the
+  T221 fix from this session) — currently only implied by "two platforms supported."
+- **Missing**: `forges[].api_url` and `api_mode` absent from the `forges:` YAML example (lines
+  149-163) — `api_mode` appears in prose only; `api_url` appears nowhere
+  (`internal/config/config.go:162-163`, `internal/config/validator.go:206`).
+- **Missing**: `enrichment_policy: disabled` absent from the auto-detection policy discussion
+  (lines 202-222), which covers only `optional`/`required`
+  (`internal/config/validator.go:25`, `internal/generators/native/enrich.go:58`).
+- **Missing**: § Platform interface (lines 392-401) omits `ReleaseURLFromContext` and
+  `LinkContext()` (`internal/port/platform.go:5-19`) — these produce the actual post-release URL,
+  making the documented `ReleaseURL` line misleading about the live path.
+- **Wrong**: line 329 — GitLab `base_url` "defaults to `https://gitlab.com`" — actual chain is
+  `cfg.BaseURL` → `CI_SERVER_URL` (when `GITLAB_CI=true`) → scheme+host of `CI_PROJECT_URL` →
+  `gitlab.com` (`internal/platforms/gitlab/platform.go:305-320`).
+- **Missing**: lenient assets are attached as positional args inside `release create`, not
+  uploaded via a separate call — `UploadAssets` becomes a no-op in that mode
+  (`internal/platforms/github/platform.go:177-185,200`, `gitlab/platform.go:215-223,245`); the
+  GitHub 422 "immutable release" rationale for this is undocumented.
+- **Missing**: template data model gaps — `tplRelease`/`tplGroup` expose `.HeadingPrefix`,
+  `tplCommit` exposes `.Subject` (`internal/generators/native/templatemodel.go`); `contributors`
+  and `stats` render only from the `release-notes` root template, not `changelog`; `--regenerate`
+  replaces any file preamble with a fixed `changelogHeader` constant
+  (`internal/generators/native/render.go:18`), which the "free-form preamble" description doesn't
+  convey.
+
+**Files:** `docs/specs/05-generators-and-platforms.md`, `docs/specs/02-configuration.md`
+(opportunistic — same duplicated stale line found while here). **Scope:** M. **Dependencies:**
+land the asset-glob bullet after T228.
+
+Landed after T228, so the asset-glob rewrite documents the now-uniform lenient behavior rather
+than the old strict/lenient split — and turned out to require more than a wording tweak: T228
+made every target-with-assets lenient, which means the separate `gh release upload`/`glab release
+upload` calls this file's Invocation blocks documented are now **dead** for the normal `heraut
+release` flow (`UploadAssets` no-ops whenever `LenientAssets` is true, and it's now true whenever
+`Assets` is non-empty) — assets are always appended as positional args to `release create` itself.
+Rewrote both Invocation blocks accordingly, plus a shared new "Asset resolution" subsection
+explaining why (GitHub's HTTP 422 on uploading to an already-created release). Also fixed:
+`--notes`/`-R` → `--notes-file`/`--repo` (matches the parallel fix in T231's spec 03 finding);
+`Validate()`'s claimed call site (has none); the forges fallback-chain description (a non-empty
+`forges:` always wins over CI/origin, which only fill per-field gaps — not the reverse); the
+ambiguous-multi-token claim (policy-gated, not unconditionally fatal); the vestigial single-bullet
+"native" framing under the enrichment-policy walkthrough (flattened now that there's only one
+generator); added the missing `enrichment_policy: disabled` case; added the Azure-DevOps-never-a-
+publish-target statement to Platforms' own intro (previously only implied); added
+`ReleaseURLFromContext`/`LinkContext` to the `Platform` interface listing; added `HeadingPrefix`/
+`Subject` to the template data model plus the contributors/stats release-notes-only note and the
+`--regenerate` preamble-replacement caveat; corrected the GitLab `base_url` resolution chain
+(`CI_SERVER_URL` → `CI_PROJECT_URL` scheme+host → `gitlab.com`, not a blanket default) and, while
+here, fixed the identical stale comment in spec 02's own GitLab example plus a stray git-cliff
+reference in this file's Azure DevOps example (same one-line class of fix as `schema.json`'s
+still-open copy, left for T235). `hk check` (typos) clean; no code changes, so no test suite to run.
+
+---
+
+#### `[x]` T234: `docs/specs/06-dx-and-testing.md` reconciliation
+
+- **Lines 84, 90-104**: `MockRunner` contract-test example — `internal/testutil/` no longer has
+  `mock_runner.go`; the type is `github.com/adaouat/forge/exec/exectest.NewMockRunner`. The example
+  code itself is doubly wrong: `github.New(mr, github.Config{...})` — actual constructor is `New(runner
+  port.Runner, cfg *config.Platform)`, there is no `github.Config`, and the asserted arg
+  (`"--notes", "..."`) should be `"--notes-file", "<path>"`. (The identical stale snippet also
+  exists in `.claude/rules/testing.md` — fix both together, see T237.)
+- **Line 108**: same relocation issue for `FakeBin` → `github.com/adaouat/forge/exec/exectest.FakeBin`.
+- **Line 132**: "Embedded TOML / Tera content" — native generator embeds Go `text/template` files
+  (`internal/generators/native/{blocks,changelog,release_notes}.tmpl`); no TOML or Tera exists in
+  the tree since ADR-0045.
+- **Line 130**: "Self-update tests use `httptest.Server`" — heraut has no self-update
+  (ADR-0014 superseded by forge ADR-0005); update checking is `forge/updatecheck`'s responsibility.
+- **Lines 152-159**: CI description (`go build` → `go test` → `golangci-lint run`) is stale —
+  actual `.github/workflows/ci.yml` delegates to a reusable `adaouat/forge/.github/workflows/go-ci.yml`
+  job with an 85% coverage gate, a separate `build` job (`go build ./cmd/heraut/` + `goreleaser
+  check`), and an `hk` job. Document the coverage gate and the hk lint job.
+- **Lines 112-114**: integration-test claim ("run `heraut release --dry-run` through the binary")
+  is aspirational, not real — no test builds or execs the `heraut` binary; existing tests drive
+  cobra in-process or exercise the native generator against a real repo via `forge/exec`. Either
+  correct the doc, or note this as a real coverage gap worth its own follow-up task (not in this
+  audit's scope to decide which).
+- **Line 125**: "golden output comparison… via the binary" for `heraut check config` fixtures — no
+  such test exists; the only golden-file tests in the repo are for rendered changelog/release-notes
+  output (`internal/generators/native/render_internal_test.go:99-144`). `schema_test.go` tests
+  fixtures via the validator/schema only.
+- **Line 107-108**: coverage-discipline rule cites `generator` as a config value needing a fixture
+  — `generator:` is no longer a config key (ADR-0045); update to reference the actual removed-key
+  fixture (`testdata/config/invalid/invalid_generator.yml`) and fix the claimed directory structure
+  (`testdata/{config,invalid,valid}`, not one flat `testdata/config/`).
+
+**Files:** `docs/specs/06-dx-and-testing.md`. **Scope:** S–M. **Dependencies:** none.
+
+Fixed all listed items: `MockRunner`/`FakeBin` relocated to `github.com/adaouat/forge/exec/exectest`
+(with a clarifying note on what `internal/testutil` actually still holds), the contract-test code
+sample corrected (`New(runner, *config.Platform)`, no `github.Config`, `--notes-file` not
+`--notes`); the Integration section rewritten to describe what the suite actually does (in-process
+cobra + the native generator's own real-repo test) instead of a binary-execution test that doesn't
+exist; the golden-output claim for `heraut check config` corrected (golden comparison is a native
+render-output mechanism, unrelated to config-check); embedded-asset and self-update claims replaced
+(Go `text/template`, not TOML/Tera; no self-update to test, superseded by forge ADR-0005); and the
+three-step CI description replaced with the real three-job shape (`ci` delegating to forge's
+reusable workflow with an 85% coverage gate, `build`, `hk`). Also fixed, found while re-reading this
+file rather than from the original audit list: the release-workflow paragraph claimed a `v*`-tag
+trigger and that GoReleaser creates the GitHub Release — both wrong (`workflow_dispatch`-only;
+GoReleaser is build-only per ADR-0018, and the freshly-built `heraut` binary creates the tag/release
+itself by running `heraut release` against itself in CI). `hk check` (typos) clean; no code
+changes, so no test suite to run.
+
+---
+
+#### `[x]` T235: `schema.json` + `docs/heraut.sample.yml` cleanup
+
+- **`schema.json:386`**: comment still references git-cliff ("matches git-cliff's own
+  azure_devops \"owner\" shape") — removed by ADR-0028/ADR-0045. Reword without the git-cliff
+  reference.
+- **`schema.json:157-160`**: `ScopeRule.remove` described as "**Reserved**: drop this scope (for
+  config composition / includes)" — it's implemented (`internal/config/commits.go:163-167`,
+  `EffectiveScopes`). Spec 02 and the sample both already describe it as working; fix the schema
+  comment to match.
+- **`heraut.sample.yml:37-40`**: `bump: manual` described as requiring "an explicit `--bump` flag
+  on the CLI" — no `--bump` flag exists; manual mode requires `--version`
+  (`internal/versioning/semver/resolver.go:59-66`). Spec 02 (line 77) already has this right.
+- **`heraut.sample.yml`**: prose calling `tag_prefix` just "prefix" in places — align terminology
+  with the actual field name.
+- **Nits** (see the scratchpad file referenced in T230 for the remaining two): schema `$schema` URL
+  pinning behavior in `heraut init`; stdout-vs-stderr inconsistency for config errors between
+  `version next`/`current`.
+
+**Files:** `schema.json`, `docs/heraut.sample.yml`. **Scope:** S. **Dependencies:** land the
+`ScopeRule.remove` and per-driver-`rendering.excludes` schema comments after T224's direction is
+decided, since T224 may change what's actually true about `rendering.excludes`.
+
+Landed after T224 (wired up, not removed — see T224's note), so no `rendering.excludes` schema
+comment needed changing; it was already accurate. Fixed: the git-cliff azure_devops "owner shape"
+reference (already fixed in spec 05's copy during T233; this was the other copy); `ScopeRule.remove`
+described as "Reserved" in two places (the field description and the parent object description) —
+both now state it drops a built-in default scope, matching `TypeRule.remove`'s sibling description,
+which was already correct and served as the template for the fix; `docs/heraut.sample.yml`'s
+`bump: manual` comment (claimed a non-existent `--bump` flag; actual is `--version`) and its
+"semver / semver-per-env only" scope claim for the root `bump` field (semver-per-env uses each
+environment's own `bump: auto`/`promote` instead — the root field is semver-only); the `prefix`
+comment header renamed to `tag_prefix` to match the actual field name. Verified `schema.json` stays
+valid JSON and `docs/heraut.sample.yml` stays `yamlfmt`-clean after the comment edits. `hk check`
+(typos + yamlfmt) clean; no code changes, so no test suite to run.
+
+---
+
+#### `[x]` T236: `CLAUDE.md` + `README.md` reconciliation
+
+- **ADR count**: `CLAUDE.md:34,95` say "45 ADRs" — actual count is 46 (0001–0046, ADR-0046 landed
+  in commit `ba8c162` without the count bump). `docs/tasks/roadmap.md` itself self-describes "25
+  ADRs" in its overview section — fix that occurrence too while touching this.
+- **`CLAUDE.md:67,162-164`**: references `remote_metadata` — renamed to `commits.enrichment_policy`
+  by ADR-0043 (`internal/config/commits.go:23-26` literally documents the rename in a comment).
+- **Project layout tree (`CLAUDE.md:54-102`)**: missing `internal/forge/` (+ `github`/`gitlab`/`azure`
+  subpackages, the newest major layer — `internal/app` imports all four directly),
+  `internal/commitwizard/`, `internal/conventionalcommit/`, root `pkl/` (ADR-0029) and
+  `pkl_test.go`, `docs/guides/`, `LICENSE.md`. `internal/cmd/` list omits `commit.go`;
+  `internal/pipeline/` list omits `git.go`, `linkctx.go`, `warn.go`; `internal/versioning/` list
+  shows only `result.go` (also has `resolver.go`, `static.go`); `internal/port/` omits the `Forge`
+  interface (`internal/port/forge.go:67`, ADR-0043); workflows list omits `osv-scan.yml`.
+- **`CLAUDE.md:16-25` + `README.md:129-139`**: `heraut commit` (verify/check/create,
+  `internal/cmd/commit.go`, backed by `internal/commitwizard/`) is a real, `--help`-visible, spec-03-documented
+  command family absent from both top-level docs.
+- **`CLAUDE.md:27-28` + `README.md:23-25`**: "two platforms" — `schema.json`'s `forges[].platform`
+  enum includes `azure_devops` (metadata-only forge, no publish driver). Reword to distinguish forge
+  types (3) from publish platforms (2).
+- **`CLAUDE.md:148-152`** "Bundled external CLIs": no longer the whole picture — enrichment is
+  direct `net/http` now (`internal/forge/{github,gitlab,azure}/`, ADR-0035/ADR-0042), not CLI
+  shell-outs; `gh`/`glab` remain publish-only. The narrower claims (nothing bundled, `heraut check
+  runtime` verifies PATH+tokens) still hold.
+- **`CLAUDE.md:156-158`**: publish-destination wording ("a forge that auto-detects from CI/git
+  origin") predates this session's T221 fix — an azure-only auto-detected forge no longer counts as
+  a resolvable destination (`internal/app/pipeline.go:160-190`,
+  `TestHasResolvablePublishTarget_AzureOnlyIsNotResolvable`). Update the wording to reflect the
+  driver-support requirement.
+- **`CLAUDE.md:129-130`**: ldflags build-arg shown as `HERAUT_VERSION=${{ github.ref_name }}` —
+  actual: `${{ needs.release.outputs.tag }}` (`.github/workflows/release.yml:170-171`). The
+  invariant itself (`main.Version` the only ldflag, both files inject it identically) still holds.
+- **`CLAUDE.md:114-115,119`**: mise lint-task descriptions and the `hk fix -S golangci-lint`
+  example — actual hk step id is `golangci_lint` (underscore, `.config/hk/config.pkl:28`); the
+  hyphenated form matches no step.
+- **`CLAUDE.md:35,96`**: `docs/tasks/` described as a single roadmap file — actually
+  `roadmap.md` + three dedicated roadmaps (`forge-abstraction-`, `native-generator-`,
+  `release-config-`, and now this one) + `README.md`.
+- **`README.md`**: global-flag list is wrong (verified: `heraut check --version` errors —
+  `--version`/`-v` is root-only; on `release`/`changelog` `--version` is a string override, not a
+  boolean); `--offline` is missing from the same list; Docker-tag example table stuck at an old
+  version (`0.9.0`) while HEAD is `v0.58.0`; "Documentation" section omits `docs/guides/`.
+
+**Files:** `CLAUDE.md`, `README.md`, `docs/tasks/roadmap.md` (ADR-count line only). **Scope:** M.
+**Dependencies:** land the publish-destination bullet as-is (T221 already shipped this session).
+
+Fixed all listed items in both files: ADR count (45→46, three occurrences across CLAUDE.md and
+roadmap.md's overview); `remote_metadata`→`commits.enrichment_policy`; the project-layout tree
+gained `internal/forge/`, `internal/commitwizard/`, `internal/conventionalcommit/`, `pkl/`,
+`LICENSE.md`, `docs/guides/`, and the missing files in `internal/cmd/`, `internal/pipeline/`,
+`internal/versioning/`, `internal/port/`; `heraut commit` added to both files' command lists; "two
+platforms" reworded everywhere to distinguish three forge types from two publish drivers;
+"Bundled external CLIs" now states enrichment is native HTTP, not CLI-based; the T221 publish-
+destination wording updated to state the driver-support requirement explicitly; the GHA build-arg
+expression and the mise `lint:go:*`/`hk fix -S golangci-lint` (wrong step id, missing underscore)
+corrected; the release-workflow one-liner in CLAUDE.md's layout tree corrected to match T234's
+fix in spec 06 (no tag trigger, GoReleaser build-only, heraut creates its own release), and
+`osv-scan.yml` added to the workflows list; `docs/tasks/` description now mentions the dedicated
+per-epic roadmaps. README: Docker tag table's stuck real version replaced with a generic `X.Y.Z`
+pattern (won't go stale again); global-flags line corrected (`--offline` added, `--version`/`-v`'s
+root-only/dual-meaning nature explained — verified live: `heraut check --version` errors);
+`docs/guides/` added to the Documentation section. Also fixed `docs/tasks/roadmap.md`'s own
+overview-section ADR-count mentions (2 more occurrences) while there, per this task's own file
+list. Left roadmap.md's other overview staleness (`cog`, "three generators", `init/check/cliff/
+whatsnew tooling`) untouched — genuinely out of this task's scoped "ADR-count line only," and
+roadmap.md is a build log, not one of the four audited behavioral-doc surfaces; worth a future
+follow-up if the roadmap's own overview prose matters going forward. `hk check` (typos) clean; no
+code changes, so no test suite to run.
+
+---
+
+#### `[x]` T237: `.claude/rules/{coding,testing,workflow}.md` reconciliation
+
+- **`coding.md`** "Embedded assets" section (lines ~85-93): entirely about the removed
+  `gitcliff`/`communique` packages and `EffectiveChangelogConfig()`/`EffectiveReleaseNotesConfig()`,
+  neither of which exist. Replace with the actual native-generator embed description
+  (`internal/generators/native/render.go:20-26`).
+- **`coding.md`** architecture diagram (lines ~19,34): names `internal/generators/ (gitcliff,
+  communique)` — only `native/` remains (ADR-0045); also says "never calls `gitcliff.New(...)`,
+  `github.New(...)`" as if gitcliff were still a live example.
+- **`coding.md:23,32`**: `internal/adapter/exec/` doesn't exist — the runner is
+  `github.com/adaouat/forge/exec`, imported as `execadapter`. `CLAUDE.md:69` already has this
+  right; reconcile `coding.md` to match.
+- **`coding.md:6,27`**: claims `main.go` calls `fang.Execute` — actual: `cli.Run(...)` from
+  `forge/cli` (fang is now an indirect dependency reached inside `forge/cli/run.go`).
+- **`coding.md:26`**: claims three build flags (`Version`, `ProjectURL`, `LatestURL`) — `main.go`
+  declares only `Version`. This also contradicts `CLAUDE.md:136` ("`main.Version` is the only
+  ldflag") — reconcile both files to state the same fact.
+- **`coding.md:103`**: "Global flags on root" list omits `--offline`.
+- **`coding.md:41` layer-rules table**: doesn't account for `internal/cmd`'s actual imports
+  (`exitcode`, `port` beyond what's listed) or for `internal/{forge,commitwizard,exitcode,testutil}`
+  at all — no rows exist for these packages.
+- **`testing.md:25-51`**: `MockRunner`/`FakeBin` code sample and paths — see T234's identical
+  finding for spec 06; fix both files' examples together so they don't drift again
+  (`github.com/adaouat/forge/exec/exectest`, `New(runner port.Runner, cfg *config.Platform)`, no
+  `github.Config`, `--notes-file` not `--notes`).
+- **`testing.md:94`**: "self-update tests use `httptest.Server`" — no self-update exists in this
+  repo (see T236's ADR-0014-superseded note).
+- **`testing.md:12-23`**: four-layer table has no home for the `internal/forge/*` HTTP clients,
+  which are tested against real `httptest` servers (`gitlab_test.go`, `graphql_test.go`,
+  `github_test.go`, `github_internal_test.go`, `azure_test.go`) — a contract style the table's
+  CLI-only "Contract" row doesn't describe. Add a row or a note.
+- **`testing.md:107-108`**: coverage rule cites `generator` as a live config value — see T234's
+  identical finding; fix once, referenced from both files if practical.
+- **`workflow.md:74`**: commit-msg hook described as `cog` — actual step is `heraut-commit-lint`
+  running `go run ./cmd/heraut commit verify` (dogfooding, ADR-0029); cocogitto was dropped in
+  ADR-0028.
+- **`workflow.md`**: "Releases are cut by pushing a `v*` tag" contradicts ADR-0018 (correctly
+  `Accepted`) and the actual `.github/workflows/release.yml` (`on: workflow_dispatch`,
+  heraut-owned, GoReleaser build-only). Also has a `fix(generators/gitcliff)` example scope that no
+  longer exists as a package.
+
+**Files:** `.claude/rules/coding.md`, `.claude/rules/testing.md`, `.claude/rules/workflow.md`.
+**Scope:** M. **Dependencies:** none.
+
+Fixed all listed items across the three files. `coding.md`: architecture diagram
+(`fang.Execute`→`forge/cli.Run`, `gitcliff`/`communique`→`native`, non-existent
+`internal/adapter/exec/`→`github.com/adaouat/forge/exec`), the `port.Forge` interface added
+to the contracts bullet, "Embedded assets" rewritten for native's Go `text/template` files
+(was entirely about the deleted `gitcliff` package), `--offline` added to "Global flags on
+root". Layer rules table: added missing rows for `internal/forge/*`, `internal/commitwizard/`,
+`internal/exitcode/`, `internal/testutil/` (imports verified via `go list`, not guessed), fixed
+`internal/cmd/`'s row (also imports `exitcode`/`port`) and `internal/app/`'s row (dropped the
+non-existent `adapter` package). `testing.md`: `MockRunner`/`FakeBin` relocated to
+`github.com/adaouat/forge/exec/exectest` (mirroring T234's identical spec 06 fix — same stale
+claim, same correction), the four-test-layers table given a row for `internal/forge/*`'s
+`httptest`-based contract tests, the self-update/TOML determinism claims replaced, and the
+coverage-discipline `generator` fixture claim corrected (removed key, not a value set). 
+`workflow.md`: the commit-msg hook description (`cog` → `heraut-commit-lint` running `heraut
+commit verify`, dogfooding), the stale `fix(generators/gitcliff)` example scope, the
+hyphenated `hk fix -S golangci-lint` step id (also present here, not just CLAUDE.md — same
+underscore fix as T236), and the "Releases are cut by pushing a `v*` tag" claim — the single
+most consequential fix in this task, since it directly contradicted this project's own actual
+release process (`workflow_dispatch`-only, GoReleaser build-only, heraut creates its own
+release — ADR-0018). `hk check` (typos) clean; no code changes, so no test suite to run.
+
+---
+
+#### `[x]` T238: `docs/adr/README.md` + affected ADR bodies — status annotations and stale references
+
+**Incorrectly-marked status (add a "Superseded by ADR-00XX" / forward-pointer annotation; the decision
+itself doesn't need editing, only the pointer):**
+- **ADR-0042** (GitLab GraphQL via `glab api graphql`) — ported to native `net/http` by ADR-0043
+  P1 (`internal/forge/gitlab/{graphql,rest}.go`); ADR-0043 already lists 0042 under "Extends /
+  supersedes" — just needs the reverse pointer in 0042 itself and the README row.
+- **ADR-0040** (`changelog.remote` config block) — the key was removed entirely by ADR-0043
+  (`internal/config/loader.go:52`, `removedKeys`). README annotates 0026 and 0035 for this same
+  removal but leaves 0040, whose *title* is the removed key, bare.
+- **ADR-0022** (fat-injection / thin git-cliff templates) — `internal/generators/gitcliff/` is
+  deleted (ADR-0045); `linkEnv`/`HERAUT_REMOTE_URL` no longer exist outside a stale comment. Note:
+  ADR-0045's own "mentions git-cliff in passing" classification of 0022 is itself wrong — git-cliff
+  templates are 0022's entire subject; fix that classification note in ADR-0045 too, since it's the
+  thing steering README annotation decisions.
+- **ADR-0024** (ticket linking via git-cliff `link_parsers`) — `tickets` moved to
+  `commits.tickets` by ADR-0033; the "git-cliff only" gate and cocogitto/communique error path are
+  unreachable with native as sole generator.
+- **ADR-0006** (config naming: `release.platforms`, `generator: git-cliff`) — ADR-0043 already
+  explicitly lists ADR-0006 under "Extends / supersedes (naming)"; the README index shows no
+  supersession for it at all.
+
+**Stale detail inside an otherwise-correctly-`Accepted` ADR (fix the specific claim, not the
+status):**
+- **ADR-0044**: canonical migration example uses `release.notes.generator` — that key is itself in
+  `removedKeys` since ADR-0045; the one copy-pasteable example in the doc doesn't load.
+- **ADR-0019**: "generator switch triggers full replacement" — no such branch exists in
+  `config.MergeContentDriver`; its own example (`environments.prod.changelog: {config:
+  cliff.prod.toml}`) is a hard load error today.
+- **ADR-0031**: reads from `commit_lint.types`/`.scopes`/`.ticket` — renamed to `commits.types` /
+  `commits.scopes` / `commits.tickets` by ADR-0033. README annotates ADR-0027 for this exact rename
+  but leaves 0031 bare.
+- **ADR-0041**: uses `commits.remote_metadata` throughout — renamed to `commits.enrichment_policy`
+  by ADR-0043. README annotates ADR-0023 for this but leaves 0041 bare.
+- **ADR-0033**: defines `commits.remote_metadata` — the key it created was itself renamed by
+  ADR-0043; also states git-cliff stays "functional but unreconciled," which ended with ADR-0045.
+- **ADR-0032**: "native is additive, not a replacement… git-cliff remains the default" — reversed
+  by ADR-0045 (native is now sole). The ADR carries no status annotation at all — add one.
+- **ADR-0021**: "Context-injection shape" section (cocogitto adapter, communique adapter, git-cliff
+  `HERAUT_REMOTE_URL`) describes three adapters, none of which exist; the core per-platform
+  regeneration behavior it introduced does still hold (`internal/pipeline/release.go:171-176`).
+- **ADR-0045**: its own Consequences section claims the scaffold wizard still offers
+  `git-cliff`/`communique` as live options — false as of commit `a871e70`
+  (`internal/scaffold/wizard.go` has no such prompt); also cites `internal/scaffold/cliff.go`,
+  which no longer exists.
+- **ADR-0003**: claims `main.go` calls `fang.Execute` and that subcommands live under
+  `cmd/heraut/*.go` — see T236/T237's identical finding; fix the ADR's Decision section to name
+  the actual entry point and file locations, or add a note that the substantive decision
+  (cobra+fang under the hood, now via forge) still holds even though the cited paths don't.
+- **ADR-0011 / ADR-0012**: both sketch release-notes generation *after* publishing — actual order
+  is tag → push → notes → publish (`internal/pipeline/release.go:151-189`, per ADR-0021).
+
+**Index drift (`docs/adr/README.md`):**
+- Title mismatch, row for ADR-0034 ("Native Remote Enrichment via Platform CLIs" vs. the file's own
+  "Native remote enrichment (Phase 2)") — the invented subtitle asserts a transport the same row's
+  annotation then retracts.
+- Title mismatch, row for ADR-0016 ("Batteries-Included Docker Image" vs. file's "Bundled Docker
+  Image (Full Release Runner)").
+- Minor title/status wording drift: rows for ADR-0035, ADR-0033, ADR-0021.
+
+**Broken references (cited path no longer exists):**
+- ADR-0035:40 cites `internal/generators/native/enrich_azure.go` — moved to
+  `internal/forge/azure/{azure.go,prquery.go}`.
+- ADR-0039:49 cites `internal/generators/native/enrich_github.go` — moved to
+  `internal/forge/github/graphql.go`.
+- ADR-0017:19 cites `cmd/check.go` — actual path is `internal/cmd/check.go`.
+- ADR-0026:115 cites `internal/generators/gitcliff/generator.go` (package deleted; ADR-0026 is
+  already annotated in the README, so this is low severity — fix opportunistically).
+
+**Files:** `docs/adr/README.md`, `docs/adr/0003-*.md`, `0006-*.md`, `0011-*.md`, `0012-*.md`,
+`0017-*.md`, `0019-*.md`, `0021-*.md`, `0022-*.md`, `0024-*.md`, `0026-*.md`, `0031-*.md`,
+`0032-*.md`, `0033-*.md`, `0035-*.md`, `0039-*.md`, `0040-*.md`, `0041-*.md`, `0042-*.md`,
+`0044-*.md`, `0045-*.md`. **Scope:** L (many small edits across many files — consider splitting
+into "index + status annotations" and "stale-detail body edits" sub-passes if it proves too large
+for one sitting). **Dependencies:** none.
+
+Fixed every item in all four categories, but split the work by a different axis than "index vs.
+body" — by whether the ADR's original text was **accurate when written and later moved/renamed**
+(README-only annotation, body left as a historical record) vs. **inherently unreachable now, or
+predicting future work that's since landed** (body addendum, since the claim needs correcting for
+a reader relying on it today, not just flagging in the index). This mirrors the project's own
+established convention — ADR-0028's explicit rule, which ADR-0045 itself quotes: "historical ADRs
+… remain as accurate records of the decisions made *at the time* … not rewritten," with narrow,
+explicitly-named exceptions when an ADR's entire subject (not just a mention) becomes moot.
+
+**README.md** (all 11 status/title items): added forward-pointer annotations to ADR-0006, 0022
+(now `Superseded by ADR-0045`, matching 0010's precedent), 0024 (`Superseded by ADR-0033`), 0031,
+0032 (extended its existing annotation), 0033, 0039, 0040 (now `Superseded by ADR-0043`), 0041,
+0042, 0044; fixed title mismatches for 0016, 0034, 0035 (restored its `(not the az CLI)` suffix),
+0033 (restored "Unified"); fixed 0014's cosmetic status-wording drift found while in the
+neighborhood. ADR-0021's finding also landed as a README annotation rather than a body edit — its
+"Context-injection shape" section is substantial dead prose (three adapter examples), and the
+index note is what a reader deciding whether to trust that section actually consults first.
+
+**Body addendums** (blockquote `> **Update (T238, 2026-08-27).**` notes, preserving original
+prose): ADR-0003 (entry point/path correction), ADR-0011 and ADR-0012 (real step order, cross-
+referencing each other and ADR-0021), ADR-0019 (generator-switch claim never true post-ADR-0045;
+stale example), ADR-0045 (its own Consequences bullet about the wizard resolved by Phase C/T202;
+corrected its "mentions git-cliff in passing" range to carve out ADR-0022 as a second deliberate
+exception alongside ADR-0010, matching the README treatment). ADR-0044's example got a **direct**
+fix instead (removed the dead `generator: native` line with an inline comment) since it's a
+copy-pasteable code block, not decision prose — the one deliberate exception to "addendum, don't
+edit," on the theory that a reader copying a broken example is worse than losing one historical
+detail from a still-valid YAML block.
+
+**Broken references**: fixed ADR-0017's `cmd/check.go` → `internal/cmd/check.go` directly, since
+that path was never correct (a shorthand/typo from day one, not a later relocation). Left
+ADR-0035's and ADR-0039's own `enrich_azure.go`/`enrich_github.go` citations untouched — both were
+accurate when written and moved later by ADR-0043 — and instead added the relocation to each's
+README annotation (already covered above). Left ADR-0026:115's `gitcliff/generator.go` citation
+untouched for the same reason; already annotated in the README, per the task's own "low severity"
+note.
+
+`hk check` (typos) clean across all 8 touched files; no code changes, so no test suite to run.
