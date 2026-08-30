@@ -121,7 +121,7 @@ func NewReleaseCmd(version string) *cobra.Command {
 	releaseCmd.Flags().StringVar(&versionOverride, "version", "", "override the resolved version — with or without tag prefix (e.g. 1.2.3 or v1.2.3)")
 	releaseCmd.Flags().StringVar(&buildID, "build", "", "build ID appended to the tag via the {build} token in tag_format (requires --version)")
 	releaseCmd.Flags().BoolVar(&regenerateChangelog, "regenerate-changelog", false,
-		"rebuild the entire changelog and re-fetch PR attribution (needed once when migrating a changelog to the native generator)")
+		"rebuild the entire changelog and re-fetch PR attribution (needed once when migrating an existing changelog onto heraut)")
 
 	return releaseCmd
 }
