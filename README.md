@@ -6,24 +6,26 @@
 
 <p align="center">
   <img src="https://img.shields.io/badge/license-MIT-blue.svg" alt="License: MIT">
-  <img src="https://img.shields.io/badge/go-1.26%2B-00ADD8.svg" alt="Go 1.26+">
+  <img src="https://img.shields.io/badge/go-1.27%2B-00ADD8.svg" alt="Go 1.27+">
 </p>
 
 ---
 
-**Héraut** (`heraut`) is a Go CLI that orchestrates release management for git-based
-projects. One command resolves the next version, generates the changelog and release
-notes, creates the git tag, and publishes the release to GitHub and/or GitLab. It wraps
-the tools you already use — `git`, `gh`, `glab` — and handles the glue they can't: version
-resolution for prefixed-tag strategies, platform composition, and strict config validation.
+Every team that tags releases ends up with a script. It bumps a version, writes a
+changelog entry, creates the tag, pushes a release to GitHub. It works — until someone
+adds a second environment, or the changelog format needs a tweak, or a new teammate has
+to figure out what it does. That script is now yours to maintain.
 
-The name is a French pun. *Héraut* means herald — the medieval messenger who announces
-news — and it sounds like *hero*, which is what good release automation should feel like.
+**Héraut replaces it.** One command — `heraut release` — resolves the next version,
+generates the changelog and release notes, tags, and publishes to GitHub and/or GitLab.
+It wraps the tools you already use (`git`, `gh`, `glab`) and handles what a hand-rolled
+script usually gets wrong: version resolution for prefixed-tag strategies, multi-forge
+publishing, and config that's validated before it runs, not discovered broken in CI.
+Config-driven, not script-driven — change behavior by editing `.heraut.yml`, not by
+reading bash.
 
-It supports **four versioning strategies** (`semver`, `calver`, `semver-per-env`,
-`calver-per-env`), a **built-in content generator** (`native` — no external binary
-required), and three forge types for commit enrichment (`github`, `gitlab`,
-`azure_devops`) — two of which (`github`, `gitlab`) also publish releases.
+*The name's a French pun — [`héraut`](docs/adr/0002-tool-name-heraut.md) (herald) sounds
+like `héros` (hero), which is the idea.*
 
 ## Install
 
@@ -31,12 +33,6 @@ required), and three forge types for commit enrichment (`github`, `gitlab`,
 
 ```bash
 brew install --cask adaouat/tap/heraut
-```
-
-### `go install`
-
-```bash
-go install github.com/adaouat/heraut/cmd/heraut@latest
 ```
 
 ### mise
@@ -56,9 +52,8 @@ Or declare it in your `.mise.toml` / `mise.toml`:
 
 Download the raw binary for your platform from the
 [releases page](https://github.com/adaouat/heraut/releases). Assets are named
-`heraut_<version>_<os>_<arch>` (no archive wrapper — see
-[ADR-0013](docs/adr/0013-raw-binary-goreleaser-format.md)), alongside a
-`checksums.txt` for verification.
+`heraut_<version>_<os>_<arch>` — no `.tar.gz`/`.zip` wrapper, just the binary — alongside
+a `checksums.txt` for verification.
 
 ```bash
 # example: macOS arm64 — replace <version> with the release tag
@@ -71,7 +66,9 @@ Once installed, heraut prints a one-line upgrade hint when a newer release exist
 your install method (`mise upgrade heraut`, `go install …@latest`, or the curl command) to
 upgrade.
 
-> **macOS / Gatekeeper:** if the binary is blocked after download, clear the quarantine flag:
+> **macOS / Gatekeeper:** heraut's binaries aren't notarized by Apple (yet), so macOS
+> quarantines them on download and refuses to run them. Until that changes, clear the
+> quarantine flag yourself before running the binary:
 > ```bash
 > xattr -d com.apple.quarantine heraut
 > ```
@@ -94,6 +91,12 @@ Available tags (Docker images do not carry the `v` prefix that git tags use):
 | `X.Y` | Latest patch of that minor, e.g. `0.58` |
 | `X` | Latest release of that major, e.g. `0` |
 
+### `go install`
+
+```bash
+go install github.com/adaouat/heraut/cmd/heraut@latest
+```
+
 ## Prerequisites
 
 When running via **binary or `go install`**, heraut does **not** bundle the external CLIs it
@@ -103,11 +106,13 @@ The **Docker image** bundles all of them at pinned versions; no extra setup need
 | Tool | Needed for |
 |------|------------|
 | `git` | always |
-| `gh` | `platform: github` |
-| `glab` | `platform: gitlab` |
+| `gh` | publishing to a GitHub `release.targets[]` entry |
+| `glab` | publishing to a GitLab `release.targets[]` entry |
 
-Changelog and release-notes generation needs no external binary — `native` (heraut's built-in
-generator) ships in the `heraut` binary itself.
+Neither is needed just to *enrich* a changelog with PR/MR data from a `github`/`gitlab`
+forge — that talks to each platform's API directly over HTTP, no CLI involved. Changelog
+and release-notes generation itself needs no external binary either — `native` (heraut's
+built-in generator) ships in the `heraut` binary.
 
 Run `heraut check runtime` to verify the tools and tokens for your config are available.
 
@@ -127,24 +132,29 @@ heraut release --dry-run
 heraut release
 ```
 
+## What it handles
+
+- **Versioning** — SemVer or CalVer, plus a per-environment variant of each for projects
+  with independently-versioned lines (e.g. `staging` vs. `prod`). See
+  [Spec 04 — Versioning](docs/specs/04-versioning.md).
+- **Changelog & release notes** — built in (`native`), no external binary to install or
+  pin a version of. See [Spec 05](docs/specs/05-generators-and-platforms.md).
+- **Publishing** — GitHub and GitLab releases; Azure DevOps is supported for commit
+  enrichment (PR/MR data in the changelog) but has no release API of its own to publish
+  to. See [Spec 05](docs/specs/05-generators-and-platforms.md).
+
 ## Commands
 
-| Command | Description |
-|---------|-------------|
-| `heraut release` | Resolve next version → changelog → commit → tag → publish → notes |
-| `heraut changelog` | Generate `CHANGELOG.md` only (optionally `--commit` / `--tag`) |
-| `heraut version next` | Print the next version without side effects |
-| `heraut version current` | Print the latest released tag for the active strategy / env |
-| `heraut version sprint bump` | Increment the CalVer sprint counter in `.heraut.yml` |
-| `heraut check` | Preflight: config + runtime (`config` / `runtime` subcommands) |
-| `heraut init` | Interactive wizard to generate `.heraut.yml` |
-| `heraut commit verify` / `check` / `tickets` / `create` | Conventional-commit validation, ticket-pattern testing, and interactive authoring |
+The [Quickstart](#quickstart) above covers the core loop. Beyond that: `heraut changelog`
+(changelog only, optionally `--commit`/`--tag`), `heraut version next`/`current` (print
+without side effects), `heraut commit verify`/`create` (Conventional Commits tooling).
+Every command takes `--dry-run` and `--help`; see
+[Spec 03 — Commands](docs/specs/03-commands.md) for the full reference including every
+global flag.
 
-Global flags (on every command): `--config`, `--dry-run`, `--verbose`, `--env`,
-`--force`, `--offline`, `--help`/`-h`. `--version`/`-v` prints the heraut version and is
-root-only — `heraut release`/`heraut changelog` separately define their own `--version
-<value>` flag to override the resolved version, an unrelated meaning. See
-[Spec 03 — Commands](docs/specs/03-commands.md) for the full reference.
+> **Gotcha:** `--version`/`-v` is root-only and prints the heraut binary's own version.
+> `heraut release --version <value>` is a different, subcommand-local flag that
+> *overrides the resolved release version* — same name, unrelated meaning.
 
 ## Configuration
 
@@ -179,17 +189,14 @@ release:
 
 | Block | Purpose |
 |-------|---------|
-| `versioning` | Strategy and options (`semver` / `calver` / `*-per-env`) |
-| `changelog` | `CHANGELOG.md` generation (committed during `release`) |
-| `forges` | Code-hosting connections heraut talks to (`github` / `gitlab` / `azure_devops`); optional when auto-detected from CI or git origin. Only `github`/`gitlab` can be a publish target. |
-| `release.notes` | Release-page notes generation |
-| `release.targets` | Publish destinations, each referencing a `forges[].name` |
-| `environments` | Per-environment config for `*-per-env` strategies (bump mode, tag format, promotion source, changelog/release overrides) |
+| `versioning` | Which strategy to use and how it computes the next version |
+| `forges` | Code-hosting connections heraut talks to — often not needed at all, since it auto-detects from CI or your git origin |
+| `release` | What to publish and where; `release.targets` references a `forges[].name` |
 
-This is the short version. See [Spec 02 — Configuration](docs/specs/02-configuration.md)
-for every field, [Spec 04 — Versioning](docs/specs/04-versioning.md) for how each
-strategy computes the next version, and [`docs/heraut.sample.yml`](docs/heraut.sample.yml)
-for a fully annotated config covering all fields with comments.
+That's the shape, not the whole schema — `changelog` output, per-environment overrides
+via `environments`, and every other field are in
+[Spec 02 — Configuration](docs/specs/02-configuration.md). For a fully annotated example
+covering every field, see [`docs/heraut.sample.yml`](docs/heraut.sample.yml).
 
 ## Updates
 
