@@ -6,15 +6,11 @@ hosting service. They are independent concerns and combined in `.heraut.yml` und
 
 ## Generator
 
-`native` is heraut's sole content generator (ADR-0045) — a built-in, zero-external-dependency
-renderer driven by `commits` / `rendering` config, with a user-customizable template API
-(ADR-0037).
-
-## native
-
-heraut's built-in, zero-external-dependency renderer (ADR-0032 / ADR-0033). It walks git
-history, classifies commits per the `commits.types` taxonomy and `rendering.excludes`, and
-renders Markdown with internal templates — no `git-cliff` binary required.
+`native` is heraut's sole content generator (ADR-0032 / ADR-0033 / ADR-0045) — a built-in,
+zero-external-dependency renderer driven by `commits` / `rendering` config, with a
+user-customizable template API (ADR-0037). It walks git history, classifies commits per the
+`commits.types` taxonomy and `rendering.excludes`, and renders Markdown with internal templates —
+no `git-cliff` binary required.
 
 ```yaml
 changelog:
@@ -159,7 +155,7 @@ over heraut's own `net/http` forge clients — no `gh` or `glab` process is spaw
 there costs O(commits), so prefer `api_mode: graphql` (or an incremental run) on a long history.
 The changelog pipeline step itself no longer carries a dedicated GitLab full-regeneration warning;
 the only warning it emits is the degraded note raised when an enrichment fetch actually fails.
-This is the required one-time step when migrating a changelog onto `native` (or repairing a
+This is the required one-time step when migrating an existing changelog onto heraut (or repairing a
 previously-anchorless file) — see [ADR-0038](../adr/0038-incremental-changelog.md) for the full
 migration story, including the `regenerate_changelog` `workflow_dispatch` input heraut's own CI
 uses for its own migration.
@@ -201,11 +197,11 @@ those resolve anything. With multiple configured `forges:` entries and no explic
 `commits.enrichment_forge`, the **first** entry is used, not an error — name one explicitly
 once you have more than one and enrichment shouldn't default to the first. `forges` entries
 are connection/identity only — they never grant publish capability on their own; heraut
-never publishes a release through a `forges` entry, it only tells the active generator
-where to source PR/MR metadata and commit/PR link shapes. Publishing is a separate concern
-(`release.targets`, each referencing a forge by name). Valid as the enrichment source for
-`native` (originally introduced for `changelog.remote` by ADR-0026/ADR-0040; unified into
-the top-level `forges:` list by ADR-0043).
+never publishes a release through a `forges` entry, it only tells heraut where to source
+PR/MR metadata and commit/PR link shapes. Publishing is a separate concern (`release.targets`,
+each referencing a forge by name). Enrichment source config was originally introduced for
+`changelog.remote` by ADR-0026/ADR-0040; unified into the top-level `forges:` list by
+ADR-0043.
 
 ### Auto-detection and self-hosted hosts
 

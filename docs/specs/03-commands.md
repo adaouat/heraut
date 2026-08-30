@@ -90,7 +90,7 @@ heraut release [--version <version>] [--build <id>] [--regenerate-changelog] [--
 |--------------------------|--------------------------------------------------------------------------------------|
 | `--version`              | Override the auto-computed version for **any** strategy. Bypasses bump resolution entirely — no git calls are made to resolve it. Accepts any non-empty value with no whitespace; an optional leading `v` is stripped, then the result is rendered through the active strategy's tag shape exactly like an auto-resolved version would be: through the effective `tag_format` when one applies (per-env strategies, or a top-level `tag_format`), otherwise through `versioning.tag_prefix` (default `"v"` for SemVer strategies, `""` for CalVer). A full tag already carrying the right prefix round-trips unchanged. |
 | `--build`                | CI build ID appended to the tag via the `{build}` token in `tag_format`. Requires `--version`. |
-| `--regenerate-changelog` | Native generator only: rebuild the entire changelog and re-enrich every section (batched per platform; one API call per commit on GitLab) instead of incrementally splicing just the new section. See [ADR-0038](../adr/0038-incremental-changelog.md). |
+| `--regenerate-changelog` | Rebuild the entire changelog and re-enrich every section (batched per platform; one API call per commit on GitLab) instead of incrementally splicing just the new section. See [ADR-0038](../adr/0038-incremental-changelog.md). |
 | `--dry-run`              | Print the action plan; execute nothing.                                              |
 | `--env`                  | Active environment (required for per-env strategies).                                |
 | `--force`                | Bypass E001 (target tag exists) and E002 (destination ahead).                        |
@@ -181,7 +181,7 @@ heraut changelog [--commit] [--tag] [--no-push] [--version <version>] [--regener
 | `--no-push`    | Commit and tag locally without pushing. Skips both `git push origin HEAD` and `git push origin <tag>`. Only meaningful with `--commit`/`--tag`. |
 | `--version`    | Override the auto-computed version. Bypasses bump resolution. Same validation as `heraut release --version` — non-empty, no whitespace, format-agnostic. |
 | `--build`      | CI build ID appended to the tag via the `{build}` token in `tag_format`. Requires `--version`.           |
-| `--regenerate` | Native generator only: rebuild the entire changelog and re-enrich every section (batched per platform; one API call per commit on GitLab) instead of incrementally splicing just the new section. See [ADR-0038](../adr/0038-incremental-changelog.md). |
+| `--regenerate` | Rebuild the entire changelog and re-enrich every section (batched per platform; one API call per commit on GitLab) instead of incrementally splicing just the new section. See [ADR-0038](../adr/0038-incremental-changelog.md). |
 | `--dry-run`    | Print the action plan; execute nothing.                                                                  |
 | `--env`        | Active environment.                                                                                      |
 
@@ -210,7 +210,7 @@ the command exits 0 with an info message.
 
 ### Tag-only workflow (no `release` block required)
 
-`heraut changelog --tag` is valid even when no `changelog` generator is configured.
+`heraut changelog --tag` is valid even when no `changelog:` block is configured.
 It resolves the next version, creates an annotated tag, and pushes — nothing else.
 This is useful when:
 
