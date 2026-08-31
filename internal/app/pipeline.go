@@ -406,12 +406,12 @@ func withEnvDerivations(driver *config.ContentDriver, cfg *config.Config, env st
 
 	var tagPat, tagGlob string
 	if driver.TagPattern == "" {
-		tagPat = tagfmt.DeriveTagPattern(tf, env)
+		tagPat = tagfmt.DeriveTagPattern(tf, tagfmt.Tokens{Env: env})
 		// The git glob is the native equivalent of git-cliff's --tag-pattern regex: it scopes
 		// listTags / previousTag to the active env's tags. Derived only for a per-env format
 		// ({env} present) — otherwise native keeps walking all tags.
 		if env != "" && strings.Contains(tf, "{env}") {
-			if g, err := tagfmt.GlobPattern(tf, env); err == nil {
+			if g, err := tagfmt.GlobPattern(tf, tagfmt.Tokens{Env: env}); err == nil {
 				tagGlob = g
 			}
 		}

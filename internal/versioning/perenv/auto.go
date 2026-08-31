@@ -14,7 +14,7 @@ import (
 func resolveAuto(runner port.Runner, cfg *config.Config, env string, calc VersionCalculator) (versioning.Result, error) {
 	tf := tagFormat(cfg, env)
 
-	glob, err := tagfmt.GlobPattern(tf, env)
+	glob, err := tagfmt.GlobPattern(tf, tagfmt.Tokens{Env: env})
 	if err != nil {
 		return versioning.Result{}, fmt.Errorf("building tag glob for %q: %w", env, err)
 	}
@@ -64,7 +64,7 @@ func resolveAuto(runner port.Runner, cfg *config.Config, env string, calc Versio
 		}
 	}
 
-	newTag, err := tagfmt.Render(tf, env, nextVersion, "")
+	newTag, err := tagfmt.Render(tf, tagfmt.Tokens{Env: env, Version: nextVersion})
 	if err != nil {
 		return versioning.Result{}, fmt.Errorf("rendering tag: %w", err)
 	}

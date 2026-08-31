@@ -13,21 +13,31 @@ const (
 	buildToken   = "{build}"
 )
 
+// Tokens holds the substitution values for a tag format template. Bundling them as a struct
+// (rather than growing the positional-parameter list of every function below) gives future
+// tokens — e.g. a monorepo {package} token — a seam to land in without re-touching every
+// call site's signature a second time.
+type Tokens struct {
+	Version string
+	Env     string
+	Build   string
+}
+
 // Render substitutes {version}, {env}, and {build} tokens in template.
-// build may be empty when {build} is not present in the template; if {build}
-// is present but build is empty, an error is returned.
-func Render(template, env, version, build string) (string, error) {
+// t.Build may be empty when {build} is not present in the template; if {build}
+// is present but t.Build is empty, an error is returned.
+func Render(template string, t Tokens) (string, error) {
 	if !strings.Contains(template, versionToken) {
 		return "", fmt.Errorf("tag format template must contain %s token", versionToken)
 	}
-	if strings.Contains(template, buildToken) && build == "" {
+	if strings.Contains(template, buildToken) && t.Build == "" {
 		return "", fmt.Errorf("tag format template contains %s but no build ID was provided; "+
 			"pass --build <id> to `heraut changelog` or `heraut release` "+
 			"(version next infers the tag from git history, so it cannot supply one)", buildToken)
 	}
-	result := strings.ReplaceAll(template, versionToken, version)
-	result = strings.ReplaceAll(result, envToken, env)
-	result = strings.ReplaceAll(result, buildToken, build)
+	result := strings.ReplaceAll(template, versionToken, t.Version)
+	result = strings.ReplaceAll(result, envToken, t.Env)
+	result = strings.ReplaceAll(result, buildToken, t.Build)
 	return result, nil
 }
 
@@ -123,26 +133,26 @@ func ValidateVersionOverride(version string) error {
 }
 
 // DeriveTagPattern returns an anchored regex, consumed by native to scope its tag walk, that
-// matches only the given environment's tags. {env} becomes the literal env, {version} and
-// {build} become wildcards. Returns "" when the template has no {env} token or env is empty —
+// matches only the given environment's tags. {env} becomes the literal t.Env, {version} and
+// {build} become wildcards. Returns "" when the template has no {env} token or t.Env is empty —
 // there is nothing to scope in those cases.
-func DeriveTagPattern(template, env string) string {
-	if env == "" || !strings.Contains(template, envToken) {
+func DeriveTagPattern(template string, t Tokens) string {
+	if t.Env == "" || !strings.Contains(template, envToken) {
 		return ""
 	}
 	regexStr := regexp.QuoteMeta(template)
 	regexStr = strings.ReplaceAll(regexStr, regexp.QuoteMeta(versionToken), `.+`)
 	regexStr = strings.ReplaceAll(regexStr, regexp.QuoteMeta(buildToken), `.+`)
-	regexStr = strings.ReplaceAll(regexStr, regexp.QuoteMeta(envToken), regexp.QuoteMeta(env))
+	regexStr = strings.ReplaceAll(regexStr, regexp.QuoteMeta(envToken), regexp.QuoteMeta(t.Env))
 	return "^" + regexStr + "$"
 }
 
 // GlobPattern returns a git tag glob pattern for listing tags under the given env.
-func GlobPattern(template, env string) (string, error) {
+func GlobPattern(template string, t Tokens) (string, error) {
 	if !strings.Contains(template, versionToken) {
 		return "", fmt.Errorf("tag format template must contain %s token", versionToken)
 	}
-	result := strings.ReplaceAll(template, envToken, env)
+	result := strings.ReplaceAll(template, envToken, t.Env)
 	result = strings.ReplaceAll(result, versionToken, "*")
 	result = strings.ReplaceAll(result, buildToken, "*")
 	return result, nil

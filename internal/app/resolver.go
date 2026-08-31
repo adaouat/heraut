@@ -43,7 +43,7 @@ func NewResolver(cfg *config.Config, env string, force bool, versionOverride, bu
 			// so this heuristic (not the configured tag_prefix) applies here.
 			version = strings.TrimPrefix(versionOverride, "v")
 			var err error
-			tag, err = tagfmt.Render(tf, env, version, buildID)
+			tag, err = tagfmt.Render(tf, tagfmt.Tokens{Env: env, Version: version, Build: buildID})
 			if err != nil {
 				return nil, fmt.Errorf("rendering tag: %w", err)
 			}

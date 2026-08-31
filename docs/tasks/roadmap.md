@@ -201,6 +201,7 @@ discipline that applies to every task.
 | 30 | Changelog/release-notes title & subtitle blocks | Done |
 | 31 | Uniform empty/whitespace block-override handling | Done |
 | 32 | Default footer credits heraut (version + timestamp) | Done |
+| 33 | `tagfmt` token API cleanup | Done |
 
 ### Open items
 
@@ -354,6 +355,28 @@ footer-free since ADR-0049 moved footer out of the per-section render they test,
 Verified with a live scratch run showing the exact intended shape (last commit line → blank line →
 `---` → footer text). Docs: `template-customization.md` (new paragraph on the automatic separator,
 the intro ADR citation list tightened while adding 0051). ADR count bumped 50 → 51.
+
+---
+
+### Phase 33 — `tagfmt` token API cleanup
+
+#### ✦ `[x]` T256: replace positional token args with a `Tokens` struct
+
+`internal/versioning/tagfmt.Render`, `DeriveTagPattern`, and `GlobPattern` each took `env`,
+`version`, and/or `build` as separate positional string params. Replaced with a single
+`Tokens{Version, Env, Build string}` struct argument across all three functions and their 10 call
+sites (`internal/app/{current,resolver,pipeline}.go`, `internal/versioning/perenv/{promote,auto}.go`).
+`ParseVersion` and `DeriveHeadingVersionPattern` take no token values (only `template`, or
+`template`+`tag`) and were left untouched. Pure signature refactor — every substitution/output
+behavior is unchanged; only the four `TestRender*`/`TestDeriveTagPattern`/`TestGlobPattern*` call
+shapes in `tagfmt_test.go` changed to match. TDD: updated the test file to the new signature first
+(compile failure = red), then added `Tokens` and re-shaped the three functions (green), then fixed
+up the 10 call sites one package at a time until `go build ./...` and `go test ./...` were clean
+again. `hk check` (golangci-lint, gofmt, typos) passes with 0 issues. Surfaced during monorepo-
+support design exploration (docs/superpowers/specs — no design doc committed yet, still in-chat
+brainstorming) as standalone prep work: a clean seam for a future `{package}` token, landed on
+`main` independently of (and before) the still-unfinished monorepo design, which will continue in
+its own dedicated worktree.
 
 ---
 

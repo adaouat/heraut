@@ -134,7 +134,7 @@ func resolvePromote(runner port.Runner, cfg *config.Config, env string, force bo
 	srcTF := tagFormat(cfg, srcEnv)
 
 	// 2. List source tags and find the latest.
-	srcGlob, err := tagfmt.GlobPattern(srcTF, srcEnv)
+	srcGlob, err := tagfmt.GlobPattern(srcTF, tagfmt.Tokens{Env: srcEnv})
 	if err != nil {
 		return versioning.Result{}, fmt.Errorf("building source tag glob: %w", err)
 	}
@@ -169,7 +169,7 @@ func resolvePromote(runner port.Runner, cfg *config.Config, env string, force bo
 
 	// 4. Render the candidate tag under the destination format.
 	destTF := tagFormat(cfg, env)
-	candidateTag, err := tagfmt.Render(destTF, env, candidateVersion, "")
+	candidateTag, err := tagfmt.Render(destTF, tagfmt.Tokens{Env: env, Version: candidateVersion})
 	if err != nil {
 		return versioning.Result{}, fmt.Errorf("rendering candidate tag: %w", err)
 	}
@@ -190,7 +190,7 @@ func resolvePromote(runner port.Runner, cfg *config.Config, env string, force bo
 	}
 
 	// 6. E002: fail if the destination is already ahead of the candidate.
-	destGlob, err := tagfmt.GlobPattern(destTF, env)
+	destGlob, err := tagfmt.GlobPattern(destTF, tagfmt.Tokens{Env: env})
 	if err != nil {
 		return versioning.Result{}, fmt.Errorf("building destination tag glob: %w", err)
 	}
@@ -207,7 +207,7 @@ func resolvePromote(runner port.Runner, cfg *config.Config, env string, force bo
 		latestDestVersion, parseErr := tagfmt.ParseVersion(destTF, currentDestTag)
 		if parseErr == nil {
 			if compareVersionStrings(latestDestVersion, candidateVersion) > 0 && !force {
-				suggested, _ := tagfmt.Render(srcTF, srcEnv, latestDestVersion, "")
+				suggested, _ := tagfmt.Render(srcTF, tagfmt.Tokens{Env: srcEnv, Version: latestDestVersion})
 				return versioning.Result{}, &PromotionError{
 					sentinel:          ErrDestinationAhead,
 					srcEnv:            srcEnv,

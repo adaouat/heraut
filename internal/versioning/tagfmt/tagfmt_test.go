@@ -54,7 +54,7 @@ func TestDeriveTagPattern(t *testing.T) {
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			pat := tagfmt.DeriveTagPattern(tc.template, tc.env)
+			pat := tagfmt.DeriveTagPattern(tc.template, tagfmt.Tokens{Env: tc.env})
 			if tc.wantEmpty {
 				assert.Empty(t, pat)
 				return
@@ -92,7 +92,7 @@ func TestRender(t *testing.T) {
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			got, err := tagfmt.Render(tc.template, tc.env, tc.version, "")
+			got, err := tagfmt.Render(tc.template, tagfmt.Tokens{Env: tc.env, Version: tc.version})
 			require.NoError(t, err)
 			assert.Equal(t, tc.want, got)
 		})
@@ -100,7 +100,7 @@ func TestRender(t *testing.T) {
 }
 
 func TestRenderError(t *testing.T) {
-	_, err := tagfmt.Render("no-version-token", "dev", "1.0.0", "")
+	_, err := tagfmt.Render("no-version-token", tagfmt.Tokens{Env: "dev", Version: "1.0.0"})
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "{version}")
 }
@@ -121,7 +121,7 @@ func TestRender_WithBuild(t *testing.T) {
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			got, err := tagfmt.Render(tc.template, tc.env, tc.version, tc.build)
+			got, err := tagfmt.Render(tc.template, tagfmt.Tokens{Env: tc.env, Version: tc.version, Build: tc.build})
 			require.NoError(t, err)
 			assert.Equal(t, tc.want, got)
 		})
@@ -129,7 +129,7 @@ func TestRender_WithBuild(t *testing.T) {
 }
 
 func TestRender_BuildRequiredButEmpty(t *testing.T) {
-	_, err := tagfmt.Render("{env}/{version}-{build}", "uat", "7.4.1", "")
+	_, err := tagfmt.Render("{env}/{version}-{build}", tagfmt.Tokens{Env: "uat", Version: "7.4.1"})
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "{build}")
 	// The error must point the user toward --build on either command that accepts it —
@@ -201,7 +201,7 @@ func TestGlobPattern(t *testing.T) {
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			got, err := tagfmt.GlobPattern(tc.template, tc.env)
+			got, err := tagfmt.GlobPattern(tc.template, tagfmt.Tokens{Env: tc.env})
 			require.NoError(t, err)
 			assert.Equal(t, tc.want, got)
 		})
@@ -209,7 +209,7 @@ func TestGlobPattern(t *testing.T) {
 }
 
 func TestGlobPatternError(t *testing.T) {
-	_, err := tagfmt.GlobPattern("no-version-token", "dev")
+	_, err := tagfmt.GlobPattern("no-version-token", tagfmt.Tokens{Env: "dev"})
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "{version}")
 }
@@ -402,7 +402,7 @@ func TestGlobPattern_WithBuild(t *testing.T) {
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			got, err := tagfmt.GlobPattern(tc.template, tc.env)
+			got, err := tagfmt.GlobPattern(tc.template, tagfmt.Tokens{Env: tc.env})
 			require.NoError(t, err)
 			assert.Equal(t, tc.want, got)
 		})
