@@ -20,6 +20,11 @@ var (
 	fixedDate2 = time.Date(2024, 1, 14, 12, 0, 0, 0, time.UTC)
 	fixedDate3 = time.Date(2024, 1, 10, 12, 0, 0, 0, time.UTC)
 
+	// fixtureHeraut feeds the golden tests below a realistic .Heraut value so the default
+	// footer (which now renders it) produces legible, deterministic golden files instead of
+	// zero-value output.
+	fixtureHeraut = tplHeraut{Version: "1.2.3", URL: herautProjectURL, GeneratedAt: fixedDate1}
+
 	githubLC = &port.LinkContext{
 		BaseURL:  "https://github.com",
 		Owner:    "acme",
@@ -121,7 +126,7 @@ func TestRenderChangelogSection_Golden(t *testing.T) {
 	releaseDate := time.Date(2024, 1, 15, 0, 0, 0, 0, time.UTC)
 	got, err := renderChangelogSection(
 		"v1.2.3", "v1.2.2", releaseDate,
-		fixtureGroups(), githubLC, nil, "", 3, nil, tplHeraut{}, nil, "",
+		fixtureGroups(), githubLC, nil, "", 3, nil, fixtureHeraut, nil, "",
 	)
 	require.NoError(t, err)
 
@@ -135,7 +140,7 @@ func TestRenderChangelogSection_NoPrevious(t *testing.T) {
 	releaseDate := time.Date(2024, 1, 15, 0, 0, 0, 0, time.UTC)
 	got, err := renderChangelogSection(
 		"v1.0.0", "", releaseDate,
-		fixtureGroups(), githubLC, nil, "", 3, nil, tplHeraut{}, nil, "",
+		fixtureGroups(), githubLC, nil, "", 3, nil, fixtureHeraut, nil, "",
 	)
 	require.NoError(t, err)
 
@@ -149,7 +154,7 @@ func TestRenderChangelogSection_NoLinks(t *testing.T) {
 	releaseDate := time.Date(2024, 1, 15, 0, 0, 0, 0, time.UTC)
 	got, err := renderChangelogSection(
 		"v1.2.3", "v1.2.2", releaseDate,
-		fixtureGroups(), nil, nil, "", 3, nil, tplHeraut{}, nil, "",
+		fixtureGroups(), nil, nil, "", 3, nil, fixtureHeraut, nil, "",
 	)
 	require.NoError(t, err)
 
@@ -179,7 +184,7 @@ func TestRenderChangelogSection_WithTickets(t *testing.T) {
 	releaseDate := time.Date(2024, 1, 15, 0, 0, 0, 0, time.UTC)
 	got, err := renderChangelogSection(
 		"v2.0.0", "v1.9.9", releaseDate,
-		groups, githubLC, tickets, "", 3, nil, tplHeraut{}, nil, "",
+		groups, githubLC, tickets, "", 3, nil, fixtureHeraut, nil, "",
 	)
 	require.NoError(t, err)
 
@@ -231,7 +236,7 @@ func TestRenderChangelogSection_HeadingPattern(t *testing.T) {
 	got, err := renderChangelogSection(
 		"prod/v1.2.3", "prod/v1.2.2", releaseDate,
 		fixtureGroups(), githubLC, nil,
-		`\[prod/(v[^\]]+)\]`, 3, nil, tplHeraut{}, nil, "",
+		`\[prod/(v[^\]]+)\]`, 3, nil, fixtureHeraut, nil, "",
 	)
 	require.NoError(t, err)
 
@@ -260,7 +265,7 @@ func TestRenderReleaseNotes_Golden(t *testing.T) {
 
 	got, err := renderReleaseNotes(
 		"v1.2.3", "v1.2.2", releaseDate,
-		fixtureGroups(), githubLC, nil, prevDate, 3, nil, nil, tplHeraut{}, nil, "",
+		fixtureGroups(), githubLC, nil, prevDate, 3, nil, nil, fixtureHeraut, nil, "",
 	)
 	require.NoError(t, err)
 
@@ -275,7 +280,7 @@ func TestRenderReleaseNotes_NoPrevDate(t *testing.T) {
 
 	got, err := renderReleaseNotes(
 		"v1.0.0", "", releaseDate,
-		fixtureGroups(), githubLC, nil, time.Time{}, 3, nil, nil, tplHeraut{}, nil, "",
+		fixtureGroups(), githubLC, nil, time.Time{}, 3, nil, nil, fixtureHeraut, nil, "",
 	)
 	require.NoError(t, err)
 
@@ -290,7 +295,7 @@ func TestRenderReleaseNotes_WithBodyAndFooter(t *testing.T) {
 
 	got, err := renderReleaseNotes(
 		"v1.1.0", "v1.0.0", releaseDate,
-		fixtureGroupsWithBodyFooter(), githubLC, nil, time.Time{}, 3, nil, nil, tplHeraut{}, nil, "",
+		fixtureGroupsWithBodyFooter(), githubLC, nil, time.Time{}, 3, nil, nil, fixtureHeraut, nil, "",
 	)
 	require.NoError(t, err)
 
@@ -585,7 +590,7 @@ func TestRenderReleaseNotes_Contributors_Golden(t *testing.T) {
 	overlayAuthorHandles(groups, map[string]string{rc1.Hash: "alice"})
 	got, err := renderReleaseNotes(
 		"v1.2.3", "v1.2.2", releaseDate,
-		groups, githubLC, nil, prevDate, 3, prs, contribs, tplHeraut{}, nil, "",
+		groups, githubLC, nil, prevDate, 3, prs, contribs, fixtureHeraut, nil, "",
 	)
 	require.NoError(t, err)
 
