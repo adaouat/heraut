@@ -231,16 +231,13 @@ func (g *Generator) buildAllSections(tag string, lc *port.LinkContext, enrichAll
 		}
 	}
 
-	postamble, err := renderPostamble(changelogTmpl, g.cfg.EffectiveTemplates, g.cfg.Template, g.herautMeta())
+	footer, err := renderPostamble(changelogTmpl, g.cfg.EffectiveTemplates, g.cfg.Template, g.herautMeta())
 	if err != nil {
 		return "", fmt.Errorf("rendering changelog postamble: %w", err)
 	}
 
 	body := preamble + strings.Join(blocks, "\n\n") + "\n"
-	if postamble != "" {
-		body += footerAnchor + postamble
-	}
-	return body, nil
+	return appendFooter(body, footer), nil
 }
 
 // generateIncremental splices only the new release's section into the existing changelog,

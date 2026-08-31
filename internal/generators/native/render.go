@@ -98,11 +98,15 @@ func renderReleaseNotes(
 	if err != nil {
 		return "", fmt.Errorf("rendering release notes: %w", err)
 	}
-	postamble, err := renderPostamble(releaseNotesTmpl, snippets, templateFile, heraut)
+	footer, err := renderPostamble(releaseNotesTmpl, snippets, templateFile, heraut)
 	if err != nil {
 		return "", fmt.Errorf("rendering release notes postamble: %w", err)
 	}
-	return strings.TrimSpace(preamble + out + postamble), nil
+	body := preamble + out
+	if footer != "" {
+		body += footerSeparator + footer
+	}
+	return strings.TrimSpace(body), nil
 }
 
 // ─── commit-line helpers ──────────────────────────────────────────────────────
@@ -295,19 +299,17 @@ func renderPreamble(rootTmpl string, snippets map[string]string, templateFile st
 // renderPostamble renders a driver's document-level footer block (ADR-0049), the trailing
 // counterpart to renderPreamble's title/subtitle: it fires once per document, not once per
 // rendered release, so it executes against a bare tplHeraut — same context, same null-override
-// mechanism, same reasoning as renderPreamble. buildAllSections calls it once and appends the
-// result after every joined section; renderReleaseNotes calls it once and appends it to the single
-// rendered release. The per-release trailing block (release_footer, unchanged from the original
-// "footer" block pre-ADR-0049) still fires from within changelog.tmpl/release_notes.tmpl's root —
-// this is a separate, document-scoped block layered on top.
+// mechanism, same reasoning as renderPreamble. Returns the trimmed footer text (empty when unset)
+// — callers own the surrounding presentation: buildAllSections/spliceSection add the anchor and
+// footerSeparator (ADR-0051) before appending it once after every joined section; renderReleaseNotes
+// adds just footerSeparator before appending it to the single rendered release. The per-release
+// trailing block (release_footer, unchanged from the original "footer" block pre-ADR-0049) still
+// fires from within changelog.tmpl/release_notes.tmpl's root — this is a separate, document-scoped
+// block layered on top.
 func renderPostamble(rootTmpl string, snippets map[string]string, templateFile string, heraut tplHeraut) (string, error) {
 	footer, err := execBlocks("footer", rootTmpl, snippets, templateFile, heraut)
 	if err != nil {
 		return "", err
 	}
-	f := strings.TrimSpace(footer)
-	if f == "" {
-		return "", nil
-	}
-	return "\n" + f + "\n", nil
+	return strings.TrimSpace(footer), nil
 }

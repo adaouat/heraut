@@ -8,7 +8,7 @@ described in `docs/specs/`. Each task carries an inline `[ ] / [x]` checkbox —
 headings for what to do next, read the surrounding prose for *why* and *how*.
 
 The behavioural authority is `docs/specs/` (six numbered specs); the architectural
-authority is `docs/adr/` (50 ADRs). Where this roadmap mentions "behaviour", the specs
+authority is `docs/adr/` (51 ADRs). Where this roadmap mentions "behaviour", the specs
 win; where it mentions a "decision", the ADR wins. If you find a disagreement between
 roadmap and spec/ADR, fix the roadmap.
 
@@ -36,7 +36,7 @@ The goals of v1.0:
    provides these (see [ADR-0014](../adr/0014-self-update-architecture.md), superseded,
    for the self-update → forge/updatecheck migration).
 
-The `docs/specs/` (six numbered specs) and the 50 ADRs in `docs/adr/` are authoritative.
+The `docs/specs/` (six numbered specs) and the 51 ADRs in `docs/adr/` are authoritative.
 
 ---
 
@@ -332,6 +332,28 @@ incremental run against this repo's own scratch config. Docs: `template-customiz
 05-generators-and-platforms.md`'s Incremental/Full-regeneration paragraphs (previously claimed
 regeneration was "the one case where free-form preamble doesn't mean yours to keep" — now neither
 mode preserves it). ADR count bumped 49 → 50.
+
+#### ✦ `[x]` T255: automatic visual separator before `footer` (ADR-0051)
+
+User asked for a clean visual break: an empty line, then a horizontal rule, then the footer
+content. Previously `footer` rendered immediately under the last commit bullet with no spacing.
+Design in [ADR-0051](../adr/0051-footer-visual-separator.md): made the separator (`"\n\n---\n"`,
+`footerSeparator` in `changelogfile.go`) structural — applied by a new shared `appendFooter` helper
+whenever `footer` is non-empty, whether default or a user override, same category as the anchors
+rather than something baked into the block's own template text (which would have been silently
+swallowed by `renderPostamble`'s `TrimSpace`, the same trim `renderPreamble` applies to
+`title`/`subtitle` for consistent, override-formatting-independent presentation).
+`renderPostamble`'s return contract simplified to just the trimmed block text (previously wrapped
+in its own leading/trailing newline) — every caller now owns its own presentation:
+`buildAllSections`/`spliceSection` via `appendFooter` (anchor + separator + text), and
+`renderReleaseNotes` inline (separator + text, no anchor needed since release notes has no
+persisted file to re-parse). TDD: updated the three `TestRenderPostamble_*` tests pinning the old
+wrapped-string contract to the new trimmed one; regenerated the 4 release-notes goldens (each
+gained exactly the blank line + `---` before its footer line — the changelog goldens were already
+footer-free since ADR-0049 moved footer out of the per-section render they test, so unaffected).
+Verified with a live scratch run showing the exact intended shape (last commit line → blank line →
+`---` → footer text). Docs: `template-customization.md` (new paragraph on the automatic separator,
+the intro ADR citation list tightened while adding 0051). ADR count bumped 50 → 51.
 
 ---
 

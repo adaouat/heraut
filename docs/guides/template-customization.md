@@ -8,13 +8,14 @@ set, and how they combine.
 
 This is a companion to
 [Spec 05 § User-customizable templates](../specs/05-generators-and-platforms.md#user-customizable-templates-adr-0037-adr-0048)
-(the terse behavioral contract), [ADR-0037](../adr/0037-native-template-api.md) (the original
-design rationale), [ADR-0048](../adr/0048-changelog-title-subtitle-blocks.md) (the
-`release_header`/`release_notes` rename and the `title`/`subtitle` blocks), and
-[ADR-0049](../adr/0049-changelog-release-notes-footer-block.md) (the `footer`/`release_footer`
-split), and [ADR-0050](../adr/0050-changelog-preamble-postamble-always-fresh.md) (preamble/
-postamble always render fresh, no `--regenerate` required). This guide is the worked-example
-version.
+(the terse behavioral contract) and a run of ADRs covering the template block set:
+[ADR-0037](../adr/0037-native-template-api.md) (the original design rationale),
+[ADR-0048](../adr/0048-changelog-title-subtitle-blocks.md) (the `release_header`/`release_notes`
+rename and the `title`/`subtitle` blocks), [ADR-0049](../adr/0049-changelog-release-notes-footer-block.md)
+(the `footer`/`release_footer` split), [ADR-0050](../adr/0050-changelog-preamble-postamble-always-fresh.md)
+(preamble/postamble always render fresh, no `--regenerate` required), and
+[ADR-0051](../adr/0051-footer-visual-separator.md) (the automatic blank-line + `---` separator
+before `footer`). This guide is the worked-example version.
 
 **Applies to `native` only.** Since ADR-0045, `native` is heraut's sole generator, so there
 is no `generator:` key to gate this feature on — every `.heraut.yml` gets it.
@@ -86,6 +87,11 @@ again for every rendered section, same as `release_header`, and is empty by defa
 `release_footer` for release-specific trailing content (e.g. a compare-link, see
 [worked examples](#worked-examples) below) — putting that in `footer` would render nonsensically
 once, detached from any particular release.
+
+**`footer` gets an automatic visual separator.** Whenever `footer` is non-empty — built-in
+default or a full override — heraut prepends a blank line and a Markdown horizontal rule (`---`)
+before it, structural like the anchors (ADR-0051): not part of the block's own text, not
+overridable, and skipped entirely when `footer` is unset or nulled (`footer: ""`).
 
 **`ticket` is a nested block.** `commit` calls `{{ template "ticket" . }}` once per matched
 `commits.tickets` pattern. Override just `ticket` to restyle ticket links (e.g. add an emoji)

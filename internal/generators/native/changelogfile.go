@@ -17,6 +17,10 @@ const (
 	// counterpart to the preamble, structural and non-overridable like the section anchors, so
 	// parseChangelog can find and discard a stale on-disk footer before a fresh one is written.
 	footerAnchor = "<!-- heraut-footer -->"
+	// footerSeparator visually separates the footer from whatever precedes it — a blank line then
+	// a Markdown horizontal rule (ADR-0051). Structural, applied whenever the footer is non-empty
+	// regardless of whether its content is the built-in default or a user override.
+	footerSeparator = "\n\n---\n"
 )
 
 // anchorRe matches a section anchor line and captures the release tag.
@@ -63,13 +67,24 @@ func parseChangelog(content string) (preamble string, sections []anchoredSection
 	return preamble, sections, true
 }
 
+// appendFooter appends the footer anchor, footerSeparator, and footer text to body — the trailing
+// counterpart to a section anchor, structural (ADR-0051) so it applies uniformly whether footer is
+// the built-in default or a user override. A no-op when footer is empty (unset or nulled): no
+// anchor, no separator, no trailing content at all.
+func appendFooter(body, footer string) string {
+	if footer == "" {
+		return body
+	}
+	return body + footerAnchor + footerSeparator + footer + "\n"
+}
+
 // spliceSection inserts a freshly rendered section (newBody, without its anchor) for newTag into
 // the ordered sections parsed from existing changelog content, preserving the rest verbatim. If
 // the top section already carries newTag it is replaced (idempotent); otherwise the new section is
-// inserted above it. preamble and postamble are always the freshly rendered current-config output
+// inserted above it. preamble and footer are always the freshly rendered current-config output
 // (ADR-0050) — never whatever was previously on disk, which parseChangelog discards along with the
 // stale footer region. ErrNoAnchors is returned when existing is non-empty but anchorless.
-func spliceSection(existing, newBody, newTag, preamble, postamble string) (string, error) {
+func spliceSection(existing, newBody, newTag, preamble, footer string) (string, error) {
 	_, sections, hasAnchors := parseChangelog(existing)
 	if !hasAnchors {
 		return "", ErrNoAnchors
@@ -85,8 +100,5 @@ func spliceSection(existing, newBody, newTag, preamble, postamble string) (strin
 		texts[i] = s.text
 	}
 	body := preamble + strings.Join(texts, "\n\n") + "\n"
-	if postamble != "" {
-		body += footerAnchor + postamble
-	}
-	return body, nil
+	return appendFooter(body, footer), nil
 }
