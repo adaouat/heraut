@@ -202,6 +202,7 @@ discipline that applies to every task.
 | 31 | Uniform empty/whitespace block-override handling | Done |
 | 32 | Default footer credits heraut (version + timestamp) | Done |
 | 33 | `tagfmt` token API cleanup | Done |
+| 34 | Scoped-changelog `--regenerate` leaks out-of-scope history into the oldest section | Done |
 
 ### Open items
 
@@ -377,6 +378,48 @@ support design exploration (docs/superpowers/specs — no design doc committed y
 brainstorming) as standalone prep work: a clean seam for a future `{package}` token, landed on
 `main` independently of (and before) the still-unfinished monorepo design, which will continue in
 its own dedicated worktree.
+
+---
+
+### Phase 34 — Scoped-changelog `--regenerate` leaks out-of-scope history into the oldest section
+
+#### ✦ `[x]` T257: bound the oldest scoped release's commit range against its true previous tag
+
+Surfaced by a user question during the footer work (Phase 32): does a rotated `changelog.output`
+(e.g. `CHANGELOG_{YYYY}.md`) fetch/enrich only the current bucket's commits, or everything? Answer
+for the common path: correctly scoped — `buildAllSections`'s historical loop bounds every section
+by `prev..tag` using the *next-older tag in the scoped list*. But that broke down for exactly one
+case, confirmed by direct reproduction before writing any fix: the **oldest** tag within a scope,
+re-rendered via `--regenerate` when that scope already has 2+ releases. `prev := ""; if i+1 <
+len(tags) { prev = tags[i+1] }` leaves `prev = ""` for the last item in the *scoped* list — which
+`commitRange` turns into "walk from the very beginning of history," silently absorbing (and
+re-enriching) every prior-scope commit into the wrong section. Verified this is generic, not
+rotation-specific: reproduced identically against `internal/generators/native` directly using
+per-environment `TagGlob` scoping (`prod/v*`) with an unrelated `staging/v1.0.0` tag preceding it —
+same root cause, same file, unrelated to Phase 29's rotation code entirely. This is the same class
+of gap T247 already fixed for the *newest* section (`PreviousTagOverride`/`newSectionBound`); it
+was never extended to the historical loop, because until this investigation nobody had exercised
+`--regenerate` against a scope with more than one prior release in it.
+
+Fix: when the historical loop reaches the last item in an *active* scope (`TagGlob != "" ||
+TagPattern != ""` — a plain unscoped changelog's list is already the full unfiltered history, so
+`prev = ""` there is already correct and the branch is skipped, no extra git call), resolve the
+true previous tag via `previousTag(runner, t, "")` — no `--match`, so it walks `git describe`
+topology across *any* tag name — the exact same primitive `scopedPreviousTag` already uses for the
+identical "regardless of scope" reason. Deliberately left `newSectionBound`/`PreviousTagOverride`/
+`latestMatchingTag` (the already-correct rotation-specific mechanism) untouched — only the
+historical loop needed the gap closed, and generalizing further wasn't necessary to fix the
+confirmed bug. TDD:
+`TestGenerateChangelog_RegenerateOldestScopedTagExcludesOutOfScopeHistory` (new, MockRunner-based,
+`internal/generators/native/generator_internal_test.go`) reproduces the per-env case end-to-end and
+pins the exact `git describe --tags --abbrev=0 <tag>^` call; red against the unfixed code (the
+mocked response for that call gets consumed by the wrong git subcommand instead, producing a
+parse error — confirming the call genuinely wasn't being made). `TestGenerator_GenerateChangelog_-
+TagGlob` needed one extra queued response (a "no earlier tag" no-op) since it now always exercises
+this path when scoped. Verified against both real scenarios with actual git repos (temporary,
+deleted after): the original CalVer-rotation reproduction (`2025.12.0` → `2026.01.0` → `2026.02.0`,
+regenerate the 2026 bucket) and the per-env reproduction — both confirmed fixed, no docs/ADR needed
+(a correctness fix extending T247's already-established design intent, not a new decision).
 
 ---
 

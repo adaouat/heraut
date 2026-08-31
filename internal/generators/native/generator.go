@@ -223,6 +223,20 @@ func (g *Generator) buildAllSections(tag string, lc *port.LinkContext, enrichAll
 		prev := ""
 		if i+1 < len(tags) {
 			prev = tags[i+1]
+		} else if g.cfg.TagGlob != "" || g.cfg.TagPattern != "" {
+			// t is the oldest tag within an active scope (per-env TagGlob, an explicit
+			// tag_pattern, or a rotating changelog.output's derived TagPattern) — "no next-older
+			// tag in the scoped list" does not mean "no earlier release at all" (T257). Resolve
+			// the true previous tag unscoped (no --match), the same primitive scopedPreviousTag
+			// already uses for the same "regardless of scope" reason, so a --regenerate never
+			// silently walks back to the very beginning of all history — and never leaks an
+			// out-of-scope release's commits into this one's section — just because this
+			// happens to be the first release within the current scope.
+			p, err := previousTag(g.runner, t, "")
+			if err != nil {
+				return "", err
+			}
+			prev = p
 		}
 		if sec, err := g.renderRelease(t, prev, t, lc, enrichAll); err != nil {
 			return "", err

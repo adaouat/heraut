@@ -124,6 +124,7 @@ func TestGenerator_GenerateChangelog_TagGlob(t *testing.T) {
 	mr.QueueResponse("prod/v1.0.0\n", "", nil) // listTags: git tag -l prod/v*
 	mr.QueueResponse(record("aaa1111111", "A", "a@example.com",
 		"2026-02-01T00:00:00Z", "feat: brand new", ""), "", nil) // new release: prod/v1.0.0..HEAD
+	mr.QueueResponse("", "", nil) // previousTag(prod/v1.0.0, ""): no earlier tag (T257)
 	mr.QueueResponse(record("bbb2222222", "B", "b@example.com",
 		"2026-01-01T00:00:00Z", "fix: an old bug", ""), "", nil) // existing prod/v1.0.0
 
@@ -633,6 +634,35 @@ func TestGenerateChangelog_RegenerateEnrichesAllSections(t *testing.T) {
 	require.NoError(t, err)
 	assert.Contains(t, body, "by @carol", "regenerate enriches historical sections")
 	assert.Contains(t, body, "<!-- heraut-release: v1.0.0 -->")
+}
+
+// TestGenerateChangelog_RegenerateOldestScopedTagExcludesOutOfScopeHistory covers T257: a scoped
+// changelog (per-env TagGlob here; rotation's TagPattern hits the identical code path) with 2+
+// releases in scope must, on --regenerate, bound the OLDEST scoped release's commit range against
+// its true previous tag — regardless of scope — not silently walk back to the very beginning of
+// all history just because no earlier tag exists *within the scope*. Reproduces the exact bug: a
+// "staging" release tagged before "prod" began must never appear inside prod's changelog.
+func TestGenerateChangelog_RegenerateOldestScopedTagExcludesOutOfScopeHistory(t *testing.T) {
+	dir := t.TempDir()
+	out := filepath.Join(dir, "CHANGELOG.md")
+	mr := exectest.NewMockRunner()
+	mr.QueueResponse("prod/v1.1.0\nprod/v1.0.0\n", "", nil)                                                      // scopedTags: git tag -l prod/v*
+	mr.QueueResponse("", "", nil)                                                                                // newest pre-loop: prod/v1.1.0..HEAD (nothing new)
+	mr.QueueResponse(record("ccc3333333", "C", "c@x", "2026-02-01T00:00:00Z", "feat: prod second", ""), "", nil) // historical: prod/v1.0.0..prod/v1.1.0
+	mr.QueueResponse("staging/v1.0.0\n", "", nil)                                                                // NEW: previousTag(prod/v1.0.0, "") — git describe --tags --abbrev=0 prod/v1.0.0^
+	mr.QueueResponse(record("ddd4444444", "D", "d@x", "2026-01-15T00:00:00Z", "feat: prod first", ""), "", nil)  // historical: staging/v1.0.0..prod/v1.0.0
+
+	g := New(mr, &config.ContentDriver{Output: out, TagGlob: "prod/v*", RegenerateChangelog: true}, ModeChangelog)
+	body, err := g.Generate("prod/v1.1.0", nil)
+	require.NoError(t, err)
+
+	assert.Contains(t, body, "Prod first")
+	assert.Contains(t, body, "Prod second")
+	assert.NotContains(t, body, "staging", "an out-of-scope release must never leak into a scoped changelog")
+
+	require.Len(t, mr.Calls, 5)
+	assert.Equal(t, []string{"describe", "--tags", "--abbrev=0", "prod/v1.0.0^"}, mr.Calls[3].Args,
+		"the oldest scoped tag's true previous tag is resolved unscoped (no --match), same primitive scopedPreviousTag already uses")
 }
 
 func TestGenerateChangelog_IncrementalWithCustomHeader(t *testing.T) {
