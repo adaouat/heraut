@@ -8,7 +8,7 @@ described in `docs/specs/`. Each task carries an inline `[ ] / [x]` checkbox —
 headings for what to do next, read the surrounding prose for *why* and *how*.
 
 The behavioural authority is `docs/specs/` (six numbered specs); the architectural
-authority is `docs/adr/` (47 ADRs). Where this roadmap mentions "behaviour", the specs
+authority is `docs/adr/` (50 ADRs). Where this roadmap mentions "behaviour", the specs
 win; where it mentions a "decision", the ADR wins. If you find a disagreement between
 roadmap and spec/ADR, fix the roadmap.
 
@@ -36,7 +36,7 @@ The goals of v1.0:
    provides these (see [ADR-0014](../adr/0014-self-update-architecture.md), superseded,
    for the self-update → forge/updatecheck migration).
 
-The `docs/specs/` (six numbered specs) and the 47 ADRs in `docs/adr/` are authoritative.
+The `docs/specs/` (six numbered specs) and the 50 ADRs in `docs/adr/` are authoritative.
 
 ---
 
@@ -254,7 +254,84 @@ claiming built-ins never render it, plus a pointer to `footer: ""` for anyone wh
 output back — and the worked example, repurposed from "add heraut credit" to "drop the timestamp for
 determinism" since credit is no longer opt-in). This project's own `.config/heraut.yml` override
 (added transiently while iterating on the exact wording) was reverted — redundant now that it matches
-the default.
+the default. **Superseded same-session by T253 below** — placing `footer` on the per-release root was
+itself the wrong scope; see T253.
+
+#### ✦ `[x]` T253: split `footer` into a document-level block + `release_footer` (ADR-0049)
+
+T252's placement was wrong: `footer` lived on the per-release root (`changelog`/`release_notes`),
+so it rendered once per rendered *release*, not once per *document*. Invisible for release notes
+(always exactly one release per render) but not for `changelog` — `buildAllSections` renders one
+section per tag and the incremental splice path preserves every historical section's previously
+rendered text verbatim, so a `CHANGELOG.md` accumulated over N releases would carry the credit line
+repeated after **every** section instead of once at the bottom. Caught by inspection before any
+tagged release shipped it — structurally the same problem [ADR-0048](../adr/0048-changelog-title-subtitle-blocks.md)
+solved for `title`/`subtitle`, which cannot live on the per-release root either. Fix, full design
+and rationale in [ADR-0049](../adr/0049-changelog-release-notes-footer-block.md): renamed the old
+per-release block `footer` → `release_footer` (unchanged otherwise — `Release`-rooted, empty
+default); added a new document-level `footer` (bare `tplHeraut` context, same as `title`/`subtitle`,
+credit-line default) that fires exactly once, via a new `renderPostamble` helper
+(`internal/generators/native/render.go`) mirroring `renderPreamble` — `buildAllSections` and
+`renderReleaseNotes` each call it once and append the result. No change needed in `spliceSection`:
+content trailing the last anchor is already preserved verbatim by the existing splice algorithm, so
+a document footer appended once at bootstrap/`--regenerate` survives every subsequent incremental
+splice untouched, exactly like the preamble — confirmed with a real end-to-end run against this
+repo's full git history (dozens of releases via `--regenerate`): the footer appears exactly once, at
+the true end of the file. TDD: five new/renamed tests in `generator_internal_test.go`
+(`TestGenerate_ReleaseFooterOverride` renamed from the old `HerautMetaInFooter`,
+`TestGenerate_DefaultDocumentFooterCreditsHeraut`, `TestGenerate_DocumentFooterContextIsHerautOnly`,
+and the two regression tests that directly reproduce the bug —
+`TestGenerateChangelog_DocumentFooterOnceAcrossMultipleSections` and
+`TestGenerator_GenerateChangelog_IncrementalPreservesDocumentFooter`, both red against T252's code,
+green after the fix) plus four new `renderPostamble` unit tests in `render_internal_test.go` mirroring
+the existing `renderPreamble` suite. `config/validator.go`'s `validTemplateBlocks` and `schema.json`
+gained `release_footer`; the 5 changelog golden files lost their (now-incorrect) per-section footer
+line — the 4 release-notes goldens were byte-identical, confirming release notes' footer placement
+was never actually wrong (release notes only ever renders one section anyway). Docs updated:
+`template-customization.md` (block table, the `footer`-vs-`release_footer` distinction, the "fire
+once" paragraph, the `.Heraut` reachability note, the Gotchas section, the "All four layers"
+worked example — which had been using `.CompareURL` under `footer`, now moved to `release_footer`
+where that field is actually reachable), `docs/specs/05-generators-and-platforms.md`'s overridable-
+blocks paragraph, `docs/heraut.sample.yml`'s templates comment block and worked example. ADR count
+references (`CLAUDE.md`, this roadmap) bumped 47 → 49.
+
+#### ✦ `[x]` T254: preamble/postamble always render fresh, no `--regenerate` needed (ADR-0050)
+
+T253 documented the (then-correct) behavior that `title`/`subtitle`/`footer` froze at whatever was
+on disk after bootstrap, refreshed only by `--regenerate-changelog`/`--regenerate` — inherited from
+ADR-0038's "preamble preserved verbatim" line. User pointed out the asymmetry directly: release
+notes already refresh all three every single run (no incremental concept there to freeze anything),
+so the changelog should behave the same way — no `--regenerate` requirement, ever. Full design and
+rationale in [ADR-0050](../adr/0050-changelog-preamble-postamble-always-fresh.md), which supersedes
+that ADR-0038 line and ADR-0049's frozen-until-regenerate framing. Mechanism: `generateIncremental`
+now calls `renderPreamble`/`renderPostamble` unconditionally (previously only the bootstrap/
+regenerate path, `buildAllSections`, did) and passes the fresh values into `spliceSection`, which no
+longer reuses whatever `parseChangelog` found on disk for either. The preamble needed no new
+bookkeeping — `parseChangelog` already knows its boundary for free (everything before the first
+section anchor). The postamble did: nothing bounded where the true last section's body ended and a
+trailing footer began, so a document footer would either get silently re-glued onto whatever tag is
+currently oldest (if left alone) or duplicated (if simply appended fresh every time). Added a second
+structural, non-overridable marker, `<!-- heraut-footer -->` (`internal/generators/native/
+changelogfile.go`), placed immediately before the rendered postamble — same pattern the section
+anchors already use — so `parseChangelog` strips the whole footer region before finding section
+boundaries. `--regenerate`/`--regenerate-changelog` keeps its existing meaning exactly: it still
+controls whether historical *sections* get re-enriched (the actually expensive part, up to one API
+call per commit on GitLab REST); that flag no longer has anything to do with preamble/postamble
+freshness. Considered (and rejected, per explicit user decision — this asymmetry was the actual
+complaint) mutualizing further by giving every section an explicit start+end marker pair instead of
+inferring boundaries from adjacent anchors: rejected as a breaking change to the already-shipped
+`<!-- heraut-release: vX -->` format for zero practical benefit — every boundary except the trailing
+one already has an anchor to lean on for free. TDD: `TestParseChangelog_StripsFooterRegion`,
+`TestSpliceSection_RefreshesPreambleAndPostamble`, `TestSpliceSection_NoPostambleOmitsAnchor` (new,
+`changelogfile_internal_test.go`); `TestGenerator_GenerateChangelog_IncrementalPreservesExisting-
+Title`/`..._IncrementalPreservesDocumentFooter` renamed and inverted to `..._IncrementalRefreshes-
+Title`/`..._IncrementalRefreshesDocumentFooter`, now asserting the opposite of what T252/T253
+asserted — a deliberate behavior change, not a bug fix to those tests. Verified with a live
+incremental run against this repo's own scratch config. Docs: `template-customization.md` (the
+`.Heraut.GeneratedAt` paragraph, a Gotchas bullet, the intro citation list), `docs/specs/
+05-generators-and-platforms.md`'s Incremental/Full-regeneration paragraphs (previously claimed
+regeneration was "the one case where free-form preamble doesn't mean yours to keep" — now neither
+mode preserves it). ADR count bumped 49 → 50.
 
 ---
 

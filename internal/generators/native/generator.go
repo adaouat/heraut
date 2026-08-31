@@ -231,12 +231,24 @@ func (g *Generator) buildAllSections(tag string, lc *port.LinkContext, enrichAll
 		}
 	}
 
-	return preamble + strings.Join(blocks, "\n\n") + "\n", nil
+	postamble, err := renderPostamble(changelogTmpl, g.cfg.EffectiveTemplates, g.cfg.Template, g.herautMeta())
+	if err != nil {
+		return "", fmt.Errorf("rendering changelog postamble: %w", err)
+	}
+
+	body := preamble + strings.Join(blocks, "\n\n") + "\n"
+	if postamble != "" {
+		body += footerAnchor + postamble
+	}
+	return body, nil
 }
 
 // generateIncremental splices only the new release's section into the existing changelog,
-// preserving all historical sections (and their attribution). It bootstraps a full build when the
-// file is missing/empty, and errors when the file is non-empty but has no anchors.
+// preserving all historical sections (and their attribution) — but always re-renders the
+// preamble/postamble (title/subtitle/footer) fresh from current config, discarding whatever was
+// previously on disk (ADR-0050; supersedes the "preamble preserved verbatim" line in ADR-0038). It
+// bootstraps a full build when the file is missing/empty, and errors when the file is non-empty
+// but has no anchors.
 func (g *Generator) generateIncremental(tag string, lc *port.LinkContext) (string, error) {
 	var existing string
 	if g.cfg.Output != "" {
@@ -272,7 +284,15 @@ func (g *Generator) generateIncremental(tag string, lc *port.LinkContext) (strin
 	if newBody == "" {
 		return existing, nil // nothing new to add; leave the file untouched
 	}
-	body, err := spliceSection(existing, newBody, tag)
+	preamble, err := renderPreamble(changelogTmpl, g.cfg.EffectiveTemplates, g.cfg.Template, g.herautMeta())
+	if err != nil {
+		return "", fmt.Errorf("rendering changelog preamble: %w", err)
+	}
+	postamble, err := renderPostamble(changelogTmpl, g.cfg.EffectiveTemplates, g.cfg.Template, g.herautMeta())
+	if err != nil {
+		return "", fmt.Errorf("rendering changelog postamble: %w", err)
+	}
+	body, err := spliceSection(existing, newBody, tag, preamble, postamble)
 	if errors.Is(err, ErrNoAnchors) {
 		return "", g.foreignFileError(err) // defensive: the pre-check above already catches this
 	}

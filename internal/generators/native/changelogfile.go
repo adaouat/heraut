@@ -13,10 +13,18 @@ var ErrNoAnchors = errors.New("no heraut-release anchors")
 const (
 	anchorOpen  = "<!-- heraut-release: "
 	anchorClose = " -->"
+	// footerAnchor marks the start of the document-level footer region (ADR-0050) — the trailing
+	// counterpart to the preamble, structural and non-overridable like the section anchors, so
+	// parseChangelog can find and discard a stale on-disk footer before a fresh one is written.
+	footerAnchor = "<!-- heraut-footer -->"
 )
 
 // anchorRe matches a section anchor line and captures the release tag.
 var anchorRe = regexp.MustCompile(`(?m)^<!-- heraut-release: (.+) -->$`)
+
+// footerAnchorRe matches the footer anchor line and everything after it, so parseChangelog can
+// strip the whole trailing footer region before locating section boundaries.
+var footerAnchorRe = regexp.MustCompile(`(?m)^` + regexp.QuoteMeta(footerAnchor) + `\n?`)
 
 // anchorLine returns the render-invisible section anchor for a release tag.
 func anchorLine(tag string) string { return anchorOpen + tag + anchorClose }
@@ -28,33 +36,41 @@ type anchoredSection struct {
 }
 
 // parseChangelog splits content into the preamble (everything before the first anchor) and the
-// ordered anchored sections. hasAnchors is false when content contains no anchor line — in which
-// case preamble is the whole content and sections is nil.
+// ordered anchored sections, having first discarded any trailing document-footer region (marked by
+// footerAnchor, ADR-0050) so it never ends up folded into the last section's captured text.
+// hasAnchors is false when content contains no anchor line — in which case preamble is the whole
+// content (footer region included) and sections is nil.
 func parseChangelog(content string) (preamble string, sections []anchoredSection, hasAnchors bool) {
-	locs := anchorRe.FindAllStringSubmatchIndex(content, -1)
+	body := content
+	if loc := footerAnchorRe.FindStringIndex(content); loc != nil {
+		body = content[:loc[0]]
+	}
+	locs := anchorRe.FindAllStringSubmatchIndex(body, -1)
 	if len(locs) == 0 {
 		return content, nil, false
 	}
-	preamble = content[:locs[0][0]]
+	preamble = body[:locs[0][0]]
 	for i, m := range locs {
-		end := len(content)
+		end := len(body)
 		if i+1 < len(locs) {
 			end = locs[i+1][0]
 		}
 		sections = append(sections, anchoredSection{
-			tag:  content[m[2]:m[3]],
-			text: strings.TrimRight(content[m[0]:end], "\n"),
+			tag:  body[m[2]:m[3]],
+			text: strings.TrimRight(body[m[0]:end], "\n"),
 		})
 	}
 	return preamble, sections, true
 }
 
 // spliceSection inserts a freshly rendered section (newBody, without its anchor) for newTag into
-// existing changelog content. If the top section already carries newTag it is replaced
-// (idempotent); otherwise the new section is inserted above it, preserving the rest verbatim.
-// ErrNoAnchors is returned when existing is non-empty but anchorless.
-func spliceSection(existing, newBody, newTag string) (string, error) {
-	preamble, sections, hasAnchors := parseChangelog(existing)
+// the ordered sections parsed from existing changelog content, preserving the rest verbatim. If
+// the top section already carries newTag it is replaced (idempotent); otherwise the new section is
+// inserted above it. preamble and postamble are always the freshly rendered current-config output
+// (ADR-0050) — never whatever was previously on disk, which parseChangelog discards along with the
+// stale footer region. ErrNoAnchors is returned when existing is non-empty but anchorless.
+func spliceSection(existing, newBody, newTag, preamble, postamble string) (string, error) {
+	_, sections, hasAnchors := parseChangelog(existing)
 	if !hasAnchors {
 		return "", ErrNoAnchors
 	}
@@ -68,5 +84,9 @@ func spliceSection(existing, newBody, newTag string) (string, error) {
 	for i, s := range sections {
 		texts[i] = s.text
 	}
-	return preamble + strings.Join(texts, "\n\n") + "\n", nil
+	body := preamble + strings.Join(texts, "\n\n") + "\n"
+	if postamble != "" {
+		body += footerAnchor + postamble
+	}
+	return body, nil
 }

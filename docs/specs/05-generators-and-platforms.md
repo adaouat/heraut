@@ -73,13 +73,16 @@ changelog:
       subtitle: "All notable changes."
 ```
 
-**Overridable blocks:** `title`, `subtitle`, `release_header`, `group`, `commit`, `ticket`,
-`contributor`, `contributors`, `stats`, `footer`, and the roots `changelog` / `release_notes`.
-`title`/`subtitle` are document-level — they fire exactly **once per document**, unlike every
-other block (which fires once per rendered release); they execute against `.Heraut`'s own fields
-directly (`.Version` `.URL` `.GeneratedAt`), **not** `.Heraut.Version` like `footer`/
-`release_header` do, since their root isn't a `Release`. The changelog renders a one-line
-commit; the release-notes root wraps the shared `commit` block with indented body/footers.
+**Overridable blocks:** `title`, `subtitle`, `footer`, `release_header`, `group`, `commit`,
+`ticket`, `contributor`, `contributors`, `stats`, `release_footer`, and the roots `changelog` /
+`release_notes`. `title`/`subtitle`/`footer` are document-level — they fire exactly **once per
+document**, unlike every other block (which fires once per rendered release); they execute
+against `.Heraut`'s own fields directly (`.Version` `.URL` `.GeneratedAt`), **not**
+`.Heraut.Version` like `release_footer`/`release_header` do, since their root isn't a `Release`.
+`footer` defaults to a heraut credit line (version + timestamp); `release_footer` — the
+per-release trailing block, unlike `footer` — defaults to empty. The changelog renders a
+one-line commit; the release-notes root wraps the shared `commit` block with indented
+body/footers.
 `ticket` renders one matched ticket link (`commits.tickets`) within a commit line — `commit`
 calls it once per match, so overriding just `ticket` customizes ticket rendering without
 restating the whole commit-line template. Any other key under `rendering.templates` is a
@@ -127,24 +130,28 @@ customizable `release_header` block (ADR-0037, ADR-0048): reformatting the heade
 remove the anchor nor change its shape.
 
 **Incremental (default).** Each run renders and enriches only the new release's section (O(1) API
-calls) and splices it into the existing file, leaving every other section untouched:
+calls) and splices it into the existing file's sections, leaving every other section untouched:
 
 - **Missing or empty file** → bootstrap: build every section from all tags (anchored), enriching
   only the newest. No warning.
 - **File with ≥1 anchor** → splice: the new section replaces the top one if its tag matches
-  (idempotent re-run), otherwise it is inserted above it. All other sections are preserved
+  (idempotent re-run), otherwise it is inserted above it. All other **sections** are preserved
   verbatim, including their historical PR/MR attribution.
 - **Non-empty file with no anchors** (produced by another tool, e.g. `git-cliff`, or predating this
   feature) → the run **stops with an error** directing the operator to `--regenerate`; the file is
   left byte-for-byte unchanged.
 
+`title`/`subtitle`/`footer` (the preamble and postamble, ADR-0048/ADR-0049) are **not** part of
+what "incremental" preserves: they render fresh from current config on every run, incremental or
+full-regeneration alike, discarding whatever was previously on disk — including a hand-edited
+title (ADR-0050). Only the sections themselves are ever preserved verbatim.
+
 **Full regeneration (`--regenerate` / `--regenerate-changelog`).** Ignores the existing file,
-rebuilds every section from all tags, and **re-enriches all of them**. The preamble is not
-preserved: regeneration replaces whatever free-form content preceded the first section with the
-freshly-rendered `title`/`subtitle` blocks (ADR-0048) — `# Changelog` by default, or the
-operator's override — discarding any custom preamble text that was there before — this is the
-one case where "free-form preamble" doesn't mean "yours to keep." Each section is enriched
-independently, so GitHub (batched GraphQL, 50 SHAs/query), GitLab in `api_mode: graphql` (two
+rebuilds every section from all tags, and **re-enriches all of them** — this re-enrichment (an
+API call per historical release rather than just the newest) is the actual distinguishing cost
+`--regenerate` controls; preamble/postamble freshness no longer depends on it at all (ADR-0050).
+Each section is enriched independently, so GitHub (batched GraphQL, 50 SHAs/query), GitLab in
+`api_mode: graphql` (two
 batched connection queries — commit authors via `commits`, MR refs via inverted `mergeRequests`,
 [ADR-0042](../adr/0042-gitlab-graphql-enrichment.md)), and Azure (one `pullrequestquery` POST) each
 batch *within* a release, costing roughly one API call per release (O(releases)). All of these run

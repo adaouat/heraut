@@ -42,7 +42,7 @@ trade-offs were accepted.
 | [0035](0035-azure-enrichment-native-http.md) | Azure DevOps Enrichment via a Native `net/http` Client (not the `az` CLI) | Accepted (`changelog.remote.api_url` reference superseded by 0040; implementation now lives in `internal/forge/azure/`, not `internal/generators/native/enrich_azure.go`) |
 | [0036](0036-unified-enrichment-model.md) | Unified Cross-Platform Enrichment Model | Accepted |
 | [0037](0037-native-template-api.md) | Native Generator Public Template API | Accepted (block-set table superseded by 0048 — `header`→`release_header`, `release-notes`→`release_notes`, new `title`/`subtitle` blocks; see body note) |
-| [0038](0038-incremental-changelog.md) | Incremental Changelog Generation (native) | Accepted (GitLab full-regeneration rate-limit warning superseded by 0042) |
+| [0038](0038-incremental-changelog.md) | Incremental Changelog Generation (native) | Accepted (GitLab full-regeneration rate-limit warning superseded by 0042; "preamble preserved verbatim" superseded by 0050 — preamble/postamble now always render fresh) |
 | [0039](0039-commit-author-attribution.md) | Commit-Author Attribution (native) | Accepted (GitHub-only scope superseded — GitLab by 0042, Azure by T151; `prFragment` moved from `internal/generators/native/enrich_github.go` to `internal/forge/github/graphql.go` by 0043) |
 | [0040](0040-changelog-remote-native-base-url.md) | `changelog.remote` for native + unified `base_url` host override | Superseded by ADR-0043 (`changelog.remote` removed entirely; replaced by `forges:` + `commits.enrichment_forge`) |
 | [0041](0041-remote-metadata-required-enforcement-and-force.md) | `remote_metadata: required` enforcement and `--force` override | Accepted (`commits.remote_metadata` renamed to `commits.enrichment_policy` by 0043; enforcement/`--force` semantics unchanged) |
@@ -52,4 +52,6 @@ trade-offs were accepted.
 | [0045](0045-native-sole-generator.md) | Native as Heraut's Sole Content Generator | Accepted |
 | [0046](0046-release-block-atomicity.md) | Release block is one intent, not two | Accepted |
 | [0047](0047-changelog-output-resolves-after-version.md) | Changelog output resolves after version, not at config-build time | Accepted |
-| [0048](0048-changelog-title-subtitle-blocks.md) | Changelog/release-notes title & subtitle template blocks | Accepted |
+| [0048](0048-changelog-title-subtitle-blocks.md) | Changelog/release-notes title & subtitle template blocks | Accepted (block-set table superseded by 0049 — `footer`→`release_footer`, new document-level `footer` block) |
+| [0049](0049-changelog-release-notes-footer-block.md) | Document-level `footer` block, `footer` → `release_footer` rename | Accepted (the "frozen until `--regenerate`" framing superseded by 0050 — preamble/postamble now always render fresh) |
+| [0050](0050-changelog-preamble-postamble-always-fresh.md) | Changelog preamble/postamble always render fresh — no more "frozen until regenerate" | Accepted |
