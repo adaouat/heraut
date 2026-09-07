@@ -1239,3 +1239,62 @@ environments:
 	require.NotNil(t, e)
 	assert.Contains(t, e.Message, "per-env")
 }
+
+// TestValidateChangelogRotationForWizard covers T258: `heraut init` let a user pick
+// calver-per-env/semver-per-env and then type a rotating changelog output with no live feedback,
+// producing a .heraut.yml that failed config.Validate on the very next command. This wraps the same
+// validateChangelogRotation logic config.Validate uses, exposed for the wizard's live per-keystroke
+// field validation — the wizard has no full *Config yet, only the strategy/format picked so far.
+func TestValidateChangelogRotationForWizard(t *testing.T) {
+	tests := []struct {
+		name     string
+		strategy string
+		format   string
+		output   string
+		wantErr  string
+	}{
+		{"no tokens, valid", "calver-per-env", "YYYY.MM.PATCH", "CHANGELOG.md", ""},
+		{"calver-per-env with tokens, rejected", "calver-per-env", "YYYY.MM.PATCH", "CHANGELOG_{YYYY}.md", "per-env"},
+		{"semver-per-env with tokens, rejected", "semver-per-env", "", "CHANGELOG_{MAJOR}.md", "per-env"},
+		{"flat calver with valid tokens", "calver", "YYYY.MM.PATCH", "CHANGELOG_{YYYY}.md", ""},
+		{"flat calver, token not in format", "calver", "YYYY.MM.PATCH", "CHANGELOG_{QQ}.md", "QQ"},
+		{"flat semver with valid tokens", "semver", "", "CHANGELOG_{MAJOR}.md", ""},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			err := config.ValidateChangelogRotationForWizard(tc.strategy, tc.format, tc.output)
+			if tc.wantErr == "" {
+				assert.NoError(t, err)
+			} else {
+				assert.ErrorContains(t, err, tc.wantErr)
+			}
+		})
+	}
+}
+
+// TestValidateTagFormatForWizard covers T259, part of the same audit as T258: heraut init's
+// "Common tag format" and "Tag format override" fields had no live validation against
+// validatePerEnv's actual {version} requirement (internal/config/validator.go), so a mistyped
+// tag_format sailed through the wizard and only failed on the next command. Same rule, shared
+// with validatePerEnv itself via tagFormatMissingVersion so the two can't drift apart.
+func TestValidateTagFormatForWizard(t *testing.T) {
+	tests := []struct {
+		name    string
+		format  string
+		wantErr string
+	}{
+		{"empty is valid", "", ""},
+		{"contains version", "{env}/{version}", ""},
+		{"missing version", "{env}", "{version}"},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			err := config.ValidateTagFormatForWizard(tc.format)
+			if tc.wantErr == "" {
+				assert.NoError(t, err)
+			} else {
+				assert.ErrorContains(t, err, tc.wantErr)
+			}
+		})
+	}
+}

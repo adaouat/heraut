@@ -1,6 +1,7 @@
 package config
 
 import (
+	"errors"
 	"fmt"
 	"net/url"
 	"os"
@@ -603,6 +604,24 @@ func validateStrategySpecific(cfg *Config) []ValidationError {
 	return errs
 }
 
+// tagFormatMissingVersion reports whether a non-empty tag_format value is missing the required
+// {version} token. Shared by validatePerEnv's common and per-environment checks below, and by
+// ValidateTagFormatForWizard's live heraut init validation (T259), so the rule can't drift between
+// config.Validate and the wizard.
+func tagFormatMissingVersion(s string) bool {
+	return s != "" && !strings.Contains(s, "{version}")
+}
+
+// ValidateTagFormatForWizard is a minimal wizard-facing wrapper around tagFormatMissingVersion, for
+// heraut init's live, per-keystroke validation of both the common (versioning.tag_format) and
+// per-environment tag_format fields (T259) — same rule, same message, either field.
+func ValidateTagFormatForWizard(s string) error {
+	if tagFormatMissingVersion(s) {
+		return errors.New("must contain {version}")
+	}
+	return nil
+}
+
 func validatePerEnv(cfg *Config) []ValidationError {
 	var errs []ValidationError
 	envs := cfg.Environments
@@ -616,7 +635,7 @@ func validatePerEnv(cfg *Config) []ValidationError {
 	}
 
 	// Common tag_format must contain {version} if set.
-	if cfg.Versioning.TagFormat != "" && !strings.Contains(cfg.Versioning.TagFormat, "{version}") {
+	if tagFormatMissingVersion(cfg.Versioning.TagFormat) {
 		errs = append(errs, ValidationError{
 			Path:    "versioning.tag_format",
 			Message: "must contain {version}",
@@ -652,7 +671,7 @@ func validatePerEnv(cfg *Config) []ValidationError {
 		}
 
 		// tag_format must contain {version} if set.
-		if env.TagFormat != "" && !strings.Contains(env.TagFormat, "{version}") {
+		if tagFormatMissingVersion(env.TagFormat) {
 			errs = append(errs, ValidationError{
 				Path:    envPath + ".tag_format",
 				Message: "must contain {version}",

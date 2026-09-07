@@ -249,7 +249,8 @@ func RunWizard(a *Answers) error {
 			huh.NewInput().
 				Title("Common tag format (per-env)").
 				Description(`e.g. "{env}/{version}"`).
-				Value(&a.TagFormat),
+				Value(&a.TagFormat).
+				Validate(config.ValidateTagFormatForWizard),
 		).WithHideFunc(isNotPerEnv),
 		huh.NewGroup(
 			huh.NewConfirm().
@@ -260,7 +261,14 @@ func RunWizard(a *Answers) error {
 			huh.NewInput().
 				Title("Changelog output file").
 				Description(`e.g. "CHANGELOG.md"`).
-				Value(&a.ChangelogOutput),
+				Value(&a.ChangelogOutput).
+				Validate(func(output string) error {
+					format := formatChoice
+					if format == "custom" {
+						format = customFormat
+					}
+					return config.ValidateChangelogRotationForWizard(a.Strategy, format, output)
+				}),
 		).WithHideFunc(func() bool { return !a.EnableChangelog }),
 	)
 
@@ -452,6 +460,44 @@ func matchPlatformSnapshot(snapshot, rebuiltSoFar []PlatformAnswer, platformType
 		}
 	}
 	return PlatformAnswer{}, false
+}
+
+// validateEnvName rejects an empty name and one already used by an earlier environment in this
+// wizard run (T259): generate.go assigns environments into a map keyed by name
+// (cfg.Environments[e.Name] = ...), so a repeated name would otherwise silently overwrite the
+// earlier environment with no error at any stage, not even config.Validate.
+func validateEnvName(existing []EnvAnswer, name string) error {
+	if strings.TrimSpace(name) == "" {
+		return fmt.Errorf("environment name is required")
+	}
+	for _, e := range existing {
+		if e.Name == name {
+			return fmt.Errorf("environment %q is already defined", name)
+		}
+	}
+	return nil
+}
+
+// validateEnvSource mirrors validatePerEnv's "source must reference an existing environment, not
+// itself" rule (internal/config/validator.go) for heraut init's live field validation (T259).
+// Scoped to what the wizard can actually know mid-run: existing holds only the environments
+// defined earlier in this loop, so a source naming one not yet added is rejected here even though
+// it might be added later — the wizard's one-at-a-time flow expects sources defined first. Empty
+// is always valid: validatePerEnv accepts it as "auto-detect the sole auto environment," a
+// cross-environment count this per-field validator doesn't attempt to replicate.
+func validateEnvSource(existing []EnvAnswer, currentName, source string) error {
+	if source == "" {
+		return nil
+	}
+	if source == currentName {
+		return fmt.Errorf("environment cannot promote from itself")
+	}
+	for _, e := range existing {
+		if e.Name == source {
+			return nil
+		}
+	}
+	return fmt.Errorf("environment %q does not exist yet — define it before this one, or leave empty to auto-detect", source)
 }
 
 // matchEnvSnapshot carries passthrough fields (Changelog, Release) from the pre-wizard
@@ -723,7 +769,10 @@ func runEnvWizard(a *Answers) error {
 				huh.NewInput().
 					Title("Environment name").
 					Description(`e.g. "dev", "staging", "prod"`).
-					Value(&env.Name),
+					Value(&env.Name).
+					Validate(func(s string) error {
+						return validateEnvName(a.Environments, s)
+					}),
 				huh.NewSelect[string]().
 					Title("Bump mode").
 					Options(
@@ -734,7 +783,8 @@ func runEnvWizard(a *Answers) error {
 				huh.NewInput().
 					Title("Tag format override").
 					Description("Leave empty to use the common tag format").
-					Value(&env.TagFormat),
+					Value(&env.TagFormat).
+					Validate(config.ValidateTagFormatForWizard),
 				huh.NewInput().
 					Title("Branch restriction").
 					Description("Leave empty to skip branch check").
@@ -744,7 +794,10 @@ func runEnvWizard(a *Answers) error {
 				huh.NewInput().
 					Title("Source environment (promote mode)").
 					Description("Environment to promote from").
-					Value(&env.Source),
+					Value(&env.Source).
+					Validate(func(s string) error {
+						return validateEnvSource(a.Environments, env.Name, s)
+					}),
 			).WithHideFunc(func() bool { return env.Bump != "promote" }),
 			huh.NewGroup(
 				huh.NewConfirm().

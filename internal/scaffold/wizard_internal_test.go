@@ -262,6 +262,64 @@ func TestMatchEnvSnapshot_EmptyRebuilt(t *testing.T) {
 	assert.Empty(t, result)
 }
 
+// TestValidateEnvName covers T259, part of the same init-wizard audit as T258: two environments
+// named the same thing (or an empty name repeated) silently overwrite each other in generate.go's
+// map assignment (cfg.Environments[e.Name] = ...) — not an invalid config, a silently *wrong* one,
+// since by config.Validate time the duplicate is already gone with no trace.
+func TestValidateEnvName(t *testing.T) {
+	existing := []EnvAnswer{{Name: "dev"}, {Name: "staging"}}
+	tests := []struct {
+		name    string
+		envName string
+		wantErr string
+	}{
+		{"unique name", "prod", ""},
+		{"empty name", "", "required"},
+		{"duplicate name", "dev", "already defined"},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			err := validateEnvName(existing, tc.envName)
+			if tc.wantErr == "" {
+				assert.NoError(t, err)
+			} else {
+				assert.ErrorContains(t, err, tc.wantErr)
+			}
+		})
+	}
+}
+
+// TestValidateEnvSource covers T259: "Source environment (promote mode)" was a bare text input —
+// a typo'd or not-yet-defined source name sailed through the wizard and only failed at
+// config.Validate time (validatePerEnv, "environment %q does not exist"). Scoped to what the
+// wizard's sequential, one-environment-at-a-time loop can actually know: existing checks only
+// environments already defined earlier in this run — an env added later isn't a live-checkable
+// case, and empty is always valid (auto-detected from the sole auto env at config.Validate time).
+func TestValidateEnvSource(t *testing.T) {
+	existing := []EnvAnswer{{Name: "dev"}, {Name: "staging"}}
+	tests := []struct {
+		name    string
+		current string
+		source  string
+		wantErr string
+	}{
+		{"empty is valid", "prod", "", ""},
+		{"existing source", "prod", "dev", ""},
+		{"not yet defined", "prod", "qa", "does not exist"},
+		{"self-reference", "dev", "dev", "itself"},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			err := validateEnvSource(existing, tc.current, tc.source)
+			if tc.wantErr == "" {
+				assert.NoError(t, err)
+			} else {
+				assert.ErrorContains(t, err, tc.wantErr)
+			}
+		})
+	}
+}
+
 func TestResolveTokenChoice(t *testing.T) {
 	tests := []struct {
 		name         string

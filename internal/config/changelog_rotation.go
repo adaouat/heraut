@@ -1,6 +1,7 @@
 package config
 
 import (
+	"errors"
 	"fmt"
 	"regexp"
 )
@@ -66,6 +67,24 @@ func ExtractRotationTokens(output string) []string {
 		tokens[i] = m[1]
 	}
 	return tokens
+}
+
+// ValidateChangelogRotationForWizard runs the same {TOKEN}-vs-strategy checks
+// validateChangelogRotation applies at config-load time, exposed for `heraut init`'s live,
+// per-keystroke field validation (T258) — the wizard has no full *Config yet, only the
+// strategy/CalVer-format the user has picked so far in the form. Returns nil when output has no
+// {TOKEN} placeholders or they're all valid for strategy/calverFormat; the first validation error
+// otherwise (a huh field validator wants one error, not a list).
+func ValidateChangelogRotationForWizard(strategy, calverFormat, output string) error {
+	errs := validateChangelogRotation(
+		&ContentDriver{Output: output},
+		&Config{Versioning: Versioning{Strategy: strategy, Format: calverFormat}},
+		"changelog",
+	)
+	if len(errs) == 0 {
+		return nil
+	}
+	return errors.New(errs[0].Message)
 }
 
 // validateChangelogRotation checks {TOKEN} placeholders in d.Output (a rotating changelog file

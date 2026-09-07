@@ -203,6 +203,7 @@ discipline that applies to every task.
 | 32 | Default footer credits heraut (version + timestamp) | Done |
 | 33 | `tagfmt` token API cleanup | Done |
 | 34 | Scoped-changelog `--regenerate` leaks out-of-scope history into the oldest section | Done |
+| 35 | `heraut init` can emit an invalid rotation/per-env combination | Done |
 
 ### Open items
 
@@ -420,6 +421,79 @@ this path when scoped. Verified against both real scenarios with actual git repo
 deleted after): the original CalVer-rotation reproduction (`2025.12.0` → `2026.01.0` → `2026.02.0`,
 regenerate the 2026 bucket) and the per-env reproduction — both confirmed fixed, no docs/ADR needed
 (a correctness fix extending T247's already-established design intent, not a new decision).
+
+---
+
+### Phase 35 — `heraut init` can emit an invalid rotation/per-env combination
+
+#### ✦ `[x]` T258: live-validate `changelog.output` against strategy/format in the wizard
+
+User-reported: `heraut init` let them pick `calver-per-env` and then type
+`CHANGELOG_{YYYY}.md` for the changelog output with no feedback, producing a `.heraut.yml` that
+failed on the very next command — `changelog.output: rotation tokens ... are not supported with
+calver-per-env yet`, exactly [T246](changelog-rotation-roadmap.md)'s deliberate, correct rejection
+(rotation + per-env genuinely isn't implemented, this was never a validator bug). The bug was the
+wizard: `internal/scaffold/wizard.go`'s "Changelog output file" field was a bare `huh.NewInput()`
+with no `.Validate(...)` at all — unlike the neighboring "Custom CalVer format" field, which already
+had one (`ValidateCalVerFormat`) — so any `{TOKEN}`/strategy mismatch (not just the per-env case)
+sailed straight through to a file the user couldn't use. Fix: exported
+`config.ValidateChangelogRotationForWizard(strategy, calverFormat, output string) error`
+(`internal/config/changelog_rotation.go`), a thin wrapper around the exact same
+`validateChangelogRotation` logic `config.Validate` already runs at load time — single source of
+truth rather than a hand-rolled duplicate subset, so it catches every rule that function knows about
+(invalid token names, tokens outside the format, wrong order, per-env) not just the one case
+reported. Wired it into the wizard's field via `.Validate(...)`, reading `a.Strategy` (already set
+by the earlier group in the same sequential form) and reconstructing the in-progress CalVer format
+from `formatChoice`/`customFormat` (the form's own locals — `a.Format` itself isn't finalized until
+after the whole form returns, so the closure can't read it directly). TDD: added
+`TestValidateChangelogRotationForWizard` (`internal/config/validator_test.go`, 6 cases including the
+exact reported repro) — failed to compile against the not-yet-existing function, green once added.
+Wizard wiring itself isn't separately unit-tested — same as `ValidateCalVerFormat`'s existing
+wiring, huh forms aren't practical to drive in a unit test — verified by code inspection plus
+`go build`/`go vet`. No ADR: this closes a UX gap in `heraut init`, it doesn't change what's
+actually supported (per-env + rotation still isn't, same as before).
+
+#### ✦ `[x]` T259: live-validate the rest of the per-env wizard fields the same way
+
+Follow-up audit after T258, prompted by the user asking directly whether *every* wizard field was
+now correctly validated — it wasn't. Went through every `huh.New*()` field in `wizard.go` against
+`internal/config/validator.go`'s actual rules and found three more instances of the same class of
+bug (wizard accepts what `config.Validate` rejects later) plus one worse case (silent data loss, no
+error at any stage):
+
+1. **"Common tag format (per-env)"** (`a.TagFormat`) and **"Tag format override"** (per-env
+   `env.TagFormat`) — neither validated `validatePerEnv`'s `{version}`-token requirement live.
+   Fixed by extracting the shared boolean check (`tagFormatMissingVersion`) out of
+   `validatePerEnv`'s two existing inline call sites and exposing it as
+   `config.ValidateTagFormatForWizard(s string) error` — same pattern as T258's
+   `ValidateChangelogRotationForWizard`, single source of truth, both wizard fields wired to it.
+2. **"Source environment (promote mode)"** (`env.Source`) — free text, no validation, but
+   `validatePerEnv` requires it to name an existing environment and not itself. New
+   `validateEnvSource(existing []EnvAnswer, currentName, source string) error` in
+   `internal/scaffold/wizard.go`, scoped to what the wizard's sequential one-at-a-time loop can
+   actually know: checks only against environments defined *earlier* in this run (a source naming
+   one added later isn't live-checkable without over-constraining valid definition order); empty
+   stays valid — `validatePerEnv` accepts it as "auto-detect the sole auto environment," a
+   cross-environment count this per-field check deliberately doesn't attempt to replicate (would
+   need to see the *whole* environment set to avoid false positives, not just what's typed so far).
+3. **"Environment name"** (`env.Name`) — a genuinely different, worse bug: `generate.go` assigns
+   `cfg.Environments[e.Name] = ...`, a plain map write, so two environments sharing a name (or two
+   left blank) silently overwrite each other with **no error anywhere** — not even
+   `config.Validate`, since by validation time the duplicate is already gone. New
+   `validateEnvName(existing []EnvAnswer, name string) error` rejects both empty and
+   already-used names.
+
+Deliberately **not** touched: `api_mode: graphql` + a manually-typed `CI_JOB_TOKEN` bypassing
+`hideAPIMode`'s Select-level guard — confirmed this is a different class of gap entirely
+(`config.Validate` doesn't check this combination at all, by design — `T157`, a documented
+resolution-time-only concern — so it fails identically whether the config was hand-written or
+wizard-generated; fixing it isn't a wizard-vs-validator mismatch to close). TDD: `TestValidateTag-
+FormatForWizard` (`internal/config/validator_test.go`), `TestValidateEnvName`/`TestValidateEnv-
+Source` (`internal/scaffold/wizard_internal_test.go`) — all red (undefined function) before the
+implementations existed, green after. Existing `TestValidate_rotationOutput_*`/tag_format tests
+confirm the `validatePerEnv` refactor changed no behavior. Wizard field wiring itself not
+separately unit-tested, same reasoning as T258. No ADR — UX-gap closure, no behavior change to what
+`config.Validate` actually accepts.
 
 ---
 
