@@ -205,6 +205,8 @@ discipline that applies to every task.
 | 34 | Scoped-changelog `--regenerate` leaks out-of-scope history into the oldest section | Done |
 | 35 | `heraut init` can emit an invalid rotation/per-env combination | Done |
 | 36 | GPG-signed commits/tags hang: subprocess stdin was never wired to the terminal | Done |
+| 37 | Skip version bump for no-op-only releases | Not started |
+| 38 | Track every PR for a first-time contributor, not just the first | Not started |
 
 ### Open items
 
@@ -542,6 +544,47 @@ commit summary now appears live in heraut's output — visible confirmation the 
 directly rather than captured. No ADR — this fixes a genuine defect (a hang with no workaround
 inside heraut) using a capability the dependency now provides, it doesn't introduce a new design
 decision.
+
+---
+
+### Phase 37 — Skip version bump for no-op-only releases
+
+#### ✦ `[ ]` T261: exclude commit types from bump determination
+
+`DetermineBump` (`internal/versioning/semver/bump.go:14`) defaults to `versioning.BumpPatch` the
+moment *any* parseable conventional commit exists, regardless of type — a lone `chore(deps): bump
+foo` currently forces a patch release exactly like a `fix:` would. There's no way today to say
+"these commit types alone shouldn't produce a release." `versioning.BumpNone` exists but is only
+reachable via "no commits since last tag" (`internal/versioning/semver/resolver.go:76,110`), never
+via "commits exist but none of them qualify."
+
+**Open design question — resolve before implementing:** heraut already has a per-type config
+model (`commits.types` / `config.TypeRule`) driving changelog section labels/order and
+`heraut commit verify`'s allow-list. A standalone commit-exclusion mechanism (e.g. a subject-regex
+list) bolted on separately would add a second, independent commit-classification path alongside
+the existing type-based one. The more consistent alternative is extending `TypeRule` itself with
+an explicit bump-contribution field (e.g. `bump: patch|minor|major|none`, defaulting to today's
+behavior for backward compatibility) so one taxonomy drives both grouping and version bump. Needs
+a decision — and a check of what the pipeline actually does end-to-end when resolution yields
+`BumpNone` with real commits present (tagging/publishing must skip cleanly, not just "no commits at
+all" paths) — before this can be called easy. Scope (semver only, vs. calver/per-env too) is also
+undecided.
+
+---
+
+### Phase 38 — Track every PR for a first-time contributor, not just the first
+
+#### ✦ `[ ]` T262: credit every PR a first-time contributor opened, not just their first
+
+heraut's `collectContributors` (`internal/generators/native/contributors.go:67-97`) stops at the
+*first* PR-bearing commit for a first-time contributor's email and silently drops any other PR that
+same person opened within the release window — someone who lands three small PRs in their first
+release only gets credited for one. Proposed scope: extend `Contributor`
+(`internal/generators/native/model.go`) to carry every distinct PR the contributor's commits
+reference in-release (e.g. `PRs []PullRequest`) instead of a single `*PullRequest`, then update the
+release-notes/changelog templates (`release_notes.tmpl`/`blocks.tmpl`) plus golden fixtures for
+however multi-PR credit should render. Stays bounded to heraut's existing "New Contributors"
+block — heraut has no all-contributors section for this to expand into.
 
 ---
 
