@@ -204,6 +204,7 @@ discipline that applies to every task.
 | 33 | `tagfmt` token API cleanup | Done |
 | 34 | Scoped-changelog `--regenerate` leaks out-of-scope history into the oldest section | Done |
 | 35 | `heraut init` can emit an invalid rotation/per-env combination | Done |
+| 36 | GPG-signed commits/tags hang: subprocess stdin was never wired to the terminal | Done |
 
 ### Open items
 
@@ -494,6 +495,53 @@ implementations existed, green after. Existing `TestValidate_rotationOutput_*`/t
 confirm the `validatePerEnv` refactor changed no behavior. Wizard field wiring itself not
 separately unit-tested, same reasoning as T258. No ADR — UX-gap closure, no behavior change to what
 `config.Validate` actually accepts.
+
+---
+
+### Phase 36 — GPG-signed commits/tags hang: subprocess stdin was never wired to the terminal
+
+#### ✦ `[x]` T260: run `git commit`/a signed tag through an interactive runner
+
+User-reported: `heraut changelog`'s commit step failed with `gpg: signing failed: Timeout` in a
+fresh shell (gpg-agent had nothing cached yet). Traced to `github.com/adaouat/forge`'s
+`exec.CmdRunner.RunDir` (the concrete implementation behind `port.Runner`): it always built the
+child command with `cmd.Stdout`/`cmd.Stderr` pointed at capture buffers and never set `cmd.Stdin`
+at all — Go's `os/exec` reads that as "connect to `/dev/null`." Every subprocess heraut spawns,
+`git commit` included, had no path back to the terminal. `commit.gpgsign=true` makes `git commit`
+invoke GPG, which launches `pinentry-curses` to prompt for the passphrase — the log showed it
+correctly finding the terminal (`PINENTRY_LAUNCHED ... /dev/ttys008`) but then timing out, since
+nothing could reach it. Drafted feedback for the forge maintainer proposing an opt-in interactive
+mode; **v0.19.0 shipped it** as `CmdRunner.Interactive bool` — when true, connects stdin/stdout/
+stderr directly to the terminal instead of capturing (return values become empty strings in that
+mode). Upgraded `github.com/adaouat/forge` v0.18.0 → v0.19.0 (`go get` + `go mod tidy`).
+
+Wiring it into heraut needed care: `Interactive` is a whole-`CmdRunner` setting, and heraut's
+existing write runner is reused for *every* git call in a pipeline run (`git add`, `git diff
+--cached`, `git push`, tag creation, …) — most of which depend on captured stdout to work at all.
+Flipping `Interactive` on the runner used for those would break them, not fix commit signing. So:
+`gitHelper` (`internal/pipeline/git.go`) gained a second, optional `interactiveRunner` field and a
+`runInteractive` helper that falls back to the regular runner when it's unset — meaning every
+pre-existing `gitHelper{runner: mr}` test construction (and any caller that hasn't opted in)
+behaves exactly as before, zero test churn. Only `commitChangelog`'s `git commit` call and `tag`'s
+`git tag -s` branch (the two calls that can actually invoke GPG) route through it; `git add`,
+`git diff --cached`, `git push`, and unsigned/annotated tags stay on the regular runner. Threaded
+via a `WithInteractiveRunner` chaining method on both `Pipeline` and `ChangelogPipeline` — the same
+pattern as the existing `WithReporter`/`WithLogger`, so `New`/`NewChangelog`'s constructor
+signatures (and every test calling them) didn't need to change either. `app.PipelineOpts` gained an
+`InteractiveRunner port.Runner` field threaded through `BuildPipeline`/`BuildChangelogPipeline`;
+`internal/cmd/release.go` and `internal/cmd/changelog.go` each construct a second
+`execadapter.New(dryRun, verbose)` with `.Interactive = true` set, alongside the existing runner
+and readRunner.
+
+TDD: `TestCommitChangelog_UsesInteractiveRunnerForCommit`, `TestCommitChangelog_NoInteractiveRunner-
+FallsBackToRegular`, `TestTag_Signed_UsesInteractiveRunner`, `TestTag_Unsigned_UsesRegularRunner`
+(`internal/pipeline/git_test.go`) — using two separate `MockRunner`s (regular + interactive) and
+asserting each call landed on the right one. Verified end-to-end against a real scratch git repo
+(`heraut changelog --commit --no-push`, no signing configured): committed correctly, and git's own
+commit summary now appears live in heraut's output — visible confirmation the stream is connected
+directly rather than captured. No ADR — this fixes a genuine defect (a hang with no workaround
+inside heraut) using a capability the dependency now provides, it doesn't introduce a new design
+decision.
 
 ---
 

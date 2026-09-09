@@ -52,6 +52,11 @@ func NewReleaseCmd(version string) *cobra.Command {
 			// own (internal) resolution — both read-only, both reached before any write —
 			// share one `git remote get-url origin` subprocess instead of spawning two (T173).
 			readRunner := app.NewMemoizingRunner(execadapter.New(false, verbose))
+			// interactiveRunner connects stdin/stdout/stderr directly to the terminal instead of
+			// capturing them, so `git commit`/a signed tag can prompt through GPG's pinentry
+			// instead of hanging until it times out (T260, needs forge v0.19.0+).
+			interactiveRunner := execadapter.New(dryRun, verbose)
+			interactiveRunner.Interactive = true
 
 			logger := forgelog.New(cmd.ErrOrStderr(), forgelog.LevelFor(verbose))
 
@@ -96,6 +101,7 @@ func NewReleaseCmd(version string) *cobra.Command {
 				RegenerateChangelog: regenerateChangelog,
 				Logger:              logger,
 				ReadRunner:          readRunner,
+				InteractiveRunner:   interactiveRunner,
 			}
 			pipe, err := app.BuildPipeline(runner, cfg, resolver, opts)
 			if err != nil {

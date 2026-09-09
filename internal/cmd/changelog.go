@@ -50,6 +50,11 @@ func NewChangelogCmd(version string) *cobra.Command {
 			// Resolver only performs read-only git calls; use a real runner so
 			// dry-run still shows the correct resolved version.
 			readRunner := execadapter.New(false, verbose)
+			// interactiveRunner connects stdin/stdout/stderr directly to the terminal instead of
+			// capturing them, so `git commit`/a signed tag can prompt through GPG's pinentry
+			// instead of hanging until it times out (T260, needs forge v0.19.0+).
+			interactiveRunner := execadapter.New(dryRun, verbose)
+			interactiveRunner.Interactive = true
 			path := config.ResolvePath(cfgPath)
 
 			cfg, err := config.Load(path)
@@ -85,6 +90,7 @@ func NewChangelogCmd(version string) *cobra.Command {
 				HerautVersion:       version,
 				RegenerateChangelog: regenerate,
 				ReadRunner:          readRunner,
+				InteractiveRunner:   interactiveRunner,
 			}
 			if !dryRun {
 				if err := app.CheckBranch(readRunner, cfg, env, force); err != nil {

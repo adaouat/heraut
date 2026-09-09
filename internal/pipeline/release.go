@@ -41,6 +41,14 @@ func (p *Pipeline) WithLogger(l *slog.Logger) *Pipeline {
 	return p
 }
 
+// WithInteractiveRunner sets the runner used for commands that may need a real terminal — a GPG
+// pinentry prompt during `git commit`/a signed tag (T260) — and returns p for chaining. When
+// unset, those commands fall back to the regular runner, exactly as before this option existed.
+func (p *Pipeline) WithInteractiveRunner(r port.Runner) *Pipeline {
+	p.git.interactiveRunner = r
+	return p
+}
+
 // debug emits an operator-debug log line when a logger is set.
 func (p *Pipeline) debug(msg string, args ...any) {
 	if p.logger != nil {

@@ -11,10 +11,27 @@ const defaultCommitMessage = "chore(release): ${version}"
 
 type gitHelper struct {
 	runner port.Runner
+	// interactiveRunner runs commands that may need a real terminal — a GPG pinentry prompt during
+	// `git commit`/`git tag -s`, T260 — connecting stdin/stdout/stderr directly instead of
+	// capturing them (forge v0.19.0's CmdRunner.Interactive). Falls back to runner when nil, so
+	// every construction that doesn't set it (every pre-T260 test, any caller that hasn't opted
+	// in) behaves exactly as before.
+	interactiveRunner port.Runner
 }
 
 func (g *gitHelper) run(name string, args ...string) error {
 	_, _, err := g.runner.Run(name, args...)
+	return err
+}
+
+// runInteractive runs name with args using interactiveRunner, falling back to the regular runner
+// when none is configured.
+func (g *gitHelper) runInteractive(name string, args ...string) error {
+	r := g.interactiveRunner
+	if r == nil {
+		r = g.runner
+	}
+	_, _, err := r.Run(name, args...)
 	return err
 }
 
@@ -35,7 +52,7 @@ func (g *gitHelper) commitChangelog(file, msg string, push bool) (bool, error) {
 	if !staged {
 		return false, nil
 	}
-	if err := g.run("git", "commit", "-m", msg); err != nil {
+	if err := g.runInteractive("git", "commit", "-m", msg); err != nil {
 		return false, fmt.Errorf("git commit: %w", err)
 	}
 	if push {
@@ -58,8 +75,9 @@ func (g *gitHelper) hasStagedChanges() (bool, error) {
 
 func (g *gitHelper) tag(tag, msg string, annotated, sign bool) error {
 	if sign {
-		// -s implies annotated; always provide -m so git does not open an editor.
-		return g.run("git", "tag", "-s", tag, "-m", msg)
+		// -s implies annotated; always provide -m so git does not open an editor. GPG signing can
+		// prompt via pinentry, so this runs interactively (T260).
+		return g.runInteractive("git", "tag", "-s", tag, "-m", msg)
 	}
 	if annotated {
 		return g.run("git", "tag", "-a", tag, "-m", msg)

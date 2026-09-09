@@ -52,6 +52,11 @@ type PipelineOpts struct {
 	RegenerateChangelog bool
 	// Logger receives operator-debug diagnostics (nil discards them). See forge ADR-0011.
 	Logger *slog.Logger
+	// InteractiveRunner runs commands that may need a real terminal — a GPG pinentry prompt during
+	// `git commit`/a signed tag (T260) — connecting stdin/stdout/stderr directly instead of
+	// capturing them (forge v0.19.0's CmdRunner.Interactive). Nil falls back to the pipeline
+	// runner, which behaves exactly as before this option existed.
+	InteractiveRunner port.Runner
 }
 
 // ReadGPGSign reads tag.gpgSign from git config and returns true when it is set to "true".
@@ -85,6 +90,7 @@ func BuildPipeline(runner port.Runner, cfg *config.Config, resolver versioning.R
 	pipe := pipeline.New(runner, resolver, pipelineCfg, out, opts.DryRun)
 	pipe = pipe.WithReporter(spinnerReporter(out, releaseStepTotal(pipelineCfg)))
 	pipe = pipe.WithLogger(opts.Logger)
+	pipe = pipe.WithInteractiveRunner(opts.InteractiveRunner)
 	return pipe, nil
 }
 
@@ -136,6 +142,7 @@ func BuildChangelogPipeline(runner port.Runner, cfg *config.Config, resolver ver
 	}
 	pipe := pipeline.NewChangelog(runner, resolver, changelogCfg, out, opts.DryRun)
 	pipe = pipe.WithReporter(spinnerReporter(out, changelogStepTotal(changelogCfg)))
+	pipe = pipe.WithInteractiveRunner(opts.InteractiveRunner)
 	return pipe, nil
 }
 

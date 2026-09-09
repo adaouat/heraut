@@ -64,6 +64,14 @@ func (p *ChangelogPipeline) WithReporter(fn ui.StepFn) *ChangelogPipeline {
 	return p
 }
 
+// WithInteractiveRunner sets the runner used for commands that may need a real terminal — a GPG
+// pinentry prompt during `git commit`/a signed tag (T260) — and returns p for chaining. When
+// unset, those commands fall back to the regular runner, exactly as before this option existed.
+func (p *ChangelogPipeline) WithInteractiveRunner(r port.Runner) *ChangelogPipeline {
+	p.git.interactiveRunner = r
+	return p
+}
+
 // runStep calls fn via the reporter when one is set, or directly when nil.
 // Errors returned by fn are propagated verbatim so callers can use errors.Is/As.
 func (p *ChangelogPipeline) runStep(name string, fn func() (string, []string, error)) error {
