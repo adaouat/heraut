@@ -206,7 +206,7 @@ discipline that applies to every task.
 | 35 | `heraut init` can emit an invalid rotation/per-env combination | Done |
 | 36 | GPG-signed commits/tags hang: subprocess stdin was never wired to the terminal | Done |
 | 37 | Skip version bump for no-op-only releases | Not started |
-| 38 | Track every PR for a first-time contributor, not just the first | Not started |
+| 38 | Track every PR for a first-time contributor, not just the first | Done |
 
 ### Open items
 
@@ -574,17 +574,29 @@ undecided.
 
 ### Phase 38 — Track every PR for a first-time contributor, not just the first
 
-#### ✦ `[ ]` T262: credit every PR a first-time contributor opened, not just their first
+#### ✦ `[x]` T262: credit every PR a first-time contributor opened, not just their first
 
-heraut's `collectContributors` (`internal/generators/native/contributors.go:67-97`) stops at the
-*first* PR-bearing commit for a first-time contributor's email and silently drops any other PR that
-same person opened within the release window — someone who lands three small PRs in their first
-release only gets credited for one. Proposed scope: extend `Contributor`
-(`internal/generators/native/model.go`) to carry every distinct PR the contributor's commits
-reference in-release (e.g. `PRs []PullRequest`) instead of a single `*PullRequest`, then update the
-release-notes/changelog templates (`release_notes.tmpl`/`blocks.tmpl`) plus golden fixtures for
-however multi-PR credit should render. Stays bounded to heraut's existing "New Contributors"
-block — heraut has no all-contributors section for this to expand into.
+`Contributor.PR *PullRequest` (`internal/generators/native/model.go`) became `PRs []PullRequest`.
+`collectContributors` (`contributors.go`) no longer `break`s after the first PR-bearing commit for
+an email — it scans every commit for that contributor in the release, dedupes by PR `Number` (a
+rebase-merged PR can attach the same number to several commits), and appends each distinct PR in
+first-seen order; the handle overlay still comes from the *first* PR-bearing commit only, unchanged.
+`tplContributor.PR *tplPR` → `PRs []tplPR` (`templatemodel.go`'s `buildContributors` maps the full
+slice via the existing `tplPRFrom`, unchanged itself). `blocks.tmpl`'s `contributor` block replaced
+its single `{{ if .PR }}` guard with `{{ range $i, $pr := .PRs }}{{ if $i }}, {{ end }}[...]{{ end }}`
+— comma-joins multiple refs, and is byte-identical to the old single-PR output when there's only
+one (confirmed: `TestRenderReleaseNotes_Contributors_Golden`'s existing golden needed no changes).
+
+TDD: `TestCollectContributors_CollectsEveryDistinctPR` (two distinct PRs on non-adjacent commits)
+and `TestCollectContributors_DedupsSamePRAcrossCommits` (same PR number on two commits → one entry)
+in `contributors_internal_test.go`, both red against the unfixed `break`-after-first logic; the
+three pre-existing `collectContributors` tests updated from `.PR`/`*PullRequest` to `.PRs`/slice
+assertions (behavior unchanged, only the field shape). New golden
+`testdata/release_notes_multi_pr_contributor.golden` + `TestRenderReleaseNotes_MultiPRContributor_-
+Golden` locks in the end-to-end two-PR render: `* @alice made their first contribution in
+[#7](…), [#9](…)`. Full `go test ./...` and `hk check` (golangci-lint, gofmt, typos) clean. No ADR
+— additive field-shape change to an internal type, no behavior change for the existing single-PR
+path, no config/schema surface touched.
 
 ---
 

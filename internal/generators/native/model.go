@@ -34,5 +34,5 @@ type PullRequest struct {
 type Contributor struct {
 	Author      Author
 	IsFirstTime bool
-	PR          *PullRequest // their first PR in this release; nil offline
+	PRs         []PullRequest // every distinct PR they opened in this release; empty offline
 }

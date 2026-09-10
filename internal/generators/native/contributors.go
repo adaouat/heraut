@@ -59,11 +59,14 @@ func renderedCommits(commits []rawCommit, groups []group) []rawCommit {
 }
 
 // collectContributors returns the release's distinct contributors (first-seen order, deduped by
-// git author email). IsFirstTime is true when the email is absent from before. The PR handle /
-// number / url are overlaid from the author's **first PR-bearing commit** in the release — their
-// earliest commit may be unlinked while a later one carries the PR, and the built-in template
-// only renders a contributor once a handle is known. Only first-time contributors are returned —
-// the "New Contributors" block renders exactly this list.
+// git author email). IsFirstTime is true when the email is absent from before. The handle is
+// overlaid from the author's **first PR-bearing commit** in the release — their earliest commit
+// may be unlinked while a later one carries the PR, and the built-in template only renders a
+// contributor once a handle is known. PRs collects every distinct PR (deduped by number, since a
+// rebase-merged PR can attach the same number to several commits) referenced by the contributor's
+// commits, not just the first (T262) — someone who opens more than one PR in their first release
+// is credited for all of them. Only first-time contributors are returned — the "New Contributors"
+// block renders exactly this list.
 func collectContributors(commits []parsedCommit, before map[string]bool, prs map[string]PullRequest) []Contributor {
 	seen := make(map[string]bool)
 	var out []Contributor
@@ -80,16 +83,20 @@ func collectContributors(commits []parsedCommit, before map[string]bool, prs map
 			Author:      Author{Name: c.raw.Author, Email: email},
 			IsFirstTime: true,
 		}
+		prSeen := make(map[int]bool)
 		for _, c2 := range commits[i:] {
 			if c2.raw.Email != email {
 				continue
 			}
-			if pr, ok := prs[c2.raw.Hash]; ok {
-				contrib.Author.Username = pr.AuthorLogin
-				prCopy := pr
-				contrib.PR = &prCopy
-				break
+			pr, ok := prs[c2.raw.Hash]
+			if !ok || prSeen[pr.Number] {
+				continue
 			}
+			prSeen[pr.Number] = true
+			if contrib.Author.Username == "" {
+				contrib.Author.Username = pr.AuthorLogin
+			}
+			contrib.PRs = append(contrib.PRs, pr)
 		}
 		out = append(out, contrib)
 	}

@@ -49,8 +49,8 @@ func TestCollectContributors_FirstTimerFromGit(t *testing.T) {
 	assert.Equal(t, "alice@x", c.Author.Email)
 	assert.Equal(t, "alice-gh", c.Author.Username, "username overlaid from the PR")
 	assert.True(t, c.IsFirstTime)
-	require.NotNil(t, c.PR)
-	assert.Equal(t, 7, c.PR.Number)
+	require.Len(t, c.PRs, 1)
+	assert.Equal(t, 7, c.PRs[0].Number)
 }
 
 func TestCollectContributors_DedupByEmail_OfflineNoPR(t *testing.T) {
@@ -60,7 +60,7 @@ func TestCollectContributors_DedupByEmail_OfflineNoPR(t *testing.T) {
 	require.Len(t, got, 1, "same email deduped to one contributor")
 	assert.Equal(t, "Alice", got[0].Author.Name)
 	assert.Empty(t, got[0].Author.Username, "no PR → no handle offline")
-	assert.Nil(t, got[0].PR)
+	assert.Empty(t, got[0].PRs)
 	assert.True(t, got[0].IsFirstTime)
 }
 
@@ -79,8 +79,48 @@ func TestCollectContributors_OverlaysFirstPRBearingCommit(t *testing.T) {
 
 	require.Len(t, got, 1)
 	assert.Equal(t, "alice-gh", got[0].Author.Username, "PR overlaid from the first PR-bearing commit")
-	require.NotNil(t, got[0].PR)
-	assert.Equal(t, 9, got[0].PR.Number)
+	require.Len(t, got[0].PRs, 1)
+	assert.Equal(t, 9, got[0].PRs[0].Number)
+}
+
+// TestCollectContributors_CollectsEveryDistinctPR: a first-timer who opened more than one PR in
+// their first release is credited for all of them, not just the first PR-bearing commit (T262).
+func TestCollectContributors_CollectsEveryDistinctPR(t *testing.T) {
+	commits := []parsedCommit{
+		pc("aaa", "Alice", "alice@x"),
+		pc("bbb", "Alice", "alice@x"), // no PR — must not break the scan
+		pc("ccc", "Alice", "alice@x"),
+	}
+	prs := map[string]PullRequest{
+		"aaa": {Number: 7, URL: "u7", AuthorLogin: "alice-gh", RefPrefix: "#"},
+		"ccc": {Number: 9, URL: "u9", AuthorLogin: "alice-gh", RefPrefix: "#"},
+	}
+
+	got := collectContributors(commits, map[string]bool{}, prs)
+
+	require.Len(t, got, 1)
+	require.Len(t, got[0].PRs, 2, "both distinct PRs credited")
+	assert.Equal(t, 7, got[0].PRs[0].Number, "first-seen order")
+	assert.Equal(t, 9, got[0].PRs[1].Number)
+}
+
+// TestCollectContributors_DedupsSamePRAcrossCommits: a rebase-merged PR can attach the same PR
+// number to multiple commits — it must appear once in PRs, not once per commit.
+func TestCollectContributors_DedupsSamePRAcrossCommits(t *testing.T) {
+	commits := []parsedCommit{
+		pc("aaa", "Alice", "alice@x"),
+		pc("bbb", "Alice", "alice@x"),
+	}
+	prs := map[string]PullRequest{
+		"aaa": {Number: 7, URL: "u7", AuthorLogin: "alice-gh", RefPrefix: "#"},
+		"bbb": {Number: 7, URL: "u7", AuthorLogin: "alice-gh", RefPrefix: "#"},
+	}
+
+	got := collectContributors(commits, map[string]bool{}, prs)
+
+	require.Len(t, got, 1)
+	require.Len(t, got[0].PRs, 1, "same PR number deduped across commits")
+	assert.Equal(t, 7, got[0].PRs[0].Number)
 }
 
 // TestCollectContributors_EmptyEmailSkipped: a commit with no author email is skipped, not

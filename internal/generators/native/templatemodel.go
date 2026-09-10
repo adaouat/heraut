@@ -78,7 +78,7 @@ type tplPR struct {
 // tplContributor is one entry in the "New Contributors" block.
 type tplContributor struct {
 	Author Author
-	PR     *tplPR // their first PR in this release; nil offline
+	PRs    []tplPR // every PR they opened in this release; empty offline
 }
 
 // tplStats is the release statistics block.
@@ -237,11 +237,11 @@ func buildContributors(contributors []Contributor) []tplContributor {
 		if c.Author.Username == "" {
 			continue
 		}
-		var pr *tplPR
-		if c.PR != nil {
-			pr = tplPRFrom(*c.PR)
+		var prs []tplPR
+		for _, pr := range c.PRs {
+			prs = append(prs, *tplPRFrom(pr))
 		}
-		out = append(out, tplContributor{Author: c.Author, PR: pr})
+		out = append(out, tplContributor{Author: c.Author, PRs: prs})
 	}
 	return out
 }

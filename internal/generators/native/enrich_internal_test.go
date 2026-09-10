@@ -106,7 +106,7 @@ func TestRenderReleaseNotes_NewContributors(t *testing.T) {
 	contributors := []Contributor{{
 		Author:      Author{Name: "New Bie", Email: "newbie@x", Username: "newbie"},
 		IsFirstTime: true,
-		PR:          &PullRequest{Number: 7, URL: "https://github.com/o/r/pull/7", AuthorLogin: "newbie", RefPrefix: "#"},
+		PRs:         []PullRequest{{Number: 7, URL: "https://github.com/o/r/pull/7", AuthorLogin: "newbie", RefPrefix: "#"}},
 	}}
 	got, err := renderReleaseNotes("v1.0.0", "", fixedDate1, groups, githubLC, nil, time.Time{}, 3, prs, contributors, tplHeraut{}, nil, "")
 	require.NoError(t, err)

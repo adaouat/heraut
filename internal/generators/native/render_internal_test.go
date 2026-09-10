@@ -620,7 +620,7 @@ func TestRenderReleaseNotes_Contributors_Golden(t *testing.T) {
 	contribs := []Contributor{{
 		Author:      Author{Name: "Alice", Email: "alice@example.com", Username: "alice"},
 		IsFirstTime: true,
-		PR:          &PullRequest{Number: 7, URL: "https://github.com/acme/widget/pull/7", AuthorLogin: "alice", RefPrefix: "#"},
+		PRs:         []PullRequest{{Number: 7, URL: "https://github.com/acme/widget/pull/7", AuthorLogin: "alice", RefPrefix: "#"}},
 	}}
 
 	groups := fixtureGroups()
@@ -632,6 +632,53 @@ func TestRenderReleaseNotes_Contributors_Golden(t *testing.T) {
 	require.NoError(t, err)
 
 	const golden = "release_notes_contributors.golden"
+	writeGolden(t, golden, got)
+	want := readGolden(t, golden)
+	assert.Equal(t, want, got)
+}
+
+// TestRenderReleaseNotes_MultiPRContributor_Golden locks in the "New Contributors" block output
+// for a first-timer credited with more than one PR in their first release (T262): both refs
+// render, comma-separated, in the order their commits appear.
+func TestRenderReleaseNotes_MultiPRContributor_Golden(t *testing.T) {
+	releaseDate := time.Date(2024, 1, 15, 0, 0, 0, 0, time.UTC)
+	prevDate := time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC)
+
+	rcA1 := rawCommit{
+		Hash: "1111111111111111111111111111111111111a", Author: "Alice", Email: "alice@example.com",
+		Date: fixedDate3, Subject: "feat(api): add new endpoint",
+	}
+	rcA2 := rawCommit{
+		Hash: "2222222222222222222222222222222222222b", Author: "Alice", Email: "alice@example.com",
+		Date: fixedDate1, Subject: "feat(ui): add settings page",
+	}
+	pcA1 := parsedCommit{raw: rcA1}
+	pcA1.parsed, _ = conventionalcommit.Parse(rcA1.Subject)
+	pcA2 := parsedCommit{raw: rcA2}
+	pcA2.parsed, _ = conventionalcommit.Parse(rcA2.Subject)
+
+	groups := []group{{name: "🚀 Features", order: 0, commits: []parsedCommit{pcA1, pcA2}}}
+	prs := map[string]PullRequest{
+		rcA1.Hash: {Number: 7, URL: "https://github.com/acme/widget/pull/7", AuthorLogin: "alice", RefPrefix: "#"},
+		rcA2.Hash: {Number: 9, URL: "https://github.com/acme/widget/pull/9", AuthorLogin: "alice", RefPrefix: "#"},
+	}
+	contribs := []Contributor{{
+		Author:      Author{Name: "Alice", Email: "alice@example.com", Username: "alice"},
+		IsFirstTime: true,
+		PRs: []PullRequest{
+			{Number: 7, URL: "https://github.com/acme/widget/pull/7", AuthorLogin: "alice", RefPrefix: "#"},
+			{Number: 9, URL: "https://github.com/acme/widget/pull/9", AuthorLogin: "alice", RefPrefix: "#"},
+		},
+	}}
+
+	overlayAuthorHandles(groups, map[string]string{rcA1.Hash: "alice", rcA2.Hash: "alice"})
+	got, err := renderReleaseNotes(
+		"v1.2.3", "v1.2.2", releaseDate,
+		groups, githubLC, nil, prevDate, 3, prs, contribs, fixtureHeraut, nil, "",
+	)
+	require.NoError(t, err)
+
+	const golden = "release_notes_multi_pr_contributor.golden"
 	writeGolden(t, golden, got)
 	want := readGolden(t, golden)
 	assert.Equal(t, want, got)
