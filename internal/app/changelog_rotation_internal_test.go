@@ -156,7 +156,7 @@ func TestRotatingGenerator_ResolveDriver_InvalidVersion_Error(t *testing.T) {
 	cfg := &config.Config{Versioning: config.Versioning{Strategy: "calver", Format: "YYYY.MM.PATCH"}}
 	rg := &rotatingGenerator{cfg: cfg, driver: driver, tokens: []string{"YYYY"}}
 
-	// A manual --version override that doesn't match the configured calver format.
+	// A manual --set-version override that doesn't match the configured calver format.
 	_, err := rg.resolveDriver("not-a-calver-version")
 	require.Error(t, err)
 }

@@ -243,7 +243,7 @@ func TestResolve_ManualMode_WithOverride(t *testing.T) {
 // TestResolve_ManualMode_WithPrefixedOverride verifies that passing the full tag
 // (e.g. "v2.5.0") to SetVersionOverride produces the same result as passing the
 // bare version ("2.5.0") — the prefix is stripped before building the tag so
-// piping `heraut version next` into `--version` doesn't double the prefix.
+// piping `heraut version next` into `--set-version` doesn't double the prefix.
 func TestResolve_ManualMode_WithPrefixedOverride(t *testing.T) {
 	mr := exectest.NewMockRunner()
 
@@ -289,7 +289,7 @@ func TestResolve_AutoMode_WithPrefixedOverride(t *testing.T) {
 
 // TestResolve_AutoMode_WithOverride verifies that SetVersionOverride takes effect even
 // when bump is "auto" — the override must short-circuit the auto resolution path so
-// callers can pin a specific version via --version without switching to bump: manual.
+// callers can pin a specific version via --set-version without switching to bump: manual.
 func TestResolve_AutoMode_WithOverride(t *testing.T) {
 	mr := exectest.NewMockRunner()
 	// No git calls should be made when an override is set.

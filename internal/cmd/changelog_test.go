@@ -19,7 +19,7 @@ func TestNewChangelogCmd(t *testing.T) {
 	assert.Equal(t, "changelog", c.Use)
 	assert.NotEmpty(t, c.Short)
 
-	for _, name := range []string{"commit", "tag", "no-push", "version", "build"} {
+	for _, name := range []string{"commit", "tag", "no-push", "set-version", "set-build-id"} {
 		assert.NotNil(t, c.Flags().Lookup(name), "flag %q not registered", name)
 	}
 }
@@ -39,7 +39,7 @@ versioning:
   tag_format: "{env}/{version}-{build}"
 `)
 	_, err := executeRoot("changelog", "--config", cfgPath, "--env", "uat",
-		"--version", "7.4.1", "--build", "bad/value")
+		"--set-version", "7.4.1", "--set-build-id", "bad/value")
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "build")
 }
@@ -51,9 +51,9 @@ versioning:
   strategy: semver-per-env
   tag_format: "{env}/{version}-{build}"
 `)
-	_, err := executeRoot("changelog", "--config", cfgPath, "--env", "uat", "--build", "12345")
+	_, err := executeRoot("changelog", "--config", cfgPath, "--env", "uat", "--set-build-id", "12345")
 	require.Error(t, err)
-	assert.Contains(t, err.Error(), "--version")
+	assert.Contains(t, err.Error(), "--set-version")
 }
 
 func TestChangelog_VersionFlag_RejectsWhitespace(t *testing.T) {
@@ -63,7 +63,7 @@ versioning:
   strategy: semver
   tag_prefix: "v"
 `)
-	_, err := executeRoot("changelog", "--config", cfgPath, "--version", "1.2.3 ", "--dry-run")
+	_, err := executeRoot("changelog", "--config", cfgPath, "--set-version", "1.2.3 ", "--dry-run")
 	require.Error(t, err)
 	assert.Equal(t, exitcode.Config, cmd.ExitCode(err))
 }

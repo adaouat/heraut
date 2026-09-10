@@ -207,6 +207,7 @@ discipline that applies to every task.
 | 36 | GPG-signed commits/tags hang: subprocess stdin was never wired to the terminal | Done |
 | 37 | Skip version bump for no-op-only releases | Done — see ADR-0052 |
 | 38 | Track every PR for a first-time contributor, not just the first | Done |
+| 39 | Rename `--version`/`--build` override flags to disambiguate from root's `--version` | Done |
 
 ### Open items
 
@@ -622,6 +623,47 @@ Golden` locks in the end-to-end two-PR render: `* @alice made their first contri
 path, no config/schema surface touched.
 
 ---
+
+### Phase 39 — Rename `--version`/`--build` override flags to disambiguate from root's `--version`
+
+#### ✦ `[x]` T263: rename `release`/`changelog`'s `--version`/`--build` flags to `--set-version`/`--set-build-id`
+
+`heraut release`/`heraut changelog` accept a local `--version <value>` (override the resolved
+version) and `--build <id>` (append a build ID, requires `--version`). Both share a name with
+root's own `--version`/`-v` (print the binary version) — no technical collision (cobra scopes
+local flags to their own command), but confusing enough that the README carried a dedicated
+"Gotcha" callout. Renamed to `--set-version` and `--set-build-id`, which read unambiguously as
+"set an explicit value" and don't shadow the root flag's name at all. `--build` became
+`--set-build-id` rather than staying as-is, for symmetry with `--set-version` even though it had
+no collision of its own to fix.
+
+TDD: updated the flag-name assertions in `internal/cmd/release_test.go`/`changelog_test.go`
+first (`TestRelease_Structural`/`TestNewChangelogCmd`'s flag-lookup loops, plus every
+`executeRoot(...)` call and error-string assertion) to red against the old flag names, then
+renamed the `StringVar` registrations in `internal/cmd/release.go`/`changelog.go`. Every
+user-facing error string mentioning the old flag names was updated in lockstep — duplicated
+`--build requires --version` guards in both `internal/cmd/release.go` and `changelog.go`
+(pre-existing duplication, left as-is — out of scope for a rename), `internal/app/resolver.go`
+(three error strings + doc comments), `internal/versioning/tagfmt/tagfmt.go`'s
+`{build}`-without-a-value error, and `internal/versioning/semver/resolver.go`'s manual-bump-mode
+error — plus matching test assertions in `resolver_test.go` and `tagfmt_test.go`. Doc-comment-only
+references (no behavior, not test-covered) updated across `versioning/static.go`,
+`app/changelog_rotation.go`, `semver/rotation.go`, and their test files. No renaming of internal Go
+identifiers (`versionOverride`, `buildID`, `ValidateBuildID`) — only the CLI-facing flag strings
+and user-visible error text changed.
+
+Docs updated: `docs/specs/02-configuration.md`, `03-commands.md`, `04-versioning.md`,
+`06-dx-and-testing.md`, `docs/guides/mobile-ci-tagging.md`, `docs/heraut.sample.yml`,
+`schema.json` (`bump.mode` description), `.goreleaser.yml` comment, and this repo's own
+`CLAUDE.md`. The README's `--version`/`-v` "Gotcha" callout was deleted outright — the flags no
+longer share a name, so there's nothing left to disambiguate. `CHANGELOG.md` (historical) and
+`.claude/plans/*.md` (point-in-time design docs) were deliberately left untouched — they're
+records of what was true when written, not living documentation. No ADR — this is a pre-v1.0 CLI
+flag rename with no config-shape change. The `{build}` tag_format token itself was **not**
+renamed to `{build-id}`/`{build_id}` — raised mid-task as a follow-on question, it's a much
+larger, separately-scoped change (breaks every existing `.heraut.yml` with `{build}` in
+`tag_format`, touches `tagfmt`'s token constant, `schema.json`, the sample config, native's
+template rendering, and every fixture under `testdata/config/`) and was not pursued here.
 
 ### Active epics tracked in their own file
 

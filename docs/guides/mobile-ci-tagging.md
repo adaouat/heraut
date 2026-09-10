@@ -57,8 +57,8 @@ entirely. The CHANGELOG.md is only updated on production (`main`) releases.
 heraut changelog \
   --tag \
   --env uat \
-  --version "$APP_VERSION" \
-  --build "$CI_PIPELINE_ID"
+  --set-version "$APP_VERSION" \
+  --set-build-id "$CI_PIPELINE_ID"
 ```
 
 `APP_VERSION` is the semantic version your team maintains (e.g. `7.4.1`).
@@ -76,8 +76,8 @@ update occurs.
 heraut changelog \
   --tag \
   --env main \
-  --version "$APP_VERSION" \
-  --build "$CI_PIPELINE_ID"
+  --set-version "$APP_VERSION" \
+  --set-build-id "$CI_PIPELINE_ID"
 ```
 
 This produces tag `main/7.4.1-158404`, updates CHANGELOG.md with all
@@ -149,8 +149,8 @@ main    7.4.1    159001    main/7.4.1-159001  ← CHANGELOG: commits since main/
 
 ## Version source
 
-heraut does not derive the version from commits when `--build` is used —
-`--version` is required. Common ways to provide it in a CI pipeline:
+heraut does not derive the version from commits when `--set-build-id` is used —
+`--set-version` is required. Common ways to provide it in a CI pipeline:
 
 ```bash
 # From a VERSION file

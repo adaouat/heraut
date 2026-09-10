@@ -236,7 +236,7 @@ func TestNewResolver_BuildID_RequiresVersion(t *testing.T) {
 	mr := exectest.NewMockRunner()
 	_, err := app.NewResolver(semverCfg(), "", false, "", "158404", mr)
 	require.Error(t, err)
-	assert.Contains(t, err.Error(), "--build requires --version")
+	assert.Contains(t, err.Error(), "--set-build-id requires --set-version")
 }
 
 func TestNewResolver_BuildID_NoBuildToken(t *testing.T) {

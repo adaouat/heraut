@@ -1,7 +1,7 @@
 package versioning
 
 // StaticResolver returns a fixed pre-resolved version without any git calls.
-// Used when --version is passed to heraut release, bypassing automatic resolution
+// Used when --set-version is passed to heraut release, bypassing automatic resolution
 // for all strategies (ADR-0018).
 type StaticResolver struct {
 	result Result

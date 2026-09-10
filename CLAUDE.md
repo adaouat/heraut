@@ -83,7 +83,7 @@ internal/
    conventionalcommit/          pure commit-message parser (type/scope/breaking/footers), no heraut imports
    versioning/
       result.go                 shared Result type
-      resolver.go, static.go    Resolver interface + the --version/--build override path
+      resolver.go, static.go    Resolver interface + the --set-version/--set-build-id override path
       tagfmt/                   {version}/{env}/{build} substitution + glob patterns
       semver/                   conventional-commit bump + version arithmetic
       calver/                   token parser (YYYY/MM/DD/WW/QQ/SS/SPRINT/PATCH)

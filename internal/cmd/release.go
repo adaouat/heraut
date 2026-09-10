@@ -31,7 +31,7 @@ func NewReleaseCmd(version string) *cobra.Command {
 
 			if buildID != "" {
 				if versionOverride == "" {
-					return exitcode.Wrap(exitcode.Config, fmt.Errorf("--build requires --version: provide the version explicitly when specifying a build ID"))
+					return exitcode.Wrap(exitcode.Config, fmt.Errorf("--set-build-id requires --set-version: provide the version explicitly when specifying a build ID"))
 				}
 				if err := app.ValidateBuildID(buildID); err != nil {
 					return exitcode.Wrap(exitcode.Config, err)
@@ -124,8 +124,8 @@ func NewReleaseCmd(version string) *cobra.Command {
 		},
 	}
 
-	releaseCmd.Flags().StringVar(&versionOverride, "version", "", "override the resolved version — with or without tag prefix (e.g. 1.2.3 or v1.2.3)")
-	releaseCmd.Flags().StringVar(&buildID, "build", "", "build ID appended to the tag via the {build} token in tag_format (requires --version)")
+	releaseCmd.Flags().StringVar(&versionOverride, "set-version", "", "override the resolved version — with or without tag prefix (e.g. 1.2.3 or v1.2.3)")
+	releaseCmd.Flags().StringVar(&buildID, "set-build-id", "", "build ID appended to the tag via the {build} token in tag_format (requires --set-version)")
 	releaseCmd.Flags().BoolVar(&regenerateChangelog, "regenerate-changelog", false,
 		"rebuild the entire changelog and re-fetch PR attribution (needed once when migrating an existing changelog onto heraut)")
 

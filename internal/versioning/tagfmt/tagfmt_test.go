@@ -132,10 +132,10 @@ func TestRender_BuildRequiredButEmpty(t *testing.T) {
 	_, err := tagfmt.Render("{env}/{version}-{build}", tagfmt.Tokens{Env: "uat", Version: "7.4.1"})
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "{build}")
-	// The error must point the user toward --build on either command that accepts it —
-	// heraut release --build exists too (T222/T231), not changelog-only as this message
+	// The error must point the user toward --set-build-id on either command that accepts it —
+	// heraut release --set-build-id exists too (T222/T231), not changelog-only as this message
 	// used to imply.
-	assert.Contains(t, err.Error(), "--build")
+	assert.Contains(t, err.Error(), "--set-build-id")
 	assert.Contains(t, err.Error(), "heraut changelog")
 	assert.Contains(t, err.Error(), "heraut release")
 }

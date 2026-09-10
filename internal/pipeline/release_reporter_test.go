@@ -247,7 +247,7 @@ func TestRun_Reporter_DegradedNotes_EmitsSubResult(t *testing.T) {
 }
 
 // TestRun_BuildTag_PropagatesToPlatform verifies a build-rendered tag (T57 — heraut
-// release --build) flows unchanged from the resolver to the platform's CreateRelease.
+// release --set-build-id) flows unchanged from the resolver to the platform's CreateRelease.
 func TestRun_BuildTag_PropagatesToPlatform(t *testing.T) {
 	mr := exectest.NewMockRunner()
 	mr.QueueResponse("", "", nil) // git tag

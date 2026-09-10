@@ -39,7 +39,7 @@ func NewChangelogCmd(version string) *cobra.Command {
 
 			if buildID != "" {
 				if versionOverride == "" {
-					return exitcode.Wrap(exitcode.Config, fmt.Errorf("--build requires --version: provide the version explicitly when specifying a build ID"))
+					return exitcode.Wrap(exitcode.Config, fmt.Errorf("--set-build-id requires --set-version: provide the version explicitly when specifying a build ID"))
 				}
 				if err := app.ValidateBuildID(buildID); err != nil {
 					return exitcode.Wrap(exitcode.Config, err)
@@ -113,8 +113,8 @@ func NewChangelogCmd(version string) *cobra.Command {
 	changelogCmd.Flags().BoolVar(&commit, "commit", false, "commit the generated changelog")
 	changelogCmd.Flags().BoolVar(&tag, "tag", false, "tag after commit (implies --commit)")
 	changelogCmd.Flags().BoolVar(&noPush, "no-push", false, "commit and tag locally without pushing (only meaningful with --commit/--tag)")
-	changelogCmd.Flags().StringVar(&versionOverride, "version", "", "override the resolved version — with or without tag prefix (e.g. 1.2.3 or v1.2.3)")
-	changelogCmd.Flags().StringVar(&buildID, "build", "", "build ID appended to the tag via the {build} token in tag_format (requires --version)")
+	changelogCmd.Flags().StringVar(&versionOverride, "set-version", "", "override the resolved version — with or without tag prefix (e.g. 1.2.3 or v1.2.3)")
+	changelogCmd.Flags().StringVar(&buildID, "set-build-id", "", "build ID appended to the tag via the {build} token in tag_format (requires --set-version)")
 	changelogCmd.Flags().BoolVar(&regenerate, "regenerate", false,
 		"rebuild the entire changelog and re-fetch PR attribution (instead of incrementally adding the new section)")
 

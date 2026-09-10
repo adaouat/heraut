@@ -263,7 +263,7 @@
             "auto",
             "manual"
           ],
-          "description": "\"auto\" infers from conventional commits. \"manual\" requires --version. Defaults to \"auto\" when omitted."
+          "description": "\"auto\" infers from conventional commits. \"manual\" requires --set-version. Defaults to \"auto\" when omitted."
         },
         "overrides": {
           "type": "array",

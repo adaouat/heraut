@@ -40,7 +40,7 @@ checksum:
   name_template: "checksums.txt"
 
 # release.disable: true — goreleaser is build-only in the CI pipeline (ADR-0018).
-# heraut owns GitHub Release creation via `heraut release --version`.
+# heraut owns GitHub Release creation via `heraut release --set-version`.
 release:
   disable: true
 

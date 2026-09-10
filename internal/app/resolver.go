@@ -17,12 +17,12 @@ import (
 // NewResolver builds the appropriate versioning.Resolver from config.
 // env is the active environment name (empty for non-per-env strategies).
 // force is the --force flag value.
-// versionOverride is set when --version X.Y.Z is passed; when non-empty a
+// versionOverride is set when --set-version X.Y.Z is passed; when non-empty a
 // StaticResolver is returned for all strategies, bypassing git calls entirely.
-// buildID is set when --build <id> is passed; requires versionOverride to be set.
+// buildID is set when --set-build-id <id> is passed; requires versionOverride to be set.
 func NewResolver(cfg *config.Config, env string, force bool, versionOverride, buildID string, runner port.Runner) (versioning.Resolver, error) {
 	if buildID != "" && versionOverride == "" {
-		return nil, fmt.Errorf("--build requires --version: build ID cannot be combined with automatic version resolution")
+		return nil, fmt.Errorf("--set-build-id requires --set-version: build ID cannot be combined with automatic version resolution")
 	}
 	if versionOverride != "" {
 		var tf string
@@ -74,13 +74,13 @@ func NewResolver(cfg *config.Config, env string, force bool, versionOverride, bu
 	}
 }
 
-// ValidateBuildID reports whether a --build value is usable as a tag component.
+// ValidateBuildID reports whether a --set-build-id value is usable as a tag component.
 // Delegates to tagfmt so cmd does not import the versioning layer directly.
 func ValidateBuildID(build string) error {
 	return tagfmt.ValidateBuildID(build)
 }
 
-// ValidateVersionOverride reports whether a --version value is usable as a
+// ValidateVersionOverride reports whether a --set-version value is usable as a
 // tag/version override. Delegates to tagfmt so cmd does not import the
 // versioning layer directly.
 func ValidateVersionOverride(version string) error {
@@ -101,15 +101,15 @@ func defaultTagPrefix(strategy string) string {
 }
 
 // effectiveTagFmt returns the tag format to use for build ID rendering and
-// validates that {build} is present (required when --build is passed). The
+// validates that {build} is present (required when --set-build-id is passed). The
 // env-override → top-level resolution lives in config.EffectiveTagFormat.
 func effectiveTagFmt(cfg *config.Config, env string) (string, error) {
 	tf := cfg.EffectiveTagFormat(env)
 	if tf == "" {
-		return "", fmt.Errorf("--build requires versioning.tag_format to contain a {build} token, but tag_format is not set")
+		return "", fmt.Errorf("--set-build-id requires versioning.tag_format to contain a {build} token, but tag_format is not set")
 	}
 	if !strings.Contains(tf, "{build}") {
-		return "", fmt.Errorf("--build requires a {build} token in versioning.tag_format (got %q)", tf)
+		return "", fmt.Errorf("--set-build-id requires a {build} token in versioning.tag_format (got %q)", tf)
 	}
 	return tf, nil
 }

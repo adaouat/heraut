@@ -32,7 +32,7 @@ func Render(template string, t Tokens) (string, error) {
 	}
 	if strings.Contains(template, buildToken) && t.Build == "" {
 		return "", fmt.Errorf("tag format template contains %s but no build ID was provided; "+
-			"pass --build <id> to `heraut changelog` or `heraut release` "+
+			"pass --set-build-id <id> to `heraut changelog` or `heraut release` "+
 			"(version next infers the tag from git history, so it cannot supply one)", buildToken)
 	}
 	result := strings.ReplaceAll(template, versionToken, t.Version)
@@ -117,7 +117,7 @@ func ValidateBuildID(build string) error {
 	return nil
 }
 
-// ValidateVersionOverride checks that a --version value is usable as a tag/version
+// ValidateVersionOverride checks that a --set-version value is usable as a tag/version
 // override: non-empty and free of whitespace (git ref constraints). Unlike
 // ValidateBuildID, "/" is allowed — a full tag override may legitimately contain
 // one. heraut is strategy-agnostic about the shape of the override (SemVer,

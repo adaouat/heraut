@@ -9,7 +9,7 @@ import (
 // MajorMinor extracts the MAJOR and MINOR components from a bare SemVer version string, for
 // substitution into a rotating changelog output pattern's {MAJOR}/{MINOR} tokens. version must
 // have at least MAJOR.MINOR.PATCH shape; PATCH may carry a pre-release/build-metadata suffix
-// (e.g. "1.4.2-rc.1", "1.4.2+build.5") since heraut's --version override is strategy-agnostic
+// (e.g. "1.4.2-rc.1", "1.4.2+build.5") since heraut's --set-version override is strategy-agnostic
 // about shape (see tagfmt.ValidateVersionOverride) — MAJOR and MINOR are unaffected either way.
 func MajorMinor(version string) (major, minor int, err error) {
 	parts := strings.SplitN(version, ".", 3)

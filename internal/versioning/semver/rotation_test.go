@@ -17,7 +17,7 @@ func TestMajorMinor_BareVersion(t *testing.T) {
 }
 
 func TestMajorMinor_IgnoresPreReleaseAndBuildMetadata(t *testing.T) {
-	// A manual --version override can carry a pre-release/build suffix (heraut is
+	// A manual --set-version override can carry a pre-release/build suffix (heraut is
 	// strategy-agnostic about override shape — tagfmt.ValidateVersionOverride only checks for
 	// whitespace). MAJOR/MINOR must still extract cleanly since the suffix always attaches to
 	// PATCH, never to MAJOR or MINOR.

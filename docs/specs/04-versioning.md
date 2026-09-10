@@ -120,12 +120,12 @@ When no tags matching the prefix exist, the resolver returns `initial_version` (
 
 ### Manual mode
 
-`bump.mode: manual` requires `--version X.Y.Z` to be passed to `heraut release` (or
+`bump.mode: manual` requires `--set-version X.Y.Z` to be passed to `heraut release` (or
 `heraut version next`). If omitted, the command fails immediately with a runtime error
 (exit code 3 — see [Spec 01 § Exit codes](01-overview.md#exit-codes)) before any git
 operations.
 
-`--version` is not exclusive to manual mode — passed to *any* strategy, it short-circuits
+`--set-version` is not exclusive to manual mode — passed to *any* strategy, it short-circuits
 bump resolution entirely and bypasses git calls, exactly as described here (see also
 [Spec 03 § `heraut release`](03-commands.md#heraut-release)).
 
@@ -257,8 +257,8 @@ overrides the common one when both are set. See
 [Spec 02 § Common `tag_format`](02-configuration.md#common-tag_format).
 
 A third token, `{build}`, is available for CI build IDs (e.g. `"{env}/{version}-{build}"`
-→ `uat/7.4.1-158404`) — populated by `--build <id>` on `heraut changelog`/`heraut release`,
-requires `--version` to also be passed. See
+→ `uat/7.4.1-158404`) — populated by `--set-build-id <id>` on `heraut changelog`/`heraut release`,
+requires `--set-version` to also be passed. See
 [Spec 02 § `{build}` token](02-configuration.md#build-token--ci-build-ids) for the full
 reference.
 

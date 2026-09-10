@@ -87,7 +87,7 @@ versioning:
 | `strategy`        | Yes         | —                                        | One of: `semver`, `calver`, `semver-per-env`, `calver-per-env`.                                                                                                                                                            |
 | `tag_prefix`          | No          | `"v"` (semver), `""` (calver)            | Tag prefix prepended to the version string. Set to `""` to produce bare version tags.                                                                                                                                      |
 | `initial_version` | No          | `"0.1.0"`                                | Version used when no tags exist yet. SemVer strategies only.                                                                                                                                                               |
-| `bump`            | No          | `"auto"`                                 | `auto` — infer bump from conventional commits. `manual` — requires `--version` flag at runtime. SemVer strategies only.                                                                                                    |
+| `bump`            | No          | `"auto"`                                 | `auto` — infer bump from conventional commits. `manual` — requires `--set-version` flag at runtime. SemVer strategies only.                                                                                                    |
 | `format`          | CalVer      | —                                        | CalVer format string (see [Spec 04 — Versioning § CalVer format tokens](04-versioning.md#calver-format-tokens)). Required for `calver` and `calver-per-env`.                                                               |
 | `sprint`          | Conditional | —                                        | Current sprint number. Required when `format` contains the `SPRINT` token. Advance with `heraut version sprint bump`.                                                                                                      |
 | `tag_format`      | No          | —                                        | Common tag format for all environments (per-env strategies). `{env}` is replaced with the environment name; `{version}` with the resolved version. Per-environment `tag_format` overrides this.                            |
@@ -312,38 +312,38 @@ versioning:
   tag_format: "{env}/{version}-{build}"  # e.g. uat/7.4.1-158404
 ```
 
-`{build}` is populated by the `--build <id>` flag on `heraut changelog` and `heraut release`:
+`{build}` is populated by the `--set-build-id <id>` flag on `heraut changelog` and `heraut release`:
 
 ```bash
-heraut changelog --tag --env uat --version 7.4.1 --build $CI_PIPELINE_ID
-heraut release         --env uat --version 7.4.1 --build $CI_PIPELINE_ID
+heraut changelog --tag --env uat --set-version 7.4.1 --set-build-id $CI_PIPELINE_ID
+heraut release         --env uat --set-version 7.4.1 --set-build-id $CI_PIPELINE_ID
 ```
 
 **Constraints:**
 
-- `--build` requires `--version` — build IDs come from CI, not from commit analysis.
-- If `{build}` appears in `tag_format` but `--build` is not passed, heraut exits with
+- `--set-build-id` requires `--set-version` — build IDs come from CI, not from commit analysis.
+- If `{build}` appears in `tag_format` but `--set-build-id` is not passed, heraut exits with
   an error.
-- Build IDs must not contain `/` or whitespace (git tag constraint). `--build` rejects
+- Build IDs must not contain `/` or whitespace (git tag constraint). `--set-build-id` rejects
   an invalid value up front with an actionable error.
 - Internally, the changelog range comparison treats `{build}` as a non-capturing wildcard,
   so existing tags like `uat/7.4.0-155391` correctly yield version `7.4.0` when computing
   the commit range.
 
-**Scope:** the `{build}` flow is supported by `heraut changelog --build` and
-`heraut release --build`. With a `tag_format` that contains `{build}`, commands that infer
+**Scope:** the `{build}` flow is supported by `heraut changelog --set-build-id` and
+`heraut release --set-build-id`. With a `tag_format` that contains `{build}`, commands that infer
 the tag from git history cannot render one (no build ID is available) and will error:
 
 | Command | Status |
 |---|---|
-| `heraut changelog --tag --version … --build …` | ✅ supported |
-| `heraut release --version … --build …` | ✅ supported |
+| `heraut changelog --tag --set-version … --set-build-id …` | ✅ supported |
+| `heraut release --set-version … --set-build-id …` | ✅ supported |
 | `heraut version next` | ❌ cannot render a build tag |
 | `heraut version current --env <env>` | ✅ raw tag; add `--bare` for the stripped version (`7.4.1`) |
 
-`heraut release --build` publishes **one platform release per build** — intentional for
-build-per-release teams. Passing both `--version` and `--build` is the explicit opt-in;
-heraut does not guard or warn (mirrors `changelog --build`).
+`heraut release --set-build-id` publishes **one platform release per build** — intentional for
+build-per-release teams. Passing both `--set-version` and `--set-build-id` is the explicit opt-in;
+heraut does not guard or warn (mirrors `changelog --set-build-id`).
 
 **Changelog note:** Native generates one section per tag boundary. Multiple builds
 of the same semantic version produce multiple sections with the same heading. For a clean

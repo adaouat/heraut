@@ -183,7 +183,7 @@ tag push trigger; cutting a release is a manually-invoked action, not a reaction
 tag someone already pushed. GoReleaser is **build-only** here (`release: disable: true`
 in `.goreleaser.yml`, [ADR-0018](../adr/0018-ci-build-then-release-pipeline.md)): it
 cross-compiles the binaries and nothing else. The freshly-built `heraut` binary then runs
-`heraut release --version <version>` **against itself** — this is what actually creates
+`heraut release --set-version <version>` **against itself** — this is what actually creates
 the git tag and the GitHub Release (dogfooding), uploads the checksums/binaries as
 release assets, and attaches build-provenance attestation. Separate `docker-build` /
 `docker-merge` jobs build and push the multi-arch `ghcr.io/adaouat/heraut` image.

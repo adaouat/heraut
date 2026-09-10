@@ -83,20 +83,20 @@ already exists, else `.heraut.yml`. The file starts with a
 Run the full release pipeline.
 
 ```
-heraut release [--version <version>] [--build <id>] [--regenerate-changelog] [--dry-run] [--env <name>] [--force]
+heraut release [--set-version <version>] [--set-build-id <id>] [--regenerate-changelog] [--dry-run] [--env <name>] [--force]
 ```
 
 | Flag                     | Description                                                                          |
 |--------------------------|--------------------------------------------------------------------------------------|
-| `--version`              | Override the auto-computed version for **any** strategy. Bypasses bump resolution entirely — no git calls are made to resolve it. Accepts any non-empty value with no whitespace; an optional leading `v` is stripped, then the result is rendered through the active strategy's tag shape exactly like an auto-resolved version would be: through the effective `tag_format` when one applies (per-env strategies, or a top-level `tag_format`), otherwise through `versioning.tag_prefix` (default `"v"` for SemVer strategies, `""` for CalVer). A full tag already carrying the right prefix round-trips unchanged. |
-| `--build`                | CI build ID appended to the tag via the `{build}` token in `tag_format`. Requires `--version`. |
+| `--set-version`          | Override the auto-computed version for **any** strategy. Bypasses bump resolution entirely — no git calls are made to resolve it. Accepts any non-empty value with no whitespace; an optional leading `v` is stripped, then the result is rendered through the active strategy's tag shape exactly like an auto-resolved version would be: through the effective `tag_format` when one applies (per-env strategies, or a top-level `tag_format`), otherwise through `versioning.tag_prefix` (default `"v"` for SemVer strategies, `""` for CalVer). A full tag already carrying the right prefix round-trips unchanged. |
+| `--set-build-id`         | CI build ID appended to the tag via the `{build}` token in `tag_format`. Requires `--set-version`. |
 | `--regenerate-changelog` | Rebuild the entire changelog and re-enrich every section (batched per platform; one API call per commit on GitLab) instead of incrementally splicing just the new section. See [ADR-0038](../adr/0038-incremental-changelog.md). |
 | `--dry-run`              | Print the action plan; execute nothing.                                              |
 | `--env`                  | Active environment (required for per-env strategies).                                |
 | `--force`                | Bypass E001 (target tag exists) and E002 (destination ahead).                        |
 
-> **`{build}` tag formats:** with a `tag_format` containing `{build}`, pass `--build <id>`
-> (requires `--version`) to render and publish a release per build — this creates one
+> **`{build}` tag formats:** with a `tag_format` containing `{build}`, pass `--set-build-id <id>`
+> (requires `--set-version`) to render and publish a release per build — this creates one
 > platform release per build, by design. See
 > [Spec 02 § `{build}` token](02-configuration.md#build-token--ci-build-ids).
 
@@ -171,7 +171,7 @@ Resolve the next version, optionally generate a changelog, optionally commit and
 without publishing to any release platform.
 
 ```
-heraut changelog [--commit] [--tag] [--no-push] [--version <version>] [--regenerate] [--dry-run] [--env <name>]
+heraut changelog [--commit] [--tag] [--no-push] [--set-version <version>] [--regenerate] [--dry-run] [--env <name>]
 ```
 
 | Flag           | Description                                                                                              |
@@ -179,15 +179,15 @@ heraut changelog [--commit] [--tag] [--no-push] [--version <version>] [--regener
 | `--commit`     | After generating, commit `CHANGELOG.md` and push.                                                        |
 | `--tag`        | After committing, create and push a git tag on that commit. Implies `--commit`.                          |
 | `--no-push`    | Commit and tag locally without pushing. Skips both `git push origin HEAD` and `git push origin <tag>`. Only meaningful with `--commit`/`--tag`. |
-| `--version`    | Override the auto-computed version. Bypasses bump resolution. Same validation as `heraut release --version` — non-empty, no whitespace, format-agnostic. |
-| `--build`      | CI build ID appended to the tag via the `{build}` token in `tag_format`. Requires `--version`.           |
+| `--set-version`| Override the auto-computed version. Bypasses bump resolution. Same validation as `heraut release --set-version` — non-empty, no whitespace, format-agnostic. |
+| `--set-build-id` | CI build ID appended to the tag via the `{build}` token in `tag_format`. Requires `--set-version`.     |
 | `--regenerate` | Rebuild the entire changelog and re-enrich every section (batched per platform; one API call per commit on GitLab) instead of incrementally splicing just the new section. See [ADR-0038](../adr/0038-incremental-changelog.md). |
 | `--dry-run`    | Print the action plan; execute nothing.                                                                  |
 | `--env`        | Active environment.                                                                                      |
 
 **Action sequence** (with `--tag`, mirrors `cog bump`):
 
-1. Resolve next version (or use `--version`)
+1. Resolve next version (or use `--set-version`)
 2. Generate and update `CHANGELOG.md` (only if `changelog` is configured)
 3. Commit and push — `chore(release): <version>` (push skipped with `--no-push`). If
    `git add` stages nothing (the changelog is byte-identical to the last commit), the
@@ -201,7 +201,7 @@ let a CI job own pushing) afterwards. The flag is a no-op without `--commit`/`--
 since nothing is committed or tagged to push.
 
 To then publish the platform release without re-generating the changelog, run
-`heraut release --version <tag>`.
+`heraut release --set-version <tag>`.
 
 If the active environment has `disable_changelog: true`, changelog generation and the
 git commit are skipped. If `--tag` was also passed, the tag is still created and pushed
@@ -248,8 +248,8 @@ attempting resolution.
 Exits non-zero if a promotion guard trips (E001/E002/E003).
 
 > **`{build}` tag formats:** `version next` cannot render a tag that requires a build ID
-> and will error — it infers the tag from git history with no `--build` flag to supply one.
-> `heraut changelog --build` and `heraut release --build` are the two commands that can
+> and will error — it infers the tag from git history with no `--set-build-id` flag to supply one.
+> `heraut changelog --set-build-id` and `heraut release --set-build-id` are the two commands that can
 > render one (see [Spec 02 § `{build}` token](02-configuration.md#build-token--ci-build-ids)).
 
 ## `heraut version current`

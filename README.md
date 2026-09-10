@@ -152,10 +152,6 @@ Every command takes `--dry-run` and `--help`; see
 [Spec 03 — Commands](docs/specs/03-commands.md) for the full reference including every
 global flag.
 
-> **Gotcha:** `--version`/`-v` is root-only and prints the heraut binary's own version.
-> `heraut release --version <value>` is a different, subcommand-local flag that
-> *overrides the resolved release version* — same name, unrelated meaning.
-
 ## Configuration
 
 Configuration lives in `.heraut.yml` (or `.config/heraut.yml`). Add the schema header for

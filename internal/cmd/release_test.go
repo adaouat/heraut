@@ -19,7 +19,7 @@ func TestRelease_Structural(t *testing.T) {
 	require.NotNil(t, c)
 	assert.Equal(t, "release", c.Use)
 	assert.NotEmpty(t, c.Short)
-	for _, name := range []string{"version", "build"} {
+	for _, name := range []string{"set-version", "set-build-id"} {
 		assert.NotNil(t, c.Flags().Lookup(name), "flag %q not registered", name)
 	}
 }
@@ -38,9 +38,9 @@ versioning:
   strategy: semver-per-env
   tag_format: "{env}/{version}-{build}"
 `)
-	_, err := executeRoot("release", "--config", cfgPath, "--env", "uat", "--build", "12345")
+	_, err := executeRoot("release", "--config", cfgPath, "--env", "uat", "--set-build-id", "12345")
 	require.Error(t, err)
-	assert.Contains(t, err.Error(), "--version")
+	assert.Contains(t, err.Error(), "--set-version")
 }
 
 func TestRelease_BuildRejectsInvalidValue(t *testing.T) {
@@ -51,7 +51,7 @@ versioning:
   tag_format: "{env}/{version}-{build}"
 `)
 	_, err := executeRoot("release", "--config", cfgPath, "--env", "uat",
-		"--version", "7.4.1", "--build", "bad/value")
+		"--set-version", "7.4.1", "--set-build-id", "bad/value")
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "build")
 }
@@ -74,7 +74,7 @@ release:
     - forge: github
 `)
 	out, err := executeRoot("release", "--config", cfgPath, "--env", "uat",
-		"--version", "7.4.1", "--build", "158404", "--dry-run")
+		"--set-version", "7.4.1", "--set-build-id", "158404", "--dry-run")
 	require.NoError(t, err)
 	assert.Contains(t, out, "uat/7.4.1-158404")
 }
@@ -256,7 +256,7 @@ release:
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			_, err := executeRoot("release", "--config", cfgPath, "--version", tc.version, "--dry-run")
+			_, err := executeRoot("release", "--config", cfgPath, "--set-version", tc.version, "--dry-run")
 			require.Error(t, err)
 			assert.Equal(t, exitcode.Config, cmd.ExitCode(err))
 		})
@@ -296,7 +296,7 @@ release:
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			out, err := executeRoot("release", "--config", cfgPath, "--version", tc.version, "--dry-run")
+			out, err := executeRoot("release", "--config", cfgPath, "--set-version", tc.version, "--dry-run")
 			require.NoError(t, err)
 			assert.Contains(t, out, "[dry-run]")
 		})

@@ -15,7 +15,7 @@ import (
 // rotatingGenerator wraps a port.Generator so a rotating changelog.output pattern (e.g.
 // "CHANGELOG_{YYYY}.md") resolves to a concrete path — and a matching tag-scoping pattern — from
 // the pipeline's actual resolved tag, not at buildChangelogPipelineConfig/buildReleasePipelineConfig
-// time. A manual --version override bypasses the resolver's own date/bump computation, so only the
+// time. A manual --set-version override bypasses the resolver's own date/bump computation, so only the
 // tag Generate() actually receives is guaranteed to match what gets written; native itself must not
 // perform this substitution either, since native may only import internal/{port,config,
 // conventionalcommit} (.claude/rules/coding.md), never internal/versioning. See
