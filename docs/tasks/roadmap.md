@@ -205,7 +205,7 @@ discipline that applies to every task.
 | 34 | Scoped-changelog `--regenerate` leaks out-of-scope history into the oldest section | Done |
 | 35 | `heraut init` can emit an invalid rotation/per-env combination | Done |
 | 36 | GPG-signed commits/tags hang: subprocess stdin was never wired to the terminal | Done |
-| 37 | Skip version bump for no-op-only releases | Not started |
+| 37 | Skip version bump for no-op-only releases | Done — see ADR-0052 |
 | 38 | Track every PR for a first-time contributor, not just the first | Done |
 
 ### Open items
@@ -549,26 +549,49 @@ decision.
 
 ### Phase 37 — Skip version bump for no-op-only releases
 
-#### ✦ `[ ]` T261: exclude commit types from bump determination
+#### ✦ `[x]` T261: exclude commit types from bump determination
 
-`DetermineBump` (`internal/versioning/semver/bump.go:14`) defaults to `versioning.BumpPatch` the
-moment *any* parseable conventional commit exists, regardless of type — a lone `chore(deps): bump
-foo` currently forces a patch release exactly like a `fix:` would. There's no way today to say
-"these commit types alone shouldn't produce a release." `versioning.BumpNone` exists but is only
-reachable via "no commits since last tag" (`internal/versioning/semver/resolver.go:76,110`), never
-via "commits exist but none of them qualify."
+`versioning.bump` changed from a plain string to an object (`config.BumpConfig{Mode, Overrides}`,
+ADR-0052 — a deliberate pre-v1.0 breaking config-shape change, no back-compat shim): `mode`
+(`auto`/`manual`, defaulting to `auto`) plus `overrides`, a list of `config.BumpRule{Type, Regex,
+Breaking *bool, Bump}` rules reusing the same `type`/`regex` matcher shape as `rendering.excludes`
+rather than a standalone mechanism. `DetermineBump(commits []string, overrides []config.BumpRule)`
+resolves each commit's level by checking, in order: the first matching user rule (all of its set
+conditions — type, regex against the subject, breaking — must hold; unset conditions are
+wildcards), then the built-in defaults (breaking → major, `feat` → minor, else patch), then "no
+match, not conventional" → contributes nothing. A rule can override the previously-hardcoded
+"breaking is always major" too (`{breaking: true, bump: minor}`), fully answering the "can this be
+made configurable" follow-up. The release's bump is the highest level any commit contributes;
+`versioning.BumpNone` now correctly means "nothing to release."
 
-**Open design question — resolve before implementing:** heraut already has a per-type config
-model (`commits.types` / `config.TypeRule`) driving changelog section labels/order and
-`heraut commit verify`'s allow-list. A standalone commit-exclusion mechanism (e.g. a subject-regex
-list) bolted on separately would add a second, independent commit-classification path alongside
-the existing type-based one. The more consistent alternative is extending `TypeRule` itself with
-an explicit bump-contribution field (e.g. `bump: patch|minor|major|none`, defaulting to today's
-behavior for backward compatibility) so one taxonomy drives both grouping and version bump. Needs
-a decision — and a check of what the pipeline actually does end-to-end when resolution yields
-`BumpNone` with real commits present (tagging/publishing must skip cleanly, not just "no commits at
-all" paths) — before this can be called easy. Scope (semver only, vs. calver/per-env too) is also
-undecided.
+Also fixed along the way: `BumpVersion`'s switch had no `BumpNone` case and fell to the same
+`patch++` branch as `BumpPatch` — a latent bug, since `BumpNone` was previously only reachable via
+paths that never call `BumpVersion`. Confirmed out of scope: calver/perenv never call
+`DetermineBump` (calver has no "bump amount" concept), so this is inherently SemVer-only;
+`semver-per-env`'s "auto" environments get it for free via the shared `BumpAuto`.
+
+`resolveAuto` and `BumpAuto` now return a dedicated error when resolution yields `BumpNone` with
+real commits present — distinct from the pre-existing "no commits at all" error — listing each
+excluded commit's subject line:
+```
+no releasable commits since v0.62.0: 3 commit(s) since then are excluded from the version bump
+  - chore: bump deps
+```
+Commit hashes were deliberately left out of the list: including them would require changing the
+`git log --format` in two independent places (`semver`'s own call, and `perenv`'s separate fetch
+feeding the shared `VersionCalculator.BumpAuto` interface) for a display-only improvement.
+
+TDD: `TestBumpVersion_NoneLeavesVersionUnchanged`; `TestDetermineBump`'s table extended in place
+(existing rows kept, `nil` overrides) with 8 new override-behavior rows (type/regex/breaking
+matching, first-match-wins ordering, breaking-override, `breaking: false` scoping);
+`TestResolve_AllCommitsExcluded_Error` / `TestBumpAuto_AllCommitsExcluded_Error` for the new error;
+config-layer: `TestValidate_bumpOverride_*` (missing matcher, type+regex both set, invalid regex,
+invalid bump level, breaking-only-matcher valid) plus the two existing bump-mode tests adapted to
+the nested shape. `schema.json` (`BumpConfig`/`BumpRule` definitions), `docs/heraut.sample.yml`,
+`docs/specs/04-versioning.md` (new "Bump-level overrides" section), `docs/specs/02-configuration.md`,
+`README.md`, this repo's own `.config/heraut.yml`, and every `testdata/config/valid/*.yml` fixture
+with a top-level `versioning.bump` were updated to the new shape. Full `go test ./...` and
+`hk check` (golangci-lint, gofmt, yamlfmt, typos) clean.
 
 ---
 

@@ -22,7 +22,11 @@ versioning:
   strategy: semver
   tag_prefix: "v"                   # tag prefix, default "v"
   initial_version: "0.1.0"
-  bump: auto                    # auto | manual
+  bump:
+    mode: auto                      # auto | manual — defaults to auto when omitted
+    overrides:                      # optional; see § Bump-level overrides below
+      - type: chore
+        bump: none
 ```
 
 Version is inferred from [Conventional Commits](https://www.conventionalcommits.org/)
@@ -30,26 +34,65 @@ since the last tag.
 
 ### Bump determination
 
-| Commit pattern                                    | Bump level |
-|---------------------------------------------------|------------|
-| `type!:` / `type(scope)!:` prefix (e.g. `feat!:`, `fix(api)!:`) or a `BREAKING CHANGE:` / `BREAKING-CHANGE:` footer | major |
-| Any `feat:` commit (and no breaking change)       | minor      |
-| Anything else (including `fix:`, chore/docs/refactor/style/test/ci, or unparsable commits) | patch (floor) |
-| No commits since last tag                         | error      |
+Each commit resolves to a level — `major`, `minor`, `patch`, or `none` — by checking, in
+order:
 
-`patch` is the unconditional floor, not a `fix:`-specific rule: the determination only
-ever *raises* the bump above `patch` when it finds a breaking-change marker (→ major) or
-a `feat:` commit with no breaking change (→ minor). A `fix:` commit does not itself cause
-a patch bump — ten non-conventional commits with no recognized type produce the same
-`patch` result as ten `fix:` commits, because there is nothing in the batch to raise the
-floor. The highest applicable bump wins (e.g. a single `feat!:` outranks ten `fix:` commits).
-The `!` must sit immediately before the colon in the subject's type/scope prefix — a
-bare `!:` inside the description does not trigger a major bump. `BREAKING-CHANGE:` is
+1. **User overrides** (`versioning.bump.overrides`, see below) — the first matching rule
+   wins.
+2. **Built-in defaults**, when no override matches:
+
+   | Commit pattern                                    | Bump level |
+   |---------------------------------------------------|------------|
+   | `type!:` / `type(scope)!:` prefix (e.g. `feat!:`, `fix(api)!:`) or a `BREAKING CHANGE:` / `BREAKING-CHANGE:` footer | major |
+   | Any `feat:` commit (and no breaking change)       | minor      |
+   | Any other conventional commit (`fix:`, chore/docs/refactor/style/test/ci/build/…) | patch |
+   | Not a conventional commit, and no override matched it | none (ignored) |
+
+The release's bump is the **highest** level contributed by any commit. If nothing
+contributes — every commit resolved to `none`, or none were conventional commits an
+override matched — the release has no bump, which is an error (see below), not a silent
+patch. The `!` must sit immediately before the colon in the subject's type/scope prefix —
+a bare `!:` inside the description does not trigger a major bump. `BREAKING-CHANGE:` is
 treated as a synonym of `BREAKING CHANGE:`, per Conventional Commits 1.0.0. Either form
 must begin its own paragraph to count as a footer — either the message's first line, or
 a line immediately following a blank line. A wrapped body line that merely starts with
 the token (a continuation of the previous line's sentence) does not trigger a major
 bump.
+
+### Bump-level overrides
+
+`versioning.bump.overrides` is a list of rules, evaluated in order — the first match
+wins, including over the "breaking commits are major" and "feat commits are minor"
+built-in defaults. Each rule sets exactly one of `type` (the conventional-commit type) or
+`regex` (matched against the commit subject), optionally combined with `breaking` (`true`
+or `false`) to further scope the match, plus the `bump` level to assign: `major`,
+`minor`, `patch`, or `none`.
+
+```yaml
+versioning:
+  bump:
+    overrides:
+      - type: chore
+        bump: none                  # chore commits no longer contribute to the bump
+      - regex: '^chore\(deps.*\)'
+        bump: none
+      - type: fix
+        bump: minor                 # promote fixes to a minor bump
+      - breaking: true
+        bump: minor                 # even breaking changes only bump minor pre-1.0
+```
+
+A commit whose only matching rule resolves to `none` behaves like a non-conventional
+commit: it does not raise the release's bump level. If every commit since the last tag
+ends up this way, `heraut release` fails with an error listing the excluded commits
+(subject lines only) instead of silently cutting an empty-content release:
+
+```
+no releasable commits since v0.62.0: 3 commit(s) since then are excluded from the version bump
+  - chore: bump deps
+  - docs: fix typo
+  - chore(ci): update workflow
+```
 
 ### Prefix handling
 
@@ -77,7 +120,7 @@ When no tags matching the prefix exist, the resolver returns `initial_version` (
 
 ### Manual mode
 
-`bump: manual` requires `--version X.Y.Z` to be passed to `heraut release` (or
+`bump.mode: manual` requires `--version X.Y.Z` to be passed to `heraut release` (or
 `heraut version next`). If omitted, the command fails immediately with a runtime error
 (exit code 3 — see [Spec 01 § Exit codes](01-overview.md#exit-codes)) before any git
 operations.

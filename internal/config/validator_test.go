@@ -36,7 +36,8 @@ version: "1"
 versioning:
   strategy: semver
   tag_prefix: "v"
-  bump: auto
+  bump:
+    mode: auto
 `)
 	assert.Empty(t, config.Validate(cfg))
 }
@@ -139,10 +140,11 @@ func TestValidate_invalidBump(t *testing.T) {
 version: "1"
 versioning:
   strategy: semver
-  bump: sometimes
+  bump:
+    mode: sometimes
 `)
 	errs := config.Validate(cfg)
-	e := findErr(errs, "versioning.bump")
+	e := findErr(errs, "versioning.bump.mode")
 	require.NotNil(t, e)
 	assert.Contains(t, e.Message, "sometimes")
 	assert.Contains(t, e.Hint, "auto")
@@ -156,11 +158,98 @@ func TestValidate_validBumpModes(t *testing.T) {
 version: "1"
 versioning:
   strategy: semver
-  bump: `+bump+`
+  bump:
+    mode: `+bump+`
 `)
 			assert.Empty(t, config.Validate(cfg))
 		})
 	}
+}
+
+// ── bump.overrides (T261) ───────────────────────────────────────────────────
+
+func TestValidate_bumpOverride_missingMatcher(t *testing.T) {
+	cfg := mustLoad(t, `
+version: "1"
+versioning:
+  strategy: semver
+  bump:
+    mode: auto
+    overrides:
+      - bump: none
+`)
+	errs := config.Validate(cfg)
+	e := findErr(errs, "versioning.bump.overrides[0]")
+	require.NotNil(t, e)
+	assert.Contains(t, e.Message, "at least one")
+}
+
+func TestValidate_bumpOverride_typeAndRegexBothSet(t *testing.T) {
+	cfg := mustLoad(t, `
+version: "1"
+versioning:
+  strategy: semver
+  bump:
+    mode: auto
+    overrides:
+      - type: chore
+        regex: '^chore\(deps'
+        bump: none
+`)
+	errs := config.Validate(cfg)
+	e := findErr(errs, "versioning.bump.overrides[0]")
+	require.NotNil(t, e)
+	assert.Contains(t, e.Message, "only one")
+}
+
+func TestValidate_bumpOverride_invalidRegex(t *testing.T) {
+	cfg := mustLoad(t, `
+version: "1"
+versioning:
+  strategy: semver
+  bump:
+    mode: auto
+    overrides:
+      - regex: '['
+        bump: none
+`)
+	errs := config.Validate(cfg)
+	e := findErr(errs, "versioning.bump.overrides[0].regex")
+	require.NotNil(t, e)
+	assert.Contains(t, e.Message, "invalid regex")
+}
+
+func TestValidate_bumpOverride_invalidBumpLevel(t *testing.T) {
+	cfg := mustLoad(t, `
+version: "1"
+versioning:
+  strategy: semver
+  bump:
+    mode: auto
+    overrides:
+      - type: chore
+        bump: gigantic
+`)
+	errs := config.Validate(cfg)
+	e := findErr(errs, "versioning.bump.overrides[0].bump")
+	require.NotNil(t, e)
+	assert.Contains(t, e.Message, "gigantic")
+	assert.Contains(t, e.Hint, "major")
+	assert.Contains(t, e.Hint, "none")
+}
+
+func TestValidate_bumpOverride_breakingOnlyMatcherIsValid(t *testing.T) {
+	cfg := mustLoad(t, `
+version: "1"
+versioning:
+  strategy: semver
+  bump:
+    mode: auto
+    overrides:
+      - breaking: true
+        bump: minor
+`)
+	assert.Empty(t, config.Validate(cfg))
 }
 
 // ── tag_type ──────────────────────────────────────────────────────────────────

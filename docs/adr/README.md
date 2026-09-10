@@ -56,3 +56,4 @@ trade-offs were accepted.
 | [0049](0049-changelog-release-notes-footer-block.md) | Document-level `footer` block, `footer` → `release_footer` rename | Accepted (the "frozen until `--regenerate`" framing superseded by 0050 — preamble/postamble now always render fresh) |
 | [0050](0050-changelog-preamble-postamble-always-fresh.md) | Changelog preamble/postamble always render fresh — no more "frozen until regenerate" | Accepted |
 | [0051](0051-footer-visual-separator.md) | Automatic blank-line + horizontal-rule separator before `footer` | Accepted |
+| [0052](0052-versioning-bump-object-and-overrides.md) | `versioning.bump` becomes an object with mode + per-commit overrides | Accepted |

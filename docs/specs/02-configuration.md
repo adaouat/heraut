@@ -115,7 +115,8 @@ versioning:
   strategy: semver
   tag_prefix: "v"             # produces tags like v1.2.3
   initial_version: "0.1.0"
-  bump: auto
+  bump:
+    mode: auto
 ```
 
 ### Strategy: `calver`
@@ -864,7 +865,8 @@ versioning:
   strategy: semver
   tag_prefix: "v"
   initial_version: "0.1.0"
-  bump: auto
+  bump:
+    mode: auto
 
 changelog:
   output: CHANGELOG.md

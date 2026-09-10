@@ -252,6 +252,60 @@
         }
       }
     },
+    "BumpConfig": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "SemVer auto-bump resolution mode and per-commit bump-level overrides.",
+      "properties": {
+        "mode": {
+          "type": "string",
+          "enum": [
+            "auto",
+            "manual"
+          ],
+          "description": "\"auto\" infers from conventional commits. \"manual\" requires --version. Defaults to \"auto\" when omitted."
+        },
+        "overrides": {
+          "type": "array",
+          "description": "Bump-level rules evaluated in order; the first match wins over the built-in defaults (breaking commits -> major, feat -> minor, any other conventional commit -> patch).",
+          "items": {
+            "$ref": "#/definitions/BumpRule"
+          }
+        }
+      }
+    },
+    "BumpRule": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "bump"
+      ],
+      "description": "Assigns a bump level to commits matching type, regex, and/or breaking (all specified conditions must hold; at least one must be set). type and regex are mutually exclusive, like Exclude.",
+      "properties": {
+        "type": {
+          "type": "string",
+          "description": "Match commits of this conventional-commit type."
+        },
+        "regex": {
+          "type": "string",
+          "description": "Match commits whose subject matches this regex."
+        },
+        "breaking": {
+          "type": "boolean",
+          "description": "Further scope the match to commits with (true) or without (false) the breaking-change flag/footer."
+        },
+        "bump": {
+          "type": "string",
+          "enum": [
+            "major",
+            "minor",
+            "patch",
+            "none"
+          ],
+          "description": "Bump level to assign to matching commits. \"none\" excludes them from the release's bump entirely."
+        }
+      }
+    },
     "Versioning": {
       "type": "object",
       "required": [
@@ -278,12 +332,8 @@
           "description": "Version used when no tags exist yet. SemVer strategies only."
         },
         "bump": {
-          "type": "string",
-          "enum": [
-            "auto",
-            "manual"
-          ],
-          "description": "Bump mode. \"auto\" infers from conventional commits. SemVer strategies only."
+          "$ref": "#/definitions/BumpConfig",
+          "description": "SemVer auto-bump resolution: mode and, for auto mode, per-commit bump-level overrides. SemVer strategies only."
         },
         "format": {
           "type": "string",

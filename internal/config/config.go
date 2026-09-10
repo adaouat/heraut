@@ -49,19 +49,57 @@ type Ticket struct {
 
 // Versioning holds version resolution settings.
 type Versioning struct {
-	Strategy       string  `yaml:"strategy"`
-	TagPrefix      *string `yaml:"tag_prefix,omitempty"`
-	InitialVersion string  `yaml:"initial_version,omitempty"`
-	Bump           string  `yaml:"bump,omitempty"`
-	Format         string  `yaml:"format,omitempty"`
-	Sprint         int     `yaml:"sprint,omitempty"`
-	TagFormat      string  `yaml:"tag_format,omitempty"`
-	TagType        string  `yaml:"tag_type,omitempty"`
+	Strategy       string      `yaml:"strategy"`
+	TagPrefix      *string     `yaml:"tag_prefix,omitempty"`
+	InitialVersion string      `yaml:"initial_version,omitempty"`
+	Bump           *BumpConfig `yaml:"bump,omitempty"`
+	Format         string      `yaml:"format,omitempty"`
+	Sprint         int         `yaml:"sprint,omitempty"`
+	TagFormat      string      `yaml:"tag_format,omitempty"`
+	TagType        string      `yaml:"tag_type,omitempty"`
 	// CommitMessage is the git commit message template for the changelog commit heraut
 	// creates, and — when the tag is annotated (TagType != "lightweight") — the tag's own
 	// annotation message too (internal/pipeline/git.go's commitMessage()). "${version}" is
 	// substituted with the resolved version. Defaults to "chore(release): ${version}".
 	CommitMessage string `yaml:"commit_message,omitempty"`
+}
+
+// BumpMode returns the configured SemVer bump mode ("auto" or "manual"), defaulting to "auto"
+// when bump is omitted or bump.mode is unset. Nil-safe.
+func (v Versioning) BumpMode() string {
+	if v.Bump == nil || v.Bump.Mode == "" {
+		return "auto"
+	}
+	return v.Bump.Mode
+}
+
+// BumpOverrides returns the configured version-bump override rules (versioning.bump.overrides),
+// or nil. Nil-safe.
+func (v Versioning) BumpOverrides() []BumpRule {
+	if v.Bump == nil {
+		return nil
+	}
+	return v.Bump.Overrides
+}
+
+// BumpConfig configures SemVer auto-bump resolution (T261): the resolution mode, and — for auto
+// mode — per-commit bump-level overrides layered on top of the built-in defaults (breaking
+// commits → major, feat → minor, any other conventional commit → patch).
+type BumpConfig struct {
+	Mode      string     `yaml:"mode,omitempty"`
+	Overrides []BumpRule `yaml:"overrides,omitempty"`
+}
+
+// BumpRule assigns an explicit bump level to commits matching Type, Regex, and/or Breaking — all
+// specified conditions must hold (unset conditions are wildcards); Type and Regex are mutually
+// exclusive, like Exclude. Rules are evaluated in order; the first match wins over the built-in
+// defaults, so a rule can also override "breaking commits are always major" (e.g. {breaking:
+// true, bump: minor}).
+type BumpRule struct {
+	Type     string `yaml:"type,omitempty"`
+	Regex    string `yaml:"regex,omitempty"`
+	Breaking *bool  `yaml:"breaking,omitempty"`
+	Bump     string `yaml:"bump"` // "major" | "minor" | "patch" | "none"
 }
 
 // Environment holds all per-environment configuration under the root environments map.

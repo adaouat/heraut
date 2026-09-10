@@ -31,6 +31,9 @@ var (
 	validBumpModes = map[string]bool{
 		"auto": true, "manual": true,
 	}
+	validBumpLevels = map[string]bool{
+		"major": true, "minor": true, "patch": true, "none": true,
+	}
 	commitTypePattern = regexp.MustCompile(`^\w+$`)
 )
 
@@ -43,6 +46,7 @@ func Validate(cfg *Config) ValidationErrors {
 	var errs ValidationErrors
 	errs = append(errs, validateRequired(cfg)...)
 	errs = append(errs, validateEnums(cfg)...)
+	errs = append(errs, validateVersioningBump(cfg)...)
 	errs = append(errs, validateStrategySpecific(cfg)...)
 	errs = append(errs, validateEnvContradictions(cfg.Environments)...)
 	errs = append(errs, validateTickets(cfg)...)
@@ -458,10 +462,10 @@ func validateEnums(cfg *Config) []ValidationError {
 			Hint:    "valid tag types: annotated, lightweight",
 		})
 	}
-	if cfg.Versioning.Bump != "" && !validBumpModes[cfg.Versioning.Bump] {
+	if cfg.Versioning.Bump != nil && cfg.Versioning.Bump.Mode != "" && !validBumpModes[cfg.Versioning.Bump.Mode] {
 		errs = append(errs, ValidationError{
-			Path:    "versioning.bump",
-			Message: fmt.Sprintf("%q is not a valid bump mode", cfg.Versioning.Bump),
+			Path:    "versioning.bump.mode",
+			Message: fmt.Sprintf("%q is not a valid bump mode", cfg.Versioning.Bump.Mode),
 			Hint:    "valid modes: auto, manual",
 		})
 	}
@@ -478,6 +482,42 @@ func validateEnums(cfg *Config) []ValidationError {
 			errs = append(errs, validateChangelogRotation(eff, cfg, base+".changelog")...)
 		}
 		errs = append(errs, validateEnvRelease(env.Release, cfg.Release, base+".release")...)
+	}
+	return errs
+}
+
+// validateVersioningBump validates versioning.bump.overrides (T261): each rule sets exactly one
+// of type or regex (when either is set), at least one of type/regex/breaking, any regex compiles,
+// and bump is a valid level.
+func validateVersioningBump(cfg *Config) []ValidationError {
+	if cfg.Versioning.Bump == nil {
+		return nil
+	}
+	var errs []ValidationError
+	for i, r := range cfg.Versioning.Bump.Overrides {
+		path := fmt.Sprintf("versioning.bump.overrides[%d]", i)
+		switch {
+		case r.Type == "" && r.Regex == "" && r.Breaking == nil:
+			errs = append(errs, ValidationError{
+				Path:    path,
+				Message: "must set at least one of type, regex, or breaking",
+				Hint:    `e.g. {type: chore, bump: none} or {breaking: true, bump: minor}`,
+			})
+		case r.Type != "" && r.Regex != "":
+			errs = append(errs, ValidationError{Path: path, Message: "set only one of type or regex, not both"})
+		}
+		if r.Regex != "" {
+			if _, err := regexp.Compile(r.Regex); err != nil {
+				errs = append(errs, ValidationError{Path: path + ".regex", Message: fmt.Sprintf("invalid regex: %v", err)})
+			}
+		}
+		if !validBumpLevels[r.Bump] {
+			errs = append(errs, ValidationError{
+				Path:    path + ".bump",
+				Message: fmt.Sprintf("%q is not a valid bump level", r.Bump),
+				Hint:    "valid levels: major, minor, patch, none",
+			})
+		}
 	}
 	return errs
 }

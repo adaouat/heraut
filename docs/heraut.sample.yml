@@ -39,9 +39,31 @@ versioning:
 
   # bump — how to determine the version increment. semver only (semver-per-env
   # uses each environment's own bump: auto/promote instead — see environments below).
-  #   auto   inspect conventional-commit types since the last tag
-  #   manual require --version on the CLI (heraut release --version / version next --version)
-  bump: auto
+  # Omit the whole block for the default (mode: auto, no overrides).
+  bump:
+    # mode — defaults to "auto" when omitted.
+    #   auto   inspect conventional-commit types since the last tag
+    #   manual require --version on the CLI (heraut release --version / version next --version)
+    mode: auto
+
+    # overrides — optional list of bump-level rules layered on top of the built-in
+    # defaults (breaking commits → major, feat → minor, any other conventional
+    # commit → patch). Evaluated in order; the first matching rule wins — even over
+    # the breaking-commit default, so a rule can also demote breaking changes to a
+    # smaller bump (e.g. {breaking: true, bump: minor} pre-1.0). Each rule sets
+    # exactly one of type or regex (matched against the commit subject), optionally
+    # combined with breaking (true/false) to further scope the match, plus the
+    # resulting bump level: major, minor, patch, or none — e.g. {type: fix, bump:
+    # minor} to promote fixes. A commit whose only matching rule resolves to "none"
+    # — or that never matches anything and isn't a recognized conventional-commit
+    # type — does not contribute to the release; if every commit since the last tag
+    # ends up this way, `heraut release` errors instead of silently cutting an
+    # empty release.
+    overrides:
+      - type: chore
+        bump: none
+      - regex: '^chore\(deps.*\)'
+        bump: none
 
   # tag_type — git tag type. Omit for the default (annotated).
   #   annotated   created with -a; carries tagger, timestamp, message

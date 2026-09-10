@@ -19,7 +19,8 @@ versioning:
   strategy: semver
   tag_prefix: "v"
   initial_version: "0.1.0"
-  bump: auto
+  bump:
+    mode: auto
 `
 	cfg, err := config.LoadFromReader(strings.NewReader(src))
 	require.NoError(t, err)
@@ -28,7 +29,8 @@ versioning:
 	require.NotNil(t, cfg.Versioning.TagPrefix)
 	assert.Equal(t, "v", *cfg.Versioning.TagPrefix)
 	assert.Equal(t, "0.1.0", cfg.Versioning.InitialVersion)
-	assert.Equal(t, "auto", cfg.Versioning.Bump)
+	require.NotNil(t, cfg.Versioning.Bump)
+	assert.Equal(t, "auto", cfg.Versioning.Bump.Mode)
 }
 
 func TestLoadFromReader_calver(t *testing.T) {

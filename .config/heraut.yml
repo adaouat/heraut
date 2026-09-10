@@ -5,7 +5,8 @@ versioning:
   strategy: semver
   tag_prefix: "v"
   initial_version: "0.1.0"
-  bump: auto
+  bump:
+    mode: auto
 
 changelog:
   output: CHANGELOG.md

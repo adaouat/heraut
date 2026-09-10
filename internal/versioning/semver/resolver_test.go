@@ -171,13 +171,43 @@ func TestResolve_NoCommitsSinceTag_Error(t *testing.T) {
 	assert.Contains(t, err.Error(), "no commits")
 }
 
+// TestResolve_AllCommitsExcluded_Error: commits exist since the last tag, but every one of them
+// is excluded from the bump by versioning.bump.overrides — T261's error, distinct from "no
+// commits at all", listing each excluded commit's subject.
+func TestResolve_AllCommitsExcluded_Error(t *testing.T) {
+	mr := exectest.NewMockRunner()
+	mr.QueueResponse("v0.62.0\n", "", nil)
+	mr.QueueResponse("chore: bump deps\x00docs: fix typo\x00", "", nil)
+
+	cfg := &config.Config{
+		Versioning: config.Versioning{
+			Strategy:  "semver",
+			TagPrefix: strPtr("v"),
+			Bump: &config.BumpConfig{
+				Overrides: []config.BumpRule{
+					{Type: "chore", Bump: "none"},
+					{Type: "docs", Bump: "none"},
+				},
+			},
+		},
+	}
+
+	r := semver.New(mr, cfg)
+	_, err := r.Resolve()
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "no releasable commits since v0.62.0")
+	assert.Contains(t, err.Error(), "2 commit(s)")
+	assert.Contains(t, err.Error(), "chore: bump deps")
+	assert.Contains(t, err.Error(), "docs: fix typo")
+}
+
 func TestResolve_ManualMode_NoOverride_Error(t *testing.T) {
 	mr := exectest.NewMockRunner()
 
 	cfg := &config.Config{
 		Versioning: config.Versioning{
 			Strategy: "semver",
-			Bump:     "manual",
+			Bump:     &config.BumpConfig{Mode: "manual"},
 		},
 	}
 
@@ -195,7 +225,7 @@ func TestResolve_ManualMode_WithOverride(t *testing.T) {
 	cfg := &config.Config{
 		Versioning: config.Versioning{
 			Strategy:  "semver",
-			Bump:      "manual",
+			Bump:      &config.BumpConfig{Mode: "manual"},
 			TagPrefix: strPtr("v"),
 		},
 	}
@@ -220,7 +250,7 @@ func TestResolve_ManualMode_WithPrefixedOverride(t *testing.T) {
 	cfg := &config.Config{
 		Versioning: config.Versioning{
 			Strategy:  "semver",
-			Bump:      "manual",
+			Bump:      &config.BumpConfig{Mode: "manual"},
 			TagPrefix: strPtr("v"),
 		},
 	}
@@ -242,7 +272,7 @@ func TestResolve_AutoMode_WithPrefixedOverride(t *testing.T) {
 	cfg := &config.Config{
 		Versioning: config.Versioning{
 			Strategy:  "semver",
-			Bump:      "auto",
+			Bump:      &config.BumpConfig{Mode: "auto"},
 			TagPrefix: strPtr("v"),
 		},
 	}
@@ -267,7 +297,7 @@ func TestResolve_AutoMode_WithOverride(t *testing.T) {
 	cfg := &config.Config{
 		Versioning: config.Versioning{
 			Strategy:  "semver",
-			Bump:      "auto",
+			Bump:      &config.BumpConfig{Mode: "auto"},
 			TagPrefix: strPtr("v"),
 		},
 	}
@@ -388,29 +418,94 @@ func TestBumpVersion_MajorReset(t *testing.T) {
 	assert.Equal(t, "2.0.0", got)
 }
 
+// TestBumpVersion_NoneLeavesVersionUnchanged: BumpNone must not fall into the same "increment
+// patch" branch as BumpPatch (T261) — the version is returned unchanged.
+func TestBumpVersion_NoneLeavesVersionUnchanged(t *testing.T) {
+	got, err := semver.BumpVersion("1.5.3", versioning.BumpNone)
+	require.NoError(t, err)
+	assert.Equal(t, "1.5.3", got)
+}
+
+func boolPtr(b bool) *bool { return &b }
+
 func TestDetermineBump(t *testing.T) {
 	tests := []struct {
-		name    string
-		commits []string
-		want    versioning.BumpType
+		name      string
+		commits   []string
+		overrides []config.BumpRule
+		want      versioning.BumpType
 	}{
-		{"feat → minor", []string{"feat: add x"}, versioning.BumpMinor},
-		{"fix → patch", []string{"fix: y"}, versioning.BumpPatch},
-		{"feat! → major", []string{"feat!: breaking"}, versioning.BumpMajor},
-		{"fix! → major", []string{"fix!: also breaking"}, versioning.BumpMajor},
-		{"feat(scope)! → major", []string{"feat(api)!: remove endpoint"}, versioning.BumpMajor},
-		{"chore only → patch fallback", []string{"chore: bump deps"}, versioning.BumpPatch},
-		{"major beats minor beats patch", []string{"fix: y", "feat: x", "feat!: z"}, versioning.BumpMajor},
-		{"BREAKING CHANGE footer", []string{"fix: y\n\nBREAKING CHANGE: boom"}, versioning.BumpMajor},
-		{"BREAKING-CHANGE hyphenated footer", []string{"fix: y\n\nBREAKING-CHANGE: boom"}, versioning.BumpMajor},
-		{"bang in description, not type prefix → not breaking", []string{"fix: handle the foo!: token"}, versioning.BumpPatch},
-		{"BREAKING CHANGE mentioned mid-sentence, not a footer → not breaking", []string{"fix: y\n\nThis is not a BREAKING CHANGE: just a mention."}, versioning.BumpPatch},
-		{"BREAKING-CHANGE mentioned mid-sentence, not a footer → not breaking", []string{"fix: y\n\nAlso recognize the hyphenated BREAKING-CHANGE: footer as a synonym."}, versioning.BumpPatch},
-		{"BREAKING CHANGE starts a wrapped body line, not its paragraph → not breaking", []string{"fix: y\n\nDiscussing isBreaking's\nBREAKING CHANGE: footer check here."}, versioning.BumpPatch},
+		{"feat → minor", []string{"feat: add x"}, nil, versioning.BumpMinor},
+		{"fix → patch", []string{"fix: y"}, nil, versioning.BumpPatch},
+		{"feat! → major", []string{"feat!: breaking"}, nil, versioning.BumpMajor},
+		{"fix! → major", []string{"fix!: also breaking"}, nil, versioning.BumpMajor},
+		{"feat(scope)! → major", []string{"feat(api)!: remove endpoint"}, nil, versioning.BumpMajor},
+		{"chore only → patch fallback", []string{"chore: bump deps"}, nil, versioning.BumpPatch},
+		{"major beats minor beats patch", []string{"fix: y", "feat: x", "feat!: z"}, nil, versioning.BumpMajor},
+		{"BREAKING CHANGE footer", []string{"fix: y\n\nBREAKING CHANGE: boom"}, nil, versioning.BumpMajor},
+		{"BREAKING-CHANGE hyphenated footer", []string{"fix: y\n\nBREAKING-CHANGE: boom"}, nil, versioning.BumpMajor},
+		{"bang in description, not type prefix → not breaking", []string{"fix: handle the foo!: token"}, nil, versioning.BumpPatch},
+		{"BREAKING CHANGE mentioned mid-sentence, not a footer → not breaking", []string{"fix: y\n\nThis is not a BREAKING CHANGE: just a mention."}, nil, versioning.BumpPatch},
+		{"BREAKING-CHANGE mentioned mid-sentence, not a footer → not breaking", []string{"fix: y\n\nAlso recognize the hyphenated BREAKING-CHANGE: footer as a synonym."}, nil, versioning.BumpPatch},
+		{"BREAKING CHANGE starts a wrapped body line, not its paragraph → not breaking", []string{"fix: y\n\nDiscussing isBreaking's\nBREAKING CHANGE: footer check here."}, nil, versioning.BumpPatch},
+		{"non-conventional commit, no overrides → ignored (none)", []string{"Merge branch 'main'"}, nil, versioning.BumpNone},
+
+		// T261: override-driven behavior.
+		{
+			"type override excludes a type from the bump",
+			[]string{"chore: bump deps", "docs: fix typo"},
+			[]config.BumpRule{{Type: "chore", Bump: "none"}},
+			versioning.BumpPatch, // docs still hits the built-in patch fallback
+		},
+		{
+			"type override excludes every commit → none",
+			[]string{"chore: bump deps", "chore(ci): tweak workflow"},
+			[]config.BumpRule{{Type: "chore", Bump: "none"}},
+			versioning.BumpNone,
+		},
+		{
+			"regex override matches a non-conventional commit",
+			[]string{"Merge branch 'main'", "fix: y"},
+			[]config.BumpRule{{Regex: "^Merge branch", Bump: "none"}},
+			versioning.BumpPatch,
+		},
+		{
+			"regex override promotes a type to minor",
+			[]string{"fix(deps): bump foo"},
+			[]config.BumpRule{{Regex: `^fix\(deps`, Bump: "minor"}},
+			versioning.BumpMinor,
+		},
+		{
+			"first matching override wins over a later one",
+			[]string{"chore: bump deps"},
+			[]config.BumpRule{{Type: "chore", Bump: "patch"}, {Type: "chore", Bump: "none"}},
+			versioning.BumpPatch,
+		},
+		{
+			"breaking-only override demotes all breaking commits",
+			[]string{"feat!: breaking"},
+			[]config.BumpRule{{Breaking: boolPtr(true), Bump: "minor"}},
+			versioning.BumpMinor,
+		},
+		{
+			"type+breaking override wins over a plain breaking override listed after it",
+			[]string{"feat!: breaking"},
+			[]config.BumpRule{
+				{Type: "feat", Breaking: boolPtr(true), Bump: "major"},
+				{Breaking: boolPtr(true), Bump: "minor"},
+			},
+			versioning.BumpMajor,
+		},
+		{
+			"breaking: false scopes a rule to non-breaking commits only",
+			[]string{"fix!: breaking", "fix: not breaking"},
+			[]config.BumpRule{{Type: "fix", Breaking: boolPtr(false), Bump: "none"}},
+			versioning.BumpMajor, // the breaking fix still hits the built-in major default
+		},
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			got := semver.DetermineBump(tc.commits)
+			got := semver.DetermineBump(tc.commits, tc.overrides)
 			assert.Equal(t, tc.want, got)
 		})
 	}
@@ -447,6 +542,25 @@ func TestBumpAuto_NoCommitsSinceTag(t *testing.T) {
 	_, err := r.BumpAuto([]string{"1.2.3"}, nil)
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "no commits")
+}
+
+// TestBumpAuto_AllCommitsExcluded_Error mirrors TestResolve_AllCommitsExcluded_Error for the
+// perenv-facing BumpAuto path (semver-per-env's "auto" environments share this calculator).
+func TestBumpAuto_AllCommitsExcluded_Error(t *testing.T) {
+	cfg := &config.Config{
+		Versioning: config.Versioning{
+			Strategy: "semver",
+			Bump: &config.BumpConfig{
+				Overrides: []config.BumpRule{{Type: "chore", Bump: "none"}},
+			},
+		},
+	}
+	r := semver.New(nil, cfg)
+	_, err := r.BumpAuto([]string{"1.2.3"}, []string{"chore: bump deps"})
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "no releasable commits since 1.2.3")
+	assert.Contains(t, err.Error(), "1 commit(s)")
+	assert.Contains(t, err.Error(), "chore: bump deps")
 }
 
 func TestBumpFromDate_Unsupported(t *testing.T) {

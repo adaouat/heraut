@@ -36,7 +36,10 @@ func (r *Resolver) BumpAuto(tags []string, commits []string) (string, error) {
 	if len(commits) == 0 {
 		return "", fmt.Errorf("no commits since %s — create at least one commit before running heraut release", currentVersion)
 	}
-	bump := DetermineBump(commits)
+	bump := DetermineBump(commits, r.cfg.Versioning.BumpOverrides())
+	if bump == versioning.BumpNone {
+		return "", noReleasableCommitsError(currentVersion, commits)
+	}
 	return BumpVersion(currentVersion, bump)
 }
 
@@ -56,7 +59,7 @@ func (r *Resolver) SetVersionOverride(v string) {
 // An explicit versionOverride (set via SetVersionOverride) always takes precedence over
 // the configured bump mode — this allows --version to short-circuit auto resolution.
 func (r *Resolver) Resolve() (versioning.Result, error) {
-	if r.versionOverride != "" || r.cfg.Versioning.Bump == "manual" {
+	if r.versionOverride != "" || r.cfg.Versioning.BumpMode() == "manual" {
 		return r.resolveManual()
 	}
 	return r.resolveAuto()
@@ -122,7 +125,10 @@ func (r *Resolver) resolveAuto() (versioning.Result, error) {
 		return versioning.Result{}, fmt.Errorf("no commits since %s — create at least one commit before running heraut release", currentTag)
 	}
 
-	bump := DetermineBump(commits)
+	bump := DetermineBump(commits, r.cfg.Versioning.BumpOverrides())
+	if bump == versioning.BumpNone {
+		return versioning.Result{}, noReleasableCommitsError(currentTag, commits)
+	}
 	nextVersion, err := BumpVersion(currentVersion, bump)
 	if err != nil {
 		return versioning.Result{}, fmt.Errorf("bumping version: %w", err)
@@ -170,4 +176,18 @@ func parseCommits(stdout string) []string {
 		}
 	}
 	return commits
+}
+
+// noReleasableCommitsError reports that commits exist since currentTag but every one of them was
+// excluded from the bump (T261) — distinct from "no commits at all" (parseCommits/BumpAuto's own
+// empty-commits check). Lists each excluded commit's subject line so the user can see why.
+func noReleasableCommitsError(currentTag string, commits []string) error {
+	lines := make([]string, len(commits))
+	for i, c := range commits {
+		lines[i] = "  - " + firstLine(c)
+	}
+	return fmt.Errorf(
+		"no releasable commits since %s: %d commit(s) since then are excluded from the version bump\n%s",
+		currentTag, len(commits), strings.Join(lines, "\n"),
+	)
 }

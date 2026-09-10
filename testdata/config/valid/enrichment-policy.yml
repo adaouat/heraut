@@ -4,7 +4,8 @@ version: "1"
 
 versioning:
   strategy: semver
-  bump: auto
+  bump:
+    mode: auto
 
 commits:
   enrichment_policy: disabled
