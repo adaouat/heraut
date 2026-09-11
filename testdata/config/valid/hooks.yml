@@ -1,0 +1,25 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/adaouat/heraut/main/schema.json
+
+version: "1"
+
+versioning:
+  strategy: semver
+  bump:
+    mode: auto
+
+changelog:
+  output: CHANGELOG.md
+
+hooks:
+  post_bump:
+    - "echo {{ .Version }} > VERSION"
+  pre_changelog:
+    - "make lint"
+  pre_tag:
+    - "go build ./..."
+  post_tag:
+    - "echo tagged {{ .Tag }}"
+  pre_release:
+    - "echo about to publish to {{ .Platform }}"
+  post_release:
+    - "echo released {{ .Tag }} to {{ .Platform }}"

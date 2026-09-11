@@ -37,6 +37,9 @@
     "rendering": {
       "$ref": "#/definitions/Rendering"
     },
+    "hooks": {
+      "$ref": "#/definitions/Hooks"
+    },
     "forges": {
       "type": "array",
       "description": "Code-hosting platforms heraut talks to (ADR-0043/ADR-0044): connection/identity only. What to publish (draft/assets) lives in release.targets; the enrichment source is commits.enrichment_forge.",
@@ -161,6 +164,55 @@
         "description": {
           "type": "string",
           "description": "One-line hint shown beside the scope in the 'heraut commit create' wizard picker."
+        }
+      }
+    },
+    "Hooks": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "Shell commands run at points in the release lifecycle (ADR-0053). post_bump/pre_changelog/pre_tag/post_tag fire in both `heraut release` and `heraut changelog --tag`; pre_release/post_release fire only in `heraut release`, once per publish target. Commands are Go text/template strings substituting {{ .Version }}, {{ .Tag }}, {{ .PreviousTag }}, and (pre_release/post_release only) {{ .Platform }}.",
+      "properties": {
+        "post_bump": {
+          "type": "array",
+          "description": "Runs immediately after the next version is resolved.",
+          "items": {
+            "type": "string"
+          }
+        },
+        "pre_changelog": {
+          "type": "array",
+          "description": "Runs before changelog generation.",
+          "items": {
+            "type": "string"
+          }
+        },
+        "pre_tag": {
+          "type": "array",
+          "description": "Runs before the local git tag is created.",
+          "items": {
+            "type": "string"
+          }
+        },
+        "post_tag": {
+          "type": "array",
+          "description": "Runs after the tag is pushed to origin.",
+          "items": {
+            "type": "string"
+          }
+        },
+        "pre_release": {
+          "type": "array",
+          "description": "Runs before publishing to a platform, once per platform.",
+          "items": {
+            "type": "string"
+          }
+        },
+        "post_release": {
+          "type": "array",
+          "description": "Runs after publishing to a platform, once per platform.",
+          "items": {
+            "type": "string"
+          }
         }
       }
     },

@@ -332,6 +332,31 @@ changelog:
   # forges: block plus commits.enrichment_forge / commits.enrichment_policy above — see
   # the forges block for pinning a specific host when ambient detection is ambiguous.
 
+# ── hooks ─────────────────────────────────────────────────────────────────────
+#
+# Shell commands run at points in the release lifecycle (ADR-0053). Each key is a list of
+# commands, run in order; the first failing command stops the rest of that list.
+# post_bump/pre_changelog/pre_tag/post_tag fire in both `heraut release` and
+# `heraut changelog --tag`; pre_release/post_release fire only in `heraut release`, once per
+# publish target. Commands are Go text/template strings: {{ .Version }}, {{ .Tag }},
+# {{ .PreviousTag }} are always available; {{ .Platform }} is set only for
+# pre_release/post_release. Omit the whole block (or any key) for no hooks — the default.
+# Skip all configured hooks for a single run with `--no-hooks`, without editing this file.
+#
+# hooks:
+#   post_bump:
+#     - "echo {{ .Version }} > VERSION"
+#   pre_changelog:
+#     - "make lint"
+#   pre_tag:
+#     - "go build ./..."
+#   post_tag:
+#     - "npm publish"
+#   pre_release:
+#     - "echo about to publish to {{ .Platform }}"
+#   post_release:
+#     - "curl -X POST $SLACK_WEBHOOK -d 'Released {{ .Tag }} to {{ .Platform }}'"
+
 # ── release ───────────────────────────────────────────────────────────────────
 #
 # Omit this block if you do not publish releases to any platform. Presence — even

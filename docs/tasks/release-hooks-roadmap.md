@@ -40,7 +40,7 @@ non-POSIX shells, and a configurable working directory are explicitly out of sco
 
 | Task | Description                                                                                    | Status |
 |------|--------------------------------------------------------------------------------------------------|--------|
-| T267 | `internal/config`: `Hooks` struct + nil-safe accessors + `schema.json` + sample config          | Not started |
+| T267 | `internal/config`: `Hooks` struct + nil-safe accessors + `schema.json` + sample config          | Done |
 | T268 | `internal/pipeline`: `runHook` execution helper + interactive-runner access beyond `gitHelper`  | Not started |
 | T269 | Wire `post_bump`/`pre_changelog`/`pre_tag`/`post_tag` into both pipelines + `--no-hooks` flag   | Not started |
 | T270 | Wire `pre_release`/`post_release` into `release.go`'s per-platform loop, with isolation         | Not started |
@@ -92,7 +92,21 @@ zero value) and `TestConfig_HooksAccessors_ReturnsConfiguredList` (each accessor
 field's value when set) in `config_test.go`. Then the schema/sample/fixture updates, verified by
 the existing schema-fixture test harness picking up `testdata/config/valid/hooks.yml`.
 
-- [ ] Task complete, roadmap note added, committed
+- [x] Task complete, roadmap note added, committed
+
+**Completion note (2026-09-11).** Landed as `internal/config/hooks.go` (new file, mirroring the
+`commits.go`/`platforms.go` split — `config.go` gained only the one `Hooks *Hooks` field), plus
+the two accessor tests in `internal/config/hooks_test.go` (no pre-existing `config_test.go` to add
+to). `schema.json` gained a `Hooks` definition and top-level `hooks` property matching the
+`Rendering`/`Commits` style (array-of-string properties, `additionalProperties: false`).
+`testdata/config/valid/hooks.yml` added and picked up automatically by `TestSchema_ValidFixtures`'s
+glob. One deviation from the plan: the sample-config hooks example was first appended after
+`release.targets` at end-of-file, but `hk fix -S yamlfmt` re-indented the trailing comment block
+under `release.targets[0]` (misleading — implies a per-target field) since a comment-only block at
+EOF has no following real key to anchor its indentation to. Moved it to a proper `# ── hooks ──`
+section between `changelog:` and `release:` instead, matching every other section's header-comment
+pattern — same yamlfmt run then leaves it at column 0. No `--no-hooks` flag or matcher-shape
+validation needed yet (deferred to T269/T273 per the design). Full suite + `hk check` green.
 
 ---
 

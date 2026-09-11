@@ -20,6 +20,8 @@ type Config struct {
 	// release.targets (publish destinations) and commits.enrichment_forge (PR/MR metadata
 	// source).
 	Forges []Forge `yaml:"forges,omitempty"`
+	// Hooks configures shell commands run at points in the release lifecycle (ADR-0053).
+	Hooks *Hooks `yaml:"hooks,omitempty"`
 }
 
 // Tickets returns the configured ticket-link patterns (commits.tickets), or nil. Nil-safe.
