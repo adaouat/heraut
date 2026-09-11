@@ -453,4 +453,30 @@ arbitrary code execution, same trust model as a CI YAML `run:` step), why it nee
 a known binary), and the per-platform hook-failure isolation asymmetry (T270) as a documented
 deliberate exception to the pipeline's otherwise-uniform failure handling.
 
-- [ ] Task complete, roadmap note added, committed
+- [x] Task complete, roadmap note added, committed
+
+**Completion note (2026-09-11).** ADR-0053 written following the design doc's outline, plus an
+"Alternatives considered" section (matching this project's ADR convention — the design doc's own
+alternatives weren't quite ADR-shaped, so these were reworded around the four decisions actually
+worth defending: rejecting cocogitto's flat two-hook model, rejecting its rollback/stash
+machinery, choosing Go `text/template` over a second Tera-style syntax, and the per-platform
+isolation asymmetry). Added to `docs/adr/README.md`'s index, and fixed `CLAUDE.md`'s two stale
+"51 ADRs" counts to 53 (the count this ADR itself makes stale otherwise) — the kind of drift
+Phase 27's whole epic exists to prevent, and it's a one-line fix while already in the file.
+
+`docs/specs/02-configuration.md` gained a full `## \`hooks\`` section (point-by-point table,
+template-variable table, failure-semantics summary, execution model, `--no-hooks`) — placed at
+the end of the file alongside every other top-level-key section, plus a row in the "Top-level
+structure" table near the top. `docs/specs/03-commands.md` already got its flag-table rows in
+T269 (deliberately without a hyperlink, since ADR-0053 didn't exist yet); went back now and added
+the `[ADR-0053](...)` links now that the target exists, rather than leaving plain-text mentions
+that could drift.
+
+`README.md` was deliberately left unchanged: its own `## Configuration` section explicitly scopes
+itself to "the shape, not the whole schema" — only `versioning`/`forges`/`release` get a table
+row there, and even existing top-level keys like `commits`/`rendering`/`environments` aren't
+listed. Adding `hooks` would contradict that section's own stated scope; the "not the whole
+schema" line already points readers to Spec 02 for exactly this. `docs/heraut.sample.yml` needed
+no further changes — T267 already added its `hooks:` section with inline comments.
+
+This closes the release-hooks epic: all of T267–T273 are done. Full suite + `hk check` green.

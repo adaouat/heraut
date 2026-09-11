@@ -57,3 +57,4 @@ trade-offs were accepted.
 | [0050](0050-changelog-preamble-postamble-always-fresh.md) | Changelog preamble/postamble always render fresh — no more "frozen until regenerate" | Accepted |
 | [0051](0051-footer-visual-separator.md) | Automatic blank-line + horizontal-rule separator before `footer` | Accepted |
 | [0052](0052-versioning-bump-object-and-overrides.md) | `versioning.bump` becomes an object with mode + per-commit overrides | Accepted |
+| [0053](0053-release-lifecycle-hooks.md) | Release lifecycle hooks — arbitrary shell execution via config | Accepted |

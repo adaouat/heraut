@@ -48,6 +48,7 @@ environments: ...     # optional — per-environment overrides for versioning/ch
 commits: ...           # optional — commit type set, scopes, tickets, enrichment forge/policy
 rendering: ...         # optional — global exclude rules + template-block snippets
 forges: ...            # optional — code-hosting platforms for publishing and/or enrichment
+hooks: ...             # optional — shell commands run at points in the release lifecycle
 ```
 
 | Field          | Required | Description                                                                                                                |
@@ -60,6 +61,7 @@ forges: ...            # optional — code-hosting platforms for publishing and/
 | `commits`      | No       | Conventional-commit type set, scopes, tickets, and enrichment forge/policy (see § `commits` below). |
 | `rendering`    | No       | Global content-output overrides: exclude rules and template-block snippets (see § `rendering` below). |
 | `forges`       | No       | Code-hosting platforms heraut talks to for publishing and/or commit enrichment (see § `forges` below). |
+| `hooks`        | No       | Shell commands run at points in the release lifecycle (see § `hooks` below). |
 
 ### Design principles
 
@@ -989,3 +991,87 @@ release:
       assets:
         - dist/myapp_*
 ```
+
+## `hooks`
+
+A top-level, flat (not per-environment) block: shell commands run at points in the release
+lifecycle ([ADR-0053](../adr/0053-release-lifecycle-hooks.md)) — bumping a version string in
+another file, a build/test gate before tagging, `npm publish` after the tag, a Slack notification
+after a platform release goes live. Omitting the whole block, or any individual key, means no
+hooks at that point — the default, and no behavior change for any config written before this
+feature existed.
+
+```yaml
+hooks:
+  post_bump:
+    - "echo {{ .Version }} > VERSION"
+  pre_changelog:
+    - "make lint"
+  pre_tag:
+    - "go build ./..."
+  post_tag:
+    - "npm publish"
+  pre_release:
+    - "echo about to publish to {{ .Platform }}"
+  post_release:
+    - "curl -X POST $SLACK_WEBHOOK -d 'Released {{ .Tag }} to {{ .Platform }}'"
+```
+
+Each key is a list of shell commands, run in order; the first failing command stops the rest of
+that list.
+
+### Hook points
+
+| Key             | Fires                                                                 | Commands (`heraut release`) | Commands (`heraut changelog --tag`) |
+|-----------------|------------------------------------------------------------------------|:---:|:---:|
+| `post_bump`     | Immediately after the next version is resolved — unconditionally, even when nothing else about this run will change anything (e.g. `disable_changelog: true` with no `--tag`). | ✓ | ✓ |
+| `pre_changelog` | Before changelog generation — only when a changelog actually generates this run. | ✓ | ✓ |
+| `pre_tag`       | Before the local git tag is created.                                    | ✓ | ✓ |
+| `post_tag`      | After the tag is pushed to origin — fires even with `--no-push`; that flag changes what "the tag operation completed" means, not whether it happened. | ✓ | ✓ |
+| `pre_release`   | Before publishing to a platform, once per `release.targets` entry.      | ✓ | — |
+| `post_release`  | After publishing to a platform (and any asset upload), once per `release.targets` entry. | ✓ | — |
+
+`pre_release`/`post_release` never fire under `heraut changelog`, since that command never
+publishes — no separate flag is needed to turn them off there.
+
+### Template variables
+
+Commands are Go `text/template` strings (the same templating engine used for changelog/release-notes
+rendering) substituting these fields:
+
+| Variable             | Value                                    | Available at                          |
+|----------------------|-------------------------------------------|-----------------------------------------|
+| `{{ .Version }}`     | The resolved version, without prefix (`1.2.3`) | All six points |
+| `{{ .Tag }}`         | The full tag (`v1.2.3`)                  | All six points |
+| `{{ .PreviousTag }}` | The most recent prior tag, empty if none | All six points |
+| `{{ .Platform }}`    | The publish target's name (`github`, `gitlab`, …) | `pre_release`/`post_release` only — empty elsewhere |
+
+Because these are real Go templates, a single `pre_release`/`post_release` command can branch per
+platform with `{{ if eq .Platform "github" }}...{{ end }}` rather than needing separate
+per-platform config keys.
+
+### Failure semantics
+
+`post_bump`/`pre_changelog`/`pre_tag`/`post_tag` behave like every other pipeline step: a failing
+hook aborts the run immediately, with no rollback of anything that already happened (e.g. a
+changelog commit that landed before a failing `pre_tag` hook stays committed). `pre_release`/
+`post_release` are isolated **per platform** — a failing hook skips (`pre_release`) or warns
+(`post_release`, since publishing already happened) for that platform only, and the loop still
+attempts the remaining `release.targets`. The command still exits non-zero if any platform was
+affected, even though every platform was attempted. This per-platform isolation is the one
+deliberate exception to "a hook failure aborts like any other step failure" — a real publish
+failure (not a hook) still aborts the whole loop as it always has.
+
+### Execution
+
+Commands run via `sh -c` — POSIX shells only; there is no Windows/PowerShell equivalent yet, a
+known limitation given heraut ships Windows binaries. Output streams live to the terminal (the
+same mechanism used for a GPG pinentry prompt during a signed commit/tag) rather than being
+captured and summarized, so a long-running hook's progress is visible as it happens.
+
+### `--no-hooks`
+
+Both `heraut release` and `heraut changelog` accept `--no-hooks`, which skips every configured
+hook for that one run without editing `.heraut.yml` — useful for CI troubleshooting or a one-off
+run where a hook shouldn't fire. `--dry-run` never executes a hook either way; it shows the
+rendered command each configured hook would run instead.

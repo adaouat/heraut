@@ -211,7 +211,7 @@ discipline that applies to every task.
 | 40 | Give `heraut init` its own `--overwrite` flag instead of overloading root's `--force` | Done |
 | 41 | `heraut version sprint bump` respects `--dry-run` | Done |
 | 42 | Scope `--dry-run`/`--env`/`--force`/`--offline` to the commands that use them, off root | Done |
-| 43 | Release lifecycle hooks | Not started — see `release-hooks-roadmap.md` |
+| 43 | Release lifecycle hooks | Done — see `release-hooks-roadmap.md` |
 
 ### Open items
 

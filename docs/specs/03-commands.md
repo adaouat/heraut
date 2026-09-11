@@ -96,7 +96,7 @@ heraut release [--set-version <version>] [--set-build-id <id>] [--regenerate-cha
 | `--env`                  | Active environment (required for per-env strategies). `auto` resolves it from the current git branch against each environment's `branch:` instead of naming one explicitly. |
 | `--force`                | Bypass E001 (target tag exists) and E002 (destination ahead) — see [ADR-0007](../adr/0007-version-promotion-error-handling.md); E003 is not bypassed. Also downgrades `commits.enrichment_policy: required` to `optional` for this run (degrade instead of failing when metadata is unavailable). |
 | `--offline`              | Forces `commits.enrichment_policy: disabled` for this run regardless of what `.heraut.yml` sets, skipping PR/MR enrichment in changelog and release-notes generation. |
-| `--no-hooks`             | Skip every configured `hooks:` command (`post_bump`/`pre_changelog`/`pre_tag`/`post_tag`/`pre_release`/`post_release`) for this run, without editing `.heraut.yml`. Distinct from the git pre-commit hooks discussed below — see § Pre-commit hooks and the changelog commit. |
+| `--no-hooks`             | Skip every configured `hooks:` command (`post_bump`/`pre_changelog`/`pre_tag`/`post_tag`/`pre_release`/`post_release`, [ADR-0053](../adr/0053-release-lifecycle-hooks.md); see [Spec 02 § `hooks`](02-configuration.md#hooks)) for this run, without editing `.heraut.yml`. Distinct from the git pre-commit hooks discussed below — see § Pre-commit hooks and the changelog commit. |
 
 > **`{build}` tag formats:** with a `tag_format` containing `{build}`, pass `--set-build-id <id>`
 > (requires `--set-version`) to render and publish a release per build — this creates one
@@ -189,7 +189,7 @@ heraut changelog [--commit] [--tag] [--no-push] [--set-version <version>] [--reg
 | `--env`        | Active environment.                                                                                      |
 | `--force`      | Bypass E001 (target tag exists) and E002 (destination ahead) — see [ADR-0007](../adr/0007-version-promotion-error-handling.md); E003 is not bypassed. Also downgrades `commits.enrichment_policy: required` to `optional` for this run. |
 | `--offline`    | Forces `commits.enrichment_policy: disabled` for this run, skipping PR/MR enrichment.                    |
-| `--no-hooks`   | Skip every configured `hooks:` command (`post_bump`/`pre_changelog`/`pre_tag`/`post_tag` — this pipeline never publishes, so `pre_release`/`post_release` never apply) for this run, without editing `.heraut.yml`. |
+| `--no-hooks`   | Skip every configured `hooks:` command (`post_bump`/`pre_changelog`/`pre_tag`/`post_tag` — this pipeline never publishes, so `pre_release`/`post_release` never apply) for this run, without editing `.heraut.yml`. See [ADR-0053](../adr/0053-release-lifecycle-hooks.md) / [Spec 02 § `hooks`](02-configuration.md#hooks). |
 
 **Action sequence** (with `--tag`, mirrors `cog bump`):
 
