@@ -43,7 +43,7 @@ non-POSIX shells, and a configurable working directory are explicitly out of sco
 | T267 | `internal/config`: `Hooks` struct + nil-safe accessors + `schema.json` + sample config          | Done |
 | T268 | `internal/pipeline`: `runHook` execution helper + interactive-runner access beyond `gitHelper`  | Done |
 | T269 | Wire `post_bump`/`pre_changelog`/`pre_tag`/`post_tag` into both pipelines + `--no-hooks` flag   | Done |
-| T270 | Wire `pre_release`/`post_release` into `release.go`'s per-platform loop, with isolation         | Not started |
+| T270 | Wire `pre_release`/`post_release` into `release.go`'s per-platform loop, with isolation         | Done |
 | T271 | Dry-run rendering for all six hook points, both pipelines                                       | Not started |
 | T272 | Integration test: real-git-repo happy path proving hook execution + templating end to end       | Not started |
 | T273 | Docs: `docs/specs/`, README (if applicable), new ADR-0053                                        | Not started |
@@ -284,7 +284,45 @@ behavior — a real `CreateRelease` failure (not a hook failure) still aborts th
 platform 2/3 never attempted — is asserted unchanged, proving the new isolation is scoped to hook
 failures only.
 
-- [ ] Task complete, roadmap note added, committed
+- [x] Task complete, roadmap note added, committed
+
+**Completion note (2026-09-11).** `pipeline.Config` gained `PreReleaseHooks`/`PostReleaseHooks`
+(release-only — `ChangelogConfig` never publishes, so it doesn't get these two). The isolation
+mechanism: a new unexported `hookFailureError{platform, err}` type in `hooks.go` (`Unwrap()`
+returns the wrapped error, so `errors.Is`/`errors.As` still work through it) marks an error as
+"this platform's hook failed" versus every other error in the publish loop, which stays a plain
+`fmt.Errorf(...)` exactly as before. The per-platform loop now inspects each `runStep` error with
+`errors.As(err, &hfe)`: a `hookFailureError` appends to a `hookFailedPlatforms` slice and
+`continue`s to the next platform; anything else still `return err`s immediately, unchanged. After
+the loop, a non-empty `hookFailedPlatforms` produces one summary error naming every affected
+platform — the release still exits non-zero even though every platform was attempted. Both hooks
+live *inside* the existing `"Publish to %s"` step's closure (not separate numbered steps), so
+**`releaseStepTotal` needed no change** — T269's formula already only added steps for the four
+points that aren't folded into an existing step.
+
+Also completed the app-layer half T269 didn't reach (only the four shared hooks needed there —
+these two are release-only): `buildReleasePipelineConfig` now also sets `pCfg.PreReleaseHooks`/
+`PostReleaseHooks` from `cfg.PreReleaseHooks()`/`PostReleaseHooks()` (T267's accessors) — no
+`ChangelogConfig` equivalent needed, matching the pipeline-level asymmetry.
+
+One test-writing mistake caught by the red step itself: the first draft of
+`TestRun_PreReleaseHook_FailureSkipsThatPlatformOnly` queued only one `MockRunner` response for
+platform 1's failing hook, forgetting that `PreReleaseHooks` is global — platform 2 attempts the
+*same* hook command too. With no second response queued, `MockRunner` returned its own "no
+response queued" error for platform 2's attempt, which is a plain error (not a `hookFailureError`),
+so it aborted the loop entirely instead of being isolated — surfacing as "should have 1 item(s),
+but has 0" rather than a wrapping-mismatch message, but specific enough to spot the real cause
+(fixed by queuing a second, successful response for platform 2's hook attempt). The same latent
+gap existed in the `post_release` counterpart test (it happened to pass regardless, since
+`CreateRelease` runs before the hook either way) — fixed there too for precision, not because it
+was actually failing.
+
+Not manually smoke-tested against a real platform (unlike T269): multi-platform publish shells
+out to `gh`/`glab`, and a true end-to-end run would create real releases against real repos — not
+something to trigger without a real target. `MockPlatform`-based contract tests are the right
+(and only safe) verification here, consistent with how the rest of this codebase's multi-platform
+behavior is already tested (e.g. `TestRun_Reporter_MultiplePlatformsEachGetStep`). Full suite +
+`hk check` green.
 
 ---
 

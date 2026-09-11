@@ -1,9 +1,11 @@
 package pipeline
 
 import (
+	"errors"
 	"fmt"
 	"io"
 	"log/slog"
+	"strings"
 
 	"github.com/adaouat/heraut/internal/port"
 	"github.com/adaouat/heraut/internal/ui"
@@ -232,8 +234,21 @@ func (p *Pipeline) Run() error {
 		}
 	}
 
+	// hookFailedPlatforms collects platforms skipped or warned about due to a pre_release/
+	// post_release hook failure (ADR-0053) — isolated per platform, unlike a real publish
+	// failure, which still aborts the whole loop via the plain (unwrapped) errors below.
+	var hookFailedPlatforms []string
 	for _, plat := range p.cfg.Platforms {
-		if err := p.runStep(fmt.Sprintf("Publish to %s", plat.Name()), func() (string, []string, error) {
+		platVars := p.hookVars(result)
+		platVars.Platform = plat.Name()
+
+		err := p.runStep(fmt.Sprintf("Publish to %s", plat.Name()), func() (string, []string, error) {
+			if shouldRunHooks(p.dryRun, p.cfg.NoHooks, p.cfg.PreReleaseHooks) {
+				if err := runHookPoint(p.git.interactiveOrRunner(), p.cfg.PreReleaseHooks, platVars); err != nil {
+					return "", nil, &hookFailureError{platform: plat.Name(), err: err}
+				}
+			}
+
 			var subs []string
 			platNotes := notes
 			lc := p.platformLinkContext(plat)
@@ -255,10 +270,27 @@ func (p *Pipeline) Run() error {
 				}
 				subs = append(subs, "assets uploaded")
 			}
+
+			if shouldRunHooks(p.dryRun, p.cfg.NoHooks, p.cfg.PostReleaseHooks) {
+				if err := runHookPoint(p.git.interactiveOrRunner(), p.cfg.PostReleaseHooks, platVars); err != nil {
+					return "", nil, &hookFailureError{platform: plat.Name(), err: err}
+				}
+			}
+
 			return plat.ReleaseURLFromContext(result.Tag, lc), subs, nil
-		}); err != nil {
+		})
+		if err != nil {
+			var hfe *hookFailureError
+			if errors.As(err, &hfe) {
+				hookFailedPlatforms = append(hookFailedPlatforms, hfe.platform)
+				continue
+			}
 			return err
 		}
+	}
+
+	if len(hookFailedPlatforms) > 0 {
+		return fmt.Errorf("hook failed for platform(s): %s", strings.Join(hookFailedPlatforms, ", "))
 	}
 
 	p.printSummary(result)

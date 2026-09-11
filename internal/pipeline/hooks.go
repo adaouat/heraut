@@ -63,6 +63,21 @@ func runHookPoint(r port.Runner, cmds []string, vars hookVars) error {
 	return runHooks(r, rendered)
 }
 
+// hookFailureError marks an error as originating from a pre_release/post_release hook for one
+// publish target, so the per-platform publish loop (release.go) can isolate it — skip or warn
+// for that platform only and continue — instead of aborting the whole release the way a real
+// publish failure still does (ADR-0053's one deliberate asymmetry).
+type hookFailureError struct {
+	platform string
+	err      error
+}
+
+func (e *hookFailureError) Error() string {
+	return fmt.Sprintf("platform %s: hook failed: %v", e.platform, e.err)
+}
+
+func (e *hookFailureError) Unwrap() error { return e.err }
+
 // runHook executes cmd via `sh -c` through r, which should be an interactive runner
 // (stdin/stdout/stderr connected to the real terminal, forge's CmdRunner.Interactive
 // mode — see gitHelper.interactiveOrRunner) so hook output streams live rather than

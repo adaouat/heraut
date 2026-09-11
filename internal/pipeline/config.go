@@ -43,4 +43,8 @@ type Config struct {
 	PreTagHooks []string
 	// PostTagHooks run after the tag is pushed to origin. Empty = no hooks.
 	PostTagHooks []string
+	// PreReleaseHooks run before publishing to a platform, once per platform. Empty = no hooks.
+	PreReleaseHooks []string
+	// PostReleaseHooks run after publishing to a platform, once per platform. Empty = no hooks.
+	PostReleaseHooks []string
 }

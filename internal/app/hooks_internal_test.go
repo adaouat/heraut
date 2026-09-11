@@ -26,6 +26,8 @@ func TestBuildReleasePipelineConfig_PropagatesHooks(t *testing.T) {
 			PreChangelog: []string{"make lint"},
 			PreTag:       []string{"go build ./..."},
 			PostTag:      []string{"npm publish"},
+			PreRelease:   []string{"echo pre-release"},
+			PostRelease:  []string{"echo post-release"},
 		},
 	}
 
@@ -35,6 +37,8 @@ func TestBuildReleasePipelineConfig_PropagatesHooks(t *testing.T) {
 	assert.Equal(t, []string{"make lint"}, pCfg.PreChangelogHooks)
 	assert.Equal(t, []string{"go build ./..."}, pCfg.PreTagHooks)
 	assert.Equal(t, []string{"npm publish"}, pCfg.PostTagHooks)
+	assert.Equal(t, []string{"echo pre-release"}, pCfg.PreReleaseHooks)
+	assert.Equal(t, []string{"echo post-release"}, pCfg.PostReleaseHooks)
 }
 
 func TestBuildReleasePipelineConfig_NoHooksConfiguredIsNilSafe(t *testing.T) {
@@ -51,6 +55,8 @@ func TestBuildReleasePipelineConfig_NoHooksConfiguredIsNilSafe(t *testing.T) {
 	assert.Nil(t, pCfg.PreChangelogHooks)
 	assert.Nil(t, pCfg.PreTagHooks)
 	assert.Nil(t, pCfg.PostTagHooks)
+	assert.Nil(t, pCfg.PreReleaseHooks)
+	assert.Nil(t, pCfg.PostReleaseHooks)
 }
 
 // TestBuildChangelogPipelineConfig_PropagatesHooks mirrors the release-pipeline test above for

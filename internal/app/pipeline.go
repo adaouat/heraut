@@ -320,6 +320,8 @@ func buildReleasePipelineConfig(runner, readRunner port.Runner, cfg *config.Conf
 	pCfg.PreChangelogHooks = cfg.PreChangelogHooks()
 	pCfg.PreTagHooks = cfg.PreTagHooks()
 	pCfg.PostTagHooks = cfg.PostTagHooks()
+	pCfg.PreReleaseHooks = cfg.PreReleaseHooks()
+	pCfg.PostReleaseHooks = cfg.PostReleaseHooks()
 
 	return pCfg, nil
 }

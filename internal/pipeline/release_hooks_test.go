@@ -130,6 +130,130 @@ func TestRun_Hooks_DryRunNeverExecutesHooks(t *testing.T) {
 	assert.Empty(t, mr.Calls, "dry-run must never execute a hook for real")
 }
 
+func TestRun_PreReleaseHook_FiresBeforeCreateRelease(t *testing.T) {
+	mr := exectest.NewMockRunner()
+	mr.QueueResponse("", "", nil) // git tag
+	mr.QueueResponse("", "", nil) // git push <tag>
+	mr.QueueResponse("", "", nil) // sh -c (pre_release)
+
+	plat := &testutil.MockPlatform{PlatformName: "github"}
+	cfg := &pipeline.Config{
+		PreReleaseHooks: []string{"echo about to publish to {{ .Platform }}"},
+		Platforms:       []port.Platform{plat},
+	}
+	p := pipeline.New(mr, &fakeResolver{result: resolvedResult("v1.2.3")}, cfg, &bytes.Buffer{}, false)
+	require.NoError(t, p.Run())
+
+	require.Len(t, mr.Calls, 3)
+	assert.Equal(t, []string{"-c", "echo about to publish to github"}, mr.Calls[2].Args)
+	require.Len(t, plat.CreateReleaseCalls, 1, "hook succeeded, publish must still happen")
+}
+
+func TestRun_PostReleaseHook_FiresAfterCreateReleaseAndAssets(t *testing.T) {
+	mr := exectest.NewMockRunner()
+	mr.QueueResponse("", "", nil) // git tag
+	mr.QueueResponse("", "", nil) // git push <tag>
+	mr.QueueResponse("", "", nil) // sh -c (post_release)
+
+	plat := &testutil.MockPlatform{PlatformName: "github", HasAssetsVal: true}
+	cfg := &pipeline.Config{
+		PostReleaseHooks: []string{"echo released {{ .Tag }} to {{ .Platform }}"},
+		Platforms:        []port.Platform{plat},
+	}
+	p := pipeline.New(mr, &fakeResolver{result: resolvedResult("v1.2.3")}, cfg, &bytes.Buffer{}, false)
+	require.NoError(t, p.Run())
+
+	require.Len(t, mr.Calls, 3)
+	assert.Equal(t, []string{"-c", "echo released v1.2.3 to github"}, mr.Calls[2].Args)
+	require.Len(t, plat.CreateReleaseCalls, 1)
+	require.Len(t, plat.UploadAssetsCalls, 1, "post_release fires after asset upload, not before")
+}
+
+// TestRun_PreReleaseHook_FailureSkipsThatPlatformOnly proves the per-platform hook-failure
+// isolation (ADR-0053): unlike a real publish failure, a failing pre_release hook for one
+// platform does not stop the loop from attempting the next platform.
+func TestRun_PreReleaseHook_FailureSkipsThatPlatformOnly(t *testing.T) {
+	mr := exectest.NewMockRunner()
+	mr.QueueResponse("", "", nil)                         // git tag
+	mr.QueueResponse("", "", nil)                         // git push <tag>
+	mr.QueueResponse("", "", errors.New("exit status 1")) // sh -c (pre_release, platform 1 — fails)
+	mr.QueueResponse("", "", nil)                         // sh -c (pre_release, platform 2 — succeeds)
+
+	plat1 := &testutil.MockPlatform{PlatformName: "gitlab"}
+	plat2 := &testutil.MockPlatform{PlatformName: "github"}
+	cfg := &pipeline.Config{
+		PreReleaseHooks: []string{"exit 1"},
+		Platforms:       []port.Platform{plat1, plat2},
+	}
+	p := pipeline.New(mr, &fakeResolver{result: resolvedResult("v1.2.3")}, cfg, &bytes.Buffer{}, false)
+	err := p.Run()
+	require.Error(t, err)
+
+	assert.Empty(t, plat1.CreateReleaseCalls, "pre_release hook failed — this platform's publish must be skipped")
+	require.Len(t, plat2.CreateReleaseCalls, 1, "the next platform must still be attempted")
+}
+
+// TestRun_PostReleaseHook_FailureWarnsButContinuesToNextPlatform mirrors the pre_release case:
+// the publish already happened, so post_release failure only warns and moves on.
+func TestRun_PostReleaseHook_FailureWarnsButContinuesToNextPlatform(t *testing.T) {
+	mr := exectest.NewMockRunner()
+	mr.QueueResponse("", "", nil)                         // git tag
+	mr.QueueResponse("", "", nil)                         // git push <tag>
+	mr.QueueResponse("", "", errors.New("exit status 1")) // sh -c (post_release, platform 1 — fails)
+	mr.QueueResponse("", "", nil)                         // sh -c (post_release, platform 2 — succeeds)
+
+	plat1 := &testutil.MockPlatform{PlatformName: "gitlab"}
+	plat2 := &testutil.MockPlatform{PlatformName: "github"}
+	cfg := &pipeline.Config{
+		PostReleaseHooks: []string{"exit 1"},
+		Platforms:        []port.Platform{plat1, plat2},
+	}
+	p := pipeline.New(mr, &fakeResolver{result: resolvedResult("v1.2.3")}, cfg, &bytes.Buffer{}, false)
+	err := p.Run()
+	require.Error(t, err)
+
+	require.Len(t, plat1.CreateReleaseCalls, 1, "post_release fires after publish already happened")
+	require.Len(t, plat2.CreateReleaseCalls, 1, "the next platform must still be attempted")
+}
+
+// TestRun_RealPublishFailureStillAbortsWholeLoop proves the pre-existing all-or-nothing
+// behavior for an actual publish failure (not a hook failure) is unchanged by T270's isolation.
+func TestRun_RealPublishFailureStillAbortsWholeLoop(t *testing.T) {
+	mr := exectest.NewMockRunner()
+	mr.QueueResponse("", "", nil) // git tag
+	mr.QueueResponse("", "", nil) // git push <tag>
+
+	plat1 := &testutil.MockPlatform{PlatformName: "gitlab", CreateReleaseErr: errors.New("gitlab API down")}
+	plat2 := &testutil.MockPlatform{PlatformName: "github"}
+	cfg := &pipeline.Config{Platforms: []port.Platform{plat1, plat2}}
+
+	p := pipeline.New(mr, &fakeResolver{result: resolvedResult("v1.2.3")}, cfg, &bytes.Buffer{}, false)
+	err := p.Run()
+	require.Error(t, err)
+
+	require.Len(t, plat1.CreateReleaseCalls, 1)
+	assert.Empty(t, plat2.CreateReleaseCalls, "a real publish failure must still abort before the next platform")
+}
+
+func TestRun_Hooks_NoHooksSkipsPreAndPostRelease(t *testing.T) {
+	mr := exectest.NewMockRunner()
+	mr.QueueResponse("", "", nil) // git tag
+	mr.QueueResponse("", "", nil) // git push <tag>
+
+	plat := &testutil.MockPlatform{PlatformName: "github"}
+	cfg := &pipeline.Config{
+		NoHooks:          true,
+		PreReleaseHooks:  []string{"echo pre-release"},
+		PostReleaseHooks: []string{"echo post-release"},
+		Platforms:        []port.Platform{plat},
+	}
+	p := pipeline.New(mr, &fakeResolver{result: resolvedResult("v1.2.3")}, cfg, &bytes.Buffer{}, false)
+	require.NoError(t, p.Run())
+
+	require.Len(t, mr.Calls, 2, "only the git tag + push calls — no sh -c calls")
+	require.Len(t, plat.CreateReleaseCalls, 1)
+}
+
 func TestRun_Hooks_FailureAbortsRun(t *testing.T) {
 	tests := []struct {
 		name     string
