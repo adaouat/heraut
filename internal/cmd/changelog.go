@@ -19,6 +19,7 @@ func NewChangelogCmd(version string) *cobra.Command {
 		versionOverride string
 		buildID         string
 		regenerate      bool
+		noHooks         bool
 	)
 
 	changelogCmd := &cobra.Command{
@@ -91,6 +92,7 @@ func NewChangelogCmd(version string) *cobra.Command {
 				RegenerateChangelog: regenerate,
 				ReadRunner:          readRunner,
 				InteractiveRunner:   interactiveRunner,
+				NoHooks:             noHooks,
 			}
 			if !dryRun {
 				if err := app.CheckBranch(readRunner, cfg, env, force); err != nil {
@@ -121,6 +123,7 @@ func NewChangelogCmd(version string) *cobra.Command {
 	changelogCmd.Flags().String("env", "", "target environment (for per-env strategies)")
 	changelogCmd.Flags().Bool("force", false, "override safety checks blocking tag promotion or missing PR/MR metadata")
 	changelogCmd.Flags().Bool("offline", false, "skip remote PR/MR metadata enrichment (forces enrichment_policy: disabled)")
+	changelogCmd.Flags().BoolVar(&noHooks, "no-hooks", false, "skip every configured hook (post_bump/pre_changelog/pre_tag/post_tag) for this run")
 
 	return changelogCmd
 }

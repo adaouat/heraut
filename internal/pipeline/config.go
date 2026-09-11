@@ -33,4 +33,14 @@ type Config struct {
 	// RegenerateChangelog mirrors the native generator's --regenerate mode: when true, the
 	// changelog step re-enriches every section rather than splicing only the new one.
 	RegenerateChangelog bool
+	// NoHooks skips every configured hook for this run (--no-hooks), without touching config.
+	NoHooks bool
+	// PostBumpHooks run immediately after the next version is resolved. Empty = no hooks.
+	PostBumpHooks []string
+	// PreChangelogHooks run before changelog generation. Empty = no hooks.
+	PreChangelogHooks []string
+	// PreTagHooks run before the local git tag is created. Empty = no hooks.
+	PreTagHooks []string
+	// PostTagHooks run after the tag is pushed to origin. Empty = no hooks.
+	PostTagHooks []string
 }

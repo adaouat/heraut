@@ -31,6 +31,13 @@ func TestNewReleaseCmd_RegenerateChangelogFlag(t *testing.T) {
 	assert.Equal(t, "false", f.DefValue)
 }
 
+func TestNewReleaseCmd_NoHooksFlag(t *testing.T) {
+	c := cmd.NewReleaseCmd("v0.0.0-test")
+	f := c.Flags().Lookup("no-hooks")
+	require.NotNil(t, f, "release has a --no-hooks flag")
+	assert.Equal(t, "false", f.DefValue)
+}
+
 func TestRelease_BuildRequiresVersion(t *testing.T) {
 	cfgPath := writeConfig(t, `
 version: "1"

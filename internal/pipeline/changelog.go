@@ -39,6 +39,16 @@ type ChangelogConfig struct {
 	// RegenerateChangelog mirrors the native generator's --regenerate mode: when true, the
 	// changelog step re-enriches every section rather than splicing only the new one.
 	RegenerateChangelog bool
+	// NoHooks skips every configured hook for this run (--no-hooks), without touching config.
+	NoHooks bool
+	// PostBumpHooks run immediately after the next version is resolved. Empty = no hooks.
+	PostBumpHooks []string
+	// PreChangelogHooks run before changelog generation. Empty = no hooks.
+	PreChangelogHooks []string
+	// PreTagHooks run before the local git tag is created. Empty = no hooks.
+	PreTagHooks []string
+	// PostTagHooks run after the tag is pushed to origin. Empty = no hooks.
+	PostTagHooks []string
 }
 
 // ChangelogPipeline executes the changelog-only flow.
@@ -70,6 +80,24 @@ func (p *ChangelogPipeline) WithReporter(fn ui.StepFn) *ChangelogPipeline {
 func (p *ChangelogPipeline) WithInteractiveRunner(r port.Runner) *ChangelogPipeline {
 	p.git.interactiveRunner = r
 	return p
+}
+
+// hookVars builds the template variables available to hook commands from a resolved result
+// (ADR-0053). Platform is always empty here — this pipeline never publishes.
+func (p *ChangelogPipeline) hookVars(result versioning.Result) hookVars {
+	return hookVars{Version: result.Version, Tag: result.Tag, PreviousTag: result.CurrentTag}
+}
+
+// runHookPointStep renders and executes cmds (one hook point's configured commands) as a
+// reported step named name, skipping entirely — no step reported — when shouldRunHooks says
+// this point shouldn't run (dry-run, --no-hooks, or nothing configured).
+func (p *ChangelogPipeline) runHookPointStep(name string, cmds []string, vars hookVars) error {
+	if !shouldRunHooks(p.dryRun, p.cfg.NoHooks, cmds) {
+		return nil
+	}
+	return p.runStep(name, func() (string, []string, error) {
+		return "", nil, runHookPoint(p.git.interactiveOrRunner(), cmds, vars)
+	})
 }
 
 // runStep calls fn via the reporter when one is set, or directly when nil.
@@ -105,6 +133,13 @@ func (p *ChangelogPipeline) Run() error {
 		return err
 	}
 
+	// post_bump hooks fire on every resolve (ADR-0053) — including the DisableChangelog+!Tag
+	// case immediately below, which returns before any other step runs. shouldRunHooks (not
+	// this placement) is what prevents execution during --dry-run.
+	if err := p.runHookPointStep("Run post_bump hooks", p.cfg.PostBumpHooks, p.hookVars(result)); err != nil {
+		return err
+	}
+
 	if p.cfg.DisableChangelog {
 		if p.reporter != nil {
 			_, _ = fmt.Fprintln(p.out, ui.Warn(p.out, "changelog disabled"))
@@ -125,6 +160,10 @@ func (p *ChangelogPipeline) Run() error {
 	// changelog is tied to origin, so it resolves links from the explicit remote, the resolved
 	// forge, or the ambient CI host (ADR-0022 / ADR-0043).
 	if p.cfg.Changelog != nil && !p.cfg.DisableChangelog {
+		if err := p.runHookPointStep("Run pre_changelog hooks", p.cfg.PreChangelogHooks, p.hookVars(result)); err != nil {
+			return err
+		}
+
 		changelogCtx := p.changelogLinkContext()
 		if err := p.runStep("Generate changelog", func() (string, []string, error) {
 			if _, err := p.cfg.Changelog.Generate(result.Tag, changelogCtx); err != nil {
@@ -158,6 +197,10 @@ func (p *ChangelogPipeline) Run() error {
 
 	// Step 4+5: Tag the commit (conditional).
 	if p.cfg.Tag {
+		if err := p.runHookPointStep("Run pre_tag hooks", p.cfg.PreTagHooks, p.hookVars(result)); err != nil {
+			return err
+		}
+
 		if err := p.runStep(fmt.Sprintf("Create tag %s", result.Tag), func() (string, []string, error) {
 			if err := p.git.tag(result.Tag, commitMessage(p.cfg.CommitMessage, result.Version), p.cfg.AnnotatedTags, p.cfg.SignTags); err != nil {
 				return "", nil, fmt.Errorf("git tag: %w", err)
@@ -176,6 +219,12 @@ func (p *ChangelogPipeline) Run() error {
 			}); err != nil {
 				return err
 			}
+		}
+
+		// post_tag fires whether or not the tag was pushed — NoPush changes what "the tag
+		// operation completed" means, not whether it happened.
+		if err := p.runHookPointStep("Run post_tag hooks", p.cfg.PostTagHooks, p.hookVars(result)); err != nil {
+			return err
 		}
 	}
 

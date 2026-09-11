@@ -57,6 +57,9 @@ type PipelineOpts struct {
 	// capturing them (forge v0.19.0's CmdRunner.Interactive). Nil falls back to the pipeline
 	// runner, which behaves exactly as before this option existed.
 	InteractiveRunner port.Runner
+	// NoHooks skips every configured hook for this run (--no-hooks), without touching config
+	// (ADR-0053).
+	NoHooks bool
 }
 
 // ReadGPGSign reads tag.gpgSign from git config and returns true when it is set to "true".
@@ -82,13 +85,14 @@ func BuildPipeline(runner port.Runner, cfg *config.Config, resolver versioning.R
 		return nil, err
 	}
 	pipelineCfg.SignTags = opts.SignTags
+	pipelineCfg.NoHooks = opts.NoHooks
 
 	out := opts.Out
 	if out == nil {
 		out = io.Discard
 	}
 	pipe := pipeline.New(runner, resolver, pipelineCfg, out, opts.DryRun)
-	pipe = pipe.WithReporter(spinnerReporter(out, releaseStepTotal(pipelineCfg)))
+	pipe = pipe.WithReporter(spinnerReporter(out, releaseStepTotal(pipelineCfg, opts.DryRun)))
 	pipe = pipe.WithLogger(opts.Logger)
 	pipe = pipe.WithInteractiveRunner(opts.InteractiveRunner)
 	return pipe, nil
@@ -108,11 +112,27 @@ func spinnerReporter(out io.Writer, total int) ui.StepFn {
 }
 
 // releaseStepTotal computes the number of numbered steps for a release pipeline.
-// Asset uploads are sub-results of the platform step, not separate numbered steps.
-func releaseStepTotal(cfg *pipeline.Config) int {
+// Asset uploads are sub-results of the platform step, not separate numbered steps. dryRun must
+// match the value passed to pipeline.New: hook steps never run during --dry-run (ADR-0053), so
+// they must not be counted then either, or the reporter's [N/total] counter would overshoot.
+func releaseStepTotal(cfg *pipeline.Config, dryRun bool) int {
+	hookRuns := func(cmds []string) bool { return !dryRun && !cfg.NoHooks && len(cmds) > 0 }
+
 	total := 3 // resolve version + create tag + push tag
+	if hookRuns(cfg.PostBumpHooks) {
+		total++
+	}
 	if cfg.Changelog != nil && !cfg.DisableChangelog {
 		total += 2 // generate changelog + commit changelog
+		if hookRuns(cfg.PreChangelogHooks) {
+			total++
+		}
+	}
+	if hookRuns(cfg.PreTagHooks) {
+		total++
+	}
+	if hookRuns(cfg.PostTagHooks) {
+		total++
 	}
 	// The standalone "generate release notes" step exists only for single-platform
 	// releases. With multiple platforms, notes are regenerated inside each publish step
@@ -141,24 +161,39 @@ func BuildChangelogPipeline(runner port.Runner, cfg *config.Config, resolver ver
 		out = io.Discard
 	}
 	pipe := pipeline.NewChangelog(runner, resolver, changelogCfg, out, opts.DryRun)
-	pipe = pipe.WithReporter(spinnerReporter(out, changelogStepTotal(changelogCfg)))
+	pipe = pipe.WithReporter(spinnerReporter(out, changelogStepTotal(changelogCfg, opts.DryRun)))
 	pipe = pipe.WithInteractiveRunner(opts.InteractiveRunner)
 	return pipe, nil
 }
 
-// changelogStepTotal computes the number of numbered steps for a changelog pipeline.
-func changelogStepTotal(cfg *pipeline.ChangelogConfig) int {
+// changelogStepTotal computes the number of numbered steps for a changelog pipeline. dryRun
+// must match the value passed to pipeline.NewChangelog — see releaseStepTotal.
+func changelogStepTotal(cfg *pipeline.ChangelogConfig, dryRun bool) int {
+	hookRuns := func(cmds []string) bool { return !dryRun && !cfg.NoHooks && len(cmds) > 0 }
+
 	total := 1 // resolve version
+	if hookRuns(cfg.PostBumpHooks) {
+		total++
+	}
 	if cfg.Changelog != nil && !cfg.DisableChangelog {
+		if hookRuns(cfg.PreChangelogHooks) {
+			total++
+		}
 		total++ // generate changelog
 		if cfg.Commit || cfg.Tag {
 			total++ // commit changelog
 		}
 	}
 	if cfg.Tag {
+		if hookRuns(cfg.PreTagHooks) {
+			total++
+		}
 		total++ // create tag
 		if !cfg.NoPush {
 			total++ // push tags
+		}
+		if hookRuns(cfg.PostTagHooks) {
+			total++
 		}
 	}
 	return total
@@ -280,6 +315,12 @@ func buildReleasePipelineConfig(runner, readRunner port.Runner, cfg *config.Conf
 	pCfg.RegenerateChangelog = regenerateChangelog
 	pCfg.CommitMessage = cfg.Versioning.CommitMessage
 
+	// Hooks (ADR-0053) — flat/global only in v1, no per-env override.
+	pCfg.PostBumpHooks = cfg.PostBumpHooks()
+	pCfg.PreChangelogHooks = cfg.PreChangelogHooks()
+	pCfg.PreTagHooks = cfg.PreTagHooks()
+	pCfg.PostTagHooks = cfg.PostTagHooks()
+
 	return pCfg, nil
 }
 
@@ -392,6 +433,13 @@ func buildChangelogPipelineConfig(runner, readRunner port.Runner, cfg *config.Co
 	cCfg.AnnotatedTags = cfg.Versioning.TagType != "lightweight"
 	cCfg.RegenerateChangelog = opts.RegenerateChangelog
 	cCfg.CommitMessage = cfg.Versioning.CommitMessage
+	cCfg.NoHooks = opts.NoHooks
+
+	// Hooks (ADR-0053) — flat/global only in v1, no per-env override.
+	cCfg.PostBumpHooks = cfg.PostBumpHooks()
+	cCfg.PreChangelogHooks = cfg.PreChangelogHooks()
+	cCfg.PreTagHooks = cfg.PreTagHooks()
+	cCfg.PostTagHooks = cfg.PostTagHooks()
 
 	return cCfg, nil
 }

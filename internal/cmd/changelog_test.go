@@ -31,6 +31,13 @@ func TestNewChangelogCmd_RegenerateFlag(t *testing.T) {
 	assert.Equal(t, "false", f.DefValue)
 }
 
+func TestNewChangelogCmd_NoHooksFlag(t *testing.T) {
+	c := cmd.NewChangelogCmd("v0.0.0-test")
+	f := c.Flags().Lookup("no-hooks")
+	require.NotNil(t, f, "changelog has a --no-hooks flag")
+	assert.Equal(t, "false", f.DefValue)
+}
+
 func TestChangelog_BuildRejectsInvalidValue(t *testing.T) {
 	cfgPath := writeConfig(t, `
 version: "1"

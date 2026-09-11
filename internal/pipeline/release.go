@@ -49,6 +49,24 @@ func (p *Pipeline) WithInteractiveRunner(r port.Runner) *Pipeline {
 	return p
 }
 
+// hookVars builds the template variables available to hook commands from a resolved result
+// (ADR-0053). Platform is left empty here — only pre_release/post_release (T270) set it.
+func (p *Pipeline) hookVars(result versioning.Result) hookVars {
+	return hookVars{Version: result.Version, Tag: result.Tag, PreviousTag: result.CurrentTag}
+}
+
+// runHookPointStep renders and executes cmds (one hook point's configured commands) as a
+// reported step named name, skipping entirely — no step reported — when shouldRunHooks says
+// this point shouldn't run (dry-run, --no-hooks, or nothing configured).
+func (p *Pipeline) runHookPointStep(name string, cmds []string, vars hookVars) error {
+	if !shouldRunHooks(p.dryRun, p.cfg.NoHooks, cmds) {
+		return nil
+	}
+	return p.runStep(name, func() (string, []string, error) {
+		return "", nil, runHookPoint(p.git.interactiveOrRunner(), cmds, vars)
+	})
+}
+
 // debug emits an operator-debug log line when a logger is set.
 func (p *Pipeline) debug(msg string, args ...any) {
 	if p.logger != nil {
@@ -117,6 +135,13 @@ func (p *Pipeline) Run() error {
 		return err
 	}
 
+	// post_bump hooks fire on every resolve (ADR-0053) — independent of dry-run/disable-changelog
+	// branching below, so this sits right after Step 1 rather than after the dry-run check.
+	// shouldRunHooks (not this placement) is what actually prevents execution during --dry-run.
+	if err := p.runHookPointStep("Run post_bump hooks", p.cfg.PostBumpHooks, p.hookVars(result)); err != nil {
+		return err
+	}
+
 	if p.dryRun {
 		return p.dryRunOutput(result)
 	}
@@ -125,6 +150,10 @@ func (p *Pipeline) Run() error {
 	// singular and tied to origin, so it resolves links from the ambient CI host (ADR-0022).
 	// Falls back to the single configured platform context for local/non-CI runs.
 	if p.cfg.Changelog != nil && !p.cfg.DisableChangelog {
+		if err := p.runHookPointStep("Run pre_changelog hooks", p.cfg.PreChangelogHooks, p.hookVars(result)); err != nil {
+			return err
+		}
+
 		changelogCtx := p.changelogLinkContext()
 		if err := p.runStep("Generate changelog", func() (string, []string, error) {
 			if _, err := p.cfg.Changelog.Generate(result.Tag, changelogCtx); err != nil {
@@ -153,6 +182,10 @@ func (p *Pipeline) Run() error {
 		}
 	}
 
+	if err := p.runHookPointStep("Run pre_tag hooks", p.cfg.PreTagHooks, p.hookVars(result)); err != nil {
+		return err
+	}
+
 	// Step 4: Create tag.
 	if err := p.runStep(fmt.Sprintf("Create tag %s", result.Tag), func() (string, []string, error) {
 		if err := p.git.tag(result.Tag, commitMessage(p.cfg.CommitMessage, result.Version), p.cfg.AnnotatedTags, p.cfg.SignTags); err != nil {
@@ -170,6 +203,10 @@ func (p *Pipeline) Run() error {
 		}
 		return "", nil, nil
 	}); err != nil {
+		return err
+	}
+
+	if err := p.runHookPointStep("Run post_tag hooks", p.cfg.PostTagHooks, p.hookVars(result)); err != nil {
 		return err
 	}
 

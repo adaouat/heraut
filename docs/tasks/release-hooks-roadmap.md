@@ -42,7 +42,7 @@ non-POSIX shells, and a configurable working directory are explicitly out of sco
 |------|--------------------------------------------------------------------------------------------------|--------|
 | T267 | `internal/config`: `Hooks` struct + nil-safe accessors + `schema.json` + sample config          | Done |
 | T268 | `internal/pipeline`: `runHook` execution helper + interactive-runner access beyond `gitHelper`  | Done |
-| T269 | Wire `post_bump`/`pre_changelog`/`pre_tag`/`post_tag` into both pipelines + `--no-hooks` flag   | Not started |
+| T269 | Wire `post_bump`/`pre_changelog`/`pre_tag`/`post_tag` into both pipelines + `--no-hooks` flag   | Done |
 | T270 | Wire `pre_release`/`post_release` into `release.go`'s per-platform loop, with isolation         | Not started |
 | T271 | Dry-run rendering for all six hook points, both pipelines                                       | Not started |
 | T272 | Integration test: real-git-repo happy path proving hook execution + templating end to end       | Not started |
@@ -204,7 +204,59 @@ step after the failing hook's point executes (e.g. a failing `pre_tag` hook mean
 and everything after it never runs) — matching every other `runStep` failure's existing behavior,
 with no new rollback of a changelog commit that already landed.
 
-- [ ] Task complete, roadmap note added, committed
+- [x] Task complete, roadmap note added, committed
+
+**Completion note (2026-09-11).** Landed across more files than the plan's `Files` list named —
+the plan omitted `internal/app` entirely, which turned out to be load-bearing: without it, hooks
+configured in `.heraut.yml` would never reach a real `heraut release`/`heraut changelog` run.
+Corrected during execution rather than filed as a gap, since it's squarely this task's own goal
+("wire the four shared points"), not new scope:
+
+- `internal/pipeline/hooks.go` gained `hookVars` (the four/six template fields), `renderHookCmd`/
+  `renderHookCmds` (Go `text/template`, struct data — so an unknown `{{ .Typo }}` already errors
+  without needing the `missingkey` option, which only affects map lookups), `shouldRunHooks`
+  (the single `!dryRun && !noHooks && len(cmds)>0` gate reused everywhere), and `runHookPoint`
+  (render then execute). `pipeline.Config`/`ChangelogConfig` each gained `NoHooks bool` plus the
+  four `[]string` hook fields (duplicated per-struct, matching this codebase's existing convention
+  for `CommitMessage`/`DisableChangelog`/etc. — no shared sub-type between the two configs).
+- `release.go`/`changelog.go` each gained a `hookVars(result)` + `runHookPointStep(name, cmds,
+  vars)` method pair and four call sites. **Placement subtlety**: `post_bump` had to go *before*
+  `changelog.go`'s `DisableChangelog && !Tag` early-return (not just before the dry-run check,
+  which release.go's shape would have allowed) so it fires "unconditionally on resolve" per the
+  design even in the one case where every other step is skipped — proven by
+  `TestChangelogRun_PostBumpHook_FiresEvenWhenDisabledAndNoTag`. Every hook-point call site gates
+  on `shouldRunHooks` explicitly (not on surrounding control flow happening to run only outside
+  dry-run) so the invariant holds regardless of future refactors to either `Run()`.
+  **New edge case found while implementing** (not in the design doc): `post_tag` with
+  `--no-push` — no push occurred, so is there a "post-tag" event at all? Resolved as "yes, fires
+  regardless" (the tag operation completed; `NoPush` changes what completing means, not whether it
+  happened), tested by `TestChangelogRun_PostTagHook_FiresEvenWithNoPush`.
+- `internal/app/pipeline.go`: `buildReleasePipelineConfig`/`buildChangelogPipelineConfig` populate
+  the four hook fields from `cfg.PostBumpHooks()` etc. (T267's accessors); `PipelineOpts` gained
+  `NoHooks`, set onto `pCfg`/`cCfg` alongside the existing `SignTags`/`RegenerateChangelog`
+  pattern. `releaseStepTotal`/`changelogStepTotal` both gained a `dryRun bool` parameter — hook
+  steps must not inflate the reporter's `[N/total]` counter during `--dry-run`, since (until T271)
+  dry-run never calls them at all. This is a **temporary asymmetry**: T271 will make dry-run emit
+  hook lines too, at which point the `dryRun` guard in these two functions needs removing, not
+  just adjusting — flagged here so T271 doesn't miss it.
+- `internal/cmd/release.go`/`changelog.go`: `--no-hooks` registered locally (T266 convention, not
+  root), threaded to `opts.NoHooks`. Only a structural flag-registration test was added at the cmd
+  layer (`TestNewReleaseCmd_NoHooksFlag`/`TestNewChangelogCmd_NoHooksFlag`), matching the existing
+  precedent for `--regenerate-changelog`/`--regenerate` — full wiring-depth proof lives in the
+  `internal/app` and `internal/pipeline` layers instead, not a third copy at the cmd layer.
+- `docs/specs/03-commands.md` updated now (both flag tables + usage lines) rather than deferred to
+  T273, since this project treats undocumented flags as drift (Phase 27's whole epic). Deliberately
+  did **not** link to ADR-0053 from there yet — the file doesn't exist until T273, and a live spec
+  linking a nonexistent ADR is worse than a plain-text mention for the few days until it lands.
+- One deviation from strict TDD: `internal/app/hooks_internal_test.go`'s three tests were written
+  alongside the (already-written) one-line `pCfg.PostBumpHooks = cfg.PostBumpHooks()`-style
+  propagation, not strictly before it — this thin glue layer got test-after rather than test-first.
+  Every other layer (pipeline execution, pipeline wiring, step-total counting, cmd flags) was
+  genuinely red-green.
+- Manually smoke-tested end-to-end against a real scratch git repo (`heraut changelog --tag
+  --no-push`): confirmed real hook execution with correct template substitution, confirmed
+  `--dry-run` executes zero hooks (and the `[N/total]` counter matches exactly), confirmed
+  `--no-hooks` suppresses all configured hooks in a real run. Full suite + `hk check` green.
 
 ---
 
