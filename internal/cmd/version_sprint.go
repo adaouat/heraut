@@ -19,21 +19,34 @@ func newVersionSprintCmd() *cobra.Command {
 }
 
 func newVersionSprintBumpCmd() *cobra.Command {
-	return &cobra.Command{
+	cmd := &cobra.Command{
 		Use:   "bump",
 		Short: "Increment versioning.sprint in .heraut.yml",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			cfgPath, _ := cmd.Flags().GetString("config")
+			dryRun, _ := cmd.Flags().GetBool("dry-run")
 			path := config.ResolvePath(cfgPath)
+			out := cmd.OutOrStdout()
+
+			if dryRun {
+				cfg, err := config.Load(path)
+				if err != nil {
+					return exitcode.Wrap(exitcode.Config, err)
+				}
+				newSprint := cfg.Versioning.Sprint + 1
+				_, _ = fmt.Fprintf(out, "[dry-run] would bump sprint %d -> %d in %s\n", cfg.Versioning.Sprint, newSprint, path)
+				return nil
+			}
 
 			newSprint, err := config.IncrementSprint(path)
 			if err != nil {
 				return exitcode.Wrap(exitcode.Config, err)
 			}
 
-			out := cmd.OutOrStdout()
 			_, _ = fmt.Fprintln(out, ui.Success(out, fmt.Sprintf("sprint bumped to %d", newSprint)))
 			return nil
 		},
 	}
+	cmd.Flags().Bool("dry-run", false, "print actions without executing them")
+	return cmd
 }

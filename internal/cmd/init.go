@@ -22,7 +22,7 @@ func NewInitCmd(version string) *cobra.Command {
 		Short: "Generate .heraut.yml interactively (or with --defaults)",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			cfgPath, _ := cmd.Flags().GetString("config")
-			force, _ := cmd.Flags().GetBool("force")
+			overwrite, _ := cmd.Flags().GetBool("overwrite")
 			defaults, _ := cmd.Flags().GetBool("defaults")
 			out := cmd.OutOrStdout()
 
@@ -45,13 +45,15 @@ func NewInitCmd(version string) *cobra.Command {
 
 			// --defaults is the non-interactive path: it must not silently overwrite an
 			// existing config (T227) — consistent with the rest of the CLI's
-			// destructive-action posture (e.g. promotion guards also require --force).
-			if defaults && fileExists && !force {
-				return fmt.Errorf("%s already exists (use --force to overwrite with --defaults)", path)
+			// destructive-action posture (e.g. promotion guards require --force for
+			// release/changelog). init has its own --overwrite (T264) rather than
+			// borrowing root's --force, which means something unrelated (promotion guards).
+			if defaults && fileExists && !overwrite {
+				return fmt.Errorf("%s already exists (use --overwrite to overwrite with --defaults)", path)
 			}
 
 			if fileExists && !defaults {
-				if !force {
+				if !overwrite {
 					var update bool
 					prompt := huh.NewForm(
 						huh.NewGroup(
@@ -123,6 +125,7 @@ func NewInitCmd(version string) *cobra.Command {
 	}
 
 	initCmd.Flags().Bool("defaults", false, "write opinionated defaults non-interactively")
+	initCmd.Flags().Bool("overwrite", false, "overwrite an existing config file without prompting")
 	return initCmd
 }
 

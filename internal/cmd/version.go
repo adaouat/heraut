@@ -23,7 +23,7 @@ func NewVersionCmd() *cobra.Command {
 }
 
 func newVersionNextCmd() *cobra.Command {
-	return &cobra.Command{
+	cmd := &cobra.Command{
 		Use:   "next",
 		Short: "Compute and print the next version without side effects",
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -68,6 +68,9 @@ func newVersionNextCmd() *cobra.Command {
 			return nil
 		},
 	}
+	cmd.Flags().String("env", "", "target environment (for per-env strategies)")
+	cmd.Flags().Bool("force", false, "override safety checks blocking tag promotion or missing PR/MR metadata")
+	return cmd
 }
 
 func newVersionCurrentCmd() *cobra.Command {
@@ -117,5 +120,7 @@ func newVersionCurrentCmd() *cobra.Command {
 		},
 	}
 	cmd.Flags().BoolVar(&bare, "bare", false, "print the bare semantic version (strip prefix/env/build), not the raw tag")
+	cmd.Flags().String("env", "", "target environment (for per-env strategies)")
+	cmd.Flags().Bool("force", false, "override safety checks blocking tag promotion or missing PR/MR metadata")
 	return cmd
 }

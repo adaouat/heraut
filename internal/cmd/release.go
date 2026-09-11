@@ -38,7 +38,6 @@ func NewReleaseCmd(version string) *cobra.Command {
 				}
 			}
 
-			// Read persistent flags from root
 			cfgPath, _ := cmd.Flags().GetString("config")
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
 			verbose, _ := cmd.Flags().GetBool("verbose")
@@ -128,6 +127,10 @@ func NewReleaseCmd(version string) *cobra.Command {
 	releaseCmd.Flags().StringVar(&buildID, "set-build-id", "", "build ID appended to the tag via the {build} token in tag_format (requires --set-version)")
 	releaseCmd.Flags().BoolVar(&regenerateChangelog, "regenerate-changelog", false,
 		"rebuild the entire changelog and re-fetch PR attribution (needed once when migrating an existing changelog onto heraut)")
+	releaseCmd.Flags().Bool("dry-run", false, "print actions without executing them")
+	releaseCmd.Flags().String("env", "", "target environment (for per-env strategies)")
+	releaseCmd.Flags().Bool("force", false, "override safety checks blocking tag promotion or missing PR/MR metadata")
+	releaseCmd.Flags().Bool("offline", false, "skip remote PR/MR metadata enrichment (forces enrichment_policy: disabled)")
 
 	return releaseCmd
 }

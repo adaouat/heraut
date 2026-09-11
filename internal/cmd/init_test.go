@@ -49,12 +49,12 @@ func TestInitCmd_DefaultsProducesValidConfig(t *testing.T) {
 	assert.Empty(t, errs)
 }
 
-func TestInitCmd_DefaultsForceOverwrites(t *testing.T) {
+func TestInitCmd_DefaultsOverwriteFlagOverwrites(t *testing.T) {
 	dir := t.TempDir()
 	cfgPath := filepath.Join(dir, ".heraut.yml")
 	require.NoError(t, os.WriteFile(cfgPath, []byte("existing content"), 0o644))
 
-	_, err := executeRoot("init", "--defaults", "--force", "--config", cfgPath)
+	_, err := executeRoot("init", "--defaults", "--overwrite", "--config", cfgPath)
 	require.NoError(t, err)
 
 	data, err := os.ReadFile(cfgPath)
@@ -141,19 +141,34 @@ func TestInitCmd_ExplicitFlagWinsOverEnvVar(t *testing.T) {
 	assert.True(t, os.IsNotExist(err), "env.yml should not be created when --config flag is set")
 }
 
-func TestInitCmd_DefaultsWithExistingNoForceErrors(t *testing.T) {
-	// T227: --defaults must not silently overwrite an existing config — require --force,
+func TestInitCmd_DefaultsWithExistingNoOverwriteErrors(t *testing.T) {
+	// T227: --defaults must not silently overwrite an existing config — require --overwrite,
 	// consistent with the rest of the CLI's destructive-action posture (e.g. promotion
-	// guards). Previously this overwrote without prompt or --force; deliberately changed.
+	// guards). Previously this overwrote without prompt or --overwrite; deliberately changed.
+	// T264: renamed from --force, which init borrowed from root's promotion-guard flag for
+	// an unrelated meaning.
 	dir := t.TempDir()
 	cfgPath := filepath.Join(dir, ".heraut.yml")
 	require.NoError(t, os.WriteFile(cfgPath, []byte("existing content"), 0o644))
 
 	_, err := executeRoot("init", "--defaults", "--config", cfgPath)
 	require.Error(t, err)
-	assert.Contains(t, err.Error(), "--force")
+	assert.Contains(t, err.Error(), "--overwrite")
 
 	data, err := os.ReadFile(cfgPath)
 	require.NoError(t, err)
 	assert.Equal(t, "existing content", string(data), "the existing file must be left untouched")
+}
+
+func TestInitCmd_DoesNotAcceptUnrelatedFlags(t *testing.T) {
+	// T266: init only has --defaults/--overwrite of its own (plus root's --config/--verbose).
+	// --dry-run/--env/--force/--offline are scoped to the commands that use them, not
+	// inherited from root — init used to silently accept (and, for --force, misuse) these.
+	for _, flag := range []string{"--dry-run", "--env=uat", "--force", "--offline"} {
+		t.Run(flag, func(t *testing.T) {
+			_, err := executeRoot("init", "--defaults", flag)
+			require.Error(t, err)
+			assert.Contains(t, err.Error(), "unknown flag")
+		})
+	}
 }

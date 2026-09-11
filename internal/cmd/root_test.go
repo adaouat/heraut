@@ -20,9 +20,14 @@ func TestNewRootCmd(t *testing.T) {
 	}
 
 	flags := root.PersistentFlags()
-	for _, name := range []string{"config", "dry-run", "verbose", "env", "force"} {
+	for _, name := range []string{"config", "verbose"} {
 		if flags.Lookup(name) == nil {
 			t.Errorf("persistent flag %q not registered", name)
+		}
+	}
+	for _, name := range []string{"dry-run", "env", "force", "offline"} {
+		if flags.Lookup(name) != nil {
+			t.Errorf("persistent flag %q should be scoped to the commands that use it, not root", name)
 		}
 	}
 }

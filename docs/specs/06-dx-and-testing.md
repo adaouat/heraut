@@ -22,7 +22,8 @@ developers before committing config changes. No tokens, no network, no git opera
 
 ### Dry-run
 
-Every command supports `--dry-run`. The implementation:
+Every command with side effects (`release`, `changelog`, `commit create`, `version sprint
+bump`) supports its own local `--dry-run` flag. The implementation:
 
 1. The `exec.Runner` adapter checks its `DryRun` flag before invoking each command.
 2. When set, it logs the would-be invocation and returns immediately with empty stdout /

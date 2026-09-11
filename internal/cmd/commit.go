@@ -131,6 +131,7 @@ func newCommitCheckCmd() *cobra.Command {
 		},
 	}
 	cmd.Flags().BoolVar(&fromLatestTag, "from-latest-tag", false, "check commits since the latest tag (mutually exclusive with rev-range)")
+	cmd.Flags().String("env", "", "target environment (for per-env strategies)")
 	return cmd
 }
 
@@ -190,6 +191,7 @@ func newCommitTicketsCmd() *cobra.Command {
 		},
 	}
 	cmd.Flags().BoolVar(&fromLatestTag, "from-latest-tag", false, "check commits since the latest tag (mutually exclusive with rev-range)")
+	cmd.Flags().String("env", "", "target environment (for per-env strategies)")
 	return cmd
 }
 
@@ -230,6 +232,7 @@ func newCommitCreateCmd() *cobra.Command {
 		},
 	}
 	cmd.Flags().BoolVarP(&all, "all", "a", false, "stage all tracked modifications before committing (git commit -a)")
+	cmd.Flags().Bool("dry-run", false, "print actions without executing them")
 	return cmd
 }
 

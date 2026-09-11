@@ -208,6 +208,9 @@ discipline that applies to every task.
 | 37 | Skip version bump for no-op-only releases | Done — see ADR-0052 |
 | 38 | Track every PR for a first-time contributor, not just the first | Done |
 | 39 | Rename `--version`/`--build` override flags to disambiguate from root's `--version` | Done |
+| 40 | Give `heraut init` its own `--overwrite` flag instead of overloading root's `--force` | Done |
+| 41 | `heraut version sprint bump` respects `--dry-run` | Done |
+| 42 | Scope `--dry-run`/`--env`/`--force`/`--offline` to the commands that use them, off root | Done |
 
 ### Open items
 
@@ -665,7 +668,125 @@ larger, separately-scoped change (breaks every existing `.heraut.yml` with `{bui
 `tag_format`, touches `tagfmt`'s token constant, `schema.json`, the sample config, native's
 template rendering, and every fixture under `testdata/config/`) and was not pursued here.
 
-### Active epics tracked in their own file
+### Phase 40 — Give `heraut init` its own `--overwrite` flag instead of overloading root's `--force`
+
+#### ✦ `[x]` T264: split init's overwrite semantics off root's shared `--force`
+
+Root's persistent `--force` flag already carries two related meanings (bypass promotion
+guards E001/E002; downgrade required PR/MR enrichment to optional for the run). `heraut
+init` piggybacked on the same flag for a third, unrelated meaning: "overwrite an existing
+config file." Same flag, three meanings depending on which command reads it — the same
+shape of confusion `--version` had before T263, except here it's one flag silently doing
+double duty instead of two same-named flags. Gave `init` its own local `--overwrite` flag
+(`internal/cmd/init.go`); root's `--force` keeps its original two (now genuinely related)
+meanings, unchanged for `release`/`changelog`/`version next`/`version current`.
+
+Also reworded root's `--force` `--help` description (`internal/cmd/root.go`), which leaned
+on internal error codes (`bypass E001/E002 promotion errors`) a first-time reader has no
+reason to know, to `override safety checks blocking tag promotion or missing PR/MR
+metadata`. The full technical detail (E001/E002, ADR-0007 link, the enrichment-downgrade
+behavior) stays in `docs/specs/03-commands.md`'s global-flags table, which is the right
+altitude for it; only the live `--help` one-liner needed to drop the jargon.
+
+TDD: renamed `TestInitCmd_DefaultsForceOverwrites` →
+`TestInitCmd_DefaultsOverwriteFlagOverwrites` and `TestInitCmd_DefaultsWithExistingNoForceErrors`
+→ `TestInitCmd_DefaultsWithExistingNoOverwriteErrors` in `internal/cmd/init_test.go` to red
+against `--overwrite` first (unknown flag), then added the `overwrite` bool flag and
+threaded it through `init.go` in place of the borrowed `force` read. Root's `--force`
+remains technically inherited-but-unread on `init` (same as `--dry-run`/`--env`/`--offline`
+already were) — not hidden from `init --help`, since cobra has no clean per-command
+suppression of an inherited persistent flag and that's a pre-existing pattern, not new
+scope for this task.
+
+Docs updated: `docs/specs/03-commands.md` (global-flags table row, `heraut init`'s own flag
+table + example). No config-schema or `.heraut.yml` surface touched — this is a CLI-flag-only
+change.
+
+### Phase 41 — `heraut version sprint bump` respects `--dry-run`
+
+#### ✦ `[x]` T265: make `--dry-run` prevent the write in `version sprint bump`
+
+The command increments `versioning.sprint` in `.heraut.yml` and writes it back
+immediately; the spec explicitly called out that `--dry-run` "has no effect" for it. That
+directly contradicted root's own `--dry-run` contract ("no file writes outside `/tmp`") —
+this was the one command in the whole CLI where the global flag was silently a no-op on a
+command that writes.
+
+`internal/cmd/version_sprint.go`'s `RunE` now checks `--dry-run` before calling
+`config.IncrementSprint` (which both computes and writes in one step): on dry-run it loads
+the config directly (`config.Load`), computes `cfg.Versioning.Sprint + 1` itself, and prints
+`[dry-run] would bump sprint N -> M in <path>` — matching the `[dry-run] would <action>`
+phrasing already used throughout `internal/pipeline/{release,changelog}.go` — without ever
+calling the writing function. No changes to `internal/config/sprint.go`: keeping the
+peek-without-writing logic in the cmd layer avoided adding a second entry point or a
+bool parameter to `IncrementSprint` for a single caller.
+
+TDD: `TestVersionSprintBump_DryRun_DoesNotWrite` added to `internal/cmd/version_test.go`,
+red against the unmodified command (asserted `[dry-run]` in output and an unchanged file;
+got the real "sprint bumped to 6" success message and a mutated file instead).
+
+Docs updated: `docs/specs/03-commands.md`'s `heraut version sprint bump` section, replacing
+the "`--dry-run` has no effect" caveat with a description of the new behavior.
+
+### Phase 42 — Scope `--dry-run`/`--env`/`--force`/`--offline` to the commands that use them, off root
+
+#### ✦ `[x]` T266: move four persistent root flags to local flags on the commands that actually read them
+
+T264 gave `init` its own `--overwrite` so it stopped borrowing root's `--force` for an
+unrelated meaning, but left `--force` (unused, inert) still showing on `init --help` —
+cobra persistent flags are the *same* `*pflag.Flag` object shared across every
+subcommand's merged flag set (`AddFlagSet` copies the pointer, not the value), so hiding
+it from one subcommand without hiding it everywhere isn't possible while it stays a root
+persistent flag. Root persistent flags fundamentally can't be scoped per-subcommand at
+all — every command inherits every one, whether it reads it or not.
+
+Root now declares only `--config` (read by literally every command) and `--verbose`
+(deferred — used by 9 of 13 commands, close enough to universal to leave alone for now,
+revisit later if it becomes its own source of confusion). `--dry-run`, `--env`, `--force`,
+and `--offline` became **local** flags, redeclared with identical name/type/default/help
+text on exactly the commands that read them — duplicated declarations, deliberately, since
+that's the only way cobra allows a flag to differ by command:
+
+| Command | Local flags added |
+|---|---|
+| `release` | `--dry-run`, `--env`, `--force`, `--offline` |
+| `changelog` | `--dry-run`, `--env`, `--force`, `--offline` |
+| `check` (bare) | `--env`, `--offline` |
+| `check runtime` | `--env` |
+| `commit check` | `--env` |
+| `commit tickets` | `--env` |
+| `commit create` | `--dry-run` |
+| `version next` | `--env`, `--force` |
+| `version current` | `--env`, `--force` |
+| `version sprint bump` | `--dry-run` (was already reading it via root's persistent flag since T265; now genuinely local) |
+
+`check config`, `commit verify`, and `init` get none of the four — confirmed via
+`--help` inspection (`go run ./cmd/heraut init --help` no longer lists `--force` at all,
+since there's nothing left to inherit it from). This is a stronger fix than the
+point-patch considered earlier (making `init` error on a stray `--force`): the ghost flag
+is gone from `--help` entirely, not just handled better once typed.
+
+Since every `RunE` already read these via `cmd.Flags().GetBool/GetString(...)` — which
+resolves local and inherited flags identically — no `RunE` body needed to change at all;
+this was purely additive `Flags()` registration calls plus removing the four lines from
+`root.go`'s `PersistentFlags()`. The entire existing test suite passed unchanged after the
+move, which is itself the regression proof: every command that legitimately used one of
+these four flags kept behaving identically.
+
+TDD (for the actual new behavior — commands newly *rejecting* these flags):
+`TestInitCmd_DoesNotAcceptUnrelatedFlags`, `TestCommitVerify_DoesNotAcceptUnrelatedFlags`,
+`TestCheckConfig_DoesNotAcceptUnrelatedFlags`, `TestVersionSprintBump_DoesNotAcceptUnrelatedFlags`
+— one representative command per matrix shape (fully-stripped x3, plus sprint bump which
+gains `--dry-run` while losing the other three) rather than exhaustive per-command
+coverage, since the mechanism being proven (an unregistered flag now hard-errors with
+"unknown flag") is identical each time. `TestNewRootCmd` (`root_test.go`) updated to assert
+the *absence* of the four flags from `root.PersistentFlags()`, inverting its previous
+presence assertion.
+
+Docs: `docs/specs/03-commands.md`'s global-flags table now lists only `--config`,
+`--verbose`, `--version`/`-v`, `--help`/`-h`; every per-command section that gained a
+flag it didn't document before (`--offline` on `release`/`changelog`/bare `check`; `--env`
+on `check runtime`/`commit check`/`commit tickets`) got a row added to its flag table.
 
 Phases 23, 24, 25, 27, and 29 are heavy, multi-phase epics whose task breakdown and live
 `[ ] / [x]` status live in a dedicated roadmap file instead of inline here — this file keeps only

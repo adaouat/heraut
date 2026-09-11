@@ -80,6 +80,9 @@ func NewCheckCmd() *cobra.Command {
 		},
 	}
 
+	checkCmd.Flags().String("env", "", "target environment (for per-env strategies)")
+	checkCmd.Flags().Bool("offline", false, "skip remote PR/MR metadata enrichment (forces enrichment_policy: disabled)")
+
 	checkCmd.AddCommand(newCheckConfigCmd())
 	checkCmd.AddCommand(newCheckRuntimeCmd())
 
@@ -113,7 +116,7 @@ func newCheckConfigCmd() *cobra.Command {
 }
 
 func newCheckRuntimeCmd() *cobra.Command {
-	return &cobra.Command{
+	cmd := &cobra.Command{
 		Use:   "runtime",
 		Short: "Check binaries on PATH, token env vars, and git user config",
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -148,6 +151,8 @@ func newCheckRuntimeCmd() *cobra.Command {
 			return nil
 		},
 	}
+	cmd.Flags().String("env", "", "target environment (for per-env strategies)")
+	return cmd
 }
 
 // runRuntimeCheck dispatches each runtime check with a spinner and returns

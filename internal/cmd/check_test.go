@@ -257,3 +257,15 @@ echo "cog 6.x"
 	require.NoError(t, err)
 	assert.Contains(t, out, "no config found")
 }
+
+func TestCheckConfig_DoesNotAcceptUnrelatedFlags(t *testing.T) {
+	// T266: check config only reads --config (root) — no dry-run, no env, no force, no
+	// offline; it's an offline, read-only YAML validation with no runtime dimension.
+	for _, flag := range []string{"--dry-run", "--env=uat", "--force", "--offline"} {
+		t.Run(flag, func(t *testing.T) {
+			_, err := executeRoot("check", "config", flag)
+			require.Error(t, err)
+			assert.Contains(t, err.Error(), "unknown flag")
+		})
+	}
+}

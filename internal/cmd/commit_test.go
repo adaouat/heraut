@@ -265,3 +265,15 @@ func TestCommitCheck_FromLatestTag_HappyPath_ChecksOnlyCommitsAfterTag(t *testin
 	assert.Contains(t, out, "all commits follow conventional commits")
 	assert.Contains(t, out, "1 commits analysed")
 }
+
+func TestCommitVerify_DoesNotAcceptUnrelatedFlags(t *testing.T) {
+	// T266: commit verify only reads --config (root) and --file (local) — no dry-run,
+	// no env, no force, no offline; none of those apply to validating one message.
+	for _, flag := range []string{"--dry-run", "--env=uat", "--force", "--offline"} {
+		t.Run(flag, func(t *testing.T) {
+			_, err := executeRoot("commit", "verify", "feat: x", flag)
+			require.Error(t, err)
+			assert.Contains(t, err.Error(), "unknown flag")
+		})
+	}
+}

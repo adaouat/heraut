@@ -148,9 +148,9 @@ heraut release
 The [Quickstart](#quickstart) above covers the core loop. Beyond that: `heraut changelog`
 (changelog only, optionally `--commit`/`--tag`), `heraut version next`/`current` (print
 without side effects), `heraut commit verify`/`create` (Conventional Commits tooling).
-Every command takes `--dry-run` and `--help`; see
-[Spec 03 — Commands](docs/specs/03-commands.md) for the full reference including every
-global flag.
+`--help` works on every command; `--dry-run` on the ones with side effects (`release`,
+`changelog`, `commit create`, `version sprint bump`). See
+[Spec 03 — Commands](docs/specs/03-commands.md) for the full per-command flag reference.
 
 ## Configuration
 

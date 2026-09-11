@@ -117,6 +117,10 @@ func NewChangelogCmd(version string) *cobra.Command {
 	changelogCmd.Flags().StringVar(&buildID, "set-build-id", "", "build ID appended to the tag via the {build} token in tag_format (requires --set-version)")
 	changelogCmd.Flags().BoolVar(&regenerate, "regenerate", false,
 		"rebuild the entire changelog and re-fetch PR attribution (instead of incrementally adding the new section)")
+	changelogCmd.Flags().Bool("dry-run", false, "print actions without executing them")
+	changelogCmd.Flags().String("env", "", "target environment (for per-env strategies)")
+	changelogCmd.Flags().Bool("force", false, "override safety checks blocking tag promotion or missing PR/MR metadata")
+	changelogCmd.Flags().Bool("offline", false, "skip remote PR/MR metadata enrichment (forces enrichment_policy: disabled)")
 
 	return changelogCmd
 }

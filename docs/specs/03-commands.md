@@ -5,16 +5,17 @@ fields referenced here are defined in [Spec 02 — Configuration](02-configurati
 
 ## Global flags
 
-Present on every subcommand. Defined on the root command in `internal/cmd/root.go`.
+Present on every subcommand — defined on the root command in `internal/cmd/root.go`.
+Every other flag (`--dry-run`, `--env`, `--force`, `--offline`, and each command's own
+flags) is declared locally on exactly the commands that use it, not inherited from root —
+see each command's own section below for its flags (T266: these four used to be root
+persistent flags, silently inherited-but-unused by commands that had no need for them,
+e.g. `heraut init --help` used to list a `--force` that did nothing for `init`).
 
 | Flag                 | Default     | Description                                                                                                                |
 |----------------------|-------------|----------------------------------------------------------------------------------------------------------------------------|
 | `--config <path>`    | _(auto)_    | Path to `.heraut.yml`. Defaults to `.config/heraut.yml` if present, else `.heraut.yml`. See [ADR-0005](../adr/0005-config-file-discovery.md). |
-| `--dry-run`          | `false`     | Print actions without executing them. No git writes, no network calls, no file writes outside `/tmp`. Read-only git calls (tag list, log) still execute so the resolved version is accurate. |
 | `--verbose`          | `false`     | Log each external command (`[exec] <cmd> <args>`) before running it, then echo its captured output (indented). Also raises the pipeline's structured logger to debug level. |
-| `--env <name>`       | `""`        | Active environment override. Required for per-env strategies; ignored by single-env strategies. `auto` resolves the active environment from the current git branch against each environment's `branch:` instead of naming one explicitly. |
-| `--force`            | `false`     | Bypass promotion guards E001 and E002 (per [ADR-0007](../adr/0007-version-promotion-error-handling.md)). E003 is not bypassed. Also downgrades `commits.enrichment_policy: required` to `optional` for the run (degrade instead of failing when metadata is unavailable), and required to overwrite an existing config with `heraut init --defaults` (see § `heraut init` below). |
-| `--offline`          | `false`     | Forces `commits.enrichment_policy: disabled` for the run regardless of what `.heraut.yml` sets, skipping PR/MR enrichment in changelog and release-notes generation. |
 | `--version` / `-v`   | —           | Print the heraut version (see § `heraut --version` below).                                                                 |
 | `--help` / `-h`      | —           | Print usage and exit.                                                                                                      |
 
@@ -32,13 +33,13 @@ Generate a new `.heraut.yml` interactively or non-interactively.
 ```
 heraut init                # interactive wizard (huh-based prompts)
 heraut init --defaults     # write an opinionated default config, no prompts
-heraut init --force        # overwrite an existing config without prompting
+heraut init --overwrite    # overwrite an existing config without prompting
 ```
 
-| Flag         | Default | Description                                                                                                  |
-|--------------|---------|--------------------------------------------------------------------------------------------------------------|
-| `--defaults` | `false` | Write a non-interactive default config (semver, prefix `"v"`, GitLab). Skip the wizard. Requires `--force` when a config already exists at the destination — see `--force` below. |
-| `--force`    | `false` | Interactive mode: overwrite an existing config file without prompting. `--defaults` mode: **required** to overwrite an existing config at all — without it, `heraut init --defaults` errors rather than silently replacing the file. |
+| Flag          | Default | Description                                                                                                  |
+|---------------|---------|--------------------------------------------------------------------------------------------------------------|
+| `--defaults`  | `false` | Write a non-interactive default config (semver, prefix `"v"`, GitLab). Skip the wizard. Requires `--overwrite` when a config already exists at the destination — see `--overwrite` below. |
+| `--overwrite` | `false` | Interactive mode: overwrite an existing config file without prompting. `--defaults` mode: **required** to overwrite an existing config at all — without it, `heraut init --defaults` errors rather than silently replacing the file. Unrelated to the `--force` flag on `release`/`changelog`/`version next`/`version current` (which bypasses version-promotion guards and required PR/MR metadata) — `init` doesn't accept `--force` at all. |
 
 **Wizard flow**: strategy → version prefix (or CalVer format, with a custom-format option)
 → common tag format (per-env strategies only) → generate a changelog? (if yes, changelog
@@ -83,7 +84,7 @@ already exists, else `.heraut.yml`. The file starts with a
 Run the full release pipeline.
 
 ```
-heraut release [--set-version <version>] [--set-build-id <id>] [--regenerate-changelog] [--dry-run] [--env <name>] [--force]
+heraut release [--set-version <version>] [--set-build-id <id>] [--regenerate-changelog] [--dry-run] [--env <name>] [--force] [--offline]
 ```
 
 | Flag                     | Description                                                                          |
@@ -91,9 +92,10 @@ heraut release [--set-version <version>] [--set-build-id <id>] [--regenerate-cha
 | `--set-version`          | Override the auto-computed version for **any** strategy. Bypasses bump resolution entirely — no git calls are made to resolve it. Accepts any non-empty value with no whitespace; an optional leading `v` is stripped, then the result is rendered through the active strategy's tag shape exactly like an auto-resolved version would be: through the effective `tag_format` when one applies (per-env strategies, or a top-level `tag_format`), otherwise through `versioning.tag_prefix` (default `"v"` for SemVer strategies, `""` for CalVer). A full tag already carrying the right prefix round-trips unchanged. |
 | `--set-build-id`         | CI build ID appended to the tag via the `{build}` token in `tag_format`. Requires `--set-version`. |
 | `--regenerate-changelog` | Rebuild the entire changelog and re-enrich every section (batched per platform; one API call per commit on GitLab) instead of incrementally splicing just the new section. See [ADR-0038](../adr/0038-incremental-changelog.md). |
-| `--dry-run`              | Print the action plan; execute nothing.                                              |
-| `--env`                  | Active environment (required for per-env strategies).                                |
-| `--force`                | Bypass E001 (target tag exists) and E002 (destination ahead).                        |
+| `--dry-run`              | Print the action plan; execute nothing. No git writes, no network calls, no file writes outside `/tmp`. Read-only git calls (tag list, log) still execute so the resolved version is accurate. |
+| `--env`                  | Active environment (required for per-env strategies). `auto` resolves it from the current git branch against each environment's `branch:` instead of naming one explicitly. |
+| `--force`                | Bypass E001 (target tag exists) and E002 (destination ahead) — see [ADR-0007](../adr/0007-version-promotion-error-handling.md); E003 is not bypassed. Also downgrades `commits.enrichment_policy: required` to `optional` for this run (degrade instead of failing when metadata is unavailable). |
+| `--offline`              | Forces `commits.enrichment_policy: disabled` for this run regardless of what `.heraut.yml` sets, skipping PR/MR enrichment in changelog and release-notes generation. |
 
 > **`{build}` tag formats:** with a `tag_format` containing `{build}`, pass `--set-build-id <id>`
 > (requires `--set-version`) to render and publish a release per build — this creates one
@@ -171,7 +173,7 @@ Resolve the next version, optionally generate a changelog, optionally commit and
 without publishing to any release platform.
 
 ```
-heraut changelog [--commit] [--tag] [--no-push] [--set-version <version>] [--regenerate] [--dry-run] [--env <name>]
+heraut changelog [--commit] [--tag] [--no-push] [--set-version <version>] [--regenerate] [--dry-run] [--env <name>] [--force] [--offline]
 ```
 
 | Flag           | Description                                                                                              |
@@ -184,6 +186,8 @@ heraut changelog [--commit] [--tag] [--no-push] [--set-version <version>] [--reg
 | `--regenerate` | Rebuild the entire changelog and re-enrich every section (batched per platform; one API call per commit on GitLab) instead of incrementally splicing just the new section. See [ADR-0038](../adr/0038-incremental-changelog.md). |
 | `--dry-run`    | Print the action plan; execute nothing.                                                                  |
 | `--env`        | Active environment.                                                                                      |
+| `--force`      | Bypass E001 (target tag exists) and E002 (destination ahead) — see [ADR-0007](../adr/0007-version-promotion-error-handling.md); E003 is not bypassed. Also downgrades `commits.enrichment_policy: required` to `optional` for this run. |
+| `--offline`    | Forces `commits.enrichment_policy: disabled` for this run, skipping PR/MR enrichment.                    |
 
 **Action sequence** (with `--tag`, mirrors `cog bump`):
 
@@ -282,13 +286,13 @@ For `calver` / `calver-per-env` strategies whose `format` includes the `SPRINT` 
 increments `versioning.sprint` in `.heraut.yml` and writes the file back.
 
 ```
-heraut version sprint bump
+heraut version sprint bump [--dry-run]
 ```
 
 Run this at the start of each sprint. The next `heraut release` will use the new sprint
 number and reset `PATCH` to `0`.
 
-`--dry-run` has no effect — the file is written immediately, with no confirmation prompt.
+With `--dry-run`, prints the sprint number it would bump to without writing the file.
 
 ## `heraut commit verify`
 
@@ -330,7 +334,7 @@ range is given — against the same grammar and type allow-list `heraut commit v
 checks for a single message (see [ADR-0030](../adr/0030-commit-check-rev-range-validation.md)).
 
 ```
-heraut commit check [rev-range] [--from-latest-tag]
+heraut commit check [rev-range] [--from-latest-tag] [--env <name>]
 ```
 
 `rev-range` is passed straight through to `git log` — `A..B`, `A...B`, a single ref, or
@@ -358,7 +362,7 @@ reachable from `HEAD` when no range is given — using the exact same matching
 release notes (subject, then body on its own line when non-empty).
 
 ```
-heraut commit tickets [rev-range] [--from-latest-tag]
+heraut commit tickets [rev-range] [--from-latest-tag] [--env <name>]
 ```
 
 `rev-range` and `--from-latest-tag` behave identically to
@@ -443,10 +447,14 @@ automatically before doing any work; running them directly is useful in CI as a
 separate validation step.
 
 ```
-heraut check                       # runs config + runtime
-heraut check config                # offline only: parse + semantic validation
-heraut check runtime               # online: binaries + tokens + git user
+heraut check [--env <name>] [--offline]    # runs config + runtime
+heraut check config                        # offline only: parse + semantic validation
+heraut check runtime [--env <name>]        # online: binaries + tokens + git user
 ```
+
+`--env` and `--offline` apply to bare `check` (and `--env` to `check runtime`) — `check
+config` takes neither, since it's pure offline YAML validation with no runtime or
+per-environment dimension.
 
 Runs both sections in sequence (Config, then Runtime) and reports a combined summary.
 

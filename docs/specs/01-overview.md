@@ -86,9 +86,10 @@ version. Guards: E001 (target exists), E002 (destination ahead), E003 (no source
 See [ADR-0007](../adr/0007-version-promotion-error-handling.md) and
 [ADR-0008](../adr/0008-promote-source-env.md).
 
-**Dry-run** (`--dry-run`) — every command produces a human-readable plan of what it
-would do, without side effects: no git writes, no network calls, no file writes outside
-`/tmp`. One exception: version resolution always uses a real (non-dry-run) runner for its
+**Dry-run** (`--dry-run`) — every command with side effects (`release`, `changelog`,
+`commit create`, `version sprint bump`) produces a human-readable plan of what it would
+do instead: no git writes, no network calls, no file writes outside `/tmp`. One
+exception: version resolution always uses a real (non-dry-run) runner for its
 read-only git calls (`git tag -l`, `git log`), so the printed next version is the actual
 resolved version rather than a fallback to `initial_version`. See
 [Spec 06 — DX and Testing § Dry-run](06-dx-and-testing.md#dry-run).

@@ -422,3 +422,36 @@ versioning:
 	data, _ := os.ReadFile(cfgPath)
 	assert.Contains(t, string(data), "sprint: 1")
 }
+
+func TestVersionSprintBump_DryRun_DoesNotWrite(t *testing.T) {
+	cfgPath := writeConfig(t, `version: "1"
+versioning:
+  strategy: calver
+  format: "YYYY.SPRINT.PATCH"
+  sprint: 5
+`)
+	before, err := os.ReadFile(cfgPath)
+	require.NoError(t, err)
+
+	out, err := executeRoot("version", "sprint", "bump", "--config", cfgPath, "--dry-run")
+	require.NoError(t, err)
+	assert.Contains(t, out, "[dry-run]")
+	assert.Contains(t, out, "5")
+	assert.Contains(t, out, "6")
+
+	after, err := os.ReadFile(cfgPath)
+	require.NoError(t, err)
+	assert.Equal(t, string(before), string(after), "dry-run must not write the config file")
+}
+
+func TestVersionSprintBump_DoesNotAcceptUnrelatedFlags(t *testing.T) {
+	// T266: sprint bump has its own local --dry-run (tested above) but no env/force/offline
+	// — there's no per-env dimension or promotion guard for a plain counter increment.
+	for _, flag := range []string{"--env=uat", "--force", "--offline"} {
+		t.Run(flag, func(t *testing.T) {
+			_, err := executeRoot("version", "sprint", "bump", flag)
+			require.Error(t, err)
+			assert.Contains(t, err.Error(), "unknown flag")
+		})
+	}
+}

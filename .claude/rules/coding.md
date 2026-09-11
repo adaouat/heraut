@@ -110,7 +110,10 @@ direction, do not add the import.
   `app.NewResolver(...)` and `app.BuildPipeline(...)` → call `pipeline.Run()` → done.
 - No strategy switching, no generator construction, no platform construction in
   `internal/cmd/`.
-- Global flags on root: `--config`, `--dry-run`, `--verbose`, `--env`, `--force`, `--offline`.
+- Global flags on root: `--config`, `--verbose`. Every other flag (`--dry-run`, `--env`,
+  `--force`, `--offline`, plus each command's own flags) is declared locally on exactly
+  the commands that use it, not inherited from root (T266) — duplicate the declaration
+  rather than reaching for a persistent flag on root.
 
 ## UI
 
