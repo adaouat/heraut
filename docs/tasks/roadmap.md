@@ -211,6 +211,7 @@ discipline that applies to every task.
 | 40 | Give `heraut init` its own `--overwrite` flag instead of overloading root's `--force` | Done |
 | 41 | `heraut version sprint bump` respects `--dry-run` | Done |
 | 42 | Scope `--dry-run`/`--env`/`--force`/`--offline` to the commands that use them, off root | Done |
+| 43 | Release lifecycle hooks | Not started — see `release-hooks-roadmap.md` |
 
 ### Open items
 
@@ -788,7 +789,7 @@ Docs: `docs/specs/03-commands.md`'s global-flags table now lists only `--config`
 flag it didn't document before (`--offline` on `release`/`changelog`/bare `check`; `--env`
 on `check runtime`/`commit check`/`commit tickets`) got a row added to its flag table.
 
-Phases 23, 24, 25, 27, and 29 are heavy, multi-phase epics whose task breakdown and live
+Phases 23, 24, 25, 27, 29, and 43 are heavy, multi-phase epics whose task breakdown and live
 `[ ] / [x]` status live in a dedicated roadmap file instead of inline here — this file keeps only
 a navigable summary for each.
 
@@ -890,6 +891,24 @@ and live `[ ] / [x]` status live in a dedicated roadmap:
 → **[Changelog Rotation Roadmap](changelog-rotation-roadmap.md)** — T244+
 
 Design: [`docs/superpowers/specs/2026-08-28-changelog-rotation-design.md`](../superpowers/specs/2026-08-28-changelog-rotation-design.md).
+
+---
+
+### Phase 43 — Release lifecycle hooks
+
+Six hook points (`post_bump`, `pre_changelog`, `pre_tag`, `post_tag`, `pre_release`,
+`post_release`) let a `.heraut.yml` run arbitrary shell commands at points in the release
+lifecycle — a version bump in another file, a build/test gate before tagging, `npm publish`
+after the tag, a Slack notification after publish. Go `text/template` command strings, executed
+via `sh -c` through the existing GPG-pinentry interactive runner mode (T260) so output streams
+live. `pre_release`/`post_release` are isolated per publish target — a failing hook skips only
+that platform, not the whole release. New ADR-0053. Seven tasks (config schema → execution helper
+→ pipeline wiring → per-platform isolation → dry-run → integration test → docs), so the task
+breakdown and live `[ ] / [x]` status live in a dedicated roadmap:
+
+→ **[Release Hooks Roadmap](release-hooks-roadmap.md)** — T267+
+
+Design: [`docs/superpowers/specs/2026-09-11-release-hooks-design.md`](../superpowers/specs/2026-09-11-release-hooks-design.md).
 
 ---
 
