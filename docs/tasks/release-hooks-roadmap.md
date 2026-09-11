@@ -41,7 +41,7 @@ non-POSIX shells, and a configurable working directory are explicitly out of sco
 | Task | Description                                                                                    | Status |
 |------|--------------------------------------------------------------------------------------------------|--------|
 | T267 | `internal/config`: `Hooks` struct + nil-safe accessors + `schema.json` + sample config          | Done |
-| T268 | `internal/pipeline`: `runHook` execution helper + interactive-runner access beyond `gitHelper`  | Not started |
+| T268 | `internal/pipeline`: `runHook` execution helper + interactive-runner access beyond `gitHelper`  | Done |
 | T269 | Wire `post_bump`/`pre_changelog`/`pre_tag`/`post_tag` into both pipelines + `--no-hooks` flag   | Not started |
 | T270 | Wire `pre_release`/`post_release` into `release.go`'s per-platform loop, with isolation         | Not started |
 | T271 | Dry-run rendering for all six hook points, both pipelines                                       | Not started |
@@ -149,7 +149,22 @@ already uses, so a caller that never calls `WithInteractiveRunner` sees no behav
 asserting the exact `sh`, `-c`, `"<cmd>"` args reach the runner and that a second command is never
 invoked after the first fails.
 
-- [ ] Task complete, roadmap note added, committed
+- [x] Task complete, roadmap note added, committed
+
+**Completion note (2026-09-11).** Landed as `internal/pipeline/hooks.go` (`runHook`/`runHooks`) with
+five tests in `hooks_test.go` (added a fifth, `TestRunHooks_EmptyListIsNoOp`, beyond the plan's
+four — a nil/empty command list is the common case for every config that doesn't set a given hook
+point, worth asserting explicitly). For the interactive-runner generalization, chose the simpler of
+the plan's two options: rather than duplicating `interactiveRunner` as a second field on
+`Pipeline`/`ChangelogPipeline`, extracted `gitHelper`'s existing nil-fallback logic (previously
+inlined in `runInteractive`) into a new `gitHelper.interactiveOrRunner() port.Runner` method that
+`runInteractive` now delegates to. `Pipeline`/`ChangelogPipeline` already hold a `git gitHelper`
+field with both `runner` and `interactiveRunner` set by the existing `WithInteractiveRunner`
+option, so T269/T270 can call `p.git.interactiveOrRunner()` directly — no new field, no second copy
+of the same pointer to keep in sync. Pure extraction, no behavior change: the full pre-existing
+`gitHelper`/pipeline test suite (`TestCommitChangelog_UsesInteractiveRunnerForCommit`,
+`TestTag_Signed_UsesInteractiveRunner`, etc.) passed unchanged, which is itself the regression
+proof. Full suite + `hk check` green.
 
 ---
 

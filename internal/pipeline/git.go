@@ -24,14 +24,20 @@ func (g *gitHelper) run(name string, args ...string) error {
 	return err
 }
 
+// interactiveOrRunner returns interactiveRunner, falling back to the regular runner when none is
+// configured. Shared by runInteractive and hook execution (T268) so both reach the same
+// real-terminal runner instance rather than each tracking their own fallback.
+func (g *gitHelper) interactiveOrRunner() port.Runner {
+	if g.interactiveRunner != nil {
+		return g.interactiveRunner
+	}
+	return g.runner
+}
+
 // runInteractive runs name with args using interactiveRunner, falling back to the regular runner
 // when none is configured.
 func (g *gitHelper) runInteractive(name string, args ...string) error {
-	r := g.interactiveRunner
-	if r == nil {
-		r = g.runner
-	}
-	_, _, err := r.Run(name, args...)
+	_, _, err := g.interactiveOrRunner().Run(name, args...)
 	return err
 }
 
