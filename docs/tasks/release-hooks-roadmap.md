@@ -45,7 +45,7 @@ non-POSIX shells, and a configurable working directory are explicitly out of sco
 | T269 | Wire `post_bump`/`pre_changelog`/`pre_tag`/`post_tag` into both pipelines + `--no-hooks` flag   | Done |
 | T270 | Wire `pre_release`/`post_release` into `release.go`'s per-platform loop, with isolation         | Done |
 | T271 | Dry-run rendering for all six hook points, both pipelines                                       | Done |
-| T272 | Integration test: real-git-repo happy path proving hook execution + templating end to end       | Not started |
+| T272 | Integration test: real-git-repo happy path proving hook execution + templating end to end       | Done |
 | T273 | Docs: `docs/specs/`, README (if applicable), new ADR-0053                                        | Not started |
 
 Sequencing follows the design doc's "Roadmap placement": T267 (config schema) and T268 (execution
@@ -403,7 +403,38 @@ version of the code checked out before T269/T270 land conceptually, confirm it f
 right reason (hooks not implemented / file never written), then confirm it passes on top of
 T269+T270's actual code.
 
-- [ ] Task complete, roadmap note added, committed
+- [x] Task complete, roadmap note added, committed
+
+**Completion note (2026-09-11).** No existing "full-pipeline real-git-repo integration test" file
+was found for `release`/`changelog` at all — `internal/testutil.RealGitRepo` was only used by
+commit-verification tests before this. Landed as a new
+`internal/cmd/changelog_hooks_realrepo_test.go` (`package cmd_test`), exercising `heraut
+changelog --tag --no-push` through `executeRoot` (the same cobra-command-in-process harness the
+rest of `internal/cmd`'s tests use) — `changelog`/`release`'s `RunE` always constructs a real
+`execadapter` runner with no way to inject a mock, so this is the only layer that can prove real
+shell execution at all for these two commands. Deliberately used `changelog --tag`, not `release` (publish would need real `gh`/`glab`
+credentials against real repos — out of scope and unsafe for an automated test); `pre_tag`/
+`post_tag` are enough to prove the "real execution actually
+happens" claim, since `post_bump`/`pre_changelog`/`pre_release`/`post_release` share the identical
+`runHookPoint`/`sh -c` mechanism already proven here — a second real-repo test wouldn't cover new
+ground, only repeat it.
+
+One environment-portability fix the plan didn't anticipate: the developer machine this ran on has
+`tag.gpgSign=true` in *global* git config (discovered during T269's own manual smoke test), which
+would make heraut attempt a GPG-signed tag — hanging or failing on any machine without a usable
+key, CI included. Fixed by setting `GIT_CONFIG_GLOBAL=/dev/null` and `GIT_CONFIG_SYSTEM=/dev/null`
+via `t.Setenv` before touching git at all: since heraut's own internal `git` subprocess calls
+inherit the test process's environment (no explicit `Env` override in `forge/exec`'s default
+path), this isolates *both* the test's own setup commands and heraut's real internal git calls
+from every host's global config in one step, without needing to fake the runner at all.
+
+Verifies, against a real git binary and filesystem: (1) `hooks.log` contains both lines in
+`pre_tag` → `post_tag` order with `{{ .Tag }}` substituted to the real resolved tag (`v0.1.1`, a
+patch bump from the `fix:` commit added after the `v0.1.0` base tag) — proving real execution and
+correct templating together, since a MockRunner test can only prove the *args* were right; (2)
+`git tag -l v0.1.1` finds the tag for real; (3) a companion `--no-hooks` test proves `hooks.log`
+is never created at all when the flag is set, against the identical real-repo setup. Ran the pair
+3× with `-race`: stable. Full suite + `hk check` green.
 
 ---
 
