@@ -145,3 +145,24 @@ func TestRunHookPoint_RenderErrorNeverReachesRunner(t *testing.T) {
 	require.Error(t, err)
 	assert.Empty(t, mr.Calls)
 }
+
+func TestDryRunHookLines_EmptyReturnsNil(t *testing.T) {
+	lines, err := dryRunHookLines(nil, hookVars{})
+	require.NoError(t, err)
+	assert.Nil(t, lines)
+}
+
+func TestDryRunHookLines_RendersEachCommand(t *testing.T) {
+	vars := hookVars{Version: "1.2.3"}
+	lines, err := dryRunHookLines([]string{"echo {{ .Version }}", "go build ./..."}, vars)
+	require.NoError(t, err)
+	assert.Equal(t, []string{
+		"[dry-run] would run: echo 1.2.3",
+		"[dry-run] would run: go build ./...",
+	}, lines)
+}
+
+func TestDryRunHookLines_RenderErrorPropagates(t *testing.T) {
+	_, err := dryRunHookLines([]string{"echo {{ .Bad"}, hookVars{})
+	require.Error(t, err)
+}

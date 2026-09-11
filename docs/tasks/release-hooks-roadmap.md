@@ -44,7 +44,7 @@ non-POSIX shells, and a configurable working directory are explicitly out of sco
 | T268 | `internal/pipeline`: `runHook` execution helper + interactive-runner access beyond `gitHelper`  | Done |
 | T269 | Wire `post_bump`/`pre_changelog`/`pre_tag`/`post_tag` into both pipelines + `--no-hooks` flag   | Done |
 | T270 | Wire `pre_release`/`post_release` into `release.go`'s per-platform loop, with isolation         | Done |
-| T271 | Dry-run rendering for all six hook points, both pipelines                                       | Not started |
+| T271 | Dry-run rendering for all six hook points, both pipelines                                       | Done |
 | T272 | Integration test: real-git-repo happy path proving hook execution + templating end to end       | Not started |
 | T273 | Docs: `docs/specs/`, README (if applicable), new ADR-0053                                        | Not started |
 
@@ -342,9 +342,45 @@ skipping them entirely).
 per the existing `dryRunOutput` test coverage pattern) asserting the exact rendered line text for
 each of the six points, and asserting no hook lines appear when `--no-hooks`/`WithNoHooks(true)`.
 
-- [ ] Task complete, roadmap note added, committed
+- [x] Task complete, roadmap note added, committed
 
----
+**Completion note (2026-09-11).** A real structural gap surfaced immediately, not anticipated by
+the plan: `changelog.go`'s `DisableChangelog && !Tag` branch returns *before* the dry-run check
+even runs, so `dryRunOutput` is never reached in that exact case — meaning post_bump's dry-run
+rendering (unlike the other three shared points) can't live inside `dryRunOutput` at all. Wrote
+the failing test first (`TestChangelogRun_DryRun_PostBumpRendersEvenWhenDisabledAndNoTag` +
+its reporter-path twin), confirmed it failed for the right reason (no dry-run output at all in
+that branch), then fixed it by introducing one new method per pipeline —
+`runOrRenderHookPoint(name, cmds, vars)` — used only at post_bump's call site in both `Run()`
+methods: real execution when not dry-run, otherwise renders via the reporter step or a plain line
+depending on which output mode is active, all without ever touching `port.Runner`. Applied the
+same method to `release.go`'s post_bump call site too for consistency (its own `dryRunOutput`
+happened to already work correctly there, since nothing sits between post_bump and the dry-run
+check in that pipeline — but two different mechanisms for the "same" hook point across the two
+pipelines was worse engineering than one shared pattern, so removed post_bump's separate handling
+from `release.go`'s `dryRunOutput` too). Building this needed three new small helpers, each added
+to both `Pipeline` and `ChangelogPipeline` (matching the existing per-type duplication
+convention): `dryRunHookLinesOrNil` (NoHooks-aware wrapper over the new pure `dryRunHookLines`
+function in `hooks.go`), `dryRunHookStep` (wraps as a named reporter step, deliberately
+*propagating* — not discarding, unlike every other pre-existing dry-run step — a render error,
+since a broken hook template is real information dry-run should surface), and
+`printDryRunHookLinesPlain` (the no-reporter equivalent).
+
+`pre_release`/`post_release` dry-run lines fold into the existing `"Publish to %s"` dry-run step's
+`subs`, mirroring exactly how the real run folds their execution into that same step (T270) —
+proven by `TestRun_DryRun_PreReleaseAndPostReleaseHooks_FoldedIntoPublishStep`. Confirmed manually
+against a real scratch repo: `heraut release --dry-run` with all six points configured showed a
+correctly numbered `[1/11]`…`[11/11]` sequence with every rendered command visible (including
+`{{ .Platform }}` substitution in the folded pre/post-release sub-lines), and `--dry-run
+--no-hooks` together dropped back to the pre-hooks `[1/7]`…`[7/7]` sequence with zero hook output.
+
+Per T269's own flagged follow-up: `releaseStepTotal`/`changelogStepTotal` (`internal/app/
+pipeline.go`) had their `dryRun bool` parameter removed entirely, not just adjusted — hook steps
+now always contribute to the total exactly like every other step, since `dryRunOutput` renders
+the identical named steps a real run would execute. The two "dry-run suppresses" test rows in
+`steptotal_internal_test.go` were removed (the distinction no longer exists at this layer) and
+replaced with one row confirming pre_release/post_release still add no separate step (folded into
+the existing per-platform step, T270's design). Full suite + `hk check` green.
 
 ## T272 — Integration test: real-git-repo hook execution
 

@@ -100,6 +100,59 @@ func (p *ChangelogPipeline) runHookPointStep(name string, cmds []string, vars ho
 	})
 }
 
+// dryRunHookLinesOrNil renders cmds into "[dry-run] would run: <cmd>" lines (T271), or nil, nil
+// when NoHooks is set or nothing is configured — the dry-run counterpart to shouldRunHooks.
+func (p *ChangelogPipeline) dryRunHookLinesOrNil(cmds []string, vars hookVars) ([]string, error) {
+	if p.cfg.NoHooks {
+		return nil, nil
+	}
+	return dryRunHookLines(cmds, vars)
+}
+
+// dryRunHookStep reports a would-run hook point as its own step, named identically to the real
+// step runHookPointStep would report, so dry-run's step sequence matches a real run's exactly.
+// A render error aborts the dry-run (propagated, not discarded).
+func (p *ChangelogPipeline) dryRunHookStep(name string, cmds []string, vars hookVars) error {
+	lines, err := p.dryRunHookLinesOrNil(cmds, vars)
+	if err != nil {
+		return err
+	}
+	if len(lines) == 0 {
+		return nil
+	}
+	return p.runStep(name, func() (string, []string, error) {
+		return lines[0], lines[1:], nil
+	})
+}
+
+// printDryRunHookLinesPlain writes would-run hook lines directly to p.out (the no-reporter
+// dry-run path), one per line.
+func (p *ChangelogPipeline) printDryRunHookLinesPlain(cmds []string, vars hookVars) error {
+	lines, err := p.dryRunHookLinesOrNil(cmds, vars)
+	if err != nil {
+		return err
+	}
+	for _, l := range lines {
+		_, _ = fmt.Fprintln(p.out, l)
+	}
+	return nil
+}
+
+// runOrRenderHookPoint executes cmds for real, or — during --dry-run — renders what would run
+// (as a reporter step or a plain line, matching whichever output mode is active) without ever
+// executing anything. Used at call sites reached before dryRunOutput's own dry-run rendering —
+// currently only post_bump, which must render even in the DisableChangelog && !Tag case where
+// Run() returns before the dry-run check is ever reached.
+func (p *ChangelogPipeline) runOrRenderHookPoint(name string, cmds []string, vars hookVars) error {
+	if !p.dryRun {
+		return p.runHookPointStep(name, cmds, vars)
+	}
+	if p.reporter != nil {
+		return p.dryRunHookStep(name, cmds, vars)
+	}
+	return p.printDryRunHookLinesPlain(cmds, vars)
+}
+
 // runStep calls fn via the reporter when one is set, or directly when nil.
 // Errors returned by fn are propagated verbatim so callers can use errors.Is/As.
 func (p *ChangelogPipeline) runStep(name string, fn func() (string, []string, error)) error {
@@ -134,9 +187,9 @@ func (p *ChangelogPipeline) Run() error {
 	}
 
 	// post_bump hooks fire on every resolve (ADR-0053) — including the DisableChangelog+!Tag
-	// case immediately below, which returns before any other step runs. shouldRunHooks (not
-	// this placement) is what prevents execution during --dry-run.
-	if err := p.runHookPointStep("Run post_bump hooks", p.cfg.PostBumpHooks, p.hookVars(result)); err != nil {
+	// case immediately below, which returns before any other step runs and before the dry-run
+	// check, so runOrRenderHookPoint (not dryRunOutput) is what renders this during --dry-run.
+	if err := p.runOrRenderHookPoint("Run post_bump hooks", p.cfg.PostBumpHooks, p.hookVars(result)); err != nil {
 		return err
 	}
 
@@ -236,8 +289,15 @@ func (p *ChangelogPipeline) Run() error {
 // When a reporter is set it emits one step per action with [dry-run] result
 // prefixes; otherwise it falls back to plain [dry-run] lines.
 func (p *ChangelogPipeline) dryRunOutput(result versioning.Result) error {
+	vars := p.hookVars(result)
+
 	if p.reporter == nil {
 		if !p.cfg.DisableChangelog {
+			if p.cfg.Changelog != nil {
+				if err := p.printDryRunHookLinesPlain(p.cfg.PreChangelogHooks, vars); err != nil {
+					return err
+				}
+			}
 			_, _ = fmt.Fprintf(p.out, "[dry-run] would generate changelog for %s\n", result.Tag)
 			if p.cfg.Commit || p.cfg.Tag {
 				if p.cfg.NoPush {
@@ -248,19 +308,29 @@ func (p *ChangelogPipeline) dryRunOutput(result versioning.Result) error {
 			}
 		}
 		if p.cfg.Tag {
+			if err := p.printDryRunHookLinesPlain(p.cfg.PreTagHooks, vars); err != nil {
+				return err
+			}
 			if p.cfg.NoPush {
 				_, _ = fmt.Fprintf(p.out, "[dry-run] would tag %s (no push)\n", result.Tag)
 			} else {
 				_, _ = fmt.Fprintf(p.out, "[dry-run] would tag %s and push\n", result.Tag)
 			}
+			if err := p.printDryRunHookLinesPlain(p.cfg.PostTagHooks, vars); err != nil {
+				return err
+			}
 		}
 		return nil
 	}
 
-	// Reporter path: emit one informational step per would-be action.
+	// Reporter path: emit one informational step per would-be action. post_bump is handled at
+	// its Run() call site (runOrRenderHookPoint), not here.
 	file := resolvedChangelogFile(p.cfg.Changelog, p.cfg.ChangelogFile)
 
 	if p.cfg.Changelog != nil && !p.cfg.DisableChangelog {
+		if err := p.dryRunHookStep("Run pre_changelog hooks", p.cfg.PreChangelogHooks, vars); err != nil {
+			return err
+		}
 		_ = p.runStep("Generate changelog", func() (string, []string, error) {
 			return "[dry-run] would write " + file, nil, nil
 		})
@@ -275,6 +345,9 @@ func (p *ChangelogPipeline) dryRunOutput(result versioning.Result) error {
 	}
 
 	if p.cfg.Tag {
+		if err := p.dryRunHookStep("Run pre_tag hooks", p.cfg.PreTagHooks, vars); err != nil {
+			return err
+		}
 		_ = p.runStep(fmt.Sprintf("Create tag %s", result.Tag), func() (string, []string, error) {
 			return "[dry-run] would tag", nil, nil
 		})
@@ -282,6 +355,9 @@ func (p *ChangelogPipeline) dryRunOutput(result versioning.Result) error {
 			_ = p.runStep("Push tag", func() (string, []string, error) {
 				return fmt.Sprintf("[dry-run] would push %s", result.Tag), nil, nil
 			})
+		}
+		if err := p.dryRunHookStep("Run post_tag hooks", p.cfg.PostTagHooks, vars); err != nil {
+			return err
 		}
 	}
 	return nil

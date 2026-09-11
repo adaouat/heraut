@@ -92,7 +92,7 @@ func BuildPipeline(runner port.Runner, cfg *config.Config, resolver versioning.R
 		out = io.Discard
 	}
 	pipe := pipeline.New(runner, resolver, pipelineCfg, out, opts.DryRun)
-	pipe = pipe.WithReporter(spinnerReporter(out, releaseStepTotal(pipelineCfg, opts.DryRun)))
+	pipe = pipe.WithReporter(spinnerReporter(out, releaseStepTotal(pipelineCfg)))
 	pipe = pipe.WithLogger(opts.Logger)
 	pipe = pipe.WithInteractiveRunner(opts.InteractiveRunner)
 	return pipe, nil
@@ -111,12 +111,14 @@ func spinnerReporter(out io.Writer, total int) ui.StepFn {
 	}
 }
 
-// releaseStepTotal computes the number of numbered steps for a release pipeline.
-// Asset uploads are sub-results of the platform step, not separate numbered steps. dryRun must
-// match the value passed to pipeline.New: hook steps never run during --dry-run (ADR-0053), so
-// they must not be counted then either, or the reporter's [N/total] counter would overshoot.
-func releaseStepTotal(cfg *pipeline.Config, dryRun bool) int {
-	hookRuns := func(cmds []string) bool { return !dryRun && !cfg.NoHooks && len(cmds) > 0 }
+// releaseStepTotal computes the number of numbered steps for a release pipeline. Asset uploads
+// are sub-results of the platform step, not separate numbered steps. Hook steps are counted
+// whether or not this is a dry run: dryRunOutput renders (never executes) the same named steps a
+// real run would (ADR-0053, T271), so the two paths always agree on the step count.
+// pre_release/post_release are folded into the existing per-platform publish step (T270) and add
+// no numbered step of their own — never counted here.
+func releaseStepTotal(cfg *pipeline.Config) int {
+	hookRuns := func(cmds []string) bool { return !cfg.NoHooks && len(cmds) > 0 }
 
 	total := 3 // resolve version + create tag + push tag
 	if hookRuns(cfg.PostBumpHooks) {
@@ -161,15 +163,15 @@ func BuildChangelogPipeline(runner port.Runner, cfg *config.Config, resolver ver
 		out = io.Discard
 	}
 	pipe := pipeline.NewChangelog(runner, resolver, changelogCfg, out, opts.DryRun)
-	pipe = pipe.WithReporter(spinnerReporter(out, changelogStepTotal(changelogCfg, opts.DryRun)))
+	pipe = pipe.WithReporter(spinnerReporter(out, changelogStepTotal(changelogCfg)))
 	pipe = pipe.WithInteractiveRunner(opts.InteractiveRunner)
 	return pipe, nil
 }
 
-// changelogStepTotal computes the number of numbered steps for a changelog pipeline. dryRun
-// must match the value passed to pipeline.NewChangelog — see releaseStepTotal.
-func changelogStepTotal(cfg *pipeline.ChangelogConfig, dryRun bool) int {
-	hookRuns := func(cmds []string) bool { return !dryRun && !cfg.NoHooks && len(cmds) > 0 }
+// changelogStepTotal computes the number of numbered steps for a changelog pipeline — see
+// releaseStepTotal for why hook steps count regardless of dry-run.
+func changelogStepTotal(cfg *pipeline.ChangelogConfig) int {
+	hookRuns := func(cmds []string) bool { return !cfg.NoHooks && len(cmds) > 0 }
 
 	total := 1 // resolve version
 	if hookRuns(cfg.PostBumpHooks) {

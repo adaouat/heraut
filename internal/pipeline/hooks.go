@@ -63,6 +63,27 @@ func runHookPoint(r port.Runner, cmds []string, vars hookVars) error {
 	return runHooks(r, rendered)
 }
 
+// dryRunHookLines renders cmds against vars into "[dry-run] would run: <cmd>" lines (ADR-0053,
+// T271) — the rendered command, never the raw template, matching how dry-run already shows real
+// resolved tag names elsewhere in the pipeline. Returns nil, nil when cmds is empty. A render
+// error is returned rather than swallowed: dry-run promises to show what would happen, and a
+// broken hook template is real, actionable information the caller should surface (and, for the
+// reporter path, abort on) rather than a run that only fails once it's no longer a dry one.
+func dryRunHookLines(cmds []string, vars hookVars) ([]string, error) {
+	if len(cmds) == 0 {
+		return nil, nil
+	}
+	rendered, err := renderHookCmds(cmds, vars)
+	if err != nil {
+		return nil, err
+	}
+	lines := make([]string, len(rendered))
+	for i, cmd := range rendered {
+		lines[i] = "[dry-run] would run: " + cmd
+	}
+	return lines, nil
+}
+
 // hookFailureError marks an error as originating from a pre_release/post_release hook for one
 // publish target, so the per-platform publish loop (release.go) can isolate it — skip or warn
 // for that platform only and continue — instead of aborting the whole release the way a real
