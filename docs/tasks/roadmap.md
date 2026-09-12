@@ -212,6 +212,7 @@ discipline that applies to every task.
 | 41 | `heraut version sprint bump` respects `--dry-run` | Done |
 | 42 | Scope `--dry-run`/`--env`/`--force`/`--offline` to the commands that use them, off root | Done |
 | 43 | Release lifecycle hooks | Done — see `release-hooks-roadmap.md` |
+| 44 | Windows hook execution | Not started |
 
 ### Open items
 
@@ -909,6 +910,41 @@ breakdown and live `[ ] / [x]` status live in a dedicated roadmap:
 → **[Release Hooks Roadmap](release-hooks-roadmap.md)** — T267+
 
 Design: [`docs/superpowers/specs/2026-09-11-release-hooks-design.md`](../superpowers/specs/2026-09-11-release-hooks-design.md).
+
+---
+
+### Phase 44 — Windows hook execution
+
+Phase 43's `hooks:` feature runs every command via `sh -c` — POSIX-only, a documented gap
+in ADR-0053 since heraut ships Windows binaries (ADR-0013). This phase closes that gap by
+selecting a Windows shell per `runtime.GOOS`, without adding a second per-OS command syntax
+to the config schema: hook command strings stay a single, OS-specific shell string the user
+owns, the same portability contract a CI YAML `run:` step already has. Small (three tasks),
+so it stays inline here rather than in a dedicated roadmap file.
+
+#### ✦ `[ ]` T274: ADR-0054 — Windows hook shell + portability stance
+
+Settle which Windows shell heraut invokes and restate the portability stance ADR-0053
+already implies: hook command strings are not translated or dual-authored per OS — a
+`.heraut.yml` targeting Windows must contain Windows-shaped shell syntax. Explicitly scope
+out per-OS `hooks:` config keys (`hooks.windows:` / `hooks.unix:`) as a non-goal for this
+phase.
+
+#### ✦ `[ ]` T275: `internal/pipeline`: OS-parameterized shell selection
+
+Extract shell selection out of `runHook` (`internal/pipeline/hooks.go`) into a small pure
+function taking a GOOS string and returning the binary + args to invoke — mirrors the
+injectable-`now func()` pattern already used for CalVer, so both branches are unit-testable
+regardless of host OS — per T274's decision. Wire it into `runHook`. Update the existing
+tests that assert the literal `sh -c` invocation (`hooks_test.go`, `release_hooks_test.go`,
+`changelog_hooks_test.go`, `dryrun_hooks_test.go`, `cmd/changelog_hooks_realrepo_test.go`)
+to cover both branches deterministically.
+
+#### ✦ `[ ]` T276: Docs — Spec 02 § hooks Execution + ADR-0053 cross-reference
+
+Update [Spec 02 § `hooks` → Execution](../specs/02-configuration.md#execution) to describe
+per-OS shell selection instead of "POSIX shells only." Add a superseded-by note on
+ADR-0053 pointing at ADR-0054.
 
 ---
 
