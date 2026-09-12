@@ -166,3 +166,24 @@ func TestDryRunHookLines_RenderErrorPropagates(t *testing.T) {
 	_, err := dryRunHookLines([]string{"echo {{ .Bad"}, hookVars{})
 	require.Error(t, err)
 }
+
+func TestHookShellInvocation(t *testing.T) {
+	tests := []struct {
+		name     string
+		goos     string
+		cmd      string
+		wantName string
+		wantArgs []string
+	}{
+		{"linux uses sh -c", "linux", "echo hi", "sh", []string{"-c", "echo hi"}},
+		{"darwin uses sh -c", "darwin", "echo hi", "sh", []string{"-c", "echo hi"}},
+		{"windows uses cmd /D /C", "windows", "echo hi", "cmd", []string{"/D", "/C", "echo hi"}},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			name, args := hookShellInvocation(tc.goos, tc.cmd)
+			assert.Equal(t, tc.wantName, name)
+			assert.Equal(t, tc.wantArgs, args)
+		})
+	}
+}

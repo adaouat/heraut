@@ -942,15 +942,26 @@ hook command, no heraut-side detection needed), and no Windows CI runner in this
 mocked `MockRunner` unit tests in T275, not real `cmd.exe` execution; a Windows CI leg is
 a separate, later decision given its ongoing cost).
 
-#### ✦ `[ ]` T275: `internal/pipeline`: OS-parameterized shell selection
+#### ✦ `[x]` T275: `internal/pipeline`: OS-parameterized shell selection
 
-Extract shell selection out of `runHook` (`internal/pipeline/hooks.go`) into a small pure
-function taking a GOOS string and returning the binary + args to invoke — mirrors the
-injectable-`now func()` pattern already used for CalVer, so both branches are unit-testable
-regardless of host OS — per T274's decision. Wire it into `runHook`. Update the existing
-tests that assert the literal `sh -c` invocation (`hooks_test.go`, `release_hooks_test.go`,
-`changelog_hooks_test.go`, `dryrun_hooks_test.go`, `cmd/changelog_hooks_realrepo_test.go`)
-to cover both branches deterministically.
+Added `hookShellInvocation(goos, cmd string) (name string, args []string)` in
+`internal/pipeline/hooks.go` — a pure function implementing ADR-0054's mapping (`sh -c` on
+everything but Windows, `cmd /D /C` on Windows). `runHook` now calls it with `runtime.GOOS`
+instead of hardcoding `"sh", "-c"`.
+
+New table-driven `TestHookShellInvocation` in `hooks_test.go` covers all three GOOS values
+(`linux`, `darwin`, `windows`) directly against the pure function, so the Windows branch is
+asserted deterministically without depending on the host OS running `go test` — same
+approach as CalVer's injectable `now func()`. Written first as a failing test (`undefined:
+hookShellInvocation`) before the implementation, per TDD.
+
+The four other test files named in this task's original scope
+(`release_hooks_test.go`, `changelog_hooks_test.go`, `dryrun_hooks_test.go`,
+`cmd/changelog_hooks_realrepo_test.go`) needed **no changes** — they already assert
+`runHook`/`runHookPoint`'s behavior on the host OS (always POSIX in this repo's CI), and
+`hookShellInvocation`'s POSIX branch is byte-identical to the old hardcoded call, so they
+kept passing unchanged. Full suite (`go test ./...`) and `hk check` (`golangci_lint`,
+`typos`, `go_fmt`) green.
 
 #### ✦ `[ ]` T276: Docs — Spec 02 § hooks Execution + ADR-0053 cross-reference
 

@@ -2,6 +2,7 @@ package pipeline
 
 import (
 	"fmt"
+	"runtime"
 	"strings"
 	"text/template"
 
@@ -99,12 +100,28 @@ func (e *hookFailureError) Error() string {
 
 func (e *hookFailureError) Unwrap() error { return e.err }
 
-// runHook executes cmd via `sh -c` through r, which should be an interactive runner
-// (stdin/stdout/stderr connected to the real terminal, forge's CmdRunner.Interactive
+// hookShellInvocation returns the binary and args used to run cmd through a shell on
+// goos (ADR-0054). POSIX systems get "sh -c" — its exit code is the invoked command's own,
+// unchanged from ADR-0053. Windows gets "cmd /D /C": /C runs cmd and re-exits with its
+// ERRORLEVEL the same way sh -c does (powershell's $LASTEXITCODE does not propagate to its
+// own exit code by default, which would silently break hook failure detection); /D
+// disables cmd's AutoRun registry hook, the cmd.exe analogue of sh -c never sourcing an rc
+// file. A pure function so both branches are unit-tested deterministically regardless of
+// the host OS running the test.
+func hookShellInvocation(goos, cmd string) (name string, args []string) {
+	if goos == "windows" {
+		return "cmd", []string{"/D", "/C", cmd}
+	}
+	return "sh", []string{"-c", cmd}
+}
+
+// runHook executes cmd via a shell (ADR-0054) through r, which should be an interactive
+// runner (stdin/stdout/stderr connected to the real terminal, forge's CmdRunner.Interactive
 // mode — see gitHelper.interactiveOrRunner) so hook output streams live rather than
 // being captured. dir is always the repository root ("" — RunDir's current-dir default).
 func runHook(r port.Runner, cmd string) error {
-	if _, _, err := r.RunDir("", nil, "sh", "-c", cmd); err != nil {
+	name, args := hookShellInvocation(runtime.GOOS, cmd)
+	if _, _, err := r.RunDir("", nil, name, args...); err != nil {
 		return fmt.Errorf("hook %q: %w", cmd, err)
 	}
 	return nil
