@@ -52,7 +52,9 @@ make an already-successful release look like a total failure.
 - **Additive, zero-risk for every existing config.** `hooks:` is a new, entirely optional
   top-level key; omitting it (or any individual point) changes nothing about existing behavior.
 - **POSIX-only in v1.** `sh -c` has no equivalent on Windows despite heraut shipping Windows
-  binaries (ADR-0013) — a documented gap, not an oversight.
+  binaries (ADR-0013) — a documented gap, not an oversight. **Resolved by
+  [ADR-0054](0054-windows-hook-execution.md):** Windows now runs hooks via `cmd /D /C`; this
+  bullet is kept as historical record of the v1 scoping decision.
 - **A future contributor "fixing" the per-platform isolation into consistency with the rest of
   the pipeline's all-or-nothing loop behavior would be undoing an intentional decision**, not
   correcting a bug — this ADR is the record of why it's shaped that way.

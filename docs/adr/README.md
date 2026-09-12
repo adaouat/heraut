@@ -57,4 +57,5 @@ trade-offs were accepted.
 | [0050](0050-changelog-preamble-postamble-always-fresh.md) | Changelog preamble/postamble always render fresh — no more "frozen until regenerate" | Accepted |
 | [0051](0051-footer-visual-separator.md) | Automatic blank-line + horizontal-rule separator before `footer` | Accepted |
 | [0052](0052-versioning-bump-object-and-overrides.md) | `versioning.bump` becomes an object with mode + per-commit overrides | Accepted |
-| [0053](0053-release-lifecycle-hooks.md) | Release lifecycle hooks — arbitrary shell execution via config | Accepted |
+| [0053](0053-release-lifecycle-hooks.md) | Release lifecycle hooks — arbitrary shell execution via config | Accepted (POSIX-only-in-v1 limitation resolved by 0054 — Windows now runs hooks via `cmd /D /C`) |
+| [0054](0054-windows-hook-execution.md) | Windows hook execution — `cmd /D /C`, no per-OS command syntax | Accepted |

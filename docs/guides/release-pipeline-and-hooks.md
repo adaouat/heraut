@@ -53,7 +53,8 @@ Things the diagram compresses that are worth stating explicitly:
   [Spec 02 § Failure semantics](../specs/02-configuration.md#failure-semantics) for the
   full rationale.
 - **`--dry-run` never executes a hook.** Every hook node above still "fires" during a
-  dry run, but only to render the substituted command as a plan line — never via `sh -c`.
+  dry run, but only to render the substituted command as a plan line — the shell it would
+  otherwise run through ([ADR-0054](../adr/0054-windows-hook-execution.md)) never starts.
 
 ## `heraut changelog`
 

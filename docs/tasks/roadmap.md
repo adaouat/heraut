@@ -212,7 +212,7 @@ discipline that applies to every task.
 | 41 | `heraut version sprint bump` respects `--dry-run` | Done |
 | 42 | Scope `--dry-run`/`--env`/`--force`/`--offline` to the commands that use them, off root | Done |
 | 43 | Release lifecycle hooks | Done — see `release-hooks-roadmap.md` |
-| 44 | Windows hook execution | Not started |
+| 44 | Windows hook execution | Done |
 
 ### Open items
 
@@ -963,11 +963,19 @@ The four other test files named in this task's original scope
 kept passing unchanged. Full suite (`go test ./...`) and `hk check` (`golangci_lint`,
 `typos`, `go_fmt`) green.
 
-#### ✦ `[ ]` T276: Docs — Spec 02 § hooks Execution + ADR-0053 cross-reference
+#### ✦ `[x]` T276: Docs — Spec 02 § hooks Execution + ADR-0053 cross-reference
 
-Update [Spec 02 § `hooks` → Execution](../specs/02-configuration.md#execution) to describe
-per-OS shell selection instead of "POSIX shells only." Add a superseded-by note on
-ADR-0053 pointing at ADR-0054.
+[Spec 02 § `hooks` → Execution](../specs/02-configuration.md#execution) now describes the
+per-OS shell selection (`sh -c` / `cmd /D /C`) instead of "POSIX shells only," and states
+the portability contract explicitly: a hook command string is one OS-specific shell
+string, never dual-authored, same as a CI YAML `run:` step. ADR-0053's "POSIX-only in v1"
+Consequences bullet gained a "Resolved by ADR-0054" note (kept, not deleted, as a record
+of the v1 scoping decision — mirrors how ADR-0034/ADR-0037 handle a partial supersession).
+`docs/adr/README.md` gained a row for ADR-0054 and an updated status annotation on
+ADR-0053. `docs/guides/release-pipeline-and-hooks.md`'s one `sh -c`-specific mention
+(in the `--dry-run` callout) was reworded to stay accurate on both OSes. `CLAUDE.md`'s ADR
+count bumped 53 → 54 in both places it's stated. This closes Phase 44 — Windows hook
+execution: all of T274–T276 are done.
 
 ---
 

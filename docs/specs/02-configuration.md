@@ -1067,10 +1067,14 @@ failure (not a hook) still aborts the whole loop as it always has.
 
 ### Execution
 
-Commands run via `sh -c` — POSIX shells only; there is no Windows/PowerShell equivalent yet, a
-known limitation given heraut ships Windows binaries. Output streams live to the terminal (the
-same mechanism used for a GPG pinentry prompt during a signed commit/tag) rather than being
-captured and summarized, so a long-running hook's progress is visible as it happens.
+Commands run via a shell selected per OS ([ADR-0054](../adr/0054-windows-hook-execution.md)):
+`sh -c "<command>"` on POSIX, `cmd /D /C "<command>"` on Windows. Either way, the hook command
+string itself is a single, OS-specific shell string the user writes — heraut never translates
+or dual-authors one command for both shells, the same portability contract a CI YAML `run:` step
+already has. A `.heraut.yml` targeting Windows needs `cmd.exe`-shaped hook syntax; one targeting
+POSIX needs `sh`-shaped syntax. Output streams live to the terminal (the same mechanism used for
+a GPG pinentry prompt during a signed commit/tag) rather than being captured and summarized, so a
+long-running hook's progress is visible as it happens.
 
 ### `--no-hooks`
 
