@@ -922,13 +922,25 @@ to the config schema: hook command strings stay a single, OS-specific shell stri
 owns, the same portability contract a CI YAML `run:` step already has. Small (three tasks),
 so it stays inline here rather than in a dedicated roadmap file.
 
-#### ✦ `[ ]` T274: ADR-0054 — Windows hook shell + portability stance
+#### ✦ `[x]` T274: ADR-0054 — Windows hook shell + portability stance
 
-Settle which Windows shell heraut invokes and restate the portability stance ADR-0053
-already implies: hook command strings are not translated or dual-authored per OS — a
-`.heraut.yml` targeting Windows must contain Windows-shaped shell syntax. Explicitly scope
-out per-OS `hooks:` config keys (`hooks.windows:` / `hooks.unix:`) as a non-goal for this
-phase.
+[ADR-0054](../adr/0054-windows-hook-execution.md): Windows invokes `cmd /D /C "<rendered
+command>"` — not PowerShell. The deciding factor was exit-code propagation, not
+familiarity or feature richness: `cmd /C` re-exits with the invoked command's own exit
+code, matching `sh -c`'s behavior exactly, while `powershell -Command` does not (`
+$LASTEXITCODE` gets set, but `powershell.exe` itself still exits 0 unless the script
+explicitly ends with `exit $LASTEXITCODE`) — a well-documented footgun that would have
+silently broken hook failure detection, the one behavior ADR-0053 can't compromise on.
+`/D` disables `cmd`'s `AutoRun` registry hook, `cmd.exe`'s analogue of `-NoProfile`/`sh
+-c` never sourcing an rc file.
+
+Confirmed as explicit non-goals: no per-OS `hooks:` config keys (hook commands stay one
+OS-specific shell string, same portability contract as a CI YAML `run:` step — a user who
+wants POSIX syntax on Windows can already get it by writing `bash -c "..."` as their own
+hook command, no heraut-side detection needed), and no Windows CI runner in this phase
+(`ci.yml`/`release.yml` remain `ubuntu-latest`-only — the Windows branch ships covered by
+mocked `MockRunner` unit tests in T275, not real `cmd.exe` execution; a Windows CI leg is
+a separate, later decision given its ongoing cost).
 
 #### ✦ `[ ]` T275: `internal/pipeline`: OS-parameterized shell selection
 
