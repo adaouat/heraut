@@ -110,7 +110,7 @@ driver (`github`/`gitlab`; `azure_devops` never counts, see
 destinations is a configuration error for this command specifically — `heraut changelog`
 has no such requirement (see § Tag-only workflow below).
 
-**Action sequence** ([ADR-0011](../adr/0011-single-pipeline-release-via-pre-computation.md), [ADR-0012](../adr/0012-changelog-commit-ownership.md)):
+**Action sequence** ([ADR-0011](../adr/0011-single-pipeline-release-via-pre-computation.md), [ADR-0012](../adr/0012-changelog-commit-ownership.md)) — for where the six `hooks:` points ([Spec 02 § `hooks`](02-configuration.md#hooks)) fall relative to these steps, see [Guide: Release pipeline and hook positions](../guides/release-pipeline-and-hooks.md):
 
 1. **Preflight** — always: `config.Validate`. Unless `--dry-run`: also the branch guard
    (§ Per-environment fields → `branch` in [Spec 02](02-configuration.md)) and a runtime
@@ -191,7 +191,8 @@ heraut changelog [--commit] [--tag] [--no-push] [--set-version <version>] [--reg
 | `--offline`    | Forces `commits.enrichment_policy: disabled` for this run, skipping PR/MR enrichment.                    |
 | `--no-hooks`   | Skip every configured `hooks:` command (`post_bump`/`pre_changelog`/`pre_tag`/`post_tag` — this pipeline never publishes, so `pre_release`/`post_release` never apply) for this run, without editing `.heraut.yml`. See [ADR-0053](../adr/0053-release-lifecycle-hooks.md) / [Spec 02 § `hooks`](02-configuration.md#hooks). |
 
-**Action sequence** (with `--tag`, mirrors `cog bump`):
+**Action sequence** (with `--tag`, mirrors `cog bump`) — for where `hooks:` points fall
+relative to these steps, see [Guide: Release pipeline and hook positions](../guides/release-pipeline-and-hooks.md):
 
 1. Resolve next version (or use `--set-version`)
 2. Generate and update `CHANGELOG.md` (only if `changelog` is configured)

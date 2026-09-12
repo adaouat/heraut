@@ -1001,6 +1001,9 @@ after a platform release goes live. Omitting the whole block, or any individual 
 hooks at that point — the default, and no behavior change for any config written before this
 feature existed.
 
+For a diagram showing exactly where each hook point sits in the `release`/`changelog`
+pipelines, see [Guide: Release pipeline and hook positions](../guides/release-pipeline-and-hooks.md).
+
 ```yaml
 hooks:
   post_bump:
