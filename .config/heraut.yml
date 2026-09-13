@@ -8,6 +8,13 @@ versioning:
   bump:
     mode: auto
 
+commits:
+  rules:
+    - name: no-claude-session
+      deny: '(?i)\bClaude-Session\b'
+      target: footer
+      message: "Claude-Session is not allowed in commit messages"
+
 changelog:
   output: CHANGELOG.md
 
