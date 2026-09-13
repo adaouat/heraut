@@ -339,8 +339,8 @@ changelog:
 # post_bump/pre_changelog/pre_tag/post_tag fire in both `heraut release` and
 # `heraut changelog --tag`; pre_release/post_release fire only in `heraut release`, once per
 # publish target. Commands are Go text/template strings: {{ .Version }}, {{ .Tag }},
-# {{ .PreviousTag }} are always available; {{ .Platform }} is set only for
-# pre_release/post_release. Omit the whole block (or any key) for no hooks — the default.
+# {{ .PreviousTag }}, {{ .Env }} (ADR-0055) are always available; {{ .Platform }} is set only
+# for pre_release/post_release. Omit the whole block (or any key) for no hooks — the default.
 # Skip all configured hooks for a single run with `--no-hooks`, without editing this file.
 #
 # hooks:

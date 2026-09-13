@@ -105,8 +105,8 @@ Tag-only workflow](../specs/03-commands.md#tag-only-workflow-no-release-block-re
 | `post_release`    | `heraut release` only, once per `release.targets` entry, after publishing (and any asset upload). |
 
 Full detail — command list semantics, template variables (`{{ .Version }}`, `{{ .Tag }}`,
-`{{ .PreviousTag }}`, `{{ .Platform }}`), failure semantics, and `--no-hooks` — lives in
-[Spec 02 § `hooks`](../specs/02-configuration.md#hooks).
+`{{ .PreviousTag }}`, `{{ .Platform }}`, `{{ .Env }}`), failure semantics, and `--no-hooks`
+— lives in [Spec 02 § `hooks`](../specs/02-configuration.md#hooks).
 
 ## See also
 
