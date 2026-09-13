@@ -34,6 +34,9 @@ var (
 	validBumpLevels = map[string]bool{
 		"major": true, "minor": true, "patch": true, "none": true,
 	}
+	validCommitRuleTargets = map[string]bool{
+		"": true, "header": true, "body": true, "footer": true, "message": true,
+	}
 	commitTypePattern = regexp.MustCompile(`^\w+$`)
 )
 
@@ -86,8 +89,9 @@ func validateTickets(cfg *Config) []ValidationError {
 }
 
 // validateCommits validates the commits block: each types[i] has a valid, unique type name,
-// and scopes_restricted requires a non-empty scopes list. An empty types list is valid — it
-// means "use the built-in defaults" (EffectiveTypes merges over them).
+// scopes_restricted requires a non-empty scopes list, and each rules[i] (ADR-0056) is a
+// well-formed CommitRule. An empty types list is valid — it means "use the built-in
+// defaults" (EffectiveTypes merges over them).
 func validateCommits(cfg *Config) []ValidationError {
 	if cfg.Commits == nil {
 		return nil
@@ -139,6 +143,83 @@ func validateCommits(cfg *Config) []ValidationError {
 			Message: "requires a non-empty commits.scopes list",
 			Hint:    "list the allowed scopes, or set scopes_restricted: false",
 		})
+	}
+	errs = append(errs, validateCommitRules(cfg.Commits)...)
+	return errs
+}
+
+// validateCommitRules validates commits.rules (ADR-0056): each rule has a non-empty, unique
+// name; sets exactly one of deny/require/require_ticket; deny/require compile as regex and
+// require a message; require_ticket requires a non-empty commits.tickets; and target, when
+// set, is one of header/body/footer/message.
+func validateCommitRules(c *Commits) []ValidationError {
+	var errs []ValidationError
+	seen := make(map[string]int)
+	for i, r := range c.Rules {
+		path := fmt.Sprintf("commits.rules[%d]", i)
+
+		if r.Name == "" {
+			errs = append(errs, ValidationError{Path: path + ".name", Message: "required"})
+		} else if first, ok := seen[r.Name]; ok {
+			errs = append(errs, ValidationError{
+				Path:    path + ".name",
+				Message: fmt.Sprintf("duplicate rule name %q (already listed at rules[%d])", r.Name, first),
+			})
+		} else {
+			seen[r.Name] = i
+		}
+
+		set := 0
+		for _, isSet := range []bool{r.Deny != "", r.Require != "", r.RequireTicket} {
+			if isSet {
+				set++
+			}
+		}
+		switch {
+		case set == 0:
+			errs = append(errs, ValidationError{
+				Path:    path,
+				Message: "must set exactly one of deny, require, or require_ticket",
+				Hint:    `e.g. {deny: "(?i)\\bwip\\b"} or {require_ticket: true}`,
+			})
+		case set > 1:
+			errs = append(errs, ValidationError{
+				Path:    path,
+				Message: "set only one of deny, require, or require_ticket, not more than one",
+			})
+		}
+
+		if r.Deny != "" {
+			if _, err := regexp.Compile(r.Deny); err != nil {
+				errs = append(errs, ValidationError{Path: path + ".deny", Message: fmt.Sprintf("invalid regex: %v", err)})
+			}
+		}
+		if r.Require != "" {
+			if _, err := regexp.Compile(r.Require); err != nil {
+				errs = append(errs, ValidationError{Path: path + ".require", Message: fmt.Sprintf("invalid regex: %v", err)})
+			}
+		}
+		if r.RequireTicket && len(c.Tickets) == 0 {
+			errs = append(errs, ValidationError{
+				Path:    path + ".require_ticket",
+				Message: "requires a non-empty commits.tickets list",
+				Hint:    "configure commits.tickets, or remove require_ticket from this rule",
+			})
+		}
+		if (r.Deny != "" || r.Require != "") && r.Message == "" {
+			errs = append(errs, ValidationError{
+				Path:    path + ".message",
+				Message: "required for deny/require rules",
+				Hint:    "set a message shown when the rule is violated",
+			})
+		}
+		if !validCommitRuleTargets[r.Target] {
+			errs = append(errs, ValidationError{
+				Path:    path + ".target",
+				Message: fmt.Sprintf("%q is not a valid target", r.Target),
+				Hint:    "valid targets: header, body, footer, message",
+			})
+		}
 	}
 	return errs
 }

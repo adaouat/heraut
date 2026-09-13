@@ -17,6 +17,9 @@ type Commits struct {
 	ScopesRestricted bool `yaml:"scopes_restricted,omitempty"`
 	// Tickets configures issue-tracker links matched in commit messages and rendered as links.
 	Tickets []Ticket `yaml:"tickets,omitempty"`
+	// Rules are project-specific commit-message constraints (deny/require/require_ticket
+	// patterns), enforced by `heraut commit verify`/`check` alongside Types/Scopes (ADR-0056).
+	Rules []CommitRule `yaml:"rules,omitempty"`
 	// EnrichmentForge references a forges[].name used as the PR/MR metadata source for
 	// changelog and release-notes generation (ADR-0043).
 	EnrichmentForge string `yaml:"enrichment_forge,omitempty"`
@@ -178,6 +181,31 @@ func EffectiveScopes(user []ScopeRule) []ScopeRule {
 		}
 	}
 	return out
+}
+
+// CommitRule enforces one pattern constraint on a commit message, checked by `heraut
+// commit verify`/`check` alongside the type/scope checks (ADR-0056). Exactly one of Deny,
+// Require, or RequireTicket must be set.
+type CommitRule struct {
+	Name string `yaml:"name"`
+	// Deny is a regex that must NOT match Target.
+	Deny string `yaml:"deny,omitempty"`
+	// Require is a regex that MUST match Target.
+	Require string `yaml:"require,omitempty"`
+	// RequireTicket, when true, is shorthand for "Target must match one of the
+	// already-configured commits.tickets[].pattern entries" — reusing that list instead of
+	// asking rule authors to duplicate a ticket regex in Require.
+	RequireTicket bool `yaml:"require_ticket,omitempty"`
+	// Target selects the part of the message matched against: "header", "body", "footer",
+	// or "message" (the full raw text — the default when empty).
+	Target string `yaml:"target,omitempty"`
+	// Message is shown when the rule is violated. Required for Deny/Require; optional
+	// (defaulted) for RequireTicket.
+	Message string `yaml:"message,omitempty"`
+	// Types and Scopes optionally scope the rule to commits of the listed conventional-commit
+	// types/scopes (AND'd together). Omitting both applies the rule to every commit.
+	Types  []string `yaml:"types,omitempty"`
+	Scopes []string `yaml:"scopes,omitempty"`
 }
 
 // ScopeNames returns the names of the given scopes, in order.

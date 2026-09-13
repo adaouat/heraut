@@ -1166,6 +1166,235 @@ versioning:
 	assert.Empty(t, config.Validate(cfg))
 }
 
+// ── commits.rules (ADR-0056) ──────────────────────────────────────────────────
+
+func TestValidate_CommitsRule_ValidConfigs(t *testing.T) {
+	tests := []struct {
+		name string
+		yaml string
+	}{
+		{"deny, default target", `
+    - name: no-wip
+      deny: '(?i)\bwip\b'
+      message: "commit message must not contain WIP"`},
+		{"require", `
+    - name: require-scope-word
+      require: 'x'
+      message: "must contain x"`},
+		{"require_ticket", `
+    - name: needs-ticket
+      require_ticket: true`},
+		{"target header", `
+    - name: no-wip-header
+      deny: 'wip'
+      message: "no wip"
+      target: header`},
+		{"target body", `
+    - name: no-wip-body
+      deny: 'wip'
+      message: "no wip"
+      target: body`},
+		{"target footer", `
+    - name: no-wip-footer
+      deny: 'wip'
+      message: "no wip"
+      target: footer`},
+		{"target message", `
+    - name: no-wip-message
+      deny: 'wip'
+      message: "no wip"
+      target: message`},
+		{"scoped by types and scopes", `
+    - name: scoped
+      deny: 'wip'
+      message: "no wip"
+      types: [fix]
+      scopes: [cmd]`},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			cfg := mustLoad(t, `
+version: "1"
+versioning:
+  strategy: semver
+commits:
+  tickets:
+    - pattern: '[A-Z]{2,}-\d+'
+      url: "https://jira.example.com/browse/{ticket}"
+  rules:`+tc.yaml+`
+`)
+			assert.Empty(t, config.Validate(cfg))
+		})
+	}
+}
+
+func TestValidate_CommitsRuleExactlyOneOfDenyRequireRequireTicket(t *testing.T) {
+	tests := []struct {
+		name      string
+		rule      string
+		wantMatch string
+	}{
+		{"none set", `
+    - name: broken
+      message: "nothing to check"`, "exactly one"},
+		{"deny and require both set", `
+    - name: ambiguous
+      deny: 'wip'
+      require: 'x'
+      message: "conflicting"`, "only one"},
+		{"deny and require_ticket both set", `
+    - name: ambiguous
+      deny: 'wip'
+      require_ticket: true
+      message: "conflicting"`, "only one"},
+		{"all three set", `
+    - name: ambiguous
+      deny: 'wip'
+      require: 'x'
+      require_ticket: true
+      message: "conflicting"`, "only one"},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			cfg := mustLoad(t, `
+version: "1"
+versioning:
+  strategy: semver
+commits:
+  tickets:
+    - pattern: '[A-Z]{2,}-\d+'
+      url: "https://jira.example.com/browse/{ticket}"
+  rules:`+tc.rule+`
+`)
+			e := findErr(config.Validate(cfg), "commits.rules[0]")
+			require.NotNil(t, e)
+			assert.Contains(t, e.Message, tc.wantMatch)
+		})
+	}
+}
+
+func TestValidate_CommitsRuleNameRequired(t *testing.T) {
+	cfg := mustLoad(t, `
+version: "1"
+versioning:
+  strategy: semver
+commits:
+  rules:
+    - deny: 'wip'
+      message: "no wip"
+`)
+	e := findErr(config.Validate(cfg), "commits.rules[0].name")
+	require.NotNil(t, e)
+}
+
+func TestValidate_CommitsRuleDuplicateName(t *testing.T) {
+	cfg := mustLoad(t, `
+version: "1"
+versioning:
+  strategy: semver
+commits:
+  rules:
+    - name: dup
+      deny: 'wip'
+      message: "a"
+    - name: dup
+      deny: 'todo'
+      message: "b"
+`)
+	e := findErr(config.Validate(cfg), "commits.rules[1].name")
+	require.NotNil(t, e)
+	assert.Contains(t, e.Message, "duplicate")
+}
+
+func TestValidate_CommitsRuleInvalidRegex(t *testing.T) {
+	tests := []struct {
+		name string
+		rule string
+		path string
+	}{
+		{"deny", `
+    - name: bad-deny
+      deny: '('
+      message: "bad"`, "commits.rules[0].deny"},
+		{"require", `
+    - name: bad-require
+      require: '('
+      message: "bad"`, "commits.rules[0].require"},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			cfg := mustLoad(t, `
+version: "1"
+versioning:
+  strategy: semver
+commits:
+  rules:`+tc.rule+`
+`)
+			e := findErr(config.Validate(cfg), tc.path)
+			require.NotNil(t, e)
+			assert.Contains(t, e.Message, "invalid regex")
+		})
+	}
+}
+
+func TestValidate_CommitsRuleMessageRequiredForDenyAndRequire(t *testing.T) {
+	tests := []struct {
+		name string
+		rule string
+	}{
+		{"deny", `
+    - name: no-message
+      deny: 'wip'`},
+		{"require", `
+    - name: no-message
+      require: 'x'`},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			cfg := mustLoad(t, `
+version: "1"
+versioning:
+  strategy: semver
+commits:
+  rules:`+tc.rule+`
+`)
+			e := findErr(config.Validate(cfg), "commits.rules[0].message")
+			require.NotNil(t, e)
+		})
+	}
+}
+
+func TestValidate_CommitsRuleRequireTicketNeedsNonEmptyTickets(t *testing.T) {
+	cfg := mustLoad(t, `
+version: "1"
+versioning:
+  strategy: semver
+commits:
+  rules:
+    - name: needs-ticket
+      require_ticket: true
+`)
+	e := findErr(config.Validate(cfg), "commits.rules[0].require_ticket")
+	require.NotNil(t, e)
+	assert.Contains(t, e.Message, "commits.tickets")
+}
+
+func TestValidate_CommitsRuleInvalidTarget(t *testing.T) {
+	cfg := mustLoad(t, `
+version: "1"
+versioning:
+  strategy: semver
+commits:
+  rules:
+    - name: bad-target
+      deny: 'wip'
+      message: "no wip"
+      target: nonsense
+`)
+	e := findErr(config.Validate(cfg), "commits.rules[0].target")
+	require.NotNil(t, e)
+}
+
 // ── changelog rotation tokens (T246) ─────────────────────────────────────────
 
 func TestValidate_rotationOutput_NoTokens_Valid(t *testing.T) {
