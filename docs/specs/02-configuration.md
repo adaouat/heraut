@@ -1048,10 +1048,14 @@ rendering) substituting these fields:
 | `{{ .Tag }}`         | The full tag (`v1.2.3`)                  | All six points |
 | `{{ .PreviousTag }}` | The most recent prior tag, empty if none | All six points |
 | `{{ .Platform }}`    | The publish target's name (`github`, `gitlab`, …) | `pre_release`/`post_release` only — empty elsewhere |
+| `{{ .Env }}`         | The active `--env` value, empty if none  | All six points ([ADR-0055](../adr/0055-env-hook-template-variable.md)) |
 
-Because these are real Go templates, a single `pre_release`/`post_release` command can branch per
-platform with `{{ if eq .Platform "github" }}...{{ end }}` rather than needing separate
-per-platform config keys.
+Because these are real Go templates, a single command can branch per platform with
+`{{ if eq .Platform "github" }}...{{ end }}` or per environment with
+`{{ if eq .Env "prod" }}...{{ end }}`, rather than needing separate per-platform or
+per-environment config keys ([ADR-0053](../adr/0053-release-lifecycle-hooks.md),
+[ADR-0055](../adr/0055-env-hook-template-variable.md)) — `hooks:` itself stays a single flat
+block regardless of how many environments or platforms a config targets.
 
 ### Failure semantics
 

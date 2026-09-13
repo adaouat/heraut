@@ -213,7 +213,7 @@ discipline that applies to every task.
 | 42 | Scope `--dry-run`/`--env`/`--force`/`--offline` to the commands that use them, off root | Done |
 | 43 | Release lifecycle hooks | Done — see `release-hooks-roadmap.md` |
 | 44 | Windows hook execution | Done |
-| 45 | `{{ .Env }}` hook template variable | Not started |
+| 45 | `{{ .Env }}` hook template variable | Done |
 
 ### Open items
 
@@ -1027,11 +1027,14 @@ struct fields and wiring were added. Full suite (`go test ./...`) and build gree
 schema, sample-config, or validator changes needed since this is a template-variable
 addition, not a config-schema change (ADR-0055).
 
-#### ✦ `[ ]` T279: Docs — Spec 02 § hooks Template variables table + ADR-0055 cross-reference
+#### ✦ `[x]` T279: Docs — Spec 02 § hooks Template variables table + ADR-0055 cross-reference
 
-Update [Spec 02 § `hooks` → Template variables](../specs/02-configuration.md#template-variables)
-with a `{{ .Env }}` row and a branching example alongside the existing `{{ .Platform }}`
-one. Add a `docs/adr/README.md` row for ADR-0055 and bump `CLAUDE.md`'s ADR count.
+[Spec 02 § `hooks` → Template variables](../specs/02-configuration.md#template-variables)
+gained a `{{ .Env }}` row ("All six points") and the branching-example prose now mentions
+`{{ if eq .Env "prod" }}...{{ end }}` alongside the existing `{{ if eq .Platform ... }}`
+example, both citing ADR-0053/ADR-0055. `docs/adr/README.md` gained a row for ADR-0055.
+`CLAUDE.md`'s ADR count bumped 54 → 55 in both places it's stated. This closes Phase 45 —
+`{{ .Env }}` hook template variable: all of T277–T279 are done.
 
 ---
 
