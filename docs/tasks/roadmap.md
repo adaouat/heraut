@@ -988,13 +988,20 @@ the Windows one: not with a new config axis, but with a new template variable a 
 hook command can branch on. Small (three tasks), so it stays inline here rather than in a
 dedicated roadmap file.
 
-#### ✦ `[ ]` T277: ADR-0055 — `{{ .Env }}` hook template variable, no per-env config key
+#### ✦ `[x]` T277: ADR-0055 — `{{ .Env }}` hook template variable, no per-env config key
 
-Settle whether closing ADR-0053's per-env-overrides non-goal means a new
-`environments.<env>.hooks:` config key or a new template variable, mirroring ADR-0054's
-own framing for the equivalent Windows-shell question. Explicitly scope out
-`environments.<env>.hooks:` as a non-goal for this phase pending real evidence that
-single-string branching is insufficient.
+[ADR-0055](../adr/0055-env-hook-template-variable.md): add `{{ .Env }}` as a new hook
+template variable rather than an `environments.<env>.hooks:` config key. Mirrors
+ADR-0054's own framing for the Windows-shell question: `{{ if eq .Platform ... }}` had
+already proven the templating engine can express per-axis branching inside one command
+string without a second config axis, so `{{ .Env }}` extends that same proof to the
+per-environment case. Unlike `Platform` (scoped to `pre_release`/`post_release`, since a
+publish target only exists at those two points), `Env` is set at all six hook points —
+which environment is active is meaningful for the whole run, not just at publish time.
+Confirmed as an explicit non-goal for this phase: `environments.<env>.hooks:` overriding
+or merging with root `hooks:` — rejected for now given the unresolved replace-vs-merge
+semantics question and no evidence yet that single-string branching is insufficient;
+revisit only if that evidence shows up.
 
 #### ✦ `[ ]` T278: `internal/pipeline` + `internal/app`: thread `--env` into hook template context
 
