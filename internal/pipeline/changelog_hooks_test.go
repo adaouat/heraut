@@ -27,6 +27,23 @@ func TestChangelogRun_PostBumpHook_FiresAfterResolve(t *testing.T) {
 	assert.Equal(t, []string{"-c", "echo 1.2.3"}, mr.Calls[0].Args)
 }
 
+// TestChangelogRun_PostBumpHook_SubstitutesEnv proves cfg.Env reaches hookVars.Env here too —
+// the changelog-only pipeline never sets Platform, but Env is available regardless.
+func TestChangelogRun_PostBumpHook_SubstitutesEnv(t *testing.T) {
+	mr := exectest.NewMockRunner()
+	mr.QueueResponse("", "", nil) // sh -c (post_bump)
+
+	cfg := &pipeline.ChangelogConfig{
+		Env:           "staging",
+		PostBumpHooks: []string{"echo {{ .Env }}"},
+	}
+	p := pipeline.NewChangelog(mr, &fakeResolver{result: resolvedResult("v1.2.3")}, cfg, &bytes.Buffer{}, false)
+	require.NoError(t, p.Run())
+
+	require.Len(t, mr.Calls, 1)
+	assert.Equal(t, []string{"-c", "echo staging"}, mr.Calls[0].Args)
+}
+
 // TestChangelogRun_PostBumpHook_FiresEvenWhenDisabledAndNoTag proves post_bump fires
 // unconditionally on resolve (ADR-0053) — even in the one case where every other step is
 // skipped and Run() returns immediately after resolving.

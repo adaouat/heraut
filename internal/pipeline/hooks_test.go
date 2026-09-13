@@ -70,12 +70,12 @@ func TestRunHooks_EmptyListIsNoOp(t *testing.T) {
 }
 
 func TestRenderHookCmd_SubstitutesVars(t *testing.T) {
-	vars := hookVars{Version: "1.2.3", Tag: "v1.2.3", PreviousTag: "v1.2.2", Platform: "github"}
+	vars := hookVars{Version: "1.2.3", Tag: "v1.2.3", PreviousTag: "v1.2.2", Platform: "github", Env: "staging"}
 
 	rendered, err := renderHookCmd(
-		"echo {{ .Version }} {{ .Tag }} {{ .PreviousTag }} {{ .Platform }}", vars)
+		"echo {{ .Version }} {{ .Tag }} {{ .PreviousTag }} {{ .Platform }} {{ .Env }}", vars)
 	require.NoError(t, err)
-	assert.Equal(t, "echo 1.2.3 v1.2.3 v1.2.2 github", rendered)
+	assert.Equal(t, "echo 1.2.3 v1.2.3 v1.2.2 github staging", rendered)
 }
 
 func TestRenderHookCmd_NoTemplateSyntaxPassesThrough(t *testing.T) {

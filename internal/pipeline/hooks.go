@@ -10,12 +10,14 @@ import (
 )
 
 // hookVars are the Go text/template fields available in hook command strings (ADR-0053).
-// Platform is set only for pre_release/post_release; empty at every other point.
+// Platform is set only for pre_release/post_release; empty at every other point. Env (ADR-0055)
+// is the active --env value at every point, empty when the run isn't targeting one.
 type hookVars struct {
 	Version     string
 	Tag         string
 	PreviousTag string
 	Platform    string
+	Env         string
 }
 
 // renderHookCmd renders tmplStr (a hook command string) as a Go text/template against vars.

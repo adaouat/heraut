@@ -35,6 +35,9 @@ type Config struct {
 	RegenerateChangelog bool
 	// NoHooks skips every configured hook for this run (--no-hooks), without touching config.
 	NoHooks bool
+	// Env is the active --env value, exposed to hook commands as {{ .Env }} (ADR-0055). Empty
+	// when the run isn't targeting an environment.
+	Env string
 	// PostBumpHooks run immediately after the next version is resolved. Empty = no hooks.
 	PostBumpHooks []string
 	// PreChangelogHooks run before changelog generation. Empty = no hooks.

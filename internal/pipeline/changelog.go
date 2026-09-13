@@ -41,6 +41,9 @@ type ChangelogConfig struct {
 	RegenerateChangelog bool
 	// NoHooks skips every configured hook for this run (--no-hooks), without touching config.
 	NoHooks bool
+	// Env is the active --env value, exposed to hook commands as {{ .Env }} (ADR-0055). Empty
+	// when the run isn't targeting an environment.
+	Env string
 	// PostBumpHooks run immediately after the next version is resolved. Empty = no hooks.
 	PostBumpHooks []string
 	// PreChangelogHooks run before changelog generation. Empty = no hooks.
@@ -83,9 +86,10 @@ func (p *ChangelogPipeline) WithInteractiveRunner(r port.Runner) *ChangelogPipel
 }
 
 // hookVars builds the template variables available to hook commands from a resolved result
-// (ADR-0053). Platform is always empty here — this pipeline never publishes.
+// (ADR-0053). Platform is always empty here — this pipeline never publishes. Env (ADR-0055)
+// comes from p.cfg.Env regardless of hook point.
 func (p *ChangelogPipeline) hookVars(result versioning.Result) hookVars {
-	return hookVars{Version: result.Version, Tag: result.Tag, PreviousTag: result.CurrentTag}
+	return hookVars{Version: result.Version, Tag: result.Tag, PreviousTag: result.CurrentTag, Env: p.cfg.Env}
 }
 
 // runHookPointStep renders and executes cmds (one hook point's configured commands) as a

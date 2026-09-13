@@ -317,7 +317,9 @@ func buildReleasePipelineConfig(runner, readRunner port.Runner, cfg *config.Conf
 	pCfg.RegenerateChangelog = regenerateChangelog
 	pCfg.CommitMessage = cfg.Versioning.CommitMessage
 
-	// Hooks (ADR-0053) — flat/global only in v1, no per-env override.
+	// Hooks (ADR-0053) — flat/global only in v1, no per-env override. Env (ADR-0055) still
+	// carries the active --env value through so hook commands can branch on {{ .Env }}.
+	pCfg.Env = env
 	pCfg.PostBumpHooks = cfg.PostBumpHooks()
 	pCfg.PreChangelogHooks = cfg.PreChangelogHooks()
 	pCfg.PreTagHooks = cfg.PreTagHooks()
@@ -439,7 +441,9 @@ func buildChangelogPipelineConfig(runner, readRunner port.Runner, cfg *config.Co
 	cCfg.CommitMessage = cfg.Versioning.CommitMessage
 	cCfg.NoHooks = opts.NoHooks
 
-	// Hooks (ADR-0053) — flat/global only in v1, no per-env override.
+	// Hooks (ADR-0053) — flat/global only in v1, no per-env override. Env (ADR-0055) still
+	// carries the active --env value through so hook commands can branch on {{ .Env }}.
+	cCfg.Env = opts.Env
 	cCfg.PostBumpHooks = cfg.PostBumpHooks()
 	cCfg.PreChangelogHooks = cfg.PreChangelogHooks()
 	cCfg.PreTagHooks = cfg.PreTagHooks()

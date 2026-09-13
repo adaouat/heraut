@@ -52,9 +52,10 @@ func (p *Pipeline) WithInteractiveRunner(r port.Runner) *Pipeline {
 }
 
 // hookVars builds the template variables available to hook commands from a resolved result
-// (ADR-0053). Platform is left empty here — only pre_release/post_release (T270) set it.
+// (ADR-0053). Platform is left empty here — only pre_release/post_release (T270) set it. Env
+// (ADR-0055) comes from p.cfg.Env regardless of hook point.
 func (p *Pipeline) hookVars(result versioning.Result) hookVars {
-	return hookVars{Version: result.Version, Tag: result.Tag, PreviousTag: result.CurrentTag}
+	return hookVars{Version: result.Version, Tag: result.Tag, PreviousTag: result.CurrentTag, Env: p.cfg.Env}
 }
 
 // runHookPointStep renders and executes cmds (one hook point's configured commands) as a

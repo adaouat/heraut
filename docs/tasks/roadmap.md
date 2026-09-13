@@ -1003,12 +1003,29 @@ or merging with root `hooks:` — rejected for now given the unresolved replace-
 semantics question and no evidence yet that single-string branching is insufficient;
 revisit only if that evidence shows up.
 
-#### ✦ `[ ]` T278: `internal/pipeline` + `internal/app`: thread `--env` into hook template context
+#### ✦ `[x]` T278: `internal/pipeline` + `internal/app`: thread `--env` into hook template context
 
-Add `Env string` to `hookVars`, `pipeline.Config`, and `pipeline.ChangelogConfig`; set it
-from the `env`/`opts.Env` parameters already threaded into `internal/app/pipeline.go`'s
-two config builders. Unlike `Platform`, populate it at all six hook points per T277's
-decision. Update the existing hook-substitution tests to cover it.
+Added `Env string` to `hookVars` (`internal/pipeline/hooks.go`), `pipeline.Config`
+(`internal/pipeline/config.go`), and `pipeline.ChangelogConfig`
+(`internal/pipeline/changelog.go`). Both pipelines' `hookVars(result)` methods now set
+`Env: p.cfg.Env`. `internal/app/pipeline.go`'s `buildReleasePipelineConfig` and
+`buildChangelogPipelineConfig` set `pCfg.Env`/`cCfg.Env` from the `env`/`opts.Env`
+parameters already in scope there — no new plumbing needed above that layer, since
+`--env` already reached both builders for the existing per-env changelog/release-notes
+merge logic.
+
+Written test-first (TDD): `TestRenderHookCmd_SubstitutesVars` in `hooks_test.go` extended
+to assert `{{ .Env }}` renders alongside the existing vars; new
+`TestRun_PostBumpHook_SubstitutesEnv` / `TestChangelogRun_PostBumpHook_SubstitutesEnv`
+prove `cfg.Env` reaches a real hook command through each pipeline's `Run()`; new
+`TestBuildReleasePipelineConfig_PropagatesEnv` /
+`TestBuildChangelogPipelineConfig_PropagatesEnv` /
+`TestBuildReleasePipelineConfig_EmptyEnvIsFlatDefault` in `internal/app/hooks_internal_test.go`
+prove the app-layer wiring, including the empty-string default when no `--env` is passed.
+All five were confirmed failing (`unknown field Env` / `undefined: pCfg.Env`) before the
+struct fields and wiring were added. Full suite (`go test ./...`) and build green; no
+schema, sample-config, or validator changes needed since this is a template-variable
+addition, not a config-schema change (ADR-0055).
 
 #### ✦ `[ ]` T279: Docs — Spec 02 § hooks Template variables table + ADR-0055 cross-reference
 

@@ -41,6 +41,26 @@ func TestBuildReleasePipelineConfig_PropagatesHooks(t *testing.T) {
 	assert.Equal(t, []string{"echo post-release"}, pCfg.PostReleaseHooks)
 }
 
+// TestBuildReleasePipelineConfig_PropagatesEnv proves the --env value reaches pipeline.Config.Env
+// so hook commands can branch on {{ .Env }} the same way pre_release/post_release already branch
+// on {{ .Platform }}.
+func TestBuildReleasePipelineConfig_PropagatesEnv(t *testing.T) {
+	testutil.ClearCIEnv(t)
+	runner := exectest.NewMockRunner()
+	readRunner := exectest.NewMockRunner()
+	readRunner.QueueResponse("", "", assertNoOriginErr)
+
+	cfg := &config.Config{
+		Version:      "1",
+		Versioning:   config.Versioning{Strategy: "semver-per-env"},
+		Environments: map[string]config.Environment{"staging": {Bump: "patch"}},
+	}
+
+	pCfg, err := buildReleasePipelineConfig(runner, readRunner, cfg, "staging", "", false, false)
+	require.NoError(t, err)
+	assert.Equal(t, "staging", pCfg.Env)
+}
+
 func TestBuildReleasePipelineConfig_NoHooksConfiguredIsNilSafe(t *testing.T) {
 	testutil.ClearCIEnv(t)
 	runner := exectest.NewMockRunner()
@@ -83,4 +103,38 @@ func TestBuildChangelogPipelineConfig_PropagatesHooks(t *testing.T) {
 	assert.Equal(t, []string{"go build ./..."}, cCfg.PreTagHooks)
 	assert.Equal(t, []string{"npm publish"}, cCfg.PostTagHooks)
 	assert.True(t, cCfg.NoHooks)
+}
+
+// TestBuildChangelogPipelineConfig_PropagatesEnv mirrors the release-pipeline case above for the
+// changelog-only pipeline.
+func TestBuildChangelogPipelineConfig_PropagatesEnv(t *testing.T) {
+	testutil.ClearCIEnv(t)
+	runner := exectest.NewMockRunner()
+	readRunner := exectest.NewMockRunner()
+	readRunner.QueueResponse("", "", assertNoOriginErr)
+
+	cfg := &config.Config{
+		Version:      "1",
+		Versioning:   config.Versioning{Strategy: "semver-per-env"},
+		Environments: map[string]config.Environment{"staging": {Bump: "patch"}},
+	}
+
+	cCfg, err := buildChangelogPipelineConfig(runner, readRunner, cfg, PipelineOpts{Env: "staging"})
+	require.NoError(t, err)
+	assert.Equal(t, "staging", cCfg.Env)
+}
+
+// TestBuildReleasePipelineConfig_EmptyEnvIsFlatDefault proves Env stays "" when no --env is
+// passed — the flat, non-per-env default, matching Platform's "empty elsewhere" framing.
+func TestBuildReleasePipelineConfig_EmptyEnvIsFlatDefault(t *testing.T) {
+	testutil.ClearCIEnv(t)
+	runner := exectest.NewMockRunner()
+	readRunner := exectest.NewMockRunner()
+	readRunner.QueueResponse("", "", assertNoOriginErr)
+
+	cfg := &config.Config{Version: "1", Versioning: config.Versioning{Strategy: "semver"}}
+
+	pCfg, err := buildReleasePipelineConfig(runner, readRunner, cfg, "", "", false, false)
+	require.NoError(t, err)
+	assert.Equal(t, "", pCfg.Env)
 }

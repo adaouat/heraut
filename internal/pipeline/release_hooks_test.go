@@ -33,6 +33,26 @@ func TestRun_PostBumpHook_FiresAfterResolve(t *testing.T) {
 	assert.Equal(t, []string{"tag", "v1.2.3"}, mr.Calls[1].Args)
 }
 
+// TestRun_PostBumpHook_SubstitutesEnv proves cfg.Env reaches hookVars.Env at every hook point,
+// not only pre_release/post_release the way Platform does.
+func TestRun_PostBumpHook_SubstitutesEnv(t *testing.T) {
+	mr := exectest.NewMockRunner()
+	mr.QueueResponse("", "", nil) // sh -c (post_bump)
+	mr.QueueResponse("", "", nil) // git tag
+	mr.QueueResponse("", "", nil) // git push <tag>
+
+	cfg := &pipeline.Config{
+		Env:           "staging",
+		PostBumpHooks: []string{"echo {{ .Env }}"},
+		Platforms:     []port.Platform{&testutil.MockPlatform{PlatformName: "github"}},
+	}
+	p := pipeline.New(mr, &fakeResolver{result: resolvedResult("v1.2.3")}, cfg, &bytes.Buffer{}, false)
+	require.NoError(t, p.Run())
+
+	require.Len(t, mr.Calls, 3)
+	assert.Equal(t, []string{"-c", "echo staging"}, mr.Calls[0].Args)
+}
+
 func TestRun_PreChangelogHook_FiresBeforeChangelogGeneration(t *testing.T) {
 	mr := exectest.NewMockRunner()
 	mr.QueueResponse("", "", nil) // sh -c (pre_changelog)
