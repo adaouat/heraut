@@ -99,6 +99,13 @@
             }
           }
         },
+        "rules": {
+          "type": "array",
+          "description": "Project-specific commit-message constraints (deny/require/require_ticket patterns), enforced by 'heraut commit verify'/'check' alongside types/scopes (ADR-0056).",
+          "items": {
+            "$ref": "#/definitions/CommitRule"
+          }
+        },
         "enrichment_forge": {
           "type": "string",
           "description": "References a forges[].name used as the PR/MR metadata source for changelog and release-notes generation (ADR-0043)."
@@ -164,6 +171,61 @@
         "description": {
           "type": "string",
           "description": "One-line hint shown beside the scope in the 'heraut commit create' wizard picker."
+        }
+      }
+    },
+    "CommitRule": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "name"
+      ],
+      "description": "Enforces one pattern constraint on a commit message, checked by 'heraut commit verify'/'check' alongside the type/scope checks (ADR-0056). Set exactly one of deny, require, or require_ticket. message is required for deny/require; optional (defaulted) for require_ticket.",
+      "properties": {
+        "name": {
+          "type": "string",
+          "description": "Rule name, shown in violation messages. Must be unique within commits.rules."
+        },
+        "deny": {
+          "type": "string",
+          "description": "Regex that must NOT match target."
+        },
+        "require": {
+          "type": "string",
+          "description": "Regex that MUST match target."
+        },
+        "require_ticket": {
+          "type": "boolean",
+          "description": "Shorthand: target must match one of the already-configured commits.tickets[].pattern entries, instead of duplicating a ticket regex in require. Requires a non-empty commits.tickets."
+        },
+        "target": {
+          "type": "string",
+          "enum": [
+            "header",
+            "body",
+            "footer",
+            "message"
+          ],
+          "default": "message",
+          "description": "Part of the message matched against: the raw first line (header), the parsed body, the joined footer trailers (footer), or the full raw text (message, the default)."
+        },
+        "message": {
+          "type": "string",
+          "description": "Shown when the rule is violated. Required for deny/require; optional for require_ticket (gets a synthesized default naming the rule)."
+        },
+        "types": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Optionally scope the rule to commits of these conventional-commit types. Omitting both types and scopes applies the rule to every commit."
+        },
+        "scopes": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Optionally scope the rule to commits with these scopes. Omitting both types and scopes applies the rule to every commit."
         }
       }
     },

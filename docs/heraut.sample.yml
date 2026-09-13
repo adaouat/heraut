@@ -204,6 +204,22 @@ versioning:
 #       url: 'https://acme.atlassian.net/browse/{ticket}'
 #     - pattern: 'GH-([0-9]+)'                            # GitHub issues: GH-123
 #       url: 'https://github.com/acme/app/issues/{ticket}'
+#   # rules — project-specific commit-message constraints (ADR-0056), checked by
+#   # `heraut commit verify`/`check` alongside types/scopes above. Set exactly one of
+#   # deny/require/require_ticket per rule; message is required for deny/require
+#   # (require_ticket gets a synthesized default). Optionally scope a rule to
+#   # specific types/scopes, and target the header/body/footer instead of the whole
+#   # message — e.g. requiring a ticket only as a footer trailer, not anywhere in
+#   # free text.
+#   rules:
+#     - name: no-wip
+#       deny: '(?i)\bwip\b'
+#       message: "commit message must not contain WIP"
+#     - name: require-ticket-on-fix
+#       require_ticket: true          # matches any pattern already listed in tickets above
+#       target: footer                # only a trailer counts, e.g. "Refs: PROJ-123"
+#       types: [fix]                  # only fix commits are checked
+#       message: "fix commits must reference a ticket in a footer trailer"
 
 # ── rendering ─────────────────────────────────────────────────────────────────
 #

@@ -628,6 +628,10 @@ commits:
   tickets:
     - pattern: '[A-Z]+-[0-9]+'
       url: 'https://acme.atlassian.net/browse/{ticket}'
+  rules:
+    - name: no-wip
+      deny: '(?i)\bwip\b'
+      message: "commit message must not contain WIP"
 ```
 
 ### `commits.types`
@@ -675,6 +679,41 @@ Links issue-tracker references found in commit messages — **subject, body, or 
 
 Heraut injects each entry as a link parser; the link is appended to the commit line as
 `([TICKET](url))`.
+
+### `commits.rules`
+
+Project-specific commit-message constraints, checked by `heraut commit verify`/`check`
+alongside the type and scope checks above ([ADR-0056](../adr/0056-configurable-commit-message-rules.md)).
+Each rule sets **exactly one** of `deny`, `require`, or `require_ticket`.
+
+| Field | Meaning |
+|---|---|
+| `name` | Rule name (required), shown in violation messages. Must be unique within `commits.rules`. |
+| `deny` | A regex that must **not** match `target`. |
+| `require` | A regex that **must** match `target`. |
+| `require_ticket` | Shorthand for "`target` must match one of the already-configured `commits.tickets[].pattern` entries" — reuses that list instead of duplicating a ticket regex in `require`. Requires a non-empty `commits.tickets`. |
+| `target` | Part of the message matched against: `header` (the raw first line), `body`, `footer` (each footer trailer rendered as `Token: Value`, joined), or `message` (the full raw text — the default). |
+| `message` | Shown when the rule is violated. Required for `deny`/`require`; optional for `require_ticket`, which gets a default message naming the rule. |
+| `types` / `scopes` | Optionally scope the rule to commits of the listed conventional-commit types/scopes (AND'd together). Omitting both applies the rule to every commit. |
+
+```yaml
+commits:
+  tickets:
+    - pattern: '[A-Z]{2,}-[0-9]+'
+      url: 'https://acme.atlassian.net/browse/{ticket}'
+  rules:
+    - name: no-wip
+      deny: '(?i)\bwip\b'
+      message: "commit message must not contain WIP"
+    - name: require-ticket-on-fix
+      require_ticket: true      # matches any pattern already listed in tickets above
+      target: footer            # only a trailer counts, e.g. "Refs: PROJ-123"
+      types: [fix]
+      message: "fix commits must reference a ticket in a footer trailer"
+```
+
+A commit can trip more than one rule at once — `heraut commit verify`/`check` collect every
+violation into a single error instead of stopping at the first.
 
 ### `commits.enrichment_forge` / `commits.enrichment_policy`
 

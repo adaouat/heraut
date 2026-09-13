@@ -8,7 +8,7 @@ described in `docs/specs/`. Each task carries an inline `[ ] / [x]` checkbox —
 headings for what to do next, read the surrounding prose for *why* and *how*.
 
 The behavioural authority is `docs/specs/` (six numbered specs); the architectural
-authority is `docs/adr/` (51 ADRs). Where this roadmap mentions "behaviour", the specs
+authority is `docs/adr/` (56 ADRs). Where this roadmap mentions "behaviour", the specs
 win; where it mentions a "decision", the ADR wins. If you find a disagreement between
 roadmap and spec/ADR, fix the roadmap.
 
@@ -36,7 +36,7 @@ The goals of v1.0:
    provides these (see [ADR-0014](../adr/0014-self-update-architecture.md), superseded,
    for the self-update → forge/updatecheck migration).
 
-The `docs/specs/` (six numbered specs) and the 51 ADRs in `docs/adr/` are authoritative.
+The `docs/specs/` (six numbered specs) and the 56 ADRs in `docs/adr/` are authoritative.
 
 ---
 
@@ -214,7 +214,7 @@ discipline that applies to every task.
 | 43 | Release lifecycle hooks | Done — see `release-hooks-roadmap.md` |
 | 44 | Windows hook execution | Done |
 | 45 | `{{ .Env }}` hook template variable | Done |
-| 46 | Configurable commit-message rules (`commits.rules`) | In progress — T280/T281 done, T282 (docs) pending |
+| 46 | Configurable commit-message rules (`commits.rules`) | Done |
 
 ### Open items
 
@@ -1097,15 +1097,36 @@ aggregation, no-rules-configured regression) — confirmed failing before `verif
 wired into `VerifyCommit`. Full suite (`go test ./...`), build, and
 `hk check -S golangci_lint` green. T282 (spec/schema/sample docs) is not started.
 
-#### ✦ `[ ]` T282: Docs — Spec 02 § `commits.rules` + schema.json + sample config + ADR-0056 cross-reference
+#### ✦ `[x]` T282: Docs — Spec 02 § `commits.rules` + schema.json + sample config + ADR-0056 cross-reference
 
-`docs/specs/02-configuration.md` gains a `### \`commits.rules\`` section (alongside the
-existing `commits.types`/`commits.scopes`/`commits.tickets` sections) documenting the
-field, its validation rules, and the `require_ticket`/`target` shorthand, citing
-ADR-0056. `schema.json` gains the `commits.rules` array schema. `docs/heraut.sample.yml`
-gains a commented example. `docs/adr/README.md` gains a row for ADR-0056. `CLAUDE.md`'s
-ADR count bumps in both places it's stated. This closes Phase 46 — `commits.rules`: all
-of T280–T282 are done.
+`docs/specs/02-configuration.md` gained a `### \`commits.rules\`` section (alongside the
+existing `commits.types`/`commits.scopes`/`commits.tickets` sections) with a field table
+and a `require_ticket`/`target: footer` example, citing ADR-0056; the `commits:` overview
+YAML block at the top of the page also gained a one-line `rules:` example for
+discoverability. `docs/specs/03-commands.md`'s `heraut commit verify` section (not in the
+original task scope, but directly describes the behavior T281 just changed) now mentions
+that verify evaluates `commits.rules` and aggregates violations — left undocumented, the
+spec would have been silently inaccurate about what the command actually validates.
+
+`schema.json` gained the `CommitRule` definition and `Commits.rules` array property,
+matching the existing `Exclude`/`BumpRule` precedent of documenting cross-field
+constraints ("exactly one of deny/require/require_ticket") in prose rather than
+JSON-Schema `oneOf`, since heraut's own semantic validator is the enforcement layer.
+`docs/heraut.sample.yml` gained a commented `rules:` example under the existing
+(fully-commented) `commits:` block. `testdata/config/valid/commit-rules.yml` is a new
+schema fixture (mirroring `tickets.yml`'s pattern) covering `deny`, `require_ticket` +
+`target: footer` + `types` scoping — `TestSchema_ValidFixtures` picks it up automatically
+via its glob. `docs/adr/README.md` gained a row for ADR-0056. `CLAUDE.md`'s ADR count
+bumped 55 → 56 in both places it's stated.
+
+Full suite (`go test ./...`), build, and `hk check` (yamlfmt, typos — no Go files changed
+in this docs-only slice) all green. This closes Phase 46 — `commits.rules`: all of
+T280–T282 are done.
+
+This file's own intro (lines 11 and 39) also said "51 ADRs" — stale since well before
+this task (`CLAUDE.md` was kept in sync at each ADR-adding task; this intro prose was
+not). Noticed during T282 but out of its original scope, so flagged to the user rather
+than silently fixed; corrected here on request.
 
 ---
 

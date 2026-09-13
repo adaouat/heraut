@@ -60,3 +60,4 @@ trade-offs were accepted.
 | [0053](0053-release-lifecycle-hooks.md) | Release lifecycle hooks — arbitrary shell execution via config | Accepted (POSIX-only-in-v1 limitation resolved by 0054 — Windows now runs hooks via `cmd /D /C`) |
 | [0054](0054-windows-hook-execution.md) | Windows hook execution — `cmd /D /C`, no per-OS command syntax | Accepted |
 | [0055](0055-env-hook-template-variable.md) | `{{ .Env }}` hook template variable — no per-env `hooks:` config | Accepted |
+| [0056](0056-configurable-commit-message-rules.md) | `commits.rules` — configurable commit-message pattern rules | Accepted |

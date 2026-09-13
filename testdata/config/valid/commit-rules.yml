@@ -1,0 +1,22 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/adaouat/heraut/main/schema.json
+
+version: "1"
+
+versioning:
+  strategy: semver
+
+changelog: {}
+
+commits:
+  tickets:
+    - pattern: '[A-Z]{2,}-[0-9]+'
+      url: 'https://acme.atlassian.net/browse/{ticket}'
+  rules:
+    - name: no-wip
+      deny: '(?i)\bwip\b'
+      message: "commit message must not contain WIP"
+    - name: require-ticket-on-fix
+      require_ticket: true
+      target: footer
+      types: [fix]
+      message: "fix commits must reference a ticket in a footer trailer (e.g. Refs: JIRA-123)"

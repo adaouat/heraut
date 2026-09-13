@@ -315,9 +315,12 @@ Exactly one of a positional `message` argument or `--file` must be given — bot
 neither is a usage error.
 
 Validates grammar, then checks the parsed type against `commits.types` (or the
-default 10-type list — see [Spec 02 § `commits`](02-configuration.md#commits))
-— unless the message is a git-generated merge commit or a `fixup!`/`squash!` commit,
-which are always skipped. An invalid message exits with the Usage code (1); an invalid
+default 10-type list) and, when configured, evaluates every matching
+[`commits.rules`](02-configuration.md#commitsrules) entry — unless the message is a
+git-generated merge commit or a `fixup!`/`squash!` commit, which are always skipped
+(see [Spec 02 § `commits`](02-configuration.md#commits)). A commit can trip more than
+one rule at once; every violation is collected into a single error instead of stopping
+at the first. An invalid message exits with the Usage code (1); an invalid
 `.heraut.yml` (if one is present) exits with the Config code (2) — same semantic
 validation `heraut check config` runs.
 
