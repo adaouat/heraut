@@ -214,6 +214,7 @@ discipline that applies to every task.
 | 43 | Release lifecycle hooks | Done — see `release-hooks-roadmap.md` |
 | 44 | Windows hook execution | Done |
 | 45 | `{{ .Env }}` hook template variable | Done |
+| 46 | Configurable commit-message rules (`commits.rules`) | Not started |
 
 ### Open items
 
@@ -1035,6 +1036,56 @@ gained a `{{ .Env }}` row ("All six points") and the branching-example prose now
 example, both citing ADR-0053/ADR-0055. `docs/adr/README.md` gained a row for ADR-0055.
 `CLAUDE.md`'s ADR count bumped 54 → 55 in both places it's stated. This closes Phase 45 —
 `{{ .Env }}` hook template variable: all of T277–T279 are done.
+
+---
+
+### Phase 46 — Configurable commit-message rules (`commits.rules`)
+
+`heraut commit verify`/`check` enforce an allow-list of types (`commits.types`) and,
+optionally, scopes (`commits.scopes` + `scopes_restricted`), but have no way to express
+project-specific constraints like "no WIP markers" or "commits must reference a ticket."
+This phase adds `commits.rules`, a generic list of deny/require/require-ticket matchers,
+optionally scoped by type/scope and targetable at the message header, body, or footer.
+
+#### ✦ `[x]` T280: ADR-0056 — `commits.rules`: generic commit-message pattern rules
+
+[ADR-0056](../adr/0056-configurable-commit-message-rules.md): add `commits.rules`, a list
+of `CommitRule` objects (`name`, one of `deny`/`require`/`require_ticket`, optional
+`target` and `types`/`scopes` scoping, `message`), evaluated by `app.VerifyCommit`
+alongside the existing type/scope checks. Mirrors the "matcher → outcome" shape
+`versioning.bump[]`'s `BumpRule` already established. `require_ticket` reuses
+`commits.tickets` as the source of truth (any configured pattern matches) instead of
+asking rule authors to duplicate a ticket regex in `require`; `target` maps onto the
+header/body/footer split `conventionalcommit.Parse` already produces, so a ticket
+requirement can be scoped to a footer trailer (commitlint-style `Refs: JIRA-123`) rather
+than anywhere in free text. Confirmed as explicit non-goals: surfacing rule violations
+live in the `heraut commit create` wizard (a `verify`/`check`-time gate is a different
+concern), and any change to how `commits.tickets` itself is declared.
+
+#### ✦ `[ ]` T281: `internal/config` + `internal/app`: implement `commits.rules`
+
+Add `CommitRule` to `internal/config/commits.go` and `Commits.Rules []CommitRule` per
+ADR-0056. `internal/config/validator.go` gains: exactly-one-of `deny`/`require`/
+`require_ticket` per rule, regex compilation for `deny`/`require`, `require_ticket: true`
+requires non-empty `commits.tickets`, `message` required for `deny`/`require`, and
+`target` (if set) restricted to `header`/`body`/`footer`/`message`. `app.VerifyCommit`
+(`internal/app/commit.go`) evaluates every matching rule (types/scopes filter, then
+target extraction from the parsed `conventionalcommit.Commit`) and collects all
+violations into one error instead of returning on the first. Rule regexes compile once
+(config-validate time), not per commit, since `commit check` calls `VerifyCommit` once
+per commit in a range. TDD: failing tests first for each validator case and each rule
+kind (deny/require/require_ticket × header/body/footer/message targets × type/scope
+scoping), then the implementation.
+
+#### ✦ `[ ]` T282: Docs — Spec 02 § `commits.rules` + schema.json + sample config + ADR-0056 cross-reference
+
+`docs/specs/02-configuration.md` gains a `### \`commits.rules\`` section (alongside the
+existing `commits.types`/`commits.scopes`/`commits.tickets` sections) documenting the
+field, its validation rules, and the `require_ticket`/`target` shorthand, citing
+ADR-0056. `schema.json` gains the `commits.rules` array schema. `docs/heraut.sample.yml`
+gains a commented example. `docs/adr/README.md` gains a row for ADR-0056. `CLAUDE.md`'s
+ADR count bumps in both places it's stated. This closes Phase 46 — `commits.rules`: all
+of T280–T282 are done.
 
 ---
 
