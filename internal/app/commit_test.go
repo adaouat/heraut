@@ -136,6 +136,141 @@ func TestVerifyCommit_Summary_NilOnError(t *testing.T) {
 	assert.Nil(t, summary)
 }
 
+// ── commits.rules (ADR-0056) ──────────────────────────────────────────────────
+
+func TestVerifyCommit_Rules_Deny_RejectsMatch(t *testing.T) {
+	cfg := &config.Config{Commits: &config.Commits{
+		Rules: []config.CommitRule{{Name: "no-wip", Deny: `(?i)\bwip\b`, Message: "no WIP allowed"}},
+	}}
+	_, err := app.VerifyCommit(cfg, "feat: still WIP work")
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "no WIP allowed")
+}
+
+func TestVerifyCommit_Rules_Deny_AllowsNonMatch(t *testing.T) {
+	cfg := &config.Config{Commits: &config.Commits{
+		Rules: []config.CommitRule{{Name: "no-wip", Deny: `(?i)\bwip\b`, Message: "no WIP allowed"}},
+	}}
+	_, err := app.VerifyCommit(cfg, "feat: finished work")
+	assert.NoError(t, err)
+}
+
+func TestVerifyCommit_Rules_Require_RejectsMissing(t *testing.T) {
+	cfg := &config.Config{Commits: &config.Commits{
+		Rules: []config.CommitRule{{Name: "needs-x", Require: `x`, Message: "must mention x"}},
+	}}
+	_, err := app.VerifyCommit(cfg, "feat: add y")
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "must mention x")
+}
+
+func TestVerifyCommit_Rules_Require_AllowsMatch(t *testing.T) {
+	cfg := &config.Config{Commits: &config.Commits{
+		Rules: []config.CommitRule{{Name: "needs-x", Require: `x`, Message: "must mention x"}},
+	}}
+	_, err := app.VerifyCommit(cfg, "feat: add x")
+	assert.NoError(t, err)
+}
+
+func TestVerifyCommit_Rules_RequireTicket_UsesConfiguredTicketPatterns(t *testing.T) {
+	cfg := &config.Config{Commits: &config.Commits{
+		Tickets: []config.Ticket{{Pattern: `[A-Z]{2,}-\d+`, URL: "https://example.com/{ticket}"}},
+		Rules:   []config.CommitRule{{Name: "needs-ticket", RequireTicket: true, Message: "reference a ticket"}},
+	}}
+	_, err := app.VerifyCommit(cfg, "fix: resolve JIRA-42")
+	assert.NoError(t, err)
+
+	_, err = app.VerifyCommit(cfg, "fix: no ticket here")
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "reference a ticket")
+}
+
+func TestVerifyCommit_Rules_RequireTicket_DefaultMessage(t *testing.T) {
+	// No Message set — evaluateRule synthesizes one naming the rule, since require_ticket
+	// alone (unlike deny/require) is common enough to not force a message on every project.
+	cfg := &config.Config{Commits: &config.Commits{
+		Tickets: []config.Ticket{{Pattern: `[A-Z]{2,}-\d+`, URL: "https://example.com/{ticket}"}},
+		Rules:   []config.CommitRule{{Name: "needs-ticket", RequireTicket: true}},
+	}}
+	_, err := app.VerifyCommit(cfg, "fix: no ticket here")
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "needs-ticket")
+}
+
+func TestVerifyCommit_Rules_Target_Header(t *testing.T) {
+	cfg := &config.Config{Commits: &config.Commits{
+		Rules: []config.CommitRule{{Name: "no-wip-header", Deny: `wip`, Message: "no wip in header", Target: "header"}},
+	}}
+	_, err := app.VerifyCommit(cfg, "feat: add x\n\nstill wip in the details")
+	assert.NoError(t, err, "wip only in the body — header-scoped deny doesn't trigger")
+	_, err = app.VerifyCommit(cfg, "feat: wip work")
+	require.Error(t, err, "wip in the header triggers")
+}
+
+func TestVerifyCommit_Rules_Target_Body(t *testing.T) {
+	cfg := &config.Config{Commits: &config.Commits{
+		Rules: []config.CommitRule{{Name: "no-wip-body", Deny: `wip`, Message: "no wip in body", Target: "body"}},
+	}}
+	_, err := app.VerifyCommit(cfg, "feat: wip in header only")
+	assert.NoError(t, err, "header-only mention doesn't trigger a body-scoped rule")
+	_, err = app.VerifyCommit(cfg, "feat: add x\n\nstill wip in the details")
+	require.Error(t, err, "wip in the body triggers")
+}
+
+func TestVerifyCommit_Rules_Target_Footer_ScopesTicketToTrailer(t *testing.T) {
+	cfg := &config.Config{Commits: &config.Commits{
+		Tickets: []config.Ticket{{Pattern: `[A-Z]{2,}-\d+`, URL: "https://example.com/{ticket}"}},
+		Rules: []config.CommitRule{{
+			Name: "ticket-in-footer", RequireTicket: true, Target: "footer",
+			Message: "reference a ticket in a footer trailer",
+		}},
+	}}
+	_, err := app.VerifyCommit(cfg, "fix: resolve JIRA-42")
+	require.Error(t, err, "ticket only in the description — footer-scoped rule still fails")
+
+	_, err = app.VerifyCommit(cfg, "fix: resolve the bug\n\nRefs: JIRA-42")
+	assert.NoError(t, err, "ticket in an actual footer trailer passes")
+}
+
+func TestVerifyCommit_Rules_ScopedByType(t *testing.T) {
+	cfg := &config.Config{Commits: &config.Commits{
+		Rules: []config.CommitRule{{Name: "fix-only", Deny: `wip`, Message: "no wip", Types: []string{"fix"}}},
+	}}
+	_, err := app.VerifyCommit(cfg, "feat: wip work")
+	assert.NoError(t, err, "not a fix commit — rule doesn't apply")
+	_, err = app.VerifyCommit(cfg, "fix: wip work")
+	require.Error(t, err)
+}
+
+func TestVerifyCommit_Rules_ScopedByScope(t *testing.T) {
+	cfg := &config.Config{Commits: &config.Commits{
+		Rules: []config.CommitRule{{Name: "cmd-only", Deny: `wip`, Message: "no wip", Scopes: []string{"cmd"}}},
+	}}
+	_, err := app.VerifyCommit(cfg, "feat(other): wip work")
+	assert.NoError(t, err, "scope not in the list — rule doesn't apply")
+	_, err = app.VerifyCommit(cfg, "feat(cmd): wip work")
+	require.Error(t, err)
+}
+
+func TestVerifyCommit_Rules_ViolationsAggregate(t *testing.T) {
+	cfg := &config.Config{Commits: &config.Commits{
+		Rules: []config.CommitRule{
+			{Name: "no-wip", Deny: `wip`, Message: "no wip"},
+			{Name: "no-todo", Deny: `todo`, Message: "no todo"},
+		},
+	}}
+	_, err := app.VerifyCommit(cfg, "feat: wip and todo")
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "no wip")
+	assert.Contains(t, err.Error(), "no todo")
+}
+
+func TestVerifyCommit_Rules_NoRulesConfigured_NoError(t *testing.T) {
+	cfg := &config.Config{Commits: &config.Commits{}}
+	_, err := app.VerifyCommit(cfg, "feat: anything goes")
+	assert.NoError(t, err)
+}
+
 func TestAllowedCommitTypes(t *testing.T) {
 	t.Run("nil config returns defaults", func(t *testing.T) {
 		assert.Equal(t, app.DefaultCommitTypes, app.AllowedCommitTypes(nil))

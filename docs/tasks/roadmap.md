@@ -214,7 +214,7 @@ discipline that applies to every task.
 | 43 | Release lifecycle hooks | Done — see `release-hooks-roadmap.md` |
 | 44 | Windows hook execution | Done |
 | 45 | `{{ .Env }}` hook template variable | Done |
-| 46 | Configurable commit-message rules (`commits.rules`) | Not started |
+| 46 | Configurable commit-message rules (`commits.rules`) | In progress — T280/T281 done, T282 (docs) pending |
 
 ### Open items
 
@@ -1062,20 +1062,40 @@ than anywhere in free text. Confirmed as explicit non-goals: surfacing rule viol
 live in the `heraut commit create` wizard (a `verify`/`check`-time gate is a different
 concern), and any change to how `commits.tickets` itself is declared.
 
-#### ✦ `[ ]` T281: `internal/config` + `internal/app`: implement `commits.rules`
+#### ✦ `[x]` T281: `internal/config` + `internal/app`: implement `commits.rules`
 
-Add `CommitRule` to `internal/config/commits.go` and `Commits.Rules []CommitRule` per
-ADR-0056. `internal/config/validator.go` gains: exactly-one-of `deny`/`require`/
-`require_ticket` per rule, regex compilation for `deny`/`require`, `require_ticket: true`
-requires non-empty `commits.tickets`, `message` required for `deny`/`require`, and
-`target` (if set) restricted to `header`/`body`/`footer`/`message`. `app.VerifyCommit`
-(`internal/app/commit.go`) evaluates every matching rule (types/scopes filter, then
-target extraction from the parsed `conventionalcommit.Commit`) and collects all
-violations into one error instead of returning on the first. Rule regexes compile once
-(config-validate time), not per commit, since `commit check` calls `VerifyCommit` once
-per commit in a range. TDD: failing tests first for each validator case and each rule
-kind (deny/require/require_ticket × header/body/footer/message targets × type/scope
-scoping), then the implementation.
+Implemented in two TDD increments. **Config layer**: `CommitRule`
+(`internal/config/commits.go`) and `Commits.Rules []CommitRule`, plus
+`validateCommitRules` (`internal/config/validator.go`) — exactly-one-of `deny`/`require`/
+`require_ticket` enforcement, regex compilation for `deny`/`require`, `require_ticket:
+true` requiring non-empty `commits.tickets`, `message` required for `deny`/`require`,
+`target` restricted to `header`/`body`/`footer`/`message`, and duplicate-name detection
+(mirroring the existing `commits.types`/`commits.scopes` checks). **App layer**:
+`app.VerifyCommit` (`internal/app/commit.go`) gained `verifyRules` / `ruleAppliesTo` /
+`evaluateRule` / `ruleTarget` — every matching rule (types/scopes-filtered) is evaluated
+and all violations are collected into one error rather than returning on the first;
+`ruleTarget` extracts header (raw first line) / body / footer (each
+`conventionalcommit.Footer` rendered as `Token: Value`, joined) / message text.
+
+**Deviation from ADR-0056's "compile once, not per commit" note**: implemented as a fresh
+`regexp.Compile` per `VerifyCommit` call instead of a precompiled cache. At the rule counts
+and commit-range sizes this targets, compile cost is negligible (low-microsecond compiles
+× realistic rule/commit counts, still well under a second) — a cache would need mutable
+derived state on the shared `*config.Config` pointer, or a new parameter threaded through
+every `internal/cmd/commit.go` call site, either of which is real complexity for a win that
+doesn't show up at this scale. Deferred unless profiling on a large rev-range shows
+otherwise.
+
+TDD: `internal/config/validator_test.go` gained a `commits.rules` section (valid-configs
+table, exactly-one-of table, name/duplicate-name, invalid-regex table, message-required
+table, `require_ticket`-needs-tickets, invalid target) — confirmed failing (`field rules
+not found in type config.Commits`) before the schema change.
+`internal/app/commit_test.go` gained 13 `TestVerifyCommit_Rules_*` tests (deny, require,
+`require_ticket` with configured and default messages, header/body/footer targeting —
+including the footer-scoped ticket convention, type/scope scoping, multi-rule
+aggregation, no-rules-configured regression) — confirmed failing before `verifyRules` was
+wired into `VerifyCommit`. Full suite (`go test ./...`), build, and
+`hk check -S golangci_lint` green. T282 (spec/schema/sample docs) is not started.
 
 #### ✦ `[ ]` T282: Docs — Spec 02 § `commits.rules` + schema.json + sample config + ADR-0056 cross-reference
 
