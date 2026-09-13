@@ -213,6 +213,7 @@ discipline that applies to every task.
 | 42 | Scope `--dry-run`/`--env`/`--force`/`--offline` to the commands that use them, off root | Done |
 | 43 | Release lifecycle hooks | Done — see `release-hooks-roadmap.md` |
 | 44 | Windows hook execution | Done |
+| 45 | `{{ .Env }}` hook template variable | Not started |
 
 ### Open items
 
@@ -976,6 +977,37 @@ ADR-0053. `docs/guides/release-pipeline-and-hooks.md`'s one `sh -c`-specific men
 (in the `--dry-run` callout) was reworded to stay accurate on both OSes. `CLAUDE.md`'s ADR
 count bumped 53 → 54 in both places it's stated. This closes Phase 44 — Windows hook
 execution: all of T274–T276 are done.
+
+---
+
+### Phase 45 — `{{ .Env }}` hook template variable
+
+`hooks:` stayed a flat, top-level block after Phase 43 — per-env overrides were an
+explicit non-goal of that pass. This phase closes the gap the same way Phase 44 closed
+the Windows one: not with a new config axis, but with a new template variable a single
+hook command can branch on. Small (three tasks), so it stays inline here rather than in a
+dedicated roadmap file.
+
+#### ✦ `[ ]` T277: ADR-0055 — `{{ .Env }}` hook template variable, no per-env config key
+
+Settle whether closing ADR-0053's per-env-overrides non-goal means a new
+`environments.<env>.hooks:` config key or a new template variable, mirroring ADR-0054's
+own framing for the equivalent Windows-shell question. Explicitly scope out
+`environments.<env>.hooks:` as a non-goal for this phase pending real evidence that
+single-string branching is insufficient.
+
+#### ✦ `[ ]` T278: `internal/pipeline` + `internal/app`: thread `--env` into hook template context
+
+Add `Env string` to `hookVars`, `pipeline.Config`, and `pipeline.ChangelogConfig`; set it
+from the `env`/`opts.Env` parameters already threaded into `internal/app/pipeline.go`'s
+two config builders. Unlike `Platform`, populate it at all six hook points per T277's
+decision. Update the existing hook-substitution tests to cover it.
+
+#### ✦ `[ ]` T279: Docs — Spec 02 § hooks Template variables table + ADR-0055 cross-reference
+
+Update [Spec 02 § `hooks` → Template variables](../specs/02-configuration.md#template-variables)
+with a `{{ .Env }}` row and a branching example alongside the existing `{{ .Platform }}`
+one. Add a `docs/adr/README.md` row for ADR-0055 and bump `CLAUDE.md`'s ADR count.
 
 ---
 
