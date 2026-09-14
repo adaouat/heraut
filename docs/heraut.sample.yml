@@ -253,9 +253,11 @@ versioning:
 #   # trailers — customize how individual commit-message footer trailers render, matched
 #   # case-insensitively by token (ADR-0057). Set exactly one of renderer (a Go text/template
 #   # snippet, executed with {Token, Value}) or hide per entry. An unmatched token keeps the
-#   # built-in "Token: Value" line. Governs how a footer renders, not whether a block shows
-#   # footers — release notes already render .Footers by default; opt the changelog in via
-#   # rendering.templates.commit above.
+#   # built-in "Token: Value" line — except Co-Authored-By, which already has a built-in
+#   # default (`_Co-Authored-By: {{ .Value }}_`, ADR-0058); the entry below only demonstrates
+#   # overriding that default with different Markdown, not introducing new behavior. Governs
+#   # how a footer renders, not whether a block shows footers — release notes already render
+#   # .Footers by default; opt the changelog in via rendering.templates.commit above.
 #   trailers:
 #     - token: Co-authored-by
 #       renderer: "**Co-authored by:** {{ .Value }}"

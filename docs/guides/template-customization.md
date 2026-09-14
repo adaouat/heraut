@@ -138,7 +138,10 @@ rendering:
 
 Set exactly one of `renderer`/`hide` per entry. A token that matches no entry keeps the built-in
 `Token: Value` format — `rendering.trailers` never changes output for tokens you haven't
-listed, and an unset `rendering.trailers` changes nothing at all.
+listed, and an unset `rendering.trailers` changes nothing at all. The one exception:
+`Co-Authored-By` already has a built-in default, `_Co-Authored-By: {{ .Value }}_` (ADR-0058) —
+add your own `token: Co-Authored-By` entry to render it differently or `hide: true` to suppress
+it, same as overriding any other entry.
 
 **This controls *how* a footer renders, never *whether* a block shows footers.** Release notes
 already loop over `.Footers` by default; the changelog's built-in `commit` block does not, and
@@ -460,3 +463,7 @@ execute against `.Heraut` directly, not a `Release`. Compare `release_header` ab
   see [Customizing footer trailers](#customizing-footer-trailers-renderingtrailers-adr-0057)
   above. It's also inline-only (no full-file equivalent) and matched case-insensitively by exact
   token, not by regex.
+- **`Co-Authored-By` is not "unmatched by default" like every other token.** It already has a
+  built-in credit-line rendering ([ADR-0058](../adr/0058-default-coauthored-by-trailer.md)) — a
+  project that wants the raw `Token: Value` line back, or wants to hide it, needs its own
+  `rendering.trailers` entry for that exact token, same as overriding any other default.

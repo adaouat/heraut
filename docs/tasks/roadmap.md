@@ -216,7 +216,7 @@ discipline that applies to every task.
 | 45 | `{{ .Env }}` hook template variable | Done |
 | 46 | Configurable commit-message rules (`commits.rules`) | Done |
 | 47 | Per-token footer/trailer rendering customization (`rendering.trailers`) | Done |
-| 48 | Built-in default `Co-Authored-By` trailer rendering | ADR-0058 accepted, T287 implemented — docs not started (T288) |
+| 48 | Built-in default `Co-Authored-By` trailer rendering | Done |
 
 ### Open items
 
@@ -1336,7 +1336,24 @@ didn't. Full suite (`go test ./...`), `go build`, `go vet`, and `hk check` (`go_
 `effectiveTrailers` (they call `MergeFooterRules`/`buildCommit`/`resolveFooterLine`
 directly with explicit rule maps).
 
-#### ✦ `[ ]` T288: Docs — ADR-0057 supersede notes, spec, sample config, guide
+#### ✦ `[x]` T288: Docs — ADR-0057 supersede notes, spec, sample config, guide
+
+`docs/adr/README.md`'s index row for 0057 gains a supersede annotation and a new 0058 row.
+`docs/specs/02-configuration.md`'s `rendering.trailers` section gains the ADR-0058
+cross-reference in its heading and a note on the `Co-Authored-By` exception to "unmatched
+token keeps the built-in format." `docs/heraut.sample.yml`'s existing commented
+`Co-authored-by` example gains a note that it now only demonstrates *overriding* the
+built-in, not introducing new behavior. `docs/guides/template-customization.md` gains the
+same exception note in its `rendering.trailers` section plus a new Gotchas bullet, matching
+how T285 extended the same three doc surfaces for the original feature.
+
+heraut's own `.config/heraut.yml` needed no `rendering.trailers` entry as a result — the
+built-in covers it directly, confirmed via `heraut check config` (passes unchanged, config
+untouched from its pre-session state).
+
+Full suite, build, vet, and `hk check` (all four linters: `go_fmt`, `golangci_lint`,
+`yamlfmt`, `typos`) green after the doc edits. This closes Phase 48 —
+`Co-Authored-By` default trailer rendering: all of T286–T288 are done.
 
 ---
 

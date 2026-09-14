@@ -774,7 +774,7 @@ Overrides one or more built-in native template blocks by key — each value is a
 block's own `rendering.templates` overlays this global map key-by-key — the driver's value wins
 for a given key, an unset key falls through to the global one.
 
-### `rendering.trailers` (ADR-0057)
+### `rendering.trailers` (ADR-0057, ADR-0058)
 
 Customizes how individual commit-message footer trailers (e.g. `Co-authored-by`, `Refs`,
 `Signed-off-by`) render, matched by token — a list of `{token, renderer|hide}` entries, evaluated
@@ -799,8 +799,11 @@ rendering:
 ¹ Set exactly one of `renderer` or `hide` per entry.
 
 A footer whose token matches no `rendering.trailers` entry keeps the built-in `"Token: Value"`
-format — setting `rendering.trailers` never changes output for tokens you haven't listed. This
-governs **how** a footer renders, never **whether** a block shows footers at all: release notes
+format — setting `rendering.trailers` never changes output for tokens you haven't listed, with
+one built-in exception: `Co-Authored-By` renders as `_Co-Authored-By: {{ .Value }}_` by default
+(ADR-0058), the same override-wins-by-token precedence applying to it as any user-set entry — set
+your own `token: Co-Authored-By` entry (a different `renderer`, or `hide: true`) to change or
+suppress it. This governs **how** a footer renders, never **whether** a block shows footers at all: release notes
 already render `.Footers` by default; the changelog's `commit` block does not, and
 `rendering.trailers` doesn't change that — see a `changelog`/`release.notes` block's own
 `rendering.templates.commit` override (§ `rendering.templates` above) to opt footers into the
