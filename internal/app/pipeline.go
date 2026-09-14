@@ -483,10 +483,11 @@ func withEnvDerivations(driver *config.ContentDriver, cfg *config.Config, env st
 	rm := cfg.EnrichmentPolicy()
 	tickets := cfg.Tickets()
 	templates := effectiveTemplates(cfg, driver)
+	trailers := effectiveTrailers(cfg, driver)
 	excludes := effectiveExcludes(cfg, driver)
 	hasCommits := cfg.Commits != nil && (len(cfg.Commits.Types) > 0 || cfg.Commits.TypesHeadingLevel > 0)
 	hasRendering := len(excludes) > 0
-	if headingPat == "" && tagPat == "" && tagGlob == "" && rm == "" && len(tickets) == 0 && !hasCommits && !hasRendering && len(templates) == 0 {
+	if headingPat == "" && tagPat == "" && tagGlob == "" && rm == "" && len(tickets) == 0 && !hasCommits && !hasRendering && len(templates) == 0 && len(trailers) == 0 {
 		return driver
 	}
 	clone := *driver
@@ -515,6 +516,9 @@ func withEnvDerivations(driver *config.ContentDriver, cfg *config.Config, env st
 	if len(templates) > 0 {
 		clone.EffectiveTemplates = templates
 	}
+	if len(trailers) > 0 {
+		clone.EffectiveTrailerRules = trailers
+	}
 	return &clone
 }
 
@@ -534,6 +538,29 @@ func effectiveTemplates(cfg *config.Config, driver *config.ContentDriver) map[st
 	eff := make(map[string]string, len(global)+len(perDriver))
 	maps.Copy(eff, global)
 	maps.Copy(eff, perDriver)
+	return eff
+}
+
+// effectiveTrailers overlays the driver's rendering.trailers over the global rendering.trailers
+// (driver wins per token; unset tokens fall through — ADR-0057, mirroring effectiveTemplates),
+// flattened into a lookup map keyed by lowercased token for the native generator. Returns nil
+// when neither level sets any trailer rule.
+func effectiveTrailers(cfg *config.Config, driver *config.ContentDriver) map[string]config.FooterRule {
+	var global, perDriver []config.FooterRule
+	if cfg.Rendering != nil {
+		global = cfg.Rendering.Trailers
+	}
+	if driver.Rendering != nil {
+		perDriver = driver.Rendering.Trailers
+	}
+	merged := config.MergeFooterRules(global, perDriver)
+	if len(merged) == 0 {
+		return nil
+	}
+	eff := make(map[string]config.FooterRule, len(merged))
+	for _, r := range merged {
+		eff[strings.ToLower(r.Token)] = r
+	}
 	return eff
 }
 

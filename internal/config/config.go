@@ -163,6 +163,11 @@ type ContentDriver struct {
 	// overlaid by this driver's rendering.templates), propagated for the native generator. Not
 	// user-configurable directly — the knobs are rendering.templates. (native only.)
 	EffectiveTemplates map[string]string `yaml:"-"`
+	// EffectiveTrailerRules is the app-computed per-token footer-rendering rule map (global
+	// rendering.trailers overlaid by this driver's rendering.trailers, keyed by lowercased
+	// token), propagated for the native generator (ADR-0057). Not user-configurable directly —
+	// the knob is rendering.trailers. (native only.)
+	EffectiveTrailerRules map[string]FooterRule `yaml:"-"`
 	// RegenerateChangelog forces the native generator to rebuild the entire changelog and
 	// re-enrich every section, instead of incrementally splicing only the new release's section.
 	// Set by the app layer from the --regenerate / --regenerate-changelog flag. (native only.)
