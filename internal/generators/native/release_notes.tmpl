@@ -8,7 +8,7 @@
 {{ indent 4 .Body }}{{ end }}{{ if .Footers }}
 
 {{ range $i, $f := .Footers }}{{ if $i }}
-{{ end }}  {{ $f.Token }}: {{ $f.Value }}{{ end }}{{ end }}
+{{ end }}  {{ $f.Line }}{{ end }}{{ end }}
 {{end}}
 {{end}}
 {{if .Contributors}}{{ template "contributors" . }}{{end}}{{ template "stats" . }}{{ template "release_footer" . }}{{end}}

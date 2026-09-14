@@ -97,6 +97,7 @@ func TestRenderReleaseNotes_InlineCommitOverride(t *testing.T) {
 
 	got, err := renderReleaseNotes(
 		"v1.0.0", "", fixedDate1, groups, githubLC, nil, time.Time{}, 3, nil, nil, tplHeraut{}, snippets, "",
+		nil,
 	)
 	require.NoError(t, err)
 	assert.Contains(t, got, "> Add thing [aaaaaaa]", "the inline commit snippet replaces the built-in line")

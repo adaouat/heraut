@@ -56,8 +56,12 @@ func renderChangelogSection(
 	heraut tplHeraut,
 	snippets map[string]string,
 	templateFile string,
+	trailerRules map[string]config.FooterRule,
 ) (string, error) {
-	rel := buildRelease(version, previousVersion, releaseDate, time.Time{}, groups, lc, tickets, typesHeadingLevel, enrichment, nil, heraut)
+	rel, err := buildRelease(version, previousVersion, releaseDate, time.Time{}, groups, lc, tickets, typesHeadingLevel, enrichment, nil, heraut, trailerRules)
+	if err != nil {
+		return "", fmt.Errorf("building changelog section model: %w", err)
+	}
 	out, err := execBlocks("changelog", changelogTmpl, snippets, templateFile, rel)
 	if err != nil {
 		return "", fmt.Errorf("rendering changelog section: %w", err)
@@ -88,8 +92,12 @@ func renderReleaseNotes(
 	heraut tplHeraut,
 	snippets map[string]string,
 	templateFile string,
+	trailerRules map[string]config.FooterRule,
 ) (string, error) {
-	rel := buildRelease(version, previousVersion, releaseDate, prevReleaseDate, groups, lc, tickets, typesHeadingLevel, prs, contributors, heraut)
+	rel, err := buildRelease(version, previousVersion, releaseDate, prevReleaseDate, groups, lc, tickets, typesHeadingLevel, prs, contributors, heraut, trailerRules)
+	if err != nil {
+		return "", fmt.Errorf("building release notes model: %w", err)
+	}
 	preamble, err := renderPreamble(releaseNotesTmpl, snippets, templateFile, heraut)
 	if err != nil {
 		return "", fmt.Errorf("rendering release notes preamble: %w", err)

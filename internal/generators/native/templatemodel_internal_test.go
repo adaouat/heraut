@@ -6,6 +6,9 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"github.com/adaouat/heraut/internal/config"
+	"github.com/adaouat/heraut/internal/conventionalcommit"
 )
 
 func TestBuildRelease_MapsTree(t *testing.T) {
@@ -20,7 +23,8 @@ func TestBuildRelease_MapsTree(t *testing.T) {
 	}
 	contribs := []Contributor{{Author: Author{Name: "Jane", Email: "jane@x", Username: "jane"}, IsFirstTime: true}}
 
-	r := buildRelease("v1.2.3", "v1.2.2", fixedDate1, time.Time{}, groups, githubLC, nil, 3, enrichment, contribs, tplHeraut{Version: "0.48.0"})
+	r, err := buildRelease("v1.2.3", "v1.2.2", fixedDate1, time.Time{}, groups, githubLC, nil, 3, enrichment, contribs, tplHeraut{Version: "0.48.0"}, nil)
+	require.NoError(t, err)
 
 	assert.Equal(t, "1.2.3", r.Version)
 	assert.Equal(t, "v1.2.3", r.Tag)
@@ -55,4 +59,89 @@ func TestTemplateModel_FieldsPresent(t *testing.T) {
 	assert.Equal(t, "Refs", r.Groups[0].Commits[0].Footers[0].Token)
 	assert.Equal(t, 1, r.Stats.CommitCount)
 	assert.Equal(t, "0.48.0", r.Heraut.Version)
+}
+
+func TestResolveFooterLine(t *testing.T) {
+	tests := []struct {
+		name     string
+		token    string
+		value    string
+		rules    map[string]config.FooterRule
+		wantLine string
+		wantOK   bool
+		wantErr  bool
+	}{
+		{
+			name: "no rule uses the built-in Token: Value format", token: "Refs", value: "#1",
+			wantLine: "Refs: #1", wantOK: true,
+		},
+		{
+			name:  "hide drops the footer",
+			token: "Refs", value: "#1",
+			rules:  map[string]config.FooterRule{"refs": {Token: "Refs", Hide: true}},
+			wantOK: false,
+		},
+		{
+			name:  "renderer formats the footer",
+			token: "Co-authored-by", value: "Jane <jane@x.com>",
+			rules:    map[string]config.FooterRule{"co-authored-by": {Token: "Co-authored-by", Renderer: "**{{ .Value }}**"}},
+			wantLine: "**Jane <jane@x.com>**", wantOK: true,
+		},
+		{
+			name:  "token match is case-insensitive",
+			token: "REFS", value: "#1",
+			rules:  map[string]config.FooterRule{"refs": {Token: "Refs", Hide: true}},
+			wantOK: false,
+		},
+		{
+			name:  "a bad renderer surfaces an execution error",
+			token: "Refs", value: "#1",
+			rules:   map[string]config.FooterRule{"refs": {Token: "Refs", Renderer: "{{ .NoSuchField }}"}},
+			wantErr: true,
+		},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			line, ok, err := resolveFooterLine(tc.token, tc.value, tc.rules)
+			if tc.wantErr {
+				require.Error(t, err)
+				return
+			}
+			require.NoError(t, err)
+			assert.Equal(t, tc.wantOK, ok)
+			if tc.wantOK {
+				assert.Equal(t, tc.wantLine, line)
+			}
+		})
+	}
+}
+
+func TestBuildCommit_ResolvesFooterLines(t *testing.T) {
+	pc := parsedCommit{raw: rawCommit{Hash: "abc1234def", Subject: "feat: add x", Date: fixedDate1}}
+	var err error
+	pc.parsed, err = conventionalcommit.Parse("feat: add x\n\nCo-authored-by: Jane <jane@x.com>\nRefs: #1")
+	require.NoError(t, err)
+
+	rules := map[string]config.FooterRule{
+		"co-authored-by": {Token: "Co-authored-by", Renderer: "**{{ .Value }}**"},
+		"refs":           {Token: "Refs", Hide: true},
+	}
+
+	c, err := buildCommit(pc, "", nil, nil, rules)
+	require.NoError(t, err)
+	require.Len(t, c.Footers, 1, "the hidden Refs footer is dropped")
+	assert.Equal(t, "Co-authored-by", c.Footers[0].Token)
+	assert.Equal(t, "**Jane <jane@x.com>**", c.Footers[0].Line)
+}
+
+func TestBuildCommit_DefaultFooterLineUnchangedWhenNoRulesConfigured(t *testing.T) {
+	pc := parsedCommit{raw: rawCommit{Hash: "abc1234def", Subject: "feat: add x", Date: fixedDate1}}
+	var err error
+	pc.parsed, err = conventionalcommit.Parse("feat: add x\n\nRefs: #1")
+	require.NoError(t, err)
+
+	c, err := buildCommit(pc, "", nil, nil, nil)
+	require.NoError(t, err)
+	require.Len(t, c.Footers, 1)
+	assert.Equal(t, "Refs: #1", c.Footers[0].Line, "no rules configured keeps today's default rendering")
 }

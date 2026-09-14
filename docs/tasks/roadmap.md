@@ -215,7 +215,7 @@ discipline that applies to every task.
 | 44 | Windows hook execution | Done |
 | 45 | `{{ .Env }}` hook template variable | Done |
 | 46 | Configurable commit-message rules (`commits.rules`) | Done |
-| 47 | Per-token footer/trailer rendering customization (`rendering.trailers`) | ADR-0057 accepted — implementation not started (T284–T285) |
+| 47 | Per-token footer/trailer rendering customization (`rendering.trailers`) | ADR-0057 accepted, T284 implemented — docs not started (T285) |
 
 ### Open items
 
@@ -1164,7 +1164,64 @@ deliberately kept out of this ADR — it renames every existing block key (reope
 three weeks prior) and makes `body` newly overridable when it isn't today. That idea is not yet
 scoped or tracked as a task; picking it up later is a separate ADR + roadmap phase.
 
-#### ✦ `[ ]` T284: `internal/config` + `internal/generators/native`: implement `rendering.trailers`
+#### ✦ `[x]` T284: `internal/config` + `internal/generators/native`: implement `rendering.trailers`
+
+Implemented in three TDD increments (config → app → native), matching T281's precedent.
+**Config layer**: `FooterRule` (`internal/config/commits.go`) and `Rendering.Trailers
+[]FooterRule`, plus `config.MergeFooterRules` — an exported override-wins-by-token merge
+(case-insensitive), reused both by `mergeRendering` (driver+env, `internal/config/merge.go`)
+and by the app layer (driver+global). `validateTrailers`
+(`internal/config/validator.go`) mirrors `validateCommitRules`'s exactly-one-of pattern:
+token required, exactly one of `renderer`/`hide`, `renderer` parsed via the existing
+`parseTemplateSnippet` stub-func-map path, duplicate token (case-insensitive) rejected.
+**App layer**: `ContentDriver.EffectiveTrailerRules map[string]FooterRule`
+(`internal/config/config.go`) and `effectiveTrailers` (`internal/app/pipeline.go`), wired
+into `withEnvDerivations` alongside the existing `effectiveTemplates`/`effectiveExcludes` —
+same global→driver→env deep-merge-by-key shape as `EffectiveTemplates`, flattened to a
+lowercased-token-keyed map for O(1) lookup. **Native layer**: `tplFooter` gained `Line`
+(`internal/generators/native/templatemodel.go`); a new `resolveFooterLine(token, value,
+rules)` resolves each footer once in `buildCommit` — matching `Hide` drops the footer from
+`tplCommit.Footers` entirely, a matching `Renderer` executes as a `text/template` snippet
+against `{Token, Value}`, no match keeps the built-in `"Token: Value"` format.
+`release_notes.tmpl`'s footer loop now prints `.Line` instead of composing `Token: Value`
+itself — the actual wiring point; a red end-to-end test
+(`TestRenderReleaseNotes_TrailerRuleCustomizesFooterLine`) confirmed the feature was
+inert without this template change even though the model-building tests already passed,
+so it was added deliberately before the template edit, not skipped.
+
+**Deviation from the ADR's implicit assumption that config validation catches renderer
+errors:** it doesn't, fully. Go's `text/template` doesn't type-check field references
+against a concrete data type at parse time, only at `Execute` — so a snippet like `{{
+.Toke }}` (typo) passes `parseTemplateSnippet` at config-validate time and only fails at
+render time. `buildCommit`/`buildRelease` therefore both gained an `error` return to
+propagate that failure with the offending token named, threaded through
+`renderChangelogSection`/`renderReleaseNotes` — the same error contract ADR-0037 already
+established for block snippets, just newly proven to apply here too.
+
+**Deviation from the ADR's silence on caching:** `resolveFooterLine` parses its template
+string fresh per footer occurrence rather than pre-parsing once per configured rule.
+Mirrors T281's "negligible cost at realistic scale, deferred unless profiling shows
+otherwise" reasoning for regex compilation.
+
+**Unchanged, as designed:** the changelog's `commit` block still does not loop over
+`.Footers` by default — `rendering.trailers` governs formatting, not visibility, exactly
+per ADR-0057. Opting the changelog in still requires overriding `commit` via the existing
+`rendering.templates` lever.
+
+TDD: `internal/config/commits_test.go` (`MergeFooterRules`), `internal/config/merge_test.go`
+(driver+env trailer merge subtest), `internal/config/validator_test.go` (6 new trailer
+validation tests), `internal/app/templates_internal_test.go`
+(`TestWithEnvDerivations_MergesTrailers`), `internal/generators/native/
+templatemodel_internal_test.go` (`TestResolveFooterLine` table, `TestBuildCommit_
+ResolvesFooterLines`, `TestBuildCommit_DefaultFooterLineUnchangedWhenNoRulesConfigured`),
+`internal/generators/native/render_internal_test.go`
+(`TestRenderReleaseNotes_TrailerRuleCustomizesFooterLine`) — each confirmed failing for
+the expected reason (missing symbol, or assertion against unchanged output) before its
+implementation landed. All existing golden-file tests pass unchanged, confirming
+byte-identical default output as ADR-0057 requires. Full suite (`go test ./...`), build,
+`go vet`, and `hk check` (`go_fmt`, `golangci_lint`, `typos`) all green. schema.json,
+`docs/heraut.sample.yml`, and the spec are deliberately deferred to T285, matching how
+T281/T282 split this same config+docs work for `commits.rules`.
 
 #### ✦ `[ ]` T285: Docs — Spec 05 § `rendering.trailers` + schema.json + sample config + ADR-0057 cross-reference
 

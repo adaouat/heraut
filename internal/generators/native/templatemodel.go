@@ -1,7 +1,9 @@
 package native
 
 import (
+	"fmt"
 	"strings"
+	"text/template"
 	"time"
 
 	"github.com/adaouat/heraut/internal/config"
@@ -108,6 +110,10 @@ type tplStatTicket struct {
 type tplFooter struct {
 	Token string
 	Value string
+	// Line is the trailer's fully-resolved display line — rendering.trailers' matching token
+	// rule applied, or the built-in "Token: Value" format when none matches (ADR-0057). Every
+	// consumer of .Footers prints Line rather than composing Token/Value itself.
+	Line string
 }
 
 // ─── template-model builders ──────────────────────────────────────────────────
@@ -126,7 +132,8 @@ func buildRelease(
 	enrichment map[string]PullRequest,
 	contributors []Contributor,
 	heraut tplHeraut,
-) tplRelease {
+	trailerRules map[string]config.FooterRule,
+) (tplRelease, error) {
 	cuBase := buildCommitURL(lc)
 	prefix := headingPrefix(typesHeadingLevel)
 
@@ -136,7 +143,11 @@ func buildRelease(
 		allCommits = append(allCommits, g.commits...)
 		tg := tplGroup{Name: g.name, HeadingPrefix: prefix}
 		for _, pc := range g.commits {
-			tg.Commits = append(tg.Commits, buildCommit(pc, cuBase, tickets, enrichment))
+			c, err := buildCommit(pc, cuBase, tickets, enrichment, trailerRules)
+			if err != nil {
+				return tplRelease{}, err
+			}
+			tg.Commits = append(tg.Commits, c)
 		}
 		tplGroups = append(tplGroups, tg)
 	}
@@ -152,12 +163,14 @@ func buildRelease(
 		Contributors:  buildContributors(contributors),
 		Stats:         buildStats(allCommits, tickets, releaseDate, prevReleaseDate),
 		Heraut:        heraut,
-	}
+	}, nil
 }
 
 // buildCommit maps one parsedCommit into a tplCommit, resolving its conventional-commit fields,
-// commit URL, associated PR, ticket links, and footers.
-func buildCommit(pc parsedCommit, cuBase string, tickets []config.Ticket, enrichment map[string]PullRequest) tplCommit {
+// commit URL, associated PR, ticket links, and footers. trailerRules is the effective
+// rendering.trailers set (ADR-0057), keyed by lowercased token; a footer matching a Hide rule
+// is dropped from the result, and every other footer's Line is resolved via resolveFooterLine.
+func buildCommit(pc parsedCommit, cuBase string, tickets []config.Ticket, enrichment map[string]PullRequest, trailerRules map[string]config.FooterRule) (tplCommit, error) {
 	scope, breaking, desc := commitLineDetails(pc)
 	shortHash := pc.raw.Hash
 	if len(shortHash) > 7 {
@@ -174,7 +187,14 @@ func buildCommit(pc parsedCommit, cuBase string, tickets []config.Ticket, enrich
 		commitType = pc.parsed.Type
 		body = pc.parsed.Body
 		for _, f := range pc.parsed.Footers {
-			footers = append(footers, tplFooter{Token: f.Token, Value: f.Value})
+			line, ok, err := resolveFooterLine(f.Token, f.Value, trailerRules)
+			if err != nil {
+				return tplCommit{}, fmt.Errorf("resolving footer %q for commit %s: %w", f.Token, shortHash, err)
+			}
+			if !ok {
+				continue
+			}
+			footers = append(footers, tplFooter{Token: f.Token, Value: f.Value, Line: line})
 		}
 	} else {
 		body = pc.raw.Body
@@ -209,7 +229,32 @@ func buildCommit(pc parsedCommit, cuBase string, tickets []config.Ticket, enrich
 		PR:          pr,
 		Tickets:     links,
 		Footers:     footers,
+	}, nil
+}
+
+// resolveFooterLine resolves one commit footer's display Line per rendering.trailers
+// (ADR-0057): a matching rule's Renderer executes as a Go template against {Token, Value}; a
+// matching Hide rule drops the footer (ok=false, no error); no match keeps the built-in
+// "Token: Value" format. rules is keyed by lowercased token (config.ContentDriver.
+// EffectiveTrailerRules); nil is a valid "no rules configured" value.
+func resolveFooterLine(token, value string, rules map[string]config.FooterRule) (line string, ok bool, err error) {
+	rule, matched := rules[strings.ToLower(token)]
+	if matched && rule.Hide {
+		return "", false, nil
 	}
+	tmplStr := "{{ .Token }}: {{ .Value }}"
+	if matched && rule.Renderer != "" {
+		tmplStr = rule.Renderer
+	}
+	t, err := template.New("trailer").Funcs(templateFuncs()).Parse(tmplStr)
+	if err != nil {
+		return "", false, fmt.Errorf("parsing rendering.trailers renderer for token %q: %w", token, err)
+	}
+	var sb strings.Builder
+	if err := t.Execute(&sb, tplFooter{Token: token, Value: value}); err != nil {
+		return "", false, fmt.Errorf("executing rendering.trailers renderer for token %q: %w", token, err)
+	}
+	return sb.String(), true, nil
 }
 
 // tplPRFrom maps a normalized PullRequest into the public tplPR (Ref precomputed via prRef).

@@ -24,6 +24,15 @@ func parsedFrom(hash, subject string) parsedCommit {
 
 // ─── render: commit-line PR suffix ──────────────────────────────────────────────
 
+// mustBuildCommit calls buildCommit with no rendering.trailers rules configured and fails the
+// test on error — the common case for tests unrelated to trailer rendering (ADR-0057).
+func mustBuildCommit(t *testing.T, pc parsedCommit, cuBase string, tickets []config.Ticket, enrichment map[string]PullRequest) tplCommit {
+	t.Helper()
+	c, err := buildCommit(pc, cuBase, tickets, enrichment, nil)
+	require.NoError(t, err)
+	return c
+}
+
 // renderCommitBlock renders the built-in "commit" block for one tplCommit — the successor to
 // buildCommitLine now that the commit line lives in a template block (ADR-0037).
 func renderCommitBlock(t *testing.T, c tplCommit) string {
@@ -41,7 +50,7 @@ func TestCommitBlock_Enriched(t *testing.T) {
 	enrichment := map[string]PullRequest{
 		"abc1234def": {Number: 42, URL: "https://github.com/o/r/pull/42", AuthorLogin: "octocat"},
 	}
-	line := renderCommitBlock(t, buildCommit(pc, "https://github.com/o/r/commit/", nil, enrichment))
+	line := renderCommitBlock(t, mustBuildCommit(t, pc, "https://github.com/o/r/commit/", nil, enrichment))
 
 	assert.Contains(t, line, " by @octocat in [#42](https://github.com/o/r/pull/42)")
 	assert.Less(t, strings.Index(line, "abc1234"), strings.Index(line, "by @octocat"),
@@ -50,7 +59,7 @@ func TestCommitBlock_Enriched(t *testing.T) {
 
 func TestCommitBlock_NoEnrichment(t *testing.T) {
 	pc := parsedFrom("abc1234def", "feat: add thing")
-	assert.NotContains(t, renderCommitBlock(t, buildCommit(pc, "", nil, nil)), "by @")
+	assert.NotContains(t, renderCommitBlock(t, mustBuildCommit(t, pc, "", nil, nil)), "by @")
 }
 
 func TestCommitBlock_EnrichedBeforeTickets(t *testing.T) {
@@ -60,7 +69,7 @@ func TestCommitBlock_EnrichedBeforeTickets(t *testing.T) {
 		"abc1234def": {Number: 42, URL: "https://github.com/o/r/pull/42", AuthorLogin: "octocat"},
 	}
 	tickets := []config.Ticket{{Pattern: `PROJ-(\d+)`, URL: "https://jira.example.com/PROJ-{ticket}"}}
-	line := renderCommitBlock(t, buildCommit(pc, "https://github.com/o/r/commit/", tickets, enrichment))
+	line := renderCommitBlock(t, mustBuildCommit(t, pc, "https://github.com/o/r/commit/", tickets, enrichment))
 
 	assert.Contains(t, line, "by @octocat in [#42]")
 	assert.Contains(t, line, "([PROJ-7]")
@@ -71,7 +80,7 @@ func TestCommitBlock_EnrichedBeforeTickets(t *testing.T) {
 func TestCommitBlock_ByCommitAuthor_NoPR(t *testing.T) {
 	pc := parsedFrom("abc1234def", "feat: add thing")
 	pc.raw.AuthorHandle = "alice"
-	line := renderCommitBlock(t, buildCommit(pc, "https://github.com/o/r/commit/", nil, nil))
+	line := renderCommitBlock(t, mustBuildCommit(t, pc, "https://github.com/o/r/commit/", nil, nil))
 	assert.Contains(t, line, " by @alice")
 	assert.NotContains(t, line, "in [#", "no PR → no reference link")
 }
@@ -82,7 +91,7 @@ func TestCommitBlock_ByCommitAuthor_WithPR(t *testing.T) {
 	enrichment := map[string]PullRequest{
 		"abc1234def": {Number: 42, URL: "https://github.com/o/r/pull/42", AuthorLogin: "maintainer"}, // PR opened by someone else
 	}
-	line := renderCommitBlock(t, buildCommit(pc, "https://github.com/o/r/commit/", nil, enrichment))
+	line := renderCommitBlock(t, mustBuildCommit(t, pc, "https://github.com/o/r/commit/", nil, enrichment))
 	assert.Contains(t, line, " by @alice in [#42](https://github.com/o/r/pull/42)",
 		"commit author credited; PR only provides the link (not the PR author)")
 	assert.NotContains(t, line, "@maintainer")
@@ -90,7 +99,7 @@ func TestCommitBlock_ByCommitAuthor_WithPR(t *testing.T) {
 
 func TestCommitBlock_NoHandle_NoAttribution(t *testing.T) {
 	pc := parsedFrom("abc1234def", "feat: add thing") // AuthorHandle empty
-	line := renderCommitBlock(t, buildCommit(pc, "https://github.com/o/r/commit/", nil, nil))
+	line := renderCommitBlock(t, mustBuildCommit(t, pc, "https://github.com/o/r/commit/", nil, nil))
 	assert.NotContains(t, line, "by @")
 }
 
@@ -108,7 +117,7 @@ func TestRenderReleaseNotes_NewContributors(t *testing.T) {
 		IsFirstTime: true,
 		PRs:         []PullRequest{{Number: 7, URL: "https://github.com/o/r/pull/7", AuthorLogin: "newbie", RefPrefix: "#"}},
 	}}
-	got, err := renderReleaseNotes("v1.0.0", "", fixedDate1, groups, githubLC, nil, time.Time{}, 3, prs, contributors, tplHeraut{}, nil, "")
+	got, err := renderReleaseNotes("v1.0.0", "", fixedDate1, groups, githubLC, nil, time.Time{}, 3, prs, contributors, tplHeraut{}, nil, "", nil)
 	require.NoError(t, err)
 
 	assert.Contains(t, got, "### New Contributors ❤️")
@@ -123,7 +132,7 @@ func TestRenderReleaseNotes_NoFirstTimers_NoBlock(t *testing.T) {
 	enrichment := map[string]PullRequest{
 		"bbbbbbb": {Number: 9, URL: "https://github.com/o/r/pull/9", AuthorLogin: "veteran"},
 	}
-	got, err := renderReleaseNotes("v1.0.0", "", fixedDate1, groups, githubLC, nil, time.Time{}, 3, enrichment, nil, tplHeraut{}, nil, "")
+	got, err := renderReleaseNotes("v1.0.0", "", fixedDate1, groups, githubLC, nil, time.Time{}, 3, enrichment, nil, tplHeraut{}, nil, "", nil)
 	require.NoError(t, err)
 
 	assert.NotContains(t, got, "New Contributors", "no first-timers → no block")

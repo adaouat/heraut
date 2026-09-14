@@ -127,6 +127,7 @@ func TestRenderChangelogSection_Golden(t *testing.T) {
 	got, err := renderChangelogSection(
 		"v1.2.3", "v1.2.2", releaseDate,
 		fixtureGroups(), githubLC, nil, "", 3, nil, fixtureHeraut, nil, "",
+		nil,
 	)
 	require.NoError(t, err)
 
@@ -141,6 +142,7 @@ func TestRenderChangelogSection_NoPrevious(t *testing.T) {
 	got, err := renderChangelogSection(
 		"v1.0.0", "", releaseDate,
 		fixtureGroups(), githubLC, nil, "", 3, nil, fixtureHeraut, nil, "",
+		nil,
 	)
 	require.NoError(t, err)
 
@@ -155,6 +157,7 @@ func TestRenderChangelogSection_NoLinks(t *testing.T) {
 	got, err := renderChangelogSection(
 		"v1.2.3", "v1.2.2", releaseDate,
 		fixtureGroups(), nil, nil, "", 3, nil, fixtureHeraut, nil, "",
+		nil,
 	)
 	require.NoError(t, err)
 
@@ -185,6 +188,7 @@ func TestRenderChangelogSection_WithTickets(t *testing.T) {
 	got, err := renderChangelogSection(
 		"v2.0.0", "v1.9.9", releaseDate,
 		groups, githubLC, tickets, "", 3, nil, fixtureHeraut, nil, "",
+		nil,
 	)
 	require.NoError(t, err)
 
@@ -220,6 +224,7 @@ func TestRenderChangelogSection_TicketBlockOverride(t *testing.T) {
 	got, err := renderChangelogSection(
 		"v2.0.0", "v1.9.9", releaseDate,
 		groups, githubLC, tickets, "", 3, nil, tplHeraut{}, snippets, "",
+		nil,
 	)
 	require.NoError(t, err)
 
@@ -237,6 +242,7 @@ func TestRenderChangelogSection_HeadingPattern(t *testing.T) {
 		"prod/v1.2.3", "prod/v1.2.2", releaseDate,
 		fixtureGroups(), githubLC, nil,
 		`\[prod/(v[^\]]+)\]`, 3, nil, fixtureHeraut, nil, "",
+		nil,
 	)
 	require.NoError(t, err)
 
@@ -251,6 +257,7 @@ func TestRenderChangelogSection_TypesHeadingLevel(t *testing.T) {
 	got, err := renderChangelogSection(
 		"v1.2.3", "v1.2.2", releaseDate,
 		fixtureGroups(), githubLC, nil, "", 2, nil, tplHeraut{}, nil, "",
+		nil,
 	)
 	require.NoError(t, err)
 	assert.Contains(t, got, "\n## 🚀 Features", "types_heading_level 2 → ## group headings")
@@ -266,6 +273,7 @@ func TestRenderReleaseNotes_Golden(t *testing.T) {
 	got, err := renderReleaseNotes(
 		"v1.2.3", "v1.2.2", releaseDate,
 		fixtureGroups(), githubLC, nil, prevDate, 3, nil, nil, fixtureHeraut, nil, "",
+		nil,
 	)
 	require.NoError(t, err)
 
@@ -281,6 +289,7 @@ func TestRenderReleaseNotes_NoPrevDate(t *testing.T) {
 	got, err := renderReleaseNotes(
 		"v1.0.0", "", releaseDate,
 		fixtureGroups(), githubLC, nil, time.Time{}, 3, nil, nil, fixtureHeraut, nil, "",
+		nil,
 	)
 	require.NoError(t, err)
 
@@ -296,6 +305,7 @@ func TestRenderReleaseNotes_WithBodyAndFooter(t *testing.T) {
 	got, err := renderReleaseNotes(
 		"v1.1.0", "v1.0.0", releaseDate,
 		fixtureGroupsWithBodyFooter(), githubLC, nil, time.Time{}, 3, nil, nil, fixtureHeraut, nil, "",
+		nil,
 	)
 	require.NoError(t, err)
 
@@ -303,6 +313,26 @@ func TestRenderReleaseNotes_WithBodyAndFooter(t *testing.T) {
 	writeGolden(t, golden, got)
 	want := readGolden(t, golden)
 	assert.Equal(t, want, got)
+}
+
+// TestRenderReleaseNotes_TrailerRuleCustomizesFooterLine proves rendering.trailers actually
+// reaches the rendered output end-to-end (ADR-0057), not just the template model: a configured
+// renderer for "co-authored-by" must replace the built-in "Token: Value" line.
+func TestRenderReleaseNotes_TrailerRuleCustomizesFooterLine(t *testing.T) {
+	releaseDate := time.Date(2024, 1, 15, 0, 0, 0, 0, time.UTC)
+	trailerRules := map[string]config.FooterRule{
+		"co-authored-by": {Token: "Co-Authored-By", Renderer: "**Co-authored by:** {{ .Value }}"},
+	}
+
+	got, err := renderReleaseNotes(
+		"v1.1.0", "v1.0.0", releaseDate,
+		fixtureGroupsWithBodyFooter(), githubLC, nil, time.Time{}, 3, nil, nil, fixtureHeraut, nil, "",
+		trailerRules,
+	)
+	require.NoError(t, err)
+
+	assert.Contains(t, got, "**Co-authored by:** Eve <eve@example.com>")
+	assert.NotContains(t, got, "Co-Authored-By: Eve", "the default Token: Value line must be gone once a renderer is configured")
 }
 
 // ─── link composition table tests ────────────────────────────────────────────
@@ -628,6 +658,7 @@ func TestRenderReleaseNotes_Contributors_Golden(t *testing.T) {
 	got, err := renderReleaseNotes(
 		"v1.2.3", "v1.2.2", releaseDate,
 		groups, githubLC, nil, prevDate, 3, prs, contribs, fixtureHeraut, nil, "",
+		nil,
 	)
 	require.NoError(t, err)
 
@@ -675,6 +706,7 @@ func TestRenderReleaseNotes_MultiPRContributor_Golden(t *testing.T) {
 	got, err := renderReleaseNotes(
 		"v1.2.3", "v1.2.2", releaseDate,
 		groups, githubLC, nil, prevDate, 3, prs, contribs, fixtureHeraut, nil, "",
+		nil,
 	)
 	require.NoError(t, err)
 
