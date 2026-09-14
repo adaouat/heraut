@@ -250,6 +250,17 @@ versioning:
 #     ticket: '🎫[{{ .Text }}]({{ .Href }})'
 #     contributor: '* @{{ .Author.Username }} — first contribution 🎉'
 #     release_footer: "\n_Full diff: {{ .CompareURL }}_"
+#   # trailers — customize how individual commit-message footer trailers render, matched
+#   # case-insensitively by token (ADR-0057). Set exactly one of renderer (a Go text/template
+#   # snippet, executed with {Token, Value}) or hide per entry. An unmatched token keeps the
+#   # built-in "Token: Value" line. Governs how a footer renders, not whether a block shows
+#   # footers — release notes already render .Footers by default; opt the changelog in via
+#   # rendering.templates.commit above.
+#   trailers:
+#     - token: Co-authored-by
+#       renderer: "**Co-authored by:** {{ .Value }}"
+#     - token: Refs
+#       hide: true
 
 # ── forges ────────────────────────────────────────────────────────────────────
 #

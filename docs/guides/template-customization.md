@@ -29,6 +29,11 @@ is no `generator:` key to gate this feature on — every `.heraut.yml` gets it.
 | **Inline block override** | Reformat one piece — a commit line, a ticket link, a heading | `rendering.templates.<block>` — a single YAML string |
 | **Full template file** | Whole-document control — reorder sections, add custom prose, redefine the root | `<driver>.template: path/to/file.tmpl` |
 
+If all you want is to reformat or hide specific *footer trailers* (`Co-authored-by`, `Refs`,
+`Signed-off-by`, …) rather than the whole commit line, skip ahead to [Customizing footer
+trailers](#customizing-footer-trailers-renderingtrailers-adr-0057) below — `rendering.trailers`
+is a narrower, purpose-built knob for exactly that, and doesn't need a block override at all.
+
 Both feed the **same block set and data contract** — a file override and an inline override
 of the same block key do the same job, just with different ergonomics (a `.tmpl` file gets
 real editor syntax highlighting and no YAML string-escaping; an inline snippet needs no
@@ -105,6 +110,49 @@ reformats the line in both outputs; the body/footer indentation stays built-in.
 **`contributors` / `stats` are release-notes-only.** Both blocks are invoked only from the
 `release_notes` root template. Setting `changelog.rendering.templates.contributors` (or
 `stats`) has no effect — the changelog's own root never calls them.
+
+---
+
+## Customizing footer trailers (`rendering.trailers`, ADR-0057)
+
+`.Footers` (the `Commit` field above) already carries every commit-message footer trailer —
+`Co-authored-by`, `Refs`, `Signed-off-by`, whatever a commit happens to have — generically, as
+`{Token, Value}` pairs. By default every trailer renders identically, as `Token: Value`.
+`rendering.trailers` lets you relabel or hide specific tokens without touching the `commit`
+block (or any other block) at all:
+
+```yaml
+rendering:
+  trailers:
+    - token: Co-authored-by
+      renderer: "**Co-authored by:** {{ .Value }}"
+    - token: Refs
+      hide: true
+```
+
+| Field      | Description                                                                                          |
+|------------|--------------------------------------------------------------------------------------------------------|
+| `token`    | Matched **case-insensitively, exact-match** against the trailer's token as parsed — not a regex. |
+| `renderer` | A Go `text/template` snippet, executed with `{Token, Value}` as its data context. |
+| `hide`     | Drops matching footers from rendered output entirely. |
+
+Set exactly one of `renderer`/`hide` per entry. A token that matches no entry keeps the built-in
+`Token: Value` format — `rendering.trailers` never changes output for tokens you haven't
+listed, and an unset `rendering.trailers` changes nothing at all.
+
+**This controls *how* a footer renders, never *whether* a block shows footers.** Release notes
+already loop over `.Footers` by default; the changelog's built-in `commit` block does not, and
+`rendering.trailers` doesn't change that — if you want footers in the changelog too, override
+`commit` (or the whole `changelog` root) to add your own `{{ range .Footers }}` loop, same as
+any other block customization. Whatever renders that loop sees the same resolved `.Line` either
+way.
+
+**Same four-layer precedence and merge shape as `rendering.templates`** (see below), just keyed
+by token instead of block name: global → per-driver → per-env, override wins per token, an
+unset token falls through. There's no full-file equivalent — `rendering.trailers` is inline-only.
+
+See [Spec 02 § `rendering.trailers`](../specs/02-configuration.md#renderingtrailers-adr-0057)
+for the full field reference.
 
 ---
 
@@ -260,7 +308,9 @@ commit subject line) `.Body` `.Hash` `.ShortHash` `.CommitURL` `.Date` `.Author`
 `.Text` (matched ticket text) `.Href` (resolved URL)
 
 **`Footer`** (a git trailer parsed from the commit body)
-`.Token` `.Value`
+`.Token` `.Value` (as parsed) `.Line` (fully-resolved display line — any matching
+`rendering.trailers` rule already applied; print this, not `.Token`/`.Value`, see
+[Customizing footer trailers](#customizing-footer-trailers-renderingtrailers-adr-0057) below)
 
 **`Stats`**
 `.CommitCount` `.ConventionalCount` `.TimespanDays` `.DaysSincePrev` `.HasDaysSincePrev`
@@ -405,3 +455,8 @@ execute against `.Heraut` directly, not a `Release`. Compare `release_header` ab
   current config on every `heraut changelog`/`heraut release` invocation, incremental or not
   ([ADR-0050](../adr/0050-changelog-preamble-postamble-always-fresh.md)) — see
   [Data contract](#data-contract) above.
+- **`rendering.trailers` governs formatting, not visibility.** It never turns footers on for a
+  block that doesn't already loop over `.Footers` (the changelog's built-in `commit` doesn't) —
+  see [Customizing footer trailers](#customizing-footer-trailers-renderingtrailers-adr-0057)
+  above. It's also inline-only (no full-file equivalent) and matched case-insensitively by exact
+  token, not by regex.

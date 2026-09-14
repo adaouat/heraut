@@ -215,7 +215,7 @@ discipline that applies to every task.
 | 44 | Windows hook execution | Done |
 | 45 | `{{ .Env }}` hook template variable | Done |
 | 46 | Configurable commit-message rules (`commits.rules`) | Done |
-| 47 | Per-token footer/trailer rendering customization (`rendering.trailers`) | ADR-0057 accepted, T284 implemented — docs not started (T285) |
+| 47 | Per-token footer/trailer rendering customization (`rendering.trailers`) | Done |
 
 ### Open items
 
@@ -1223,7 +1223,47 @@ byte-identical default output as ADR-0057 requires. Full suite (`go test ./...`)
 `docs/heraut.sample.yml`, and the spec are deliberately deferred to T285, matching how
 T281/T282 split this same config+docs work for `commits.rules`.
 
-#### ✦ `[ ]` T285: Docs — Spec 05 § `rendering.trailers` + schema.json + sample config + ADR-0057 cross-reference
+#### ✦ `[x]` T285: Docs — `rendering.trailers` spec, schema.json, sample config, guide
+
+**Deviation from this task's own title:** the config-field reference landed in
+[`docs/specs/02-configuration.md`](../specs/02-configuration.md) as a new `### rendering.trailers
+(ADR-0057)` section, not Spec 05 — checking the actual precedent showed `rendering.excludes`/
+`rendering.templates` already live in Spec 02 (field-level config reference), while Spec 05 only
+carries the native generator's *behavioral* contract (ADR-0037's block set, data model). The
+task title was written before that check; corrected here rather than silently filed under the
+wrong spec. Spec 02 also gained a one-line `trailers:` example in both the page's top-level
+`rendering:` overview block and the `## rendering` section's own intro example, matching how
+T282 added a `rules:` one-liner to `commits:`'s overview for discoverability.
+
+Spec 05 still needed a fix of its own, found while cross-checking: the `Commit` data-model
+prose listed `.Footers` but never expanded its per-entry shape (unlike `.Tickets`, which does)
+— now documents `.Token` `.Value` `.Line`, with `.Line` explained as the trailer's
+`rendering.trailers`-resolved display line and a pointer back to Spec 02.
+
+`schema.json` gained `FooterRule` (required `token`; `renderer`/`hide` documented as
+exactly-one-of in prose, matching the `Exclude`/`CommitRule`/`BumpRule` precedent of not
+encoding cross-field constraints as JSON-Schema `oneOf`) and `Rendering.trailers`, inserted
+next to `Exclude` in the definitions list (both are `Rendering`'s array-item sub-types).
+`docs/heraut.sample.yml` gained a commented `trailers:` example under the existing
+(fully-commented) `rendering:` block. `testdata/config/valid/rendering-trailers.yml` is a new
+schema fixture (mirroring `rendering-templates.yml`'s pattern, covering one `renderer` entry and
+one `hide` entry) — `TestSchema_ValidFixtures` picks it up automatically via its glob.
+
+**Also updated, found out of the original task's scope but directly affected (same reasoning
+T282 applied to `03-commands.md`):**
+[`docs/guides/template-customization.md`](../guides/template-customization.md) is a
+dedicated worked-example guide for exactly this customization surface — leaving it silent
+about `rendering.trailers` would mislead a reader into thinking block overrides are the only
+way to customize footer display. It gained a new `## Customizing footer trailers
+(rendering.trailers, ADR-0057)` section (config shape, field table, the
+formatting-not-visibility distinction, precedence note), a pointer from the "Two ways to
+customize" intro, a `.Line` mention in the `Footer` data-contract entry, and a Gotchas bullet.
+
+Full suite (`go test ./...`), build, `go vet`, and `hk check` (`yamlfmt`, `typos` — no Go files
+changed in this docs-only slice) all green, including `TestSchema_ValidFixtures` and
+`TestShippedExamples_LoadAndValidate` (confirms `docs/heraut.sample.yml` and README's fenced
+config blocks still parse/validate after the edits). This closes Phase 47 —
+`rendering.trailers`: all of T283–T285 are done.
 
 ---
 

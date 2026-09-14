@@ -348,6 +348,13 @@
               "description": "Root release-notes template composing release_header, group, commit, contributors, and stats blocks."
             }
           }
+        },
+        "trailers": {
+          "type": "array",
+          "description": "Customizes how individual commit-message footer trailers render, matched by token. native only; deep-merged global -> per-driver -> per-env, by token (ADR-0057).",
+          "items": {
+            "$ref": "#/definitions/FooterRule"
+          }
         }
       }
     },
@@ -363,6 +370,28 @@
         "regex": {
           "type": "string",
           "description": "Match commits whose subject matches this regex (e.g. \"^chore\\\\(deps\")."
+        }
+      }
+    },
+    "FooterRule": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "token"
+      ],
+      "description": "Customizes the rendering of one commit-message footer trailer (e.g. Co-authored-by, Refs), matched case-insensitively, exact-match, by token (ADR-0057). Set exactly one of renderer or hide.",
+      "properties": {
+        "token": {
+          "type": "string",
+          "description": "Footer trailer token to match, e.g. \"Co-authored-by\". Matched case-insensitively against the token as parsed (conventionalcommit never normalizes casing)."
+        },
+        "renderer": {
+          "type": "string",
+          "description": "Go text/template snippet executed with {Token, Value} as its data context, replacing the built-in \"Token: Value\" line for matching footers."
+        },
+        "hide": {
+          "type": "boolean",
+          "description": "Drops matching footers from rendered output entirely."
         }
       }
     },

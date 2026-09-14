@@ -1,0 +1,16 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/adaouat/heraut/main/schema.json
+
+version: "1"
+
+versioning:
+  strategy: semver
+
+changelog:
+  output: CHANGELOG.md
+
+rendering:
+  trailers:
+    - token: Co-authored-by
+      renderer: "**Co-authored by:** {{ .Value }}"
+    - token: Refs
+      hide: true

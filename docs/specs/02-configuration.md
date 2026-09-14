@@ -46,7 +46,7 @@ changelog: ...        # optional — how to generate and commit CHANGELOG.md
 release: ...          # optional — release notes + where to publish, together
 environments: ...     # optional — per-environment overrides for versioning/changelog/release
 commits: ...           # optional — commit type set, scopes, tickets, enrichment forge/policy
-rendering: ...         # optional — global exclude rules + template-block snippets
+rendering: ...         # optional — global exclude rules + template-block snippets + trailer rules
 forges: ...            # optional — code-hosting platforms for publishing and/or enrichment
 hooks: ...             # optional — shell commands run at points in the release lifecycle
 ```
@@ -59,7 +59,7 @@ hooks: ...             # optional — shell commands run at points in the releas
 | `release`      | No       | Release notes generator and target platforms.                                                                              |
 | `environments` | No       | Per-environment settings (versioning and content). Only valid with `semver-per-env` or `calver-per-env`. |
 | `commits`      | No       | Conventional-commit type set, scopes, tickets, and enrichment forge/policy (see § `commits` below). |
-| `rendering`    | No       | Global content-output overrides: exclude rules and template-block snippets (see § `rendering` below). |
+| `rendering`    | No       | Global content-output overrides: exclude rules, template-block snippets, and footer-trailer rendering rules (see § `rendering` below). |
 | `forges`       | No       | Code-hosting platforms heraut talks to for publishing and/or commit enrichment (see § `forges` below). |
 | `hooks`        | No       | Shell commands run at points in the release lifecycle (see § `hooks` below). |
 
@@ -743,6 +743,9 @@ rendering:
     - type: chore
   templates:
     commit: "- {{ .Subject }} (@{{ .Author }})"
+  trailers:
+    - token: Co-authored-by
+      renderer: "**Co-authored by:** {{ .Value }}"
 ```
 
 ### `rendering.excludes`
@@ -771,6 +774,40 @@ Overrides one or more built-in native template blocks by key — each value is a
 block's own `rendering.templates` overlays this global map key-by-key — the driver's value wins
 for a given key, an unset key falls through to the global one.
 
+### `rendering.trailers` (ADR-0057)
+
+Customizes how individual commit-message footer trailers (e.g. `Co-authored-by`, `Refs`,
+`Signed-off-by`) render, matched by token — a list of `{token, renderer|hide}` entries, evaluated
+against every commit footer parsed from `.Footers` (see [Spec 05 § User-customizable
+templates](05-generators-and-platforms.md#user-customizable-templates-adr-0037-adr-0048)).
+
+```yaml
+rendering:
+  trailers:
+    - token: Co-authored-by
+      renderer: "**Co-authored by:** {{ .Value }}"
+    - token: Refs
+      hide: true
+```
+
+| Field      | Required | Description                                                                                                       |
+|------------|----------|---------------------------------------------------------------------------------------------------------------------|
+| `token`    | Yes      | Footer trailer token to match (e.g. `Co-authored-by`). Matched **case-insensitively, exact-match** — footer tokens are captured verbatim by the parser with no casing normalization, so this closes that gap. Not a regex. |
+| `renderer` | No¹      | A Go `text/template` snippet, executed with `{Token, Value}` as its data context (the same shape `.Footers` entries expose), replacing the built-in `"Token: Value"` line for matching footers. |
+| `hide`     | No¹      | Drops matching footers from rendered output entirely.                                                             |
+
+¹ Set exactly one of `renderer` or `hide` per entry.
+
+A footer whose token matches no `rendering.trailers` entry keeps the built-in `"Token: Value"`
+format — setting `rendering.trailers` never changes output for tokens you haven't listed. This
+governs **how** a footer renders, never **whether** a block shows footers at all: release notes
+already render `.Footers` by default; the changelog's `commit` block does not, and
+`rendering.trailers` doesn't change that — see a `changelog`/`release.notes` block's own
+`rendering.templates.commit` override (§ `rendering.templates` above) to opt footers into the
+changelog. Like `rendering.templates`, a `changelog`/`release.notes` block's own
+`rendering.trailers` deep-merges over this global list, by token — the driver's entry wins for a
+given token, an unset token falls through to the global one.
+
 ## Content generation
 
 Configured under `changelog` and `release.notes`. `native`, heraut's built-in renderer, is the
@@ -782,7 +819,7 @@ only generator (ADR-0045) — there is no `generator:` key to set; an empty `cha
 | `output`      | No       | Output file path (e.g. `CHANGELOG.md`). `changelog.output` (not `release.notes.output`, which is never written to disk) may contain rotation tokens for a periodic file — see § Rotating changelog output below. |
 | `tag_pattern` | No       | Tag pattern regex scoping which tags are considered. **For per-env strategies heraut auto-derives this from the effective `tag_format` so `--env <env>` only considers that environment's tags** (e.g. `{version}_{env}` + `--env prod` → `^.+_prod$`); set it explicitly to override the derivation. |
 | `template`    | No       | Path to a full custom Go `text/template` file, parsed on top of native's built-ins (ADR-0037). See [Spec 05 § User-customizable templates](05-generators-and-platforms.md#user-customizable-templates-adr-0037-adr-0048). |
-| `rendering`   | No       | Per-driver exclude rules and template-block snippets, layered over the global `rendering` block (see § `rendering` above). |
+| `rendering`   | No       | Per-driver exclude rules, template-block snippets, and footer-trailer rendering rules, layered over the global `rendering` block (see § `rendering` above). |
 
 See [Spec 05 — Generators and Platforms](05-generators-and-platforms.md) for the full
 behaviour of the native generator.

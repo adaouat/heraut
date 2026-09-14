@@ -99,6 +99,12 @@ contributors/stats headings); a `Group` exposes `.Name` `.Commits` `.HeadingPref
 subject line, distinct from `.Description`) `.Body` `.Hash` `.ShortHash`
 `.CommitURL` `.Date` `.Author` `.PR` `.Tickets` `.Footers`; each entry of `.Tickets` (what the
 `ticket` block receives) exposes `.Text` (the matched ticket text) `.Href` (the resolved URL);
+each entry of `.Footers` exposes `.Token` `.Value` (as parsed) and `.Line` — the trailer's
+fully-resolved display line, with any matching `rendering.trailers` rule already applied (a
+matching `renderer` executed, a matching `hide` entry already dropped from the list); print
+`.Line` rather than composing `.Token`/`.Value` yourself, so your template stays correct however
+a project has configured `rendering.trailers` — see [Spec 02 §
+`rendering.trailers`](02-configuration.md#renderingtrailers-adr-0057) (ADR-0057);
 `.PR` (nil when absent) exposes
 `.Number` `.URL` `.Title` `.Ref` `.Labels` `.Author` `.CreatedAt` `.MergedAt` `.MergedBy`
 `.Approvers` (approvers best-effort: GitHub + Azure, empty on GitLab); `.Heraut` exposes
