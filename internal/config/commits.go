@@ -1,5 +1,7 @@
 package config
 
+import "strings"
+
 // Commits is heraut's single source of truth for commit semantics and enrichment (ADR-0033):
 // the conventional-commit type set, scope rules, ticket links, and the remote-metadata policy.
 type Commits struct {
@@ -37,6 +39,58 @@ type Rendering struct {
 	// "contributor", "release_header", "footer"): each value is a Go text/template snippet.
 	// native only — deep-merged global → per-driver → per-env (ADR-0037, ADR-0048).
 	Templates map[string]string `yaml:"templates,omitempty"`
+	// Trailers customizes how individual commit-message footer trailers render, matched by
+	// token. native only — deep-merged global → per-driver → per-env, by token, like Templates
+	// (ADR-0057).
+	Trailers []FooterRule `yaml:"trailers,omitempty"`
+}
+
+// FooterRule customizes the rendering of one commit-message footer trailer (a "trailer" in git
+// terms — conventionalcommit.Footer). Token is matched case-insensitively, exact-match, against
+// the trailer's literal token as parsed (conventionalcommit never normalizes casing). Exactly
+// one of Renderer or Hide must be set (ADR-0057).
+type FooterRule struct {
+	Token string `yaml:"token"`
+	// Renderer is a Go text/template snippet executed with {Token, Value} as its data context —
+	// the same idiom as Rendering.Templates' block snippets.
+	Renderer string `yaml:"renderer,omitempty"`
+	// Hide drops matching footers from rendered output entirely.
+	Hide bool `yaml:"hide,omitempty"`
+}
+
+// MergeFooterRules overlays override's entries onto base, matched case-insensitively by Token:
+// an overridden token's entry is replaced (keeping base's position), and override-only tokens
+// are appended after. Mirrors Templates' per-key override-wins merge (ADR-0057), adapted for a
+// token-keyed slice instead of a map. Neither slice is mutated.
+func MergeFooterRules(base, override []FooterRule) []FooterRule {
+	if len(override) == 0 {
+		return base
+	}
+	if len(base) == 0 {
+		return override
+	}
+	overrideByToken := make(map[string]FooterRule, len(override))
+	for _, r := range override {
+		overrideByToken[strings.ToLower(r.Token)] = r
+	}
+	merged := make([]FooterRule, 0, len(base)+len(override))
+	seen := make(map[string]bool, len(base))
+	for _, r := range base {
+		key := strings.ToLower(r.Token)
+		if o, ok := overrideByToken[key]; ok {
+			merged = append(merged, o)
+		} else {
+			merged = append(merged, r)
+		}
+		seen[key] = true
+	}
+	for _, r := range override {
+		key := strings.ToLower(r.Token)
+		if !seen[key] {
+			merged = append(merged, r)
+		}
+	}
+	return merged
 }
 
 // Exclude drops matched commits from rendered output. Exactly one of Type or Regex must be

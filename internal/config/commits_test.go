@@ -113,3 +113,41 @@ func TestDefaultScopes_CarryDescriptions(t *testing.T) {
 	require.NotNil(t, deps)
 	assert.Equal(t, "Dependency updates", deps.Description)
 }
+
+func findFooterRule(rules []FooterRule, token string) *FooterRule {
+	for i := range rules {
+		if rules[i].Token == token {
+			return &rules[i]
+		}
+	}
+	return nil
+}
+
+func TestMergeFooterRules_OverrideWinsCaseInsensitive(t *testing.T) {
+	base := []FooterRule{{Token: "Co-authored-by", Hide: true}}
+	override := []FooterRule{{Token: "co-authored-by", Renderer: "**{{ .Value }}**"}}
+
+	got := MergeFooterRules(base, override)
+
+	require.Len(t, got, 1)
+	assert.Equal(t, "**{{ .Value }}**", got[0].Renderer, "override replaces the base entry for the same token")
+	assert.False(t, got[0].Hide)
+}
+
+func TestMergeFooterRules_UnmatchedBaseEntryPreserved(t *testing.T) {
+	base := []FooterRule{{Token: "Refs", Hide: true}}
+	override := []FooterRule{{Token: "Co-authored-by", Renderer: "x"}}
+
+	got := MergeFooterRules(base, override)
+
+	require.NotNil(t, findFooterRule(got, "Refs"), "base-only token survives the merge")
+	require.NotNil(t, findFooterRule(got, "Co-authored-by"), "override-only token is appended")
+}
+
+func TestMergeFooterRules_NilSides(t *testing.T) {
+	rules := []FooterRule{{Token: "Refs", Hide: true}}
+
+	assert.Equal(t, rules, MergeFooterRules(rules, nil), "nil override returns base")
+	assert.Equal(t, rules, MergeFooterRules(nil, rules), "nil base returns override")
+	assert.Nil(t, MergeFooterRules(nil, nil))
+}

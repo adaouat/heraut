@@ -33,8 +33,9 @@ func MergeContentDriver(base, override *ContentDriver) *ContentDriver {
 }
 
 // mergeRendering deep-merges a per-env rendering override over a base: Excludes are replaced
-// wholesale when the override sets them; Templates merge key-by-key (override wins per key,
-// unset keys inherit). A nil side contributes nothing; both nil yields nil.
+// wholesale when the override sets them; Templates and Trailers merge key-by-key (override wins
+// per key/token, unset keys/tokens inherit — ADR-0057 for Trailers). A nil side contributes
+// nothing; both nil yields nil.
 func mergeRendering(base, override *Rendering) *Rendering {
 	if override == nil {
 		return base
@@ -51,6 +52,9 @@ func mergeRendering(base, override *Rendering) *Rendering {
 		maps.Copy(templates, base.Templates)
 		maps.Copy(templates, override.Templates)
 		merged.Templates = templates
+	}
+	if len(override.Trailers) > 0 {
+		merged.Trailers = MergeFooterRules(base.Trailers, override.Trailers)
 	}
 	return &merged
 }

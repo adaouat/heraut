@@ -996,6 +996,106 @@ rendering:
 	assert.Contains(t, e.Hint, "release_notes")
 }
 
+func TestValidate_RenderingTrailersValidConfigs(t *testing.T) {
+	tests := []struct {
+		name string
+		yaml string
+	}{
+		{"renderer", `
+    - token: Co-authored-by
+      renderer: "**Co-authored by:** {{ .Value }}"`},
+		{"hide", `
+    - token: Refs
+      hide: true`},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			cfg := mustLoad(t, `
+version: "1"
+versioning:
+  strategy: semver
+rendering:
+  trailers:`+tc.yaml+`
+`)
+			assert.Empty(t, config.Validate(cfg))
+		})
+	}
+}
+
+func TestValidate_RenderingTrailersTokenRequired(t *testing.T) {
+	cfg := mustLoad(t, `
+version: "1"
+versioning:
+  strategy: semver
+rendering:
+  trailers:
+    - hide: true
+`)
+	e := findErr(config.Validate(cfg), "rendering.trailers[0].token")
+	require.NotNil(t, e)
+}
+
+func TestValidate_RenderingTrailersExactlyOneOfRendererHide(t *testing.T) {
+	tests := []struct {
+		name      string
+		rule      string
+		wantMatch string
+	}{
+		{"neither set", `
+    - token: Refs`, "exactly one"},
+		{"both set", `
+    - token: Refs
+      renderer: "{{ .Value }}"
+      hide: true`, "only one"},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			cfg := mustLoad(t, `
+version: "1"
+versioning:
+  strategy: semver
+rendering:
+  trailers:`+tc.rule+`
+`)
+			e := findErr(config.Validate(cfg), "rendering.trailers[0]")
+			require.NotNil(t, e)
+			assert.Contains(t, e.Message, tc.wantMatch)
+		})
+	}
+}
+
+func TestValidate_RenderingTrailersBadRendererSnippet(t *testing.T) {
+	cfg := mustLoad(t, `
+version: "1"
+versioning:
+  strategy: semver
+rendering:
+  trailers:
+    - token: Refs
+      renderer: "{{ .Value "
+`)
+	e := findErr(config.Validate(cfg), "rendering.trailers[0].renderer")
+	require.NotNil(t, e)
+	assert.Contains(t, e.Message, "template")
+}
+
+func TestValidate_RenderingTrailersDuplicateToken(t *testing.T) {
+	cfg := mustLoad(t, `
+version: "1"
+versioning:
+  strategy: semver
+rendering:
+  trailers:
+    - token: Refs
+      hide: true
+    - token: refs
+      renderer: "{{ .Value }}"
+`)
+	e := findErr(config.Validate(cfg), "rendering.trailers[1].token")
+	require.NotNil(t, e)
+	assert.Contains(t, e.Message, "duplicate")
+}
+
 func TestValidate_DriverTemplateFileMissing(t *testing.T) {
 	cfg := mustLoad(t, `
 version: "1"

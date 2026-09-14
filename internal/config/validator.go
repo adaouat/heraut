@@ -443,6 +443,57 @@ func validateRendering(cfg *Config) []ValidationError {
 		}
 	}
 	errs = append(errs, validateTemplateSnippets(cfg.Rendering.Templates, "rendering.templates")...)
+	errs = append(errs, validateTrailers(cfg.Rendering.Trailers)...)
+	return errs
+}
+
+// validateTrailers validates rendering.trailers (ADR-0057): each rule has a non-empty token,
+// unique case-insensitively across the list, and sets exactly one of renderer/hide; renderer,
+// when set, must parse as a valid Go template.
+func validateTrailers(rules []FooterRule) []ValidationError {
+	var errs []ValidationError
+	seen := make(map[string]int)
+	for i, r := range rules {
+		path := fmt.Sprintf("rendering.trailers[%d]", i)
+
+		if r.Token == "" {
+			errs = append(errs, ValidationError{Path: path + ".token", Message: "required"})
+		} else {
+			key := strings.ToLower(r.Token)
+			if first, ok := seen[key]; ok {
+				errs = append(errs, ValidationError{
+					Path:    path + ".token",
+					Message: fmt.Sprintf("duplicate token %q (case-insensitive; already listed at trailers[%d])", r.Token, first),
+				})
+			} else {
+				seen[key] = i
+			}
+		}
+
+		switch {
+		case r.Renderer == "" && !r.Hide:
+			errs = append(errs, ValidationError{
+				Path:    path,
+				Message: "must set exactly one of renderer or hide",
+				Hint:    `e.g. {renderer: "{{ .Value }}"} or {hide: true}`,
+			})
+		case r.Renderer != "" && r.Hide:
+			errs = append(errs, ValidationError{
+				Path:    path,
+				Message: "set only one of renderer or hide, not both",
+			})
+		}
+
+		if r.Renderer != "" {
+			if err := parseTemplateSnippet(r.Renderer); err != nil {
+				errs = append(errs, ValidationError{
+					Path:    path + ".renderer",
+					Message: fmt.Sprintf("invalid template: %v", err),
+					Hint:    "must be a valid Go text/template snippet",
+				})
+			}
+		}
+	}
 	return errs
 }
 

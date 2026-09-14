@@ -1,6 +1,7 @@
 package config_test
 
 import (
+	"strings"
 	"testing"
 
 	"github.com/adaouat/heraut/internal/config"
@@ -92,4 +93,32 @@ func TestMergeContentDriver_Rendering(t *testing.T) {
 		require.Len(t, got.Rendering.Excludes, 1)
 		assert.Equal(t, "ci", got.Rendering.Excludes[0].Type)
 	})
+
+	t.Run("trailers merge by token, override wins", func(t *testing.T) {
+		base := &config.ContentDriver{
+			Rendering: &config.Rendering{Trailers: []config.FooterRule{
+				{Token: "Refs", Hide: true},
+				{Token: "Co-authored-by", Renderer: "base"},
+			}},
+		}
+		ovr := &config.ContentDriver{
+			Rendering: &config.Rendering{Trailers: []config.FooterRule{
+				{Token: "co-authored-by", Renderer: "env"},
+			}},
+		}
+		got := config.MergeContentDriver(base, ovr)
+		require.Len(t, got.Rendering.Trailers, 2)
+		assert.Equal(t, "env", findFooterRule(got.Rendering.Trailers, "Co-authored-by").Renderer, "override wins per token")
+		assert.True(t, findFooterRule(got.Rendering.Trailers, "Refs").Hide, "unset token inherits from base")
+		assert.Equal(t, "base", base.Rendering.Trailers[1].Renderer, "base is not mutated")
+	})
+}
+
+func findFooterRule(rules []config.FooterRule, token string) *config.FooterRule {
+	for i := range rules {
+		if strings.EqualFold(rules[i].Token, token) {
+			return &rules[i]
+		}
+	}
+	return nil
 }
