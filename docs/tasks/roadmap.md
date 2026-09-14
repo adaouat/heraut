@@ -217,7 +217,7 @@ discipline that applies to every task.
 | 46 | Configurable commit-message rules (`commits.rules`) | Done |
 | 47 | Per-token footer/trailer rendering customization (`rendering.trailers`) | Done |
 | 48 | Built-in default `Co-Authored-By` trailer rendering | Done |
-| 49 | Namespaced template blocks (`release.*` / `commit.*`) | In progress — ADR accepted, implementation done (T289–T290), docs sync pending (T291) |
+| 49 | Namespaced template blocks (`release.*` / `commit.*`) | Done |
 
 ### Open items
 
@@ -1445,13 +1445,39 @@ by `schema_test.go`'s JSON-Schema-only checks, so neither needed touching to kee
 both still carry the pre-ADR-0059 flat names and go stale until T291 updates them alongside the
 spec/guide.
 
-#### ✦ `[ ]` T291: Docs — spec, schema, sample config, guide for the namespaced block set
+#### ✦ `[x]` T291: Docs — spec, schema, sample config, guide for the namespaced block set
 
-Update `docs/specs/05-generators-and-platforms.md`'s "User-customizable templates" section (block
-list, YAML example, data-model prose), `schema.json`'s `rendering.templates` object (nested
-`release`/`commit` sub-objects, each `additionalProperties: false`), `docs/heraut.sample.yml`'s
-template example, and `docs/guides/template-customization.md` if it enumerates individual keys —
-mirroring how T288 extended the same doc surfaces for ADR-0058.
+`schema.json`'s `rendering.templates` object restructured: `title`/`subtitle`/`footer`/
+`changelog`/`release_notes` stay flat properties; `release`/`commit` are new nested objects
+(each `additionalProperties: false`) with the renamed sub-properties (`release.section`,
+`release.group`, `release.contributors`, `release.stats`, `release.footer`; `commit.message`,
+`commit.ticket`, `commit.contributor`). `testdata/config/valid/rendering-templates.yml` (the
+`schema_test.go` fixture demonstrating this block) updated to the nested syntax to match —
+otherwise it would have started failing `TestSchema_ValidFixtures` against the new schema.
+`docs/specs/05-generators-and-platforms.md`'s "User-customizable templates" section (overridable
+block list, YAML example, data-model prose, the anchor-comment cross-reference) and
+`docs/specs/02-configuration.md`'s `rendering.templates` paragraph updated to the new names.
+`docs/heraut.sample.yml`'s commented `rendering.templates` example (never live-parsed, so it
+didn't need to change for T290's tests to pass, but was stale documentation) rewritten to the
+nested form. `docs/guides/template-customization.md` — the "Overridable blocks" table, every
+worked example, the "four layers together" example, the full-template-file `.tmpl` example, the
+data-contract prose, and the Gotchas section — updated throughout; the intro's ADR list gained
+[ADR-0059](../adr/0059-namespaced-template-blocks.md).
+
+**Deliberately left untouched:** the `### User-customizable templates (ADR-0037, ADR-0048)`
+spec-05 heading itself, and its guide backlink — established precedent (ADR-0049/ADR-0050/
+ADR-0051 all amended this same section without ever being appended to the heading) is that the
+heading anchor stays fixed to the founding ADRs; later amending ADRs are cited in prose instead.
+Appending ADR-0059 to the heading would have changed its Markdown anchor slug and broken every
+cross-reference to it (`.claude/rules/coding.md`, spec 02, the guide). `CHANGELOG.md`,
+`docs/tasks/roadmap.md`'s own history, and the ADR files themselves (`0037`, `0048`, `0049`,
+`0057`, `README.md`) also still name the pre-ADR-0059 flat block names where they describe what
+those ADRs did *at the time* — correct as historical record, not doc drift.
+
+Full suite (`go test ./...`, including `TestShippedExamples_LoadAndValidate` and
+`TestSchema_ValidFixtures`/`TestSchema_InvalidFixtures`), `go build`, `go vet`, and `hk check`
+(`yamlfmt`, `typos`) all green. This closes Phase 49 — namespaced template blocks: all of
+T289–T291 are done.
 
 ---
 

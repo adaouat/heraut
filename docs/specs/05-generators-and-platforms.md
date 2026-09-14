@@ -62,8 +62,9 @@ The native generator exposes a public template API with **two entry points**:
 ```yaml
 rendering:
   templates:
-    commit: "- {{ upperFirst .Description }} ({{ .ShortHash }})"
-    contributor: "* @{{ .Author.Username }} — first contribution 🎉"
+    commit:
+      message: "- {{ upperFirst .Description }} ({{ .ShortHash }})"
+      contributor: "* @{{ .Author.Username }} — first contribution 🎉"
 
 changelog:
   template: .config/heraut/changelog.tmpl   # optional full template file
@@ -73,19 +74,25 @@ changelog:
       subtitle: "All notable changes."
 ```
 
-**Overridable blocks:** `title`, `subtitle`, `footer`, `release_header`, `group`, `commit`,
-`ticket`, `contributor`, `contributors`, `stats`, `release_footer`, and the roots `changelog` /
-`release_notes`. `title`/`subtitle`/`footer` are document-level — they fire exactly **once per
-document**, unlike every other block (which fires once per rendered release); they execute
-against `.Heraut`'s own fields directly (`.Version` `.URL` `.GeneratedAt`), **not**
-`.Heraut.Version` like `release_footer`/`release_header` do, since their root isn't a `Release`.
-`footer` defaults to a heraut credit line (version + timestamp); `release_footer` — the
-per-release trailing block, unlike `footer` — defaults to empty. The changelog renders a
-one-line commit; the release-notes root wraps the shared `commit` block with indented
-body/footers.
-`ticket` renders one matched ticket link (`commits.tickets`) within a commit line — `commit`
-calls it once per match, so overriding just `ticket` customizes ticket rendering without
-restating the whole commit-line template. Any other key under `rendering.templates` is a
+**Overridable blocks:** the document-level trio `title`, `subtitle`, `footer` (no nesting); the
+release-cadence blocks nested under `release:` — `release.section`, `release.group`,
+`release.contributors`, `release.stats`, `release.footer`; the commit-cadence blocks nested
+under `commit:` — `commit.message`, `commit.ticket`, `commit.contributor`; and the roots
+`changelog` / `release_notes` (ADR-0059 — release/commit-cadence blocks are namespaced in YAML,
+flattening to the dotted names above; the document-level trio and the two roots have no
+release/commit-scoped counterpart to disambiguate from, so they stay flat).
+`title`/`subtitle`/`footer` fire exactly **once per document**, unlike every other block (which
+fires once per rendered release); they execute against `.Heraut`'s own fields directly
+(`.Version` `.URL` `.GeneratedAt`), **not** `.Heraut.Version` like `release.footer`/
+`release.section` do, since their root isn't a `Release`. `footer` defaults to a heraut credit
+line (version + timestamp); `release.footer` — the per-release trailing block, unlike `footer` —
+defaults to empty. The changelog renders a one-line commit; the release-notes root wraps the
+shared `commit.message` block with indented body/footers.
+`commit.ticket` renders one matched ticket link (`commits.tickets`) within a commit line —
+`commit.message` calls it once per match, so overriding just `commit.ticket` customizes ticket
+rendering without restating the whole commit-line template. Any other key under
+`rendering.templates` — including any pre-ADR-0059 flat name (`release_header`, `group`,
+`commit`, `ticket`, `contributor`, `contributors`, `stats`, `release_footer`) — is a
 **config error** (a misspelled block would otherwise be silently ignored); `schema.json`
 enumerates the same set for editor autocompletion.
 
@@ -98,8 +105,8 @@ contributors/stats headings); a `Group` exposes `.Name` `.Commits` `.HeadingPref
 `Commit` exposes `.Type` `.Scope` `.Breaking` `.Description` `.Subject` (the raw commit
 subject line, distinct from `.Description`) `.Body` `.Hash` `.ShortHash`
 `.CommitURL` `.Date` `.Author` `.PR` `.Tickets` `.Footers`; each entry of `.Tickets` (what the
-`ticket` block receives) exposes `.Text` (the matched ticket text) `.Href` (the resolved URL);
-each entry of `.Footers` exposes `.Token` `.Value` (as parsed) and `.Line` — the trailer's
+`commit.ticket` block receives) exposes `.Text` (the matched ticket text) `.Href` (the resolved
+URL); each entry of `.Footers` exposes `.Token` `.Value` (as parsed) and `.Line` — the trailer's
 fully-resolved display line, with any matching `rendering.trailers` rule already applied (a
 matching `renderer` executed, a matching `hide` entry already dropped from the list); print
 `.Line` rather than composing `.Token`/`.Value` yourself, so your template stays correct however
@@ -111,9 +118,9 @@ a project has configured `rendering.trailers` — see [Spec 02 §
 `.Version` `.URL` `.GeneratedAt`. All `.PR.*` fields are remote-only (empty offline). Field names
 are the **experimental-in-v1** public API — additive changes are free.
 
-`contributors` and `stats` render **only from the `release_notes` root template** — a
-`changelog`-level override of either block has no effect, since the changelog's own root never
-invokes them.
+`release.contributors` and `release.stats` render **only from the `release_notes` root
+template** — a `changelog`-level override of either block has no effect, since the changelog's
+own root never invokes them.
 
 **Precedence** (lowest → highest): built-in → global `rendering.templates` →
 `<driver>.rendering.templates` → per-env → `<driver>.template` file. `rendering.templates` and
@@ -132,8 +139,8 @@ preceded by a structural HTML comment on its own line:
 
 The anchor carries the release **tag**, is invisible in every Markdown renderer, and is emitted by
 the assembly layer — never by a template block — so it is non-overridable and independent of the
-customizable `release_header` block (ADR-0037, ADR-0048): reformatting the header can neither
-remove the anchor nor change its shape.
+customizable `release.section` block (ADR-0037, ADR-0048, ADR-0059): reformatting the header can
+neither remove the anchor nor change its shape.
 
 **Incremental (default).** Each run renders and enriches only the new release's section (O(1) API
 calls) and splices it into the existing file's sections, leaving every other section untouched:

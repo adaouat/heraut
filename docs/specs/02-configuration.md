@@ -770,9 +770,10 @@ the global list, plus the driver's own list, all additive.
 Overrides one or more built-in native template blocks by key — each value is a Go
 `text/template` snippet. Keys correspond to the overridable blocks documented in
 [Spec 05 § User-customizable templates](05-generators-and-platforms.md#user-customizable-templates-adr-0037-adr-0048)
-(e.g. `commit`, `group`, `contributor`, `release_header`, `footer`). A `changelog`/`release.notes`
-block's own `rendering.templates` overlays this global map key-by-key — the driver's value wins
-for a given key, an unset key falls through to the global one.
+(e.g. `commit.message`, `release.group`, `commit.contributor`, `release.section`, `footer` —
+namespaced under `release:`/`commit:` since ADR-0059). A `changelog`/`release.notes` block's own
+`rendering.templates` overlays this global map key-by-key — the driver's value wins for a given
+key, an unset key falls through to the global one.
 
 ### `rendering.trailers` (ADR-0057, ADR-0058)
 
