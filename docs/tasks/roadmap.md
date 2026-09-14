@@ -8,7 +8,7 @@ described in `docs/specs/`. Each task carries an inline `[ ] / [x]` checkbox —
 headings for what to do next, read the surrounding prose for *why* and *how*.
 
 The behavioural authority is `docs/specs/` (six numbered specs); the architectural
-authority is `docs/adr/` (56 ADRs). Where this roadmap mentions "behaviour", the specs
+authority is `docs/adr/` (58 ADRs). Where this roadmap mentions "behaviour", the specs
 win; where it mentions a "decision", the ADR wins. If you find a disagreement between
 roadmap and spec/ADR, fix the roadmap.
 
@@ -36,7 +36,7 @@ The goals of v1.0:
    provides these (see [ADR-0014](../adr/0014-self-update-architecture.md), superseded,
    for the self-update → forge/updatecheck migration).
 
-The `docs/specs/` (six numbered specs) and the 56 ADRs in `docs/adr/` are authoritative.
+The `docs/specs/` (six numbered specs) and the 58 ADRs in `docs/adr/` are authoritative.
 
 ---
 
@@ -216,6 +216,7 @@ discipline that applies to every task.
 | 45 | `{{ .Env }}` hook template variable | Done |
 | 46 | Configurable commit-message rules (`commits.rules`) | Done |
 | 47 | Per-token footer/trailer rendering customization (`rendering.trailers`) | Done |
+| 48 | Built-in default `Co-Authored-By` trailer rendering | ADR-0058 accepted — implementation not started (T287–T288) |
 
 ### Open items
 
@@ -1264,6 +1265,44 @@ changed in this docs-only slice) all green, including `TestSchema_ValidFixtures`
 `TestShippedExamples_LoadAndValidate` (confirms `docs/heraut.sample.yml` and README's fenced
 config blocks still parse/validate after the edits). This closes Phase 47 —
 `rendering.trailers`: all of T283–T285 are done.
+
+---
+
+### Phase 48 — Built-in default `Co-Authored-By` trailer rendering
+
+Phase 47 shipped `rendering.trailers` with a deliberate non-goal: no built-in trailer-rule
+set, since every token's implicit default is the raw `Token: Value` line. The first real use
+of the feature (configuring heraut's own `.config/heraut.yml` to de-emphasize its own
+`Co-Authored-By:` trailers) showed that call was too conservative for this one token — see
+[ADR-0058](../adr/0058-default-coauthored-by-trailer.md). This phase bakes a
+`Co-Authored-By` → `_Co-Authored-By: {{ .Value }}_` default into the native generator
+itself, following the same built-in-defaults-merged-under-user-config shape as
+`commits.types`/`commits.scopes`.
+
+#### ✦ `[x]` T286: ADR-0058 — built-in default `Co-Authored-By` trailer rendering
+
+[ADR-0058](../adr/0058-default-coauthored-by-trailer.md): add `config.DefaultTrailers()`,
+merged as the base layer under global `rendering.trailers` in `effectiveTrailers`
+(`internal/app/pipeline.go`), so `Co-Authored-By` renders as `_Co-Authored-By: {{ .Value }}_`
+by default — overridable/hideable via the existing `rendering.trailers` config, no new
+config surface. Partially supersedes ADR-0057's "no built-in trailer-rule set" merge
+semantics and "byte-identical default output" consequence, for this one token only. Added
+inline supersede notes to ADR-0057 itself (three spots: the merge-semantics paragraph, the
+"unmatched token" sentence, and the Consequences bullet) rather than changing its Status,
+since only this one narrow point is superseded — mirrors the precedent set by
+ADR-0048's note inside ADR-0037.
+
+**Trigger for this ADR:** the initial ask was to add this exact rendering
+(`_Co-Authored-By: {{ .Value }}_`) directly to heraut's own `.config/heraut.yml` via the
+`rendering.trailers` config ADR-0057 already shipped — a config-only change requiring no ADR.
+That was implemented, then explicitly reverted on follow-up: the actual intent was a
+heraut-native default so every project benefits, not a per-project config entry, which
+directly contradicts ADR-0057's "no built-in trailer-rule set" decision and needed its own
+ADR rather than a silent reversal.
+
+#### ✦ `[ ]` T287: `internal/config` + `internal/app`: implement the built-in default
+
+#### ✦ `[ ]` T288: Docs — ADR-0057 supersede notes, spec, sample config, guide
 
 ---
 

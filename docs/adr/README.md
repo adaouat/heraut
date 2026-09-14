@@ -61,4 +61,5 @@ trade-offs were accepted.
 | [0054](0054-windows-hook-execution.md) | Windows hook execution — `cmd /D /C`, no per-OS command syntax | Accepted |
 | [0055](0055-env-hook-template-variable.md) | `{{ .Env }}` hook template variable — no per-env `hooks:` config | Accepted |
 | [0056](0056-configurable-commit-message-rules.md) | `commits.rules` — configurable commit-message pattern rules | Accepted |
-| [0057](0057-rendering-trailers.md) | `rendering.trailers` — per-token commit-footer rendering customization | Accepted |
+| [0057](0057-rendering-trailers.md) | `rendering.trailers` — per-token commit-footer rendering customization | Accepted (`Co-Authored-By`'s "no built-in trailer rule" merge semantics superseded by 0058) |
+| [0058](0058-default-coauthored-by-trailer.md) | Built-in default `Co-Authored-By` trailer rendering | Accepted |

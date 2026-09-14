@@ -78,7 +78,9 @@ matching was considered and rejected as unneeded complexity for what is, in ever
 a label lookup — see Alternatives.
 
 **An unmatched token keeps today's default rendering**, `{{ .Token }}: {{ .Value }}` — no config
-required, no behavior change for projects that don't set `rendering.trailers`.
+required, no behavior change for projects that don't set `rendering.trailers`. (Amended by
+[ADR-0058](0058-default-coauthored-by-trailer.md): `Co-Authored-By` is no longer "unmatched"
+by default — see that ADR.)
 
 **Applied once per commit, in `buildCommit`.** Rather than exposing a new template func or
 duplicating the match/execute logic in every block that might loop over `.Footers`,
@@ -105,6 +107,12 @@ existing `EffectiveTemplates` (`internal/config/config.go:162-165`). This is `Te
 override-by-key merge, not `EffectiveTypes`/`EffectiveScopes`'s merge-over-built-in-defaults
 merge (`internal/config/commits.go:90-115, 159-184`): there is no built-in trailer-rule set to
 merge user rules over, since the default *is* "no rule, fall through to `Token: Value`."
+
+> **Partially superseded by [ADR-0058](0058-default-coauthored-by-trailer.md):** the
+> `Co-Authored-By` token now *does* have a built-in default (`config.DefaultTrailers()`,
+> merged as the base layer under global `rendering.trailers`), so "there is no built-in
+> trailer-rule set" is no longer true for that one token. The deep-merge-by-token mechanism
+> described here is otherwise unchanged.
 
 **Validation** (`internal/config/validator.go`), mirroring `CommitRule`'s exactly-one-of pattern
 (ADR-0056):
@@ -149,7 +157,9 @@ its own future ADR and roadmap phase, not folded silently into this one.
   `docs/heraut.sample.yml`, `docs/specs/05-generators-and-platforms.md`.
 - **Byte-identical default output.** No project's rendered changelog/release notes change unless
   `rendering.trailers` is set — unmatched tokens keep rendering exactly as today, and the
-  changelog still shows no footers by default.
+  changelog still shows no footers by default. (Amended by
+  [ADR-0058](0058-default-coauthored-by-trailer.md) for the `Co-Authored-By` token: it is no
+  longer byte-identical by default.)
 - **Error contract mirrors `rendering.templates`.** A `renderer` snippet that fails to
   parse/execute fails the run with an error naming the offending token, never silent broken
   output (same shape as ADR-0037 § Validation & errors).
