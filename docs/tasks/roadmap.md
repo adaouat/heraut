@@ -218,7 +218,7 @@ discipline that applies to every task.
 | 47 | Per-token footer/trailer rendering customization (`rendering.trailers`) | Done |
 | 48 | Built-in default `Co-Authored-By` trailer rendering | Done |
 | 49 | Namespaced template blocks (`release.*` / `commit.*`) | Done |
-| 50 | Move `rendering.trailers` to `rendering.commit.trailers` | In progress — ADR accepted, implementation done (T292–T293), docs pending (T294) |
+| 50 | Move `rendering.trailers` to `rendering.commit.trailers` | Done |
 
 ### Open items
 
@@ -1552,13 +1552,31 @@ trailers-related tests were converted the same way, plus a new
 Full suite (`go test ./...`), `go build`, `go vet`, and `hk check` (`go_fmt`, `golangci_lint`,
 `typos`) all green.
 
-#### ✦ `[ ]` T294: Docs — spec, schema, sample config, guide for `rendering.commit.trailers`
+#### ✦ `[x]` T294: Docs — spec, schema, sample config, guide for `rendering.commit.trailers`
 
-Update `schema.json` (`trailers` moves from a `Rendering` property to a new `commit` object's
-property), `docs/specs/02-configuration.md`'s `rendering.trailers` section, `docs/heraut.sample.yml`'s
-trailers example, and `docs/guides/template-customization.md`'s "Customizing footer trailers"
-section — keeping the existing heading text/anchors stable (per the precedent ADR-0059 set) and
-citing ADR-0060 + the new path in prose instead, mirroring how T291 handled the same tension.
+`schema.json`'s `Rendering` gained a `commit` object (mirroring T291's `release`/`commit`
+restructuring for `templates`) holding `trailers`, replacing the old flat `Rendering.trailers`
+property. `testdata/config/valid/rendering-trailers.yml` (the `schema_test.go` fixture) updated
+to the nested syntax to match — same reasoning as T291's `rendering-templates.yml` update.
+`docs/specs/02-configuration.md`'s `### rendering.trailers (ADR-0057, ADR-0058)` section and
+`docs/specs/05-generators-and-platforms.md`'s `.Footers`/`.Line` data-model prose updated to the
+new path, citing ADR-0060. `docs/heraut.sample.yml`'s commented trailers example (never
+live-parsed) rewritten to the nested form. `docs/guides/template-customization.md` — the intro's
+ADR list, the "skip ahead" pointer, the "Customizing footer trailers" section's example/table/
+prose, the data-contract `Footer` entry, and both Gotchas bullets — updated throughout.
+
+**Deliberately left untouched, same precedent T291 set:** both the spec-02 heading (`###
+rendering.trailers (ADR-0057, ADR-0058)`) and the guide's matching heading (`## Customizing
+footer trailers (`rendering.trailers`, ADR-0057)`) keep their exact pre-ADR-0060 text — changing
+either would change its Markdown anchor slug and break the cross-references to it (spec 05, the
+guide's own intro/data-contract/gotchas, `.claude/rules/coding.md` indirectly via spec 05).
+ADR-0060 and the new path are cited in prose under the heading instead. A stray pre-existing
+inaccuracy in spec 02 — "`rendering.templates.commit` override" (missing `.message`, predating
+even ADR-0059) — was also corrected while this section was open, since it was touched anyway.
+
+Full suite (`go test ./...`, including `TestSchema_ValidFixtures`/`TestSchema_InvalidFixtures`),
+`go build`, `go vet`, and `hk check` (`yamlfmt`, `typos`) all green. This closes Phase 50 — move
+`rendering.trailers` to `rendering.commit.trailers`: all of T292–T294 are done.
 
 ---
 

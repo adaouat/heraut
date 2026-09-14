@@ -15,9 +15,10 @@ rename and the `title`/`subtitle` blocks), [ADR-0049](../adr/0049-changelog-rele
 (the `footer`/`release_footer` split), [ADR-0050](../adr/0050-changelog-preamble-postamble-always-fresh.md)
 (preamble/postamble always render fresh, no `--regenerate` required),
 [ADR-0051](../adr/0051-footer-visual-separator.md) (the automatic blank-line + `---` separator
-before `footer`), and [ADR-0059](../adr/0059-namespaced-template-blocks.md) (the
-release-/commit-cadence blocks renamed and namespaced under `release:`/`commit:`). This guide is
-the worked-example version.
+before `footer`), [ADR-0059](../adr/0059-namespaced-template-blocks.md) (the release-/commit-cadence
+blocks renamed and namespaced under `release:`/`commit:`), and
+[ADR-0060](../adr/0060-rendering-commit-trailers-path.md) (`rendering.trailers` relocated to
+`rendering.commit.trailers`). This guide is the worked-example version.
 
 **Applies to `native` only.** Since ADR-0045, `native` is heraut's sole generator, so there
 is no `generator:` key to gate this feature on — every `.heraut.yml` gets it.
@@ -33,8 +34,9 @@ is no `generator:` key to gate this feature on — every `.heraut.yml` gets it.
 
 If all you want is to reformat or hide specific *footer trailers* (`Co-authored-by`, `Refs`,
 `Signed-off-by`, …) rather than the whole commit line, skip ahead to [Customizing footer
-trailers](#customizing-footer-trailers-renderingtrailers-adr-0057) below — `rendering.trailers`
-is a narrower, purpose-built knob for exactly that, and doesn't need a block override at all.
+trailers](#customizing-footer-trailers-renderingtrailers-adr-0057) below —
+`rendering.commit.trailers` is a narrower, purpose-built knob for exactly that, and doesn't need
+a block override at all.
 
 Both feed the **same block set and data contract** — a file override and an inline override
 of the same block key do the same job, just with different ergonomics (a `.tmpl` file gets
@@ -125,16 +127,22 @@ changelog's own root never calls them.
 `.Footers` (the `Commit` field above) already carries every commit-message footer trailer —
 `Co-authored-by`, `Refs`, `Signed-off-by`, whatever a commit happens to have — generically, as
 `{Token, Value}` pairs. By default every trailer renders identically, as `Token: Value`.
-`rendering.trailers` lets you relabel or hide specific tokens without touching the
-`commit.message` block (or any other block) at all:
+`rendering.commit.trailers` lets you relabel or hide specific tokens without touching the
+`commit.message` block (or any other block) at all. It lives at `rendering.commit.trailers`
+— a sibling of `rendering.templates`, namespaced under `commit:` alongside the other
+commit-cadence config, not nested inside `rendering.templates.commit` itself (that object holds
+template-snippet strings only; this is a list of rules) —
+[moved there](../adr/0060-rendering-commit-trailers-path.md) from the original flat
+`rendering.trailers` (ADR-0060):
 
 ```yaml
 rendering:
-  trailers:
-    - token: Co-authored-by
-      renderer: "**Co-authored by:** {{ .Value }}"
-    - token: Refs
-      hide: true
+  commit:
+    trailers:
+      - token: Co-authored-by
+        renderer: "**Co-authored by:** {{ .Value }}"
+      - token: Refs
+        hide: true
 ```
 
 | Field      | Description                                                                                          |
@@ -144,22 +152,23 @@ rendering:
 | `hide`     | Drops matching footers from rendered output entirely. |
 
 Set exactly one of `renderer`/`hide` per entry. A token that matches no entry keeps the built-in
-`Token: Value` format — `rendering.trailers` never changes output for tokens you haven't
-listed, and an unset `rendering.trailers` changes nothing at all. The one exception:
+`Token: Value` format — `rendering.commit.trailers` never changes output for tokens you haven't
+listed, and an unset `rendering.commit.trailers` changes nothing at all. The one exception:
 `Co-Authored-By` already has a built-in default, `_Co-Authored-By: {{ .Value }}_` (ADR-0058) —
 add your own `token: Co-Authored-By` entry to render it differently or `hide: true` to suppress
 it, same as overriding any other entry.
 
 **This controls *how* a footer renders, never *whether* a block shows footers.** Release notes
 already loop over `.Footers` by default; the changelog's built-in `commit.message` block does
-not, and `rendering.trailers` doesn't change that — if you want footers in the changelog too,
-override `commit.message` (or the whole `changelog` root) to add your own
+not, and `rendering.commit.trailers` doesn't change that — if you want footers in the changelog
+too, override `commit.message` (or the whole `changelog` root) to add your own
 `{{ range .Footers }}` loop, same as any other block customization. Whatever renders that loop
 sees the same resolved `.Line` either way.
 
 **Same four-layer precedence and merge shape as `rendering.templates`** (see below), just keyed
 by token instead of block name: global → per-driver → per-env, override wins per token, an
-unset token falls through. There's no full-file equivalent — `rendering.trailers` is inline-only.
+unset token falls through. There's no full-file equivalent — `rendering.commit.trailers` is
+inline-only.
 
 See [Spec 02 § `rendering.trailers`](../specs/02-configuration.md#renderingtrailers-adr-0057)
 for the full field reference.
@@ -323,7 +332,7 @@ commit subject line) `.Body` `.Hash` `.ShortHash` `.CommitURL` `.Date` `.Author`
 
 **`Footer`** (a git trailer parsed from the commit body)
 `.Token` `.Value` (as parsed) `.Line` (fully-resolved display line — any matching
-`rendering.trailers` rule already applied; print this, not `.Token`/`.Value`, see
+`rendering.commit.trailers` rule already applied; print this, not `.Token`/`.Value`, see
 [Customizing footer trailers](#customizing-footer-trailers-renderingtrailers-adr-0057) below)
 
 **`Stats`**
@@ -473,12 +482,12 @@ execute against `.Heraut` directly, not a `Release`. Compare `release.section` a
   current config on every `heraut changelog`/`heraut release` invocation, incremental or not
   ([ADR-0050](../adr/0050-changelog-preamble-postamble-always-fresh.md)) — see
   [Data contract](#data-contract) above.
-- **`rendering.trailers` governs formatting, not visibility.** It never turns footers on for a
-  block that doesn't already loop over `.Footers` (the changelog's built-in `commit.message`
+- **`rendering.commit.trailers` governs formatting, not visibility.** It never turns footers on
+  for a block that doesn't already loop over `.Footers` (the changelog's built-in `commit.message`
   doesn't) — see [Customizing footer trailers](#customizing-footer-trailers-renderingtrailers-adr-0057)
   above. It's also inline-only (no full-file equivalent) and matched case-insensitively by exact
   token, not by regex.
 - **`Co-Authored-By` is not "unmatched by default" like every other token.** It already has a
   built-in credit-line rendering ([ADR-0058](../adr/0058-default-coauthored-by-trailer.md)) — a
   project that wants the raw `Token: Value` line back, or wants to hide it, needs its own
-  `rendering.trailers` entry for that exact token, same as overriding any other default.
+  `rendering.commit.trailers` entry for that exact token, same as overriding any other default.
