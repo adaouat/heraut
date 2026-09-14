@@ -311,9 +311,9 @@ func renderPreamble(rootTmpl string, snippets map[string]string, templateFile st
 // — callers own the surrounding presentation: buildAllSections/spliceSection add the anchor and
 // footerSeparator (ADR-0051) before appending it once after every joined section; renderReleaseNotes
 // adds just footerSeparator before appending it to the single rendered release. The per-release
-// trailing block (release_footer, unchanged from the original "footer" block pre-ADR-0049) still
-// fires from within changelog.tmpl/release_notes.tmpl's root — this is a separate, document-scoped
-// block layered on top.
+// trailing block (release.footer, unchanged from the original "footer" block pre-ADR-0049, and
+// namespaced by ADR-0059) still fires from within changelog.tmpl/release_notes.tmpl's root — this
+// is a separate, document-scoped block layered on top.
 func renderPostamble(rootTmpl string, snippets map[string]string, templateFile string, heraut tplHeraut) (string, error) {
 	footer, err := execBlocks("footer", rootTmpl, snippets, templateFile, heraut)
 	if err != nil {

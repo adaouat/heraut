@@ -892,13 +892,14 @@ versioning:
   strategy: semver
 rendering:
   templates:
-    commit: "- {{ upperFirst .Description }} ({{ .ShortHash }})"
+    commit:
+      message: "- {{ upperFirst .Description }} ({{ .ShortHash }})"
 `)
 	assert.Empty(t, config.Validate(cfg))
 }
 
-// TestValidate_RenderingTemplatesTicketValid covers T240: "ticket" is a valid overridable
-// block, added alongside "commit" so ticket-link rendering can be customized in isolation.
+// TestValidate_RenderingTemplatesTicketValid covers T240: "commit.ticket" is a valid overridable
+// block, added alongside "commit.message" so ticket-link rendering can be customized in isolation.
 func TestValidate_RenderingTemplatesTicketValid(t *testing.T) {
 	cfg := mustLoad(t, `
 version: "1"
@@ -906,7 +907,8 @@ versioning:
   strategy: semver
 rendering:
   templates:
-    ticket: "🎫[{{ .Text }}]({{ .Href }})"
+    commit:
+      ticket: "🎫[{{ .Text }}]({{ .Href }})"
 `)
 	assert.Empty(t, config.Validate(cfg))
 }
@@ -931,9 +933,10 @@ versioning:
   strategy: semver
 rendering:
   templates:
-    commit: "{{ .Description "
+    commit:
+      message: "{{ .Description "
 `)
-	e := findErr(config.Validate(cfg), "rendering.templates.commit")
+	e := findErr(config.Validate(cfg), "rendering.templates.commit.message")
 	require.NotNil(t, e)
 	assert.Contains(t, e.Message, "template")
 }
@@ -952,15 +955,26 @@ rendering:
 	assert.Contains(t, e.Message, "unknown template block")
 }
 
-func TestValidate_RenderingTemplatesRenamedBlocksValid(t *testing.T) {
+// TestValidate_RenderingTemplatesNamespacedBlocksValid covers ADR-0059: the release- and
+// commit-cadence blocks nest under release:/commit: YAML objects and flatten to dotted keys.
+func TestValidate_RenderingTemplatesNamespacedBlocksValid(t *testing.T) {
 	cfg := mustLoad(t, `
 version: "1"
 versioning:
   strategy: semver
 rendering:
   templates:
-    release_header: "## [{{ .Version }}]"
-    release_notes: "{{range .Groups}}{{ template \"group\" . }}{{end}}"
+    release:
+      section: "## [{{ .Version }}]"
+      group: "{{ .HeadingPrefix }} {{ .Name }}"
+      contributors: "contribs"
+      stats: "stats"
+      footer: "rel-footer"
+    commit:
+      message: "- {{ .Description }}"
+      ticket: "[{{ .Text }}]"
+      contributor: "* {{ .Author.Username }}"
+    release_notes: "{{range .Groups}}{{ template \"release.group\" . }}{{end}}"
 `)
 	assert.Empty(t, config.Validate(cfg))
 }
@@ -978,7 +992,58 @@ rendering:
 	e := findErr(config.Validate(cfg), "rendering.templates.header")
 	require.NotNil(t, e)
 	assert.Contains(t, e.Message, "unknown template block")
-	assert.Contains(t, e.Hint, "release_header")
+	assert.Contains(t, e.Hint, "release.section")
+}
+
+// TestValidate_RenderingTemplatesOldFlatBlockKeysRejected covers ADR-0059: the ADR-0037/
+// ADR-0048/ADR-0049-vintage flat block names are config errors now that release-/commit-cadence
+// blocks are namespaced — no deprecated-alias shim, consistent with every prior block rename.
+func TestValidate_RenderingTemplatesOldFlatBlockKeysRejected(t *testing.T) {
+	tests := []struct {
+		name, snippetYAML, wantPath string
+	}{
+		{"release_header", `release_header: "## [{{ .Version }}]"`, "release_header"},
+		{"group", `group: "{{ .HeadingPrefix }} {{ .Name }}"`, "group"},
+		{"commit", `commit: "- {{ .Description }}"`, "commit"},
+		{"ticket", `ticket: "[{{ .Text }}]"`, "ticket"},
+		{"contributor", `contributor: "* {{ .Author.Username }}"`, "contributor"},
+		{"contributors", `contributors: "contribs"`, "contributors"},
+		{"stats", `stats: "stats"`, "stats"},
+		{"release_footer", `release_footer: "rel-footer"`, "release_footer"},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			cfg := mustLoad(t, `
+version: "1"
+versioning:
+  strategy: semver
+rendering:
+  templates:
+    `+tc.snippetYAML+`
+`)
+			e := findErr(config.Validate(cfg), "rendering.templates."+tc.wantPath)
+			require.NotNil(t, e)
+			assert.Contains(t, e.Message, "unknown template block")
+		})
+	}
+}
+
+// TestValidate_RenderingTemplatesUnknownNestedSubBlockRejected covers ADR-0059: an unrecognized
+// sub-key under release:/commit: is caught by the same "unknown template block" mechanism as any
+// other unrecognized key, keyed by its flattened dotted path.
+func TestValidate_RenderingTemplatesUnknownNestedSubBlockRejected(t *testing.T) {
+	cfg := mustLoad(t, `
+version: "1"
+versioning:
+  strategy: semver
+rendering:
+  templates:
+    release:
+      bogus: "..."
+`)
+	e := findErr(config.Validate(cfg), "rendering.templates.release.bogus")
+	require.NotNil(t, e)
+	assert.Contains(t, e.Message, "unknown template block")
 }
 
 func TestValidate_RenderingTemplatesOldHyphenatedReleaseNotesKeyRejected(t *testing.T) {

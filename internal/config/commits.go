@@ -35,10 +35,11 @@ type Commits struct {
 type Rendering struct {
 	// Excludes drop matched commits from the rendered changelog/release-notes.
 	Excludes []Exclude `yaml:"excludes,omitempty"`
-	// Templates overrides built-in native template blocks by key (e.g. "commit", "group",
-	// "contributor", "release_header", "footer"): each value is a Go text/template snippet.
-	// native only — deep-merged global → per-driver → per-env (ADR-0037, ADR-0048).
-	Templates map[string]string `yaml:"templates,omitempty"`
+	// Templates overrides built-in native template blocks by key (e.g. "commit.message",
+	// "release.group", "commit.contributor", "release.section", "footer"): each value is a Go
+	// text/template snippet. native only — deep-merged global → per-driver → per-env (ADR-0037,
+	// ADR-0048, ADR-0059).
+	Templates TemplateOverrides `yaml:"templates,omitempty"`
 	// Trailers customizes how individual commit-message footer trailers render, matched by
 	// token. native only — deep-merged global → per-driver → per-env, by token, like Templates
 	// (ADR-0057).

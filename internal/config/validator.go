@@ -499,17 +499,20 @@ func validateTrailers(rules []FooterRule) []ValidationError {
 
 // validateTemplateSnippets parses each inline template snippet under pathPrefix, reporting a
 // clear error keyed by block name when one fails to parse (ADR-0037).
-// validTemplateBlocks is the set of native template blocks that rendering.templates may override.
-// It must stay in sync with the {{define "…"}} blocks embedded in internal/generators/native
-// (blocks.tmpl / changelog.tmpl / release_notes.tmpl) and with schema.json. config cannot import
-// native (layer rule), so the list is maintained here.
+// validTemplateBlocks is the set of native template blocks that rendering.templates may override,
+// keyed by the dotted name TemplateOverrides.UnmarshalYAML flattens the release:/commit: YAML
+// namespaces into (ADR-0059). It must stay in sync with the {{define "…"}} blocks embedded in
+// internal/generators/native (blocks.tmpl / changelog.tmpl / release_notes.tmpl) and with
+// schema.json. config cannot import native (layer rule), so the list is maintained here.
 var validTemplateBlocks = map[string]bool{
-	"title": true, "subtitle": true, "release_header": true, "footer": true, "release_footer": true,
-	"group": true, "commit": true, "ticket": true, "contributor": true, "contributors": true,
-	"stats": true, "changelog": true, "release_notes": true,
+	"title": true, "subtitle": true, "footer": true,
+	"release.section": true, "release.group": true, "release.contributors": true,
+	"release.stats": true, "release.footer": true,
+	"commit.message": true, "commit.ticket": true, "commit.contributor": true,
+	"changelog": true, "release_notes": true,
 }
 
-const validTemplateBlocksHint = "valid blocks: changelog, commit, contributor, contributors, footer, group, release_footer, release_header, release_notes, stats, subtitle, ticket, title"
+const validTemplateBlocksHint = "valid blocks: changelog, commit.contributor, commit.message, commit.ticket, footer, release.contributors, release.footer, release.group, release.section, release.stats, release_notes, subtitle, title"
 
 func validateTemplateSnippets(snippets map[string]string, pathPrefix string) []ValidationError {
 	var errs []ValidationError

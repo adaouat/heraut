@@ -217,7 +217,7 @@ discipline that applies to every task.
 | 46 | Configurable commit-message rules (`commits.rules`) | Done |
 | 47 | Per-token footer/trailer rendering customization (`rendering.trailers`) | Done |
 | 48 | Built-in default `Co-Authored-By` trailer rendering | Done |
-| 49 | Namespaced template blocks (`release.*` / `commit.*`) | In progress — ADR accepted (T289), implementation + docs pending (T290–T291) |
+| 49 | Namespaced template blocks (`release.*` / `commit.*`) | In progress — ADR accepted, implementation done (T289–T290), docs sync pending (T291) |
 
 ### Open items
 
@@ -1391,17 +1391,59 @@ nested. No code changed in this task — `docs/specs/05-generators-and-platforms
 describe the pre-ADR-0059 flat block set until T290 implements the rename and T291 updates
 them, per the project's two-step flow (one roadmap task per session).
 
-#### ✦ `[ ]` T290: `internal/config` + `internal/generators/native`: implement nested `release`/`commit` template blocks
+#### ✦ `[x]` T290: `internal/config` + `internal/generators/native`: implement nested `release`/`commit` template blocks
 
-Add `Release{Section, Group, Contributors, Stats, Footer}` and `Commit{Message, Ticket,
-Contributor}` nested structs to the template-overrides config type; update the existing
-global→per-driver→per-env deep-merge (ADR-0019) to merge them field-by-field one level deeper.
-Flatten the nested config into the dotted internal block names (`release.section`, `commit.message`,
-etc.) the config loader hands to `buildTemplateSet`; rename the `{{ define }}` blocks in
-`internal/generators/native/blocks.tmpl` and the `{{ template "..." }}` call sites in
-`changelog.tmpl`/`release_notes.tmpl` to match. TDD: failing tests first for the new nested-struct
-merge behavior and the renamed block execution, then implementation. Golden-snapshot tests should
-stay byte-identical for anyone not using the renamed keys.
+**Deviation from ADR-0059's anticipated approach.** The ADR's Consequences section expected new
+nested Go structs (`Release{Section, Group, ...}`, `Commit{Message, Ticket, Contributor}`) plus a
+one-level-deeper field-by-field deep-merge. Turned out unnecessary: `Rendering.Templates` was
+already a plain `map[string]string`, and the existing deep-merge (`mergeRendering`,
+`effectiveTemplates`) only ever copies map entries key-by-key, blind to what the keys mean. So
+instead of restructuring the config type, `rendering.templates`' value type became a new named
+type `config.TemplateOverrides` (`internal/config/templates.go`, still `map[string]string`
+underneath) with a custom `UnmarshalYAML` that flattens `release: {section: ..., ...}` /
+`commit: {message: ..., ...}` into dotted keys (`release.section`, `commit.message`, ...) at
+parse time — any other top-level key decodes as a plain snippet string, unchanged. Every
+downstream layer (`mergeRendering`'s deep-merge, `effectiveTemplates`, `buildTemplateSet`) keeps
+working against a flat map exactly as before, completely unaware the YAML surface is nested — zero
+changes needed in `merge.go` or `internal/app/pipeline.go`. A key named `release`/`commit` whose
+value isn't itself a mapping falls through to a plain flat key instead of being special-cased,
+letting the existing `validateTemplateSnippets`/`validTemplateBlocks` "unknown template block"
+mechanism reject it — no separate error path needed for that case either.
+
+Renamed the `{{ define }}` blocks in `internal/generators/native/blocks.tmpl` and the
+`{{ template "..." }}` call sites in `changelog.tmpl`/`release_notes.tmpl` to match
+(`release_header`→`release.section`, `group`→`release.group`, `contributors`→
+`release.contributors`, `stats`→`release.stats`, `release_footer`→`release.footer`,
+`commit`→`commit.message`, `ticket`→`commit.ticket`, `contributor`→`commit.contributor`);
+updated `internal/config/validator.go`'s `validTemplateBlocks`/`validTemplateBlocksHint` to the
+new dotted set. `title`/`subtitle`/`footer`/`changelog`/`release_notes` (document-level/root
+blocks, no release/commit-scoped counterpart) are untouched, confirming the ADR's naming
+decision.
+
+TDD: `internal/config/templates_test.go` (new — flat keys unchanged, nested
+release/commit flatten to dotted keys, mixed flat+nested, a non-mapping `release`/`commit` value
+passes through as an ordinary flat key, an empty nested object contributes nothing, a
+too-deeply-nested sub-value errors naming its dotted path) confirmed failing to compile
+(`undefined: TemplateOverrides`) before `internal/config/templates.go` landed.
+`internal/config/validator_test.go` gained `TestValidate_RenderingTemplatesNamespacedBlocksValid`,
+`TestValidate_RenderingTemplatesOldFlatBlockKeysRejected` (table-driven, all 8 renamed flat names),
+and `TestValidate_RenderingTemplatesUnknownNestedSubBlockRejected`, and updated the
+pre-existing `NativeValid`/`TicketValid`/`BadSnippet`/`RenamedBlocksValid`/`OldHeaderKeyRejected`
+tests to the new namespaced keys. `internal/generators/native`'s existing override-behavior tests
+(`TestGenerate_InlineCommitOverride`, `TestGenerate_ReleaseFooterOverride`,
+`TestGenerateChangelog_IncrementalWithCustomHeader`, `TestRenderChangelogSection_TicketBlockOverride`,
+`TestRenderReleaseNotes_InlineCommitOverride`, `TestCommitBlock_*`) had their snippet-map keys
+renamed and were confirmed failing (`template: no template "commit.message" associated with
+template "native"` and equivalent override-not-applied assertions) against the pre-rename
+`.tmpl` files before the block renames landed.
+
+Full suite (`go test ./...`), `go build`, `go vet`, and `hk check` (`go_fmt`, `golangci_lint`,
+`typos`) all green. Scope held to `internal/config` + `internal/generators/native` as planned —
+`docs/heraut.sample.yml`'s `rendering.templates` example is entirely commented out (never
+live-parsed) and `testdata/config/valid/rendering-templates.yml`/`schema.json` are exercised only
+by `schema_test.go`'s JSON-Schema-only checks, so neither needed touching to keep the suite green;
+both still carry the pre-ADR-0059 flat names and go stale until T291 updates them alongside the
+spec/guide.
 
 #### ✦ `[ ]` T291: Docs — spec, schema, sample config, guide for the namespaced block set
 

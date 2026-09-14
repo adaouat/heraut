@@ -405,7 +405,7 @@ func TestGenerate_InlineCommitOverride(t *testing.T) {
 	mr.QueueResponse(record("abc1234567", "A", "a@example.com", "2026-01-02T00:00:00Z", "feat: add x", ""), "", nil)
 	mr.QueueResponse("bob@x\n", "", nil) // authorsBefore
 	g := New(mr, &config.ContentDriver{
-		EffectiveTemplates: map[string]string{"commit": "CUSTOM {{ .Description }}"},
+		EffectiveTemplates: map[string]string{"commit.message": "CUSTOM {{ .Description }}"},
 	}, ModeReleaseNotes)
 
 	out, err := g.Generate("v1.1.0", nil)
@@ -444,7 +444,7 @@ func TestGenerate_ReleaseFooterOverride(t *testing.T) {
 	g := New(mr, &config.ContentDriver{
 		HerautVersion: "9.9.9",
 		EffectiveTemplates: map[string]string{
-			"release_footer": "\n-- heraut {{ .Heraut.Version }} @ {{ date \"2006-01-02\" .Heraut.GeneratedAt }} ({{ .Heraut.URL }})",
+			"release.footer": "\n-- heraut {{ .Heraut.Version }} @ {{ date \"2006-01-02\" .Heraut.GeneratedAt }} ({{ .Heraut.URL }})",
 		},
 	}, ModeReleaseNotes)
 	g.now = func() time.Time { return time.Date(2026, 7, 6, 0, 0, 0, 0, time.UTC) }
@@ -452,7 +452,7 @@ func TestGenerate_ReleaseFooterOverride(t *testing.T) {
 	out, err := g.Generate("v1.1.0", nil)
 	require.NoError(t, err)
 	assert.Contains(t, out, "-- heraut 9.9.9 @ 2026-07-06 (https://github.com/adaouat/heraut)",
-		"release_footer (per-release, Release-rooted) renders .Heraut.Version + injected GeneratedAt + URL")
+		"release.footer (per-release, Release-rooted) renders .Heraut.Version + injected GeneratedAt + URL")
 }
 
 func TestGenerate_DefaultDocumentFooterCreditsHeraut(t *testing.T) {
@@ -677,7 +677,7 @@ func TestGenerateChangelog_IncrementalWithCustomHeader(t *testing.T) {
 	mr.QueueResponse(record("bbb2222222", "B", "b@x", "2026-02-01T00:00:00Z", "feat: new", ""), "", nil)
 	g := New(mr, &config.ContentDriver{
 		Output:             out,
-		EffectiveTemplates: map[string]string{"release_header": "=== {{ .Version }} ==="},
+		EffectiveTemplates: map[string]string{"release.section": "=== {{ .Version }} ==="},
 	}, ModeChangelog)
 
 	body, err := g.Generate("v1.1.0", nil)

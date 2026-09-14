@@ -93,7 +93,7 @@ func TestBuildTemplateSet_FileWinsOverNullSnippet(t *testing.T) {
 // render path (snippets -> execBlocks -> buildTemplateSet) and replaces the built-in commit line.
 func TestRenderReleaseNotes_InlineCommitOverride(t *testing.T) {
 	groups := []group{{name: "🚀 Features", order: 0, commits: []parsedCommit{parsedFrom("aaaaaaa", "feat: add thing")}}}
-	snippets := map[string]string{"commit": "> {{ .Description }} [{{ .ShortHash }}]"}
+	snippets := map[string]string{"commit.message": "> {{ .Description }} [{{ .ShortHash }}]"}
 
 	got, err := renderReleaseNotes(
 		"v1.0.0", "", fixedDate1, groups, githubLC, nil, time.Time{}, 3, nil, nil, tplHeraut{}, snippets, "",

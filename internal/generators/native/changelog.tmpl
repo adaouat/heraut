@@ -1,10 +1,10 @@
 {{define "title"}}# Changelog{{end}}
 {{define "subtitle"}}{{end}}
-{{define "release_header"}}## [{{ .Version }}]{{ if .CompareURL }}({{ .CompareURL }}){{ end }} - {{ date "2006-01-02" .Date }}{{end}}
-{{define "changelog"}}{{ template "release_header" . }}
+{{define "release.section"}}## [{{ .Version }}]{{ if .CompareURL }}({{ .CompareURL }}){{ end }} - {{ date "2006-01-02" .Date }}{{end}}
+{{define "changelog"}}{{ template "release.section" . }}
 {{range .Groups}}
-{{ template "group" . }}
+{{ template "release.group" . }}
 {{range .Commits}}
-{{ template "commit" . }}
+{{ template "commit.message" . }}
 {{end}}
-{{end}}{{ template "release_footer" . }}{{end}}
+{{end}}{{ template "release.footer" . }}{{end}}

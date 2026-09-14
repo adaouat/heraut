@@ -33,14 +33,15 @@ func mustBuildCommit(t *testing.T, pc parsedCommit, cuBase string, tickets []con
 	return c
 }
 
-// renderCommitBlock renders the built-in "commit" block for one tplCommit — the successor to
-// buildCommitLine now that the commit line lives in a template block (ADR-0037).
+// renderCommitBlock renders the built-in "commit.message" block for one tplCommit — the
+// successor to buildCommitLine now that the commit line lives in a template block (ADR-0037,
+// namespaced by ADR-0059).
 func renderCommitBlock(t *testing.T, c tplCommit) string {
 	t.Helper()
 	tt, err := template.New("native").Funcs(templateFuncs()).Parse(blocksTmpl)
 	require.NoError(t, err)
 	var sb strings.Builder
-	require.NoError(t, tt.ExecuteTemplate(&sb, "commit", c))
+	require.NoError(t, tt.ExecuteTemplate(&sb, "commit.message", c))
 	return sb.String()
 }
 

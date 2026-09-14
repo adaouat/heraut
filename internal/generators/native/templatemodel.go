@@ -29,7 +29,7 @@ type tplRelease struct {
 	Heraut        tplHeraut
 }
 
-// tplHeraut is document meta reachable from release_header/footer/root blocks via .Heraut.
+// tplHeraut is document meta reachable from release.section/footer/root blocks via .Heraut.
 // title/subtitle instead receive it directly as their own bare root (see renderPreamble),
 // not through a .Heraut field.
 type tplHeraut struct {

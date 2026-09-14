@@ -198,10 +198,11 @@ func TestRenderChangelogSection_WithTickets(t *testing.T) {
 	assert.Equal(t, want, got)
 }
 
-// TestRenderChangelogSection_TicketBlockOverride covers T240: rendering.templates.ticket must
-// override just the per-ticket link fragment, without requiring the caller to restate the whole
-// commit block — the "ticket" block is called from "commit" via {{ template "ticket" . }}, so
-// overriding it alone changes ticket rendering and nothing else about the commit line.
+// TestRenderChangelogSection_TicketBlockOverride covers T240: rendering.templates.commit.ticket
+// must override just the per-ticket link fragment, without requiring the caller to restate the
+// whole commit block — the "commit.ticket" block is called from "commit.message" via
+// {{ template "commit.ticket" . }}, so overriding it alone changes ticket rendering and nothing
+// else about the commit line.
 func TestRenderChangelogSection_TicketBlockOverride(t *testing.T) {
 	rcTicket := rawCommit{
 		Hash:    "eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
@@ -218,7 +219,7 @@ func TestRenderChangelogSection_TicketBlockOverride(t *testing.T) {
 	tickets := []config.Ticket{
 		{Pattern: `PROJ-(\d+)`, URL: "https://jira.example.com/browse/PROJ-{ticket}"},
 	}
-	snippets := map[string]string{"ticket": "🎫[{{ .Text }}]({{ .Href }})"}
+	snippets := map[string]string{"commit.ticket": "🎫[{{ .Text }}]({{ .Href }})"}
 
 	releaseDate := time.Date(2024, 1, 15, 0, 0, 0, 0, time.UTC)
 	got, err := renderChangelogSection(
