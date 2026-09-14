@@ -462,7 +462,10 @@ func buildChangelogPipelineConfig(runner, readRunner port.Runner, cfg *config.Co
 //     it (empty is left empty — the generator treats that as "optional")
 //   - Tickets: the top-level Config.Tickets, so the generator can inject link_parsers
 //
-// The original driver is never mutated. Returns the original pointer when nothing applies.
+// The original driver is never mutated. Returns the original pointer when nothing applies —
+// except EffectiveTrailerRules, which always applies: config.DefaultTrailers() (ADR-0058)
+// means effectiveTrailers is never empty, so a clone (carrying at least the built-in
+// Co-Authored-By default) is always returned.
 func withEnvDerivations(driver *config.ContentDriver, cfg *config.Config, env string) *config.ContentDriver {
 	tf := cfg.EffectiveTagFormat(env)
 	headingPat := tagfmt.DeriveHeadingVersionPattern(tf)
@@ -485,11 +488,6 @@ func withEnvDerivations(driver *config.ContentDriver, cfg *config.Config, env st
 	templates := effectiveTemplates(cfg, driver)
 	trailers := effectiveTrailers(cfg, driver)
 	excludes := effectiveExcludes(cfg, driver)
-	hasCommits := cfg.Commits != nil && (len(cfg.Commits.Types) > 0 || cfg.Commits.TypesHeadingLevel > 0)
-	hasRendering := len(excludes) > 0
-	if headingPat == "" && tagPat == "" && tagGlob == "" && rm == "" && len(tickets) == 0 && !hasCommits && !hasRendering && len(templates) == 0 && len(trailers) == 0 {
-		return driver
-	}
 	clone := *driver
 	if headingPat != "" {
 		clone.HeadingVersionPattern = headingPat
@@ -516,9 +514,7 @@ func withEnvDerivations(driver *config.ContentDriver, cfg *config.Config, env st
 	if len(templates) > 0 {
 		clone.EffectiveTemplates = templates
 	}
-	if len(trailers) > 0 {
-		clone.EffectiveTrailerRules = trailers
-	}
+	clone.EffectiveTrailerRules = trailers
 	return &clone
 }
 
@@ -541,10 +537,11 @@ func effectiveTemplates(cfg *config.Config, driver *config.ContentDriver) map[st
 	return eff
 }
 
-// effectiveTrailers overlays the driver's rendering.trailers over the global rendering.trailers
-// (driver wins per token; unset tokens fall through — ADR-0057, mirroring effectiveTemplates),
-// flattened into a lookup map keyed by lowercased token for the native generator. Returns nil
-// when neither level sets any trailer rule.
+// effectiveTrailers overlays the driver's rendering.trailers over the global rendering.trailers,
+// which in turn overlays config.DefaultTrailers() (driver wins per token, global wins over the
+// built-in default, unset tokens fall through — ADR-0057, mirroring effectiveTemplates; the
+// built-in default layer is ADR-0058), flattened into a lookup map keyed by lowercased token for
+// the native generator. Always includes at least the built-in default set.
 func effectiveTrailers(cfg *config.Config, driver *config.ContentDriver) map[string]config.FooterRule {
 	var global, perDriver []config.FooterRule
 	if cfg.Rendering != nil {
@@ -553,7 +550,8 @@ func effectiveTrailers(cfg *config.Config, driver *config.ContentDriver) map[str
 	if driver.Rendering != nil {
 		perDriver = driver.Rendering.Trailers
 	}
-	merged := config.MergeFooterRules(global, perDriver)
+	withDefaults := config.MergeFooterRules(config.DefaultTrailers(), global)
+	merged := config.MergeFooterRules(withDefaults, perDriver)
 	if len(merged) == 0 {
 		return nil
 	}

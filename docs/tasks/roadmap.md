@@ -216,7 +216,7 @@ discipline that applies to every task.
 | 45 | `{{ .Env }}` hook template variable | Done |
 | 46 | Configurable commit-message rules (`commits.rules`) | Done |
 | 47 | Per-token footer/trailer rendering customization (`rendering.trailers`) | Done |
-| 48 | Built-in default `Co-Authored-By` trailer rendering | ADR-0058 accepted — implementation not started (T287–T288) |
+| 48 | Built-in default `Co-Authored-By` trailer rendering | ADR-0058 accepted, T287 implemented — docs not started (T288) |
 
 ### Open items
 
@@ -1300,7 +1300,41 @@ heraut-native default so every project benefits, not a per-project config entry,
 directly contradicts ADR-0057's "no built-in trailer-rule set" decision and needed its own
 ADR rather than a silent reversal.
 
-#### ✦ `[ ]` T287: `internal/config` + `internal/app`: implement the built-in default
+#### ✦ `[x]` T287: `internal/config` + `internal/app`: implement the built-in default
+
+`config.DefaultTrailers()` (`internal/config/commits.go`), merged via the existing
+`config.MergeFooterRules` in `effectiveTrailers` (`internal/app/pipeline.go`) as
+`MergeFooterRules(DefaultTrailers(), global)` before the existing per-driver merge. No
+changes needed in `internal/generators/native` (it already consumes whatever map
+`EffectiveTrailerRules` resolves to, agnostic of where entries came from) or in
+`internal/config/validator.go` (validation only walks user-authored config; the built-in
+list is a trusted Go literal, not YAML).
+
+**Deviation found during implementation:** `withEnvDerivations`'s early-return fast path
+(`internal/app/pipeline.go`) returned the original `*ContentDriver` pointer unchanged when
+every derived field — including trailers — was empty. Since `effectiveTrailers` can no
+longer ever return an empty map (the built-in default always contributes at least one
+entry), that fast path's guard condition became permanently unreachable dead code. Removed
+the guard entirely rather than leave it in place: the function now always clones and always
+sets `EffectiveTrailerRules` unconditionally (previously guarded by `len(trailers) > 0`),
+with `hasCommits`/`hasRendering` also removed as they existed solely to feed that now-gone
+condition. Purely a dead-code cleanup forced by this change, not a scope expansion — the
+function's externally observable behavior for every other field is unchanged.
+
+TDD: `internal/config/commits_test.go`
+(`TestDefaultTrailers_CoAuthoredByRendersItalicCreditLine`),
+`internal/app/templates_internal_test.go`
+(`TestWithEnvDerivations_AppliesBuiltInCoAuthoredByDefault`,
+`TestWithEnvDerivations_UserRuleOverridesBuiltInCoAuthoredByDefault`,
+`TestWithEnvDerivations_UserRuleHidesBuiltInCoAuthoredByDefault`) — the first of each pair
+confirmed failing (undefined symbol / empty renderer) before its implementation landed; the
+override/hide tests exercise the pre-existing `MergeFooterRules` override-wins-by-token path
+against the new default rather than new logic, so they weren't expected to start red, and
+didn't. Full suite (`go test ./...`), `go build`, `go vet`, and `hk check` (`go_fmt`,
+`golangci_lint`, `yamlfmt`, `typos`) all green — including every existing
+`rendering.trailers` test from T284, unaffected because none of them route through
+`effectiveTrailers` (they call `MergeFooterRules`/`buildCommit`/`resolveFooterLine`
+directly with explicit rule maps).
 
 #### ✦ `[ ]` T288: Docs — ADR-0057 supersede notes, spec, sample config, guide
 

@@ -39,3 +39,37 @@ func TestWithEnvDerivations_MergesTrailers(t *testing.T) {
 	require.True(t, got.EffectiveTrailerRules["refs"].Hide, "unset token falls through from global")
 	assert.Nil(t, driver.EffectiveTrailerRules, "the original driver is never mutated")
 }
+
+func TestWithEnvDerivations_AppliesBuiltInCoAuthoredByDefault(t *testing.T) {
+	driver := &config.ContentDriver{}
+	cfg := &config.Config{Changelog: driver}
+
+	got := withEnvDerivations(driver, cfg, "")
+
+	require.Equal(t, "_Co-Authored-By: {{ .Value }}_", got.EffectiveTrailerRules["co-authored-by"].Renderer,
+		"Co-Authored-By renders as a credit line by default, with no rendering.trailers configured (ADR-0058)")
+}
+
+func TestWithEnvDerivations_UserRuleOverridesBuiltInCoAuthoredByDefault(t *testing.T) {
+	driver := &config.ContentDriver{}
+	cfg := &config.Config{
+		Rendering: &config.Rendering{Trailers: []config.FooterRule{{Token: "co-authored-by", Renderer: "custom"}}},
+		Changelog: driver,
+	}
+
+	got := withEnvDerivations(driver, cfg, "")
+
+	assert.Equal(t, "custom", got.EffectiveTrailerRules["co-authored-by"].Renderer, "user rule replaces the built-in default")
+}
+
+func TestWithEnvDerivations_UserRuleHidesBuiltInCoAuthoredByDefault(t *testing.T) {
+	driver := &config.ContentDriver{}
+	cfg := &config.Config{
+		Rendering: &config.Rendering{Trailers: []config.FooterRule{{Token: "Co-Authored-By", Hide: true}}},
+		Changelog: driver,
+	}
+
+	got := withEnvDerivations(driver, cfg, "")
+
+	assert.True(t, got.EffectiveTrailerRules["co-authored-by"].Hide, "the existing hide escape hatch suppresses the built-in default too")
+}
