@@ -47,6 +47,11 @@ const changelogRemoteRemovedHint = "replace with a top-level `forges:` entry and
 // just the notes text while still publishing.
 const disableNotesRemovedHint = "rename to `disable_release` — it now turns off the entire `release:` behavior (notes and publish together) for that environment, not just the notes text"
 
+// renderingTrailersRemovedHint is the migration guidance for the top-level rendering.trailers
+// (ADR-0060): the per-token commit-footer rendering customization moved under rendering.commit,
+// alongside the other commit-cadence config ADR-0059 established.
+const renderingTrailersRemovedHint = "rename to `rendering.commit.trailers`"
+
 // removedKeys maps a removed config path to its replacement guidance.
 var removedKeys = []struct{ path, hint string }{
 	{"changelog.remote", changelogRemoteRemovedHint},
@@ -56,13 +61,19 @@ var removedKeys = []struct{ path, hint string }{
 	{"changelog.config", configKeyRemovedHint},
 	{"release.notes.generator", generatorRemovedHint},
 	{"release.notes.config", configKeyRemovedHint},
+	{"rendering.trailers", renderingTrailersRemovedHint},
 }
 
 // checkRemovedKeys reports the first removed key present in the raw YAML, with migration
 // guidance. environments.<env>.changelog.remote and environments.<env>.release.platforms are
 // probed alongside the top-level keys: both were explicitly supported before the forge migration
 // (ADR-0043) removed their top-level counterparts, and without this probe they fail with a
-// generic strict-decode error instead of the migration hint.
+// generic strict-decode error instead of the migration hint. rendering.trailers (ADR-0060) is
+// probed only at its top-level (global) location — a project using the old key under
+// changelog.rendering.trailers / release.notes.rendering.trailers (or their per-env variants)
+// still gets a strict-decode error rather than this hint; narrower in scope than the
+// changelog/release.notes probes above, accepted since global rendering.trailers is the common
+// case.
 func checkRemovedKeys(raw []byte) error {
 	var probe struct {
 		Changelog struct {
@@ -73,6 +84,9 @@ func checkRemovedKeys(raw []byte) error {
 		Commits struct {
 			RemoteMetadata any `yaml:"remote_metadata"`
 		} `yaml:"commits"`
+		Rendering struct {
+			Trailers any `yaml:"trailers"`
+		} `yaml:"rendering"`
 		Release struct {
 			Platforms any `yaml:"platforms"`
 			Notes     struct {
@@ -107,6 +121,7 @@ func checkRemovedKeys(raw []byte) error {
 		"changelog.config":        probe.Changelog.Config != nil,
 		"release.notes.generator": probe.Release.Notes.Generator != nil,
 		"release.notes.config":    probe.Release.Notes.Config != nil,
+		"rendering.trailers":      probe.Rendering.Trailers != nil,
 	}
 	for _, k := range removedKeys {
 		if present[k.path] {

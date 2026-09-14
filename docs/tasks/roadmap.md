@@ -218,7 +218,7 @@ discipline that applies to every task.
 | 47 | Per-token footer/trailer rendering customization (`rendering.trailers`) | Done |
 | 48 | Built-in default `Co-Authored-By` trailer rendering | Done |
 | 49 | Namespaced template blocks (`release.*` / `commit.*`) | Done |
-| 50 | Move `rendering.trailers` to `rendering.commit.trailers` | In progress — ADR accepted (T292), implementation + docs pending (T293–T294) |
+| 50 | Move `rendering.trailers` to `rendering.commit.trailers` | In progress — ADR accepted, implementation done (T292–T293), docs pending (T294) |
 
 ### Open items
 
@@ -1514,19 +1514,43 @@ become heterogeneously typed. No code changed in this task — `internal/config/
 still reflect the pre-ADR-0060 `rendering.trailers` path until T293/T294 land, per the project's
 two-step flow (one roadmap task per session).
 
-#### ✦ `[ ]` T293: `internal/config` + `internal/app`: implement `rendering.commit.trailers`
+#### ✦ `[x]` T293: `internal/config` + `internal/app`: implement `rendering.commit.trailers`
 
-Add `RenderingCommit{Trailers []FooterRule}` and `Rendering.Commit *RenderingCommit`
-(`internal/config/commits.go`); drop `Rendering.Trailers`. Add a `removedKeys` entry +
-`checkRemovedKeys` probe field for `rendering.trailers` (`internal/config/loader.go`) pointing at
-the new path. Update `mergeRendering` (`internal/config/merge.go`) to merge `Commit.Trailers`
-one level deeper, nil-safe on either side. Update `validateTrailers`'s call site and error paths
-(`internal/config/validator.go`) to `rendering.commit.trailers[i].*`. Update `effectiveTrailers`
+Added `RenderingCommit{Trailers []FooterRule}` and `Rendering.Commit *RenderingCommit`
+(`internal/config/commits.go`); dropped `Rendering.Trailers`. Added a `removedKeys` entry +
+`checkRemovedKeys` probe field for the top-level `rendering.trailers`
+(`internal/config/loader.go`) pointing at `rendering.commit.trailers`. Updated `mergeRendering`
+(`internal/config/merge.go`) to delegate to a new `mergeRenderingCommit` helper, mirroring the
+nil-else-inherit shape `mergeRendering`/`MergeContentDriver` already use one level up. Updated
+`validateTrailers`'s call site (now nil-safe on `cfg.Rendering.Commit`) and error paths
+(`internal/config/validator.go`) to `rendering.commit.trailers[i].*`. Updated `effectiveTrailers`
 (`internal/app/pipeline.go`) to read `cfg.Rendering.Commit.Trailers` /
-`driver.Rendering.Commit.Trailers`. TDD: failing tests first for the new path's parsing, the
-`removedKeys` migration hint, the deeper nil-safe merge, and the updated validator error paths,
-then implementation. No changes expected in `internal/generators/native` — `FooterRule`'s shape,
-`buildCommit`, and `release_notes.tmpl`'s `.Footers` loop are untouched (ADR-0060).
+`driver.Rendering.Commit.Trailers`, nil-checked one level deeper than before. No changes needed
+in `internal/generators/native` — `FooterRule`'s shape, `buildCommit`, and
+`release_notes.tmpl`'s `.Footers` loop are untouched, exactly as ADR-0060 predicted.
+
+**Scoping note on the `removedKeys` migration hint.** Only the top-level (global)
+`rendering.trailers` is probed for a friendly migration error. A project using the old key at
+`changelog.rendering.trailers` / `release.notes.rendering.trailers` (or their per-env variants)
+still gets a generic strict-decode error rather than this hint — full coverage would need
+`rendering` sub-probes nested inside each of the `changelog`/`release.notes`/per-env probe
+structs already in `checkRemovedKeys`, a larger change than ADR-0060 scoped for a path move.
+Documented as a known limitation in `checkRemovedKeys`'s doc comment rather than silently
+expanding scope to cover it.
+
+TDD: `internal/config/migration_test.go` gained a `rendering.trailers` row in
+`TestLoad_RemovedKeys`'s table; `internal/config/validator_test.go`'s five
+`TestValidate_RenderingTrailers*` tests were converted to the nested `rendering.commit.trailers`
+YAML shape and updated error paths; `internal/config/merge_test.go`'s trailers subtest was
+converted to `Rendering{Commit: &config.RenderingCommit{Trailers: ...}}`, plus two new subtests
+for a nil `Commit` on either side of the merge; `internal/app/templates_internal_test.go`'s four
+trailers-related tests were converted the same way, plus a new
+`TestWithEnvDerivations_MergesTrailers_NilCommit` proving `effectiveTrailers` doesn't panic when
+`Rendering` is set but `Commit` is nil. All confirmed failing to compile
+(`unknown field Commit`/`undefined: config.RenderingCommit`) before the implementation landed.
+
+Full suite (`go test ./...`), `go build`, `go vet`, and `hk check` (`go_fmt`, `golangci_lint`,
+`typos`) all green.
 
 #### ✦ `[ ]` T294: Docs — spec, schema, sample config, guide for `rendering.commit.trailers`
 

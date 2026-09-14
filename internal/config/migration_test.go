@@ -100,6 +100,17 @@ release:
 `,
 			wantHint: "rendering.templates",
 		},
+		{
+			name: "rendering.trailers",
+			body: `version: "1"
+versioning: {strategy: semver}
+rendering:
+  trailers:
+    - token: Refs
+      hide: true
+`,
+			wantHint: "rendering.commit.trailers",
+		},
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {

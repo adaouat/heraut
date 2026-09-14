@@ -443,18 +443,22 @@ func validateRendering(cfg *Config) []ValidationError {
 		}
 	}
 	errs = append(errs, validateTemplateSnippets(cfg.Rendering.Templates, "rendering.templates")...)
-	errs = append(errs, validateTrailers(cfg.Rendering.Trailers)...)
+	var trailers []FooterRule
+	if cfg.Rendering.Commit != nil {
+		trailers = cfg.Rendering.Commit.Trailers
+	}
+	errs = append(errs, validateTrailers(trailers)...)
 	return errs
 }
 
-// validateTrailers validates rendering.trailers (ADR-0057): each rule has a non-empty token,
-// unique case-insensitively across the list, and sets exactly one of renderer/hide; renderer,
-// when set, must parse as a valid Go template.
+// validateTrailers validates rendering.commit.trailers (ADR-0057; relocated by ADR-0060): each
+// rule has a non-empty token, unique case-insensitively across the list, and sets exactly one of
+// renderer/hide; renderer, when set, must parse as a valid Go template.
 func validateTrailers(rules []FooterRule) []ValidationError {
 	var errs []ValidationError
 	seen := make(map[string]int)
 	for i, r := range rules {
-		path := fmt.Sprintf("rendering.trailers[%d]", i)
+		path := fmt.Sprintf("rendering.commit.trailers[%d]", i)
 
 		if r.Token == "" {
 			errs = append(errs, ValidationError{Path: path + ".token", Message: "required"})
@@ -463,7 +467,7 @@ func validateTrailers(rules []FooterRule) []ValidationError {
 			if first, ok := seen[key]; ok {
 				errs = append(errs, ValidationError{
 					Path:    path + ".token",
-					Message: fmt.Sprintf("duplicate token %q (case-insensitive; already listed at trailers[%d])", r.Token, first),
+					Message: fmt.Sprintf("duplicate token %q (case-insensitive; already listed at commit.trailers[%d])", r.Token, first),
 				})
 			} else {
 				seen[key] = i

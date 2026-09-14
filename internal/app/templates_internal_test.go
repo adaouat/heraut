@@ -25,19 +25,33 @@ func TestWithEnvDerivations_MergesTemplates(t *testing.T) {
 
 func TestWithEnvDerivations_MergesTrailers(t *testing.T) {
 	driver := &config.ContentDriver{
-		Rendering: &config.Rendering{Trailers: []config.FooterRule{{Token: "Co-authored-by", Renderer: "driver"}}},
+		Rendering: &config.Rendering{Commit: &config.RenderingCommit{
+			Trailers: []config.FooterRule{{Token: "Co-authored-by", Renderer: "driver"}},
+		}},
 	}
 	cfg := &config.Config{
-		Rendering: &config.Rendering{Trailers: []config.FooterRule{
+		Rendering: &config.Rendering{Commit: &config.RenderingCommit{Trailers: []config.FooterRule{
 			{Token: "co-authored-by", Renderer: "global"},
 			{Token: "Refs", Hide: true},
-		}},
+		}}},
 		Changelog: driver,
 	}
 	got := withEnvDerivations(driver, cfg, "")
 	require.Equal(t, "driver", got.EffectiveTrailerRules["co-authored-by"].Renderer, "driver overrides global, keyed lowercase")
 	require.True(t, got.EffectiveTrailerRules["refs"].Hide, "unset token falls through from global")
 	assert.Nil(t, driver.EffectiveTrailerRules, "the original driver is never mutated")
+}
+
+// TestWithEnvDerivations_MergesTrailers_NilCommit covers ADR-0060: a Rendering block that sets
+// other fields (or nothing at all) but no commit.trailers must not panic effectiveTrailers.
+func TestWithEnvDerivations_MergesTrailers_NilCommit(t *testing.T) {
+	driver := &config.ContentDriver{Rendering: &config.Rendering{}}
+	cfg := &config.Config{Rendering: &config.Rendering{}, Changelog: driver}
+
+	got := withEnvDerivations(driver, cfg, "")
+
+	require.Equal(t, "_Co-Authored-By: {{ .Value }}_", got.EffectiveTrailerRules["co-authored-by"].Renderer,
+		"the built-in default still applies when Rendering is set but Commit is nil")
 }
 
 func TestWithEnvDerivations_AppliesBuiltInCoAuthoredByDefault(t *testing.T) {
@@ -53,7 +67,9 @@ func TestWithEnvDerivations_AppliesBuiltInCoAuthoredByDefault(t *testing.T) {
 func TestWithEnvDerivations_UserRuleOverridesBuiltInCoAuthoredByDefault(t *testing.T) {
 	driver := &config.ContentDriver{}
 	cfg := &config.Config{
-		Rendering: &config.Rendering{Trailers: []config.FooterRule{{Token: "co-authored-by", Renderer: "custom"}}},
+		Rendering: &config.Rendering{Commit: &config.RenderingCommit{
+			Trailers: []config.FooterRule{{Token: "co-authored-by", Renderer: "custom"}},
+		}},
 		Changelog: driver,
 	}
 
@@ -65,7 +81,9 @@ func TestWithEnvDerivations_UserRuleOverridesBuiltInCoAuthoredByDefault(t *testi
 func TestWithEnvDerivations_UserRuleHidesBuiltInCoAuthoredByDefault(t *testing.T) {
 	driver := &config.ContentDriver{}
 	cfg := &config.Config{
-		Rendering: &config.Rendering{Trailers: []config.FooterRule{{Token: "Co-Authored-By", Hide: true}}},
+		Rendering: &config.Rendering{Commit: &config.RenderingCommit{
+			Trailers: []config.FooterRule{{Token: "Co-Authored-By", Hide: true}},
+		}},
 		Changelog: driver,
 	}
 

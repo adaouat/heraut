@@ -40,9 +40,18 @@ type Rendering struct {
 	// text/template snippet. native only — deep-merged global → per-driver → per-env (ADR-0037,
 	// ADR-0048, ADR-0059).
 	Templates TemplateOverrides `yaml:"templates,omitempty"`
+	// Commit groups rendering config that varies per commit — currently just Trailers — mirroring
+	// rendering.templates.commit's namespace (ADR-0059) for config that isn't itself a template
+	// snippet. Named RenderingCommit, not Commit, to avoid colliding with the unrelated top-level
+	// Commits struct (conventional-commit type/scope/ticket taxonomy) in this same file.
+	Commit *RenderingCommit `yaml:"commit,omitempty"`
+}
+
+// RenderingCommit is rendering.commit's value type (ADR-0060).
+type RenderingCommit struct {
 	// Trailers customizes how individual commit-message footer trailers render, matched by
 	// token. native only — deep-merged global → per-driver → per-env, by token, like Templates
-	// (ADR-0057).
+	// (ADR-0057; relocated here by ADR-0060).
 	Trailers []FooterRule `yaml:"trailers,omitempty"`
 }
 

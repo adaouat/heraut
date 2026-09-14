@@ -94,23 +94,45 @@ func TestMergeContentDriver_Rendering(t *testing.T) {
 		assert.Equal(t, "ci", got.Rendering.Excludes[0].Type)
 	})
 
-	t.Run("trailers merge by token, override wins", func(t *testing.T) {
+	t.Run("commit.trailers merge by token, override wins", func(t *testing.T) {
 		base := &config.ContentDriver{
-			Rendering: &config.Rendering{Trailers: []config.FooterRule{
+			Rendering: &config.Rendering{Commit: &config.RenderingCommit{Trailers: []config.FooterRule{
 				{Token: "Refs", Hide: true},
 				{Token: "Co-authored-by", Renderer: "base"},
-			}},
+			}}},
 		}
 		ovr := &config.ContentDriver{
-			Rendering: &config.Rendering{Trailers: []config.FooterRule{
+			Rendering: &config.Rendering{Commit: &config.RenderingCommit{Trailers: []config.FooterRule{
 				{Token: "co-authored-by", Renderer: "env"},
-			}},
+			}}},
 		}
 		got := config.MergeContentDriver(base, ovr)
-		require.Len(t, got.Rendering.Trailers, 2)
-		assert.Equal(t, "env", findFooterRule(got.Rendering.Trailers, "Co-authored-by").Renderer, "override wins per token")
-		assert.True(t, findFooterRule(got.Rendering.Trailers, "Refs").Hide, "unset token inherits from base")
-		assert.Equal(t, "base", base.Rendering.Trailers[1].Renderer, "base is not mutated")
+		require.Len(t, got.Rendering.Commit.Trailers, 2)
+		assert.Equal(t, "env", findFooterRule(got.Rendering.Commit.Trailers, "Co-authored-by").Renderer, "override wins per token")
+		assert.True(t, findFooterRule(got.Rendering.Commit.Trailers, "Refs").Hide, "unset token inherits from base")
+		assert.Equal(t, "base", base.Rendering.Commit.Trailers[1].Renderer, "base is not mutated")
+	})
+
+	t.Run("nil override commit inherits base commit", func(t *testing.T) {
+		base := &config.ContentDriver{
+			Rendering: &config.Rendering{Commit: &config.RenderingCommit{Trailers: []config.FooterRule{
+				{Token: "Refs", Hide: true},
+			}}},
+		}
+		got := config.MergeContentDriver(base, &config.ContentDriver{Rendering: &config.Rendering{}})
+		require.NotNil(t, got.Rendering.Commit)
+		assert.Equal(t, "Refs", got.Rendering.Commit.Trailers[0].Token)
+	})
+
+	t.Run("nil base commit, override commit wins outright", func(t *testing.T) {
+		ovr := &config.ContentDriver{
+			Rendering: &config.Rendering{Commit: &config.RenderingCommit{Trailers: []config.FooterRule{
+				{Token: "Refs", Hide: true},
+			}}},
+		}
+		got := config.MergeContentDriver(&config.ContentDriver{Rendering: &config.Rendering{}}, ovr)
+		require.NotNil(t, got.Rendering.Commit)
+		assert.Equal(t, "Refs", got.Rendering.Commit.Trailers[0].Token)
 	})
 }
 
