@@ -217,6 +217,7 @@ discipline that applies to every task.
 | 46 | Configurable commit-message rules (`commits.rules`) | Done |
 | 47 | Per-token footer/trailer rendering customization (`rendering.trailers`) | Done |
 | 48 | Built-in default `Co-Authored-By` trailer rendering | Done |
+| 49 | Namespaced template blocks (`release.*` / `commit.*`) | In progress — ADR accepted (T289), implementation + docs pending (T290–T291) |
 
 ### Open items
 
@@ -1354,6 +1355,61 @@ untouched from its pre-session state).
 Full suite, build, vet, and `hk check` (all four linters: `go_fmt`, `golangci_lint`,
 `yamlfmt`, `typos`) green after the doc edits. This closes Phase 48 —
 `Co-Authored-By` default trailer rendering: all of T286–T288 are done.
+
+---
+
+### Phase 49 — Namespaced template blocks (`release.*` / `commit.*`)
+
+A proposal to add a fires/renders reference table for the native template blocks surfaced that
+`rendering.templates`' flat 13-key namespace (`release_header`, `group`, `commit`, `ticket`,
+`contributor`, `contributors`, `stats`, `release_footer`, plus the document-level
+`title`/`subtitle`/`footer` and the `changelog`/`release_notes` roots) only inconsistently hints
+at cadence via a `release_`/no-prefix convention. See
+[ADR-0059](../adr/0059-namespaced-template-blocks.md): regroup the release- and commit-cadence
+blocks under nested `release:`/`commit:` YAML objects (`release.section` was `release_header`,
+`release.group` was `group`, `release.contributors` was `contributors`, `release.stats` was
+`stats`, `release.footer` was `release_footer`, `commit.message` was `commit`, `commit.ticket`
+was `ticket`, `commit.contributor` was `contributor`); the document-level trio and the two
+document-root overrides stay flat. Breaking rename, no alias — pre-v1.0, same precedent as
+ADR-0048/ADR-0049.
+
+#### ✦ `[x]` T289: ADR-0059 — namespace `rendering.templates` into `release.*`/`commit.*`
+
+Wrote [ADR-0059](../adr/0059-namespaced-template-blocks.md) after reviewing a proposed
+fires/renders reference table for spec 05's template-blocks section: the table made the
+existing flat-namespace inconsistency (only `release_header`/`release_footer` carry a prefix;
+`group`/`commit`/`ticket`/`contributor`/`contributors`/`stats` don't, despite the same
+release/commit cadence) visible enough to fix at the config-surface level rather than just in
+prose. Decided nested YAML objects (`release:`/`commit:`) over a flat dotted-string key
+(`"release.section": "..."`), since the latter keeps the existing flat `map[string]string`
+shape but doesn't let `schema.json` document the two sub-namespaces independently or read as a
+group in `.heraut.yml` — the actual goal. `release_header`→`release.section` (not
+`release.header`) to match ADR-0038's own "section" vocabulary for the anchored unit;
+`commit`→`commit.message` (not bare `commit`) to avoid reading as the `Commit` data type once
+nested. No code changed in this task — `docs/specs/05-generators-and-platforms.md`,
+`schema.json`, `docs/heraut.sample.yml`, and `docs/guides/template-customization.md` still
+describe the pre-ADR-0059 flat block set until T290 implements the rename and T291 updates
+them, per the project's two-step flow (one roadmap task per session).
+
+#### ✦ `[ ]` T290: `internal/config` + `internal/generators/native`: implement nested `release`/`commit` template blocks
+
+Add `Release{Section, Group, Contributors, Stats, Footer}` and `Commit{Message, Ticket,
+Contributor}` nested structs to the template-overrides config type; update the existing
+global→per-driver→per-env deep-merge (ADR-0019) to merge them field-by-field one level deeper.
+Flatten the nested config into the dotted internal block names (`release.section`, `commit.message`,
+etc.) the config loader hands to `buildTemplateSet`; rename the `{{ define }}` blocks in
+`internal/generators/native/blocks.tmpl` and the `{{ template "..." }}` call sites in
+`changelog.tmpl`/`release_notes.tmpl` to match. TDD: failing tests first for the new nested-struct
+merge behavior and the renamed block execution, then implementation. Golden-snapshot tests should
+stay byte-identical for anyone not using the renamed keys.
+
+#### ✦ `[ ]` T291: Docs — spec, schema, sample config, guide for the namespaced block set
+
+Update `docs/specs/05-generators-and-platforms.md`'s "User-customizable templates" section (block
+list, YAML example, data-model prose), `schema.json`'s `rendering.templates` object (nested
+`release`/`commit` sub-objects, each `additionalProperties: false`), `docs/heraut.sample.yml`'s
+template example, and `docs/guides/template-customization.md` if it enumerates individual keys —
+mirroring how T288 extended the same doc surfaces for ADR-0058.
 
 ---
 

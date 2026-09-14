@@ -53,7 +53,7 @@ trade-offs were accepted.
 | [0046](0046-release-block-atomicity.md) | Release block is one intent, not two | Accepted |
 | [0047](0047-changelog-output-resolves-after-version.md) | Changelog output resolves after version, not at config-build time | Accepted |
 | [0048](0048-changelog-title-subtitle-blocks.md) | Changelog/release-notes title & subtitle template blocks | Accepted (block-set table superseded by 0049 — `footer`→`release_footer`, new document-level `footer` block) |
-| [0049](0049-changelog-release-notes-footer-block.md) | Document-level `footer` block, `footer` → `release_footer` rename | Accepted (the "frozen until `--regenerate`" framing superseded by 0050 — preamble/postamble now always render fresh) |
+| [0049](0049-changelog-release-notes-footer-block.md) | Document-level `footer` block, `footer` → `release_footer` rename | Accepted (the "frozen until `--regenerate`" framing superseded by 0050 — preamble/postamble now always render fresh; block-set table superseded by 0059 — nested `release.*`/`commit.*` namespacing) |
 | [0050](0050-changelog-preamble-postamble-always-fresh.md) | Changelog preamble/postamble always render fresh — no more "frozen until regenerate" | Accepted |
 | [0051](0051-footer-visual-separator.md) | Automatic blank-line + horizontal-rule separator before `footer` | Accepted |
 | [0052](0052-versioning-bump-object-and-overrides.md) | `versioning.bump` becomes an object with mode + per-commit overrides | Accepted |
@@ -63,3 +63,4 @@ trade-offs were accepted.
 | [0056](0056-configurable-commit-message-rules.md) | `commits.rules` — configurable commit-message pattern rules | Accepted |
 | [0057](0057-rendering-trailers.md) | `rendering.trailers` — per-token commit-footer rendering customization | Accepted (`Co-Authored-By`'s "no built-in trailer rule" merge semantics superseded by 0058) |
 | [0058](0058-default-coauthored-by-trailer.md) | Built-in default `Co-Authored-By` trailer rendering | Accepted |
+| [0059](0059-namespaced-template-blocks.md) | Namespaced template blocks (`release.*` / `commit.*`) | Accepted |
