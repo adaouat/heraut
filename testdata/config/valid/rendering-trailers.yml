@@ -9,9 +9,10 @@ changelog:
   output: CHANGELOG.md
 
 rendering:
-  commit:
-    trailers:
-      - token: Co-authored-by
-        renderer: "**Co-authored by:** {{ .Value }}"
-      - token: Refs
-        hide: true
+  templates:
+    commit:
+      trailers:
+        - token: Co-authored-by
+          renderer: "**Co-authored by:** {{ .Value }}"
+        - token: Refs
+          hide: true

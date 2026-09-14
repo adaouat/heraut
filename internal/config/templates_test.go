@@ -88,3 +88,18 @@ func TestTemplateOverrides_DeeplyNestedSubValueErrors(t *testing.T) {
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "release.section")
 }
+
+// TestTemplateOverrides_CommitTrailersSkipped covers ADR-0060: commit.trailers is a list of
+// rules, not a template-snippet string like every other commit.* key, so TemplateOverrides must
+// not try to flatten it into its flat map (Rendering.UnmarshalYAML extracts it separately).
+func TestTemplateOverrides_CommitTrailersSkipped(t *testing.T) {
+	got := unmarshalTemplates(t, `
+commit:
+  message: "- {{ .Description }}"
+  trailers:
+    - token: Co-authored-by
+      hide: true
+`)
+	assert.Equal(t, TemplateOverrides{"commit.message": "- {{ .Description }}"}, got,
+		"commit.trailers must not appear in the flattened map")
+}

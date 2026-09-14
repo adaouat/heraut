@@ -344,7 +344,7 @@
             },
             "commit": {
               "type": "object",
-              "description": "Commit-cadence block overrides (ADR-0059).",
+              "description": "Commit-cadence block overrides (ADR-0059), plus trailers (ADR-0060, a non-template-snippet exception grouped here for discoverability).",
               "additionalProperties": false,
               "properties": {
                 "message": {
@@ -358,21 +358,14 @@
                 "contributor": {
                   "type": "string",
                   "description": "One entry in the New Contributors block for a first-time contributor."
+                },
+                "trailers": {
+                  "type": "array",
+                  "description": "Customizes how individual commit-message footer trailers render, matched by token. native only; deep-merged global -> per-driver -> per-env, by token (ADR-0057, relocated here by ADR-0060).",
+                  "items": {
+                    "$ref": "#/definitions/FooterRule"
+                  }
                 }
-              }
-            }
-          }
-        },
-        "commit": {
-          "type": "object",
-          "description": "Rendering config that varies per commit but isn't a template-snippet override (ADR-0060) — currently just trailers.",
-          "additionalProperties": false,
-          "properties": {
-            "trailers": {
-              "type": "array",
-              "description": "Customizes how individual commit-message footer trailers render, matched by token. native only; deep-merged global -> per-driver -> per-env, by token (ADR-0057, relocated here by ADR-0060).",
-              "items": {
-                "$ref": "#/definitions/FooterRule"
               }
             }
           }

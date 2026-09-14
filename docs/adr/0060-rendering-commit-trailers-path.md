@@ -1,10 +1,10 @@
-# ADR-0060: Move `rendering.trailers` to `rendering.commit.trailers`
+# ADR-0060: Move `rendering.trailers` to `rendering.templates.commit.trailers`
 
 - **Status**: Accepted
 - **Date**: 2026-09-14
 - **Deciders**: bchatard
 - **Supersedes**: the config path (not the mechanism) introduced in
-  [ADR-0057](0057-rendering-trailers.md) — `rendering.trailers` → `rendering.commit.trailers`.
+  [ADR-0057](0057-rendering-trailers.md) — `rendering.trailers` → `rendering.templates.commit.trailers`.
   Everything else ADR-0057 decided (the `FooterRule` shape, case-insensitive exact-token
   matching, exactly-one-of `renderer`/`hide`, deep-merge-by-token semantics) is unchanged, and
   the built-in `Co-Authored-By` default layered underneath it
@@ -34,115 +34,117 @@ the same category as `commit.message`/`commit.ticket`/`commit.contributor` — b
 behind at the old flat `rendering.trailers` path, orphaned from the vocabulary ADR-0059 just
 established.
 
+**This ADR's own first cut was wrong and is amended in place, not superseded.** The first draft
+of this decision moved `rendering.trailers` to `rendering.commit.trailers` — a new `commit:`
+object at the `rendering:` level, sibling to `rendering.templates` rather than nested inside it,
+chosen because it avoided a real implementation wrinkle (see Decision below). Implemented,
+documented, and committed the same session, then reviewed again before it was ever relied on by
+any tagged release: the result was two different, same-named `commit` namespaces at two
+different depths under `rendering:` — `rendering.templates.commit.*` for block overrides and
+`rendering.commit.trailers` for the rule list — which defeats the entire point of ADR-0059's
+namespacing (one discoverable place per concept). Because nothing outside this repository has
+ever depended on the interim `rendering.commit.trailers` path, this ADR is corrected in place
+rather than superseded by a new one — there is no real-world config to migrate away from, unlike
+every other breaking rename in this project's history.
+
 ## Decision
 
-**Move `Rendering.Trailers []FooterRule` to `rendering.commit.trailers`** — a new `commit:`
-object, sibling to `rendering.templates`, not nested inside it:
+**Move `rendering.trailers` to `rendering.templates.commit.trailers`** — inside the *existing*
+`rendering.templates.commit` object, alongside `message`/`ticket`/`contributor`:
 
 ```yaml
 rendering:
-  commit:
-    trailers:
-      - token: Co-authored-by
-        renderer: "**Co-authored by:** {{ .Value }}"
-      - token: Refs
-        hide: true
+  templates:
+    commit:
+      message: "- {{ .Description }} ({{ .ShortHash }})"
+      trailers:
+        - token: Co-authored-by
+          renderer: "**Co-authored by:** {{ .Value }}"
+        - token: Refs
+          hide: true
 ```
 
-**Not `rendering.templates.commit.trailers`.** `rendering.templates.commit` (ADR-0059) already
-holds `message`/`ticket`/`contributor` — three plain Go-template-snippet strings, stored as
-`config.TemplateOverrides` (`map[string]string`) with a custom `UnmarshalYAML` that assumes
-every leaf is a snippet string. `trailers` is a *list* of `{token, renderer, hide}` rules — a
-structurally different value shape. Squeezing it into the same map would force
-`TemplateOverrides` to become heterogeneously typed (`string | []FooterRule`), breaking its
-ADR-0059 flattening logic and every downstream consumer (`mergeRendering`,
-`effectiveTemplates`, `buildTemplateSet`) that assumes a flat `map[string]string`. A sibling
-`rendering.commit` object keeps `commit.*` as the shared vocabulary root for "things that vary
-per commit," while letting each mechanism keep its own shape (string map vs. rule list)
-underneath its own key.
+**The implementation wrinkle this requires.** `rendering.templates` is parsed by
+`config.TemplateOverrides` (`map[string]string`, ADR-0059) — every leaf under `release:`/
+`commit:` is expected to be a template-snippet string. `trailers` is a *list* of `{token,
+renderer, hide}` rules, not a string, so it cannot flow through `TemplateOverrides`'s flat map
+unmodified. Rather than accept that mismatch (this ADR's first cut) or change
+`TemplateOverrides` to a heterogeneous `map[string]any` (loses type safety for every other
+block), `Rendering` gets its own `UnmarshalYAML`:
 
 ```go
 // internal/config/commits.go
 
 // Rendering configures content output (ADR-0033).
 type Rendering struct {
-	Excludes  []Exclude         `yaml:"excludes,omitempty"`
-	Templates TemplateOverrides `yaml:"templates,omitempty"`
-	// Commit groups rendering config that varies per commit — currently just Trailers — mirroring
-	// rendering.templates.commit's namespace (ADR-0059) for config that isn't itself a template
-	// snippet. Named RenderingCommit, not Commit, to avoid colliding with the unrelated top-level
-	// Commits struct (conventional-commit type/scope/ticket taxonomy) in this same file.
-	Commit *RenderingCommit `yaml:"commit,omitempty"`
+	Excludes []Exclude `yaml:"excludes,omitempty"`
+	// Templates is populated by Rendering.UnmarshalYAML below, not decoded directly from its own
+	// struct tag — the custom decode needs to see the raw templates node before handing it to
+	// TemplateOverrides, so it can pull commit.trailers out first.
+	Templates TemplateOverrides `yaml:"-"`
+	// Commit holds rendering.templates.commit's one non-snippet field — Trailers — extracted by
+	// UnmarshalYAML from the same templates.commit node TemplateOverrides decodes (ADR-0060).
+	Commit *RenderingCommit `yaml:"-"`
 }
 
-// RenderingCommit is rendering.commit's value type (ADR-0060).
+// RenderingCommit holds rendering.templates.commit's non-snippet fields (ADR-0060).
 type RenderingCommit struct {
-	// Trailers customizes how individual commit-message footer trailers render, matched by
-	// token (ADR-0057; relocated here by ADR-0060).
-	Trailers []FooterRule `yaml:"trailers,omitempty"`
+	Trailers []FooterRule
 }
 ```
 
-**Everything else about the feature is unchanged.** `FooterRule`'s fields, case-insensitive
-exact-token matching, the exactly-one-of `renderer`/`hide` validation, the deep-merge-by-token
-semantics (global → per-driver → per-env, ADR-0057), and the built-in `Co-Authored-By` default
-layered underneath (`config.DefaultTrailers()`, ADR-0058) all carry over verbatim — only the
-config path moves. `effectiveTrailers` (`internal/app/pipeline.go`) reads
-`cfg.Rendering.Commit.Trailers` / `driver.Rendering.Commit.Trailers` instead of
-`cfg.Rendering.Trailers` / `driver.Rendering.Trailers`, nil-checked one level deeper;
-`MergeFooterRules`/`config.DefaultTrailers()` are untouched. `validateTrailers`
-(`internal/config/validator.go`) is called against `cfg.Rendering.Commit.Trailers` (nil-safe),
-and its error paths become `rendering.commit.trailers[i].*` instead of `rendering.trailers[i].*`.
+`Rendering.UnmarshalYAML` decodes `excludes` and `templates` normally (the latter still through
+`TemplateOverrides.UnmarshalYAML`, invoked explicitly), then makes a second, narrow pass over the
+same raw `templates` node looking only for `commit.trailers`, decoding it into `Commit.Trailers`
+when present. `TemplateOverrides.UnmarshalYAML` gains one line: when walking a `commit:` mapping,
+it skips a `trailers` sub-key instead of trying (and failing) to decode it as a string — that key
+is `Rendering.UnmarshalYAML`'s to handle, not its own.
 
-**A struct field removal needs a `removedKeys` migration hint, unlike ADR-0059's block
-renames.** ADR-0059 renamed keys *inside* `rendering.templates`, a `map[string]string` — an old
-flat key like `release_header` still decodes fine (maps accept any key), and only fails later at
-`validateTemplateSnippets`'s semantic "unknown template block" check, which already prints a
-helpful hint. `Rendering.Trailers` is a plain **struct field**, not a map entry: removing it
-means a project's `rendering.trailers:` YAML hits the strict-decode `KnownFields` check
-(`internal/config/loader.go`'s `forgeconfig.Decode`) and fails with a generic "unknown field"
-error, not an actionable one. This needs a `removedKeys` entry (`internal/config/loader.go`,
-alongside `changelog.remote` and friends) so `checkRemovedKeys` catches it first and reports
-`` `rendering.trailers` — rename to `rendering.commit.trailers` `` instead.
+**Everything else about the feature is unchanged**, and everything ADR-0060's first cut already
+built on top of `Rendering.Commit` carries over untouched: `FooterRule`'s fields, case-insensitive
+exact-token matching, the exactly-one-of `renderer`/`hide` validation, the deep-merge-by-token
+semantics (global → per-driver → per-env, ADR-0057), the built-in `Co-Authored-By` default
+(ADR-0058), `mergeRenderingCommit`, and `effectiveTrailers` all work identically whether `Commit`
+was populated by a plain struct-tag decode (the first cut) or by this extraction (only *how*
+`Rendering.Commit` gets populated changed, not what anything downstream does with it).
+`validateTrailers`'s error paths become `rendering.templates.commit.trailers[i].*`.
 
 ## Consequences
 
 - **Breaking rename, no alias** — pre-v1.0, same precedent as ADR-0048/ADR-0049/ADR-0059: any
-  project with `rendering.trailers` set fails to load, with the `removedKeys` migration hint
-  above rather than a raw strict-decode error.
-- **Config-schema growth, tracked as the roadmap tasks below**: `internal/config/commits.go`
-  (`RenderingCommit`, `Rendering.Commit`, drop `Rendering.Trailers`), `internal/config/loader.go`
-  (`removedKeys` entry + `checkRemovedKeys` probe field), `internal/config/validator.go`
-  (`validateTrailers` call site + error paths), `internal/config/merge.go` (`mergeRendering`
-  merges `Commit.Trailers` one level deeper — currently it merges `Trailers` directly by
-  reassigning the slice via `MergeFooterRules`; moving it under a pointer struct means a nil
-  `Commit` on either side needs the same nil-else-merge handling `mergeRendering` already gives
-  `Rendering` itself), `internal/app/pipeline.go` (`effectiveTrailers`'s two field reads),
-  `schema.json` (`trailers` moves from a `Rendering` property to a new `commit` object's
-  property), `docs/heraut.sample.yml`, `docs/specs/02-configuration.md`,
-  `docs/guides/template-customization.md`.
-- **Doc heading anchors stay put, same lesson as ADR-0059.** Spec 02's `### rendering.trailers
-  (ADR-0057, ADR-0058)` heading and the guide's matching `## Customizing footer trailers
-  (rendering.trailers, ADR-0057)` heading are linked from multiple other doc files by their
-  current Markdown anchor slugs; per the precedent ADR-0059 established, the heading text (and
-  therefore its anchor) stays fixed to the founding ADRs, with ADR-0060 and the path change
-  cited in prose instead, not appended to the heading.
-- **`FooterRule`'s own shape is unchanged.** No change needed to `internal/generators/native`
-  beyond how the effective rule map reaches it — `buildCommit`, `tplFooter.Line`, and
-  `release_notes.tmpl`'s `.Footers` loop are untouched.
+  project with the original `rendering.trailers` set fails to load, with the `removedKeys`
+  migration hint (`internal/config/loader.go`) pointing at the new path.
+- **A small, contained custom-decode surface**, not a wholesale nested-struct rewrite of
+  `rendering.templates`: `TemplateOverrides` keeps its flat-map, dotted-key design for every
+  block (ADR-0059) unchanged; only `Rendering` itself gains a custom `UnmarshalYAML` to carve out
+  one non-string leaf.
+- **`schema.json`**: `trailers` is a property of the `commit` object nested inside
+  `rendering.templates`, alongside `message`/`ticket`/`contributor` (JSON Schema has no trouble
+  with a `string`-typed sibling next to an `array`-typed one in the same object — the type
+  constraint that forced `Rendering`'s custom decode is a Go implementation detail, not a schema
+  one).
+- **One discoverable `commit` namespace, not two.** This was the entire motivation for correcting
+  the first cut: everything commit-cadence — block overrides and the trailers rule list alike —
+  now lives under the one path a user would already look at,
+  `rendering.templates.commit`.
 
 ## Alternatives considered
 
-- **`rendering.templates.commit.trailers`** (nested inside the existing `templates` object).
-  Rejected — see Decision above: forces `TemplateOverrides` to hold a non-string leaf, breaking
-  its ADR-0059 flattening contract.
-- **`rendering.commit.footer`/`rendering.commit.footers`.** Considered, since it was the name
-  proposed before this ADR was written up. Rejected: `footer` (document-level credit-line block,
-  ADR-0049) and `release.footer` (per-release trailing block, ADR-0059) already exist —
-  introducing a third, differently-shaped `footer` at `commit.footer` reopens exactly the
-  same-word-different-meaning ambiguity ADR-0048/ADR-0057 each deliberately avoided. `trailers`
-  — ADR-0057's own established term, and git's formal name for these lines — has no such
-  collision.
+- **`rendering.commit.trailers`** (this ADR's own first cut — a new `commit:` object sibling to
+  `rendering.templates`, not nested inside it). Rejected on review: avoided the custom-decode
+  wrinkle above, but produced two different `commit` namespaces at two depths under `rendering:`,
+  reopening the same discoverability problem ADR-0059 existed to solve. Implementation
+  convenience lost to config-authoring clarity.
+- **`rendering.commit.footer`/`rendering.commit.footers`.** Considered even earlier, before this
+  ADR was first written. Rejected: `footer` (document-level credit-line block, ADR-0049) and
+  `release.footer` (per-release trailing block, ADR-0059) already exist — introducing a third,
+  differently-shaped `footer` at `commit.footer` reopens exactly the same-word-different-meaning
+  ambiguity ADR-0048/ADR-0057 each deliberately avoided. `trailers` — ADR-0057's own established
+  term, and git's formal name for these lines — has no such collision.
+- **A heterogeneous `TemplateOverrides` (`map[string]any`).** Rejected: loses compile-time type
+  safety for every other block key to accommodate exactly one exception, and complicates
+  `mergeRendering`'s per-key merge (which currently just copies string values) for no benefit
+  beyond avoiding one small custom-decode method.
 - **Leave `rendering.trailers` where it is.** Rejected: ADR-0057 itself flagged the orphaning
   this ADR fixes, and now that ADR-0059 has established `commit.*` as live vocabulary elsewhere
   in the same `rendering:` tree, leaving `trailers` un-namespaced is the more surprising state,

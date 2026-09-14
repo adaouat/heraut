@@ -48,9 +48,10 @@ const changelogRemoteRemovedHint = "replace with a top-level `forges:` entry and
 const disableNotesRemovedHint = "rename to `disable_release` — it now turns off the entire `release:` behavior (notes and publish together) for that environment, not just the notes text"
 
 // renderingTrailersRemovedHint is the migration guidance for the top-level rendering.trailers
-// (ADR-0060): the per-token commit-footer rendering customization moved under rendering.commit,
-// alongside the other commit-cadence config ADR-0059 established.
-const renderingTrailersRemovedHint = "rename to `rendering.commit.trailers`"
+// (ADR-0060): the per-token commit-footer rendering customization moved under
+// rendering.templates.commit, alongside message/ticket/contributor — the other commit-cadence
+// config ADR-0059 established.
+const renderingTrailersRemovedHint = "rename to `rendering.templates.commit.trailers`"
 
 // removedKeys maps a removed config path to its replacement guidance.
 var removedKeys = []struct{ path, hint string }{

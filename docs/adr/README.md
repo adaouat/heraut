@@ -61,7 +61,7 @@ trade-offs were accepted.
 | [0054](0054-windows-hook-execution.md) | Windows hook execution — `cmd /D /C`, no per-OS command syntax | Accepted |
 | [0055](0055-env-hook-template-variable.md) | `{{ .Env }}` hook template variable — no per-env `hooks:` config | Accepted |
 | [0056](0056-configurable-commit-message-rules.md) | `commits.rules` — configurable commit-message pattern rules | Accepted |
-| [0057](0057-rendering-trailers.md) | `rendering.trailers` — per-token commit-footer rendering customization | Accepted (`Co-Authored-By`'s "no built-in trailer rule" merge semantics superseded by 0058; config path superseded by 0060 — moved to `rendering.commit.trailers`) |
+| [0057](0057-rendering-trailers.md) | `rendering.trailers` — per-token commit-footer rendering customization | Accepted (`Co-Authored-By`'s "no built-in trailer rule" merge semantics superseded by 0058; config path superseded by 0060 — moved to `rendering.templates.commit.trailers`) |
 | [0058](0058-default-coauthored-by-trailer.md) | Built-in default `Co-Authored-By` trailer rendering | Accepted |
 | [0059](0059-namespaced-template-blocks.md) | Namespaced template blocks (`release.*` / `commit.*`) | Accepted |
-| [0060](0060-rendering-commit-trailers-path.md) | Move `rendering.trailers` to `rendering.commit.trailers` | Accepted |
+| [0060](0060-rendering-commit-trailers-path.md) | Move `rendering.trailers` to `rendering.templates.commit.trailers` | Accepted |

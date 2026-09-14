@@ -235,9 +235,9 @@ versioning:
 #   # ADR-0059). native only. Each value is a Go text/template snippet; unset blocks keep their
 #   # built-in. Document-level (fire once per document, no nesting): title, subtitle, footer.
 #   # Release-cadence (nest under release:): section, group, contributors, stats, footer.
-#   # Commit-cadence (nest under commit:): message, ticket, contributor. Plus the structural
-#   # changelog / release_notes roots for whole-document control. commit.ticket renders one
-#   # commits.tickets match within a commit line — override it alone to restyle ticket links
+#   # Commit-cadence (nest under commit:): message, ticket, contributor, trailers. Plus the
+#   # structural changelog / release_notes roots for whole-document control. commit.ticket renders
+#   # one commits.tickets match within a commit line — override it alone to restyle ticket links
 #   # without restating "commit.message". title/subtitle/footer execute against .Heraut's own
 #   # fields directly (.Version .URL .GeneratedAt) — not the full release data, and not
 #   # .Heraut.Version like every other block (including release.footer). footer defaults to a
@@ -245,6 +245,16 @@ versioning:
 #   # defaults to empty. Data & funcs: see the native template contract in the docs. Precedence:
 #   # built-in -> rendering.templates (global) -> <driver>.rendering.templates ->
 #   # environments.<env>.<driver>.rendering.templates -> <driver>.template file.
+#   #
+#   # commit.trailers (ADR-0057, moved here by ADR-0060) is the one commit.* key that isn't a
+#   # template snippet — a list of rules customizing how individual commit-message footer
+#   # trailers render, matched case-insensitively by token. Set exactly one of renderer (a Go
+#   # text/template snippet, executed with {Token, Value}) or hide per entry. An unmatched token
+#   # keeps the built-in "Token: Value" line — except Co-Authored-By, which already has a built-in
+#   # default (`_Co-Authored-By: {{ .Value }}_`, ADR-0058); the entry below only demonstrates
+#   # overriding that default with different Markdown, not introducing new behavior. Governs how a
+#   # footer renders, not whether a block shows footers — release notes already render .Footers by
+#   # default; opt the changelog in via commit.message above.
 #   templates:
 #     release:
 #       section: '## [{{ .Version }}]'
@@ -253,22 +263,11 @@ versioning:
 #       message: '- {{ .Description }} ({{ .ShortHash }})'
 #       ticket: '🎫[{{ .Text }}]({{ .Href }})'
 #       contributor: '* @{{ .Author.Username }} — first contribution 🎉'
-#   # commit.trailers — customize how individual commit-message footer trailers render, matched
-#   # case-insensitively by token (ADR-0057, moved under commit: by ADR-0060 — a sibling of
-#   # templates above, not nested inside templates.commit, since this is a list of rules rather
-#   # than a template-snippet string). Set exactly one of renderer (a Go text/template snippet,
-#   # executed with {Token, Value}) or hide per entry. An unmatched token keeps the built-in
-#   # "Token: Value" line — except Co-Authored-By, which already has a built-in default
-#   # (`_Co-Authored-By: {{ .Value }}_`, ADR-0058); the entry below only demonstrates overriding
-#   # that default with different Markdown, not introducing new behavior. Governs how a footer
-#   # renders, not whether a block shows footers — release notes already render .Footers by
-#   # default; opt the changelog in via rendering.templates.commit.message above.
-#   commit:
-#     trailers:
-#       - token: Co-authored-by
-#         renderer: "**Co-authored by:** {{ .Value }}"
-#       - token: Refs
-#         hide: true
+#       trailers:
+#         - token: Co-authored-by
+#           renderer: "**Co-authored by:** {{ .Value }}"
+#         - token: Refs
+#           hide: true
 
 # ── forges ────────────────────────────────────────────────────────────────────
 #

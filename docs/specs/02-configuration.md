@@ -781,20 +781,21 @@ Customizes how individual commit-message footer trailers (e.g. `Co-authored-by`,
 `Signed-off-by`) render, matched by token — a list of `{token, renderer|hide}` entries, evaluated
 against every commit footer parsed from `.Footers` (see [Spec 05 § User-customizable
 templates](05-generators-and-platforms.md#user-customizable-templates-adr-0037-adr-0048)). Lives
-at `rendering.commit.trailers` — a sibling of `rendering.templates`, namespaced under `commit:`
-alongside the other commit-cadence config ([ADR-0060](../adr/0060-rendering-commit-trailers-path.md)
-moved it there from the original flat `rendering.trailers`; not nested inside
-`rendering.templates.commit` itself, since that object holds template-snippet strings only and
-`trailers` is a list of rules).
+at `rendering.templates.commit.trailers`, inside the *existing* `commit` block-override object,
+alongside `message`/`ticket`/`contributor`
+([ADR-0060](../adr/0060-rendering-commit-trailers-path.md) moved it there from the original flat
+`rendering.trailers`, so every commit-cadence customization — block overrides and this rule list
+alike — lives under the one `rendering.templates.commit` path).
 
 ```yaml
 rendering:
-  commit:
-    trailers:
-      - token: Co-authored-by
-        renderer: "**Co-authored by:** {{ .Value }}"
-      - token: Refs
-        hide: true
+  templates:
+    commit:
+      trailers:
+        - token: Co-authored-by
+          renderer: "**Co-authored by:** {{ .Value }}"
+        - token: Refs
+          hide: true
 ```
 
 | Field      | Required | Description                                                                                                       |
@@ -805,19 +806,19 @@ rendering:
 
 ¹ Set exactly one of `renderer` or `hide` per entry.
 
-A footer whose token matches no `rendering.commit.trailers` entry keeps the built-in
-`"Token: Value"` format — setting `rendering.commit.trailers` never changes output for tokens you
-haven't listed, with one built-in exception: `Co-Authored-By` renders as
+A footer whose token matches no `rendering.templates.commit.trailers` entry keeps the built-in
+`"Token: Value"` format — setting `rendering.templates.commit.trailers` never changes output for
+tokens you haven't listed, with one built-in exception: `Co-Authored-By` renders as
 `_Co-Authored-By: {{ .Value }}_` by default (ADR-0058), the same override-wins-by-token
 precedence applying to it as any user-set entry — set your own `token: Co-Authored-By` entry (a
 different `renderer`, or `hide: true`) to change or suppress it. This governs **how** a footer
 renders, never **whether** a block shows footers at all: release notes already render `.Footers`
-by default; the changelog's `commit.message` block does not, and `rendering.commit.trailers`
-doesn't change that — see a `changelog`/`release.notes` block's own
-`rendering.templates.commit.message` override (§ `rendering.templates` above) to opt footers into
-the changelog. Like `rendering.templates`, a `changelog`/`release.notes` block's own
-`rendering.commit.trailers` deep-merges over this global list, by token — the driver's entry wins
-for a given token, an unset token falls through to the global one.
+by default; the changelog's `commit.message` block does not, and
+`rendering.templates.commit.trailers` doesn't change that — see a `changelog`/`release.notes`
+block's own `rendering.templates.commit.message` override (§ `rendering.templates` above) to opt
+footers into the changelog. Like the rest of `rendering.templates`, a `changelog`/`release.notes`
+block's own `rendering.templates.commit.trailers` deep-merges over this global list, by token —
+the driver's entry wins for a given token, an unset token falls through to the global one.
 
 ## Content generation
 

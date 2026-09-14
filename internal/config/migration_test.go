@@ -109,7 +109,7 @@ rendering:
     - token: Refs
       hide: true
 `,
-			wantHint: "rendering.commit.trailers",
+			wantHint: "rendering.templates.commit.trailers",
 		},
 	}
 	for _, tc := range tests {

@@ -451,14 +451,15 @@ func validateRendering(cfg *Config) []ValidationError {
 	return errs
 }
 
-// validateTrailers validates rendering.commit.trailers (ADR-0057; relocated by ADR-0060): each
+// validateTrailers validates rendering.templates.commit.trailers (ADR-0057; relocated by
+// ADR-0060): each
 // rule has a non-empty token, unique case-insensitively across the list, and sets exactly one of
 // renderer/hide; renderer, when set, must parse as a valid Go template.
 func validateTrailers(rules []FooterRule) []ValidationError {
 	var errs []ValidationError
 	seen := make(map[string]int)
 	for i, r := range rules {
-		path := fmt.Sprintf("rendering.commit.trailers[%d]", i)
+		path := fmt.Sprintf("rendering.templates.commit.trailers[%d]", i)
 
 		if r.Token == "" {
 			errs = append(errs, ValidationError{Path: path + ".token", Message: "required"})

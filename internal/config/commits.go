@@ -31,7 +31,11 @@ type Commits struct {
 	EnrichmentPolicy string `yaml:"enrichment_policy,omitempty"`
 }
 
-// Rendering configures content output (ADR-0033).
+// Rendering configures content output (ADR-0033). It has a custom UnmarshalYAML (templates.go)
+// because rendering.templates.commit.trailers (ADR-0060) is a list of rules, not a
+// template-snippet string like its commit.message/commit.ticket/commit.contributor siblings, so
+// it can't flow through Templates' flat TemplateOverrides map — the custom decode carves it out
+// into Commit separately, from the same raw templates node TemplateOverrides also reads.
 type Rendering struct {
 	// Excludes drop matched commits from the rendered changelog/release-notes.
 	Excludes []Exclude `yaml:"excludes,omitempty"`
@@ -40,14 +44,15 @@ type Rendering struct {
 	// text/template snippet. native only — deep-merged global → per-driver → per-env (ADR-0037,
 	// ADR-0048, ADR-0059).
 	Templates TemplateOverrides `yaml:"templates,omitempty"`
-	// Commit groups rendering config that varies per commit — currently just Trailers — mirroring
-	// rendering.templates.commit's namespace (ADR-0059) for config that isn't itself a template
-	// snippet. Named RenderingCommit, not Commit, to avoid colliding with the unrelated top-level
-	// Commits struct (conventional-commit type/scope/ticket taxonomy) in this same file.
-	Commit *RenderingCommit `yaml:"commit,omitempty"`
+	// Commit groups rendering.templates.commit config that isn't itself a template-snippet
+	// override — currently just Trailers. Named RenderingCommit, not Commit, to avoid colliding
+	// with the unrelated top-level Commits struct (conventional-commit type/scope/ticket
+	// taxonomy) in this same file. No yaml tag: populated by Rendering.UnmarshalYAML, not decoded
+	// from its own top-level key (ADR-0060).
+	Commit *RenderingCommit
 }
 
-// RenderingCommit is rendering.commit's value type (ADR-0060).
+// RenderingCommit holds rendering.templates.commit's non-snippet fields (ADR-0060).
 type RenderingCommit struct {
 	// Trailers customizes how individual commit-message footer trailers render, matched by
 	// token. native only — deep-merged global → per-driver → per-env, by token, like Templates

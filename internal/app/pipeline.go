@@ -537,12 +537,12 @@ func effectiveTemplates(cfg *config.Config, driver *config.ContentDriver) map[st
 	return eff
 }
 
-// effectiveTrailers overlays the driver's rendering.commit.trailers over the global
-// rendering.commit.trailers, which in turn overlays config.DefaultTrailers() (driver wins per
-// token, global wins over the built-in default, unset tokens fall through — ADR-0057, mirroring
-// effectiveTemplates; the built-in default layer is ADR-0058; the commit.trailers path is
-// ADR-0060), flattened into a lookup map keyed by lowercased token for the native generator.
-// Always includes at least the built-in default set.
+// effectiveTrailers overlays the driver's rendering.templates.commit.trailers over the global
+// rendering.templates.commit.trailers, which in turn overlays config.DefaultTrailers() (driver
+// wins per token, global wins over the built-in default, unset tokens fall through — ADR-0057,
+// mirroring effectiveTemplates; the built-in default layer is ADR-0058; the
+// templates.commit.trailers path is ADR-0060), flattened into a lookup map keyed by lowercased
+// token for the native generator. Always includes at least the built-in default set.
 func effectiveTrailers(cfg *config.Config, driver *config.ContentDriver) map[string]config.FooterRule {
 	var global, perDriver []config.FooterRule
 	if cfg.Rendering != nil && cfg.Rendering.Commit != nil {

@@ -5,6 +5,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"gopkg.in/yaml.v3"
 )
 
 func typeNames(types []TypeRule) []string {
@@ -157,4 +158,67 @@ func TestDefaultTrailers_CoAuthoredByRendersItalicCreditLine(t *testing.T) {
 	require.NotNil(t, rule)
 	assert.Equal(t, "_Co-Authored-By: {{ .Value }}_", rule.Renderer)
 	assert.False(t, rule.Hide)
+}
+
+func unmarshalRendering(t *testing.T, doc string) Rendering {
+	t.Helper()
+	var r Rendering
+	require.NoError(t, yaml.Unmarshal([]byte(doc), &r))
+	return r
+}
+
+// TestRendering_UnmarshalYAML_ExtractsCommitTrailers covers ADR-0060: rendering.templates.commit.
+// trailers decodes into Rendering.Commit.Trailers, separately from the rest of
+// rendering.templates.commit, which still flows into Rendering.Templates as usual.
+func TestRendering_UnmarshalYAML_ExtractsCommitTrailers(t *testing.T) {
+	r := unmarshalRendering(t, `
+templates:
+  title: "# Changelog"
+  commit:
+    message: "- {{ .Description }}"
+    trailers:
+      - token: Co-authored-by
+        renderer: "**{{ .Value }}**"
+      - token: Refs
+        hide: true
+`)
+	assert.Equal(t, "# Changelog", r.Templates["title"])
+	assert.Equal(t, "- {{ .Description }}", r.Templates["commit.message"])
+	assert.NotContains(t, r.Templates, "commit.trailers", "trailers must not leak into the flat template map")
+
+	require.NotNil(t, r.Commit)
+	require.Len(t, r.Commit.Trailers, 2)
+	assert.Equal(t, "Co-authored-by", r.Commit.Trailers[0].Token)
+	assert.Equal(t, "**{{ .Value }}**", r.Commit.Trailers[0].Renderer)
+	assert.True(t, r.Commit.Trailers[1].Hide)
+}
+
+func TestRendering_UnmarshalYAML_NoTrailersLeavesCommitNil(t *testing.T) {
+	r := unmarshalRendering(t, `
+templates:
+  commit:
+    message: "- {{ .Description }}"
+`)
+	assert.Nil(t, r.Commit)
+	assert.Equal(t, "- {{ .Description }}", r.Templates["commit.message"])
+}
+
+func TestRendering_UnmarshalYAML_ExcludesPreserved(t *testing.T) {
+	r := unmarshalRendering(t, `
+excludes:
+  - type: chore
+  - regex: "^wip:"
+`)
+	require.Len(t, r.Excludes, 2)
+	assert.Equal(t, "chore", r.Excludes[0].Type)
+	assert.Equal(t, "^wip:", r.Excludes[1].Regex)
+	assert.Nil(t, r.Templates)
+	assert.Nil(t, r.Commit)
+}
+
+func TestRendering_UnmarshalYAML_UnknownFieldRejected(t *testing.T) {
+	var r Rendering
+	err := yaml.Unmarshal([]byte("bogus: true"), &r)
+	require.Error(t, err, "a custom UnmarshalYAML must not silently accept unknown top-level rendering keys")
+	assert.Contains(t, err.Error(), "bogus")
 }
