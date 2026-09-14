@@ -215,6 +215,7 @@ discipline that applies to every task.
 | 44 | Windows hook execution | Done |
 | 45 | `{{ .Env }}` hook template variable | Done |
 | 46 | Configurable commit-message rules (`commits.rules`) | Done |
+| 47 | Per-token footer/trailer rendering customization (`rendering.trailers`) | ADR-0057 accepted — implementation not started (T284–T285) |
 
 ### Open items
 
@@ -1127,6 +1128,45 @@ This file's own intro (lines 11 and 39) also said "51 ADRs" — stale since well
 this task (`CLAUDE.md` was kept in sync at each ADR-adding task; this intro prose was
 not). Noticed during T282 but out of its original scope, so flagged to the user rather
 than silently fixed; corrected here on request.
+
+---
+
+### Phase 47 — Per-token footer/trailer rendering customization (`rendering.trailers`)
+
+Commit-message footer trailers (`Co-authored-by:`, `Refs:`, `Signed-off-by:`, …) already parse
+generically into `{Token, Value}` pairs and reach `release_notes.tmpl` via `tplCommit.Footers`,
+but every trailer renders identically (`Token: Value`) with no way to relabel, reformat, or
+suppress one by token, and the changelog's `commit` block doesn't render footers at all. This
+phase adds `rendering.trailers`, a list of per-token `FooterRule` matchers (case-insensitive
+exact match on token; a Go-template `renderer` snippet or `hide`), applied wherever a template
+renders `.Footers`.
+
+#### ✦ `[x]` T283: ADR-0057 — `rendering.trailers`: per-token footer rendering customization
+
+[ADR-0057](../adr/0057-rendering-trailers.md): add `rendering.trailers`, a list of `FooterRule`
+objects (`token`, exactly one of `renderer`/`hide`), resolved once per commit in
+`buildCommit` and exposed as a new `tplFooter.Line` field so every consumer of `.Footers`
+(today: `release_notes.tmpl`; the changelog `commit` block if a project opts in via the
+existing `rendering.templates.commit` override) gets customized rendering for free. Matching is
+case-insensitive exact-match on token, not regex — footer tokens are a small, tool-emitted,
+fixed-spelling vocabulary. Merge semantics mirror `rendering.templates` (deep-merge by key,
+global → driver → env), not `commits.types`/`commits.scopes` (no built-in trailer rules to
+merge over — the implicit default is the existing `Token: Value` fallback).
+
+Named `trailers`, deliberately not `footers`: `footer` (singular) is already the document-level
+credit-line block key (ADR-0049) and `tplCommit.Footers` is already the model field name, so
+`rendering.footers` risked the exact same-word-different-meaning ambiguity ADR-0048 resolved for
+`header`/`release_header`. Confirmed as an explicit non-goal: a broader restructuring of
+`rendering.templates` from its current flat `map[string]string` into a nested shape (e.g.
+`release.commit.{title,tickets,body,footers}`) was raised in the same discussion and
+deliberately kept out of this ADR — it renames every existing block key (reopening ADR-0048's
+`header` disambiguation, moving `footer`/`release_footer` again after ADR-0049 renamed them
+three weeks prior) and makes `body` newly overridable when it isn't today. That idea is not yet
+scoped or tracked as a task; picking it up later is a separate ADR + roadmap phase.
+
+#### ✦ `[ ]` T284: `internal/config` + `internal/generators/native`: implement `rendering.trailers`
+
+#### ✦ `[ ]` T285: Docs — Spec 05 § `rendering.trailers` + schema.json + sample config + ADR-0057 cross-reference
 
 ---
 
