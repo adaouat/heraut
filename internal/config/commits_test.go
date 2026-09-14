@@ -151,3 +151,10 @@ func TestMergeFooterRules_NilSides(t *testing.T) {
 	assert.Equal(t, rules, MergeFooterRules(nil, rules), "nil base returns override")
 	assert.Nil(t, MergeFooterRules(nil, nil))
 }
+
+func TestDefaultTrailers_CoAuthoredByRendersItalicCreditLine(t *testing.T) {
+	rule := findFooterRule(DefaultTrailers(), "Co-Authored-By")
+	require.NotNil(t, rule)
+	assert.Equal(t, "_Co-Authored-By: {{ .Value }}_", rule.Renderer)
+	assert.False(t, rule.Hide)
+}

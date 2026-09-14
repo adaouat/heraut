@@ -58,6 +58,18 @@ type FooterRule struct {
 	Hide bool `yaml:"hide,omitempty"`
 }
 
+// DefaultTrailers is the built-in trailer-rule set merged under user rendering.trailers,
+// mirroring defaultTypes/defaultScopes (ADR-0058): Co-Authored-By is common enough (GitHub
+// co-authored commits, git commit --trailer, AI pairing tools) to warrant a de-emphasized
+// credit line instead of the raw "Token: Value" fallback. Exported, unlike defaultTypes/
+// defaultScopes, because its merge call site lives in internal/app (effectiveTrailers), not
+// internal/config.
+func DefaultTrailers() []FooterRule {
+	return []FooterRule{
+		{Token: "Co-Authored-By", Renderer: "_Co-Authored-By: {{ .Value }}_"},
+	}
+}
+
 // MergeFooterRules overlays override's entries onto base, matched case-insensitively by Token:
 // an overridden token's entry is replaced (keeping base's position), and override-only tokens
 // are appended after. Mirrors Templates' per-key override-wins merge (ADR-0057), adapted for a
