@@ -219,6 +219,7 @@ discipline that applies to every task.
 | 48 | Built-in default `Co-Authored-By` trailer rendering | Done |
 | 49 | Namespaced template blocks (`release.*` / `commit.*`) | Done |
 | 50 | Move `rendering.trailers` to `rendering.templates.commit.trailers` | Done |
+| 51 | Hook-declared file staging | Not started — see `hook-file-staging-roadmap.md` |
 
 ### Open items
 
@@ -1601,6 +1602,26 @@ was touched anyway.
 Full suite (`go test ./...`, including `TestSchema_ValidFixtures`/`TestSchema_InvalidFixtures`),
 `go build`, `go vet`, and `hk check` (`yamlfmt`, `typos`) all green. This closes Phase 50 — move
 `rendering.trailers` to `rendering.templates.commit.trailers`: all of T292–T294 are done.
+
+---
+
+### Phase 51 — Hook-declared file staging
+
+A hook entry (`post_bump`/`pre_changelog` only) can declare `stage: [...]` — file(s)/pattern(s)
+it produces, staged into the same commit as `CHANGELOG.md`. Investigated cocogitto's equivalent
+(`pre_bump_hooks` + a blanket `git add -A` via `add_all()`, confirmed from its actual source) and
+deliberately rejected that blanket approach in favor of explicit, opt-in declarations — no
+unrelated dirty file ever rides along into a release commit. Reuses `git add`'s own pathspec
+matching (no new glob dependency); a zero-match pattern is already a `git add` failure, so no new
+error-detection code is needed either. **Deliberate breaking change**: every hook point's list
+entries become object-only (`{run: "...", stage: [...]}` — `run` required) — the bare-string
+shorthand ADR-0053 shipped is no longer accepted. New ADR-0061. Six tasks (config schema →
+validator → pipeline/app plumbing → commit staging → integration test → docs), so the task
+breakdown and live `[ ] / [x]` status live in a dedicated roadmap:
+
+→ **[Hook File Staging Roadmap](hook-file-staging-roadmap.md)** — T295+
+
+Design: [`docs/superpowers/specs/2026-09-17-hook-file-staging-design.md`](../superpowers/specs/2026-09-17-hook-file-staging-design.md).
 
 ---
 
