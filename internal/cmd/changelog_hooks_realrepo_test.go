@@ -5,6 +5,8 @@ import (
 	"os/exec"
 	"testing"
 
+	"github.com/adaouat/heraut/internal/cmd"
+	"github.com/adaouat/heraut/internal/exitcode"
 	"github.com/adaouat/heraut/internal/testutil"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -37,9 +39,9 @@ versioning:
 
 hooks:
   pre_tag:
-    - "echo pre_tag:{{ .Tag }} >> hooks.log"
+    - run: "echo pre_tag:{{ .Tag }} >> hooks.log"
   post_tag:
-    - "echo post_tag:{{ .Tag }} >> hooks.log"
+    - run: "echo post_tag:{{ .Tag }} >> hooks.log"
 `), 0o644))
 
 	out, err := executeRoot("changelog", "--tag", "--no-push")
@@ -75,9 +77,9 @@ versioning:
 
 hooks:
   pre_tag:
-    - "echo pre_tag:{{ .Tag }} >> hooks.log"
+    - run: "echo pre_tag:{{ .Tag }} >> hooks.log"
   post_tag:
-    - "echo post_tag:{{ .Tag }} >> hooks.log"
+    - run: "echo post_tag:{{ .Tag }} >> hooks.log"
 `), 0o644))
 
 	out, err := executeRoot("changelog", "--tag", "--no-push", "--no-hooks")
@@ -85,4 +87,89 @@ hooks:
 
 	_, err = os.Stat("hooks.log")
 	assert.True(t, os.IsNotExist(err), "hooks.log must not exist — --no-hooks must skip real execution")
+}
+
+// TestChangelog_RealGit_PostBumpHookStagesDeclaredFile is T299: a real-git-repo proof that a
+// post_bump hook's declared `stage` patterns (ADR-0061) actually land in the same commit as the
+// changelog — not just that MockRunner recorded the right `git add` args (that's already covered
+// at the pipeline contract-test layer, T295-T298), but that a real hook-written file really ends
+// up in the real commit's tree.
+func TestChangelog_RealGit_PostBumpHookStagesDeclaredFile(t *testing.T) {
+	t.Setenv("GIT_CONFIG_GLOBAL", "/dev/null")
+	t.Setenv("GIT_CONFIG_SYSTEM", "/dev/null")
+
+	testutil.RealGitRepo(t, "v0.1.0")
+
+	if out, err := exec.Command("git", "commit", "--allow-empty", "-m", "fix: something releasable").CombinedOutput(); err != nil {
+		t.Fatalf("git commit: %v\n%s", err, out)
+	}
+
+	require.NoError(t, os.WriteFile(".heraut.yml", []byte(`
+version: "1"
+versioning:
+  strategy: semver
+
+changelog:
+  output: CHANGELOG.md
+
+hooks:
+  post_bump:
+    - run: 'echo "1.0.0" > version.txt'
+      stage: ["version.txt"]
+`), 0o644))
+
+	out, err := executeRoot("changelog", "--tag", "--no-push")
+	require.NoErrorf(t, err, "output:\n%s", out)
+
+	showOut, err := exec.Command("git", "show", "--name-only", "HEAD").CombinedOutput()
+	require.NoError(t, err)
+	files := string(showOut)
+	assert.Contains(t, files, "CHANGELOG.md", "the changelog must be part of the release commit's tree")
+	assert.Contains(t, files, "version.txt", "the hook-declared stage pattern must be part of the same commit's tree")
+}
+
+// TestChangelog_RealGit_PostBumpHookStageMissingFileAbortsCommit is T299's second real-git-repo
+// case: a post_bump hook that declares a `stage` pattern matching nothing on disk must fail the
+// real `git add` (ADR-0061 Design §4 — a zero-match stage pattern is a `git add` failure like any
+// other, no special-cased detection) before `git commit` ever runs, so no changelog commit is
+// created.
+func TestChangelog_RealGit_PostBumpHookStageMissingFileAbortsCommit(t *testing.T) {
+	t.Setenv("GIT_CONFIG_GLOBAL", "/dev/null")
+	t.Setenv("GIT_CONFIG_SYSTEM", "/dev/null")
+
+	testutil.RealGitRepo(t, "v0.1.0")
+
+	if out, err := exec.Command("git", "commit", "--allow-empty", "-m", "fix: something releasable").CombinedOutput(); err != nil {
+		t.Fatalf("git commit: %v\n%s", err, out)
+	}
+
+	logBefore, err := exec.Command("git", "log", "--oneline").CombinedOutput()
+	require.NoError(t, err)
+
+	require.NoError(t, os.WriteFile(".heraut.yml", []byte(`
+version: "1"
+versioning:
+  strategy: semver
+
+changelog:
+  output: CHANGELOG.md
+
+hooks:
+  post_bump:
+    - run: "echo hook ran, but staged nothing"
+      stage: ["does-not-exist.txt"]
+`), 0o644))
+
+	out, err := executeRoot("changelog", "--tag", "--no-push")
+	require.Error(t, err, "output:\n%s", out)
+	assert.Equal(t, exitcode.Runtime, cmd.ExitCode(err))
+	// The detailed step failure — including the underlying `git add` error — is printed to out by
+	// the spinner reporter; err itself carries only the short top-level summary (mirrors
+	// TestChangelog_PreflightFail_GitIdentityMissing's convention in changelog_test.go).
+	assert.Contains(t, out, "git add", "the failure must surface as a git add failure, not something else")
+
+	logAfter, err := exec.Command("git", "log", "--oneline").CombinedOutput()
+	require.NoError(t, err)
+	assert.Equal(t, string(logBefore), string(logAfter),
+		"git add failing must abort before git commit — no changelog commit must have been created")
 }
