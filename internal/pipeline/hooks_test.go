@@ -36,25 +36,36 @@ func TestRenderHookCmd_SubstitutesVars(t *testing.T) {
 	vars := hookVars{Version: "1.2.3", Tag: "v1.2.3", PreviousTag: "v1.2.2", Platform: "github", Env: "staging"}
 
 	rendered, err := renderHookCmd(
-		"echo {{ .Version }} {{ .Tag }} {{ .PreviousTag }} {{ .Platform }} {{ .Env }}", vars)
+		"echo {{ .Version }} {{ .Tag }} {{ .PreviousTag }} {{ .Platform }} {{ .Env }}", vars, "hook command")
 	require.NoError(t, err)
 	assert.Equal(t, "echo 1.2.3 v1.2.3 v1.2.2 github staging", rendered)
 }
 
 func TestRenderHookCmd_NoTemplateSyntaxPassesThrough(t *testing.T) {
-	rendered, err := renderHookCmd("go build ./...", hookVars{})
+	rendered, err := renderHookCmd("go build ./...", hookVars{}, "hook command")
 	require.NoError(t, err)
 	assert.Equal(t, "go build ./...", rendered)
 }
 
 func TestRenderHookCmd_InvalidTemplateReturnsError(t *testing.T) {
-	_, err := renderHookCmd("echo {{ .Version", hookVars{})
+	_, err := renderHookCmd("echo {{ .Version", hookVars{}, "hook command")
 	require.Error(t, err)
+	assert.Contains(t, err.Error(), "hook command")
 }
 
 func TestRenderHookCmd_UnknownFieldReturnsError(t *testing.T) {
-	_, err := renderHookCmd("echo {{ .NotAField }}", hookVars{})
+	_, err := renderHookCmd("echo {{ .NotAField }}", hookVars{}, "hook command")
 	require.Error(t, err)
+	assert.Contains(t, err.Error(), "hook command")
+}
+
+// TestRenderHookCmd_ErrorUsesGivenLabel proves the label parameter — not a hardcoded "hook
+// command" — drives the error text, so a Stage-pattern render error reads as such.
+func TestRenderHookCmd_ErrorUsesGivenLabel(t *testing.T) {
+	_, err := renderHookCmd("dist/{{ .Bad", hookVars{}, "stage pattern")
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "stage pattern")
+	assert.NotContains(t, err.Error(), "hook command")
 }
 
 func TestRenderHookStep_RendersRunAndStage(t *testing.T) {
@@ -72,11 +83,13 @@ func TestRenderHookStep_RendersRunAndStage(t *testing.T) {
 func TestRenderHookStep_RunRenderErrorPropagates(t *testing.T) {
 	_, err := renderHookStep(HookStep{Run: "echo {{ .Bad"}, hookVars{})
 	require.Error(t, err)
+	assert.Contains(t, err.Error(), "hook command")
 }
 
 func TestRenderHookStep_StageRenderErrorPropagates(t *testing.T) {
 	_, err := renderHookStep(HookStep{Run: "echo ok", Stage: []string{"{{ .Bad"}}, hookVars{})
 	require.Error(t, err)
+	assert.Contains(t, err.Error(), "stage pattern")
 }
 
 func TestRenderHookSteps_RendersEachInOrder(t *testing.T) {
@@ -89,7 +102,7 @@ func TestRenderHookSteps_RendersEachInOrder(t *testing.T) {
 	rendered, err := renderHookSteps(steps, vars)
 	require.NoError(t, err)
 	assert.Equal(t, []renderedHookStep{
-		{Run: "echo 1.2.3", Stage: []string{}},
+		{Run: "echo 1.2.3", Stage: nil},
 		{Run: "echo done", Stage: []string{"out.txt"}},
 	}, rendered)
 }
@@ -144,7 +157,7 @@ func TestRunHookPointSteps_ReturnsRenderedStepsOnSuccess(t *testing.T) {
 
 	assert.Equal(t, []renderedHookStep{
 		{Run: "echo 1.2.3", Stage: []string{"dist/1.2.3.tgz"}},
-		{Run: "echo done", Stage: []string{}},
+		{Run: "echo done", Stage: nil},
 	}, rendered)
 }
 

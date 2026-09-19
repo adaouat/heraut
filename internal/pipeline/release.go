@@ -470,14 +470,15 @@ func (p *Pipeline) dryRunOutput(result versioning.Result) error {
 	return nil
 }
 
-// warnNothingToCommit emits an actionable warning, naming the changelog file, when a
-// regenerated changelog is byte-identical to the last commit so nothing was staged. It
+// warnNothingToCommit emits an actionable warning when `git add` staged nothing this run —
+// the changelog file, any hook-declared `stage` files (ADR-0061), or both, were already
+// byte-identical to the last commit, so there's no single file to pin the cause on. It
 // writes to w (both reporter and plain modes) so the diagnostic is visible in CI, where
 // this most often surfaces (re-run after a partial release, or no changelog-worthy
 // commits). The pipeline continues to tag and publish.
 func warnNothingToCommit(w io.Writer, file string) {
 	_, _ = fmt.Fprintln(w, ui.Warn(w, fmt.Sprintf(
-		"%s unchanged — no new entries to commit; skipping commit, continuing to tag and release", file)))
+		"nothing to commit — %s and any hook-staged files are unchanged; skipping commit, continuing to tag and release", file)))
 }
 
 // printSummary writes the post-run summary to p.out.

@@ -941,8 +941,8 @@ func TestRun_ChangelogNothingToCommit(t *testing.T) {
 	// Still published.
 	require.Len(t, platform.CreateReleaseCalls, 1)
 
-	// Warning names the file.
-	assert.Contains(t, out.String(), "CHANGELOG.md unchanged")
+	// Warning names the file, without pinning the cause solely on it.
+	assert.Contains(t, out.String(), "nothing to commit — CHANGELOG.md and any hook-staged files are unchanged")
 }
 
 // TestCheck_NotesGeneratorError propagates release-notes generator check failures.

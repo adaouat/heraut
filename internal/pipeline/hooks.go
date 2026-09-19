@@ -33,30 +33,33 @@ type renderedHookStep struct {
 	Stage []string
 }
 
-// renderHookCmd renders tmplStr (a hook command string) as a Go text/template against vars.
-// vars is a struct, so text/template already errors on an unknown field (e.g. {{ .Typo }})
-// without needing the missingkey option, which only affects map lookups.
-func renderHookCmd(tmplStr string, vars hookVars) (string, error) {
+// renderHookCmd renders tmplStr as a Go text/template against vars. label identifies what
+// tmplStr is in any error text — "hook command" for a Run string, "stage pattern" for a
+// Stage entry — so a broken template's error names the field a user actually wrote instead
+// of always saying "hook command" regardless of which one failed. vars is a struct, so
+// text/template already errors on an unknown field (e.g. {{ .Typo }}) without needing the
+// missingkey option, which only affects map lookups.
+func renderHookCmd(tmplStr string, vars hookVars, label string) (string, error) {
 	tmpl, err := template.New("hook").Parse(tmplStr)
 	if err != nil {
-		return "", fmt.Errorf("parsing hook command %q: %w", tmplStr, err)
+		return "", fmt.Errorf("parsing %s %q: %w", label, tmplStr, err)
 	}
 	var buf strings.Builder
 	if err := tmpl.Execute(&buf, vars); err != nil {
-		return "", fmt.Errorf("rendering hook command %q: %w", tmplStr, err)
+		return "", fmt.Errorf("rendering %s %q: %w", label, tmplStr, err)
 	}
 	return buf.String(), nil
 }
 
 // renderHookStep renders step's Run and every Stage entry against vars.
 func renderHookStep(step HookStep, vars hookVars) (renderedHookStep, error) {
-	run, err := renderHookCmd(step.Run, vars)
+	run, err := renderHookCmd(step.Run, vars, "hook command")
 	if err != nil {
 		return renderedHookStep{}, err
 	}
-	stage := make([]string, 0, len(step.Stage))
+	var stage []string
 	for _, s := range step.Stage {
-		rendered, err := renderHookCmd(s, vars)
+		rendered, err := renderHookCmd(s, vars, "stage pattern")
 		if err != nil {
 			return renderedHookStep{}, err
 		}

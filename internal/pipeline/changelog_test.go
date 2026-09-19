@@ -427,7 +427,7 @@ func TestChangelogRun_NothingToCommit(t *testing.T) {
 	assert.Equal(t, []string{"tag", "v1.2.3"}, mr.Calls[2].Args)
 	assert.Equal(t, []string{"push", "origin", "v1.2.3"}, mr.Calls[3].Args)
 
-	assert.Contains(t, out.String(), "CHANGELOG.md unchanged")
+	assert.Contains(t, out.String(), "nothing to commit — CHANGELOG.md and any hook-staged files are unchanged")
 }
 
 // TestChangelogRun_GitAddError propagates git add failures.
