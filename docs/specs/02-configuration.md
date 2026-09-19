@@ -1115,8 +1115,8 @@ Each key is a list of hook steps, run in order; the first failing step stops the
 list. Every step is an object ([ADR-0061](../adr/0061-hook-file-staging.md)): `run` (required)
 is the shell command to execute; `stage` (optional — see [§ `stage`](#stage-adr-0061) below) is
 a list of file paths/patterns that command produces, staged into the same commit as
-`CHANGELOG.md`. A bare string entry (`- "echo hi"`, the shorthand ADR-0053 originally shipped) is
-a config error — wrap it as `{ run: "echo hi" }`.
+`CHANGELOG.md` whenever that commit happens this run. A bare string entry (`- "echo hi"`, the
+shorthand ADR-0053 originally shipped) is a config error — wrap it as `{ run: "echo hi" }`.
 
 ### Hook points
 
@@ -1160,6 +1160,15 @@ produces. Every `stage` entry, from every step across **both** `post_bump` and
 the order those hooks executed — alongside the changelog file, not instead of it. There is
 no blanket "stage everything dirty" mode; only paths a hook explicitly names are ever staged
 beyond the changelog file itself ([ADR-0061](../adr/0061-hook-file-staging.md)).
+
+**Staging only happens when a changelog commit happens.** `stage` patterns reach `git add`
+only as part of the "Commit changelog" step, so they only ever get committed in a run where
+that step actually runs. In a run where no changelog commit happens this run — no
+`changelog:` block configured, `disable_changelog: true`, or `heraut changelog` invoked
+without `--commit`/`--tag` — any hook's `run` command still executes, but its declared
+`stage` files are never folded into a commit; they stay as ordinary uncommitted changes in
+the working tree. This is not a config error (that's the wrong-hook-point case below) —
+there is simply no commit left for `stage` to join.
 
 `stage` entries are Go `text/template` strings, rendered through the same engine as `run`
 (§ Template variables above), so `stage: ["dist/app-{{ .Version }}.json"]` works.

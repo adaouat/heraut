@@ -292,7 +292,7 @@
         },
         "stage": {
           "type": "array",
-          "description": "Paths to stage after run completes. Only meaningful under post_bump/pre_changelog.",
+          "description": "Paths to stage after run completes. Only valid under post_bump/pre_changelog — a config validation error at any other hook point.",
           "items": {
             "type": "string"
           }

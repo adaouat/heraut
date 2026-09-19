@@ -169,8 +169,13 @@ anything.
 - **No blanket staging, ever.** A hook's blast radius on the git index is exactly the paths
   it names in its own `stage` list — never "everything dirty in the tree." An unrelated
   stray local change stays untouched by a release run, unlike cocogitto's `add_all`.
-- **`stage` is dead weight if declared in the wrong place** — not silently, but as a hard
-  config error at validation time, before any hook runs.
+- **`stage` is dead weight if misused, in two different ways.** Declaring it at the wrong
+  hook point (`pre_tag`/`post_tag`/`pre_release`/`post_release`) is a hard config error at
+  validation time, before any hook runs. Declaring it at a valid point (`post_bump`/
+  `pre_changelog`) in a run where no changelog commit happens this run — no `changelog:`
+  block configured, `disable_changelog: true`, or `heraut changelog` invoked without
+  `--commit`/`--tag` — is *not* an error: the hook's `run` command still executes, but there
+  is no commit for `stage` to join, so its files stay uncommitted in the working tree.
 - **One predictable `HookStep` shape everywhere**, even though `stage` is only meaningful on
   two of the six points — a future hook-entry field (already anticipated) extends the same
   type instead of requiring a second migration.

@@ -61,6 +61,11 @@ Things the diagram compresses that are worth stating explicitly:
   ([ADR-0061](../adr/0061-hook-file-staging.md)). See
   [Spec 02 § `stage`](../specs/02-configuration.md#stage-adr-0061) for the full semantics
   and scope-validation rules.
+- **That commit only exists on the `D -- yes` branch above.** When no `changelog:` block is
+  configured, or `disable_changelog: true` for this env (`D -- no`), `post_bump`'s hook still
+  fires unconditionally as stated above, but there is no "Commit changelog" step for its
+  `stage` patterns to join — the `run` command still executes, and any files it declared via
+  `stage` stay uncommitted in the working tree.
 
 ## `heraut changelog`
 
@@ -101,9 +106,19 @@ Tag-only workflow](../specs/03-commands.md#tag-only-workflow-no-release-block-re
 As in the `release` pipeline above, `post_bump` and `pre_changelog` are the two points
 whose `run` commands may declare `stage` patterns, staged into the "Commit changelog" step
 here ([ADR-0061](../adr/0061-hook-file-staging.md),
-[Spec 02 § `stage`](../specs/02-configuration.md#stage-adr-0061)) — a run that takes the
-disabled-changelog-and-no-`--tag` exit skips that commit entirely, so any `stage` declared
-on `post_bump` for such a run has nothing to land in either.
+[Spec 02 § `stage`](../specs/02-configuration.md#stage-adr-0061)) — but only in a run that
+actually reaches that step. Several branches in the diagram above skip it, and `stage`
+patterns declared for such a run are silently discarded (the hook's `run` command still
+executes; its declared files just stay uncommitted):
+
+- the disabled-changelog-and-no-`--tag` exit (`B -- yes` → `C2 -- no` → `END1`) skips the
+  commit entirely — `pre_changelog` and its sibling changelog-generation step never run;
+- `disable_changelog: true` **with** `--tag` (`B -- yes` → `C2 -- yes` → `R -- no` →
+  `S -- no` → `Tg -- yes`) also never commits — it skips straight to tagging, same as
+  above, just without exiting first;
+- generating a changelog with neither `--commit` nor `--tag` (`S -- yes` → `Gen` →
+  `Cd -- no` → `Tg -- no` → `SUM`) generates and writes `CHANGELOG.md` to disk but never
+  stages or commits anything, so `pre_changelog`'s `stage` patterns go uncommitted too.
 
 ## Hook point quick reference
 
