@@ -1,0 +1,8 @@
+version: "1"
+
+versioning:
+  strategy: semver
+
+hooks:
+  post_bump:
+    - "echo hi"

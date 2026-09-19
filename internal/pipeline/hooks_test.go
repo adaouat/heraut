@@ -32,43 +32,6 @@ func TestRunHook_CommandFails(t *testing.T) {
 	assert.Contains(t, err.Error(), "false")
 }
 
-func TestRunHooks_RunsAllOnSuccess(t *testing.T) {
-	mr := exectest.NewMockRunner()
-	mr.QueueResponse("", "", nil)
-	mr.QueueResponse("", "", nil)
-	mr.QueueResponse("", "", nil)
-
-	err := runHooks(mr, []string{"a", "b", "c"})
-	require.NoError(t, err)
-
-	require.Len(t, mr.Calls, 3)
-	assert.Equal(t, []string{"-c", "a"}, mr.Calls[0].Args)
-	assert.Equal(t, []string{"-c", "b"}, mr.Calls[1].Args)
-	assert.Equal(t, []string{"-c", "c"}, mr.Calls[2].Args)
-}
-
-func TestRunHooks_StopsAtFirstFailure(t *testing.T) {
-	mr := exectest.NewMockRunner()
-	mr.QueueResponse("", "", nil)
-	mr.QueueResponse("", "", errors.New("exit status 1"))
-
-	err := runHooks(mr, []string{"a", "b", "c"})
-	require.Error(t, err)
-
-	// "c" must never run: the second command's failure stops the list.
-	require.Len(t, mr.Calls, 2)
-	assert.Equal(t, []string{"-c", "a"}, mr.Calls[0].Args)
-	assert.Equal(t, []string{"-c", "b"}, mr.Calls[1].Args)
-}
-
-func TestRunHooks_EmptyListIsNoOp(t *testing.T) {
-	mr := exectest.NewMockRunner()
-
-	err := runHooks(mr, nil)
-	require.NoError(t, err)
-	assert.Empty(t, mr.Calls)
-}
-
 func TestRenderHookCmd_SubstitutesVars(t *testing.T) {
 	vars := hookVars{Version: "1.2.3", Tag: "v1.2.3", PreviousTag: "v1.2.2", Platform: "github", Env: "staging"}
 
@@ -94,15 +57,51 @@ func TestRenderHookCmd_UnknownFieldReturnsError(t *testing.T) {
 	require.Error(t, err)
 }
 
-func TestRenderHookCmds_RendersEachInOrder(t *testing.T) {
+func TestRenderHookStep_RendersRunAndStage(t *testing.T) {
 	vars := hookVars{Version: "1.2.3"}
-	rendered, err := renderHookCmds([]string{"echo {{ .Version }}", "echo done"}, vars)
+	step := HookStep{Run: "echo {{ .Version }}", Stage: []string{"dist/{{ .Version }}.tgz", "CHANGELOG.md"}}
+
+	rendered, err := renderHookStep(step, vars)
 	require.NoError(t, err)
-	assert.Equal(t, []string{"echo 1.2.3", "echo done"}, rendered)
+	assert.Equal(t, renderedHookStep{
+		Run:   "echo 1.2.3",
+		Stage: []string{"dist/1.2.3.tgz", "CHANGELOG.md"},
+	}, rendered)
 }
 
-func TestRenderHookCmds_StopsAtFirstRenderError(t *testing.T) {
-	_, err := renderHookCmds([]string{"echo ok", "echo {{ .Bad"}, hookVars{})
+func TestRenderHookStep_RunRenderErrorPropagates(t *testing.T) {
+	_, err := renderHookStep(HookStep{Run: "echo {{ .Bad"}, hookVars{})
+	require.Error(t, err)
+}
+
+func TestRenderHookStep_StageRenderErrorPropagates(t *testing.T) {
+	_, err := renderHookStep(HookStep{Run: "echo ok", Stage: []string{"{{ .Bad"}}, hookVars{})
+	require.Error(t, err)
+}
+
+func TestRenderHookSteps_RendersEachInOrder(t *testing.T) {
+	vars := hookVars{Version: "1.2.3"}
+	steps := []HookStep{
+		{Run: "echo {{ .Version }}"},
+		{Run: "echo done", Stage: []string{"out.txt"}},
+	}
+
+	rendered, err := renderHookSteps(steps, vars)
+	require.NoError(t, err)
+	assert.Equal(t, []renderedHookStep{
+		{Run: "echo 1.2.3", Stage: []string{}},
+		{Run: "echo done", Stage: []string{"out.txt"}},
+	}, rendered)
+}
+
+func TestRenderHookSteps_StopsAtFirstError(t *testing.T) {
+	steps := []HookStep{
+		{Run: "echo ok"},
+		{Run: "echo {{ .Bad"},
+		{Run: "echo never reached"},
+	}
+
+	_, err := renderHookSteps(steps, hookVars{})
 	require.Error(t, err)
 }
 
@@ -111,39 +110,82 @@ func TestShouldRunHooks(t *testing.T) {
 		name    string
 		dryRun  bool
 		noHooks bool
-		cmds    []string
+		steps   []HookStep
 		want    bool
 	}{
-		{"normal run with hooks configured", false, false, []string{"echo hi"}, true},
-		{"dry-run skips even when configured", true, false, []string{"echo hi"}, false},
-		{"--no-hooks skips even when configured", false, true, []string{"echo hi"}, false},
+		{"normal run with hooks configured", false, false, []HookStep{{Run: "echo hi"}}, true},
+		{"dry-run skips even when configured", true, false, []HookStep{{Run: "echo hi"}}, false},
+		{"--no-hooks skips even when configured", false, true, []HookStep{{Run: "echo hi"}}, false},
 		{"nothing configured", false, false, nil, false},
 		{"dry-run and no-hooks and nothing configured", true, true, nil, false},
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			assert.Equal(t, tc.want, shouldRunHooks(tc.dryRun, tc.noHooks, tc.cmds))
+			assert.Equal(t, tc.want, shouldRunHooks(tc.dryRun, tc.noHooks, tc.steps))
 		})
 	}
 }
 
-func TestRunHookPoint_RendersAndExecutes(t *testing.T) {
+func TestRunHookPointSteps_ReturnsRenderedStepsOnSuccess(t *testing.T) {
 	mr := exectest.NewMockRunner()
 	mr.QueueResponse("", "", nil)
+	mr.QueueResponse("", "", nil)
 
-	err := runHookPoint(mr, []string{"echo {{ .Version }}"}, hookVars{Version: "1.2.3"})
+	steps := []HookStep{
+		{Run: "echo {{ .Version }}", Stage: []string{"dist/{{ .Version }}.tgz"}},
+		{Run: "echo done"},
+	}
+	rendered, err := runHookPointSteps(mr, steps, hookVars{Version: "1.2.3"})
 	require.NoError(t, err)
 
-	require.Len(t, mr.Calls, 1)
+	require.Len(t, mr.Calls, 2)
 	assert.Equal(t, []string{"-c", "echo 1.2.3"}, mr.Calls[0].Args)
+	assert.Equal(t, []string{"-c", "echo done"}, mr.Calls[1].Args)
+
+	assert.Equal(t, []renderedHookStep{
+		{Run: "echo 1.2.3", Stage: []string{"dist/1.2.3.tgz"}},
+		{Run: "echo done", Stage: []string{}},
+	}, rendered)
 }
 
-func TestRunHookPoint_RenderErrorNeverReachesRunner(t *testing.T) {
+func TestRunHookPointSteps_StopsAtFirstExecutionFailure(t *testing.T) {
+	mr := exectest.NewMockRunner()
+	mr.QueueResponse("", "", nil)
+	mr.QueueResponse("", "", errors.New("exit status 1"))
+
+	steps := []HookStep{
+		{Run: "echo a"},
+		{Run: "false"},
+		{Run: "echo never reached"},
+	}
+	rendered, err := runHookPointSteps(mr, steps, hookVars{})
+	require.Error(t, err)
+	assert.Nil(t, rendered)
+
+	// "echo never reached" must never run: the second command's failure stops the list.
+	require.Len(t, mr.Calls, 2)
+}
+
+func TestRunHookPointSteps_RenderErrorNeverReachesRunner(t *testing.T) {
 	mr := exectest.NewMockRunner()
 
-	err := runHookPoint(mr, []string{"echo {{ .Bad"}, hookVars{})
+	_, err := runHookPointSteps(mr, []HookStep{{Run: "echo {{ .Bad"}}, hookVars{})
 	require.Error(t, err)
 	assert.Empty(t, mr.Calls)
+}
+
+func TestStagePatterns_FlattensInOrder(t *testing.T) {
+	steps := []renderedHookStep{
+		{Run: "echo a", Stage: []string{"a.txt", "b.txt"}},
+		{Run: "echo b"},
+		{Run: "echo c", Stage: []string{"c.txt"}},
+	}
+	assert.Equal(t, []string{"a.txt", "b.txt", "c.txt"}, stagePatterns(steps))
+}
+
+func TestStagePatterns_NoStageEntriesReturnsNil(t *testing.T) {
+	steps := []renderedHookStep{{Run: "echo a"}, {Run: "echo b"}}
+	assert.Nil(t, stagePatterns(steps))
 }
 
 func TestDryRunHookLines_EmptyReturnsNil(t *testing.T) {
@@ -154,7 +196,8 @@ func TestDryRunHookLines_EmptyReturnsNil(t *testing.T) {
 
 func TestDryRunHookLines_RendersEachCommand(t *testing.T) {
 	vars := hookVars{Version: "1.2.3"}
-	lines, err := dryRunHookLines([]string{"echo {{ .Version }}", "go build ./..."}, vars)
+	steps := []HookStep{{Run: "echo {{ .Version }}"}, {Run: "go build ./..."}}
+	lines, err := dryRunHookLines(steps, vars)
 	require.NoError(t, err)
 	assert.Equal(t, []string{
 		"[dry-run] would run: echo 1.2.3",
@@ -162,8 +205,24 @@ func TestDryRunHookLines_RendersEachCommand(t *testing.T) {
 	}, lines)
 }
 
+// TestDryRunHookLines_StageProducesWouldStageLines proves a stage-bearing step's dry-run output
+// includes both the "would run:" and "would stage:" lines (Design §5, 2026-09-17).
+func TestDryRunHookLines_StageProducesWouldStageLines(t *testing.T) {
+	vars := hookVars{Version: "1.2.3"}
+	steps := []HookStep{
+		{Run: "echo {{ .Version }}", Stage: []string{"dist/{{ .Version }}.tgz", "CHANGELOG.md"}},
+	}
+	lines, err := dryRunHookLines(steps, vars)
+	require.NoError(t, err)
+	assert.Equal(t, []string{
+		"[dry-run] would run: echo 1.2.3",
+		"[dry-run] would stage: dist/1.2.3.tgz",
+		"[dry-run] would stage: CHANGELOG.md",
+	}, lines)
+}
+
 func TestDryRunHookLines_RenderErrorPropagates(t *testing.T) {
-	_, err := dryRunHookLines([]string{"echo {{ .Bad"}, hookVars{})
+	_, err := dryRunHookLines([]HookStep{{Run: "echo {{ .Bad"}}, hookVars{})
 	require.Error(t, err)
 }
 

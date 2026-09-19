@@ -40,26 +40,26 @@ func TestReleaseStepTotal(t *testing.T) {
 			Changelog: gen(), Notes: gen(), Platforms: plats(2),
 		}, 3 + 2 + 2},
 		{"post_bump hook adds a step", &pipeline.Config{
-			PostBumpHooks: []string{"echo hi"}, Platforms: plats(1),
+			PostBumpHooks: []pipeline.HookStep{{Run: "echo hi"}}, Platforms: plats(1),
 		}, 3 + 1 + 1},
 		{"pre_changelog hook only counted when changelog runs", &pipeline.Config{
-			PreChangelogHooks: []string{"echo hi"}, Platforms: plats(1),
+			PreChangelogHooks: []pipeline.HookStep{{Run: "echo hi"}}, Platforms: plats(1),
 		}, 3 + 1}, // no changelog configured — hook never fires, no extra step
 		{"pre_changelog hook counted alongside changelog", &pipeline.Config{
-			Changelog: gen(), PreChangelogHooks: []string{"echo hi"}, Platforms: plats(1),
+			Changelog: gen(), PreChangelogHooks: []pipeline.HookStep{{Run: "echo hi"}}, Platforms: plats(1),
 		}, 3 + 2 + 1 + 1},
 		{"pre_tag and post_tag hooks each add a step", &pipeline.Config{
-			PreTagHooks: []string{"echo hi"}, PostTagHooks: []string{"echo hi"}, Platforms: plats(1),
+			PreTagHooks: []pipeline.HookStep{{Run: "echo hi"}}, PostTagHooks: []pipeline.HookStep{{Run: "echo hi"}}, Platforms: plats(1),
 		}, 3 + 1 + 2},
 		{"NoHooks suppresses every configured hook step", &pipeline.Config{
 			NoHooks:       true,
-			PostBumpHooks: []string{"echo hi"}, PreTagHooks: []string{"echo hi"}, PostTagHooks: []string{"echo hi"},
+			PostBumpHooks: []pipeline.HookStep{{Run: "echo hi"}}, PreTagHooks: []pipeline.HookStep{{Run: "echo hi"}}, PostTagHooks: []pipeline.HookStep{{Run: "echo hi"}},
 			Platforms: plats(1),
 		}, 3 + 1},
 		// pre_release/post_release are folded into the existing "Publish to X" step (T270) —
 		// they never add a separate numbered step, dry-run or real.
 		{"pre_release and post_release hooks add no extra step", &pipeline.Config{
-			PreReleaseHooks: []string{"echo hi"}, PostReleaseHooks: []string{"echo hi"}, Platforms: plats(1),
+			PreReleaseHooks: []pipeline.HookStep{{Run: "echo hi"}}, PostReleaseHooks: []pipeline.HookStep{{Run: "echo hi"}}, Platforms: plats(1),
 		}, 3 + 1},
 	}
 	for _, tc := range tests {
@@ -81,18 +81,18 @@ func TestChangelogStepTotal(t *testing.T) {
 	}{
 		{"resolve only", &pipeline.ChangelogConfig{}, 1},
 		{"post_bump hook adds a step even with nothing else", &pipeline.ChangelogConfig{
-			PostBumpHooks: []string{"echo hi"},
+			PostBumpHooks: []pipeline.HookStep{{Run: "echo hi"}},
 		}, 1 + 1},
 		{"changelog only, no commit/tag", &pipeline.ChangelogConfig{Changelog: gen()}, 1 + 1},
 		{"pre_changelog hook counted alongside changelog", &pipeline.ChangelogConfig{
-			Changelog: gen(), PreChangelogHooks: []string{"echo hi"},
+			Changelog: gen(), PreChangelogHooks: []pipeline.HookStep{{Run: "echo hi"}},
 		}, 1 + 1 + 1},
 		{"tag + push, pre_tag and post_tag hooks each add a step", &pipeline.ChangelogConfig{
-			Tag: true, PreTagHooks: []string{"echo hi"}, PostTagHooks: []string{"echo hi"},
+			Tag: true, PreTagHooks: []pipeline.HookStep{{Run: "echo hi"}}, PostTagHooks: []pipeline.HookStep{{Run: "echo hi"}},
 		}, 1 + 1 + 1 + 1 + 1}, // resolve + pre_tag + create tag + push + post_tag
 		{"NoHooks suppresses every configured hook step", &pipeline.ChangelogConfig{
 			NoHooks: true, Tag: true,
-			PostBumpHooks: []string{"echo hi"}, PreTagHooks: []string{"echo hi"}, PostTagHooks: []string{"echo hi"},
+			PostBumpHooks: []pipeline.HookStep{{Run: "echo hi"}}, PreTagHooks: []pipeline.HookStep{{Run: "echo hi"}}, PostTagHooks: []pipeline.HookStep{{Run: "echo hi"}},
 		}, 1 + 1 + 1}, // resolve + create tag + push
 	}
 	for _, tc := range tests {

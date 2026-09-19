@@ -17,7 +17,7 @@ func TestChangelogRun_PostBumpHook_FiresAfterResolve(t *testing.T) {
 	mr.QueueResponse("", "", nil) // sh -c (post_bump)
 
 	cfg := &pipeline.ChangelogConfig{
-		PostBumpHooks: []string{"echo {{ .Version }}"},
+		PostBumpHooks: []pipeline.HookStep{{Run: "echo {{ .Version }}"}},
 	}
 	p := pipeline.NewChangelog(mr, &fakeResolver{result: resolvedResult("v1.2.3")}, cfg, &bytes.Buffer{}, false)
 	require.NoError(t, p.Run())
@@ -35,7 +35,7 @@ func TestChangelogRun_PostBumpHook_SubstitutesEnv(t *testing.T) {
 
 	cfg := &pipeline.ChangelogConfig{
 		Env:           "staging",
-		PostBumpHooks: []string{"echo {{ .Env }}"},
+		PostBumpHooks: []pipeline.HookStep{{Run: "echo {{ .Env }}"}},
 	}
 	p := pipeline.NewChangelog(mr, &fakeResolver{result: resolvedResult("v1.2.3")}, cfg, &bytes.Buffer{}, false)
 	require.NoError(t, p.Run())
@@ -54,7 +54,7 @@ func TestChangelogRun_PostBumpHook_FiresEvenWhenDisabledAndNoTag(t *testing.T) {
 	cfg := &pipeline.ChangelogConfig{
 		DisableChangelog: true,
 		Tag:              false,
-		PostBumpHooks:    []string{"echo post-bump"},
+		PostBumpHooks:    []pipeline.HookStep{{Run: "echo post-bump"}},
 	}
 	p := pipeline.NewChangelog(mr, &fakeResolver{result: resolvedResult("v1.2.3")}, cfg, &bytes.Buffer{}, false)
 	require.NoError(t, p.Run())
@@ -71,12 +71,36 @@ func TestChangelogRun_PreChangelogHook_NeverFiresWhenChangelogDisabled(t *testin
 	cfg := &pipeline.ChangelogConfig{
 		DisableChangelog:  true,
 		Tag:               false,
-		PreChangelogHooks: []string{"echo pre-changelog"},
+		PreChangelogHooks: []pipeline.HookStep{{Run: "echo pre-changelog"}},
 	}
 	p := pipeline.NewChangelog(mr, &fakeResolver{result: resolvedResult("v1.2.3")}, cfg, &bytes.Buffer{}, false)
 	require.NoError(t, p.Run())
 
 	assert.Empty(t, mr.Calls)
+}
+
+// TestChangelogRun_PostBumpHook_StagePatternIncludedInCommit proves a post_bump hook's declared
+// Stage patterns (ADR-0061) reach the changelog commit's `git add` call alongside the changelog
+// file itself, mirroring release.go's equivalent behavior.
+func TestChangelogRun_PostBumpHook_StagePatternIncludedInCommit(t *testing.T) {
+	mr := exectest.NewMockRunner()
+	mr.QueueResponse("", "", nil)               // sh -c (post_bump)
+	mr.QueueResponse("", "", nil)               // git add
+	mr.QueueResponse("CHANGELOG.md\n", "", nil) // git diff --cached --name-only (staged)
+	mr.QueueResponse("", "", nil)               // git commit
+	mr.QueueResponse("", "", nil)               // git push
+
+	gen := &testutil.MockGenerator{}
+	cfg := &pipeline.ChangelogConfig{
+		Changelog:     gen,
+		Commit:        true,
+		PostBumpHooks: []pipeline.HookStep{{Run: "echo bumping", Stage: []string{"extra.txt"}}},
+	}
+	p := pipeline.NewChangelog(mr, &fakeResolver{result: resolvedResult("v1.2.3")}, cfg, &bytes.Buffer{}, false)
+	require.NoError(t, p.Run())
+
+	require.Len(t, mr.Calls, 5)
+	assert.Equal(t, []string{"add", "CHANGELOG.md", "extra.txt"}, mr.Calls[1].Args)
 }
 
 func TestChangelogRun_PreChangelogHook_FiresBeforeChangelogGeneration(t *testing.T) {
@@ -86,7 +110,7 @@ func TestChangelogRun_PreChangelogHook_FiresBeforeChangelogGeneration(t *testing
 	gen := &testutil.MockGenerator{}
 	cfg := &pipeline.ChangelogConfig{
 		Changelog:         gen,
-		PreChangelogHooks: []string{"make lint"},
+		PreChangelogHooks: []pipeline.HookStep{{Run: "make lint"}},
 	}
 	p := pipeline.NewChangelog(mr, &fakeResolver{result: resolvedResult("v1.2.3")}, cfg, &bytes.Buffer{}, false)
 	require.NoError(t, p.Run())
@@ -104,7 +128,7 @@ func TestChangelogRun_PreTagHook_FiresBeforeTagCreation(t *testing.T) {
 
 	cfg := &pipeline.ChangelogConfig{
 		Tag:         true,
-		PreTagHooks: []string{"go build ./..."},
+		PreTagHooks: []pipeline.HookStep{{Run: "go build ./..."}},
 	}
 	p := pipeline.NewChangelog(mr, &fakeResolver{result: resolvedResult("v1.2.3")}, cfg, &bytes.Buffer{}, false)
 	require.NoError(t, p.Run())
@@ -122,7 +146,7 @@ func TestChangelogRun_PostTagHook_FiresAfterPush(t *testing.T) {
 
 	cfg := &pipeline.ChangelogConfig{
 		Tag:          true,
-		PostTagHooks: []string{"npm publish"},
+		PostTagHooks: []pipeline.HookStep{{Run: "npm publish"}},
 	}
 	p := pipeline.NewChangelog(mr, &fakeResolver{result: resolvedResult("v1.2.3")}, cfg, &bytes.Buffer{}, false)
 	require.NoError(t, p.Run())
@@ -140,7 +164,7 @@ func TestChangelogRun_PostTagHook_FiresEvenWithNoPush(t *testing.T) {
 	cfg := &pipeline.ChangelogConfig{
 		Tag:          true,
 		NoPush:       true,
-		PostTagHooks: []string{"echo done"},
+		PostTagHooks: []pipeline.HookStep{{Run: "echo done"}},
 	}
 	p := pipeline.NewChangelog(mr, &fakeResolver{result: resolvedResult("v1.2.3")}, cfg, &bytes.Buffer{}, false)
 	require.NoError(t, p.Run())
@@ -158,9 +182,9 @@ func TestChangelogRun_Hooks_NoHooksSkipsAllConfiguredHooks(t *testing.T) {
 	cfg := &pipeline.ChangelogConfig{
 		Tag:           true,
 		NoHooks:       true,
-		PostBumpHooks: []string{"echo post-bump"},
-		PreTagHooks:   []string{"echo pre-tag"},
-		PostTagHooks:  []string{"echo post-tag"},
+		PostBumpHooks: []pipeline.HookStep{{Run: "echo post-bump"}},
+		PreTagHooks:   []pipeline.HookStep{{Run: "echo pre-tag"}},
+		PostTagHooks:  []pipeline.HookStep{{Run: "echo post-tag"}},
 	}
 	p := pipeline.NewChangelog(mr, &fakeResolver{result: resolvedResult("v1.2.3")}, cfg, &bytes.Buffer{}, false)
 	require.NoError(t, p.Run())
@@ -175,9 +199,9 @@ func TestChangelogRun_Hooks_DryRunNeverExecutesHooks(t *testing.T) {
 
 	cfg := &pipeline.ChangelogConfig{
 		Tag:           true,
-		PostBumpHooks: []string{"echo post-bump"},
-		PreTagHooks:   []string{"echo pre-tag"},
-		PostTagHooks:  []string{"echo post-tag"},
+		PostBumpHooks: []pipeline.HookStep{{Run: "echo post-bump"}},
+		PreTagHooks:   []pipeline.HookStep{{Run: "echo pre-tag"}},
+		PostTagHooks:  []pipeline.HookStep{{Run: "echo post-tag"}},
 	}
 	p := pipeline.NewChangelog(mr, &fakeResolver{result: resolvedResult("v1.2.3")}, cfg, &bytes.Buffer{}, true)
 	require.NoError(t, p.Run())
@@ -194,7 +218,7 @@ func TestChangelogRun_Hooks_FailureAbortsRun(t *testing.T) {
 	}{
 		{
 			name: "post_bump failure aborts before anything else",
-			cfg:  &pipeline.ChangelogConfig{Tag: true, PostBumpHooks: []string{"exit 1"}},
+			cfg:  &pipeline.ChangelogConfig{Tag: true, PostBumpHooks: []pipeline.HookStep{{Run: "exit 1"}}},
 			queue: func(mr *exectest.MockRunner) {
 				mr.QueueResponse("", "", errors.New("exit status 1"))
 			},
@@ -202,7 +226,7 @@ func TestChangelogRun_Hooks_FailureAbortsRun(t *testing.T) {
 		},
 		{
 			name: "pre_tag failure aborts before tag",
-			cfg:  &pipeline.ChangelogConfig{Tag: true, PreTagHooks: []string{"exit 1"}},
+			cfg:  &pipeline.ChangelogConfig{Tag: true, PreTagHooks: []pipeline.HookStep{{Run: "exit 1"}}},
 			queue: func(mr *exectest.MockRunner) {
 				mr.QueueResponse("", "", errors.New("exit status 1"))
 			},
@@ -210,7 +234,7 @@ func TestChangelogRun_Hooks_FailureAbortsRun(t *testing.T) {
 		},
 		{
 			name: "post_tag failure returned after tag+push already happened",
-			cfg:  &pipeline.ChangelogConfig{Tag: true, PostTagHooks: []string{"exit 1"}},
+			cfg:  &pipeline.ChangelogConfig{Tag: true, PostTagHooks: []pipeline.HookStep{{Run: "exit 1"}}},
 			queue: func(mr *exectest.MockRunner) {
 				mr.QueueResponse("", "", nil) // git tag
 				mr.QueueResponse("", "", nil) // git push

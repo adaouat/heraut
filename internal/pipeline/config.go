@@ -39,15 +39,15 @@ type Config struct {
 	// when the run isn't targeting an environment.
 	Env string
 	// PostBumpHooks run immediately after the next version is resolved. Empty = no hooks.
-	PostBumpHooks []string
+	PostBumpHooks []HookStep
 	// PreChangelogHooks run before changelog generation. Empty = no hooks.
-	PreChangelogHooks []string
+	PreChangelogHooks []HookStep
 	// PreTagHooks run before the local git tag is created. Empty = no hooks.
-	PreTagHooks []string
+	PreTagHooks []HookStep
 	// PostTagHooks run after the tag is pushed to origin. Empty = no hooks.
-	PostTagHooks []string
+	PostTagHooks []HookStep
 	// PreReleaseHooks run before publishing to a platform, once per platform. Empty = no hooks.
-	PreReleaseHooks []string
+	PreReleaseHooks []HookStep
 	// PostReleaseHooks run after publishing to a platform, once per platform. Empty = no hooks.
-	PostReleaseHooks []string
+	PostReleaseHooks []HookStep
 }

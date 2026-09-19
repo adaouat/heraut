@@ -12,14 +12,16 @@ changelog:
 
 hooks:
   post_bump:
-    - "echo {{ .Version }} > VERSION"
+    - run: "echo {{ .Version }} > VERSION"
+      stage:
+        - VERSION
   pre_changelog:
-    - "make lint"
+    - run: "make lint"
   pre_tag:
-    - "go build ./..."
+    - run: "go build ./..."
   post_tag:
-    - "echo tagged {{ .Tag }}"
+    - run: "echo tagged {{ .Tag }}"
   pre_release:
-    - "echo about to publish to {{ .Platform }}"
+    - run: "echo about to publish to {{ .Platform }}"
   post_release:
-    - "echo released {{ .Tag }} to {{ .Platform }}"
+    - run: "echo released {{ .Tag }} to {{ .Platform }}"

@@ -20,6 +20,19 @@ type hookVars struct {
 	Env         string
 }
 
+// HookStep is one command in a hook point's list, translated from config.HookStep by
+// internal/app (ADR-0053, ADR-0061) — this package never imports internal/config.
+type HookStep struct {
+	Run   string
+	Stage []string
+}
+
+// renderedHookStep is a HookStep after template substitution.
+type renderedHookStep struct {
+	Run   string
+	Stage []string
+}
+
 // renderHookCmd renders tmplStr (a hook command string) as a Go text/template against vars.
 // vars is a struct, so text/template already errors on an unknown field (e.g. {{ .Typo }})
 // without needing the missingkey option, which only affects map lookups.
@@ -35,12 +48,28 @@ func renderHookCmd(tmplStr string, vars hookVars) (string, error) {
 	return buf.String(), nil
 }
 
-// renderHookCmds renders each command in cmds against vars, in order, stopping at the first
-// render error.
-func renderHookCmds(cmds []string, vars hookVars) ([]string, error) {
-	rendered := make([]string, 0, len(cmds))
-	for _, cmd := range cmds {
-		r, err := renderHookCmd(cmd, vars)
+// renderHookStep renders step's Run and every Stage entry against vars.
+func renderHookStep(step HookStep, vars hookVars) (renderedHookStep, error) {
+	run, err := renderHookCmd(step.Run, vars)
+	if err != nil {
+		return renderedHookStep{}, err
+	}
+	stage := make([]string, 0, len(step.Stage))
+	for _, s := range step.Stage {
+		rendered, err := renderHookCmd(s, vars)
+		if err != nil {
+			return renderedHookStep{}, err
+		}
+		stage = append(stage, rendered)
+	}
+	return renderedHookStep{Run: run, Stage: stage}, nil
+}
+
+// renderHookSteps renders each step in order, stopping at the first render error.
+func renderHookSteps(steps []HookStep, vars hookVars) ([]renderedHookStep, error) {
+	rendered := make([]renderedHookStep, 0, len(steps))
+	for _, s := range steps {
+		r, err := renderHookStep(s, vars)
 		if err != nil {
 			return nil, err
 		}
@@ -51,38 +80,60 @@ func renderHookCmds(cmds []string, vars hookVars) ([]string, error) {
 
 // shouldRunHooks reports whether a hook point should actually execute: never during --dry-run
 // (hooks are arbitrary shell commands — dry-run must never execute anything for real) or when
-// --no-hooks/NoHooks is set, and only when at least one command is configured.
-func shouldRunHooks(dryRun, noHooks bool, cmds []string) bool {
-	return !dryRun && !noHooks && len(cmds) > 0
+// --no-hooks/NoHooks is set, and only when at least one step is configured.
+func shouldRunHooks(dryRun, noHooks bool, steps []HookStep) bool {
+	return !dryRun && !noHooks && len(steps) > 0
 }
 
-// runHookPoint renders cmds against vars and executes them in order via r, stopping at the
-// first render or execution error.
-func runHookPoint(r port.Runner, cmds []string, vars hookVars) error {
-	rendered, err := renderHookCmds(cmds, vars)
-	if err != nil {
-		return err
-	}
-	return runHooks(r, rendered)
-}
-
-// dryRunHookLines renders cmds against vars into "[dry-run] would run: <cmd>" lines (ADR-0053,
-// T271) — the rendered command, never the raw template, matching how dry-run already shows real
-// resolved tag names elsewhere in the pipeline. Returns nil, nil when cmds is empty. A render
-// error is returned rather than swallowed: dry-run promises to show what would happen, and a
-// broken hook template is real, actionable information the caller should surface (and, for the
-// reporter path, abort on) rather than a run that only fails once it's no longer a dry one.
-func dryRunHookLines(cmds []string, vars hookVars) ([]string, error) {
-	if len(cmds) == 0 {
-		return nil, nil
-	}
-	rendered, err := renderHookCmds(cmds, vars)
+// runHookPointSteps renders steps against vars and executes each rendered Run command in order
+// via r, stopping at the first render or execution error. Returns the rendered steps so callers
+// that need declared Stage patterns (post_bump/pre_changelog — T298) can collect them; the other
+// four points simply discard the return value (config validation, T296, already guarantees their
+// Stage is always empty).
+func runHookPointSteps(r port.Runner, steps []HookStep, vars hookVars) ([]renderedHookStep, error) {
+	rendered, err := renderHookSteps(steps, vars)
 	if err != nil {
 		return nil, err
 	}
-	lines := make([]string, len(rendered))
-	for i, cmd := range rendered {
-		lines[i] = "[dry-run] would run: " + cmd
+	for _, s := range rendered {
+		if err := runHook(r, s.Run); err != nil {
+			return nil, err
+		}
+	}
+	return rendered, nil
+}
+
+// stagePatterns flattens every Stage pattern across rendered steps, in order.
+func stagePatterns(steps []renderedHookStep) []string {
+	var patterns []string
+	for _, s := range steps {
+		patterns = append(patterns, s.Stage...)
+	}
+	return patterns
+}
+
+// dryRunHookLines renders steps against vars into "[dry-run] would run: <cmd>" lines (ADR-0053,
+// T271), plus one "[dry-run] would stage: <pattern>" line per non-empty Stage entry (Design §5,
+// 2026-09-17) — the rendered command/pattern, never the raw template, matching how dry-run
+// already shows real resolved tag names elsewhere in the pipeline. Returns nil, nil when steps is
+// empty. A render error is returned rather than swallowed: dry-run promises to show what would
+// happen, and a broken hook template is real, actionable information the caller should surface
+// (and, for the reporter path, abort on) rather than a run that only fails once it's no longer a
+// dry one.
+func dryRunHookLines(steps []HookStep, vars hookVars) ([]string, error) {
+	if len(steps) == 0 {
+		return nil, nil
+	}
+	rendered, err := renderHookSteps(steps, vars)
+	if err != nil {
+		return nil, err
+	}
+	var lines []string
+	for _, s := range rendered {
+		lines = append(lines, "[dry-run] would run: "+s.Run)
+		for _, pattern := range s.Stage {
+			lines = append(lines, "[dry-run] would stage: "+pattern)
+		}
 	}
 	return lines, nil
 }
@@ -125,16 +176,6 @@ func runHook(r port.Runner, cmd string) error {
 	name, args := hookShellInvocation(runtime.GOOS, cmd)
 	if _, _, err := r.RunDir("", nil, name, args...); err != nil {
 		return fmt.Errorf("hook %q: %w", cmd, err)
-	}
-	return nil
-}
-
-// runHooks executes cmds in order via runHook, stopping at the first failure.
-func runHooks(r port.Runner, cmds []string) error {
-	for _, cmd := range cmds {
-		if err := runHook(r, cmd); err != nil {
-			return err
-		}
 	}
 	return nil
 }

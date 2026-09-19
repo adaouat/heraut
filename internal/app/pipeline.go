@@ -118,7 +118,7 @@ func spinnerReporter(out io.Writer, total int) ui.StepFn {
 // pre_release/post_release are folded into the existing per-platform publish step (T270) and add
 // no numbered step of their own — never counted here.
 func releaseStepTotal(cfg *pipeline.Config) int {
-	hookRuns := func(cmds []string) bool { return !cfg.NoHooks && len(cmds) > 0 }
+	hookRuns := func(steps []pipeline.HookStep) bool { return !cfg.NoHooks && len(steps) > 0 }
 
 	total := 3 // resolve version + create tag + push tag
 	if hookRuns(cfg.PostBumpHooks) {
@@ -171,7 +171,7 @@ func BuildChangelogPipeline(runner port.Runner, cfg *config.Config, resolver ver
 // changelogStepTotal computes the number of numbered steps for a changelog pipeline — see
 // releaseStepTotal for why hook steps count regardless of dry-run.
 func changelogStepTotal(cfg *pipeline.ChangelogConfig) int {
-	hookRuns := func(cmds []string) bool { return !cfg.NoHooks && len(cmds) > 0 }
+	hookRuns := func(steps []pipeline.HookStep) bool { return !cfg.NoHooks && len(steps) > 0 }
 
 	total := 1 // resolve version
 	if hookRuns(cfg.PostBumpHooks) {
@@ -320,14 +320,25 @@ func buildReleasePipelineConfig(runner, readRunner port.Runner, cfg *config.Conf
 	// Hooks (ADR-0053) — flat/global only in v1, no per-env override. Env (ADR-0055) still
 	// carries the active --env value through so hook commands can branch on {{ .Env }}.
 	pCfg.Env = env
-	pCfg.PostBumpHooks = cfg.PostBumpHooks()
-	pCfg.PreChangelogHooks = cfg.PreChangelogHooks()
-	pCfg.PreTagHooks = cfg.PreTagHooks()
-	pCfg.PostTagHooks = cfg.PostTagHooks()
-	pCfg.PreReleaseHooks = cfg.PreReleaseHooks()
-	pCfg.PostReleaseHooks = cfg.PostReleaseHooks()
+	pCfg.PostBumpHooks = toPipelineHookSteps(cfg.PostBumpHooks())
+	pCfg.PreChangelogHooks = toPipelineHookSteps(cfg.PreChangelogHooks())
+	pCfg.PreTagHooks = toPipelineHookSteps(cfg.PreTagHooks())
+	pCfg.PostTagHooks = toPipelineHookSteps(cfg.PostTagHooks())
+	pCfg.PreReleaseHooks = toPipelineHookSteps(cfg.PreReleaseHooks())
+	pCfg.PostReleaseHooks = toPipelineHookSteps(cfg.PostReleaseHooks())
 
 	return pCfg, nil
+}
+
+// toPipelineHookSteps converts config.HookStep (the YAML-facing shape) to pipeline.HookStep
+// (the pipeline package's own shape) — internal/pipeline never imports internal/config, so this
+// conversion happens at the app-layer boundary like every other config → pipeline.Config field.
+func toPipelineHookSteps(steps []config.HookStep) []pipeline.HookStep {
+	out := make([]pipeline.HookStep, len(steps))
+	for i, s := range steps {
+		out[i] = pipeline.HookStep{Run: s.Run, Stage: s.Stage}
+	}
+	return out
 }
 
 // buildTargetPlatforms builds one port.Platform per effective release.targets entry (ADR-0043),
@@ -444,10 +455,10 @@ func buildChangelogPipelineConfig(runner, readRunner port.Runner, cfg *config.Co
 	// Hooks (ADR-0053) — flat/global only in v1, no per-env override. Env (ADR-0055) still
 	// carries the active --env value through so hook commands can branch on {{ .Env }}.
 	cCfg.Env = opts.Env
-	cCfg.PostBumpHooks = cfg.PostBumpHooks()
-	cCfg.PreChangelogHooks = cfg.PreChangelogHooks()
-	cCfg.PreTagHooks = cfg.PreTagHooks()
-	cCfg.PostTagHooks = cfg.PostTagHooks()
+	cCfg.PostBumpHooks = toPipelineHookSteps(cfg.PostBumpHooks())
+	cCfg.PreChangelogHooks = toPipelineHookSteps(cfg.PreChangelogHooks())
+	cCfg.PreTagHooks = toPipelineHookSteps(cfg.PreTagHooks())
+	cCfg.PostTagHooks = toPipelineHookSteps(cfg.PostTagHooks())
 
 	return cCfg, nil
 }

@@ -76,6 +76,7 @@ func TestSchema_InvalidFixtures(t *testing.T) {
 		{"rendering_unknown_template_block.yml", "rendering.templates unknown block additionalProperties violation"},
 		{"unknown_key.yml", "additionalProperties violation"},
 		{"perenv_no_environments.yml", "per-env strategy requires environments"},
+		{"hooks_bare_string.yml", "hook step bare-string shorthand no longer accepted (ADR-0061)"},
 	}
 
 	for _, tc := range tests {

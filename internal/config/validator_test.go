@@ -1791,3 +1791,105 @@ func TestValidateTagFormatForWizard(t *testing.T) {
 		})
 	}
 }
+
+// ── hooks ────────────────────────────────────────────────────────────────────
+
+func TestValidateHooks(t *testing.T) {
+	// Test cases with errors
+	t.Run("empty run on post_bump[0]", func(t *testing.T) {
+		cfg := mustLoad(t, `
+version: "1"
+versioning:
+  strategy: semver
+hooks:
+  post_bump:
+    - run: ""
+      stage: []
+`)
+		errs := config.Validate(cfg)
+		err := findErr(errs, "hooks.post_bump[0].run")
+		require.NotNil(t, err, "expected error on hooks.post_bump[0].run")
+		assert.Contains(t, err.Message, "required")
+		assert.NotEmpty(t, err.Hint)
+	})
+
+	t.Run("stage set on pre_tag[0]", func(t *testing.T) {
+		cfg := mustLoad(t, `
+version: "1"
+versioning:
+  strategy: semver
+hooks:
+  pre_tag:
+    - run: "echo hi"
+      stage:
+        - "file.txt"
+`)
+		errs := config.Validate(cfg)
+		err := findErr(errs, "hooks.pre_tag[0].stage")
+		require.NotNil(t, err, "expected error on hooks.pre_tag[0].stage")
+		assert.Contains(t, err.Message, "not allowed here")
+		assert.NotEmpty(t, err.Hint)
+	})
+
+	// Test cases that are valid
+	t.Run("stage set on post_bump[0] is valid", func(t *testing.T) {
+		cfg := mustLoad(t, `
+version: "1"
+versioning:
+  strategy: semver
+hooks:
+  post_bump:
+    - run: "echo hi"
+      stage:
+        - "file.txt"
+`)
+		assert.Empty(t, config.Validate(cfg))
+	})
+
+	t.Run("stage set on pre_changelog[0] is valid", func(t *testing.T) {
+		cfg := mustLoad(t, `
+version: "1"
+versioning:
+  strategy: semver
+hooks:
+  pre_changelog:
+    - run: "echo hi"
+      stage:
+        - "file.txt"
+`)
+		assert.Empty(t, config.Validate(cfg))
+	})
+
+	t.Run("nil hooks is valid", func(t *testing.T) {
+		cfg := mustLoad(t, `
+version: "1"
+versioning:
+  strategy: semver
+`)
+		assert.Empty(t, config.Validate(cfg))
+	})
+
+	// Test case with multiple violations
+	t.Run("both violations collected", func(t *testing.T) {
+		cfg := mustLoad(t, `
+version: "1"
+versioning:
+  strategy: semver
+hooks:
+  pre_release:
+    - run: "echo hi"
+      stage:
+        - "file.txt"
+  post_bump:
+    - run: ""
+`)
+		errs := config.Validate(cfg)
+		// Check that both errors are present
+		err1 := findErr(errs, "hooks.pre_release[0].stage")
+		err2 := findErr(errs, "hooks.post_bump[0].run")
+		require.NotNil(t, err1, "expected error on hooks.pre_release[0].stage")
+		require.NotNil(t, err2, "expected error on hooks.post_bump[0].run")
+		assert.Contains(t, err1.Message, "not allowed here")
+		assert.Contains(t, err2.Message, "required")
+	})
+}

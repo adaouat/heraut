@@ -232,46 +232,67 @@
     "Hooks": {
       "type": "object",
       "additionalProperties": false,
-      "description": "Shell commands run at points in the release lifecycle (ADR-0053). post_bump/pre_changelog/pre_tag/post_tag fire in both `heraut release` and `heraut changelog --tag`; pre_release/post_release fire only in `heraut release`, once per publish target. Commands are Go text/template strings substituting {{ .Version }}, {{ .Tag }}, {{ .PreviousTag }}, and (pre_release/post_release only) {{ .Platform }}.",
+      "description": "Shell commands run at points in the release lifecycle (ADR-0053, ADR-0061). post_bump/pre_changelog/pre_tag/post_tag fire in both `heraut release` and `heraut changelog --tag`; pre_release/post_release fire only in `heraut release`, once per publish target. run is a Go text/template string substituting {{ .Version }}, {{ .Tag }}, {{ .PreviousTag }}, and (pre_release/post_release only) {{ .Platform }}.",
       "properties": {
         "post_bump": {
           "type": "array",
           "description": "Runs immediately after the next version is resolved.",
           "items": {
-            "type": "string"
+            "$ref": "#/definitions/HookStep"
           }
         },
         "pre_changelog": {
           "type": "array",
           "description": "Runs before changelog generation.",
           "items": {
-            "type": "string"
+            "$ref": "#/definitions/HookStep"
           }
         },
         "pre_tag": {
           "type": "array",
           "description": "Runs before the local git tag is created.",
           "items": {
-            "type": "string"
+            "$ref": "#/definitions/HookStep"
           }
         },
         "post_tag": {
           "type": "array",
           "description": "Runs after the tag is pushed to origin.",
           "items": {
-            "type": "string"
+            "$ref": "#/definitions/HookStep"
           }
         },
         "pre_release": {
           "type": "array",
           "description": "Runs before publishing to a platform, once per platform.",
           "items": {
-            "type": "string"
+            "$ref": "#/definitions/HookStep"
           }
         },
         "post_release": {
           "type": "array",
           "description": "Runs after publishing to a platform, once per platform.",
+          "items": {
+            "$ref": "#/definitions/HookStep"
+          }
+        }
+      }
+    },
+    "HookStep": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "run"
+      ],
+      "description": "One command in a hook point's list (ADR-0053, extended by ADR-0061: object-only, stage added).",
+      "properties": {
+        "run": {
+          "type": "string",
+          "description": "The shell command to run."
+        },
+        "stage": {
+          "type": "array",
+          "description": "Paths to stage after run completes. Only meaningful under post_bump/pre_changelog.",
           "items": {
             "type": "string"
           }

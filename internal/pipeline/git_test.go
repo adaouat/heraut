@@ -19,7 +19,7 @@ func TestCommitChangelog_StagedCommits(t *testing.T) {
 	mr.QueueResponse("", "", nil)               // git push
 
 	g := gitHelper{runner: mr}
-	committed, err := g.commitChangelog("CHANGELOG.md", "chore(release): 1.2.3", true)
+	committed, err := g.commitChangelog([]string{"CHANGELOG.md"}, "chore(release): 1.2.3", true)
 	require.NoError(t, err)
 	assert.True(t, committed)
 
@@ -28,6 +28,62 @@ func TestCommitChangelog_StagedCommits(t *testing.T) {
 	assert.Equal(t, []string{"diff", "--cached", "--name-only"}, mr.Calls[1].Args)
 	assert.Equal(t, "commit", mr.Calls[2].Args[0])
 	assert.Equal(t, []string{"push", "origin", "HEAD"}, mr.Calls[3].Args)
+}
+
+// TestCommitChangelog_StagesMultipleFiles verifies that every path in files is staged with a
+// single `git add` call — not one call per file — when a hook (post_bump/pre_changelog,
+// ADR-0061) declares additional stage patterns alongside the changelog.
+func TestCommitChangelog_StagesMultipleFiles(t *testing.T) {
+	mr := exectest.NewMockRunner()
+	mr.QueueResponse("", "", nil)                              // git add
+	mr.QueueResponse("CHANGELOG.md\ncomposer.json\n", "", nil) // git diff --cached --name-only (staged)
+	mr.QueueResponse("", "", nil)                              // git commit
+	mr.QueueResponse("", "", nil)                              // git push
+
+	g := gitHelper{runner: mr}
+	committed, err := g.commitChangelog([]string{"CHANGELOG.md", "composer.json"}, "chore(release): 1.2.3", true)
+	require.NoError(t, err)
+	assert.True(t, committed)
+
+	require.Len(t, mr.Calls, 4)
+	assert.Equal(t, []string{"add", "CHANGELOG.md", "composer.json"}, mr.Calls[0].Args)
+}
+
+// TestCommitChangelog_ChangelogUnchangedButStagedFileChanged_StillCommits proves the
+// staged-check looks at the whole index, not just the changelog: when only a hook-declared
+// stage file actually changed, hasStagedChanges still reports true and the commit proceeds.
+func TestCommitChangelog_ChangelogUnchangedButStagedFileChanged_StillCommits(t *testing.T) {
+	mr := exectest.NewMockRunner()
+	mr.QueueResponse("", "", nil)                // git add
+	mr.QueueResponse("composer.json\n", "", nil) // git diff --cached --name-only (only composer.json staged)
+	mr.QueueResponse("", "", nil)                // git commit
+	mr.QueueResponse("", "", nil)                // git push
+
+	g := gitHelper{runner: mr}
+	committed, err := g.commitChangelog([]string{"CHANGELOG.md", "composer.json"}, "chore(release): 1.2.3", true)
+	require.NoError(t, err)
+	assert.True(t, committed)
+
+	require.Len(t, mr.Calls, 4)
+	assert.Equal(t, []string{"add", "CHANGELOG.md", "composer.json"}, mr.Calls[0].Args)
+}
+
+// TestCommitChangelog_ZeroMatchStagePattern_PropagatesGitAddError proves a stage pattern
+// matching nothing on disk is a plain `git add` failure — git's own pathspec matching handles
+// this, so commitChangelog adds no detection of its own (ADR-0061 Design §4).
+func TestCommitChangelog_ZeroMatchStagePattern_PropagatesGitAddError(t *testing.T) {
+	mr := exectest.NewMockRunner()
+	mr.QueueResponse("", "", errors.New("fatal: pathspec 'nonexistent.txt' did not match any files"))
+
+	g := gitHelper{runner: mr}
+	committed, err := g.commitChangelog([]string{"CHANGELOG.md", "nonexistent.txt"}, "chore(release): 1.2.3", true)
+	require.Error(t, err)
+	assert.False(t, committed)
+	assert.Contains(t, err.Error(), "git add")
+	assert.Contains(t, err.Error(), "pathspec")
+
+	require.Len(t, mr.Calls, 1)
+	assert.Equal(t, []string{"add", "CHANGELOG.md", "nonexistent.txt"}, mr.Calls[0].Args)
 }
 
 // TestCommitChangelog_NothingStagedSkips verifies that when `git add` stages nothing
@@ -39,7 +95,7 @@ func TestCommitChangelog_NothingStagedSkips(t *testing.T) {
 	mr.QueueResponse("", "", nil) // git diff --cached --name-only (empty: nothing staged)
 
 	g := gitHelper{runner: mr}
-	committed, err := g.commitChangelog("CHANGELOG.md", "chore(release): 1.2.3", true)
+	committed, err := g.commitChangelog([]string{"CHANGELOG.md"}, "chore(release): 1.2.3", true)
 	require.NoError(t, err)
 	assert.False(t, committed)
 
@@ -56,7 +112,7 @@ func TestCommitChangelog_DiffError(t *testing.T) {
 	mr.QueueResponse("", "", errors.New("fatal: not a git repo")) // git diff fails
 
 	g := gitHelper{runner: mr}
-	committed, err := g.commitChangelog("CHANGELOG.md", "chore(release): 1.2.3", true)
+	committed, err := g.commitChangelog([]string{"CHANGELOG.md"}, "chore(release): 1.2.3", true)
 	require.Error(t, err)
 	assert.False(t, committed)
 	assert.Contains(t, err.Error(), "git diff --cached")
@@ -80,7 +136,7 @@ func TestCommitChangelog_UsesInteractiveRunnerForCommit(t *testing.T) {
 	interactive.QueueResponse("", "", nil) // git commit
 
 	g := gitHelper{runner: mr, interactiveRunner: interactive}
-	committed, err := g.commitChangelog("CHANGELOG.md", "chore(release): 1.2.3", true)
+	committed, err := g.commitChangelog([]string{"CHANGELOG.md"}, "chore(release): 1.2.3", true)
 	require.NoError(t, err)
 	assert.True(t, committed)
 
@@ -104,7 +160,7 @@ func TestCommitChangelog_NoInteractiveRunnerFallsBackToRegular(t *testing.T) {
 	mr.QueueResponse("", "", nil)               // git push
 
 	g := gitHelper{runner: mr}
-	committed, err := g.commitChangelog("CHANGELOG.md", "chore(release): 1.2.3", true)
+	committed, err := g.commitChangelog([]string{"CHANGELOG.md"}, "chore(release): 1.2.3", true)
 	require.NoError(t, err)
 	assert.True(t, committed)
 	require.Len(t, mr.Calls, 4)

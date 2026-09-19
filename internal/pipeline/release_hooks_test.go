@@ -20,7 +20,7 @@ func TestRun_PostBumpHook_FiresAfterResolve(t *testing.T) {
 	mr.QueueResponse("", "", nil) // git push <tag>
 
 	cfg := &pipeline.Config{
-		PostBumpHooks: []string{"echo {{ .Version }}"},
+		PostBumpHooks: []pipeline.HookStep{{Run: "echo {{ .Version }}"}},
 		Platforms:     []port.Platform{&testutil.MockPlatform{PlatformName: "github"}},
 	}
 	p := pipeline.New(mr, &fakeResolver{result: resolvedResult("v1.2.3")}, cfg, &bytes.Buffer{}, false)
@@ -43,7 +43,7 @@ func TestRun_PostBumpHook_SubstitutesEnv(t *testing.T) {
 
 	cfg := &pipeline.Config{
 		Env:           "staging",
-		PostBumpHooks: []string{"echo {{ .Env }}"},
+		PostBumpHooks: []pipeline.HookStep{{Run: "echo {{ .Env }}"}},
 		Platforms:     []port.Platform{&testutil.MockPlatform{PlatformName: "github"}},
 	}
 	p := pipeline.New(mr, &fakeResolver{result: resolvedResult("v1.2.3")}, cfg, &bytes.Buffer{}, false)
@@ -51,6 +51,32 @@ func TestRun_PostBumpHook_SubstitutesEnv(t *testing.T) {
 
 	require.Len(t, mr.Calls, 3)
 	assert.Equal(t, []string{"-c", "echo staging"}, mr.Calls[0].Args)
+}
+
+// TestRun_PostBumpHook_StagePatternIncludedInCommit proves a post_bump hook's declared Stage
+// patterns (ADR-0061) reach the changelog commit's `git add` call alongside the changelog file
+// itself, not just pre_changelog's.
+func TestRun_PostBumpHook_StagePatternIncludedInCommit(t *testing.T) {
+	mr := exectest.NewMockRunner()
+	mr.QueueResponse("", "", nil)               // sh -c (post_bump)
+	mr.QueueResponse("", "", nil)               // git add
+	mr.QueueResponse("CHANGELOG.md\n", "", nil) // git diff --cached --name-only (staged)
+	mr.QueueResponse("", "", nil)               // git commit
+	mr.QueueResponse("", "", nil)               // git push
+	mr.QueueResponse("", "", nil)               // git tag
+	mr.QueueResponse("", "", nil)               // git push <tag>
+
+	gen := &testutil.MockGenerator{}
+	cfg := &pipeline.Config{
+		Changelog:     gen,
+		PostBumpHooks: []pipeline.HookStep{{Run: "echo bumping", Stage: []string{"extra.txt"}}},
+		Platforms:     []port.Platform{&testutil.MockPlatform{PlatformName: "github"}},
+	}
+	p := pipeline.New(mr, &fakeResolver{result: resolvedResult("v1.2.3")}, cfg, &bytes.Buffer{}, false)
+	require.NoError(t, p.Run())
+
+	require.Len(t, mr.Calls, 7)
+	assert.Equal(t, []string{"add", "CHANGELOG.md", "extra.txt"}, mr.Calls[1].Args)
 }
 
 func TestRun_PreChangelogHook_FiresBeforeChangelogGeneration(t *testing.T) {
@@ -64,7 +90,7 @@ func TestRun_PreChangelogHook_FiresBeforeChangelogGeneration(t *testing.T) {
 	gen := &testutil.MockGenerator{}
 	cfg := &pipeline.Config{
 		Changelog:         gen,
-		PreChangelogHooks: []string{"make lint"},
+		PreChangelogHooks: []pipeline.HookStep{{Run: "make lint"}},
 		Platforms:         []port.Platform{&testutil.MockPlatform{PlatformName: "github"}},
 	}
 	p := pipeline.New(mr, &fakeResolver{result: resolvedResult("v1.2.3")}, cfg, &bytes.Buffer{}, false)
@@ -85,7 +111,7 @@ func TestRun_PreTagHook_FiresBeforeTagCreation(t *testing.T) {
 	mr.QueueResponse("", "", nil) // git push <tag>
 
 	cfg := &pipeline.Config{
-		PreTagHooks: []string{"go build ./..."},
+		PreTagHooks: []pipeline.HookStep{{Run: "go build ./..."}},
 		Platforms:   []port.Platform{&testutil.MockPlatform{PlatformName: "github"}},
 	}
 	p := pipeline.New(mr, &fakeResolver{result: resolvedResult("v1.2.3")}, cfg, &bytes.Buffer{}, false)
@@ -103,7 +129,7 @@ func TestRun_PostTagHook_FiresAfterPush(t *testing.T) {
 	mr.QueueResponse("", "", nil) // sh -c (post_tag)
 
 	cfg := &pipeline.Config{
-		PostTagHooks: []string{"npm publish"},
+		PostTagHooks: []pipeline.HookStep{{Run: "npm publish"}},
 		Platforms:    []port.Platform{&testutil.MockPlatform{PlatformName: "github"}},
 	}
 	p := pipeline.New(mr, &fakeResolver{result: resolvedResult("v1.2.3")}, cfg, &bytes.Buffer{}, false)
@@ -122,9 +148,9 @@ func TestRun_Hooks_NoHooksSkipsAllConfiguredHooks(t *testing.T) {
 
 	cfg := &pipeline.Config{
 		NoHooks:       true,
-		PostBumpHooks: []string{"echo post-bump"},
-		PreTagHooks:   []string{"echo pre-tag"},
-		PostTagHooks:  []string{"echo post-tag"},
+		PostBumpHooks: []pipeline.HookStep{{Run: "echo post-bump"}},
+		PreTagHooks:   []pipeline.HookStep{{Run: "echo pre-tag"}},
+		PostTagHooks:  []pipeline.HookStep{{Run: "echo post-tag"}},
 		Platforms:     []port.Platform{&testutil.MockPlatform{PlatformName: "github"}},
 	}
 	p := pipeline.New(mr, &fakeResolver{result: resolvedResult("v1.2.3")}, cfg, &bytes.Buffer{}, false)
@@ -139,9 +165,9 @@ func TestRun_Hooks_DryRunNeverExecutesHooks(t *testing.T) {
 	mr := exectest.NewMockRunner()
 
 	cfg := &pipeline.Config{
-		PostBumpHooks: []string{"echo post-bump"},
-		PreTagHooks:   []string{"echo pre-tag"},
-		PostTagHooks:  []string{"echo post-tag"},
+		PostBumpHooks: []pipeline.HookStep{{Run: "echo post-bump"}},
+		PreTagHooks:   []pipeline.HookStep{{Run: "echo pre-tag"}},
+		PostTagHooks:  []pipeline.HookStep{{Run: "echo post-tag"}},
 		Platforms:     []port.Platform{&testutil.MockPlatform{PlatformName: "github"}},
 	}
 	p := pipeline.New(mr, &fakeResolver{result: resolvedResult("v1.2.3")}, cfg, &bytes.Buffer{}, true)
@@ -158,7 +184,7 @@ func TestRun_PreReleaseHook_FiresBeforeCreateRelease(t *testing.T) {
 
 	plat := &testutil.MockPlatform{PlatformName: "github"}
 	cfg := &pipeline.Config{
-		PreReleaseHooks: []string{"echo about to publish to {{ .Platform }}"},
+		PreReleaseHooks: []pipeline.HookStep{{Run: "echo about to publish to {{ .Platform }}"}},
 		Platforms:       []port.Platform{plat},
 	}
 	p := pipeline.New(mr, &fakeResolver{result: resolvedResult("v1.2.3")}, cfg, &bytes.Buffer{}, false)
@@ -177,7 +203,7 @@ func TestRun_PostReleaseHook_FiresAfterCreateReleaseAndAssets(t *testing.T) {
 
 	plat := &testutil.MockPlatform{PlatformName: "github", HasAssetsVal: true}
 	cfg := &pipeline.Config{
-		PostReleaseHooks: []string{"echo released {{ .Tag }} to {{ .Platform }}"},
+		PostReleaseHooks: []pipeline.HookStep{{Run: "echo released {{ .Tag }} to {{ .Platform }}"}},
 		Platforms:        []port.Platform{plat},
 	}
 	p := pipeline.New(mr, &fakeResolver{result: resolvedResult("v1.2.3")}, cfg, &bytes.Buffer{}, false)
@@ -202,7 +228,7 @@ func TestRun_PreReleaseHook_FailureSkipsThatPlatformOnly(t *testing.T) {
 	plat1 := &testutil.MockPlatform{PlatformName: "gitlab"}
 	plat2 := &testutil.MockPlatform{PlatformName: "github"}
 	cfg := &pipeline.Config{
-		PreReleaseHooks: []string{"exit 1"},
+		PreReleaseHooks: []pipeline.HookStep{{Run: "exit 1"}},
 		Platforms:       []port.Platform{plat1, plat2},
 	}
 	p := pipeline.New(mr, &fakeResolver{result: resolvedResult("v1.2.3")}, cfg, &bytes.Buffer{}, false)
@@ -225,7 +251,7 @@ func TestRun_PostReleaseHook_FailureWarnsButContinuesToNextPlatform(t *testing.T
 	plat1 := &testutil.MockPlatform{PlatformName: "gitlab"}
 	plat2 := &testutil.MockPlatform{PlatformName: "github"}
 	cfg := &pipeline.Config{
-		PostReleaseHooks: []string{"exit 1"},
+		PostReleaseHooks: []pipeline.HookStep{{Run: "exit 1"}},
 		Platforms:        []port.Platform{plat1, plat2},
 	}
 	p := pipeline.New(mr, &fakeResolver{result: resolvedResult("v1.2.3")}, cfg, &bytes.Buffer{}, false)
@@ -263,8 +289,8 @@ func TestRun_Hooks_NoHooksSkipsPreAndPostRelease(t *testing.T) {
 	plat := &testutil.MockPlatform{PlatformName: "github"}
 	cfg := &pipeline.Config{
 		NoHooks:          true,
-		PreReleaseHooks:  []string{"echo pre-release"},
-		PostReleaseHooks: []string{"echo post-release"},
+		PreReleaseHooks:  []pipeline.HookStep{{Run: "echo pre-release"}},
+		PostReleaseHooks: []pipeline.HookStep{{Run: "echo post-release"}},
 		Platforms:        []port.Platform{plat},
 	}
 	p := pipeline.New(mr, &fakeResolver{result: resolvedResult("v1.2.3")}, cfg, &bytes.Buffer{}, false)
@@ -284,7 +310,7 @@ func TestRun_Hooks_FailureAbortsRun(t *testing.T) {
 		{
 			name: "post_bump failure aborts before tag",
 			cfg: func() *pipeline.Config {
-				return &pipeline.Config{PostBumpHooks: []string{"exit 1"}}
+				return &pipeline.Config{PostBumpHooks: []pipeline.HookStep{{Run: "exit 1"}}}
 			},
 			queue: func(mr *exectest.MockRunner) {
 				mr.QueueResponse("", "", errors.New("exit status 1"))
@@ -294,7 +320,7 @@ func TestRun_Hooks_FailureAbortsRun(t *testing.T) {
 		{
 			name: "pre_tag failure aborts before tag",
 			cfg: func() *pipeline.Config {
-				return &pipeline.Config{PreTagHooks: []string{"exit 1"}}
+				return &pipeline.Config{PreTagHooks: []pipeline.HookStep{{Run: "exit 1"}}}
 			},
 			queue: func(mr *exectest.MockRunner) {
 				mr.QueueResponse("", "", errors.New("exit status 1"))
@@ -304,7 +330,7 @@ func TestRun_Hooks_FailureAbortsRun(t *testing.T) {
 		{
 			name: "post_tag failure returned after tag+push already happened",
 			cfg: func() *pipeline.Config {
-				return &pipeline.Config{PostTagHooks: []string{"exit 1"}}
+				return &pipeline.Config{PostTagHooks: []pipeline.HookStep{{Run: "exit 1"}}}
 			},
 			queue: func(mr *exectest.MockRunner) {
 				mr.QueueResponse("", "", nil) // git tag

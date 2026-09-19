@@ -58,47 +58,57 @@ func (p *Pipeline) hookVars(result versioning.Result) hookVars {
 	return hookVars{Version: result.Version, Tag: result.Tag, PreviousTag: result.CurrentTag, Env: p.cfg.Env}
 }
 
-// runHookPointStep renders and executes cmds (one hook point's configured commands) as a
+// runHookPointStep renders and executes steps (one hook point's configured commands) as a
 // reported step named name, skipping entirely — no step reported — when shouldRunHooks says
-// this point shouldn't run (dry-run, --no-hooks, or nothing configured).
-func (p *Pipeline) runHookPointStep(name string, cmds []string, vars hookVars) error {
-	if !shouldRunHooks(p.dryRun, p.cfg.NoHooks, cmds) {
-		return nil
+// this point shouldn't run (dry-run, --no-hooks, or nothing configured). The first return value
+// carries the rendered Stage patterns collected during a real execution; nil when skipped.
+func (p *Pipeline) runHookPointStep(name string, steps []HookStep, vars hookVars) ([]string, error) {
+	if !shouldRunHooks(p.dryRun, p.cfg.NoHooks, steps) {
+		return nil, nil
 	}
-	return p.runStep(name, func() (string, []string, error) {
-		return "", nil, runHookPoint(p.git.interactiveOrRunner(), cmds, vars)
+	var staged []string
+	err := p.runStep(name, func() (string, []string, error) {
+		rendered, err := runHookPointSteps(p.git.interactiveOrRunner(), steps, vars)
+		if err != nil {
+			return "", nil, err
+		}
+		staged = stagePatterns(rendered)
+		return "", nil, nil
 	})
+	return staged, err
 }
 
-// runOrRenderHookPoint executes cmds for real, or — during --dry-run — renders what would run
+// runOrRenderHookPoint executes steps for real, or — during --dry-run — renders what would run
 // (as a reporter step or a plain line, matching whichever output mode is active) without ever
 // executing anything. Used at call sites reached before dryRunOutput's own dry-run rendering —
-// currently only post_bump, since it fires unconditionally on resolve (ADR-0053).
-func (p *Pipeline) runOrRenderHookPoint(name string, cmds []string, vars hookVars) error {
+// currently only post_bump, since it fires unconditionally on resolve (ADR-0053). The first
+// return value carries the rendered Stage patterns collected during a real execution; nil in
+// every other case.
+func (p *Pipeline) runOrRenderHookPoint(name string, steps []HookStep, vars hookVars) ([]string, error) {
 	if !p.dryRun {
-		return p.runHookPointStep(name, cmds, vars)
+		return p.runHookPointStep(name, steps, vars)
 	}
 	if p.reporter != nil {
-		return p.dryRunHookStep(name, cmds, vars)
+		return nil, p.dryRunHookStep(name, steps, vars)
 	}
-	return p.printDryRunHookLinesPlain(cmds, vars)
+	return nil, p.printDryRunHookLinesPlain(steps, vars)
 }
 
-// dryRunHookLinesOrNil renders cmds into "[dry-run] would run: <cmd>" lines (T271), or nil, nil
+// dryRunHookLinesOrNil renders steps into "[dry-run] would run: <cmd>" lines (T271), or nil, nil
 // when NoHooks is set or nothing is configured — the dry-run counterpart to shouldRunHooks.
-func (p *Pipeline) dryRunHookLinesOrNil(cmds []string, vars hookVars) ([]string, error) {
+func (p *Pipeline) dryRunHookLinesOrNil(steps []HookStep, vars hookVars) ([]string, error) {
 	if p.cfg.NoHooks {
 		return nil, nil
 	}
-	return dryRunHookLines(cmds, vars)
+	return dryRunHookLines(steps, vars)
 }
 
 // dryRunHookStep reports a would-run hook point as its own step, named identically to the real
 // step runHookPointStep would report, so dry-run's step sequence matches a real run's exactly.
 // A render error aborts the dry-run (propagated, not discarded) — dry-run promises to show what
 // would happen, and a broken hook template is real, actionable information.
-func (p *Pipeline) dryRunHookStep(name string, cmds []string, vars hookVars) error {
-	lines, err := p.dryRunHookLinesOrNil(cmds, vars)
+func (p *Pipeline) dryRunHookStep(name string, steps []HookStep, vars hookVars) error {
+	lines, err := p.dryRunHookLinesOrNil(steps, vars)
 	if err != nil {
 		return err
 	}
@@ -112,8 +122,8 @@ func (p *Pipeline) dryRunHookStep(name string, cmds []string, vars hookVars) err
 
 // printDryRunHookLinesPlain writes would-run hook lines directly to p.out (the no-reporter
 // dry-run path), one per line.
-func (p *Pipeline) printDryRunHookLinesPlain(cmds []string, vars hookVars) error {
-	lines, err := p.dryRunHookLinesOrNil(cmds, vars)
+func (p *Pipeline) printDryRunHookLinesPlain(steps []HookStep, vars hookVars) error {
+	lines, err := p.dryRunHookLinesOrNil(steps, vars)
 	if err != nil {
 		return err
 	}
@@ -195,7 +205,8 @@ func (p *Pipeline) Run() error {
 	// branching below, so this sits right after Step 1 rather than after the dry-run check.
 	// runOrRenderHookPoint (not this placement) is what actually prevents execution during
 	// --dry-run — it renders instead, since dryRunOutput below never handles post_bump itself.
-	if err := p.runOrRenderHookPoint("Run post_bump hooks", p.cfg.PostBumpHooks, p.hookVars(result)); err != nil {
+	postBumpStage, err := p.runOrRenderHookPoint("Run post_bump hooks", p.cfg.PostBumpHooks, p.hookVars(result))
+	if err != nil {
 		return err
 	}
 
@@ -207,9 +218,11 @@ func (p *Pipeline) Run() error {
 	// singular and tied to origin, so it resolves links from the ambient CI host (ADR-0022).
 	// Falls back to the single configured platform context for local/non-CI runs.
 	if p.cfg.Changelog != nil && !p.cfg.DisableChangelog {
-		if err := p.runHookPointStep("Run pre_changelog hooks", p.cfg.PreChangelogHooks, p.hookVars(result)); err != nil {
+		preChangelogStage, err := p.runHookPointStep("Run pre_changelog hooks", p.cfg.PreChangelogHooks, p.hookVars(result))
+		if err != nil {
 			return err
 		}
+		stage := append(append([]string{}, postBumpStage...), preChangelogStage...)
 
 		changelogCtx := p.changelogLinkContext()
 		if err := p.runStep("Generate changelog", func() (string, []string, error) {
@@ -226,7 +239,7 @@ func (p *Pipeline) Run() error {
 		var committed bool
 		if err := p.runStep("Commit changelog", func() (string, []string, error) {
 			var cerr error
-			committed, cerr = p.git.commitChangelog(file, commitMessage(p.cfg.CommitMessage, result.Version), true)
+			committed, cerr = p.git.commitChangelog(append([]string{file}, stage...), commitMessage(p.cfg.CommitMessage, result.Version), true)
 			if cerr != nil {
 				return "", nil, fmt.Errorf("committing changelog: %w", cerr)
 			}
@@ -239,7 +252,7 @@ func (p *Pipeline) Run() error {
 		}
 	}
 
-	if err := p.runHookPointStep("Run pre_tag hooks", p.cfg.PreTagHooks, p.hookVars(result)); err != nil {
+	if _, err := p.runHookPointStep("Run pre_tag hooks", p.cfg.PreTagHooks, p.hookVars(result)); err != nil {
 		return err
 	}
 
@@ -263,7 +276,7 @@ func (p *Pipeline) Run() error {
 		return err
 	}
 
-	if err := p.runHookPointStep("Run post_tag hooks", p.cfg.PostTagHooks, p.hookVars(result)); err != nil {
+	if _, err := p.runHookPointStep("Run post_tag hooks", p.cfg.PostTagHooks, p.hookVars(result)); err != nil {
 		return err
 	}
 
@@ -299,7 +312,7 @@ func (p *Pipeline) Run() error {
 
 		err := p.runStep(fmt.Sprintf("Publish to %s", plat.Name()), func() (string, []string, error) {
 			if shouldRunHooks(p.dryRun, p.cfg.NoHooks, p.cfg.PreReleaseHooks) {
-				if err := runHookPoint(p.git.interactiveOrRunner(), p.cfg.PreReleaseHooks, platVars); err != nil {
+				if _, err := runHookPointSteps(p.git.interactiveOrRunner(), p.cfg.PreReleaseHooks, platVars); err != nil {
 					return "", nil, &hookFailureError{platform: plat.Name(), err: err}
 				}
 			}
@@ -327,7 +340,7 @@ func (p *Pipeline) Run() error {
 			}
 
 			if shouldRunHooks(p.dryRun, p.cfg.NoHooks, p.cfg.PostReleaseHooks) {
-				if err := runHookPoint(p.git.interactiveOrRunner(), p.cfg.PostReleaseHooks, platVars); err != nil {
+				if _, err := runHookPointSteps(p.git.interactiveOrRunner(), p.cfg.PostReleaseHooks, platVars); err != nil {
 					return "", nil, &hookFailureError{platform: plat.Name(), err: err}
 				}
 			}

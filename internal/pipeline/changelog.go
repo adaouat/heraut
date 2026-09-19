@@ -45,13 +45,13 @@ type ChangelogConfig struct {
 	// when the run isn't targeting an environment.
 	Env string
 	// PostBumpHooks run immediately after the next version is resolved. Empty = no hooks.
-	PostBumpHooks []string
+	PostBumpHooks []HookStep
 	// PreChangelogHooks run before changelog generation. Empty = no hooks.
-	PreChangelogHooks []string
+	PreChangelogHooks []HookStep
 	// PreTagHooks run before the local git tag is created. Empty = no hooks.
-	PreTagHooks []string
+	PreTagHooks []HookStep
 	// PostTagHooks run after the tag is pushed to origin. Empty = no hooks.
-	PostTagHooks []string
+	PostTagHooks []HookStep
 }
 
 // ChangelogPipeline executes the changelog-only flow.
@@ -92,32 +92,40 @@ func (p *ChangelogPipeline) hookVars(result versioning.Result) hookVars {
 	return hookVars{Version: result.Version, Tag: result.Tag, PreviousTag: result.CurrentTag, Env: p.cfg.Env}
 }
 
-// runHookPointStep renders and executes cmds (one hook point's configured commands) as a
+// runHookPointStep renders and executes steps (one hook point's configured commands) as a
 // reported step named name, skipping entirely — no step reported — when shouldRunHooks says
-// this point shouldn't run (dry-run, --no-hooks, or nothing configured).
-func (p *ChangelogPipeline) runHookPointStep(name string, cmds []string, vars hookVars) error {
-	if !shouldRunHooks(p.dryRun, p.cfg.NoHooks, cmds) {
-		return nil
+// this point shouldn't run (dry-run, --no-hooks, or nothing configured). The first return value
+// carries the rendered Stage patterns collected during a real execution; nil when skipped.
+func (p *ChangelogPipeline) runHookPointStep(name string, steps []HookStep, vars hookVars) ([]string, error) {
+	if !shouldRunHooks(p.dryRun, p.cfg.NoHooks, steps) {
+		return nil, nil
 	}
-	return p.runStep(name, func() (string, []string, error) {
-		return "", nil, runHookPoint(p.git.interactiveOrRunner(), cmds, vars)
+	var staged []string
+	err := p.runStep(name, func() (string, []string, error) {
+		rendered, err := runHookPointSteps(p.git.interactiveOrRunner(), steps, vars)
+		if err != nil {
+			return "", nil, err
+		}
+		staged = stagePatterns(rendered)
+		return "", nil, nil
 	})
+	return staged, err
 }
 
-// dryRunHookLinesOrNil renders cmds into "[dry-run] would run: <cmd>" lines (T271), or nil, nil
+// dryRunHookLinesOrNil renders steps into "[dry-run] would run: <cmd>" lines (T271), or nil, nil
 // when NoHooks is set or nothing is configured — the dry-run counterpart to shouldRunHooks.
-func (p *ChangelogPipeline) dryRunHookLinesOrNil(cmds []string, vars hookVars) ([]string, error) {
+func (p *ChangelogPipeline) dryRunHookLinesOrNil(steps []HookStep, vars hookVars) ([]string, error) {
 	if p.cfg.NoHooks {
 		return nil, nil
 	}
-	return dryRunHookLines(cmds, vars)
+	return dryRunHookLines(steps, vars)
 }
 
 // dryRunHookStep reports a would-run hook point as its own step, named identically to the real
 // step runHookPointStep would report, so dry-run's step sequence matches a real run's exactly.
 // A render error aborts the dry-run (propagated, not discarded).
-func (p *ChangelogPipeline) dryRunHookStep(name string, cmds []string, vars hookVars) error {
-	lines, err := p.dryRunHookLinesOrNil(cmds, vars)
+func (p *ChangelogPipeline) dryRunHookStep(name string, steps []HookStep, vars hookVars) error {
+	lines, err := p.dryRunHookLinesOrNil(steps, vars)
 	if err != nil {
 		return err
 	}
@@ -131,8 +139,8 @@ func (p *ChangelogPipeline) dryRunHookStep(name string, cmds []string, vars hook
 
 // printDryRunHookLinesPlain writes would-run hook lines directly to p.out (the no-reporter
 // dry-run path), one per line.
-func (p *ChangelogPipeline) printDryRunHookLinesPlain(cmds []string, vars hookVars) error {
-	lines, err := p.dryRunHookLinesOrNil(cmds, vars)
+func (p *ChangelogPipeline) printDryRunHookLinesPlain(steps []HookStep, vars hookVars) error {
+	lines, err := p.dryRunHookLinesOrNil(steps, vars)
 	if err != nil {
 		return err
 	}
@@ -142,19 +150,20 @@ func (p *ChangelogPipeline) printDryRunHookLinesPlain(cmds []string, vars hookVa
 	return nil
 }
 
-// runOrRenderHookPoint executes cmds for real, or — during --dry-run — renders what would run
+// runOrRenderHookPoint executes steps for real, or — during --dry-run — renders what would run
 // (as a reporter step or a plain line, matching whichever output mode is active) without ever
 // executing anything. Used at call sites reached before dryRunOutput's own dry-run rendering —
 // currently only post_bump, which must render even in the DisableChangelog && !Tag case where
-// Run() returns before the dry-run check is ever reached.
-func (p *ChangelogPipeline) runOrRenderHookPoint(name string, cmds []string, vars hookVars) error {
+// Run() returns before the dry-run check is ever reached. The first return value carries the
+// rendered Stage patterns collected during a real execution; nil in every other case.
+func (p *ChangelogPipeline) runOrRenderHookPoint(name string, steps []HookStep, vars hookVars) ([]string, error) {
 	if !p.dryRun {
-		return p.runHookPointStep(name, cmds, vars)
+		return p.runHookPointStep(name, steps, vars)
 	}
 	if p.reporter != nil {
-		return p.dryRunHookStep(name, cmds, vars)
+		return nil, p.dryRunHookStep(name, steps, vars)
 	}
-	return p.printDryRunHookLinesPlain(cmds, vars)
+	return nil, p.printDryRunHookLinesPlain(steps, vars)
 }
 
 // runStep calls fn via the reporter when one is set, or directly when nil.
@@ -193,7 +202,8 @@ func (p *ChangelogPipeline) Run() error {
 	// post_bump hooks fire on every resolve (ADR-0053) — including the DisableChangelog+!Tag
 	// case immediately below, which returns before any other step runs and before the dry-run
 	// check, so runOrRenderHookPoint (not dryRunOutput) is what renders this during --dry-run.
-	if err := p.runOrRenderHookPoint("Run post_bump hooks", p.cfg.PostBumpHooks, p.hookVars(result)); err != nil {
+	postBumpStage, err := p.runOrRenderHookPoint("Run post_bump hooks", p.cfg.PostBumpHooks, p.hookVars(result))
+	if err != nil {
 		return err
 	}
 
@@ -217,9 +227,11 @@ func (p *ChangelogPipeline) Run() error {
 	// changelog is tied to origin, so it resolves links from the explicit remote, the resolved
 	// forge, or the ambient CI host (ADR-0022 / ADR-0043).
 	if p.cfg.Changelog != nil && !p.cfg.DisableChangelog {
-		if err := p.runHookPointStep("Run pre_changelog hooks", p.cfg.PreChangelogHooks, p.hookVars(result)); err != nil {
+		preChangelogStage, err := p.runHookPointStep("Run pre_changelog hooks", p.cfg.PreChangelogHooks, p.hookVars(result))
+		if err != nil {
 			return err
 		}
+		stage := append(append([]string{}, postBumpStage...), preChangelogStage...)
 
 		changelogCtx := p.changelogLinkContext()
 		if err := p.runStep("Generate changelog", func() (string, []string, error) {
@@ -238,7 +250,7 @@ func (p *ChangelogPipeline) Run() error {
 			var committed bool
 			if err := p.runStep("Commit changelog", func() (string, []string, error) {
 				var cerr error
-				committed, cerr = p.git.commitChangelog(file, commitMessage(p.cfg.CommitMessage, result.Version), !p.cfg.NoPush)
+				committed, cerr = p.git.commitChangelog(append([]string{file}, stage...), commitMessage(p.cfg.CommitMessage, result.Version), !p.cfg.NoPush)
 				if cerr != nil {
 					return "", nil, fmt.Errorf("committing changelog: %w", cerr)
 				}
@@ -254,7 +266,7 @@ func (p *ChangelogPipeline) Run() error {
 
 	// Step 4+5: Tag the commit (conditional).
 	if p.cfg.Tag {
-		if err := p.runHookPointStep("Run pre_tag hooks", p.cfg.PreTagHooks, p.hookVars(result)); err != nil {
+		if _, err := p.runHookPointStep("Run pre_tag hooks", p.cfg.PreTagHooks, p.hookVars(result)); err != nil {
 			return err
 		}
 
@@ -280,7 +292,7 @@ func (p *ChangelogPipeline) Run() error {
 
 		// post_tag fires whether or not the tag was pushed — NoPush changes what "the tag
 		// operation completed" means, not whether it happened.
-		if err := p.runHookPointStep("Run post_tag hooks", p.cfg.PostTagHooks, p.hookVars(result)); err != nil {
+		if _, err := p.runHookPointStep("Run post_tag hooks", p.cfg.PostTagHooks, p.hookVars(result)); err != nil {
 			return err
 		}
 	}

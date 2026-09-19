@@ -41,14 +41,15 @@ func (g *gitHelper) runInteractive(name string, args ...string) error {
 	return err
 }
 
-// commitChangelog stages file and commits it with msg, pushing when push is set. It
-// reports whether a commit was actually created: when `git add` stages nothing — the
-// changelog is byte-identical to the last commit, e.g. a re-run after a partial release
-// or a release with no changelog-worthy commits — it returns (false, nil) without
-// committing so the caller can warn and continue to tag/publish rather than failing on
-// git's "nothing to commit" exit.
-func (g *gitHelper) commitChangelog(file, msg string, push bool) (bool, error) {
-	if err := g.run("git", "add", file); err != nil {
+// commitChangelog stages files (the changelog path plus any hook-declared stage patterns,
+// ADR-0061) and commits them with msg, pushing when push is set. Reports whether a commit was
+// actually created: when `git add` stages nothing across every path — every file byte-identical
+// to the last commit — it returns (false, nil) without committing so the caller can warn and
+// continue to tag/publish rather than failing on git's "nothing to commit" exit. A files entry
+// that matches nothing on disk is a `git add` failure like any other, propagated as-is — no new
+// zero-match detection needed (ADR-0061 Design §4).
+func (g *gitHelper) commitChangelog(files []string, msg string, push bool) (bool, error) {
+	if err := g.run("git", append([]string{"add"}, files...)...); err != nil {
 		return false, fmt.Errorf("git add: %w", err)
 	}
 	staged, err := g.hasStagedChanges()
