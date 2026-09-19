@@ -37,12 +37,12 @@ during design (see the design doc's Problem section).
 
 | Task | Description                                                                                   | Status |
 |------|-------------------------------------------------------------------------------------------------|--------|
-| T295 | `internal/config`: object-only `HookStep` (custom `UnmarshalYAML`) + `schema.json` + sample     | Not started |
-| T296 | `internal/config/validator.go`: require non-empty `run`; reject `stage` outside post_bump/pre_changelog | Not started |
-| T297 | `internal/pipeline` + `internal/app`: plumb `[]HookStep` through rendering/execution, all six points, both pipelines | Not started |
-| T298 | `internal/pipeline`: widen `commitChangelog`, thread staged patterns into the changelog commit  | Not started |
-| T299 | Integration test: real-git-repo proof a hook-generated file lands in the changelog commit       | Not started |
-| T300 | Docs: Spec 02 § `hooks`, guide, sample config, README; new ADR-0061                              | Not started |
+| T295 | `internal/config`: object-only `HookStep` (custom `UnmarshalYAML`) + `schema.json` + sample     | Done |
+| T296 | `internal/config/validator.go`: require non-empty `run`; reject `stage` outside post_bump/pre_changelog | Done |
+| T297 | `internal/pipeline` + `internal/app`: plumb `[]HookStep` through rendering/execution, all six points, both pipelines | Done |
+| T298 | `internal/pipeline`: widen `commitChangelog`, thread staged patterns into the changelog commit  | Done |
+| T299 | Integration test: real-git-repo proof a hook-generated file lands in the changelog commit       | Done |
+| T300 | Docs: Spec 02 § `hooks`, guide, sample config, README; new ADR-0061                              | Done |
 
 Sequencing: T295 (config schema) has no dependency on anything else and lands first — every other
 task consumes `config.HookStep`. T296 (validator) depends only on T295's struct existing. T297
@@ -148,7 +148,28 @@ changes verified by the existing `TestSchema_ValidFixtures` glob picking up the 
 existing invalid-fixture test harness's naming convention before adding) for
 `hooks_bare_string.yml`.
 
-- [ ] Task complete, roadmap note added, committed
+- [x] Task complete, roadmap note added, committed
+
+`HookStep` and its `UnmarshalYAML` were transcribed verbatim from the design brief: the
+KnownFields-strictness regression was proven with genuine red/green TDD — a naive
+`node.Decode(&raw)` implementation was written first, the new `unknown field rejected` subtest of
+`TestHookStep_UnmarshalYAML` was confirmed to fail against it (yaml silently accepted a typo'd
+`stag:` key), then the re-marshal-through-a-fresh-`KnownFields(true)`-decoder fix was applied and
+the same test went green. All six `Hooks` accessors now return `[]HookStep`; `schema.json` gained
+a `HookStep` definition (`required: [run]`, `additionalProperties: false`) referenced by all six
+`hooks.*` array items; `docs/heraut.sample.yml` and `testdata/config/valid/hooks.yml` were
+converted to object form, with one `stage` example each under `post_bump`. New invalid fixture
+`testdata/config/invalid/hooks_bare_string.yml` proves the bare-string shorthand is rejected at
+both the schema level (`TestSchema_InvalidFixtures`) and the `UnmarshalYAML` level (`TestHookStep_
+UnmarshalYAML/bare_string_rejected`). As documented above, these changes leave `go build
+./...`/`go test ./...` failing for the whole module — `internal/app/pipeline.go` still assigns
+`cfg.PostBumpHooks()` (now `[]HookStep`) into `[]string`-typed pipeline config fields; that's
+T297's job. Because `hk`'s pre-commit `golangci_lint` step lints `./...` and therefore needs the
+whole module to compile, no commit is possible until T297 lands — per the controller's ledgered
+ruling, T295's 8 files stay staged (`git add`), uncommitted, and the controller will commit them
+on their own once T297 makes the whole module compile again. `internal/config`'s own suite (375
+tests) and `go vet ./internal/config/...` are both clean. Nothing was deferred beyond `stage`'s
+actual staging behavior and validator scoping, both explicitly out of scope for this task.
 
 ---
 
@@ -209,7 +230,19 @@ on `pre_changelog[0]` → no error; (5) both a `stage`-on-`pre_release` violatio
 in the same config → both errors collected (proving `Validate` doesn't stop at the first); (6)
 `cfg.Hooks == nil` → nil, no panic.
 
-- [ ] Task complete, roadmap note added, committed
+- [x] Task complete, roadmap note added, committed
+
+**Completion note (2026-09-18).** `validateHooks` landed exactly as specified — one function,
+registered in `Validate()` alongside `validateForges`, both rules (`run` required everywhere,
+`stage` scoped to `post_bump`/`pre_changelog`) independent and both collected (no early return).
+One fix round: the first draft's `TestValidateHooks` routed the two "stage is valid here" rows
+through a shared assertion branch that hardcoded a check against `hooks.post_bump[0].run` — a
+tautology for one row, a check against a path that couldn't exist for the other — so neither row
+actually exercised the behavior it was named for. Caught in task review, fixed by refactoring the
+table-driven test into individual `t.Run()` subtests with `assert.Empty(t, config.Validate(cfg))`
+for both valid-stage cases, verified in a scoped re-review. `internal/config`'s own suite green
+(382 tests); whole-module build still intentionally broken at this point (T297's job, landed
+next). Commit deferred alongside every other task in this epic — see T295's note for why.
 
 ---
 
@@ -386,7 +419,30 @@ the existing per-pipeline dry-run/no-hooks table tests in `release_test.go`/`cha
 includes both the `would run:` and `would stage:` lines. New `TestToPipelineHookSteps` in
 `internal/app` covering the empty-slice and populated cases.
 
-- [ ] Task complete, roadmap note added, committed
+- [x] Task complete, roadmap note added, committed
+
+`internal/pipeline` gained its own `HookStep`/`renderedHookStep` plus `renderHookStep`,
+`renderHookSteps`, `runHookPointSteps`, and `stagePatterns`, transcribed verbatim from this
+brief. `runHookPoint` was deleted as specified; the now-dead `renderHookCmds` and the batch
+`runHooks([]string)` helper (nothing called them once `runHookPointSteps`/`dryRunHookLines` were
+rewritten against `renderHookSteps`) were deleted too, along with their now-orphaned unit tests —
+not explicitly named in the brief but flagged as a judgment call in the task report.
+`Config`/`ChangelogConfig`'s six hook fields are now `[]HookStep`; `runHookPointStep`/
+`runOrRenderHookPoint` return `([]string, error)` exactly as specified, and every `Run()` call
+site for the four non-staging points discards the first value with `_`; `release.go`'s inline
+pre_release/post_release block (which called `runHookPoint` directly, not through
+`runHookPointStep`) now calls `runHookPointSteps` the same way. `internal/app/pipeline.go` gained
+`toPipelineHookSteps` verbatim, wired into all ten `pCfg.XHooks`/`cCfg.XHooks` assignments; the
+two `hookRuns` step-count closures were retyped to `[]pipeline.HookStep` (the brief's prose said
+`[]config.HookStep`, which doesn't type-check against the `*pipeline.Config`/`*pipeline.
+ChangelogConfig` fields actually passed in — treated as a wording slip). One out-of-brief fixture
+fix was required to make `go test ./...` pass for the whole module:
+`internal/cmd/changelog_hooks_realrepo_test.go`'s two `.heraut.yml` fixtures still used the
+bare-string hook shorthand T296's `HookStep.UnmarshalYAML` (ADR-0061) now rejects; updated both
+to the `- run: "..."` mapping form. `go build ./...`, `go vet ./...`, and `go test ./...` are all
+clean for the entire module (1857 tests, 26 packages) — the whole-module break T295/T296 left
+behind is fully closed. Nothing was deferred beyond `stage`'s actual staging-into-commit
+behavior, explicitly out of scope for this task (T298's job).
 
 ---
 
@@ -492,7 +548,26 @@ CommitsChangelog`-shaped tests with a new row where `post_bump` declares `stage:
 assert the `git add` call in the `MockRunner`'s recorded calls includes both `CHANGELOG.md` and
 `extra.txt`.
 
-- [ ] Task complete, roadmap note added, committed
+- [x] Task complete, roadmap note added, committed
+
+**Completion note (2026-09-19).** Landed exactly as specified: `commitChangelog` widened to
+`(files []string, msg string, push bool)`, one `git add` call staging every path;
+`release.go`/`changelog.go` both capture `postBumpStage`/`preChangelogStage` and thread
+`append([]string{file}, stage...)` into the commit, with the other four hook points still
+discarding the return value. No new zero-match detection code — a `git add` failure on an
+unmatched `stage` pattern propagates as-is, exactly per the design. One interruption mid-task:
+the first implementer session was cut off by an infrastructure rate limit after finishing all
+three production files correctly but before finishing `git_test.go` or staging anything; a second
+session (with no code to redo, only tests to finish) completed the three brief-named
+`TestCommitChangelog_*` cases plus a `Run()`-level stage-inclusion test per pipeline, all using
+real `MockRunner` argument assertions (exact `git add` call contents, not just absence of error).
+Task review: Approved on the first pass, zero fix rounds — 3 Minor findings deferred to the final
+whole-branch review (no `Run()`-level test for `pre_changelog`'s own `Stage` contribution or the
+combined `post_bump`+`pre_changelog` order; duplicate stage paths across both points neither
+deduplicated nor tested, almost certainly harmless since `git add` tolerates repeated pathspecs;
+the `append(append(...))` combine pattern could use `slices.Concat` — purely stylistic). Whole
+module: `go build`/`go vet`/`go test` all clean, 1864 tests across 26 packages. Commit deferred
+alongside every other task in this epic — see T295's note for why.
 
 ---
 
@@ -515,7 +590,22 @@ before reaching `git commit`).
 (staged file never lands, or the zero-match case never errors since nothing stages it today),
 confirm it fails for the right reason, then confirm it passes on top of T297+T298's actual code.
 
-- [ ] Task complete, roadmap note added, committed
+- [x] Task complete, roadmap note added, committed
+
+**Completion note (2026-09-19).** Two real-git-repo cases added to the existing
+`internal/cmd/changelog_hooks_realrepo_test.go` (from T272): a `post_bump` hook that writes a
+scratch file and declares `stage: ["version.txt"]` produces a `heraut changelog --tag --no-push`
+commit whose tree contains both `CHANGELOG.md` and `version.txt` (verified via `git show
+--name-only HEAD`); a `post_bump` hook declaring `stage` on a file nothing creates aborts with a
+non-zero exit, `git add` visible in the CLI's own output, and no new commit (`git log --oneline`
+byte-identical before/after). Both tests proven to have teeth by temporarily severing the `stage`
+wiring in `internal/pipeline/changelog.go`, confirming both failed for the right reason, then
+reverting — confirmed independently by the reviewer, who also re-ran both 3× with `-race` (12/12
+green). The two pre-existing T272 tests in this file needed one narrow, necessary edit: their YAML
+fixtures moved from the bare-string hook shorthand to the `run:` mapping form, forced by T296's
+already-staged validation (bare strings are now a config error) — their own assertions are
+unchanged. Whole module: `go build`/`go vet` clean, 1866 tests. Commit deferred alongside every
+other task in this epic — see T295's note for why.
 
 ---
 
@@ -548,6 +638,40 @@ the following changelog commit, with a pointer to Spec 02's new subsection.
 and by `hk check` (`typos`, `yamlfmt`) passing on the new/changed files, matching T273's own
 precedent.
 
-- [ ] Task complete, roadmap note added, committed
+- [x] Task complete, roadmap note added, committed
+
+**Completion note (2026-09-19).** New `docs/adr/0061-hook-file-staging.md` expands the design
+doc's outline into a full ADR (Context/Decision/Consequences/Alternatives), citing the cocogitto
+`add_all` source investigation (`crates/cocogitto/src/command/bump/standard.rs`,
+`self.repository.add_all()` → `git2::Index::add_all(["."], ...)`) as the explicit reason a
+blanket-stage mode was rejected, and recording both coupled decisions (object-only hook entries;
+`stage` scoped to `post_bump`/`pre_changelog`) with their own Alternatives-considered entries.
+`docs/adr/README.md`'s index gained the ADR-0061 row — not in T300's own file list, but every
+prior ADR-adding task in this repo's history updates it in the same commit (verified via `git log
+--diff-filter=A -- docs/adr/*.md`), so treated as part of "write ADR-0061," not scope creep. Spec
+02's `## hooks` section: YAML example converted to the object form throughout (with one `stage`
+example under `post_bump`), the "each key is a list of shell commands" line corrected, and a new
+`### \`stage\` (ADR-0061)` subsection added (semantics, the six-row scope-validation table, the
+no-glob-dependency note, the zero-match-is-a-`git add`-error behavior) — placed after "Template
+variables" since `stage` entries render through the same engine. The guide
+(`docs/guides/release-pipeline-and-hooks.md`) needed no new mermaid nodes (confirmed: `stage` is
+an effect of `post_bump`/`pre_changelog`, not a new pipeline step) — added one prose bullet under
+each of the two diagrams pointing at Spec 02's new subsection, including a note that a
+disabled-changelog-and-no-`--tag` `heraut changelog` run discards any `post_bump`-declared `stage`
+silently (no commit exists to receive it, and that's not a validation error — validated scope is
+about *which hook point*, not *whether a commit happens this run*). `docs/heraut.sample.yml`'s
+existing `hooks:` comment block (from T295) already explained `stage`'s shape; tightened the
+wording from "optional, only meaningful under post_bump/pre_changelog" (read as merely inert
+elsewhere) to state plainly that it is a config validation error elsewhere, plus the no-new-glob-
+dependency and zero-match-error notes, matching Spec 02's fuller treatment. README.md: re-verified
+T273's precedent — it still doesn't mention `hooks:` at all, and its Configuration section still
+states "that's the shape, not the whole schema" pointing to Spec 02 — left untouched. CLAUDE.md's
+ADR count was stale at "58 ADRs" in two places (already off before this task, per the project's
+known drift pattern); corrected both to "61 ADRs" — `ls docs/adr/*.md` counted 61 files before
+this task (60 numbered ADRs, 0001-0060, plus the index `README.md`); adding `0061-hook-file-
+staging.md` brings the numbered-ADR count to 61. All touched files pass `hk check`
+(`yamlfmt`, `typos`) clean, matching T273's own docs-only verification precedent. Commit deferred
+alongside every other task in this epic — see T295's note for why; this is the epic's final task,
+so all of T295–T300 land together once the controller commits them in order.
 
 This closes the hook-file-staging epic once all of T295–T300 are done.

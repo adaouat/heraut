@@ -219,7 +219,7 @@ discipline that applies to every task.
 | 48 | Built-in default `Co-Authored-By` trailer rendering | Done |
 | 49 | Namespaced template blocks (`release.*` / `commit.*`) | Done |
 | 50 | Move `rendering.trailers` to `rendering.templates.commit.trailers` | Done |
-| 51 | Hook-declared file staging | Not started — see `hook-file-staging-roadmap.md` |
+| 51 | Hook-declared file staging | Done — see `hook-file-staging-roadmap.md` |
 
 ### Open items
 

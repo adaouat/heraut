@@ -65,3 +65,4 @@ trade-offs were accepted.
 | [0058](0058-default-coauthored-by-trailer.md) | Built-in default `Co-Authored-By` trailer rendering | Accepted |
 | [0059](0059-namespaced-template-blocks.md) | Namespaced template blocks (`release.*` / `commit.*`) | Accepted |
 | [0060](0060-rendering-commit-trailers-path.md) | Move `rendering.trailers` to `rendering.templates.commit.trailers` | Accepted |
+| [0061](0061-hook-file-staging.md) | Hook-declared file staging + object-only hook config | Accepted |

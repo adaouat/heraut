@@ -55,6 +55,12 @@ Things the diagram compresses that are worth stating explicitly:
 - **`--dry-run` never executes a hook.** Every hook node above still "fires" during a
   dry run, but only to render the substituted command as a plan line — the shell it would
   otherwise run through ([ADR-0054](../adr/0054-windows-hook-execution.md)) never starts.
+- **`post_bump` and `pre_changelog` are also the only two points where a hook can stage
+  files.** Both run before the "Commit changelog" step in the diagram above, so a `run`
+  command's declared `stage` patterns land in that same commit alongside `CHANGELOG.md`
+  ([ADR-0061](../adr/0061-hook-file-staging.md)). See
+  [Spec 02 § `stage`](../specs/02-configuration.md#stage-adr-0061) for the full semantics
+  and scope-validation rules.
 
 ## `heraut changelog`
 
@@ -92,6 +98,12 @@ them off). Note also that `--tag` with `disable_changelog: true` skips straight 
 disabled-changelog warning to the tag section: `pre_changelog` and `post_bump`'s sibling
 changelog-generation step never run, but `pre_tag`/`post_tag` still do — see [Spec 03 §
 Tag-only workflow](../specs/03-commands.md#tag-only-workflow-no-release-block-required).
+As in the `release` pipeline above, `post_bump` and `pre_changelog` are the two points
+whose `run` commands may declare `stage` patterns, staged into the "Commit changelog" step
+here ([ADR-0061](../adr/0061-hook-file-staging.md),
+[Spec 02 § `stage`](../specs/02-configuration.md#stage-adr-0061)) — a run that takes the
+disabled-changelog-and-no-`--tag` exit skips that commit entirely, so any `stage` declared
+on `post_bump` for such a run has nothing to land in either.
 
 ## Hook point quick reference
 

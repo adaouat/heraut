@@ -1095,21 +1095,28 @@ pipelines, see [Guide: Release pipeline and hook positions](../guides/release-pi
 ```yaml
 hooks:
   post_bump:
-    - "echo {{ .Version }} > VERSION"
+    - run: "php composer.phar config version {{ .Version }}"
+      stage:
+        - composer.json
+    - run: "echo {{ .Version }} > VERSION"
   pre_changelog:
-    - "make lint"
+    - run: "make lint"
   pre_tag:
-    - "go build ./..."
+    - run: "go build ./..."
   post_tag:
-    - "npm publish"
+    - run: "npm publish"
   pre_release:
-    - "echo about to publish to {{ .Platform }}"
+    - run: "echo about to publish to {{ .Platform }}"
   post_release:
-    - "curl -X POST $SLACK_WEBHOOK -d 'Released {{ .Tag }} to {{ .Platform }}'"
+    - run: "curl -X POST $SLACK_WEBHOOK -d 'Released {{ .Tag }} to {{ .Platform }}'"
 ```
 
-Each key is a list of shell commands, run in order; the first failing command stops the rest of
-that list.
+Each key is a list of hook steps, run in order; the first failing step stops the rest of that
+list. Every step is an object ([ADR-0061](../adr/0061-hook-file-staging.md)): `run` (required)
+is the shell command to execute; `stage` (optional — see [§ `stage`](#stage-adr-0061) below) is
+a list of file paths/patterns that command produces, staged into the same commit as
+`CHANGELOG.md`. A bare string entry (`- "echo hi"`, the shorthand ADR-0053 originally shipped) is
+a config error — wrap it as `{ run: "echo hi" }`.
 
 ### Hook points
 
@@ -1144,6 +1151,43 @@ Because these are real Go templates, a single command can branch per platform wi
 per-environment config keys ([ADR-0053](../adr/0053-release-lifecycle-hooks.md),
 [ADR-0055](../adr/0055-env-hook-template-variable.md)) — `hooks:` itself stays a single flat
 block regardless of how many environments or platforms a config targets.
+
+### `stage` (ADR-0061)
+
+A hook step's `stage` field lists the file path(s)/pattern(s) that step's `run` command
+produces. Every `stage` entry, from every step across **both** `post_bump` and
+`pre_changelog` for the current run, is staged into the same commit as `CHANGELOG.md`, in
+the order those hooks executed — alongside the changelog file, not instead of it. There is
+no blanket "stage everything dirty" mode; only paths a hook explicitly names are ever staged
+beyond the changelog file itself ([ADR-0061](../adr/0061-hook-file-staging.md)).
+
+`stage` entries are Go `text/template` strings, rendered through the same engine as `run`
+(§ Template variables above), so `stage: ["dist/app-{{ .Version }}.json"]` works.
+
+**Scope**: `stage` is only valid on the two hook points that run before the changelog
+commit. Declaring it anywhere else is a config validation error, not a silent no-op:
+
+| Hook point      | `stage` allowed? |
+|------------------|:---:|
+| `post_bump`      | Yes |
+| `pre_changelog`  | Yes |
+| `pre_tag`        | No — config error |
+| `post_tag`       | No — config error |
+| `pre_release`    | No — config error |
+| `post_release`   | No — config error |
+
+The four disallowed points all run at or after tagging, once the changelog commit (if any)
+already landed — there is no commit left for a staged file to join.
+
+**No glob-matching dependency.** A rendered `stage` entry passes straight to `git add`
+unchanged; git's own pathspec matching handles wildcards (`dist/*.json`) with no shell
+involved and no new dependency in heraut itself.
+
+**A `stage` pattern matching zero files is an error**, not a warning: `git add <pattern>`
+already exits non-zero when nothing matches, and that failure propagates like any other
+`git add` failure, aborting the run — the same "a failing step aborts the run" behavior
+every other hook failure already has. There is no separate zero-match detection code; git's
+own exit code is the detection.
 
 ### Failure semantics
 

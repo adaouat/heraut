@@ -368,28 +368,35 @@ changelog:
 
 # ── hooks ─────────────────────────────────────────────────────────────────────
 #
-# Shell commands run at points in the release lifecycle (ADR-0053). Each key is a list of
-# commands, run in order; the first failing command stops the rest of that list.
+# Shell commands run at points in the release lifecycle (ADR-0053, ADR-0061). Each key is a list
+# of hook steps, run in order; the first failing step stops the rest of that list. Every step is
+# an object: `run` (required) is a Go text/template string — {{ .Version }}, {{ .Tag }},
+# {{ .PreviousTag }}, {{ .Env }} (ADR-0055) are always available; {{ .Platform }} is set only for
+# pre_release/post_release. `stage` (optional) lists file paths/patterns that `run` produces,
+# staged into the same commit as CHANGELOG.md — patterns pass straight to `git add` (git's own
+# pathspec matching, no new glob dependency), and a pattern matching nothing is a `git add`
+# failure like any other step failure. Valid only under post_bump/pre_changelog (the only points
+# that run before that commit) — a config validation error anywhere else, not a silent no-op.
 # post_bump/pre_changelog/pre_tag/post_tag fire in both `heraut release` and
 # `heraut changelog --tag`; pre_release/post_release fire only in `heraut release`, once per
-# publish target. Commands are Go text/template strings: {{ .Version }}, {{ .Tag }},
-# {{ .PreviousTag }}, {{ .Env }} (ADR-0055) are always available; {{ .Platform }} is set only
-# for pre_release/post_release. Omit the whole block (or any key) for no hooks — the default.
-# Skip all configured hooks for a single run with `--no-hooks`, without editing this file.
+# publish target. Omit the whole block (or any key) for no hooks — the default. Skip all
+# configured hooks for a single run with `--no-hooks`, without editing this file.
 #
 # hooks:
 #   post_bump:
-#     - "echo {{ .Version }} > VERSION"
+#     - run: "echo {{ .Version }} > VERSION"
+#       stage:
+#         - VERSION
 #   pre_changelog:
-#     - "make lint"
+#     - run: "make lint"
 #   pre_tag:
-#     - "go build ./..."
+#     - run: "go build ./..."
 #   post_tag:
-#     - "npm publish"
+#     - run: "npm publish"
 #   pre_release:
-#     - "echo about to publish to {{ .Platform }}"
+#     - run: "echo about to publish to {{ .Platform }}"
 #   post_release:
-#     - "curl -X POST $SLACK_WEBHOOK -d 'Released {{ .Tag }} to {{ .Platform }}'"
+#     - run: "curl -X POST $SLACK_WEBHOOK -d 'Released {{ .Tag }} to {{ .Platform }}'"
 
 # ── release ───────────────────────────────────────────────────────────────────
 #
