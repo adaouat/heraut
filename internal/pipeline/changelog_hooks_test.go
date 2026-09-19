@@ -103,6 +103,32 @@ func TestChangelogRun_PostBumpHook_StagePatternIncludedInCommit(t *testing.T) {
 	assert.Equal(t, []string{"add", "CHANGELOG.md", "extra.txt"}, mr.Calls[1].Args)
 }
 
+// TestChangelogRun_PostBumpAndPreChangelogHooks_StagePatternsCombinedInCommit proves both hook
+// points' Stage patterns reach the same `git add` call, in the documented order — post_bump's
+// patterns first, then pre_changelog's, mirroring release.go's equivalent behavior.
+func TestChangelogRun_PostBumpAndPreChangelogHooks_StagePatternsCombinedInCommit(t *testing.T) {
+	mr := exectest.NewMockRunner()
+	mr.QueueResponse("", "", nil)               // sh -c (post_bump)
+	mr.QueueResponse("", "", nil)               // sh -c (pre_changelog)
+	mr.QueueResponse("", "", nil)               // git add
+	mr.QueueResponse("CHANGELOG.md\n", "", nil) // git diff --cached --name-only (staged)
+	mr.QueueResponse("", "", nil)               // git commit
+	mr.QueueResponse("", "", nil)               // git push
+
+	gen := &testutil.MockGenerator{}
+	cfg := &pipeline.ChangelogConfig{
+		Changelog:         gen,
+		Commit:            true,
+		PostBumpHooks:     []pipeline.HookStep{{Run: "echo bumping", Stage: []string{"postbump.txt"}}},
+		PreChangelogHooks: []pipeline.HookStep{{Run: "make lint", Stage: []string{"prechangelog.txt"}}},
+	}
+	p := pipeline.NewChangelog(mr, &fakeResolver{result: resolvedResult("v1.2.3")}, cfg, &bytes.Buffer{}, false)
+	require.NoError(t, p.Run())
+
+	require.Len(t, mr.Calls, 6)
+	assert.Equal(t, []string{"add", "CHANGELOG.md", "postbump.txt", "prechangelog.txt"}, mr.Calls[2].Args)
+}
+
 func TestChangelogRun_PreChangelogHook_FiresBeforeChangelogGeneration(t *testing.T) {
 	mr := exectest.NewMockRunner()
 	mr.QueueResponse("", "", nil) // sh -c (pre_changelog)
