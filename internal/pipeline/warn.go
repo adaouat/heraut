@@ -1,6 +1,11 @@
 package pipeline
 
-import "github.com/adaouat/heraut/internal/port"
+import (
+	"io"
+
+	"github.com/adaouat/heraut/internal/port"
+	"github.com/adaouat/heraut/internal/ui"
+)
 
 // degradedSubs returns the sub-result lines when gen degraded (enrichment failed under the
 // "optional" policy): the underlying failure reason (when the generator exposes DegradedReason)
@@ -28,4 +33,12 @@ func changelogGenResult(gen port.Generator) (detail string, subs []string) {
 		return "without enrichment", subs
 	}
 	return "", nil
+}
+
+// printResolveWarnings writes every warning the version resolver produced (Result.Warnings) to
+// out, right after the "Resolve version" step so it reads as that step's outcome.
+func printResolveWarnings(out io.Writer, warnings []string) {
+	for _, w := range warnings {
+		ui.WarnLines(out, w)
+	}
 }

@@ -198,6 +198,7 @@ func (p *ChangelogPipeline) Run() error {
 	}); err != nil {
 		return err
 	}
+	printResolveWarnings(p.out, result.Warnings)
 
 	// post_bump hooks fire on every resolve (ADR-0053) — including the DisableChangelog+!Tag
 	// case immediately below, which returns before any other step runs and before the dry-run

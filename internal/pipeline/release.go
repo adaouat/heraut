@@ -200,6 +200,7 @@ func (p *Pipeline) Run() error {
 	}); err != nil {
 		return err
 	}
+	printResolveWarnings(p.out, result.Warnings)
 
 	// post_bump hooks fire on every resolve (ADR-0053) — independent of dry-run/disable-changelog
 	// branching below, so this sits right after Step 1 rather than after the dry-run check.
