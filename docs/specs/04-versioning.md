@@ -158,10 +158,11 @@ When no tags matching the prefix exist, the resolver returns `initial_version` (
 
 ### Manual mode
 
-`bump.mode: manual` requires `--set-version X.Y.Z` to be passed to `heraut release` (or
-`heraut version next`). If omitted, the command fails immediately with a runtime error
+`bump.mode: manual` requires `--set-version X.Y.Z` to be passed to `heraut release` or
+`heraut changelog`. If omitted, the command fails immediately with a runtime error
 (exit code 3 — see [Spec 01 § Exit codes](01-overview.md#exit-codes)) before any git
-operations.
+operations. `heraut version next` has no `--set-version` flag, so under manual mode it always
+fails with that same error.
 
 `--set-version` is not exclusive to manual mode — passed to *any* strategy, it short-circuits
 bump resolution entirely and bypasses git calls, exactly as described here (see also

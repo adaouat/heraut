@@ -222,6 +222,7 @@ discipline that applies to every task.
 | 51 | Hook-declared file staging | Done — see `hook-file-staging-roadmap.md` |
 | 52 | Selective hook skipping (`--skip-hook`, `HERAUT_SKIP_HOOKS`) | Done |
 | 53 | Stay at v0 — hold major bumps at v0 (`stay_at_v0`, `--allow-major`) | Done |
+| 54 | Phase 53 follow-ups — hygiene, test breadth, docs polish, `version next` in manual mode | In progress |
 
 ### Open items
 
@@ -1763,6 +1764,24 @@ demotion: releasing a breaking change as a minor above 1.0 violates SemVer §8 a
 Commits' `BREAKING CHANGE` ↔ MAJOR mapping. Reuses T303's `--allow-major`. Needs its own design
 pass (setting name and placement, interaction with `stay_at_v0`, per-env behaviour) before any
 work; do not start it without one.
+
+---
+
+### Phase 54 — Phase 53 follow-ups
+
+Small items the Phase 53 reviews found and deliberately did not fix inside that phase — none is a
+defect in shipped behaviour and none blocks anything (T304 stays its own deferred design decision).
+Each open task below is independent and can be picked up alone, in any order.
+
+#### ✦ `[x]` T305: stop claiming `heraut version next` accepts `--set-version`
+
+`docs/heraut.sample.yml`'s `bump.mode` comment and Spec 04 § Manual mode both said `--set-version`
+can be passed to `heraut version next`; that command has no such flag (found by the Phase 53 final
+review, which ran the binary). Both now name `heraut release` / `heraut changelog` — the two
+commands that do take it — and state plainly that `version next` cannot resolve a version under
+`bump.mode: manual` (it fails with "Manual bump mode requires --set-version flag", exit 3,
+verified against the binary). Docs-only; `TestShippedExamples_LoadAndValidate` still passes. Whether
+`version next` *should* work in manual mode is a separate question, filed as T309.
 
 ---
 
