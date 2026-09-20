@@ -221,11 +221,11 @@ discipline that applies to every task.
 | 50 | Move `rendering.trailers` to `rendering.templates.commit.trailers` | Done |
 | 51 | Hook-declared file staging | Done — see `hook-file-staging-roadmap.md` |
 | 52 | Selective hook skipping (`--skip-hook`, `HERAUT_SKIP_HOOKS`) | Done |
-| 53 | Stay at v0 — hold major bumps at v0 (`stay_at_v0`, `--allow-major`) | Planned |
+| 53 | Stay at v0 — hold major bumps at v0 (`stay_at_v0`, `--allow-major`) | Done |
 
 ### Open items
 
-The single unchecked item across the entire roadmap — Phase 10's closing checkpoint:
+The only unchecked item outside Phase 53 (whose T304 is a deliberately unscheduled future task) — Phase 10's closing checkpoint:
 
 #### ✦ `[x]` CHECKPOINT K — Beta polish complete, ready for v1.0.0
 
@@ -1720,13 +1720,41 @@ minors, not covered: `--set-version` under auto mode with `stay_at_v0` (folded i
 resolver-warnings tests) and the no-tags-yet case (guarded by early returns this change did not
 touch).
 
-#### ✦ `[ ]` T303: `--allow-major`, warning output, docs, ADR-0063, dogfood
+#### ✦ `[x]` T303: `--allow-major`, warning output, docs, ADR-0063, dogfood
 
 `internal/ui` (`WarnLines`), `internal/versioning` (`Result.Warnings`), `internal/app`
 (`WithAllowMajor`, warning-copying resolver wrapper), `internal/pipeline` (print warnings after the
 resolve step), `internal/cmd` (`--allow-major` on `release`/`changelog`/`version next`;
 `version next` warns on stderr), real-repo tests, Spec 03/04, ADR-0063 + index, `CLAUDE.md` ADR counts, and `stay_at_v0: true` in
 `.config/heraut.yml`. Depends on T302.
+
+**Completion note (2026-09-20).** Built in four code commits plus one docs commit. `ui.WarnLines`
+(`internal/ui/status.go`, fec15d9) prints a multi-line warning; `versioning.Result.Warnings`, the
+variadic `NewResolver(..., opts ...ResolverOption)` with `app.WithAllowMajor`, and the
+`warningResolver` wrapper in `internal/app/resolver.go` (f2969d6) carry the semver resolver's
+recorded warnings into the result — the wrapper copies them after `Resolve`, which is why
+`perenv.VersionCalculator` and its interface stayed untouched; `printResolveWarnings`
+(`internal/pipeline/warn.go`), called right after Step 1 in `release.go` and `changelog.go`
+(1d3a947); and `--allow-major` on `release`, `changelog` and `version next` but not `version
+current` (2b88e22), where `version next` prints warnings to stderr so stdout stays exactly the tag.
+ADR-0063, Specs 03/04, the ADR index and the `CLAUDE.md` counts (62 → 63), the
+`docs/heraut.sample.yml` `bump:` header fix, and `stay_at_v0: true` in heraut's own
+`.config/heraut.yml` landed together (3f9f764). Three design-doc corrections were made while
+planning and are already committed: warnings are printed by the pipeline through `ui.WarnLines`
+rather than as spinner sub-lines, because the spinner renders sub-lines with a green check mark;
+the warning text uses bare versions, because per-env resolvers never see the tag format; and Spec
+02 has no `versioning.bump` section, so only Specs 03/04 changed. `--allow-major` is a silent no-op
+when nothing is held back — without `stay_at_v0`, with `--set-version`, once the major is >= 1,
+under CalVer, and on promote environments. This resolves all four T302 forward references (the
+ADR-0063 comment in `config.go`, and the `--allow-major` mentions in `schema.json`, the sample and
+the runtime warning text). Verification: full suite green (1965 tests), `-race` on
+`internal/cmd`, `internal/app` and `internal/pipeline`, `hk check` clean, and `go run
+./cmd/heraut version next` on heraut's own history prints `v0.69.0` with no warning and `check
+config` passes with the dogfood key enabled; every task used an independent reviewer. Deferred
+minors, not covered: the `release` call site has no behavioural test for `--allow-major` (the
+`changelog` and `version next` paths are covered), and a few test-breadth gaps in
+`internal/pipeline` and `internal/app` (failed-resolve and CalVer guards, ordering of several
+warnings). T304 remains unscheduled.
 
 #### ✦ `[ ]` T304: (future, not scheduled) major-bump gate for versions ≥ 1
 
