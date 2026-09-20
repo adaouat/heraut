@@ -28,7 +28,9 @@ func WithAllowMajor(allow bool) ResolverOption {
 
 // warningResolver copies the warnings a semver calculator recorded during Resolve into
 // Result.Warnings. It exists so semver-per-env's warnings can cross perenv without widening
-// perenv.VersionCalculator, whose BumpAuto returns only (string, error).
+// perenv.VersionCalculator, whose BumpAuto returns only (string, error). The semver resolver
+// resets its recorded warnings on entry to both Resolve and BumpAuto, so reading them after
+// Resolve can never return a previous run's text.
 type warningResolver struct {
 	inner    versioning.Resolver
 	warnings func() []string
@@ -39,7 +41,7 @@ func (w warningResolver) Resolve() (versioning.Result, error) {
 	if err != nil {
 		return res, err
 	}
-	res.Warnings = w.warnings()
+	res.Warnings = append(res.Warnings, w.warnings()...)
 	return res, nil
 }
 
@@ -49,6 +51,7 @@ func (w warningResolver) Resolve() (versioning.Result, error) {
 // versionOverride is set when --set-version X.Y.Z is passed; when non-empty a
 // StaticResolver is returned for all strategies, bypassing git calls entirely.
 // buildID is set when --set-build-id <id> is passed; requires versionOverride to be set.
+// opts tune resolution without changing the positional signature — see WithAllowMajor.
 func NewResolver(cfg *config.Config, env string, force bool, versionOverride, buildID string, runner port.Runner, opts ...ResolverOption) (versioning.Resolver, error) {
 	if buildID != "" && versionOverride == "" {
 		return nil, fmt.Errorf("--set-build-id requires --set-version: build ID cannot be combined with automatic version resolution")
