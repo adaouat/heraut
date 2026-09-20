@@ -89,3 +89,25 @@ func TestStatusHelpers_ColorPath(t *testing.T) {
 		})
 	}
 }
+
+func TestWarnLines(t *testing.T) {
+	tests := []struct {
+		name string
+		msg  string
+		want string
+	}{
+		{"single line", "held back", "! held back\n"},
+		{
+			"headline then detail lines verbatim",
+			"held back\n  - feat!: a\n  - feat!: b",
+			"! held back\n  - feat!: a\n  - feat!: b\n",
+		},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			w := &bytes.Buffer{}
+			ui.WarnLines(w, tc.msg)
+			assert.Equal(t, tc.want, w.String())
+		})
+	}
+}

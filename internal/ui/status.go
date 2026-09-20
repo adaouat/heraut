@@ -1,7 +1,9 @@
 package ui
 
 import (
+	"fmt"
 	"io"
+	"strings"
 
 	forgeui "github.com/adaouat/forge/ui"
 )
@@ -17,6 +19,16 @@ func Err(w io.Writer, msg string) string { return forgeui.Err(w, msg) }
 
 // Warn returns "! <msg>" styled yellow when w supports color, plain otherwise.
 func Warn(w io.Writer, msg string) string { return forgeui.Warn(w, msg) }
+
+// WarnLines writes msg to w as a warning: the first line through Warn, every following line
+// verbatim (already indented by the caller).
+func WarnLines(w io.Writer, msg string) {
+	first, rest, hasRest := strings.Cut(msg, "\n")
+	_, _ = fmt.Fprintln(w, Warn(w, first))
+	if hasRest {
+		_, _ = fmt.Fprintln(w, rest)
+	}
+}
 
 // Info returns "  <msg>" dimmed when w supports color, plain otherwise.
 func Info(w io.Writer, msg string) string { return forgeui.Info(w, msg) }
