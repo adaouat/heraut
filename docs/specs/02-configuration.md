@@ -1227,3 +1227,39 @@ Both `heraut release` and `heraut changelog` accept `--no-hooks`, which skips ev
 hook for that one run without editing `.heraut.yml` — useful for CI troubleshooting or a one-off
 run where a hook shouldn't fire. `--dry-run` never executes a hook either way; it shows the
 rendered command each configured hook would run instead.
+
+### `--skip-hook` and `HERAUT_SKIP_HOOKS`
+
+`--no-hooks` is all-or-nothing. To skip only some hook **points** for one run
+([ADR-0062](../adr/0062-selective-hook-skipping.md)), pass `--skip-hook <point>` to
+`heraut release` or `heraut changelog` — repeatable, comma-separable:
+
+```bash
+heraut release --skip-hook post_release                 # no notification this time
+heraut release --skip-hook pre_tag --skip-hook post_tag
+heraut changelog --tag --skip-hook pre_tag,post_tag
+```
+
+The valid points are the six in [Hook points](#hook-points). `heraut changelog` accepts only the
+four it runs — `pre_release`/`post_release` are rejected, since that pipeline never publishes. A
+name that isn't a hook point at all is rejected too, with the valid list in the message; both are
+config errors, raised before the config file is read. Every step at a skipped point is skipped
+(there is no per-step selection — steps have no identifier), and a skipped step's `stage`
+patterns are not staged, since its command never ran. `--dry-run` prints nothing for a skipped
+point, exactly as for one that isn't configured.
+
+The `HERAUT_SKIP_HOOKS` environment variable carries the same comma-separated list
+(`HERAUT_SKIP_HOOKS=post_release,pre_tag`, surrounding whitespace ignored) and applies whenever the
+flag is absent — handy for a CI job that shouldn't fire a given hook in any of its steps. It is
+validated exactly like the flag, per command, so a `HERAUT_SKIP_HOOKS` naming a release-only point
+fails any `heraut changelog` step it reaches; scope the variable to the steps that need it.
+
+Precedence and conflicts:
+
+| Given                                     | Result                                                        |
+|-------------------------------------------|---------------------------------------------------------------|
+| `--skip-hook` only                        | Those points are skipped.                                     |
+| `HERAUT_SKIP_HOOKS` only                  | Those points are skipped.                                     |
+| `--skip-hook` **and** `HERAUT_SKIP_HOOKS` | The flag wins outright; the variable is ignored (no merging). |
+| `--no-hooks` **and** `--skip-hook`        | Error — `--no-hooks` already skips everything.                |
+| `--no-hooks` **and** `HERAUT_SKIP_HOOKS`  | `--no-hooks` wins; not an error.                              |

@@ -220,6 +220,7 @@ discipline that applies to every task.
 | 49 | Namespaced template blocks (`release.*` / `commit.*`) | Done |
 | 50 | Move `rendering.trailers` to `rendering.templates.commit.trailers` | Done |
 | 51 | Hook-declared file staging | Done — see `hook-file-staging-roadmap.md` |
+| 52 | Selective hook skipping (`--skip-hook`, `HERAUT_SKIP_HOOKS`) | Done |
 
 ### Open items
 
@@ -1622,6 +1623,51 @@ breakdown and live `[ ] / [x]` status live in a dedicated roadmap:
 → **[Hook File Staging Roadmap](hook-file-staging-roadmap.md)** — T295+
 
 Design: [`docs/superpowers/specs/2026-09-17-hook-file-staging-design.md`](../superpowers/specs/2026-09-17-hook-file-staging-design.md).
+
+---
+
+### Phase 52 — Selective hook skipping
+
+`--no-hooks` is all-or-nothing. A repeatable, comma-separable `--skip-hook <point>` flag on
+`heraut release` / `heraut changelog` (and a `HERAUT_SKIP_HOOKS` env var carrying the same
+comma-separated list) skips individual hook *points* (`post_bump`, `pre_changelog`, `pre_tag`,
+`post_tag`, `pre_release`, `post_release`) for one run. Granularity is the point, not the
+individual step — steps have no identifier today and naming them would need a config-schema change.
+No `config.go`/`schema.json`/sample change. `--skip-hook` together with `--no-hooks` is a config
+error; `heraut changelog` rejects `pre_release`/`post_release` (it never publishes). The skip is
+applied in `internal/app` by emptying the skipped points' step lists after config translation, so
+`internal/pipeline` (dry-run lines, step totals, `stage` collection) is untouched. New ADR-0062.
+
+#### ✦ `[x]` T301: `--skip-hook` flag + `HERAUT_SKIP_HOOKS` env var
+
+Files: `internal/app` (validation + skip application + `PipelineOpts.SkipHooks`), `internal/cmd`
+(`release.go`, `changelog.go`, flag/env resolution helper), tests at each layer, Spec 02 § hooks,
+Spec 03 flag tables, `docs/guides/release-pipeline-and-hooks.md`, ADR-0062 + ADR index,
+`CLAUDE.md` ADR counts.
+
+**Completion note (2026-09-20).** Implemented as designed: `app.ValidateSkipHooks` normalizes
+(trim, drop blanks, dedup) and checks against the invoking command's allowed points, and
+`applySkipHooks`/`applyChangelogSkipHooks` empty the skipped points' step lists right after config
+translation, so `internal/pipeline` needed no change at all — dry-run lines, `[N/total]` counters
+and `stage` collection already treat an empty list as "not configured". `internal/cmd/skiphooks.go`
+holds the flag declaration (with shell completion limited to the command's own points) and
+`resolveSkipHooks`, called first in each `RunE` so a bad value fails before the config is read.
+Decisions the design left open, settled with the user or by precedent: `--skip-hook` + `--no-hooks`
+is a `Config` error; a release-only point on `changelog` is rejected; the env var is an ambient
+default, so an explicit flag *replaces* it (like `--config` over `HERAUT_FILE`) and `--no-hooks`
+beats it without erroring. The env var is validated per command exactly like the flag, so a job-wide
+`HERAUT_SKIP_HOOKS=post_release` fails any `heraut changelog` step — relaxing that for the env var
+alone is a small, backward-compatible change (ADR-0062 Consequences) and was deferred rather than
+guessed at. Error text leads with a plain word ("Cannot combine…", "Invalid value in …") because
+fang capitalizes the first letter of an error and mangled `--skip-hook` into `--Skip-Hook` (an
+existing quirk — `--set-build-id`'s error does the same — left alone). Deferred, not built:
+per-step selection (steps have no identifier; needs a `name:` config field). Tests: table-driven
+`internal/app` unit tests, an end-to-end dry-run `BuildPipeline` test (mutation-checked: removing
+the `applySkipHooks` call fails it), and real-git-repo `changelog` tests for flag, repeat/comma
+forms, env var, flag-over-env precedence and `--no-hooks`-over-env. There is no real-repo
+`release` test: it needs a resolvable publish target, and the shared wiring is already proven by
+the changelog tests plus the `BuildPipeline` one. Full suite, `-race` on `internal/app` and
+`internal/cmd`, and `hk check` green.
 
 ---
 

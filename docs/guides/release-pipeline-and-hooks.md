@@ -135,6 +135,11 @@ Full detail — command list semantics, template variables (`{{ .Version }}`, `{
 `{{ .PreviousTag }}`, `{{ .Platform }}`, `{{ .Env }}`), failure semantics, and `--no-hooks`
 — lives in [Spec 02 § `hooks`](../specs/02-configuration.md#hooks).
 
+To skip only some of these points for one run, use `--skip-hook <point>` (or the
+`HERAUT_SKIP_HOOKS` environment variable) — the point names in the first column above are the
+valid values; `heraut changelog` accepts only the four it runs. See
+[Spec 02 § `--skip-hook`](../specs/02-configuration.md#--skip-hook-and-heraut_skip_hooks).
+
 ## See also
 
 - [ADR-0053: Release lifecycle hooks](../adr/0053-release-lifecycle-hooks.md) — why hooks
