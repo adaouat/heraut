@@ -121,3 +121,41 @@ func TestChangelog_RealGit_StayAtV0_AllowMajorTagsMajor(t *testing.T) {
 	require.NoError(t, err)
 	assert.Contains(t, string(tags), "v1.0.0")
 }
+
+const stayAtV0ReleaseConfig = `
+version: "1"
+versioning:
+  strategy: semver
+  tag_prefix: "v"
+  bump:
+    stay_at_v0: true
+forges:
+  - name: github
+    platform: github
+    repository: test/repo
+release:
+  targets:
+    - forge: github
+`
+
+func TestRelease_DryRun_StayAtV0_HoldsBackAndWarns(t *testing.T) {
+	cfgPath := writeConfig(t, stayAtV0ReleaseConfig)
+	fakeGitBreakingSinceV068(t)
+
+	out, err := executeRoot("release", "--config", cfgPath, "--dry-run")
+	require.NoError(t, err)
+
+	assert.Contains(t, out, "v0.69.0")
+	assert.Contains(t, out, "major bump held back by versioning.bump.stay_at_v0: 1.0.0 → 0.69.0")
+}
+
+func TestRelease_DryRun_StayAtV0_AllowMajorReleasesMajor(t *testing.T) {
+	cfgPath := writeConfig(t, stayAtV0ReleaseConfig)
+	fakeGitBreakingSinceV068(t)
+
+	out, err := executeRoot("release", "--config", cfgPath, "--dry-run", "--allow-major")
+	require.NoError(t, err)
+
+	assert.Contains(t, out, "v1.0.0")
+	assert.NotContains(t, out, "held back")
+}
