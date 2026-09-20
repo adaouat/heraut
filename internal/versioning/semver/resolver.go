@@ -2,6 +2,7 @@ package semver
 
 import (
 	"fmt"
+	"slices"
 	"strings"
 
 	"github.com/adaouat/heraut/internal/config"
@@ -17,6 +18,8 @@ type Resolver struct {
 	runner          port.Runner
 	cfg             *config.Config
 	versionOverride string
+	allowMajor      bool
+	warnings        []string
 }
 
 // New constructs a SemVer Resolver.
@@ -29,6 +32,7 @@ func New(runner port.Runner, cfg *config.Config) *Resolver {
 // full commit messages since the latest tag. Implements the VersionCalculator
 // interface consumed by internal/versioning/perenv.
 func (r *Resolver) BumpAuto(tags []string, commits []string) (string, error) {
+	r.warnings = nil
 	if len(tags) == 0 {
 		return r.initialVersion(), nil
 	}
@@ -36,7 +40,7 @@ func (r *Resolver) BumpAuto(tags []string, commits []string) (string, error) {
 	if len(commits) == 0 {
 		return "", fmt.Errorf("no commits since %s — create at least one commit before running heraut release", currentVersion)
 	}
-	bump := DetermineBump(commits, r.cfg.Versioning.BumpOverrides())
+	bump := r.determineBump(currentVersion, commits)
 	if bump == versioning.BumpNone {
 		return "", noReleasableCommitsError(currentVersion, commits)
 	}
@@ -55,10 +59,37 @@ func (r *Resolver) SetVersionOverride(v string) {
 	r.versionOverride = v
 }
 
+// SetAllowMajor lifts versioning.bump.stay_at_v0's hold-back for this resolver (--allow-major).
+func (r *Resolver) SetAllowMajor(allow bool) {
+	r.allowMajor = allow
+}
+
+// Warnings returns the warnings produced by the most recent Resolve or BumpAuto call — nil when
+// nothing was held back. The resolver never prints them; the caller decides how to surface them.
+func (r *Resolver) Warnings() []string {
+	return slices.Clone(r.warnings)
+}
+
+// determineBump is DetermineBump plus versioning.bump.stay_at_v0 (ADR-0063), recording any
+// warning for Warnings.
+func (r *Resolver) determineBump(currentVersion string, commits []string) versioning.BumpType {
+	overrides := r.cfg.Versioning.BumpOverrides()
+	bump := DetermineBump(commits, overrides)
+	if !r.cfg.Versioning.StayAtV0() || r.allowMajor {
+		return bump
+	}
+	held, warning := holdMajorAtZero(currentVersion, bump, commits, overrides)
+	if warning != "" {
+		r.warnings = []string{warning}
+	}
+	return held
+}
+
 // Resolve returns the next version result.
 // An explicit versionOverride (set via SetVersionOverride) always takes precedence over
 // the configured bump mode — this allows --set-version to short-circuit auto resolution.
 func (r *Resolver) Resolve() (versioning.Result, error) {
+	r.warnings = nil
 	if r.versionOverride != "" || r.cfg.Versioning.BumpMode() == "manual" {
 		return r.resolveManual()
 	}
@@ -125,7 +156,7 @@ func (r *Resolver) resolveAuto() (versioning.Result, error) {
 		return versioning.Result{}, fmt.Errorf("no commits since %s — create at least one commit before running heraut release", currentTag)
 	}
 
-	bump := DetermineBump(commits, r.cfg.Versioning.BumpOverrides())
+	bump := r.determineBump(currentVersion, commits)
 	if bump == versioning.BumpNone {
 		return versioning.Result{}, noReleasableCommitsError(currentTag, commits)
 	}
