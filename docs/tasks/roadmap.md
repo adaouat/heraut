@@ -8,7 +8,7 @@ described in `docs/specs/`. Each task carries an inline `[ ] / [x]` checkbox —
 headings for what to do next, read the surrounding prose for *why* and *how*.
 
 The behavioural authority is `docs/specs/` (six numbered specs); the architectural
-authority is `docs/adr/` (58 ADRs). Where this roadmap mentions "behaviour", the specs
+authority is `docs/adr/` (63 ADRs). Where this roadmap mentions "behaviour", the specs
 win; where it mentions a "decision", the ADR wins. If you find a disagreement between
 roadmap and spec/ADR, fix the roadmap.
 
@@ -36,7 +36,7 @@ The goals of v1.0:
    provides these (see [ADR-0014](../adr/0014-self-update-architecture.md), superseded,
    for the self-update → forge/updatecheck migration).
 
-The `docs/specs/` (six numbered specs) and the 58 ADRs in `docs/adr/` are authoritative.
+The `docs/specs/` (six numbered specs) and the 63 ADRs in `docs/adr/` are authoritative.
 
 ---
 
@@ -1750,10 +1750,8 @@ ADR-0063 comment in `config.go`, and the `--allow-major` mentions in `schema.jso
 the runtime warning text). Verification: full suite green (1965 tests), `-race` on
 `internal/cmd`, `internal/app` and `internal/pipeline`, `hk check` clean, and `go run
 ./cmd/heraut version next` on heraut's own history prints `v0.69.0` with no warning and `check
-config` passes with the dogfood key enabled; every task used an independent reviewer. Deferred
-minors, not covered: the `release` call site has no behavioural test for `--allow-major` (the
-`changelog` and `version next` paths are covered), and a few test-breadth gaps in
-`internal/pipeline` and `internal/app` (failed-resolve and CalVer guards, ordering of several
+config` passes with the dogfood key enabled. Deferred minors, not covered: a few test-breadth gaps
+in `internal/pipeline` and `internal/app` (failed-resolve and CalVer guards, ordering of several
 warnings). T304 remains unscheduled.
 
 #### ✦ `[ ]` T304: (future, not scheduled) major-bump gate for versions ≥ 1

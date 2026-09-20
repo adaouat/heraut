@@ -79,8 +79,11 @@ versioning:
       - type: fix
         bump: minor                 # promote fixes to a minor bump
       - breaking: true
-        bump: minor                 # even breaking changes only bump minor pre-1.0
+        bump: minor                 # see § Staying at v0 for a self-retiring alternative that warns
 ```
+
+With a `{breaking: true, bump: minor}` override in place nothing resolves to `major`, so
+`stay_at_v0` never fires and no warning is printed.
 
 A commit whose only matching rule resolves to `none` behaves like a non-conventional
 commit: it does not raise the release's bump level. If every commit since the last tag
@@ -120,9 +123,11 @@ Pass `--allow-major` (`heraut release`, `heraut changelog`, `heraut version next
 major for one run — `heraut version next --allow-major` previews it. The warning shows in
 `--dry-run` too; `heraut version next` prints it to stderr so stdout stays exactly the tag.
 
-The setting is ignored under `bump.mode: manual` and with `--set-version`, does nothing once the
-current major is 1 or higher (so it can stay in the config after 1.0), and applies to `semver` and
-to the `bump: auto` environments of `semver-per-env` — not to CalVer or `promote` environments.
+The setting is ignored with `--set-version` and under `bump.mode: manual` (a `semver` setting —
+`bump.mode` has no effect on `semver-per-env` environments, where `stay_at_v0` still applies),
+does nothing once the current major is 1 or higher (so it can stay in the config after 1.0), and
+applies to `semver` and to the `bump: auto` environments of `semver-per-env` — not to CalVer or
+`promote` environments.
 It is v0-only on purpose: SemVer permits breaking changes in `0.y.z` (§4) but requires a major
 bump for them from 1.0.0 (§8), so holding one back above 1.0 would make the version number lie.
 The changelog and release notes still mark the commits as breaking.

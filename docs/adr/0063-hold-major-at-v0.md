@@ -29,7 +29,7 @@ flag lift it for a single run.** `versioning.bump` gains an optional boolean `st
 
 - **The rule.** A bump is held back when all four conditions hold: `stay_at_v0` is true and
   `--allow-major` was not passed; the run is automatic (not `--set-version`, not `bump.mode:
-  manual`); the current version's major component is `0`; and the resolved bump is `major`. The bump
+  manual` — a `semver` setting that `semver-per-env` environments never read); the current version's major component is `0`; and the resolved bump is `major`. The bump
   then becomes `minor` — `v0.68.0` → `v0.69.0`, not `v1.0.0`. It is applied to the **release-level**
   result, after `bump.overrides`, so an override that yields `major` is held back too, and a project
   that already demotes breaking commits never triggers it. With no tags yet there is no current
@@ -69,8 +69,8 @@ flag lift it for a single run.** `versioning.bump` gains an optional boolean `st
   (`app.WithAllowMajor`), so `app.NewResolver`'s existing six positional parameters and call sites
   are unchanged. `heraut version next --allow-major` previews the major.
 - **A silent no-op when nothing is held back.** Without `stay_at_v0`, with `--set-version`, under
-  `bump.mode: manual`, or once the major version is 1 or higher, `--allow-major` does nothing and
-  says nothing. Making it an error would fail a wrapper script that always passes it on the day it
+  `bump.mode: manual` (`semver` only), or once the major version is 1 or higher, `--allow-major`
+  does nothing and says nothing. Making it an error would fail a wrapper script that always passes it on the day it
   stops being necessary.
 - **Rendering is untouched.** The changelog and release notes still mark the commits as breaking;
   only the version number is held back.
@@ -106,7 +106,7 @@ flag lift it for a single run.** `versioning.bump` gains an optional boolean `st
   the feature exists for. (For versions ≥ 1 an error *is* the right shape; see T304 above.)
 - **Extend `--force`.** Rejected: `--force` already means two unrelated things (bypass E001/E002
   promotion guards, and downgrade `commits.enrichment_policy: required` to `optional`), and the
-  repo has precedent for splitting a flag rather than overloading it (T40, `heraut init
+  repo has precedent for splitting a flag rather than overloading it (T264, `heraut init
   --overwrite`). Someone passing `--force` to recover a promotion should not release a `1.0.0`.
 - **A permanent `max_bump: minor` ceiling.** Rejected: it keeps capping after 1.0, contradicting
   SemVer §8, and the maintainer must remember to remove it. `stay_at_v0` retires itself.

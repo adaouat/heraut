@@ -259,7 +259,7 @@ attempting resolution.
 Exits non-zero if a promotion guard trips (E001/E002/E003).
 
 With `versioning.bump.stay_at_v0` set, a breaking change at `0.x` prints a hold-back warning on stderr
-(stdout stays exactly the tag); `--allow-major` prints the `1.0.0` it would otherwise hold back. See
+(stdout stays exactly the tag); `--allow-major` prints the `v1.0.0` tag it would otherwise hold back. See
 [ADR-0063](../adr/0063-hold-major-at-v0.md) / [Spec 04 § Staying at v0](04-versioning.md#staying-at-v0-stay_at_v0).
 
 > **`{build}` tag formats:** `version next` cannot render a tag that requires a build ID

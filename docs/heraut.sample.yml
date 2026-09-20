@@ -71,8 +71,9 @@ versioning:
     # breaking change bumps minor instead of major (v0.68.0 → v0.69.0, not v1.0.0) and
     # heraut prints a warning naming the commits. Pass --allow-major to release 1.0.0
     # for one run. Does nothing once the major version is 1 or higher, so it can stay
-    # in the config after 1.0. Ignored under mode: manual and with --set-version.
-    # Applies to semver-per-env auto environments too.
+    # in the config after 1.0. Ignored with --set-version and under mode: manual (a
+    # semver setting — mode has no effect on semver-per-env environments, where
+    # stay_at_v0 still applies).
     stay_at_v0: false
 
   # tag_type — git tag type. Omit for the default (annotated).

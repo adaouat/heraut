@@ -45,7 +45,7 @@ hand-type the version with `--set-version`.
   every run. See Resolved questions.
 - **Not** an extension of `--force`. It already means two unrelated things (E001/E002 bypass and
   the `enrichment_policy` downgrade), and the repo has precedent for splitting rather than
-  overloading (T40, `heraut init --overwrite`).
+  overloading (T264, `heraut init --overwrite`).
 - **Not** a permanent ceiling (`max_bump: minor`). That would keep capping after 1.0.
 - **Not** CalVer, and not `promote` environments — neither computes a bump from commits.
 - **Not** a change to changelog/release-notes rendering. Breaking commits stay marked breaking;
@@ -72,8 +72,8 @@ the key, or the whole `bump:` block, changes nothing. `schema.json` and `docs/he
 are updated together (per `.claude/rules/coding.md`); the behaviour is documented in Spec 04 § SemVer
 (Spec 02 has no `versioning.bump` section) and Spec 03's flag tables.
 
-No semantic validation beyond the type. It is inert under `bump.mode: manual` and on CalVer
-strategies, like `bump.overrides` already is.
+No semantic validation beyond the type. It is inert under `bump.mode: manual` (`semver` only) and on
+CalVer strategies, like `bump.overrides` already is.
 
 ### 2. The rule
 
@@ -81,7 +81,8 @@ After the release-level bump is computed (`DetermineBump`, i.e. **after** `bump.
 it back when **all** of these hold:
 
 1. `stay_at_v0` is true and `--allow-major` was not passed;
-2. the run is automatic — not `--set-version`, not `bump.mode: manual`;
+2. the run is automatic — not `--set-version`, not `bump.mode: manual` (a `semver` setting;
+   `semver-per-env` environments never read it);
 3. the current version's major component is `0`;
 4. the resolved bump is `major`.
 
@@ -140,7 +141,7 @@ reaches the resolver through a variadic option on `app.NewResolver`
 are unchanged.
 
 It is a silent no-op when nothing is held back: without `stay_at_v0`, with `--set-version`, under
-`bump.mode: manual`, or once the major is ≥ 1. Making it an error would make a wrapper script that
+`bump.mode: manual` (`semver` only), or once the major is ≥ 1. Making it an error would make a wrapper script that
 always passes it fail on the day it becomes unnecessary.
 
 ### 6. Dogfooding
