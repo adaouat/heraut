@@ -65,6 +65,13 @@ versioning:
       - regex: '^chore\(deps.*\)'
         bump: none
 
+    # stay_at_v0 — optional, default false. While the current major version is 0, a
+    # breaking change bumps minor instead of major (v0.68.0 → v0.69.0, not v1.0.0) and
+    # heraut prints a warning naming the commits. Pass --allow-major to release 1.0.0
+    # for one run. Does nothing once the major version is 1 or higher, so it can stay
+    # in the config after 1.0. Ignored under mode: manual and with --set-version.
+    stay_at_v0: false
+
   # tag_type — git tag type. Omit for the default (annotated).
   #   annotated   created with -a; carries tagger, timestamp, message
   #   lightweight bare ref; no metadata (useful for ephemeral env tags)

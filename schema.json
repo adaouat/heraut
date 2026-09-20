@@ -449,6 +449,10 @@
           "items": {
             "$ref": "#/definitions/BumpRule"
           }
+        },
+        "stay_at_v0": {
+          "type": "boolean",
+          "description": "While the current major version is 0, hold a major bump back to minor (with a warning) instead of releasing 1.0.0. Lift it for one run with --allow-major. Defaults to false."
         }
       }
     },

@@ -84,12 +84,19 @@ func (v Versioning) BumpOverrides() []BumpRule {
 	return v.Bump.Overrides
 }
 
+// StayAtV0 reports whether versioning.bump.stay_at_v0 is set. Nil-safe.
+func (v Versioning) StayAtV0() bool {
+	return v.Bump != nil && v.Bump.StayAtV0
+}
+
 // BumpConfig configures SemVer auto-bump resolution (T261): the resolution mode, and — for auto
 // mode — per-commit bump-level overrides layered on top of the built-in defaults (breaking
 // commits → major, feat → minor, any other conventional commit → patch).
 type BumpConfig struct {
 	Mode      string     `yaml:"mode,omitempty"`
 	Overrides []BumpRule `yaml:"overrides,omitempty"`
+	// StayAtV0 holds a major bump back to minor while the current major version is 0 (ADR-0063).
+	StayAtV0 bool `yaml:"stay_at_v0,omitempty"`
 }
 
 // BumpRule assigns an explicit bump level to commits matching Type, Regex, and/or Breaking — all
