@@ -102,6 +102,13 @@ func TestResolve_StayAtV0(t *testing.T) {
 			wantWarn: []string{"fix: bug"},
 		},
 		{
+			name: "exactly five major commits list all five and no 'and N more' line", cfg: stayAtV0Cfg(), tag: "v0.1.0",
+			commits:     []string{"feat!: break 1", "feat!: break 2", "feat!: break 3", "feat!: break 4", "feat!: break 5"},
+			wantVersion: "0.2.0", wantBump: versioning.BumpMinor,
+			wantWarn: []string{"  - feat!: break 1", "  - feat!: break 5"},
+			notWarn:  []string{"… and"},
+		},
+		{
 			name: "an override that already demotes breaking triggers nothing",
 			cfg:  stayAtV0Cfg(config.BumpRule{Breaking: boolPtr(true), Bump: "minor"}), tag: "v0.68.0",
 			commits:     []string{"feat!: x"},
@@ -115,6 +122,10 @@ func TestResolve_StayAtV0(t *testing.T) {
 			assert.Equal(t, tc.wantBump, res.Bump)
 
 			got := r.Warnings()
+			joined := strings.Join(got, "\n")
+			for _, s := range tc.notWarn {
+				assert.NotContains(t, joined, s)
+			}
 			if tc.wantWarn == nil {
 				assert.Empty(t, got)
 				return
@@ -122,9 +133,6 @@ func TestResolve_StayAtV0(t *testing.T) {
 			require.Len(t, got, 1)
 			for _, s := range tc.wantWarn {
 				assert.Contains(t, got[0], s)
-			}
-			for _, s := range tc.notWarn {
-				assert.NotContains(t, got[0], s)
 			}
 		})
 	}
@@ -165,6 +173,22 @@ func TestResolve_StayAtV0_ManualModeAndSetVersionUntouched(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, "1.0.0", res.Version)
 	assert.Empty(t, r.Warnings())
+}
+
+func TestResolve_StayAtV0_WarningsResetBetweenCalls(t *testing.T) {
+	mr := exectest.NewMockRunner()
+	mr.QueueResponse("v0.68.0\n", "", nil)
+	mr.QueueResponse("feat!: break\x00", "", nil)
+	r := semver.New(mr, stayAtV0Cfg())
+
+	_, err := r.Resolve()
+	require.NoError(t, err)
+	require.Len(t, r.Warnings(), 1)
+
+	r.SetVersionOverride("0.70.0") // the second resolution holds nothing back
+	_, err = r.Resolve()
+	require.NoError(t, err)
+	assert.Empty(t, r.Warnings(), "a later Resolve with nothing held back must not repeat the old warning")
 }
 
 func TestBumpAuto_StayAtV0(t *testing.T) {
