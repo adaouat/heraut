@@ -18,6 +18,7 @@ func NewReleaseCmd(version string) *cobra.Command {
 		buildID             string
 		regenerateChangelog bool
 		noHooks             bool
+		skipHooks           []string
 	)
 
 	releaseCmd := &cobra.Command{
@@ -37,6 +38,11 @@ func NewReleaseCmd(version string) *cobra.Command {
 				if err := app.ValidateBuildID(buildID); err != nil {
 					return exitcode.Wrap(exitcode.Config, err)
 				}
+			}
+
+			skipHookPoints, err := resolveSkipHooks(cmd, skipHooks, noHooks, app.ReleaseHookPoints())
+			if err != nil {
+				return exitcode.Wrap(exitcode.Config, err)
 			}
 
 			cfgPath, _ := cmd.Flags().GetString("config")
@@ -103,6 +109,7 @@ func NewReleaseCmd(version string) *cobra.Command {
 				ReadRunner:          readRunner,
 				InteractiveRunner:   interactiveRunner,
 				NoHooks:             noHooks,
+				SkipHooks:           skipHookPoints,
 			}
 			pipe, err := app.BuildPipeline(runner, cfg, resolver, opts)
 			if err != nil {
@@ -134,6 +141,7 @@ func NewReleaseCmd(version string) *cobra.Command {
 	releaseCmd.Flags().Bool("force", false, "override safety checks blocking tag promotion or missing PR/MR metadata")
 	releaseCmd.Flags().Bool("offline", false, "skip remote PR/MR metadata enrichment (forces enrichment_policy: disabled)")
 	releaseCmd.Flags().BoolVar(&noHooks, "no-hooks", false, "skip every configured hook (post_bump/pre_changelog/pre_tag/post_tag/pre_release/post_release) for this run")
+	addSkipHookFlag(releaseCmd, &skipHooks, app.ReleaseHookPoints())
 
 	return releaseCmd
 }

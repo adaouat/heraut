@@ -60,6 +60,9 @@ type PipelineOpts struct {
 	// NoHooks skips every configured hook for this run (--no-hooks), without touching config
 	// (ADR-0053).
 	NoHooks bool
+	// SkipHooks names individual hook points to skip for this run (--skip-hook /
+	// HERAUT_SKIP_HOOKS, ADR-0062). Callers validate it with ValidateSkipHooks first.
+	SkipHooks []string
 }
 
 // ReadGPGSign reads tag.gpgSign from git config and returns true when it is set to "true".
@@ -86,6 +89,7 @@ func BuildPipeline(runner port.Runner, cfg *config.Config, resolver versioning.R
 	}
 	pipelineCfg.SignTags = opts.SignTags
 	pipelineCfg.NoHooks = opts.NoHooks
+	applySkipHooks(pipelineCfg, opts.SkipHooks)
 
 	out := opts.Out
 	if out == nil {
@@ -459,6 +463,7 @@ func buildChangelogPipelineConfig(runner, readRunner port.Runner, cfg *config.Co
 	cCfg.PreChangelogHooks = toPipelineHookSteps(cfg.PreChangelogHooks())
 	cCfg.PreTagHooks = toPipelineHookSteps(cfg.PreTagHooks())
 	cCfg.PostTagHooks = toPipelineHookSteps(cfg.PostTagHooks())
+	applyChangelogSkipHooks(cCfg, opts.SkipHooks)
 
 	return cCfg, nil
 }

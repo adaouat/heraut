@@ -20,12 +20,18 @@ func NewChangelogCmd(version string) *cobra.Command {
 		buildID         string
 		regenerate      bool
 		noHooks         bool
+		skipHooks       []string
 	)
 
 	changelogCmd := &cobra.Command{
 		Use:   "changelog",
 		Short: "Generate changelog (optionally commit and tag)",
 		RunE: func(cmd *cobra.Command, args []string) error {
+			skipHookPoints, err := resolveSkipHooks(cmd, skipHooks, noHooks, app.ChangelogHookPoints())
+			if err != nil {
+				return exitcode.Wrap(exitcode.Config, err)
+			}
+
 			cfgPath, _ := cmd.Flags().GetString("config")
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
 			verbose, _ := cmd.Flags().GetBool("verbose")
@@ -93,6 +99,7 @@ func NewChangelogCmd(version string) *cobra.Command {
 				ReadRunner:          readRunner,
 				InteractiveRunner:   interactiveRunner,
 				NoHooks:             noHooks,
+				SkipHooks:           skipHookPoints,
 			}
 			if !dryRun {
 				if err := app.CheckBranch(readRunner, cfg, env, force); err != nil {
@@ -124,6 +131,7 @@ func NewChangelogCmd(version string) *cobra.Command {
 	changelogCmd.Flags().Bool("force", false, "override safety checks blocking tag promotion or missing PR/MR metadata")
 	changelogCmd.Flags().Bool("offline", false, "skip remote PR/MR metadata enrichment (forces enrichment_policy: disabled)")
 	changelogCmd.Flags().BoolVar(&noHooks, "no-hooks", false, "skip every configured hook (post_bump/pre_changelog/pre_tag/post_tag) for this run")
+	addSkipHookFlag(changelogCmd, &skipHooks, app.ChangelogHookPoints())
 
 	return changelogCmd
 }
