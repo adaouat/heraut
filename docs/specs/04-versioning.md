@@ -94,6 +94,39 @@ no releasable commits since v0.62.0: 3 commit(s) since then are excluded from th
   - chore(ci): update workflow
 ```
 
+### Staying at v0 (`stay_at_v0`)
+
+A project that is deliberately pre-1.0 can hold breaking changes back to a minor bump
+([ADR-0063](../adr/0063-hold-major-at-v0.md)):
+
+```yaml
+versioning:
+  bump:
+    mode: auto
+    stay_at_v0: true                # optional, default false
+```
+
+While the **current major version is 0**, a release whose bump resolves to `major` — after
+`bump.overrides`, so an override that yields `major` is held back too — becomes a `minor` bump
+instead (`v0.68.0` → `v0.69.0`, not `v1.0.0`). heraut prints a warning naming the commits that
+forced the major, the version it held back, and how to lift it:
+
+```
+! major bump held back by versioning.bump.stay_at_v0: 1.0.0 → 0.69.0 (pass --allow-major to release 1.0.0)
+  - feat(cmd)!: scope CLI flags to commands that use them, not root
+```
+
+Pass `--allow-major` (`heraut release`, `heraut changelog`, `heraut version next`) to release the
+major for one run — `heraut version next --allow-major` previews it. The warning shows in
+`--dry-run` too; `heraut version next` prints it to stderr so stdout stays exactly the tag.
+
+The setting is ignored under `bump.mode: manual` and with `--set-version`, does nothing once the
+current major is 1 or higher (so it can stay in the config after 1.0), and applies to `semver` and
+to the `bump: auto` environments of `semver-per-env` — not to CalVer or `promote` environments.
+It is v0-only on purpose: SemVer permits breaking changes in `0.y.z` (§4) but requires a major
+bump for them from 1.0.0 (§8), so holding one back above 1.0 would make the version number lie.
+The changelog and release notes still mark the commits as breaking.
+
 ### Prefix handling
 
 `tag_prefix` (default `"v"`) is stripped before SemVer comparison and re-applied on output.

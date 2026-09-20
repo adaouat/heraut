@@ -37,9 +37,11 @@ versioning:
   # semver and semver-per-env only.
   initial_version: "0.1.0"
 
-  # bump — how to determine the version increment. semver only (semver-per-env
-  # uses each environment's own bump: auto/promote instead — see environments below).
-  # Omit the whole block for the default (mode: auto, no overrides).
+  # bump — how to determine the version increment. mode is semver only; overrides and
+  # stay_at_v0 apply to semver and to the `bump: auto` environments of semver-per-env
+  # (each environment's own bump: auto/promote still decides whether commits are
+  # inspected at all — see environments below). Omit the whole block for the default
+  # (mode: auto, no overrides).
   bump:
     # mode — defaults to "auto" when omitted.
     #   auto   inspect conventional-commit types since the last tag
@@ -70,6 +72,7 @@ versioning:
     # heraut prints a warning naming the commits. Pass --allow-major to release 1.0.0
     # for one run. Does nothing once the major version is 1 or higher, so it can stay
     # in the config after 1.0. Ignored under mode: manual and with --set-version.
+    # Applies to semver-per-env auto environments too.
     stay_at_v0: false
 
   # tag_type — git tag type. Omit for the default (annotated).
