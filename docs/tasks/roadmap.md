@@ -1783,6 +1783,75 @@ commands that do take it — and state plainly that `version next` cannot resolv
 verified against the binary). Docs-only; `TestShippedExamples_LoadAndValidate` still passes. Whether
 `version next` *should* work in manual mode is a separate question, filed as T309.
 
+#### ✦ `[ ]` T306: Phase 53 code hygiene (three latent nits)
+
+None changes behaviour today; each is a one-line hardening or rename the Phase 53 reviews flagged.
+(a) `ui.WarnLines` (`internal/ui/status.go:25`) prints a stray blank line when `msg` ends in `\n`
+(`strings.Cut` leaves a trailing empty segment and `Fprintln` adds another newline); no producer
+emits one, but the helper's signature advertises general use — `strings.TrimRight(msg, "\n")` plus
+two `TestWarnLines` rows (trailing newline, empty message). (b) `determineBump`
+(`internal/versioning/semver/resolver.go:83`) assigns `r.warnings = []string{warning}` rather than
+appending; correct while there is one hold per resolution and both entry points reset on entry, but
+it would silently drop an earlier warning if a future path (the monorepo epic resolves per module)
+called `determineBump` twice in one resolution — use `append`, mirroring the fix already made in
+`warningResolver`. (c) Naming: `maxHeldBackCommits` (`hold.go:11`) caps how many commit subjects the
+warning *lists*, not how many are held back (`maxListedCommits`); `determineBump`
+(`resolver.go:75`) differs from the exported `DetermineBump` by one capital letter at both call
+sites (`bumpAfterHold` reads unambiguously).
+
+#### ✦ `[ ]` T307: Phase 53 test-breadth gaps
+
+Guards, not bug fixes — every behaviour below was verified by hand during the reviews.
+`internal/app/resolver_warnings_test.go`: `calver` and `calver-per-env` come back from `NewResolver`
+unwrapped and warning-free even with `stay_at_v0: true` set (checked manually, untested).
+`internal/pipeline/resolve_warnings_test.go`: several warnings print in order; the non-dry-run
+path; the `ChangelogPipeline` `DisableChangelog && !Tag` path (the warning must still print before
+that early return); a direct table test for `printResolveWarnings` (nil / one / two entries); and
+`TestRun_NoResolveWarnings_PrintsNoWarningLine` only asserts `NotContains "held back"`, which is
+weaker than its name — tighten it to the warning-line shape without colliding with the
+`! changelog disabled` line. `internal/cmd/allowmajor_test.go`: `version next` whose `Resolve()`
+fails prints no warning (guaranteed by structure today: the error return precedes the loop); the
+two real-git `changelog` rows use the merged-stream `executeRoot`, so they cannot prove which
+stream the pipeline's warning goes to — add one run through `executeRootSeparateStreams`.
+`internal/versioning/semver`: no test for "no tags yet" under `stay_at_v0` (returns the initial
+version, no warning, via the untouched early returns).
+
+#### ✦ `[ ]` T308: Phase 53 docs polish
+
+Cosmetic. `docs/specs/03-commands.md`: the `changelog` `--allow-major` row lacks the "no effect"
+list (without `stay_at_v0`, with `--set-version`, under `bump.mode: manual`, once major ≥ 1) that the
+`release` row has. `docs/adr/0063-hold-major-at-v0.md`: the illustrative warning shows the raw
+`Result.Warnings` entry (no `!` glyph) while Spec 04 shows the rendered line — add a clause saying
+which is which. `docs/heraut.sample.yml` (`stay_at_v0` paragraph, ~lines 74-76): a review edit
+replaced "applies to semver-per-env auto environments too" with "still applies", which no longer
+says *auto* (promote environments are unaffected) — restore the precise wording. Lines past the
+~100-column wrap in ADR-0063 (~31-32, ~72-73) and the design doc (~144). This file's "Open items"
+sentence (~line 228) is true but clunky ("Phase 10's closing checkpoint" is itself `[x]`; the
+open item is its sub-checkbox). The plan file's embedded copies of the sample/Spec 04 paragraphs
+keep the pre-review "ignored under `bump.mode: manual`" wording — historical, leave.
+
+#### ✦ `[ ]` T309: `heraut version next` in manual mode is a dead end
+
+Under `bump.mode: manual`, `heraut version next` always fails with "Manual bump mode requires
+--set-version flag" (exit 3) — but `version next` has no `--set-version` flag, so the message names
+something the user cannot pass (T305 corrected the docs that claimed otherwise). Related existing
+limitation (Spec 03 note under `version next`): it also cannot render a tag that needs a `{build}`
+ID because it has no `--set-build-id`. Needs a small decision before code: (1) give `version next`
+`--set-version` / `--set-build-id` so it echoes the tag it would produce for a given version —
+useful for CI, and fixes both limitations — or (2) keep it compute-only and make the manual-mode
+error say that `version next` has nothing to compute there and point at `release --set-version`.
+Either way update Spec 03 and Spec 04 § Manual mode.
+
+#### ✦ `[ ]` T310: (needs a decision) surface the hold-back warning in heraut's own release run
+
+heraut dogfoods `stay_at_v0: true` (`.config/heraut.yml`), so a `feat!` landing on `main` now
+becomes a minor release with the hold-back warning visible only in the `workflow_dispatch` job
+log of `.github/workflows/release.yml`. Decide whether that is loud enough or the workflow should
+promote it (a GitHub Actions `::warning::` annotation or a step-summary line, or a `version next`
+preview step before the release). Touches CI, so per `.claude/rules/claude.md` it needs explicit
+approval before any edit; a pure documentation answer ("the log is enough") is also a valid
+outcome.
+
 ---
 
 ### Archived task detail
