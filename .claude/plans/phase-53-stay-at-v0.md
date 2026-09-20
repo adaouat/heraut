@@ -782,6 +782,16 @@ func TestNewResolver_Semver_WithoutStayAtV0_NoWarning(t *testing.T) {
 	assert.Empty(t, res.Warnings)
 }
 
+func TestNewResolver_SetVersion_AllowMajorIsNoOp(t *testing.T) {
+	r, err := app.NewResolver(stayAtV0SemverCfg(), "", false, "v1.0.0", "", exectest.NewMockRunner(), app.WithAllowMajor(true))
+	require.NoError(t, err)
+	res, err := r.Resolve()
+	require.NoError(t, err)
+
+	assert.Equal(t, "v1.0.0", res.Tag)
+	assert.Empty(t, res.Warnings)
+}
+
 func TestNewResolver_SemverPerEnv_AutoEnvHoldsBackAndWarns(t *testing.T) {
 	mr := exectest.NewMockRunner()
 	mr.QueueResponse("dev/0.68.0\n", "", nil)
@@ -826,6 +836,8 @@ func TestNewResolver_SemverPerEnv_PromoteEnvHasNoWarnings(t *testing.T) {
 	assert.Empty(t, res.Warnings)
 }
 ```
+
+`NewResolver` builds a fresh resolver per call — keep it that way; never cache or share one across environments, because `perenv`'s promote branch never calls `BumpAuto` and would leave an earlier environment's warnings in the calculator.
 
 - [ ] **Step 2: Run to verify failure**
 
@@ -1226,7 +1238,7 @@ EOF
 
 - [ ] **Step 1: ADR-0063** — create `docs/adr/0063-hold-major-at-v0.md` (house style: see `0062-selective-hook-skipping.md`). Status Accepted, date = today, deciders bchatard, `Design doc` link to `docs/superpowers/specs/2026-09-20-stay-at-v0-design.md`. Sections and required content (write real prose, taken from the design doc — do not leave outlines):
   - **Context:** `DetermineBump` maps any breaking commit to major, so a deliberately-pre-1.0 project is one `feat!` from an unintended `v1.0.0`; ADR-0052's `{breaking: true, bump: minor}` override demotes it but silently, permanently and with no per-run lift.
-  - **Decision:** the four-condition rule (setting on, no `--allow-major`, automatic run, current major 0, resolved bump major → minor) applied to the release-level result after overrides; `--allow-major` on `release`/`changelog`/`version next`; warning shape; transport (`Result.Warnings`, semver resolver records, `app.NewResolver` wraps, pipelines/`version next` print — `VersionCalculator` untouched); bare versions in the warning; silent no-op flag when nothing is held back.
+  - **Decision:** the four-condition rule (setting on, no `--allow-major`, automatic run, current major 0, resolved bump major → minor) applied to the release-level result after overrides; `--allow-major` on `release`/`changelog`/`version next`; warning shape; transport (`Result.Warnings`, semver resolver records, `app.NewResolver` wraps, pipelines/`version next` print — `VersionCalculator` untouched); bare versions in the warning; silent no-op flag when nothing is held back; the clamp is applied in one private `(*Resolver).determineBump` that both `resolveAuto` and `BumpAuto` call (rather than each calling `holdMajorAtZero`), so `semver-per-env` auto environments share it with no separate path.
   - **Consequences:** additive; self-retiring at 1.0; a release that would have been `v1.0.0` is `v0.x+1.0` unless the flag is passed (the warning says so); the SemVer basis — §4 permits breaking changes in `0.y.z`, §8 requires a major bump above 1.0 — is exactly why the hold is v0-only and why a ≥ 1.0 version is a gate (roadmap T304), not a demotion.
   - **Alternatives considered:** hard error (fails unattended releases containing a breaking commit); extending `--force` (already E001/E002 bypass + enrichment downgrade; precedent T40); permanent `max_bump: minor` (keeps capping after 1.0, contradicts SemVer §8); widening `VersionCalculator.BumpAuto` (ADR-0052 declined the same); printing from the resolver (corrupts the spinner); doing nothing and documenting the override.
 
@@ -1339,6 +1351,8 @@ Expected: the diff touches the two usage lines, the `version next` usage line, t
     stay_at_v0: true
 ```
 
+- [ ] **Step 5b: Sample header comment** — Fix the `bump:` header comment in `docs/heraut.sample.yml` (around lines 40-42), which says `semver only (semver-per-env uses each environment's own bump: auto/promote instead …)`. `bump.overrides` and `stay_at_v0` also apply to the `bump: auto` environments of `semver-per-env`; reword the header accordingly and add 'applies to semver-per-env auto environments too' to the `stay_at_v0` paragraph. Run `go test ./internal/config/` (the shipped-examples test validates the sample).
+
 - [ ] **Step 6: Verify everything**
 
 ```bash
@@ -1372,7 +1386,7 @@ EOF
 
 **Files:** Modify `docs/tasks/roadmap.md`
 
-- [ ] **Step 1:** Flip T303 `[ ]` → `[x]`; change the phase-table row `| 53 | … | Planned |` to `Done`; add a `**Completion note (YYYY-MM-DD).**` paragraph (date from `date +%F`) under T303 covering: what was built and where; the design-doc corrections made while planning (warnings printed by the pipeline through `ui.WarnLines` rather than spinner sub-lines, because the spinner renders sub-lines with a green ✓; bare versions in the warning because per-env resolvers never see the tag format; Spec 02 has no `versioning.bump` section so only Specs 03/04 changed); the `warningResolver` wrapper as the reason `perenv.VersionCalculator` stayed untouched; that `--allow-major` is a silent no-op when nothing is held back; heraut's own `.config/heraut.yml` now sets `stay_at_v0: true`; the verification performed (full suite, `-race` on `cmd`/`app`/`pipeline`, `hk check`, mutation check from Task 2). Leave T304 as `[ ]` untouched.
+- [ ] **Step 1:** Flip T303 `[ ]` → `[x]`; change the phase-table row `| 53 | … | Planned |` to `Done`; add a `**Completion note (YYYY-MM-DD).**` paragraph (date from `date +%F`) under T303 covering: what was built and where; the design-doc corrections made while planning (warnings printed by the pipeline through `ui.WarnLines` rather than spinner sub-lines, because the spinner renders sub-lines with a green ✓; bare versions in the warning because per-env resolvers never see the tag format; Spec 02 has no `versioning.bump` section so only Specs 03/04 changed); the `warningResolver` wrapper as the reason `perenv.VersionCalculator` stayed untouched; that `--allow-major` is a silent no-op when nothing is held back; heraut's own `.config/heraut.yml` now sets `stay_at_v0: true`; the verification performed (full suite, `-race` on `cmd`/`app`/`pipeline`, `hk check`, mutation check from Task 2). Leave T304 as `[ ]` untouched. Also fix `docs/tasks/roadmap.md`'s 'Open items' sentence 'The single unchecked item across the entire roadmap — Phase 10's closing checkpoint', which stopped being true when T303/T304 were filed as `[ ]`; reword it so it stays true (e.g. name Phase 10's checkpoint as the only unchecked item *outside Phase 53*, or drop the 'single' claim).
 
 - [ ] **Step 2: Commit**
 

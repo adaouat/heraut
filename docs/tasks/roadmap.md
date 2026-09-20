@@ -1694,20 +1694,31 @@ Plan: [`.claude/plans/phase-53-stay-at-v0.md`](../../.claude/plans/phase-53-stay
 fixture), `internal/versioning/semver` (`holdMajorAtZero`, `majorCommits`, `SetAllowMajor`,
 `Warnings()`). Unit level; no CLI surface yet.
 
-**Completion note (2026-09-20).** Implemented as designed, no deviation. `BumpConfig.StayAtV0` and
-a nil-safe `Versioning.StayAtV0()` landed with the `schema.json` property, the
+**Completion note (2026-09-20).** Implemented as designed, with no behavioural deviation from the
+design doc; the one structural refinement is that `resolveAuto` and `BumpAuto` both go through a
+private `(*Resolver).determineBump` rather than each calling `holdMajorAtZero` directly (same
+behaviour, one shared clamp — ADR-0063 must describe what shipped). `BumpConfig.StayAtV0` and a
+nil-safe `Versioning.StayAtV0()` landed with the `schema.json` property, the
 `docs/heraut.sample.yml` entry (`stay_at_v0: false`) and a valid fixture
 `testdata/config/valid/semver-stay-at-v0.yml` (74d7617). `holdMajorAtZero` and `majorCommits` live
-in the new `internal/versioning/semver/hold.go`; `(*Resolver).determineBump` wraps
-`DetermineBump` with the hold-back, so `resolveAuto` and `BumpAuto` share one clamp and
-`semver-per-env` "auto" environments get it without a separate path. `SetAllowMajor` lifts it and
-`Warnings()` exposes what it recorded (c560df7). There is no CLI surface yet: the setting is
-reachable only through config until T303 adds `--allow-major`, and the `ADR-0063` reference in the
-`config.go` comment plus the `--allow-major` mention in the sample dangle until T303 lands. Full
-suite green (1944 tests at c560df7) and `hk check` clean; a mutation check (removing the hold-back
-call) made the new resolver tests fail. Deferred minors, not covered: `--set-version` under auto
-mode with `stay_at_v0`, the no-tags-yet case, and exactly five major commits (no "… and N more"
-line).
+in the new `internal/versioning/semver/hold.go`; `determineBump` wraps `DetermineBump` with the
+hold-back, so `semver-per-env` "auto" environments get it without a separate path. `SetAllowMajor`
+lifts it and `Warnings()` exposes what it recorded (c560df7). There is no CLI surface yet: the
+setting is reachable only through config until T303 adds `--allow-major`, so four forward
+references dangle until T303 lands — the `ADR-0063` reference in the `config.go` comment, the
+`--allow-major` mention in the sample, the `stay_at_v0` description in `schema.json` ("Lift it for
+one run with --allow-major") and the runtime warning text built in
+`internal/versioning/semver/hold.go` ("pass --allow-major to release …"). A user who sets
+`stay_at_v0: true` before T303 lands is therefore told to pass a flag that does not exist yet
+(heraut's own `.config/heraut.yml` does not enable the key, so nothing dogfooded is affected, but no
+release should be cut from `main` between T302 and T303). Full suite green (1944 tests at c560df7)
+and `hk check` clean; a mutation check (removing the hold-back call) made the new resolver tests
+fail. The final whole-branch review (Opus) returned "ready to merge with fixes"; its two test-guard
+fixes (a guard for the `Resolve()` warning reset and an exactly-five-major-commits boundary row,
+the latter listing all five with no "… and N more" line) landed as a follow-up commit (e91a0cc). Deferred
+minors, not covered: `--set-version` under auto mode with `stay_at_v0` (folded into T303's `app`
+resolver-warnings tests) and the no-tags-yet case (guarded by early returns this change did not
+touch).
 
 #### ✦ `[ ]` T303: `--allow-major`, warning output, docs, ADR-0063, dogfood
 
