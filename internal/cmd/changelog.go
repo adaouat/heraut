@@ -37,6 +37,7 @@ func NewChangelogCmd(version string) *cobra.Command {
 			verbose, _ := cmd.Flags().GetBool("verbose")
 			env, _ := cmd.Flags().GetString("env")
 			force, _ := cmd.Flags().GetBool("force")
+			allowMajor, _ := cmd.Flags().GetBool("allow-major")
 
 			if versionOverride != "" {
 				if err := app.ValidateVersionOverride(versionOverride); err != nil {
@@ -80,7 +81,7 @@ func NewChangelogCmd(version string) *cobra.Command {
 				return exitcode.Wrap(exitcode.Config, err)
 			}
 
-			resolver, err := app.NewResolver(cfg, env, force, versionOverride, buildID, readRunner)
+			resolver, err := app.NewResolver(cfg, env, force, versionOverride, buildID, readRunner, app.WithAllowMajor(allowMajor))
 			if err != nil {
 				return exitcode.Wrap(exitcode.Config, err)
 			}
@@ -129,6 +130,7 @@ func NewChangelogCmd(version string) *cobra.Command {
 	changelogCmd.Flags().Bool("dry-run", false, "print actions without executing them")
 	changelogCmd.Flags().String("env", "", "target environment (for per-env strategies)")
 	changelogCmd.Flags().Bool("force", false, "override safety checks blocking tag promotion or missing PR/MR metadata")
+	changelogCmd.Flags().Bool("allow-major", false, "lift versioning.bump.stay_at_v0 for this run, allowing a 0.x → 1.0.0 major bump")
 	changelogCmd.Flags().Bool("offline", false, "skip remote PR/MR metadata enrichment (forces enrichment_policy: disabled)")
 	changelogCmd.Flags().BoolVar(&noHooks, "no-hooks", false, "skip every configured hook (post_bump/pre_changelog/pre_tag/post_tag) for this run")
 	addSkipHookFlag(changelogCmd, &skipHooks, app.ChangelogHookPoints())

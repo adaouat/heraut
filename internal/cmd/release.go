@@ -50,6 +50,7 @@ func NewReleaseCmd(version string) *cobra.Command {
 			verbose, _ := cmd.Flags().GetBool("verbose")
 			env, _ := cmd.Flags().GetString("env")
 			force, _ := cmd.Flags().GetBool("force")
+			allowMajor, _ := cmd.Flags().GetBool("allow-major")
 
 			runner := execadapter.New(dryRun, verbose)
 			// Resolver only performs read-only git calls (tag list, log); use a real
@@ -91,7 +92,7 @@ func NewReleaseCmd(version string) *cobra.Command {
 				))
 			}
 
-			resolver, err := app.NewResolver(cfg, env, force, versionOverride, buildID, readRunner)
+			resolver, err := app.NewResolver(cfg, env, force, versionOverride, buildID, readRunner, app.WithAllowMajor(allowMajor))
 			if err != nil {
 				return exitcode.Wrap(exitcode.Config, err)
 			}
@@ -139,6 +140,7 @@ func NewReleaseCmd(version string) *cobra.Command {
 	releaseCmd.Flags().Bool("dry-run", false, "print actions without executing them")
 	releaseCmd.Flags().String("env", "", "target environment (for per-env strategies)")
 	releaseCmd.Flags().Bool("force", false, "override safety checks blocking tag promotion or missing PR/MR metadata")
+	releaseCmd.Flags().Bool("allow-major", false, "lift versioning.bump.stay_at_v0 for this run, allowing a 0.x → 1.0.0 major bump")
 	releaseCmd.Flags().Bool("offline", false, "skip remote PR/MR metadata enrichment (forces enrichment_policy: disabled)")
 	releaseCmd.Flags().BoolVar(&noHooks, "no-hooks", false, "skip every configured hook (post_bump/pre_changelog/pre_tag/post_tag/pre_release/post_release) for this run")
 	addSkipHookFlag(releaseCmd, &skipHooks, app.ReleaseHookPoints())

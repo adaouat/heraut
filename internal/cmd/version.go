@@ -7,6 +7,7 @@ import (
 	"github.com/adaouat/heraut/internal/app"
 	"github.com/adaouat/heraut/internal/config"
 	"github.com/adaouat/heraut/internal/exitcode"
+	"github.com/adaouat/heraut/internal/ui"
 	"github.com/spf13/cobra"
 )
 
@@ -31,6 +32,7 @@ func newVersionNextCmd() *cobra.Command {
 			verbose, _ := cmd.Flags().GetBool("verbose")
 			env, _ := cmd.Flags().GetString("env")
 			force, _ := cmd.Flags().GetBool("force")
+			allowMajor, _ := cmd.Flags().GetBool("allow-major")
 
 			runner := execadapter.New(false, verbose)
 			path := config.ResolvePath(cfgPath)
@@ -54,7 +56,7 @@ func newVersionNextCmd() *cobra.Command {
 				return exitcode.Wrap(exitcode.Runtime, err)
 			}
 
-			resolver, err := app.NewResolver(cfg, env, force, "", "", runner)
+			resolver, err := app.NewResolver(cfg, env, force, "", "", runner, app.WithAllowMajor(allowMajor))
 			if err != nil {
 				return exitcode.Wrap(exitcode.Config, err)
 			}
@@ -64,12 +66,16 @@ func newVersionNextCmd() *cobra.Command {
 				return wrapRunErr(err)
 			}
 
+			for _, w := range result.Warnings {
+				ui.WarnLines(cmd.ErrOrStderr(), w)
+			}
 			_, _ = fmt.Fprintln(cmd.OutOrStdout(), result.Tag)
 			return nil
 		},
 	}
 	cmd.Flags().String("env", "", "target environment (for per-env strategies)")
 	cmd.Flags().Bool("force", false, "override safety checks blocking tag promotion or missing PR/MR metadata")
+	cmd.Flags().Bool("allow-major", false, "lift versioning.bump.stay_at_v0 for this run, allowing a 0.x → 1.0.0 major bump")
 	return cmd
 }
 
