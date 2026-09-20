@@ -1688,11 +1688,26 @@ above 1.0, so a demotion there would make the version lie. Two tasks; new ADR-00
 Design: [`docs/superpowers/specs/2026-09-20-stay-at-v0-design.md`](../superpowers/specs/2026-09-20-stay-at-v0-design.md).
 Plan: [`.claude/plans/phase-53-stay-at-v0.md`](../../.claude/plans/phase-53-stay-at-v0.md).
 
-#### ✦ `[ ]` T302: `stay_at_v0` config + resolver hold-back logic
+#### ✦ `[x]` T302: `stay_at_v0` config + resolver hold-back logic
 
 `internal/config` (`BumpConfig.StayAtV0`, `Versioning.StayAtV0()`, `schema.json`, sample, valid
 fixture), `internal/versioning/semver` (`holdMajorAtZero`, `majorCommits`, `SetAllowMajor`,
 `Warnings()`). Unit level; no CLI surface yet.
+
+**Completion note (2026-09-20).** Implemented as designed, no deviation. `BumpConfig.StayAtV0` and
+a nil-safe `Versioning.StayAtV0()` landed with the `schema.json` property, the
+`docs/heraut.sample.yml` entry (`stay_at_v0: false`) and a valid fixture
+`testdata/config/valid/semver-stay-at-v0.yml` (74d7617). `holdMajorAtZero` and `majorCommits` live
+in the new `internal/versioning/semver/hold.go`; `(*Resolver).determineBump` wraps
+`DetermineBump` with the hold-back, so `resolveAuto` and `BumpAuto` share one clamp and
+`semver-per-env` "auto" environments get it without a separate path. `SetAllowMajor` lifts it and
+`Warnings()` exposes what it recorded (c560df7). There is no CLI surface yet: the setting is
+reachable only through config until T303 adds `--allow-major`, and the `ADR-0063` reference in the
+`config.go` comment plus the `--allow-major` mention in the sample dangle until T303 lands. Full
+suite green (1944 tests at c560df7) and `hk check` clean; a mutation check (removing the hold-back
+call) made the new resolver tests fail. Deferred minors, not covered: `--set-version` under auto
+mode with `stay_at_v0`, the no-tags-yet case, and exactly five major commits (no "… and N more"
+line).
 
 #### ✦ `[ ]` T303: `--allow-major`, warning output, docs, ADR-0063, dogfood
 
