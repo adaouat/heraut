@@ -68,8 +68,9 @@ versioning:
 
 `config.BumpConfig` gains `StayAtV0 bool \`yaml:"stay_at_v0,omitempty"\``, read through a nil-safe
 accessor `Versioning.StayAtV0()` in the style of `BumpMode()`/`BumpOverrides()`. Additive: omitting
-the key, or the whole `bump:` block, changes nothing. `schema.json`, `docs/heraut.sample.yml`,
-Spec 02 and Spec 04 are updated together (per `.claude/rules/coding.md`).
+the key, or the whole `bump:` block, changes nothing. `schema.json` and `docs/heraut.sample.yml`
+are updated together (per `.claude/rules/coding.md`); the behaviour is documented in Spec 04 § SemVer
+(Spec 02 has no `versioning.bump` section) and Spec 03's flag tables.
 
 No semantic validation beyond the type. It is inert under `bump.mode: manual` and on CalVer
 strategies, like `bump.overrides` already is.
@@ -104,24 +105,28 @@ Two constraints: `perenv.VersionCalculator.BumpAuto` returns only `(string, erro
 already declined to widen it for a display detail; and the resolve step runs inside the pipeline,
 under a spinner, so printing straight to stderr from the resolver would corrupt it.
 
-- `versioning.Result` gains `Warnings []string`.
+- `versioning.Result` gains `Warnings []string` — one entry per warning, an entry may span several
+  lines (headline first, indented detail lines after).
 - `semver.Resolver` records the warnings it produced during the last resolution and exposes them
   through `Warnings() []string`. It never prints.
 - `app.NewResolver` keeps a pointer to the semver resolver it builds (directly for `semver`, as the
   calculator for `semver-per-env`) and returns it wrapped in a small resolver that copies
   `Warnings()` into `Result.Warnings` after a successful `Resolve()`. The `VersionCalculator`
   interface and `perenv` are untouched.
-- The `release` and `changelog` pipelines already build the "Resolve version" step's sub-lines
-  (`runStep` returns `(detail, subs, err)`); they return `Result.Warnings` as `subs`, the same
-  mechanism the enrichment-degraded notes use. It therefore also appears under `--dry-run`, which
-  runs the resolve step for real (read-only git calls only).
-- `heraut version next` prints each warning to **stderr**, so stdout stays exactly the tag.
+- A new `ui.WarnLines(w, msg)` writes the first line as a `ui.Warn` line and the rest verbatim. The
+  `release` and `changelog` pipelines call it for each `Result.Warnings` entry right after the
+  "Resolve version" step completes (not as spinner sub-lines: the spinner renders sub-lines with a
+  green ✓, which is wrong for a warning). It therefore also appears under `--dry-run`, which runs
+  the resolve step for real (read-only git calls only).
+- `heraut version next` calls the same `ui.WarnLines` on **stderr**, so stdout stays exactly the
+  tag.
 
-Warning shape (first line is the headline; the rest are indented commit subjects, at most five,
-then "… and N more"):
+Per-env resolvers only ever see bare versions (the tag format is applied afterwards), so the
+warning uses bare versions for both strategies. Headline first, then indented commit subjects (at
+most five, then "… and N more"):
 
 ```
-major bump held back by versioning.bump.stay_at_v0: v1.0.0 → v0.69.0 (pass --allow-major to release v1.0.0)
+major bump held back by versioning.bump.stay_at_v0: 1.0.0 → 0.69.0 (pass --allow-major to release 1.0.0)
   - feat(cmd)!: scope CLI flags to commands that use them, not root
   - feat(cmd)!: rename --version/--build override flags (T263)
 ```
@@ -168,14 +173,15 @@ from the resolver (corrupts the spinner); doing nothing and documenting the ADR-
 
 New **Phase 53 — Stay at v0** in `docs/tasks/roadmap.md`, two tasks:
 
-- **T302** — `internal/config` + `internal/versioning/semver` + `internal/versioning`: `StayAtV0`
-  field/accessor, `schema.json` and sample, `holdMajorAtZero` + `majorCommits`, `Result.Warnings`,
-  the recording `Warnings()` accessor. TDD, unit level. The setting is functional but has no flag
-  to lift it yet, so nothing wires it into a released binary's docs until T303.
-- **T303** — `internal/app` + `internal/cmd` + `internal/pipeline` + docs: `WithAllowMajor`, the
-  warning-copying resolver wrapper, `--allow-major` on the three commands, pipeline sub-lines,
-  `version next` stderr, real-repo tests, Spec 02/03/04, ADR-0063 + index, `CLAUDE.md` counts,
-  guide mention if any, and the `.config/heraut.yml` dogfood line.
+- **T302** — `internal/config` + `internal/versioning/semver`: `StayAtV0` field/accessor,
+  `schema.json` and sample, `holdMajorAtZero` + `majorCommits`, `SetAllowMajor`, the recording
+  `Warnings()` accessor. TDD, unit level. The setting is functional but has no flag to lift it yet,
+  so nothing wires it into a released binary's docs until T303.
+- **T303** — `internal/versioning` + `internal/app` + `internal/cmd` + `internal/pipeline` + docs:
+  `Result.Warnings`, `WithAllowMajor`, the warning-copying resolver wrapper, `ui.WarnLines`,
+  `--allow-major` on the three commands, pipeline warning output, `version next` stderr, real-repo
+  tests, Spec 03/04, ADR-0063 + index, `CLAUDE.md` counts, and the `.config/heraut.yml` dogfood
+  line.
 
 Per `.claude/rules/claude.md`, one task per session unless the user approves more; these two are
 sequential and T303 depends on T302.
@@ -191,12 +197,13 @@ sequential and T303 depends on T302.
   warning caps at five plus "… and N more".
 - **Config:** `StayAtV0` accessor is nil-safe; a `testdata/config/valid/` fixture with the key
   validates against `schema.json`.
+- **Unit (`ui`):** `WarnLines` writes the headline through `Warn` and the remaining lines verbatim.
 - **Contract/integration (`internal/app`):** `NewResolver` + `WithAllowMajor` end to end against a
   `MockRunner`; `semver-per-env` "auto" environment holds back too and a `promote` environment is
   untouched; `Result.Warnings` populated only when held back.
 - **Integration (`internal/cmd`, real git repo):** `version next` prints only the tag on stdout with
   the warning on stderr, and `--allow-major` prints `v1.0.0`; a `changelog --tag --no-push` run
-  tags `v0.x+1.0` and shows the warning as a sub-line of the resolve step.
+  tags `v0.x+1.0` and prints the warning right after the resolve step.
 - **Mutation check:** removing the `holdMajorAtZero` call must fail at least the resolver and the
   real-repo tests.
 

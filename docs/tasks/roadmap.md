@@ -221,6 +221,7 @@ discipline that applies to every task.
 | 50 | Move `rendering.trailers` to `rendering.templates.commit.trailers` | Done |
 | 51 | Hook-declared file staging | Done — see `hook-file-staging-roadmap.md` |
 | 52 | Selective hook skipping (`--skip-hook`, `HERAUT_SKIP_HOOKS`) | Done |
+| 53 | Stay at v0 — hold major bumps at v0 (`stay_at_v0`, `--allow-major`) | Planned |
 
 ### Open items
 
@@ -1668,6 +1669,48 @@ forms, env var, flag-over-env precedence and `--no-hooks`-over-env. There is no 
 `release` test: it needs a resolvable publish target, and the shared wiring is already proven by
 the changelog tests plus the `BuildPipeline` one. Full suite, `-race` on `internal/app` and
 `internal/cmd`, and `hk check` green.
+
+---
+
+### Phase 53 — Stay at v0
+
+`DetermineBump` resolves any breaking commit to a major bump, so a project that deliberately stays
+pre-1.0 (heraut itself) is one `feat!` away from an unintended `v1.0.0`. ADR-0052's
+`{breaking: true, bump: minor}` override can demote it, but silently, permanently and with no
+per-run lift. New `versioning.bump.stay_at_v0: true`: while the current major is `0`, a
+release-level major bump is held back to minor with a visible warning naming the commits, and a
+dedicated `--allow-major` flag (on `release`, `changelog`, `version next`) lifts it for one run.
+Self-retiring at 1.0. Deliberately **not** `--force` (already two unrelated meanings), **not** a
+hard error (would fail every unattended release containing a breaking commit) and **not** a
+permanent ceiling — SemVer §4 allows breaking changes in `0.y.z`, but §8 requires a major bump
+above 1.0, so a demotion there would make the version lie. Two tasks; new ADR-0063.
+
+Design: [`docs/superpowers/specs/2026-09-20-stay-at-v0-design.md`](../superpowers/specs/2026-09-20-stay-at-v0-design.md).
+Plan: [`.claude/plans/phase-53-stay-at-v0.md`](../../.claude/plans/phase-53-stay-at-v0.md).
+
+#### ✦ `[ ]` T302: `stay_at_v0` config + resolver hold-back logic
+
+`internal/config` (`BumpConfig.StayAtV0`, `Versioning.StayAtV0()`, `schema.json`, sample, valid
+fixture), `internal/versioning/semver` (`holdMajorAtZero`, `majorCommits`, `SetAllowMajor`,
+`Warnings()`). Unit level; no CLI surface yet.
+
+#### ✦ `[ ]` T303: `--allow-major`, warning output, docs, ADR-0063, dogfood
+
+`internal/ui` (`WarnLines`), `internal/versioning` (`Result.Warnings`), `internal/app`
+(`WithAllowMajor`, warning-copying resolver wrapper), `internal/pipeline` (print warnings after the
+resolve step), `internal/cmd` (`--allow-major` on `release`/`changelog`/`version next`;
+`version next` warns on stderr), real-repo tests, Spec 03/04, ADR-0063 + index, `CLAUDE.md` ADR counts, and `stay_at_v0: true` in
+`.config/heraut.yml`. Depends on T302.
+
+#### ✦ `[ ]` T304: (future, not scheduled) major-bump gate for versions ≥ 1
+
+A separate, deliberately deferred decision: a setting under which — for **every** major version,
+not only v0 — an automatic major bump *fails* with a clear message until the run is repeated with
+`--allow-major`, so a major release is always a conscious act. It must be an error, not a
+demotion: releasing a breaking change as a minor above 1.0 violates SemVer §8 and Conventional
+Commits' `BREAKING CHANGE` ↔ MAJOR mapping. Reuses T303's `--allow-major`. Needs its own design
+pass (setting name and placement, interaction with `stay_at_v0`, per-env behaviour) before any
+work; do not start it without one.
 
 ---
 
