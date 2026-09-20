@@ -20,4 +20,8 @@ type Result struct {
 	CurrentTag string
 	// Bump is how the version was bumped (semver strategies only).
 	Bump BumpType
+	// Warnings are user-facing notices produced while resolving — e.g. a major bump held back by
+	// versioning.bump.stay_at_v0. One entry per warning; an entry may span several lines, headline
+	// first. Resolvers never print them; callers do.
+	Warnings []string
 }

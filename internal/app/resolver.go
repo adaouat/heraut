@@ -14,13 +14,42 @@ import (
 	"github.com/adaouat/heraut/internal/versioning/tagfmt"
 )
 
+// ResolverOption tunes NewResolver without changing its positional signature.
+type ResolverOption func(*resolverOptions)
+
+type resolverOptions struct {
+	allowMajor bool
+}
+
+// WithAllowMajor lifts versioning.bump.stay_at_v0's hold-back for this resolution (--allow-major).
+func WithAllowMajor(allow bool) ResolverOption {
+	return func(o *resolverOptions) { o.allowMajor = allow }
+}
+
+// warningResolver copies the warnings a semver calculator recorded during Resolve into
+// Result.Warnings. It exists so semver-per-env's warnings can cross perenv without widening
+// perenv.VersionCalculator, whose BumpAuto returns only (string, error).
+type warningResolver struct {
+	inner    versioning.Resolver
+	warnings func() []string
+}
+
+func (w warningResolver) Resolve() (versioning.Result, error) {
+	res, err := w.inner.Resolve()
+	if err != nil {
+		return res, err
+	}
+	res.Warnings = w.warnings()
+	return res, nil
+}
+
 // NewResolver builds the appropriate versioning.Resolver from config.
 // env is the active environment name (empty for non-per-env strategies).
 // force is the --force flag value.
 // versionOverride is set when --set-version X.Y.Z is passed; when non-empty a
 // StaticResolver is returned for all strategies, bypassing git calls entirely.
 // buildID is set when --set-build-id <id> is passed; requires versionOverride to be set.
-func NewResolver(cfg *config.Config, env string, force bool, versionOverride, buildID string, runner port.Runner) (versioning.Resolver, error) {
+func NewResolver(cfg *config.Config, env string, force bool, versionOverride, buildID string, runner port.Runner, opts ...ResolverOption) (versioning.Resolver, error) {
 	if buildID != "" && versionOverride == "" {
 		return nil, fmt.Errorf("--set-build-id requires --set-version: build ID cannot be combined with automatic version resolution")
 	}
@@ -58,14 +87,22 @@ func NewResolver(cfg *config.Config, env string, force bool, versionOverride, bu
 		return versioning.NewStaticResolver(tag, version), nil
 	}
 
+	var o resolverOptions
+	for _, opt := range opts {
+		opt(&o)
+	}
+
 	switch cfg.Versioning.Strategy {
 	case "semver":
-		return semver.New(runner, cfg), nil
+		r := semver.New(runner, cfg)
+		r.SetAllowMajor(o.allowMajor)
+		return warningResolver{inner: r, warnings: r.Warnings}, nil
 	case "calver":
 		return calver.New(runner, cfg, time.Now), nil
 	case "semver-per-env":
 		calc := semver.New(nil, cfg)
-		return perenv.New(runner, cfg, env, force, calc), nil
+		calc.SetAllowMajor(o.allowMajor)
+		return warningResolver{inner: perenv.New(runner, cfg, env, force, calc), warnings: calc.Warnings}, nil
 	case "calver-per-env":
 		calc := calver.New(nil, cfg, time.Now)
 		return perenv.New(runner, cfg, env, force, calc), nil
