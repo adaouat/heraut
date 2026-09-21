@@ -222,13 +222,12 @@ discipline that applies to every task.
 | 51 | Hook-declared file staging | Done — see `hook-file-staging-roadmap.md` |
 | 52 | Selective hook skipping (`--skip-hook`, `HERAUT_SKIP_HOOKS`) | Done |
 | 53 | Stay at v0 — hold major bumps at v0 (`stay_at_v0`, `--allow-major`) | Done |
-| 54 | Phase 53 follow-ups — hygiene, test breadth, docs polish, `version next` in manual mode | In progress |
+| 54 | Phase 53 follow-ups — hygiene, test breadth, docs polish, `version next` in manual mode | Done |
 
 ### Open items
 
-The only unchecked item outside Phases 53 and 54 (T304, a deliberately unscheduled future task,
-and the Phase 54 follow-ups that are still open) is the last sub-checkbox of Phase 10's closing
-checkpoint, `v1.0.0 cut …`:
+The only unchecked item outside Phase 53 (whose T304 is a deliberately unscheduled future task) is
+the last sub-checkbox of Phase 10's closing checkpoint, `v1.0.0 cut …`:
 
 #### ✦ `[x]` CHECKPOINT K — Beta polish complete, ready for v1.0.0
 
@@ -1773,7 +1772,7 @@ work; do not start it without one.
 
 Small items the Phase 53 reviews found and deliberately did not fix inside that phase — none is a
 defect in shipped behaviour and none blocks anything (T304 stays its own deferred design decision).
-Each open task below is independent and can be picked up alone, in any order.
+Each task below was independent and could be picked up alone, in any order.
 
 #### ✦ `[x]` T305: stop claiming `heraut version next` accepts `--set-version`
 
@@ -2005,7 +2004,7 @@ a `tag_format` but a custom `tag_prefix` strips only itself, cross-referencing t
 row of the `heraut release` flag table (checked against `NewResolver`'s static path: `rel-` with
 `v1.2.3` yields `rel-v1.2.3`). No production code changed.
 
-#### ✦ `[ ]` T312: (needs a decision) one `{build}` render failure, two exit codes
+#### ✦ `[x]` T312: (decided) one `{build}` render failure, two exit codes
 
 The same "tag format template contains {build} but no build ID was provided" failure exits **2**
 when it surfaces from `NewResolver` (an explicit `--set-version` was given, error wrapped as
@@ -2016,6 +2015,34 @@ meant to be scripted. Decide the intended class (a missing build ID is a usage/c
 `Config` (2) is the natural answer; the alternative is documenting the split), then make the two
 paths agree and update Spec 01 § Exit codes / Spec 03 accordingly. Changing an exit code changes
 documented behaviour for scripts, so it needs an explicit choice before any code.
+
+**Completion note (2026-09-21).** The maintainer chose option A: a missing build ID is a
+configuration error (exit 2) on every path, expressed as a typed sentinel rather than by matching
+the message, per the project's error rules (wrap with `%w`, never string-match, sentinels at package
+boundaries checked with `errors.Is`) and mirroring `app.IsPromotionGuard`. `tagfmt.Render` now
+returns the exported sentinel `tagfmt.ErrBuildIDRequired` (built with `errors.New` from the existing
+`buildToken` constant); `app.IsBuildIDRequired` is `errors.Is` against it, so `internal/cmd` need
+not import `tagfmt`; and `wrapRunErr` maps it to `exitcode.Config` after the promotion-guard check
+(guards keep exit 4, everything else stays Runtime). `version next`, `version current`, `changelog`
+and `release` all inherit the mapping, as does the `perenv/promote.go` render through its `%w`
+chain; the explicit `--set-version` path already wrapped `exitcode.Config` and is unchanged. The
+error text is byte-identical (the existing `tagfmt` assertions pass unchanged). This changes the
+exit code from 3 to 2 for a missing build ID on the auto path of all three commands — a documented
+behaviour change, acceptable pre-1.0 — and Spec 01 § Exit codes (code 2 row), Spec 02 § `{build}`
+token and Spec 03's two `{build}` blockquotes now say so. Tests: `TestRender_ErrBuildIDRequired`
+(sentinel present with a `{build}` token and no build ID, absent with a build ID and absent without
+the token) plus a missing-`{version}` guard row, `TestIsBuildIDRequired` (nil, sentinel, wrapped
+twice, unrelated, promotion guard), and `TestMissingBuildID_IsConfigError_OnEveryPath` in
+`internal/cmd/build_id_exit_test.go`, which pins exit 2 for `version next`, `changelog --dry-run` and
+`release --dry-run` on both the auto path (FakeBin `git` answering the per-env tag listing and log)
+and the explicit `--set-version` path, so the two can no longer drift; promotion guards keep exit 4,
+already pinned by `TestExitCode_PromotionGuard_E003`. Written test-first: the auto-path rows failed
+with exit 3 before the change. Mutation checks, each restored afterwards: dropping the
+`wrapRunErr` branch fails the three auto-path rows; replacing the sentinel with a fresh error of the
+same text fails the `tagfmt` row and the three auto-path rows; making `IsBuildIDRequired` return
+false fails the helper's sentinel rows and the three auto-path rows. Verification:
+`go test ./...` green, `hk check` clean. This was the last open Phase 54 task, so the phase is now
+Done.
 
 ---
 

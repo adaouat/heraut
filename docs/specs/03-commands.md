@@ -102,8 +102,8 @@ heraut release [--set-version <version>] [--set-build-id <id>] [--regenerate-cha
 
 > **`{build}` tag formats:** with a `tag_format` containing `{build}`, pass `--set-build-id <id>`
 > (requires `--set-version`) to render and publish a release per build — this creates one
-> platform release per build, by design. See
-> [Spec 02 § `{build}` token](02-configuration.md#build-token--ci-build-ids).
+> platform release per build, by design. Omitting the build ID is a configuration error (exit
+> code 2). See [Spec 02 § `{build}` token](02-configuration.md#build-token--ci-build-ids).
 
 `heraut release` requires at least one **resolvable** publish destination — an explicit
 `release.targets` entry, or a forge that auto-detects from CI/git origin and has a publish
@@ -274,7 +274,8 @@ With `versioning.bump.stay_at_v0` set, a breaking change at `0.x` prints a hold-
 [ADR-0063](../adr/0063-hold-major-at-v0.md) / [Spec 04 § Staying at v0](04-versioning.md#staying-at-v0-stay_at_v0).
 
 > **`{build}` tag formats:** a tag that requires a build ID cannot be inferred from git history, so
-> without `--set-version` and `--set-build-id` `version next` errors. Pass both to render it
+> without `--set-version` and `--set-build-id` `version next` exits with the configuration-error
+> code (2). Pass both to render it
 > (`heraut version next --env uat --set-version 7.4.1 --set-build-id $CI_PIPELINE_ID` → `uat/7.4.1-158404`);
 > `heraut changelog` and `heraut release` accept the same two flags (see
 > [Spec 02 § `{build}` token](02-configuration.md#build-token--ci-build-ids)).

@@ -326,7 +326,7 @@ heraut version next    --env uat --set-version 7.4.1 --set-build-id $CI_PIPELINE
 
 - `--set-build-id` requires `--set-version` — build IDs come from CI, not from commit analysis.
 - If `{build}` appears in `tag_format` but `--set-build-id` is not passed, heraut exits with
-  an error.
+  a configuration error (exit code 2) — the same code whether or not `--set-version` was given.
 - Build IDs must not contain `/` or whitespace (git tag constraint). `--set-build-id` rejects
   an invalid value up front with an actionable error.
 - Internally, the changelog range comparison treats `{build}` as a non-capturing wildcard,

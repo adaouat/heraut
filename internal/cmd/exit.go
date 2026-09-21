@@ -13,8 +13,9 @@ func ExitCode(err error) int {
 }
 
 // wrapRunErr classifies an error from resolving a version or running a pipeline:
-// promotion guards (E001/E002/E003) map to exit code 4, everything else to the
-// runtime code. Returns nil when err is nil.
+// promotion guards (E001/E002/E003) map to exit code 4, a tag format that needs a {build} ID
+// nobody supplied maps to the configuration code (the same class as the explicit --set-version
+// path), everything else to the runtime code. Returns nil when err is nil.
 //
 // summary is optional. When given, the returned error displays summary instead of err's own
 // message (exitcode.WrapSummary) — used after a ui.Spinner-reported pipeline run has already
@@ -28,6 +29,8 @@ func wrapRunErr(err error, summary ...string) error {
 	code := exitcode.Runtime
 	if app.IsPromotionGuard(err) {
 		code = exitcode.Promotion
+	} else if app.IsBuildIDRequired(err) {
+		code = exitcode.Config
 	}
 	if len(summary) > 0 {
 		return exitcode.WrapSummary(code, err, summary[0])

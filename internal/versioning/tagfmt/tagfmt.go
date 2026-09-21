@@ -1,6 +1,7 @@
 package tagfmt
 
 import (
+	"errors"
 	"fmt"
 	"regexp"
 	"strings"
@@ -12,6 +13,13 @@ const (
 	envToken     = "{env}"
 	buildToken   = "{build}"
 )
+
+// ErrBuildIDRequired is returned by Render when the template contains {build} but no build ID
+// was supplied. Callers classify it with errors.Is — a missing build ID is a usage problem, not
+// a runtime failure.
+var ErrBuildIDRequired = errors.New("tag format template contains " + buildToken + " but no build ID was provided; " +
+	"pass --set-version <version> --set-build-id <id> to `heraut changelog`, " +
+	"`heraut release` or `heraut version next` (a build ID needs an explicit version)")
 
 // Tokens holds the substitution values for a tag format template. Bundling them as a struct
 // (rather than growing the positional-parameter list of every function below) gives future
@@ -25,15 +33,13 @@ type Tokens struct {
 
 // Render substitutes {version}, {env}, and {build} tokens in template.
 // t.Build may be empty when {build} is not present in the template; if {build}
-// is present but t.Build is empty, an error is returned.
+// is present but t.Build is empty, ErrBuildIDRequired is returned.
 func Render(template string, t Tokens) (string, error) {
 	if !strings.Contains(template, versionToken) {
 		return "", fmt.Errorf("tag format template must contain %s token", versionToken)
 	}
 	if strings.Contains(template, buildToken) && t.Build == "" {
-		return "", fmt.Errorf("tag format template contains %s but no build ID was provided; "+
-			"pass --set-version <version> --set-build-id <id> to `heraut changelog`, "+
-			"`heraut release` or `heraut version next` (a build ID needs an explicit version)", buildToken)
+		return "", ErrBuildIDRequired
 	}
 	result := strings.ReplaceAll(template, versionToken, t.Version)
 	result = strings.ReplaceAll(result, envToken, t.Env)

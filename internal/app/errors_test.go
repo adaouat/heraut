@@ -7,6 +7,7 @@ import (
 
 	"github.com/adaouat/heraut/internal/app"
 	"github.com/adaouat/heraut/internal/versioning/perenv"
+	"github.com/adaouat/heraut/internal/versioning/tagfmt"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -26,6 +27,29 @@ func TestIsPromotionGuard(t *testing.T) {
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			assert.Equal(t, tc.want, app.IsPromotionGuard(tc.err))
+		})
+	}
+}
+
+func TestIsBuildIDRequired(t *testing.T) {
+	tests := []struct {
+		name string
+		err  error
+		want bool
+	}{
+		{"nil", nil, false},
+		{"sentinel", tagfmt.ErrBuildIDRequired, true},
+		{
+			"sentinel wrapped twice",
+			fmt.Errorf("resolving version: %w", fmt.Errorf("rendering tag: %w", tagfmt.ErrBuildIDRequired)),
+			true,
+		},
+		{"unrelated", errors.New("boom"), false},
+		{"promotion guard", fmt.Errorf("resolving version: %w", perenv.ErrTargetExists), false},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			assert.Equal(t, tc.want, app.IsBuildIDRequired(tc.err))
 		})
 	}
 }

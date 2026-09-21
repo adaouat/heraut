@@ -1,6 +1,7 @@
 package tagfmt_test
 
 import (
+	"errors"
 	"regexp"
 	"testing"
 
@@ -139,6 +140,34 @@ func TestRender_BuildRequiredButEmpty(t *testing.T) {
 	assert.Contains(t, err.Error(), "heraut changelog")
 	assert.Contains(t, err.Error(), "heraut release")
 	assert.Contains(t, err.Error(), "heraut version next")
+}
+
+func TestRender_ErrBuildIDRequired(t *testing.T) {
+	tests := []struct {
+		name     string
+		template string
+		tokens   tagfmt.Tokens
+		want     bool
+	}{
+		{"build token, no build ID", "{env}/{version}-{build}", tagfmt.Tokens{Env: "uat", Version: "1.0.0"}, true},
+		{"build token, build ID given", "{env}/{version}-{build}", tagfmt.Tokens{Env: "uat", Version: "1.0.0", Build: "42"}, false},
+		{"no build token, no build ID", "{env}/{version}", tagfmt.Tokens{Env: "uat", Version: "1.0.0"}, false},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			_, err := tagfmt.Render(tc.template, tc.tokens)
+			assert.Equal(t, tc.want, errors.Is(err, tagfmt.ErrBuildIDRequired))
+			if !tc.want {
+				require.NoError(t, err)
+			}
+		})
+	}
+}
+
+func TestRender_MissingVersionToken_IsNotErrBuildIDRequired(t *testing.T) {
+	_, err := tagfmt.Render("{env}-{build}", tagfmt.Tokens{Env: "uat"})
+	require.Error(t, err)
+	assert.False(t, errors.Is(err, tagfmt.ErrBuildIDRequired))
 }
 
 func TestParseVersion(t *testing.T) {
