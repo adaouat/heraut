@@ -36,7 +36,7 @@ flag lift it for a single run.** `versioning.bump` gains an optional boolean `st
   version and nothing to hold. `hold.go` (`internal/versioning/semver`) owns the clamp
   (`holdMajorAtZero`) and the list of commits that forced the major (`majorCommits`, which reuses
   the same per-commit level resolution as `DetermineBump`, so "breaking" has one definition).
-- **One shared entry point.** The clamp is applied in a single private `(*Resolver).determineBump`
+- **One shared entry point.** The clamp is applied in a single private `(*Resolver).bumpAfterHold`
   that both `resolveAuto` (`semver`) and `BumpAuto` (the calculator `semver-per-env`'s `bump: auto`
   environments share) call — rather than each of them calling `holdMajorAtZero` itself — so
   `semver-per-env` auto environments get the hold with no separate code path and the two entry

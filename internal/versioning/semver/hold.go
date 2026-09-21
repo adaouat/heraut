@@ -8,7 +8,7 @@ import (
 	"github.com/adaouat/heraut/internal/versioning"
 )
 
-const maxHeldBackCommits = 5
+const maxListedCommits = 5
 
 // holdMajorAtZero lowers a major bump to minor when currentVersion's major component is 0
 // (ADR-0063), returning the possibly-lowered bump and the warning to show; the warning is empty
@@ -36,8 +36,8 @@ func holdMajorAtZero(currentVersion string, bump versioning.BumpType, commits []
 	fmt.Fprintf(&b, "major bump held back by versioning.bump.stay_at_v0: %s → %s (pass --allow-major to release %s)", wouldBe, held, wouldBe)
 	subjects := majorCommits(commits, overrides)
 	for i, s := range subjects {
-		if i == maxHeldBackCommits {
-			fmt.Fprintf(&b, "\n  … and %d more", len(subjects)-maxHeldBackCommits)
+		if i == maxListedCommits {
+			fmt.Fprintf(&b, "\n  … and %d more", len(subjects)-maxListedCommits)
 			break
 		}
 		fmt.Fprintf(&b, "\n  - %s", s)

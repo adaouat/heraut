@@ -1783,7 +1783,7 @@ commands that do take it — and state plainly that `version next` cannot resolv
 verified against the binary). Docs-only; `TestShippedExamples_LoadAndValidate` still passes. Whether
 `version next` *should* work in manual mode is a separate question, filed as T309.
 
-#### ✦ `[ ]` T306: Phase 53 code hygiene (three latent nits)
+#### ✦ `[x]` T306: Phase 53 code hygiene (three latent nits)
 
 None changes behaviour today; each is a one-line hardening or rename the Phase 53 reviews flagged.
 (a) `ui.WarnLines` (`internal/ui/status.go:25`) prints a stray blank line when `msg` ends in `\n`
@@ -1798,6 +1798,21 @@ called `determineBump` twice in one resolution — use `append`, mirroring the f
 warning *lists*, not how many are held back (`maxListedCommits`); `determineBump`
 (`resolver.go:75`) differs from the exported `DetermineBump` by one capital letter at both call
 sites (`bumpAfterHold` reads unambiguously).
+
+Completed 2026-09-21. (a) `ui.WarnLines` now trims trailing newlines from `msg` before splitting, so
+`"held back\n"` prints exactly one line and a message ending after detail lines no longer emits a
+stray blank line; three rows were added to `TestWarnLines` (trailing newline, trailing newline after
+detail lines, and empty message, which pins the existing `"! \n"` output), the first two failing
+before the fix. (b) `(*Resolver).bumpAfterHold` now appends to `r.warnings` instead of
+overwriting it; a new internal test, `TestBumpAfterHold_AppendsAcrossCalls` in
+`internal/versioning/semver/hold_internal_test.go` (the package's other tests are external), calls it
+twice in one resolution and failed with only the second warning surviving. The resets at the top of
+`Resolve` and `BumpAuto` still keep warnings scoped to a single resolution, and the existing
+`WarningsResetBetweenCalls` and `ReturnsACopy` tests pass unchanged. (c) `determineBump` was renamed
+`bumpAfterHold` (definition, doc comment and both call sites) and `maxHeldBackCommits` was renamed
+`maxListedCommits`; ADR-0063 was updated to the new helper name, while the completed T302 and T303
+notes, the design doc and the plan file deliberately keep the old names as historical record.
+Verification: full suite green with no failures, and `hk check` clean.
 
 #### ✦ `[ ]` T307: Phase 53 test-breadth gaps
 

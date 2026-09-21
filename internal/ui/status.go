@@ -23,6 +23,7 @@ func Warn(w io.Writer, msg string) string { return forgeui.Warn(w, msg) }
 // WarnLines writes msg to w as a warning: the first line through Warn, every following line
 // verbatim (already indented by the caller).
 func WarnLines(w io.Writer, msg string) {
+	msg = strings.TrimRight(msg, "\n")
 	first, rest, hasRest := strings.Cut(msg, "\n")
 	_, _ = fmt.Fprintln(w, Warn(w, first))
 	if hasRest {

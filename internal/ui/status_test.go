@@ -102,6 +102,13 @@ func TestWarnLines(t *testing.T) {
 			"held back\n  - feat!: a\n  - feat!: b",
 			"! held back\n  - feat!: a\n  - feat!: b\n",
 		},
+		{"trailing newline is dropped", "held back\n", "! held back\n"},
+		{
+			"trailing newline after detail lines",
+			"held back\n  - feat!: a\n",
+			"! held back\n  - feat!: a\n",
+		},
+		{"empty message", "", "! \n"},
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {

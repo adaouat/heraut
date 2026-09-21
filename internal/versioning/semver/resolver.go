@@ -40,7 +40,7 @@ func (r *Resolver) BumpAuto(tags []string, commits []string) (string, error) {
 	if len(commits) == 0 {
 		return "", fmt.Errorf("no commits since %s — create at least one commit before running heraut release", currentVersion)
 	}
-	bump := r.determineBump(currentVersion, commits)
+	bump := r.bumpAfterHold(currentVersion, commits)
 	if bump == versioning.BumpNone {
 		return "", noReleasableCommitsError(currentVersion, commits)
 	}
@@ -70,9 +70,9 @@ func (r *Resolver) Warnings() []string {
 	return slices.Clone(r.warnings)
 }
 
-// determineBump is DetermineBump plus versioning.bump.stay_at_v0 (ADR-0063), recording any
+// bumpAfterHold is DetermineBump plus versioning.bump.stay_at_v0 (ADR-0063), recording any
 // warning for Warnings.
-func (r *Resolver) determineBump(currentVersion string, commits []string) versioning.BumpType {
+func (r *Resolver) bumpAfterHold(currentVersion string, commits []string) versioning.BumpType {
 	overrides := r.cfg.Versioning.BumpOverrides()
 	bump := DetermineBump(commits, overrides)
 	if !r.cfg.Versioning.StayAtV0() || r.allowMajor {
@@ -80,7 +80,7 @@ func (r *Resolver) determineBump(currentVersion string, commits []string) versio
 	}
 	held, warning := holdMajorAtZero(currentVersion, bump, commits, overrides)
 	if warning != "" {
-		r.warnings = []string{warning}
+		r.warnings = append(r.warnings, warning)
 	}
 	return held
 }
@@ -156,7 +156,7 @@ func (r *Resolver) resolveAuto() (versioning.Result, error) {
 		return versioning.Result{}, fmt.Errorf("no commits since %s — create at least one commit before running heraut release", currentTag)
 	}
 
-	bump := r.determineBump(currentVersion, commits)
+	bump := r.bumpAfterHold(currentVersion, commits)
 	if bump == versioning.BumpNone {
 		return versioning.Result{}, noReleasableCommitsError(currentTag, commits)
 	}
