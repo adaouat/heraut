@@ -24,10 +24,16 @@ func NewVersionCmd() *cobra.Command {
 }
 
 func newVersionNextCmd() *cobra.Command {
+	var versionOverride, buildID string
+
 	cmd := &cobra.Command{
 		Use:   "next",
 		Short: "Compute and print the next version without side effects",
 		RunE: func(cmd *cobra.Command, args []string) error {
+			if err := validateVersionOverrideFlags(versionOverride, buildID); err != nil {
+				return exitcode.Wrap(exitcode.Config, err)
+			}
+
 			cfgPath, _ := cmd.Flags().GetString("config")
 			verbose, _ := cmd.Flags().GetBool("verbose")
 			env, _ := cmd.Flags().GetString("env")
@@ -56,7 +62,7 @@ func newVersionNextCmd() *cobra.Command {
 				return exitcode.Wrap(exitcode.Runtime, err)
 			}
 
-			resolver, err := app.NewResolver(cfg, env, force, "", "", runner, app.WithAllowMajor(allowMajor))
+			resolver, err := app.NewResolver(cfg, env, force, versionOverride, buildID, runner, app.WithAllowMajor(allowMajor))
 			if err != nil {
 				return exitcode.Wrap(exitcode.Config, err)
 			}
@@ -76,6 +82,7 @@ func newVersionNextCmd() *cobra.Command {
 	cmd.Flags().String("env", "", "target environment (for per-env strategies)")
 	cmd.Flags().Bool("force", false, "override safety checks blocking tag promotion or missing PR/MR metadata")
 	cmd.Flags().Bool("allow-major", false, "lift versioning.bump.stay_at_v0 for this run, allowing a 0.x → 1.0.0 major bump")
+	addVersionOverrideFlags(cmd, &versionOverride, &buildID)
 	return cmd
 }
 

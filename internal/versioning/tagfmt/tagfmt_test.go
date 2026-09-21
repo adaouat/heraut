@@ -132,12 +132,13 @@ func TestRender_BuildRequiredButEmpty(t *testing.T) {
 	_, err := tagfmt.Render("{env}/{version}-{build}", tagfmt.Tokens{Env: "uat", Version: "7.4.1"})
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "{build}")
-	// The error must point the user toward --set-build-id on either command that accepts it —
-	// heraut release --set-build-id exists too (T222/T231), not changelog-only as this message
-	// used to imply.
+	// The error must point the user toward --set-build-id on every command that accepts it, and
+	// say that it needs --set-version — none of them can infer a build ID from git history.
 	assert.Contains(t, err.Error(), "--set-build-id")
+	assert.Contains(t, err.Error(), "--set-version")
 	assert.Contains(t, err.Error(), "heraut changelog")
 	assert.Contains(t, err.Error(), "heraut release")
+	assert.Contains(t, err.Error(), "heraut version next")
 }
 
 func TestParseVersion(t *testing.T) {

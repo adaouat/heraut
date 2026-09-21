@@ -314,11 +314,12 @@ versioning:
   tag_format: "{env}/{version}-{build}"  # e.g. uat/7.4.1-158404
 ```
 
-`{build}` is populated by the `--set-build-id <id>` flag on `heraut changelog` and `heraut release`:
+`{build}` is populated by the `--set-build-id <id>` flag on `heraut changelog`, `heraut release` and `heraut version next`:
 
 ```bash
 heraut changelog --tag --env uat --set-version 7.4.1 --set-build-id $CI_PIPELINE_ID
 heraut release         --env uat --set-version 7.4.1 --set-build-id $CI_PIPELINE_ID
+heraut version next    --env uat --set-version 7.4.1 --set-build-id $CI_PIPELINE_ID   # prints uat/7.4.1-158404
 ```
 
 **Constraints:**
@@ -332,15 +333,16 @@ heraut release         --env uat --set-version 7.4.1 --set-build-id $CI_PIPELINE
   so existing tags like `uat/7.4.0-155391` correctly yield version `7.4.0` when computing
   the commit range.
 
-**Scope:** the `{build}` flow is supported by `heraut changelog --set-build-id` and
-`heraut release --set-build-id`. With a `tag_format` that contains `{build}`, commands that infer
-the tag from git history cannot render one (no build ID is available) and will error:
+**Scope:** the `{build}` flow is supported by `heraut changelog --set-build-id`,
+`heraut release --set-build-id` and `heraut version next --set-build-id`. With a `tag_format` that
+contains `{build}`, an invocation that infers the tag from git history cannot render one (no build ID
+is available) and will error:
 
 | Command | Status |
 |---|---|
 | `heraut changelog --tag --set-version … --set-build-id …` | ✅ supported |
 | `heraut release --set-version … --set-build-id …` | ✅ supported |
-| `heraut version next` | ❌ cannot render a build tag |
+| `heraut version next --set-version … --set-build-id …` | ✅ supported — prints the tag, no side effects |
 | `heraut version current --env <env>` | ✅ raw tag; add `--bare` for the stripped version (`7.4.1`) |
 
 `heraut release --set-build-id` publishes **one platform release per build** — intentional for

@@ -249,7 +249,7 @@ Compute and print the next version without side effects. Useful in CI to capture
 version before invoking other tools.
 
 ```
-heraut version next [--env <name>] [--force] [--allow-major]
+heraut version next [--env <name>] [--force] [--allow-major] [--set-version <version>] [--set-build-id <id>]
 ```
 
 Before resolving, runs the same semantic validation as `heraut check config`. A config
@@ -258,14 +258,24 @@ attempting resolution.
 
 Exits non-zero if a promotion guard trips (E001/E002/E003).
 
+With `--set-version`, `version next` renders instead of computing: it skips version resolution from
+git history entirely and prints the tag `heraut release` / `heraut changelog` would create for that
+version (`--set-version 1.2.3` → `v1.2.3`; a leading `v` is accepted). The config is still loaded and
+validated, and the `--env` / branch checks still run. This is what lets it work under
+`bump.mode: manual`, which otherwise always fails with "manual bump mode requires --set-version" (exit
+code 3). `--set-build-id` requires `--set-version`; `--allow-major` has no effect with it (an explicit
+version is never held back). The flags are validated exactly as on `release` / `changelog` — before the
+config is read, exiting with the Config code (2) on a bad value.
+
 With `versioning.bump.stay_at_v0` set, a breaking change at `0.x` prints a hold-back warning on stderr
 (stdout stays exactly the tag); `--allow-major` prints the `v1.0.0` tag it would otherwise hold back. See
 [ADR-0063](../adr/0063-hold-major-at-v0.md) / [Spec 04 § Staying at v0](04-versioning.md#staying-at-v0-stay_at_v0).
 
-> **`{build}` tag formats:** `version next` cannot render a tag that requires a build ID
-> and will error — it infers the tag from git history with no `--set-build-id` flag to supply one.
-> `heraut changelog --set-build-id` and `heraut release --set-build-id` are the two commands that can
-> render one (see [Spec 02 § `{build}` token](02-configuration.md#build-token--ci-build-ids)).
+> **`{build}` tag formats:** a tag that requires a build ID cannot be inferred from git history, so
+> without `--set-version` and `--set-build-id` `version next` errors. Pass both to render it
+> (`heraut version next --env uat --set-version 7.4.1 --set-build-id $CI_PIPELINE_ID` → `uat/7.4.1-158404`);
+> `heraut changelog` and `heraut release` accept the same two flags (see
+> [Spec 02 § `{build}` token](02-configuration.md#build-token--ci-build-ids)).
 
 ## `heraut version current`
 

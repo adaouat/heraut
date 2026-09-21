@@ -45,9 +45,8 @@ versioning:
   bump:
     # mode — defaults to "auto" when omitted.
     #   auto   inspect conventional-commit types since the last tag
-    #   manual require --set-version on the CLI (heraut release --set-version / heraut changelog
-    #          --set-version); heraut version next has no --set-version, so it cannot resolve a
-    #          version in this mode
+    #   manual require --set-version on the CLI (heraut release, heraut changelog and
+    #          heraut version next all take --set-version)
     mode: auto
 
     # overrides — optional list of bump-level rules layered on top of the built-in

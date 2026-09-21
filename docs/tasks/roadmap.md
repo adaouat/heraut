@@ -227,7 +227,7 @@ discipline that applies to every task.
 ### Open items
 
 The only unchecked item outside Phases 53 and 54 (T304, a deliberately unscheduled future task,
-and the Phase 54 follow-ups T309 and T310) is the last sub-checkbox of Phase 10's closing
+and the Phase 54 follow-up T310) is the last sub-checkbox of Phase 10's closing
 checkpoint, `v1.0.0 cut …`:
 
 #### ✦ `[x]` CHECKPOINT K — Beta polish complete, ready for v1.0.0
@@ -1893,7 +1893,7 @@ sub-checkbox. Left alone on purpose: the plan file's embedded copies of the pre-
 and T309/T310, and the Phase 54 table row, which stays "In progress". Verification:
 `go test ./internal/config/` and `go test ./...` green, `hk check` clean.
 
-#### ✦ `[ ]` T309: `heraut version next` in manual mode is a dead end
+#### ✦ `[x]` T309: `heraut version next` in manual mode is a dead end
 
 Under `bump.mode: manual`, `heraut version next` always fails with "Manual bump mode requires
 --set-version flag" (exit 3) — but `version next` has no `--set-version` flag, so the message names
@@ -1904,6 +1904,38 @@ ID because it has no `--set-build-id`. Needs a small decision before code: (1) g
 useful for CI, and fixes both limitations — or (2) keep it compute-only and make the manual-mode
 error say that `version next` has nothing to compute there and point at `release --set-version`.
 Either way update Spec 03 and Spec 04 § Manual mode.
+
+**Completion note (2026-09-21).** Option (1) was chosen, with both flags: `heraut version next` now
+takes `--set-version` and `--set-build-id`, so it echoes the tag `release` / `changelog` would
+create for a given version, which makes it usable under `bump.mode: manual` and able to render
+`{build}` tag formats. The code change is plumbing: `newVersionNextCmd` declares the two local flags
+(not on `version current`, not persistent) and passes them to `app.NewResolver`, whose existing
+static path already does the rendering, so `--set-version 1.2.3` and `v1.2.3` both give `v1.2.3` and
+`--allow-major` stays a silent no-op with an explicit version. Validation runs first in `RunE`,
+before the config is read, with the Config exit code, and is identical to the other two commands
+because the `--set-version` / `--set-build-id` block that `release.go` and `changelog.go` each
+carried verbatim moved into `internal/cmd/versionoverride.go` (`validateVersionOverrideFlags` and
+`addVersionOverrideFlags`) rather than gaining a third copy; that refactor was made first, with all
+186 existing `internal/cmd` tests passing unchanged. Without `--set-version` under manual mode the
+existing "manual bump mode requires --set-version flag" error (exit 3) is unchanged, and is now
+satisfiable. The `{build}` error in `tagfmt.Render` no longer claims `version next` cannot supply a
+build ID; it now says to pass `--set-version <version> --set-build-id <id>` to `heraut changelog`,
+`heraut release` or `heraut version next`, and `TestRender_BuildRequiredButEmpty` gained assertions
+for `--set-version` and `heraut version next` (no existing assertion needed loosening). Docs: Spec 03
+§ `version next` (usage line, a render-mode paragraph, the rewritten `{build}` note), Spec 02
+§ `{build}` token (flag list, example, scope text, and the table row that read "cannot render a
+build tag"), Spec 04 § Manual mode and the tag-format paragraph, and the sample's `bump.mode`
+comment; the "Open items" sentence near the top of this file no longer lists T309. New tests in
+`internal/cmd/version_override_test.go` (registered on `version next` only; a git that fails every
+call proves no version resolution happens for semver, custom prefix, manual mode and per-env
+`{build}`; manual mode without the flag still exits 3; the `{build}` error text; validation failing
+before a missing config is read with exit 2; `--allow-major` a no-op) were written first and failed
+with "unknown flag". Mutations verified and restored: passing `""` for the override to
+`NewResolver` failed the render tests, dropping the build ID failed the per-env `{build}` row, and
+removing the validation call failed the four fail-before-config rows. Deviation: `--set-version`
+still runs the `--env` and branch-guard checks, so a per-env config with `branch:` set can still
+call git for the branch name; only version resolution is skipped, and Spec 03 says so. Verification:
+`go test ./...` and `hk check` clean.
 
 #### ✦ `[ ]` T310: (needs a decision) surface the hold-back warning in heraut's own release run
 
