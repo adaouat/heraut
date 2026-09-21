@@ -1770,8 +1770,9 @@ work; do not start it without one.
 
 ### Phase 54 — Phase 53 follow-ups
 
-Small items the Phase 53 reviews found and deliberately did not fix inside that phase — none is a
-defect in shipped behaviour and none blocks anything (T304 stays its own deferred design decision).
+Small items the Phase 53 reviews found and deliberately did not fix inside that phase — none
+blocked anything; T309 (new flags on `version next`) and T312 (an exit-code fix) changed shipped
+behaviour and the rest are tests, docs and hygiene (T304 stays its own deferred design decision).
 Each task below was independent and could be picked up alone, in any order.
 
 #### ✦ `[x]` T305: stop claiming `heraut version next` accepts `--set-version`
@@ -1960,12 +1961,18 @@ the sanity check). Revisit if a held-back major ever surprises a release. Operat
 bootstrap binary is the latest release (v0.68.0 at the time of writing) and rejects the
 `stay_at_v0` key in heraut's own `.config/heraut.yml` (`Config: line N: field stay_at_v0 not found in
 type config.BumpConfig`, exit 2, verified against a v0.68.0 build), so until the first release
-containing the key ships, the workflow must be dispatched with the `version` input set (skipping the
-bootstrap `version next`); the maintainer chose that over a workflow or config change. The pinned
-`release-setup` action (v0.7.2) could not be read offline, so its exact strip logic is unverified —
-the failure was demonstrated on the binary, not the action.
+containing the key ships, the workflow must be dispatched with the `version` input set; the
+maintainer chose that over a workflow or config change. Verified against the pinned `release-setup`
+action (forge v0.7.2): its "Resolve version" step strips only `del(.release)` and runs the bootstrap
+`version next` only when the `version` input is empty. Consequence for the "the log is enough"
+reasoning above: `release.yml` gates the "Version sanity check" step on
+`env.VERSION_OVERRIDDEN == 'false'`, so a dispatch with the `version` input skips BOTH `version next`
+runs — the first release that carries `stay_at_v0` shows no hold-back warning in any workflow step.
+The mitigation is the maintainer's own: run `heraut version next` locally (it prints the warning on
+stderr) to get the value to pass. From the following release on (the bootstrap knows the key and the
+input is left empty) both steps run and the warning appears as described above.
 
-#### ✦ `[x]` T311: T309 review polish (two test rows, three wording nits)
+#### ✦ `[x]` T311: T309 review polish (two test rows, two wording fixes)
 
 Found by the T309 final review; none is a defect. Tests: `internal/cmd/version_override_test.go`
 — `TestVersionNext_BuildTagFormat_WithoutBuildID_ExplainsHowToSupplyOne` asserts the message but not
@@ -2023,9 +2030,9 @@ boundaries checked with `errors.Is`) and mirroring `app.IsPromotionGuard`. `tagf
 returns the exported sentinel `tagfmt.ErrBuildIDRequired` (built with `errors.New` from the existing
 `buildToken` constant); `app.IsBuildIDRequired` is `errors.Is` against it, so `internal/cmd` need
 not import `tagfmt`; and `wrapRunErr` maps it to `exitcode.Config` after the promotion-guard check
-(guards keep exit 4, everything else stays Runtime). `version next`, `version current`, `changelog`
-and `release` all inherit the mapping, as does the `perenv/promote.go` render through its `%w`
-chain; the explicit `--set-version` path already wrapped `exitcode.Config` and is unchanged. The
+(guards keep exit 4, everything else stays Runtime). `version next`, `changelog` and `release` (the
+three `wrapRunErr` callers) inherit the mapping, as does the `perenv/promote.go` render through its
+`%w` chain (`version current` never renders a tag, so it cannot raise this error); the explicit `--set-version` path already wrapped `exitcode.Config` and is unchanged. The
 error text is byte-identical (the existing `tagfmt` assertions pass unchanged). This changes the
 exit code from 3 to 2 for a missing build ID on the auto path of all three commands — a documented
 behaviour change, acceptable pre-1.0 — and Spec 01 § Exit codes (code 2 row), Spec 02 § `{build}`
