@@ -260,8 +260,10 @@ Exits non-zero if a promotion guard trips (E001/E002/E003).
 
 With `--set-version`, `version next` renders instead of computing: it skips version resolution from
 git history entirely and prints the tag `heraut release` / `heraut changelog` would create for that
-version (`--set-version 1.2.3` → `v1.2.3`; a leading `v` is accepted). The config is still loaded and
-validated, and the `--env` / branch checks still run. This is what lets it work under
+version (`--set-version 1.2.3` → `v1.2.3`; a leading `v` is accepted with the default prefix or a
+`tag_format`, but a custom `tag_prefix` strips only itself — see the `--set-version` row of the
+[`heraut release` flag table](#heraut-release)). The config is still loaded and validated, and the
+`--env` / branch checks still run. This is what lets it work under
 `bump.mode: manual`, which otherwise always fails with "manual bump mode requires --set-version" (exit
 code 3). `--set-build-id` requires `--set-version`; `--allow-major` has no effect with it (an explicit
 version is never held back). The flags are validated exactly as on `release` / `changelog` — before the

@@ -1966,7 +1966,7 @@ bootstrap `version next`); the maintainer chose that over a workflow or config c
 `release-setup` action (v0.7.2) could not be read offline, so its exact strip logic is unverified —
 the failure was demonstrated on the binary, not the action.
 
-#### ✦ `[ ]` T311: T309 review polish (two test rows, three wording nits)
+#### ✦ `[x]` T311: T309 review polish (two test rows, three wording nits)
 
 Found by the T309 final review; none is a defect. Tests: `internal/cmd/version_override_test.go`
 — `TestVersionNext_BuildTagFormat_WithoutBuildID_ExplainsHowToSupplyOne` asserts the message but not
@@ -1984,6 +1984,26 @@ prefix and `tag_format` strategies but yields `rel-v1.2.3` with `tag_prefix: "re
 "pass `--set-version <version> --set-build-id <id>`" — `pass --set-build-id <id> (alongside
 --set-version <version>)` reads better; and `internal/cmd/versionoverride.go` /
 `version_override_test.go` differ in spelling (the package uses both styles — pick one pair).
+
+**Completion note (2026-09-21).** The four mandatory items were done; the two optional ones were
+deliberately left (the maintainer's call): the `{build}` error text in `tagfmt.go` is unchanged, and
+`versionoverride.go` / `version_override_test.go` keep their differing spellings. Tests
+(`internal/cmd/version_override_test.go`): the `{build}`-without-build-ID row now also asserts
+`exitcode.Config` (via `exitcode.Resolve`, like its siblings in that file — no other assertion
+changed), and a new table test, `TestVersionNext_SetVersion_StillEnforcesBranchGuard`, pins the
+branch guard under `version next --env prod --set-version 1.2.3` with a per-env config declaring
+`branch: main` and a FakeBin `git` that answers only `rev-parse --abbrev-ref HEAD` (every other call
+fails): a wrong branch exits `exitcode.Runtime` (3) with the "must be operated from branch" message
+and empty stdout, the matching branch prints exactly `prod/1.2.3`, and `--force` lets the wrong
+branch through. Both new guards passed on first run, as they pin behaviour that was already correct.
+Mutation check, restored afterwards: passing `true` for `force` to the `app.CheckBranch` call in
+`internal/cmd/version.go` made the wrong-branch row fail ("An error is expected but got nil"), while
+the other two rows kept passing. Docs: Spec 04 § Manual mode now says `--set-version` bypasses "the
+git calls that version resolution would make" instead of "git calls", matching the sentence above
+it; Spec 03's `version next` paragraph now says a leading `v` is accepted with the default prefix or
+a `tag_format` but a custom `tag_prefix` strips only itself, cross-referencing the `--set-version`
+row of the `heraut release` flag table (checked against `NewResolver`'s static path: `rel-` with
+`v1.2.3` yields `rel-v1.2.3`). No production code changed.
 
 #### ✦ `[ ]` T312: (needs a decision) one `{build}` render failure, two exit codes
 

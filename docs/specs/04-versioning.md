@@ -165,8 +165,8 @@ operations. `heraut version next` also accepts `--set-version` and then prints t
 resolving a version from git history; without it, it fails with that same error.
 
 `--set-version` is not exclusive to manual mode — passed to *any* strategy, it short-circuits
-bump resolution entirely and bypasses git calls, exactly as described here (see also
-[Spec 03 § `heraut release`](03-commands.md#heraut-release)).
+bump resolution entirely and bypasses the git calls that version resolution would make, exactly
+as described here (see also [Spec 03 § `heraut release`](03-commands.md#heraut-release)).
 
 ---
 

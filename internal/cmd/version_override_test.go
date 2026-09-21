@@ -44,6 +44,17 @@ environments:
     tag_format: "{env}/{version}-{build}"
 `
 
+const branchGuardedPerEnvConfig = `
+version: "1"
+versioning:
+  strategy: semver-per-env
+environments:
+  prod:
+    bump: auto
+    branch: main
+    tag_format: "prod/{version}"
+`
+
 func TestVersionNext_OverrideFlags_Registered(t *testing.T) {
 	root := cmd.NewRootCmd("v0.0.0-test")
 
@@ -127,7 +138,55 @@ func TestVersionNext_BuildTagFormat_WithoutBuildID_ExplainsHowToSupplyOne(t *tes
 
 	assert.Contains(t, err.Error(), "--set-build-id")
 	assert.Contains(t, err.Error(), "version next")
+	assert.Equal(t, exitcode.Config, exitcode.Resolve(err))
 	assert.Empty(t, stdout)
+}
+
+func TestVersionNext_SetVersion_StillEnforcesBranchGuard(t *testing.T) {
+	tests := []struct {
+		name       string
+		gitBranch  string
+		extraArgs  []string
+		wantTag    string
+		wantErrMsg string
+	}{
+		{
+			name:       "wrong branch is refused",
+			gitBranch:  "feature/x",
+			wantErrMsg: `must be operated from branch "main", but the current branch is "feature/x"`,
+		},
+		{
+			name:      "matching branch prints the overridden tag",
+			gitBranch: "main",
+			wantTag:   "prod/1.2.3\n",
+		},
+		{
+			name:      "force lets the wrong branch through",
+			gitBranch: "feature/x",
+			extraArgs: []string{"--force"},
+			wantTag:   "prod/1.2.3\n",
+		},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			cfgPath := writeConfig(t, branchGuardedPerEnvConfig)
+			exectest.FakeBin(t, "git", "#!/bin/sh\ncase \"$*\" in\n  \"rev-parse --abbrev-ref HEAD\") echo \""+tc.gitBranch+"\" ;;\n  *) exit 1 ;;\nesac\n")
+
+			args := append([]string{"version", "next", "--config", cfgPath, "--env", "prod", "--set-version", "1.2.3"}, tc.extraArgs...)
+			stdout, stderr, err := executeRootSeparateStreams(args...)
+
+			if tc.wantErrMsg != "" {
+				require.Error(t, err)
+				assert.Contains(t, err.Error(), tc.wantErrMsg)
+				assert.Equal(t, exitcode.Runtime, exitcode.Resolve(err))
+				assert.Empty(t, stdout)
+				return
+			}
+			require.NoError(t, err)
+			assert.Equal(t, tc.wantTag, stdout, "stdout must be exactly the tag")
+			assert.Empty(t, stderr)
+		})
+	}
 }
 
 func TestVersionNext_OverrideFlagValidation_FailsBeforeConfigIsRead(t *testing.T) {
