@@ -60,6 +60,23 @@ func TestVersionNext_StayAtV0_HoldsBackWithWarningOnStderr(t *testing.T) {
 	assert.Contains(t, stderr, "  - feat!: break the api")
 }
 
+func TestVersionNext_StayAtV0_FailingResolvePrintsNoWarning(t *testing.T) {
+	cfgPath := writeConfig(t, stayAtV0Config)
+	exectest.FakeBin(t, "git", `#!/bin/sh
+case "$*" in
+  "tag -l v* --sort=-version:refname") echo "v0.68.0" ;;
+  *) exit 1 ;;
+esac
+`)
+
+	stdout, stderr, err := executeRootSeparateStreams("version", "next", "--config", cfgPath)
+	require.ErrorContains(t, err, "reading git log", "the failure must come from Resolve, not from earlier setup")
+
+	assert.Empty(t, stdout, "a failed resolve must not print a tag")
+	assert.NotContains(t, stderr, "held back")
+	assert.NotContains(t, stderr, "! ", "a failed resolve prints no warning line")
+}
+
 func TestVersionNext_StayAtV0_AllowMajorReleasesMajor(t *testing.T) {
 	cfgPath := writeConfig(t, stayAtV0Config)
 	fakeGitBreakingSinceV068(t)
@@ -105,6 +122,19 @@ func TestChangelog_RealGit_StayAtV0_TagsMinorAndWarns(t *testing.T) {
 	require.NoErrorf(t, err, "output:\n%s", out)
 
 	assert.Contains(t, out, "! major bump held back by versioning.bump.stay_at_v0: 1.0.0 → 0.69.0")
+	tags, err := exec.Command("git", "tag", "-l", "v0.69.0").CombinedOutput()
+	require.NoError(t, err)
+	assert.Contains(t, string(tags), "v0.69.0")
+}
+
+func TestChangelog_RealGit_StayAtV0_WarningGoesToStdout(t *testing.T) {
+	stayAtV0RealRepo(t)
+
+	stdout, stderr, err := executeRootSeparateStreams("changelog", "--tag", "--no-push")
+	require.NoErrorf(t, err, "stdout:\n%s\nstderr:\n%s", stdout, stderr)
+
+	assert.Contains(t, stdout, "! major bump held back by versioning.bump.stay_at_v0: 1.0.0 → 0.69.0")
+	assert.NotContains(t, stderr, "held back", "the pipeline writes its warning to cmd.OutOrStdout(), not stderr")
 	tags, err := exec.Command("git", "tag", "-l", "v0.69.0").CombinedOutput()
 	require.NoError(t, err)
 	assert.Contains(t, string(tags), "v0.69.0")

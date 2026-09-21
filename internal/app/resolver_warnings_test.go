@@ -131,3 +131,44 @@ func TestNewResolver_SemverPerEnv_PromoteEnvHasNoWarnings(t *testing.T) {
 	assert.Equal(t, "prod/0.68.0", res.Tag)
 	assert.Empty(t, res.Warnings)
 }
+
+func TestNewResolver_Calver_StayAtV0_IsInertAndWarningFree(t *testing.T) {
+	cfg := calverCfg()
+	cfg.Versioning.Bump = &config.BumpConfig{StayAtV0: true}
+	mr := exectest.NewMockRunner()
+	mr.QueueResponse("", "", nil) // git tag -l *  → no tags yet
+
+	r, err := app.NewResolver(cfg, "", false, "", "", mr)
+	require.NoError(t, err)
+	res, err := r.Resolve()
+	require.NoError(t, err)
+
+	assert.NotEmpty(t, res.Tag)
+	assert.Empty(t, res.Warnings)
+	require.Len(t, mr.Calls, 1, "calver reads tags only; it never inspects commits for a bump")
+}
+
+func TestNewResolver_CalverPerEnv_StayAtV0_IsInertAndWarningFree(t *testing.T) {
+	cfg := &config.Config{
+		Version: "1",
+		Versioning: config.Versioning{
+			Strategy: "calver-per-env",
+			Format:   "YYYY.MM.PATCH",
+			Bump:     &config.BumpConfig{StayAtV0: true},
+		},
+		Environments: map[string]config.Environment{
+			"dev": {Bump: "auto", TagFormat: "dev/{version}"},
+		},
+	}
+	mr := exectest.NewMockRunner()
+	mr.QueueResponse("", "", nil) // git tag -l dev/*  → no tags yet
+
+	r, err := app.NewResolver(cfg, "dev", false, "", "", mr)
+	require.NoError(t, err)
+	res, err := r.Resolve()
+	require.NoError(t, err)
+
+	assert.NotEmpty(t, res.Tag)
+	assert.Empty(t, res.Warnings)
+	require.Len(t, mr.Calls, 1, "calver-per-env reads tags only; it never inspects commits for a bump")
+}

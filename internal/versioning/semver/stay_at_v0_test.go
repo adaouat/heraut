@@ -225,3 +225,28 @@ func TestWarnings_ReturnsACopy(t *testing.T) {
 	r.Warnings()[0] = "mutated"
 	assert.Contains(t, r.Warnings()[0], "held back", "callers must not be able to mutate the recorded warnings")
 }
+
+func TestResolve_StayAtV0_NoTagsYet_ReturnsInitialVersionWithoutWarning(t *testing.T) {
+	mr := exectest.NewMockRunner()
+	mr.QueueResponse("", "", nil) // git tag -l v*  → no tags yet
+	r := semver.New(mr, stayAtV0Cfg())
+
+	res, err := r.Resolve()
+	require.NoError(t, err)
+
+	assert.Equal(t, "0.1.0", res.Version)
+	assert.Equal(t, "v0.1.0", res.Tag)
+	assert.Equal(t, versioning.BumpNone, res.Bump)
+	assert.Empty(t, r.Warnings())
+	require.Len(t, mr.Calls, 1, "no tags means no commit walk")
+}
+
+func TestBumpAuto_StayAtV0_NoTagsYet_ReturnsInitialVersionWithoutWarning(t *testing.T) {
+	r := semver.New(nil, stayAtV0Cfg())
+
+	got, err := r.BumpAuto(nil, nil)
+	require.NoError(t, err)
+
+	assert.Equal(t, "0.1.0", got)
+	assert.Empty(t, r.Warnings())
+}

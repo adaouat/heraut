@@ -1814,7 +1814,7 @@ twice in one resolution and failed with only the second warning surviving. The r
 notes, the design doc and the plan file deliberately keep the old names as historical record.
 Verification: full suite green with no failures, and `hk check` clean.
 
-#### ✦ `[ ]` T307: Phase 53 test-breadth gaps
+#### ✦ `[x]` T307: Phase 53 test-breadth gaps
 
 Guards, not bug fixes — every behaviour below was verified by hand during the reviews.
 `internal/app/resolver_warnings_test.go`: `calver` and `calver-per-env` come back from `NewResolver`
@@ -1830,6 +1830,32 @@ two real-git `changelog` rows use the merged-stream `executeRoot`, so they canno
 stream the pipeline's warning goes to — add one run through `executeRootSeparateStreams`.
 `internal/versioning/semver`: no test for "no tags yet" under `stay_at_v0` (returns the initial
 version, no warning, via the untouched early returns).
+
+Completed 2026-09-21. Tests only; no production file changed, and every new test passed against the
+existing code on first run. `internal/app`: `calver` and `calver-per-env` with `stay_at_v0: true`
+resolve warning-free after a single tag-list call (no commit walk). `internal/pipeline`: several
+warnings print in order as separate `! ` headlines from both pipelines, the release warning still
+prints on a non-dry-run that really publishes, the `ChangelogPipeline` `DisableChangelog && !Tag`
+early return prints the warning before the `changelog disabled` line, and a direct table test
+(nil, empty, one, two, detail lines, detail then headline) pins `printResolveWarnings`;
+`TestRun_NoResolveWarnings_PrintsNoWarningLine` now also asserts no output line begins with `! `
+(the release dry-run prints none, so no exception was needed). `internal/cmd`: `version next` with
+a failing `git log` returns a `reading git log` error with empty stdout and no warning on stderr,
+and one real-git `changelog --tag --no-push` run through `executeRootSeparateStreams` proves the
+hold-back headline lands on stdout, not stderr. `internal/versioning/semver`: with no tags,
+`Resolve` and `BumpAuto` return `0.1.0` with `BumpNone` and no warning. Mutations verified, each
+tripping the intended test and restored (production diff empty): deleting or reordering the
+`printResolveWarnings` call in `changelog.go` (deleted, moved past the early return, and printed
+after the disabled line); in `release.go` printing only in dry-run, only the first warning, or not
+at all; reversing the loop or printing only headlines in `warn.go`; emitting a spurious warning
+when there are none; wrapping `calver` / `calver-per-env` in a `warningResolver` that yields a
+warning; printing the tag or a warning on the `version next` failure path; routing the changelog
+pipeline to stderr; and recording a warning, reporting a bump, or walking the log on the semver
+no-tags branches. Limits: the `version next` guard is only partly mutation-covered, because a
+failed resolve cannot carry warnings today, so moving the warning loop above the `err` check alone
+is undetectable and trips the test only when paired with a resolver that leaks warnings on error
+or with the tag print moved too; and because `warningResolver` is unexported, the calver tests can
+assert only empty warnings, not that the resolver is unwrapped.
 
 #### ✦ `[ ]` T308: Phase 53 docs polish
 
