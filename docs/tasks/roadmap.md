@@ -227,7 +227,7 @@ discipline that applies to every task.
 ### Open items
 
 The only unchecked item outside Phases 53 and 54 (T304, a deliberately unscheduled future task,
-and the Phase 54 follow-up T310) is the last sub-checkbox of Phase 10's closing
+and the Phase 54 follow-ups that are still open) is the last sub-checkbox of Phase 10's closing
 checkpoint, `v1.0.0 cut …`:
 
 #### ✦ `[x]` CHECKPOINT K — Beta polish complete, ready for v1.0.0
@@ -1937,7 +1937,7 @@ still runs the `--env` and branch-guard checks, so a per-env config with `branch
 call git for the branch name; only version resolution is skipped, and Spec 03 says so. Verification:
 `go test ./...` and `hk check` clean.
 
-#### ✦ `[ ]` T310: (needs a decision) surface the hold-back warning in heraut's own release run
+#### ✦ `[x]` T310: (decided) surface the hold-back warning in heraut's own release run
 
 heraut dogfoods `stay_at_v0: true` (`.config/heraut.yml`), so a `feat!` landing on `main` now
 becomes a minor release with the hold-back warning visible only in the `workflow_dispatch` job
@@ -1946,6 +1946,25 @@ promote it (a GitHub Actions `::warning::` annotation or a step-summary line, or
 preview step before the release). Touches CI, so per `.claude/rules/claude.md` it needs explicit
 approval before any edit; a pure documentation answer ("the log is enough") is also a valid
 outcome.
+
+**Completion note (2026-09-21).** Decision: no workflow change — the "documentation answer" from the
+options above; `.github/workflows/release.yml` was not touched. Where the warning appears today:
+the bootstrap `heraut version next` inside the forge `release-setup` action's "Resolve version"
+sub-step (only once the bootstrap binary — the latest published release — knows `stay_at_v0`), and
+the fresh binary's "Version sanity check" step, whose `$(…)` capture takes stdout only so the
+warning stays in that step's log. The final `Release` step passes `--set-version "$VERSION"`, which
+takes the static path and never resolves a version, so it prints no warning by design. Considered
+and not taken because the log was judged enough and each edits CI (which needs explicit approval per
+`.claude/rules/claude.md`): a `::warning::` annotation or a `$GITHUB_STEP_SUMMARY` line emitted from
+the sanity-check step (about four lines), and an extra `version next` preview step (redundant with
+the sanity check). Revisit if a held-back major ever surprises a release. Operational note: the
+bootstrap binary is the latest release (v0.68.0 at the time of writing) and rejects the
+`stay_at_v0` key in heraut's own `.config/heraut.yml` (`Config: line N: field stay_at_v0 not found in
+type config.BumpConfig`, exit 2, verified against a v0.68.0 build), so until the first release
+containing the key ships, the workflow must be dispatched with the `version` input set (skipping the
+bootstrap `version next`); the maintainer chose that over a workflow or config change. The pinned
+`release-setup` action (v0.7.2) could not be read offline, so its exact strip logic is unverified —
+the failure was demonstrated on the binary, not the action.
 
 #### ✦ `[ ]` T311: T309 review polish (two test rows, three wording nits)
 
