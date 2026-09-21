@@ -1947,6 +1947,37 @@ preview step before the release). Touches CI, so per `.claude/rules/claude.md` i
 approval before any edit; a pure documentation answer ("the log is enough") is also a valid
 outcome.
 
+#### ✦ `[ ]` T311: T309 review polish (two test rows, three wording nits)
+
+Found by the T309 final review; none is a defect. Tests: `internal/cmd/version_override_test.go`
+— `TestVersionNext_BuildTagFormat_WithoutBuildID_ExplainsHowToSupplyOne` asserts the message but not
+the exit code (add `exitcode.Config`, like its sibling tests), and Spec 03 now promises the
+`--env` / `branch:` guard still runs under `version next --set-version` (verified by hand, exit 3)
+but no `cmd`-level test pins it (add one `version next --env <env> --set-version …` row on the wrong
+branch; today `CheckBranch` is only unit-tested in `internal/app/branch_test.go`). Docs: Spec 04
+§ Manual mode still says `--set-version` "bypasses git calls" (~line 168) one paragraph below the
+sentence T309 deliberately hedged to "without resolving a version from git history" — align it;
+Spec 03's `version next` paragraph says a leading `v` is accepted, which is true for the default
+prefix and `tag_format` strategies but yields `rel-v1.2.3` with `tag_prefix: "rel-"` (pre-existing
+`NewResolver` behaviour, identical on all three commands) — add a cross-reference to the
+`release` flag table's precise rule. Optional: the `{build}` error text in
+`internal/versioning/tagfmt/tagfmt.go` (~line 34) asks a user who already passed `--set-version` to
+"pass `--set-version <version> --set-build-id <id>`" — `pass --set-build-id <id> (alongside
+--set-version <version>)` reads better; and `internal/cmd/versionoverride.go` /
+`version_override_test.go` differ in spelling (the package uses both styles — pick one pair).
+
+#### ✦ `[ ]` T312: (needs a decision) one `{build}` render failure, two exit codes
+
+The same "tag format template contains {build} but no build ID was provided" failure exits **2**
+when it surfaces from `NewResolver` (an explicit `--set-version` was given, error wrapped as
+`exitcode.Config`) and **3** when it surfaces from `Resolve()` (no override, wrapped by `wrapRunErr`
+as a runtime error) — on `version next`, `changelog` and `release` alike. Pre-existing on
+`release`/`changelog`; T309 made it reachable both ways on `version next`, a command whose output is
+meant to be scripted. Decide the intended class (a missing build ID is a usage/config problem, so
+`Config` (2) is the natural answer; the alternative is documenting the split), then make the two
+paths agree and update Spec 01 § Exit codes / Spec 03 accordingly. Changing an exit code changes
+documented behaviour for scripts, so it needs an explicit choice before any code.
+
 ---
 
 ### Archived task detail
