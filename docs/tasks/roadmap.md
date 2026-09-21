@@ -226,7 +226,9 @@ discipline that applies to every task.
 
 ### Open items
 
-The only unchecked item outside Phase 53 (whose T304 is a deliberately unscheduled future task) — Phase 10's closing checkpoint:
+The only unchecked item outside Phases 53 and 54 (T304, a deliberately unscheduled future task,
+and the Phase 54 follow-ups T309 and T310) is the last sub-checkbox of Phase 10's closing
+checkpoint, `v1.0.0 cut …`:
 
 #### ✦ `[x]` CHECKPOINT K — Beta polish complete, ready for v1.0.0
 
@@ -1857,7 +1859,7 @@ is undetectable and trips the test only when paired with a resolver that leaks w
 or with the tag print moved too; and because `warningResolver` is unexported, the calver tests can
 assert only empty warnings, not that the resolver is unwrapped.
 
-#### ✦ `[ ]` T308: Phase 53 docs polish
+#### ✦ `[x]` T308: Phase 53 docs polish
 
 Cosmetic. `docs/specs/03-commands.md`: the `changelog` `--allow-major` row lacks the "no effect"
 list (without `stay_at_v0`, with `--set-version`, under `bump.mode: manual`, once major ≥ 1) that the
@@ -1870,6 +1872,26 @@ says *auto* (promote environments are unaffected) — restore the precise wordin
 sentence (~line 228) is true but clunky ("Phase 10's closing checkpoint" is itself `[x]`; the
 open item is its sub-checkbox). The plan file's embedded copies of the sample/Spec 04 paragraphs
 keep the pre-review "ignored under `bump.mode: manual`" wording — historical, leave.
+
+Completed 2026-09-21. Docs only, no Go or schema change. (1) Spec 03's `changelog` `--allow-major`
+row now carries the same "no effect" list as the `release` row: without `stay_at_v0`, with
+`--set-version`, once the major is ≥ 1, or, for the `semver` strategy, under `bump.mode: manual`
+(plus "Deliberately not `--force`"). The `release` row turned out to omit the `bump.mode: manual`
+case the task text assumed it had, although Spec 04 and the resolver both make the flag a no-op
+there, so it gained the same clause and the two rows now read identically. (2) ADR-0063's warning
+block is now introduced as the raw `Result.Warnings` entry text, with a clause saying the pipelines
+and `version next` render its first line with a `! ` prefix through `ui.WarnLines`, as in Spec 04's
+example. (3) The sample's `stay_at_v0` comment says again that the setting applies to the
+`bump: auto` environments of `semver-per-env` and does not apply to `bump: promote` environments or
+to CalVer, matching the `bump:` header comment above it. (4) Rewrapped only the prose the review
+edits had made long, words unchanged: ADR-0063's "The rule." and "silent no-op" bullets and the
+design doc's `--allow-major` paragraph; the 101-108-column lines that predate Phase 53, code blocks,
+headings and the ADR header were left alone. (5) The "Open items" sentence now reads "outside
+Phases 53 and 54" and names the last sub-checkbox of Phase 10's closing checkpoint; a search for
+every `[ ]` marker in this file confirms the only open items are T304, T309, T310 and that
+sub-checkbox. Left alone on purpose: the plan file's embedded copies of the pre-review wording, T304
+and T309/T310, and the Phase 54 table row, which stays "In progress". Verification:
+`go test ./internal/config/` and `go test ./...` green, `hk check` clean.
 
 #### ✦ `[ ]` T309: `heraut version next` in manual mode is a dead end
 

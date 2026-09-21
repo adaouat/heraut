@@ -29,8 +29,9 @@ flag lift it for a single run.** `versioning.bump` gains an optional boolean `st
 
 - **The rule.** A bump is held back when all four conditions hold: `stay_at_v0` is true and
   `--allow-major` was not passed; the run is automatic (not `--set-version`, not `bump.mode:
-  manual` — a `semver` setting that `semver-per-env` environments never read); the current version's major component is `0`; and the resolved bump is `major`. The bump
-  then becomes `minor` — `v0.68.0` → `v0.69.0`, not `v1.0.0`. It is applied to the **release-level**
+  manual` — a `semver` setting that `semver-per-env` environments never read); the current
+  version's major component is `0`; and the resolved bump is `major`. The bump then becomes
+  `minor` — `v0.68.0` → `v0.69.0`, not `v1.0.0`. It is applied to the **release-level**
   result, after `bump.overrides`, so an override that yields `major` is held back too, and a project
   that already demotes breaking commits never triggers it. With no tags yet there is no current
   version and nothing to hold. `hold.go` (`internal/versioning/semver`) owns the clamp
@@ -51,9 +52,11 @@ flag lift it for a single run.** `versioning.bump` gains an optional boolean `st
     - feat(cmd)!: rename --version/--build override flags
   ```
 
-  The versions in it are bare, with no tag prefix or environment: per-env resolvers only ever see
-  bare versions (the tag format is applied afterwards), and the same text is then valid for every
-  strategy that can hold.
+  The block shows the raw `Result.Warnings` entry text; the pipelines and `version next` render
+  its first line with a `! ` prefix (via `ui.WarnLines`), as in Spec 04's example. The versions in
+  it are bare, with no tag prefix or environment: per-env resolvers only ever see bare versions
+  (the tag format is applied afterwards), and the same text is then valid for every strategy that
+  can hold.
 - **Transport.** `versioning.Result` gains `Warnings []string` (one entry per warning; an entry may
   span several lines). The semver resolver records the warning of its last resolution and exposes
   it through `Warnings()`; it never prints, because the resolve step runs inside the pipeline under
@@ -70,8 +73,8 @@ flag lift it for a single run.** `versioning.bump` gains an optional boolean `st
   are unchanged. `heraut version next --allow-major` previews the major.
 - **A silent no-op when nothing is held back.** Without `stay_at_v0`, with `--set-version`, under
   `bump.mode: manual` (`semver` only), or once the major version is 1 or higher, `--allow-major`
-  does nothing and says nothing. Making it an error would fail a wrapper script that always passes it on the day it
-  stops being necessary.
+  does nothing and says nothing. Making it an error would fail a wrapper script that always
+  passes it on the day it stops being necessary.
 - **Rendering is untouched.** The changelog and release notes still mark the commits as breaking;
   only the version number is held back.
 

@@ -141,8 +141,8 @@ reaches the resolver through a variadic option on `app.NewResolver`
 are unchanged.
 
 It is a silent no-op when nothing is held back: without `stay_at_v0`, with `--set-version`, under
-`bump.mode: manual` (`semver` only), or once the major is ≥ 1. Making it an error would make a wrapper script that
-always passes it fail on the day it becomes unnecessary.
+`bump.mode: manual` (`semver` only), or once the major is ≥ 1. Making it an error would make a
+wrapper script that always passes it fail on the day it becomes unnecessary.
 
 ### 6. Dogfooding
 
