@@ -1,5 +1,104 @@
 # Changelog
 
+<!-- heraut-release: v0.69.0 -->
+## [0.69.0](https://github.com/adaouat/heraut/compare/v0.68.0..v0.69.0) - 2026-09-22
+
+### 🚀 Features
+
+- *(app)* Surface resolver warnings and add WithAllowMajor - ([f2969d6](https://github.com/adaouat/heraut/commit/f2969d6cd0dc554819af72a71e63cada76f428c8)) by @bchatard
+
+- *(cmd)* Add --skip-hook / HERAUT_SKIP_HOOKS for per-point skips - ([6f90ad7](https://github.com/adaouat/heraut/commit/6f90ad7a661e0a51ff5cd3886c36fea7dbf1a577)) by @bchatard
+
+- *(cmd)* Add --allow-major to release, changelog and version next - ([2b88e22](https://github.com/adaouat/heraut/commit/2b88e2285fda728609da53a91cebd780da2bc352)) by @bchatard
+
+- *(cmd)* Add --set-version and --set-build-id to version next (T309) - ([e44385e](https://github.com/adaouat/heraut/commit/e44385e1538e0cdbd5e839badaa711e782ac7f41)) by @bchatard
+
+- *(config)* Add versioning.bump.stay_at_v0 - ([74d7617](https://github.com/adaouat/heraut/commit/74d7617ac18203074e3d467d6fac030eae763054)) by @bchatard
+
+- *(pipeline)* Print resolver warnings after the resolve step - ([1d3a947](https://github.com/adaouat/heraut/commit/1d3a9475d749019894fcad597bb15827a56f9b1b)) by @bchatard
+
+- *(ui)* Add WarnLines for multi-line warnings - ([fec15d9](https://github.com/adaouat/heraut/commit/fec15d925d45d3c7e8d19bcdbcdaf2e1384a4276)) by @bchatard
+
+- *(versioning/semver)* Hold a major bump at v0 under stay_at_v0 - ([c560df7](https://github.com/adaouat/heraut/commit/c560df717c9af2b5461c0edc8b02348a1e7c3dea)) by @bchatard
+
+
+### 🐛 Bug Fixes
+
+- *(app)* Keep resolver warnings when wrapping a Result - ([80ccd2b](https://github.com/adaouat/heraut/commit/80ccd2bb08503ad84d382267d8d4ef63ea8a05ae)) by @bchatard
+
+- *(app)* Guard empty wouldBeVersion, fix T317 review nits - ([536edc5](https://github.com/adaouat/heraut/commit/536edc51a81cb631f97baf86dc2724c0c87eb619)) by @bchatard
+
+- *(cmd)* Exit 2 for a missing {build} ID on every path (T312) - ([c8ba8ac](https://github.com/adaouat/heraut/commit/c8ba8ac313a9053f0e731fdc863ca1e8718ea222)) by @bchatard
+
+- *(perenv)* Degrade E002's suggested tag instead of going blank (T313) - ([512d3bf](https://github.com/adaouat/heraut/commit/512d3bf204e18327f3853c4de3bfe8f813c591af)) by @bchatard
+
+- *(tagfmt)* Reword the missing-build-ID error for both paths (T315) - ([a1da776](https://github.com/adaouat/heraut/commit/a1da776669b76a52b44ec77749c340af21a3b379)) by @bchatard
+
+- *(versioning)* Show the real tag in the stay_at_v0 warning (T317) - ([e7e86ae](https://github.com/adaouat/heraut/commit/e7e86aeb562f0ceb004954653068aaa12022d4b4)) by @bchatard
+
+- *(versioning)* Say "this run" not "re-run" in the stay_at_v0 warning - ([a26194d](https://github.com/adaouat/heraut/commit/a26194d251018d3dc84c08fb5ff0e596ef10426c)) by @bchatard
+
+
+### 🚜 Refactor
+
+- *(cmd)* Converge naming and exit-code assertion style (T314) - ([119c5dd](https://github.com/adaouat/heraut/commit/119c5dd5984251d049bf4dc084e9a6d60d8068c0)) by @bchatard
+
+- Harden Phase 53 warning plumbing and rename two helpers (T306) - ([4840178](https://github.com/adaouat/heraut/commit/4840178e18f6883cce31a04ecb14ddbced0e7df7)) by @bchatard
+
+- Clarify a shadowed err name and a synthetic test fixture - ([b94c544](https://github.com/adaouat/heraut/commit/b94c544a8136c0c3929cd74651deff891e33e66c)) by @bchatard
+
+
+### 📚 Documentation
+
+- *(roadmap)* Mark T302 done (stay_at_v0 config + resolver logic) - ([222e61f](https://github.com/adaouat/heraut/commit/222e61f8a1d5d7fe424010ab7f1e18641a26ef3f)) by @bchatard
+
+- *(roadmap)* Mark T303 and Phase 53 done (--allow-major, ADR-0063) - ([4592605](https://github.com/adaouat/heraut/commit/459260592934a1bbc84b53ec478f6451d519362f)) by @bchatard
+
+- *(roadmap)* File Phase 54 follow-ups from the Phase 53 reviews - ([495b5fa](https://github.com/adaouat/heraut/commit/495b5fa76c8f42530b49067dfc3c53d2061959d4)) by @bchatard
+
+- *(roadmap)* File T311-T312 from the T309 review - ([746629b](https://github.com/adaouat/heraut/commit/746629bc8eac44f237642303f38fcda4605aed5b)) by @bchatard
+
+- *(roadmap)* Close T310 with no workflow change - ([147e8cc](https://github.com/adaouat/heraut/commit/147e8ccbebdc7e04707e86813e596dc4dd689463)) by @bchatard
+
+- *(roadmap)* File Phase 55 — four items from the T309-T312 reviews - ([2612668](https://github.com/adaouat/heraut/commit/2612668bcd6c7cdf2789f078ae98670d7ad4e68b)) by @bchatard
+
+- *(roadmap)* File T317 — real tag + clearer wording in the hold-back warning - ([1563212](https://github.com/adaouat/heraut/commit/1563212fe9dd1060d5640f4bb506f432cee4452f)) by @bchatard
+
+- *(roadmap)* File T318 — say "this run", not "re-run", in the warning - ([46010b8](https://github.com/adaouat/heraut/commit/46010b8f59e0810a7b192f4247e63325d9afda8a)) by @bchatard
+
+- *(roadmap)* Correct Phase 55's intro attribution - ([30c9d94](https://github.com/adaouat/heraut/commit/30c9d947d82b169044b19004f0b1e1428e25432d)) by @bchatard
+
+- ADR-0062, spec and guide for --skip-hook (T301) - ([139e457](https://github.com/adaouat/heraut/commit/139e45750c47044d2e83359caa321090c3aa022e)) by @bchatard
+
+- Design for holding major bumps at v0 (stay_at_v0, --allow-major) - ([1f2adbf](https://github.com/adaouat/heraut/commit/1f2adbf2f4672b11f925ffff36e7eb1351b7126d)) by @bchatard
+
+- Plan Phase 53 (stay at v0) and file T302-T304 in the roadmap - ([329d3d6](https://github.com/adaouat/heraut/commit/329d3d63e0af9bdc7e4014f6115c5ad711aeaf70)) by @bchatard
+
+- Record T302 forward references, fold follow-ups into T303 plan - ([6753a6b](https://github.com/adaouat/heraut/commit/6753a6b65283233f0e7777f93e7146f0c2d15623)) by @bchatard
+
+- ADR-0063, spec and dogfooding for stay_at_v0 / --allow-major - ([3f9f764](https://github.com/adaouat/heraut/commit/3f9f7642fe943f05257ce3d4a9df3b64abb49dc3)) by @bchatard
+
+- Fix ADR-0063 and spec accuracy after final review - ([7e64ec2](https://github.com/adaouat/heraut/commit/7e64ec298d3861a457a340051bf44772d087ab51)) by @bchatard
+
+- Stop claiming version next accepts --set-version (T305) - ([cf443dd](https://github.com/adaouat/heraut/commit/cf443dd78eaa5c1153393dade86fc5dc0803d41c)) by @bchatard
+
+- Polish Phase 53 docs — Spec 03, ADR-0063, sample, roadmap (T308) - ([4ef6d18](https://github.com/adaouat/heraut/commit/4ef6d1834d8b9799760db2dc129d6decdbfd3c70)) by @bchatard
+
+- Correct roadmap notes and Spec 03 --set-version row after review - ([531a328](https://github.com/adaouat/heraut/commit/531a328218b833f2922d9f97d4bbecd157ae6f90)) by @bchatard
+
+
+### 🧪 Testing
+
+- *(app)* Pin IsBuildIDRequired against a real Render call (T316) - ([8fece6f](https://github.com/adaouat/heraut/commit/8fece6f755a0ac6a4d01f5a57f5f822a2b4feda2)) by @bchatard
+
+- *(cmd)* Cover release --allow-major wiring - ([7029d24](https://github.com/adaouat/heraut/commit/7029d2410047b5516a0adcc7cb35c56d7cae53dd)) by @bchatard
+
+- *(versioning/semver)* Guard Resolve warning reset and five-commit cap - ([e91a0cc](https://github.com/adaouat/heraut/commit/e91a0ccca7f7631d779a07935a2a904a183a25b3)) by @bchatard
+
+- Close Phase 53 test-breadth gaps (T307) - ([80a2609](https://github.com/adaouat/heraut/commit/80a2609f9192b9d0f768e82cd30f12d1881638d1)) by @bchatard
+
+- Pin version next exit code and branch guard, align docs (T311) - ([5413377](https://github.com/adaouat/heraut/commit/54133773c354c41d87310ebbda257ed66b5509ec)) by @bchatard
+
 <!-- heraut-release: v0.68.0 -->
 ## [0.68.0](https://github.com/adaouat/heraut/compare/v0.67.0..v0.68.0) - 2026-09-19
 
@@ -2709,4 +2808,4 @@
 <!-- heraut-footer -->
 
 ---
-_Generated by [heraut](https://github.com/adaouat/heraut) v0.68.0 at 20:08 on 2026-09-19._
+_Generated by [heraut](https://github.com/adaouat/heraut) 0.69.0 at 09:24 on 2026-09-22._
