@@ -223,11 +223,13 @@ discipline that applies to every task.
 | 52 | Selective hook skipping (`--skip-hook`, `HERAUT_SKIP_HOOKS`) | Done |
 | 53 | Stay at v0 — hold major bumps at v0 (`stay_at_v0`, `--allow-major`) | Done |
 | 54 | Phase 53 follow-ups — hygiene, test breadth, docs polish, `version next` in manual mode | Done |
+| 55 | Phase 54 follow-ups — promote.go error handling, cmd naming, message polish | Planned |
 
 ### Open items
 
-The only unchecked item outside Phase 53 (whose T304 is a deliberately unscheduled future task) is
-the last sub-checkbox of Phase 10's closing checkpoint, `v1.0.0 cut …`:
+The only unchecked item outside Phases 53 and 55 (T304 is a deliberately unscheduled future task;
+Phase 55's four tasks are optional backlog, none blocking) is the last sub-checkbox of Phase 10's
+closing checkpoint, `v1.0.0 cut …`:
 
 #### ✦ `[x]` CHECKPOINT K — Beta polish complete, ready for v1.0.0
 
@@ -2050,6 +2052,67 @@ same text fails the `tagfmt` row and the three auto-path rows; making `IsBuildID
 false fails the helper's sentinel rows and the three auto-path rows. Verification:
 `go test ./...` green, `hk check` clean. This was the last open Phase 54 task, so the phase is now
 Done.
+
+---
+
+### Phase 55 — Phase 54 follow-ups
+
+Small items the T309-T312 reviews found and deliberately left unfiled — none blocks anything, none
+was a defect in what shipped, and each is independent and can be picked up alone, in any order.
+
+#### ✦ `[ ]` T313: `perenv` promote hint discards a render error
+
+`internal/versioning/perenv/promote.go:210` — `suggested, _ := tagfmt.Render(srcTF, tagfmt.Tokens{Env:
+srcEnv, Version: latestDestVersion})` — builds the "you probably meant to promote from `<tag>`" hint
+inside the E002 (`ErrDestinationAhead`) error and silently drops `Render`'s error. If the *source*
+environment's `tag_format` contains `{build}` while the destination's does not, the hint would render
+an empty or malformed tag instead of failing loudly. Found by the T309→T312 final review; no config
+reaching it could be constructed at review time (every attempt failed earlier, at line 172, first),
+so it is unreachable today but not provably so for every future `tag_format` combination. Fix: either
+propagate the error into `ErrDestinationAhead` (it already carries other derived fields) so a failure
+here degrades the hint gracefully instead of the caller silently getting `""`, or add an explicit
+comment recording why it is safe to ignore if investigation shows it truly cannot fire. TDD: a test
+config with a `{build}`-only source `tag_format` reaching this exact line.
+
+#### ✦ `[ ]` T314: converge `internal/cmd` naming and exit-code-assertion conventions
+
+Two small inconsistencies, both noted more than once across the Phase 53/54 reviews: (1) file-naming
+— `internal/cmd/versionoverride.go` (no underscore) versus its test file
+`internal/cmd/version_override_test.go` (underscored); the package uses both spellings elsewhere
+(`skiphooks.go` vs `version_sprint.go`), so neither is wrong, but pick one pair and rename to match.
+(2) test assertions — some `internal/cmd` tests assert exit codes via `cmd.ExitCode(err)`
+(`exit.go`'s own exported wrapper, the package majority), others via `exitcode.Resolve(err)` directly
+(`version_override_test.go`, pre-existing before that file even existed); the two are identical
+(`ExitCode` is `return exitcode.Resolve(err)`) but the split persists. Pick `cmd.ExitCode` (the
+package's own, more-used wrapper) and update the minority. Mechanical; no behaviour change; run the
+full `internal/cmd` suite after.
+
+#### ✦ `[ ]` T315: reword the `{build}`-without-a-build-ID error for the case where `--set-version` was already given
+
+`internal/versioning/tagfmt/tagfmt.go`'s `ErrBuildIDRequired` (~line 20) always says "pass
+`--set-version <version> --set-build-id <id>` to …", even when the user already passed
+`--set-version` and only forgot `--set-build-id` — the common case, since the auto path never reaches
+`tagfmt.Render` with a version to spare in the first place unless `bump.mode: manual` or per-env
+`bump: auto` supplied one already. `tagfmt` is a pure leaf package with no knowledge of which flags
+were actually given, so it cannot phrase this conditionally from inside `Render`. Two directions to
+choose between before implementing: (a) leave `tagfmt`'s message generic (today's text) and instead
+have EACH of the three `wrapRunErr` call sites (`internal/cmd/{release,changelog,version}.go`) append
+a targeted hint only when they know `versionOverride != ""` and `buildID == ""` ("… you already passed
+--set-version; add --set-build-id <id>"); or (b) reword the sentinel's own text to read naturally
+either way, e.g. "pass `--set-build-id <id>` (with `--set-version <version>` if not already given) to
+…". (a) is more precise but adds per-command logic outside `tagfmt`; (b) is a one-line, zero-risk
+change but slightly less specific. Existing `tagfmt`/`cmd` tests assert the current text — whichever
+direction is chosen, update them, never delete a row.
+
+#### ✦ `[ ]` T316: `internal/app.TestIsBuildIDRequired` should include a case built from a real `tagfmt.Render` call
+
+Found during T312's final review: the mutation "make `tagfmt.Render` return a fresh, same-text
+`fmt.Errorf` instead of the `ErrBuildIDRequired` sentinel" is caught by the `tagfmt` and `internal/cmd`
+tests but NOT by `internal/app/errors_test.go`'s `TestIsBuildIDRequired`, because that table is built
+entirely from hand-constructed errors (`tagfmt.ErrBuildIDRequired`, wrapped copies, unrelated errors)
+and never calls `tagfmt.Render` itself. Add one row that calls `tagfmt.Render` with a `{build}`-only
+template and asserts `app.IsBuildIDRequired` on its returned error, closing the gap at the layer where
+the helper's actual contract (`errors.Is` against what `Render` really returns) is meant to hold.
 
 ---
 
