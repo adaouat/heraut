@@ -125,7 +125,7 @@ func TestVersionNext_ManualMode_WithoutSetVersion_StillFails(t *testing.T) {
 	require.Error(t, err)
 
 	assert.Contains(t, err.Error(), "--set-version")
-	assert.Equal(t, exitcode.Runtime, exitcode.Resolve(err))
+	assert.Equal(t, exitcode.Runtime, cmd.ExitCode(err))
 	assert.Empty(t, stdout)
 }
 
@@ -138,7 +138,7 @@ func TestVersionNext_BuildTagFormat_WithoutBuildID_ExplainsHowToSupplyOne(t *tes
 
 	assert.Contains(t, err.Error(), "--set-build-id")
 	assert.Contains(t, err.Error(), "version next")
-	assert.Equal(t, exitcode.Config, exitcode.Resolve(err))
+	assert.Equal(t, exitcode.Config, cmd.ExitCode(err))
 	assert.Empty(t, stdout)
 }
 
@@ -178,7 +178,7 @@ func TestVersionNext_SetVersion_StillEnforcesBranchGuard(t *testing.T) {
 			if tc.wantErrMsg != "" {
 				require.Error(t, err)
 				assert.Contains(t, err.Error(), tc.wantErrMsg)
-				assert.Equal(t, exitcode.Runtime, exitcode.Resolve(err))
+				assert.Equal(t, exitcode.Runtime, cmd.ExitCode(err))
 				assert.Empty(t, stdout)
 				return
 			}
@@ -209,7 +209,7 @@ func TestVersionNext_OverrideFlagValidation_FailsBeforeConfigIsRead(t *testing.T
 			require.Error(t, err)
 
 			assert.Contains(t, err.Error(), tc.wantMsg, "must be the flag validation error, not the missing-config error")
-			assert.Equal(t, exitcode.Config, exitcode.Resolve(err))
+			assert.Equal(t, exitcode.Config, cmd.ExitCode(err))
 			assert.Empty(t, stdout)
 		})
 	}

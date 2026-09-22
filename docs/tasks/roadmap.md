@@ -2213,7 +2213,7 @@ tests) green. Mutation check: reverted `promote.go` to the original `suggested, 
 reran the new test — failed identically to RED — then restored the fix exactly, confirmed via
 `git diff` showing only the intended 7-line hunk. `hk check` clean.
 
-#### ✦ `[ ]` T314: converge `internal/cmd` naming and exit-code-assertion conventions
+#### ✦ `[x]` T314: converge `internal/cmd` naming and exit-code-assertion conventions
 
 Two small inconsistencies, both noted more than once across the Phase 53/54 reviews: (1) file-naming
 — `internal/cmd/versionoverride.go` (no underscore) versus its test file
@@ -2225,6 +2225,15 @@ Two small inconsistencies, both noted more than once across the Phase 53/54 revi
 (`ExitCode` is `return exitcode.Resolve(err)`) but the split persists. Pick `cmd.ExitCode` (the
 package's own, more-used wrapper) and update the minority. Mechanical; no behaviour change; run the
 full `internal/cmd` suite after.
+
+**Completion note (2026-09-22).** Both items landed exactly as scoped: `internal/cmd/versionoverride.go`
+was renamed to `internal/cmd/version_override.go` via `git mv` (tracked as a rename, no content change),
+and the four `exitcode.Resolve(err)` call sites in `version_override_test.go` (lines ~128, ~141, ~181,
+~212) were switched to `cmd.ExitCode(err)` to match the rest of the package; a repo-wide grep for
+`exitcode.Resolve` in `internal/cmd` confirmed no other file needed the swap (the only other hit is
+`exit.go`'s own `ExitCode` definition, which is the wrapper being converged *to*, not a call site).
+Both changes are behaviourally identical to what they replaced — `go build ./...` and `go test ./...`
+pass unchanged (2039 tests across 26 packages).
 
 #### ✦ `[ ]` T315: reword the `{build}`-without-a-build-ID error for the case where `--set-version` was already given
 
