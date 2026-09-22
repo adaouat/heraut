@@ -142,6 +142,17 @@ func TestRender_BuildRequiredButEmpty(t *testing.T) {
 	assert.Contains(t, err.Error(), "heraut version next")
 }
 
+func TestRender_ErrBuildIDRequired_ExactMessage(t *testing.T) {
+	_, err := tagfmt.Render("{env}/{version}-{build}", tagfmt.Tokens{Env: "uat", Version: "7.4.1"})
+	require.Error(t, err)
+	assert.Equal(t,
+		"tag format template contains {build} but no build ID was provided; "+
+			"pass --set-build-id <id> (with --set-version <version> if not already given) to "+
+			"`heraut changelog`, `heraut release` or `heraut version next`",
+		err.Error(),
+	)
+}
+
 func TestRender_ErrBuildIDRequired(t *testing.T) {
 	tests := []struct {
 		name     string

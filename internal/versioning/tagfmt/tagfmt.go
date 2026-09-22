@@ -18,8 +18,8 @@ const (
 // was supplied. Callers classify it with errors.Is — a missing build ID is a usage problem, not
 // a runtime failure.
 var ErrBuildIDRequired = errors.New("tag format template contains " + buildToken + " but no build ID was provided; " +
-	"pass --set-version <version> --set-build-id <id> to `heraut changelog`, " +
-	"`heraut release` or `heraut version next` (a build ID needs an explicit version)")
+	"pass --set-build-id <id> (with --set-version <version> if not already given) to " +
+	"`heraut changelog`, `heraut release` or `heraut version next`")
 
 // Tokens holds the substitution values for a tag format template. Bundling them as a struct
 // (rather than growing the positional-parameter list of every function below) gives future

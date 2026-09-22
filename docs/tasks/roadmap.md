@@ -2235,7 +2235,7 @@ and the four `exitcode.Resolve(err)` call sites in `version_override_test.go` (l
 Both changes are behaviourally identical to what they replaced — `go build ./...` and `go test ./...`
 pass unchanged (2039 tests across 26 packages).
 
-#### ✦ `[ ]` T315: reword the `{build}`-without-a-build-ID error for the case where `--set-version` was already given
+#### ✦ `[x]` T315: reword the `{build}`-without-a-build-ID error for the case where `--set-version` was already given
 
 `internal/versioning/tagfmt/tagfmt.go`'s `ErrBuildIDRequired` (~line 20) always says "pass
 `--set-version <version> --set-build-id <id>` to …", even when the user already passed
@@ -2251,6 +2251,27 @@ either way, e.g. "pass `--set-build-id <id>` (with `--set-version <version>` if 
 …". (a) is more precise but adds per-command logic outside `tagfmt`; (b) is a one-line, zero-risk
 change but slightly less specific. Existing `tagfmt`/`cmd` tests assert the current text — whichever
 direction is chosen, update them, never delete a row.
+
+**Completion note (2026-09-22).** The maintainer chose direction (b): reword `ErrBuildIDRequired`'s
+own text rather than adding per-command targeted hints, keeping `internal/cmd/{release,changelog,
+version}.go` untouched. New wording: "tag format template contains {build} but no build ID was
+provided; pass --set-build-id <id> (with --set-version <version> if not already given) to `heraut
+changelog`, `heraut release` or `heraut version next`" — it reads naturally whether `--set-version`
+was already supplied or not. TDD: added `TestRender_ErrBuildIDRequired_ExactMessage`
+(`internal/versioning/tagfmt/tagfmt_test.go`), pinning the exact string — no test pinned the literal
+message before. RED: run against the old wording, failed on a string mismatch as expected. GREEN:
+same test after the fix, passes. Confirmed `TestRender_BuildRequiredButEmpty` needed no change — it
+only asserts `Contains` on six substrings (`{build}`, `--set-build-id`, `--set-version`, `heraut
+changelog`, `heraut release`, `heraut version next`), all still present in the new wording, and it
+passed unchanged. Full `tagfmt` package (93 tests) and full suite (2040 tests) green; `hk check`
+clean. Grep for the old literal phrase (`pass --set-version <version> --set-build-id <id>`) across
+`*.go`/`*.md` found no stray quotes elsewhere — the only other match would have been this task's own
+description above, but that phrase is markdown-backtick-wrapped there (split across two lines) so
+the literal grep didn't even hit it; left untouched regardless, per precedent for historical task
+text. A broader grep for `--set-version`/`--set-build-id` co-occurrence turned up unrelated hits
+(`internal/cmd/version_override.go`'s distinct `--set-build-id requires --set-version` flag-validation
+error, and its mentions across specs/tests/CHANGELOG) — none quote `ErrBuildIDRequired`'s text, so
+none needed updating.
 
 #### ✦ `[ ]` T316: `internal/app.TestIsBuildIDRequired` should include a case built from a real `tagfmt.Render` call
 
