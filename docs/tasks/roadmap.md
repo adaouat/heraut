@@ -2056,8 +2056,10 @@ Done.
 
 ### Phase 55 — Phase 54 follow-ups
 
-Small items the T309-T312 reviews found and deliberately left unfiled — none blocks anything, none
-was a defect in what shipped, and each is independent and can be picked up alone, in any order.
+Small items found after Phase 54 closed — most from the T309-T312 reviews and deliberately left
+unfiled at the time, plus two (T317, T318) from direct user feedback after using the feature.
+None blocks anything, none was a defect in what shipped, and each is independent and can be picked
+up alone, in any order.
 
 #### ✦ `[x]` T317: show the real tag in the `stay_at_v0` hold-back warning, and clearer wording
 
