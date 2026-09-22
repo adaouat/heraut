@@ -141,7 +141,7 @@ func TestResolve_StayAtV0(t *testing.T) {
 func TestResolve_StayAtV0_WarningFormat(t *testing.T) {
 	_, r := resolveStay(t, stayAtV0Cfg(), "v0.68.0", false, "feat!: break the api")
 	assert.Equal(t, []string{
-		"major bump held back by versioning.bump.stay_at_v0: 1.0.0 → 0.69.0 (re-run with --allow-major to release 1.0.0 instead)\n" +
+		"major bump held back by versioning.bump.stay_at_v0: 1.0.0 → 0.69.0 (pass --allow-major on this run to get 1.0.0 instead)\n" +
 			"  - feat!: break the api",
 	}, r.Warnings())
 	assert.Equal(t, []string{"1.0.0"}, r.WouldBeVersions())

@@ -47,7 +47,7 @@ flag lift it for a single run.** `versioning.bump` gains an optional boolean `st
   indented commit subjects, then `  … and N more` when there are more.
 
   ```
-  major bump held back by versioning.bump.stay_at_v0: v1.0.0 → v0.69.0 (re-run with --allow-major to release v1.0.0 instead)
+  major bump held back by versioning.bump.stay_at_v0: v1.0.0 → v0.69.0 (pass --allow-major on this run to get v1.0.0 instead)
     - feat(cmd)!: scope CLI flags to commands that use them, not root
     - feat(cmd)!: rename --version/--build override flags
   ```
@@ -91,7 +91,10 @@ flag lift it for a single run.** `versioning.bump` gains an optional boolean `st
   next release is the first real use.
 - **A release that would have been `v1.0.0` is `v0.x+1.0`** unless `--allow-major` is passed.
   Maintainers who *want* 1.0 must know to pass it; the warning says so, and `heraut version next
-  --allow-major` shows the tag first.
+  --allow-major` shows the tag first. `--allow-major` only takes effect on the invocation it's
+  passed to; it cannot react to a minor release a previous run already tagged (the auto-resolver
+  only sees commits since the latest tag, and that commit is now inside it) — `--set-version` is
+  the recovery path after the fact.
 - **The SemVer basis is why the hold is v0-only.** SemVer §4 says anything may change at any time in
   `0.y.z`, so releasing a breaking change as a minor there is legitimate; §8 requires a major bump
   for a backward-incompatible change from 1.0.0 on, so holding one back above 1.0 would make the

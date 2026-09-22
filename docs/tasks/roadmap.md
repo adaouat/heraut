@@ -2125,7 +2125,7 @@ updated to match. `internal/pipeline/resolve_warnings_test.go`'s `heldBackWarnin
 no change (confirmed by reading it): it feeds a synthetic `Result` directly, never through the
 real resolver/app layer. Full suite green, `hk check` clean.
 
-#### ✦ `[ ]` T318: `--allow-major` wording — say "this run", not "re-run"
+#### ✦ `[x]` T318: `--allow-major` wording — say "this run", not "re-run"
 
 Direct user question after using T317's wording: "re-run with --allow-major to release v1.0.0
 instead" reads as if a SECOND, later invocation of `--allow-major` can still produce the major
@@ -2149,6 +2149,34 @@ subcommand-name ambiguity too) and "on this run" replaces "re-run with", which i
 invocation. Spec 04 also gains one clarifying paragraph on the plan-then-apply pattern, and
 ADR-0063's existing Consequences bullet about needing to "know to pass it" gains one clause
 recording why (can't react after the fact; `--set-version` is the recovery path).
+
+**Completion note (2026-09-22).** Implemented as designed, wording change only — no logic touched.
+`internal/versioning/semver/hold.go`'s `fmt.Fprintf` format string is the sole production edit.
+`internal/versioning/semver/stay_at_v0_test.go`'s `TestResolve_StayAtV0_WarningFormat` was the only
+row anywhere asserting the literal old phrase against production output; grepped the rest of that
+file first — the table-driven `wantWarn`/`notWarn` checks only assert `"--allow-major"` and bare
+version pairs, unaffected. Two files were deliberately left untouched, per the brief's reasoning,
+confirmed by reading each: `internal/app/resolver_warnings_internal_test.go`'s `TestRewriteHeldTags`
+table uses the old phrase purely as arbitrary fixture text for a generic string-rewriting function
+(`rewriteHeldTags` doesn't care what the text says) — including its adversarial
+`"1.0.0-0.2.0"`-tag row, load-bearing for the `strings.NewReplacer`-vs-sequential-`ReplaceAll`
+property, not for wording; and `internal/pipeline/resolve_warnings_test.go`'s `heldBackWarning`
+constant feeds a synthetic `Result` directly, bypassing the real resolver/app layer (it doesn't even
+carry the current "re-run" wording verbatim — further confirmation it was never meant to track
+production text). `internal/cmd/allowmajor_test.go`'s end-to-end assertions all check only the
+headline's version pair via `Contains` (e.g. `"! major bump held back by
+versioning.bump.stay_at_v0: v1.0.0 → v0.69.0"`) — none assert "release" or "re-run" literally, so no
+change was needed there; it was not part of the commit. RED: ran
+`TestResolve_StayAtV0_WarningFormat` after updating only the test file — failed on the old vs. new
+parenthetical, as expected. GREEN: same test after the `hold.go` edit — passed.
+`go test ./internal/versioning/semver/... ./internal/app/... ./internal/cmd/...` and the full
+`go test ./...` both green afterward, confirming the two untouched files still pass unchanged.
+`docs/specs/04-versioning.md`'s example updated and a new paragraph added on `--allow-major` being
+plan-then-apply, not react-after-the-fact (with `--set-version` named as the recovery path);
+`docs/adr/0063-hold-major-at-v0.md`'s "The warning" example updated and one clause added to the
+Consequences bullet about needing to "know to pass it". T317's own task body and completion note
+were left untouched, as instructed — they're the historical record of what T317 itself produced.
+`hk check` clean.
 
 #### ✦ `[ ]` T313: `perenv` promote hint discards a render error
 

@@ -115,13 +115,20 @@ instead (`v0.68.0` → `v0.69.0`, not `v1.0.0`). heraut prints a warning naming 
 forced the major, the version it held back, and how to lift it:
 
 ```
-! major bump held back by versioning.bump.stay_at_v0: v1.0.0 → v0.69.0 (re-run with --allow-major to release v1.0.0 instead)
+! major bump held back by versioning.bump.stay_at_v0: v1.0.0 → v0.69.0 (pass --allow-major on this run to get v1.0.0 instead)
   - feat(cmd)!: scope CLI flags to commands that use them, not root
 ```
 
 Pass `--allow-major` (`heraut release`, `heraut changelog`, `heraut version next`) to release the
 major for one run — `heraut version next --allow-major` previews it. The warning shows in
 `--dry-run` too; `heraut version next` prints it to stderr so stdout stays exactly the tag.
+
+`--allow-major` only affects the invocation it's passed to. It cannot undo a minor release a
+previous run already tagged — the auto-resolver looks at commits since the *latest* tag, and by
+then the commit that forced the major is already inside it. Decide before running `release`/
+`changelog` for real: preview with `heraut version next` or `--dry-run` (both side-effect-free),
+then add `--allow-major` to the real run if you want it. To get the major after a minor release
+has already happened, use `--set-version` instead.
 
 The setting is ignored with `--set-version` and under `bump.mode: manual` (a `semver` setting —
 `bump.mode` has no effect on `semver-per-env` environments, where `stay_at_v0` still applies),

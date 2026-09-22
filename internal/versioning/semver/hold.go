@@ -33,7 +33,7 @@ func holdMajorAtZero(currentVersion string, bump versioning.BumpType, commits []
 	}
 
 	var b strings.Builder
-	fmt.Fprintf(&b, "major bump held back by versioning.bump.stay_at_v0: %s → %s (re-run with --allow-major to release %s instead)", wouldBe, held, wouldBe)
+	fmt.Fprintf(&b, "major bump held back by versioning.bump.stay_at_v0: %s → %s (pass --allow-major on this run to get %s instead)", wouldBe, held, wouldBe)
 	subjects := majorCommits(commits, overrides)
 	for i, s := range subjects {
 		if i == maxListedCommits {
