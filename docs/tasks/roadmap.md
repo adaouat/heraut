@@ -2125,6 +2125,31 @@ updated to match. `internal/pipeline/resolve_warnings_test.go`'s `heldBackWarnin
 no change (confirmed by reading it): it feeds a synthetic `Result` directly, never through the
 real resolver/app layer. Full suite green, `hk check` clean.
 
+#### ✦ `[ ]` T318: `--allow-major` wording — say "this run", not "re-run"
+
+Direct user question after using T317's wording: "re-run with --allow-major to release v1.0.0
+instead" reads as if a SECOND, later invocation of `--allow-major` can still produce the major
+after a minor release has already run for real. It cannot — `resolveAuto`/`BumpAuto`
+(`internal/versioning/semver/resolver.go`) check `len(commits) == 0` (commits since the *latest*
+tag) before `bumpAfterHold` ever runs; once a real run creates `v0.69.0`, the commit that forced
+the major is inside that tag's history, so a later invocation — with or without `--allow-major` —
+fails with "no commits since v0.69.0", never reaching the hold-back logic at all. `--allow-major`
+only ever takes effect on the invocation it is passed to, decided in advance (preview with
+`heraut version next` or `--dry-run`, both side-effect-free, then add the flag to the real run if
+wanted) — never as a reaction after a real run already tagged the minor. Also confirmed in this
+discussion: `--allow-major` is not "useless" under the non-blocking design (rejected: making it
+block would break unattended CI, the whole reason the hold-back warns instead of failing) — it is
+a plan-then-apply flag, the same shape as `--dry-run` itself, not a react-after-the-fact one. To
+get the major after a minor release has already happened, `--set-version` is the only path (it
+bypasses git-history resolution entirely).
+
+New wording: `"major bump held back by versioning.bump.stay_at_v0: %s → %s (pass --allow-major on
+this run to get %s instead)"` — drops "release" as a word entirely (sidesteps T317's original
+subcommand-name ambiguity too) and "on this run" replaces "re-run with", which implied a future
+invocation. Spec 04 also gains one clarifying paragraph on the plan-then-apply pattern, and
+ADR-0063's existing Consequences bullet about needing to "know to pass it" gains one clause
+recording why (can't react after the fact; `--set-version` is the recovery path).
+
 #### ✦ `[ ]` T313: `perenv` promote hint discards a render error
 
 `internal/versioning/perenv/promote.go:210` — `suggested, _ := tagfmt.Render(srcTF, tagfmt.Tokens{Env:
