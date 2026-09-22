@@ -13,7 +13,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-const heldBackWarning = "major bump held back by versioning.bump.stay_at_v0: 1.0.0 → 0.69.0 (pass --allow-major to release 1.0.0)\n  - feat!: break"
+const heldBackWarning = "synthetic held-back warning for pipeline printing tests — not production wording\n  - feat!: break"
 
 const (
 	firstResolveWarning  = "first resolver warning"
