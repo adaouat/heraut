@@ -223,13 +223,12 @@ discipline that applies to every task.
 | 52 | Selective hook skipping (`--skip-hook`, `HERAUT_SKIP_HOOKS`) | Done |
 | 53 | Stay at v0 — hold major bumps at v0 (`stay_at_v0`, `--allow-major`) | Done |
 | 54 | Phase 53 follow-ups — hygiene, test breadth, docs polish, `version next` in manual mode | Done |
-| 55 | Phase 54 follow-ups — promote.go error handling, cmd naming, message polish | In progress |
+| 55 | Phase 54 follow-ups — promote.go error handling, cmd naming, message polish | Done |
 
 ### Open items
 
-The only unchecked item outside Phases 53 and 55 (T304 is a deliberately unscheduled future task;
-Phase 55's four tasks are optional backlog, none blocking) is the last sub-checkbox of Phase 10's
-closing checkpoint, `v1.0.0 cut …`:
+The only unchecked item outside Phase 53 (T304 is a deliberately unscheduled future task) is the
+last sub-checkbox of Phase 10's closing checkpoint, `v1.0.0 cut …`:
 
 #### ✦ `[x]` CHECKPOINT K — Beta polish complete, ready for v1.0.0
 
@@ -2273,7 +2272,7 @@ text. A broader grep for `--set-version`/`--set-build-id` co-occurrence turned u
 error, and its mentions across specs/tests/CHANGELOG) — none quote `ErrBuildIDRequired`'s text, so
 none needed updating.
 
-#### ✦ `[ ]` T316: `internal/app.TestIsBuildIDRequired` should include a case built from a real `tagfmt.Render` call
+#### ✦ `[x]` T316: `internal/app.TestIsBuildIDRequired` should include a case built from a real `tagfmt.Render` call
 
 Found during T312's final review: the mutation "make `tagfmt.Render` return a fresh, same-text
 `fmt.Errorf` instead of the `ErrBuildIDRequired` sentinel" is caught by the `tagfmt` and `internal/cmd`
@@ -2282,6 +2281,22 @@ entirely from hand-constructed errors (`tagfmt.ErrBuildIDRequired`, wrapped copi
 and never calls `tagfmt.Render` itself. Add one row that calls `tagfmt.Render` with a `{build}`-only
 template and asserts `app.IsBuildIDRequired` on its returned error, closing the gap at the layer where
 the helper's actual contract (`errors.Is` against what `Render` really returns) is meant to hold.
+
+**Completion note (2026-09-22).** Added a `renderErr` setup (a real `tagfmt.Render("{env}/{version}-{build}",
+…)` call with no build ID, asserted non-nil via `require.Error`) above `TestIsBuildIDRequired`'s table,
+plus one new row, `"error from a real tagfmt.Render call, not a hand-built sentinel"`, asserting
+`app.IsBuildIDRequired(renderErr)` is `true`; `require` was added to the file's import block alongside
+the existing `assert` import. Mutation-verified the gap: temporarily changed `tagfmt.Render`'s
+`{build}`-without-build-ID branch (`internal/versioning/tagfmt/tagfmt.go`) to return
+`fmt.Errorf("%s", ErrBuildIDRequired.Error())` — a fresh, same-text error, not the sentinel — and reran
+`TestIsBuildIDRequired`: only the new row failed (`expected: true, actual: false`); all five existing
+rows (`nil`, `sentinel`, `sentinel wrapped twice`, `unrelated`, `promotion guard`) still passed,
+confirming those hand-built rows would have stayed green even if `Render` stopped returning the real
+sentinel, and that only the new row catches it. Restored `tagfmt.go` exactly (`git diff` empty) before
+committing — no production code changed. `go test ./internal/app/` and the full `go test ./...` suite
+are green; `hk check` clean. No existing row was touched, deleted, or loosened. This was the last open
+Phase 55 task, so the phase is now Done; the "Open items" sentence's parenthetical no longer needed to
+carve out Phase 55 (it now has zero unchecked items), so it was trimmed to reference only Phase 53/T304.
 
 ---
 

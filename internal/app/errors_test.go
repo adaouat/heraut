@@ -9,6 +9,7 @@ import (
 	"github.com/adaouat/heraut/internal/versioning/perenv"
 	"github.com/adaouat/heraut/internal/versioning/tagfmt"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestIsPromotionGuard(t *testing.T) {
@@ -32,6 +33,12 @@ func TestIsPromotionGuard(t *testing.T) {
 }
 
 func TestIsBuildIDRequired(t *testing.T) {
+	// A real tagfmt.Render call, not a hand-built copy of the sentinel — closes the gap where a
+	// future change to Render could stop returning ErrBuildIDRequired without this table noticing
+	// (the other rows all use the sentinel directly or a wrapped copy of it).
+	_, renderErr := tagfmt.Render("{env}/{version}-{build}", tagfmt.Tokens{Env: "uat", Version: "1.0.0"})
+	require.Error(t, renderErr)
+
 	tests := []struct {
 		name string
 		err  error
@@ -46,6 +53,7 @@ func TestIsBuildIDRequired(t *testing.T) {
 		},
 		{"unrelated", errors.New("boom"), false},
 		{"promotion guard", fmt.Errorf("resolving version: %w", perenv.ErrTargetExists), false},
+		{"error from a real tagfmt.Render call, not a hand-built sentinel", renderErr, true},
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
