@@ -47,16 +47,19 @@ flag lift it for a single run.** `versioning.bump` gains an optional boolean `st
   indented commit subjects, then `  … and N more` when there are more.
 
   ```
-  major bump held back by versioning.bump.stay_at_v0: 1.0.0 → 0.69.0 (pass --allow-major to release 1.0.0)
+  major bump held back by versioning.bump.stay_at_v0: v1.0.0 → v0.69.0 (re-run with --allow-major to release v1.0.0 instead)
     - feat(cmd)!: scope CLI flags to commands that use them, not root
     - feat(cmd)!: rename --version/--build override flags
   ```
 
   The block shows the raw `Result.Warnings` entry text; the pipelines and `version next` render
-  its first line with a `! ` prefix (via `ui.WarnLines`), as in Spec 04's example. The versions in
-  it are bare, with no tag prefix or environment: per-env resolvers only ever see bare versions
-  (the tag format is applied afterwards), and the same text is then valid for every strategy that
-  can hold.
+  its first line with a `! ` prefix (via `ui.WarnLines`), as in Spec 04's example. `hold.go` and
+  the semver resolver still only ever compute bare versions — they never see `tag_format`, so a
+  per-env warning cannot be built with `dev/1.0.0 → dev/0.69.0` in place. `app.warningResolver`,
+  which does have the fully rendered `Result.Tag` once `inner.Resolve()` returns, substitutes the
+  real tag shape into the warning's headline afterward: one new accessor, `(*semver.Resolver).
+  WouldBeVersions()`, carries the one extra bare version (the "would-be" major) needed alongside
+  the existing `Warnings()`; `perenv.VersionCalculator` stays untouched.
 - **Transport.** `versioning.Result` gains `Warnings []string` (one entry per warning; an entry may
   span several lines). The semver resolver records the warning of its last resolution and exposes
   it through `Warnings()`; it never prints, because the resolve step runs inside the pipeline under

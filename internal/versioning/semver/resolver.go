@@ -20,6 +20,7 @@ type Resolver struct {
 	versionOverride string
 	allowMajor      bool
 	warnings        []string
+	wouldBeVersions []string
 }
 
 // New constructs a SemVer Resolver.
@@ -33,6 +34,7 @@ func New(runner port.Runner, cfg *config.Config) *Resolver {
 // interface consumed by internal/versioning/perenv.
 func (r *Resolver) BumpAuto(tags []string, commits []string) (string, error) {
 	r.warnings = nil
+	r.wouldBeVersions = nil
 	if len(tags) == 0 {
 		return r.initialVersion(), nil
 	}
@@ -70,6 +72,12 @@ func (r *Resolver) Warnings() []string {
 	return slices.Clone(r.warnings)
 }
 
+// WouldBeVersions returns the bare "would-be" major version for each entry in Warnings, in the
+// same order — nil when Warnings is empty. See holdMajorAtZero's doc comment for why this exists.
+func (r *Resolver) WouldBeVersions() []string {
+	return slices.Clone(r.wouldBeVersions)
+}
+
 // bumpAfterHold is DetermineBump plus versioning.bump.stay_at_v0 (ADR-0063), recording any
 // warning for Warnings.
 func (r *Resolver) bumpAfterHold(currentVersion string, commits []string) versioning.BumpType {
@@ -78,9 +86,10 @@ func (r *Resolver) bumpAfterHold(currentVersion string, commits []string) versio
 	if !r.cfg.Versioning.StayAtV0() || r.allowMajor {
 		return bump
 	}
-	held, warning := holdMajorAtZero(currentVersion, bump, commits, overrides)
+	held, warning, wouldBe := holdMajorAtZero(currentVersion, bump, commits, overrides)
 	if warning != "" {
 		r.warnings = append(r.warnings, warning)
+		r.wouldBeVersions = append(r.wouldBeVersions, wouldBe)
 	}
 	return held
 }
@@ -90,6 +99,7 @@ func (r *Resolver) bumpAfterHold(currentVersion string, commits []string) versio
 // the configured bump mode — this allows --set-version to short-circuit auto resolution.
 func (r *Resolver) Resolve() (versioning.Result, error) {
 	r.warnings = nil
+	r.wouldBeVersions = nil
 	if r.versionOverride != "" || r.cfg.Versioning.BumpMode() == "manual" {
 		return r.resolveManual()
 	}

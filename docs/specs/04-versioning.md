@@ -115,7 +115,7 @@ instead (`v0.68.0` → `v0.69.0`, not `v1.0.0`). heraut prints a warning naming 
 forced the major, the version it held back, and how to lift it:
 
 ```
-! major bump held back by versioning.bump.stay_at_v0: 1.0.0 → 0.69.0 (pass --allow-major to release 1.0.0)
+! major bump held back by versioning.bump.stay_at_v0: v1.0.0 → v0.69.0 (re-run with --allow-major to release v1.0.0 instead)
   - feat(cmd)!: scope CLI flags to commands that use them, not root
 ```
 

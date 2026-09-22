@@ -55,7 +55,7 @@ func TestVersionNext_StayAtV0_HoldsBackWithWarningOnStderr(t *testing.T) {
 	require.NoError(t, err)
 
 	assert.Equal(t, "v0.69.0\n", stdout, "stdout must stay exactly the tag")
-	assert.Contains(t, stderr, "! major bump held back by versioning.bump.stay_at_v0: 1.0.0 → 0.69.0")
+	assert.Contains(t, stderr, "! major bump held back by versioning.bump.stay_at_v0: v1.0.0 → v0.69.0")
 	assert.Contains(t, stderr, "--allow-major")
 	assert.Contains(t, stderr, "  - feat!: break the api")
 }
@@ -121,7 +121,7 @@ func TestChangelog_RealGit_StayAtV0_TagsMinorAndWarns(t *testing.T) {
 	out, err := executeRoot("changelog", "--tag", "--no-push")
 	require.NoErrorf(t, err, "output:\n%s", out)
 
-	assert.Contains(t, out, "! major bump held back by versioning.bump.stay_at_v0: 1.0.0 → 0.69.0")
+	assert.Contains(t, out, "! major bump held back by versioning.bump.stay_at_v0: v1.0.0 → v0.69.0")
 	tags, err := exec.Command("git", "tag", "-l", "v0.69.0").CombinedOutput()
 	require.NoError(t, err)
 	assert.Contains(t, string(tags), "v0.69.0")
@@ -133,7 +133,7 @@ func TestChangelog_RealGit_StayAtV0_WarningGoesToStdout(t *testing.T) {
 	stdout, stderr, err := executeRootSeparateStreams("changelog", "--tag", "--no-push")
 	require.NoErrorf(t, err, "stdout:\n%s\nstderr:\n%s", stdout, stderr)
 
-	assert.Contains(t, stdout, "! major bump held back by versioning.bump.stay_at_v0: 1.0.0 → 0.69.0")
+	assert.Contains(t, stdout, "! major bump held back by versioning.bump.stay_at_v0: v1.0.0 → v0.69.0")
 	assert.NotContains(t, stderr, "held back", "the pipeline writes its warning to cmd.OutOrStdout(), not stderr")
 	tags, err := exec.Command("git", "tag", "-l", "v0.69.0").CombinedOutput()
 	require.NoError(t, err)
@@ -176,7 +176,7 @@ func TestRelease_DryRun_StayAtV0_HoldsBackAndWarns(t *testing.T) {
 	require.NoError(t, err)
 
 	assert.Contains(t, out, "v0.69.0")
-	assert.Contains(t, out, "major bump held back by versioning.bump.stay_at_v0: 1.0.0 → 0.69.0")
+	assert.Contains(t, out, "major bump held back by versioning.bump.stay_at_v0: v1.0.0 → v0.69.0")
 }
 
 func TestRelease_DryRun_StayAtV0_AllowMajorReleasesMajor(t *testing.T) {

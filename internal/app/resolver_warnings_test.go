@@ -1,6 +1,7 @@
 package app_test
 
 import (
+	"strings"
 	"testing"
 
 	"github.com/adaouat/forge/exec/exectest"
@@ -46,8 +47,43 @@ func TestNewResolver_Semver_StayAtV0_HoldsBackAndWarns(t *testing.T) {
 
 	assert.Equal(t, "v0.69.0", res.Tag)
 	require.Len(t, res.Warnings, 1)
-	assert.Contains(t, res.Warnings[0], "1.0.0 → 0.69.0")
+	assert.Contains(t, res.Warnings[0], "v1.0.0 → v0.69.0")
 	assert.Contains(t, res.Warnings[0], "feat!: break the api")
+}
+
+func TestNewResolver_Semver_StayAtV0_EmptyTagPrefix_ShowsBareVersionUnchanged(t *testing.T) {
+	cfg := stayAtV0SemverCfg()
+	cfg.Versioning.TagPrefix = strPtr("")
+	mr := exectest.NewMockRunner()
+	mr.QueueResponse("0.68.0\n", "", nil)
+	mr.QueueResponse("feat!: break the api\x00", "", nil)
+
+	r, err := app.NewResolver(cfg, "", false, "", "", mr)
+	require.NoError(t, err)
+	res, err := r.Resolve()
+	require.NoError(t, err)
+
+	assert.Equal(t, "0.69.0", res.Tag)
+	require.Len(t, res.Warnings, 1)
+	assert.Contains(t, res.Warnings[0], "1.0.0 → 0.69.0", "no tag_prefix means the rewrite is a no-op")
+}
+
+func TestNewResolver_Semver_StayAtV0_CommitSubjectContainingHeldVersion_LeftUnchanged(t *testing.T) {
+	mr := exectest.NewMockRunner()
+	mr.QueueResponse("v0.68.0\n", "", nil)
+	mr.QueueResponse("feat!: bump vendored lib to 0.69.0\x00", "", nil)
+
+	r, err := app.NewResolver(stayAtV0SemverCfg(), "", false, "", "", mr)
+	require.NoError(t, err)
+	res, err := r.Resolve()
+	require.NoError(t, err)
+
+	require.Len(t, res.Warnings, 1)
+	lines := strings.Split(res.Warnings[0], "\n")
+	require.Len(t, lines, 2)
+	assert.Contains(t, lines[0], "v1.0.0 → v0.69.0", "the headline shows the real tag")
+	assert.Equal(t, "  - feat!: bump vendored lib to 0.69.0", lines[1],
+		"a commit subject that happens to contain the bare held version must not be mangled by the headline-only rewrite")
 }
 
 func TestNewResolver_Semver_WithAllowMajor_ReleasesMajorWithoutWarning(t *testing.T) {
@@ -100,7 +136,7 @@ func TestNewResolver_SemverPerEnv_AutoEnvHoldsBackAndWarns(t *testing.T) {
 
 	assert.Equal(t, "dev/0.69.0", res.Tag)
 	require.Len(t, res.Warnings, 1)
-	assert.Contains(t, res.Warnings[0], "1.0.0 → 0.69.0")
+	assert.Contains(t, res.Warnings[0], "dev/1.0.0 → dev/0.69.0")
 }
 
 func TestNewResolver_SemverPerEnv_AllowMajor(t *testing.T) {

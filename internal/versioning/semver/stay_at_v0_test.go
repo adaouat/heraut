@@ -141,9 +141,10 @@ func TestResolve_StayAtV0(t *testing.T) {
 func TestResolve_StayAtV0_WarningFormat(t *testing.T) {
 	_, r := resolveStay(t, stayAtV0Cfg(), "v0.68.0", false, "feat!: break the api")
 	assert.Equal(t, []string{
-		"major bump held back by versioning.bump.stay_at_v0: 1.0.0 → 0.69.0 (pass --allow-major to release 1.0.0)\n" +
+		"major bump held back by versioning.bump.stay_at_v0: 1.0.0 → 0.69.0 (re-run with --allow-major to release 1.0.0 instead)\n" +
 			"  - feat!: break the api",
 	}, r.Warnings())
+	assert.Equal(t, []string{"1.0.0"}, r.WouldBeVersions())
 }
 
 func TestResolve_StayAtV0_WarningCapsListedCommits(t *testing.T) {
@@ -191,6 +192,25 @@ func TestResolve_StayAtV0_WarningsResetBetweenCalls(t *testing.T) {
 	assert.Empty(t, r.Warnings(), "a later Resolve with nothing held back must not repeat the old warning")
 }
 
+func TestResolve_StayAtV0_WouldBeVersionsStaysParallelToWarningsAndResets(t *testing.T) {
+	mr := exectest.NewMockRunner()
+	mr.QueueResponse("v0.68.0\n", "", nil)
+	mr.QueueResponse("feat!: break\x00", "", nil)
+	r := semver.New(mr, stayAtV0Cfg())
+
+	_, err := r.Resolve()
+	require.NoError(t, err)
+	require.Len(t, r.Warnings(), 1)
+	require.Len(t, r.WouldBeVersions(), 1)
+	assert.Equal(t, "1.0.0", r.WouldBeVersions()[0])
+
+	r.SetVersionOverride("0.70.0") // the second resolution holds nothing back
+	_, err = r.Resolve()
+	require.NoError(t, err)
+	assert.Empty(t, r.Warnings())
+	assert.Empty(t, r.WouldBeVersions(), "a later Resolve with nothing held back must not repeat the old wouldBe version")
+}
+
 func TestBumpAuto_StayAtV0(t *testing.T) {
 	r := semver.New(nil, stayAtV0Cfg())
 	got, err := r.BumpAuto([]string{"0.68.0"}, []string{"feat!: x"})
@@ -198,12 +218,14 @@ func TestBumpAuto_StayAtV0(t *testing.T) {
 	assert.Equal(t, "0.69.0", got)
 	require.Len(t, r.Warnings(), 1)
 	assert.Contains(t, r.Warnings()[0], "1.0.0 → 0.69.0")
+	assert.Equal(t, []string{"1.0.0"}, r.WouldBeVersions())
 
 	r.SetAllowMajor(true)
 	got, err = r.BumpAuto([]string{"0.68.0"}, []string{"feat!: x"})
 	require.NoError(t, err)
 	assert.Equal(t, "1.0.0", got)
 	assert.Empty(t, r.Warnings(), "allow-major clears the previous run's warning")
+	assert.Empty(t, r.WouldBeVersions(), "allow-major clears the previous run's wouldBe version")
 }
 
 func TestBumpAuto_StayAtV0_WarningsResetBetweenCalls(t *testing.T) {

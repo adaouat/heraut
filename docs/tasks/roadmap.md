@@ -2060,7 +2060,7 @@ Done.
 Small items the T309-T312 reviews found and deliberately left unfiled — none blocks anything, none
 was a defect in what shipped, and each is independent and can be picked up alone, in any order.
 
-#### ✦ `[ ]` T317: show the real tag in the `stay_at_v0` hold-back warning, and clearer wording
+#### ✦ `[x]` T317: show the real tag in the `stay_at_v0` hold-back warning, and clearer wording
 
 Two problems in the warning `holdMajorAtZero` builds, both raised by the user directly (not a
 review finding) after using the feature: (1) "pass --allow-major to release 1.0.0" reads, on
@@ -2090,6 +2090,39 @@ major bump held back by versioning.bump.stay_at_v0: v1.0.0 → v0.69.0 (re-run w
 ```
 major bump held back by versioning.bump.stay_at_v0: dev/1.0.0 → dev/0.69.0 (re-run with --allow-major to release dev/1.0.0 instead)
 ```
+
+**Completion note (2026-09-22).** Implemented as designed, no deviations. `holdMajorAtZero`
+(`internal/versioning/semver/hold.go`) now returns a third value, the bare "would-be" major
+version, alongside the reworded warning text; `(*semver.Resolver).WouldBeVersions()` exposes it
+in parallel to the existing `Warnings()`, reset at the same two points (`Resolve`, `BumpAuto`).
+`internal/app`'s `warningResolver` — which already held the fully rendered `Result.Tag` after
+`inner.Resolve()` — gained a `wouldBeVersions func() []string` field and a `rewriteHeldTags`
+helper that substitutes the real tag shape into each warning's **headline only** (never the
+commit-subject lines below it), derived from where the bare "held" version appears as a literal
+substring of the real tag, via `strings.NewReplacer` so both token replacements run in one
+simultaneous pass over the original text. `perenv.VersionCalculator` is untouched, as decided.
+Both `NewResolver` construction sites (`semver`, `semver-per-env`) wire the new field.
+
+Mutation checks: (i) dropping the `wouldBeVersions` wiring at the `semver` case site made that
+strategy's "shows the real tag" test fail while `semver-per-env`'s kept passing, confirming both
+sites are independently covered; (ii) removing the `version == ""` guard in `rewriteHeldTags` made
+the guard's dedicated test fail with visibly corrupted output (`strings.Index(tag, "")` returns 0,
+not -1, so the function would proceed instead of bailing out) — a real, not theoretical, failure;
+(iii) swapping the single `strings.NewReplacer` pass for two sequential `strings.ReplaceAll` calls
+was **not** an unforceable mutation — a contrived but valid `tag_format` (one whose static prefix
+happens to contain the wouldBe-version text, e.g. `"1.0.0-{version}"`) makes the two approaches
+diverge for real: sequential replacement re-scans its own first-pass output and corrupts the
+already-substituted tag. That input is now a permanent regression row in `TestRewriteHeldTags`
+(`internal/app/resolver_warnings_internal_test.go`), confirmed to fail under the sequential
+mutation before being restored. The pre-existing `TestWarningResolver_KeepsWarningsTheInnerResolverAlreadySet`
+stub needed a `wouldBeVersions: func() []string { return nil }` field added — not a weakened
+assertion, but a required consequence of the struct's new field, since `warningResolver.Resolve`
+now calls it unconditionally on the non-error path. ADR-0063 amended in place (no new ADR number,
+per the T306 precedent) — its "The warning" bullet's example and prose now describe the real
+mechanism instead of claiming per-env warnings can only ever show bare versions; Spec 04's example
+updated to match. `internal/pipeline/resolve_warnings_test.go`'s `heldBackWarning` constant needed
+no change (confirmed by reading it): it feeds a synthetic `Result` directly, never through the
+real resolver/app layer. Full suite green, `hk check` clean.
 
 #### ✦ `[ ]` T313: `perenv` promote hint discards a render error
 

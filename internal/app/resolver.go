@@ -27,13 +27,17 @@ func WithAllowMajor(allow bool) ResolverOption {
 }
 
 // warningResolver copies the warnings a semver calculator recorded during Resolve into
-// Result.Warnings. It exists so semver-per-env's warnings can cross perenv without widening
+// Result.Warnings, rewriting each warning's bare "would-be"/"held" version tokens into the real
+// tag shape once the full Result (with its rendered Tag) is known — hold.go and the semver
+// resolver never see tag_format for per-env strategies, so this is the earliest point that can.
+// It exists so semver-per-env's warnings can cross perenv without widening
 // perenv.VersionCalculator, whose BumpAuto returns only (string, error). The semver resolver
 // resets its recorded warnings on entry to both Resolve and BumpAuto, so reading them after
 // Resolve can never return a previous run's text.
 type warningResolver struct {
-	inner    versioning.Resolver
-	warnings func() []string
+	inner           versioning.Resolver
+	warnings        func() []string
+	wouldBeVersions func() []string
 }
 
 func (w warningResolver) Resolve() (versioning.Result, error) {
@@ -41,8 +45,44 @@ func (w warningResolver) Resolve() (versioning.Result, error) {
 	if err != nil {
 		return res, err
 	}
-	res.Warnings = append(res.Warnings, w.warnings()...)
+	warnings := w.warnings()
+	wouldBes := w.wouldBeVersions()
+	rewritten := make([]string, len(warnings))
+	for i, warn := range warnings {
+		if i < len(wouldBes) && wouldBes[i] != "" {
+			warn = rewriteHeldTags(warn, wouldBes[i], res.Version, res.Tag)
+		}
+		rewritten[i] = warn
+	}
+	res.Warnings = append(res.Warnings, rewritten...)
 	return res, nil
+}
+
+// rewriteHeldTags replaces the bare wouldBeVersion and version (the resolved "held" bare version)
+// tokens in warning's headline — its first line — with their real tag shape, derived from where
+// version appears inside tag: the same substring heuristic NewResolver's static path already uses
+// for stripping a configured prefix (see its "Strip any leading v" comment below). Both
+// replacements run in one pass via strings.NewReplacer so neither replacement's output can be
+// re-matched by the other. Only the headline is rewritten — any commit-subject lines below it are
+// left untouched, so a commit message that happens to contain the bare version string is never
+// corrupted. version is expected to be a literal substring of tag (true by construction: tagfmt
+// substitutes {version} verbatim into the tag it renders) — if it is not found, warning is
+// returned unchanged rather than guessing.
+func rewriteHeldTags(warning, wouldBeVersion, version, tag string) string {
+	idx := strings.Index(tag, version)
+	if version == "" || idx < 0 {
+		return warning
+	}
+	prefix, suffix := tag[:idx], tag[idx+len(version):]
+	headline, rest, hasRest := strings.Cut(warning, "\n")
+	headline = strings.NewReplacer(
+		version, tag,
+		wouldBeVersion, prefix+wouldBeVersion+suffix,
+	).Replace(headline)
+	if hasRest {
+		return headline + "\n" + rest
+	}
+	return headline
 }
 
 // NewResolver builds the appropriate versioning.Resolver from config.
@@ -99,13 +139,13 @@ func NewResolver(cfg *config.Config, env string, force bool, versionOverride, bu
 	case "semver":
 		r := semver.New(runner, cfg)
 		r.SetAllowMajor(o.allowMajor)
-		return warningResolver{inner: r, warnings: r.Warnings}, nil
+		return warningResolver{inner: r, warnings: r.Warnings, wouldBeVersions: r.WouldBeVersions}, nil
 	case "calver":
 		return calver.New(runner, cfg, time.Now), nil
 	case "semver-per-env":
 		calc := semver.New(nil, cfg)
 		calc.SetAllowMajor(o.allowMajor)
-		return warningResolver{inner: perenv.New(runner, cfg, env, force, calc), warnings: calc.Warnings}, nil
+		return warningResolver{inner: perenv.New(runner, cfg, env, force, calc), warnings: calc.Warnings, wouldBeVersions: calc.WouldBeVersions}, nil
 	case "calver-per-env":
 		calc := calver.New(nil, cfg, time.Now)
 		return perenv.New(runner, cfg, env, force, calc), nil

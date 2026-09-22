@@ -11,29 +11,29 @@ import (
 const maxListedCommits = 5
 
 // holdMajorAtZero lowers a major bump to minor when currentVersion's major component is 0
-// (ADR-0063), returning the possibly-lowered bump and the warning to show; the warning is empty
-// when nothing was held back. Whether stay_at_v0 is enabled and whether --allow-major was passed is
-// the caller's decision — this only answers "would this be a 0.x → 1.0.0 jump, and what does the
-// warning say".
-func holdMajorAtZero(currentVersion string, bump versioning.BumpType, commits []string, overrides []config.BumpRule) (versioning.BumpType, string) {
+// (ADR-0063), returning the possibly-lowered bump, the warning to show, and the bare "would-be"
+// major version the warning names ("" for both when nothing was held back). The bare wouldBe
+// version lets a caller with the real rendered tag (app.warningResolver) substitute it into the
+// warning's headline — this function never sees tag_format for per-env strategies.
+func holdMajorAtZero(currentVersion string, bump versioning.BumpType, commits []string, overrides []config.BumpRule) (heldBump versioning.BumpType, warning string, wouldBeVersion string) {
 	if bump != versioning.BumpMajor {
-		return bump, ""
+		return bump, "", ""
 	}
 	major, _, err := MajorMinor(currentVersion)
 	if err != nil || major != 0 {
-		return bump, ""
+		return bump, "", ""
 	}
 	wouldBe, err := BumpVersion(currentVersion, versioning.BumpMajor)
 	if err != nil {
-		return bump, ""
+		return bump, "", ""
 	}
 	held, err := BumpVersion(currentVersion, versioning.BumpMinor)
 	if err != nil {
-		return bump, ""
+		return bump, "", ""
 	}
 
 	var b strings.Builder
-	fmt.Fprintf(&b, "major bump held back by versioning.bump.stay_at_v0: %s → %s (pass --allow-major to release %s)", wouldBe, held, wouldBe)
+	fmt.Fprintf(&b, "major bump held back by versioning.bump.stay_at_v0: %s → %s (re-run with --allow-major to release %s instead)", wouldBe, held, wouldBe)
 	subjects := majorCommits(commits, overrides)
 	for i, s := range subjects {
 		if i == maxListedCommits {
@@ -42,7 +42,7 @@ func holdMajorAtZero(currentVersion string, bump versioning.BumpType, commits []
 		}
 		fmt.Fprintf(&b, "\n  - %s", s)
 	}
-	return versioning.BumpMinor, b.String()
+	return versioning.BumpMinor, b.String(), wouldBe
 }
 
 // majorCommits returns the subject line of every commit whose own bump level is major, after
