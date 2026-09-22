@@ -223,7 +223,7 @@ discipline that applies to every task.
 | 52 | Selective hook skipping (`--skip-hook`, `HERAUT_SKIP_HOOKS`) | Done |
 | 53 | Stay at v0 — hold major bumps at v0 (`stay_at_v0`, `--allow-major`) | Done |
 | 54 | Phase 53 follow-ups — hygiene, test breadth, docs polish, `version next` in manual mode | Done |
-| 55 | Phase 54 follow-ups — promote.go error handling, cmd naming, message polish | Planned |
+| 55 | Phase 54 follow-ups — promote.go error handling, cmd naming, message polish | In progress |
 
 ### Open items
 
@@ -2059,6 +2059,37 @@ Done.
 
 Small items the T309-T312 reviews found and deliberately left unfiled — none blocks anything, none
 was a defect in what shipped, and each is independent and can be picked up alone, in any order.
+
+#### ✦ `[ ]` T317: show the real tag in the `stay_at_v0` hold-back warning, and clearer wording
+
+Two problems in the warning `holdMajorAtZero` builds, both raised by the user directly (not a
+review finding) after using the feature: (1) "pass --allow-major to release 1.0.0" reads, on
+`version next`/`changelog`, as if it were naming the `heraut release` subcommand rather than using
+"release" as a verb — identical wording on all three commands invites that misreading; (2) the
+versions shown are always bare (`1.0.0 → 0.69.0`), because `holdMajorAtZero`
+(`internal/versioning/semver/hold.go`) runs inside the version calculator, which for
+`semver-per-env` never sees `tag_format` — so the warning doesn't match the real tag
+(`dev/1.0.0 → dev/0.69.0`), and even flat `semver` drops the `v` the printed tag has.
+
+**Decided approach**: reword the static text, and compute the real tag shape one layer up, in
+`internal/app`'s `warningResolver` — which already holds the fully rendered `Result.Tag` after
+`inner.Resolve()` returns — via the same kind of substring heuristic `NewResolver`'s static path
+already uses for stripping a configured prefix (`internal/app/resolver.go`'s "Strip any leading
+`v`..." comment). `internal/versioning/semver/hold.go` and `resolver.go` gain ONE new piece of
+data (the bare "would-be" major version, alongside the existing warning text) via a new
+`(*Resolver).WouldBeVersions() []string`, parallel to the existing `Warnings()`; they still never
+see `tag_format` and stay unchanged otherwise. `perenv.VersionCalculator` stays untouched (same
+reasoning ADR-0063 already gives for not widening it). This is a refinement of ADR-0063's own
+mechanism, not a new decision — amend ADR-0063 in place (no new ADR number), matching the T306
+precedent of amending it for the `bumpAfterHold` rename.
+
+Final wording (both bugs fixed together):
+```
+major bump held back by versioning.bump.stay_at_v0: v1.0.0 → v0.69.0 (re-run with --allow-major to release v1.0.0 instead)
+```
+```
+major bump held back by versioning.bump.stay_at_v0: dev/1.0.0 → dev/0.69.0 (re-run with --allow-major to release dev/1.0.0 instead)
+```
 
 #### ✦ `[ ]` T313: `perenv` promote hint discards a render error
 
