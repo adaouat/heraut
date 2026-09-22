@@ -2091,7 +2091,9 @@ major bump held back by versioning.bump.stay_at_v0: v1.0.0 → v0.69.0 (re-run w
 major bump held back by versioning.bump.stay_at_v0: dev/1.0.0 → dev/0.69.0 (re-run with --allow-major to release dev/1.0.0 instead)
 ```
 
-**Completion note (2026-09-22).** Implemented as designed, no deviations. `holdMajorAtZero`
+**Completion note (2026-09-22).** Implemented as designed. One brief inaccuracy, not a deviation:
+`internal/app/resolver_warnings_internal_test.go` already existed (the brief called it a "new
+file"); extended it instead of creating a duplicate. `holdMajorAtZero`
 (`internal/versioning/semver/hold.go`) now returns a third value, the bare "would-be" major
 version, alongside the reworded warning text; `(*semver.Resolver).WouldBeVersions()` exposes it
 in parallel to the existing `Warnings()`, reset at the same two points (`Resolve`, `BumpAuto`).
@@ -2102,7 +2104,6 @@ commit-subject lines below it), derived from where the bare "held" version appea
 substring of the real tag, via `strings.NewReplacer` so both token replacements run in one
 simultaneous pass over the original text. `perenv.VersionCalculator` is untouched, as decided.
 Both `NewResolver` construction sites (`semver`, `semver-per-env`) wire the new field.
-
 Mutation checks: (i) dropping the `wouldBeVersions` wiring at the `semver` case site made that
 strategy's "shows the real tag" test fail while `semver-per-env`'s kept passing, confirming both
 sites are independently covered; (ii) removing the `version == ""` guard in `rewriteHeldTags` made

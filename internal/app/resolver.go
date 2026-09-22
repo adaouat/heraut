@@ -60,17 +60,19 @@ func (w warningResolver) Resolve() (versioning.Result, error) {
 
 // rewriteHeldTags replaces the bare wouldBeVersion and version (the resolved "held" bare version)
 // tokens in warning's headline — its first line — with their real tag shape, derived from where
-// version appears inside tag: the same substring heuristic NewResolver's static path already uses
-// for stripping a configured prefix (see its "Strip any leading v" comment below). Both
-// replacements run in one pass via strings.NewReplacer so neither replacement's output can be
-// re-matched by the other. Only the headline is rewritten — any commit-subject lines below it are
-// left untouched, so a commit message that happens to contain the bare version string is never
-// corrupted. version is expected to be a literal substring of tag (true by construction: tagfmt
-// substitutes {version} verbatim into the tag it renders) — if it is not found, warning is
-// returned unchanged rather than guessing.
+// version appears inside tag. Both replacements run in one pass via strings.NewReplacer so
+// neither replacement's output can be re-matched by the other. Only the headline is rewritten —
+// any commit-subject lines below it are left untouched, so a commit message that happens to
+// contain the bare version string is never corrupted. version is expected to be a literal
+// substring of tag (true by construction: tagfmt substitutes {version} verbatim into the tag it
+// renders) — if it is not found, warning is returned unchanged rather than guessing. When the
+// bare held version occurs more than once inside the rendered tag — an env name or a tag_format
+// literal that happens to contain it, or a tag_format that repeats {version} — strings.Index
+// takes the first occurrence, so the would-be side of the headline is approximate; the resolved
+// tag itself is never affected, only this advisory text.
 func rewriteHeldTags(warning, wouldBeVersion, version, tag string) string {
 	idx := strings.Index(tag, version)
-	if version == "" || idx < 0 {
+	if version == "" || wouldBeVersion == "" || idx < 0 {
 		return warning
 	}
 	prefix, suffix := tag[:idx], tag[idx+len(version):]

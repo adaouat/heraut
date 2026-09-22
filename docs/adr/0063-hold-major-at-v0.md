@@ -57,9 +57,9 @@ flag lift it for a single run.** `versioning.bump` gains an optional boolean `st
   the semver resolver still only ever compute bare versions — they never see `tag_format`, so a
   per-env warning cannot be built with `dev/1.0.0 → dev/0.69.0` in place. `app.warningResolver`,
   which does have the fully rendered `Result.Tag` once `inner.Resolve()` returns, substitutes the
-  real tag shape into the warning's headline afterward: one new accessor, `(*semver.Resolver).
-  WouldBeVersions()`, carries the one extra bare version (the "would-be" major) needed alongside
-  the existing `Warnings()`; `perenv.VersionCalculator` stays untouched.
+  real tag shape into the warning's headline afterward: one new accessor,
+  `(*semver.Resolver).WouldBeVersions()`, carries the one extra bare version (the "would-be"
+  major) needed alongside the existing `Warnings()`; `perenv.VersionCalculator` stays untouched.
 - **Transport.** `versioning.Result` gains `Warnings []string` (one entry per warning; an entry may
   span several lines). The semver resolver records the warning of its last resolution and exposes
   it through `Warnings()`; it never prints, because the resolve step runs inside the pipeline under

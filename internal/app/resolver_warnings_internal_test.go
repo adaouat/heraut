@@ -75,26 +75,22 @@ func TestRewriteHeldTags(t *testing.T) {
 		},
 		{
 			name:           "commit-subject lines below the headline are left untouched, only the headline is rewritten",
-			warning:        "major bump held back by versioning.bump.stay_at_v0: 1.0.0 → 0.69.0 (re-run with --allow-major to release 1.0.0 instead)\n  - feat!: break the api",
+			warning:        "major bump held back by versioning.bump.stay_at_v0: 1.0.0 → 0.69.0 (re-run with --allow-major to release 1.0.0 instead)\n  - feat!: bump vendored lib to 0.69.0",
 			wouldBeVersion: "1.0.0",
 			version:        "0.69.0",
 			tag:            "v0.69.0",
-			want:           "major bump held back by versioning.bump.stay_at_v0: v1.0.0 → v0.69.0 (re-run with --allow-major to release v1.0.0 instead)\n  - feat!: break the api",
+			want:           "major bump held back by versioning.bump.stay_at_v0: v1.0.0 → v0.69.0 (re-run with --allow-major to release v1.0.0 instead)\n  - feat!: bump vendored lib to 0.69.0",
 		},
 		{
-			// Real call sites (warningResolver.Resolve) already filter out an empty wouldBeVersion
-			// before calling rewriteHeldTags, so this never reaches production. This pins what
-			// actually happens if that guard were ever removed: strings.NewReplacer treats ""
-			// as matching at every byte position, so it inserts prefix+suffix between every byte
-			// of the headline — including inside the multi-byte "→" rune, producing invalid UTF-8.
-			// The test documents why the caller-side guard is load-bearing, not that this output
-			// is desirable.
-			name:           "wouldBeVersion empty is defensive only — documents NewReplacer corrupting the headline on an empty old-string pattern",
-			warning:        "major bump held back by versioning.bump.stay_at_v0:  → 0.69.0 (re-run with --allow-major to release  instead)",
+			// wouldBeVersion is never empty at real call sites (warningResolver.Resolve filters
+			// it before calling), but the function guards it directly too — defense in depth,
+			// not decoration (see mutation check in the roadmap note).
+			name:           "wouldBeVersion empty is defensive: warning returned unchanged, no panic, no corruption",
+			warning:        "major bump held back by versioning.bump.stay_at_v0: 1.0.0 → 0.69.0 (re-run with --allow-major to release 1.0.0 instead)",
 			wouldBeVersion: "",
 			version:        "0.69.0",
 			tag:            "v0.69.0",
-			want:           "vmvavjvovrv vbvuvmvpv vhvevlvdv vbvavcvkv vbvyv vvvevrvsvivovnvivnvgv.vbvuvmvpv.vsvtvavyv_vavtv_vvv0v:v v v\xe2v\x86v\x92v v0.69.0v v(vrvev-vrvuvnv vwvivtvhv v-v-vavlvlvovwv-vmvavjvovrv vtvov vrvevlvevavsvev v vivnvsvtvevavdv)v",
+			want:           "major bump held back by versioning.bump.stay_at_v0: 1.0.0 → 0.69.0 (re-run with --allow-major to release 1.0.0 instead)",
 		},
 		{
 			// strings.Index(tag, "") returns 0, not -1, so without the explicit version == ""
