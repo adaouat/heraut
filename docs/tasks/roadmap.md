@@ -2178,7 +2178,7 @@ Consequences bullet about needing to "know to pass it". T317's own task body and
 were left untouched, as instructed — they're the historical record of what T317 itself produced.
 `hk check` clean.
 
-#### ✦ `[ ]` T313: `perenv` promote hint discards a render error
+#### ✦ `[x]` T313: `perenv` promote hint discards a render error
 
 `internal/versioning/perenv/promote.go:210` — `suggested, _ := tagfmt.Render(srcTF, tagfmt.Tokens{Env:
 srcEnv, Version: latestDestVersion})` — builds the "you probably meant to promote from `<tag>`" hint
@@ -2191,6 +2191,27 @@ propagate the error into `ErrDestinationAhead` (it already carries other derived
 here degrades the hint gracefully instead of the caller silently getting `""`, or add an explicit
 comment recording why it is safe to ignore if investigation shows it truly cannot fire. TDD: a test
 config with a `{build}`-only source `tag_format` reaching this exact line.
+
+**Completion note (2026-09-22).** Took the graceful-degradation direction: `resolvePromote`
+(`internal/versioning/perenv/promote.go`) now captures `tagfmt.Render`'s error via `err :=`
+(reusing the name is safe — this is a nested `if` block scope distinct from the outer `err`
+declared at function top, so it shadows locally and is read by the very next `if err != nil`
+check; the outer `err`'s last use was already checked earlier in the function, and nothing after
+this block reads it again, so no behaviour changes and `hk check`'s govet pass, which doesn't
+enable the shadow analyzer here, stays clean) and, on failure, replaces the suggested tag with a
+placeholder — `<no suggested tag — <srcEnv>'s tag_format needs a build ID>` — instead of leaving
+the E002 "How to fix" hint with an empty interpolation. New test
+`TestPromotionError_E002_SourceTagFormatNeedsBuildID_SuggestionDegradesGracefully`
+(`internal/versioning/perenv/resolver_test.go`) drives a `semver-per-env` config where the source
+env's `tag_format` is `dev/{version}-{build}` and the destination is ahead (E002); confirmed the
+`tagfmt.GlobPattern` output used in the `MockRunner` queue (`dev/*-*`) by reading
+`tagfmt.GlobPattern` directly — it matches the brief as given, no correction needed. RED: run
+before the fix, both `assert.Contains` (placeholder text) and `assert.NotContains` (`"git tag
+<commit-sha>"` with the double space) failed, since the buggy code never produces the placeholder
+at all. GREEN: same test after the fix, passes; full package (38 tests) and full suite (2039
+tests) green. Mutation check: reverted `promote.go` to the original `suggested, _ := ...` line,
+reran the new test — failed identically to RED — then restored the fix exactly, confirmed via
+`git diff` showing only the intended 7-line hunk. `hk check` clean.
 
 #### ✦ `[ ]` T314: converge `internal/cmd` naming and exit-code-assertion conventions
 

@@ -571,6 +571,35 @@ func TestPromotionError_E002_RichMessage(t *testing.T) {
 	assert.Contains(t, msg, "heraut release --env prod --force")
 }
 
+// TestPromotionError_E002_SourceTagFormatNeedsBuildID_SuggestionDegradesGracefully is T313: when
+// the source environment's tag_format contains {build}, the E002 hint's suggested-tag render
+// fails (tagfmt.ErrBuildIDRequired — nothing carries a build ID across a promotion), and the
+// hint must degrade to a placeholder instead of silently printing an empty tag name.
+func TestPromotionError_E002_SourceTagFormatNeedsBuildID_SuggestionDegradesGracefully(t *testing.T) {
+	mr := exectest.NewMockRunner()
+	mr.QueueResponse("dev/1.0.2-5\n", "", nil) // git tag -l dev/*-* → src (build-ID-carrying format)
+	mr.QueueResponse("", "", nil)              // git tag -l prod/1.0.2 → candidate doesn't exist
+	mr.QueueResponse("prod/1.0.3\n", "", nil)  // git tag -l prod/* → dest is ahead
+
+	cfg := &config.Config{
+		Versioning: config.Versioning{Strategy: "semver-per-env"},
+		Environments: map[string]config.Environment{
+			"dev":  {Bump: "auto", TagFormat: "dev/{version}-{build}"},
+			"prod": {Bump: "promote", TagFormat: "prod/{version}"},
+		},
+	}
+
+	r := perenv.New(mr, cfg, "prod", false, semverCalc("0.1.0"))
+	_, err := r.Resolve()
+	require.Error(t, err)
+	assert.True(t, errors.Is(err, perenv.ErrDestinationAhead), "sentinel preserved: %v", err)
+
+	msg := err.Error()
+	assert.Contains(t, msg, "error[E002]")
+	assert.Contains(t, msg, "<no suggested tag — dev's tag_format needs a build ID>")
+	assert.NotContains(t, msg, "git tag  <commit-sha>", "must never print an empty tag name (note the double space)")
+}
+
 func TestPromotionError_E003_RichMessage(t *testing.T) {
 	mr := exectest.NewMockRunner()
 	mr.QueueResponse("", "", nil) // git tag -l dev/* → no source tags

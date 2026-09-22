@@ -207,7 +207,13 @@ func resolvePromote(runner port.Runner, cfg *config.Config, env string, force bo
 		latestDestVersion, parseErr := tagfmt.ParseVersion(destTF, currentDestTag)
 		if parseErr == nil {
 			if compareVersionStrings(latestDestVersion, candidateVersion) > 0 && !force {
-				suggested, _ := tagfmt.Render(srcTF, tagfmt.Tokens{Env: srcEnv, Version: latestDestVersion})
+				suggested, err := tagfmt.Render(srcTF, tagfmt.Tokens{Env: srcEnv, Version: latestDestVersion})
+				if err != nil {
+					// srcTF needing a {build} token can't render a suggested tag from a promoted version alone
+					// — no build ID survives promotion to reuse. Fall back to a placeholder instead of leaving
+					// the hint with an empty tag name.
+					suggested = fmt.Sprintf("<no suggested tag — %s's tag_format needs a build ID>", srcEnv)
+				}
 				return versioning.Result{}, &PromotionError{
 					sentinel:          ErrDestinationAhead,
 					srcEnv:            srcEnv,
