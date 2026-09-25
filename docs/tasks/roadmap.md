@@ -224,6 +224,7 @@ discipline that applies to every task.
 | 53 | Stay at v0 — hold major bumps at v0 (`stay_at_v0`, `--allow-major`) | Done |
 | 54 | Phase 53 follow-ups — hygiene, test breadth, docs polish, `version next` in manual mode | Done |
 | 55 | Phase 54 follow-ups — promote.go error handling, cmd naming, message polish | Done |
+| 56 | Sign the raw binaries with a packslip manifest | Done — not yet exercised by a real release run, see T319 |
 
 ### Open items
 
@@ -2299,6 +2300,67 @@ committing — no production code changed. `go test ./internal/app/` and the ful
 are green; `hk check` clean. No existing row was touched, deleted, or loosened. This was the last open
 Phase 55 task, so the phase is now Done; the "Open items" sentence's parenthetical no longer needed to
 carve out Phase 55 (it now has zero unchecked items), so it was trimmed to reference only Phase 53/T304.
+
+---
+
+### Phase 56 — Sign the raw binaries with a packslip manifest
+
+#### ✦ `[x]` T319: publish a Sigstore-signed packslip manifest alongside each release
+
+Triggered by an unrelated support conversation (diagnosing the 0.63.0 Homebrew cask URL
+regression) that surfaced [jdx/packslip](https://github.com/jdx/packslip) — a signed release
+manifest format by mise's author, with mise named as a consumer. Goal: publish
+`packslip.sigstore.json` alongside heraut's own GitHub Release so a packslip-aware installer can
+verify heraut's raw binaries without trusting the download channel alone.
+
+Files: `.github/workflows/release.yml` only — no Go code, no config schema change.
+
+**Completion note (2026-09-25).** Added two steps to the `release` job, after `Release` (which is
+where the real tag/commit/binaries all exist) and before `Publish Homebrew cask`: `Capture release
+commit` (`git rev-parse HEAD`, since `heraut release` commits the changelog and pushes the tag,
+moving HEAD past `github.sha` — the packslip action's own docs name exactly this
+manually-dispatched-workflow case as the reason to pass `commit` explicitly), then `Publish
+packslip` (`jdx/packslip@9c1d4ffedc48b129fdd851c47fdd0945d5a9c8fc # v1.3.0`) with `artifacts` set to
+the same five raw-binary glob patterns `.config/heraut.yml`'s `release.assets` already uses (not
+`checksums.txt`, not the Pkl builtin `heraut@*` package — out of scope), `bin: heraut`, and `tag:
+${{ env.VERSION }}` (`github.ref_type` is never `tag` on a `workflow_dispatch` run, so the action
+cannot infer it the way a tag-triggered job would; `env.VERSION` is already correctly prefixed
+thanks to the same workflow's "Normalize version override" step, added earlier this session
+(untracked `ci:` commit `6302dfd`, not a roadmap task — see its own commit message for the
+0.63.0 cask-URL regression it fixes). Left `attest` at its
+default (`true`) rather than `link`: `link` would reuse heraut's existing `actions/attest`
+`subject-checksums` step to avoid a second attestation, but that relies on an unverified assumption
+that a `subject-checksums`-based attestation is queryable by the same per-file digest URL a
+`subject-path`-based one is; `attest: true` is packslip's own well-tested default and degrades
+safely (an unresolvable link "leaves a URL that resolves to nothing" per its docs — not worth
+risking for one redundant attestation).
+
+Verified the actual filename-inference behavior empirically rather than trusting docs paraphrase:
+downloaded the real `packslip` CLI (v1.3.0, darwin-arm64) locally, generated synthetic zero-byte
+files named exactly like heraut's real artifacts (`heraut_0.69.0_linux_amd64`,
+`..._darwin_arm64`, `..._windows_amd64.exe`), and ran `packslip create --bin heraut` against them
+with a local test key. Confirmed via `packslip show`: `os`/`arch`/`format` are all inferred
+correctly from goreleaser-style filenames with no overrides needed (`linux`/`darwin`/`windows`,
+`amd64`→`x86_64`/`arm64`→`aarch64`, and `raw` for every artifact including the extensionless `.exe`
+— not confused with the Windows `exe`-installer format), and `bin: heraut` resolves correctly to
+`{name: "heraut", path: <filename>}` for a bare executable.
+
+One known imprecision, deliberately accepted rather than worked around: packslip always tags a
+`linux` artifact `libc: "gnu"` — inferred by default, and not overridable to "absent" via any CLI
+flag, override syntax, or manifest field tested (`os/arch/libc` triples, and a TOML manifest
+omitting `libc` entirely, both still produced `"gnu"`). heraut's Linux binaries are
+`CGO_ENABLED=0` and have no libc dependency at all — they run identically on `gnu` and `musl`
+systems — so this claim is technically inaccurate. Impact is narrow (a strict consumer selecting
+only `musl`-tagged artifacts could skip a binary that would have worked) and there is no clean fix
+available in packslip today; revisit if a future packslip release adds a way to mark an artifact
+libc-agnostic.
+
+Verification: `hk check .github/workflows/release.yml` (actionlint, yamlfmt, typos) green. Not yet
+verified against a real GitHub Actions run (packslip's `verify`/upload steps, the `commit` capture,
+and the `attest: true` provenance linking all need one) — the next real `heraut release` dispatch is
+the first live test. Deferred, not built: documenting mise as a verified-install path in this
+project's own docs (README/`docs/guides/`) — mentioned by the user as the reason to add this, but
+explicitly scoped as a follow-up ("add it to heraut first").
 
 ---
 
