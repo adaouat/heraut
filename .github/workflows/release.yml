@@ -16,7 +16,9 @@ jobs:
   release:
     runs-on: ubuntu-latest
     outputs:
-      tag: ${{ steps.setup.outputs.tag }}
+      # steps.normalize only runs (and only sets tag) for a manual override — see
+      # its own comment below. Falls back to release-setup's own output otherwise.
+      tag: ${{ steps.normalize.outputs.tag || steps.setup.outputs.tag }}
     permissions:
       contents: write # create GitHub Release + push tag + upload assets
       id-token: write # OIDC token for build provenance attestation
@@ -39,6 +41,23 @@ jobs:
           gpg-private-key: ${{ secrets.RELEASE_GPG_PRIVATE_KEY }}
           github-token: ${{ secrets.GITHUB_TOKEN }}
           version: ${{ inputs.version }}
+
+      # forge's release-setup takes a manual `version` input verbatim — a bare
+      # "0.63.0" instead of "v0.63.0" slips straight into GORELEASER_CURRENT_TAG
+      # below, and GoReleaser bakes it as-is into main.Version, the Homebrew
+      # cask's download URL, and the Docker HERAUT_VERSION build-arg. heraut's own
+      # release step re-derives the correctly prefixed tag later, but by then
+      # GoReleaser has already built with the wrong one. Re-run the same
+      # --set-version normalization here, before the build, so every consumer
+      # agrees on one prefixed value.
+      - name: Normalize version override
+        id: normalize
+        if: env.VERSION_OVERRIDDEN == 'true'
+        run: |
+          yq 'del(.release)' .config/heraut.yml > /tmp/heraut-version.yml
+          NORMALIZED=$(HERAUT_FILE=/tmp/heraut-version.yml heraut version next --set-version "$VERSION")
+          echo "VERSION=$NORMALIZED" >> "$GITHUB_ENV"
+          echo "tag=$NORMALIZED" >> "$GITHUB_OUTPUT"
 
       - name: Build binaries
         uses: goreleaser/goreleaser-action@5daf1e915a5f0af01ddbcd89a43b8061ff4f1a89 # v7
