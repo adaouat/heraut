@@ -36,4 +36,5 @@ release:
     - "dist/heraut_*_windows_amd64.exe"
     - "dist/checksums.txt"
     - "dist/packslip.sigstore.json"
+    - "dist/*.sbom.json"
     - "dist/heraut@*"

@@ -225,6 +225,7 @@ discipline that applies to every task.
 | 54 | Phase 53 follow-ups — hygiene, test breadth, docs polish, `version next` in manual mode | Done |
 | 55 | Phase 54 follow-ups — promote.go error handling, cmd naming, message polish | Done |
 | 56 | Sign the raw binaries with a packslip manifest | Done — not yet exercised by a real release run, see T319/T320 |
+| 57 | SBOM generation; shell completions investigated | Done — completions not shipped (ADR-0013 + notarization gap), see T321/T322 |
 
 ### Open items
 
@@ -2395,6 +2396,78 @@ changelog commit the tag happens to point to. `tag: ${{ env.VERSION }}` is uncha
 `artifacts`/`bin` inputs are unchanged from T319. Verification: `hk check
 .github/workflows/release.yml .config/heraut.yml` (actionlint, yamlfmt, typos) green. Still not
 verified against a real run — the next dispatch is the first live test of the corrected ordering.
+
+---
+
+### Phase 57 — SBOM generation; shell completions investigated, found not viable yet
+
+Triggered by reviewing [charmbracelet/meta's goreleaser-vhs.yaml](https://github.com/charmbracelet/meta/blob/main/goreleaser-vhs.yaml)
+as a reference for release-pipeline ideas. Two candidates: shell completions bundled into the
+Homebrew cask, and SBOM generation. User approved both; asked for completions first (its own
+commit), then SBOM (its own commit).
+
+#### ✦ `[x]` T321: shell completions for the Homebrew cask — investigated, reverted, not shipped
+
+heraut already ships `heraut completion {bash,zsh,fish,powershell}` and `heraut man` for free
+(forge/cli wrapping cobra + fang — no heraut code). The question was purely how to get a Homebrew
+cask install to wire them up. Tried both of GoReleaser's `homebrew_casks` mechanisms, verified each
+against a real local install via a scratch `local/heraut-test` tap (not just docs), and both are
+broken for heraut as currently built:
+
+- `generate_completions_from_executable` (dynamic — Homebrew runs the *installed* binary at
+  install time to generate the scripts): installs, but the completion-generation step itself hangs
+  indefinitely and gets killed by Homebrew's own timeout. Root cause, confirmed directly: heraut's
+  binaries are not Apple Developer ID-signed or notarized (already a known gap — see the README's
+  existing Gatekeeper caveat on the "Prebuilt binary" install path), and an unsigned + quarantined
+  binary hangs under Gatekeeper when executed non-interactively. Ruled out "any signature helps":
+  ad-hoc `codesign -s -` on the same quarantined binary reproduced the identical hang — it's
+  specifically the lack of a real notarized identity, not the absence of *a* signature.
+  `HERAUT_CHECK_UPDATE=false` was also ruled out as the cause (still hung).
+  - Also caught a real config bug in the same investigation, before it got anywhere near
+    Homebrew: `shell_parameter_format: cobra` already constructs `completion <shell>` itself, so
+    an explicit `args: [completion]` alongside it doubled up into `heraut completion completion
+    bash` — harmless in this instance since the quarantine hang came first, but would have been
+    its own bug had signing not been the blocker.
+- `completions:` (static — reference pre-generated files, e.g. via a `before.hooks` step like
+  vhs's own `go run . completion bash >...`): fails outright — `Error: ... the symlink source
+  '.../completions/heraut.bash' is not there`. vhs's config works because it ships full archives
+  (`archives.files: [completions/*, ...]`) that bundle the generated scripts alongside the binary
+  in the same download. heraut ships a bare, unarchived binary per ADR-0013 (`archives.formats:
+  binary`, deliberately, so the Homebrew cask installs the plain binary under `heraut`) — there is
+  no archive for `completions:`'s referenced path to live inside.
+
+Both paths are blocked by real constraints already on record (ADR-0013's raw-binary decision;
+notarization named as a known future gap), not by anything fixable in this task's scope. Reverted
+`.goreleaser.yml` to its pre-investigation state — nothing shipped. Two ways forward, neither
+attempted here: (a) get heraut's binaries Developer ID-signed and notarized (real infra: Apple
+Developer Program, a codesigning cert, a notarization step in CI) unlocks
+`generate_completions_from_executable` cleanly with zero ADR-0013 impact; (b) reverse ADR-0013 to
+ship real archives instead of bare binaries unlocks static `completions:` (and `manpages:`), but
+that reopens a settled architectural decision and needs its own discussion, not a side effect of
+adding completions. Recommended next step if this gets picked back up: (a), since it also unblocks
+the still-open man-page ANSI-escape bug from the same conversation (separate task, forge/cli) and
+is the smaller, more targeted change.
+
+#### ✦ `[x]` T322: SBOM generation for the raw binaries (`syft`, SPDX)
+
+**Completion note (2026-09-25).** Added `sboms: - id: binaries / artifacts: binary` to
+`.goreleaser.yml` — GoReleaser's default `cmd: syft` and default SPDX JSON output needed no
+overrides. `artifacts: binary` (not the `archive` default) matches ADR-0013's bare-binary shipping,
+confirmed directly: a local snapshot build (`goreleaser release --snapshot --clean
+--skip=publish,validate,announce`, syft 1.52.0 on `PATH`) produced one real `.sbom.json` per
+platform (5 total), each listing heraut's actual Go module dependencies (51 packages, e.g.
+`charm.land/bubbles/v2`) — not an empty or templated stub. One filename quirk worth recording:
+GoReleaser's default `documents:` template uses `{{ .Binary }}`, which is `heraut.exe` for the
+Windows build, so that one file is named `heraut.exe_<version>_windows_amd64.sbom.json` (prefix
+differs from the other four's `heraut_<version>_<os>_<arch>.sbom.json`) — `.config/heraut.yml`'s
+new `release.assets` entry is the broad `"dist/*.sbom.json"` specifically to catch this without a
+second, Windows-specific glob. `syft` added to `.config/mise/config.toml` (`"latest"`, same tier as
+`hadolint`/`pkl`/`tombi`) and `.config/mise/mise.lock` regenerated via `mise install syft` — no
+`.github/workflows/release.yml` change needed, since `syft` reaches `PATH` the same way
+`goreleaser`/`hadolint` already do (via the `Release setup` step's `jdx/mise-action`, which runs
+before `Build binaries`). Verification: `hk check .goreleaser.yml .config/heraut.yml
+.config/mise/config.toml .config/mise/mise.lock` (yamlfmt, mise fmt, tombi_format, typos) green.
+Not yet verified against a real CI run.
 
 ---
 

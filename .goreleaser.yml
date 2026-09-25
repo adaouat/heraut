@@ -39,6 +39,10 @@ archives:
 checksum:
   name_template: "checksums.txt"
 
+sboms:
+  - id: binaries
+    artifacts: binary
+
 # release.disable: true — goreleaser is build-only in the CI pipeline (ADR-0018).
 # heraut owns GitHub Release creation via `heraut release --set-version`.
 release:

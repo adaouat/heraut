@@ -256,6 +256,45 @@ url = "https://github.com/apple/pkl/releases/download/0.31.1/pkl-macos-amd64"
 checksum = "sha256:a8834481667325b44c539dbb758d7365a16389070f343c04b639bbe525ede013"
 url = "https://github.com/apple/pkl/releases/download/0.31.1/pkl-windows-amd64.exe"
 
+[[tools.syft]]
+version = "1.52.0"
+backend = "aqua:anchore/syft"
+
+[tools.syft."platforms.linux-arm64"]
+checksum = "sha256:c46d5e4c28e12aa4c5becfaa343ef1c7f89045b6b895f2c21d471c62db09c706"
+url = "https://github.com/anchore/syft/releases/download/v1.52.0/syft_1.52.0_linux_arm64.tar.gz"
+url_api = "https://api.github.com/repos/anchore/syft/releases/assets/570445811"
+
+[tools.syft."platforms.linux-arm64-musl"]
+checksum = "sha256:c46d5e4c28e12aa4c5becfaa343ef1c7f89045b6b895f2c21d471c62db09c706"
+url = "https://github.com/anchore/syft/releases/download/v1.52.0/syft_1.52.0_linux_arm64.tar.gz"
+url_api = "https://api.github.com/repos/anchore/syft/releases/assets/570445811"
+
+[tools.syft."platforms.linux-x64"]
+checksum = "sha256:caeedb81fb0491615f1ebd1761e4145d41ee86dd2cc7bf80669f9f5ad9d6133d"
+url = "https://github.com/anchore/syft/releases/download/v1.52.0/syft_1.52.0_linux_amd64.tar.gz"
+url_api = "https://api.github.com/repos/anchore/syft/releases/assets/570445809"
+
+[tools.syft."platforms.linux-x64-musl"]
+checksum = "sha256:caeedb81fb0491615f1ebd1761e4145d41ee86dd2cc7bf80669f9f5ad9d6133d"
+url = "https://github.com/anchore/syft/releases/download/v1.52.0/syft_1.52.0_linux_amd64.tar.gz"
+url_api = "https://api.github.com/repos/anchore/syft/releases/assets/570445809"
+
+[tools.syft."platforms.macos-arm64"]
+checksum = "sha256:014d561b6d13059124155f74a6c5a9a99501f5e209313638dd884f39eb418ee6"
+url = "https://github.com/anchore/syft/releases/download/v1.52.0/syft_1.52.0_darwin_arm64.tar.gz"
+url_api = "https://api.github.com/repos/anchore/syft/releases/assets/570445806"
+
+[tools.syft."platforms.macos-x64"]
+checksum = "sha256:56975f5d7ffa9846a1eaf64330647841b878097bc7e3730cb9325f93add96917"
+url = "https://github.com/anchore/syft/releases/download/v1.52.0/syft_1.52.0_darwin_amd64.tar.gz"
+url_api = "https://api.github.com/repos/anchore/syft/releases/assets/570445818"
+
+[tools.syft."platforms.windows-x64"]
+checksum = "sha256:de787a374cf961c56fd7b206b2e183295abba32d0af3cb44d9aef2357ca9eda2"
+url = "https://github.com/anchore/syft/releases/download/v1.52.0/syft_1.52.0_windows_amd64.zip"
+url_api = "https://api.github.com/repos/anchore/syft/releases/assets/570445831"
+
 [[tools.tombi]]
 version = "1.1.0"
 backend = "aqua:tombi-toml/tombi"
