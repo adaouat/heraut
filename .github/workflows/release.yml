@@ -91,6 +91,26 @@ jobs:
         with:
           subject-checksums: dist/checksums.txt
 
+      # Signs a Sigstore manifest over the raw binaries, so a packslip-aware installer
+      # (mise) can verify what it downloads. Runs — and writes into dist/, upload: false
+      # — before `heraut release` publishes anything: platform.go's CreateRelease bundles
+      # dist/'s assets into the same `gh release create` call for exactly this reason —
+      # a later `gh release upload` 422s with "Cannot upload assets to an immutable
+      # release" once the release is published (see its own doc comment). `tag` is
+      # explicit because this workflow is workflow_dispatch: github.ref_type is never
+      # "tag" here, so the action can't infer it the way a tag-triggered job would; the
+      # commit is left to default to github.sha, the code these binaries actually built
+      # from (heraut's changelog commit, created a few steps from now, is later still).
+      - name: Publish packslip
+        uses: jdx/packslip@9c1d4ffedc48b129fdd851c47fdd0945d5a9c8fc # v1.3.0
+        with:
+          artifacts: >-
+            dist/heraut_*_linux_amd64 dist/heraut_*_linux_arm64 dist/heraut_*_darwin_amd64 dist/heraut_*_darwin_arm64 dist/heraut_*_windows_amd64.exe
+          bin: heraut
+          tag: ${{ env.VERSION }}
+          out: dist
+          upload: false
+
       - name: Version sanity check
         if: env.VERSION_OVERRIDDEN == 'false'
         run: |
@@ -121,28 +141,6 @@ jobs:
           # PR-attribution GraphQL calls. GITHUB_REPO is injected automatically by heraut —
           # no manual env var needed.
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-      # `heraut release` just committed the changelog and pushed the tag, so HEAD has
-      # moved past github.sha (the pre-release checkout). packslip's `commit` input
-      # needs the real one, not the workflow-start SHA — its own docs name exactly this
-      # manually-dispatched-workflow case as the reason to pass it explicitly.
-      - name: Capture release commit
-        id: release_commit
-        run: echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
-
-      # Signs a Sigstore manifest (packslip.sigstore.json) over the raw binaries this
-      # release already built, attesting each one and uploading the bundle as a release
-      # asset — lets a packslip-aware installer (mise) verify what it downloads. `tag`
-      # is explicit because this workflow is workflow_dispatch: github.ref_type is never
-      # "tag" here, so the action can't infer it the way a tag-triggered job would.
-      - name: Publish packslip
-        uses: jdx/packslip@9c1d4ffedc48b129fdd851c47fdd0945d5a9c8fc # v1.3.0
-        with:
-          artifacts: >-
-            dist/heraut_*_linux_amd64 dist/heraut_*_linux_arm64 dist/heraut_*_darwin_amd64 dist/heraut_*_darwin_arm64 dist/heraut_*_windows_amd64.exe
-          bin: heraut
-          tag: ${{ env.VERSION }}
-          commit: ${{ steps.release_commit.outputs.sha }}
 
       - name: Publish Homebrew cask
         # goreleaser is build-only (--skip=publish), so it only generated the cask;

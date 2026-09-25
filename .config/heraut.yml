@@ -35,4 +35,5 @@ release:
     - "dist/heraut_*_darwin_arm64"
     - "dist/heraut_*_windows_amd64.exe"
     - "dist/checksums.txt"
+    - "dist/packslip.sigstore.json"
     - "dist/heraut@*"

@@ -224,7 +224,7 @@ discipline that applies to every task.
 | 53 | Stay at v0 — hold major bumps at v0 (`stay_at_v0`, `--allow-major`) | Done |
 | 54 | Phase 53 follow-ups — hygiene, test breadth, docs polish, `version next` in manual mode | Done |
 | 55 | Phase 54 follow-ups — promote.go error handling, cmd naming, message polish | Done |
-| 56 | Sign the raw binaries with a packslip manifest | Done — not yet exercised by a real release run, see T319 |
+| 56 | Sign the raw binaries with a packslip manifest | Done — not yet exercised by a real release run, see T319/T320 |
 
 ### Open items
 
@@ -2361,6 +2361,40 @@ and the `attest: true` provenance linking all need one) — the next real `herau
 the first live test. Deferred, not built: documenting mise as a verified-install path in this
 project's own docs (README/`docs/guides/`) — mentioned by the user as the reason to add this, but
 explicitly scoped as a follow-up ("add it to heraut first").
+
+#### ✦ `[x]` T320: fix the immutable-release 422 T319's `gh release upload` hit on its first real run
+
+T319's first real exercise — a manually-dispatched `v0.70.0` release — failed at the `Publish
+packslip` step: `HTTP 422: Cannot upload assets to an immutable release`, from that step's own
+internal `gh release upload "$TAG" "$BUNDLE" --repo "$REPO"` call (packslip's action default,
+`upload: true`). Root cause was already documented, just not connected to this new step at design
+time: `internal/platforms/github/platform.go`'s `CreateRelease` doc comment names this exact
+GitHub behavior — a *separate* `gh release upload` after a release is published 422s once "Enable
+release immutability" is on, which is why heraut bundles every `release.assets` glob into the same
+atomic `gh release create` call instead (`LenientAssets`, set automatically whenever a target has
+assets — `internal/config/config.go`, `internal/app/pipeline.go`). T319 placed `Publish packslip`
+*after* the `Release` step specifically to capture the real post-changelog-commit HEAD for
+packslip's `commit` input — directly incompatible with that atomic-upload design, since by the
+time packslip's own upload ran, `heraut release` had already published (and thus locked) the
+release.
+
+**Completion note (2026-09-25).** Moved `Publish packslip` to run *before* `heraut release`,
+immediately after the existing `Attest build provenance` step (both are supply-chain steps that
+only need the built binaries, not a published release). Two input changes make this placement
+correct instead of just early: `out: dist` writes the bundle to `dist/packslip.sigstore.json`
+instead of packslip's default `packslip/` directory, and `upload: false` stops the action from
+making its own `gh release upload` call at all. `.config/heraut.yml`'s `release.assets` gained
+`"dist/packslip.sigstore.json"`, so `heraut release`'s own atomic upload carries the bundle exactly
+like every other release asset — no separate upload, no 422. Dropped the `commit` input and the
+now-unneeded `Capture release commit` step entirely rather than finding a way to compute the
+post-release HEAD earlier (impossible — that commit doesn't exist until `heraut release` creates
+it): the action's own default, `github.sha`, turned out to be the more defensible value anyway,
+since it's the commit these binaries were actually compiled from, not the later docs-only
+changelog commit the tag happens to point to. `tag: ${{ env.VERSION }}` is unchanged (still needed;
+`github.ref_type` is still never `tag` on this `workflow_dispatch` job). `attest: true` and the
+`artifacts`/`bin` inputs are unchanged from T319. Verification: `hk check
+.github/workflows/release.yml .config/heraut.yml` (actionlint, yamlfmt, typos) green. Still not
+verified against a real run — the next dispatch is the first live test of the corrected ordering.
 
 ---
 
