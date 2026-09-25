@@ -38,14 +38,22 @@ brew install --cask adaouat/tap/heraut
 ### mise
 
 ```bash
-mise use github:adaouat/heraut
+mise use packslip:github.com/adaouat/heraut
 ```
 
-Or declare it in your `.mise.toml` / `mise.toml`:
+Verifies the release against heraut's GitHub Actions signing identity via a
+[packslip](https://packslip.dev) manifest before installing — requires mise v2026.9.2 or newer.
+Declare it in your `.mise.toml` / `mise.toml`:
 
 ```toml
 [tools]
-"github:adaouat/heraut" = "latest"
+"packslip:github.com/adaouat/heraut" = "latest"
+```
+
+On an older mise, or if you'd rather skip verification, use the plain GitHub-releases backend:
+
+```bash
+mise use github:adaouat/heraut
 ```
 
 ### Prebuilt binary
