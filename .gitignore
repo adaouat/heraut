@@ -4,6 +4,8 @@
 /dist
 /coverage.out
 /cover_config.out
+/completions
+/manpages
 
 # IDE
 /.idea

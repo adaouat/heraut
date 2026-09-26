@@ -5,12 +5,20 @@ project_name: heraut
 before:
   hooks:
     - go mod tidy
+    - rm -rf completions
+    - mkdir completions
+    - rm -rf manpages
+    - mkdir manpages
+    - sh -c 'go run ./cmd/heraut completion bash >./completions/heraut.bash'
+    - sh -c 'go run ./cmd/heraut completion zsh >./completions/heraut.zsh'
+    - sh -c 'go run ./cmd/heraut completion fish >./completions/heraut.fish'
+    - sh -c 'go run ./cmd/heraut man | gzip -c >./manpages/heraut.1.gz'
 
 builds:
   - id: heraut
     main: ./cmd/heraut/
-    # Plain name so the Homebrew cask installs the binary as `heraut`; the version
-    # lives in the asset name via archives.name_template below.
+    # Plain name so the raw-binary archive installs as `heraut`; the version lives in
+    # the asset name via archives.name_template below.
     binary: heraut
     env:
       - CGO_ENABLED=0
@@ -27,14 +35,24 @@ builds:
     ldflags:
       - >-
         -s -w -X main.Version={{.Tag}}
-# ADR-0013: raw binaries, no archive wrapper. The version lives in the asset name
-# via name_template (builds.binary is plain — needed so the Homebrew cask installs
-# as `heraut`); the checksum covers the binary users run directly (ADR-0018).
+# ADR-0013: the direct-download asset stays a raw binary, no archive wrapper — the
+# checksum covers the binary users run directly, and curl+chmod needs no tar/unzip step.
+# The `homebrew` archive below exists solely to carry completions/man pages into the
+# Homebrew formula (see ADR-0013's 2026-09-26 note); it is not advertised as a
+# user-facing download.
 archives:
   - id: default
     name_template: "{{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
     formats:
       - binary
+  - id: homebrew
+    name_template: "{{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
+    formats:
+      - tar.gz
+    files:
+      - LICENSE.md
+      - completions/*
+      - manpages/*
 
 checksum:
   name_template: "checksums.txt"
@@ -52,12 +70,26 @@ release:
 # *generates* dist/homebrew/Casks/heraut.rb — the release workflow pushes it to the tap
 # after `heraut release` uploads the assets. The explicit url.template is required
 # because release.disable means goreleaser can't derive the default download URL.
+# completions:/manpages: (T323) are the *static* mechanism — pure file references into
+# the `homebrew` archive below, resolved by `brew` itself at install time. They never
+# execute the installed binary, unlike generate_completions_from_executable, which is why
+# they don't hit the Gatekeeper/notarization hang T321 found (see ADR-0013's 2026-09-26
+# note). Do not switch this to `brews:` (Formula) — GoReleaser deprecated and removed it
+# in v2.16 in favor of homebrew_casks:, since Cask now covers Linuxbrew too.
 homebrew_casks:
   - repository:
       owner: adaouat
       name: homebrew-tap
     directory: Casks
+    ids:
+      - homebrew
     url:
       template: "https://github.com/adaouat/heraut/releases/download/{{ .Tag }}/{{ .ArtifactName }}"
     homepage: "https://github.com/adaouat/heraut"
     description: "Release management for git-based projects"
+    completions:
+      bash: completions/heraut.bash
+      zsh: completions/heraut.zsh
+      fish: completions/heraut.fish
+    manpages:
+      - manpages/heraut.1.gz

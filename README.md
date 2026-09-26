@@ -35,6 +35,8 @@ like `héros` (hero), which is the idea.*
 brew install --cask adaouat/tap/heraut
 ```
 
+Also installs bash/zsh/fish completions and the `heraut` man page.
+
 ### mise
 
 ```bash
