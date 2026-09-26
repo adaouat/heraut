@@ -226,11 +226,12 @@ discipline that applies to every task.
 | 55 | Phase 54 follow-ups — promote.go error handling, cmd naming, message polish | Done |
 | 56 | Sign the raw binaries with a packslip manifest | Done — not yet exercised by a real release run, see T319/T320 |
 | 57 | SBOM generation; shell completions investigated | Done — completions not shipped (ADR-0013 + notarization gap), see T321/T322 |
+| 58 | Homebrew: formula + tar.gz archive for completions/man pages | Not started — see T323 |
 
 ### Open items
 
-The only unchecked item outside Phase 53 (T304 is a deliberately unscheduled future task) is the
-last sub-checkbox of Phase 10's closing checkpoint, `v1.0.0 cut …`:
+The only unchecked item outside Phase 53 (T304 and T323 are deliberately unscheduled future tasks)
+is the last sub-checkbox of Phase 10's closing checkpoint, `v1.0.0 cut …`:
 
 #### ✦ `[x]` CHECKPOINT K — Beta polish complete, ready for v1.0.0
 
@@ -2468,6 +2469,44 @@ second, Windows-specific glob. `syft` added to `.config/mise/config.toml` (`"lat
 before `Build binaries`). Verification: `hk check .goreleaser.yml .config/heraut.yml
 .config/mise/config.toml .config/mise/mise.lock` (yamlfmt, mise fmt, tombi_format, typos) green.
 Not yet verified against a real CI run.
+
+---
+
+### Phase 58 — Homebrew: formula + tar.gz archive for completions/man pages
+
+Triggered by a user comparison of [charmbracelet/meta's goreleaser-vhs.yaml](https://github.com/charmbracelet/meta/blob/main/goreleaser-vhs.yaml)
+and [charmbracelet/homebrew-tap's `vhs.rb`](https://github.com/charmbracelet/homebrew-tap/blob/master/vhs.rb)
+against T321's dead end. Not started — logged here for scheduling, no implementation done.
+
+#### ✦ `[ ]` T323: switch `homebrew_casks:` to `brews:` (Formula) with a dedicated tar.gz archive
+
+T321 found two independent blockers: (1) `archives.formats: binary` (ADR-0013) leaves no archive
+for GoReleaser to stage completions/man pages into, breaking both cask completion mechanisms; (2)
+Cask's `generate_completions_from_executable` executes the freshly-installed binary, which hangs
+under Gatekeeper since heraut's binaries aren't notarized. vhs's config avoids both: `before.hooks`
+pre-generates `completions/{bash,zsh,fish}` plus a gzipped `manpages/<name>.1.gz` at build time, a
+`tar.gz` archive bundles them, and its Homebrew **Formula** `install:` block does pure file copies
+(`bin.install`, `bash_completion.install`, `man1.install`, …) — it never executes the installed
+binary, so the notarization gap never comes into play regardless of signing status.
+
+Formula also fixes a real, separate limitation of the current cask: Homebrew Cask is macOS-only, so
+heraut's existing `linux/amd64`/`linux/arm64` builds have no Homebrew install path today; Formula
+installs via Homebrew-on-Linux too. Cask is also the unconventional choice for a headless CLI —
+every comparable Go CLI, including charmbracelet's own tools, ships as Formula.
+
+Proposed shape (not yet validated end-to-end): keep the existing bare-binary `archives:` entry
+(`id: default`) for the direct curl/mise install path untouched — ADR-0013's "avoid a tar/unzip
+step for direct download" rationale still holds even though its "avoid extraction code in heraut's
+own self-update" rationale no longer does (`internal/selfupdate` was removed per ADR-0014;
+`forge/updatecheck` only prints an upgrade hint and never downloads or extracts, confirmed against
+`forge@v0.19.1` source). Add a second `archives:` entry (`id: homebrew`, `formats: [tar.gz]`,
+`files: [completions/*, manpages/*]`) fed by new `before.hooks` running `go run ./cmd/heraut
+completion <shell>` and `go run ./cmd/heraut man | gzip`; replace `homebrew_casks:` with `brews:`
+scoped to `ids: [homebrew]`, mirroring vhs's `install:` block; update the release workflow's
+"Publish Homebrew cask" step language, the README's `brew install --cask` line, and add superseding
+notes to ADR-0013 and ADR-0018 (same pattern as their existing 2026-06-04 notes). Needs its own
+design pass — confirming the dual-archive/`checksums.txt` interaction and validating a real local
+tap install — before any implementation starts.
 
 ---
 
