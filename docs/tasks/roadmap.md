@@ -2470,6 +2470,26 @@ before `Build binaries`). Verification: `hk check .goreleaser.yml .config/heraut
 .config/mise/config.toml .config/mise/mise.lock` (yamlfmt, mise fmt, tombi_format, typos) green.
 Not yet verified against a real CI run.
 
+**Fix note (2026-09-26).** The first real CI run (release for v0.71.0) failed:
+`could not catalog artifact cmd=syft ... mise ERROR ... Config files in
+.../.config/mise/config.toml are not trusted`. Root cause, confirmed against GoReleaser's own
+source (`internal/pipe/sbom/sbom.go`): the `sboms` pipe does not inherit the caller's environment
+for the `syft` subprocess — it builds `cmd.Env` from scratch out of a fixed passthrough list
+(`HOME`, `USER`, `USERPROFILE`, `TMPDIR`, `TMP`, `TEMP`, `PATH`, `LOCALAPPDATA`) plus whatever
+`sboms[].env:` configures, which was empty. `syft` is mise-managed; PATH resolution can land on
+its mise shim instead of the real binary (confirmed happens on the real runner — the direct
+install and the shim are both on `PATH`), and the shim independently re-parses
+`.config/mise/config.toml` and checks trust. `jdx/mise-action` sets `MISE_TRUSTED_CONFIG_PATHS`
+and `MISE_YES` for exactly this, but neither survives the sboms pipe's env reset, so the shim sees
+neither and refuses. Fixed by adding both to `sboms[].env:`, rendered via GoReleaser's
+`envOrDefault` template func (not `.Env.KEY` directly — that errors hard, "map has no entry for
+key", when the var is unset, which it always is locally; `envOrDefault` falls back to `""`
+instead). Verified with the real `goreleaser` binary, not just `goreleaser check`: reproduced the
+exact failure locally by restricting `PATH` to only the mise shims dir (forcing shim resolution)
+with the pre-fix config, then confirmed the fixed config succeeds under the identical restricted
+PATH, and that a normal, unrestricted local run is unaffected either way. `hk check .goreleaser.yml`
+green.
+
 ---
 
 ### Phase 58 — Homebrew cask: tar.gz archive for completions/man pages

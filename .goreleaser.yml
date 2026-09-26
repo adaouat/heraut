@@ -57,9 +57,19 @@ archives:
 checksum:
   name_template: "checksums.txt"
 
+# The sboms pipe execs syft with a minimal passthrough env (HOME/USER/PATH/…, not the
+# caller's full environment — see goreleaser's internal/pipe/sbom), so CI's
+# MISE_TRUSTED_CONFIG_PATHS/MISE_YES (set by jdx/mise-action) never reach it. syft is
+# mise-managed (.config/mise/config.toml); if PATH resolution ever lands on its mise shim
+# instead of the real binary, the shim re-parses .config/mise/config.toml itself and,
+# without these two vars, fails with "not trusted" — reproduced on 2026-09-26's release
+# run. Re-declaring them here is a no-op locally (unset renders empty, mise ignores it).
 sboms:
   - id: binaries
     artifacts: binary
+    env:
+      - "MISE_TRUSTED_CONFIG_PATHS={{ envOrDefault \"MISE_TRUSTED_CONFIG_PATHS\" \"\" }}"
+      - "MISE_YES={{ envOrDefault \"MISE_YES\" \"\" }}"
 
 # release.disable: true — goreleaser is build-only in the CI pipeline (ADR-0018).
 # heraut owns GitHub Release creation via `heraut release --set-version`.
