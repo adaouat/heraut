@@ -13,6 +13,26 @@
 > `artifacts.json`. The raw-binary decision and the asset/checksum naming below still hold;
 > only where the version lives in the config moved (from `builds.binary` to `name_template`).
 
+> **Note (2026-09-26, T323).** Added a second `archives:` entry (`id: homebrew`,
+> `formats: tar.gz`) alongside the raw-binary one, used only by `homebrew_casks:` via
+> `ids: [homebrew]`. `before.hooks` now pre-generates `completions/*` and a gzipped
+> `manpages/heraut.1.gz`, bundled into that archive so the cask's static `completions:`
+> and `manpages:` fields can install them — GoReleaser's `generate_completions_from_executable`
+> was tried instead (T321) and hangs under Gatekeeper on heraut's unsigned/non-notarized
+> binaries; the static fields never execute the installed binary, so that gap doesn't apply.
+> Verified locally: a real `brew install --cask` against a scratch tap linked the binary,
+> man page, and all three completions in well under a second, with no hang. Confirmed the
+> quarantine attribute is still set on the installed binary itself (`xattr -l` shows
+> `com.apple.quarantine`) and that *running* it hangs until the flag is removed — that is
+> the pre-existing, unrelated Gatekeeper gap already called out in the README's "Prebuilt
+> binary" caveat, not something this change touches. The direct-download raw binary
+> (`id: default`) is untouched: this decision's core rationale for it — no tar/unzip step
+> for `curl`+`chmod` installs — still holds. Its other original rationale, avoiding
+> extraction code in heraut's own self-update, is now moot regardless of archives, since
+> self-update was removed entirely ([ADR-0014](0014-self-update-architecture.md),
+> superseded by forge ADR-0005) — `forge/updatecheck` only prints a hint and never
+> downloads or extracts anything.
+
 ## Context
 
 GoReleaser is the build tool ([Spec 06 — CI](../specs/06-dx-and-testing.md#ci)). The
@@ -80,11 +100,12 @@ The checksum is over the binary users execute rather than a wrapper. If the bina
 tampered with after extraction, the archive-based model would not catch it; the raw
 model does.
 
-**Future bundling foreclosed.**  
-If shell completions, man pages, or a README ever need to be distributed alongside the
-binary, this decision would need to be revisited. The mitigation is that modern CLIs
-install completions via a subcommand (`heraut completion bash`) rather than shipping
-them in an archive — and fang provides that subcommand out of the box.
+**Future bundling foreclosed for the direct-download binary.**  
+Resolved for Homebrew by the 2026-09-26 note above: a second, cask-only `tar.gz` archive
+now carries completions and the man page without touching the raw-binary asset. The
+direct `curl`+`chmod` download path still has no bundled completions/man page — those
+users still reach for `heraut completion bash`/`heraut man` directly, which fang provides
+out of the box.
 
 **CI artifact glob.**  
 The release workflow uploads `dist/heraut_*` to match binaries and the checksum file
