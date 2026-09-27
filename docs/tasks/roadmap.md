@@ -2555,6 +2555,19 @@ Linux-capable path GoReleaser recommends today, and it works after this fix. A h
 Formula remains a live option, deliberately deferred — pick it up as its own roadmap task if the
 convention mismatch still matters later.
 
+**Fix note (2026-09-27, quarantine hook).** Added `homebrew_casks[].hooks.post.install` per
+[GoReleaser's documented workaround](https://goreleaser.com/customization/publish/homebrew_casks/#signing-and-notarizing):
+`xattr -dr com.apple.quarantine` on the staged binary, gated `if OS.mac?`. This is the stopgap for
+the Gatekeeper hang T321 found and the README's existing "Prebuilt binary" caveat already named —
+not a fix for the underlying gap (heraut's binaries still aren't Developer ID-signed/notarized),
+just removes the attribute that makes it manifest as a hang. Verified with a real local install,
+not just the generated Ruby: a scratch tap cask (binary-only, no completions/manpage, to dodge
+colliding with the real production `heraut` cask's identically-named artifacts) confirmed
+`com.apple.quarantine` absent after install and the binary running in well under a second, versus
+the multi-second hang and later-confirmed quarantine flag from T321/T323's earlier local tests.
+Drop this hook once signing + notarization ships — tracked nowhere yet; add it as its own task if
+that work gets scheduled.
+
 ---
 
 ### Archived task detail

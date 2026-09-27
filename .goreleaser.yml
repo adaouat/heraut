@@ -103,3 +103,15 @@ homebrew_casks:
       fish: completions/heraut.fish
     manpages:
       - manpages/heraut.1.gz
+    # Stopgap until heraut's binaries are Developer ID-signed and notarized (the gap T321
+    # named, and the README's existing Gatekeeper caveat on the "Prebuilt binary" install
+    # path): strips com.apple.quarantine post-install so `heraut` runs immediately instead
+    # of hanging/prompting under Gatekeeper. This bypasses a macOS security check — see
+    # https://goreleaser.com/customization/publish/homebrew_casks/#signing-and-notarizing.
+    # Drop this hook once signing+notarization ships.
+    hooks:
+      post:
+        install: |-
+          if OS.mac?
+            system_command "/usr/bin/xattr", args: ["-dr", "com.apple.quarantine", "#{staged_path}/heraut"]
+          end
