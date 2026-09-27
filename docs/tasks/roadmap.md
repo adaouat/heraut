@@ -2538,6 +2538,23 @@ afterward; the real production `heraut` v0.69.1 install was untouched throughout
 `manpages/` (the `before.hooks` output dirs) added to `.gitignore`. README gained one line noting the
 cask also installs completions/the man page now. Not yet exercised by a real CI release run.
 
+**Fix note (2026-09-27).** First real CI release (v0.71.0) exposed a second, independent bug:
+`.config/heraut.yml`'s `release.assets` globs (`dist/heraut_*_<os>_<arch>`, no extension) never
+matched the new `homebrew`-id archive's `.tar.gz` filenames, so `heraut release` never uploaded
+them — the cask's `url.template` pointed at an asset that didn't exist, and `brew install --cask`
+failed with a download 404. Fixed by adding the four `.tar.gz` globs (linux/darwin ×
+amd64/arm64) to `release.assets`; verified the globs match real `dist/` output from a local
+snapshot build. Also revisited cask vs. Formula per user pushback, citing Homebrew's own
+`Acceptable-Casks.md`: *"Open-source command-line-only software normally belongs in
+`homebrew/core` as a formula built from source."* Confirmed this is real, official guidance (not
+a GoReleaser mischaracterization) — but it's a policy for the central curated taps, not enforced
+for a private one, and GoReleaser removed automatic Formula generation (`brews:`) in v2.16
+entirely, so getting a real Formula now means hand-writing the template and generation step
+ourselves, not a config change. User's call: stay on Cask for now: it is the actively-maintained,
+Linux-capable path GoReleaser recommends today, and it works after this fix. A hand-rolled
+Formula remains a live option, deliberately deferred — pick it up as its own roadmap task if the
+convention mismatch still matters later.
+
 ---
 
 ### Archived task detail
