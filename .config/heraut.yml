@@ -34,6 +34,12 @@ release:
     - "dist/heraut_*_darwin_amd64"
     - "dist/heraut_*_darwin_arm64"
     - "dist/heraut_*_windows_amd64.exe"
+    # T323's homebrew archive (id: homebrew, tar.gz) — the Homebrew cask's url.template
+    # points at these; without them the cask's download 404s (found 2026-09-27, v0.71.0).
+    - "dist/heraut_*_linux_amd64.tar.gz"
+    - "dist/heraut_*_linux_arm64.tar.gz"
+    - "dist/heraut_*_darwin_amd64.tar.gz"
+    - "dist/heraut_*_darwin_arm64.tar.gz"
     - "dist/checksums.txt"
     - "dist/packslip.sigstore.json"
     - "dist/*.sbom.json"
