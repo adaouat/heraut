@@ -27,7 +27,7 @@ pre-release lifecycle (`--pre-release <label>`) for the plain `semver` strategy.
 | T324 | Roadmap, Phase 59 pointer, ADR-0064 | Done |
 | T325 | `semver.Version`: strict Parse, §11 Compare, SortTags/Latest | Done |
 | T326 | Plain `semver` resolver orders tags by §11 in Go | Done |
-| T327 | `semver-per-env` ordering + E002 via §11; calver-per-env unchanged (zero-padded CalVer is not SemVer) | Not started |
+| T327 | `semver-per-env` ordering + E002 via §11; calver-per-env unchanged (zero-padded CalVer is not SemVer) | Done |
 | T328 | `{build}` must directly follow `+` (validator, wizard, docs) | Not started |
 | T329 | `--set-build-id` on plain `semver` (`v1.4.0+<id>`) | Not started |
 | T330 | `version current`: latest final by default, `--include-pre-release` (+ `${version}` test-typo fix, own commit) | Not started |
@@ -71,12 +71,29 @@ not by this resolver. No existing test row's expectation needed to change — th
 (`mise run test`) was green on the first run after implementation, meaning nothing outside this
 package relied on git's `version:refname` order diverging from §11 order.
 
-### [ ] T327 — `semver-per-env` ordering + E002 via §11; calver-per-env unchanged
+### [x] T327 — `semver-per-env` ordering + E002 via §11; calver-per-env unchanged
 
 - CalVer versions like `2026.05.0` have leading zeros, which strict SemVer parsing rejects:
   `calver-per-env` shares `internal/versioning/perenv` and must keep its lenient
   dotted-integer path (`IsBareVersion`, `compareVersionStrings`) — guarded by
   `TestResolve_Auto_Calver_ZeroPaddedUnaffected` plus the existing calver rows, unmodified.
+
+New `internal/versioning/perenv/order.go` centralizes the strategy split: `releaseTags` (source/auto
+selection), `latestTag` (destination selection for E002), and `compareVersions` (the E002
+inequality itself) each branch on `cfg.Versioning.Strategy` — `semver-per-env` delegates to
+`semver.SortTags`/`semver.Latest`/`semver.Compare` (§11 precedence, in Go), `calver-per-env` falls
+through to the pre-existing `tagfmt.ParseVersion` + `semver.IsBareVersion` + `compareVersionStrings`
+path, byte-for-byte. `auto.go` and `promote.go` now call these three functions instead of inlining
+the tag-scan loops; git call arguments (`git tag -l <glob> --sort=-version:refname`) are untouched,
+so the `--sort` flag is still a harmless pre-sort, not the source of truth. Fixed a real bug this
+uncovered: the old `compareVersionStrings("1.2.4+7", …)` parsed `"4+7"` as the int `0` via
+`strconv.Atoi`'s error-swallowed zero-value, so a destination tag carrying build metadata could
+sail past the E002 guard undetected (new test
+`TestResolve_Promote_Semver_E002_BuildMetadataDestination`). All 43 package tests pass, including
+every pre-existing row unmodified (`TestResolve_Auto_Semver_SkipsPrereleaseTag`,
+`TestResolve_Promote_SkipsPrereleaseSourceTag`, both `promoteBackends` calver rows,
+`TestResolve_Promote_E002_NoForce`'s calver subtest). Spec 04 § Pre-release tags rewritten to
+describe the SemVer §11 behaviour and its calver-per-env carve-out; no deferred items.
 
 ### [ ] T328 — `{build}` must directly follow `+`
 ### [ ] T329 — `--set-build-id` on plain `semver`

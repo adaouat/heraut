@@ -810,3 +810,78 @@ func TestResolve_GitTagListError(t *testing.T) {
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "listing")
 }
+
+// ---- SemVer §11 ordering (ADR-0064) ----
+
+func semverPerEnvCfg() *config.Config {
+	return &config.Config{
+		Versioning: config.Versioning{Strategy: "semver-per-env"},
+		Environments: map[string]config.Environment{
+			"dev":  {Bump: "auto", TagFormat: "dev/{version}"},
+			"prod": {Bump: "promote", TagFormat: "prod/{version}"},
+		},
+	}
+}
+
+func TestResolve_Auto_Semver_OrdersTagsBySemverPrecedence(t *testing.T) {
+	mr := exectest.NewMockRunner()
+	mr.QueueResponse("dev/1.2.3\ndev/1.10.0\n", "", nil) // out of order
+	mr.QueueResponse("fix: bugfix\x00", "", nil)
+
+	result, err := perenv.New(mr, semverPerEnvCfg(), "dev", false, semverCalc("0.1.0")).Resolve()
+	require.NoError(t, err)
+	assert.Equal(t, "dev/1.10.0", result.CurrentTag)
+	assert.Equal(t, "1.10.1", result.Version)
+}
+
+func TestResolve_Promote_Semver_PicksHighestSourceRelease(t *testing.T) {
+	mr := exectest.NewMockRunner()
+	mr.QueueResponse("dev/1.2.3\ndev/1.10.0\n", "", nil) // source, out of order
+	mr.QueueResponse("", "", nil)                        // candidate prod/1.10.0 does not exist
+	mr.QueueResponse("", "", nil)                        // no dest tags
+
+	result, err := perenv.New(mr, semverPerEnvCfg(), "prod", false, semverCalc("0.1.0")).Resolve()
+	require.NoError(t, err)
+	assert.Equal(t, "prod/1.10.0", result.Tag)
+}
+
+// Before ADR-0064, compareVersionStrings read "1.2.4+7" as 1.2.0 ("4+7" is not an int), so a
+// destination ahead of the candidate slipped past E002.
+func TestResolve_Promote_Semver_E002_BuildMetadataDestination(t *testing.T) {
+	mr := exectest.NewMockRunner()
+	mr.QueueResponse("dev/1.2.3\n", "", nil)
+	mr.QueueResponse("", "", nil)
+	mr.QueueResponse("prod/1.2.4+7\n", "", nil)
+
+	_, err := perenv.New(mr, semverPerEnvCfg(), "prod", false, semverCalc("0.1.0")).Resolve()
+	require.Error(t, err)
+	assert.True(t, errors.Is(err, perenv.ErrDestinationAhead), "got %v", err)
+}
+
+// The destination's latest tag is chosen by §11, not by git's first line.
+func TestResolve_Promote_Semver_E002_MisorderedDestination(t *testing.T) {
+	mr := exectest.NewMockRunner()
+	mr.QueueResponse("dev/1.2.4\n", "", nil)
+	mr.QueueResponse("", "", nil)
+	mr.QueueResponse("prod/1.2.3\nprod/1.2.10\n", "", nil)
+
+	_, err := perenv.New(mr, semverPerEnvCfg(), "prod", false, semverCalc("0.1.0")).Resolve()
+	require.Error(t, err)
+	assert.True(t, errors.Is(err, perenv.ErrDestinationAhead), "got %v", err)
+}
+
+// calver-per-env shares this package; its zero-padded versions are not valid SemVer and must keep
+// resolving exactly as before.
+func TestResolve_Auto_Calver_ZeroPaddedUnaffected(t *testing.T) {
+	mr := exectest.NewMockRunner()
+	mr.QueueResponse("dev/2026.05.3\ndev/2026.05.2\n", "", nil)
+
+	cfg := &config.Config{
+		Versioning:   config.Versioning{Strategy: "calver-per-env", Format: "YYYY.MM.PATCH"},
+		Environments: map[string]config.Environment{"dev": {Bump: "auto", TagFormat: "dev/{version}"}},
+	}
+	result, err := perenv.New(mr, cfg, "dev", false, calverCalc("YYYY.MM.PATCH", fixedNow(2026, time.May, 24))).Resolve()
+	require.NoError(t, err)
+	assert.Equal(t, "dev/2026.05.4", result.Tag)
+	assert.Equal(t, "dev/2026.05.3", result.CurrentTag)
+}

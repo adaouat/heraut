@@ -8,7 +8,6 @@ import (
 	"github.com/adaouat/heraut/internal/config"
 	"github.com/adaouat/heraut/internal/port"
 	"github.com/adaouat/heraut/internal/versioning"
-	"github.com/adaouat/heraut/internal/versioning/semver"
 	"github.com/adaouat/heraut/internal/versioning/tagfmt"
 )
 
@@ -144,21 +143,10 @@ func resolvePromote(runner port.Runner, cfg *config.Config, env string, force bo
 		return versioning.Result{}, fmt.Errorf("listing source tags: %w", err)
 	}
 
-	srcTags := splitLines(stdout)
-
-	// 3. Extract the bare version from the latest source tag that is a plain release (not a
-	// pre-release like "1.3.0-rc.1") — mirrors resolveAuto's own skip policy (T92) so promotion
-	// never selects a tag auto-resolve itself would never have produced as a release candidate.
-	var latestSrcTag, candidateVersion string
-	for _, tag := range srcTags {
-		bare, parseErr := tagfmt.ParseVersion(srcTF, tag)
-		if parseErr != nil || !semver.IsBareVersion(bare) {
-			continue
-		}
-		latestSrcTag, candidateVersion = tag, bare
-		break
-	}
-	if latestSrcTag == "" {
+	// 3. Pick the latest source release (never a pre-release) — the same selection resolveAuto
+	// uses (T92, ADR-0064).
+	srcTags, srcVersions := releaseTags(cfg.Versioning.Strategy, srcTF, splitLines(stdout))
+	if len(srcTags) == 0 {
 		return versioning.Result{}, &PromotionError{
 			sentinel: ErrNoSourceTags,
 			srcEnv:   srcEnv,
@@ -166,6 +154,7 @@ func resolvePromote(runner port.Runner, cfg *config.Config, env string, force bo
 			srcGlob:  srcGlob,
 		}
 	}
+	latestSrcTag, candidateVersion := srcTags[0], srcVersions[0]
 
 	// 4. Render the candidate tag under the destination format.
 	destTF := tagFormat(cfg, env)
@@ -200,31 +189,24 @@ func resolvePromote(runner port.Runner, cfg *config.Config, env string, force bo
 		return versioning.Result{}, fmt.Errorf("listing destination tags: %w", err)
 	}
 
-	destTags := splitLines(stdout)
-	var currentDestTag string
-	if len(destTags) > 0 {
-		currentDestTag = destTags[0]
-		latestDestVersion, parseErr := tagfmt.ParseVersion(destTF, currentDestTag)
-		if parseErr == nil {
-			if compareVersionStrings(latestDestVersion, candidateVersion) > 0 && !force {
-				suggested, renderErr := tagfmt.Render(srcTF, tagfmt.Tokens{Env: srcEnv, Version: latestDestVersion})
-				if renderErr != nil {
-					// srcTF needing a {build} token can't render a suggested tag from a promoted version alone
-					// — no build ID survives promotion to reuse. Fall back to a placeholder instead of leaving
-					// the hint with an empty tag name.
-					suggested = fmt.Sprintf("<no suggested tag — %s's tag_format needs a build ID>", srcEnv)
-				}
-				return versioning.Result{}, &PromotionError{
-					sentinel:          ErrDestinationAhead,
-					srcEnv:            srcEnv,
-					destEnv:           env,
-					srcTag:            latestSrcTag,
-					candidateTag:      candidateTag,
-					latestDestTag:     currentDestTag,
-					latestDestVersion: latestDestVersion,
-					suggestedSrcTag:   suggested,
-				}
-			}
+	currentDestTag, latestDestVersion, destComparable := latestTag(cfg.Versioning.Strategy, destTF, splitLines(stdout))
+	if destComparable && compareVersions(cfg.Versioning.Strategy, latestDestVersion, candidateVersion) > 0 && !force {
+		suggested, renderErr := tagfmt.Render(srcTF, tagfmt.Tokens{Env: srcEnv, Version: latestDestVersion})
+		if renderErr != nil {
+			// srcTF needing a {build} token can't render a suggested tag from a promoted version alone
+			// — no build ID survives promotion to reuse. Fall back to a placeholder instead of leaving
+			// the hint with an empty tag name.
+			suggested = fmt.Sprintf("<no suggested tag — %s's tag_format needs a build ID>", srcEnv)
+		}
+		return versioning.Result{}, &PromotionError{
+			sentinel:          ErrDestinationAhead,
+			srcEnv:            srcEnv,
+			destEnv:           env,
+			srcTag:            latestSrcTag,
+			candidateTag:      candidateTag,
+			latestDestTag:     currentDestTag,
+			latestDestVersion: latestDestVersion,
+			suggestedSrcTag:   suggested,
 		}
 	}
 
