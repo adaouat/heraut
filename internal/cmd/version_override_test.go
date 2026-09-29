@@ -41,7 +41,7 @@ versioning:
 environments:
   uat:
     bump: auto
-    tag_format: "{env}/{version}-{build}"
+    tag_format: "{env}/{version}+{build}"
 `
 
 const branchGuardedPerEnvConfig = `
@@ -99,7 +99,7 @@ versioning:
 			"per-env tag_format with a build ID",
 			perEnvBuildConfig,
 			[]string{"--env", "uat", "--set-version", "0.2.0", "--set-build-id", "42"},
-			"uat/0.2.0-42\n",
+			"uat/0.2.0+42\n",
 		},
 	}
 	for _, tc := range tests {

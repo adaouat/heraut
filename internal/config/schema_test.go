@@ -94,7 +94,7 @@ func TestSchema_SemanticOnlyFixturesPassSchema(t *testing.T) {
 
 	// These fixtures are structurally valid — schema must accept them.
 	// Semantic errors (cycles, ambiguous source) are caught by config.Validate only.
-	for _, name := range []string{"source_ambiguous.yml", "source_cycle.yml"} {
+	for _, name := range []string{"source_ambiguous.yml", "source_cycle.yml", "build_token_hyphen.yml"} {
 		t.Run(name, func(t *testing.T) {
 			path := filepath.Join("../../testdata/config/invalid", name)
 			v := yamlFileToJSON(t, path)

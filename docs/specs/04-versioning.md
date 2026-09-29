@@ -305,8 +305,8 @@ top-level `versioning.tag_format` using `{env}`; a per-environment `tag_format` 
 overrides the common one when both are set. See
 [Spec 02 § Common `tag_format`](02-configuration.md#common-tag_format).
 
-A third token, `{build}`, is available for CI build IDs (e.g. `"{env}/{version}-{build}"`
-→ `uat/7.4.1-158404`) — populated by `--set-build-id <id>` on `heraut changelog`/`heraut release`/`heraut version next`,
+A third token, `{build}`, is available for CI build IDs (e.g. `"{env}/{version}+{build}"`
+→ `uat/7.4.1+158404`) — populated by `--set-build-id <id>` on `heraut changelog`/`heraut release`/`heraut version next`,
 requires `--set-version` to also be passed. See
 [Spec 02 § `{build}` token](02-configuration.md#build-token--ci-build-ids) for the full
 reference.

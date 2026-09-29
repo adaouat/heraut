@@ -528,7 +528,7 @@
         },
         "tag_format": {
           "type": "string",
-          "description": "Common tag format template for per-env strategies (e.g. \"{env}/{version}\")."
+          "description": "Common tag format template for per-env strategies (e.g. \"{env}/{version}\"). {build} (CI build ID) must directly follow \"+\", e.g. \"{env}/{version}+{build}\" — SemVer build metadata."
         },
         "tag_type": {
           "type": "string",
@@ -723,7 +723,7 @@
         },
         "tag_format": {
           "type": "string",
-          "description": "Per-environment tag format (e.g. \"dev/{version}\"). Must contain {version}."
+          "description": "Per-environment tag format (e.g. \"dev/{version}\"). Must contain {version}. {build} (CI build ID) must directly follow \"+\", e.g. \"{env}/{version}+{build}\" — SemVer build metadata."
         },
         "branch": {
           "type": "string",

@@ -276,7 +276,7 @@ With `versioning.bump.stay_at_v0` set, a breaking change at `0.x` prints a hold-
 > **`{build}` tag formats:** a tag that requires a build ID cannot be inferred from git history, so
 > without `--set-version` and `--set-build-id` `version next` exits with the configuration-error
 > code (2). Pass both to render it
-> (`heraut version next --env uat --set-version 7.4.1 --set-build-id $CI_PIPELINE_ID` → `uat/7.4.1-158404`);
+> (`heraut version next --env uat --set-version 7.4.1 --set-build-id $CI_PIPELINE_ID` → `uat/7.4.1+158404`);
 > `heraut changelog` and `heraut release` accept the same two flags (see
 > [Spec 02 § `{build}` token](02-configuration.md#build-token--ci-build-ids)).
 
@@ -295,8 +295,8 @@ per-environment override required).
 
 By default prints the **raw tag** (including any `{build}` suffix). `--bare` prints the
 bare semantic version instead: single-env strips the tag prefix; per-env parses the tag
-through the effective `tag_format`, so `main/7.4.1-158404` → `7.4.1` (and
-`main/7.4.1-rc.1-158404` → `7.4.1-rc.1`).
+through the effective `tag_format`, so `main/7.4.1+158404` → `7.4.1` (and
+`main/7.4.1-rc.1+158404` → `7.4.1-rc.1`).
 
 Before resolving, runs the same semantic validation as `heraut check config`. A config
 error prints the same path/hint output and exits with the Config code (2) without

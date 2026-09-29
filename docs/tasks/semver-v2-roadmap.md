@@ -28,7 +28,7 @@ pre-release lifecycle (`--pre-release <label>`) for the plain `semver` strategy.
 | T325 | `semver.Version`: strict Parse, §11 Compare, SortTags/Latest | Done |
 | T326 | Plain `semver` resolver orders tags by §11 in Go | Done |
 | T327 | `semver-per-env` ordering + E002 via §11; calver-per-env unchanged (zero-padded CalVer is not SemVer) | Done |
-| T328 | `{build}` must directly follow `+` (validator, wizard, docs) | Not started |
+| T328 | `{build}` must directly follow `+` (validator, wizard, docs) | Done |
 | T329 | `--set-build-id` on plain `semver` (`v1.4.0+<id>`) | Not started |
 | T330 | `version current`: latest final by default, `--include-pre-release` (+ `${version}` test-typo fix, own commit) | Not started |
 | —    | Phase 2 (pre-release lifecycle) — planned after Phase 1 lands | Not planned |
@@ -95,7 +95,26 @@ every pre-existing row unmodified (`TestResolve_Auto_Semver_SkipsPrereleaseTag`,
 `TestResolve_Promote_E002_NoForce`'s calver subtest). Spec 04 § Pre-release tags rewritten to
 describe the SemVer §11 behaviour and its calver-per-env carve-out; no deferred items.
 
-### [ ] T328 — `{build}` must directly follow `+`
+### [x] T328 — `{build}` must directly follow `+`
+
+Added `buildTokenMisplaced` next to `tagFormatMissingVersion` in `internal/config/validator.go`,
+scanning every `{build}` occurrence in a `tag_format` string and rejecting any not immediately
+preceded by `+` (a leading `{build}` or a second, misplaced occurrence both fail the same way).
+Wired into `Validate` once for `versioning.tag_format` (applies to every strategy, since
+`--set-build-id` renders it regardless of strategy) and once per environment inside
+`validatePerEnv`, plus into `ValidateTagFormatForWizard` so `heraut init`'s live field validation
+catches it before the config is ever written. Converted every pre-existing `-{build}` test row
+across `internal/cmd`, `internal/app`, `internal/config/tagformat_test.go`,
+`internal/versioning/perenv/resolver_test.go` and `internal/versioning/tagfmt/tagfmt_test.go` to
+`+{build}` (format strings, tag literals, and FakeBin glob cases alike), preserving genuine
+SemVer pre-release hyphens (`7.4.1-rc.1`) untouched. `docs/specs/02-04`, `docs/guides/
+mobile-ci-tagging.md`, `docs/guides/README.md` and both `schema.json` `tag_format` descriptions
+now show `+{build}` exclusively; `docs/adr/0064-*` and the archived roadmap history keep the old
+`-{build}` form on purpose, as the record of what used to be documented. No deferred items — the
+new fixture `testdata/config/invalid/build_token_hyphen.yml` and the schema
+semantic-only-fixtures list cover the rule at the schema boundary (schema itself can't express
+the constraint; `config.Validate` owns it).
+
 ### [ ] T329 — `--set-build-id` on plain `semver`
 ### [ ] T330 — `version current`: latest final by default, `--include-pre-release`
 

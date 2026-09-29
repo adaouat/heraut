@@ -66,12 +66,12 @@ func TestCurrentTag_PerEnvCommonTagFormat(t *testing.T) {
 	// must still resolve. Previously currentTagGlob read envCfg.TagFormat directly,
 	// which was empty here, producing "tag format must contain {version}".
 	mr := exectest.NewMockRunner()
-	mr.QueueResponse("uat/7.4.1-158404\nuat/7.4.0-155391\n", "", nil)
+	mr.QueueResponse("uat/7.4.1+158404\nuat/7.4.0+155391\n", "", nil)
 
 	cfg := &config.Config{
 		Versioning: config.Versioning{
 			Strategy:  "semver-per-env",
-			TagFormat: "{env}/{version}-{build}",
+			TagFormat: "{env}/{version}+{build}",
 		},
 		Environments: map[string]config.Environment{
 			"uat": {Bump: "auto"},
@@ -79,8 +79,8 @@ func TestCurrentTag_PerEnvCommonTagFormat(t *testing.T) {
 	}
 	got, err := app.CurrentTag(mr, cfg, "uat")
 	require.NoError(t, err)
-	assert.Equal(t, "uat/7.4.1-158404", got)
-	assert.Equal(t, "uat/*-*", mr.Calls[0].Args[2])
+	assert.Equal(t, "uat/7.4.1+158404", got)
+	assert.Equal(t, "uat/*+*", mr.Calls[0].Args[2])
 }
 
 func TestCurrentTag_PerEnvMissingEnvArg(t *testing.T) {
@@ -166,12 +166,12 @@ func TestCurrentVersion_CalverStripsPrefix(t *testing.T) {
 
 func TestCurrentVersion_PerEnvBuildFormat(t *testing.T) {
 	mr := exectest.NewMockRunner()
-	mr.QueueResponse("main/7.4.1-158404\nmain/7.4.0-155398\n", "", nil)
+	mr.QueueResponse("main/7.4.1+158404\nmain/7.4.0+155398\n", "", nil)
 
 	cfg := &config.Config{
 		Versioning: config.Versioning{
 			Strategy:  "semver-per-env",
-			TagFormat: "{env}/{version}-{build}",
+			TagFormat: "{env}/{version}+{build}",
 		},
 		Environments: map[string]config.Environment{
 			"main": {Bump: "auto"},

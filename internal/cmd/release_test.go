@@ -43,7 +43,7 @@ func TestRelease_BuildRequiresVersion(t *testing.T) {
 version: "1"
 versioning:
   strategy: semver-per-env
-  tag_format: "{env}/{version}-{build}"
+  tag_format: "{env}/{version}+{build}"
 `)
 	_, err := executeRoot("release", "--config", cfgPath, "--env", "uat", "--set-build-id", "12345")
 	require.Error(t, err)
@@ -55,7 +55,7 @@ func TestRelease_BuildRejectsInvalidValue(t *testing.T) {
 version: "1"
 versioning:
   strategy: semver-per-env
-  tag_format: "{env}/{version}-{build}"
+  tag_format: "{env}/{version}+{build}"
 `)
 	_, err := executeRoot("release", "--config", cfgPath, "--env", "uat",
 		"--set-version", "7.4.1", "--set-build-id", "bad/value")
@@ -68,7 +68,7 @@ func TestRelease_Build_DryRun_RendersTag(t *testing.T) {
 version: "1"
 versioning:
   strategy: semver-per-env
-  tag_format: "{env}/{version}-{build}"
+  tag_format: "{env}/{version}+{build}"
 environments:
   uat:
     bump: auto
@@ -83,7 +83,7 @@ release:
 	out, err := executeRoot("release", "--config", cfgPath, "--env", "uat",
 		"--set-version", "7.4.1", "--set-build-id", "158404", "--dry-run")
 	require.NoError(t, err)
-	assert.Contains(t, out, "uat/7.4.1-158404")
+	assert.Contains(t, out, "uat/7.4.1+158404")
 }
 
 // TestRelease_ForeignFile_ShortSummaryNotRepeated mirrors

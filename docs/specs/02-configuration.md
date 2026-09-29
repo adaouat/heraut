@@ -92,7 +92,7 @@ versioning:
 | `bump`            | No          | `"auto"`                                 | `auto` — infer bump from conventional commits. `manual` — requires `--set-version` flag at runtime. SemVer strategies only.                                                                                                    |
 | `format`          | CalVer      | —                                        | CalVer format string (see [Spec 04 — Versioning § CalVer format tokens](04-versioning.md#calver-format-tokens)). Required for `calver` and `calver-per-env`.                                                               |
 | `sprint`          | Conditional | —                                        | Current sprint number. Required when `format` contains the `SPRINT` token. Advance with `heraut version sprint bump`.                                                                                                      |
-| `tag_format`      | No          | —                                        | Common tag format for all environments (per-env strategies). `{env}` is replaced with the environment name; `{version}` with the resolved version. Per-environment `tag_format` overrides this.                            |
+| `tag_format`      | No          | —                                        | Common tag format for all environments (per-env strategies). `{env}` is replaced with the environment name; `{version}` with the resolved version; `{build}`, when present, must directly follow `+` (SemVer build metadata — see below). Per-environment `tag_format` overrides this.                            |
 | `tag_type`        | No          | `annotated`                              | Git tag type: `annotated` (default) creates tags with `-a -m <commit_message>` so they carry a tagger, timestamp, and message. `lightweight` creates bare ref tags (`git tag <tag>`).                                     |
 | `commit_message`  | No          | `"chore(release): ${version}"`           | Template for the changelog commit's message, and — when `tag_type` is `annotated` — the tag's own annotation message too. `${version}` is substituted with the resolved version.                                        |
 
@@ -300,7 +300,7 @@ A per-environment `tag_format` always overrides the common one.
 **Changelog headings are cleaned automatically.** When `tag_format` carries an `{env}`
 (prefix or suffix) or `{build}` token, native strips those tokens from the version heading,
 leaving just the version: `prod/1.0.0` → `1.0.0`, `2026.3.0_prod` → `2026.3.0`,
-`uat/7.4.1-158404` → `7.4.1` (SemVer pre-release preserved: `7.4.1-rc.1`). Compare links
+`uat/7.4.1+158404` → `7.4.1` (SemVer pre-release preserved: `7.4.1-rc.1`). Compare links
 still use the full tags.
 
 ### `{build}` token — CI build IDs
@@ -311,15 +311,19 @@ number to the tag (common in mobile projects):
 ```yaml
 versioning:
   strategy: semver-per-env
-  tag_format: "{env}/{version}-{build}"  # e.g. uat/7.4.1-158404
+  tag_format: "{env}/{version}+{build}"  # e.g. uat/7.4.1+158404
 ```
+
+`{build}` must directly follow `+`: SemVer treats anything after `-` as a pre-release,
+which sorts *below* the release. heraut rejects any other placement with a config error
+(ADR-0064).
 
 `{build}` is populated by the `--set-build-id <id>` flag on `heraut changelog`, `heraut release` and `heraut version next`:
 
 ```bash
 heraut changelog --tag --env uat --set-version 7.4.1 --set-build-id $CI_PIPELINE_ID
 heraut release         --env uat --set-version 7.4.1 --set-build-id $CI_PIPELINE_ID
-heraut version next    --env uat --set-version 7.4.1 --set-build-id $CI_PIPELINE_ID   # prints uat/7.4.1-158404
+heraut version next    --env uat --set-version 7.4.1 --set-build-id $CI_PIPELINE_ID   # prints uat/7.4.1+158404
 ```
 
 **Constraints:**
@@ -330,7 +334,7 @@ heraut version next    --env uat --set-version 7.4.1 --set-build-id $CI_PIPELINE
 - Build IDs must not contain `/` or whitespace (git tag constraint). `--set-build-id` rejects
   an invalid value up front with an actionable error.
 - Internally, the changelog range comparison treats `{build}` as a non-capturing wildcard,
-  so existing tags like `uat/7.4.0-155391` correctly yield version `7.4.0` when computing
+  so existing tags like `uat/7.4.0+155391` correctly yield version `7.4.0` when computing
   the commit range.
 
 **Scope:** the `{build}` flow is supported by `heraut changelog --set-build-id`,
@@ -354,7 +358,7 @@ of the same semantic version produce multiple sections with the same heading. Fo
 per-version changelog, set `disable_changelog: true` on UAT environments and only
 generate the changelog on the production/main release. Use `tag_pattern` scoped to the
 production env; heraut automatically strips the env prefix and build ID from version
-headings (`[uat/7.4.1-158404]` → `[7.4.1]`).
+headings (`[uat/7.4.1+158404]` → `[7.4.1]`).
 
 ## `changelog`
 

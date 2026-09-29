@@ -577,14 +577,14 @@ func TestPromotionError_E002_RichMessage(t *testing.T) {
 // hint must degrade to a placeholder instead of silently printing an empty tag name.
 func TestPromotionError_E002_SourceTagFormatNeedsBuildID_SuggestionDegradesGracefully(t *testing.T) {
 	mr := exectest.NewMockRunner()
-	mr.QueueResponse("dev/1.0.2-5\n", "", nil) // git tag -l dev/*-* → src (build-ID-carrying format)
+	mr.QueueResponse("dev/1.0.2+5\n", "", nil) // git tag -l dev/*+* → src (build-ID-carrying format)
 	mr.QueueResponse("", "", nil)              // git tag -l prod/1.0.2 → candidate doesn't exist
 	mr.QueueResponse("prod/1.0.3\n", "", nil)  // git tag -l prod/* → dest is ahead
 
 	cfg := &config.Config{
 		Versioning: config.Versioning{Strategy: "semver-per-env"},
 		Environments: map[string]config.Environment{
-			"dev":  {Bump: "auto", TagFormat: "dev/{version}-{build}"},
+			"dev":  {Bump: "auto", TagFormat: "dev/{version}+{build}"},
 			"prod": {Bump: "promote", TagFormat: "prod/{version}"},
 		},
 	}

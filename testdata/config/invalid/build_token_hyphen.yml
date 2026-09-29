@@ -1,0 +1,9 @@
+version: "1"
+
+versioning:
+  strategy: semver-per-env
+  tag_format: "{env}/{version}-{build}"
+
+environments:
+  uat:
+    bump: auto

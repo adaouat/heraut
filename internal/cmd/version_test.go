@@ -256,14 +256,14 @@ func TestVersionCurrent_Bare_PerEnvBuildFormat(t *testing.T) {
 version: "1"
 versioning:
   strategy: semver-per-env
-  tag_format: "{env}/{version}-{build}"
+  tag_format: "{env}/{version}+{build}"
 environments:
   main:
     bump: auto
 `)
 	exectest.FakeBin(t, "git", `#!/bin/sh
 case "$*" in
-  "tag -l main/*-* --sort=-version:refname") printf "main/7.4.1-158404\nmain/7.4.0-155398\n" ;;
+  "tag -l main/*+* --sort=-version:refname") printf "main/7.4.1+158404\nmain/7.4.0+155398\n" ;;
   *) exit 1 ;;
 esac
 `)

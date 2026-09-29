@@ -43,7 +43,7 @@ func TestChangelog_BuildRejectsInvalidValue(t *testing.T) {
 version: "1"
 versioning:
   strategy: semver-per-env
-  tag_format: "{env}/{version}-{build}"
+  tag_format: "{env}/{version}+{build}"
 `)
 	_, err := executeRoot("changelog", "--config", cfgPath, "--env", "uat",
 		"--set-version", "7.4.1", "--set-build-id", "bad/value")
@@ -56,7 +56,7 @@ func TestChangelog_BuildRequiresVersion(t *testing.T) {
 version: "1"
 versioning:
   strategy: semver-per-env
-  tag_format: "{env}/{version}-{build}"
+  tag_format: "{env}/{version}+{build}"
 `)
 	_, err := executeRoot("changelog", "--config", cfgPath, "--env", "uat", "--set-build-id", "12345")
 	require.Error(t, err)

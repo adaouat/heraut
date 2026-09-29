@@ -47,10 +47,10 @@ func TestDeriveTagPattern(t *testing.T) {
 		},
 		{
 			name:      "env/version-build",
-			template:  "{env}/{version}-{build}",
+			template:  "{env}/{version}+{build}",
 			env:       "uat",
-			matches:   []string{"uat/7.4.1-158404", "uat/7.4.0-155398"},
-			noMatches: []string{"main/7.4.1-159001"},
+			matches:   []string{"uat/7.4.1+158404", "uat/7.4.0+155398"},
+			noMatches: []string{"main/7.4.1+159001"},
 		},
 	}
 	for _, tc := range tests {
@@ -115,8 +115,8 @@ func TestRender_WithBuild(t *testing.T) {
 		build    string
 		want     string
 	}{
-		{"env/version-build", "{env}/{version}-{build}", "uat", "7.4.1", "158404", "uat/7.4.1-158404"},
-		{"version-build no env", "{version}-{build}", "", "1.2.3", "99", "1.2.3-99"},
+		{"env/version-build", "{env}/{version}+{build}", "uat", "7.4.1", "158404", "uat/7.4.1+158404"},
+		{"version-build no env", "{version}+{build}", "", "1.2.3", "99", "1.2.3+99"},
 		{"build in front", "{build}/{env}/{version}", "prod", "2.0.0", "42", "42/prod/2.0.0"},
 		{"build ignored when not in template", "{env}/{version}", "uat", "7.4.1", "158404", "uat/7.4.1"},
 	}
@@ -130,7 +130,7 @@ func TestRender_WithBuild(t *testing.T) {
 }
 
 func TestRender_BuildRequiredButEmpty(t *testing.T) {
-	_, err := tagfmt.Render("{env}/{version}-{build}", tagfmt.Tokens{Env: "uat", Version: "7.4.1"})
+	_, err := tagfmt.Render("{env}/{version}+{build}", tagfmt.Tokens{Env: "uat", Version: "7.4.1"})
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "{build}")
 	// The error must point the user toward --set-build-id on every command that accepts it, and
@@ -143,7 +143,7 @@ func TestRender_BuildRequiredButEmpty(t *testing.T) {
 }
 
 func TestRender_ErrBuildIDRequired_ExactMessage(t *testing.T) {
-	_, err := tagfmt.Render("{env}/{version}-{build}", tagfmt.Tokens{Env: "uat", Version: "7.4.1"})
+	_, err := tagfmt.Render("{env}/{version}+{build}", tagfmt.Tokens{Env: "uat", Version: "7.4.1"})
 	require.Error(t, err)
 	assert.Equal(t,
 		"tag format template contains {build} but no build ID was provided; "+
@@ -160,8 +160,8 @@ func TestRender_ErrBuildIDRequired(t *testing.T) {
 		tokens   tagfmt.Tokens
 		want     bool
 	}{
-		{"build token, no build ID", "{env}/{version}-{build}", tagfmt.Tokens{Env: "uat", Version: "1.0.0"}, true},
-		{"build token, build ID given", "{env}/{version}-{build}", tagfmt.Tokens{Env: "uat", Version: "1.0.0", Build: "42"}, false},
+		{"build token, no build ID", "{env}/{version}+{build}", tagfmt.Tokens{Env: "uat", Version: "1.0.0"}, true},
+		{"build token, build ID given", "{env}/{version}+{build}", tagfmt.Tokens{Env: "uat", Version: "1.0.0", Build: "42"}, false},
 		{"no build token, no build ID", "{env}/{version}", tagfmt.Tokens{Env: "uat", Version: "1.0.0"}, false},
 	}
 	for _, tc := range tests {
@@ -176,7 +176,7 @@ func TestRender_ErrBuildIDRequired(t *testing.T) {
 }
 
 func TestRender_MissingVersionToken_IsNotErrBuildIDRequired(t *testing.T) {
-	_, err := tagfmt.Render("{env}-{build}", tagfmt.Tokens{Env: "uat"})
+	_, err := tagfmt.Render("{env}+{build}", tagfmt.Tokens{Env: "uat"})
 	require.Error(t, err)
 	assert.False(t, errors.Is(err, tagfmt.ErrBuildIDRequired))
 }
@@ -296,18 +296,18 @@ func TestDeriveHeadingVersionPattern(t *testing.T) {
 		},
 		{
 			name:     "env prefix + build suffix",
-			template: "{env}/{version}-{build}",
+			template: "{env}/{version}+{build}",
 			wantGroup1: map[string]string{
-				"[uat/7.4.1-158404]":      "7.4.1",
-				"[uat/7.4.1-rc.1-158404]": "7.4.1-rc.1",
+				"[uat/7.4.1+158404]":      "7.4.1",
+				"[uat/7.4.1-rc.1+158404]": "7.4.1-rc.1",
 			},
 		},
 		{
 			name:     "version-build no env",
-			template: "{version}-{build}",
+			template: "{version}+{build}",
 			wantGroup1: map[string]string{
-				"[7.4.1-158404]":      "7.4.1",
-				"[7.4.1-rc.1-158404]": "7.4.1-rc.1",
+				"[7.4.1+158404]":      "7.4.1",
+				"[7.4.1-rc.1+158404]": "7.4.1-rc.1",
 			},
 		},
 		{
@@ -417,9 +417,9 @@ func TestParseVersion_WithBuild(t *testing.T) {
 		tag      string
 		want     string
 	}{
-		{"env/version-build extracts version", "{env}/{version}-{build}", "uat/7.4.1-158404", "7.4.1"},
-		{"version-build extracts version", "{version}-{build}", "1.2.3-99", "1.2.3"},
-		{"semver pre-release plus build", "{env}/{version}-{build}", "uat/7.4.0-rc.1-158404", "7.4.0-rc.1"},
+		{"env/version-build extracts version", "{env}/{version}+{build}", "uat/7.4.1+158404", "7.4.1"},
+		{"version-build extracts version", "{version}+{build}", "1.2.3+99", "1.2.3"},
+		{"semver pre-release plus build", "{env}/{version}+{build}", "uat/7.4.0-rc.1+158404", "7.4.0-rc.1"},
 		{"build in front", "{build}/{env}/{version}", "42/prod/2.0.0", "2.0.0"},
 	}
 	for _, tc := range tests {
@@ -438,8 +438,8 @@ func TestGlobPattern_WithBuild(t *testing.T) {
 		env      string
 		want     string
 	}{
-		{"env/version-build", "{env}/{version}-{build}", "uat", "uat/*-*"},
-		{"version-build no env", "{version}-{build}", "", "*-*"},
+		{"env/version-build", "{env}/{version}+{build}", "uat", "uat/*+*"},
+		{"version-build no env", "{version}+{build}", "", "*+*"},
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {

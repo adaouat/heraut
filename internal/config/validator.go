@@ -778,6 +778,9 @@ func validateStrategySpecific(cfg *Config) []ValidationError {
 			})
 		}
 	}
+	if buildTokenMisplaced(cfg.Versioning.TagFormat) {
+		errs = append(errs, buildTokenError("versioning.tag_format"))
+	}
 	switch cfg.Versioning.Strategy {
 	case "semver-per-env", "calver-per-env":
 		errs = append(errs, validatePerEnv(cfg)...)
@@ -793,12 +796,42 @@ func tagFormatMissingVersion(s string) bool {
 	return s != "" && !strings.Contains(s, "{version}")
 }
 
-// ValidateTagFormatForWizard is a minimal wizard-facing wrapper around tagFormatMissingVersion, for
-// heraut init's live, per-keystroke validation of both the common (versioning.tag_format) and
-// per-environment tag_format fields (T259) — same rule, same message, either field.
+// buildTokenMisplaced reports whether a tag_format uses {build} anywhere other than directly
+// after "+" — the only placement that makes it SemVer build metadata (§10) rather than a
+// pre-release identifier (ADR-0064). Shared with ValidateTagFormatForWizard.
+func buildTokenMisplaced(s string) bool {
+	const token = "{build}"
+	for i := 0; ; {
+		j := strings.Index(s[i:], token)
+		if j < 0 {
+			return false
+		}
+		pos := i + j
+		if pos == 0 || s[pos-1] != '+' {
+			return true
+		}
+		i = pos + len(token)
+	}
+}
+
+func buildTokenError(path string) ValidationError {
+	return ValidationError{
+		Path:    path,
+		Message: `{build} must directly follow "+" (SemVer build metadata)`,
+		Hint:    `write "{version}+{build}", e.g. "{env}/{version}+{build}" — "-{build}" would make the build ID a pre-release identifier`,
+	}
+}
+
+// ValidateTagFormatForWizard is a minimal wizard-facing wrapper around tagFormatMissingVersion and
+// buildTokenMisplaced, for heraut init's live, per-keystroke validation of both the common
+// (versioning.tag_format) and per-environment tag_format fields (T259) — same rules, same
+// messages, either field.
 func ValidateTagFormatForWizard(s string) error {
 	if tagFormatMissingVersion(s) {
 		return errors.New("must contain {version}")
+	}
+	if buildTokenMisplaced(s) {
+		return errors.New(`{build} must directly follow "+" — use "{version}+{build}"`)
 	}
 	return nil
 }
@@ -858,6 +891,10 @@ func validatePerEnv(cfg *Config) []ValidationError {
 				Message: "must contain {version}",
 				Hint:    fmt.Sprintf(`example: "%s/{version}"`, envName),
 			})
+		}
+
+		if buildTokenMisplaced(env.TagFormat) {
+			errs = append(errs, buildTokenError(envPath+".tag_format"))
 		}
 
 		// Every env must have a tag_format, either directly or via the common one.

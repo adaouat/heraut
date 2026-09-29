@@ -36,7 +36,7 @@ func TestIsBuildIDRequired(t *testing.T) {
 	// A real tagfmt.Render call, not a hand-built copy of the sentinel — closes the gap where a
 	// future change to Render could stop returning ErrBuildIDRequired without this table noticing
 	// (the other rows all use the sentinel directly or a wrapped copy of it).
-	_, renderErr := tagfmt.Render("{env}/{version}-{build}", tagfmt.Tokens{Env: "uat", Version: "1.0.0"})
+	_, renderErr := tagfmt.Render("{env}/{version}+{build}", tagfmt.Tokens{Env: "uat", Version: "1.0.0"})
 	require.Error(t, renderErr)
 
 	tests := []struct {

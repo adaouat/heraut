@@ -746,6 +746,11 @@ func TestValidate_invalidFixtures(t *testing.T) {
 			wantPath:    "changelog.output",
 			wantMessage: "per-env",
 		},
+		{
+			fixture:     "../../testdata/config/invalid/build_token_hyphen.yml",
+			wantPath:    "versioning.tag_format",
+			wantMessage: `must directly follow "+"`,
+		},
 	}
 	for _, tc := range tests {
 		t.Run(tc.fixture, func(t *testing.T) {
@@ -1779,6 +1784,8 @@ func TestValidateTagFormatForWizard(t *testing.T) {
 		{"empty is valid", "", ""},
 		{"contains version", "{env}/{version}", ""},
 		{"missing version", "{env}", "{version}"},
+		{"build after plus", "{env}/{version}+{build}", ""},
+		{"build after hyphen", "{env}/{version}-{build}", `must directly follow "+"`},
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
@@ -1789,6 +1796,77 @@ func TestValidateTagFormatForWizard(t *testing.T) {
 				assert.ErrorContains(t, err, tc.wantErr)
 			}
 		})
+	}
+}
+
+// ADR-0064: {build} is SemVer build metadata only when it directly follows "+"; "-{build}" would
+// make the build ID a pre-release identifier.
+func TestValidate_BuildTokenPlacement(t *testing.T) {
+	tests := []struct {
+		name     string
+		cfg      *config.Config
+		wantPath string // "" = no build-token error expected
+	}{
+		{
+			name:     "per-env common + is valid",
+			cfg:      perEnvCfgWithFormats("{env}/{version}+{build}", ""),
+			wantPath: "",
+		},
+		{
+			name:     "per-env common hyphen",
+			cfg:      perEnvCfgWithFormats("{env}/{version}-{build}", ""),
+			wantPath: "versioning.tag_format",
+		},
+		{
+			name:     "per-env env override hyphen",
+			cfg:      perEnvCfgWithFormats("{env}/{version}", "uat/{version}-{build}"),
+			wantPath: "environments.uat.tag_format",
+		},
+		{
+			name:     "build first",
+			cfg:      perEnvCfgWithFormats("{build}/{env}/{version}", ""),
+			wantPath: "versioning.tag_format",
+		},
+		{
+			name:     "second occurrence misplaced",
+			cfg:      perEnvCfgWithFormats("{env}/{version}+{build}.{build}", ""),
+			wantPath: "versioning.tag_format",
+		},
+		{
+			name: "plain semver hyphen",
+			cfg: &config.Config{Version: "1", Versioning: config.Versioning{
+				Strategy: "semver", TagFormat: "v{version}-{build}",
+			}},
+			wantPath: "versioning.tag_format",
+		},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			errs := config.Validate(tc.cfg)
+			var buildErrs []config.ValidationError
+			for _, e := range errs {
+				if strings.Contains(e.Message, `must directly follow "+"`) {
+					buildErrs = append(buildErrs, e)
+				}
+			}
+			if tc.wantPath == "" {
+				assert.Empty(t, buildErrs)
+				return
+			}
+			require.Len(t, buildErrs, 1, "errs: %v", errs)
+			assert.Equal(t, tc.wantPath, buildErrs[0].Path)
+			assert.Contains(t, buildErrs[0].Hint, "{version}+{build}")
+		})
+	}
+}
+
+func perEnvCfgWithFormats(common, uatOverride string) *config.Config {
+	return &config.Config{
+		Version:    "1",
+		Versioning: config.Versioning{Strategy: "semver-per-env", TagFormat: common},
+		Environments: map[string]config.Environment{
+			"uat": {Bump: "auto", TagFormat: uatOverride},
+		},
 	}
 }
 

@@ -83,7 +83,7 @@ func ParseVersion(template, tag string) (string, error) {
 // heading, leaving only the version. The replacement is "[$1]". Examples:
 //
 //	{version}_{env}          [2026.3.0_prod]      → [2026.3.0]
-//	{env}/{version}-{build}  [uat/7.4.1-158404]   → [7.4.1]
+//	{env}/{version}+{build}  [uat/7.4.1+158404]   → [7.4.1]
 //	{env}/{version}          [prod/1.2.3]         → [1.2.3]
 //
 // Returns "" when there is nothing to strip — no {version}, or neither {env} nor {build}
@@ -91,7 +91,7 @@ func ParseVersion(template, tag string) (string, error) {
 //
 // All wildcards exclude "]" so a match can never span two headings (postprocessors run
 // against the whole rendered document). The greedy version capture plus the anchored
-// trailing token handle SemVer pre-release segments (e.g. 7.4.1-rc.1) under a "-" build
+// trailing token handle SemVer pre-release segments (e.g. 7.4.1-rc.1) under the "+" build
 // separator without special-casing.
 func DeriveHeadingVersionPattern(template string) string {
 	if !strings.Contains(template, versionToken) {

@@ -196,7 +196,7 @@ func TestNewResolver_BuildID_RendersTag(t *testing.T) {
 		Version: "1",
 		Versioning: config.Versioning{
 			Strategy:  "semver-per-env",
-			TagFormat: "{env}/{version}-{build}",
+			TagFormat: "{env}/{version}+{build}",
 		},
 		Environments: map[string]config.Environment{
 			"uat": {Bump: "auto"},
@@ -207,7 +207,7 @@ func TestNewResolver_BuildID_RendersTag(t *testing.T) {
 
 	result, err := r.Resolve()
 	require.NoError(t, err)
-	assert.Equal(t, "uat/7.4.1-158404", result.Tag)
+	assert.Equal(t, "uat/7.4.1+158404", result.Tag)
 	assert.Equal(t, "7.4.1", result.Version)
 	assert.Empty(t, mr.Calls, "static resolver must not call git")
 }

@@ -24,7 +24,7 @@ release:
 environments:
   uat:
     bump: auto
-    tag_format: "{env}/{version}-{build}"
+    tag_format: "{env}/{version}+{build}"
 `
 
 // buildIDAutoGit answers exactly the git calls a per-env auto resolution makes, so a run reaches
@@ -33,8 +33,8 @@ func buildIDAutoGit(t *testing.T) {
 	t.Helper()
 	exectest.FakeBin(t, "git", `#!/bin/sh
 case "$*" in
-  "tag -l uat/*-* --sort=-version:refname") echo "uat/0.1.0-1" ;;
-  "log uat/0.1.0-1..HEAD --format=%B"*) printf "fix: x\x00" ;;
+  "tag -l uat/*+* --sort=-version:refname") echo "uat/0.1.0+1" ;;
+  "log uat/0.1.0+1..HEAD --format=%B"*) printf "fix: x\x00" ;;
   *) exit 1 ;;
 esac
 `)

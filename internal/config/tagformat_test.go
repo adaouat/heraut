@@ -28,13 +28,13 @@ func TestConfig_EffectiveTagFormat(t *testing.T) {
 		{
 			name: "falls back to top-level when env override empty",
 			cfg: &config.Config{
-				Versioning: config.Versioning{TagFormat: "{env}/{version}-{build}"},
+				Versioning: config.Versioning{TagFormat: "{env}/{version}+{build}"},
 				Environments: map[string]config.Environment{
 					"uat": {Bump: "auto"},
 				},
 			},
 			env:  "uat",
-			want: "{env}/{version}-{build}",
+			want: "{env}/{version}+{build}",
 		},
 		{
 			name: "falls back to top-level when env not in map",
