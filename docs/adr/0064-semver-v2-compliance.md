@@ -90,11 +90,13 @@ today, now also naming the previous pre-release tag when there is one; promoting
 pre-release straight to its final is exempt from that rule and needs no new commit at all,
 because the commits since the last final already justify the final's bump. A pre-release run
 never touches `CHANGELOG.md` and makes no changelog commit — it reuses the existing
-`disable_changelog` skip path, and the tag lands on the current `HEAD`. GitHub's
-`--prerelease` flag is derived from whether the published version carries pre-release
-identifiers, and `release.targets[].prerelease` is removed as a config key — a static bool can
-only ever contradict the version being published, which the derived flag makes structurally
-impossible.
+`disable_changelog` skip path, and the tag lands on the current `HEAD`. A final released after
+one or more pre-releases has its `CHANGELOG.md` section and release notes span back to the
+**last final**, not the most recent pre-release tag — pre-release tags are never range
+boundaries for a final. GitHub's `--prerelease` flag is derived from whether the published
+version carries pre-release identifiers, and `release.targets[].prerelease` is removed as a
+config key — a static bool can only ever contradict the version being published, which the
+derived flag makes structurally impossible.
 
 ## Consequences
 
