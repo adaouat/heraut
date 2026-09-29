@@ -227,6 +227,7 @@ discipline that applies to every task.
 | 56 | Sign the raw binaries with a packslip manifest | Done — not yet exercised by a real release run, see T319/T320 |
 | 57 | SBOM generation; shell completions investigated | Done — completions not shipped (ADR-0013 + notarization gap), see T321/T322 |
 | 58 | Homebrew cask: tar.gz archive for completions/man pages | Done — see T323 |
+| 59 | SemVer v2 compliance and pre-release lifecycle | In progress — see `semver-v2-roadmap.md` |
 
 ### Open items
 
@@ -2567,6 +2568,22 @@ colliding with the real production `heraut` cask's identically-named artifacts) 
 the multi-second hang and later-confirmed quarantine flag from T321/T323's earlier local tests.
 Drop this hook once signing + notarization ships — tracked nowhere yet; add it as its own task if
 that work gets scheduled.
+
+---
+
+### Phase 59 — SemVer v2 compliance and pre-release lifecycle
+
+heraut only understood bare `MAJOR.MINOR.PATCH`: pre-release and build-metadata tags were skipped,
+tag order came from git's `version:refname` sort, the documented `{version}-{build}` form produced
+SemVer *pre-releases*, and heraut could not mint a pre-release at all. Phase 1 makes heraut
+strictly SemVer v2 compliant (strict parser, §11 comparator, `+`-only `{build}`, `--set-build-id`
+on plain `semver`, `version current --include-pre-release`); Phase 2 adds `--pre-release <label>`
+for plain `semver`. New ADR-0064. The task breakdown and live `[ ] / [x]` status live in a
+dedicated roadmap:
+
+→ **[SemVer v2 Roadmap](semver-v2-roadmap.md)** — T324+
+
+Design: [`docs/superpowers/specs/2026-09-28-semver-v2-compliance-design.md`](../superpowers/specs/2026-09-28-semver-v2-compliance-design.md).
 
 ---
 

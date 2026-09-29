@@ -68,3 +68,4 @@ trade-offs were accepted.
 | [0061](0061-hook-file-staging.md) | Hook-declared file staging + object-only hook config | Accepted |
 | [0062](0062-selective-hook-skipping.md) | Selective hook skipping — `--skip-hook` and `HERAUT_SKIP_HOOKS`, by hook point | Accepted |
 | [0063](0063-hold-major-at-v0.md) | Hold major bumps at v0 — `versioning.bump.stay_at_v0` and `--allow-major` | Accepted |
+| [0064](0064-semver-v2-compliance.md) | SemVer v2 compliance and pre-release lifecycle | Accepted |
