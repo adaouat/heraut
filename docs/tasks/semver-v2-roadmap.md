@@ -25,7 +25,7 @@ pre-release lifecycle (`--pre-release <label>`) for the plain `semver` strategy.
 | Task | Description | Status |
 |------|-------------|--------|
 | T324 | Roadmap, Phase 59 pointer, ADR-0064 | Done |
-| T325 | `semver.Version`: strict Parse, §11 Compare, SortTags/Latest | Not started |
+| T325 | `semver.Version`: strict Parse, §11 Compare, SortTags/Latest | Done |
 | T326 | Plain `semver` resolver orders tags by §11 in Go | Not started |
 | T327 | `semver-per-env` ordering + E002 via §11; calver-per-env unchanged (zero-padded CalVer is not SemVer) | Not started |
 | T328 | `{build}` must directly follow `+` (validator, wizard, docs) | Not started |
@@ -44,7 +44,19 @@ clean breaks. Phase 2 (pre-release lifecycle) is intentionally left unbroken-dow
 its scope is sketched under "Phase 2" below and will be decomposed into its own tasks once Phase
 1 lands, per the design doc's delivery plan.
 
-### [ ] T325 — `semver.Version`: strict Parse, §11 Compare, SortTags/Latest
+### [x] T325 — `semver.Version`: strict Parse, §11 Compare, SortTags/Latest
+
+Added `internal/versioning/semver/version.go` with `Version`, `Parse` (strict SemVer 2.0.0
+grammar per §9/§10, rejecting leading zeros in both the core and numeric pre-release
+identifiers), `String`/`Core`/`IsPreRelease`, `Compare` (§11 precedence, build metadata
+ignored), and `SortTags`/`Latest` for scheme-agnostic tag selection. Numeric pre-release
+identifiers compare by digit-string length then lexically, so arbitrarily long identifiers
+(e.g. `rc.99999999999999999999`) never overflow `uint64`, while a `MAJOR`/`MINOR`/`PATCH`
+segment that large is a parse error per the fixed-width core grammar. `hk fix -S
+golangci_lint` auto-applied a De Morgan's-law rewrite (QF1001/staticcheck) to the character
+class check in `splitIdentifiers`; no other lint findings. Nothing is wired into the
+resolvers yet — that starts at T326.
+
 ### [ ] T326 — Plain `semver` resolver orders tags by §11 in Go
 ### [ ] T327 — `semver-per-env` ordering + E002 via §11; calver-per-env unchanged
 
