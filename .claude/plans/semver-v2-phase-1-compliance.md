@@ -1747,6 +1747,205 @@ Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>"
 
 ---
 
+### Task 8 (T331): Escape `+` in tag names inside every generated URL
+
+Added mid-execution at the user's request: heraut used to reject `+` in tags, and Phase 1 now
+produces `+` tags (T328's `{version}+{build}`, T329's `v1.4.0+<id>`). A `+` in a URL query string
+means a space, and some servers/tools decode it that way in paths too. Every place heraut puts a
+tag name into a URL must write `%2B` instead of `+`. Only `+` is escaped — `/` in per-env tags
+(`uat/7.4.1`) stays literal, so every existing non-`+` URL is byte-for-byte unchanged.
+
+Run order: execute right after Task 5 (T328), before Task 6.
+
+**Files:**
+- Modify: `internal/port/generator.go` (add `URLTag` next to `LinkContext`)
+- Test: `internal/port/generator_test.go` (new)
+- Modify: `internal/platforms/github/platform.go:36-57` (`ReleaseURL`, `ReleaseURLFromContext`)
+- Modify: `internal/platforms/gitlab/platform.go:36-53` (same two)
+- Modify: `internal/forge/github/github.go:43-45`, `internal/forge/gitlab/gitlab.go:43-45` (`CompareURL`)
+- Modify: `internal/generators/native/links.go:33-44` (`buildCompareURL`, all three platforms)
+- Tests: `internal/platforms/{github,gitlab}/platform_test.go`, `internal/forge/{github,gitlab}/*_test.go`,
+  `internal/generators/native/render_internal_test.go`
+- Modify: `docs/tasks/semver-v2-roadmap.md` (add T331 + T332 entries, flip T331)
+
+**Interfaces:**
+- Produces: `func URLTag(tag string) string` in package `port` — `+` → `%2B`, nothing else.
+  `port` is the one package every URL builder (platforms, forge, generators) may import, and it
+  already owns `LinkContext`, the link-building contract.
+
+- [ ] **Step 1: Write the failing tests**
+
+`internal/port/generator_test.go`:
+
+```go
+package port_test
+
+import (
+	"testing"
+
+	"github.com/adaouat/heraut/internal/port"
+	"github.com/stretchr/testify/assert"
+)
+
+func TestURLTag(t *testing.T) {
+	tests := []struct{ in, want string }{
+		{"v1.2.3", "v1.2.3"},
+		{"v1.4.0+158404", "v1.4.0%2B158404"},
+		{"uat/7.4.1+158404", "uat/7.4.1%2B158404"}, // "/" stays literal
+		{"v1.4.0-rc.1+a+b", "v1.4.0-rc.1%2Ba%2Bb"},
+	}
+	for _, tc := range tests {
+		t.Run(tc.in, func(t *testing.T) { assert.Equal(t, tc.want, port.URLTag(tc.in)) })
+	}
+}
+```
+
+`internal/platforms/github/platform_test.go` (append):
+
+```go
+// Tags may carry SemVer build metadata ("+"), which must reach the URL as %2B (ADR-0064).
+func TestReleaseURL_EscapesPlusInTag(t *testing.T) {
+	p := github.New(exectest.NewMockRunner(), &config.Platform{Repository: "acme/widget"})
+	assert.Equal(t, "https://github.com/acme/widget/releases/tag/v1.4.0%2B158404", p.ReleaseURL("v1.4.0+158404"))
+
+	ambient := &port.LinkContext{BaseURL: "https://github.com/acme/widget", Platform: "github"}
+	assert.Equal(t, "https://github.com/acme/widget/releases/tag/uat/7.4.1%2B158404", p.ReleaseURLFromContext("uat/7.4.1+158404", ambient))
+
+	platform := &port.LinkContext{BaseURL: "https://github.com", Owner: "acme", Repo: "widget", Platform: "github"}
+	assert.Equal(t, "https://github.com/acme/widget/releases/tag/v1.4.0%2B158404", p.ReleaseURLFromContext("v1.4.0+158404", platform))
+}
+```
+
+`internal/platforms/gitlab/platform_test.go` (append):
+
+```go
+func TestReleaseURL_EscapesPlusInTag(t *testing.T) {
+	t.Setenv("GITLAB_CI", "")
+	p := gitlab.New(exectest.NewMockRunner(), &config.Platform{Project: "group/proj"})
+	assert.Equal(t, "https://gitlab.com/group/proj/-/releases/v1.4.0%2B158404", p.ReleaseURL("v1.4.0+158404"))
+
+	ambient := &port.LinkContext{BaseURL: "https://gitlab.com/group/proj", Platform: "gitlab"}
+	assert.Equal(t, "https://gitlab.com/group/proj/-/releases/uat/7.4.1%2B158404", p.ReleaseURLFromContext("uat/7.4.1+158404", ambient))
+
+	platform := &port.LinkContext{BaseURL: "https://gitlab.com", Owner: "group", Repo: "proj", Platform: "gitlab"}
+	assert.Equal(t, "https://gitlab.com/group/proj/-/releases/v1.4.0%2B158404", p.ReleaseURLFromContext("v1.4.0+158404", platform))
+}
+```
+
+`internal/forge/github/github_test.go`, inside `TestForge_Links` (add one assertion after the
+existing `CompareURL` line):
+
+```go
+	assert.Equal(t, "https://github.com/acme/widget/compare/v1.0.0%2B1...v1.1.0%2B2", f.CompareURL("v1.0.0+1", "v1.1.0+2"))
+```
+
+`internal/forge/gitlab/gitlab_test.go`, inside `TestForge_Links`:
+
+```go
+	assert.Equal(t, "https://gitlab.example.com/group/subgroup/project/-/compare/v1.0.0%2B1...v1.1.0%2B2", f.CompareURL("v1.0.0+1", "v1.1.0+2"))
+```
+
+`internal/generators/native/render_internal_test.go`, add rows to the `buildCompareURL` table
+(before the `ambient (no owner/repo)` row):
+
+```go
+		{
+			name:    "github escapes + in tags",
+			lc:      &port.LinkContext{BaseURL: "https://github.com", Owner: "acme", Repo: "widget", Platform: "github"},
+			prev:    "v1.0.0+1",
+			version: "v1.1.0+2",
+			want:    "https://github.com/acme/widget/compare/v1.0.0%2B1..v1.1.0%2B2",
+		},
+		{
+			name:    "gitlab escapes + in tags",
+			lc:      &port.LinkContext{BaseURL: "https://gitlab.com", Owner: "group/sub", Repo: "proj", Platform: "gitlab"},
+			prev:    "v1.0.0+1",
+			version: "v1.1.0+2",
+			want:    "https://gitlab.com/group/sub/proj/-/compare/v1.0.0%2B1..v1.1.0%2B2",
+		},
+		{
+			name:    "azure_devops escapes + in query string",
+			lc:      &port.LinkContext{BaseURL: "https://dev.azure.com", Owner: "org/proj", Repo: "repo", Platform: "azure_devops"},
+			prev:    "v1.0.0+1",
+			version: "v1.1.0+2",
+			want:    "https://dev.azure.com/org/proj/_git/repo/branchCompare?baseVersion=GTv1.0.0%2B1&targetVersion=GTv1.1.0%2B2",
+		},
+```
+
+- [ ] **Step 2: Run to verify failure**
+
+Run: `go test ./internal/port/ ./internal/platforms/... ./internal/forge/... ./internal/generators/native/ -run 'URLTag|EscapesPlus|TestForge_Links|BuildCompareURL|buildCompareURL'`
+(if the native table test has a different name, find it with `grep -n "buildCompareURL(tc" internal/generators/native/*_test.go` and use that name).
+Expected: FAIL — `undefined: port.URLTag`; URLs contain a literal `+`.
+
+- [ ] **Step 3: Implement**
+
+`internal/port/generator.go`, below `LinkContext`:
+
+```go
+// URLTag returns tag ready to embed in a URL path or query string. Only "+" is escaped (as
+// %2B): SemVer build metadata puts "+" in tag names (ADR-0064), and a literal "+" reads as a
+// space in query strings and on some servers' paths. "/" (per-env tags such as uat/7.4.1) is
+// left literal so existing URLs are unchanged. url.PathEscape does not escape "+".
+func URLTag(tag string) string { return strings.ReplaceAll(tag, "+", "%2B") }
+```
+
+(add `"strings"` to the imports).
+
+Then wrap every tag at the five sites with `port.URLTag(...)`:
+
+- `platforms/github/platform.go`: `ReleaseURL` → `…/releases/tag/%s", …, port.URLTag(tag))`;
+  both `ReleaseURLFromContext` returns → `+ "/releases/tag/" + port.URLTag(tag)`.
+- `platforms/gitlab/platform.go`: same for `/-/releases/`.
+- `forge/github/github.go` / `forge/gitlab/gitlab.go` `CompareURL`: pass
+  `port.URLTag(from), port.URLTag(to)`.
+- `generators/native/links.go` `buildCompareURL`: compute `p, v := port.URLTag(prev), port.URLTag(version)`
+  once after the nil/empty guard and use them in all three branches. Update the URL-shapes doc
+  comment to say tags are passed through `port.URLTag`.
+
+- [ ] **Step 4: Run tests**
+
+Run: `mise run test` — Expected: PASS, and every pre-existing URL assertion unchanged.
+
+- [ ] **Step 5: Roadmap entries**
+
+In `docs/tasks/semver-v2-roadmap.md`, add two rows to "Progress at a glance" and two headings
+under Phase 1:
+
+```markdown
+### [x] T331 — Escape `+` in tag names inside generated URLs
+
+(completion note)
+
+### [ ] T332 — Manual smoke test: `gh` / `glab` with a `+` tag
+
+heraut passes tag names to `gh release create/upload` and `glab release create/upload` as argv;
+how those CLIs encode `+` when they call their APIs cannot be checked offline (testing.md: no
+network in tests). Before the first release that ships T328/T329, create a throwaway release with
+a `v0.0.0+smoke` tag on a scratch GitHub repo and a scratch GitLab project (create + upload an
+asset + open the printed release URL), then delete both. Record the outcome here.
+```
+
+Rows: `| T331 | Escape `+` in tag names inside generated URLs | Done |` and
+`| T332 | Manual smoke test: gh/glab with a `+` tag | Not started |`.
+
+- [ ] **Step 6: Lint, commit**
+
+```bash
+git add internal/port internal/platforms internal/forge internal/generators/native docs/tasks/semver-v2-roadmap.md
+git commit -m "fix(port): escape + in tag names inside generated URLs (T331)
+
+SemVer build metadata now puts + in tags (v1.4.0+158404). A literal +
+reads as a space in query strings (Azure DevOps compare links) and on
+some servers' paths. Release and compare URLs for GitHub, GitLab and
+Azure DevOps now write %2B via port.URLTag; / stays literal so existing
+URLs are unchanged. Adds T332, a manual gh/glab smoke test.
+
+Co-Authored-By: Claude Sonnet 5 <noreply@anthropic.com>"
+```
+
+---
+
 ## Deviations from the design doc (record in the roadmap notes)
 
 - **`--sort=-version:refname` stays in the git calls.** The design says tags are "listed without
