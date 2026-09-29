@@ -150,10 +150,10 @@ func BumpVersion(current string, bump versioning.BumpType) (string, error) {
 	return fmt.Sprintf("%d.%d.%d", major, minor, patch), nil
 }
 
-// IsBareVersion reports whether s is a bare MAJOR.MINOR.PATCH version with no
-// pre-release or build metadata (e.g. "1.2.3", not "1.2.3-rc.1"). Used by the
-// resolver, and by internal/versioning/perenv, to skip git tags that don't
-// conform when locating the most recent release tag.
+// IsBareVersion reports whether s is a dotted MAJOR.MINOR.PATCH of integers with no pre-release
+// or build suffix. It is deliberately lenient (it accepts leading zeros), because
+// calver-per-env's zero-padded versions (2026.05.3) go through it — SemVer strategies use Parse
+// instead (ADR-0064).
 func IsBareVersion(s string) bool {
 	parts := strings.SplitN(s, ".", 3)
 	if len(parts) != 3 {

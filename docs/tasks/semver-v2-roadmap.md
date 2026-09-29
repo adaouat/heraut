@@ -26,7 +26,7 @@ pre-release lifecycle (`--pre-release <label>`) for the plain `semver` strategy.
 |------|-------------|--------|
 | T324 | Roadmap, Phase 59 pointer, ADR-0064 | Done |
 | T325 | `semver.Version`: strict Parse, §11 Compare, SortTags/Latest | Done |
-| T326 | Plain `semver` resolver orders tags by §11 in Go | Not started |
+| T326 | Plain `semver` resolver orders tags by §11 in Go | Done |
 | T327 | `semver-per-env` ordering + E002 via §11; calver-per-env unchanged (zero-padded CalVer is not SemVer) | Not started |
 | T328 | `{build}` must directly follow `+` (validator, wizard, docs) | Not started |
 | T329 | `--set-build-id` on plain `semver` (`v1.4.0+<id>`) | Not started |
@@ -57,7 +57,20 @@ golangci_lint` auto-applied a De Morgan's-law rewrite (QF1001/staticcheck) to th
 class check in `splitIdentifiers`; no other lint findings. Nothing is wired into the
 resolvers yet — that starts at T326.
 
-### [ ] T326 — Plain `semver` resolver orders tags by §11 in Go
+### [x] T326 — Plain `semver` resolver orders tags by §11 in Go
+
+`resolveAuto` now parses `git tag -l`'s output through `SortTags`/`Latest` (Task 2) instead of
+scanning for the first `IsBareVersion` match — the current tag is the highest SemVer §11 release,
+decided in Go, with the git `--sort=-version:refname` flag kept as a harmless pre-sort (contract
+tests still assert the exact `git tag` args). A build-metadata-only tag (`v1.4.0+158404`) is now
+correctly treated as the release of its core rather than skipped, and tags that are not valid
+SemVer (`v1.02.0`, `v2.0.0.1`) are ignored like pre-releases instead of being accepted by the old
+lenient `IsBareVersion` check. `IsBareVersion`'s doc comment was updated to note it's now only
+used by the CalVer-facing paths (`internal/versioning/perenv`'s zero-padded CalVer comparisons),
+not by this resolver. No existing test row's expectation needed to change — the full suite
+(`mise run test`) was green on the first run after implementation, meaning nothing outside this
+package relied on git's `version:refname` order diverging from §11 order.
+
 ### [ ] T327 — `semver-per-env` ordering + E002 via §11; calver-per-env unchanged
 
 - CalVer versions like `2026.05.0` have leading zeros, which strict SemVer parsing rejects:

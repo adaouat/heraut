@@ -621,3 +621,50 @@ func TestResolve_GitLogError(t *testing.T) {
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "reading git log")
 }
+
+// Tag order comes from SemVer §11 in Go, not from git's version:refname sort (ADR-0064).
+func TestResolve_OrdersTagsBySemverPrecedence(t *testing.T) {
+	mr := exectest.NewMockRunner()
+	mr.QueueResponse("v1.2.3\nv1.10.0\nv1.9.0\n", "", nil) // deliberately out of order
+	mr.QueueResponse("fix: a small fix\x00", "", nil)
+
+	cfg := &config.Config{Versioning: config.Versioning{Strategy: "semver", TagPrefix: strPtr("v")}}
+	result, err := semver.New(mr, cfg).Resolve()
+	require.NoError(t, err)
+
+	assert.Equal(t, "v1.10.0", result.CurrentTag)
+	assert.Equal(t, "1.10.1", result.Version)
+	require.Len(t, mr.Calls, 2)
+	assert.Equal(t, []string{"log", "v1.10.0..HEAD", "--format=%B%x00"}, mr.Calls[1].Args)
+}
+
+// A tag carrying only build metadata is the release of its core (SemVer §10): it must be the
+// bump base, not skipped — otherwise the next run would re-release 1.4.0.
+func TestResolve_BuildMetadataTagIsARelease(t *testing.T) {
+	mr := exectest.NewMockRunner()
+	mr.QueueResponse("v1.4.0+158404\nv1.3.0\n", "", nil)
+	mr.QueueResponse("fix: a small fix\x00", "", nil)
+
+	cfg := &config.Config{Versioning: config.Versioning{Strategy: "semver", TagPrefix: strPtr("v")}}
+	result, err := semver.New(mr, cfg).Resolve()
+	require.NoError(t, err)
+
+	assert.Equal(t, "v1.4.0+158404", result.CurrentTag)
+	assert.Equal(t, "1.4.1", result.Version)
+	assert.Equal(t, []string{"log", "v1.4.0+158404..HEAD", "--format=%B%x00"}, mr.Calls[1].Args)
+}
+
+// Tags that are not valid SemVer (leading zeros, four components) are ignored, like pre-releases.
+// Before ADR-0064, "1.02.0" passed IsBareVersion and would have been the bump base.
+func TestResolve_SkipsInvalidSemverTag(t *testing.T) {
+	mr := exectest.NewMockRunner()
+	mr.QueueResponse("v2.0.0.1\nv1.02.0\nv1.2.3\n", "", nil)
+	mr.QueueResponse("fix: a small fix\x00", "", nil)
+
+	cfg := &config.Config{Versioning: config.Versioning{Strategy: "semver", TagPrefix: strPtr("v")}}
+	result, err := semver.New(mr, cfg).Resolve()
+	require.NoError(t, err)
+
+	assert.Equal(t, "v1.2.3", result.CurrentTag)
+	assert.Equal(t, "1.2.4", result.Version)
+}
