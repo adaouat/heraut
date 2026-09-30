@@ -257,16 +257,21 @@ func (g *Generator) buildAllSections(tag string, lc *port.LinkContext, enrichAll
 			// the true previous tag unscoped, so a --regenerate never silently walks back to the
 			// very beginning of all history — and never leaks an out-of-scope release's commits
 			// into this one's section — just because this happens to be the first release within
-			// the current scope. A tagOrder set (T334) replaces git describe's topology with
-			// previousInList against the unscoped list ordered/filtered the same way as the
-			// scoped one — the same primitive scopedPreviousTag already uses for the identical
-			// "regardless of scope" reason.
+			// the current scope. A tagOrder set (T334) must still only ever consider t's actual
+			// ancestors: an unscoped, §11-ordered pool can place a tag from an unrelated branch
+			// (e.g. another env's tag under semver-per-env, whose {env} token is a wildcard)
+			// directly adjacent to t, and ordering alone doesn't fix that — only ancestry does.
+			// listMergedTags(runner, t+"^") lists exactly t's ancestor tags; tagOrder's first
+			// entry in that pool is the highest-precedence ancestor release, i.e. the true
+			// previous tag (t itself is never in the pool, since --merged <t^> excludes it).
 			if g.tagOrder != nil {
-				all, err := listTags(g.runner, "")
+				merged, err := listMergedTags(g.runner, t+"^")
 				if err != nil {
 					return "", err
 				}
-				prev = previousInList(t, g.tagOrder(all))
+				if ordered := g.tagOrder(merged); len(ordered) > 0 {
+					prev = ordered[0]
+				}
 			} else {
 				p, err := previousTag(g.runner, t, "")
 				if err != nil {

@@ -128,3 +128,48 @@ func TestPreviousTag_OtherErrorPropagates(t *testing.T) {
 	_, err := previousTag(mr, "v1.0.0", "")
 	require.Error(t, err)
 }
+
+// TestListMergedTags_ReturnsAncestorTags covers T334's fix: the oldest-in-scope fallback must
+// only ever consider tags that are actual ancestors of ref, never an unrelated branch's tag.
+func TestListMergedTags_ReturnsAncestorTags(t *testing.T) {
+	mr := exectest.NewMockRunner()
+	mr.QueueResponse("v1.0.0\nv0.9.0\n", "", nil)
+
+	tags, err := listMergedTags(mr, "v1.1.0^")
+	require.NoError(t, err)
+	assert.Equal(t, []string{"v1.0.0", "v0.9.0"}, tags)
+
+	require.Len(t, mr.Calls, 1)
+	assert.Equal(t, "git", mr.Calls[0].Name)
+	assert.Equal(t, []string{"tag", "-l", "--merged", "v1.1.0^", "--sort=-version:refname"}, mr.Calls[0].Args)
+}
+
+// TestListMergedTags_RootCommitReturnsEmpty covers the "<tag>^" root-commit edge case: a commit
+// with no parent makes "<tag>^" fail to resolve at all (a different git error shape than
+// previousTag's "no names found" — git fails to resolve the ref itself, "malformed object name"),
+// which must be treated the same way: no earlier tag, not an error.
+func TestListMergedTags_RootCommitReturnsEmpty(t *testing.T) {
+	mr := exectest.NewMockRunner()
+	mr.QueueResponse("", "fatal: malformed object name v1.0.0^", errors.New("exit status 128"))
+
+	tags, err := listMergedTags(mr, "v1.0.0^")
+	require.NoError(t, err)
+	assert.Empty(t, tags)
+}
+
+func TestListMergedTags_OtherErrorPropagates(t *testing.T) {
+	mr := exectest.NewMockRunner()
+	mr.QueueResponse("", "fatal: not a git repository", errors.New("exit status 128"))
+
+	_, err := listMergedTags(mr, "v1.0.0^")
+	require.Error(t, err)
+}
+
+func TestListMergedTags_EmptyOutput(t *testing.T) {
+	mr := exectest.NewMockRunner()
+	mr.QueueResponse("", "", nil)
+
+	tags, err := listMergedTags(mr, "v1.0.0^")
+	require.NoError(t, err)
+	assert.Empty(t, tags)
+}

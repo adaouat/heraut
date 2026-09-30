@@ -97,3 +97,66 @@ func TestTagOrderFor_RealRepo_SemverPrecedenceBoundsChangelogAndNotes(t *testing
 		"release notes for the final must span back to v1.4.0+158404 (the last final), not v1.4.0-rc.1")
 	assert.NotContains(t, notes, "Commit a")
 }
+
+// TestTagOrderFor_RealRepo_FallbackNeverBoundsByNonAncestorTag is T334's review-round-1 fix: two
+// envs on diverging branches under semver-per-env (tag_format "{env}/{version}", whose {env}
+// token is a wildcard in tagfmt.ParseVersion — any env's tag parses through it identically). envb
+// branches off before enva's own first release exists, so envb's first release has no ancestor
+// release at all — but enva/0.9.0 sorts adjacent to envb/1.0.0 in a naive unscoped, §11-ordered
+// pool (0.9.0 immediately below 1.0.0), which the pre-fix `previousInList` fallback would have
+// picked as "previous" despite it sitting on an unrelated branch. The fix (`git tag -l --merged
+// <t>^`) must exclude it, since enva/0.9.0 is never an ancestor of envb/1.0.0.
+func TestTagOrderFor_RealRepo_FallbackNeverBoundsByNonAncestorTag(t *testing.T) {
+	if _, err := exec.LookPath("git"); err != nil {
+		t.Skip("git not on PATH")
+	}
+	dir := t.TempDir()
+	t.Chdir(dir)
+
+	git := func(args ...string) {
+		t.Helper()
+		cmd := exec.Command("git", args...)
+		cmd.Env = append(os.Environ(),
+			"GIT_AUTHOR_NAME=Test", "GIT_AUTHOR_EMAIL=test@example.com",
+			"GIT_COMMITTER_NAME=Test", "GIT_COMMITTER_EMAIL=test@example.com",
+			"GIT_CONFIG_GLOBAL=/dev/null", "GIT_CONFIG_SYSTEM=/dev/null",
+		)
+		if out, err := cmd.CombinedOutput(); err != nil {
+			t.Fatalf("git %v: %v\n%s", args, err, out)
+		}
+	}
+	commit := func(msg string) { git("commit", "--allow-empty", "-m", msg) }
+
+	git("init")
+	git("checkout", "-b", "trunk")
+	commit("feat: root")
+	git("checkout", "-b", "envb")
+	commit("feat: envb release")
+	git("tag", "envb/1.0.0")
+	git("checkout", "trunk")
+	commit("feat: enva release")
+	git("tag", "enva/0.9.0")
+	git("checkout", "envb")
+
+	runner := execadapter.New(false, false)
+	cfg := &config.Config{
+		Versioning:   config.Versioning{Strategy: "semver-per-env", TagFormat: "{env}/{version}"},
+		Environments: map[string]config.Environment{"envb": {}},
+	}
+	order := tagOrderFor(cfg, "envb")
+
+	changelogDir := t.TempDir()
+	driver := &config.ContentDriver{Output: filepath.Join(changelogDir, "CHANGELOG.md"), TagGlob: "envb/*"}
+	gen := buildGenerator(runner, driver, native.ModeChangelog, "", false, false, nil, "", order)
+
+	body, err := gen.Generate("envb/1.1.0", nil)
+	require.NoError(t, err)
+
+	assert.NotContains(t, body, "Enva release", "enva's commit must never leak into envb's changelog")
+	assert.Contains(t, body, "Envb release")
+	assert.Contains(t, body, "Root",
+		"envb/1.0.0's true (ancestor-bound) previous tag is none — its full history, including the "+
+			"root commit, belongs to its own section. A pre-fix non-ancestor prev (enva/0.9.0) would "+
+			"have silently excluded the root commit from the range instead, since enva/0.9.0 already "+
+			"covers it — reproducing T334's missing-entries bug class on a different topology.")
+}

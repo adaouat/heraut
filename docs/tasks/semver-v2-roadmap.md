@@ -210,8 +210,10 @@ drop tags — nil (the default) keeps today's behaviour unchanged. `scopedTags` 
 (after glob/pattern filtering, driving the historical walk, `newSectionBound`, and compare links);
 `scopedPreviousTag` resolves via `previousInList` against that same ordered list instead of `git
 describe` whenever an order is set; and `buildAllSections`'s oldest-in-scope fallback (T257's
-"regardless of scope" resolution) swaps its unscoped `git describe` call for `previousInList`
-against `order(listTags(runner, ""))`. `internal/app`'s new `tagOrderFor(cfg, env)` (next to
+"regardless of scope" resolution) swaps its `git describe` call for the highest-precedence entry
+of `order(listMergedTags(runner, t+"^"))` — ancestor tags only (`git tag -l --merged <ref>`, a new
+helper next to `listTags`), not an unscoped listing (see review-round-1 fix below).
+`internal/app`'s new `tagOrderFor(cfg, env)` (next to
 `semverExtractor` in `current.go`) builds the order for `semver`/`semver-per-env` —
 `semver.SortTags` plus a pre-release drop — and returns `nil` for `calver`/`calver-per-env`, so
 their output stays byte-for-byte unchanged (no order ever injected). `buildGenerator` gained a
@@ -237,6 +239,30 @@ reproduces today's exact call sequence) and `internal/app/current_internal_test.
 `internal/app/changelog_rotation_internal_test.go` (`latestMatchingTag`). Every pre-existing
 calver and native test row passed unmodified — no existing row relied on git's tag order
 diverging from §11 order. No deferred items.
+
+**Review-round-1 fix:** the oldest-in-scope fallback above originally resolved `prev` via
+`previousInList(t, order(listTags(runner, "")))` — an unscoped, §11-ordered pool with no ancestry
+guarantee. Under `semver-per-env`, `tagfmt.ParseVersion`'s `{env}` token is a wildcard, so every
+env's tags parse identically through `tagOrderFor`'s extractor; the fallback fires on every env's
+*first* release (`withEnvDerivations` sets `TagGlob` per env), so a diverged env's higher- or
+lower-precedence tag could sort adjacent to `t` and get picked as "previous" despite living on an
+unrelated branch — `git log <that tag>..t` would then span a non-ancestor range, silently
+excluding commits `t` actually needs (the same missing-entries bug class T334 exists to fix, on a
+different topology). Fixed by adding `listMergedTags(runner, ref)` (`git tag -l --merged <ref>`,
+next to `listTags` in `commits.go`) and a `noParentCommit(stderr)` probe (the `--merged`
+counterpart to `noEarlierTag`'s `git describe` probe — a root commit's `<tag>^` fails to resolve
+at all, with a different message, "malformed object name", rather than "no tag describes it").
+The fallback now calls `listMergedTags(g.runner, t+"^")` — ancestor tags only — applies `tagOrder`,
+and takes its first entry directly (not `previousInList`: `t` itself is never in the `--merged
+<t^>` pool, so "first entry" already *is* the true previous tag). Edited
+`TestGenerator_GenerateChangelog_TagOrder_OldestInScopeFallbackUsesOrderedUnscopedList` →
+renamed `...IsAncestryBounded` (asserts the `--merged` call instead of the old unscoped one) since
+its assertions described the now-fixed behaviour; added
+`TestListMergedTags_ReturnsAncestorTags`/`_RootCommitReturnsEmpty`/`_OtherErrorPropagates`/
+`_EmptyOutput` and a second real-git regression,
+`TestTagOrderFor_RealRepo_FallbackNeverBoundsByNonAncestorTag` (two envs on diverging branches;
+confirmed it fails against the pre-fix code before re-verifying green). No other existing row
+changed.
 
 ## Phase 2 — Pre-release lifecycle
 

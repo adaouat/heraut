@@ -737,16 +737,19 @@ func TestGenerator_GenerateReleaseNotes_TagOrder_ResolvesPrevFromList_NoDescribe
 	assert.Equal(t, []string{"log", "v1.4.0+158404..v1.5.0", "--reverse", "--format=" + logFormat}, mr.Calls[2].Args)
 }
 
-// TestGenerator_GenerateChangelog_TagOrder_OldestInScopeFallbackUsesOrderedUnscopedList is T334's
-// third behaviour: when the oldest-in-scope tag's true predecessor is resolved (T257's "regardless
-// of scope" fallback), a non-nil tagOrder replaces the unscoped `git describe` call with
-// previousInList against order(listTags(runner, "")) — the unscoped list, ordered/filtered the
-// same way as the scoped one.
-func TestGenerator_GenerateChangelog_TagOrder_OldestInScopeFallbackUsesOrderedUnscopedList(t *testing.T) {
+// TestGenerator_GenerateChangelog_TagOrder_OldestInScopeFallbackIsAncestryBounded is T334's third
+// behaviour, fixed after review round 1: when the oldest-in-scope tag's true predecessor is
+// resolved (T257's "regardless of scope" fallback), a non-nil tagOrder must never pick a tag from
+// an unrelated branch as "previous" — an unscoped `git tag -l` (no --merged) can return tags that
+// aren't actual ancestors of t (e.g. another env's tag on a diverging branch), and §11-ordering
+// that pool doesn't fix that: it can still place a non-ancestor tag adjacent to t. The fallback
+// must instead list only ancestors (`git tag -l --merged <t>^`), apply tagOrder to THAT pool, and
+// take its first entry.
+func TestGenerator_GenerateChangelog_TagOrder_OldestInScopeFallbackIsAncestryBounded(t *testing.T) {
 	mr := exectest.NewMockRunner()
-	mr.QueueResponse("prod/v1.4.0+158404\n", "", nil)                 // scopedTags: git tag -l prod/v*
-	mr.QueueResponse("", "", nil)                                     // new section: prod/v1.4.0+158404..HEAD (nothing new)
-	mr.QueueResponse("staging/v1.0.0\nprod/v1.4.0+158404\n", "", nil) // fallback: listTags(runner, "") — unscoped, no --match
+	mr.QueueResponse("prod/v1.4.0+158404\n", "", nil) // scopedTags: git tag -l prod/v*
+	mr.QueueResponse("", "", nil)                     // new section: prod/v1.4.0+158404..HEAD (nothing new)
+	mr.QueueResponse("staging/v1.0.0\n", "", nil)     // fallback: git tag -l --merged prod/v1.4.0+158404^ (ancestors only)
 	mr.QueueResponse(record("ddd4444444", "D", "d@x", "2026-01-01T00:00:00Z", "feat: prod release", ""), "", nil)
 
 	g := New(mr, &config.ContentDriver{TagGlob: "prod/v*"}, ModeChangelog, WithTagOrder(preReleaseFilterOrder))
@@ -755,10 +758,10 @@ func TestGenerator_GenerateChangelog_TagOrder_OldestInScopeFallbackUsesOrderedUn
 	assert.Contains(t, body, "Prod release")
 
 	require.Len(t, mr.Calls, 4)
-	assert.Equal(t, []string{"tag", "-l", "--sort=-version:refname"}, mr.Calls[2].Args,
-		"the fallback lists tags unscoped (no --match), never git describe, when an order is set")
+	assert.Equal(t, []string{"tag", "-l", "--merged", "prod/v1.4.0+158404^", "--sort=-version:refname"}, mr.Calls[2].Args,
+		"the fallback lists only ancestor tags (--merged), never an unscoped listing and never git describe, when an order is set")
 	assert.Equal(t, []string{"log", "staging/v1.0.0..prod/v1.4.0+158404", "--reverse", "--format=" + logFormat}, mr.Calls[3].Args,
-		"previousInList against the ordered unscoped list replaces git describe's topology")
+		"prev is the ordered pool's first (and here only) ancestor entry")
 }
 
 // TestGenerator_ScopedPreviousTag_NoOrderSet_UsesGitDescribe guards T334's WithTagOrder against

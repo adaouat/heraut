@@ -168,6 +168,39 @@ func listTags(runner port.Runner, glob string) ([]string, error) {
 	return tags, nil
 }
 
+// listMergedTags returns the tags that are ancestors of ref (`git tag -l --merged <ref>`),
+// newest-first by version refname — the ancestor-only counterpart to listTags(runner, ""). Used
+// by buildAllSections' oldest-in-scope fallback (T334) so a tagOrder-based "previous tag" search
+// never picks a tag that merely sorts adjacently in an unscoped listing but actually lives on an
+// unrelated (non-ancestor) branch — §11 ordering alone doesn't guarantee ancestry, only `--merged`
+// does. ref failing to resolve because it names a root commit's non-existent parent (a first
+// commit's "<tag>^") is treated the same as previousTag's "no earlier tag" case: an empty list,
+// nil error, rather than an error.
+func listMergedTags(runner port.Runner, ref string) ([]string, error) {
+	stdout, stderr, err := runner.Run("git", "tag", "-l", "--merged", ref, "--sort=-version:refname")
+	if err != nil {
+		if noParentCommit(stderr) {
+			return nil, nil
+		}
+		return nil, fmt.Errorf("listing tags merged into %s: %w", ref, err)
+	}
+	var tags []string
+	for line := range strings.SplitSeq(strings.TrimSpace(stdout), "\n") {
+		if t := strings.TrimSpace(line); t != "" {
+			tags = append(tags, t)
+		}
+	}
+	return tags, nil
+}
+
+// noParentCommit reports whether a git failure means "the ref has no parent commit" (a root
+// commit's "<tag>^" argument failing to resolve at all) — the `--merged` counterpart to
+// noEarlierTag's `git describe` probe; git rejects the ref itself here rather than reporting "no
+// tag describes it", hence the different message.
+func noParentCommit(stderr string) bool {
+	return strings.Contains(strings.ToLower(stderr), "malformed object name")
+}
+
 // filterByTagPattern keeps the tags matching pattern (a Go regex, T139), preserving order. An
 // empty pattern returns tags unchanged. An invalid pattern is an error. Used when the user sets
 // an explicit tag_pattern with the native generator — the regex analogue of git-cliff's
