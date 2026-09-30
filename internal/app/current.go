@@ -80,11 +80,16 @@ func CurrentVersion(runner port.Runner, cfg *config.Config, env string, includeP
 	}
 	switch cfg.Versioning.Strategy {
 	case "semver":
-		prefix := "v"
-		if cfg.Versioning.TagPrefix != nil {
-			prefix = *cfg.Versioning.TagPrefix
+		bare := strings.TrimPrefix(tag, configuredTagPrefix(cfg))
+		v, err := semver.Parse(bare)
+		if err != nil {
+			// CurrentTag only ever returns tags that already parsed as SemVer for this
+			// strategy, so this should be unreachable — fall back to the prefix-stripped
+			// string rather than erroring on something that should never happen.
+			return bare, nil
 		}
-		return strings.TrimPrefix(tag, prefix), nil
+		v.Build = nil
+		return v.String(), nil
 	case "calver":
 		prefix := ""
 		if cfg.Versioning.TagPrefix != nil {

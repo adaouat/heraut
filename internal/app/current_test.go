@@ -270,6 +270,38 @@ func TestCurrentTag_Calver_IgnoresIncludePreRelease(t *testing.T) {
 	assert.Equal(t, "2026.05.1", got)
 }
 
+// FIX-2: --bare must strip build metadata for plain semver too, matching per-env's behaviour and
+// the flag help's promise ("strip prefix/env/build").
+func TestCurrentVersion_Semver_StripsBuildMetadata(t *testing.T) {
+	mr := exectest.NewMockRunner()
+	mr.QueueResponse("v1.4.0+158404\n", "", nil)
+	cfg := &config.Config{Versioning: config.Versioning{Strategy: "semver", TagPrefix: strPtr("v")}}
+
+	got, err := app.CurrentVersion(mr, cfg, "", false)
+	require.NoError(t, err)
+	assert.Equal(t, "1.4.0", got)
+}
+
+func TestCurrentVersion_Semver_IncludePreRelease_StripsBuildMetadata(t *testing.T) {
+	mr := exectest.NewMockRunner()
+	mr.QueueResponse("v1.4.0-rc.1+5\n", "", nil)
+	cfg := &config.Config{Versioning: config.Versioning{Strategy: "semver", TagPrefix: strPtr("v")}}
+
+	got, err := app.CurrentVersion(mr, cfg, "", true)
+	require.NoError(t, err)
+	assert.Equal(t, "1.4.0-rc.1", got)
+}
+
+func TestCurrentVersion_Semver_CustomPrefix_StripsBuildMetadata(t *testing.T) {
+	mr := exectest.NewMockRunner()
+	mr.QueueResponse("rel-1.4.0+158404\n", "", nil)
+	cfg := &config.Config{Versioning: config.Versioning{Strategy: "semver", TagPrefix: strPtr("rel-")}}
+
+	got, err := app.CurrentVersion(mr, cfg, "", false)
+	require.NoError(t, err)
+	assert.Equal(t, "1.4.0", got)
+}
+
 func TestCurrentVersion_Semver_IncludePreRelease_Bare(t *testing.T) {
 	mr := exectest.NewMockRunner()
 	mr.QueueResponse("v1.4.0-rc.2\nv1.3.0\n", "", nil)
