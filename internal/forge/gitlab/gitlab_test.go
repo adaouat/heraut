@@ -20,6 +20,7 @@ func TestForge_Links(t *testing.T) {
 	assert.Equal(t, "https://gitlab.example.com/group/subgroup/project/-/commit/deadbeef", f.CommitURL("deadbeef"))
 	assert.Equal(t, "https://gitlab.example.com/group/subgroup/project/-/merge_requests/42", f.ChangeURL(42))
 	assert.Equal(t, "https://gitlab.example.com/group/subgroup/project/-/compare/v1.0.0...v1.1.0", f.CompareURL("v1.0.0", "v1.1.0"))
+	assert.Equal(t, "https://gitlab.example.com/group/subgroup/project/-/compare/v1.0.0%2B1...v1.1.0%2B2", f.CompareURL("v1.0.0+1", "v1.1.0+2"))
 }
 
 // TestEnrichREST_JobToken is the epic's core scenario: a CI_JOB_TOKEN must be sent as JOB-TOKEN

@@ -41,7 +41,7 @@ func (f *Forge) ChangeURL(number int) string {
 	return fmt.Sprintf("%s/pull/%d", f.webBase(), number)
 }
 func (f *Forge) CompareURL(from, to string) string {
-	return fmt.Sprintf("%s/compare/%s...%s", f.webBase(), from, to)
+	return fmt.Sprintf("%s/compare/%s...%s", f.webBase(), port.URLTag(from), port.URLTag(to))
 }
 
 // apiBase returns the REST API root: the explicit APIURL when set (GitHub Actions provides

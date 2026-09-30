@@ -436,6 +436,27 @@ func TestBuildCompareURL(t *testing.T) {
 			want:    "https://dev.azure.com/org/proj/_git/repo/branchCompare?baseVersion=GTv1.0.0&targetVersion=GTv1.1.0",
 		},
 		{
+			name:    "github escapes + in tags",
+			lc:      &port.LinkContext{BaseURL: "https://github.com", Owner: "acme", Repo: "widget", Platform: "github"},
+			prev:    "v1.0.0+1",
+			version: "v1.1.0+2",
+			want:    "https://github.com/acme/widget/compare/v1.0.0%2B1..v1.1.0%2B2",
+		},
+		{
+			name:    "gitlab escapes + in tags",
+			lc:      &port.LinkContext{BaseURL: "https://gitlab.com", Owner: "group/sub", Repo: "proj", Platform: "gitlab"},
+			prev:    "v1.0.0+1",
+			version: "v1.1.0+2",
+			want:    "https://gitlab.com/group/sub/proj/-/compare/v1.0.0%2B1..v1.1.0%2B2",
+		},
+		{
+			name:    "azure_devops escapes + in query string",
+			lc:      &port.LinkContext{BaseURL: "https://dev.azure.com", Owner: "org/proj", Repo: "repo", Platform: "azure_devops"},
+			prev:    "v1.0.0+1",
+			version: "v1.1.0+2",
+			want:    "https://dev.azure.com/org/proj/_git/repo/branchCompare?baseVersion=GTv1.0.0%2B1&targetVersion=GTv1.1.0%2B2",
+		},
+		{
 			name:    "ambient (no owner/repo)",
 			lc:      &port.LinkContext{BaseURL: "https://github.com/acme/widget", Platform: "github"},
 			prev:    "v1.0.0",

@@ -34,7 +34,7 @@ func New(runner port.Runner, cfg *config.Platform) *Platform {
 func (p *Platform) Name() string { return p.cfg.Name }
 
 func (p *Platform) ReleaseURL(tag string) string {
-	return fmt.Sprintf("%s/%s/-/releases/%s", p.resolveBaseURL(), p.project(), tag)
+	return fmt.Sprintf("%s/%s/-/releases/%s", p.resolveBaseURL(), p.project(), port.URLTag(tag))
 }
 
 // ReleaseURLFromContext builds the release URL from a pre-resolved link context so the
@@ -47,9 +47,9 @@ func (p *Platform) ReleaseURLFromContext(tag string, lc *port.LinkContext) strin
 	}
 	base := strings.TrimRight(lc.BaseURL, "/")
 	if lc.Owner == "" && lc.Repo == "" {
-		return base + "/-/releases/" + tag
+		return base + "/-/releases/" + port.URLTag(tag)
 	}
-	return base + "/" + lc.Owner + "/" + lc.Repo + "/-/releases/" + tag
+	return base + "/" + lc.Owner + "/" + lc.Repo + "/-/releases/" + port.URLTag(tag)
 }
 
 // LinkContext resolves this platform's link coordinates. GitLab projects may be nested

@@ -103,6 +103,19 @@ func TestReleaseURLFromContext_Nil_FallsBackToReleaseURL(t *testing.T) {
 	assert.Equal(t, p.ReleaseURL("v1.0.0"), p.ReleaseURLFromContext("v1.0.0", nil))
 }
 
+// Tags may carry SemVer build metadata ("+"), which must reach the URL as %2B (ADR-0064).
+func TestReleaseURL_EscapesPlusInTag(t *testing.T) {
+	t.Setenv("GITLAB_CI", "")
+	p := gitlab.New(exectest.NewMockRunner(), &config.Platform{Project: "group/proj"})
+	assert.Equal(t, "https://gitlab.com/group/proj/-/releases/v1.4.0%2B158404", p.ReleaseURL("v1.4.0+158404"))
+
+	ambient := &port.LinkContext{BaseURL: "https://gitlab.com/group/proj", Platform: "gitlab"}
+	assert.Equal(t, "https://gitlab.com/group/proj/-/releases/uat/7.4.1%2B158404", p.ReleaseURLFromContext("uat/7.4.1+158404", ambient))
+
+	platform := &port.LinkContext{BaseURL: "https://gitlab.com", Owner: "group", Repo: "proj", Platform: "gitlab"}
+	assert.Equal(t, "https://gitlab.com/group/proj/-/releases/v1.4.0%2B158404", p.ReleaseURLFromContext("v1.4.0+158404", platform))
+}
+
 func TestLinkContext_NestedGroup(t *testing.T) {
 	t.Setenv("GITLAB_TOKEN", "")
 	// GitLab project paths split on the LAST slash: group/subgroup is the owner, the

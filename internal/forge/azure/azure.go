@@ -42,7 +42,7 @@ func (f *Forge) ChangeURL(number int) string {
 	return fmt.Sprintf("%s/pullrequest/%d", f.webBase(), number)
 }
 func (f *Forge) CompareURL(from, to string) string {
-	return fmt.Sprintf("%s/branchCompare?baseVersion=GT%s&targetVersion=GT%s", f.webBase(), from, to)
+	return fmt.Sprintf("%s/branchCompare?baseVersion=GT%s&targetVersion=GT%s", f.webBase(), port.URLTag(from), port.URLTag(to))
 }
 
 // Enrich resolves the pull request associated with each commit SHA plus a local commit-author

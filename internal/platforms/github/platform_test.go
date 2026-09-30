@@ -63,6 +63,18 @@ func TestReleaseURLFromContext_Nil_FallsBackToReleaseURL(t *testing.T) {
 	assert.Equal(t, p.ReleaseURL("v1.0.0"), p.ReleaseURLFromContext("v1.0.0", nil))
 }
 
+// Tags may carry SemVer build metadata ("+"), which must reach the URL as %2B (ADR-0064).
+func TestReleaseURL_EscapesPlusInTag(t *testing.T) {
+	p := github.New(exectest.NewMockRunner(), &config.Platform{Repository: "acme/widget"})
+	assert.Equal(t, "https://github.com/acme/widget/releases/tag/v1.4.0%2B158404", p.ReleaseURL("v1.4.0+158404"))
+
+	ambient := &port.LinkContext{BaseURL: "https://github.com/acme/widget", Platform: "github"}
+	assert.Equal(t, "https://github.com/acme/widget/releases/tag/uat/7.4.1%2B158404", p.ReleaseURLFromContext("uat/7.4.1+158404", ambient))
+
+	platform := &port.LinkContext{BaseURL: "https://github.com", Owner: "acme", Repo: "widget", Platform: "github"}
+	assert.Equal(t, "https://github.com/acme/widget/releases/tag/v1.4.0%2B158404", p.ReleaseURLFromContext("v1.4.0+158404", platform))
+}
+
 func TestLinkContext(t *testing.T) {
 	t.Setenv("GH_TOKEN", "")
 	cfg := &config.Platform{Repository: "acme/widget", BaseURL: "https://github.com"}

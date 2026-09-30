@@ -28,6 +28,19 @@ func TestForge_Links(t *testing.T) {
 	assert.Equal(t, "https://dev.azure.example.com/myorg/myproject/_git/myrepo/pullrequest/42", f.ChangeURL(42))
 }
 
+// Tags may carry SemVer build metadata ("+"), which must reach the URL as %2B (ADR-0064).
+// CompareURL is a "reserved" link builder (T168, not yet called from production rendering — see
+// port.Forge's doc comment) with no prior assertion at all, so this is the only test covering it.
+func TestCompareURL_EscapesPlusInTag(t *testing.T) {
+	f := azure.New(port.ForgeIdentity{
+		Type: "azure_devops", Host: "https://dev.azure.example.com",
+		Project: "myorg/myproject", Repository: "myrepo",
+	}, nil)
+	assert.Equal(t,
+		"https://dev.azure.example.com/myorg/myproject/_git/myrepo/branchCompare?baseVersion=GTv1.0.0%2B1&targetVersion=GTv1.1.0%2B2",
+		f.CompareURL("v1.0.0+1", "v1.1.0+2"))
+}
+
 func TestEnrich_MapsPRsAndLocalAuthors(t *testing.T) {
 	var gotPath, gotAuth string
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

@@ -38,7 +38,7 @@ func (p *Platform) ReleaseURL(tag string) string {
 	if baseURL == "" {
 		baseURL = githubBaseURL
 	}
-	return fmt.Sprintf("%s/%s/releases/tag/%s", baseURL, p.repository(), tag)
+	return fmt.Sprintf("%s/%s/releases/tag/%s", baseURL, p.repository(), port.URLTag(tag))
 }
 
 // ReleaseURLFromContext builds the release URL from a pre-resolved link context so the
@@ -51,9 +51,9 @@ func (p *Platform) ReleaseURLFromContext(tag string, lc *port.LinkContext) strin
 	}
 	base := strings.TrimRight(lc.BaseURL, "/")
 	if lc.Owner == "" && lc.Repo == "" {
-		return base + "/releases/tag/" + tag
+		return base + "/releases/tag/" + port.URLTag(tag)
 	}
-	return base + "/" + lc.Owner + "/" + lc.Repo + "/releases/tag/" + tag
+	return base + "/" + lc.Owner + "/" + lc.Repo + "/releases/tag/" + port.URLTag(tag)
 }
 
 // LinkContext resolves this platform's link coordinates. GitHub repositories are

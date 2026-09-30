@@ -22,6 +22,7 @@ func TestForge_Links(t *testing.T) {
 	assert.Equal(t, "https://github.com/acme/widget/commit/deadbeef", f.CommitURL("deadbeef"))
 	assert.Equal(t, "https://github.com/acme/widget/pull/42", f.ChangeURL(42))
 	assert.Equal(t, "https://github.com/acme/widget/compare/v1.0.0...v1.1.0", f.CompareURL("v1.0.0", "v1.1.0"))
+	assert.Equal(t, "https://github.com/acme/widget/compare/v1.0.0%2B1...v1.1.0%2B2", f.CompareURL("v1.0.0+1", "v1.1.0+2"))
 }
 
 func TestEnrich_MapsPRsAndAuthors(t *testing.T) {

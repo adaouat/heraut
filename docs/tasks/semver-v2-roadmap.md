@@ -31,6 +31,8 @@ pre-release lifecycle (`--pre-release <label>`) for the plain `semver` strategy.
 | T328 | `{build}` must directly follow `+` (validator, wizard, docs) | Done |
 | T329 | `--set-build-id` on plain `semver` (`v1.4.0+<id>`) | Not started |
 | T330 | `version current`: latest final by default, `--include-pre-release` (+ `${version}` test-typo fix, own commit) | Not started |
+| T331 | Escape `+` in tag names inside generated URLs | Done |
+| T332 | Manual smoke test: gh/glab with a `+` tag | Not started |
 | —    | Phase 2 (pre-release lifecycle) — planned after Phase 1 lands | Not planned |
 
 ## Phase 1 — Compliance
@@ -121,6 +123,30 @@ the constraint; `config.Validate` owns it).
 - Test typo: an existing test (`TestCurrentTag_SemverPerEnv`) has a `${version}` typo that only
   passed because `version current` never parsed tags. It gets fixed in its own `test:` commit,
   before the feature commit.
+
+### [x] T331 — Escape `+` in tag names inside generated URLs
+
+Added `port.URLTag` (`strings.ReplaceAll(tag, "+", "%2B")`) in `internal/port/generator.go`,
+next to `LinkContext`, since `port` is the one package every URL builder (platforms, forge,
+generators) may import without violating layering. Wired it into the five sites the brief named
+— `platforms/{github,gitlab}.ReleaseURL`/`ReleaseURLFromContext`, `forge/{github,gitlab}.
+CompareURL`, and native's `buildCompareURL` (all three platform branches) — plus one the brief's
+file list missed: `forge/azure.CompareURL`, which builds the same
+`branchCompare?baseVersion=GT<tag>&targetVersion=GT<tag>` query string as native's azure_devops
+branch but had no escaping and, on inspection, no pre-existing test at all (`port.Forge`'s doc
+comment confirms `CompareURL` is a "reserved" link builder not yet called from production
+rendering — T168). Added a standalone `TestCompareURL_EscapesPlusInTag` there since there was no
+baseline assertion to extend. Every pre-existing URL assertion in the touched test files passed
+unchanged. Deferred: T332, a manual `gh`/`glab` smoke test with a live `+` tag, since CLI-to-API
+encoding can't be verified offline.
+
+### [ ] T332 — Manual smoke test: `gh` / `glab` with a `+` tag
+
+heraut passes tag names to `gh release create/upload` and `glab release create/upload` as argv;
+how those CLIs encode `+` when they call their APIs cannot be checked offline (testing.md: no
+network in tests). Before the first release that ships T328/T329, create a throwaway release with
+a `v0.0.0+smoke` tag on a scratch GitHub repo and a scratch GitLab project (create + upload an
+asset + open the printed release URL), then delete both. Record the outcome here.
 
 ## Phase 2 — Pre-release lifecycle
 

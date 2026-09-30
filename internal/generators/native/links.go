@@ -24,6 +24,9 @@ func buildCommitURL(lc *port.LinkContext) string {
 // buildCompareURL returns the full compare URL between prev and version.
 // Returns "" when lc is nil or prev is empty (first release — no previous tag).
 //
+// Tags are passed through port.URLTag, so a "+" in either (SemVer build metadata) reaches the
+// URL as "%2B" rather than a literal "+" (ADR-0064).
+//
 // URL shapes by platform:
 //   - GitHub:      root+"/compare/"+prev+".."+version
 //   - GitLab:      root+"/-/compare/"+prev+".."+version
@@ -33,13 +36,14 @@ func buildCompareURL(lc *port.LinkContext, prev, version string) string {
 		return ""
 	}
 	root := repoRoot(lc)
+	p, v := port.URLTag(prev), port.URLTag(version)
 	switch lc.Platform {
 	case "gitlab":
-		return root + "/-/compare/" + prev + ".." + version
+		return root + "/-/compare/" + p + ".." + v
 	case "azure_devops":
-		return root + "/branchCompare?baseVersion=GT" + prev + "&targetVersion=GT" + version
+		return root + "/branchCompare?baseVersion=GT" + p + "&targetVersion=GT" + v
 	default: // github
-		return root + "/compare/" + prev + ".." + version
+		return root + "/compare/" + p + ".." + v
 	}
 }
 
