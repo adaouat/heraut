@@ -69,6 +69,33 @@ func semverExtractor(cfg *config.Config, env string) func(string) (string, bool)
 	return func(tag string) (string, bool) { return strings.CutPrefix(tag, prefix) }
 }
 
+// tagOrderFor returns the tag-ordering function native.WithTagOrder needs to bound changelog
+// sections, release-notes previous-tag resolution, and changelog rotation by SemVer §11 precedence
+// instead of git's version:refname order (T334, ADR-0064). For "semver"/"semver-per-env" it
+// re-sorts whatever tag list it's given (already scoped by TagGlob/TagPattern) through
+// semver.SortTags using the same extractor CurrentTag uses, then drops every pre-release tag —
+// releases only, so a pre-release never gets its own changelog section and is never a range
+// boundary; its commits fold into the next release's section. calver/calver-per-env return nil:
+// their output must stay byte-for-byte unchanged, still walking git's own order.
+func tagOrderFor(cfg *config.Config, env string) func([]string) []string {
+	switch cfg.Versioning.Strategy {
+	case "semver", "semver-per-env":
+		extract := semverExtractor(cfg, env)
+		return func(tags []string) []string {
+			sorted := semver.SortTags(tags, extract)
+			out := make([]string, 0, len(sorted))
+			for _, tv := range sorted {
+				if !tv.Version.IsPreRelease() {
+					out = append(out, tv.Tag)
+				}
+			}
+			return out
+		}
+	default:
+		return nil
+	}
+}
+
 // CurrentVersion returns the bare semantic version of the latest tag (the tag with
 // any prefix / env / build components stripped). For per-env strategies the version is
 // parsed via the effective tag_format; for single-env strategies the tag prefix is

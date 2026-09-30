@@ -35,6 +35,10 @@ type Generator struct {
 	degraded       bool
 	degradedReason string
 	now            func() time.Time // injected clock for .Heraut.GeneratedAt; defaults to time.Now
+	// tagOrder re-sorts/filters the scoped tag list before it drives the historical walk,
+	// newSectionBound, and previous-tag resolution (T334, ADR-0064). nil = today's behaviour
+	// (git's version:refname order, no filtering) — set by WithTagOrder.
+	tagOrder func(tags []string) []string
 }
 
 var _ port.Generator = (*Generator)(nil)
@@ -73,6 +77,15 @@ func WithDegraded(reason string) Option {
 	}
 }
 
+// WithTagOrder injects a function that re-sorts/filters the scoped tag list (after
+// TagGlob/TagPattern filtering) into the order native should walk it, newest-first — it may drop
+// tags entirely (T334, ADR-0064: a SemVer strategy drops pre-release tags, since they get no
+// changelog section and are never a range boundary). A nil order (the default — no WithTagOrder
+// call) keeps today's behaviour: git's version:refname order, untouched.
+func WithTagOrder(order func(tags []string) []string) Option {
+	return func(g *Generator) { g.tagOrder = order }
+}
+
 // herautMeta builds the document-meta value passed to templates as .Heraut.
 func (g *Generator) herautMeta() tplHeraut {
 	return tplHeraut{Version: g.cfg.HerautVersion, URL: herautProjectURL, GeneratedAt: g.now()}
@@ -105,22 +118,35 @@ func (g *Generator) Generate(tag string, lc *port.LinkContext) (string, error) {
 
 // scopedTags returns the release tags for the active scope, newest-first: the env glob (per-env
 // auto, T138) takes precedence, else an explicit tag_pattern regex filter (T139), else all tags.
+// When a tagOrder is set (T334, ADR-0064), it is applied last, after TagGlob/TagPattern filtering —
+// it may re-sort and drop tags (e.g. every pre-release, for a SemVer strategy).
 func (g *Generator) scopedTags() ([]string, error) {
+	var tags []string
+	var err error
 	if g.cfg.TagGlob != "" {
-		return listTags(g.runner, g.cfg.TagGlob)
+		tags, err = listTags(g.runner, g.cfg.TagGlob)
+	} else {
+		var all []string
+		if all, err = listTags(g.runner, ""); err == nil {
+			tags, err = filterByTagPattern(all, g.cfg.TagPattern)
+		}
 	}
-	all, err := listTags(g.runner, "")
 	if err != nil {
 		return nil, err
 	}
-	return filterByTagPattern(all, g.cfg.TagPattern)
+	if g.tagOrder != nil {
+		return g.tagOrder(tags), nil
+	}
+	return tags, nil
 }
 
-// scopedPreviousTag resolves the tag preceding tag within the active scope. An explicit
-// tag_pattern (regex) resolves from the Go-filtered list; the glob / unscoped cases delegate to
-// git describe (--match <glob> for per-env auto).
+// scopedPreviousTag resolves the tag preceding tag within the active scope. A tagOrder set (T334)
+// always resolves from the ordered/filtered scoped list (previousInList) — so release notes for a
+// final span back to the previous release by SemVer §11, never to a pre-release `git describe`
+// topology would pick. Otherwise: an explicit tag_pattern (regex) resolves from the Go-filtered
+// list; the glob / unscoped cases delegate to git describe (--match <glob> for per-env auto).
 func (g *Generator) scopedPreviousTag(tag string) (string, error) {
-	if g.cfg.TagGlob == "" && g.cfg.TagPattern != "" {
+	if g.tagOrder != nil || (g.cfg.TagGlob == "" && g.cfg.TagPattern != "") {
 		tags, err := g.scopedTags()
 		if err != nil {
 			return "", err
@@ -217,8 +243,9 @@ func (g *Generator) buildAllSections(tag string, lc *port.LinkContext, enrichAll
 	}
 
 	// Existing releases, newest-first. prev is the next-older tag by version refname (listTags
-	// is version-sorted); release-notes mode instead resolves prev via git-describe topology.
-	// Equivalent for linear history — the common case.
+	// is version-sorted) — or, when a tagOrder is set (T334), the next-older tag in that order.
+	// release-notes mode instead resolves prev via git-describe topology (or, equally with a
+	// tagOrder set, the ordered list); equivalent for linear history — the common case.
 	for i, t := range tags {
 		prev := ""
 		if i+1 < len(tags) {
@@ -227,16 +254,26 @@ func (g *Generator) buildAllSections(tag string, lc *port.LinkContext, enrichAll
 			// t is the oldest tag within an active scope (per-env TagGlob, an explicit
 			// tag_pattern, or a rotating changelog.output's derived TagPattern) — "no next-older
 			// tag in the scoped list" does not mean "no earlier release at all" (T257). Resolve
-			// the true previous tag unscoped (no --match), the same primitive scopedPreviousTag
-			// already uses for the same "regardless of scope" reason, so a --regenerate never
-			// silently walks back to the very beginning of all history — and never leaks an
-			// out-of-scope release's commits into this one's section — just because this
-			// happens to be the first release within the current scope.
-			p, err := previousTag(g.runner, t, "")
-			if err != nil {
-				return "", err
+			// the true previous tag unscoped, so a --regenerate never silently walks back to the
+			// very beginning of all history — and never leaks an out-of-scope release's commits
+			// into this one's section — just because this happens to be the first release within
+			// the current scope. A tagOrder set (T334) replaces git describe's topology with
+			// previousInList against the unscoped list ordered/filtered the same way as the
+			// scoped one — the same primitive scopedPreviousTag already uses for the identical
+			// "regardless of scope" reason.
+			if g.tagOrder != nil {
+				all, err := listTags(g.runner, "")
+				if err != nil {
+					return "", err
+				}
+				prev = previousInList(t, g.tagOrder(all))
+			} else {
+				p, err := previousTag(g.runner, t, "")
+				if err != nil {
+					return "", err
+				}
+				prev = p
 			}
-			prev = p
 		}
 		if sec, err := g.renderRelease(t, prev, t, lc, enrichAll); err != nil {
 			return "", err

@@ -665,6 +665,116 @@ func TestGenerateChangelog_RegenerateOldestScopedTagExcludesOutOfScopeHistory(t 
 		"the oldest scoped tag's true previous tag is resolved unscoped (no --match), same primitive scopedPreviousTag already uses")
 }
 
+// preReleaseFilterOrder is a hand-rolled stand-in for app.tagOrderFor's real SemVer §11 logic
+// (native may not import internal/versioning — coding.md layering): it drops any tag containing
+// "-rc." and reverses what's left, so a test asserting on its output is proving generator.go uses
+// whatever WithTagOrder returns verbatim (including re-ordering, not just filtering) rather than
+// trusting the unscoped list's own order.
+func preReleaseFilterOrder(tags []string) []string {
+	out := make([]string, 0, len(tags))
+	for _, t := range tags {
+		if !strings.Contains(t, "-rc.") {
+			out = append(out, t)
+		}
+	}
+	for i, j := 0, len(out)-1; i < j; i, j = i+1, j-1 {
+		out[i], out[j] = out[j], out[i]
+	}
+	return out
+}
+
+// TestGenerator_GenerateChangelog_TagOrder_FiltersAndReorders is T334: with WithTagOrder set, the
+// historical walk and the new-section bound follow whatever order() returns — including dropping
+// a pre-release tag and re-ordering survivors — instead of trusting listTags' own (git-sorted)
+// order. Guards against the exact ADR-0064 bug: a pre-release tag getting its own section or
+// acting as a range boundary.
+func TestGenerator_GenerateChangelog_TagOrder_FiltersAndReorders(t *testing.T) {
+	mr := exectest.NewMockRunner()
+	mr.QueueResponse("v1.3.0\nv1.4.0-rc.1\nv1.4.0+158404\n", "", nil)                                         // listTags: unordered by our fake order
+	mr.QueueResponse(record("ccc3333333", "C", "c@x", "2026-03-01T00:00:00Z", "feat: commit c", ""), "", nil) // new: v1.4.0+158404..HEAD
+	mr.QueueResponse(record("bbb2222222", "B", "b@x", "2026-02-01T00:00:00Z", "feat: commit b", ""), "", nil) // historical: v1.3.0..v1.4.0+158404
+	mr.QueueResponse("", "", nil)                                                                             // historical: oldest-in-list section ("v1.3.0"), no commits — skipped
+
+	g := New(mr, &config.ContentDriver{}, ModeChangelog, WithTagOrder(preReleaseFilterOrder))
+	body, err := g.Generate("v1.5.0", nil)
+	require.NoError(t, err)
+
+	assert.Contains(t, body, "## [1.5.0]")
+	assert.Contains(t, body, "## [1.4.0+158404]")
+	assert.NotContains(t, body, "1.4.0-rc.1]", "a pre-release tag gets no section of its own (ADR-0064)")
+	assert.Contains(t, body, "Commit c")
+	assert.Contains(t, body, "Commit b")
+
+	require.Len(t, mr.Calls, 4)
+	assert.Equal(t, []string{"log", "v1.4.0+158404..HEAD", "--reverse", "--format=" + logFormat}, mr.Calls[1].Args,
+		"the new section is bounded by order()'s first entry, not git's own sort")
+	assert.Equal(t, []string{"log", "v1.3.0..v1.4.0+158404", "--reverse", "--format=" + logFormat}, mr.Calls[2].Args)
+	assert.Equal(t, []string{"log", "v1.3.0", "--reverse", "--format=" + logFormat}, mr.Calls[3].Args,
+		"the oldest tag in order()'s own list has no predecessor within it")
+}
+
+// TestGenerator_GenerateReleaseNotes_TagOrder_ResolvesPrevFromList_NoDescribe is T334: with
+// WithTagOrder set, scopedPreviousTag resolves prev from the ordered/filtered list
+// (previousInList) instead of shelling out to `git describe` — so release notes for a final span
+// back to the previous release by SemVer §11, never to a pre-release `git describe` topology would
+// have picked.
+func TestGenerator_GenerateReleaseNotes_TagOrder_ResolvesPrevFromList_NoDescribe(t *testing.T) {
+	mr := exectest.NewMockRunner()
+	mr.QueueResponse("v1.3.0\nv1.4.0-rc.1\nv1.4.0+158404\n", "", nil)                                         // scopedTags (order applied) — no "describe" call
+	mr.QueueResponse("2026-02-01T00:00:00Z\n", "", nil)                                                       // tagDate for resolved prev (v1.4.0+158404)
+	mr.QueueResponse(record("ccc3333333", "C", "c@x", "2026-03-01T00:00:00Z", "feat: commit c", ""), "", nil) // collectCommits
+	mr.QueueResponse("c@x\n", "", nil)                                                                        // authorsBefore
+
+	g := New(mr, &config.ContentDriver{}, ModeReleaseNotes, WithTagOrder(preReleaseFilterOrder))
+	out, err := g.Generate("v1.5.0", nil)
+	require.NoError(t, err)
+	assert.Contains(t, out, "Commit c")
+
+	require.Len(t, mr.Calls, 4)
+	assert.Equal(t, []string{"tag", "-l", "--sort=-version:refname"}, mr.Calls[0].Args,
+		"prev is resolved from the ordered list, not git describe")
+	assert.Equal(t, []string{"log", "-1", "--format=%cI", "v1.4.0+158404"}, mr.Calls[1].Args)
+	assert.Equal(t, []string{"log", "v1.4.0+158404..v1.5.0", "--reverse", "--format=" + logFormat}, mr.Calls[2].Args)
+}
+
+// TestGenerator_GenerateChangelog_TagOrder_OldestInScopeFallbackUsesOrderedUnscopedList is T334's
+// third behaviour: when the oldest-in-scope tag's true predecessor is resolved (T257's "regardless
+// of scope" fallback), a non-nil tagOrder replaces the unscoped `git describe` call with
+// previousInList against order(listTags(runner, "")) — the unscoped list, ordered/filtered the
+// same way as the scoped one.
+func TestGenerator_GenerateChangelog_TagOrder_OldestInScopeFallbackUsesOrderedUnscopedList(t *testing.T) {
+	mr := exectest.NewMockRunner()
+	mr.QueueResponse("prod/v1.4.0+158404\n", "", nil)                 // scopedTags: git tag -l prod/v*
+	mr.QueueResponse("", "", nil)                                     // new section: prod/v1.4.0+158404..HEAD (nothing new)
+	mr.QueueResponse("staging/v1.0.0\nprod/v1.4.0+158404\n", "", nil) // fallback: listTags(runner, "") — unscoped, no --match
+	mr.QueueResponse(record("ddd4444444", "D", "d@x", "2026-01-01T00:00:00Z", "feat: prod release", ""), "", nil)
+
+	g := New(mr, &config.ContentDriver{TagGlob: "prod/v*"}, ModeChangelog, WithTagOrder(preReleaseFilterOrder))
+	body, err := g.Generate("prod/v1.4.1", nil)
+	require.NoError(t, err)
+	assert.Contains(t, body, "Prod release")
+
+	require.Len(t, mr.Calls, 4)
+	assert.Equal(t, []string{"tag", "-l", "--sort=-version:refname"}, mr.Calls[2].Args,
+		"the fallback lists tags unscoped (no --match), never git describe, when an order is set")
+	assert.Equal(t, []string{"log", "staging/v1.0.0..prod/v1.4.0+158404", "--reverse", "--format=" + logFormat}, mr.Calls[3].Args,
+		"previousInList against the ordered unscoped list replaces git describe's topology")
+}
+
+// TestGenerator_ScopedPreviousTag_NoOrderSet_UsesGitDescribe guards T334's WithTagOrder against
+// changing default behaviour when no order is injected (nil tagOrder, today's git-describe path).
+func TestGenerator_ScopedPreviousTag_NoOrderSet_UsesGitDescribe(t *testing.T) {
+	mr := exectest.NewMockRunner()
+	mr.QueueResponse("v1.0.0\n", "", nil) // previousTag: git describe
+
+	g := New(mr, &config.ContentDriver{}, ModeReleaseNotes) // no WithTagOrder
+	prev, err := g.scopedPreviousTag("v1.1.0")
+	require.NoError(t, err)
+	assert.Equal(t, "v1.0.0", prev)
+	require.Len(t, mr.Calls, 1)
+	assert.Equal(t, []string{"describe", "--tags", "--abbrev=0", "v1.1.0^"}, mr.Calls[0].Args)
+}
+
 func TestGenerateChangelog_IncrementalWithCustomHeader(t *testing.T) {
 	// A custom header block does not break splicing: the anchor is emitted by the assembly layer,
 	// not the header, so the parser still finds section boundaries (ADR-0037 + ADR-0038).

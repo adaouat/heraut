@@ -129,6 +129,16 @@ each snippet and the file are parse-validated at config load.
 
 ### Changelog structure & incremental generation (ADR-0038)
 
+For `semver`/`semver-per-env`, the app layer injects a tag-ordering function (`native.
+WithTagOrder`, T334/ADR-0064) that resolves the newest-first release list, release-notes previous
+tag, and changelog rotation's own previous-tag lookup by SemVer §11 precedence rather than git's
+`version:refname` sort — so a pre-release tag (`v1.4.0-rc.1`) never gets a `CHANGELOG.md` section
+of its own and is never a range boundary; its commits fold into the next release's section
+instead, and a section/notes/rotation lookup never walks back to a pre-release `git describe`
+topology would otherwise pick. `calver`/`calver-per-env` get no order injected — their walk is
+still git's own `version:refname` order, unchanged. Per-env `TagGlob` and an explicit
+`tag_pattern` apply before this ordering, not instead of it.
+
 A `native`-managed `CHANGELOG.md` is a **preamble** (free-form content before the first section,
 e.g. the `# Changelog` title) followed by **anchored sections**, newest first. Each section is
 preceded by a structural HTML comment on its own line:

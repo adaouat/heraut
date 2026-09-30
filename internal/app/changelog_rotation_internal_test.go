@@ -32,7 +32,7 @@ func TestWrapWithRotation_NoTokens_Passthrough(t *testing.T) {
 	driver := &config.ContentDriver{Output: "CHANGELOG.md"}
 	cfg := &config.Config{Versioning: config.Versioning{Strategy: "semver"}}
 
-	got := wrapWithRotation(gen, nil, cfg, driver, "", false, false, nil, "")
+	got := wrapWithRotation(gen, nil, cfg, driver, "", false, false, nil, "", nil)
 
 	assert.Same(t, gen, got, "no rotation tokens must return the original generator unchanged")
 }
@@ -43,7 +43,7 @@ func TestWrapWithRotation_WithTokens_DelegatesCheckAndValidate(t *testing.T) {
 	driver := &config.ContentDriver{Output: "CHANGELOG_{YYYY}.md"}
 	cfg := &config.Config{Versioning: config.Versioning{Strategy: "calver", Format: "YYYY.MM.PATCH"}}
 
-	got := wrapWithRotation(gen, nil, cfg, driver, "", false, false, nil, "")
+	got := wrapWithRotation(gen, nil, cfg, driver, "", false, false, nil, "", nil)
 
 	assert.NotSame(t, gen, got, "tokens present must wrap, not pass through")
 	assert.ErrorIs(t, got.Check(), wantErr)
@@ -195,8 +195,8 @@ func TestRotatingGenerator_Generate_WritesConcreteFile(t *testing.T) {
 	driver := &config.ContentDriver{Output: filepath.Join(dir, "CHANGELOG_{YYYY}.md")}
 	cfg := &config.Config{Versioning: config.Versioning{Strategy: "calver", Format: "YYYY.MM.PATCH"}}
 
-	gen := buildGenerator(mr, driver, native.ModeChangelog, "", false, false, nil, "")
-	wrapped := wrapWithRotation(gen, mr, cfg, driver, "", false, false, nil, "")
+	gen := buildGenerator(mr, driver, native.ModeChangelog, "", false, false, nil, "", nil)
+	wrapped := wrapWithRotation(gen, mr, cfg, driver, "", false, false, nil, "", nil)
 
 	body, err := wrapped.Generate("2026.05.0", nil)
 	require.NoError(t, err)
@@ -213,4 +213,41 @@ func TestRotatingGenerator_Generate_WritesConcreteFile(t *testing.T) {
 
 	_, statErr := os.Stat(filepath.Join(dir, "CHANGELOG_{YYYY}.md"))
 	assert.True(t, os.IsNotExist(statErr), "the literal, unsubstituted pattern must never be written to disk")
+}
+
+// TestLatestMatchingTag_Semver_OrderPicksReleaseOverPreRelease is T334: with an order func applying
+// (strategy semver), latestMatchingTag must return the highest-precedence release
+// (v1.4.0+158404), not whatever git's version:refname sort puts first (v1.4.0-rc.1, since ASCII
+// '+' < '-').
+func TestLatestMatchingTag_Semver_OrderPicksReleaseOverPreRelease(t *testing.T) {
+	mr := exectest.NewMockRunner()
+	mr.QueueResponse("v1.4.0-rc.1\nv1.4.0+158404\nv1.3.0\n", "", nil)
+	cfg := &config.Config{Versioning: config.Versioning{Strategy: "semver"}}
+
+	got, err := latestMatchingTag(mr, "v", tagOrderFor(cfg, ""))
+	require.NoError(t, err)
+	assert.Equal(t, "v1.4.0+158404", got)
+}
+
+// TestLatestMatchingTag_Calver_NoOrder_FirstLine guards today's behaviour: with no order func
+// (calver), latestMatchingTag still trusts git's own sort and returns its first line.
+func TestLatestMatchingTag_Calver_NoOrder_FirstLine(t *testing.T) {
+	mr := exectest.NewMockRunner()
+	mr.QueueResponse("2026.02.0\n2026.01.0\n", "", nil)
+
+	got, err := latestMatchingTag(mr, "", nil)
+	require.NoError(t, err)
+	assert.Equal(t, "2026.02.0", got)
+}
+
+// TestLatestMatchingTag_Order_NoMatches covers the empty-list edge case through an order func
+// (as opposed to the pre-existing no-tags-at-all coverage in resolveDriver's own tests).
+func TestLatestMatchingTag_Order_NoMatches(t *testing.T) {
+	mr := exectest.NewMockRunner()
+	mr.QueueResponse("v1.0.0-rc.1\n", "", nil) // the only tag is a pre-release — order() drops it
+	cfg := &config.Config{Versioning: config.Versioning{Strategy: "semver"}}
+
+	got, err := latestMatchingTag(mr, "v", tagOrderFor(cfg, ""))
+	require.NoError(t, err)
+	assert.Empty(t, got)
 }

@@ -32,6 +32,10 @@ type rotatingGenerator struct {
 	enrichForge         port.Forge
 	degradedReason      string
 	tokens              []string // {TOKEN} names found in driver.Output, e.g. ["YYYY"]
+	// tagOrder bounds the wrapped generator and latestMatchingTag's own previous-tag resolution by
+	// SemVer §11 precedence (T334, ADR-0064); nil (calver, the only strategy rotation supports
+	// besides plain semver) keeps today's git-order behaviour.
+	tagOrder func([]string) []string
 
 	lastOutputPath string
 }
@@ -48,6 +52,7 @@ func wrapWithRotation(
 	regenerateChangelog, force bool,
 	enrichForge port.Forge,
 	degradedReason string,
+	tagOrder func([]string) []string,
 ) port.Generator {
 	tokens := config.ExtractRotationTokens(driver.Output)
 	if len(tokens) == 0 {
@@ -64,6 +69,7 @@ func wrapWithRotation(
 		enrichForge:         enrichForge,
 		degradedReason:      degradedReason,
 		tokens:              tokens,
+		tagOrder:            tagOrder,
 	}
 }
 
@@ -81,7 +87,7 @@ func (r *rotatingGenerator) Generate(tag string, lc *port.LinkContext) (string, 
 		return "", fmt.Errorf("resolving rotated changelog output for %q: %w", tag, err)
 	}
 	r.lastOutputPath = concrete.Output
-	gen := buildGenerator(r.runner, concrete, native.ModeChangelog, r.herautVersion, r.regenerateChangelog, r.force, r.enrichForge, r.degradedReason)
+	gen := buildGenerator(r.runner, concrete, native.ModeChangelog, r.herautVersion, r.regenerateChangelog, r.force, r.enrichForge, r.degradedReason, r.tagOrder)
 	return gen.Generate(tag, lc)
 }
 
@@ -110,7 +116,7 @@ func (r *rotatingGenerator) resolveDriver(tag string) (*config.ContentDriver, er
 		return nil, err
 	}
 
-	truePrev, err := latestMatchingTag(r.runner, prefix)
+	truePrev, err := latestMatchingTag(r.runner, prefix, r.tagOrder)
 	if err != nil {
 		return nil, err
 	}
@@ -125,22 +131,30 @@ func (r *rotatingGenerator) resolveDriver(tag string) (*config.ContentDriver, er
 }
 
 // latestMatchingTag returns the most recent tag matching prefix (unscoped by any rotation
-// bucket) by git's `version:refname` order, or "" when none exist. It replicates the
-// calver/semver resolvers' own `git tag -l` invocation (resolveDriver needs the same raw tag
-// listing independently: it runs after resolution, from a wrapped generator that has no access
-// to the resolver's internal state) — but not their selection logic. The SemVer resolver orders
-// candidates by SemVer §11 precedence in Go (ADR-0064); this function still trusts git's sort
-// outright, so it can still be misled the same way git's order can (T334 in the SemVer v2
-// roadmap).
-func latestMatchingTag(runner port.Runner, prefix string) (string, error) {
+// bucket), or "" when none exist. It replicates the calver/semver resolvers' own `git tag -l`
+// invocation (resolveDriver needs the same raw tag listing independently: it runs after
+// resolution, from a wrapped generator that has no access to the resolver's internal state).
+// With tagOrder set (T334, ADR-0064 — rotation's only SemVer strategy is plain "semver"), it
+// returns tagOrder(list)'s first entry — the highest-precedence release, dropping pre-releases —
+// instead of trusting git's version:refname sort, which can be misled the same way it misleads
+// the unordered generator walk (a pre-release tag can sort above its own release). nil (calver)
+// keeps today's behaviour: git's own first line.
+func latestMatchingTag(runner port.Runner, prefix string, tagOrder func([]string) []string) (string, error) {
 	stdout, _, err := runner.Run("git", "tag", "-l", prefix+"*", "--sort=-version:refname")
 	if err != nil {
 		return "", fmt.Errorf("listing git tags: %w", err)
 	}
+	var tags []string
 	for line := range strings.SplitSeq(stdout, "\n") {
 		if line = strings.TrimSpace(line); line != "" {
-			return line, nil
+			tags = append(tags, line)
 		}
+	}
+	if tagOrder != nil {
+		tags = tagOrder(tags)
+	}
+	if len(tags) > 0 {
+		return tags[0], nil
 	}
 	return "", nil
 }

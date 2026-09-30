@@ -53,8 +53,8 @@ func TestChangelogRotation_RealRepo_PeriodBoundary(t *testing.T) {
 	runner := execadapter.New(false, false)
 
 	build := func() *rotatingGenerator {
-		gen := buildGenerator(runner, driver, native.ModeChangelog, "", false, false, nil, "")
-		wrapped := wrapWithRotation(gen, runner, cfg, driver, "", false, false, nil, "")
+		gen := buildGenerator(runner, driver, native.ModeChangelog, "", false, false, nil, "", nil)
+		wrapped := wrapWithRotation(gen, runner, cfg, driver, "", false, false, nil, "", nil)
 		rg, ok := wrapped.(*rotatingGenerator)
 		require.True(t, ok, "driver.Output has rotation tokens, wrapWithRotation must wrap")
 		return rg

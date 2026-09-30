@@ -292,8 +292,9 @@ func buildReleasePipelineConfig(runner, readRunner port.Runner, cfg *config.Conf
 	// Changelog generator
 	if effectiveChangelog != nil {
 		driver := withEnvDerivations(effectiveChangelog, cfg, env)
-		gen := buildGenerator(runner, driver, native.ModeChangelog, herautVersion, regenerateChangelog, force, enrichForge, "")
-		pCfg.Changelog = wrapWithRotation(gen, runner, cfg, driver, herautVersion, regenerateChangelog, force, enrichForge, "")
+		order := tagOrderFor(cfg, env)
+		gen := buildGenerator(runner, driver, native.ModeChangelog, herautVersion, regenerateChangelog, force, enrichForge, "", order)
+		pCfg.Changelog = wrapWithRotation(gen, runner, cfg, driver, herautVersion, regenerateChangelog, force, enrichForge, "", order)
 		pCfg.ChangelogFile = effectiveChangelog.Output
 		pCfg.ForgeIdentity = forgeID
 	}
@@ -301,7 +302,7 @@ func buildReleasePipelineConfig(runner, readRunner port.Runner, cfg *config.Conf
 	// Release notes generator
 	if effectiveNotes != nil {
 		driver := withEnvDerivations(effectiveNotes, cfg, env)
-		gen := buildGenerator(runner, driver, native.ModeReleaseNotes, herautVersion, regenerateChangelog, force, enrichForge, "")
+		gen := buildGenerator(runner, driver, native.ModeReleaseNotes, herautVersion, regenerateChangelog, force, enrichForge, "", tagOrderFor(cfg, env))
 		pCfg.Notes = gen
 	}
 
@@ -445,8 +446,9 @@ func buildChangelogPipelineConfig(runner, readRunner port.Runner, cfg *config.Co
 			return nil, err
 		}
 		driver := withEnvDerivations(effectiveChangelog, cfg, opts.Env)
-		gen := buildGenerator(runner, driver, native.ModeChangelog, opts.HerautVersion, opts.RegenerateChangelog, opts.Force, enrichForge, degradedReason)
-		cCfg.Changelog = wrapWithRotation(gen, runner, cfg, driver, opts.HerautVersion, opts.RegenerateChangelog, opts.Force, enrichForge, degradedReason)
+		order := tagOrderFor(cfg, opts.Env)
+		gen := buildGenerator(runner, driver, native.ModeChangelog, opts.HerautVersion, opts.RegenerateChangelog, opts.Force, enrichForge, degradedReason, order)
+		cCfg.Changelog = wrapWithRotation(gen, runner, cfg, driver, opts.HerautVersion, opts.RegenerateChangelog, opts.Force, enrichForge, degradedReason, order)
 		cCfg.ChangelogFile = effectiveChangelog.Output
 		cCfg.ForgeIdentity = forgeID
 	}
@@ -594,7 +596,10 @@ func effectiveExcludes(cfg *config.Config, driver *config.ContentDriver) []confi
 	return excludes
 }
 
-func buildGenerator(runner port.Runner, driver *config.ContentDriver, defaultMode native.Mode, herautVersion string, regenerateChangelog, force bool, enrichForge port.Forge, degradedReason string) port.Generator {
+// buildGenerator constructs the native generator. tagOrder (T334, ADR-0064 — from tagOrderFor)
+// bounds the changelog/notes tag walk by SemVer §11 precedence instead of git's version:refname
+// order; nil (calver/calver-per-env) keeps today's behaviour unchanged.
+func buildGenerator(runner port.Runner, driver *config.ContentDriver, defaultMode native.Mode, herautVersion string, regenerateChangelog, force bool, enrichForge port.Forge, degradedReason string, tagOrder func([]string) []string) port.Generator {
 	// Copy so setting the running version never mutates the shared config.
 	nativeDriver := *driver
 	nativeDriver.HerautVersion = herautVersion
@@ -606,6 +611,9 @@ func buildGenerator(runner port.Runner, driver *config.ContentDriver, defaultMod
 	}
 	if degradedReason != "" {
 		opts = append(opts, native.WithDegraded(degradedReason))
+	}
+	if tagOrder != nil {
+		opts = append(opts, native.WithTagOrder(tagOrder))
 	}
 	return native.New(runner, &nativeDriver, defaultMode, opts...)
 }

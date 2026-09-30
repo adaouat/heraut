@@ -34,7 +34,7 @@ pre-release lifecycle (`--pre-release <label>`) for the plain `semver` strategy.
 | T331 | Escape `+` in tag names inside generated URLs | Done |
 | T332 | Manual smoke test: gh/glab with a `+` tag | Not started |
 | T333 | Validate `--set-build-id` against SemVer build-identifier grammar | Not started |
-| T334 | Changelog, rotation and compare links bound by SemVer precedence | Not started |
+| T334 | Changelog, rotation and compare links bound by SemVer precedence | Done |
 | —    | Phase 2 (pre-release lifecycle) — planned after Phase 1 lands | Not planned |
 
 ## Phase 1 — Compliance
@@ -47,10 +47,11 @@ since strict SemVer parsing rejects CalVer's leading zeros; and a tag carrying o
 build metadata (`v1.4.0+158404`, no pre-release identifiers) counts as a release, per
 §11 (build metadata does not affect precedence). T331 (escaping `+` in tag names inside
 generated URLs) was added mid-phase, outside the original T324–T330 sequence, once the
-build-metadata work in T328/T329 made `+`-bearing tags routine. T332 (manual `gh`/`glab`
-smoke test with a `+` tag), T333 (validating `--set-build-id` against the SemVer
-build-identifier grammar), and T334 (binding changelog section bounds, rotation, and compare
-links to SemVer precedence instead of git's tag order) remain open follow-ups, tracked below.
+build-metadata work in T328/T329 made `+`-bearing tags routine. T334 (binding changelog section
+bounds, rotation, and compare links to SemVer precedence instead of git's tag order) has since
+closed too, tracked in its own entry below. T332 (manual `gh`/`glab` smoke test with a `+` tag)
+and T333 (validating `--set-build-id` against the SemVer build-identifier grammar) remain open
+follow-ups, tracked below.
 
 ### [x] T324 — Roadmap, Phase 59 pointer, ADR-0064
 
@@ -201,17 +202,41 @@ dot-separated `[0-9A-Za-z-]+` identifiers; `tagfmt.ValidateBuildID` only rejects
 whitespace today; tightening it would reject IDs currently accepted (e.g. with "_"), so it needs
 its own decision.
 
-### [ ] T334 — Changelog, rotation and compare links bound by SemVer precedence
+### [x] T334 — Changelog, rotation and compare links bound by SemVer precedence
 
-The resolver, E002 and `version current` choose tags by §11, but
-`internal/generators/native/commits.go` `listTags` + `generator.go` section bounds and
-`internal/app/changelog_rotation.go` `latestMatchingTag` still walk git's `version:refname` order,
-which puts `v1.4.0-rc.1` above `v1.4.0+158404` (ASCII '+' < '-'). Reproduced: with those two tags
-and a new commit, the incremental changelog section re-lists commits already in `1.4.0+158404`.
-Fix direction (generators may not import versioning): the app layer passes the bound — for SemVer
-strategies set `PreviousTagOverride = result.CurrentTag`, and hand the historical walk a
-§11-sorted tag list. **Prerequisite for Phase 2** (its "final notes span back to the last final"
-rule depends on it).
+Added `native.WithTagOrder(order func(tags []string) []string) Option`: `order` receives the
+already TagGlob/TagPattern-scoped tag list and returns the tags to walk, newest-first, and may
+drop tags — nil (the default) keeps today's behaviour unchanged. `scopedTags` applies it last
+(after glob/pattern filtering, driving the historical walk, `newSectionBound`, and compare links);
+`scopedPreviousTag` resolves via `previousInList` against that same ordered list instead of `git
+describe` whenever an order is set; and `buildAllSections`'s oldest-in-scope fallback (T257's
+"regardless of scope" resolution) swaps its unscoped `git describe` call for `previousInList`
+against `order(listTags(runner, ""))`. `internal/app`'s new `tagOrderFor(cfg, env)` (next to
+`semverExtractor` in `current.go`) builds the order for `semver`/`semver-per-env` —
+`semver.SortTags` plus a pre-release drop — and returns `nil` for `calver`/`calver-per-env`, so
+their output stays byte-for-byte unchanged (no order ever injected). `buildGenerator` gained a
+`tagOrder` parameter threaded through all three `internal/app/pipeline.go` call sites (changelog,
+release notes, and the changelog-only pipeline) plus `wrapWithRotation`/`rotatingGenerator`
+(`changelog_rotation.go`); `latestMatchingTag` gained the same parameter and returns
+`tagOrder(list)`'s first entry when set (semver) instead of trusting git's sort (calver
+unaffected). Compare links needed no separate change — they already render from whatever
+`prev`/`version` the caller resolves, so fixing `scopedTags`/`scopedPreviousTag` fixes them too.
+A pre-release tag therefore gets no `CHANGELOG.md` section of its own and is never a range
+boundary under a SemVer strategy (ADR-0064) — its commits fold into the next release's section.
+Deviated from the roadmap's original fix sketch (`PreviousTagOverride = result.CurrentTag`):
+that shape only bounds the *newest* section, not the historical walk or the oldest-in-scope
+fallback, so `WithTagOrder` (an injected list-transform, matching the brief) covers all three
+call sites uniformly instead. TDD: a real-git regression test
+(`internal/app/tagorder_realrepo_internal_test.go`) reproduces the roadmap's own "Review Focus"
+1 and 2 scenarios verbatim (a repo with `v1.3.0`, `v1.4.0-rc.1`, `v1.4.0+158404` and a new commit;
+then a final `v1.5.0` cut after `v1.5.0-rc.1`), plus unit/contract coverage in
+`internal/generators/native/generator_internal_test.go` (`WithTagOrder` filtering/reordering, the
+no-`git-describe` release-notes path, the oldest-in-scope fallback, and a guard that no order set
+reproduces today's exact call sequence) and `internal/app/current_internal_test.go`
+(`tagOrderFor` for semver/semver-per-env/calver/calver-per-env) and
+`internal/app/changelog_rotation_internal_test.go` (`latestMatchingTag`). Every pre-existing
+calver and native test row passed unmodified — no existing row relied on git's tag order
+diverging from §11 order. No deferred items.
 
 ## Phase 2 — Pre-release lifecycle
 
