@@ -189,7 +189,8 @@ func resolvePromote(runner port.Runner, cfg *config.Config, env string, force bo
 		return versioning.Result{}, fmt.Errorf("listing destination tags: %w", err)
 	}
 
-	currentDestTag, latestDestVersion, destComparable := latestTag(cfg.Versioning.Strategy, destTF, splitLines(stdout))
+	destRawTags := splitLines(stdout)
+	currentDestTag, latestDestVersion, destComparable := latestTag(cfg.Versioning.Strategy, destTF, destRawTags)
 	if destComparable && compareVersions(cfg.Versioning.Strategy, latestDestVersion, candidateVersion) > 0 && !force {
 		suggested, renderErr := tagfmt.Render(srcTF, tagfmt.Tokens{Env: srcEnv, Version: latestDestVersion})
 		if renderErr != nil {
@@ -210,10 +211,23 @@ func resolvePromote(runner port.Runner, cfg *config.Config, env string, force bo
 		}
 	}
 
+	// Result.CurrentTag feeds the promote hook's previous_tag: it must be the highest RELEASE
+	// tag, not the highest tag of any kind used above for the E002 comparison — a pre-release
+	// ahead of the candidate must still fail E002, but must never be reported as the "current"
+	// tag being promoted from (ADR-0064). Falls back to currentDestTag (today's behaviour) when
+	// no destination tag parses as a release. calver-per-env has no pre-release concept, so its
+	// branch is left byte-for-byte unchanged.
+	reportedDestTag := currentDestTag
+	if cfg.Versioning.Strategy == semverPerEnv {
+		if destReleases, _ := releaseTags(cfg.Versioning.Strategy, destTF, destRawTags); len(destReleases) > 0 {
+			reportedDestTag = destReleases[0]
+		}
+	}
+
 	return versioning.Result{
 		Version:    candidateVersion,
 		Tag:        candidateTag,
-		CurrentTag: currentDestTag,
+		CurrentTag: reportedDestTag,
 	}, nil
 }
 

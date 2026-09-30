@@ -24,9 +24,9 @@ func resolveAuto(runner port.Runner, cfg *config.Config, env string, calc Versio
 	}
 
 	tags, bareVersions := releaseTags(cfg.Versioning.Strategy, tf, splitLines(stdout))
-	var latestTag string
+	var currentTag string
 	if len(tags) > 0 {
-		latestTag = tags[0]
+		currentTag = tags[0]
 	}
 
 	var nextVersion string
@@ -38,8 +38,8 @@ func resolveAuto(runner port.Runner, cfg *config.Config, env string, calc Versio
 	} else {
 		// semver-per-env: fetch commits since the latest tag (skip if no tags yet).
 		var commits []string
-		if latestTag != "" {
-			commits, err = fetchCommitsSince(runner, latestTag)
+		if currentTag != "" {
+			commits, err = fetchCommitsSince(runner, currentTag)
 			if err != nil {
 				return versioning.Result{}, err
 			}
@@ -58,7 +58,7 @@ func resolveAuto(runner port.Runner, cfg *config.Config, env string, calc Versio
 	return versioning.Result{
 		Version:    nextVersion,
 		Tag:        newTag,
-		CurrentTag: latestTag,
+		CurrentTag: currentTag,
 	}, nil
 }
 

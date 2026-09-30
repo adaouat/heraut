@@ -870,6 +870,42 @@ func TestResolve_Promote_Semver_E002_MisorderedDestination(t *testing.T) {
 	assert.True(t, errors.Is(err, perenv.ErrDestinationAhead), "got %v", err)
 }
 
+// FIX-3: E002 must still compare against the highest tag of any kind (a pre-release ahead of the
+// candidate is still a regression), but the reported Result.CurrentTag — which feeds the promote
+// hook's previous_tag — must be the highest RELEASE tag, never a pre-release.
+func TestResolve_Promote_Semver_E002_SeesPreRelease(t *testing.T) {
+	mr := exectest.NewMockRunner()
+	mr.QueueResponse("dev/1.2.5\n", "", nil)
+	mr.QueueResponse("", "", nil)
+	mr.QueueResponse("prod/1.3.0-rc.1\nprod/1.2.0\n", "", nil)
+
+	_, err := perenv.New(mr, semverPerEnvCfg(), "prod", false, semverCalc("0.1.0")).Resolve()
+	require.Error(t, err)
+	assert.True(t, errors.Is(err, perenv.ErrDestinationAhead), "E002 must still see the pre-release: got %v", err)
+}
+
+func TestResolve_Promote_Semver_CurrentTag_ReleaseOnly_ForceBypassesPreRelease(t *testing.T) {
+	mr := exectest.NewMockRunner()
+	mr.QueueResponse("dev/1.2.5\n", "", nil)
+	mr.QueueResponse("", "", nil)
+	mr.QueueResponse("prod/1.3.0-rc.1\nprod/1.2.0\n", "", nil)
+
+	result, err := perenv.New(mr, semverPerEnvCfg(), "prod", true, semverCalc("0.1.0")).Resolve()
+	require.NoError(t, err)
+	assert.Equal(t, "prod/1.2.0", result.CurrentTag, "CurrentTag must be the highest release tag, not the pre-release")
+}
+
+func TestResolve_Promote_Semver_CurrentTag_ReleaseAlreadyHighest(t *testing.T) {
+	mr := exectest.NewMockRunner()
+	mr.QueueResponse("dev/1.2.5\n", "", nil)
+	mr.QueueResponse("", "", nil)
+	mr.QueueResponse("prod/1.2.0\nprod/1.1.0-rc.1\n", "", nil)
+
+	result, err := perenv.New(mr, semverPerEnvCfg(), "prod", false, semverCalc("0.1.0")).Resolve()
+	require.NoError(t, err)
+	assert.Equal(t, "prod/1.2.0", result.CurrentTag)
+}
+
 // calver-per-env shares this package; its zero-padded versions are not valid SemVer and must keep
 // resolving exactly as before.
 func TestResolve_Auto_Calver_ZeroPaddedUnaffected(t *testing.T) {
