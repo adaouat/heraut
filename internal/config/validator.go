@@ -797,8 +797,10 @@ func tagFormatMissingVersion(s string) bool {
 }
 
 // buildTokenMisplaced reports whether a tag_format uses {build} anywhere other than directly
-// after "+" — the only placement that makes it SemVer build metadata (§10) rather than a
-// pre-release identifier (ADR-0064). Shared with ValidateTagFormatForWizard.
+// after a single "+" — the only placement that makes it SemVer build metadata (§10) rather than a
+// pre-release identifier (ADR-0064). "++{build}" is also misplaced: SemVer build metadata has no
+// empty identifiers, so "{version}++{build}" would render an invalid version. Shared with
+// ValidateTagFormatForWizard.
 func buildTokenMisplaced(s string) bool {
 	const token = "{build}"
 	for i := 0; ; {
@@ -807,7 +809,7 @@ func buildTokenMisplaced(s string) bool {
 			return false
 		}
 		pos := i + j
-		if pos == 0 || s[pos-1] != '+' {
+		if pos == 0 || s[pos-1] != '+' || (pos >= 2 && s[pos-2] == '+') {
 			return true
 		}
 		i = pos + len(token)

@@ -1786,6 +1786,7 @@ func TestValidateTagFormatForWizard(t *testing.T) {
 		{"missing version", "{env}", "{version}"},
 		{"build after plus", "{env}/{version}+{build}", ""},
 		{"build after hyphen", "{env}/{version}-{build}", `must directly follow "+"`},
+		{"build after double plus", "{env}/{version}++{build}", `must directly follow "+"`},
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
@@ -1830,6 +1831,11 @@ func TestValidate_BuildTokenPlacement(t *testing.T) {
 		{
 			name:     "second occurrence misplaced",
 			cfg:      perEnvCfgWithFormats("{env}/{version}+{build}.{build}", ""),
+			wantPath: "versioning.tag_format",
+		},
+		{
+			name:     "double plus",
+			cfg:      perEnvCfgWithFormats("{env}/{version}++{build}", ""),
 			wantPath: "versioning.tag_format",
 		},
 		{
