@@ -125,10 +125,13 @@ func (r *rotatingGenerator) resolveDriver(tag string) (*config.ContentDriver, er
 }
 
 // latestMatchingTag returns the most recent tag matching prefix (unscoped by any rotation
-// bucket), or "" when none exist. Mirrors the calver/semver resolvers' own git tag -l invocation
-// (they need the same "what's the true previous release" answer for their own bump/period-key
-// computation), but resolveDriver needs it independently: it runs after resolution, from a
-// wrapped generator that has no access to the resolver's internal state.
+// bucket) by git's `version:refname` order, or "" when none exist. It replicates the
+// calver/semver resolvers' own `git tag -l` invocation (resolveDriver needs the same raw tag
+// listing independently: it runs after resolution, from a wrapped generator that has no access
+// to the resolver's internal state) — but not their selection logic. The SemVer resolver orders
+// candidates by SemVer §11 precedence in Go (ADR-0064); this function still trusts git's sort
+// outright, so it can still be misled the same way git's order can (T334 in the SemVer v2
+// roadmap).
 func latestMatchingTag(runner port.Runner, prefix string) (string, error) {
 	stdout, _, err := runner.Run("git", "tag", "-l", prefix+"*", "--sort=-version:refname")
 	if err != nil {

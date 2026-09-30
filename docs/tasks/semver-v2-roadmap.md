@@ -34,6 +34,7 @@ pre-release lifecycle (`--pre-release <label>`) for the plain `semver` strategy.
 | T331 | Escape `+` in tag names inside generated URLs | Done |
 | T332 | Manual smoke test: gh/glab with a `+` tag | Not started |
 | T333 | Validate `--set-build-id` against SemVer build-identifier grammar | Not started |
+| T334 | Changelog, rotation and compare links bound by SemVer precedence | Not started |
 | —    | Phase 2 (pre-release lifecycle) — planned after Phase 1 lands | Not planned |
 
 ## Phase 1 — Compliance
@@ -47,8 +48,9 @@ build metadata (`v1.4.0+158404`, no pre-release identifiers) counts as a release
 §11 (build metadata does not affect precedence). T331 (escaping `+` in tag names inside
 generated URLs) was added mid-phase, outside the original T324–T330 sequence, once the
 build-metadata work in T328/T329 made `+`-bearing tags routine. T332 (manual `gh`/`glab`
-smoke test with a `+` tag) and T333 (validating `--set-build-id` against the SemVer
-build-identifier grammar) remain open follow-ups, tracked below.
+smoke test with a `+` tag), T333 (validating `--set-build-id` against the SemVer
+build-identifier grammar), and T334 (binding changelog section bounds, rotation, and compare
+links to SemVer precedence instead of git's tag order) remain open follow-ups, tracked below.
 
 ### [x] T324 — Roadmap, Phase 59 pointer, ADR-0064
 
@@ -143,6 +145,12 @@ verbatim. `TestNewResolver_BuildID_NoTagFormat` moved from `semverCfg()` to `cal
 not deleted) since CalVer still has no build-metadata fallback and the "tag_format" error path
 still needs coverage. No deferred items.
 
+**Follow-up (whole-branch review, FIX-1):** this task's original implementation composed
+`<prefix><version>+<id>` without validating that the result actually parses as SemVer, so
+`--set-version 1.4.0 --set-build-id build_1` and `--set-version 1.4 --set-build-id 5` both
+produced tags heraut's own resolver could never read back. Fixed by running `semver.Parse` on
+`<version>+<id>` before constructing the tag and rejecting with a wrapped error on failure.
+
 ### [x] T330 — `version current`: latest final by default, `--include-pre-release`
 
 Fixed the pre-existing `${version}` typo in `TestCurrentTag_SemverPerEnv`'s `TagFormat`
@@ -192,6 +200,18 @@ Since `{build}` always follows `+` (ADR-0064), the ID is SemVer build metadata a
 dot-separated `[0-9A-Za-z-]+` identifiers; `tagfmt.ValidateBuildID` only rejects "/" and
 whitespace today; tightening it would reject IDs currently accepted (e.g. with "_"), so it needs
 its own decision.
+
+### [ ] T334 — Changelog, rotation and compare links bound by SemVer precedence
+
+The resolver, E002 and `version current` choose tags by §11, but
+`internal/generators/native/commits.go` `listTags` + `generator.go` section bounds and
+`internal/app/changelog_rotation.go` `latestMatchingTag` still walk git's `version:refname` order,
+which puts `v1.4.0-rc.1` above `v1.4.0+158404` (ASCII '+' < '-'). Reproduced: with those two tags
+and a new commit, the incremental changelog section re-lists commits already in `1.4.0+158404`.
+Fix direction (generators may not import versioning): the app layer passes the bound — for SemVer
+strategies set `PreviousTagOverride = result.CurrentTag`, and hand the historical walk a
+§11-sorted tag list. **Prerequisite for Phase 2** (its "final notes span back to the last final"
+rule depends on it).
 
 ## Phase 2 — Pre-release lifecycle
 

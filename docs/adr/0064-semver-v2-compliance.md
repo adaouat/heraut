@@ -45,7 +45,11 @@ ones, alphanumeric identifiers compare in ASCII order, a longer identifier list 
 shared prefix is equal, and a pre-release always sorts below its final. Tag listing keeps git's
 `--sort` flag in the invocation (it is harmless and remains a reasonable pre-filter), but the
 order heraut actually acts on is decided by `Compare` in Go, not by git's `version:refname`
-comparator — the `versionsort.suffix` caveat in Spec 04 § Pre-release tags goes away entirely.
+comparator, for version resolution, the E002 check, and `version current` — the
+`versionsort.suffix` caveat in Spec 04 § Pre-release tags goes away entirely for those three
+surfaces. Changelog section bounds, compare links, and changelog rotation are not part of this
+Phase 1 decision and still walk tags in git's order; see the SemVer v2 roadmap's follow-up task
+for closing that gap.
 `calver` and `calver-per-env` keep their own lenient dotted-integer path
 (`compareVersionStrings`) unchanged: a CalVer version like `2026.05.0` carries leading zeros,
 which strict SemVer parsing rejects outright, so CalVer is deliberately never routed through the

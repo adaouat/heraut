@@ -148,12 +148,17 @@ Tags are sorted by SemVer order, not lexicographically — `v1.10.0` is newer th
 ### Pre-release tags
 
 heraut parses tags strictly per SemVer 2.0.0 and orders them by SemVer §11 precedence in Go — it
-does not depend on git's `version:refname` sort or on `versionsort.suffix` (ADR-0064). When
-resolving the next version, the current tag is the highest-precedence **release**: pre-release
-tags (`v1.3.0-rc.1`) are never the bump base, and a tag carrying only build metadata
-(`v1.4.0+158404`) counts as the release of its core (`1.4.0`). Tags that are not valid SemVer
-(`v1.02.0`, `v1.2.3.4`) are ignored. If no tag qualifies, heraut behaves as if no tags exist and
-returns `initial_version`.
+does not depend on git's `version:refname` sort or on `versionsort.suffix` (ADR-0064) **for
+version resolution, the E002 regression check, and `version current`**. Changelog section
+bounds, compare links, and changelog rotation still walk tags in git's `version:refname` order
+(planned for a future task — see the SemVer v2 roadmap), so those three surfaces can still be
+misled by git's ordering until that lands. When resolving the next version, the current tag is
+the highest-precedence **release**: pre-release tags (`v1.3.0-rc.1`) are never the bump base, and
+a tag carrying only build metadata (`v1.4.0+158404`) counts as the release of its core (`1.4.0`).
+Tags that are not valid SemVer (`v1.02.0`, `v1.2.3.4`) are ignored. If no tag qualifies, heraut
+behaves as if no tags exist and returns `initial_version`. Tags of equal §11 precedence (e.g.
+`v1.4.0` and `v1.4.0+5`, which differ only in build metadata) keep git's listing order relative to
+each other, since `Compare` treats them as equal and the sort is stable.
 
 The same rules apply to `semver-per-env` (source and destination selection, and the E002
 comparison). `calver-per-env` keeps its dotted-integer handling — zero-padded CalVer versions are
