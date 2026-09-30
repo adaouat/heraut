@@ -30,13 +30,25 @@ pre-release lifecycle (`--pre-release <label>`) for the plain `semver` strategy.
 | T327 | `semver-per-env` ordering + E002 via §11; calver-per-env unchanged (zero-padded CalVer is not SemVer) | Done |
 | T328 | `{build}` must directly follow `+` (validator, wizard, docs) | Done |
 | T329 | `--set-build-id` on plain `semver` (`v1.4.0+<id>`) | Done |
-| T330 | `version current`: latest final by default, `--include-pre-release` (+ `${version}` test-typo fix, own commit) | Not started |
+| T330 | `version current`: latest final by default, `--include-pre-release` (+ `${version}` test-typo fix, own commit) | Done |
 | T331 | Escape `+` in tag names inside generated URLs | Done |
 | T332 | Manual smoke test: gh/glab with a `+` tag | Not started |
 | T333 | Validate `--set-build-id` against SemVer build-identifier grammar | Not started |
 | —    | Phase 2 (pre-release lifecycle) — planned after Phase 1 lands | Not planned |
 
 ## Phase 1 — Compliance
+
+**Phase 1 closed** (T324–T330). Deviations from the design doc: `git tag`'s
+`--sort=-version:refname` flag is kept in every call as a harmless pre-sort, not the
+source of truth — §11 ordering is decided in Go by `semver.SortTags`/`Latest`;
+`IsBareVersion` is kept for `calver-per-env`'s zero-padded dotted-integer comparisons,
+since strict SemVer parsing rejects CalVer's leading zeros; and a tag carrying only
+build metadata (`v1.4.0+158404`, no pre-release identifiers) counts as a release, per
+§11 (build metadata does not affect precedence). T331 (escaping `+` in tag names inside
+generated URLs) was added mid-phase, outside the original T324–T330 sequence, once the
+build-metadata work in T328/T329 made `+`-bearing tags routine. T332 (manual `gh`/`glab`
+smoke test with a `+` tag) and T333 (validating `--set-build-id` against the SemVer
+build-identifier grammar) remain open follow-ups, tracked below.
 
 ### [x] T324 — Roadmap, Phase 59 pointer, ADR-0064
 
@@ -131,11 +143,24 @@ verbatim. `TestNewResolver_BuildID_NoTagFormat` moved from `semverCfg()` to `cal
 not deleted) since CalVer still has no build-metadata fallback and the "tag_format" error path
 still needs coverage. No deferred items.
 
-### [ ] T330 — `version current`: latest final by default, `--include-pre-release`
+### [x] T330 — `version current`: latest final by default, `--include-pre-release`
 
-- Test typo: an existing test (`TestCurrentTag_SemverPerEnv`) has a `${version}` typo that only
-  passed because `version current` never parsed tags. It gets fixed in its own `test:` commit,
-  before the feature commit.
+Fixed the pre-existing `${version}` typo in `TestCurrentTag_SemverPerEnv`'s `TagFormat`
+fixture (`prod/{version}`) in its own `test(app):` commit first — the row could never
+have parsed a tag, and only passed because `CurrentTag` returned git's first output line
+unparsed. `CurrentTag`/`CurrentVersion` both gained an `includePreRelease bool`
+parameter: for `semver`/`semver-per-env` the tag list is now run through
+`semver.SortTags`/`semver.Latest` (Task 2) using a `semverExtractor` that strips
+`tag_prefix` for plain semver or parses through the effective `tag_format` for
+semver-per-env; `calver`/`calver-per-env` fall through to the pre-existing
+first-line-of-git's-sort behaviour and ignore the flag entirely. When every candidate
+tag is a pre-release, the "no tags found" error now names `--include-pre-release` as the
+way to see them. `commit check --from-latest-tag` (`ResolveFromLatestTag` in
+`internal/app/commit_check.go`) passes `true` unconditionally, keeping its
+"latest tag of any kind" semantics now that "latest" is correctly §11-ordered instead of
+git's `version:refname` order. `heraut version current` gained
+`--include-pre-release`, wired straight through to whichever of `CurrentTag`/
+`CurrentVersion` `--bare` selects. No deferred items.
 
 ### [x] T331 — Escape `+` in tag names inside generated URLs
 

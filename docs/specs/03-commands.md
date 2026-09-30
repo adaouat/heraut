@@ -285,13 +285,16 @@ With `versioning.bump.stay_at_v0` set, a breaking change at `0.x` prints a hold-
 Print the latest released tag for the active strategy / environment.
 
 ```
-heraut version current [--env <name>] [--bare] [--force]
+heraut version current [--env <name>] [--bare] [--include-pre-release] [--force]
 ```
 
-For single-env strategies, prints the latest tag overall. For per-env strategies,
-prints the latest tag in the active environment's tag namespace (e.g. the latest
-`prod/*` tag when `--env prod`). The common top-level `tag_format` is honoured (no
-per-environment override required).
+For SemVer strategies (`semver`, `semver-per-env`), prints the highest-precedence
+**release** tag (SemVer §11, decided by heraut, not git's sort); pre-release tags are
+skipped. `--include-pre-release` prints the highest tag including pre-releases
+(`v1.4.0-rc.2`). CalVer strategies print the latest tag and ignore
+`--include-pre-release`. For per-env strategies, resolution is scoped to the active
+environment's tag namespace (e.g. the latest `prod/*` tag when `--env prod`). The common
+top-level `tag_format` is honoured (no per-environment override required).
 
 By default prints the **raw tag** (including any `{build}` suffix). `--bare` prints the
 bare semantic version instead: single-env strips the tag prefix; per-env parses the tag
@@ -302,7 +305,8 @@ Before resolving, runs the same semantic validation as `heraut check config`. A 
 error prints the same path/hint output and exits with the Config code (2) without
 attempting resolution.
 
-Exits non-zero if no tags exist.
+Exits non-zero if no qualifying tag exists; when only pre-release tags exist, the error
+suggests `--include-pre-release`.
 
 ## `heraut version sprint bump`
 

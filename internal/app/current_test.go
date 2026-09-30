@@ -20,7 +20,7 @@ func TestCurrentTag_Semver(t *testing.T) {
 	cfg := &config.Config{
 		Versioning: config.Versioning{Strategy: "semver", TagPrefix: strPtr("v")},
 	}
-	got, err := app.CurrentTag(mr, cfg, "")
+	got, err := app.CurrentTag(mr, cfg, "", false)
 	require.NoError(t, err)
 	assert.Equal(t, "v1.2.3", got)
 
@@ -36,7 +36,7 @@ func TestCurrentTag_Calver(t *testing.T) {
 	cfg := &config.Config{
 		Versioning: config.Versioning{Strategy: "calver", TagPrefix: &empty},
 	}
-	got, err := app.CurrentTag(mr, cfg, "")
+	got, err := app.CurrentTag(mr, cfg, "", false)
 	require.NoError(t, err)
 	assert.Equal(t, "2026.05.1", got)
 }
@@ -53,7 +53,7 @@ func TestCurrentTag_SemverPerEnv(t *testing.T) {
 			"prod": {TagFormat: "prod/{version}"},
 		},
 	}
-	got, err := app.CurrentTag(mr, cfg, "prod")
+	got, err := app.CurrentTag(mr, cfg, "prod", false)
 	require.NoError(t, err)
 	assert.Equal(t, "prod/1.2.3", got)
 
@@ -77,7 +77,7 @@ func TestCurrentTag_PerEnvCommonTagFormat(t *testing.T) {
 			"uat": {Bump: "auto"},
 		},
 	}
-	got, err := app.CurrentTag(mr, cfg, "uat")
+	got, err := app.CurrentTag(mr, cfg, "uat", false)
 	require.NoError(t, err)
 	assert.Equal(t, "uat/7.4.1+158404", got)
 	assert.Equal(t, "uat/*+*", mr.Calls[0].Args[2])
@@ -88,7 +88,7 @@ func TestCurrentTag_PerEnvMissingEnvArg(t *testing.T) {
 	cfg := &config.Config{
 		Versioning: config.Versioning{Strategy: "semver-per-env"},
 	}
-	_, err := app.CurrentTag(mr, cfg, "")
+	_, err := app.CurrentTag(mr, cfg, "", false)
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "--env")
 }
@@ -100,7 +100,7 @@ func TestCurrentTag_NoTags(t *testing.T) {
 	cfg := &config.Config{
 		Versioning: config.Versioning{Strategy: "semver", TagPrefix: strPtr("v")},
 	}
-	_, err := app.CurrentTag(mr, cfg, "")
+	_, err := app.CurrentTag(mr, cfg, "", false)
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "no tags")
 }
@@ -112,7 +112,7 @@ func TestCurrentTag_GitError(t *testing.T) {
 	cfg := &config.Config{
 		Versioning: config.Versioning{Strategy: "semver", TagPrefix: strPtr("v")},
 	}
-	_, err := app.CurrentTag(mr, cfg, "")
+	_, err := app.CurrentTag(mr, cfg, "", false)
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "listing git tags")
 }
@@ -122,7 +122,7 @@ func TestCurrentTag_UnknownStrategy(t *testing.T) {
 	cfg := &config.Config{
 		Versioning: config.Versioning{Strategy: "unknown"},
 	}
-	_, err := app.CurrentTag(mr, cfg, "")
+	_, err := app.CurrentTag(mr, cfg, "", false)
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "unknown")
 }
@@ -134,7 +134,7 @@ func TestCurrentVersion_SemverStripsPrefix(t *testing.T) {
 	cfg := &config.Config{
 		Versioning: config.Versioning{Strategy: "semver", TagPrefix: strPtr("v")},
 	}
-	got, err := app.CurrentVersion(mr, cfg, "")
+	got, err := app.CurrentVersion(mr, cfg, "", false)
 	require.NoError(t, err)
 	assert.Equal(t, "1.2.3", got)
 }
@@ -147,7 +147,7 @@ func TestCurrentVersion_SemverDefaultPrefix(t *testing.T) {
 	cfg := &config.Config{
 		Versioning: config.Versioning{Strategy: "semver"},
 	}
-	got, err := app.CurrentVersion(mr, cfg, "")
+	got, err := app.CurrentVersion(mr, cfg, "", false)
 	require.NoError(t, err)
 	assert.Equal(t, "9.0.0", got)
 }
@@ -159,7 +159,7 @@ func TestCurrentVersion_CalverStripsPrefix(t *testing.T) {
 	cfg := &config.Config{
 		Versioning: config.Versioning{Strategy: "calver", TagPrefix: strPtr("rel-")},
 	}
-	got, err := app.CurrentVersion(mr, cfg, "")
+	got, err := app.CurrentVersion(mr, cfg, "", false)
 	require.NoError(t, err)
 	assert.Equal(t, "2026.05.1", got)
 }
@@ -177,7 +177,7 @@ func TestCurrentVersion_PerEnvBuildFormat(t *testing.T) {
 			"main": {Bump: "auto"},
 		},
 	}
-	got, err := app.CurrentVersion(mr, cfg, "main")
+	got, err := app.CurrentVersion(mr, cfg, "main", false)
 	require.NoError(t, err)
 	assert.Equal(t, "7.4.1", got)
 }
@@ -189,7 +189,7 @@ func TestCurrentVersion_PropagatesCurrentTagError(t *testing.T) {
 	cfg := &config.Config{
 		Versioning: config.Versioning{Strategy: "semver", TagPrefix: strPtr("v")},
 	}
-	_, err := app.CurrentVersion(mr, cfg, "")
+	_, err := app.CurrentVersion(mr, cfg, "", false)
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "no tags")
 }
@@ -201,6 +201,81 @@ func TestCurrentVersion_UnknownStrategy(t *testing.T) {
 	cfg := &config.Config{
 		Versioning: config.Versioning{Strategy: "unknown"},
 	}
-	_, err := app.CurrentVersion(mr, cfg, "")
+	_, err := app.CurrentVersion(mr, cfg, "", false)
 	require.Error(t, err)
+}
+
+func TestCurrentTag_Semver_SkipsPreReleaseByDefault(t *testing.T) {
+	mr := exectest.NewMockRunner()
+	mr.QueueResponse("v1.4.0-rc.1\nv1.3.0\n", "", nil)
+	cfg := &config.Config{Versioning: config.Versioning{Strategy: "semver", TagPrefix: strPtr("v")}}
+
+	got, err := app.CurrentTag(mr, cfg, "", false)
+	require.NoError(t, err)
+	assert.Equal(t, "v1.3.0", got)
+}
+
+func TestCurrentTag_Semver_IncludePreRelease(t *testing.T) {
+	tests := []struct {
+		name, tags, want string
+	}{
+		{"pre-release above older final", "v1.4.0-rc.1\nv1.3.0\n", "v1.4.0-rc.1"},
+		{"final above its own pre-release", "v1.4.0-rc.1\nv1.4.0\n", "v1.4.0"},
+		{"numeric identifiers by value", "v1.4.0-rc.2\nv1.4.0-rc.10\n", "v1.4.0-rc.10"},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			mr := exectest.NewMockRunner()
+			mr.QueueResponse(tc.tags, "", nil)
+			cfg := &config.Config{Versioning: config.Versioning{Strategy: "semver", TagPrefix: strPtr("v")}}
+
+			got, err := app.CurrentTag(mr, cfg, "", true)
+			require.NoError(t, err)
+			assert.Equal(t, tc.want, got)
+		})
+	}
+}
+
+func TestCurrentTag_SemverPerEnv_IncludePreRelease(t *testing.T) {
+	mr := exectest.NewMockRunner()
+	mr.QueueResponse("prod/1.4.0-rc.2\nprod/1.4.0-rc.10\nprod/1.3.0\n", "", nil)
+	cfg := &config.Config{
+		Versioning:   config.Versioning{Strategy: "semver-per-env"},
+		Environments: map[string]config.Environment{"prod": {TagFormat: "prod/{version}"}},
+	}
+
+	got, err := app.CurrentTag(mr, cfg, "prod", true)
+	require.NoError(t, err)
+	assert.Equal(t, "prod/1.4.0-rc.10", got)
+}
+
+func TestCurrentTag_Semver_OnlyPreReleases_HintsAtFlag(t *testing.T) {
+	mr := exectest.NewMockRunner()
+	mr.QueueResponse("v1.0.0-rc.1\n", "", nil)
+	cfg := &config.Config{Versioning: config.Versioning{Strategy: "semver", TagPrefix: strPtr("v")}}
+
+	_, err := app.CurrentTag(mr, cfg, "", false)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "--include-pre-release")
+}
+
+func TestCurrentTag_Calver_IgnoresIncludePreRelease(t *testing.T) {
+	mr := exectest.NewMockRunner()
+	mr.QueueResponse("2026.05.1\n", "", nil)
+	empty := ""
+	cfg := &config.Config{Versioning: config.Versioning{Strategy: "calver", TagPrefix: &empty}}
+
+	got, err := app.CurrentTag(mr, cfg, "", true)
+	require.NoError(t, err)
+	assert.Equal(t, "2026.05.1", got)
+}
+
+func TestCurrentVersion_Semver_IncludePreRelease_Bare(t *testing.T) {
+	mr := exectest.NewMockRunner()
+	mr.QueueResponse("v1.4.0-rc.2\nv1.3.0\n", "", nil)
+	cfg := &config.Config{Versioning: config.Versioning{Strategy: "semver", TagPrefix: strPtr("v")}}
+
+	got, err := app.CurrentVersion(mr, cfg, "", true)
+	require.NoError(t, err)
+	assert.Equal(t, "1.4.0-rc.2", got)
 }

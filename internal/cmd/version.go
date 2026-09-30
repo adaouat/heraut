@@ -87,7 +87,7 @@ func newVersionNextCmd() *cobra.Command {
 }
 
 func newVersionCurrentCmd() *cobra.Command {
-	var bare bool
+	var bare, includePreRelease bool
 	cmd := &cobra.Command{
 		Use:   "current",
 		Short: "Print the latest released tag",
@@ -123,7 +123,7 @@ func newVersionCurrentCmd() *cobra.Command {
 			if bare {
 				out = app.CurrentVersion
 			}
-			value, err := out(runner, cfg, env)
+			value, err := out(runner, cfg, env, includePreRelease)
 			if err != nil {
 				return exitcode.Wrap(exitcode.Runtime, err)
 			}
@@ -133,6 +133,7 @@ func newVersionCurrentCmd() *cobra.Command {
 		},
 	}
 	cmd.Flags().BoolVar(&bare, "bare", false, "print the bare semantic version (strip prefix/env/build), not the raw tag")
+	cmd.Flags().BoolVar(&includePreRelease, "include-pre-release", false, "print the highest SemVer tag including pre-releases (SemVer strategies only; default: latest release)")
 	cmd.Flags().String("env", "", "target environment (for per-env strategies)")
 	cmd.Flags().Bool("force", false, "override safety checks blocking tag promotion or missing PR/MR metadata")
 	return cmd

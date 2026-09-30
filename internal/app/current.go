@@ -7,15 +7,19 @@ import (
 
 	"github.com/adaouat/heraut/internal/config"
 	"github.com/adaouat/heraut/internal/port"
+	"github.com/adaouat/heraut/internal/versioning/semver"
 	"github.com/adaouat/heraut/internal/versioning/tagfmt"
 )
 
 // errNoTagsFound is the sentinel CurrentTag returns when no tags match the resolved glob.
 var errNoTagsFound = errors.New("no tags found")
 
-// CurrentTag returns the latest existing git tag for the given strategy and environment.
-// For single-env strategies, env is ignored. For per-env strategies, env is required.
-func CurrentTag(runner port.Runner, cfg *config.Config, env string) (string, error) {
+// CurrentTag returns the latest existing git tag for the given strategy and environment. For
+// SemVer strategies it is the highest SemVer §11 release, or — with includePreRelease — the
+// highest tag including pre-releases (ADR-0064). CalVer strategies ignore includePreRelease and
+// keep git's version:refname order. For single-env strategies, env is ignored; for per-env
+// strategies, env is required.
+func CurrentTag(runner port.Runner, cfg *config.Config, env string, includePreRelease bool) (string, error) {
 	glob, err := currentTagGlob(cfg, env)
 	if err != nil {
 		return "", err
@@ -26,21 +30,51 @@ func CurrentTag(runner port.Runner, cfg *config.Config, env string) (string, err
 		return "", fmt.Errorf("listing git tags: %w", err)
 	}
 
+	var lines []string
 	for _, line := range strings.Split(strings.TrimSpace(stdout), "\n") {
-		line = strings.TrimSpace(line)
-		if line != "" {
-			return line, nil
+		if line = strings.TrimSpace(line); line != "" {
+			lines = append(lines, line)
 		}
 	}
-	return "", fmt.Errorf("%w for %q", errNoTagsFound, glob)
+
+	switch cfg.Versioning.Strategy {
+	case "semver", "semver-per-env":
+		sorted := semver.SortTags(lines, semverExtractor(cfg, env))
+		if tv, ok := semver.Latest(sorted, includePreRelease); ok {
+			return tv.Tag, nil
+		}
+		if len(sorted) > 0 {
+			return "", fmt.Errorf("%w for %q: only pre-release tags exist (pass --include-pre-release to show them)", errNoTagsFound, glob)
+		}
+		return "", fmt.Errorf("%w for %q", errNoTagsFound, glob)
+	default:
+		if len(lines) > 0 {
+			return lines[0], nil
+		}
+		return "", fmt.Errorf("%w for %q", errNoTagsFound, glob)
+	}
+}
+
+// semverExtractor returns how to read a tag's bare version: strip tag_prefix for plain semver,
+// parse through the effective tag_format for semver-per-env.
+func semverExtractor(cfg *config.Config, env string) func(string) (string, bool) {
+	if cfg.Versioning.Strategy == "semver-per-env" {
+		tf := cfg.EffectiveTagFormat(env)
+		return func(tag string) (string, bool) {
+			v, err := tagfmt.ParseVersion(tf, tag)
+			return v, err == nil
+		}
+	}
+	prefix := configuredTagPrefix(cfg)
+	return func(tag string) (string, bool) { return strings.CutPrefix(tag, prefix) }
 }
 
 // CurrentVersion returns the bare semantic version of the latest tag (the tag with
 // any prefix / env / build components stripped). For per-env strategies the version is
 // parsed via the effective tag_format; for single-env strategies the tag prefix is
-// stripped.
-func CurrentVersion(runner port.Runner, cfg *config.Config, env string) (string, error) {
-	tag, err := CurrentTag(runner, cfg, env)
+// stripped. includePreRelease is passed through to CurrentTag unchanged.
+func CurrentVersion(runner port.Runner, cfg *config.Config, env string, includePreRelease bool) (string, error) {
+	tag, err := CurrentTag(runner, cfg, env, includePreRelease)
 	if err != nil {
 		return "", err
 	}

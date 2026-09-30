@@ -290,6 +290,28 @@ esac
 	assert.Equal(t, "1.2.3\n", out)
 }
 
+func TestVersionCurrent_IncludePreRelease(t *testing.T) {
+	cfgPath := writeConfig(t, `
+version: "1"
+versioning:
+  strategy: semver
+  tag_prefix: "v"
+`)
+	exectest.FakeBin(t, "git", `#!/bin/sh
+case "$*" in
+  "tag -l v* --sort=-version:refname") printf "v1.4.0-rc.1\nv1.3.0\n" ;;
+  *) exit 1 ;;
+esac
+`)
+	out, err := executeRoot("version", "current", "--config", cfgPath)
+	require.NoError(t, err)
+	assert.Equal(t, "v1.3.0\n", out)
+
+	out, err = executeRoot("version", "current", "--config", cfgPath, "--include-pre-release")
+	require.NoError(t, err)
+	assert.Equal(t, "v1.4.0-rc.1\n", out)
+}
+
 func TestVersionCurrent_NoTags_Error(t *testing.T) {
 	cfgPath := writeConfig(t, `
 version: "1"

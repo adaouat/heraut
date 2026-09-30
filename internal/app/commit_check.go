@@ -16,7 +16,9 @@ import (
 // full history. Returns ("", false, err) on unexpected git failures.
 func ResolveFromLatestTag(runner port.Runner, cfg *config.Config, env string) (string, bool, error) {
 	if cfg != nil {
-		tag, err := CurrentTag(runner, cfg, env)
+		// commit check --from-latest-tag wants the latest tag of any kind (pre-release
+		// included), not the latest release, so it always passes includePreRelease=true.
+		tag, err := CurrentTag(runner, cfg, env, true)
 		if err != nil {
 			if errors.Is(err, errNoTagsFound) {
 				return "", true, nil
