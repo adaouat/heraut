@@ -233,6 +233,21 @@ func TestVersionNext_SetVersion_AllowMajorIsANoOp(t *testing.T) {
 	assert.Empty(t, stderr, "a static version is never held back, so nothing is warned about")
 }
 
+// T333: semver-per-env's --set-build-id must be valid SemVer build metadata, since {build}
+// always follows "+" in tag_format (ADR-0064). Breaking change for semver-per-env only.
+func TestVersionNext_SemverPerEnv_SetBuildID_RejectsNonSemVerGrammar(t *testing.T) {
+	cfgPath := writeConfig(t, perEnvBuildConfig)
+	failingGit(t)
+
+	stdout, _, err := executeRootSeparateStreams("version", "next", "--config", cfgPath,
+		"--env", "uat", "--set-version", "7.4.1", "--set-build-id", "build_1")
+	require.Error(t, err)
+
+	assert.Contains(t, err.Error(), "--set-build-id")
+	assert.Equal(t, exitcode.Config, cmd.ExitCode(err))
+	assert.Empty(t, stdout)
+}
+
 func TestVersionNext_PlainSemver_SetBuildID(t *testing.T) {
 	cfgPath := writeConfig(t, `
 version: "1"

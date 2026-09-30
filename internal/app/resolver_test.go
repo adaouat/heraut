@@ -329,6 +329,75 @@ func TestNewResolver_BuildID_PlainSemver_ValidatesSemVer(t *testing.T) {
 	}
 }
 
+// T333: semver-per-env's build ID must be valid SemVer build metadata, since {build} always
+// follows "+" in tag_format (ADR-0064) — tightening tagfmt.ValidateBuildID's lenient "/"-and-
+// whitespace-only check to the full [0-9A-Za-z-] dot-separated grammar.
+func TestNewResolver_BuildID_SemverPerEnv_ValidatesSemVer(t *testing.T) {
+	tests := []struct {
+		name     string
+		override string
+		buildID  string
+		wantErr  bool
+		wantTag  string
+	}{
+		{"non-semver build id rejected", "7.4.1", "build_1", true, ""},
+		{"incomplete version rejected", "7.4", "5", true, ""},
+		{"numeric build id still works", "7.4.1", "158404", false, "uat/7.4.1+158404"},
+		{"dotted build id accepted", "7.4.1", "exp.sha.5114f85", false, "uat/7.4.1+exp.sha.5114f85"},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			mr := exectest.NewMockRunner()
+			cfg := &config.Config{
+				Version: "1",
+				Versioning: config.Versioning{
+					Strategy:  "semver-per-env",
+					TagFormat: "{env}/{version}+{build}",
+				},
+				Environments: map[string]config.Environment{
+					"uat": {Bump: "auto"},
+				},
+			}
+			r, err := app.NewResolver(cfg, "uat", false, tc.override, tc.buildID, mr)
+			if tc.wantErr {
+				require.Error(t, err)
+				assert.Contains(t, err.Error(), "--set-build-id")
+				return
+			}
+			require.NoError(t, err)
+
+			result, err := r.Resolve()
+			require.NoError(t, err)
+			assert.Equal(t, tc.wantTag, result.Tag)
+			assert.Empty(t, mr.Calls, "static resolver must not call git")
+		})
+	}
+}
+
+// Guard: calver-per-env keeps today's lenient tagfmt.ValidateBuildID check only (no "/" or
+// whitespace) — a CalVer build ID is not SemVer build metadata, so the tightened grammar from
+// T333 must not apply to it.
+func TestNewResolver_BuildID_CalverPerEnv_StaysLenient(t *testing.T) {
+	mr := exectest.NewMockRunner()
+	cfg := &config.Config{
+		Version: "1",
+		Versioning: config.Versioning{
+			Strategy:  "calver-per-env",
+			Format:    "YYYY.MM.PATCH",
+			TagFormat: "{env}/{version}+{build}",
+		},
+		Environments: map[string]config.Environment{
+			"uat": {Bump: "auto"},
+		},
+	}
+	r, err := app.NewResolver(cfg, "uat", false, "2026.05.3", "build_1", mr)
+	require.NoError(t, err)
+
+	result, err := r.Resolve()
+	require.NoError(t, err)
+	assert.Equal(t, "uat/2026.05.3+build_1", result.Tag)
+}
+
 func TestValidateBuildID(t *testing.T) {
 	require.NoError(t, app.ValidateBuildID("158404"))
 	require.Error(t, app.ValidateBuildID("bad/value"))

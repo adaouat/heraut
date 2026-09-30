@@ -104,13 +104,8 @@ func NewResolver(cfg *config.Config, env string, force bool, versionOverride, bu
 			// metadata (ADR-0064).
 			prefix := configuredTagPrefix(cfg)
 			version := strings.TrimPrefix(versionOverride, prefix)
-			if _, err := semver.Parse(version + "+" + buildID); err != nil {
-				return nil, fmt.Errorf(
-					"--set-version %q with --set-build-id %q does not form a valid SemVer version: "+
-						"--set-version must be MAJOR.MINOR.PATCH[-pre] and the build ID must be "+
-						"dot-separated [0-9A-Za-z-] identifiers (SemVer build metadata): %w",
-					version, buildID, err,
-				)
+			if err := validateSemVerComposition(version, buildID); err != nil {
+				return nil, err
 			}
 			return versioning.NewStaticResolver(prefix+version+"+"+buildID, version), nil
 		}
@@ -132,6 +127,18 @@ func NewResolver(cfg *config.Config, env string, force bool, versionOverride, bu
 			// {version} token — a tag_format template has no single "prefix" to strip,
 			// so this heuristic (not the configured tag_prefix) applies here.
 			version = strings.TrimPrefix(versionOverride, "v")
+			if buildID != "" && cfg.Versioning.Strategy == "semver-per-env" {
+				// {build} always follows "+" (ADR-0064), so under semver-per-env the build ID
+				// is SemVer build metadata — tighten tagfmt.ValidateBuildID's lenient "/"-and-
+				// whitespace-only check. calver-per-env keeps that lenient check only: a
+				// zero-padded CalVer build ID is not SemVer build metadata.
+				if err := validateSemVerBuildID(buildID); err != nil {
+					return nil, err
+				}
+				if err := validateSemVerComposition(version, buildID); err != nil {
+					return nil, err
+				}
+			}
 			var err error
 			tag, err = tagfmt.Render(tf, tagfmt.Tokens{Env: env, Version: version, Build: buildID})
 			if err != nil {
@@ -167,6 +174,37 @@ func NewResolver(cfg *config.Config, env string, force bool, versionOverride, bu
 	default:
 		return nil, fmt.Errorf("unknown versioning strategy %q (supported: semver, calver, semver-per-env, calver-per-env)", cfg.Versioning.Strategy)
 	}
+}
+
+// validateSemVerBuildID checks that buildID alone is valid SemVer build metadata
+// (dot-separated [0-9A-Za-z-]+ identifiers), independent of the (possibly invalid)
+// --set-version value — required under "semver-per-env" since {build} always follows "+" in
+// a rendered tag (ADR-0064). "0.0.0" is a placeholder core purely to drive semver.Parse.
+func validateSemVerBuildID(buildID string) error {
+	if _, err := semver.Parse("0.0.0+" + buildID); err != nil {
+		return fmt.Errorf(
+			"--set-build-id %q is not valid SemVer build metadata: must be dot-separated "+
+				"[0-9A-Za-z-] identifiers: %w",
+			buildID, err,
+		)
+	}
+	return nil
+}
+
+// validateSemVerComposition checks that "<version>+<buildID>" itself parses as a SemVer
+// version, catching a malformed --set-version (e.g. "1.4") that validateSemVerBuildID alone
+// cannot see. Shared by plain semver's no-tag_format branch (ADR-0064 FIX-1) and
+// semver-per-env (T333) — kept as one check so both strategies report the same error shape.
+func validateSemVerComposition(version, buildID string) error {
+	if _, err := semver.Parse(version + "+" + buildID); err != nil {
+		return fmt.Errorf(
+			"--set-version %q with --set-build-id %q does not form a valid SemVer version: "+
+				"--set-version must be MAJOR.MINOR.PATCH[-pre] and the build ID must be "+
+				"dot-separated [0-9A-Za-z-] identifiers (SemVer build metadata): %w",
+			version, buildID, err,
+		)
+	}
+	return nil
 }
 
 // ValidateBuildID reports whether a --set-build-id value is usable as a tag component.

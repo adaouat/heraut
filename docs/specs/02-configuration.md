@@ -333,6 +333,11 @@ heraut version next    --env uat --set-version 7.4.1 --set-build-id $CI_PIPELINE
   a configuration error (exit code 2) — the same code whether or not `--set-version` was given.
 - Build IDs must not contain `/` or whitespace (git tag constraint). `--set-build-id` rejects
   an invalid value up front with an actionable error.
+- Under `semver`/`semver-per-env`, `{build}` always follows `+`, so the build ID is SemVer
+  build metadata: it must be dot-separated `[0-9A-Za-z-]` identifiers, and the composed
+  `<version>+<build id>` must itself parse as valid SemVer — heraut rejects anything else with
+  a config error naming `--set-build-id` (ADR-0064). `calver`/`calver-per-env` keep only the
+  `/`-and-whitespace check above; a zero-padded CalVer build ID is not SemVer build metadata.
 - Internally, the changelog range comparison treats `{build}` as a non-capturing wildcard,
   so existing tags like `uat/7.4.0+155391` correctly yield version `7.4.0` when computing
   the commit range.
