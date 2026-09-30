@@ -32,9 +32,10 @@ pre-release lifecycle (`--pre-release <label>`) for the plain `semver` strategy.
 | T329 | `--set-build-id` on plain `semver` (`v1.4.0+<id>`) | Done |
 | T330 | `version current`: latest final by default, `--include-pre-release` (+ `${version}` test-typo fix, own commit) | Done |
 | T331 | Escape `+` in tag names inside generated URLs | Done |
-| T332 | Manual smoke test: gh/glab with a `+` tag | Not started |
-| T333 | Validate `--set-build-id` against SemVer build-identifier grammar | Not started |
+| T332 | Manual smoke test: gh/glab with a `+` tag | Done |
+| T333 | Validate `--set-build-id` against SemVer build-identifier grammar | Done |
 | T334 | Changelog, rotation and compare links bound by SemVer precedence | Done |
+| T335 | Per-env tags containing "/" break GitLab package-registry uploads | Not started |
 | —    | Phase 2 (pre-release lifecycle) — planned after Phase 1 lands | Not planned |
 
 ## Phase 1 — Compliance
@@ -50,8 +51,9 @@ generated URLs) was added mid-phase, outside the original T324–T330 sequence, 
 build-metadata work in T328/T329 made `+`-bearing tags routine. T334 (binding changelog section
 bounds, rotation, and compare links to SemVer precedence instead of git's tag order) has since
 closed too, tracked in its own entry below. T332 (manual `gh`/`glab` smoke test with a `+` tag)
-and T333 (validating `--set-build-id` against the SemVer build-identifier grammar) remain open
-follow-ups, tracked below.
+and T333 (validating `--set-build-id` against the SemVer build-identifier grammar) have since
+closed too, both tracked in their own entries below. T332 surfaced a follow-up of its own
+(T335, GitLab package-registry uploads under per-env tags containing `/`), tracked below.
 
 ### [x] T324 — Roadmap, Phase 59 pointer, ADR-0064
 
@@ -187,20 +189,33 @@ baseline assertion to extend. Every pre-existing URL assertion in the touched te
 unchanged. Deferred: T332, a manual `gh`/`glab` smoke test with a live `+` tag, since CLI-to-API
 encoding can't be verified offline.
 
-### [ ] T332 — Manual smoke test: `gh` / `glab` with a `+` tag
+### [x] T332 — Manual smoke test: `gh` / `glab` with a `+` tag
 
-heraut passes tag names to `gh release create/upload` and `glab release create/upload` as argv;
-how those CLIs encode `+` when they call their APIs cannot be checked offline (testing.md: no
-network in tests). Before the first release that ships T328/T329, create a throwaway release with
-a `v0.0.0+smoke` tag on a scratch GitHub repo and a scratch GitLab project (create + upload an
-asset + open the printed release URL), then delete both. Record the outcome here.
+Run by the controller on 2026-09-30 against two private sandboxes,
+`github.com/bchatard/heraut-testing` and `gitlab.com/bchatard/heraut-testing`. Pushing `+` tags
+works on both forges. `gh release create`/`upload` (heraut's exact argv) succeeded for both
+`v0.0.0+smoke` and `uat/0.0.0+smoke`; GitHub's own `html_url` came back as
+`…/releases/tag/v0.0.0%2Bsmoke`, identical to `port.URLTag`'s output. Both GitHub's and GitLab's
+tag-lookup APIs accept the tag as either raw `+` or `%2B`. `glab release create` worked for every
+tag shape tried. `glab release upload --use-package-registry` worked for `v0.0.0+smoke` and
+`v0.0.2-rc.1+smoke`, but failed with `400 package_version is invalid` for `uat/0.0.0+smoke` — and
+for the control `uat/0.0.1` (no `+` at all) — so the cause is the `/` in the per-env tag shape, not
+`+`; filed as T335 below. Web release pages could not be probed since both sandboxes are private.
+All releases, tags and packages created during the test were deleted afterwards. No code change
+resulted from this task — it only confirms T328/T329's `+`-tag encoding is safe to ship.
 
-### [ ] T333 — Validate --set-build-id against SemVer build-identifier grammar
+### [x] T333 — Validate --set-build-id against SemVer build-identifier grammar
 
-Since `{build}` always follows `+` (ADR-0064), the ID is SemVer build metadata and should match
-dot-separated `[0-9A-Za-z-]+` identifiers; `tagfmt.ValidateBuildID` only rejects "/" and
-whitespace today; tightening it would reject IDs currently accepted (e.g. with "_"), so it needs
-its own decision.
+Two checks, both scoped to `semver-per-env` only (plain `semver` was already covered by FIX-1
+under T329): `validateSemVerBuildID` parses `"0.0.0+" + buildID` to catch a malformed build ID on
+its own (e.g. `build_1` — `_` is not `[0-9A-Za-z-]`), and `validateSemVerComposition` parses
+`"<version>+" + buildID` — refactored out of T329/FIX-1's plain-semver branch verbatim, same error
+text, same tests — to also catch a malformed `--set-version` (e.g. `7.4`) that the build-ID-only
+check can't see on its own. Both run inside `NewResolver`'s existing `tf != ""` tag-rendering
+branch, gated on `cfg.Versioning.Strategy == "semver-per-env"`, so `calver-per-env` keeps
+`tagfmt.ValidateBuildID`'s lenient "/"-and-whitespace-only check unchanged (a build ID like
+`build_1` still round-trips there). Breaking change for `semver-per-env`: a build ID that used to
+render (e.g. containing `_`) is now a config error naming `--set-build-id`. No deferred items.
 
 ### [x] T334 — Changelog, rotation and compare links bound by SemVer precedence
 
@@ -263,6 +278,16 @@ its assertions described the now-fixed behaviour; added
 `TestTagOrderFor_RealRepo_FallbackNeverBoundsByNonAncestorTag` (two envs on diverging branches;
 confirmed it fails against the pre-fix code before re-verifying green). No other existing row
 changed.
+
+### [ ] T335 — Per-env tags containing "/" break GitLab package-registry uploads
+
+Pre-existing, unrelated to `+`: `glab release upload --use-package-registry` uses the tag as the
+generic-package version, which GitLab rejects when it contains `/` (every `{env}/{version}`
+per-env tag), so per-env GitLab asset uploads fail with `400 package_version is invalid`. Also
+unverified: GitLab's own release link encodes the slash (`/-/releases/uat%2F0.0.0+smoke`) while
+heraut renders `/-/releases/uat/0.0.0%2Bsmoke` — check on a public project whether heraut's
+per-env GitLab release URLs resolve, and whether `/` should be escaped there. Needs its own
+design (e.g. derive a package version without `/`, or drop `--use-package-registry` for per-env).
 
 ## Phase 2 — Pre-release lifecycle
 
