@@ -28,9 +28,9 @@ func buildCommitURL(lc *port.LinkContext) string {
 // URL as "%2B" rather than a literal "+" (ADR-0064).
 //
 // URL shapes by platform:
-//   - GitHub:      root+"/compare/"+prev+".."+version
-//   - GitLab:      root+"/-/compare/"+prev+".."+version
-//   - Azure DevOps: root+"/branchCompare?baseVersion=GT"+prev+"&targetVersion=GT"+version
+//   - GitHub:      root+"/compare/"+URLTag(prev)+".."+URLTag(version)
+//   - GitLab:      root+"/-/compare/"+URLTag(prev)+".."+URLTag(version)
+//   - Azure DevOps: root+"/branchCompare?baseVersion=GT"+URLTag(prev)+"&targetVersion=GT"+URLTag(version)
 func buildCompareURL(lc *port.LinkContext, prev, version string) string {
 	if lc == nil || prev == "" {
 		return ""

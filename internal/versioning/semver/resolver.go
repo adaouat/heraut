@@ -129,9 +129,9 @@ func (r *Resolver) resolveAuto() (versioning.Result, error) {
 		return versioning.Result{}, fmt.Errorf("listing git tags: %w", err)
 	}
 
-	// Order by SemVer §11 in Go rather than trusting git's version:refname sort, which orders
-	// pre-releases out of order without versionsort.suffix (ADR-0064). Pre-release tags are never
-	// the bump base; a build-metadata-only tag (v1.4.0+5) is the release of its core.
+	// Order by SemVer §11 in Go rather than trusting git's version:refname sort, which puts
+	// pre-releases above their release without versionsort.suffix (ADR-0064). Pre-release tags are
+	// never the bump base; a build-metadata-only tag (v1.4.0+5) is the release of its core.
 	sorted := SortTags(parseTags(stdout), func(tag string) (string, bool) {
 		return strings.CutPrefix(tag, prefix)
 	})
