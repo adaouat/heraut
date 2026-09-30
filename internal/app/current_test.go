@@ -50,7 +50,7 @@ func TestCurrentTag_SemverPerEnv(t *testing.T) {
 			Strategy: "semver-per-env",
 		},
 		Environments: map[string]config.Environment{
-			"prod": {TagFormat: "prod/${version}"},
+			"prod": {TagFormat: "prod/{version}"},
 		},
 	}
 	got, err := app.CurrentTag(mr, cfg, "prod")
