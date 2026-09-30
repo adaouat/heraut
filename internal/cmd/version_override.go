@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/adaouat/heraut/internal/app"
 	"github.com/spf13/cobra"
@@ -19,6 +20,9 @@ func validateVersionOverrideFlags(versionOverride, buildID string) error {
 	if buildID != "" {
 		if versionOverride == "" {
 			return fmt.Errorf("--set-build-id requires --set-version: provide the version explicitly when specifying a build ID")
+		}
+		if strings.Contains(versionOverride, "+") {
+			return fmt.Errorf(`--set-version must not carry build metadata ("+…") when --set-build-id is given: pass the build ID only via --set-build-id`)
 		}
 		if err := app.ValidateBuildID(buildID); err != nil {
 			return err

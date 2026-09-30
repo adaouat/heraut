@@ -101,6 +101,12 @@ versioning:
 			[]string{"--env", "uat", "--set-version", "0.2.0", "--set-build-id", "42"},
 			"uat/0.2.0+42\n",
 		},
+		{
+			"set-version already carrying build metadata, no --set-build-id, still works",
+			semverConfig,
+			[]string{"--set-version", "1.4.0+abc"},
+			"v1.4.0+abc\n",
+		},
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
@@ -201,6 +207,7 @@ func TestVersionNext_OverrideFlagValidation_FailsBeforeConfigIsRead(t *testing.T
 		{"version with whitespace", []string{"--set-version", "1.2 3"}, "must not contain whitespace"},
 		{"build ID with slash", []string{"--set-version", "1.2.3", "--set-build-id", "a/b"}, "must not contain '/'"},
 		{"build ID with whitespace", []string{"--set-version", "1.2.3", "--set-build-id", "a b"}, "must not contain whitespace"},
+		{"set-version carries build metadata alongside --set-build-id", []string{"--set-version", "1.4.0+abc", "--set-build-id", "158404"}, "--set-build-id"},
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {

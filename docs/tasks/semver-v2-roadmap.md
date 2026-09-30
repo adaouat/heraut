@@ -33,6 +33,7 @@ pre-release lifecycle (`--pre-release <label>`) for the plain `semver` strategy.
 | T330 | `version current`: latest final by default, `--include-pre-release` (+ `${version}` test-typo fix, own commit) | Not started |
 | T331 | Escape `+` in tag names inside generated URLs | Done |
 | T332 | Manual smoke test: gh/glab with a `+` tag | Not started |
+| T333 | Validate `--set-build-id` against SemVer build-identifier grammar | Not started |
 | —    | Phase 2 (pre-release lifecycle) — planned after Phase 1 lands | Not planned |
 
 ## Phase 1 — Compliance
@@ -159,6 +160,13 @@ how those CLIs encode `+` when they call their APIs cannot be checked offline (t
 network in tests). Before the first release that ships T328/T329, create a throwaway release with
 a `v0.0.0+smoke` tag on a scratch GitHub repo and a scratch GitLab project (create + upload an
 asset + open the printed release URL), then delete both. Record the outcome here.
+
+### [ ] T333 — Validate --set-build-id against SemVer build-identifier grammar
+
+Since `{build}` always follows `+` (ADR-0064), the ID is SemVer build metadata and should match
+dot-separated `[0-9A-Za-z-]+` identifiers; `tagfmt.ValidateBuildID` only rejects "/" and
+whitespace today; tightening it would reject IDs currently accepted (e.g. with "_"), so it needs
+its own decision.
 
 ## Phase 2 — Pre-release lifecycle
 
