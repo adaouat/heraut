@@ -29,7 +29,7 @@ pre-release lifecycle (`--pre-release <label>`) for the plain `semver` strategy.
 | T326 | Plain `semver` resolver orders tags by §11 in Go | Done |
 | T327 | `semver-per-env` ordering + E002 via §11; calver-per-env unchanged (zero-padded CalVer is not SemVer) | Done |
 | T328 | `{build}` must directly follow `+` (validator, wizard, docs) | Done |
-| T329 | `--set-build-id` on plain `semver` (`v1.4.0+<id>`) | Not started |
+| T329 | `--set-build-id` on plain `semver` (`v1.4.0+<id>`) | Done |
 | T330 | `version current`: latest final by default, `--include-pre-release` (+ `${version}` test-typo fix, own commit) | Not started |
 | T331 | Escape `+` in tag names inside generated URLs | Done |
 | T332 | Manual smoke test: gh/glab with a `+` tag | Not started |
@@ -117,7 +117,19 @@ new fixture `testdata/config/invalid/build_token_hyphen.yml` and the schema
 semantic-only-fixtures list cover the rule at the schema boundary (schema itself can't express
 the constraint; `config.Validate` owns it).
 
-### [ ] T329 — `--set-build-id` on plain `semver`
+### [x] T329 — `--set-build-id` on plain `semver`
+
+Plain semver has no `tag_format` to carry `{build}`, so `--set-build-id` used to fail with
+"`--set-build-id requires versioning.tag_format to contain a {build} token`". `NewResolver`
+now special-cases `cfg.Versioning.Strategy == "semver"` with an empty `EffectiveTagFormat`:
+it renders `<prefix><version>+<id>` (e.g. `v1.4.0+158404`) directly, still requiring
+`--set-version` like the per-env strategies. Extracted `configuredTagPrefix(cfg
+*config.Config) string` (versioning.tag_prefix when set, else the strategy default) out of the
+pre-existing `else` branch so both paths share the same prefix logic; Task 7 reuses this helper
+verbatim. `TestNewResolver_BuildID_NoTagFormat` moved from `semverCfg()` to `calverCfg()` (edited,
+not deleted) since CalVer still has no build-metadata fallback and the "tag_format" error path
+still needs coverage. No deferred items.
+
 ### [ ] T330 — `version current`: latest final by default, `--include-pre-release`
 
 - Test typo: an existing test (`TestCurrentTag_SemverPerEnv`) has a `${version}` typo that only

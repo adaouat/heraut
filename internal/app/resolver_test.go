@@ -257,10 +257,42 @@ func TestNewResolver_BuildID_NoBuildToken(t *testing.T) {
 }
 
 func TestNewResolver_BuildID_NoTagFormat(t *testing.T) {
+	// Plain semver no longer errors here (ADR-0064) — CalVer still has no build-metadata
+	// fallback, so its no-tag_format error path is asserted here instead.
 	mr := exectest.NewMockRunner()
-	_, err := app.NewResolver(semverCfg(), "", false, "7.4.1", "158404", mr)
+	_, err := app.NewResolver(calverCfg(), "", false, "7.4.1", "158404", mr)
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "tag_format")
+}
+
+// ADR-0064: plain semver has no tag_format, so --set-build-id appends SemVer build metadata.
+func TestNewResolver_BuildID_PlainSemver_AppendsBuildMetadata(t *testing.T) {
+	custom := "rel-"
+	tests := []struct {
+		name     string
+		prefix   *string
+		override string
+		wantTag  string
+	}{
+		{"default prefix", nil, "1.4.0", "v1.4.0+158404"},
+		{"prefixed override", nil, "v1.4.0", "v1.4.0+158404"},
+		{"custom prefix", &custom, "rel-1.4.0", "rel-1.4.0+158404"},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			mr := exectest.NewMockRunner()
+			cfg := semverCfg()
+			cfg.Versioning.TagPrefix = tc.prefix
+			r, err := app.NewResolver(cfg, "", false, tc.override, "158404", mr)
+			require.NoError(t, err)
+
+			result, err := r.Resolve()
+			require.NoError(t, err)
+			assert.Equal(t, tc.wantTag, result.Tag)
+			assert.Equal(t, "1.4.0", result.Version)
+			assert.Empty(t, mr.Calls, "static resolver must not call git")
+		})
+	}
 }
 
 func TestValidateBuildID(t *testing.T) {

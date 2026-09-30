@@ -225,3 +225,14 @@ func TestVersionNext_SetVersion_AllowMajorIsANoOp(t *testing.T) {
 	assert.Equal(t, "v1.2.3\n", stdout)
 	assert.Empty(t, stderr, "a static version is never held back, so nothing is warned about")
 }
+
+func TestVersionNext_PlainSemver_SetBuildID(t *testing.T) {
+	cfgPath := writeConfig(t, `
+version: "1"
+versioning:
+  strategy: semver
+`)
+	out, err := executeRoot("version", "next", "--config", cfgPath, "--set-version", "1.4.0", "--set-build-id", "158404")
+	require.NoError(t, err)
+	assert.Equal(t, "v1.4.0+158404\n", out)
+}

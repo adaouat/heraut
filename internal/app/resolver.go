@@ -99,6 +99,14 @@ func NewResolver(cfg *config.Config, env string, force bool, versionOverride, bu
 		return nil, fmt.Errorf("--set-build-id requires --set-version: build ID cannot be combined with automatic version resolution")
 	}
 	if versionOverride != "" {
+		if buildID != "" && cfg.Versioning.Strategy == "semver" && cfg.EffectiveTagFormat(env) == "" {
+			// Plain semver has no tag_format to carry {build}: append the ID as SemVer build
+			// metadata (ADR-0064).
+			prefix := configuredTagPrefix(cfg)
+			version := strings.TrimPrefix(versionOverride, prefix)
+			return versioning.NewStaticResolver(prefix+version+"+"+buildID, version), nil
+		}
+
 		var tf string
 		if buildID != "" {
 			var err error
@@ -122,10 +130,7 @@ func NewResolver(cfg *config.Config, env string, force bool, versionOverride, bu
 				return nil, fmt.Errorf("rendering tag: %w", err)
 			}
 		} else {
-			prefix := defaultTagPrefix(cfg.Versioning.Strategy)
-			if cfg.Versioning.TagPrefix != nil {
-				prefix = *cfg.Versioning.TagPrefix
-			}
+			prefix := configuredTagPrefix(cfg)
 			version = strings.TrimPrefix(versionOverride, prefix)
 			tag = prefix + version
 		}
@@ -180,6 +185,14 @@ func defaultTagPrefix(strategy string) string {
 	default:
 		return ""
 	}
+}
+
+// configuredTagPrefix is versioning.tag_prefix when set, else the strategy's default.
+func configuredTagPrefix(cfg *config.Config) string {
+	if cfg.Versioning.TagPrefix != nil {
+		return *cfg.Versioning.TagPrefix
+	}
+	return defaultTagPrefix(cfg.Versioning.Strategy)
 }
 
 // effectiveTagFmt returns the tag format to use for build ID rendering and
