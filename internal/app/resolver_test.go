@@ -295,6 +295,40 @@ func TestNewResolver_BuildID_PlainSemver_AppendsBuildMetadata(t *testing.T) {
 	}
 }
 
+// FIX-1: plain semver's --set-build-id branch must validate that <version>+<buildID> is a real
+// SemVer build metadata string, or heraut tags something it can never read back (ADR-0064).
+func TestNewResolver_BuildID_PlainSemver_ValidatesSemVer(t *testing.T) {
+	tests := []struct {
+		name     string
+		override string
+		buildID  string
+		wantErr  bool
+		wantTag  string
+	}{
+		{"non-semver build id rejected", "1.4.0", "build_1", true, ""},
+		{"incomplete version rejected", "1.4", "5", true, ""},
+		{"numeric build id still works", "1.4.0", "158404", false, "v1.4.0+158404"},
+		{"pre-release version with build id", "1.4.0-rc.1", "158404", false, "v1.4.0-rc.1+158404"},
+		{"dotted build id accepted", "1.4.0", "exp.sha.5114f85", false, "v1.4.0+exp.sha.5114f85"},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			mr := exectest.NewMockRunner()
+			r, err := app.NewResolver(semverCfg(), "", false, tc.override, tc.buildID, mr)
+			if tc.wantErr {
+				require.Error(t, err)
+				assert.Contains(t, err.Error(), "--set-version")
+				return
+			}
+			require.NoError(t, err)
+
+			result, err := r.Resolve()
+			require.NoError(t, err)
+			assert.Equal(t, tc.wantTag, result.Tag)
+		})
+	}
+}
+
 func TestValidateBuildID(t *testing.T) {
 	require.NoError(t, app.ValidateBuildID("158404"))
 	require.Error(t, app.ValidateBuildID("bad/value"))

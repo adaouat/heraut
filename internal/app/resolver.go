@@ -104,6 +104,14 @@ func NewResolver(cfg *config.Config, env string, force bool, versionOverride, bu
 			// metadata (ADR-0064).
 			prefix := configuredTagPrefix(cfg)
 			version := strings.TrimPrefix(versionOverride, prefix)
+			if _, err := semver.Parse(version + "+" + buildID); err != nil {
+				return nil, fmt.Errorf(
+					"--set-version %q with --set-build-id %q does not form a valid SemVer version: "+
+						"--set-version must be MAJOR.MINOR.PATCH[-pre] and the build ID must be "+
+						"dot-separated [0-9A-Za-z-] identifiers (SemVer build metadata): %w",
+					version, buildID, err,
+				)
+			}
 			return versioning.NewStaticResolver(prefix+version+"+"+buildID, version), nil
 		}
 
