@@ -1,5 +1,82 @@
 # Changelog
 
+<!-- heraut-release: v0.72.0 -->
+## [0.72.0](https://github.com/adaouat/heraut/compare/v0.71.2..v0.72.0) - 2026-10-01
+
+### 🚀 Features
+
+- *(app)* Support --set-build-id on plain semver as build metadata (T329) - ([7e9454e](https://github.com/adaouat/heraut/commit/7e9454e170df38d02ca2ae53aa70eef7663a99b5)) by @bchatard
+
+- *(app)* [**breaking**] Require SemVer build IDs under semver-per-env (T333) - ([13db21d](https://github.com/adaouat/heraut/commit/13db21da0644ecb3fa2f4543a4e322cc01ebece9)) by @bchatard
+
+- *(cmd)* Add version current --include-pre-release (T330) - ([1947869](https://github.com/adaouat/heraut/commit/1947869112099f4af42de3e3296ff6a6bf0da775)) by @bchatard
+
+- *(config)* [**breaking**] Require {build} to directly follow + in tag_format (T328) - ([0b3adf1](https://github.com/adaouat/heraut/commit/0b3adf1aff2ebfae720210971fd255a98b79c494)) by @bchatard
+
+- *(versioning/perenv)* Order semver-per-env tags by precedence (T327) - ([f8e5a93](https://github.com/adaouat/heraut/commit/f8e5a93f262e7e20dac46f8d8625dcd33bf31dce)) by @bchatard
+
+- *(versioning/semver)* Add strict SemVer v2 Parse and Compare (T325) - ([cf6ff25](https://github.com/adaouat/heraut/commit/cf6ff2585814b6449b9afa1f9dfe969cf22f34d5)) by @bchatard
+
+- *(versioning/semver)* Order release tags by SemVer precedence (T326) - ([74cf5fb](https://github.com/adaouat/heraut/commit/74cf5fbad7dcc61f03fe7f1c3119e49a91854518)) by @bchatard
+
+
+### 🐛 Bug Fixes
+
+- *(app)* Validate plain-semver --set-build-id forms valid SemVer - ([7d836ad](https://github.com/adaouat/heraut/commit/7d836adf21d951c5880a1cdbb8d3fc783177096e)) by @bchatard
+
+- *(app)* Keep --bare stripping build metadata on plain semver - ([7134a64](https://github.com/adaouat/heraut/commit/7134a64a64e40cccd7c6899a68d2a546ce912473)) by @bchatard
+
+- *(app)* Bound changelog and notes by SemVer precedence (T334) - ([9553936](https://github.com/adaouat/heraut/commit/9553936e40cc9d538b10d8f7eb1b3f4a4b62b168)) by @bchatard
+
+- *(app)* Cover plain semver tag_format in build-ID validation - ([38aede1](https://github.com/adaouat/heraut/commit/38aede15ec5689891802c1bd34baf63ede4f2056)) by @bchatard
+
+- *(cmd)* Reject + in --set-version when --set-build-id is set (T329) - ([cc86a1a](https://github.com/adaouat/heraut/commit/cc86a1a8bcd6ca61ce1884193a4010880c1cfc97)) by @bchatard
+
+- *(config)* Reject ++ before {build} in tag_format - ([57f9e0e](https://github.com/adaouat/heraut/commit/57f9e0e5c24ea51c86bd0105c3b28c53a5e294b9)) by @bchatard
+
+- *(generators/native)* Bound fallback previous tag by ancestry (T334) - ([b5e949f](https://github.com/adaouat/heraut/commit/b5e949fc48899816aedd39af1a257fd0426e6a9f)) by @bchatard
+
+- *(generators/native)* Drop English-only stderr probe in fallback - ([4fd21fa](https://github.com/adaouat/heraut/commit/4fd21fafb28f876b802ac886d563aec3fdce5e67)) by @bchatard
+
+- *(port)* Escape + in tag names inside generated URLs (T331) - ([00e4255](https://github.com/adaouat/heraut/commit/00e4255d8949391e57271b00a4a194dbd52afa79)) by @bchatard
+
+- *(versioning/perenv)* Report release-only CurrentTag on promote - ([6ea7804](https://github.com/adaouat/heraut/commit/6ea7804c86d776b415dd26a7f82155277939b1ba)) by @bchatard
+
+
+### 📚 Documentation
+
+- *(adr)* Record final-notes range rule in ADR-0064 - ([f12d50b](https://github.com/adaouat/heraut/commit/f12d50bfeb7dcfedb0b10cef76752f4b54f87b49)) by @bchatard
+
+- *(generators)* Correct doc comments on link/resolver ordering - ([ed3ace2](https://github.com/adaouat/heraut/commit/ed3ace2526cf6fc89b4beb668405d9eb7664f455)) by @bchatard
+
+- *(roadmap)* Close T332/T333, file T335 (SemVer v2) - ([78f6f1c](https://github.com/adaouat/heraut/commit/78f6f1cbc48174ced3299cb4d775206fcd8d895e)) by @bchatard
+
+- *(roadmap)* Note final-review fixes, extend Phase 2 scope - ([9065297](https://github.com/adaouat/heraut/commit/9065297e58b6aefe8c9796fc29b23e353d3b1dc5)) by @bchatard
+
+- Design for SemVer v2 compliance and pre-release lifecycle - ([5615408](https://github.com/adaouat/heraut/commit/5615408ec296cfea9632348b179afdf3583f8980)) by @bchatard
+
+- Plan SemVer v2 Phase 1 (compliance), T324-T330 - ([44553a9](https://github.com/adaouat/heraut/commit/44553a9455d55d5662be14aed3885c5289c54311)) by @bchatard
+
+- File SemVer v2 roadmap (T324-T330) and ADR-0064 - ([54af6b2](https://github.com/adaouat/heraut/commit/54af6b2b56c4309e76877e8172d640a47ec85443)) by @bchatard
+
+- Add T331 to SemVer v2 Phase 1 plan: escape + in tag URLs - ([8a0f168](https://github.com/adaouat/heraut/commit/8a0f1681c9916528f9900fd836a2345ce33e6d1f)) by @bchatard
+
+- Qualify SemVer §11 ordering claims, add T334 follow-up - ([b67e6e7](https://github.com/adaouat/heraut/commit/b67e6e7392fffe7aca9405ed07e67f5889d06fcf)) by @bchatard
+
+- Plan SemVer v2 Phase 1 follow-ups T334 and T333 - ([1ca2c10](https://github.com/adaouat/heraut/commit/1ca2c103c8d24b263e0f59267bbdfd8380bee1a7)) by @bchatard
+
+- Qualify pre-release changelog claim, document fallback filter - ([ad3e591](https://github.com/adaouat/heraut/commit/ad3e591454bccbe2bb78ebbd01d13c17e0370938)) by @bchatard
+
+
+### 🎨 Styling
+
+- Drop session review labels from code comments - ([82e3978](https://github.com/adaouat/heraut/commit/82e3978bc790364b457acf6fd776e0321f659a6e)) by @bchatard
+
+
+### 🧪 Testing
+
+- *(app)* Fix ${version} typo in per-env CurrentTag fixture - ([05ccc66](https://github.com/adaouat/heraut/commit/05ccc662306f318b6545a66e53712e8d3f29e1ff)) by @bchatard
+
 <!-- heraut-release: v0.71.2 -->
 ## [0.71.2](https://github.com/adaouat/heraut/compare/v0.71.1..v0.71.2) - 2026-09-27
 
@@ -2876,4 +2953,4 @@
 <!-- heraut-footer -->
 
 ---
-_Generated by [heraut](https://github.com/adaouat/heraut) v0.71.2 at 11:53 on 2026-09-27._
+_Generated by [heraut](https://github.com/adaouat/heraut) v0.72.0 at 08:45 on 2026-10-01._
