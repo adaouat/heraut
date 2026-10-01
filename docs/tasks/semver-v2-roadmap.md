@@ -217,6 +217,11 @@ branch, gated on `cfg.Versioning.Strategy == "semver-per-env"`, so `calver-per-e
 `build_1` still round-trips there). Breaking change for `semver-per-env`: a build ID that used to
 render (e.g. containing `_`) is now a config error naming `--set-build-id`. No deferred items.
 
+**Final review fixes:** FIX-1 widened the `semver-per-env`-only gate above to also cover plain
+`semver` with a top-level `tag_format` carrying `{build}` — that combination skipped
+`validateSemVerBuildID`/`validateSemVerComposition` entirely, so `--set-version 1.4
+--set-build-id build_1` rendered `v1.4+build_1` at exit 0, a tag the resolver can never read back.
+
 ### [x] T334 — Changelog, rotation and compare links bound by SemVer precedence
 
 Added `native.WithTagOrder(order func(tags []string) []string) Option`: `order` receives the
@@ -279,6 +284,13 @@ its assertions described the now-fixed behaviour; added
 confirmed it fails against the pre-fix code before re-verifying green). No other existing row
 changed.
 
+**Final review fixes:** FIX-2 replaced `listMergedTags`'s `<t>^` + `noParentCommit(stderr)`
+English-only probe ("malformed object name") with `git tag -l --merged <t> --no-contains <t>
+--sort=-version:refname`, called with `t` directly — a localised git renders that stderr message
+differently, which would have hard-errored the fallback on a root-commit tag instead of treating
+it as "no ancestor tags." The new flag combination needs no stderr probe at all: a root-commit `t`
+simply yields an empty list at exit 0, confirmed against a real git binary.
+
 ### [ ] T335 — Per-env tags containing "/" break GitLab package-registry uploads
 
 Pre-existing, unrelated to `+`: `glab release upload --use-package-registry` uses the tag as the
@@ -294,3 +306,17 @@ design (e.g. derive a package version without `/`, or drop `--use-package-regist
 Not yet broken down. Scope per the design doc § Delivery → Phase 2: `--pre-release <label>`,
 series rules, `--allow-major` second trigger, `--set-version` SemVer validation, changelog skip and
 notes ranges, GitHub-derived `--prerelease`, removal of `release.targets[].prerelease`.
+
+(a) The changelog-skip item above must also resolve DOC-1's interim state (see ADR-0064 §Decision,
+Spec 04 § Pre-release tags, Spec 05 § Changelog structure): until it lands, a pre-release cut with
+`--set-version X-pre --tag` still writes its own anchored `[X-pre]` section, which the next final's
+incremental run re-lists and only `--regenerate` collapses away — and a pre-existing `[X-pre]`
+section already in an upgraded repo's `CHANGELOG.md` survives incremental runs the same way.
+Consider a one-time migration note (or an automatic `--regenerate` hint) for repos upgrading onto
+Phase 2 with such sections already on disk.
+
+(b) The notes-range work in scope above must also bound `previousInList`'s fallback for a
+pre-release whose version is below the newest release — e.g. cutting `v1.3.1-rc.1` while `v2.0.0`
+already exists currently falls through to `previousInList`'s "tag absent from the list → newest
+existing tag is the predecessor" branch, producing a `v2.0.0..v1.3.1-rc.1` notes range (backwards
+through history) instead of bounding by the previous tag actually below `v1.3.1-rc.1`.
