@@ -20,8 +20,10 @@ var ErrRemovedConfigKey = errors.New("removed config key")
 // releasePlatformsHint is the migration guidance for top-level release.platforms: declare a
 // forges: entry with the required name/platform plus the optional base_url/token_env/
 // repository-or-project coordinates, then reference it from release.targets[].forge, keeping
-// draft/prerelease/assets on the target.
-const releasePlatformsHint = "declare a `forges:` entry with `name` / `platform` (required) plus `base_url` / `token_env` / `repository`-or-`project` (as needed), then reference it from `release.targets[].forge`, keeping `draft` / `prerelease` / `assets` on the target"
+// draft/assets on the target. It must not advise keeping prerelease there too — prerelease is
+// itself a removed target key (ADR-0064): the pre-release flag is derived from the version
+// instead, so following this hint literally must never land on a second removed-key error.
+const releasePlatformsHint = "declare a `forges:` entry with `name` / `platform` (required) plus `base_url` / `token_env` / `repository`-or-`project` (as needed), then reference it from `release.targets[].forge`, keeping `draft` / `assets` on the target; the pre-release flag is now derived from the version (ADR-0064)"
 
 // releasePlatformsHintPerEnv is releasePlatformsHint plus the reminder that forges: has no
 // per-environment counterpart — it is declared once, top-level, and shared across environments.

@@ -285,6 +285,27 @@ release:
 	assert.Contains(t, err.Error(), "release.targets")
 }
 
+// TestLoad_RemovedKey_ReleasePlatformsHintDoesNotAdvisePrerelease pins a fix: the hint used to
+// tell users to keep `draft` / `prerelease` / `assets` on the target, which — after T337 removed
+// release.targets[].prerelease — sent anyone following it literally straight into a second
+// removed-key error. The hint must still mention what IS still a target option (draft/assets) but
+// must never advise keeping prerelease there.
+func TestLoad_RemovedKey_ReleasePlatformsHintDoesNotAdvisePrerelease(t *testing.T) {
+	_, err := config.Load(writeCfg(t, `version: "1"
+versioning: {strategy: semver}
+release:
+  platforms:
+    - name: gl
+      platform: gitlab
+      project: group/subgroup/project
+`))
+	require.Error(t, err)
+	require.True(t, errors.Is(err, config.ErrRemovedConfigKey))
+	assert.Contains(t, err.Error(), "draft", "the hint must still mention draft")
+	assert.Contains(t, err.Error(), "assets", "the hint must still mention assets")
+	assert.NotContains(t, err.Error(), "prerelease", "prerelease is itself a removed key (ADR-0064) — the hint must not advise keeping it on the target")
+}
+
 // The per-env message must additionally say forges: is top-level only.
 func TestLoad_RemovedKey_PerEnvHintSaysForgesIsTopLevel(t *testing.T) {
 	_, err := config.Load(writeCfg(t, `version: "1"
