@@ -68,10 +68,11 @@ type PlatformAnswer struct {
 	APIMode    string // gitlab only: "rest" (default) or "graphql"
 
 	// Passthrough fields: not wizard-editable, carried verbatim from existing config (T108).
-	Name       string
-	BaseURL    string
-	Draft      bool
-	Prerelease bool
+	// There is no Prerelease field — GitHub's pre-release flag is derived from the resolved
+	// version, not a per-target setting the wizard carries through at all (ADR-0064, T337).
+	Name    string
+	BaseURL string
+	Draft   bool
 }
 
 // EnvAnswer holds answers for one per-env environment.
@@ -175,7 +176,6 @@ func ConfigToAnswers(cfg *config.Config) Answers {
 				Name:       f.Name,
 				BaseURL:    f.BaseURL,
 				Draft:      t.Draft,
-				Prerelease: t.Prerelease,
 			})
 		}
 	}
@@ -437,7 +437,7 @@ func hideAPIMode(platformType, tokenChoice string) bool {
 // type. Called once per loop iteration in runPlatformWizard, right after Step 1 sets p.Type — early
 // enough that Step 3's token/api_mode prompts can pre-fill from the match, unlike a post-loop batch
 // pass which would see every prompt already rendered. The same call also supplies the passthrough
-// fields (Name, BaseURL, Draft, Prerelease), which aren't read by any prompt but are matched here
+// fields (Name, BaseURL, Draft), which aren't read by any prompt but are matched here
 // too so every field on a given platform always comes from the same original snapshot entry —
 // splitting this into two independent matching algorithms (one for TokenEnv/APIMode, one for the
 // passthrough fields) let them silently drift apart if either changed without the other; unifying
@@ -577,14 +577,13 @@ func runPlatformWizard(a *Answers) error {
 		}
 
 		// Re-seed the full set of snapshot fields now that p.Type is known: TokenEnv/APIMode must
-		// be set before Step 3 below so its prompts pre-fill correctly; Name/BaseURL/Draft/
-		// Prerelease aren't read by any prompt but are matched here too so every field comes from
+		// be set before Step 3 below so its prompts pre-fill correctly; Name/BaseURL/Draft
+		// aren't read by any prompt but are matched here too so every field comes from
 		// the same original snapshot entry.
 		if orig, ok := matchPlatformSnapshot(snapshot, a.Platforms, p.Type); ok {
 			p.Name = orig.Name
 			p.BaseURL = orig.BaseURL
 			p.Draft = orig.Draft
-			p.Prerelease = orig.Prerelease
 			p.TokenEnv = orig.TokenEnv
 			p.APIMode = orig.APIMode
 		}

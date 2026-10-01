@@ -250,7 +250,7 @@ func TestCreateRelease_BasicArgs(t *testing.T) {
 	mr.QueueResponse("", "", nil)
 
 	p := github.New(mr, &config.Platform{Repository: "org/repo", TokenEnv: "GH_TOKEN"})
-	require.NoError(t, p.CreateRelease("v1.2.3", "## Notes\n- thing\n"))
+	require.NoError(t, p.CreateRelease("v1.2.3", "## Notes\n- thing\n", false))
 
 	require.Len(t, mr.Calls, 1)
 	call := mr.Calls[0]
@@ -268,19 +268,21 @@ func TestCreateRelease_Draft(t *testing.T) {
 	mr.QueueResponse("", "", nil)
 
 	p := github.New(mr, &config.Platform{Repository: "org/repo", Draft: true})
-	require.NoError(t, p.CreateRelease("v1.0.0", "notes"))
+	require.NoError(t, p.CreateRelease("v1.0.0", "notes", false))
 
 	call := mr.Calls[0]
 	assert.Contains(t, call.Args, "--draft")
 	assert.NotContains(t, call.Args, "--prerelease")
 }
 
+// TestCreateRelease_Prerelease covers ADR-0064: the --prerelease flag is derived by the caller
+// from the resolved version (not read from static config) and passed as a parameter.
 func TestCreateRelease_Prerelease(t *testing.T) {
 	mr := exectest.NewMockRunner()
 	mr.QueueResponse("", "", nil)
 
-	p := github.New(mr, &config.Platform{Repository: "org/repo", Prerelease: true})
-	require.NoError(t, p.CreateRelease("v1.0.0-rc.1", "notes"))
+	p := github.New(mr, &config.Platform{Repository: "org/repo"})
+	require.NoError(t, p.CreateRelease("v1.0.0-rc.1", "notes", true))
 
 	call := mr.Calls[0]
 	assert.Contains(t, call.Args, "--prerelease")
@@ -299,7 +301,7 @@ func TestCreateRelease_LenientAssets_IncludesFilesInCreate(t *testing.T) {
 		Assets:        []string{filepath.Join(tmp, "heraut_linux"), filepath.Join(tmp, "checksums.txt")},
 		LenientAssets: true,
 	})
-	require.NoError(t, p.CreateRelease("v1.0.0", "notes"))
+	require.NoError(t, p.CreateRelease("v1.0.0", "notes", false))
 
 	require.Len(t, mr.Calls, 1)
 	call := mr.Calls[0]
@@ -327,8 +329,8 @@ func TestCreateRelease_DraftAndPrerelease(t *testing.T) {
 	mr := exectest.NewMockRunner()
 	mr.QueueResponse("", "", nil)
 
-	p := github.New(mr, &config.Platform{Repository: "org/repo", Draft: true, Prerelease: true})
-	require.NoError(t, p.CreateRelease("v1.0.0-rc.1", "notes"))
+	p := github.New(mr, &config.Platform{Repository: "org/repo", Draft: true})
+	require.NoError(t, p.CreateRelease("v1.0.0-rc.1", "notes", true))
 
 	call := mr.Calls[0]
 	assert.Contains(t, call.Args, "--draft")
@@ -410,7 +412,7 @@ func TestCreateRelease_RepoFromEnv(t *testing.T) {
 	mr.QueueResponse("", "", nil)
 
 	p := github.New(mr, &config.Platform{})
-	require.NoError(t, p.CreateRelease("v1.0.0", "notes"))
+	require.NoError(t, p.CreateRelease("v1.0.0", "notes", false))
 
 	call := mr.Calls[0]
 	assert.Contains(t, call.Args, "envorg/envrepo")
@@ -422,7 +424,7 @@ func TestCreateRelease_NoRepo_Error(t *testing.T) {
 	mr := exectest.NewMockRunner()
 
 	p := github.New(mr, &config.Platform{})
-	err := p.CreateRelease("v1.0.0", "notes")
+	err := p.CreateRelease("v1.0.0", "notes", false)
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "repository")
 }
@@ -446,7 +448,7 @@ func TestCreateRelease_TokenForwarded(t *testing.T) {
 	mr.QueueResponse("", "", nil)
 
 	p := github.New(mr, &config.Platform{Repository: "org/repo", TokenEnv: "CORP_TOKEN"})
-	require.NoError(t, p.CreateRelease("v1.0.0", "notes"))
+	require.NoError(t, p.CreateRelease("v1.0.0", "notes", false))
 
 	require.Len(t, mr.Calls, 1)
 	assert.Contains(t, mr.Calls[0].Env, "GH_TOKEN=secret123")
@@ -527,7 +529,7 @@ func TestCreateRelease_SelfHosted_SetsGhHostEnv(t *testing.T) {
 		Repository: "org/repo",
 		BaseURL:    "https://github.example.com",
 	})
-	require.NoError(t, p.CreateRelease("v1.0.0", "notes"))
+	require.NoError(t, p.CreateRelease("v1.0.0", "notes", false))
 
 	require.Len(t, mr.Calls, 1)
 	assert.Equal(t, []string{"GH_TOKEN=ent-token", "GH_HOST=github.example.com", "GH_ENTERPRISE_TOKEN=ent-token"}, mr.Calls[0].Env)

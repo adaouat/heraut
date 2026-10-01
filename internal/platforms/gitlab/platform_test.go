@@ -234,7 +234,7 @@ func TestCreateRelease_BasicArgs(t *testing.T) {
 	mr.QueueResponse("", "", nil)
 
 	p := gitlab.New(mr, &config.Platform{Project: "grp/repo", TokenEnv: "GITLAB_TOKEN"})
-	require.NoError(t, p.CreateRelease("v1.2.3", "## Notes\n- thing\n"))
+	require.NoError(t, p.CreateRelease("v1.2.3", "## Notes\n- thing\n", false))
 
 	require.Len(t, mr.Calls, 1)
 	call := mr.Calls[0]
@@ -260,7 +260,7 @@ func TestCreateRelease_LenientAssets_IncludesFilesInCreate(t *testing.T) {
 		Assets:        []string{filepath.Join(tmp, "heraut_linux"), filepath.Join(tmp, "checksums.txt")},
 		LenientAssets: true,
 	})
-	require.NoError(t, p.CreateRelease("v1.0.0", "notes"))
+	require.NoError(t, p.CreateRelease("v1.0.0", "notes", false))
 
 	require.Len(t, mr.Calls, 1)
 	call := mr.Calls[0]
@@ -269,6 +269,22 @@ func TestCreateRelease_LenientAssets_IncludesFilesInCreate(t *testing.T) {
 	assert.Equal(t, "create", call.Args[1])
 	assert.Contains(t, call.Args, filepath.Join(tmp, "heraut_linux"))
 	assert.Contains(t, call.Args, filepath.Join(tmp, "checksums.txt"))
+}
+
+// TestCreateRelease_PrereleaseParamIgnored covers ADR-0064: GitLab has no pre-release concept,
+// so the shared port.Platform parameter is accepted (to satisfy the contract) but never changes
+// the invocation, for either value.
+func TestCreateRelease_PrereleaseParamIgnored(t *testing.T) {
+	for _, prerelease := range []bool{false, true} {
+		mr := exectest.NewMockRunner()
+		mr.QueueResponse("", "", nil)
+
+		p := gitlab.New(mr, &config.Platform{Project: "grp/repo", TokenEnv: "GITLAB_TOKEN"})
+		require.NoError(t, p.CreateRelease("v1.2.3", "notes", prerelease))
+
+		require.Len(t, mr.Calls, 1)
+		assert.NotContains(t, mr.Calls[0].Args, "--prerelease")
+	}
 }
 
 func TestUploadAssets_LenientGlobs_IsNoop(t *testing.T) {
@@ -397,7 +413,7 @@ func TestCreateRelease_ProjectFromEnv(t *testing.T) {
 	mr.QueueResponse("", "", nil)
 
 	p := gitlab.New(mr, &config.Platform{})
-	require.NoError(t, p.CreateRelease("v1.0.0", "notes"))
+	require.NoError(t, p.CreateRelease("v1.0.0", "notes", false))
 
 	call := mr.Calls[0]
 	assert.Contains(t, call.Args, "envgrp/envrepo")
@@ -408,7 +424,7 @@ func TestCreateRelease_NoProject_Error(t *testing.T) {
 	mr := exectest.NewMockRunner()
 
 	p := gitlab.New(mr, &config.Platform{})
-	err := p.CreateRelease("v1.0.0", "notes")
+	err := p.CreateRelease("v1.0.0", "notes", false)
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "project")
 }
@@ -504,7 +520,7 @@ func TestCreateRelease_SelfHosted_SetsGitlabHostEnv(t *testing.T) {
 		Project: "grp/repo",
 		BaseURL: "https://gitlab.example.com",
 	})
-	require.NoError(t, p.CreateRelease("v1.0.0", "notes"))
+	require.NoError(t, p.CreateRelease("v1.0.0", "notes", false))
 
 	require.Len(t, mr.Calls, 1)
 	assert.Equal(t, []string{"GITLAB_TOKEN=tok", "GITLAB_HOST=gitlab.example.com"}, mr.Calls[0].Env)
@@ -540,7 +556,7 @@ func TestCreateRelease_InCI_NoEnvInjection(t *testing.T) {
 	mr.QueueResponse("", "", nil)
 
 	p := gitlab.New(mr, &config.Platform{Project: "grp/repo", TokenEnv: "CI_JOB_TOKEN"})
-	require.NoError(t, p.CreateRelease("v1.0.0", "notes"))
+	require.NoError(t, p.CreateRelease("v1.0.0", "notes", false))
 
 	require.Len(t, mr.Calls, 1)
 	assert.Nil(t, mr.Calls[0].Env, "must not inject env in CI autologin mode")
@@ -654,7 +670,7 @@ func TestCreateRelease_SelfHosted_MatchesCIServerURL_NoEnvInjection(t *testing.T
 		BaseURL:  "https://gitlab.example.com",
 		TokenEnv: "CI_JOB_TOKEN",
 	})
-	require.NoError(t, p.CreateRelease("v1.0.0", "notes"))
+	require.NoError(t, p.CreateRelease("v1.0.0", "notes", false))
 
 	require.Len(t, mr.Calls, 1)
 	assert.Nil(t, mr.Calls[0].Env, "must not inject env in CI autologin mode")

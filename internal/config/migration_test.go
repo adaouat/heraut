@@ -111,6 +111,17 @@ rendering:
 `,
 			wantHint: "rendering.templates.commit.trailers",
 		},
+		{
+			name: "release.targets[].prerelease",
+			body: `version: "1"
+versioning: {strategy: semver}
+release:
+  targets:
+    - forge: gh
+      prerelease: true
+`,
+			wantHint: "derived from the version",
+		},
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
@@ -289,6 +300,50 @@ environments:
 	require.Error(t, err)
 	require.True(t, errors.Is(err, config.ErrRemovedConfigKey))
 	assert.Contains(t, err.Error(), "top-level")
+}
+
+// TestLoad_RemovedKey_TargetsPrerelease covers T337: release.targets[].prerelease is removed
+// (ADR-0064) — GitHub's --prerelease flag is now derived from the resolved version instead of a
+// static per-target bool. The error must name the specific list index (and, per-environment, the
+// environment) so a multi-target config points the user at the exact entry to edit.
+func TestLoad_RemovedKey_TargetsPrerelease(t *testing.T) {
+	tests := []struct{ name, body, wantPath string }{
+		{
+			name: "top-level",
+			body: `version: "1"
+versioning: {strategy: semver}
+release:
+  targets:
+    - forge: gh
+      draft: true
+    - forge: gl
+      prerelease: true
+`,
+			wantPath: "release.targets[1].prerelease",
+		},
+		{
+			name: "per-environment",
+			body: `version: "1"
+versioning: {strategy: semver}
+environments:
+  staging:
+    release:
+      targets:
+        - forge: gh
+          prerelease: true
+`,
+			wantPath: "environments.staging.release.targets[0].prerelease",
+		},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			_, err := config.Load(writeCfg(t, tc.body))
+			require.Error(t, err)
+			assert.True(t, errors.Is(err, config.ErrRemovedConfigKey), "must be the removed-key sentinel")
+			assert.Contains(t, err.Error(), tc.wantPath, "the error must name the specific target index")
+			assert.Contains(t, err.Error(), "ADR-0064", "the hint must point at the design decision")
+		})
+	}
 }
 
 // TestLoad_RemovedKey_DisableNotes covers T217: environments.<env>.disable_notes is a hard

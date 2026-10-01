@@ -145,7 +145,10 @@ func (p *Platform) checkAPIAuth(tokenMissing bool) error {
 // included as positional args so the create and upload are atomic — this avoids
 // GitHub's HTTP 422 "Cannot upload assets to an immutable release" that occurs when
 // uploading to an already-published release via a separate gh release upload call.
-func (p *Platform) CreateRelease(tag, notes string) error {
+// prerelease is derived by the caller from the resolved version (ADR-0064), not read from
+// config — release.targets[].prerelease was a static bool that could contradict the version
+// actually being published.
+func (p *Platform) CreateRelease(tag, notes string, prerelease bool) error {
 	repo, err := p.requireRepository()
 	if err != nil {
 		return err
@@ -170,7 +173,7 @@ func (p *Platform) CreateRelease(tag, notes string) error {
 	if p.cfg.Draft {
 		args = append(args, "--draft")
 	}
-	if p.cfg.Prerelease {
+	if prerelease {
 		args = append(args, "--prerelease")
 	}
 

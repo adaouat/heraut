@@ -13,7 +13,11 @@ type Platform interface {
 	// it to the notes generator only in the multi-platform case (ADR-0020 / ADR-0021).
 	LinkContext() LinkContext
 	Check() error
-	CreateRelease(tag, notes string) error
+	// CreateRelease publishes a release for tag with notes. prerelease is derived by the caller
+	// from the resolved version (ADR-0064) — a SemVer pre-release like 2.0.0-rc.1 passes true, a
+	// final or any CalVer version passes false. A driver with no pre-release concept (GitLab)
+	// accepts and ignores it.
+	CreateRelease(tag, notes string, prerelease bool) error
 	HasAssets() bool
 	UploadAssets(tag string) error
 }

@@ -1,0 +1,9 @@
+version: "1"
+
+versioning:
+  strategy: semver
+
+release:
+  targets:
+    - forge: gh
+      prerelease: true

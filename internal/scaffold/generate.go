@@ -115,9 +115,8 @@ func answersToConfig(a Answers) config.Config {
 				BaseURL:    p.BaseURL,
 			})
 			cfg.Release.Targets = append(cfg.Release.Targets, config.Target{
-				Forge:      name,
-				Draft:      p.Draft,
-				Prerelease: p.Prerelease,
+				Forge: name,
+				Draft: p.Draft,
 			})
 		}
 		// commits.enrichment_forge is required once more than one forge is configured

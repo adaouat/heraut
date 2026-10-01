@@ -77,6 +77,7 @@ func TestSchema_InvalidFixtures(t *testing.T) {
 		{"unknown_key.yml", "additionalProperties violation"},
 		{"perenv_no_environments.yml", "per-env strategy requires environments"},
 		{"hooks_bare_string.yml", "hook step bare-string shorthand no longer accepted (ADR-0061)"},
+		{"targets_prerelease_removed.yml", "release.targets[].prerelease is a disallowed property (removed key, ADR-0064)"},
 	}
 
 	for _, tc := range tests {

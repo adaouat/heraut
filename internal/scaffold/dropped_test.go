@@ -69,7 +69,10 @@ func TestDroppedFields_PlatformBaseURL_NotDropped(t *testing.T) {
 	assert.Empty(t, scaffold.DroppedFields(cfg), "base_url is carried through via passthrough fields (T108)")
 }
 
-func TestDroppedFields_PlatformDraftAndPrerelease_NotDropped(t *testing.T) {
+// TestDroppedFields_PlatformDraft_NotDropped covers only `draft` now — `prerelease` was removed
+// from config.Target (ADR-0064, T337): GitHub's pre-release flag is derived from the resolved
+// version, not carried through the wizard at all.
+func TestDroppedFields_PlatformDraft_NotDropped(t *testing.T) {
 	cfg := &config.Config{
 		Version:    "1",
 		Versioning: config.Versioning{Strategy: "semver"},
@@ -77,10 +80,10 @@ func TestDroppedFields_PlatformDraftAndPrerelease_NotDropped(t *testing.T) {
 			{Name: "github", Type: "github", BaseURL: "https://github.com"},
 		},
 		Release: &config.Release{
-			Targets: []config.Target{{Forge: "github", Draft: true, Prerelease: true}},
+			Targets: []config.Target{{Forge: "github", Draft: true}},
 		},
 	}
-	assert.Empty(t, scaffold.DroppedFields(cfg), "draft/prerelease are carried through via passthrough fields (T108)")
+	assert.Empty(t, scaffold.DroppedFields(cfg), "draft is carried through via passthrough fields (T108)")
 }
 
 func TestDroppedPlatformFields_NoMismatch(t *testing.T) {

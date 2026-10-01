@@ -231,12 +231,13 @@ type Forge struct {
 }
 
 // Target is one release publish destination: a reference to a forges[].name plus publish
-// options.
+// options. There is no Prerelease field — GitHub's pre-release flag is derived from the
+// resolved version instead of a static per-target bool (ADR-0064); release.targets[].prerelease
+// is a removed config key (internal/config/loader.go).
 type Target struct {
-	Forge      string   `yaml:"forge,omitempty"` // → forges[].name; optional when exactly one forge
-	Draft      bool     `yaml:"draft,omitempty"`
-	Prerelease bool     `yaml:"prerelease,omitempty"`
-	Assets     []string `yaml:"assets,omitempty"`
+	Forge  string   `yaml:"forge,omitempty"` // → forges[].name; optional when exactly one forge
+	Draft  bool     `yaml:"draft,omitempty"`
+	Assets []string `yaml:"assets,omitempty"`
 }
 
 // Platform is the config shape the internal/platforms/{github,gitlab} drivers accept. It has no
@@ -251,7 +252,6 @@ type Platform struct {
 	// GitHub-specific
 	Repository string
 	Draft      bool
-	Prerelease bool
 	// GitLab-specific
 	Project string
 	// Shared

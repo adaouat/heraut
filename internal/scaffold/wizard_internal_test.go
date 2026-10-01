@@ -116,16 +116,18 @@ func TestDetectPlatform_NoDetection(t *testing.T) {
 	assert.Equal(t, "", project)
 }
 
+// TestMatchPlatformSnapshot_SingleMatch no longer covers `Prerelease` — it was removed from
+// PlatformAnswer (ADR-0064, T337): GitHub's pre-release flag is derived from the resolved
+// version, not a wizard passthrough field at all.
 func TestMatchPlatformSnapshot_SingleMatch(t *testing.T) {
 	snapshot := []PlatformAnswer{
-		{Type: "github", Name: "gh-internal", BaseURL: "https://github.example.com", Draft: true, Prerelease: true, TokenEnv: "GH_TOKEN", APIMode: "graphql"},
+		{Type: "github", Name: "gh-internal", BaseURL: "https://github.example.com", Draft: true, TokenEnv: "GH_TOKEN", APIMode: "graphql"},
 	}
 	orig, ok := matchPlatformSnapshot(snapshot, nil, "github")
 	require.True(t, ok)
 	assert.Equal(t, "gh-internal", orig.Name)
 	assert.Equal(t, "https://github.example.com", orig.BaseURL)
 	assert.True(t, orig.Draft)
-	assert.True(t, orig.Prerelease)
 	assert.Equal(t, "GH_TOKEN", orig.TokenEnv)
 	assert.Equal(t, "graphql", orig.APIMode)
 }

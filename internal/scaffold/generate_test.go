@@ -271,6 +271,9 @@ func TestGenerateYAML_AssetsTicketsEnrichmentPolicy(t *testing.T) {
 	assert.Equal(t, []string{"dist/*.tar.gz"}, cfg.Release.Assets)
 }
 
+// TestConfigToAnswers_PreservesPlatformPassthroughFields no longer round-trips `prerelease` —
+// it was removed from config.Target (ADR-0064, T337): GitHub's pre-release flag is derived from
+// the resolved version, not a wizard-editable or passthrough setting at all.
 func TestConfigToAnswers_PreservesPlatformPassthroughFields(t *testing.T) {
 	cfg := &config.Config{
 		Version:    "1",
@@ -282,7 +285,7 @@ func TestConfigToAnswers_PreservesPlatformPassthroughFields(t *testing.T) {
 			},
 		},
 		Release: &config.Release{
-			Targets: []config.Target{{Forge: "gh-internal", Draft: true, Prerelease: true}},
+			Targets: []config.Target{{Forge: "gh-internal", Draft: true}},
 		},
 	}
 	a := scaffold.ConfigToAnswers(cfg)
@@ -290,7 +293,6 @@ func TestConfigToAnswers_PreservesPlatformPassthroughFields(t *testing.T) {
 	assert.Equal(t, "gh-internal", a.Platforms[0].Name)
 	assert.Equal(t, "https://github.example.com", a.Platforms[0].BaseURL)
 	assert.True(t, a.Platforms[0].Draft)
-	assert.True(t, a.Platforms[0].Prerelease)
 }
 
 func TestGenerateYAML_PlatformUsesPassthroughName(t *testing.T) {
@@ -311,6 +313,8 @@ func TestGenerateYAML_PlatformUsesPassthroughName(t *testing.T) {
 	assert.Equal(t, "gh-internal", cfg.Release.Targets[0].Forge)
 }
 
+// TestGenerateYAML_PlatformPassthroughFieldsRoundTrip no longer round-trips `prerelease` — it was
+// removed from config.Target/scaffold.PlatformAnswer (ADR-0064, T337).
 func TestGenerateYAML_PlatformPassthroughFieldsRoundTrip(t *testing.T) {
 	a := scaffold.Answers{
 		Strategy:        "semver",
@@ -318,7 +322,7 @@ func TestGenerateYAML_PlatformPassthroughFieldsRoundTrip(t *testing.T) {
 		Platforms: []scaffold.PlatformAnswer{
 			{
 				Name: "gh-internal", Type: "github", Repository: "org/repo", TokenEnv: "GH_TOKEN",
-				BaseURL: "https://github.example.com", Draft: true, Prerelease: true,
+				BaseURL: "https://github.example.com", Draft: true,
 			},
 		},
 	}
@@ -331,7 +335,6 @@ func TestGenerateYAML_PlatformPassthroughFieldsRoundTrip(t *testing.T) {
 	require.Len(t, cfg.Release.Targets, 1)
 	target := cfg.Release.Targets[0]
 	assert.True(t, target.Draft)
-	assert.True(t, target.Prerelease)
 }
 
 func TestGenerateYAML_PlatformAPIMode(t *testing.T) {

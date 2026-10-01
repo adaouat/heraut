@@ -11,7 +11,10 @@ type MockPlatform struct {
 	UploadAssetsErr  error
 	LinkContextVal   port.LinkContext
 
-	CreateReleaseCalls         []struct{ Tag, Notes string }
+	CreateReleaseCalls []struct {
+		Tag, Notes string
+		Prerelease bool
+	}
 	UploadAssetsCalls          []string
 	ReleaseURLFromContextCalls []struct {
 		Tag string
@@ -37,8 +40,11 @@ func (m *MockPlatform) LinkContext() port.LinkContext { return m.LinkContextVal 
 
 func (m *MockPlatform) Check() error { return m.CheckErr }
 
-func (m *MockPlatform) CreateRelease(tag, notes string) error {
-	m.CreateReleaseCalls = append(m.CreateReleaseCalls, struct{ Tag, Notes string }{tag, notes})
+func (m *MockPlatform) CreateRelease(tag, notes string, prerelease bool) error {
+	m.CreateReleaseCalls = append(m.CreateReleaseCalls, struct {
+		Tag, Notes string
+		Prerelease bool
+	}{tag, notes, prerelease})
 	return m.CreateReleaseErr
 }
 

@@ -92,9 +92,6 @@ func DroppedPlatformFields(cfg *config.Config, rebuilt []PlatformAnswer) []strin
 			if t.Draft {
 				dropped = append(dropped, path+".draft")
 			}
-			if t.Prerelease {
-				dropped = append(dropped, path+".prerelease")
-			}
 		}
 	}
 	return dropped

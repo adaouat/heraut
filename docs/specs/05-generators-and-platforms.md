@@ -367,7 +367,9 @@ Two platforms are supported: `github` (via `gh`) and `gitlab` (via `glab`). A re
 can be published to one or both — `release.targets` is a list, each entry referencing a
 `forges[].name` ([ADR-0044](../adr/0044-publishing-config-unification.md)). Connection
 fields (`repository`/`project`, `token_env`, `base_url`) live on the `forges:` entry;
-publish behavior (`draft`, `prerelease`, `assets`) lives on the `release.targets` entry.
+publish behavior (`draft`, `assets`) lives on the `release.targets` entry. GitHub's
+pre-release flag is not configured at all — it is derived from the resolved version (§ GitHub
+below, [ADR-0064](../adr/0064-semver-v2-compliance.md)).
 
 `azure_devops` is a valid `forges:` platform (§ forges above) but has no publish driver and
 never will — Azure DevOps has no equivalent of a GitHub/GitLab Release. A `release.targets[]`
@@ -389,7 +391,6 @@ release:
   targets:
     - forge: github              # optional when exactly one forge is configured
       draft: false
-      prerelease: false
       assets:
         - dist/myapp_*
 ```
@@ -408,6 +409,11 @@ changelog can't exceed `ARG_MAX`. Resolved asset files are appended as positiona
 - **Repository** resolution: `cfg.Repository` → `$GITHUB_REPOSITORY` → error
 - **Token** is read from `$<TokenEnv>` (default `GH_TOKEN`); `gh` picks it up
   automatically from the environment
+- **Pre-release**: `--prerelease` is passed iff the resolved version carries SemVer
+  pre-release identifiers (e.g. `1.4.0-rc.1`) — never for a final, and never for a CalVer
+  version. There is no config key for this: a static per-target bool could contradict the
+  version actually being published, so the pipeline derives the flag once from
+  `versioning.Result.Version` and passes it to `CreateRelease` ([ADR-0064](../adr/0064-semver-v2-compliance.md)).
 - **Release URL**: `https://github.com/<repo>/releases/tag/<tag>` — used in the
   post-release log line
 
@@ -447,6 +453,9 @@ release upload` call in the normal `heraut release` flow.
 - **Project** resolution: `cfg.Project` → `$CI_PROJECT_PATH` → error
 - **Token** is read from `$<TokenEnv>` (default `GITLAB_TOKEN`); `glab` picks it up
   automatically from the environment
+- **Pre-release**: not supported — GitLab releases have no pre-release concept. The shared
+  `port.Platform.CreateRelease` contract still passes the derived flag (§ GitHub above), but
+  this driver accepts and ignores it.
 - **Catalog**: GitLab automatically publishes to the CI/CD Catalog when the project is a
   registered catalog resource — heraut has no separate config field or flag for this
 - **Release URL**: `<gitlab-base>/<project>/-/releases/<tag>`

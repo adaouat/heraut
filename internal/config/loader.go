@@ -53,6 +53,11 @@ const disableNotesRemovedHint = "rename to `disable_release` — it now turns of
 // config ADR-0059 established.
 const renderingTrailersRemovedHint = "rename to `rendering.templates.commit.trailers`"
 
+// targetsPrereleaseRemovedHint is the migration guidance for release.targets[].prerelease
+// (ADR-0064, T337): a static per-target bool could contradict the version actually being
+// published, so GitHub's --prerelease flag is now derived from the resolved version instead.
+const targetsPrereleaseRemovedHint = "removed — GitHub's pre-release flag is now derived from the version (a SemVer pre-release like 1.4.0-rc.1 is published as a pre-release; ADR-0064)"
+
 // removedKeys maps a removed config path to its replacement guidance.
 var removedKeys = []struct{ path, hint string }{
 	{"changelog.remote", changelogRemoteRemovedHint},
@@ -65,6 +70,24 @@ var removedKeys = []struct{ path, hint string }{
 	{"rendering.trailers", renderingTrailersRemovedHint},
 }
 
+// targetPrereleaseProbe probes one release.targets[] entry for the removed prerelease key. A
+// named type (rather than inlining the field at each of the two use sites below) lets
+// firstPrereleaseIndex take a single parameter type for both the top-level and per-env probes.
+type targetPrereleaseProbe struct {
+	Prerelease any `yaml:"prerelease"`
+}
+
+// firstPrereleaseIndex returns the index of the first target carrying the removed prerelease
+// key, or -1 when none do.
+func firstPrereleaseIndex(targets []targetPrereleaseProbe) int {
+	for i, t := range targets {
+		if t.Prerelease != nil {
+			return i
+		}
+	}
+	return -1
+}
+
 // checkRemovedKeys reports the first removed key present in the raw YAML, with migration
 // guidance. environments.<env>.changelog.remote and environments.<env>.release.platforms are
 // probed alongside the top-level keys: both were explicitly supported before the forge migration
@@ -74,7 +97,9 @@ var removedKeys = []struct{ path, hint string }{
 // changelog.rendering.trailers / release.notes.rendering.trailers (or their per-env variants)
 // still gets a strict-decode error rather than this hint; narrower in scope than the
 // changelog/release.notes probes above, accepted since global rendering.trailers is the common
-// case.
+// case. release.targets[].prerelease (ADR-0064) is a list, unlike every other removed key here,
+// so it is probed by index via firstPrereleaseIndex rather than through the generic `present` map
+// below — the error names the exact target that still carries it.
 func checkRemovedKeys(raw []byte) error {
 	var probe struct {
 		Changelog struct {
@@ -89,7 +114,8 @@ func checkRemovedKeys(raw []byte) error {
 			Trailers any `yaml:"trailers"`
 		} `yaml:"rendering"`
 		Release struct {
-			Platforms any `yaml:"platforms"`
+			Platforms any                     `yaml:"platforms"`
+			Targets   []targetPrereleaseProbe `yaml:"targets"`
 			Notes     struct {
 				Generator any `yaml:"generator"`
 				Config    any `yaml:"config"`
@@ -103,7 +129,8 @@ func checkRemovedKeys(raw []byte) error {
 				Config    any `yaml:"config"`
 			} `yaml:"changelog"`
 			Release struct {
-				Platforms any `yaml:"platforms"`
+				Platforms any                     `yaml:"platforms"`
+				Targets   []targetPrereleaseProbe `yaml:"targets"`
 				Notes     struct {
 					Generator any `yaml:"generator"`
 					Config    any `yaml:"config"`
@@ -129,8 +156,14 @@ func checkRemovedKeys(raw []byte) error {
 			return fmt.Errorf("%w: `%s` — %s", ErrRemovedConfigKey, k.path, k.hint)
 		}
 	}
+	if i := firstPrereleaseIndex(probe.Release.Targets); i >= 0 {
+		return fmt.Errorf("%w: `release.targets[%d].prerelease` — %s", ErrRemovedConfigKey, i, targetsPrereleaseRemovedHint)
+	}
 	for _, env := range slices.Sorted(maps.Keys(probe.Environments)) {
 		envProbe := probe.Environments[env]
+		if i := firstPrereleaseIndex(envProbe.Release.Targets); i >= 0 {
+			return fmt.Errorf("%w: `environments.%s.release.targets[%d].prerelease` — %s", ErrRemovedConfigKey, env, i, targetsPrereleaseRemovedHint)
+		}
 		if envProbe.DisableNotes != nil {
 			return fmt.Errorf("%w: `environments.%s.disable_notes` — %s", ErrRemovedConfigKey, env, disableNotesRemovedHint)
 		}

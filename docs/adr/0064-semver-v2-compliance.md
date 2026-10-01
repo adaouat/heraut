@@ -128,6 +128,16 @@ version carries pre-release identifiers, and `release.targets[].prerelease` is r
 config key — a static bool can only ever contradict the version being published, which the
 derived flag makes structurally impossible.
 
+## Status update (Phase 1.5)
+
+Phase 1.5 closed (T336, T337): `--set-version` validation under `semver`/`semver-per-env`, and
+the GitHub-derived `--prerelease` flag with `release.targets[].prerelease` removed, both landed
+ahead of Phase 2 — see `docs/tasks/semver-v2-roadmap.md` § Phase 1.5. The `port.Platform`
+contract changed to `CreateRelease(tag, notes string, prerelease bool) error`: the pipeline
+derives `prerelease` once from `versioning.Result.Version` via `semver.Parse`/`IsPreRelease`
+(false for a parse failure, i.e. every CalVer version) and passes it to every target; GitLab's
+driver accepts and ignores it, having no pre-release concept of its own.
+
 ## Consequences
 
 Test rows that asserted the old `-{build}` tag shape or git-sort-driven ordering are rewritten

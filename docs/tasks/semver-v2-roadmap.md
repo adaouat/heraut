@@ -37,7 +37,7 @@ pre-release lifecycle (`--pre-release <label>`) for the plain `semver` strategy.
 | T334 | Changelog, rotation and compare links bound by SemVer precedence | Done |
 | T335 | Per-env tags containing "/" break GitLab package-registry uploads | Not started |
 | T336 | `--set-version` validated as SemVer v2 under `semver`/`semver-per-env` | Done |
-| T337 | GitHub `--prerelease` derived from the version; remove `release.targets[].prerelease` | Not started |
+| T337 | GitHub `--prerelease` derived from the version; remove `release.targets[].prerelease` | Done |
 | —    | Phase 2 (pre-release lifecycle) — planned after Phase 1.5 lands | Not planned |
 
 ## Phase 1 — Compliance
@@ -305,8 +305,9 @@ design (e.g. derive a package version without `/`, or drop `--use-package-regist
 
 ## Phase 1.5 — Remaining compliance
 
-Two items the design doc's § Delivery filed under Phase 2 that need none of its series/escalation
-machinery, pulled forward once Phase 1 closed rather than waiting on the pre-release lifecycle.
+**Phase 1.5 closed** (T336–T337). Two items the design doc's § Delivery filed under Phase 2 that
+need none of its series/escalation machinery, pulled forward once Phase 1 closed rather than
+waiting on the pre-release lifecycle.
 
 ### [x] T336 — `--set-version` validated as SemVer v2 under `semver`/`semver-per-env`
 
@@ -329,15 +330,38 @@ no --set-build-id, still works" row (`v1.4.0+abc`) is the same deliberate change
 `TestVersionNext_SetVersion_BuildMetadataWithoutSetBuildID_IsRejected`, asserting the config error
 instead. No deferred items.
 
-### [ ] T337 — GitHub `--prerelease` derived from the version; remove `release.targets[].prerelease`
+### [x] T337 — GitHub `--prerelease` derived from the version; remove `release.targets[].prerelease`
 
-Not started. Scope per the design doc § 3–4: change the `port.Platform` contract to
-`CreateRelease(tag, notes string, prerelease bool)` so the pipeline — which may import
-`internal/versioning` — decides the flag from the resolved version, keeping platforms free of
-versioning imports; update every `port.Platform` implementor (`platforms/github`,
-`platforms/gitlab`) in the same commit; remove `release.targets[].prerelease` from
-`internal/config`, `schema.json`, `docs/heraut.sample.yml` and `testdata/config/`, with a
-migration hint via the loader's `removedKeys` mechanism.
+Changed `port.Platform.CreateRelease` to `CreateRelease(tag, notes string, prerelease bool)
+error`; `internal/pipeline/release.go` computes `prerelease := isPreRelease(result.Version)`
+once per run (`semver.Parse` + `IsPreRelease`, false on parse failure — every CalVer version) and
+passes it to every target's `CreateRelease` call. `platforms/github` now reads the parameter
+instead of `cfg.Prerelease`; `platforms/gitlab` accepts and ignores it (GitLab has no pre-release
+concept) — both updated in the same commit as the port change, per the layering rule. Removed
+`Target.Prerelease` and `Platform.Prerelease` from `internal/config/config.go`,
+`app.platformConfigFromTarget`'s copy, and every scaffold passthrough field (`wizard.go`'s
+`PlatformAnswer.Prerelease`, `generate.go`'s `answersToConfig`, `dropped.go`'s
+`DroppedPlatformFields` branch) — GitHub's pre-release flag is no longer a wizard-editable or
+passthrough setting at all. `release.targets[].prerelease` is a removed config key: added
+`targetPrereleaseProbe`/`firstPrereleaseIndex` to `internal/config/loader.go` since it is the
+first removed key living inside a YAML *list* rather than a flat path — the error names the exact
+list index (`release.targets[1].prerelease`, or `environments.<env>.release.targets[N].prerelease`)
+rather than just the key name, since a config with several targets needs to know which one to
+edit. `schema.json`'s `Target` definition drops `prerelease`, so `additionalProperties: false`
+now rejects it structurally; `testdata/config/invalid/targets_prerelease_removed.yml` covers both
+the schema rejection and the loader's `ErrRemovedConfigKey`. Test rows edited (not deleted, per
+this file's TDD rule) because they asserted the now-removed field: `platforms/github`'s
+`TestCreateRelease_Prerelease`/`TestCreateRelease_DraftAndPrerelease` (config no longer sets
+`Prerelease`; the call now passes the bool as a parameter); `scaffold`'s
+`TestDroppedFields_PlatformDraftAndPrerelease_NotDropped` (renamed to
+`...PlatformDraft_NotDropped`), `TestConfigToAnswers_PreservesPlatformPassthroughFields`,
+`TestGenerateYAML_PlatformPassthroughFieldsRoundTrip`, and `wizard_internal_test.go`'s
+`TestMatchPlatformSnapshot_SingleMatch` (all drop the `Prerelease`/`prerelease` assertion, keeping
+every other field's coverage intact). New coverage: `platforms/gitlab`'s
+`TestCreateRelease_PrereleaseParamIgnored` (both bool values produce identical args);
+`pipeline`'s `TestRun_Prerelease_DerivedFromVersion` (table: `2.0.0-rc.1` → true, `2.0.0` →
+false, `2026.05.0` → false) against `MockPlatform.CreateReleaseCalls`, which gained a
+`Prerelease` field. No deferred items.
 
 ## Phase 2 — Pre-release lifecycle
 

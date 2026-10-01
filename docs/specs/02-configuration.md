@@ -446,7 +446,6 @@ release:
   targets:
     - forge: gitlab-saas   # → forges[].name; optional when exactly one forge is configured
       draft: false          # GitHub only
-      prerelease: false     # GitHub only
       assets:                # optional — overrides release.assets entirely for this target
         - "dist/myapp_*"
 ```
@@ -455,8 +454,12 @@ release:
 |--------------|----------------------------------------|---------|--------------------------------------------------------------------------------------------------|
 | `forge`      | Conditional                            | —       | References a `forges[].name`. Optional when exactly one forge is configured/resolved; required when more than one is configured. |
 | `draft`      | No                                      | `false` | Create the release as a draft. GitHub only.                                                     |
-| `prerelease` | No                                      | `false` | Mark as a pre-release. GitHub only.                                                              |
 | `assets`     | No                                      | —       | Target-specific glob patterns. When set, overrides `release.assets` entirely for this target (no merging). Resolved leniently, same as `release.assets` (see § `release.assets` above) — a non-matching pattern warns and is skipped. |
+
+There is no `prerelease` field: GitHub's `--prerelease` flag is derived automatically from the
+resolved version — a SemVer pre-release (e.g. `1.4.0-rc.1`) publishes as a pre-release, a final
+never does ([ADR-0064](../adr/0064-semver-v2-compliance.md); see Spec 05 § GitHub for the exact
+rule).
 
 Publishing constructs the existing GitHub/GitLab drivers from the resolved
 `forges[].name` identity — host, project/repository, and token are inherited from the same
@@ -875,7 +878,7 @@ this yet — hand-edit `.heraut.yml`). Both are deliberate scope cuts, not overs
 
 ## Platform drivers
 
-Publishing is driven by a `release.targets[]` entry (draft/prerelease/assets) plus the
+Publishing is driven by a `release.targets[]` entry (draft/assets) plus the
 `forges[].name` it references (host, project/repository, token) — see § `release.targets[]`
 and § `forges` above. The drivers themselves (`gh`/`glab`) are unchanged by ADR-0044: only
 how they are configured and constructed changed, from a standalone `release.platforms` entry
@@ -928,12 +931,12 @@ release:
   targets:
     - forge: github
       draft: false
-      prerelease: false
       assets:
         - dist/myapp_*
 ```
 
-Implementation: shells out to `gh release create` + `gh release upload`.
+Implementation: shells out to `gh release create` + `gh release upload`. `--prerelease` is
+passed when the resolved version carries SemVer pre-release identifiers — see Spec 05 § GitHub.
 
 **`token_env`'s default differs by subsystem when omitted.** Forge-identity resolution (enrichment,
 § Identity resolution above) falls back to `GITHUB_TOKEN` — the token GitHub Actions provides

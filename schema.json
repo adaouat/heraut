@@ -677,10 +677,6 @@
           "type": "boolean",
           "description": "Create as draft release."
         },
-        "prerelease": {
-          "type": "boolean",
-          "description": "Mark as a pre-release."
-        },
         "assets": {
           "type": "array",
           "items": {

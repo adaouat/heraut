@@ -187,7 +187,9 @@ func (p *Platform) hostEnv() []string {
 // CreateRelease runs `glab release create`.
 // When cfg.LenientAssets is true (release-level assets), resolved asset files are
 // included as positional args for atomic create+upload (mirrors the GitHub pattern).
-func (p *Platform) CreateRelease(tag, notes string) error {
+// prerelease is accepted to satisfy the shared port.Platform contract and ignored — GitLab
+// releases have no pre-release concept (ADR-0064).
+func (p *Platform) CreateRelease(tag, notes string, prerelease bool) error {
 	proj, err := p.requireProject()
 	if err != nil {
 		return err

@@ -52,13 +52,12 @@ func platformConfigFromTarget(t config.Target, f config.Forge, id port.ForgeIden
 		name = id.Type
 	}
 	cfg := config.Platform{
-		Name:       name,
-		Type:       id.Type,
-		BaseURL:    id.Host,
-		TokenEnv:   f.TokenEnv,
-		Draft:      t.Draft,
-		Prerelease: t.Prerelease,
-		Assets:     t.Assets,
+		Name:     name,
+		Type:     id.Type,
+		BaseURL:  id.Host,
+		TokenEnv: f.TokenEnv,
+		Draft:    t.Draft,
+		Assets:   t.Assets,
 	}
 	if id.Type == "github" {
 		cfg.Repository = id.Project

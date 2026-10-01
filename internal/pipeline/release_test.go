@@ -94,6 +94,39 @@ func TestRun_HappyPath_NoChangelog(t *testing.T) {
 	assert.Equal(t, "v1.2.3", platform.CreateReleaseCalls[0].Tag)
 }
 
+// TestRun_Prerelease_DerivedFromVersion covers ADR-0064: CreateRelease's prerelease flag is
+// derived once from the resolved version, not read from static config — a SemVer pre-release
+// publishes as a pre-release; a final, or any CalVer version (which fails semver.Parse), never
+// does.
+func TestRun_Prerelease_DerivedFromVersion(t *testing.T) {
+	tests := []struct {
+		name    string
+		version string
+		want    bool
+	}{
+		{"semver pre-release", "2.0.0-rc.1", true},
+		{"semver final", "2.0.0", false},
+		{"calver", "2026.05.0", false},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			mr := exectest.NewMockRunner()
+			mr.QueueResponse("", "", nil) // git tag
+			mr.QueueResponse("", "", nil) // git push
+
+			platform := &testutil.MockPlatform{PlatformName: "github"}
+			cfg := &pipeline.Config{Platforms: []port.Platform{platform}}
+
+			result := versioning.Result{Version: tc.version, Tag: "v" + tc.version}
+			p := pipeline.New(mr, &fakeResolver{result: result}, cfg, &bytes.Buffer{}, false)
+			require.NoError(t, p.Run())
+
+			require.Len(t, platform.CreateReleaseCalls, 1)
+			assert.Equal(t, tc.want, platform.CreateReleaseCalls[0].Prerelease)
+		})
+	}
+}
+
 // TestRun_WithChangelog verifies changelog generation + commit + push before tagging.
 func TestRun_WithChangelog(t *testing.T) {
 	mr := exectest.NewMockRunner()
