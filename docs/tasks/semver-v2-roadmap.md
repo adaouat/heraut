@@ -17,7 +17,7 @@ pre-release lifecycle (`--pre-release <label>`) for the plain `semver` strategy.
   `[ ]` → `[x]` and add a one-paragraph completion note.
 - **No real data** anywhere: synthetic placeholders only.
 - Two deliberate clean breaks (ADR-0064): `{build}` must directly follow `+` in `tag_format`;
-  `release.targets[].prerelease` is removed (Phase 2).
+  `release.targets[].prerelease` is removed (Phase 1.5, T337).
 - The main `roadmap.md` Phase 59 block is a navigable index only; it carries no checkboxes.
 
 ## Progress at a glance
@@ -36,7 +36,9 @@ pre-release lifecycle (`--pre-release <label>`) for the plain `semver` strategy.
 | T333 | Validate `--set-build-id` against SemVer build-identifier grammar | Done |
 | T334 | Changelog, rotation and compare links bound by SemVer precedence | Done |
 | T335 | Per-env tags containing "/" break GitLab package-registry uploads | Not started |
-| —    | Phase 2 (pre-release lifecycle) — planned after Phase 1 lands | Not planned |
+| T336 | `--set-version` validated as SemVer v2 under `semver`/`semver-per-env` | Done |
+| T337 | GitHub `--prerelease` derived from the version; remove `release.targets[].prerelease` | Not started |
+| —    | Phase 2 (pre-release lifecycle) — planned after Phase 1.5 lands | Not planned |
 
 ## Phase 1 — Compliance
 
@@ -301,11 +303,48 @@ heraut renders `/-/releases/uat/0.0.0%2Bsmoke` — check on a public project whe
 per-env GitLab release URLs resolve, and whether `/` should be escaped there. Needs its own
 design (e.g. derive a package version without `/`, or drop `--use-package-registry` for per-env).
 
+## Phase 1.5 — Remaining compliance
+
+Two items the design doc's § Delivery filed under Phase 2 that need none of its series/escalation
+machinery, pulled forward once Phase 1 closed rather than waiting on the pre-release lifecycle.
+
+### [x] T336 — `--set-version` validated as SemVer v2 under `semver`/`semver-per-env`
+
+Added `validateSemVerStrategyOverride(strategy, version string) error` in
+`internal/app/resolver.go`, called once in `NewResolver`'s override branch right after `tag`/
+`version` are computed by either the `tag_format` path or the plain-prefix path, gated on
+`buildID == ""` — the `buildID != ""` paths already run `validateSemVerComposition` (and, for
+`semver-per-env`, `validateSemVerBuildID`) from T329/T333, which parse `version` as part of the
+full `"<version>+<buildID>"` string, so re-running the new check there would be redundant, not
+wrong, and the brief asked for one check covering the two paths those don't reach. The check is a
+no-op for `calver`/`calver-per-env` (returns `nil` immediately), and otherwise rejects a value
+containing `+` with a hint toward `--set-build-id` before ever calling `semver.Parse`, since build
+metadata has exactly one entry point into a tag. Breaking change: `internal/cmd/release_test.go`'s
+`TestRelease_VersionFlag_ValidFormats` asserted that a bare word, a truncated core (`v1`, `v1.2`,
+bare `v`), and CalVer-shaped values (`2024.03`, `2024.03.15.2`) all passed through unexamined under
+`semver` — those seven rows moved to a new `TestRelease_VersionFlag_RejectedUnderSemVer`, re-asserting
+them as config errors naming `--set-version` (ADR-0064), per this file's TDD rule against deleting
+assertions. `internal/cmd/version_override_test.go`'s "set-version already carrying build metadata,
+no --set-build-id, still works" row (`v1.4.0+abc`) is the same deliberate change: replaced by
+`TestVersionNext_SetVersion_BuildMetadataWithoutSetBuildID_IsRejected`, asserting the config error
+instead. No deferred items.
+
+### [ ] T337 — GitHub `--prerelease` derived from the version; remove `release.targets[].prerelease`
+
+Not started. Scope per the design doc § 3–4: change the `port.Platform` contract to
+`CreateRelease(tag, notes string, prerelease bool)` so the pipeline — which may import
+`internal/versioning` — decides the flag from the resolved version, keeping platforms free of
+versioning imports; update every `port.Platform` implementor (`platforms/github`,
+`platforms/gitlab`) in the same commit; remove `release.targets[].prerelease` from
+`internal/config`, `schema.json`, `docs/heraut.sample.yml` and `testdata/config/`, with a
+migration hint via the loader's `removedKeys` mechanism.
+
 ## Phase 2 — Pre-release lifecycle
 
 Not yet broken down. Scope per the design doc § Delivery → Phase 2: `--pre-release <label>`,
-series rules, `--allow-major` second trigger, `--set-version` SemVer validation, changelog skip and
-notes ranges, GitHub-derived `--prerelease`, removal of `release.targets[].prerelease`.
+series rules, `--allow-major` second trigger, changelog skip and notes ranges. (`--set-version`
+SemVer validation and the GitHub-derived `--prerelease` / `release.targets[].prerelease` removal
+moved to Phase 1.5 — T336/T337 above.)
 
 (a) The changelog-skip item above must also resolve DOC-1's interim state (see ADR-0064 §Decision,
 Spec 04 § Pre-release tags, Spec 05 § Changelog structure): until it lands, a pre-release cut with

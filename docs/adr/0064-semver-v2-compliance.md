@@ -87,6 +87,21 @@ that calls `version current` unqualified. `commit check --from-latest-tag` is un
 keeps its existing "latest tag of any kind" semantics — it answers a different question from
 `version current`.
 
+**`--set-version` is validated as a SemVer v2 version under `semver` and `semver-per-env`,
+delivered as "Phase 1.5" rather than bundled into Phase 2 (T336).** The design doc originally
+scoped this alongside the pre-release lifecycle, since an accepted pre-release value is also the
+manual escape hatch for retargeting a series by hand — but the validation itself needs none of
+Phase 2's series/escalation machinery, so there is no reason to wait for it: it is strict
+`semver.Parse` on the prefix-stripped value, run the same way for both strategies' override
+paths, before either tag is rendered. A bare core (`1.4.0`), a prefixed value (`v1.4.0`), and a
+pre-release (`1.4.0-rc.1`) are all accepted — the pre-release case ahead of the lifecycle that
+will eventually mint one, matching the design doc's reasoning that it is always a valid manual
+override. Anything that fails strict parsing (`1.4`, `01.4.0`) is rejected naming `--set-version`;
+a value carrying build metadata (`1.4.0+5`) is rejected with a hint toward `--set-build-id`
+instead, since build metadata has exactly one entry point into a tag. `calver` and
+`calver-per-env` are unaffected — they keep today's lenient non-empty/no-whitespace check, since
+a CalVer value like `2026.05.0` carries a leading zero and is not valid SemVer to begin with.
+
 **Phase 2 (deferred, sketched here for completeness): a pre-release lifecycle for plain
 `semver` only.** The core of a pre-release is always computed the same way a final's core would
 be — the bump over all commits since the last final, with `stay_at_v0` applied — so a fix or

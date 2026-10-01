@@ -434,6 +434,99 @@ func TestNewResolver_BuildID_CalverPerEnv_StaysLenient(t *testing.T) {
 	assert.Equal(t, "uat/2026.05.3+build_1", result.Tag)
 }
 
+// T336/ADR-0064 (Phase 1.5): --set-version must itself be a valid SemVer v2 version under semver
+// and semver-per-env — build metadata is rejected with a hint toward --set-build-id, since build
+// metadata has exactly one entry point.
+func TestNewResolver_VersionOverride_SemVerValidation(t *testing.T) {
+	tests := []struct {
+		name     string
+		strategy string
+		override string
+		wantErr  bool
+		wantTag  string
+	}{
+		{"bare version accepted", "semver", "1.4.0", false, "v1.4.0"},
+		{"prefixed version accepted", "semver", "v1.4.0", false, "v1.4.0"},
+		{"pre-release accepted", "semver", "1.4.0-rc.1", false, "v1.4.0-rc.1"},
+		{"missing patch rejected", "semver", "1.4", true, ""},
+		{"leading zero rejected", "semver", "01.4.0", true, ""},
+		{"build metadata rejected", "semver", "1.4.0+abc", true, ""},
+		{"semver-per-env bare version accepted", "semver-per-env", "1.4.0", false, "uat/1.4.0"},
+		{"semver-per-env pre-release accepted", "semver-per-env", "1.4.0-rc.1", false, "uat/1.4.0-rc.1"},
+		{"semver-per-env missing patch rejected", "semver-per-env", "1.4", true, ""},
+		{"semver-per-env leading zero rejected", "semver-per-env", "01.4.0", true, ""},
+		{"semver-per-env build metadata rejected", "semver-per-env", "1.4.0+abc", true, ""},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			mr := exectest.NewMockRunner()
+			env := ""
+			cfg := semverCfg()
+			if tc.strategy == "semver-per-env" {
+				env = "uat"
+				cfg = &config.Config{
+					Version:    "1",
+					Versioning: config.Versioning{Strategy: "semver-per-env"},
+					Environments: map[string]config.Environment{
+						"uat": {Bump: "auto", TagFormat: "uat/{version}"},
+					},
+				}
+			}
+
+			r, err := app.NewResolver(cfg, env, false, tc.override, "", mr)
+			if tc.wantErr {
+				require.Error(t, err)
+				assert.Contains(t, err.Error(), "--set-version")
+				return
+			}
+			require.NoError(t, err)
+
+			result, err := r.Resolve()
+			require.NoError(t, err)
+			assert.Equal(t, tc.wantTag, result.Tag)
+		})
+	}
+}
+
+// Build metadata specifically must hint at --set-build-id, not just report a parse failure
+// (ADR-0064 Phase 1.5).
+func TestNewResolver_VersionOverride_BuildMetadataHintsSetBuildID(t *testing.T) {
+	mr := exectest.NewMockRunner()
+	_, err := app.NewResolver(semverCfg(), "", false, "1.4.0+abc", "", mr)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "--set-build-id")
+}
+
+// Guard: CalVer strategies keep today's lenient --set-version check. 2026.05.0 has a leading zero
+// in its month segment and would fail strict SemVer parsing — it must stay accepted, since the
+// new check (T336) only applies to semver/semver-per-env.
+func TestNewResolver_VersionOverride_Calver_SemVerCheckDoesNotApply(t *testing.T) {
+	mr := exectest.NewMockRunner()
+	r, err := app.NewResolver(calverCfg(), "", false, "2026.05.0", "", mr)
+	require.NoError(t, err)
+
+	result, err := r.Resolve()
+	require.NoError(t, err)
+	assert.Equal(t, "2026.05.0", result.Tag)
+}
+
+func TestNewResolver_VersionOverride_CalverPerEnv_SemVerCheckDoesNotApply(t *testing.T) {
+	mr := exectest.NewMockRunner()
+	cfg := &config.Config{
+		Version:    "1",
+		Versioning: config.Versioning{Strategy: "calver-per-env", Format: "YYYY.MM.PATCH"},
+		Environments: map[string]config.Environment{
+			"uat": {Bump: "auto", TagFormat: "{env}/{version}"},
+		},
+	}
+	r, err := app.NewResolver(cfg, "uat", false, "2026.05.0", "", mr)
+	require.NoError(t, err)
+
+	result, err := r.Resolve()
+	require.NoError(t, err)
+	assert.Equal(t, "uat/2026.05.0", result.Tag)
+}
+
 func TestValidateBuildID(t *testing.T) {
 	require.NoError(t, app.ValidateBuildID("158404"))
 	require.Error(t, app.ValidateBuildID("bad/value"))

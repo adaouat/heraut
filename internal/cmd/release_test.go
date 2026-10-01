@@ -292,13 +292,6 @@ release:
 		{"without v prefix", "1.2.3"},
 		{"zeros", "v0.0.0"},
 		{"large numbers", "v1.10.100"},
-		{"bare word", "notaversion"},
-		{"only major", "v1"},
-		{"only major.minor", "v1.2"},
-		{"v prefix only", "v"},
-		{"non-numeric", "va.b.c"},
-		{"calver year.patch", "2024.03"},
-		{"calver full", "2024.03.15.2"},
 		{"pre-release", "1.2.3-rc.1"},
 	}
 	for _, tc := range tests {
@@ -306,6 +299,47 @@ release:
 			out, err := executeRoot("release", "--config", cfgPath, "--set-version", tc.version, "--dry-run")
 			require.NoError(t, err)
 			assert.Contains(t, out, "[dry-run]")
+		})
+	}
+}
+
+// T336/ADR-0064 (Phase 1.5): --set-version used to be format-agnostic under every strategy — the
+// rows below were previously part of TestRelease_VersionFlag_ValidFormats, asserting that a
+// bare word, a truncated core, or a CalVer-shaped value all passed through unexamined under
+// `semver`. SemVer v2 validation now rejects anything that doesn't parse as
+// MAJOR.MINOR.PATCH[-pre-release], so these are moved here and re-asserted as config errors.
+func TestRelease_VersionFlag_RejectedUnderSemVer(t *testing.T) {
+	cfgPath := writeConfig(t, `
+version: "1"
+versioning:
+  strategy: semver
+  tag_prefix: "v"
+forges:
+  - name: github
+    platform: github
+    repository: test/repo
+release:
+  targets:
+    - forge: github
+`)
+	tests := []struct {
+		name    string
+		version string
+	}{
+		{"bare word", "notaversion"},
+		{"only major", "v1"},
+		{"only major.minor", "v1.2"},
+		{"v prefix only", "v"},
+		{"non-numeric", "va.b.c"},
+		{"calver year.patch", "2024.03"},
+		{"calver full", "2024.03.15.2"},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			_, err := executeRoot("release", "--config", cfgPath, "--set-version", tc.version, "--dry-run")
+			require.Error(t, err)
+			assert.Contains(t, err.Error(), "--set-version")
+			assert.Equal(t, exitcode.Config, cmd.ExitCode(err))
 		})
 	}
 }

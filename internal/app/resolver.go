@@ -152,6 +152,15 @@ func NewResolver(cfg *config.Config, env string, force bool, versionOverride, bu
 			version = strings.TrimPrefix(versionOverride, prefix)
 			tag = prefix + version
 		}
+		if buildID == "" {
+			// buildID != "" already ran validateSemVerComposition (and, for semver-per-env,
+			// validateSemVerBuildID) above, which parses version as part of the full
+			// "<version>+<buildID>" string — this covers the two paths those don't reach:
+			// plain semver and semver-per-env with no build ID at all (T336/ADR-0064).
+			if err := validateSemVerStrategyOverride(cfg.Versioning.Strategy, version); err != nil {
+				return nil, err
+			}
+		}
 		return versioning.NewStaticResolver(tag, version), nil
 	}
 
@@ -206,6 +215,25 @@ func validateSemVerComposition(version, buildID string) error {
 				"dot-separated [0-9A-Za-z-] identifiers (SemVer build metadata): %w",
 			version, buildID, err,
 		)
+	}
+	return nil
+}
+
+// validateSemVerStrategyOverride enforces SemVer v2 syntax on a --set-version value under the
+// semver and semver-per-env strategies (T336/ADR-0064 Phase 1.5): build metadata has exactly one
+// entry point (--set-build-id), so a value carrying "+" is rejected with a hint toward it instead
+// of being parsed; anything else must parse as MAJOR.MINOR.PATCH[-pre-release]. version is already
+// stripped of its tag prefix / tag_format wrapping by the caller. CalVer strategies are untouched
+// (returns nil) — a CalVer value like "2026.05.0" has a leading zero and is not valid SemVer.
+func validateSemVerStrategyOverride(strategy, version string) error {
+	if strategy != "semver" && strategy != "semver-per-env" {
+		return nil
+	}
+	if strings.Contains(version, "+") {
+		return fmt.Errorf("--set-version %q must not carry build metadata: pass it with --set-build-id instead", version)
+	}
+	if _, err := semver.Parse(version); err != nil {
+		return fmt.Errorf("--set-version %q is not a valid SemVer version (expected MAJOR.MINOR.PATCH[-pre-release]): %w", version, err)
 	}
 	return nil
 }

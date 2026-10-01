@@ -191,11 +191,16 @@ When no tags matching the prefix exist, the resolver returns `initial_version` (
 `heraut changelog`. If omitted, the command fails immediately with a runtime error
 (exit code 3 — see [Spec 01 § Exit codes](01-overview.md#exit-codes)) before any git
 operations. `heraut version next` also accepts `--set-version` and then prints the tag without
-resolving a version from git history; without it, it fails with that same error.
+resolving a version from git history; without it, it fails with that same error. Since manual
+mode only exists for `semver` (§ Staying at v0 above), the `X.Y.Z` passed here is validated as
+SemVer v2 like any other `semver` `--set-version` (ADR-0064): a non-SemVer value such as
+`2024.03` is a config error naming `--set-version`, not an opaque tag string.
 
 `--set-version` is not exclusive to manual mode — passed to *any* strategy, it short-circuits
 bump resolution entirely and bypasses the git calls that version resolution would make, exactly
-as described here (see also [Spec 03 § `heraut release`](03-commands.md#heraut-release)).
+as described here (see also [Spec 03 § `heraut release`](03-commands.md#heraut-release)). `calver`
+and `calver-per-env` have no manual mode and keep today's lenient check (non-empty, no
+whitespace) regardless of shape.
 
 ---
 

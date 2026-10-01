@@ -101,12 +101,7 @@ versioning:
 			[]string{"--env", "uat", "--set-version", "0.2.0", "--set-build-id", "42"},
 			"uat/0.2.0+42\n",
 		},
-		{
-			"set-version already carrying build metadata, no --set-build-id, still works",
-			semverConfig,
-			[]string{"--set-version", "1.4.0+abc"},
-			"v1.4.0+abc\n",
-		},
+		{"pre-release set-version accepted", semverConfig, []string{"--set-version", "1.4.0-rc.1"}, "v1.4.0-rc.1\n"},
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
@@ -121,6 +116,37 @@ versioning:
 			assert.Empty(t, stderr)
 		})
 	}
+}
+
+// ADR-0064 (T336, Phase 1.5): --set-version carrying build metadata used to pass through
+// verbatim when --set-build-id was absent ("set-version already carrying build metadata, no
+// --set-build-id, still works" in the table above). SemVer v2 reserves "+" for build metadata,
+// which --set-version has no business expressing on its own, so this is now a config error
+// naming --set-build-id instead of a silent pass-through.
+func TestVersionNext_SetVersion_BuildMetadataWithoutSetBuildID_IsRejected(t *testing.T) {
+	cfgPath := writeConfig(t, semverConfig)
+	failingGit(t)
+
+	stdout, _, err := executeRootSeparateStreams("version", "next", "--config", cfgPath, "--set-version", "1.4.0+abc")
+	require.Error(t, err)
+
+	assert.Contains(t, err.Error(), "--set-build-id")
+	assert.Equal(t, exitcode.Config, cmd.ExitCode(err))
+	assert.Empty(t, stdout)
+}
+
+// T336/ADR-0064: an invalid SemVer --set-version only surfaces once the strategy is known from
+// config, so unlike the flag-only checks in TestVersionNext_OverrideFlagValidation_FailsBeforeConfigIsRead
+// below, this one needs a real config loaded first.
+func TestVersionNext_SetVersion_InvalidSemVer_IsConfigError(t *testing.T) {
+	cfgPath := writeConfig(t, semverConfig)
+	failingGit(t)
+
+	_, err := executeRoot("version", "next", "--config", cfgPath, "--set-version", "1.4")
+	require.Error(t, err)
+
+	assert.Contains(t, err.Error(), "--set-version")
+	assert.Equal(t, exitcode.Config, cmd.ExitCode(err))
 }
 
 func TestVersionNext_ManualMode_WithoutSetVersion_StillFails(t *testing.T) {
