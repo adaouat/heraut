@@ -329,6 +329,43 @@ func TestNewResolver_BuildID_PlainSemver_ValidatesSemVer(t *testing.T) {
 	}
 }
 
+// FIX-1: plain `semver` with a top-level tag_format carrying {build} must get the same SemVer
+// build-ID/composition validation as semver-per-env (ADR-0064) — gating the check on strategy ==
+// "semver-per-env" alone let a tag_format'd plain semver mint a tag (e.g. "v1.4+build_1") the
+// resolver can never read back, since --set-version/--set-build-id validation never ran.
+func TestNewResolver_BuildID_PlainSemver_WithTagFormat_ValidatesSemVer(t *testing.T) {
+	tests := []struct {
+		name     string
+		override string
+		buildID  string
+		wantErr  bool
+		wantTag  string
+	}{
+		{"non-semver build id rejected", "1.4.0", "build_1", true, ""},
+		{"incomplete version rejected", "1.4", "5", true, ""},
+		{"numeric build id still works", "1.4.0", "158404", false, "v1.4.0+158404"},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			mr := exectest.NewMockRunner()
+			cfg := semverCfg()
+			cfg.Versioning.TagFormat = "v{version}+{build}"
+			r, err := app.NewResolver(cfg, "", false, tc.override, tc.buildID, mr)
+			if tc.wantErr {
+				require.Error(t, err)
+				assert.Contains(t, err.Error(), "--set-build-id")
+				return
+			}
+			require.NoError(t, err)
+
+			result, err := r.Resolve()
+			require.NoError(t, err)
+			assert.Equal(t, tc.wantTag, result.Tag)
+			assert.Empty(t, mr.Calls, "static resolver must not call git")
+		})
+	}
+}
+
 // T333: semver-per-env's build ID must be valid SemVer build metadata, since {build} always
 // follows "+" in tag_format (ADR-0064) — tightening tagfmt.ValidateBuildID's lenient "/"-and-
 // whitespace-only check to the full [0-9A-Za-z-] dot-separated grammar.
