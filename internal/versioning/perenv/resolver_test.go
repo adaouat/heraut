@@ -870,7 +870,7 @@ func TestResolve_Promote_Semver_E002_MisorderedDestination(t *testing.T) {
 	assert.True(t, errors.Is(err, perenv.ErrDestinationAhead), "got %v", err)
 }
 
-// FIX-3: E002 must still compare against the highest tag of any kind (a pre-release ahead of the
+// E002 must still compare against the highest tag of any kind (a pre-release ahead of the
 // candidate is still a regression), but the reported Result.CurrentTag — which feeds the promote
 // hook's previous_tag — must be the highest RELEASE tag, never a pre-release.
 func TestResolve_Promote_Semver_E002_SeesPreRelease(t *testing.T) {

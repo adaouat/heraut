@@ -295,8 +295,8 @@ func TestNewResolver_BuildID_PlainSemver_AppendsBuildMetadata(t *testing.T) {
 	}
 }
 
-// FIX-1: plain semver's --set-build-id branch must validate that <version>+<buildID> is a real
-// SemVer build metadata string, or heraut tags something it can never read back (ADR-0064).
+// Plain semver's --set-build-id branch must validate that <version>+<buildID> is a real SemVer
+// version with build metadata, or heraut tags something it can never read back (ADR-0064).
 func TestNewResolver_BuildID_PlainSemver_ValidatesSemVer(t *testing.T) {
 	tests := []struct {
 		name     string
@@ -329,10 +329,9 @@ func TestNewResolver_BuildID_PlainSemver_ValidatesSemVer(t *testing.T) {
 	}
 }
 
-// FIX-1: plain `semver` with a top-level tag_format carrying {build} must get the same SemVer
-// build-ID/composition validation as semver-per-env (ADR-0064) — gating the check on strategy ==
-// "semver-per-env" alone let a tag_format'd plain semver mint a tag (e.g. "v1.4+build_1") the
-// resolver can never read back, since --set-version/--set-build-id validation never ran.
+// Plain `semver` with a top-level tag_format carrying {build} must get the same SemVer
+// build-ID/composition validation as semver-per-env (ADR-0064); otherwise it could mint a tag
+// (e.g. "v1.4+build_1") the resolver can never read back.
 func TestNewResolver_BuildID_PlainSemver_WithTagFormat_ValidatesSemVer(t *testing.T) {
 	tests := []struct {
 		name     string

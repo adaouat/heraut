@@ -174,11 +174,10 @@ func listTags(runner port.Runner, glob string) ([]string, error) {
 // fallback (T334) so a tagOrder-based "previous tag" search never picks a tag that merely sorts
 // adjacently in an unscoped listing but actually lives on an unrelated (non-ancestor) branch —
 // §11 ordering alone doesn't guarantee ancestry, only `--merged` does. Called with ref directly
-// (not "<ref>^"): `--no-contains ref` already excludes ref's own commit, so there is no need to
-// walk to its parent — and no parent to fail to resolve for a root-commit ref, unlike the earlier
-// "<ref>^" shape this replaces (review round 2), which relied on string-matching an English-only
-// git stderr message ("malformed object name") to tell a root commit apart from a real error. A
-// root-commit ref now simply yields an empty list at exit 0, like any other ref with no ancestors.
+// (not "<ref>^"): `--no-contains ref` already excludes ref's own commit, so there is no parent
+// to resolve — "<ref>^" fails on a root commit with a locale-dependent stderr message that
+// cannot be matched reliably. A root-commit ref simply yields an empty list at exit 0, like any
+// other ref with no ancestors.
 func listMergedTags(runner port.Runner, ref string) ([]string, error) {
 	stdout, _, err := runner.Run("git", "tag", "-l", "--merged", ref, "--no-contains", ref, "--sort=-version:refname")
 	if err != nil {

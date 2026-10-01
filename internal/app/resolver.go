@@ -130,9 +130,9 @@ func NewResolver(cfg *config.Config, env string, force bool, versionOverride, bu
 			if buildID != "" && (cfg.Versioning.Strategy == "semver" || cfg.Versioning.Strategy == "semver-per-env") {
 				// {build} always follows "+" (ADR-0064), so under semver/semver-per-env the
 				// build ID is SemVer build metadata — tighten tagfmt.ValidateBuildID's lenient
-				// "/"-and-whitespace-only check. This also covers plain semver's tag_format
-				// branch (FIX-1): without a tag_format, --set-build-id takes the no-tag_format
-				// branch above instead, which already validates composition on its own.
+				// "/"-and-whitespace-only check. This also covers plain semver with a
+				// tag_format; without one, --set-build-id takes the no-tag_format branch above
+				// instead, which already validates composition on its own.
 				// calver-per-env keeps the lenient check only: a zero-padded CalVer build ID is
 				// not SemVer build metadata.
 				if err := validateSemVerBuildID(buildID); err != nil {
@@ -196,8 +196,8 @@ func validateSemVerBuildID(buildID string) error {
 
 // validateSemVerComposition checks that "<version>+<buildID>" itself parses as a SemVer
 // version, catching a malformed --set-version (e.g. "1.4") that validateSemVerBuildID alone
-// cannot see. Shared by plain semver's no-tag_format branch (ADR-0064 FIX-1) and
-// semver-per-env (T333) — kept as one check so both strategies report the same error shape.
+// cannot see. Shared by plain semver (ADR-0064) and semver-per-env (T333) — kept as one check
+// so both strategies report the same error shape.
 func validateSemVerComposition(version, buildID string) error {
 	if _, err := semver.Parse(version + "+" + buildID); err != nil {
 		return fmt.Errorf(

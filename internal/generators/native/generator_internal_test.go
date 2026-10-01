@@ -737,16 +737,14 @@ func TestGenerator_GenerateReleaseNotes_TagOrder_ResolvesPrevFromList_NoDescribe
 	assert.Equal(t, []string{"log", "v1.4.0+158404..v1.5.0", "--reverse", "--format=" + logFormat}, mr.Calls[2].Args)
 }
 
-// TestGenerator_GenerateChangelog_TagOrder_OldestInScopeFallbackIsAncestryBounded is T334's third
-// behaviour, fixed after review round 1: when the oldest-in-scope tag's true predecessor is
+// TestGenerator_GenerateChangelog_TagOrder_OldestInScopeFallbackIsAncestryBounded (T334): when the
+// oldest-in-scope tag's true predecessor is
 // resolved (T257's "regardless of scope" fallback), a non-nil tagOrder must never pick a tag from
 // an unrelated branch as "previous" — an unscoped `git tag -l` (no --merged) can return tags that
 // aren't actual ancestors of t (e.g. another env's tag on a diverging branch), and §11-ordering
 // that pool doesn't fix that: it can still place a non-ancestor tag adjacent to t. The fallback
-// must instead list only ancestors, apply tagOrder to THAT pool, and take its first entry.
-// Review round 2 (FIX-2): the ancestor listing itself swapped from `git tag -l --merged <t>^`
-// (English-only stderr probe for a root-commit "<t>^") to `git tag -l --merged <t> --no-contains
-// <t>`, called with t directly — same ancestor-only result, verified independently of locale.
+// must instead list only ancestors (`git tag -l --merged <t> --no-contains <t>`, locale-
+// independent), apply tagOrder to THAT pool, and take its first entry.
 func TestGenerator_GenerateChangelog_TagOrder_OldestInScopeFallbackIsAncestryBounded(t *testing.T) {
 	mr := exectest.NewMockRunner()
 	mr.QueueResponse("prod/v1.4.0+158404\n", "", nil) // scopedTags: git tag -l prod/v*

@@ -134,9 +134,8 @@ func TestPreviousTag_OtherErrorPropagates(t *testing.T) {
 
 // TestListMergedTags_ReturnsAncestorTags covers T334's fix: the oldest-in-scope fallback must
 // only ever consider tags that are actual ancestors of ref, never an unrelated branch's tag.
-// FIX-2 (review round 2): called with ref directly (no "^"), using --no-contains ref to exclude
-// tags on ref's own commit instead of the "^"-on-a-root-commit stderr probe — see
-// TestListMergedTags_RootCommitReturnsEmpty.
+// Called with ref directly (no "^"), using --no-contains ref to exclude tags on ref's own commit —
+// see TestListMergedTags_RootCommitReturnsEmpty for why "^" is avoided.
 func TestListMergedTags_ReturnsAncestorTags(t *testing.T) {
 	mr := exectest.NewMockRunner()
 	mr.QueueResponse("v1.0.0\nv0.9.0\n", "", nil)
@@ -151,13 +150,11 @@ func TestListMergedTags_ReturnsAncestorTags(t *testing.T) {
 		mr.Calls[0].Args)
 }
 
-// TestListMergedTags_RootCommitReturnsEmpty covers the root-commit edge case (FIX-2, review round
-// 2): previously this called with "<tag>^", which fails to resolve at all for a root commit
-// (English-only stderr, "malformed object name", a localised git says something else) and relied
-// on a string-matching noParentCommit probe to tell that apart from a real error. --merged ref
-// --no-contains ref needs no "^": for a root-commit ref, git itself returns an empty list at exit
-// 0 (confirmed in TestListMergedTags_RealGit_AncestryAndSelfExclusion), so there is no longer a
-// special stderr case to probe for at all.
+// TestListMergedTags_RootCommitReturnsEmpty covers the root-commit edge case: "<tag>^" would fail
+// to resolve for a root commit with a locale-dependent stderr message that cannot be matched
+// reliably. --merged ref --no-contains ref needs no "^": for a root-commit ref, git itself returns
+// an empty list at exit 0 (confirmed in TestListMergedTags_RealGit_AncestryAndSelfExclusion), so
+// there is no special stderr case to probe for.
 func TestListMergedTags_RootCommitReturnsEmpty(t *testing.T) {
 	mr := exectest.NewMockRunner()
 	mr.QueueResponse("", "", nil)
@@ -188,11 +185,10 @@ func TestListMergedTags_EmptyOutput(t *testing.T) {
 	assert.Empty(t, tags)
 }
 
-// TestListMergedTags_RealGit_AncestryAndSelfExclusion is FIX-2's real-git verification: confirms
-// on a real git binary (not MockRunner) that `git tag -l --merged <t> --no-contains <t>` lists
-// ancestors only, excludes tags on t's own commit, and returns an empty list at exit 0 for a
-// root-commit tag — the three properties the review asked be confirmed directly, and the reason
-// for swapping away from the "<t>^" + stderr-probe shape.
+// TestListMergedTags_RealGit_AncestryAndSelfExclusion confirms on a real git binary (not
+// MockRunner) that `git tag -l --merged <t> --no-contains <t>` lists ancestors only, excludes tags
+// on t's own commit, and returns an empty list at exit 0 for a root-commit tag — the three
+// properties listMergedTags relies on.
 func TestListMergedTags_RealGit_AncestryAndSelfExclusion(t *testing.T) {
 	if _, err := exec.LookPath("git"); err != nil {
 		t.Skip("git not on PATH")

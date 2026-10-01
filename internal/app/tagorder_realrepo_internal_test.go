@@ -98,14 +98,14 @@ func TestTagOrderFor_RealRepo_SemverPrecedenceBoundsChangelogAndNotes(t *testing
 	assert.NotContains(t, notes, "Commit a")
 }
 
-// TestTagOrderFor_RealRepo_FallbackNeverBoundsByNonAncestorTag is T334's review-round-1 fix: two
-// envs on diverging branches under semver-per-env (tag_format "{env}/{version}", whose {env}
+// TestTagOrderFor_RealRepo_FallbackNeverBoundsByNonAncestorTag (T334): two envs on diverging
+// branches under semver-per-env (tag_format "{env}/{version}", whose {env}
 // token is a wildcard in tagfmt.ParseVersion — any env's tag parses through it identically). envb
 // branches off before enva's own first release exists, so envb's first release has no ancestor
 // release at all — but enva/0.9.0 sorts adjacent to envb/1.0.0 in a naive unscoped, §11-ordered
-// pool (0.9.0 immediately below 1.0.0), which the pre-fix `previousInList` fallback would have
-// picked as "previous" despite it sitting on an unrelated branch. The fix (`git tag -l --merged
-// <t>^`) must exclude it, since enva/0.9.0 is never an ancestor of envb/1.0.0.
+// pool (0.9.0 immediately below 1.0.0), so an ordering-only fallback would pick it as "previous"
+// despite it sitting on an unrelated branch. The ancestor-only listing (`git tag -l --merged <t>
+// --no-contains <t>`) must exclude it, since enva/0.9.0 is never an ancestor of envb/1.0.0.
 func TestTagOrderFor_RealRepo_FallbackNeverBoundsByNonAncestorTag(t *testing.T) {
 	if _, err := exec.LookPath("git"); err != nil {
 		t.Skip("git not on PATH")
@@ -156,7 +156,7 @@ func TestTagOrderFor_RealRepo_FallbackNeverBoundsByNonAncestorTag(t *testing.T) 
 	assert.Contains(t, body, "Envb release")
 	assert.Contains(t, body, "Root",
 		"envb/1.0.0's true (ancestor-bound) previous tag is none — its full history, including the "+
-			"root commit, belongs to its own section. A pre-fix non-ancestor prev (enva/0.9.0) would "+
+			"root commit, belongs to its own section. A non-ancestor prev (enva/0.9.0) would "+
 			"have silently excluded the root commit from the range instead, since enva/0.9.0 already "+
 			"covers it — reproducing T334's missing-entries bug class on a different topology.")
 }

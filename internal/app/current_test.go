@@ -270,8 +270,8 @@ func TestCurrentTag_Calver_IgnoresIncludePreRelease(t *testing.T) {
 	assert.Equal(t, "2026.05.1", got)
 }
 
-// FIX-2: --bare must strip build metadata for plain semver too, matching per-env's behaviour and
-// the flag help's promise ("strip prefix/env/build").
+// --bare must strip build metadata for plain semver too, matching per-env's behaviour and the
+// flag help's promise ("strip prefix/env/build").
 func TestCurrentVersion_Semver_StripsBuildMetadata(t *testing.T) {
 	mr := exectest.NewMockRunner()
 	mr.QueueResponse("v1.4.0+158404\n", "", nil)
