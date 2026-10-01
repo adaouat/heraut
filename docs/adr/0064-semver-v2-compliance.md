@@ -50,10 +50,17 @@ release-notes previous-tag resolution, changelog rotation, and compare links (T3
 `versionsort.suffix` caveat in Spec 04 § Pre-release tags goes away entirely for those surfaces.
 Since `internal/generators/native` may not import `internal/versioning` (layering), the app layer
 passes the ordering decision down as a plain function (`native.WithTagOrder`, built by
-`app.tagOrderFor`) rather than native computing it itself. A pre-release tag therefore gets no
-`CHANGELOG.md` section of its own and is never a range boundary under a SemVer strategy — its
-commits fold into the next release's section — since the same §11 order that excludes it as a
-bump base also excludes it from the generator's walk.
+`app.tagOrderFor`) rather than native computing it itself. Under a SemVer strategy, a pre-release
+tag is therefore never a range boundary in a *regenerated* `CHANGELOG.md` (`--regenerate`
+walks tags via that same §11 order, which excludes pre-releases, so a rebuilt file folds a
+pre-release's commits into the next release's section and gives the pre-release tag no section of
+its own) — this is the steady-state Phase 1 guarantee. It is not yet true at cut time: until
+Phase 2's changelog skip for pre-release cuts lands, `heraut changelog --set-version X-pre --tag`
+still writes an anchored `[X-pre]` section when the pre-release is cut (incremental generation
+has no "this tag is a pre-release, skip its own section" check), the next final's incremental run
+re-lists those same commits in its own section, and a subsequent `--regenerate` is what actually
+collapses the pre-release section away, per the rule above. A pre-existing `[X-pre]` section in an
+upgraded repo's `CHANGELOG.md` survives incremental runs the same way until a `--regenerate`.
 `calver` and `calver-per-env` keep their own lenient dotted-integer path
 (`compareVersionStrings`) unchanged: a CalVer version like `2026.05.0` carries leading zeros,
 which strict SemVer parsing rejects outright, so CalVer is deliberately never routed through the

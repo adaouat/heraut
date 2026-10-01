@@ -159,12 +159,20 @@ equal §11 precedence (e.g. `v1.4.0` and `v1.4.0+5`, which differ only in build 
 git's listing order relative to each other, since `Compare` treats them as equal and the sort is
 stable.
 
-For `semver`/`semver-per-env`, this extends to the native generator: pre-release tags get no
-`CHANGELOG.md` section of their own and are never a range boundary — their commits fold into the
-next release's section — and a changelog/release-notes/rotation previous-tag lookup resolves the
-previous *release*, never a pre-release `git describe` topology would otherwise pick. `calver` and
-`calver-per-env` are unaffected: no order is injected for them, so they keep walking git's own
-`version:refname` order exactly as before.
+For `semver`/`semver-per-env`, this extends to the native generator: pre-release tags are never a
+range boundary and get no `CHANGELOG.md` section of their own in a *regenerated* changelog — their
+commits fold into the next release's section — and a changelog/release-notes/rotation previous-tag
+lookup resolves the previous *release*, never a pre-release `git describe` topology would otherwise
+pick. `calver` and `calver-per-env` are unaffected: no order is injected for them, so they keep
+walking git's own `version:refname` order exactly as before.
+
+This is the steady state reached via `--regenerate`, not yet the behavior at cut time: until
+Phase 2's changelog skip for pre-release cuts lands (see the SemVer v2 roadmap), a pre-release cut
+with `heraut changelog --set-version X-pre --tag` still writes its own anchored `[X-pre]` section,
+the next final's incremental run re-lists those same commits under its own section, and a later
+`--regenerate` is what collapses the pre-release section into the final per the rule above. A
+pre-existing `[X-pre]` section already present in an upgraded repo's `CHANGELOG.md` survives
+incremental runs the same way, until a `--regenerate`.
 
 The same rules apply to `semver-per-env` (source and destination selection, and the E002
 comparison). `calver-per-env` keeps its dotted-integer handling — zero-padded CalVer versions are
