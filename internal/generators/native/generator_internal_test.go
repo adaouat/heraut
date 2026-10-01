@@ -743,13 +743,15 @@ func TestGenerator_GenerateReleaseNotes_TagOrder_ResolvesPrevFromList_NoDescribe
 // an unrelated branch as "previous" — an unscoped `git tag -l` (no --merged) can return tags that
 // aren't actual ancestors of t (e.g. another env's tag on a diverging branch), and §11-ordering
 // that pool doesn't fix that: it can still place a non-ancestor tag adjacent to t. The fallback
-// must instead list only ancestors (`git tag -l --merged <t>^`), apply tagOrder to THAT pool, and
-// take its first entry.
+// must instead list only ancestors, apply tagOrder to THAT pool, and take its first entry.
+// Review round 2 (FIX-2): the ancestor listing itself swapped from `git tag -l --merged <t>^`
+// (English-only stderr probe for a root-commit "<t>^") to `git tag -l --merged <t> --no-contains
+// <t>`, called with t directly — same ancestor-only result, verified independently of locale.
 func TestGenerator_GenerateChangelog_TagOrder_OldestInScopeFallbackIsAncestryBounded(t *testing.T) {
 	mr := exectest.NewMockRunner()
 	mr.QueueResponse("prod/v1.4.0+158404\n", "", nil) // scopedTags: git tag -l prod/v*
 	mr.QueueResponse("", "", nil)                     // new section: prod/v1.4.0+158404..HEAD (nothing new)
-	mr.QueueResponse("staging/v1.0.0\n", "", nil)     // fallback: git tag -l --merged prod/v1.4.0+158404^ (ancestors only)
+	mr.QueueResponse("staging/v1.0.0\n", "", nil)     // fallback: git tag -l --merged prod/v1.4.0+158404 --no-contains prod/v1.4.0+158404 (ancestors only, self excluded)
 	mr.QueueResponse(record("ddd4444444", "D", "d@x", "2026-01-01T00:00:00Z", "feat: prod release", ""), "", nil)
 
 	g := New(mr, &config.ContentDriver{TagGlob: "prod/v*"}, ModeChangelog, WithTagOrder(preReleaseFilterOrder))
@@ -758,8 +760,10 @@ func TestGenerator_GenerateChangelog_TagOrder_OldestInScopeFallbackIsAncestryBou
 	assert.Contains(t, body, "Prod release")
 
 	require.Len(t, mr.Calls, 4)
-	assert.Equal(t, []string{"tag", "-l", "--merged", "prod/v1.4.0+158404^", "--sort=-version:refname"}, mr.Calls[2].Args,
-		"the fallback lists only ancestor tags (--merged), never an unscoped listing and never git describe, when an order is set")
+	assert.Equal(t,
+		[]string{"tag", "-l", "--merged", "prod/v1.4.0+158404", "--no-contains", "prod/v1.4.0+158404", "--sort=-version:refname"},
+		mr.Calls[2].Args,
+		"the fallback lists only ancestor tags (--merged, --no-contains), never an unscoped listing and never git describe, when an order is set")
 	assert.Equal(t, []string{"log", "staging/v1.0.0..prod/v1.4.0+158404", "--reverse", "--format=" + logFormat}, mr.Calls[3].Args,
 		"prev is the ordered pool's first (and here only) ancestor entry")
 }

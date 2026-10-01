@@ -168,20 +168,20 @@ func listTags(runner port.Runner, glob string) ([]string, error) {
 	return tags, nil
 }
 
-// listMergedTags returns the tags that are ancestors of ref (`git tag -l --merged <ref>`),
-// newest-first by version refname — the ancestor-only counterpart to listTags(runner, ""). Used
-// by buildAllSections' oldest-in-scope fallback (T334) so a tagOrder-based "previous tag" search
-// never picks a tag that merely sorts adjacently in an unscoped listing but actually lives on an
-// unrelated (non-ancestor) branch — §11 ordering alone doesn't guarantee ancestry, only `--merged`
-// does. ref failing to resolve because it names a root commit's non-existent parent (a first
-// commit's "<tag>^") is treated the same as previousTag's "no earlier tag" case: an empty list,
-// nil error, rather than an error.
+// listMergedTags returns the tags that are ancestors of ref, excluding any tag that shares ref's
+// own commit (`git tag -l --merged <ref> --no-contains <ref>`), newest-first by version refname —
+// the ancestor-only counterpart to listTags(runner, ""). Used by buildAllSections' oldest-in-scope
+// fallback (T334) so a tagOrder-based "previous tag" search never picks a tag that merely sorts
+// adjacently in an unscoped listing but actually lives on an unrelated (non-ancestor) branch —
+// §11 ordering alone doesn't guarantee ancestry, only `--merged` does. Called with ref directly
+// (not "<ref>^"): `--no-contains ref` already excludes ref's own commit, so there is no need to
+// walk to its parent — and no parent to fail to resolve for a root-commit ref, unlike the earlier
+// "<ref>^" shape this replaces (review round 2), which relied on string-matching an English-only
+// git stderr message ("malformed object name") to tell a root commit apart from a real error. A
+// root-commit ref now simply yields an empty list at exit 0, like any other ref with no ancestors.
 func listMergedTags(runner port.Runner, ref string) ([]string, error) {
-	stdout, stderr, err := runner.Run("git", "tag", "-l", "--merged", ref, "--sort=-version:refname")
+	stdout, _, err := runner.Run("git", "tag", "-l", "--merged", ref, "--no-contains", ref, "--sort=-version:refname")
 	if err != nil {
-		if noParentCommit(stderr) {
-			return nil, nil
-		}
 		return nil, fmt.Errorf("listing tags merged into %s: %w", ref, err)
 	}
 	var tags []string
@@ -191,14 +191,6 @@ func listMergedTags(runner port.Runner, ref string) ([]string, error) {
 		}
 	}
 	return tags, nil
-}
-
-// noParentCommit reports whether a git failure means "the ref has no parent commit" (a root
-// commit's "<tag>^" argument failing to resolve at all) — the `--merged` counterpart to
-// noEarlierTag's `git describe` probe; git rejects the ref itself here rather than reporting "no
-// tag describes it", hence the different message.
-func noParentCommit(stderr string) bool {
-	return strings.Contains(strings.ToLower(stderr), "malformed object name")
 }
 
 // filterByTagPattern keeps the tags matching pattern (a Go regex, T139), preserving order. An

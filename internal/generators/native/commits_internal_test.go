@@ -2,10 +2,13 @@ package native
 
 import (
 	"errors"
+	"os"
+	"os/exec"
 	"strings"
 	"testing"
 	"time"
 
+	execadapter "github.com/adaouat/forge/exec"
 	"github.com/adaouat/forge/exec/exectest"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -131,37 +134,48 @@ func TestPreviousTag_OtherErrorPropagates(t *testing.T) {
 
 // TestListMergedTags_ReturnsAncestorTags covers T334's fix: the oldest-in-scope fallback must
 // only ever consider tags that are actual ancestors of ref, never an unrelated branch's tag.
+// FIX-2 (review round 2): called with ref directly (no "^"), using --no-contains ref to exclude
+// tags on ref's own commit instead of the "^"-on-a-root-commit stderr probe — see
+// TestListMergedTags_RootCommitReturnsEmpty.
 func TestListMergedTags_ReturnsAncestorTags(t *testing.T) {
 	mr := exectest.NewMockRunner()
 	mr.QueueResponse("v1.0.0\nv0.9.0\n", "", nil)
 
-	tags, err := listMergedTags(mr, "v1.1.0^")
+	tags, err := listMergedTags(mr, "v1.1.0")
 	require.NoError(t, err)
 	assert.Equal(t, []string{"v1.0.0", "v0.9.0"}, tags)
 
 	require.Len(t, mr.Calls, 1)
 	assert.Equal(t, "git", mr.Calls[0].Name)
-	assert.Equal(t, []string{"tag", "-l", "--merged", "v1.1.0^", "--sort=-version:refname"}, mr.Calls[0].Args)
+	assert.Equal(t, []string{"tag", "-l", "--merged", "v1.1.0", "--no-contains", "v1.1.0", "--sort=-version:refname"},
+		mr.Calls[0].Args)
 }
 
-// TestListMergedTags_RootCommitReturnsEmpty covers the "<tag>^" root-commit edge case: a commit
-// with no parent makes "<tag>^" fail to resolve at all (a different git error shape than
-// previousTag's "no names found" — git fails to resolve the ref itself, "malformed object name"),
-// which must be treated the same way: no earlier tag, not an error.
+// TestListMergedTags_RootCommitReturnsEmpty covers the root-commit edge case (FIX-2, review round
+// 2): previously this called with "<tag>^", which fails to resolve at all for a root commit
+// (English-only stderr, "malformed object name", a localised git says something else) and relied
+// on a string-matching noParentCommit probe to tell that apart from a real error. --merged ref
+// --no-contains ref needs no "^": for a root-commit ref, git itself returns an empty list at exit
+// 0 (confirmed in TestListMergedTags_RealGit_AncestryAndSelfExclusion), so there is no longer a
+// special stderr case to probe for at all.
 func TestListMergedTags_RootCommitReturnsEmpty(t *testing.T) {
 	mr := exectest.NewMockRunner()
-	mr.QueueResponse("", "fatal: malformed object name v1.0.0^", errors.New("exit status 128"))
+	mr.QueueResponse("", "", nil)
 
-	tags, err := listMergedTags(mr, "v1.0.0^")
+	tags, err := listMergedTags(mr, "v1.0.0")
 	require.NoError(t, err)
 	assert.Empty(t, tags)
+
+	require.Len(t, mr.Calls, 1)
+	assert.Equal(t, []string{"tag", "-l", "--merged", "v1.0.0", "--no-contains", "v1.0.0", "--sort=-version:refname"},
+		mr.Calls[0].Args)
 }
 
 func TestListMergedTags_OtherErrorPropagates(t *testing.T) {
 	mr := exectest.NewMockRunner()
 	mr.QueueResponse("", "fatal: not a git repository", errors.New("exit status 128"))
 
-	_, err := listMergedTags(mr, "v1.0.0^")
+	_, err := listMergedTags(mr, "v1.0.0")
 	require.Error(t, err)
 }
 
@@ -169,7 +183,55 @@ func TestListMergedTags_EmptyOutput(t *testing.T) {
 	mr := exectest.NewMockRunner()
 	mr.QueueResponse("", "", nil)
 
-	tags, err := listMergedTags(mr, "v1.0.0^")
+	tags, err := listMergedTags(mr, "v1.0.0")
 	require.NoError(t, err)
 	assert.Empty(t, tags)
+}
+
+// TestListMergedTags_RealGit_AncestryAndSelfExclusion is FIX-2's real-git verification: confirms
+// on a real git binary (not MockRunner) that `git tag -l --merged <t> --no-contains <t>` lists
+// ancestors only, excludes tags on t's own commit, and returns an empty list at exit 0 for a
+// root-commit tag — the three properties the review asked be confirmed directly, and the reason
+// for swapping away from the "<t>^" + stderr-probe shape.
+func TestListMergedTags_RealGit_AncestryAndSelfExclusion(t *testing.T) {
+	if _, err := exec.LookPath("git"); err != nil {
+		t.Skip("git not on PATH")
+	}
+	dir := t.TempDir()
+	t.Chdir(dir)
+
+	git := func(args ...string) {
+		t.Helper()
+		cmd := exec.Command("git", args...)
+		cmd.Env = append(os.Environ(),
+			"GIT_AUTHOR_NAME=Test", "GIT_AUTHOR_EMAIL=test@example.com",
+			"GIT_COMMITTER_NAME=Test", "GIT_COMMITTER_EMAIL=test@example.com",
+			"GIT_CONFIG_GLOBAL=/dev/null", "GIT_CONFIG_SYSTEM=/dev/null",
+		)
+		if out, err := cmd.CombinedOutput(); err != nil {
+			t.Fatalf("git %v: %v\n%s", args, err, out)
+		}
+	}
+	commit := func(msg string) { git("commit", "--allow-empty", "-m", msg) }
+
+	git("init")
+	commit("feat: initial") // root commit, no parent
+	git("tag", "v1.0.0")
+	commit("feat: second")
+	git("tag", "v1.1.0-rc.1") // same commit as v1.1.0 below
+	git("tag", "v1.1.0")
+
+	runner := execadapter.New(false, false)
+
+	// Root-commit tag: no ancestor tags exist, and git must report that as an empty list at
+	// exit 0, not an error — the case the old "<t>^" + stderr-probe shape existed to handle.
+	tags, err := listMergedTags(runner, "v1.0.0")
+	require.NoError(t, err)
+	assert.Empty(t, tags, "a root-commit tag has no ancestors and must not error")
+
+	// Ancestry + self-exclusion: v1.1.0's ancestor is v1.0.0 only; v1.1.0 and v1.1.0-rc.1 share
+	// v1.1.0's own commit and must both be excluded by --no-contains, not just --merged.
+	tags, err = listMergedTags(runner, "v1.1.0")
+	require.NoError(t, err)
+	assert.Equal(t, []string{"v1.0.0"}, tags)
 }

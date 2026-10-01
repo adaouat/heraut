@@ -261,11 +261,11 @@ func (g *Generator) buildAllSections(tag string, lc *port.LinkContext, enrichAll
 			// ancestors: an unscoped, §11-ordered pool can place a tag from an unrelated branch
 			// (e.g. another env's tag under semver-per-env, whose {env} token is a wildcard)
 			// directly adjacent to t, and ordering alone doesn't fix that — only ancestry does.
-			// listMergedTags(runner, t+"^") lists exactly t's ancestor tags; tagOrder's first
+			// listMergedTags(runner, t) lists exactly t's ancestor tags; tagOrder's first
 			// entry in that pool is the highest-precedence ancestor release, i.e. the true
-			// previous tag (t itself is never in the pool, since --merged <t^> excludes it).
+			// previous tag (t itself is never in the pool, since --no-contains t excludes it).
 			if g.tagOrder != nil {
-				merged, err := listMergedTags(g.runner, t+"^")
+				merged, err := listMergedTags(g.runner, t)
 				if err != nil {
 					return "", err
 				}
