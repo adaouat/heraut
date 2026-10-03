@@ -394,3 +394,21 @@ pre-release whose version is below the newest release — e.g. cutting `v1.3.1-r
 already exists currently falls through to `previousInList`'s "tag absent from the list → newest
 existing tag is the predecessor" branch, producing a `v2.0.0..v1.3.1-rc.1` notes range (backwards
 through history) instead of bounding by the previous tag actually below `v1.3.1-rc.1`.
+
+(c) Pre-release notes need their own previous-tag rule. The design doc (§ 4) says a pre-release's
+notes cover commits since the **previous tag, pre-release or final** (`rc.2`'s notes show only
+what changed since `rc.1`). But T334's `tagOrderFor` — the order native uses for
+`scopedPreviousTag` under SemVer strategies — is **releases-only** by design (pre-releases are
+never a range boundary for a *final*). Left as is, `rc.2`'s notes would span back to the last
+final. Phase 2 must keep the final's rule (last final, T334) and add a pre-release rule: the
+highest-precedence tag of any kind below the pre-release being cut (`semver.SortTags` +
+`semver.Latest(…, true)` already provide the ordering; the app layer knows the resolved version is
+a pre-release). This also resolves (b).
+
+(d) Building blocks already shipped and reusable: `semver.Parse`/`Compare`/`SortTags`/`Latest`
+(T325); `version current --include-pre-release` (T330); `--set-version` accepts pre-release values
+(T336); GitHub `--prerelease` derived from the version under SemVer strategies, carried to
+`port.Platform.CreateRelease` via `pipeline.Config.SemVerStrategy` (T337); `native.WithTagOrder` +
+`app.tagOrderFor` (T334). The resolver's "core" computation lives in
+`internal/versioning/semver/resolver.go` (`resolveAuto`, `bumpAfterHold`, `stay_at_v0` hold in
+`hold.go`); per-env is out of scope for minting (design doc § Non-goals).
