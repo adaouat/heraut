@@ -391,12 +391,11 @@ environments:
 	}
 }
 
-// TestLoad_RemovedKey_NonMappingTargetDoesNotAbortOtherProbes covers the FIX-3 tolerance fix: a
-// non-mapping release.targets[] entry (e.g. `targets: [gh]`, a bare forge-name shorthand some
-// users expect) used to make the whole removed-key probe's strict-typed decode fail, silently
-// disabling every other removed-key hint in the same file — including one as unrelated as
-// changelog.remote. The probe must shrug off the shape mismatch on targets and still catch other
-// removed keys.
+// TestLoad_RemovedKey_NonMappingTargetDoesNotAbortOtherProbes: a non-mapping release.targets[]
+// entry (e.g. `targets: [gh]`, a bare forge-name shorthand some users expect) must not make the
+// removed-key probe's decode fail — that would silently disable every other removed-key hint in
+// the same file, including one as unrelated as changelog.remote. The probe must shrug off the
+// shape mismatch on targets and still catch other removed keys.
 func TestLoad_RemovedKey_NonMappingTargetDoesNotAbortOtherProbes(t *testing.T) {
 	_, err := config.Load(writeCfg(t, `version: "1"
 versioning: {strategy: semver}
@@ -414,10 +413,9 @@ release:
 	assert.Contains(t, err.Error(), "forges:", "the non-mapping targets entry must not swallow the changelog.remote hint")
 }
 
-// TestLoad_RemovedKey_TargetsPrereleaseHintLeadsWithAction covers FIX-4 (final review, minor):
-// the prerelease hint used to open with "removed —", unlike every sibling removed-key hint, which
-// opens with an action verb (rename to / replace with / declare a ...). It must now lead the same
-// way.
+// TestLoad_RemovedKey_TargetsPrereleaseHintLeadsWithAction: like every sibling removed-key hint,
+// which opens with an action verb (rename to / replace with / declare a ...), the prerelease hint
+// must lead with what to do, not with "removed —".
 func TestLoad_RemovedKey_TargetsPrereleaseHintLeadsWithAction(t *testing.T) {
 	_, err := config.Load(writeCfg(t, `version: "1"
 versioning: {strategy: semver}

@@ -10,7 +10,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// TestBuildReleasePipelineConfig_SemVerStrategy covers the FIX-1 wiring seam: the app layer, not
+// TestBuildReleasePipelineConfig_SemVerStrategy covers the wiring seam: the app layer, not
 // the pipeline, knows which versioning.strategy is active, so it is the one that must tell the
 // pipeline whether the active strategy is SemVer-based (pipeline.Config.SemVerStrategy) —
 // isPreRelease alone cannot be trusted, since a CalVer version can itself parse as a SemVer

@@ -497,7 +497,7 @@ func TestNewResolver_VersionOverride_BuildMetadataHintsSetBuildID(t *testing.T) 
 	assert.Contains(t, err.Error(), "--set-build-id")
 }
 
-// FIX-2 (final review): when the plain-semver path (no tag_format) rejects a --set-version value
+// When the plain-semver path (no tag_format) rejects a --set-version value
 // and a non-default tag_prefix is configured, the error must name the expected prefix — otherwise
 // a user with `tag_prefix: "rel-"` who passes an unprefixed or wrongly-prefixed value has no hint
 // that "rel-" is what heraut actually expects.
