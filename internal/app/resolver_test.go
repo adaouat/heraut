@@ -497,6 +497,21 @@ func TestNewResolver_VersionOverride_BuildMetadataHintsSetBuildID(t *testing.T) 
 	assert.Contains(t, err.Error(), "--set-build-id")
 }
 
+// FIX-2 (final review): when the plain-semver path (no tag_format) rejects a --set-version value
+// and a non-default tag_prefix is configured, the error must name the expected prefix — otherwise
+// a user with `tag_prefix: "rel-"` who passes an unprefixed or wrongly-prefixed value has no hint
+// that "rel-" is what heraut actually expects.
+func TestNewResolver_VersionOverride_SemVerValidation_NamesConfiguredPrefix(t *testing.T) {
+	mr := exectest.NewMockRunner()
+	custom := "rel-"
+	cfg := semverCfg()
+	cfg.Versioning.TagPrefix = &custom
+
+	_, err := app.NewResolver(cfg, "", false, "v1.2.3", "", mr)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), `expected an optional "rel-" prefix`)
+}
+
 // Guard: CalVer strategies keep today's lenient --set-version check. 2026.05.0 has a leading zero
 // in its month segment and would fail strict SemVer parsing — it must stay accepted, since the
 // new check (T336) only applies to semver/semver-per-env.

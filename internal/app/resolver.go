@@ -122,6 +122,7 @@ func NewResolver(cfg *config.Config, env string, force bool, versionOverride, bu
 		}
 
 		var tag, version string
+		var expectedPrefixHint string
 		if tf != "" {
 			// Strip any leading "v" to derive the bare version component fed into the
 			// {version} token — a tag_format template has no single "prefix" to strip,
@@ -151,13 +152,19 @@ func NewResolver(cfg *config.Config, env string, force bool, versionOverride, bu
 			prefix := configuredTagPrefix(cfg)
 			version = strings.TrimPrefix(versionOverride, prefix)
 			tag = prefix + version
+			// Plain semver only: a non-default tag_prefix is easy to miss as the reason a
+			// seemingly-reasonable --set-version value fails to parse (e.g. "v1.2.3" against
+			// tag_prefix: "rel-" leaves "v1.2.3" un-stripped), so name it in the error.
+			if cfg.Versioning.Strategy == "semver" && prefix != defaultTagPrefix(cfg.Versioning.Strategy) {
+				expectedPrefixHint = prefix
+			}
 		}
 		if buildID == "" {
 			// buildID != "" already ran validateSemVerComposition (and, for semver-per-env,
 			// validateSemVerBuildID) above, which parses version as part of the full
 			// "<version>+<buildID>" string — this covers the two paths those don't reach:
 			// plain semver and semver-per-env with no build ID at all (T336/ADR-0064).
-			if err := validateSemVerStrategyOverride(cfg.Versioning.Strategy, version); err != nil {
+			if err := validateSemVerStrategyOverride(cfg.Versioning.Strategy, version, expectedPrefixHint); err != nil {
 				return nil, err
 			}
 		}
@@ -225,7 +232,10 @@ func validateSemVerComposition(version, buildID string) error {
 // of being parsed; anything else must parse as MAJOR.MINOR.PATCH[-pre-release]. version is already
 // stripped of its tag prefix / tag_format wrapping by the caller. CalVer strategies are untouched
 // (returns nil) — a CalVer value like "2026.05.0" has a leading zero and is not valid SemVer.
-func validateSemVerStrategyOverride(strategy, version string) error {
+// expectedPrefixHint, when non-empty (the plain-semver, no-tag_format path with a configured
+// tag_prefix other than the "v" default), is named in the parse-failure error so a value that
+// forgot the configured prefix doesn't just look like bad SemVer syntax.
+func validateSemVerStrategyOverride(strategy, version, expectedPrefixHint string) error {
 	if strategy != "semver" && strategy != "semver-per-env" {
 		return nil
 	}
@@ -233,6 +243,9 @@ func validateSemVerStrategyOverride(strategy, version string) error {
 		return fmt.Errorf("--set-version %q must not carry build metadata: pass it with --set-build-id instead", version)
 	}
 	if _, err := semver.Parse(version); err != nil {
+		if expectedPrefixHint != "" {
+			return fmt.Errorf("--set-version %q is not a valid SemVer version (expected MAJOR.MINOR.PATCH[-pre-release]) (expected an optional %q prefix): %w", version, expectedPrefixHint, err)
+		}
 		return fmt.Errorf("--set-version %q is not a valid SemVer version (expected MAJOR.MINOR.PATCH[-pre-release]): %w", version, err)
 	}
 	return nil
