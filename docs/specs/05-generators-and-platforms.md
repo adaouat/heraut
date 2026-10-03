@@ -409,11 +409,14 @@ changelog can't exceed `ARG_MAX`. Resolved asset files are appended as positiona
 - **Repository** resolution: `cfg.Repository` → `$GITHUB_REPOSITORY` → error
 - **Token** is read from `$<TokenEnv>` (default `GH_TOKEN`); `gh` picks it up
   automatically from the environment
-- **Pre-release**: `--prerelease` is passed iff the resolved version carries SemVer
-  pre-release identifiers (e.g. `1.4.0-rc.1`) — never for a final, and never for a CalVer
-  version. There is no config key for this: a static per-target bool could contradict the
-  version actually being published, so the pipeline derives the flag once from
-  `versioning.Result.Version` and passes it to `CreateRelease` ([ADR-0064](../adr/0064-semver-v2-compliance.md)).
+- **Pre-release**: `--prerelease` is passed iff the active strategy is SemVer-based
+  (`semver`/`semver-per-env`) *and* the resolved version carries SemVer pre-release identifiers
+  (e.g. `1.4.0-rc.1`) — never for a final, and never under a CalVer strategy, regardless of
+  whether the CalVer version happens to parse as a SemVer pre-release (a `format:
+  YYYY.MM.SS-PATCH` can resolve something like `2026.10.2-0`, which does). There is no config key
+  for this: a static per-target bool could contradict the version actually being published, so
+  the pipeline derives the flag from the active strategy and `versioning.Result.Version` and
+  passes it to `CreateRelease` ([ADR-0064](../adr/0064-semver-v2-compliance.md)).
 - **Release URL**: `https://github.com/<repo>/releases/tag/<tag>` — used in the
   post-release log line
 
