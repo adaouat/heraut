@@ -363,6 +363,17 @@ every other field's coverage intact). New coverage: `platforms/gitlab`'s
 false, `2026.05.0` → false) against `MockPlatform.CreateReleaseCalls`, which gained a
 `Prerelease` field. No deferred items.
 
+**Final review fixes**: `isPreRelease`'s "CalVer fails semver.Parse" reasoning was wrong — a
+CalVer `format: YYYY.MM.SS-PATCH` can resolve something like `2026.10.2-0`, which itself parses
+as a SemVer pre-release — so the pre-release flag is now gated by a new
+`pipeline.Config.SemVerStrategy` bool, set by the app layer from `versioning.strategy`
+(`prerelease := cfg.SemVerStrategy && isPreRelease(result.Version)`), not inferred from the
+version's shape alone; `checkRemovedKeys`'s `release.targets[]` probe was made tolerant of a
+non-mapping entry (`targets: [gh]`) and of an explicit `prerelease:` null, both of which
+previously made the whole removed-key probe abort silently; and Spec 03's `--set-version` text
+was corrected to drop the stale `rel-` example T336 now rejects, plus the resolver now names the
+configured `tag_prefix` in the parse-failure error when it isn't the `"v"` default.
+
 ## Phase 2 — Pre-release lifecycle
 
 Not yet broken down. Scope per the design doc § Delivery → Phase 2: `--pre-release <label>`,
