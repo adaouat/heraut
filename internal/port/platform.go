@@ -14,8 +14,10 @@ type Platform interface {
 	LinkContext() LinkContext
 	Check() error
 	// CreateRelease publishes a release for tag with notes. prerelease is derived by the caller
-	// from the resolved version (ADR-0064) — a SemVer pre-release like 2.0.0-rc.1 passes true, a
-	// final or any CalVer version passes false. A driver with no pre-release concept (GitLab)
+	// from the resolved version, but only under a SemVer strategy (ADR-0064) — a SemVer
+	// pre-release like 2.0.0-rc.1 passes true, a final version passes false, and so does every
+	// CalVer version, regardless of whether it happens to parse as a SemVer pre-release (CalVer
+	// has no pre-release concept). A driver with no pre-release concept of its own (GitLab)
 	// accepts and ignores it.
 	CreateRelease(tag, notes string, prerelease bool) error
 	HasAssets() bool

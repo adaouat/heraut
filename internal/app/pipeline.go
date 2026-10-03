@@ -321,6 +321,10 @@ func buildReleasePipelineConfig(runner, readRunner port.Runner, cfg *config.Conf
 	pCfg.AnnotatedTags = cfg.Versioning.TagType != "lightweight"
 	pCfg.RegenerateChangelog = regenerateChangelog
 	pCfg.CommitMessage = cfg.Versioning.CommitMessage
+	// SemVerStrategy gates the pipeline's derived GitHub pre-release flag (ADR-0064): a CalVer
+	// version can itself parse as a SemVer pre-release, so the pipeline cannot infer this from the
+	// version alone — only the app layer knows which strategy produced it.
+	pCfg.SemVerStrategy = cfg.Versioning.Strategy == "semver" || cfg.Versioning.Strategy == "semver-per-env"
 
 	// Hooks (ADR-0053) — flat/global only in v1, no per-env override. Env (ADR-0055) still
 	// carries the active --env value through so hook commands can branch on {{ .Env }}.

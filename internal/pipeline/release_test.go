@@ -94,19 +94,24 @@ func TestRun_HappyPath_NoChangelog(t *testing.T) {
 	assert.Equal(t, "v1.2.3", platform.CreateReleaseCalls[0].Tag)
 }
 
-// TestRun_Prerelease_DerivedFromVersion covers ADR-0064: CreateRelease's prerelease flag is
-// derived once from the resolved version, not read from static config — a SemVer pre-release
-// publishes as a pre-release; a final, or any CalVer version (which fails semver.Parse), never
-// does.
+// TestRun_Prerelease_DerivedFromVersion covers ADR-0064 (as corrected by the Phase 1.5 final
+// review): CreateRelease's prerelease flag is derived once from the resolved version, gated by
+// whether the active strategy is SemVer-based — a SemVer pre-release publishes as a pre-release
+// only under semver/semver-per-env; a final version never does, and neither does ANY CalVer
+// version, even one shaped like a SemVer pre-release (e.g. a calver `format: YYYY.MM.SS-PATCH`
+// resolving "2026.10.2-0", which itself parses as SemVer pre-release "0" — the flag must still be
+// false, because the strategy gate — not the version's shape — is what decides).
 func TestRun_Prerelease_DerivedFromVersion(t *testing.T) {
 	tests := []struct {
-		name    string
-		version string
-		want    bool
+		name           string
+		semVerStrategy bool
+		version        string
+		want           bool
 	}{
-		{"semver pre-release", "2.0.0-rc.1", true},
-		{"semver final", "2.0.0", false},
-		{"calver", "2026.05.0", false},
+		{"semver pre-release", true, "2.0.0-rc.1", true},
+		{"semver final", true, "2.0.0", false},
+		{"calver", false, "2026.05.0", false},
+		{"calver version shaped like a semver pre-release", false, "2026.10.2-0", false},
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
@@ -115,7 +120,7 @@ func TestRun_Prerelease_DerivedFromVersion(t *testing.T) {
 			mr.QueueResponse("", "", nil) // git push
 
 			platform := &testutil.MockPlatform{PlatformName: "github"}
-			cfg := &pipeline.Config{Platforms: []port.Platform{platform}}
+			cfg := &pipeline.Config{Platforms: []port.Platform{platform}, SemVerStrategy: tc.semVerStrategy}
 
 			result := versioning.Result{Version: tc.version, Tag: "v" + tc.version}
 			p := pipeline.New(mr, &fakeResolver{result: result}, cfg, &bytes.Buffer{}, false)

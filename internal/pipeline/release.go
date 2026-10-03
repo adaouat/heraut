@@ -289,11 +289,14 @@ func (p *Pipeline) Run() error {
 	notesEnabled := p.cfg.Notes != nil && !p.cfg.DisableNotes
 	multiPlatform := len(p.cfg.Platforms) > 1
 
-	// prerelease is derived once from the resolved version (ADR-0064): a SemVer pre-release
-	// (e.g. 2.0.0-rc.1) publishes as a pre-release; a final, or any CalVer version (which fails
-	// semver.Parse), never does. release.targets[].prerelease was a static per-target bool that
-	// could contradict the version actually being published — this replaces it.
-	prerelease := isPreRelease(result.Version)
+	// prerelease is derived once from the resolved version, but only under a SemVer strategy
+	// (ADR-0064): a SemVer pre-release (e.g. 2.0.0-rc.1) publishes as a pre-release; a final
+	// version never does. cfg.SemVerStrategy gates this — a CalVer version can itself parse as a
+	// SemVer pre-release (e.g. a calver `format: YYYY.MM.SS-PATCH` resolving "2026.10.2-0"), so
+	// the version's shape alone cannot be trusted; the active strategy decides whether the concept
+	// even applies. release.targets[].prerelease was a static per-target bool that could
+	// contradict the version actually being published — this replaces it.
+	prerelease := p.cfg.SemVerStrategy && isPreRelease(result.Version)
 
 	var notes string
 	if notesEnabled && !multiPlatform {
@@ -373,9 +376,11 @@ func (p *Pipeline) Run() error {
 	return nil
 }
 
-// isPreRelease reports whether version carries SemVer pre-release identifiers (ADR-0064). A
-// CalVer version (e.g. "2026.05.0") fails semver.Parse — a leading zero in "05" is not valid
-// SemVer — and is treated as not a pre-release: CalVer has no pre-release concept.
+// isPreRelease reports whether version carries SemVer pre-release identifiers (ADR-0064). It is
+// a shape check only — a CalVer version can itself parse as a SemVer pre-release (e.g.
+// "2026.10.2-0" under a `format: YYYY.MM.SS-PATCH`) — so callers must gate it on the active
+// strategy being SemVer-based (pipeline.Config.SemVerStrategy); CalVer has no pre-release concept
+// regardless of what this function alone reports.
 func isPreRelease(version string) bool {
 	v, err := semver.Parse(version)
 	if err != nil {

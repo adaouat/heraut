@@ -50,4 +50,10 @@ type Config struct {
 	PreReleaseHooks []HookStep
 	// PostReleaseHooks run after publishing to a platform, once per platform. Empty = no hooks.
 	PostReleaseHooks []HookStep
+	// SemVerStrategy is true when the active versioning.strategy is semver or semver-per-env, set
+	// by the app layer from config. The pipeline needs it to gate GitHub's derived pre-release flag
+	// (ADR-0064): a CalVer version can itself parse as a SemVer pre-release (e.g. a calver
+	// `format: YYYY.MM.SS-PATCH` resolving "2026.10.2-0"), so whether a version's *shape* looks
+	// like a pre-release is not sufficient — only a SemVer strategy's pre-release has any meaning.
+	SemVerStrategy bool
 }
