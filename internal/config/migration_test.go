@@ -355,6 +355,30 @@ environments:
 `,
 			wantPath: "environments.staging.release.targets[0].prerelease",
 		},
+		{
+			name: "null value, top-level",
+			body: `version: "1"
+versioning: {strategy: semver}
+release:
+  targets:
+    - forge: gh
+      prerelease:
+`,
+			wantPath: "release.targets[0].prerelease",
+		},
+		{
+			name: "null value, per-environment",
+			body: `version: "1"
+versioning: {strategy: semver}
+environments:
+  staging:
+    release:
+      targets:
+        - forge: gh
+          prerelease:
+`,
+			wantPath: "environments.staging.release.targets[0].prerelease",
+		},
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
@@ -365,6 +389,47 @@ environments:
 			assert.Contains(t, err.Error(), "ADR-0064", "the hint must point at the design decision")
 		})
 	}
+}
+
+// TestLoad_RemovedKey_NonMappingTargetDoesNotAbortOtherProbes covers the FIX-3 tolerance fix: a
+// non-mapping release.targets[] entry (e.g. `targets: [gh]`, a bare forge-name shorthand some
+// users expect) used to make the whole removed-key probe's strict-typed decode fail, silently
+// disabling every other removed-key hint in the same file — including one as unrelated as
+// changelog.remote. The probe must shrug off the shape mismatch on targets and still catch other
+// removed keys.
+func TestLoad_RemovedKey_NonMappingTargetDoesNotAbortOtherProbes(t *testing.T) {
+	_, err := config.Load(writeCfg(t, `version: "1"
+versioning: {strategy: semver}
+changelog:
+  generator: native
+  output: CHANGELOG.md
+  remote:
+    type: gitlab
+    project: group/subgroup/project
+release:
+  targets: [gh]
+`))
+	require.Error(t, err)
+	assert.True(t, errors.Is(err, config.ErrRemovedConfigKey), "must be the removed-key sentinel")
+	assert.Contains(t, err.Error(), "forges:", "the non-mapping targets entry must not swallow the changelog.remote hint")
+}
+
+// TestLoad_RemovedKey_TargetsPrereleaseHintLeadsWithAction covers FIX-4 (final review, minor):
+// the prerelease hint used to open with "removed —", unlike every sibling removed-key hint, which
+// opens with an action verb (rename to / replace with / declare a ...). It must now lead the same
+// way.
+func TestLoad_RemovedKey_TargetsPrereleaseHintLeadsWithAction(t *testing.T) {
+	_, err := config.Load(writeCfg(t, `version: "1"
+versioning: {strategy: semver}
+release:
+  targets:
+    - forge: gh
+      prerelease: true
+`))
+	require.Error(t, err)
+	assert.Contains(t, err.Error(),
+		`delete it — GitHub's pre-release flag is now derived from the version under SemVer strategies`,
+		"the hint must lead with an action verb, like its siblings, and name the SemVer-strategy gate")
 }
 
 // TestLoad_RemovedKey_DisableNotes covers T217: environments.<env>.disable_notes is a hard

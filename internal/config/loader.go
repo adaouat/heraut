@@ -58,7 +58,7 @@ const renderingTrailersRemovedHint = "rename to `rendering.templates.commit.trai
 // targetsPrereleaseRemovedHint is the migration guidance for release.targets[].prerelease
 // (ADR-0064, T337): a static per-target bool could contradict the version actually being
 // published, so GitHub's --prerelease flag is now derived from the resolved version instead.
-const targetsPrereleaseRemovedHint = "removed — GitHub's pre-release flag is now derived from the version (a SemVer pre-release like 1.4.0-rc.1 is published as a pre-release; ADR-0064)"
+const targetsPrereleaseRemovedHint = "delete it — GitHub's pre-release flag is now derived from the version under SemVer strategies (a pre-release like 1.4.0-rc.1 is published as a pre-release; ADR-0064)"
 
 // removedKeys maps a removed config path to its replacement guidance.
 var removedKeys = []struct{ path, hint string }{
@@ -72,18 +72,21 @@ var removedKeys = []struct{ path, hint string }{
 	{"rendering.trailers", renderingTrailersRemovedHint},
 }
 
-// targetPrereleaseProbe probes one release.targets[] entry for the removed prerelease key. A
-// named type (rather than inlining the field at each of the two use sites below) lets
-// firstPrereleaseIndex take a single parameter type for both the top-level and per-env probes.
-type targetPrereleaseProbe struct {
-	Prerelease any `yaml:"prerelease"`
-}
-
-// firstPrereleaseIndex returns the index of the first target carrying the removed prerelease
-// key, or -1 when none do.
-func firstPrereleaseIndex(targets []targetPrereleaseProbe) int {
+// firstPrereleaseIndex returns the index of the first target entry carrying the removed
+// prerelease key, by key *presence* — not value — or -1 when none do. targets decodes as []any
+// rather than a typed struct: release.targets[] can legitimately appear as a list of non-mapping
+// entries (e.g. `targets: [gh]`, a bare forge-name shorthand), and decoding that into a typed
+// struct list fails the whole probe's yaml.Unmarshal, silently disabling every other removed-key
+// hint in the file. Checking presence rather than a non-nil value also catches an explicit
+// `prerelease:` (null) entry, which a `Prerelease any` struct field cannot distinguish from "key
+// absent" — both decode to a nil interface.
+func firstPrereleaseIndex(targets []any) int {
 	for i, t := range targets {
-		if t.Prerelease != nil {
+		m, ok := t.(map[string]any)
+		if !ok {
+			continue
+		}
+		if _, present := m["prerelease"]; present {
 			return i
 		}
 	}
@@ -116,8 +119,8 @@ func checkRemovedKeys(raw []byte) error {
 			Trailers any `yaml:"trailers"`
 		} `yaml:"rendering"`
 		Release struct {
-			Platforms any                     `yaml:"platforms"`
-			Targets   []targetPrereleaseProbe `yaml:"targets"`
+			Platforms any   `yaml:"platforms"`
+			Targets   []any `yaml:"targets"`
 			Notes     struct {
 				Generator any `yaml:"generator"`
 				Config    any `yaml:"config"`
@@ -131,8 +134,8 @@ func checkRemovedKeys(raw []byte) error {
 				Config    any `yaml:"config"`
 			} `yaml:"changelog"`
 			Release struct {
-				Platforms any                     `yaml:"platforms"`
-				Targets   []targetPrereleaseProbe `yaml:"targets"`
+				Platforms any   `yaml:"platforms"`
+				Targets   []any `yaml:"targets"`
 				Notes     struct {
 					Generator any `yaml:"generator"`
 					Config    any `yaml:"config"`
