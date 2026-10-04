@@ -205,3 +205,54 @@ esac
 	require.Error(t, err)
 	assert.Equal(t, exitcode.Runtime, cmd.ExitCode(err))
 }
+
+const preReleaseChangelogConfig = `
+version: "1"
+versioning:
+  strategy: semver
+  tag_prefix: "v"
+changelog:
+  output: CHANGELOG.md
+`
+
+func TestChangelog_PreReleaseSetVersion_TagsWithoutWritingSection(t *testing.T) {
+	cfgPath := writeConfig(t, preReleaseChangelogConfig)
+	calls := filepath.Join(t.TempDir(), "calls.log")
+	t.Setenv("HERAUT_TEST_GIT_CALLS", calls)
+	exectest.FakeBin(t, "git", `#!/bin/sh
+case "$*" in
+  "--version") echo "git version 2.40.0" ;;
+  "config user.name") echo "Test User" ;;
+  "config user.email") echo "test@example.invalid" ;;
+  *) echo "$*" >> "$HERAUT_TEST_GIT_CALLS" ;;
+esac
+`)
+
+	out, err := executeRoot("changelog", "--config", cfgPath, "--set-version", "1.4.0-rc.1", "--tag", "--no-push")
+	require.NoError(t, err)
+	assert.Contains(t, out, "pre-release")
+	assert.Contains(t, out, "CHANGELOG.md not updated")
+
+	log, err := os.ReadFile(calls)
+	require.NoError(t, err)
+	assert.Contains(t, string(log), "tag")
+	assert.Contains(t, string(log), "v1.4.0-rc.1")
+	assert.NotContains(t, string(log), "commit")
+	assert.NotContains(t, string(log), "add")
+}
+
+func TestChangelog_PreReleaseSetVersion_WithoutTagExitsZero(t *testing.T) {
+	cfgPath := writeConfig(t, preReleaseChangelogConfig)
+	exectest.FakeBin(t, "git", `#!/bin/sh
+case "$*" in
+  "--version") echo "git version 2.40.0" ;;
+  "config user.name") echo "Test User" ;;
+  "config user.email") echo "test@example.invalid" ;;
+  *) exit 1 ;;
+esac
+`)
+
+	out, err := executeRoot("changelog", "--config", cfgPath, "--set-version", "1.4.0-rc.1")
+	require.NoError(t, err)
+	assert.Contains(t, out, "CHANGELOG.md not updated")
+}

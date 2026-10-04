@@ -77,6 +77,7 @@ func NewChangelogCmd(version string) *cobra.Command {
 
 			opts := app.PipelineOpts{
 				DryRun:              dryRun,
+				VersionOverride:     versionOverride,
 				Env:                 env,
 				Out:                 cmd.OutOrStdout(),
 				Commit:              commit,

@@ -148,13 +148,13 @@ differently-shaped `tag_format`, or a legacy CalVer tag left over from before a 
 is skipped, so the section the fallback resolves may reach further back into history than
 `git describe`'s own topology-only walk would.
 
-Until Phase 2's changelog skip for pre-release cuts lands (see the SemVer v2 roadmap), the
-"never a range boundary" rule above describes the regenerated steady state only: cutting a
-pre-release with `heraut changelog --set-version X-pre --tag` still writes its own anchored
-`[X-pre]` section at cut time, the next final's incremental run re-lists those same commits under
-its own section, and a later `--regenerate` is what actually collapses the pre-release section
-into the final. A pre-existing `[X-pre]` section already in an upgraded repo's `CHANGELOG.md`
-survives incremental runs the same way, until a `--regenerate`.
+A pre-release run never writes a `CHANGELOG.md` section at cut time. The run is detected before
+resolution — `--pre-release <label>`, or a `--set-version` whose value parses as a SemVer
+pre-release under `semver`/`semver-per-env` (CalVer values never count) — and the changelog step
+is skipped exactly like a per-env `disable_changelog: true`: no generator call, no `pre_changelog`
+hooks, no commit, and the step count shrinks to match. `heraut changelog --set-version X-pre`
+prints `pre-release X-pre: CHANGELOG.md not updated`, still tags when `--tag` is set, and exits 0
+otherwise. A `[X-pre]` section already on disk is not migrated or removed.
 
 A `native`-managed `CHANGELOG.md` is a **preamble** (free-form content before the first section,
 e.g. the `# Changelog` title) followed by **anchored sections**, newest first. Each section is

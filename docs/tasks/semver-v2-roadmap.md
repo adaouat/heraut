@@ -40,7 +40,7 @@ pre-release lifecycle (`--pre-release <label>`) for the plain `semver` strategy.
 | T337 | GitHub `--prerelease` derived from the version; remove `release.targets[].prerelease` | Done |
 | T338 | Pre-release series resolution in `semver.Resolver` | Done |
 | T339 | `--pre-release <label>` on `release` and `version next` | Done |
-| T340 | A pre-release run never writes `CHANGELOG.md` | Not started |
+| T340 | A pre-release run never writes `CHANGELOG.md` | Done |
 | T341 | Release-notes range for pre-releases; absent-tag fallback fix | Not started |
 | T342 | End-to-end pre-release scenarios on a real repo | Not started |
 | T343 | ADR-0064 Phase 2 status update and Phase 2 close | Not started |
@@ -424,15 +424,24 @@ invalid label); flag on both commands; `--allow-major` help names its second tri
 **Completed.** `NewResolver` now applies its options first and runs `validatePreReleaseUsage` before
 any other branch, so `--set-version` can never silently win over `--pre-release`; the option calls
 `SetPreRelease` in the `semver` case only. `release` and `version next` declare the flag;
-`PipelineOpts.PreReleaseLabel` is populated by `release` and left unconsumed (T340). The two new
+`PipelineOpts.PreReleaseLabel` is populated by `release` and consumed by T340. The two new
 sentinels keep `wrapRunErr`'s Runtime code, pinned by a `version next` cmd test; usage errors are
 Config (2). `changelog` keeps its original `--allow-major` help (it has no pre-release series).
 
-### [ ] T340 — A pre-release run never writes `CHANGELOG.md`
+### [x] T340 — A pre-release run never writes `CHANGELOG.md`
 
 `app.isPreReleaseRun` decided at build time; reuses the `disable_changelog` skip path (step totals
 stay correct); `heraut changelog --set-version X-pre` prints a pre-release message instead of
 "changelog disabled". Specs 04/05 (drops the interim DOC-1 wording).
+
+**Done.** `app.isPreReleaseRun` (label set, or a semver/semver-per-env `--set-version` that parses
+as a pre-release, stripped like `NewResolver`) is computed in `BuildPipeline` /
+`BuildChangelogPipeline` and passed to the two config builders as a `preRelease` bool, which set
+`DisableChangelog`; `ChangelogConfig.PreRelease` selects the pre-release skip message, which wins
+over "changelog disabled" when a per-env `disable_changelog` also applies. `heraut changelog` did
+not forward `--set-version` into `PipelineOpts`; it now does, which the override detection needs.
+Note (a) below is resolved as not handled: no user has pre-release sections on disk (decided
+2026-10-04), so there is no migration note or code, and Specs 04/05 drop the interim wording.
 
 ### [ ] T341 — Release-notes range for pre-releases; absent-tag fallback fix
 

@@ -85,7 +85,7 @@ func BuildPipeline(runner port.Runner, cfg *config.Config, resolver versioning.R
 	if readRunner == nil {
 		readRunner = runner
 	}
-	pipelineCfg, err := buildReleasePipelineConfig(runner, readRunner, cfg, opts.Env, opts.HerautVersion, opts.RegenerateChangelog, opts.Force)
+	pipelineCfg, err := buildReleasePipelineConfig(runner, readRunner, cfg, opts.Env, opts.HerautVersion, opts.RegenerateChangelog, opts.Force, isPreReleaseRun(cfg, opts.Env, opts))
 	if err != nil {
 		return nil, err
 	}
@@ -158,7 +158,7 @@ func BuildChangelogPipeline(runner port.Runner, cfg *config.Config, resolver ver
 	if readRunner == nil {
 		readRunner = runner
 	}
-	changelogCfg, err := buildChangelogPipelineConfig(runner, readRunner, cfg, opts)
+	changelogCfg, err := buildChangelogPipelineConfig(runner, readRunner, cfg, opts, isPreReleaseRun(cfg, opts.Env, opts))
 	if err != nil {
 		return nil, err
 	}
@@ -239,7 +239,7 @@ func HasResolvablePublishTarget(runner port.Runner, cfg *config.Config, env stri
 	return len(synthesizeDefaultTarget(resolved)) > 0
 }
 
-func buildReleasePipelineConfig(runner, readRunner port.Runner, cfg *config.Config, env, herautVersion string, regenerateChangelog, force bool) (*pipeline.Config, error) {
+func buildReleasePipelineConfig(runner, readRunner port.Runner, cfg *config.Config, env, herautVersion string, regenerateChangelog, force, preRelease bool) (*pipeline.Config, error) {
 	pCfg := &pipeline.Config{}
 
 	// Resolve effective config: start from root, apply per-env overrides.
@@ -266,6 +266,12 @@ func buildReleasePipelineConfig(runner, readRunner port.Runner, cfg *config.Conf
 				effectiveChangelog = config.MergeContentDriver(effectiveChangelog, envCfg.Changelog)
 			}
 		}
+	}
+
+	// A pre-release never gets a CHANGELOG.md section (ADR-0064); reusing DisableChangelog keeps
+	// the skip and the step total on the one existing path.
+	if preRelease {
+		pCfg.DisableChangelog = true
 	}
 
 	// Enrichment and publishing share one forge resolution — a second forge.Resolve call would add
@@ -428,7 +434,7 @@ func resolveTargetForge(cfg *config.Config, t config.Target, resolved forge.Reso
 	return cfg.Forges[idx], resolved.Forges[idx], nil
 }
 
-func buildChangelogPipelineConfig(runner, readRunner port.Runner, cfg *config.Config, opts PipelineOpts) (*pipeline.ChangelogConfig, error) {
+func buildChangelogPipelineConfig(runner, readRunner port.Runner, cfg *config.Config, opts PipelineOpts, preRelease bool) (*pipeline.ChangelogConfig, error) {
 	cCfg := &pipeline.ChangelogConfig{
 		Commit: opts.Commit || opts.Tag,
 		Tag:    opts.Tag,
@@ -444,6 +450,11 @@ func buildChangelogPipelineConfig(runner, readRunner port.Runner, cfg *config.Co
 				effectiveChangelog = config.MergeContentDriver(effectiveChangelog, envCfg.Changelog)
 			}
 		}
+	}
+
+	if preRelease {
+		cCfg.DisableChangelog = true
+		cCfg.PreRelease = true
 	}
 
 	if effectiveChangelog != nil {

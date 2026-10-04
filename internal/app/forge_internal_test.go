@@ -178,7 +178,7 @@ func TestBuildChangelogPipelineConfig_AmbiguousForgeDegradesUnderOptionalPolicy(
 		Changelog:  &config.ContentDriver{},
 	}
 
-	cCfg, err := buildChangelogPipelineConfig(runner, readRunner, cfg, PipelineOpts{})
+	cCfg, err := buildChangelogPipelineConfig(runner, readRunner, cfg, PipelineOpts{}, false)
 	require.NoError(t, err, "an ambiguous forge under the default policy must degrade, not hard-fail")
 	require.NotNil(t, cCfg.Changelog)
 
@@ -201,7 +201,7 @@ func TestBuildChangelogPipelineConfig_CommitMessage(t *testing.T) {
 		Versioning: config.Versioning{Strategy: "semver", CommitMessage: "release: ${version}"},
 	}
 
-	cCfg, err := buildChangelogPipelineConfig(runner, readRunner, cfg, PipelineOpts{})
+	cCfg, err := buildChangelogPipelineConfig(runner, readRunner, cfg, PipelineOpts{}, false)
 	require.NoError(t, err)
 	assert.Equal(t, "release: ${version}", cCfg.CommitMessage)
 }
@@ -258,7 +258,7 @@ func TestBuildReleasePipelineConfig_UsesReadRunnerForForgeResolution(t *testing.
 		Changelog:  &config.ContentDriver{Output: "CHANGELOG.md"},
 	}
 
-	pCfg, err := buildReleasePipelineConfig(pipelineRunner, readRunner, cfg, "", "", false, false)
+	pCfg, err := buildReleasePipelineConfig(pipelineRunner, readRunner, cfg, "", "", false, false, false)
 	require.NoError(t, err)
 	require.NotNil(t, pCfg.ForgeIdentity)
 	assert.Equal(t, "gitlab", pCfg.ForgeIdentity.Type)

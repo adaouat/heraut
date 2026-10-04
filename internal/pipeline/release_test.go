@@ -1004,3 +1004,45 @@ func TestCheck_PlatformError(t *testing.T) {
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "platform github")
 }
+
+// TestRun_DisabledChangelog_PreReleaseStillTagsAndPublishes pins ADR-0064: the app layer sets
+// DisableChangelog for a pre-release run, so the generator and commit never run while the tag,
+// push and (pre-release-flagged) publish do.
+func TestRun_DisabledChangelog_PreReleaseStillTagsAndPublishes(t *testing.T) {
+	mr := exectest.NewMockRunner()
+	mr.QueueResponse("", "", nil) // git tag
+	mr.QueueResponse("", "", nil) // git push <tag>
+
+	changelog := &testutil.MockGenerator{}
+	platform := &testutil.MockPlatform{PlatformName: "github"}
+	cfg := &pipeline.Config{
+		Changelog: changelog, ChangelogFile: "CHANGELOG.md", DisableChangelog: true,
+		Platforms: []port.Platform{platform}, SemVerStrategy: true,
+	}
+	result := versioning.Result{Version: "1.4.0-rc.1", Tag: "v1.4.0-rc.1"}
+	p := pipeline.New(mr, &fakeResolver{result: result}, cfg, &bytes.Buffer{}, false)
+	require.NoError(t, p.Run())
+
+	assert.Empty(t, changelog.GenerateCalls)
+	require.Len(t, mr.Calls, 2)
+	assert.Equal(t, "tag", mr.Calls[0].Args[0])
+	assert.Equal(t, "push", mr.Calls[1].Args[0])
+	require.Len(t, platform.CreateReleaseCalls, 1)
+	assert.True(t, platform.CreateReleaseCalls[0].Prerelease)
+}
+
+// TestRun_DryRun_DisabledChangelog_PlainOutputOmitsChangelog pins that a dry run with the
+// changelog disabled (as for a pre-release) prints no changelog line and no pre_changelog hook.
+func TestRun_DryRun_DisabledChangelog_PlainOutputOmitsChangelog(t *testing.T) {
+	cfg := &pipeline.Config{
+		Changelog: &testutil.MockGenerator{}, ChangelogFile: "CHANGELOG.md", DisableChangelog: true,
+		PreChangelogHooks: []pipeline.HookStep{{Run: "echo pre-changelog-marker"}},
+	}
+	var out bytes.Buffer
+	p := pipeline.New(exectest.NewMockRunner(), &fakeResolver{result: resolvedResult("v1.4.0-rc.1")}, cfg, &out, true)
+	require.NoError(t, p.Run())
+
+	assert.Contains(t, out.String(), "[dry-run] would tag v1.4.0-rc.1")
+	assert.NotContains(t, out.String(), "hangelog")
+	assert.NotContains(t, out.String(), "pre-changelog-marker")
+}

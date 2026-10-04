@@ -513,3 +513,52 @@ func TestChangelogRun_DefaultChangelogFile(t *testing.T) {
 
 	assert.Equal(t, []string{"add", "CHANGELOG.md"}, mr.Calls[0].Args)
 }
+
+// TestChangelogRun_PreRelease_SkipsChangelogButStillTags pins ADR-0064: a pre-release never gets
+// a CHANGELOG.md section, yet --tag still tags and pushes it.
+func TestChangelogRun_PreRelease_SkipsChangelogButStillTags(t *testing.T) {
+	for _, withReporter := range []bool{false, true} {
+		name := "plain"
+		if withReporter {
+			name = "reporter"
+		}
+		t.Run(name, func(t *testing.T) {
+			mr := exectest.NewMockRunner()
+			mr.QueueResponse("", "", nil) // git tag
+			mr.QueueResponse("", "", nil) // git push <tag>
+			gen := &testutil.MockGenerator{}
+
+			cfg := &pipeline.ChangelogConfig{
+				Changelog: gen, ChangelogFile: "CHANGELOG.md",
+				DisableChangelog: true, PreRelease: true, Tag: true,
+			}
+			var out bytes.Buffer
+			p := pipeline.NewChangelog(mr, &fakeResolver{result: resolvedResult("v1.4.0-rc.1")}, cfg, &out, false)
+			if withReporter {
+				p = p.WithReporter(func(_ string, fn func() (string, []string, error)) error {
+					_, _, err := fn()
+					return err
+				})
+			}
+			require.NoError(t, p.Run())
+
+			assert.Empty(t, gen.GenerateCalls)
+			assert.Contains(t, out.String(), "pre-release")
+			assert.Contains(t, out.String(), "CHANGELOG.md not updated")
+			assert.NotContains(t, out.String(), "changelog disabled")
+			require.Len(t, mr.Calls, 2)
+			assert.Equal(t, "tag", mr.Calls[0].Args[0])
+			assert.Equal(t, []string{"push", "origin", "v1.4.0-rc.1"}, mr.Calls[1].Args)
+		})
+	}
+}
+
+func TestChangelogRun_PreRelease_WithoutTagExitsCleanly(t *testing.T) {
+	mr := exectest.NewMockRunner()
+	cfg := &pipeline.ChangelogConfig{DisableChangelog: true, PreRelease: true}
+	var out bytes.Buffer
+	p := pipeline.NewChangelog(mr, &fakeResolver{result: resolvedResult("v1.4.0-rc.1")}, cfg, &out, false)
+	require.NoError(t, p.Run())
+	assert.Contains(t, out.String(), "CHANGELOG.md not updated")
+	assert.Empty(t, mr.Calls)
+}

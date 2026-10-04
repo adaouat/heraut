@@ -166,13 +166,10 @@ lookup resolves the previous *release*, never a pre-release `git describe` topol
 pick. `calver` and `calver-per-env` are unaffected: no order is injected for them, so they keep
 walking git's own `version:refname` order exactly as before.
 
-This is the steady state reached via `--regenerate`, not yet the behavior at cut time: until
-Phase 2's changelog skip for pre-release cuts lands (see the SemVer v2 roadmap), a pre-release cut
-with `heraut changelog --set-version X-pre --tag` still writes its own anchored `[X-pre]` section,
-the next final's incremental run re-lists those same commits under its own section, and a later
-`--regenerate` is what collapses the pre-release section into the final per the rule above. A
-pre-existing `[X-pre]` section already present in an upgraded repo's `CHANGELOG.md` survives
-incremental runs the same way, until a `--regenerate`.
+A pre-release run never writes `CHANGELOG.md` at cut time either: `heraut release` (including
+`--pre-release`) and `heraut changelog --set-version X-pre` skip changelog generation and its
+commit, while the tag, push and publish still happen (ADR-0064). The next final's incremental
+run therefore lists those commits in its own section.
 
 The same rules apply to `semver-per-env` (source and destination selection, and the E002
 comparison). `calver-per-env` keeps its dotted-integer handling — zero-padded CalVer versions are

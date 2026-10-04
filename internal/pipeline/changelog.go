@@ -22,6 +22,9 @@ type ChangelogConfig struct {
 	CommitMessage string
 	// DisableChangelog skips all steps and exits 0 with an info message.
 	DisableChangelog bool
+	// PreRelease marks that the run publishes a SemVer pre-release; set together with
+	// DisableChangelog so the skip message says why.
+	PreRelease bool
 	// Commit causes the generated changelog to be committed and pushed.
 	Commit bool
 	// Tag creates a git tag after committing (implies Commit).
@@ -209,9 +212,14 @@ func (p *ChangelogPipeline) Run() error {
 	}
 
 	if p.cfg.DisableChangelog {
-		if p.reporter != nil {
+		switch {
+		case p.cfg.PreRelease && p.reporter != nil:
+			_, _ = fmt.Fprintln(p.out, ui.Warn(p.out, "pre-release: CHANGELOG.md not updated"))
+		case p.cfg.PreRelease:
+			_, _ = fmt.Fprintf(p.out, "pre-release %s: CHANGELOG.md not updated\n", result.Tag)
+		case p.reporter != nil:
 			_, _ = fmt.Fprintln(p.out, ui.Warn(p.out, "changelog disabled"))
-		} else {
+		default:
 			_, _ = fmt.Fprintf(p.out, "changelog disabled for %s\n", result.Tag)
 		}
 		if !p.cfg.Tag {

@@ -80,7 +80,7 @@ func TestBuildReleasePipelineConfig_CommitMessage(t *testing.T) {
 		Versioning: config.Versioning{Strategy: "semver", CommitMessage: "release: ${version}"},
 	}
 
-	pCfg, err := buildReleasePipelineConfig(runner, readRunner, cfg, "", "", false, false)
+	pCfg, err := buildReleasePipelineConfig(runner, readRunner, cfg, "", "", false, false, false)
 	require.NoError(t, err)
 	assert.Equal(t, "release: ${version}", pCfg.CommitMessage)
 }
@@ -156,7 +156,7 @@ func TestBuildReleasePipelineConfig_TargetsWiring(t *testing.T) {
 			},
 		}
 
-		pCfg, err := buildReleasePipelineConfig(runner, readRunner, cfg, "", "", false, false)
+		pCfg, err := buildReleasePipelineConfig(runner, readRunner, cfg, "", "", false, false, false)
 		require.NoError(t, err)
 		require.Len(t, pCfg.Platforms, 1)
 		require.Len(t, readRunner.Calls, 1, "exactly one git call — shared with enrichment resolution")
@@ -173,7 +173,7 @@ func TestBuildReleasePipelineConfig_TargetsWiring(t *testing.T) {
 			Versioning: config.Versioning{Strategy: "semver"},
 		}
 
-		pCfg, err := buildReleasePipelineConfig(runner, readRunner, cfg, "", "", false, false)
+		pCfg, err := buildReleasePipelineConfig(runner, readRunner, cfg, "", "", false, false, false)
 		require.NoError(t, err)
 		require.Len(t, pCfg.Platforms, 1, "zero-config: one resolved forge must yield one driver")
 	})
@@ -190,7 +190,7 @@ func TestBuildReleasePipelineConfig_TargetsWiring(t *testing.T) {
 			Release:    &config.Release{Notes: &config.ContentDriver{}},
 		}
 
-		pCfg, err := buildReleasePipelineConfig(runner, readRunner, cfg, "", "", false, false)
+		pCfg, err := buildReleasePipelineConfig(runner, readRunner, cfg, "", "", false, false, false)
 		require.NoError(t, err)
 		require.Len(t, pCfg.Platforms, 1,
 			"release: presence (with or without an explicit notes: sub-block) always means generate and publish, together — there is no config-expressible 'notes only' state anymore")
@@ -207,7 +207,7 @@ func TestBuildReleasePipelineConfig_TargetsWiring(t *testing.T) {
 			Versioning: config.Versioning{Strategy: "semver"},
 		}
 
-		pCfg, err := buildReleasePipelineConfig(runner, readRunner, cfg, "", "", false, false)
+		pCfg, err := buildReleasePipelineConfig(runner, readRunner, cfg, "", "", false, false, false)
 		require.NoError(t, err)
 		assert.Empty(t, pCfg.Platforms)
 	})
@@ -230,7 +230,7 @@ func TestBuildReleasePipelineConfig_TargetsWiring(t *testing.T) {
 			},
 		}
 
-		pCfg, err := buildReleasePipelineConfig(runner, readRunner, cfg, "", "", false, false)
+		pCfg, err := buildReleasePipelineConfig(runner, readRunner, cfg, "", "", false, false, false)
 		require.NoError(t, err)
 		assert.Empty(t, pCfg.Platforms, "azure_devops has no publish driver, so no target should be synthesized for it")
 	})
@@ -253,7 +253,7 @@ func TestBuildReleasePipelineConfig_TargetsWiring(t *testing.T) {
 			},
 		}
 
-		pCfg, err := buildReleasePipelineConfig(runner, readRunner, cfg, "", "", false, false)
+		pCfg, err := buildReleasePipelineConfig(runner, readRunner, cfg, "", "", false, false, false)
 		require.NoError(t, err)
 		require.Len(t, pCfg.Platforms, 1)
 		assert.True(t, pCfg.Platforms[0].HasAssets(), "release.assets must reach a target that declares none")
@@ -277,7 +277,7 @@ func TestBuildReleasePipelineConfig_TargetsWiring(t *testing.T) {
 			},
 		}
 
-		pCfg, err := buildReleasePipelineConfig(runner, readRunner, cfg, "", "", false, false)
+		pCfg, err := buildReleasePipelineConfig(runner, readRunner, cfg, "", "", false, false, false)
 		require.NoError(t, err)
 		require.Len(t, pCfg.Platforms, 1)
 		assert.True(t, pCfg.Platforms[0].HasAssets(), "target-level assets must reach the platform")
@@ -300,7 +300,7 @@ func TestBuildReleasePipelineConfig_TargetsWiring(t *testing.T) {
 			},
 		}
 
-		pCfg, err := buildReleasePipelineConfig(runner, readRunner, cfg, "", "", false, false)
+		pCfg, err := buildReleasePipelineConfig(runner, readRunner, cfg, "", "", false, false, false)
 		require.NoError(t, err)
 		require.Len(t, pCfg.Platforms, 1)
 		assert.False(t, pCfg.Platforms[0].HasAssets())
@@ -324,7 +324,7 @@ func TestBuildReleasePipelineConfig_TargetsWiring(t *testing.T) {
 			},
 		}
 
-		pCfg, err := buildReleasePipelineConfig(runner, readRunner, cfg, "", "", false, false)
+		pCfg, err := buildReleasePipelineConfig(runner, readRunner, cfg, "", "", false, false, false)
 		require.NoError(t, err)
 		require.Len(t, pCfg.Platforms, 2)
 	})
@@ -346,7 +346,7 @@ func TestBuildReleasePipelineConfig_TargetsWiring(t *testing.T) {
 			},
 		}
 
-		_, err := buildReleasePipelineConfig(runner, readRunner, cfg, "", "", false, false)
+		_, err := buildReleasePipelineConfig(runner, readRunner, cfg, "", "", false, false, false)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "does-not-exist")
 	})
@@ -377,7 +377,7 @@ func TestBuildReleasePipelineConfig_DisableRelease(t *testing.T) {
 		},
 	}
 
-	pCfg, err := buildReleasePipelineConfig(runner, readRunner, cfg, "staging", "", false, false)
+	pCfg, err := buildReleasePipelineConfig(runner, readRunner, cfg, "staging", "", false, false, false)
 	require.NoError(t, err)
 	assert.Empty(t, pCfg.Platforms, "disable_release must skip publishing entirely, even with explicit release.targets")
 	assert.True(t, pCfg.DisableNotes, "disable_release must also gate off notes generation")
@@ -405,7 +405,7 @@ func TestBuildReleasePipelineConfig_EnvOnlyReleaseGetsNotes(t *testing.T) {
 		},
 	}
 
-	pCfg, err := buildReleasePipelineConfig(runner, readRunner, cfg, "staging", "", false, false)
+	pCfg, err := buildReleasePipelineConfig(runner, readRunner, cfg, "staging", "", false, false, false)
 	require.NoError(t, err)
 	assert.NotNil(t, pCfg.Notes, "a per-env-only release: block must still generate release notes, not publish with an empty body")
 }
@@ -442,7 +442,7 @@ func TestBuildReleasePipelineConfig_ForgeResolutionErrorScope(t *testing.T) {
 			},
 		}
 
-		_, err := buildReleasePipelineConfig(runner, readRunner, cfg, "", "", false, false)
+		_, err := buildReleasePipelineConfig(runner, readRunner, cfg, "", "", false, false, false)
 		require.Error(t, err, "a target that cannot be resolved to a forge must abort the release")
 		assert.ErrorIs(t, err, forge.ErrAmbiguousForge)
 	})
@@ -458,7 +458,7 @@ func TestBuildReleasePipelineConfig_ForgeResolutionErrorScope(t *testing.T) {
 			Versioning: config.Versioning{Strategy: "semver"},
 		}
 
-		_, err := buildReleasePipelineConfig(runner, readRunner, cfg, "", "", false, false)
+		_, err := buildReleasePipelineConfig(runner, readRunner, cfg, "", "", false, false, false)
 		require.Error(t, err)
 		assert.ErrorIs(t, err, forge.ErrAmbiguousForge)
 	})
@@ -479,7 +479,7 @@ func TestBuildReleasePipelineConfig_ForgeResolutionErrorScope(t *testing.T) {
 			Changelog:  &config.ContentDriver{Output: "CHANGELOG.md"},
 		}
 
-		_, err := buildReleasePipelineConfig(runner, readRunner, cfg, "", "", false, false)
+		_, err := buildReleasePipelineConfig(runner, readRunner, cfg, "", "", false, false, false)
 		require.Error(t, err)
 		assert.ErrorIs(t, err, forge.ErrAmbiguousForge)
 	})
@@ -507,7 +507,7 @@ func TestBuildReleasePipelineConfig_ForgeResolutionErrorScope(t *testing.T) {
 			},
 		}
 
-		pCfg, err := buildReleasePipelineConfig(runner, readRunner, cfg, "", "", false, false)
+		pCfg, err := buildReleasePipelineConfig(runner, readRunner, cfg, "", "", false, false, false)
 		require.NoError(t, err)
 		require.Len(t, pCfg.Platforms, 1)
 		assert.Nil(t, pCfg.ForgeIdentity)

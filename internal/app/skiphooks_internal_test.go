@@ -187,7 +187,7 @@ func TestBuildChangelogPipelineConfig_SkipHooksEmptiesSkippedPoints(t *testing.T
 		},
 	}
 
-	cCfg, err := buildChangelogPipelineConfig(runner, readRunner, cfg, PipelineOpts{SkipHooks: []string{"pre_tag"}})
+	cCfg, err := buildChangelogPipelineConfig(runner, readRunner, cfg, PipelineOpts{SkipHooks: []string{"pre_tag"}}, false)
 	require.NoError(t, err)
 	assert.Equal(t, []pipeline.HookStep{{Run: "echo post-bump"}}, cCfg.PostBumpHooks)
 	assert.Empty(t, cCfg.PreTagHooks)

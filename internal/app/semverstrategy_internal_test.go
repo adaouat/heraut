@@ -38,7 +38,7 @@ func TestBuildReleasePipelineConfig_SemVerStrategy(t *testing.T) {
 				Versioning: config.Versioning{Strategy: tc.strategy, Format: tc.format},
 			}
 
-			pCfg, err := buildReleasePipelineConfig(runner, readRunner, cfg, "", "", false, false)
+			pCfg, err := buildReleasePipelineConfig(runner, readRunner, cfg, "", "", false, false, false)
 			require.NoError(t, err)
 			assert.Equal(t, tc.want, pCfg.SemVerStrategy)
 		})
