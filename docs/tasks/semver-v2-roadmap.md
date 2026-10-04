@@ -35,7 +35,7 @@ pre-release lifecycle (`--pre-release <label>`) for the plain `semver` strategy.
 | T332 | Manual smoke test: gh/glab with a `+` tag | Done |
 | T333 | Validate `--set-build-id` against SemVer build-identifier grammar | Done |
 | T334 | Changelog, rotation and compare links bound by SemVer precedence | Done |
-| T335 | Per-env tags containing "/" break GitLab package-registry uploads | Not started |
+| T335 | Per-env tags containing "/" break GitLab package-registry uploads | Done |
 | T336 | `--set-version` validated as SemVer v2 under `semver`/`semver-per-env` | Done |
 | T337 | GitHub `--prerelease` derived from the version; remove `release.targets[].prerelease` | Done |
 | T338 | Pre-release series resolution in `semver.Resolver` | Done |
@@ -299,7 +299,7 @@ differently, which would have hard-errored the fallback on a root-commit tag ins
 it as "no ancestor tags." The new flag combination needs no stderr probe at all: a root-commit `t`
 simply yields an empty list at exit 0, confirmed against a real git binary.
 
-### [ ] T335 — Per-env tags containing "/" break GitLab package-registry uploads
+### [x] T335 — Per-env tags containing "/" break GitLab package-registry uploads
 
 Pre-existing, unrelated to `+`: `glab release upload --use-package-registry` uses the tag as the
 generic-package version, which GitLab rejects when it contains `/` (every `{env}/{version}`
@@ -308,6 +308,26 @@ unverified: GitLab's own release link encodes the slash (`/-/releases/uat%2F0.0.
 heraut renders `/-/releases/uat/0.0.0%2Bsmoke` — check on a public project whether heraut's
 per-env GitLab release URLs resolve, and whether `/` should be escaped there. Needs its own
 design (e.g. derive a package version without `/`, or drop `--use-package-registry` for per-env).
+
+**Completion note:** the upload half turned out not to be reachable from heraut, so it shipped no
+code change. `app.buildTargetPlatforms` sets `LenientAssets = len(Assets) > 0` for every target,
+so every asset rides as a positional file on `glab release create` (glab project uploads, which
+accept any tag) and `UploadAssets` — the only `--use-package-registry` call site, which T332
+exercised by hand — returns before reaching glab. The failure only reproduces if a user sets
+glab's own `GITLAB_RELEASE_ASSETS_USE_PACKAGE_REGISTRY` themselves. Spec 02's GitLab
+"Implementation" line, which still claimed `glab release upload --use-package-registry`, was
+corrected. The URL half was a real bug: `platforms/gitlab` gained `releaseTag(tag)`
+(`port.URLTag` plus `/` → `%2F`), used by `ReleaseURL` and both `ReleaseURLFromContext` branches,
+matching the link GitLab itself renders; GitHub release URLs and every compare URL are unchanged
+(GitHub and GitLab's compare route accept `/` in refs). `port.URLTag` was left `+`-only on
+purpose, since it also feeds compare URLs. `TestReleaseURL_EscapesPlusInTag`'s ambient-context
+row asserted the unescaped `uat/7.4.1%2B158404` and was edited to `uat%2F7.4.1%2B158404` (a
+deliberate behaviour change, not a deleted row); `TestReleaseURL_EscapesSlashInTag` covers all
+three builders, including a nested group and a multi-`/` tag. Spec 05's GitLab "Release URL" line
+documents the escaping. Not verified against a live public project; T345's per-env scenario is
+the place to assert it. Filed during the design discussion: T346 (remove the unreachable
+`UploadAssets` registry path) and T347 (design spike: GitLab publishing over native `net/http`
+instead of `glab`), both in `roadmap.md` Phase 61.
 
 ## Phase 1.5 — Remaining compliance
 

@@ -915,7 +915,9 @@ release:
 A project registered with the GitLab CI/CD Catalog publishes automatically — there is no
 `catalog` field.
 
-Implementation: shells out to `glab release create` + `glab release upload --use-package-registry`.
+Implementation: shells out to `glab release create`, with resolved assets appended as positional
+files (glab stores them as project uploads, not in the package registry — see
+[Spec 05 § Asset resolution](05-generators-and-platforms.md#asset-resolution)).
 
 ### GitHub
 

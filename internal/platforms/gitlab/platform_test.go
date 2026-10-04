@@ -110,10 +110,41 @@ func TestReleaseURL_EscapesPlusInTag(t *testing.T) {
 	assert.Equal(t, "https://gitlab.com/group/proj/-/releases/v1.4.0%2B158404", p.ReleaseURL("v1.4.0+158404"))
 
 	ambient := &port.LinkContext{BaseURL: "https://gitlab.com/group/proj", Platform: "gitlab"}
-	assert.Equal(t, "https://gitlab.com/group/proj/-/releases/uat/7.4.1%2B158404", p.ReleaseURLFromContext("uat/7.4.1+158404", ambient))
+	assert.Equal(t, "https://gitlab.com/group/proj/-/releases/uat%2F7.4.1%2B158404", p.ReleaseURLFromContext("uat/7.4.1+158404", ambient))
 
 	platform := &port.LinkContext{BaseURL: "https://gitlab.com", Owner: "group", Repo: "proj", Platform: "gitlab"}
 	assert.Equal(t, "https://gitlab.com/group/proj/-/releases/v1.4.0%2B158404", p.ReleaseURLFromContext("v1.4.0+158404", platform))
+}
+
+// GitLab routes a release tag as a single path segment, so the "/" of a per-env tag must reach
+// the URL as %2F — matching the link GitLab itself renders for such a release.
+func TestReleaseURL_EscapesSlashInTag(t *testing.T) {
+	t.Setenv("GITLAB_CI", "")
+	t.Setenv("CI_PROJECT_URL", "")
+	p := gitlab.New(exectest.NewMockRunner(), &config.Platform{Project: "group/proj"})
+
+	tests := []struct {
+		name string
+		got  string
+		want string
+	}{
+		{"ReleaseURL", p.ReleaseURL("uat/7.4.1"), "https://gitlab.com/group/proj/-/releases/uat%2F7.4.1"},
+		{
+			"ambient context",
+			p.ReleaseURLFromContext("uat/7.4.1", &port.LinkContext{BaseURL: "https://gitlab.com/group/proj", Platform: "gitlab"}),
+			"https://gitlab.com/group/proj/-/releases/uat%2F7.4.1",
+		},
+		{
+			"platform context, nested group",
+			p.ReleaseURLFromContext("prod/eu/7.4.1+5", &port.LinkContext{BaseURL: "https://gitlab.com", Owner: "group/sub", Repo: "proj", Platform: "gitlab"}),
+			"https://gitlab.com/group/sub/proj/-/releases/prod%2Feu%2F7.4.1%2B5",
+		},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			assert.Equal(t, tc.want, tc.got)
+		})
+	}
 }
 
 func TestLinkContext_NestedGroup(t *testing.T) {

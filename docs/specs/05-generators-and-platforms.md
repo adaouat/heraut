@@ -473,7 +473,9 @@ release upload` call in the normal `heraut release` flow.
   this driver accepts and ignores it.
 - **Catalog**: GitLab automatically publishes to the CI/CD Catalog when the project is a
   registered catalog resource — heraut has no separate config field or flag for this
-- **Release URL**: `<gitlab-base>/<project>/-/releases/<tag>`
+- **Release URL**: `<gitlab-base>/<project>/-/releases/<tag>` — GitLab takes the tag as a single
+  path segment, so `/` is escaped as `%2F` (`uat/7.4.1` → `…/-/releases/uat%2F7.4.1`) on top of
+  `+` → `%2B`
 
 ### Asset resolution
 
