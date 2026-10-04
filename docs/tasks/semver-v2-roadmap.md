@@ -554,3 +554,9 @@ was cut on, but `git tag --merged <ref>` restricts to tags in a ref's history â€
 pre-release previous-tag rule (T338/T341) already uses it and is the model. Open questions for the
 design: which surfaces become history-aware (core, finals' notes, changelog bounds), and how
 global per-core monotonicity (ADR-0064) interacts with parallel maintenance lines.
+
+**Also in scope (user decision, 2026-10-04):** replace the real host/project fixtures
+(`git.adaouat.dev/bchatard/ecom-poc-release`) in `internal/pipeline/release_test.go` and
+`internal/platforms/gitlab/platform_test.go` with synthetic placeholders (e.g.
+`git.example.com/acme/widget`), per the no-real-data rule. Assertions stay identical apart from
+the substituted strings; commit it separately as `test:`.
