@@ -39,7 +39,7 @@ pre-release lifecycle (`--pre-release <label>`) for the plain `semver` strategy.
 | T336 | `--set-version` validated as SemVer v2 under `semver`/`semver-per-env` | Done |
 | T337 | GitHub `--prerelease` derived from the version; remove `release.targets[].prerelease` | Done |
 | T338 | Pre-release series resolution in `semver.Resolver` | Done |
-| T339 | `--pre-release <label>` on `release` and `version next` | Not started |
+| T339 | `--pre-release <label>` on `release` and `version next` | Done |
 | T340 | A pre-release run never writes `CHANGELOG.md` | Not started |
 | T341 | Release-notes range for pre-releases; absent-tag fallback fix | Not started |
 | T342 | End-to-end pre-release scenarios on a real repo | Not started |
@@ -416,10 +416,17 @@ to `wouldBeVersions`; with no final yet the escalation check still runs but list
 `ErrMajorEscalation` error text is prefixed by the sentinel (`%w: …`). `--set-version` and manual
 mode still bypass pre-release mode; rejecting those flag combinations is T339.
 
-### [ ] T339 — `--pre-release <label>` on `release` and `version next`
+### [x] T339 — `--pre-release <label>` on `release` and `version next`
 
 `app.WithPreRelease` + usage errors (`--set-version`, non-`semver` strategy, manual bump mode,
 invalid label); flag on both commands; `--allow-major` help names its second trigger. Spec 03.
+
+**Completed.** `NewResolver` now applies its options first and runs `validatePreReleaseUsage` before
+any other branch, so `--set-version` can never silently win over `--pre-release`; the option calls
+`SetPreRelease` in the `semver` case only. `release` and `version next` declare the flag;
+`PipelineOpts.PreReleaseLabel` is populated by `release` and left unconsumed (T340). The two new
+sentinels keep `wrapRunErr`'s Runtime code, pinned by a `version next` cmd test; usage errors are
+Config (2). `changelog` keeps its original `--allow-major` help (it has no pre-release series).
 
 ### [ ] T340 — A pre-release run never writes `CHANGELOG.md`
 

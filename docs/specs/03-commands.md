@@ -84,7 +84,7 @@ already exists, else `.heraut.yml`. The file starts with a
 Run the full release pipeline.
 
 ```
-heraut release [--set-version <version>] [--set-build-id <id>] [--regenerate-changelog] [--dry-run] [--env <name>] [--force] [--offline] [--no-hooks] [--skip-hook <point>[,<point>…]] [--allow-major]
+heraut release [--set-version <version>] [--set-build-id <id>] [--pre-release <label>] [--regenerate-changelog] [--dry-run] [--env <name>] [--force] [--offline] [--no-hooks] [--skip-hook <point>[,<point>…]] [--allow-major]
 ```
 
 | Flag                     | Description                                                                          |
@@ -98,7 +98,8 @@ heraut release [--set-version <version>] [--set-build-id <id>] [--regenerate-cha
 | `--offline`              | Forces `commits.enrichment_policy: disabled` for this run regardless of what `.heraut.yml` sets, skipping PR/MR enrichment in changelog and release-notes generation. |
 | `--no-hooks`             | Skip every configured `hooks:` command (`post_bump`/`pre_changelog`/`pre_tag`/`post_tag`/`pre_release`/`post_release`, [ADR-0053](../adr/0053-release-lifecycle-hooks.md); see [Spec 02 § `hooks`](02-configuration.md#hooks)) for this run, without editing `.heraut.yml`. Distinct from the git pre-commit hooks discussed below — see § Pre-commit hooks and the changelog commit. |
 | `--skip-hook`            | Skip individual hook points for this run — one or more of `post_bump`/`pre_changelog`/`pre_tag`/`post_tag`/`pre_release`/`post_release`. Repeatable (`--skip-hook pre_tag --skip-hook post_release`) or comma-separated (`--skip-hook pre_tag,post_release`). When the flag is absent, the same comma-separated list is read from the `HERAUT_SKIP_HOOKS` environment variable. Cannot be combined with `--no-hooks` (error). Unknown names are a config error. See [ADR-0062](../adr/0062-selective-hook-skipping.md) / [Spec 02 § `--skip-hook`](02-configuration.md#--skip-hook-and-heraut_skip_hooks). |
-| `--allow-major`          | Lift `versioning.bump.stay_at_v0` for this run, allowing a `0.x` → `1.0.0` major bump that the setting would otherwise hold back to minor. No effect without `stay_at_v0`, with `--set-version`, once the major version is ≥ 1, or — for the `semver` strategy — under `bump.mode: manual`. Deliberately not `--force`. See [ADR-0063](../adr/0063-hold-major-at-v0.md) / [Spec 04 § Staying at v0](04-versioning.md#staying-at-v0-stay_at_v0). |
+| `--pre-release`          | Mint a pre-release `<core>-<label>.<N>` (e.g. `v1.4.0-rc.1`) instead of a final release; plain `semver` only, never writes `CHANGELOG.md`. The label is a single SemVer identifier (validated by `semver.ValidatePreReleaseLabel`). Usage errors, all exit code 2 and raised before any git call: combined with `--set-version` (pass a pre-release value such as `1.4.0-rc.1` to `--set-version` instead); `versioning.strategy` other than `semver`; `versioning.bump.mode: manual`; an invalid label. Series resolution: [Spec 04 § Pre-release lifecycle](04-versioning.md). Resolution failures (`ErrMajorEscalation`, `ErrPreReleaseRegression`) exit with the Runtime code. |
+| `--allow-major`          | Lift `versioning.bump.stay_at_v0` for this run, allowing a `0.x` → `1.0.0` major bump that the setting would otherwise hold back to minor; with `--pre-release`, also lifts the block on a pre-release series escalating to a new major. The two triggers are asymmetric: `stay_at_v0` downgrades the bump to minor with a warning, while the series block is an error that `--allow-major` turns into permission. No effect without one of them, with `--set-version`, once the major version is ≥ 1 (for `stay_at_v0`), or — for the `semver` strategy — under `bump.mode: manual`. Deliberately not `--force`. See [ADR-0063](../adr/0063-hold-major-at-v0.md) / [Spec 04 § Staying at v0](04-versioning.md#staying-at-v0-stay_at_v0). |
 
 > **`{build}` tag formats:** with a `tag_format` containing `{build}`, pass `--set-build-id <id>`
 > (requires `--set-version`) to render and publish a release per build — this creates one
@@ -249,7 +250,7 @@ Compute and print the next version without side effects. Useful in CI to capture
 version before invoking other tools.
 
 ```
-heraut version next [--env <name>] [--force] [--allow-major] [--set-version <version>] [--set-build-id <id>]
+heraut version next [--env <name>] [--force] [--allow-major] [--pre-release <label>] [--set-version <version>] [--set-build-id <id>]
 ```
 
 Before resolving, runs the same semantic validation as `heraut check config`. A config
@@ -257,6 +258,8 @@ error prints the same path/hint output and exits with the Config code (2) withou
 attempting resolution.
 
 Exits non-zero if a promotion guard trips (E001/E002/E003).
+
+With `--pre-release <label>`, `version next` prints the pre-release tag `heraut release --pre-release` would create (`v1.4.0-rc.1`), with the same usage errors as on `release` (Config code 2) and any series-escalation warning on stderr. See the `--pre-release` row of the [`heraut release` flag table](#heraut-release).
 
 With `--set-version`, `version next` renders instead of computing: it skips version resolution from
 git history entirely and prints the tag `heraut release` / `heraut changelog` would create for that

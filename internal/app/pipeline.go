@@ -63,6 +63,8 @@ type PipelineOpts struct {
 	// SkipHooks names individual hook points to skip for this run (--skip-hook /
 	// HERAUT_SKIP_HOOKS, ADR-0062). Callers validate it with ValidateSkipHooks first.
 	SkipHooks []string
+	// PreReleaseLabel is the --pre-release label of a release run; empty for a final release.
+	PreReleaseLabel string
 }
 
 // ReadGPGSign reads tag.gpgSign from git config and returns true when it is set to "true".

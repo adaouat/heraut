@@ -19,6 +19,13 @@ type ResolverOption func(*resolverOptions)
 
 type resolverOptions struct {
 	allowMajor bool
+	preRelease string
+}
+
+// WithPreRelease asks the plain semver resolver to mint a <core>-<label>.<N> pre-release
+// (--pre-release). An empty label leaves the final-release path untouched.
+func WithPreRelease(label string) ResolverOption {
+	return func(o *resolverOptions) { o.preRelease = label }
 }
 
 // WithAllowMajor lifts versioning.bump.stay_at_v0's hold-back for this resolution (--allow-major).
@@ -95,6 +102,15 @@ func rewriteHeldTags(warning, wouldBeVersion, version, tag string) string {
 // buildID is set when --set-build-id <id> is passed; requires versionOverride to be set.
 // opts tune resolution without changing the positional signature — see WithAllowMajor.
 func NewResolver(cfg *config.Config, env string, force bool, versionOverride, buildID string, runner port.Runner, opts ...ResolverOption) (versioning.Resolver, error) {
+	var o resolverOptions
+	for _, opt := range opts {
+		opt(&o)
+	}
+	if o.preRelease != "" {
+		if err := validatePreReleaseUsage(cfg, versionOverride, o.preRelease); err != nil {
+			return nil, err
+		}
+	}
 	if buildID != "" && versionOverride == "" {
 		return nil, fmt.Errorf("--set-build-id requires --set-version: build ID cannot be combined with automatic version resolution")
 	}
@@ -171,15 +187,11 @@ func NewResolver(cfg *config.Config, env string, force bool, versionOverride, bu
 		return versioning.NewStaticResolver(tag, version), nil
 	}
 
-	var o resolverOptions
-	for _, opt := range opts {
-		opt(&o)
-	}
-
 	switch cfg.Versioning.Strategy {
 	case "semver":
 		r := semver.New(runner, cfg)
 		r.SetAllowMajor(o.allowMajor)
+		r.SetPreRelease(o.preRelease)
 		return warningResolver{inner: r, warnings: r.Warnings, wouldBeVersions: r.WouldBeVersions}, nil
 	case "calver":
 		return calver.New(runner, cfg, time.Now), nil
@@ -193,6 +205,24 @@ func NewResolver(cfg *config.Config, env string, force bool, versionOverride, bu
 	default:
 		return nil, fmt.Errorf("unknown versioning strategy %q (supported: semver, calver, semver-per-env, calver-per-env)", cfg.Versioning.Strategy)
 	}
+}
+
+// validatePreReleaseUsage rejects --pre-release combinations that cannot mint a pre-release,
+// before any other resolver branch runs so --set-version never silently wins.
+func validatePreReleaseUsage(cfg *config.Config, versionOverride, label string) error {
+	if versionOverride != "" {
+		return fmt.Errorf("--pre-release cannot be combined with --set-version: --set-version already chooses the version (pass a pre-release value such as 1.4.0-rc.1 to it instead)")
+	}
+	if cfg.Versioning.Strategy != "semver" {
+		return fmt.Errorf("--pre-release requires versioning.strategy: semver (got %q): pre-releases are minted for plain semver only (ADR-0064)", cfg.Versioning.Strategy)
+	}
+	if cfg.Versioning.BumpMode() == "manual" {
+		return fmt.Errorf("--pre-release requires versioning.bump.mode: auto — manual mode has no computed version to build a pre-release on")
+	}
+	if err := semver.ValidatePreReleaseLabel(label); err != nil {
+		return fmt.Errorf("--pre-release %q: %w", label, err)
+	}
+	return nil
 }
 
 // validateSemVerBuildID checks that buildID alone is valid SemVer build metadata

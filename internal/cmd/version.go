@@ -39,6 +39,7 @@ func newVersionNextCmd() *cobra.Command {
 			env, _ := cmd.Flags().GetString("env")
 			force, _ := cmd.Flags().GetBool("force")
 			allowMajor, _ := cmd.Flags().GetBool("allow-major")
+			preRelease, _ := cmd.Flags().GetString("pre-release")
 
 			runner := execadapter.New(false, verbose)
 			path := config.ResolvePath(cfgPath)
@@ -62,7 +63,7 @@ func newVersionNextCmd() *cobra.Command {
 				return exitcode.Wrap(exitcode.Runtime, err)
 			}
 
-			resolver, err := app.NewResolver(cfg, env, force, versionOverride, buildID, runner, app.WithAllowMajor(allowMajor))
+			resolver, err := app.NewResolver(cfg, env, force, versionOverride, buildID, runner, app.WithAllowMajor(allowMajor), app.WithPreRelease(preRelease))
 			if err != nil {
 				return exitcode.Wrap(exitcode.Config, err)
 			}
@@ -81,7 +82,8 @@ func newVersionNextCmd() *cobra.Command {
 	}
 	cmd.Flags().String("env", "", "target environment (for per-env strategies)")
 	cmd.Flags().Bool("force", false, "override safety checks blocking tag promotion or missing PR/MR metadata")
-	cmd.Flags().Bool("allow-major", false, "lift versioning.bump.stay_at_v0 for this run, allowing a 0.x → 1.0.0 major bump")
+	cmd.Flags().Bool("allow-major", false, "lift versioning.bump.stay_at_v0 and the pre-release series major-escalation block for this run")
+	cmd.Flags().String("pre-release", "", "mint a pre-release <core>-<label>.<N> (plain semver only; never writes CHANGELOG.md)")
 	addVersionOverrideFlags(cmd, &versionOverride, &buildID)
 	return cmd
 }

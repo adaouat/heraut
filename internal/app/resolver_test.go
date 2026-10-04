@@ -554,3 +554,57 @@ func TestValidateVersionOverride(t *testing.T) {
 	require.Error(t, app.ValidateVersionOverride(""))
 	require.Error(t, app.ValidateVersionOverride("1.2.3 "))
 }
+
+func TestNewResolver_PreRelease_UsageErrors(t *testing.T) {
+	manual := semverCfg()
+	manual.Versioning.Bump = &config.BumpConfig{Mode: "manual"}
+
+	tests := []struct {
+		name     string
+		cfg      *config.Config
+		override string
+		label    string
+		wantSub  string
+	}{
+		{"with set-version", semverCfg(), "1.4.0-rc.1", "rc",
+			"--pre-release cannot be combined with --set-version: --set-version already chooses the version (pass a pre-release value such as 1.4.0-rc.1 to it instead)"},
+		{"calver", calverCfg(), "", "rc",
+			`--pre-release requires versioning.strategy: semver (got "calver"): pre-releases are minted for plain semver only (ADR-0064)`},
+		{"semver-per-env", &config.Config{Version: "1", Versioning: config.Versioning{Strategy: "semver-per-env"}}, "", "rc",
+			`--pre-release requires versioning.strategy: semver (got "semver-per-env")`},
+		{"calver-per-env", &config.Config{Version: "1", Versioning: config.Versioning{Strategy: "calver-per-env", Format: "YYYY.MM.PATCH"}}, "", "rc",
+			`--pre-release requires versioning.strategy: semver (got "calver-per-env")`},
+		{"manual bump mode", manual, "", "rc",
+			"--pre-release requires versioning.bump.mode: auto — manual mode has no computed version to build a pre-release on"},
+		{"invalid label", semverCfg(), "", "RC!",
+			`--pre-release "RC!": `},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			mr := exectest.NewMockRunner()
+			_, err := app.NewResolver(tc.cfg, "", false, tc.override, "", mr, app.WithPreRelease(tc.label))
+			require.Error(t, err)
+			assert.Contains(t, err.Error(), tc.wantSub)
+			assert.Empty(t, mr.Calls, "usage errors must be raised before any git call")
+		})
+	}
+}
+
+func TestNewResolver_PreRelease_ReachesResolver(t *testing.T) {
+	mr := exectest.NewMockRunner()
+	mr.QueueResponse("v1.3.0\n", "", nil)
+	mr.QueueResponse("feat: add x\x00", "", nil)
+	mr.QueueResponse("v1.3.0\n", "", nil)
+
+	r, err := app.NewResolver(semverCfg(), "", false, "", "", mr, app.WithPreRelease("rc"))
+	require.NoError(t, err)
+	res, err := r.Resolve()
+	require.NoError(t, err)
+	assert.Equal(t, "v1.4.0-rc.1", res.Tag)
+}
+
+func TestNewResolver_PreReleaseEmpty_LeavesFinalPathUntouched(t *testing.T) {
+	r, err := app.NewResolver(calverCfg(), "", false, "", "", exectest.NewMockRunner(), app.WithPreRelease(""))
+	require.NoError(t, err)
+	assert.NotNil(t, r)
+}
