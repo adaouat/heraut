@@ -33,6 +33,7 @@ local codeLinters = new Mapping<String, Step> {
   // it's duplicated from Builtins
   // waiting to find a better solution to use custom configuration
   ["yamlfmt"] = (Builtins.yamlfmt) {
+    check = "yamlfmt -conf .config/yamlfmt/config.yml -lint {{ files }}"
     check_diff = "yamlfmt -conf .config/yamlfmt/config.yml -lint {{ files }}"
     fix = "yamlfmt -conf .config/yamlfmt/config.yml {{ files }}"
   }
