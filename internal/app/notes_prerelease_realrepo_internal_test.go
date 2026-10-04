@@ -10,7 +10,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/adaouat/heraut/internal/config"
-	"github.com/adaouat/heraut/internal/generators/native"
+	"github.com/adaouat/heraut/internal/testutil"
 )
 
 func notesRepo(t *testing.T) (git func(args ...string), commit func(msg string)) {
@@ -36,15 +36,18 @@ func notesRepo(t *testing.T) (git func(args ...string), commit func(msg string))
 	return git, commit
 }
 
+// notesFor generates release notes through buildReleasePipelineConfig, so the pre-release wiring
+// under test is the production one.
 func notesFor(t *testing.T, tag string, preRelease bool) string {
 	t.Helper()
-	cfg := &config.Config{Versioning: config.Versioning{Strategy: "semver"}}
+	testutil.ClearCIEnv(t)
+	cfg := &config.Config{Version: "1", Versioning: config.Versioning{Strategy: "semver"},
+		Release: &config.Release{Notes: &config.ContentDriver{}}}
 	runner := execadapter.New(false, false)
-	gen := buildGenerator(runner, &config.ContentDriver{}, native.ModeReleaseNotes, "", false, false, nil, "", tagOrderFor(cfg, ""))
-	if preRelease {
-		gen = buildGenerator(runner, &config.ContentDriver{}, native.ModeReleaseNotes, "", false, false, nil, "", notesTagOrderFor(cfg, ""), native.WithReachableFromHead())
-	}
-	out, err := gen.Generate(tag, nil)
+	pCfg, err := buildReleasePipelineConfig(runner, runner, cfg, "", "", false, false, preRelease)
+	require.NoError(t, err)
+	require.NotNil(t, pCfg.Notes)
+	out, err := pCfg.Notes.Generate(tag, nil)
 	require.NoError(t, err)
 	return out
 }
@@ -76,6 +79,7 @@ func TestNotesRange_RealRepo_PreReleaseIgnoresSideBranchTag(t *testing.T) {
 	git, commit := notesRepo(t)
 	commit("feat: initial")
 	git("tag", "-a", "-m", "v1.3.0", "v1.3.0")
+	commit("feat: between")
 	git("checkout", "-b", "side")
 	commit("fix: side fix")
 	git("tag", "-a", "-m", "v1.3.2", "v1.3.2")
@@ -85,6 +89,7 @@ func TestNotesRange_RealRepo_PreReleaseIgnoresSideBranchTag(t *testing.T) {
 
 	got := notesFor(t, "v1.4.0-rc.1", true)
 	assert.Contains(t, got, "Main work")
+	assert.Contains(t, got, "Between", "a range bounded by the unmerged v1.3.2 would drop this commit")
 	assert.NotContains(t, got, "Side fix")
 	assert.NotContains(t, got, "Initial", "range starts at v1.3.0, not before it")
 }

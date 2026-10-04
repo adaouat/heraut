@@ -155,7 +155,8 @@ from `HEAD` (`git tag -l [glob] --merged HEAD`), so `v1.4.0-rc.2` covers only th
 `v1.4.0-rc.1` and a tag cut on another, unmerged branch never bounds the range. The tag being
 released is ordered in with the existing tags even when git does not have it yet, so its
 predecessor is the next-lower tag by precedence: `v1.3.1-rc.1` with `v2.0.0` and `v1.3.0` present
-spans back to `v1.3.0`.
+spans back to `v1.3.0`. This ordering-in applies to finals too: a hotfix `v1.3.1` cut while
+`v2.0.0` exists also resolves `v1.3.0`.
 
 A pre-release run never writes a `CHANGELOG.md` section at cut time. The run is detected before
 resolution — `--pre-release <label>`, or a `--set-version` whose value parses as a SemVer

@@ -2,12 +2,14 @@ package native
 
 import (
 	"os"
+	"os/exec"
 	"path/filepath"
 	"sort"
 	"strings"
 	"testing"
 	"time"
 
+	execadapter "github.com/adaouat/forge/exec"
 	"github.com/adaouat/forge/exec/exectest"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -860,5 +862,40 @@ func TestGenerator_WithReachableFromHead_ListTagsArgs(t *testing.T) {
 			require.Len(t, mr.Calls, 1)
 			assert.Equal(t, tc.want, mr.Calls[0].Args)
 		})
+	}
+}
+
+// TestGenerator_ScopedPreviousTag_AbsentTag_RealRepo (T341): against real git, a tag that is not
+// created yet (pre-release or final hotfix) resolves its predecessor by precedence — v1.3.0, not
+// the newest tag v2.0.0.
+func TestGenerator_ScopedPreviousTag_AbsentTag_RealRepo(t *testing.T) {
+	if _, err := exec.LookPath("git"); err != nil {
+		t.Skip("git not on PATH")
+	}
+	t.Chdir(t.TempDir())
+	git := func(args ...string) {
+		t.Helper()
+		cmd := exec.Command("git", args...)
+		cmd.Env = append(os.Environ(),
+			"GIT_AUTHOR_NAME=Test", "GIT_AUTHOR_EMAIL=test@example.com",
+			"GIT_COMMITTER_NAME=Test", "GIT_COMMITTER_EMAIL=test@example.com",
+			"GIT_CONFIG_GLOBAL=/dev/null", "GIT_CONFIG_SYSTEM=/dev/null",
+		)
+		if out, err := cmd.CombinedOutput(); err != nil {
+			t.Fatalf("git %v: %v\n%s", args, err, out)
+		}
+	}
+	git("init")
+	git("commit", "--allow-empty", "-m", "feat: one")
+	git("tag", "-a", "-m", "v1.3.0", "v1.3.0")
+	git("commit", "--allow-empty", "-m", "feat: two")
+	git("tag", "-a", "-m", "v2.0.0", "v2.0.0")
+
+	for _, tag := range []string{"v1.3.1-rc.1", "v1.3.1"} {
+		g := New(execadapter.New(false, false), &config.ContentDriver{}, ModeReleaseNotes,
+			WithTagOrder(allKindsDescOrder), WithReachableFromHead())
+		prev, err := g.scopedPreviousTag(tag)
+		require.NoError(t, err)
+		assert.Equal(t, "v1.3.0", prev, tag)
 	}
 }
