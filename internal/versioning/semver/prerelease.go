@@ -122,7 +122,12 @@ func (r *Resolver) resolvePreRelease() (versioning.Result, error) {
 			break
 		}
 	}
-	if hasPrevious && (!hasFinal || previous.Tag != last.Tag) {
+	// A higher label of the same core promotes the existing series (beta.2 → rc.1) without new
+	// commits; only re-cutting the same label, or opening a new series, needs them (ADR-0064).
+	promotion := hasPrevious && previous.Version.IsPreRelease() &&
+		Compare(coreVersion(previous.Version), core) == 0 &&
+		(len(previous.Version.Pre) == 0 || previous.Version.Pre[0] != label)
+	if hasPrevious && !promotion && (!hasFinal || previous.Tag != last.Tag) {
 		stdout, _, err = r.runner.Run("git", "log", previous.Tag+"..HEAD", "--format=%B%x00")
 		if err != nil {
 			return versioning.Result{}, fmt.Errorf("reading git log: %w", err)

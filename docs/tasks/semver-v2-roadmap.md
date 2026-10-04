@@ -42,7 +42,7 @@ pre-release lifecycle (`--pre-release <label>`) for the plain `semver` strategy.
 | T339 | `--pre-release <label>` on `release` and `version next` | Done |
 | T340 | A pre-release run never writes `CHANGELOG.md` | Done |
 | T341 | Release-notes range for pre-releases; absent-tag fallback fix | Done |
-| T342 | End-to-end pre-release scenarios on a real repo | Not started |
+| T342 | End-to-end pre-release scenarios on a real repo | Done |
 | T343 | ADR-0064 Phase 2 status update and Phase 2 close | Not started |
 | T344 | Maintenance-branch support (last final + notes from branch history) | Not started |
 
@@ -457,10 +457,18 @@ and no reachability filter, so their git calls are unchanged; calver gets no opt
 `notesTagOrderFor` is nil. Notes (b) and (c) are resolved. Real-git tests cover rc.1 to rc.2,
 rc to final, and a side-branch-only tag.
 
-### [ ] T342 — End-to-end pre-release scenarios on a real repo
+### [x] T342 — End-to-end pre-release scenarios on a real repo
 
 `RealGitRepo` scenarios from the design doc § 7: beta → rc → final, escalation, blocked major +
 `--allow-major`, `next` after `rc`, re-cut with no commit, side-branch tag, `version current`.
+
+`internal/app/prerelease_realrepo_internal_test.go` runs the seven scenarios through
+`app.NewResolver` with a real runner and annotated tags (reusing `notesRepo`). It exposed one bug:
+a label promotion (`beta.2` then `--pre-release rc` with no new commit) failed the commit
+requirement, contradicting the spec worked examples. `resolvePreRelease` now skips that check when
+the previous reachable tag is a pre-release of the same core with a different label; re-cutting the
+same label and opening a new series still require commits. The `switch to rc` unit row lost its
+since-previous-tag `git log` call accordingly (edited with an ADR-0064 comment, not deleted).
 
 ### [ ] T343 — ADR-0064 Phase 2 status update and Phase 2 close
 

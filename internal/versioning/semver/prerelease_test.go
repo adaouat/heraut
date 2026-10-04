@@ -57,10 +57,12 @@ func TestResolve_PreRelease(t *testing.T) {
 			label:     "beta", wantTag: "v1.4.0-beta.2", wantCur: "v1.4.0-beta.1", wantBump: versioning.BumpMinor,
 		},
 		{
+			// ADR-0064 (spec 1 worked examples): a higher label of the same core promotes without new
+			// commits, so the since-previous-tag log call is no longer made.
 			name:      "switch to rc",
 			prefix:    "v",
-			responses: []string{"v1.4.0-beta.2\nv1.3.0\n", "feat: x" + nul + "fix: y" + nul, "v1.4.0-beta.2\nv1.3.0\n", "fix: y" + nul},
-			calls:     [][]string{tagsCall("v"), logCall("v1.3.0"), mergedCall("v"), logCall("v1.4.0-beta.2")},
+			responses: []string{"v1.4.0-beta.2\nv1.3.0\n", "feat: x" + nul + "fix: y" + nul, "v1.4.0-beta.2\nv1.3.0\n"},
+			calls:     [][]string{tagsCall("v"), logCall("v1.3.0"), mergedCall("v")},
 			label:     "rc", wantTag: "v1.4.0-rc.1", wantCur: "v1.4.0-beta.2", wantBump: versioning.BumpMinor,
 		},
 		{
