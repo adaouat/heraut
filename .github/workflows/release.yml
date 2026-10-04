@@ -16,99 +16,47 @@ jobs:
   release:
     runs-on: ubuntu-latest
     outputs:
-      # steps.normalize only runs (and only sets tag) for a manual override — see
-      # its own comment below. Falls back to release-setup's own output otherwise.
-      tag: ${{ steps.normalize.outputs.tag || steps.setup.outputs.tag }}
+      tag: ${{ steps.setup.outputs.tag }}
     permissions:
       contents: write # create GitHub Release + push tag + upload assets
-      id-token: write # OIDC token for build provenance attestation
+      id-token: write # Sigstore signing: build provenance attestation + packslip
       attestations: write # persist build provenance attestations
     env:
       HERAUT_CHECK_UPDATE: false
     steps:
       - name: Checkout code
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           fetch-depth: 0 # full history for changelog generation
           token: ${{ secrets.GITHUB_TOKEN }}
 
-      # mise + heraut bootstrap + GPG + identity + resolved version (forge ADR-0009).
-      # heraut's own release/preflight below still use the freshly built $FRESH_BIN.
+      # Shared release pipeline (forge ADR-0009, ADR-0015). Composite actions run as steps of
+      # this job, so this file stays the Sigstore signer of the packslip and attestations.
+      # release-setup also normalizes a manual `version` input (1.2.3 -> v1.2.3) before the
+      # build bakes it into main.Version, the cask URL and the Docker build-arg.
       - name: Release setup
         id: setup
-        uses: adaouat/forge/.github/actions/release-setup@66461c2797ae849f135ab34bac2b96484d21128d # v0.7.2
+        uses: adaouat/forge/.github/actions/release-setup@c9e88f2a13524bd97b63c71da00188463f03386c # v0.19.2
         with:
           gpg-private-key: ${{ secrets.RELEASE_GPG_PRIVATE_KEY }}
           github-token: ${{ secrets.GITHUB_TOKEN }}
           version: ${{ inputs.version }}
 
-      # forge's release-setup takes a manual `version` input verbatim — a bare
-      # "0.63.0" instead of "v0.63.0" slips straight into GORELEASER_CURRENT_TAG
-      # below, and GoReleaser bakes it as-is into main.Version, the Homebrew
-      # cask's download URL, and the Docker HERAUT_VERSION build-arg. heraut's own
-      # release step re-derives the correctly prefixed tag later, but by then
-      # GoReleaser has already built with the wrong one. Re-run the same
-      # --set-version normalization here, before the build, so every consumer
-      # agrees on one prefixed value.
-      - name: Normalize version override
-        id: normalize
-        if: env.VERSION_OVERRIDDEN == 'true'
-        run: |
-          yq 'del(.release)' .config/heraut.yml > /tmp/heraut-version.yml
-          NORMALIZED=$(HERAUT_FILE=/tmp/heraut-version.yml heraut version next --set-version "$VERSION")
-          echo "VERSION=$NORMALIZED" >> "$GITHUB_ENV"
-          echo "tag=$NORMALIZED" >> "$GITHUB_OUTPUT"
-
-      - name: Build binaries
-        uses: goreleaser/goreleaser-action@5daf1e915a5f0af01ddbcd89a43b8061ff4f1a89 # v7
+      - name: Release build
+        uses: adaouat/forge/.github/actions/release-build@c9e88f2a13524bd97b63c71da00188463f03386c # v0.19.2
         with:
-          # Exact pin, not "~> v2": 2.18.1 broke GORELEASER_CURRENT_TAG for a tag not yet
-          # in the local repo (our build-then-release order always hits this — ADR-0018);
-          # fixed in 2.18.2 (goreleaser/goreleaser#7124).
-          version: "2.18.2"
-          args: release --clean --skip=publish,announce,validate
-        env:
-          GORELEASER_CURRENT_TAG: ${{ env.VERSION }}
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          app: heraut
+          github-token: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Collect release binaries
-        # builds.binary is plain `heraut` (so the Homebrew cask installs under that
-        # name), so the versioned asset names live in goreleaser's artifacts.json —
-        # copy each build output to its versioned name for `heraut release` to upload.
-        run: |
-          jq -r '.[] | select(.type == "Binary" and (.name | startswith("heraut_"))) | "\(.path)\t\(.name)"' \
-            dist/artifacts.json | while IFS=$'\t' read -r path name; do cp "$path" "dist/$name"; done
-          echo "FRESH_BIN=dist/heraut_${VERSION#v}_linux_amd64" >> "$GITHUB_ENV"
+      # heraut releases itself with the binary it just built, not the bootstrap one
+      # release-setup installed.
+      - name: Locate fresh binary
+        run: echo "FRESH_BIN=dist/heraut_${VERSION#v}_linux_amd64" >> "$GITHUB_ENV"
 
       - name: Package Pkl builtin
         run: |
           sed -i "s/^  version = .*/  version = \"${VERSION#v}\"/" pkl/PklProject
           pkl project package pkl/ --output-path dist/ --skip-publish-check
-
-      - name: Attest build provenance
-        uses: actions/attest@59d89421af93a897026c735860bf21b6eb4f7b26 # v4
-        with:
-          subject-checksums: dist/checksums.txt
-
-      # Signs a Sigstore manifest over the raw binaries, so a packslip-aware installer
-      # (mise) can verify what it downloads. Runs — and writes into dist/, upload: false
-      # — before `heraut release` publishes anything: platform.go's CreateRelease bundles
-      # dist/'s assets into the same `gh release create` call for exactly this reason —
-      # a later `gh release upload` 422s with "Cannot upload assets to an immutable
-      # release" once the release is published (see its own doc comment). `tag` is
-      # explicit because this workflow is workflow_dispatch: github.ref_type is never
-      # "tag" here, so the action can't infer it the way a tag-triggered job would; the
-      # commit is left to default to github.sha, the code these binaries actually built
-      # from (heraut's changelog commit, created a few steps from now, is later still).
-      - name: Publish packslip
-        uses: jdx/packslip@87479dfc6443253dff69601cace5fc6ea07e6df5 # v1.4.0
-        with:
-          artifacts: >-
-            dist/heraut_*_linux_amd64 dist/heraut_*_linux_arm64 dist/heraut_*_darwin_amd64 dist/heraut_*_darwin_arm64 dist/heraut_*_windows_amd64.exe
-          bin: heraut
-          tag: ${{ env.VERSION }}
-          out: dist
-          upload: false
 
       - name: Version sanity check
         if: env.VERSION_OVERRIDDEN == 'false'
@@ -121,44 +69,14 @@ jobs:
             exit 1
           fi
 
-      - name: Preflight check
-        run: '"./$FRESH_BIN" check'
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          # heraut's own forge-based enrichment (internal/forge, GitHub Actions branch of
-          # detectCIForge) reads GITHUB_TOKEN — not GH_TOKEN — to authenticate its
-          # PR-attribution GraphQL calls; without it the calls are unauthenticated and hit
-          # GitHub's 60/hr shared-IP rate limit. GITHUB_REPO (owner/repo) is injected
-          # automatically by heraut from forges[].repository — no manual env var needed.
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Release
-        run: '"./$FRESH_BIN" release --set-version "$VERSION" ${{ inputs.regenerate_changelog && ''--regenerate-changelog'' || '''' }}'
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          # heraut's own forge-based enrichment reads GITHUB_TOKEN (not GH_TOKEN) for its
-          # PR-attribution GraphQL calls. GITHUB_REPO is injected automatically by heraut —
-          # no manual env var needed.
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Publish Homebrew cask
-        # goreleaser is build-only (--skip=publish), so it only generated the cask;
-        # push it to the tap now that `heraut release` has uploaded the assets. Skips
-        # gracefully if the token isn't set, so it never breaks a release.
-        env:
-          HOMEBREW_TAP_TOKEN: ${{ secrets.HOMEBREW_TAP_TOKEN }}
-        run: |
-          if [ -z "$HOMEBREW_TAP_TOKEN" ]; then
-            echo "HOMEBREW_TAP_TOKEN not set — skipping cask publish."
-            exit 0
-          fi
-          git clone "https://x-access-token:${HOMEBREW_TAP_TOKEN}@github.com/adaouat/homebrew-tap.git" /tmp/tap
-          install -D dist/homebrew/Casks/heraut.rb /tmp/tap/Casks/heraut.rb
-          cd /tmp/tap
-          git add Casks/heraut.rb
-          git diff --cached --quiet && { echo "cask unchanged"; exit 0; }
-          git commit -m "chore(deps.heraut): ${VERSION}"
-          git push
+      - name: Release publish
+        uses: adaouat/forge/.github/actions/release-publish@c9e88f2a13524bd97b63c71da00188463f03386c # v0.19.2
+        with:
+          app: heraut
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          homebrew-tap-token: ${{ secrets.HOMEBREW_TAP_TOKEN }}
+          regenerate-changelog: ${{ inputs.regenerate_changelog }}
+          heraut-bin: ./${{ env.FRESH_BIN }}
 
   docker-build:
     runs-on: ${{ matrix.runner }}
@@ -177,7 +95,7 @@ jobs:
             runner: ubuntu-24.04-arm
     steps:
       - name: Checkout code
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
 
       - name: Prepare platform tag
         run: echo "PLATFORM_PAIR=${PLATFORM//\//-}" >> "$GITHUB_ENV"
