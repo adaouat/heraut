@@ -6,6 +6,7 @@ import (
 
 	"github.com/adaouat/forge/exec/exectest"
 	"github.com/adaouat/heraut/internal/config"
+	"github.com/adaouat/heraut/internal/testutil"
 	"github.com/adaouat/heraut/internal/versioning"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -98,6 +99,7 @@ func TestPreReleaseRun_StepTotalExcludesChangelog(t *testing.T) {
 // TestBuildPipeline_PreRelease_DryRunShowsNoChangelog pins that a pre-release dry run renders
 // neither changelog lines nor pre_changelog hooks and that the step counter matches the steps run.
 func TestBuildPipeline_PreRelease_DryRunShowsNoChangelog(t *testing.T) {
+	testutil.ClearCIEnv(t)
 	cfg := preReleaseChangelogCfg()
 	cfg.Hooks = &config.Hooks{PreChangelog: []config.HookStep{{Run: "echo pre-changelog-marker"}}}
 	res := staticResolver{result: versioning.Result{Version: "1.4.0-rc.1", Tag: "v1.4.0-rc.1"}}

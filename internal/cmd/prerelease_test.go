@@ -37,9 +37,9 @@ func TestVersionNext_PreRelease_PrintsTagAndEscalationWarning(t *testing.T) {
 	exectest.FakeBin(t, "git", `#!/bin/sh
 case "$*" in
   "tag -l v* --sort=-version:refname") printf "v1.3.1-rc.1\nv1.3.0\n" ;;
-  "log v1.3.0..HEAD --format=%B%x00") printf "fix: a\x00feat: b\x00" ;;
+  "log v1.3.0..HEAD --format=%B%x00") printf "fix: a\000feat: b\000" ;;
   "tag -l v* --merged HEAD --sort=-version:refname") printf "v1.3.1-rc.1\nv1.3.0\n" ;;
-  "log v1.3.1-rc.1..HEAD --format=%B%x00") printf "feat: b\x00" ;;
+  "log v1.3.1-rc.1..HEAD --format=%B%x00") printf "feat: b\000" ;;
   *) exit 1 ;;
 esac
 `)
@@ -56,7 +56,7 @@ func TestVersionNext_PreRelease_RegressionIsRuntimeError(t *testing.T) {
 	exectest.FakeBin(t, "git", `#!/bin/sh
 case "$*" in
   "tag -l v* --sort=-version:refname") printf "v1.4.0-rc.1\nv1.3.0\n" ;;
-  "log v1.3.0..HEAD --format=%B%x00") printf "feat: x\x00" ;;
+  "log v1.3.0..HEAD --format=%B%x00") printf "feat: x\000" ;;
   *) exit 1 ;;
 esac
 `)
