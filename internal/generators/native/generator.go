@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"slices"
 	"strings"
 	"time"
 
@@ -39,6 +40,8 @@ type Generator struct {
 	// newSectionBound, and previous-tag resolution (T334, ADR-0064). nil = today's behaviour
 	// (git's version:refname order, no filtering) — set by WithTagOrder.
 	tagOrder func(tags []string) []string
+	// reachableFromHead limits the scoped tag list to tags merged into HEAD (WithReachableFromHead).
+	reachableFromHead bool
 }
 
 var _ port.Generator = (*Generator)(nil)
@@ -86,6 +89,13 @@ func WithTagOrder(order func(tags []string) []string) Option {
 	return func(g *Generator) { g.tagOrder = order }
 }
 
+// WithReachableFromHead restricts the scoped tag list to tags reachable from HEAD
+// (git tag -l [glob] --merged HEAD) — a pre-release's notes span back to the previous tag
+// in its own history, never to a tag cut on another branch (ADR-0064).
+func WithReachableFromHead() Option {
+	return func(g *Generator) { g.reachableFromHead = true }
+}
+
 // herautMeta builds the document-meta value passed to templates as .Heraut.
 func (g *Generator) herautMeta() tplHeraut {
 	return tplHeraut{Version: g.cfg.HerautVersion, URL: herautProjectURL, GeneratedAt: g.now()}
@@ -121,16 +131,7 @@ func (g *Generator) Generate(tag string, lc *port.LinkContext) (string, error) {
 // When a tagOrder is set (T334, ADR-0064), it is applied last, after TagGlob/TagPattern filtering —
 // it may re-sort and drop tags (e.g. every pre-release, for a SemVer strategy).
 func (g *Generator) scopedTags() ([]string, error) {
-	var tags []string
-	var err error
-	if g.cfg.TagGlob != "" {
-		tags, err = listTags(g.runner, g.cfg.TagGlob)
-	} else {
-		var all []string
-		if all, err = listTags(g.runner, ""); err == nil {
-			tags, err = filterByTagPattern(all, g.cfg.TagPattern)
-		}
-	}
+	tags, err := g.rawScopedTags()
 	if err != nil {
 		return nil, err
 	}
@@ -140,13 +141,41 @@ func (g *Generator) scopedTags() ([]string, error) {
 	return tags, nil
 }
 
+// rawScopedTags is scopedTags before tagOrder: glob / tag_pattern filtering only.
+func (g *Generator) rawScopedTags() ([]string, error) {
+	merged := ""
+	if g.reachableFromHead {
+		merged = "HEAD"
+	}
+	if g.cfg.TagGlob != "" {
+		return listTags(g.runner, g.cfg.TagGlob, merged)
+	}
+	all, err := listTags(g.runner, "", merged)
+	if err != nil {
+		return nil, err
+	}
+	return filterByTagPattern(all, g.cfg.TagPattern)
+}
+
 // scopedPreviousTag resolves the tag preceding tag within the active scope. A tagOrder set (T334)
 // always resolves from the ordered/filtered scoped list (previousInList) — so release notes for a
 // final span back to the previous release by SemVer §11, never to a pre-release `git describe`
 // topology would pick. Otherwise: an explicit tag_pattern (regex) resolves from the Go-filtered
 // list; the glob / unscoped cases delegate to git describe (--match <glob> for per-env auto).
 func (g *Generator) scopedPreviousTag(tag string) (string, error) {
-	if g.tagOrder != nil || (g.cfg.TagGlob == "" && g.cfg.TagPattern != "") {
+	if g.tagOrder != nil {
+		raw, err := g.rawScopedTags()
+		if err != nil {
+			return "", err
+		}
+		// The tag being released is usually not in git yet; ordering it in with the existing tags
+		// finds its predecessor by precedence rather than taking the newest tag overall.
+		if !slices.Contains(raw, tag) {
+			raw = append(raw, tag)
+		}
+		return previousInList(tag, g.tagOrder(raw)), nil
+	}
+	if g.cfg.TagGlob == "" && g.cfg.TagPattern != "" {
 		tags, err := g.scopedTags()
 		if err != nil {
 			return "", err

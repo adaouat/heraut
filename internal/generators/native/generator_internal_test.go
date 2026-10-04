@@ -3,6 +3,7 @@ package native
 import (
 	"os"
 	"path/filepath"
+	"sort"
 	"strings"
 	"testing"
 	"time"
@@ -799,4 +800,65 @@ func TestGenerateChangelog_IncrementalWithCustomHeader(t *testing.T) {
 	require.NoError(t, err)
 	assert.Contains(t, body, "<!-- heraut-release: v1.1.0 -->\n=== 1.1.0 ===", "custom header still splices under the structural anchor")
 	assert.Contains(t, body, "- old", "history preserved")
+}
+
+// allKindsDescOrder is a stand-in for app.notesTagOrderFor: sorts newest-first without dropping
+// pre-release tags (lexical order is enough for the fixtures below).
+func allKindsDescOrder(tags []string) []string {
+	out := append([]string(nil), tags...)
+	sort.Sort(sort.Reverse(sort.StringSlice(out)))
+	return out
+}
+
+// TestGenerator_ScopedPreviousTag_AbsentTag_PicksPrecedencePredecessor (T341, ADR-0064): the tag
+// being released is not in git yet, so it is inserted before ordering — its predecessor is then
+// the next-lower tag by precedence (v1.3.0), not the newest tag overall (v2.0.0).
+func TestGenerator_ScopedPreviousTag_AbsentTag_PicksPrecedencePredecessor(t *testing.T) {
+	mr := exectest.NewMockRunner()
+	mr.QueueResponse("v2.0.0\nv1.3.0\n", "", nil)
+
+	g := New(mr, &config.ContentDriver{}, ModeReleaseNotes, WithTagOrder(allKindsDescOrder))
+	prev, err := g.scopedPreviousTag("v1.3.1-rc.1")
+	require.NoError(t, err)
+	assert.Equal(t, "v1.3.0", prev)
+}
+
+// TestGenerator_ScopedPreviousTag_PresentTag_Unchanged (T341): a tag already listed resolves
+// exactly as before the absent-tag insert existed.
+func TestGenerator_ScopedPreviousTag_PresentTag_Unchanged(t *testing.T) {
+	mr := exectest.NewMockRunner()
+	mr.QueueResponse("v2.0.0\nv1.3.1-rc.1\nv1.3.0\n", "", nil)
+
+	g := New(mr, &config.ContentDriver{}, ModeReleaseNotes, WithTagOrder(allKindsDescOrder))
+	prev, err := g.scopedPreviousTag("v1.3.1-rc.1")
+	require.NoError(t, err)
+	assert.Equal(t, "v1.3.0", prev)
+}
+
+// TestGenerator_WithReachableFromHead_ListTagsArgs (T341): the option adds --merged HEAD to the
+// scoped tag listing, with and without a glob; without it the args are unchanged.
+func TestGenerator_WithReachableFromHead_ListTagsArgs(t *testing.T) {
+	tests := []struct {
+		name string
+		glob string
+		opts []Option
+		want []string
+	}{
+		{"no option, no glob", "", nil, []string{"tag", "-l", "--sort=-version:refname"}},
+		{"no option, glob", "prod/v*", nil, []string{"tag", "-l", "prod/v*", "--sort=-version:refname"}},
+		{"reachable, no glob", "", []Option{WithReachableFromHead()}, []string{"tag", "-l", "--merged", "HEAD", "--sort=-version:refname"}},
+		{"reachable, glob", "prod/v*", []Option{WithReachableFromHead()}, []string{"tag", "-l", "prod/v*", "--merged", "HEAD", "--sort=-version:refname"}},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			mr := exectest.NewMockRunner()
+			mr.QueueResponse("v1.0.0\n", "", nil)
+			opts := append([]Option{WithTagOrder(allKindsDescOrder)}, tc.opts...)
+			g := New(mr, &config.ContentDriver{TagGlob: tc.glob}, ModeReleaseNotes, opts...)
+			_, err := g.scopedPreviousTag("v1.1.0")
+			require.NoError(t, err)
+			require.Len(t, mr.Calls, 1)
+			assert.Equal(t, tc.want, mr.Calls[0].Args)
+		})
+	}
 }

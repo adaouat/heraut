@@ -310,7 +310,15 @@ func buildReleasePipelineConfig(runner, readRunner port.Runner, cfg *config.Conf
 	// Release notes generator
 	if effectiveNotes != nil {
 		driver := withEnvDerivations(effectiveNotes, cfg, env)
-		gen := buildGenerator(runner, driver, native.ModeReleaseNotes, herautVersion, regenerateChangelog, force, enrichForge, "", tagOrderFor(cfg, env))
+		notesOrder := tagOrderFor(cfg, env)
+		var notesOpts []native.Option
+		if preRelease {
+			notesOrder = notesTagOrderFor(cfg, env)
+			if notesOrder != nil {
+				notesOpts = append(notesOpts, native.WithReachableFromHead())
+			}
+		}
+		gen := buildGenerator(runner, driver, native.ModeReleaseNotes, herautVersion, regenerateChangelog, force, enrichForge, "", notesOrder, notesOpts...)
 		pCfg.Notes = gen
 	}
 
@@ -616,7 +624,7 @@ func effectiveExcludes(cfg *config.Config, driver *config.ContentDriver) []confi
 // buildGenerator constructs the native generator. tagOrder (T334, ADR-0064 — from tagOrderFor)
 // bounds the changelog/notes tag walk by SemVer §11 precedence instead of git's version:refname
 // order; nil (calver/calver-per-env) keeps today's behaviour unchanged.
-func buildGenerator(runner port.Runner, driver *config.ContentDriver, defaultMode native.Mode, herautVersion string, regenerateChangelog, force bool, enrichForge port.Forge, degradedReason string, tagOrder func([]string) []string) port.Generator {
+func buildGenerator(runner port.Runner, driver *config.ContentDriver, defaultMode native.Mode, herautVersion string, regenerateChangelog, force bool, enrichForge port.Forge, degradedReason string, tagOrder func([]string) []string, extra ...native.Option) port.Generator {
 	// Copy so setting the running version never mutates the shared config.
 	nativeDriver := *driver
 	nativeDriver.HerautVersion = herautVersion
@@ -632,7 +640,7 @@ func buildGenerator(runner port.Runner, driver *config.ContentDriver, defaultMod
 	if tagOrder != nil {
 		opts = append(opts, native.WithTagOrder(tagOrder))
 	}
-	return native.New(runner, &nativeDriver, defaultMode, opts...)
+	return native.New(runner, &nativeDriver, defaultMode, append(opts, extra...)...)
 }
 
 // resolveEnrichForgeIfNeeded resolves the configured/ambient forge and constructs the matching

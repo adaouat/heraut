@@ -149,12 +149,17 @@ func headSHA(runner port.Runner) (string, error) {
 }
 
 // listTags returns tags matching glob (all tags when glob is "") sorted newest-first by
-// version refname. The native changelog renders one section per release in this order.
-func listTags(runner port.Runner, glob string) ([]string, error) {
-	args := []string{"tag", "-l", "--sort=-version:refname"}
+// version refname. The native changelog renders one section per release in this order. A non-empty
+// mergedInto restricts the list to tags reachable from that ref (`--merged <mergedInto>`).
+func listTags(runner port.Runner, glob, mergedInto string) ([]string, error) {
+	args := []string{"tag", "-l"}
 	if glob != "" {
-		args = []string{"tag", "-l", glob, "--sort=-version:refname"}
+		args = append(args, glob)
 	}
+	if mergedInto != "" {
+		args = append(args, "--merged", mergedInto)
+	}
+	args = append(args, "--sort=-version:refname")
 	stdout, _, err := runner.Run("git", args...)
 	if err != nil {
 		return nil, fmt.Errorf("listing git tags: %w", err)

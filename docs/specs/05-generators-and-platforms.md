@@ -148,6 +148,15 @@ differently-shaped `tag_format`, or a legacy CalVer tag left over from before a 
 is skipped, so the section the fallback resolves may reach further back into history than
 `git describe`'s own topology-only walk would.
 
+**Release-notes ranges (T341, ADR-0064).** For a final release, notes span back to the previous
+*final* (pre-releases are dropped from the order). For a pre-release run (`--pre-release`, or a
+pre-release `--set-version`), notes span back to the previous tag of *any* kind that is reachable
+from `HEAD` (`git tag -l [glob] --merged HEAD`), so `v1.4.0-rc.2` covers only the commits since
+`v1.4.0-rc.1` and a tag cut on another, unmerged branch never bounds the range. The tag being
+released is ordered in with the existing tags even when git does not have it yet, so its
+predecessor is the next-lower tag by precedence: `v1.3.1-rc.1` with `v2.0.0` and `v1.3.0` present
+spans back to `v1.3.0`.
+
 A pre-release run never writes a `CHANGELOG.md` section at cut time. The run is detected before
 resolution — `--pre-release <label>`, or a `--set-version` whose value parses as a SemVer
 pre-release under `semver`/`semver-per-env` (CalVer values never count) — and the changelog step

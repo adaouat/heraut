@@ -96,6 +96,25 @@ func tagOrderFor(cfg *config.Config, env string) func([]string) []string {
 	}
 }
 
+// notesTagOrderFor is tagOrderFor for a pre-release run's release notes: same §11 sort, but
+// pre-release tags are kept — a pre-release's notes span back to the previous tag of any kind.
+func notesTagOrderFor(cfg *config.Config, env string) func([]string) []string {
+	switch cfg.Versioning.Strategy {
+	case "semver", "semver-per-env":
+		extract := semverExtractor(cfg, env)
+		return func(tags []string) []string {
+			sorted := semver.SortTags(tags, extract)
+			out := make([]string, 0, len(sorted))
+			for _, tv := range sorted {
+				out = append(out, tv.Tag)
+			}
+			return out
+		}
+	default:
+		return nil
+	}
+}
+
 // CurrentVersion returns the bare semantic version of the latest tag (the tag with
 // any prefix / env / build components stripped). For per-env strategies the version is
 // parsed via the effective tag_format; for single-env strategies the tag prefix is

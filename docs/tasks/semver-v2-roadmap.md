@@ -41,7 +41,7 @@ pre-release lifecycle (`--pre-release <label>`) for the plain `semver` strategy.
 | T338 | Pre-release series resolution in `semver.Resolver` | Done |
 | T339 | `--pre-release <label>` on `release` and `version next` | Done |
 | T340 | A pre-release run never writes `CHANGELOG.md` | Done |
-| T341 | Release-notes range for pre-releases; absent-tag fallback fix | Not started |
+| T341 | Release-notes range for pre-releases; absent-tag fallback fix | Done |
 | T342 | End-to-end pre-release scenarios on a real repo | Not started |
 | T343 | ADR-0064 Phase 2 status update and Phase 2 close | Not started |
 | T344 | Maintenance-branch support (last final + notes from branch history) | Not started |
@@ -443,10 +443,19 @@ not forward `--set-version` into `PipelineOpts`; it now does, which the override
 Note (a) below is resolved as not handled: no user has pre-release sections on disk (decided
 2026-10-04), so there is no migration note or code, and Specs 04/05 drop the interim wording.
 
-### [ ] T341 — Release-notes range for pre-releases; absent-tag fallback fix
+### [x] T341 — Release-notes range for pre-releases; absent-tag fallback fix
 
 native inserts the tag being released before ordering (fixes (b)); `native.WithReachableFromHead`
 + `app.notesTagOrderFor` (keeps pre-releases) for pre-release runs only. Spec 05.
+
+`scopedTags` is split into `rawScopedTags` (glob/pattern only) plus the ordering; with a tag
+order set, `scopedPreviousTag` adds the tag being released to the raw list when git does not have
+it yet, then orders, so `v1.3.1-rc.1` with `v2.0.0` present resolves `v1.3.0`. `listTags` gained a
+`mergedInto` parameter (`--merged HEAD` for `WithReachableFromHead`); `listMergedTags` is
+untouched. `buildGenerator` takes trailing `extra ...native.Option`. Finals keep `tagOrderFor`
+and no reachability filter, so their git calls are unchanged; calver gets no option because
+`notesTagOrderFor` is nil. Notes (b) and (c) are resolved. Real-git tests cover rc.1 to rc.2,
+rc to final, and a side-branch-only tag.
 
 ### [ ] T342 — End-to-end pre-release scenarios on a real repo
 
