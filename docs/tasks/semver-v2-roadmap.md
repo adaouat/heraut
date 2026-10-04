@@ -432,7 +432,7 @@ Config (2). `changelog` keeps its original `--allow-major` help (it has no pre-r
 
 `app.isPreReleaseRun` decided at build time; reuses the `disable_changelog` skip path (step totals
 stay correct); `heraut changelog --set-version X-pre` prints a pre-release message instead of
-"changelog disabled". Specs 04/05 (drops the interim DOC-1 wording).
+"changelog disabled". Specs 04/05 (drops the interim pre-release-changelog wording).
 
 **Done.** `app.isPreReleaseRun` (label set, or a semver/semver-per-env `--set-version` that parses
 as a pre-release, stripped like `NewResolver`) is computed in `BuildPipeline` /
@@ -489,13 +489,13 @@ epic stays Active only for T335 and T344.
 
 ### Notes carried from Phase 1 / 1.5
 
-(a) The changelog-skip item above must also resolve DOC-1's interim state (see ADR-0064 §Decision,
+(a) The changelog-skip item above must also resolve the interim pre-release-changelog state (see ADR-0064 §Decision,
 Spec 04 § Pre-release tags, Spec 05 § Changelog structure): until it lands, a pre-release cut with
 `--set-version X-pre --tag` still writes its own anchored `[X-pre]` section, which the next final's
 incremental run re-lists and only `--regenerate` collapses away — and a pre-existing `[X-pre]`
 section already in an upgraded repo's `CHANGELOG.md` survives incremental runs the same way.
 Consider a one-time migration note (or an automatic `--regenerate` hint) for repos upgrading onto
-Phase 2 with such sections already on disk.
+Phase 2 with such sections already on disk. (Resolved: not handled — see Phase 2 decisions.)
 
 (b) The notes-range work in scope above must also bound `previousInList`'s fallback for a
 pre-release whose version is below the newest release — e.g. cutting `v1.3.1-rc.1` while `v2.0.0`

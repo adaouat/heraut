@@ -147,8 +147,8 @@ driver accepts and ignores it, having no pre-release concept of its own.
 Phase 2 closed (T338-T342): `--pre-release <label>` on `heraut release` and `heraut version next`
 for plain `semver`, with the series, escalation and regression rules sketched in § Decision above.
 See `docs/tasks/semver-v2-roadmap.md` § Phase 2 for the task notes. The § Decision paragraph
-headed "Phase 2 (deferred, sketched here for completeness)" and the interim DOC-1 wording
-elsewhere in this ADR are historical; this update is authoritative where they differ.
+headed "Phase 2 (deferred, sketched here for completeness)" and the interim pre-release-changelog wording
+in § Decision are historical; this update is authoritative where they differ.
 
 - **Previous-tag rule.** A pre-release's previous tag is the highest-precedence tag of any kind
   (pre-release or final) strictly below the version being cut and reachable from `HEAD`

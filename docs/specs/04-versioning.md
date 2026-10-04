@@ -188,7 +188,9 @@ A pre-release run (`semver` resolver, label set) resolves in this order (ADR-006
 
 1. **Core** — the bump over all commits since the last final (`stay_at_v0` applied), exactly as a
    final would compute it. With no final yet, the core is `initial_version` and no commits are
-   read.
+   read. When `stay_at_v0` holds a major back, the warning names pre-release candidates on both
+   sides (`v1.0.0-rc.1 → v0.4.0-rc.1 (… to get v1.0.0-rc.1 instead)`), the would-be counter being the
+   one `--allow-major` would produce.
 2. **Escalation** — *S* is the highest pre-release whose core is above the last final. If the new
    core is higher than *S*'s core, the bump level rose. A new **major** is an error
    (`ErrMajorEscalation`) unless `--allow-major`; a minor or patch rise (or a major with
@@ -203,6 +205,7 @@ A pre-release run (`semver` resolver, label set) resolves in this order (ADR-006
    Exemption: when the previous tag is a pre-release of the **same core** and the candidate uses a
    different, higher label (`beta.2` → `rc.1`), no new commit is needed, as with promotion to the
    final; re-cutting the same label, or a previous tag of a different core, still requires one.
+   The exemption chains on a single commit: `beta.1` → `rc.1` → `rcx.1` each need no new commit.
    Tags on other branches never count. The result's `CurrentTag` is that previous tag (else the
    last final), which is the range the release notes span.
 

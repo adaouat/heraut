@@ -163,7 +163,9 @@ resolution — `--pre-release <label>`, or a `--set-version` whose value parses 
 pre-release under `semver`/`semver-per-env` (CalVer values never count) — and the changelog step
 is skipped exactly like a per-env `disable_changelog: true`: no generator call, no `pre_changelog`
 hooks, no commit, and the step count shrinks to match. `heraut changelog --set-version X-pre`
-prints `pre-release X-pre: CHANGELOG.md not updated`, still tags when `--tag` is set, and exits 0
+prints `pre-release <tag>: CHANGELOG.md not updated` (with the styled progress reporter, the
+tag-less `pre-release: CHANGELOG.md not updated` warning), still tags when `--tag` is set — the
+closing summary then reports only the tag, never a changelog update or commit — and exits 0
 otherwise. A `[X-pre]` section already on disk is not migrated or removed.
 
 A `native`-managed `CHANGELOG.md` is a **preamble** (free-form content before the first section,
