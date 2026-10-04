@@ -208,3 +208,36 @@ func TestNewResolver_CalverPerEnv_StayAtV0_IsInertAndWarningFree(t *testing.T) {
 	assert.Empty(t, res.Warnings)
 	require.Len(t, mr.Calls, 1, "calver-per-env reads tags only; it never inspects commits for a bump")
 }
+
+func TestNewResolver_Semver_PreRelease_StayAtV0_NamesPreReleaseCandidates(t *testing.T) {
+	relPrefix := "rel-"
+	tests := []struct {
+		name   string
+		prefix *string
+		pfx    string
+	}{
+		{"default prefix", nil, "v"},
+		{"custom prefix", &relPrefix, "rel-"},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			cfg := stayAtV0SemverCfg()
+			cfg.Versioning.TagPrefix = tc.prefix
+			mr := exectest.NewMockRunner()
+			mr.QueueResponse(tc.pfx+"0.3.0\n", "", nil)
+			mr.QueueResponse("feat!: break the api\x00", "", nil)
+			mr.QueueResponse(tc.pfx+"0.3.0\n", "", nil)
+
+			r, err := app.NewResolver(cfg, "", false, "", "", mr, app.WithPreRelease("rc"))
+			require.NoError(t, err)
+			res, err := r.Resolve()
+			require.NoError(t, err)
+
+			assert.Equal(t, tc.pfx+"0.4.0-rc.1", res.Tag)
+			require.Len(t, res.Warnings, 1)
+			want := "major bump held back by versioning.bump.stay_at_v0: " + tc.pfx + "1.0.0-rc.1 → " + tc.pfx + "0.4.0-rc.1" +
+				" (pass --allow-major on this run to get " + tc.pfx + "1.0.0-rc.1 instead)\n  - feat!: break the api"
+			assert.Equal(t, want, res.Warnings[0])
+		})
+	}
+}

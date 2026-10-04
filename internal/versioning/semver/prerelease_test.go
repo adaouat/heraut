@@ -231,7 +231,18 @@ func TestResolve_PreRelease(t *testing.T) {
 			responses: []string{"v0.5.0\n", "feat!: x" + nul, "v0.5.0\n"},
 			calls:     [][]string{tagsCall("v"), logCall("v0.5.0"), mergedCall("v")},
 			label:     "rc", wantTag: "v0.6.0-rc.1", wantCur: "v0.5.0", wantBump: versioning.BumpMinor,
-			wantWarn: []string{"major bump held back by versioning.bump.stay_at_v0: 1.0.0 → 0.6.0 (pass --allow-major on this run to get 1.0.0 instead)\n  - feat!: x"},
+			// ADR-0064: in pre-release mode the held-back warning names pre-release candidates, since
+			// --allow-major would yield 1.0.0-rc.1, not the final 1.0.0.
+			wantWarn: []string{"major bump held back by versioning.bump.stay_at_v0: 1.0.0-rc.1 → 0.6.0-rc.1 (pass --allow-major on this run to get 1.0.0-rc.1 instead)\n  - feat!: x"},
+		},
+		{
+			name:      "stay_at_v0 hold warning counts the would-be series separately",
+			prefix:    "v",
+			cfg:       stayAtV0Cfg(),
+			responses: []string{"v1.0.0-rc.1\nv0.5.0\n", "feat!: x" + nul, "v1.0.0-rc.1\nv0.5.0\n"},
+			calls:     [][]string{tagsCall("v"), logCall("v0.5.0"), mergedCall("v")},
+			label:     "rc", wantTag: "v0.6.0-rc.1", wantCur: "v0.5.0", wantBump: versioning.BumpMinor,
+			wantWarn: []string{"major bump held back by versioning.bump.stay_at_v0: 1.0.0-rc.2 → 0.6.0-rc.1 (pass --allow-major on this run to get 1.0.0-rc.2 instead)\n  - feat!: x"},
 		},
 		{
 			name:      "stay_at_v0 lifted by allow-major",
@@ -365,4 +376,42 @@ func TestValidatePreReleaseLabel(t *testing.T) {
 	for _, bad := range []string{"", "1", "007", "rc.1", "rc_x", "rç", "rc 1"} {
 		assert.Error(t, semver.ValidatePreReleaseLabel(bad), bad)
 	}
+}
+
+func TestResolve_PreRelease_ErrorMessagesAreTheDocumentedText(t *testing.T) {
+	const nul = "\x00"
+	t.Run("major escalation", func(t *testing.T) {
+		mr := exectest.NewMockRunner()
+		mr.QueueResponse("v1.4.0-rc.1\nv1.3.0\n", "", nil)
+		mr.QueueResponse("feat: b"+nul+"feat!: c"+nul, "", nil)
+		r := semver.New(mr, &config.Config{Versioning: config.Versioning{Strategy: "semver"}})
+		r.SetPreRelease("rc")
+		_, err := r.Resolve()
+		require.ErrorIs(t, err, semver.ErrMajorEscalation)
+		assert.Equal(t, "pre-release series v1.4.0-rc.1 would escalate to a new major 2.0.0: breaking change(s) since v1.3.0 — pass --allow-major to open the 2.0.0 series, or ship 1.4.0 first\n  - feat!: c", err.Error())
+	})
+	t.Run("regression", func(t *testing.T) {
+		mr := exectest.NewMockRunner()
+		mr.QueueResponse("v1.4.0-rc.1\nv1.4.0-beta.2\nv1.3.0\n", "", nil)
+		mr.QueueResponse("feat: x"+nul, "", nil)
+		r := semver.New(mr, &config.Config{Versioning: config.Versioning{Strategy: "semver"}})
+		r.SetPreRelease("beta")
+		_, err := r.Resolve()
+		require.ErrorIs(t, err, semver.ErrPreReleaseRegression)
+		assert.Equal(t, "v1.4.0-beta.3 would sort below existing v1.4.0-rc.1 — ship 1.4.0 or use a label that sorts higher", err.Error())
+	})
+}
+
+func TestResolve_PreRelease_EscalationUnderHoldListsTheBreakingCommit(t *testing.T) {
+	mr := exectest.NewMockRunner()
+	mr.QueueResponse("v0.5.1-rc.1\nv0.5.0\n", "", nil)
+	mr.QueueResponse("fix: a\x00feat!: b\x00", "", nil)
+	mr.QueueResponse("v0.5.1-rc.1\nv0.5.0\n", "", nil)
+	mr.QueueResponse("feat!: b\x00", "", nil)
+	r := semver.New(mr, stayAtV0Cfg())
+	r.SetPreRelease("rc")
+	_, err := r.Resolve()
+	require.NoError(t, err)
+	require.Len(t, r.Warnings(), 2)
+	assert.Contains(t, r.Warnings()[1], "pre-release core escalated 0.5.1 → 0.6.0\n  - feat!: b")
 }

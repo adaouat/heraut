@@ -51,6 +51,20 @@ func commitsAtLevel(commits []string, overrides []config.BumpRule, level version
 	return subjects
 }
 
+// commitsAtLeast returns the subject line of every commit whose own bump level is at or above
+// level. Under a stay_at_v0 hold the applied bump is lower than the level that forced it, so an
+// exact-level match would miss the responsible commit.
+func commitsAtLeast(commits []string, overrides []config.BumpRule, level versioning.BumpType) []string {
+	rules := compileBumpRules(overrides)
+	var subjects []string
+	for _, c := range commits {
+		if resolveBumpLevel(c, rules) >= level {
+			subjects = append(subjects, firstLine(c))
+		}
+	}
+	return subjects
+}
+
 // writeSubjects appends up to maxListedCommits subjects as "\n  - <subject>" lines, then a
 // "\n  … and N more" summary line when some were left out.
 func writeSubjects(b *strings.Builder, subjects []string) {
