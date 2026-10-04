@@ -228,6 +228,7 @@ discipline that applies to every task.
 | 57 | SBOM generation; shell completions investigated | Done — completions not shipped (ADR-0013 + notarization gap), see T321/T322 |
 | 58 | Homebrew cask: tar.gz archive for completions/man pages | Done — see T323 |
 | 59 | SemVer v2 compliance and pre-release lifecycle | In progress — see `semver-v2-roadmap.md` |
+| 60 | End-to-end smoke tests against real GitHub/GitLab sandboxes | Not started — see T345 (needs design) |
 
 ### Open items
 
@@ -2584,6 +2585,38 @@ dedicated roadmap:
 → **[SemVer v2 Roadmap](semver-v2-roadmap.md)** — T324+
 
 Design: [`docs/superpowers/specs/2026-09-28-semver-v2-compliance-design.md`](../superpowers/specs/2026-09-28-semver-v2-compliance-design.md).
+
+---
+
+### Phase 60 — End-to-end smoke tests against real GitHub/GitLab sandboxes
+
+Triggered by a user question after SemVer v2 Phase 2: is it worth running end-to-end tests against
+the private GitHub and GitLab sandbox repos already approved for T332's manual smoke test?
+
+#### ✦ `[ ]` T345: opt-in e2e smoke suite against the forge sandboxes (needs design)
+
+Contract tests (`exectest.MockRunner`, `httptest.Server`) only prove heraut sends the arguments it
+intends to; they cannot catch a forge rejecting them. T332's manual run proved the gap — it surfaced
+T335 (per-env `/` tags rejected by GitLab's package registry), which no automated test could. GitHub
+already gets an implicit end-to-end run on every heraut release (the Release workflow dogfoods
+`heraut release`); GitLab gets none.
+
+Sketch to refine in the design (not decided):
+
+- **Separate lane, not `go test ./...`.** `.claude/rules/testing.md` forbids network calls and
+  requires determinism, so this needs a testing-rule amendment (likely a short ADR): a `//go:build
+  e2e` package driving the built binary against a fresh clone of each sandbox.
+- **CI:** its own workflow, `workflow_dispatch` + nightly, possibly a gate before cutting a release;
+  never on pull requests (sandbox write tokens are secrets).
+- **Isolation and cleanup:** a per-run tag namespace (e.g. `tag_prefix: e2e-<run-id>-v`) so
+  concurrent runs never collide; `t.Cleanup` deletes the run's tags, releases and packages, plus a
+  sweeper for leftovers from crashed runs.
+- **Scenarios per forge, kept small:** a final release with notes (assert the body via the API); a
+  pre-release (GitHub: `prerelease: true`; GitLab: created as a plain release); a `+`
+  build-metadata tag and its generated URLs; a per-env `{env}/{version}` tag with an asset upload —
+  on GitLab this currently fails, which makes it T335's regression test.
+- **No real data in the repo:** sandbox coordinates come from CI variables/secrets, never
+  hardcoded in tests or docs.
 
 ---
 
