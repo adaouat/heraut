@@ -229,6 +229,7 @@ discipline that applies to every task.
 | 58 | Homebrew cask: tar.gz archive for completions/man pages | Done — see T323 |
 | 59 | SemVer v2 compliance and pre-release lifecycle | In progress — see `semver-v2-roadmap.md` |
 | 60 | End-to-end smoke tests against real GitHub/GitLab sandboxes | Not started — see T345 (needs design) |
+| 61 | GitLab publish driver follow-ups from T335 | Not started — see T346, T347 (needs design) |
 
 ### Open items
 
@@ -2617,6 +2618,34 @@ Sketch to refine in the design (not decided):
   on GitLab this currently fails, which makes it T335's regression test.
 - **No real data in the repo:** sandbox coordinates come from CI variables/secrets, never
   hardcoded in tests or docs.
+
+### Phase 61 — GitLab publish driver follow-ups from T335
+
+Two items surfaced while designing T335 (see its completion note in
+[`semver-v2-roadmap.md`](semver-v2-roadmap.md)).
+
+#### `[ ]` T346: remove the unreachable `UploadAssets` package-registry path
+
+`app.buildTargetPlatforms` sets `LenientAssets = len(Assets) > 0` for every target, so both
+drivers always attach assets on `release create` and `UploadAssets` never reaches `gh`/`glab`:
+`platforms/gitlab`'s `glab release upload --use-package-registry` call (and GitHub's `gh release
+upload` counterpart) is dead code that still misleads (T332 smoke-tested it as "heraut's exact
+argv"). Scope to settle first: whether `LenientAssets` and `port.Platform.UploadAssets`/`HasAssets`
+go too, which touches the port contract, both drivers, `testutil.MockPlatform`, and
+`pipeline/release.go`'s upload step in one commit, per the port-change rule.
+
+#### ✦ `[ ]` T347: design spike — GitLab publishing over native `net/http` instead of `glab` (needs design)
+
+ADR-0043's P3 deferred the publish transport ("stdlib vs SDK") to its own ADR, and P3 shipped as
+config unification only, so the question is still open. Motivation: drop `glab` as a runtime
+dependency (`heraut check runtime`, the bundled Docker image), use the same `JOB-TOKEN`/
+`PRIVATE-TOKEN` auth as `internal/forge/gitlab`, and gain control `glab` doesn't expose (e.g. a
+package-registry version without `/` for per-env tags — `glab` has `--package-name` but no package
+version flag). Precedent (ADR-0034, ADR-0035, ADR-0043) favours extending the existing
+`internal/forge/gitlab` `net/http` client over adding `gitlab.com/gitlab-org/api/client-go`; the
+ADR should still weigh both, plus the GitLab/GitHub asymmetry (`gh` stays) and the scope of
+porting create-release, asset links, `Check()`, CI-autologin and self-hosted behaviour along with
+their contract tests. Output: an ADR plus a phased task breakdown, no implementation.
 
 ---
 
