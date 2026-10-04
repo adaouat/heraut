@@ -142,6 +142,44 @@ not a safe proxy for "is CalVer"; only the strategy gate is. Under `calver`/`cal
 flag is always false; under `semver`/`semver-per-env` it is `IsPreRelease`'s result. GitLab's
 driver accepts and ignores it, having no pre-release concept of its own.
 
+## Status update (Phase 2)
+
+Phase 2 closed (T338-T342): `--pre-release <label>` on `heraut release` and `heraut version next`
+for plain `semver`, with the series, escalation and regression rules sketched in § Decision above.
+See `docs/tasks/semver-v2-roadmap.md` § Phase 2 for the task notes. The § Decision paragraph
+headed "Phase 2 (deferred, sketched here for completeness)" and the interim DOC-1 wording
+elsewhere in this ADR are historical; this update is authoritative where they differ.
+
+- **Previous-tag rule.** A pre-release's previous tag is the highest-precedence tag of any kind
+  (pre-release or final) strictly below the version being cut and reachable from `HEAD`
+  (`git tag --merged HEAD`). One rule drives both the commit requirement and the release-notes
+  range. Finals are unchanged: last final, by precedence only. Core and last-final computation
+  stay global; branch-aware resolution is filed as T344.
+- **Commit-requirement exemption amended.** § Decision exempts only promotion to the final from
+  the "at least one commit since the previous tag" rule. T342 widens that: a pre-release of the
+  same core switching to a different, higher label (`beta.2` to `rc.1`) needs no new commit,
+  matching the worked-examples row in the design doc. Re-cutting the same label, or a previous
+  tag of a different core, still requires a commit. Where this update and § Decision differ,
+  this update governs.
+- **"Is a pre-release run" is keyed on the version, not the flag.** It is true for
+  `--pre-release <label>` and for a `semver`/`semver-per-env` `--set-version` value carrying
+  pre-release identifiers (the same gate as the GitHub `--prerelease` flag). So
+  `heraut changelog --set-version X-pre --tag` tags without writing a section; `heraut changelog`
+  now forwards `--set-version` to make this detectable.
+- **Changelog skip reuses `disable_changelog`.** The app layer decides the pre-release run at
+  build time and feeds the existing skip path, so step totals are fixed at build time and no new
+  pipeline branch exists. A pre-release message wins over "changelog disabled" when both apply.
+- **Escalation warning lists commit subjects, not hashes.** This deviates from the design doc's
+  `(feat abc1234)` example and matches the shape of the `stay_at_v0` warning. A major escalation
+  still errors with `ErrMajorEscalation` unless `--allow-major`; a regression errors with
+  `ErrPreReleaseRegression`; both exit with the Runtime code, while usage errors are Config (2).
+- **Absent-tag ordering fix (T341).** native inserts the tag being released into the ordered
+  list before choosing the predecessor, so a tag absent from git no longer falls through to "the
+  newest existing tag". This also applies to finals' release notes: a hotfix `v1.3.1` cut while
+  `v2.0.0` exists resolves `v1.3.0`, not `v2.0.0`.
+- **Not handled, deliberately.** Pre-release `[X-pre]` sections already on disk in an upgraded
+  repo's `CHANGELOG.md` get no migration code or note: no user has any (decided 2026-10-04).
+
 ## Consequences
 
 Test rows that asserted the old `-{build}` tag shape or git-sort-driven ordering are rewritten

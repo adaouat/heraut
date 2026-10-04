@@ -43,7 +43,7 @@ pre-release lifecycle (`--pre-release <label>`) for the plain `semver` strategy.
 | T340 | A pre-release run never writes `CHANGELOG.md` | Done |
 | T341 | Release-notes range for pre-releases; absent-tag fallback fix | Done |
 | T342 | End-to-end pre-release scenarios on a real repo | Done |
-| T343 | ADR-0064 Phase 2 status update and Phase 2 close | Not started |
+| T343 | ADR-0064 Phase 2 status update and Phase 2 close | Done |
 | T344 | Maintenance-branch support (last final + notes from branch history) | Not started |
 
 ## Phase 1 — Compliance
@@ -470,9 +470,22 @@ the previous reachable tag is a pre-release of the same core with a different la
 same label and opening a new series still require commits. The `switch to rc` unit row lost its
 since-previous-tag `git log` call accordingly (edited with an ADR-0064 comment, not deleted).
 
-### [ ] T343 — ADR-0064 Phase 2 status update and Phase 2 close
+### [x] T343 — ADR-0064 Phase 2 status update and Phase 2 close
 
 ADR-0064 `## Status update (Phase 2)`, Phase 2 closing paragraph, flag lists in README/guides.
+
+**Completed.** ADR-0064 gains `## Status update (Phase 2)` recording the delivered rules and
+deviations: the pre-release previous-tag rule, the version-keyed "is a pre-release run", the
+`disable_changelog` reuse, subjects instead of hashes in the escalation warning, the same-core
+label-switch exemption from the commit requirement (explicitly amending § Decision, which is left
+as the historical record), the absent-tag fix also covering finals' notes, and note (a) as
+deliberately not handled. Two stale spec lines were corrected (Spec 04 "does not produce
+pre-release tags yet"; Spec 03's "before any git call" wording, now "before any version-resolution
+git call"). README and `docs/guides` list no release flags (`--allow-major` and
+`--include-pre-release` appear nowhere), so no flag list needed `--pre-release`.
+
+**Phase 2 closed** (T338-T343). Deviations from the plan are in the task notes above; the
+epic stays Active only for T335 and T344.
 
 ### Notes carried from Phase 1 / 1.5
 

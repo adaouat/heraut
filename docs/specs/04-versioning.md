@@ -175,7 +175,7 @@ The same rules apply to `semver-per-env` (source and destination selection, and 
 comparison). `calver-per-env` keeps its dotted-integer handling — zero-padded CalVer versions are
 not SemVer.
 
-heraut does not produce pre-release tags itself yet (planned — see the SemVer v2 roadmap).
+heraut mints pre-release tags itself with `heraut release --pre-release <label>` (plain `semver` only; see [Pre-release lifecycle](#pre-release-lifecycle) below). Pre-release tags can also be created with `--set-version`.
 
 ### Pre-release lifecycle
 
