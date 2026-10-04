@@ -81,6 +81,13 @@ func TestResolve_PreRelease(t *testing.T) {
 			label:     "rc", wantErrSub: "no commits since v1.4.0-rc.1 — create at least one commit before running heraut release",
 		},
 		{
+			name:      "different-core previous pre-release still needs a new commit",
+			prefix:    "v",
+			responses: []string{"v1.3.1-rc.1\nv1.3.0\n", "fix: a" + nul + "feat: b" + nul, "v1.3.1-rc.1\nv1.3.0\n", ""},
+			calls:     [][]string{tagsCall("v"), logCall("v1.3.0"), mergedCall("v"), logCall("v1.3.1-rc.1")},
+			label:     "rc", wantErrSub: "no commits since v1.3.1-rc.1 — create at least one commit",
+		},
+		{
 			name:      "no commits since final",
 			prefix:    "v",
 			responses: []string{"v1.3.0\n", ""},

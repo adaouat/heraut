@@ -200,6 +200,9 @@ A pre-release run (`semver` resolver, label set) resolves in this order (ADR-006
    core, finals included (`ErrPreReleaseRegression`); the highest offending tag is named.
 5. **Commit requirement** — at least one commit since the **previous tag**: the highest tag, of any
    kind, that sorts below the candidate and is reachable from `HEAD` (`git tag --merged HEAD`).
+   Exemption: when the previous tag is a pre-release of the **same core** and the candidate uses a
+   different, higher label (`beta.2` → `rc.1`), no new commit is needed, as with promotion to the
+   final; re-cutting the same label, or a previous tag of a different core, still requires one.
    Tags on other branches never count. The result's `CurrentTag` is that previous tag (else the
    last final), which is the range the release notes span.
 
