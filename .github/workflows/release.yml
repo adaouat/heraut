@@ -62,11 +62,10 @@ jobs:
       - name: Build binaries
         uses: goreleaser/goreleaser-action@5daf1e915a5f0af01ddbcd89a43b8061ff4f1a89 # v7
         with:
-          # Pinned, not "~> v2": 2.18.1 broke GORELEASER_CURRENT_TAG for a tag not yet
-          # in the local repo (our build-then-release order always hits this — ADR-0018),
-          # fixed upstream but not yet in a tagged release (goreleaser/goreleaser#7124).
-          # Bump once a release containing that fix ships.
-          version: "2.18.0"
+          # Exact pin, not "~> v2": 2.18.1 broke GORELEASER_CURRENT_TAG for a tag not yet
+          # in the local repo (our build-then-release order always hits this — ADR-0018);
+          # fixed in 2.18.2 (goreleaser/goreleaser#7124).
+          version: "2.18.2"
           args: release --clean --skip=publish,announce,validate
         env:
           GORELEASER_CURRENT_TAG: ${{ env.VERSION }}
@@ -102,7 +101,7 @@ jobs:
       # commit is left to default to github.sha, the code these binaries actually built
       # from (heraut's changelog commit, created a few steps from now, is later still).
       - name: Publish packslip
-        uses: jdx/packslip@9c1d4ffedc48b129fdd851c47fdd0945d5a9c8fc # v1.3.0
+        uses: jdx/packslip@87479dfc6443253dff69601cace5fc6ea07e6df5 # v1.4.0
         with:
           artifacts: >-
             dist/heraut_*_linux_amd64 dist/heraut_*_linux_arm64 dist/heraut_*_darwin_amd64 dist/heraut_*_darwin_arm64 dist/heraut_*_windows_amd64.exe
