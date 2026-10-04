@@ -147,7 +147,7 @@ func TestBuildChangelogPipeline_PerEnvDisable(t *testing.T) {
 
 func TestBuildPipeline_ReleaseAssets_PropagatesToPlatforms(t *testing.T) {
 	// release.assets at the top level should build successfully — the platform
-	// contract tests verify the actual upload behavior with LenientAssets=true.
+	// contract tests verify assets are attached leniently on release create.
 	mr := exectest.NewMockRunner()
 	mr.QueueResponse("", "", errors.New("no origin")) // git remote get-url origin (forge resolution)
 	cfg := semverCfg()

@@ -19,7 +19,8 @@ type Platform interface {
 	// CalVer version, regardless of whether it happens to parse as a SemVer pre-release (CalVer
 	// has no pre-release concept). A driver with no pre-release concept of its own (GitLab)
 	// accepts and ignores it.
+	// Drivers attach any configured assets to the release inside this same call: GitHub rejects
+	// uploads to an already-published release (HTTP 422), so there is no separate upload step.
 	CreateRelease(tag, notes string, prerelease bool) error
 	HasAssets() bool
-	UploadAssets(tag string) error
 }

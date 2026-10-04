@@ -229,7 +229,7 @@ discipline that applies to every task.
 | 58 | Homebrew cask: tar.gz archive for completions/man pages | Done — see T323 |
 | 59 | SemVer v2 compliance and pre-release lifecycle | In progress — see `semver-v2-roadmap.md` |
 | 60 | End-to-end smoke tests against real GitHub/GitLab sandboxes | Not started — see T345 (needs design) |
-| 61 | GitLab publish driver follow-ups from T335 | Not started — see T346, T347 (needs design) |
+| 61 | GitLab publish driver follow-ups from T335 | In progress — T346 done, T347 (needs design) open |
 
 ### Open items
 
@@ -2624,7 +2624,7 @@ Sketch to refine in the design (not decided):
 Two items surfaced while designing T335 (see its completion note in
 [`semver-v2-roadmap.md`](semver-v2-roadmap.md)).
 
-#### `[ ]` T346: remove the unreachable `UploadAssets` package-registry path
+#### `[x]` T346: remove the unreachable `UploadAssets` package-registry path
 
 `app.buildTargetPlatforms` sets `LenientAssets = len(Assets) > 0` for every target, so both
 drivers always attach assets on `release create` and `UploadAssets` never reaches `gh`/`glab`:
@@ -2633,6 +2633,33 @@ upload` counterpart) is dead code that still misleads (T332 smoke-tested it as "
 argv"). Scope to settle first: whether `LenientAssets` and `port.Platform.UploadAssets`/`HasAssets`
 go too, which touches the port contract, both drivers, `testutil.MockPlatform`, and
 `pipeline/release.go`'s upload step in one commit, per the port-change rule.
+
+**Completion note:** scope agreed with the user: `port.Platform.UploadAssets`, `config.Platform.
+LenientAssets` and the strict `platforms.ResolveGlobs` are gone; `HasAssets` stays because it is
+live (it drives the publish step's `assets uploaded` sub-result and the `[dry-run] would upload
+assets` line, both unchanged). Both drivers now attach assets on `release create` whenever
+`cfg.Assets` is non-empty, always leniently via `ResolveGlobsLenient`, which is now the only
+resolver. `port.Platform`'s doc comment records why there is no separate upload step (GitHub's
+HTTP 422 on uploads to a published release). No user-visible behaviour change, so no ADR — the
+user chose a roadmap note over one, despite `testing.md`'s "ADR before dropping a row" rule, since
+every dropped row asserted a path production never reached. Retargeted rather than dropped:
+the driver glob tests (`TestCreateRelease_Assets_GlobInOneCall`/`_GlobSkipsDirectories`/
+`_NoMatch_StillCreates` in both drivers; `_LenientAssets_IncludesFilesInCreate` renamed to
+`_Assets_…` without the flag), the strict `ResolveGlobs_MultiplePatterns`/`_SkipsDirectories`
+units (now on the lenient resolver), `internal/app`'s `TestBuildTargetPlatforms_TargetOwnAssetsAreLenient`
+(previously called the no-op `UploadAssets`, so it could never fail; now asserts on the `gh
+release create` argv), `pipeline`'s `TestRun_WithAssets` (asserts one `CreateRelease` call) and
+the hooks test, renamed `TestRun_PostReleaseHook_FiresAfterCreateRelease`. Dropped as unreachable
+or duplicate: the `gh release upload`/`glab release upload --use-package-registry` argv tests
+(`UploadAssets_SingleFile`/`_Glob` in both drivers), the strict no-match error tests (driver
+`UploadAssets_GlobNoMatch` ×2, `ResolveGlobs_NoMatches`), the `UploadAssets` no-op tests
+(`_LenientGlobs_IsNoop`/`_NoMatch_Warns`/`_WithMatch_IsNoop`), the `UploadAssets` env tests whose
+`CreateRelease` twins already exist (`_TokenForwarded`, `_SelfHosted_*`, GitLab `_InCI_NoEnvInjection`),
+`ResolveGlobs_SinglePattern`/`_InvalidGlobSyntax` (duplicated by the lenient tests) and
+`pipeline`'s `TestRun_UploadAssetsError` (`TestRun_CreateReleaseError` covers the live failure
+path). Also fixed Spec 05's `Platform` listing, which still showed `UploadAssets` and T337's
+pre-`prerelease` `CreateRelease` signature. ADR-0011/0017's `UploadAssets` mentions are left as
+historical record. No deferred items.
 
 #### ✦ `[ ]` T347: design spike — GitLab publishing over native `net/http` instead of `glab` (needs design)
 

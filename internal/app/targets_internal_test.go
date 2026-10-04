@@ -87,11 +87,11 @@ func TestBuildReleasePipelineConfig_CommitMessage(t *testing.T) {
 
 // TestBuildTargetPlatforms_TargetOwnAssetsAreLenient covers T228: a release.targets[].assets glob
 // declared directly on a target — not inherited from top-level release.assets — must resolve
-// leniently (warn and skip a non-matching pattern) just like top-level release.assets already did.
-// Previously only inherited assets got LenientAssets = true; a target's own assets stayed strict,
-// which could abort the release after the tag was already created and pushed.
+// leniently (warn and skip a non-matching pattern) just like top-level release.assets already did,
+// since a strict failure would abort the release after the tag was already created and pushed.
 func TestBuildTargetPlatforms_TargetOwnAssetsAreLenient(t *testing.T) {
 	mr := exectest.NewMockRunner()
+	mr.QueueResponse("", "", nil) // gh release create
 	cfg := &config.Config{
 		Forges: []config.Forge{{Name: "gh", Type: "github"}},
 	}
@@ -104,8 +104,10 @@ func TestBuildTargetPlatforms_TargetOwnAssetsAreLenient(t *testing.T) {
 	require.NoError(t, err)
 	require.Len(t, platforms, 1)
 
-	err = platforms[0].UploadAssets("v1.0.0")
-	assert.NoError(t, err, "a target-declared asset glob matching nothing must warn and skip, not fail the release")
+	err = platforms[0].CreateRelease("v1.0.0", "notes", false)
+	require.NoError(t, err, "a target-declared asset glob matching nothing must warn and skip, not fail the release")
+	require.Len(t, mr.Calls, 1)
+	assert.NotContains(t, mr.Calls[0].Args, "no-such-file-*.tar.gz")
 }
 
 // TestSynthesizeDefaultTarget_RequiresAPublishDriver covers T221: a resolved forge with no publish

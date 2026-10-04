@@ -537,9 +537,8 @@ type Platform interface {
     ReleaseURLFromContext(tag string, lc *port.LinkContext) string // URL consistent with a given link context (ADR-0022); falls back to ReleaseURL when lc is nil
     LinkContext() port.LinkContext                 // this platform's link-resolution coordinates (host, owner, repo, type)
     Check() error                                  // binary + token + project/repo resolved
-    CreateRelease(tag, notes string) error         // create the release
+    CreateRelease(tag, notes string, prerelease bool) error // create the release and attach its assets — see § Asset resolution above
     HasAssets() bool                               // true if cfg.Assets is non-empty
-    UploadAssets(tag string) error                 // no-op today — see § Asset resolution above
 }
 ```
 

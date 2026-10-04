@@ -141,10 +141,11 @@ func (p *Platform) checkAPIAuth(tokenMissing bool) error {
 }
 
 // CreateRelease runs `gh release create`.
-// When cfg.LenientAssets is true (release-level assets), resolved asset files are
-// included as positional args so the create and upload are atomic — this avoids
-// GitHub's HTTP 422 "Cannot upload assets to an immutable release" that occurs when
-// uploading to an already-published release via a separate gh release upload call.
+// Resolved asset files are included as positional args so the create and upload are atomic —
+// this avoids GitHub's HTTP 422 "Cannot upload assets to an immutable release" that occurs when
+// uploading to an already-published release via a separate gh release upload call. Asset globs
+// resolve leniently: the tag is already pushed by now, so a pattern matching nothing warns and
+// is skipped rather than failing the release.
 // prerelease is derived by the caller from the resolved version (ADR-0064), not read from
 // config — release.targets[].prerelease was a static bool that could contradict the version
 // actually being published.
@@ -177,7 +178,7 @@ func (p *Platform) CreateRelease(tag, notes string, prerelease bool) error {
 		args = append(args, "--prerelease")
 	}
 
-	if p.cfg.LenientAssets && len(p.cfg.Assets) > 0 {
+	if len(p.cfg.Assets) > 0 {
 		files, err := platforms.ResolveGlobsLenient(p.cfg.Assets, func(pattern string) {
 			_, _ = fmt.Fprintf(os.Stderr, "warning: no files matched asset pattern %q — skipping\n", pattern)
 		})
@@ -195,36 +196,6 @@ func (p *Platform) CreateRelease(tag, notes string, prerelease bool) error {
 }
 
 func (p *Platform) HasAssets() bool { return len(p.cfg.Assets) > 0 }
-
-// UploadAssets resolves each asset glob and runs `gh release upload` per matched file.
-// When cfg.LenientAssets is true, this is a no-op — assets were already uploaded
-// atomically inside CreateRelease to avoid GitHub's HTTP 422 on separate upload.
-func (p *Platform) UploadAssets(tag string) error {
-	if p.cfg.LenientAssets {
-		return nil
-	}
-
-	repo, err := p.requireRepository()
-	if err != nil {
-		return err
-	}
-
-	files, err := platforms.ResolveGlobs(p.cfg.Assets)
-	if err != nil {
-		return err
-	}
-	if len(files) == 0 {
-		return nil
-	}
-
-	for _, f := range files {
-		env := append(p.tokenEnvSlice(), p.hostEnv()...)
-		if _, _, err := p.runner.RunEnv(env, "gh", "release", "upload", tag, f, "--repo", repo); err != nil {
-			return fmt.Errorf("gh release upload %s: %w", f, err)
-		}
-	}
-	return nil
-}
 
 func (p *Platform) repository() string {
 	if p.cfg.Repository != "" {

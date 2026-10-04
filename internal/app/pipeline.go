@@ -392,7 +392,6 @@ func buildTargetPlatforms(runner port.Runner, cfg *config.Config, targets []conf
 		if len(platCfg.Assets) == 0 && len(releaseAssets) > 0 {
 			platCfg.Assets = releaseAssets
 		}
-		platCfg.LenientAssets = len(platCfg.Assets) > 0
 		p, err := buildPlatform(runner, &platCfg)
 		if err != nil {
 			return nil, fmt.Errorf("release.targets[%d] (%s): %w", i, platCfg.Type, err)

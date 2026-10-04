@@ -465,7 +465,8 @@ func TestRun_PublishStep_UsesAmbientContextForReleaseURL(t *testing.T) {
 	}
 }
 
-// TestRun_WithAssets verifies UploadAssets is called after CreateRelease.
+// TestRun_WithAssets verifies a platform with assets is published through a single CreateRelease
+// call — drivers attach assets atomically there (GitHub rejects uploads to a published release).
 func TestRun_WithAssets(t *testing.T) {
 	mr := exectest.NewMockRunner()
 	mr.QueueResponse("", "", nil) // git tag
@@ -481,8 +482,8 @@ func TestRun_WithAssets(t *testing.T) {
 	p := pipeline.New(mr, &fakeResolver{result: resolvedResult("v1.2.3")}, cfg, &bytes.Buffer{}, false)
 	require.NoError(t, p.Run())
 
-	require.Len(t, platform.UploadAssetsCalls, 1)
-	assert.Equal(t, "v1.2.3", platform.UploadAssetsCalls[0])
+	require.Len(t, platform.CreateReleaseCalls, 1)
+	assert.Equal(t, "v1.2.3", platform.CreateReleaseCalls[0].Tag)
 }
 
 // TestRun_DryRun verifies no git mutations or platform calls are made.
@@ -910,26 +911,6 @@ func TestRun_CreateReleaseError(t *testing.T) {
 	err := p.Run()
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "create release")
-}
-
-// TestRun_UploadAssetsError propagates platform upload assets failures.
-func TestRun_UploadAssetsError(t *testing.T) {
-	mr := exectest.NewMockRunner()
-	mr.QueueResponse("", "", nil) // git tag
-	mr.QueueResponse("", "", nil) // git push <tag>
-
-	platform := &testutil.MockPlatform{
-		PlatformName:    "github",
-		HasAssetsVal:    true,
-		UploadAssetsErr: errors.New("upload failed"),
-	}
-
-	cfg := &pipeline.Config{Platforms: []port.Platform{platform}}
-
-	p := pipeline.New(mr, &fakeResolver{result: resolvedResult("v1.2.3")}, cfg, &bytes.Buffer{}, false)
-	err := p.Run()
-	require.Error(t, err)
-	assert.Contains(t, err.Error(), "upload assets")
 }
 
 // TestCheck_ChangelogGeneratorError propagates changelog generator check failures.

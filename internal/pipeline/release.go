@@ -185,8 +185,8 @@ func (p *Pipeline) Check() error {
 //  3. git tag → git push origin <tag>
 //  4. (if notes configured, single platform only) Generate release notes
 //  5. For each platform: (if notes configured + multi-platform) regenerate notes with the
-//     platform's LinkContext, then CreateRelease
-//  6. For each platform: UploadAssets (if platform.HasAssets()) — reported as sub-result
+//     platform's LinkContext, then CreateRelease, which also attaches any assets — reported as
+//     a sub-result when platform.HasAssets()
 func (p *Pipeline) Run() error {
 	// Step 1: Resolve version.
 	var result versioning.Result
@@ -344,9 +344,6 @@ func (p *Pipeline) Run() error {
 				return "", nil, fmt.Errorf("platform %s: create release: %w", plat.Name(), err)
 			}
 			if plat.HasAssets() {
-				if err := plat.UploadAssets(result.Tag); err != nil {
-					return "", nil, fmt.Errorf("platform %s: upload assets: %w", plat.Name(), err)
-				}
 				subs = append(subs, "assets uploaded")
 			}
 

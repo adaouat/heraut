@@ -278,7 +278,7 @@ func TestCreateRelease_BasicArgs(t *testing.T) {
 	assert.NotContains(t, call.Args, "--notes")
 }
 
-func TestCreateRelease_LenientAssets_IncludesFilesInCreate(t *testing.T) {
+func TestCreateRelease_Assets_IncludesFilesInCreate(t *testing.T) {
 	tmp := t.TempDir()
 	require.NoError(t, os.WriteFile(filepath.Join(tmp, "heraut_linux"), []byte("bin"), 0o755))
 	require.NoError(t, os.WriteFile(filepath.Join(tmp, "checksums.txt"), []byte("abc"), 0o644))
@@ -287,9 +287,8 @@ func TestCreateRelease_LenientAssets_IncludesFilesInCreate(t *testing.T) {
 	mr.QueueResponse("", "", nil)
 
 	p := gitlab.New(mr, &config.Platform{
-		Project:       "grp/repo",
-		Assets:        []string{filepath.Join(tmp, "heraut_linux"), filepath.Join(tmp, "checksums.txt")},
-		LenientAssets: true,
+		Project: "grp/repo",
+		Assets:  []string{filepath.Join(tmp, "heraut_linux"), filepath.Join(tmp, "checksums.txt")},
 	})
 	require.NoError(t, p.CreateRelease("v1.0.0", "notes", false))
 
@@ -318,17 +317,6 @@ func TestCreateRelease_PrereleaseParamIgnored(t *testing.T) {
 	}
 }
 
-func TestUploadAssets_LenientGlobs_IsNoop(t *testing.T) {
-	mr := exectest.NewMockRunner()
-	p := gitlab.New(mr, &config.Platform{
-		Project:       "grp/repo",
-		Assets:        []string{"dist/heraut_*"},
-		LenientAssets: true,
-	})
-	require.NoError(t, p.UploadAssets("v1.0.0"))
-	assert.Empty(t, mr.Calls)
-}
-
 func TestHasAssets(t *testing.T) {
 	pEmpty := gitlab.New(exectest.NewMockRunner(), &config.Platform{})
 	assert.False(t, pEmpty.HasAssets())
@@ -337,56 +325,30 @@ func TestHasAssets(t *testing.T) {
 	assert.True(t, pWithAssets.HasAssets())
 }
 
-func TestUploadAssets_SingleFile(t *testing.T) {
-	tmp := t.TempDir()
-	assetPath := filepath.Join(tmp, "myapp")
-	require.NoError(t, os.WriteFile(assetPath, []byte("binary"), 0o755))
-
-	mr := exectest.NewMockRunner()
-	mr.QueueResponse("", "", nil)
-
-	p := gitlab.New(mr, &config.Platform{
-		Project: "grp/repo",
-		Assets:  []string{assetPath},
-	})
-	require.NoError(t, p.UploadAssets("v1.2.3"))
-
-	require.Len(t, mr.Calls, 1)
-	call := mr.Calls[0]
-	assert.Equal(t, "glab", call.Name)
-	assert.Equal(t, []string{
-		"release", "upload", "v1.2.3",
-		"--use-package-registry",
-		"--repo", "grp/repo",
-		assetPath,
-	}, call.Args)
-}
-
-func TestUploadAssets_Glob(t *testing.T) {
+func TestCreateRelease_Assets_GlobInOneCall(t *testing.T) {
 	tmp := t.TempDir()
 	for _, name := range []string{"app_linux_amd64", "app_darwin_amd64"} {
 		require.NoError(t, os.WriteFile(filepath.Join(tmp, name), []byte("bin"), 0o755))
 	}
 
 	mr := exectest.NewMockRunner()
-	mr.QueueResponse("", "", nil) // one batch call
+	mr.QueueResponse("", "", nil)
 
 	p := gitlab.New(mr, &config.Platform{
 		Project: "grp/repo",
 		Assets:  []string{filepath.Join(tmp, "app_*")},
 	})
-	require.NoError(t, p.UploadAssets("v1.0.0"))
+	require.NoError(t, p.CreateRelease("v1.0.0", "notes", false))
 
-	require.Len(t, mr.Calls, 1) // all files in one call
+	require.Len(t, mr.Calls, 1)
 	call := mr.Calls[0]
-	assert.Equal(t, "glab", call.Name)
-	assert.Equal(t, "release", call.Args[0])
-	assert.Equal(t, "upload", call.Args[1])
-	assert.Equal(t, "v1.0.0", call.Args[2])
-	assert.Contains(t, call.Args, "--use-package-registry")
+	assert.Equal(t, []string{"release", "create", "v1.0.0"}, call.Args[:3])
+	assert.Contains(t, call.Args, filepath.Join(tmp, "app_linux_amd64"))
+	assert.Contains(t, call.Args, filepath.Join(tmp, "app_darwin_amd64"))
+	assert.NotContains(t, call.Args, "--use-package-registry")
 }
 
-func TestUploadAssets_GlobSkipsDirectories(t *testing.T) {
+func TestCreateRelease_Assets_GlobSkipsDirectories(t *testing.T) {
 	tmp := t.TempDir()
 	require.NoError(t, os.WriteFile(filepath.Join(tmp, "app"), []byte("bin"), 0o755))
 	require.NoError(t, os.MkdirAll(filepath.Join(tmp, "subdir"), 0o755))
@@ -398,44 +360,27 @@ func TestUploadAssets_GlobSkipsDirectories(t *testing.T) {
 		Project: "grp/repo",
 		Assets:  []string{filepath.Join(tmp, "*")},
 	})
-	require.NoError(t, p.UploadAssets("v1.0.0"))
+	require.NoError(t, p.CreateRelease("v1.0.0", "notes", false))
 
 	require.Len(t, mr.Calls, 1)
 	assert.Contains(t, mr.Calls[0].Args, filepath.Join(tmp, "app"))
 	assert.NotContains(t, mr.Calls[0].Args, filepath.Join(tmp, "subdir"))
 }
 
-func TestUploadAssets_GlobNoMatch(t *testing.T) {
+// By the time assets resolve the tag is already pushed, so a pattern matching nothing must skip
+// with a warning and still create the release rather than fail it.
+func TestCreateRelease_Assets_NoMatch_StillCreates(t *testing.T) {
 	mr := exectest.NewMockRunner()
+	mr.QueueResponse("", "", nil)
+
 	p := gitlab.New(mr, &config.Platform{
 		Project: "grp/repo",
-		Assets:  []string{"/tmp/nonexistent/heraut_*"},
+		Assets:  []string{filepath.Join(t.TempDir(), "heraut_*")},
 	})
-	err := p.UploadAssets("v1.0.0")
-	require.Error(t, err)
-	assert.Contains(t, err.Error(), "no files matched")
-}
+	require.NoError(t, p.CreateRelease("v1.0.0", "notes", false))
 
-func TestUploadAssets_LenientGlobs_NoMatch_Warns(t *testing.T) {
-	mr := exectest.NewMockRunner()
-	p := gitlab.New(mr, &config.Platform{
-		Project:       "grp/repo",
-		Assets:        []string{"/tmp/nonexistent/heraut_*"},
-		LenientAssets: true,
-	})
-	require.NoError(t, p.UploadAssets("v1.0.0"))
-	assert.Empty(t, mr.Calls)
-}
-
-func TestUploadAssets_LenientGlobs_WithMatch_IsNoop(t *testing.T) {
-	mr := exectest.NewMockRunner()
-	p := gitlab.New(mr, &config.Platform{
-		Project:       "grp/repo",
-		Assets:        []string{"dist/heraut_*"},
-		LenientAssets: true,
-	})
-	require.NoError(t, p.UploadAssets("v1.0.0"))
-	assert.Empty(t, mr.Calls)
+	require.Len(t, mr.Calls, 1)
+	assert.Equal(t, []string{"--repo", "grp/repo"}, mr.Calls[0].Args[5:])
 }
 
 func TestCreateRelease_ProjectFromEnv(t *testing.T) {
@@ -557,26 +502,6 @@ func TestCreateRelease_SelfHosted_SetsGitlabHostEnv(t *testing.T) {
 	assert.Equal(t, []string{"GITLAB_TOKEN=tok", "GITLAB_HOST=gitlab.example.com"}, mr.Calls[0].Env)
 }
 
-func TestUploadAssets_SelfHosted_SetsGitlabHostEnv(t *testing.T) {
-	tmp := t.TempDir()
-	assetPath := filepath.Join(tmp, "myapp")
-	require.NoError(t, os.WriteFile(assetPath, []byte("binary"), 0o755))
-
-	t.Setenv("GITLAB_TOKEN", "tok")
-	mr := exectest.NewMockRunner()
-	mr.QueueResponse("", "", nil)
-
-	p := gitlab.New(mr, &config.Platform{
-		Project: "grp/repo",
-		Assets:  []string{assetPath},
-		BaseURL: "https://gitlab.example.com",
-	})
-	require.NoError(t, p.UploadAssets("v1.2.3"))
-
-	require.Len(t, mr.Calls, 1)
-	assert.Equal(t, []string{"GITLAB_TOKEN=tok", "GITLAB_HOST=gitlab.example.com"}, mr.Calls[0].Env)
-}
-
 func TestCreateRelease_InCI_NoEnvInjection(t *testing.T) {
 	// When GITLAB_CI=true and not self-hosted, heraut must not inject GITLAB_TOKEN.
 	// Injecting it switches glab from JOB-TOKEN to PRIVATE-TOKEN auth, breaking
@@ -588,25 +513,6 @@ func TestCreateRelease_InCI_NoEnvInjection(t *testing.T) {
 
 	p := gitlab.New(mr, &config.Platform{Project: "grp/repo", TokenEnv: "CI_JOB_TOKEN"})
 	require.NoError(t, p.CreateRelease("v1.0.0", "notes", false))
-
-	require.Len(t, mr.Calls, 1)
-	assert.Nil(t, mr.Calls[0].Env, "must not inject env in CI autologin mode")
-}
-
-func TestUploadAssets_InCI_NoEnvInjection(t *testing.T) {
-	// Same as CreateRelease: CI autologin mode must not inject GITLAB_TOKEN.
-	t.Setenv("GITLAB_CI", "true")
-	t.Setenv("CI_JOB_TOKEN", "ci-job-token")
-
-	tmp := t.TempDir()
-	assetPath := filepath.Join(tmp, "myapp")
-	require.NoError(t, os.WriteFile(assetPath, []byte("binary"), 0o755))
-
-	mr := exectest.NewMockRunner()
-	mr.QueueResponse("", "", nil)
-
-	p := gitlab.New(mr, &config.Platform{Project: "grp/repo", Assets: []string{assetPath}, TokenEnv: "CI_JOB_TOKEN"})
-	require.NoError(t, p.UploadAssets("v1.0.0"))
 
 	require.Len(t, mr.Calls, 1)
 	assert.Nil(t, mr.Calls[0].Env, "must not inject env in CI autologin mode")

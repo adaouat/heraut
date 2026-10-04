@@ -191,8 +191,9 @@ func (p *Platform) hostEnv() []string {
 }
 
 // CreateRelease runs `glab release create`.
-// When cfg.LenientAssets is true (release-level assets), resolved asset files are
-// included as positional args for atomic create+upload (mirrors the GitHub pattern).
+// Resolved asset files are included as positional args for atomic create+upload (mirrors the
+// GitHub pattern); glab stores them as project uploads, which accept any tag shape. Asset globs
+// resolve leniently, as on GitHub.
 // prerelease is accepted to satisfy the shared port.Platform contract and ignored — GitLab
 // releases have no pre-release concept (ADR-0064).
 func (p *Platform) CreateRelease(tag, notes string, prerelease bool) error {
@@ -220,7 +221,7 @@ func (p *Platform) CreateRelease(tag, notes string, prerelease bool) error {
 	// registered catalog resource — no explicit publish step needed.
 	args := []string{"release", "create", tag, "--notes-file", notesFile.Name(), "--repo", proj}
 
-	if p.cfg.LenientAssets && len(p.cfg.Assets) > 0 {
+	if len(p.cfg.Assets) > 0 {
 		files, err := platforms.ResolveGlobsLenient(p.cfg.Assets, func(pattern string) {
 			_, _ = fmt.Fprintf(os.Stderr, "warning: no files matched asset pattern %q — skipping\n", pattern)
 		})
@@ -244,42 +245,6 @@ func (p *Platform) CreateRelease(tag, notes string, prerelease bool) error {
 }
 
 func (p *Platform) HasAssets() bool { return len(p.cfg.Assets) > 0 }
-
-// UploadAssets resolves asset globs and uploads all matched files in one
-// `glab release upload --use-package-registry` call.
-// When cfg.LenientAssets is true, this is a no-op — assets were already included
-// in the glab release create call atomically.
-func (p *Platform) UploadAssets(tag string) error {
-	if p.cfg.LenientAssets {
-		return nil
-	}
-
-	proj, err := p.requireProject()
-	if err != nil {
-		return err
-	}
-
-	files, err := platforms.ResolveGlobs(p.cfg.Assets)
-	if err != nil {
-		return err
-	}
-	if len(files) == 0 {
-		return nil
-	}
-
-	args := append([]string{"release", "upload", tag, "--use-package-registry", "--repo", proj}, files...)
-	if p.inCIAutologin() {
-		if _, _, err := p.runner.Run("glab", args...); err != nil {
-			return fmt.Errorf("glab release upload: %w", err)
-		}
-	} else {
-		env := append(p.tokenEnvSlice(p.tokenEnv()), p.hostEnv()...)
-		if _, _, err := p.runner.RunEnv(env, "glab", args...); err != nil {
-			return fmt.Errorf("glab release upload: %w", err)
-		}
-	}
-	return nil
-}
 
 func (p *Platform) project() string {
 	if p.cfg.Project != "" {

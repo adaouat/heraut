@@ -224,7 +224,7 @@ func TestRun_PreReleaseHook_FiresBeforeCreateRelease(t *testing.T) {
 	require.Len(t, plat.CreateReleaseCalls, 1, "hook succeeded, publish must still happen")
 }
 
-func TestRun_PostReleaseHook_FiresAfterCreateReleaseAndAssets(t *testing.T) {
+func TestRun_PostReleaseHook_FiresAfterCreateRelease(t *testing.T) {
 	mr := exectest.NewMockRunner()
 	mr.QueueResponse("", "", nil) // git tag
 	mr.QueueResponse("", "", nil) // git push <tag>
@@ -240,8 +240,7 @@ func TestRun_PostReleaseHook_FiresAfterCreateReleaseAndAssets(t *testing.T) {
 
 	require.Len(t, mr.Calls, 3)
 	assert.Equal(t, []string{"-c", "echo released v1.2.3 to github"}, mr.Calls[2].Args)
-	require.Len(t, plat.CreateReleaseCalls, 1)
-	require.Len(t, plat.UploadAssetsCalls, 1, "post_release fires after asset upload, not before")
+	require.Len(t, plat.CreateReleaseCalls, 1, "post_release fires after CreateRelease, which attaches the assets")
 }
 
 // TestRun_PreReleaseHook_FailureSkipsThatPlatformOnly proves the per-platform hook-failure

@@ -288,7 +288,7 @@ func TestCreateRelease_Prerelease(t *testing.T) {
 	assert.Contains(t, call.Args, "--prerelease")
 }
 
-func TestCreateRelease_LenientAssets_IncludesFilesInCreate(t *testing.T) {
+func TestCreateRelease_Assets_IncludesFilesInCreate(t *testing.T) {
 	tmp := t.TempDir()
 	require.NoError(t, os.WriteFile(filepath.Join(tmp, "heraut_linux"), []byte("bin"), 0o755))
 	require.NoError(t, os.WriteFile(filepath.Join(tmp, "checksums.txt"), []byte("abc"), 0o644))
@@ -297,9 +297,8 @@ func TestCreateRelease_LenientAssets_IncludesFilesInCreate(t *testing.T) {
 	mr.QueueResponse("", "", nil)
 
 	p := github.New(mr, &config.Platform{
-		Repository:    "org/repo",
-		Assets:        []string{filepath.Join(tmp, "heraut_linux"), filepath.Join(tmp, "checksums.txt")},
-		LenientAssets: true,
+		Repository: "org/repo",
+		Assets:     []string{filepath.Join(tmp, "heraut_linux"), filepath.Join(tmp, "checksums.txt")},
 	})
 	require.NoError(t, p.CreateRelease("v1.0.0", "notes", false))
 
@@ -311,18 +310,6 @@ func TestCreateRelease_LenientAssets_IncludesFilesInCreate(t *testing.T) {
 	// Asset files must be included in the create call (avoids GitHub HTTP 422 on upload)
 	assert.Contains(t, call.Args, filepath.Join(tmp, "heraut_linux"))
 	assert.Contains(t, call.Args, filepath.Join(tmp, "checksums.txt"))
-}
-
-func TestUploadAssets_LenientGlobs_IsNoop(t *testing.T) {
-	// With LenientAssets, assets were already uploaded in CreateRelease — UploadAssets is a no-op.
-	mr := exectest.NewMockRunner()
-	p := github.New(mr, &config.Platform{
-		Repository:    "org/repo",
-		Assets:        []string{"dist/heraut_*"},
-		LenientAssets: true,
-	})
-	require.NoError(t, p.UploadAssets("v1.0.0"))
-	assert.Empty(t, mr.Calls)
 }
 
 func TestCreateRelease_DraftAndPrerelease(t *testing.T) {
@@ -343,67 +330,6 @@ func TestHasAssets(t *testing.T) {
 
 	pWithAssets := github.New(exectest.NewMockRunner(), &config.Platform{Assets: []string{"dist/*"}})
 	assert.True(t, pWithAssets.HasAssets())
-}
-
-func TestUploadAssets_SingleFile(t *testing.T) {
-	tmp := t.TempDir()
-	assetPath := filepath.Join(tmp, "myapp")
-	require.NoError(t, os.WriteFile(assetPath, []byte("binary"), 0o755))
-
-	mr := exectest.NewMockRunner()
-	mr.QueueResponse("", "", nil)
-
-	p := github.New(mr, &config.Platform{
-		Repository: "org/repo",
-		Assets:     []string{assetPath},
-	})
-	require.NoError(t, p.UploadAssets("v1.2.3"))
-
-	require.Len(t, mr.Calls, 1)
-	call := mr.Calls[0]
-	assert.Equal(t, "gh", call.Name)
-	assert.Equal(t, []string{
-		"release", "upload", "v1.2.3",
-		assetPath,
-		"--repo", "org/repo",
-	}, call.Args)
-}
-
-func TestUploadAssets_Glob(t *testing.T) {
-	tmp := t.TempDir()
-	for _, name := range []string{"app_linux_amd64", "app_darwin_amd64"} {
-		require.NoError(t, os.WriteFile(filepath.Join(tmp, name), []byte("bin"), 0o755))
-	}
-
-	mr := exectest.NewMockRunner()
-	mr.QueueResponse("", "", nil)
-	mr.QueueResponse("", "", nil)
-
-	p := github.New(mr, &config.Platform{
-		Repository: "org/repo",
-		Assets:     []string{filepath.Join(tmp, "app_*")},
-	})
-	require.NoError(t, p.UploadAssets("v1.0.0"))
-
-	// Should have one upload call per matched file
-	assert.Len(t, mr.Calls, 2)
-	for _, call := range mr.Calls {
-		assert.Equal(t, "gh", call.Name)
-		assert.Equal(t, "release", call.Args[0])
-		assert.Equal(t, "upload", call.Args[1])
-		assert.Equal(t, "v1.0.0", call.Args[2])
-	}
-}
-
-func TestUploadAssets_GlobNoMatch(t *testing.T) {
-	mr := exectest.NewMockRunner()
-	p := github.New(mr, &config.Platform{
-		Repository: "org/repo",
-		Assets:     []string{"/tmp/nonexistent/heraut_*"},
-	})
-	err := p.UploadAssets("v1.0.0")
-	require.Error(t, err)
-	assert.Contains(t, err.Error(), "no files matched")
 }
 
 func TestCreateRelease_RepoFromEnv(t *testing.T) {
@@ -454,52 +380,29 @@ func TestCreateRelease_TokenForwarded(t *testing.T) {
 	assert.Contains(t, mr.Calls[0].Env, "GH_TOKEN=secret123")
 }
 
-func TestUploadAssets_TokenForwarded(t *testing.T) {
+func TestCreateRelease_Assets_GlobInOneCall(t *testing.T) {
 	tmp := t.TempDir()
-	assetPath := filepath.Join(tmp, "app")
-	require.NoError(t, os.WriteFile(assetPath, []byte("bin"), 0o755))
+	for _, name := range []string{"app_linux_amd64", "app_darwin_amd64"} {
+		require.NoError(t, os.WriteFile(filepath.Join(tmp, name), []byte("bin"), 0o755))
+	}
 
-	t.Setenv("CORP_TOKEN", "secret456")
 	mr := exectest.NewMockRunner()
 	mr.QueueResponse("", "", nil)
 
 	p := github.New(mr, &config.Platform{
 		Repository: "org/repo",
-		TokenEnv:   "CORP_TOKEN",
-		Assets:     []string{assetPath},
+		Assets:     []string{filepath.Join(tmp, "app_*")},
 	})
-	require.NoError(t, p.UploadAssets("v1.0.0"))
+	require.NoError(t, p.CreateRelease("v1.0.0", "notes", false))
 
 	require.Len(t, mr.Calls, 1)
-	assert.Contains(t, mr.Calls[0].Env, "GH_TOKEN=secret456")
+	call := mr.Calls[0]
+	assert.Equal(t, []string{"release", "create", "v1.0.0"}, call.Args[:3])
+	assert.Contains(t, call.Args, filepath.Join(tmp, "app_linux_amd64"))
+	assert.Contains(t, call.Args, filepath.Join(tmp, "app_darwin_amd64"))
 }
 
-func TestUploadAssets_LenientGlobs_NoMatch_Warns(t *testing.T) {
-	mr := exectest.NewMockRunner()
-	p := github.New(mr, &config.Platform{
-		Repository:    "org/repo",
-		Assets:        []string{"/tmp/nonexistent/heraut_*"},
-		LenientAssets: true,
-	})
-	// Should succeed and not call gh release upload
-	require.NoError(t, p.UploadAssets("v1.0.0"))
-	assert.Empty(t, mr.Calls)
-}
-
-func TestUploadAssets_LenientGlobs_WithMatch_IsNoop(t *testing.T) {
-	// UploadAssets is a no-op for lenient assets — files are uploaded atomically
-	// inside CreateRelease to avoid GitHub's HTTP 422 on separate upload.
-	mr := exectest.NewMockRunner()
-	p := github.New(mr, &config.Platform{
-		Repository:    "org/repo",
-		Assets:        []string{"dist/heraut_*"},
-		LenientAssets: true,
-	})
-	require.NoError(t, p.UploadAssets("v1.0.0"))
-	assert.Empty(t, mr.Calls)
-}
-
-func TestUploadAssets_GlobSkipsDirectories(t *testing.T) {
+func TestCreateRelease_Assets_GlobSkipsDirectories(t *testing.T) {
 	tmp := t.TempDir()
 	require.NoError(t, os.WriteFile(filepath.Join(tmp, "app"), []byte("bin"), 0o755))
 	require.NoError(t, os.MkdirAll(filepath.Join(tmp, "subdir"), 0o755))
@@ -511,11 +414,27 @@ func TestUploadAssets_GlobSkipsDirectories(t *testing.T) {
 		Repository: "org/repo",
 		Assets:     []string{filepath.Join(tmp, "*")},
 	})
-	require.NoError(t, p.UploadAssets("v1.0.0"))
+	require.NoError(t, p.CreateRelease("v1.0.0", "notes", false))
 
-	require.Len(t, mr.Calls, 1) // only the file, not the directory
+	require.Len(t, mr.Calls, 1)
 	assert.Contains(t, mr.Calls[0].Args, filepath.Join(tmp, "app"))
 	assert.NotContains(t, mr.Calls[0].Args, filepath.Join(tmp, "subdir"))
+}
+
+// By the time assets resolve the tag is already pushed, so a pattern matching nothing must skip
+// with a warning and still create the release rather than fail it.
+func TestCreateRelease_Assets_NoMatch_StillCreates(t *testing.T) {
+	mr := exectest.NewMockRunner()
+	mr.QueueResponse("", "", nil)
+
+	p := github.New(mr, &config.Platform{
+		Repository: "org/repo",
+		Assets:     []string{filepath.Join(t.TempDir(), "heraut_*")},
+	})
+	require.NoError(t, p.CreateRelease("v1.0.0", "notes", false))
+
+	require.Len(t, mr.Calls, 1)
+	assert.Equal(t, []string{"--repo", "org/repo"}, mr.Calls[0].Args[5:])
 }
 
 // ---- Self-hosted (multi-instance, ADR-0025) ----------------------------------
@@ -530,26 +449,6 @@ func TestCreateRelease_SelfHosted_SetsGhHostEnv(t *testing.T) {
 		BaseURL:    "https://github.example.com",
 	})
 	require.NoError(t, p.CreateRelease("v1.0.0", "notes", false))
-
-	require.Len(t, mr.Calls, 1)
-	assert.Equal(t, []string{"GH_TOKEN=ent-token", "GH_HOST=github.example.com", "GH_ENTERPRISE_TOKEN=ent-token"}, mr.Calls[0].Env)
-}
-
-func TestUploadAssets_SelfHosted_SetsGhHostEnv(t *testing.T) {
-	tmp := t.TempDir()
-	assetPath := filepath.Join(tmp, "myapp")
-	require.NoError(t, os.WriteFile(assetPath, []byte("binary"), 0o755))
-
-	t.Setenv("GH_TOKEN", "ent-token")
-	mr := exectest.NewMockRunner()
-	mr.QueueResponse("", "", nil)
-
-	p := github.New(mr, &config.Platform{
-		Repository: "org/repo",
-		Assets:     []string{assetPath},
-		BaseURL:    "https://github.example.com",
-	})
-	require.NoError(t, p.UploadAssets("v1.2.3"))
 
 	require.Len(t, mr.Calls, 1)
 	assert.Equal(t, []string{"GH_TOKEN=ent-token", "GH_HOST=github.example.com", "GH_ENTERPRISE_TOKEN=ent-token"}, mr.Calls[0].Env)
