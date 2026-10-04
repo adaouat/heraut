@@ -38,7 +38,13 @@ pre-release lifecycle (`--pre-release <label>`) for the plain `semver` strategy.
 | T335 | Per-env tags containing "/" break GitLab package-registry uploads | Not started |
 | T336 | `--set-version` validated as SemVer v2 under `semver`/`semver-per-env` | Done |
 | T337 | GitHub `--prerelease` derived from the version; remove `release.targets[].prerelease` | Done |
-| —    | Phase 2 (pre-release lifecycle) — planned after Phase 1.5 lands | Not planned |
+| T338 | Pre-release series resolution in `semver.Resolver` | Not started |
+| T339 | `--pre-release <label>` on `release` and `version next` | Not started |
+| T340 | A pre-release run never writes `CHANGELOG.md` | Not started |
+| T341 | Release-notes range for pre-releases; absent-tag fallback fix | Not started |
+| T342 | End-to-end pre-release scenarios on a real repo | Not started |
+| T343 | ADR-0064 Phase 2 status update and Phase 2 close | Not started |
+| T344 | Maintenance-branch support (last final + notes from branch history) | Not started |
 
 ## Phase 1 — Compliance
 
@@ -376,10 +382,57 @@ configured `tag_prefix` in the parse-failure error when it isn't the `"v"` defau
 
 ## Phase 2 — Pre-release lifecycle
 
-Not yet broken down. Scope per the design doc § Delivery → Phase 2: `--pre-release <label>`,
-series rules, `--allow-major` second trigger, changelog skip and notes ranges. (`--set-version`
-SemVer validation and the GitHub-derived `--prerelease` / `release.targets[].prerelease` removal
-moved to Phase 1.5 — T336/T337 above.)
+Scope per the design doc § Delivery → Phase 2: `--pre-release <label>`, series rules,
+`--allow-major` second trigger, changelog skip and notes ranges. (`--set-version` SemVer
+validation and the GitHub-derived `--prerelease` / `release.targets[].prerelease` removal moved to
+Phase 1.5 — T336/T337 above.) Plan:
+[`.claude/plans/semver-v2-phase-2-pre-release-lifecycle.md`](../../.claude/plans/semver-v2-phase-2-pre-release-lifecycle.md).
+
+Decisions taken while planning (2026-10-04), resolving notes (a)–(c) below:
+
+- **Previous-tag rule for a pre-release** ((b), (c)): the highest-precedence tag of any kind
+  strictly below the version being cut **and reachable from HEAD** (`git tag --merged HEAD`). One
+  rule drives both the commit requirement and the notes range. Finals keep T334's rule (last
+  final, precedence only). Core and last-final computation stay global — branch-aware resolution
+  is T344.
+- **A pre-release run is keyed on the version**, not the flag: `--pre-release <label>`, or a
+  SemVer-strategy `--set-version` value carrying pre-release identifiers (same gate as T337's
+  GitHub flag) — so `heraut changelog --set-version X-pre --tag` tags without writing a section.
+- **(a) is not handled**: no user has pre-release sections on disk; no code, no migration note.
+
+### [ ] T338 — Pre-release series resolution in `semver.Resolver`
+
+`--pre-release` mode for the plain `semver` resolver: floating core from the last final, series
+escalation (warning for minor/patch, `ErrMajorEscalation` for major unless `--allow-major`),
+`<core>-<label>.<N>` counter, global per-core monotonicity (`ErrPreReleaseRegression`), commit
+requirement since the previous tag reachable from HEAD. Spec 04 § Pre-release lifecycle.
+
+### [ ] T339 — `--pre-release <label>` on `release` and `version next`
+
+`app.WithPreRelease` + usage errors (`--set-version`, non-`semver` strategy, manual bump mode,
+invalid label); flag on both commands; `--allow-major` help names its second trigger. Spec 03.
+
+### [ ] T340 — A pre-release run never writes `CHANGELOG.md`
+
+`app.isPreReleaseRun` decided at build time; reuses the `disable_changelog` skip path (step totals
+stay correct); `heraut changelog --set-version X-pre` prints a pre-release message instead of
+"changelog disabled". Specs 04/05 (drops the interim DOC-1 wording).
+
+### [ ] T341 — Release-notes range for pre-releases; absent-tag fallback fix
+
+native inserts the tag being released before ordering (fixes (b)); `native.WithReachableFromHead`
++ `app.notesTagOrderFor` (keeps pre-releases) for pre-release runs only. Spec 05.
+
+### [ ] T342 — End-to-end pre-release scenarios on a real repo
+
+`RealGitRepo` scenarios from the design doc § 7: beta → rc → final, escalation, blocked major +
+`--allow-major`, `next` after `rc`, re-cut with no commit, side-branch tag, `version current`.
+
+### [ ] T343 — ADR-0064 Phase 2 status update and Phase 2 close
+
+ADR-0064 `## Status update (Phase 2)`, Phase 2 closing paragraph, flag lists in README/guides.
+
+### Notes carried from Phase 1 / 1.5
 
 (a) The changelog-skip item above must also resolve DOC-1's interim state (see ADR-0064 §Decision,
 Spec 04 § Pre-release tags, Spec 05 § Changelog structure): until it lands, a pre-release cut with
@@ -412,3 +465,17 @@ a pre-release). This also resolves (b).
 `app.tagOrderFor` (T334). The resolver's "core" computation lives in
 `internal/versioning/semver/resolver.go` (`resolveAuto`, `bumpAfterHold`, `stay_at_v0` hold in
 `hold.go`); per-env is out of scope for minting (design doc § Non-goals).
+
+## Later
+
+### [ ] T344 — Maintenance-branch support: last final and notes from branch history
+
+Needs its own design. heraut resolves against the whole repo's tag list, not the current branch's
+history: the semver resolver's `git tag -l <prefix>*` is global, so cutting `v1.3.2` on a
+maintenance branch while `v1.4.0` exists on `main` computes its core from `v1.4.0`; a final's
+release-notes predecessor (T334) is chosen by precedence only, so it can be a tag that never was
+on the release's branch; the changelog walk has the same shape. git can't say which branch a tag
+was cut on, but `git tag --merged <ref>` restricts to tags in a ref's history — Phase 2's
+pre-release previous-tag rule (T338/T341) already uses it and is the model. Open questions for the
+design: which surfaces become history-aware (core, finals' notes, changelog bounds), and how
+global per-core monotonicity (ADR-0064) interacts with parallel maintenance lines.
