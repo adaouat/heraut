@@ -392,6 +392,10 @@ func (p *ChangelogPipeline) dryRunOutput(result versioning.Result) error {
 // With a reporter it uses the styled block; without one it keeps the original
 // single-line format so existing plain callers are unaffected.
 func (p *ChangelogPipeline) printSummary(result versioning.Result) {
+	if p.cfg.DisableChangelog {
+		p.printTagOnlySummary(result)
+		return
+	}
 	if p.reporter != nil {
 		_, _ = fmt.Fprintf(p.out, "\nChangelog updated for %s\n", result.Tag)
 		if (p.cfg.Commit || p.cfg.Tag) && p.cfg.Changelog != nil {
@@ -405,4 +409,21 @@ func (p *ChangelogPipeline) printSummary(result versioning.Result) {
 		return
 	}
 	_, _ = fmt.Fprintf(p.out, "changelog updated for %s\n", result.Tag)
+}
+
+// printTagOnlySummary reports a run whose changelog step was skipped: the only work that can have
+// happened is the tag.
+func (p *ChangelogPipeline) printTagOnlySummary(result versioning.Result) {
+	if !p.cfg.Tag {
+		return
+	}
+	if p.reporter == nil {
+		_, _ = fmt.Fprintf(p.out, "tagged %s\n", result.Tag)
+		return
+	}
+	if p.cfg.NoPush {
+		_, _ = fmt.Fprintf(p.out, "\nTagged %s (not pushed)\n", result.Tag)
+		return
+	}
+	_, _ = fmt.Fprintf(p.out, "\nTagged %s and pushed\n", result.Tag)
 }

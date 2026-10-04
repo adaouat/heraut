@@ -3,6 +3,7 @@ package pipeline_test
 import (
 	"bytes"
 	"errors"
+	"strings"
 	"testing"
 
 	"github.com/adaouat/forge/exec/exectest"
@@ -394,6 +395,8 @@ func TestChangelogRun_DisabledChangelog_WithTag(t *testing.T) {
 	assert.Equal(t, []string{"tag", "v1.2.3"}, mr.Calls[0].Args)
 	assert.Equal(t, []string{"push", "origin", "v1.2.3"}, mr.Calls[1].Args)
 	assert.Contains(t, out.String(), "disabled")
+	assert.NotContains(t, strings.ToLower(out.String()), "changelog updated")
+	assert.Contains(t, out.String(), "tagged v1.2.3")
 }
 
 // TestChangelogRun_NothingToCommit verifies that when git add stages nothing (the
@@ -546,6 +549,13 @@ func TestChangelogRun_PreRelease_SkipsChangelogButStillTags(t *testing.T) {
 			assert.Contains(t, out.String(), "pre-release")
 			assert.Contains(t, out.String(), "CHANGELOG.md not updated")
 			assert.NotContains(t, out.String(), "changelog disabled")
+			assert.NotContains(t, strings.ToLower(out.String()), "changelog updated")
+			assert.NotContains(t, out.String(), "committed")
+			if withReporter {
+				assert.Contains(t, out.String(), "Tagged v1.4.0-rc.1 and pushed")
+			} else {
+				assert.Contains(t, out.String(), "tagged v1.4.0-rc.1")
+			}
 			require.Len(t, mr.Calls, 2)
 			assert.Equal(t, "tag", mr.Calls[0].Args[0])
 			assert.Equal(t, []string{"push", "origin", "v1.4.0-rc.1"}, mr.Calls[1].Args)

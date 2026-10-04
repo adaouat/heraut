@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/adaouat/forge/exec/exectest"
@@ -232,6 +233,8 @@ esac
 	require.NoError(t, err)
 	assert.Contains(t, out, "pre-release")
 	assert.Contains(t, out, "CHANGELOG.md not updated")
+	assert.NotContains(t, strings.ToLower(out), "changelog updated")
+	assert.NotContains(t, out, "committed")
 
 	log, err := os.ReadFile(calls)
 	require.NoError(t, err)
