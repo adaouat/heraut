@@ -180,6 +180,59 @@ not SemVer.
 
 heraut does not produce pre-release tags itself yet (planned — see the SemVer v2 roadmap).
 
+### Pre-release lifecycle
+
+Definitions: the **last final** is the highest-precedence tag with no pre-release identifiers; the
+**core** of a version is its `MAJOR.MINOR.PATCH`; a **series** is the set of pre-release tags
+sharing a core. A final release is computed as above and never uses a pre-release tag as its bump
+base, so promoting `v1.4.0-rc.2` to `v1.4.0` needs no new commit.
+
+A pre-release run (`semver` resolver, label set) resolves in this order (ADR-0064):
+
+1. **Core** — the bump over all commits since the last final (`stay_at_v0` applied), exactly as a
+   final would compute it. With no final yet, the core is `initial_version` and no commits are
+   read.
+2. **Escalation** — *S* is the highest pre-release whose core is above the last final. If the new
+   core is higher than *S*'s core, the bump level rose. A new **major** is an error
+   (`ErrMajorEscalation`) unless `--allow-major`; a minor or patch rise (or a major with
+   `--allow-major`) is allowed with the warning `pre-release core escalated <S.core> → <core>`
+   followed by the subjects of the commits at the new bump level (max 5, then `… and N more`).
+3. **Candidate** — `<core>-<label>.<N>`, where *N* is one more than the highest existing counter of
+   that label on that core (`1` when none). Only tags shaped exactly `<label>.<n>` count.
+4. **Monotonicity** — the candidate must sort strictly above **every** existing tag of the same
+   core, finals included (`ErrPreReleaseRegression`); the highest offending tag is named.
+5. **Commit requirement** — at least one commit since the **previous tag**: the highest tag, of any
+   kind, that sorts below the candidate and is reachable from `HEAD` (`git tag --merged HEAD`).
+   Tags on other branches never count. The result's `CurrentTag` is that previous tag (else the
+   last final), which is the range the release notes span.
+
+**Label grammar**: one SemVer identifier — `[0-9A-Za-z-]+`, not purely numeric, no dots. heraut
+always appends `.N`. Ordering between labels is §11's ASCII ordering (`alpha < beta < rc`; `RC`
+sorts below `rc`).
+
+Worked examples (last final `v1.3.0`):
+
+| Commits since `v1.3.0` | Existing tags   | Label  | Result                                              |
+|------------------------|-----------------|--------|-----------------------------------------------------|
+| `feat: X`              | —               | `beta` | `v1.4.0-beta.1`                                     |
+| + `fix: bug`           | `beta.1`        | `beta` | `v1.4.0-beta.2`                                     |
+| (same)                 | `beta.2`        | `rc`   | `v1.4.0-rc.1`                                       |
+| (same)                 | `rc.1`          | `beta` | error: `v1.4.0-beta.3` would sort below `v1.4.0-rc.1` |
+| (none new)             | `rc.1`          | `rc`   | error: no commits since `v1.4.0-rc.1`               |
+| `fix: A`               | —               | `rc`   | `v1.3.1-rc.1`                                       |
+| + `feat: B`            | `v1.3.1-rc.1`   | `rc`   | `v1.4.0-rc.1` + escalation warning                  |
+| + `feat!: C`           | `v1.4.0-rc.1`   | `rc`   | error: major escalation                             |
+| (same)                 | `v1.4.0-rc.1`   | `rc` + `--allow-major` | `v2.0.0-rc.1` + escalation warning |
+
+Error messages:
+
+- `pre-release series v1.4.0-rc.1 would escalate to a new major 2.0.0: breaking change(s) since
+  v1.3.0 — pass --allow-major to open the 2.0.0 series, or ship 1.4.0 first`, followed by the
+  breaking commit subjects.
+- `v1.4.0-beta.3 would sort below existing v1.4.0-rc.1 — ship 1.4.0 or use a label that sorts
+  higher`.
+- `no commits since v1.4.0-rc.1 — create at least one commit before running heraut release`.
+
 ### Initial version
 
 When no tags matching the prefix exist, the resolver returns `initial_version` (default

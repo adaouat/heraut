@@ -38,7 +38,7 @@ pre-release lifecycle (`--pre-release <label>`) for the plain `semver` strategy.
 | T335 | Per-env tags containing "/" break GitLab package-registry uploads | Not started |
 | T336 | `--set-version` validated as SemVer v2 under `semver`/`semver-per-env` | Done |
 | T337 | GitHub `--prerelease` derived from the version; remove `release.targets[].prerelease` | Done |
-| T338 | Pre-release series resolution in `semver.Resolver` | Not started |
+| T338 | Pre-release series resolution in `semver.Resolver` | Done |
 | T339 | `--pre-release <label>` on `release` and `version next` | Not started |
 | T340 | A pre-release run never writes `CHANGELOG.md` | Not started |
 | T341 | Release-notes range for pre-releases; absent-tag fallback fix | Not started |
@@ -400,12 +400,21 @@ Decisions taken while planning (2026-10-04), resolving notes (a)–(c) below:
   GitHub flag) — so `heraut changelog --set-version X-pre --tag` tags without writing a section.
 - **(a) is not handled**: no user has pre-release sections on disk; no code, no migration note.
 
-### [ ] T338 — Pre-release series resolution in `semver.Resolver`
+### [x] T338 — Pre-release series resolution in `semver.Resolver`
 
 `--pre-release` mode for the plain `semver` resolver: floating core from the last final, series
 escalation (warning for minor/patch, `ErrMajorEscalation` for major unless `--allow-major`),
 `<core>-<label>.<N>` counter, global per-core monotonicity (`ErrPreReleaseRegression`), commit
 requirement since the previous tag reachable from HEAD. Spec 04 § Pre-release lifecycle.
+
+**Completed.** `semver.Resolver.SetPreRelease` and `resolvePreRelease` (new `prerelease.go`)
+implement the algorithm as briefed; `ValidatePreReleaseLabel`, `ErrMajorEscalation` and
+`ErrPreReleaseRegression` are exported for T339. `holdMajorAtZero`'s helper became
+`commitsAtLevel(commits, overrides, level)` plus a shared `writeSubjects`, with its output
+unchanged. Decisions: the escalation warning lists commits at the new bump level and appends `""`
+to `wouldBeVersions`; with no final yet the escalation check still runs but lists no commits. The
+`ErrMajorEscalation` error text is prefixed by the sentinel (`%w: …`). `--set-version` and manual
+mode still bypass pre-release mode; rejecting those flag combinations is T339.
 
 ### [ ] T339 — `--pre-release <label>` on `release` and `version next`
 

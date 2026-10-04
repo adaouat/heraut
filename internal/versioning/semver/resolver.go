@@ -19,6 +19,7 @@ type Resolver struct {
 	cfg             *config.Config
 	versionOverride string
 	allowMajor      bool
+	preReleaseLabel string
 	warnings        []string
 	wouldBeVersions []string
 }
@@ -66,6 +67,12 @@ func (r *Resolver) SetAllowMajor(allow bool) {
 	r.allowMajor = allow
 }
 
+// SetPreRelease switches Resolve into pre-release mode for label; "" restores final-release
+// resolution. The label is not validated here — see ValidatePreReleaseLabel.
+func (r *Resolver) SetPreRelease(label string) {
+	r.preReleaseLabel = label
+}
+
 // Warnings returns the warnings produced by the most recent Resolve or BumpAuto call — nil when
 // nothing was held back. The resolver never prints them; the caller decides how to surface them.
 func (r *Resolver) Warnings() []string {
@@ -102,6 +109,9 @@ func (r *Resolver) Resolve() (versioning.Result, error) {
 	r.wouldBeVersions = nil
 	if r.versionOverride != "" || r.cfg.Versioning.BumpMode() == "manual" {
 		return r.resolveManual()
+	}
+	if r.preReleaseLabel != "" {
+		return r.resolvePreRelease()
 	}
 	return r.resolveAuto()
 }

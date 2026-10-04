@@ -34,26 +34,31 @@ func holdMajorAtZero(currentVersion string, bump versioning.BumpType, commits []
 
 	var b strings.Builder
 	fmt.Fprintf(&b, "major bump held back by versioning.bump.stay_at_v0: %s → %s (pass --allow-major on this run to get %s instead)", wouldBe, held, wouldBe)
-	subjects := majorCommits(commits, overrides)
-	for i, s := range subjects {
-		if i == maxListedCommits {
-			fmt.Fprintf(&b, "\n  … and %d more", len(subjects)-maxListedCommits)
-			break
-		}
-		fmt.Fprintf(&b, "\n  - %s", s)
-	}
+	writeSubjects(&b, commitsAtLevel(commits, overrides, versioning.BumpMajor))
 	return versioning.BumpMinor, b.String(), wouldBe
 }
 
-// majorCommits returns the subject line of every commit whose own bump level is major, after
-// overrides — the commits that forced the major bump.
-func majorCommits(commits []string, overrides []config.BumpRule) []string {
+// commitsAtLevel returns the subject line of every commit whose own bump level is level, after
+// overrides — the commits that forced a bump to that level.
+func commitsAtLevel(commits []string, overrides []config.BumpRule, level versioning.BumpType) []string {
 	rules := compileBumpRules(overrides)
 	var subjects []string
 	for _, c := range commits {
-		if resolveBumpLevel(c, rules) == versioning.BumpMajor {
+		if resolveBumpLevel(c, rules) == level {
 			subjects = append(subjects, firstLine(c))
 		}
 	}
 	return subjects
+}
+
+// writeSubjects appends up to maxListedCommits subjects as "\n  - <subject>" lines, then a
+// "\n  … and N more" summary line when some were left out.
+func writeSubjects(b *strings.Builder, subjects []string) {
+	for i, s := range subjects {
+		if i == maxListedCommits {
+			fmt.Fprintf(b, "\n  … and %d more", len(subjects)-maxListedCommits)
+			return
+		}
+		fmt.Fprintf(b, "\n  - %s", s)
+	}
 }
