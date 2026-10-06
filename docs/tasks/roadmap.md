@@ -230,6 +230,7 @@ discipline that applies to every task.
 | 59 | SemVer v2 compliance and pre-release lifecycle | In progress — see `semver-v2-roadmap.md` |
 | 60 | End-to-end smoke tests against real GitHub/GitLab sandboxes | Not started — see T345 (needs design) |
 | 61 | GitLab publish driver follow-ups from T335 | In progress — T346 done, T347 (needs design) open |
+| 62 | Version branches: version from the branch name | Not started — see T348 (needs design) |
 
 ### Open items
 
@@ -2673,6 +2674,23 @@ version flag). Precedent (ADR-0034, ADR-0035, ADR-0043) favours extending the ex
 ADR should still weigh both, plus the GitLab/GitHub asymmetry (`gh` stays) and the scope of
 porting create-release, asset links, `Check()`, CI-autologin and self-hosted behaviour along with
 their contract tests. Output: an ADR plus a phased task breakdown, no implementation.
+
+### Phase 62 — Version branches
+
+#### ✦ `[ ]` T348: `versioning.branches` "version branch" type — version from the branch name (needs design)
+
+A real mobile-project workflow: the client fixes the version up front, a `release/7.8.0` branch
+is cut, and `feat`/`fix` commits land there for stabilisation without ever changing the version —
+the branch *is* the version (GitVersion's "release branch", version read via
+`version-in-branch-pattern`; semantic-release has no equivalent). Today this works manually with
+`heraut release --set-version 7.8.0` (repeat store builds via `--pre-release rc` or
+`--set-build-id`), and T344's design keeps it working even when `release/*` is also declared as a
+maintenance glob (no range-derivation error under `--set-version`). This task would automate it as
+a third `versioning.branches` entry type: the version comes from the branch name, commits never
+bump it, and a re-release goes through `-rc.N` / `+build` instead of colliding. Depends on T344's
+`versioning.branches` landing first. Design questions: how an entry declares the type (a `version:
+from-branch` field vs. a separate key), how it coexists with maintenance globs on the same
+`release/*` namespace, and what a re-release does by default.
 
 ---
 

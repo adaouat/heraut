@@ -184,7 +184,12 @@ Given the matched range `[lo, hi)`:
   `--pre-release rc` → `v1.3.2-rc.1`. Global per-core monotonicity is unaffected: a maintenance
   core is distinct from every core on `main`.
 - **`--set-version`** stays the manual escape hatch: not range-checked; the collision guard still
-  applies.
+  applies. Because no range is needed, a matched glob entry whose range cannot be derived from
+  the branch name is **not** an error under `--set-version` (§1's derivation error applies only
+  to auto resolution). This keeps the "branch is the version" workflow — a client-fixed
+  `release/7.8.0` branch released with `--set-version 7.8.0` — working in a repo that also
+  declares `release/*` maintenance branches. Automating that workflow is a separate task (see
+  Delivery).
 
 The maintenance path is a new resolver mode (`semver.Resolver.SetMaintenanceRange(lo, hi)`),
 wired by `internal/app` exactly like `SetAllowMajor` / `SetPreRelease`: `internal/cmd` never sees
@@ -220,7 +225,7 @@ sections or bounds, and those were wrong before. The ADR states this explicitly.
 |---|---|---|
 | `branches` under a non-`semver` strategy; bad range; duplicate range; bad glob | load | Config |
 | two entries match the branch | run | Config |
-| matched glob entry, no derivable version in branch name | run | Config |
+| matched glob entry, no derivable version in branch name (auto resolution only; not with `--set-version`) | run | Config |
 | unlisted or unknown branch on a publishing command, no `--force` | run | Config |
 | no in-range final reachable from HEAD | run | Runtime |
 | next version outside the range (`ErrOutOfRange`) | run | Runtime |
@@ -267,6 +272,8 @@ History: `main` has `v1.3.0 → v1.3.1 → v1.4.0 → v2.0.0`; `release/1.3` cut
 | 8b | `feature/foo`, `heraut version next` | `v2.0.1` | `v2.0.1` (unchanged) |
 | 9 | `release/1.3`, `heraut version current` | `v2.0.0` | `v1.3.1` |
 | 10 | `release/1.3`, `--pre-release rc` | — | `v1.3.2-rc.1` |
+| 11 | `release/7.8.0` (matches `release/*`, no derivable range), `--set-version 7.8.0` | `v7.8.0` | `v7.8.0` (no derivation error) |
+| 11b | `release/7.8.0`, no `--set-version` | `v2.0.1` | derivation error naming the branch |
 
 ## Documentation
 
@@ -286,5 +293,7 @@ order: config and validation; branch detection and matching; maintenance resolve
 history-aware bounds; `version current` and pre-releases on maintenance branches; docs, ADR and
 guide. Separately, as its own `test:` commit: replace the real host/project fixtures in
 `internal/pipeline/release_test.go` and `internal/platforms/gitlab/platform_test.go` with
-synthetic placeholders (already recorded on T344). A follow-up task is filed for the CalVer
-equivalent of §5.
+synthetic placeholders (already recorded on T344). Follow-up tasks are filed for the CalVer
+equivalent of §5, and for a "version branch" entry type (the version comes from the branch name,
+`release/7.8.0` → `7.8.0`; commits never bump it; re-releases go through `-rc.N` or `+build`),
+which today's `--set-version` covers manually.
