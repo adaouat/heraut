@@ -77,7 +77,7 @@ Changes in `internal/app` follow the layer rules (no new imports). `native` rece
 - `Run(t, repo, env, args...)` → `{Stdout, Stderr, ExitCode}`. Environment is scrubbed of CI variables
   (as `testutil.ClearCIEnv` does) and `HOME` points at a temp dir.
 - Config under test is built from small YAML fixtures in `e2e/testdata/`; no real names or hosts.
-- Assertions on exit codes use `internal/exitcode` so a mapping change is caught.
+- Assertions use literal exit codes (0 usage-ok, 2 config, 3 runtime, 4 promotion): `e2e/` imports no heraut `internal/` package, and a remapped code must fail the suite.
 
 ## Lane A scenarios (hermetic)
 

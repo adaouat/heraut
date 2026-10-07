@@ -19,6 +19,13 @@ versioning:
 
 const stayAtV0 = "    stay_at_v0: true\n"
 
+const manualCfg = `version: "1"
+versioning:
+  strategy: semver
+  bump:
+    mode: manual
+`
+
 var versionNext = []string{"version", "next"}
 
 func TestSemVer_Resolution(t *testing.T) {
@@ -61,15 +68,23 @@ versioning:
 		{name: "build-metadata tag counts as its core release", config: semverCfg(""),
 			history: []step{commit("feat: a"), tag("v1.4.0"), commit("fix: b"), tag("v1.4.1+158404"), commit("fix: c")},
 			args:    versionNext, wantOut: "v1.4.2"},
-		{name: "manual mode refuses to compute", config: `version: "1"
-versioning:
-  strategy: semver
-  bump:
-    mode: manual
-`,
+		{name: "manual mode refuses to compute", config: manualCfg,
 			history:  []step{commit("feat: a")},
 			args:     versionNext,
 			wantExit: exitRuntime, wantText: []string{"manual bump mode requires --set-version"}},
+		{name: "manual mode accepts --set-version", config: manualCfg,
+			history: []step{commit("feat: a")},
+			args:    []string{"version", "next", "--set-version", "2.0.0"}, wantOut: "v2.0.0"},
+		{name: "empty tag prefix round-trips", config: `version: "1"
+versioning:
+  strategy: semver
+  tag_prefix: ""
+  initial_version: "0.1.0"
+  bump:
+    mode: auto
+`,
+			history: []step{commit("feat: a"), tag("1.0.0"), commit("fix: b")},
+			args:    versionNext, wantOut: "1.0.1"},
 	})
 }
 
@@ -141,6 +156,10 @@ func TestSemVer_PreReleaseLifecycle(t *testing.T) {
 			history:  []step{commit("feat: a")},
 			args:     []string{"version", "next", "--pre-release", "bad.label"},
 			wantExit: exitConfig, wantText: []string{"contains '.'"}},
+		{name: "manual bump mode cannot mint pre-releases", config: manualCfg,
+			history:  []step{commit("feat: a")},
+			args:     rc,
+			wantExit: exitConfig, wantText: []string{"requires versioning.bump.mode: auto"}},
 		{name: "calver cannot mint pre-releases", config: `version: "1"
 versioning:
   strategy: calver

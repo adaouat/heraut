@@ -2605,17 +2605,22 @@ Design: [`docs/superpowers/specs/2026-10-07-e2e-smoke-suite-design.md`](../super
 **Completion note:** executed from `docs/superpowers/plans/2026-10-07-e2e-lane-a-foundation.md`. Landed:
 ADR-0066 plus the testing-rule amendment, the `internal/app` `clock()` seam (default `time.Now`;
 `-tags heraut_testclock` reads `HERAUT_TEST_NOW`, parsing unit-tested in the default build), the
-`e2e/harness` package (`Binary`, `NewRepo`, `Run` with a from-scratch environment) and 36 table-driven
+`e2e/harness` package (`Binary`, `NewRepo`, `Run` with a from-scratch environment) and 39 table-driven
 scenarios (plus a few standalone checks) through the real binary (bump matrix, `v1.9.0` → `v1.10.0`, `stay_at_v0`, pre-release
 lifecycle and guards, overrides, `version current`, `--version`, CalVer simulated clock). Every
 scenario passed on its first run, so no heraut defect surfaced beyond T357 (the error panel
-re-casing identifiers). One deviation: scenario subtests run with `t.Parallel()`, because the serial
-package took 16 s against the spec's 10 s threshold; it now takes about 7 s, and `go test ./...`
-wall time is unchanged (34 s before, 31 s after, within noise), so no `-short` gate was needed.
-Deferred to T345b as planned: the `native` generator clock (its `GeneratedAt` is not rendered by
+re-casing identifiers). Deviations: scenario subtests run with `t.Parallel()` (package about 4 s; `go test ./...` wall time
+unchanged, so no `-short` gate); the harness sets `HERAUT_CHECK_UPDATE=false` because the final review
+found the binary's post-run update check hit the GitHub API on every successful scenario (it also
+inflated the first 16 s serial timing); exit codes are asserted as literals, not via
+`internal/exitcode`, since `e2e/` imports no `internal/` package (the testing rule and spec were
+reworded). Manual mode with `--set-version`, manual mode with `--pre-release` and an empty SemVer
+`tag_prefix` were added after review. Deferred to T345b as planned: the `native` generator clock (its `GeneratedAt` is not rendered by
 anything T345a drives) and per-env `stay_at_v0`.
 
 #### `[ ]` T345b: remaining Lane A scenarios
+
+Also: add an `e2e/` row to the layer table in `.claude/rules/coding.md` (imports `e2e/harness` and testify only).
 
 CalVer period boundaries with the simulated clock (month/year/ISO-week/quarter, `PATCH` reset, sprint),
 per-env promotion (E001/E002/E003, `--force`, `tag_format`) including `stay_at_v0` under

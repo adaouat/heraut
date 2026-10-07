@@ -31,6 +31,7 @@ func TestRun_ScrubsAmbientEnvAndReportsExit(t *testing.T) {
 	assert.NotContains(t, res.Stdout, "CI_PROJECT_PATH")
 	assert.Contains(t, res.Stdout, "E2E_EXTRA=1")
 	assert.Contains(t, res.Stdout, "NO_COLOR=1")
+	assert.Contains(t, res.Stdout, "HERAUT_CHECK_UPDATE=false", "the hermetic lane must never reach the update-check endpoint")
 
 	res = r.Run("/bin/sh", nil, "-c", "echo out; echo err >&2; exit 7")
 	assert.Equal(t, 7, res.ExitCode)

@@ -32,7 +32,7 @@ Failure modes the spec implies but a happy-path scenario would not exercise:
 2. The **shipped** binary must ignore `HERAUT_TEST_NOW` entirely (Task 4 test `shipped binary ignores HERAUT_TEST_NOW`).
 3. Ambient CI variables (`GITHUB_ACTIONS`, `GITLAB_CI`, `CI_*`) on the developer's/CI machine must not leak into a scenario run and change forge or branch detection (Task 3 test `TestRun_ScrubsAmbientEnvAndReportsExit`).
 4. A `go build` failure must surface the compiler output, not a confusing exec error later; a missing `git` must skip, not fail (Task 3 `Binary` and `NewRepo`).
-5. A pre-release tag, or a build-metadata-only tag, must never be the bump base of a final release (Task 4 rows `pre-release tag is not the bump base` and `build-metadata tag counts as its core release`).
+5. A pre-release tag must never be the bump base of a final release, while a build-metadata-only tag counts as the release of its core (ADR-0064) (Task 4 rows `pre-release tag is not the bump base` and `build-metadata tag counts as its core release`).
 
 ---
 

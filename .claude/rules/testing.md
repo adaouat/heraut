@@ -33,7 +33,7 @@ A fifth, separate layer drives the **built binary** from `e2e/`:
 - **Lane B (forge sandbox)** — `//go:build e2e_forge`, opt-in, never part of `go test ./...` or pull
   requests. The only layer allowed network calls, and only to the configured sandbox repos.
 
-Scenarios assert on stdout, exit code (via `internal/exitcode` values) and repo state. CalVer scenarios
+Scenarios assert on stdout, the literal exit code (`e2e/` imports no heraut `internal/` package, so a remapped code fails the suite) and repo state. CalVer scenarios
 use a binary built with `-tags heraut_testclock` and set `HERAUT_TEST_NOW`; never add a production
 clock override. A failing e2e scenario is fixed at the root cause like any other test.
 

@@ -67,6 +67,7 @@ func baseEnv(home string) []string {
 		"HOME=" + home,
 		"GIT_CONFIG_NOSYSTEM=1",
 		"NO_COLOR=1",
+		"HERAUT_CHECK_UPDATE=false",
 		"LC_ALL=C",
 	}
 }
