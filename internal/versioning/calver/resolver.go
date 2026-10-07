@@ -92,7 +92,7 @@ func (r *Resolver) BumpFromDate(tags []string) (string, error) {
 
 func (r *Resolver) computeNext(tokens []Token, latest *Values) (string, error) {
 	now := r.now()
-	nowValues := valuesFromTime(now, r.cfg.Versioning.Sprint)
+	nowValues := valuesFromTime(now, r.cfg.Versioning.Sprint, hasWeekToken(tokens))
 
 	var patch int
 	if latest == nil {
@@ -128,12 +128,18 @@ func (r *Resolver) prefix() string {
 	return ""
 }
 
-// valuesFromTime extracts calendar values from t plus the configured sprint counter.
-func valuesFromTime(t time.Time, sprint int) Values {
+// valuesFromTime extracts calendar values from t plus the configured sprint counter. When the
+// format carries WW, Year is the ISO year, the only year an ISO week number belongs to: around
+// New Year the calendar year would pair a week with the wrong year (2027 with week 53 of 2026) or
+// reuse a tag (2025.01.0 on 2025-12-29, which is week 1 of 2026).
+func valuesFromTime(t time.Time, sprint int, isoYear bool) Values {
 	month := int(t.Month())
-	_, isoWeek := t.ISOWeek()
+	year, isoWeek := t.ISOWeek()
+	if !isoYear {
+		year = t.Year()
+	}
 	return Values{
-		Year:     t.Year(),
+		Year:     year,
 		Month:    month,
 		Day:      t.Day(),
 		Week:     isoWeek,
@@ -141,6 +147,15 @@ func valuesFromTime(t time.Time, sprint int) Values {
 		Semester: (month-1)/6 + 1,
 		Sprint:   sprint,
 	}
+}
+
+func hasWeekToken(tokens []Token) bool {
+	for _, tok := range tokens {
+		if tok.Kind == KindWW {
+			return true
+		}
+	}
+	return false
 }
 
 // periodKey returns a string that uniquely identifies the calendar period for

@@ -445,3 +445,39 @@ func TestBumpAuto_Unsupported(t *testing.T) {
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "not supported")
 }
+
+// With WW in the format, YYYY is the ISO year: the calendar year would pair 2027 with ISO week 53
+// of 2026, or mint 2025.01.0 on 2025-12-29 (ISO week 1 of 2026), a tag that may already exist.
+func TestBumpFromDate_ISOYearPairsWithWeek(t *testing.T) {
+	tests := []struct {
+		name   string
+		format string
+		tags   []string
+		now    time.Time
+		want   string
+	}{
+		{"January days still in week 53 keep the old ISO year", "YYYY.WW.PATCH", []string{"2026.53.1"},
+			time.Date(2027, time.January, 1, 12, 0, 0, 0, time.UTC), "2026.53.2"},
+		{"late December days already in week 1 take the new ISO year", "YYYY.WW.PATCH", []string{"2025.52.3"},
+			time.Date(2025, time.December, 29, 12, 0, 0, 0, time.UTC), "2026.01.0"},
+		{"the last Sunday of the old ISO year", "YYYY.WW.PATCH", []string{"2025.52.3"},
+			time.Date(2025, time.December, 28, 12, 0, 0, 0, time.UTC), "2025.52.4"},
+		{"the first Monday of the new ISO year", "YYYY.WW.PATCH", []string{"2026.53.1"},
+			time.Date(2027, time.January, 4, 12, 0, 0, 0, time.UTC), "2027.01.0"},
+		{"WW anywhere in the format selects the ISO year", "YYYY.MM.WW.PATCH", []string{"2026.12.53.1"},
+			time.Date(2027, time.January, 1, 12, 0, 0, 0, time.UTC), "2026.01.53.0"},
+		{"formats without WW keep the calendar year", "YYYY.MM.PATCH", []string{"2026.12.4"},
+			time.Date(2027, time.January, 1, 12, 0, 0, 0, time.UTC), "2027.01.0"},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			cfg := &config.Config{Versioning: config.Versioning{Strategy: "calver", Format: tc.format}}
+			r := calver.New(nil, cfg, func() time.Time { return tc.now })
+
+			got, err := r.BumpFromDate(tc.tags)
+
+			require.NoError(t, err)
+			assert.Equal(t, tc.want, got)
+		})
+	}
+}

@@ -228,7 +228,7 @@ discipline that applies to every task.
 | 57 | SBOM generation; shell completions investigated | Done — completions not shipped (ADR-0013 + notarization gap), see T321/T322 |
 | 58 | Homebrew cask: tar.gz archive for completions/man pages | Done — see T323 |
 | 59 | SemVer v2 compliance and pre-release lifecycle | Done — see `semver-v2-roadmap.md` |
-| 60 | End-to-end tests: hermetic binary lane + opt-in forge sandboxes | In progress — T345a, T345b1, T357 done; T345b2-b5, c, d open |
+| 60 | End-to-end tests: hermetic binary lane + opt-in forge sandboxes | In progress — T345a, T345b1, T357, T358 done; T345b2-b5, c, d open |
 | 61 | GitLab publish driver follow-ups from T335 | In progress — T346 done, T347 (needs design) open |
 | 62 | Version branches: version from the branch name | Not started — see T348 (needs design) |
 | 63 | CalVer history-aware changelog bounds | Not started — see T356 |
@@ -2674,7 +2674,7 @@ the other e2e scenarios still lower-case error text before matching, which stays
 them independent of capitalisation. The wrapped continuation lines of the panel are unchanged
 (a long message still wraps at about 115 columns, even inside a hyphenated flag).
 
-#### `[ ]` T358: `YYYY.WW` pairs the calendar year with the ISO week and can mint a duplicate tag
+#### `[x]` T358: `YYYY.WW` pairs the calendar year with the ISO week and can mint a duplicate tag
 
 Found while preparing T345b1; confirmed by the T345b1 review. Under `format: "YYYY.WW.PATCH"` the
 year token is the calendar year and `WW` is the ISO week, so the days around New Year that belong
@@ -2691,6 +2691,15 @@ but a tag collision is a defect by any reasonable reading. Decide first (ADR or 
 add an ISO-year token and make `YYYY.WW` use it, or pair the ISO year with `WW` implicitly. Then fix
 with tests and add the year-edge week rows to `e2e/calver_test.go` (both directions); they were
 left out of T345b1 on purpose so a test does not cement the ambiguous behaviour.
+
+**Completion note:** `valuesFromTime` now takes the ISO year when the parsed format has a `WW`
+token (`hasWeekToken`); every other format keeps the calendar year. Decided with the user as "ISO
+year fix", recorded in [ADR-0067](../adr/0067-calver-iso-year-with-week.md) and Spec 04 (token and
+period tables). Tests first: `TestBumpFromDate_ISOYearPairsWithWeek` (six rows) failed on exactly
+the three edge rows before the fix; e2e rows in `e2e/calver_test.go` pin both New Year directions
+through the real binary, including the December duplicate-tag case. Left as is: a format mixing
+`MM` and `WW` follows the same rule (`2026.01.53.x` on 2027-01-01), which is odd but consistent.
+
 
 ### Phase 61 — GitLab publish driver follow-ups from T335
 

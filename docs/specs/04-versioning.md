@@ -368,7 +368,7 @@ the calendar period changes.
 
 | Token    | Description                        | Example value |
 |----------|------------------------------------|---------------|
-| `YYYY`   | 4-digit calendar year              | `2026`        |
+| `YYYY`   | 4-digit calendar year, or the ISO year when the format also has `WW` | `2026` |
 | `MM`     | 2-digit month (zero-padded)        | `05`          |
 | `DD`     | 2-digit day of month (zero-padded) | `07`          |
 | `WW`     | 2-digit ISO week number (01–53)    | `19`          |
@@ -376,6 +376,11 @@ the calendar period changes.
 | `SS`     | Semester (1–2)                     | `1`           |
 | `SPRINT` | Manually-managed sprint counter    | `5`           |
 | `PATCH`  | Auto-incrementing patch (required) | `0`, `3`      |
+
+With `WW` in the format, `YYYY` is the **ISO year** (the year the ISO week belongs to), so the days
+around New Year pair correctly: 2027-01-01 is week 53 of 2026 and renders `2026.53.x`, and
+2025-12-29 is week 1 of 2026 and renders `2026.01.x`. Formats without `WW` keep the calendar year
+([ADR-0067](../adr/0067-calver-iso-year-with-week.md)).
 
 `PATCH` is mandatory and must be the last *non-literal* token — a trailing literal
 suffix after it (e.g. `YYYY.MM.PATCH-rc`) is allowed. It resets to `0` whenever the
@@ -425,7 +430,7 @@ The "period" depends on which tokens appear in `format`:
 | Format contains | Period bucket                |
 |-----------------|------------------------------|
 | `YYYY.MM`       | Calendar month               |
-| `YYYY.WW`       | ISO week                     |
+| `YYYY.WW`       | ISO week (of the ISO year)   |
 | `YYYY.MM.DD`    | Calendar day                 |
 | `YYYY.QQ`       | Calendar quarter             |
 | `YYYY.SS`       | Calendar semester            |
