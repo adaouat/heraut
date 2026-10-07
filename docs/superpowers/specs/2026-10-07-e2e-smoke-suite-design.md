@@ -162,7 +162,7 @@ sandbox), rate-limit tuning, GitLab-over-`net/http` (T347 will need a rerun of B
   refuses to run unless the configured repo name matches `HERAUT_E2E_REPO_PATTERN` (default
   `*sandbox*`) and the repo is private.
 - **Configuration:** `HERAUT_E2E_GITHUB_REPO`, `HERAUT_E2E_GITLAB_PROJECT`,
-  `HERAUT_E2E_MIRROR_GITHUB_REPO` (B6 target), tokens as `GH_TOKEN` / `GITLAB_TOKEN`. A missing
+  `HERAUT_E2E_MIRROR_GITHUB_REPO` (B6 target), the B9 pair named under Resolved decisions, tokens as `GH_TOKEN` / `GITLAB_TOKEN`. A missing
   variable skips the test with an explicit message, so `go test -tags e2e_forge ./e2e/...` on a fresh
   machine is harmless. Tokens need branch/tag/release/package write on the sandbox repos only; no
   repository create or delete scopes.
@@ -196,11 +196,15 @@ T345 is too large for one session; it is replaced by four tasks, one per session
 Each task follows the two-step roadmap flow and TDD (a scenario that fails first, then the fix, if a
 real bug is found, in its own commit).
 
-## Open questions
+## Resolved decisions
 
-1. **Seed commit and sandbox layout.** One sandbox per forge plus one mirror repo (B6) is assumed.
-   B9 needs the sandbox to allow merging a PR/MR through the API (branch protection off on the sandbox).
-2. **Nightly notifications.** Advisory failures only appear in the Actions tab unless a channel is wired;
-   whether to add one is left to T345d.
-3. **Lane A runtime.** If building the binary per `TestMain` makes `go test ./...` noticeably slower,
-   Lane A moves behind `-short`; decide with measurements in T345a.
+1. **Lane A runtime.** The binary is built once per tag set in `TestMain` (about 1 s warm) and Lane A
+   stays in `go test ./...` with no `-short` gate. T345a records `go test ./...` timing before and
+   after in its roadmap note; if Lane A adds more than about 10 s, the slowest tables move behind
+   `-short`.
+2. **B9 sandbox.** Enrichment (B9) uses a dedicated third sandbox pair, one GitHub repo and one GitLab
+   project, with branch protection off so a PR/MR can be created and merged through the API.
+   B1-B8 stay on the stricter sandboxes, and the merge-capable token never touches them. Variables:
+   `HERAUT_E2E_GITHUB_ENRICH_REPO`, `HERAUT_E2E_GITLAB_ENRICH_PROJECT`.
+3. **Nightly notifications.** Deferred to T345d, which relies on GitHub's built-in email for failed
+   scheduled workflows. No new secret, integration or `issues: write` permission.
