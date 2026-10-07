@@ -64,6 +64,8 @@ type Versioning struct {
 	// annotation message too (internal/pipeline/git.go's commitMessage()). "${version}" is
 	// substituted with the resolved version. Defaults to "chore(release): ${version}".
 	CommitMessage string `yaml:"commit_message,omitempty"`
+	// Branches lists release and maintenance branches (semver only, ADR-0065).
+	Branches []BranchRule `yaml:"branches,omitempty"`
 }
 
 // BumpMode returns the configured SemVer bump mode ("auto" or "manual"), defaulting to "auto"

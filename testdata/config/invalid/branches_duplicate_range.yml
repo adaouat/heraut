@@ -1,0 +1,9 @@
+version: "1"
+
+versioning:
+  strategy: semver
+  branches:
+    - name: release/a
+      range: 1.3.x
+    - name: release/b
+      range: 1.3.x

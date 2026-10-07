@@ -78,6 +78,8 @@ func TestSchema_InvalidFixtures(t *testing.T) {
 		{"perenv_no_environments.yml", "per-env strategy requires environments"},
 		{"hooks_bare_string.yml", "hook step bare-string shorthand no longer accepted (ADR-0061)"},
 		{"targets_prerelease_removed.yml", "release.targets[].prerelease is a disallowed property (removed key, ADR-0064)"},
+		{"branches_bad_range.yml", "versioning.branches[].range must match N.x or N.N.x (ADR-0065)"},
+		{"branches_empty_name.yml", "versioning.branches[].name minLength 1 (ADR-0065)"},
 	}
 
 	for _, tc := range tests {
@@ -95,7 +97,7 @@ func TestSchema_SemanticOnlyFixturesPassSchema(t *testing.T) {
 
 	// These fixtures are structurally valid — schema must accept them.
 	// Semantic errors (cycles, ambiguous source) are caught by config.Validate only.
-	for _, name := range []string{"source_ambiguous.yml", "source_cycle.yml", "build_token_hyphen.yml"} {
+	for _, name := range []string{"source_ambiguous.yml", "source_cycle.yml", "build_token_hyphen.yml", "branches_non_semver.yml", "branches_duplicate_range.yml", "branches_bad_glob.yml"} {
 		t.Run(name, func(t *testing.T) {
 			path := filepath.Join("../../testdata/config/invalid", name)
 			v := yamlFileToJSON(t, path)

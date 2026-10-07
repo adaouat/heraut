@@ -121,6 +121,43 @@ versioning:
     mode: auto
 ```
 
+### `versioning.branches`
+
+`semver` strategy only. An ordered list of `{name, range?}` entries naming the release and
+maintenance branches (ADR-0065). Absent, every branch behaves as before.
+
+```yaml
+versioning:
+  strategy: semver
+  branches:
+    - name: main                 # release branch
+    - name: release/1.3          # maintenance branch, explicit range
+      range: 1.3.x               # >=1.3.0 <1.4.0 (patch only)
+    - name: "release/*"          # maintenance branch, range derived per matched branch
+```
+
+| Field   | Required | Description                                                                                                  |
+|---------|----------|--------------------------------------------------------------------------------------------------------------|
+| `name`  | Yes      | An exact branch name, or a glob in `path.Match` syntax (`*` does not cross `/`).                              |
+| `range` | No       | `N.x` (`>=N.0.0 <(N+1).0.0`, patch and minor bumps) or `N.N.x` (`>=N.M.0 <N.(M+1).0`, patch bumps only).     |
+
+The entry, not the branch, determines the type:
+
+| Entry                    | Type                                                       |
+|--------------------------|------------------------------------------------------------|
+| has `range`              | maintenance branch, that range                             |
+| glob `name`, no `range`  | maintenance branch, range derived from the matched branch  |
+| exact `name`, no `range` | release branch (today's behaviour)                         |
+
+Range derivation takes the branch name's last `/`-separated segment and accepts `N.x`, `N.N.x`
+or `N.N`, with one optional leading `v` (`release/1.3` and `release/1.3.x` give `1.3.x`;
+`release/1.x` gives `1.x`). An exact branch literally named `1.3.x` is a release branch unless it
+sets `range:`.
+
+Load-time validation: only valid under `strategy: semver`; every entry has a non-empty `name`;
+globs compile under `path.Match`; `range` parses as `N.x` or `N.N.x`; explicit ranges are unique
+across entries; unknown keys inside an entry are rejected.
+
 ### Strategy: `calver`
 
 ```yaml

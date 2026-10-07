@@ -690,6 +690,7 @@ func TestValidate_validFixtures(t *testing.T) {
 		"../../testdata/config/valid/platform-base-url.yml",
 		"../../testdata/config/valid/changelog-rotation-calver.yml",
 		"../../testdata/config/valid/changelog-rotation-semver.yml",
+		"../../testdata/config/valid/semver_branches.yml",
 	}
 	for _, path := range fixtures {
 		t.Run(path, func(t *testing.T) {
@@ -750,6 +751,31 @@ func TestValidate_invalidFixtures(t *testing.T) {
 			fixture:     "../../testdata/config/invalid/build_token_hyphen.yml",
 			wantPath:    "versioning.tag_format",
 			wantMessage: `must directly follow "+"`,
+		},
+		{
+			fixture:     "../../testdata/config/invalid/branches_non_semver.yml",
+			wantPath:    "versioning.branches",
+			wantMessage: "only valid with strategy: semver",
+		},
+		{
+			fixture:     "../../testdata/config/invalid/branches_bad_range.yml",
+			wantPath:    "versioning.branches[0].range",
+			wantMessage: "is not a valid range",
+		},
+		{
+			fixture:     "../../testdata/config/invalid/branches_duplicate_range.yml",
+			wantPath:    "versioning.branches[1].range",
+			wantMessage: "duplicates",
+		},
+		{
+			fixture:     "../../testdata/config/invalid/branches_bad_glob.yml",
+			wantPath:    "versioning.branches[0].name",
+			wantMessage: "invalid glob",
+		},
+		{
+			fixture:     "../../testdata/config/invalid/branches_empty_name.yml",
+			wantPath:    "versioning.branches[0].name",
+			wantMessage: "required",
 		},
 	}
 	for _, tc := range tests {

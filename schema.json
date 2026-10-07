@@ -541,6 +541,13 @@
         "commit_message": {
           "type": "string",
           "description": "Commit message template for the changelog commit, and (when tag_type is \"annotated\") the tag's own annotation message. \"${version}\" is substituted with the resolved version. Defaults to \"chore(release): ${version}\"."
+        },
+        "branches": {
+          "type": "array",
+          "description": "Release and maintenance branches (semver strategy only). An entry with a range, or a glob name without one, is a maintenance branch; an exact name without a range is a release branch. See docs/specs/02-configuration.md § versioning.branches.",
+          "items": {
+            "$ref": "#/definitions/BranchRule"
+          }
         }
       },
       "allOf": [
@@ -565,6 +572,25 @@
           }
         }
       ]
+    },
+    "BranchRule": {
+      "type": "object",
+      "required": [
+        "name"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "name": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Exact branch name, or a glob in path.Match syntax (\"*\" does not cross \"/\")."
+        },
+        "range": {
+          "type": "string",
+          "pattern": "^(0|[1-9][0-9]*)\\.((0|[1-9][0-9]*)\\.)?x$",
+          "description": "Version range this branch may release: N.x (patch and minor bumps) or N.N.x (patch bumps only), e.g. 1.x or 1.3.x. Omit on a glob name to derive it from the matched branch name."
+        }
+      }
     },
     "ContentDriver": {
       "type": "object",

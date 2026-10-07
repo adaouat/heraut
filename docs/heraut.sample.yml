@@ -91,6 +91,19 @@ versioning:
   # filtered out of the rendered changelog.
   # commit_message: "release: ${version} :rocket:"
 
+  # branches — optional release and maintenance branches (strategy: semver only).
+  # Omit the block and every branch behaves as before. See docs/guides/ for the
+  # maintenance-branch how-to.
+  #   exact name, no range   release branch (today's behaviour)
+  #   range: N.x / N.N.x     maintenance branch limited to that range
+  #   glob name, no range    maintenance branch, range derived from the matched
+  #                          branch name (release/1.3 -> 1.3.x)
+  # branches:
+  #   - name: main
+  #   - name: "release/*"
+  #   - name: support/legacy
+  #     range: 1.x
+
   # ── CalVer fields (strategy: calver or calver-per-env) ───────────────────
   #
   # format — required for calver / calver-per-env.

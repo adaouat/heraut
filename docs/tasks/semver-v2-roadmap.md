@@ -46,7 +46,7 @@ pre-release lifecycle (`--pre-release <label>`) for the plain `semver` strategy.
 | T342 | End-to-end pre-release scenarios on a real repo | Done |
 | T343 | ADR-0064 Phase 2 status update and Phase 2 close | Done |
 | T344 | Maintenance-branch support (last final + notes from branch history) | In progress — broken down into T349–T355 |
-| T349 | `versioning.branches` config, range parsing, validation | Not started |
+| T349 | `versioning.branches` config, range parsing, validation | Done |
 | T350 | Current-branch detection, rule matching, unlisted-branch publish guard | Not started |
 | T351 | Maintenance resolution in `semver.Resolver` | Not started |
 | T352 | History-aware changelog and notes bounds | Not started |
@@ -556,10 +556,20 @@ plan: `.claude/plans/semver-v2-phase-3-maintenance-branches.md`, which carries e
 scope and tests). The real-data fixture cleanup recorded on T344 lands first as its own `test:`
 commit.
 
-### [ ] T349 — `versioning.branches` config, range parsing, validation
+### [x] T349 — `versioning.branches` config, range parsing, validation
 
 Plan Task 1: `BranchRule`/`BranchRange`, `ParseBranchRange`/`DeriveBranchRange`, `validateBranches`,
 `schema.json`, sample, fixtures, Spec 02.
+
+Done. `internal/config/branches.go` adds `BranchRule`, `BranchRange` (`Minor == nil` means `N.x`),
+`ParseBranchRange`, `DeriveBranchRange`, `IsGlob` and `String`, all pure; `Versioning.Branches` and
+`validateBranches` (semver only, name required, glob compiles via `path.Match`, range parses,
+explicit ranges unique) are wired into `Validate`. `schema.json` gains `BranchRule` (name
+`minLength: 1`, range pattern); the sample and Spec 02 (new `versioning.branches` subsection) are
+updated. Fixtures: `valid/semver_branches.yml` plus five `invalid/branches_*.yml`; the schema
+rejects `bad_range` and `empty_name`, while `non_semver`, `duplicate_range` and `bad_glob` are
+semantic-only and covered by the validator table. Deviation: the sample's pointer to the
+maintenance-branch guide is generic because the guide itself lands in T355.
 
 ### [ ] T350 — Current-branch detection, rule matching, unlisted-branch publish guard
 

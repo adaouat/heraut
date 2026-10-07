@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net/url"
 	"os"
+	pathpkg "path"
 	"regexp"
 	"sort"
 	"strings"
@@ -50,6 +51,7 @@ func Validate(cfg *Config) ValidationErrors {
 	errs = append(errs, validateRequired(cfg)...)
 	errs = append(errs, validateEnums(cfg)...)
 	errs = append(errs, validateVersioningBump(cfg)...)
+	errs = append(errs, validateBranches(cfg)...)
 	errs = append(errs, validateStrategySpecific(cfg)...)
 	errs = append(errs, validateEnvContradictions(cfg.Environments)...)
 	errs = append(errs, validateTickets(cfg)...)
@@ -659,6 +661,55 @@ func validateVersioningBump(cfg *Config) []ValidationError {
 				Hint:    "valid levels: major, minor, patch, none",
 			})
 		}
+	}
+	return errs
+}
+
+// validateBranches validates versioning.branches (ADR-0065): semver strategy only, each entry
+// has a name that compiles as a path.Match pattern and an optional range that parses, and
+// explicit ranges are unique.
+func validateBranches(cfg *Config) []ValidationError {
+	branches := cfg.Versioning.Branches
+	if len(branches) == 0 {
+		return nil
+	}
+	if cfg.Versioning.Strategy != "semver" {
+		return []ValidationError{{
+			Path:    "versioning.branches",
+			Message: fmt.Sprintf("only valid with strategy: semver (current strategy: %s)", cfg.Versioning.Strategy),
+			Hint:    "per-env strategies tie branches to environments via environments.<env>.branch; remove versioning.branches",
+		}}
+	}
+	var errs []ValidationError
+	seen := make(map[string]int, len(branches))
+	for i, b := range branches {
+		path := fmt.Sprintf("versioning.branches[%d]", i)
+		if b.Name == "" {
+			errs = append(errs, ValidationError{Path: path + ".name", Message: "required"})
+		} else if _, err := pathpkg.Match(b.Name, ""); errors.Is(err, pathpkg.ErrBadPattern) {
+			errs = append(errs, ValidationError{Path: path + ".name", Message: "invalid glob"})
+		}
+		if b.Range == "" {
+			continue
+		}
+		r, err := ParseBranchRange(b.Range)
+		if err != nil {
+			errs = append(errs, ValidationError{
+				Path:    path + ".range",
+				Message: fmt.Sprintf("%q is not a valid range", b.Range),
+				Hint:    "use N.x (patch and minor) or N.N.x (patch only), e.g. 1.x or 1.3.x",
+			})
+			continue
+		}
+		key := r.String()
+		if first, dup := seen[key]; dup {
+			errs = append(errs, ValidationError{
+				Path:    path + ".range",
+				Message: fmt.Sprintf("duplicates versioning.branches[%d].range (%s)", first, key),
+			})
+			continue
+		}
+		seen[key] = i
 	}
 	return errs
 }

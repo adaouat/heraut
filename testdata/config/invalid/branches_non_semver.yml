@@ -1,0 +1,7 @@
+version: "1"
+
+versioning:
+  strategy: calver
+  format: "YYYY.MM.PATCH"
+  branches:
+    - name: main
