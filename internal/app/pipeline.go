@@ -625,7 +625,7 @@ func buildGenerator(runner port.Runner, driver *config.ContentDriver, defaultMod
 	nativeDriver.HerautVersion = herautVersion
 	nativeDriver.RegenerateChangelog = regenerateChangelog
 	nativeDriver.Force = force
-	var opts []native.Option
+	opts := []native.Option{native.WithClock(clock())}
 	if enrichForge != nil {
 		opts = append(opts, native.WithForge(enrichForge))
 	}

@@ -994,3 +994,10 @@ func TestGenerator_ScopedPreviousTag_AbsentTag_RealRepo(t *testing.T) {
 		assert.Equal(t, "v1.3.0", prev, tag)
 	}
 }
+
+func TestWithClock_FeedsGeneratedAt(t *testing.T) {
+	pinned := time.Date(2031, 3, 4, 5, 6, 0, 0, time.UTC)
+	g := New(nil, &config.ContentDriver{}, ModeChangelog, WithClock(func() time.Time { return pinned }))
+
+	assert.True(t, g.herautMeta().GeneratedAt.Equal(pinned))
+}

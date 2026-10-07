@@ -96,6 +96,16 @@ func WithReachableFromHead() Option {
 	return func(g *Generator) { g.reachableFromHead = true }
 }
 
+// WithClock replaces the clock behind the section dates and .Heraut.GeneratedAt; a nil clock
+// keeps time.Now.
+func WithClock(now func() time.Time) Option {
+	return func(g *Generator) {
+		if now != nil {
+			g.now = now
+		}
+	}
+}
+
 // herautMeta builds the document-meta value passed to templates as .Heraut.
 func (g *Generator) herautMeta() tplHeraut {
 	return tplHeraut{Version: g.cfg.HerautVersion, URL: herautProjectURL, GeneratedAt: g.now()}
