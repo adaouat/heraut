@@ -16,9 +16,10 @@ func commit(msg string) step { return step{commit: msg} }
 func tag(name string) step   { return step{tag: name} }
 
 const (
-	exitOK      = 0
-	exitConfig  = 2
-	exitRuntime = 3
+	exitOK        = 0
+	exitConfig    = 2
+	exitRuntime   = 3
+	exitPromotion = 4
 )
 
 type scenario struct {
@@ -26,6 +27,7 @@ type scenario struct {
 	config   string
 	history  []step
 	args     []string
+	env      []string // extra environment for this row only
 	wantExit int
 	wantOut  string   // exact trimmed stdout; checked only when wantExit == exitOK
 	wantText []string // lower-cased, whitespace-collapsed substrings of stdout+stderr
@@ -52,7 +54,7 @@ func runScenarios(t *testing.T, bin string, env []string, tests []scenario) {
 				}
 			}
 
-			res := repo.Run(bin, env, tc.args...)
+			res := repo.Run(bin, append(append([]string{}, env...), tc.env...), tc.args...)
 
 			require.Equal(t, tc.wantExit, res.ExitCode, "stdout:\n%s\nstderr:\n%s", res.Stdout, res.Stderr)
 			if tc.wantExit == exitOK {

@@ -48,3 +48,10 @@ func TestBinary_BuildsOncePerTagSet(t *testing.T) {
 	assert.FileExists(t, plain)
 	assert.FileExists(t, tagged)
 }
+
+func TestRepo_ReadFile(t *testing.T) {
+	r := NewRepo(t)
+	r.WriteConfig("version: \"1\"\n")
+
+	assert.Equal(t, "version: \"1\"\n", r.ReadFile(".heraut.yml"))
+}

@@ -71,3 +71,13 @@ func baseEnv(home string) []string {
 		"LC_ALL=C",
 	}
 }
+
+// ReadFile returns the contents of a file relative to the repository root.
+func (r *Repo) ReadFile(rel string) string {
+	r.t.Helper()
+	b, err := os.ReadFile(filepath.Join(r.Dir, rel))
+	if err != nil {
+		r.t.Fatalf("reading %s: %v", rel, err)
+	}
+	return string(b)
+}
