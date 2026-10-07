@@ -227,10 +227,11 @@ discipline that applies to every task.
 | 56 | Sign the raw binaries with a packslip manifest | Done — not yet exercised by a real release run, see T319/T320 |
 | 57 | SBOM generation; shell completions investigated | Done — completions not shipped (ADR-0013 + notarization gap), see T321/T322 |
 | 58 | Homebrew cask: tar.gz archive for completions/man pages | Done — see T323 |
-| 59 | SemVer v2 compliance and pre-release lifecycle | In progress — see `semver-v2-roadmap.md` |
+| 59 | SemVer v2 compliance and pre-release lifecycle | Done — see `semver-v2-roadmap.md` |
 | 60 | End-to-end smoke tests against real GitHub/GitLab sandboxes | Not started — see T345 (needs design) |
 | 61 | GitLab publish driver follow-ups from T335 | In progress — T346 done, T347 (needs design) open |
 | 62 | Version branches: version from the branch name | Not started — see T348 (needs design) |
+| 63 | CalVer history-aware changelog bounds | Not started — see T356 |
 
 ### Open items
 
@@ -2691,6 +2692,19 @@ bump it, and a re-release goes through `-rc.N` / `+build` instead of colliding. 
 `versioning.branches` landing first. Design questions: how an entry declares the type (a `version:
 from-branch` field vs. a separate key), how it coexists with maintenance globs on the same
 `release/*` namespace, and what a re-release does by default.
+
+### Phase 63 — CalVer history-aware changelog bounds
+
+#### `[ ]` T356: history-aware changelog bounds for CalVer
+
+Follow-up to ADR-0065 (SemVer v2 Phase 3, T352). Under `semver` and `semver-per-env`, changelog
+and release-notes bounds now come from each section's own ancestry (`--merged <tag>`) and the
+walk lists only tags reachable from `HEAD`. CalVer (`calver`, `calver-per-env`) was left
+byte-for-byte unchanged, so a CalVer tag cut on a branch that never merged back still gets a
+section and can bound a later one. Apply the same rule when no tag order is set. CalVer's
+zero-padded tags (`2026.05.0`) do not parse as SemVer, so the ancestor pool needs its own ordering
+(the lenient dotted-integer comparison CalVer already uses) rather than `semver.Compare`. Needs
+only a small design note: the generator already takes the order as a function.
 
 ---
 

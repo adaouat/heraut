@@ -260,6 +260,8 @@ whitespace) regardless of shape.
 
 ### Maintenance branches
 
+Decision record: [ADR-0065](../adr/0065-branch-aware-semver-resolution.md).
+
 When `versioning.branches` is set (`semver` only — see
 [Spec 02 § `versioning.branches`](02-configuration.md#versioningbranches)), automatic resolution
 first reads the current branch (`git rev-parse --abbrev-ref HEAD`, then on a detached `HEAD` the

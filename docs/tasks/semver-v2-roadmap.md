@@ -1,9 +1,9 @@
 # Héraut — SemVer v2 Roadmap
 
-> Status: Active — Phase 3 (maintenance branches, T344 → T349–T355) in progress
+> Status: Done — epic complete (Phases 1, 1.5, 2 and 3 closed)
 > Phase 3 design: [`docs/superpowers/specs/2026-10-05-maintenance-branches-design.md`](../superpowers/specs/2026-10-05-maintenance-branches-design.md); plan: `.claude/plans/semver-v2-phase-3-maintenance-branches.md`
 > Design: [`docs/superpowers/specs/2026-09-28-semver-v2-compliance-design.md`](../superpowers/specs/2026-09-28-semver-v2-compliance-design.md)
-> ADRs: new ADR-0064 ("SemVer v2 compliance and pre-release lifecycle" — written in T324)
+> ADRs: ADR-0064 ("SemVer v2 compliance and pre-release lifecycle" — written in T324), ADR-0065 ("Branch-aware SemVer resolution" — T355)
 > Main roadmap: tracked as Phase 59 in [`roadmap.md`](roadmap.md)
 
 heraut implements the bare `MAJOR.MINOR.PATCH` subset of SemVer v2 only. This epic makes it
@@ -45,14 +45,14 @@ pre-release lifecycle (`--pre-release <label>`) for the plain `semver` strategy.
 | T341 | Release-notes range for pre-releases; absent-tag fallback fix | Done |
 | T342 | End-to-end pre-release scenarios on a real repo | Done |
 | T343 | ADR-0064 Phase 2 status update and Phase 2 close | Done |
-| T344 | Maintenance-branch support (last final + notes from branch history) | In progress — broken down into T349–T355 |
+| T344 | Maintenance-branch support (last final + notes from branch history) | Done — delivered as T349–T355 |
 | T349 | `versioning.branches` config, range parsing, validation | Done |
 | T350 | Current-branch detection, rule matching, unlisted-branch publish guard | Done |
 | T351 | Maintenance resolution in `semver.Resolver` | Done |
 | T352 | History-aware changelog and notes bounds | Done |
 | T353 | `version current` and pre-releases on maintenance branches | Done |
 | T354 | End-to-end maintenance scenarios on a real repo | Done |
-| T355 | ADR-0065, guide, Phase 3 close | Not started |
+| T355 | ADR-0065, guide, Phase 3 close | Done |
 
 ## Phase 1 — Compliance
 
@@ -513,7 +513,7 @@ git call"). README and `docs/guides` list no release flags (`--allow-major` and
 `--include-pre-release` appear nowhere), so no flag list needed `--pre-release`.
 
 **Phase 2 closed** (T338-T343). Deviations from the plan are in the task notes above; the
-epic stays Active only for T335 and T344.
+epic stayed Active only for T335 and T344 at that point.
 
 ### Notes carried from Phase 1 / 1.5
 
@@ -676,15 +676,33 @@ the tree at `5073768` (before T351), in a throwaway worktree with the new error 
 changelog on `release/1.3` listed `v2.0.0` and `v1.4.0` sections; #5 and #8 (unchanged behaviour)
 passed there. No production code changed.
 
-### [ ] T355 — ADR-0065, guide, Phase 3 close
+### [x] T355 — ADR-0065, guide, Phase 3 close
 
 Plan Task 7.
 
+Done. ADR-0065 ("Branch-aware SemVer resolution", `docs/adr/0065-branch-aware-semver-resolution.md`)
+records the model and entry-type table, prior art (semantic-release, GitVersion), the branch-type
+resolution table, why hard errors, the history-aware bounds and their one reach into configs
+without `branches`, the `--set-version` rule, the rejected alternatives, and the implementation
+clarifications: the `--set-version` collision relying on the `git tag` failure, `--dry-run` not
+refused on unlisted branches, scope-preserving per-section bounds, the Config/Runtime exit split,
+`ErrUnderivableRange` under `--pre-release`, escalation limited to the line's own series, the
+`commit check --from-latest-tag` fallback, and forward-merged fixes appearing in a later `main`
+section. ADR-0064's Phase 2 status update and Spec 04 link to it; `docs/guides/maintenance-branches.md`
+(indexed in `docs/guides/README.md`) is the task-oriented how-to, including the fixed-version
+`--set-version` case (T348); `CLAUDE.md`'s ADR count is 64. The CalVer equivalent of the history-aware
+bounds is filed as T356 (Phase 63 in `roadmap.md`).
+
+**Phase 3 closed** (T349-T355). Deviations are in the task notes above. T344 is flipped.
+
 ## Later
 
-### [ ] T344 — Maintenance-branch support: last final and notes from branch history
+### [x] T344 — Maintenance-branch support: last final and notes from branch history
 
-Broken down into T349–T355 (Phase 3 above); flipped when Phase 3 closes.
+Done. Delivered as T349–T355 (Phase 3 above); the decision is recorded in
+[ADR-0065](../adr/0065-branch-aware-semver-resolution.md). The questions below were answered there:
+core, finals' notes and changelog bounds all become history-aware (the core only on declared
+maintenance branches), and per-core monotonicity stays global.
 
 Needs its own design. heraut resolves against the whole repo's tag list, not the current branch's
 history: the semver resolver's `git tag -l <prefix>*` is global, so cutting `v1.3.2` on a

@@ -154,7 +154,8 @@ in § Decision are historical; this update is authoritative where they differ.
   (pre-release or final) strictly below the version being cut and reachable from `HEAD`
   (`git tag --merged HEAD`). One rule drives both the commit requirement and the release-notes
   range. Finals are unchanged: last final, by precedence only. Core and last-final computation
-  stay global; branch-aware resolution is filed as T344.
+  stay global; branch-aware resolution is filed as T344, decided in
+  [ADR-0065](0065-branch-aware-semver-resolution.md).
 - **Commit-requirement exemption amended.** § Decision exempts only promotion to the final from
   the "at least one commit since the previous tag" rule. T342 widens that: a pre-release of the
   same core switching to a different, higher label (`beta.2` to `rc.1`) needs no new commit,
