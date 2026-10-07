@@ -167,3 +167,59 @@ func TestHistoryBounds_RealRepo_PerEnvAncestryIsScopePreserving(t *testing.T) {
 	assert.NotContains(t, prod130, "Commit a")
 	assert.NotContains(t, body, "<!-- heraut-release: uat/1.3.0 -->")
 }
+
+// TestHistoryBounds_RealRepo_SameCommitTagsBoundEachOther (ADR-0065): two releases tagged on one
+// commit bound each other as they did before ancestry bounds — v1.4.1's section is v1.4.0..v1.4.1,
+// empty — so v1.4.0's entries are never repeated under v1.4.1, keeping linear-history output
+// unchanged.
+func TestHistoryBounds_RealRepo_SameCommitTagsBoundEachOther(t *testing.T) {
+	git := historyRepo(t)
+	commit := func(msg string) { git("commit", "--allow-empty", "-m", msg) }
+	tag := func(name string) { git("tag", "-a", "-m", name, name) }
+
+	commit("feat: initial")
+	tag("v1.3.0")
+	commit("feat: minor feature")
+	tag("v1.4.0")
+	tag("v1.4.1")
+	commit("feat: next feature")
+	cfg := &config.Config{Versioning: config.Versioning{Strategy: "semver"}}
+
+	body := regenerateSemver(t, cfg, "", config.ContentDriver{}, "v1.5.0")
+
+	assert.Equal(t, 1, strings.Count(body, "Minor feature"), "v1.4.0's entries appear once:\n%s", body)
+	assert.NotContains(t, sectionOf(body, "v1.4.1"), "Minor feature")
+	v140 := sectionOf(body, "v1.4.0")
+	require.NotEmpty(t, v140)
+	assert.Contains(t, v140, "Minor feature")
+	assert.Contains(t, v140, "compare/v1.3.0..v1.4.0")
+}
+
+// TestHistoryBounds_RealRepo_PromotionTagOnSameCommitNeverBoundsFallback (ADR-0065): a promotion
+// tags one commit for several envs. prod/1.2.0, the oldest prod release, shares its commit with
+// uat/1.2.0; the oldest-in-scope fallback must skip that same-commit tag and bound at uat/1.1.0,
+// not produce an empty section.
+func TestHistoryBounds_RealRepo_PromotionTagOnSameCommitNeverBoundsFallback(t *testing.T) {
+	git := historyRepo(t)
+	commit := func(msg string) { git("commit", "--allow-empty", "-m", msg) }
+	tag := func(name string) { git("tag", "-a", "-m", name, name) }
+
+	commit("feat: commit a")
+	tag("uat/1.1.0")
+	commit("feat: commit b")
+	tag("uat/1.2.0")
+	tag("prod/1.2.0")
+	commit("feat: commit c")
+
+	cfg := &config.Config{
+		Versioning:   config.Versioning{Strategy: "semver-per-env", TagFormat: "{env}/{version}"},
+		Environments: map[string]config.Environment{"prod": {}, "uat": {}},
+	}
+
+	body := regenerateSemver(t, cfg, "prod", config.ContentDriver{TagGlob: "prod/*"}, "prod/1.3.0")
+
+	prod120 := sectionOf(body, "prod/1.2.0")
+	require.NotEmpty(t, prod120)
+	assert.Contains(t, prod120, "Commit b")
+	assert.NotContains(t, prod120, "Commit a")
+}

@@ -648,6 +648,17 @@ queued, log-call indexes 2/3 → 3/5). New: three `TestGenerator_BuildAllSection
 scope). Deviation: the per-env real-git scenario passes on the pre-change code too (the old walk
 already bounded by the scoped list); it was shown RED against the unscoped ancestry rule instead.
 Spec 05 gains § History-aware bounds. ADR-0065 itself is T355's.
+Final review fixes: the in-scope membership listing dropped `--no-contains <t>` (now `git tag -l
+--merged <t>`, `t` dropped by name, via `listAncestorTags`), because excluding every tag on `t`'s
+commit made the newer of two same-commit releases bound at the release before both and repeat the
+older one's entries; the oldest-in-scope fallback keeps `listMergedTags`' `--no-contains` (a
+promotion tag on `t`'s commit must not bound it) and lists only when it runs, and the oldest
+section, with no candidates, skips the membership listing. New real-git rows
+`TestHistoryBounds_RealRepo_SameCommitTagsBoundEachOther` (RED first: `v1.4.1` bounded at
+`v1.3.0`) and `..._PromotionTagOnSameCommitNeverBoundsFallback`; the argv/FIFO of
+`TestGenerator_GenerateChangelog_TagOrder_FiltersAndReorders` and
+`TestGenerator_BuildAllSections_TagOrder_BoundsEachSectionByAncestry` were edited in place
+(ADR-0065 comments).
 
 ### [x] T353 — `version current` and pre-releases on maintenance branches
 

@@ -695,11 +695,11 @@ func TestGenerator_GenerateChangelog_TagOrder_FiltersAndReorders(t *testing.T) {
 	mr := exectest.NewMockRunner()
 	mr.QueueResponse("v1.3.0\nv1.4.0-rc.1\nv1.4.0+158404\n", "", nil)                                         // listTags: unordered by our fake order
 	mr.QueueResponse(record("ccc3333333", "C", "c@x", "2026-03-01T00:00:00Z", "feat: commit c", ""), "", nil) // new: v1.4.0+158404..HEAD
-	// ADR-0065: with a tag order, each historical section first lists its own ancestor tags
-	// (git tag -l --merged <t> --no-contains <t>) and is bounded by the highest one in scope.
+	// ADR-0065: with a tag order, each historical section with older candidates first lists its
+	// own ancestor tags (git tag -l --merged <t>) and is bounded by the highest one in scope; the
+	// oldest section (v1.3.0) has no candidates and, unscoped, no fallback, so it lists nothing.
 	mr.QueueResponse("v1.4.0-rc.1\nv1.3.0\n", "", nil)                                                        // ancestors of v1.4.0+158404
 	mr.QueueResponse(record("bbb2222222", "B", "b@x", "2026-02-01T00:00:00Z", "feat: commit b", ""), "", nil) // historical: v1.3.0..v1.4.0+158404
-	mr.QueueResponse("", "", nil)                                                                             // ancestors of v1.3.0: none
 	mr.QueueResponse("", "", nil)                                                                             // historical: oldest-in-list section ("v1.3.0"), no commits — skipped
 
 	g := New(mr, &config.ContentDriver{}, ModeChangelog, WithTagOrder(preReleaseFilterOrder))
@@ -712,12 +712,13 @@ func TestGenerator_GenerateChangelog_TagOrder_FiltersAndReorders(t *testing.T) {
 	assert.Contains(t, body, "Commit c")
 	assert.Contains(t, body, "Commit b")
 
-	// ADR-0065: the historical log calls shift to indexes 3 and 5, after each section's ancestor listing.
-	require.Len(t, mr.Calls, 6)
+	// ADR-0065: the historical log calls shift to indexes 3 and 4, after v1.4.0+158404's ancestor
+	// listing; the oldest section makes none.
+	require.Len(t, mr.Calls, 5)
 	assert.Equal(t, []string{"log", "v1.4.0+158404..HEAD", "--reverse", "--format=" + logFormat}, mr.Calls[1].Args,
 		"the new section is bounded by order()'s first entry, not git's own sort")
 	assert.Equal(t, []string{"log", "v1.3.0..v1.4.0+158404", "--reverse", "--format=" + logFormat}, mr.Calls[3].Args)
-	assert.Equal(t, []string{"log", "v1.3.0", "--reverse", "--format=" + logFormat}, mr.Calls[5].Args,
+	assert.Equal(t, []string{"log", "v1.3.0", "--reverse", "--format=" + logFormat}, mr.Calls[4].Args,
 		"the oldest tag in order()'s own list has no predecessor within it")
 }
 
@@ -776,7 +777,7 @@ func TestGenerator_GenerateChangelog_TagOrder_OldestInScopeFallbackIsAncestryBou
 
 // TestGenerator_BuildAllSections_TagOrder_BoundsEachSectionByAncestry (T352, ADR-0065): with a tag
 // order set, every existing section is bounded by its highest-precedence in-scope ancestor, found
-// with one `git tag -l --merged <t> --no-contains <t>` per section. v1.3.2 was cut on a
+// with one `git tag -l --merged <t>` per section that has older candidates. v1.3.2 was cut on a
 // maintenance line after v1.4.0 and merged forward, so it sits between v1.4.0 and v1.3.1 in the
 // ordered list without being v1.4.0's ancestor: v1.4.0 skips it and bounds at v1.3.1.
 func TestGenerator_BuildAllSections_TagOrder_BoundsEachSectionByAncestry(t *testing.T) {
@@ -787,7 +788,6 @@ func TestGenerator_BuildAllSections_TagOrder_BoundsEachSectionByAncestry(t *test
 	mr.QueueResponse(record("aaa1111111", "A", "a@x", "2026-03-01T00:00:00Z", "feat: four", ""), "", nil) // v1.3.1..v1.4.0
 	mr.QueueResponse("v1.3.1\n", "", nil)                                                                 // ancestors of v1.3.2
 	mr.QueueResponse(record("bbb2222222", "B", "b@x", "2026-04-01T00:00:00Z", "fix: m", ""), "", nil)     // v1.3.1..v1.3.2
-	mr.QueueResponse("", "", nil)                                                                         // ancestors of v1.3.1: none
 	mr.QueueResponse(record("ccc3333333", "C", "c@x", "2026-01-01T00:00:00Z", "feat: one", ""), "", nil)  // v1.3.1 (full history)
 
 	g := New(mr, &config.ContentDriver{RegenerateChangelog: true}, ModeChangelog, WithTagOrder(allKindsDescOrder))
@@ -797,11 +797,12 @@ func TestGenerator_BuildAllSections_TagOrder_BoundsEachSectionByAncestry(t *test
 	want := [][]string{
 		{"tag", "-l", "--sort=-version:refname"},
 		{"log", "v1.4.0..HEAD", "--reverse", "--format=" + logFormat},
-		{"tag", "-l", "--merged", "v1.4.0", "--no-contains", "v1.4.0", "--sort=-version:refname"},
+		// ADR-0065: the in-scope listing keeps same-commit tags (no --no-contains), and the oldest
+		// section, with no candidates and no scope fallback, lists nothing.
+		{"tag", "-l", "--merged", "v1.4.0", "--sort=-version:refname"},
 		{"log", "v1.3.1..v1.4.0", "--reverse", "--format=" + logFormat},
-		{"tag", "-l", "--merged", "v1.3.2", "--no-contains", "v1.3.2", "--sort=-version:refname"},
+		{"tag", "-l", "--merged", "v1.3.2", "--sort=-version:refname"},
 		{"log", "v1.3.1..v1.3.2", "--reverse", "--format=" + logFormat},
-		{"tag", "-l", "--merged", "v1.3.1", "--no-contains", "v1.3.1", "--sort=-version:refname"},
 		{"log", "v1.3.1", "--reverse", "--format=" + logFormat},
 	}
 	require.Len(t, mr.Calls, len(want))

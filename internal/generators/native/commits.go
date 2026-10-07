@@ -197,6 +197,25 @@ func listMergedTags(runner port.Runner, ref string) ([]string, error) {
 	return tags, nil
 }
 
+// listAncestorTags returns the tags reachable from ref other than ref itself
+// (`git tag -l --merged <ref>`, ref dropped by name), newest-first by version refname. Unlike
+// listMergedTags it keeps tags sharing ref's commit: buildAllSections' in-scope bound must see
+// them, or of two releases tagged on one commit the newer would skip the older and repeat its
+// entries (ADR-0065).
+func listAncestorTags(runner port.Runner, ref string) ([]string, error) {
+	stdout, _, err := runner.Run("git", "tag", "-l", "--merged", ref, "--sort=-version:refname")
+	if err != nil {
+		return nil, fmt.Errorf("listing tags merged into %s: %w", ref, err)
+	}
+	var tags []string
+	for line := range strings.SplitSeq(strings.TrimSpace(stdout), "\n") {
+		if t := strings.TrimSpace(line); t != "" && t != ref {
+			tags = append(tags, t)
+		}
+	}
+	return tags, nil
+}
+
 // filterByTagPattern keeps the tags matching pattern (a Go regex, T139), preserving order. An
 // empty pattern returns tags unchanged. An invalid pattern is an error. Used when the user sets
 // an explicit tag_pattern with the native generator — the regex analogue of git-cliff's

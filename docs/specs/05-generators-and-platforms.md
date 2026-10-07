@@ -154,11 +154,14 @@ notes and changelog rotation's previous-tag lookup see only tags reachable from 
 (`git tag -l [glob] --merged HEAD`): a tag cut on a maintenance line never merged into the current
 branch gets no section and never bounds one. On a `--regenerate` walk, each existing section's
 lower bound comes from its own ancestry: the bound of tag `t` is the highest-precedence tag that is
-*both* in the scoped list and an ancestor of `t` (`git tag -l --merged <t> --no-contains <t>`, one
-call per section). The rule is scope-preserving — under `semver-per-env`, a `uat/1.3.0` ancestor
+*both* in the scoped list and an ancestor of `t` (`git tag -l --merged <t>`, `t` itself dropped, one
+call per section that has an older tag in the list). Tags on `t`'s own commit count as ancestors
+here, so of two releases tagged on one commit the newer is bounded by the older (an empty section),
+as in linear history. The rule is scope-preserving — under `semver-per-env`, a `uat/1.3.0` ancestor
 never bounds `prod/1.3.0`'s section while `prod/1.2.0` is an ancestor too. Only when no in-scope
 ancestor exists does the oldest-in-scope fallback above apply (scoped: the ordered ancestor pool's
-first entry; unscoped: the start of history). So after `release/1.3` is merged forward into `main`,
+first entry, from `git tag -l --merged <t> --no-contains <t>`, which leaves out tags on `t`'s own
+commit so another env's promotion tag never bounds it; unscoped: the start of history). So after `release/1.3` is merged forward into `main`,
 `v1.3.2` gets its own `v1.3.1..v1.3.2` section and `v1.4.0` stays bounded at `v1.3.1`. The tag being
 cut is not in git yet, so its bound keeps T341's ordering-in rule over the reachable list. A
 repository whose tags all lie on one line of history (linear history, the common case) renders

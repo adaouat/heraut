@@ -277,19 +277,21 @@ func (g *Generator) buildAllSections(tag string, lc *port.LinkContext, enrichAll
 	// tag in order can sit on another line of history (a maintenance tag merged forward after t
 	// was cut), and bounding by it would describe a range t never contained. The membership test
 	// is scope-preserving — an out-of-scope ancestor (another env's tag under semver-per-env) never
-	// wins over an in-scope one. Linear history keeps the next-older tag, so output is unchanged.
+	// wins over an in-scope one. The ancestor listing keeps tags on t's own commit, so a release
+	// tagged on the same commit as an older one is still bounded by it (an empty section), as
+	// before. Linear history keeps the next-older tag, so output is unchanged. The oldest tag has
+	// no candidates and skips the listing.
 	// release-notes mode instead resolves prev via git-describe topology (or, equally with a
 	// tagOrder set, the ordered list); equivalent for linear history — the common case.
 	for i, t := range tags {
 		prev := ""
-		var merged []string
-		if g.tagOrder != nil {
-			var err error
-			if merged, err = listMergedTags(g.runner, t); err != nil {
+		if g.tagOrder != nil && i+1 < len(tags) {
+			ancestors, err := listAncestorTags(g.runner, t)
+			if err != nil {
 				return "", err
 			}
 			for _, cand := range tags[i+1:] {
-				if slices.Contains(merged, cand) {
+				if slices.Contains(ancestors, cand) {
 					prev = cand
 					break
 				}
@@ -312,8 +314,14 @@ func (g *Generator) buildAllSections(tag string, lc *port.LinkContext, enrichAll
 			// listMergedTags(runner, t) lists exactly t's ancestor tags; tagOrder's first
 			// entry in that pool is the highest-precedence ancestor release, i.e. the true
 			// previous tag (t itself is never in the pool, since --no-contains t excludes it).
-			// merged is the ancestor listing already taken above for this section.
+			// Unlike the in-scope listing above, it must drop tags on t's own commit: a
+			// promotion tags one commit for several envs, and another env's tag there would
+			// bound this section to nothing.
 			if g.tagOrder != nil {
+				merged, err := listMergedTags(g.runner, t)
+				if err != nil {
+					return "", err
+				}
 				if ordered := g.tagOrder(merged); len(ordered) > 0 {
 					prev = ordered[0]
 				}

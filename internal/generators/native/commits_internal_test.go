@@ -230,4 +230,32 @@ func TestListMergedTags_RealGit_AncestryAndSelfExclusion(t *testing.T) {
 	tags, err = listMergedTags(runner, "v1.1.0")
 	require.NoError(t, err)
 	assert.Equal(t, []string{"v1.0.0"}, tags)
+
+	// listAncestorTags keeps the same-commit tag (v1.1.0-rc.1) and drops only v1.1.0 itself.
+	tags, err = listAncestorTags(runner, "v1.1.0")
+	require.NoError(t, err)
+	assert.Equal(t, []string{"v1.1.0-rc.1", "v1.0.0"}, tags)
+}
+
+// TestListAncestorTags_Argv pins the in-scope ancestor listing (ADR-0065): no --no-contains, so
+// tags on ref's own commit stay in, and ref itself is dropped by name.
+func TestListAncestorTags_Argv(t *testing.T) {
+	mr := exectest.NewMockRunner()
+	mr.QueueResponse("v1.4.1\nv1.4.0\nv1.3.0\n", "", nil)
+
+	tags, err := listAncestorTags(mr, "v1.4.1")
+	require.NoError(t, err)
+	assert.Equal(t, []string{"v1.4.0", "v1.3.0"}, tags)
+
+	require.Len(t, mr.Calls, 1)
+	assert.Equal(t, "git", mr.Calls[0].Name)
+	assert.Equal(t, []string{"tag", "-l", "--merged", "v1.4.1", "--sort=-version:refname"}, mr.Calls[0].Args)
+}
+
+func TestListAncestorTags_ErrorPropagates(t *testing.T) {
+	mr := exectest.NewMockRunner()
+	mr.QueueResponse("", "fatal: not a git repository", errors.New("exit status 128"))
+
+	_, err := listAncestorTags(mr, "v1.0.0")
+	require.ErrorContains(t, err, "listing tags merged into v1.0.0")
 }
