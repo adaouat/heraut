@@ -123,7 +123,7 @@ func NewResolver(cfg *config.Config, env string, force bool, versionOverride, bu
 			if err := validateSemVerComposition(version, buildID); err != nil {
 				return nil, err
 			}
-			return versioning.NewStaticResolver(prefix+version+"+"+buildID, version), nil
+			return guardSetVersion(cfg, versioning.NewStaticResolver(prefix+version+"+"+buildID, version), runner), nil
 		}
 
 		var tf string
@@ -184,7 +184,7 @@ func NewResolver(cfg *config.Config, env string, force bool, versionOverride, bu
 				return nil, err
 			}
 		}
-		return versioning.NewStaticResolver(tag, version), nil
+		return guardSetVersion(cfg, versioning.NewStaticResolver(tag, version), runner), nil
 	}
 
 	switch cfg.Versioning.Strategy {
@@ -208,6 +208,39 @@ func NewResolver(cfg *config.Config, env string, force bool, versionOverride, bu
 	default:
 		return nil, fmt.Errorf("unknown versioning strategy %q (supported: semver, calver, semver-per-env, calver-per-env)", cfg.Versioning.Strategy)
 	}
+}
+
+// guardSetVersion adds the maintenance collision guard to a --set-version resolver when
+// versioning.branches is set (ADR-0065), so a version already released elsewhere fails before
+// anything is written. The probe runs inside Resolve, not here: a taken version is a runtime
+// condition, and NewResolver's own errors are reported as configuration errors. Without the
+// block the resolver is returned unchanged and makes no git call.
+func guardSetVersion(cfg *config.Config, r versioning.Resolver, runner port.Runner) versioning.Resolver {
+	if len(cfg.Versioning.Branches) == 0 || cfg.Versioning.Strategy != "semver" {
+		return r
+	}
+	return collisionGuardResolver{inner: r, runner: runner}
+}
+
+type collisionGuardResolver struct {
+	inner  versioning.Resolver
+	runner port.Runner
+}
+
+func (g collisionGuardResolver) Resolve() (versioning.Result, error) {
+	res, err := g.inner.Resolve()
+	if err != nil {
+		return res, err
+	}
+	existing, err := semver.ExistingRelease(g.runner, res.Tag)
+	if err != nil {
+		return versioning.Result{}, err
+	}
+	if existing != "" {
+		return versioning.Result{}, fmt.Errorf("%w: %s — pick a free version for --set-version",
+			semver.ErrTagExists, existing)
+	}
+	return res, nil
 }
 
 // applyMaintenanceRange confines r to the current branch's maintenance line when

@@ -175,6 +175,37 @@ func TestMaintenanceBranches_RealRepo(t *testing.T) {
 		require.ErrorIs(t, err, semver.ErrTagExists)
 	})
 
+	t.Run("#6 build-metadata release of the version collides, a pre-release does not", func(t *testing.T) {
+		for _, tc := range []struct {
+			sideTag string
+			wantErr bool
+		}{
+			{sideTag: "v1.3.2+7", wantErr: true},
+			{sideTag: "v1.3.2-rc.1"},
+		} {
+			t.Run(tc.sideTag, func(t *testing.T) {
+				git, commit, cfg := maintenanceFixture(t)
+				git("checkout", "release/1.3")
+				git("checkout", "-b", "side")
+				commit("fix: elsewhere")
+				git("tag", "-a", "-m", tc.sideTag, tc.sideTag)
+				git("checkout", "release/1.3")
+				commit("fix: x")
+
+				for _, override := range []string{"", "1.3.2"} {
+					tag, err := resolveOn(t, cfg, override)
+					if tc.wantErr {
+						require.ErrorIs(t, err, semver.ErrTagExists, "override %q", override)
+						assert.ErrorContains(t, err, tc.sideTag)
+						continue
+					}
+					require.NoError(t, err, "override %q", override)
+					assert.Equal(t, "v1.3.2", tag)
+				}
+			})
+		}
+	})
+
 	t.Run("#7 detached HEAD with CI branch variable", func(t *testing.T) {
 		git, commit, cfg := maintenanceFixture(t)
 		git("checkout", "release/1.3")

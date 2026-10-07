@@ -1,11 +1,13 @@
 package app_test
 
 import (
+	"errors"
 	"testing"
 
 	"github.com/adaouat/forge/exec/exectest"
 	"github.com/adaouat/heraut/internal/app"
 	"github.com/adaouat/heraut/internal/config"
+	"github.com/adaouat/heraut/internal/versioning/semver"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -700,11 +702,14 @@ func TestNewResolver_Maintenance(t *testing.T) {
 			wantCalls:  [][]string{revParse},
 		},
 		{
-			name:      "--set-version on release/7.8.0 with release/*: no git call",
+			// ADR-0065: --set-version gets the collision guard, so the only git call is that probe —
+			// still no branch detection, so an underivable glob match is no error here.
+			name:      "--set-version on release/7.8.0 with release/*: collision probe only",
 			cfg:       maintenanceCfg(mainAndRelease...),
 			override:  "7.8.0",
+			responses: []string{""},
 			wantTag:   "v7.8.0",
-			wantCalls: [][]string{},
+			wantCalls: [][]string{{"tag", "-l", "v7.8.0", "v7.8.0+*"}},
 		},
 	}
 	for _, tc := range tests {
@@ -740,4 +745,84 @@ func TestNewResolver_Maintenance_ManualModeSkipsBranchDetection(t *testing.T) {
 	_, err = r.Resolve()
 	require.ErrorContains(t, err, "manual bump mode requires --set-version")
 	assert.Empty(t, mr.Calls, "manual mode must not run branch detection")
+}
+
+// The spec's collision guard applies to --set-version when versioning.branches is set (ADR-0065):
+// a tag of that version, or a build-metadata release of it, fails at Resolve time so the error
+// exits Runtime like the auto path's.
+func TestNewResolver_SetVersion_CollisionGuard(t *testing.T) {
+	branches := []config.BranchRule{{Name: "main"}, {Name: "release/*"}}
+	tests := []struct {
+		name      string
+		cfg       *config.Config
+		override  string
+		buildID   string
+		responses []string
+		wantTag   string
+		wantErr   []string
+		wantCalls [][]string
+	}{
+		{
+			name: "free version", cfg: maintenanceCfg(branches...), override: "1.3.2",
+			responses: []string{""},
+			wantTag:   "v1.3.2",
+			wantCalls: [][]string{{"tag", "-l", "v1.3.2", "v1.3.2+*"}},
+		},
+		{
+			name: "tag exists", cfg: maintenanceCfg(branches...), override: "1.3.2",
+			responses: []string{"v1.3.2\n"},
+			wantErr:   []string{"v1.3.2", "already exists"},
+			wantCalls: [][]string{{"tag", "-l", "v1.3.2", "v1.3.2+*"}},
+		},
+		{
+			name: "build-metadata release exists", cfg: maintenanceCfg(branches...), override: "1.3.2",
+			responses: []string{"v1.3.2+7\n"},
+			wantErr:   []string{"v1.3.2+7", "already exists"},
+			wantCalls: [][]string{{"tag", "-l", "v1.3.2", "v1.3.2+*"}},
+		},
+		{
+			name: "with a build ID: exact tag only", cfg: maintenanceCfg(branches...), override: "1.3.2", buildID: "9",
+			responses: []string{""},
+			wantTag:   "v1.3.2+9",
+			wantCalls: [][]string{{"tag", "-l", "v1.3.2+9"}},
+		},
+		{
+			name: "no branches block: no git call", cfg: semverCfg(), override: "1.3.2",
+			wantTag:   "v1.3.2",
+			wantCalls: [][]string{},
+		},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			clearBranchEnv(t)
+			mr := exectest.NewMockRunner()
+			for _, out := range tc.responses {
+				mr.QueueResponse(out, "", nil)
+			}
+			r, err := app.NewResolver(tc.cfg, "", false, tc.override, tc.buildID, mr)
+			require.NoError(t, err)
+			res, err := r.Resolve()
+			if tc.wantErr != nil {
+				require.ErrorIs(t, err, semver.ErrTagExists)
+				for _, want := range tc.wantErr {
+					assert.ErrorContains(t, err, want)
+				}
+			} else {
+				require.NoError(t, err)
+				assert.Equal(t, tc.wantTag, res.Tag)
+			}
+			assert.Equal(t, tc.wantCalls, gitArgs(mr))
+		})
+	}
+}
+
+func TestNewResolver_SetVersion_CollisionGuard_GitError(t *testing.T) {
+	clearBranchEnv(t)
+	mr := exectest.NewMockRunner()
+	mr.QueueResponse("", "", errors.New("boom"))
+	r, err := app.NewResolver(maintenanceCfg(config.BranchRule{Name: "main"}), "", false, "1.3.2", "", mr)
+	require.NoError(t, err)
+	_, err = r.Resolve()
+	require.ErrorContains(t, err, "checking for existing tag v1.3.2")
+	require.ErrorContains(t, err, "boom")
 }

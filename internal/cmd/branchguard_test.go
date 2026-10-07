@@ -125,3 +125,19 @@ versioning:
 		})
 	}
 }
+
+// A --set-version already released elsewhere is a runtime condition, like the auto path's
+// collision (ADR-0065), so it exits Runtime rather than Config.
+func TestVersionNext_SetVersionCollision_ExitsRuntime(t *testing.T) {
+	cfgPath := writeConfig(t, branchListedConfig)
+	testutil.ClearCIEnv(t)
+	for _, k := range []string{"CI_COMMIT_BRANCH", "GITHUB_REF_NAME", "GITHUB_REF_TYPE", "BUILD_SOURCEBRANCH", "BUILD_SOURCEBRANCHNAME"} {
+		t.Setenv(k, "")
+	}
+	exectest.FakeBin(t, "git", "#!/bin/sh\ncase \"$*\" in\n  \"tag -l v1.3.2 v1.3.2+*\") echo \"v1.3.2+7\" ;;\n  *) exit 1 ;;\nesac\n")
+
+	_, err := executeRoot("version", "next", "--config", cfgPath, "--set-version", "1.3.2")
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "tag already exists: v1.3.2+7")
+	assert.Equal(t, exitcode.Runtime, cmd.ExitCode(err))
+}

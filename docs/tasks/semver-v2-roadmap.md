@@ -606,7 +606,10 @@ probe. A nil range leaves `resolveAuto` untouched (guard test). `app.NewResolver
 `versioning.branches` is absent or `bump.mode` is `manual`, so every existing `MockRunner` FIFO
 test passes unmodified. Clarification: the spec's "collision guard still applies" under
 `--set-version` relies on the existing `git tag` failure when the tag exists, since the override
-path returns a `StaticResolver` and makes no git call; no new probe was added there. Spec 04 gains
+path returns a `StaticResolver` and makes no git call; no new probe was added there. Reversed in
+the final review: with a `branches` block (`semver`), the override path wraps its
+`StaticResolver` in a guard that runs the same `ExistingRelease` probe inside `Resolve`, so a taken
+version fails with `ErrTagExists` and exits Runtime instead of failing late at `git tag`. Spec 04 gains
 § Maintenance branches with the rules, the worked examples and the error table. Deviations: the
 Spec 04 worked-examples table omits rows #9 (`version current`) and #10 (`--pre-release`), and
 row #1's notes bound, which belong to T353 and T352. Deferred: `resolvePreRelease` and
@@ -616,6 +619,11 @@ so a build-metadata tag of the same version cut elsewhere (`v1.3.2+7`, ADR-0064)
 too, named in the error; a pre-release such as `v1.3.2-rc.1` still is not. The exact-argv
 `probe` helper in `TestResolve_Maintenance` and the maintenance row of `TestNewResolver_Maintenance`
 were edited in place (ADR-0065 comment), and a `v1.3.2+7` row added.
+Final review fixes: `--set-version` gets the collision guard described above
+(`TestNewResolver_SetVersion_CollisionGuard`, `TestVersionNext_SetVersionCollision_ExitsRuntime`,
+real-git `#6` rows for `v1.3.2+7` and `v1.3.2-rc.1`); the `--set-version on release/7.8.0` row of
+`TestNewResolver_Maintenance` was edited in place (ADR-0065 comment) from no git call to the probe
+alone. Without a `branches` block the override path still makes no git call.
 
 ### [x] T352 — History-aware changelog and notes bounds
 
