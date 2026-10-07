@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"github.com/adaouat/heraut/internal/config"
+	"github.com/adaouat/heraut/internal/port"
 	"github.com/adaouat/heraut/internal/versioning"
 )
 
@@ -92,13 +93,13 @@ func (r *Resolver) resolveMaintenance(rg *Range) (versioning.Result, error) {
 	}
 
 	nextTag := prefix + nextVersion
-	stdout, _, err = r.runner.Run("git", "tag", "-l", nextTag)
+	existing, err := ExistingRelease(r.runner, nextTag)
 	if err != nil {
-		return versioning.Result{}, fmt.Errorf("checking for existing tag %s: %w", nextTag, err)
+		return versioning.Result{}, err
 	}
-	if strings.TrimSpace(stdout) != "" {
+	if existing != "" {
 		return versioning.Result{}, fmt.Errorf("%w: %s (cut on another branch) — pick the next free version with --set-version",
-			ErrTagExists, nextTag)
+			ErrTagExists, existing)
 	}
 
 	return versioning.Result{
@@ -107,6 +108,25 @@ func (r *Resolver) resolveMaintenance(rg *Range) (versioning.Result, error) {
 		CurrentTag: currentTag,
 		Bump:       bump,
 	}, nil
+}
+
+// ExistingRelease returns a tag that already releases tag's version, or "" when there is none.
+// Without build metadata in tag, a <tag>+<build> tag counts too: build metadata does not make a
+// different release (ADR-0064), so v1.3.2+7 cut elsewhere is the release of 1.3.2. Pre-releases
+// such as v1.3.2-rc.1 match neither pattern.
+func ExistingRelease(runner port.Runner, tag string) (string, error) {
+	args := []string{"tag", "-l", tag}
+	if !strings.Contains(tag, "+") {
+		args = append(args, tag+"+*")
+	}
+	stdout, _, err := runner.Run("git", args...)
+	if err != nil {
+		return "", fmt.Errorf("checking for existing tag %s: %w", tag, err)
+	}
+	if tags := parseTags(stdout); len(tags) > 0 {
+		return tags[0], nil
+	}
+	return "", nil
 }
 
 // inRangeBase is the highest final release of sorted (merged into HEAD, precedence order) whose

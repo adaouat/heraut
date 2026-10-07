@@ -81,7 +81,9 @@ func TestResolve_Maintenance(t *testing.T) {
 		return []string{"tag", "-l", prefix + "*", "--merged", "HEAD", "--sort=-version:refname"}
 	}
 	logSince := func(tag string) []string { return []string{"log", tag + "..HEAD", "--format=%B%x00"} }
-	probe := func(tag string) []string { return []string{"tag", "-l", tag} }
+	// ADR-0065: the collision probe also matches <tag>+*, since a build-metadata tag of the same
+	// version is that version's release (ADR-0064).
+	probe := func(tag string) []string { return []string{"tag", "-l", tag, tag + "+*"} }
 
 	tests := []struct {
 		name      string
@@ -130,6 +132,13 @@ func TestResolve_Maintenance(t *testing.T) {
 			wantCalls: [][]string{merged("v"), logSince("v1.3.1"), probe("v1.3.2")},
 			wantErr:   semver.ErrTagExists,
 			errText:   []string{"v1.3.2 (cut on another branch)", "pick the next free version with --set-version"},
+		},
+		{
+			name: "build-metadata release of the next version exists", rg: line13, branch: "release/1.3",
+			responses: []string{"v1.3.1\n", "fix: x\x00", "v1.3.2+7\n"},
+			wantCalls: [][]string{merged("v"), logSince("v1.3.1"), probe("v1.3.2")},
+			wantErr:   semver.ErrTagExists,
+			errText:   []string{"v1.3.2+7 (cut on another branch)"},
 		},
 		{
 			name: "no in-range base", rg: line13, branch: "release/1.3",

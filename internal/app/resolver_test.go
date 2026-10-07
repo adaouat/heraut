@@ -651,7 +651,8 @@ func TestNewResolver_Maintenance(t *testing.T) {
 			cfg:       maintenanceCfg(mainAndRelease...),
 			responses: []string{"release/1.3\n", "v1.3.1\nv1.3.0\n", "fix: x\x00", ""},
 			wantTag:   "v1.3.2",
-			wantCalls: [][]string{revParse, mergedList, {"log", "v1.3.1..HEAD", "--format=%B%x00"}, {"tag", "-l", "v1.3.2"}},
+			// ADR-0065: the collision probe also matches build-metadata releases of the version.
+			wantCalls: [][]string{revParse, mergedList, {"log", "v1.3.1..HEAD", "--format=%B%x00"}, {"tag", "-l", "v1.3.2", "v1.3.2+*"}},
 		},
 		{
 			name:      "release branch: global listing",

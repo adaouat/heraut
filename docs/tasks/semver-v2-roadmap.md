@@ -611,6 +611,11 @@ path returns a `StaticResolver` and makes no git call; no new probe was added th
 Spec 04 worked-examples table omits rows #9 (`version current`) and #10 (`--pre-release`), and
 row #1's notes bound, which belong to T353 and T352. Deferred: `resolvePreRelease` and
 `version current` ignore the range until T353.
+Final review fixes: the collision probe is `semver.ExistingRelease`, `git tag -l <next> <next>+*`,
+so a build-metadata tag of the same version cut elsewhere (`v1.3.2+7`, ADR-0064) is a collision
+too, named in the error; a pre-release such as `v1.3.2-rc.1` still is not. The exact-argv
+`probe` helper in `TestResolve_Maintenance` and the maintenance row of `TestNewResolver_Maintenance`
+were edited in place (ADR-0065 comment), and a `v1.3.2+7` row added.
 
 ### [x] T352 — History-aware changelog and notes bounds
 
