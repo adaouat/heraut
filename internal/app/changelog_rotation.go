@@ -138,9 +138,15 @@ func (r *rotatingGenerator) resolveDriver(tag string) (*config.ContentDriver, er
 // returns tagOrder(list)'s first entry — the highest-precedence release, dropping pre-releases —
 // instead of trusting git's version:refname sort, which can be misled the same way it misleads
 // the unordered generator walk (a pre-release tag can sort above its own release). nil (calver)
-// keeps today's behaviour: git's own first line.
+// keeps today's behaviour: git's own first line. With tagOrder set the listing is also limited to
+// tags merged into HEAD (ADR-0065).
 func latestMatchingTag(runner port.Runner, prefix string, tagOrder func([]string) []string) (string, error) {
-	stdout, _, err := runner.Run("git", "tag", "-l", prefix+"*", "--sort=-version:refname")
+	args := []string{"tag", "-l", prefix + "*"}
+	if tagOrder != nil {
+		// ADR-0065: the true previous tag comes from HEAD's history only, like the walk itself.
+		args = append(args, "--merged", "HEAD")
+	}
+	stdout, _, err := runner.Run("git", append(args, "--sort=-version:refname")...)
 	if err != nil {
 		return "", fmt.Errorf("listing git tags: %w", err)
 	}

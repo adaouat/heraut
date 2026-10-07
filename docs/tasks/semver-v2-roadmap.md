@@ -49,7 +49,7 @@ pre-release lifecycle (`--pre-release <label>`) for the plain `semver` strategy.
 | T349 | `versioning.branches` config, range parsing, validation | Done |
 | T350 | Current-branch detection, rule matching, unlisted-branch publish guard | Done |
 | T351 | Maintenance resolution in `semver.Resolver` | Done |
-| T352 | History-aware changelog and notes bounds | Not started |
+| T352 | History-aware changelog and notes bounds | Done |
 | T353 | `version current` and pre-releases on maintenance branches | Not started |
 | T354 | End-to-end maintenance scenarios on a real repo | Not started |
 | T355 | ADR-0065, guide, Phase 3 close | Not started |
@@ -608,10 +608,29 @@ Spec 04 worked-examples table omits rows #9 (`version current`) and #10 (`--pre-
 row #1's notes bound, which belong to T353 and T352. Deferred: `resolvePreRelease` and
 `version current` ignore the range until T353.
 
-### [ ] T352 — History-aware changelog and notes bounds
+### [x] T352 — History-aware changelog and notes bounds
 
 Plan Task 4: reachable-only semver generators, scope-preserving per-section ancestry bound,
 reachable rotation lookup, Spec 05.
+
+Done. `app.buildGenerator` appends `native.WithReachableFromHead()` whenever a tag order is set,
+so changelog, release notes, the changelog-only pipeline and the rotating generator all list tags
+with `--merged HEAD`; the pre-release notes branch no longer appends it itself (it keeps
+`notesTagOrderFor`). `latestMatchingTag` adds `--merged HEAD` under an order; its calver argv is
+unchanged. `buildAllSections`, with an order, lists each section's ancestors once (`git tag -l
+--merged <t> --no-contains <t>`) and bounds the section by the first later entry of the ordered,
+scoped list found in that set. Clarification recorded here: the rule is scope-preserving, as the
+spec's "first entry of `tagOrder(listMergedTags(t))`" would let `uat/1.3.0` bound `prod/1.3.0`
+under `semver-per-env`; only when no in-scope ancestor exists does the T257/T334 oldest-in-scope
+fallback apply, reusing the same listing (scoped: first of the ordered pool; unscoped: start of
+history). Without an order the loop is byte-identical. Edited in place with an ADR-0065 comment:
+`TestGenerator_GenerateChangelog_TagOrder_FiltersAndReorders` (two ancestor-listing responses
+queued, log-call indexes 2/3 → 3/5). New: three `TestGenerator_BuildAllSections_*` unit tests,
+`TestLatestMatchingTag_Argv`, `TestBuildGenerator_TagOrder_ListsReachableTagsOnly`, and
+`historybounds_realrepo_internal_test.go` (unmerged maintenance tag, merged forward, per-env
+scope). Deviation: the per-env real-git scenario passes on the pre-change code too (the old walk
+already bounded by the scoped list); it was shown RED against the unscoped ancestry rule instead.
+Spec 05 gains § History-aware bounds. ADR-0065 itself is T355's.
 
 ### [ ] T353 — `version current` and pre-releases on maintenance branches
 

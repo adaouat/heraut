@@ -251,3 +251,55 @@ func TestLatestMatchingTag_Order_NoMatches(t *testing.T) {
 	require.NoError(t, err)
 	assert.Empty(t, got)
 }
+
+// TestLatestMatchingTag_Argv (T352, ADR-0065): with a tag order (semver), the rotation's true
+// previous tag comes from HEAD's history only (`--merged HEAD`); without one (calver), the call is
+// unchanged.
+func TestLatestMatchingTag_Argv(t *testing.T) {
+	semverCfg := &config.Config{Versioning: config.Versioning{Strategy: "semver"}}
+	tests := []struct {
+		name  string
+		order func([]string) []string
+		want  []string
+	}{
+		{"semver order", tagOrderFor(semverCfg, ""), []string{"tag", "-l", "v*", "--merged", "HEAD", "--sort=-version:refname"}},
+		{"calver, no order", nil, []string{"tag", "-l", "v*", "--sort=-version:refname"}},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			mr := exectest.NewMockRunner()
+			mr.QueueResponse("v1.0.0\n", "", nil)
+			_, err := latestMatchingTag(mr, "v", tc.order)
+			require.NoError(t, err)
+			require.Len(t, mr.Calls, 1)
+			assert.Equal(t, tc.want, mr.Calls[0].Args)
+		})
+	}
+}
+
+// TestBuildGenerator_TagOrder_ListsReachableTagsOnly (T352, ADR-0065): with a tag order, the
+// changelog's scoped tag listing is restricted to tags merged into HEAD; with a nil order (calver)
+// the listing is unchanged.
+func TestBuildGenerator_TagOrder_ListsReachableTagsOnly(t *testing.T) {
+	semverCfg := &config.Config{Versioning: config.Versioning{Strategy: "semver"}}
+	tests := []struct {
+		name  string
+		order func([]string) []string
+		want  []string
+	}{
+		{"semver order", tagOrderFor(semverCfg, ""), []string{"tag", "-l", "--merged", "HEAD", "--sort=-version:refname"}},
+		{"calver, no order", nil, []string{"tag", "-l", "--sort=-version:refname"}},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			mr := exectest.NewMockRunner()
+			mr.QueueResponse("", "", nil) // scoped tag listing: no tags yet
+			mr.QueueResponse("", "", nil) // new section: full history, no commits
+			gen := buildGenerator(mr, &config.ContentDriver{}, native.ModeChangelog, "", false, false, nil, "", tc.order)
+			_, err := gen.Generate("v1.0.0", nil)
+			require.NoError(t, err)
+			require.NotEmpty(t, mr.Calls)
+			assert.Equal(t, tc.want, mr.Calls[0].Args)
+		})
+	}
+}

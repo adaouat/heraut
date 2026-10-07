@@ -271,18 +271,37 @@ func (g *Generator) buildAllSections(tag string, lc *port.LinkContext, enrichAll
 		blocks = append(blocks, anchorLine(tag)+"\n"+sec)
 	}
 
-	// Existing releases, newest-first. prev is the next-older tag by version refname (listTags
-	// is version-sorted) — or, when a tagOrder is set (T334), the next-older tag in that order.
+	// Existing releases, newest-first. Without a tagOrder, prev is the next-older tag by version
+	// refname (listTags is version-sorted). With a tagOrder set (ADR-0065), prev is the
+	// highest-precedence tag that is both in the scoped list and an ancestor of t: the next-older
+	// tag in order can sit on another line of history (a maintenance tag merged forward after t
+	// was cut), and bounding by it would describe a range t never contained. The membership test
+	// is scope-preserving — an out-of-scope ancestor (another env's tag under semver-per-env) never
+	// wins over an in-scope one. Linear history keeps the next-older tag, so output is unchanged.
 	// release-notes mode instead resolves prev via git-describe topology (or, equally with a
 	// tagOrder set, the ordered list); equivalent for linear history — the common case.
 	for i, t := range tags {
 		prev := ""
-		if i+1 < len(tags) {
+		var merged []string
+		if g.tagOrder != nil {
+			var err error
+			if merged, err = listMergedTags(g.runner, t); err != nil {
+				return "", err
+			}
+			for _, cand := range tags[i+1:] {
+				if slices.Contains(merged, cand) {
+					prev = cand
+					break
+				}
+			}
+		}
+		if g.tagOrder == nil && i+1 < len(tags) {
 			prev = tags[i+1]
-		} else if g.cfg.TagGlob != "" || g.cfg.TagPattern != "" {
+		} else if prev == "" && (g.cfg.TagGlob != "" || g.cfg.TagPattern != "") {
 			// t is the oldest tag within an active scope (per-env TagGlob, an explicit
-			// tag_pattern, or a rotating changelog.output's derived TagPattern) — "no next-older
-			// tag in the scoped list" does not mean "no earlier release at all" (T257). Resolve
+			// tag_pattern, or a rotating changelog.output's derived TagPattern) — or, with a
+			// tagOrder set, has no in-scope ancestor — and "no previous tag in the scoped list"
+			// does not mean "no earlier release at all" (T257). Resolve
 			// the true previous tag unscoped, so a --regenerate never silently walks back to the
 			// very beginning of all history — and never leaks an out-of-scope release's commits
 			// into this one's section — just because this happens to be the first release within
@@ -293,11 +312,8 @@ func (g *Generator) buildAllSections(tag string, lc *port.LinkContext, enrichAll
 			// listMergedTags(runner, t) lists exactly t's ancestor tags; tagOrder's first
 			// entry in that pool is the highest-precedence ancestor release, i.e. the true
 			// previous tag (t itself is never in the pool, since --no-contains t excludes it).
+			// merged is the ancestor listing already taken above for this section.
 			if g.tagOrder != nil {
-				merged, err := listMergedTags(g.runner, t)
-				if err != nil {
-					return "", err
-				}
 				if ordered := g.tagOrder(merged); len(ordered) > 0 {
 					prev = ordered[0]
 				}

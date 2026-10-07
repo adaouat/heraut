@@ -148,9 +148,26 @@ differently-shaped `tag_format`, or a legacy CalVer tag left over from before a 
 is skipped, so the section the fallback resolves may reach further back into history than
 `git describe`'s own topology-only walk would.
 
+**History-aware bounds (T352, ADR-0065).** Whenever a tag order is injected (`semver`,
+`semver-per-env`, with or without a `versioning.branches` block), the changelog walk, the release
+notes and changelog rotation's previous-tag lookup see only tags reachable from `HEAD`
+(`git tag -l [glob] --merged HEAD`): a tag cut on a maintenance line never merged into the current
+branch gets no section and never bounds one. On a `--regenerate` walk, each existing section's
+lower bound comes from its own ancestry: the bound of tag `t` is the highest-precedence tag that is
+*both* in the scoped list and an ancestor of `t` (`git tag -l --merged <t> --no-contains <t>`, one
+call per section). The rule is scope-preserving — under `semver-per-env`, a `uat/1.3.0` ancestor
+never bounds `prod/1.3.0`'s section while `prod/1.2.0` is an ancestor too. Only when no in-scope
+ancestor exists does the oldest-in-scope fallback above apply (scoped: the ordered ancestor pool's
+first entry; unscoped: the start of history). So after `release/1.3` is merged forward into `main`,
+`v1.3.2` gets its own `v1.3.1..v1.3.2` section and `v1.4.0` stays bounded at `v1.3.1`. The tag being
+cut is not in git yet, so its bound keeps T341's ordering-in rule over the reachable list. A
+repository whose tags all lie on one line of history (linear history, the common case) renders
+byte-identical output. `calver`/`calver-per-env` are unchanged: no reachability filter, no ancestry
+listing, each section bounded by the next tag in git's own order.
+
 **Release-notes ranges (T341, ADR-0064).** For a final release, notes span back to the previous
-*final* (pre-releases are dropped from the order). For a pre-release run (`--pre-release`, or a
-pre-release `--set-version`), notes span back to the previous tag of *any* kind that is reachable
+*final* reachable from `HEAD` (pre-releases are dropped from the order; reachability since
+T352). For a pre-release run (`--pre-release`, or a pre-release `--set-version`), notes span back to the previous tag of *any* kind that is reachable
 from `HEAD` (`git tag -l [glob] --merged HEAD`), so `v1.4.0-rc.2` covers only the commits since
 `v1.4.0-rc.1` and a tag cut on another, unmerged branch never bounds the range. The tag being
 released is ordered in with the existing tags even when git does not have it yet, so its

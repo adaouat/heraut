@@ -311,14 +311,10 @@ func buildReleasePipelineConfig(runner, readRunner port.Runner, cfg *config.Conf
 	if effectiveNotes != nil {
 		driver := withEnvDerivations(effectiveNotes, cfg, env)
 		notesOrder := tagOrderFor(cfg, env)
-		var notesOpts []native.Option
 		if preRelease {
 			notesOrder = notesTagOrderFor(cfg, env)
-			if notesOrder != nil {
-				notesOpts = append(notesOpts, native.WithReachableFromHead())
-			}
 		}
-		gen := buildGenerator(runner, driver, native.ModeReleaseNotes, herautVersion, regenerateChangelog, force, enrichForge, "", notesOrder, notesOpts...)
+		gen := buildGenerator(runner, driver, native.ModeReleaseNotes, herautVersion, regenerateChangelog, force, enrichForge, "", notesOrder)
 		pCfg.Notes = gen
 	}
 
@@ -637,7 +633,9 @@ func buildGenerator(runner port.Runner, driver *config.ContentDriver, defaultMod
 		opts = append(opts, native.WithDegraded(degradedReason))
 	}
 	if tagOrder != nil {
-		opts = append(opts, native.WithTagOrder(tagOrder))
+		// A SemVer walk sees only HEAD's history (ADR-0065): a tag never merged into HEAD (cut on
+		// another maintenance line) gets no section and never bounds one.
+		opts = append(opts, native.WithTagOrder(tagOrder), native.WithReachableFromHead())
 	}
 	return native.New(runner, &nativeDriver, defaultMode, append(opts, extra...)...)
 }
