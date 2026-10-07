@@ -583,6 +583,10 @@ the `!dryRun` block, exiting Config. Decisions: `--dry-run` is not refused, mirr
 set; an unknown branch (detached, no CI variable) is refused with a message naming the detached
 HEAD. Spec 03 documents the extra `--force` meaning on `release` and `changelog`. Nothing
 deferred; `NewResolver` wiring of `MatchBranchRule` is T351.
+Final review fixes: Azure detection reads `BUILD_SOURCEBRANCH` and accepts only `refs/heads/`
+refs (prefix stripped), since `BUILD_SOURCEBRANCHNAME` is the ref's last path segment (`1.3` for
+`release/1.3`) and the tag name on tag builds; the `detached, Azure` row was edited in place
+(ADR-0065 comment) and a `refs/tags/v1.3.1` row added.
 
 ### [x] T351 — Maintenance resolution in `semver.Resolver`
 
@@ -662,6 +666,9 @@ cannot place, so `ResolveFromLatestTag` falls back to the global latest tag (`gl
 the no-`branches` path, shared with `CurrentTag`) when `CurrentTag` returns
 `ErrUnderivableRange` or `ErrAmbiguousBranch`; `version current` keeps erroring there, and every
 other error still propagates. Spec 03 notes it.
+Final review fixes: `version current` maps `ErrAmbiguousBranch` and `ErrUnderivableRange` to the
+Config exit code (`TestVersionCurrent_BranchRuleErrors_ExitConfig`), matching the commands that
+raise them while building the resolver.
 
 ### [x] T354 — End-to-end maintenance scenarios on a real repo
 

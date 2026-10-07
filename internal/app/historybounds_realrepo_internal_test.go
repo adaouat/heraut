@@ -26,7 +26,7 @@ func historyRepo(t *testing.T) func(args ...string) {
 		t.Skip("git not on PATH")
 	}
 	testutil.ClearCIEnv(t)
-	for _, k := range []string{"CI_COMMIT_BRANCH", "GITHUB_REF_NAME", "GITHUB_REF_TYPE", "BUILD_SOURCEBRANCHNAME"} {
+	for _, k := range []string{"CI_COMMIT_BRANCH", "GITHUB_REF_NAME", "GITHUB_REF_TYPE", "BUILD_SOURCEBRANCH", "BUILD_SOURCEBRANCHNAME"} {
 		t.Setenv(k, "")
 	}
 	t.Chdir(t.TempDir())

@@ -13,7 +13,7 @@ import (
 
 func clearBranchEnv(t *testing.T) {
 	t.Helper()
-	for _, k := range []string{"CI_COMMIT_BRANCH", "GITHUB_REF_NAME", "GITHUB_REF_TYPE", "BUILD_SOURCEBRANCHNAME"} {
+	for _, k := range []string{"CI_COMMIT_BRANCH", "GITHUB_REF_NAME", "GITHUB_REF_TYPE", "BUILD_SOURCEBRANCH", "BUILD_SOURCEBRANCHNAME"} {
 		t.Setenv(k, "")
 	}
 }
@@ -42,7 +42,10 @@ func TestCurrentBranch(t *testing.T) {
 		{name: "detached, GitLab", gitOut: "HEAD\n", env: map[string]string{"CI_COMMIT_BRANCH": "release/1.3"}, want: "release/1.3", wantOK: true},
 		{name: "detached, GitHub branch", gitOut: "HEAD\n", env: map[string]string{"GITHUB_REF_NAME": "release/1.3", "GITHUB_REF_TYPE": "branch"}, want: "release/1.3", wantOK: true},
 		{name: "detached, GitHub tag ref ignored", gitOut: "HEAD\n", env: map[string]string{"GITHUB_REF_NAME": "v1.3.1", "GITHUB_REF_TYPE": "tag"}},
-		{name: "detached, Azure", gitOut: "HEAD\n", env: map[string]string{"BUILD_SOURCEBRANCHNAME": "release-1.3"}, want: "release-1.3", wantOK: true},
+		// ADR-0065: Azure's BUILD_SOURCEBRANCHNAME is only the ref's last path segment ("1.3"), so
+		// the branch comes from BUILD_SOURCEBRANCH with its refs/heads/ prefix stripped.
+		{name: "detached, Azure", gitOut: "HEAD\n", env: map[string]string{"BUILD_SOURCEBRANCH": "refs/heads/release/1.3", "BUILD_SOURCEBRANCHNAME": "1.3"}, want: "release/1.3", wantOK: true},
+		{name: "detached, Azure tag ref ignored", gitOut: "HEAD\n", env: map[string]string{"BUILD_SOURCEBRANCH": "refs/tags/v1.3.1", "BUILD_SOURCEBRANCHNAME": "v1.3.1"}},
 		{name: "detached, nothing", gitOut: "HEAD\n"},
 		{name: "git error", gitErr: errors.New("boom"), wantErr: "determining current git branch"},
 	}

@@ -31,7 +31,7 @@ release:
 func branchGuardGit(t *testing.T, branch string) {
 	t.Helper()
 	testutil.ClearCIEnv(t)
-	for _, k := range []string{"CI_COMMIT_BRANCH", "GITHUB_REF_NAME", "GITHUB_REF_TYPE", "BUILD_SOURCEBRANCHNAME"} {
+	for _, k := range []string{"CI_COMMIT_BRANCH", "GITHUB_REF_NAME", "GITHUB_REF_TYPE", "BUILD_SOURCEBRANCH", "BUILD_SOURCEBRANCHNAME"} {
 		t.Setenv(k, "")
 	}
 	exectest.FakeBin(t, "git", "#!/bin/sh\ncase \"$*\" in\n  \"rev-parse --abbrev-ref HEAD\") echo \""+branch+"\" ;;\n  *) exit 1 ;;\nesac\n")
@@ -80,4 +80,48 @@ func TestChangelog_UnlistedBranch_OnlyTagIsRefused(t *testing.T) {
 			assert.NotContains(t, err.Error(), "pass --force to release anyway")
 		}
 	})
+}
+
+// Branch-rule errors are configuration problems (ADR-0065), so version current exits Config for
+// them just as the resolver-building commands do.
+func TestVersionCurrent_BranchRuleErrors_ExitConfig(t *testing.T) {
+	tests := []struct {
+		name    string
+		config  string
+		branch  string
+		wantErr string
+	}{
+		{
+			name: "ambiguous match",
+			config: `
+version: "1"
+versioning:
+  strategy: semver
+  branches:
+    - name: main
+    - name: release/*
+    - name: release/1.3
+      range: 1.3.x
+`,
+			branch:  "release/1.3",
+			wantErr: "matches more than one",
+		},
+		{
+			name:    "underivable range",
+			config:  branchListedConfig,
+			branch:  "release/legacy",
+			wantErr: "cannot derive a maintenance range",
+		},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			cfgPath := writeConfig(t, tc.config)
+			branchGuardGit(t, tc.branch)
+
+			_, err := executeRoot("version", "current", "--config", cfgPath)
+			require.Error(t, err)
+			assert.Contains(t, err.Error(), tc.wantErr)
+			assert.Equal(t, exitcode.Config, cmd.ExitCode(err))
+		})
+	}
 }

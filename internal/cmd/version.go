@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"errors"
 	"fmt"
 
 	execadapter "github.com/adaouat/forge/exec"
@@ -127,6 +128,9 @@ func newVersionCurrentCmd() *cobra.Command {
 			}
 			value, err := out(runner, cfg, env, includePreRelease)
 			if err != nil {
+				if errors.Is(err, app.ErrAmbiguousBranch) || errors.Is(err, app.ErrUnderivableRange) {
+					return exitcode.Wrap(exitcode.Config, err)
+				}
 				return exitcode.Wrap(exitcode.Runtime, err)
 			}
 
