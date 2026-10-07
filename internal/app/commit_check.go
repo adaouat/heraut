@@ -19,6 +19,11 @@ func ResolveFromLatestTag(runner port.Runner, cfg *config.Config, env string) (s
 		// commit check --from-latest-tag wants the latest tag of any kind (pre-release
 		// included), not the latest release, so it always passes includePreRelease=true.
 		tag, err := CurrentTag(runner, cfg, env, true)
+		if errors.Is(err, ErrUnderivableRange) || errors.Is(err, ErrAmbiguousBranch) {
+			// Linting needs a base, not a version: a branch the maintenance rules cannot place
+			// (e.g. release/7.8.0, released via --set-version) uses the global latest tag.
+			tag, err = latestGlobalTag(runner, cfg, env)
+		}
 		if err != nil {
 			if errors.Is(err, errNoTagsFound) {
 				return "", true, nil

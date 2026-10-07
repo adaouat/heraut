@@ -436,3 +436,52 @@ func TestResolveFromLatestTag_MaintenanceNothingInRange(t *testing.T) {
 	assert.True(t, noTags)
 	assert.Empty(t, rng)
 }
+
+// Commit linting is not version resolution: a branch the maintenance rules cannot place (no
+// derivable range, or more than one matching entry) falls back to the global latest tag.
+func TestResolveFromLatestTag_UnplaceableBranchFallsBackToGlobal(t *testing.T) {
+	revParse := []string{"rev-parse", "--abbrev-ref", "HEAD"}
+	globalList := []string{"tag", "-l", "v*", "--sort=-version:refname"}
+	tests := []struct {
+		name   string
+		rules  []config.BranchRule
+		branch string
+	}{
+		{"underivable glob match", []config.BranchRule{{Name: "main"}, {Name: "release/*"}}, "release/7.8.0"},
+		{"ambiguous match", []config.BranchRule{{Name: "release/*"}, {Name: "release/1.3", Range: "1.3.x"}}, "release/1.3"},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			clearBranchEnv(t)
+			mr := exectest.NewMockRunner()
+			mr.QueueResponse(tc.branch+"\n", "", nil)
+			mr.QueueResponse("v2.0.0-rc.1\nv1.3.1\n", "", nil)
+
+			rng, noTags, err := app.ResolveFromLatestTag(mr, maintenanceCfg(tc.rules...), "")
+			require.NoError(t, err)
+			assert.False(t, noTags)
+			assert.Equal(t, "v2.0.0-rc.1..HEAD", rng)
+			assert.Equal(t, [][]string{revParse, globalList}, gitArgs(mr))
+		})
+	}
+}
+
+func TestResolveFromLatestTag_OtherErrorsPropagate(t *testing.T) {
+	clearBranchEnv(t)
+	mr := exectest.NewMockRunner()
+	mr.QueueResponse("", "", errors.New("not a git repo"))
+
+	_, noTags, err := app.ResolveFromLatestTag(mr, maintenanceCfg(config.BranchRule{Name: "main"}), "")
+	require.Error(t, err)
+	assert.False(t, noTags)
+	assert.Contains(t, err.Error(), "resolving latest tag")
+}
+
+func TestCurrentTag_UnderivableBranchStillErrors(t *testing.T) {
+	clearBranchEnv(t)
+	mr := exectest.NewMockRunner()
+	mr.QueueResponse("release/7.8.0\n", "", nil)
+
+	_, err := app.CurrentTag(mr, maintenanceCfg(config.BranchRule{Name: "main"}, config.BranchRule{Name: "release/*"}), "", false)
+	require.ErrorIs(t, err, app.ErrUnderivableRange)
+}

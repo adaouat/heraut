@@ -40,7 +40,22 @@ func CurrentTag(runner port.Runner, cfg *config.Config, env string, includePreRe
 			return currentMaintenanceTag(runner, cfg, glob, rg, includePreRelease)
 		}
 	}
+	return globalCurrentTag(runner, cfg, env, glob, includePreRelease)
+}
 
+// latestGlobalTag is globalCurrentTag including pre-releases, for callers that bypass branch
+// matching.
+func latestGlobalTag(runner port.Runner, cfg *config.Config, env string) (string, error) {
+	glob, err := currentTagGlob(cfg, env)
+	if err != nil {
+		return "", err
+	}
+	return globalCurrentTag(runner, cfg, env, glob, true)
+}
+
+// globalCurrentTag is CurrentTag without branch awareness: the latest tag across the whole repo,
+// exactly what CurrentTag returns when versioning.branches is absent.
+func globalCurrentTag(runner port.Runner, cfg *config.Config, env, glob string, includePreRelease bool) (string, error) {
 	stdout, _, err := runner.Run("git", "tag", "-l", glob, "--sort=-version:refname")
 	if err != nil {
 		return "", fmt.Errorf("listing git tags: %w", err)

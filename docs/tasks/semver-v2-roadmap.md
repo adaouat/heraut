@@ -657,6 +657,11 @@ escalation on the line (`v1.4.1-rc.1` → `v1.5.0`); without a range it is uncha
 the `version current` and pre-release paragraphs plus worked-example rows #9/#10 (replayed on real
 git in `maintenance_realrepo_internal_test.go`); Spec 03 notes `version current`'s branch
 awareness. No existing test row was changed. Deferred: the full #1–#11 real-git replay is T354.
+Review ruling (fix round 1): `commit check --from-latest-tag` must not fail on branches the rules
+cannot place, so `ResolveFromLatestTag` falls back to the global latest tag (`globalCurrentTag`,
+the no-`branches` path, shared with `CurrentTag`) when `CurrentTag` returns
+`ErrUnderivableRange` or `ErrAmbiguousBranch`; `version current` keeps erroring there, and every
+other error still propagates. Spec 03 notes it.
 
 ### [ ] T354 — End-to-end maintenance scenarios on a real repo
 

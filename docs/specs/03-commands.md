@@ -393,7 +393,11 @@ git's own range syntax and its own errors on a malformed range are reused as-is.
 `--from-latest-tag` checks only commits since the latest tag (for the active `--env`, on
 per-env strategies) instead — mutually exclusive with a positional `rev-range` (passing
 both is a Usage error). When no tags exist yet, it warns "no tags found — checking full
-history" and falls back to the same full-history scan as no range at all.
+history" and falls back to the same full-history scan as no range at all. Under `semver` with
+`versioning.branches`, the latest tag is the one `version current --include-pre-release` would
+print (the line's own tag on a maintenance branch); on a branch those rules cannot place (a
+glob match with no derivable range, or several matching entries) it uses the global latest tag
+instead of failing.
 
 Every commit in the range is evaluated — an invalid commit does not stop the scan. Merge
 and fixup commits are skipped (the same unconditional skip `heraut commit verify` already
