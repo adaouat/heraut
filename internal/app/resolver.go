@@ -3,7 +3,6 @@ package app
 import (
 	"fmt"
 	"strings"
-	"time"
 
 	"github.com/adaouat/heraut/internal/config"
 	"github.com/adaouat/heraut/internal/port"
@@ -205,13 +204,13 @@ func NewResolver(cfg *config.Config, env string, force bool, versionOverride, bu
 		}
 		return warningResolver{inner: r, warnings: r.Warnings, wouldBeVersions: r.WouldBeVersions}, nil
 	case "calver":
-		return calver.New(runner, cfg, time.Now), nil
+		return calver.New(runner, cfg, clock()), nil
 	case "semver-per-env":
 		calc := semver.New(nil, cfg)
 		calc.SetAllowMajor(o.allowMajor)
 		return warningResolver{inner: perenv.New(runner, cfg, env, force, calc), warnings: calc.Warnings, wouldBeVersions: calc.WouldBeVersions}, nil
 	case "calver-per-env":
-		calc := calver.New(nil, cfg, time.Now)
+		calc := calver.New(nil, cfg, clock())
 		return perenv.New(runner, cfg, env, force, calc), nil
 	default:
 		return nil, fmt.Errorf("unknown versioning strategy %q (supported: semver, calver, semver-per-env, calver-per-env)", cfg.Versioning.Strategy)
