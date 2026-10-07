@@ -51,7 +51,7 @@ pre-release lifecycle (`--pre-release <label>`) for the plain `semver` strategy.
 | T351 | Maintenance resolution in `semver.Resolver` | Done |
 | T352 | History-aware changelog and notes bounds | Done |
 | T353 | `version current` and pre-releases on maintenance branches | Done |
-| T354 | End-to-end maintenance scenarios on a real repo | Not started |
+| T354 | End-to-end maintenance scenarios on a real repo | Done |
 | T355 | ADR-0065, guide, Phase 3 close | Not started |
 
 ## Phase 1 — Compliance
@@ -663,9 +663,18 @@ the no-`branches` path, shared with `CurrentTag`) when `CurrentTag` returns
 `ErrUnderivableRange` or `ErrAmbiguousBranch`; `version current` keeps erroring there, and every
 other error still propagates. Spec 03 notes it.
 
-### [ ] T354 — End-to-end maintenance scenarios on a real repo
+### [x] T354 — End-to-end maintenance scenarios on a real repo
 
 Plan Task 6: the spec's worked examples #1–#11 on real git.
+
+Done in `internal/app/maintenance_realrepo_internal_test.go`: rows #1–#8 and #11/#11b plus the
+`--regenerate` history-bounds check run through `NewResolver`, `CheckReleaseBranch`, `buildGenerator`
+and `tagOrderFor` with the real runner; #9/#10 were already covered there by T353. Release notes for
+#1 assert the one-commit range (the notes body carries no compare link). Regression proof against
+the tree at `5073768` (before T351), in a throwaway worktree with the new error sentinels stubbed:
+#1 gave `v2.0.1` instead of `v1.3.2`, #9 gave `v2.0.0` instead of `v1.3.1`, and the regenerated
+changelog on `release/1.3` listed `v2.0.0` and `v1.4.0` sections; #5 and #8 (unchanged behaviour)
+passed there. No production code changed.
 
 ### [ ] T355 — ADR-0065, guide, Phase 3 close
 
