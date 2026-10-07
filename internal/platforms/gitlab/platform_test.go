@@ -53,10 +53,10 @@ func TestReleaseURL_InCI_NoBaseURL_NoServerURL_FallsBackToProjectURL(t *testing.
 	// GITLAB_CI=true, CI_SERVER_URL absent — CI_PROJECT_URL carries the host.
 	t.Setenv("GITLAB_CI", "true")
 	t.Setenv("CI_SERVER_URL", "")
-	t.Setenv("CI_PROJECT_URL", "https://git.adaouat.dev/bchatard/ecom-poc-release")
-	cfg := &config.Platform{Project: "bchatard/ecom-poc-release"}
+	t.Setenv("CI_PROJECT_URL", "https://git.example.com/acme/widget")
+	cfg := &config.Platform{Project: "acme/widget"}
 	p := gitlab.New(exectest.NewMockRunner(), cfg)
-	assert.Equal(t, "https://git.adaouat.dev/bchatard/ecom-poc-release/-/releases/v1.0.0", p.ReleaseURL("v1.0.0"))
+	assert.Equal(t, "https://git.example.com/acme/widget/-/releases/v1.0.0", p.ReleaseURL("v1.0.0"))
 }
 
 func TestReleaseURL_NoGitlabCIVar_ProjectURLSuffices(t *testing.T) {
@@ -66,10 +66,10 @@ func TestReleaseURL_NoGitlabCIVar_ProjectURLSuffices(t *testing.T) {
 	// ambientLinkContext() uses it unconditionally for notes/changelog link resolution.
 	t.Setenv("GITLAB_CI", "")
 	t.Setenv("CI_SERVER_URL", "")
-	t.Setenv("CI_PROJECT_URL", "https://git.adaouat.dev/bchatard/ecom-poc-release")
-	cfg := &config.Platform{Project: "bchatard/ecom-poc-release"}
+	t.Setenv("CI_PROJECT_URL", "https://git.example.com/acme/widget")
+	cfg := &config.Platform{Project: "acme/widget"}
 	p := gitlab.New(exectest.NewMockRunner(), cfg)
-	assert.Equal(t, "https://git.adaouat.dev/bchatard/ecom-poc-release/-/releases/v1.0.0", p.ReleaseURL("v1.0.0"))
+	assert.Equal(t, "https://git.example.com/acme/widget/-/releases/v1.0.0", p.ReleaseURL("v1.0.0"))
 }
 
 // TestReleaseURLFromContext_* verify that ReleaseURLFromContext derives the URL from the
@@ -80,19 +80,19 @@ func TestReleaseURL_NoGitlabCIVar_ProjectURLSuffices(t *testing.T) {
 func TestReleaseURLFromContext_AmbientContext(t *testing.T) {
 	// Ambient context (from CI_PROJECT_URL): Owner/Repo are empty, BaseURL is the
 	// full project URL. The release URL is built directly from BaseURL.
-	cfg := &config.Platform{Project: "bchatard/ecom-poc-release"}
+	cfg := &config.Platform{Project: "acme/widget"}
 	p := gitlab.New(exectest.NewMockRunner(), cfg)
-	lc := &port.LinkContext{BaseURL: "https://git.adaouat.dev/bchatard/ecom-poc-release", Platform: "gitlab"}
-	assert.Equal(t, "https://git.adaouat.dev/bchatard/ecom-poc-release/-/releases/v1.0.0", p.ReleaseURLFromContext("v1.0.0", lc))
+	lc := &port.LinkContext{BaseURL: "https://git.example.com/acme/widget", Platform: "gitlab"}
+	assert.Equal(t, "https://git.example.com/acme/widget/-/releases/v1.0.0", p.ReleaseURLFromContext("v1.0.0", lc))
 }
 
 func TestReleaseURLFromContext_PlatformContext(t *testing.T) {
 	// Platform-derived context: BaseURL is just the host, Owner/Repo are populated.
 	// The release URL is assembled from host + configured project path.
-	cfg := &config.Platform{Project: "bchatard/ecom-poc-release"}
+	cfg := &config.Platform{Project: "acme/widget"}
 	p := gitlab.New(exectest.NewMockRunner(), cfg)
-	lc := &port.LinkContext{BaseURL: "https://git.adaouat.dev", Owner: "bchatard", Repo: "ecom-poc-release", Platform: "gitlab"}
-	assert.Equal(t, "https://git.adaouat.dev/bchatard/ecom-poc-release/-/releases/v1.0.0", p.ReleaseURLFromContext("v1.0.0", lc))
+	lc := &port.LinkContext{BaseURL: "https://git.example.com", Owner: "acme", Repo: "widget", Platform: "gitlab"}
+	assert.Equal(t, "https://git.example.com/acme/widget/-/releases/v1.0.0", p.ReleaseURLFromContext("v1.0.0", lc))
 }
 
 func TestReleaseURLFromContext_Nil_FallsBackToReleaseURL(t *testing.T) {
