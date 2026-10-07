@@ -92,8 +92,8 @@ versioning:
   # commit_message: "release: ${version} :rocket:"
 
   # branches — optional release and maintenance branches (strategy: semver only).
-  # Omit the block and every branch behaves as before. See docs/guides/ for the
-  # maintenance-branch how-to.
+  # Omit the block and every branch behaves as before. See
+  # docs/guides/maintenance-branches.md for the maintenance-branch how-to.
   #   exact name, no range   release branch (today's behaviour)
   #   range: N.x / N.N.x     maintenance branch limited to that range
   #   glob name, no range    maintenance branch, range derived from the matched

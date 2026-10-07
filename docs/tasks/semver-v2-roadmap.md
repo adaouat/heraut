@@ -570,6 +570,7 @@ updated. Fixtures: `valid/semver_branches.yml` plus five `invalid/branches_*.yml
 rejects `bad_range` and `empty_name`, while `non_semver`, `duplicate_range` and `bad_glob` are
 semantic-only and covered by the validator table. Deviation: the sample's pointer to the
 maintenance-branch guide is generic because the guide itself lands in T355.
+Final review fixes: the sample now points at `docs/guides/maintenance-branches.md` explicitly.
 
 ### [x] T350 — Current-branch detection, rule matching, unlisted-branch publish guard
 
@@ -723,6 +724,12 @@ section. ADR-0064's Phase 2 status update and Spec 04 link to it; `docs/guides/m
 (indexed in `docs/guides/README.md`) is the task-oriented how-to, including the fixed-version
 `--set-version` case (T348); `CLAUDE.md`'s ADR count is 64. The CalVer equivalent of the history-aware
 bounds is filed as T356 (Phase 63 in `roadmap.md`).
+
+Final review fixes: the guide notes that `--force` passed for another reason (promotion,
+enrichment) also drops the unlisted-branch guard, and that GitHub `pull_request` runs
+(`GITHUB_REF_NAME=<n>/merge`) preview the global version; ADR-0065, Spec 03/04 and the guide name
+`BUILD_SOURCEBRANCH` instead of `BUILD_SOURCEBRANCHNAME`, and ADR-0065's `--set-version` clarification
+records the reversed collision ruling (T351).
 
 **Phase 3 closed** (T349-T355). Deviations are in the task notes above. T344 is flipped.
 

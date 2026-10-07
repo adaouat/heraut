@@ -141,7 +141,8 @@ A new `app`-layer helper, `CurrentBranch(runner) (string, bool, error)`:
 1. `git rev-parse --abbrev-ref HEAD`; a value other than `HEAD` is the branch.
 2. On a detached `HEAD`, fall back in order to `CI_COMMIT_BRANCH` (GitLab, set on branch
    pipelines only), `GITHUB_REF_NAME` when `GITHUB_REF_TYPE=branch` (GitHub Actions), then
-   `BUILD_SOURCEBRANCHNAME` (Azure Pipelines).
+   `BUILD_SOURCEBRANCH` with its `refs/heads/` prefix stripped, branch refs only (Azure Pipelines;
+   `BUILD_SOURCEBRANCHNAME` is only the ref's last path segment, so it is not read).
 3. None available → "unknown" (`ok == false`), not an error; the caller decides.
 
 It runs only when `versioning.branches` is set. `CheckBranch` and `ResolveEnv` keep their own

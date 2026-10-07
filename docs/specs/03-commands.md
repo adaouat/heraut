@@ -94,7 +94,7 @@ heraut release [--set-version <version>] [--set-build-id <id>] [--pre-release <l
 | `--regenerate-changelog` | Rebuild the entire changelog and re-enrich every section (batched per platform; one API call per commit on GitLab) instead of incrementally splicing just the new section. See [ADR-0038](../adr/0038-incremental-changelog.md). |
 | `--dry-run`              | Print the action plan; execute nothing. No git writes, no network calls, no file writes outside `/tmp`. Read-only git calls (tag list, log) still execute so the resolved version is accurate. |
 | `--env`                  | Active environment (required for per-env strategies). `auto` resolves it from the current git branch against each environment's `branch:` instead of naming one explicitly. |
-| `--force`                | Bypass E001 (target tag exists) and E002 (destination ahead) — see [ADR-0007](../adr/0007-version-promotion-error-handling.md); E003 is not bypassed. Also downgrades `commits.enrichment_policy: required` to `optional` for this run (degrade instead of failing when metadata is unavailable). When `versioning.branches` is set, also bypasses the unlisted-branch refusal: without it, `release` exits with a Config error when the current branch matches no entry (or cannot be determined — detached HEAD with no `CI_COMMIT_BRANCH` / `GITHUB_REF_NAME` (branch refs only) / `BUILD_SOURCEBRANCHNAME`). `--dry-run` is not refused, and `version next` / `version current` previews are unaffected. |
+| `--force`                | Bypass E001 (target tag exists) and E002 (destination ahead) — see [ADR-0007](../adr/0007-version-promotion-error-handling.md); E003 is not bypassed. Also downgrades `commits.enrichment_policy: required` to `optional` for this run (degrade instead of failing when metadata is unavailable). When `versioning.branches` is set, also bypasses the unlisted-branch refusal: without it, `release` exits with a Config error when the current branch matches no entry (or cannot be determined — detached HEAD with no `CI_COMMIT_BRANCH` / `GITHUB_REF_NAME` (branch refs only) / `BUILD_SOURCEBRANCH` (`refs/heads/` refs only)). `--dry-run` is not refused, and `version next` / `version current` previews are unaffected. |
 | `--offline`              | Forces `commits.enrichment_policy: disabled` for this run regardless of what `.heraut.yml` sets, skipping PR/MR enrichment in changelog and release-notes generation. |
 | `--no-hooks`             | Skip every configured `hooks:` command (`post_bump`/`pre_changelog`/`pre_tag`/`post_tag`/`pre_release`/`post_release`, [ADR-0053](../adr/0053-release-lifecycle-hooks.md); see [Spec 02 § `hooks`](02-configuration.md#hooks)) for this run, without editing `.heraut.yml`. Distinct from the git pre-commit hooks discussed below — see § Pre-commit hooks and the changelog commit. |
 | `--skip-hook`            | Skip individual hook points for this run — one or more of `post_bump`/`pre_changelog`/`pre_tag`/`post_tag`/`pre_release`/`post_release`. Repeatable (`--skip-hook pre_tag --skip-hook post_release`) or comma-separated (`--skip-hook pre_tag,post_release`). When the flag is absent, the same comma-separated list is read from the `HERAUT_SKIP_HOOKS` environment variable. Cannot be combined with `--no-hooks` (error). Unknown names are a config error. See [ADR-0062](../adr/0062-selective-hook-skipping.md) / [Spec 02 § `--skip-hook`](02-configuration.md#--skip-hook-and-heraut_skip_hooks). |
@@ -266,7 +266,9 @@ git history entirely and prints the tag `heraut release` / `heraut changelog` wo
 version (`--set-version 1.2.3` → `v1.2.3`; a leading `v` is accepted with the default prefix or a
 `tag_format`, but a custom `tag_prefix` strips only itself — see the `--set-version` row of the
 [`heraut release` flag table](#heraut-release)). The config is still loaded and validated, and the
-`--env` / branch checks still run. This is what lets it work under
+`--env` / branch checks still run, and with `versioning.branches` set the maintenance collision
+guard probes for an existing release of that version ([Spec 04 § Maintenance
+branches](04-versioning.md#maintenance-branches)), failing with the Runtime code. This is what lets it work under
 `bump.mode: manual`, which otherwise always fails with "manual bump mode requires --set-version" (exit
 code 3). `--set-build-id` requires `--set-version`; `--allow-major` has no effect with it (an explicit
 version is never held back). The flags are validated exactly as on `release` / `changelog` — before the
@@ -325,6 +327,9 @@ attempting resolution.
 
 Exits non-zero if no qualifying tag exists; when only pre-release tags exist, the error
 suggests `--include-pre-release`.
+With `versioning.branches` set, a branch matching more than one entry, or a glob match whose
+range cannot be derived from the branch name, exits with the Config code (2), as on `version
+next` and `release`.
 
 ## `heraut version sprint bump`
 

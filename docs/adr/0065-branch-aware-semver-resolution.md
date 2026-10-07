@@ -69,8 +69,9 @@ Derivation takes the branch name's last `/`-separated segment and accepts `N.x`,
 with an optional leading `v` (`release/1.3` and `release/1.3.x` give `1.3.x`). An exact branch
 literally named `1.3.x` is a release branch unless it sets `range:`: explicit beats magic. The
 current branch comes from `git rev-parse --abbrev-ref HEAD`, then on a detached `HEAD` from
-`CI_COMMIT_BRANCH`, `GITHUB_REF_NAME` (branch refs only) and `BUILD_SOURCEBRANCHNAME`. Exactly one
-entry may match; two is an error.
+`CI_COMMIT_BRANCH`, `GITHUB_REF_NAME` (branch refs only) and `BUILD_SOURCEBRANCH` (`refs/heads/`
+refs only, prefix stripped — Azure's `BUILD_SOURCEBRANCHNAME` is just the ref's last path segment,
+`1.3` for `release/1.3`, so it is not read). Exactly one entry may match; two is an error.
 
 **Resolution by branch type.**
 
@@ -84,8 +85,9 @@ entry may match; two is an error.
 **Maintenance rules.** Given the range `[lo, hi)`: the base is the highest-precedence *final* tag
 in `git tag -l <prefix>* --merged HEAD` whose core lies in the range (none is an error);
 commits are `git log <base>..HEAD`; the normal bump rules apply, `stay_at_v0` first; the result
-must lie in the range (`ErrOutOfRange`); `git tag -l <next>` guards against a collision with a tag
-cut elsewhere (`ErrTagExists`). `version current` reports the same base. `--pre-release` is
+must lie in the range (`ErrOutOfRange`); `git tag -l <next> <next>+*` guards against a collision
+with a tag cut elsewhere, a build-metadata tag of the same version included since it is that
+version's release (ADR-0064) (`ErrTagExists`). `version current` reports the same base. `--pre-release` is
 allowed on a maintenance branch, the core subject to the same range check.
 
 **Why hard errors.** A `feat:` on a patch-only line, a version that already exists, and a line
@@ -101,7 +103,9 @@ set (`semver`, `semver-per-env`):
 1. Changelog and release notes always list tags with `--merged HEAD`: a tag never merged into
    `HEAD` gets no section.
 2. Each existing section's lower bound comes from its own ancestry
-   (`git tag -l --merged <t> --no-contains <t>`), so after `release/1.3` is merged forward into
+   (`git tag -l --merged <t>`, minus `t` itself, so a release tagged on the same commit as an older
+   one is still bounded by it; the oldest-in-scope fallback alone uses `--no-contains <t>`, so
+   another env's promotion tag on `t`'s commit never bounds it), so after `release/1.3` is merged forward into
    `main`, `v1.3.2` gets its own section (`v1.3.1..v1.3.2`) and `v1.4.0` still bounds at `v1.3.1`.
 3. The tag being cut does not exist yet: its bound stays the insert-into-the-ordered-list rule
    from ADR-0064 (T341).
@@ -121,9 +125,12 @@ Automating it is filed separately (T348).
 **Clarifications settled during implementation (T349-T354).** Where these differ from the design
 doc, they govern.
 
-- **`--set-version` collisions.** The override path returns a static resolver and makes no git
-  call, so the "collision guard still applies" rule is satisfied by the existing `git tag` failure
-  when the tag exists. No new probe.
+- **`--set-version` collisions.** With a `branches` block (`semver`), the override path runs the
+  same collision probe as maintenance resolution, inside `Resolve` so a taken version exits
+  Runtime: `git tag -l <tag> <tag>+*` (just `<tag>` when `--set-build-id` already adds build
+  metadata), failing with `ErrTagExists` naming the tag found. Without the block it still makes no
+  git call. This reverses the first T351 reading (rely on the `git tag` failure), which missed a
+  build-metadata release of the same version and failed late, at `git tag` time.
 - **`--dry-run` on an unlisted branch is not refused.** It is a preview; this mirrors the per-env
   branch guard, which also runs only outside dry runs.
 - **Per-section bounds are scope-preserving.** A section's lower bound is the highest-precedence
@@ -132,8 +139,9 @@ doc, they govern.
   ancestors) apply. Without this, under `semver-per-env` a `uat/1.3.0` ancestor could bound
   `prod/1.3.0`.
 - **Exit codes.** Branch-rule errors raised while building the resolver (ambiguous match,
-  underivable range) and the unlisted-branch refusal exit Config. Resolve-time errors (no
-  in-range base, out of range, tag exists) exit Runtime.
+  underivable range) and the unlisted-branch refusal exit Config; `version current` maps the same
+  two branch-rule errors to Config. Resolve-time errors (no in-range base, out of range, tag
+  exists) exit Runtime.
 - **`--pre-release` needs a derivable range.** On a glob-matched branch with no derivable range it
   fails with `ErrUnderivableRange`: auto resolution needs the range, and only `--set-version` is
   exempt.

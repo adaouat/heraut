@@ -265,7 +265,8 @@ Decision record: [ADR-0065](../adr/0065-branch-aware-semver-resolution.md).
 When `versioning.branches` is set (`semver` only — see
 [Spec 02 § `versioning.branches`](02-configuration.md#versioningbranches)), automatic resolution
 first reads the current branch (`git rev-parse --abbrev-ref HEAD`, then on a detached `HEAD` the
-`CI_COMMIT_BRANCH`, `GITHUB_REF_NAME` (branch refs only) and `BUILD_SOURCEBRANCHNAME` variables)
+`CI_COMMIT_BRANCH`, `GITHUB_REF_NAME` (branch refs only) and `BUILD_SOURCEBRANCH` (`refs/heads/`
+refs only, prefix stripped) variables)
 and matches it against the entries. Without the block no branch detection happens and every
 branch resolves exactly as described above. `bump.mode: manual` and `--set-version` skip branch
 detection too: the version is the one passed.
@@ -286,8 +287,10 @@ detection too: the version is the one passed.
   core.
 - **Commits.** `git log <base>..HEAD`, as above but from the reachable base.
 - **Bump.** The normal rules, `stay_at_v0` first. The resulting version must lie in `[lo, hi)`.
-- **Collision guard.** `git tag -l <next-tag>`; a non-empty result means the tag was cut on
-  another branch, and resolution fails.
+- **Collision guard.** `git tag -l <next-tag> <next-tag>+*`; a non-empty result means the version
+  was released on another branch — as `<next-tag>` or as a build-metadata tag of it
+  (`v1.3.2+7`, ADR-0064) — and resolution fails naming the tag found. A pre-release
+  (`v1.3.2-rc.1`) is not a collision.
 
 **`version current`.** On a maintenance branch, `heraut version current` reports the line's
 base: the highest final tag reachable from `HEAD` whose core lies in `[lo, hi)`
@@ -309,9 +312,12 @@ series opened on `main` (`v2.1.0-rc.1`) neither escalates nor masks the line's.
 `release/1.3` + `--pre-release rc` → `v1.3.2-rc.1`. A glob-matched branch whose range cannot be
 derived is a Config error under `--pre-release` too: only `--set-version` is exempt.
 
-`--set-version` stays the manual escape hatch: it is not range-checked, makes no git call
-during resolution, and a matched glob whose range cannot be derived from the branch name is not
-an error under it. An existing tag still fails at `git tag` time.
+`--set-version` stays the manual escape hatch: it is not range-checked, skips branch detection,
+and a matched glob whose range cannot be derived from the branch name is not an error under it.
+The collision guard still applies: with a `branches` block, resolution runs `git tag -l <tag>
+<tag>+*` (only `<tag>` when `--set-build-id` adds build metadata itself) and fails with the
+tag-exists error (Runtime) when it lists anything. Without the block `--set-version` makes no git
+call during resolution.
 
 **Worked examples.** History: `main` has `v1.3.0 → v1.3.1 → v1.4.0 → v2.0.0`; `release/1.3` cut
 from `v1.3.1`; `release/1.x` cut from `v1.4.0`. Config:

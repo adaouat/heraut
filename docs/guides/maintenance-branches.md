@@ -35,6 +35,10 @@ versioning:
 - An exact name without `range` is a release branch (today's behaviour).
 - On a branch matched by no entry, `heraut release` and `heraut changelog --tag` refuse to
   publish unless you pass `--force`. Previews (`version next`, `--dry-run`) keep working.
+  `--force` is one flag with several meanings: it also bypasses the per-env promotion guards and
+  downgrades `commits.enrichment_policy: required`. A CI job that passes `--force` for one of
+  those reasons loses the unlisted-branch protection too, so run such jobs only on branches you
+  intend to release from.
 
 ## What happens on a maintenance branch
 
@@ -54,7 +58,11 @@ Say `main` has `v1.3.0 → v1.3.1 → v1.4.0 → v2.0.0`, `release/1.3` was cut 
 | `feature/foo`, `heraut release` | `v2.0.1` | unlisted-branch error (`--force` bypasses it) |
 
 In CI a detached `HEAD` is fine: heraut falls back to `CI_COMMIT_BRANCH` (GitLab),
-`GITHUB_REF_NAME` on branch refs (GitHub Actions) and `BUILD_SOURCEBRANCHNAME` (Azure Pipelines).
+`GITHUB_REF_NAME` on branch refs (GitHub Actions) and `BUILD_SOURCEBRANCH` on `refs/heads/` refs
+(Azure Pipelines — not `BUILD_SOURCEBRANCHNAME`, which holds only the ref's last segment).
+On a GitHub `pull_request` run, `GITHUB_REF_NAME` is `<number>/merge`, which matches no entry, so
+a PR preview (`version next`, `--dry-run`) shows the global version, not the target line's. That
+is preview-only and safe: publishing from that ref is refused as unlisted.
 The history of the line's base tag must be fetched: a shallow clone that lost it reports "no
 release in range".
 
@@ -97,6 +105,8 @@ heraut release --set-version 7.8.0 --set-build-id 158404    # repeat store build
 ```
 
 `--set-version` is not range-checked, and it works on a branch that matches a `release/*` glob
-even though no range can be derived from `release/7.8.0`. A tag that already exists still fails
-at `git tag` time; use `--pre-release rc` or `--set-build-id` for re-releases. Automating this as
+even though no range can be derived from `release/7.8.0`. A version that is already released —
+`v7.8.0`, or a build-metadata tag such as `v7.8.0+158404` — still fails before anything is
+written; use `--pre-release rc` or `--set-build-id` for re-releases (with `--set-build-id` only
+that exact tag is checked). Automating this as
 its own branch type is tracked as T348 in [`docs/tasks/roadmap.md`](../tasks/roadmap.md).
