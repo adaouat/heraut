@@ -1,6 +1,7 @@
 # Héraut — SemVer v2 Roadmap
 
-> Status: Active
+> Status: Active — Phase 3 (maintenance branches, T344 → T349–T355) in progress
+> Phase 3 design: [`docs/superpowers/specs/2026-10-05-maintenance-branches-design.md`](../superpowers/specs/2026-10-05-maintenance-branches-design.md); plan: `.claude/plans/semver-v2-phase-3-maintenance-branches.md`
 > Design: [`docs/superpowers/specs/2026-09-28-semver-v2-compliance-design.md`](../superpowers/specs/2026-09-28-semver-v2-compliance-design.md)
 > ADRs: new ADR-0064 ("SemVer v2 compliance and pre-release lifecycle" — written in T324)
 > Main roadmap: tracked as Phase 59 in [`roadmap.md`](roadmap.md)
@@ -44,7 +45,14 @@ pre-release lifecycle (`--pre-release <label>`) for the plain `semver` strategy.
 | T341 | Release-notes range for pre-releases; absent-tag fallback fix | Done |
 | T342 | End-to-end pre-release scenarios on a real repo | Done |
 | T343 | ADR-0064 Phase 2 status update and Phase 2 close | Done |
-| T344 | Maintenance-branch support (last final + notes from branch history) | Not started |
+| T344 | Maintenance-branch support (last final + notes from branch history) | In progress — broken down into T349–T355 |
+| T349 | `versioning.branches` config, range parsing, validation | Not started |
+| T350 | Current-branch detection, rule matching, unlisted-branch publish guard | Not started |
+| T351 | Maintenance resolution in `semver.Resolver` | Not started |
+| T352 | History-aware changelog and notes bounds | Not started |
+| T353 | `version current` and pre-releases on maintenance branches | Not started |
+| T354 | End-to-end maintenance scenarios on a real repo | Not started |
+| T355 | ADR-0065, guide, Phase 3 close | Not started |
 
 ## Phase 1 — Compliance
 
@@ -541,9 +549,51 @@ a pre-release). This also resolves (b).
 `internal/versioning/semver/resolver.go` (`resolveAuto`, `bumpAfterHold`, `stay_at_v0` hold in
 `hold.go`); per-env is out of scope for minting (design doc § Non-goals).
 
+## Phase 3 — Maintenance branches
+
+Breaks T344 down (design: `docs/superpowers/specs/2026-10-05-maintenance-branches-design.md`;
+plan: `.claude/plans/semver-v2-phase-3-maintenance-branches.md`, which carries each task's full
+scope and tests). The real-data fixture cleanup recorded on T344 lands first as its own `test:`
+commit.
+
+### [ ] T349 — `versioning.branches` config, range parsing, validation
+
+Plan Task 1: `BranchRule`/`BranchRange`, `ParseBranchRange`/`DeriveBranchRange`, `validateBranches`,
+`schema.json`, sample, fixtures, Spec 02.
+
+### [ ] T350 — Current-branch detection, rule matching, unlisted-branch publish guard
+
+Plan Task 2: `app.CurrentBranch` (git, then `CI_COMMIT_BRANCH`/`GITHUB_REF_NAME`/
+`BUILD_SOURCEBRANCHNAME`), `MatchBranchRule`, `CheckReleaseBranch` on `release` and
+`changelog --tag`, Spec 03.
+
+### [ ] T351 — Maintenance resolution in `semver.Resolver`
+
+Plan Task 3: `semver.Range`, `SetMaintenanceRange`, reachable in-range base, range cap
+(`ErrOutOfRange`), collision guard (`ErrTagExists`), `NewResolver` wiring, Spec 04.
+
+### [ ] T352 — History-aware changelog and notes bounds
+
+Plan Task 4: reachable-only semver generators, scope-preserving per-section ancestry bound,
+reachable rotation lookup, Spec 05.
+
+### [ ] T353 — `version current` and pre-releases on maintenance branches
+
+Plan Task 5.
+
+### [ ] T354 — End-to-end maintenance scenarios on a real repo
+
+Plan Task 6: the spec's worked examples #1–#11 on real git.
+
+### [ ] T355 — ADR-0065, guide, Phase 3 close
+
+Plan Task 7.
+
 ## Later
 
 ### [ ] T344 — Maintenance-branch support: last final and notes from branch history
+
+Broken down into T349–T355 (Phase 3 above); flipped when Phase 3 closes.
 
 Needs its own design. heraut resolves against the whole repo's tag list, not the current branch's
 history: the semver resolver's `git tag -l <prefix>*` is global, so cutting `v1.3.2` on a
