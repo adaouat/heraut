@@ -22,6 +22,7 @@ type Resolver struct {
 	preReleaseLabel string
 	warnings        []string
 	wouldBeVersions []string
+	maintenance     *Range
 }
 
 // New constructs a SemVer Resolver.
@@ -132,6 +133,9 @@ func (r *Resolver) resolveManual() (versioning.Result, error) {
 }
 
 func (r *Resolver) resolveAuto() (versioning.Result, error) {
+	if r.maintenance != nil {
+		return r.resolveMaintenance(r.maintenance)
+	}
 	prefix := r.prefix()
 
 	stdout, _, err := r.runner.Run("git", "tag", "-l", prefix+"*", "--sort=-version:refname")

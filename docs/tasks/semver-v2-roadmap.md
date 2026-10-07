@@ -48,7 +48,7 @@ pre-release lifecycle (`--pre-release <label>`) for the plain `semver` strategy.
 | T344 | Maintenance-branch support (last final + notes from branch history) | In progress — broken down into T349–T355 |
 | T349 | `versioning.branches` config, range parsing, validation | Done |
 | T350 | Current-branch detection, rule matching, unlisted-branch publish guard | Done |
-| T351 | Maintenance resolution in `semver.Resolver` | Not started |
+| T351 | Maintenance resolution in `semver.Resolver` | Done |
 | T352 | History-aware changelog and notes bounds | Not started |
 | T353 | `version current` and pre-releases on maintenance branches | Not started |
 | T354 | End-to-end maintenance scenarios on a real repo | Not started |
@@ -584,10 +584,29 @@ set; an unknown branch (detached, no CI variable) is refused with a message nami
 HEAD. Spec 03 documents the extra `--force` meaning on `release` and `changelog`. Nothing
 deferred; `NewResolver` wiring of `MatchBranchRule` is T351.
 
-### [ ] T351 — Maintenance resolution in `semver.Resolver`
+### [x] T351 — Maintenance resolution in `semver.Resolver`
 
 Plan Task 3: `semver.Range`, `SetMaintenanceRange`, reachable in-range base, range cap
 (`ErrOutOfRange`), collision guard (`ErrTagExists`), `NewResolver` wiring, Spec 04.
+
+Done. `internal/versioning/semver/maintenance.go` adds `Range` (`[Lo, Hi)`, `Label`, `Branch`),
+`RangeFrom`, `Contains` (on the core, so pre-release and build metadata are ignored),
+`SetMaintenanceRange` and the sentinels `ErrOutOfRange`, `ErrTagExists`, `ErrNoInRangeRelease`.
+With a range set, `resolveAuto` hands off to `resolveMaintenance`: `git tag -l <prefix>* --merged
+HEAD --sort=-version:refname`, base = highest in-range final, `git log <base>..HEAD`, the bump
+with the `stay_at_v0` hold applied first (its warnings still flow through `Warnings()`), the
+range check (the error names the first commit subject at the applied bump level, falling back to
+the first commit when a hold leaves none at that level), then the `git tag -l <next>` collision
+probe. A nil range leaves `resolveAuto` untouched (guard test). `app.NewResolver` wires it for
+`semver` only, after the `--set-version` early return, and skips branch detection entirely when
+`versioning.branches` is absent or `bump.mode` is `manual`, so every existing `MockRunner` FIFO
+test passes unmodified. Clarification: the spec's "collision guard still applies" under
+`--set-version` relies on the existing `git tag` failure when the tag exists, since the override
+path returns a `StaticResolver` and makes no git call; no new probe was added there. Spec 04 gains
+§ Maintenance branches with the rules, the worked examples and the error table. Deviations: the
+Spec 04 worked-examples table omits rows #9 (`version current`) and #10 (`--pre-release`), and
+row #1's notes bound, which belong to T353 and T352. Deferred: `resolvePreRelease` and
+`version current` ignore the range until T353.
 
 ### [ ] T352 — History-aware changelog and notes bounds
 

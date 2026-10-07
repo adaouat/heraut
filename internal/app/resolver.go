@@ -192,6 +192,9 @@ func NewResolver(cfg *config.Config, env string, force bool, versionOverride, bu
 		r := semver.New(runner, cfg)
 		r.SetAllowMajor(o.allowMajor)
 		r.SetPreRelease(o.preRelease)
+		if err := applyMaintenanceRange(r, cfg, runner); err != nil {
+			return nil, err
+		}
 		return warningResolver{inner: r, warnings: r.Warnings, wouldBeVersions: r.WouldBeVersions}, nil
 	case "calver":
 		return calver.New(runner, cfg, time.Now), nil
@@ -205,6 +208,29 @@ func NewResolver(cfg *config.Config, env string, force bool, versionOverride, bu
 	default:
 		return nil, fmt.Errorf("unknown versioning strategy %q (supported: semver, calver, semver-per-env, calver-per-env)", cfg.Versioning.Strategy)
 	}
+}
+
+// applyMaintenanceRange confines r to the current branch's maintenance line when
+// versioning.branches is set (ADR-0065). Without the block it makes no git call, so repos that
+// don't declare branches resolve exactly as before. Manual bump mode is skipped too: its version
+// comes from --set-version, which never reaches this point.
+func applyMaintenanceRange(r *semver.Resolver, cfg *config.Config, runner port.Runner) error {
+	if len(cfg.Versioning.Branches) == 0 || cfg.Versioning.BumpMode() == "manual" {
+		return nil
+	}
+	branch, known, err := CurrentBranch(runner)
+	if err != nil {
+		return err
+	}
+	m, err := MatchBranchRule(cfg, branch, known, true)
+	if err != nil {
+		return err
+	}
+	if m.Kind == BranchMaintenance {
+		rg := semver.RangeFrom(m.Range, m.Branch)
+		r.SetMaintenanceRange(&rg)
+	}
+	return nil
 }
 
 // validatePreReleaseUsage rejects --pre-release combinations that cannot mint a pre-release,

@@ -258,6 +258,68 @@ as described here (see also [Spec 03 § `heraut release`](03-commands.md#heraut-
 and `calver-per-env` have no manual mode and keep today's lenient check (non-empty, no
 whitespace) regardless of shape.
 
+### Maintenance branches
+
+When `versioning.branches` is set (`semver` only — see
+[Spec 02 § `versioning.branches`](02-configuration.md#versioningbranches)), automatic resolution
+first reads the current branch (`git rev-parse --abbrev-ref HEAD`, then on a detached `HEAD` the
+`CI_COMMIT_BRANCH`, `GITHUB_REF_NAME` (branch refs only) and `BUILD_SOURCEBRANCHNAME` variables)
+and matches it against the entries. Without the block no branch detection happens and every
+branch resolves exactly as described above. `bump.mode: manual` and `--set-version` skip branch
+detection too: the version is the one passed.
+
+| Branch | Resolution |
+|---|---|
+| release branch (exact `name`, no `range`) | as above: global tags |
+| maintenance branch (`range`, or a glob with a range derived from the branch name) | the maintenance rules below |
+| unlisted, or unknown | as above for previews; publishing is refused unless `--force` (see [Spec 03](03-commands.md#heraut-release)) |
+
+**Maintenance rules.** Given the matched range `[lo, hi)` — `N.x` is `>=N.0.0 <(N+1).0.0`,
+`N.M.x` is `>=N.M.0 <N.(M+1).0`:
+
+- **Base.** The highest-precedence *final* tag in `git tag -l <prefix>* --merged HEAD
+  --sort=-version:refname`, ordered by SemVer precedence as above, whose core lies in
+  `[lo, hi)`. Tags cut on other lines (`v2.0.0` on `main`) are not reachable and never become the
+  base; a pre-release is never the base; a build-metadata tag (`v1.3.1+5`) is the release of its
+  core.
+- **Commits.** `git log <base>..HEAD`, as above but from the reachable base.
+- **Bump.** The normal rules, `stay_at_v0` first. The resulting version must lie in `[lo, hi)`.
+- **Collision guard.** `git tag -l <next-tag>`; a non-empty result means the tag was cut on
+  another branch, and resolution fails.
+
+`--set-version` stays the manual escape hatch: it is not range-checked, makes no git call
+during resolution, and a matched glob whose range cannot be derived from the branch name is not
+an error under it. An existing tag still fails at `git tag` time.
+
+**Worked examples.** History: `main` has `v1.3.0 → v1.3.1 → v1.4.0 → v2.0.0`; `release/1.3` cut
+from `v1.3.1`; `release/1.x` cut from `v1.4.0`. Config:
+`branches: [{name: main}, {name: "release/*"}]`.
+
+| # | Branch / commit | Without `branches` | With `branches` |
+|---|---|---|---|
+| 1 | `release/1.3`, `fix: x` | `v2.0.1` | `v1.3.2` |
+| 2 | `release/1.3`, `feat: y` | `v2.1.0` | out-of-range error (1.4.0 outside `1.3.x`) |
+| 3 | `release/1.x`, `feat: z` | `v2.1.0` | `v1.5.0` |
+| 4 | `release/1.x`, `feat!: …` | `v3.0.0` | out-of-range error (2.0.0 outside `1.x`) |
+| 5 | `main`, `fix: w`, with `v1.3.2` on `release/1.3` | `v2.0.1` | `v2.0.1` (unchanged) |
+| 6 | `release/1.3`, `v1.3.2` already tagged elsewhere | collides | tag-exists error |
+| 7 | detached HEAD, `CI_COMMIT_BRANCH=release/1.3` | — | as #1 |
+| 8 | `feature/foo`, `heraut release` | `v2.0.1` | unlisted-branch error; `--force` → `v2.0.1` |
+| 8b | `feature/foo`, `heraut version next` | `v2.0.1` | `v2.0.1` (unchanged) |
+| 11 | `release/7.8.0` (matches `release/*`, no derivable range), `--set-version 7.8.0` | `v7.8.0` | `v7.8.0` (no derivation error) |
+| 11b | `release/7.8.0`, no `--set-version` | `v2.0.1` | derivation error naming the branch |
+
+**Errors.**
+
+| Condition | Message (abridged) | Exit |
+|---|---|---|
+| two entries match the branch | `branch matches more than one versioning.branches entry: entries "…", "…" all match branch "…"` | Config |
+| matched glob, no derivable version in the branch name (auto resolution only) | `cannot derive a maintenance range from the branch name: branch "release/legacy" matches versioning.branches[1] ("release/*") …` | Config |
+| unlisted or unknown branch on a publishing command, no `--force` | `branch matches no versioning.branches entry: …` | Config |
+| no in-range final reachable from `HEAD` | `no release in range 1.3.x in the history of release/1.3 — tag the branch's starting point or pass --set-version` | Runtime |
+| next version outside the range | `feat: y would release 1.4.0, outside release/1.3 (>=1.3.0 <1.4.0) — land it on a branch whose range allows it, or on main` | Runtime |
+| next tag already exists | `tag already exists: v1.3.2 (cut on another branch) — pick the next free version with --set-version` | Runtime |
+
 ---
 
 ## CalVer

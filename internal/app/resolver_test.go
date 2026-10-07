@@ -608,3 +608,117 @@ func TestNewResolver_PreReleaseEmpty_LeavesFinalPathUntouched(t *testing.T) {
 	require.NoError(t, err)
 	assert.NotNil(t, r)
 }
+
+func maintenanceCfg(rules ...config.BranchRule) *config.Config {
+	cfg := semverCfg()
+	cfg.Versioning.Branches = rules
+	return cfg
+}
+
+func gitArgs(mr *exectest.MockRunner) [][]string {
+	out := make([][]string, len(mr.Calls))
+	for i, c := range mr.Calls {
+		out[i] = c.Args
+	}
+	return out
+}
+
+func TestNewResolver_Maintenance(t *testing.T) {
+	revParse := []string{"rev-parse", "--abbrev-ref", "HEAD"}
+	globalList := []string{"tag", "-l", "v*", "--sort=-version:refname"}
+	mergedList := []string{"tag", "-l", "v*", "--merged", "HEAD", "--sort=-version:refname"}
+	mainAndRelease := []config.BranchRule{{Name: "main"}, {Name: "release/*"}}
+
+	tests := []struct {
+		name      string
+		cfg       *config.Config
+		override  string
+		responses []string
+		wantTag   string
+		wantErr   error
+		wantCalls [][]string
+	}{
+		{
+			name:      "no branches block: no rev-parse call",
+			cfg:       semverCfg(),
+			responses: []string{"v2.0.0\nv1.3.1\n", "fix: x\x00"},
+			wantTag:   "v2.0.1",
+			wantCalls: [][]string{globalList, {"log", "v2.0.0..HEAD", "--format=%B%x00"}},
+		},
+		{
+			name:      "maintenance branch: resolver gets the range",
+			cfg:       maintenanceCfg(mainAndRelease...),
+			responses: []string{"release/1.3\n", "v1.3.1\nv1.3.0\n", "fix: x\x00", ""},
+			wantTag:   "v1.3.2",
+			wantCalls: [][]string{revParse, mergedList, {"log", "v1.3.1..HEAD", "--format=%B%x00"}, {"tag", "-l", "v1.3.2"}},
+		},
+		{
+			name:      "release branch: global listing",
+			cfg:       maintenanceCfg(mainAndRelease...),
+			responses: []string{"main\n", "v2.0.0\nv1.3.1\n", "fix: x\x00"},
+			wantTag:   "v2.0.1",
+			wantCalls: [][]string{revParse, globalList, {"log", "v2.0.0..HEAD", "--format=%B%x00"}},
+		},
+		{
+			name:      "unlisted branch: global listing (previews unchanged)",
+			cfg:       maintenanceCfg(mainAndRelease...),
+			responses: []string{"feature/foo\n", "v2.0.0\n", "fix: x\x00"},
+			wantTag:   "v2.0.1",
+			wantCalls: [][]string{revParse, globalList, {"log", "v2.0.0..HEAD", "--format=%B%x00"}},
+		},
+		{
+			name:      "ambiguous match: error",
+			cfg:       maintenanceCfg(config.BranchRule{Name: "release/*"}, config.BranchRule{Name: "release/1.3", Range: "1.3.x"}),
+			responses: []string{"release/1.3\n"},
+			wantErr:   app.ErrAmbiguousBranch,
+			wantCalls: [][]string{revParse},
+		},
+		{
+			name:      "underivable range under auto resolution: error",
+			cfg:       maintenanceCfg(mainAndRelease...),
+			responses: []string{"release/7.8.0\n"},
+			wantErr:   app.ErrUnderivableRange,
+			wantCalls: [][]string{revParse},
+		},
+		{
+			name:      "--set-version on release/7.8.0 with release/*: no git call",
+			cfg:       maintenanceCfg(mainAndRelease...),
+			override:  "7.8.0",
+			wantTag:   "v7.8.0",
+			wantCalls: [][]string{},
+		},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			clearBranchEnv(t)
+			mr := exectest.NewMockRunner()
+			for _, out := range tc.responses {
+				mr.QueueResponse(out, "", nil)
+			}
+			r, err := app.NewResolver(tc.cfg, "", false, tc.override, "", mr)
+			if tc.wantErr != nil {
+				require.ErrorIs(t, err, tc.wantErr)
+				assert.Equal(t, tc.wantCalls, gitArgs(mr))
+				return
+			}
+			require.NoError(t, err)
+			res, err := r.Resolve()
+			require.NoError(t, err)
+			assert.Equal(t, tc.wantTag, res.Tag)
+			assert.Equal(t, tc.wantCalls, gitArgs(mr))
+		})
+	}
+}
+
+func TestNewResolver_Maintenance_ManualModeSkipsBranchDetection(t *testing.T) {
+	clearBranchEnv(t)
+	cfg := maintenanceCfg(config.BranchRule{Name: "main"}, config.BranchRule{Name: "release/*"})
+	cfg.Versioning.Bump = &config.BumpConfig{Mode: "manual"}
+	mr := exectest.NewMockRunner()
+
+	r, err := app.NewResolver(cfg, "", false, "", "", mr)
+	require.NoError(t, err)
+	_, err = r.Resolve()
+	require.ErrorContains(t, err, "manual bump mode requires --set-version")
+	assert.Empty(t, mr.Calls, "manual mode must not run branch detection")
+}
