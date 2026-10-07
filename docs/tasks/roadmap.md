@@ -2625,12 +2625,12 @@ testify only), done in whichever part touches the harness next.
 
 - `[x]` **T345b1**: CalVer end to end with the simulated clock (every format's period boundary,
   `PATCH` reset, tokens, `version sprint bump`, `calver-per-env`, prefix) plus `native.WithClock`
-  so the changelog's section date and footer follow the clock.
+  so `.Heraut.GeneratedAt` and the default footer follow the clock.
   **Completion note:** executed from `docs/superpowers/plans/2026-10-07-e2e-calver-t345b1.md`.
-  27 new scenarios in `e2e/calver_test.go` (18 period-boundary rows covering `MM`, `DD`, `WW`,
+  31 new scenarios in `e2e/calver_test.go` (22 period-boundary rows covering `MM`, `DD`, `WW`,
   `QQ`, `SS`, `YYYY`-only, a year rollover, a prefix and "commit messages are ignored"; the sprint
   rows plus a `version sprint bump` / `--dry-run` round trip; six `calver-per-env` rows including
-  the E001 guard exiting 4), and `TestCalVer_ChangelogFollowsTheSimulatedClock`; `e2e` now runs 68
+  the E001 guard exiting 4), and `TestCalVer_ChangelogFollowsTheSimulatedClock`; `e2e` now runs 72
   subtests. `native.WithClock` landed and `buildGenerator` always passes the `app` clock. Deviation:
   the changelog section heading date is the newest commit's date (`commits.go`), not a clock read,
   so the e2e asserts that `.Heraut.GeneratedAt` and the default footer follow the clock and leaves
@@ -2674,16 +2674,23 @@ the other e2e scenarios still lower-case error text before matching, which stays
 them independent of capitalisation. The wrapped continuation lines of the panel are unchanged
 (a long message still wraps at about 115 columns, even inside a hyphenated flag).
 
-#### `[ ]` T358: `YYYY.WW` pairs the calendar year with the ISO week at a year edge
+#### `[ ]` T358: `YYYY.WW` pairs the calendar year with the ISO week and can mint a duplicate tag
 
-Found while preparing T345b1. Under `format: "YYYY.WW.PATCH"` the year token is the calendar year
-and `WW` is the ISO week, so the first days of January that still belong to ISO week 53 render as a
-week that does not exist: with the clock at 2027-01-01 (ISO week 53 of 2026) and a latest tag
-`2026.53.1`, the next version is `2027.53.0`, and 2027-01-04 gives `2027.01.0`. Spec 04 documents
-`YYYY` as the calendar year, so this is spec-conformant but surprising. Decide first (ADR or spec
-note): keep and document it, or add an ISO-year token. Then add the year-edge week rows to
-`e2e/calver_test.go`; they were left out of T345b1 on purpose so a test does not cement the
-ambiguous behaviour.
+Found while preparing T345b1; confirmed by the T345b1 review. Under `format: "YYYY.WW.PATCH"` the
+year token is the calendar year and `WW` is the ISO week, so the days around New Year that belong
+to the *other* ISO year render a pairing that does not exist, in both directions:
+
+- **January side:** clock at 2027-01-01 (ISO week 53 of 2026), latest tag `2026.53.1` → next
+  version `2027.53.0`; 2027-01-04 → `2027.01.0`.
+- **December side, a duplicate tag:** tags `2025.01.0` and `2025.52.3`, clock at 2025-12-29 (ISO
+  week 1 of 2026) → `version next` prints `2025.01.0`, a tag that already exists, so a release on
+  those days collides with January's tag or goes backwards.
+
+Spec 04 documents `YYYY` as the calendar year and `WW` as the ISO week, so this conforms literally,
+but a tag collision is a defect by any reasonable reading. Decide first (ADR or spec amendment):
+add an ISO-year token and make `YYYY.WW` use it, or pair the ISO year with `WW` implicitly. Then fix
+with tests and add the year-edge week rows to `e2e/calver_test.go` (both directions); they were
+left out of T345b1 on purpose so a test does not cement the ambiguous behaviour.
 
 ### Phase 61 — GitLab publish driver follow-ups from T335
 

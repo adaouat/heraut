@@ -96,8 +96,8 @@ func WithReachableFromHead() Option {
 	return func(g *Generator) { g.reachableFromHead = true }
 }
 
-// WithClock replaces the clock behind the section dates and .Heraut.GeneratedAt; a nil clock
-// keeps time.Now.
+// WithClock replaces the clock behind .Heraut.GeneratedAt (a section's own date is its newest
+// commit's date, not a clock read); a nil clock keeps time.Now.
 func WithClock(now func() time.Time) Option {
 	return func(g *Generator) {
 		if now != nil {
