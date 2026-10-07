@@ -2618,15 +2618,23 @@ reworded). Manual mode with `--set-version`, manual mode with `--pre-release` an
 `tag_prefix` were added after review. Deferred to T345b as planned: the `native` generator clock (its `GeneratedAt` is not rendered by
 anything T345a drives) and per-env `stay_at_v0`.
 
-#### `[ ]` T345b: remaining Lane A scenarios
+#### T345b: remaining Lane A scenarios (split into five parts)
 
-Also: add an `e2e/` row to the layer table in `.claude/rules/coding.md` (imports `e2e/harness` and testify only).
+Also: add an `e2e/` row to the layer table in `.claude/rules/coding.md` (imports `e2e/harness` and
+testify only), done in whichever part touches the harness next.
 
-CalVer period boundaries with the simulated clock (month/year/ISO-week/quarter, `PATCH` reset, sprint),
-per-env promotion (E001/E002/E003, `--force`, `tag_format`) including `stay_at_v0` under
-`semver-per-env`, maintenance branches, changelog and release local flow against a bare remote with
-fake `gh`/`glab`, hooks, `--offline`, CLI surface (`check`, `~` expansion, `commit verify`). Adds
-`native.WithClock` (the generator's `GeneratedAt`) fed from `app`'s clock seam.
+- `[ ]` **T345b1**: CalVer end to end with the simulated clock (every format's period boundary,
+  `PATCH` reset, tokens, `version sprint bump`, `calver-per-env`, prefix) plus `native.WithClock`
+  so the changelog's section date and footer follow the clock.
+- `[ ]` **T345b2**: per-env SemVer: promotion (E001/E002/E003, `--force`, `tag_format`) and
+  `stay_at_v0` under `semver-per-env`.
+- `[ ]` **T345b3**: maintenance branches (ADR-0065): range resolution, unlisted-branch refusal,
+  collision guard, same-commit tag bounds.
+- `[ ]` **T345b4**: changelog and release local flow: bare remote in the harness,
+  `changelog --commit --tag --no-push`, `--regenerate`, hooks and `--skip-hook`, fake `gh`/`glab`
+  recording argv, `--offline`.
+- `[ ]` **T345b5**: CLI surface: `check config`/`check runtime` exit codes, `~` expansion in
+  `--config` and `HERAUT_FILE`, `commit verify`, unknown config key reports a line number.
 
 #### `[ ]` T345c: forge harness and scenarios B1-B4 (Lane B)
 
@@ -2655,6 +2663,17 @@ and a leading tag, case-sensitive); it failed on forge v0.19.3 and passes on v0.
 the other e2e scenarios still lower-case error text before matching, which stays valid and keeps
 them independent of capitalisation. The wrapped continuation lines of the panel are unchanged
 (a long message still wraps at about 115 columns, even inside a hyphenated flag).
+
+#### `[ ]` T358: `YYYY.WW` pairs the calendar year with the ISO week at a year edge
+
+Found while preparing T345b1. Under `format: "YYYY.WW.PATCH"` the year token is the calendar year
+and `WW` is the ISO week, so the first days of January that still belong to ISO week 53 render as a
+week that does not exist: with the clock at 2027-01-01 (ISO week 53 of 2026) and a latest tag
+`2026.53.1`, the next version is `2027.53.0`, and 2027-01-04 gives `2027.01.0`. Spec 04 documents
+`YYYY` as the calendar year, so this is spec-conformant but surprising. Decide first (ADR or spec
+note): keep and document it, or add an ISO-year token. Then add the year-edge week rows to
+`e2e/calver_test.go`; they were left out of T345b1 on purpose so a test does not cement the
+ambiguous behaviour.
 
 ### Phase 61 — GitLab publish driver follow-ups from T335
 
