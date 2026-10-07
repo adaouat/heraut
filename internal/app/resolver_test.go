@@ -826,3 +826,14 @@ func TestNewResolver_SetVersion_CollisionGuard_GitError(t *testing.T) {
 	require.ErrorContains(t, err, "checking for existing tag v1.3.2")
 	require.ErrorContains(t, err, "boom")
 }
+
+func TestNewResolver_SetVersion_WithoutCollisionGuard(t *testing.T) {
+	clearBranchEnv(t)
+	mr := exectest.NewMockRunner()
+	r, err := app.NewResolver(maintenanceCfg(config.BranchRule{Name: "main"}), "", false, "1.3.2", "", mr, app.WithoutCollisionGuard())
+	require.NoError(t, err)
+	res, err := r.Resolve()
+	require.NoError(t, err)
+	assert.Equal(t, "v1.3.2", res.Tag)
+	assert.Empty(t, gitArgs(mr), "a run that never tags must not probe for an existing tag")
+}

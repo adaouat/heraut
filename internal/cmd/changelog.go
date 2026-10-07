@@ -70,7 +70,11 @@ func NewChangelogCmd(version string) *cobra.Command {
 				return exitcode.Wrap(exitcode.Config, err)
 			}
 
-			resolver, err := app.NewResolver(cfg, env, force, versionOverride, buildID, readRunner, app.WithAllowMajor(allowMajor))
+			resolverOpts := []app.ResolverOption{app.WithAllowMajor(allowMajor)}
+			if !tag {
+				resolverOpts = append(resolverOpts, app.WithoutCollisionGuard())
+			}
+			resolver, err := app.NewResolver(cfg, env, force, versionOverride, buildID, readRunner, resolverOpts...)
 			if err != nil {
 				return exitcode.Wrap(exitcode.Config, err)
 			}

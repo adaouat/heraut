@@ -129,7 +129,8 @@ doc, they govern.
   same collision probe as maintenance resolution, inside `Resolve` so a taken version exits
   Runtime: `git tag -l <tag> <tag>+*` (just `<tag>` when `--set-build-id` already adds build
   metadata), failing with `ErrTagExists` naming the tag found. Without the block it still makes no
-  git call. This reverses the first T351 reading (rely on the `git tag` failure), which missed a
+  git call. `heraut changelog` runs the probe only with `--tag`: without it no tag is created, so
+  re-rendering the changelog of an already-released version is not a collision. This reverses the first T351 reading (rely on the `git tag` failure), which missed a
   build-metadata release of the same version and failed late, at `git tag` time.
 - **`--dry-run` on an unlisted branch is not refused.** It is a preview; this mirrors the per-env
   branch guard, which also runs only outside dry runs.

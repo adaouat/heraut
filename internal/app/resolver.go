@@ -20,6 +20,13 @@ type ResolverOption func(*resolverOptions)
 type resolverOptions struct {
 	allowMajor bool
 	preRelease string
+	noGuard    bool
+}
+
+// WithoutCollisionGuard skips the --set-version tag-collision probe (ADR-0065) for runs that
+// never create the tag, such as re-rendering the changelog of an already-released version.
+func WithoutCollisionGuard() ResolverOption {
+	return func(o *resolverOptions) { o.noGuard = true }
 }
 
 // WithPreRelease asks the plain semver resolver to mint a <core>-<label>.<N> pre-release
@@ -98,7 +105,8 @@ func rewriteHeldTags(warning, wouldBeVersion, version, tag string) string {
 // env is the active environment name (empty for non-per-env strategies).
 // force is the --force flag value.
 // versionOverride is set when --set-version X.Y.Z is passed; when non-empty a
-// StaticResolver is returned for all strategies, bypassing git calls entirely.
+// StaticResolver is returned for all strategies, bypassing git calls to resolve it (a semver
+// repo with versioning.branches still runs a tag-collision probe — see guardSetVersion).
 // buildID is set when --set-build-id <id> is passed; requires versionOverride to be set.
 // opts tune resolution without changing the positional signature — see WithAllowMajor.
 func NewResolver(cfg *config.Config, env string, force bool, versionOverride, buildID string, runner port.Runner, opts ...ResolverOption) (versioning.Resolver, error) {
@@ -123,7 +131,7 @@ func NewResolver(cfg *config.Config, env string, force bool, versionOverride, bu
 			if err := validateSemVerComposition(version, buildID); err != nil {
 				return nil, err
 			}
-			return guardSetVersion(cfg, versioning.NewStaticResolver(prefix+version+"+"+buildID, version), runner), nil
+			return guardSetVersion(cfg, versioning.NewStaticResolver(prefix+version+"+"+buildID, version), runner, o.noGuard), nil
 		}
 
 		var tf string
@@ -184,7 +192,7 @@ func NewResolver(cfg *config.Config, env string, force bool, versionOverride, bu
 				return nil, err
 			}
 		}
-		return guardSetVersion(cfg, versioning.NewStaticResolver(tag, version), runner), nil
+		return guardSetVersion(cfg, versioning.NewStaticResolver(tag, version), runner, o.noGuard), nil
 	}
 
 	switch cfg.Versioning.Strategy {
@@ -214,9 +222,10 @@ func NewResolver(cfg *config.Config, env string, force bool, versionOverride, bu
 // versioning.branches is set (ADR-0065), so a version already released elsewhere fails before
 // anything is written. The probe runs inside Resolve, not here: a taken version is a runtime
 // condition, and NewResolver's own errors are reported as configuration errors. Without the
-// block the resolver is returned unchanged and makes no git call.
-func guardSetVersion(cfg *config.Config, r versioning.Resolver, runner port.Runner) versioning.Resolver {
-	if len(cfg.Versioning.Branches) == 0 || cfg.Versioning.Strategy != "semver" {
+// block, or with noGuard (a run that never tags), the resolver is returned unchanged and makes no
+// git call.
+func guardSetVersion(cfg *config.Config, r versioning.Resolver, runner port.Runner, noGuard bool) versioning.Resolver {
+	if noGuard || len(cfg.Versioning.Branches) == 0 || cfg.Versioning.Strategy != "semver" {
 		return r
 	}
 	return collisionGuardResolver{inner: r, runner: runner}

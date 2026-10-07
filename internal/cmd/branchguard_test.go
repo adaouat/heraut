@@ -7,6 +7,7 @@ import (
 	"github.com/adaouat/heraut/internal/cmd"
 	"github.com/adaouat/heraut/internal/exitcode"
 	"github.com/adaouat/heraut/internal/testutil"
+	"github.com/adaouat/heraut/internal/versioning/semver"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -76,9 +77,40 @@ func TestChangelog_UnlistedBranch_OnlyTagIsRefused(t *testing.T) {
 		branchGuardGit(t, "feature/x")
 
 		_, err := executeRoot("changelog", "--config", cfgPath, "--set-version", "1.2.3")
-		if err != nil {
-			assert.NotContains(t, err.Error(), "pass --force to release anyway")
+		require.Error(t, err)
+		assert.NotContains(t, err.Error(), "pass --force to release anyway")
+		assert.NotErrorIs(t, err, semver.ErrTagExists)
+		assert.Contains(t, err.Error(), "preflight check failed", "the stub git stops the run at preflight, past the branch guard")
+	})
+}
+
+// A taken version is a collision only when the run would tag it: re-rendering the changelog of an
+// already-released version (changelog without --tag) must not run the collision probe.
+func TestChangelog_SetVersion_CollisionProbeOnlyWhenTagging(t *testing.T) {
+	takenGit := func(t *testing.T) {
+		t.Helper()
+		testutil.ClearCIEnv(t)
+		for _, k := range []string{"CI_COMMIT_BRANCH", "GITHUB_REF_NAME", "GITHUB_REF_TYPE", "BUILD_SOURCEBRANCH", "BUILD_SOURCEBRANCHNAME"} {
+			t.Setenv(k, "")
 		}
+		exectest.FakeBin(t, "git", "#!/bin/sh\ncase \"$*\" in\n  \"rev-parse --abbrev-ref HEAD\") echo main ;;\n  \"tag -l v1.2.3 v1.2.3+*\") echo v1.2.3 ;;\n  *) exit 1 ;;\nesac\n")
+	}
+
+	t.Run("without --tag the taken version is not a collision", func(t *testing.T) {
+		cfgPath := writeConfig(t, branchListedConfig)
+		takenGit(t)
+
+		_, err := executeRoot("changelog", "--config", cfgPath, "--set-version", "1.2.3", "--dry-run")
+		if err != nil {
+			assert.NotErrorIs(t, err, semver.ErrTagExists)
+		}
+	})
+	t.Run("with --tag the taken version is refused", func(t *testing.T) {
+		cfgPath := writeConfig(t, branchListedConfig)
+		takenGit(t)
+
+		_, err := executeRoot("changelog", "--config", cfgPath, "--set-version", "1.2.3", "--tag", "--dry-run")
+		require.ErrorIs(t, err, semver.ErrTagExists)
 	})
 }
 
