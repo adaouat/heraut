@@ -228,7 +228,7 @@ discipline that applies to every task.
 | 57 | SBOM generation; shell completions investigated | Done — completions not shipped (ADR-0013 + notarization gap), see T321/T322 |
 | 58 | Homebrew cask: tar.gz archive for completions/man pages | Done — see T323 |
 | 59 | SemVer v2 compliance and pre-release lifecycle | Done — see `semver-v2-roadmap.md` |
-| 60 | End-to-end tests: hermetic binary lane + opt-in forge sandboxes | In progress — T345a done; T345b-d, T357 open |
+| 60 | End-to-end tests: hermetic binary lane + opt-in forge sandboxes | In progress — T345a, T357 done; T345b-d open |
 | 61 | GitLab publish driver follow-ups from T335 | In progress — T346 done, T347 (needs design) open |
 | 62 | Version branches: version from the branch name | Not started — see T348 (needs design) |
 | 63 | CalVer history-aware changelog bounds | Not started — see T356 |
@@ -2640,13 +2640,21 @@ CalVer, cross-forge GitLab-to-GitHub, draft, maintenance branch, PR/MR enrichmen
 `.github/workflows/e2e.yml` (`workflow_dispatch` + nightly, advisory), `mise run test:e2e`,
 `docs/guides/e2e-tests.md`.
 
-#### `[ ]` T357: error panel mangles identifiers in messages
+#### `[x]` T357: error panel mangles identifiers in messages
 
-Surfaced while writing T345a: the CLI error display re-cases and wraps message text, e.g. `V1.4.0-Beta.1
-would sort below …`, `--Pre-Release cannot be combined with --set-version`, `--Set-Version "nope" …`.
-Flags, tags and config keys must render verbatim. Find the owner first (heraut's `internal/ui` or
-`forge/cli`/fang styling), then fix at the root with a test that asserts an identifier survives
-rendering; the e2e scenarios already normalise case, so they will not catch a regression.
+Surfaced while writing T345a: the CLI error display re-cased message text, e.g. `V1.4.0-Beta.1
+would sort below …`, `--Pre-Release cannot be combined with --set-version`. Flags, tags and config
+keys must render verbatim.
+
+**Completion note:** the owner was neither `internal/ui` nor heraut: fang's default `ErrorText`
+style title-cases the first whitespace-delimited word, and `forge/cli.Run` wraps fang without
+overriding it. Fixed in forge (M21, ADR-0010 amendment, `cli.Run` now passes an error handler that
+capitalises only a plain-letter leading word), released as forge v0.19.4; heraut bumps to it. The
+regression test is `TestCLI_ErrorTextKeepsIdentifiersVerbatim` in `e2e/cli_test.go` (a leading flag
+and a leading tag, case-sensitive); it failed on forge v0.19.3 and passes on v0.19.4. Left as is:
+the other e2e scenarios still lower-case error text before matching, which stays valid and keeps
+them independent of capitalisation. The wrapped continuation lines of the panel are unchanged
+(a long message still wraps at about 115 columns, even inside a hyphenated flag).
 
 ### Phase 61 — GitLab publish driver follow-ups from T335
 
