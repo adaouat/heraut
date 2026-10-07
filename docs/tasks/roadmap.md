@@ -228,7 +228,7 @@ discipline that applies to every task.
 | 57 | SBOM generation; shell completions investigated | Done — completions not shipped (ADR-0013 + notarization gap), see T321/T322 |
 | 58 | Homebrew cask: tar.gz archive for completions/man pages | Done — see T323 |
 | 59 | SemVer v2 compliance and pre-release lifecycle | Done — see `semver-v2-roadmap.md` |
-| 60 | End-to-end tests: hermetic binary lane + opt-in forge sandboxes | In progress — T345a, T357 done; T345b-d open |
+| 60 | End-to-end tests: hermetic binary lane + opt-in forge sandboxes | In progress — T345a, T345b1, T357 done; T345b2-b5, c, d open |
 | 61 | GitLab publish driver follow-ups from T335 | In progress — T346 done, T347 (needs design) open |
 | 62 | Version branches: version from the branch name | Not started — see T348 (needs design) |
 | 63 | CalVer history-aware changelog bounds | Not started — see T356 |
@@ -2623,9 +2623,19 @@ anything T345a drives) and per-env `stay_at_v0`.
 Also: add an `e2e/` row to the layer table in `.claude/rules/coding.md` (imports `e2e/harness` and
 testify only), done in whichever part touches the harness next.
 
-- `[ ]` **T345b1**: CalVer end to end with the simulated clock (every format's period boundary,
+- `[x]` **T345b1**: CalVer end to end with the simulated clock (every format's period boundary,
   `PATCH` reset, tokens, `version sprint bump`, `calver-per-env`, prefix) plus `native.WithClock`
   so the changelog's section date and footer follow the clock.
+  **Completion note:** executed from `docs/superpowers/plans/2026-10-07-e2e-calver-t345b1.md`.
+  27 new scenarios in `e2e/calver_test.go` (18 period-boundary rows covering `MM`, `DD`, `WW`,
+  `QQ`, `SS`, `YYYY`-only, a year rollover, a prefix and "commit messages are ignored"; the sprint
+  rows plus a `version sprint bump` / `--dry-run` round trip; six `calver-per-env` rows including
+  the E001 guard exiting 4), and `TestCalVer_ChangelogFollowsTheSimulatedClock`; `e2e` now runs 68
+  subtests. `native.WithClock` landed and `buildGenerator` always passes the `app` clock. Deviation:
+  the changelog section heading date is the newest commit's date (`commits.go`), not a clock read,
+  so the e2e asserts that `.Heraut.GeneratedAt` and the default footer follow the clock and leaves
+  heading-date coverage to T345b4 (which controls commit dates). The ISO-week year edge is not
+  asserted (T358). No heraut defect surfaced beyond T358.
 - `[ ]` **T345b2**: per-env SemVer: promotion (E001/E002/E003, `--force`, `tag_format`) and
   `stay_at_v0` under `semver-per-env`.
 - `[ ]` **T345b3**: maintenance branches (ADR-0065): range resolution, unlisted-branch refusal,
