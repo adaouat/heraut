@@ -239,3 +239,121 @@ func TestResolve_MaintenanceRangeNil_KeepsGlobalSequence(t *testing.T) {
 	assert.Equal(t, []string{"tag", "-l", "v*", "--sort=-version:refname"}, mr.Calls[0].Args)
 	assert.Equal(t, []string{"log", "v2.0.0..HEAD", "--format=%B%x00"}, mr.Calls[1].Args)
 }
+
+func TestResolve_PreReleaseMaintenance(t *testing.T) {
+	const nul = "\x00"
+	line13 := config.BranchRange{Major: 1, Minor: u64(3)}
+	line1 := config.BranchRange{Major: 1}
+
+	tests := []struct {
+		name      string
+		rg        config.BranchRange
+		branch    string
+		label     string
+		responses []string // FIFO stdout per git call: global listing, merged listing, logs
+		wantCalls [][]string
+		wantTag   string
+		wantCur   string
+		wantBump  versioning.BumpType
+		wantErr   error
+		errText   []string
+		wantWarn  []string
+	}{
+		{
+			name: "rc on line", rg: line13, branch: "release/1.3", label: "rc",
+			responses: []string{"v2.0.0\nv1.4.0\nv1.3.1\n", "v1.3.1\nv1.3.0\n", "fix: x" + nul},
+			wantCalls: [][]string{tagsCall("v"), mergedCall("v"), logCall("v1.3.1")},
+			wantTag:   "v1.3.2-rc.1", wantCur: "v1.3.1", wantBump: versioning.BumpPatch,
+		},
+		{
+			name: "rc counter on line", rg: line13, branch: "release/1.3", label: "rc",
+			responses: []string{"v2.0.0\nv1.3.2-rc.1\nv1.3.1\n", "v1.3.2-rc.1\nv1.3.1\n", "fix: x" + nul + "fix: y" + nul, "fix: y" + nul},
+			wantCalls: [][]string{tagsCall("v"), mergedCall("v"), logCall("v1.3.1"), logCall("v1.3.2-rc.1")},
+			wantTag:   "v1.3.2-rc.2", wantCur: "v1.3.2-rc.1", wantBump: versioning.BumpPatch,
+		},
+		{
+			name: "feat rc out of range", rg: line13, branch: "release/1.3", label: "rc",
+			responses: []string{"v2.0.0\nv1.3.1\n", "v1.3.1\n", "feat: y" + nul},
+			wantCalls: [][]string{tagsCall("v"), mergedCall("v"), logCall("v1.3.1")},
+			wantErr:   semver.ErrOutOfRange,
+			errText:   []string{"feat: y would release 1.4.0, outside release/1.3 (>=1.3.0 <1.4.0)", "land it on a branch whose range allows it, or on main"},
+		},
+		{
+			name: "main's open series doesn't escalate the line", rg: line13, branch: "release/1.3", label: "rc",
+			responses: []string{"v2.1.0-rc.1\nv2.0.0\nv1.3.1\n", "v1.3.1\n", "fix: x" + nul},
+			wantCalls: [][]string{tagsCall("v"), mergedCall("v"), logCall("v1.3.1")},
+			wantTag:   "v1.3.2-rc.1", wantCur: "v1.3.1", wantBump: versioning.BumpPatch,
+		},
+		{
+			name: "no in-range base", rg: line13, branch: "release/1.3", label: "rc",
+			responses: []string{"v2.0.0\nv1.2.5\n", "v1.2.5\n"},
+			wantCalls: [][]string{tagsCall("v"), mergedCall("v")},
+			wantErr:   semver.ErrNoInRangeRelease,
+			errText:   []string{"no release in range 1.3.x in the history of release/1.3"},
+		},
+		{
+			// The line's own open series escalates; a higher series on main must not hide it.
+			name: "line's open series escalation is still reported", rg: line1, branch: "release/1.x", label: "rc",
+			responses: []string{"v2.1.0-rc.1\nv2.0.0\nv1.4.1-rc.1\nv1.4.0\n", "v1.4.1-rc.1\nv1.4.0\n", "fix: a" + nul + "feat: b" + nul, "feat: b" + nul},
+			wantCalls: [][]string{tagsCall("v"), mergedCall("v"), logCall("v1.4.0"), logCall("v1.4.1-rc.1")},
+			wantTag:   "v1.5.0-rc.1", wantCur: "v1.4.1-rc.1", wantBump: versioning.BumpMinor,
+			wantWarn: []string{"pre-release core escalated 1.4.1 → 1.5.0\n  - feat: b"},
+		},
+		{
+			name: "counter stays global", rg: line13, branch: "release/1.3", label: "rc",
+			responses: []string{"v1.3.2-rc.1\nv1.3.1\n", "v1.3.1\n", "fix: x" + nul},
+			wantCalls: [][]string{tagsCall("v"), mergedCall("v"), logCall("v1.3.1")},
+			wantTag:   "v1.3.2-rc.2", wantCur: "v1.3.1", wantBump: versioning.BumpPatch,
+		},
+		{
+			name: "monotonicity stays global", rg: line13, branch: "release/1.3", label: "beta",
+			responses: []string{"v1.3.2-rc.1\nv1.3.1\n", "v1.3.1\n", "fix: x" + nul},
+			wantCalls: [][]string{tagsCall("v"), mergedCall("v"), logCall("v1.3.1")},
+			wantErr:   semver.ErrPreReleaseRegression,
+			errText:   []string{"v1.3.2-beta.1 would sort below existing v1.3.2-rc.1"},
+		},
+		{
+			name: "promotion on line needs no new commit", rg: line13, branch: "release/1.3", label: "rc",
+			responses: []string{"v2.0.0\nv1.3.2-beta.2\nv1.3.1\n", "v1.3.2-beta.2\nv1.3.1\n", "fix: x" + nul},
+			wantCalls: [][]string{tagsCall("v"), mergedCall("v"), logCall("v1.3.1")},
+			wantTag:   "v1.3.2-rc.1", wantCur: "v1.3.2-beta.2", wantBump: versioning.BumpPatch,
+		},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			mr := exectest.NewMockRunner()
+			for _, out := range tc.responses {
+				mr.QueueResponse(out, "", nil)
+			}
+			r := semver.New(mr, &config.Config{Versioning: config.Versioning{Strategy: "semver"}})
+			r.SetPreRelease(tc.label)
+			rg := semver.RangeFrom(tc.rg, tc.branch)
+			r.SetMaintenanceRange(&rg)
+
+			res, err := r.Resolve()
+
+			gotCalls := make([][]string, len(mr.Calls))
+			for i, c := range mr.Calls {
+				assert.Equal(t, "git", c.Name)
+				gotCalls[i] = c.Args
+			}
+			assert.Equal(t, tc.wantCalls, gotCalls)
+
+			if tc.wantErr != nil || len(tc.errText) > 0 {
+				require.Error(t, err)
+				if tc.wantErr != nil {
+					assert.True(t, errors.Is(err, tc.wantErr), "want %v, got %v", tc.wantErr, err)
+				}
+				for _, s := range tc.errText {
+					assert.Contains(t, err.Error(), s)
+				}
+				return
+			}
+			require.NoError(t, err)
+			assert.Equal(t, tc.wantTag, res.Tag)
+			assert.Equal(t, tc.wantCur, res.CurrentTag)
+			assert.Equal(t, tc.wantBump, res.Bump)
+			assert.Equal(t, tc.wantWarn, r.Warnings())
+		})
+	}
+}

@@ -311,3 +311,128 @@ func TestCurrentVersion_Semver_IncludePreRelease_Bare(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, "1.4.0-rc.2", got)
 }
+
+func TestCurrentTag_MaintenanceBranches(t *testing.T) {
+	revParse := []string{"rev-parse", "--abbrev-ref", "HEAD"}
+	globalList := []string{"tag", "-l", "v*", "--sort=-version:refname"}
+	mergedList := []string{"tag", "-l", "v*", "--merged", "HEAD", "--sort=-version:refname"}
+	rules := []config.BranchRule{{Name: "main"}, {Name: "release/*"}}
+
+	tests := []struct {
+		name       string
+		rules      []config.BranchRule
+		includePre bool
+		responses  []string
+		wantTag    string
+		wantErr    error
+		errText    []string
+		wantCalls  [][]string
+	}{
+		{
+			name: "current on line", rules: rules,
+			responses: []string{"release/1.3\n", "v1.3.1\nv1.3.0\n"},
+			wantTag:   "v1.3.1", wantCalls: [][]string{revParse, mergedList},
+		},
+		{
+			name: "current incl pre-release", rules: rules, includePre: true,
+			responses: []string{"release/1.3\n", "v1.3.2-rc.1\nv1.3.1\n"},
+			wantTag:   "v1.3.2-rc.1", wantCalls: [][]string{revParse, mergedList},
+		},
+		{
+			name: "pre-release excluded by default", rules: rules,
+			responses: []string{"release/1.3\n", "v1.3.2-rc.1\nv1.3.1\n"},
+			wantTag:   "v1.3.1", wantCalls: [][]string{revParse, mergedList},
+		},
+		{
+			name: "reachable out-of-range tags ignored", rules: rules, includePre: true,
+			responses: []string{"release/1.3\n", "v1.4.0\nv1.4.1-rc.1\nv1.3.1\n"},
+			wantTag:   "v1.3.1", wantCalls: [][]string{revParse, mergedList},
+		},
+		{
+			name: "current on main unchanged", rules: rules,
+			responses: []string{"main\n", "v2.0.0\nv1.3.1\n"},
+			wantTag:   "v2.0.0", wantCalls: [][]string{revParse, globalList},
+		},
+		{
+			name: "unlisted branch unchanged", rules: rules,
+			responses: []string{"feature/foo\n", "v2.0.0\nv1.3.1\n"},
+			wantTag:   "v2.0.0", wantCalls: [][]string{revParse, globalList},
+		},
+		{
+			name:      "no block → no rev-parse",
+			responses: []string{"v2.0.0\nv1.3.1\n"},
+			wantTag:   "v2.0.0", wantCalls: [][]string{globalList},
+		},
+		{
+			name: "nothing in range", rules: rules,
+			responses: []string{"release/1.3\n", "v1.2.5\n"},
+			errText:   []string{"no tags found", "1.3.x", "release/1.3"},
+			wantCalls: [][]string{revParse, mergedList},
+		},
+		{
+			name: "only pre-releases in range", rules: rules,
+			responses: []string{"release/1.3\n", "v1.3.0-rc.1\nv1.2.5\n"},
+			errText:   []string{"no tags found", "1.3.x", "only pre-release tags", "--include-pre-release"},
+			wantCalls: [][]string{revParse, mergedList},
+		},
+		{
+			name: "underivable glob match", rules: rules,
+			responses: []string{"release/legacy\n"},
+			wantErr:   app.ErrUnderivableRange,
+			wantCalls: [][]string{revParse},
+		},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			clearBranchEnv(t)
+			mr := exectest.NewMockRunner()
+			for _, out := range tc.responses {
+				mr.QueueResponse(out, "", nil)
+			}
+			cfg := maintenanceCfg(tc.rules...)
+
+			got, err := app.CurrentTag(mr, cfg, "", tc.includePre)
+
+			assert.Equal(t, tc.wantCalls, gitArgs(mr))
+			if tc.wantErr != nil || len(tc.errText) > 0 {
+				require.Error(t, err)
+				if tc.wantErr != nil {
+					assert.ErrorIs(t, err, tc.wantErr)
+				}
+				for _, s := range tc.errText {
+					assert.Contains(t, err.Error(), s)
+				}
+				return
+			}
+			require.NoError(t, err)
+			assert.Equal(t, tc.wantTag, got)
+		})
+	}
+}
+
+func TestCurrentVersion_MaintenanceBranch(t *testing.T) {
+	clearBranchEnv(t)
+	mr := exectest.NewMockRunner()
+	mr.QueueResponse("release/1.3\n", "", nil)
+	mr.QueueResponse("v1.3.1\nv1.3.0\n", "", nil)
+	cfg := maintenanceCfg(config.BranchRule{Name: "main"}, config.BranchRule{Name: "release/*"})
+
+	got, err := app.CurrentVersion(mr, cfg, "", false)
+	require.NoError(t, err)
+	assert.Equal(t, "1.3.1", got)
+}
+
+// ResolveFromLatestTag treats "no tags" as "check full history"; the in-range miss must keep
+// matching that sentinel.
+func TestResolveFromLatestTag_MaintenanceNothingInRange(t *testing.T) {
+	clearBranchEnv(t)
+	mr := exectest.NewMockRunner()
+	mr.QueueResponse("release/1.3\n", "", nil)
+	mr.QueueResponse("v1.2.5\n", "", nil)
+	cfg := maintenanceCfg(config.BranchRule{Name: "main"}, config.BranchRule{Name: "release/*"})
+
+	rng, noTags, err := app.ResolveFromLatestTag(mr, cfg, "")
+	require.NoError(t, err)
+	assert.True(t, noTags)
+	assert.Empty(t, rng)
+}

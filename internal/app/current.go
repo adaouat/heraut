@@ -18,11 +18,27 @@ var errNoTagsFound = errors.New("no tags found")
 // SemVer strategies it is the highest SemVer §11 release, or — with includePreRelease — the
 // highest tag including pre-releases (ADR-0064). CalVer strategies ignore includePreRelease and
 // keep git's version:refname order. For single-env strategies, env is ignored; for per-env
-// strategies, env is required.
+// strategies, env is required. Under semver with versioning.branches, a maintenance branch reports
+// its own line's tag (currentMaintenanceTag); without the block no branch detection runs.
 func CurrentTag(runner port.Runner, cfg *config.Config, env string, includePreRelease bool) (string, error) {
 	glob, err := currentTagGlob(cfg, env)
 	if err != nil {
 		return "", err
+	}
+
+	if cfg.Versioning.Strategy == "semver" && len(cfg.Versioning.Branches) > 0 {
+		branch, known, err := CurrentBranch(runner)
+		if err != nil {
+			return "", err
+		}
+		m, err := MatchBranchRule(cfg, branch, known, true)
+		if err != nil {
+			return "", err
+		}
+		if m.Kind == BranchMaintenance {
+			rg := semver.RangeFrom(m.Range, m.Branch)
+			return currentMaintenanceTag(runner, cfg, glob, rg, includePreRelease)
+		}
 	}
 
 	stdout, _, err := runner.Run("git", "tag", "-l", glob, "--sort=-version:refname")
@@ -53,6 +69,29 @@ func CurrentTag(runner port.Runner, cfg *config.Config, env string, includePreRe
 		}
 		return "", fmt.Errorf("%w for %q", errNoTagsFound, glob)
 	}
+}
+
+// currentMaintenanceTag is CurrentTag on a maintenance line (ADR-0065): the highest tag reachable
+// from HEAD whose core lies in rg — the same base the maintenance resolver bumps from — never a
+// higher tag cut on another line.
+func currentMaintenanceTag(runner port.Runner, cfg *config.Config, glob string, rg semver.Range, includePreRelease bool) (string, error) {
+	stdout, _, err := runner.Run("git", "tag", "-l", glob, "--merged", "HEAD", "--sort=-version:refname")
+	if err != nil {
+		return "", fmt.Errorf("listing git tags merged into HEAD: %w", err)
+	}
+	var inRange []semver.TagVersion
+	for _, tv := range semver.SortTags(strings.Fields(stdout), semverExtractor(cfg, "")) {
+		if rg.Contains(tv.Version) {
+			inRange = append(inRange, tv)
+		}
+	}
+	if tv, ok := semver.Latest(inRange, includePreRelease); ok {
+		return tv.Tag, nil
+	}
+	if len(inRange) > 0 {
+		return "", fmt.Errorf("%w in range %s reachable from %s: only pre-release tags exist (pass --include-pre-release to show them)", errNoTagsFound, rg.Label, rg.Branch)
+	}
+	return "", fmt.Errorf("%w in range %s reachable from %s", errNoTagsFound, rg.Label, rg.Branch)
 }
 
 // semverExtractor returns how to read a tag's bare version: strip tag_prefix for plain semver,

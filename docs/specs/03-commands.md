@@ -301,6 +301,16 @@ skipped. `--include-pre-release` prints the highest tag including pre-releases
 environment's tag namespace (e.g. the latest `prod/*` tag when `--env prod`). The common
 top-level `tag_format` is honoured (no per-environment override required).
 
+Under `semver` with `versioning.branches`, the current branch is detected and matched first
+(see [Spec 04 § Maintenance branches](04-versioning.md#maintenance-branches)). On a maintenance
+branch the answer is the line's own tag: the highest tag reachable from `HEAD`
+(`git tag -l <prefix>* --merged HEAD`) whose core lies in the branch's range — the same base
+`version next` and `release` bump from — so `release/1.3` prints `v1.3.1`, never `v2.0.0` from
+`main`. With no qualifying tag in range the command fails naming the range (`no tags found in
+range 1.3.x reachable from release/1.3`); a glob-matched branch whose range cannot be derived
+fails with the same Config error as automatic resolution. Release branches, unlisted branches
+and repos without the block are unchanged (no branch detection at all without the block).
+
 By default prints the **raw tag** (including any `{build}` suffix). `--bare` prints the
 bare semantic version instead: single-env strips the tag prefix; per-env parses the tag
 through the effective `tag_format`, so `main/7.4.1+158404` → `7.4.1`. The

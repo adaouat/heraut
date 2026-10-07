@@ -76,7 +76,21 @@ func (r *Resolver) resolvePreRelease() (versioning.Result, error) {
 	}
 	all := SortTags(parseTags(stdout), extract)
 
+	// On a maintenance line the base is the line's own reachable release; the counter and the
+	// monotonicity check stay global (ADR-0064), so all is still the full listing.
+	rg := r.maintenance
+	var merged []TagVersion
 	last, hasFinal := Latest(all, false)
+	if rg != nil {
+		stdout, _, err = r.runner.Run("git", "tag", "-l", prefix+"*", "--merged", "HEAD", "--sort=-version:refname")
+		if err != nil {
+			return versioning.Result{}, fmt.Errorf("listing merged git tags: %w", err)
+		}
+		merged = SortTags(parseTags(stdout), extract)
+		if last, err = inRangeBase(rg, merged); err != nil {
+			return versioning.Result{}, err
+		}
+	}
 	var (
 		coreStr string
 		bump    versioning.BumpType
@@ -112,8 +126,11 @@ func (r *Resolver) resolvePreRelease() (versioning.Result, error) {
 		return versioning.Result{}, fmt.Errorf("parsing core %q: %w", coreStr, err)
 	}
 	core = coreVersion(core)
+	if rg != nil && !rg.Contains(core) {
+		return versioning.Result{}, r.outOfRangeError(rg, commits, bump, core.Core())
+	}
 
-	if err := r.checkEscalation(all, last, hasFinal, core, bump, commits); err != nil {
+	if err := r.checkEscalation(all, rg, last, hasFinal, core, bump, commits); err != nil {
 		return versioning.Result{}, err
 	}
 
@@ -137,13 +154,16 @@ func (r *Resolver) resolvePreRelease() (versioning.Result, error) {
 		r.nameHeldCandidates(all, label, holdIdx, core.Core(), candidateStr)
 	}
 
-	stdout, _, err = r.runner.Run("git", "tag", "-l", prefix+"*", "--merged", "HEAD", "--sort=-version:refname")
-	if err != nil {
-		return versioning.Result{}, fmt.Errorf("listing merged git tags: %w", err)
+	if rg == nil {
+		stdout, _, err = r.runner.Run("git", "tag", "-l", prefix+"*", "--merged", "HEAD", "--sort=-version:refname")
+		if err != nil {
+			return versioning.Result{}, fmt.Errorf("listing merged git tags: %w", err)
+		}
+		merged = SortTags(parseTags(stdout), extract)
 	}
 	var previous TagVersion
 	hasPrevious := false
-	for _, t := range SortTags(parseTags(stdout), extract) {
+	for _, t := range merged {
 		if Compare(t.Version, candidate) < 0 {
 			previous, hasPrevious = t, true
 			break
@@ -198,13 +218,14 @@ func (r *Resolver) nameHeldCandidates(all []TagVersion, label string, idx int, h
 
 // checkEscalation compares core with the highest open pre-release series (a pre-release whose core
 // is above the last final). A rise is an error for a new major without --allow-major, otherwise a
-// warning. The "" appended to wouldBeVersions keeps it parallel to warnings; it tells
-// app.warningResolver there is no would-be tag to rewrite.
-func (r *Resolver) checkEscalation(all []TagVersion, last TagVersion, hasFinal bool, core Version, bump versioning.BumpType, commits []string) error {
+// warning. On a maintenance line (rg non-nil) only the line's own series count: a higher series
+// opened on main would otherwise mask the line's escalation. The "" appended to wouldBeVersions
+// keeps it parallel to warnings; it tells app.warningResolver there is no would-be tag to rewrite.
+func (r *Resolver) checkEscalation(all []TagVersion, rg *Range, last TagVersion, hasFinal bool, core Version, bump versioning.BumpType, commits []string) error {
 	var series TagVersion
 	found := false
 	for _, t := range all {
-		if !t.Version.IsPreRelease() {
+		if !t.Version.IsPreRelease() || (rg != nil && !rg.Contains(t.Version)) {
 			continue
 		}
 		if hasFinal && Compare(coreVersion(t.Version), coreVersion(last.Version)) <= 0 {

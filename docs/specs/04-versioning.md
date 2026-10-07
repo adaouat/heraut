@@ -287,6 +287,26 @@ detection too: the version is the one passed.
 - **Collision guard.** `git tag -l <next-tag>`; a non-empty result means the tag was cut on
   another branch, and resolution fails.
 
+**`version current`.** On a maintenance branch, `heraut version current` reports the line's
+base: the highest final tag reachable from `HEAD` whose core lies in `[lo, hi)`
+(`git tag -l <prefix>* --merged HEAD --sort=-version:refname`). With `--include-pre-release` it is
+the highest tag of any kind whose core lies in the range. No such tag is an error naming the range
+(`no tags found in range 1.3.x reachable from release/1.3`). Release and unlisted branches report
+the global tag as above.
+
+**Pre-releases.** `--pre-release <label>` is allowed on a maintenance branch, with one change to
+[Pre-release lifecycle](#pre-release-lifecycle): the last final `L` is the line's base, read from
+`git tag -l <prefix>* --merged HEAD --sort=-version:refname` before `git log <L>..HEAD` (no
+in-range final → the no-in-range-release error). The core bumped from `L` must lie in `[lo, hi)`,
+otherwise the same out-of-range error as a final (`feat: y would release 1.4.0, outside
+release/1.3 (>=1.3.0 <1.4.0)`). The same merged listing then supplies the previous tag for the
+commit requirement; it is not read twice. The counter and the monotonicity check stay global
+(all tags), since a maintenance core is distinct from every core on `main`. Escalation compares
+only the line's own open series — pre-releases whose core lies in `[lo, hi)` — so a higher
+series opened on `main` (`v2.1.0-rc.1`) neither escalates nor masks the line's.
+`release/1.3` + `--pre-release rc` → `v1.3.2-rc.1`. A glob-matched branch whose range cannot be
+derived is a Config error under `--pre-release` too: only `--set-version` is exempt.
+
 `--set-version` stays the manual escape hatch: it is not range-checked, makes no git call
 during resolution, and a matched glob whose range cannot be derived from the branch name is not
 an error under it. An existing tag still fails at `git tag` time.
@@ -306,6 +326,8 @@ from `v1.3.1`; `release/1.x` cut from `v1.4.0`. Config:
 | 7 | detached HEAD, `CI_COMMIT_BRANCH=release/1.3` | — | as #1 |
 | 8 | `feature/foo`, `heraut release` | `v2.0.1` | unlisted-branch error; `--force` → `v2.0.1` |
 | 8b | `feature/foo`, `heraut version next` | `v2.0.1` | `v2.0.1` (unchanged) |
+| 9 | `release/1.3`, `heraut version current` | `v2.0.0` | `v1.3.1` |
+| 10 | `release/1.3`, `--pre-release rc` | `v2.0.1-rc.1` | `v1.3.2-rc.1` |
 | 11 | `release/7.8.0` (matches `release/*`, no derivable range), `--set-version 7.8.0` | `v7.8.0` | `v7.8.0` (no derivation error) |
 | 11b | `release/7.8.0`, no `--set-version` | `v2.0.1` | derivation error naming the branch |
 

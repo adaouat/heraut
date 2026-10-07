@@ -630,13 +630,14 @@ func TestNewResolver_Maintenance(t *testing.T) {
 	mainAndRelease := []config.BranchRule{{Name: "main"}, {Name: "release/*"}}
 
 	tests := []struct {
-		name      string
-		cfg       *config.Config
-		override  string
-		responses []string
-		wantTag   string
-		wantErr   error
-		wantCalls [][]string
+		name       string
+		cfg        *config.Config
+		override   string
+		preRelease string
+		responses  []string
+		wantTag    string
+		wantErr    error
+		wantCalls  [][]string
 	}{
 		{
 			name:      "no branches block: no rev-parse call",
@@ -681,6 +682,23 @@ func TestNewResolver_Maintenance(t *testing.T) {
 			wantCalls: [][]string{revParse},
 		},
 		{
+			name:       "pre-release on maintenance branch: base and range from the line",
+			cfg:        maintenanceCfg(mainAndRelease...),
+			preRelease: "rc",
+			responses:  []string{"release/1.3\n", "v2.0.0\nv1.3.1\n", "v1.3.1\nv1.3.0\n", "fix: x\x00"},
+			wantTag:    "v1.3.2-rc.1",
+			wantCalls:  [][]string{revParse, globalList, mergedList, {"log", "v1.3.1..HEAD", "--format=%B%x00"}},
+		},
+		{
+			// Pre-release is auto resolution, so it needs the range; only --set-version is exempt.
+			name:       "pre-release on underivable glob match: error",
+			cfg:        maintenanceCfg(mainAndRelease...),
+			preRelease: "rc",
+			responses:  []string{"release/legacy\n"},
+			wantErr:    app.ErrUnderivableRange,
+			wantCalls:  [][]string{revParse},
+		},
+		{
 			name:      "--set-version on release/7.8.0 with release/*: no git call",
 			cfg:       maintenanceCfg(mainAndRelease...),
 			override:  "7.8.0",
@@ -695,7 +713,7 @@ func TestNewResolver_Maintenance(t *testing.T) {
 			for _, out := range tc.responses {
 				mr.QueueResponse(out, "", nil)
 			}
-			r, err := app.NewResolver(tc.cfg, "", false, tc.override, "", mr)
+			r, err := app.NewResolver(tc.cfg, "", false, tc.override, "", mr, app.WithPreRelease(tc.preRelease))
 			if tc.wantErr != nil {
 				require.ErrorIs(t, err, tc.wantErr)
 				assert.Equal(t, tc.wantCalls, gitArgs(mr))

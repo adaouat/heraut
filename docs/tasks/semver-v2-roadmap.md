@@ -50,7 +50,7 @@ pre-release lifecycle (`--pre-release <label>`) for the plain `semver` strategy.
 | T350 | Current-branch detection, rule matching, unlisted-branch publish guard | Done |
 | T351 | Maintenance resolution in `semver.Resolver` | Done |
 | T352 | History-aware changelog and notes bounds | Done |
-| T353 | `version current` and pre-releases on maintenance branches | Not started |
+| T353 | `version current` and pre-releases on maintenance branches | Done |
 | T354 | End-to-end maintenance scenarios on a real repo | Not started |
 | T355 | ADR-0065, guide, Phase 3 close | Not started |
 
@@ -632,9 +632,31 @@ scope). Deviation: the per-env real-git scenario passes on the pre-change code t
 already bounded by the scoped list); it was shown RED against the unscoped ancestry rule instead.
 Spec 05 gains § History-aware bounds. ADR-0065 itself is T355's.
 
-### [ ] T353 — `version current` and pre-releases on maintenance branches
+### [x] T353 — `version current` and pre-releases on maintenance branches
 
 Plan Task 5.
+
+Done. With a range set, `resolvePreRelease` keeps step 1's global listing (counter and per-core
+monotonicity stay global, ADR-0064), then issues `git tag -l <prefix>* --merged HEAD
+--sort=-version:refname` once, before `git log <L>..HEAD`; `L` is the highest in-range final
+(none → `ErrNoInRangeRelease`), the bumped core must lie in the range (`ErrOutOfRange`), and the
+parsed listing is reused for step 6's previous tag instead of a second identical call. Task 3's
+base search and out-of-range message moved into `inRangeBase` / `outOfRangeError`, shared by both
+paths. Without a range the call sequence is unchanged (the existing Phase 2 table pins it).
+`app.CurrentTag`, for `semver` with a `branches` block, detects and matches the branch
+(needRange) and on a maintenance branch returns the highest reachable tag whose core is in range
+(final, or any kind with `--include-pre-release`); a miss wraps `errNoTagsFound` naming the range,
+so `commit check --from-latest-tag` still falls back to full history there. Release/unlisted
+branches and repos without the block take today's path (no `rev-parse` without the block).
+Ruling recorded: `--pre-release` on a glob-matched branch with no derivable range
+(`release/legacy`) fails with `ErrUnderivableRange` at `NewResolver`, since pre-release is auto
+resolution; only `--set-version` is exempt (app-level row pins it); `version current` errors the
+same way. Deviation: escalation now compares only the line's own open series (pre-releases whose
+core is in range), because a higher series on `main` (`v2.1.0-rc.1`) would otherwise mask a real
+escalation on the line (`v1.4.1-rc.1` → `v1.5.0`); without a range it is unchanged. Spec 04 gains
+the `version current` and pre-release paragraphs plus worked-example rows #9/#10 (replayed on real
+git in `maintenance_realrepo_internal_test.go`); Spec 03 notes `version current`'s branch
+awareness. No existing test row was changed. Deferred: the full #1–#11 real-git replay is T354.
 
 ### [ ] T354 — End-to-end maintenance scenarios on a real repo
 

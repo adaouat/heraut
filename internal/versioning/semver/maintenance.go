@@ -60,17 +60,9 @@ func (r *Resolver) resolveMaintenance(rg *Range) (versioning.Result, error) {
 	sorted := SortTags(parseTags(stdout), func(tag string) (string, bool) {
 		return strings.CutPrefix(tag, prefix)
 	})
-	var base TagVersion
-	found := false
-	for _, tv := range sorted {
-		if !tv.Version.IsPreRelease() && rg.Contains(tv.Version) {
-			base, found = tv, true
-			break
-		}
-	}
-	if !found {
-		return versioning.Result{}, fmt.Errorf("%w: no release in range %s in the history of %s — tag the branch's starting point or pass --set-version",
-			ErrNoInRangeRelease, rg.Label, rg.Branch)
+	base, err := inRangeBase(rg, sorted)
+	if err != nil {
+		return versioning.Result{}, err
 	}
 	currentTag, currentVersion := base.Tag, base.Version.Core()
 
@@ -96,8 +88,7 @@ func (r *Resolver) resolveMaintenance(rg *Range) (versioning.Result, error) {
 		return versioning.Result{}, fmt.Errorf("parsing next version %s: %w", nextVersion, err)
 	}
 	if !rg.Contains(next) {
-		return versioning.Result{}, fmt.Errorf("%w: %s would release %s, outside %s (>=%s <%s) — land it on a branch whose range allows it, or on main",
-			ErrOutOfRange, bumpSubject(commits, r.cfg.Versioning.BumpOverrides(), bump), nextVersion, rg.Branch, rg.Lo, rg.Hi)
+		return versioning.Result{}, r.outOfRangeError(rg, commits, bump, nextVersion)
 	}
 
 	nextTag := prefix + nextVersion
@@ -116,6 +107,23 @@ func (r *Resolver) resolveMaintenance(rg *Range) (versioning.Result, error) {
 		CurrentTag: currentTag,
 		Bump:       bump,
 	}, nil
+}
+
+// inRangeBase is the highest final release of sorted (merged into HEAD, precedence order) whose
+// core lies in rg.
+func inRangeBase(rg *Range, sorted []TagVersion) (TagVersion, error) {
+	for _, tv := range sorted {
+		if !tv.Version.IsPreRelease() && rg.Contains(tv.Version) {
+			return tv, nil
+		}
+	}
+	return TagVersion{}, fmt.Errorf("%w: no release in range %s in the history of %s — tag the branch's starting point or pass --set-version",
+		ErrNoInRangeRelease, rg.Label, rg.Branch)
+}
+
+func (r *Resolver) outOfRangeError(rg *Range, commits []string, bump versioning.BumpType, version string) error {
+	return fmt.Errorf("%w: %s would release %s, outside %s (>=%s <%s) — land it on a branch whose range allows it, or on main",
+		ErrOutOfRange, bumpSubject(commits, r.cfg.Versioning.BumpOverrides(), bump), version, rg.Branch, rg.Lo, rg.Hi)
 }
 
 // bumpSubject names the commit responsible for bump: the first at that level, else the first
