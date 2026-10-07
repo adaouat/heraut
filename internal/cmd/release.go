@@ -112,6 +112,9 @@ func NewReleaseCmd(version string) *cobra.Command {
 				if err := app.CheckBranch(readRunner, cfg, env, force); err != nil {
 					return exitcode.Wrap(exitcode.Runtime, err)
 				}
+				if err := app.CheckReleaseBranch(readRunner, cfg, force); err != nil {
+					return exitcode.Wrap(exitcode.Config, err)
+				}
 				if err := app.PreflightCheck(runner); err != nil {
 					return exitcode.Wrap(exitcode.Runtime, fmt.Errorf("preflight check failed: %w", err))
 				}

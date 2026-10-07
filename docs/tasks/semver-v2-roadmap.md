@@ -47,7 +47,7 @@ pre-release lifecycle (`--pre-release <label>`) for the plain `semver` strategy.
 | T343 | ADR-0064 Phase 2 status update and Phase 2 close | Done |
 | T344 | Maintenance-branch support (last final + notes from branch history) | In progress — broken down into T349–T355 |
 | T349 | `versioning.branches` config, range parsing, validation | Done |
-| T350 | Current-branch detection, rule matching, unlisted-branch publish guard | Not started |
+| T350 | Current-branch detection, rule matching, unlisted-branch publish guard | Done |
 | T351 | Maintenance resolution in `semver.Resolver` | Not started |
 | T352 | History-aware changelog and notes bounds | Not started |
 | T353 | `version current` and pre-releases on maintenance branches | Not started |
@@ -571,11 +571,18 @@ rejects `bad_range` and `empty_name`, while `non_semver`, `duplicate_range` and 
 semantic-only and covered by the validator table. Deviation: the sample's pointer to the
 maintenance-branch guide is generic because the guide itself lands in T355.
 
-### [ ] T350 — Current-branch detection, rule matching, unlisted-branch publish guard
+### [x] T350 — Current-branch detection, rule matching, unlisted-branch publish guard
 
-Plan Task 2: `app.CurrentBranch` (git, then `CI_COMMIT_BRANCH`/`GITHUB_REF_NAME`/
-`BUILD_SOURCEBRANCHNAME`), `MatchBranchRule`, `CheckReleaseBranch` on `release` and
-`changelog --tag`, Spec 03.
+`internal/app/branchrules.go` adds `CurrentBranch` (git, then `CI_COMMIT_BRANCH`,
+`GITHUB_REF_NAME` only when `GITHUB_REF_TYPE` is `branch`, then `BUILD_SOURCEBRANCHNAME`),
+`MatchBranchRule` (exact or `path.Match` glob; `/` is not crossed, so `release/*` does not match
+`release/1.3/hotfix`; ambiguous matches and underivable globs are wrapped sentinel errors) and
+`CheckReleaseBranch`, wired into `release` and `changelog --tag` right after `CheckBranch`, inside
+the `!dryRun` block, exiting Config. Decisions: `--dry-run` is not refused, mirroring
+`CheckBranch`; the guard makes no git call when `versioning.branches` is absent or `--force` is
+set; an unknown branch (detached, no CI variable) is refused with a message naming the detached
+HEAD. Spec 03 documents the extra `--force` meaning on `release` and `changelog`. Nothing
+deferred; `NewResolver` wiring of `MatchBranchRule` is T351.
 
 ### [ ] T351 — Maintenance resolution in `semver.Resolver`
 
