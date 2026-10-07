@@ -204,3 +204,10 @@ Foundational design questions and their resolutions:
 | Module path                                                                                    | `github.com/adaouat/heraut`                                               |
 | Update availability check                                                                      | GitHub Releases API via forge's `updatecheck`; daily hint, no binary self-replacement. See [ADR-0014](../adr/0014-self-update-architecture.md) (superseded). |
 | Per-env strategy code shape                                                                    | Generic `internal/versioning/perenv/` wrapping a `VersionCalculator` interface. See [ADR-0009](../adr/0009-generic-perenv-resolver.md). |
+
+## End-to-end tests
+
+Beyond unit, contract, integration and schema tests, `e2e/` drives the built binary: a hermetic
+lane that runs with `go test ./...` and an opt-in forge-sandbox lane. See
+[ADR-0066](../adr/0066-e2e-test-lanes.md) and the
+[design](../superpowers/specs/2026-10-07-e2e-smoke-suite-design.md).

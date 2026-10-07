@@ -24,6 +24,19 @@ asserting the exact arguments passed. The `internal/forge/*` HTTP enrichment cli
 the same rigor against a real `httptest.Server` instead, since there's no CLI invocation
 to assert arguments on.
 
+## E2E layers (ADR-0066)
+
+A fifth, separate layer drives the **built binary** from `e2e/`:
+
+- **Lane A (hermetic)** — `e2e/*_test.go`, no build tag, runs in `go test ./...`. Real `git` and local
+  repos under `t.TempDir()`, no network. Same determinism rules as every other layer.
+- **Lane B (forge sandbox)** — `//go:build e2e_forge`, opt-in, never part of `go test ./...` or pull
+  requests. The only layer allowed network calls, and only to the configured sandbox repos.
+
+Scenarios assert on stdout, exit code (via `internal/exitcode` values) and repo state. CalVer scenarios
+use a binary built with `-tags heraut_testclock` and set `HERAUT_TEST_NOW`; never add a production
+clock override. A failing e2e scenario is fixed at the root cause like any other test.
+
 ## MockRunner — the contract test workhorse
 
 `github.com/adaouat/forge/exec/exectest.MockRunner` (not `internal/testutil` — that package
