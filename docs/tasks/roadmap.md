@@ -228,7 +228,7 @@ discipline that applies to every task.
 | 57 | SBOM generation; shell completions investigated | Done — completions not shipped (ADR-0013 + notarization gap), see T321/T322 |
 | 58 | Homebrew cask: tar.gz archive for completions/man pages | Done — see T323 |
 | 59 | SemVer v2 compliance and pre-release lifecycle | Done — see `semver-v2-roadmap.md` |
-| 60 | End-to-end tests: hermetic binary lane + opt-in forge sandboxes | In progress — T345a, T345b1, T357, T358 done; T345b2-b5, c, d open |
+| 60 | End-to-end tests: hermetic binary lane + opt-in forge sandboxes | In progress — T345a, T345b1-b2, T357, T358 done; T345b3-b5, c, d open; T359 open |
 | 61 | GitLab publish driver follow-ups from T335 | In progress — T346 done, T347 (needs design) open |
 | 62 | Version branches: version from the branch name | Not started — see T348 (needs design) |
 | 63 | CalVer history-aware changelog bounds | Not started — see T356 |
@@ -2636,8 +2636,18 @@ testify only), done in whichever part touches the harness next.
   so the e2e asserts that `.Heraut.GeneratedAt` and the default footer follow the clock and leaves
   heading-date coverage to T345b4 (which controls commit dates). The ISO-week year edge is not
   asserted (T358). No heraut defect surfaced beyond T358.
-- `[ ]` **T345b2**: per-env SemVer: promotion (E001/E002/E003, `--force`, `tag_format`) and
+- `[x]` **T345b2**: per-env SemVer: promotion (E001/E002/E003, `--force`, `tag_format`) and
   `stay_at_v0` under `semver-per-env`.
+  **Completion note:** executed from `docs/superpowers/plans/2026-10-07-e2e-semver-per-env-t345b2.md`.
+  41 new scenarios in `e2e/semver_per_env_test.go` (the e2e package now runs 113 subtests): auto
+  bumps with namespace isolation, pre-release and build-metadata handling; promotion including a
+  chain and E001/E002/E003 with and without `--force` (E003 never bypassed, all exit 4); every
+  `tag_format` shape plus a shared `{env}` format; `stay_at_v0` on auto but not promote
+  environments; `{build}` handling; `--env auto`; the branch guard and its `--force` bypass; two
+  config errors. `Repo.Checkout` was added to the harness and `scenario` gained a `branch` field.
+  Deviation: the plan assumed a variadic `tag()`, so multi-tag rows repeat `tag()`. The missing or
+  unknown `--env` exit code is not asserted (T359).
+
 - `[ ]` **T345b3**: maintenance branches (ADR-0065): range resolution, unlisted-branch refusal,
   collision guard, same-commit tag bounds.
 - `[ ]` **T345b4**: changelog and release local flow: bare remote in the harness,
@@ -2700,6 +2710,17 @@ the three edge rows before the fix; e2e rows in `e2e/calver_test.go` pin both Ne
 through the real binary, including the December duplicate-tag case. Left as is: a format mixing
 `MM` and `WW` follows the same rule (`2026.01.53.x` on 2027-01-01), which is odd but consistent.
 
+
+#### `[ ]` T359: an unknown or missing `--env` exits Runtime (3) instead of Config (2)
+
+Found while preparing T345b2. With a per-env strategy, `heraut version next` (no `--env`) and
+`heraut version next --env nope` fail with `Environment "…" not found in config` and exit **3**
+(runtime), while `--env auto` mistakes (unlinked branch, non-per-env strategy) exit **2**. Spec 01
+reserves 3 for binary/token/network/git failures and 2 for configuration problems, and the missing
+or misspelled environment is a usage/config problem. Decide the intended code (2 or 1), fix the
+resolver error classification (`perenv.Resolver` / `app.current`), and add the two rows to
+`e2e/semver_per_env_test.go` (they were left out of T345b2 on purpose so a test does not cement the
+current code).
 
 ### Phase 61 — GitLab publish driver follow-ups from T335
 
