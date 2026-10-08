@@ -81,3 +81,9 @@ func (r *Repo) ReadFile(rel string) string {
 	}
 	return string(b)
 }
+
+// Checkout creates branch at HEAD and switches to it.
+func (r *Repo) Checkout(branch string) {
+	r.t.Helper()
+	r.git("checkout", "-q", "-b", branch)
+}

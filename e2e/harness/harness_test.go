@@ -55,3 +55,12 @@ func TestRepo_ReadFile(t *testing.T) {
 
 	assert.Equal(t, "version: \"1\"\n", r.ReadFile(".heraut.yml"))
 }
+
+func TestRepo_Checkout(t *testing.T) {
+	r := NewRepo(t)
+	r.Commit("feat: first")
+
+	r.Checkout("develop")
+
+	assert.Equal(t, "develop", strings.TrimSpace(r.git("rev-parse", "--abbrev-ref", "HEAD")))
+}
