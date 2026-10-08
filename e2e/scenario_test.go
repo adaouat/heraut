@@ -28,6 +28,7 @@ type scenario struct {
 	history  []step
 	args     []string
 	env      []string // extra environment for this row only
+	branch   string   // checked out before the history is replayed (empty: main)
 	wantExit int
 	wantOut  string   // exact trimmed stdout; checked only when wantExit == exitOK
 	wantText []string // lower-cased, whitespace-collapsed substrings of stdout+stderr
@@ -46,6 +47,9 @@ func runScenarios(t *testing.T, bin string, env []string, tests []scenario) {
 			t.Parallel()
 			repo := harness.NewRepo(t)
 			repo.WriteConfig(tc.config)
+			if tc.branch != "" {
+				repo.Checkout(tc.branch)
+			}
 			for _, s := range tc.history {
 				if s.tag != "" {
 					repo.Tag(s.tag)
