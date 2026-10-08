@@ -16,10 +16,11 @@ func commit(msg string) step { return step{commit: msg} }
 func tag(name string) step   { return step{tag: name} }
 
 const (
-	exitOK        = 0
-	exitConfig    = 2
-	exitRuntime   = 3
-	exitPromotion = 4
+	exitOK         = 0
+	exitConfig     = 2
+	exitRuntime    = 3
+	exitPromotion  = 4
+	exitAnyFailure = -1 // any non-zero code: the spec does not pin this failure's class
 )
 
 type scenario struct {
@@ -60,7 +61,11 @@ func runScenarios(t *testing.T, bin string, env []string, tests []scenario) {
 
 			res := repo.Run(bin, append(append([]string{}, env...), tc.env...), tc.args...)
 
-			require.Equal(t, tc.wantExit, res.ExitCode, "stdout:\n%s\nstderr:\n%s", res.Stdout, res.Stderr)
+			if tc.wantExit == exitAnyFailure {
+				require.NotEqual(t, exitOK, res.ExitCode, "stdout:\n%s\nstderr:\n%s", res.Stdout, res.Stderr)
+			} else {
+				require.Equal(t, tc.wantExit, res.ExitCode, "stdout:\n%s\nstderr:\n%s", res.Stdout, res.Stderr)
+			}
 			if tc.wantExit == exitOK {
 				assert.Equal(t, tc.wantOut, strings.TrimSpace(res.Stdout))
 			}

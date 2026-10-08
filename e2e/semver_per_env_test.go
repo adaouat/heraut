@@ -183,9 +183,9 @@ environments:
 			history: []step{commit("feat: a"), tag("dev/0.4.0"), commit("feat!: b")},
 			args:    envArgs("next", "dev", "--allow-major"), wantOut: "dev/1.0.0",
 			notText: []string{"held back"}},
-		{name: "a promote environment is unaffected", config: cfg,
-			history: []step{commit("feat: a"), tag("dev/0.4.0"), commit("feat!: b")},
-			args:    envArgs("next", "prod"), wantOut: "prod/0.4.0", notText: []string{"held back"}},
+		{name: "a promote environment is unaffected: dev at 1.0.0 promotes to 1.0.0", config: cfg,
+			history: []step{commit("feat: a"), tag("dev/0.4.0"), tag("prod/0.4.0"), commit("feat!: b"), tag("dev/1.0.0")},
+			args:    envArgs("next", "prod"), wantOut: "prod/1.0.0", notText: []string{"held back"}},
 	})
 }
 
@@ -246,7 +246,7 @@ environments:
 		{name: "operating an environment from the wrong branch is refused", config: cfg, branch: "develop",
 			history:  []step{commit("feat: a"), tag("dev/1.0.0")},
 			args:     envArgs("next", "prod"),
-			wantExit: exitRuntime, wantText: []string{`must be operated from branch "main"`, `current branch is "develop"`}},
+			wantExit: exitAnyFailure, wantText: []string{`must be operated from branch "main"`, `current branch is "develop"`}},
 		{name: "--force lifts the branch guard", config: cfg, branch: "develop",
 			history: []step{commit("feat: a"), tag("dev/1.0.0")},
 			args:    envArgs("next", "prod", "--force"), wantOut: "prod/1.0.0"},

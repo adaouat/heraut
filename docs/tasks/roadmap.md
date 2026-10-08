@@ -2639,7 +2639,7 @@ testify only), done in whichever part touches the harness next.
 - `[x]` **T345b2**: per-env SemVer: promotion (E001/E002/E003, `--force`, `tag_format`) and
   `stay_at_v0` under `semver-per-env`.
   **Completion note:** executed from `docs/superpowers/plans/2026-10-07-e2e-semver-per-env-t345b2.md`.
-  41 new scenarios in `e2e/semver_per_env_test.go` (the e2e package now runs 113 subtests): auto
+  38 new scenarios in `e2e/semver_per_env_test.go` (the e2e package now runs 113 subtests): auto
   bumps with namespace isolation, pre-release and build-metadata handling; promotion including a
   chain and E001/E002/E003 with and without `--force` (E003 never bypassed, all exit 4); every
   `tag_format` shape plus a shared `{env}` format; `stay_at_v0` on auto but not promote
@@ -2711,7 +2711,7 @@ through the real binary, including the December duplicate-tag case. Left as is: 
 `MM` and `WW` follows the same rule (`2026.01.53.x` on 2027-01-01), which is odd but consistent.
 
 
-#### `[ ]` T359: an unknown or missing `--env` exits Runtime (3) instead of Config (2)
+#### `[ ]` T359: an unknown or missing `--env`, and the branch guard, exit Runtime (3)
 
 Found while preparing T345b2. With a per-env strategy, `heraut version next` (no `--env`) and
 `heraut version next --env nope` fail with `Environment "…" not found in config` and exit **3**
@@ -2721,6 +2721,10 @@ or misspelled environment is a usage/config problem. Decide the intended code (2
 resolver error classification (`perenv.Resolver` / `app.current`), and add the two rows to
 `e2e/semver_per_env_test.go` (they were left out of T345b2 on purpose so a test does not cement the
 current code).
+
+The per-env branch guard (`Environment "prod" must be operated from branch "main"…`) takes the same
+default (3) through `wrapRunErr`, and Spec 01/02 do not pin its code either. Decide it together
+with the above; the guard's e2e row asserts only "non-zero" until then (`exitAnyFailure`).
 
 ### Phase 61 — GitLab publish driver follow-ups from T335
 
