@@ -53,6 +53,18 @@ func TestPerEnv_AutoBump(t *testing.T) {
 		{name: "version current with no tag in the namespace is a runtime error", config: perEnvCfg,
 			history: []step{commit("feat: a"), tag("dev/1.0.0")},
 			args:    envArgs("current", "prod"), wantExit: exitRuntime, wantText: []string{"no tags found for \"prod/*\""}},
+		{name: "version next without --env is a config error", config: perEnvCfg,
+			history: []step{commit("feat: a")},
+			args:    []string{"version", "next"}, wantExit: exitConfig, wantText: []string{`environment "" not found in config`}},
+		{name: "version next with an unknown --env is a config error", config: perEnvCfg,
+			history: []step{commit("feat: a")},
+			args:    envArgs("next", "nope"), wantExit: exitConfig, wantText: []string{`environment "nope" not found in config`}},
+		{name: "version current without --env is a config error", config: perEnvCfg,
+			history: []step{commit("feat: a")},
+			args:    []string{"version", "current"}, wantExit: exitConfig, wantText: []string{"--env is required for semver-per-env strategy"}},
+		{name: "version current with an unknown --env is a config error", config: perEnvCfg,
+			history: []step{commit("feat: a")},
+			args:    envArgs("current", "nope"), wantExit: exitConfig, wantText: []string{`environment "nope" not found in config`}},
 	})
 }
 
@@ -246,7 +258,7 @@ environments:
 		{name: "operating an environment from the wrong branch is refused", config: cfg, branch: "develop",
 			history:  []step{commit("feat: a"), tag("dev/1.0.0")},
 			args:     envArgs("next", "prod"),
-			wantExit: exitAnyFailure, wantText: []string{`must be operated from branch "main"`, `current branch is "develop"`}},
+			wantExit: exitConfig, wantText: []string{`must be operated from branch "main"`, `current branch is "develop"`}},
 		{name: "--force lifts the branch guard", config: cfg, branch: "develop",
 			history: []step{commit("feat: a"), tag("dev/1.0.0")},
 			args:    envArgs("next", "prod", "--force"), wantOut: "prod/1.0.0"},
