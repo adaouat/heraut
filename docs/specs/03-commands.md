@@ -125,8 +125,10 @@ has no such requirement (see § Tag-only workflow below).
 4. **Commit changelog + push** — `chore(release): <version>`, then `git push`. If the
    regenerated changelog is byte-identical to the last commit (`git add` stages nothing —
    a re-run after a partial release, or a release with no changelog-worthy commits), the
-   commit and push are **skipped** with a warning naming the file, and the pipeline
-   continues to tag and publish rather than failing on git's "nothing to commit" exit.
+   commit is **skipped** with a warning naming the file, and the pipeline continues to tag
+   and publish rather than failing on git's "nothing to commit" exit. `git push origin HEAD`
+   still runs (unless `--no-push`), so a retry after a failed push delivers the release commit
+   the tag points at.
 5. **Create git tag** (annotated by default; set `versioning.tag_type: lightweight` to use a bare ref tag) on the changelog commit, then `git push origin <tag>`
 6. **For each target** in `release.targets` (in declared order, or the single resolved
    forge with default options when `release.targets` is omitted):

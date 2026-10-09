@@ -228,7 +228,7 @@ discipline that applies to every task.
 | 57 | SBOM generation; shell completions investigated | Done — completions not shipped (ADR-0013 + notarization gap), see T321/T322 |
 | 58 | Homebrew cask: tar.gz archive for completions/man pages | Done — see T323 |
 | 59 | SemVer v2 compliance and pre-release lifecycle | Done — see `semver-v2-roadmap.md` |
-| 60 | End-to-end tests: hermetic binary lane + opt-in forge sandboxes | In progress — T345 (a-d), T357, T358 done; T359, T360 open |
+| 60 | End-to-end tests: hermetic binary lane + opt-in forge sandboxes | In progress — T345 (a-d), T357, T358, T360 done; T359 open |
 | 61 | GitLab publish driver follow-ups from T335 | In progress — T346 done, T347 (needs design) open |
 | 62 | Version branches: version from the branch name | Not started — see T348 (needs design) |
 | 63 | CalVer history-aware changelog bounds | Not started — see T356 |
@@ -2837,7 +2837,7 @@ The per-env branch guard (`Environment "prod" must be operated from branch "main
 default (3) through `wrapRunErr`, and Spec 01/02 do not pin its code either. Decide it together
 with the above; the guard's e2e row asserts only "non-zero" until then (`exitAnyFailure`).
 
-#### `[ ]` T360: a retry after a failed push claims "committed and pushed" without pushing the branch
+#### `[x]` T360: a retry after a failed push claims "committed and pushed" without pushing the branch
 
 Found by the T345b4a review and reproduced by hand. `heraut changelog --commit --tag` with the
 remote unreachable commits the changelog locally and fails at `git push` (exit 3). Re-running it
@@ -2850,6 +2850,19 @@ print "pushed" for a push that did not happen; also reword the "nothing to commi
 tag and release" warning, which `changelog` reuses. Then add a two-run e2e test (fail, restore the
 remote, re-run) to `e2e/changelog_flow_test.go`; it was left out of T345b4a so a test does not cement
 the current behaviour.
+
+**Completion note:** `commitChangelog` now commits only when something is staged but pushes
+`HEAD` whenever a push was requested, so a retry after a failed push delivers the release commit
+before the tag is pushed (a no-op `Everything up-to-date` when the remote already has it). It
+still reports `committed=false` for a no-op run, and the changelog summary now says `unchanged,
+HEAD pushed` / `unchanged, nothing committed` instead of `committed and pushed`. The "nothing to
+commit … skipping commit, continuing to tag and release" warning was already accurate once the
+push runs, so it is unchanged. Spec 03 step 4 records the behaviour. Four pipeline tests that
+asserted the skipped push were updated to expect `push origin HEAD` (the previous behaviour was
+the bug, not a contract); the no-push row of `TestCommitChangelog_NothingStagedSkips` keeps the
+skip assertion. New e2e test `TestChangelogFlow_ARetryAfterAFailedPushPushesTheReleaseCommit`
+(with a `Repo.RestoreRemote` harness helper) fails against the old code. No ADR: it fixes a
+defect against the documented intent.
 
 ### Phase 61 — GitLab publish driver follow-ups from T335
 
