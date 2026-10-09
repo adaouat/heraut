@@ -22,6 +22,13 @@ var (
 	// ErrNoSourceTags is returned when the source environment has no tags to
 	// promote from (E003). --force has no effect.
 	ErrNoSourceTags = errors.New("E003: no source tags found")
+
+	// ErrEnvNotFound and ErrEnvRequired classify a missing or misspelled --env on a per-env
+	// strategy. Their texts complete the sentence the wrapping error starts ("environment %q
+	// not found in config", "--env is required for …"), so the cmd layer can map them to the
+	// configuration exit code without matching strings.
+	ErrEnvNotFound = errors.New("not found in config")
+	ErrEnvRequired = errors.New("is required")
 )
 
 // VersionCalculator is implemented by the underlying single-env resolvers.
@@ -62,7 +69,7 @@ func tagFormat(cfg *config.Config, env string) string {
 func (r *Resolver) Resolve() (versioning.Result, error) {
 	envCfg, ok := r.cfg.Environments[r.env]
 	if !ok {
-		return versioning.Result{}, fmt.Errorf("environment %q not found in config", r.env)
+		return versioning.Result{}, fmt.Errorf("environment %q %w", r.env, ErrEnvNotFound)
 	}
 
 	switch envCfg.Bump {

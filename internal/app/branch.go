@@ -8,6 +8,17 @@ import (
 	"github.com/adaouat/heraut/internal/port"
 )
 
+// BranchMismatchError is returned by CheckBranch when the current branch is not the one the
+// environment is linked to.
+type BranchMismatchError struct {
+	Env, Want, Current string
+}
+
+func (e *BranchMismatchError) Error() string {
+	return fmt.Sprintf("environment %q must be operated from branch %q, but the current branch is %q (use --force to override)",
+		e.Env, e.Want, e.Current)
+}
+
 // CheckBranch enforces the per-environment branch guard: when the active environment
 // declares a branch, the current git branch must match it. This prevents operating on
 // an environment (e.g. releasing prod) from the wrong branch. It is a no-op when env is
@@ -26,8 +37,7 @@ func CheckBranch(runner port.Runner, cfg *config.Config, env string, force bool)
 	}
 	current := strings.TrimSpace(out)
 	if current != envCfg.Branch {
-		return fmt.Errorf("environment %q must be operated from branch %q, but the current branch is %q (use --force to override)",
-			env, envCfg.Branch, current)
+		return &BranchMismatchError{Env: env, Want: envCfg.Branch, Current: current}
 	}
 	return nil
 }

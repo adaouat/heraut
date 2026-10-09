@@ -123,3 +123,60 @@ esac
 	require.Error(t, err)
 	assert.Equal(t, exitcode.Config, cmd.ExitCode(err))
 }
+
+const envSelectionConfig = `
+version: "1"
+versioning:
+  strategy: semver-per-env
+environments:
+  dev:
+    bump: auto
+    tag_format: "dev/{version}"
+  prod:
+    bump: promote
+    source: dev
+    tag_format: "prod/{version}"
+    branch: main
+`
+
+// TestExitCode_EnvSelection_Config pins T359: a missing or unknown --env and the per-env branch
+// guard are configuration problems (Spec 01 code 2), not runtime failures (code 3).
+func TestExitCode_EnvSelection_Config(t *testing.T) {
+	tests := []struct {
+		name string
+		args []string
+	}{
+		{"version next without --env", []string{"version", "next"}},
+		{"version next with an unknown --env", []string{"version", "next", "--env", "nope"}},
+		{"version current without --env", []string{"version", "current"}},
+		{"version current with an unknown --env", []string{"version", "current", "--env", "nope"}},
+		{"changelog with an unknown --env", []string{"changelog", "--dry-run", "--env", "nope"}},
+		{"version next from the wrong branch", []string{"version", "next", "--env", "prod"}},
+		{"version current from the wrong branch", []string{"version", "current", "--env", "prod"}},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			cfgPath := writeConfig(t, envSelectionConfig)
+			exectest.FakeBin(t, "git", `#!/bin/sh
+case "$*" in
+  "rev-parse --abbrev-ref HEAD") echo "develop" ;;
+  "tag -l dev/* --sort=-version:refname") echo "dev/1.0.0" ;;
+  *) exit 1 ;;
+esac
+`)
+			_, err := executeRoot(append(tc.args, "--config", cfgPath)...)
+			require.Error(t, err)
+			assert.Equal(t, exitcode.Config, cmd.ExitCode(err), "%v", err)
+		})
+	}
+}
+
+// TestExitCode_BranchGuardGitFailure_Runtime keeps the genuine git failure on the runtime code:
+// only the mismatch itself is a configuration problem.
+func TestExitCode_BranchGuardGitFailure_Runtime(t *testing.T) {
+	cfgPath := writeConfig(t, envSelectionConfig)
+	exectest.FakeBin(t, "git", "#!/bin/sh\nexit 1\n")
+	_, err := executeRoot("version", "next", "--env", "prod", "--config", cfgPath)
+	require.Error(t, err)
+	assert.Equal(t, exitcode.Runtime, cmd.ExitCode(err), "%v", err)
+}

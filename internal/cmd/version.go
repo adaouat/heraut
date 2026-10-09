@@ -61,7 +61,7 @@ func newVersionNextCmd() *cobra.Command {
 			}
 
 			if err := app.CheckBranch(runner, cfg, env, force); err != nil {
-				return exitcode.Wrap(exitcode.Runtime, err)
+				return wrapBranchErr(err)
 			}
 
 			resolver, err := app.NewResolver(cfg, env, force, versionOverride, buildID, runner, app.WithAllowMajor(allowMajor), app.WithPreRelease(preRelease))
@@ -119,7 +119,7 @@ func newVersionCurrentCmd() *cobra.Command {
 			}
 
 			if err := app.CheckBranch(runner, cfg, env, force); err != nil {
-				return exitcode.Wrap(exitcode.Runtime, err)
+				return wrapBranchErr(err)
 			}
 
 			out := app.CurrentTag
@@ -128,7 +128,7 @@ func newVersionCurrentCmd() *cobra.Command {
 			}
 			value, err := out(runner, cfg, env, includePreRelease)
 			if err != nil {
-				if errors.Is(err, app.ErrAmbiguousBranch) || errors.Is(err, app.ErrUnderivableRange) {
+				if errors.Is(err, app.ErrAmbiguousBranch) || errors.Is(err, app.ErrUnderivableRange) || app.IsEnvSelection(err) {
 					return exitcode.Wrap(exitcode.Config, err)
 				}
 				return exitcode.Wrap(exitcode.Runtime, err)

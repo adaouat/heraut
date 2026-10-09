@@ -98,7 +98,7 @@ func NewChangelogCmd(version string) *cobra.Command {
 			}
 			if !dryRun {
 				if err := app.CheckBranch(readRunner, cfg, env, force); err != nil {
-					return exitcode.Wrap(exitcode.Runtime, err)
+					return wrapBranchErr(err)
 				}
 				if tag {
 					if err := app.CheckReleaseBranch(readRunner, cfg, force); err != nil {

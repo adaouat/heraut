@@ -210,7 +210,7 @@ func TestVersionNext_SetVersion_StillEnforcesBranchGuard(t *testing.T) {
 			if tc.wantErrMsg != "" {
 				require.Error(t, err)
 				assert.Contains(t, err.Error(), tc.wantErrMsg)
-				assert.Equal(t, exitcode.Runtime, cmd.ExitCode(err))
+				assert.Equal(t, exitcode.Config, cmd.ExitCode(err))
 				assert.Empty(t, stdout)
 				return
 			}

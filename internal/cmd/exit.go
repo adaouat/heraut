@@ -12,9 +12,19 @@ func ExitCode(err error) int {
 	return exitcode.Resolve(err)
 }
 
+// wrapBranchErr classifies an error from app.CheckBranch: the guard refusing the current branch is
+// a configuration problem (the environment is linked to another branch), while failing to read the
+// branch at all stays a runtime failure.
+func wrapBranchErr(err error) error {
+	if app.IsBranchMismatch(err) {
+		return exitcode.Wrap(exitcode.Config, err)
+	}
+	return exitcode.Wrap(exitcode.Runtime, err)
+}
+
 // wrapRunErr classifies an error from resolving a version or running a pipeline:
 // promotion guards (E001/E002/E003) map to exit code 4, a tag format that needs a {build} ID
-// nobody supplied maps to the configuration code (the same class as the explicit --set-version
+// nobody supplied, or a missing/unknown --env, maps to the configuration code (the same class as the explicit --set-version
 // path), everything else to the runtime code. Returns nil when err is nil.
 //
 // summary is optional. When given, the returned error displays summary instead of err's own
@@ -29,7 +39,7 @@ func wrapRunErr(err error, summary ...string) error {
 	code := exitcode.Runtime
 	if app.IsPromotionGuard(err) {
 		code = exitcode.Promotion
-	} else if app.IsBuildIDRequired(err) {
+	} else if app.IsBuildIDRequired(err) || app.IsEnvSelection(err) {
 		code = exitcode.Config
 	}
 	if len(summary) > 0 {
