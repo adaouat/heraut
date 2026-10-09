@@ -87,3 +87,21 @@ func (r *Repo) Checkout(branch string) {
 	r.t.Helper()
 	r.git("checkout", "-q", "-b", branch)
 }
+
+// Switch moves to an existing branch.
+func (r *Repo) Switch(branch string) {
+	r.t.Helper()
+	r.git("checkout", "-q", branch)
+}
+
+// Detach detaches HEAD at its current commit.
+func (r *Repo) Detach() {
+	r.t.Helper()
+	r.git("checkout", "-q", "--detach")
+}
+
+// MergeNoFF merges branch into the current branch with a merge commit.
+func (r *Repo) MergeNoFF(branch string) {
+	r.t.Helper()
+	r.git("merge", "-q", "--no-ff", "-m", "chore: merge "+branch, branch)
+}

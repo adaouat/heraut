@@ -64,3 +64,20 @@ func TestRepo_Checkout(t *testing.T) {
 
 	assert.Equal(t, "develop", strings.TrimSpace(r.git("rev-parse", "--abbrev-ref", "HEAD")))
 }
+
+func TestRepo_SwitchDetachAndMerge(t *testing.T) {
+	r := NewRepo(t)
+	r.Commit("feat: first")
+	r.Checkout("release/1.3")
+	r.Commit("fix: on the line")
+	r.Switch("main")
+
+	assert.Equal(t, "main", strings.TrimSpace(r.git("rev-parse", "--abbrev-ref", "HEAD")))
+
+	r.MergeNoFF("release/1.3")
+	assert.Equal(t, "chore: merge release/1.3", strings.TrimSpace(r.git("log", "-1", "--format=%s")))
+	assert.Len(t, strings.Fields(r.git("log", "-1", "--format=%P")), 2, "a no-ff merge has two parents")
+
+	r.Detach()
+	assert.Equal(t, "HEAD", strings.TrimSpace(r.git("rev-parse", "--abbrev-ref", "HEAD")))
+}
