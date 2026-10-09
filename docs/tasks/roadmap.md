@@ -228,7 +228,7 @@ discipline that applies to every task.
 | 57 | SBOM generation; shell completions investigated | Done — completions not shipped (ADR-0013 + notarization gap), see T321/T322 |
 | 58 | Homebrew cask: tar.gz archive for completions/man pages | Done — see T323 |
 | 59 | SemVer v2 compliance and pre-release lifecycle | Done — see `semver-v2-roadmap.md` |
-| 60 | End-to-end tests: hermetic binary lane + opt-in forge sandboxes | In progress — T345a, T345b1-b3, T357, T358 done; T345b4-b5, c, d open; T359 open |
+| 60 | End-to-end tests: hermetic binary lane + opt-in forge sandboxes | In progress — T345a, T345b1-b3, T345b4a, T357, T358 done; T345b4b-b5, c, d open; T359 open |
 | 61 | GitLab publish driver follow-ups from T335 | In progress — T346 done, T347 (needs design) open |
 | 62 | Version branches: version from the branch name | Not started — see T348 (needs design) |
 | 63 | CalVer history-aware changelog bounds | Not started — see T356 |
@@ -2665,9 +2665,21 @@ testify only), done in whichever part touches the harness next.
   `release --force` on an unlisted branch is not run (it proceeds to push and publish, T345b4's fake
   `gh`/`glab` territory). No heraut defect surfaced.
 
-- `[ ]` **T345b4**: changelog and release local flow: bare remote in the harness,
-  `changelog --commit --tag --no-push`, `--regenerate`, hooks and `--skip-hook`, fake `gh`/`glab`
-  recording argv, `--offline`.
+- `[ ]` **T345b4**: changelog and release local flow, split into three parts:
+  - `[x]` **T345b4a**: `changelog` flows against a bare remote (commit, tag, push, `--no-push`,
+    splice vs `--regenerate`, pre-release and disabled-changelog tag-only runs, failing push,
+    `--offline`).
+    **Completion note:** executed from `docs/superpowers/plans/2026-10-09-e2e-changelog-flow-t345b4a.md`.
+    12 standalone tests (14 with subtests) in `e2e/changelog_flow_test.go`; the e2e package now runs
+    144 subtests. The harness gained a bare remote (`AddRemote`, `RemoveRemote`) and `Git`,
+    `GitRemote`, `WriteFile`. Every flow behaved as documented on the first run; the tests assert
+    local and remote state (HEAD, tags, branch arrival, tag target, file presence) rather than output
+    text alone.
+  - `[ ]` **T345b4b**: hooks: the six points and their order, `--no-hooks`, `--skip-hook`,
+    `HERAUT_SKIP_HOOKS`, a failing hook aborting the run, hook file staging.
+  - `[ ]` **T345b4c**: the full `release` with fake `gh`/`glab` recording argv: notes file, release
+    flags per forge, asset upload, `--dry-run` calling nothing, `release --force` on an unlisted
+    branch.
 - `[ ]` **T345b5**: CLI surface: `check config`/`check runtime` exit codes, `~` expansion in
   `--config` and `HERAUT_FILE`, `commit verify`, unknown config key reports a line number.
 

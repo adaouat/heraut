@@ -57,6 +57,7 @@ internal/pipeline/            release + changelog flows (no factories)
 | `internal/conventionalcommit/` | nothing from heraut (pure, like port/config)                             |
 | `internal/exitcode/` | nothing from heraut (pure, like port/config)                                       |
 | `internal/testutil/` | `internal/port/` only (test doubles implementing the port interfaces)              |
+| `e2e/`               | `e2e/harness` and testify only, never an `internal/` package (it drives the built binary, ADR-0066) |
 
 If you find yourself importing `up` the stack, the design is wrong — fix the dependency
 direction, do not add the import.
