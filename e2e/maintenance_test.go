@@ -119,6 +119,9 @@ func TestMaintenance_SetVersionCollisions(t *testing.T) {
 		{name: "a free version is accepted", config: branchesCfg,
 			history: lineHistory("release/1.3", commit("fix: x")),
 			args:    []string{"version", "next", "--set-version", "1.3.1"}, wantOut: "v1.3.1"},
+		{name: "an out-of-range version is accepted: --set-version is not range-checked", config: branchesCfg,
+			history: lineHistory("release/1.3", commit("fix: x")),
+			args:    []string{"version", "next", "--set-version", "2.0.0"}, wantOut: "v2.0.0"},
 		{name: "a free version with a build id is accepted", config: branchesCfg,
 			history: lineHistory("release/1.3", commit("fix: x")),
 			args:    []string{"version", "next", "--set-version", "1.3.1", "--set-build-id", "5"}, wantOut: "v1.3.1+5"},
@@ -151,27 +154,52 @@ release:
     - forge: github
 `
 
-func TestMaintenance_ReleaseRefusesUnlistedBranches(t *testing.T) {
-	bin := harness.Binary(t)
-	runScenarios(t, bin, nil, []scenario{
-		{name: "release on an unlisted branch is refused before anything is written", config: branchesCfg + releaseTargetCfg,
-			history:  lineHistory("feature/x", commit("fix: x")),
-			args:     []string{"release", "--set-version", "1.2.3"},
-			wantExit: exitConfig, wantText: []string{`branch matches no versioning.branches entry: branch "feature/x"`, "pass --force to release anyway"}},
-	})
+// repoState captures what a publishing command must leave untouched when it is refused or runs
+// as a preview: the tag list, HEAD, and the working tree.
+func repoState(t *testing.T, repo *harness.Repo) string {
+	t.Helper()
+	var parts []string
+	for _, args := range [][]string{{"tag", "-l"}, {"rev-parse", "HEAD"}, {"status", "--porcelain"}} {
+		res := repo.Run("git", nil, args...)
+		require.Equal(t, exitOK, res.ExitCode, "git %v: %s", args, res.Stderr)
+		parts = append(parts, res.Stdout)
+	}
+	return strings.Join(parts, "\x00")
 }
 
-func TestMaintenance_DryRunIsNotRefused(t *testing.T) {
+func TestMaintenance_ReleaseOnAnUnlistedBranch(t *testing.T) {
 	bin := harness.Binary(t)
-	repo := harness.NewRepo(t)
-	repo.WriteConfig(branchesCfg + releaseTargetCfg)
-	applySteps(repo, lineHistory("feature/x", commit("fix: x")))
+	newRepo := func(t *testing.T) *harness.Repo {
+		repo := harness.NewRepo(t)
+		repo.WriteConfig(branchesCfg + releaseTargetCfg)
+		applySteps(repo, lineHistory("feature/x", commit("fix: x")))
+		return repo
+	}
 
-	res := repo.Run(bin, nil, "release", "--set-version", "1.2.3", "--dry-run")
+	t.Run("is refused before anything is written", func(t *testing.T) {
+		repo := newRepo(t)
+		before := repoState(t, repo)
 
-	require.Equal(t, exitOK, res.ExitCode, "stdout:\n%s\nstderr:\n%s", res.Stdout, res.Stderr)
-	assert.Contains(t, res.Stdout, "[dry-run] would tag")
-	assert.NotContains(t, normalize(res.Stdout+" "+res.Stderr), "pass --force")
+		res := repo.Run(bin, nil, "release", "--set-version", "1.2.3")
+
+		require.Equal(t, exitConfig, res.ExitCode, "stdout:\n%s\nstderr:\n%s", res.Stdout, res.Stderr)
+		all := normalize(res.Stdout + " " + res.Stderr)
+		assert.Contains(t, all, `branch matches no versioning.branches entry: branch "feature/x"`)
+		assert.Contains(t, all, "pass --force to release anyway")
+		assert.Equal(t, before, repoState(t, repo), "no tag, commit or file may be created")
+	})
+
+	t.Run("--dry-run is a preview: not refused, and nothing is created", func(t *testing.T) {
+		repo := newRepo(t)
+		before := repoState(t, repo)
+
+		res := repo.Run(bin, nil, "release", "--set-version", "1.2.3", "--dry-run")
+
+		require.Equal(t, exitOK, res.ExitCode, "stdout:\n%s\nstderr:\n%s", res.Stdout, res.Stderr)
+		assert.Contains(t, res.Stdout, "[dry-run] would tag")
+		assert.NotContains(t, normalize(res.Stdout+" "+res.Stderr), "pass --force")
+		assert.Equal(t, before, repoState(t, repo), "a dry run must not create a tag, commit or file")
+	})
 }
 
 const changelogCfg = `version: "1"

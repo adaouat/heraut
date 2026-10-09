@@ -2651,13 +2651,13 @@ testify only), done in whichever part touches the harness next.
 - `[x]` **T345b3**: maintenance branches (ADR-0065): range resolution, unlisted-branch refusal,
   collision guard, same-commit tag bounds.
   **Completion note:** executed from `docs/superpowers/plans/2026-10-09-e2e-maintenance-branches-t345b3.md`.
-  27 new scenarios in `e2e/maintenance_test.go` (the e2e package now runs 140 subtests): line
+  29 new subtests in `e2e/maintenance_test.go` plus a `changelogOutline` unit test (the e2e package now runs 142 subtests): line
   resolution (a fix on the line, the out-of-range `feat:` with the range in the message, collisions
   with a tag cut elsewhere including a build-metadata tag, a line with no in-range release, `version
   current`, `main` and unlisted branches, a pre-release on the line), the ambiguous / underivable /
   calver config errors, the `--set-version` escape hatch and its collision probe, detached-HEAD
   detection from `CI_COMMIT_BRANCH`, `BUILD_SOURCEBRANCH` and `GITHUB_REF_NAME` (branch refs only),
-  the unlisted-branch `release` refusal plus a standalone `--dry-run` test, and three changelog-bound
+  the unlisted-branch `release` refusal and `--dry-run` preview (both assert tags, HEAD and the tree are unchanged), and three changelog-bound
   cases (unmerged tags get no section, forward merge, two tags on one commit). The harness gained
   `Switch`, `Detach` and `MergeNoFF`, and the runner's `step` gained branch operations. Deviations:
   the `mergeNoFF` constructor landed with its first user (the unused-code lint blocked an earlier
