@@ -228,7 +228,7 @@ discipline that applies to every task.
 | 57 | SBOM generation; shell completions investigated | Done — completions not shipped (ADR-0013 + notarization gap), see T321/T322 |
 | 58 | Homebrew cask: tar.gz archive for completions/man pages | Done — see T323 |
 | 59 | SemVer v2 compliance and pre-release lifecycle | Done — see `semver-v2-roadmap.md` |
-| 60 | End-to-end tests: hermetic binary lane + opt-in forge sandboxes | In progress — T345a, T345b, T357, T358 done; T345c, d open; T359, T360 open |
+| 60 | End-to-end tests: hermetic binary lane + opt-in forge sandboxes | In progress — T345a, T345b, T345c, T357, T358 done; T345d open; T359, T360 open |
 | 61 | GitLab publish driver follow-ups from T335 | In progress — T346 done, T347 (needs design) open |
 | 62 | Version branches: version from the branch name | Not started — see T348 (needs design) |
 | 63 | CalVer history-aware changelog bounds | Not started — see T356 |
@@ -2725,11 +2725,31 @@ testify only), done in whichever part touches the harness next.
   expectations were corrected to real output (the error panel wraps long paths mid-token, and
   without a config the missing binaries read `gh: not found on PATH`). With this part T345b is done.
 
-#### `[ ]` T345c: forge harness and scenarios B1-B4 (Lane B)
+#### `[x]` T345c: forge harness and scenarios B1-B4 (Lane B)
 
 `e2e_forge` build tag, sandbox configuration and safety guards, per-run branch and tag namespace,
 cleanup plus sweeper; final release, pre-release, build metadata and per-env-with-asset scenarios on
 GitHub and GitLab (the per-env one is T335's regression test).
+
+**Completion note:** executed from `docs/superpowers/plans/2026-10-09-e2e-forge-lane-t345c.md`. New
+package `e2e/forgeharness` (every file behind `//go:build e2e_forge`): configuration from
+`HERAUT_E2E_GITHUB_REPO`, `HERAUT_E2E_GITLAB_PROJECT` and `HERAUT_E2E_REPO_PATTERN` (default
+`*testing*`), token lookup (dedicated variable, then `GH_TOKEN`/`GITLAB_TOKEN`, then the local
+`gh`/`glab` login, never printed), run ids (`e2e-<unix>-<hex>`), `Forge` clients for GitHub and
+GitLab that shell out to the real `gh api`/`glab api`, a `Workspace` (clone of the sandbox onto an
+`e2e/<run-id>` branch with an `http.extraheader` living only in the test's temp dir) whose
+`t.Cleanup` deletes the run's releases, tags and branch and fails the test on any cleanup error, and
+`e2e/cmd/sweep` (`go run -tags e2e_forge ./e2e/cmd/sweep [-older-than 24h] [-dry-run]`). Guards: the
+repository base name must match the pattern, the repository must be private, and deletions are
+refused unless the name carries the run id. `.golangci.yml` gained `build-tags: [e2e_forge]` so the
+tagged files are linted, and `mise run test:e2e` runs the scenarios. Offline: 9 harness tests (fake
+`gh`/`glab`, a local bare repo as the "sandbox"). Live: `TestForge_B1`-`B4`, each once per forge, 8
+passing subtests in about 100 s against the two private sandboxes, which were left empty. Findings
+and deviations: GitHub's release list is eventually consistent (a new release is not listed for
+several seconds), so releases are looked up and deleted by tag, and cleanup deletes a tag's release
+before the tag (deleting the tag first turns the release into a leaked draft; the first live run
+leaked four drafts, removed by hand); the fakes reply from an ordered list (specific keys first).
+GitLab's release API has no pre-release flag, so B2 asserts the flag only where the forge has one.
 
 #### `[ ]` T345d: scenarios B5-B10, workflow, guide
 
