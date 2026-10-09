@@ -101,6 +101,10 @@ func TestRepo_RemoteAndFileHelpers(t *testing.T) {
 	r.RemoveRemote()
 	_, err := os.Stat(r.remote)
 	assert.True(t, os.IsNotExist(err), "the bare remote is gone")
+
+	r.RestoreRemote("HEAD")
+	assert.Equal(t, r.Git("rev-parse", "HEAD"), r.GitRemote("rev-parse", "main"), "RestoreRemote recreates origin at the given rev")
+	assert.Empty(t, r.GitRemote("tag", "-l"), "a restored remote starts without tags")
 }
 
 func TestRepo_FakeCLIRecordsCallsInOrderAndCanFail(t *testing.T) {

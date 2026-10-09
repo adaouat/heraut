@@ -131,6 +131,19 @@ func (r *Repo) RemoveRemote() {
 	}
 }
 
+// RestoreRemote recreates the bare remote removed by RemoveRemote, holding only main at rev
+// (typically the commit the remote had before the failed push), so a retry meets a remote that is
+// reachable again but still behind.
+func (r *Repo) RestoreRemote(rev string) {
+	r.t.Helper()
+	cmd := exec.Command("git", "init", "-q", "--bare", r.remote)
+	cmd.Env = baseEnv(r.home)
+	if out, err := cmd.CombinedOutput(); err != nil {
+		r.t.Fatalf("git init --bare: %v\n%s", err, out)
+	}
+	r.git("push", "-q", "origin", rev+":refs/heads/main")
+}
+
 // Git runs git in the repository and returns its trimmed output.
 func (r *Repo) Git(args ...string) string {
 	r.t.Helper()

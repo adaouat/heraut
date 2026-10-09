@@ -209,6 +209,28 @@ func TestChangelogFlow_AFailingPushIsARuntimeError(t *testing.T) {
 	assert.Empty(t, repo.Git("tag", "-l"), "the tag is only created after the commit was pushed")
 }
 
+// TestChangelogFlow_ARetryAfterAFailedPushPushesTheReleaseCommit covers T360: the first run commits
+// locally and fails at the push; once the remote is back the identical changelog stages nothing, yet
+// the retry must still push the release commit so the remote tag points at a commit on main.
+func TestChangelogFlow_ARetryAfterAFailedPushPushesTheReleaseCommit(t *testing.T) {
+	bin := harness.Binary(t)
+	repo := flowRepo(t, flowCfg)
+	repo.Commit("feat: one")
+	behind := repo.GitRemote("rev-parse", "main")
+	repo.RemoveRemote()
+	failed := repo.Run(bin, nil, "changelog", "--commit", "--tag", "--offline")
+	require.Equal(t, exitRuntime, failed.ExitCode, "stdout:\n%s\nstderr:\n%s", failed.Stdout, failed.Stderr)
+	repo.RestoreRemote(behind)
+
+	runOK(t, repo, bin, "changelog", "--commit", "--tag", "--offline")
+
+	assert.Equal(t, "chore(release): 0.1.0", repo.Git("log", "-1", "--format=%s"))
+	assert.Equal(t, repo.Git("rev-parse", "HEAD"), repo.GitRemote("rev-parse", "main"),
+		"the release commit reached the remote branch")
+	assert.Equal(t, repo.Git("rev-parse", "HEAD"), repo.GitRemote("rev-list", "-n", "1", "v0.1.0"),
+		"the remote tag points at a commit on the remote branch")
+}
+
 func TestChangelogFlow_OfflineLiftsARequiredEnrichmentPolicy(t *testing.T) {
 	bin := harness.Binary(t)
 	cfg := `version: "1"
