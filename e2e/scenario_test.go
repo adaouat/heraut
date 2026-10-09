@@ -10,10 +10,36 @@ import (
 	"github.com/adaouat/heraut/e2e/harness"
 )
 
-type step struct{ commit, tag string }
+type step struct {
+	commit, tag, checkout, switchTo, merge string
+	detach                                 bool
+}
 
 func commit(msg string) step { return step{commit: msg} }
 func tag(name string) step   { return step{tag: name} }
+
+func checkout(name string) step { return step{checkout: name} }
+func switchTo(name string) step { return step{switchTo: name} }
+func detach() step              { return step{detach: true} }
+
+func applySteps(repo *harness.Repo, steps []step) {
+	for _, s := range steps {
+		switch {
+		case s.tag != "":
+			repo.Tag(s.tag)
+		case s.checkout != "":
+			repo.Checkout(s.checkout)
+		case s.switchTo != "":
+			repo.Switch(s.switchTo)
+		case s.merge != "":
+			repo.MergeNoFF(s.merge)
+		case s.detach:
+			repo.Detach()
+		default:
+			repo.Commit(s.commit)
+		}
+	}
+}
 
 const (
 	exitOK         = 0
@@ -51,13 +77,7 @@ func runScenarios(t *testing.T, bin string, env []string, tests []scenario) {
 			if tc.branch != "" {
 				repo.Checkout(tc.branch)
 			}
-			for _, s := range tc.history {
-				if s.tag != "" {
-					repo.Tag(s.tag)
-				} else {
-					repo.Commit(s.commit)
-				}
-			}
+			applySteps(repo, tc.history)
 
 			res := repo.Run(bin, append(append([]string{}, env...), tc.env...), tc.args...)
 
