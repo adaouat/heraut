@@ -14,6 +14,7 @@ type Repo struct {
 	Dir    string
 	home   string
 	remote string
+	binDir string
 }
 
 // NewRepo initialises an empty repository on branch main; it skips when git is not on PATH.

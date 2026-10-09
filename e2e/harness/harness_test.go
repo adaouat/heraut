@@ -102,3 +102,22 @@ func TestRepo_RemoteAndFileHelpers(t *testing.T) {
 	_, err := os.Stat(r.remote)
 	assert.True(t, os.IsNotExist(err), "the bare remote is gone")
 }
+
+func TestRepo_FakeCLIRecordsCallsInOrderAndCanFail(t *testing.T) {
+	r := NewRepo(t)
+	r.FakeCLI("gh")
+	r.FakeCLI("glab")
+
+	res := r.Run("/bin/sh", nil, "-c", "gh --version; glab release create v1 --repo acme/w; gh release create v1; echo rc=$?")
+	assert.Equal(t, 0, res.ExitCode)
+	assert.Equal(t, []string{
+		"gh [--version]",
+		"glab [release] [create] [v1] [--repo] [acme/w]",
+		"gh [release] [create] [v1]",
+	}, r.CLICalls())
+
+	r.FailReleases("gh")
+	res = r.Run("/bin/sh", nil, "-c", "gh release create v2; echo rc=$?")
+	assert.Equal(t, "rc=1\n", res.Stdout)
+	assert.Equal(t, "gh [release] [create] [v2]", r.CLICalls()[3], "a failing call is still recorded")
+}

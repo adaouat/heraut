@@ -19,7 +19,7 @@ func (r *Repo) Run(bin string, env []string, args ...string) Result {
 	r.t.Helper()
 	cmd := exec.Command(bin, args...)
 	cmd.Dir = r.Dir
-	cmd.Env = append(baseEnv(r.home), env...)
+	cmd.Env = append(r.runEnv(), env...)
 	var stdout, stderr bytes.Buffer
 	cmd.Stdout = &stdout
 	cmd.Stderr = &stderr
