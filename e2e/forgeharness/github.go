@@ -1,0 +1,174 @@
+//go:build e2e_forge
+
+package forgeharness
+
+import (
+	"encoding/json"
+	"fmt"
+	"strconv"
+	"strings"
+)
+
+type github struct {
+	repo, pattern, token string
+	cfg                  Config
+}
+
+// NewGitHub returns the sandbox repository configured in c.GitHubRepo.
+func NewGitHub(c Config, token string) Forge {
+	return &github{repo: c.GitHubRepo, pattern: c.Pattern, token: token, cfg: c}
+}
+
+func (g *github) Name() string             { return "github" }
+func (g *github) Platform() string         { return "github" }
+func (g *github) Coordinates() string      { return g.repo }
+func (g *github) CoordinatesKey() string   { return "repository" }
+func (g *github) TokenEnv() string         { return "GH_TOKEN" }
+func (g *github) Token() string            { return g.token }
+func (g *github) CloneURL() string         { return "https://github.com/" + g.repo + ".git" }
+func (g *github) GitAuthHeader() string    { return basicAuth("x-access-token", g.token) }
+func (g *github) HasPreReleaseFlag() bool  { return true }
+func (g *github) URLTag(tag string) string { return tag }
+func (g *github) call(args ...string) ([]byte, error) {
+	return api("gh", g.TokenEnv(), g.token, args...)
+}
+
+func (g *github) Check() error {
+	if err := g.cfg.Guard(g.repo); err != nil {
+		return err
+	}
+	out, err := g.call("repos/" + g.repo)
+	if err != nil {
+		return err
+	}
+	var r struct {
+		Private bool `json:"private"`
+	}
+	if err := json.Unmarshal(out, &r); err != nil {
+		return err
+	}
+	if !r.Private {
+		return fmt.Errorf("refusing %q: the repository is not private", g.repo)
+	}
+	return nil
+}
+
+type ghRelease struct {
+	ID         int    `json:"id"`
+	TagName    string `json:"tag_name"`
+	Body       string `json:"body"`
+	Prerelease bool   `json:"prerelease"`
+	Draft      bool   `json:"draft"`
+	Assets     []struct {
+		Name string `json:"name"`
+	} `json:"assets"`
+}
+
+func (g *github) releases() ([]ghRelease, error) {
+	out, err := g.call("repos/" + g.repo + "/releases?per_page=100")
+	if err != nil {
+		return nil, err
+	}
+	var rs []ghRelease
+	if err := json.Unmarshal(out, &rs); err != nil {
+		return nil, err
+	}
+	return rs, nil
+}
+
+func (g *github) Release(tag string) (Release, bool, error) {
+	rs, err := g.releases()
+	if err != nil {
+		return Release{}, false, err
+	}
+	for _, r := range rs {
+		if r.TagName == tag {
+			return Release{Tag: r.TagName, Body: r.Body, Prerelease: r.Prerelease, Draft: r.Draft, AssetCount: len(r.Assets)}, true, nil
+		}
+	}
+	return Release{}, false, nil
+}
+
+func (g *github) TagCommit(tag string) (string, error) {
+	out, err := g.call("repos/" + g.repo + "/git/ref/tags/" + tag)
+	if err != nil {
+		return "", err
+	}
+	var ref struct {
+		Object struct{ Type, SHA string } `json:"object"`
+	}
+	if err := json.Unmarshal(out, &ref); err != nil {
+		return "", err
+	}
+	if ref.Object.Type != "tag" {
+		return ref.Object.SHA, nil
+	}
+	out, err = g.call("repos/" + g.repo + "/git/tags/" + ref.Object.SHA)
+	if err != nil {
+		return "", err
+	}
+	var t struct {
+		Object struct{ SHA string } `json:"object"`
+	}
+	if err := json.Unmarshal(out, &t); err != nil {
+		return "", err
+	}
+	return t.Object.SHA, nil
+}
+
+func (g *github) refs(kind, prefix string) ([]string, error) {
+	out, err := g.call("repos/" + g.repo + "/git/matching-refs/" + kind + "/" + prefix)
+	if err != nil {
+		return nil, err
+	}
+	var refs []struct {
+		Ref string `json:"ref"`
+	}
+	if err := json.Unmarshal(out, &refs); err != nil {
+		return nil, err
+	}
+	var names []string
+	for _, r := range refs {
+		names = append(names, strings.TrimPrefix(r.Ref, "refs/"+kind+"/"))
+	}
+	return names, nil
+}
+
+func (g *github) Branches(prefix string) ([]string, error) { return g.refs("heads", prefix) }
+func (g *github) Tags(prefix string) ([]string, error)     { return g.refs("tags", prefix) }
+
+func (g *github) Releases(prefix string) ([]string, error) {
+	rs, err := g.releases()
+	if err != nil {
+		return nil, err
+	}
+	var tags []string
+	for _, r := range rs {
+		tags = append(tags, r.TagName)
+	}
+	return hasPrefix(tags, prefix), nil
+}
+
+func (g *github) DeleteRelease(tag string) error {
+	rs, err := g.releases()
+	if err != nil {
+		return err
+	}
+	for _, r := range rs {
+		if r.TagName == tag {
+			_, err := g.call("-X", "DELETE", "repos/"+g.repo+"/releases/"+strconv.Itoa(r.ID))
+			return err
+		}
+	}
+	return nil
+}
+
+func (g *github) DeleteTag(tag string) error {
+	_, err := g.call("-X", "DELETE", "repos/"+g.repo+"/git/refs/tags/"+tag)
+	return err
+}
+
+func (g *github) DeleteBranch(name string) error {
+	_, err := g.call("-X", "DELETE", "repos/"+g.repo+"/git/refs/heads/"+name)
+	return err
+}
