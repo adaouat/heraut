@@ -18,9 +18,10 @@ type step struct {
 func commit(msg string) step { return step{commit: msg} }
 func tag(name string) step   { return step{tag: name} }
 
-func checkout(name string) step { return step{checkout: name} }
-func switchTo(name string) step { return step{switchTo: name} }
-func detach() step              { return step{detach: true} }
+func checkout(name string) step  { return step{checkout: name} }
+func switchTo(name string) step  { return step{switchTo: name} }
+func mergeNoFF(name string) step { return step{merge: name} }
+func detach() step               { return step{detach: true} }
 
 func applySteps(repo *harness.Repo, steps []step) {
 	for _, s := range steps {

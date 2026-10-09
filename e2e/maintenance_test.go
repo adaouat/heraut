@@ -1,6 +1,7 @@
 package e2e_test
 
 import (
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -171,4 +172,96 @@ func TestMaintenance_DryRunIsNotRefused(t *testing.T) {
 	require.Equal(t, exitOK, res.ExitCode, "stdout:\n%s\nstderr:\n%s", res.Stdout, res.Stderr)
 	assert.Contains(t, res.Stdout, "[dry-run] would tag")
 	assert.NotContains(t, normalize(res.Stdout+" "+res.Stderr), "pass --force")
+}
+
+const changelogCfg = `version: "1"
+versioning:
+  strategy: semver
+  branches:
+    - name: main
+    - name: release/*
+changelog:
+  output: CHANGELOG.md
+`
+
+func TestChangelogOutline(t *testing.T) {
+	got := changelogOutline("# Changelog\n\n## [1.4.0] - 2026-10-09\n\n### Features\n\n- B1 - abc123\n- B2 - def456\n\n## [1.3.0] - 2026-10-09\n\n- A1 - 0a1b2c\n")
+
+	assert.Equal(t, []string{"1.4.0: B1, B2", "1.3.0: A1"}, got)
+}
+
+// changelogOutline reduces a CHANGELOG.md to "version: subject, subject" lines, in file order,
+// dropping dates and hashes (both depend on when and where the test ran).
+func changelogOutline(content string) []string {
+	var outline []string
+	var version string
+	var subjects []string
+	flush := func() {
+		if version != "" {
+			outline = append(outline, version+": "+strings.Join(subjects, ", "))
+		}
+	}
+	for _, line := range strings.Split(content, "\n") {
+		switch {
+		case strings.HasPrefix(line, "## ["):
+			flush()
+			version = strings.TrimPrefix(line, "## [")
+			version = version[:strings.Index(version, "]")]
+			subjects = nil
+		case strings.HasPrefix(line, "- ") && version != "":
+			subject := strings.TrimPrefix(line, "- ")
+			if i := strings.LastIndex(subject, " - "); i >= 0 {
+				subject = subject[:i]
+			}
+			subjects = append(subjects, subject)
+		}
+	}
+	flush()
+	return outline
+}
+
+func TestMaintenance_ChangelogBounds(t *testing.T) {
+	bin := harness.Binary(t)
+	regenerate := func(t *testing.T, steps []step, version string) []string {
+		t.Helper()
+		repo := harness.NewRepo(t)
+		repo.WriteConfig(changelogCfg)
+		applySteps(repo, steps)
+		res := repo.Run(bin, nil, "changelog", "--regenerate", "--offline", "--set-version", version)
+		require.Equal(t, exitOK, res.ExitCode, "stdout:\n%s\nstderr:\n%s", res.Stdout, res.Stderr)
+		return changelogOutline(repo.ReadFile("CHANGELOG.md"))
+	}
+	// main: a1 (v1.3.0); the line release/1.3 gets two fixes tagged v1.3.1 and v1.3.2; main
+	// continues with two features tagged v1.4.0.
+	layout := []step{
+		commit("feat: a1"), tag("v1.3.0"),
+		checkout("release/1.3"), commit("fix: f1"), tag("v1.3.1"), commit("fix: f2"), tag("v1.3.2"),
+		switchTo("main"), commit("feat: b1"), commit("feat: b2"), tag("v1.4.0"),
+	}
+
+	t.Run("tags never merged into HEAD get no section", func(t *testing.T) {
+		got := regenerate(t, layout, "1.5.0")
+
+		assert.Equal(t, []string{"1.4.0: B1, B2", "1.3.0: A1"}, got)
+	})
+
+	t.Run("after a forward merge each tag gets its own section", func(t *testing.T) {
+		got := regenerate(t, append(append([]step{}, layout...), mergeNoFF("release/1.3"), commit("fix: after")), "1.5.0")
+
+		assert.Equal(t, []string{
+			"1.5.0: F1, F2, After, Merge release/1.3",
+			"1.4.0: B1, B2",
+			"1.3.2: F2",
+			"1.3.1: F1",
+			"1.3.0: A1",
+		}, got)
+	})
+
+	t.Run("two tags on one commit bound each other, the empty section is dropped", func(t *testing.T) {
+		got := regenerate(t, []step{
+			commit("feat: a"), tag("v1.0.0"), commit("fix: b"), tag("v1.0.1"), tag("v1.0.2"), commit("fix: c"),
+		}, "1.0.3")
+
+		assert.Equal(t, []string{"1.0.3: C", "1.0.1: B", "1.0.0: A"}, got)
+	})
 }
