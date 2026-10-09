@@ -2711,7 +2711,7 @@ testify only), done in whichever part touches the harness next.
 - `[x]` **T345b5**: CLI surface: `check config`/`check runtime` exit codes, `~` expansion in
   `--config` and `HERAUT_FILE`, `commit verify`, unknown config key reports a line number.
   **Completion note:** executed from `docs/superpowers/plans/2026-10-09-e2e-cli-surface-t345b5.md`.
-  40 entries (8 tests with subtests) in `e2e/cli_surface_test.go`; the e2e package now runs 199
+  40 entries (6 tests with subtests) in `e2e/cli_surface_test.go`; the e2e package now runs 199
   subtests. The harness gained `Home`, `WriteHomeFile`, `BinDir` and `RunStdin`. Covered:
   `check config` (valid, invalid value with the valid choices, unknown key with its line, malformed
   YAML, no file); config discovery precedence (`--config` > `HERAUT_FILE` > `.config/heraut.yml`)
