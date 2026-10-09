@@ -88,3 +88,18 @@ func TestTokensPreferTheEnvironmentThenTheCLILogin(t *testing.T) {
 	gh, _ = GitHubToken()
 	assert.Equal(t, "dedicated", gh)
 }
+
+func TestEnrichConfig(t *testing.T) {
+	t.Setenv("HERAUT_E2E_GITHUB_REPO", "acme/widget-testing")
+	t.Setenv("HERAUT_E2E_GITHUB_ENRICH_REPO", "acme/widget-testing-enrich")
+	t.Setenv("HERAUT_E2E_GITLAB_ENRICH_PROJECT", "group/widget-testing-enrich")
+
+	c := LoadConfig()
+	e := c.ForEnrich("github")
+
+	assert.Equal(t, "acme/widget-testing-enrich", c.GitHubEnrichRepo)
+	assert.Equal(t, "group/widget-testing-enrich", c.GitLabEnrichProject)
+	assert.Equal(t, "acme/widget-testing-enrich", e.GitHubRepo, "the enrichment copy targets the second pair")
+	assert.Equal(t, "acme/widget-testing", c.GitHubRepo, "the original is untouched")
+	assert.Equal(t, "group/widget-testing-enrich", c.ForEnrich("gitlab").GitLabProject)
+}

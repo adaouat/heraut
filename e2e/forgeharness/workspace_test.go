@@ -103,3 +103,22 @@ func TestWorkspaceClonesBranchesAndCleansUpWhatTheRunCreated(t *testing.T) {
 		assert.True(t, strings.Contains(deleted, runID), "only this run's resources are deleted: %s", deleted)
 	}
 }
+
+func TestAlsoCleanDeletesTheMirrorsRunResourcesOnly(t *testing.T) {
+	f := &localForge{url: newBare(t)}
+	mirror := &localForge{}
+	var runID string
+
+	t.Run("run", func(t *testing.T) {
+		w := NewWorkspace(t, f)
+		runID = w.RunID
+		w.AlsoClean(mirror)
+		mirror.tags = []string{w.TagPrefix + "0.1.0", "e2e-1-ffff-v9.9.9", "v1.0.0"}
+		mirror.releases = []string{w.TagPrefix + "0.1.0", "e2e-1-ffff-v9.9.9"}
+		mirror.branches = []string{w.Branch}
+	})
+
+	assert.Equal(t, []string{runID + "-v0.1.0"}, mirror.deletedReleases)
+	assert.Equal(t, []string{runID + "-v0.1.0"}, mirror.deletedTags)
+	assert.Empty(t, mirror.deletedBranches, "a mirror's branches are never touched")
+}

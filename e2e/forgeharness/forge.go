@@ -44,6 +44,7 @@ type Forge interface {
 	DeleteRelease(tag string) error
 	DeleteTag(tag string) error
 	DeleteBranch(name string) error
+	OpenAndMerge(base, head, title string) (int, error)
 }
 
 // apiError is a failed `gh api` / `glab api` call. NotFound is decided from the CLI's stderr

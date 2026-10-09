@@ -16,6 +16,9 @@ type Config struct {
 	GitHubRepo    string
 	GitLabProject string
 	Pattern       string
+
+	GitHubEnrichRepo    string
+	GitLabEnrichProject string
 }
 
 // LoadConfig reads the sandbox coordinates from the environment.
@@ -24,6 +27,9 @@ func LoadConfig() Config {
 		GitHubRepo:    os.Getenv("HERAUT_E2E_GITHUB_REPO"),
 		GitLabProject: os.Getenv("HERAUT_E2E_GITLAB_PROJECT"),
 		Pattern:       os.Getenv("HERAUT_E2E_REPO_PATTERN"),
+
+		GitHubEnrichRepo:    os.Getenv("HERAUT_E2E_GITHUB_ENRICH_REPO"),
+		GitLabEnrichProject: os.Getenv("HERAUT_E2E_GITLAB_ENRICH_PROJECT"),
 	}
 	if c.Pattern == "" {
 		c.Pattern = "*testing*"
@@ -42,4 +48,15 @@ func (c Config) Guard(coordinates string) error {
 		return fmt.Errorf("refusing %q: its name does not match the sandbox pattern %q", coordinates, c.Pattern)
 	}
 	return nil
+}
+
+// ForEnrich returns a copy of c whose repository for the named forge is the enrichment pair.
+func (c Config) ForEnrich(name string) Config {
+	switch name {
+	case "github":
+		c.GitHubRepo = c.GitHubEnrichRepo
+	case "gitlab":
+		c.GitLabProject = c.GitLabEnrichProject
+	}
+	return c
 }

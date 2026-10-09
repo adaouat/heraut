@@ -196,3 +196,20 @@ func (g *github) DeleteBranch(name string) error {
 	_, err := g.call("-X", "DELETE", "repos/"+g.repo+"/git/refs/heads/"+name)
 	return err
 }
+
+func (g *github) OpenAndMerge(base, head, title string) (int, error) {
+	out, err := g.call("-X", "POST", "repos/"+g.repo+"/pulls", "-f", "title="+title, "-f", "head="+head, "-f", "base="+base)
+	if err != nil {
+		return 0, err
+	}
+	var pr struct {
+		Number int `json:"number"`
+	}
+	if err := json.Unmarshal(out, &pr); err != nil {
+		return 0, err
+	}
+	if _, err := g.call("-X", "PUT", fmt.Sprintf("repos/%s/pulls/%d/merge", g.repo, pr.Number), "-f", "merge_method=merge"); err != nil {
+		return 0, err
+	}
+	return pr.Number, nil
+}

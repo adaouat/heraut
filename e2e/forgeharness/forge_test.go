@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -169,4 +170,69 @@ func TestGitLabDeleteReleaseIsIdempotentAndURLsAreSpelledPerForge(t *testing.T) 
 	assert.Equal(t, "https://gitlab.com/group/widget-testing/-/releases/v1%2B2", f.ReleaseURL("v1+2"))
 	gh := NewGitHub(Config{GitHubRepo: "acme/widget-testing"}, "tok")
 	assert.Equal(t, "https://github.com/acme/widget-testing/releases/tag/v1%2B2", gh.ReleaseURL("v1+2"))
+}
+
+func TestOpenAndMerge(t *testing.T) {
+	gh := fakeAPI(t, "gh", [][2]string{
+		{"pulls/7/merge", `{"merged":true}`},
+		{"repos/acme/widget-testing/pulls", `{"number":7}`},
+	})
+	f := NewGitHub(Config{GitHubRepo: "acme/widget-testing", Pattern: "*testing*"}, "tok")
+
+	n, err := f.OpenAndMerge("e2e/x-base", "e2e/x-feat", "feat: add widget (via PR)")
+
+	require.NoError(t, err)
+	assert.Equal(t, 7, n)
+	all := strings.Join(gh(), "\n")
+	assert.Contains(t, all, "api -X POST repos/acme/widget-testing/pulls")
+	assert.Contains(t, all, "head=e2e/x-feat")
+	assert.Contains(t, all, "base=e2e/x-base")
+	assert.Contains(t, all, "api -X PUT repos/acme/widget-testing/pulls/7/merge")
+}
+
+func TestGitLabOpenAndMerge(t *testing.T) {
+	old := pollEvery
+	pollEvery = 5 * time.Millisecond
+	t.Cleanup(func() { pollEvery = old })
+	gl := fakeAPI(t, "glab", [][2]string{
+		{"merge_requests/3/merge", `{"state":"merged"}`},
+		{"-X POST projects/group%2Fwidget-testing/merge_requests", `{"iid":3}`},
+		{"merge_requests/3", `{"iid":3,"merge_status":"can_be_merged"}`},
+	})
+	f := NewGitLab(Config{GitLabProject: "group/widget-testing", Pattern: "*testing*"}, "tok")
+
+	n, err := f.OpenAndMerge("e2e/x-base", "e2e/x-feat", "feat: add widget (via MR)")
+
+	require.NoError(t, err)
+	assert.Equal(t, 3, n)
+	all := strings.Join(gl(), "\n")
+	assert.Contains(t, all, "api -X POST projects/group%2Fwidget-testing/merge_requests")
+	assert.Contains(t, all, "source_branch=e2e/x-feat")
+	assert.Contains(t, all, "target_branch=e2e/x-base")
+	assert.Contains(t, all, "api -X PUT projects/group%2Fwidget-testing/merge_requests/3/merge")
+}
+
+func TestWaitForReleasePollsUntilItAppears(t *testing.T) {
+	old := pollEvery
+	pollEvery = 5 * time.Millisecond
+	t.Cleanup(func() { pollEvery = old })
+	f := &flakyForge{appearsAfter: 3}
+
+	rel := WaitForRelease(t, f, "tag-1", 30*time.Second)
+
+	assert.Equal(t, "tag-1", rel.Tag)
+	assert.Equal(t, 3, f.calls, "it polled until the release showed up")
+}
+
+type flakyForge struct {
+	Forge
+	appearsAfter, calls int
+}
+
+func (f *flakyForge) Release(tag string) (Release, bool, error) {
+	f.calls++
+	if f.calls < f.appearsAfter {
+		return Release{}, false, nil
+	}
+	return Release{Tag: tag}, true, nil
 }

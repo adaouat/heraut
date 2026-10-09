@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"strings"
+	"time"
 )
 
 type gitlab struct {
@@ -157,4 +158,40 @@ func (g *gitlab) DeleteTag(tag string) error {
 func (g *gitlab) DeleteBranch(name string) error {
 	_, err := g.call("-X", "DELETE", g.base()+"/repository/branches/"+escape(name))
 	return err
+}
+
+func (g *gitlab) OpenAndMerge(base, head, title string) (int, error) {
+	out, err := g.call("-X", "POST", g.base()+"/merge_requests", "-f", "title="+title, "-f", "source_branch="+head, "-f", "target_branch="+base)
+	if err != nil {
+		return 0, err
+	}
+	var mr struct {
+		IID int `json:"iid"`
+	}
+	if err := json.Unmarshal(out, &mr); err != nil {
+		return 0, err
+	}
+	path := fmt.Sprintf("%s/merge_requests/%d", g.base(), mr.IID)
+	deadline := time.Now().Add(60 * time.Second)
+	for {
+		out, err := g.call(path)
+		if err != nil {
+			return 0, err
+		}
+		var st struct {
+			MergeStatus string `json:"merge_status"`
+		}
+		_ = json.Unmarshal(out, &st)
+		if st.MergeStatus == "can_be_merged" {
+			break
+		}
+		if time.Now().After(deadline) {
+			return 0, fmt.Errorf("merge request !%d never became mergeable (status %q)", mr.IID, st.MergeStatus)
+		}
+		time.Sleep(pollEvery)
+	}
+	if _, err := g.call("-X", "PUT", path+"/merge"); err != nil {
+		return 0, err
+	}
+	return mr.IID, nil
 }

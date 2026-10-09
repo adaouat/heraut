@@ -19,13 +19,19 @@ type Workspace struct {
 	RunID     string
 	Branch    string
 	TagPrefix string
+
+	mirrors []Forge
 }
 
 // Require returns the named sandbox forge, skipping when it is not configured and failing when a
 // guard refuses it.
 func Require(t *testing.T, name string) Forge {
 	t.Helper()
-	c := LoadConfig()
+	return requireWith(t, name, LoadConfig())
+}
+
+func requireWith(t *testing.T, name string, c Config) Forge {
+	t.Helper()
 	var f Forge
 	switch name {
 	case "github":
@@ -54,6 +60,41 @@ func Require(t *testing.T, name string) Forge {
 	}
 	return f
 }
+
+var pollEvery = 2 * time.Second
+
+// RequireEnrich is Require for the dedicated enrichment sandbox pair.
+func RequireEnrich(t *testing.T, name string) Forge {
+	t.Helper()
+	c := LoadConfig()
+	if (name == "github" && c.GitHubEnrichRepo == "") || (name == "gitlab" && c.GitLabEnrichProject == "") {
+		t.Skipf("the enrichment sandbox for %s is not configured (HERAUT_E2E_%s_ENRICH_*): skipping", name, strings.ToUpper(name))
+	}
+	return requireWith(t, name, c.ForEnrich(name))
+}
+
+// WaitForRelease polls f.Release until the release exists (the forges' listings lag behind
+// creation) and fails the test naming the tag if it never appears.
+func WaitForRelease(t *testing.T, f Forge, tag string, timeout time.Duration) Release {
+	t.Helper()
+	deadline := time.Now().Add(timeout)
+	for {
+		rel, ok, err := f.Release(tag)
+		if err != nil {
+			t.Fatalf("looking up release %q: %v", tag, err)
+		}
+		if ok {
+			return rel
+		}
+		if time.Now().After(deadline) {
+			t.Fatalf("release %q did not appear within %s", tag, timeout)
+		}
+		time.Sleep(pollEvery)
+	}
+}
+
+// AlsoClean registers f (a mirror target) for cleanup of this run's releases and tags.
+func (w *Workspace) AlsoClean(f Forge) { w.mirrors = append(w.mirrors, f) }
 
 // NewWorkspace clones f's default branch into a temporary repository, creates e2e/<run-id> and
 // registers the cleanup.
@@ -101,7 +142,22 @@ release:
 // already gone. Failures fail the test: a leaked resource must be visible.
 func (w *Workspace) cleanup(t *testing.T) {
 	t.Helper()
-	f := w.Forge
+	w.cleanupReleasesAndTags(t, w.Forge)
+	for _, m := range w.mirrors {
+		w.cleanupReleasesAndTags(t, m)
+	}
+	branches, err := w.Forge.Branches(w.Branch)
+	if err != nil {
+		t.Errorf("cleanup: listing branches: %v", err)
+		return
+	}
+	for _, b := range branches {
+		w.delete(t, "branch", b, w.Forge.DeleteBranch)
+	}
+}
+
+func (w *Workspace) cleanupReleasesAndTags(t *testing.T, f Forge) {
+	t.Helper()
 	tags, err := f.Tags(w.RunID)
 	if err != nil {
 		t.Errorf("cleanup: listing tags: %v", err)
@@ -120,14 +176,6 @@ func (w *Workspace) cleanup(t *testing.T) {
 	}
 	for _, tag := range tags {
 		w.delete(t, "tag", tag, f.DeleteTag)
-	}
-	branches, err := f.Branches(w.Branch)
-	if err != nil {
-		t.Errorf("cleanup: listing branches: %v", err)
-		return
-	}
-	for _, b := range branches {
-		w.delete(t, "branch", b, f.DeleteBranch)
 	}
 }
 
