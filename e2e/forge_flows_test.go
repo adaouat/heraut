@@ -143,3 +143,48 @@ var mdLink = regexp.MustCompile(`\]\([^)]*\)`)
 // withoutLinks drops the target URLs of markdown links: each target's notes link commits on its
 // own forge, so only the text around the links is comparable.
 func withoutLinks(s string) string { return trimmed(mdLink.ReplaceAllString(s, "]()")) }
+
+var prRef = regexp.MustCompile(`in \[[#!][0-9]+\]\(`)
+
+func TestForge_B9_PullRequestEnrichment(t *testing.T) {
+	bin := harness.Binary(t)
+	for _, name := range forgeNames {
+		t.Run(name, func(t *testing.T) {
+			f := forgeharness.RequireEnrich(t, name)
+			ws := forgeharness.NewWorkspace(t, f)
+			base, feat := ws.Branch+"-base", ws.Branch+"-feat"
+
+			// base and feature branches start at the sandbox's main; the PR merges into the base,
+			// so the sandbox's default branch is never written
+			ws.Repo.Git("push", "-q", "origin", "HEAD:refs/heads/"+base)
+			ws.Repo.Git("checkout", "-q", "-b", feat)
+			ws.Repo.WriteFile("widget.txt", "widget\n")
+			ws.Repo.Git("add", "widget.txt")
+			ws.Repo.Git("commit", "-q", "-m", "feat: add widget")
+			ws.Repo.Git("push", "-q", "origin", "HEAD:refs/heads/"+feat)
+			number, err := f.OpenAndMerge(base, feat, "feat: add widget (via request)")
+			require.NoError(t, err)
+			t.Logf("merged request %d", number)
+
+			ws.Repo.Git("fetch", "-q", "origin", base)
+			ws.Repo.Git("checkout", "-q", "-B", ws.Branch, "FETCH_HEAD")
+			cfg := ws.Config("versioning:\n  strategy: semver\n", "")
+			cfg = replaceOnce(cfg, "changelog:\n", "commits:\n  enrichment_policy: required\nchangelog:\n")
+			ws.Repo.WriteConfig(cfg)
+
+			// the commit-to-request association shows up a few seconds after the merge: poll
+			deadline := time.Now().Add(120 * time.Second)
+			for {
+				res := ws.Repo.Run(bin, ws.Env(), "changelog", "--set-version", "0.1.0", "--regenerate")
+				require.Equal(t, exitOK, res.ExitCode, "stdout:\n%s\nstderr:\n%s", res.Stdout, res.Stderr)
+				if prRef.MatchString(ws.Repo.ReadFile("CHANGELOG.md")) {
+					return
+				}
+				if time.Now().After(deadline) {
+					t.Fatalf("the changelog never linked request %d:\n%s", number, ws.Repo.ReadFile("CHANGELOG.md"))
+				}
+				time.Sleep(10 * time.Second)
+			}
+		})
+	}
+}
