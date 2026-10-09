@@ -63,7 +63,12 @@ func TestHooks_PreviousTagIsFilledFromTheSecondRelease(t *testing.T) {
 
 	runOK(t, repo, bin, "changelog", "--commit", "--tag", "--offline")
 
-	assert.Equal(t, "post_bump v=0.1.1 t=v0.1.1 p=v0.1.0 e=", logLines(repo.ReadFile(".hooklog"))[0])
+	assert.Equal(t, []string{
+		"post_bump v=0.1.1 t=v0.1.1 p=v0.1.0 e=",
+		"pre_changelog",
+		"pre_tag",
+		"post_tag t=v0.1.1",
+	}, logLines(repo.ReadFile(".hooklog")))
 }
 
 func TestHooks_EnvIsAvailableToPerEnvConfigs(t *testing.T) {
@@ -281,5 +286,44 @@ func TestHooks_SkippingAndPreviewing(t *testing.T) {
 
 		assert.NoFileExists(t, repo.Dir+"/.hooklog")
 		assert.Contains(t, normalize(res.Stdout+" "+res.Stderr), "[dry-run] would run: echo pre_changelog >> .hooklog")
+		assert.Contains(t, normalize(res.Stdout+" "+res.Stderr), "[dry-run] would run: echo post_bump v=0.1.0 t=v0.1.0 p= e= >> .hooklog",
+			"the template variables are rendered into the previewed command")
+	})
+
+	t.Run("--skip-hook wins over HERAUT_SKIP_HOOKS with no merging", func(t *testing.T) {
+		repo := newRepo(t)
+
+		res := repo.Run(bin, []string{"HERAUT_SKIP_HOOKS=pre_tag"}, append(release, "--skip-hook", "post_tag")...)
+
+		require.Equal(t, exitOK, res.ExitCode, "stdout:\n%s\nstderr:\n%s", res.Stdout, res.Stderr)
+		assert.Equal(t, []string{"post_bump v=0.1.0 t=v0.1.0 p= e=", "pre_changelog", "pre_tag"}, logLines(repo.ReadFile(".hooklog")),
+			"only the flag's point is skipped; the variable's pre_tag still runs")
+	})
+
+	t.Run("--no-hooks wins over HERAUT_SKIP_HOOKS without an error", func(t *testing.T) {
+		repo := newRepo(t)
+
+		res := repo.Run(bin, []string{"HERAUT_SKIP_HOOKS=pre_tag"}, append(release, "--no-hooks")...)
+
+		require.Equal(t, exitOK, res.ExitCode, "stdout:\n%s\nstderr:\n%s", res.Stdout, res.Stderr)
+		assert.NoFileExists(t, repo.Dir+"/.hooklog")
+	})
+
+	t.Run("--no-hooks together with --skip-hook is a config error", func(t *testing.T) {
+		repo := newRepo(t)
+
+		res := repo.Run(bin, nil, append(release, "--no-hooks", "--skip-hook", "pre_tag")...)
+
+		require.Equal(t, exitConfig, res.ExitCode, "stdout:\n%s\nstderr:\n%s", res.Stdout, res.Stderr)
+		assert.Contains(t, normalize(res.Stdout+" "+res.Stderr), "cannot combine --skip-hook with --no-hooks")
+	})
+
+	t.Run("a release-only point is rejected under changelog", func(t *testing.T) {
+		repo := newRepo(t)
+
+		res := repo.Run(bin, nil, append(release, "--skip-hook", "pre_release")...)
+
+		require.Equal(t, exitConfig, res.ExitCode, "stdout:\n%s\nstderr:\n%s", res.Stdout, res.Stderr)
+		assert.Contains(t, normalize(res.Stdout+" "+res.Stderr), `hook point "pre_release" does not apply to this command`)
 	})
 }

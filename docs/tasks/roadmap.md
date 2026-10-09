@@ -2679,14 +2679,14 @@ testify only), done in whichever part touches the harness next.
     `--no-hooks`, `--skip-hook`, `HERAUT_SKIP_HOOKS`, a failing hook aborting the run, hook file
     staging (`pre_release`/`post_release` move to T345b4c with the publish).
     **Completion note:** executed from `docs/superpowers/plans/2026-10-09-e2e-hooks-t345b4b.md`.
-    8 tests (20 entries with subtests) in `e2e/hooks_test.go`; the e2e package now runs 155 subtests.
+    9 tests (24 entries with subtests) in `e2e/hooks_test.go`; the e2e package now runs 165 subtests (including T345b4c).
     No harness or production change was needed (hooks append to log files the tests read back).
     Covered: order and `{{ .Version }}`/`{{ .Tag }}`/`{{ .PreviousTag }}`/`{{ .Env }}`; `pre_tag`
     sees the changelog commit and no tag, `post_tag` sees the tag on the remote; a failing `pre_tag`
     leaves the pushed changelog commit and no tag (no rollback); the first failing step stops its
     list; `stage` lands in the changelog commit, a zero-match pattern fails before any commit, and
     without a commit the file stays untracked; `--no-hooks`, `--skip-hook` (comma and repeated),
-    `HERAUT_SKIP_HOOKS`, an unknown point (exit 2), `--dry-run`; the `stage`-scope and bare-string
+    `HERAUT_SKIP_HOOKS`, ADR-0062's precedence rules (flag wins over the variable; `--no-hooks` wins over the variable; `--no-hooks` with `--skip-hook` and a release-only point under `changelog` are exit-2 errors), an unknown point (exit 2), `--dry-run` rendering the substituted command; the `stage`-scope and bare-string
     config errors (exit 2). Exit codes for a failing hook are not pinned (the spec says only that
     the run aborts). Observation, not filed: a failing hook's error panel is headed `Changelog
     generation failed.` even when the failing hook is `post_bump` or `pre_tag`, which is misleading
