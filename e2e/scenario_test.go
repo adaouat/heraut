@@ -44,6 +44,7 @@ func applySteps(repo *harness.Repo, steps []step) {
 
 const (
 	exitOK         = 0
+	exitUsage      = 1
 	exitConfig     = 2
 	exitRuntime    = 3
 	exitPromotion  = 4
