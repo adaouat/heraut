@@ -73,10 +73,30 @@ never runs on pull requests.
 
 Create in the repository settings:
 
-- **variables**: the four coordinate variables above;
-- **secrets**: `HERAUT_E2E_GITHUB_TOKEN` (a fine-grained token limited to the sandbox repositories, the enrichment pair included,
-  with Contents and Pull requests read/write) and `HERAUT_E2E_GITLAB_TOKEN` (a token with the `api`
-  scope and Maintainer role on the sandbox projects only).
+- **variables**: the coordinate variables above (leave a forge's variables unset to skip that
+  forge: its scenarios, and B6 which needs both forges, then skip);
+- **secrets**: `HERAUT_E2E_GITHUB_TOKEN` and `HERAUT_E2E_GITLAB_TOKEN`.
+
+Keep each token's reach limited to the sandboxes:
+
+- **GitHub**: a fine-grained personal access token restricted to the sandbox repositories (the
+  enrichment repository included), with Contents and Pull requests read/write.
+- **GitLab**: on gitlab.com's free plan, group and project access tokens are not available, and a
+  personal access token of your own account reaches every repository you can. Use a **dedicated
+  GitLab user** instead:
+  1. create a second account used only for this;
+  2. add it as a member (Developer or Maintainer) of the sandbox projects only, the enrichment
+     project included, and of nothing else;
+  3. as that user, create a personal access token with the `api` scope (git pushes over HTTPS
+     work with it too) and an expiry date;
+  4. store it as the secret `HERAUT_E2E_GITLAB_TOKEN`, after checking it locally: export it and run
+     `mise run test:e2e` once. A refused call names the API call that lacks permission.
+
+  The token's reach is exactly that user's memberships, so never add the user to other projects.
+  GitLab tokens expire: when the nightly starts failing on authentication, rotate the token and
+  update the secret.
+
+Never put a personal access token of an account that can reach other repositories into CI.
 
 The job first runs the harness's own offline tests (including the safety-guard tests), then the
 sweeper, then the scenarios.
