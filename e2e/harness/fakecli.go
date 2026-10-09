@@ -8,7 +8,7 @@ import (
 )
 
 const fakeScript = `#!/bin/sh
-d=$(dirname "$0")
+d=${0%%/*}
 { printf "%s" "%[1]s"; for a in "$@"; do printf " [%%s]" "$a"; done; echo; } >> "$d/calls.log"
 if [ "$1" = release ] && [ -f "$d/fail-%[1]s" ]; then
   echo "boom" >&2

@@ -138,3 +138,13 @@ func TestRepo_HomeBinDirAndStdin(t *testing.T) {
 	res = r.RunStdin("/bin/cat", nil, "from stdin\n")
 	assert.Equal(t, "from stdin\n", res.Stdout)
 }
+
+func TestRepo_FakeCLIWorksWithOnlyItsOwnDirOnPath(t *testing.T) {
+	r := NewRepo(t)
+	r.FakeCLI("gh")
+
+	res := r.Run("/bin/sh", []string{"PATH=" + r.BinDir()}, "-c", "gh --version")
+
+	assert.Equal(t, 0, res.ExitCode, res.Stderr)
+	assert.Equal(t, []string{"gh [--version]"}, r.CLICalls(), "the call is logged next to the fake, not at /")
+}

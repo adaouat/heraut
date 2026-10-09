@@ -47,9 +47,20 @@ func TestConfigDiscoveryAndTildeExpansion(t *testing.T) {
 		require.Equal(t, exitOK, code, out)
 		assert.Contains(t, out, "(from .config/heraut.yml)")
 	})
-	t.Run("HERAUT_FILE beats the default file", func(t *testing.T) {
+	t.Run(".config/heraut.yml beats .heraut.yml when both exist", func(t *testing.T) {
+		repo := harness.NewRepo(t)
+		repo.WriteConfig("version: [not valid yaml")
+		repo.WriteFile(".config/heraut.yml", valid)
+
+		out, code := check(t, repo, nil)
+
+		require.Equal(t, exitOK, code, out)
+		assert.Contains(t, out, "(from .config/heraut.yml)")
+	})
+	t.Run("HERAUT_FILE beats both default files", func(t *testing.T) {
 		repo := harness.NewRepo(t)
 		repo.WriteConfig(valid)
+		repo.WriteFile(".config/heraut.yml", valid)
 		repo.WriteFile("other.yml", valid)
 
 		out, code := check(t, repo, []string{"HERAUT_FILE=other.yml"})
@@ -182,6 +193,8 @@ func TestCheckRuntime(t *testing.T) {
 
 		require.Equal(t, exitRuntime, code, out)
 		assert.Contains(t, out, "git user.name — not configured")
+		assert.NotContains(t, out, "gh not found", "only the identity is wrong")
+		assert.NotContains(t, out, "environment variable gh_token is not set")
 	})
 	t.Run("with no config every tool is required", func(t *testing.T) {
 		repo := newRepo(t, "")
@@ -254,7 +267,7 @@ func TestCommitVerify(t *testing.T) {
 			wantExit: exitUsage, wantText: []string{"not both"}},
 		{name: "a missing --file is a usage error", config: cfg,
 			args:     []string{"commit", "verify", "--file", "nope.txt"},
-			wantExit: exitUsage, wantText: []string{"reading commit message from nope.txt"}},
+			wantExit: exitAnyFailure, wantText: []string{"reading commit message from nope.txt"}},
 	})
 
 	t.Run("--file reads a message from disk", func(t *testing.T) {
