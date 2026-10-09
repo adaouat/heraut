@@ -211,3 +211,5 @@ Beyond unit, contract, integration and schema tests, `e2e/` drives the built bin
 lane that runs with `go test ./...` and an opt-in forge-sandbox lane. See
 [ADR-0066](../adr/0066-e2e-test-lanes.md) and the
 [design](../superpowers/specs/2026-10-07-e2e-smoke-suite-design.md).
+Setup, configuration and the safety rules of the forge lane are in the
+[end-to-end tests guide](../guides/e2e-tests.md).

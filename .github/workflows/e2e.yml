@@ -1,0 +1,45 @@
+name: E2E forge lane
+
+# Advisory: runs the opt-in forge-sandbox scenarios (ADR-0066, Lane B). Never on pull requests,
+# because the sandbox tokens are secrets. A failure sends GitHub's built-in email for failed
+# scheduled workflows; it gates nothing. Setup (variables, secrets, token scopes):
+# docs/guides/e2e-tests.md.
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "17 3 * * *"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: e2e-forge
+  cancel-in-progress: false
+
+jobs:
+  forge:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    env:
+      HERAUT_E2E_GITHUB_REPO: ${{ vars.HERAUT_E2E_GITHUB_REPO }}
+      HERAUT_E2E_GITLAB_PROJECT: ${{ vars.HERAUT_E2E_GITLAB_PROJECT }}
+      HERAUT_E2E_GITHUB_ENRICH_REPO: ${{ vars.HERAUT_E2E_GITHUB_ENRICH_REPO }}
+      HERAUT_E2E_GITLAB_ENRICH_PROJECT: ${{ vars.HERAUT_E2E_GITLAB_ENRICH_PROJECT }}
+      HERAUT_E2E_GITHUB_TOKEN: ${{ secrets.HERAUT_E2E_GITHUB_TOKEN }}
+      HERAUT_E2E_GITLAB_TOKEN: ${{ secrets.HERAUT_E2E_GITLAB_TOKEN }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+      - name: Setup Mise
+        uses: jdx/mise-action@1648a7812b9aeae629881980618f079932869151 # v4
+      - name: Install gh and glab (versions from the Dockerfile)
+        run: |
+          GH_VERSION=$(sed -n 's/^ARG GH_VERSION=//p' Dockerfile | head -1)
+          GLAB_VERSION=$(sed -n 's/^ARG GLAB_VERSION=//p' Dockerfile | head -1)
+          mise use -g "gh@${GH_VERSION}" "glab@${GLAB_VERSION}"
+      - name: Harness unit tests (offline)
+        run: go test -count=1 -tags e2e_forge ./e2e/forgeharness
+      - name: Sweep leftovers of crashed runs
+        run: go run -tags e2e_forge ./e2e/cmd/sweep
+      - name: Forge scenarios
+        run: go test -count=1 -tags e2e_forge -run 'TestForge_' ./e2e/ -v
