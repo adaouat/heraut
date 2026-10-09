@@ -77,16 +77,28 @@ func (g *github) releases() ([]ghRelease, error) {
 }
 
 func (g *github) Release(tag string) (Release, bool, error) {
-	rs, err := g.releases()
+	r, ok, err := g.releaseByTag(tag)
+	if err != nil || !ok {
+		return Release{}, ok, err
+	}
+	return Release{Tag: r.TagName, Body: r.Body, Prerelease: r.Prerelease, Draft: r.Draft, AssetCount: len(r.Assets)}, true, nil
+}
+
+// releaseByTag uses the by-tag endpoint: unlike the release list, it is consistent right after a
+// release was created.
+func (g *github) releaseByTag(tag string) (ghRelease, bool, error) {
+	out, err := g.call("repos/" + g.repo + "/releases/tags/" + tag)
 	if err != nil {
-		return Release{}, false, err
-	}
-	for _, r := range rs {
-		if r.TagName == tag {
-			return Release{Tag: r.TagName, Body: r.Body, Prerelease: r.Prerelease, Draft: r.Draft, AssetCount: len(r.Assets)}, true, nil
+		if strings.Contains(err.Error(), "404") {
+			return ghRelease{}, false, nil
 		}
+		return ghRelease{}, false, err
 	}
-	return Release{}, false, nil
+	var r ghRelease
+	if err := json.Unmarshal(out, &r); err != nil {
+		return ghRelease{}, false, err
+	}
+	return r, true, nil
 }
 
 func (g *github) TagCommit(tag string) (string, error) {
@@ -150,17 +162,12 @@ func (g *github) Releases(prefix string) ([]string, error) {
 }
 
 func (g *github) DeleteRelease(tag string) error {
-	rs, err := g.releases()
-	if err != nil {
+	r, ok, err := g.releaseByTag(tag)
+	if err != nil || !ok {
 		return err
 	}
-	for _, r := range rs {
-		if r.TagName == tag {
-			_, err := g.call("-X", "DELETE", "repos/"+g.repo+"/releases/"+strconv.Itoa(r.ID))
-			return err
-		}
-	}
-	return nil
+	_, err = g.call("-X", "DELETE", "repos/"+g.repo+"/releases/"+strconv.Itoa(r.ID))
+	return err
 }
 
 func (g *github) DeleteTag(tag string) error {

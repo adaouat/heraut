@@ -95,21 +95,28 @@ release:
 		w.Forge.TokenEnv(), w.Forge.Name(), releaseExtra)
 }
 
-// cleanup deletes this run's releases, tags and branch, in that order. Failures fail the test:
-// a leaked resource must be visible.
+// cleanup deletes this run's releases, then its tags, then its branch. Releases go first because
+// deleting a tag turns its release into a draft that would leak. A release is looked up per tag
+// (GitHub's release list lags behind creation), and also via the list for releases whose tag is
+// already gone. Failures fail the test: a leaked resource must be visible.
 func (w *Workspace) cleanup(t *testing.T) {
 	t.Helper()
 	f := w.Forge
-	if releases, err := f.Releases(w.RunID); err != nil {
-		t.Errorf("cleanup: listing releases: %v", err)
-	} else {
-		for _, tag := range releases {
-			w.delete(t, "release", tag, f.DeleteRelease)
-		}
-	}
 	tags, err := f.Tags(w.RunID)
 	if err != nil {
 		t.Errorf("cleanup: listing tags: %v", err)
+	}
+	listed, err := f.Releases(w.RunID)
+	if err != nil {
+		t.Errorf("cleanup: listing releases: %v", err)
+	}
+	seen := map[string]bool{}
+	for _, tag := range append(append([]string{}, tags...), listed...) {
+		if seen[tag] {
+			continue
+		}
+		seen[tag] = true
+		w.delete(t, "release", tag, f.DeleteRelease)
 	}
 	for _, tag := range tags {
 		w.delete(t, "tag", tag, f.DeleteTag)

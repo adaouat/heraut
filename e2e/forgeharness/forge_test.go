@@ -20,6 +20,10 @@ func fakeAPI(t *testing.T, name string, replies [][2]string) (calls func() []str
 	log := filepath.Join(dir, "calls.log")
 	var cases strings.Builder
 	for _, kv := range replies {
+		if kv[1] == "!404" {
+			cases.WriteString("  *\"" + kv[0] + "\"*) echo 'gh: Not Found (HTTP 404)' >&2; exit 1 ;;\n")
+			continue
+		}
 		cases.WriteString("  *\"" + kv[0] + "\"*) cat <<'JSON'\n" + kv[1] + "\nJSON\n;;\n")
 	}
 	script := "#!/bin/sh\necho \"$*\" >> '" + log + "'\ncase \"$*\" in\n" + cases.String() + "  *) echo '{}' ;;\nesac\n"
@@ -36,7 +40,8 @@ func fakeAPI(t *testing.T, name string, replies [][2]string) (calls func() []str
 
 func TestGitHubForge(t *testing.T) {
 	calls := fakeAPI(t, "gh", [][2]string{
-		{"repos/acme/widget-testing/releases?per_page=100", `[{"id":7,"tag_name":"e2e-1-aaaa-v0.1.0","body":"### Features","prerelease":true,"draft":false,"assets":[{"name":"a"}]}]`},
+		{"releases/tags/nope", "!404"},
+		{"releases/tags/e2e-1-aaaa-v0.1.0", `{"id":7,"tag_name":"e2e-1-aaaa-v0.1.0","body":"### Features","prerelease":true,"draft":false,"assets":[{"name":"a"}]}`},
 		{"git/ref/tags/e2e-1-aaaa-v0.1.0", `{"object":{"type":"tag","sha":"TAGSHA"}}`},
 		{"git/matching-refs/heads/e2e/", `[{"ref":"refs/heads/e2e/e2e-1-aaaa"}]`},
 		{"git/matching-refs/tags/e2e-", `[{"ref":"refs/tags/e2e-1-aaaa-v0.1.0"}]`},
