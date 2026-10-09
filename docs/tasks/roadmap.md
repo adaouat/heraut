@@ -228,7 +228,7 @@ discipline that applies to every task.
 | 57 | SBOM generation; shell completions investigated | Done — completions not shipped (ADR-0013 + notarization gap), see T321/T322 |
 | 58 | Homebrew cask: tar.gz archive for completions/man pages | Done — see T323 |
 | 59 | SemVer v2 compliance and pre-release lifecycle | Done — see `semver-v2-roadmap.md` |
-| 60 | End-to-end tests: hermetic binary lane + opt-in forge sandboxes | In progress — T345a, T345b1-b3, T345b4a-b4b, T357, T358 done; T345b4c-b5, c, d open; T359, T360 open |
+| 60 | End-to-end tests: hermetic binary lane + opt-in forge sandboxes | In progress — T345a, T345b1-b3, T345b4, T357, T358 done; T345b5, c, d open; T359, T360 open |
 | 61 | GitLab publish driver follow-ups from T335 | In progress — T346 done, T347 (needs design) open |
 | 62 | Version branches: version from the branch name | Not started — see T348 (needs design) |
 | 63 | CalVer history-aware changelog bounds | Not started — see T356 |
@@ -2665,7 +2665,7 @@ testify only), done in whichever part touches the harness next.
   `release --force` on an unlisted branch is not run (it proceeds to push and publish, T345b4's fake
   `gh`/`glab` territory). No heraut defect surfaced.
 
-- `[ ]` **T345b4**: changelog and release local flow, split into three parts:
+- `[x]` **T345b4**: changelog and release local flow, split into three parts:
   - `[x]` **T345b4a**: `changelog` flows against a bare remote (commit, tag, push, `--no-push`,
     splice vs `--regenerate`, pre-release and disabled-changelog tag-only runs, failing push,
     `--offline`).
@@ -2691,9 +2691,22 @@ testify only), done in whichever part touches the harness next.
     the run aborts). Observation, not filed: a failing hook's error panel is headed `Changelog
     generation failed.` even when the failing hook is `post_bump` or `pre_tag`, which is misleading
     copy.
-  - `[ ]` **T345b4c**: the full `release` with fake `gh`/`glab` recording argv: notes file, release
+  - `[x]` **T345b4c**: the full `release` with fake `gh`/`glab` recording argv: notes file, release
     flags per forge, asset upload, `--dry-run` calling nothing, `release --force` on an unlisted
     branch.
+    **Completion note:** executed from `docs/superpowers/plans/2026-10-09-e2e-release-fake-clis-t345b4c.md`.
+    9 tests (15 entries with subtests) in `e2e/release_flow_test.go`; the e2e package now runs 165
+    subtests. The harness gained recording fake CLIs (`FakeCLI`, `FailReleases`, `CLICalls`, and a
+    fake directory first on `PATH` in `Run`). Covered: the GitHub argv incl. the `--version` and
+    `api` probes, the tag pushed before the release is created; two targets probed first and
+    published in declared order with `--draft` GitHub-only; `--prerelease` from a SemVer
+    pre-release; assets passed after the flags and a zero-match pattern publishing without
+    assets; a failing `gh` aborting before `glab` with the tag staying; `--dry-run` calling neither
+    CLI and creating nothing; `pre_release`/`post_release` per target in order and a failing
+    `pre_release` skipping only its own target (run still exits non-zero); a missing token refused
+    in preflight with nothing written; `release --force` lifting the unlisted-branch refusal
+    (deferred from T345b3). A failed publish and a skipped target assert only "non-zero" (the
+    spec does not pin their code); a missing token pins exit 3 (Spec 01).
 - `[ ]` **T345b5**: CLI surface: `check config`/`check runtime` exit codes, `~` expansion in
   `--config` and `HERAUT_FILE`, `commit verify`, unknown config key reports a line number.
 
