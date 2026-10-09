@@ -228,7 +228,7 @@ discipline that applies to every task.
 | 57 | SBOM generation; shell completions investigated | Done — completions not shipped (ADR-0013 + notarization gap), see T321/T322 |
 | 58 | Homebrew cask: tar.gz archive for completions/man pages | Done — see T323 |
 | 59 | SemVer v2 compliance and pre-release lifecycle | Done — see `semver-v2-roadmap.md` |
-| 60 | End-to-end tests: hermetic binary lane + opt-in forge sandboxes | In progress — T345a, T345b, T345c, T357, T358 done; T345d open; T359, T360 open |
+| 60 | End-to-end tests: hermetic binary lane + opt-in forge sandboxes | In progress — T345 (a-d), T357, T358 done; T359, T360 open |
 | 61 | GitLab publish driver follow-ups from T335 | In progress — T346 done, T347 (needs design) open |
 | 62 | Version branches: version from the branch name | Not started — see T348 (needs design) |
 | 63 | CalVer history-aware changelog bounds | Not started — see T356 |
@@ -2751,11 +2751,31 @@ before the tag (deleting the tag first turns the release into a leaked draft; th
 leaked four drafts, removed by hand); the fakes reply from an ordered list (specific keys first).
 GitLab's release API has no pre-release flag, so B2 asserts the flag only where the forge has one.
 
-#### `[ ]` T345d: scenarios B5-B10, workflow, guide
+#### `[x]` T345d: scenarios B5-B10, workflow, guide
 
 CalVer, cross-forge GitLab-to-GitHub, draft, maintenance branch, PR/MR enrichment, dry-run;
 `.github/workflows/e2e.yml` (`workflow_dispatch` + nightly, advisory), `mise run test:e2e`,
 `docs/guides/e2e-tests.md`.
+
+**Completion note:** executed from `docs/superpowers/plans/2026-10-09-e2e-forge-lane-t345d.md`.
+`forgeharness` gained `OpenAndMerge` (a pull request on GitHub, a merge request on GitLab, merged
+with a merge commit), the second sandbox pair for B9 (`HERAUT_E2E_GITHUB_ENRICH_REPO`,
+`HERAUT_E2E_GITLAB_ENRICH_PROJECT`, `RequireEnrich`), `Workspace.AlsoClean` for the cross-forge
+mirror, and `WaitForRelease` for the eventually consistent listings. New scenarios in
+`e2e/forge_flows_test.go`: B5 CalVer, B6 GitLab source published to GitLab and GitHub, B7 GitHub
+draft, B8 maintenance line with a taken version, B9 PR/MR enrichment, B10 dry-run; with B1-B4 that is
+all ten, 17 passing subtests in about 4 minutes against two private sandboxes and the private
+enrichment pair, all left empty (merged requests of B9 remain as closed history). The workflow
+`.github/workflows/e2e.yml` (new file; `ci.yml` and `release.yml` untouched) runs the harness's
+offline tests, the sweeper and the scenarios on dispatch and nightly, never on pull requests, with
+`gh`/`glab` versions read from the Dockerfile; setup, variables, token scopes and safety rules are
+in `docs/guides/e2e-tests.md`. Findings and deviations: each target's notes link commits on its own
+forge, so B6 compares the bodies with link targets stripped and asserts each links to its own host
+(the spec said identical); GitHub's commit-to-PR association appears about 10 seconds after the
+merge, so B9 polls (up to 120 s); GitHub drafts are only visible through the release list, so
+`Release`/`DeleteRelease` fall back to it. One B8 failure appeared once in an earlier full run and
+did not reproduce in three later runs (the first release exited non-zero; the cause was not
+captured), so a nightly failure of B8 should be rerun before it is investigated.
 
 #### `[x]` T357: error panel mangles identifiers in messages
 
