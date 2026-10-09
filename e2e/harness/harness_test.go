@@ -1,6 +1,7 @@
 package harness
 
 import (
+	"os"
 	"strings"
 	"testing"
 
@@ -80,4 +81,24 @@ func TestRepo_SwitchDetachAndMerge(t *testing.T) {
 
 	r.Detach()
 	assert.Equal(t, "HEAD", strings.TrimSpace(r.git("rev-parse", "--abbrev-ref", "HEAD")))
+}
+
+func TestRepo_RemoteAndFileHelpers(t *testing.T) {
+	r := NewRepo(t)
+	r.Commit("feat: first")
+	r.AddRemote()
+
+	assert.Equal(t, r.Git("rev-parse", "HEAD"), r.GitRemote("rev-parse", "main"), "AddRemote pushes the branch")
+	assert.Equal(t, "origin/main", r.Git("rev-parse", "--abbrev-ref", "main@{upstream}"), "the branch tracks origin")
+
+	r.Tag("v1.0.0")
+	r.Git("push", "origin", "v1.0.0")
+	assert.Equal(t, "v1.0.0", r.GitRemote("tag", "-l"))
+
+	r.WriteFile("docs/NOTES.md", "hello\n")
+	assert.Equal(t, "hello\n", r.ReadFile("docs/NOTES.md"))
+
+	r.RemoveRemote()
+	_, err := os.Stat(r.remote)
+	assert.True(t, os.IsNotExist(err), "the bare remote is gone")
 }

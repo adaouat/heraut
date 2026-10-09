@@ -4,14 +4,16 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strings"
 	"testing"
 )
 
 // Repo is a throwaway git repository with deterministic identity and no signing.
 type Repo struct {
-	t    testing.TB
-	Dir  string
-	home string
+	t      testing.TB
+	Dir    string
+	home   string
+	remote string
 }
 
 // NewRepo initialises an empty repository on branch main; it skips when git is not on PATH.
@@ -104,4 +106,56 @@ func (r *Repo) Detach() {
 func (r *Repo) MergeNoFF(branch string) {
 	r.t.Helper()
 	r.git("merge", "-q", "--no-ff", "-m", "chore: merge "+branch, branch)
+}
+
+// AddRemote creates a bare repository, wires it as origin and pushes the current branch with
+// upstream tracking. The repository needs at least one commit.
+func (r *Repo) AddRemote() {
+	r.t.Helper()
+	r.remote = filepath.Join(r.t.TempDir(), "origin.git")
+	cmd := exec.Command("git", "init", "-q", "--bare", r.remote)
+	cmd.Env = baseEnv(r.home)
+	if out, err := cmd.CombinedOutput(); err != nil {
+		r.t.Fatalf("git init --bare: %v\n%s", err, out)
+	}
+	r.git("remote", "add", "origin", r.remote)
+	r.git("push", "-q", "-u", "origin", "main")
+}
+
+// RemoveRemote deletes the bare remote so a later push fails.
+func (r *Repo) RemoveRemote() {
+	r.t.Helper()
+	if err := os.RemoveAll(r.remote); err != nil {
+		r.t.Fatalf("removing the remote: %v", err)
+	}
+}
+
+// Git runs git in the repository and returns its trimmed output.
+func (r *Repo) Git(args ...string) string {
+	r.t.Helper()
+	return strings.TrimSpace(r.git(args...))
+}
+
+// GitRemote runs git against the bare remote and returns its trimmed output.
+func (r *Repo) GitRemote(args ...string) string {
+	r.t.Helper()
+	cmd := exec.Command("git", append([]string{"--git-dir", r.remote}, args...)...)
+	cmd.Env = baseEnv(r.home)
+	out, err := cmd.CombinedOutput()
+	if err != nil {
+		r.t.Fatalf("git (remote) %v: %v\n%s", args, err, out)
+	}
+	return strings.TrimSpace(string(out))
+}
+
+// WriteFile writes content to a path relative to the repository root, creating directories.
+func (r *Repo) WriteFile(rel, content string) {
+	r.t.Helper()
+	path := filepath.Join(r.Dir, rel)
+	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+		r.t.Fatalf("creating directory for %s: %v", rel, err)
+	}
+	if err := os.WriteFile(path, []byte(content), 0o644); err != nil {
+		r.t.Fatalf("writing %s: %v", rel, err)
+	}
 }
