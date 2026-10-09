@@ -16,4 +16,4 @@ run = "go run ./cmd/heraut/ $@"
 
 [tasks."test:e2e"]
 description = "Run the forge-sandbox e2e scenarios (needs HERAUT_E2E_GITHUB_REPO / HERAUT_E2E_GITLAB_PROJECT)"
-run = "go test -count=1 -tags e2e_forge -run 'TestForge_' ./e2e/ -v"
+run = "go test -count=1 -timeout 40m -tags e2e_forge -run 'TestForge_' ./e2e/ -v"

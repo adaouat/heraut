@@ -117,4 +117,10 @@ func TestForge_B4_PerEnvTagWithAsset(t *testing.T) {
 
 func trimmed(s string) string { return strings.TrimSpace(s) }
 
-func replaceOnce(s, old, new string) string { return strings.Replace(s, old, new, 1) }
+func replaceOnce(t *testing.T, s, old, new string) string {
+	t.Helper()
+	if !strings.Contains(s, old) {
+		t.Fatalf("config helper: %q not found in the generated config", old)
+	}
+	return strings.Replace(s, old, new, 1)
+}

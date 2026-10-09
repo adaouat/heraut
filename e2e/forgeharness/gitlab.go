@@ -9,6 +9,9 @@ import (
 	"time"
 )
 
+// mergeTimeout bounds the wait for a merge request to become mergeable.
+var mergeTimeout = 60 * time.Second
+
 type gitlab struct {
 	project, token string
 	cfg            Config
@@ -172,7 +175,7 @@ func (g *gitlab) OpenAndMerge(base, head, title string) (int, error) {
 		return 0, err
 	}
 	path := fmt.Sprintf("%s/merge_requests/%d", g.base(), mr.IID)
-	deadline := time.Now().Add(60 * time.Second)
+	deadline := time.Now().Add(mergeTimeout)
 	for {
 		out, err := g.call(path)
 		if err != nil {
@@ -181,7 +184,9 @@ func (g *gitlab) OpenAndMerge(base, head, title string) (int, error) {
 		var st struct {
 			MergeStatus string `json:"merge_status"`
 		}
-		_ = json.Unmarshal(out, &st)
+		if err := json.Unmarshal(out, &st); err != nil {
+			return 0, fmt.Errorf("decoding merge request !%d: %w", mr.IID, err)
+		}
 		if st.MergeStatus == "can_be_merged" {
 			break
 		}

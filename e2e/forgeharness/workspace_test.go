@@ -122,3 +122,15 @@ func TestAlsoCleanDeletesTheMirrorsRunResourcesOnly(t *testing.T) {
 	assert.Equal(t, []string{runID + "-v0.1.0"}, mirror.deletedTags)
 	assert.Empty(t, mirror.deletedBranches, "a mirror's branches are never touched")
 }
+
+func TestRequireEnrichSkipsWhenThePairIsNotConfigured(t *testing.T) {
+	t.Setenv("HERAUT_E2E_GITHUB_ENRICH_REPO", "")
+	t.Setenv("HERAUT_E2E_GITLAB_ENRICH_PROJECT", "")
+
+	for _, name := range []string{"github", "gitlab"} {
+		t.Run(name, func(t *testing.T) {
+			RequireEnrich(t, name)
+			t.Fatal("RequireEnrich should have skipped the test")
+		})
+	}
+}

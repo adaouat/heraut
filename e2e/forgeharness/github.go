@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"strconv"
 	"strings"
+	"time"
 )
 
 type github struct {
@@ -208,8 +209,14 @@ func (g *github) OpenAndMerge(base, head, title string) (int, error) {
 	if err := json.Unmarshal(out, &pr); err != nil {
 		return 0, err
 	}
-	if _, err := g.call("-X", "PUT", fmt.Sprintf("repos/%s/pulls/%d/merge", g.repo, pr.Number), "-f", "merge_method=merge"); err != nil {
-		return 0, err
+	// GitHub answers 405/409 for a moment while it computes mergeability: retry a few times
+	var mergeErr error
+	for attempt := 0; attempt < 6; attempt++ {
+		_, mergeErr = g.call("-X", "PUT", fmt.Sprintf("repos/%s/pulls/%d/merge", g.repo, pr.Number), "-f", "merge_method=merge")
+		if mergeErr == nil {
+			return pr.Number, nil
+		}
+		time.Sleep(pollEvery)
 	}
-	return pr.Number, nil
+	return 0, mergeErr
 }

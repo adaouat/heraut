@@ -4,6 +4,8 @@ package e2e_test
 
 import (
 	"regexp"
+	"strconv"
+	"strings"
 	"testing"
 	"time"
 
@@ -77,7 +79,7 @@ func TestForge_B7_DraftRelease(t *testing.T) {
 	f := forgeharness.Require(t, "github")
 	ws := forgeharness.NewWorkspace(t, f)
 	cfg := ws.Config(semverBlock(ws), "")
-	cfg = replaceOnce(cfg, "    - forge: github\n", "    - forge: github\n      draft: true\n")
+	cfg = replaceOnce(t, cfg, "    - forge: github\n", "    - forge: github\n      draft: true\n")
 	commitConfigAndSubjects(ws, cfg, "feat: one")
 
 	release(t, ws, bin)
@@ -112,7 +114,8 @@ func TestForge_B8_MaintenanceLine(t *testing.T) {
 		res := ws.Repo.Run(bin, ws.Env(), "release", "--offline")
 
 		require.Equal(t, exitRuntime, res.ExitCode, "stdout:\n%s\nstderr:\n%s", res.Stdout, res.Stderr)
-		assert.Contains(t, res.Stdout+res.Stderr, "ag already exists")
+		assert.Contains(t, normalize(res.Stdout+" "+res.Stderr), "already exists: "+strings.ToLower(ws.TagPrefix)+"1.3.2 (cut on another branch)",
+			"heraut's own collision guard fires, not git's late tag failure")
 	})
 }
 
@@ -144,7 +147,14 @@ var mdLink = regexp.MustCompile(`\]\([^)]*\)`)
 // own forge, so only the text around the links is comparable.
 func withoutLinks(s string) string { return trimmed(mdLink.ReplaceAllString(s, "]()")) }
 
-var prRef = regexp.MustCompile(`in \[[#!][0-9]+\]\(`)
+// requestRef matches the changelog's link to one specific request: #N on GitHub, !N on GitLab.
+func requestRef(f forgeharness.Forge, number int) *regexp.Regexp {
+	sigil := "#"
+	if f.Name() == "gitlab" {
+		sigil = "!"
+	}
+	return regexp.MustCompile(`in \[` + regexp.QuoteMeta(sigil) + strconv.Itoa(number) + `\]\(`)
+}
 
 func TestForge_B9_PullRequestEnrichment(t *testing.T) {
 	bin := harness.Binary(t)
@@ -169,7 +179,7 @@ func TestForge_B9_PullRequestEnrichment(t *testing.T) {
 			ws.Repo.Git("fetch", "-q", "origin", base)
 			ws.Repo.Git("checkout", "-q", "-B", ws.Branch, "FETCH_HEAD")
 			cfg := ws.Config("versioning:\n  strategy: semver\n", "")
-			cfg = replaceOnce(cfg, "changelog:\n", "commits:\n  enrichment_policy: required\nchangelog:\n")
+			cfg = replaceOnce(t, cfg, "changelog:\n", "commits:\n  enrichment_policy: required\nchangelog:\n")
 			ws.Repo.WriteConfig(cfg)
 
 			// the commit-to-request association shows up a few seconds after the merge: poll
@@ -177,7 +187,7 @@ func TestForge_B9_PullRequestEnrichment(t *testing.T) {
 			for {
 				res := ws.Repo.Run(bin, ws.Env(), "changelog", "--set-version", "0.1.0", "--regenerate")
 				require.Equal(t, exitOK, res.ExitCode, "stdout:\n%s\nstderr:\n%s", res.Stdout, res.Stderr)
-				if prRef.MatchString(ws.Repo.ReadFile("CHANGELOG.md")) {
+				if requestRef(f, number).MatchString(ws.Repo.ReadFile("CHANGELOG.md")) {
 					return
 				}
 				if time.Now().After(deadline) {

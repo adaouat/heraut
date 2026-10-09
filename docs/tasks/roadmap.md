@@ -2764,7 +2764,7 @@ with a merge commit), the second sandbox pair for B9 (`HERAUT_E2E_GITHUB_ENRICH_
 mirror, and `WaitForRelease` for the eventually consistent listings. New scenarios in
 `e2e/forge_flows_test.go`: B5 CalVer, B6 GitLab source published to GitLab and GitHub, B7 GitHub
 draft, B8 maintenance line with a taken version, B9 PR/MR enrichment, B10 dry-run; with B1-B4 that is
-all ten, 17 passing subtests in about 4 minutes against two private sandboxes and the private
+all ten (18 passing tests, 16 of them per-forge subtests) in about 4 minutes against two private sandboxes and the private
 enrichment pair, all left empty (merged requests of B9 remain as closed history). The workflow
 `.github/workflows/e2e.yml` (new file; `ci.yml` and `release.yml` untouched) runs the harness's
 offline tests, the sweeper and the scenarios on dispatch and nightly, never on pull requests, with
@@ -2772,8 +2772,10 @@ offline tests, the sweeper and the scenarios on dispatch and nightly, never on p
 in `docs/guides/e2e-tests.md`. Findings and deviations: each target's notes link commits on its own
 forge, so B6 compares the bodies with link targets stripped and asserts each links to its own host
 (the spec said identical); GitHub's commit-to-PR association appears about 10 seconds after the
-merge, so B9 polls (up to 120 s); GitHub drafts are only visible through the release list, so
-`Release`/`DeleteRelease` fall back to it. One B8 failure appeared once in an earlier full run and
+merge, so B9 polls (up to 120 s). Review fixes: `-timeout 40m` in the workflow and the mise task
+(Go's default 10 minutes could be exceeded by the bounded waits and would skip `t.Cleanup`), the sweeper
+also visits the enrichment pair, B9 matches the exact request number, B8 pins heraut's own collision
+message, the workflow scopes secrets to the steps that need them. One B8 failure appeared once in an earlier full run and
 did not reproduce in three later runs (the first release exited non-zero; the cause was not
 captured), so a nightly failure of B8 should be rerun before it is investigated.
 

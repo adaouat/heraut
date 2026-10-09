@@ -236,3 +236,32 @@ func (f *flakyForge) Release(tag string) (Release, bool, error) {
 	}
 	return Release{Tag: tag}, true, nil
 }
+
+func TestGitLabOpenAndMergeGivesUpWhenNeverMergeable(t *testing.T) {
+	fakeAPI(t, "glab", [][2]string{
+		{"-X POST projects/group%2Fwidget-testing/merge_requests", `{"iid":4}`},
+		{"merge_requests/4", `{"iid":4,"merge_status":"cannot_be_merged"}`},
+	})
+	oldPoll, oldTimeout := pollEvery, mergeTimeout
+	pollEvery, mergeTimeout = 5*time.Millisecond, 50*time.Millisecond
+	t.Cleanup(func() { pollEvery, mergeTimeout = oldPoll, oldTimeout })
+	f := NewGitLab(Config{GitLabProject: "group/widget-testing", Pattern: "*testing*"}, "tok")
+
+	_, err := f.OpenAndMerge("base", "feat", "title")
+
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "never became mergeable")
+}
+
+func TestGitLabOpenAndMergeReportsAMalformedReply(t *testing.T) {
+	fakeAPI(t, "glab", [][2]string{
+		{"-X POST projects/group%2Fwidget-testing/merge_requests", `{"iid":4}`},
+		{"merge_requests/4", `not json`},
+	})
+	f := NewGitLab(Config{GitLabProject: "group/widget-testing", Pattern: "*testing*"}, "tok")
+
+	_, err := f.OpenAndMerge("base", "feat", "title")
+
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "decoding merge request")
+}

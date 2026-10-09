@@ -52,7 +52,7 @@ Only environment variables; nothing is read from files and nothing real is commi
 | `HERAUT_E2E_GITLAB_PROJECT` | `group/project` of the GitLab sandbox; unset skips the GitLab scenarios |
 | `HERAUT_E2E_GITHUB_ENRICH_REPO`, `HERAUT_E2E_GITLAB_ENRICH_PROJECT` | the B9 pair; unset skips B9 only |
 | `HERAUT_E2E_REPO_PATTERN` | base-name pattern a sandbox must match (default `*testing*`) |
-| `HERAUT_E2E_GITHUB_TOKEN`, `HERAUT_E2E_GITLAB_TOKEN` | tokens; fall back to `GH_TOKEN`/`GITLAB_TOKEN`, then to the local `gh`/`glab` login |
+| `HERAUT_E2E_GITHUB_TOKEN`, `HERAUT_E2E_GITLAB_TOKEN` | tokens; fall back to `GH_TOKEN`/`GITHUB_TOKEN` and `GITLAB_TOKEN`, then to the local `gh`/`glab` login |
 
 ## Running locally
 
@@ -74,7 +74,7 @@ never runs on pull requests.
 Create in the repository settings:
 
 - **variables**: the four coordinate variables above;
-- **secrets**: `HERAUT_E2E_GITHUB_TOKEN` (a fine-grained token limited to the sandbox repositories,
+- **secrets**: `HERAUT_E2E_GITHUB_TOKEN` (a fine-grained token limited to the sandbox repositories, the enrichment pair included,
   with Contents and Pull requests read/write) and `HERAUT_E2E_GITLAB_TOKEN` (a token with the `api`
   scope and Maintainer role on the sandbox projects only).
 
@@ -88,8 +88,11 @@ sweeper, then the scenarios.
 - Each run works on its own `e2e/<run-id>` branch from `main`, and tags carry the run id.
 - Cleanup deletes releases, then tags, then branches (deleting a tag first would turn its release
   into a leaked draft) and **fails the test** if anything cannot be deleted.
-- `e2e/cmd/sweep` removes `e2e-*` leftovers older than 24 hours (`-older-than`, `-dry-run`); run it
-  by hand after a crash.
+- `e2e/cmd/sweep` removes `e2e-*` leftovers older than 24 hours from every configured sandbox, the
+  enrichment pair included (`-older-than`, `-dry-run`); run it by hand after a crash. It cannot close
+  a merge request left open by a crashed B9 on GitLab (deleting the branch closes it on GitHub).
+- Scenarios wait for the forges with bounded polling (up to a few minutes in the worst case), so the
+  test timeout is 40 minutes; Go's default of 10 would abort the run and skip the cleanup.
 
 ## Things to know
 

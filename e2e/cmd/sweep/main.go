@@ -30,8 +30,18 @@ func main() {
 		exitOn(err)
 		forges = append(forges, forgeharness.NewGitLab(c, tok))
 	}
+	if c.GitHubEnrichRepo != "" {
+		tok, err := forgeharness.GitHubToken()
+		exitOn(err)
+		forges = append(forges, forgeharness.NewGitHub(c.ForEnrich("github"), tok))
+	}
+	if c.GitLabEnrichProject != "" {
+		tok, err := forgeharness.GitLabToken()
+		exitOn(err)
+		forges = append(forges, forgeharness.NewGitLab(c.ForEnrich("gitlab"), tok))
+	}
 	if len(forges) == 0 {
-		fmt.Fprintln(os.Stderr, "nothing to sweep: set HERAUT_E2E_GITHUB_REPO and/or HERAUT_E2E_GITLAB_PROJECT")
+		fmt.Fprintln(os.Stderr, "nothing to sweep: set HERAUT_E2E_GITHUB_REPO / HERAUT_E2E_GITLAB_PROJECT (and the *_ENRICH_* pair)")
 		return
 	}
 	for _, f := range forges {
