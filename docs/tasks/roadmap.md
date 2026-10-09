@@ -228,7 +228,7 @@ discipline that applies to every task.
 | 57 | SBOM generation; shell completions investigated | Done — completions not shipped (ADR-0013 + notarization gap), see T321/T322 |
 | 58 | Homebrew cask: tar.gz archive for completions/man pages | Done — see T323 |
 | 59 | SemVer v2 compliance and pre-release lifecycle | Done — see `semver-v2-roadmap.md` |
-| 60 | End-to-end tests: hermetic binary lane + opt-in forge sandboxes | In progress — T345a, T345b1-b3, T345b4, T357, T358 done; T345b5, c, d open; T359, T360 open |
+| 60 | End-to-end tests: hermetic binary lane + opt-in forge sandboxes | In progress — T345a, T345b, T357, T358 done; T345c, d open; T359, T360 open |
 | 61 | GitLab publish driver follow-ups from T335 | In progress — T346 done, T347 (needs design) open |
 | 62 | Version branches: version from the branch name | Not started — see T348 (needs design) |
 | 63 | CalVer history-aware changelog bounds | Not started — see T356 |
@@ -2618,7 +2618,7 @@ reworded). Manual mode with `--set-version`, manual mode with `--pre-release` an
 `tag_prefix` were added after review. Deferred to T345b as planned: the `native` generator clock (its `GeneratedAt` is not rendered by
 anything T345a drives) and per-env `stay_at_v0`.
 
-#### T345b: remaining Lane A scenarios (split into five parts)
+#### `[x]` T345b: remaining Lane A scenarios (split into five parts)
 
 Also: add an `e2e/` row to the layer table in `.claude/rules/coding.md` (imports `e2e/harness` and
 testify only), done in whichever part touches the harness next.
@@ -2708,8 +2708,22 @@ testify only), done in whichever part touches the harness next.
     run exits non-zero; GitLab ignoring the pre-release flag; `release --force` lifting the unlisted-branch refusal
     (deferred from T345b3). A failed publish and a skipped target assert only "non-zero" (the
     spec does not pin their code); a missing token pins exit 3 (Spec 01).
-- `[ ]` **T345b5**: CLI surface: `check config`/`check runtime` exit codes, `~` expansion in
+- `[x]` **T345b5**: CLI surface: `check config`/`check runtime` exit codes, `~` expansion in
   `--config` and `HERAUT_FILE`, `commit verify`, unknown config key reports a line number.
+  **Completion note:** executed from `docs/superpowers/plans/2026-10-09-e2e-cli-surface-t345b5.md`.
+  40 entries (8 tests with subtests) in `e2e/cli_surface_test.go`; the e2e package now runs 199
+  subtests. The harness gained `Home`, `WriteHomeFile`, `BinDir` and `RunStdin`. Covered:
+  `check config` (valid, invalid value with the valid choices, unknown key with its line, malformed
+  YAML, no file); config discovery precedence (`--config` > `HERAUT_FILE` > `.config/heraut.yml`)
+  and `~` expansion for both `--config` and `HERAUT_FILE` (regression for `4d17b19`); `check
+  runtime` failing one cause at a time (gh missing, token unset, git identity unset), the no-config
+  degrade requiring every tool, and a PATH holding only a `git` symlink so the real `gh`/`glab` can
+  never be found; bare `check` exiting 3 for a runtime-only failure and 2 when the config is broken;
+  `commit verify` (valid with scope, breaking, malformed header, disallowed type, merge and `fixup!`
+  skipped, neither/both/missing `--file`, `--file`, `--file -`); `commit check` (full history,
+  `--from-latest-tag`, a clean range, mutual exclusion, an unresolvable range). Deviations: two
+  expectations were corrected to real output (the error panel wraps long paths mid-token, and
+  without a config the missing binaries read `gh: not found on PATH`). With this part T345b is done.
 
 #### `[ ]` T345c: forge harness and scenarios B1-B4 (Lane B)
 
