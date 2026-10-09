@@ -108,6 +108,19 @@ func TestRelease_PreReleaseIsMarkedFromTheVersion(t *testing.T) {
 	assert.Equal(t, "gh [release] [create] [v0.1.0-rc.1] [--notes-file] [<notes>] [--repo] [acme/widget] [--prerelease]", calls[len(calls)-1])
 }
 
+func TestRelease_GitLabIgnoresThePreReleaseFlag(t *testing.T) {
+	bin := harness.Binary(t)
+	repo := releaseRepo(t, releaseCfg(bothTargets, ""))
+
+	res := repo.Run(bin, tokens, "release", "--offline", "--pre-release", "rc")
+
+	require.Equal(t, exitOK, res.ExitCode, "stdout:\n%s\nstderr:\n%s", res.Stdout, res.Stderr)
+	calls := normCalls(repo.CLICalls())
+	assert.Contains(t, calls, "gh [release] [create] [v0.1.0-rc.1] [--notes-file] [<notes>] [--repo] [acme/widget] [--prerelease]")
+	assert.Contains(t, calls, "glab [release] [create] [v0.1.0-rc.1] [--notes-file] [<notes>] [--repo] [acme/widget]",
+		"GitLab has no pre-release flag: the release is created plain")
+}
+
 func TestRelease_AssetsAreAttachedAndAZeroMatchIsLenient(t *testing.T) {
 	bin := harness.Binary(t)
 	cfg := releaseCfg(`    - forge: github
@@ -199,6 +212,22 @@ func TestRelease_ReleaseHooksRunPerTarget(t *testing.T) {
 		assert.Contains(t, normCalls(calls), "glab [release] [create] [v0.1.0] [--notes-file] [<notes>] [--repo] [acme/widget]")
 		assert.Equal(t, []string{"ok"}, logLines(repo.ReadFile(".hooklog")))
 	})
+}
+
+func TestRelease_AFailingPostReleaseHookWarnsAndTheLoopContinues(t *testing.T) {
+	bin := harness.Binary(t)
+	repo := releaseRepo(t, releaseCfg(bothTargets, `hooks:
+  post_release:
+    - run: "{{ if eq .Platform \"github\" }}exit 1{{ else }}echo ok >> .hooklog{{ end }}"
+`))
+
+	res := repo.Run(bin, tokens, "release", "--offline")
+
+	require.NotEqual(t, exitOK, res.ExitCode, "the run still fails when a post_release hook failed")
+	calls := normCalls(repo.CLICalls())
+	assert.Contains(t, calls, "gh [release] [create] [v0.1.0] [--notes-file] [<notes>] [--repo] [acme/widget]", "github was published")
+	assert.Contains(t, calls, "glab [release] [create] [v0.1.0] [--notes-file] [<notes>] [--repo] [acme/widget]", "and the loop went on to gitlab")
+	assert.Equal(t, []string{"ok"}, logLines(repo.ReadFile(".hooklog")))
 }
 
 func TestRelease_AMissingTokenIsRefusedInPreflight(t *testing.T) {

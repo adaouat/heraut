@@ -2695,8 +2695,8 @@ testify only), done in whichever part touches the harness next.
     flags per forge, asset upload, `--dry-run` calling nothing, `release --force` on an unlisted
     branch.
     **Completion note:** executed from `docs/superpowers/plans/2026-10-09-e2e-release-fake-clis-t345b4c.md`.
-    9 tests (15 entries with subtests) in `e2e/release_flow_test.go`; the e2e package now runs 165
-    subtests. The harness gained recording fake CLIs (`FakeCLI`, `FailReleases`, `CLICalls`, and a
+    11 tests (17 entries with subtests) in `e2e/release_flow_test.go`; the e2e package now runs 199
+    subtests (including T345b5). The harness gained recording fake CLIs (`FakeCLI`, `FailReleases`, `CLICalls`, and a
     fake directory first on `PATH` in `Run`). Covered: the GitHub argv incl. the `--version` and
     `api` probes, the tag pushed before the release is created; two targets probed first and
     published in declared order with `--draft` GitHub-only; `--prerelease` from a SemVer
@@ -2704,7 +2704,8 @@ testify only), done in whichever part touches the harness next.
     assets; a failing `gh` aborting before `glab` with the tag staying; `--dry-run` calling neither
     CLI and creating nothing; `pre_release`/`post_release` per target in order and a failing
     `pre_release` skipping only its own target (run still exits non-zero); a missing token refused
-    in preflight with nothing written; `release --force` lifting the unlisted-branch refusal
+    in preflight with nothing written; a failing `post_release` warning while the loop continues and the
+    run exits non-zero; GitLab ignoring the pre-release flag; `release --force` lifting the unlisted-branch refusal
     (deferred from T345b3). A failed publish and a skipped target assert only "non-zero" (the
     spec does not pin their code); a missing token pins exit 3 (Spec 01).
 - `[ ]` **T345b5**: CLI surface: `check config`/`check runtime` exit codes, `~` expansion in

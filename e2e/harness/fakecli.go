@@ -33,6 +33,9 @@ func (r *Repo) FakeCLI(name string) {
 // FailReleases makes the named fake exit 1 on any "release …" subcommand (calls are still recorded).
 func (r *Repo) FailReleases(name string) {
 	r.t.Helper()
+	if r.binDir == "" {
+		r.t.Fatalf("FailReleases(%q) called before FakeCLI", name)
+	}
 	if err := os.WriteFile(filepath.Join(r.binDir, "fail-"+name), nil, 0o644); err != nil {
 		r.t.Fatalf("marking %s as failing: %v", name, err)
 	}
@@ -41,6 +44,9 @@ func (r *Repo) FailReleases(name string) {
 // CLICalls returns every call recorded by the fakes, oldest first.
 func (r *Repo) CLICalls() []string {
 	r.t.Helper()
+	if r.binDir == "" {
+		r.t.Fatal("CLICalls called before FakeCLI: an empty result would prove nothing")
+	}
 	b, err := os.ReadFile(filepath.Join(r.binDir, "calls.log"))
 	if os.IsNotExist(err) {
 		return nil
