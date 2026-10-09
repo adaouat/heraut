@@ -121,3 +121,20 @@ func TestRepo_FakeCLIRecordsCallsInOrderAndCanFail(t *testing.T) {
 	assert.Equal(t, "rc=1\n", res.Stdout)
 	assert.Equal(t, "gh [release] [create] [v2]", r.CLICalls()[3], "a failing call is still recorded")
 }
+
+func TestRepo_HomeBinDirAndStdin(t *testing.T) {
+	r := NewRepo(t)
+
+	r.WriteHomeFile("cfg/x.yml", "hello\n")
+	res := r.Run("/bin/sh", nil, "-c", "cat ~/cfg/x.yml")
+	assert.Equal(t, "hello\n", res.Stdout, "the child sees the same HOME")
+	assert.Equal(t, r.Home()+"/cfg/x.yml", strings.TrimSpace(r.Run("/bin/sh", nil, "-c", "echo $HOME/cfg/x.yml").Stdout))
+
+	assert.Empty(t, r.BinDir())
+	r.FakeCLI("gh")
+	assert.NotEmpty(t, r.BinDir())
+	assert.FileExists(t, r.BinDir()+"/gh")
+
+	res = r.RunStdin("/bin/cat", nil, "from stdin\n")
+	assert.Equal(t, "from stdin\n", res.Stdout)
+}

@@ -160,3 +160,18 @@ func (r *Repo) WriteFile(rel, content string) {
 		r.t.Fatalf("writing %s: %v", rel, err)
 	}
 }
+
+// Home is the HOME directory the repository's commands run with.
+func (r *Repo) Home() string { return r.home }
+
+// WriteHomeFile writes content to a path relative to HOME, creating directories.
+func (r *Repo) WriteHomeFile(rel, content string) {
+	r.t.Helper()
+	path := filepath.Join(r.home, rel)
+	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+		r.t.Fatalf("creating directory for %s: %v", rel, err)
+	}
+	if err := os.WriteFile(path, []byte(content), 0o644); err != nil {
+		r.t.Fatalf("writing %s: %v", rel, err)
+	}
+}

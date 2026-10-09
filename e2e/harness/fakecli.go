@@ -68,3 +68,6 @@ func (r *Repo) runEnv() []string {
 	}
 	return env
 }
+
+// BinDir is the directory holding the fake CLIs and their call log ("" until FakeCLI is used).
+func (r *Repo) BinDir() string { return r.binDir }
