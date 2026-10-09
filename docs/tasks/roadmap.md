@@ -228,7 +228,7 @@ discipline that applies to every task.
 | 57 | SBOM generation; shell completions investigated | Done — completions not shipped (ADR-0013 + notarization gap), see T321/T322 |
 | 58 | Homebrew cask: tar.gz archive for completions/man pages | Done — see T323 |
 | 59 | SemVer v2 compliance and pre-release lifecycle | Done — see `semver-v2-roadmap.md` |
-| 60 | End-to-end tests: hermetic binary lane + opt-in forge sandboxes | In progress — T345a, T345b1-b2, T357, T358 done; T345b3-b5, c, d open; T359 open |
+| 60 | End-to-end tests: hermetic binary lane + opt-in forge sandboxes | In progress — T345a, T345b1-b3, T357, T358 done; T345b4-b5, c, d open; T359 open |
 | 61 | GitLab publish driver follow-ups from T335 | In progress — T346 done, T347 (needs design) open |
 | 62 | Version branches: version from the branch name | Not started — see T348 (needs design) |
 | 63 | CalVer history-aware changelog bounds | Not started — see T356 |
@@ -2648,8 +2648,23 @@ testify only), done in whichever part touches the harness next.
   Deviation: the plan assumed a variadic `tag()`, so multi-tag rows repeat `tag()`. The missing or
   unknown `--env` exit code is not asserted (T359).
 
-- `[ ]` **T345b3**: maintenance branches (ADR-0065): range resolution, unlisted-branch refusal,
+- `[x]` **T345b3**: maintenance branches (ADR-0065): range resolution, unlisted-branch refusal,
   collision guard, same-commit tag bounds.
+  **Completion note:** executed from `docs/superpowers/plans/2026-10-09-e2e-maintenance-branches-t345b3.md`.
+  27 new scenarios in `e2e/maintenance_test.go` (the e2e package now runs 140 subtests): line
+  resolution (a fix on the line, the out-of-range `feat:` with the range in the message, collisions
+  with a tag cut elsewhere including a build-metadata tag, a line with no in-range release, `version
+  current`, `main` and unlisted branches, a pre-release on the line), the ambiguous / underivable /
+  calver config errors, the `--set-version` escape hatch and its collision probe, detached-HEAD
+  detection from `CI_COMMIT_BRANCH`, `BUILD_SOURCEBRANCH` and `GITHUB_REF_NAME` (branch refs only),
+  the unlisted-branch `release` refusal plus a standalone `--dry-run` test, and three changelog-bound
+  cases (unmerged tags get no section, forward merge, two tags on one commit). The harness gained
+  `Switch`, `Detach` and `MergeNoFF`, and the runner's `step` gained branch operations. Deviations:
+  the `mergeNoFF` constructor landed with its first user (the unused-code lint blocked an earlier
+  commit), and the forward-merge row expects the harness's merge subject `Merge release/1.3`.
+  `release --force` on an unlisted branch is not run (it proceeds to push and publish, T345b4's fake
+  `gh`/`glab` territory). No heraut defect surfaced.
+
 - `[ ]` **T345b4**: changelog and release local flow: bare remote in the harness,
   `changelog --commit --tag --no-push`, `--regenerate`, hooks and `--skip-hook`, fake `gh`/`glab`
   recording argv, `--offline`.
