@@ -228,7 +228,7 @@ discipline that applies to every task.
 | 57 | SBOM generation; shell completions investigated | Done — completions not shipped (ADR-0013 + notarization gap), see T321/T322 |
 | 58 | Homebrew cask: tar.gz archive for completions/man pages | Done — see T323 |
 | 59 | SemVer v2 compliance and pre-release lifecycle | Done — see `semver-v2-roadmap.md` |
-| 60 | End-to-end tests: hermetic binary lane + opt-in forge sandboxes | In progress — T345 (a-d), T357, T358, T360 done; T359 open |
+| 60 | End-to-end tests: hermetic binary lane + opt-in forge sandboxes | Done — T345 (a-d), T357, T358, T359, T360 |
 | 61 | GitLab publish driver follow-ups from T335 | In progress — T346 done, T347 (needs design) open |
 | 62 | Version branches: version from the branch name | Not started — see T348 (needs design) |
 | 63 | CalVer history-aware changelog bounds | Not started — see T356 |
@@ -2822,7 +2822,7 @@ through the real binary, including the December duplicate-tag case. Left as is: 
 `MM` and `WW` follows the same rule (`2026.01.53.x` on 2027-01-01), which is odd but consistent.
 
 
-#### `[ ]` T359: an unknown or missing `--env`, and the branch guard, exit Runtime (3)
+#### `[x]` T359: an unknown or missing `--env`, and the branch guard, exit Runtime (3)
 
 Found while preparing T345b2. With a per-env strategy, `heraut version next` (no `--env`) and
 `heraut version next --env nope` fail with `Environment "…" not found in config` and exit **3**
@@ -2836,6 +2836,16 @@ current code).
 The per-env branch guard (`Environment "prod" must be operated from branch "main"…`) takes the same
 default (3) through `wrapRunErr`, and Spec 01/02 do not pin its code either. Decide it together
 with the above; the guard's e2e row asserts only "non-zero" until then (`exitAnyFailure`).
+
+**Completion note:** decided with the user: all three cases exit 2 (config), recorded in
+[ADR-0068](../adr/0068-env-selection-and-branch-guard-exit-code.md) and Spec 01's exit-code table.
+`perenv.ErrEnvNotFound`/`ErrEnvRequired` (their texts complete the existing messages, so the
+output is unchanged) and `app.BranchMismatchError` are classified by `app.IsEnvSelection`/
+`IsBranchMismatch`; `wrapRunErr` and the new `wrapBranchErr` map them, at all four `CheckBranch`
+call sites and in `version current`. A git failure while reading the branch stays 3. The pinned
+assertion in `TestVersionNext_SetVersion_StillEnforcesBranchGuard` moved from 3 to 2 (hence the
+ADR); the e2e branch-guard row now asserts `exitConfig` and four rows cover missing/unknown `--env`
+for `version next`/`current`. `exitAnyFailure` keeps one remaining user (`commit verify --file`).
 
 #### `[x]` T360: a retry after a failed push claims "committed and pushed" without pushing the branch
 

@@ -100,7 +100,7 @@ resolved version rather than a fallback to `initial_version`. See
 |------|----------------------------------------------------------------------|
 | 0    | Success                                                              |
 | 1    | Usage error (bad flags or arguments)                                 |
-| 2    | Configuration error (invalid YAML, missing required fields, semantic validation failure, a `tag_format` containing `{build}` when no build ID was supplied) |
+| 2    | Configuration error (invalid YAML, missing required fields, semantic validation failure, a `tag_format` containing `{build}` when no build ID was supplied, a missing or unknown `--env` on a per-env strategy, a per-env branch guard refusal — [ADR-0068](../adr/0068-env-selection-and-branch-guard-exit-code.md)) |
 | 3    | Runtime error (binary missing from PATH, token env var unset, network failure, git operation failed) |
 | 4    | Promotion guard tripped (E001 / E002 / E003) — see [ADR-0007](../adr/0007-version-promotion-error-handling.md) |
 | 70   | Internal software error (unexpected panic or unhandled condition)    |
