@@ -35,6 +35,11 @@ func GitLabToken() (string, error) {
 	if v := firstEnv("HERAUT_E2E_GITLAB_TOKEN", "GITLAB_TOKEN"); v != "" {
 		return v, nil
 	}
+	if out, err := exec.Command("glab", "config", "get", "token", "--host", "gitlab.com").Output(); err == nil {
+		if tok := strings.TrimSpace(string(out)); tok != "" {
+			return tok, nil
+		}
+	}
 	out, err := exec.Command("glab", "auth", "status", "--show-token").CombinedOutput()
 	if err == nil {
 		for _, line := range strings.Split(string(out), "\n") {

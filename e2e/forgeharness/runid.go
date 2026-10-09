@@ -11,7 +11,7 @@ import (
 	"time"
 )
 
-var runIDPattern = regexp.MustCompile(`e2e-([0-9]+)-[0-9a-f]{4}`)
+var runIDPattern = regexp.MustCompile(`(?:^|/)e2e-([0-9]{10})-[0-9a-f]{4}(?:$|[-/])`)
 
 // NewRunID builds the marker every resource of one run carries.
 func NewRunID(now time.Time, randHex string) string {

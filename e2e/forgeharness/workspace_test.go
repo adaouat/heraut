@@ -3,6 +3,7 @@
 package forgeharness
 
 import (
+	"errors"
 	"os/exec"
 	"strings"
 	"testing"
@@ -15,6 +16,7 @@ import (
 type localForge struct {
 	Forge
 	url                                           string
+	failRelease                                   map[string]bool
 	deletedReleases, deletedTags, deletedBranches []string
 	tags, releases, branches                      []string
 }
@@ -31,6 +33,9 @@ func (l *localForge) Tags(prefix string) ([]string, error) { return hasPrefix(l.
 func (l *localForge) Releases(p string) ([]string, error)  { return hasPrefix(l.releases, p), nil }
 func (l *localForge) Branches(p string) ([]string, error)  { return hasPrefix(l.branches, p), nil }
 func (l *localForge) DeleteRelease(tag string) error {
+	if l.failRelease[tag] {
+		return errors.New("boom")
+	}
 	l.deletedReleases = append(l.deletedReleases, tag)
 	return nil
 }

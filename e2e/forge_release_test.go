@@ -3,7 +3,6 @@
 package e2e_test
 
 import (
-	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -25,7 +24,7 @@ func eachForge(t *testing.T, fn func(t *testing.T, ws *forgeharness.Workspace)) 
 	}
 }
 
-func commitAndPushNothing(ws *forgeharness.Workspace, cfg string, subjects ...string) {
+func commitConfigAndSubjects(ws *forgeharness.Workspace, cfg string, subjects ...string) {
 	ws.Repo.WriteConfig(cfg)
 	ws.Repo.Git("add", ".heraut.yml")
 	ws.Repo.Git("commit", "-q", "-m", "chore: init e2e")
@@ -48,7 +47,7 @@ func semverBlock(ws *forgeharness.Workspace) string {
 func TestForge_B1_FinalRelease(t *testing.T) {
 	bin := harness.Binary(t)
 	eachForge(t, func(t *testing.T, ws *forgeharness.Workspace) {
-		commitAndPushNothing(ws, ws.Config(semverBlock(ws), ""), "feat: one", "fix: two")
+		commitConfigAndSubjects(ws, ws.Config(semverBlock(ws), ""), "feat: one", "fix: two")
 
 		release(t, ws, bin)
 
@@ -69,7 +68,7 @@ func TestForge_B1_FinalRelease(t *testing.T) {
 func TestForge_B2_PreRelease(t *testing.T) {
 	bin := harness.Binary(t)
 	eachForge(t, func(t *testing.T, ws *forgeharness.Workspace) {
-		commitAndPushNothing(ws, ws.Config(semverBlock(ws), ""), "feat: one")
+		commitConfigAndSubjects(ws, ws.Config(semverBlock(ws), ""), "feat: one")
 
 		release(t, ws, bin, "--pre-release", "rc")
 
@@ -84,7 +83,7 @@ func TestForge_B2_PreRelease(t *testing.T) {
 func TestForge_B3_BuildMetadata(t *testing.T) {
 	bin := harness.Binary(t)
 	eachForge(t, func(t *testing.T, ws *forgeharness.Workspace) {
-		commitAndPushNothing(ws, ws.Config(semverBlock(ws), ""), "feat: one")
+		commitConfigAndSubjects(ws, ws.Config(semverBlock(ws), ""), "feat: one")
 
 		res := release(t, ws, bin, "--set-version", "0.1.0", "--set-build-id", "158404")
 
@@ -92,8 +91,7 @@ func TestForge_B3_BuildMetadata(t *testing.T) {
 		_, ok, err := ws.Forge.Release(tag)
 		require.NoError(t, err)
 		require.True(t, ok, "a tag carrying + build metadata is accepted")
-		assert.Contains(t, res.Stdout, ws.Forge.URLTag(tag), "the printed release URL spells the tag the way the forge does")
-		assert.True(t, strings.Contains(res.Stdout, "/releases/") || strings.Contains(res.Stdout, "/-/releases/"))
+		assert.Contains(t, res.Stdout, ws.Forge.ReleaseURL(tag), "the printed release URL spells the tag the way the forge does")
 	})
 }
 
@@ -104,7 +102,7 @@ func TestForge_B4_PerEnvTagWithAsset(t *testing.T) {
 		cfg := ws.Config(block, "      assets:\n        - \"dist/app.txt\"\n")
 		ws.Repo.WriteFile("dist/app.txt", "asset\n")
 		ws.Repo.Git("add", "dist/app.txt")
-		commitAndPushNothing(ws, cfg, "feat: one")
+		commitConfigAndSubjects(ws, cfg, "feat: one")
 
 		release(t, ws, bin, "--env", "uat")
 

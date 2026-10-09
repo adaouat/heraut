@@ -3,6 +3,7 @@
 package forgeharness
 
 import (
+	"errors"
 	"fmt"
 	"time"
 )
@@ -17,15 +18,15 @@ func Sweep(f Forge, olderThan time.Duration, now time.Time, dryRun bool) ([]stri
 		return ok && now.Sub(ts) > olderThan
 	}
 	var report []string
-	do := func(kind, name string, del func(string) error) error {
+	var errs []error
+	do := func(kind, name string, del func(string) error) {
 		report = append(report, kind+" "+name)
 		if dryRun {
-			return nil
+			return
 		}
 		if err := del(name); err != nil {
-			return fmt.Errorf("deleting %s %q: %w", kind, name, err)
+			errs = append(errs, fmt.Errorf("deleting %s %q: %w", kind, name, err))
 		}
-		return nil
 	}
 
 	tags, err := f.Tags("e2e-")
@@ -42,29 +43,21 @@ func Sweep(f Forge, olderThan time.Duration, now time.Time, dryRun bool) ([]stri
 			continue
 		}
 		seen[name] = true
-		if err := do("release", name, f.DeleteRelease); err != nil {
-			return report, err
-		}
+		do("release", name, f.DeleteRelease)
 	}
 	for _, name := range tags {
-		if !old(name) {
-			continue
-		}
-		if err := do("tag", name, f.DeleteTag); err != nil {
-			return report, err
+		if old(name) {
+			do("tag", name, f.DeleteTag)
 		}
 	}
 	branches, err := f.Branches("e2e/")
 	if err != nil {
-		return report, fmt.Errorf("listing branches: %w", err)
+		return report, errors.Join(append(errs, fmt.Errorf("listing branches: %w", err))...)
 	}
 	for _, name := range branches {
-		if !old(name) {
-			continue
-		}
-		if err := do("branch", name, f.DeleteBranch); err != nil {
-			return report, err
+		if old(name) {
+			do("branch", name, f.DeleteBranch)
 		}
 	}
-	return report, nil
+	return report, errors.Join(errs...)
 }

@@ -28,6 +28,10 @@ func (g *gitlab) CloneURL() string        { return "https://gitlab.com/" + g.pro
 func (g *gitlab) GitAuthHeader() string   { return basicAuth("oauth2", g.token) }
 func (g *gitlab) HasPreReleaseFlag() bool { return false }
 
+func (g *gitlab) ReleaseURL(tag string) string {
+	return "https://gitlab.com/" + g.project + "/-/releases/" + g.URLTag(tag)
+}
+
 func (g *gitlab) URLTag(tag string) string {
 	return strings.NewReplacer("+", "%2B", "/", "%2F").Replace(tag)
 }
@@ -61,7 +65,7 @@ func (g *gitlab) Check() error {
 func (g *gitlab) Release(tag string) (Release, bool, error) {
 	out, err := g.call(g.base() + "/releases/" + escape(tag))
 	if err != nil {
-		if strings.Contains(err.Error(), "404") {
+		if isNotFound(err) {
 			return Release{}, false, nil
 		}
 		return Release{}, false, err
@@ -139,6 +143,9 @@ func (g *gitlab) Releases(prefix string) ([]string, error) {
 
 func (g *gitlab) DeleteRelease(tag string) error {
 	_, err := g.call("-X", "DELETE", g.base()+"/releases/"+escape(tag))
+	if isNotFound(err) {
+		return nil
+	}
 	return err
 }
 

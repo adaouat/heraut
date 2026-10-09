@@ -160,7 +160,7 @@ sandbox), rate-limit tuning, GitLab-over-`net/http` (T347 will need a rerun of B
   the nightly.
 - **Safety guards:** deletions target only resources whose name contains the run marker; the harness
   refuses to run unless the configured repo name matches `HERAUT_E2E_REPO_PATTERN` (default
-  `*sandbox*`) and the repo is private.
+  `*testing*`) and the repo is private.
 - **Configuration:** `HERAUT_E2E_GITHUB_REPO`, `HERAUT_E2E_GITLAB_PROJECT`,
   `HERAUT_E2E_MIRROR_GITHUB_REPO` (B6 target), the B9 pair named under Resolved decisions, tokens as `GH_TOKEN` / `GITLAB_TOKEN`. A missing
   variable skips the test with an explicit message, so `go test -tags e2e_forge ./e2e/...` on a fresh

@@ -46,6 +46,14 @@ func TestRunIDs(t *testing.T) {
 	assert.False(t, ok, "an ordinary tag carries no run id")
 	_, ok = RunIDTime("e2e-notanumber-zz")
 	assert.False(t, ok)
+	for _, name := range []string{"e2e-20250101-beef", "foo-e2e-1791548560-a1b2", "e2e-1791548560-a1b2c"} {
+		_, ok = RunIDTime(name)
+		assert.False(t, ok, "%q is not one of our names", name)
+	}
+	for _, name := range []string{"e2e-1791548560-a1b2-v0.1.0", "e2e/e2e-1791548560-a1b2", "e2e-1791548560-a1b2/uat/0.1.0"} {
+		_, ok = RunIDTime(name)
+		assert.True(t, ok, "%q is one of our names", name)
+	}
 }
 
 func writeFake(t *testing.T, dir, name, script string) {

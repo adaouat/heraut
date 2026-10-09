@@ -28,7 +28,11 @@ func (g *github) Token() string            { return g.token }
 func (g *github) CloneURL() string         { return "https://github.com/" + g.repo + ".git" }
 func (g *github) GitAuthHeader() string    { return basicAuth("x-access-token", g.token) }
 func (g *github) HasPreReleaseFlag() bool  { return true }
-func (g *github) URLTag(tag string) string { return tag }
+func (g *github) URLTag(tag string) string { return strings.ReplaceAll(tag, "+", "%2B") }
+
+func (g *github) ReleaseURL(tag string) string {
+	return "https://github.com/" + g.repo + "/releases/tag/" + g.URLTag(tag)
+}
 func (g *github) call(args ...string) ([]byte, error) {
 	return api("gh", g.TokenEnv(), g.token, args...)
 }
@@ -85,20 +89,33 @@ func (g *github) Release(tag string) (Release, bool, error) {
 }
 
 // releaseByTag uses the by-tag endpoint: unlike the release list, it is consistent right after a
-// release was created.
+// release was created. That endpoint never returns drafts, so a 404 falls back to the list.
 func (g *github) releaseByTag(tag string) (ghRelease, bool, error) {
 	out, err := g.call("repos/" + g.repo + "/releases/tags/" + tag)
 	if err != nil {
-		if strings.Contains(err.Error(), "404") {
-			return ghRelease{}, false, nil
+		if !isNotFound(err) {
+			return ghRelease{}, false, err
 		}
-		return ghRelease{}, false, err
+		return g.draftByTag(tag)
 	}
 	var r ghRelease
 	if err := json.Unmarshal(out, &r); err != nil {
 		return ghRelease{}, false, err
 	}
 	return r, true, nil
+}
+
+func (g *github) draftByTag(tag string) (ghRelease, bool, error) {
+	rs, err := g.releases()
+	if err != nil {
+		return ghRelease{}, false, err
+	}
+	for _, r := range rs {
+		if r.TagName == tag {
+			return r, true, nil
+		}
+	}
+	return ghRelease{}, false, nil
 }
 
 func (g *github) TagCommit(tag string) (string, error) {
