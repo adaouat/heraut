@@ -45,7 +45,9 @@ func (g *gitHelper) runInteractive(name string, args ...string) error {
 // ADR-0061) and commits them with msg, pushing when push is set. Reports whether a commit was
 // actually created: when `git add` stages nothing across every path — every file byte-identical
 // to the last commit — it returns (false, nil) without committing so the caller can warn and
-// continue to tag/publish rather than failing on git's "nothing to commit" exit. A files entry
+// continue to tag/publish rather than failing on git's "nothing to commit" exit. HEAD is still
+// pushed in that case: a previous run may have committed locally and failed at the push, and the
+// tag pushed afterwards would otherwise point at a commit on no remote branch (T360). A files entry
 // that matches nothing on disk is a `git add` failure like any other, propagated as-is — no new
 // zero-match detection needed (ADR-0061 Design §4).
 func (g *gitHelper) commitChangelog(files []string, msg string, push bool) (bool, error) {
@@ -56,18 +58,17 @@ func (g *gitHelper) commitChangelog(files []string, msg string, push bool) (bool
 	if err != nil {
 		return false, err
 	}
-	if !staged {
-		return false, nil
-	}
-	if err := g.runInteractive("git", "commit", "-m", msg); err != nil {
-		return false, fmt.Errorf("git commit: %w", err)
+	if staged {
+		if err := g.runInteractive("git", "commit", "-m", msg); err != nil {
+			return false, fmt.Errorf("git commit: %w", err)
+		}
 	}
 	if push {
 		if err := g.run("git", "push", "origin", "HEAD"); err != nil {
 			return false, fmt.Errorf("git push: %w", err)
 		}
 	}
-	return true, nil
+	return staged, nil
 }
 
 // hasStagedChanges reports whether the index holds any staged change. A genuine git

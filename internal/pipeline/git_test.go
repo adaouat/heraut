@@ -87,21 +87,53 @@ func TestCommitChangelog_ZeroMatchStagePattern_PropagatesGitAddError(t *testing.
 }
 
 // TestCommitChangelog_NothingStagedSkips verifies that when `git add` stages nothing
-// (the changelog is byte-identical to the last commit), commit and push are skipped
-// and committed=false is reported without error.
+// (the changelog is byte-identical to the last commit) and no push is requested, commit and
+// push are skipped and committed=false is reported without error.
 func TestCommitChangelog_NothingStagedSkips(t *testing.T) {
 	mr := exectest.NewMockRunner()
 	mr.QueueResponse("", "", nil) // git add
 	mr.QueueResponse("", "", nil) // git diff --cached --name-only (empty: nothing staged)
 
 	g := gitHelper{runner: mr}
-	committed, err := g.commitChangelog([]string{"CHANGELOG.md"}, "chore(release): 1.2.3", true)
+	committed, err := g.commitChangelog([]string{"CHANGELOG.md"}, "chore(release): 1.2.3", false)
 	require.NoError(t, err)
 	assert.False(t, committed)
 
 	require.Len(t, mr.Calls, 2)
 	assert.Equal(t, []string{"add", "CHANGELOG.md"}, mr.Calls[0].Args)
 	assert.Equal(t, []string{"diff", "--cached", "--name-only"}, mr.Calls[1].Args)
+}
+
+// TestCommitChangelog_NothingStagedStillPushes covers T360: a retry after a failed push finds
+// the changelog already committed locally, so nothing is staged, but the release commit is still
+// missing on the remote — HEAD must be pushed anyway (a no-op when already up to date).
+func TestCommitChangelog_NothingStagedStillPushes(t *testing.T) {
+	mr := exectest.NewMockRunner()
+	mr.QueueResponse("", "", nil) // git add
+	mr.QueueResponse("", "", nil) // git diff --cached --name-only (empty: nothing staged)
+	mr.QueueResponse("", "", nil) // git push origin HEAD
+
+	g := gitHelper{runner: mr}
+	committed, err := g.commitChangelog([]string{"CHANGELOG.md"}, "chore(release): 1.2.3", true)
+	require.NoError(t, err)
+	assert.False(t, committed)
+
+	require.Len(t, mr.Calls, 3)
+	assert.Equal(t, []string{"push", "origin", "HEAD"}, mr.Calls[2].Args)
+}
+
+// TestCommitChangelog_NothingStagedPushError propagates a failed push on the retry path.
+func TestCommitChangelog_NothingStagedPushError(t *testing.T) {
+	mr := exectest.NewMockRunner()
+	mr.QueueResponse("", "", nil)                              // git add
+	mr.QueueResponse("", "", nil)                              // git diff --cached (nothing staged)
+	mr.QueueResponse("", "", errors.New("remote unreachable")) // git push fails
+
+	g := gitHelper{runner: mr}
+	committed, err := g.commitChangelog([]string{"CHANGELOG.md"}, "chore(release): 1.2.3", true)
+	require.Error(t, err)
+	assert.False(t, committed)
+	assert.Contains(t, err.Error(), "git push")
 }
 
 // TestCommitChangelog_DiffError propagates a genuine `git diff --cached` failure

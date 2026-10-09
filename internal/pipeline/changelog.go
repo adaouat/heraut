@@ -65,6 +65,9 @@ type ChangelogPipeline struct {
 	out      io.Writer
 	dryRun   bool
 	reporter ui.StepFn
+	// committed records whether this run created the changelog commit, so the summary does not
+	// claim a commit when nothing was staged (T360).
+	committed bool
 }
 
 // NewChangelog constructs a ChangelogPipeline.
@@ -267,6 +270,7 @@ func (p *ChangelogPipeline) Run() error {
 			}); err != nil {
 				return err
 			}
+			p.committed = committed
 			if !committed {
 				warnNothingToCommit(p.out, file)
 			}
@@ -400,9 +404,14 @@ func (p *ChangelogPipeline) printSummary(result versioning.Result) {
 		_, _ = fmt.Fprintf(p.out, "\nChangelog updated for %s\n", result.Tag)
 		if (p.cfg.Commit || p.cfg.Tag) && p.cfg.Changelog != nil {
 			file := resolvedChangelogFile(p.cfg.Changelog, p.cfg.ChangelogFile)
-			if p.cfg.NoPush {
+			switch {
+			case !p.committed && p.cfg.NoPush:
+				_, _ = fmt.Fprintf(p.out, "  %s unchanged, nothing committed\n", file)
+			case !p.committed:
+				_, _ = fmt.Fprintf(p.out, "  %s unchanged, HEAD pushed\n", file)
+			case p.cfg.NoPush:
 				_, _ = fmt.Fprintf(p.out, "  %s committed (not pushed)\n", file)
-			} else {
+			default:
 				_, _ = fmt.Fprintf(p.out, "  %s committed and pushed\n", file)
 			}
 		}

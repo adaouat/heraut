@@ -406,6 +406,7 @@ func TestChangelogRun_NothingToCommit(t *testing.T) {
 	mr := exectest.NewMockRunner()
 	mr.QueueResponse("", "", nil) // git add
 	mr.QueueResponse("", "", nil) // git diff --cached --name-only (empty: nothing staged)
+	mr.QueueResponse("", "", nil) // git push origin HEAD
 	mr.QueueResponse("", "", nil) // git tag
 	mr.QueueResponse("", "", nil) // git push <tag>
 
@@ -424,11 +425,12 @@ func TestChangelogRun_NothingToCommit(t *testing.T) {
 	for _, c := range mr.Calls {
 		require.NotEqual(t, "commit", c.Args[0], "git commit must be skipped when nothing is staged")
 	}
-	require.Len(t, mr.Calls, 4)
+	require.Len(t, mr.Calls, 5)
 	assert.Equal(t, []string{"add", "CHANGELOG.md"}, mr.Calls[0].Args)
 	assert.Equal(t, []string{"diff", "--cached", "--name-only"}, mr.Calls[1].Args)
-	assert.Equal(t, []string{"tag", "v1.2.3"}, mr.Calls[2].Args)
-	assert.Equal(t, []string{"push", "origin", "v1.2.3"}, mr.Calls[3].Args)
+	assert.Equal(t, []string{"push", "origin", "HEAD"}, mr.Calls[2].Args)
+	assert.Equal(t, []string{"tag", "v1.2.3"}, mr.Calls[3].Args)
+	assert.Equal(t, []string{"push", "origin", "v1.2.3"}, mr.Calls[4].Args)
 
 	assert.Contains(t, out.String(), "nothing to commit — CHANGELOG.md and any hook-staged files are unchanged")
 }
@@ -571,4 +573,42 @@ func TestChangelogRun_PreRelease_WithoutTagExitsCleanly(t *testing.T) {
 	require.NoError(t, p.Run())
 	assert.Contains(t, out.String(), "CHANGELOG.md not updated")
 	assert.Empty(t, mr.Calls)
+}
+
+// TestChangelogRun_NothingToCommit_SummaryDoesNotClaimCommit covers T360: when nothing was staged
+// no commit exists to report, so the summary must not say "committed"; the push still happened.
+func TestChangelogRun_NothingToCommit_SummaryDoesNotClaimCommit(t *testing.T) {
+	tests := []struct {
+		name   string
+		noPush bool
+		want   string
+	}{
+		{"pushed", false, "CHANGELOG.md unchanged, HEAD pushed"},
+		{"no-push", true, "CHANGELOG.md unchanged, nothing committed"},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			mr := exectest.NewMockRunner()
+			mr.QueueResponse("", "", nil) // git add
+			mr.QueueResponse("", "", nil) // git diff --cached (nothing staged)
+			if !tc.noPush {
+				mr.QueueResponse("", "", nil) // git push origin HEAD
+			}
+			cfg := &pipeline.ChangelogConfig{
+				Changelog: &testutil.MockGenerator{}, ChangelogFile: "CHANGELOG.md",
+				Commit: true, NoPush: tc.noPush,
+			}
+			var out bytes.Buffer
+			p := pipeline.NewChangelog(mr, &fakeResolver{result: resolvedResult("v1.2.3")}, cfg, &out, false).
+				WithReporter(func(_ string, fn func() (string, []string, error)) error {
+					_, _, err := fn()
+					return err
+				})
+			require.NoError(t, p.Run())
+
+			assert.Contains(t, out.String(), tc.want)
+			assert.NotContains(t, out.String(), "committed and pushed")
+			assert.NotContains(t, out.String(), "committed (not pushed)")
+		})
+	}
 }

@@ -931,6 +931,7 @@ func TestRun_ChangelogNothingToCommit(t *testing.T) {
 	mr := exectest.NewMockRunner()
 	mr.QueueResponse("", "", nil) // git add
 	mr.QueueResponse("", "", nil) // git diff --cached --name-only (empty: nothing staged)
+	mr.QueueResponse("", "", nil) // git push origin HEAD
 	mr.QueueResponse("", "", nil) // git tag
 	mr.QueueResponse("", "", nil) // git push <tag>
 
@@ -947,15 +948,16 @@ func TestRun_ChangelogNothingToCommit(t *testing.T) {
 	p := pipeline.New(mr, &fakeResolver{result: resolvedResult("v1.2.3")}, cfg, out, false)
 	require.NoError(t, p.Run())
 
-	// No commit and no HEAD push happened.
+	// No commit, but HEAD is still pushed (T360).
 	for _, c := range mr.Calls {
 		require.NotEqual(t, "commit", c.Args[0], "git commit must be skipped when nothing is staged")
 	}
-	require.Len(t, mr.Calls, 4)
+	require.Len(t, mr.Calls, 5)
 	assert.Equal(t, []string{"add", "CHANGELOG.md"}, mr.Calls[0].Args)
 	assert.Equal(t, []string{"diff", "--cached", "--name-only"}, mr.Calls[1].Args)
-	assert.Equal(t, []string{"tag", "v1.2.3"}, mr.Calls[2].Args)
-	assert.Equal(t, []string{"push", "origin", "v1.2.3"}, mr.Calls[3].Args)
+	assert.Equal(t, []string{"push", "origin", "HEAD"}, mr.Calls[2].Args)
+	assert.Equal(t, []string{"tag", "v1.2.3"}, mr.Calls[3].Args)
+	assert.Equal(t, []string{"push", "origin", "v1.2.3"}, mr.Calls[4].Args)
 
 	// Still published.
 	require.Len(t, platform.CreateReleaseCalls, 1)

@@ -113,6 +113,7 @@ func TestRun_PreChangelogHook_FiresBeforeChangelogGeneration(t *testing.T) {
 	mr.QueueResponse("", "", nil) // sh -c (pre_changelog)
 	mr.QueueResponse("", "", nil) // git add
 	mr.QueueResponse("", "", nil) // git diff --cached (no staged changes)
+	mr.QueueResponse("", "", nil) // git push origin HEAD (still pushed, T360)
 	mr.QueueResponse("", "", nil) // git tag
 	mr.QueueResponse("", "", nil) // git push <tag>
 
@@ -125,7 +126,7 @@ func TestRun_PreChangelogHook_FiresBeforeChangelogGeneration(t *testing.T) {
 	p := pipeline.New(mr, &fakeResolver{result: resolvedResult("v1.2.3")}, cfg, &bytes.Buffer{}, false)
 	require.NoError(t, p.Run())
 
-	require.Len(t, mr.Calls, 5)
+	require.Len(t, mr.Calls, 6)
 	assert.Equal(t, "sh", mr.Calls[0].Name)
 	assert.Equal(t, []string{"-c", "make lint"}, mr.Calls[0].Args)
 	assert.Equal(t, "git", mr.Calls[1].Name)
