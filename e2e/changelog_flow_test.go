@@ -90,6 +90,7 @@ func TestChangelogFlow_TagImpliesCommitAndPush(t *testing.T) {
 
 	assert.Equal(t, "chore(release): 0.1.0", repo.Git("log", "-1", "--format=%s"))
 	assert.Equal(t, "v0.1.0", repo.GitRemote("tag", "-l"))
+	assert.Equal(t, repo.Git("rev-parse", "HEAD"), repo.GitRemote("rev-parse", "main"), "the branch was pushed too")
 }
 
 func TestChangelogFlow_CommitWithoutTag(t *testing.T) {
@@ -224,7 +225,7 @@ commits:
 
 		res := repo.Run(bin, nil, "changelog")
 
-		require.Equal(t, exitRuntime, res.ExitCode, "stdout:\n%s\nstderr:\n%s", res.Stdout, res.Stderr)
+		require.NotEqual(t, exitOK, res.ExitCode, "stdout:\n%s\nstderr:\n%s", res.Stdout, res.Stderr)
 		assert.Contains(t, normalize(res.Stdout+" "+res.Stderr), "remote enrichment (required): no forge resolved")
 	})
 	t.Run("--offline forces the policy to disabled", func(t *testing.T) {

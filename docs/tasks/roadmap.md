@@ -228,7 +228,7 @@ discipline that applies to every task.
 | 57 | SBOM generation; shell completions investigated | Done — completions not shipped (ADR-0013 + notarization gap), see T321/T322 |
 | 58 | Homebrew cask: tar.gz archive for completions/man pages | Done — see T323 |
 | 59 | SemVer v2 compliance and pre-release lifecycle | Done — see `semver-v2-roadmap.md` |
-| 60 | End-to-end tests: hermetic binary lane + opt-in forge sandboxes | In progress — T345a, T345b1-b3, T345b4a, T357, T358 done; T345b4b-b5, c, d open; T359 open |
+| 60 | End-to-end tests: hermetic binary lane + opt-in forge sandboxes | In progress — T345a, T345b1-b3, T345b4a, T357, T358 done; T345b4b-b5, c, d open; T359, T360 open |
 | 61 | GitLab publish driver follow-ups from T335 | In progress — T346 done, T347 (needs design) open |
 | 62 | Version branches: version from the branch name | Not started — see T348 (needs design) |
 | 63 | CalVer history-aware changelog bounds | Not started — see T356 |
@@ -2672,7 +2672,7 @@ testify only), done in whichever part touches the harness next.
     **Completion note:** executed from `docs/superpowers/plans/2026-10-09-e2e-changelog-flow-t345b4a.md`.
     12 standalone tests (14 with subtests) in `e2e/changelog_flow_test.go`; the e2e package now runs
     144 subtests. The harness gained a bare remote (`AddRemote`, `RemoveRemote`) and `Git`,
-    `GitRemote`, `WriteFile`. Every flow behaved as documented on the first run; the tests assert
+    `GitRemote`, `WriteFile`. Every documented flow behaved as documented on the first run, but the review found one defect next to the failing-push test (T360); the tests assert
     local and remote state (HEAD, tags, branch arrival, tag target, file presence) rather than output
     text alone.
   - `[ ]` **T345b4b**: hooks: the six points and their order, `--no-hooks`, `--skip-hook`,
@@ -2752,6 +2752,20 @@ current code).
 The per-env branch guard (`Environment "prod" must be operated from branch "main"…`) takes the same
 default (3) through `wrapRunErr`, and Spec 01/02 do not pin its code either. Decide it together
 with the above; the guard's e2e row asserts only "non-zero" until then (`exitAnyFailure`).
+
+#### `[ ]` T360: a retry after a failed push claims "committed and pushed" without pushing the branch
+
+Found by the T345b4a review and reproduced by hand. `heraut changelog --commit --tag` with the
+remote unreachable commits the changelog locally and fails at `git push` (exit 3). Re-running it
+after the remote is back finds the changelog identical, so `commitChangelog`
+(`internal/pipeline/git.go`) returns at "nothing to stage" **before** `git push origin HEAD`: the
+run then tags, pushes the tag, and prints `CHANGELOG.md committed and pushed`, yet remote `main`
+still lacks the release commit, and the remote tag points at a commit that is on no remote branch.
+Fix at the root: push HEAD even when nothing new is staged (or compare local and remote), and never
+print "pushed" for a push that did not happen; also reword the "nothing to commit … continuing to
+tag and release" warning, which `changelog` reuses. Then add a two-run e2e test (fail, restore the
+remote, re-run) to `e2e/changelog_flow_test.go`; it was left out of T345b4a so a test does not cement
+the current behaviour.
 
 ### Phase 61 — GitLab publish driver follow-ups from T335
 
