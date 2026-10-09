@@ -3,6 +3,7 @@
 package e2e_test
 
 import (
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -113,3 +114,7 @@ func TestForge_B4_PerEnvTagWithAsset(t *testing.T) {
 		assert.Equal(t, 1, rel.AssetCount, "the asset was attached")
 	})
 }
+
+func trimmed(s string) string { return strings.TrimSpace(s) }
+
+func replaceOnce(s, old, new string) string { return strings.Replace(s, old, new, 1) }
