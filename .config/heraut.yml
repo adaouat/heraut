@@ -15,6 +15,10 @@ commits:
       deny: '(?i)\bClaude-Session\b'
       target: footer
       message: "Claude-Session is not allowed in commit messages"
+    - name: subject-max-72
+      deny: '^.{73,}'
+      target: header
+      message: "commit subject must be at most 72 characters"
 
 changelog:
   output: CHANGELOG.md
