@@ -121,7 +121,10 @@ func TestHooks_AFailingHookAbortsWithoutRollback(t *testing.T) {
 	res := repo.Run(bin, nil, "changelog", "--commit", "--tag", "--offline")
 
 	require.NotEqual(t, exitOK, res.ExitCode, "stdout:\n%s\nstderr:\n%s", res.Stdout, res.Stderr)
-	assert.Contains(t, normalize(res.Stdout+" "+res.Stderr), `hook "exit 7"`)
+	out := normalize(res.Stdout + " " + res.Stderr)
+	assert.Contains(t, out, `hook "exit 7"`)
+	assert.Contains(t, out, "changelog failed", "the panel heading names the command, not the generation step")
+	assert.NotContains(t, out, "generation failed", "the failing hook is not the changelog generation")
 	assert.Equal(t, "chore(release): 0.1.0", repo.Git("log", "-1", "--format=%s"), "the changelog commit stays")
 	assert.Equal(t, repo.Git("rev-parse", "HEAD"), repo.GitRemote("rev-parse", "main"), "and it was already pushed")
 	assert.Empty(t, repo.Git("tag", "-l"), "but no tag was created")
