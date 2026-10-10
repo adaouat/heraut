@@ -55,7 +55,7 @@ func TestPerEnv_AutoBump(t *testing.T) {
 			args:    envArgs("current", "prod"), wantExit: exitRuntime, wantText: []string{"no tags found for \"prod/*\""}},
 		{name: "version next without --env is a config error", config: perEnvCfg,
 			history: []step{commit("feat: a")},
-			args:    []string{"version", "next"}, wantExit: exitConfig, wantText: []string{`environment "" not found in config`}},
+			args:    []string{"version", "next"}, wantExit: exitConfig, wantText: []string{"--env is required for semver-per-env strategy"}},
 		{name: "version next with an unknown --env is a config error", config: perEnvCfg,
 			history: []step{commit("feat: a")},
 			args:    envArgs("next", "nope"), wantExit: exitConfig, wantText: []string{`environment "nope" not found in config`}},
