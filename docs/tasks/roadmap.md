@@ -2897,6 +2897,17 @@ they only pin the `wrapBranchErr` sites). ADR-0068 mentions `version current`. D
 purpose: the typed `EnvSelectionError` replacement for the sentence-completing sentinels, which
 was marked optional and works as is.
 
+#### `[x]` T362: failing-hook panel heading and the B6 nightly flake
+
+Two leftovers of the e2e epic. (1) `heraut changelog` headed every pipeline failure
+`Changelog generation failed.`, including a failing `post_bump`/`pre_tag` hook (observed in
+T345b4b); the summary is now `changelog failed`, matching `release failed`, and the hooks e2e test
+asserts it. (2) The first scheduled forge run failed in B6: the two targets' notes are rendered at
+different moments and the footer's `at HH:MM on DATE` differed across a minute boundary; the
+comparison now ignores the generation time (`withoutLinks`, covered by an offline test runnable with
+`go test -tags e2e_forge -run TestWithoutLinks ./e2e/`). The earlier one-off B8 failure is
+unexplained and has not recurred.
+
 ### Phase 61 — GitLab publish driver follow-ups from T335
 
 Two items surfaced while designing T335 (see its completion note in
