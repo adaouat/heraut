@@ -151,6 +151,9 @@ func TestExitCode_EnvSelection_Config(t *testing.T) {
 		{"version current without --env", []string{"version", "current"}},
 		{"version current with an unknown --env", []string{"version", "current", "--env", "nope"}},
 		{"changelog with an unknown --env", []string{"changelog", "--dry-run", "--env", "nope"}},
+		{"release with an unknown --env", []string{"release", "--dry-run", "--env", "nope"}},
+		{"changelog from the wrong branch", []string{"changelog", "--env", "prod"}},
+		{"release from the wrong branch", []string{"release", "--env", "prod"}},
 		{"version next from the wrong branch", []string{"version", "next", "--env", "prod"}},
 		{"version current from the wrong branch", []string{"version", "current", "--env", "prod"}},
 	}

@@ -67,6 +67,9 @@ func tagFormat(cfg *config.Config, env string) string {
 
 // Resolve returns the next version for the active environment.
 func (r *Resolver) Resolve() (versioning.Result, error) {
+	if r.env == "" {
+		return versioning.Result{}, fmt.Errorf("--env %w for %s strategy", ErrEnvRequired, r.cfg.Versioning.Strategy)
+	}
 	envCfg, ok := r.cfg.Environments[r.env]
 	if !ok {
 		return versioning.Result{}, fmt.Errorf("environment %q %w", r.env, ErrEnvNotFound)

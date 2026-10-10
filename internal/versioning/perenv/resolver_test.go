@@ -746,6 +746,19 @@ func TestResolve_UnknownEnvironment_Error(t *testing.T) {
 	_, err := r.Resolve()
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "staging")
+	assert.ErrorIs(t, err, perenv.ErrEnvNotFound)
+}
+
+func TestResolve_MissingEnvironment_IsEnvRequired(t *testing.T) {
+	cfg := &config.Config{
+		Versioning:   config.Versioning{Strategy: "semver-per-env"},
+		Environments: map[string]config.Environment{"dev": {Bump: "auto", TagFormat: "dev/{version}"}},
+	}
+
+	r := perenv.New(exectest.NewMockRunner(), cfg, "", false, semverCalc("0.1.0"))
+	_, err := r.Resolve()
+	require.ErrorIs(t, err, perenv.ErrEnvRequired)
+	assert.Contains(t, err.Error(), "--env is required")
 }
 
 func TestResolve_UnknownBumpMode_Error(t *testing.T) {
