@@ -2908,6 +2908,16 @@ comparison now ignores the generation time (`withoutLinks`, covered by an offlin
 `go test -tags e2e_forge -run TestWithoutLinks ./e2e/`). The earlier one-off B8 failure is
 unexplained and has not recurred.
 
+#### `[x]` T363: pin the exit code of failing hooks and failed publishes
+
+Spec 01 now lists a non-zero hook command and a failing publish CLI (including the run that skipped
+a target after a failed `pre_release`) under code 3, which is what the binary already returned; the
+six e2e rows in `hooks_test.go` and `release_flow_test.go` that asserted only "non-zero" now assert
+`exitRuntime`. No production change, so no ADR. Also in this change: `.config/heraut.yml` gained a
+`subject-max-72` rule (`commits.rules`, `target: header`, ADR-0056), which makes the commit-msg hook
+enforce the 72-character limit of `.claude/rules/workflow.md`. Nothing else runs `commit check`
+over history, so already-pushed long subjects (e.g. `4346292`) do not affect the next release.
+
 ### Phase 61 — GitLab publish driver follow-ups from T335
 
 Two items surfaced while designing T335 (see its completion note in
