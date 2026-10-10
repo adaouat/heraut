@@ -104,22 +104,53 @@ func TestCommitChangelog_NothingStagedSkips(t *testing.T) {
 	assert.Equal(t, []string{"diff", "--cached", "--name-only"}, mr.Calls[1].Args)
 }
 
-// TestCommitChangelog_NothingStagedStillPushes covers T360: a retry after a failed push finds
-// the changelog already committed locally, so nothing is staged, but the release commit is still
-// missing on the remote — HEAD must be pushed anyway (a no-op when already up to date).
-func TestCommitChangelog_NothingStagedStillPushes(t *testing.T) {
+// TestCommitChangelog_NothingStagedPushesUnpushedCommits covers T360: a retry after a failed push
+// finds the changelog already committed locally, so nothing is staged, but the release commit is
+// still ahead of its upstream — HEAD must be pushed anyway.
+func TestCommitChangelog_NothingStagedPushesUnpushedCommits(t *testing.T) {
 	mr := exectest.NewMockRunner()
-	mr.QueueResponse("", "", nil) // git add
-	mr.QueueResponse("", "", nil) // git diff --cached --name-only (empty: nothing staged)
-	mr.QueueResponse("", "", nil) // git push origin HEAD
+	mr.QueueResponse("", "", nil)    // git add
+	mr.QueueResponse("", "", nil)    // git diff --cached --name-only (empty: nothing staged)
+	mr.QueueResponse("1\n", "", nil) // git rev-list --count @{u}..HEAD
+	mr.QueueResponse("", "", nil)    // git push origin HEAD
 
 	g := gitHelper{runner: mr}
 	committed, err := g.commitChangelog([]string{"CHANGELOG.md"}, "chore(release): 1.2.3", true)
 	require.NoError(t, err)
 	assert.False(t, committed)
 
-	require.Len(t, mr.Calls, 3)
-	assert.Equal(t, []string{"push", "origin", "HEAD"}, mr.Calls[2].Args)
+	require.Len(t, mr.Calls, 4)
+	assert.Equal(t, []string{"rev-list", "--count", "@{u}..HEAD"}, mr.Calls[2].Args)
+	assert.Equal(t, []string{"push", "origin", "HEAD"}, mr.Calls[3].Args)
+}
+
+// TestCommitChangelog_NothingStagedNothingToPush keeps the pre-T360 behaviour where there is
+// nothing to deliver or no way to tell: HEAD already on its upstream, a detached HEAD (the norm in
+// CI checkouts) or a branch without an upstream make `git push origin HEAD` pointless or failing.
+func TestCommitChangelog_NothingStagedNothingToPush(t *testing.T) {
+	tests := []struct {
+		name  string
+		out   string
+		err   error
+		calls int
+	}{
+		{"HEAD is already on its upstream", "0\n", nil, 3},
+		{"detached HEAD or no upstream", "", errors.New("fatal: no upstream configured"), 3},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			mr := exectest.NewMockRunner()
+			mr.QueueResponse("", "", nil)        // git add
+			mr.QueueResponse("", "", nil)        // git diff --cached (nothing staged)
+			mr.QueueResponse(tc.out, "", tc.err) // git rev-list --count @{u}..HEAD
+
+			g := gitHelper{runner: mr}
+			committed, err := g.commitChangelog([]string{"CHANGELOG.md"}, "chore(release): 1.2.3", true)
+			require.NoError(t, err)
+			assert.False(t, committed)
+			require.Len(t, mr.Calls, tc.calls, "no push attempted")
+		})
+	}
 }
 
 // TestCommitChangelog_NothingStagedPushError propagates a failed push on the retry path.
@@ -127,6 +158,7 @@ func TestCommitChangelog_NothingStagedPushError(t *testing.T) {
 	mr := exectest.NewMockRunner()
 	mr.QueueResponse("", "", nil)                              // git add
 	mr.QueueResponse("", "", nil)                              // git diff --cached (nothing staged)
+	mr.QueueResponse("2\n", "", nil)                           // git rev-list --count @{u}..HEAD
 	mr.QueueResponse("", "", errors.New("remote unreachable")) // git push fails
 
 	g := gitHelper{runner: mr}

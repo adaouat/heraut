@@ -127,8 +127,9 @@ has no such requirement (see § Tag-only workflow below).
    a re-run after a partial release, or a release with no changelog-worthy commits), the
    commit is **skipped** with a warning naming the file, and the pipeline continues to tag
    and publish rather than failing on git's "nothing to commit" exit. `git push origin HEAD`
-   still runs (unless `--no-push`), so a retry after a failed push delivers the release commit
-   the tag points at.
+   still runs when `HEAD` is ahead of its upstream, so a retry after a failed push delivers
+   the release commit the tag points at; a detached `HEAD` or a branch without upstream is
+   left alone.
 5. **Create git tag** (annotated by default; set `versioning.tag_type: lightweight` to use a bare ref tag) on the changelog commit, then `git push origin <tag>`
 6. **For each target** in `release.targets` (in declared order, or the single resolved
    forge with default options when `release.targets` is omitted):
@@ -205,8 +206,10 @@ relative to these steps, see [Guide: Release pipeline and hook positions](../gui
 2. Generate and update `CHANGELOG.md` (only if `changelog` is configured)
 3. Commit and push — `chore(release): <version>` (push skipped with `--no-push`). If
    `git add` stages nothing (the changelog is byte-identical to the last commit), the
-   commit and its push are skipped with a warning naming the file; with `--tag` the tag
-   is still created on the current `HEAD`.
+   commit is skipped with a warning naming the file; with `--tag` the tag is still created
+   on the current `HEAD`. A push still happens when `HEAD` is ahead of its upstream (a retry
+   after a failed push), unless `--no-push`; a detached `HEAD` or a branch without upstream
+   is left alone.
 4. Create a git tag (annotated by default; set `versioning.tag_type: lightweight` for a bare ref tag) on that commit
 5. Push tag (`git push origin <tag>`) — skipped with `--no-push`
 

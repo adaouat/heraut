@@ -20,7 +20,7 @@ flowchart TD
     C -- no --> D{"changelog configured and<br/>not disabled for this env?"}
     D -- yes --> H2{{"hook: pre_changelog"}}
     H2 --> E["Generate changelog"]
-    E --> F["Commit changelog + push<br/>(skipped if byte-identical to last commit)"]
+    E --> F["Commit changelog + push<br/>(commit skipped if byte-identical;<br/>HEAD still pushed when ahead of its upstream)"]
     F --> H3{{"hook: pre_tag"}}
     D -- no --> H3
     H3 --> G["Create tag"]

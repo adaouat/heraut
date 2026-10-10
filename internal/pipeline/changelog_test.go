@@ -404,11 +404,12 @@ func TestChangelogRun_DisabledChangelog_WithTag(t *testing.T) {
 // are skipped with a warning, and the tag is still created when Tag is set.
 func TestChangelogRun_NothingToCommit(t *testing.T) {
 	mr := exectest.NewMockRunner()
-	mr.QueueResponse("", "", nil) // git add
-	mr.QueueResponse("", "", nil) // git diff --cached --name-only (empty: nothing staged)
-	mr.QueueResponse("", "", nil) // git push origin HEAD
-	mr.QueueResponse("", "", nil) // git tag
-	mr.QueueResponse("", "", nil) // git push <tag>
+	mr.QueueResponse("", "", nil)    // git add
+	mr.QueueResponse("", "", nil)    // git diff --cached --name-only (empty: nothing staged)
+	mr.QueueResponse("1\n", "", nil) // git rev-list --count @{u}..HEAD (unpushed commit)
+	mr.QueueResponse("", "", nil)    // git push origin HEAD
+	mr.QueueResponse("", "", nil)    // git tag
+	mr.QueueResponse("", "", nil)    // git push <tag>
 
 	gen := &testutil.MockGenerator{}
 
@@ -425,12 +426,13 @@ func TestChangelogRun_NothingToCommit(t *testing.T) {
 	for _, c := range mr.Calls {
 		require.NotEqual(t, "commit", c.Args[0], "git commit must be skipped when nothing is staged")
 	}
-	require.Len(t, mr.Calls, 5)
+	require.Len(t, mr.Calls, 6)
 	assert.Equal(t, []string{"add", "CHANGELOG.md"}, mr.Calls[0].Args)
 	assert.Equal(t, []string{"diff", "--cached", "--name-only"}, mr.Calls[1].Args)
-	assert.Equal(t, []string{"push", "origin", "HEAD"}, mr.Calls[2].Args)
-	assert.Equal(t, []string{"tag", "v1.2.3"}, mr.Calls[3].Args)
-	assert.Equal(t, []string{"push", "origin", "v1.2.3"}, mr.Calls[4].Args)
+	assert.Equal(t, []string{"rev-list", "--count", "@{u}..HEAD"}, mr.Calls[2].Args)
+	assert.Equal(t, []string{"push", "origin", "HEAD"}, mr.Calls[3].Args)
+	assert.Equal(t, []string{"tag", "v1.2.3"}, mr.Calls[4].Args)
+	assert.Equal(t, []string{"push", "origin", "v1.2.3"}, mr.Calls[5].Args)
 
 	assert.Contains(t, out.String(), "nothing to commit — CHANGELOG.md and any hook-staged files are unchanged")
 }
@@ -592,7 +594,8 @@ func TestChangelogRun_NothingToCommit_SummaryDoesNotClaimCommit(t *testing.T) {
 			mr.QueueResponse("", "", nil) // git add
 			mr.QueueResponse("", "", nil) // git diff --cached (nothing staged)
 			if !tc.noPush {
-				mr.QueueResponse("", "", nil) // git push origin HEAD
+				mr.QueueResponse("1\n", "", nil) // git rev-list --count @{u}..HEAD
+				mr.QueueResponse("", "", nil)    // git push origin HEAD
 			}
 			cfg := &pipeline.ChangelogConfig{
 				Changelog: &testutil.MockGenerator{}, ChangelogFile: "CHANGELOG.md",

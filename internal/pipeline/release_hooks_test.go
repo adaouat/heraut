@@ -113,7 +113,7 @@ func TestRun_PreChangelogHook_FiresBeforeChangelogGeneration(t *testing.T) {
 	mr.QueueResponse("", "", nil) // sh -c (pre_changelog)
 	mr.QueueResponse("", "", nil) // git add
 	mr.QueueResponse("", "", nil) // git diff --cached (no staged changes)
-	mr.QueueResponse("", "", nil) // git push origin HEAD (still pushed, T360)
+	mr.QueueResponse("", "", nil) // git rev-list --count @{u}..HEAD (nothing to push)
 	mr.QueueResponse("", "", nil) // git tag
 	mr.QueueResponse("", "", nil) // git push <tag>
 

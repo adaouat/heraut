@@ -2,6 +2,7 @@ package pipeline
 
 import (
 	"fmt"
+	"strconv"
 	"strings"
 
 	"github.com/adaouat/heraut/internal/port"
@@ -46,8 +47,9 @@ func (g *gitHelper) runInteractive(name string, args ...string) error {
 // actually created: when `git add` stages nothing across every path — every file byte-identical
 // to the last commit — it returns (false, nil) without committing so the caller can warn and
 // continue to tag/publish rather than failing on git's "nothing to commit" exit. HEAD is still
-// pushed in that case: a previous run may have committed locally and failed at the push, and the
-// tag pushed afterwards would otherwise point at a commit on no remote branch (T360). A files entry
+// pushed in that case when it is ahead of its upstream: a previous run may have committed locally
+// and failed at the push, and the tag pushed afterwards would otherwise point at a commit on no
+// remote branch (T360). A files entry
 // that matches nothing on disk is a `git add` failure like any other, propagated as-is — no new
 // zero-match detection needed (ADR-0061 Design §4).
 func (g *gitHelper) commitChangelog(files []string, msg string, push bool) (bool, error) {
@@ -63,12 +65,24 @@ func (g *gitHelper) commitChangelog(files []string, msg string, push bool) (bool
 			return false, fmt.Errorf("git commit: %w", err)
 		}
 	}
-	if push {
+	if push && (staged || g.aheadOfUpstream()) {
 		if err := g.run("git", "push", "origin", "HEAD"); err != nil {
 			return false, fmt.Errorf("git push: %w", err)
 		}
 	}
 	return staged, nil
+}
+
+// aheadOfUpstream reports whether HEAD holds commits its upstream lacks. It answers false when it
+// cannot tell — a detached HEAD (the norm in CI checkouts) or a branch without an upstream — where
+// pushing HEAD would fail and the run has nothing of its own to deliver.
+func (g *gitHelper) aheadOfUpstream() bool {
+	out, _, err := g.runner.Run("git", "rev-list", "--count", "@{u}..HEAD")
+	if err != nil {
+		return false
+	}
+	n, err := strconv.Atoi(strings.TrimSpace(out))
+	return err == nil && n > 0
 }
 
 // hasStagedChanges reports whether the index holds any staged change. A genuine git

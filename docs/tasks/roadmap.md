@@ -2861,9 +2861,11 @@ tag and release" warning, which `changelog` reuses. Then add a two-run e2e test 
 remote, re-run) to `e2e/changelog_flow_test.go`; it was left out of T345b4a so a test does not cement
 the current behaviour.
 
-**Completion note:** `commitChangelog` now commits only when something is staged but pushes
-`HEAD` whenever a push was requested, so a retry after a failed push delivers the release commit
-before the tag is pushed (a no-op `Everything up-to-date` when the remote already has it). It
+**Completion note:** `commitChangelog` now commits only when something is staged but also
+pushes `HEAD` when a push was requested and `HEAD` is ahead of its upstream (`git rev-list --count
+@{u}..HEAD`), so a retry after a failed push delivers the release commit before the tag is pushed.
+The review caught that an unconditional push would fail on a detached HEAD (the norm in CI) and on
+a stale branch, so an unreadable upstream counts as "nothing to push", as before. It
 still reports `committed=false` for a no-op run, and the changelog summary now says `unchanged,
 HEAD pushed` / `unchanged, nothing committed` instead of `committed and pushed`. The "nothing to
 commit … skipping commit, continuing to tag and release" warning was already accurate once the
@@ -2873,6 +2875,19 @@ the bug, not a contract); the no-push row of `TestCommitChangelog_NothingStagedS
 skip assertion. New e2e test `TestChangelogFlow_ARetryAfterAFailedPushPushesTheReleaseCommit`
 (with a `Repo.RestoreRemote` harness helper) fails against the old code. No ADR: it fixes a
 defect against the documented intent.
+
+#### `[ ]` T361: T359/T360 review follow-ups (minor)
+
+Surfaced by the Opus review of T359/T360; none blocks them.
+
+- `version next` without `--env` reports `environment "" not found in config` while `version
+  current` says `--env is required for …`: return `perenv.ErrEnvRequired` from the resolver when
+  `env == ""`, then update the e2e row that pins the current text.
+- Cover the unknown `--env` on `release`, and the branch guard on `release`/`changelog` without
+  `--dry-run`, in `TestExitCode_EnvSelection_Config` (the `wrapBranchErr` call sites).
+- Optionally replace the sentence-completing `ErrEnvNotFound`/`ErrEnvRequired` texts with a typed
+  `EnvSelectionError{Env, Strategy}` that owns its message.
+- ADR-0068's Consequences should mention that `version current` is covered too.
 
 ### Phase 61 — GitLab publish driver follow-ups from T335
 

@@ -929,11 +929,12 @@ func TestCheck_ChangelogGeneratorError(t *testing.T) {
 // commit with a warning naming the file and still tags + publishes.
 func TestRun_ChangelogNothingToCommit(t *testing.T) {
 	mr := exectest.NewMockRunner()
-	mr.QueueResponse("", "", nil) // git add
-	mr.QueueResponse("", "", nil) // git diff --cached --name-only (empty: nothing staged)
-	mr.QueueResponse("", "", nil) // git push origin HEAD
-	mr.QueueResponse("", "", nil) // git tag
-	mr.QueueResponse("", "", nil) // git push <tag>
+	mr.QueueResponse("", "", nil)    // git add
+	mr.QueueResponse("", "", nil)    // git diff --cached --name-only (empty: nothing staged)
+	mr.QueueResponse("1\n", "", nil) // git rev-list --count @{u}..HEAD (unpushed commit)
+	mr.QueueResponse("", "", nil)    // git push origin HEAD
+	mr.QueueResponse("", "", nil)    // git tag
+	mr.QueueResponse("", "", nil)    // git push <tag>
 
 	changelog := &testutil.MockGenerator{}
 	platform := &testutil.MockPlatform{PlatformName: "github"}
@@ -952,12 +953,13 @@ func TestRun_ChangelogNothingToCommit(t *testing.T) {
 	for _, c := range mr.Calls {
 		require.NotEqual(t, "commit", c.Args[0], "git commit must be skipped when nothing is staged")
 	}
-	require.Len(t, mr.Calls, 5)
+	require.Len(t, mr.Calls, 6)
 	assert.Equal(t, []string{"add", "CHANGELOG.md"}, mr.Calls[0].Args)
 	assert.Equal(t, []string{"diff", "--cached", "--name-only"}, mr.Calls[1].Args)
-	assert.Equal(t, []string{"push", "origin", "HEAD"}, mr.Calls[2].Args)
-	assert.Equal(t, []string{"tag", "v1.2.3"}, mr.Calls[3].Args)
-	assert.Equal(t, []string{"push", "origin", "v1.2.3"}, mr.Calls[4].Args)
+	assert.Equal(t, []string{"rev-list", "--count", "@{u}..HEAD"}, mr.Calls[2].Args)
+	assert.Equal(t, []string{"push", "origin", "HEAD"}, mr.Calls[3].Args)
+	assert.Equal(t, []string{"tag", "v1.2.3"}, mr.Calls[4].Args)
+	assert.Equal(t, []string{"push", "origin", "v1.2.3"}, mr.Calls[5].Args)
 
 	// Still published.
 	require.Len(t, platform.CreateReleaseCalls, 1)
