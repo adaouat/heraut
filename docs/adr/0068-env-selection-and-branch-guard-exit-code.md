@@ -36,5 +36,7 @@ unchanged.
 ## Consequences
 
 - Scripts that treated exit 3 from these cases as a transient failure and retried will now see 2.
+- `version current` classifies the same errors as 2, and `version next` without `--env` now says
+  `--env is required for …` like `version current` does.
 - `TestVersionNext_SetVersion_StillEnforcesBranchGuard` and the e2e branch-guard row, which pinned
   or left open the old code, now assert 2.

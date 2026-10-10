@@ -2876,7 +2876,7 @@ skip assertion. New e2e test `TestChangelogFlow_ARetryAfterAFailedPushPushesTheR
 (with a `Repo.RestoreRemote` harness helper) fails against the old code. No ADR: it fixes a
 defect against the documented intent.
 
-#### `[ ]` T361: T359/T360 review follow-ups (minor)
+#### `[x]` T361: T359/T360 review follow-ups (minor)
 
 Surfaced by the Opus review of T359/T360; none blocks them.
 
@@ -2888,6 +2888,14 @@ Surfaced by the Opus review of T359/T360; none blocks them.
 - Optionally replace the sentence-completing `ErrEnvNotFound`/`ErrEnvRequired` texts with a typed
   `EnvSelectionError{Env, Strategy}` that owns its message.
 - ADR-0068's Consequences should mention that `version current` is covered too.
+
+**Completion note:** `perenv.Resolver.Resolve` returns `ErrEnvRequired` ("--env is required for
+<strategy> strategy") for an empty env, so `version next` matches `version current`; the e2e row
+now pins that text. `TestExitCode_EnvSelection_Config` gained rows for `release` with an unknown
+`--env` and for the guard on `changelog`/`release` without `--dry-run` (they already passed, so
+they only pin the `wrapBranchErr` sites). ADR-0068 mentions `version current`. Deferred on
+purpose: the typed `EnvSelectionError` replacement for the sentence-completing sentinels, which
+was marked optional and works as is.
 
 ### Phase 61 — GitLab publish driver follow-ups from T335
 
