@@ -120,7 +120,7 @@ func TestHooks_AFailingHookAbortsWithoutRollback(t *testing.T) {
 
 	res := repo.Run(bin, nil, "changelog", "--commit", "--tag", "--offline")
 
-	require.NotEqual(t, exitOK, res.ExitCode, "stdout:\n%s\nstderr:\n%s", res.Stdout, res.Stderr)
+	require.Equal(t, exitRuntime, res.ExitCode, "stdout:\n%s\nstderr:\n%s", res.Stdout, res.Stderr)
 	out := normalize(res.Stdout + " " + res.Stderr)
 	assert.Contains(t, out, `hook "exit 7"`)
 	assert.Contains(t, out, "changelog failed", "the panel heading names the command, not the generation step")
@@ -144,7 +144,7 @@ func TestHooks_APostBumpFailureStopsBeforeAnythingIsGenerated(t *testing.T) {
 
 	res := repo.Run(bin, nil, "changelog", "--commit", "--tag", "--offline")
 
-	require.NotEqual(t, exitOK, res.ExitCode)
+	require.Equal(t, exitRuntime, res.ExitCode)
 	assert.Equal(t, []string{"one"}, logLines(repo.ReadFile(".hooklog")), "the first failing step stops its list")
 	assert.NoFileExists(t, repo.Dir+"/CHANGELOG.md")
 	assert.Equal(t, head, repo.Git("rev-parse", "HEAD"))
@@ -182,7 +182,7 @@ func TestHooks_Stage(t *testing.T) {
 
 		res := repo.Run(bin, nil, "changelog", "--commit", "--offline")
 
-		require.NotEqual(t, exitOK, res.ExitCode)
+		require.Equal(t, exitRuntime, res.ExitCode)
 		assert.Contains(t, normalize(res.Stdout+" "+res.Stderr), "pathspec 'nothing-here.txt' did not match any files")
 		assert.Equal(t, head, repo.Git("rev-parse", "HEAD"), "no commit")
 	})

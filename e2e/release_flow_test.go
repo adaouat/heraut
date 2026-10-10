@@ -157,7 +157,7 @@ func TestRelease_AFailingPublishAbortsTheLoop(t *testing.T) {
 
 	res := repo.Run(bin, tokens, "release", "--offline")
 
-	require.NotEqual(t, exitOK, res.ExitCode, "stdout:\n%s\nstderr:\n%s", res.Stdout, res.Stderr)
+	require.Equal(t, exitRuntime, res.ExitCode, "stdout:\n%s\nstderr:\n%s", res.Stdout, res.Stderr)
 	assert.Contains(t, normalize(res.Stdout+" "+res.Stderr), "publish to github")
 	for _, call := range repo.CLICalls() {
 		assert.False(t, strings.HasPrefix(call, "glab [release]"), "the second target must not publish: %s", call)
@@ -204,7 +204,7 @@ func TestRelease_ReleaseHooksRunPerTarget(t *testing.T) {
 
 		res := repo.Run(bin, tokens, "release", "--offline")
 
-		require.NotEqual(t, exitOK, res.ExitCode, "the run still fails when a target was skipped")
+		require.Equal(t, exitRuntime, res.ExitCode, "the run still fails when a target was skipped")
 		calls := repo.CLICalls()
 		for _, call := range calls {
 			assert.False(t, strings.HasPrefix(call, "gh [release]"), "github must be skipped: %s", call)
@@ -223,7 +223,7 @@ func TestRelease_AFailingPostReleaseHookWarnsAndTheLoopContinues(t *testing.T) {
 
 	res := repo.Run(bin, tokens, "release", "--offline")
 
-	require.NotEqual(t, exitOK, res.ExitCode, "the run still fails when a post_release hook failed")
+	require.Equal(t, exitRuntime, res.ExitCode, "the run still fails when a post_release hook failed")
 	calls := normCalls(repo.CLICalls())
 	assert.Contains(t, calls, "gh [release] [create] [v0.1.0] [--notes-file] [<notes>] [--repo] [acme/widget]", "github was published")
 	assert.Contains(t, calls, "glab [release] [create] [v0.1.0] [--notes-file] [<notes>] [--repo] [acme/widget]", "and the loop went on to gitlab")
