@@ -229,7 +229,7 @@ discipline that applies to every task.
 | 58 | Homebrew cask: tar.gz archive for completions/man pages | Done — see T323 |
 | 59 | SemVer v2 compliance and pre-release lifecycle | Done — see `semver-v2-roadmap.md` |
 | 60 | End-to-end tests: hermetic binary lane + opt-in forge sandboxes | Done — T345 (a-d), T357, T358, T359, T360 |
-| 61 | GitLab publish driver follow-ups from T335 | In progress — T346 done, T347 (needs design) open |
+| 61 | GitLab publish driver follow-ups from T335 | In progress — T346, T347 done; T364–T368 open, gated by T364 (ADR-0069) |
 | 62 | Version branches: version from the branch name | Not started — see T348 (needs design) |
 | 63 | CalVer history-aware changelog bounds | Not started — see T356 |
 
@@ -2960,7 +2960,7 @@ path). Also fixed Spec 05's `Platform` listing, which still showed `UploadAssets
 pre-`prerelease` `CreateRelease` signature. ADR-0011/0017's `UploadAssets` mentions are left as
 historical record. No deferred items.
 
-#### ✦ `[ ]` T347: design spike — GitLab publishing over native `net/http` instead of `glab` (needs design)
+#### `[x]` T347: design spike — GitLab publishing over native `net/http` instead of `glab` (needs design)
 
 ADR-0043's P3 deferred the publish transport ("stdlib vs SDK") to its own ADR, and P3 shipped as
 config unification only, so the question is still open. Motivation: drop `glab` as a runtime
@@ -2972,6 +2972,57 @@ version flag). Precedent (ADR-0034, ADR-0035, ADR-0043) favours extending the ex
 ADR should still weigh both, plus the GitLab/GitHub asymmetry (`gh` stays) and the scope of
 porting create-release, asset links, `Check()`, CI-autologin and self-hosted behaviour along with
 their contract tests. Output: an ADR plus a phased task breakdown, no implementation.
+
+**Completion note:** ADR-0069 (Proposed) records the probe and weighs native `net/http`, `client-go`
+and staying on `glab`; it deliberately does not pick between the first two. Live probe on
+gitlab.com: `glab release create` = tag (unused in heraut), project upload, release, asset links;
+the same two REST calls with `PRIVATE-TOKEN` reproduce it, including a stable download URL via
+`filepath` and `/` in tags. Two things stay unverified and gate the work (T364): whether
+`POST /uploads` accepts `CI_JOB_TOKEN` (GitLab's docs do not list it; `glab` uses the same
+endpoint, so a port is no worse than today), and whether the current path even autologins in CI
+(`glab` documents `GLAB_ENABLE_CI_AUTOLOGIN=true`, which heraut never sets). Correction to the
+task text: `platforms/*` and `forge/*` cannot import each other, so the client cannot just extend
+`internal/forge/gitlab`. The package-registry motivation is moot since T346. GitHub (`gh`) is left
+out of scope. Breakdown below.
+
+#### `[ ]` T364: gate — measure `client-go` and probe the CI job token
+
+Decides ADR-0069. (1) On a scratch branch add `gitlab.com/gitlab-org/api/client-go`, record binary
+size and `go.sum` growth. (2) In a sandbox GitLab project run a throwaway CI job that uploads a
+file and creates a release with `CI_JOB_TOKEN`, then the same through `glab` at the pinned 1.99.0
+with and without `GLAB_ENABLE_CI_AUTOLOGIN`; record each HTTP status. Output: ADR-0069 moves to
+Accepted with the transport and the job-token fallback chosen, plus a decision on whether the
+current `glab` path needs an autologin fix of its own. No product code; needs the user's OK for the
+sandbox CI job.
+
+#### `[ ]` T365: native GitLab publish client (create release, upload, asset links)
+
+Client inside `platforms/gitlab` (or a shared leaf, per the layering note in ADR-0069), over the
+transport T364 chose. `JOB-TOKEN` / `PRIVATE-TOKEN` auth, base-URL resolution reusing
+`resolveBaseURL`, multipart upload, release create with `assets.links[]` and `filepath`.
+`httptest.Server` contract tests port the current argv assertions row by row (globs, notes,
+slash tags, missing project, lenient assets).
+
+#### `[ ]` T366: swap the GitLab driver onto the client; port `Check()`, CI auth, self-hosted
+
+`platforms/gitlab` stops using `port.Runner`. `Check()` validates with `GET /user` (or the
+project) instead of `glab api`; `inCIAutologin()` becomes "use `CI_JOB_TOKEN` as `JOB-TOKEN`";
+self-hosted `base_url` replaces `GITLAB_HOST`. Port the `Check`/self-hosted tests (T215 semantics:
+same-host `base_url` as `CI_SERVER_URL`). Touches `app` wiring and the platform constructor
+signature in one commit.
+
+#### `[ ]` T367: drop `glab` from the runtime checks, image and fake-CLI harness
+
+`heraut check runtime` stops requiring `glab` (`internal/app/check.go`), the Dockerfile drops
+`GLAB_VERSION`, the Lane A `FakeCLI("glab")` scenarios move to an HTTP stub or are retired, and
+Spec 02, Spec 05, CLAUDE.md and the guides lose their `glab` wording. Needs the user's OK before
+touching the Dockerfile / CI.
+
+#### `[ ]` T368: Lane B and CI validation of the swap
+
+Run Lane B's GitLab scenarios (B1–B8, B10) against the sandbox, plus the T364 CI job against the
+real swapped driver. Records the observed job-token behaviour in the guide. Advisory workflow
+changes need the user's OK.
 
 ### Phase 62 — Version branches
 
