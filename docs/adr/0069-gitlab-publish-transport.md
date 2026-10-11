@@ -1,6 +1,6 @@
-# ADR-0069: GitLab publish transport — replace `glab` with a native API client
+# ADR-0069: GitLab publish transport — replace `glab` with `client-go`
 
-- **Status**: Proposed
+- **Status**: Accepted
 - **Date**: 2026-10-11
 - **Deciders**: bchatard
 
@@ -33,19 +33,39 @@ Reproduced with raw REST (`curl`): upload, then create-release with `assets.link
 `filepath: "/<file>"` on a link yields the same stable `/releases/<tag>/downloads/<file>` URL
 `glab` produces. A `/` in the tag works end to end. All of it worked with `PRIVATE-TOKEN`.
 
-### The open risk: the CI job token
+### Measured: the CI job token (T364, real GitLab CI on gitlab.com, shared runner)
 
-Under `CI_JOB_TOKEN` (`JOB-TOKEN` header), GitLab's job-token documentation lists the Releases and
-Release-links APIs as accessible but does **not** list `POST /projects/:id/uploads`. `glab` uses
-the same upload endpoint (`ProjectMarkdownUploads.UploadProjectMarkdown`) and the same header under
-CI autologin, so a native port inherits whatever `glab` does today; it is not a regression.
-Neither behaviour has been observed: Lane B runs from a laptop with a PAT, and no GitLab CI
-job has exercised either path.
+| call under `CI_JOB_TOKEN` (`JOB-TOKEN` header) | result |
+|---|---|
+| `POST /projects/:id/uploads` | 401 |
+| `GET /user` | 401 |
+| `GET /projects/:id` | 404 |
+| Generic Packages `PUT` | 201 |
+| Generic Packages `PUT`, `/` in the version | 400 `package_version is invalid` |
+| `POST /releases` (slash tag, tag created from the SHA) | 201 |
+| release link to a Generic Packages URL with `direct_asset_path` | 201, stable `/downloads/` URL |
+| `GET` / `DELETE` of a release | 200 |
 
-A related unknown on the *current* path: `glab`'s help says CI autologin needs
-`GLAB_ENABLE_CI_AUTOLOGIN=true`. Heraut's `inCIAutologin()` checks only `GITLAB_CI=true`, and
-neither heraut nor the Dockerfile sets that variable. Whether the pinned 1.99.0 autologins by
-default is unchecked.
+`glab release create <tag> a.txt` in the same CI, `glab` 1.99.0 (the pinned version) and 1.121.0
+behaved identically:
+
+- With `GLAB_ENABLE_CI_AUTOLOGIN=true`: the release is created, then the upload fails with 401 and
+  `glab` exits 1, leaving a release without assets.
+- Without it, which is what heraut runs today (it never sets the variable): 404, nothing created.
+
+So **the current GitLab CI path with assets is already broken**; only a release without assets works
+(autologin on). A port is not a regression, and it can fix this: the Generic Packages API accepts
+the job token. Not covered: `glab` with a project access token in `GITLAB_TOKEN` in CI (heraut
+skips token injection under `inCIAutologin()`, so it is expected to fail the same way).
+
+### Measured: `client-go` cost (v1.46.0, stripped, darwin/arm64)
+
+Probe touching `Releases`, `ReleaseLinks`, `ProjectMarkdownUploads`, `Users` and the job-token client
+(`GenericPackages` was not in the probe, but it hangs off the same `Client`, so the delta is representative):
+binary 19.6 MB to 23.1 MB (+3.5 MB, +18%); 348 to 355 packages; `go.mod` +1 direct and +5 indirect
+modules (`go-querystring`, `go-cleanhttp`, `go-retryablehttp`, `oauth2`, `x/time`); `go.sum`
+136 to 159 lines. `glab` itself is never bundled into the heraut binary; it is a separate install
+(and a ~47 MB layer in the Docker image).
 
 ## Options
 
@@ -79,37 +99,45 @@ one forge on CLI publishing and one on HTTP. That is acceptable: the two drivers
 `port.Platform` contract, and GitHub gets its own decision if the same motivation appears. This ADR
 does not decide it.
 
-## Decision (proposed)
+## Decision
 
-Replace `glab` with a native API client for create-release, asset upload and asset links, and port
-`Check()`, CI auth and self-hosted base-URL handling onto it. The transport (A or B) and the
-job-token behaviour are **not decided here**; they are settled by two measurements that gate the
-rest of the work (T364):
+Replace `glab` with `gitlab.com/gitlab-org/api/client-go` (option B) for create-release, asset
+upload and asset links, and port `Check()`, CI auth and self-hosted base-URL handling onto it. The
+request shapes are the ones `glab` already uses in production, retries and rate-limit backoff come
+built in, and the cost (+3.5 MB, five indirect modules) is small next to dropping a separately
+installed CLI. Native `net/http` was the close alternative; it adds nothing to the binary but makes
+heraut own the multipart, link and retry code.
 
-1. Add `client-go` on a scratch branch and record binary size and new `go.sum` entries. If the
-   delta is small, prefer B for its lower correctness risk; if large, prefer A.
-2. Run a throwaway GitLab CI job in a sandbox project that uploads and creates a release with
-   `CI_JOB_TOKEN`, and also with `glab` at the pinned version with and without
-   `GLAB_ENABLE_CI_AUTOLOGIN`. Record the HTTP status of each call.
-
-If `/uploads` rejects the job token, the fallbacks are: (a) require a project access token for
-assets in CI, (b) publish through the Generic Packages API (accepts the job token) with a package
-version sanitized of `/`, or (c) create the release without file assets and document it. The
-result, and the chosen transport, update this ADR to Accepted.
+- **Client placement:** the dependency is imported only by `platforms/gitlab` (layering constraint
+  above); `internal/forge/gitlab` keeps its hand-rolled enrichment clients unchanged.
+- **Auth ("autologin"):** when `GITLAB_CI=true` and `CI_JOB_TOKEN` is set (and the base URL is the
+  CI instance, the existing `inCIAutologin()` rule), build `NewJobClient(CI_JOB_TOKEN,
+  WithBaseURL(CI_SERVER_URL))`; otherwise `NewClient(<token_env>)` with the configured base URL. No
+  `GLAB_ENABLE_CI_AUTOLOGIN` equivalent exists to forget.
+- **Assets:** one route for every auth type: `GenericPackages.PublishPackageFile`, then a release
+  link whose `direct_asset_path` is `/<file>`, so download URLs stay stable. The package version is
+  the tag with `/` replaced (per-env tags); the allowed character set beyond `/` is verified in
+  T365 before the sanitizer is fixed. `/uploads` is not used: it rejects the job token.
+- **`Check()`:** cannot use `GET /user` or `GET /projects/:id` under a job token; it validates with
+  a call that token can reach (the Releases list), confirmed in T366.
+- **Failure ordering:** upload assets first, then create the release with its links in the same
+  request, so a failed upload leaves no asset-less release behind.
 
 ## Consequences
 
-- Phased work is tracked as T364 to T368 in `docs/tasks/roadmap.md` (Phase 61).
-- If adopted: `heraut check runtime` stops checking `glab`; the Docker image drops it; the
-  `glab` argv contract tests become `httptest` contract tests; Spec 02 and Spec 05 lose their
-  `glab` wording.
-- Lane B's GitLab scenarios stay as the regression suite for the swap.
-- Until T364 reports, nothing changes in behaviour.
+- Phased work is T365 to T368 in `docs/tasks/roadmap.md` (Phase 61); T364 (the gate) is done.
+- Fixes GitLab publishing with assets in GitLab CI, which fails today.
+- `heraut check runtime` stops checking `glab`; the Docker image drops it; the `glab` argv contract
+  tests become `httptest` contract tests; Spec 02 and Spec 05 lose their `glab` wording.
+- Lane B's GitLab scenarios stay as the regression suite; a GitLab CI job covers the job-token path.
+- Asset downloads come from the package registry instead of project uploads (URLs unchanged through
+  `direct_asset_path`); existing releases are unaffected.
+- Heraut gains `client-go` and its indirect modules in `go.mod`, covered by the OSV scan.
 - Self-hosted behaviour needs explicit checks (custom CA and proxy handling, `base_url` versus
   `CI_SERVER_URL`); `glab` provided these implicitly.
 
 ## Not decided here
 
 - The GitHub publish transport.
-- Whether to also fix `inCIAutologin()` / `GLAB_ENABLE_CI_AUTOLOGIN` on the current `glab` path;
-  T364's findings decide whether that needs its own task.
+- Fixing the current `glab` path (`GLAB_ENABLE_CI_AUTOLOGIN`, upload 401): it is replaced, not
+  patched.
