@@ -73,3 +73,4 @@ trade-offs were accepted.
 | [0066](0066-e2e-test-lanes.md) | End-to-end test lanes — hermetic binary lane and opt-in forge lane | Accepted |
 | [0067](0067-calver-iso-year-with-week.md) | CalVer `YYYY` is the ISO year when the format has `WW` | Accepted |
 | [0068](0068-env-selection-and-branch-guard-exit-code.md) | A missing or unknown `--env` and the branch guard exit with the configuration code | Accepted |
+| [0069](0069-gitlab-publish-transport.md) | GitLab publish transport — replace `glab` with a native API client | Proposed |
