@@ -382,7 +382,7 @@ func (g *Generator) generateIncremental(tag string, lc *port.LinkContext) (strin
 		return g.writeChangelog(body)
 	}
 	if _, _, hasAnchors := parseChangelog(existing); !hasAnchors {
-		// Checked before any rendering/enrichment: a wasted `gh`/`glab` call on a run that will
+		// Checked before any rendering/enrichment: a wasted enrichment call on a run that will
 		// abort anyway, and under remote_metadata: required an enrichment failure would otherwise
 		// mask this actionable error (enrichForRelease returns a hard error first).
 		return "", g.foreignFileError(ErrNoAnchors)

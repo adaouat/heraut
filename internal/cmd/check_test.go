@@ -97,9 +97,6 @@ esac
 	exectest.FakeBin(t, "gh", `#!/bin/sh
 echo "gh 2.x"
 `)
-	exectest.FakeBin(t, "glab", `#!/bin/sh
-echo "glab 1.x"
-`)
 	exectest.FakeBin(t, "cog", `#!/bin/sh
 echo "cog 6.x"
 `)
@@ -245,9 +242,6 @@ esac
 `)
 	exectest.FakeBin(t, "gh", `#!/bin/sh
 echo "gh 2.x"
-`)
-	exectest.FakeBin(t, "glab", `#!/bin/sh
-echo "glab 1.x"
 `)
 	exectest.FakeBin(t, "cog", `#!/bin/sh
 echo "cog 6.x"

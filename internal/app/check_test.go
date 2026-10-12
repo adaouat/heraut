@@ -25,16 +25,15 @@ func collectItems(mr *exectest.MockRunner, cfg *config.Config, env string) []app
 	return items
 }
 
-// queueSuccess queues the 7 runner.Run responses for semverCfg (no forges/targets) with all
+// queueSuccess queues the 6 runner.Run responses for semverCfg (no forges/targets) with all
 // tools present. Call order: git, user.name, user.email, git status, git remote get-url
-// origin (forge resolution — errors, no origin configured), glab, gh.
+// origin (forge resolution — errors, no origin configured), gh.
 func queueSuccess(mr *exectest.MockRunner) {
 	mr.QueueResponse("git version 2.40.0", "", nil)   // git --version
 	mr.QueueResponse("Alice", "", nil)                // git config user.name
 	mr.QueueResponse("a@b.com", "", nil)              // git config user.email
 	mr.QueueResponse("", "", nil)                     // git status --porcelain (clean)
 	mr.QueueResponse("", "", errors.New("no origin")) // git remote get-url origin (forge resolution)
-	mr.QueueResponse("glab 1.0.0", "", nil)           // glab --version
 	mr.QueueResponse("gh 2.0.0", "", nil)             // gh --version
 }
 
@@ -88,7 +87,7 @@ func TestRuntimeCheck_MinimalConfig(t *testing.T) {
 
 	cfg := semverCfg()
 	items := collectItems(mr, cfg, "")
-	require.Len(t, items, 6)
+	require.Len(t, items, 5)
 
 	names := make([]string, len(items))
 	for i, it := range items {
@@ -108,7 +107,6 @@ func TestRuntimeCheck_GitValue(t *testing.T) {
 	mr.QueueResponse("a@b.com", "", nil)              // user.email
 	mr.QueueResponse("", "", nil)                     // git status
 	mr.QueueResponse("", "", errors.New("no origin")) // git remote get-url origin (forge resolution)
-	mr.QueueResponse("glab 1.0", "", nil)             // glab
 	mr.QueueResponse("gh 2.0", "", nil)               // gh
 
 	cfg := semverCfg()
@@ -132,7 +130,6 @@ func TestRuntimeCheck_UserNameValue(t *testing.T) {
 	mr.QueueResponse("alice@example.com\n", "", nil)  // user.email
 	mr.QueueResponse("", "", nil)                     // git status
 	mr.QueueResponse("", "", errors.New("no origin")) // git remote get-url origin (forge resolution)
-	mr.QueueResponse("glab 1.0", "", nil)             // glab
 	mr.QueueResponse("gh 2.0", "", nil)               // gh
 
 	cfg := semverCfg()
@@ -156,7 +153,6 @@ func TestRuntimeCheck_WorkingTreeClean(t *testing.T) {
 	mr.QueueResponse("a@b.com", "", nil)              // user.email
 	mr.QueueResponse("", "", nil)                     // git status --porcelain (clean)
 	mr.QueueResponse("", "", errors.New("no origin")) // git remote get-url origin (forge resolution)
-	mr.QueueResponse("glab 1.0", "", nil)
 	mr.QueueResponse("gh 2.0", "", nil)
 
 	cfg := semverCfg()
@@ -181,7 +177,6 @@ func TestRuntimeCheck_WorkingTreeDirty(t *testing.T) {
 	mr.QueueResponse("a@b.com", "", nil)                                  // user.email
 	mr.QueueResponse(" M internal/foo.go\n M internal/bar.go\n", "", nil) // git status
 	mr.QueueResponse("", "", errors.New("no origin"))                     // git remote get-url origin (forge resolution)
-	mr.QueueResponse("glab 1.0", "", nil)
 	mr.QueueResponse("gh 2.0", "", nil)
 
 	cfg := semverCfg()
@@ -215,7 +210,7 @@ func TestRuntimeCheck_DispatchNames(t *testing.T) {
 
 	assert.Equal(t, []string{
 		"git", "git user.name", "git user.email", "working tree",
-		"glab", "gh",
+		"gh",
 	}, names)
 }
 
@@ -552,7 +547,6 @@ func TestRuntimeCheck_UserNameMissing(t *testing.T) {
 	mr.QueueResponse("a@b.com", "", nil)              // user.email
 	mr.QueueResponse("", "", nil)                     // git status
 	mr.QueueResponse("", "", errors.New("no origin")) // git remote get-url origin (forge resolution)
-	mr.QueueResponse("glab 1.0", "", nil)
 	mr.QueueResponse("gh 2.0", "", nil)
 
 	cfg := semverCfg()
@@ -575,7 +569,6 @@ func TestRuntimeCheck_UserEmailMissing(t *testing.T) {
 	mr.QueueResponse("", "", nil)                     // user.email empty
 	mr.QueueResponse("", "", nil)                     // git status
 	mr.QueueResponse("", "", errors.New("no origin")) // git remote get-url origin (forge resolution)
-	mr.QueueResponse("glab 1.0", "", nil)
 	mr.QueueResponse("gh 2.0", "", nil)
 
 	cfg := semverCfg()
@@ -595,13 +588,12 @@ func TestRuntimeCheck_UserEmailMissing(t *testing.T) {
 func TestRuntimeCheck_OptionalPlatformsWarnWhenMissing(t *testing.T) {
 	testutil.ClearCIEnv(t)
 	mr := exectest.NewMockRunner()
-	mr.QueueResponse("git version 2.40.0", "", nil)         // git --version
-	mr.QueueResponse("Alice", "", nil)                      // user.name
-	mr.QueueResponse("a@b.com", "", nil)                    // user.email
-	mr.QueueResponse("", "", nil)                           // git status
-	mr.QueueResponse("", "", errors.New("no origin"))       // git remote get-url origin (forge resolution)
-	mr.QueueResponse("", "", errors.New("glab: not found")) // glab (optional, missing)
-	mr.QueueResponse("", "", errors.New("gh: not found"))   // gh (optional, missing)
+	mr.QueueResponse("git version 2.40.0", "", nil)       // git --version
+	mr.QueueResponse("Alice", "", nil)                    // user.name
+	mr.QueueResponse("a@b.com", "", nil)                  // user.email
+	mr.QueueResponse("", "", nil)                         // git status
+	mr.QueueResponse("", "", errors.New("no origin"))     // git remote get-url origin (forge resolution)
+	mr.QueueResponse("", "", errors.New("gh: not found")) // gh (optional, missing)
 
 	cfg := semverCfg()
 	items := collectItems(mr, cfg, "")
@@ -612,7 +604,7 @@ func TestRuntimeCheck_OptionalPlatformsWarnWhenMissing(t *testing.T) {
 			warnNames[it.Name] = true
 		}
 	}
-	assert.True(t, warnNames["glab"], "expected optional warn for glab")
+	assert.False(t, warnNames["glab"], "glab is no longer probed")
 	assert.True(t, warnNames["gh"], "expected optional warn for gh")
 }
 
@@ -652,13 +644,12 @@ func TestRuntimeCheck_ReleaseWithoutTargets_RunsPublishCheck(t *testing.T) {
 func TestRuntimeCheck_AzureOnlyFallsBackToBinaryProbe(t *testing.T) {
 	testutil.ClearCIEnv(t)
 	mr := exectest.NewMockRunner()
-	mr.QueueResponse("git version 2.40.0", "", nil)         // git --version
-	mr.QueueResponse("Alice", "", nil)                      // user.name
-	mr.QueueResponse("a@b.com", "", nil)                    // user.email
-	mr.QueueResponse("", "", nil)                           // git status
-	mr.QueueResponse("", "", errors.New("no origin"))       // git remote get-url origin (forge resolution)
-	mr.QueueResponse("", "", errors.New("glab: not found")) // glab (advisory binary-only probe)
-	mr.QueueResponse("", "", errors.New("gh: not found"))   // gh (advisory binary-only probe)
+	mr.QueueResponse("git version 2.40.0", "", nil)       // git --version
+	mr.QueueResponse("Alice", "", nil)                    // user.name
+	mr.QueueResponse("a@b.com", "", nil)                  // user.email
+	mr.QueueResponse("", "", nil)                         // git status
+	mr.QueueResponse("", "", errors.New("no origin"))     // git remote get-url origin (forge resolution)
+	mr.QueueResponse("", "", errors.New("gh: not found")) // gh (advisory binary-only probe)
 
 	cfg := semverCfg()
 	cfg.Forges = []config.Forge{{Name: "az", Type: "azure_devops", Project: "org/proj", Repository: "repo"}}
@@ -674,7 +665,7 @@ func TestRuntimeCheck_AzureOnlyFallsBackToBinaryProbe(t *testing.T) {
 			warnNames[it.Name] = true
 		}
 	}
-	assert.True(t, warnNames["glab"], "falls back to the advisory binary-only probe")
+	assert.False(t, warnNames["glab"], "glab is no longer probed")
 	assert.True(t, warnNames["gh"], "falls back to the advisory binary-only probe")
 }
 
@@ -695,16 +686,15 @@ func TestRuntimeCheck_OptionalToolsSilentWhenPresent(t *testing.T) {
 
 // ---- RuntimeCheck with nil config -------------------------------------------
 
-// queueSuccessNilConfig queues the 6 runner.Run responses for the nil-config path: unlike a
+// queueSuccessNilConfig queues the 5 runner.Run responses for the nil-config path: unlike a
 // non-nil config, effectiveTargetPlatforms short-circuits before ever resolving a forge (nothing
 // to resolve against), so no git remote get-url origin call happens. Call order: git, user.name,
-// user.email, git status, glab, gh.
+// user.email, git status, gh.
 func queueSuccessNilConfig(mr *exectest.MockRunner) {
 	mr.QueueResponse("git version 2.40.0", "", nil) // git --version
 	mr.QueueResponse("Alice", "", nil)              // git config user.name
 	mr.QueueResponse("a@b.com", "", nil)            // git config user.email
 	mr.QueueResponse("", "", nil)                   // git status --porcelain (clean)
-	mr.QueueResponse("glab 1.0.0", "", nil)         // glab --version
 	mr.QueueResponse("gh 2.0.0", "", nil)           // gh --version
 }
 
@@ -713,7 +703,7 @@ func TestRuntimeCheck_NilConfig_AllToolsPassWhenPresent(t *testing.T) {
 	queueSuccessNilConfig(mr)
 
 	items := collectItems(mr, nil, "")
-	require.Len(t, items, 6)
+	require.Len(t, items, 5)
 	for _, it := range items {
 		if it.Name == "working tree" {
 			continue // always advisory regardless of config
@@ -725,21 +715,20 @@ func TestRuntimeCheck_NilConfig_AllToolsPassWhenPresent(t *testing.T) {
 
 func TestRuntimeCheck_NilConfig_MissingBinaryIsHardError(t *testing.T) {
 	mr := exectest.NewMockRunner()
-	mr.QueueResponse("git version 2.40.0", "", nil)         // git
-	mr.QueueResponse("Alice", "", nil)                      // user.name
-	mr.QueueResponse("a@b.com", "", nil)                    // user.email
-	mr.QueueResponse("", "", nil)                           // git status
-	mr.QueueResponse("", "", errors.New("glab: not found")) // glab missing
-	mr.QueueResponse("gh 2.0.0", "", nil)                   // gh
+	mr.QueueResponse("git version 2.40.0", "", nil)       // git
+	mr.QueueResponse("Alice", "", nil)                    // user.name
+	mr.QueueResponse("a@b.com", "", nil)                  // user.email
+	mr.QueueResponse("", "", nil)                         // git status
+	mr.QueueResponse("", "", errors.New("gh: not found")) // gh missing
 
 	items := collectItems(mr, nil, "")
 
 	for _, it := range items {
-		if it.Name == "glab" {
-			assert.Error(t, it.Err, "missing glab should be a hard error with nil config")
-			assert.False(t, it.IsWarn, "missing glab must not be a warning with nil config")
+		if it.Name == "gh" {
+			assert.Error(t, it.Err, "missing gh should be a hard error with nil config")
+			assert.False(t, it.IsWarn, "missing gh must not be a warning with nil config")
 			return
 		}
 	}
-	t.Fatal("expected glab item")
+	t.Fatal("expected gh item")
 }

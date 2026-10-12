@@ -115,7 +115,7 @@ func TestConfigDiscoveryAndTildeExpansion(t *testing.T) {
 	})
 }
 
-// gitOnlyPath is a PATH holding nothing but git, so the real gh/glab can never be found.
+// gitOnlyPath is a PATH holding nothing but git, so the real gh can never be found.
 func gitOnlyPath(t *testing.T) string {
 	t.Helper()
 	gitPath, err := exec.LookPath("git")
@@ -204,7 +204,7 @@ func TestCheckRuntime(t *testing.T) {
 		require.Equal(t, exitRuntime, code, out)
 		assert.Contains(t, out, "no config found at .heraut.yml — all tools checked as required")
 		assert.Contains(t, out, "gh: not found on path")
-		assert.Contains(t, out, "glab: not found on path", "without a config every supported tool is required")
+		assert.NotContains(t, out, "glab", "glab is no longer a runtime dependency")
 	})
 }
 

@@ -50,8 +50,7 @@ func PreflightCheck(runner port.Runner) error {
 //	Git:        git binary → user.name → user.email → working tree
 //	Platforms:  one row per effective release.targets entry (resolved against
 //	            forges:/CI env/git origin, same as `heraut release`), or
-//	            glab (GitLab) → gh (GitHub) as a binary-only fallback when
-//	            nothing resolves
+//	            gh (GitHub) as a binary-only fallback when nothing resolves
 //
 // Configured tools are hard errors when missing; unconfigured-but-supported
 // tools warn when absent and succeed silently when present.
@@ -147,11 +146,11 @@ func RuntimeCheck(
 			})
 		}
 	default:
-		// No target resolves to a publishable platform: fall back to a binary-only probe of both
-		// supported CLIs. Required (hard error) when cfg is nil (no config file found, so both
-		// could plausibly be needed); advisory otherwise.
+		// No target resolves to a publishable platform: fall back to a binary-only probe of gh, the only
+		// publish driver that still shells out. Required (hard error) when cfg is nil (no config
+		// file found, so it could plausibly be needed); advisory otherwise.
 		required := cfg == nil
-		for _, bin := range []string{"glab", "gh"} {
+		for _, bin := range []string{"gh"} {
 			dispatch(bin, func() RuntimeCheckItem {
 				out, _, err := runner.Run(bin, "--version")
 				if err != nil {

@@ -112,13 +112,13 @@ func TestRepo_RemoteAndFileHelpers(t *testing.T) {
 func TestRepo_FakeCLIRecordsCallsInOrderAndCanFail(t *testing.T) {
 	r := NewRepo(t)
 	r.FakeCLI("gh")
-	r.FakeCLI("glab")
+	r.FakeCLI("tea")
 
-	res := r.Run("/bin/sh", nil, "-c", "gh --version; glab release create v1 --repo acme/w; gh release create v1; echo rc=$?")
+	res := r.Run("/bin/sh", nil, "-c", "gh --version; tea release create v1 --repo acme/w; gh release create v1; echo rc=$?")
 	assert.Equal(t, 0, res.ExitCode)
 	assert.Equal(t, []string{
 		"gh [--version]",
-		"glab [release] [create] [v1] [--repo] [acme/w]",
+		"tea [release] [create] [v1] [--repo] [acme/w]",
 		"gh [release] [create] [v1]",
 	}, r.CLICalls())
 
