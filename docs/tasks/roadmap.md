@@ -3060,7 +3060,18 @@ and a refused release exiting 3. Whole suite checked behind a logging proxy: no 
 gitlab.com (one did, `TestCheck_ProjectMissing`, and now uses the stub). Not done here, left for
 T367: the binary-only `glab`/`gh` fallback probe in `app/check.go`, `FakeCLI("glab")`, the Dockerfile,
 `CLAUDE.md`, the specs and Lane B's own use of `glab`. The CI job-token `Check()` call (releases list)
-is still unproven on real CI; T368 covers it.
+was unproven when T366 landed, see the live validation below.
+
+Live validation (2026-10-12, gitlab.com sandbox, driver at 3678835): Lane B's GitLab scenarios B1, B2,
+B3, B4 (per-env tag with an uploaded asset), B5, B8 and B10 pass (B6, B7, B9 need the GitHub
+sandboxes and were skipped). A throwaway pipeline then ran the real linux binary with only
+`CI_JOB_TOKEN`: `heraut check runtime` passed (the releases-list check works with a job token) and
+`heraut release --set-version` published release `v9.9.9` with two package assets; both
+`/-/releases/v9.9.9/downloads/<file>` URLs served the files. The job could not push to the
+repository, so it pushed to a local bare remote and the tag was pre-created on the sandbox through
+the API; that is a limit of the probe, not of the driver. Finding: Lane B's cleanup removes releases
+and tags but not the Generic Packages assets now live in the package registry, so one
+`release-assets` package was left behind (removed by hand); see T368.
 
 #### `[ ]` T367: drop `glab` from the runtime checks, image and fake-CLI harness
 
@@ -3071,7 +3082,7 @@ touching the Dockerfile / CI.
 
 #### `[ ]` T368: Lane B and CI validation of the swap
 
-Run Lane B's GitLab scenarios (B1–B8, B10) against the sandbox, plus a GitLab CI job (the T364
+Lane B's GitLab scenarios and a job-token CI run already passed by hand after T366 (see its note), so this task is the repeatable version: teach `e2e/cmd/sweep` and the per-test cleanup to delete the Generic Packages a run created, re-run Lane B for GitLab, and decide whether to keep the CI job as a regression. Original scope: run Lane B's GitLab scenarios (B1–B8, B10) against the sandbox, plus a GitLab CI job (the T364
 probe, reworked) against the real swapped driver. Records the observed job-token behaviour in the guide. Advisory workflow
 changes need the user's OK.
 
