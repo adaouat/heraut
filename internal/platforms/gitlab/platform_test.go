@@ -1,12 +1,15 @@
 package gitlab_test
 
 import (
-	"errors"
+	"encoding/json"
+	"io"
+	"net/http"
+	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
-	"github.com/adaouat/forge/exec/exectest"
 	"github.com/adaouat/heraut/internal/config"
 	"github.com/adaouat/heraut/internal/platforms/gitlab"
 	"github.com/adaouat/heraut/internal/port"
@@ -15,27 +18,27 @@ import (
 )
 
 func TestName(t *testing.T) {
-	p := gitlab.New(exectest.NewMockRunner(), &config.Platform{Name: "gitlab-internal"})
+	p := gitlab.New(&config.Platform{Name: "gitlab-internal"})
 	assert.Equal(t, "gitlab-internal", p.Name())
 }
 
 func TestReleaseURL(t *testing.T) {
 	t.Setenv("GITLAB_CI", "") // ensure CI_SERVER_URL fallback is not active
 	cfg := &config.Platform{Project: "mygroup/myrepo"}
-	p := gitlab.New(exectest.NewMockRunner(), cfg)
+	p := gitlab.New(cfg)
 	assert.Equal(t, "https://gitlab.com/mygroup/myrepo/-/releases/v1.2.3", p.ReleaseURL("v1.2.3"))
 }
 
 func TestReleaseURL_FromEnv(t *testing.T) {
 	t.Setenv("GITLAB_CI", "")
 	t.Setenv("CI_PROJECT_PATH", "envgroup/envrepo")
-	p := gitlab.New(exectest.NewMockRunner(), &config.Platform{})
+	p := gitlab.New(&config.Platform{})
 	assert.Equal(t, "https://gitlab.com/envgroup/envrepo/-/releases/v1.0.0", p.ReleaseURL("v1.0.0"))
 }
 
 func TestReleaseURL_SelfHosted(t *testing.T) {
 	cfg := &config.Platform{Project: "grp/repo", BaseURL: "https://gitlab.example.com"}
-	p := gitlab.New(exectest.NewMockRunner(), cfg)
+	p := gitlab.New(cfg)
 	assert.Equal(t, "https://gitlab.example.com/grp/repo/-/releases/v1.2.3", p.ReleaseURL("v1.2.3"))
 }
 
@@ -45,7 +48,7 @@ func TestReleaseURL_InCI_NoBaseURL_UsesServerURL(t *testing.T) {
 	t.Setenv("GITLAB_CI", "true")
 	t.Setenv("CI_SERVER_URL", "https://git.example.com")
 	cfg := &config.Platform{Project: "grp/repo"}
-	p := gitlab.New(exectest.NewMockRunner(), cfg)
+	p := gitlab.New(cfg)
 	assert.Equal(t, "https://git.example.com/grp/repo/-/releases/v1.0.0", p.ReleaseURL("v1.0.0"))
 }
 
@@ -55,7 +58,7 @@ func TestReleaseURL_InCI_NoBaseURL_NoServerURL_FallsBackToProjectURL(t *testing.
 	t.Setenv("CI_SERVER_URL", "")
 	t.Setenv("CI_PROJECT_URL", "https://git.example.com/acme/widget")
 	cfg := &config.Platform{Project: "acme/widget"}
-	p := gitlab.New(exectest.NewMockRunner(), cfg)
+	p := gitlab.New(cfg)
 	assert.Equal(t, "https://git.example.com/acme/widget/-/releases/v1.0.0", p.ReleaseURL("v1.0.0"))
 }
 
@@ -68,7 +71,7 @@ func TestReleaseURL_NoGitlabCIVar_ProjectURLSuffices(t *testing.T) {
 	t.Setenv("CI_SERVER_URL", "")
 	t.Setenv("CI_PROJECT_URL", "https://git.example.com/acme/widget")
 	cfg := &config.Platform{Project: "acme/widget"}
-	p := gitlab.New(exectest.NewMockRunner(), cfg)
+	p := gitlab.New(cfg)
 	assert.Equal(t, "https://git.example.com/acme/widget/-/releases/v1.0.0", p.ReleaseURL("v1.0.0"))
 }
 
@@ -81,7 +84,7 @@ func TestReleaseURLFromContext_AmbientContext(t *testing.T) {
 	// Ambient context (from CI_PROJECT_URL): Owner/Repo are empty, BaseURL is the
 	// full project URL. The release URL is built directly from BaseURL.
 	cfg := &config.Platform{Project: "acme/widget"}
-	p := gitlab.New(exectest.NewMockRunner(), cfg)
+	p := gitlab.New(cfg)
 	lc := &port.LinkContext{BaseURL: "https://git.example.com/acme/widget", Platform: "gitlab"}
 	assert.Equal(t, "https://git.example.com/acme/widget/-/releases/v1.0.0", p.ReleaseURLFromContext("v1.0.0", lc))
 }
@@ -90,7 +93,7 @@ func TestReleaseURLFromContext_PlatformContext(t *testing.T) {
 	// Platform-derived context: BaseURL is just the host, Owner/Repo are populated.
 	// The release URL is assembled from host + configured project path.
 	cfg := &config.Platform{Project: "acme/widget"}
-	p := gitlab.New(exectest.NewMockRunner(), cfg)
+	p := gitlab.New(cfg)
 	lc := &port.LinkContext{BaseURL: "https://git.example.com", Owner: "acme", Repo: "widget", Platform: "gitlab"}
 	assert.Equal(t, "https://git.example.com/acme/widget/-/releases/v1.0.0", p.ReleaseURLFromContext("v1.0.0", lc))
 }
@@ -99,14 +102,14 @@ func TestReleaseURLFromContext_Nil_FallsBackToReleaseURL(t *testing.T) {
 	t.Setenv("GITLAB_CI", "")
 	t.Setenv("CI_PROJECT_URL", "")
 	cfg := &config.Platform{Project: "grp/repo"}
-	p := gitlab.New(exectest.NewMockRunner(), cfg)
+	p := gitlab.New(cfg)
 	assert.Equal(t, p.ReleaseURL("v1.0.0"), p.ReleaseURLFromContext("v1.0.0", nil))
 }
 
 // Tags may carry SemVer build metadata ("+"), which must reach the URL as %2B (ADR-0064).
 func TestReleaseURL_EscapesPlusInTag(t *testing.T) {
 	t.Setenv("GITLAB_CI", "")
-	p := gitlab.New(exectest.NewMockRunner(), &config.Platform{Project: "group/proj"})
+	p := gitlab.New(&config.Platform{Project: "group/proj"})
 	assert.Equal(t, "https://gitlab.com/group/proj/-/releases/v1.4.0%2B158404", p.ReleaseURL("v1.4.0+158404"))
 
 	ambient := &port.LinkContext{BaseURL: "https://gitlab.com/group/proj", Platform: "gitlab"}
@@ -121,7 +124,7 @@ func TestReleaseURL_EscapesPlusInTag(t *testing.T) {
 func TestReleaseURL_EscapesSlashInTag(t *testing.T) {
 	t.Setenv("GITLAB_CI", "")
 	t.Setenv("CI_PROJECT_URL", "")
-	p := gitlab.New(exectest.NewMockRunner(), &config.Platform{Project: "group/proj"})
+	p := gitlab.New(&config.Platform{Project: "group/proj"})
 
 	tests := []struct {
 		name string
@@ -152,7 +155,7 @@ func TestLinkContext_NestedGroup(t *testing.T) {
 	// GitLab project paths split on the LAST slash: group/subgroup is the owner, the
 	// final segment is the repo.
 	cfg := &config.Platform{Project: "group/sub/proj", BaseURL: "https://gitlab.com"}
-	p := gitlab.New(exectest.NewMockRunner(), cfg)
+	p := gitlab.New(cfg)
 	assert.Equal(t, port.LinkContext{
 		BaseURL:  "https://gitlab.com",
 		Owner:    "group/sub",
@@ -166,7 +169,7 @@ func TestLinkContext_SimpleProject(t *testing.T) {
 	t.Setenv("GITLAB_TOKEN", "")
 	// BaseURL empty (config not normalized) → falls back to the default host.
 	cfg := &config.Platform{Project: "group/proj"}
-	lc := gitlab.New(exectest.NewMockRunner(), cfg).LinkContext()
+	lc := gitlab.New(cfg).LinkContext()
 	assert.Equal(t, "group", lc.Owner)
 	assert.Equal(t, "proj", lc.Repo)
 	assert.Equal(t, "https://gitlab.com", lc.BaseURL)
@@ -176,7 +179,7 @@ func TestLinkContext_FromEnv(t *testing.T) {
 	t.Setenv("GITLAB_CI", "")
 	t.Setenv("GITLAB_TOKEN", "")
 	t.Setenv("CI_PROJECT_PATH", "envgroup/envrepo")
-	lc := gitlab.New(exectest.NewMockRunner(), &config.Platform{}).LinkContext()
+	lc := gitlab.New(&config.Platform{}).LinkContext()
 	assert.Equal(t, "envgroup", lc.Owner)
 	assert.Equal(t, "envrepo", lc.Repo)
 }
@@ -188,262 +191,134 @@ func TestLinkContext_InCI_NoBaseURL_UsesServerURL(t *testing.T) {
 	t.Setenv("CI_SERVER_URL", "https://git.example.com")
 	t.Setenv("GITLAB_TOKEN", "")
 	cfg := &config.Platform{Project: "grp/repo"}
-	lc := gitlab.New(exectest.NewMockRunner(), cfg).LinkContext()
+	lc := gitlab.New(cfg).LinkContext()
 	assert.Equal(t, "https://git.example.com", lc.BaseURL)
 }
 
-func TestCheck_GlabMissing(t *testing.T) {
-	mr := exectest.NewMockRunner()
-	mr.QueueResponse("", "glab: command not found", errors.New("exit status 127"))
-
-	p := gitlab.New(mr, &config.Platform{TokenEnv: "GITLAB_TOKEN", Project: "grp/repo"})
-	t.Setenv("GITLAB_TOKEN", "tok")
-
-	err := p.Check()
-	require.Error(t, err)
-	assert.Contains(t, err.Error(), "glab")
+// stubGitLab records every request and answers 201 (POST/PUT), 200 (GET) or the configured status.
+type stubGitLab struct {
+	srv      *httptest.Server
+	requests []stubRequest
+	status   map[string]int
 }
 
-func TestCheck_TokenMissing(t *testing.T) {
-	t.Setenv("GITLAB_CI", "") // ensure CI autologin is not active
-	mr := exectest.NewMockRunner()
-	mr.QueueResponse("glab version 1.0.0", "", nil)
+type stubRequest struct {
+	method, path, rawQuery string
+	header                 http.Header
+	body                   []byte
+}
 
+func newStub(t *testing.T) *stubGitLab {
+	t.Helper()
+	s := &stubGitLab{status: map[string]int{}}
+	s.srv = httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		body, _ := io.ReadAll(r.Body)
+		s.requests = append(s.requests, stubRequest{r.Method, r.URL.Path, r.URL.RawQuery, r.Header.Clone(), body})
+		code := http.StatusCreated
+		payload := `{}`
+		if r.Method == http.MethodGet {
+			code = http.StatusOK
+			if strings.HasSuffix(r.URL.Path, "/releases") {
+				payload = `[]`
+			}
+		}
+		if c, ok := s.status[r.Method]; ok {
+			code = c
+		}
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(code)
+		if code >= 400 {
+			payload = `{"message":"denied"}`
+		}
+		_, _ = w.Write([]byte(payload))
+	}))
+	t.Cleanup(s.srv.Close)
+	return s
+}
+
+func (s *stubGitLab) release(t *testing.T) map[string]any {
+	t.Helper()
+	for _, r := range s.requests {
+		if r.method == http.MethodPost && strings.HasSuffix(r.path, "/releases") {
+			var m map[string]any
+			require.NoError(t, json.Unmarshal(r.body, &m))
+			return m
+		}
+	}
+	t.Fatalf("no release request in %v", s.requests)
+	return nil
+}
+
+func (s *stubGitLab) puts() []string {
+	var out []string
+	for _, r := range s.requests {
+		if r.method == http.MethodPut {
+			out = append(out, r.path)
+		}
+	}
+	return out
+}
+
+// notInCI clears every GitLab CI signal so a developer's or runner's ambient env cannot leak in.
+func notInCI(t *testing.T) {
+	t.Helper()
+	for _, k := range []string{"GITLAB_CI", "CI_SERVER_URL", "CI_PROJECT_URL", "CI_PROJECT_ID", "CI_PROJECT_PATH", "CI_JOB_TOKEN"} {
+		t.Setenv(k, "")
+	}
+}
+
+// ---- Check -------------------------------------------------------------------
+
+func TestCheck_TokenMissing(t *testing.T) {
+	notInCI(t)
 	t.Setenv("GITLAB_TOKEN", "")
-	p := gitlab.New(mr, &config.Platform{TokenEnv: "GITLAB_TOKEN", Project: "grp/repo"})
+	p := gitlab.New(&config.Platform{TokenEnv: "GITLAB_TOKEN", Project: "grp/repo"})
 
 	err := p.Check()
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "GITLAB_TOKEN")
 }
 
-func TestCheck_InCI_TokenNotRequired(t *testing.T) {
-	// In CI autologin mode glab authenticates via JOB-TOKEN; heraut must not require
-	// an explicit token env var when GITLAB_CI=true and the platform is not self-hosted.
-	t.Setenv("GITLAB_CI", "true")
-	t.Setenv("CI_PROJECT_ID", "42")
-	t.Setenv("GITLAB_TOKEN", "") // deliberately absent
-
-	mr := exectest.NewMockRunner()
-	mr.QueueResponse("glab version 1.0.0", "", nil)
-	mr.QueueResponse(`[]`, "", nil) // CI auth check via numeric project ID
-
-	p := gitlab.New(mr, &config.Platform{Project: "grp/repo"})
-	require.NoError(t, p.Check())
-}
-
 func TestCheck_ProjectMissing(t *testing.T) {
-	mr := exectest.NewMockRunner()
-	mr.QueueResponse("glab version 1.0.0", "", nil)
-
+	notInCI(t)
+	st := newStub(t)
 	t.Setenv("GITLAB_TOKEN", "tok")
-	t.Setenv("CI_PROJECT_PATH", "")
-	p := gitlab.New(mr, &config.Platform{TokenEnv: "GITLAB_TOKEN"})
+	p := gitlab.New(&config.Platform{TokenEnv: "GITLAB_TOKEN", BaseURL: st.srv.URL})
 
 	err := p.Check()
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "project")
 }
 
-func TestCheck_OK(t *testing.T) {
-	t.Setenv("GITLAB_CI", "")
-	mr := exectest.NewMockRunner()
-	mr.QueueResponse("glab version 1.0.0", "", nil)
-	mr.QueueResponse(`{"username":"alice"}`, "", nil) // auth check
-
+func TestCheck_OK_ValidatesThePersonalTokenAgainstUser(t *testing.T) {
+	notInCI(t)
+	st := newStub(t)
 	t.Setenv("GITLAB_TOKEN", "tok")
-	p := gitlab.New(mr, &config.Platform{TokenEnv: "GITLAB_TOKEN", Project: "grp/repo"})
+	p := gitlab.New(&config.Platform{TokenEnv: "GITLAB_TOKEN", Project: "grp/repo", BaseURL: st.srv.URL})
+
 	require.NoError(t, p.Check())
 
-	require.Len(t, mr.Calls, 2)
-	assert.Equal(t, []string{"--version"}, mr.Calls[0].Args)
-	assert.Equal(t, []string{"api", "user"}, mr.Calls[1].Args)
-}
-
-func TestCreateRelease_BasicArgs(t *testing.T) {
-	mr := exectest.NewMockRunner()
-	mr.QueueResponse("", "", nil)
-
-	p := gitlab.New(mr, &config.Platform{Project: "grp/repo", TokenEnv: "GITLAB_TOKEN"})
-	require.NoError(t, p.CreateRelease("v1.2.3", "## Notes\n- thing\n", false))
-
-	require.Len(t, mr.Calls, 1)
-	call := mr.Calls[0]
-	assert.Equal(t, "glab", call.Name)
-	// Notes are written to a temp file to avoid ARG_MAX limits on large changelogs.
-	require.Equal(t, []string{"release", "create", "v1.2.3"}, call.Args[:3])
-	assert.Equal(t, "--notes-file", call.Args[3])
-	assert.NotEmpty(t, call.Args[4], "notes file path must be non-empty")
-	assert.Equal(t, []string{"--repo", "grp/repo"}, call.Args[5:])
-	assert.NotContains(t, call.Args, "--notes")
-}
-
-func TestCreateRelease_Assets_IncludesFilesInCreate(t *testing.T) {
-	tmp := t.TempDir()
-	require.NoError(t, os.WriteFile(filepath.Join(tmp, "heraut_linux"), []byte("bin"), 0o755))
-	require.NoError(t, os.WriteFile(filepath.Join(tmp, "checksums.txt"), []byte("abc"), 0o644))
-
-	mr := exectest.NewMockRunner()
-	mr.QueueResponse("", "", nil)
-
-	p := gitlab.New(mr, &config.Platform{
-		Project: "grp/repo",
-		Assets:  []string{filepath.Join(tmp, "heraut_linux"), filepath.Join(tmp, "checksums.txt")},
-	})
-	require.NoError(t, p.CreateRelease("v1.0.0", "notes", false))
-
-	require.Len(t, mr.Calls, 1)
-	call := mr.Calls[0]
-	assert.Equal(t, "glab", call.Name)
-	assert.Equal(t, "release", call.Args[0])
-	assert.Equal(t, "create", call.Args[1])
-	assert.Contains(t, call.Args, filepath.Join(tmp, "heraut_linux"))
-	assert.Contains(t, call.Args, filepath.Join(tmp, "checksums.txt"))
-}
-
-// TestCreateRelease_PrereleaseParamIgnored covers ADR-0064: GitLab has no pre-release concept,
-// so the shared port.Platform parameter is accepted (to satisfy the contract) but never changes
-// the invocation, for either value.
-func TestCreateRelease_PrereleaseParamIgnored(t *testing.T) {
-	for _, prerelease := range []bool{false, true} {
-		mr := exectest.NewMockRunner()
-		mr.QueueResponse("", "", nil)
-
-		p := gitlab.New(mr, &config.Platform{Project: "grp/repo", TokenEnv: "GITLAB_TOKEN"})
-		require.NoError(t, p.CreateRelease("v1.2.3", "notes", prerelease))
-
-		require.Len(t, mr.Calls, 1)
-		assert.NotContains(t, mr.Calls[0].Args, "--prerelease")
-	}
-}
-
-func TestHasAssets(t *testing.T) {
-	pEmpty := gitlab.New(exectest.NewMockRunner(), &config.Platform{})
-	assert.False(t, pEmpty.HasAssets())
-
-	pWithAssets := gitlab.New(exectest.NewMockRunner(), &config.Platform{Assets: []string{"dist/*"}})
-	assert.True(t, pWithAssets.HasAssets())
-}
-
-func TestCreateRelease_Assets_GlobInOneCall(t *testing.T) {
-	tmp := t.TempDir()
-	for _, name := range []string{"app_linux_amd64", "app_darwin_amd64"} {
-		require.NoError(t, os.WriteFile(filepath.Join(tmp, name), []byte("bin"), 0o755))
-	}
-
-	mr := exectest.NewMockRunner()
-	mr.QueueResponse("", "", nil)
-
-	p := gitlab.New(mr, &config.Platform{
-		Project: "grp/repo",
-		Assets:  []string{filepath.Join(tmp, "app_*")},
-	})
-	require.NoError(t, p.CreateRelease("v1.0.0", "notes", false))
-
-	require.Len(t, mr.Calls, 1)
-	call := mr.Calls[0]
-	assert.Equal(t, []string{"release", "create", "v1.0.0"}, call.Args[:3])
-	assert.Contains(t, call.Args, filepath.Join(tmp, "app_linux_amd64"))
-	assert.Contains(t, call.Args, filepath.Join(tmp, "app_darwin_amd64"))
-	assert.NotContains(t, call.Args, "--use-package-registry")
-}
-
-func TestCreateRelease_Assets_GlobSkipsDirectories(t *testing.T) {
-	tmp := t.TempDir()
-	require.NoError(t, os.WriteFile(filepath.Join(tmp, "app"), []byte("bin"), 0o755))
-	require.NoError(t, os.MkdirAll(filepath.Join(tmp, "subdir"), 0o755))
-
-	mr := exectest.NewMockRunner()
-	mr.QueueResponse("", "", nil)
-
-	p := gitlab.New(mr, &config.Platform{
-		Project: "grp/repo",
-		Assets:  []string{filepath.Join(tmp, "*")},
-	})
-	require.NoError(t, p.CreateRelease("v1.0.0", "notes", false))
-
-	require.Len(t, mr.Calls, 1)
-	assert.Contains(t, mr.Calls[0].Args, filepath.Join(tmp, "app"))
-	assert.NotContains(t, mr.Calls[0].Args, filepath.Join(tmp, "subdir"))
-}
-
-// By the time assets resolve the tag is already pushed, so a pattern matching nothing must skip
-// with a warning and still create the release rather than fail it.
-func TestCreateRelease_Assets_NoMatch_StillCreates(t *testing.T) {
-	mr := exectest.NewMockRunner()
-	mr.QueueResponse("", "", nil)
-
-	p := gitlab.New(mr, &config.Platform{
-		Project: "grp/repo",
-		Assets:  []string{filepath.Join(t.TempDir(), "heraut_*")},
-	})
-	require.NoError(t, p.CreateRelease("v1.0.0", "notes", false))
-
-	require.Len(t, mr.Calls, 1)
-	assert.Equal(t, []string{"--repo", "grp/repo"}, mr.Calls[0].Args[5:])
-}
-
-func TestCreateRelease_ProjectFromEnv(t *testing.T) {
-	t.Setenv("CI_PROJECT_PATH", "envgrp/envrepo")
-	mr := exectest.NewMockRunner()
-	mr.QueueResponse("", "", nil)
-
-	p := gitlab.New(mr, &config.Platform{})
-	require.NoError(t, p.CreateRelease("v1.0.0", "notes", false))
-
-	call := mr.Calls[0]
-	assert.Contains(t, call.Args, "envgrp/envrepo")
-}
-
-func TestCreateRelease_NoProject_Error(t *testing.T) {
-	t.Setenv("CI_PROJECT_PATH", "")
-	mr := exectest.NewMockRunner()
-
-	p := gitlab.New(mr, &config.Platform{})
-	err := p.CreateRelease("v1.0.0", "notes", false)
-	require.Error(t, err)
-	assert.Contains(t, err.Error(), "project")
+	require.Len(t, st.requests, 1)
+	assert.Equal(t, "/api/v4/user", st.requests[0].path)
+	assert.Equal(t, "tok", st.requests[0].header.Get("Private-Token"))
 }
 
 // TestCheck_DefaultTokenEnv covers the tokenEnv() fallback to "GITLAB_TOKEN" when no TokenEnv is configured.
 func TestCheck_DefaultTokenEnv(t *testing.T) {
-	t.Setenv("GITLAB_CI", "")
-	mr := exectest.NewMockRunner()
-	mr.QueueResponse("glab version 1.0.0", "", nil)
-	mr.QueueResponse(`{"username":"alice"}`, "", nil) // auth check
-
+	notInCI(t)
+	st := newStub(t)
 	t.Setenv("GITLAB_TOKEN", "tok")
-	// No TokenEnv configured — should fall back to "GITLAB_TOKEN" default
-	p := gitlab.New(mr, &config.Platform{Project: "grp/repo"})
-	require.NoError(t, p.Check())
-}
 
-// ---- Auth check -------------------------------------------------------------
-
-func TestCheck_OK_WithAuth(t *testing.T) {
-	t.Setenv("GITLAB_CI", "")
-	mr := exectest.NewMockRunner()
-	mr.QueueResponse("glab version 1.0.0", "", nil)   // --version
-	mr.QueueResponse(`{"username":"alice"}`, "", nil) // glab api user
-
-	t.Setenv("GITLAB_TOKEN", "tok")
-	p := gitlab.New(mr, &config.Platform{TokenEnv: "GITLAB_TOKEN", Project: "grp/repo"})
-	require.NoError(t, p.Check())
-
-	require.Len(t, mr.Calls, 2)
-	assert.Equal(t, []string{"--version"}, mr.Calls[0].Args)
-	assert.Equal(t, []string{"api", "user"}, mr.Calls[1].Args)
-	assert.Equal(t, []string{"GITLAB_TOKEN=tok"}, mr.Calls[1].Env)
+	require.NoError(t, gitlab.New(&config.Platform{Project: "grp/repo", BaseURL: st.srv.URL}).Check())
+	assert.Equal(t, "tok", st.requests[0].header.Get("Private-Token"))
 }
 
 func TestCheck_Auth_Failure(t *testing.T) {
-	t.Setenv("GITLAB_CI", "")
-	mr := exectest.NewMockRunner()
-	mr.QueueResponse("glab version 1.0.0", "", nil)
-	mr.QueueResponse("", "401 Unauthorized", errors.New("exit status 1"))
-
+	notInCI(t)
+	st := newStub(t)
+	st.status["GET"] = http.StatusUnauthorized
 	t.Setenv("GITLAB_TOKEN", "bad-token")
-	p := gitlab.New(mr, &config.Platform{TokenEnv: "GITLAB_TOKEN", Project: "grp/repo"})
+	p := gitlab.New(&config.Platform{TokenEnv: "GITLAB_TOKEN", Project: "grp/repo", BaseURL: st.srv.URL})
 
 	err := p.Check()
 	require.Error(t, err)
@@ -451,164 +326,332 @@ func TestCheck_Auth_Failure(t *testing.T) {
 	assert.Contains(t, err.Error(), "GITLAB_TOKEN")
 }
 
-func TestCheck_Auth_InCI_OK(t *testing.T) {
+// In CI the job token cannot call /user (401), so Check reads the project's releases with it, by
+// numeric ID when CI_PROJECT_ID is set.
+func TestCheck_InCI_UsesTheJobTokenAndNoConfiguredTokenIsRequired(t *testing.T) {
+	notInCI(t)
+	st := newStub(t)
 	t.Setenv("GITLAB_CI", "true")
+	t.Setenv("CI_SERVER_URL", st.srv.URL)
+	t.Setenv("CI_JOB_TOKEN", "jobtok")
 	t.Setenv("CI_PROJECT_ID", "42")
-	mr := exectest.NewMockRunner()
-	mr.QueueResponse("glab version 1.0.0", "", nil)
-	mr.QueueResponse(`[]`, "", nil) // glab api projects/42/releases?per_page=1
+	t.Setenv("GITLAB_TOKEN", "") // deliberately absent
 
-	t.Setenv("GITLAB_TOKEN", "ci-token")
-	p := gitlab.New(mr, &config.Platform{TokenEnv: "GITLAB_TOKEN", Project: "grp/repo"})
-	require.NoError(t, p.Check())
+	require.NoError(t, gitlab.New(&config.Platform{Project: "grp/repo"}).Check())
 
-	require.Len(t, mr.Calls, 2)
-	assert.Equal(t, []string{"api", "projects/42/releases?per_page=1"}, mr.Calls[1].Args)
-	// In CI, no token injection — glab uses its own CI autologin
-	assert.Nil(t, mr.Calls[1].Env)
+	require.Len(t, st.requests, 1)
+	assert.Equal(t, "/api/v4/projects/42/releases", st.requests[0].path)
+	assert.Equal(t, "per_page=1", st.requests[0].rawQuery)
+	assert.Equal(t, "jobtok", st.requests[0].header.Get("Job-Token"))
+	assert.Empty(t, st.requests[0].header.Get("Private-Token"))
 }
 
-func TestCheck_Auth_InCI_NoProjectID(t *testing.T) {
-	// CI_PROJECT_ID absent: fall through to validate the configured token instead
-	// of silently skipping the auth check.
+func TestCheck_InCI_JobTokenIgnoresAConfiguredToken(t *testing.T) {
+	notInCI(t)
+	st := newStub(t)
 	t.Setenv("GITLAB_CI", "true")
-	t.Setenv("CI_PROJECT_ID", "")
-	mr := exectest.NewMockRunner()
-	mr.QueueResponse("glab version 1.0.0", "", nil)
-	mr.QueueResponse(`{"username":"alice"}`, "", nil) // configured-token fallback API call
+	t.Setenv("CI_SERVER_URL", st.srv.URL)
+	t.Setenv("CI_JOB_TOKEN", "jobtok")
+	t.Setenv("CI_PROJECT_ID", "42")
+	t.Setenv("GITLAB_TOKEN", "pat")
 
-	t.Setenv("GITLAB_TOKEN", "ci-token")
-	p := gitlab.New(mr, &config.Platform{TokenEnv: "GITLAB_TOKEN", Project: "grp/repo"})
-	require.NoError(t, p.Check())
-	require.Len(t, mr.Calls, 2)
-	assert.Equal(t, []string{"api", "user"}, mr.Calls[1].Args)
-	assert.Contains(t, mr.Calls[1].Env, "GITLAB_TOKEN=ci-token")
+	require.NoError(t, gitlab.New(&config.Platform{TokenEnv: "GITLAB_TOKEN", Project: "grp/repo"}).Check())
+
+	assert.Equal(t, "jobtok", st.requests[0].header.Get("Job-Token"), "same-host CI keeps preferring the job token")
+	assert.Empty(t, st.requests[0].header.Get("Private-Token"))
+}
+
+func TestCheck_InCI_NoProjectID_UsesTheProjectPath(t *testing.T) {
+	notInCI(t)
+	st := newStub(t)
+	t.Setenv("GITLAB_CI", "true")
+	t.Setenv("CI_SERVER_URL", st.srv.URL)
+	t.Setenv("CI_JOB_TOKEN", "jobtok")
+
+	require.NoError(t, gitlab.New(&config.Platform{Project: "grp/repo"}).Check())
+
+	assert.Equal(t, "/api/v4/projects/grp/repo/releases", st.requests[0].path)
+}
+
+func TestCheck_InCI_JobTokenRejected_HintsAtJobTokenPermissions(t *testing.T) {
+	notInCI(t)
+	st := newStub(t)
+	st.status["GET"] = http.StatusForbidden
+	t.Setenv("GITLAB_CI", "true")
+	t.Setenv("CI_SERVER_URL", st.srv.URL)
+	t.Setenv("CI_JOB_TOKEN", "jobtok")
+	t.Setenv("CI_PROJECT_ID", "42")
+
+	err := gitlab.New(&config.Platform{Project: "grp/repo"}).Check()
+
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "API call failed")
+	assert.Contains(t, err.Error(), "Job token permissions")
+}
+
+// With no CI_JOB_TOKEN to use, a CI run falls back to the configured token, and fails like a local
+// run when that is missing too.
+func TestCheck_InCI_NoJobToken_FallsBackToTheConfiguredToken(t *testing.T) {
+	notInCI(t)
+	st := newStub(t)
+	t.Setenv("GITLAB_CI", "true")
+	t.Setenv("CI_SERVER_URL", st.srv.URL)
+	t.Setenv("GITLAB_TOKEN", "pat")
+
+	require.NoError(t, gitlab.New(&config.Platform{TokenEnv: "GITLAB_TOKEN", Project: "grp/repo"}).Check())
+	assert.Equal(t, "/api/v4/user", st.requests[0].path)
+	assert.Equal(t, "pat", st.requests[0].header.Get("Private-Token"))
+
+	t.Setenv("GITLAB_TOKEN", "")
+	err := gitlab.New(&config.Platform{TokenEnv: "GITLAB_TOKEN", Project: "grp/repo"}).Check()
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "GITLAB_TOKEN")
 }
 
 // ---- Self-hosted (multi-instance, ADR-0025) ----------------------------------
 
-func TestCreateRelease_SelfHosted_SetsGitlabHostEnv(t *testing.T) {
-	t.Setenv("GITLAB_TOKEN", "tok")
-	mr := exectest.NewMockRunner()
-	mr.QueueResponse("", "", nil)
-
-	p := gitlab.New(mr, &config.Platform{
-		Project: "grp/repo",
-		BaseURL: "https://gitlab.example.com",
-	})
-	require.NoError(t, p.CreateRelease("v1.0.0", "notes", false))
-
-	require.Len(t, mr.Calls, 1)
-	assert.Equal(t, []string{"GITLAB_TOKEN=tok", "GITLAB_HOST=gitlab.example.com"}, mr.Calls[0].Env)
-}
-
-func TestCreateRelease_InCI_NoEnvInjection(t *testing.T) {
-	// When GITLAB_CI=true and not self-hosted, heraut must not inject GITLAB_TOKEN.
-	// Injecting it switches glab from JOB-TOKEN to PRIVATE-TOKEN auth, breaking
-	// path-based project lookups on non-default gitlab.com runners.
-	t.Setenv("GITLAB_CI", "true")
-	t.Setenv("CI_JOB_TOKEN", "ci-job-token")
-	mr := exectest.NewMockRunner()
-	mr.QueueResponse("", "", nil)
-
-	p := gitlab.New(mr, &config.Platform{Project: "grp/repo", TokenEnv: "CI_JOB_TOKEN"})
-	require.NoError(t, p.CreateRelease("v1.0.0", "notes", false))
-
-	require.Len(t, mr.Calls, 1)
-	assert.Nil(t, mr.Calls[0].Env, "must not inject env in CI autologin mode")
-}
-
-func TestCheck_SelfHosted_SkipsCIAutologin(t *testing.T) {
-	// Even when GITLAB_CI=true, a self-hosted instance must not rely on glab's CI
-	// autologin (which targets the gitlab.com job token) — it always authenticates
-	// via the configured token, with GITLAB_HOST pointing glab at the right host.
-	t.Setenv("GITLAB_CI", "true")
-	t.Setenv("CI_PROJECT_ID", "42")
-	mr := exectest.NewMockRunner()
-	mr.QueueResponse("glab version 1.0.0", "", nil)   // --version
-	mr.QueueResponse(`{"username":"alice"}`, "", nil) // glab api user
-
-	t.Setenv("GITLAB_TOKEN", "ci-token")
-	p := gitlab.New(mr, &config.Platform{
-		TokenEnv: "GITLAB_TOKEN",
-		Project:  "grp/repo",
-		BaseURL:  "https://gitlab.example.com",
-	})
-	require.NoError(t, p.Check())
-
-	require.Len(t, mr.Calls, 2)
-	assert.Equal(t, []string{"api", "user"}, mr.Calls[1].Args)
-	assert.Equal(t, []string{"GITLAB_TOKEN=ci-token", "GITLAB_HOST=gitlab.example.com"}, mr.Calls[1].Env)
-}
-
-// TestCheck_SelfHosted_MatchesCIServerURL_TrustsCIAutologin covers T215: a self-hosted base_url
-// naming the CI runner's own instance (CI_SERVER_URL) is not a "separately configured" target in
-// ADR-0025's sense — glab's own CI-native detection reaches it too, so no explicit token is
-// required, mirroring TestCheck_InCI_TokenNotRequired for the non-self-hosted case.
-func TestCheck_SelfHosted_MatchesCIServerURL_TrustsCIAutologin(t *testing.T) {
-	t.Setenv("GITLAB_CI", "true")
-	t.Setenv("CI_SERVER_URL", "https://gitlab.example.com")
-	t.Setenv("CI_PROJECT_ID", "42")
-	t.Setenv("GITLAB_TOKEN", "") // deliberately absent
-
-	mr := exectest.NewMockRunner()
-	mr.QueueResponse("glab version 1.0.0", "", nil)
-	mr.QueueResponse(`[]`, "", nil) // CI auth check via numeric project ID
-
-	p := gitlab.New(mr, &config.Platform{
-		Project: "grp/repo",
-		BaseURL: "https://gitlab.example.com",
-	})
-	require.NoError(t, p.Check())
-
-	require.Len(t, mr.Calls, 2)
-	assert.Equal(t, []string{"api", "projects/42/releases?per_page=1"}, mr.Calls[1].Args)
-	assert.Nil(t, mr.Calls[1].Env, "no token/host env injected — glab's own CI autologin targets CI_SERVER_URL")
-}
-
-// TestCheck_SelfHosted_DifferentCIServerURL_StillRequiresToken proves the T215 narrowing doesn't
-// over-broaden: a self-hosted base_url naming a genuinely different instance than the CI runner's
-// own host (ADR-0025's actual multi-instance scenario — e.g. publishing to a second internal
-// mirror from a gitlab.com-hosted runner) must still authenticate via the configured token, even
-// with GITLAB_CI=true.
-func TestCheck_SelfHosted_DifferentCIServerURL_StillRequiresToken(t *testing.T) {
+// A self-hosted base_url naming a different instance than the CI runner's own never gets the job
+// token (it belongs to the runner's instance), so it authenticates with the configured token.
+func TestCheck_SelfHosted_DifferentCIServerURL_UsesTheConfiguredToken(t *testing.T) {
+	notInCI(t)
+	st := newStub(t)
 	t.Setenv("GITLAB_CI", "true")
 	t.Setenv("CI_SERVER_URL", "https://gitlab.com")
+	t.Setenv("CI_JOB_TOKEN", "jobtok")
 	t.Setenv("CI_PROJECT_ID", "42")
-	mr := exectest.NewMockRunner()
-	mr.QueueResponse("glab version 1.0.0", "", nil)
-	mr.QueueResponse(`{"username":"alice"}`, "", nil)
+	t.Setenv("GITLAB_TOKEN", "pat")
+	p := gitlab.New(&config.Platform{TokenEnv: "GITLAB_TOKEN", Project: "grp/repo", BaseURL: st.srv.URL})
 
-	t.Setenv("GITLAB_TOKEN", "ci-token")
-	p := gitlab.New(mr, &config.Platform{
-		TokenEnv: "GITLAB_TOKEN",
-		Project:  "grp/repo",
-		BaseURL:  "https://gitlab.example.com",
-	})
 	require.NoError(t, p.Check())
 
-	require.Len(t, mr.Calls, 2)
-	assert.Equal(t, []string{"api", "user"}, mr.Calls[1].Args)
-	assert.Equal(t, []string{"GITLAB_TOKEN=ci-token", "GITLAB_HOST=gitlab.example.com"}, mr.Calls[1].Env)
+	assert.Equal(t, "/api/v4/user", st.requests[0].path)
+	assert.Equal(t, "pat", st.requests[0].header.Get("Private-Token"))
+	assert.Empty(t, st.requests[0].header.Get("Job-Token"))
 }
 
-// TestCreateRelease_SelfHosted_MatchesCIServerURL_NoEnvInjection covers T215's CreateRelease path:
-// autologin is trusted (no token/host env injected) when the self-hosted base_url matches the CI
-// runner's own CI_SERVER_URL.
-func TestCreateRelease_SelfHosted_MatchesCIServerURL_NoEnvInjection(t *testing.T) {
+// T215: a base_url naming the CI runner's own instance is not a separately configured target, so
+// the job token is trusted there and no explicit token is required.
+func TestCheck_SelfHosted_MatchesCIServerURL_TrustsTheJobToken(t *testing.T) {
+	notInCI(t)
+	st := newStub(t)
 	t.Setenv("GITLAB_CI", "true")
-	t.Setenv("CI_SERVER_URL", "https://gitlab.example.com")
-	t.Setenv("CI_JOB_TOKEN", "ci-job-token")
-	mr := exectest.NewMockRunner()
-	mr.QueueResponse("", "", nil)
+	t.Setenv("CI_SERVER_URL", st.srv.URL)
+	t.Setenv("CI_JOB_TOKEN", "jobtok")
+	t.Setenv("CI_PROJECT_ID", "42")
+	t.Setenv("GITLAB_TOKEN", "")
 
-	p := gitlab.New(mr, &config.Platform{
-		Project:  "grp/repo",
-		BaseURL:  "https://gitlab.example.com",
-		TokenEnv: "CI_JOB_TOKEN",
-	})
+	require.NoError(t, gitlab.New(&config.Platform{Project: "grp/repo", BaseURL: st.srv.URL}).Check())
+
+	assert.Equal(t, "jobtok", st.requests[0].header.Get("Job-Token"))
+}
+
+func TestCreateRelease_SelfHosted_UsesTheBaseURLAndTheConfiguredToken(t *testing.T) {
+	notInCI(t)
+	st := newStub(t)
+	t.Setenv("GITLAB_TOKEN", "tok")
+	p := gitlab.New(&config.Platform{Project: "grp/repo", BaseURL: st.srv.URL})
+
 	require.NoError(t, p.CreateRelease("v1.0.0", "notes", false))
 
-	require.Len(t, mr.Calls, 1)
-	assert.Nil(t, mr.Calls[0].Env, "must not inject env in CI autologin mode")
+	require.Len(t, st.requests, 1)
+	assert.Equal(t, "/api/v4/projects/grp/repo/releases", st.requests[0].path)
+	assert.Equal(t, "tok", st.requests[0].header.Get("Private-Token"))
+}
+
+func TestCreateRelease_SelfHosted_MatchesCIServerURL_UsesTheJobToken(t *testing.T) {
+	notInCI(t)
+	st := newStub(t)
+	t.Setenv("GITLAB_CI", "true")
+	t.Setenv("CI_SERVER_URL", st.srv.URL)
+	t.Setenv("CI_JOB_TOKEN", "jobtok")
+	p := gitlab.New(&config.Platform{Project: "grp/repo", BaseURL: st.srv.URL})
+
+	require.NoError(t, p.CreateRelease("v1.0.0", "notes", false))
+
+	assert.Equal(t, "jobtok", st.requests[0].header.Get("Job-Token"))
+	assert.Empty(t, st.requests[0].header.Get("Private-Token"))
+}
+
+// ---- CreateRelease ------------------------------------------------------------
+
+func TestCreateRelease_Basic(t *testing.T) {
+	notInCI(t)
+	st := newStub(t)
+	t.Setenv("GITLAB_TOKEN", "tok")
+	p := gitlab.New(&config.Platform{Project: "grp/repo", TokenEnv: "GITLAB_TOKEN", BaseURL: st.srv.URL})
+
+	require.NoError(t, p.CreateRelease("v1.2.3", "## Notes\n- thing\n", false))
+
+	require.Len(t, st.requests, 1, "no assets: only the release call")
+	rel := st.release(t)
+	assert.Equal(t, "v1.2.3", rel["tag_name"])
+	assert.Equal(t, "## Notes\n- thing\n", rel["description"])
+}
+
+func TestCreateRelease_InCI_UsesTheJobTokenOnTheServerURL(t *testing.T) {
+	notInCI(t)
+	st := newStub(t)
+	t.Setenv("GITLAB_CI", "true")
+	t.Setenv("CI_SERVER_URL", st.srv.URL)
+	t.Setenv("CI_JOB_TOKEN", "ci-job-token")
+	t.Setenv("GITLAB_TOKEN", "ignored")
+	p := gitlab.New(&config.Platform{Project: "grp/repo", TokenEnv: "GITLAB_TOKEN"})
+
+	require.NoError(t, p.CreateRelease("v1.0.0", "notes", false))
+
+	assert.Equal(t, "ci-job-token", st.requests[0].header.Get("Job-Token"))
+	assert.Empty(t, st.requests[0].header.Get("Private-Token"))
+}
+
+func TestCreateRelease_NoToken_Error(t *testing.T) {
+	notInCI(t)
+	t.Setenv("GITLAB_TOKEN", "")
+	err := gitlab.New(&config.Platform{Project: "grp/repo"}).CreateRelease("v1.0.0", "notes", false)
+
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "GITLAB_TOKEN")
+}
+
+func TestCreateRelease_Assets_UploadedThenLinked(t *testing.T) {
+	notInCI(t)
+	st := newStub(t)
+	tmp := t.TempDir()
+	require.NoError(t, os.WriteFile(filepath.Join(tmp, "heraut_linux"), []byte("bin"), 0o755))
+	require.NoError(t, os.WriteFile(filepath.Join(tmp, "checksums.txt"), []byte("abc"), 0o644))
+	t.Setenv("GITLAB_TOKEN", "tok")
+	p := gitlab.New(&config.Platform{
+		Project: "grp/repo",
+		BaseURL: st.srv.URL,
+		Assets:  []string{filepath.Join(tmp, "heraut_linux"), filepath.Join(tmp, "checksums.txt")},
+	})
+
+	require.NoError(t, p.CreateRelease("v1.0.0", "notes", false))
+
+	assert.Equal(t, []string{
+		"/api/v4/projects/grp/repo/packages/generic/release-assets/v1.0.0/heraut_linux",
+		"/api/v4/projects/grp/repo/packages/generic/release-assets/v1.0.0/checksums.txt",
+	}, st.puts())
+	links := st.release(t)["assets"].(map[string]any)["links"].([]any)
+	assert.Len(t, links, 2)
+}
+
+func TestCreateRelease_Assets_GlobInOneCall(t *testing.T) {
+	notInCI(t)
+	st := newStub(t)
+	tmp := t.TempDir()
+	for _, name := range []string{"app_linux_amd64", "app_darwin_amd64"} {
+		require.NoError(t, os.WriteFile(filepath.Join(tmp, name), []byte("bin"), 0o755))
+	}
+	t.Setenv("GITLAB_TOKEN", "tok")
+	p := gitlab.New(&config.Platform{Project: "grp/repo", BaseURL: st.srv.URL, Assets: []string{filepath.Join(tmp, "app_*")}})
+
+	require.NoError(t, p.CreateRelease("v1.0.0", "notes", false))
+
+	assert.ElementsMatch(t, []string{
+		"/api/v4/projects/grp/repo/packages/generic/release-assets/v1.0.0/app_linux_amd64",
+		"/api/v4/projects/grp/repo/packages/generic/release-assets/v1.0.0/app_darwin_amd64",
+	}, st.puts())
+}
+
+func TestCreateRelease_Assets_GlobSkipsDirectories(t *testing.T) {
+	notInCI(t)
+	st := newStub(t)
+	tmp := t.TempDir()
+	require.NoError(t, os.WriteFile(filepath.Join(tmp, "app"), []byte("bin"), 0o755))
+	require.NoError(t, os.MkdirAll(filepath.Join(tmp, "subdir"), 0o755))
+	t.Setenv("GITLAB_TOKEN", "tok")
+	p := gitlab.New(&config.Platform{Project: "grp/repo", BaseURL: st.srv.URL, Assets: []string{filepath.Join(tmp, "*")}})
+
+	require.NoError(t, p.CreateRelease("v1.0.0", "notes", false))
+
+	assert.Equal(t, []string{"/api/v4/projects/grp/repo/packages/generic/release-assets/v1.0.0/app"}, st.puts())
+}
+
+// By the time assets resolve the tag is already pushed, so a pattern matching nothing must skip
+// with a warning and still create the release rather than fail it.
+func TestCreateRelease_Assets_NoMatch_StillCreates(t *testing.T) {
+	notInCI(t)
+	st := newStub(t)
+	t.Setenv("GITLAB_TOKEN", "tok")
+	p := gitlab.New(&config.Platform{
+		Project: "grp/repo",
+		BaseURL: st.srv.URL,
+		Assets:  []string{filepath.Join(t.TempDir(), "heraut_*")},
+	})
+
+	require.NoError(t, p.CreateRelease("v1.0.0", "notes", false))
+
+	require.Len(t, st.requests, 1)
+	assert.Empty(t, st.puts())
+	assert.NotContains(t, st.release(t), "assets")
+}
+
+func TestCreateRelease_PerEnvTag_KeepsTheTagAndSanitizesThePackageVersion(t *testing.T) {
+	notInCI(t)
+	st := newStub(t)
+	tmp := t.TempDir()
+	require.NoError(t, os.WriteFile(filepath.Join(tmp, "app"), []byte("bin"), 0o755))
+	t.Setenv("GITLAB_TOKEN", "tok")
+	p := gitlab.New(&config.Platform{Project: "grp/repo", BaseURL: st.srv.URL, Assets: []string{filepath.Join(tmp, "app")}})
+
+	require.NoError(t, p.CreateRelease("uat/1.0.0+b5", "notes", false))
+
+	assert.Equal(t, []string{"/api/v4/projects/grp/repo/packages/generic/release-assets/uat-1.0.0+b5/app"}, st.puts())
+	assert.Equal(t, "uat/1.0.0+b5", st.release(t)["tag_name"])
+}
+
+// TestCreateRelease_PrereleaseParamIgnored covers ADR-0064: GitLab has no pre-release concept,
+// so the shared port.Platform parameter is accepted (to satisfy the contract) but never changes
+// the request, for either value.
+func TestCreateRelease_PrereleaseParamIgnored(t *testing.T) {
+	var bodies []map[string]any
+	for _, prerelease := range []bool{false, true} {
+		notInCI(t)
+		st := newStub(t)
+		t.Setenv("GITLAB_TOKEN", "tok")
+		p := gitlab.New(&config.Platform{Project: "grp/repo", BaseURL: st.srv.URL})
+		require.NoError(t, p.CreateRelease("v1.2.3", "notes", prerelease))
+		bodies = append(bodies, st.release(t))
+	}
+	assert.Equal(t, bodies[0], bodies[1])
+}
+
+func TestCreateRelease_ProjectFromEnv(t *testing.T) {
+	notInCI(t)
+	st := newStub(t)
+	t.Setenv("CI_PROJECT_PATH", "envgrp/envrepo")
+	t.Setenv("GITLAB_TOKEN", "tok")
+	p := gitlab.New(&config.Platform{BaseURL: st.srv.URL})
+
+	require.NoError(t, p.CreateRelease("v1.0.0", "notes", false))
+
+	assert.Equal(t, "/api/v4/projects/envgrp/envrepo/releases", st.requests[0].path)
+}
+
+func TestCreateRelease_NoProject_Error(t *testing.T) {
+	notInCI(t)
+	err := gitlab.New(&config.Platform{}).CreateRelease("v1.0.0", "notes", false)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "project")
+}
+
+func TestCreateRelease_APIError_IsReturned(t *testing.T) {
+	notInCI(t)
+	st := newStub(t)
+	st.status["POST"] = http.StatusForbidden
+	t.Setenv("GITLAB_TOKEN", "tok")
+	p := gitlab.New(&config.Platform{Project: "grp/repo", BaseURL: st.srv.URL})
+
+	err := p.CreateRelease("v1.0.0", "notes", false)
+
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "gitlab release create")
+}
+
+func TestHasAssets(t *testing.T) {
+	pEmpty := gitlab.New(&config.Platform{})
+	assert.False(t, pEmpty.HasAssets())
+
+	pWithAssets := gitlab.New(&config.Platform{Assets: []string{"dist/*"}})
+	assert.True(t, pWithAssets.HasAssets())
 }

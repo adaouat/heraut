@@ -1,6 +1,8 @@
 package harness
 
 import (
+	"io"
+	"net/http"
 	"os"
 	"strings"
 	"testing"
@@ -151,4 +153,48 @@ func TestRepo_FakeCLIWorksWithOnlyItsOwnDirOnPath(t *testing.T) {
 
 	assert.Equal(t, 0, res.ExitCode, res.Stderr)
 	assert.Equal(t, []string{"gh [--version]"}, r.CLICalls(), "the call is logged next to the fake, not at /")
+}
+
+func TestRepo_FakeGitLabAnswersAndLogsNextToTheFakeCLIs(t *testing.T) {
+	r := NewRepo(t)
+	r.FakeCLI("gh")
+	gl := r.FakeGitLab()
+	assert.Same(t, gl, r.FakeGitLab(), "a repository has one stand-in")
+
+	res := r.Run("/bin/sh", nil, "-c", "gh --version")
+	require.Equal(t, 0, res.ExitCode)
+	do := func(method, path, body string) (int, string) {
+		req, err := http.NewRequest(method, gl.URL+path, strings.NewReader(body))
+		require.NoError(t, err)
+		resp, err := http.DefaultClient.Do(req)
+		require.NoError(t, err)
+		defer func() { _ = resp.Body.Close() }()
+		b, _ := io.ReadAll(resp.Body)
+		return resp.StatusCode, string(b)
+	}
+
+	code, _ := do(http.MethodGet, "/api/v4/user", "")
+	assert.Equal(t, 200, code)
+	code, body := do(http.MethodGet, "/api/v4/projects/42/releases?per_page=1", "")
+	assert.Equal(t, 200, code)
+	assert.Equal(t, "[]", body, "the releases list is an array")
+	code, _ = do(http.MethodPut, "/api/v4/projects/acme%2Fwidget/packages/generic/release-assets/v1/a.txt", "bin")
+	assert.Equal(t, 201, code)
+	code, _ = do(http.MethodPost, "/api/v4/projects/acme%2Fwidget/releases", `{"tag_name":"v1"}`)
+	assert.Equal(t, 201, code)
+
+	assert.Equal(t, []string{
+		"gh [--version]",
+		"gitlab [GET] [/api/v4/user]",
+		"gitlab [GET] [/api/v4/projects/42/releases]",
+		"gitlab [PUT] [/api/v4/projects/acme/widget/packages/generic/release-assets/v1/a.txt]",
+		"gitlab [POST] [/api/v4/projects/acme/widget/releases]",
+	}, r.CLICalls(), "requests are logged in order, with decoded paths and no query")
+	assert.Equal(t, "v1", gl.Release()["tag_name"])
+
+	gl.FailReleases()
+	code, _ = do(http.MethodPost, "/api/v4/projects/acme%2Fwidget/releases", `{"tag_name":"v2"}`)
+	assert.Equal(t, 403, code)
+	assert.Equal(t, "gitlab [POST] [/api/v4/projects/acme/widget/releases]", r.CLICalls()[5], "a failing call is still recorded")
+	assert.Equal(t, "v1", gl.Release()["tag_name"], "a refused release is not kept")
 }

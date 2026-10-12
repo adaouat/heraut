@@ -15,6 +15,7 @@ type Repo struct {
 	home   string
 	remote string
 	binDir string
+	gitlab *GitLab
 }
 
 // NewRepo initialises an empty repository on branch main; it skips when git is not on PATH.

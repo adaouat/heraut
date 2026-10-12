@@ -14,8 +14,8 @@ func buildGitHubPlatform(runner port.Runner, cfg *config.Platform) (port.Platfor
 	return github.New(runner, cfg), nil
 }
 
-func buildGitLabPlatform(runner port.Runner, cfg *config.Platform) (port.Platform, error) {
-	return gitlab.New(runner, cfg), nil
+func buildGitLabPlatform(_ port.Runner, cfg *config.Platform) (port.Platform, error) {
+	return gitlab.New(cfg), nil
 }
 
 // platformBuilders maps a resolved forge type to its publish-driver constructor — the one source

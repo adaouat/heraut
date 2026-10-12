@@ -519,10 +519,8 @@ func TestRuntimeCheck_MultipleSameTypePlatforms(t *testing.T) {
 	mr.QueueResponse("a@b.com", "", nil)              // user.email
 	mr.QueueResponse("", "", nil)                     // git status
 	mr.QueueResponse("", "", errors.New("no origin")) // git remote get-url origin (forge resolution)
-	mr.QueueResponse("glab 1.0", "", nil)             // gitlab-com p.Check() binary
-	// token missing → checkAPIAuth skipped for gitlab-com
-	mr.QueueResponse("glab 1.0", "", nil) // gitlab-internal p.Check() binary
-	// token missing → checkAPIAuth skipped for gitlab-internal
+	// p.Check() of both GitLab targets runs no command: the token is missing, so it fails before
+	// any API call.
 
 	cfg := semverCfg()
 	cfg.Forges = []config.Forge{
@@ -631,8 +629,7 @@ func TestRuntimeCheck_ReleaseWithoutTargets_RunsPublishCheck(t *testing.T) {
 	mr.QueueResponse("a@b.com", "", nil)              // user.email
 	mr.QueueResponse("", "", nil)                     // git status
 	mr.QueueResponse("", "", errors.New("no origin")) // git remote get-url origin (forge resolution)
-	mr.QueueResponse("glab 1.60.0", "", nil)          // glab binary — inside p.Check()
-	// GITLAB_TOKEN unset and not in CI autologin → checkAPIAuth returns nil without a further call
+	// GITLAB_TOKEN unset and not in CI autologin → p.Check() fails on the token with no API call
 
 	cfg := semverCfg()
 	cfg.Forges = []config.Forge{{Name: "gl", Type: "gitlab", Project: "group/repo"}}

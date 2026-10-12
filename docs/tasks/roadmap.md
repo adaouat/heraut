@@ -3028,13 +3028,39 @@ publishing, but the message is cryptic if a push were skipped; the lint hook mus
 `mise exec` (the shell's golangci-lint 2.13.1 cannot read go1.27.2 export data). The package
 registry now holds assets, so Spec 02/05 wording changes stay with T367.
 
-#### `[ ]` T366: swap the GitLab driver onto the client; port `Check()`, CI auth, self-hosted
+#### `[x]` T366: swap the GitLab driver onto the client; port `Check()`, CI auth, self-hosted
 
 `platforms/gitlab` stops using `port.Runner`. `Check()` validates with a job-token-reachable call
 (Releases list; verify) instead of `glab api`; `inCIAutologin()` selects the job-token client;
 self-hosted `base_url` replaces `GITLAB_HOST`. Port the `Check`/self-hosted tests (T215 semantics:
 same-host `base_url` as `CI_SERVER_URL`). Touches `app` wiring and the platform constructor
 signature in one commit.
+
+**Completion note:** `platforms/gitlab` no longer takes a `port.Runner` (`New(cfg)`; `app` ignores the
+runner it still passes to the shared builder signature). Auth is one rule (`credentials()`): under
+CI autologin with a `CI_JOB_TOKEN` it sends the job token (`JOB-TOKEN`), otherwise the configured
+`token_env` (`PRIVATE-TOKEN`). The user confirmed two choices: same-host CI keeps preferring the job
+token over a configured one (the old glab-era ADR-0025 §4 precedence, unchanged), and a CI run with
+no `CI_JOB_TOKEN` falls back to the configured token and fails like a local run when that is missing
+too. `Check()` validates a personal token with `GET /user` and a job token with the releases list
+(`CI_PROJECT_ID`, else the project path; the old code fell back to `/user` with the configured token
+when the ID was absent, which a job token cannot do), keeps the old hints, and no longer probes the
+`glab` binary. The client gained `VerifyUser` and `VerifyReleasesAccess` (separate commit).
+`CreateRelease` keeps lenient glob resolution, drops the notes temp file, and wraps errors as
+`gitlab release create: …`. `GITLAB_HOST`, `tokenEnvSlice` and `hostEnv` are gone; self-hosted is the
+`base_url`. Tests: the gitlab platform tests moved from `MockRunner` to a stub server row by row (the
+glab-missing row is obsolete; the no-project-ID CI row now asserts the project-path fallback; new
+rows for the job-token and personal-token headers, the per-env package version, a refused release);
+two `app` check tests lost queued `glab --version` responses that the GitLab target no longer
+consumes. Lane A: `harness.Repo.FakeGitLab()` is a loopback stand-in for the API that logs
+`gitlab [METHOD] [/path]` into the same call log as the fake CLIs, so the "probe every target, then
+publish in declared order" assertion survives; the six GitLab scenarios in `release_flow_test.go` use
+it (forge `base_url` points at it), plus two new ones: assets uploaded before the linking release,
+and a refused release exiting 3. Whole suite checked behind a logging proxy: no test reaches
+gitlab.com (one did, `TestCheck_ProjectMissing`, and now uses the stub). Not done here, left for
+T367: the binary-only `glab`/`gh` fallback probe in `app/check.go`, `FakeCLI("glab")`, the Dockerfile,
+`CLAUDE.md`, the specs and Lane B's own use of `glab`. The CI job-token `Check()` call (releases list)
+is still unproven on real CI; T368 covers it.
 
 #### `[ ]` T367: drop `glab` from the runtime checks, image and fake-CLI harness
 

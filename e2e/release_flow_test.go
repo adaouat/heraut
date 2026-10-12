@@ -26,6 +26,7 @@ forges:
   - name: gitlab
     platform: gitlab
     project: acme/widget
+    base_url: __GITLAB_URL__
     token_env: GITLAB_TOKEN
 `
 
@@ -51,12 +52,18 @@ func normCalls(calls []string) []string {
 
 var tokens = []string{"GH_TOKEN=ghtok", "GITLAB_TOKEN=gltok"}
 
-// releaseRepo is a flowRepo with both fake CLIs installed and one releasable commit.
+// gitlabRelease is the call log line of a GitLab release creation on the acme/widget project.
+const gitlabRelease = "gitlab [POST] [/api/v4/projects/acme/widget/releases]"
+
+// releaseRepo is a flowRepo with the fake gh CLI and the GitLab stand-in installed (the forge's
+// base_url points at it) and one releasable commit.
 func releaseRepo(t *testing.T, cfg string) *harness.Repo {
 	t.Helper()
-	repo := flowRepo(t, cfg)
+	repo := harness.NewRepo(t)
 	repo.FakeCLI("gh")
-	repo.FakeCLI("glab")
+	repo.WriteConfig(strings.ReplaceAll(cfg, "__GITLAB_URL__", repo.FakeGitLab().URL))
+	repo.Commit("chore: init")
+	repo.AddRemote()
 	repo.Commit("feat: one")
 	return repo
 }
@@ -90,10 +97,9 @@ func TestRelease_TwoTargetsPublishInDeclaredOrderWithDriverFlags(t *testing.T) {
 	assert.Equal(t, []string{
 		"gh [--version]",
 		"gh [api] [repos/acme/widget/releases?per_page=1]",
-		"glab [--version]",
-		"glab [api] [user]",
+		"gitlab [GET] [/api/v4/user]",
 		"gh [release] [create] [v0.1.0] [--notes-file] [<notes>] [--repo] [acme/widget] [--draft]",
-		"glab [release] [create] [v0.1.0] [--notes-file] [<notes>] [--repo] [acme/widget]",
+		gitlabRelease,
 	}, normCalls(repo.CLICalls()), "every target is probed first, then published in declared order; draft is GitHub-only")
 }
 
@@ -117,8 +123,12 @@ func TestRelease_GitLabIgnoresThePreReleaseFlag(t *testing.T) {
 	require.Equal(t, exitOK, res.ExitCode, "stdout:\n%s\nstderr:\n%s", res.Stdout, res.Stderr)
 	calls := normCalls(repo.CLICalls())
 	assert.Contains(t, calls, "gh [release] [create] [v0.1.0-rc.1] [--notes-file] [<notes>] [--repo] [acme/widget] [--prerelease]")
-	assert.Contains(t, calls, "glab [release] [create] [v0.1.0-rc.1] [--notes-file] [<notes>] [--repo] [acme/widget]",
-		"GitLab has no pre-release flag: the release is created plain")
+	assert.Contains(t, calls, gitlabRelease)
+	rel := repo.FakeGitLab().Release()
+	assert.Equal(t, "v0.1.0-rc.1", rel["tag_name"])
+	for key := range rel {
+		assert.NotContains(t, key, "prerelease", "GitLab has no pre-release concept: the release is created plain")
+	}
 }
 
 func TestRelease_AssetsAreAttachedAndAZeroMatchIsLenient(t *testing.T) {
@@ -159,9 +169,41 @@ func TestRelease_AFailingPublishAbortsTheLoop(t *testing.T) {
 
 	require.Equal(t, exitRuntime, res.ExitCode, "stdout:\n%s\nstderr:\n%s", res.Stdout, res.Stderr)
 	assert.Contains(t, normalize(res.Stdout+" "+res.Stderr), "publish to github")
-	for _, call := range repo.CLICalls() {
-		assert.False(t, strings.HasPrefix(call, "glab [release]"), "the second target must not publish: %s", call)
-	}
+	assert.NotContains(t, repo.CLICalls(), gitlabRelease, "the second target must not publish")
+	assert.Equal(t, "v0.1.0", repo.GitRemote("tag", "-l"), "the tag was already pushed and stays")
+}
+
+func TestRelease_GitLabAssetsAreUploadedThenLinkedOnTheRelease(t *testing.T) {
+	bin := harness.Binary(t)
+	repo := releaseRepo(t, releaseCfg(`    - forge: gitlab
+      assets:
+        - "dist/*.txt"
+`, ""))
+	repo.WriteFile("dist/a.txt", "a\n")
+	repo.WriteFile("dist/b.txt", "b\n")
+
+	res := repo.Run(bin, tokens, "release", "--offline")
+
+	require.Equal(t, exitOK, res.ExitCode, "stdout:\n%s\nstderr:\n%s", res.Stdout, res.Stderr)
+	assert.Equal(t, []string{
+		"gitlab [GET] [/api/v4/user]",
+		"gitlab [PUT] [/api/v4/projects/acme/widget/packages/generic/release-assets/v0.1.0/a.txt]",
+		"gitlab [PUT] [/api/v4/projects/acme/widget/packages/generic/release-assets/v0.1.0/b.txt]",
+		gitlabRelease,
+	}, repo.CLICalls(), "assets are uploaded before the release that links them")
+	links := repo.FakeGitLab().Release()["assets"].(map[string]any)["links"].([]any)
+	assert.Len(t, links, 2)
+}
+
+func TestRelease_AFailingGitLabPublishExitsRuntime(t *testing.T) {
+	bin := harness.Binary(t)
+	repo := releaseRepo(t, releaseCfg("    - forge: gitlab\n", ""))
+	repo.FakeGitLab().FailReleases()
+
+	res := repo.Run(bin, tokens, "release", "--offline")
+
+	require.Equal(t, exitRuntime, res.ExitCode, "stdout:\n%s\nstderr:\n%s", res.Stdout, res.Stderr)
+	assert.Contains(t, normalize(res.Stdout+" "+res.Stderr), "publish to gitlab")
 	assert.Equal(t, "v0.1.0", repo.GitRemote("tag", "-l"), "the tag was already pushed and stays")
 }
 
@@ -174,7 +216,7 @@ func TestRelease_DryRunCallsNothingAndCreatesNothing(t *testing.T) {
 
 	require.Equal(t, exitOK, res.ExitCode, "stdout:\n%s\nstderr:\n%s", res.Stdout, res.Stderr)
 	assert.Contains(t, normalize(res.Stdout), "[dry-run] would create release")
-	assert.Empty(t, repo.CLICalls(), "neither gh nor glab is invoked")
+	assert.Empty(t, repo.CLICalls(), "neither gh nor the GitLab API is called")
 	assert.Equal(t, before, repoState(t, repo), "no tag, commit or file")
 	assert.Empty(t, repo.GitRemote("tag", "-l"))
 }
@@ -209,7 +251,7 @@ func TestRelease_ReleaseHooksRunPerTarget(t *testing.T) {
 		for _, call := range calls {
 			assert.False(t, strings.HasPrefix(call, "gh [release]"), "github must be skipped: %s", call)
 		}
-		assert.Contains(t, normCalls(calls), "glab [release] [create] [v0.1.0] [--notes-file] [<notes>] [--repo] [acme/widget]")
+		assert.Contains(t, calls, gitlabRelease)
 		assert.Equal(t, []string{"ok"}, logLines(repo.ReadFile(".hooklog")))
 	})
 }
@@ -226,7 +268,7 @@ func TestRelease_AFailingPostReleaseHookWarnsAndTheLoopContinues(t *testing.T) {
 	require.Equal(t, exitRuntime, res.ExitCode, "the run still fails when a post_release hook failed")
 	calls := normCalls(repo.CLICalls())
 	assert.Contains(t, calls, "gh [release] [create] [v0.1.0] [--notes-file] [<notes>] [--repo] [acme/widget]", "github was published")
-	assert.Contains(t, calls, "glab [release] [create] [v0.1.0] [--notes-file] [<notes>] [--repo] [acme/widget]", "and the loop went on to gitlab")
+	assert.Contains(t, calls, gitlabRelease, "and the loop went on to gitlab")
 	assert.Equal(t, []string{"ok"}, logLines(repo.ReadFile(".hooklog")))
 }
 

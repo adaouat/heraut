@@ -18,17 +18,16 @@ const (
 	gitlabBaseURL   = "https://gitlab.com"
 )
 
-// Platform implements port.Platform for GitLab via the glab CLI.
+// Platform implements port.Platform for GitLab over the REST API (ADR-0069).
 type Platform struct {
-	runner port.Runner
-	cfg    *config.Platform
+	cfg *config.Platform
 }
 
 var _ port.Platform = (*Platform)(nil)
 
 // New constructs a GitLab Platform.
-func New(runner port.Runner, cfg *config.Platform) *Platform {
-	return &Platform{runner: runner, cfg: cfg}
+func New(cfg *config.Platform) *Platform {
+	return &Platform{cfg: cfg}
 }
 
 func (p *Platform) Name() string { return p.cfg.Name }
@@ -76,28 +75,22 @@ func (p *Platform) LinkContext() port.LinkContext {
 	}
 }
 
-// Check verifies glab is on PATH, the token env var is set, project is resolvable,
-// and the token authenticates successfully against the GitLab API.
+// Check verifies a token is available, the project is resolvable, and the token authenticates
+// against the GitLab API.
 func (p *Platform) Check() error {
 	var errs []error
 
-	_, _, binaryErr := p.runner.Run("glab", "--version")
-	if binaryErr != nil {
-		errs = append(errs, fmt.Errorf("glab not found: %w", binaryErr))
-	}
-
-	tokenEnv := p.tokenEnv()
-	tokenMissing := os.Getenv(tokenEnv) == ""
-	if tokenMissing && !p.inCIAutologin() {
-		errs = append(errs, fmt.Errorf("environment variable %s is not set", tokenEnv))
+	token, jobToken, tokenErr := p.credentials()
+	if tokenErr != nil {
+		errs = append(errs, tokenErr)
 	}
 
 	if p.project() == "" {
 		errs = append(errs, fmt.Errorf("project not set: configure project: in .heraut.yml or set $%s", projectEnvVar))
 	}
 
-	if binaryErr == nil {
-		if err := p.checkAPIAuth(tokenEnv, tokenMissing); err != nil {
+	if tokenErr == nil {
+		if err := p.checkAPIAuth(token, jobToken); err != nil {
 			errs = append(errs, err)
 		}
 	}
@@ -105,38 +98,50 @@ func (p *Platform) Check() error {
 	return errors.Join(errs...)
 }
 
-// checkAPIAuth verifies API access. For the default GitLab host in GitLab CI, glab is
-// already authenticated via CI autologin so no token injection is used; the project
-// releases endpoint is probed via CI_PROJECT_ID. For self-hosted instances, and outside
-// CI, the configured token (plus GITLAB_HOST when self-hosted) is validated via /user.
-func (p *Platform) checkAPIAuth(tokenEnv string, tokenMissing bool) error {
+// credentials picks the token and how it is sent. In CI autologin (the job's own instance) the
+// job token (CI_JOB_TOKEN, sent as JOB-TOKEN) is used; a missing job token, or any other run,
+// uses the configured token (sent as PRIVATE-TOKEN).
+func (p *Platform) credentials() (token string, jobToken bool, err error) {
 	if p.inCIAutologin() {
-		projectID := os.Getenv("CI_PROJECT_ID")
-		if projectID != "" {
-			endpoint := "projects/" + projectID + "/releases?per_page=1"
-			_, stderr, err := p.runner.Run("glab", "api", endpoint)
-			if err != nil {
-				return fmt.Errorf("gitlab: API call failed (glab api %s): %s\n  hint: ensure CI_JOB_TOKEN has read access (Settings > CI/CD > Job token permissions)", endpoint, strings.TrimSpace(stderr))
-			}
-			return nil
+		if t := os.Getenv("CI_JOB_TOKEN"); t != "" {
+			return t, true, nil
 		}
-		// CI_PROJECT_ID absent: fall through to validate the configured token.
 	}
-	if tokenMissing {
-		return nil
+	envName := p.tokenEnv()
+	if t := os.Getenv(envName); t != "" {
+		return t, false, nil
 	}
-	env := append(p.tokenEnvSlice(tokenEnv), p.hostEnv()...)
-	_, stderr, err := p.runner.RunEnv(env, "glab", "api", "user")
-	if err != nil {
-		return fmt.Errorf("gitlab: API call failed (glab api user): %s\n  hint: verify %s is valid and has the api scope", strings.TrimSpace(stderr), tokenEnv)
-	}
-	return nil
+	return "", false, fmt.Errorf("environment variable %s is not set", envName)
 }
 
-// tokenEnvSlice injects the configured token as GITLAB_TOKEN so glab always finds it.
-func (p *Platform) tokenEnvSlice(envName string) []string {
-	if token := os.Getenv(envName); token != "" {
-		return []string{"GITLAB_TOKEN=" + token}
+func (p *Platform) client() (*Client, error) {
+	token, jobToken, err := p.credentials()
+	if err != nil {
+		return nil, err
+	}
+	return NewClient(p.resolveBaseURL(), token, jobToken)
+}
+
+// checkAPIAuth verifies API access with the call each token kind can make: a job token cannot
+// reach /user, so it reads the project's releases (by CI_PROJECT_ID when set), while a personal
+// token is validated through /user.
+func (p *Platform) checkAPIAuth(token string, jobToken bool) error {
+	c, err := NewClient(p.resolveBaseURL(), token, jobToken)
+	if err != nil {
+		return err
+	}
+	if jobToken {
+		project := os.Getenv("CI_PROJECT_ID")
+		if project == "" {
+			project = p.project()
+		}
+		if err := c.VerifyReleasesAccess(project); err != nil {
+			return fmt.Errorf("gitlab: API call failed (list releases of %s): %w\n  hint: ensure CI_JOB_TOKEN has read access (Settings > CI/CD > Job token permissions)", project, err)
+		}
+		return nil
+	}
+	if err := c.VerifyUser(); err != nil {
+		return fmt.Errorf("gitlab: API call failed (GET /user): %w\n  hint: verify %s is valid and has the api scope", err, p.tokenEnv())
 	}
 	return nil
 }
@@ -146,15 +151,14 @@ func (p *Platform) selfHosted() bool {
 	return p.cfg.BaseURL != "" && p.cfg.BaseURL != gitlabBaseURL
 }
 
-// inCIAutologin reports whether glab's CI autologin handles auth for this run.
-// When true, injecting GITLAB_TOKEN overrides the JOB-TOKEN flow and breaks
-// path-based project lookups (CI_JOB_TOKEN is not a valid PRIVATE-TOKEN).
+// inCIAutologin reports whether this run authenticates with the CI job token (CI_JOB_TOKEN is
+// not a valid PRIVATE-TOKEN, so the two are never mixed).
 //
 // It applies to the default gitlab.com host, and — as of T215 — to a self-hosted base_url naming
-// the exact instance the CI job itself is running on (CI_SERVER_URL): glab's own CI-native
-// detection reaches that host too, so it isn't the "separately configured" self-hosted target
-// ADR-0025 §4 guards against. A self-hosted base_url naming a genuinely different instance still
-// requires the configured token — autologin cannot reach a host other than its own.
+// the exact instance the CI job itself is running on (CI_SERVER_URL), so that isn't the
+// "separately configured" self-hosted target ADR-0025 §4 guards against. A self-hosted base_url
+// naming a genuinely different instance still requires the configured token — the job token
+// cannot reach a host other than its own.
 func (p *Platform) inCIAutologin() bool {
 	if os.Getenv("GITLAB_CI") != "true" {
 		return false
@@ -176,24 +180,8 @@ func sameGitLabHost(a, b string) bool {
 	return ua.Host == ub.Host
 }
 
-// hostEnv returns the env vars needed to point glab at a self-hosted instance.
-// Returns nil for the default host (gitlab.com), so RunEnv(p.hostEnv(), ...) is a
-// no-op for the common case.
-func (p *Platform) hostEnv() []string {
-	if !p.selfHosted() {
-		return nil
-	}
-	u, err := url.Parse(p.cfg.BaseURL)
-	if err != nil || u.Host == "" {
-		return nil
-	}
-	return []string{"GITLAB_HOST=" + u.Host}
-}
-
-// CreateRelease runs `glab release create`.
-// Resolved asset files are included as positional args for atomic create+upload (mirrors the
-// GitHub pattern); glab stores them as project uploads, which accept any tag shape. Asset globs
-// resolve leniently, as on GitHub.
+// CreateRelease uploads the resolved asset files and creates the release (Client.CreateRelease).
+// Asset globs resolve leniently, as on GitHub: a pattern matching nothing warns and is skipped.
 // prerelease is accepted to satisfy the shared port.Platform contract and ignored — GitLab
 // releases have no pre-release concept (ADR-0064).
 func (p *Platform) CreateRelease(tag, notes string, prerelease bool) error {
@@ -202,44 +190,22 @@ func (p *Platform) CreateRelease(tag, notes string, prerelease bool) error {
 		return err
 	}
 
-	// Write notes to a temp file so large changelogs don't exceed ARG_MAX when
-	// passed as a --notes value. glab supports -F/--notes-file for exactly this.
-	notesFile, err := os.CreateTemp("", "heraut-notes-*")
-	if err != nil {
-		return fmt.Errorf("glab release create: write notes file: %w", err)
-	}
-	defer func() { _ = os.Remove(notesFile.Name()) }()
-	if _, err := notesFile.WriteString(notes); err != nil {
-		_ = notesFile.Close()
-		return fmt.Errorf("glab release create: write notes file: %w", err)
-	}
-	if err := notesFile.Close(); err != nil {
-		return fmt.Errorf("glab release create: write notes file: %w", err)
-	}
-
-	// GitLab automatically publishes to the CI/CD Catalog when the project is a
-	// registered catalog resource — no explicit publish step needed.
-	args := []string{"release", "create", tag, "--notes-file", notesFile.Name(), "--repo", proj}
-
+	var files []string
 	if len(p.cfg.Assets) > 0 {
-		files, err := platforms.ResolveGlobsLenient(p.cfg.Assets, func(pattern string) {
+		files, err = platforms.ResolveGlobsLenient(p.cfg.Assets, func(pattern string) {
 			_, _ = fmt.Fprintf(os.Stderr, "warning: no files matched asset pattern %q — skipping\n", pattern)
 		})
 		if err != nil {
-			return fmt.Errorf("glab release create: resolving assets: %w", err)
+			return fmt.Errorf("gitlab release create: resolving assets: %w", err)
 		}
-		args = append(args, files...)
 	}
 
-	if p.inCIAutologin() {
-		if _, _, err := p.runner.Run("glab", args...); err != nil {
-			return fmt.Errorf("glab release create: %w", err)
-		}
-	} else {
-		env := append(p.tokenEnvSlice(p.tokenEnv()), p.hostEnv()...)
-		if _, _, err := p.runner.RunEnv(env, "glab", args...); err != nil {
-			return fmt.Errorf("glab release create: %w", err)
-		}
+	c, err := p.client()
+	if err != nil {
+		return fmt.Errorf("gitlab release create: %w", err)
+	}
+	if err := c.CreateRelease(proj, tag, notes, files); err != nil {
+		return fmt.Errorf("gitlab release create: %w", err)
 	}
 	return nil
 }
