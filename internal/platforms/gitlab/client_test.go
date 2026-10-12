@@ -30,18 +30,24 @@ type recordedRequest struct {
 type fakeGitLab struct {
 	srv      *httptest.Server
 	requests []recordedRequest
-	status   map[string]int // "PUT", "POST" -> status override
+	status   map[string]int    // "PUT", "POST" -> status override
+	bodies   map[string]string // method -> success body override (default "{}")
+	queries  []string          // raw query of each request, parallel to requests
 }
 
 func newFakeGitLab(t *testing.T) *fakeGitLab {
 	t.Helper()
-	f := &fakeGitLab{status: map[string]int{}}
+	f := &fakeGitLab{status: map[string]int{}, bodies: map[string]string{}}
 	f.srv = httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		body, _ := io.ReadAll(r.Body)
 		f.requests = append(f.requests, recordedRequest{
 			method: r.Method, path: r.URL.Path, escaped: r.URL.EscapedPath(), header: r.Header.Clone(), body: body,
 		})
+		f.queries = append(f.queries, r.URL.RawQuery)
 		code := http.StatusCreated
+		if r.Method == http.MethodGet {
+			code = http.StatusOK
+		}
 		if c, ok := f.status[r.Method]; ok {
 			code = c
 		}
@@ -49,6 +55,10 @@ func newFakeGitLab(t *testing.T) *fakeGitLab {
 		w.WriteHeader(code)
 		if code >= 400 {
 			_, _ = w.Write([]byte(`{"message":"nope"}`))
+			return
+		}
+		if b, ok := f.bodies[r.Method]; ok {
+			_, _ = w.Write([]byte(b))
 			return
 		}
 		_, _ = w.Write([]byte(`{}`))
@@ -273,4 +283,57 @@ func TestPackageVersion(t *testing.T) {
 			assert.Equal(t, tc.want, packageVersion(tc.tag))
 		})
 	}
+}
+
+func TestClient_VerifyUser(t *testing.T) {
+	f := newFakeGitLab(t)
+	c, err := NewClient(f.srv.URL, "secret", false)
+	require.NoError(t, err)
+
+	require.NoError(t, c.VerifyUser())
+
+	require.Len(t, f.requests, 1)
+	assert.Equal(t, http.MethodGet, f.requests[0].method)
+	assert.Equal(t, "/api/v4/user", f.requests[0].path)
+	assert.Equal(t, "secret", f.requests[0].header.Get("Private-Token"))
+}
+
+func TestClient_VerifyUser_Rejected(t *testing.T) {
+	f := newFakeGitLab(t)
+	f.status["GET"] = http.StatusUnauthorized
+	c, err := NewClient(f.srv.URL, "bad", false)
+	require.NoError(t, err)
+
+	err = c.VerifyUser()
+
+	var apiErr *gl.ErrorResponse
+	require.True(t, errors.As(err, &apiErr))
+	assert.Equal(t, http.StatusUnauthorized, apiErr.Response.StatusCode)
+}
+
+func TestClient_VerifyReleasesAccess_UsesTheReleasesListWithTheJobToken(t *testing.T) {
+	f := newFakeGitLab(t)
+	f.bodies["GET"] = `[]`
+	c, err := NewClient(f.srv.URL, "jobtok", true)
+	require.NoError(t, err)
+
+	require.NoError(t, c.VerifyReleasesAccess("42"))
+
+	require.Len(t, f.requests, 1)
+	assert.Equal(t, "/api/v4/projects/42/releases", f.requests[0].path)
+	assert.Equal(t, "per_page=1", f.queries[0])
+	assert.Equal(t, "jobtok", f.requests[0].header.Get("Job-Token"))
+}
+
+func TestClient_VerifyReleasesAccess_Rejected(t *testing.T) {
+	f := newFakeGitLab(t)
+	f.status["GET"] = http.StatusForbidden
+	c, err := NewClient(f.srv.URL, "jobtok", true)
+	require.NoError(t, err)
+
+	err = c.VerifyReleasesAccess("acme/widget")
+
+	var apiErr *gl.ErrorResponse
+	require.True(t, errors.As(err, &apiErr))
+	assert.Equal(t, http.StatusForbidden, apiErr.Response.StatusCode)
 }

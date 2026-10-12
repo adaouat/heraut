@@ -78,6 +78,25 @@ func (c *Client) CreateRelease(project, tag, notes string, files []string) error
 	return nil
 }
 
+// VerifyUser checks a personal token with GET /user. A job token cannot call it (401), so a CI
+// run uses VerifyReleasesAccess instead.
+func (c *Client) VerifyUser() error {
+	if _, _, err := c.api.Users.CurrentUser(); err != nil {
+		return fmt.Errorf("fetching the current user: %w", err)
+	}
+	return nil
+}
+
+// VerifyReleasesAccess checks that the token can read the project's releases, the API
+// CI_JOB_TOKEN is documented to reach. project is a path or a numeric ID.
+func (c *Client) VerifyReleasesAccess(project string) error {
+	opts := &gl.ListReleasesOptions{ListOptions: gl.ListOptions{PerPage: 1}}
+	if _, _, err := c.api.Releases.ListReleases(project, opts); err != nil {
+		return fmt.Errorf("listing releases of %s: %w", project, err)
+	}
+	return nil
+}
+
 func (c *Client) upload(project, version, name, file string) error {
 	f, err := os.Open(file)
 	if err != nil {
