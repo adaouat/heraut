@@ -23,7 +23,7 @@ e.g. `heraut init --help` used to list a `--force` that did nothing for `init`).
 
 Prints the heraut version banner (logo + tagline + `heraut <version>`), with the version
 string injected from ldflags. To check the external CLIs heraut orchestrates (`git`,
-`glab`, `gh`) — whether they are on `PATH` and which token env vars are set —
+`gh`) — whether it is on `PATH` and which token env vars are set —
 use `heraut check runtime` instead.
 
 ## `heraut init`
@@ -138,9 +138,9 @@ has no such requirement (see § Tag-only workflow below).
       with different URLs. `release.notes` (defaulted per [ADR-0046](../adr/0046-release-block-atomicity.md)
       when `release:` is present at all — see [Spec 02 § `release`](02-configuration.md#release))
       supplies rendering overrides.
-   2. Create the release via `gh release create` / `glab release create`, writing the
-      notes to a temp file and passing `--notes-file`/`-F` — not `--notes` — so a large
-      changelog can't exceed `ARG_MAX`.
+   2. Create the release: `gh release create` for GitHub (notes written to a temp file and passed
+      with `--notes-file`, so a large changelog can't exceed `ARG_MAX`), or a
+      `POST /projects/:id/releases` request for GitLab.
    3. Upload assets matching glob patterns (or, when the assets came from a lenient
       source, attach them directly to the create call instead of a separate upload —
       see [Spec 05](05-generators-and-platforms.md)).
@@ -577,7 +577,7 @@ Online checks:
   publish.
 
 When no config file is found, `heraut check runtime` proceeds rather than failing. All
-supported tools (git, gh, glab) are treated as required — hard error if any binary
+supported tools (git, gh) are treated as required — hard error if any binary
 is missing. The full platform check (token + API auth) is skipped in this case since
 there is no config to source token names from; only binary presence is verified.
 

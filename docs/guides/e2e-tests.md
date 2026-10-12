@@ -6,8 +6,8 @@ heraut's `e2e/` tree drives the **built `heraut` binary**. It has two lanes
 
 | Lane | What it runs against | When it runs |
 |---|---|---|
-| **A, hermetic** | throwaway local git repositories, a local bare remote, fake `gh`/`glab` that record their arguments | every `go test ./...`, so every pull request |
-| **B, forge sandbox** | real private GitHub and GitLab repositories, the real `gh`/`glab` | on demand and nightly, never on pull requests (`e2e_forge` build tag) |
+| **A, hermetic** | throwaway local git repositories, a local bare remote, a fake `gh` that records its arguments and a loopback stub of the GitLab API | every `go test ./...`, so every pull request |
+| **B, forge sandbox** | real private GitHub and GitLab repositories, the real `gh` and GitLab API (the harness uses `gh`/`glab` to manage sandbox fixtures) | on demand and nightly, never on pull requests (`e2e_forge` build tag) |
 
 Lane A needs nothing. This guide is about Lane B.
 
@@ -52,7 +52,7 @@ Only environment variables; nothing is read from files and nothing real is commi
 | `HERAUT_E2E_GITLAB_PROJECT` | `group/project` of the GitLab sandbox; unset skips the GitLab scenarios |
 | `HERAUT_E2E_GITHUB_ENRICH_REPO`, `HERAUT_E2E_GITLAB_ENRICH_PROJECT` | the B9 pair; unset skips B9 only |
 | `HERAUT_E2E_REPO_PATTERN` | base-name pattern a sandbox must match (default `*testing*`) |
-| `HERAUT_E2E_GITHUB_TOKEN`, `HERAUT_E2E_GITLAB_TOKEN` | tokens; fall back to `GH_TOKEN`/`GITHUB_TOKEN` and `GITLAB_TOKEN`, then to the local `gh`/`glab` login |
+| `HERAUT_E2E_GITHUB_TOKEN`, `HERAUT_E2E_GITLAB_TOKEN` | tokens; fall back to `GH_TOKEN`/`GITHUB_TOKEN` and `GITLAB_TOKEN`, then to the local `gh`/`glab` login (used by the harness) |
 
 ## Running locally
 
@@ -63,7 +63,7 @@ mise run test:e2e          # all Lane B scenarios
 go run -tags e2e_forge ./e2e/cmd/sweep -dry-run    # list stale leftovers without deleting
 ```
 
-The tokens are read in-process and handed to `gh`/`glab` through the environment only.
+The tokens are read in-process and handed to `gh`/`glab` (fixture management) and to the heraut binary through the environment only.
 
 ## Running in CI
 

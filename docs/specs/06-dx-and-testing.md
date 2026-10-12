@@ -86,7 +86,7 @@ Every exported function has tests. Table-driven where the input space is enumera
 not `internal/testutil`, which holds only heraut-specific fixtures: `MockGenerator`,
 `MockPlatform`, `RealGitRepo`, and CI-env-clearing helpers) records every `Run` / `RunEnv`
 call into `[]Call` and returns ordered `[]Response`. Used for every CLI invocation: `git`,
-`gh`, `glab`.
+`gh`.
 
 A platform driver does not ship without contract tests. The tests assert the **exact
 CLI arguments** passed — flag names, value formats, order, env vars. Example shape:
@@ -139,8 +139,8 @@ mechanism used for native's rendered changelog/release-notes output
 
 - **No real time.** Calver resolver takes a `now func() time.Time` so tests can fix the
   clock.
-- **No real network.** Platform driver tests use `MockRunner`; `gh`/`glab` are never
-  invoked. The `internal/forge/*` HTTP enrichment clients use a real `httptest.Server`
+- **No real network.** Platform driver tests use `MockRunner` (`gh`) or an `httptest.Server` (GitLab); `gh` and the GitLab API are never
+  reached. The `internal/forge/*` HTTP enrichment clients use a real `httptest.Server`
   instead (§ Contract above) — heraut has no self-update mechanism to test (superseded by
   forge ADR-0005; update checking is `forge/updatecheck`'s responsibility).
 - **No filesystem outside `t.TempDir()`.** Embedded Go `text/template` content

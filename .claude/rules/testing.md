@@ -14,7 +14,7 @@ silently agree.
 | Layer       | Scope                                                               | Tooling                              |
 |-------------|---------------------------------------------------------------------|--------------------------------------|
 | Unit        | Pure functions (version resolvers, config parsers, tag format)      | `go test ./...`                      |
-| Contract    | CLI invocation (`git`, `gh`, `glab`) or direct HTTP (`internal/forge/*` enrichment) | `exectest.MockRunner` (CLI) / `httptest.Server` (HTTP) |
+| Contract    | CLI invocation (`git`, `gh`) or direct HTTP (`internal/forge/*` enrichment, `internal/platforms/gitlab` publishing) | `exectest.MockRunner` (CLI) / `httptest.Server` (HTTP) |
 | Integration | Full pipeline against a real git repo, or cobra commands in-process | `go test` + `exectest.FakeBin` / `internal/testutil.RealGitRepo` |
 | Schema      | `.heraut.yml` validates against `schema.json`                       | JSON Schema + fixtures               |
 

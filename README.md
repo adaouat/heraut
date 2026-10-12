@@ -18,7 +18,7 @@ to figure out what it does. That script is now yours to maintain.
 
 **Héraut replaces it.** One command — `heraut release` — resolves the next version,
 generates the changelog and release notes, tags, and publishes to GitHub and/or GitLab.
-It wraps the tools you already use (`git`, `gh`, `glab`) and handles what a hand-rolled
+It wraps the tools you already use (`git`, `gh`) and the GitLab API and handles what a hand-rolled
 script usually gets wrong: version resolution for prefixed-tag strategies, multi-forge
 publishing, and config that's validated before it runs, not discovered broken in CI.
 Config-driven, not script-driven — change behavior by editing `.heraut.yml`, not by
@@ -111,16 +111,16 @@ go install github.com/adaouat/heraut/cmd/heraut@latest
 
 When running via **binary or `go install`**, heraut does **not** bundle the external CLIs it
 orchestrates — install the ones your config uses and make sure they are on `PATH`.
-The **Docker image** bundles all of them at pinned versions; no extra setup needed.
+The **Docker image** bundles `git` and `gh` at pinned versions; no extra setup needed.
 
 | Tool | Needed for |
 |------|------------|
 | `git` | always |
 | `gh` | publishing to a GitHub `release.targets[]` entry |
-| `glab` | publishing to a GitLab `release.targets[]` entry |
 
-Neither is needed just to *enrich* a changelog with PR/MR data from a `github`/`gitlab`
-forge — that talks to each platform's API directly over HTTP, no CLI involved. Changelog
+GitLab publishing needs no CLI: heraut calls the GitLab REST API itself, with `GITLAB_TOKEN` or,
+in GitLab CI, `CI_JOB_TOKEN`. Nor is `gh` needed just to *enrich* a changelog with PR/MR data from a
+`github`/`gitlab` forge — that talks to each platform's API directly over HTTP, no CLI involved. Changelog
 and release-notes generation itself needs no external binary either — `native` (heraut's
 built-in generator) ships in the `heraut` binary.
 

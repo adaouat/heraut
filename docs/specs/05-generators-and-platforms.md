@@ -227,7 +227,7 @@ Each section is enriched independently, so GitHub (batched GraphQL, 50 SHAs/quer
 batched connection queries — commit authors via `commits`, MR refs via inverted `mergeRequests`,
 [ADR-0042](../adr/0042-gitlab-graphql-enrichment.md)), and Azure (one `pullrequestquery` POST) each
 batch *within* a release, costing roughly one API call per release (O(releases)). All of these run
-over heraut's own `net/http` forge clients — no `gh` or `glab` process is spawned for enrichment
+over heraut's own `net/http` forge clients — no `gh` process is spawned for enrichment
 ([ADR-0043](../adr/0043-forge-abstraction.md)). The one exception is GitLab in `api_mode: rest`
 (the **default**), which resolves MRs with one
 `GET /projects/:id/repository/commits/:sha/merge_requests` **per commit**: a full regeneration
@@ -395,7 +395,7 @@ link detection.
 
 ## Platforms
 
-Two platforms are supported: `github` (via `gh`) and `gitlab` (via `glab`). A release
+Two platforms are supported: `github` (via `gh`) and `gitlab` (via the GitLab REST API, ADR-0069). A release
 can be published to one or both — `release.targets` is a list, each entry referencing a
 `forges[].name` ([ADR-0044](../adr/0044-publishing-config-unification.md)). Connection
 fields (`repository`/`project`, `token_env`, `base_url`) live on the `forges:` entry;
@@ -474,20 +474,24 @@ scheme+host of `CI_PROJECT_URL`, else `https://gitlab.com`. On a self-hosted Git
 runner this resolves to the instance's own host with no config at all — `base_url:
 https://gitlab.com` is only the *outermost* fallback, not a blanket default.
 
-**Invocation**:
+**Transport** ([ADR-0069](../adr/0069-gitlab-publish-transport.md)): heraut calls the GitLab REST
+API through `gitlab.com/gitlab-org/api/client-go`; no `glab` binary is involved.
 
-```
-glab release create <tag> --notes-file <tmpfile> --repo <project> [<asset-file>...]
-```
+1. Each resolved asset is uploaded with `PUT /projects/:id/packages/generic/release-assets/<version>/<file>`
+   (`<version>` is the tag with `/` replaced by `-`, since GitLab rejects `/` in a package version).
+2. The release is created with `POST /projects/:id/releases` (`tag_name` and `name` = the tag, the
+   notes as `description`), carrying one `package` asset link per uploaded file whose
+   `direct_asset_path` is `/<file>`, so the public URL stays `…/-/releases/<tag>/downloads/<file>`.
 
-Notes are written to a temp file and passed via `--notes-file` (not `--notes`), and the
-project flag is `--repo` (not `-R`). Resolved asset files are appended as positional args
-to `release create` directly — see § Asset resolution below; there is no separate `glab
-release upload` call in the normal `heraut release` flow.
+Uploads happen first, so a failed upload leaves no release without its assets. The tag must
+already exist (heraut tags and pushes before publishing).
 
 - **Project** resolution: `cfg.Project` → `$CI_PROJECT_PATH` → error
-- **Token** is read from `$<TokenEnv>` (default `GITLAB_TOKEN`); `glab` picks it up
-  automatically from the environment
+- **Token**: in GitLab CI on the instance named by `CI_SERVER_URL`, `CI_JOB_TOKEN` is sent as
+  `JOB-TOKEN` and any configured token is ignored; otherwise `$<TokenEnv>` (default
+  `GITLAB_TOKEN`) is sent as `PRIVATE-TOKEN`. `heraut check runtime` validates a personal token
+  with `GET /user` and a job token by listing the project's releases (a job token cannot call
+  `GET /user`)
 - **Pre-release**: not supported — GitLab releases have no pre-release concept. The shared
   `port.Platform.CreateRelease` contract still passes the derived flag (§ GitHub above), but
   this driver accepts and ignores it.
@@ -503,19 +507,20 @@ release upload` call in the normal `heraut release` flow.
 both resolve **leniently**: each glob is expanded against the working directory, and a pattern
 matching nothing emits a warning and is skipped rather than failing the release — by the time
 assets are resolved the tag has already been created and pushed, so a strict failure here would
-leave the repository in a partially-completed state (tag exists, no platform release). Resolved
-files are appended as positional arguments to the `release create` call itself (GitHub: `gh
-release create ... <files>`; GitLab: `glab release create ... <files>`) rather than uploaded via a
-separate call — GitHub's API rejects a separate upload to an already-created release with HTTP 422
-("Cannot upload assets to an immutable release"), so attaching them atomically at creation time
-avoids that failure mode entirely on both platforms.
+leave the repository in a partially-completed state (tag exists, no platform release). On GitHub the
+resolved files are appended as positional arguments to `gh release create ... <files>` rather than
+uploaded by a separate call — GitHub's API rejects a separate upload to an already-created release
+with HTTP 422 ("Cannot upload assets to an immutable release"), so attaching them atomically at
+creation time avoids that failure mode. On GitLab they are uploaded to the Generic Packages
+registry and linked on the release in the same create request (§ GitLab above). Deleting a GitLab
+release does not delete its package files.
 
 ### Self-hosted instances and multiple entries of the same type (ADR-0025)
 
 `base_url` may be set to any absolute `http(s)://` URL — including a host other than the
 platform's default (`github.com` / `gitlab.com`). When `base_url` is self-hosted, heraut:
 
-- Points `gh`/`glab` at that host: `GITLAB_HOST=<host>` for GitLab, `GH_HOST=<host>` +
+- Points the driver at that host: the GitLab client is built on `base_url`; `GH_HOST=<host>` +
   `GH_ENTERPRISE_TOKEN=<token>` for GitHub Enterprise Server.
 - Skips CI autologin (`GITHUB_ACTIONS`/`GITLAB_CI`) for that entry — autologin always
   targets the CI runner's own (public) host, never a separately-configured self-hosted
@@ -567,8 +572,9 @@ actually calls to produce the post-release URL and to keep it consistent with th
 context passed to the release-notes generator in the multi-platform case (§ Generator
 interface above).
 
-Both implementations are contract-tested with `MockRunner` — every CLI argument
-heraut passes to `gh` and `glab` is asserted in the test suite. Adding a third
+Both implementations are contract-tested — every CLI argument heraut passes to `gh` is asserted
+with `MockRunner`, and the GitLab driver's requests (paths, headers, bodies) against an
+`httptest.Server`. Adding a third
 platform later means: implement `port.Platform`, add contract tests, register in
 `app.BuildPipeline`.
 

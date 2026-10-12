@@ -5,7 +5,7 @@
 Héraut is a Go CLI that orchestrates a release: it resolves the next version, generates
 the changelog and release notes, creates the git tag, and publishes the release to
 GitHub and/or GitLab. Changelog/release-notes generation is built in (the `native`
-generator, no external binary — ADR-0045); publishing wraps `glab`/`gh`. Héraut handles
+generator, no external binary — ADR-0045); publishing wraps `gh` for GitHub and calls the GitLab REST API directly (ADR-0069). Héraut handles
 the custom logic those tools cannot handle natively — version resolution for prefixed
 tag strategies, platform composition, strict config validation.
 
@@ -25,10 +25,10 @@ Project repo (consumer)
 
 heraut binary
 ├── reads .heraut.yml from project root
-├── invokes git, glab, gh via port.Runner for publishing (changelog/release-notes generation is
+├── invokes git and gh via port.Runner for publishing (changelog/release-notes generation is
 │   built in)
 ├── enriches commits with PR/MR metadata via direct HTTP against the GitHub/GitLab/Azure DevOps
-│   APIs — no gh/glab shell-out for this (ADR-0043)
+│   APIs — no gh shell-out for this (ADR-0043); GitLab releases are created over its REST API too
 └── publishes release(s) on configured platforms
 ```
 
@@ -75,7 +75,7 @@ forge is rejected, since Azure DevOps has no equivalent of a GitHub/GitLab Relea
 [Spec 05 — Generators and Platforms](05-generators-and-platforms.md).
 
 **Platform** — creates a release on a hosting service: `github` (via `gh`) or `gitlab`
-(via `glab`). A project can publish to multiple platforms in the same release.
+(via the GitLab REST API). A project can publish to multiple platforms in the same release.
 
 **Environment** — a deployment target (e.g. `dev`, `staging`, `prod`) with its own tag
 namespace and bump policy. Only used by the per-env strategies.
@@ -101,7 +101,7 @@ resolved version rather than a fallback to `initial_version`. See
 | 0    | Success                                                              |
 | 1    | Usage error (bad flags or arguments)                                 |
 | 2    | Configuration error (invalid YAML, missing required fields, semantic validation failure, a `tag_format` containing `{build}` when no build ID was supplied, a missing or unknown `--env` on a per-env strategy, a per-env branch guard refusal — [ADR-0068](../adr/0068-env-selection-and-branch-guard-exit-code.md)) |
-| 3    | Runtime error (binary missing from PATH, token env var unset, network failure, git operation failed, a hook command exiting non-zero, a publish CLI (`gh`/`glab`) failing — including a run that skipped a target because its `pre_release` hook failed) |
+| 3    | Runtime error (binary missing from PATH, token env var unset, network failure, git operation failed, a hook command exiting non-zero, `gh` or a GitLab API call failing during publish — including a run that skipped a target because its `pre_release` hook failed) |
 | 4    | Promotion guard tripped (E001 / E002 / E003) — see [ADR-0007](../adr/0007-version-promotion-error-handling.md) |
 | 70   | Internal software error (unexpected panic or unhandled condition)    |
 
@@ -133,8 +133,8 @@ resolved version rather than a fallback to `initial_version`. See
 
 ## What heraut does not do
 
-- It does not bundle the external CLIs (`glab`, `gh`).
-  Users install them separately. `heraut check runtime` verifies they are on `PATH`.
+- It does not bundle the external CLI it needs (`gh`, for GitHub publishing).
+  Users install it separately. `heraut check runtime` verifies it is on `PATH`.
 - It does not commit your code. The user is responsible for the commits being released
   before `heraut release` runs. The one exception is the `CHANGELOG.md` commit that
   heraut creates as part of the release flow

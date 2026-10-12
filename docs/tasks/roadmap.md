@@ -3073,12 +3073,23 @@ the API; that is a limit of the probe, not of the driver. Finding: Lane B's clea
 and tags but not the Generic Packages assets now live in the package registry, so one
 `release-assets` package was left behind (removed by hand); see T368.
 
-#### `[ ]` T367: drop `glab` from the runtime checks, image and fake-CLI harness
+#### `[x]` T367: drop `glab` from the runtime checks, image and fake-CLI harness
 
 `heraut check runtime` stops requiring `glab` (`internal/app/check.go`), the Dockerfile drops
 `GLAB_VERSION`, the Lane A `FakeCLI("glab")` scenarios move to an HTTP stub or are retired, and
 Spec 02, Spec 05, CLAUDE.md and the guides lose their `glab` wording. Needs the user's OK before
 touching the Dockerfile / CI.
+
+Done. The `heraut check runtime` fallback probes `gh` only (nil config: `gh` is the one required
+tool), the Dockerfile drops `GLAB_VERSION`/`glab`/`GLAB_*` env, and the glab fakes and the unused
+`testutil.GLab` are gone. The Lane A GitLab scenarios already ran on the loopback stub (T366); the
+generic `FakeCLI` harness test now uses a placeholder CLI name. Spec 01/02/03/05/06, CLAUDE.md, README,
+the guides and `testing.md` describe the REST transport (token precedence, Generic Packages assets,
+`httptest` contract tests); the stale "64 ADRs" count is now 69. Deviation: Lane B's own harness
+(`e2e/forgeharness`) still shells out to `glab` to manage sandbox fixtures, so `e2e.yml` keeps
+installing it, now with a version pinned in the workflow (Renovate regex retargeted there) instead
+of read from the Dockerfile. Replacing that with direct API calls is left to T368. Historical ADRs,
+plans and archived roadmaps keep their `glab` wording.
 
 #### `[ ]` T368: Lane B and CI validation of the swap
 

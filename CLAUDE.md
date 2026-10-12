@@ -34,7 +34,7 @@ behavioural spec.
 ## Docs
 
 - [`docs/specs/`](docs/specs/) — behavioural specification (read before changing CLI surface or config schema)
-- [`docs/adr/`](docs/adr/) — architecture decision records (64 ADRs, numbered consecutively)
+- [`docs/adr/`](docs/adr/) — architecture decision records (69 ADRs, numbered consecutively)
 - [`docs/tasks/`](docs/tasks/) — build roadmap (`roadmap.md`) plus dedicated per-epic roadmaps
   (`forge-abstraction-roadmap.md`, `native-generator-roadmap.md`, `release-config-roadmap.md`,
   `docs-audit-roadmap.md`) that `roadmap.md` points to for large, multi-task epics
@@ -52,7 +52,8 @@ behavioural spec.
 | **JSON Schema**               | `schema.json` for IDE validation of `.heraut.yml`                   |
 | **`//go:embed`**              | Embedded native generator templates (`internal/generators/native/`) + `CHANGELOG.md` (offline fallback for `whatsnew`) |
 | **goreleaser**                | Cross-platform release builds, raw binaries (see [ADR-0013](docs/adr/0013-raw-binary-goreleaser-format.md)) |
-| **glab / gh**                 | External CLIs orchestrated by heraut (not bundled)                  |
+| **gh**                        | External CLI orchestrated by heraut for GitHub publishing (not bundled) |
+| **client-go**                 | GitLab REST client for publishing (`internal/platforms/gitlab`, [ADR-0069](docs/adr/0069-gitlab-publish-transport.md)) |
 
 ## Project layout
 
@@ -92,7 +93,7 @@ internal/
       native/                   built-in, zero-external-dependency generator — commit walk + classification + embedded template rendering (ADR-0032, sole generator since ADR-0045)
    platforms/
       github/                   `gh release create` + asset upload (with contract tests)
-      gitlab/                   `glab release create` + asset upload (with contract tests)
+      gitlab/                   GitLab REST release + Generic Packages assets (client-go, `httptest` contract tests)
    pipeline/
       release.go                full release flow (resolve → changelog → tag → publish)
       changelog.go              changelog-only flow
@@ -105,7 +106,7 @@ pkl/                            Pkl builtin used by `heraut commit verify`'s own
 testdata/                       repo-wide read-only test fixtures (.heraut.yml samples, …)
 
 docs/specs/                     6 numbered specs (behavioural authority)
-docs/adr/                       64 ADRs (architectural decisions)
+docs/adr/                       69 ADRs (architectural decisions)
 docs/tasks/                     roadmap.md + dedicated per-epic roadmaps (see § Docs above)
 docs/guides/                    task-oriented how-tos, distinct from the behavioural specs
 
@@ -166,11 +167,12 @@ non-default path in CI pipelines without touching command invocations.
 
 ## Bundled external CLIs (not installed by heraut)
 
-heraut invokes `git`, `glab`, and `gh` via the `port.Runner` abstraction for **publishing**
-and git plumbing. None of these are bundled with the heraut binary — users install them
-separately. `heraut check runtime` verifies they are on `PATH`. PR/MR commit **enrichment**
-is a separate concern and does *not* shell out to `gh`/`glab`: `internal/forge/{github,
-gitlab,azure}` talk to each platform's API directly over `net/http` (ADR-0043).
+heraut invokes `git` and `gh` via the `port.Runner` abstraction (GitHub **publishing** and git
+plumbing). Neither is bundled with the heraut binary — users install them separately.
+`heraut check runtime` verifies they are on `PATH`. GitLab **publishing** needs no CLI: since
+ADR-0069 `internal/platforms/gitlab` calls the REST API through `client-go`. PR/MR commit
+**enrichment** does not shell out either: `internal/forge/{github,gitlab,azure}` talk to each
+platform's API directly over `net/http` (ADR-0043).
 
 ## Non-obvious constraints
 

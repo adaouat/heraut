@@ -441,8 +441,8 @@ Two states only:
   § `forges` below). This is the common CI shape: no `forges:`, no `release.targets`,
   `release: {}`. On GitHub Actions this still requires `GH_TOKEN` to be exported: the
   identity's token is resolved for enrichment but is not passed to the `gh`-based driver, and
-  `gh`'s own check has no CI exemption (unlike GitLab CI, where `glab`'s job-token autologin
-  covers this case — see `inCIAutologin` in the GitLab driver).
+  `gh`'s own check has no CI exemption (unlike GitLab CI, where the driver uses `CI_JOB_TOKEN`
+  directly — see `inCIAutologin` in the GitLab driver).
 
 - **`release:` omitted entirely** — no notes, no publish. Valid when `heraut release` is not
   used. Note: `heraut release` itself requires at least one **resolvable** publish
@@ -917,7 +917,7 @@ this yet — hand-edit `.heraut.yml`). Both are deliberate scope cuts, not overs
 
 Publishing is driven by a `release.targets[]` entry (draft/assets) plus the
 `forges[].name` it references (host, project/repository, token) — see § `release.targets[]`
-and § `forges` above. The drivers themselves (`gh`/`glab`) are unchanged by ADR-0044: only
+and § `forges` above. The drivers themselves are unchanged by ADR-0044: only
 how they are configured and constructed changed, from a standalone `release.platforms` entry
 to a resolved `forges:` identity.
 
@@ -952,9 +952,9 @@ release:
 A project registered with the GitLab CI/CD Catalog publishes automatically — there is no
 `catalog` field.
 
-Implementation: shells out to `glab release create`, with resolved assets appended as positional
-files (glab stores them as project uploads, not in the package registry — see
-[Spec 05 § Asset resolution](05-generators-and-platforms.md#asset-resolution)).
+Implementation: calls the GitLab REST API through `client-go` (no `glab` needed, ADR-0069). Resolved
+assets are uploaded to the project's Generic Packages registry and linked on the release — see
+[Spec 05 § Asset resolution](05-generators-and-platforms.md#asset-resolution).
 
 ### GitHub
 

@@ -31,7 +31,7 @@ flowchart TD
     subgraph T["For each release.targets entry, in declared order"]
         direction TB
         H5{{"hook: pre_release<br/>failure skips this target only"}} --> K["Regenerate notes<br/>(multi-target runs only)"]
-        K --> L["Create release via gh / glab"]
+        K --> L["Create release via gh / GitLab API"]
         L --> M["Upload assets"]
         M --> H6{{"hook: post_release<br/>failure warns — target already published"}}
     end
