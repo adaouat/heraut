@@ -2999,7 +2999,7 @@ Packages. Sandbox restored to a bare `main` (no releases, tags, packages, pipeli
 branch). Untested and carried into T365/T366: the allowed package-version characters beyond `/`,
 `Check()` via the Releases list, and `glab` with a PAT in `GITLAB_TOKEN` in CI.
 
-#### `[ ]` T365: GitLab publish client on `client-go` (create release, assets, links)
+#### `[x]` T365: GitLab publish client on `client-go` (create release, assets, links)
 
 Add `gitlab.com/gitlab-org/api/client-go` and a client inside `platforms/gitlab`. Auth per ADR-0069:
 `NewJobClient(CI_JOB_TOKEN)` under CI autologin, `NewClient(token)` otherwise, base URL via
@@ -3008,6 +3008,25 @@ verify the package-version character set first and sanitize `/` (per-env tags); 
 creating the release so a failure leaves nothing behind. `httptest.Server` contract tests port the
 current argv assertions row by row (globs, notes, slash tags, missing project, lenient assets) and
 add the sanitizer rows.
+
+**Completion note:** `platforms/gitlab/client.go` adds `Client` (`NewClient(baseURL, token,
+jobToken)` over `client-go` v1.46.0, now a direct dependency) with `CreateRelease(project, tag,
+notes, files)`. It is not wired in: the driver still shells out to `glab` until T366. Files are
+validated first (missing file, duplicate basename: both fail before any request), uploaded one by
+one to Generic Packages package `release-assets`, then one release call carries the links
+(`link_type: package`, `direct_asset_path: "/<file>"`), so a failed upload leaves no asset-less
+release. `packageVersion` replaces only `/` with `-`: a live check against the sandbox accepted
+`+`, `.`, `_`, `-` and rejected `/` (resolves the first open item of T364). Contract tests run on
+`httptest.Server` (auth header per token kind, request order and bodies, slash and `+` tags,
+no-asset release, upload and release failures with `errors.As` on `*gitlab.ErrorResponse`,
+1 MB notes, a relative URL root). A live run against gitlab.com created a release with a package
+asset on tag `uat/0.0.1+live`; both the raw package link and the `/downloads/` URL returned the
+file (200), and the sandbox was restored. Findings carried to T366: `client-go` percent-encodes
+`.` as `%2E` in the link `url` (equivalent once decoded, verified); the release call needs the tag
+to exist (422 `Ref is not specified` otherwise), which holds because heraut tags and pushes before
+publishing, but the message is cryptic if a push were skipped; the lint hook must run under
+`mise exec` (the shell's golangci-lint 2.13.1 cannot read go1.27.2 export data). The package
+registry now holds assets, so Spec 02/05 wording changes stay with T367.
 
 #### `[ ]` T366: swap the GitLab driver onto the client; port `Check()`, CI auth, self-hosted
 
