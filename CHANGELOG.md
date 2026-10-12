@@ -1,5 +1,200 @@
 # Changelog
 
+<!-- heraut-release: v0.76.0 -->
+## [0.76.0](https://github.com/adaouat/heraut/compare/v0.75.0..v0.76.0) - 2026-10-12
+
+### 🚀 Features
+
+- *(generators/native)* Take the changelog clock from the app seam - ([f4db087](https://github.com/adaouat/heraut/commit/f4db087201a1ecc7cda7dc0ce197ba2dae299b80)) by @bchatard
+
+
+### 🐛 Bug Fixes
+
+- *(app)* Probe --set-version collisions only when the run tags - ([abea486](https://github.com/adaouat/heraut/commit/abea48628a18c91412ba7859e7ac65a3ae1a50c0)) by @bchatard
+
+- *(cmd)* Exit 2 for a missing or unknown --env and the branch guard - ([6e61d2a](https://github.com/adaouat/heraut/commit/6e61d2ade09940138cb2fe8a8e22770955a46a57)) by @bchatard
+
+- *(cmd)* Head changelog failures with "changelog failed" - ([7e5c149](https://github.com/adaouat/heraut/commit/7e5c14940f91241dba5a8f923c6fb029007f6f57)) by @bchatard
+
+- *(deps)* Bump forge to v0.19.4 to keep error identifiers verbatim - ([e8442dc](https://github.com/adaouat/heraut/commit/e8442dce66df5a4f9dae8cdae911139a40fb3a56)) by @bchatard
+
+- *(e2e)* Keep Lane A off the network and close review findings - ([98eb3e6](https://github.com/adaouat/heraut/commit/98eb3e6d69f767d3e1ea9054c86220ae9642db39)) by @bchatard
+
+- *(e2e)* Close T345b1 review findings and record the T358 duplicate tag - ([b0e148b](https://github.com/adaouat/heraut/commit/b0e148b74851dc742421e7a227e908ab4fcab474)) by @bchatard
+
+- *(e2e)* Close T345b2 review findings - ([0e99ade](https://github.com/adaouat/heraut/commit/0e99adef4e3f0d70873abe1cfb3faf4c34d714e3)) by @bchatard
+
+- *(e2e)* Close T345b3 review findings - ([7a88cdc](https://github.com/adaouat/heraut/commit/7a88cdceba47516f108604420f6cf6a6cd15ff3d)) by @bchatard
+
+- *(e2e)* Close T345b4a review findings and file T360 - ([fd12636](https://github.com/adaouat/heraut/commit/fd126366930bb15073a27a496311c1d569a18e07)) by @bchatard
+
+- *(e2e)* Close T345b4b review findings - ([4d26f67](https://github.com/adaouat/heraut/commit/4d26f674088c2ebb774aefb6d457f74683df1ba6)) by @bchatard
+
+- *(e2e)* Close T345b4c review findings - ([8c93553](https://github.com/adaouat/heraut/commit/8c9355375aa0c1fcfef3b34126b2b964302477ce)) by @bchatard
+
+- *(e2e)* Close T345b5 review findings - ([c543686](https://github.com/adaouat/heraut/commit/c543686762d2b2ce9d6bc235b3f56d7dc8bcdfea)) by @bchatard
+
+- *(e2e)* Close T345c review findings - ([8419210](https://github.com/adaouat/heraut/commit/84192108d8b54cee266e85b7f7ef488df2803e41)) by @bchatard
+
+- *(e2e)* Close T345d review findings - ([524252f](https://github.com/adaouat/heraut/commit/524252f29d40a441624bb251c0931c0428f85098)) by @bchatard
+
+- *(pipeline)* Push HEAD even when the changelog stages nothing - ([b4543b3](https://github.com/adaouat/heraut/commit/b4543b3f75e629336a9e8c44aac6ddfc9fdf7427)) by @bchatard
+
+- *(pipeline)* Push an unstaged retry only when ahead of upstream - ([be60a0d](https://github.com/adaouat/heraut/commit/be60a0d180376d630859fbc5dcdbbfcbdaa95c3b)) by @bchatard
+
+- *(versioning/calver)* Use the ISO year when the format has WW - ([6799586](https://github.com/adaouat/heraut/commit/6799586a37dbba617fae8b50c7e9cd619b713145)) by @bchatard
+
+- *(versioning/perenv)* Say --env is required when it is empty - ([4533edc](https://github.com/adaouat/heraut/commit/4533edcf1d8a5230409618ab0437ccda8c03874d)) by @bchatard
+
+- Expand ~ in --config and HERAUT_FILE (bump forge to v0.19.3) - ([4d17b19](https://github.com/adaouat/heraut/commit/4d17b1956e59d25598d12793cb6b3052842c14f6)) by @bchatard
+
+
+### 🚜 Refactor
+
+- *(app)* Route the CalVer clock through a build-tagged seam - ([d5fe8cb](https://github.com/adaouat/heraut/commit/d5fe8cbe10990cf45cea2473619709c8c1f3a384)) by @bchatard
+
+
+### 📚 Documentation
+
+- *(adr)* Add 0066 e2e test lanes and the testing-rule amendment - ([eecc114](https://github.com/adaouat/heraut/commit/eecc114f06008b12bf52fb3ec5f6caaf7eddef07)) by @bchatard
+
+- *(adr)* Add 0068 and close T359 - ([6a5cd9b](https://github.com/adaouat/heraut/commit/6a5cd9bfa83ad8110d6b7b53406b3feef5bdb2ab)) by @bchatard
+
+- *(adr)* Propose 0069 GitLab publish transport - ([a14cc12](https://github.com/adaouat/heraut/commit/a14cc12c83396128ebe38d70d1d351a5d7740fbf)) by @bchatard
+
+- *(adr)* Accept 0069, use client-go for GitLab publishing - ([07d2b9e](https://github.com/adaouat/heraut/commit/07d2b9e156d32b773008684e42e22058594068b5)) by @bchatard
+
+- *(guides)* Document the dedicated GitLab user for the e2e lane - ([a38e985](https://github.com/adaouat/heraut/commit/a38e98520f2cd74c63eb4b8b0aa8905ae3a7cc79)) by @bchatard
+
+- *(plans)* Add the T345a e2e Lane A foundation plan - ([ab42196](https://github.com/adaouat/heraut/commit/ab4219673e857f9cebf235f99fbf9c2501db2fdf)) by @bchatard
+
+- *(plans)* Add the T345b1 CalVer e2e plan - ([43bf6cb](https://github.com/adaouat/heraut/commit/43bf6cb74b2e86cbe97ccf0c420e8f087d733061)) by @bchatard
+
+- *(plans)* Add the T345b2 semver-per-env e2e plan - ([7272454](https://github.com/adaouat/heraut/commit/72724548f848f0ae3864a51069a00bbe9e144c6a)) by @bchatard
+
+- *(plans)* Add the T345b3 maintenance-branches e2e plan - ([4b06f32](https://github.com/adaouat/heraut/commit/4b06f3273ed3ae8b5c2f6c6cb5cfda163bdaed85)) by @bchatard
+
+- *(plans)* Add the T345b4a changelog-flow e2e plan - ([69b6e9f](https://github.com/adaouat/heraut/commit/69b6e9ff429b53e629a22c73d5de3f10e16eaa15)) by @bchatard
+
+- *(plans)* Add the T345b4b hooks e2e plan - ([15760f9](https://github.com/adaouat/heraut/commit/15760f90b34d934c5206e0a3c3baa32b4205e394)) by @bchatard
+
+- *(plans)* Add the T345b4c release-with-fake-CLIs e2e plan - ([2c9770a](https://github.com/adaouat/heraut/commit/2c9770a3ca3a37ee9f49a3897b174eceee92ff0a)) by @bchatard
+
+- *(plans)* Add the T345b5 CLI-surface e2e plan - ([f140370](https://github.com/adaouat/heraut/commit/f1403702b5da85ac167748bef831d0de7005ad72)) by @bchatard
+
+- *(plans)* Add the T345c forge-lane e2e plan - ([d49fa3f](https://github.com/adaouat/heraut/commit/d49fa3f131e48fca490a8b68745a91ae5f025d6d)) by @bchatard
+
+- *(plans)* Add the T345d forge-lane scenarios, workflow and guide plan - ([9ff065b](https://github.com/adaouat/heraut/commit/9ff065b4a56f0e9f9c5a0a5b92b132501606eec6)) by @bchatard
+
+- *(roadmap)* Split T345 into T345a-d, close T345a, file T357 - ([43557d9](https://github.com/adaouat/heraut/commit/43557d95ad031f831a433e8a48fd78c88df5db4f)) by @bchatard
+
+- *(roadmap)* Split T345b into five parts and file T358 - ([85831a5](https://github.com/adaouat/heraut/commit/85831a5848bba4cd0d26cf649d6a0bc960fad0b5)) by @bchatard
+
+- *(roadmap)* Close T345b1 - ([39e2e0d](https://github.com/adaouat/heraut/commit/39e2e0d35f294478b68dcf74ef45c2e426717592)) by @bchatard
+
+- *(roadmap)* Close T345b2 and file T359 - ([11d9d4d](https://github.com/adaouat/heraut/commit/11d9d4dccdecc9e46523e34346675aae64a26b71)) by @bchatard
+
+- *(roadmap)* Close T345b3 - ([d960cbb](https://github.com/adaouat/heraut/commit/d960cbba93cb99e99ef09337780ad1059dbf7b79)) by @bchatard
+
+- *(roadmap)* Close T345b4a and split the rest of T345b4 - ([21f2727](https://github.com/adaouat/heraut/commit/21f2727f8d74362d9d1527775a43f66c298454c7)) by @bchatard
+
+- *(roadmap)* Close T345b4b - ([13587ee](https://github.com/adaouat/heraut/commit/13587ee7fce2c36f67d691b3bce17a6d3f901107)) by @bchatard
+
+- *(roadmap)* Close T345b4c and T345b4 - ([71dcc96](https://github.com/adaouat/heraut/commit/71dcc96060e084b0eb725f8ccf06c05e953d7d8e)) by @bchatard
+
+- *(roadmap)* Close T345b5 and T345b - ([992b7ba](https://github.com/adaouat/heraut/commit/992b7bad6377af647ae017002e60e86c0ab77974)) by @bchatard
+
+- *(roadmap)* Correct the T345b5 test count - ([2587e04](https://github.com/adaouat/heraut/commit/2587e04c65c142385555377619c429a60f4673d0)) by @bchatard
+
+- *(roadmap)* Close T345c - ([8b1abde](https://github.com/adaouat/heraut/commit/8b1abde6eeb7267466e2311179882f1bd8d5278d)) by @bchatard
+
+- *(roadmap)* Close T345d - ([aaa9060](https://github.com/adaouat/heraut/commit/aaa90606618d05693a073c6a8533233b0ffd8d4b)) by @bchatard
+
+- *(roadmap)* Close T360 - ([4b35ce8](https://github.com/adaouat/heraut/commit/4b35ce8402854e931f12ff7278824545643029a3)) by @bchatard
+
+- *(roadmap)* Close T361 - ([2d099fb](https://github.com/adaouat/heraut/commit/2d099fbd69ea6a6f6c8ab5a17471cff47c06e66e)) by @bchatard
+
+- *(roadmap)* Add T362 for the hook panel heading and the B6 flake - ([f984bfc](https://github.com/adaouat/heraut/commit/f984bfca858b00db7851a07aa28cf57279660645)) by @bchatard
+
+- *(roadmap)* Close T347, add T364-T368 for the GitLab port - ([1e82f5c](https://github.com/adaouat/heraut/commit/1e82f5c6042862c041ba5c1b0df67696492fe659)) by @bchatard
+
+- *(specs)* Add e2e test suite design for T345 - ([6e92351](https://github.com/adaouat/heraut/commit/6e9235132cdfdda6d83e5f09877222c9892f6902)) by @bchatard
+
+- *(specs)* Resolve the e2e design's open questions - ([0658462](https://github.com/adaouat/heraut/commit/06584623b0b715c2cba6785fb94b98ffd4d1784f)) by @bchatard
+
+- *(specs)* List failing hooks and publishes under exit code 3 - ([cb56126](https://github.com/adaouat/heraut/commit/cb56126338d09e181350d3b6f1a2af9b57b3701a)) by @bchatard
+
+
+### 🧪 Testing
+
+- *(e2e)* Add the harness that builds and drives the heraut binary - ([f40239b](https://github.com/adaouat/heraut/commit/f40239bfa09f725ff500d58aec641fd6a807a56b)) by @bchatard
+
+- *(e2e)* Cover SemVer resolution, stay_at_v0 and pre-releases end to end - ([4346292](https://github.com/adaouat/heraut/commit/4346292cfd0ef470f453fb7e328553a9878b0075)) by @bchatard
+
+- *(e2e)* Cover CalVer period boundaries, sprint and calver-per-env - ([301c0b4](https://github.com/adaouat/heraut/commit/301c0b45a5255c77bd6767da26e8c3a8830b277c)) by @bchatard
+
+- *(e2e)* Add Repo.Checkout to the harness - ([58e8965](https://github.com/adaouat/heraut/commit/58e89656b7759732cc2d586b44aaedcbdb79ca59)) by @bchatard
+
+- *(e2e)* Cover semver-per-env bumps, promotion guards and branch rules - ([454ab81](https://github.com/adaouat/heraut/commit/454ab81b4a4360a0868ce83f4ec0d38b4ae68c21)) by @bchatard
+
+- *(e2e)* Add Switch, Detach and MergeNoFF to the harness - ([11adf32](https://github.com/adaouat/heraut/commit/11adf3211860dac171497c9148488ed46936e6ca)) by @bchatard
+
+- *(e2e)* Cover maintenance-branch resolution and branch rules - ([b79e5e7](https://github.com/adaouat/heraut/commit/b79e5e7969b6bbb46157343a280b087f95026b2b)) by @bchatard
+
+- *(e2e)* Cover history-aware changelog bounds on maintenance lines - ([65a9032](https://github.com/adaouat/heraut/commit/65a90326d19168e3880857a1bfb4bcc0180f3009)) by @bchatard
+
+- *(e2e)* Add a bare remote and git helpers to the harness - ([51b30de](https://github.com/adaouat/heraut/commit/51b30de9bd90ba6f66df28ea8e4980640ff34925)) by @bchatard
+
+- *(e2e)* Cover the changelog commit, tag and push flow on a bare remote - ([af4e3e5](https://github.com/adaouat/heraut/commit/af4e3e5e578eb22d69e3b85a0628350c092910bb)) by @bchatard
+
+- *(e2e)* Cover release-lifecycle hooks through the real binary - ([d30bdf2](https://github.com/adaouat/heraut/commit/d30bdf25d33248d38d47c0f603bdd5e278049379)) by @bchatard
+
+- *(e2e)* Add recording fake CLIs to the harness - ([1563b28](https://github.com/adaouat/heraut/commit/1563b2886f11606c8ca8d3d901345f29d7fdb83b)) by @bchatard
+
+- *(e2e)* Cover the full release flow against recording fake gh/glab - ([adbe07b](https://github.com/adaouat/heraut/commit/adbe07b6851e65423fa830e262c2dee584c9cfbb)) by @bchatard
+
+- *(e2e)* Expose HOME, the fake dir and stdin in the harness - ([8850c07](https://github.com/adaouat/heraut/commit/8850c0748db4346f83c60a62733063ecc88d7a84)) by @bchatard
+
+- *(e2e)* Cover check, config discovery, ~ expansion and commit linting - ([aaad692](https://github.com/adaouat/heraut/commit/aaad692e4566cb53dcae0ce352222761cd1cc501)) by @bchatard
+
+- *(e2e)* Add the forge lane's configuration, guards and tokens - ([162043a](https://github.com/adaouat/heraut/commit/162043ac449292856880e878d1198646a1b4a8a7)) by @bchatard
+
+- *(e2e)* Add GitHub and GitLab sandbox clients for the forge lane - ([0908dad](https://github.com/adaouat/heraut/commit/0908dad862291feef2001726d408b88ea102eabe)) by @bchatard
+
+- *(e2e)* Add the forge lane's workspace with guarded cleanup - ([499e7d5](https://github.com/adaouat/heraut/commit/499e7d5a27c68792c16ed6e15405032e4b2552e6)) by @bchatard
+
+- *(e2e)* Cover final, pre-release, build-metadata and per-env releases live - ([60d46b6](https://github.com/adaouat/heraut/commit/60d46b68cb807dbecd90c396087e335889e67db9)) by @bchatard
+
+- *(e2e)* Add a sweeper for stale forge sandbox resources - ([af3c697](https://github.com/adaouat/heraut/commit/af3c697de0a42852a3ca7eda1f61bbf0770b2f38)) by @bchatard
+
+- *(e2e)* Extend the forge harness for mirrors, merges and polling - ([a2cf0c8](https://github.com/adaouat/heraut/commit/a2cf0c8308d0f7004cd241ba69496bf3b660b6e9)) by @bchatard
+
+- *(e2e)* Cover CalVer, cross-forge, draft, maintenance and dry-run live - ([53f358f](https://github.com/adaouat/heraut/commit/53f358ffdd729ee38adfbea20813dd454e8e81ec)) by @bchatard
+
+- *(e2e)* Cover PR/MR enrichment against the dedicated sandbox pair - ([b0b5adc](https://github.com/adaouat/heraut/commit/b0b5adc15373acb0c2df365e69dcbe2b91b11642)) by @bchatard
+
+- *(e2e)* Cover a retry after a failed changelog push - ([ba83f39](https://github.com/adaouat/heraut/commit/ba83f390fed1dcc175610066ca1c95076730be46)) by @bchatard
+
+- *(e2e)* Pin the exit code of --env selection errors and the guard - ([11b7653](https://github.com/adaouat/heraut/commit/11b7653a8ec8bf58096510613525e86383d341a2)) by @bchatard
+
+- *(e2e)* Pin the --env is required message for version next - ([8762482](https://github.com/adaouat/heraut/commit/876248253b0cc2c1202600f3723f254b2b0b471d)) by @bchatard
+
+- *(e2e)* Ignore the notes generation time when comparing B6 targets - ([95790f5](https://github.com/adaouat/heraut/commit/95790f5c2ed06976657b7a8302510b90245495cf)) by @bchatard
+
+- *(e2e)* Pin exit 3 for failing hooks and failed publishes - ([d40870b](https://github.com/adaouat/heraut/commit/d40870bb1d16d5d66440b07ad4c513e8567446c4)) by @bchatard
+
+
+### ⚙️ Miscellaneous Tasks
+
+- *(config)* Enforce the 72-character commit subject limit - ([0cf3e11](https://github.com/adaouat/heraut/commit/0cf3e11e3d56b478b85b2a3602b04fae2339d6ff)) by @bchatard
+
+- *(e2e)* Add the advisory forge-lane workflow and the setup guide - ([ae2f57b](https://github.com/adaouat/heraut/commit/ae2f57b2aa9580853a685e9d505052296f1e1a54)) by @bchatard
+
+
+### 💼 Other
+
+- *(deps)* Bump forge to v0.19.5 - ([e0c9e2e](https://github.com/adaouat/heraut/commit/e0c9e2e9ad0e4c3774e7f2d180e7ba9eaa69a3a8)) by @bchatard
+
 <!-- heraut-release: v0.75.0 -->
 ## [0.75.0](https://github.com/adaouat/heraut/compare/v0.74.0..v0.75.0) - 2026-10-07
 
@@ -3108,4 +3303,4 @@
 <!-- heraut-footer -->
 
 ---
-_Generated by [heraut](https://github.com/adaouat/heraut) v0.75.0 at 07:34 on 2026-10-07._
+_Generated by [heraut](https://github.com/adaouat/heraut) v0.76.0 at 05:14 on 2026-10-12._
