@@ -71,9 +71,9 @@ func TestIsEnvSelection(t *testing.T) {
 	}{
 		{"nil", nil, false},
 		{"unrelated", errors.New("boom"), false},
-		{"unknown environment", fmt.Errorf("environment %q %w", "nope", perenv.ErrEnvNotFound), true},
-		{"missing --env", fmt.Errorf("--env %w for semver-per-env strategy", perenv.ErrEnvRequired), true},
-		{"wrapped", fmt.Errorf("resolving: %w", perenv.ErrEnvNotFound), true},
+		{"unknown environment", &perenv.EnvSelectionError{Env: "nope", Strategy: "semver-per-env"}, true},
+		{"missing --env", &perenv.EnvSelectionError{Strategy: "semver-per-env"}, true},
+		{"wrapped", fmt.Errorf("resolving: %w", &perenv.EnvSelectionError{Env: "nope"}), true},
 		{"promotion guard", perenv.ErrTargetExists, false},
 	}
 	for _, tc := range tests {

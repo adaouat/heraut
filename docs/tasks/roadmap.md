@@ -2893,9 +2893,9 @@ Surfaced by the Opus review of T359/T360; none blocks them.
 <strategy> strategy") for an empty env, so `version next` matches `version current`; the e2e row
 now pins that text. `TestExitCode_EnvSelection_Config` gained rows for `release` with an unknown
 `--env` and for the guard on `changelog`/`release` without `--dry-run` (they already passed, so
-they only pin the `wrapBranchErr` sites). ADR-0068 mentions `version current`. Deferred on
-purpose: the typed `EnvSelectionError` replacement for the sentence-completing sentinels, which
-was marked optional and works as is.
+they only pin the `wrapBranchErr` sites). ADR-0068 mentions `version current`. The optional typed
+`EnvSelectionError{Env, Strategy}` replaced the sentence-completing `ErrEnvNotFound`/`ErrEnvRequired`
+sentinels later (messages unchanged; `app.IsEnvSelection` uses `errors.As`).
 
 #### `[x]` T362: failing-hook panel heading and the B6 nightly flake
 

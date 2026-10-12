@@ -20,7 +20,8 @@ func IsPromotionGuard(err error) bool {
 // layer maps it to the configuration exit code (T359): which environments exist is defined by
 // .heraut.yml, so a name outside it is a configuration problem, not a runtime failure.
 func IsEnvSelection(err error) bool {
-	return errors.Is(err, perenv.ErrEnvNotFound) || errors.Is(err, perenv.ErrEnvRequired)
+	var sel *perenv.EnvSelectionError
+	return errors.As(err, &sel)
 }
 
 // IsBranchMismatch reports whether err is the per-env branch guard refusing to operate an

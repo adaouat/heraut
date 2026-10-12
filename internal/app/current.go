@@ -281,10 +281,10 @@ func currentTagGlob(cfg *config.Config, env string) (string, error) {
 		return prefix() + "*", nil
 	case "semver-per-env", "calver-per-env":
 		if env == "" {
-			return "", fmt.Errorf("--env %w for %s strategy", perenv.ErrEnvRequired, cfg.Versioning.Strategy)
+			return "", &perenv.EnvSelectionError{Strategy: cfg.Versioning.Strategy}
 		}
 		if _, ok := cfg.Environments[env]; !ok {
-			return "", fmt.Errorf("environment %q %w", env, perenv.ErrEnvNotFound)
+			return "", &perenv.EnvSelectionError{Env: env, Strategy: cfg.Versioning.Strategy}
 		}
 		return tagfmt.GlobPattern(cfg.EffectiveTagFormat(env), tagfmt.Tokens{Env: env})
 	default:
