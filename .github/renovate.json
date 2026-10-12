@@ -34,8 +34,8 @@
     },
     {
       "customType": "regex",
-      "fileMatch": ["^Dockerfile$"],
-      "matchStrings": ["ARG GLAB_VERSION=(?<currentValue>[\\d.]+)"],
+      "fileMatch": ["^\\.github/workflows/e2e\\.yml$"],
+      "matchStrings": ["GLAB_VERSION=(?<currentValue>[\\d.]+)"],
       "depNameTemplate": "gitlab-org/cli",
       "datasourceTemplate": "github-releases"
     },
