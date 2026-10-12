@@ -121,3 +121,12 @@ sweeper, then the scenarios.
 - GitLab has no pre-release or draft flag; B2 and B7 assert them only where the forge has one.
 - Each target's notes link commits on its own forge, so B6 compares the notes with the link
   targets removed.
+- GitLab assets are published to the project's Generic Packages registry (`release-assets`), and
+  deleting a release leaves its package behind. The harness deletes the package with the release,
+  so per-test cleanup and the sweep leave a sandbox without packages.
+- Lane B authenticates with a personal token. GitLab's CI job token behaves differently, and
+  Lane B cannot exercise it: it is rejected on `POST /uploads`, `GET /user` and `GET /projects/:id`,
+  and accepted on Generic Packages uploads, release creation and the releases list. heraut relies
+  on exactly those calls under `CI_JOB_TOKEN` ([ADR-0069](../adr/0069-gitlab-publish-transport.md)).
+  The job-token path was validated once on a real pipeline (T366); the unit and loopback tests
+  assert which header each token kind sends.

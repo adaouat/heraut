@@ -100,6 +100,7 @@ func TestGitHubCheckRefusesAPublicOrMisnamedRepo(t *testing.T) {
 
 func TestGitLabForge(t *testing.T) {
 	calls := fakeAPI(t, "glab", [][2]string{
+		{"widget-testing/packages?package_type=generic&package_name=release-assets&package_version=e2e-1-aaaa-uat-0.1.0", `[{"id":41,"version":"e2e-1-aaaa-uat-0.1.0"},{"id":42,"version":"other"}]`},
 		{"projects/group%2Fwidget-testing/releases/e2e-1-aaaa%2Fuat%2F0.1.0", `{"tag_name":"e2e-1-aaaa/uat/0.1.0","description":"### Features","assets":{"links":[{"name":"a"}]}}`},
 		{"repository/tags/e2e-1-aaaa%2Fuat%2F0.1.0", `{"commit":{"id":"COMMITSHA"}}`},
 		{"repository/branches?search=e2e%2F", `[{"name":"e2e/e2e-1-aaaa"},{"name":"other"}]`},
@@ -133,6 +134,8 @@ func TestGitLabForge(t *testing.T) {
 	require.NoError(t, f.DeleteBranch("e2e/e2e-1-aaaa"))
 	all := strings.Join(calls(), "\n")
 	assert.Contains(t, all, "api -X DELETE projects/group%2Fwidget-testing/releases/e2e-1-aaaa%2Fuat%2F0.1.0")
+	assert.Contains(t, all, "api -X DELETE projects/group%2Fwidget-testing/packages/41", "the release's asset package goes with it")
+	assert.NotContains(t, all, "packages/42", "only the package of that tag's version is deleted")
 	assert.Contains(t, all, "api -X DELETE projects/group%2Fwidget-testing/repository/tags/e2e-1-aaaa%2Fuat%2F0.1.0")
 	assert.Contains(t, all, "api -X DELETE projects/group%2Fwidget-testing/repository/branches/e2e%2Fe2e-1-aaaa")
 }
@@ -160,6 +163,7 @@ func TestGitHubReleaseLookupFallsBackToDraftsAndIsNotFooledByTheTagName(t *testi
 
 func TestGitLabDeleteReleaseIsIdempotentAndURLsAreSpelledPerForge(t *testing.T) {
 	fakeAPI(t, "glab", [][2]string{
+		{"packages?package_type=generic", `[]`},
 		{"releases/gone", "!glab: 404 Not Found (HTTP 404)"},
 		{"releases/broken", "!glab: Internal Server Error (HTTP 500)"},
 	})

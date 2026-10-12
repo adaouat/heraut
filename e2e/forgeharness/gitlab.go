@@ -145,12 +145,40 @@ func (g *gitlab) Releases(prefix string) ([]string, error) {
 	return hasPrefix(tags, prefix), nil
 }
 
+// DeleteRelease removes the release and the Generic Packages files heraut uploaded for it:
+// deleting a release leaves its package behind, and a run that failed after the upload has a
+// package but no release, so a missing release is not an error.
 func (g *gitlab) DeleteRelease(tag string) error {
 	_, err := g.call("-X", "DELETE", g.base()+"/releases/"+escape(tag))
-	if isNotFound(err) {
-		return nil
+	if err != nil && !isNotFound(err) {
+		return err
 	}
-	return err
+	return g.deleteAssetPackages(tag)
+}
+
+// deleteAssetPackages deletes the release-assets package version heraut derives from tag.
+func (g *gitlab) deleteAssetPackages(tag string) error {
+	version := strings.ReplaceAll(tag, "/", "-")
+	out, err := g.call(g.base() + "/packages?package_type=generic&package_name=release-assets&package_version=" + escape(version))
+	if err != nil {
+		return err
+	}
+	var pkgs []struct {
+		ID      int    `json:"id"`
+		Version string `json:"version"`
+	}
+	if err := json.Unmarshal(out, &pkgs); err != nil {
+		return fmt.Errorf("decoding packages of %q: %w", tag, err)
+	}
+	for _, p := range pkgs {
+		if p.Version != version {
+			continue
+		}
+		if _, err := g.call("-X", "DELETE", fmt.Sprintf("%s/packages/%d", g.base(), p.ID)); err != nil && !isNotFound(err) {
+			return err
+		}
+	}
+	return nil
 }
 
 func (g *gitlab) DeleteTag(tag string) error {

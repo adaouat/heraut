@@ -229,7 +229,7 @@ discipline that applies to every task.
 | 58 | Homebrew cask: tar.gz archive for completions/man pages | Done — see T323 |
 | 59 | SemVer v2 compliance and pre-release lifecycle | Done — see `semver-v2-roadmap.md` |
 | 60 | End-to-end tests: hermetic binary lane + opt-in forge sandboxes | Done — T345 (a-d), T357, T358, T359, T360 |
-| 61 | GitLab publish driver follow-ups from T335 | In progress — T346, T347 done; T364 done, T365–T368 open (ADR-0069 Accepted) |
+| 61 | GitLab publish driver follow-ups from T335 | In progress — T346, T347 done; T364–T368 done (ADR-0069 Accepted) |
 | 62 | Version branches: version from the branch name | Not started — see T348 (needs design) |
 | 63 | CalVer history-aware changelog bounds | Not started — see T356 |
 
@@ -3091,11 +3091,23 @@ installing it, now with a version pinned in the workflow (Renovate regex retarge
 of read from the Dockerfile. Replacing that with direct API calls is left to T368. Historical ADRs,
 plans and archived roadmaps keep their `glab` wording.
 
-#### `[ ]` T368: Lane B and CI validation of the swap
+#### `[x]` T368: Lane B and CI validation of the swap
 
 Lane B's GitLab scenarios and a job-token CI run already passed by hand after T366 (see its note), so this task is the repeatable version: teach `e2e/cmd/sweep` and the per-test cleanup to delete the Generic Packages a run created, re-run Lane B for GitLab, and decide whether to keep the CI job as a regression. Original scope: run Lane B's GitLab scenarios (B1–B8, B10) against the sandbox, plus a GitLab CI job (the T364
 probe, reworked) against the real swapped driver. Records the observed job-token behaviour in the guide. Advisory workflow
 changes need the user's OK.
+
+Done. The GitLab forge helper in `e2e/forgeharness` now deletes the `release-assets` package of a tag
+together with its release (idempotent when the release never got created), which covers the
+per-test cleanup and `e2e/cmd/sweep` since both go through `DeleteRelease`. Lane B re-run for GitLab:
+B1–B5, B8, B9 (no-op) and B10 pass in 91 s and the sandbox ends with no packages, releases or tags
+(B6/B7 skipped, no GitHub sandbox). Decision on the CI job: not kept. A GitLab pipeline would need a
+runner, a project token and a way to push tags from the job, none of which exist for this repo, and
+the job-token path is covered by the header assertions in the unit and loopback tests plus the one
+real-pipeline run recorded in T366. The job-token behaviour is written up in the e2e guide.
+Deviation: the harness still shells out to `glab`/`gh` to manage sandbox fixtures; that is test
+tooling, not a heraut dependency, and rewriting it over HTTP is not worth a task unless `glab`
+drift starts to bite.
 
 ### Phase 62 — Version branches
 
