@@ -229,7 +229,7 @@ discipline that applies to every task.
 | 58 | Homebrew cask: tar.gz archive for completions/man pages | Done — see T323 |
 | 59 | SemVer v2 compliance and pre-release lifecycle | Done — see `semver-v2-roadmap.md` |
 | 60 | End-to-end tests: hermetic binary lane + opt-in forge sandboxes | Done — T345 (a-d), T357, T358, T359, T360 |
-| 61 | GitLab publish driver follow-ups from T335 | In progress — T346, T347 done; T364–T368 done (ADR-0069 Accepted) |
+| 61 | GitLab publish driver follow-ups from T335 | Done — T346, T347, T364–T368 (ADR-0069) |
 | 62 | Version branches: version from the branch name | Not started — see T348 (needs design) |
 | 63 | CalVer history-aware changelog bounds | Not started — see T356 |
 
