@@ -3,10 +3,12 @@ package app
 import (
 	"errors"
 	"fmt"
+	"slices"
 	"strings"
 
 	"github.com/adaouat/heraut/internal/config"
 	"github.com/adaouat/heraut/internal/port"
+	"github.com/adaouat/heraut/internal/versioning/calver"
 	"github.com/adaouat/heraut/internal/versioning/perenv"
 	"github.com/adaouat/heraut/internal/versioning/semver"
 	"github.com/adaouat/heraut/internal/versioning/tagfmt"
@@ -124,16 +126,65 @@ func semverExtractor(cfg *config.Config, env string) func(string) (string, bool)
 	return func(tag string) (string, bool) { return strings.CutPrefix(tag, prefix) }
 }
 
+// calverExtractor returns how to read a CalVer tag's bare version: strip tag_prefix for plain
+// calver, parse through the effective tag_format for calver-per-env.
+func calverExtractor(cfg *config.Config, env string) func(string) (string, bool) {
+	if cfg.Versioning.Strategy == "calver-per-env" {
+		tf := cfg.EffectiveTagFormat(env)
+		return func(tag string) (string, bool) {
+			v, err := tagfmt.ParseVersion(tf, tag)
+			return v, err == nil
+		}
+	}
+	prefix := configuredTagPrefix(cfg)
+	return func(tag string) (string, bool) { return strings.CutPrefix(tag, prefix) }
+}
+
+// calverOrder sorts tags newest first by calver.CompareVersions, stably (equal versions keep input
+// order); a tag extract cannot read sorts after every readable one.
+func calverOrder(extract func(string) (string, bool)) func([]string) []string {
+	return func(tags []string) []string {
+		type entry struct {
+			tag, version string
+			ok           bool
+		}
+		entries := make([]entry, len(tags))
+		for i, tag := range tags {
+			v, ok := extract(tag)
+			entries[i] = entry{tag, v, ok}
+		}
+		slices.SortStableFunc(entries, func(a, b entry) int {
+			switch {
+			case a.ok && b.ok:
+				return calver.CompareVersions(b.version, a.version)
+			case a.ok:
+				return -1
+			case b.ok:
+				return 1
+			}
+			return 0
+		})
+		out := make([]string, len(entries))
+		for i, e := range entries {
+			out[i] = e.tag
+		}
+		return out
+	}
+}
+
 // tagOrderFor returns the tag-ordering function native.WithTagOrder needs to bound changelog
 // sections, release-notes previous-tag resolution, and changelog rotation by SemVer §11 precedence
 // instead of git's version:refname order (T334, ADR-0064). For "semver"/"semver-per-env" it
 // re-sorts whatever tag list it's given (already scoped by TagGlob/TagPattern) through
 // semver.SortTags using the same extractor CurrentTag uses, then drops every pre-release tag —
 // releases only, so a pre-release never gets its own changelog section and is never a range
-// boundary; its commits fold into the next release's section. calver/calver-per-env return nil:
-// their output must stay byte-for-byte unchanged, still walking git's own order.
+// boundary; its commits fold into the next release's section. calver/calver-per-env order by the
+// lenient dotted-integer comparison and keep every tag (T356): CalVer has no pre-release, and its
+// zero-padded components (2026.05.3) are not valid SemVer.
 func tagOrderFor(cfg *config.Config, env string) func([]string) []string {
 	switch cfg.Versioning.Strategy {
+	case "calver", "calver-per-env":
+		return calverOrder(calverExtractor(cfg, env))
 	case "semver", "semver-per-env":
 		extract := semverExtractor(cfg, env)
 		return func(tags []string) []string {
@@ -153,8 +204,11 @@ func tagOrderFor(cfg *config.Config, env string) func([]string) []string {
 
 // notesTagOrderFor is tagOrderFor for a pre-release run's release notes: same §11 sort, but
 // pre-release tags are kept — a pre-release's notes span back to the previous tag of any kind.
+// CalVer has no pre-release, so it keeps the changelog order.
 func notesTagOrderFor(cfg *config.Config, env string) func([]string) []string {
 	switch cfg.Versioning.Strategy {
+	case "calver", "calver-per-env":
+		return tagOrderFor(cfg, env)
 	case "semver", "semver-per-env":
 		extract := semverExtractor(cfg, env)
 		return func(tags []string) []string {

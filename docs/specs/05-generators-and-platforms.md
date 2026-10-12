@@ -135,8 +135,10 @@ tag, and changelog rotation's own previous-tag lookup by SemVer §11 precedence 
 `version:refname` sort — so in a *regenerated* changelog a pre-release tag (`v1.4.0-rc.1`) never
 gets a `CHANGELOG.md` section of its own and is never a range boundary; its commits fold into the
 next release's section instead, and a section/notes/rotation lookup never walks back to a
-pre-release `git describe` topology would otherwise pick. `calver`/`calver-per-env` get no order
-injected — their walk is still git's own `version:refname` order, unchanged. Per-env `TagGlob` and
+pre-release `git describe` topology would otherwise pick. `calver`/`calver-per-env` get an order
+too (T356): newest first by the lenient dotted-integer comparison on the version read through
+`tag_prefix` / the effective `tag_format` (zero padding is just a number), keeping every tag since
+CalVer has no pre-release and placing an unreadable tag last. Per-env `TagGlob` and
 an explicit `tag_pattern` apply before this ordering, not instead of it.
 
 This §11-ordered walk is also the candidate pool for native's oldest-in-scope fallback (T334):
@@ -165,8 +167,8 @@ commit so another env's promotion tag never bounds it; unscoped: the start of hi
 `v1.3.2` gets its own `v1.3.1..v1.3.2` section and `v1.4.0` stays bounded at `v1.3.1`. The tag being
 cut is not in git yet, so its bound keeps T341's ordering-in rule over the reachable list. A
 repository whose tags all lie on one line of history (linear history, the common case) renders
-byte-identical output. `calver`/`calver-per-env` are unchanged: no reachability filter, no ancestry
-listing, each section bounded by the next tag in git's own order.
+byte-identical output. `calver`/`calver-per-env` follow the same rules (T356): reachable tags only and per-section ancestry,
+with the dotted-integer ordering above in place of SemVer §11.
 
 **Release-notes ranges (T341, ADR-0064).** For a final release, notes span back to the previous
 *final* reachable from `HEAD` (pre-releases are dropped from the order; reachability since

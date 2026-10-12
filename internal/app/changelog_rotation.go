@@ -33,8 +33,8 @@ type rotatingGenerator struct {
 	degradedReason      string
 	tokens              []string // {TOKEN} names found in driver.Output, e.g. ["YYYY"]
 	// tagOrder bounds the wrapped generator and latestMatchingTag's own previous-tag resolution by
-	// SemVer §11 precedence (T334, ADR-0064); nil (calver, the only strategy rotation supports
-	// besides plain semver) keeps today's git-order behaviour.
+	// SemVer §11 (semver) or dotted-integer (calver) precedence over tags merged into HEAD (T334,
+	// T356, ADR-0064/0065); nil keeps git's own order.
 	tagOrder func([]string) []string
 
 	lastOutputPath string
@@ -134,11 +134,11 @@ func (r *rotatingGenerator) resolveDriver(tag string) (*config.ContentDriver, er
 // bucket), or "" when none exist. It replicates the calver/semver resolvers' own `git tag -l`
 // invocation (resolveDriver needs the same raw tag listing independently: it runs after
 // resolution, from a wrapped generator that has no access to the resolver's internal state).
-// With tagOrder set (T334, ADR-0064 — rotation's only SemVer strategy is plain "semver"), it
+// With tagOrder set (T334, ADR-0064), it
 // returns tagOrder(list)'s first entry — the highest-precedence release, dropping pre-releases —
 // instead of trusting git's version:refname sort, which can be misled the same way it misleads
-// the unordered generator walk (a pre-release tag can sort above its own release). nil (calver)
-// keeps today's behaviour: git's own first line. With tagOrder set the listing is also limited to
+// the unordered generator walk (a pre-release tag can sort above its own release). nil
+// keeps git's own first line. With tagOrder set the listing is also limited to
 // tags merged into HEAD (ADR-0065).
 func latestMatchingTag(runner port.Runner, prefix string, tagOrder func([]string) []string) (string, error) {
 	args := []string{"tag", "-l", prefix + "*"}

@@ -223,3 +223,33 @@ func TestHistoryBounds_RealRepo_PromotionTagOnSameCommitNeverBoundsFallback(t *t
 	assert.Contains(t, prod120, "Commit b")
 	assert.NotContains(t, prod120, "Commit a")
 }
+
+// TestHistoryBounds_RealRepo_CalverUnmergedTagGetsNoSection (T356): a CalVer tag cut on a branch
+// that never merged back is outside main's history, so main's changelog has no section for it
+// and the next release is bounded at its own ancestor.
+func TestHistoryBounds_RealRepo_CalverUnmergedTagGetsNoSection(t *testing.T) {
+	git := historyRepo(t)
+	commit := func(msg string) { git("commit", "--allow-empty", "-m", msg) }
+	tag := func(name string) { git("tag", "-a", "-m", name, name) }
+
+	commit("feat: first")
+	tag("v2026.05.0")
+	git("checkout", "-b", "hotfix", "v2026.05.0")
+	commit("fix: hotfix only")
+	tag("v2026.06.0")
+	git("checkout", "main")
+	commit("feat: second")
+	tag("v2026.05.1")
+
+	prefix := "v"
+	cfg := &config.Config{Versioning: config.Versioning{Strategy: "calver", Format: "YYYY.MM.PATCH", TagPrefix: &prefix}}
+
+	body := regenerateSemver(t, cfg, "", config.ContentDriver{}, "v2026.07.0")
+
+	assert.NotContains(t, body, "<!-- heraut-release: v2026.06.0 -->", "an unmerged CalVer tag gets no section")
+	assert.NotContains(t, body, "Hotfix only")
+	section := sectionOf(body, "v2026.05.1")
+	require.NotEmpty(t, section)
+	assert.Contains(t, section, "Second")
+	assert.Contains(t, section, "compare/v2026.05.0..v2026.05.1")
+}

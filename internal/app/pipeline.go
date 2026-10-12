@@ -617,8 +617,8 @@ func effectiveExcludes(cfg *config.Config, driver *config.ContentDriver) []confi
 }
 
 // buildGenerator constructs the native generator. tagOrder (T334, ADR-0064 — from tagOrderFor)
-// bounds the changelog/notes tag walk by SemVer §11 precedence instead of git's version:refname
-// order; nil (calver/calver-per-env) keeps today's behaviour unchanged.
+// bounds the changelog/notes tag walk by SemVer §11 (or, for CalVer, dotted-integer) precedence over
+// HEAD's history instead of git's version:refname order; nil keeps git's order.
 func buildGenerator(runner port.Runner, driver *config.ContentDriver, defaultMode native.Mode, herautVersion string, regenerateChangelog, force bool, enrichForge port.Forge, degradedReason string, tagOrder func([]string) []string, extra ...native.Option) port.Generator {
 	// Copy so setting the running version never mutates the shared config.
 	nativeDriver := *driver

@@ -231,7 +231,7 @@ discipline that applies to every task.
 | 60 | End-to-end tests: hermetic binary lane + opt-in forge sandboxes | Done — T345 (a-d), T357, T358, T359, T360 |
 | 61 | GitLab publish driver follow-ups from T335 | Done — T346, T347, T364–T368 (ADR-0069) |
 | 62 | Version branches: version from the branch name | Not started — see T348 (needs design) |
-| 63 | CalVer history-aware changelog bounds | Not started — see T356 |
+| 63 | CalVer history-aware changelog bounds | Done — T356 |
 
 ### Open items
 
@@ -3128,7 +3128,7 @@ from-branch` field vs. a separate key), how it coexists with maintenance globs o
 
 ### Phase 63 — CalVer history-aware changelog bounds
 
-#### `[ ]` T356: history-aware changelog bounds for CalVer
+#### `[x]` T356: history-aware changelog bounds for CalVer
 
 Follow-up to ADR-0065 (SemVer v2 Phase 3, T352). Under `semver` and `semver-per-env`, changelog
 and release-notes bounds now come from each section's own ancestry (`--merged <tag>`) and the
@@ -3138,6 +3138,18 @@ section and can bound a later one. Apply the same rule when no tag order is set.
 zero-padded tags (`2026.05.0`) do not parse as SemVer, so the ancestor pool needs its own ordering
 (the lenient dotted-integer comparison CalVer already uses) rather than `semver.Compare`. Needs
 only a small design note: the generator already takes the order as a function.
+
+Done. `tagOrderFor`/`notesTagOrderFor` now return an order for `calver` and `calver-per-env`, so the
+existing T352 machinery applies unchanged: reachable tags only (`--merged HEAD`), per-section ancestry
+bounds, and rotation's previous-tag lookup limited to HEAD's history. The order sorts newest first by
+`calver.CompareVersions` (the lenient dotted-integer comparison, moved out of `perenv` so both share
+it; `perenv` calls it), reading the version through `tag_prefix` for `calver` and the effective
+`tag_format` for `calver-per-env`; it keeps every tag (no pre-release) and puts an unreadable tag last.
+Behaviour change for CalVer repos: a tag outside HEAD's history no longer gets a section or bounds
+one; linear histories are unchanged. The two `ReturnsNil` tests were replaced by ordering tests (the
+nil-order argv rows of `TestLatestMatchingTag_Argv`/`TestBuildGenerator_*` stay, nil is still valid).
+New real-git test `TestHistoryBounds_RealRepo_CalverUnmergedTagGetsNoSection` (red first). Spec 05
+and ADR-0065 (Consequences) updated rather than a new ADR, since ADR-0065 anticipated this.
 
 ---
 

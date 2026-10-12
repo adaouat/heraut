@@ -1,6 +1,7 @@
 package perenv
 
 import (
+	"github.com/adaouat/heraut/internal/versioning/calver"
 	"github.com/adaouat/heraut/internal/versioning/semver"
 	"github.com/adaouat/heraut/internal/versioning/tagfmt"
 )
@@ -60,7 +61,7 @@ func compareVersions(strategy, a, b string) int {
 			return semver.Compare(va, vb)
 		}
 	}
-	return compareVersionStrings(a, b)
+	return calver.CompareVersions(a, b)
 }
 
 func versionExtractor(tf string) func(string) (string, bool) {

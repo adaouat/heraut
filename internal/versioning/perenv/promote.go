@@ -2,7 +2,6 @@ package perenv
 
 import (
 	"fmt"
-	"strconv"
 	"strings"
 
 	"github.com/adaouat/heraut/internal/config"
@@ -263,34 +262,4 @@ func resolveSourceEnv(cfg *config.Config, env string) (string, error) {
 	default:
 		return "", fmt.Errorf("ambiguous source for %q: %d auto environments exist; set source: to resolve", env, len(autoEnvs))
 	}
-}
-
-// compareVersionStrings compares two dot-separated version strings component by component.
-// Returns -1 if a < b, 0 if a == b, 1 if a > b.
-// Works for both SemVer (1.2.3) and CalVer (2026.05.3) since both use dot-separated integers.
-func compareVersionStrings(a, b string) int {
-	aParts := strings.Split(a, ".")
-	bParts := strings.Split(b, ".")
-
-	n := len(aParts)
-	if len(bParts) > n {
-		n = len(bParts)
-	}
-
-	for i := range n {
-		var av, bv int
-		if i < len(aParts) {
-			av, _ = strconv.Atoi(aParts[i])
-		}
-		if i < len(bParts) {
-			bv, _ = strconv.Atoi(bParts[i])
-		}
-		switch {
-		case av < bv:
-			return -1
-		case av > bv:
-			return 1
-		}
-	}
-	return 0
 }

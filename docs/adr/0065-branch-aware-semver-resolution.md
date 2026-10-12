@@ -114,7 +114,8 @@ This is the one behaviour change that reaches configs without a `branches` block
 the bounded tag's history is always wrong, whatever the branch layout. A repo whose tags are all
 ancestors of each other (linear history, the common case) renders byte-identical output; only a
 repo with tags outside a section's history sees different sections or bounds, and those were wrong
-before. Version resolution, by contrast, changes nothing without the block. CalVer is untouched.
+before. Version resolution, by contrast, changes nothing without the block. CalVer gets the same bounds
+from T356 (see Consequences).
 
 **`--set-version` stays the manual escape hatch.** It is not range-checked, and a matched glob
 entry whose range cannot be derived from the branch name is not an error under it. This keeps the
@@ -174,9 +175,9 @@ doc, they govern.
   (`release/1.3`), or `--set-version`.
 - Shallow clones need the history of the line's base tag; a base missing from the fetched depth
   is reported as "no release in range", not silently replaced.
-- CalVer's changelog bounds keep their ancestry-blind behaviour. The CalVer equivalent of the
-  history-aware bounds is filed as a follow-up (its zero-padded tags need their own ordering for
-  the ancestor pool).
+- CalVer's changelog bounds were first left ancestry-blind; T356 applied the same history-aware
+  rules to `calver`/`calver-per-env`, ordering the ancestor pool by the lenient dotted-integer
+  comparison (`calver.CompareVersions`) because zero-padded tags do not parse as SemVer.
 
 ## Alternatives considered
 
