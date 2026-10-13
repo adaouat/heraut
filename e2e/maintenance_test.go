@@ -296,3 +296,39 @@ func TestMaintenance_ChangelogBounds(t *testing.T) {
 		assert.Equal(t, []string{"1.0.3: C", "1.0.1: B", "1.0.0: A"}, got)
 	})
 }
+
+// versionBranchHistory: main has v7.7.0, release/7.8.0 is cut from it with extra applied.
+func versionBranchHistory(extra ...step) []step {
+	base := []step{commit("feat: a"), tag("v7.7.0"), checkout("release/7.8.0")}
+	return append(base, extra...)
+}
+
+func TestVersionBranch_Resolution(t *testing.T) {
+	bin := harness.Binary(t)
+	runScenarios(t, bin, nil, []scenario{
+		{name: "the first release is the branch version whatever the commits", config: branchesCfg,
+			history: versionBranchHistory(commit("feat!: breaking")), args: versionNext, wantOut: "v7.8.0"},
+		{name: "a v-prefixed branch name gives the same version", config: branchesCfg,
+			history: []step{commit("feat: a"), tag("v7.7.0"), checkout("release/v7.8.0"), commit("fix: x")},
+			args:    versionNext, wantOut: "v7.8.0"},
+		{name: "a release candidate numbers itself", config: branchesCfg,
+			history: versionBranchHistory(commit("fix: x"), tag("v7.8.0-rc.1"), commit("fix: y")),
+			args:    []string{"version", "next", "--pre-release", "rc"}, wantOut: "v7.8.0-rc.2"},
+		{name: "a second release on the same version refuses with the way out", config: branchesCfg,
+			history:  versionBranchHistory(commit("fix: x"), tag("v7.8.0"), commit("fix: y")),
+			args:     versionNext,
+			wantExit: exitRuntime, wantText: []string{"tag already exists: v7.8.0", "--pre-release", "--set-build-id"}},
+		{name: "a release candidate after the final is refused", config: branchesCfg,
+			history:  versionBranchHistory(commit("fix: x"), tag("v7.8.0"), commit("fix: y")),
+			args:     []string{"version", "next", "--pre-release", "rc"},
+			wantExit: exitRuntime, wantText: []string{"would sort below existing v7.8.0"}},
+		{name: "a repeat build is an explicit build ID", config: branchesCfg,
+			history: versionBranchHistory(commit("fix: x"), tag("v7.8.0"), commit("fix: y")),
+			args:    []string{"version", "next", "--set-version", "7.8.0", "--set-build-id", "158404"}, wantOut: "v7.8.0+158404"},
+		{name: "version current is the branch version's own tag", config: branchesCfg,
+			history: versionBranchHistory(commit("fix: x"), tag("v7.8.0-rc.1")),
+			args:    []string{"version", "current", "--include-pre-release"}, wantOut: "v7.8.0-rc.1"},
+		{name: "a maintenance line in the same namespace still derives its range", config: branchesCfg,
+			history: lineHistory("release/1.3", commit("fix: x")), args: versionNext, wantOut: "v1.3.1"},
+	})
+}
