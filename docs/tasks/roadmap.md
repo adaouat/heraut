@@ -237,7 +237,7 @@ discipline that applies to every task.
 | 66 | heraut notes: release notes for a tag, for any consumer | Done — T371 |
 | 67 | Refs that look like options reach git unguarded | Done — T372 |
 | 68 | `heraut notes` e2e coverage of range bounds and per-env | Done — T373 |
-| 69 | Agent-friendly CLI: JSON output and a bundled skill | In progress — T374 done, T375–T379 open |
+| 69 | Agent-friendly CLI: JSON output and a bundled skill | In progress — T374, T375 done; T376–T379 open |
 
 ### Open items
 
@@ -3323,10 +3323,17 @@ from an error exposing `Hint() string`. Decided: on failure stderr keeps the usu
 mechanism), and errors raised by cobra before `RunE` are not enveloped. No command uses it yet, so there is no
 e2e; T375 adds the first.
 
-#### `[ ]` T375: `--json` on `version next` and `version current`
+#### `[x]` T375: `--json` on `version next` and `version current`
 
 Prints the tag, version, bump kind and, for `next`, the commits that decided it. Lane A e2e asserts the
 literal JSON and the exit code for success, "no tags" and a per-env run without `--env`.
+
+**Completion note:** `next` returns `{tag, version, current_tag, bump}` (the last two omitted when empty); the
+"commits that decided it" in the task text were left out, since the resolvers do not expose them and the bump
+already says what they decided. `current` returns `{tag, version}`; `--bare` is ignored with `--json`. Both
+bodies moved into `resolveNext` / `resolveCurrent` (with a shared `loadValidatedConfig`) so the text and JSON
+paths share one resolution; warnings go to the envelope in JSON mode. `BumpType.String()` added. Text-mode
+output and its git calls are unchanged (`current` still looks up only what it prints).
 
 #### `[ ]` T376: `--json` on `check` and `commit verify`
 

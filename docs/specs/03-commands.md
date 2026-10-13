@@ -339,8 +339,10 @@ Compute and print the next version without side effects. Useful in CI to capture
 version before invoking other tools.
 
 ```
-heraut version next [--env <name>] [--force] [--allow-major] [--pre-release <label>] [--set-version <version>] [--set-build-id <id>]
+heraut version next [--env <name>] [--force] [--allow-major] [--pre-release <label>] [--set-version <version>] [--set-build-id <id>] [--json]
 ```
+
+With `--json` ([§ Machine-readable output](#machine-readable-output)), `data` is `{"tag", "version", "current_tag", "bump"}`: the tag that would be created, its bare version, the tag it bumps from and the bump (`patch`, `minor` or `major`). `current_tag` and `bump` are omitted when there is no previous tag or the strategy has no bump (CalVer, `--set-version`). Hold-back and ordering warnings go in `warnings` instead of stderr.
 
 Before resolving, runs the same semantic validation as `heraut check config`. A config
 error prints the same path/hint output and exits with the Config code (2) without
@@ -381,8 +383,10 @@ With `versioning.bump.stay_at_v0` set, a breaking change at `0.x` prints a hold-
 Print the latest released tag for the active strategy / environment.
 
 ```
-heraut version current [--env <name>] [--bare] [--include-pre-release] [--force]
+heraut version current [--env <name>] [--bare] [--include-pre-release] [--force] [--json]
 ```
+
+With `--json`, `data` is `{"tag", "version"}` (the raw tag and its bare version); `--bare` has no effect.
 
 For SemVer strategies (`semver`, `semver-per-env`), prints the highest-precedence
 **release** tag (SemVer §11, decided by heraut, not git's sort); pre-release tags are

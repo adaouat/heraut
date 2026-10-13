@@ -477,3 +477,26 @@ func TestVersionSprintBump_DoesNotAcceptUnrelatedFlags(t *testing.T) {
 		})
 	}
 }
+
+func TestVersionNext_JSON_CarriesWarningsInTheEnvelope(t *testing.T) {
+	cfgPath := writeConfig(t, `
+version: "1"
+versioning:
+  strategy: semver
+  tag_prefix: "v"
+  bump:
+    stay_at_v0: true
+`)
+	exectest.FakeBin(t, "git", `#!/bin/sh
+case "$*" in
+  "tag -l v* --sort=-version:refname") echo "v0.4.0" ;;
+  "log v0.4.0..HEAD --format=%B"*) printf "feat!: break\x00" ;;
+  *) exit 1 ;;
+esac
+`)
+	out, err := executeRoot("version", "next", "--json", "--config", cfgPath)
+	require.NoError(t, err)
+	assert.Contains(t, out, `"tag":"v0.5.0"`)
+	assert.Contains(t, out, `"warnings":["`, "the hold-back notice moves from stderr into the envelope")
+	assert.Equal(t, 1, strings.Count(out, "\n"), "one line")
+}

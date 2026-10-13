@@ -25,3 +25,16 @@ type Result struct {
 	// first. Resolvers never print them; callers do.
 	Warnings []string
 }
+
+// String names the bump ("none", "patch", "minor", "major").
+func (b BumpType) String() string {
+	switch b {
+	case BumpPatch:
+		return "patch"
+	case BumpMinor:
+		return "minor"
+	case BumpMajor:
+		return "major"
+	}
+	return "none"
+}
