@@ -199,7 +199,7 @@ func NewResolver(cfg *config.Config, env string, force bool, versionOverride, bu
 		r := semver.New(runner, cfg)
 		r.SetAllowMajor(o.allowMajor)
 		r.SetPreRelease(o.preRelease)
-		if err := applyMaintenanceRange(r, cfg, runner); err != nil {
+		if err := applyBranchRule(r, cfg, runner); err != nil {
 			return nil, err
 		}
 		return warningResolver{inner: r, warnings: r.Warnings, wouldBeVersions: r.WouldBeVersions}, nil
@@ -227,12 +227,13 @@ func guardSetVersion(cfg *config.Config, r versioning.Resolver, runner port.Runn
 	if noGuard || len(cfg.Versioning.Branches) == 0 || cfg.Versioning.Strategy != "semver" {
 		return r
 	}
-	return collisionGuardResolver{inner: r, runner: runner}
+	return collisionGuardResolver{inner: r, runner: runner, cfg: cfg}
 }
 
 type collisionGuardResolver struct {
 	inner  versioning.Resolver
 	runner port.Runner
+	cfg    *config.Config
 }
 
 func (g collisionGuardResolver) Resolve() (versioning.Result, error) {
@@ -248,14 +249,40 @@ func (g collisionGuardResolver) Resolve() (versioning.Result, error) {
 		return versioning.Result{}, fmt.Errorf("%w: %s — pick a free version for --set-version",
 			semver.ErrTagExists, existing)
 	}
+	warn, err := versionBranchMismatch(g.runner, g.cfg, res.Version)
+	if err != nil {
+		return versioning.Result{}, err
+	}
+	if warn != "" {
+		res.Warnings = append(res.Warnings, warn)
+	}
 	return res, nil
 }
 
-// applyMaintenanceRange confines r to the current branch's maintenance line when
-// versioning.branches is set (ADR-0065). Without the block it makes no git call, so repos that
+// versionBranchMismatch warns when an explicit --set-version names a different core than the
+// version branch it runs on. An unmatched or ambiguous branch is not this check's business
+// (CheckReleaseBranch reports those), so a match error is ignored.
+func versionBranchMismatch(runner port.Runner, cfg *config.Config, version string) (string, error) {
+	branch, known, err := CurrentBranch(runner)
+	if err != nil {
+		return "", err
+	}
+	m, err := MatchBranchRule(cfg, branch, known, false)
+	if err != nil || m.Kind != BranchVersion {
+		return "", nil
+	}
+	v, perr := semver.Parse(version)
+	if perr != nil || v.Core() == m.Version {
+		return "", nil
+	}
+	return fmt.Sprintf("--set-version %s differs from the version of branch %s (%s)", v.Core(), m.Branch, m.Version), nil
+}
+
+// applyBranchRule confines r to the current branch's maintenance line, or pins it to a version
+// branch's version, when versioning.branches is set (ADR-0065). Without the block it makes no git call, so repos that
 // don't declare branches resolve exactly as before. Manual bump mode is skipped too: its version
 // comes from --set-version, which never reaches this point.
-func applyMaintenanceRange(r *semver.Resolver, cfg *config.Config, runner port.Runner) error {
+func applyBranchRule(r *semver.Resolver, cfg *config.Config, runner port.Runner) error {
 	if len(cfg.Versioning.Branches) == 0 || cfg.Versioning.BumpMode() == "manual" {
 		return nil
 	}
@@ -267,9 +294,12 @@ func applyMaintenanceRange(r *semver.Resolver, cfg *config.Config, runner port.R
 	if err != nil {
 		return err
 	}
-	if m.Kind == BranchMaintenance {
+	switch m.Kind {
+	case BranchMaintenance:
 		rg := semver.RangeFrom(m.Range, m.Branch)
 		r.SetMaintenanceRange(&rg)
+	case BranchVersion:
+		r.SetFixedVersion(m.Version)
 	}
 	return nil
 }

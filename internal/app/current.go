@@ -42,6 +42,9 @@ func CurrentTag(runner port.Runner, cfg *config.Config, env string, includePreRe
 			rg := semver.RangeFrom(m.Range, m.Branch)
 			return currentMaintenanceTag(runner, cfg, glob, rg, includePreRelease)
 		}
+		if m.Kind == BranchVersion {
+			return currentVersionBranchTag(runner, cfg, glob, m, includePreRelease)
+		}
 	}
 	return globalCurrentTag(runner, cfg, env, glob, includePreRelease)
 }
@@ -87,6 +90,32 @@ func globalCurrentTag(runner port.Runner, cfg *config.Config, env, glob string, 
 		}
 		return "", fmt.Errorf("%w for %q", errNoTagsFound, glob)
 	}
+}
+
+// currentVersionBranchTag is CurrentTag on a version branch (ADR-0065): the highest tag reachable
+// from HEAD whose core is the branch's version, never a higher tag cut on another line.
+func currentVersionBranchTag(runner port.Runner, cfg *config.Config, glob string, m BranchMatch, includePreRelease bool) (string, error) {
+	stdout, _, err := runner.Run("git", "tag", "-l", glob, "--merged", "HEAD", "--sort=-version:refname")
+	if err != nil {
+		return "", fmt.Errorf("listing git tags merged into HEAD: %w", err)
+	}
+	core, err := semver.Parse(m.Version)
+	if err != nil {
+		return "", fmt.Errorf("parsing version branch version %q: %w", m.Version, err)
+	}
+	var onVersion []semver.TagVersion
+	for _, tv := range semver.SortTags(strings.Fields(stdout), semverExtractor(cfg, "")) {
+		if semver.Compare(semver.CoreOf(tv.Version), core) == 0 {
+			onVersion = append(onVersion, tv)
+		}
+	}
+	if tv, ok := semver.Latest(onVersion, includePreRelease); ok {
+		return tv.Tag, nil
+	}
+	if len(onVersion) > 0 {
+		return "", fmt.Errorf("%w for version %s reachable from %s: only pre-release tags exist (pass --include-pre-release to show them)", errNoTagsFound, m.Version, m.Branch)
+	}
+	return "", fmt.Errorf("%w for version %s reachable from %s", errNoTagsFound, m.Version, m.Branch)
 }
 
 // currentMaintenanceTag is CurrentTag on a maintenance line (ADR-0065): the highest tag reachable

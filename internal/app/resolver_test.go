@@ -702,14 +702,14 @@ func TestNewResolver_Maintenance(t *testing.T) {
 			wantCalls:  [][]string{revParse},
 		},
 		{
-			// ADR-0065: --set-version gets the collision guard, so the only git call is that probe —
-			// still no branch detection, so an underivable glob match is no error here.
-			name:      "--set-version on release/7.8.0 with release/*: collision probe only",
+			// ADR-0065: --set-version gets the collision guard, then a branch lookup for the
+			// version-branch mismatch warning (T348); an underivable glob match is no error here.
+			name:      "--set-version on release/7.8.0 with release/*: collision probe, then branch check",
 			cfg:       maintenanceCfg(mainAndRelease...),
 			override:  "7.8.0",
-			responses: []string{""},
+			responses: []string{"", "release/7.8.0\n"},
 			wantTag:   "v7.8.0",
-			wantCalls: [][]string{{"tag", "-l", "v7.8.0", "v7.8.0+*"}},
+			wantCalls: [][]string{{"tag", "-l", "v7.8.0", "v7.8.0+*"}, revParse},
 		},
 	}
 	for _, tc := range tests {
@@ -764,9 +764,9 @@ func TestNewResolver_SetVersion_CollisionGuard(t *testing.T) {
 	}{
 		{
 			name: "free version", cfg: maintenanceCfg(branches...), override: "1.3.2",
-			responses: []string{""},
+			responses: []string{"", "main\n"},
 			wantTag:   "v1.3.2",
-			wantCalls: [][]string{{"tag", "-l", "v1.3.2", "v1.3.2+*"}},
+			wantCalls: [][]string{{"tag", "-l", "v1.3.2", "v1.3.2+*"}, {"rev-parse", "--abbrev-ref", "HEAD"}},
 		},
 		{
 			name: "tag exists", cfg: maintenanceCfg(branches...), override: "1.3.2",
@@ -782,9 +782,9 @@ func TestNewResolver_SetVersion_CollisionGuard(t *testing.T) {
 		},
 		{
 			name: "with a build ID: exact tag only", cfg: maintenanceCfg(branches...), override: "1.3.2", buildID: "9",
-			responses: []string{""},
+			responses: []string{"", "main\n"},
 			wantTag:   "v1.3.2+9",
-			wantCalls: [][]string{{"tag", "-l", "v1.3.2+9"}},
+			wantCalls: [][]string{{"tag", "-l", "v1.3.2+9"}, {"rev-parse", "--abbrev-ref", "HEAD"}},
 		},
 		{
 			name: "no branches block: no git call", cfg: semverCfg(), override: "1.3.2",

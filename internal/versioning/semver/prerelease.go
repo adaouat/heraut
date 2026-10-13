@@ -50,6 +50,9 @@ func coreVersion(v Version) Version {
 	return Version{Major: v.Major, Minor: v.Minor, Patch: v.Patch}
 }
 
+// CoreOf is v without its pre-release and build metadata.
+func CoreOf(v Version) Version { return coreVersion(v) }
+
 // nextCounter is one more than the highest counter of label on core among tags (1 when none).
 // Only tags shaped exactly <label>.<n> count.
 func nextCounter(tags []TagVersion, core Version, label string) uint64 {
