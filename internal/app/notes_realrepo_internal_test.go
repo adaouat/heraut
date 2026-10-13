@@ -201,3 +201,58 @@ func TestGenerateNotes_TemplatePrecedence(t *testing.T) {
 	require.NoError(t, err)
 	assert.Contains(t, res.Text, "## 1.1.0", "a heading is one override away")
 }
+
+func TestGenerateNotes_OnlyReleaseTagsOfTheStrategy(t *testing.T) {
+	commit, tag, _ := standaloneNotesRepo(t)
+	commit("feat: a")
+	tag("v1.0.0")
+	commit("fix: b")
+	tag("build-7")
+	tag("v1.1.0")
+	tag("v1.1.0-nightly")
+
+	t.Run("a semver repo refuses a tag outside the tag prefix", func(t *testing.T) {
+		_, err := runNotes(t, standaloneNotesCfg(), NotesOpts{Tag: "build-7"})
+		require.ErrorIs(t, err, ErrNotesNotReleaseTag)
+		assert.Contains(t, err.Error(), "build-7")
+	})
+	t.Run("a calver repo refuses a tag that is not a dotted version", func(t *testing.T) {
+		cfg := standaloneNotesCfg()
+		cfg.Versioning.Strategy = "calver"
+		_, err := runNotes(t, cfg, NotesOpts{Tag: "build-7"})
+		require.ErrorIs(t, err, ErrNotesNotReleaseTag)
+	})
+	t.Run("a per-env repo refuses another environment's tag", func(t *testing.T) {
+		cfg := standaloneNotesCfg()
+		cfg.Versioning.Strategy = "semver-per-env"
+		cfg.Environments = map[string]config.Environment{
+			"uat":  {Bump: "auto", TagFormat: "uat/{version}"},
+			"prod": {Bump: "auto", TagFormat: "prod/{version}"},
+		}
+		_, err := runNotes(t, cfg, NotesOpts{Tag: "v1.1.0", Env: "uat"})
+		require.ErrorIs(t, err, ErrNotesNotReleaseTag)
+	})
+}
+
+func TestGenerateNotes_ATagIsNotARevisionExpression(t *testing.T) {
+	commit, tag, _ := standaloneNotesRepo(t)
+	commit("feat: a")
+	tag("v1.0.0")
+	commit("fix: b")
+	tag("v1.1.0")
+
+	_, err := runNotes(t, standaloneNotesCfg(), NotesOpts{Tag: "v1.1.0^"})
+	require.ErrorIs(t, err, ErrNotesTagNotFound)
+	_, err = runNotes(t, standaloneNotesCfg(), NotesOpts{Tag: "v1.1.0", From: "v1.1.0~1"})
+	require.ErrorIs(t, err, ErrNotesTagNotFound)
+}
+
+func TestGenerateNotes_GitFailuresKeepTheirCause(t *testing.T) {
+	t.Chdir(t.TempDir())
+
+	_, err := runNotes(t, standaloneNotesCfg(), NotesOpts{Tag: "v1.0.0"})
+
+	require.Error(t, err)
+	assert.NotErrorIs(t, err, ErrNotesTagNotFound, "outside a repository the tag is not the problem")
+	assert.Contains(t, err.Error(), "not a git repository")
+}

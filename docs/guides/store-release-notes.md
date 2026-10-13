@@ -86,7 +86,7 @@ heraut notes v7.8.0-rc.3 --from v7.7.0 --format text
 
 | Situation | Code |
 |---|---|
-| unknown tag, unknown `--from`, `--from` outside the tag's history, unwritable `--output` | 3 (runtime) |
+| unknown tag, a tag that is not a release tag, unknown `--from`, `--from` outside the tag's history, unwritable `--output`, git failing | 3 (runtime) |
 | `--format` other than `markdown` or `text` | 1 (usage) |
 | per-env strategy without `--env` | 2 (config) |
 

@@ -4,6 +4,8 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"os/exec"
+	"regexp"
 	"strings"
 
 	"github.com/adaouat/heraut/internal/config"
@@ -19,6 +21,10 @@ var ErrNotesFormat = errors.New("invalid --format")
 
 // ErrNotesTagNotFound marks a tag (or --from tag) that does not exist.
 var ErrNotesTagNotFound = errors.New("tag not found")
+
+// ErrNotesNotReleaseTag marks a requested tag that is not a release tag of the active strategy and
+// environment (another environment's tag, a build marker).
+var ErrNotesNotReleaseTag = errors.New("not a release tag")
 
 // ErrNotesRange marks a --from tag outside the history of the requested tag.
 var ErrNotesRange = errors.New("invalid notes range")
@@ -55,12 +61,19 @@ func GenerateNotes(runner port.Runner, cfg *config.Config, opts NotesOpts) (Note
 	if err := requireTag(runner, opts.Tag); err != nil {
 		return NotesResult{}, err
 	}
+	if !isReleaseTag(cfg, opts.Env, opts.Tag) {
+		return NotesResult{}, fmt.Errorf("%w: %q is not a %s release tag%s", ErrNotesNotReleaseTag, opts.Tag, cfg.Versioning.Strategy, forEnv(opts.Env))
+	}
 	if opts.From != "" {
 		if err := requireTag(runner, opts.From); err != nil {
 			return NotesResult{}, err
 		}
 		if _, _, err := runner.Run("git", "merge-base", "--is-ancestor", opts.From, opts.Tag); err != nil {
-			return NotesResult{}, fmt.Errorf("%w: %s is not in the history of %s", ErrNotesRange, opts.From, opts.Tag)
+			var exit *exec.ExitError
+			if errors.As(err, &exit) && exit.ExitCode() == 1 {
+				return NotesResult{}, fmt.Errorf("%w: %s is not in the history of %s", ErrNotesRange, opts.From, opts.Tag)
+			}
+			return NotesResult{}, fmt.Errorf("checking that %s is in the history of %s: %w", opts.From, opts.Tag, err)
 		}
 	}
 
@@ -108,10 +121,41 @@ func requireTag(runner port.Runner, tag string) error {
 	if strings.HasPrefix(tag, "-") {
 		return fmt.Errorf("%w: %q", ErrNotesTagNotFound, tag)
 	}
-	if _, _, err := runner.Run("git", "rev-parse", "--verify", "--quiet", "refs/tags/"+tag+"^{commit}"); err != nil {
-		return fmt.Errorf("%w: %q", ErrNotesTagNotFound, tag)
+	if _, _, err := runner.Run("git", "show-ref", "--verify", "--quiet", "refs/tags/"+tag); err != nil {
+		var exit *exec.ExitError
+		if errors.As(err, &exit) && exit.ExitCode() == 1 {
+			return fmt.Errorf("%w: %q", ErrNotesTagNotFound, tag)
+		}
+		return fmt.Errorf("looking up tag %q: %w", tag, err)
 	}
 	return nil
+}
+
+var calverVersionPattern = regexp.MustCompile(`^[0-9]+(\.[0-9]+)*$`)
+
+// isReleaseTag reports whether tag is a release tag of cfg's strategy for env: it carries the
+// configured prefix or matches the tag format, and holds a version of the strategy's shape.
+func isReleaseTag(cfg *config.Config, env, tag string) bool {
+	switch cfg.Versioning.Strategy {
+	case "semver", "semver-per-env":
+		bare, ok := semverExtractor(cfg, env)(tag)
+		if !ok {
+			return false
+		}
+		_, err := semver.Parse(bare)
+		return err == nil
+	case "calver", "calver-per-env":
+		bare, ok := calverExtractor(cfg, env)(tag)
+		return ok && calverVersionPattern.MatchString(bare)
+	}
+	return true
+}
+
+func forEnv(env string) string {
+	if env == "" {
+		return ""
+	}
+	return " for environment " + env
 }
 
 func notesRangeLabel(opts NotesOpts) string {

@@ -24,6 +24,11 @@ func TestPlainText(t *testing.T) {
 		{"bare url survives", "- See <https://example.com>", "- See https://example.com"},
 		{"inline html is kept verbatim", "- Fix Option<T> handling and List<String> of items", "- Fix Option<T> handling and List<String> of items"},
 		{"html block is kept verbatim", "<div>raw</div>", "<div>raw</div>"},
+		{"ordered list keeps its numbers", "1. a\n2. b", "1. a\n2. b"},
+		{"a second paragraph stays under its item", "- a\n\n  more", "- a\n  more"},
+		{"a continuation line stays under its item", "- a\n  b", "- a\n  b"},
+		{"a code block inside an item is kept", "- item\n\n  ```\n  code\n  ```", "- item\n  code"},
+		{"entities are decoded", "- R&amp;D &#35;1", "- R&D #1"},
 		{"empty stays empty", "", ""},
 	}
 	for _, tc := range tests {

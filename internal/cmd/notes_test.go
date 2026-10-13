@@ -18,7 +18,7 @@ import (
 func TestNewNotesCmd(t *testing.T) {
 	c := cmd.NewNotesCmd()
 	assert.Equal(t, "notes <tag>", c.Use)
-	for _, name := range []string{"from", "format", "template", "output", "env", "offline"} {
+	for _, name := range []string{"from", "format", "template", "output", "env", "force", "offline"} {
 		assert.NotNil(t, c.Flags().Lookup(name), "flag %q not registered", name)
 	}
 	assert.Equal(t, "markdown", c.Flags().Lookup("format").DefValue)
@@ -140,4 +140,16 @@ func TestNotes_EmptyRangePrintsNothingAndNotices(t *testing.T) {
 	require.NoError(t, err)
 	assert.Empty(t, stdout)
 	assert.Contains(t, stderr, "no notable changes")
+}
+
+func TestNotes_EmptyRangeWithOutputWritesAnEmptyFile(t *testing.T) {
+	notesRepo(t)
+	file := filepath.Join(t.TempDir(), "store.txt")
+
+	_, _, err := runNotes(t, "v0.2.0", "--from", "v0.2.0", "--output", file)
+
+	require.NoError(t, err)
+	b, err := os.ReadFile(file)
+	require.NoError(t, err)
+	assert.Empty(t, b)
 }

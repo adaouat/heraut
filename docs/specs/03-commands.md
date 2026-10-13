@@ -297,11 +297,14 @@ The `notes:` block ([Spec 02 § `notes`](02-configuration.md#notes)) reshapes it
 | Situation | Result |
 |---|---|
 | tag, or `--from` tag, does not exist | Runtime error (3) naming it; nothing is written |
+| `<tag>` is not a release tag of the strategy and `--env` (a build marker, another environment's tag) | Runtime error (3) |
 | `--from` is not in the history of `<tag>` | Runtime error (3) |
+| git itself fails (not a repository, git missing) | Runtime error (3) carrying git's message |
 | `--format` is neither `markdown` nor `text` | Usage error (1) |
 | per-env strategy without `--env` | Config error (2) |
 | no commit survives `commits.types` / `rendering.excludes` | empty stdout, exit 0, a notice on stderr |
 | `--output` cannot be written | Runtime error (3) |
+| empty range with `--output` | an empty file |
 
 Warnings and degraded-run notices go to stderr, so `heraut notes v7.8.0 > store.txt` captures only
 the notes. A pipeline that publishes to a store can run

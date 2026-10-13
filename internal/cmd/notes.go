@@ -57,7 +57,7 @@ func NewNotesCmd() *cobra.Command {
 			switch {
 			case errors.Is(err, app.ErrNotesFormat):
 				return exitcode.Wrap(exitcode.Usage, err)
-			case errors.Is(err, app.ErrNotesTagNotFound), errors.Is(err, app.ErrNotesRange):
+			case errors.Is(err, app.ErrNotesTagNotFound), errors.Is(err, app.ErrNotesNotReleaseTag), errors.Is(err, app.ErrNotesRange):
 				return exitcode.Wrap(exitcode.Runtime, err)
 			case err != nil:
 				return wrapRunErr(err)
@@ -67,7 +67,11 @@ func NewNotesCmd() *cobra.Command {
 				_, _ = fmt.Fprintln(cmd.ErrOrStderr(), "warning: "+w)
 			}
 			if output != "" {
-				if err := os.WriteFile(output, []byte(res.Text+"\n"), 0o644); err != nil {
+				content := res.Text
+				if content != "" {
+					content += "\n"
+				}
+				if err := os.WriteFile(output, []byte(content), 0o644); err != nil {
 					return exitcode.Wrap(exitcode.Runtime, fmt.Errorf("writing notes: %w", err))
 				}
 				return nil
