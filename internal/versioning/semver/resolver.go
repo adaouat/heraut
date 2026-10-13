@@ -208,14 +208,7 @@ func (r *Resolver) initialVersion() string {
 }
 
 func parseTags(stdout string) []string {
-	var tags []string
-	for _, line := range strings.Split(strings.TrimSpace(stdout), "\n") {
-		line = strings.TrimSpace(line)
-		if line != "" {
-			tags = append(tags, line)
-		}
-	}
-	return tags
+	return port.TagNames(stdout)
 }
 
 func parseCommits(stdout string) []string {

@@ -187,3 +187,13 @@ func TestResolveFromLatestTag(t *testing.T) {
 		})
 	}
 }
+
+func TestResolveFromLatestTag_RefusesAnOptionShapedTag(t *testing.T) {
+	mr := exectest.NewMockRunner()
+	mr.QueueResponse("--output=pwned\n", "", nil) // git describe
+
+	_, _, err := app.ResolveFromLatestTag(mr, nil, "")
+
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "--output=pwned")
+}

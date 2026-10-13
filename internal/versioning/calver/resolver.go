@@ -166,12 +166,5 @@ func periodKey(tokens []Token, v Values) string {
 }
 
 func splitLines(s string) []string {
-	var lines []string
-	for _, line := range strings.Split(strings.TrimSpace(s), "\n") {
-		line = strings.TrimSpace(line)
-		if line != "" {
-			lines = append(lines, line)
-		}
-	}
-	return lines
+	return port.TagNames(s)
 }

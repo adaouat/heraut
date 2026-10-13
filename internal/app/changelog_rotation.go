@@ -150,12 +150,7 @@ func latestMatchingTag(runner port.Runner, prefix string, tagOrder func([]string
 	if err != nil {
 		return "", fmt.Errorf("listing git tags: %w", err)
 	}
-	var tags []string
-	for line := range strings.SplitSeq(stdout, "\n") {
-		if line = strings.TrimSpace(line); line != "" {
-			tags = append(tags, line)
-		}
-	}
+	tags := port.TagNames(stdout)
 	if tagOrder != nil {
 		tags = tagOrder(tags)
 	}

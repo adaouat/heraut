@@ -68,12 +68,7 @@ func globalCurrentTag(runner port.Runner, cfg *config.Config, env, glob string, 
 		return "", fmt.Errorf("listing git tags: %w", err)
 	}
 
-	var lines []string
-	for _, line := range strings.Split(strings.TrimSpace(stdout), "\n") {
-		if line = strings.TrimSpace(line); line != "" {
-			lines = append(lines, line)
-		}
-	}
+	lines := port.TagNames(stdout)
 
 	switch cfg.Versioning.Strategy {
 	case "semver", "semver-per-env":
@@ -105,7 +100,7 @@ func currentVersionBranchTag(runner port.Runner, cfg *config.Config, glob string
 		return "", fmt.Errorf("parsing version branch version %q: %w", m.Version, err)
 	}
 	var onVersion []semver.TagVersion
-	for _, tv := range semver.SortTags(strings.Fields(stdout), semverExtractor(cfg, "")) {
+	for _, tv := range semver.SortTags(port.TagNames(stdout), semverExtractor(cfg, "")) {
 		if semver.Compare(semver.CoreOf(tv.Version), core) == 0 {
 			onVersion = append(onVersion, tv)
 		}
@@ -130,7 +125,7 @@ func latestMergedTag(runner port.Runner, cfg *config.Config, includePreRelease b
 	if err != nil {
 		return "", fmt.Errorf("listing git tags merged into HEAD: %w", err)
 	}
-	if tv, ok := semver.Latest(semver.SortTags(strings.Fields(stdout), semverExtractor(cfg, "")), includePreRelease); ok {
+	if tv, ok := semver.Latest(semver.SortTags(port.TagNames(stdout), semverExtractor(cfg, "")), includePreRelease); ok {
 		return tv.Tag, nil
 	}
 	return "", fmt.Errorf("%w for %q reachable from HEAD", errNoTagsFound, glob)
@@ -145,7 +140,7 @@ func currentMaintenanceTag(runner port.Runner, cfg *config.Config, glob string, 
 		return "", fmt.Errorf("listing git tags merged into HEAD: %w", err)
 	}
 	var inRange []semver.TagVersion
-	for _, tv := range semver.SortTags(strings.Fields(stdout), semverExtractor(cfg, "")) {
+	for _, tv := range semver.SortTags(port.TagNames(stdout), semverExtractor(cfg, "")) {
 		if rg.Contains(tv.Version) {
 			inRange = append(inRange, tv)
 		}

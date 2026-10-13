@@ -235,7 +235,7 @@ discipline that applies to every task.
 | 64 | Version branch follow-ups from the T348 review | Done — T369 |
 | 65 | Lane B: ride out transient GitHub push rejections | Done — T370 |
 | 66 | heraut notes: release notes for a tag, for any consumer | Done — T371 |
-| 67 | Refs that look like options reach git unguarded | Open — T372 |
+| 67 | Refs that look like options reach git unguarded | Done — T372 |
 
 ### Open items
 
@@ -3254,13 +3254,16 @@ spec: the bound is the previous release reachable from the *requested tag*, not 
 order depends on whether the requested tag is a pre-release. Left out on purpose: per-store character limits,
 locales, a `notes.format` key, named profiles. The default output keeps the changelog's blank-line spacing between
 commits (text mode normalises it).
+Follow-up fixes of the review minors: a tag must exist as a ref (no `v1.1.0^`) and be a release tag of the
+strategy and `--env`, git failures keep their message, an empty range with `--output` writes an empty file, and
+text mode keeps ordered lists, item continuations, code blocks and entities.
 Review fixes: a failure now shows its cause (no summary-only "notes failed"), a missing `--env` exits with the
 configuration code, inline and block HTML survive the text conversion, and a tag or ref named like an option
 is never passed to git as a bound.
 
 ### Phase 67 — Option-shaped refs
 
-#### `[ ]` T372: stop a tag named like an option from reaching git as one
+#### `[x]` T372: stop a tag named like an option from reaching git as one
 
 `git tag` refuses a name starting with `-`, but `git update-ref refs/tags/--output=x` or a fetch from a hostile
 remote creates one. The T371 review reproduced it: under CalVer an unparsable tag sorts last, becomes the
@@ -3269,6 +3272,16 @@ such refs and rejects them as arguments, but the changelog and release paths (`c
 the previous-tag helpers in `internal/generators/native`, the `merge-base` and `log` calls in `internal/app` and
 `internal/pipeline`) still pass tag names raw. Pass `--end-of-options` (git 2.24+; check the minimum git heraut
 supports) or reject `-`-prefixed names once, at the point tags are listed, with a test per call site.
+
+**Completion note:** the second option. `port.TagNames` parses `git tag -l` output and drops names starting with
+`-`; the tag listings of the semver, calver and per-env resolvers, the native generator (`listTags`,
+`listMergedTags`, `listAncestorTags`) and the app (`globalCurrentTag`, the version-branch and merged-tag
+listings, the rotation's `latestMatchingTag`) all go through it, so a hostile ref is never a predecessor, a
+bound or a previous tag. The two `git describe` sites (`previousTag`, the no-config `commit check` fallback)
+refuse such a result with an error, since describe can return the nearest tag. A Lane A scenario creates the
+ref with `git update-ref` under CalVer and checks that `changelog`, `notes` and `version next` write no file
+named after it (it failed before the change: `changelog` wrote one). Not done: `--end-of-options` on the
+`git log`/`merge-base` calls, which the filtering makes unnecessary for tags that come from a listing.
 
 Every Phase above marked `Done` and not pointing to a dedicated roadmap (D, 0–9, 11–22, 26, 28,
 30, 31) has had its full task write-up — implementation notes, decisions, deviations — moved to

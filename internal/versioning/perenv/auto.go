@@ -71,14 +71,7 @@ func fetchCommitsSince(runner port.Runner, sinceTag string) ([]string, error) {
 }
 
 func splitLines(s string) []string {
-	var lines []string
-	for _, line := range strings.Split(strings.TrimSpace(s), "\n") {
-		line = strings.TrimSpace(line)
-		if line != "" {
-			lines = append(lines, line)
-		}
-	}
-	return lines
+	return port.TagNames(s)
 }
 
 func parseCommits(s string) []string {

@@ -40,7 +40,11 @@ func ResolveFromLatestTag(runner port.Runner, cfg *config.Config, env string) (s
 		}
 		return "", false, fmt.Errorf("resolving latest tag via git describe: %w", err)
 	}
-	return strings.TrimSpace(stdout) + "..HEAD", false, nil
+	tag := strings.TrimSpace(stdout)
+	if strings.HasPrefix(tag, "-") {
+		return "", false, fmt.Errorf("refusing tag %q: a name starting with \"-\" would be read as a git option", tag)
+	}
+	return tag + "..HEAD", false, nil
 }
 
 // CommitCheckResult records the outcome of validating one commit in a range.

@@ -7,6 +7,7 @@ package native
 import (
 	"fmt"
 	"regexp"
+	"slices"
 	"strings"
 	"time"
 
@@ -107,7 +108,11 @@ func previousTag(runner port.Runner, tag, glob string) (string, error) {
 		}
 		return "", fmt.Errorf("resolving previous tag for %s: %w", tag, err)
 	}
-	return strings.TrimSpace(stdout), nil
+	prev := strings.TrimSpace(stdout)
+	if strings.HasPrefix(prev, "-") {
+		return "", fmt.Errorf("refusing tag %q: a name starting with \"-\" would be read as a git option", prev)
+	}
+	return prev, nil
 }
 
 // noEarlierTag reports whether a `git describe` failure means "no tag precedes this commit"
@@ -164,13 +169,7 @@ func listTags(runner port.Runner, glob, mergedInto string) ([]string, error) {
 	if err != nil {
 		return nil, fmt.Errorf("listing git tags: %w", err)
 	}
-	var tags []string
-	for line := range strings.SplitSeq(strings.TrimSpace(stdout), "\n") {
-		if t := strings.TrimSpace(line); t != "" {
-			tags = append(tags, t)
-		}
-	}
-	return tags, nil
+	return port.TagNames(stdout), nil
 }
 
 // listMergedTags returns the tags that are ancestors of ref, excluding any tag that shares ref's
@@ -188,13 +187,7 @@ func listMergedTags(runner port.Runner, ref string) ([]string, error) {
 	if err != nil {
 		return nil, fmt.Errorf("listing tags merged into %s: %w", ref, err)
 	}
-	var tags []string
-	for line := range strings.SplitSeq(strings.TrimSpace(stdout), "\n") {
-		if t := strings.TrimSpace(line); t != "" {
-			tags = append(tags, t)
-		}
-	}
-	return tags, nil
+	return port.TagNames(stdout), nil
 }
 
 // listAncestorTags returns the tags reachable from ref other than ref itself
@@ -207,13 +200,7 @@ func listAncestorTags(runner port.Runner, ref string) ([]string, error) {
 	if err != nil {
 		return nil, fmt.Errorf("listing tags merged into %s: %w", ref, err)
 	}
-	var tags []string
-	for line := range strings.SplitSeq(strings.TrimSpace(stdout), "\n") {
-		if t := strings.TrimSpace(line); t != "" && t != ref {
-			tags = append(tags, t)
-		}
-	}
-	return tags, nil
+	return slices.DeleteFunc(port.TagNames(stdout), func(t string) bool { return t == ref }), nil
 }
 
 // filterByTagPattern keeps the tags matching pattern (a Go regex, T139), preserving order. An

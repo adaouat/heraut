@@ -41,3 +41,32 @@ func TestGenerator_Notes_BoundComesFromTheTagsOwnHistory(t *testing.T) {
 		"tags are listed from the requested tag, never from HEAD")
 	assert.Equal(t, []string{"log", "v1.1.0..v1.2.0", "--reverse", "--format=" + logFormat}, mr.Calls[1].Args)
 }
+
+func TestTagListings_DropOptionShapedNames(t *testing.T) {
+	const listing = "v1.2.0\n--output=pwned\nv1.1.0\n"
+	for name, list := range map[string]func(mr *exectest.MockRunner) ([]string, error){
+		"listTags":         func(mr *exectest.MockRunner) ([]string, error) { return listTags(mr, "", "") },
+		"listMergedTags":   func(mr *exectest.MockRunner) ([]string, error) { return listMergedTags(mr, "v1.3.0") },
+		"listAncestorTags": func(mr *exectest.MockRunner) ([]string, error) { return listAncestorTags(mr, "v1.3.0") },
+	} {
+		t.Run(name, func(t *testing.T) {
+			mr := exectest.NewMockRunner()
+			mr.QueueResponse(listing, "", nil)
+
+			tags, err := list(mr)
+
+			require.NoError(t, err)
+			assert.Equal(t, []string{"v1.2.0", "v1.1.0"}, tags)
+		})
+	}
+}
+
+func TestPreviousTag_RefusesAnOptionShapedTag(t *testing.T) {
+	mr := exectest.NewMockRunner()
+	mr.QueueResponse("--output=pwned\n", "", nil) // git describe
+
+	_, err := previousTag(mr, "v1.0.0", "")
+
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "--output=pwned")
+}

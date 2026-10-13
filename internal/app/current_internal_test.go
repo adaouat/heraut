@@ -3,6 +3,7 @@ package app
 import (
 	"testing"
 
+	"github.com/adaouat/forge/exec/exectest"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
@@ -91,4 +92,23 @@ func TestNotesTagOrderFor_Calver_MatchesChangelogOrder(t *testing.T) {
 	cfg := &config.Config{Versioning: config.Versioning{Strategy: "calver", Format: "YYYY.MM.PATCH", TagPrefix: &prefix}}
 	in := []string{"v2026.05.1", "v2026.06.0"}
 	assert.Equal(t, tagOrderFor(cfg, "")(in), notesTagOrderFor(cfg, "")(in))
+}
+
+func TestTagListings_DropOptionShapedNames(t *testing.T) {
+	cfg := &config.Config{Versioning: config.Versioning{Strategy: "semver"}}
+
+	t.Run("current tag", func(t *testing.T) {
+		mr := exectest.NewMockRunner()
+		mr.QueueResponse("--output=pwned\nv1.0.0\n", "", nil)
+		tag, err := globalCurrentTag(mr, cfg, "", "v*", false)
+		require.NoError(t, err)
+		assert.Equal(t, "v1.0.0", tag)
+	})
+	t.Run("latest matching tag", func(t *testing.T) {
+		mr := exectest.NewMockRunner()
+		mr.QueueResponse("--output=pwned\nv1.0.0\n", "", nil)
+		tag, err := latestMatchingTag(mr, "v", nil)
+		require.NoError(t, err)
+		assert.Equal(t, "v1.0.0", tag, "a ref named like an option is never the previous tag")
+	})
 }
