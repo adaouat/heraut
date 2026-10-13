@@ -232,6 +232,7 @@ discipline that applies to every task.
 | 61 | GitLab publish driver follow-ups from T335 | Done — T346, T347, T364–T368 (ADR-0069) |
 | 62 | Version branches: version from the branch name | Done — T348 |
 | 63 | CalVer history-aware changelog bounds | Done — T356 |
+| 64 | Version branch follow-ups from the T348 review | Open — T369 |
 
 ### Open items
 
@@ -3174,6 +3175,25 @@ and ADR-0065 (Consequences) updated rather than a new ADR, since ADR-0065 antici
 ---
 
 ### Archived task detail
+
+### Phase 64 — Version branch follow-ups
+
+#### `[ ]` T369: version branch edge cases found in the T348 review
+
+Three rough edges left on `release/N.N.N` branches (Phase 62), none of which blocks the feature:
+
+1. **Changelog-only run on a released version branch** (`heraut changelog --tag`) ends in the
+   re-release `ErrTagExists`. A changelog run should not trip the version-exists guard, or it
+   should fail with a hint that fits it.
+2. **Re-release hint** always suggests `--pre-release`, which is refused once the final exists.
+   When a final of the core exists, the hint offers only `--set-version X --set-build-id <id>`.
+3. **`version current`** on a version branch with no tag of its version yet errors
+   (`errVersionBranchUntagged`). Decide what it reports (the highest merged tag, as
+   `commit check` already falls back to, or a clear message) and implement it.
+
+Also document in Spec 04 that `stay_at_v0` does not stop `release/1.0.0` from cutting `v1.0.0`:
+the branch name is an explicit choice. Left alone on purpose: the ordering warning not extending
+the parallel `wouldBeVersions` slice (nothing reads it), and two comment nits.
 
 Every Phase above marked `Done` and not pointing to a dedicated roadmap (D, 0–9, 11–22, 26, 28,
 30, 31) has had its full task write-up — implementation notes, decisions, deviations — moved to
