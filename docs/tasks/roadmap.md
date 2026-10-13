@@ -236,6 +236,7 @@ discipline that applies to every task.
 | 65 | Lane B: ride out transient GitHub push rejections | Done — T370 |
 | 66 | heraut notes: release notes for a tag, for any consumer | Done — T371 |
 | 67 | Refs that look like options reach git unguarded | Done — T372 |
+| 68 | `heraut notes` e2e coverage of range bounds and per-env | Done — T373 |
 
 ### Open items
 
@@ -3282,6 +3283,20 @@ refuse such a result with an error, since describe can return the nearest tag. A
 ref with `git update-ref` under CalVer and checks that `changelog`, `notes` and `version next` write no file
 named after it (it failed before the change: `changelog` wrote one). Not done: `--end-of-options` on the
 `git log`/`merge-base` calls, which the filtering makes unnecessary for tags that come from a listing.
+
+### Phase 68 — Notes e2e coverage
+
+#### `[x]` T373: Lane A scenarios for the notes range bounds and per-env
+
+T371 shipped with e2e scenarios for formats, `--output` and errors, but the range logic was covered only by
+unit and real-repo tests.
+
+**Completion note:** `TestNotes_Bounds` drives the built binary over a final with two release candidates
+(the final spans them, a pre-release stops at the previous tag, `--from` spans several builds), a maintenance
+line forked from `v1.0.0` (each line sees only its own commits, `--from` outside the tag's history is refused)
+and `TestNotes_PerEnv` (the env's previous tag bounds the range, a missing `--env` exits 2, another env's tag
+is refused). All assert the exact stdout. No production change. Still unit-only: template precedence, the empty
+range notice and forge enrichment.
 
 Every Phase above marked `Done` and not pointing to a dedicated roadmap (D, 0–9, 11–22, 26, 28,
 30, 31) has had its full task write-up — implementation notes, decisions, deviations — moved to
