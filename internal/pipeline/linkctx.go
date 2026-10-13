@@ -110,8 +110,14 @@ func (p *Pipeline) changelogLinkContext() *port.LinkContext {
 // the ambient CI host (ADR-0022) — minus the single-platform fallback, since a changelog-only
 // run configures no release platforms.
 func (p *ChangelogPipeline) changelogLinkContext() *port.LinkContext {
-	if p.cfg.ForgeIdentity != nil {
-		if lc := linkContextFromIdentity(*p.cfg.ForgeIdentity); lc != nil {
+	return LinkContext(p.cfg.ForgeIdentity)
+}
+
+// LinkContext is the link context of a resolved enrichment forge identity when it is complete,
+// else the ambient CI host; nil when neither describes a repository.
+func LinkContext(id *port.ForgeIdentity) *port.LinkContext {
+	if id != nil {
+		if lc := linkContextFromIdentity(*id); lc != nil {
 			return lc
 		}
 	}
