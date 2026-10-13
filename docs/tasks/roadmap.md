@@ -237,7 +237,7 @@ discipline that applies to every task.
 | 66 | heraut notes: release notes for a tag, for any consumer | Done — T371 |
 | 67 | Refs that look like options reach git unguarded | Done — T372 |
 | 68 | `heraut notes` e2e coverage of range bounds and per-env | Done — T373 |
-| 69 | Agent-friendly CLI: JSON output and a bundled skill | In progress — T374–T377 done; T378–T379 open |
+| 69 | Agent-friendly CLI: JSON output and a bundled skill | In progress — T374–T378 done; T379 open |
 
 ### Open items
 
@@ -3364,11 +3364,18 @@ inner closure so every error, including config and resolution ones, is enveloped
 discarded in JSON mode. Not covered: the changelog/notes content itself (the plan names the actions, it does not
 render the text).
 
-#### `[ ]` T378: fail fast on prompts without a terminal
+#### `[x]` T378: fail fast on prompts without a terminal
 
 `heraut init` and `heraut commit create` must exit with a usage error and a hint naming the
 non-interactive alternative (flags or `.heraut.yml`) when stdin is not a terminal, never block. Verify
 current behaviour first; if it already fails, this task reduces to the test. e2e covers both commands.
+
+**Completion note:** checked first: `commit create` already exited 1 without a terminal (the wizard tests it), but
+with no pointer to anything else, and `init` failed late with a bubbletea "could not open TTY" message after an
+exit code it never chose. `init` now refuses up front when stdin or stdout is not a terminal and `--defaults` is
+absent (Usage, exit 1, message naming `--defaults`, `--overwrite` and the sample), including the "Update it?"
+prompt path; `commit create`'s message names `heraut commit verify` and `git commit -m`. The wizard's own TTY
+check on stdout is unchanged. Lane A scenarios cover `init` with and without an existing config and `commit create`.
 
 #### `[ ]` T379: bundled agent skill and `heraut skill install`
 

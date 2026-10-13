@@ -80,7 +80,7 @@ func parseFooterLines(text string) ([]conventionalcommit.Footer, error) {
 // collect answers → finalize. Returns nil for clean no-ops (cancel/decline/dry-run).
 func Run(r port.Runner, cfg *config.Config, opts Options) error {
 	if !ui.IsTTY(opts.Out) {
-		return errors.New("commit create requires an interactive terminal")
+		return errors.New("commit create requires an interactive terminal: write the message yourself, check it with 'heraut commit verify' and commit with 'git commit -m'")
 	}
 
 	if !opts.DryRun && !opts.All {

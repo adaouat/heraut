@@ -59,6 +59,8 @@ heraut init --defaults     # write an opinionated default config, no prompts
 heraut init --overwrite    # overwrite an existing config without prompting
 ```
 
+The wizard needs a terminal on both stdin and stdout. Without one (a script, CI, an agent) and without `--defaults`, `init` exits with the Usage code (1) before prompting, and the message names `--defaults` (with `--overwrite` for an existing file) and the hand-written alternative.
+
 | Flag          | Default | Description                                                                                                  |
 |---------------|---------|--------------------------------------------------------------------------------------------------------------|
 | `--defaults`  | `false` | Write a non-interactive default config (semver, prefix `"v"`, GitLab). Skip the wizard. Requires `--overwrite` when a config already exists at the destination — see `--overwrite` below. |
@@ -539,7 +541,7 @@ exits 0, since a genuinely quiet range (no ticket-referencing work) is also poss
 
 Interactively author a Conventional Commits message and run `git commit`. Requires an
 interactive terminal (TTY); invoking it from a script or CI pipeline where stdout is not a
-TTY is a Usage error (exit code 1).
+TTY is a Usage error (exit code 1) whose message points at the non-interactive route: write the message and check it with `heraut commit verify`, then `git commit -m`.
 
 ```
 heraut commit create [--all/-a] [--dry-run] [--config <path>]

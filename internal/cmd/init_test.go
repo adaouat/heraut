@@ -172,3 +172,21 @@ func TestInitCmd_DoesNotAcceptUnrelatedFlags(t *testing.T) {
 		})
 	}
 }
+
+func TestInitCmd_WithoutATerminalFailsFastNamingTheAlternative(t *testing.T) {
+	dir := t.TempDir()
+	cfgPath := filepath.Join(dir, ".heraut.yml")
+	require.NoError(t, os.WriteFile(cfgPath, []byte("existing content"), 0o644))
+
+	for _, args := range [][]string{{"init", "--config", cfgPath}, {"init", "--overwrite", "--config", cfgPath}} {
+		_, err := executeRoot(args...)
+
+		require.Error(t, err, args)
+		assert.Contains(t, err.Error(), "interactive terminal")
+		assert.Contains(t, err.Error(), "--defaults")
+		assert.Equal(t, 1, cmd.ExitCode(err), "a usage error, never a hang or a TTY-open failure")
+	}
+	data, err := os.ReadFile(cfgPath)
+	require.NoError(t, err)
+	assert.Equal(t, "existing content", string(data))
+}

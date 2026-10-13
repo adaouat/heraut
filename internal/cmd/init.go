@@ -26,6 +26,11 @@ func NewInitCmd(version string) *cobra.Command {
 			defaults, _ := cmd.Flags().GetBool("defaults")
 			out := cmd.OutOrStdout()
 
+			if !defaults && (!ui.IsTTY(os.Stdin) || !ui.IsTTY(out)) {
+				return exitcode.Wrap(exitcode.Usage, fmt.Errorf(
+					"heraut init needs an interactive terminal: pass --defaults to write the default config (with --overwrite to replace an existing file), or write .heraut.yml by hand (docs/heraut.sample.yml lists every key)"))
+			}
+
 			// Write destination priority: --config flag → HERAUT_FILE env var → InitDest().
 			var path string
 			if cfgPath != "" {
