@@ -3,6 +3,7 @@ package native
 import (
 	_ "embed"
 	"fmt"
+	"maps"
 	"regexp"
 	"strings"
 	"time"
@@ -34,6 +35,27 @@ type statsTicketLink struct {
 }
 
 // ─── render entry points ─────────────────────────────────────────────────────
+
+// notesDefaultBlocks are the built-in blocks of `heraut notes`, seeded below every user snippet:
+// no release heading and a commit line without hash, author or PR reference.
+var notesDefaultBlocks = map[string]string{
+	"release.section": "",
+	"commit.message":  `- {{ if .Scope }}*({{ .Scope }})* {{ end }}{{ if .Breaking }}[**breaking**] {{ end }}{{ .Description }}{{ range .Tickets }} {{ template "commit.ticket" . }}{{ end }}`,
+}
+
+func renderNotesSection(version, previousVersion string, releaseDate time.Time, groups []group, lc *port.LinkContext, tickets []config.Ticket, typesHeadingLevel int, enrichment map[string]PullRequest, heraut tplHeraut, snippets map[string]string, templateFile string, trailerRules map[string]config.FooterRule) (string, error) {
+	rel, err := buildRelease(version, previousVersion, releaseDate, time.Time{}, groups, lc, tickets, typesHeadingLevel, enrichment, nil, heraut, trailerRules)
+	if err != nil {
+		return "", fmt.Errorf("building notes model: %w", err)
+	}
+	merged := maps.Clone(notesDefaultBlocks)
+	maps.Copy(merged, snippets)
+	out, err := execBlocks("changelog", changelogTmpl, merged, templateFile, rel)
+	if err != nil {
+		return "", fmt.Errorf("rendering notes: %w", err)
+	}
+	return strings.TrimSpace(out), nil
+}
 
 // renderChangelogSection renders a single release section for a CHANGELOG.md.
 // The returned string is trimmed of leading/trailing whitespace so buildAllSections can join

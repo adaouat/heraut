@@ -18,6 +18,7 @@ type Mode int
 const (
 	ModeChangelog Mode = iota
 	ModeReleaseNotes
+	ModeNotes
 )
 
 // herautProjectURL is heraut's public repository, exposed to templates as .Heraut.URL.
@@ -42,6 +43,8 @@ type Generator struct {
 	tagOrder func(tags []string) []string
 	// reachableFromHead limits the scoped tag list to tags merged into HEAD (WithReachableFromHead).
 	reachableFromHead bool
+	// fromTag overrides the lower bound of a ModeNotes range.
+	fromTag string
 }
 
 var _ port.Generator = (*Generator)(nil)
@@ -96,6 +99,10 @@ func WithReachableFromHead() Option {
 	return func(g *Generator) { g.reachableFromHead = true }
 }
 
+// WithFromTag overrides the lower bound of a notes range (ModeNotes). An empty tag keeps the
+// default bound.
+func WithFromTag(tag string) Option { return func(g *Generator) { g.fromTag = tag } }
+
 // WithClock replaces the clock behind .Heraut.GeneratedAt (a section's own date is its newest
 // commit's date, not a clock read); a nil clock keeps time.Now.
 func WithClock(now func() time.Time) Option {
@@ -130,6 +137,9 @@ func (g *Generator) DegradedReason() string { return g.degradedReason }
 // Generate produces the changelog (writing it to cfg.Output when set) or the release-notes
 // string for tag, resolving commit/compare links against lc.
 func (g *Generator) Generate(tag string, lc *port.LinkContext) (string, error) {
+	if g.mode == ModeNotes {
+		return g.generateNotes(tag, lc)
+	}
 	if g.mode == ModeReleaseNotes {
 		return g.generateReleaseNotes(tag, lc)
 	}
@@ -225,6 +235,46 @@ func (g *Generator) generateReleaseNotes(tag string, lc *port.LinkContext) (stri
 	overlayAuthorHandles(groups, er.authors)
 	contributors := collectContributors(toParsedCommits(renderedCommits(commits, groups)), before, er.prs)
 	return renderReleaseNotes(tag, prev, releaseDate(commits), groups, lc, g.cfg.Tickets, prevDate, g.cfg.TypesHeadingLevel, er.prs, contributors, g.herautMeta(), g.cfg.EffectiveTemplates, g.cfg.Template, g.cfg.EffectiveTrailerRules)
+}
+
+// notesPreviousTag is the lower bound for tag: the override, else the previous release in tag's
+// own history. It lists tags reachable from tag, not from HEAD, so a tag cut on another line is
+// bounded by that line.
+func (g *Generator) notesPreviousTag(tag string) (string, error) {
+	if g.fromTag != "" {
+		return g.fromTag, nil
+	}
+	tags, err := listTags(g.runner, g.cfg.TagGlob, tag)
+	if err != nil {
+		return "", err
+	}
+	if g.cfg.TagGlob == "" {
+		if tags, err = filterByTagPattern(tags, g.cfg.TagPattern); err != nil {
+			return "", err
+		}
+	}
+	if g.tagOrder != nil {
+		tags = g.tagOrder(tags)
+	}
+	return previousInList(tag, tags), nil
+}
+
+func (g *Generator) generateNotes(tag string, lc *port.LinkContext) (string, error) {
+	prev, err := g.notesPreviousTag(tag)
+	if err != nil {
+		return "", err
+	}
+	commits, err := collectCommits(g.runner, commitRange(prev, tag))
+	if err != nil {
+		return "", err
+	}
+	er, err := g.enrichForRelease(commits, tag)
+	if err != nil {
+		return "", err
+	}
+	groups := groupCommits(commits, g.cfg.Types, g.cfg.Excludes)
+	overlayAuthorHandles(groups, er.authors)
+	return renderNotesSection(tag, prev, releaseDate(commits), groups, lc, g.cfg.Tickets, g.cfg.TypesHeadingLevel, er.prs, g.herautMeta(), g.cfg.EffectiveTemplates, g.cfg.Template, g.cfg.EffectiveTrailerRules)
 }
 
 // generateChangelog produces CHANGELOG.md: incrementally, splicing only the new release's
