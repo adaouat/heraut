@@ -727,3 +727,10 @@ func buildPlatform(runner port.Runner, cfg *config.Platform) (port.Platform, err
 	}
 	return build(runner, cfg)
 }
+
+// ReleasePlan and PlanStep expose the pipeline's dry-run plan to the cmd layer, which may not
+// import internal/pipeline.
+type (
+	ReleasePlan = pipeline.Plan
+	PlanStep    = pipeline.PlanStep
+)

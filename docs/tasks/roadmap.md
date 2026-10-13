@@ -237,7 +237,7 @@ discipline that applies to every task.
 | 66 | heraut notes: release notes for a tag, for any consumer | Done — T371 |
 | 67 | Refs that look like options reach git unguarded | Done — T372 |
 | 68 | `heraut notes` e2e coverage of range bounds and per-env | Done — T373 |
-| 69 | Agent-friendly CLI: JSON output and a bundled skill | In progress — T374–T376 done; T377–T379 open |
+| 69 | Agent-friendly CLI: JSON output and a bundled skill | In progress — T374–T377 done; T378–T379 open |
 
 ### Open items
 
@@ -3347,12 +3347,22 @@ sends `data` with `ok:false` so the findings are readable (`writeJSON` now alway
 Spec 03 amended); malformed YAML has no `data`. The runtime e2e does not pin the exit code since `gh` being
 installed is machine-dependent.
 
-#### `[ ]` T377: `release --dry-run --json` plan
+#### `[x]` T377: `release --dry-run --json` plan
 
 Lists the ordered actions a real run would take (resolved version, files written, commit, tag,
 push, publish targets, assets) with nothing executed. This is the review step an agent shows the user
 before the real `release`. Depends on T374; check how much the existing `[dry-run]` lines already carry
 before adding structure.
+
+**Completion note:** the existing dry-run only prints prose (and a reporter path), so the plan is computed
+separately: `Pipeline.Plan()` (`internal/pipeline/plan.go`) resolves the version and returns ordered `PlanStep`s
+(`hook`, `changelog`, `commit_changelog`, `tag`, `push_tag`, `notes`, `publish`), rendering hooks through the same
+templates and honouring `--no-hooks`, `disable_changelog` and the single/multi-platform notes rule; the
+pre-release flag follows the SemVer-strategy gate of a real publish. `release --json` requires `--dry-run`
+(Usage error otherwise; a JSON result of a real run is not part of this task). The command body now runs in an
+inner closure so every error, including config and resolution ones, is enveloped; the pipeline's own output is
+discarded in JSON mode. Not covered: the changelog/notes content itself (the plan names the actions, it does not
+render the text).
 
 #### `[ ]` T378: fail fast on prompts without a terminal
 
