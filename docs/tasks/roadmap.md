@@ -237,6 +237,7 @@ discipline that applies to every task.
 | 66 | heraut notes: release notes for a tag, for any consumer | Done — T371 |
 | 67 | Refs that look like options reach git unguarded | Done — T372 |
 | 68 | `heraut notes` e2e coverage of range bounds and per-env | Done — T373 |
+| 69 | Agent-friendly CLI: JSON output and a bundled skill | Not started — T374–T379 |
 
 ### Open items
 
@@ -3297,6 +3298,54 @@ line forked from `v1.0.0` (each line sees only its own commits, `--from` outside
 and `TestNotes_PerEnv` (the env's previous tag bounds the range, a missing `--env` exits 2, another env's tag
 is refused). All assert the exact stdout. No production change. Still unit-only: template precedence, the empty
 range notice and forge enrichment.
+
+### Phase 69 — Agent-friendly CLI
+
+Goal: an AI agent driving the `heraut` binary gets structured output, stable error codes and a
+built-in usage guide, without scraping text. An MCP server is deliberately out of scope: revisit it
+once these land and a client without a shell needs it. Order matters: T374 settles the contract the
+others reuse.
+
+#### `[ ]` T374: ADR and spec for machine-readable output
+
+Write the ADR (next free number) and the Spec 03 section: a global `--json` flag declared locally on
+each command that supports it (not inherited, per T266), one envelope shape (`{"ok": bool, "data": …,
+"error": {"code", "message", "hint"}}`), stdout carries only the JSON, warnings move into a
+`warnings` array, and the process exit code is unchanged. Decide the `error.code` vocabulary (map from
+`internal/exitcode` plus the existing sentinels). No code change beyond a shared `internal/cmd` helper
+with its unit tests.
+
+#### `[ ]` T375: `--json` on `version next` and `version current`
+
+Prints the tag, version, bump kind and, for `next`, the commits that decided it. Lane A e2e asserts the
+literal JSON and the exit code for success, "no tags" and a per-env run without `--env`.
+
+#### `[ ]` T376: `--json` on `check` and `commit verify`
+
+`check config|runtime` returns each finding with its path and hint; `commit verify` returns the
+parsed type, scope, breaking flag and the failure reason. e2e: valid and invalid input of each.
+
+#### `[ ]` T377: `release --dry-run --json` plan
+
+Lists the ordered actions a real run would take (resolved version, files written, commit, tag,
+push, publish targets, assets) with nothing executed. This is the review step an agent shows the user
+before the real `release`. Depends on T374; check how much the existing `[dry-run]` lines already carry
+before adding structure.
+
+#### `[ ]` T378: fail fast on prompts without a terminal
+
+`heraut init` and `heraut commit create` must exit with a usage error and a hint naming the
+non-interactive alternative (flags or `.heraut.yml`) when stdin is not a terminal, never block. Verify
+current behaviour first; if it already fails, this task reduces to the test. e2e covers both commands.
+
+#### `[ ]` T379: bundled agent skill and `heraut skill install`
+
+Embed a `SKILL.md` with `//go:embed`: command map, the safe order (`check`, `version next`,
+`release --dry-run --json`, then `release` only on the user's approval), exit-code table, config
+location, and the `--json` contract. `heraut skill install [--dir <path>]` writes it to
+`.claude/skills/heraut/` by default; `heraut skill print` writes it to stdout for other agents. A
+test keeps the skill's command list in sync with the cobra tree so it cannot drift. Open question for
+the task: whether packslip can ship the file alongside the binary; do not depend on it.
 
 Every Phase above marked `Done` and not pointing to a dedicated roadmap (D, 0–9, 11–22, 26, 28,
 30, 31) has had its full task write-up — implementation notes, decisions, deviations — moved to
