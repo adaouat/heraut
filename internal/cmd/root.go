@@ -23,6 +23,7 @@ func NewRootCmd(version string) *cobra.Command {
 
 	root.AddCommand(NewReleaseCmd(version))
 	root.AddCommand(NewChangelogCmd(version))
+	root.AddCommand(NewNotesCmd())
 	root.AddCommand(NewCheckCmd())
 	root.AddCommand(NewVersionCmd())
 	root.AddCommand(NewCommitCmd())
