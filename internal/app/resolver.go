@@ -199,7 +199,7 @@ func NewResolver(cfg *config.Config, env string, force bool, versionOverride, bu
 		r := semver.New(runner, cfg)
 		r.SetAllowMajor(o.allowMajor)
 		r.SetPreRelease(o.preRelease)
-		if err := applyBranchRule(r, cfg, runner); err != nil {
+		if err := applyBranchRule(r, cfg, runner, o.noGuard); err != nil {
 			return nil, err
 		}
 		return warningResolver{inner: r, warnings: r.Warnings, wouldBeVersions: r.WouldBeVersions}, nil
@@ -282,7 +282,7 @@ func versionBranchMismatch(runner port.Runner, cfg *config.Config, version strin
 // branch's version, when versioning.branches is set (ADR-0065). Without the block it makes no git call, so repos that
 // don't declare branches resolve exactly as before. Manual bump mode is skipped too: its version
 // comes from --set-version, which never reaches this point.
-func applyBranchRule(r *semver.Resolver, cfg *config.Config, runner port.Runner) error {
+func applyBranchRule(r *semver.Resolver, cfg *config.Config, runner port.Runner, noTag bool) error {
 	if len(cfg.Versioning.Branches) == 0 || cfg.Versioning.BumpMode() == "manual" {
 		return nil
 	}
@@ -300,6 +300,7 @@ func applyBranchRule(r *semver.Resolver, cfg *config.Config, runner port.Runner)
 		r.SetMaintenanceRange(&rg)
 	case BranchVersion:
 		r.SetFixedVersion(m.Version)
+		r.SetAllowReleased(noTag)
 	}
 	return nil
 }

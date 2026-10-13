@@ -24,6 +24,7 @@ type Resolver struct {
 	wouldBeVersions []string
 	maintenance     *Range
 	fixedCore       string
+	allowReleased   bool
 }
 
 // New constructs a SemVer Resolver.

@@ -17,10 +17,6 @@ import (
 // errNoTagsFound is the sentinel CurrentTag returns when no tags match the resolved glob.
 var errNoTagsFound = errors.New("no tags found")
 
-// errVersionBranchUntagged marks errNoTagsFound on a version branch with no tag of its own version
-// yet, so commit linting can fall back to the tags in HEAD's history.
-var errVersionBranchUntagged = errors.New("version branch has no tag of its version")
-
 // CurrentTag returns the latest existing git tag for the given strategy and environment. For
 // SemVer strategies it is the highest SemVer §11 release, or — with includePreRelease — the
 // highest tag including pre-releases (ADR-0064). CalVer strategies ignore includePreRelease and
@@ -119,13 +115,13 @@ func currentVersionBranchTag(runner port.Runner, cfg *config.Config, glob string
 	if len(onVersion) > 0 {
 		return "", fmt.Errorf("%w for version %s reachable from %s: only pre-release tags exist (pass --include-pre-release to show them)", errNoTagsFound, m.Version, m.Branch)
 	}
-	return "", fmt.Errorf("%w: %w for version %s reachable from %s", errVersionBranchUntagged, errNoTagsFound, m.Version, m.Branch)
+	return latestMergedTag(runner, cfg, includePreRelease)
 }
 
-// latestMergedTag is the highest tag of any kind reachable from HEAD, the base commit linting
-// ranges from on a version branch that has no tag of its own version yet.
-func latestMergedTag(runner port.Runner, cfg *config.Config, env string) (string, error) {
-	glob, err := currentTagGlob(cfg, env)
+// latestMergedTag is the highest tag reachable from HEAD: what a version branch with no tag of its
+// own version yet reports as current, the release it was cut from.
+func latestMergedTag(runner port.Runner, cfg *config.Config, includePreRelease bool) (string, error) {
+	glob, err := currentTagGlob(cfg, "")
 	if err != nil {
 		return "", err
 	}
@@ -133,7 +129,7 @@ func latestMergedTag(runner port.Runner, cfg *config.Config, env string) (string
 	if err != nil {
 		return "", fmt.Errorf("listing git tags merged into HEAD: %w", err)
 	}
-	if tv, ok := semver.Latest(semver.SortTags(strings.Fields(stdout), semverExtractor(cfg, env)), true); ok {
+	if tv, ok := semver.Latest(semver.SortTags(strings.Fields(stdout), semverExtractor(cfg, "")), includePreRelease); ok {
 		return tv.Tag, nil
 	}
 	return "", fmt.Errorf("%w for %q reachable from HEAD", errNoTagsFound, glob)

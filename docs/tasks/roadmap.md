@@ -232,7 +232,7 @@ discipline that applies to every task.
 | 61 | GitLab publish driver follow-ups from T335 | Done — T346, T347, T364–T368 (ADR-0069) |
 | 62 | Version branches: version from the branch name | Done — T348 |
 | 63 | CalVer history-aware changelog bounds | Done — T356 |
-| 64 | Version branch follow-ups from the T348 review | Open — T369 |
+| 64 | Version branch follow-ups from the T348 review | Done — T369 |
 
 ### Open items
 
@@ -3178,7 +3178,7 @@ and ADR-0065 (Consequences) updated rather than a new ADR, since ADR-0065 antici
 
 ### Phase 64 — Version branch follow-ups
 
-#### `[ ]` T369: version branch edge cases found in the T348 review
+#### `[x]` T369: version branch edge cases found in the T348 review
 
 Three rough edges left on `release/N.N.N` branches (Phase 62), none of which blocks the feature:
 
@@ -3194,6 +3194,17 @@ Three rough edges left on `release/N.N.N` branches (Phase 62), none of which blo
 Also document in Spec 04 that `stay_at_v0` does not stop `release/1.0.0` from cutting `v1.0.0`:
 the branch name is an explicit choice. Left alone on purpose: the ordering warning not extending
 the parallel `wouldBeVersions` slice (nothing reads it), and two comment nits.
+
+**Completion note:** `semver.Resolver.SetAllowReleased` (set by `applyBranchRule` when the run never
+tags, i.e. `heraut changelog` without `--tag`) lets a released version branch resolve to its own
+version again, with the previous final as the section's lower bound; a run that tags still gets
+`ErrTagExists`. The re-release hint now offers only `--set-version X --set-build-id <id>`, since an
+rc is refused once the final exists. `CurrentTag` on a version branch with no tag of its version
+returns the highest merged tag (pre-releases only with `--include-pre-release`), which made the
+`errVersionBranchUntagged` sentinel and `commit check`'s special case redundant, so both were
+removed. Spec 04 (rows 12b/12e/12f, error row), the maintenance-branches guide and ADR-0065 updated.
+Deviation: `version current` on a fresh version branch reports the base release rather than an
+error, a change to what T348 shipped but not to anything released.
 
 Every Phase above marked `Done` and not pointing to a dedicated roadmap (D, 0–9, 11–22, 26, 28,
 30, 31) has had its full task write-up — implementation notes, decisions, deviations — moved to

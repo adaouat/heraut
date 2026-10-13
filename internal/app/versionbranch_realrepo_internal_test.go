@@ -130,14 +130,15 @@ func TestVersionBranch_RealRepo_VersionCurrent(t *testing.T) {
 	_, _, tag, cfg := versionBranchFixture(t)
 	runner := execadapter.New(false, false)
 
-	_, err := CurrentTag(runner, cfg, "", false)
-	require.ErrorIs(t, err, errNoTagsFound, "nothing is tagged on this version yet")
+	cur, err := CurrentTag(runner, cfg, "", false)
+	require.NoError(t, err)
+	assert.Equal(t, "v7.7.0", cur, "nothing is tagged on this version yet: the release the branch was cut from")
 
 	tag("v7.8.0-rc.1")
 	_, err = CurrentTag(runner, cfg, "", false)
 	require.ErrorIs(t, err, errNoTagsFound)
 	assert.Contains(t, err.Error(), "--include-pre-release")
-	cur, err := CurrentTag(runner, cfg, "", true)
+	cur, err = CurrentTag(runner, cfg, "", true)
 	require.NoError(t, err)
 	assert.Equal(t, "v7.8.0-rc.1", cur)
 
@@ -162,4 +163,24 @@ func TestVersionBranch_RealRepo_CommitCheckFromLatestTag(t *testing.T) {
 	rng, _, err = ResolveFromLatestTag(runner, cfg, "")
 	require.NoError(t, err)
 	assert.Equal(t, "v7.8.0-rc.1..HEAD", rng)
+}
+
+// TestVersionBranch_RealRepo_ChangelogWithoutTagOnReleasedBranch: a run that never creates the tag
+// (heraut changelog without --tag) re-renders the released version instead of failing.
+func TestVersionBranch_RealRepo_ChangelogWithoutTagOnReleasedBranch(t *testing.T) {
+	_, _, tag, cfg := versionBranchFixture(t)
+	tag("v7.8.0")
+	runner := execadapter.New(false, false)
+
+	r, err := NewResolver(cfg, "", false, "", "", runner)
+	require.NoError(t, err)
+	_, err = r.Resolve()
+	require.ErrorIs(t, err, semver.ErrTagExists, "a run that tags still refuses")
+
+	r, err = NewResolver(cfg, "", false, "", "", runner, WithoutCollisionGuard())
+	require.NoError(t, err)
+	res, err := r.Resolve()
+	require.NoError(t, err)
+	assert.Equal(t, "v7.8.0", res.Tag)
+	assert.Equal(t, "v7.7.0", res.CurrentTag, "the section spans back to the previous release")
 }

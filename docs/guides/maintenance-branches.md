@@ -109,6 +109,12 @@ heraut release --set-version 7.8.0 --set-build-id 158404    # repeat build: v7.8
 - Commits never change the version, a `feat!:` included.
 - After `v7.8.0` exists, a plain `heraut release` and `--pre-release` are refused; a repeat build
   is the explicit `--set-version 7.8.0 --set-build-id <id>`.
+- `heraut changelog` without `--tag` still works on a released version branch: it re-renders the
+  `v7.8.0` section, spanning back to the previous release.
+- `heraut version current` before anything is tagged with the branch's version reports the highest
+  tag in the branch's history, the release it was cut from.
+- A `release/1.0.0` branch cuts `v1.0.0` even under `stay_at_v0`: the branch name is an explicit
+  choice, so nothing is held back.
 - `--set-version` with another version still works and prints a warning that it differs from the
   branch.
 - If a higher release (say `v7.9.0`) is already merged into the branch, `heraut` warns that the

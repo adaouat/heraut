@@ -163,7 +163,8 @@ doc, they govern.
 - **`commit check --from-latest-tag` follows the line.** It uses the branch-aware current tag, but
   on an underivable or ambiguous branch it falls back to the global latest tag, and on a fresh
   version branch (nothing tagged with its version yet) to the highest tag in HEAD's history: commit
-  linting must keep working there. `version current` keeps erroring on an underivable branch.
+  linting must keep working there. `version current` does the same on a fresh version branch and
+  keeps erroring on an underivable one.
 - **Forward merges list the fix twice.** After a maintenance branch is merged forward into `main`,
   a later `main` section legitimately also lists the merged-in fix: it is in that section's
   history.

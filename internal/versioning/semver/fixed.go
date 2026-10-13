@@ -15,6 +15,12 @@ func (r *Resolver) SetFixedVersion(core string) {
 	r.fixedCore = core
 }
 
+// SetAllowReleased lets a final whose version is already tagged resolve to that version again,
+// for runs that never create the tag (changelog without --tag).
+func (r *Resolver) SetAllowReleased(allow bool) {
+	r.allowReleased = allow
+}
+
 func (r *Resolver) resolveFixed() (versioning.Result, error) {
 	core, err := Parse(r.fixedCore)
 	if err != nil {
@@ -38,8 +44,8 @@ func (r *Resolver) resolveFixed() (versioning.Result, error) {
 	if label == "" {
 		for _, t := range all {
 			// A build-metadata-only tag is the release of its core (ADR-0064).
-			if Compare(coreVersion(t.Version), core) == 0 && !t.Version.IsPreRelease() {
-				return versioning.Result{}, fmt.Errorf("%w: %s — branch version %s is already released; pass --pre-release only before the final, or --set-version %s --set-build-id <id> for a repeat build",
+			if !r.allowReleased && Compare(coreVersion(t.Version), core) == 0 && !t.Version.IsPreRelease() {
+				return versioning.Result{}, fmt.Errorf("%w: %s — branch version %s is already released; for a repeat build pass --set-version %s --set-build-id <id>",
 					ErrTagExists, t.Tag, version, version)
 			}
 		}

@@ -48,7 +48,7 @@ func TestResolveFixed(t *testing.T) {
 		{name: "final after rcs", all: "v7.8.0-rc.2\nv7.7.0\n", merged: "v7.8.0-rc.2\nv7.7.0\n", wantTag: "v7.8.0", wantVer: "7.8.0", wantCur: "v7.7.0"},
 		{name: "a repeat rc with no new commit is refused", label: "rc", all: "v7.8.0-rc.1\nv7.7.0\n", merged: "v7.8.0-rc.1\nv7.7.0\n", log: "", wantNone: true},
 		{name: "a higher label promotes without new commits", label: "rc", all: "v7.8.0-beta.1\nv7.7.0\n", merged: "v7.8.0-beta.1\nv7.7.0\n", wantTag: "v7.8.0-rc.1", wantVer: "7.8.0-rc.1", wantCur: "v7.8.0-beta.1"},
-		{name: "already released", all: "v7.8.0\nv7.7.0\n", merged: "v7.8.0\nv7.7.0\n", wantErr: semver.ErrTagExists, wantSub: "--pre-release"},
+		{name: "already released", all: "v7.8.0\nv7.7.0\n", merged: "v7.8.0\nv7.7.0\n", wantErr: semver.ErrTagExists, wantSub: "--set-version 7.8.0 --set-build-id"},
 		{name: "build-metadata tag is the release", all: "v7.8.0+3\nv7.7.0\n", merged: "v7.8.0+3\nv7.7.0\n", wantErr: semver.ErrTagExists, wantSub: "--set-version 7.8.0 --set-build-id"},
 		{name: "released elsewhere still counts", all: "v7.8.0\nv7.7.0\n", merged: "v7.7.0\n", wantErr: semver.ErrTagExists},
 		{name: "rc after the final", label: "rc", all: "v7.8.0\nv7.8.0-rc.1\n", merged: "v7.8.0\nv7.8.0-rc.1\n", wantErr: semver.ErrPreReleaseRegression, wantSub: "already released"},
@@ -137,4 +137,26 @@ func TestResolveFixed_EmptyRestoresNormalResolution(t *testing.T) {
 
 	require.NoError(t, err)
 	assert.Equal(t, "v0.1.0", res.Tag)
+}
+
+func TestResolveFixed_ReleasedHintOffersNoPreRelease(t *testing.T) {
+	r, _ := fixedResolver(t, semverCfg(), "7.8.0", "", "v7.8.0\nv7.7.0\n", "v7.8.0\nv7.7.0\n")
+
+	_, err := r.Resolve()
+
+	require.ErrorIs(t, err, semver.ErrTagExists)
+	assert.NotContains(t, err.Error(), "--pre-release", "a pre-release is refused once the final exists")
+}
+
+func TestResolveFixed_AllowReleased(t *testing.T) {
+	for _, all := range []string{"v7.8.0\nv7.7.0\n", "v7.8.0+3\nv7.7.0\n"} {
+		r, _ := fixedResolver(t, semverCfg(), "7.8.0", "", all, all)
+		r.SetAllowReleased(true)
+
+		res, err := r.Resolve()
+
+		require.NoError(t, err, all)
+		assert.Equal(t, "v7.8.0", res.Tag)
+		assert.Equal(t, "v7.7.0", res.CurrentTag, "the previous final, not the version being re-rendered")
+	}
 }
