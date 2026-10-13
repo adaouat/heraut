@@ -23,6 +23,7 @@ type Resolver struct {
 	warnings        []string
 	wouldBeVersions []string
 	maintenance     *Range
+	fixedCore       string
 }
 
 // New constructs a SemVer Resolver.
@@ -110,6 +111,9 @@ func (r *Resolver) Resolve() (versioning.Result, error) {
 	r.wouldBeVersions = nil
 	if r.versionOverride != "" || r.cfg.Versioning.BumpMode() == "manual" {
 		return r.resolveManual()
+	}
+	if r.fixedCore != "" {
+		return r.resolveFixed()
 	}
 	if r.preReleaseLabel != "" {
 		return r.resolvePreRelease()
