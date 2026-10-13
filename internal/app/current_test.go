@@ -447,7 +447,7 @@ func TestResolveFromLatestTag_UnplaceableBranchFallsBackToGlobal(t *testing.T) {
 		rules  []config.BranchRule
 		branch string
 	}{
-		{"underivable glob match", []config.BranchRule{{Name: "main"}, {Name: "release/*"}}, "release/7.8.0"},
+		{"underivable glob match", []config.BranchRule{{Name: "main"}, {Name: "release/*"}}, "release/legacy"},
 		{"ambiguous match", []config.BranchRule{{Name: "release/*"}, {Name: "release/1.3", Range: "1.3.x"}}, "release/1.3"},
 	}
 	for _, tc := range tests {
@@ -480,7 +480,7 @@ func TestResolveFromLatestTag_OtherErrorsPropagate(t *testing.T) {
 func TestCurrentTag_UnderivableBranchStillErrors(t *testing.T) {
 	clearBranchEnv(t)
 	mr := exectest.NewMockRunner()
-	mr.QueueResponse("release/7.8.0\n", "", nil)
+	mr.QueueResponse("release/legacy\n", "", nil)
 
 	_, err := app.CurrentTag(mr, maintenanceCfg(config.BranchRule{Name: "main"}, config.BranchRule{Name: "release/*"}), "", false)
 	require.ErrorIs(t, err, app.ErrUnderivableRange)

@@ -233,7 +233,7 @@ func TestMaintenanceBranches_RealRepo(t *testing.T) {
 
 	t.Run("#11 underivable range: --set-version passes, auto resolution errors", func(t *testing.T) {
 		git, commit, cfg := maintenanceFixture(t)
-		git("checkout", "-b", "release/7.8.0")
+		git("checkout", "-b", "release/legacy")
 		commit("fix: x")
 
 		tag, err := resolveOn(t, cfg, "7.8.0")
@@ -242,7 +242,7 @@ func TestMaintenanceBranches_RealRepo(t *testing.T) {
 
 		_, err = resolveOn(t, cfg, "")
 		require.ErrorIs(t, err, ErrUnderivableRange)
-		assert.Contains(t, err.Error(), "release/7.8.0")
+		assert.Contains(t, err.Error(), "release/legacy")
 	})
 
 	t.Run("regenerated changelog on release/1.3 holds only its own history", func(t *testing.T) {

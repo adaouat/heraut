@@ -680,7 +680,7 @@ func TestNewResolver_Maintenance(t *testing.T) {
 		{
 			name:      "underivable range under auto resolution: error",
 			cfg:       maintenanceCfg(mainAndRelease...),
-			responses: []string{"release/7.8.0\n"},
+			responses: []string{"release/legacy\n"},
 			wantErr:   app.ErrUnderivableRange,
 			wantCalls: [][]string{revParse},
 		},

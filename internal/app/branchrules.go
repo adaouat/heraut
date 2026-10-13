@@ -23,13 +23,15 @@ const (
 	BranchRelease     BranchKind = iota // exact name, no range: today's behaviour
 	BranchMaintenance                   // has a Range
 	BranchUnlisted                      // no entry matches, or the branch is unknown
+	BranchVersion                       // the branch name is the version (Version)
 )
 
 type BranchMatch struct {
-	Branch string // "" when unknown
-	Kind   BranchKind
-	Range  config.BranchRange // set when Kind == BranchMaintenance
-	Rule   int                // index into cfg.Versioning.Branches; -1 when unlisted
+	Branch  string // "" when unknown
+	Kind    BranchKind
+	Range   config.BranchRange // set when Kind == BranchMaintenance
+	Version string             // bare N.N.N, set when Kind == BranchVersion
+	Rule    int                // index into cfg.Versioning.Branches; -1 when unlisted
 }
 
 // CurrentBranch reads the checked-out branch. A detached HEAD (the norm in CI checkouts) falls
@@ -59,8 +61,9 @@ func CurrentBranch(runner port.Runner) (branch string, ok bool, err error) {
 	return "", false, nil
 }
 
-// MatchBranchRule matches branch against cfg.Versioning.Branches. needRange == false skips
-// ErrUnderivableRange (the --set-version path): the match is then BranchMaintenance with a zero
+// MatchBranchRule matches branch against cfg.Versioning.Branches. A glob match whose name ends in
+// N.N.N is a BranchVersion and needs no range. needRange == false skips ErrUnderivableRange (the
+// --set-version path) for names carrying neither: the match is then BranchMaintenance with a zero
 // Range, which callers on that path never read.
 func MatchBranchRule(cfg *config.Config, branch string, known, needRange bool) (BranchMatch, error) {
 	unlisted := BranchMatch{Branch: branch, Kind: BranchUnlisted, Rule: -1}
@@ -100,12 +103,12 @@ func MatchBranchRule(cfg *config.Config, branch string, known, needRange bool) (
 		}
 		match.Range = r
 	case rule.IsGlob():
-		r, ok := config.DeriveBranchRange(branch)
-		switch {
-		case ok:
+		if r, ok := config.DeriveBranchRange(branch); ok {
 			match.Range = r
-		case needRange:
-			return BranchMatch{}, fmt.Errorf("%w: branch %q matches versioning.branches[%d] (%q) but its name carries no N.x / N.N.x / N.N version — add range: to the entry",
+		} else if v, ok := config.DeriveBranchVersion(branch); ok {
+			match.Kind, match.Version = BranchVersion, v
+		} else if needRange {
+			return BranchMatch{}, fmt.Errorf("%w: branch %q matches versioning.branches[%d] (%q) but its name carries no N.x / N.N.x / N.N / N.N.N version — add range: to the entry",
 				ErrUnderivableRange, branch, idx, rule.Name)
 		}
 	default:
