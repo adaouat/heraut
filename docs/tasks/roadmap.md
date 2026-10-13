@@ -234,7 +234,7 @@ discipline that applies to every task.
 | 63 | CalVer history-aware changelog bounds | Done — T356 |
 | 64 | Version branch follow-ups from the T348 review | Done — T369 |
 | 65 | Lane B: ride out transient GitHub push rejections | Done — T370 |
-| 66 | heraut notes: release notes for a tag, for any consumer | Open — T371 |
+| 66 | heraut notes: release notes for a tag, for any consumer | Done — T371 |
 
 ### Open items
 
@@ -3235,7 +3235,7 @@ is not retried, only push rejections. Unverified until a real Lane B run hits th
 
 ### Phase 66 — heraut notes
 
-#### `[ ]` T371: `heraut notes` command
+#### `[x]` T371: `heraut notes` command
 
 A read-only command that prints the release notes of one tag for any consumer, first an app store
 submission: `heraut notes <tag> [--from <tag>] [--format markdown|text] [--template <file>]
@@ -3244,6 +3244,15 @@ heading and without each commit's hash, author and PR reference; a `notes:` bloc
 inline `rendering.templates`) reshapes that, and `--format text` converts the Markdown to plain text with a
 CommonMark parser. Design: `docs/superpowers/specs/2026-10-13-notes-command-design.md`; plan:
 `docs/superpowers/plans/2026-10-13-notes-command.md`.
+
+**Completion note:** as designed (ADR-0070). New: `config.Notes` (a dedicated struct, so strict parsing
+rejects `output`/`tag_pattern`), `native.ModeNotes` seeding an empty `release.section` and a lean
+`commit.message` as the lowest inline snippets, `native.PlainText` (a goldmark AST walk; goldmark is now a
+direct requirement), `app.GenerateNotes`, `pipeline.LinkContext`, `heraut notes`. Two deviations from the
+spec: the bound is the previous release reachable from the *requested tag*, not from `HEAD`, and the tag
+order depends on whether the requested tag is a pre-release. Left out on purpose: per-store character limits,
+locales, a `notes.format` key, named profiles. The default output keeps the changelog's blank-line spacing between
+commits (text mode normalises it).
 
 Every Phase above marked `Done` and not pointing to a dedicated roadmap (D, 0–9, 11–22, 26, 28,
 30, 31) has had its full task write-up — implementation notes, decisions, deviations — moved to

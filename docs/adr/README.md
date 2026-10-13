@@ -74,3 +74,4 @@ trade-offs were accepted.
 | [0067](0067-calver-iso-year-with-week.md) | CalVer `YYYY` is the ISO year when the format has `WW` | Accepted |
 | [0068](0068-env-selection-and-branch-guard-exit-code.md) | A missing or unknown `--env` and the branch guard exit with the configuration code | Accepted |
 | [0069](0069-gitlab-publish-transport.md) | GitLab publish transport — replace `glab` with `client-go` | Accepted |
+| [0070](0070-notes-command.md) | `heraut notes` — release notes of a tag for any consumer | Accepted |

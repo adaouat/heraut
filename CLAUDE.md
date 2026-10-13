@@ -16,6 +16,7 @@ feel like (see [ADR-0002](docs/adr/0002-tool-name-heraut.md)).
 ```
 heraut release          # resolve next version → changelog → commit → tag → publish → notes
 heraut changelog        # changelog only (optionally commit + tag)
+heraut notes <tag>      # print the release notes of a tag (markdown or plain text)
 heraut version next     # print the next version without side effects
 heraut version current  # print the latest released tag (per active strategy / env)
 heraut version sprint bump  # increment sprint counter in .heraut.yml (CalVer)
@@ -34,7 +35,7 @@ behavioural spec.
 ## Docs
 
 - [`docs/specs/`](docs/specs/) — behavioural specification (read before changing CLI surface or config schema)
-- [`docs/adr/`](docs/adr/) — architecture decision records (69 ADRs, numbered consecutively)
+- [`docs/adr/`](docs/adr/) — architecture decision records (70 ADRs, numbered consecutively)
 - [`docs/tasks/`](docs/tasks/) — build roadmap (`roadmap.md`) plus dedicated per-epic roadmaps
   (`forge-abstraction-roadmap.md`, `native-generator-roadmap.md`, `release-config-roadmap.md`,
   `docs-audit-roadmap.md`) that `roadmap.md` points to for large, multi-task epics
@@ -66,6 +67,7 @@ internal/
       root.go                   root command, persistent flags, whatsnew + update-hint wiring
       release.go                heraut release
       changelog.go              heraut changelog
+      notes.go                  heraut notes
       version.go                heraut version next / current
       version_sprint.go         heraut version sprint bump
       check.go                  heraut check config / runtime
@@ -106,7 +108,7 @@ pkl/                            Pkl builtin used by `heraut commit verify`'s own
 testdata/                       repo-wide read-only test fixtures (.heraut.yml samples, …)
 
 docs/specs/                     6 numbered specs (behavioural authority)
-docs/adr/                       69 ADRs (architectural decisions)
+docs/adr/                       70 ADRs (architectural decisions)
 docs/tasks/                     roadmap.md + dedicated per-epic roadmaps (see § Docs above)
 docs/guides/                    task-oriented how-tos, distinct from the behavioural specs
 

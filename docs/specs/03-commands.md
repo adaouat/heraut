@@ -249,6 +249,55 @@ versioning:
 Unlike `heraut release`, this command does **not** require a resolvable `release.targets`
 entry.
 
+## `heraut notes`
+
+Print the release notes of one tag: the changelog's groups and commit lines for the range from the
+tag's previous release to the tag. Read-only: no commit, tag, push, publish or hook. Meant for text
+that leaves heraut, such as an app store submission.
+
+```
+heraut notes <tag> [--from <tag>] [--format markdown|text] [--template <file>] [--output <file>] [--env <name>] [--force] [--offline]
+```
+
+| Flag         | Description |
+|--------------|-------------|
+| `--from`     | Lower bound of the range, instead of the tag's previous release. Must be a tag in the history of `<tag>`. Spans several pre-releases into one text, for example `--from v7.7.0` on `v7.8.0`. |
+| `--format`   | `markdown` (default) prints the rendered template as it is. `text` converts that Markdown to plain text with a CommonMark parser: headings become plain lines, list items keep their `- `, emphasis, strong and code-span markers and link URLs are dropped. Text that is not formatting in CommonMark (`snake_case`) is untouched; text that is (`*stars*`) loses its markers, as a Markdown viewer would show it. |
+| `--template` | Template file for this run; replaces `notes.template`. |
+| `--output`   | Write the notes to this file (created or replaced) instead of stdout. |
+| `--env`      | Active environment; required for the per-env strategies. |
+| `--force`    | Downgrades `commits.enrichment_policy: required` to `optional` for this run. |
+| `--offline`  | Forces `commits.enrichment_policy: disabled` for this run. |
+
+The bound is the previous release reachable **from the requested tag**, not from `HEAD`, so a tag cut
+on a maintenance line is bounded by that line. A SemVer final skips pre-releases when looking for its
+previous release; a pre-release is bounded by the previous tag of any kind
+([ADR-0064](../adr/0064-semver-v2-and-the-pre-release-lifecycle.md)).
+
+By default the output has no release heading and no hash, author or PR reference on the commit lines:
+
+```markdown
+### Features
+
+- *(auth)* Add biometric login
+- [**breaking**] Drop the v1 sync API ([PROJ-12](https://example.com/PROJ-12))
+```
+
+The `notes:` block ([Spec 02 § `notes`](02-configuration.md#notes)) reshapes it.
+
+| Situation | Result |
+|---|---|
+| tag, or `--from` tag, does not exist | Runtime error (3) naming it; nothing is written |
+| `--from` is not in the history of `<tag>` | Runtime error (3) |
+| `--format` is neither `markdown` nor `text` | Usage error (1) |
+| per-env strategy without `--env` | Config error (2) |
+| no commit survives `commits.types` / `rendering.excludes` | empty stdout, exit 0, a notice on stderr |
+| `--output` cannot be written | Runtime error (3) |
+
+Warnings and degraded-run notices go to stderr, so `heraut notes v7.8.0 > store.txt` captures only
+the notes. A pipeline that publishes to a store can run
+`heraut release && heraut notes "$(heraut version current)" --format text --output store.txt`.
+
 ## `heraut version next`
 
 Compute and print the next version without side effects. Useful in CI to capture the

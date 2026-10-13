@@ -429,6 +429,33 @@ generation. The commit ownership is described in
 
 See § Content generation below for native generator fields.
 
+## `notes`
+
+Configures [`heraut notes`](03-commands.md#heraut-notes).
+
+```yaml
+notes:
+  template: .config/heraut/notes.tmpl   # optional full template file
+  rendering:
+    templates:
+      release:
+        section: "## {{ .Version }}"    # add a heading
+      commit:
+        message: "- {{ .Description }} ({{ .ShortHash }})"
+```
+
+The block has two keys, `template` and `rendering` (the same `templates` and `excludes` as the
+global [`rendering`](#rendering) block). It has no `output` and no `tag_pattern`: the command writes
+no managed file and takes its range from the tag, so any other key is a configuration error with a
+line number. Omit the block, or leave it empty, for the defaults.
+
+The built-in blocks differ from the changelog's: `release.section` is empty (no heading) and
+`commit.message` is `- *(scope)* [**breaking**] Description` followed by any ticket links, without the
+hash, author or PR reference. The layers, lowest to highest: those built-ins, the global
+`rendering.templates` (a project-wide `commit.message` override therefore reaches the notes too),
+`notes.rendering.templates`, then `notes.template` (or `--template`). The root block is `changelog`, so
+every changelog block override applies.
+
 ## `release`
 
 Controls release notes generation and where releases are published — together, as one

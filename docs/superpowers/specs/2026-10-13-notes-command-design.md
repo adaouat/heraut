@@ -1,6 +1,6 @@
 # `heraut notes` — release notes for a tag, for any consumer
 
-- **Status**: Draft (awaiting review)
+- **Status**: Implemented
 - **Date**: 2026-10-13
 - **Author**: bchatard (with Claude)
 - **Roadmap**: not yet on `docs/tasks/roadmap.md`; the plan adds it
@@ -25,9 +25,10 @@ authors, compare links).
 Settled with the user during brainstorming:
 
 1. **A read-only command, `heraut notes <tag>`.** No commit, tag, push, publish or hook.
-2. **The tag's previous release is the lower bound, automatically.** It is the bound the release
-   itself uses: SemVer finals skip pre-releases, maintenance lines and version branches stay on
-   their own line, per-env uses `--env`. `--from <tag>` overrides the bound only, for example to span
+2. **The tag's previous release is the lower bound, automatically.** It is the previous release
+   reachable from the requested tag (a release walks `HEAD`'s history; a notes run for a tag cut on
+   another line must not): SemVer finals skip pre-releases, a pre-release is bounded by the previous
+   tag of any kind, per-env uses `--env`. `--from <tag>` overrides the bound only, for example to span
    every `rc` build of a version into one text.
 3. **Own template, configured once, with a flag override.** A new top-level `notes:` block carries
    a `template:` file and/or inline `rendering.templates`; `--template <file>` overrides it for one
@@ -115,9 +116,9 @@ A `notes:` block with neither key is allowed and equals no block.
 
 ## Design
 
-- **`internal/config`**: `Config.Notes *ContentDriver` (reusing the type that already carries
-  `Template` and `Rendering`; `Output` and `TagPattern` are rejected by validation under `notes`,
-  since the command neither writes a changelog nor filters by pattern). `schema.json`, the sample
+- **`internal/config`**: `Config.Notes *Notes`, a dedicated `{Template, Rendering}` struct, so strict
+  parsing rejects `output`, `tag_pattern` and any other key with a line number (the command neither
+  writes a changelog nor filters by pattern). `schema.json`, the sample
   and Spec 02 get the block.
 - **`internal/generators/native`**: a third `Mode`, `ModeNotes`. `Generate(tag, lc)` collects the
   range commits and renders them through `renderChangelogSection` with the notes built-in blocks
@@ -134,6 +135,8 @@ A `notes:` block with neither key is allowed and equals no block.
   `app` to the generated text, and only when `--format text`. `github.com/yuin/goldmark` moves from
   an indirect to a direct requirement in `go.mod`.
 - **Layering**: unchanged (`cmd` to `app` to `generators/native`).
+- **Plan deviation**: the tag order for a notes run is chosen from the requested tag
+  (pre-release tags keep pre-releases in the list, finals drop them).
 - **Docs**: Spec 03 (`heraut notes`), Spec 02 (`notes:`), Spec 05 (template precedence names the new
   driver), README command list, CLAUDE.md command list, a short ADR (the new command and block are
   public surface), and a how-to in `docs/guides/` for the store workflow.

@@ -156,7 +156,8 @@ heraut release
 ## Commands
 
 The [Quickstart](#quickstart) above covers the core loop. Beyond that: `heraut changelog`
-(changelog only, optionally `--commit`/`--tag`), `heraut version next`/`current` (print
+(changelog only, optionally `--commit`/`--tag`), `heraut notes <tag>` (print the release notes of a
+tag, for example as plain text for an app store), `heraut version next`/`current` (print
 without side effects), `heraut commit verify`/`create` (Conventional Commits tooling).
 `--help` works on every command; `--dry-run` on the ones with side effects (`release`,
 `changelog`, `commit create`, `version sprint bump`). See

@@ -127,6 +127,11 @@ own root never invokes them.
 `template` are native's own template API (heraut's sole generator — no `generator:` key to set);
 each snippet and the file are parse-validated at config load.
 
+`heraut notes` ([Spec 03](03-commands.md#heraut-notes)) is a third generator mode on the same layers,
+with `notes` as the driver: its built-in `release.section` (empty) and `commit.message` (no hash,
+author or PR reference) sit below the global `rendering.templates`, then `notes.rendering.templates`,
+then `notes.template`. It renders the `changelog` root for one release and writes no file.
+
 ### Changelog structure & incremental generation (ADR-0038)
 
 For `semver`/`semver-per-env`, the app layer injects a tag-ordering function (`native.
