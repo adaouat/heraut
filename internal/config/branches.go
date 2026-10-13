@@ -40,6 +40,23 @@ var (
 	branchDerivePattern = regexp.MustCompile(`^(0|[1-9]\d*)\.(?:(0|[1-9]\d*)(?:\.x)?|x)$`)
 )
 
+var branchVersionPattern = regexp.MustCompile(`^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)$`)
+
+// DeriveBranchVersion reads the version a branch name carries: its last "/" segment as N.N.N,
+// with one optional leading v/V (release/7.8.0, release/v7.8.0). It is the branch-is-the-version
+// counterpart of DeriveBranchRange, which deliberately refuses N.N.N because it names a release,
+// not a line.
+func DeriveBranchVersion(branch string) (string, bool) {
+	seg := branch[strings.LastIndex(branch, "/")+1:]
+	if len(seg) > 0 && (seg[0] == 'v' || seg[0] == 'V') {
+		seg = seg[1:]
+	}
+	if !branchVersionPattern.MatchString(seg) {
+		return "", false
+	}
+	return seg, true
+}
+
 // ParseBranchRange parses "N.x" or "N.N.x".
 func ParseBranchRange(s string) (BranchRange, error) {
 	if r, ok := rangeFromMatch(branchRangePattern.FindStringSubmatch(s)); ok {

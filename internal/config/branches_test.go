@@ -171,3 +171,35 @@ versioning:
 `)
 	assert.Empty(t, config.Validate(cfg))
 }
+
+func TestDeriveBranchVersion(t *testing.T) {
+	tests := []struct {
+		branch string
+		want   string
+		ok     bool
+	}{
+		{"release/7.8.0", "7.8.0", true},
+		{"release/v7.8.0", "7.8.0", true},
+		{"release/V7.8.0", "7.8.0", true},
+		{"7.8.0", "7.8.0", true},
+		{"client/acme/release/0.10.2", "0.10.2", true},
+		{"release/7.8", "", false},
+		{"release/7.8.x", "", false},
+		{"release/07.8.0", "", false},
+		{"release/7.08.0", "", false},
+		{"release/7.8.0.1", "", false},
+		{"release/7.8.0-rc.1", "", false},
+		{"release/7.8.0+3", "", false},
+		{"release/vv7.8.0", "", false},
+		{"release/legacy", "", false},
+		{"release/", "", false},
+		{"", "", false},
+	}
+	for _, tc := range tests {
+		t.Run(tc.branch, func(t *testing.T) {
+			got, ok := config.DeriveBranchVersion(tc.branch)
+			assert.Equal(t, tc.ok, ok)
+			assert.Equal(t, tc.want, got)
+		})
+	}
+}
