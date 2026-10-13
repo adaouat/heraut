@@ -22,7 +22,7 @@ func TestForge_B5_CalVerRelease(t *testing.T) {
 		block := "versioning:\n  strategy: calver\n  format: \"YYYY.MM.PATCH\"\n  tag_prefix: \"" + ws.TagPrefix + "\"\n"
 		commitConfigAndSubjects(ws, ws.Config(block, ""), "feat: one")
 
-		res := ws.Repo.Run(bin, append(ws.Env(), "HERAUT_TEST_NOW=2031-03-04T00:00:00Z"), "release", "--offline")
+		res := ws.Run(bin, append(ws.Env(), "HERAUT_TEST_NOW=2031-03-04T00:00:00Z"), "release", "--offline")
 
 		require.Equal(t, exitOK, res.ExitCode, "stdout:\n%s\nstderr:\n%s", res.Stdout, res.Stderr)
 		tag := ws.TagPrefix + "2031.03.0"
@@ -61,7 +61,7 @@ release:
 `
 	commitConfigAndSubjects(ws, cfg, "feat: one", "fix: two")
 
-	res := ws.Repo.Run(bin, []string{"GITLAB_TOKEN=" + gl.Token(), "GH_TOKEN=" + gh.Token()}, "release", "--offline")
+	res := ws.Run(bin, []string{"GITLAB_TOKEN=" + gl.Token(), "GH_TOKEN=" + gh.Token()}, "release", "--offline")
 
 	require.Equal(t, exitOK, res.ExitCode, "stdout:\n%s\nstderr:\n%s", res.Stdout, res.Stderr)
 	tag := ws.TagPrefix + "0.1.0"

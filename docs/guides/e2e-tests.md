@@ -130,3 +130,8 @@ sweeper, then the scenarios.
   on exactly those calls under `CI_JOB_TOKEN` ([ADR-0069](../adr/0069-gitlab-publish-transport.md)).
   The job-token path was validated once on a real pipeline (T366); the unit and loopback tests
   assert which header each token kind sends.
+- GitHub intermittently rejects a tag push (`! [remote rejected] … (failed)` or `(missing necessary
+  objects)`) while GitLab passes and a rerun is green. The scenarios run heraut through
+  `Workspace.Run`, which rolls the repository and the run's remote tags and branch back and tries
+  again, three attempts in all. Only a `[remote rejected]` failure is retried, so any other failure
+  surfaces on the first attempt.

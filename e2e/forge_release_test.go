@@ -36,7 +36,7 @@ func commitConfigAndSubjects(ws *forgeharness.Workspace, cfg string, subjects ..
 
 func release(t *testing.T, ws *forgeharness.Workspace, bin string, args ...string) harness.Result {
 	t.Helper()
-	res := ws.Repo.Run(bin, ws.Env(), append([]string{"release", "--offline"}, args...)...)
+	res := ws.Run(bin, ws.Env(), append([]string{"release", "--offline"}, args...)...)
 	require.Equal(t, exitOK, res.ExitCode, "heraut release %v\nstdout:\n%s\nstderr:\n%s", args, res.Stdout, res.Stderr)
 	return res
 }

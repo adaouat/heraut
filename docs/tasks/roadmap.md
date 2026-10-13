@@ -233,6 +233,7 @@ discipline that applies to every task.
 | 62 | Version branches: version from the branch name | Done — T348 |
 | 63 | CalVer history-aware changelog bounds | Done — T356 |
 | 64 | Version branch follow-ups from the T348 review | Done — T369 |
+| 65 | Lane B: ride out transient GitHub push rejections | Done — T370 |
 
 ### Open items
 
@@ -3207,6 +3208,29 @@ Deviation: `version current` on a fresh version branch reports the base release 
 error, a change to what T348 shipped but not to anything released.
 Follow-up in the same phase: the ordering warning now keeps `WouldBeVersions` parallel to `Warnings`, and the
 `CurrentTag` / `applyBranchRule` comments were brought up to date.
+
+### Phase 65 — Lane B resilience
+
+#### `[x]` T370: retry a Lane B heraut run after a transient `[remote rejected]` push
+
+The forge lane failed on GitHub only, on three separate days (Oct 12 scheduled, Oct 13 manual), with a
+different scenario each time: `git push <tag>` answered `! [remote rejected] … (missing necessary
+objects)` or `(failed)` while GitLab passed and a rerun went green. The rejection is on the sandbox
+side, not heraut's, so the fix belongs in the harness. `forgeharness.Workspace.Run` wraps a heraut
+invocation: when the run fails with `[remote rejected]` in its output it rolls the local repository
+back to the pre-run HEAD and tag set, deletes the run's remote tags and branch that the failed attempt
+left behind, and tries again (three attempts, short backoff). Any other failure, and a run that
+succeeds, is returned untouched, so a real regression never hides behind a retry. The forge scenarios
+call it instead of `Repo.Run` for the heraut runs that push.
+
+**Completion note:** as designed, in `e2e/forgeharness/retry.go`. The rollback resets to the pre-run HEAD,
+deletes the local tags the attempt created, and deletes only the run-id tags and branch that appeared on
+the forge during the attempt (compared against a snapshot taken before it). Backoff is 5 s, a package
+variable so the offline tests run instantly; those tests drive a fake binary that rejects its first
+push (rolled back and retried), rejects every push (three attempts, last output returned) or fails for
+another reason (not retried). Used by the release runs of B1–B5 and the mirror scenario; the dry-run,
+changelog and expected-failure runs keep `Repo.Run`. Not done: the mid-run failure of a *release* creation
+is not retried, only push rejections. Unverified until a real Lane B run hits the flake.
 
 Every Phase above marked `Done` and not pointing to a dedicated roadmap (D, 0–9, 11–22, 26, 28,
 30, 31) has had its full task write-up — implementation notes, decisions, deviations — moved to
