@@ -60,7 +60,7 @@ func NewNotesCmd() *cobra.Command {
 			case errors.Is(err, app.ErrNotesTagNotFound), errors.Is(err, app.ErrNotesRange):
 				return exitcode.Wrap(exitcode.Runtime, err)
 			case err != nil:
-				return wrapRunErr(err, "notes failed")
+				return wrapRunErr(err)
 			}
 
 			for _, w := range res.Warnings {

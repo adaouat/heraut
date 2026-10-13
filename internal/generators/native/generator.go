@@ -253,6 +253,8 @@ func (g *Generator) notesPreviousTag(tag string) (string, error) {
 			return "", err
 		}
 	}
+	// A ref named like an option would be read as one by `git log <prev>..<tag>`.
+	tags = slices.DeleteFunc(tags, func(t string) bool { return strings.HasPrefix(t, "-") })
 	if g.tagOrder != nil {
 		tags = g.tagOrder(tags)
 	}

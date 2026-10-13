@@ -122,9 +122,9 @@ A `notes:` block with neither key is allowed and equals no block.
   and Spec 02 get the block.
 - **`internal/generators/native`**: a third `Mode`, `ModeNotes`. `Generate(tag, lc)` collects the
   range commits and renders them through `renderChangelogSection` with the notes built-in blocks
-  (empty `release.section`, lean `commit.message`), with no file read, no splice and no write. The previous-tag bound comes from the existing `scopedPreviousTag`; `--from` is a
+  (empty `release.section`, lean `commit.message`), with no file read, no splice and no write. The previous-tag bound comes from the existing `notesPreviousTag` (tags reachable from the requested tag); `--from` is a
   new `Option` that replaces it.
-- **`internal/app`**: `BuildNotesGenerator(cfg, env, ...)` builds the generator with the
+- **`internal/app`**: `GenerateNotes(runner, cfg, opts)` builds the generator with the
   `notes` driver config, the strategy's tag order and `HeadingVersionPattern`, and the same
   enrichment and degraded-run handling as `BuildChangelogPipeline`. `app` stays the only place
   that constructs it.

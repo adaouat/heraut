@@ -4,11 +4,13 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"strings"
 
 	"github.com/adaouat/heraut/internal/config"
 	"github.com/adaouat/heraut/internal/generators/native"
 	"github.com/adaouat/heraut/internal/pipeline"
 	"github.com/adaouat/heraut/internal/port"
+	"github.com/adaouat/heraut/internal/versioning/perenv"
 	"github.com/adaouat/heraut/internal/versioning/semver"
 )
 
@@ -48,7 +50,7 @@ func GenerateNotes(runner port.Runner, cfg *config.Config, opts NotesOpts) (Note
 		return NotesResult{}, fmt.Errorf("%w %q: valid formats are markdown, text", ErrNotesFormat, opts.Format)
 	}
 	if (cfg.Versioning.Strategy == "semver-per-env" || cfg.Versioning.Strategy == "calver-per-env") && opts.Env == "" {
-		return NotesResult{}, fmt.Errorf("--env is required for %s strategy", cfg.Versioning.Strategy)
+		return NotesResult{}, &perenv.EnvSelectionError{Strategy: cfg.Versioning.Strategy}
 	}
 	if err := requireTag(runner, opts.Tag); err != nil {
 		return NotesResult{}, err
@@ -102,6 +104,10 @@ func GenerateNotes(runner port.Runner, cfg *config.Config, opts NotesOpts) (Note
 }
 
 func requireTag(runner port.Runner, tag string) error {
+	// A name starting with "-" would be read as an option by the git commands that take the tag as an argument.
+	if strings.HasPrefix(tag, "-") {
+		return fmt.Errorf("%w: %q", ErrNotesTagNotFound, tag)
+	}
 	if _, _, err := runner.Run("git", "rev-parse", "--verify", "--quiet", "refs/tags/"+tag+"^{commit}"); err != nil {
 		return fmt.Errorf("%w: %q", ErrNotesTagNotFound, tag)
 	}

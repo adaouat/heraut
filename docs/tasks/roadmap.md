@@ -3253,6 +3253,9 @@ spec: the bound is the previous release reachable from the *requested tag*, not 
 order depends on whether the requested tag is a pre-release. Left out on purpose: per-store character limits,
 locales, a `notes.format` key, named profiles. The default output keeps the changelog's blank-line spacing between
 commits (text mode normalises it).
+Review fixes: a failure now shows its cause (no summary-only "notes failed"), a missing `--env` exits with the
+configuration code, inline and block HTML survive the text conversion, and a tag or ref named like an option
+is never passed to git as a bound.
 
 Every Phase above marked `Done` and not pointing to a dedicated roadmap (D, 0–9, 11–22, 26, 28,
 30, 31) has had its full task write-up — implementation notes, decisions, deviations — moved to

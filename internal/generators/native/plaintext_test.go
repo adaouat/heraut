@@ -22,6 +22,8 @@ func TestPlainText(t *testing.T) {
 		{"groups are separated by one blank line", "### A\n\n- x\n\n### B\n\n- y", "A\n\n- x\n\nB\n\n- y"},
 		{"loose list collapses to one item per line", "### A\n\n- x\n\n- y\n\n\n### B\n\n- z", "A\n\n- x\n- y\n\nB\n\n- z"},
 		{"bare url survives", "- See <https://example.com>", "- See https://example.com"},
+		{"inline html is kept verbatim", "- Fix Option<T> handling and List<String> of items", "- Fix Option<T> handling and List<String> of items"},
+		{"html block is kept verbatim", "<div>raw</div>", "<div>raw</div>"},
 		{"empty stays empty", "", ""},
 	}
 	for _, tc := range tests {

@@ -147,6 +147,13 @@ func TestGenerateNotes_Errors(t *testing.T) {
 		_, err := runNotes(t, cfg, NotesOpts{Tag: "v1.1.0"})
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "--env is required")
+		assert.True(t, IsEnvSelection(err), "a missing --env is a configuration error")
+	})
+	t.Run("a tag name that looks like an option", func(t *testing.T) {
+		_, err := runNotes(t, standaloneNotesCfg(), NotesOpts{Tag: "--output=pwned"})
+		require.ErrorIs(t, err, ErrNotesTagNotFound)
+		_, err = runNotes(t, standaloneNotesCfg(), NotesOpts{Tag: "v1.1.0", From: "--output=pwned"})
+		require.ErrorIs(t, err, ErrNotesTagNotFound)
 	})
 }
 

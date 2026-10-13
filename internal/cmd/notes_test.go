@@ -122,6 +122,16 @@ func TestNotes_ExitCodes(t *testing.T) {
 	assert.Equal(t, exitcode.Usage, exitcode.Resolve(err))
 }
 
+func TestNotes_AFailureShowsItsCause(t *testing.T) {
+	notesRepo(t)
+
+	_, _, err := runNotes(t, "v0.2.0", "--template", "/nonexistent/notes.tmpl")
+
+	require.Error(t, err)
+	assert.Equal(t, exitcode.Runtime, exitcode.Resolve(err))
+	assert.Contains(t, err.Error(), "nonexistent/notes.tmpl", "the cause is not reduced to a summary")
+}
+
 func TestNotes_EmptyRangePrintsNothingAndNotices(t *testing.T) {
 	notesRepo(t)
 

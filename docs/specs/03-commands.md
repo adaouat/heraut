@@ -277,11 +277,20 @@ previous release; a pre-release is bounded by the previous tag of any kind
 By default the output has no release heading and no hash, author or PR reference on the commit lines:
 
 ```markdown
-### Features
+### 🚀 Features
 
 - *(auth)* Add biometric login
+
 - [**breaking**] Drop the v1 sync API ([PROJ-12](https://example.com/PROJ-12))
+
+
+### 🐛 Bug Fixes
+
+- *(ui)* Fix crash when rotating the settings screen
 ```
+
+The group headings are the `commits.types` labels (emoji included), and the blank lines are the
+changelog's own spacing; `--format text` collapses them.
 
 The `notes:` block ([Spec 02 § `notes`](02-configuration.md#notes)) reshapes it.
 

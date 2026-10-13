@@ -17,28 +17,36 @@ By default it prints the groups of the range from the tag's previous release, on
 with no release heading and none of the hash, author or PR reference the changelog shows:
 
 ```markdown
-### Features
+### 🚀 Features
 
 - *(auth)* Add biometric login
+
 - [**breaking**] Drop the v1 sync API ([PROJ-12](https://example.com/PROJ-12))
 
-### Bug Fixes
+
+### 🐛 Bug Fixes
 
 - *(ui)* Fix crash when rotating the settings screen
 ```
 
+The group headings are the `commits.types` labels, emoji included; set `render` on a type to change one
+(see the [`commits.types`](../specs/02-configuration.md#commitstypes) reference). The blank lines are the
+changelog's own spacing.
+
 `--format text` converts the same notes to plain text:
 
 ```text
-Features
+🚀 Features
 
 - (auth) Add biometric login
 - [breaking] Drop the v1 sync API (PROJ-12)
 
-Bug Fixes
+🐛 Bug Fixes
 
 - (ui) Fix crash when rotating the settings screen
 ```
+
+Text mode keeps text that is not formatting, such as `Option<T>` or `snake_case`.
 
 ## Shaping the output
 

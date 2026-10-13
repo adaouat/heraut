@@ -10,6 +10,21 @@ import (
 	"github.com/adaouat/heraut/internal/config"
 )
 
+func TestGenerator_Notes_NeverUsesAnOptionShapedTagAsABound(t *testing.T) {
+	mr := exectest.NewMockRunner()
+	mr.QueueResponse("v1.2.0\n--output=pwned\n", "", nil) // git tag -l --merged v1.2.0
+	mr.QueueResponse(record("abc1234567", "Alice", "alice@example.com",
+		"2026-01-02T00:00:00Z", "feat: add the thing", ""), "", nil)
+
+	g := New(mr, &config.ContentDriver{}, ModeNotes)
+	_, err := g.Generate("v1.2.0", nil)
+	require.NoError(t, err)
+
+	require.Len(t, mr.Calls, 2)
+	assert.Equal(t, []string{"log", "v1.2.0", "--reverse", "--format=" + logFormat}, mr.Calls[1].Args,
+		"a ref named like an option is not a predecessor")
+}
+
 func TestGenerator_Notes_BoundComesFromTheTagsOwnHistory(t *testing.T) {
 	mr := exectest.NewMockRunner()
 	mr.QueueResponse("v1.2.0\nv1.1.0\nv1.0.0\n", "", nil) // git tag -l --merged v1.2.0

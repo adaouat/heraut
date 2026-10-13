@@ -34,6 +34,12 @@ func writeBlocks(sb *strings.Builder, parent ast.Node, src []byte, depth int) {
 			if depth == 0 {
 				sb.WriteString("\n")
 			}
+		case *ast.HTMLBlock:
+			for i := 0; i < n.Lines().Len(); i++ {
+				seg := n.Lines().At(i)
+				sb.Write(seg.Value(src))
+			}
+			sb.WriteString("\n")
 		case *ast.FencedCodeBlock, *ast.CodeBlock:
 			for i := 0; i < n.Lines().Len(); i++ {
 				seg := n.Lines().At(i)
@@ -85,6 +91,10 @@ func writeInlines(sb *strings.Builder, parent ast.Node, src []byte) {
 				}
 			}
 		case *ast.RawHTML:
+			for i := 0; i < n.Segments.Len(); i++ {
+				seg := n.Segments.At(i)
+				sb.Write(seg.Value(src))
+			}
 		default:
 			writeInlines(sb, n, src)
 		}
