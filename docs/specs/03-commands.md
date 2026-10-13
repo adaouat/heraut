@@ -689,6 +689,27 @@ Without `--env`, or for an env with no `release.targets` override, the root list
 checked (or the single resolved forge with default options when `release.targets` is
 empty). `heraut check` (bare) applies the same `--env`-aware resolution.
 
+## `heraut skill`
+
+Bundles the agent skill that teaches an AI coding agent how to drive heraut ([ADR-0072](../adr/0072-agent-skill.md)):
+the safe order of commands, which ones change things, the `--json` contract and the exit codes. The file is
+embedded in the binary, so it always matches the version it ships with.
+
+```
+heraut skill install [--dir <path>] [--force]
+heraut skill print
+```
+
+| Command | Behaviour |
+|---------|-----------|
+| `skill print` | writes the `SKILL.md` text to stdout |
+| `skill install` | writes it to `<dir>/heraut/SKILL.md` (default `--dir .claude/skills`), creating directories; prints the path |
+
+An installed file identical to the bundled one is left alone (`… is up to date`). A file that differs is not
+replaced silently: the command fails with the Usage code (1) naming `--force`. Other agents use
+`skill print` and place the text where their tool reads instructions. Write failures exit with the Runtime
+code (3).
+
 ## Background update hint
 
 After any successful command, heraut performs a non-blocking check against the GitHub

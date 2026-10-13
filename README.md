@@ -159,6 +159,8 @@ The [Quickstart](#quickstart) above covers the core loop. Beyond that: `heraut c
 (changelog only, optionally `--commit`/`--tag`), `heraut notes <tag>` (print the release notes of a
 tag, for example as plain text for an app store), `heraut version next`/`current` (print
 without side effects), `heraut commit verify`/`create` (Conventional Commits tooling).
+`heraut skill install` writes a ready-made skill so an AI coding agent knows how to drive heraut; the
+commands an agent needs most (`version`, `check`, `commit verify`, `release --dry-run`) take `--json`.
 `--help` works on every command; `--dry-run` on the ones with side effects (`release`,
 `changelog`, `commit create`, `version sprint bump`). See
 [Spec 03 — Commands](docs/specs/03-commands.md) for the full per-command flag reference.

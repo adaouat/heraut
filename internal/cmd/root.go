@@ -28,6 +28,7 @@ func NewRootCmd(version string) *cobra.Command {
 	root.AddCommand(NewVersionCmd())
 	root.AddCommand(NewCommitCmd())
 	root.AddCommand(NewInitCmd(version))
+	root.AddCommand(NewSkillCmd())
 	root.AddCommand(updatecheck.WhatsNewCommand(updatecheck.WhatsNewConfig{
 		Repo:      "adaouat/heraut",
 		Current:   version,

@@ -43,7 +43,7 @@ internal/pipeline/            release + changelog flows (no factories)
 | Layer                | Allowed to import                                                                  |
 |----------------------|------------------------------------------------------------------------------------|
 | `cmd/heraut/`        | `internal/cmd/` only                                                               |
-| `internal/cmd/`      | `internal/{app,ui,config,scaffold,commitwizard,exitcode,port}/`                    |
+| `internal/cmd/`      | `internal/{app,ui,config,scaffold,commitwizard,exitcode,port,skill}/`              |
 | `internal/scaffold/` | `internal/{config,ui,versioning,forge}/`                                           |
 | `internal/commitwizard/` | `internal/{app,config,conventionalcommit,port,ui}/`                           |
 | `internal/app/`      | `internal/{port,config,pipeline,versioning,generators,platforms,forge,ui,conventionalcommit}/` |
@@ -56,6 +56,7 @@ internal/pipeline/            release + changelog flows (no factories)
 | `internal/port/`     | nothing from heraut (it is the contract)                                           |
 | `internal/conventionalcommit/` | nothing from heraut (pure, like port/config)                             |
 | `internal/exitcode/` | nothing from heraut (pure, like port/config)                                       |
+| `internal/skill/`    | nothing from heraut (pure: the embedded agent skill, ADR-0072)                     |
 | `internal/testutil/` | `internal/port/` only (test doubles implementing the port interfaces)              |
 | `e2e/`               | `e2e/harness` and testify only, never an `internal/` package (it drives the built binary, ADR-0066) |
 

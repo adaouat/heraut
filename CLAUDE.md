@@ -17,6 +17,7 @@ feel like (see [ADR-0002](docs/adr/0002-tool-name-heraut.md)).
 heraut release          # resolve next version → changelog → commit → tag → publish → notes
 heraut changelog        # changelog only (optionally commit + tag)
 heraut notes <tag>      # print the release notes of a tag (markdown or plain text)
+heraut skill install    # write the bundled agent skill (SKILL.md) for AI coding agents
 heraut version next     # print the next version without side effects
 heraut version current  # print the latest released tag (per active strategy / env)
 heraut version sprint bump  # increment sprint counter in .heraut.yml (CalVer)
@@ -35,7 +36,7 @@ behavioural spec.
 ## Docs
 
 - [`docs/specs/`](docs/specs/) — behavioural specification (read before changing CLI surface or config schema)
-- [`docs/adr/`](docs/adr/) — architecture decision records (71 ADRs, numbered consecutively)
+- [`docs/adr/`](docs/adr/) — architecture decision records (72 ADRs, numbered consecutively)
 - [`docs/tasks/`](docs/tasks/) — build roadmap (`roadmap.md`) plus dedicated per-epic roadmaps
   (`forge-abstraction-roadmap.md`, `native-generator-roadmap.md`, `release-config-roadmap.md`,
   `docs-audit-roadmap.md`) that `roadmap.md` points to for large, multi-task epics
@@ -68,6 +69,8 @@ internal/
       release.go                heraut release
       changelog.go              heraut changelog
       notes.go                  heraut notes
+      skill.go                  heraut skill install / print
+      jsonout.go                the --json envelope shared by the commands that support it
       version.go                heraut version next / current
       version_sprint.go         heraut version sprint bump
       check.go                  heraut check config / runtime
@@ -76,6 +79,7 @@ internal/
       exit.go                   maps pipeline errors to internal/exitcode codes
       commit.go                 heraut commit verify / check / create
    port/                        interfaces — Runner (alias to forge/exec.Runner), Generator, Platform, Forge
+   skill/                       embedded SKILL.md for AI agents (pure leaf, ADR-0072)
    exitcode/                    re-exports forge/exitcode + heraut's own Promotion (E001/E002/E003) code
    testutil/                    MockGenerator, MockPlatform, RealGitRepo, CI-env-clearing helpers
    ui/                          gold accent + huh theme (wrapping forge/ui), version banner, StepFn
@@ -108,7 +112,7 @@ pkl/                            Pkl builtin used by `heraut commit verify`'s own
 testdata/                       repo-wide read-only test fixtures (.heraut.yml samples, …)
 
 docs/specs/                     6 numbered specs (behavioural authority)
-docs/adr/                       71 ADRs (architectural decisions)
+docs/adr/                       72 ADRs (architectural decisions)
 docs/tasks/                     roadmap.md + dedicated per-epic roadmaps (see § Docs above)
 docs/guides/                    task-oriented how-tos, distinct from the behavioural specs
 

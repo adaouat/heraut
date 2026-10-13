@@ -237,7 +237,7 @@ discipline that applies to every task.
 | 66 | heraut notes: release notes for a tag, for any consumer | Done — T371 |
 | 67 | Refs that look like options reach git unguarded | Done — T372 |
 | 68 | `heraut notes` e2e coverage of range bounds and per-env | Done — T373 |
-| 69 | Agent-friendly CLI: JSON output and a bundled skill | In progress — T374–T378 done; T379 open |
+| 69 | Agent-friendly CLI: JSON output and a bundled skill | Done — T374–T379 |
 
 ### Open items
 
@@ -3377,7 +3377,7 @@ absent (Usage, exit 1, message naming `--defaults`, `--overwrite` and the sample
 prompt path; `commit create`'s message names `heraut commit verify` and `git commit -m`. The wizard's own TTY
 check on stdout is unchanged. Lane A scenarios cover `init` with and without an existing config and `commit create`.
 
-#### `[ ]` T379: bundled agent skill and `heraut skill install`
+#### `[x]` T379: bundled agent skill and `heraut skill install`
 
 Embed a `SKILL.md` with `//go:embed`: command map, the safe order (`check`, `version next`,
 `release --dry-run --json`, then `release` only on the user's approval), exit-code table, config
@@ -3385,6 +3385,15 @@ location, and the `--json` contract. `heraut skill install [--dir <path>]` write
 `.claude/skills/heraut/` by default; `heraut skill print` writes it to stdout for other agents. A
 test keeps the skill's command list in sync with the cobra tree so it cannot drift. Open question for
 the task: whether packslip can ship the file alongside the binary; do not depend on it.
+
+**Completion note:** `internal/skill/SKILL.md` embedded via `//go:embed` (pure leaf package, added to the layer
+table), `heraut skill print` and `heraut skill install [--dir .claude/skills] [--force]`; an installed file that
+differs needs `--force`, an identical one is reported up to date. ADR-0072 records the decision. The drift test
+walks the cobra tree and fails when a runnable command is missing from the skill (checked by removing one).
+The skill states the rule that `release` and `changelog --commit/--tag` need the user's approval, the safe
+order (`check`, `version next`, `release --dry-run --json`, then `release`), the JSON envelope, exit codes and
+the plan steps. packslip: not investigated, the file ships in the binary and nothing depends on it. Not done:
+an MCP server (out of scope for the phase), installing for agents other than via `skill print`.
 
 Every Phase above marked `Done` and not pointing to a dedicated roadmap (D, 0–9, 11–22, 26, 28,
 30, 31) has had its full task write-up — implementation notes, decisions, deviations — moved to
