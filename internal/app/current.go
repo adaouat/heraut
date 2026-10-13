@@ -22,7 +22,8 @@ var errNoTagsFound = errors.New("no tags found")
 // highest tag including pre-releases (ADR-0064). CalVer strategies ignore includePreRelease and
 // keep git's version:refname order. For single-env strategies, env is ignored; for per-env
 // strategies, env is required. Under semver with versioning.branches, a maintenance branch reports
-// its own line's tag (currentMaintenanceTag); without the block no branch detection runs.
+// its own line's tag (currentMaintenanceTag) and a version branch the tag of its version
+// (currentVersionBranchTag); without the block no branch detection runs.
 func CurrentTag(runner port.Runner, cfg *config.Config, env string, includePreRelease bool) (string, error) {
 	glob, err := currentTagGlob(cfg, env)
 	if err != nil {

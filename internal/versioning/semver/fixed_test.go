@@ -89,6 +89,7 @@ func TestResolveFixed(t *testing.T) {
 				assert.Empty(t, r.Warnings())
 			} else {
 				assert.Equal(t, []string{tc.wantWarn}, r.Warnings())
+				assert.Len(t, r.WouldBeVersions(), len(r.Warnings()), "WouldBeVersions stays parallel to Warnings")
 			}
 			wantCalls := 2
 			if tc.log != "" {

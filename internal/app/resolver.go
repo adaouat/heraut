@@ -279,9 +279,10 @@ func versionBranchMismatch(runner port.Runner, cfg *config.Config, version strin
 }
 
 // applyBranchRule confines r to the current branch's maintenance line, or pins it to a version
-// branch's version, when versioning.branches is set (ADR-0065). Without the block it makes no git call, so repos that
-// don't declare branches resolve exactly as before. Manual bump mode is skipped too: its version
-// comes from --set-version, which never reaches this point.
+// branch's version, when versioning.branches is set (ADR-0065). Without the block it makes no git
+// call, so repos that don't declare branches resolve exactly as before. Manual bump mode is
+// skipped too: its version comes from --set-version, which never reaches this point. noTag marks a
+// run that never creates the tag, which may re-resolve an already released version branch.
 func applyBranchRule(r *semver.Resolver, cfg *config.Config, runner port.Runner, noTag bool) error {
 	if len(cfg.Versioning.Branches) == 0 || cfg.Versioning.BumpMode() == "manual" {
 		return nil

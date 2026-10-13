@@ -92,6 +92,7 @@ func (r *Resolver) resolveFixed() (versioning.Result, error) {
 	}
 	if latest, ok := Latest(merged, false); ok && Compare(coreVersion(latest.Version), core) > 0 {
 		r.warnings = append(r.warnings, fmt.Sprintf("branch version %s is lower than %s, already in this branch's history", core.Core(), latest.Tag))
+		r.wouldBeVersions = append(r.wouldBeVersions, "")
 	}
 	return versioning.Result{
 		Version:    version,

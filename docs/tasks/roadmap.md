@@ -3205,6 +3205,8 @@ returns the highest merged tag (pre-releases only with `--include-pre-release`),
 removed. Spec 04 (rows 12b/12e/12f, error row), the maintenance-branches guide and ADR-0065 updated.
 Deviation: `version current` on a fresh version branch reports the base release rather than an
 error, a change to what T348 shipped but not to anything released.
+Follow-up in the same phase: the ordering warning now keeps `WouldBeVersions` parallel to `Warnings`, and the
+`CurrentTag` / `applyBranchRule` comments were brought up to date.
 
 Every Phase above marked `Done` and not pointing to a dedicated roadmap (D, 0–9, 11–22, 26, 28,
 30, 31) has had its full task write-up — implementation notes, decisions, deviations — moved to
