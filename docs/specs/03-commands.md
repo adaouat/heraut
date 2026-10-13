@@ -19,6 +19,29 @@ e.g. `heraut init --help` used to list a `--force` that did nothing for `init`).
 | `--version` / `-v`   | —           | Print the heraut version (see § `heraut --version` below).                                                                 |
 | `--help` / `-h`      | —           | Print usage and exit.                                                                                                      |
 
+## Machine-readable output
+
+Commands that support it take a local `--json` flag ([ADR-0071](../adr/0071-machine-readable-output.md)); each
+command's section says whether it does. With `--json`, stdout carries exactly one line:
+
+```json
+{"ok":true,"data":{"tag":"v1.4.0"},"warnings":[]}
+{"ok":false,"warnings":[],"error":{"code":"config","message":"...","hint":"..."}}
+```
+
+| Field | Meaning |
+|-------|---------|
+| `ok` | `true` on success, `false` on any failure |
+| `data` | the command's result object (success only; shape documented per command) |
+| `warnings` | always present; the notices the text mode writes to stderr |
+| `error.code` | `usage`, `config`, `runtime`, `promotion` or `internal` (the exit-code classes of Spec 01), or `E001` / `E002` / `E003` for a promotion guard |
+| `error.message` | the error text |
+| `error.hint` | optional: what to try next |
+
+The process exit code is the same with and without `--json`. On failure stderr still shows the usual
+error output, so a script reads stdout only. An error raised before the command runs (unknown flag or
+subcommand) is not enveloped: stdout is empty and the exit code is 1.
+
 ## `heraut --version`
 
 Prints the heraut version banner (logo + tagline + `heraut <version>`), with the version

@@ -237,7 +237,7 @@ discipline that applies to every task.
 | 66 | heraut notes: release notes for a tag, for any consumer | Done — T371 |
 | 67 | Refs that look like options reach git unguarded | Done — T372 |
 | 68 | `heraut notes` e2e coverage of range bounds and per-env | Done — T373 |
-| 69 | Agent-friendly CLI: JSON output and a bundled skill | Not started — T374–T379 |
+| 69 | Agent-friendly CLI: JSON output and a bundled skill | In progress — T374 done, T375–T379 open |
 
 ### Open items
 
@@ -3306,7 +3306,7 @@ built-in usage guide, without scraping text. An MCP server is deliberately out o
 once these land and a client without a shell needs it. Order matters: T374 settles the contract the
 others reuse.
 
-#### `[ ]` T374: ADR and spec for machine-readable output
+#### `[x]` T374: ADR and spec for machine-readable output
 
 Write the ADR (next free number) and the Spec 03 section: a global `--json` flag declared locally on
 each command that supports it (not inherited, per T266), one envelope shape (`{"ok": bool, "data": …,
@@ -3314,6 +3314,14 @@ each command that supports it (not inherited, per T266), one envelope shape (`{"
 `warnings` array, and the process exit code is unchanged. Decide the `error.code` vocabulary (map from
 `internal/exitcode` plus the existing sentinels). No code change beyond a shared `internal/cmd` helper
 with its unit tests.
+
+**Completion note:** ADR-0071 and Spec 03 § Machine-readable output. The code vocabulary is the five exit-code
+classes (`usage`, `config`, `runtime`, `promotion`, `internal`), with a promotion guard reporting `E001`–`E003`
+instead (`app.PromotionGuardID`). `internal/cmd/jsonout.go` `writeJSON(w, data, warnings, err)` prints the
+single-line envelope without HTML escaping and returns `err` unchanged, so the exit code is kept; a hint comes
+from an error exposing `Hint() string`. Decided: on failure stderr keeps the usual panel (no silent-error
+mechanism), and errors raised by cobra before `RunE` are not enveloped. No command uses it yet, so there is no
+e2e; T375 adds the first.
 
 #### `[ ]` T375: `--json` on `version next` and `version current`
 

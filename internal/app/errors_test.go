@@ -106,3 +106,22 @@ func TestIsBranchMismatch(t *testing.T) {
 		})
 	}
 }
+
+func TestPromotionGuardID(t *testing.T) {
+	tests := []struct {
+		name string
+		err  error
+		want string
+	}{
+		{"nil", nil, ""},
+		{"unrelated", errors.New("boom"), ""},
+		{"E001", perenv.ErrTargetExists, "E001"},
+		{"E002", perenv.ErrDestinationAhead, "E002"},
+		{"E003 wrapped", fmt.Errorf("resolving version: %w", perenv.ErrNoSourceTags), "E003"},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			assert.Equal(t, tc.want, app.PromotionGuardID(tc.err))
+		})
+	}
+}

@@ -37,3 +37,17 @@ func IsBranchMismatch(err error) bool {
 func IsBuildIDRequired(err error) bool {
 	return errors.Is(err, tagfmt.ErrBuildIDRequired)
 }
+
+// PromotionGuardID returns the guard identifier ("E001", "E002" or "E003") err wraps, or "" when err
+// is not a promotion guard. Machine-readable output uses it as the error code.
+func PromotionGuardID(err error) string {
+	switch {
+	case errors.Is(err, perenv.ErrTargetExists):
+		return "E001"
+	case errors.Is(err, perenv.ErrDestinationAhead):
+		return "E002"
+	case errors.Is(err, perenv.ErrNoSourceTags):
+		return "E003"
+	}
+	return ""
+}

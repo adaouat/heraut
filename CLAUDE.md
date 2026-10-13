@@ -35,7 +35,7 @@ behavioural spec.
 ## Docs
 
 - [`docs/specs/`](docs/specs/) — behavioural specification (read before changing CLI surface or config schema)
-- [`docs/adr/`](docs/adr/) — architecture decision records (70 ADRs, numbered consecutively)
+- [`docs/adr/`](docs/adr/) — architecture decision records (71 ADRs, numbered consecutively)
 - [`docs/tasks/`](docs/tasks/) — build roadmap (`roadmap.md`) plus dedicated per-epic roadmaps
   (`forge-abstraction-roadmap.md`, `native-generator-roadmap.md`, `release-config-roadmap.md`,
   `docs-audit-roadmap.md`) that `roadmap.md` points to for large, multi-task epics
@@ -108,7 +108,7 @@ pkl/                            Pkl builtin used by `heraut commit verify`'s own
 testdata/                       repo-wide read-only test fixtures (.heraut.yml samples, …)
 
 docs/specs/                     6 numbered specs (behavioural authority)
-docs/adr/                       70 ADRs (architectural decisions)
+docs/adr/                       71 ADRs (architectural decisions)
 docs/tasks/                     roadmap.md + dedicated per-epic roadmaps (see § Docs above)
 docs/guides/                    task-oriented how-tos, distinct from the behavioural specs
 
