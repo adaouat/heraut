@@ -131,7 +131,7 @@ A `notes:` block with neither key is allowed and equals no block.
   like `changelog` does, calls the app builder, prints. No pipeline run: the command needs the
   generator only.
 - **Plain text**: `internal/generators/native/plaintext.go`, a goldmark AST walk, applied by
-  the command layer's caller (`app`) only when `--format text`. `github.com/yuin/goldmark` moves from
+  `app` to the generated text, and only when `--format text`. `github.com/yuin/goldmark` moves from
   an indirect to a direct requirement in `go.mod`.
 - **Layering**: unchanged (`cmd` to `app` to `generators/native`).
 - **Docs**: Spec 03 (`heraut notes`), Spec 02 (`notes:`), Spec 05 (template precedence names the new
