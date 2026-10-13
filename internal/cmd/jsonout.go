@@ -29,10 +29,8 @@ func writeJSON(w io.Writer, data any, warnings []string, err error) error {
 	if warnings == nil {
 		warnings = []string{}
 	}
-	env := jsonEnvelope{OK: err == nil, Warnings: warnings}
-	if err == nil {
-		env.Data = data
-	} else {
+	env := jsonEnvelope{OK: err == nil, Data: data, Warnings: warnings}
+	if err != nil {
 		env.Error = &jsonError{Code: errorCode(err), Message: err.Error(), Hint: errorHint(err)}
 	}
 	enc := json.NewEncoder(w)

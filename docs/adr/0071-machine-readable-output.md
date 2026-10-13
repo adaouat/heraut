@@ -25,7 +25,8 @@ they share so each command does not invent its own.
    {"ok":false,"warnings":[],"error":{"code":"config","message":"…","hint":"…"}}
    ```
 
-   `data` is the command's own object; `warnings` always exists (empty array when none) and carries
+   `data` is the command's own object, and a command whose result is a list of findings (`check`) also
+   sends it with `ok:false`, so the failure can be read; `warnings` always exists (empty array when none) and carries
    what the text mode prints to stderr; `hint` is omitted when there is none.
 3. **`error.code` is a closed vocabulary:** `usage`, `config`, `runtime`, `promotion`, `internal` —
    the exit-code classes of Spec 01 — except that a promotion guard reports its own identifier,

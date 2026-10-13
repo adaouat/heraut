@@ -23,6 +23,9 @@ func NewCheckCmd() *cobra.Command {
 		Use:   "check",
 		Short: "Run preflight validations",
 		RunE: func(cmd *cobra.Command, args []string) error {
+			if asJSON, _ := cmd.Flags().GetBool("json"); asJSON {
+				return runCheckAllJSON(cmd)
+			}
 			cfgPath, _ := cmd.Flags().GetString("config")
 			verbose, _ := cmd.Flags().GetBool("verbose")
 			env, _ := cmd.Flags().GetString("env")
@@ -81,6 +84,7 @@ func NewCheckCmd() *cobra.Command {
 	}
 
 	checkCmd.Flags().String("env", "", "target environment (for per-env strategies)")
+	checkCmd.Flags().Bool("json", false, "print the result as a JSON envelope")
 	checkCmd.Flags().Bool("offline", false, "skip remote PR/MR metadata enrichment (forces enrichment_policy: disabled)")
 
 	checkCmd.AddCommand(newCheckConfigCmd())
@@ -90,10 +94,13 @@ func NewCheckCmd() *cobra.Command {
 }
 
 func newCheckConfigCmd() *cobra.Command {
-	return &cobra.Command{
+	cmd := &cobra.Command{
 		Use:   "config",
 		Short: "Validate .heraut.yml (offline)",
 		RunE: func(cmd *cobra.Command, args []string) error {
+			if asJSON, _ := cmd.Flags().GetBool("json"); asJSON {
+				return runCheckConfigJSON(cmd)
+			}
 			cfgPath, _ := cmd.Flags().GetString("config")
 			out := cmd.OutOrStdout()
 
@@ -113,6 +120,8 @@ func newCheckConfigCmd() *cobra.Command {
 			return nil
 		},
 	}
+	cmd.Flags().Bool("json", false, "print the result as a JSON envelope")
+	return cmd
 }
 
 func newCheckRuntimeCmd() *cobra.Command {
@@ -120,6 +129,9 @@ func newCheckRuntimeCmd() *cobra.Command {
 		Use:   "runtime",
 		Short: "Check binaries on PATH, token env vars, and git user config",
 		RunE: func(cmd *cobra.Command, args []string) error {
+			if asJSON, _ := cmd.Flags().GetBool("json"); asJSON {
+				return runCheckRuntimeJSON(cmd)
+			}
 			cfgPath, _ := cmd.Flags().GetString("config")
 			verbose, _ := cmd.Flags().GetBool("verbose")
 			env, _ := cmd.Flags().GetString("env")
@@ -152,6 +164,7 @@ func newCheckRuntimeCmd() *cobra.Command {
 		},
 	}
 	cmd.Flags().String("env", "", "target environment (for per-env strategies)")
+	cmd.Flags().Bool("json", false, "print the result as a JSON envelope")
 	return cmd
 }
 

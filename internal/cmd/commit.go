@@ -37,36 +37,20 @@ func newCommitVerifyCmd() *cobra.Command {
 		Short: "Validate a commit message against the conventional-commit grammar",
 		Args:  cobra.MaximumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			message, err := readCommitMessage(cmd, args, file)
-			if err != nil {
-				return exitcode.Wrap(exitcode.Usage, err)
+			asJSON, _ := cmd.Flags().GetBool("json")
+			summary, err := verifyCommitMessage(cmd, args, file, asJSON)
+			if asJSON {
+				return writeJSON(cmd.OutOrStdout(), commitVerifyData(summary), nil, err)
 			}
-
-			cfgPath, _ := cmd.Flags().GetString("config")
-			path := config.ResolvePath(cfgPath)
-			cfg, err := config.Load(path)
 			if err != nil {
-				if !errors.Is(err, os.ErrNotExist) {
-					return exitcode.Wrap(exitcode.Config, err)
-				}
-				cfg = nil
-			}
-			if cfg != nil {
-				if errs := config.Validate(cfg); len(errs) > 0 {
-					printConfigErrors(errs, cmd.OutOrStdout())
-					return exitcode.Wrap(exitcode.Config, fmt.Errorf("%d error(s) in config", len(errs)))
-				}
-			}
-
-			summary, err := app.VerifyCommit(cfg, message)
-			if err != nil {
-				return exitcode.Wrap(exitcode.Usage, err)
+				return err
 			}
 			printCommitSummary(summary, cmd.OutOrStdout())
 			return nil
 		},
 	}
 	cmd.Flags().StringVar(&file, "file", "", "read the commit message from a file (use - for stdin)")
+	cmd.Flags().Bool("json", false, "print the result as a JSON envelope")
 	return cmd
 }
 
@@ -270,6 +254,65 @@ func printTicketCheckResults(results []app.TicketCheckResult, verbose bool, out 
 // type, scope, breaking, description, and any detected commits.tickets references. nil
 // summary (a skipped merge/fixup commit) prints nothing, preserving the previous silent
 // success behavior for those.
+// verifyCommitMessage reads and validates the message. Config findings go to stderr in JSON mode so
+// stdout keeps to the envelope.
+func verifyCommitMessage(cmd *cobra.Command, args []string, file string, asJSON bool) (*app.CommitSummary, error) {
+	message, err := readCommitMessage(cmd, args, file)
+	if err != nil {
+		return nil, exitcode.Wrap(exitcode.Usage, err)
+	}
+
+	cfgPath, _ := cmd.Flags().GetString("config")
+	cfg, err := config.Load(config.ResolvePath(cfgPath))
+	if err != nil {
+		if !errors.Is(err, os.ErrNotExist) {
+			return nil, exitcode.Wrap(exitcode.Config, err)
+		}
+		cfg = nil
+	}
+	if cfg != nil {
+		if errs := config.Validate(cfg); len(errs) > 0 {
+			findings := cmd.OutOrStdout()
+			if asJSON {
+				findings = cmd.ErrOrStderr()
+			}
+			printConfigErrors(errs, findings)
+			return nil, exitcode.Wrap(exitcode.Config, fmt.Errorf("%d error(s) in config", len(errs)))
+		}
+	}
+
+	summary, err := app.VerifyCommit(cfg, message)
+	if err != nil {
+		return nil, exitcode.Wrap(exitcode.Usage, err)
+	}
+	return summary, nil
+}
+
+// commitVerifyData is the JSON data of a verified message; a nil summary is a merge or fixup
+// commit, which verification skips.
+func commitVerifyData(s *app.CommitSummary) any {
+	if s == nil {
+		return struct {
+			Skipped bool `json:"skipped"`
+		}{true}
+	}
+	type ticket struct {
+		Text string `json:"text"`
+		Href string `json:"href"`
+	}
+	d := struct {
+		Type        string   `json:"type"`
+		Scope       string   `json:"scope,omitempty"`
+		Breaking    bool     `json:"breaking"`
+		Description string   `json:"description"`
+		Tickets     []ticket `json:"tickets,omitempty"`
+	}{Type: s.Type, Scope: s.Scope, Breaking: s.Breaking, Description: s.Description}
+	for _, t := range s.Tickets {
+		d.Tickets = append(d.Tickets, ticket{t.Text, t.Href})
+	}
+	return d
+}
+
 func printCommitSummary(s *app.CommitSummary, out io.Writer) {
 	if s == nil {
 		return

@@ -237,7 +237,7 @@ discipline that applies to every task.
 | 66 | heraut notes: release notes for a tag, for any consumer | Done — T371 |
 | 67 | Refs that look like options reach git unguarded | Done — T372 |
 | 68 | `heraut notes` e2e coverage of range bounds and per-env | Done — T373 |
-| 69 | Agent-friendly CLI: JSON output and a bundled skill | In progress — T374, T375 done; T376–T379 open |
+| 69 | Agent-friendly CLI: JSON output and a bundled skill | In progress — T374–T376 done; T377–T379 open |
 
 ### Open items
 
@@ -3335,10 +3335,17 @@ bodies moved into `resolveNext` / `resolveCurrent` (with a shared `loadValidated
 paths share one resolution; warnings go to the envelope in JSON mode. `BumpType.String()` added. Text-mode
 output and its git calls are unchanged (`current` still looks up only what it prints).
 
-#### `[ ]` T376: `--json` on `check` and `commit verify`
+#### `[x]` T376: `--json` on `check` and `commit verify`
 
 `check config|runtime` returns each finding with its path and hint; `commit verify` returns the
 parsed type, scope, breaking flag and the failure reason. e2e: valid and invalid input of each.
+
+**Completion note:** `--json` on bare `check`, `check config`, `check runtime` and `commit verify`. Findings use
+the config's own `{path, message, hint}` and a per-check `{section, name, status, detail}` (`ok`/`warn`/`fail`),
+collected by `collectRuntime` through `app.RuntimeCheck` without the spinner. Deviation from T374: a failing `check`
+sends `data` with `ok:false` so the findings are readable (`writeJSON` now always includes `data`; ADR-0071 and
+Spec 03 amended); malformed YAML has no `data`. The runtime e2e does not pin the exit code since `gh` being
+installed is machine-dependent.
 
 #### `[ ]` T377: `release --dry-run --json` plan
 

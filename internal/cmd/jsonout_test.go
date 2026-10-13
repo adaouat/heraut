@@ -35,6 +35,8 @@ func TestWriteJSON(t *testing.T) {
 			`{"ok":true,"data":{"tag":"v1.0.0"},"warnings":["ordering"]}`},
 		{"unclassified error is a usage error", nil, nil, errors.New("boom"),
 			`{"ok":false,"warnings":[],"error":{"code":"usage","message":"boom"}}`},
+		{"a failing check still reports its findings", payload{Tag: "partial"}, nil, exitcode.Wrap(exitcode.Config, errors.New("1 error(s)")),
+			`{"ok":false,"data":{"tag":"partial"},"warnings":[],"error":{"code":"config","message":"1 error(s)"}}`},
 		{"markup is not escaped", nil, nil, errors.New("a<b & c"),
 			`{"ok":false,"warnings":[],"error":{"code":"usage","message":"a<b & c"}}`},
 		{"config", nil, nil, exitcode.Wrap(exitcode.Config, errors.New("bad yaml")),

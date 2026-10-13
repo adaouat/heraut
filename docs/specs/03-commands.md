@@ -32,7 +32,7 @@ command's section says whether it does. With `--json`, stdout carries exactly on
 | Field | Meaning |
 |-------|---------|
 | `ok` | `true` on success, `false` on any failure |
-| `data` | the command's result object (success only; shape documented per command) |
+| `data` | the command's result object (shape documented per command); a `check` failure still carries its findings |
 | `warnings` | always present; the notices the text mode writes to stderr |
 | `error.code` | `usage`, `config`, `runtime`, `promotion` or `internal` (the exit-code classes of Spec 01), or `E001` / `E002` / `E003` for a promotion guard |
 | `error.message` | the error text |
@@ -445,8 +445,10 @@ Validate a single commit message against the Conventional Commits grammar
 [ADR-0027](../adr/0027-builtin-conventional-commit-checker.md)).
 
 ```
-heraut commit verify [message] [--file <path>]
+heraut commit verify [message] [--file <path>] [--json]
 ```
+
+With `--json` ([§ Machine-readable output](#machine-readable-output)), `data` is `{type, scope, breaking, description, tickets}` (`scope` and `tickets` omitted when empty), or `{"skipped": true}` for a merge or fixup commit. An invalid message is `ok:false` with `error.code` `usage` and exit code 1; config findings go to stderr so stdout stays the envelope.
 
 | Flag     | Description                                                                          |
 |----------|---------------------------------------------------------------------------------------|
@@ -598,10 +600,17 @@ automatically before doing any work; running them directly is useful in CI as a
 separate validation step.
 
 ```
-heraut check [--env <name>] [--offline]    # runs config + runtime
-heraut check config                        # offline only: parse + semantic validation
-heraut check runtime [--env <name>]        # online: binaries + tokens + git user
+heraut check [--env <name>] [--offline] [--json]    # runs config + runtime
+heraut check config [--json]                        # offline only: parse + semantic validation
+heraut check runtime [--env <name>] [--json]        # online: binaries + tokens + git user
 ```
+
+**`--json`** ([§ Machine-readable output](#machine-readable-output)) replaces the report with one envelope.
+`data.config` is `{path, source, found, valid, errors: [{path, message, hint}]}` (`check config` returns that
+object as `data`); `data.runtime` is `{checks: [{section, name, status, detail}]}` with `status` one of `ok`,
+`warn` (advisory, does not fail the run) or `fail` (`check runtime` returns that object as `data`). A failing run
+sends `ok:false` and the exit code of the text mode, with `data` still carrying the findings; a config that cannot
+be read at all (malformed YAML) has no `data`.
 
 `--env` and `--offline` apply to bare `check` (and `--env` to `check runtime`) — `check
 config` takes neither, since it's pure offline YAML validation with no runtime or
