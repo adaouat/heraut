@@ -3140,8 +3140,11 @@ release already merged into HEAD, and `--set-version` naming another version tha
 rather than a new ADR; schema description, sample, Spec 02 and the maintenance-branches guide updated.
 Deviations: four existing tests used `release/7.8.0` as the "underivable" example and now use
 `release/legacy`; three `MockRunner` tests gained the extra `rev-parse` call of the mismatch check.
-Not done: a check that commits imply a larger bump than the branch version, and a commit-presence
-check for repeat `-rc.N`.
+Review fixes: commit linting (`commit check --from-latest-tag`) on a fresh version branch ranges from
+the highest tag in HEAD's history, a final's previous tag skips pre-releases, and re-cutting the same
+rc label needs a new commit (ADR-0064). Not done: a check that commits imply a larger bump than the
+branch version; the changelog-only path on a released version branch still ends in the re-release
+error (use `--set-version`).
 
 ### Phase 63 — CalVer history-aware changelog bounds
 

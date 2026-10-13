@@ -336,8 +336,12 @@ from `v1.3.1`; `release/1.x` cut from `v1.4.0`. Config:
 | 8b | `feature/foo`, `heraut version next` | `v2.0.1` | `v2.0.1` (unchanged) |
 | 9 | `release/1.3`, `heraut version current` | `v2.0.0` | `v1.3.1` |
 | 10 | `release/1.3`, `--pre-release rc` | `v2.0.1-rc.1` | `v1.3.2-rc.1` |
-| 11 | `release/7.8.0` (matches `release/*`, no derivable range), `--set-version 7.8.0` | `v7.8.0` | `v7.8.0` (no derivation error) |
-| 11b | `release/7.8.0`, no `--set-version` | `v2.0.1` | derivation error naming the branch |
+| 11 | `release/legacy` (matches `release/*`, no derivable version), `--set-version 7.8.0` | `v7.8.0` | `v7.8.0` (no derivation error) |
+| 11b | `release/legacy`, no `--set-version` | `v2.0.1` | derivation error naming the branch |
+| 12 | `release/7.8.0` (matches `release/*`; a version branch), `heraut release` | `v2.0.1` | `v7.8.0`: the name is the version, commits never bump it |
+| 12b | `release/7.8.0`, `v7.8.0` already tagged | collides | tag-exists error with the `--set-version 7.8.0 --set-build-id <id>` hint |
+| 12c | `release/7.8.0`, `--pre-release rc` | `v2.0.1-rc.1` | `v7.8.0-rc.1`, then `-rc.2` (each repeat needs a new commit); refused once `v7.8.0` exists |
+| 12d | `release/7.8.0`, a higher release already merged into the branch | — | `v7.8.0` plus a warning that the branch version is lower than its history |
 
 **Errors.**
 
@@ -349,6 +353,8 @@ from `v1.3.1`; `release/1.x` cut from `v1.4.0`. Config:
 | no in-range final reachable from `HEAD` | `no release in range 1.3.x in the history of release/1.3 — tag the branch's starting point or pass --set-version` | Runtime |
 | next version outside the range | `feat: y would release 1.4.0, outside release/1.3 (>=1.3.0 <1.4.0) — land it on a branch whose range allows it, or on main` | Runtime |
 | next tag already exists | `tag already exists: v1.3.2 (cut on another branch) — pick the next free version with --set-version` | Runtime |
+| version branch already released | `tag already exists: v7.8.0 — branch version 7.8.0 is already released; …` | Runtime |
+| pre-release that would sort below an existing tag of the branch version | `v7.8.0-rc.2 would sort below existing v7.8.0 — a pre-release of branch version 7.8.0 cannot follow it …` | Runtime |
 
 ---
 

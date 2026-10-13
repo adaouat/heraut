@@ -128,7 +128,8 @@ from T356 (see Consequences).
 entry whose range cannot be derived from the branch name is not an error under it. This keeps the
 "branch is the version" workflow working, a client-fixed `release/7.8.0` branch released with
 `--set-version 7.8.0`, in a repo that also declares `release/*` as maintenance branches.
-Automating it is filed separately (T348).
+A client-fixed `release/N.N.N` branch is now a version branch (see below); `--set-version` stays
+the override.
 
 **Clarifications settled during implementation (T349-T354).** Where these differ from the design
 doc, they govern.
@@ -151,18 +152,18 @@ doc, they govern.
   underivable range) and the unlisted-branch refusal exit Config; `version current` maps the same
   two branch-rule errors to Config. Resolve-time errors (no in-range base, out of range, tag
   exists) exit Runtime.
-- **`--pre-release` needs a derivable range.** On a glob-matched branch with no derivable range it
-  fails with `ErrUnderivableRange`: auto resolution needs the range, and only `--set-version` is
-  exempt.
+- **`--pre-release` needs a derivable range or version.** On a glob-matched branch whose name
+  carries neither it fails with `ErrUnderivableRange`: auto resolution needs one, and only
+  `--set-version` is exempt. A version branch (T348) mints `<version>-<label>.N`.
 - **Escalation looks at the line's own series.** With a range set, pre-release escalation
   considers only the line's own open pre-release series, because a higher series on `main`
   (`v2.1.0-rc.1`) must not hide a real escalation on the line (`v1.4.1-rc.1` to `v1.5.0`). The
   counter and per-core monotonicity stay global (ADR-0064), since a maintenance core is distinct
   from every core on `main`.
 - **`commit check --from-latest-tag` follows the line.** It uses the branch-aware current tag, but
-  on an underivable or ambiguous branch it falls back to the global latest tag: commit linting must
-  keep working on, say, a client-fixed `release/7.8.0` branch. `version current` keeps erroring
-  there.
+  on an underivable or ambiguous branch it falls back to the global latest tag, and on a fresh
+  version branch (nothing tagged with its version yet) to the highest tag in HEAD's history: commit
+  linting must keep working there. `version current` keeps erroring on an underivable branch.
 - **Forward merges list the fix twice.** After a maintenance branch is merged forward into `main`,
   a later `main` section legitimately also lists the merged-in fix: it is in that section's
   history.
@@ -199,7 +200,7 @@ doc, they govern.
   as the first: explicit declaration is what both reference tools do, and it is what makes an
   unlisted branch detectable.
 - **A "version branch" type, where the version comes from the branch name** (`release/7.8.0`
-  gives `7.8.0`, commits never bump it). Deferred, not rejected: today's `--set-version` covers it
-  manually (T348).
+  gives `7.8.0`, commits never bump it). Deferred at first, added as T348 (see Version
+  branches above); `--set-version` remains the override.
 - **Per-env strategies.** Out of scope: they already tie environments to branches
   (`environments.<env>.branch`), so `branches` is a config error under them.

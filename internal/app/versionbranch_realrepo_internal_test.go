@@ -146,3 +146,20 @@ func TestVersionBranch_RealRepo_VersionCurrent(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, "v7.8.0", cur)
 }
+
+// TestVersionBranch_RealRepo_CommitCheckFromLatestTag: linting a fresh version branch ranges from
+// the highest tag in its history, not from the start of the repository.
+func TestVersionBranch_RealRepo_CommitCheckFromLatestTag(t *testing.T) {
+	_, _, tag, cfg := versionBranchFixture(t)
+	runner := execadapter.New(false, false)
+
+	rng, noTags, err := ResolveFromLatestTag(runner, cfg, "")
+	require.NoError(t, err)
+	assert.False(t, noTags)
+	assert.Equal(t, "v7.7.0..HEAD", rng, "nothing is tagged on 7.8.0 yet: fall back to the highest tag in history")
+
+	tag("v7.8.0-rc.1")
+	rng, _, err = ResolveFromLatestTag(runner, cfg, "")
+	require.NoError(t, err)
+	assert.Equal(t, "v7.8.0-rc.1..HEAD", rng)
+}

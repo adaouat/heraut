@@ -32,6 +32,8 @@ func TestResolveFixed(t *testing.T) {
 		label    string
 		all      string
 		merged   string
+		log      string // stdout of `git log <previous>..HEAD`, queued third when set
+		wantNone bool   // expect the no-commits error
 		wantTag  string
 		wantVer  string
 		wantCur  string
@@ -42,8 +44,10 @@ func TestResolveFixed(t *testing.T) {
 		{name: "first release", all: "v7.7.0\n", merged: "v7.7.0\n", wantTag: "v7.8.0", wantVer: "7.8.0", wantCur: "v7.7.0"},
 		{name: "no tags at all", wantTag: "v7.8.0", wantVer: "7.8.0", wantCur: ""},
 		{name: "rc never bumps anything but the counter", label: "rc", all: "v7.7.0\n", merged: "v7.7.0\n", wantTag: "v7.8.0-rc.1", wantVer: "7.8.0-rc.1", wantCur: "v7.7.0"},
-		{name: "second rc", label: "rc", all: "v7.8.0-rc.1\nv7.7.0\n", merged: "v7.8.0-rc.1\nv7.7.0\n", wantTag: "v7.8.0-rc.2", wantVer: "7.8.0-rc.2", wantCur: "v7.8.0-rc.1"},
-		{name: "final after rcs", all: "v7.8.0-rc.2\nv7.7.0\n", merged: "v7.8.0-rc.2\nv7.7.0\n", wantTag: "v7.8.0", wantVer: "7.8.0", wantCur: "v7.8.0-rc.2"},
+		{name: "second rc", label: "rc", all: "v7.8.0-rc.1\nv7.7.0\n", merged: "v7.8.0-rc.1\nv7.7.0\n", log: "fix: y\x00", wantTag: "v7.8.0-rc.2", wantVer: "7.8.0-rc.2", wantCur: "v7.8.0-rc.1"},
+		{name: "final after rcs", all: "v7.8.0-rc.2\nv7.7.0\n", merged: "v7.8.0-rc.2\nv7.7.0\n", wantTag: "v7.8.0", wantVer: "7.8.0", wantCur: "v7.7.0"},
+		{name: "a repeat rc with no new commit is refused", label: "rc", all: "v7.8.0-rc.1\nv7.7.0\n", merged: "v7.8.0-rc.1\nv7.7.0\n", log: "", wantNone: true},
+		{name: "a higher label promotes without new commits", label: "rc", all: "v7.8.0-beta.1\nv7.7.0\n", merged: "v7.8.0-beta.1\nv7.7.0\n", wantTag: "v7.8.0-rc.1", wantVer: "7.8.0-rc.1", wantCur: "v7.8.0-beta.1"},
 		{name: "already released", all: "v7.8.0\nv7.7.0\n", merged: "v7.8.0\nv7.7.0\n", wantErr: semver.ErrTagExists, wantSub: "--pre-release"},
 		{name: "build-metadata tag is the release", all: "v7.8.0+3\nv7.7.0\n", merged: "v7.8.0+3\nv7.7.0\n", wantErr: semver.ErrTagExists, wantSub: "--set-version 7.8.0 --set-build-id"},
 		{name: "released elsewhere still counts", all: "v7.8.0\nv7.7.0\n", merged: "v7.7.0\n", wantErr: semver.ErrTagExists},
@@ -57,8 +61,17 @@ func TestResolveFixed(t *testing.T) {
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			r, mr := fixedResolver(t, semverCfg(), "7.8.0", tc.label, tc.all, tc.merged)
+			if tc.log != "" || tc.wantNone {
+				mr.QueueResponse(tc.log, "", nil)
+			}
 
 			res, err := r.Resolve()
+
+			if tc.wantNone {
+				require.Error(t, err)
+				assert.Contains(t, err.Error(), "no commits since v7.8.0-rc.1")
+				return
+			}
 
 			if tc.wantErr != nil {
 				require.ErrorIs(t, err, tc.wantErr)
@@ -77,7 +90,11 @@ func TestResolveFixed(t *testing.T) {
 			} else {
 				assert.Equal(t, []string{tc.wantWarn}, r.Warnings())
 			}
-			require.Len(t, mr.Calls, 2, "tags and merged tags only — commits are never read")
+			wantCalls := 2
+			if tc.log != "" {
+				wantCalls = 3 // only a repeated label reads the commits since its previous tag
+			}
+			require.Len(t, mr.Calls, wantCalls, "commits are read only to re-cut the same label")
 			assert.Equal(t, tagsCall("v"), mr.Calls[0].Args)
 			assert.Equal(t, mergedCall("v"), mr.Calls[1].Args)
 		})

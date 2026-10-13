@@ -62,11 +62,26 @@ func (r *Resolver) resolveFixed() (versioning.Result, error) {
 		}
 	}
 
-	var previous string
+	// A final's previous tag is the last final (ADR-0064: finals ignore pre-releases); a
+	// pre-release's is the last tag of any kind.
+	var previous TagVersion
+	hasPrevious := false
 	for _, t := range merged {
-		if Compare(t.Version, candidate) < 0 {
-			previous = t.Tag
+		if Compare(t.Version, candidate) < 0 && (label != "" || !t.Version.IsPreRelease()) {
+			previous, hasPrevious = t, true
 			break
+		}
+	}
+	// Re-cutting the same label needs a commit since its previous tag; a higher label promotes
+	// the series without one (ADR-0064).
+	if label != "" && hasPrevious && previous.Version.IsPreRelease() &&
+		Compare(coreVersion(previous.Version), core) == 0 && previous.Version.Pre[0] == label {
+		stdout, _, err = r.runner.Run("git", "log", previous.Tag+"..HEAD", "--format=%B%x00")
+		if err != nil {
+			return versioning.Result{}, fmt.Errorf("reading git log: %w", err)
+		}
+		if len(parseCommits(stdout)) == 0 {
+			return versioning.Result{}, fmt.Errorf("no commits since %s — create at least one commit before running heraut release", previous.Tag)
 		}
 	}
 	if latest, ok := Latest(merged, false); ok && Compare(coreVersion(latest.Version), core) > 0 {
@@ -75,7 +90,7 @@ func (r *Resolver) resolveFixed() (versioning.Result, error) {
 	return versioning.Result{
 		Version:    version,
 		Tag:        prefix + version,
-		CurrentTag: previous,
+		CurrentTag: previous.Tag,
 		Bump:       versioning.BumpNone,
 	}, nil
 }

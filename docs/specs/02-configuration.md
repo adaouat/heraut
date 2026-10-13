@@ -157,7 +157,7 @@ sets `range:`.
 
 A last segment of the form `N.N.N` (`release/7.8.0`, `release/v7.8.0`; no leading zeros) under a glob
 entry without `range` is a **version branch** (T348): heraut cuts exactly that version (`v7.8.0`),
-commits never bump it, `--pre-release rc` numbers `v7.8.0-rc.1`, `-rc.2`, …, and once the final
+commits never bump it, `--pre-release rc` numbers `v7.8.0-rc.1`, `-rc.2`, … (each repeat of a label needs a new commit), and once the final
 exists a plain release or a further pre-release is refused (a repeat build is `--set-version 7.8.0
 --set-build-id <id>`). `--set-version` with another version is allowed and warns. A warning is also
 printed when a higher SemVer release is already merged into the branch. Exact-name entries are

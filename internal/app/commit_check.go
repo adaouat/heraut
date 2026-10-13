@@ -21,8 +21,12 @@ func ResolveFromLatestTag(runner port.Runner, cfg *config.Config, env string) (s
 		tag, err := CurrentTag(runner, cfg, env, true)
 		if errors.Is(err, ErrUnderivableRange) || errors.Is(err, ErrAmbiguousBranch) {
 			// Linting needs a base, not a version: a branch the maintenance rules cannot place
-			// (e.g. release/7.8.0, released via --set-version) uses the global latest tag.
+			// (e.g. release/legacy, released via --set-version) uses the global latest tag.
 			tag, err = latestGlobalTag(runner, cfg, env)
+		} else if errors.Is(err, errVersionBranchUntagged) {
+			// A fresh version branch (release/7.8.0, nothing tagged 7.8.0 yet) ranges from the
+			// highest tag in its own history.
+			tag, err = latestMergedTag(runner, cfg, env)
 		}
 		if err != nil {
 			if errors.Is(err, errNoTagsFound) {
