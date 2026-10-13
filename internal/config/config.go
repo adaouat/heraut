@@ -1,10 +1,19 @@
 package config
 
+// Notes configures `heraut notes`: the template layered over the built-in notes blocks. It has no
+// output or tag_pattern, unlike ContentDriver, because the command writes no managed file and
+// takes its range from the tag.
+type Notes struct {
+	Template  string     `yaml:"template,omitempty"`
+	Rendering *Rendering `yaml:"rendering,omitempty"`
+}
+
 // Config is the parsed .heraut.yml.
 type Config struct {
 	Version      string                 `yaml:"version"`
 	Versioning   Versioning             `yaml:"versioning"`
 	Changelog    *ContentDriver         `yaml:"changelog,omitempty"`
+	Notes        *Notes                 `yaml:"notes,omitempty"`
 	Release      *Release               `yaml:"release,omitempty"`
 	Environments map[string]Environment `yaml:"environments,omitempty"`
 	// Commits is the single source of truth for commit semantics and enrichment (ADR-0033):

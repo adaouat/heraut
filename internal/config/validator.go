@@ -614,6 +614,9 @@ func validateEnums(cfg *Config) []ValidationError {
 	}
 	errs = append(errs, validateContentDriver(cfg.Changelog, "changelog")...)
 	errs = append(errs, validateChangelogRotation(cfg.Changelog, cfg, "changelog")...)
+	if cfg.Notes != nil {
+		errs = append(errs, validateContentDriverTemplates(&ContentDriver{Template: cfg.Notes.Template, Rendering: cfg.Notes.Rendering}, "notes")...)
+	}
 	errs = append(errs, validateRelease(cfg.Release, "release")...)
 	for envName, env := range cfg.Environments {
 		base := "environments." + envName

@@ -234,6 +234,7 @@ discipline that applies to every task.
 | 63 | CalVer history-aware changelog bounds | Done — T356 |
 | 64 | Version branch follow-ups from the T348 review | Done — T369 |
 | 65 | Lane B: ride out transient GitHub push rejections | Done — T370 |
+| 66 | heraut notes: release notes for a tag, for any consumer | Open — T371 |
 
 ### Open items
 
@@ -3231,6 +3232,18 @@ push (rolled back and retried), rejects every push (three attempts, last output 
 another reason (not retried). Used by the release runs of B1–B5 and the mirror scenario; the dry-run,
 changelog and expected-failure runs keep `Repo.Run`. Not done: the mid-run failure of a *release* creation
 is not retried, only push rejections. Unverified until a real Lane B run hits the flake.
+
+### Phase 66 — heraut notes
+
+#### `[ ]` T371: `heraut notes` command
+
+A read-only command that prints the release notes of one tag for any consumer, first an app store
+submission: `heraut notes <tag> [--from <tag>] [--format markdown|text] [--template <file>]
+[--output <file>]`. By default it prints the changelog's groups and commit lines, without the release
+heading and without each commit's hash, author and PR reference; a `notes:` block (template file and
+inline `rendering.templates`) reshapes that, and `--format text` converts the Markdown to plain text with a
+CommonMark parser. Design: `docs/superpowers/specs/2026-10-13-notes-command-design.md`; plan:
+`docs/superpowers/plans/2026-10-13-notes-command.md`.
 
 Every Phase above marked `Done` and not pointing to a dedicated roadmap (D, 0–9, 11–22, 26, 28,
 30, 31) has had its full task write-up — implementation notes, decisions, deviations — moved to

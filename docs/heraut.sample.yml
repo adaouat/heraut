@@ -395,6 +395,23 @@ changelog:
   # forges: block plus commits.enrichment_forge / commits.enrichment_policy above — see
   # the forges block for pinning a specific host when ambient detection is ambiguous.
 
+# ── notes ─────────────────────────────────────────────────────────────────────
+#
+# Used by `heraut notes <tag>`, which prints the release notes of one tag (for example to feed an
+# app store). By default it prints the changelog's groups and commit lines, without the release
+# heading and without each commit's hash, author and PR reference; this block reshapes that.
+# Layered over the global rendering block, then over the built-in notes blocks; `--template`
+# replaces the file for one run. native only.
+#
+# notes:
+#   template: .config/heraut/notes.tmpl
+#   rendering:
+#     templates:
+#       release:
+#         section: "## {{ .Version }}"     # add a heading back
+#       commit:
+#         message: "- {{ .Description }} ({{ .ShortHash }})"
+
 # ── hooks ─────────────────────────────────────────────────────────────────────
 #
 # Shell commands run at points in the release lifecycle (ADR-0053, ADR-0061). Each key is a list

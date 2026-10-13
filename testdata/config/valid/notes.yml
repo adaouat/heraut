@@ -1,0 +1,10 @@
+version: "1"
+versioning:
+  strategy: semver
+notes:
+  rendering:
+    templates:
+      release:
+        section: "## {{ .Version }}"
+      commit:
+        message: "- {{ .Description }}"

@@ -21,6 +21,9 @@
     "changelog": {
       "$ref": "#/definitions/ContentDriver"
     },
+    "notes": {
+      "$ref": "#/definitions/Notes"
+    },
     "release": {
       "$ref": "#/definitions/Release"
     },
@@ -611,6 +614,21 @@
         "rendering": {
           "$ref": "#/definitions/Rendering",
           "description": "Per-driver rendering overrides (template snippets + excludes), deep-merged over the global rendering block (ADR-0037)."
+        }
+      }
+    },
+    "Notes": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "Configuration of 'heraut notes': the template layered over the built-in notes blocks (no release heading; commit lines without hash, author or PR reference).",
+      "properties": {
+        "template": {
+          "type": "string",
+          "description": "Path to a full template file (Go text/template) parsed on top of the built-in blocks; it wins over inline rendering.templates for whatever it defines. 'heraut notes --template' replaces it for one run."
+        },
+        "rendering": {
+          "$ref": "#/definitions/Rendering",
+          "description": "Template snippets and excludes for the notes, deep-merged over the global rendering block."
         }
       }
     },
