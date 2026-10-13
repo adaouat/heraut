@@ -235,6 +235,7 @@ discipline that applies to every task.
 | 64 | Version branch follow-ups from the T348 review | Done — T369 |
 | 65 | Lane B: ride out transient GitHub push rejections | Done — T370 |
 | 66 | heraut notes: release notes for a tag, for any consumer | Done — T371 |
+| 67 | Refs that look like options reach git unguarded | Open — T372 |
 
 ### Open items
 
@@ -3256,6 +3257,18 @@ commits (text mode normalises it).
 Review fixes: a failure now shows its cause (no summary-only "notes failed"), a missing `--env` exits with the
 configuration code, inline and block HTML survive the text conversion, and a tag or ref named like an option
 is never passed to git as a bound.
+
+### Phase 67 — Option-shaped refs
+
+#### `[ ]` T372: stop a tag named like an option from reaching git as one
+
+`git tag` refuses a name starting with `-`, but `git update-ref refs/tags/--output=x` or a fetch from a hostile
+remote creates one. The T371 review reproduced it: under CalVer an unparsable tag sorts last, becomes the
+predecessor of the oldest release, and `git log --output=x..<tag>` wrote a file. `heraut notes` now filters
+such refs and rejects them as arguments, but the changelog and release paths (`commitRange`, `listTags` and
+the previous-tag helpers in `internal/generators/native`, the `merge-base` and `log` calls in `internal/app` and
+`internal/pipeline`) still pass tag names raw. Pass `--end-of-options` (git 2.24+; check the minimum git heraut
+supports) or reject `-`-prefixed names once, at the point tags are listed, with a test per call site.
 
 Every Phase above marked `Done` and not pointing to a dedicated roadmap (D, 0–9, 11–22, 26, 28,
 30, 31) has had its full task write-up — implementation notes, decisions, deviations — moved to
