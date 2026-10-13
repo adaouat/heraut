@@ -63,6 +63,7 @@ entry decides the type, not the branch:
 |---|---|
 | has `range` | maintenance branch, that range |
 | glob `name`, no `range` | maintenance branch, range derived from the matched branch name |
+| glob `name`, matched branch ends in `N.N.N` | version branch: the branch name is the version (T348) |
 | exact `name`, no `range` | release branch (today's behaviour) |
 
 Derivation takes the branch name's last `/`-separated segment and accepts `N.x`, `N.N.x` or `N.N`
@@ -89,6 +90,12 @@ must lie in the range (`ErrOutOfRange`); `git tag -l <next> <next>+*` guards aga
 with a tag cut elsewhere, a build-metadata tag of the same version included since it is that
 version's release (ADR-0064) (`ErrTagExists`). `version current` reports the same base. `--pre-release` is
 allowed on a maintenance branch, the core subject to the same range check.
+
+**Version branches (T348).** A branch such as `release/7.8.0` under a glob entry is a version branch:
+it resolves to the version in its name, with no bump, `--pre-release` numbering over that core,
+a refusal once the final exists, and a warning (never an error) when a higher release is already in
+HEAD's history. It is recognised by name shape, so one `release/*` entry serves both lines and
+version branches; `N.N.N` was an `ErrUnderivableRange` error before.
 
 **Why hard errors.** A `feat:` on a patch-only line, a version that already exists, and a line
 with no in-range release all have a wrong "closest" answer that would silently ship a version

@@ -98,6 +98,9 @@ versioning:
   #   range: N.x / N.N.x     maintenance branch limited to that range
   #   glob name, no range    maintenance branch, range derived from the matched
   #                          branch name (release/1.3 -> 1.3.x)
+  #   glob name, branch ends in N.N.N   version branch: release/7.8.0 releases
+  #                          exactly v7.8.0, commits never bump it (re-releases use
+  #                          --pre-release rc, or --set-version 7.8.0 --set-build-id <id>)
   # branches:
   #   - name: main
   #   - name: "release/*"

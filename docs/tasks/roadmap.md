@@ -230,7 +230,7 @@ discipline that applies to every task.
 | 59 | SemVer v2 compliance and pre-release lifecycle | Done — see `semver-v2-roadmap.md` |
 | 60 | End-to-end tests: hermetic binary lane + opt-in forge sandboxes | Done — T345 (a-d), T357, T358, T359, T360 |
 | 61 | GitLab publish driver follow-ups from T335 | Done — T346, T347, T364–T368 (ADR-0069) |
-| 62 | Version branches: version from the branch name | Not started — see T348 (needs design) |
+| 62 | Version branches: version from the branch name | Done — T348 |
 | 63 | CalVer history-aware changelog bounds | Done — T356 |
 
 ### Open items
@@ -3111,7 +3111,7 @@ drift starts to bite.
 
 ### Phase 62 — Version branches
 
-#### ✦ `[ ]` T348: `versioning.branches` "version branch" type — version from the branch name (needs design)
+#### `[x]` T348: `versioning.branches` "version branch" type — version from the branch name
 
 A real mobile-project workflow: the client fixes the version up front, a `release/7.8.0` branch
 is cut, and `feat`/`fix` commits land there for stabilisation without ever changing the version —
@@ -3125,6 +3125,23 @@ bump it, and a re-release goes through `-rc.N` / `+build` instead of colliding. 
 `versioning.branches` landing first. Design questions: how an entry declares the type (a `version:
 from-branch` field vs. a separate key), how it coexists with maintenance globs on the same
 `release/*` namespace, and what a re-release does by default.
+
+**Completion note:** Design and plan: `docs/superpowers/specs/2026-10-13-version-branches-design.md` and
+`docs/superpowers/plans/2026-10-13-version-branches-t348.md`. No new config key: a glob entry whose
+matched branch ends in `N.N.N` (`release/7.8.0`, `release/v7.8.0`) is a version branch
+(`config.DeriveBranchVersion`, `app.BranchVersion`); `N.N` / `N.x` still derive maintenance lines and an
+explicit `range:` still wins. The semver resolver gets `SetFixedVersion`: the final, or `-label.N` via the
+existing counter, with `Bump: none`; a plain re-release returns `ErrTagExists` with a hint (a
+build-metadata tag counts as released), `--pre-release` after the final returns
+`ErrPreReleaseRegression`, and a repeat build is `--set-version X --set-build-id N` (`--set-build-id`
+still requires `--set-version`; the spec table was corrected). Warnings, never errors: a higher SemVer
+release already merged into HEAD, and `--set-version` naming another version than the branch.
+`version current` reports the highest tag of the branch version reachable from HEAD. ADR-0065 amended
+rather than a new ADR; schema description, sample, Spec 02 and the maintenance-branches guide updated.
+Deviations: four existing tests used `release/7.8.0` as the "underivable" example and now use
+`release/legacy`; three `MockRunner` tests gained the extra `rev-parse` call of the mismatch check.
+Not done: a check that commits imply a larger bump than the branch version, and a commit-presence
+check for repeat `-rc.N`.
 
 ### Phase 63 — CalVer history-aware changelog bounds
 

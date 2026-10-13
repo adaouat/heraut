@@ -147,12 +147,21 @@ The entry, not the branch, determines the type:
 |--------------------------|------------------------------------------------------------|
 | has `range`              | maintenance branch, that range                             |
 | glob `name`, no `range`  | maintenance branch, range derived from the matched branch  |
+| glob `name`, matched branch ends in `N.N.N` | version branch: the branch name is the version |
 | exact `name`, no `range` | release branch (today's behaviour)                         |
 
 Range derivation takes the branch name's last `/`-separated segment and accepts `N.x`, `N.N.x`
 or `N.N`, with one optional leading `v` (`release/1.3` and `release/1.3.x` give `1.3.x`;
 `release/1.x` gives `1.x`). An exact branch literally named `1.3.x` is a release branch unless it
 sets `range:`.
+
+A last segment of the form `N.N.N` (`release/7.8.0`, `release/v7.8.0`; no leading zeros) under a glob
+entry without `range` is a **version branch** (T348): heraut cuts exactly that version (`v7.8.0`),
+commits never bump it, `--pre-release rc` numbers `v7.8.0-rc.1`, `-rc.2`, …, and once the final
+exists a plain release or a further pre-release is refused (a repeat build is `--set-version 7.8.0
+--set-build-id <id>`). `--set-version` with another version is allowed and warns. A warning is also
+printed when a higher SemVer release is already merged into the branch. Exact-name entries are
+never version branches.
 
 Load-time validation: only valid under `strategy: semver`; every entry has a non-empty `name`;
 globs compile under `path.Match`; `range` parses as `N.x` or `N.N.x`; explicit ranges are unique

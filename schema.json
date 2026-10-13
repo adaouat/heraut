@@ -544,7 +544,7 @@
         },
         "branches": {
           "type": "array",
-          "description": "Release and maintenance branches (semver strategy only). An entry with a range, or a glob name without one, is a maintenance branch; an exact name without a range is a release branch. See docs/specs/02-configuration.md § versioning.branches.",
+          "description": "Release, maintenance and version branches (semver strategy only). An entry with a range, or a glob name whose matched branch ends in N.x / N.N.x / N.N, is a maintenance branch; a glob name whose matched branch ends in N.N.N (release/7.8.0) is a version branch whose name is its version; an exact name without a range is a release branch. See docs/specs/02-configuration.md § versioning.branches.",
           "items": {
             "$ref": "#/definitions/BranchRule"
           }

@@ -1,6 +1,6 @@
 # Version branches — the branch name is the version
 
-- **Status**: Draft (design), pending user review
+- **Status**: Implemented
 - **Date**: 2026-10-13
 - **Author**: bchatard (with Claude)
 - **Roadmap**: T348 (`docs/tasks/roadmap.md`, Phase 62)
@@ -51,7 +51,7 @@ Scope: `versioning.strategy: semver` only, like `branches` today.
 | `heraut release`, `v7.8.0` exists | error: tag exists; hint to pass `--pre-release rc` (only before the final) or `--set-build-id` |
 | `--pre-release rc` | `v7.8.0-rc.1`, then `-rc.2`, …, using the existing counter logic over this core |
 | `--pre-release rc`, final `v7.8.0` exists | error: a pre-release of a released version sorts below it |
-| `--set-build-id N` | `v7.8.0+N` (SemVer build metadata) |
+| `--set-version 7.8.0 --set-build-id N` | `v7.8.0+N` (SemVer build metadata; `--set-build-id` requires `--set-version`) |
 | `--set-version X` | X wins; a warning when X differs from the branch version; the existing collision guard applies |
 | `heraut version next` / `version current` | report what a release would cut / the branch line's latest tag |
 

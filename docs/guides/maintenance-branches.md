@@ -96,17 +96,21 @@ lists the merged-in fix, because it is in that section's history. This bounds-fi
 ## When the branch is the version
 
 A client fixes the version up front: `release/7.8.0` is cut, `feat`/`fix` commits land there for
-stabilisation, and the version never changes. That is not a maintenance line. Release it with the
-manual escape hatch:
+stabilisation, and the version never changes. With the same `release/*` entry as above, a branch
+whose name ends in `N.N.N` is a **version branch**, not a line:
 
 ```bash
-heraut release --set-version 7.8.0
-heraut release --set-version 7.8.0 --set-build-id 158404    # repeat store builds: v7.8.0+158404
+git switch release/7.8.0
+heraut release --pre-release rc                       # v7.8.0-rc.1, then v7.8.0-rc.2, ...
+heraut release                                        # v7.8.0, whatever the commits are
+heraut release --set-version 7.8.0 --set-build-id 158404    # repeat build: v7.8.0+158404
 ```
 
-`--set-version` is not range-checked, and it works on a branch that matches a `release/*` glob
-even though no range can be derived from `release/7.8.0`. A version that is already released —
-`v7.8.0`, or a build-metadata tag such as `v7.8.0+158404` — still fails before anything is
-written; use `--pre-release rc` or `--set-build-id` for re-releases (with `--set-build-id` only
-that exact tag is checked). Automating this as
-its own branch type is tracked as T348 in [`docs/tasks/roadmap.md`](../tasks/roadmap.md).
+- Commits never change the version, a `feat!:` included.
+- After `v7.8.0` exists, a plain `heraut release` and `--pre-release` are refused; a repeat build
+  is the explicit `--set-version 7.8.0 --set-build-id <id>`.
+- `--set-version` with another version still works and prints a warning that it differs from the
+  branch.
+- If a higher release (say `v7.9.0`) is already merged into the branch, `heraut` warns that the
+  branch version is lower than its history; a higher tag on another line is silent.
+- `release/1.3` in the same namespace is still a maintenance line.
