@@ -337,3 +337,58 @@ func TestClient_VerifyReleasesAccess_Rejected(t *testing.T) {
 	require.True(t, errors.As(err, &apiErr))
 	assert.Equal(t, http.StatusForbidden, apiErr.Response.StatusCode)
 }
+
+// TestClient_RedirectDropsTokenHeadersOnHostChange pins SEC-003 for the publish client: a redirect
+// to another host must not carry the job or private token (net/http strips only Authorization).
+func TestClient_RedirectDropsTokenHeadersOnHostChange(t *testing.T) {
+	tests := []struct {
+		name     string
+		jobToken bool
+		header   string
+	}{
+		{"job token", true, "Job-Token"},
+		{"private token", false, "Private-Token"},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			var seen http.Header
+			other := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				seen = r.Header.Clone()
+				w.Header().Set("Content-Type", "application/json")
+				_, _ = w.Write([]byte(`[]`))
+			}))
+			defer other.Close()
+			origin := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				http.Redirect(w, r, other.URL+"/elsewhere", http.StatusFound)
+			}))
+			defer origin.Close()
+
+			c, err := NewClient(origin.URL, "secret-token", tc.jobToken)
+			require.NoError(t, err)
+			require.NoError(t, c.VerifyReleasesAccess("group/project"))
+
+			require.NotNil(t, seen, "the redirect target must have been reached")
+			assert.Empty(t, seen.Get(tc.header), "the token must not follow a redirect to another host")
+		})
+	}
+}
+
+func TestClient_RedirectKeepsTokenOnSameHost(t *testing.T) {
+	var gotToken string
+	mux := http.NewServeMux()
+	mux.HandleFunc("/api/v4/", func(w http.ResponseWriter, r *http.Request) {
+		http.Redirect(w, r, "/moved", http.StatusFound)
+	})
+	mux.HandleFunc("/moved", func(w http.ResponseWriter, r *http.Request) {
+		gotToken = r.Header.Get("Private-Token")
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`[]`))
+	})
+	srv := httptest.NewServer(mux)
+	defer srv.Close()
+
+	c, err := NewClient(srv.URL, "secret-token", false)
+	require.NoError(t, err)
+	require.NoError(t, c.VerifyReleasesAccess("group/project"))
+	assert.Equal(t, "secret-token", gotToken, "a same-host redirect keeps the token")
+}

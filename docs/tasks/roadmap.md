@@ -238,7 +238,7 @@ discipline that applies to every task.
 | 67 | Refs that look like options reach git unguarded | Done — T372 |
 | 68 | `heraut notes` e2e coverage of range bounds and per-env | Done — T373 |
 | 69 | Agent-friendly CLI: JSON output and a bundled skill | Done — T374–T379 |
-| 70 | Forge and publish hardening | Not started — see `hardening-roadmap.md` |
+| 70 | Forge and publish hardening | In progress — T380 done, see `hardening-roadmap.md` |
 | 71 | Versioning correctness | Not started — see `hardening-roadmap.md` |
 | 72 | Pipeline, changelog write and recovery docs | Not started — see `hardening-roadmap.md` |
 | 73 | Structural debt | Not started — see `hardening-roadmap.md` |

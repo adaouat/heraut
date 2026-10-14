@@ -2,6 +2,7 @@ package gitlab
 
 import (
 	"fmt"
+	"net/http"
 	"os"
 	"path/filepath"
 	"strings"
@@ -32,7 +33,27 @@ func NewClient(baseURL, token string, jobToken bool) (*Client, error) {
 	if err != nil {
 		return nil, fmt.Errorf("creating GitLab client for %q: %w", baseURL, err)
 	}
+	dropTokenOnCrossHostRedirect(api.HTTPClient())
 	return &Client{api: api}, nil
+}
+
+// maxRedirects mirrors net/http's default limit, which a custom CheckRedirect replaces.
+const maxRedirects = 10
+
+// dropTokenOnCrossHostRedirect keeps the GitLab token on the host it was meant for. net/http
+// strips only Authorization and Cookie across hosts, so the Job-Token and Private-Token headers
+// client-go sets would otherwise follow a redirect to another host.
+func dropTokenOnCrossHostRedirect(c *http.Client) {
+	c.CheckRedirect = func(req *http.Request, via []*http.Request) error {
+		if len(via) >= maxRedirects {
+			return fmt.Errorf("stopped after %d redirects", maxRedirects)
+		}
+		if req.URL.Host != via[0].URL.Host {
+			req.Header.Del("Job-Token")
+			req.Header.Del("Private-Token")
+		}
+		return nil
+	}
 }
 
 // CreateRelease uploads each file to the project's Generic Packages registry, then creates the

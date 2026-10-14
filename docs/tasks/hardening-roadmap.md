@@ -45,7 +45,7 @@ and coverage does not drop below the gate".
 
 | Phase | Theme | Tasks | Status |
 |---|---|---|---|
-| 70 | Forge and publish hardening (pilot) | T380–T382 | Not started |
+| 70 | Forge and publish hardening (pilot) | T380–T382 | In progress (T380 done) |
 | 71 | Versioning correctness | T383–T386 | Not started |
 | 72 | Pipeline, changelog write and recovery docs | T387–T390 | Not started |
 | 73 | Structural debt | T391–T397 | Not started |
@@ -57,7 +57,7 @@ and coverage does not drop below the gate".
 Goal: close the three forge-side security findings. Entry: baseline above recorded. Pilot unit:
 T380; what it shows may reorder the rest.
 
-#### `[ ]` T380: do not forward GitLab token headers on a cross-host redirect
+#### `[x]` T380: do not forward GitLab token headers on a cross-host redirect
 
 `internal/forge/gitlab` builds an `http.Client` with no `CheckRedirect`, and Go forwards custom
 headers (`PRIVATE-TOKEN`, `JOB-TOKEN`) when a redirect changes host. Add a `CheckRedirect` that drops
@@ -66,6 +66,19 @@ second host, asserting the second host never sees the header. Also check the sam
 GitHub and Azure enrichment clients and the client-go transport in `internal/platforms/gitlab`
 (whether client-go follows redirects with the token is not yet verified): add a test for each client
 that is affected, or record that it is not.
+
+**Completion note:** both GitLab clients were affected and are fixed. `internal/forge/gitlab` (the
+enrichment client) and `internal/platforms/gitlab` (client-go, which sets `Job-Token`/`Private-Token`
+per request on a default pooled client) each now carry a `CheckRedirect` that deletes the token
+headers when a redirect leaves the original host, compares `URL.Host` against the first request, and
+keeps net/http's default limit of 10 (a custom `CheckRedirect` replaces it, so a test pins it). The
+enrichment client applies the policy to a copy of any client passed to `New`, unless the caller already
+set its own `CheckRedirect`; the publish client sets it on the client-go HTTP client after
+construction. The helper is duplicated rather than shared because `internal/platforms/*` may not
+import `internal/forge/*`. GitHub and Azure enrichment authenticate with the `Authorization` header
+only, which net/http already strips on a cross-domain redirect, so they are not affected and got no
+test. Deferred to T381: a redirect from `https` to `http` on the same host still forwards the token;
+that is the scheme policy, not the host policy.
 
 #### `[ ]` T381: require https for forge base URLs and compare scheme in `sameGitLabHost`
 
