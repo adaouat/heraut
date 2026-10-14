@@ -114,3 +114,99 @@ func TestEnrich_NoCommits(t *testing.T) {
 	assert.Empty(t, en.PRs)
 	assert.Empty(t, en.Authors)
 }
+
+// redirectTarget starts a second server that records the token headers it receives and answers
+// with an empty MR list.
+func redirectTarget(t *testing.T, seen *http.Header) *httptest.Server {
+	t.Helper()
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		*seen = r.Header.Clone()
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`[]`))
+	}))
+	t.Cleanup(srv.Close)
+	return srv
+}
+
+// TestEnrich_RedirectDropsTokenHeadersOnHostChange pins SEC-003: Go forwards custom headers on a
+// redirect, so a redirect to another host would otherwise receive the GitLab token.
+func TestEnrich_RedirectDropsTokenHeadersOnHostChange(t *testing.T) {
+	tests := []struct {
+		name   string
+		kind   port.TokenKind
+		header string
+	}{
+		{"job token", port.TokenJob, "JOB-TOKEN"},
+		{"private token", port.TokenPrivate, "PRIVATE-TOKEN"},
+	}
+	for _, tc := range tests {
+		for _, withClient := range []bool{false, true} {
+			name := tc.name + "/default client"
+			if withClient {
+				name = tc.name + "/provided client"
+			}
+			t.Run(name, func(t *testing.T) {
+				var seen http.Header
+				other := redirectTarget(t, &seen)
+				origin := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+					http.Redirect(w, r, other.URL+"/elsewhere", http.StatusFound)
+				}))
+				defer origin.Close()
+
+				var client *http.Client
+				if withClient {
+					client = &http.Client{Timeout: 5 * time.Second}
+				}
+				f := gitlab.New(port.ForgeIdentity{
+					Type: "gitlab", Host: origin.URL, APIURL: origin.URL + "/api/v4", Project: "group/project",
+					Token: "secret-token", TokenKind: tc.kind, APIMode: "rest",
+				}, client)
+
+				_, err := f.Enrich([]port.Commit{{Hash: "abc123"}}, "")
+				require.NoError(t, err)
+				require.NotNil(t, seen, "the redirect target must have been reached")
+				assert.Empty(t, seen.Get(tc.header), "the token must not follow a redirect to another host")
+				assert.Equal(t, "application/json", seen.Get("Accept"), "other headers are still forwarded")
+			})
+		}
+	}
+}
+
+func TestEnrich_RedirectKeepsTokenOnSameHost(t *testing.T) {
+	var gotToken string
+	mux := http.NewServeMux()
+	mux.HandleFunc("/api/v4/", func(w http.ResponseWriter, r *http.Request) {
+		http.Redirect(w, r, "/moved", http.StatusFound)
+	})
+	mux.HandleFunc("/moved", func(w http.ResponseWriter, r *http.Request) {
+		gotToken = r.Header.Get("PRIVATE-TOKEN")
+		_, _ = w.Write([]byte(`[]`))
+	})
+	srv := httptest.NewServer(mux)
+	defer srv.Close()
+
+	f := gitlab.New(port.ForgeIdentity{
+		Type: "gitlab", Host: srv.URL, APIURL: srv.URL + "/api/v4", Project: "group/project",
+		Token: "secret-token", TokenKind: port.TokenPrivate, APIMode: "rest",
+	}, nil)
+	_, err := f.Enrich([]port.Commit{{Hash: "abc123"}}, "")
+	require.NoError(t, err)
+	assert.Equal(t, "secret-token", gotToken, "a same-host redirect keeps the token")
+}
+
+func TestEnrich_RedirectLoopStopsAtNetHTTPDefaultLimit(t *testing.T) {
+	var hits int
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		hits++
+		http.Redirect(w, r, r.URL.Path, http.StatusFound)
+	}))
+	defer srv.Close()
+
+	f := gitlab.New(port.ForgeIdentity{
+		Type: "gitlab", Host: srv.URL, APIURL: srv.URL + "/api/v4", Project: "group/project",
+		Token: "secret-token", TokenKind: port.TokenPrivate, APIMode: "rest",
+	}, nil)
+	_, err := f.Enrich([]port.Commit{{Hash: "abc123"}}, "")
+	require.Error(t, err)
+	assert.Equal(t, 10, hits, "the limit net/http applies by default must survive a custom CheckRedirect")
+}
