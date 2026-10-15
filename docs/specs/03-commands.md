@@ -182,6 +182,16 @@ The version is pre-computed in step 2 and re-used in every subsequent step
 ([ADR-0011](../adr/0011-single-pipeline-release-via-pre-computation.md)) — no driver
 re-resolves it.
 
+### The remote is always `origin`
+
+heraut pushes the changelog commit (`git push origin HEAD`) and the tag (`git push origin <tag>`) to a
+remote named `origin`, and reads `git remote get-url origin` to detect the forge when none is configured
+and no CI environment names it. There is no setting for another remote name. A checkout whose upstream
+is called something else (a fork workflow, say) needs a remote called `origin` pointing at the repository
+to release: `git remote rename`, or `git remote add origin <url>`. Making the name configurable was
+considered and left out (T394): it would touch the schema, the sample and every recovery command for a
+need nobody has reported.
+
 ### Pre-commit hooks and the changelog commit
 
 heraut runs `git commit` without `--no-verify` — hooks always fire. If your pre-commit

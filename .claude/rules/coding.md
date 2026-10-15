@@ -42,14 +42,14 @@ internal/pipeline/            release + changelog flows (no factories)
 
 | Layer                | Allowed to import                                                                  |
 |----------------------|------------------------------------------------------------------------------------|
-| `cmd/heraut/`        | `internal/cmd/` only                                                               |
-| `internal/cmd/`      | `internal/{app,ui,config,scaffold,commitwizard,exitcode,port,skill}/`              |
+| `cmd/heraut/`        | `internal/cmd/`, `internal/ui/` (the entry point wires the banner and update hint) |
+| `internal/cmd/`      | `internal/{app,ui,config,scaffold,commitwizard,exitcode,port,skill}/`, plus the root `heraut` package (the embedded `CHANGELOG.md` for `whatsnew`) |
 | `internal/scaffold/` | `internal/{config,ui,versioning,forge}/`                                           |
 | `internal/commitwizard/` | `internal/{app,config,conventionalcommit,port,ui}/`                           |
 | `internal/app/`      | `internal/{port,config,pipeline,versioning,generators,platforms,forge,ui,conventionalcommit}/` |
 | `internal/pipeline/` | `internal/{port,config,versioning,ui}/`                                            |
 | `internal/generators/*` | `internal/{port,config,conventionalcommit}/` (conventionalcommit is a pure leaf — the native generator parses commits with it) |
-| `internal/platforms/*`  | `internal/{port,config}/`                                                          |
+| `internal/platforms/*`  | `internal/{port,config}/`, and `internal/platforms/` itself (the helpers the drivers share: asset globs) |
 | `internal/forge/*`   | `internal/{port,config}/`                                                          |
 | `internal/versioning/*` | `internal/{port,config,versioning,conventionalcommit}/`                         |
 | `internal/config/`   | nothing from heraut (it is at the bottom)                                          |
@@ -57,6 +57,7 @@ internal/pipeline/            release + changelog flows (no factories)
 | `internal/conventionalcommit/` | nothing from heraut (pure, like port/config)                             |
 | `internal/exitcode/` | nothing from heraut (pure, like port/config)                                       |
 | `internal/skill/`    | nothing from heraut (pure: the embedded agent skill, ADR-0072)                     |
+| `internal/ui/`       | nothing from heraut (pure: styling, banner, step spinner)                          |
 | `internal/testutil/` | `internal/port/` only (test doubles implementing the port interfaces)              |
 | `e2e/`               | `e2e/harness` and testify only, never an `internal/` package (it drives the built binary, ADR-0066) |
 

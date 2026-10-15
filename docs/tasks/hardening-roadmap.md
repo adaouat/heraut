@@ -378,16 +378,26 @@ the project's own URL and was left alone. The token env var names are still copi
 `pipeline/linkctx.go`, which the code comments explain (layering); not touched here. A test pins the exported
 values to `DefaultBaseURL`.
 
-#### `[ ]` T394: decide the `origin` remote
+#### `[x]` T394: decide the `origin` remote
 
 `origin` is hardcoded in `internal/pipeline/git.go` and `internal/app/pipeline.go`. Either add a
 configurable remote (config field, schema, sample, spec) or document the limit. Decide first.
 
-#### `[ ]` T395: reconcile the layer rules with the real imports
+**Completion note:** decided with the maintainer: document, do not add a field. Spec 03 gains "The remote is
+always `origin`" (the pushes, the forge detection, and how a checkout with another remote name adapts), and
+the recovery guide points to it. No code, schema or ADR change.
+
+#### `[x]` T395: reconcile the layer rules with the real imports
 
 `cmd/heraut` imports `internal/ui`, `internal/platforms/*` import a shared `internal/platforms`
 package, and `cmd` imports `exitcode`, none of which the layer table lists. Amend the table in
 `.claude/rules/coding.md` or change the code; decide first.
+
+**Completion note:** decided with the maintainer: amend the table. A script that read every package's real
+imports against the table found exactly three undocumented edges and one missing row: `cmd/heraut` ->
+`internal/ui`, `internal/cmd` -> the root `heraut` package (the embedded changelog), `internal/platforms/*` ->
+the shared `internal/platforms` package, and no row for `internal/ui` (a leaf, imports nothing from heraut).
+All four are added to `.claude/rules/coding.md`; no code moved. No other package breaks its row.
 
 #### `[ ]` T396: move policy code out of `internal/app`
 

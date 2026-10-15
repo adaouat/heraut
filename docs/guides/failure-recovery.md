@@ -5,6 +5,9 @@ happened stays (Spec 02 § Failure semantics, [ADR-0053](../adr/0053-release-lif
 This guide lists the states a failed run can leave and how to get out of each one. It never asks you
 to rewrite history, and every command below was run against a GitHub and a GitLab test repository.
 
+heraut always pushes to the remote named `origin` ([Spec 03](../specs/03-commands.md#the-remote-is-always-origin)),
+so the commands below use that name.
+
 The examples use the tag `v1.2.3`, the GitHub repository `acme/widget` and the GitLab project
 `acme/widget`; substitute your own.
 
