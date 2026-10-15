@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"path/filepath"
 	"slices"
 	"strings"
 	"time"
@@ -483,11 +484,45 @@ func (g *Generator) foreignFileError(err error) error {
 // writeChangelog writes body to cfg.Output when set and returns it.
 func (g *Generator) writeChangelog(body string) (string, error) {
 	if g.cfg.Output != "" {
-		if err := os.WriteFile(g.cfg.Output, []byte(body), 0o644); err != nil {
+		if err := writeFileAtomic(g.cfg.Output, []byte(body), 0o644); err != nil {
 			return "", fmt.Errorf("writing changelog %q: %w", g.cfg.Output, err)
 		}
 	}
 	return body, nil
+}
+
+// writeFileAtomic replaces path with data through a temp file in the same directory and a rename,
+// so a crash or a full disk leaves the previous file whole instead of truncated. A symlinked path
+// is resolved first: the rename replaces the link's target, not the link.
+func writeFileAtomic(path string, data []byte, perm os.FileMode) error {
+	if resolved, err := filepath.EvalSymlinks(path); err == nil {
+		path = resolved
+	}
+	tmp, err := os.CreateTemp(filepath.Dir(path), "."+filepath.Base(path)+".tmp-*")
+	if err != nil {
+		return err
+	}
+	tmpName := tmp.Name()
+	cleanup := func() { _ = os.Remove(tmpName) }
+	if _, err := tmp.Write(data); err != nil {
+		_ = tmp.Close()
+		cleanup()
+		return err
+	}
+	if err := tmp.Chmod(perm); err != nil {
+		_ = tmp.Close()
+		cleanup()
+		return err
+	}
+	if err := tmp.Close(); err != nil {
+		cleanup()
+		return err
+	}
+	if err := os.Rename(tmpName, path); err != nil {
+		cleanup()
+		return err
+	}
+	return nil
 }
 
 // renderRelease renders one changelog release section, or "" when the range has no

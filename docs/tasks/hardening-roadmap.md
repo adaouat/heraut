@@ -46,7 +46,7 @@ and coverage does not drop below the gate".
 | Phase | Theme | Tasks | Status |
 |---|---|---|---|
 | 70 | Forge and publish hardening (pilot) | T380–T382, T398 | Done |
-| 71 | Versioning correctness | T383–T386 | Done |
+| 71 | Versioning correctness | T383–T386, T399 | T399 open |
 | 72 | Pipeline, changelog write and recovery docs | T387–T390 | Not started |
 | 73 | Structural debt | T391–T397 | Not started |
 
@@ -225,6 +225,15 @@ on a taken tag now fails up front instead of after the changelog commit is pushe
 --set-version` in a directory that is not a git repository now fails, as the rest of `release` does.
 Phase 71 is done.
 
+#### `[ ]` T399: report the highest parsed tag as `CurrentTag` under `calver-per-env`
+
+Follow-up to T384. calver-per-env derives the next version from the highest parsed tag, but
+`Result.CurrentTag` (and so the `previous_tag` hook variable and `heraut version current`) is still the
+first release tag in git's order. When git's order is wrong (clock-skewed taggers, a tag cut by hand), the
+two can name different tags. Report the tag the next version was derived from. Characterization test
+first: with tags in a misleading order, `CurrentTag` equals the tag that fed the next version. SemVer
+per-env is untouched (git's `-version:refname` order is the version order there).
+
 ---
 
 ### Phase 72 — Pipeline, changelog write and recovery docs
@@ -232,11 +241,20 @@ Phase 71 is done.
 Goal: make the changelog write safe, document the hook and failure contracts, and tidy the release
 flow. Entry: Phase 71 done.
 
-#### `[ ]` T387: write the changelog atomically
+#### `[x]` T387: write the changelog atomically
 
 `internal/generators/native/generator.go` writes with `os.WriteFile` in place. Write a temp file in
 the same directory and rename it, keeping mode `0644`. Test an interrupted write leaves the original
 file intact.
+
+**Completion note:** `writeChangelog` now goes through `writeFileAtomic`: `os.CreateTemp` next to the
+target, write, chmod `0644`, close, rename; the temp file is removed on any failure. A symlinked changelog
+path is resolved with `filepath.EvalSymlinks` first, so the link survives and its target is replaced (an
+in-place `os.WriteFile` did the same, so this keeps behavior). The "interrupted write" test makes the
+directory read-only: the old in-place write still truncated the writable file and passed, the new one fails
+with the original byte for byte intact and no temp file left; it is skipped on Windows and for root. One
+visible effect: a changelog that is writable inside a read-only directory is now refused, where it used to
+be overwritten. Tests in `writechangelog_internal_test.go`.
 
 #### `[ ]` T388: document the hook variable contract and the untrusted-config warning
 

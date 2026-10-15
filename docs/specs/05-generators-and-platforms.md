@@ -246,6 +246,10 @@ previously-anchorless file) — see [ADR-0038](../adr/0038-incremental-changelog
 migration story, including the `regenerate_changelog` `workflow_dispatch` input heraut's own CI
 uses for its own migration.
 
+**Atomic write.** The changelog is written to a temp file in the same directory and renamed over the
+target (mode `0644`), so a crash or a full disk leaves the previous file whole. A symlinked changelog
+path is resolved first: the link is kept and its target replaced.
+
 **Rotating `changelog.output`** (see [Spec 02 § Rotating changelog output](02-configuration.md#rotating-changelog-output))
 reuses this same bootstrap path unchanged for each new file: the first release in a new period/
 release-line bucket hits "missing file → bootstrap" exactly as above. The one addition is bounding
