@@ -140,6 +140,15 @@ To skip only some of these points for one run, use `--skip-hook <point>` (or the
 valid values; `heraut changelog` accepts only the four it runs. See
 [Spec 02 § `--skip-hook`](../specs/02-configuration.md#--skip-hook-and-heraut_skip_hooks).
 
+## Quoting and untrusted configs
+
+Hook template values are pasted into the command text unquoted, then parsed by the shell, so quote
+them yourself when they could hold a space or shell syntax: `notify '{{ .Tag }}'`. Single quotes keep a
+value inert; double quotes still allow `$(...)`. The config file is the trust boundary: a hook runs with
+the credentials of whoever runs heraut, so **never run heraut with hooks from a pull request's
+`.heraut.yml` that you did not review**, in CI above all. Use the base branch's config, or `--no-hooks`.
+Details in [Spec 02 § Quoting and trust](../specs/02-configuration.md#quoting-and-trust).
+
 ## See also
 
 - [ADR-0053: Release lifecycle hooks](../adr/0053-release-lifecycle-hooks.md) — why hooks

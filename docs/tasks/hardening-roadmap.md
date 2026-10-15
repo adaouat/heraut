@@ -47,7 +47,7 @@ and coverage does not drop below the gate".
 |---|---|---|---|
 | 70 | Forge and publish hardening (pilot) | T380–T382, T398 | Done |
 | 71 | Versioning correctness | T383–T386, T399 | T399 open |
-| 72 | Pipeline, changelog write and recovery docs | T387–T390 | Not started |
+| 72 | Pipeline, changelog write and recovery docs | T387–T390, T400 | In progress |
 | 73 | Structural debt | T391–T397 | Not started |
 
 ---
@@ -256,12 +256,24 @@ with the original byte for byte intact and no temp file left; it is skipped on W
 visible effect: a changelog that is writable inside a read-only directory is now refused, where it used to
 be overwritten. Tests in `writechangelog_internal_test.go`.
 
-#### `[ ]` T388: document the hook variable contract and the untrusted-config warning
+#### `[x]` T388: document the hook variable contract and the untrusted-config warning
 
 Document that hook template values are inserted into `sh -c` unquoted, that quoting is the hook
 author's job, and that CI must not run hooks from an untrusted pull request's config. Spec and guide
 update, with an ADR note if the existing hook ADRs (0053, 0054) need amending. Add a test that a tag
 with shell syntax reaches a hook only through the documented path.
+
+**Completion note:** Spec 02 gains a "Quoting and trust" subsection under the template variables, and the
+hooks guide a short "Quoting and untrusted configs" section; ADR-0053 got a dated clarification line, not a
+new ADR, since no decision moved. The doc says only what was checked: single quotes keep a value inert,
+double quotes do not stop `$(...)`, and `Version`/`Tag`/`PreviousTag` come from the config's `tag_format`
+plus a parsed version (T383 closed the one path that let a stray ref in). The test
+(`internal/pipeline/hooks_shell_test.go`) runs a real `sh` with a `PreviousTag` of `v1.0.0$(touch pwned)`:
+unquoted and double-quoted expand it, single-quoted does not. It is a characterization, so it passed on
+first run, as the behavior is unchanged; it fails if heraut ever starts quoting values. Found while
+checking the claims: under `calver-per-env`, `--set-build-id` is only checked for `/` and whitespace, so a
+build ID such as `x$(id)` reaches `Tag` and the hooks. The doc says so instead of promising more; the
+tightening is T400. Not verified: how `--env` is validated outside the per-env strategies.
 
 #### `[ ]` T389: write the failure-recovery guide
 
@@ -278,6 +290,14 @@ No history rewriting is described.
 dry-run path repeats it while discarding errors with `_ =`. Split into named steps and drive both
 paths from the same step list. Test that the `--json` plan equals the executed steps. Move-only where
 possible.
+
+#### `[ ]` T400: restrict the `calver-per-env` build ID to tag-safe characters
+
+Found by T388. `--set-build-id` under `calver-per-env` is checked only for `/` and whitespace
+(`tagfmt.ValidateBuildID`), so shell syntax such as `x$(id)` reaches `Tag` and the hook variables, while
+the SemVer strategies already require dot-separated `[0-9A-Za-z-]` identifiers. Decide the allowed set
+(likely `[0-9A-Za-z._-]`), ADR first since a tested behavior changes, then test and enforce it. Also check
+that `--env` is rejected when it names no configured environment under every strategy.
 
 ---
 

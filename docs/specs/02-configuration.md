@@ -1241,6 +1241,26 @@ per-environment config keys ([ADR-0053](../adr/0053-release-lifecycle-hooks.md),
 [ADR-0055](../adr/0055-env-hook-template-variable.md)) — `hooks:` itself stays a single flat
 block regardless of how many environments or platforms a config targets.
 
+#### Quoting and trust
+
+A template value is inserted into the command text **as it is, with no quoting or escaping**, and
+the shell then parses that text. Quoting is the hook author's job: `echo {{ .Tag }}` is parsed as
+shell, so a value holding a space, `;`, `|`, `$(...)` or a backtick changes the command. Single
+quotes keep a value inert; double quotes do not stop a `$(...)` or backtick substitution. heraut
+keeps this contract on purpose (ADR-0053): quoting for one shell would be wrong for another
+(ADR-0054), and a hook author knows where the value lands.
+
+What reaches a hook: `Version`, `Tag` and `PreviousTag` are built from the `tag_format` in your
+config plus a parsed version, and `Platform` is a name from your config. Two values can also come from
+the command line: `Env` (`--env`) and, under `calver-per-env`, the build ID (`--set-build-id`, which
+ends up in `Tag`), where heraut only rejects `/` and whitespace. A pipeline that passes untrusted text
+(a branch name, a PR title) to those flags must quote the variables in its hooks. The config file is the trust boundary: **anyone
+who can change `.heraut.yml` can run any command the invoking user or CI job can run.** Do not run
+`heraut release` or `heraut changelog` with hooks from a config that an untrusted pull request
+supplied: a CI job that checks out a fork's head and runs heraut there executes the fork's hooks with
+that job's credentials. Run heraut from the base branch's config, or pass `--no-hooks` for
+untrusted input.
+
 ### `stage` (ADR-0061)
 
 A hook step's `stage` field lists the file path(s)/pattern(s) that step's `run` command

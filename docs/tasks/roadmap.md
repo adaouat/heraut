@@ -240,7 +240,7 @@ discipline that applies to every task.
 | 69 | Agent-friendly CLI: JSON output and a bundled skill | Done — T374–T379 |
 | 70 | Forge and publish hardening | Done — T380–T382 and T398, see `hardening-roadmap.md` |
 | 71 | Versioning correctness | T383–T386 done, T399 open — see `hardening-roadmap.md` |
-| 72 | Pipeline, changelog write and recovery docs | Not started — see `hardening-roadmap.md` |
+| 72 | Pipeline, changelog write and recovery docs | In progress — see `hardening-roadmap.md` |
 | 73 | Structural debt | Not started — see `hardening-roadmap.md` |
 
 ### Open items

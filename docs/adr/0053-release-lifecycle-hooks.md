@@ -36,6 +36,11 @@ invoking user or CI credentials can run — identical to a CI YAML `run:` step. 
 risk heraut introduces so much as a capability heraut now has for the first time, and it should
 be documented as a deliberate boundary crossing rather than something that crept in.
 
+*Clarification (T388, 2026-10-15):* template values are inserted into the command text unquoted
+and quoting is the hook author's job; the trust boundary also means a CI job must not run hooks from
+an untrusted pull request's config. Spec 02 § Quoting and trust is the reference. No decision here
+changes.
+
 **Failure semantics** are, by design, almost entirely inherited rather than invented: a failing
 hook at `post_bump`/`pre_changelog`/`pre_tag`/`post_tag` aborts the run exactly like any other
 step failure already does — no new rollback machinery, since none exists anywhere else in the
