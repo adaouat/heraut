@@ -335,10 +335,19 @@ that `--env` is rejected when it names no configured environment under every str
 Goal: reduce the size and coupling of the largest files, without behavior change. Entry: Phase 72
 done and coverage still above the gate.
 
-#### `[ ]` T391: split `internal/config/validator.go` by concern
+#### `[x]` T391: split `internal/config/validator.go` by concern
 
 About 1,100 lines. Split by concern (forges and targets, commits, per-env, hooks); `ValidationErrors`
 and messages unchanged.
+
+**Completion note:** `validator.go` (1,151 lines) is now seven files in `internal/config/`: `validator.go`
+(enum tables, `Validate`, required fields, enums, 119 lines), `validate_versioning.go` (bump, branches,
+strategy rules, tag-format helpers), `validate_commits.go` (tickets, commit types and rules),
+`validate_forges.go` (forges, targets, release blocks), `validate_rendering.go` (rendering, trailers,
+template snippets, content drivers), `validate_perenv.go` (environments, contradictions, cycles) and
+`validate_hooks.go`. Move-only: the sorted non-blank lines of the old file equal those of the new files
+except `package`, `import` and `var (` lines, and no test changed. `validCommitRuleTargets` and
+`commitTypePattern` moved to the commits file with the code that uses them.
 
 #### `[ ]` T392: handle flag-read errors in cobra constructors
 
