@@ -687,11 +687,11 @@
         },
         "base_url": {
           "type": "string",
-          "description": "Web base URL of the forge instance (e.g. https://gitlab.example.com for a self-hosted instance). Defaults per type when unset."
+          "description": "Web base URL of the forge instance (e.g. https://gitlab.example.com for a self-hosted instance). Must be https (plain http is accepted only for loopback hosts). Defaults per type when unset."
         },
         "api_url": {
           "type": "string",
-          "description": "API host override, when it differs from base_url. Defaults per type when unset."
+          "description": "API host override, when it differs from base_url. Must be https (plain http is accepted only for loopback hosts). Defaults per type when unset."
         },
         "api_mode": {
           "type": "string",

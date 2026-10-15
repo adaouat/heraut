@@ -288,19 +288,37 @@ func validateForges(cfg *Config) []ValidationError {
 				Hint:    "valid api_mode values: rest, graphql",
 			})
 		}
-		if f.BaseURL != "" && !isValidBaseURL(f.BaseURL) {
-			errs = append(errs, ValidationError{
-				Path:    path + ".base_url",
-				Message: fmt.Sprintf("%q is not a valid URL", f.BaseURL),
-				Hint:    "base_url must be an absolute http(s) URL, e.g. https://gitlab.example.com",
-			})
+		if f.BaseURL != "" {
+			switch {
+			case !isValidBaseURL(f.BaseURL):
+				errs = append(errs, ValidationError{
+					Path:    path + ".base_url",
+					Message: fmt.Sprintf("%q is not a valid URL", f.BaseURL),
+					Hint:    "base_url must be an absolute https URL, e.g. https://gitlab.example.com",
+				})
+			case !IsSecureURL(f.BaseURL):
+				errs = append(errs, ValidationError{
+					Path:    path + ".base_url",
+					Message: fmt.Sprintf("%q must use https", f.BaseURL),
+					Hint:    "the forge token is sent to this host: use an https URL (plain http is accepted only for localhost and loopback addresses)",
+				})
+			}
 		}
-		if f.APIURL != "" && !isValidBaseURL(f.APIURL) {
-			errs = append(errs, ValidationError{
-				Path:    path + ".api_url",
-				Message: fmt.Sprintf("%q is not a valid URL", f.APIURL),
-				Hint:    "api_url must be an absolute http(s) URL, e.g. https://gitlab.example.com/api",
-			})
+		if f.APIURL != "" {
+			switch {
+			case !isValidBaseURL(f.APIURL):
+				errs = append(errs, ValidationError{
+					Path:    path + ".api_url",
+					Message: fmt.Sprintf("%q is not a valid URL", f.APIURL),
+					Hint:    "api_url must be an absolute https URL, e.g. https://gitlab.example.com/api",
+				})
+			case !IsSecureURL(f.APIURL):
+				errs = append(errs, ValidationError{
+					Path:    path + ".api_url",
+					Message: fmt.Sprintf("%q must use https", f.APIURL),
+					Hint:    "the forge token is sent to this URL: use an https URL (plain http is accepted only for localhost and loopback addresses)",
+				})
+			}
 		}
 
 		// Only entries with a valid platform take part in the destination scan: an entry

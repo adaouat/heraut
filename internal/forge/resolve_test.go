@@ -152,3 +152,33 @@ func TestResolve_NoForgeOffline(t *testing.T) {
 	require.NoError(t, err)
 	assert.Empty(t, got.Forges)
 }
+
+// TestResolve_RejectsPlainHTTPToARemoteHost pins SEC-004: the token travels to the resolved host and
+// API URL, so a CI variable or config naming a remote host over plain http is refused.
+func TestResolve_RejectsPlainHTTPToARemoteHost(t *testing.T) {
+	ci := func(server, api string) func(string) string {
+		return env(map[string]string{
+			"GITLAB_CI": "true", "CI_SERVER_URL": server, "CI_API_V4_URL": api,
+			"CI_PROJECT_PATH": "group/project", "CI_JOB_TOKEN": "jobtok",
+		})
+	}
+	t.Run("CI_SERVER_URL over http", func(t *testing.T) {
+		_, err := forge.Resolve(&config.Config{}, ci("http://gitlab.example.com", "https://gitlab.example.com/api/v4"), "")
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "https")
+	})
+	t.Run("CI_API_V4_URL over http", func(t *testing.T) {
+		_, err := forge.Resolve(&config.Config{}, ci("https://gitlab.example.com", "http://gitlab.example.com/api/v4"), "")
+		require.Error(t, err)
+	})
+	t.Run("config base_url over http", func(t *testing.T) {
+		cfg := &config.Config{Forges: []config.Forge{{Name: "A", Type: "gitlab", BaseURL: "http://gitlab.example.com"}}}
+		_, err := forge.Resolve(cfg, env(nil), "")
+		require.Error(t, err)
+	})
+	t.Run("loopback over http is allowed", func(t *testing.T) {
+		got, err := forge.Resolve(&config.Config{}, ci("http://127.0.0.1:8080", "http://127.0.0.1:8080/api/v4"), "")
+		require.NoError(t, err)
+		require.Len(t, got.Forges, 1)
+	})
+}

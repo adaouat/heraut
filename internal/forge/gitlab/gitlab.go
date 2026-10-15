@@ -31,6 +31,12 @@ func New(id port.ForgeIdentity, client *http.Client) *Forge {
 // maxRedirects mirrors net/http's default limit, which a custom CheckRedirect replaces.
 const maxRedirects = 10
 
+// leavesTrustedOrigin reports whether a redirect goes to another host, or drops from https to plain
+// http, where the token would be sent in the clear.
+func leavesTrustedOrigin(next, first *http.Request) bool {
+	return next.URL.Host != first.URL.Host || (first.URL.Scheme == "https" && next.URL.Scheme != "https")
+}
+
 // withTokenSafeRedirects returns a copy of c whose redirects never carry the GitLab token to
 // another host. net/http strips only Authorization and Cookie across hosts, so JOB-TOKEN and
 // PRIVATE-TOKEN would otherwise follow the redirect. A CheckRedirect the caller set is kept.
@@ -43,7 +49,7 @@ func withTokenSafeRedirects(c *http.Client) *http.Client {
 		if len(via) >= maxRedirects {
 			return fmt.Errorf("stopped after %d redirects", maxRedirects)
 		}
-		if req.URL.Host != via[0].URL.Host {
+		if leavesTrustedOrigin(req, via[0]) {
 			req.Header.Del("JOB-TOKEN")
 			req.Header.Del("PRIVATE-TOKEN")
 		}

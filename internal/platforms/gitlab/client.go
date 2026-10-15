@@ -8,6 +8,8 @@ import (
 	"strings"
 
 	gl "gitlab.com/gitlab-org/api/client-go"
+
+	"github.com/adaouat/heraut/internal/config"
 )
 
 // assetPackageName is the Generic Packages package that holds every release asset.
@@ -21,6 +23,9 @@ type Client struct {
 // NewClient builds a client for baseURL (instance root, optionally with a relative URL root).
 // With jobToken the token is sent as JOB-TOKEN (CI_JOB_TOKEN), otherwise as PRIVATE-TOKEN.
 func NewClient(baseURL, token string, jobToken bool) (*Client, error) {
+	if !config.IsSecureURL(baseURL) {
+		return nil, fmt.Errorf("GitLab base URL %q must use https (plain http is accepted only for localhost and loopback addresses)", baseURL)
+	}
 	var (
 		api *gl.Client
 		err error
@@ -48,7 +53,8 @@ func dropTokenOnCrossHostRedirect(c *http.Client) {
 		if len(via) >= maxRedirects {
 			return fmt.Errorf("stopped after %d redirects", maxRedirects)
 		}
-		if req.URL.Host != via[0].URL.Host {
+		// Another host, or a drop from https to plain http where the token would travel in the clear.
+		if req.URL.Host != via[0].URL.Host || (via[0].URL.Scheme == "https" && req.URL.Scheme != "https") {
 			req.Header.Del("Job-Token")
 			req.Header.Del("Private-Token")
 		}

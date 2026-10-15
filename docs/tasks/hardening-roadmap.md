@@ -45,7 +45,7 @@ and coverage does not drop below the gate".
 
 | Phase | Theme | Tasks | Status |
 |---|---|---|---|
-| 70 | Forge and publish hardening (pilot) | T380–T382 | In progress (T380 done) |
+| 70 | Forge and publish hardening (pilot) | T380–T382 | In progress (T380, T381 done) |
 | 71 | Versioning correctness | T383–T386 | Not started |
 | 72 | Pipeline, changelog write and recovery docs | T387–T390 | Not started |
 | 73 | Structural debt | T391–T397 | Not started |
@@ -77,16 +77,29 @@ set its own `CheckRedirect`; the publish client sets it on the client-go HTTP cl
 construction. The helper is duplicated rather than shared because `internal/platforms/*` may not
 import `internal/forge/*`. GitHub and Azure enrichment authenticate with the `Authorization` header
 only, which net/http already strips on a cross-domain redirect, so they are not affected and got no
-test. Deferred to T381: a redirect from `https` to `http` on the same host still forwards the token;
-that is the scheme policy, not the host policy.
+test. A redirect from `https` to `http` on the same host still forwarded the token; T381 closed it.
 
-#### `[ ]` T381: require https for forge base URLs and compare scheme in `sameGitLabHost`
+#### `[x]` T381: require https for forge base URLs and compare scheme in `sameGitLabHost`
 
 `base_url` and `CI_SERVER_URL` currently accept `http://` and any host, and `sameGitLabHost` ignores
 the scheme, so a changed `base_url` can aim the token at another host. Require `https` except for
 loopback, compare scheme and host, and say the policy in the validator hint. Decide before coding
 whether an explicit opt-out for internal HTTP servers is needed; if so, it is an ADR and a new config
 field with `schema.json` and `docs/heraut.sample.yml` updated together.
+
+**Completion note:** decided with the maintainer: https is mandatory and there is no opt-out, so no
+ADR and no new config field. The one exception is a loopback host (`localhost`, `127.0.0.0/8`, `::1`
+over http), kept for local servers and because the test suite runs against `httptest`. A new
+`config.IsSecureURL` is the single rule, used at three points: the validator refuses an `http://`
+`forges[].base_url` or `api_url` with a hint (the ticket URL check is unchanged, it carries no
+token); `forge.Resolve` refuses an identity whose host or API URL is plain http after config, CI
+variables (`CI_SERVER_URL`, `CI_API_V4_URL`) and defaults are merged; and the GitLab publish
+`NewClient` refuses a plain-http base URL before building the client-go client. `sameGitLabHost` now
+compares scheme and host, so the job token is not trusted for an http URL when the runner is https.
+Spec 05 and the `schema.json` descriptions say so. Both redirect policies (T380) now also drop the token on a same-host `https` to `http` redirect,
+pinned by tests that call `CheckRedirect` directly because two test servers never share a host.
+Not covered: the GitHub driver, which hands the host to `gh` through `GH_HOST`; where `gh` picks the
+scheme is not verified.
 
 #### `[ ]` T382: confine release asset globs to the repository
 

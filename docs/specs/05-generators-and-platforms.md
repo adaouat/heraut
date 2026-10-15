@@ -524,8 +524,11 @@ release does not delete its package files.
 
 ### Self-hosted instances and multiple entries of the same type (ADR-0025)
 
-`base_url` may be set to any absolute `http(s)://` URL — including a host other than the
-platform's default (`github.com` / `gitlab.com`). When `base_url` is self-hosted, heraut:
+`base_url` may be set to any absolute `https://` URL — including a host other than the
+platform's default (`github.com` / `gitlab.com`). Plain `http://` is refused, for `base_url`,
+`api_url` and the CI-provided `CI_SERVER_URL` / `CI_API_V4_URL`, because the forge token is sent to
+that host; the only exception is a loopback host (`localhost`, `127.0.0.0/8`, `::1`), which exists
+for local servers and tests. When `base_url` is self-hosted, heraut:
 
 - Points the driver at that host: the GitLab client is built on `base_url`; `GH_HOST=<host>` +
   `GH_ENTERPRISE_TOKEN=<token>` for GitHub Enterprise Server.

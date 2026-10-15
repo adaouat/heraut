@@ -169,15 +169,17 @@ func (p *Platform) inCIAutologin() bool {
 	return sameGitLabHost(p.cfg.BaseURL, os.Getenv("CI_SERVER_URL"))
 }
 
-// sameGitLabHost reports whether a and b name the same GitLab instance, comparing only the host
-// (scheme and trailing-slash differences are ignored). Either side missing or unparsable is "no".
+// sameGitLabHost reports whether a and b name the same GitLab instance, comparing scheme and host
+// (a trailing slash or letter case is ignored). Either side missing or unparsable is "no". The
+// scheme counts: trusting the job token for an http URL when the runner is https would send it in
+// the clear.
 func sameGitLabHost(a, b string) bool {
 	ua, errA := url.Parse(a)
 	ub, errB := url.Parse(b)
 	if errA != nil || errB != nil || ua.Host == "" || ub.Host == "" {
 		return false
 	}
-	return ua.Host == ub.Host
+	return strings.EqualFold(ua.Scheme, ub.Scheme) && strings.EqualFold(ua.Host, ub.Host)
 }
 
 // CreateRelease uploads the resolved asset files and creates the release (Client.CreateRelease).

@@ -31,10 +31,36 @@ type Resolved struct {
 // git origin remote. getenv and gitOrigin are injected for testability; production callers pass
 // os.Getenv and the parsed `git remote get-url origin`.
 func Resolve(cfg *config.Config, getenv func(string) string, gitOrigin string) (Resolved, error) {
+	var (
+		res Resolved
+		err error
+	)
 	if len(cfg.Forges) > 0 {
-		return resolveExplicit(cfg, getenv, gitOrigin)
+		res, err = resolveExplicit(cfg, getenv, gitOrigin)
+	} else {
+		res, err = resolveAuto(getenv, gitOrigin)
 	}
-	return resolveAuto(getenv, gitOrigin)
+	if err != nil {
+		return Resolved{}, err
+	}
+	for _, id := range res.Forges {
+		if err := requireSecure(id); err != nil {
+			return Resolved{}, err
+		}
+	}
+	return res, nil
+}
+
+// requireSecure refuses an identity whose host or API URL would receive the token over plain
+// http. The values come from config, from CI variables, or from defaults, so the check sits after
+// all of them are merged.
+func requireSecure(id port.ForgeIdentity) error {
+	for _, u := range []struct{ what, value string }{{"host", id.Host}, {"API URL", id.APIURL}} {
+		if u.value != "" && !config.IsSecureURL(u.value) {
+			return fmt.Errorf("%s forge %s %q must use https (plain http is accepted only for localhost and loopback addresses)", id.Type, u.what, u.value)
+		}
+	}
+	return nil
 }
 
 // resolveExplicit builds one ForgeIdentity per cfg.Forges entry. Each field fills gaps in order:
