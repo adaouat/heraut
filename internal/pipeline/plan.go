@@ -25,70 +25,24 @@ type Plan struct {
 	Steps      []PlanStep
 }
 
-// Plan resolves the version and lists the actions Run would take, in order. Hooks are rendered,
-// never executed.
+// Plan resolves the version and lists the actions Run would take, in order, from the same step
+// list Run executes. Hooks are rendered, never executed.
 func (p *Pipeline) Plan() (Plan, error) {
 	result, err := p.resolver.Resolve()
 	if err != nil {
 		return Plan{}, fmt.Errorf("resolving version: %w", err)
 	}
-	vars := p.hookVars(result)
-	prerelease := p.cfg.SemVerStrategy && isPreRelease(result.Version)
-	plan := Plan{Tag: result.Tag, Version: result.Version, CurrentTag: result.CurrentTag, PreRelease: prerelease, Warnings: result.Warnings}
-
-	hook := func(point, target string, steps []HookStep, v hookVars) error {
-		if p.cfg.NoHooks || len(steps) == 0 {
-			return nil
+	flow := p.releaseFlow(result)
+	plan := Plan{Tag: result.Tag, Version: result.Version, CurrentTag: result.CurrentTag, PreRelease: flow.prerelease, Warnings: result.Warnings}
+	for _, s := range flow.steps() {
+		if s.plan == nil {
+			continue
 		}
-		rendered, err := renderHookSteps(steps, v)
+		entries, err := s.plan()
 		if err != nil {
-			return err
-		}
-		step := PlanStep{Action: "hook", Point: point, Target: target}
-		for _, r := range rendered {
-			step.Commands = append(step.Commands, r.Run)
-		}
-		step.Stage = stagePatterns(rendered)
-		plan.Steps = append(plan.Steps, step)
-		return nil
-	}
-
-	if err := hook("post_bump", "", p.cfg.PostBumpHooks, vars); err != nil {
-		return Plan{}, err
-	}
-	if p.cfg.Changelog != nil && !p.cfg.DisableChangelog {
-		file := resolvedChangelogFile(p.cfg.Changelog, p.cfg.ChangelogFile)
-		if err := hook("pre_changelog", "", p.cfg.PreChangelogHooks, vars); err != nil {
 			return Plan{}, err
 		}
-		plan.Steps = append(plan.Steps,
-			PlanStep{Action: "changelog", Target: file},
-			PlanStep{Action: "commit_changelog", Target: file})
-	}
-	if err := hook("pre_tag", "", p.cfg.PreTagHooks, vars); err != nil {
-		return Plan{}, err
-	}
-	plan.Steps = append(plan.Steps,
-		PlanStep{Action: "tag", Target: result.Tag},
-		PlanStep{Action: "push_tag", Target: result.Tag})
-	if err := hook("post_tag", "", p.cfg.PostTagHooks, vars); err != nil {
-		return Plan{}, err
-	}
-
-	notes := p.cfg.Notes != nil && !p.cfg.DisableNotes
-	if notes && len(p.cfg.Platforms) <= 1 {
-		plan.Steps = append(plan.Steps, PlanStep{Action: "notes"})
-	}
-	for _, plat := range p.cfg.Platforms {
-		platVars := vars
-		platVars.Platform = plat.Name()
-		if err := hook("pre_release", plat.Name(), p.cfg.PreReleaseHooks, platVars); err != nil {
-			return Plan{}, err
-		}
-		plan.Steps = append(plan.Steps, PlanStep{Action: "publish", Target: plat.Name(), Notes: notes, Assets: plat.HasAssets(), PreRelease: prerelease})
-		if err := hook("post_release", plat.Name(), p.cfg.PostReleaseHooks, platVars); err != nil {
-			return Plan{}, err
-		}
+		plan.Steps = append(plan.Steps, entries...)
 	}
 	return plan, nil
 }

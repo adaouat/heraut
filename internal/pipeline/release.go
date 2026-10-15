@@ -1,7 +1,6 @@
 package pipeline
 
 import (
-	"errors"
 	"fmt"
 	"io"
 	"log/slog"
@@ -59,81 +58,6 @@ func (p *Pipeline) hookVars(result versioning.Result) hookVars {
 	return hookVars{Version: result.Version, Tag: result.Tag, PreviousTag: result.CurrentTag, Env: p.cfg.Env}
 }
 
-// runHookPointStep renders and executes steps (one hook point's configured commands) as a
-// reported step named name, skipping entirely — no step reported — when shouldRunHooks says
-// this point shouldn't run (dry-run, --no-hooks, or nothing configured). The first return value
-// carries the rendered Stage patterns collected during a real execution; nil when skipped.
-func (p *Pipeline) runHookPointStep(name string, steps []HookStep, vars hookVars) ([]string, error) {
-	if !shouldRunHooks(p.dryRun, p.cfg.NoHooks, steps) {
-		return nil, nil
-	}
-	var staged []string
-	err := p.runStep(name, func() (string, []string, error) {
-		rendered, err := runHookPointSteps(p.git.interactiveOrRunner(), steps, vars)
-		if err != nil {
-			return "", nil, err
-		}
-		staged = stagePatterns(rendered)
-		return "", nil, nil
-	})
-	return staged, err
-}
-
-// runOrRenderHookPoint executes steps for real, or — during --dry-run — renders what would run
-// (as a reporter step or a plain line, matching whichever output mode is active) without ever
-// executing anything. Used at call sites reached before dryRunOutput's own dry-run rendering —
-// currently only post_bump, since it fires unconditionally on resolve (ADR-0053). The first
-// return value carries the rendered Stage patterns collected during a real execution; nil in
-// every other case.
-func (p *Pipeline) runOrRenderHookPoint(name string, steps []HookStep, vars hookVars) ([]string, error) {
-	if !p.dryRun {
-		return p.runHookPointStep(name, steps, vars)
-	}
-	if p.reporter != nil {
-		return nil, p.dryRunHookStep(name, steps, vars)
-	}
-	return nil, p.printDryRunHookLinesPlain(steps, vars)
-}
-
-// dryRunHookLinesOrNil renders steps into "[dry-run] would run: <cmd>" lines (T271), or nil, nil
-// when NoHooks is set or nothing is configured — the dry-run counterpart to shouldRunHooks.
-func (p *Pipeline) dryRunHookLinesOrNil(steps []HookStep, vars hookVars) ([]string, error) {
-	if p.cfg.NoHooks {
-		return nil, nil
-	}
-	return dryRunHookLines(steps, vars)
-}
-
-// dryRunHookStep reports a would-run hook point as its own step, named identically to the real
-// step runHookPointStep would report, so dry-run's step sequence matches a real run's exactly.
-// A render error aborts the dry-run (propagated, not discarded) — dry-run promises to show what
-// would happen, and a broken hook template is real, actionable information.
-func (p *Pipeline) dryRunHookStep(name string, steps []HookStep, vars hookVars) error {
-	lines, err := p.dryRunHookLinesOrNil(steps, vars)
-	if err != nil {
-		return err
-	}
-	if len(lines) == 0 {
-		return nil
-	}
-	return p.runStep(name, func() (string, []string, error) {
-		return lines[0], lines[1:], nil
-	})
-}
-
-// printDryRunHookLinesPlain writes would-run hook lines directly to p.out (the no-reporter
-// dry-run path), one per line.
-func (p *Pipeline) printDryRunHookLinesPlain(steps []HookStep, vars hookVars) error {
-	lines, err := p.dryRunHookLinesOrNil(steps, vars)
-	if err != nil {
-		return err
-	}
-	for _, l := range lines {
-		_, _ = fmt.Fprintln(p.out, l)
-	}
-	return nil
-}
-
 // debug emits an operator-debug log line when a logger is set.
 func (p *Pipeline) debug(msg string, args ...any) {
 	if p.logger != nil {
@@ -179,8 +103,9 @@ func (p *Pipeline) Check() error {
 	return nil
 }
 
-// Run executes the full release sequence:
-//  1. Resolve version
+// Run executes the full release sequence, or with a dry-run Pipeline renders it instead. The
+// sequence is the step list releaseFlow builds:
+//  1. Resolve version, then the post_bump hooks and the asset preflight
 //  2. (if changelog configured and not disabled) Generate changelog → git add → git commit → git push
 //  3. git tag → git push origin <tag>
 //  4. (if notes configured, single platform only) Generate release notes
@@ -188,7 +113,6 @@ func (p *Pipeline) Check() error {
 //     platform's LinkContext, then CreateRelease, which also attaches any assets — reported as
 //     a sub-result when platform.HasAssets()
 func (p *Pipeline) Run() error {
-	// Step 1: Resolve version.
 	var result versioning.Result
 	if err := p.runStep("Resolve version", func() (string, []string, error) {
 		r, err := p.resolver.Resolve()
@@ -203,180 +127,22 @@ func (p *Pipeline) Run() error {
 	}
 	printResolveWarnings(p.out, result.Warnings)
 
-	// post_bump hooks fire on every resolve (ADR-0053) — independent of dry-run/disable-changelog
-	// branching below, so this sits right after Step 1 rather than after the dry-run check.
-	// runOrRenderHookPoint (not this placement) is what actually prevents execution during
-	// --dry-run — it renders instead, since dryRunOutput below never handles post_bump itself.
-	postBumpStage, err := p.runOrRenderHookPoint("Run post_bump hooks", p.cfg.PostBumpHooks, p.hookVars(result))
-	if err != nil {
+	flow := p.releaseFlow(result)
+	if err := p.runFlowSteps(flow.prelude, flow); err != nil {
 		return err
 	}
-
-	// Refuse unpublishable assets before anything is committed or pushed: the publish step runs
-	// after the tag is pushed, so a refusal there would leave a tag without a release. Placed after
-	// post_bump so a hook that builds the assets has run, and before the dry-run return so a
-	// dry run reports the same refusal.
-	for _, plat := range p.cfg.Platforms {
-		if err := plat.CheckAssets(); err != nil {
-			return fmt.Errorf("platform %s: %w", plat.Name(), err)
-		}
+	if p.dryRun && p.reporter == nil {
+		_, _ = fmt.Fprintf(p.out, "[dry-run] would release %s\n", result.Tag)
 	}
-
+	if err := p.runFlowSteps(flow.body, flow); err != nil {
+		return err
+	}
 	if p.dryRun {
-		return p.dryRunOutput(result)
+		return nil
 	}
 
-	// Step 2+3: Generate and commit changelog (conditional). The committed changelog is
-	// singular and tied to origin, so it resolves links from the ambient CI host (ADR-0022).
-	// Falls back to the single configured platform context for local/non-CI runs.
-	if p.cfg.Changelog != nil && !p.cfg.DisableChangelog {
-		preChangelogStage, err := p.runHookPointStep("Run pre_changelog hooks", p.cfg.PreChangelogHooks, p.hookVars(result))
-		if err != nil {
-			return err
-		}
-		stage := append(append([]string{}, postBumpStage...), preChangelogStage...)
-
-		changelogCtx := p.changelogLinkContext()
-		if err := p.runStep("Generate changelog", func() (string, []string, error) {
-			if _, err := p.cfg.Changelog.Generate(result.Tag, changelogCtx); err != nil {
-				return "", nil, fmt.Errorf("generating changelog: %w", err)
-			}
-			detail, subs := changelogGenResult(p.cfg.Changelog)
-			return detail, subs, nil
-		}); err != nil {
-			return err
-		}
-
-		file := resolvedChangelogFile(p.cfg.Changelog, p.cfg.ChangelogFile)
-		var committed bool
-		if err := p.runStep("Commit changelog", func() (string, []string, error) {
-			var cerr error
-			committed, cerr = p.git.commitChangelog(append([]string{file}, stage...), commitMessage(p.cfg.CommitMessage, result.Version), true)
-			if cerr != nil {
-				return "", nil, fmt.Errorf("committing changelog: %w", cerr)
-			}
-			return "", nil, nil
-		}); err != nil {
-			return err
-		}
-		if !committed {
-			warnNothingToCommit(p.out, file)
-		}
-	}
-
-	if _, err := p.runHookPointStep("Run pre_tag hooks", p.cfg.PreTagHooks, p.hookVars(result)); err != nil {
-		return err
-	}
-
-	// Step 4: Create tag.
-	if err := p.runStep(fmt.Sprintf("Create tag %s", result.Tag), func() (string, []string, error) {
-		if err := p.git.tag(result.Tag, commitMessage(p.cfg.CommitMessage, result.Version), p.cfg.AnnotatedTags, p.cfg.SignTags); err != nil {
-			return "", nil, fmt.Errorf("git tag: %w", err)
-		}
-		return "", nil, nil
-	}); err != nil {
-		return err
-	}
-
-	// Step 5: Push tag.
-	if err := p.runStep("Push tag", func() (string, []string, error) {
-		if err := p.git.pushTag(result.Tag); err != nil {
-			return "", nil, err
-		}
-		return "", nil, nil
-	}); err != nil {
-		return err
-	}
-
-	if _, err := p.runHookPointStep("Run post_tag hooks", p.cfg.PostTagHooks, p.hookVars(result)); err != nil {
-		return err
-	}
-
-	// Steps 6+7: release notes + publish. With a single platform, notes are generated
-	// once up front with that platform's resolved link context. With multiple platforms,
-	// notes are regenerated inside each publish step with that platform's LinkContext so
-	// links carry the right host/path shape (ADR-0021 / ADR-0022).
-	notesEnabled := p.cfg.Notes != nil && !p.cfg.DisableNotes
-	multiPlatform := len(p.cfg.Platforms) > 1
-
-	// prerelease is derived once from the resolved version, but only under a SemVer strategy
-	// (ADR-0064): a SemVer pre-release (e.g. 2.0.0-rc.1) publishes as a pre-release; a final
-	// version never does. cfg.SemVerStrategy gates this — a CalVer version can itself parse as a
-	// SemVer pre-release (e.g. a calver `format: YYYY.MM.SS-PATCH` resolving "2026.10.2-0"), so
-	// the version's shape alone cannot be trusted; the active strategy decides whether the concept
-	// even applies. release.targets[].prerelease was a static per-target bool that could
-	// contradict the version actually being published — this replaces it.
-	prerelease := p.cfg.SemVerStrategy && isPreRelease(result.Version)
-
-	var notes string
-	if notesEnabled && !multiPlatform {
-		lc := p.singlePlatformLinkContext()
-		if err := p.runStep("Generate release notes", func() (string, []string, error) {
-			var genErr error
-			notes, genErr = p.cfg.Notes.Generate(result.Tag, lc)
-			if genErr != nil {
-				return "", nil, fmt.Errorf("generating release notes: %w", genErr)
-			}
-			return "", degradedSubs(p.cfg.Notes), nil
-		}); err != nil {
-			return err
-		}
-	}
-
-	// hookFailedPlatforms collects platforms skipped or warned about due to a pre_release/
-	// post_release hook failure (ADR-0053) — isolated per platform, unlike a real publish
-	// failure, which still aborts the whole loop via the plain (unwrapped) errors below.
-	var hookFailedPlatforms []string
-	for _, plat := range p.cfg.Platforms {
-		platVars := p.hookVars(result)
-		platVars.Platform = plat.Name()
-
-		err := p.runStep(fmt.Sprintf("Publish to %s", plat.Name()), func() (string, []string, error) {
-			if shouldRunHooks(p.dryRun, p.cfg.NoHooks, p.cfg.PreReleaseHooks) {
-				if _, err := runHookPointSteps(p.git.interactiveOrRunner(), p.cfg.PreReleaseHooks, platVars); err != nil {
-					return "", nil, &hookFailureError{platform: plat.Name(), err: err}
-				}
-			}
-
-			var subs []string
-			platNotes := notes
-			lc := p.platformLinkContext(plat)
-			if notesEnabled && multiPlatform {
-				generated, genErr := p.cfg.Notes.Generate(result.Tag, lc)
-				if genErr != nil {
-					return "", nil, fmt.Errorf("platform %s: generating release notes: %w", plat.Name(), genErr)
-				}
-				platNotes = generated
-				subs = append(subs, "notes generated")
-				subs = append(subs, degradedSubs(p.cfg.Notes)...)
-			}
-			if err := plat.CreateRelease(result.Tag, platNotes, prerelease); err != nil {
-				return "", nil, fmt.Errorf("platform %s: create release: %w", plat.Name(), err)
-			}
-			if plat.HasAssets() {
-				subs = append(subs, "assets uploaded")
-			}
-
-			if shouldRunHooks(p.dryRun, p.cfg.NoHooks, p.cfg.PostReleaseHooks) {
-				if _, err := runHookPointSteps(p.git.interactiveOrRunner(), p.cfg.PostReleaseHooks, platVars); err != nil {
-					return "", nil, &hookFailureError{platform: plat.Name(), err: err}
-				}
-			}
-
-			return plat.ReleaseURLFromContext(result.Tag, lc), subs, nil
-		})
-		if err != nil {
-			var hfe *hookFailureError
-			if errors.As(err, &hfe) {
-				hookFailedPlatforms = append(hookFailedPlatforms, hfe.platform)
-				continue
-			}
-			return err
-		}
-	}
-
-	if len(hookFailedPlatforms) > 0 {
-		return fmt.Errorf("hook failed for platform(s): %s", strings.Join(hookFailedPlatforms, ", "))
+	if len(flow.hookFailed) > 0 {
+		return fmt.Errorf("hook failed for platform(s): %s", strings.Join(flow.hookFailed, ", "))
 	}
 
 	p.printSummary(result)
@@ -394,111 +160,6 @@ func isPreRelease(version string) bool {
 		return false
 	}
 	return v.IsPreRelease()
-}
-
-// dryRunOutput reports what would happen without performing any mutations.
-// When a reporter is set it emits one step per action; otherwise it falls back
-// to the plain [dry-run] lines for CI-friendly output.
-func (p *Pipeline) dryRunOutput(result versioning.Result) error {
-	vars := p.hookVars(result)
-
-	if p.reporter == nil {
-		_, _ = fmt.Fprintf(p.out, "[dry-run] would release %s\n", result.Tag)
-		if p.cfg.Changelog != nil && !p.cfg.DisableChangelog {
-			if err := p.printDryRunHookLinesPlain(p.cfg.PreChangelogHooks, vars); err != nil {
-				return err
-			}
-			_, _ = fmt.Fprintf(p.out, "[dry-run] would generate changelog → commit → push\n")
-		}
-		if err := p.printDryRunHookLinesPlain(p.cfg.PreTagHooks, vars); err != nil {
-			return err
-		}
-		_, _ = fmt.Fprintf(p.out, "[dry-run] would tag %s and push\n", result.Tag)
-		if err := p.printDryRunHookLinesPlain(p.cfg.PostTagHooks, vars); err != nil {
-			return err
-		}
-		for _, platform := range p.cfg.Platforms {
-			platVars := vars
-			platVars.Platform = platform.Name()
-			if err := p.printDryRunHookLinesPlain(p.cfg.PreReleaseHooks, platVars); err != nil {
-				return err
-			}
-			_, _ = fmt.Fprintf(p.out, "[dry-run] would publish to %s\n", platform.Name())
-			if err := p.printDryRunHookLinesPlain(p.cfg.PostReleaseHooks, platVars); err != nil {
-				return err
-			}
-		}
-		return nil
-	}
-
-	// Reporter path: emit one informational step per would-be action. post_bump is handled at
-	// its Run() call site (runOrRenderHookPoint), not here — it fires before this method is
-	// ever reached.
-	file := resolvedChangelogFile(p.cfg.Changelog, p.cfg.ChangelogFile)
-
-	if p.cfg.Changelog != nil && !p.cfg.DisableChangelog {
-		if err := p.dryRunHookStep("Run pre_changelog hooks", p.cfg.PreChangelogHooks, vars); err != nil {
-			return err
-		}
-		_ = p.runStep("Generate changelog", func() (string, []string, error) {
-			return "[dry-run] would write " + file, nil, nil
-		})
-		_ = p.runStep("Commit changelog", func() (string, []string, error) {
-			return "[dry-run] would commit and push", nil, nil
-		})
-	}
-
-	if err := p.dryRunHookStep("Run pre_tag hooks", p.cfg.PreTagHooks, vars); err != nil {
-		return err
-	}
-
-	_ = p.runStep(fmt.Sprintf("Create tag %s", result.Tag), func() (string, []string, error) {
-		return "[dry-run] would tag", nil, nil
-	})
-	_ = p.runStep("Push tag", func() (string, []string, error) {
-		return fmt.Sprintf("[dry-run] would push %s", result.Tag), nil, nil
-	})
-
-	if err := p.dryRunHookStep("Run post_tag hooks", p.cfg.PostTagHooks, vars); err != nil {
-		return err
-	}
-
-	notesEnabled := p.cfg.Notes != nil && !p.cfg.DisableNotes
-	multiPlatform := len(p.cfg.Platforms) > 1
-
-	if notesEnabled && !multiPlatform {
-		_ = p.runStep("Generate release notes", func() (string, []string, error) {
-			return "[dry-run] would generate", nil, nil
-		})
-	}
-
-	for _, plat := range p.cfg.Platforms {
-		platVars := vars
-		platVars.Platform = plat.Name()
-		if err := p.runStep(fmt.Sprintf("Publish to %s", plat.Name()), func() (string, []string, error) {
-			var subs []string
-			preLines, err := p.dryRunHookLinesOrNil(p.cfg.PreReleaseHooks, platVars)
-			if err != nil {
-				return "", nil, err
-			}
-			subs = append(subs, preLines...)
-			if notesEnabled && multiPlatform {
-				subs = append(subs, "[dry-run] would generate notes")
-			}
-			if plat.HasAssets() {
-				subs = append(subs, "[dry-run] would upload assets")
-			}
-			postLines, err := p.dryRunHookLinesOrNil(p.cfg.PostReleaseHooks, platVars)
-			if err != nil {
-				return "", nil, err
-			}
-			subs = append(subs, postLines...)
-			return "[dry-run] would create release", subs, nil
-		}); err != nil {
-			return err
-		}
-	}
-	return nil
 }
 
 // warnNothingToCommit emits an actionable warning when `git add` staged nothing this run —

@@ -1,6 +1,6 @@
 # Héraut — Hardening and Refactor Roadmap
 
-> Status: Active (Phase 72 next)
+> Status: Active (T400 open, then Phase 73)
 > Source: a read-only security, rules and structure review of the code base (2026-10-14), approved
 > as a four-phase in-place refactor. Main roadmap: tracked as Phases 70–73 in [`roadmap.md`](roadmap.md)
 
@@ -47,8 +47,8 @@ and coverage does not drop below the gate".
 |---|---|---|---|
 | 70 | Forge and publish hardening (pilot) | T380–T382, T398 | Done |
 | 71 | Versioning correctness | T383–T386, T399 | T399 open |
-| 72 | Pipeline, changelog write and recovery docs | T387–T390, T400 | In progress |
-| 73 | Structural debt | T391–T397 | Not started |
+| 72 | Pipeline, changelog write and recovery docs | T387–T390, T400 | T400 open |
+| 73 | Structural debt | T391–T397, T401 | Not started |
 
 ---
 
@@ -300,12 +300,25 @@ so only a retry in the same minute does; the spec now says so. Two process notes
 the GitHub sandbox's `main` (the harness works on `e2e/<id>` branches), which needs a force-push to undo,
 left to the maintainer; and no real repository names are in the guide.
 
-#### `[ ]` T390: split `Pipeline.Run` and unify the dry-run path
+#### `[x]` T390: split `Pipeline.Run` and unify the dry-run path
 
 `Pipeline.Run` is about 190 lines mixing resolve, hooks, changelog, tag, publish and notes, and the
 dry-run path repeats it while discarding errors with `_ =`. Split into named steps and drive both
 paths from the same step list. Test that the `--json` plan equals the executed steps. Move-only where
 possible.
+
+**Completion note:** `Pipeline.Run` is now 36 lines. The steps are described once, in
+`internal/pipeline/steps.go`: a `releaseStep` carries what a real run executes, what a dry run shows
+(reporter and plain), and what `Plan` lists, and `releaseFlow` builds the ordered list for a resolved
+version. `Run` resolves, then executes or renders the prelude (post_bump hooks, the asset preflight gate)
+and the body; `Plan` walks the same list. The dry-run path no longer repeats the sequence or discards step
+errors with `_ =`. Safety net first: `plan_equivalence_test.go` (committed before the refactor, passing on
+the old code, and shown to fail when `Plan` drops a step) asserts that the plan, a dry run and a real run
+name the same steps in the same order across six configurations; the 257 existing pipeline tests passed
+unchanged, so output is identical. One presentation difference, deliberate: a dry-run hook template that
+does not render now aborts before the publish step is reported, as it already did for the other hook
+points, instead of showing a failed "Publish to X" step. Not done: `ChangelogPipeline` keeps its own copies
+of the hook helpers, which is T401. Phase 72's remaining work is T400.
 
 #### `[ ]` T400: restrict the `calver-per-env` build ID to tag-safe characters
 
@@ -357,3 +370,10 @@ packages that own them, and move the git remote lookup out of `app/pipeline.go`.
 
 About 870 lines with form code interleaved with decision logic. Extract the decisions into testable
 functions, then slim the wizard.
+
+#### `[ ]` T401: share the hook helpers between `Pipeline` and `ChangelogPipeline`
+
+Found by T390. `ChangelogPipeline` (`internal/pipeline/changelog.go`) keeps its own copies of
+`runHookPointStep`, `dryRunHookStep`, `printDryRunHookLinesPlain`, `dryRunHookLinesOrNil` and
+`runOrRenderHookPoint`, and repeats the dry-run versus real split that T390 removed from `Pipeline`.
+Drive `heraut changelog --tag` from the same `releaseStep` list, with the same equivalence test.
