@@ -65,22 +65,14 @@ func (p *Pipeline) debug(msg string, args ...any) {
 	}
 }
 
-// runStep calls fn via the reporter when one is set, or directly when nil.
-// Errors returned by fn are propagated verbatim so callers can use errors.Is/As.
+// runner returns the step executor configured like p.
+func (p *Pipeline) runner() stepRunner {
+	return stepRunner{dryRun: p.dryRun, reporter: p.reporter, out: p.out, debug: p.debug}
+}
+
+// runStep reports and runs one step (see stepRunner.runStep).
 func (p *Pipeline) runStep(name string, fn func() (string, []string, error)) error {
-	p.debug("step started", "step", name)
-	logged := func() (string, []string, error) {
-		out, sub, err := fn()
-		if err == nil {
-			p.debug("step completed", "step", name)
-		}
-		return out, sub, err
-	}
-	if p.reporter == nil {
-		_, _, err := logged()
-		return err
-	}
-	return p.reporter(name, logged)
+	return p.runner().runStep(name, fn)
 }
 
 // Check verifies all generators and platforms are usable before running.
@@ -128,13 +120,13 @@ func (p *Pipeline) Run() error {
 	printResolveWarnings(p.out, result.Warnings)
 
 	flow := p.releaseFlow(result)
-	if err := p.runFlowSteps(flow.prelude, flow); err != nil {
+	if err := p.runner().runSteps(flow.prelude, &flow.hookFailed); err != nil {
 		return err
 	}
 	if p.dryRun && p.reporter == nil {
 		_, _ = fmt.Fprintf(p.out, "[dry-run] would release %s\n", result.Tag)
 	}
-	if err := p.runFlowSteps(flow.body, flow); err != nil {
+	if err := p.runner().runSteps(flow.body, &flow.hookFailed); err != nil {
 		return err
 	}
 	if p.dryRun {

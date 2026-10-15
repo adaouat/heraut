@@ -1,6 +1,6 @@
 # Héraut — Hardening and Refactor Roadmap
 
-> Status: Active (T399, T400, T401 open)
+> Status: Complete (all four phases and the follow-ups T398-T401 done)
 > Source: a read-only security, rules and structure review of the code base (2026-10-14), approved
 > as a four-phase in-place refactor. Main roadmap: tracked as Phases 70–73 in [`roadmap.md`](roadmap.md)
 
@@ -46,9 +46,9 @@ and coverage does not drop below the gate".
 | Phase | Theme | Tasks | Status |
 |---|---|---|---|
 | 70 | Forge and publish hardening (pilot) | T380–T382, T398 | Done |
-| 71 | Versioning correctness | T383–T386, T399 | T399 open |
-| 72 | Pipeline, changelog write and recovery docs | T387–T390, T400 | T400 open |
-| 73 | Structural debt | T391–T397, T401 | T401 open |
+| 71 | Versioning correctness | T383–T386, T399 | Done |
+| 72 | Pipeline, changelog write and recovery docs | T387–T390, T400 | Done |
+| 73 | Structural debt | T391–T397, T401 | Done |
 
 ---
 
@@ -451,9 +451,21 @@ The sorted-line comparison of the old file against the three new ones shows only
 changed. Not done: the long `runPlatformWizard` (about 170 lines) still builds its forms inline; splitting
 it further would mean a per-step function per form, which I judged more churn than the task asks.
 
-#### `[ ]` T401: share the hook helpers between `Pipeline` and `ChangelogPipeline`
+#### `[x]` T401: share the hook helpers between `Pipeline` and `ChangelogPipeline`
 
 Found by T390. `ChangelogPipeline` (`internal/pipeline/changelog.go`) keeps its own copies of
 `runHookPointStep`, `dryRunHookStep`, `printDryRunHookLinesPlain`, `dryRunHookLinesOrNil` and
 `runOrRenderHookPoint`, and repeats the dry-run versus real split that T390 removed from `Pipeline`.
 Drive `heraut changelog --tag` from the same `releaseStep` list, with the same equivalence test.
+
+**Completion note:** `ChangelogPipeline.Run` now builds a `releaseStep` list (`changelogFlow`) and runs it
+through the same `stepRunner` as `Pipeline`; the five duplicated hook helpers and `dryRunOutput` are gone
+(`changelog.go` 438 -> 312 lines). The executor moved out of `Pipeline` into `stepRunner` in `steps.go`
+(run a step, or in a dry run show what it would do), and the hook-step builder became the plain function
+`newHookStep`, so both pipelines share one implementation. Safety nets: a new equivalence test (dry-run and
+real-run steps agree, seven configurations; it passed on the old code) and a throwaway dump of 48 outputs
+(12 configurations x dry/real x reporter/plain, including every call made) taken before and after: 46 are
+byte-identical. The two that differ are plain dry runs with **no changelog configured**: the old code still
+printed "would generate changelog" and "would commit -> push" for a changelog that does not exist; they no
+longer appear. That configuration cannot be built through the app layer, which disables the changelog when
+none is configured, so no user sees the change. The dump test was deleted.

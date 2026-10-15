@@ -98,101 +98,128 @@ func (p *ChangelogPipeline) hookVars(result versioning.Result) hookVars {
 	return hookVars{Version: result.Version, Tag: result.Tag, PreviousTag: result.CurrentTag, Env: p.cfg.Env}
 }
 
-// runHookPointStep renders and executes steps (one hook point's configured commands) as a
-// reported step named name, skipping entirely — no step reported — when shouldRunHooks says
-// this point shouldn't run (dry-run, --no-hooks, or nothing configured). The first return value
-// carries the rendered Stage patterns collected during a real execution; nil when skipped.
-func (p *ChangelogPipeline) runHookPointStep(name string, steps []HookStep, vars hookVars) ([]string, error) {
-	if !shouldRunHooks(p.dryRun, p.cfg.NoHooks, steps) {
-		return nil, nil
-	}
-	var staged []string
-	err := p.runStep(name, func() (string, []string, error) {
-		rendered, err := runHookPointSteps(p.git.interactiveOrRunner(), steps, vars)
-		if err != nil {
-			return "", nil, err
-		}
-		staged = stagePatterns(rendered)
-		return "", nil, nil
-	})
-	return staged, err
+// runner returns the step executor configured like p.
+func (p *ChangelogPipeline) runner() stepRunner {
+	return stepRunner{dryRun: p.dryRun, reporter: p.reporter, out: p.out}
 }
 
-// dryRunHookLinesOrNil renders steps into "[dry-run] would run: <cmd>" lines (T271), or nil, nil
-// when NoHooks is set or nothing is configured — the dry-run counterpart to shouldRunHooks.
-func (p *ChangelogPipeline) dryRunHookLinesOrNil(steps []HookStep, vars hookVars) ([]string, error) {
-	if p.cfg.NoHooks {
-		return nil, nil
-	}
-	return dryRunHookLines(steps, vars)
-}
-
-// dryRunHookStep reports a would-run hook point as its own step, named identically to the real
-// step runHookPointStep would report, so dry-run's step sequence matches a real run's exactly.
-// A render error aborts the dry-run (propagated, not discarded).
-func (p *ChangelogPipeline) dryRunHookStep(name string, steps []HookStep, vars hookVars) error {
-	lines, err := p.dryRunHookLinesOrNil(steps, vars)
-	if err != nil {
-		return err
-	}
-	if len(lines) == 0 {
-		return nil
-	}
-	return p.runStep(name, func() (string, []string, error) {
-		return lines[0], lines[1:], nil
-	})
-}
-
-// printDryRunHookLinesPlain writes would-run hook lines directly to p.out (the no-reporter
-// dry-run path), one per line.
-func (p *ChangelogPipeline) printDryRunHookLinesPlain(steps []HookStep, vars hookVars) error {
-	lines, err := p.dryRunHookLinesOrNil(steps, vars)
-	if err != nil {
-		return err
-	}
-	for _, l := range lines {
-		_, _ = fmt.Fprintln(p.out, l)
-	}
-	return nil
-}
-
-// runOrRenderHookPoint executes steps for real, or — during --dry-run — renders what would run
-// (as a reporter step or a plain line, matching whichever output mode is active) without ever
-// executing anything. Used at call sites reached before dryRunOutput's own dry-run rendering —
-// currently only post_bump, which must render even in the DisableChangelog && !Tag case where
-// Run() returns before the dry-run check is ever reached. The first return value carries the
-// rendered Stage patterns collected during a real execution; nil in every other case.
-func (p *ChangelogPipeline) runOrRenderHookPoint(name string, steps []HookStep, vars hookVars) ([]string, error) {
-	if !p.dryRun {
-		return p.runHookPointStep(name, steps, vars)
-	}
-	if p.reporter != nil {
-		return nil, p.dryRunHookStep(name, steps, vars)
-	}
-	return nil, p.printDryRunHookLinesPlain(steps, vars)
-}
-
-// runStep calls fn via the reporter when one is set, or directly when nil.
-// Errors returned by fn are propagated verbatim so callers can use errors.Is/As.
+// runStep reports and runs one step (see stepRunner.runStep).
 func (p *ChangelogPipeline) runStep(name string, fn func() (string, []string, error)) error {
-	if p.reporter == nil {
-		_, _, err := fn()
-		return err
+	return p.runner().runStep(name, fn)
+}
+
+// changelogFlow builds the steps of a changelog run for a resolved version. Nothing runs here.
+// The prelude is the post_bump hooks, which fire on every resolve (ADR-0053) — including the
+// DisableChangelog run without --tag, which stops right after them; the body is the rest.
+func (p *ChangelogPipeline) changelogFlow(result versioning.Result) (prelude, body []releaseStep) {
+	vars := p.hookVars(result)
+	// stage collects the files hooks asked to commit with the changelog (ADR-0061): post_bump's,
+	// then pre_changelog's.
+	var stage []string
+
+	if s, ok := newHookStep(p.cfg.NoHooks, &p.git, "post_bump", p.cfg.PostBumpHooks, vars, &stage); ok {
+		prelude = append(prelude, s)
 	}
-	return p.reporter(name, fn)
+
+	// The committed changelog is tied to origin, so it resolves links from the explicit remote, the
+	// resolved forge, or the ambient CI host (ADR-0022 / ADR-0043).
+	if p.cfg.Changelog != nil && !p.cfg.DisableChangelog {
+		file := resolvedChangelogFile(p.cfg.Changelog, p.cfg.ChangelogFile)
+		if s, ok := newHookStep(p.cfg.NoHooks, &p.git, "pre_changelog", p.cfg.PreChangelogHooks, vars, &stage); ok {
+			body = append(body, s)
+		}
+		body = append(body, releaseStep{
+			name: "Generate changelog",
+			exec: func() (string, []string, error) {
+				if _, err := p.cfg.Changelog.Generate(result.Tag, p.changelogLinkContext()); err != nil {
+					return "", nil, fmt.Errorf("generating changelog: %w", err)
+				}
+				detail, subs := changelogGenResult(p.cfg.Changelog)
+				return detail, subs, nil
+			},
+			dry:   func() (string, []string, error) { return "[dry-run] would write " + file, nil, nil },
+			plain: func() ([]string, error) { return []string{"[dry-run] would generate changelog for " + result.Tag}, nil },
+		})
+		if p.cfg.Commit || p.cfg.Tag {
+			body = append(body, releaseStep{
+				name: "Commit changelog",
+				exec: func() (string, []string, error) {
+					committed, err := p.git.commitChangelog(append([]string{file}, stage...), commitMessage(p.cfg.CommitMessage, result.Version), !p.cfg.NoPush)
+					if err != nil {
+						return "", nil, fmt.Errorf("committing changelog: %w", err)
+					}
+					p.committed = committed
+					return "", nil, nil
+				},
+				after: func() {
+					if !p.committed {
+						warnNothingToCommit(p.out, file)
+					}
+				},
+				dry: func() (string, []string, error) {
+					if p.cfg.NoPush {
+						return "[dry-run] would commit (no push)", nil, nil
+					}
+					return "[dry-run] would commit and push", nil, nil
+				},
+				plain: func() ([]string, error) {
+					if p.cfg.NoPush {
+						return []string{"[dry-run] would commit (no push)"}, nil
+					}
+					return []string{"[dry-run] would commit → push"}, nil
+				},
+			})
+		}
+	}
+
+	if p.cfg.Tag {
+		if s, ok := newHookStep(p.cfg.NoHooks, &p.git, "pre_tag", p.cfg.PreTagHooks, vars, nil); ok {
+			body = append(body, s)
+		}
+		body = append(body, releaseStep{
+			name: fmt.Sprintf("Create tag %s", result.Tag),
+			exec: func() (string, []string, error) {
+				if err := p.git.tag(result.Tag, commitMessage(p.cfg.CommitMessage, result.Version), p.cfg.AnnotatedTags, p.cfg.SignTags); err != nil {
+					return "", nil, fmt.Errorf("git tag: %w", err)
+				}
+				return "", nil, nil
+			},
+			dry: func() (string, []string, error) { return "[dry-run] would tag", nil, nil },
+			plain: func() ([]string, error) {
+				if p.cfg.NoPush {
+					return []string{fmt.Sprintf("[dry-run] would tag %s (no push)", result.Tag)}, nil
+				}
+				return []string{fmt.Sprintf("[dry-run] would tag %s and push", result.Tag)}, nil
+			},
+		})
+		if !p.cfg.NoPush {
+			body = append(body, releaseStep{
+				name: "Push tag",
+				exec: func() (string, []string, error) { return "", nil, p.git.pushTag(result.Tag) },
+				dry: func() (string, []string, error) {
+					return fmt.Sprintf("[dry-run] would push %s", result.Tag), nil, nil
+				},
+			})
+		}
+		// post_tag fires whether or not the tag was pushed — NoPush changes what "the tag operation
+		// completed" means, not whether it happened.
+		if s, ok := newHookStep(p.cfg.NoHooks, &p.git, "post_tag", p.cfg.PostTagHooks, vars, nil); ok {
+			body = append(body, s)
+		}
+	}
+	return prelude, body
 }
 
 // Run executes the changelog sequence:
-//  1. Resolve version
-//  2. If DisableChangelog: print info and return
+//  1. Resolve version, then the post_bump hooks
+//  2. If DisableChangelog: print info and return (unless --tag)
 //  3. If Changelog configured: generate changelog
 //  4. If Commit or Tag (and Changelog configured): git add → git commit → git push
 //  5. If Tag: git tag → git push origin <tag>
 //
 // When NoPush is set, both pushes (HEAD and the tag) are skipped — the commit and
-// tag are created locally only.
+// tag are created locally only. With a dry-run Pipeline the same steps are rendered instead.
 func (p *ChangelogPipeline) Run() error {
-	// Step 1: Resolve version.
 	var result versioning.Result
 	if err := p.runStep("Resolve version", func() (string, []string, error) {
 		r, err := p.resolver.Resolve()
@@ -206,11 +233,8 @@ func (p *ChangelogPipeline) Run() error {
 	}
 	printResolveWarnings(p.out, result.Warnings)
 
-	// post_bump hooks fire on every resolve (ADR-0053) — including the DisableChangelog+!Tag
-	// case immediately below, which returns before any other step runs and before the dry-run
-	// check, so runOrRenderHookPoint (not dryRunOutput) is what renders this during --dry-run.
-	postBumpStage, err := p.runOrRenderHookPoint("Run post_bump hooks", p.cfg.PostBumpHooks, p.hookVars(result))
-	if err != nil {
+	prelude, body := p.changelogFlow(result)
+	if err := p.runner().runSteps(prelude, nil); err != nil {
 		return err
 	}
 
@@ -231,164 +255,14 @@ func (p *ChangelogPipeline) Run() error {
 		// Tag is true: skip changelog steps but proceed to tag.
 	}
 
+	if err := p.runner().runSteps(body, nil); err != nil {
+		return err
+	}
 	if p.dryRun {
-		return p.dryRunOutput(result)
-	}
-
-	// Step 2: Generate changelog (skipped when DisableChangelog is true). The committed
-	// changelog is tied to origin, so it resolves links from the explicit remote, the resolved
-	// forge, or the ambient CI host (ADR-0022 / ADR-0043).
-	if p.cfg.Changelog != nil && !p.cfg.DisableChangelog {
-		preChangelogStage, err := p.runHookPointStep("Run pre_changelog hooks", p.cfg.PreChangelogHooks, p.hookVars(result))
-		if err != nil {
-			return err
-		}
-		stage := append(append([]string{}, postBumpStage...), preChangelogStage...)
-
-		changelogCtx := p.changelogLinkContext()
-		if err := p.runStep("Generate changelog", func() (string, []string, error) {
-			if _, err := p.cfg.Changelog.Generate(result.Tag, changelogCtx); err != nil {
-				return "", nil, fmt.Errorf("generating changelog: %w", err)
-			}
-			detail, subs := changelogGenResult(p.cfg.Changelog)
-			return detail, subs, nil
-		}); err != nil {
-			return err
-		}
-
-		// Step 3: Commit changelog (conditional).
-		if p.cfg.Commit || p.cfg.Tag {
-			file := resolvedChangelogFile(p.cfg.Changelog, p.cfg.ChangelogFile)
-			var committed bool
-			if err := p.runStep("Commit changelog", func() (string, []string, error) {
-				var cerr error
-				committed, cerr = p.git.commitChangelog(append([]string{file}, stage...), commitMessage(p.cfg.CommitMessage, result.Version), !p.cfg.NoPush)
-				if cerr != nil {
-					return "", nil, fmt.Errorf("committing changelog: %w", cerr)
-				}
-				return "", nil, nil
-			}); err != nil {
-				return err
-			}
-			p.committed = committed
-			if !committed {
-				warnNothingToCommit(p.out, file)
-			}
-		}
-	}
-
-	// Step 4+5: Tag the commit (conditional).
-	if p.cfg.Tag {
-		if _, err := p.runHookPointStep("Run pre_tag hooks", p.cfg.PreTagHooks, p.hookVars(result)); err != nil {
-			return err
-		}
-
-		if err := p.runStep(fmt.Sprintf("Create tag %s", result.Tag), func() (string, []string, error) {
-			if err := p.git.tag(result.Tag, commitMessage(p.cfg.CommitMessage, result.Version), p.cfg.AnnotatedTags, p.cfg.SignTags); err != nil {
-				return "", nil, fmt.Errorf("git tag: %w", err)
-			}
-			return "", nil, nil
-		}); err != nil {
-			return err
-		}
-
-		if !p.cfg.NoPush {
-			if err := p.runStep("Push tag", func() (string, []string, error) {
-				if err := p.git.pushTag(result.Tag); err != nil {
-					return "", nil, err
-				}
-				return "", nil, nil
-			}); err != nil {
-				return err
-			}
-		}
-
-		// post_tag fires whether or not the tag was pushed — NoPush changes what "the tag
-		// operation completed" means, not whether it happened.
-		if _, err := p.runHookPointStep("Run post_tag hooks", p.cfg.PostTagHooks, p.hookVars(result)); err != nil {
-			return err
-		}
-	}
-
-	p.printSummary(result)
-	return nil
-}
-
-// dryRunOutput reports what would happen without performing any mutations.
-// When a reporter is set it emits one step per action with [dry-run] result
-// prefixes; otherwise it falls back to plain [dry-run] lines.
-func (p *ChangelogPipeline) dryRunOutput(result versioning.Result) error {
-	vars := p.hookVars(result)
-
-	if p.reporter == nil {
-		if !p.cfg.DisableChangelog {
-			if p.cfg.Changelog != nil {
-				if err := p.printDryRunHookLinesPlain(p.cfg.PreChangelogHooks, vars); err != nil {
-					return err
-				}
-			}
-			_, _ = fmt.Fprintf(p.out, "[dry-run] would generate changelog for %s\n", result.Tag)
-			if p.cfg.Commit || p.cfg.Tag {
-				if p.cfg.NoPush {
-					_, _ = fmt.Fprintf(p.out, "[dry-run] would commit (no push)\n")
-				} else {
-					_, _ = fmt.Fprintf(p.out, "[dry-run] would commit → push\n")
-				}
-			}
-		}
-		if p.cfg.Tag {
-			if err := p.printDryRunHookLinesPlain(p.cfg.PreTagHooks, vars); err != nil {
-				return err
-			}
-			if p.cfg.NoPush {
-				_, _ = fmt.Fprintf(p.out, "[dry-run] would tag %s (no push)\n", result.Tag)
-			} else {
-				_, _ = fmt.Fprintf(p.out, "[dry-run] would tag %s and push\n", result.Tag)
-			}
-			if err := p.printDryRunHookLinesPlain(p.cfg.PostTagHooks, vars); err != nil {
-				return err
-			}
-		}
 		return nil
 	}
 
-	// Reporter path: emit one informational step per would-be action. post_bump is handled at
-	// its Run() call site (runOrRenderHookPoint), not here.
-	file := resolvedChangelogFile(p.cfg.Changelog, p.cfg.ChangelogFile)
-
-	if p.cfg.Changelog != nil && !p.cfg.DisableChangelog {
-		if err := p.dryRunHookStep("Run pre_changelog hooks", p.cfg.PreChangelogHooks, vars); err != nil {
-			return err
-		}
-		_ = p.runStep("Generate changelog", func() (string, []string, error) {
-			return "[dry-run] would write " + file, nil, nil
-		})
-		if p.cfg.Commit || p.cfg.Tag {
-			_ = p.runStep("Commit changelog", func() (string, []string, error) {
-				if p.cfg.NoPush {
-					return "[dry-run] would commit (no push)", nil, nil
-				}
-				return "[dry-run] would commit and push", nil, nil
-			})
-		}
-	}
-
-	if p.cfg.Tag {
-		if err := p.dryRunHookStep("Run pre_tag hooks", p.cfg.PreTagHooks, vars); err != nil {
-			return err
-		}
-		_ = p.runStep(fmt.Sprintf("Create tag %s", result.Tag), func() (string, []string, error) {
-			return "[dry-run] would tag", nil, nil
-		})
-		if !p.cfg.NoPush {
-			_ = p.runStep("Push tag", func() (string, []string, error) {
-				return fmt.Sprintf("[dry-run] would push %s", result.Tag), nil, nil
-			})
-		}
-		if err := p.dryRunHookStep("Run post_tag hooks", p.cfg.PostTagHooks, vars); err != nil {
-			return err
-		}
-	}
+	p.printSummary(result)
 	return nil
 }
 

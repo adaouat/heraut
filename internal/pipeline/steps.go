@@ -3,8 +3,10 @@ package pipeline
 import (
 	"errors"
 	"fmt"
+	"io"
 
 	"github.com/adaouat/heraut/internal/port"
+	"github.com/adaouat/heraut/internal/ui"
 	"github.com/adaouat/heraut/internal/versioning"
 )
 
@@ -184,13 +186,18 @@ func (p *Pipeline) releaseFlow(result versioning.Result) *releaseFlow {
 // nothing configured, or --no-hooks. When stage is non-nil the Stage patterns the commands declare
 // are appended to it as they run.
 func (p *Pipeline) hookStep(point string, steps []HookStep, vars hookVars, stage *[]string) (releaseStep, bool) {
-	if p.cfg.NoHooks || len(steps) == 0 {
+	return newHookStep(p.cfg.NoHooks, &p.git, point, steps, vars, stage)
+}
+
+// newHookStep is hookStep for any pipeline: noHooks and git come from the caller's config.
+func newHookStep(noHooks bool, git *gitHelper, point string, steps []HookStep, vars hookVars, stage *[]string) (releaseStep, bool) {
+	if noHooks || len(steps) == 0 {
 		return releaseStep{}, false
 	}
 	return releaseStep{
 		name: "Run " + point + " hooks",
 		exec: func() (string, []string, error) {
-			rendered, err := runHookPointSteps(p.git.interactiveOrRunner(), steps, vars)
+			rendered, err := runHookPointSteps(git.interactiveOrRunner(), steps, vars)
 			if err != nil {
 				return "", nil, err
 			}
@@ -332,8 +339,38 @@ func (p *Pipeline) dryRunHookLinesOrNil(steps []HookStep, vars hookVars) ([]stri
 	return dryRunHookLines(steps, vars)
 }
 
-// runFlowSteps executes, or in a dry run renders, steps in order.
-func (p *Pipeline) runFlowSteps(steps []releaseStep, flow *releaseFlow) error {
+// stepRunner executes, or in a dry run renders, releaseSteps. Both pipelines build one from their own
+// settings, so the two share a single implementation of "run it, or show what it would do".
+type stepRunner struct {
+	dryRun   bool
+	reporter ui.StepFn
+	out      io.Writer
+	// debug logs step boundaries; nil when the pipeline has no logger.
+	debug func(msg string, args ...any)
+}
+
+// runStep calls fn via the reporter when one is set, or directly when nil.
+// Errors returned by fn are propagated verbatim so callers can use errors.Is/As.
+func (r stepRunner) runStep(name string, fn func() (string, []string, error)) error {
+	if r.debug != nil {
+		r.debug("step started", "step", name)
+	}
+	logged := func() (string, []string, error) {
+		out, sub, err := fn()
+		if err == nil && r.debug != nil {
+			r.debug("step completed", "step", name)
+		}
+		return out, sub, err
+	}
+	if r.reporter == nil {
+		_, _, err := logged()
+		return err
+	}
+	return r.reporter(name, logged)
+}
+
+// runSteps executes, or in a dry run renders, steps in order.
+func (r stepRunner) runSteps(steps []releaseStep, hookFailed *[]string) error {
 	for _, s := range steps {
 		if s.gate != nil {
 			if err := s.gate(); err != nil {
@@ -341,16 +378,16 @@ func (p *Pipeline) runFlowSteps(steps []releaseStep, flow *releaseFlow) error {
 			}
 			continue
 		}
-		if p.dryRun {
-			if err := p.renderStep(s); err != nil {
+		if r.dryRun {
+			if err := r.renderStep(s); err != nil {
 				return err
 			}
 			continue
 		}
-		if err := p.runStep(s.name, s.exec); err != nil {
+		if err := r.runStep(s.name, s.exec); err != nil {
 			var hfe *hookFailureError
-			if errors.As(err, &hfe) {
-				flow.hookFailed = append(flow.hookFailed, hfe.platform)
+			if errors.As(err, &hfe) && hookFailed != nil {
+				*hookFailed = append(*hookFailed, hfe.platform)
 				continue
 			}
 			return err
@@ -364,8 +401,8 @@ func (p *Pipeline) runFlowSteps(steps []releaseStep, flow *releaseFlow) error {
 
 // renderStep shows what s would do: one reported step when there is a reporter, otherwise the
 // plain [dry-run] lines for CI-friendly output.
-func (p *Pipeline) renderStep(s releaseStep) error {
-	if p.reporter == nil {
+func (r stepRunner) renderStep(s releaseStep) error {
+	if r.reporter == nil {
 		if s.plain == nil {
 			return nil
 		}
@@ -374,7 +411,7 @@ func (p *Pipeline) renderStep(s releaseStep) error {
 			return err
 		}
 		for _, l := range lines {
-			_, _ = fmt.Fprintln(p.out, l)
+			_, _ = fmt.Fprintln(r.out, l)
 		}
 		return nil
 	}
@@ -388,5 +425,5 @@ func (p *Pipeline) renderStep(s releaseStep) error {
 	if detail == "" && len(subs) == 0 {
 		return nil
 	}
-	return p.runStep(s.name, func() (string, []string, error) { return detail, subs, nil })
+	return r.runStep(s.name, func() (string, []string, error) { return detail, subs, nil })
 }
