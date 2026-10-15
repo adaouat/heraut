@@ -290,6 +290,7 @@ func TestCreateRelease_Prerelease(t *testing.T) {
 
 func TestCreateRelease_Assets_IncludesFilesInCreate(t *testing.T) {
 	tmp := t.TempDir()
+	t.Chdir(tmp)
 	require.NoError(t, os.WriteFile(filepath.Join(tmp, "heraut_linux"), []byte("bin"), 0o755))
 	require.NoError(t, os.WriteFile(filepath.Join(tmp, "checksums.txt"), []byte("abc"), 0o644))
 
@@ -382,6 +383,7 @@ func TestCreateRelease_TokenForwarded(t *testing.T) {
 
 func TestCreateRelease_Assets_GlobInOneCall(t *testing.T) {
 	tmp := t.TempDir()
+	t.Chdir(tmp)
 	for _, name := range []string{"app_linux_amd64", "app_darwin_amd64"} {
 		require.NoError(t, os.WriteFile(filepath.Join(tmp, name), []byte("bin"), 0o755))
 	}
@@ -404,6 +406,7 @@ func TestCreateRelease_Assets_GlobInOneCall(t *testing.T) {
 
 func TestCreateRelease_Assets_GlobSkipsDirectories(t *testing.T) {
 	tmp := t.TempDir()
+	t.Chdir(tmp)
 	require.NoError(t, os.WriteFile(filepath.Join(tmp, "app"), []byte("bin"), 0o755))
 	require.NoError(t, os.MkdirAll(filepath.Join(tmp, "subdir"), 0o755))
 

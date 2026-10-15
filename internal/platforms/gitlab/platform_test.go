@@ -516,6 +516,7 @@ func TestCreateRelease_Assets_UploadedThenLinked(t *testing.T) {
 	notInCI(t)
 	st := newStub(t)
 	tmp := t.TempDir()
+	t.Chdir(tmp)
 	require.NoError(t, os.WriteFile(filepath.Join(tmp, "heraut_linux"), []byte("bin"), 0o755))
 	require.NoError(t, os.WriteFile(filepath.Join(tmp, "checksums.txt"), []byte("abc"), 0o644))
 	t.Setenv("GITLAB_TOKEN", "tok")
@@ -539,6 +540,7 @@ func TestCreateRelease_Assets_GlobInOneCall(t *testing.T) {
 	notInCI(t)
 	st := newStub(t)
 	tmp := t.TempDir()
+	t.Chdir(tmp)
 	for _, name := range []string{"app_linux_amd64", "app_darwin_amd64"} {
 		require.NoError(t, os.WriteFile(filepath.Join(tmp, name), []byte("bin"), 0o755))
 	}
@@ -557,6 +559,7 @@ func TestCreateRelease_Assets_GlobSkipsDirectories(t *testing.T) {
 	notInCI(t)
 	st := newStub(t)
 	tmp := t.TempDir()
+	t.Chdir(tmp)
 	require.NoError(t, os.WriteFile(filepath.Join(tmp, "app"), []byte("bin"), 0o755))
 	require.NoError(t, os.MkdirAll(filepath.Join(tmp, "subdir"), 0o755))
 	t.Setenv("GITLAB_TOKEN", "tok")
@@ -590,6 +593,7 @@ func TestCreateRelease_PerEnvTag_KeepsTheTagAndSanitizesThePackageVersion(t *tes
 	notInCI(t)
 	st := newStub(t)
 	tmp := t.TempDir()
+	t.Chdir(tmp)
 	require.NoError(t, os.WriteFile(filepath.Join(tmp, "app"), []byte("bin"), 0o755))
 	t.Setenv("GITLAB_TOKEN", "tok")
 	p := gitlab.New(&config.Platform{Project: "grp/repo", BaseURL: st.srv.URL, Assets: []string{filepath.Join(tmp, "app")}})

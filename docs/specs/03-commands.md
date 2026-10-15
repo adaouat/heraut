@@ -169,7 +169,10 @@ has no such requirement (see § Tag-only workflow below).
       `POST /projects/:id/releases` request for GitLab.
    3. Upload assets matching glob patterns (or, when the assets came from a lenient
       source, attach them directly to the create call instead of a separate upload —
-      see [Spec 05](05-generators-and-platforms.md)).
+      see [Spec 05](05-generators-and-platforms.md)). Every matched file must lie under the
+      repository root (the working directory) once symlinks are resolved; a match outside it
+      fails the step before any request, so a pattern like `/etc/*` or `../*` cannot publish
+      files that are not part of the project.
 
 The version is pre-computed in step 2 and re-used in every subsequent step
 ([ADR-0011](../adr/0011-single-pipeline-release-via-pre-computation.md)) — no driver

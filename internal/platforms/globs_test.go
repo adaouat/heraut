@@ -12,6 +12,7 @@ import (
 
 func TestResolveGlobsLenient_MultiplePatterns(t *testing.T) {
 	dir := t.TempDir()
+	t.Chdir(dir)
 	touch(t, dir, "app.tar.gz")
 	touch(t, dir, "app.zip")
 
@@ -28,6 +29,7 @@ func TestResolveGlobsLenient_MultiplePatterns(t *testing.T) {
 
 func TestResolveGlobsLenient_SkipsDirectories(t *testing.T) {
 	dir := t.TempDir()
+	t.Chdir(dir)
 	touch(t, dir, "file.bin")
 	require.NoError(t, os.Mkdir(filepath.Join(dir, "subdir"), 0o755))
 
@@ -40,6 +42,7 @@ func TestResolveGlobsLenient_SkipsDirectories(t *testing.T) {
 
 func TestResolveGlobsLenient_Matches(t *testing.T) {
 	dir := t.TempDir()
+	t.Chdir(dir)
 	touch(t, dir, "a.bin")
 	touch(t, dir, "b.bin")
 
@@ -82,4 +85,81 @@ func touch(t *testing.T, dir, name string) {
 	f, err := os.Create(path)
 	require.NoError(t, err)
 	require.NoError(t, f.Close())
+}
+
+// ---- Confinement to the repository root (SEC-009) ----------------------------
+
+// inRepo makes a fresh directory the working directory, which is the root asset globs are
+// confined to.
+func inRepo(t *testing.T) string {
+	t.Helper()
+	repo := t.TempDir()
+	t.Chdir(repo)
+	return repo
+}
+
+func noWarn(t *testing.T) func(string) {
+	return func(p string) { t.Errorf("unexpected no-match warning for %q", p) }
+}
+
+func TestResolveGlobsLenient_RefusesAbsolutePathOutsideTheRoot(t *testing.T) {
+	inRepo(t)
+	outside := t.TempDir()
+	touch(t, outside, "secret.txt")
+
+	_, err := platforms.ResolveGlobsLenient([]string{filepath.Join(outside, "*.txt")}, noWarn(t))
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "outside the repository")
+	assert.Contains(t, err.Error(), "secret.txt")
+}
+
+func TestResolveGlobsLenient_RefusesParentTraversal(t *testing.T) {
+	repo := inRepo(t)
+	touch(t, filepath.Dir(repo), "sibling.bin")
+	t.Cleanup(func() { _ = os.Remove(filepath.Join(filepath.Dir(repo), "sibling.bin")) })
+
+	_, err := platforms.ResolveGlobsLenient([]string{"../sibling.bin"}, noWarn(t))
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "outside the repository")
+}
+
+func TestResolveGlobsLenient_RefusesSymlinkLeavingTheRoot(t *testing.T) {
+	repo := inRepo(t)
+	outside := t.TempDir()
+	touch(t, outside, "secret.txt")
+	require.NoError(t, os.Symlink(filepath.Join(outside, "secret.txt"), filepath.Join(repo, "innocent.txt")))
+
+	_, err := platforms.ResolveGlobsLenient([]string{"innocent.txt"}, noWarn(t))
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "outside the repository")
+}
+
+func TestResolveGlobsLenient_AllowsFilesAndSymlinksInsideTheRoot(t *testing.T) {
+	repo := inRepo(t)
+	require.NoError(t, os.MkdirAll(filepath.Join(repo, "dist"), 0o755))
+	touch(t, filepath.Join(repo, "dist"), "app.zip")
+	require.NoError(t, os.Symlink(filepath.Join(repo, "dist", "app.zip"), filepath.Join(repo, "latest.zip")))
+
+	files, err := platforms.ResolveGlobsLenient([]string{"dist/*.zip", filepath.Join(repo, "dist", "*.zip"), "latest.zip"}, noWarn(t))
+	require.NoError(t, err)
+	assert.ElementsMatch(t, []string{"dist/app.zip", filepath.Join(repo, "dist", "app.zip"), "latest.zip"}, files)
+}
+
+func TestResolveGlobsLenient_NoMatchOutsideTheRootStillJustWarns(t *testing.T) {
+	inRepo(t)
+	var warned []string
+	files, err := platforms.ResolveGlobsLenient([]string{filepath.Join(t.TempDir(), "*.zip")}, func(p string) { warned = append(warned, p) })
+	require.NoError(t, err)
+	assert.Empty(t, files)
+	assert.Len(t, warned, 1)
+}
+
+func TestResolveGlobsLenient_PrefixesDotSlashOnNamesStartingWithADash(t *testing.T) {
+	repo := inRepo(t)
+	touch(t, repo, "-rf.zip")
+	touch(t, repo, "ok.zip")
+
+	files, err := platforms.ResolveGlobsLenient([]string{"*.zip"}, noWarn(t))
+	require.NoError(t, err)
+	assert.ElementsMatch(t, []string{"./-rf.zip", "ok.zip"}, files, "a leading dash must not read as an option to gh")
 }

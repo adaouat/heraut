@@ -641,7 +641,7 @@
         },
         "assets": {
           "type": "array",
-          "description": "Glob patterns for files to attach to the release, applied to all targets. Globs are expanded at release time; a pattern matching nothing emits a warning but does not abort the release. If a target also defines assets, the target-level list takes full precedence for that target (no merging).",
+          "description": "Glob patterns for files to attach to the release, applied to all targets. Globs are expanded at release time; a pattern matching nothing emits a warning but does not abort the release. Every matched file must lie under the repository root (symlinks resolved); a match outside it aborts the release. If a target also defines assets, the target-level list takes full precedence for that target (no merging).",
           "items": {
             "type": "string"
           }
@@ -726,7 +726,7 @@
           "items": {
             "type": "string"
           },
-          "description": "Target-specific glob patterns for files to attach to the release. When set, overrides release.assets entirely for this target. Omit to inherit release.assets."
+          "description": "Target-specific glob patterns for files to attach to the release. Matched files must lie under the repository root. When set, overrides release.assets entirely for this target. Omit to inherit release.assets."
         }
       }
     },

@@ -460,7 +460,9 @@ release:
 
   # assets — glob patterns for files to attach to the release, applied to all targets.
   # Globs are expanded at release time; a pattern matching nothing emits a warning
-  # but does not abort the release.
+  # but does not abort the release. Every matched file must lie under the repository
+  # root (the directory heraut runs in), symlinks resolved: a match outside it, such as
+  # an absolute path or ../, aborts the release before anything is published.
   # Precedence: if a target also defines assets:, the target-level list takes full
   # precedence and release.assets is ignored for that target. Use release.assets as
   # a shared default; use target.assets for target-specific overrides.

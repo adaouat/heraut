@@ -1,6 +1,6 @@
 # Héraut — Hardening and Refactor Roadmap
 
-> Status: Active (Phase 70 next)
+> Status: Active (Phase 71 next)
 > Source: a read-only security, rules and structure review of the code base (2026-10-14), approved
 > as a four-phase in-place refactor. Main roadmap: tracked as Phases 70–73 in [`roadmap.md`](roadmap.md)
 
@@ -45,7 +45,7 @@ and coverage does not drop below the gate".
 
 | Phase | Theme | Tasks | Status |
 |---|---|---|---|
-| 70 | Forge and publish hardening (pilot) | T380–T382 | In progress (T380, T381 done) |
+| 70 | Forge and publish hardening (pilot) | T380–T382 | Done |
 | 71 | Versioning correctness | T383–T386 | Not started |
 | 72 | Pipeline, changelog write and recovery docs | T387–T390 | Not started |
 | 73 | Structural debt | T391–T397 | Not started |
@@ -101,13 +101,27 @@ pinned by tests that call `CheckRedirect` directly because two test servers neve
 Not covered: the GitHub driver, which hands the host to `gh` through `GH_HOST`; where `gh` picks the
 scheme is not verified.
 
-#### `[ ]` T382: confine release asset globs to the repository
+#### `[x]` T382: confine release asset globs to the repository
 
 `release.assets` globs are not confined, so an absolute path or `..` can publish files from outside
 the repository. After expansion, resolve symlinks and refuse any path outside the repository root
 (warn first if that is judged too abrupt, then enforce). Prefix `./` before passing an asset path to
 `gh`, so a name starting with `-` cannot read as an option. Applies to `internal/platforms/globs.go`
 and both drivers.
+
+**Completion note:** refused outright, as decided with the maintainer, with no warn-first stage.
+`platforms.ResolveGlobsLenient`, shared by both drivers, resolves the working directory (the
+repository root, since asset globs are relative to it) and, for every matched file, makes the path
+absolute and then resolves symlinks before comparing it to the root, so an absolute path, `../` and a
+symlink that leaves the tree are all refused with an error naming the file. Making the path absolute
+before resolving matters: a working directory reached through a symlink (`/var` on macOS) otherwise
+compares unequal to itself; a first version had that bug and a test caught it. A pattern that matches
+nothing still only warns. A relative match whose name starts with `-` is returned as `./name`, so it
+cannot read as an option to `gh`. Existing asset tests now `t.Chdir` into their temp dir (a setup
+change; no assertion was touched). Spec 03, the sample config and the `schema.json` descriptions say
+so. Known limit, to decide separately: the refusal happens when the release step runs, which is
+after the tag has been pushed (the pipeline order, RULE-061), so a bad asset path leaves a tag with
+no release. A preflight check of the asset globs, before anything is pushed, would close that.
 
 ---
 
