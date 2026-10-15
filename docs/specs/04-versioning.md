@@ -390,6 +390,12 @@ around New Year pair correctly: 2027-01-01 is week 53 of 2026 and renders `2026.
 2025-12-29 is week 1 of 2026 and renders `2026.01.x`. Formats without `WW` keep the calendar year
 ([ADR-0067](../adr/0067-calver-iso-year-with-week.md)).
 
+All dates are read in **UTC**, whatever the machine's time zone, so the same moment gives the same
+version on a laptop and on a CI runner. The base for the next version is the **highest** existing tag
+that parses under the format (compared year, then semester, quarter, month, week, day, sprint, patch),
+not the first tag `git` lists: a leading `SPRINT` or any other order `git`'s version sort gets wrong
+cannot make heraut issue a tag that already exists. Tags that do not parse are ignored.
+
 `PATCH` is mandatory and must be the last *non-literal* token — a trailing literal
 suffix after it (e.g. `YYYY.MM.PATCH-rc`) is allowed. It resets to `0` whenever the
 period defined by the other tokens changes (e.g. new month for `YYYY.MM.PATCH`), and
