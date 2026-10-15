@@ -150,7 +150,8 @@ has no such requirement (see § Tag-only workflow below).
    — writes to `changelog.output` (default `CHANGELOG.md`)
 4. **Commit changelog + push** — `chore(release): <version>`, then `git push`. If the
    regenerated changelog is byte-identical to the last commit (`git add` stages nothing —
-   a re-run after a partial release, or a release with no changelog-worthy commits), the
+   a re-run after a partial release within the same minute, since the footer carries a timestamp to
+   the minute, or a release with no changelog-worthy commits), the
    commit is **skipped** with a warning naming the file, and the pipeline continues to tag
    and publish rather than failing on git's "nothing to commit" exit. `git push origin HEAD`
    still runs when `HEAD` is ahead of its upstream, so a retry after a failed push delivers

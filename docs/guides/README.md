@@ -10,3 +10,4 @@ Worked examples for specific heraut use cases.
 | [Maintenance branches](maintenance-branches.md) | Hotfixes on long-lived `release/x.y` lines: `versioning.branches`, range caps, forward-merge workflow, fixed-version branches |
 | [Release notes for an app store](store-release-notes.md) | `heraut notes`: the notes of one tag as Markdown or plain text, undecorated, for a store submission |
 | [End-to-end tests](e2e-tests.md) | Running and setting up the hermetic and forge-sandbox e2e lanes |
+| [Recovering from a failed release](failure-recovery.md) | The states a failed `heraut release` leaves (commit, tag, release, hooks) and the verified commands to finish or undo each |

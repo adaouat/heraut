@@ -275,7 +275,7 @@ checking the claims: under `calver-per-env`, `--set-build-id` is only checked fo
 build ID such as `x$(id)` reaches `Tag` and the hooks. The doc says so instead of promising more; the
 tightening is T400. Not verified: how `--env` is validated outside the per-env strategies.
 
-#### `[ ]` T389: write the failure-recovery guide
+#### `[x]` T389: write the failure-recovery guide
 
 A task-oriented guide under `docs/guides/` listing the states a failed release can leave (commit
 pushed without tag; local tag only; tag pushed without release; release on one forge only; hook
@@ -283,6 +283,22 @@ failed after the release exists) and how to recover each, including what cannot 
 already consumed by CI). Verify every command on the sandbox repos before writing it, including how to
 delete a GitHub and a GitLab release and whether any heraut command can publish for an existing tag.
 No history rewriting is described.
+
+**Completion note:** [`docs/guides/failure-recovery.md`](../guides/failure-recovery.md), linked from the
+guides index and Spec 02 § Failure semantics, covers five states (commit pushed without tag, local tag only,
+tag pushed without release, release on one forge only, hook failed after the release), how to undo a
+release, and what cannot be undone. Every command was run against the GitHub and GitLab sandbox repositories
+and the sandboxes were cleaned afterwards (tags, releases, branches). Findings that shaped the guide: no
+heraut command publishes for an existing tag (`heraut release` stops with `no commits since <tag>`), so
+recovery is `heraut notes <tag> --output` plus `gh release create --verify-tag` or `glab release create -F`;
+`glab release create` tags the default branch's HEAD when the tag is not on the remote, `gh --verify-tag`
+refuses; `gh release delete --cleanup-tag` removes the tag only if the release exists; `glab release create
+<files>` attaches plain links, unlike heraut's Generic Packages layout. The hook-failure state was observed
+for `post_release` only; the `pre_release` path is from Spec 02. Correction made on the way: Spec 03 said a
+retry skips the changelog commit when the file is identical, but the footer timestamp is minute-resolution,
+so only a retry in the same minute does; the spec now says so. Two process notes: I pushed test commits to
+the GitHub sandbox's `main` (the harness works on `e2e/<id>` branches), which needs a force-push to undo,
+left to the maintainer; and no real repository names are in the guide.
 
 #### `[ ]` T390: split `Pipeline.Run` and unify the dry-run path
 

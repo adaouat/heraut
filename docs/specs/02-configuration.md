@@ -1319,6 +1319,9 @@ affected, even though every platform was attempted. This per-platform isolation 
 deliberate exception to "a hook failure aborts like any other step failure" — a real publish
 failure (not a hook) still aborts the whole loop as it always has.
 
+To finish or undo a run that stopped part-way, see
+[Guide: Recovering from a failed release](../guides/failure-recovery.md).
+
 ### Execution
 
 Commands run via a shell selected per OS ([ADR-0054](../adr/0054-windows-hook-execution.md)):
