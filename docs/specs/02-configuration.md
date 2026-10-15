@@ -1252,9 +1252,11 @@ keeps this contract on purpose (ADR-0053): quoting for one shell would be wrong 
 
 What reaches a hook: `Version`, `Tag` and `PreviousTag` are built from the `tag_format` in your
 config plus a parsed version, and `Platform` is a name from your config. Two values can also come from
-the command line: `Env` (`--env`) and, under `calver-per-env`, the build ID (`--set-build-id`, which
-ends up in `Tag`), where heraut only rejects `/` and whitespace. A pipeline that passes untrusted text
-(a branch name, a PR title) to those flags must quote the variables in its hooks. The config file is the trust boundary: **anyone
+the command line, and heraut restricts both ([ADR-0074](../adr/0074-command-line-values-that-reach-tags-and-hooks.md)):
+`Env` (`--env`) must name an environment of a per-env strategy, and the build ID (`--set-build-id`,
+which ends up in `Tag`) is limited to letters, digits, `.`, `_` and `-`. Anything else a pipeline
+passes to heraut from untrusted text (a branch name, a PR title) should still be quoted in the hook.
+The config file is the trust boundary: **anyone
 who can change `.heraut.yml` can run any command the invoking user or CI job can run.** Do not run
 `heraut release` or `heraut changelog` with hooks from a config that an untrusted pull request
 supplied: a CI job that checks out a fork's head and runs heraut there executes the fork's hooks with

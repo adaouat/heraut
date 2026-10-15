@@ -107,9 +107,10 @@ func DeriveHeadingVersionPattern(template string) string {
 	return `\[` + regexStr + `\]`
 }
 
-// ValidateBuildID checks that a build ID is usable as a tag component: non-empty,
-// no "/" (path separator) and no whitespace (git ref constraints). CI build IDs
-// like "$CI_PIPELINE_ID" and "$GITHUB_RUN_NUMBER" satisfy this.
+// ValidateBuildID checks that a build ID is usable as a tag component: non-empty and made of letters,
+// digits, ".", "_" and "-" (ADR-0074). The value reaches the tag and from there the hook commands,
+// so shell and git metacharacters, "/" and whitespace are refused. CI build IDs like a run number,
+// a pipeline ID or a short SHA satisfy this.
 func ValidateBuildID(build string) error {
 	if build == "" {
 		return fmt.Errorf("build ID must not be empty")
@@ -120,7 +121,14 @@ func ValidateBuildID(build string) error {
 	if strings.ContainsFunc(build, unicode.IsSpace) {
 		return fmt.Errorf("build ID %q must not contain whitespace", build)
 	}
+	if i := strings.IndexFunc(build, func(r rune) bool { return !isBuildIDRune(r) }); i >= 0 {
+		return fmt.Errorf("build ID %q contains %q: only letters, digits, '.', '_' and '-' are allowed", build, []rune(build[i:])[0])
+	}
 	return nil
+}
+
+func isBuildIDRune(r rune) bool {
+	return r >= '0' && r <= '9' || r >= 'a' && r <= 'z' || r >= 'A' && r <= 'Z' || r == '.' || r == '_' || r == '-'
 }
 
 // ValidateVersionOverride checks that a --set-version value is usable as a tag/version

@@ -366,6 +366,13 @@ func TestValidateBuildID(t *testing.T) {
 		{"contains tab", "build\t42", true},
 		{"leading space", " 158404", true},
 		{"trailing newline", "158404\n", true},
+		{"with underscore", "run_42", false},
+		{"command substitution", "x$(id)", true},
+		{"backtick", "x`id`", true},
+		{"semicolon", "1;id", true},
+		{"pipe and ampersand", "1|2&3", true},
+		{"quote", "it's", true},
+		{"plus", "1+2", true},
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {

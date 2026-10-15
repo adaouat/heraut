@@ -329,13 +329,24 @@ does not render now aborts before the publish step is reported, as it already di
 points, instead of showing a failed "Publish to X" step. Not done: `ChangelogPipeline` keeps its own copies
 of the hook helpers, which is T401. Phase 72's remaining work is T400.
 
-#### `[ ]` T400: restrict the `calver-per-env` build ID to tag-safe characters
+#### `[x]` T400: restrict the `calver-per-env` build ID to tag-safe characters
 
 Found by T388. `--set-build-id` under `calver-per-env` is checked only for `/` and whitespace
 (`tagfmt.ValidateBuildID`), so shell syntax such as `x$(id)` reaches `Tag` and the hook variables, while
 the SemVer strategies already require dot-separated `[0-9A-Za-z-]` identifiers. Decide the allowed set
 (likely `[0-9A-Za-z._-]`), ADR first since a tested behavior changes, then test and enforce it. Also check
 that `--env` is rejected when it names no configured environment under every strategy.
+
+**Completion note:** [ADR-0074](../adr/0074-command-line-values-that-reach-tags-and-hooks.md) first. Build IDs:
+`tagfmt.ValidateBuildID` now allows `[0-9A-Za-z._-]+` for every strategy (the shared validator, so one rule),
+with the `/` and whitespace messages kept as they were because two tests assert them. `--env`: checked on a
+probe run, `--env 'x$(id)'` under plain `semver` was accepted and printed in a `post_bump` hook, while the
+per-env strategies already reject an unknown name. `app.ResolveEnv`, the one gate every command uses, now
+rejects a named `--env` under a non-per-env strategy (a nil config keeps the old passthrough). Failing rows
+first (six build-ID rows, three `ResolveEnv` cases), then the change; no existing test row was deleted. Specs
+02 and 03 updated, and the Spec 02 hook-trust text no longer says calver build IDs are lenient. Behavior
+change for users: a build ID with characters outside the set, or `--env` on a `semver`/`calver` repository,
+now fails instead of running.
 
 ---
 

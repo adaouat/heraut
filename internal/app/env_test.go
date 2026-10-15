@@ -107,3 +107,27 @@ func TestResolveEnv_Auto_MultipleMatch(t *testing.T) {
 	assert.Contains(t, err.Error(), "main")
 	assert.Contains(t, err.Error(), "--env")
 }
+
+// A name given to --env outside a per-env strategy used to pass through untouched, into the hook
+// variables included (ADR-0074).
+func TestResolveEnv_NamedEnvNeedsAPerEnvStrategy(t *testing.T) {
+	for _, strategy := range []string{"semver", "calver"} {
+		t.Run(strategy, func(t *testing.T) {
+			cfg := &config.Config{Versioning: config.Versioning{Strategy: strategy}}
+			_, err := app.ResolveEnv("x$(id)", cfg, exectest.NewMockRunner())
+			require.Error(t, err)
+			assert.Contains(t, err.Error(), "per-env strategy")
+		})
+	}
+	t.Run("empty stays fine", func(t *testing.T) {
+		cfg := &config.Config{Versioning: config.Versioning{Strategy: "semver"}}
+		got, err := app.ResolveEnv("", cfg, exectest.NewMockRunner())
+		require.NoError(t, err)
+		assert.Empty(t, got)
+	})
+	t.Run("a nil config keeps the old passthrough", func(t *testing.T) {
+		got, err := app.ResolveEnv("prod", nil, exectest.NewMockRunner())
+		require.NoError(t, err)
+		assert.Equal(t, "prod", got)
+	})
+}

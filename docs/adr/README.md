@@ -78,3 +78,4 @@ trade-offs were accepted.
 | [0071](0071-machine-readable-output.md) | Machine-readable output — `--json` and one envelope | Accepted |
 | [0072](0072-agent-skill.md) | A bundled agent skill — `heraut skill` | Accepted |
 | [0073](0073-set-version-always-probes-for-an-existing-tag.md) | `--set-version` always probes for an existing tag | Accepted |
+| [0074](0074-command-line-values-that-reach-tags-and-hooks.md) | Command-line values that reach tags and hooks are restricted | Accepted |

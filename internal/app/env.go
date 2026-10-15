@@ -15,6 +15,11 @@ import (
 // as-is without calling git.
 func ResolveEnv(env string, cfg *config.Config, runner port.Runner) (string, error) {
 	if env != "auto" {
+		// A name only means something under a per-env strategy; elsewhere it would reach the hook
+		// variables unchecked (ADR-0074). A nil config keeps the old passthrough.
+		if env != "" && cfg != nil && !isPerEnvStrategy(cfg.Versioning.Strategy) {
+			return "", fmt.Errorf("--env %q requires a per-env strategy; current strategy is %q", env, cfg.Versioning.Strategy)
+		}
 		return env, nil
 	}
 
