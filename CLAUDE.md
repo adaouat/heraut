@@ -95,6 +95,7 @@ internal/
       semver/                   conventional-commit bump + version arithmetic
       calver/                   token parser (YYYY/MM/DD/WW/QQ/SS/SPRINT/PATCH)
       perenv/                   generic per-env wrapper over a VersionCalculator
+      branch/                   versioning.branches matching + the per-env/release branch guards (ADR-0065)
    generators/
       native/                   built-in, zero-external-dependency generator — commit walk + classification + embedded template rendering (ADR-0032, sole generator since ADR-0045)
    platforms/

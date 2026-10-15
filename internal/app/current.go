@@ -3,6 +3,7 @@ package app
 import (
 	"errors"
 	"fmt"
+	"github.com/adaouat/heraut/internal/versioning/branch"
 	"slices"
 	"strings"
 
@@ -31,19 +32,19 @@ func CurrentTag(runner port.Runner, cfg *config.Config, env string, includePreRe
 	}
 
 	if cfg.Versioning.Strategy == "semver" && len(cfg.Versioning.Branches) > 0 {
-		branch, known, err := CurrentBranch(runner)
+		name, known, err := branch.CurrentBranch(runner)
 		if err != nil {
 			return "", err
 		}
-		m, err := MatchBranchRule(cfg, branch, known, true)
+		m, err := branch.MatchBranchRule(cfg, name, known, true)
 		if err != nil {
 			return "", err
 		}
-		if m.Kind == BranchMaintenance {
+		if m.Kind == branch.BranchMaintenance {
 			rg := semver.RangeFrom(m.Range, m.Branch)
 			return currentMaintenanceTag(runner, cfg, glob, rg, includePreRelease)
 		}
-		if m.Kind == BranchVersion {
+		if m.Kind == branch.BranchVersion {
 			return currentVersionBranchTag(runner, cfg, glob, m, includePreRelease)
 		}
 	}
@@ -90,7 +91,7 @@ func globalCurrentTag(runner port.Runner, cfg *config.Config, env, glob string, 
 
 // currentVersionBranchTag is CurrentTag on a version branch (ADR-0065): the highest tag reachable
 // from HEAD whose core is the branch's version, never a higher tag cut on another line.
-func currentVersionBranchTag(runner port.Runner, cfg *config.Config, glob string, m BranchMatch, includePreRelease bool) (string, error) {
+func currentVersionBranchTag(runner port.Runner, cfg *config.Config, glob string, m branch.BranchMatch, includePreRelease bool) (string, error) {
 	stdout, _, err := runner.Run("git", "tag", "-l", glob, "--merged", "HEAD", "--sort=-version:refname")
 	if err != nil {
 		return "", fmt.Errorf("listing git tags merged into HEAD: %w", err)

@@ -2,6 +2,7 @@ package app
 
 import (
 	"fmt"
+	"github.com/adaouat/heraut/internal/versioning/branch"
 	"strings"
 
 	"github.com/adaouat/heraut/internal/config"
@@ -299,12 +300,12 @@ func (g collisionGuardResolver) Resolve() (versioning.Result, error) {
 // version branch it runs on. An unmatched or ambiguous branch is not this check's business
 // (CheckReleaseBranch reports those), so a match error is ignored.
 func versionBranchMismatch(runner port.Runner, cfg *config.Config, version string) (string, error) {
-	branch, known, err := CurrentBranch(runner)
+	name, known, err := branch.CurrentBranch(runner)
 	if err != nil {
 		return "", err
 	}
-	m, err := MatchBranchRule(cfg, branch, known, false)
-	if err != nil || m.Kind != BranchVersion {
+	m, err := branch.MatchBranchRule(cfg, name, known, false)
+	if err != nil || m.Kind != branch.BranchVersion {
 		return "", nil
 	}
 	v, perr := semver.Parse(version)
@@ -323,19 +324,19 @@ func applyBranchRule(r *semver.Resolver, cfg *config.Config, runner port.Runner,
 	if len(cfg.Versioning.Branches) == 0 || cfg.Versioning.BumpMode() == "manual" {
 		return nil
 	}
-	branch, known, err := CurrentBranch(runner)
+	name, known, err := branch.CurrentBranch(runner)
 	if err != nil {
 		return err
 	}
-	m, err := MatchBranchRule(cfg, branch, known, true)
+	m, err := branch.MatchBranchRule(cfg, name, known, true)
 	if err != nil {
 		return err
 	}
 	switch m.Kind {
-	case BranchMaintenance:
+	case branch.BranchMaintenance:
 		rg := semver.RangeFrom(m.Range, m.Branch)
 		r.SetMaintenanceRange(&rg)
-	case BranchVersion:
+	case branch.BranchVersion:
 		r.SetFixedVersion(m.Version)
 		r.SetAllowReleased(noTag)
 	}

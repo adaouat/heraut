@@ -1,43 +1,24 @@
 package app
 
 import (
-	"fmt"
-	"strings"
-
 	"github.com/adaouat/heraut/internal/config"
 	"github.com/adaouat/heraut/internal/port"
+	"github.com/adaouat/heraut/internal/versioning/branch"
 )
 
-// BranchMismatchError is returned by CheckBranch when the current branch is not the one the
-// environment is linked to.
-type BranchMismatchError struct {
-	Env, Want, Current string
-}
+// The branch rules live in internal/versioning/branch; cmd reaches them through app.
+var (
+	ErrUnlistedBranch   = branch.ErrUnlistedBranch
+	ErrAmbiguousBranch  = branch.ErrAmbiguousBranch
+	ErrUnderivableRange = branch.ErrUnderivableRange
+)
 
-func (e *BranchMismatchError) Error() string {
-	return fmt.Sprintf("environment %q must be operated from branch %q, but the current branch is %q (use --force to override)",
-		e.Env, e.Want, e.Current)
-}
-
-// CheckBranch enforces the per-environment branch guard: when the active environment
-// declares a branch, the current git branch must match it. This prevents operating on
-// an environment (e.g. releasing prod) from the wrong branch. It is a no-op when env is
-// empty or the environment has no branch set. force bypasses the check entirely.
+// CheckBranch enforces the per-environment branch guard (see branch.CheckBranch).
 func CheckBranch(runner port.Runner, cfg *config.Config, env string, force bool) error {
-	if env == "" || force {
-		return nil
-	}
-	envCfg, ok := cfg.Environments[env]
-	if !ok || envCfg.Branch == "" {
-		return nil
-	}
-	out, _, err := runner.Run("git", "rev-parse", "--abbrev-ref", "HEAD")
-	if err != nil {
-		return fmt.Errorf("determining current git branch: %w", err)
-	}
-	current := strings.TrimSpace(out)
-	if current != envCfg.Branch {
-		return &BranchMismatchError{Env: env, Want: envCfg.Branch, Current: current}
-	}
-	return nil
+	return branch.CheckBranch(runner, cfg, env, force)
+}
+
+// CheckReleaseBranch enforces versioning.branches for a release (see branch.CheckReleaseBranch).
+func CheckReleaseBranch(runner port.Runner, cfg *config.Config, force bool) error {
+	return branch.CheckReleaseBranch(runner, cfg, force)
 }

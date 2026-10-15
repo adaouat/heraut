@@ -684,7 +684,7 @@ func resolveEnrichForgeIfNeeded(runner port.Runner, getenv func(string) string, 
 // resolved identities (publishing) must call this once and derive both from its result — a
 // second call would add a duplicate git subprocess invocation.
 func resolveForge(runner port.Runner, getenv func(string) string, cfg *config.Config) (forge.Resolved, error) {
-	resolved, err := forge.Resolve(cfg, getenv, gitOriginURL(runner))
+	resolved, err := forge.Resolve(cfg, getenv, forge.GitOriginURL(runner))
 	if err != nil {
 		return forge.Resolved{}, fmt.Errorf("resolving forge: %w", err)
 	}
@@ -708,16 +708,6 @@ func enrichForgeFrom(resolved forge.Resolved) (port.Forge, *port.ForgeIdentity) 
 		enrichForge = azureforge.New(id, nil)
 	}
 	return enrichForge, &id
-}
-
-// gitOriginURL returns the origin remote URL, or "" when there is no origin (forge resolution
-// then falls back to CI env or offline).
-func gitOriginURL(runner port.Runner) string {
-	out, _, err := runner.Run("git", "remote", "get-url", "origin")
-	if err != nil {
-		return ""
-	}
-	return strings.TrimSpace(out)
 }
 
 func buildPlatform(runner port.Runner, cfg *config.Platform) (port.Platform, error) {

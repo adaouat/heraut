@@ -11,18 +11,6 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestGitOriginURL(t *testing.T) {
-	t.Run("returns trimmed origin", func(t *testing.T) {
-		mr := exectest.NewMockRunner()
-		mr.QueueResponse("https://gitlab.example.com/group/project.git\n", "", nil)
-		assert.Equal(t, "https://gitlab.example.com/group/project.git", gitOriginURL(mr))
-	})
-	t.Run("no origin configured returns empty", func(t *testing.T) {
-		mr := exectest.NewMockRunner() // no response queued → Run errors
-		assert.Empty(t, gitOriginURL(mr))
-	})
-}
-
 // fakeEnv returns a getenv backed by m, so a test's resolution outcome depends only on the
 // variables it declares. Reading the real environment here made these tests pass locally and fail
 // on GitHub Actions, whose own GITHUB_ACTIONS / GITHUB_REPOSITORY variables pin a github forge.

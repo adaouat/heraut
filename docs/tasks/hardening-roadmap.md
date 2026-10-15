@@ -399,10 +399,21 @@ imports against the table found exactly three undocumented edges and one missing
 the shared `internal/platforms` package, and no row for `internal/ui` (a leaf, imports nothing from heraut).
 All four are added to `.claude/rules/coding.md`; no code moved. No other package breaks its row.
 
-#### `[ ]` T396: move policy code out of `internal/app`
+#### `[x]` T396: move policy code out of `internal/app`
 
 Branch rules, tickets, pre-release and changelog rotation live in the wiring layer. Move them to the
 packages that own them, and move the git remote lookup out of `app/pipeline.go`.
+
+**Completion note:** scoped with the maintainer to the two pieces that have a legal owner. Moved: the branch
+rules and guards (`CurrentBranch`, `MatchBranchRule`, `CheckBranch`, `CheckReleaseBranch`, their error
+values and types) to the new `internal/versioning/branch` package, with their tests (`git mv`, so history
+follows; test rows moved, none deleted); and `gitOriginURL` to `forge.GitOriginURL`. `internal/app` keeps a
+15-line `branch.go` that re-exposes what `cmd` uses, so `cmd` still imports only `app`. Local variables named
+`branch` in `current.go` and `resolver.go` became `name`. Kept in `app`, with the reason: changelog rotation
+(its own comment: native may not import versioning, and the wrapper builds the native generator), the ticket
+check (built on native; `cmd` may import only `app`), and pre-release detection (20 lines tied to
+`PipelineOpts` and `configuredTagPrefix`). Moving those would mean widening the layer table. A small
+`branchenv_test.go` in `app` duplicates two test helpers the moved tests no longer share.
 
 #### `[ ]` T397: separate form code from decisions in `internal/scaffold/wizard.go`
 

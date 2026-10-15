@@ -1,12 +1,12 @@
-package app_test
+package branch_test
 
 import (
 	"errors"
 	"testing"
 
 	"github.com/adaouat/forge/exec/exectest"
-	"github.com/adaouat/heraut/internal/app"
 	"github.com/adaouat/heraut/internal/config"
+	"github.com/adaouat/heraut/internal/versioning/branch"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -58,7 +58,7 @@ func TestCurrentBranch(t *testing.T) {
 			mr := exectest.NewMockRunner()
 			mr.QueueResponse(tc.gitOut, "", tc.gitErr)
 
-			got, ok, err := app.CurrentBranch(mr)
+			got, ok, err := branch.CurrentBranch(mr)
 			if tc.wantErr != "" {
 				require.ErrorContains(t, err, tc.wantErr)
 				return
@@ -81,33 +81,33 @@ func TestMatchBranchRule(t *testing.T) {
 		branch      string
 		unknown     bool
 		needRange   bool
-		wantKind    app.BranchKind
+		wantKind    branch.BranchKind
 		wantRange   config.BranchRange
 		wantRule    int
 		wantVersion string
 		wantErr     error
 		wantMsg     string
 	}{
-		{name: "main", branch: "main", needRange: true, wantKind: app.BranchRelease, wantRule: 0},
-		{name: "derived", branch: "release/1.3", needRange: true, wantKind: app.BranchMaintenance, wantRange: config.BranchRange{Major: 1, Minor: &minor3}, wantRule: 1},
-		{name: "explicit", branch: "lts", needRange: true, wantKind: app.BranchMaintenance, wantRange: config.BranchRange{Major: 2}, wantRule: 2},
-		{name: "nested not matched", branch: "release/1.3/hotfix", needRange: true, wantKind: app.BranchUnlisted, wantRule: -1},
-		{name: "unlisted", branch: "feature/x", needRange: true, wantKind: app.BranchUnlisted, wantRule: -1},
-		{name: "unknown", unknown: true, needRange: true, wantKind: app.BranchUnlisted, wantRule: -1},
-		{name: "underivable", branch: "release/legacy", needRange: true, wantErr: app.ErrUnderivableRange,
+		{name: "main", branch: "main", needRange: true, wantKind: branch.BranchRelease, wantRule: 0},
+		{name: "derived", branch: "release/1.3", needRange: true, wantKind: branch.BranchMaintenance, wantRange: config.BranchRange{Major: 1, Minor: &minor3}, wantRule: 1},
+		{name: "explicit", branch: "lts", needRange: true, wantKind: branch.BranchMaintenance, wantRange: config.BranchRange{Major: 2}, wantRule: 2},
+		{name: "nested not matched", branch: "release/1.3/hotfix", needRange: true, wantKind: branch.BranchUnlisted, wantRule: -1},
+		{name: "unlisted", branch: "feature/x", needRange: true, wantKind: branch.BranchUnlisted, wantRule: -1},
+		{name: "unknown", unknown: true, needRange: true, wantKind: branch.BranchUnlisted, wantRule: -1},
+		{name: "underivable", branch: "release/legacy", needRange: true, wantErr: branch.ErrUnderivableRange,
 			wantMsg: `branch "release/legacy" matches versioning.branches[1] ("release/*") but its name carries no N.x / N.N.x / N.N / N.N.N version — add range: to the entry`},
-		{name: "underivable, set-version", branch: "release/legacy", needRange: false, wantKind: app.BranchMaintenance, wantRule: 1},
-		{name: "version branch", branch: "release/7.8.0", needRange: true, wantKind: app.BranchVersion, wantRule: 1, wantVersion: "7.8.0"},
-		{name: "version branch, v prefix", branch: "release/v7.8.0", needRange: true, wantKind: app.BranchVersion, wantRule: 1, wantVersion: "7.8.0"},
-		{name: "version branch, set-version path", branch: "release/7.8.0", needRange: false, wantKind: app.BranchVersion, wantRule: 1, wantVersion: "7.8.0"},
-		{name: "N.N still derives a line", branch: "release/7.8", needRange: true, wantKind: app.BranchMaintenance, wantRule: 1, wantRange: config.BranchRange{Major: 7, Minor: ptrU64(8)}},
-		{name: "leading zero is not a version", branch: "release/07.8.0", needRange: true, wantErr: app.ErrUnderivableRange,
+		{name: "underivable, set-version", branch: "release/legacy", needRange: false, wantKind: branch.BranchMaintenance, wantRule: 1},
+		{name: "version branch", branch: "release/7.8.0", needRange: true, wantKind: branch.BranchVersion, wantRule: 1, wantVersion: "7.8.0"},
+		{name: "version branch, v prefix", branch: "release/v7.8.0", needRange: true, wantKind: branch.BranchVersion, wantRule: 1, wantVersion: "7.8.0"},
+		{name: "version branch, set-version path", branch: "release/7.8.0", needRange: false, wantKind: branch.BranchVersion, wantRule: 1, wantVersion: "7.8.0"},
+		{name: "N.N still derives a line", branch: "release/7.8", needRange: true, wantKind: branch.BranchMaintenance, wantRule: 1, wantRange: config.BranchRange{Major: 7, Minor: ptrU64(8)}},
+		{name: "leading zero is not a version", branch: "release/07.8.0", needRange: true, wantErr: branch.ErrUnderivableRange,
 			wantMsg: `branch "release/07.8.0" matches versioning.branches[1]`},
 		{name: "explicit range wins over name shape", rules: []config.BranchRule{{Name: "release/*", Range: "7.x"}}, branch: "release/7.8.0", needRange: true,
-			wantKind: app.BranchMaintenance, wantRange: config.BranchRange{Major: 7}, wantRule: 0},
-		{name: "exact name is never a version branch", rules: []config.BranchRule{{Name: "release/7.8.0"}}, branch: "release/7.8.0", needRange: true, wantKind: app.BranchRelease, wantRule: 0},
+			wantKind: branch.BranchMaintenance, wantRange: config.BranchRange{Major: 7}, wantRule: 0},
+		{name: "exact name is never a version branch", rules: []config.BranchRule{{Name: "release/7.8.0"}}, branch: "release/7.8.0", needRange: true, wantKind: branch.BranchRelease, wantRule: 0},
 		{name: "ambiguous", rules: append(append([]config.BranchRule{}, testRules...), config.BranchRule{Name: "release/1.3"}), branch: "release/1.3", needRange: true,
-			wantErr: app.ErrAmbiguousBranch, wantMsg: `entries "release/*", "release/1.3" all match branch "release/1.3"`},
+			wantErr: branch.ErrAmbiguousBranch, wantMsg: `entries "release/*", "release/1.3" all match branch "release/1.3"`},
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
@@ -115,7 +115,7 @@ func TestMatchBranchRule(t *testing.T) {
 			if rules == nil {
 				rules = testRules
 			}
-			m, err := app.MatchBranchRule(branchRulesCfg(rules...), tc.branch, !tc.unknown, tc.needRange)
+			m, err := branch.MatchBranchRule(branchRulesCfg(rules...), tc.branch, !tc.unknown, tc.needRange)
 			if tc.wantErr != nil {
 				require.ErrorIs(t, err, tc.wantErr)
 				assert.Contains(t, err.Error(), tc.wantMsg)
@@ -137,27 +137,27 @@ func TestCheckReleaseBranch(t *testing.T) {
 	t.Run("no block, no git call", func(t *testing.T) {
 		clearBranchEnv(t)
 		mr := exectest.NewMockRunner()
-		require.NoError(t, app.CheckReleaseBranch(mr, branchRulesCfg(), false))
+		require.NoError(t, branch.CheckReleaseBranch(mr, branchRulesCfg(), false))
 		assert.Empty(t, mr.Calls)
 	})
 	t.Run("listed", func(t *testing.T) {
 		clearBranchEnv(t)
 		mr := exectest.NewMockRunner()
 		mr.QueueResponse("release/1.3\n", "", nil)
-		require.NoError(t, app.CheckReleaseBranch(mr, branchRulesCfg(testRules...), false))
+		require.NoError(t, branch.CheckReleaseBranch(mr, branchRulesCfg(testRules...), false))
 	})
 	t.Run("version branch is listed", func(t *testing.T) {
 		clearBranchEnv(t)
 		mr := exectest.NewMockRunner()
 		mr.QueueResponse("release/7.8.0\n", "", nil)
-		require.NoError(t, app.CheckReleaseBranch(mr, branchRulesCfg(testRules...), false))
+		require.NoError(t, branch.CheckReleaseBranch(mr, branchRulesCfg(testRules...), false))
 	})
 	t.Run("unlisted", func(t *testing.T) {
 		clearBranchEnv(t)
 		mr := exectest.NewMockRunner()
 		mr.QueueResponse("feature/x\n", "", nil)
-		err := app.CheckReleaseBranch(mr, branchRulesCfg(testRules...), false)
-		require.ErrorIs(t, err, app.ErrUnlistedBranch)
+		err := branch.CheckReleaseBranch(mr, branchRulesCfg(testRules...), false)
+		require.ErrorIs(t, err, branch.ErrUnlistedBranch)
 		assert.Contains(t, err.Error(), `branch "feature/x" (pass --force to release anyway)`)
 		assert.Contains(t, err.Error(), "\n")
 		assert.Contains(t, err.Error(), `"main"`)
@@ -167,31 +167,31 @@ func TestCheckReleaseBranch(t *testing.T) {
 	t.Run("unlisted with force, no git call", func(t *testing.T) {
 		clearBranchEnv(t)
 		mr := exectest.NewMockRunner()
-		require.NoError(t, app.CheckReleaseBranch(mr, branchRulesCfg(testRules...), true))
+		require.NoError(t, branch.CheckReleaseBranch(mr, branchRulesCfg(testRules...), true))
 		assert.Empty(t, mr.Calls)
 	})
 	t.Run("unknown branch names detached HEAD", func(t *testing.T) {
 		clearBranchEnv(t)
 		mr := exectest.NewMockRunner()
 		mr.QueueResponse("HEAD\n", "", nil)
-		err := app.CheckReleaseBranch(mr, branchRulesCfg(testRules...), false)
-		require.ErrorIs(t, err, app.ErrUnlistedBranch)
+		err := branch.CheckReleaseBranch(mr, branchRulesCfg(testRules...), false)
+		require.ErrorIs(t, err, branch.ErrUnlistedBranch)
 		assert.Contains(t, err.Error(), "detached HEAD")
 	})
 	t.Run("git failure", func(t *testing.T) {
 		clearBranchEnv(t)
 		mr := exectest.NewMockRunner()
 		mr.QueueResponse("", "", errors.New("boom"))
-		err := app.CheckReleaseBranch(mr, branchRulesCfg(testRules...), false)
+		err := branch.CheckReleaseBranch(mr, branchRulesCfg(testRules...), false)
 		require.Error(t, err)
-		assert.NotErrorIs(t, err, app.ErrUnlistedBranch)
+		assert.NotErrorIs(t, err, branch.ErrUnlistedBranch)
 	})
 	t.Run("ambiguous entries propagate", func(t *testing.T) {
 		clearBranchEnv(t)
 		mr := exectest.NewMockRunner()
 		mr.QueueResponse("release/1.3\n", "", nil)
 		cfg := branchRulesCfg(config.BranchRule{Name: "release/*"}, config.BranchRule{Name: "release/1.3"})
-		require.ErrorIs(t, app.CheckReleaseBranch(mr, cfg, false), app.ErrAmbiguousBranch)
+		require.ErrorIs(t, branch.CheckReleaseBranch(mr, cfg, false), branch.ErrAmbiguousBranch)
 	})
 }
 

@@ -2,6 +2,7 @@ package app
 
 import (
 	"errors"
+	"github.com/adaouat/heraut/internal/versioning/branch"
 
 	"github.com/adaouat/heraut/internal/versioning/perenv"
 	"github.com/adaouat/heraut/internal/versioning/tagfmt"
@@ -27,7 +28,7 @@ func IsEnvSelection(err error) bool {
 // IsBranchMismatch reports whether err is the per-env branch guard refusing to operate an
 // environment from the wrong branch. It is distinct from a failure to read the current branch.
 func IsBranchMismatch(err error) bool {
-	var mismatch *BranchMismatchError
+	var mismatch *branch.BranchMismatchError
 	return errors.As(err, &mismatch)
 }
 
