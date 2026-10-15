@@ -47,6 +47,14 @@ func ResolveGlobsLenient(patterns []string, warn func(string)) ([]string, error)
 	return files, nil
 }
 
+// CheckAssetGlobs applies the publish-time asset rules without publishing, so a refusal surfaces
+// before anything is committed or pushed. A pattern matching nothing is not reported here: the
+// files may still be built by a later hook, and publishing warns about it.
+func CheckAssetGlobs(patterns []string) error {
+	_, err := ResolveGlobsLenient(patterns, func(string) {})
+	return err
+}
+
 // realWorkingDir is the working directory with symlinks resolved, the root assets must stay in.
 func realWorkingDir() (string, error) {
 	wd, err := os.Getwd()

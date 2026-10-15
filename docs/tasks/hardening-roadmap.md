@@ -1,6 +1,6 @@
 # Héraut — Hardening and Refactor Roadmap
 
-> Status: Active (Phase 71 next)
+> Status: Active (Phase 71 in progress)
 > Source: a read-only security, rules and structure review of the code base (2026-10-14), approved
 > as a four-phase in-place refactor. Main roadmap: tracked as Phases 70–73 in [`roadmap.md`](roadmap.md)
 
@@ -45,7 +45,7 @@ and coverage does not drop below the gate".
 
 | Phase | Theme | Tasks | Status |
 |---|---|---|---|
-| 70 | Forge and publish hardening (pilot) | T380–T382 | Done |
+| 70 | Forge and publish hardening (pilot) | T380–T382, T398 | Done |
 | 71 | Versioning correctness | T383–T386 | Not started |
 | 72 | Pipeline, changelog write and recovery docs | T387–T390 | Not started |
 | 73 | Structural debt | T391–T397 | Not started |
@@ -122,6 +122,25 @@ change; no assertion was touched). Spec 03, the sample config and the `schema.js
 so. Known limit, to decide separately: the refusal happens when the release step runs, which is
 after the tag has been pushed (the pipeline order, RULE-061), so a bad asset path leaves a tag with
 no release. A preflight check of the asset globs, before anything is pushed, would close that.
+
+#### `[x]` T398: check the release assets before anything is pushed
+
+Follow-up to T382, raised by its known limit. Asset refusal happened in the publish step, after the
+changelog commit and the tag push (RULE-061), so a bad asset path left a public tag without a release.
+Add `CheckAssets()` to `port.Platform`, implemented by both drivers with the T382 rules, and call it
+for every platform right after the `post_bump` hooks. Failing tests first: a pipeline run with a
+refusing platform makes no runner call, writes no changelog and creates no release, and both drivers
+refuse an asset outside the repository.
+
+**Completion note:** `platforms.CheckAssetGlobs` runs `ResolveGlobsLenient` with a silent warn
+callback, and each driver's `CheckAssets` calls it. `Pipeline.Run` checks every platform after the
+`post_bump` hooks (so a hook that builds the files has run) and before the dry-run return, so
+`--dry-run` reports the refusal too; the error is wrapped as `platform <name>: ...`. A pattern that
+matches nothing passes the preflight on purpose, since a `pre_tag` or `post_tag` hook may still
+produce the files; publishing still warns and re-checks every match it finds. Not covered: files a
+later hook creates are only checked at publish time, so an asset a `pre_tag` hook symlinks outside
+the tree still fails after the tag exists. `port.Platform` gained a method, so `MockPlatform` got a
+`CheckAssetsErr` field. Spec 03 and Spec 05 say so.
 
 ---
 

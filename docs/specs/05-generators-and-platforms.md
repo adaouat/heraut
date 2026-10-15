@@ -574,6 +574,7 @@ type Platform interface {
     Check() error                                  // binary + token + project/repo resolved
     CreateRelease(tag, notes string, prerelease bool) error // create the release and attach its assets — see § Asset resolution above
     HasAssets() bool                               // true if cfg.Assets is non-empty
+    CheckAssets() error                            // asset path rules, applied before anything is pushed (no request, no CLI call)
 }
 ```
 

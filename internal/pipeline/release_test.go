@@ -486,6 +486,38 @@ func TestRun_WithAssets(t *testing.T) {
 	assert.Equal(t, "v1.2.3", platform.CreateReleaseCalls[0].Tag)
 }
 
+// TestRun_BadAssets_FailsBeforeAnyGitMutation verifies a platform whose assets cannot be published
+// stops the run before the changelog commit, the tag and the push: no runner call, no release.
+func TestRun_BadAssets_FailsBeforeAnyGitMutation(t *testing.T) {
+	mr := exectest.NewMockRunner()
+	gen := &testutil.MockGenerator{}
+	platform := &testutil.MockPlatform{
+		PlatformName:   "github",
+		HasAssetsVal:   true,
+		CheckAssetsErr: errors.New("asset \"/etc/passwd\" resolves outside the repository"),
+	}
+	cfg := &pipeline.Config{Changelog: gen, Platforms: []port.Platform{platform}}
+
+	p := pipeline.New(mr, &fakeResolver{result: resolvedResult("v1.2.3")}, cfg, &bytes.Buffer{}, false)
+	err := p.Run()
+
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "github")
+	assert.Contains(t, err.Error(), "outside the repository")
+	assert.Empty(t, mr.Calls, "nothing may be committed, tagged or pushed")
+	assert.Empty(t, gen.GenerateCalls, "the changelog must not be written")
+	assert.Empty(t, platform.CreateReleaseCalls)
+}
+
+// TestRun_BadAssets_DryRunReportsIt verifies a dry run surfaces the same refusal.
+func TestRun_BadAssets_DryRunReportsIt(t *testing.T) {
+	platform := &testutil.MockPlatform{PlatformName: "github", CheckAssetsErr: errors.New("outside the repository")}
+	cfg := &pipeline.Config{Platforms: []port.Platform{platform}}
+
+	p := pipeline.New(exectest.NewMockRunner(), &fakeResolver{result: resolvedResult("v1.2.3")}, cfg, &bytes.Buffer{}, true)
+	require.ErrorContains(t, p.Run(), "outside the repository")
+}
+
 // TestRun_DryRun verifies no git mutations or platform calls are made.
 func TestRun_DryRun(t *testing.T) {
 	mr := exectest.NewMockRunner()

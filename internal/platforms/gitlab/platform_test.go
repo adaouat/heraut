@@ -659,3 +659,17 @@ func TestHasAssets(t *testing.T) {
 	pWithAssets := gitlab.New(&config.Platform{Assets: []string{"dist/*"}})
 	assert.True(t, pWithAssets.HasAssets())
 }
+
+func TestCheckAssets(t *testing.T) {
+	repo := t.TempDir()
+	t.Chdir(repo)
+	outside := t.TempDir()
+	require.NoError(t, os.WriteFile(filepath.Join(outside, "secret.txt"), []byte("x"), 0o644))
+
+	assert.NoError(t, gitlab.New(&config.Platform{}).CheckAssets())
+	assert.NoError(t, gitlab.New(&config.Platform{Assets: []string{"dist/*"}}).CheckAssets())
+
+	err := gitlab.New(&config.Platform{Assets: []string{filepath.Join(outside, "*.txt")}}).CheckAssets()
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "outside the repository")
+}

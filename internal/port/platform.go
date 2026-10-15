@@ -23,4 +23,7 @@ type Platform interface {
 	// uploads to an already-published release (HTTP 422), so there is no separate upload step.
 	CreateRelease(tag, notes string, prerelease bool) error
 	HasAssets() bool
+	// CheckAssets verifies the configured assets can be published, without publishing or
+	// contacting the platform, so the pipeline can refuse a bad asset before it pushes a tag.
+	CheckAssets() error
 }

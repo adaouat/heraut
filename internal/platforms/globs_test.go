@@ -163,3 +163,25 @@ func TestResolveGlobsLenient_PrefixesDotSlashOnNamesStartingWithADash(t *testing
 	require.NoError(t, err)
 	assert.ElementsMatch(t, []string{"./-rf.zip", "ok.zip"}, files, "a leading dash must not read as an option to gh")
 }
+
+func TestCheckAssetGlobs_RefusesAnAssetOutsideTheRoot(t *testing.T) {
+	inRepo(t)
+	outside := t.TempDir()
+	touch(t, outside, "secret.txt")
+
+	err := platforms.CheckAssetGlobs([]string{filepath.Join(outside, "*.txt")})
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "outside the repository")
+}
+
+func TestCheckAssetGlobs_AcceptsInsideFilesAndStaysSilentOnNoMatch(t *testing.T) {
+	repo := inRepo(t)
+	touch(t, repo, "app.zip")
+
+	require.NoError(t, platforms.CheckAssetGlobs([]string{"*.zip", "missing/*"}))
+}
+
+func TestCheckAssetGlobs_InvalidGlobErrors(t *testing.T) {
+	inRepo(t)
+	require.Error(t, platforms.CheckAssetGlobs([]string{"["}))
+}

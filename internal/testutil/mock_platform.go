@@ -8,6 +8,7 @@ type MockPlatform struct {
 	CheckErr         error
 	CreateReleaseErr error
 	HasAssetsVal     bool
+	CheckAssetsErr   error
 	LinkContextVal   port.LinkContext
 
 	CreateReleaseCalls []struct {
@@ -47,3 +48,5 @@ func (m *MockPlatform) CreateRelease(tag, notes string, prerelease bool) error {
 }
 
 func (m *MockPlatform) HasAssets() bool { return m.HasAssetsVal }
+
+func (m *MockPlatform) CheckAssets() error { return m.CheckAssetsErr }

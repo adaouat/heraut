@@ -212,6 +212,16 @@ func (p *Pipeline) Run() error {
 		return err
 	}
 
+	// Refuse unpublishable assets before anything is committed or pushed: the publish step runs
+	// after the tag is pushed, so a refusal there would leave a tag without a release. Placed after
+	// post_bump so a hook that builds the assets has run, and before the dry-run return so a
+	// dry run reports the same refusal.
+	for _, plat := range p.cfg.Platforms {
+		if err := plat.CheckAssets(); err != nil {
+			return fmt.Errorf("platform %s: %w", plat.Name(), err)
+		}
+	}
+
 	if p.dryRun {
 		return p.dryRunOutput(result)
 	}

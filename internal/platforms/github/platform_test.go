@@ -482,3 +482,19 @@ func TestCheck_SelfHosted_SkipsActionsAutologin(t *testing.T) {
 	assert.Equal(t, []string{"api", "repos/org/repo/releases?per_page=1"}, mr.Calls[1].Args)
 	assert.Equal(t, []string{"GH_TOKEN=ent-token", "GH_HOST=github.example.com", "GH_ENTERPRISE_TOKEN=ent-token"}, mr.Calls[1].Env)
 }
+
+func TestCheckAssets(t *testing.T) {
+	repo := t.TempDir()
+	t.Chdir(repo)
+	outside := t.TempDir()
+	require.NoError(t, os.WriteFile(filepath.Join(outside, "secret.txt"), []byte("x"), 0o644))
+
+	mr := exectest.NewMockRunner()
+	assert.NoError(t, github.New(mr, &config.Platform{}).CheckAssets())
+	assert.NoError(t, github.New(mr, &config.Platform{Assets: []string{"dist/*"}}).CheckAssets())
+
+	err := github.New(mr, &config.Platform{Assets: []string{filepath.Join(outside, "*.txt")}}).CheckAssets()
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "outside the repository")
+	assert.Empty(t, mr.Calls, "the preflight must not invoke gh")
+}

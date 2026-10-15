@@ -172,7 +172,10 @@ has no such requirement (see § Tag-only workflow below).
       see [Spec 05](05-generators-and-platforms.md)). Every matched file must lie under the
       repository root (the working directory) once symlinks are resolved; a match outside it
       fails the step before any request, so a pattern like `/etc/*` or `../*` cannot publish
-      files that are not part of the project.
+      files that are not part of the project. The same rule is checked once before anything is
+      committed or pushed (right after the `post_bump` hooks), so a refused asset stops the run
+      before the changelog commit and the tag, and a `--dry-run` reports it too; a pattern that
+      matches nothing is not an error at that point, since a later hook may still build the files.
 
 The version is pre-computed in step 2 and re-used in every subsequent step
 ([ADR-0011](../adr/0011-single-pipeline-release-via-pre-computation.md)) — no driver
