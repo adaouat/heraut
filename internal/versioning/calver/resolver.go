@@ -89,7 +89,7 @@ func (r *Resolver) BumpFromDate(tags []string) (string, error) {
 }
 
 func (r *Resolver) computeNext(tokens []Token, latest *Values) (string, error) {
-	now := r.now()
+	now := r.now().UTC()
 	nowValues := valuesFromTime(now, r.cfg.Versioning.Sprint, hasWeekToken(tokens))
 
 	var patch int

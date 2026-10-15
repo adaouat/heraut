@@ -186,11 +186,21 @@ release tag in git's order (`releaseTags`), so under an ordering git gets wrong 
 next version can name different tags. It only feeds `previous_tag` and the display, and the next
 version is the safe one; worth a follow-up if it shows up in practice.
 
-#### `[ ]` T385: CalVer dates in UTC
+#### `[x]` T385: CalVer dates in UTC
 
 Convert the injected clock to UTC before extracting year, month, day, ISO week, quarter and
 semester. The test clock (`heraut_testclock`, `HERAUT_TEST_NOW`) keeps working. Test around a day,
 ISO-week and quarter boundary with a non-UTC input.
+
+**Completion note:** `calver.Resolver.computeNext` converts the injected clock with `.UTC()` before any
+field is read, so year, month, day, ISO week, quarter and semester all come from the UTC instant. This is
+the only place the calver clock is read, so one line covers every format. The test clock needed no change:
+`HERAUT_TEST_NOW` already parses an RFC 3339 instant and the conversion happens in the resolver, not in
+the clock. A table test feeds instants with a non-UTC zone across a month, day, ISO-week, quarter,
+semester and year boundary, in both directions (zone behind and ahead of UTC); every row failed on the
+local date before the change. Effect for users: a release cut late in the evening in a zone behind UTC,
+or early in the morning in one ahead of it, can now get a different calendar date than before; the date
+is the UTC one, as decided.
 
 #### `[ ]` T386: always probe for an existing tag on `--set-version`
 

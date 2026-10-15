@@ -556,3 +556,35 @@ func TestBumpFromDate_BaseIsTheHighestParsedVersion(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, "2026.05.3", next)
 }
+
+// TestResolve_DatesAreUTC covers T385: the calendar fields come from the UTC instant, so the same
+// moment gives the same version on a laptop in any zone and on a CI runner.
+func TestResolve_DatesAreUTC(t *testing.T) {
+	minus5 := time.FixedZone("UTC-5", -5*3600)
+	plus9 := time.FixedZone("UTC+9", 9*3600)
+	tests := []struct {
+		name   string
+		format string
+		now    time.Time
+		want   string
+	}{
+		{"month rolls over in UTC first", "YYYY.MM.PATCH", time.Date(2026, 5, 31, 23, 30, 0, 0, minus5), "2026.06.0"},
+		{"day rolls over in UTC first", "YYYY.MM.DD.PATCH", time.Date(2026, 5, 24, 22, 0, 0, 0, minus5), "2026.05.25.0"},
+		{"local date is already ahead of UTC", "YYYY.MM.DD.PATCH", time.Date(2026, 6, 1, 6, 0, 0, 0, plus9), "2026.05.31.0"},
+		{"ISO week rolls over in UTC first", "YYYY.WW.PATCH", time.Date(2026, 5, 24, 23, 30, 0, 0, minus5), "2026.22.0"},
+		{"quarter rolls over in UTC first", "YYYY.QQ.PATCH", time.Date(2026, 3, 31, 22, 0, 0, 0, minus5), "2026.2.0"},
+		{"semester rolls over in UTC first", "YYYY.SS.PATCH", time.Date(2026, 6, 30, 22, 0, 0, 0, minus5), "2026.2.0"},
+		{"year rolls over in UTC first", "YYYY.PATCH", time.Date(2026, 12, 31, 20, 0, 0, 0, minus5), "2027.0"},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			mr := exectest.NewMockRunner()
+			mr.QueueResponse("", "", nil)
+			cfg := &config.Config{Versioning: config.Versioning{Strategy: "calver", Format: tc.format}}
+
+			result, err := calver.New(mr, cfg, func() time.Time { return tc.now }).Resolve()
+			require.NoError(t, err)
+			assert.Equal(t, tc.want, result.Version)
+		})
+	}
+}
