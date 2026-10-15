@@ -149,12 +149,23 @@ the tree still fails after the tag exists. `port.Platform` gained a method, so `
 Goal: fix the versioning behaviors the maintainer decided are wrong. Entry: Phase 70 done. Pin
 today's output with characterization tests before changing it; existing edge-case rows stay.
 
-#### `[ ]` T383: per-env `latestTag` returns only a tag that parsed
+#### `[x]` T383: per-env `latestTag` returns only a tag that parsed
 
 `latestTag` returns the first raw tag even when it does not parse. In promote runs that tag can reach
 the hook variable `PreviousTag`, so a pushed tag containing shell syntax would run when a hook uses
 it. Return a tag only when it parsed (`internal/versioning/perenv/order.go`, `promote.go`). Test with
 a tag containing `$(…)` under both per-env strategies.
+
+**Completion note:** `latestTag` (`internal/versioning/perenv/order.go`) now returns a tag only when
+it holds a real version, and an empty tag otherwise. Before, it returned git's first line even when
+nothing parsed, and for calver-per-env "parsed" was not enough either: `tagfmt.ParseVersion` accepts
+any text matched by the `{version}` slot, so `prod/$(touch pwned)` counted as a version. The calver
+branch now also requires `semver.IsBareVersion` (the same test `releaseTags` already applied) and
+scans git's order for the first tag that passes, instead of giving up when the first line fails.
+That is a small behavior change beyond the title: a stray ref sorting first no longer switches the
+E002 check off, the check compares against the highest real tag. The auto path was not affected (it
+reads `releaseTags`). A table test pins both strategies, with the hostile tag first and alone; it
+failed before the change on three of the four rows.
 
 #### `[ ]` T384: CalVer picks the highest parsed tag as the base
 

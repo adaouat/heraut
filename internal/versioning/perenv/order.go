@@ -35,20 +35,25 @@ func releaseTags(strategy, tf string, rawTags []string) (tags, versions []string
 	return tags, versions
 }
 
-// latestTag returns the destination env's latest tag and its bare version. ok is false when no
-// version could be parsed from it, in which case E002 cannot apply. semver-per-env picks the
-// highest §11 tag of any kind; calver-per-env keeps git's first line.
+// latestTag returns the destination env's latest tag and its bare version. ok is false when none
+// of the tags holds a real version, in which case E002 cannot apply and no tag is returned: the
+// tag ends up in Result.CurrentTag and from there in hook variables, so a ref that merely matches
+// the tag glob (any ref name is allowed) must never be reported. semver-per-env picks the highest
+// §11 tag of any kind; calver-per-env keeps git's order and takes the first tag whose version is
+// a dotted-integer one.
 func latestTag(strategy, tf string, rawTags []string) (tag, version string, ok bool) {
 	if strategy == semverPerEnv {
 		if tv, found := semver.Latest(semver.SortTags(rawTags, versionExtractor(tf)), true); found {
 			return tv.Tag, tv.Version.String(), true
 		}
-	}
-	if len(rawTags) == 0 {
 		return "", "", false
 	}
-	v, err := tagfmt.ParseVersion(tf, rawTags[0])
-	return rawTags[0], v, err == nil && strategy != semverPerEnv
+	for _, raw := range rawTags {
+		if v, err := tagfmt.ParseVersion(tf, raw); err == nil && semver.IsBareVersion(v) {
+			return raw, v, true
+		}
+	}
+	return "", "", false
 }
 
 // compareVersions orders two bare versions: SemVer §11 for semver-per-env when both parse, else

@@ -940,3 +940,43 @@ func TestResolve_Auto_Calver_ZeroPaddedUnaffected(t *testing.T) {
 	assert.Equal(t, "dev/2026.05.4", result.Tag)
 	assert.Equal(t, "dev/2026.05.3", result.CurrentTag)
 }
+
+// TestResolve_Promote_CurrentTagIsAlwaysAParsedTag covers T383: Result.CurrentTag reaches the hook
+// variable previous_tag, so a destination tag that does not parse as a version (any pushed ref name
+// is allowed, shell syntax included) must never be reported, however git sorts it.
+func TestResolve_Promote_CurrentTagIsAlwaysAParsedTag(t *testing.T) {
+	const hostile = "prod/$(touch pwned)"
+	tests := []struct {
+		name     string
+		strategy string
+		calc     perenv.VersionCalculator
+		srcTag   string
+		destTags string
+		want     string
+	}{
+		{"semver, hostile tag sorts first", "semver-per-env", semverCalc("0.1.0"), "dev/1.2.3", hostile + "\nprod/1.0.0\n", "prod/1.0.0"},
+		{"semver, only a hostile tag", "semver-per-env", semverCalc("0.1.0"), "dev/1.2.3", hostile + "\n", ""},
+		{"calver, hostile tag sorts first", "calver-per-env", calverCalc("YYYY.MM.PATCH", fixedNow(2026, time.May, 24)), "dev/2026.05.3", hostile + "\nprod/2026.05.1\n", "prod/2026.05.1"},
+		{"calver, only a hostile tag", "calver-per-env", calverCalc("YYYY.MM.PATCH", fixedNow(2026, time.May, 24)), "dev/2026.05.3", hostile + "\n", ""},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			mr := exectest.NewMockRunner()
+			mr.QueueResponse(tc.srcTag+"\n", "", nil) // git tag -l dev/*
+			mr.QueueResponse("", "", nil)             // candidate does not exist
+			mr.QueueResponse(tc.destTags, "", nil)    // git tag -l prod/*
+
+			cfg := &config.Config{
+				Versioning: config.Versioning{Strategy: tc.strategy, Format: "YYYY.MM.PATCH"},
+				Environments: map[string]config.Environment{
+					"dev":  {Bump: "auto", TagFormat: "dev/{version}"},
+					"prod": {Bump: "promote", TagFormat: "prod/{version}"},
+				},
+			}
+
+			result, err := perenv.New(mr, cfg, "prod", false, tc.calc).Resolve()
+			require.NoError(t, err)
+			assert.Equal(t, tc.want, result.CurrentTag)
+		})
+	}
+}
