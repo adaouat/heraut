@@ -398,6 +398,10 @@ that parses under the format (compared year, then semester, quarter, month, week
 not the first tag `git` lists: a leading `SPRINT` or any other order `git`'s version sort gets wrong
 cannot make heraut issue a tag that already exists. Tags that do not parse are ignored.
 
+Under `calver-per-env` the same order picks every "latest" tag: `Result.CurrentTag` (and so the
+`previous_tag` hook variable and `heraut version current`), the source tag a promotion copies, and the
+destination tag the E002 check compares against. Ties keep `git`'s order.
+
 `PATCH` is mandatory and must be the last *non-literal* token — a trailing literal
 suffix after it (e.g. `YYYY.MM.PATCH-rc`) is allowed. It resets to `0` whenever the
 period defined by the other tokens changes (e.g. new month for `YYYY.MM.PATCH`), and

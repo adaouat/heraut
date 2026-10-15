@@ -980,3 +980,50 @@ func TestResolve_Promote_CurrentTagIsAlwaysAParsedTag(t *testing.T) {
 		})
 	}
 }
+
+// calver-per-env must report, and promote from, the highest tag by calendar value, whatever order
+// git lists them in: the next version is already derived from the highest (T384), so a CurrentTag
+// taken from git's first line could name a different tag.
+func TestResolve_CalverPerEnv_UsesTheHighestTagWhateverGitsOrder(t *testing.T) {
+	calc := calverCalc("YYYY.MM.PATCH", fixedNow(2026, time.May, 24))
+	cfg := &config.Config{
+		Versioning: config.Versioning{Strategy: "calver-per-env", Format: "YYYY.MM.PATCH"},
+		Environments: map[string]config.Environment{
+			"dev":  {Bump: "auto", TagFormat: "dev/{version}"},
+			"prod": {Bump: "promote", TagFormat: "prod/{version}"},
+		},
+	}
+	misleading := "dev/2026.05.1\ndev/2026.05.3\ndev/2026.04.9\n"
+
+	t.Run("auto reports the tag the next version came from", func(t *testing.T) {
+		mr := exectest.NewMockRunner()
+		mr.QueueResponse(misleading, "", nil)
+
+		result, err := perenv.New(mr, cfg, "dev", false, calc).Resolve()
+		require.NoError(t, err)
+		assert.Equal(t, "dev/2026.05.3", result.CurrentTag)
+		assert.Equal(t, "dev/2026.05.4", result.Tag)
+	})
+
+	t.Run("promote picks the highest source tag", func(t *testing.T) {
+		mr := exectest.NewMockRunner()
+		mr.QueueResponse(misleading, "", nil) // git tag -l dev/*
+		mr.QueueResponse("", "", nil)         // candidate does not exist
+		mr.QueueResponse("prod/2026.05.1\nprod/2026.05.2\n", "", nil)
+
+		result, err := perenv.New(mr, cfg, "prod", false, calc).Resolve()
+		require.NoError(t, err)
+		assert.Equal(t, "prod/2026.05.3", result.Tag)
+		assert.Equal(t, "prod/2026.05.2", result.CurrentTag, "the highest destination tag, not git's first line")
+	})
+
+	t.Run("promote refuses when the destination is ahead by calendar value", func(t *testing.T) {
+		mr := exectest.NewMockRunner()
+		mr.QueueResponse("dev/2026.05.1\n", "", nil)
+		mr.QueueResponse("", "", nil)
+		mr.QueueResponse("prod/2026.04.1\nprod/2026.05.2\n", "", nil) // the ahead tag is not first
+
+		_, err := perenv.New(mr, cfg, "prod", false, calc).Resolve()
+		require.ErrorIs(t, err, perenv.ErrDestinationAhead)
+	})
+}

@@ -144,7 +144,7 @@ func resolvePromote(runner port.Runner, cfg *config.Config, env string, force bo
 
 	// 3. Pick the latest source release (never a pre-release) — the same selection resolveAuto
 	// uses (T92, ADR-0064).
-	srcTags, srcVersions := releaseTags(cfg.Versioning.Strategy, srcTF, splitLines(stdout))
+	srcTags, srcVersions := releaseTags(cfg.Versioning.Strategy, srcTF, cfg.Versioning.Format, splitLines(stdout))
 	if len(srcTags) == 0 {
 		return versioning.Result{}, &PromotionError{
 			sentinel: ErrNoSourceTags,
@@ -189,7 +189,7 @@ func resolvePromote(runner port.Runner, cfg *config.Config, env string, force bo
 	}
 
 	destRawTags := splitLines(stdout)
-	currentDestTag, latestDestVersion, destComparable := latestTag(cfg.Versioning.Strategy, destTF, destRawTags)
+	currentDestTag, latestDestVersion, destComparable := latestTag(cfg.Versioning.Strategy, destTF, cfg.Versioning.Format, destRawTags)
 	if destComparable && compareVersions(cfg.Versioning.Strategy, latestDestVersion, candidateVersion) > 0 && !force {
 		suggested, renderErr := tagfmt.Render(srcTF, tagfmt.Tokens{Env: srcEnv, Version: latestDestVersion})
 		if renderErr != nil {
@@ -218,7 +218,7 @@ func resolvePromote(runner port.Runner, cfg *config.Config, env string, force bo
 	// branch is left byte-for-byte unchanged.
 	reportedDestTag := currentDestTag
 	if cfg.Versioning.Strategy == semverPerEnv {
-		if destReleases, _ := releaseTags(cfg.Versioning.Strategy, destTF, destRawTags); len(destReleases) > 0 {
+		if destReleases, _ := releaseTags(cfg.Versioning.Strategy, destTF, cfg.Versioning.Format, destRawTags); len(destReleases) > 0 {
 			reportedDestTag = destReleases[0]
 		}
 	}

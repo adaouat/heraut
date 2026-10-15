@@ -50,3 +50,26 @@ func compareValues(a, b Values) int {
 	}
 	return 0
 }
+
+// CompareByFormat returns a comparison of two bare versions read through format, chronological as
+// compareValues orders them. A version that does not parse under the format sorts below every one
+// that does, and two such versions compare equal. An invalid format yields an error.
+func CompareByFormat(format string) (func(a, b string) int, error) {
+	tokens, err := ParseFormat(format)
+	if err != nil {
+		return nil, err
+	}
+	return func(a, b string) int {
+		va, errA := ParseVersion(tokens, a)
+		vb, errB := ParseVersion(tokens, b)
+		switch {
+		case errA != nil && errB != nil:
+			return 0
+		case errA != nil:
+			return -1
+		case errB != nil:
+			return 1
+		}
+		return compareValues(va, vb)
+	}, nil
+}

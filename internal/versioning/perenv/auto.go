@@ -23,7 +23,7 @@ func resolveAuto(runner port.Runner, cfg *config.Config, env string, calc Versio
 		return versioning.Result{}, fmt.Errorf("listing tags for env %q: %w", env, err)
 	}
 
-	tags, bareVersions := releaseTags(cfg.Versioning.Strategy, tf, splitLines(stdout))
+	tags, bareVersions := releaseTags(cfg.Versioning.Strategy, tf, cfg.Versioning.Format, splitLines(stdout))
 	var currentTag string
 	if len(tags) > 0 {
 		currentTag = tags[0]

@@ -25,3 +25,16 @@ func TestCompareVersions(t *testing.T) {
 		})
 	}
 }
+
+func TestCompareByFormat(t *testing.T) {
+	cmp, err := CompareByFormat("YYYY.MM.PATCH")
+	assert.NoError(t, err)
+	assert.Equal(t, 1, cmp("2026.05.3", "2026.05.1"))
+	assert.Equal(t, -1, cmp("2026.04.9", "2026.05.1"), "the month decides before the patch")
+	assert.Equal(t, 0, cmp("2026.05.1", "2026.05.1"))
+	assert.Equal(t, -1, cmp("junk", "2026.05.1"), "an unparsable version sorts below a parsable one")
+	assert.Equal(t, 0, cmp("junk", "other"))
+
+	_, err = CompareByFormat("")
+	assert.Error(t, err)
+}

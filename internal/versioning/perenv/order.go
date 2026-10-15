@@ -1,6 +1,8 @@
 package perenv
 
 import (
+	"slices"
+
 	"github.com/adaouat/heraut/internal/versioning/calver"
 	"github.com/adaouat/heraut/internal/versioning/semver"
 	"github.com/adaouat/heraut/internal/versioning/tagfmt"
@@ -12,8 +14,9 @@ const semverPerEnv = "semver-per-env"
 // bare version handed to the VersionCalculator. semver-per-env orders them by SemVer §11 in Go and
 // passes each version's MAJOR.MINOR.PATCH core (ADR-0064). calver-per-env keeps git's
 // version:refname order and the lenient dotted-integer check, because CalVer's zero-padded
-// components (2026.05.3) are not valid SemVer.
-func releaseTags(strategy, tf string, rawTags []string) (tags, versions []string) {
+// components (2026.05.3) are not valid SemVer; it orders them by calendar value under format
+// instead, so git's own order never decides which tag is the latest.
+func releaseTags(strategy, tf, format string, rawTags []string) (tags, versions []string) {
 	if strategy == semverPerEnv {
 		for _, tv := range semver.SortTags(rawTags, versionExtractor(tf)) {
 			if tv.Version.IsPreRelease() {
@@ -32,7 +35,26 @@ func releaseTags(strategy, tf string, rawTags []string) (tags, versions []string
 		tags = append(tags, tag)
 		versions = append(versions, bare)
 	}
-	return tags, versions
+	return sortNewestFirst(format, tags, versions)
+}
+
+// sortNewestFirst reorders tags and versions together, newest calendar value first, keeping git's
+// order for ties. An unusable format leaves the order as given.
+func sortNewestFirst(format string, tags, versions []string) ([]string, []string) {
+	cmp, err := calver.CompareByFormat(format)
+	if err != nil || len(tags) < 2 {
+		return tags, versions
+	}
+	idx := make([]int, len(tags))
+	for i := range idx {
+		idx[i] = i
+	}
+	slices.SortStableFunc(idx, func(a, b int) int { return cmp(versions[b], versions[a]) })
+	sortedTags, sortedVersions := make([]string, len(tags)), make([]string, len(tags))
+	for i, j := range idx {
+		sortedTags[i], sortedVersions[i] = tags[j], versions[j]
+	}
+	return sortedTags, sortedVersions
 }
 
 // latestTag returns the destination env's latest tag and its bare version. ok is false when none
@@ -40,20 +62,19 @@ func releaseTags(strategy, tf string, rawTags []string) (tags, versions []string
 // tag ends up in Result.CurrentTag and from there in hook variables, so a ref that merely matches
 // the tag glob (any ref name is allowed) must never be reported. semver-per-env picks the highest
 // §11 tag of any kind; calver-per-env keeps git's order and takes the first tag whose version is
-// a dotted-integer one.
-func latestTag(strategy, tf string, rawTags []string) (tag, version string, ok bool) {
+// a dotted-integer one, the highest by calendar value under format.
+func latestTag(strategy, tf, format string, rawTags []string) (tag, version string, ok bool) {
 	if strategy == semverPerEnv {
 		if tv, found := semver.Latest(semver.SortTags(rawTags, versionExtractor(tf)), true); found {
 			return tv.Tag, tv.Version.String(), true
 		}
 		return "", "", false
 	}
-	for _, raw := range rawTags {
-		if v, err := tagfmt.ParseVersion(tf, raw); err == nil && semver.IsBareVersion(v) {
-			return raw, v, true
-		}
+	tags, versions := releaseTags(strategy, tf, format, rawTags)
+	if len(tags) == 0 {
+		return "", "", false
 	}
-	return "", "", false
+	return tags[0], versions[0], true
 }
 
 // compareVersions orders two bare versions: SemVer §11 for semver-per-env when both parse, else

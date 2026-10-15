@@ -225,7 +225,7 @@ on a taken tag now fails up front instead of after the changelog commit is pushe
 --set-version` in a directory that is not a git repository now fails, as the rest of `release` does.
 Phase 71 is done.
 
-#### `[ ]` T399: report the highest parsed tag as `CurrentTag` under `calver-per-env`
+#### `[x]` T399: report the highest parsed tag as `CurrentTag` under `calver-per-env`
 
 Follow-up to T384. calver-per-env derives the next version from the highest parsed tag, but
 `Result.CurrentTag` (and so the `previous_tag` hook variable and `heraut version current`) is still the
@@ -233,6 +233,15 @@ first release tag in git's order. When git's order is wrong (clock-skewed tagger
 two can name different tags. Report the tag the next version was derived from. Characterization test
 first: with tags in a misleading order, `CurrentTag` equals the tag that fed the next version. SemVer
 per-env is untouched (git's `-version:refname` order is the version order there).
+
+**Completion note:** `calver.CompareByFormat(format)` returns the chronological comparison the resolver already
+uses, and `perenv.releaseTags` (now taking the format) sorts calver-per-env tags newest first with it, keeping
+git's order for ties; `latestTag` goes through the same function. One fix therefore reaches every "latest"
+the strategy reports, which is wider than the task text: `CurrentTag` in the auto path, the source tag a
+promotion copies, and the destination tag compared for E002. The promote cases were wrong the same way (a
+promotion could copy a lower source tag, and a destination that was ahead could pass E002 when git listed
+it second), so I judged them part of the same root cause and the decision in T384; the new test covers all
+three. Spec 04 says so. SemVer per-env is untouched.
 
 ---
 
