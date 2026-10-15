@@ -32,12 +32,16 @@ func NewChangelogCmd(version string) *cobra.Command {
 				return exitcode.Wrap(exitcode.Config, err)
 			}
 
-			cfgPath, _ := cmd.Flags().GetString("config")
-			dryRun, _ := cmd.Flags().GetBool("dry-run")
-			verbose, _ := cmd.Flags().GetBool("verbose")
-			env, _ := cmd.Flags().GetString("env")
-			force, _ := cmd.Flags().GetBool("force")
-			allowMajor, _ := cmd.Flags().GetBool("allow-major")
+			flags := newFlagReader(cmd)
+			cfgPath := flags.String("config")
+			dryRun := flags.Bool("dry-run")
+			verbose := flags.Bool("verbose")
+			env := flags.String("env")
+			force := flags.Bool("force")
+			allowMajor := flags.Bool("allow-major")
+			if err := flags.Err(); err != nil {
+				return err
+			}
 
 			if err := validateVersionOverrideFlags(versionOverride, buildID); err != nil {
 				return exitcode.Wrap(exitcode.Config, err)
@@ -58,7 +62,9 @@ func NewChangelogCmd(version string) *cobra.Command {
 			if err != nil {
 				return exitcode.Wrap(exitcode.Config, err)
 			}
-			applyOfflineOverride(cmd, cfg)
+			if err := applyOfflineOverride(cmd, cfg); err != nil {
+				return err
+			}
 
 			if errs := config.Validate(cfg); len(errs) > 0 {
 				printConfigErrors(errs, cmd.ErrOrStderr())

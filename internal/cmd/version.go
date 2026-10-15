@@ -31,7 +31,11 @@ func newVersionNextCmd() *cobra.Command {
 		Use:   "next",
 		Short: "Compute and print the next version without side effects",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			asJSON, _ := cmd.Flags().GetBool("json")
+			flags := newFlagReader(cmd)
+			asJSON := flags.Bool("json")
+			if err := flags.Err(); err != nil {
+				return err
+			}
 			next, err := resolveNext(cmd, versionOverride, buildID)
 			if asJSON {
 				return writeJSON(cmd.OutOrStdout(), next.data(), next.warnings, err)
@@ -75,12 +79,16 @@ func resolveNext(cmd *cobra.Command, versionOverride, buildID string) (nextResul
 		return nextResult{}, exitcode.Wrap(exitcode.Config, err)
 	}
 
-	cfgPath, _ := cmd.Flags().GetString("config")
-	verbose, _ := cmd.Flags().GetBool("verbose")
-	env, _ := cmd.Flags().GetString("env")
-	force, _ := cmd.Flags().GetBool("force")
-	allowMajor, _ := cmd.Flags().GetBool("allow-major")
-	preRelease, _ := cmd.Flags().GetString("pre-release")
+	flags := newFlagReader(cmd)
+	cfgPath := flags.String("config")
+	verbose := flags.Bool("verbose")
+	env := flags.String("env")
+	force := flags.Bool("force")
+	allowMajor := flags.Bool("allow-major")
+	preRelease := flags.String("pre-release")
+	if err := flags.Err(); err != nil {
+		return nextResult{}, err
+	}
 
 	runner := execadapter.New(false, verbose)
 	cfg, err := loadValidatedConfig(cmd, config.ResolvePath(cfgPath))
@@ -133,7 +141,11 @@ func newVersionCurrentCmd() *cobra.Command {
 		Use:   "current",
 		Short: "Print the latest released tag",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			asJSON, _ := cmd.Flags().GetBool("json")
+			flags := newFlagReader(cmd)
+			asJSON := flags.Bool("json")
+			if err := flags.Err(); err != nil {
+				return err
+			}
 			tag, version, err := resolveCurrent(cmd, asJSON || !bare, asJSON || bare, includePreRelease)
 			if asJSON {
 				return writeJSON(cmd.OutOrStdout(), currentData{Tag: tag, Version: version}, nil, err)
@@ -165,10 +177,14 @@ type currentData struct {
 // resolveCurrent returns the latest released tag and its bare version, each only when asked for:
 // every one is its own tag lookup, and the text mode wants exactly one of them.
 func resolveCurrent(cmd *cobra.Command, withTag, withVersion, includePreRelease bool) (tag, version string, err error) {
-	cfgPath, _ := cmd.Flags().GetString("config")
-	verbose, _ := cmd.Flags().GetBool("verbose")
-	env, _ := cmd.Flags().GetString("env")
-	force, _ := cmd.Flags().GetBool("force")
+	flags := newFlagReader(cmd)
+	cfgPath := flags.String("config")
+	verbose := flags.Bool("verbose")
+	env := flags.String("env")
+	force := flags.Bool("force")
+	if err := flags.Err(); err != nil {
+		return "", "", err
+	}
 
 	runner := execadapter.New(false, verbose)
 	cfg, err := loadValidatedConfig(cmd, config.ResolvePath(cfgPath))

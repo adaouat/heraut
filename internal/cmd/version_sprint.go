@@ -23,8 +23,12 @@ func newVersionSprintBumpCmd() *cobra.Command {
 		Use:   "bump",
 		Short: "Increment versioning.sprint in .heraut.yml",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			cfgPath, _ := cmd.Flags().GetString("config")
-			dryRun, _ := cmd.Flags().GetBool("dry-run")
+			flags := newFlagReader(cmd)
+			cfgPath := flags.String("config")
+			dryRun := flags.Bool("dry-run")
+			if err := flags.Err(); err != nil {
+				return err
+			}
 			path := config.ResolvePath(cfgPath)
 			out := cmd.OutOrStdout()
 

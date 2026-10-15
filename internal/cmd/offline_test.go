@@ -16,7 +16,7 @@ func TestApplyOfflineOverride_ForcesDisabled(t *testing.T) {
 	require.NoError(t, cmd.Flags().Set("offline", "true"))
 
 	cfg := &config.Config{Commits: &config.Commits{EnrichmentPolicy: "optional"}}
-	applyOfflineOverride(cmd, cfg)
+	require.NoError(t, applyOfflineOverride(cmd, cfg))
 	assert.Equal(t, "disabled", cfg.EnrichmentPolicy())
 }
 
@@ -25,6 +25,11 @@ func TestApplyOfflineOverride_UnsetLeavesPolicy(t *testing.T) {
 	cmd.Flags().Bool("offline", false, "")
 
 	cfg := &config.Config{Commits: &config.Commits{EnrichmentPolicy: "required"}}
-	applyOfflineOverride(cmd, cfg)
+	require.NoError(t, applyOfflineOverride(cmd, cfg))
 	assert.Equal(t, "required", cfg.EnrichmentPolicy())
+}
+
+func TestApplyOfflineOverride_FlagNotDeclaredIsAnError(t *testing.T) {
+	cfg := &config.Config{}
+	assert.Error(t, applyOfflineOverride(&cobra.Command{}, cfg))
 }

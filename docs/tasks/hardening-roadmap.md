@@ -349,10 +349,20 @@ template snippets, content drivers), `validate_perenv.go` (environments, contrad
 except `package`, `import` and `var (` lines, and no test changed. `validCommitRuleTargets` and
 `commitTypePattern` moved to the commits file with the code that uses them.
 
-#### `[ ]` T392: handle flag-read errors in cobra constructors
+#### `[x]` T392: handle flag-read errors in cobra constructors
 
 64 `cmd.Flags().GetX(...)` calls ignore their error. Handle them through one small helper, and shorten
 the longest constructors (`NewReleaseCmd`, `NewInitCmd`) as part of it.
+
+**Completion note:** `internal/cmd/flags.go` adds `flagReader`: it reads string and bool flags and keeps the
+first failure, and each command checks `Err()` once after a group of reads (a failure is a `Runtime`
+exit code, since the names are heraut's own). It replaces 64 ignored `GetX` errors in nine command files and
+`applyOfflineOverride`, which now returns an error. TDD: `flags_test.go` first (unbuilt, then green), plus a
+test that an undeclared `--offline` is an error. No existing test read an undeclared flag, so no latent typo
+surfaced. `NewReleaseCmd` went from about 165 lines to 35 (`runRelease` and a `releaseFlags` struct hold the
+body) and `NewInitCmd` from 121 to 11 (`runInit`); both are extractions with no logic change. Coverage fell
+from 88.1% to 87.6% because each new `return err` after `flags.Err()` is a branch no test reaches; the gate is
+85%.
 
 #### `[ ]` T393: define forge host URLs once
 

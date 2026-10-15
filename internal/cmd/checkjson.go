@@ -90,9 +90,13 @@ func loadOptionalConfig(path string) (*config.Config, error) {
 
 func runCheckAllJSON(cmd *cobra.Command) error {
 	out := cmd.OutOrStdout()
-	cfgPath, _ := cmd.Flags().GetString("config")
-	verbose, _ := cmd.Flags().GetBool("verbose")
-	env, _ := cmd.Flags().GetString("env")
+	flags := newFlagReader(cmd)
+	cfgPath := flags.String("config")
+	verbose := flags.Bool("verbose")
+	env := flags.String("env")
+	if err := flags.Err(); err != nil {
+		return err
+	}
 	runner := execadapter.New(false, verbose)
 
 	path, source := config.ResolvePathWithSource(cfgPath)
@@ -101,7 +105,9 @@ func runCheckAllJSON(cmd *cobra.Command) error {
 		return writeJSON(out, nil, nil, err)
 	}
 	if cfg != nil {
-		applyOfflineOverride(cmd, cfg)
+		if err := applyOfflineOverride(cmd, cfg); err != nil {
+			return err
+		}
 	}
 	env, err = app.ResolveEnv(env, cfg, runner)
 	if err != nil {
@@ -126,7 +132,11 @@ func runCheckAllJSON(cmd *cobra.Command) error {
 
 func runCheckConfigJSON(cmd *cobra.Command) error {
 	out := cmd.OutOrStdout()
-	cfgPath, _ := cmd.Flags().GetString("config")
+	flags := newFlagReader(cmd)
+	cfgPath := flags.String("config")
+	if err := flags.Err(); err != nil {
+		return err
+	}
 	path, source := config.ResolvePathWithSource(cfgPath)
 	cfg, err := config.Load(path)
 	if err != nil {
@@ -141,9 +151,13 @@ func runCheckConfigJSON(cmd *cobra.Command) error {
 
 func runCheckRuntimeJSON(cmd *cobra.Command) error {
 	out := cmd.OutOrStdout()
-	cfgPath, _ := cmd.Flags().GetString("config")
-	verbose, _ := cmd.Flags().GetBool("verbose")
-	env, _ := cmd.Flags().GetString("env")
+	flags := newFlagReader(cmd)
+	cfgPath := flags.String("config")
+	verbose := flags.Bool("verbose")
+	env := flags.String("env")
+	if err := flags.Err(); err != nil {
+		return err
+	}
 	runner := execadapter.New(false, verbose)
 
 	cfg, err := loadOptionalConfig(config.ResolvePath(cfgPath))

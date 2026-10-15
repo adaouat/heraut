@@ -30,10 +30,14 @@ func NewNotesCmd() *cobra.Command {
 			"or --template for one run; --format text converts the Markdown to plain text.",
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			cfgPath, _ := cmd.Flags().GetString("config")
-			verbose, _ := cmd.Flags().GetBool("verbose")
-			env, _ := cmd.Flags().GetString("env")
-			force, _ := cmd.Flags().GetBool("force")
+			flags := newFlagReader(cmd)
+			cfgPath := flags.String("config")
+			verbose := flags.Bool("verbose")
+			env := flags.String("env")
+			force := flags.Bool("force")
+			if err := flags.Err(); err != nil {
+				return err
+			}
 
 			runner := execadapter.New(false, verbose)
 
@@ -41,7 +45,9 @@ func NewNotesCmd() *cobra.Command {
 			if err != nil {
 				return exitcode.Wrap(exitcode.Config, err)
 			}
-			applyOfflineOverride(cmd, cfg)
+			if err := applyOfflineOverride(cmd, cfg); err != nil {
+				return err
+			}
 			if errs := config.Validate(cfg); len(errs) > 0 {
 				printConfigErrors(errs, cmd.ErrOrStderr())
 				return exitcode.Wrap(exitcode.Config, fmt.Errorf("configuration is invalid"))

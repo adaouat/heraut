@@ -23,12 +23,20 @@ func NewCheckCmd() *cobra.Command {
 		Use:   "check",
 		Short: "Run preflight validations",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			if asJSON, _ := cmd.Flags().GetBool("json"); asJSON {
+			flags := newFlagReader(cmd)
+			asJSON := flags.Bool("json")
+			if err := flags.Err(); err != nil {
+				return err
+			}
+			if asJSON {
 				return runCheckAllJSON(cmd)
 			}
-			cfgPath, _ := cmd.Flags().GetString("config")
-			verbose, _ := cmd.Flags().GetBool("verbose")
-			env, _ := cmd.Flags().GetString("env")
+			cfgPath := flags.String("config")
+			verbose := flags.Bool("verbose")
+			env := flags.String("env")
+			if err := flags.Err(); err != nil {
+				return err
+			}
 			runner := execadapter.New(false, verbose)
 			out := cmd.OutOrStdout()
 
@@ -41,7 +49,9 @@ func NewCheckCmd() *cobra.Command {
 				cfg = nil
 			}
 			if cfg != nil {
-				applyOfflineOverride(cmd, cfg)
+				if err := applyOfflineOverride(cmd, cfg); err != nil {
+					return err
+				}
 			}
 
 			var failed, configFailed int
@@ -98,10 +108,18 @@ func newCheckConfigCmd() *cobra.Command {
 		Use:   "config",
 		Short: "Validate .heraut.yml (offline)",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			if asJSON, _ := cmd.Flags().GetBool("json"); asJSON {
+			flags := newFlagReader(cmd)
+			asJSON := flags.Bool("json")
+			if err := flags.Err(); err != nil {
+				return err
+			}
+			if asJSON {
 				return runCheckConfigJSON(cmd)
 			}
-			cfgPath, _ := cmd.Flags().GetString("config")
+			cfgPath := flags.String("config")
+			if err := flags.Err(); err != nil {
+				return err
+			}
 			out := cmd.OutOrStdout()
 
 			path, source := config.ResolvePathWithSource(cfgPath)
@@ -129,12 +147,20 @@ func newCheckRuntimeCmd() *cobra.Command {
 		Use:   "runtime",
 		Short: "Check binaries on PATH, token env vars, and git user config",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			if asJSON, _ := cmd.Flags().GetBool("json"); asJSON {
+			flags := newFlagReader(cmd)
+			asJSON := flags.Bool("json")
+			if err := flags.Err(); err != nil {
+				return err
+			}
+			if asJSON {
 				return runCheckRuntimeJSON(cmd)
 			}
-			cfgPath, _ := cmd.Flags().GetString("config")
-			verbose, _ := cmd.Flags().GetBool("verbose")
-			env, _ := cmd.Flags().GetString("env")
+			cfgPath := flags.String("config")
+			verbose := flags.Bool("verbose")
+			env := flags.String("env")
+			if err := flags.Err(); err != nil {
+				return err
+			}
 			runner := execadapter.New(false, verbose)
 			out := cmd.OutOrStdout()
 

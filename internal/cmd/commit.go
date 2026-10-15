@@ -37,7 +37,11 @@ func newCommitVerifyCmd() *cobra.Command {
 		Short: "Validate a commit message against the conventional-commit grammar",
 		Args:  cobra.MaximumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			asJSON, _ := cmd.Flags().GetBool("json")
+			flags := newFlagReader(cmd)
+			asJSON := flags.Bool("json")
+			if err := flags.Err(); err != nil {
+				return err
+			}
 			summary, err := verifyCommitMessage(cmd, args, file, asJSON)
 			if asJSON {
 				return writeJSON(cmd.OutOrStdout(), commitVerifyData(summary), nil, err)
@@ -70,7 +74,11 @@ func newCommitCheckCmd() *cobra.Command {
 				revRange = args[0]
 			}
 
-			cfgPath, _ := cmd.Flags().GetString("config")
+			flags := newFlagReader(cmd)
+			cfgPath := flags.String("config")
+			if err := flags.Err(); err != nil {
+				return err
+			}
 			path := config.ResolvePath(cfgPath)
 			cfg, err := config.Load(path)
 			if err != nil {
@@ -86,11 +94,19 @@ func newCommitCheckCmd() *cobra.Command {
 				}
 			}
 
-			verbose, _ := cmd.Flags().GetBool("verbose")
+			flags = newFlagReader(cmd)
+			verbose := flags.Bool("verbose")
+			if err := flags.Err(); err != nil {
+				return err
+			}
 			runner := execadapter.New(false, verbose)
 
 			if fromLatestTag {
-				env, _ := cmd.Flags().GetString("env")
+				flags = newFlagReader(cmd)
+				env := flags.String("env")
+				if err := flags.Err(); err != nil {
+					return err
+				}
 				resolved, noTags, err := app.ResolveFromLatestTag(runner, cfg, env)
 				if err != nil {
 					return exitcode.Wrap(exitcode.Usage, err)
@@ -135,7 +151,11 @@ func newCommitTicketsCmd() *cobra.Command {
 				revRange = args[0]
 			}
 
-			cfgPath, _ := cmd.Flags().GetString("config")
+			flags := newFlagReader(cmd)
+			cfgPath := flags.String("config")
+			if err := flags.Err(); err != nil {
+				return err
+			}
 			path := config.ResolvePath(cfgPath)
 			cfg, err := config.Load(path)
 			if err != nil {
@@ -149,11 +169,19 @@ func newCommitTicketsCmd() *cobra.Command {
 				return exitcode.Wrap(exitcode.Usage, errors.New("no commits.tickets configured; nothing to check"))
 			}
 
-			verbose, _ := cmd.Flags().GetBool("verbose")
+			flags = newFlagReader(cmd)
+			verbose := flags.Bool("verbose")
+			if err := flags.Err(); err != nil {
+				return err
+			}
 			runner := execadapter.New(false, verbose)
 
 			if fromLatestTag {
-				env, _ := cmd.Flags().GetString("env")
+				flags = newFlagReader(cmd)
+				env := flags.String("env")
+				if err := flags.Err(); err != nil {
+					return err
+				}
 				resolved, noTags, err := app.ResolveFromLatestTag(runner, cfg, env)
 				if err != nil {
 					return exitcode.Wrap(exitcode.Usage, err)
@@ -186,7 +214,11 @@ func newCommitCreateCmd() *cobra.Command {
 		Short: "Interactively author a Conventional Commits message and commit it",
 		Args:  cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			cfgPath, _ := cmd.Flags().GetString("config")
+			flags := newFlagReader(cmd)
+			cfgPath := flags.String("config")
+			if err := flags.Err(); err != nil {
+				return err
+			}
 			path := config.ResolvePath(cfgPath)
 			cfg, err := config.Load(path)
 			if err != nil {
@@ -202,8 +234,12 @@ func newCommitCreateCmd() *cobra.Command {
 				}
 			}
 
-			dryRun, _ := cmd.Flags().GetBool("dry-run")
-			verbose, _ := cmd.Flags().GetBool("verbose")
+			flags = newFlagReader(cmd)
+			dryRun := flags.Bool("dry-run")
+			verbose := flags.Bool("verbose")
+			if err := flags.Err(); err != nil {
+				return err
+			}
 			// Always a real runner: the wizard's only mutation (git commit) is gated by
 			// Options.DryRun in finalize, and read-only staging checks must really run.
 			runner := execadapter.New(false, verbose)
@@ -262,7 +298,11 @@ func verifyCommitMessage(cmd *cobra.Command, args []string, file string, asJSON 
 		return nil, exitcode.Wrap(exitcode.Usage, err)
 	}
 
-	cfgPath, _ := cmd.Flags().GetString("config")
+	flags := newFlagReader(cmd)
+	cfgPath := flags.String("config")
+	if err := flags.Err(); err != nil {
+		return nil, err
+	}
 	cfg, err := config.Load(config.ResolvePath(cfgPath))
 	if err != nil {
 		if !errors.Is(err, os.ErrNotExist) {
