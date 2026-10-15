@@ -4,197 +4,18 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
-	"regexp"
-	"slices"
 	"strconv"
 	"strings"
 
 	"charm.land/huh/v2"
 
 	"github.com/adaouat/heraut/internal/config"
-	"github.com/adaouat/heraut/internal/forge"
 	"github.com/adaouat/heraut/internal/ui"
-	"github.com/adaouat/heraut/internal/versioning/calver"
 )
 
 // themedForm builds a huh form with heraut's branded theme (the Heraldic accent).
 func themedForm(groups ...*huh.Group) *huh.Form {
 	return huh.NewForm(groups...).WithTheme(ui.HuhTheme())
-}
-
-// Answers holds the user's responses from the init wizard.
-type Answers struct {
-	Strategy  string // semver, calver, semver-per-env, calver-per-env
-	TagPrefix string // version prefix, e.g. "v" or ""
-	Format    string // CalVer format string, e.g. "YYYY.MM.PATCH"
-
-	EnableChangelog bool
-	ChangelogOutput string // e.g. "CHANGELOG.md"
-
-	Platforms []PlatformAnswer
-
-	// PublishReleases answers the single collapsed "create a release?" question (T220,
-	// release-atomicity design): release: presence always means "generate notes and publish,"
-	// together, so there is no longer an independent notes toggle. PublishReleases gates both
-	// whether runPlatformWizard runs and whether cfg.Release is emitted at all in generate.go. A
-	// false answer clears Platforms (see applyPublishChoice) so a stale, pre-populated slice
-	// from an edit-existing-config round trip can't survive into GenerateYAML.
-	PublishReleases bool
-
-	// Sprint is the current sprint counter, required when Format contains SPRINT.
-	// Not clock-derived: advance it with `heraut version sprint bump`.
-	Sprint int
-
-	// Per-env strategies only.
-	TagFormat    string
-	Environments []EnvAnswer
-
-	// Assets and Tickets are not wizard-editable; they are carried through verbatim from an
-	// existing config on "Update it?" (T107).
-	Assets  []string
-	Tickets []config.Ticket
-
-	// EnrichmentPolicy and EnrichmentForge are wizard-editable via runEnrichmentWizard (T201).
-	EnrichmentPolicy string
-	EnrichmentForge  string
-}
-
-// PlatformAnswer holds answers for one release platform.
-type PlatformAnswer struct {
-	Type       string // "github" or "gitlab"
-	Repository string // github: "owner/repo"
-	Project    string // gitlab: "namespace/project"
-	TokenEnv   string
-	APIMode    string // gitlab only: "rest" (default) or "graphql"
-
-	// Passthrough fields: not wizard-editable, carried verbatim from existing config (T108).
-	// There is no Prerelease field — GitHub's pre-release flag is derived from the resolved
-	// version, not a per-target setting the wizard carries through at all (ADR-0064, T337).
-	Name    string
-	BaseURL string
-	Draft   bool
-}
-
-// EnvAnswer holds answers for one per-env environment.
-type EnvAnswer struct {
-	Name             string
-	Bump             string // "auto" or "promote"
-	TagFormat        string
-	Source           string
-	Branch           string
-	DisableChangelog bool
-	// DisableRelease matches config.Environment.DisableRelease (T217): turns off the entire
-	// release: behavior (notes and publish, together) for this environment, not just notes.
-	DisableRelease bool
-
-	// Passthrough fields: not wizard-editable, carried verbatim from existing config (T109).
-	Changelog *config.ContentDriver
-	Release   *config.EnvRelease
-}
-
-// calverPresets lists opinionated CalVer format choices.
-var calverPresets = []struct {
-	label  string
-	format string
-}{
-	{"YYYY.MM.PATCH — Year + Month (e.g. 2026.01.0)", "YYYY.MM.PATCH"},
-	{"YYYY.MM.DD.PATCH — Year + Month + Day (e.g. 2026.01.15.0)", "YYYY.MM.DD.PATCH"},
-	{"YYYY.WW.PATCH — Year + Week number (e.g. 2026.04.0)", "YYYY.WW.PATCH"},
-	{"YYYY.QQ.PATCH — Year + Quarter (e.g. 2026.1.0)", "YYYY.QQ.PATCH"},
-	{"YYYY.SS.PATCH — Year + Semester (e.g. 2026.1.0)", "YYYY.SS.PATCH"},
-	{"YYYY.SPRINT.PATCH — Year + Sprint counter (e.g. 2026.5.0)", "YYYY.SPRINT.PATCH"},
-	{"YYYY.PATCH — Year only (e.g. 2026.0)", "YYYY.PATCH"},
-	{"Custom format", "custom"},
-}
-
-// Defaults returns opinionated non-interactive defaults: semver, prefix "v",
-// changelog + release enabled, gitlab platform.
-func Defaults() Answers {
-	return Answers{
-		Strategy:        "semver",
-		TagPrefix:       "v",
-		EnableChangelog: true,
-		ChangelogOutput: "CHANGELOG.md",
-		PublishReleases: true,
-		Platforms:       []PlatformAnswer{{Type: "gitlab"}},
-	}
-}
-
-// ConfigToAnswers populates an Answers from an existing Config for wizard pre-population.
-func ConfigToAnswers(cfg *config.Config) Answers {
-	a := Answers{
-		Strategy:         cfg.Versioning.Strategy,
-		Format:           cfg.Versioning.Format,
-		TagFormat:        cfg.Versioning.TagFormat,
-		Tickets:          cfg.Tickets(),
-		EnrichmentPolicy: cfg.EnrichmentPolicy(),
-	}
-
-	if cfg.Commits != nil {
-		a.EnrichmentForge = cfg.Commits.EnrichmentForge
-	}
-
-	if cfg.Versioning.TagPrefix != nil {
-		a.TagPrefix = *cfg.Versioning.TagPrefix
-	}
-
-	a.Sprint = cfg.Versioning.Sprint
-
-	if cfg.Changelog != nil {
-		a.EnableChangelog = true
-		a.ChangelogOutput = cfg.Changelog.Output
-		if a.ChangelogOutput == "" {
-			a.ChangelogOutput = "CHANGELOG.md"
-		}
-	}
-
-	if cfg.Release != nil {
-		// release: presence alone means "wanted" (T216 atomicity) — independent of whether any
-		// target resolves to a known forge, since a zero-config release (no forges:, no
-		// release.targets) legitimately has nothing to populate a.Platforms from.
-		a.PublishReleases = true
-		a.Assets = cfg.Release.Assets
-		forgesByName := make(map[string]config.Forge, len(cfg.Forges))
-		for _, f := range cfg.Forges {
-			forgesByName[f.Name] = f
-		}
-		for _, t := range cfg.Release.Targets {
-			name := t.Forge
-			if name == "" && len(cfg.Forges) == 1 {
-				name = cfg.Forges[0].Name
-			}
-			f, ok := forgesByName[name]
-			if !ok {
-				continue // target references a forge that does not resolve; nothing to round-trip
-			}
-			a.Platforms = append(a.Platforms, PlatformAnswer{
-				Type:       f.Type,
-				Repository: f.Repository,
-				Project:    f.Project,
-				TokenEnv:   f.TokenEnv,
-				APIMode:    f.APIMode,
-				Name:       f.Name,
-				BaseURL:    f.BaseURL,
-				Draft:      t.Draft,
-			})
-		}
-	}
-
-	for name, env := range cfg.Environments {
-		a.Environments = append(a.Environments, EnvAnswer{
-			Name:             name,
-			Bump:             env.Bump,
-			TagFormat:        env.TagFormat,
-			Source:           env.Source,
-			Branch:           env.Branch,
-			DisableChangelog: env.DisableChangelog,
-			DisableRelease:   env.DisableRelease,
-			Changelog:        env.Changelog,
-			Release:          env.Release,
-		})
-	}
-
-	return a
 }
 
 // RunWizard runs the interactive huh-based wizard and populates a.
@@ -354,169 +175,6 @@ func gitRemoteOriginURL() string {
 		return ""
 	}
 	return strings.TrimSpace(string(out))
-}
-
-// detectPlatform pre-fills a new platform's type and project/repository path: CI
-// environment/known-host detection (via internal/forge) identifies the type when possible; the
-// project/repository path falls back to parseRemoteProject's any-host parsing when forge
-// detection doesn't apply (self-hosted instances, no CI markers) or names a type the wizard's
-// platform Select doesn't offer (only "github"/"gitlab" are wizard-supported today).
-func detectPlatform(getenv func(string) string, gitOrigin string) (typ, projectOrRepo string) {
-	if t, p, ok := forge.DetectForWizard(getenv, gitOrigin); ok && (t == "github" || t == "gitlab") {
-		if p == "" {
-			p = parseRemoteProject(gitOrigin)
-		}
-		return t, p
-	}
-	return "", parseRemoteProject(gitOrigin)
-}
-
-// parseRemoteProject extracts "namespace/project" (or "owner/repo") from a git
-// remote URL. Handles SSH (git@host:path.git), ssh:// and HTTPS schemes.
-func parseRemoteProject(rawURL string) string {
-	if rawURL == "" {
-		return ""
-	}
-	// Strip any scheme prefix (https://, ssh://, git+ssh://, …)
-	if i := strings.Index(rawURL, "://"); i != -1 {
-		rawURL = rawURL[i+3:]
-		// Now looks like "host/path.git" — strip the host.
-		if i := strings.Index(rawURL, "/"); i != -1 {
-			rawURL = rawURL[i+1:]
-		} else {
-			return ""
-		}
-	} else if i := strings.Index(rawURL, ":"); i != -1 {
-		// SCP-style SSH: git@host:path.git — everything after the colon is the path.
-		rawURL = rawURL[i+1:]
-	}
-	return strings.TrimSuffix(rawURL, ".git")
-}
-
-// platformTokenOptions returns the known token env var names for a platform,
-// in display order. The first entry is the recommended default.
-func platformTokenOptions(platformType string) []string {
-	switch platformType {
-	case "github":
-		return []string{"GH_TOKEN"}
-	case "gitlab":
-		return []string{"GITLAB_TOKEN", "CI_JOB_TOKEN"}
-	default:
-		return nil
-	}
-}
-
-// resolveTokenChoice maps an existing token env var to a wizard select choice
-// and optional custom value. When existing is empty the first known token is
-// returned as the default. Unrecognised values map to ("custom", existing).
-func resolveTokenChoice(platformType, existing string) (choice, custom string) {
-	opts := platformTokenOptions(platformType)
-	if existing == "" {
-		if len(opts) > 0 {
-			return opts[0], ""
-		}
-		return "custom", ""
-	}
-	if slices.Contains(opts, existing) {
-		return existing, ""
-	}
-	return "custom", existing
-}
-
-// hideAPIMode reports whether the api_mode prompt should stay hidden: for any non-GitLab
-// platform, or when CI_JOB_TOKEN is the chosen token — GitLab's GraphQL API structurally rejects
-// job tokens, so offering graphql there would let the wizard produce a config guaranteed to fail
-// at enrichment time.
-func hideAPIMode(platformType, tokenChoice string) bool {
-	return platformType != "gitlab" || tokenChoice == "CI_JOB_TOKEN"
-}
-
-// matchPlatformSnapshot looks up the previously-configured platform of the given type that
-// corresponds to the platform currently being built, by type-scoped position: the n-th platform of
-// a type appended so far in this wizard run (rebuiltSoFar) matches the n-th snapshot entry of that
-// type. Called once per loop iteration in runPlatformWizard, right after Step 1 sets p.Type — early
-// enough that Step 3's token/api_mode prompts can pre-fill from the match, unlike a post-loop batch
-// pass which would see every prompt already rendered. The same call also supplies the passthrough
-// fields (Name, BaseURL, Draft), which aren't read by any prompt but are matched here
-// too so every field on a given platform always comes from the same original snapshot entry —
-// splitting this into two independent matching algorithms (one for TokenEnv/APIMode, one for the
-// passthrough fields) let them silently drift apart if either changed without the other; unifying
-// them into one lookup closes that risk structurally instead of by convention (T204).
-func matchPlatformSnapshot(snapshot, rebuiltSoFar []PlatformAnswer, platformType string) (PlatformAnswer, bool) {
-	index := 0
-	for _, p := range rebuiltSoFar {
-		if p.Type == platformType {
-			index++
-		}
-	}
-	n := -1
-	for _, p := range snapshot {
-		if p.Type != platformType {
-			continue
-		}
-		n++
-		if n == index {
-			return p, true
-		}
-	}
-	return PlatformAnswer{}, false
-}
-
-// validateEnvName rejects an empty name and one already used by an earlier environment in this
-// wizard run (T259): generate.go assigns environments into a map keyed by name
-// (cfg.Environments[e.Name] = ...), so a repeated name would otherwise silently overwrite the
-// earlier environment with no error at any stage, not even config.Validate.
-func validateEnvName(existing []EnvAnswer, name string) error {
-	if strings.TrimSpace(name) == "" {
-		return fmt.Errorf("environment name is required")
-	}
-	for _, e := range existing {
-		if e.Name == name {
-			return fmt.Errorf("environment %q is already defined", name)
-		}
-	}
-	return nil
-}
-
-// validateEnvSource mirrors validatePerEnv's "source must reference an existing environment, not
-// itself" rule (internal/config/validator.go) for heraut init's live field validation (T259).
-// Scoped to what the wizard can actually know mid-run: existing holds only the environments
-// defined earlier in this loop, so a source naming one not yet added is rejected here even though
-// it might be added later — the wizard's one-at-a-time flow expects sources defined first. Empty
-// is always valid: validatePerEnv accepts it as "auto-detect the sole auto environment," a
-// cross-environment count this per-field validator doesn't attempt to replicate.
-func validateEnvSource(existing []EnvAnswer, currentName, source string) error {
-	if source == "" {
-		return nil
-	}
-	if source == currentName {
-		return fmt.Errorf("environment cannot promote from itself")
-	}
-	for _, e := range existing {
-		if e.Name == source {
-			return nil
-		}
-	}
-	return fmt.Errorf("environment %q does not exist yet — define it before this one, or leave empty to auto-detect", source)
-}
-
-// matchEnvSnapshot carries passthrough fields (Changelog, Release) from the pre-wizard
-// snapshot to the rebuilt environment list using name-based matching. Rebuilt entries
-// with no name match in original are returned unchanged.
-func matchEnvSnapshot(original, rebuilt []EnvAnswer) []EnvAnswer {
-	byName := make(map[string]EnvAnswer, len(original))
-	for _, e := range original {
-		byName[e.Name] = e
-	}
-	result := make([]EnvAnswer, len(rebuilt))
-	for i, e := range rebuilt {
-		if orig, ok := byName[e.Name]; ok {
-			e.Changelog = orig.Changelog
-			e.Release = orig.Release
-		}
-		result[i] = e
-	}
-	return result
 }
 
 // applyPublishChoice enforces the invariant that a.Platforms reflects the user's actual publish
@@ -683,29 +341,12 @@ func runPlatformWizard(a *Answers) error {
 			return err
 		}
 
-		if tokenChoice == "custom" {
-			p.TokenEnv = strings.TrimSpace(customToken)
-		} else {
-			p.TokenEnv = tokenChoice
-		}
-
-		if !hideAPIMode(p.Type, tokenChoice) {
-			p.APIMode = apiMode
-		} else {
-			p.APIMode = ""
-		}
+		p.TokenEnv, p.APIMode = finishPlatformToken(p.Type, tokenChoice, customToken, apiMode)
 
 		a.Platforms = append(a.Platforms, p)
 	}
 
 	return nil
-}
-
-// shouldPromptEnrichmentForge reports whether the enrichment-forge select should be shown: only
-// when 2+ platforms are configured, since with 0 or 1 the choice is unambiguous and the field is
-// left for runtime auto-detection or the single configured forge to resolve.
-func shouldPromptEnrichmentForge(platforms []PlatformAnswer) bool {
-	return len(platforms) >= 2
 }
 
 // runEnrichmentWizard asks the PR/MR enrichment policy whenever changelog generation or a release
@@ -717,9 +358,7 @@ func runEnrichmentWizard(a *Answers) error {
 		return nil
 	}
 
-	if a.EnrichmentPolicy == "" {
-		a.EnrichmentPolicy = "optional"
-	}
+	a.EnrichmentPolicy = enrichmentPolicyOrDefault(a.EnrichmentPolicy)
 
 	groups := []*huh.Group{
 		huh.NewGroup(
@@ -740,9 +379,7 @@ func runEnrichmentWizard(a *Answers) error {
 		for i, name := range names {
 			forgeOpts[i] = huh.NewOption(name, name)
 		}
-		if !slices.Contains(names, a.EnrichmentForge) {
-			a.EnrichmentForge = names[0]
-		}
+		a.EnrichmentForge = enrichmentForgeChoice(names, a.EnrichmentForge)
 		groups = append(groups, huh.NewGroup(
 			huh.NewSelect[string]().
 				Title("Enrichment forge").
@@ -814,53 +451,5 @@ func runEnvWizard(a *Answers) error {
 	}
 
 	a.Environments = matchEnvSnapshot(snapshot, a.Environments)
-	return nil
-}
-
-// resolveFormatChoice maps an existing format string to a preset choice key and
-// optional custom value. Returns the first preset when format is empty.
-func resolveFormatChoice(format string) (choice string, custom string) {
-	if format == "" {
-		return calverPresets[0].format, ""
-	}
-	for _, p := range calverPresets {
-		if p.format != "custom" && p.format == format {
-			return format, ""
-		}
-	}
-	return "custom", format
-}
-
-// suspiciousTokenRE finds uppercase-only substrings of 2+ chars in a literal —
-// these are likely mistyped token names (e.g. "YYY", "OOOO").
-var suspiciousTokenRE = regexp.MustCompile(`[A-Z]{2,}`)
-
-// ValidateCalVerFormat validates a CalVer format string for use in .heraut.yml.
-func ValidateCalVerFormat(format string) error {
-	if strings.TrimSpace(format) == "" {
-		return fmt.Errorf("format is required")
-	}
-	tokens, err := calver.ParseFormat(format)
-	if err != nil {
-		return err
-	}
-	hasCal := false
-	for _, t := range tokens {
-		switch t.Kind {
-		case calver.KindYYYY, calver.KindMM, calver.KindDD,
-			calver.KindWW, calver.KindQQ, calver.KindSS, calver.KindSPRINT:
-			hasCal = true
-		}
-	}
-	if !hasCal {
-		return fmt.Errorf("format must contain at least one calendar token (YYYY, MM, DD, WW, QQ, SS, or SPRINT)")
-	}
-	for _, t := range tokens {
-		if t.Kind == calver.KindLiteral {
-			if m := suspiciousTokenRE.FindString(t.Literal); m != "" {
-				return fmt.Errorf("unknown token %q; valid tokens: YYYY MM DD WW QQ SS SPRINT PATCH", m)
-			}
-		}
-	}
 	return nil
 }

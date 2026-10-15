@@ -241,7 +241,7 @@ discipline that applies to every task.
 | 70 | Forge and publish hardening | Done — T380–T382 and T398, see `hardening-roadmap.md` |
 | 71 | Versioning correctness | T383–T386 done, T399 open — see `hardening-roadmap.md` |
 | 72 | Pipeline, changelog write and recovery docs | T387–T390 done, T400 open — see `hardening-roadmap.md` |
-| 73 | Structural debt | Not started — see `hardening-roadmap.md` |
+| 73 | Structural debt | T391–T397 done, T401 open — see `hardening-roadmap.md` |
 
 ### Open items
 

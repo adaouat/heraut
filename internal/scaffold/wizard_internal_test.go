@@ -406,3 +406,37 @@ func TestHideAPIMode(t *testing.T) {
 		})
 	}
 }
+
+func TestFinishPlatformToken(t *testing.T) {
+	tests := []struct {
+		name                         string
+		platformType, choice, custom string
+		apiMode                      string
+		wantToken, wantAPIMode       string
+	}{
+		{"known token kept", "github", "GH_TOKEN", "", "rest", "GH_TOKEN", ""},
+		{"custom token trimmed", "gitlab", "custom", "  MY_TOKEN ", "rest", "MY_TOKEN", "rest"},
+		{"gitlab keeps the chosen api mode", "gitlab", "GITLAB_TOKEN", "", "graphql", "GITLAB_TOKEN", "graphql"},
+		{"job token drops the api mode", "gitlab", "CI_JOB_TOKEN", "", "graphql", "CI_JOB_TOKEN", ""},
+		{"github never carries an api mode", "github", "custom", "X", "graphql", "X", ""},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			token, mode := finishPlatformToken(tc.platformType, tc.choice, tc.custom, tc.apiMode)
+			assert.Equal(t, tc.wantToken, token)
+			assert.Equal(t, tc.wantAPIMode, mode)
+		})
+	}
+}
+
+func TestEnrichmentForgeChoice(t *testing.T) {
+	names := []string{"github", "gitlab"}
+	assert.Equal(t, "gitlab", enrichmentForgeChoice(names, "gitlab"), "a current choice that still exists is kept")
+	assert.Equal(t, "github", enrichmentForgeChoice(names, "azure"), "a vanished platform falls back to the first")
+	assert.Equal(t, "github", enrichmentForgeChoice(names, ""), "no choice yet picks the first")
+}
+
+func TestEnrichmentPolicyOrDefault(t *testing.T) {
+	assert.Equal(t, "optional", enrichmentPolicyOrDefault(""))
+	assert.Equal(t, "required", enrichmentPolicyOrDefault("required"))
+}

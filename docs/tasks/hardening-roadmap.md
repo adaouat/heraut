@@ -1,6 +1,6 @@
 # Héraut — Hardening and Refactor Roadmap
 
-> Status: Active (T400 open, then Phase 73)
+> Status: Active (T399, T400, T401 open)
 > Source: a read-only security, rules and structure review of the code base (2026-10-14), approved
 > as a four-phase in-place refactor. Main roadmap: tracked as Phases 70–73 in [`roadmap.md`](roadmap.md)
 
@@ -48,7 +48,7 @@ and coverage does not drop below the gate".
 | 70 | Forge and publish hardening (pilot) | T380–T382, T398 | Done |
 | 71 | Versioning correctness | T383–T386, T399 | T399 open |
 | 72 | Pipeline, changelog write and recovery docs | T387–T390, T400 | T400 open |
-| 73 | Structural debt | T391–T397, T401 | Not started |
+| 73 | Structural debt | T391–T397, T401 | T401 open |
 
 ---
 
@@ -415,10 +415,21 @@ check (built on native; `cmd` may import only `app`), and pre-release detection 
 `PipelineOpts` and `configuredTagPrefix`). Moving those would mean widening the layer table. A small
 `branchenv_test.go` in `app` duplicates two test helpers the moved tests no longer share.
 
-#### `[ ]` T397: separate form code from decisions in `internal/scaffold/wizard.go`
+#### `[x]` T397: separate form code from decisions in `internal/scaffold/wizard.go`
 
 About 870 lines with form code interleaved with decision logic. Extract the decisions into testable
 functions, then slim the wizard.
+
+**Completion note:** `wizard.go` (866 lines) is three files: `wizard.go` (455 lines: `RunWizard` and the huh
+forms), `answers.go` (the `Answers` types, `Defaults`, `ConfigToAnswers`, the CalVer presets) and
+`decisions.go` (the pure rules: platform detection, token and API-mode choices, snapshot matching, env-name
+and source validation, `ValidateCalVerFormat`). Most decisions were already pure functions; the split
+separates them from the form code. Three decisions were still inline and were extracted test-first:
+`finishPlatformToken` (trim a custom token, drop the API mode where its prompt was hidden),
+`enrichmentForgeChoice` (keep the current forge only if it still exists) and `enrichmentPolicyOrDefault`.
+The sorted-line comparison of the old file against the three new ones shows only those three extractions
+changed. Not done: the long `runPlatformWizard` (about 170 lines) still builds its forms inline; splitting
+it further would mean a per-step function per form, which I judged more churn than the task asks.
 
 #### `[ ]` T401: share the hook helpers between `Pipeline` and `ChangelogPipeline`
 
