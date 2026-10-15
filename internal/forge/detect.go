@@ -3,18 +3,14 @@ package forge
 import (
 	"strings"
 
+	"github.com/adaouat/heraut/internal/config"
 	"github.com/adaouat/heraut/internal/port"
 )
 
-// Default web hosts and token env var names per forge type. The github/gitlab hosts mirror
-// config.go's DefaultBaseURL; the azure host and all three token-env names mirror
-// internal/pipeline/linkctx.go. They are copied (not imported) because internal/forge sits
-// below internal/pipeline in the layer stack and must not import it.
+// Default token env var names per forge type. They mirror internal/pipeline/linkctx.go, copied
+// (not imported) because internal/forge sits below internal/pipeline in the layer stack and must
+// not import it. The default web hosts come from internal/config.
 const (
-	githubDefaultHost      = "https://github.com"
-	gitlabDefaultHost      = "https://gitlab.com"
-	azureDevOpsDefaultHost = "https://dev.azure.com"
-
 	githubDefaultTokenEnv      = "GITHUB_TOKEN"
 	gitlabDefaultTokenEnv      = "GITLAB_TOKEN"
 	azureDevOpsDefaultTokenEnv = "AZURE_DEVOPS_TOKEN"
@@ -24,11 +20,11 @@ const (
 func defaultHostFor(typ string) string {
 	switch typ {
 	case "github":
-		return githubDefaultHost
+		return config.DefaultGitHubBaseURL
 	case "gitlab":
-		return gitlabDefaultHost
+		return config.DefaultGitLabBaseURL
 	case "azure_devops":
-		return azureDevOpsDefaultHost
+		return config.DefaultAzureDevOpsBaseURL
 	default:
 		return ""
 	}
@@ -95,11 +91,11 @@ func parseGitOrigin(url string) (typ, host, project string, ok bool) {
 
 	switch rawHost {
 	case "github.com":
-		return "github", "https://github.com", path, true
+		return "github", config.DefaultGitHubBaseURL, path, true
 	case "gitlab.com":
-		return "gitlab", "https://gitlab.com", path, true
+		return "gitlab", config.DefaultGitLabBaseURL, path, true
 	case "dev.azure.com":
-		return "azure_devops", "https://dev.azure.com", path, true
+		return "azure_devops", config.DefaultAzureDevOpsBaseURL, path, true
 	default:
 		return "", "", "", false
 	}

@@ -271,9 +271,12 @@ type Platform struct {
 	Assets   []string
 }
 
+// The web hosts of the public forges. Every other package refers to these rather than spelling
+// the URL again.
 const (
-	defaultGitHubBaseURL = "https://github.com"
-	defaultGitLabBaseURL = "https://gitlab.com"
+	DefaultGitHubBaseURL      = "https://github.com"
+	DefaultGitLabBaseURL      = "https://gitlab.com"
+	DefaultAzureDevOpsBaseURL = "https://dev.azure.com"
 )
 
 // DefaultBaseURL returns the default web base URL for a platform type, or "" when the
@@ -282,9 +285,9 @@ const (
 func DefaultBaseURL(platformType string) string {
 	switch platformType {
 	case "github":
-		return defaultGitHubBaseURL
+		return DefaultGitHubBaseURL
 	case "gitlab":
-		return defaultGitLabBaseURL
+		return DefaultGitLabBaseURL
 	default:
 		return ""
 	}

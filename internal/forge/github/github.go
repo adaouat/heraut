@@ -8,6 +8,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/adaouat/heraut/internal/config"
 	"github.com/adaouat/heraut/internal/port"
 )
 
@@ -51,7 +52,7 @@ func (f *Forge) apiBase() string {
 		return strings.TrimRight(f.id.APIURL, "/")
 	}
 	host := strings.TrimRight(f.id.Host, "/")
-	if host == "https://github.com" || host == "" {
+	if host == config.DefaultGitHubBaseURL || host == "" {
 		return "https://api.github.com"
 	}
 	return host + "/api/v3"

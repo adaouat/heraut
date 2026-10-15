@@ -135,3 +135,10 @@ func TestEffectiveReleaseNotes(t *testing.T) {
 		})
 	}
 }
+
+func TestDefaultBaseURL_UsesTheExportedHosts(t *testing.T) {
+	assert.Equal(t, config.DefaultGitHubBaseURL, config.DefaultBaseURL("github"))
+	assert.Equal(t, config.DefaultGitLabBaseURL, config.DefaultBaseURL("gitlab"))
+	assert.Equal(t, "https://dev.azure.com", config.DefaultAzureDevOpsBaseURL)
+	assert.Equal(t, "", config.DefaultBaseURL("azure_devops"), "azure has no publish driver, so no default here")
+}

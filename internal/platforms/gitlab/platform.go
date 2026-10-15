@@ -15,7 +15,6 @@ import (
 const (
 	defaultTokenEnv = "GITLAB_TOKEN"
 	projectEnvVar   = "CI_PROJECT_PATH"
-	gitlabBaseURL   = "https://gitlab.com"
 )
 
 // Platform implements port.Platform for GitLab over the REST API (ADR-0069).
@@ -148,7 +147,7 @@ func (p *Platform) checkAPIAuth(token string, jobToken bool) error {
 
 // selfHosted reports whether this platform targets a non-default GitLab host.
 func (p *Platform) selfHosted() bool {
-	return p.cfg.BaseURL != "" && p.cfg.BaseURL != gitlabBaseURL
+	return p.cfg.BaseURL != "" && p.cfg.BaseURL != config.DefaultGitLabBaseURL
 }
 
 // inCIAutologin reports whether this run authenticates with the CI job token (CI_JOB_TOKEN is
@@ -260,5 +259,5 @@ func (p *Platform) resolveBaseURL() string {
 			return parsed.Scheme + "://" + parsed.Host
 		}
 	}
-	return gitlabBaseURL
+	return config.DefaultGitLabBaseURL
 }

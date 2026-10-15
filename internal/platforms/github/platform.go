@@ -15,7 +15,6 @@ import (
 const (
 	defaultTokenEnv = "GH_TOKEN"
 	repoEnvVar      = "GITHUB_REPOSITORY"
-	githubBaseURL   = "https://github.com"
 )
 
 // Platform implements port.Platform for GitHub via the gh CLI.
@@ -36,7 +35,7 @@ func (p *Platform) Name() string { return p.cfg.Name }
 func (p *Platform) ReleaseURL(tag string) string {
 	baseURL := p.cfg.BaseURL
 	if baseURL == "" {
-		baseURL = githubBaseURL
+		baseURL = config.DefaultGitHubBaseURL
 	}
 	return fmt.Sprintf("%s/%s/releases/tag/%s", baseURL, p.repository(), port.URLTag(tag))
 }
@@ -63,7 +62,7 @@ func (p *Platform) LinkContext() port.LinkContext {
 	owner, repo, _ := strings.Cut(p.repository(), "/")
 	baseURL := p.cfg.BaseURL
 	if baseURL == "" {
-		baseURL = githubBaseURL
+		baseURL = config.DefaultGitHubBaseURL
 	}
 	return port.LinkContext{
 		BaseURL:  baseURL,
@@ -235,7 +234,7 @@ func (p *Platform) tokenEnvSlice() []string {
 // selfHosted reports whether this platform targets a non-default GitHub host
 // (i.e. a GitHub Enterprise Server instance).
 func (p *Platform) selfHosted() bool {
-	return p.cfg.BaseURL != "" && p.cfg.BaseURL != githubBaseURL
+	return p.cfg.BaseURL != "" && p.cfg.BaseURL != config.DefaultGitHubBaseURL
 }
 
 // hostEnv returns the env vars needed to point gh at a self-hosted GHES instance:

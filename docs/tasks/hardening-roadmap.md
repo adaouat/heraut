@@ -364,10 +364,19 @@ body) and `NewInitCmd` from 121 to 11 (`runInit`); both are extractions with no 
 from 88.1% to 87.6% because each new `return err` after `flags.Err()` is a branch no test reaches; the gate is
 85%.
 
-#### `[ ]` T393: define forge host URLs once
+#### `[x]` T393: define forge host URLs once
 
 The GitHub and GitLab hosts are defined in four places (`internal/platforms/*`, `internal/config`,
 `internal/forge/detect.go`). Define each once.
+
+**Completion note:** the three web hosts are constants in `internal/config` (`DefaultGitHubBaseURL`,
+`DefaultGitLabBaseURL`, `DefaultAzureDevOpsBaseURL`), the only place the URLs are spelled in non-test code.
+`internal/platforms/{github,gitlab}`, `internal/forge/detect.go` (including the literals in the git-origin
+parser) and `internal/forge/github` refer to them; both packages may import `config` under the layer rules.
+The review counted four definitions; the fifth place, `github.com/adaouat/heraut` in the native generator, is
+the project's own URL and was left alone. The token env var names are still copied in `forge/detect.go` and
+`pipeline/linkctx.go`, which the code comments explain (layering); not touched here. A test pins the exported
+values to `DefaultBaseURL`.
 
 #### `[ ]` T394: decide the `origin` remote
 
