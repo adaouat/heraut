@@ -20,12 +20,22 @@ type resolverOptions struct {
 	allowMajor bool
 	preRelease string
 	noGuard    bool
+	// guardNeedsBranches limits the --set-version probe to repos that declare versioning.branches,
+	// the rule before T386, for commands that print a tag and change nothing.
+	guardNeedsBranches bool
 }
 
 // WithoutCollisionGuard skips the --set-version tag-collision probe (ADR-0065) for runs that
 // never create the tag, such as re-rendering the changelog of an already-released version.
 func WithoutCollisionGuard() ResolverOption {
 	return func(o *resolverOptions) { o.noGuard = true }
+}
+
+// WithBranchesOnlyCollisionGuard keeps the --set-version tag probe to semver repos that declare
+// versioning.branches (ADR-0065). It is for `version next`, which only prints the tag and is
+// sometimes run where there is no repository to probe; every command that tags probes always.
+func WithBranchesOnlyCollisionGuard() ResolverOption {
+	return func(o *resolverOptions) { o.guardNeedsBranches = true }
 }
 
 // WithPreRelease asks the plain semver resolver to mint a <core>-<label>.<N> pre-release
@@ -104,8 +114,8 @@ func rewriteHeldTags(warning, wouldBeVersion, version, tag string) string {
 // env is the active environment name (empty for non-per-env strategies).
 // force is the --force flag value.
 // versionOverride is set when --set-version X.Y.Z is passed; when non-empty a
-// StaticResolver is returned for all strategies, bypassing git calls to resolve it (a semver
-// repo with versioning.branches still runs a tag-collision probe — see guardSetVersion).
+// StaticResolver is returned for all strategies, bypassing git calls to resolve it (it still runs
+// a tag-collision probe — see guardSetVersion).
 // buildID is set when --set-build-id <id> is passed; requires versionOverride to be set.
 // opts tune resolution without changing the positional signature — see WithAllowMajor.
 func NewResolver(cfg *config.Config, env string, force bool, versionOverride, buildID string, runner port.Runner, opts ...ResolverOption) (versioning.Resolver, error) {
@@ -130,7 +140,7 @@ func NewResolver(cfg *config.Config, env string, force bool, versionOverride, bu
 			if err := validateSemVerComposition(version, buildID); err != nil {
 				return nil, err
 			}
-			return guardSetVersion(cfg, versioning.NewStaticResolver(prefix+version+"+"+buildID, version), runner, o.noGuard), nil
+			return guardSetVersion(cfg, versioning.NewStaticResolver(prefix+version+"+"+buildID, version), runner, o, force), nil
 		}
 
 		var tf string
@@ -191,7 +201,7 @@ func NewResolver(cfg *config.Config, env string, force bool, versionOverride, bu
 				return nil, err
 			}
 		}
-		return guardSetVersion(cfg, versioning.NewStaticResolver(tag, version), runner, o.noGuard), nil
+		return guardSetVersion(cfg, versioning.NewStaticResolver(tag, version), runner, o, force), nil
 	}
 
 	switch cfg.Versioning.Strategy {
@@ -217,17 +227,24 @@ func NewResolver(cfg *config.Config, env string, force bool, versionOverride, bu
 	}
 }
 
-// guardSetVersion adds the maintenance collision guard to a --set-version resolver when
-// versioning.branches is set (ADR-0065), so a version already released elsewhere fails before
-// anything is written. The probe runs inside Resolve, not here: a taken version is a runtime
-// condition, and NewResolver's own errors are reported as configuration errors. Without the
-// block, or with noGuard (a run that never tags), the resolver is returned unchanged and makes no
-// git call.
-func guardSetVersion(cfg *config.Config, r versioning.Resolver, runner port.Runner, noGuard bool) versioning.Resolver {
-	if noGuard || len(cfg.Versioning.Branches) == 0 || cfg.Versioning.Strategy != "semver" {
+// guardSetVersion adds the tag-collision guard to a --set-version resolver, for every strategy, so
+// a version already released fails before the changelog commit is pushed. The probe runs inside
+// Resolve, not here: a taken version is a runtime condition, and NewResolver's own errors are
+// reported as configuration errors. With noGuard (a run that never tags) the resolver is returned
+// unchanged and makes no git call; so it is under a per-env strategy with --force, which there means
+// "go on although the candidate tag exists" (E001).
+func guardSetVersion(cfg *config.Config, r versioning.Resolver, runner port.Runner, o resolverOptions, force bool) versioning.Resolver {
+	if o.noGuard || (force && isPerEnvStrategy(cfg.Versioning.Strategy)) {
+		return r
+	}
+	if o.guardNeedsBranches && (len(cfg.Versioning.Branches) == 0 || cfg.Versioning.Strategy != "semver") {
 		return r
 	}
 	return collisionGuardResolver{inner: r, runner: runner, cfg: cfg}
+}
+
+func isPerEnvStrategy(strategy string) bool {
+	return strategy == "semver-per-env" || strategy == "calver-per-env"
 }
 
 type collisionGuardResolver struct {
@@ -236,18 +253,37 @@ type collisionGuardResolver struct {
 	cfg    *config.Config
 }
 
+// existingTag finds a tag that already releases tag. The SemVer strategies also count a
+// <tag>+<build> tag (build metadata is not a different release, ADR-0064); a CalVer tag is exact.
+func (g collisionGuardResolver) existingTag(tag string) (string, error) {
+	if strings.HasPrefix(g.cfg.Versioning.Strategy, "semver") {
+		return semver.ExistingRelease(g.runner, tag)
+	}
+	stdout, _, err := g.runner.Run("git", "tag", "-l", tag)
+	if err != nil {
+		return "", fmt.Errorf("checking for existing tag %s: %w", tag, err)
+	}
+	if lines := port.TagNames(stdout); len(lines) > 0 {
+		return lines[0], nil
+	}
+	return "", nil
+}
+
 func (g collisionGuardResolver) Resolve() (versioning.Result, error) {
 	res, err := g.inner.Resolve()
 	if err != nil {
 		return res, err
 	}
-	existing, err := semver.ExistingRelease(g.runner, res.Tag)
+	existing, err := g.existingTag(res.Tag)
 	if err != nil {
 		return versioning.Result{}, err
 	}
 	if existing != "" {
 		return versioning.Result{}, fmt.Errorf("%w: %s — pick a free version for --set-version",
 			semver.ErrTagExists, existing)
+	}
+	if g.cfg.Versioning.Strategy != "semver" || len(g.cfg.Versioning.Branches) == 0 {
+		return res, nil
 	}
 	warn, err := versionBranchMismatch(g.runner, g.cfg, res.Version)
 	if err != nil {

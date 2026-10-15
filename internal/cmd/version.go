@@ -97,7 +97,7 @@ func resolveNext(cmd *cobra.Command, versionOverride, buildID string) (nextResul
 		return nextResult{}, wrapBranchErr(err)
 	}
 
-	resolver, err := app.NewResolver(cfg, env, force, versionOverride, buildID, runner, app.WithAllowMajor(allowMajor), app.WithPreRelease(preRelease))
+	resolver, err := app.NewResolver(cfg, env, force, versionOverride, buildID, runner, app.WithAllowMajor(allowMajor), app.WithPreRelease(preRelease), app.WithBranchesOnlyCollisionGuard())
 	if err != nil {
 		return nextResult{}, exitcode.Wrap(exitcode.Config, err)
 	}

@@ -115,7 +115,7 @@ func TestNewResolver_Semver_WithoutStayAtV0_NoWarning(t *testing.T) {
 }
 
 func TestNewResolver_SetVersion_AllowMajorIsNoOp(t *testing.T) {
-	r, err := app.NewResolver(stayAtV0SemverCfg(), "", false, "v1.0.0", "", exectest.NewMockRunner(), app.WithAllowMajor(true))
+	r, err := app.NewResolver(stayAtV0SemverCfg(), "", false, "v1.0.0", "", exectest.NewMockRunner(), app.WithAllowMajor(true), app.WithoutCollisionGuard())
 	require.NoError(t, err)
 	res, err := r.Resolve()
 	require.NoError(t, err)

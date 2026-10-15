@@ -85,7 +85,7 @@ func TestNewResolver_UnknownStrategy(t *testing.T) {
 
 func TestNewResolver_VersionOverride_Semver(t *testing.T) {
 	mr := exectest.NewMockRunner()
-	r, err := app.NewResolver(semverCfg(), "", false, "v2.0.0", "", mr)
+	r, err := app.NewResolver(semverCfg(), "", false, "v2.0.0", "", mr, app.WithoutCollisionGuard())
 	require.NoError(t, err)
 
 	result, err := r.Resolve()
@@ -97,7 +97,7 @@ func TestNewResolver_VersionOverride_Semver(t *testing.T) {
 
 func TestNewResolver_VersionOverride_Calver(t *testing.T) {
 	mr := exectest.NewMockRunner()
-	r, err := app.NewResolver(calverCfg(), "", false, "2026.05.3", "", mr)
+	r, err := app.NewResolver(calverCfg(), "", false, "2026.05.3", "", mr, app.WithoutCollisionGuard())
 	require.NoError(t, err)
 
 	result, err := r.Resolve()
@@ -115,7 +115,7 @@ func TestNewResolver_VersionOverride_SemverPerEnv(t *testing.T) {
 			"prod": {Bump: "auto", TagFormat: "prod/{version}"},
 		},
 	}
-	r, err := app.NewResolver(cfg, "prod", false, "v1.5.0", "", mr)
+	r, err := app.NewResolver(cfg, "prod", false, "v1.5.0", "", mr, app.WithoutCollisionGuard())
 	require.NoError(t, err)
 
 	result, err := r.Resolve()
@@ -134,7 +134,7 @@ func TestNewResolver_VersionOverride_CalverPerEnv(t *testing.T) {
 			"uat": {Bump: "auto", TagFormat: "{env}/{version}"},
 		},
 	}
-	r, err := app.NewResolver(cfg, "uat", false, "2026.05.3", "", mr)
+	r, err := app.NewResolver(cfg, "uat", false, "2026.05.3", "", mr, app.WithoutCollisionGuard())
 	require.NoError(t, err)
 
 	result, err := r.Resolve()
@@ -151,7 +151,7 @@ func TestNewResolver_VersionOverride_CustomTagPrefix_BareVersion(t *testing.T) {
 		Version:    "1",
 		Versioning: config.Versioning{Strategy: "semver", TagPrefix: &prefix},
 	}
-	r, err := app.NewResolver(cfg, "", false, "1.2.3", "", mr)
+	r, err := app.NewResolver(cfg, "", false, "1.2.3", "", mr, app.WithoutCollisionGuard())
 	require.NoError(t, err)
 
 	result, err := r.Resolve()
@@ -167,7 +167,7 @@ func TestNewResolver_VersionOverride_CustomTagPrefix_FullTag(t *testing.T) {
 		Version:    "1",
 		Versioning: config.Versioning{Strategy: "semver", TagPrefix: &prefix},
 	}
-	r, err := app.NewResolver(cfg, "", false, "release-1.2.3", "", mr)
+	r, err := app.NewResolver(cfg, "", false, "release-1.2.3", "", mr, app.WithoutCollisionGuard())
 	require.NoError(t, err)
 
 	result, err := r.Resolve()
@@ -183,7 +183,7 @@ func TestNewResolver_VersionOverride_EmptyTagPrefix(t *testing.T) {
 		Version:    "1",
 		Versioning: config.Versioning{Strategy: "semver", TagPrefix: &empty},
 	}
-	r, err := app.NewResolver(cfg, "", false, "1.2.3", "", mr)
+	r, err := app.NewResolver(cfg, "", false, "1.2.3", "", mr, app.WithoutCollisionGuard())
 	require.NoError(t, err)
 
 	result, err := r.Resolve()
@@ -204,7 +204,7 @@ func TestNewResolver_BuildID_RendersTag(t *testing.T) {
 			"uat": {Bump: "auto"},
 		},
 	}
-	r, err := app.NewResolver(cfg, "uat", false, "7.4.1", "158404", mr)
+	r, err := app.NewResolver(cfg, "uat", false, "7.4.1", "158404", mr, app.WithoutCollisionGuard())
 	require.NoError(t, err)
 
 	result, err := r.Resolve()
@@ -226,7 +226,7 @@ func TestNewResolver_BuildID_UsesEnvTagFormatOverride(t *testing.T) {
 			"uat": {Bump: "auto", TagFormat: "{env}/{version}+{build}"},
 		},
 	}
-	r, err := app.NewResolver(cfg, "uat", false, "7.4.1", "99", mr)
+	r, err := app.NewResolver(cfg, "uat", false, "7.4.1", "99", mr, app.WithoutCollisionGuard())
 	require.NoError(t, err)
 
 	result, err := r.Resolve()
@@ -253,7 +253,7 @@ func TestNewResolver_BuildID_NoBuildToken(t *testing.T) {
 			"uat": {Bump: "auto"},
 		},
 	}
-	_, err := app.NewResolver(cfg, "uat", false, "7.4.1", "158404", mr)
+	_, err := app.NewResolver(cfg, "uat", false, "7.4.1", "158404", mr, app.WithoutCollisionGuard())
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "{build}")
 }
@@ -285,7 +285,7 @@ func TestNewResolver_BuildID_PlainSemver_AppendsBuildMetadata(t *testing.T) {
 			mr := exectest.NewMockRunner()
 			cfg := semverCfg()
 			cfg.Versioning.TagPrefix = tc.prefix
-			r, err := app.NewResolver(cfg, "", false, tc.override, "158404", mr)
+			r, err := app.NewResolver(cfg, "", false, tc.override, "158404", mr, app.WithoutCollisionGuard())
 			require.NoError(t, err)
 
 			result, err := r.Resolve()
@@ -316,7 +316,7 @@ func TestNewResolver_BuildID_PlainSemver_ValidatesSemVer(t *testing.T) {
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			mr := exectest.NewMockRunner()
-			r, err := app.NewResolver(semverCfg(), "", false, tc.override, tc.buildID, mr)
+			r, err := app.NewResolver(semverCfg(), "", false, tc.override, tc.buildID, mr, app.WithoutCollisionGuard())
 			if tc.wantErr {
 				require.Error(t, err)
 				assert.Contains(t, err.Error(), "--set-version")
@@ -351,7 +351,7 @@ func TestNewResolver_BuildID_PlainSemver_WithTagFormat_ValidatesSemVer(t *testin
 			mr := exectest.NewMockRunner()
 			cfg := semverCfg()
 			cfg.Versioning.TagFormat = "v{version}+{build}"
-			r, err := app.NewResolver(cfg, "", false, tc.override, tc.buildID, mr)
+			r, err := app.NewResolver(cfg, "", false, tc.override, tc.buildID, mr, app.WithoutCollisionGuard())
 			if tc.wantErr {
 				require.Error(t, err)
 				assert.Contains(t, err.Error(), "--set-build-id")
@@ -396,7 +396,7 @@ func TestNewResolver_BuildID_SemverPerEnv_ValidatesSemVer(t *testing.T) {
 					"uat": {Bump: "auto"},
 				},
 			}
-			r, err := app.NewResolver(cfg, "uat", false, tc.override, tc.buildID, mr)
+			r, err := app.NewResolver(cfg, "uat", false, tc.override, tc.buildID, mr, app.WithoutCollisionGuard())
 			if tc.wantErr {
 				require.Error(t, err)
 				assert.Contains(t, err.Error(), "--set-build-id")
@@ -428,7 +428,7 @@ func TestNewResolver_BuildID_CalverPerEnv_StaysLenient(t *testing.T) {
 			"uat": {Bump: "auto"},
 		},
 	}
-	r, err := app.NewResolver(cfg, "uat", false, "2026.05.3", "build_1", mr)
+	r, err := app.NewResolver(cfg, "uat", false, "2026.05.3", "build_1", mr, app.WithoutCollisionGuard())
 	require.NoError(t, err)
 
 	result, err := r.Resolve()
@@ -475,7 +475,7 @@ func TestNewResolver_VersionOverride_SemVerValidation(t *testing.T) {
 				}
 			}
 
-			r, err := app.NewResolver(cfg, env, false, tc.override, "", mr)
+			r, err := app.NewResolver(cfg, env, false, tc.override, "", mr, app.WithoutCollisionGuard())
 			if tc.wantErr {
 				require.Error(t, err)
 				assert.Contains(t, err.Error(), "--set-version")
@@ -509,7 +509,7 @@ func TestNewResolver_VersionOverride_SemVerValidation_NamesConfiguredPrefix(t *t
 	cfg := semverCfg()
 	cfg.Versioning.TagPrefix = &custom
 
-	_, err := app.NewResolver(cfg, "", false, "v1.2.3", "", mr)
+	_, err := app.NewResolver(cfg, "", false, "v1.2.3", "", mr, app.WithoutCollisionGuard())
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), `expected an optional "rel-" prefix`)
 }
@@ -519,7 +519,7 @@ func TestNewResolver_VersionOverride_SemVerValidation_NamesConfiguredPrefix(t *t
 // new check (T336) only applies to semver/semver-per-env.
 func TestNewResolver_VersionOverride_Calver_SemVerCheckDoesNotApply(t *testing.T) {
 	mr := exectest.NewMockRunner()
-	r, err := app.NewResolver(calverCfg(), "", false, "2026.05.0", "", mr)
+	r, err := app.NewResolver(calverCfg(), "", false, "2026.05.0", "", mr, app.WithoutCollisionGuard())
 	require.NoError(t, err)
 
 	result, err := r.Resolve()
@@ -536,7 +536,7 @@ func TestNewResolver_VersionOverride_CalverPerEnv_SemVerCheckDoesNotApply(t *tes
 			"uat": {Bump: "auto", TagFormat: "{env}/{version}"},
 		},
 	}
-	r, err := app.NewResolver(cfg, "uat", false, "2026.05.0", "", mr)
+	r, err := app.NewResolver(cfg, "uat", false, "2026.05.0", "", mr, app.WithoutCollisionGuard())
 	require.NoError(t, err)
 
 	result, err := r.Resolve()
@@ -787,9 +787,18 @@ func TestNewResolver_SetVersion_CollisionGuard(t *testing.T) {
 			wantCalls: [][]string{{"tag", "-l", "v1.3.2+9"}, {"rev-parse", "--abbrev-ref", "HEAD"}},
 		},
 		{
-			name: "no branches block: no git call", cfg: semverCfg(), override: "1.3.2",
+			// T386: the probe no longer depends on versioning.branches, and without a branches
+			// block there is no branch lookup after it.
+			name: "no branches block: probe only", cfg: semverCfg(), override: "1.3.2",
+			responses: []string{""},
 			wantTag:   "v1.3.2",
-			wantCalls: [][]string{},
+			wantCalls: [][]string{{"tag", "-l", "v1.3.2", "v1.3.2+*"}},
+		},
+		{
+			name: "no branches block, tag exists", cfg: semverCfg(), override: "1.3.2",
+			responses: []string{"v1.3.2\n"},
+			wantErr:   []string{"v1.3.2", "already exists"},
+			wantCalls: [][]string{{"tag", "-l", "v1.3.2", "v1.3.2+*"}},
 		},
 	}
 	for _, tc := range tests {
@@ -836,4 +845,60 @@ func TestNewResolver_SetVersion_WithoutCollisionGuard(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, "v1.3.2", res.Tag)
 	assert.Empty(t, gitArgs(mr), "a run that never tags must not probe for an existing tag")
+}
+
+// T386: --set-version probes for an existing tag under every strategy, so a duplicate fails at
+// Resolve time, before the changelog commit is pushed.
+func TestNewResolver_SetVersion_ProbesUnderEveryStrategy(t *testing.T) {
+	perEnv := func(strategy, tf string) *config.Config {
+		return &config.Config{
+			Version:      "1",
+			Versioning:   config.Versioning{Strategy: strategy, Format: "YYYY.MM.PATCH"},
+			Environments: map[string]config.Environment{"uat": {Bump: "auto", TagFormat: tf}},
+		}
+	}
+	tests := []struct {
+		name      string
+		cfg       *config.Config
+		env       string
+		force     bool
+		override  string
+		existing  string
+		wantTag   string
+		wantProbe []string // nil: no git call expected
+	}{
+		{"calver, free", calverCfg(), "", false, "2026.05.1", "", "2026.05.1", []string{"tag", "-l", "2026.05.1"}},
+		{"calver, taken", calverCfg(), "", false, "2026.05.1", "2026.05.1\n", "", []string{"tag", "-l", "2026.05.1"}},
+		{"semver-per-env, free", perEnv("semver-per-env", "uat/{version}"), "uat", false, "1.2.3", "", "uat/1.2.3", []string{"tag", "-l", "uat/1.2.3", "uat/1.2.3+*"}},
+		{"semver-per-env, taken", perEnv("semver-per-env", "uat/{version}"), "uat", false, "1.2.3", "uat/1.2.3\n", "", []string{"tag", "-l", "uat/1.2.3", "uat/1.2.3+*"}},
+		{"calver-per-env, free", perEnv("calver-per-env", "uat/{version}"), "uat", false, "2026.05.1", "", "uat/2026.05.1", []string{"tag", "-l", "uat/2026.05.1"}},
+		{"calver-per-env, taken", perEnv("calver-per-env", "uat/{version}"), "uat", false, "2026.05.1", "uat/2026.05.1\n", "", []string{"tag", "-l", "uat/2026.05.1"}},
+		// --force keeps its per-env meaning (it bypasses E001, the candidate-exists check): no probe.
+		{"semver-per-env, taken, --force", perEnv("semver-per-env", "uat/{version}"), "uat", true, "1.2.3", "uat/1.2.3\n", "uat/1.2.3", nil},
+		{"calver-per-env, taken, --force", perEnv("calver-per-env", "uat/{version}"), "uat", true, "2026.05.1", "uat/2026.05.1\n", "uat/2026.05.1", nil},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			clearBranchEnv(t)
+			mr := exectest.NewMockRunner()
+			mr.QueueResponse(tc.existing, "", nil)
+
+			r, err := app.NewResolver(tc.cfg, tc.env, tc.force, tc.override, "", mr)
+			require.NoError(t, err)
+			res, err := r.Resolve()
+
+			if tc.wantTag == "" {
+				require.ErrorIs(t, err, semver.ErrTagExists)
+				assert.ErrorContains(t, err, "pick a free version")
+			} else {
+				require.NoError(t, err)
+				assert.Equal(t, tc.wantTag, res.Tag)
+			}
+			if tc.wantProbe == nil {
+				assert.Empty(t, gitArgs(mr))
+				return
+			}
+			assert.Equal(t, [][]string{tc.wantProbe}, gitArgs(mr))
+		})
+	}
 }

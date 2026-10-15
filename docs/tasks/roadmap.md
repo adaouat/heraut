@@ -239,7 +239,7 @@ discipline that applies to every task.
 | 68 | `heraut notes` e2e coverage of range bounds and per-env | Done — T373 |
 | 69 | Agent-friendly CLI: JSON output and a bundled skill | Done — T374–T379 |
 | 70 | Forge and publish hardening | Done — T380–T382 and T398, see `hardening-roadmap.md` |
-| 71 | Versioning correctness | Not started — see `hardening-roadmap.md` |
+| 71 | Versioning correctness | Done — T383–T386, see `hardening-roadmap.md` |
 | 72 | Pipeline, changelog write and recovery docs | Not started — see `hardening-roadmap.md` |
 | 73 | Structural debt | Not started — see `hardening-roadmap.md` |
 

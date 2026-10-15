@@ -77,3 +77,4 @@ trade-offs were accepted.
 | [0070](0070-notes-command.md) | `heraut notes` — release notes of a tag for any consumer | Accepted |
 | [0071](0071-machine-readable-output.md) | Machine-readable output — `--json` and one envelope | Accepted |
 | [0072](0072-agent-skill.md) | A bundled agent skill — `heraut skill` | Accepted |
+| [0073](0073-set-version-always-probes-for-an-existing-tag.md) | `--set-version` always probes for an existing tag | Accepted |

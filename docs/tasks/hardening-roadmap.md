@@ -1,6 +1,6 @@
 # Héraut — Hardening and Refactor Roadmap
 
-> Status: Active (Phase 71 in progress)
+> Status: Active (Phase 72 next)
 > Source: a read-only security, rules and structure review of the code base (2026-10-14), approved
 > as a four-phase in-place refactor. Main roadmap: tracked as Phases 70–73 in [`roadmap.md`](roadmap.md)
 
@@ -46,7 +46,7 @@ and coverage does not drop below the gate".
 | Phase | Theme | Tasks | Status |
 |---|---|---|---|
 | 70 | Forge and publish hardening (pilot) | T380–T382, T398 | Done |
-| 71 | Versioning correctness | T383–T386 | Not started |
+| 71 | Versioning correctness | T383–T386 | Done |
 | 72 | Pipeline, changelog write and recovery docs | T387–T390 | Not started |
 | 73 | Structural debt | T391–T397 | Not started |
 
@@ -202,11 +202,28 @@ local date before the change. Effect for users: a release cut late in the evenin
 or early in the morning in one ahead of it, can now get a different calendar date than before; the date
 is the UTC one, as decided.
 
-#### `[ ]` T386: always probe for an existing tag on `--set-version`
+#### `[x]` T386: always probe for an existing tag on `--set-version`
 
 Today only the maintenance, branches and per-env cases probe. Run the probe for every `--set-version`
 run, plain semver without `versioning.branches` included, so a duplicate fails before the changelog
 commit is pushed. `--force` behavior and E003 are unchanged unless a test shows otherwise.
+
+**Completion note:** [ADR-0073](../adr/0073-set-version-always-probes-for-an-existing-tag.md) records the
+change, as the rules ask before a tested behavior moves. `guardSetVersion` now wraps every `--set-version`
+resolver: SemVer strategies probe `git tag -l <tag> <tag>+*` (`semver.ExistingRelease`, unchanged), CalVer
+strategies the exact tag. The branch/version mismatch check still needs `semver` plus a `branches` block.
+Two rulings: `--force` skips the probe under the per-env strategies only, because there it already means
+"proceed although the candidate exists" (E001), and under plain `semver`/`calver` it never skipped the
+guard, so nothing changes; and `heraut version next --set-version` keeps its old scope (probe only with
+`semver` and `branches`) through a new `WithBranchesOnlyCollisionGuard` option, since it prints a tag,
+changes nothing and is sometimes run with no repository (several of its tests prove it with a `git` that
+fails). The "no branches block: no git call" row of `TestNewResolver_SetVersion_CollisionGuard` was not
+deleted: it now expects the probe, and a second row covers a taken tag. Seventeen override-parsing tests in
+`internal/app` and the `release --dry-run --set-version` table got the guard switched off or a `git` that
+answers the probe, a setup change with no assertion touched. Effect for users: `release --set-version X`
+on a taken tag now fails up front instead of after the changelog commit is pushed; `release --dry-run
+--set-version` in a directory that is not a git repository now fails, as the rest of `release` does.
+Phase 71 is done.
 
 ---
 

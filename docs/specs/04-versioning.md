@@ -314,10 +314,12 @@ derived is a Config error under `--pre-release` too: only `--set-version` is exe
 
 `--set-version` stays the manual escape hatch: it is not range-checked, skips branch detection,
 and a matched glob whose range cannot be derived from the branch name is not an error under it.
-The collision guard still applies: with a `branches` block, resolution runs `git tag -l <tag>
-<tag>+*` (only `<tag>` when `--set-build-id` adds build metadata itself) and fails with the
-tag-exists error (Runtime) when it lists anything. Without the block `--set-version` makes no git
-call during resolution.
+The collision guard still applies: resolution runs `git tag -l <tag> <tag>+*` (only `<tag>` when
+`--set-build-id` adds build metadata itself) and fails with the tag-exists error (Runtime) when it
+lists anything. Since [ADR-0073](../adr/0073-set-version-always-probes-for-an-existing-tag.md) this
+holds for every strategy and with or without a `branches` block (CalVer strategies probe the exact
+tag), for every run that tags; `version next` and a `changelog` run without `--tag` probe only as
+before. Under a per-env strategy `--force` skips the probe, as it skips E001.
 
 **Worked examples.** History: `main` has `v1.3.0 → v1.3.1 → v1.4.0 → v2.0.0`; `release/1.3` cut
 from `v1.3.1`; `release/1.x` cut from `v1.4.0`. Config:

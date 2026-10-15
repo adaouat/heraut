@@ -296,6 +296,8 @@ release:
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
+			// --set-version probes for an existing tag (T386): none exists here.
+			exectest.FakeBin(t, "git", "#!/bin/sh\ncase \"$1 $2\" in\n  \"tag -l\") exit 0 ;;\n  *) exit 1 ;;\nesac\n")
 			out, err := executeRoot("release", "--config", cfgPath, "--set-version", tc.version, "--dry-run")
 			require.NoError(t, err)
 			assert.Contains(t, out, "[dry-run]")
