@@ -38,16 +38,15 @@ func (r *Resolver) Resolve() (versioning.Result, error) {
 
 	rawTags := splitLines(stdout)
 
-	// Find the first tag whose bare form parses as our CalVer format.
+	// The base is the highest tag that parses as our CalVer format, not git's first line: git's
+	// version sort is not the calendar order for every format.
 	var currentTag string
 	var latestValues *Values
 	for _, tag := range rawTags {
-		bare := strings.TrimPrefix(tag, prefix)
-		v, err := ParseVersion(tokens, bare)
-		if err == nil {
+		v, err := ParseVersion(tokens, strings.TrimPrefix(tag, prefix))
+		if err == nil && (latestValues == nil || compareValues(v, *latestValues) > 0) {
 			currentTag = tag
 			latestValues = &v
-			break
 		}
 	}
 
@@ -81,9 +80,8 @@ func (r *Resolver) BumpFromDate(tags []string) (string, error) {
 	var latestValues *Values
 	for _, tag := range tags {
 		v, err := ParseVersion(tokens, tag)
-		if err == nil {
+		if err == nil && (latestValues == nil || compareValues(v, *latestValues) > 0) {
 			latestValues = &v
-			break
 		}
 	}
 

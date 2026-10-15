@@ -481,3 +481,78 @@ func TestBumpFromDate_ISOYearPairsWithWeek(t *testing.T) {
 		})
 	}
 }
+
+// TestResolve_BaseTag_Characterization pins the base tag for the supported shapes when git hands
+// its tags back in the order it is trusted to (T384).
+func TestResolve_BaseTag_Characterization(t *testing.T) {
+	tests := []struct {
+		name        string
+		format      string
+		sprint      int
+		now         time.Time
+		tags        string
+		wantVersion string
+		wantCurrent string
+	}{
+		{"YYYY.MM.PATCH, same month", "YYYY.MM.PATCH", 0, time.Date(2026, 5, 24, 12, 0, 0, 0, time.UTC), "2026.05.10\n2026.05.9\n2026.04.30\n", "2026.05.11", "2026.05.10"},
+		{"YYYY.MM.PATCH, new month", "YYYY.MM.PATCH", 0, time.Date(2026, 6, 2, 12, 0, 0, 0, time.UTC), "2026.05.10\n2026.05.9\n", "2026.06.0", "2026.05.10"},
+		{"YYYY.WW.PATCH, same week", "YYYY.WW.PATCH", 0, time.Date(2026, 5, 20, 12, 0, 0, 0, time.UTC), "2026.21.1\n2026.21.0\n2026.20.4\n", "2026.21.2", "2026.21.1"},
+		{"SPRINT.YYYY.MM.PATCH, same sprint", "SPRINT.YYYY.MM.PATCH", 12, time.Date(2026, 5, 24, 12, 0, 0, 0, time.UTC), "12.2026.05.1\n12.2026.05.0\n11.2026.05.3\n", "12.2026.05.2", "12.2026.05.1"},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			mr := exectest.NewMockRunner()
+			mr.QueueResponse(tc.tags, "", nil)
+			cfg := &config.Config{Versioning: config.Versioning{Strategy: "calver", Format: tc.format, Sprint: tc.sprint}}
+
+			result, err := calver.New(mr, cfg, func() time.Time { return tc.now }).Resolve()
+			require.NoError(t, err)
+			assert.Equal(t, tc.wantVersion, result.Version)
+			assert.Equal(t, tc.wantCurrent, result.CurrentTag)
+		})
+	}
+}
+
+// TestResolve_BaseTag_IsTheHighestParsedTag covers T384: the base is the highest parsed version, not
+// the first line git printed, so an ordering git gets wrong (a leading SPRINT, a reordered list)
+// cannot make heraut issue a tag that already exists.
+func TestResolve_BaseTag_IsTheHighestParsedTag(t *testing.T) {
+	tests := []struct {
+		name        string
+		format      string
+		sprint      int
+		now         time.Time
+		tags        string
+		wantVersion string
+		wantCurrent string
+	}{
+		{"YYYY.MM.PATCH, highest not first", "YYYY.MM.PATCH", 0, time.Date(2026, 5, 24, 12, 0, 0, 0, time.UTC), "2026.05.0\n2026.05.2\n2026.05.1\n", "2026.05.3", "2026.05.2"},
+		{"YYYY.MM.PATCH, older month printed first", "YYYY.MM.PATCH", 0, time.Date(2026, 5, 24, 12, 0, 0, 0, time.UTC), "2026.04.9\n2026.05.1\n", "2026.05.2", "2026.05.1"},
+		{"YYYY.WW.PATCH, highest not first", "YYYY.WW.PATCH", 0, time.Date(2026, 5, 20, 12, 0, 0, 0, time.UTC), "2026.20.7\n2026.21.1\n2026.21.0\n", "2026.21.2", "2026.21.1"},
+		{"SPRINT.YYYY.MM.PATCH, newest sprint printed last", "SPRINT.YYYY.MM.PATCH", 12, time.Date(2026, 5, 24, 12, 0, 0, 0, time.UTC), "11.2026.05.9\n12.2026.05.1\n", "12.2026.05.2", "12.2026.05.1"},
+		{"a tag that does not parse is ignored", "YYYY.MM.PATCH", 0, time.Date(2026, 5, 24, 12, 0, 0, 0, time.UTC), "nightly\n2026.05.0\n2026.05.1\n", "2026.05.2", "2026.05.1"},
+		{"equal values keep git's first", "YYYY.MM.PATCH", 0, time.Date(2026, 5, 24, 12, 0, 0, 0, time.UTC), "2026.05.1\n2026.5.1\n", "2026.05.2", "2026.05.1"},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			mr := exectest.NewMockRunner()
+			mr.QueueResponse(tc.tags, "", nil)
+			cfg := &config.Config{Versioning: config.Versioning{Strategy: "calver", Format: tc.format, Sprint: tc.sprint}}
+
+			result, err := calver.New(mr, cfg, func() time.Time { return tc.now }).Resolve()
+			require.NoError(t, err)
+			assert.Equal(t, tc.wantVersion, result.Version)
+			assert.Equal(t, tc.wantCurrent, result.CurrentTag)
+		})
+	}
+}
+
+// TestBumpFromDate_BaseIsTheHighestParsedVersion is the same rule for the per-env entry point.
+func TestBumpFromDate_BaseIsTheHighestParsedVersion(t *testing.T) {
+	cfg := &config.Config{Versioning: config.Versioning{Strategy: "calver-per-env", Format: "YYYY.MM.PATCH"}}
+	r := calver.New(nil, cfg, fixedNow(2026, time.May, 24))
+
+	next, err := r.BumpFromDate([]string{"2026.05.0", "2026.05.2", "2026.05.1"})
+	require.NoError(t, err)
+	assert.Equal(t, "2026.05.3", next)
+}

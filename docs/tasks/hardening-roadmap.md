@@ -167,12 +167,24 @@ E002 check off, the check compares against the highest real tag. The auto path w
 reads `releaseTags`). A table test pins both strategies, with the hostile tag first and alone; it
 failed before the change on three of the four rows.
 
-#### `[ ]` T384: CalVer picks the highest parsed tag as the base
+#### `[x]` T384: CalVer picks the highest parsed tag as the base
 
 The base is the first parsable tag in git's `--sort=-version:refname` order. Choose the highest
 parsed value instead, so formats with a leading SPRINT or zero-padded fields cannot re-issue an
 existing tag. Characterization tests first for `YYYY.MM.PATCH`, `YYYY.WW.PATCH` and one SPRINT-first
 format.
+
+**Completion note:** `calver.Resolver.Resolve` and `BumpFromDate` now scan every tag that parses and keep
+the highest, compared by a new `compareValues` in chronological order (year, semester, quarter, month,
+ISO week, day, sprint, patch). A dimension the format lacks is zero on both sides and never decides.
+On equal values git's first line is kept. Characterization rows for `YYYY.MM.PATCH`, `YYYY.WW.PATCH`
+and `SPRINT.YYYY.MM.PATCH` passed before the change and still do; the new rows feed the resolver tags
+in an order git would not be trusted for (the mock stands in for it, since a real misordering needs a
+specific tag set) and failed on the first-line pick. `BumpFromDate`, the entry point calver-per-env
+uses, got the same rule. Not changed: calver-per-env still reports `Result.CurrentTag` as the first
+release tag in git's order (`releaseTags`), so under an ordering git gets wrong that field and the
+next version can name different tags. It only feeds `previous_tag` and the display, and the next
+version is the safe one; worth a follow-up if it shows up in practice.
 
 #### `[ ]` T385: CalVer dates in UTC
 
