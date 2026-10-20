@@ -244,6 +244,7 @@ discipline that applies to every task.
 | 73 | Structural debt | Done — T391–T397 and T401, see `hardening-roadmap.md` |
 | 74 | Small corrections from the rule review | Done — T402–T405, see `hardening-2-roadmap.md` |
 | 75 | Behavior changes with a decision record | Done — T406–T409, see `hardening-2-roadmap.md` |
+| 76 | Brief follow-ups: origin lookup, CI env names, platform wizard | Not started — T410–T412, see `hardening-3-roadmap.md` |
 
 ### Open items
 
