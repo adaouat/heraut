@@ -49,7 +49,7 @@ confinement of asset globs (done in the first epic).
 
 | Phase | Theme | Tasks | Status |
 |---|---|---|---|
-| 74 | Small corrections | T402–T405 | In progress (T402 done) |
+| 74 | Small corrections | T402–T405 | In progress (T402–T403 done) |
 | 75 | Behavior changes with a decision record | T406–T409 | Not started |
 
 ---
@@ -77,13 +77,20 @@ before `BumpVersion` sees them, so `version current` is unchanged. In production
 canonical `Core()`, so this is defence in depth, not a reachable bug. `IsBareVersion` stays lenient on
 purpose (calver-per-env's `2026.05.3`), and `rotation.go` keeps its own `Atoi` (not in scope).
 
-#### `[ ]` T403: make config validation error order deterministic (RULE-016)
+#### `[x]` T403: make config validation error order deterministic (RULE-016)
 
 `validateEnums` iterates the `environments` map in Go's random order, so the list printed by
 `heraut check config` and `release` changes between runs. Test first: a config with three invalid
 environments yields the same error slice on 50 consecutive calls (it must fail on the current code, so
 make the environments enough to catch a random order). Fix by sorting the names once. Look for the same
 pattern in the other `validate*` files and fix every map walk, not only this one.
+
+**Completion note:** the only unsorted walk was the per-env loop in `validateEnums`
+(`internal/config/validator.go`); it now goes through the existing `sortedEnvKeys`. The test builds six
+environments that each carry an invalid `tag_pattern` and checks the error paths come out in name order on
+30 consecutive calls (it failed on the old code with a shuffled order). The audit of the other walks found
+nothing more to fix: the loader, the forge and per-env validators, the template-snippet check, the `--env
+auto` match list and the scaffold's dropped-field list already sort.
 
 #### `[ ]` T404: match the Security fallback on whole words only (RULE-013)
 

@@ -104,7 +104,8 @@ func validateEnums(cfg *Config) []ValidationError {
 		errs = append(errs, validateContentDriverTemplates(&ContentDriver{Template: cfg.Notes.Template, Rendering: cfg.Notes.Rendering}, "notes")...)
 	}
 	errs = append(errs, validateRelease(cfg.Release, "release")...)
-	for envName, env := range cfg.Environments {
+	for _, envName := range sortedEnvKeys(cfg.Environments) {
+		env := cfg.Environments[envName]
 		base := "environments." + envName
 		// Per-env content drivers merge over the top-level (ADR-0019); validate the
 		// effective merged driver so an inherited generator satisfies the required check.
