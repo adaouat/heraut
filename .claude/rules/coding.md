@@ -58,7 +58,7 @@ internal/pipeline/            release + changelog flows (no factories)
 | `internal/exitcode/` | nothing from heraut (pure, like port/config)                                       |
 | `internal/skill/`    | nothing from heraut (pure: the embedded agent skill, ADR-0072)                     |
 | `internal/ui/`       | nothing from heraut (pure: styling, banner, step spinner)                          |
-| `internal/testutil/` | `internal/port/` only (test doubles implementing the port interfaces)              |
+| `internal/testutil/` | `internal/{port,config}/` (test doubles implementing the port interfaces; `config` for the CI variable list `ClearCIEnv` clears) |
 | `e2e/`               | `e2e/harness` and testify only, never an `internal/` package (it drives the built binary, ADR-0066) |
 
 If you find yourself importing `up` the stack, the design is wrong — fix the dependency
