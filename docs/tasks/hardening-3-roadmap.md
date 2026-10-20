@@ -34,7 +34,7 @@ criteria include "the same command still passes and coverage does not drop below
 
 | Phase | Theme | Tasks | Status |
 |---|---|---|---|
-| 76 | Brief follow-ups | T410–T412 | Not started |
+| 76 | Brief follow-ups | T410–T412 | In progress (T410 done) |
 
 ---
 
@@ -42,7 +42,7 @@ criteria include "the same command still passes and coverage does not drop below
 
 Goal: close the three structure items the brief listed. Entry: baseline above recorded.
 
-#### `[ ]` T410: read the git origin in `scaffold` through the runner
+#### `[x]` T410: read the git origin in `scaffold` through the runner
 
 `internal/scaffold/wizard.go` has its own `gitRemoteOriginURL()`, which calls `exec.Command("git", "remote",
 "get-url", "origin")` directly. Every other caller goes through `port.Runner`, and T396 added
@@ -53,6 +53,18 @@ origin, a GitLab origin, no origin) is exercised through an injected lookup rath
 working directory. Then delete `gitRemoteOriginURL` and have the wizard take the lookup (a
 `func() string`, defaulting to `forge.GitOriginURL` on the real runner). Behavior is identical: an error or
 no origin gives `""`.
+
+**Completion note:** the lookup now goes through `forge.GitOriginURL` on the real runner
+(`execadapter.New(false, false)`, a library outside the layer rules); `gitRemoteOriginURL` stays as a
+one-line wrapper so `runPlatformWizard` and the signature of `RunWizard` are untouched, and `os/exec` is no
+longer imported by `scaffold`. The draft's premise was partly wrong: the pre-fill logic (`detectPlatform`)
+already takes the origin as a parameter and has tests for SSH, HTTPS, self-hosted and no-origin
+(`wizard_internal_test.go`), so only the one-line lookup itself was untestable. Chosen over injecting a
+lookup into `RunWizard` (an exported signature change that nothing could exercise, since the `huh` forms need
+a terminal). Test: `TestGitRemoteOriginURL` (new `origin_internal_test.go`) runs a fake `git` that answers
+only the exact `remote get-url origin` call, for the URL (trimmed) and the failure case; it was written
+against the old code first and passed before and after, as a characterization test should. The exact-argument
+contract of the command is also asserted by `forge`'s own `origin_test.go`. No behavior change.
 
 #### `[ ]` T411: one owner for the CI and token environment variable names
 

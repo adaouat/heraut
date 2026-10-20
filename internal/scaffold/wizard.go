@@ -3,13 +3,15 @@ package scaffold
 import (
 	"fmt"
 	"os"
-	"os/exec"
 	"strconv"
 	"strings"
 
 	"charm.land/huh/v2"
 
+	execadapter "github.com/adaouat/forge/exec"
+
 	"github.com/adaouat/heraut/internal/config"
+	"github.com/adaouat/heraut/internal/forge"
 	"github.com/adaouat/heraut/internal/ui"
 )
 
@@ -167,14 +169,10 @@ func runSprintWizard(a *Answers) error {
 	return nil
 }
 
-// gitRemoteOriginURL runs `git remote get-url origin` and returns its raw output, or "" when not
-// in a git repo or on any error.
+// gitRemoteOriginURL returns the origin remote URL, or "" when not in a git repo or on any error.
+// The lookup is forge.GitOriginURL, the one place that knows the command.
 func gitRemoteOriginURL() string {
-	out, err := exec.Command("git", "remote", "get-url", "origin").Output()
-	if err != nil {
-		return ""
-	}
-	return strings.TrimSpace(string(out))
+	return forge.GitOriginURL(execadapter.New(false, false))
 }
 
 // applyPublishChoice enforces the invariant that a.Platforms reflects the user's actual publish
