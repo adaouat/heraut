@@ -217,3 +217,25 @@ anything.
   the changelog commit already landed). A future "commit hook-generated build artifacts at
   tag time" feature would need its own design — a new commit point, not assumed or
   scaffolded here.
+
+## Addendum (2026-10-20): `stage` with no changelog commit to join
+
+The rule review (RULE-065) ruled the third Consequences bullet above wrong: a `stage` entry that has no
+changelog commit to join was "not an error", so a hook's files stayed uncommitted without a word. That
+is the silent no-op this ADR argues against at the other four hook points. The bullet is superseded by:
+
+1. **A config error when the changelog can never run.** `stage` on a `post_bump` or `pre_changelog` step
+   is a validation error when no run of this config produces a changelog commit: no `changelog:` block at
+   the top level and none in any environment, or a per-env strategy whose every environment sets
+   `disable_changelog: true`. Same shape as the misplaced-`stage` error: path `hooks.<point>[i].stage`,
+   a message, and a hint naming the two ways out (configure the changelog, or drop `stage`).
+2. **A run-time warning when this run has no commit.** `hooks:` is global while `disable_changelog` is
+   per environment, and `--pre-release` and `heraut changelog` without `--commit`/`--tag` decide at run
+   time, so the validator cannot reject them without breaking a legitimate config (a `dev` environment
+   with no changelog beside a `prod` that has one). When a run collects `stage` patterns and no changelog
+   commit follows, it prints a warning naming the patterns left uncommitted. It never fails the run.
+3. **Not changed:** `stage` stays valid only under `post_bump` and `pre_changelog`; a pattern matching
+   nothing still fails through `git add`; there is still no blanket staging.
+
+Consequence: a config that declared `stage` with no changelog anywhere now fails `heraut check config`
+and every `release` or `changelog` run, with a message instead of a silent drop.
