@@ -4,6 +4,7 @@ import (
 	"os"
 	"strings"
 
+	"github.com/adaouat/heraut/internal/config"
 	"github.com/adaouat/heraut/internal/port"
 )
 
@@ -21,17 +22,17 @@ import (
 // is present, in which case the caller falls through to a configured platform's context or to nil.
 func ambientLinkContext() *port.LinkContext {
 	// GitLab CI: split CI_SERVER_URL + CI_PROJECT_PATH so native enrichment can address the project.
-	if server := os.Getenv("CI_SERVER_URL"); server != "" {
-		if path := os.Getenv("CI_PROJECT_PATH"); path != "" {
+	if server := os.Getenv(config.EnvGitLabServerURL); server != "" {
+		if path := os.Getenv(config.EnvGitLabProjectPath); path != "" {
 			owner, repo := splitProjectPath(path)
 			return &port.LinkContext{BaseURL: strings.TrimRight(server, "/"), Owner: owner, Repo: repo, Platform: "gitlab"}
 		}
 	}
-	if u := os.Getenv("CI_PROJECT_URL"); u != "" {
+	if u := os.Getenv(config.EnvGitLabProjectURL); u != "" {
 		return &port.LinkContext{BaseURL: u, Platform: "gitlab"} // links-only fallback
 	}
-	if server := os.Getenv("GITHUB_SERVER_URL"); server != "" {
-		if repo := os.Getenv("GITHUB_REPOSITORY"); repo != "" {
+	if server := os.Getenv(config.EnvGitHubServerURL); server != "" {
+		if repo := os.Getenv(config.EnvGitHubRepository); repo != "" {
 			owner, name, _ := strings.Cut(repo, "/")
 			return &port.LinkContext{BaseURL: strings.TrimRight(server, "/"), Owner: owner, Repo: name, Platform: "github"}
 		}
