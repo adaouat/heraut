@@ -242,7 +242,7 @@ discipline that applies to every task.
 | 71 | Versioning correctness | Done — T383–T386 and T399, see `hardening-roadmap.md` |
 | 72 | Pipeline, changelog write and recovery docs | Done — T387–T390 and T400, see `hardening-roadmap.md` |
 | 73 | Structural debt | Done — T391–T397 and T401, see `hardening-roadmap.md` |
-| 74 | Small corrections from the rule review | Not started — T402–T405, see `hardening-2-roadmap.md` |
+| 74 | Small corrections from the rule review | In progress — T402 done; T402–T405, see `hardening-2-roadmap.md` |
 | 75 | Behavior changes with a decision record | Not started — T406–T409, see `hardening-2-roadmap.md` |
 
 ### Open items

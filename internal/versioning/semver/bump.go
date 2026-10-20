@@ -117,19 +117,19 @@ func firstLine(s string) string {
 // BumpVersion increments the appropriate SemVer component.
 // current must be a bare version string without prefix (e.g. "1.2.3").
 func BumpVersion(current string, bump versioning.BumpType) (string, error) {
-	parts := strings.SplitN(current, ".", 3)
+	parts := strings.Split(current, ".")
 	if len(parts) != 3 {
-		return "", fmt.Errorf("invalid semver %q: expected MAJOR.MINOR.PATCH", current)
+		return "", fmt.Errorf("invalid semver %q: expected MAJOR.MINOR.PATCH: %w", current, ErrInvalidVersion)
 	}
-	major, err := strconv.Atoi(parts[0])
+	major, err := plainNumber(parts[0])
 	if err != nil {
 		return "", fmt.Errorf("invalid major in %q: %w", current, err)
 	}
-	minor, err := strconv.Atoi(parts[1])
+	minor, err := plainNumber(parts[1])
 	if err != nil {
 		return "", fmt.Errorf("invalid minor in %q: %w", current, err)
 	}
-	patch, err := strconv.Atoi(parts[2])
+	patch, err := plainNumber(parts[2])
 	if err != nil {
 		return "", fmt.Errorf("invalid patch in %q: %w", current, err)
 	}
@@ -148,6 +148,19 @@ func BumpVersion(current string, bump versioning.BumpType) (string, error) {
 		patch++
 	}
 	return fmt.Sprintf("%d.%d.%d", major, minor, patch), nil
+}
+
+// plainNumber parses one MAJOR, MINOR or PATCH part: digits only, no leading zero, no sign
+// (SemVer §2), which strconv.Atoi alone would accept.
+func plainNumber(s string) (int, error) {
+	if !isNumericIdentifier(s) {
+		return 0, fmt.Errorf("%q is not a number without leading zeros: %w", s, ErrInvalidVersion)
+	}
+	n, err := strconv.Atoi(s)
+	if err != nil {
+		return 0, fmt.Errorf("%w: %w", err, ErrInvalidVersion)
+	}
+	return n, nil
 }
 
 // IsBareVersion reports whether s is a dotted MAJOR.MINOR.PATCH of integers with no pre-release

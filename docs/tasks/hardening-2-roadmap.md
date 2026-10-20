@@ -49,7 +49,7 @@ confinement of asset globs (done in the first epic).
 
 | Phase | Theme | Tasks | Status |
 |---|---|---|---|
-| 74 | Small corrections | T402–T405 | Not started |
+| 74 | Small corrections | T402–T405 | In progress (T402 done) |
 | 75 | Behavior changes with a decision record | T406–T409 | Not started |
 
 ---
@@ -59,7 +59,7 @@ confinement of asset globs (done in the first epic).
 Goal: four fixes with no design question. Entry: baseline above recorded. No ADR; Spec 05 gets one note
 (T404) and nothing else changes in the docs.
 
-#### `[ ]` T402: reject leading zeros and signs in SemVer parts (RULE-002)
+#### `[x]` T402: reject leading zeros and signs in SemVer parts (RULE-002)
 
 `semver.BumpVersion` splits on `.` and calls `strconv.Atoi` per part, so `01.2.3` and `+1.2.3` are
 accepted. Tags come from git, so the exposure is low, but `--set-version` and a hand-made tag both reach
@@ -67,6 +67,15 @@ this code. Tests first: a table of rejected inputs (`01.2.3`, `1.02.3`, `+1.2.3`
 beside the existing rows (`1.9.0` → `1.10.0` stays). Then a strict part parser shared with
 `semver.ParseVersion` if it does not already enforce this. Check that an existing tag such as `v01.2.3`
 does not become a hard failure for `version current`: decide and record whether it is skipped or reported.
+
+**Completion note:** `BumpVersion` now parses each part with `plainNumber` (digits only, no leading zero, no
+sign, via the same `isNumericIdentifier` rule `Parse` uses) and wraps `ErrInvalidVersion`; the old error
+messages ("invalid semver", "invalid major/minor/patch") are kept because existing tests assert them. A split
+on every `.` replaces `SplitN(…, 3)`, so `1.2.3.4` is now rejected too. The question about a hand-made tag
+such as `v01.2.3` needed no decision: the SemVer strategies already skip tags that fail the strict `Parse`
+before `BumpVersion` sees them, so `version current` is unchanged. In production the input is always a
+canonical `Core()`, so this is defence in depth, not a reachable bug. `IsBareVersion` stays lenient on
+purpose (calver-per-env's `2026.05.3`), and `rotation.go` keeps its own `Atoi` (not in scope).
 
 #### `[ ]` T403: make config validation error order deterministic (RULE-016)
 
