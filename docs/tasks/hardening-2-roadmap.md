@@ -49,7 +49,7 @@ confinement of asset globs (done in the first epic).
 
 | Phase | Theme | Tasks | Status |
 |---|---|---|---|
-| 74 | Small corrections | T402–T405 | In progress (T402–T404 done) |
+| 74 | Small corrections | T402–T405 | Done |
 | 75 | Behavior changes with a decision record | T406–T409 | Not started |
 
 ---
@@ -119,7 +119,7 @@ replaces the type and `remove: true` drops it, the config defaults (order, label
 `EffectiveTypes`, so it needed no code or separate test. Docs: Spec 02 and 03 (11 default types), a new
 Spec 05 "Commit classification" section, the sample's comment. Deferred: none.
 
-#### `[ ]` T405: confine `version sprint bump` to the versioning block (RULE-015)
+#### `[x]` T405: confine `version sprint bump` to the versioning block (RULE-015)
 
 `config.IncrementSprint` replaces every indented `sprint:` line and inserts only after a bare
 `versioning:` line. Tests first (`internal/config/sprint_test.go`): a per-env block that also has a
@@ -127,6 +127,17 @@ Spec 05 "Commit classification" section, the sample's comment. Deferred: none.
 missing key is inserted with the block's own indentation; a file with no `versioning:` block fails with
 the existing error. Fix by locating the top-level block first and editing inside it. No YAML round-trip
 (it loses comments).
+
+**Completion note:** `IncrementSprint` now works line by line. It finds the top-level `versioning:` line (a
+trailing comment is fine), reads the block until the next unindented key, and replaces `sprint:` only at the
+block's own indentation, so a deeper `sprint:` or one inside a hook script is untouched. The value's trailing
+comment is kept. A missing key is inserted right after the `versioning:` line with the block's indentation.
+Inline (flow) style such as `versioning: {strategy: calver}` is refused with a message asking for block style,
+and the file is left as it was. Five new tests in `sprint_test.go` (the first one, a `sprint:` line inside a
+hook script, and the comment-on-the-versioning-line insert case failed on the old code); the three existing
+tests stay. The `detectIndent` helper is gone. One note on the task text: a per-env block cannot carry a
+`sprint:` key (the strict loader rejects it), so the realistic stray match is inside a multi-line string such
+as a hook script, which is what the test uses.
 
 **Phase 74 exit:** the baseline command passes, coverage ≥ 88.0%, lint clean.
 
