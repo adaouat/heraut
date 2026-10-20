@@ -176,7 +176,7 @@ has no such requirement (see § Tag-only workflow below).
       files that are not part of the project. The same rule is checked once before anything is
       committed or pushed (right after the `post_bump` hooks), so a refused asset stops the run
       before the changelog commit and the tag, and a `--dry-run` reports it too; a pattern that
-      matches nothing is not an error at that point, since a later hook may still build the files.
+      matches nothing is also an error at that point unless `release.allow_missing_assets: true` is set (a `--dry-run` only warns, since hooks do not run in it; [ADR-0076](../adr/0076-a-release-asset-pattern-must-match-a-file.md)).
 
 The version is pre-computed in step 2 and re-used in every subsequent step
 ([ADR-0011](../adr/0011-single-pipeline-release-via-pre-computation.md)) — no driver

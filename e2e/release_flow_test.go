@@ -131,12 +131,13 @@ func TestRelease_GitLabIgnoresThePreReleaseFlag(t *testing.T) {
 	}
 }
 
-func TestRelease_AssetsAreAttachedAndAZeroMatchIsLenient(t *testing.T) {
+func TestRelease_AssetsAreAttachedAndAZeroMatchIsRefusedUnlessAllowed(t *testing.T) {
 	bin := harness.Binary(t)
-	cfg := releaseCfg(`    - forge: github
+	const target = `    - forge: github
       assets:
         - "dist/*.txt"
-`, "")
+`
+	cfg := releaseCfg(target, "")
 
 	t.Run("matching files are passed to gh", func(t *testing.T) {
 		repo := releaseRepo(t, cfg)
@@ -149,8 +150,32 @@ func TestRelease_AssetsAreAttachedAndAZeroMatchIsLenient(t *testing.T) {
 		calls := normCalls(repo.CLICalls())
 		assert.Equal(t, "gh [release] [create] [v0.1.0] [--notes-file] [<notes>] [--repo] [acme/widget] [dist/a.txt] [dist/b.txt]", calls[len(calls)-1])
 	})
-	t.Run("a pattern matching nothing publishes without assets", func(t *testing.T) {
+	t.Run("a pattern matching nothing is refused before anything is committed or pushed", func(t *testing.T) {
 		repo := releaseRepo(t, cfg)
+		before := repoState(t, repo)
+
+		res := repo.Run(bin, tokens, "release", "--offline")
+
+		require.Equal(t, exitRuntime, res.ExitCode, "stdout:\n%s\nstderr:\n%s", res.Stdout, res.Stderr)
+		out := normalize(res.Stdout + " " + res.Stderr)
+		assert.Contains(t, out, `"dist/*.txt" matches no file`)
+		assert.Contains(t, out, "allow_missing_assets")
+		assert.Equal(t, before, repoState(t, repo), "no changelog commit, no tag")
+		assert.Empty(t, repo.GitRemote("tag", "-l"))
+		for _, call := range repo.CLICalls() {
+			assert.NotContains(t, call, "[release] [create]", "only the read-only preflight may have reached gh")
+		}
+	})
+	t.Run("a dry run only warns", func(t *testing.T) {
+		repo := releaseRepo(t, cfg)
+
+		res := repo.Run(bin, tokens, "release", "--offline", "--dry-run")
+
+		require.Equal(t, exitOK, res.ExitCode, "stdout:\n%s\nstderr:\n%s", res.Stdout, res.Stderr)
+		assert.Contains(t, normalize(res.Stdout+" "+res.Stderr), `"dist/*.txt" matches no file`)
+	})
+	t.Run("allow_missing_assets publishes without assets", func(t *testing.T) {
+		repo := releaseRepo(t, releaseCfg(target, "  allow_missing_assets: true\n"))
 
 		res := repo.Run(bin, tokens, "release", "--offline")
 

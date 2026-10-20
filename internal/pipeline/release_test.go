@@ -3,6 +3,7 @@ package pipeline_test
 import (
 	"bytes"
 	"errors"
+	"fmt"
 	"testing"
 
 	"github.com/adaouat/forge/exec/exectest"
@@ -516,6 +517,41 @@ func TestRun_BadAssets_DryRunReportsIt(t *testing.T) {
 
 	p := pipeline.New(exectest.NewMockRunner(), &fakeResolver{result: resolvedResult("v1.2.3")}, cfg, &bytes.Buffer{}, true)
 	require.ErrorContains(t, p.Run(), "outside the repository")
+}
+
+// ADR-0076: a pattern that matches nothing is refused at the same gate, before any mutation.
+func TestRun_UnmatchedAssetPattern_FailsBeforeAnyGitMutation(t *testing.T) {
+	mr := exectest.NewMockRunner()
+	gen := &testutil.MockGenerator{}
+	platform := &testutil.MockPlatform{
+		PlatformName:   "github",
+		HasAssetsVal:   true,
+		CheckAssetsErr: fmt.Errorf(`asset pattern "dist/*" matches no file: %w`, port.ErrAssetUnmatched),
+	}
+	cfg := &pipeline.Config{Changelog: gen, Platforms: []port.Platform{platform}}
+
+	err := pipeline.New(mr, &fakeResolver{result: resolvedResult("v1.2.3")}, cfg, &bytes.Buffer{}, false).Run()
+
+	require.ErrorIs(t, err, port.ErrAssetUnmatched)
+	assert.Empty(t, mr.Calls, "nothing may be committed, tagged or pushed")
+	assert.Empty(t, gen.GenerateCalls)
+}
+
+// ADR-0076: a dry run renders hooks without running them, so the files a hook would build cannot
+// exist yet; an unmatched pattern is a warning there, and the real run applies the rule.
+func TestRun_UnmatchedAssetPattern_DryRunOnlyWarns(t *testing.T) {
+	platform := &testutil.MockPlatform{
+		PlatformName:   "github",
+		CheckAssetsErr: fmt.Errorf(`asset pattern "dist/*" matches no file: %w`, port.ErrAssetUnmatched),
+	}
+	cfg := &pipeline.Config{Platforms: []port.Platform{platform}}
+	var out bytes.Buffer
+
+	err := pipeline.New(exectest.NewMockRunner(), &fakeResolver{result: resolvedResult("v1.2.3")}, cfg, &out, true).Run()
+
+	require.NoError(t, err)
+	assert.Contains(t, out.String(), `asset pattern "dist/*" matches no file`)
+	assert.Contains(t, out.String(), "dry-run")
 }
 
 // TestRun_DryRun verifies no git mutations or platform calls are made.

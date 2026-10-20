@@ -44,7 +44,8 @@ build the files.
 ## Consequences
 
 - A configuration with a pattern that matches nothing at `post_bump` time now fails `heraut release`
-  with a Config error, before anything is written. Typos stop shipping empty releases.
+  with the Runtime exit code, like the existing outside-the-repository refusal (it reports the state of
+  the working tree, not an invalid config), before anything is written. Typos stop shipping empty releases.
 - Projects that build their artifacts after `post_bump` must set `allow_missing_assets: true` (losing the
   typo check for that release block) or move the build step earlier.
 - The new key is an addition to `internal/config`, so `schema.json`, `docs/heraut.sample.yml` and the

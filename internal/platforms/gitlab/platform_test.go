@@ -667,9 +667,19 @@ func TestCheckAssets(t *testing.T) {
 	require.NoError(t, os.WriteFile(filepath.Join(outside, "secret.txt"), []byte("x"), 0o644))
 
 	assert.NoError(t, gitlab.New(&config.Platform{}).CheckAssets())
-	assert.NoError(t, gitlab.New(&config.Platform{Assets: []string{"dist/*"}}).CheckAssets())
+	assert.NoError(t, gitlab.New(&config.Platform{Assets: []string{"dist/*"}, AllowMissingAssets: true}).CheckAssets())
 
 	err := gitlab.New(&config.Platform{Assets: []string{filepath.Join(outside, "*.txt")}}).CheckAssets()
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "outside the repository")
+}
+
+// ADR-0076: a pattern matching nothing is an error unless release.allow_missing_assets is set.
+func TestCheckAssets_UnmatchedPatternIsRefusedUnlessAllowed(t *testing.T) {
+	t.Chdir(t.TempDir())
+
+	err := gitlab.New(&config.Platform{Assets: []string{"dist/*"}}).CheckAssets()
+	require.ErrorIs(t, err, port.ErrAssetUnmatched)
+
+	assert.NoError(t, gitlab.New(&config.Platform{Assets: []string{"dist/*"}, AllowMissingAssets: true}).CheckAssets())
 }

@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"github.com/adaouat/heraut/internal/platforms"
+	"github.com/adaouat/heraut/internal/port"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -169,19 +170,54 @@ func TestCheckAssetGlobs_RefusesAnAssetOutsideTheRoot(t *testing.T) {
 	outside := t.TempDir()
 	touch(t, outside, "secret.txt")
 
-	err := platforms.CheckAssetGlobs([]string{filepath.Join(outside, "*.txt")})
+	err := platforms.CheckAssetGlobs([]string{filepath.Join(outside, "*.txt")}, false)
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "outside the repository")
 }
 
-func TestCheckAssetGlobs_AcceptsInsideFilesAndStaysSilentOnNoMatch(t *testing.T) {
+func TestCheckAssetGlobs_AcceptsInsideFilesAndStaysSilentOnNoMatchWhenAllowed(t *testing.T) {
 	repo := inRepo(t)
 	touch(t, repo, "app.zip")
 
-	require.NoError(t, platforms.CheckAssetGlobs([]string{"*.zip", "missing/*"}))
+	require.NoError(t, platforms.CheckAssetGlobs([]string{"*.zip", "missing/*"}, true))
 }
 
 func TestCheckAssetGlobs_InvalidGlobErrors(t *testing.T) {
 	inRepo(t)
-	require.Error(t, platforms.CheckAssetGlobs([]string{"["}))
+	require.Error(t, platforms.CheckAssetGlobs([]string{"["}, false))
+	require.Error(t, platforms.CheckAssetGlobs([]string{"["}, true))
+}
+
+// ADR-0076: a pattern that matches nothing is refused up front, before anything is tagged.
+func TestCheckAssetGlobs_RefusesAPatternMatchingNothing(t *testing.T) {
+	repo := inRepo(t)
+	touch(t, repo, "app.zip")
+
+	err := platforms.CheckAssetGlobs([]string{"*.zip", "dist/app-*.tar.gz"}, false)
+
+	require.Error(t, err)
+	assert.ErrorIs(t, err, port.ErrAssetUnmatched)
+	assert.Contains(t, err.Error(), `"dist/app-*.tar.gz"`, "names the pattern that matched nothing")
+	assert.NotContains(t, err.Error(), `"*.zip"`, "the pattern that matched is not blamed")
+	assert.Contains(t, err.Error(), "allow_missing_assets")
+	assert.Contains(t, err.Error(), "post_bump")
+}
+
+func TestCheckAssetGlobs_ListsEveryUnmatchedPattern(t *testing.T) {
+	inRepo(t)
+
+	err := platforms.CheckAssetGlobs([]string{"a-*.zip", "b-*.zip"}, false)
+
+	require.ErrorIs(t, err, port.ErrAssetUnmatched)
+	assert.Contains(t, err.Error(), `"a-*.zip"`)
+	assert.Contains(t, err.Error(), `"b-*.zip"`)
+}
+
+func TestCheckAssetGlobs_ADirectoryOnlyMatchIsNotAFile(t *testing.T) {
+	repo := inRepo(t)
+	require.NoError(t, os.Mkdir(filepath.Join(repo, "dist"), 0o755))
+
+	err := platforms.CheckAssetGlobs([]string{"dist"}, false)
+
+	require.ErrorIs(t, err, port.ErrAssetUnmatched, "a directory is skipped when publishing, so it is not an asset")
 }

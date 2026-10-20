@@ -496,11 +496,17 @@ fields above), which disables both together.
 
 A top-level (root `release`) list of glob patterns for files to attach to every target that
 doesn't declare its own `assets:` (see § `release.targets[]` below — a target's own `assets:`
-overrides this entirely for that target, no merging). Resolved leniently: a pattern matching no
-files emits a warning and is skipped rather than failing the release, whether the pattern came
-from here or from a target's own `assets:` — by the time assets are resolved the tag has already
-been created and pushed, so a strict failure at this point would leave the repository in a
-partially-completed state.
+overrides this entirely for that target, no merging). Every pattern must match at least one
+file, whether it came from here or from a target's own `assets:` ([ADR-0076](../adr/0076-a-release-asset-pattern-must-match-a-file.md)):
+a pattern matching nothing aborts `heraut release` (Runtime exit code, like the outside-the-repository refusal) right after the `post_bump`
+hooks, before the changelog commit, the tag or any push, so a typo cannot publish a release without
+its files. A `--dry-run` only warns, since hooks do not run in it.
+
+Files built by a hook that runs after that point (`pre_changelog`, `pre_tag`, `post_tag` or
+`pre_release`) do not exist yet when the check runs. Either build them in a `post_bump` hook, or set
+`allow_missing_assets: true` on the root `release` block: a pattern matching nothing then warns at
+publish time and is skipped, as it did before ADR-0076. The flag applies to `release.assets` and to
+every target's `assets`; it is not overridable per target or per environment.
 
 ```yaml
 release:
@@ -527,7 +533,7 @@ release:
 |--------------|----------------------------------------|---------|--------------------------------------------------------------------------------------------------|
 | `forge`      | Conditional                            | —       | References a `forges[].name`. Optional when exactly one forge is configured/resolved; required when more than one is configured. |
 | `draft`      | No                                      | `false` | Create the release as a draft. GitHub only.                                                     |
-| `assets`     | No                                      | —       | Target-specific glob patterns. When set, overrides `release.assets` entirely for this target (no merging). Resolved leniently, same as `release.assets` (see § `release.assets` above) — a non-matching pattern warns and is skipped. |
+| `assets`     | No                                      | —       | Target-specific glob patterns. When set, overrides `release.assets` entirely for this target (no merging). Every pattern must match a file unless `release.allow_missing_assets` is set, same as `release.assets` (see § `release.assets` above). |
 
 There is no `prerelease` field: GitHub's `--prerelease` flag is derived automatically from the
 resolved version — a SemVer pre-release (e.g. `1.4.0-rc.1`) publishes as a pre-release, a final

@@ -110,6 +110,46 @@ func TestBuildTargetPlatforms_TargetOwnAssetsAreLenient(t *testing.T) {
 	assert.NotContains(t, mr.Calls[0].Args, "no-such-file-*.tar.gz")
 }
 
+// TestBuildTargetPlatforms_AllowMissingAssetsReachesTheDrivers covers ADR-0076: release.allow_missing_assets
+// is read from the root release block and applies to every target, whether its assets are inherited
+// from release.assets or declared on the target.
+func TestBuildTargetPlatforms_AllowMissingAssetsReachesTheDrivers(t *testing.T) {
+	t.Chdir(t.TempDir())
+	resolved := forge.Resolved{Forges: []port.ForgeIdentity{{Type: "github", Project: "acme/widget"}}}
+	targets := []config.Target{{Forge: "gh", Assets: []string{"no-such-file-*.tar.gz"}}}
+
+	for _, tc := range []struct {
+		name    string
+		release *config.Release
+		strict  bool
+	}{
+		{"no release block", nil, true},
+		{"allow_missing_assets unset", &config.Release{}, true},
+		{"allow_missing_assets set", &config.Release{AllowMissingAssets: true}, false},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			cfg := &config.Config{Forges: []config.Forge{{Name: "gh", Type: "github"}}, Release: tc.release}
+
+			platforms, err := buildTargetPlatforms(exectest.NewMockRunner(), cfg, targets, nil, resolved)
+			require.NoError(t, err)
+			require.Len(t, platforms, 1)
+
+			if tc.strict {
+				assert.ErrorIs(t, platforms[0].CheckAssets(), port.ErrAssetUnmatched)
+			} else {
+				assert.NoError(t, platforms[0].CheckAssets())
+			}
+		})
+	}
+
+	t.Run("inherited from release.assets", func(t *testing.T) {
+		cfg := &config.Config{Forges: []config.Forge{{Name: "gh", Type: "github"}}}
+		platforms, err := buildTargetPlatforms(exectest.NewMockRunner(), cfg, []config.Target{{Forge: "gh"}}, []string{"dist/*"}, resolved)
+		require.NoError(t, err)
+		assert.ErrorIs(t, platforms[0].CheckAssets(), port.ErrAssetUnmatched)
+	})
+}
+
 // TestSynthesizeDefaultTarget_RequiresAPublishDriver covers T221: a resolved forge with no publish
 // driver (azure_devops — no internal/platforms/azure package exists, since Azure DevOps has no
 // equivalent of a GitHub/GitLab Release to build one against) must not be treated as a usable

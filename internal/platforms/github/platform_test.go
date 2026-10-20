@@ -491,10 +491,22 @@ func TestCheckAssets(t *testing.T) {
 
 	mr := exectest.NewMockRunner()
 	assert.NoError(t, github.New(mr, &config.Platform{}).CheckAssets())
-	assert.NoError(t, github.New(mr, &config.Platform{Assets: []string{"dist/*"}}).CheckAssets())
+	assert.NoError(t, github.New(mr, &config.Platform{Assets: []string{"dist/*"}, AllowMissingAssets: true}).CheckAssets())
 
 	err := github.New(mr, &config.Platform{Assets: []string{filepath.Join(outside, "*.txt")}}).CheckAssets()
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "outside the repository")
 	assert.Empty(t, mr.Calls, "the preflight must not invoke gh")
+}
+
+// ADR-0076: a pattern matching nothing is an error unless release.allow_missing_assets is set.
+func TestCheckAssets_UnmatchedPatternIsRefusedUnlessAllowed(t *testing.T) {
+	t.Chdir(t.TempDir())
+	mr := exectest.NewMockRunner()
+
+	err := github.New(mr, &config.Platform{Assets: []string{"dist/*"}}).CheckAssets()
+	require.ErrorIs(t, err, port.ErrAssetUnmatched)
+
+	assert.NoError(t, github.New(mr, &config.Platform{Assets: []string{"dist/*"}, AllowMissingAssets: true}).CheckAssets())
+	assert.Empty(t, mr.Calls)
 }

@@ -1,6 +1,6 @@
 # Héraut — Hardening 2 Roadmap
 
-> Status: Not started (drafted 2026-10-20, awaiting approval)
+> Status: Complete (both phases done)
 > Source: the rule review of 2026-10-16 (`analysis/heraut/RULE_REVIEWS.md`): eight business rules the
 > maintainer ruled wrong or not wanted. Main roadmap: tracked as Phases 74–75 in
 > [`roadmap.md`](roadmap.md). Continues [`hardening-roadmap.md`](hardening-roadmap.md) (Phases 70–73).
@@ -50,7 +50,7 @@ confinement of asset globs (done in the first epic).
 | Phase | Theme | Tasks | Status |
 |---|---|---|---|
 | 74 | Small corrections | T402–T405 | Done |
-| 75 | Behavior changes with a decision record | T406–T409 | In progress (T406–T408 done) |
+| 75 | Behavior changes with a decision record | T406–T409 | Done |
 
 ---
 
@@ -227,7 +227,7 @@ the excludes considered are the global list plus the top-level `changelog:` driv
 `changelog:` override, and `calver` has no bump to explain, so it never warns. Spec 02 (render-only paragraph)
 and Spec 04 are updated.
 
-#### `[ ]` T409: fail when an asset glob matches nothing at publish time (RULE-039)
+#### `[x]` T409: fail when an asset glob matches nothing at publish time (RULE-039)
 
 New ADR-0076 first. Today `ResolveGlobsLenient` warns and publishes a release without its assets, so a
 typo ships silently. The pre-publish check (`CheckAssetGlobs`) keeps skipping zero matches because a hook
@@ -237,6 +237,31 @@ says. This adds a config key, so update `schema.json`, `docs/heraut.sample.yml`,
 `testdata/config/valid` fixtures with it. Tests first: a missing required glob fails both drivers before
 the forge call, an optional one warns, and a matching glob is unchanged (contract tests keep their exact
 argument assertions). Update Spec 05 and the failure-recovery guide (state C).
+
+**Completion note:** the ADR changed shape before any code. Reading the specs showed the lenient behavior was
+deliberate: assets resolve at publish time, after the tag is pushed, so failing there leaves a tag with no
+release. That cost was not weighed when "fail at publish time" was chosen, so the decision (yours) became
+[ADR-0076](../adr/0076-a-release-asset-pattern-must-match-a-file.md): the existing pre-commit asset gate
+(`CheckAssets`, after the `post_bump` hooks, before the changelog commit, the tag and any push) now refuses a
+pattern that matches no file, wrapping the new `port.ErrAssetUnmatched`; publish-time resolution stays
+lenient. `release.allow_missing_assets: true` (root `release` block, default false, covers `release.assets`
+and every target) restores warn-and-skip for assets a later hook builds. A dry run only warns, because hooks do
+not run in it. Code: `platforms.CheckAssetGlobs(patterns, allowMissing)` reports every unmatched pattern at
+once and counts a directory-only match as unmatched; `ResolveGlobsLenient` warns on the same rule;
+`config.Release.AllowMissingAssets` and `config.Platform.AllowMissingAssets` are wired in
+`buildTargetPlatforms` and `effectiveTargetPlatforms`. Tests: platform-level cases for both drivers, the
+`app` wiring, two pipeline cases (refused before any mutation; dry run warns), a loader test with a new
+fixture (`release-allow-missing-assets.yml`, also checked against `schema.json`), and the e2e scenario now
+covers matching files, refusal with nothing committed or pushed, the dry-run warning and the flag. Existing
+rows changed on purpose, none removed: the e2e "a pattern matching nothing publishes without assets" now runs
+under `allow_missing_assets`, and the platform and glob tests that relied on a silent zero match pass the flag.
+**Found on the way, fixed in this task:** a refusal from any pre-commit gate was never shown. The gate runs
+outside a reported step and the command swaps the returned error for "Release failed", so the user saw no
+reason (this already hid the outside-the-repository refusal). `runSteps` now prints a gate failure when a
+reporter is in use; a pipeline test pins it. Exit code: Runtime (3), like the outside-the-repository refusal,
+not Config as the draft said. Updated: `schema.json`, the sample, Specs 02, 03 and 05, the failure-recovery
+guide (states A and C). Deferred: none; a per-pattern optional marker stays a future option (ADR-0076,
+alternatives).
 
 **Phase 75 exit:** the baseline command passes, coverage ≥ 88.0%, lint clean, and `heraut check config`
 still accepts every file in `testdata/config/valid/`.

@@ -525,10 +525,13 @@ already exist (heraut tags and pushes before publishing).
 ### Asset resolution
 
 `release.assets` and `release.targets[].assets` (see [Spec 02](02-configuration.md#releaseassets))
-both resolve **leniently**: each glob is expanded against the working directory, and a pattern
-matching nothing emits a warning and is skipped rather than failing the release — by the time
-assets are resolved the tag has already been created and pushed, so a strict failure here would
-leave the repository in a partially-completed state (tag exists, no platform release). On GitHub the
+both resolve in two steps. Before anything is committed or pushed, right after the `post_bump`
+hooks, each glob is expanded against the working directory and a pattern matching no file aborts the
+run ([ADR-0076](../adr/0076-a-release-asset-pattern-must-match-a-file.md); `release.allow_missing_assets: true`
+turns that off, and a dry run only warns). At publish time resolution stays **lenient**: a pattern
+matching nothing emits a warning and is skipped rather than failing the release — by then the tag has
+already been created and pushed, so a strict failure here would leave the repository in a
+partially-completed state (tag exists, no platform release). On GitHub the
 resolved files are appended as positional arguments to `gh release create ... <files>` rather than
 uploaded by a separate call — GitHub's API rejects a separate upload to an already-created release
 with HTTP 422 ("Cannot upload assets to an immutable release"), so attaching them atomically at

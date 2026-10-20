@@ -503,3 +503,16 @@ changelog:
 	assert.ErrorIs(t, err, config.ErrRemovedConfigKey)
 	assert.Contains(t, err.Error(), "changelog.remote")
 }
+
+// ADR-0076: release.allow_missing_assets is a root release key, default false.
+func TestLoad_ReleaseAllowMissingAssets(t *testing.T) {
+	cfg, err := config.Load("../../testdata/config/valid/release-allow-missing-assets.yml")
+	require.NoError(t, err)
+	require.NotNil(t, cfg.Release)
+	assert.True(t, cfg.Release.AllowMissingAssets)
+	assert.Equal(t, []string{"dist/myapp_*"}, cfg.Release.Assets)
+
+	cfg, err = config.Load("../../testdata/config/valid/semver.yml")
+	require.NoError(t, err)
+	assert.False(t, cfg.Release != nil && cfg.Release.AllowMissingAssets, "strict by default")
+}

@@ -370,7 +370,8 @@ func toPipelineHookSteps(steps []config.HookStep) []pipeline.HookStep {
 // always means "publish" — there is no longer a "notes only" shape to protect against).
 // release.assets propagates to targets that declare none. Every target's resolved asset list —
 // whether inherited from release.assets or declared on the target itself — resolves leniently
-// (T228): a non-matching glob warns and is skipped rather than aborting the release, since by the
+// (T228): at publish time a non-matching glob warns and is skipped rather than aborting the release (the
+// pre-commit gate already refused it unless release.allow_missing_assets is set, ADR-0076), since by the
 // time asset globs are resolved the tag has already been created and pushed, so a strict failure
 // here would leave the repository in a partially-completed state (tag exists, no platform release).
 func buildTargetPlatforms(runner port.Runner, cfg *config.Config, targets []config.Target, releaseAssets []string, resolved forge.Resolved) ([]port.Platform, error) {
@@ -385,6 +386,7 @@ func buildTargetPlatforms(runner port.Runner, cfg *config.Config, targets []conf
 			return nil, fmt.Errorf("release.targets[%d]: %w", i, err)
 		}
 		platCfg := platformConfigFromTarget(t, f, id)
+		platCfg.AllowMissingAssets = cfg.Release != nil && cfg.Release.AllowMissingAssets
 		if len(platCfg.Assets) == 0 && len(releaseAssets) > 0 {
 			platCfg.Assets = releaseAssets
 		}

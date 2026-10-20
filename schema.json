@@ -641,10 +641,14 @@
         },
         "assets": {
           "type": "array",
-          "description": "Glob patterns for files to attach to the release, applied to all targets. Globs are expanded at release time; a pattern matching nothing emits a warning but does not abort the release. Every matched file must lie under the repository root (symlinks resolved); a match outside it aborts the release. If a target also defines assets, the target-level list takes full precedence for that target (no merging).",
+          "description": "Glob patterns for files to attach to the release, applied to all targets. Every pattern must match at least one file by the time the post_bump hooks have run, or the release aborts before anything is committed or pushed (ADR-0076); set allow_missing_assets for files built by a later hook. Every matched file must lie under the repository root (symlinks resolved); a match outside it aborts the release. If a target also defines assets, the target-level list takes full precedence for that target (no merging).",
           "items": {
             "type": "string"
           }
+        },
+        "allow_missing_assets": {
+          "type": "boolean",
+          "description": "Let an asset pattern (in release.assets or any target's assets) match no file: it then warns at publish time and is skipped. Default false: a pattern matching nothing aborts the release before anything is committed or pushed (ADR-0076). Set it when a pre_tag, pre_release or post_tag hook builds the files, which do not exist yet when the pre-commit asset gate runs."
         },
         "targets": {
           "type": "array",
@@ -726,7 +730,7 @@
           "items": {
             "type": "string"
           },
-          "description": "Target-specific glob patterns for files to attach to the release. Matched files must lie under the repository root. When set, overrides release.assets entirely for this target. Omit to inherit release.assets."
+          "description": "Target-specific glob patterns for files to attach to the release. Matched files must lie under the repository root, and each pattern must match a file unless release.allow_missing_assets is set (ADR-0076). When set, overrides release.assets entirely for this target. Omit to inherit release.assets."
         }
       }
     },

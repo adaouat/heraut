@@ -383,3 +383,23 @@ func TestRun_Reporter_NilIsTransparent(t *testing.T) {
 	// Both produce the same output when no reporter is set.
 	assert.Equal(t, out1.String(), out2.String())
 }
+
+// A gate refusal happens outside any reported step, and the command replaces the returned error with
+// a one-line summary once a reporter has run, so the gate has to show the reason itself.
+func TestRun_Reporter_AGateRefusalIsShownToTheUser(t *testing.T) {
+	platform := &testutil.MockPlatform{
+		PlatformName:   "github",
+		CheckAssetsErr: fmt.Errorf(`asset pattern "dist/*" matches no file: %w`, port.ErrAssetUnmatched),
+	}
+	cfg := &pipeline.Config{Platforms: []port.Platform{platform}}
+	var out bytes.Buffer
+	var captured []capturedStep
+	p := pipeline.New(exectest.NewMockRunner(), &fakeResolver{result: resolvedResult("v1.2.3")}, cfg, &out, false).
+		WithReporter(capturingStepFn(&captured))
+
+	err := p.Run()
+
+	require.ErrorIs(t, err, port.ErrAssetUnmatched)
+	assert.Contains(t, out.String(), `asset pattern "dist/*" matches no file`)
+	assert.Contains(t, out.String(), "github")
+}

@@ -196,8 +196,11 @@ func (p *Platform) CreateRelease(tag, notes string, prerelease bool) error {
 
 func (p *Platform) HasAssets() bool { return len(p.cfg.Assets) > 0 }
 
-// CheckAssets applies the asset path rules (confinement to the repository) ahead of publishing.
-func (p *Platform) CheckAssets() error { return platforms.CheckAssetGlobs(p.cfg.Assets) }
+// CheckAssets applies the asset rules (confinement to the repository, and every pattern matching a
+// file unless release.allow_missing_assets is set) ahead of publishing.
+func (p *Platform) CheckAssets() error {
+	return platforms.CheckAssetGlobs(p.cfg.Assets, p.cfg.AllowMissingAssets)
+}
 
 func (p *Platform) repository() string {
 	if p.cfg.Repository != "" {

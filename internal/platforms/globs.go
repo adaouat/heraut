@@ -5,11 +5,13 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+
+	"github.com/adaouat/heraut/internal/port"
 )
 
 // ResolveGlobsLenient expands each glob pattern and returns all matched file paths, skipping
-// directories. A pattern matching nothing calls warn instead of failing; invalid glob syntax
-// still returns an error.
+// directories. A pattern that matches no file (nothing at all, or only directories) calls warn
+// instead of failing; invalid glob syntax still returns an error.
 //
 // Assets are confined to the working directory (the repository root): a match whose real path,
 // after resolving symlinks, lies outside it is refused, so a pattern such as /etc/* or ../* cannot
@@ -26,10 +28,7 @@ func ResolveGlobsLenient(patterns []string, warn func(string)) ([]string, error)
 		if err != nil {
 			return nil, fmt.Errorf("invalid glob pattern %q: %w", pattern, err)
 		}
-		if len(matches) == 0 {
-			warn(pattern)
-			continue
-		}
+		matched := false
 		for _, m := range matches {
 			info, err := os.Stat(m)
 			if err != nil {
@@ -42,17 +41,48 @@ func ResolveGlobsLenient(patterns []string, warn func(string)) ([]string, error)
 				return nil, err
 			}
 			files = append(files, optionSafe(m))
+			matched = true
+		}
+		if !matched {
+			warn(pattern)
 		}
 	}
 	return files, nil
 }
 
 // CheckAssetGlobs applies the publish-time asset rules without publishing, so a refusal surfaces
-// before anything is committed or pushed. A pattern matching nothing is not reported here: the
-// files may still be built by a later hook, and publishing warns about it.
-func CheckAssetGlobs(patterns []string) error {
-	_, err := ResolveGlobsLenient(patterns, func(string) {})
-	return err
+// before anything is committed or pushed: every match must lie inside the repository, and, unless
+// allowMissing is set, every pattern must match at least one file (ADR-0076). The latter is wrapped
+// in port.ErrAssetUnmatched so a dry run, where hooks have not built the files, can tell it apart.
+// With allowMissing a pattern matching nothing is left for publishing to warn about.
+func CheckAssetGlobs(patterns []string, allowMissing bool) error {
+	var unmatched []string
+	if _, err := ResolveGlobsLenient(patterns, func(pattern string) { unmatched = append(unmatched, pattern) }); err != nil {
+		return err
+	}
+	if allowMissing || len(unmatched) == 0 {
+		return nil
+	}
+	quoted := make([]string, len(unmatched))
+	for i, pattern := range unmatched {
+		quoted[i] = fmt.Sprintf("%q", pattern)
+	}
+	return fmt.Errorf("asset %s %s no file: build the files in a post_bump hook (or earlier), fix the pattern, or set release.allow_missing_assets: true if a later hook builds them: %w",
+		pluralPattern(len(unmatched)), strings.Join(quoted, ", ")+matchVerb(len(unmatched)), port.ErrAssetUnmatched)
+}
+
+func pluralPattern(n int) string {
+	if n == 1 {
+		return "pattern"
+	}
+	return "patterns"
+}
+
+func matchVerb(n int) string {
+	if n == 1 {
+		return " matches"
+	}
+	return " match"
 }
 
 // realWorkingDir is the working directory with symlinks resolved, the root assets must stay in.

@@ -36,7 +36,8 @@ Then pick the state that matches:
 
 ## A. Commit pushed, no tag
 
-Typical cause: a `pre_tag` hook failed, or creating the tag failed.
+Typical cause: a `pre_tag` hook failed, creating the tag failed, or a release asset pattern matched no file
+(that check runs before the changelog commit, so the run stops with nothing committed and a clear message).
 
 Fix the cause, then run `heraut release` again. The version is recomputed and comes out the same,
 because the `chore(release)` commit is not a releasable commit. If the regenerated changelog is
@@ -63,7 +64,7 @@ git push origin v1.2.3
 
 ## C. Tag pushed, no release
 
-Typical cause: the forge call failed (token, scope, outage). No heraut command publishes a release
+Typical cause: the forge call failed (token, scope, outage). A release asset pattern that matches nothing is not a cause: it is refused before anything is pushed (state A). No heraut command publishes a release
 for an existing tag, so create it with the forge's CLI, using the notes heraut generates:
 
 ```bash

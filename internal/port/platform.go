@@ -1,5 +1,11 @@
 package port
 
+import "errors"
+
+// ErrAssetUnmatched is wrapped by a platform's CheckAssets when a release asset pattern matches no
+// file (ADR-0076). The pipeline downgrades it to a warning in a dry run, where hooks do not run.
+var ErrAssetUnmatched = errors.New("asset pattern matches no file")
+
 // Platform creates and manages releases on a hosting service.
 type Platform interface {
 	Name() string

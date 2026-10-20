@@ -78,6 +78,13 @@ func (p *Pipeline) releaseFlow(result versioning.Result) *releaseFlow {
 	flow.prelude = append(flow.prelude, releaseStep{gate: func() error {
 		for _, plat := range p.cfg.Platforms {
 			if err := plat.CheckAssets(); err != nil {
+				// A dry run renders hooks without running them, so the files a hook would build do
+				// not exist: an unmatched pattern is a warning there, and the real run applies the
+				// rule (ADR-0076).
+				if p.dryRun && errors.Is(err, port.ErrAssetUnmatched) {
+					_, _ = fmt.Fprintln(p.out, ui.Warn(p.out, fmt.Sprintf("[dry-run] platform %s: %v", plat.Name(), err)))
+					continue
+				}
 				return fmt.Errorf("platform %s: %w", plat.Name(), err)
 			}
 		}
@@ -395,6 +402,11 @@ func (r stepRunner) runSteps(steps []releaseStep, hookFailed *[]string) error {
 	for _, s := range steps {
 		if s.gate != nil {
 			if err := s.gate(); err != nil {
+				// A gate runs outside any reported step, and the command swaps the error for a
+				// one-line summary once a reporter has run, so show the reason here.
+				if r.reporter != nil {
+					_, _ = fmt.Fprintln(r.out, ui.Err(r.out, err.Error()))
+				}
 				return err
 			}
 			continue

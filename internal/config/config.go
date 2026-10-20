@@ -219,9 +219,13 @@ type ContentDriver struct {
 type Release struct {
 	Notes *ContentDriver `yaml:"notes,omitempty"`
 	// Assets lists glob patterns for files to attach to the GitHub/GitLab release.
-	// Globs are expanded at release time; a pattern matching nothing emits a warning
-	// but does not abort the release. Applied to all configured targets.
+	// Applied to all configured targets. A pattern matching no file aborts the release before
+	// anything is committed or pushed, unless AllowMissingAssets is set (ADR-0076).
 	Assets []string `yaml:"assets,omitempty"`
+	// AllowMissingAssets lets a pattern in Assets (or in any target's assets) match nothing: it
+	// then warns at publish time and is skipped, as it did before ADR-0076. For files built by a
+	// hook that runs after the pre-commit asset gate.
+	AllowMissingAssets bool `yaml:"allow_missing_assets,omitempty"`
 	// Targets lists release publish destinations, each referencing a forges[].name
 	// (ADR-0043).
 	Targets []Target `yaml:"targets,omitempty"`
@@ -269,6 +273,9 @@ type Platform struct {
 	BaseURL  string
 	TokenEnv string
 	Assets   []string
+	// AllowMissingAssets is release.allow_missing_assets for the target this platform publishes
+	// (ADR-0076).
+	AllowMissingAssets bool
 }
 
 // The web hosts of the public forges. Every other package refers to these rather than spelling

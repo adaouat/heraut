@@ -195,7 +195,9 @@ func effectiveTargetPlatforms(runner port.Runner, cfg *config.Config, env string
 		if err != nil {
 			return nil, err
 		}
-		platCfgs = append(platCfgs, platformConfigFromTarget(t, f, id))
+		platCfg := platformConfigFromTarget(t, f, id)
+		platCfg.AllowMissingAssets = cfg.Release != nil && cfg.Release.AllowMissingAssets
+		platCfgs = append(platCfgs, platCfg)
 	}
 	return platCfgs, nil
 }

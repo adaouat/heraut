@@ -1,0 +1,13 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/adaouat/heraut/main/schema.json
+
+version: "1"
+
+versioning:
+  strategy: semver
+
+release:
+  # Assets built by a pre_tag / pre_release hook do not exist yet when the pre-commit asset gate
+  # runs, so a pattern matching nothing there is allowed (ADR-0076).
+  allow_missing_assets: true
+  assets:
+    - "dist/myapp_*"
