@@ -30,3 +30,25 @@ func TestVersionJSON(t *testing.T) {
 			wantExit: exitConfig, wantText: []string{`"ok":false`, `"code":"config"`, "--env is required"}},
 	})
 }
+
+// RULE-052: rendering.excludes hide commits from the changelog but not from the bump, so a
+// dependency-only range still releases. The warning says the changelog section will be empty.
+func TestVersionNext_WarnsWhenEveryReleasableCommitIsHiddenFromTheChangelog(t *testing.T) {
+	bin := harness.Binary(t)
+	withChangelog := semverCfg("") + "changelog:\n  output: CHANGELOG.md\n"
+	base := []step{commit("feat: a"), tag("v1.0.0")}
+	runScenarios(t, bin, nil, []scenario{
+		{name: "only dependency noise: still a patch bump, with a warning", config: withChangelog,
+			history: append(append([]step{}, base...), commit("chore(deps): bump x")),
+			args:    []string{"version", "next", "--json"},
+			wantOut: `{"ok":true,"data":{"tag":"v1.0.1","version":"1.0.1","current_tag":"v1.0.0","bump":"patch"},"warnings":["every releasable commit is hidden from the changelog by rendering.excludes: this release will have an empty changelog section\n  - chore(deps): bump x"]}`},
+		{name: "a real change beside the noise: no warning", config: withChangelog,
+			history: append(append([]step{}, base...), commit("chore(deps): bump x"), commit("fix: y")),
+			args:    []string{"version", "next", "--json"},
+			wantOut: `{"ok":true,"data":{"tag":"v1.0.1","version":"1.0.1","current_tag":"v1.0.0","bump":"patch"},"warnings":[]}`},
+		{name: "no changelog configured: no warning", config: semverCfg(""),
+			history: append(append([]step{}, base...), commit("chore(deps): bump x")),
+			args:    []string{"version", "next", "--json"},
+			wantOut: `{"ok":true,"data":{"tag":"v1.0.1","version":"1.0.1","current_tag":"v1.0.0","bump":"patch"},"warnings":[]}`},
+	})
+}

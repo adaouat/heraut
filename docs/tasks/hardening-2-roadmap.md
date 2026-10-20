@@ -50,7 +50,7 @@ confinement of asset globs (done in the first epic).
 | Phase | Theme | Tasks | Status |
 |---|---|---|---|
 | 74 | Small corrections | T402–T405 | Done |
-| 75 | Behavior changes with a decision record | T406–T409 | In progress (T406–T407 done) |
+| 75 | Behavior changes with a decision record | T406–T409 | In progress (T406–T408 done) |
 
 ---
 
@@ -201,7 +201,7 @@ config error through `check config`, and the warning on `changelog` without `--c
 "stays uncommitted" scenario). Spec 02 § `stage` and the hooks guide are updated. Not done: `heraut init` never
 generates `stage`, so nothing to adjust there.
 
-#### `[ ]` T408: warn when every releasable commit is excluded from the changelog (RULE-052)
+#### `[x]` T408: warn when every releasable commit is excluded from the changelog (RULE-052)
 
 No ADR: bumping does not change, and Spec 04 gets a note that excludes are render-only. When the commits that
 drove the bump (`feat`, `fix`, breaking) are all matched by `rendering.excludes` or the built-in defaults
@@ -210,6 +210,22 @@ for this release will be empty. Settle in the task where the information lives (
 commits, the generator knows the excludes) without a new import across the layer rules; `Result.Warnings`
 is the expected carrier. Tests first: a deps-only range warns and still bumps; a range with one real `feat`
 does not warn; the warning appears in `--dry-run` and in the `--json` envelope.
+
+**Completion note:** no ADR, as planned. The question was where the commit list (resolver) meets the excludes
+(config, used by the renderer); answered without a new import: `semver` already imports `config`, so the
+definition of "excluded" moved into a new `config.ExcludeMatcher` (`NewExcludeMatcher`, `Excluded(subject,
+type)`) and the native renderer now uses it too, replacing its private `buildExcludes`/`isExcluded` (one
+definition, so the two cannot drift; the existing grouping tests pass unchanged). `Resolver.bumpAfterHold`
+calls the new `warnIfChangelogWouldBeEmpty`: with a `changelog:` configured and no pre-release, when every
+commit with a bump level above none is excluded, it appends a warning (and a matching empty entry to
+`WouldBeVersions`, kept parallel) and the bump is unchanged. Wording: "every releasable commit is hidden from
+the changelog by rendering.excludes: this release will have an empty changelog section", followed by up to
+five subjects. It rides `Result.Warnings`, so it shows in the run output, `release --dry-run --json` and
+`version next --json`. Tests: matcher table (config), eight resolver cases plus the pre-release case, and an
+e2e scenario with three rows (warns, real change beside the noise, no changelog configured). Scope notes:
+the excludes considered are the global list plus the top-level `changelog:` driver's, not a per-environment
+`changelog:` override, and `calver` has no bump to explain, so it never warns. Spec 02 (render-only paragraph)
+and Spec 04 are updated.
 
 #### `[ ]` T409: fail when an asset glob matches nothing at publish time (RULE-039)
 

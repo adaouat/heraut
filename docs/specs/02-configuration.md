@@ -854,6 +854,13 @@ A `changelog`/`release.notes` block's own `rendering.excludes` (see § Content g
 **adds to** this global list — the effective set for that driver is the built-in defaults, plus
 the global list, plus the driver's own list, all additive.
 
+**Excludes are render-only.** They never affect the version bump: a `chore(deps): …` commit still
+counts as a patch (use `versioning.bump.overrides` with `bump: none` to change that, § Bump
+overrides). When a `changelog:` is configured and every commit that makes the release releasable
+is hidden by these excludes, `heraut release`, `heraut version next` and the dry-run plan carry a
+warning that the changelog section will be empty; the version is unchanged
+(`internal/versioning/semver`, RULE-052).
+
 ### `rendering.templates`
 
 Overrides one or more built-in native template blocks by key — each value is a Go

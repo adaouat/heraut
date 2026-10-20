@@ -1,7 +1,6 @@
 package native
 
 import (
-	"regexp"
 	"sort"
 
 	"github.com/adaouat/heraut/internal/config"
@@ -46,7 +45,7 @@ const (
 // stable within-group tiebreak.
 func groupCommits(commits []rawCommit, userTypes []config.TypeRule, userExcludes []config.Exclude) []group {
 	typeIndex := buildTypeIndex(config.EffectiveTypes(userTypes))
-	excTypes, excRes := buildExcludes(config.EffectiveExcludes(userExcludes))
+	excluded := config.NewExcludeMatcher(config.EffectiveExcludes(userExcludes))
 
 	byName := make(map[string]int)
 	var groups []group
@@ -58,7 +57,7 @@ func groupCommits(commits []rawCommit, userTypes []config.TypeRule, userExcludes
 		}
 		parsed, _ := conventionalcommit.Parse(msg)
 
-		if isExcluded(raw, parsed, excTypes, excRes) {
+		if excluded.Excluded(raw.Subject, commitTypeOf(parsed)) {
 			continue
 		}
 
@@ -104,40 +103,12 @@ func buildTypeIndex(types []config.TypeRule) map[string]typeInfo {
 	return idx
 }
 
-// buildExcludes splits the effective excludes into a type set and compiled subject regexes.
-// The config validator rejects invalid regexes upstream; compiling defensively (skip on error,
-// like resolveTickets) keeps the generator from panicking if it is ever run on unvalidated
-// config — e.g. heraut embedded as a library.
-func buildExcludes(excludes []config.Exclude) (map[string]bool, []*regexp.Regexp) {
-	types := make(map[string]bool)
-	var res []*regexp.Regexp
-	for _, e := range excludes {
-		if e.Type != "" {
-			types[e.Type] = true
-		}
-		if e.Regex != "" {
-			re, err := regexp.Compile(e.Regex)
-			if err != nil {
-				continue
-			}
-			res = append(res, re)
-		}
+// commitTypeOf is the parsed type of a commit, or "" for a message that is not a conventional commit.
+func commitTypeOf(parsed *conventionalcommit.Commit) string {
+	if parsed == nil {
+		return ""
 	}
-	return types, res
-}
-
-// isExcluded reports whether a commit is dropped by rendering.excludes: a {type} match on the
-// parsed type, or a {regex} match on the subject.
-func isExcluded(raw rawCommit, parsed *conventionalcommit.Commit, excTypes map[string]bool, excRes []*regexp.Regexp) bool {
-	if parsed != nil && excTypes[parsed.Type] {
-		return true
-	}
-	for _, re := range excRes {
-		if re.MatchString(raw.Subject) {
-			return true
-		}
-	}
-	return false
+	return parsed.Type
 }
 
 // classify returns the group name and order for a commit: its configured type group, or one

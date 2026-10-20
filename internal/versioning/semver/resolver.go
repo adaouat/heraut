@@ -93,6 +93,7 @@ func (r *Resolver) WouldBeVersions() []string {
 func (r *Resolver) bumpAfterHold(currentVersion string, commits []string) versioning.BumpType {
 	overrides := r.cfg.Versioning.BumpOverrides()
 	bump := DetermineBump(commits, overrides)
+	r.warnIfChangelogWouldBeEmpty(commits, overrides)
 	if !r.cfg.Versioning.StayAtV0() || r.allowMajor {
 		return bump
 	}

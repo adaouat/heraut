@@ -97,6 +97,19 @@ no releasable commits since v0.62.0: 3 commit(s) since then are excluded from th
   - chore(ci): update workflow
 ```
 
+Commits hidden by `rendering.excludes` (the built-in `chore(deps…)` and `chore(release)` among them)
+still count for the bump; the excludes only hide them from the changelog. If every releasable commit
+is hidden that way and a `changelog:` is configured, the resolver adds a warning (also in
+`--dry-run --json` and `version next --json`) that the release will have an empty changelog section:
+
+```
+every releasable commit is hidden from the changelog by rendering.excludes: this release will have an empty changelog section
+  - chore(deps): bump x
+```
+
+To stop such commits from releasing at all, give them a `none` override (above). A pre-release never
+writes a changelog section and never warns.
+
 ### Staying at v0 (`stay_at_v0`)
 
 A project that is deliberately pre-1.0 can hold breaking changes back to a minor bump

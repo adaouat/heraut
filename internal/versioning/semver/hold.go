@@ -5,6 +5,7 @@ import (
 	"strings"
 
 	"github.com/adaouat/heraut/internal/config"
+	"github.com/adaouat/heraut/internal/conventionalcommit"
 	"github.com/adaouat/heraut/internal/versioning"
 )
 
@@ -75,4 +76,47 @@ func writeSubjects(b *strings.Builder, subjects []string) {
 		}
 		fmt.Fprintf(b, "\n  - %s", s)
 	}
+}
+
+// warnIfChangelogWouldBeEmpty records a warning when every commit that makes this release
+// releasable is hidden from the changelog by rendering.excludes (RULE-052). Excludes never affect
+// the bump (Spec 04), so a dependency-only range still releases; the warning says the changelog
+// section will be empty. Nothing is said when no changelog is configured, and a pre-release never
+// writes a changelog section (ADR-0064).
+func (r *Resolver) warnIfChangelogWouldBeEmpty(commits []string, overrides []config.BumpRule) {
+	if r.cfg.Changelog == nil || r.preReleaseLabel != "" {
+		return
+	}
+	var excludes []config.Exclude
+	if r.cfg.Rendering != nil {
+		excludes = append(excludes, r.cfg.Rendering.Excludes...)
+	}
+	if r.cfg.Changelog.Rendering != nil {
+		excludes = append(excludes, r.cfg.Changelog.Rendering.Excludes...)
+	}
+	hidden := config.NewExcludeMatcher(config.EffectiveExcludes(excludes))
+
+	rules := compileBumpRules(overrides)
+	var releasable []string
+	for _, c := range commits {
+		if resolveBumpLevel(c, rules) == versioning.BumpNone {
+			continue
+		}
+		commitType := ""
+		if parsed, err := conventionalcommit.Parse(c); err == nil {
+			commitType = parsed.Type
+		}
+		if !hidden.Excluded(firstLine(c), commitType) {
+			return
+		}
+		releasable = append(releasable, firstLine(c))
+	}
+	if len(releasable) == 0 {
+		return
+	}
+	var b strings.Builder
+	b.WriteString("every releasable commit is hidden from the changelog by rendering.excludes: this release will have an empty changelog section")
+	writeSubjects(&b, releasable)
+	r.warnings = append(r.warnings, b.String())
+	r.wouldBeVersions = append(r.wouldBeVersions, "")
 }
