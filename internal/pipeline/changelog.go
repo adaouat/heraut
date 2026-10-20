@@ -117,7 +117,11 @@ func (p *ChangelogPipeline) changelogFlow(result versioning.Result) (prelude, bo
 	// then pre_changelog's.
 	var stage []string
 
+	commits := p.cfg.Changelog != nil && !p.cfg.DisableChangelog && (p.cfg.Commit || p.cfg.Tag)
 	if s, ok := newHookStep(p.cfg.NoHooks, &p.git, "post_bump", p.cfg.PostBumpHooks, vars, &stage); ok {
+		if !commits {
+			s = warnIfStageUncommitted(s, p.out, &stage)
+		}
 		prelude = append(prelude, s)
 	}
 
@@ -126,6 +130,9 @@ func (p *ChangelogPipeline) changelogFlow(result versioning.Result) (prelude, bo
 	if p.cfg.Changelog != nil && !p.cfg.DisableChangelog {
 		file := resolvedChangelogFile(p.cfg.Changelog, p.cfg.ChangelogFile)
 		if s, ok := newHookStep(p.cfg.NoHooks, &p.git, "pre_changelog", p.cfg.PreChangelogHooks, vars, &stage); ok {
+			if !commits {
+				s = warnIfStageUncommitted(s, p.out, &stage)
+			}
 			body = append(body, s)
 		}
 		body = append(body, releaseStep{

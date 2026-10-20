@@ -1276,12 +1276,20 @@ beyond the changelog file itself ([ADR-0061](../adr/0061-hook-file-staging.md)).
 
 **Staging only happens when a changelog commit happens.** `stage` patterns reach `git add`
 only as part of the "Commit changelog" step, so they only ever get committed in a run where
-that step actually runs. In a run where no changelog commit happens this run — no
-`changelog:` block configured, `disable_changelog: true`, or `heraut changelog` invoked
-without `--commit`/`--tag` — any hook's `run` command still executes, but its declared
-`stage` files are never folded into a commit; they stay as ordinary uncommitted changes in
-the working tree. This is not a config error (that's the wrong-hook-point case below) —
-there is simply no commit left for `stage` to join.
+that step actually runs. Two situations follow
+([ADR-0061](../adr/0061-hook-file-staging.md) addendum):
+
+- **The changelog can never run — a config error.** `stage` on a `post_bump` or
+  `pre_changelog` step is rejected when no run of the config produces a changelog commit: no
+  `changelog:` block at the top level or in any environment, or a per-env strategy whose
+  every environment sets `disable_changelog: true`. The error is reported at
+  `hooks.<point>[i].stage` ("no changelog commit to join") by `heraut check config` and by
+  every `release` and `changelog` run.
+- **This run makes no commit — a warning.** A single environment with
+  `disable_changelog: true`, a `--pre-release` run, or `heraut changelog` without
+  `--commit`/`--tag` still executes the hook's `run` command, but its declared `stage` files
+  stay as ordinary uncommitted changes in the working tree. The run prints a warning naming
+  those patterns (`hook-staged files not committed`) and carries on.
 
 `stage` entries are Go `text/template` strings, rendered through the same engine as `run`
 (§ Template variables above), so `stage: ["dist/app-{{ .Version }}.json"]` works.

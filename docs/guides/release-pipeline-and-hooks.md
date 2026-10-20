@@ -65,7 +65,8 @@ Things the diagram compresses that are worth stating explicitly:
   configured, or `disable_changelog: true` for this env (`D -- no`), `post_bump`'s hook still
   fires unconditionally as stated above, but there is no "Commit changelog" step for its
   `stage` patterns to join — the `run` command still executes, and any files it declared via
-  `stage` stay uncommitted in the working tree.
+  `stage` stay uncommitted in the working tree, with a warning naming them. If the changelog
+  can never run in the whole config, declaring `stage` is a config error instead (Spec 02 § `stage`).
 
 ## `heraut changelog`
 

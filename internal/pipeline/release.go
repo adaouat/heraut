@@ -165,6 +165,14 @@ func warnNothingToCommit(w io.Writer, file string) {
 		"nothing to commit — %s and any hook-staged files are unchanged; skipping commit, continuing to tag and release", file)))
 }
 
+// warnStageNotCommitted says which hook-staged files this run leaves uncommitted because no
+// changelog commit happens in it (ADR-0061 addendum). It never fails the run.
+func warnStageNotCommitted(w io.Writer, patterns []string) {
+	_, _ = fmt.Fprintln(w, ui.Warn(w, fmt.Sprintf(
+		"hook-staged files not committed — this run makes no changelog commit to carry them: %s",
+		strings.Join(patterns, ", "))))
+}
+
 // printSummary writes the post-run summary to p.out.
 // With a reporter it uses the styled block; without one it keeps the original
 // single-line format so existing plain callers are unaffected.

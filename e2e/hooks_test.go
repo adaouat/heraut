@@ -192,10 +192,27 @@ func TestHooks_Stage(t *testing.T) {
 		repo.Commit("feat: one")
 		head := repo.Git("rev-parse", "HEAD")
 
-		runOK(t, repo, bin, "changelog", "--offline")
+		res := runOK(t, repo, bin, "changelog", "--offline")
 
 		assert.Equal(t, head, repo.Git("rev-parse", "HEAD"))
 		assert.Contains(t, repo.Git("status", "--porcelain"), "?? VERSION")
+		assert.Contains(t, normalize(res.Stdout+" "+res.Stderr), "hook-staged files not committed")
+	})
+
+	t.Run("with no changelog anywhere stage is a config error", func(t *testing.T) {
+		repo := flowRepo(t, "version: \"1\"\nversioning:\n  strategy: semver\n"+`hooks:
+  post_bump:
+    - run: "true"
+      stage:
+        - VERSION
+`)
+		repo.Commit("feat: one")
+
+		res := repo.Run(bin, nil, "check", "config")
+
+		require.Equal(t, exitConfig, res.ExitCode, "stdout:\n%s\nstderr:\n%s", res.Stdout, res.Stderr)
+		assert.Contains(t, normalize(res.Stdout+" "+res.Stderr), "hooks.post_bump[0].stage")
+		assert.Contains(t, normalize(res.Stdout+" "+res.Stderr), "no changelog commit")
 	})
 }
 

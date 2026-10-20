@@ -50,7 +50,7 @@ confinement of asset globs (done in the first epic).
 | Phase | Theme | Tasks | Status |
 |---|---|---|---|
 | 74 | Small corrections | T402–T405 | Done |
-| 75 | Behavior changes with a decision record | T406–T409 | In progress (T406 done) |
+| 75 | Behavior changes with a decision record | T406–T409 | In progress (T406–T407 done) |
 
 ---
 
@@ -176,7 +176,7 @@ are canonical, and only their comments changed. Decided during the task: PATCH s
 `2026.05.03` is rejected; padding would be a separate opt-in with its own ADR and is not on the roadmap.
 Spec 03 (the `release` and `changelog` rows) and the flag help text are updated. Nothing deferred.
 
-#### `[ ]` T407: reject hook `stage` when the changelog is disabled (RULE-065)
+#### `[x]` T407: reject hook `stage` when the changelog is disabled (RULE-065)
 
 ADR-0061 addendum first. Today `postBumpStage` is used only inside the changelog block, so with
 `disable_changelog` the staged files are dropped without a message. A `stage` entry on `post_bump` or
@@ -185,6 +185,21 @@ declares the hook (Path, Message and Hint like the other validator errors, point
 first in `internal/config`: global disable, per-env disable, and the valid case (changelog enabled).
 Update Spec 02's hooks section and the hooks guide. Check `heraut init` and the sample do not generate the
 combination.
+
+**Completion note:** the ADR-0061 addendum was committed first (`90452b0`). Refined while reading the code: `hooks:`
+is global but `disable_changelog` is per environment, and `--pre-release` and `heraut changelog` without
+`--commit` decide at run time, so the plan "error when the changelog is disabled globally or for the env" would
+have rejected legitimate configs. The decision (yours): a **config error** only when the changelog can never run
+(`changelogNeverRuns`: no `changelog:` anywhere, or every environment disables it), and a **run-time warning**
+otherwise. The warning comes from `warnIfStageUncommitted`, which wraps the `post_bump` (and, in
+`ChangelogPipeline`, `pre_changelog`) hook step when its pipeline makes no changelog commit, and names only
+the rendered patterns that step added, so two hook points never repeat each other. Dry runs are unaffected.
+Existing rows: the two "stage ... is valid" validator rows gained a `changelog:` block (they exercise the
+hook-point scope, not the missing changelog); no row was removed. New tests: seven validator cases (incl.
+per-env), five pipeline cases (release and changelog, warning and no warning), and two e2e scenarios (the
+config error through `check config`, and the warning on `changelog` without `--commit`, added to the existing
+"stays uncommitted" scenario). Spec 02 § `stage` and the hooks guide are updated. Not done: `heraut init` never
+generates `stage`, so nothing to adjust there.
 
 #### `[ ]` T408: warn when every releasable commit is excluded from the changelog (RULE-052)
 

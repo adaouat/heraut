@@ -1947,6 +1947,8 @@ hooks:
 version: "1"
 versioning:
   strategy: semver
+changelog:
+  output: CHANGELOG.md
 hooks:
   post_bump:
     - run: "echo hi"
@@ -1961,6 +1963,8 @@ hooks:
 version: "1"
 versioning:
   strategy: semver
+changelog:
+  output: CHANGELOG.md
 hooks:
   pre_changelog:
     - run: "echo hi"

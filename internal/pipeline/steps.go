@@ -66,6 +66,9 @@ func (p *Pipeline) releaseFlow(result versioning.Result) *releaseFlow {
 	var notes string
 
 	if s, ok := p.hookStep("post_bump", p.cfg.PostBumpHooks, vars, &stage); ok {
+		if p.cfg.Changelog == nil || p.cfg.DisableChangelog {
+			s = warnIfStageUncommitted(s, p.out, &stage)
+		}
 		flow.prelude = append(flow.prelude, s)
 	}
 	// Refuse unpublishable assets before anything is committed or pushed: the publish step runs
@@ -219,6 +222,24 @@ func newHookStep(noHooks bool, git *gitHelper, point string, steps []HookStep, v
 			return []PlanStep{entry}, err
 		},
 	}, true
+}
+
+// warnIfStageUncommitted makes a hook step report the stage patterns it declared when this run has
+// no changelog commit to carry them (ADR-0061 addendum). Only the patterns this step added are
+// named, so two hook points never repeat each other.
+func warnIfStageUncommitted(s releaseStep, w io.Writer, stage *[]string) releaseStep {
+	inner := s.exec
+	start := 0
+	s.exec = func() (string, []string, error) {
+		start = len(*stage)
+		return inner()
+	}
+	s.after = func() {
+		if added := (*stage)[start:]; len(added) > 0 {
+			warnStageNotCommitted(w, added)
+		}
+	}
+	return s
 }
 
 // hookPlanStep renders one hook point's commands and stage patterns for Plan.
