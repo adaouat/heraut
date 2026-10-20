@@ -49,3 +49,25 @@ hardening review (T388) recorded this as T400.
   simpler to state than one per strategy.
 - **Silently ignore `--env` under a non-per-env strategy.** Rejected: an ignored flag hides a
   misconfigured pipeline; the other flags that cannot apply (`--pre-release` on calver) are errors.
+
+## Addendum (2026-10-20): `--set-version` under the CalVer strategies
+
+The rule review (RULE-032) found the third command-line value that reaches tags and hooks still
+unchecked. `--set-version` is validated as SemVer under `semver` and `semver-per-env` (ADR-0064), but
+`calver` and `calver-per-env` kept "non-empty, no whitespace" (Spec 03), so `--set-version 'x$(id)'`
+became a tag component and a `{{ .Version }}` hook variable there. The override was strategy-agnostic by
+design; it stops being so for CalVer.
+
+5. **A CalVer `--set-version` must be in canonical form for the configured `versioning.format`.** After
+   the `tag_prefix` (or leading `v`) is stripped, the value must parse under the format and equal its
+   own rendering. `2026.05.3` passes for `YYYY.MM.PATCH`; `2026.5.3` parses but is rejected with a hint
+   to write `2026.05.3`, and so is `x$(id)`. Impossible dates (month 13) are not checked: the override
+   is a deliberate choice and the ordering code already copes with it.
+6. **Why canonical and not just parsed.** The tag-collision probe (ADR-0073) compares exact tag
+   strings. The parser accepts one or two digits for `MM`, `DD` and `WW`, so `2026.5.3` and `2026.05.3`
+   would be two different tags for one release, and the second would slip past the probe.
+7. **Consequences.** A script that passed a free-form value to a CalVer repository now fails with a
+   Config error naming the format. The SemVer strategies are unchanged, and there is no "full tag"
+   mode: the value is a version, and the tag is rendered from it as before.
+
+The earlier decisions above are unchanged.

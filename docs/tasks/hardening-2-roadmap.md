@@ -37,7 +37,7 @@ criteria include "the same command still passes and coverage does not drop below
 | 016 | Config error order | Deterministic: sort environment names before validating |
 | 013 | Security section | Drop the body heuristic; `security` becomes a built-in commit type, right after Bug Fixes ([ADR-0075](../adr/0075-security-is-a-built-in-commit-type.md)) |
 | 015 | Sprint bump | Edit only inside the top-level `versioning:` block; tolerate a trailing comment on its line |
-| 032 | `--set-version` | Validated per strategy: SemVer for `semver`/`semver-per-env`, the configured CalVer format for `calver`/`calver-per-env`. Reverses the strategy-agnostic override, so an ADR-0074 addendum |
+| 032 | `--set-version` | SemVer strategies were already strict (ADR-0064); the CalVer strategies now require the canonical form of the configured format. ADR-0074 addendum |
 | 065 | Hook `stage` | `stage` with the changelog disabled (globally or for the env) is a config validation error. ADR-0061 addendum |
 | 052 | Default excludes | Excludes stay render-only. Warn when every releasable commit is excluded from the changelog. No bump change |
 | 039 | Asset globs | A glob matching nothing at publish time fails, unless the entry is marked optional. New ADR-0076 |
@@ -148,16 +148,19 @@ as a hook script, which is what the test uses.
 Goal: four rules whose fix changes what a user sees. Entry: Phase 74 done. Each task commits the ADR (or
 addendum) first, waits for approval, then goes test → code → spec.
 
-#### `[ ]` T406: validate `--set-version` per strategy (RULE-032)
+#### `[ ]` T406: validate a CalVer `--set-version` against the configured format (RULE-032)
 
-ADR-0074 addendum first: the override is no longer strategy-agnostic. `semver` and `semver-per-env` accept
-SemVer only (the tag prefix is optional, build metadata stays rejected when `--set-build-id` is given);
-`calver` and `calver-per-env` accept only a value that parses under the configured format. Anything else is
-a Config error before any git call. Open points to settle in the addendum: whether a full tag override such
-as one containing `/` or an env part is still accepted (`tagfmt.go` allows `/` today), and the message when
-the strategy is `semver` but the repo's existing tags are CalVer. Tests first: one table per strategy
-(valid and rejected values, including `x$(id)` and `1.2.3;id`), and an end-to-end case through
-`heraut version next --set-version`. Update Spec 02 and Spec 03 and the flag help text.
+Narrowed after reading the code (2026-10-20): the SemVer strategies already validate the value
+(`validateSemVerStrategyOverride`, ADR-0064); only `calver` and `calver-per-env` kept "non-empty, no
+whitespace", so `x$(id)` still reached the tag and the hooks. ADR-0074 addendum first (items 5-7): after the
+prefix is stripped, the value must parse under `versioning.format` **and** equal its rendering
+(`2026.5.3` is rejected, `2026.05.3` passes), because the ADR-0073 probe compares exact tag strings. No
+"full tag" mode and no date-sanity check. Tests first (`internal/app`): a table for `calver` and
+`calver-per-env` (canonical value passes; `2026.5.3`, `x$(id)`, `2026.05`, `2026.05.3;id` and an empty
+part fail with a Config error naming the format), the prefix cases (`tag_prefix`, leading `v`), and an
+end-to-end case through `heraut version next --set-version`. Existing rows stay; the lenient CalVer row, if
+one asserts a free-form value, changes with the ADR. Update Spec 03 (the `--set-version` row, line 117, and
+the `changelog` row) and the flag help text.
 
 #### `[ ]` T407: reject hook `stage` when the changelog is disabled (RULE-065)
 
