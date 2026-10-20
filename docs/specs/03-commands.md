@@ -478,7 +478,7 @@ Exactly one of a positional `message` argument or `--file` must be given — bot
 neither is a usage error.
 
 Validates grammar, then checks the parsed type against `commits.types` (or the
-default 10-type list) and, when configured, evaluates every matching
+default 11-type list) and, when configured, evaluates every matching
 [`commits.rules`](02-configuration.md#commitsrules) entry — unless the message is a
 git-generated merge commit or a `fixup!`/`squash!` commit, which are always skipped
 (see [Spec 02 § `commits`](02-configuration.md#commits)). A commit can trip more than
@@ -577,9 +577,9 @@ heraut commit create [--all/-a] [--dry-run] [--config <path>]
    cleanly with `nothing to commit — working tree clean`; otherwise it asks to confirm a
    `git add -A` before proceeding. Declining cancels cleanly. All these no-ops exit with
    code 0.
-2. **Type** — select from `commits.types` in `.heraut.yml` (or the default 10-type
-   list when absent): `feat`, `fix`, `docs`, `chore`, `refactor`, `test`, `style`,
-   `perf`, `ci`, `build`. Each built-in type shows a one-line description in the menu.
+2. **Type** — select from `commits.types` in `.heraut.yml` (or the default 11-type
+   list when absent): `feat`, `fix`, `security`, `docs`, `chore`, `refactor`, `test`,
+   `style`, `perf`, `ci`, `build`. Each built-in type shows a one-line description in the menu.
 3. **Scope** — if `commits.scopes` is configured, a select from the list; otherwise
    a free-text field (optional, press Enter to skip).
 4. **Subject** — short, imperative description (the commit header after `type(scope): `).

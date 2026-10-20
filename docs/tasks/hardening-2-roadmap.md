@@ -49,7 +49,7 @@ confinement of asset globs (done in the first epic).
 
 | Phase | Theme | Tasks | Status |
 |---|---|---|---|
-| 74 | Small corrections | T402–T405 | In progress (T402–T403 done) |
+| 74 | Small corrections | T402–T405 | In progress (T402–T404 done) |
 | 75 | Behavior changes with a decision record | T406–T409 | Not started |
 
 ---
@@ -92,7 +92,7 @@ environments that each carry an invalid `tag_pattern` and checks the error paths
 nothing more to fix: the loader, the forge and per-env validators, the template-snippet check, the `--env
 auto` match list and the scaffold's dropped-field list already sort.
 
-#### `[ ]` T404: make `security` a built-in commit type and drop the body heuristic (RULE-013)
+#### `[x]` T404: make `security` a built-in commit type and drop the body heuristic (RULE-013)
 
 Reframed after the discussion of 2026-10-20: the original plan (match "security" as a whole word) kept a
 hidden rule that reads prose. [ADR-0075](../adr/0075-security-is-a-built-in-commit-type.md) (ADR first)
@@ -105,6 +105,19 @@ The existing rows change on purpose (the body-rule row now expects Other; the nu
 Fixes move by one); none is deleted, and `TestGroupCommits_SecurityBodyOnlyForUnmatchedType` stays. Update
 Spec 02 (default types), Spec 05 (classification looks at the type only), the sample's type comment and
 `commit create`'s expectations. No `schema.json` change: `TypeRule` is unchanged.
+
+**Completion note:** [ADR-0075](../adr/0075-security-is-a-built-in-commit-type.md) was committed and accepted
+first (`04edac5`). `classify` no longer reads the body and lost its `raw` parameter; `securityGroup` and
+`orderSecurity` are gone (Revert 102 and Other 103 keep their numbers). `defaultTypes()` gained `security`
+(`🛡️ Security`, "A security fix or hardening") at order 2, and refactor through ci moved up by one. Tests
+changed on purpose and none was deleted: the table rows for refactor, docs, perf, style, test, chore and
+ci carry the new numbers, the "security body" row now expects Other, and
+`TestGroupCommits_SecurityBodyOnlyForUnmatchedType` stays as is. New tests: `security` and `security(scope)`
+group under Security, the default section order (Features, Bug Fixes, Security, Refactor), a user entry
+replaces the type and `remove: true` drops it, the config defaults (order, label, description), and
+`commit verify` accepts `security:` until `remove: true`. The `commit create` picker reads the same
+`EffectiveTypes`, so it needed no code or separate test. Docs: Spec 02 and 03 (11 default types), a new
+Spec 05 "Commit classification" section, the sample's comment. Deferred: none.
 
 #### `[ ]` T405: confine `version sprint bump` to the versioning block (RULE-015)
 

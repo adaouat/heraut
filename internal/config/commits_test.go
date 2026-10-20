@@ -37,7 +37,7 @@ func findScope(scopes []ScopeRule, name string) *ScopeRule {
 func TestEffectiveTypes_DefaultsWhenEmpty(t *testing.T) {
 	got := EffectiveTypes(nil)
 	assert.Equal(t,
-		[]string{"feat", "fix", "refactor", "docs", "perf", "style", "test", "chore", "ci", "build"},
+		[]string{"feat", "fix", "security", "refactor", "docs", "perf", "style", "test", "chore", "ci", "build"},
 		typeNames(got),
 		"default commits.types is the ADR-0027 verify type set, render-labeled")
 
@@ -94,6 +94,23 @@ func TestDefaultTypes_CarryWizardDescriptions(t *testing.T) {
 	feat := findType(EffectiveTypes(nil), "feat")
 	require.NotNil(t, feat)
 	assert.Equal(t, "A new feature", feat.Description)
+}
+
+func TestDefaultTypes_SecurityFollowsBugFixes(t *testing.T) {
+	got := EffectiveTypes(nil)
+	sec := findType(got, "security")
+	require.NotNil(t, sec)
+	require.NotNil(t, sec.Order)
+	assert.Equal(t, 2, *sec.Order)
+	assert.Equal(t, "🛡️ Security", sec.Render)
+	assert.Equal(t, "A security fix or hardening", sec.Description)
+
+	for name, want := range map[string]int{"fix": 1, "refactor": 3, "docs": 4, "perf": 5, "style": 6, "test": 7, "chore": 8, "ci": 8} {
+		ty := findType(got, name)
+		require.NotNil(t, ty, name)
+		require.NotNil(t, ty.Order, name)
+		assert.Equal(t, want, *ty.Order, name)
+	}
 }
 
 func TestEffectiveScopes_DefaultsWhenEmpty(t *testing.T) {

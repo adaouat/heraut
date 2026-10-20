@@ -3,7 +3,6 @@ package native
 import (
 	"regexp"
 	"sort"
-	"strings"
 
 	"github.com/adaouat/heraut/internal/config"
 	"github.com/adaouat/heraut/internal/conventionalcommit"
@@ -26,27 +25,25 @@ type group struct {
 }
 
 // Built-in rendering-only group orders, placed after the config-derived type groups (which
-// use commits.types order, or unorderedTypeOrder when a type has no order). These three are
+// use commits.types order, or unorderedTypeOrder when a type has no order). These two are
 // not commits.types entries — adding them as types would change the verify allow-list — so
-// the renderer owns them: the security body-rule, revert, and the catch-all for unmatched /
-// non-conventional commits (ADR-0033, T132/T134).
+// the renderer owns them: revert, and the catch-all for unmatched / non-conventional commits
+// (ADR-0033, T132/T134).
 const (
 	unorderedTypeOrder = 100
-	orderSecurity      = 101
 	orderRevert        = 102
 	orderOther         = 103
 
-	securityGroup = "🛡️ Security"
-	revertGroup   = "◀️ Revert"
-	otherGroup    = "💼 Other"
+	revertGroup = "◀️ Revert"
+	otherGroup  = "💼 Other"
 )
 
 // groupCommits classifies commits into ordered, scope-sorted groups, driven by config
 // (ADR-0033): type groups come from config.EffectiveTypes(userTypes); commits matching
 // config.EffectiveExcludes(userExcludes), merge commits, and fixup commits are dropped. A
-// commit whose type is not a configured type falls to the built-in security body-rule,
-// revert, or catch-all "Other" group, so nothing is silently dropped. The input is expected
-// oldest-first; that order is the stable within-group tiebreak.
+// commit whose type is not a configured type falls to the built-in revert or catch-all "Other"
+// group, so nothing is silently dropped. The input is expected oldest-first; that order is the
+// stable within-group tiebreak.
 func groupCommits(commits []rawCommit, userTypes []config.TypeRule, userExcludes []config.Exclude) []group {
 	typeIndex := buildTypeIndex(config.EffectiveTypes(userTypes))
 	excTypes, excRes := buildExcludes(config.EffectiveExcludes(userExcludes))
@@ -65,7 +62,7 @@ func groupCommits(commits []rawCommit, userTypes []config.TypeRule, userExcludes
 			continue
 		}
 
-		name, order := classify(raw, parsed, typeIndex)
+		name, order := classify(parsed, typeIndex)
 		pc := parsedCommit{raw: raw, parsed: parsed}
 		if idx, ok := byName[name]; ok {
 			groups[idx].commits = append(groups[idx].commits, pc)
@@ -144,16 +141,13 @@ func isExcluded(raw rawCommit, parsed *conventionalcommit.Commit, excTypes map[s
 }
 
 // classify returns the group name and order for a commit: its configured type group, or one
-// of the built-in fallbacks. The fallback priority — security body-rule, then revert, then
-// the catch-all "Other" — mirrors the previous (git-cliff-derived) taxonomy ordering.
-func classify(raw rawCommit, parsed *conventionalcommit.Commit, typeIndex map[string]typeInfo) (string, int) {
+// of the built-in fallbacks: revert, then the catch-all "Other". The body is never read
+// (ADR-0075); security is a configured type like any other.
+func classify(parsed *conventionalcommit.Commit, typeIndex map[string]typeInfo) (string, int) {
 	if parsed != nil {
 		if ti, ok := typeIndex[parsed.Type]; ok {
 			return ti.label, ti.order
 		}
-	}
-	if strings.Contains(raw.Body, "security") {
-		return securityGroup, orderSecurity
 	}
 	if parsed != nil && parsed.Type == "revert" {
 		return revertGroup, orderRevert

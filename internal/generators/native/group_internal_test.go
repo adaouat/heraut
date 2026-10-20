@@ -40,22 +40,24 @@ func TestGroupCommits_DefaultTaxonomy(t *testing.T) {
 		{"feat → Features", "feat: add login", "", "🚀 Features", 0},
 		{"feat(scope) → Features", "feat(auth): add login", "", "🚀 Features", 0},
 		{"fix → Bug Fixes", "fix: correct typo", "", "🐛 Bug Fixes", 1},
-		{"refactor → Refactor", "refactor: simplify logic", "", "🚜 Refactor", 2},
-		{"docs → Documentation", "docs: add API guide", "", "📚 Documentation", 3},
-		{"perf → Performance", "perf: speed up query", "", "⚡ Performance", 4},
-		{"style → Styling", "style: format code", "", "🎨 Styling", 5},
-		{"test → Testing", "test: add unit tests", "", "🧪 Testing", 6},
-		{"chore → Miscellaneous Tasks", "chore: update lock", "", "⚙️ Miscellaneous Tasks", 7},
-		{"ci → Miscellaneous Tasks", "ci: update pipeline", "", "⚙️ Miscellaneous Tasks", 7},
+		{"refactor → Refactor", "refactor: simplify logic", "", "🚜 Refactor", 3},
+		{"docs → Documentation", "docs: add API guide", "", "📚 Documentation", 4},
+		{"perf → Performance", "perf: speed up query", "", "⚡ Performance", 5},
+		{"style → Styling", "style: format code", "", "🎨 Styling", 6},
+		{"test → Testing", "test: add unit tests", "", "🧪 Testing", 7},
+		{"chore → Miscellaneous Tasks", "chore: update lock", "", "⚙️ Miscellaneous Tasks", 8},
+		{"ci → Miscellaneous Tasks", "ci: update pipeline", "", "⚙️ Miscellaneous Tasks", 8},
 		{"build (no render) → Other", "build: compile", "", "💼 Other", 103},
+		{"security → Security", "security: patch the token leak", "", "🛡️ Security", 2},
+		{"security(scope) → Security", "security(auth): rotate the signing key", "", "🛡️ Security", 2},
 		{
-			// The security body-rule fires only for a commit whose type is NOT a configured
-			// type (here "wip"), so it is not grouped as a type first.
-			name:      "non-type subject + security body → Security",
+			// ADR-0075: the body is never read, so a "security" mention no longer files a commit
+			// of an unconfigured type (here "wip") under Security.
+			name:      "non-type subject + security body → Other",
 			subject:   "wip: experiment",
 			body:      "this addresses a security vulnerability",
-			wantGroup: "🛡️ Security",
-			wantOrder: 101,
+			wantGroup: "💼 Other",
+			wantOrder: 103,
 		},
 		{"revert → Revert", "revert: revert feat x", "", "◀️ Revert", 102},
 		{"unknown type → Other", "wip: half-done", "", "💼 Other", 103},
@@ -146,7 +148,7 @@ func TestGroupCommits_GroupDisplayOrder(t *testing.T) {
 		rc("r1", "revert: something", ""),    // order 102
 		rc("f1", "feat: something", ""),      // order 0
 		rc("x1", "fix: something", ""),       // order 1
-		rc("rf1", "refactor: something", ""), // order 2
+		rc("rf1", "refactor: something", ""), // order 3
 	}
 	groups := groupCommits(commits, nil, nil)
 	require.Len(t, groups, 4)
@@ -157,7 +159,7 @@ func TestGroupCommits_GroupDisplayOrder(t *testing.T) {
 }
 
 // TestGroupCommits_DocRefactorDisplayOrder verifies the default order inversion: Refactor
-// (order 2) before Documentation (order 3).
+// (order 3) before Documentation (order 4).
 func TestGroupCommits_DocRefactorDisplayOrder(t *testing.T) {
 	commits := []rawCommit{
 		rc("d1", "docs: update guide", ""),
@@ -165,7 +167,7 @@ func TestGroupCommits_DocRefactorDisplayOrder(t *testing.T) {
 	}
 	groups := groupCommits(commits, nil, nil)
 	require.Len(t, groups, 2)
-	assert.Equal(t, "🚜 Refactor", groups[0].name, "Refactor (order 2) before Documentation (order 3)")
+	assert.Equal(t, "🚜 Refactor", groups[0].name, "Refactor (order 3) before Documentation (order 4)")
 	assert.Equal(t, "📚 Documentation", groups[1].name)
 }
 
@@ -281,4 +283,36 @@ func TestOverlayAuthorHandles(t *testing.T) {
 	overlayAuthorHandles(groups, map[string]string{"aaaaaaa": "alice"})
 	assert.Equal(t, "alice", groups[0].commits[0].raw.AuthorHandle)
 	assert.Equal(t, "", groups[0].commits[1].raw.AuthorHandle, "no handle → empty")
+}
+
+// TestGroupCommits_SecurityTypeSitsAfterBugFixes verifies the default section order (ADR-0075):
+// Features, Bug Fixes, Security, then Refactor.
+func TestGroupCommits_SecurityTypeSitsAfterBugFixes(t *testing.T) {
+	commits := []rawCommit{
+		rc("rf1", "refactor: clean up", ""),
+		rc("s1", "security: patch the token leak", ""),
+		rc("x1", "fix: typo", ""),
+		rc("f1", "feat: login", ""),
+	}
+	groups := groupCommits(commits, nil, nil)
+	require.Len(t, groups, 4)
+	assert.Equal(t, "🚀 Features", groups[0].name)
+	assert.Equal(t, "🐛 Bug Fixes", groups[1].name)
+	assert.Equal(t, "🛡️ Security", groups[2].name)
+	assert.Equal(t, "🚜 Refactor", groups[3].name)
+}
+
+// TestGroupCommits_SecurityTypeIsConfigurable verifies the built-in security type merges like any
+// other: a user entry replaces it wholesale, and remove:true drops it so the commit falls to Other.
+func TestGroupCommits_SecurityTypeIsConfigurable(t *testing.T) {
+	commit := rc("s1", "security: patch the token leak", "")
+
+	replaced := groupCommits([]rawCommit{commit}, []config.TypeRule{{Name: "security", Order: ptr(0), Render: "🔒 Vulnerabilities"}}, nil)
+	require.Len(t, replaced, 1)
+	assert.Equal(t, "🔒 Vulnerabilities", replaced[0].name)
+	assert.Equal(t, 0, replaced[0].order)
+
+	removed := groupCommits([]rawCommit{commit}, []config.TypeRule{{Name: "security", Remove: true}}, nil)
+	require.Len(t, removed, 1)
+	assert.Equal(t, "💼 Other", removed[0].name)
 }

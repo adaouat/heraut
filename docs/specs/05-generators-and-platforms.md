@@ -49,6 +49,16 @@ including Azure DevOps. See [ADR-0033](../adr/0033-native-config-model.md),
 [ADR-0034](../adr/0034-native-remote-enrichment.md), and
 [ADR-0036](../adr/0036-unified-enrichment-model.md).
 
+### Commit classification (ADR-0033, ADR-0075)
+
+Each commit is grouped by its parsed conventional-commit type, never by its body. A type that is in the
+effective `commits.types` set (the built-in defaults merged with the user's entries) gets its own section,
+in `order`; the defaults are Features, Bug Fixes, Security, Refactor, Documentation, Performance, Styling,
+Testing and Miscellaneous Tasks. A type without a `render` label, an unconfigured type and a
+non-conventional message all join `💼 Other`; `revert` commits get `◀️ Revert` unless `revert` is a
+configured type. Commits matching `rendering.excludes`, merge commits and `fixup!`/`squash!` commits are
+dropped.
+
 ### User-customizable templates (ADR-0037, ADR-0048)
 
 The native generator exposes a public template API with **two entry points**:

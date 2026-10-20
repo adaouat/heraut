@@ -194,7 +194,7 @@ versioning:
 # changelog section taxonomy.
 # commits:
 #   # types — conventional-commit type rules, MERGED over the built-in defaults by
-#   # name (feat → 🚀 Features, fix → 🐛 Bug Fixes, …). List only what you change:
+#   # name (feat → 🚀 Features, fix → 🐛 Bug Fixes, security → 🛡️ Security, …). List only what you change:
 #   # add a render label / order, or remove a default. Listing a type does NOT
 #   # restrict the allow-list to only the listed types — use remove to drop one.
 #   types:

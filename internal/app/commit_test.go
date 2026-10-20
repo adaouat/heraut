@@ -53,6 +53,15 @@ func TestVerifyCommit_DefaultTypes_AllAccepted(t *testing.T) {
 	}
 }
 
+func TestVerifyCommit_SecurityIsADefaultType(t *testing.T) {
+	_, err := app.VerifyCommit(nil, "security(auth): rotate the signing key")
+	assert.NoError(t, err)
+
+	cfg := &config.Config{Commits: &config.Commits{Types: []config.TypeRule{{Name: "security", Remove: true}}}}
+	_, err = app.VerifyCommit(cfg, "security: patch the token leak")
+	assert.Error(t, err, "remove:true takes the built-in type out of the allow-list")
+}
+
 func TestVerifyCommit_TypesMergeOverDefaults(t *testing.T) {
 	// commits.types MERGES over the built-in defaults (ADR-0033): listing a type adds/overrides
 	// it but does NOT restrict the allow-list to only the listed types.
