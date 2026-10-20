@@ -7,15 +7,6 @@ import (
 	"github.com/adaouat/heraut/internal/port"
 )
 
-// Default token env var names per forge type. They mirror internal/pipeline/linkctx.go, copied
-// (not imported) because internal/forge sits below internal/pipeline in the layer stack and must
-// not import it. The default web hosts come from internal/config.
-const (
-	githubDefaultTokenEnv      = "GITHUB_TOKEN"
-	gitlabDefaultTokenEnv      = "GITLAB_TOKEN"
-	azureDevOpsDefaultTokenEnv = "AZURE_DEVOPS_TOKEN"
-)
-
 // defaultHostFor returns the default web host for a forge type, or "" when unknown.
 func defaultHostFor(typ string) string {
 	switch typ {
@@ -35,11 +26,11 @@ func defaultHostFor(typ string) string {
 func defaultTokenEnvFor(typ string) string {
 	switch typ {
 	case "github":
-		return githubDefaultTokenEnv
+		return config.EnvGitHubToken
 	case "gitlab":
-		return gitlabDefaultTokenEnv
+		return config.EnvGitLabToken
 	case "azure_devops":
-		return azureDevOpsDefaultTokenEnv
+		return config.EnvAzureDevOpsToken
 	default:
 		return ""
 	}
@@ -49,16 +40,16 @@ func defaultTokenEnvFor(typ string) string {
 // systems' markers, in the order GitLab → GitHub → Azure. ok is false when none is present. See
 // design spec §3 for the source table.
 func detectCIForge(getenv func(string) string) (typ, host, apiURL, project, repository, token string, kind port.TokenKind, ok bool) {
-	if getenv("GITLAB_CI") != "" {
-		return "gitlab", getenv("CI_SERVER_URL"), getenv("CI_API_V4_URL"), getenv("CI_PROJECT_PATH"), "", getenv("CI_JOB_TOKEN"), port.TokenJob, true
+	if getenv(config.EnvGitLabCI) != "" {
+		return "gitlab", getenv(config.EnvGitLabServerURL), getenv(config.EnvGitLabAPIURL), getenv(config.EnvGitLabProjectPath), "", getenv(config.EnvGitLabJobToken), port.TokenJob, true
 	}
-	if getenv("GITHUB_ACTIONS") != "" {
-		return "github", getenv("GITHUB_SERVER_URL"), getenv("GITHUB_API_URL"), getenv("GITHUB_REPOSITORY"), "", getenv("GITHUB_TOKEN"), port.TokenPrivate, true
+	if getenv(config.EnvGitHubActions) != "" {
+		return "github", getenv(config.EnvGitHubServerURL), getenv(config.EnvGitHubAPIURL), getenv(config.EnvGitHubRepository), "", getenv(config.EnvGitHubToken), port.TokenPrivate, true
 	}
-	if getenv("TF_BUILD") != "" {
-		host := strings.TrimRight(getenv("SYSTEM_COLLECTIONURI"), "/")
-		teamProject := getenv("SYSTEM_TEAMPROJECT")
-		return "azure_devops", host, "", teamProject, getenv("BUILD_REPOSITORY_NAME"), getenv("SYSTEM_ACCESSTOKEN"), port.TokenPrivate, true
+	if getenv(config.EnvAzureBuild) != "" {
+		host := strings.TrimRight(getenv(config.EnvAzureCollectionURI), "/")
+		teamProject := getenv(config.EnvAzureTeamProject)
+		return "azure_devops", host, "", teamProject, getenv(config.EnvAzureRepositoryName), getenv(config.EnvAzureAccessToken), port.TokenPrivate, true
 	}
 	return "", "", "", "", "", "", port.TokenNone, false
 }
