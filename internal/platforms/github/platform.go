@@ -12,11 +12,6 @@ import (
 	"github.com/adaouat/heraut/internal/port"
 )
 
-const (
-	defaultTokenEnv = "GH_TOKEN"
-	repoEnvVar      = "GITHUB_REPOSITORY"
-)
-
 // Platform implements port.Platform for GitHub via the gh CLI.
 type Platform struct {
 	runner port.Runner
@@ -89,7 +84,7 @@ func (p *Platform) Check() error {
 	}
 
 	if p.repository() == "" {
-		errs = append(errs, fmt.Errorf("repository not set: configure repository: in .heraut.yml or set $%s", repoEnvVar))
+		errs = append(errs, fmt.Errorf("repository not set: configure repository: in .heraut.yml or set $%s", config.EnvGitHubRepository))
 	}
 
 	if binaryErr == nil {
@@ -107,12 +102,12 @@ func (p *Platform) Check() error {
 // configured token (plus GH_HOST/GH_ENTERPRISE_TOKEN when self-hosted) is validated via a
 // repo-scoped API call.
 func (p *Platform) checkAPIAuth(tokenMissing bool) error {
-	if !p.selfHosted() && os.Getenv("GITHUB_ACTIONS") == "true" {
-		githubToken := os.Getenv("GITHUB_TOKEN")
-		repo := os.Getenv("GITHUB_REPOSITORY")
+	if !p.selfHosted() && os.Getenv(config.EnvGitHubActions) == "true" {
+		githubToken := os.Getenv(config.EnvGitHubToken)
+		repo := os.Getenv(config.EnvGitHubRepository)
 		if githubToken != "" && repo != "" {
 			endpoint := "repos/" + repo + "/releases?per_page=1"
-			_, stderr, err := p.runner.RunEnv([]string{"GH_TOKEN=" + githubToken}, "gh", "api", endpoint)
+			_, stderr, err := p.runner.RunEnv([]string{config.EnvGitHubCLIToken + "=" + githubToken}, "gh", "api", endpoint)
 			if err != nil {
 				return fmt.Errorf("github: API call failed (gh api %s): %s\n  hint: verify GITHUB_TOKEN has read access to the repository", endpoint, strings.TrimSpace(stderr))
 			}
@@ -206,13 +201,13 @@ func (p *Platform) repository() string {
 	if p.cfg.Repository != "" {
 		return p.cfg.Repository
 	}
-	return os.Getenv(repoEnvVar)
+	return os.Getenv(config.EnvGitHubRepository)
 }
 
 func (p *Platform) requireRepository() (string, error) {
 	repo := p.repository()
 	if repo == "" {
-		return "", fmt.Errorf("repository not set: configure repository: in .heraut.yml or set $%s", repoEnvVar)
+		return "", fmt.Errorf("repository not set: configure repository: in .heraut.yml or set $%s", config.EnvGitHubRepository)
 	}
 	return repo, nil
 }
@@ -221,7 +216,7 @@ func (p *Platform) tokenEnv() string {
 	if p.cfg.TokenEnv != "" {
 		return p.cfg.TokenEnv
 	}
-	return defaultTokenEnv
+	return config.EnvGitHubCLIToken
 }
 
 // tokenEnvSlice reads the configured token and returns it as ["GH_TOKEN=<value>"]
@@ -229,7 +224,7 @@ func (p *Platform) tokenEnv() string {
 // Returns nil when the token is unset (auth will fail — Check() should have caught this).
 func (p *Platform) tokenEnvSlice() []string {
 	if token := os.Getenv(p.tokenEnv()); token != "" {
-		return []string{"GH_TOKEN=" + token}
+		return []string{config.EnvGitHubCLIToken + "=" + token}
 	}
 	return nil
 }

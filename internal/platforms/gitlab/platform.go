@@ -12,11 +12,6 @@ import (
 	"github.com/adaouat/heraut/internal/port"
 )
 
-const (
-	defaultTokenEnv = "GITLAB_TOKEN"
-	projectEnvVar   = "CI_PROJECT_PATH"
-)
-
 // Platform implements port.Platform for GitLab over the REST API (ADR-0069).
 type Platform struct {
 	cfg *config.Platform
@@ -85,7 +80,7 @@ func (p *Platform) Check() error {
 	}
 
 	if p.project() == "" {
-		errs = append(errs, fmt.Errorf("project not set: configure project: in .heraut.yml or set $%s", projectEnvVar))
+		errs = append(errs, fmt.Errorf("project not set: configure project: in .heraut.yml or set $%s", config.EnvGitLabProjectPath))
 	}
 
 	if tokenErr == nil {
@@ -102,7 +97,7 @@ func (p *Platform) Check() error {
 // uses the configured token (sent as PRIVATE-TOKEN).
 func (p *Platform) credentials() (token string, jobToken bool, err error) {
 	if p.inCIAutologin() {
-		if t := os.Getenv("CI_JOB_TOKEN"); t != "" {
+		if t := os.Getenv(config.EnvGitLabJobToken); t != "" {
 			return t, true, nil
 		}
 	}
@@ -130,7 +125,7 @@ func (p *Platform) checkAPIAuth(token string, jobToken bool) error {
 		return err
 	}
 	if jobToken {
-		project := os.Getenv("CI_PROJECT_ID")
+		project := os.Getenv(config.EnvGitLabProjectID)
 		if project == "" {
 			project = p.project()
 		}
@@ -159,13 +154,13 @@ func (p *Platform) selfHosted() bool {
 // naming a genuinely different instance still requires the configured token — the job token
 // cannot reach a host other than its own.
 func (p *Platform) inCIAutologin() bool {
-	if os.Getenv("GITLAB_CI") != "true" {
+	if os.Getenv(config.EnvGitLabCI) != "true" {
 		return false
 	}
 	if !p.selfHosted() {
 		return true
 	}
-	return sameGitLabHost(p.cfg.BaseURL, os.Getenv("CI_SERVER_URL"))
+	return sameGitLabHost(p.cfg.BaseURL, os.Getenv(config.EnvGitLabServerURL))
 }
 
 // sameGitLabHost reports whether a and b name the same GitLab instance, comparing scheme and host
@@ -223,13 +218,13 @@ func (p *Platform) project() string {
 	if p.cfg.Project != "" {
 		return p.cfg.Project
 	}
-	return os.Getenv(projectEnvVar)
+	return os.Getenv(config.EnvGitLabProjectPath)
 }
 
 func (p *Platform) requireProject() (string, error) {
 	proj := p.project()
 	if proj == "" {
-		return "", fmt.Errorf("project not set: configure project: in .heraut.yml or set $%s", projectEnvVar)
+		return "", fmt.Errorf("project not set: configure project: in .heraut.yml or set $%s", config.EnvGitLabProjectPath)
 	}
 	return proj, nil
 }
@@ -238,7 +233,7 @@ func (p *Platform) tokenEnv() string {
 	if p.cfg.TokenEnv != "" {
 		return p.cfg.TokenEnv
 	}
-	return defaultTokenEnv
+	return config.EnvGitLabToken
 }
 
 // resolveBaseURL returns the effective base URL for this GitLab instance. Resolution order:
@@ -252,12 +247,12 @@ func (p *Platform) resolveBaseURL() string {
 	if p.cfg.BaseURL != "" {
 		return p.cfg.BaseURL
 	}
-	if os.Getenv("GITLAB_CI") == "true" {
-		if u := os.Getenv("CI_SERVER_URL"); u != "" {
+	if os.Getenv(config.EnvGitLabCI) == "true" {
+		if u := os.Getenv(config.EnvGitLabServerURL); u != "" {
 			return u
 		}
 	}
-	if u := os.Getenv("CI_PROJECT_URL"); u != "" {
+	if u := os.Getenv(config.EnvGitLabProjectURL); u != "" {
 		if parsed, err := url.Parse(u); err == nil && parsed.Host != "" {
 			return parsed.Scheme + "://" + parsed.Host
 		}
