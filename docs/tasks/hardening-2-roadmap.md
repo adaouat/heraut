@@ -1,0 +1,159 @@
+# Héraut — Hardening 2 Roadmap
+
+> Status: Not started (drafted 2026-10-20, awaiting approval)
+> Source: the rule review of 2026-10-16 (`analysis/heraut/RULE_REVIEWS.md`): eight business rules the
+> maintainer ruled wrong or not wanted. Main roadmap: tracked as Phases 74–75 in
+> [`roadmap.md`](roadmap.md). Continues [`hardening-roadmap.md`](hardening-roadmap.md) (Phases 70–73).
+
+The first hardening epic implemented the rule verdicts of 2026-10-14. The review of the remaining 63 rules
+confirmed 54 and found eight whose code should change. Four are small corrections with no design question.
+Four change what a user sees or what a config means, and each of those starts with an ADR or an addendum.
+
+## Conventions
+
+- Task IDs **continue the global sequence** (`T402+`).
+- This file is the **single source of truth** for task status. Same checkbox markers as the other
+  roadmaps: `[ ]` not started, `[x]` done. Follow the two-step flow
+  ([`workflow.md`](../../.claude/rules/workflow.md)): failing test first, then flip `[ ]` → `[x]` and
+  add a one-paragraph completion note.
+- One task per session. Phase 75 starts only after Phase 74 is done, so the cheap corrections land first.
+- Where a task says "ADR first", the ADR (or the addendum) is committed and approved before the test is
+  written, because a tested behavior changes. No test row is deleted to make a change easier.
+- Wire names in `internal/config` do not change. A new key (T409) is an addition: update `schema.json` and
+  `docs/heraut.sample.yml` in the same commit.
+- A rule card's source lines predate the first hardening epic; use the symbol, not the line number.
+
+## Baseline (before Phase 74)
+
+Recorded at `db67dfd`, Go 1.27.2: `go test -count=1 ./...` passes in every package (including e2e Lane A);
+total statement coverage **88.0%** (the CI gate is 85%); `golangci-lint` reports 0 issues. Phase exit
+criteria include "the same command still passes and coverage does not drop below the gate".
+
+## Decisions taken
+
+| Rule | Topic | Decision |
+|---|---|---|
+| 002 | SemVer parts | Reject leading zeros and signs in `BumpVersion`'s input |
+| 016 | Config error order | Deterministic: sort environment names before validating |
+| 013 | Security section | Whole word, case-insensitive; section order unchanged |
+| 015 | Sprint bump | Edit only inside the top-level `versioning:` block; tolerate a trailing comment on its line |
+| 032 | `--set-version` | Validated per strategy: SemVer for `semver`/`semver-per-env`, the configured CalVer format for `calver`/`calver-per-env`. Reverses the strategy-agnostic override, so an ADR-0074 addendum |
+| 065 | Hook `stage` | `stage` with the changelog disabled (globally or for the env) is a config validation error. ADR-0061 addendum |
+| 052 | Default excludes | Excludes stay render-only. Warn when every releasable commit is excluded from the changelog. No bump change |
+| 039 | Asset globs | A glob matching nothing at publish time fails, unless the entry is marked optional. New ADR |
+
+Already settled and not reopened: RULE-003 (build metadata is ignored in ordering) and the SEC-009 repo
+confinement of asset globs (done in the first epic).
+
+## Progress at a glance
+
+| Phase | Theme | Tasks | Status |
+|---|---|---|---|
+| 74 | Small corrections | T402–T405 | Not started |
+| 75 | Behavior changes with a decision record | T406–T409 | Not started |
+
+---
+
+### Phase 74 — Small corrections
+
+Goal: four fixes with no design question. Entry: baseline above recorded. No ADR; Spec 05 gets one note
+(T404) and nothing else changes in the docs.
+
+#### `[ ]` T402: reject leading zeros and signs in SemVer parts (RULE-002)
+
+`semver.BumpVersion` splits on `.` and calls `strconv.Atoi` per part, so `01.2.3` and `+1.2.3` are
+accepted. Tags come from git, so the exposure is low, but `--set-version` and a hand-made tag both reach
+this code. Tests first: a table of rejected inputs (`01.2.3`, `1.02.3`, `+1.2.3`, `-1.2.3`, `1.2.3.4`)
+beside the existing rows (`1.9.0` → `1.10.0` stays). Then a strict part parser shared with
+`semver.ParseVersion` if it does not already enforce this. Check that an existing tag such as `v01.2.3`
+does not become a hard failure for `version current`: decide and record whether it is skipped or reported.
+
+#### `[ ]` T403: make config validation error order deterministic (RULE-016)
+
+`validateEnums` iterates the `environments` map in Go's random order, so the list printed by
+`heraut check config` and `release` changes between runs. Test first: a config with three invalid
+environments yields the same error slice on 50 consecutive calls (it must fail on the current code, so
+make the environments enough to catch a random order). Fix by sorting the names once. Look for the same
+pattern in the other `validate*` files and fix every map walk, not only this one.
+
+#### `[ ]` T404: match the Security fallback on whole words only (RULE-013)
+
+The fallback in `internal/generators/native/group.go` is `strings.Contains(raw.Body, "security")`: it
+matches "insecurity" and misses "Security". Only commits of unconfigured types reach it. Tests first:
+"security fix" and "Security fix" match, "insecurity" does not, and a configured `security` type still
+wins. A hyphenated "security-sensitive" is a word-boundary case: decide it in the task and name the choice
+in the test. Settle whether the subject counts, then document the
+rule in Spec 05 (`## Commit classification`), which is silent today. Section order is unchanged.
+
+#### `[ ]` T405: confine `version sprint bump` to the versioning block (RULE-015)
+
+`config.IncrementSprint` replaces every indented `sprint:` line and inserts only after a bare
+`versioning:` line. Tests first (`internal/config/sprint_test.go`): a per-env block that also has a
+`sprint:` key stays untouched; a `versioning: # comment` line works for both replace and insert; a
+missing key is inserted with the block's own indentation; a file with no `versioning:` block fails with
+the existing error. Fix by locating the top-level block first and editing inside it. No YAML round-trip
+(it loses comments).
+
+**Phase 74 exit:** the baseline command passes, coverage ≥ 88.0%, lint clean.
+
+---
+
+### Phase 75 — Behavior changes with a decision record
+
+Goal: four rules whose fix changes what a user sees. Entry: Phase 74 done. Each task commits the ADR (or
+addendum) first, waits for approval, then goes test → code → spec.
+
+#### `[ ]` T406: validate `--set-version` per strategy (RULE-032)
+
+ADR-0074 addendum first: the override is no longer strategy-agnostic. `semver` and `semver-per-env` accept
+SemVer only (the tag prefix is optional, build metadata stays rejected when `--set-build-id` is given);
+`calver` and `calver-per-env` accept only a value that parses under the configured format. Anything else is
+a Config error before any git call. Open points to settle in the addendum: whether a full tag override such
+as one containing `/` or an env part is still accepted (`tagfmt.go` allows `/` today), and the message when
+the strategy is `semver` but the repo's existing tags are CalVer. Tests first: one table per strategy
+(valid and rejected values, including `x$(id)` and `1.2.3;id`), and an end-to-end case through
+`heraut version next --set-version`. Update Spec 02 and Spec 03 and the flag help text.
+
+#### `[ ]` T407: reject hook `stage` when the changelog is disabled (RULE-065)
+
+ADR-0061 addendum first. Today `postBumpStage` is used only inside the changelog block, so with
+`disable_changelog` the staged files are dropped without a message. A `stage` entry on `post_bump` or
+`pre_changelog` becomes a validation error when the changelog is disabled globally or for the env that
+declares the hook (Path, Message and Hint like the other validator errors, pointing at ADR-0061). Tests
+first in `internal/config`: global disable, per-env disable, and the valid case (changelog enabled).
+Update Spec 02's hooks section and the hooks guide. Check `heraut init` and the sample do not generate the
+combination.
+
+#### `[ ]` T408: warn when every releasable commit is excluded from the changelog (RULE-052)
+
+No ADR: bumping does not change, and Spec 04 gets a note that excludes are render-only. When the commits that
+drove the bump (`feat`, `fix`, breaking) are all matched by `rendering.excludes` or the built-in defaults
+(`chore(deps…)`, `chore(release)`, `chore(pr)`, `chore(pull)`), the run prints a warning that the changelog
+for this release will be empty. Settle in the task where the information lives (the resolver knows the
+commits, the generator knows the excludes) without a new import across the layer rules; `Result.Warnings`
+is the expected carrier. Tests first: a deps-only range warns and still bumps; a range with one real `feat`
+does not warn; the warning appears in `--dry-run` and in the `--json` envelope.
+
+#### `[ ]` T409: fail when an asset glob matches nothing at publish time (RULE-039)
+
+New ADR-0075 first. Today `ResolveGlobsLenient` warns and publishes a release without its assets, so a
+typo ships silently. The pre-publish check (`CheckAssetGlobs`) keeps skipping zero matches because a hook
+may still build the files; the check at publish time, after the hooks ran, fails instead. The ADR decides
+how an entry is marked optional (a per-asset `optional: true` is the working proposal) and what the error
+says. This adds a config key, so update `schema.json`, `docs/heraut.sample.yml`, the validator and the
+`testdata/config/valid` fixtures with it. Tests first: a missing required glob fails both drivers before
+the forge call, an optional one warns, and a matching glob is unchanged (contract tests keep their exact
+argument assertions). Update Spec 05 and the failure-recovery guide (state C).
+
+**Phase 75 exit:** the baseline command passes, coverage ≥ 88.0%, lint clean, and `heraut check config`
+still accepts every file in `testdata/config/valid/`.
+
+---
+
+## Out of scope
+
+- RULE-003 is confirmed as is. RULE-007, 008, 046 and 058 were done in the first epic (T383–T390).
+- Repo confinement of asset globs is done (SEC-009, T381).
+- The 60 rules confirmed in the review are not reopened; the brief's other follow-ups
+  (`runPlatformWizard` size, the `git remote get-url origin` call in `scaffold/wizard.go`, duplicated token
+  env names in `forge/detect.go` and `pipeline/linkctx.go`) stay in the main roadmap's open items.
