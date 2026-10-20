@@ -33,6 +33,6 @@ func validateVersionOverrideFlags(versionOverride, buildID string) error {
 
 // addVersionOverrideFlags declares --set-version and --set-build-id on c.
 func addVersionOverrideFlags(c *cobra.Command, versionOverride, buildID *string) {
-	c.Flags().StringVar(versionOverride, "set-version", "", "override the resolved version — with or without tag prefix (e.g. 1.2.3 or v1.2.3)")
+	c.Flags().StringVar(versionOverride, "set-version", "", "override the resolved version — with or without tag prefix (e.g. 1.2.3 or v1.2.3); must match the strategy (SemVer, or the CalVer format)")
 	c.Flags().StringVar(buildID, "set-build-id", "", "build ID for the tag: the {build} token in tag_format, or +<id> build metadata under plain semver (requires --set-version)")
 }

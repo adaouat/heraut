@@ -514,9 +514,9 @@ func TestNewResolver_VersionOverride_SemVerValidation_NamesConfiguredPrefix(t *t
 	assert.Contains(t, err.Error(), `expected an optional "rel-" prefix`)
 }
 
-// Guard: CalVer strategies keep today's lenient --set-version check. 2026.05.0 has a leading zero
-// in its month segment and would fail strict SemVer parsing — it must stay accepted, since the
-// new check (T336) only applies to semver/semver-per-env.
+// Guard: the SemVer check (T336) does not apply to CalVer strategies. 2026.05.0 has a leading zero
+// in its month segment and would fail strict SemVer parsing — it must stay accepted, because it is
+// the canonical form of the CalVer format (ADR-0074 addendum).
 func TestNewResolver_VersionOverride_Calver_SemVerCheckDoesNotApply(t *testing.T) {
 	mr := exectest.NewMockRunner()
 	r, err := app.NewResolver(calverCfg(), "", false, "2026.05.0", "", mr, app.WithoutCollisionGuard())
@@ -550,6 +550,8 @@ func TestValidateBuildID(t *testing.T) {
 	require.Error(t, app.ValidateBuildID(""))
 }
 
+// ValidateVersionOverride is the strategy-agnostic first gate (non-empty, no whitespace); the
+// per-strategy checks run in NewResolver.
 func TestValidateVersionOverride(t *testing.T) {
 	require.NoError(t, app.ValidateVersionOverride("v1.2.3"))
 	require.NoError(t, app.ValidateVersionOverride("2024.03.15.2"))

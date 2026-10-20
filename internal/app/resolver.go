@@ -202,6 +202,9 @@ func NewResolver(cfg *config.Config, env string, force bool, versionOverride, bu
 				return nil, err
 			}
 		}
+		if err := validateCalverStrategyOverride(cfg.Versioning.Strategy, cfg.Versioning.Format, version); err != nil {
+			return nil, err
+		}
 		return guardSetVersion(cfg, versioning.NewStaticResolver(tag, version), runner, o, force), nil
 	}
 
@@ -413,6 +416,31 @@ func validateSemVerStrategyOverride(strategy, version, expectedPrefixHint string
 			return fmt.Errorf("--set-version %q is not a valid SemVer version (expected MAJOR.MINOR.PATCH[-pre-release]) (expected an optional %q prefix): %w", version, expectedPrefixHint, err)
 		}
 		return fmt.Errorf("--set-version %q is not a valid SemVer version (expected MAJOR.MINOR.PATCH[-pre-release]): %w", version, err)
+	}
+	return nil
+}
+
+// validateCalverStrategyOverride requires a --set-version value under calver and calver-per-env
+// to be the canonical form of versioning.format (ADR-0074 addendum): it must parse under the format
+// and equal its own rendering. The value reaches the tag and the hook variables, and the ADR-0073
+// collision probe compares exact tag strings, so "2026.5.3" must not pass as a second spelling of
+// "2026.05.3". version is already stripped of its tag prefix / tag_format wrapping by the caller.
+// The SemVer strategies are handled by validateSemVerStrategyOverride (returns nil here).
+func validateCalverStrategyOverride(strategy, format, version string) error {
+	if strategy != "calver" && strategy != "calver-per-env" {
+		return nil
+	}
+	tokens, err := calver.ParseFormat(format)
+	if err != nil {
+		return fmt.Errorf("--set-version %q cannot be checked: %w", version, err)
+	}
+	values, err := calver.ParseVersion(tokens, version)
+	if err != nil {
+		return fmt.Errorf("--set-version %q does not match versioning.format %q (e.g. %s): %w",
+			version, format, calver.RenderVersion(tokens, calver.Values{Year: 2026, Month: 5, Day: 4, Week: 18, Quarter: 2, Semester: 1, Sprint: 3, Patch: 1}), err)
+	}
+	if canonical := calver.RenderVersion(tokens, values); canonical != version {
+		return fmt.Errorf("--set-version %q is not in canonical form for versioning.format %q: write %q", version, format, canonical)
 	}
 	return nil
 }

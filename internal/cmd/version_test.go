@@ -9,6 +9,7 @@ import (
 
 	"github.com/adaouat/forge/exec/exectest"
 	"github.com/adaouat/heraut/internal/cmd"
+	"github.com/adaouat/heraut/internal/exitcode"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -499,4 +500,29 @@ esac
 	assert.Contains(t, out, `"tag":"v0.5.0"`)
 	assert.Contains(t, out, `"warnings":["`, "the hold-back notice moves from stderr into the envelope")
 	assert.Equal(t, 1, strings.Count(out, "\n"), "one line")
+}
+
+// ADR-0074 addendum: under the CalVer strategies --set-version must be the canonical form of the
+// configured format, and a refusal is a Config error raised before any git call.
+func TestVersionNext_CalverSetVersion_MustMatchTheFormat(t *testing.T) {
+	cfgPath := writeConfig(t, `
+version: "1"
+versioning:
+  strategy: calver
+  format: "YYYY.MM.PATCH"
+`)
+	exectest.FakeBin(t, "git", `#!/bin/sh
+exit 1
+`)
+
+	out, err := executeRoot("version", "next", "--config", cfgPath, "--set-version", "2026.05.3")
+	require.NoError(t, err)
+	assert.Equal(t, "2026.05.3\n", out)
+
+	for _, bad := range []string{"x$(id)", "2026.5.3"} {
+		_, err := executeRoot("version", "next", "--config", cfgPath, "--set-version", bad)
+		require.Error(t, err, bad)
+		assert.Contains(t, err.Error(), "YYYY.MM.PATCH")
+		assert.Equal(t, exitcode.Config, exitcode.Resolve(err), bad)
+	}
 }

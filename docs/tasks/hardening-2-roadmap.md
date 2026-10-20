@@ -50,7 +50,7 @@ confinement of asset globs (done in the first epic).
 | Phase | Theme | Tasks | Status |
 |---|---|---|---|
 | 74 | Small corrections | T402–T405 | Done |
-| 75 | Behavior changes with a decision record | T406–T409 | Not started |
+| 75 | Behavior changes with a decision record | T406–T409 | In progress (T406 done) |
 
 ---
 
@@ -148,7 +148,7 @@ as a hook script, which is what the test uses.
 Goal: four rules whose fix changes what a user sees. Entry: Phase 74 done. Each task commits the ADR (or
 addendum) first, waits for approval, then goes test → code → spec.
 
-#### `[ ]` T406: validate a CalVer `--set-version` against the configured format (RULE-032)
+#### `[x]` T406: validate a CalVer `--set-version` against the configured format (RULE-032)
 
 Narrowed after reading the code (2026-10-20): the SemVer strategies already validate the value
 (`validateSemVerStrategyOverride`, ADR-0064); only `calver` and `calver-per-env` kept "non-empty, no
@@ -161,6 +161,20 @@ part fail with a Config error naming the format), the prefix cases (`tag_prefix`
 end-to-end case through `heraut version next --set-version`. Existing rows stay; the lenient CalVer row, if
 one asserts a free-form value, changes with the ADR. Update Spec 03 (the `--set-version` row, line 117, and
 the `changelog` row) and the flag help text.
+
+**Completion note:** the ADR-0074 addendum was committed first (`32bd927`). `validateCalverStrategyOverride`
+(`internal/app/resolver.go`) runs after the prefix / `tag_format` wrapping is stripped, for both `calver` and
+`calver-per-env`, with or without a build ID: the value must parse under `versioning.format` (a regex
+anchored both ends) and equal `calver.RenderVersion` of its own values. The error names the format and
+shows an example, or names the canonical spelling (`2026.5.3` -> "write 2026.05.3"). It sits after the
+`{build}` / `tag_format` checks, so those older messages still win. Tests: a table over both strategies
+(canonical, patch zero, leading `v`, unpadded month, padded patch, `x$(id)`, `;id`, missing patch, extra
+segment, SemVer-looking), the `tag_prefix` cases, the build-ID path, and a `version next` test asserting the
+Config exit code (this last one was written after the code and passed at once; the unit tests failed first).
+No existing row was removed: the two "SemVer check does not apply to CalVer" tests keep their values, which
+are canonical, and only their comments changed. Decided during the task: PATCH stays unpadded (RULE-009), so
+`2026.05.03` is rejected; padding would be a separate opt-in with its own ADR and is not on the roadmap.
+Spec 03 (the `release` and `changelog` rows) and the flag help text are updated. Nothing deferred.
 
 #### `[ ]` T407: reject hook `stage` when the changelog is disabled (RULE-065)
 
