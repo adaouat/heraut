@@ -6,6 +6,7 @@ import (
 	"slices"
 	"strings"
 
+	"github.com/adaouat/heraut/internal/config"
 	"github.com/adaouat/heraut/internal/forge"
 	"github.com/adaouat/heraut/internal/versioning/calver"
 )
@@ -52,9 +53,9 @@ func parseRemoteProject(rawURL string) string {
 func platformTokenOptions(platformType string) []string {
 	switch platformType {
 	case "github":
-		return []string{"GH_TOKEN"}
+		return []string{config.EnvGitHubCLIToken}
 	case "gitlab":
-		return []string{"GITLAB_TOKEN", "CI_JOB_TOKEN"}
+		return []string{config.EnvGitLabToken, config.EnvGitLabJobToken}
 	default:
 		return nil
 	}
@@ -82,7 +83,7 @@ func resolveTokenChoice(platformType, existing string) (choice, custom string) {
 // job tokens, so offering graphql there would let the wizard produce a config guaranteed to fail
 // at enrichment time.
 func hideAPIMode(platformType, tokenChoice string) bool {
-	return platformType != "gitlab" || tokenChoice == "CI_JOB_TOKEN"
+	return platformType != "gitlab" || tokenChoice == config.EnvGitLabJobToken
 }
 
 // matchPlatformSnapshot looks up the previously-configured platform of the given type that

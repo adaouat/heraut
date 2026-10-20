@@ -47,15 +47,15 @@ func CurrentBranch(runner port.Runner) (branch string, ok bool, err error) {
 	if branch != "" && branch != "HEAD" {
 		return branch, true, nil
 	}
-	if v := os.Getenv("CI_COMMIT_BRANCH"); v != "" {
+	if v := os.Getenv(config.EnvGitLabCommitBranch); v != "" {
 		return v, true, nil
 	}
-	if v := os.Getenv("GITHUB_REF_NAME"); v != "" && os.Getenv("GITHUB_REF_TYPE") == "branch" {
+	if v := os.Getenv(config.EnvGitHubRefName); v != "" && os.Getenv(config.EnvGitHubRefType) == "branch" {
 		return v, true, nil
 	}
 	// Azure's BUILD_SOURCEBRANCHNAME is only the ref's last path segment (release/1.3 → "1.3"),
 	// so read the full ref and accept branch refs only — a tag build carries refs/tags/….
-	if v, ok := strings.CutPrefix(os.Getenv("BUILD_SOURCEBRANCH"), "refs/heads/"); ok && v != "" {
+	if v, ok := strings.CutPrefix(os.Getenv(config.EnvAzureSourceBranch), "refs/heads/"); ok && v != "" {
 		return v, true, nil
 	}
 	return "", false, nil

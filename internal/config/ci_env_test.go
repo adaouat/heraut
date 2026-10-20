@@ -33,6 +33,7 @@ func TestForgeEnvNames(t *testing.T) {
 		{config.EnvAzureCollectionURI, "SYSTEM_COLLECTIONURI"},
 		{config.EnvAzureTeamProject, "SYSTEM_TEAMPROJECT"},
 		{config.EnvAzureRepositoryName, "BUILD_REPOSITORY_NAME"},
+		{config.EnvAzureSourceBranch, "BUILD_SOURCEBRANCH"},
 		{config.EnvAzureAccessToken, "SYSTEM_ACCESSTOKEN"},
 		{config.EnvAzureDevOpsToken, "AZURE_DEVOPS_TOKEN"},
 	}
@@ -43,11 +44,17 @@ func TestForgeEnvNames(t *testing.T) {
 
 // CIEnvVars is what tests clear to stop the ambient CI job from leaking into a resolution: every
 // forge name above must be in it, once.
+// HERAUT_FILE names the config file in CI; its value doubles as the label of the path source.
+func TestEnvConfigFile(t *testing.T) {
+	assert.Equal(t, "HERAUT_FILE", config.EnvConfigFile)
+	assert.Equal(t, config.PathSource(config.EnvConfigFile), config.SourceEnvVar)
+}
+
 func TestCIEnvVars_ListsEveryForgeNameOnce(t *testing.T) {
 	want := []string{
 		"GITHUB_ACTIONS", "GITHUB_SERVER_URL", "GITHUB_API_URL", "GITHUB_REPOSITORY", "GITHUB_REF_NAME", "GITHUB_REF_TYPE", "GITHUB_TOKEN", "GH_TOKEN",
 		"GITLAB_CI", "CI_SERVER_URL", "CI_API_V4_URL", "CI_PROJECT_PATH", "CI_PROJECT_URL", "CI_PROJECT_ID", "CI_COMMIT_BRANCH", "CI_JOB_TOKEN", "GITLAB_TOKEN",
-		"TF_BUILD", "SYSTEM_COLLECTIONURI", "SYSTEM_TEAMPROJECT", "BUILD_REPOSITORY_NAME", "SYSTEM_ACCESSTOKEN", "AZURE_DEVOPS_TOKEN",
+		"TF_BUILD", "SYSTEM_COLLECTIONURI", "SYSTEM_TEAMPROJECT", "BUILD_REPOSITORY_NAME", "BUILD_SOURCEBRANCH", "SYSTEM_ACCESSTOKEN", "AZURE_DEVOPS_TOKEN",
 	}
 	assert.ElementsMatch(t, want, config.CIEnvVars)
 }

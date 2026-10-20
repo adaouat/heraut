@@ -34,6 +34,7 @@ const (
 	EnvAzureCollectionURI  = "SYSTEM_COLLECTIONURI"
 	EnvAzureTeamProject    = "SYSTEM_TEAMPROJECT"
 	EnvAzureRepositoryName = "BUILD_REPOSITORY_NAME"
+	EnvAzureSourceBranch   = "BUILD_SOURCEBRANCH"
 	EnvAzureAccessToken    = "SYSTEM_ACCESSTOKEN"
 	EnvAzureDevOpsToken    = "AZURE_DEVOPS_TOKEN"
 )
@@ -43,5 +44,5 @@ const (
 var CIEnvVars = []string{
 	EnvGitHubActions, EnvGitHubServerURL, EnvGitHubAPIURL, EnvGitHubRepository, EnvGitHubRefName, EnvGitHubRefType, EnvGitHubToken, EnvGitHubCLIToken,
 	EnvGitLabCI, EnvGitLabServerURL, EnvGitLabAPIURL, EnvGitLabProjectPath, EnvGitLabProjectURL, EnvGitLabProjectID, EnvGitLabCommitBranch, EnvGitLabJobToken, EnvGitLabToken,
-	EnvAzureBuild, EnvAzureCollectionURI, EnvAzureTeamProject, EnvAzureRepositoryName, EnvAzureAccessToken, EnvAzureDevOpsToken,
+	EnvAzureBuild, EnvAzureCollectionURI, EnvAzureTeamProject, EnvAzureRepositoryName, EnvAzureSourceBranch, EnvAzureAccessToken, EnvAzureDevOpsToken,
 }

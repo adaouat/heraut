@@ -49,7 +49,7 @@ func runInit(cmd *cobra.Command, version string) error {
 	var path string
 	if cfgPath != "" {
 		path = cfgPath
-	} else if env := strings.TrimSpace(os.Getenv("HERAUT_FILE")); env != "" {
+	} else if env := strings.TrimSpace(os.Getenv(config.EnvConfigFile)); env != "" {
 		path = env
 	} else {
 		path = config.InitDest()

@@ -6,9 +6,12 @@ import forgeconfig "github.com/adaouat/forge/config"
 // forge's Resolver.Label output for app "heraut".
 type PathSource string
 
+// EnvConfigFile is the environment variable that points heraut at its config file.
+const EnvConfigFile = "HERAUT_FILE"
+
 const (
 	SourceFlag      PathSource = "--config"
-	SourceEnvVar    PathSource = "HERAUT_FILE"
+	SourceEnvVar    PathSource = EnvConfigFile
 	SourceXDGConfig PathSource = ".config/heraut.yml"
 	SourceDefault   PathSource = ".heraut.yml"
 )

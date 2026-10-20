@@ -34,7 +34,7 @@ criteria include "the same command still passes and coverage does not drop below
 
 | Phase | Theme | Tasks | Status |
 |---|---|---|---|
-| 76 | Brief follow-ups | T410–T412 | In progress (T410 done) |
+| 76 | Brief follow-ups | T410–T412 | In progress (T410–T411 done) |
 
 ---
 
@@ -66,7 +66,7 @@ only the exact `remote get-url origin` call, for the URL (trimmed) and the failu
 against the old code first and passed before and after, as a characterization test should. The exact-argument
 contract of the command is also asserted by `forge`'s own `origin_test.go`. No behavior change.
 
-#### `[ ]` T411: one owner for the CI and token environment variable names
+#### `[x]` T411: one owner for the CI and token environment variable names
 
 The names of the environment variables heraut reads from a CI job or for a token are spelled out in several
 packages: `internal/forge/detect.go` (`GITHUB_ACTIONS`, `GITLAB_CI`, `TF_BUILD`, `CI_SERVER_URL`,
@@ -83,6 +83,25 @@ variable `forge` reads, `GH_TOKEN` is what the `gh` CLI wants), and the task kee
 role, instead of merging them. Tests first: a table pinning every shared name, and `ClearCIEnv` derived
 from the same list so a new name cannot be added without being cleared in tests. Then replace each literal
 with the shared constant, one package per commit.
+
+**Completion note:** decisions (yours): the names live in `internal/config` (`forgeenv.go`), following T393, which put the
+three forges' default web URLs there, and the scope included the branch-detection variables and the repeated
+`HERAUT_FILE` literal. `config.Env*` constants name every GitHub Actions, GitLab CI and Azure Pipelines
+variable heraut reads plus the three token variables, and `config.CIEnvVars` lists them. Both token names per
+forge stay, named for their role: `EnvGitHubToken` (`GITHUB_TOKEN`, what Actions provides and `forge` reads)
+and `EnvGitHubCLIToken` (`GH_TOKEN`, what the `gh` CLI wants). `testutil` now imports `config` (row amended in
+`.claude/rules/coding.md`) and `ClearCIEnv` clears `config.CIEnvVars`. **Found on the way:** the old list did
+not clear `GITHUB_REF_NAME`, `GITHUB_REF_TYPE`, `GH_TOKEN`, `CI_PROJECT_URL`, `CI_PROJECT_ID`,
+`CI_COMMIT_BRANCH` or Azure's `BUILD_SOURCEBRANCH`, all of which production code reads, so a test run inside a
+CI job could pick them up; `TestClearCIEnv_ClearsEveryVariableProductionCodeReads` failed on exactly those
+before the change. `BUILD_SOURCEBRANCH` was missing from the inventory itself and was added test-first. Replaced
+the literals in `forge`, `pipeline/linkctx.go`, both platform drivers, `versioning/branch/rules.go`,
+`scaffold/decisions.go` and `cmd/init.go`; a grep for the names finds them only in `config`. `HERAUT_FILE` is
+`config.EnvConfigFile`, and `SourceEnvVar` (a path-source label) is defined from it. Tests: a table pinning
+every name, one asserting `CIEnvVars` lists each once, the `ClearCIEnv` test, and the whole existing suite
+unchanged. Not done: prose that names a variable in help text (for example the wizard's `CI_JOB_TOKEN`
+explanation) stays as written, and no test scans the source for stray literals (the testing rules keep tests
+off the source tree). Commits: one per package, with the last three batched.
 
 #### `[ ]` T412: split `runPlatformWizard` into steps
 
