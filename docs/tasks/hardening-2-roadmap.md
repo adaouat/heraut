@@ -35,12 +35,12 @@ criteria include "the same command still passes and coverage does not drop below
 |---|---|---|
 | 002 | SemVer parts | Reject leading zeros and signs in `BumpVersion`'s input |
 | 016 | Config error order | Deterministic: sort environment names before validating |
-| 013 | Security section | Whole word, case-insensitive; section order unchanged |
+| 013 | Security section | Drop the body heuristic; `security` becomes a built-in commit type, right after Bug Fixes ([ADR-0075](../adr/0075-security-is-a-built-in-commit-type.md)) |
 | 015 | Sprint bump | Edit only inside the top-level `versioning:` block; tolerate a trailing comment on its line |
 | 032 | `--set-version` | Validated per strategy: SemVer for `semver`/`semver-per-env`, the configured CalVer format for `calver`/`calver-per-env`. Reverses the strategy-agnostic override, so an ADR-0074 addendum |
 | 065 | Hook `stage` | `stage` with the changelog disabled (globally or for the env) is a config validation error. ADR-0061 addendum |
 | 052 | Default excludes | Excludes stay render-only. Warn when every releasable commit is excluded from the changelog. No bump change |
-| 039 | Asset globs | A glob matching nothing at publish time fails, unless the entry is marked optional. New ADR |
+| 039 | Asset globs | A glob matching nothing at publish time fails, unless the entry is marked optional. New ADR-0076 |
 
 Already settled and not reopened: RULE-003 (build metadata is ignored in ordering) and the SEC-009 repo
 confinement of asset globs (done in the first epic).
@@ -56,8 +56,8 @@ confinement of asset globs (done in the first epic).
 
 ### Phase 74 — Small corrections
 
-Goal: four fixes with no design question. Entry: baseline above recorded. No ADR; Spec 05 gets one note
-(T404) and nothing else changes in the docs.
+Goal: four small fixes. Entry: baseline above recorded. T402, T403 and T405 need no ADR; T404 turned out to
+need one (ADR-0075), written before its code.
 
 #### `[x]` T402: reject leading zeros and signs in SemVer parts (RULE-002)
 
@@ -92,14 +92,19 @@ environments that each carry an invalid `tag_pattern` and checks the error paths
 nothing more to fix: the loader, the forge and per-env validators, the template-snippet check, the `--env
 auto` match list and the scaffold's dropped-field list already sort.
 
-#### `[ ]` T404: match the Security fallback on whole words only (RULE-013)
+#### `[ ]` T404: make `security` a built-in commit type and drop the body heuristic (RULE-013)
 
-The fallback in `internal/generators/native/group.go` is `strings.Contains(raw.Body, "security")`: it
-matches "insecurity" and misses "Security". Only commits of unconfigured types reach it. Tests first:
-"security fix" and "Security fix" match, "insecurity" does not, and a configured `security` type still
-wins. A hyphenated "security-sensitive" is a word-boundary case: decide it in the task and name the choice
-in the test. Settle whether the subject counts, then document the
-rule in Spec 05 (`## Commit classification`), which is silent today. Section order is unchanged.
+Reframed after the discussion of 2026-10-20: the original plan (match "security" as a whole word) kept a
+hidden rule that reads prose. [ADR-0075](../adr/0075-security-is-a-built-in-commit-type.md) (ADR first)
+replaces it: `classify` stops reading the body, and `security` joins `defaultTypes()` as `🛡️ Security`,
+ordered right after Bug Fixes (feat 0, fix 1, security 2, refactor 3, docs 4, perf 5, style 6, test 7,
+chore and ci 8). Tests first: a `security:` and a `security(scope):` commit group under Security; a
+commit of an unconfigured type with "security" in its body now lands in Other; a user `security` entry
+replaces it and `remove: true` drops it; `commit verify` accepts `security:`; the wizard picker lists it.
+The existing rows change on purpose (the body-rule row now expects Other; the numeric orders after Bug
+Fixes move by one); none is deleted, and `TestGroupCommits_SecurityBodyOnlyForUnmatchedType` stays. Update
+Spec 02 (default types), Spec 05 (classification looks at the type only), the sample's type comment and
+`commit create`'s expectations. No `schema.json` change: `TypeRule` is unchanged.
 
 #### `[ ]` T405: confine `version sprint bump` to the versioning block (RULE-015)
 
@@ -152,7 +157,7 @@ does not warn; the warning appears in `--dry-run` and in the `--json` envelope.
 
 #### `[ ]` T409: fail when an asset glob matches nothing at publish time (RULE-039)
 
-New ADR-0075 first. Today `ResolveGlobsLenient` warns and publishes a release without its assets, so a
+New ADR-0076 first. Today `ResolveGlobsLenient` warns and publishes a release without its assets, so a
 typo ships silently. The pre-publish check (`CheckAssetGlobs`) keeps skipping zero matches because a hook
 may still build the files; the check at publish time, after the hooks ran, fails instead. The ADR decides
 how an entry is marked optional (a per-asset `optional: true` is the working proposal) and what the error

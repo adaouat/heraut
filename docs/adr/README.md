@@ -79,3 +79,4 @@ trade-offs were accepted.
 | [0072](0072-agent-skill.md) | A bundled agent skill — `heraut skill` | Accepted |
 | [0073](0073-set-version-always-probes-for-an-existing-tag.md) | `--set-version` always probes for an existing tag | Accepted |
 | [0074](0074-command-line-values-that-reach-tags-and-hooks.md) | Command-line values that reach tags and hooks are restricted | Accepted |
+| [0075](0075-security-is-a-built-in-commit-type.md) | `security` is a built-in commit type, and the body heuristic goes | Accepted |
