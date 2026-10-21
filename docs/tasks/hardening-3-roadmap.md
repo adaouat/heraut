@@ -1,6 +1,6 @@
 # Héraut — Hardening 3 Roadmap
 
-> Status: Not started (drafted 2026-10-20, awaiting approval)
+> Status: Complete (Phase 76 done)
 > Source: the three follow-ups left open by the modernization brief
 > (`analysis/heraut/MODERNIZATION_BRIEF.md`) after [`hardening-roadmap.md`](hardening-roadmap.md) and
 > [`hardening-2-roadmap.md`](hardening-2-roadmap.md). Main roadmap: tracked as Phase 76 in
@@ -34,7 +34,7 @@ criteria include "the same command still passes and coverage does not drop below
 
 | Phase | Theme | Tasks | Status |
 |---|---|---|---|
-| 76 | Brief follow-ups | T410–T412 | In progress (T410–T411 done) |
+| 76 | Brief follow-ups | T410–T412 | Done |
 
 ---
 
@@ -103,7 +103,7 @@ unchanged. Not done: prose that names a variable in help text (for example the w
 explanation) stays as written, and no test scans the source for stray literals (the testing rules keep tests
 off the source tree). Commits: one per package, with the last three batched.
 
-#### `[ ]` T412: split `runPlatformWizard` into steps
+#### `[x]` T412: split `runPlatformWizard` into steps
 
 `runPlatformWizard` in `internal/scaffold/wizard.go` is still about 160 lines of inline `huh` forms: the
 "add another platform" loop, the type select, the repository or project input, the token-env select, and the
@@ -117,6 +117,21 @@ set of decisions each step makes (extend `wizard_internal_test.go`), not the for
 loop of at most about 50 lines and no function over about 60, with the generated YAML unchanged for every
 wizard path the existing tests cover. If a step cannot be separated without reworking the `huh` layout, stop
 and say so rather than reshaping the wizard.
+
+**Completion note:** `runPlatformWizard` moved to a new `platform_wizard.go` and became a 21-line loop over
+`confirmAnotherPlatform`, `askPlatform` and, inside it, `askPlatformType`, `askPlatformLocation` and
+`askPlatformToken` (25, 13, 35 and 38 lines); `wizard.go` shrank from 455 to 291 lines and no function in the
+new file exceeds 40. The roadmap draft listed "draft and assets" questions among the forms; the function never
+asked them (`Draft` and `BaseURL` are carried through from the existing config), so there are four steps, not
+five. Pure choices went to `decisions.go`, test-first (`platform_steps_internal_test.go`, red on compile before
+the code): `applyPlatformSnapshot` (copies exactly the five carried fields), `prefillPlatformLocation`,
+`tokenSelectOptions` (known names then "custom"), `apiModeOrDefault`, and the two validators
+`requireGitHubRepository` and `requireTokenEnv`, whose messages are pinned. Behavior is identical, including
+two details a rewrite could lose: the "Add another platform?" confirm keeps its answer between iterations
+(`addPlatform` stays declared outside the loop and is passed by pointer), and an unknown platform type still
+asks no location question. The forms themselves have no test, as before (they need a terminal); the existing
+generate and wizard tests pass unchanged. The stop condition in the task (a step that cannot be separated
+without reworking the `huh` layout) did not trigger.
 
 **Phase 76 exit:** the baseline command passes, coverage ≥ 88.2%, lint clean.
 

@@ -259,3 +259,56 @@ func enrichmentPolicyOrDefault(current string) string {
 	}
 	return current
 }
+
+// applyPlatformSnapshot re-seeds the fields the wizard carries through from the platform this entry
+// was rebuilt from (T108). Type, project and repository are asked fresh, so they are not copied.
+func applyPlatformSnapshot(p *PlatformAnswer, orig PlatformAnswer) {
+	p.Name = orig.Name
+	p.BaseURL = orig.BaseURL
+	p.Draft = orig.Draft
+	p.TokenEnv = orig.TokenEnv
+	p.APIMode = orig.APIMode
+}
+
+// prefillPlatformLocation fills the repository (GitHub) or project (GitLab) with the detected
+// value when the entry has none yet.
+func prefillPlatformLocation(p *PlatformAnswer, detected string) {
+	switch p.Type {
+	case "github":
+		if p.Repository == "" {
+			p.Repository = detected
+		}
+	case "gitlab":
+		if p.Project == "" {
+			p.Project = detected
+		}
+	}
+}
+
+// tokenSelectOptions is the token env var choices offered for a platform: its known names, then
+// "custom".
+func tokenSelectOptions(platformType string) []string {
+	return append(platformTokenOptions(platformType), "custom")
+}
+
+// apiModeOrDefault is the API mode the form starts on: the existing one, else "rest".
+func apiModeOrDefault(mode string) string {
+	if mode == "" {
+		return "rest"
+	}
+	return mode
+}
+
+func requireGitHubRepository(s string) error {
+	if strings.TrimSpace(s) == "" {
+		return fmt.Errorf("repository is required for GitHub (e.g. org/repo)")
+	}
+	return nil
+}
+
+func requireTokenEnv(s string) error {
+	if strings.TrimSpace(s) == "" {
+		return fmt.Errorf("token env var is required")
+	}
+	return nil
+}
