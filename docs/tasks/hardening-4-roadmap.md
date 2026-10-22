@@ -89,12 +89,25 @@ The hook test for a bad build ID did not fail under the first mutation, because 
 also refuses `x$(id)` under `semver`; the shared rule is the only guard under `calver-per-env`, which the two
 `calver-per-env` rows pin.
 
-#### `[ ]` T415: the built-in `security` commit type (T404, ADR-0075)
+#### `[x]` T415: the built-in `security` commit type (T404, ADR-0075)
 
 Scenarios: `heraut commit verify` accepts `security: patch the token leak` and `security(auth): …`; a
 changelog generated over a `security:` commit has a `Security` section right after `Bug Fixes` and before
 `Refactor`; a commit of an unconfigured type with "security" in its body lands in `Other`; a repository that
 sets `commits.types: [{name: security, remove: true}]` rejects `security:` in `commit verify`.
+
+**Completion note:** `e2e/security_type_test.go` adds 6 rows plus an ordering test. Through `commit verify`: `security:`
+and `security(auth):` are accepted with exact output, and a repository with `commits.types: [{name: security,
+remove: true}]` refuses it with the usage exit code. Through `notes v1.1.0 --offline`: a scoped security commit
+gets its own `🛡️ Security` section; a commit of an unconfigured type whose body mentions "security" lands in
+`💼 Other`; with the type removed a security commit also falls to `Other`. `TestSecurityCommitType_SectionOrder`
+creates the commits in the order refactor, security, fix, feat and asserts the headings come out Features, Bug
+Fixes, Security, Refactor; it compares headings, not the whole text, so the template's blank-line spacing is
+not pinned. My first guesses for three expected outputs were wrong (the verify rows needed exact output and
+the markdown has two blank lines between sections), and I took them from the real output, not the other way
+round. Sensitivity, each reverted with `git checkout`: removing `security` from the default types fails the two
+verify rows, the scoped-section row and the ordering test; putting the old body heuristic back fails the body
+row.
 
 #### `[ ]` T416: the changelog write is atomic (T387)
 
