@@ -109,11 +109,18 @@ round. Sensitivity, each reverted with `git checkout`: removing `security` from 
 verify rows, the scoped-section row and the ordering test; putting the old body heuristic back fails the body
 row.
 
-#### `[ ]` T416: the changelog write is atomic (T387)
+#### `[x]` T416: the changelog write is atomic (T387)
 
 Scenario: a `CHANGELOG.md` that is writable inside a directory made read-only (mode `0555`) is refused with a
 Runtime exit code and a message, and the file's content is byte-identical afterwards; a normal run leaves no
 `.CHANGELOG.md.tmp-*` file behind. Skipped when the process can write anyway (running as root).
+
+**Completion note.** `e2e/changelog_atomic_test.go`: two subtests. A normal run leaves no temp file. For the
+refusal, the changelog sits in `docs/` (created up front, since heraut does not create the directory); after a
+first run the directory goes to `0555`, a second commit is added and `changelog --offline` exits Runtime (3)
+with `writing changelog`, the file byte-identical and no temp file. The row skips itself when a probe file can
+be created in the `0555` directory (root). Sensitivity: making `writeFileAtomic` write in place (`os.WriteFile`)
+fails the refusal row; reverted with `git checkout`.
 
 #### `[ ]` T417: `version sprint bump` stays inside the `versioning:` block (T405)
 

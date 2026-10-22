@@ -245,7 +245,7 @@ discipline that applies to every task.
 | 74 | Small corrections from the rule review | Done — T402–T405, see `hardening-2-roadmap.md` |
 | 75 | Behavior changes with a decision record | Done — T406–T409, see `hardening-2-roadmap.md` |
 | 76 | Brief follow-ups: origin lookup, CI env names, platform wizard | Done — T410–T412, see `hardening-3-roadmap.md` |
-| 77 | Built-binary (e2e) scenarios for the changed behavior | In progress — T413–T415 done of T413–T418, see `hardening-4-roadmap.md` |
+| 77 | Built-binary (e2e) scenarios for the changed behavior | In progress — T413–T416 done of T413–T418, see `hardening-4-roadmap.md` |
 
 ### Open items
 
