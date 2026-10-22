@@ -4,7 +4,7 @@ experimental = true
 
 [tools]
 actionlint = "latest"
-go = "1.27.2"
+go = "1.27.3"
 "go:golang.org/x/tools/gopls" = "latest"
 "go:golang.org/x/vuln/cmd/govulncheck" = "latest"
 golangci-lint = "2.14"
