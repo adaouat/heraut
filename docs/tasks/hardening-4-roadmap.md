@@ -65,12 +65,29 @@ as they should); the change was reverted with `git checkout`. The scenarios need
 binary, because `--set-version` does not read the clock. `release --dry-run` is not exercised: it needs a
 publish destination that has nothing to do with this rule.
 
-#### `[ ]` T414: command-line values that reach tags and hooks (T400, ADR-0074)
+#### `[x]` T414: command-line values that reach tags and hooks (T400, ADR-0074)
 
 Scenarios: `--set-build-id` accepts `158404`, `run.12-a_b` and rejects `x$(id)`, `a/b` and a value with a
 space (Config exit code, nothing tagged); `--env prod` under `semver` or `calver` is a Config error, while
 `--env auto` keeps its own message. Also a hook that echoes `{{ .Tag }}` proves a refused value never reaches
 a hook.
+
+**Completion note:** `e2e/command_line_values_test.go` adds three tests. `TestCommandLineValues_BuildID` has 11 rows
+through `version next --set-build-id`: under `semver` a run number and `run.12-a` pass and shell syntax, a
+slash, whitespace and an underscore are refused; under `calver-per-env` (a `uat/{version}+{build}` template) a
+run number and `build_1` pass and shell syntax, a slash and a semicolon are refused. Every refusal is the
+Config exit code (2) with the reason in the output. The underscore row documents a real difference: it passes
+the shared rule (ADR-0074) but the SemVer strategies are stricter, so it is refused there with the
+`--set-build-id` message and accepted under `calver-per-env`. `TestCommandLineValues_EnvNeedsAPerEnvStrategy`
+has 5 rows: `--env` is a Config error under `semver` and `calver` (also with `x$(id)`, and on `version
+current`), and without `--env` nothing changes. `TestCommandLineValues_ARefusedValueNeverReachesAHook` runs
+`changelog --tag` with a `post_bump` hook that would write `.hooklog`, for a bad build ID and for `--env`
+under `semver`, and checks the hook did not run, with no commit and no tag. Sensitivity, each reverted with
+`git checkout`: removing the character check in `tagfmt.ValidateBuildID` fails the three shell-syntax and
+semicolon rows; removing the `--env` check in `app.ResolveEnv` fails four env rows and the `--env` hook test.
+The hook test for a bad build ID did not fail under the first mutation, because the SemVer composition check
+also refuses `x$(id)` under `semver`; the shared rule is the only guard under `calver-per-env`, which the two
+`calver-per-env` rows pin.
 
 #### `[ ]` T415: the built-in `security` commit type (T404, ADR-0075)
 
