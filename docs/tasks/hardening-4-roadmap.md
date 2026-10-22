@@ -122,12 +122,18 @@ with `writing changelog`, the file byte-identical and no temp file. The row skip
 be created in the `0555` directory (root). Sensitivity: making `writeFileAtomic` write in place (`os.WriteFile`)
 fails the refusal row; reverted with `git checkout`.
 
-#### `[ ]` T417: `version sprint bump` stays inside the `versioning:` block (T405)
+#### `[x]` T417: `version sprint bump` stays inside the `versioning:` block (T405)
 
 Scenarios through `heraut version sprint bump`: the value changes with a trailing comment on the
 `versioning:` line and on the `sprint:` line (both kept); a missing key is inserted with the block's
 indentation; a `sprint:` line inside a hook script elsewhere in the file is untouched; an inline
 `versioning: {…}` is refused and the file is unchanged.
+
+**Completion note.** `e2e/sprint_bump_test.go`: four exact before/after rows (comments on the `versioning:` and
+`sprint:` lines kept; a missing key inserted with the block's 4-space indentation; a `sprint: 9` line in a
+hook script placed before the block untouched; a missing key inserted in the block, not beside that hook line)
+plus the inline mapping, refused with Config (2) and the file byte-identical. Sensitivity: a whole-file first
+`sprint:` match fails the two hook rows; reverted with `git checkout`.
 
 #### `[ ]` T418: re-run the asset gate against the real forges (Lane B, opt-in)
 
