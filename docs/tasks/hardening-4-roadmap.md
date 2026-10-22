@@ -1,6 +1,6 @@
 # Héraut — Hardening 4 Roadmap (e2e coverage)
 
-> Status: In progress (drafted 2026-10-22)
+> Status: Complete (drafted 2026-10-22; T418 not yet run on the sandboxes)
 > Source: the verification question of the refreshed modernization brief
 > (`analysis/heraut/MODERNIZATION_BRIEF.md` § 7), answered 2026-10-22: the built binary's scenarios
 > (`e2e/`, ADR-0066) should cover the behavior changed by [`hardening-roadmap.md`](hardening-roadmap.md) and
@@ -37,7 +37,7 @@ criteria include "the same command still passes".
 
 | Phase | Theme | Tasks | Status |
 |---|---|---|---|
-| 77 | Built-binary scenarios for the changed behavior | T413–T418 | In progress |
+| 77 | Built-binary scenarios for the changed behavior | T413–T418 | Complete (T418 written, not yet run) |
 
 ---
 
@@ -135,13 +135,20 @@ hook script placed before the block untouched; a missing key inserted in the blo
 plus the inline mapping, refused with Config (2) and the file byte-identical. Sensitivity: a whole-file first
 `sprint:` match fails the two hook rows; reverted with `git checkout`.
 
-#### `[ ]` T418: re-run the asset gate against the real forges (Lane B, opt-in)
+#### `[x]` T418: re-run the asset gate against the real forges (Lane B, opt-in)
 
 `//go:build e2e_forge`, run only on your word with the sandbox tokens (see the e2e epic's notes in
 `roadmap.md`). Scenarios: a pattern matching nothing is refused before anything reaches the remote (no tag, no
 release, no extra commit); `release.allow_missing_assets: true` publishes without the asset; matching files
 are attached, on GitHub and on GitLab. I write the scenarios; **you** decide when they run, because they
 create and delete refs on the private sandbox repositories.
+
+**Completion note.** `e2e/forge_assets_test.go` (`//go:build e2e_forge`), `TestForge_B7_AssetGate`, each subtest
+on GitHub and GitLab: a pattern matching nothing exits Runtime (3) and names the pattern, with no local commit,
+no local tag, no tag on the forge and no release; `release.allow_missing_assets: true` publishes with
+`AssetCount` 0; two matching files give `AssetCount` 2. **Written, compiled (`go vet -tags e2e_forge`) and
+confirmed to skip cleanly without sandbox variables; not run against the real forges**, as agreed: the run is
+the user's call.
 
 **Phase 77 exit:** `go test -count=1 ./...` passes with the new scenarios, each one confirmed to fail when the
 behavior it covers is broken (noted per task), and lint is clean.
