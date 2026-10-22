@@ -46,13 +46,24 @@ criteria include "the same command still passes".
 Goal: close the Lane A gaps the audit found, then (opt-in) re-run the asset gate against the real forges.
 Entry: baseline above recorded.
 
-#### `[ ]` T413: a canonical CalVer `--set-version` (T406, ADR-0074 addendum)
+#### `[x]` T413: a canonical CalVer `--set-version` (T406, ADR-0074 addendum)
 
 Under `calver` and `calver-per-env`, `--set-version` must parse under the format and equal its rendering.
 Scenarios through `version next --set-version` and `release --dry-run`: a canonical value passes and prints
 the tag (with and without a `tag_prefix`, and under `calver-per-env` with `--env`); `2026.5.3`, `2026.05.03`,
 `x$(id)` and `2026.05.3;id` are refused with the Config exit code (2) and name the format; a refused value
 leaves the repository untouched.
+
+**Completion note:** `e2e/calver_set_version_test.go` adds 13 rows through `version next --set-version`: six accepted
+values (canonical, PATCH zero, the configured prefix added, a value already carrying it, and under
+`calver-per-env` the env's `tag_format` with and without a leading `v`) and seven refusals, each with the
+Config exit code (2) and the format named in the output (`unpadded month` also names the canonical
+spelling). A second test runs `changelog --tag --set-version 2026.5.3` and checks no commit, no local or
+remote tag and no `CHANGELOG.md` were created. Sensitivity: with `validateCalverStrategyOverride` made to
+return nil, the seven refusal rows and the untouched-repo test fail (the six accepted rows pass either way,
+as they should); the change was reverted with `git checkout`. The scenarios needed no `heraut_testclock`
+binary, because `--set-version` does not read the clock. `release --dry-run` is not exercised: it needs a
+publish destination that has nothing to do with this rule.
 
 #### `[ ]` T414: command-line values that reach tags and hooks (T400, ADR-0074)
 
