@@ -17,11 +17,11 @@
 
 | Phase | Theme | Tasks | Status |
 |---|---|---|---|
-| 78 | Security follow-ups from the 2026-10-22 re-scan | T419–T420 | Not started |
+| 78 | Security follow-ups from the 2026-10-22 re-scan | T419–T420 | In progress |
 
 ### Phase 78 — Security follow-ups
 
-#### `[ ]` T419: the GitHub and Azure enrichment clients refuse a token-leaking redirect (NEW-001, CWE-523)
+#### `[x]` T419: the GitHub and Azure enrichment clients refuse a token-leaking redirect (NEW-001, CWE-523)
 
 `internal/forge/github/github.go:27` and `internal/forge/azure/azure.go:27` build an `http.Client` with no
 `CheckRedirect`, so an https request redirected to http on the same host keeps its `Authorization` header.
@@ -29,6 +29,16 @@ The GitLab clients already refuse it (`withTokenSafeRedirects`, `internal/forge/
 `internal/platforms/gitlab/client.go`). Reuse that rule: refuse a redirect whose scheme is not https
 (loopback excepted, for `httptest`) or whose host changes. Test first with an `httptest.Server` that
 redirects, for both clients, asserting the second request never carries the token.
+
+**Completion note.** `withTokenSafeRedirects` was added to `internal/forge/github/github.go` and
+`internal/forge/azure/azure.go`; `New` wraps the client (a caller-set `CheckRedirect` is kept). It deletes
+`Authorization` when the redirect changes host or drops https to http, and stops after 10 redirects, the same
+rule as the GitLab client. Deviation: the task said "refuse"; the GitLab client drops the header instead of
+failing the request, and I kept that so the three clients behave alike. The function is copied, not shared:
+the layer table lets `forge/*` import only `port` and `config`, and a shared helper would need a new package
+for 15 lines. Tests are `redirect_internal_test.go` in both packages (four URL rows plus the redirect limit),
+written first and red (a nil `CheckRedirect` panicked). Sensitivity: removing the https-to-http clause fails
+the downgrade row; restored.
 
 #### `[ ]` T420: `writeFileAtomic` keeps the existing file's mode (NEW-005, CWE-732)
 

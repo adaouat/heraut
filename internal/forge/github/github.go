@@ -26,7 +26,32 @@ func New(id port.ForgeIdentity, client *http.Client) *Forge {
 	if client == nil {
 		client = &http.Client{Timeout: 30 * time.Second}
 	}
-	return &Forge{id: id, client: client}
+	return &Forge{id: id, client: withTokenSafeRedirects(client)}
+}
+
+// maxRedirects mirrors net/http's default limit, which a custom CheckRedirect replaces.
+const maxRedirects = 10
+
+// withTokenSafeRedirects returns a copy of c whose redirects never carry the token away from the
+// origin it was sent to. net/http strips Authorization across hosts but keeps it on an https to
+// http downgrade of the same host, which would send the token in clear. A CheckRedirect the caller
+// set is kept. Same rule as the GitLab client.
+func withTokenSafeRedirects(c *http.Client) *http.Client {
+	if c.CheckRedirect != nil {
+		return c
+	}
+	safe := *c
+	safe.CheckRedirect = func(req *http.Request, via []*http.Request) error {
+		if len(via) >= maxRedirects {
+			return fmt.Errorf("stopped after %d redirects", maxRedirects)
+		}
+		first := via[0]
+		if req.URL.Host != first.URL.Host || (first.URL.Scheme == "https" && req.URL.Scheme != "https") {
+			req.Header.Del("Authorization")
+		}
+		return nil
+	}
+	return &safe
 }
 
 func (f *Forge) Type() string                 { return "github" }
