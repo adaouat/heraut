@@ -493,10 +493,14 @@ func (g *Generator) writeChangelog(body string) (string, error) {
 
 // writeFileAtomic replaces path with data through a temp file in the same directory and a rename,
 // so a crash or a full disk leaves the previous file whole instead of truncated. A symlinked path
-// is resolved first: the rename replaces the link's target, not the link.
+// is resolved first: the rename replaces the link's target, not the link. An existing file keeps its
+// own permission bits; perm applies only when the file is new.
 func writeFileAtomic(path string, data []byte, perm os.FileMode) error {
 	if resolved, err := filepath.EvalSymlinks(path); err == nil {
 		path = resolved
+	}
+	if info, err := os.Stat(path); err == nil {
+		perm = info.Mode().Perm()
 	}
 	tmp, err := os.CreateTemp(filepath.Dir(path), "."+filepath.Base(path)+".tmp-*")
 	if err != nil {

@@ -44,6 +44,23 @@ func TestChangelogWrite_IsAtomic(t *testing.T) {
 		assert.Empty(t, leftoverTempFiles(t, filepath.Join(repo.Dir, "docs")))
 	})
 
+	t.Run("a stricter mode on the changelog survives the rewrite", func(t *testing.T) {
+		repo := flowRepo(t, nestedChangelogCfg)
+		require.NoError(t, os.MkdirAll(filepath.Join(repo.Dir, "docs"), 0o755))
+		repo.Commit("feat: one")
+		runOK(t, repo, bin, "changelog", "--offline")
+		changelog := filepath.Join(repo.Dir, "docs", "CHANGELOG.md")
+		require.NoError(t, os.Chmod(changelog, 0o600))
+		repo.Commit("feat: two")
+
+		runOK(t, repo, bin, "changelog", "--offline")
+
+		info, err := os.Stat(changelog)
+		require.NoError(t, err)
+		assert.Equal(t, os.FileMode(0o600), info.Mode().Perm())
+		assert.Contains(t, repo.ReadFile("docs/CHANGELOG.md"), "Two", "the file was rewritten")
+	})
+
 	t.Run("a read-only directory is refused and the file is untouched", func(t *testing.T) {
 		repo := flowRepo(t, nestedChangelogCfg)
 		require.NoError(t, os.MkdirAll(filepath.Join(repo.Dir, "docs"), 0o755))

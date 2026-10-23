@@ -1,6 +1,6 @@
 # Héraut — Hardening 5 Roadmap (security follow-ups)
 
-> Status: Not started (drafted 2026-10-23)
+> Status: Complete (drafted 2026-10-23)
 > Source: the security re-scan of 2026-10-22 (`analysis/heraut/SECURITY_FINDINGS.md`, candidates NEW-001 and
 > NEW-005), scheduled by the user on 2026-10-23. Main roadmap: tracked as Phase 78 in [`roadmap.md`](roadmap.md).
 
@@ -17,7 +17,7 @@
 
 | Phase | Theme | Tasks | Status |
 |---|---|---|---|
-| 78 | Security follow-ups from the 2026-10-22 re-scan | T419–T420 | In progress |
+| 78 | Security follow-ups from the 2026-10-22 re-scan | T419–T420 | Complete |
 
 ### Phase 78 — Security follow-ups
 
@@ -40,12 +40,19 @@ for 15 lines. Tests are `redirect_internal_test.go` in both packages (four URL r
 written first and red (a nil `CheckRedirect` panicked). Sensitivity: removing the https-to-http clause fails
 the downgrade row; restored.
 
-#### `[ ]` T420: `writeFileAtomic` keeps the existing file's mode (NEW-005, CWE-732)
+#### `[x]` T420: `writeFileAtomic` keeps the existing file's mode (NEW-005, CWE-732)
 
 `internal/generators/native/generator.go:496` forces `0644` on the replaced changelog, so a stricter mode
 (for example `0600`) is lost at the next write. `os.Stat` the target first and reuse its mode; `0644` only
 for a new file. Test first: an existing `0600` changelog keeps `0600` after a write; a new file gets `0644`;
 a symlinked path keeps the target's mode. Add one e2e row next to `TestChangelogWrite_IsAtomic`.
+
+**Completion note.** `writeFileAtomic` stats the resolved path first and reuses its permission bits; the
+`0644` argument now applies only to a new file. Unit tests `TestWriteChangelog_KeepsTheModeOfAnExistingFile`
+and `..._OfASymlinkTarget` were written first and red; the new-file `0644` test stays. One e2e subtest in
+`TestChangelogWrite_IsAtomic` chmods the changelog to `0600` between two runs of the built binary. Sensitivity:
+stashing the production change fails all three; restored. Deferred: the group and owner of an existing file
+are not preserved (a rename creates the file as the current user), which the finding did not ask for.
 
 **Phase 78 exit:** `go test -count=1 ./...` passes, each task confirmed to fail when its fix is reverted, and
 lint is clean.

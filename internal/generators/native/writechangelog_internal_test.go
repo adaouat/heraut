@@ -101,6 +101,40 @@ func TestWriteChangelog_FollowsASymlinkedChangelog(t *testing.T) {
 	assert.Equal(t, "new\n", string(b))
 }
 
+func TestWriteChangelog_KeepsTheModeOfAnExistingFile(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("file modes are not enforced on windows")
+	}
+	dir := t.TempDir()
+	out := filepath.Join(dir, "CHANGELOG.md")
+	require.NoError(t, os.WriteFile(out, []byte("old\n"), 0o600))
+
+	_, err := newWriter(out).writeChangelog("new\n")
+	require.NoError(t, err)
+
+	info, err := os.Stat(out)
+	require.NoError(t, err)
+	assert.Equal(t, os.FileMode(0o600), info.Mode().Perm(), "a stricter mode survives the rewrite")
+}
+
+func TestWriteChangelog_KeepsTheModeOfASymlinkTarget(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("symlinks need privileges on windows")
+	}
+	dir := t.TempDir()
+	target := filepath.Join(dir, "real.md")
+	link := filepath.Join(dir, "CHANGELOG.md")
+	require.NoError(t, os.WriteFile(target, []byte("old\n"), 0o600))
+	require.NoError(t, os.Symlink("real.md", link))
+
+	_, err := newWriter(link).writeChangelog("new\n")
+	require.NoError(t, err)
+
+	info, err := os.Stat(target)
+	require.NoError(t, err)
+	assert.Equal(t, os.FileMode(0o600), info.Mode().Perm())
+}
+
 func TestWriteChangelog_NoOutputWritesNothing(t *testing.T) {
 	got, err := newWriter("").writeChangelog("body\n")
 	require.NoError(t, err)
