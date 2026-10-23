@@ -111,7 +111,7 @@ homebrew_casks:
     # Drop this hook once signing+notarization ships.
     hooks:
       post:
-        install: |-
-          if OS.mac?
-            system_command "/usr/bin/xattr", args: ["-dr", "com.apple.quarantine", "#{staged_path}/heraut"]
+        install_steps: |-
+          on_macos do
+            run "/usr/bin/xattr", args: ["-dr", "com.apple.quarantine", "{{ .StagedPath }}/heraut"]
           end
