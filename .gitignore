@@ -19,6 +19,7 @@
 # codegraph MCP local index
 /.codegraph/
 
-# code-modernization scratch (local pointer to the repo root, git worktrees)
+# code-modernization scratch (results live in docs/audit/; local pointer to the repo root, git worktrees)
+/analysis/
 /legacy/
 /.claude/worktrees/
