@@ -519,10 +519,10 @@ exit 1
 	require.NoError(t, err)
 	assert.Equal(t, "2026.05.3\n", out)
 
-	for _, bad := range []string{"x$(id)", "2026.5.3"} {
+	for bad, want := range map[string]string{"x$(id)": "only letters, digits", "2026.5.3": "YYYY.MM.PATCH"} {
 		_, err := executeRoot("version", "next", "--config", cfgPath, "--set-version", bad)
 		require.Error(t, err, bad)
-		assert.Contains(t, err.Error(), "YYYY.MM.PATCH")
+		assert.Contains(t, err.Error(), want)
 		assert.Equal(t, exitcode.Config, exitcode.Resolve(err), bad)
 	}
 }
