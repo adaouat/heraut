@@ -19,7 +19,7 @@
 
 | Phase | Theme | Tasks | Status |
 |---|---|---|---|
-| 79 | Remaining security findings (NEW-003, NEW-004) | T421–T422 | In progress (T421 done) |
+| 79 | Remaining security findings (NEW-003, NEW-004) | T421–T422 | Complete |
 
 ### Phase 79 — Remaining security findings
 
@@ -34,7 +34,7 @@ the Config exit code, and one e2e row.
 
 **Done.** `ValidateVersionOverride` now refuses anything outside `[0-9A-Za-z._+/-]`; it still runs first, in `cmd`, ahead of the per-strategy checks, so a shell-syntax value now gets the allowlist message ("only letters, digits…") instead of the CalVer format message. The three CalVer e2e rows that used `x$(id)` / `;id` keep their exit-2 assertion and only changed the expected text; a new `e2e/set_version_charset_test.go` covers the semver path. The `+` stays in the set for the full-tag/CalVer paths, but the SemVer strategies still reject build metadata (hint to use `--set-build-id`). Sensitivity: reverting the production change fails 3 e2e rows and 14 unit rows. Spec 03 updated. No ordering check was added (out of scope).
 
-#### `[ ]` T422: an asset file name containing `#` is refused (NEW-004, CWE-73; ADR-0076 addendum)
+#### `[x]` T422: an asset file name containing `#` is refused (NEW-004, CWE-73; ADR-0076 addendum)
 
 `gh release create` reads `path#label` as a display-label separator, so a file whose path contains `#`
 changes the asset's label or is not found (`internal/platforms/github/platform.go:186`). The GitLab driver is
@@ -42,6 +42,8 @@ unaffected. Refuse such a path with a message that names it, in the asset gate (
 before anything is committed or pushed, for the GitHub target only. ADR-0076 gets an addendum. Tests: the
 gate refuses `dist/app#1.txt` for a GitHub target and accepts it for a GitLab target; one e2e row through
 `release`.
+
+**Done.** ADR-0076 addendum written first. The rule lives in the GitHub driver's `CheckAssets` (after the shared `CheckAssetGlobs`), not in the shared helper, so GitLab is untouched; it checks the matched paths, so a `#` in a directory name is caught too. Failure is Runtime, before any commit or tag. Tests: GitHub unit (refused/accepted, `gh` never invoked), GitLab unit (accepted), one `release` e2e subtest; reverting the production change fails the e2e subtest and the unit test. Spec 05 updated. Publish-time resolution is unchanged (the gate always runs first).
 
 **Phase 79 exit:** `go test -count=1 ./...` passes, each task confirmed to fail when its fix is reverted, and
 lint is clean.

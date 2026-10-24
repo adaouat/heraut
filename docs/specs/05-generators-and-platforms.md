@@ -528,7 +528,7 @@ already exist (heraut tags and pushes before publishing).
 both resolve in two steps. Before anything is committed or pushed, right after the `post_bump`
 hooks, each glob is expanded against the working directory and a pattern matching no file aborts the
 run ([ADR-0076](../adr/0076-a-release-asset-pattern-must-match-a-file.md); `release.allow_missing_assets: true`
-turns that off, and a dry run only warns). At publish time resolution stays **lenient**: a pattern
+turns that off, and a dry run only warns). The same gate refuses, for a GitHub target only, a matched file whose path contains `#`, which `gh` would read as a `path#label` separator (ADR-0076 addendum). At publish time resolution stays **lenient**: a pattern
 matching nothing emits a warning and is skipped rather than failing the release — by then the tag has
 already been created and pushed, so a strict failure here would leave the repository in a
 partially-completed state (tag exists, no platform release). On GitHub the

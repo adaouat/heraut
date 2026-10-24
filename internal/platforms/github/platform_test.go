@@ -510,3 +510,18 @@ func TestCheckAssets_UnmatchedPatternIsRefusedUnlessAllowed(t *testing.T) {
 	assert.NoError(t, github.New(mr, &config.Platform{Assets: []string{"dist/*"}, AllowMissingAssets: true}).CheckAssets())
 	assert.Empty(t, mr.Calls)
 }
+
+// ADR-0076 addendum: gh reads path#label as a display label, so a matched path containing "#" is refused.
+func TestCheckAssets_PathWithLabelSeparatorIsRefused(t *testing.T) {
+	t.Chdir(t.TempDir())
+	require.NoError(t, os.MkdirAll("dist", 0o755))
+	require.NoError(t, os.WriteFile(filepath.Join("dist", "app#1.txt"), []byte("x"), 0o644))
+	require.NoError(t, os.WriteFile(filepath.Join("dist", "ok.txt"), []byte("x"), 0o644))
+	mr := exectest.NewMockRunner()
+
+	err := github.New(mr, &config.Platform{Assets: []string{"dist/*"}}).CheckAssets()
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "dist/app#1.txt")
+	assert.NoError(t, github.New(mr, &config.Platform{Assets: []string{"dist/ok.txt"}}).CheckAssets())
+	assert.Empty(t, mr.Calls)
+}

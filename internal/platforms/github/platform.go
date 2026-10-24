@@ -192,9 +192,21 @@ func (p *Platform) CreateRelease(tag, notes string, prerelease bool) error {
 func (p *Platform) HasAssets() bool { return len(p.cfg.Assets) > 0 }
 
 // CheckAssets applies the asset rules (confinement to the repository, and every pattern matching a
-// file unless release.allow_missing_assets is set) ahead of publishing.
+// file unless release.allow_missing_assets is set, and no path containing gh's "#label" separator) ahead of publishing.
 func (p *Platform) CheckAssets() error {
-	return platforms.CheckAssetGlobs(p.cfg.Assets, p.cfg.AllowMissingAssets)
+	if err := platforms.CheckAssetGlobs(p.cfg.Assets, p.cfg.AllowMissingAssets); err != nil {
+		return err
+	}
+	files, err := platforms.ResolveGlobsLenient(p.cfg.Assets, func(string) {})
+	if err != nil {
+		return err
+	}
+	for _, f := range files {
+		if strings.Contains(f, "#") {
+			return fmt.Errorf("asset %q contains '#', which gh reads as a label separator: rename the file (ADR-0076)", f)
+		}
+	}
+	return nil
 }
 
 func (p *Platform) repository() string {

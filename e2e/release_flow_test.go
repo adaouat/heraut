@@ -166,6 +166,22 @@ func TestRelease_AssetsAreAttachedAndAZeroMatchIsRefusedUnlessAllowed(t *testing
 			assert.NotContains(t, call, "[release] [create]", "only the read-only preflight may have reached gh")
 		}
 	})
+	t.Run("a file name with a # is refused before anything is committed or pushed", func(t *testing.T) {
+		repo := releaseRepo(t, cfg)
+		repo.WriteFile("dist/app#1.txt", "a\n")
+		before := repoState(t, repo)
+
+		res := repo.Run(bin, tokens, "release", "--offline")
+
+		require.Equal(t, exitRuntime, res.ExitCode, "stdout:\n%s\nstderr:\n%s", res.Stdout, res.Stderr)
+		out := normalize(res.Stdout + " " + res.Stderr)
+		assert.Contains(t, out, "dist/app#1.txt")
+		assert.Contains(t, out, "label separator")
+		assert.Equal(t, before, repoState(t, repo), "no changelog commit, no tag")
+		for _, call := range repo.CLICalls() {
+			assert.NotContains(t, call, "[release] [create]")
+		}
+	})
 	t.Run("a dry run only warns", func(t *testing.T) {
 		repo := releaseRepo(t, cfg)
 

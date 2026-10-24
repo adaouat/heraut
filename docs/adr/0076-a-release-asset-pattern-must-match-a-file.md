@@ -64,3 +64,16 @@ build the files.
   override would need both. It can be added later without undoing this decision.
 - **Re-check at publish time for patterns marked late-built.** Rejected as more machinery than the
   problem needs; the boolean already says "I know these may be missing".
+
+## Addendum (2026-10-24): a GitHub asset path may not contain `#`
+
+`gh release create <tag> <file>…` reads `path#label` as a file plus a display label, so a file whose path
+contains `#` is split at the `#`: the asset is published under a different label, or the truncated path is
+not found. The GitLab driver passes the path to a REST upload and is unaffected.
+
+1. **The GitHub asset gate refuses a matched file whose path contains `#`.** It fails in `CheckAssets`, the
+   same place as the other asset refusals, so it surfaces before anything is committed or pushed, with the
+   Runtime exit code, and the message names the path.
+2. **GitLab targets are unchanged.** The rule belongs to the GitHub driver, not to the shared glob helper.
+3. **Not an escape mechanism.** `gh` has no way to quote the separator, so refusing is the only safe answer;
+   rename the file in the build step.

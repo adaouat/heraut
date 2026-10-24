@@ -683,3 +683,12 @@ func TestCheckAssets_UnmatchedPatternIsRefusedUnlessAllowed(t *testing.T) {
 
 	assert.NoError(t, gitlab.New(&config.Platform{Assets: []string{"dist/*"}, AllowMissingAssets: true}).CheckAssets())
 }
+
+// ADR-0076 addendum: the "#" rule is GitHub's (gh label syntax); GitLab uploads over REST.
+func TestCheckAssets_PathWithHashIsAccepted(t *testing.T) {
+	t.Chdir(t.TempDir())
+	require.NoError(t, os.MkdirAll("dist", 0o755))
+	require.NoError(t, os.WriteFile(filepath.Join("dist", "app#1.txt"), []byte("x"), 0o644))
+
+	assert.NoError(t, gitlab.New(&config.Platform{Assets: []string{"dist/*"}}).CheckAssets())
+}
