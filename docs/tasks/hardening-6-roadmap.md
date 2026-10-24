@@ -2,8 +2,10 @@
 
 > Status: Not started (drafted 2026-10-24)
 > Source: the Info findings NEW-003 and NEW-004 of the security re-scan (`analysis/heraut/SECURITY_FINDINGS.md`),
-> scheduled by the user on 2026-10-24. NEW-002 (symlink swap between the glob check and the read) is **not**
-> scheduled. Main roadmap: tracked as Phase 79 in [`roadmap.md`](roadmap.md).
+> scheduled by the user on 2026-10-24. NEW-002 (symlink swap between the glob check and the read) is **deferred
+> by decision** (2026-10-24) until the `gh` dependency is removed for GitHub publishing, as `glab` was for GitLab
+> (ADR-0069): with a client in-process the file can be opened once and read from the descriptor, which `gh`'s
+> path argument does not allow. Main roadmap: tracked as Phase 79 in [`roadmap.md`](roadmap.md).
 
 ## Conventions
 

@@ -70,4 +70,19 @@ design; it stops being so for CalVer.
    Config error naming the format. The SemVer strategies are unchanged, and there is no "full tag"
    mode: the value is a version, and the tag is rendered from it as before.
 
+## Addendum (2026-10-24): a character allowlist on `--set-version`
+
+The security re-scan (NEW-003) noted that `tagfmt.ValidateVersionOverride`, the check every strategy
+shares, rejects only an empty value and whitespace. Shell safety of `--set-version` rests on the two
+per-strategy checks (SemVer, ADR-0064; CalVer, addendum above). No bypass exists today, but a strategy
+added later that skipped both would let `$(…)` reach a tag and the hook variables, which is the exact
+class this ADR closes for `--set-build-id` and `--env`.
+
+8. **`--set-version` may contain only `[0-9A-Za-z._+/-]`.** The shared check refuses any other
+   character with a Config error that names the value and the allowed set. `/` stays because a value
+   may carry a full tag wrapping, and `+` because a SemVer value may carry build metadata. Every value
+   the SemVer and CalVer checks accept today is inside this set, so no valid invocation changes.
+9. **It is a floor, not a replacement.** The per-strategy checks still run and still decide shape; the
+   allowlist only guarantees that whatever a strategy accepts is shell-inert.
+
 The earlier decisions above are unchanged.
