@@ -1,5 +1,170 @@
 # Changelog
 
+<!-- heraut-release: v0.81.0 -->
+## [0.81.0](https://github.com/adaouat/heraut/compare/v0.80.0..v0.81.0) - 2026-10-24
+
+### 🚀 Features
+
+- *(generators/native)* File security commits by type, not by body - ([baa0ddb](https://github.com/adaouat/heraut/commit/baa0ddb29692115734c4ae0de9c759e8370466c4)) by @bchatard
+
+- *(versioning/semver)* Warn when a release has an empty changelog - ([4e6b35e](https://github.com/adaouat/heraut/commit/4e6b35ea850442050c0d77f0b0893e9bccd86886)) by @bchatard
+
+
+### 🐛 Bug Fixes
+
+- *(app)* Probe for an existing tag on every --set-version run - ([0cc3676](https://github.com/adaouat/heraut/commit/0cc3676171e9e86616119a76a10825acbd2d2726)) by @bchatard
+
+- *(app)* Restrict build IDs and --env, which reach tags and hooks - ([d27a332](https://github.com/adaouat/heraut/commit/d27a332d45391ff2f4085c5b3c17142e6d66a735)) by @bchatard
+
+- *(app)* Require a canonical CalVer --set-version - ([7bc1bab](https://github.com/adaouat/heraut/commit/7bc1bab4f5bddc547eac758d48775b888340abde)) by @bchatard
+
+- *(cmd)* Stop ignoring flag-read errors in the command constructors - ([28134f4](https://github.com/adaouat/heraut/commit/28134f4ecf0a72ae234323af31568cb478c69692)) by @bchatard
+
+- *(config)* Refuse plain http for hosts that receive a forge token - ([1868679](https://github.com/adaouat/heraut/commit/1868679cff8b7387d8a6d014662a75eb2c48e2e1)) by @bchatard
+
+- *(config)* Validate environments in name order - ([64ebf6b](https://github.com/adaouat/heraut/commit/64ebf6b0980775eda129119ba757e0ac93570209)) by @bchatard
+
+- *(config)* Keep sprint bump inside the versioning block - ([c36d226](https://github.com/adaouat/heraut/commit/c36d2263c6f0cabeb867ea2b43b6ae290a9e5dc1)) by @bchatard
+
+- *(config)* Reject hook stage when no changelog commit can happen - ([5b8b1b4](https://github.com/adaouat/heraut/commit/5b8b1b4831b649d16fd2a78e396b7bd3c97f2de9)) by @bchatard
+
+- *(forge)* Github and azure clients drop the token on a downgrade - ([c8d76a7](https://github.com/adaouat/heraut/commit/c8d76a70d684c612422056114b7c3f6abccb739b)) by @bchatard
+
+- *(forge/gitlab)* Keep the token off cross-host redirects - ([f826273](https://github.com/adaouat/heraut/commit/f826273ce1e40458a87e0cb2675014b7568766b1)) by @bchatard
+
+- *(generators/native)* Write the changelog atomically - ([d42b755](https://github.com/adaouat/heraut/commit/d42b755a2d94ff6ad25e04237f8db7558e7afec3)) by @bchatard
+
+- *(generators/native)* A rewritten changelog keeps its file mode - ([150d8da](https://github.com/adaouat/heraut/commit/150d8da54e706f5e31aef5f37d84a2bf3d20a8dc)) by @bchatard
+
+- *(pipeline)* Check release assets before anything is pushed - ([905ad40](https://github.com/adaouat/heraut/commit/905ad40f2d4573625d7002bfdc6fdd9344d992d1)) by @bchatard
+
+- *(platforms)* Refuse release assets that resolve outside the repo - ([5651dd1](https://github.com/adaouat/heraut/commit/5651dd101889446102dd67154bfaf1b0f0fd7d9f)) by @bchatard
+
+- *(platforms)* Refuse an asset pattern that matches no file - ([b4b8cb0](https://github.com/adaouat/heraut/commit/b4b8cb0372f6d474718979c24505fcd0f161c7c4)) by @bchatard
+
+- *(platforms/github)* Refuse an asset path containing '#' - ([45ddc9a](https://github.com/adaouat/heraut/commit/45ddc9adf2e99e07f333285711eba85a80fef09f)) by @bchatard
+
+- *(platforms/gitlab)* Keep the token off cross-host redirects - ([ba4b684](https://github.com/adaouat/heraut/commit/ba4b6843367c177373c4a6190f515fca80586e01)) by @bchatard
+
+- *(versioning/calver)* Base the next version on the highest parsed tag - ([4026853](https://github.com/adaouat/heraut/commit/4026853b420b9bc777b8cff1acede730fdc2d9c1)) by @bchatard
+
+- *(versioning/calver)* Derive calendar fields from the UTC instant - ([24dc222](https://github.com/adaouat/heraut/commit/24dc222ae2c1bd206f0f573547588e61824d62d4)) by @bchatard
+
+- *(versioning/perenv)* Report only a destination tag that is a version - ([b28ce7b](https://github.com/adaouat/heraut/commit/b28ce7bee82bd84092f9a3461e2fb31ee6abca13)) by @bchatard
+
+- *(versioning/perenv)* Order calver-per-env tags by calendar value - ([b62ed9f](https://github.com/adaouat/heraut/commit/b62ed9f7f324a9ef790c9babd0017b2cdf582b8e)) by @bchatard
+
+- *(versioning/semver)* Reject leading zeros and signs in versions - ([f03c911](https://github.com/adaouat/heraut/commit/f03c911cbe89fdde212577a1e8007f17441b8a6f)) by @bchatard
+
+- *(versioning/tagfmt)* --set-version accepts only [0-9A-Za-z._+/-] - ([04767e7](https://github.com/adaouat/heraut/commit/04767e7e264c2c0a4e65f76b7019f897f8cca960)) by @bchatard
+
+
+### 🚜 Refactor
+
+- *(app)* Move branch rules and the origin lookup to their owners - ([2c52d2e](https://github.com/adaouat/heraut/commit/2c52d2ef4605208c0f00890d3ada240dd512d8e6)) by @bchatard
+
+- *(config)* Split the validator by concern - ([4cd30e9](https://github.com/adaouat/heraut/commit/4cd30e9601ac1ea2207523e7b94195cdb870f25f)) by @bchatard
+
+- *(config)* Define the forge host URLs once - ([d21013e](https://github.com/adaouat/heraut/commit/d21013e679ca8d2703f8eea387f393637275edae)) by @bchatard
+
+- *(config)* Define the CI and token env var names once - ([77fe08e](https://github.com/adaouat/heraut/commit/77fe08e400d228c170bfbdc4735526bb9fa0f351)) by @bchatard
+
+- *(forge)* Use the shared CI and token env var names - ([d9f581f](https://github.com/adaouat/heraut/commit/d9f581feaa7949c026733967a7258ccf297f7517)) by @bchatard
+
+- *(pipeline)* Describe each release step once - ([1ad6f7b](https://github.com/adaouat/heraut/commit/1ad6f7bc4f4dc227e61451483d2c9f6f488d4ccf)) by @bchatard
+
+- *(pipeline)* Drive heraut changelog from the same step list - ([db67dfd](https://github.com/adaouat/heraut/commit/db67dfdedb3851447659495927c39d220c03828d)) by @bchatard
+
+- *(pipeline)* Use the shared CI env var names - ([f52c377](https://github.com/adaouat/heraut/commit/f52c3778d606e1e6d3225437dae4597fc5cf046c)) by @bchatard
+
+- *(platforms)* Use the shared CI and token env var names - ([0373b37](https://github.com/adaouat/heraut/commit/0373b37d66414f8d0a0fd1a68b119c0c76cf8147)) by @bchatard
+
+- *(scaffold)* Separate the wizard's decisions from its forms - ([124727a](https://github.com/adaouat/heraut/commit/124727a8802314bac3da6c84a6f27bb9fb893d5f)) by @bchatard
+
+- *(scaffold)* Read the git origin through forge.GitOriginURL - ([03f60b7](https://github.com/adaouat/heraut/commit/03f60b7eb7fbbd08c076da4164484bf18905366e)) by @bchatard
+
+- *(scaffold)* Split the platform wizard into steps - ([a40ae7b](https://github.com/adaouat/heraut/commit/a40ae7babfbdf6d2f4165097b834f86fecd74873)) by @bchatard
+
+- Use the shared env var names in branch rules, scaffold, init - ([72b791f](https://github.com/adaouat/heraut/commit/72b791f6d94b87da3cc9d5c35e6201ec9d05f43e)) by @bchatard
+
+
+### 📚 Documentation
+
+- *(adr)* Add 0075 security as a built-in commit type - ([04edac5](https://github.com/adaouat/heraut/commit/04edac56059894f935b7cfede5025ff0d75d5628)) by @bchatard
+
+- *(adr)* Extend 0074 to --set-version under CalVer - ([32bd927](https://github.com/adaouat/heraut/commit/32bd9270e12f6c20880f980566cf8e36a128219a)) by @bchatard
+
+- *(adr)* Extend 0061 to stage with no changelog commit - ([90452b0](https://github.com/adaouat/heraut/commit/90452b0eb02cc2cd625ad9082ae1a5d507093351)) by @bchatard
+
+- *(adr)* Add 0076 a release asset pattern must match a file - ([ce25921](https://github.com/adaouat/heraut/commit/ce25921ca6d92f8b965bacde2bf9fa0b0ebb3c0c)) by @bchatard
+
+- *(adr)* 0074 addendum, --set-version character allowlist - ([9b737ca](https://github.com/adaouat/heraut/commit/9b737caf22f1fa5eebbd7525a1767df7abca2137)) by @bchatard
+
+- *(audit)* Keep the modernization findings and decisions - ([4088628](https://github.com/adaouat/heraut/commit/4088628016c591f97a1153da394098665cafb1e2)) by @bchatard
+
+- *(guides)* Add a failure-recovery guide for a part-way release - ([b66c782](https://github.com/adaouat/heraut/commit/b66c78249263a88fe42463bf464246484432d9c8)) by @bchatard
+
+- *(hooks)* State the unquoted-variable contract and the trust boundary - ([0db53b1](https://github.com/adaouat/heraut/commit/0db53b1b549b1b5387cba816883dc546dc61ad7d)) by @bchatard
+
+- *(roadmap)* Add the hardening and refactor epic (Phases 70-73) - ([ee5633f](https://github.com/adaouat/heraut/commit/ee5633f0b2065aadd010a178db3182f8016ece78)) by @bchatard
+
+- *(roadmap)* Draft hardening-2 from the rule review (T402-T409) - ([6d13770](https://github.com/adaouat/heraut/commit/6d1377060c0c2ab534839e1a9e066813ca37f156)) by @bchatard
+
+- *(roadmap)* Draft hardening-3 for the brief follow-ups (T410-T412) - ([537f07f](https://github.com/adaouat/heraut/commit/537f07fd16efcc3e1326f3bd0ea91c2be878911a)) by @bchatard
+
+- *(roadmap)* Draft hardening-4 for e2e coverage (T413-T418) - ([dd22524](https://github.com/adaouat/heraut/commit/dd22524ce6e3721275db656f596d01540b5b0d72)) by @bchatard
+
+- *(roadmap)* Draft hardening-5 for the security follow-ups (T419-T420) - ([556b896](https://github.com/adaouat/heraut/commit/556b8966a244501b55e6d1db499e89122412ea58)) by @bchatard
+
+- *(roadmap)* Draft hardening-6 for NEW-003 and NEW-004 (T421-T422) - ([592460f](https://github.com/adaouat/heraut/commit/592460f3cba62338feeb34020068a9931aebeea9)) by @bchatard
+
+- *(roadmap)* T418 ran green on both forge sandboxes - ([26553d7](https://github.com/adaouat/heraut/commit/26553d74a215716e3ef3af5f969e1990bee89a63)) by @bchatard
+
+- *(roadmap)* Note the e2e coverage of the pre_release skip - ([6744a43](https://github.com/adaouat/heraut/commit/6744a43cdbd280c6aaad3364c7185e2144f889df)) by @bchatard
+
+- *(rules)* Document the remote and the real layer imports - ([f98af21](https://github.com/adaouat/heraut/commit/f98af210b3ea279e6bfd41c4129eefa9b3bca459)) by @bchatard
+
+- *(specs)* State the CalVer UTC and highest-tag rules - ([8e285e5](https://github.com/adaouat/heraut/commit/8e285e58a88a38a2adc062a84db4a11536a24b26)) by @bchatard
+
+
+### 🧪 Testing
+
+- *(cmd)* Shell syntax in --set-version gets the allowlist message - ([c626ece](https://github.com/adaouat/heraut/commit/c626eced6b716eee3f4ac9aedd31c58132cf6006)) by @bchatard
+
+- *(e2e)* A CalVer --set-version must be canonical - ([df3ff8c](https://github.com/adaouat/heraut/commit/df3ff8cb76f5f8aa30819646d0e8b5eeb9236bee)) by @bchatard
+
+- *(e2e)* Command-line build IDs and --env are restricted - ([66e6013](https://github.com/adaouat/heraut/commit/66e6013b38747318683a459a6fbfc2ad1bfd4dd8)) by @bchatard
+
+- *(e2e)* The built-in security commit type - ([b268fb0](https://github.com/adaouat/heraut/commit/b268fb0a86e56862d388a15b080681f7762555c8)) by @bchatard
+
+- *(e2e)* The changelog write is atomic and refused read-only - ([08b2472](https://github.com/adaouat/heraut/commit/08b2472c5bb6a217906a915d140271b2901f4573)) by @bchatard
+
+- *(e2e)* Sprint bump stays inside the versioning block - ([bd309c2](https://github.com/adaouat/heraut/commit/bd309c2598f64efba07c943c2176a3f75443bedb)) by @bchatard
+
+- *(e2e)* The asset gate against the real forges (Lane B) - ([8ac15ba](https://github.com/adaouat/heraut/commit/8ac15bab00ae7e57b5a0d1dac8b7cfc3cf2a77a8)) by @bchatard
+
+- *(pipeline)* The plan, the dry run and a real run list the same steps - ([cb9adc2](https://github.com/adaouat/heraut/commit/cb9adc2676f5878106451c30215275826bf2bd3f)) by @bchatard
+
+
+### ⚙️ Miscellaneous Tasks
+
+- Bump forge shared workflows and actions to v0.19.6 - ([afad7c3](https://github.com/adaouat/heraut/commit/afad7c3af990ce1cda3389272b887da9d88f35f5)) by @bchatard
+
+- Bump forge shared workflows and actions to v0.19.7 - ([51e58b4](https://github.com/adaouat/heraut/commit/51e58b48fb7cef7b29670802afbd8bdcd9a22aab)) by @bchatard
+
+- Ignore analysis/ now that docs/audit/ holds the results - ([d4e05db](https://github.com/adaouat/heraut/commit/d4e05db637cbc8904421828e61ebe86cc7f2d021)) by @bchatard
+
+
+### 💼 Other
+
+- *(deps)* Bump Go to 1.27.3 - ([905de72](https://github.com/adaouat/heraut/commit/905de72745aa6198194a911690886388e8df77a6)) by @bchatard
+
+- *(deps)* Bump forge to v0.19.6 - ([1e5f408](https://github.com/adaouat/heraut/commit/1e5f4083394635e9b86df60eb70199449d63e595)) by @bchatard
+
+- *(deps)* Drop goreleaser from mise - ([c63a539](https://github.com/adaouat/heraut/commit/c63a53987a9c89c61245121550e9d306be51eb5a)) by @bchatard
+
+- *(release)* Use cask install_steps hook, bump goreleaser to 2.19.0 - ([ad751ed](https://github.com/adaouat/heraut/commit/ad751ed8576d997a8859367413b97678541b23fd)) by @bchatard
+
 <!-- heraut-release: v0.80.0 -->
 ## [0.80.0](https://github.com/adaouat/heraut/compare/v0.79.0..v0.80.0) - 2026-10-13
 
@@ -3453,4 +3618,4 @@
 <!-- heraut-footer -->
 
 ---
-_Generated by [heraut](https://github.com/adaouat/heraut) v0.80.0 at 18:36 on 2026-10-13._
+_Generated by [heraut](https://github.com/adaouat/heraut) v0.81.0 at 20:12 on 2026-10-24._
