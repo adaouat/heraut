@@ -132,10 +132,11 @@ func isBuildIDRune(r rune) bool {
 }
 
 // ValidateVersionOverride checks that a --set-version value is usable as a tag/version
-// override: non-empty and free of whitespace (git ref constraints). Unlike
-// ValidateBuildID, "/" is allowed — a full tag override may legitimately contain
-// one. heraut is strategy-agnostic about the shape of the override (SemVer,
-// CalVer, or any other scheme the user's tag_format expects).
+// override: non-empty, free of whitespace (git ref constraints) and made only of
+// [0-9A-Za-z._+/-], the characters every SemVer and CalVer version (build metadata and a
+// full tag wrapping included) is built from (ADR-0074). Unlike ValidateBuildID, "/" and "+"
+// are allowed. The value reaches tags and hook environments, so anything a shell or a glob
+// would read as syntax is refused here, under whatever scheme the user's tag_format expects.
 func ValidateVersionOverride(version string) error {
 	if version == "" {
 		return fmt.Errorf("version must not be empty")
@@ -143,7 +144,14 @@ func ValidateVersionOverride(version string) error {
 	if strings.ContainsFunc(version, unicode.IsSpace) {
 		return fmt.Errorf("version %q must not contain whitespace", version)
 	}
+	if i := strings.IndexFunc(version, func(r rune) bool { return !isVersionOverrideRune(r) }); i >= 0 {
+		return fmt.Errorf("version %q contains %q: only letters, digits, '.', '_', '+', '/' and '-' are allowed", version, []rune(version[i:])[0])
+	}
 	return nil
+}
+
+func isVersionOverrideRune(r rune) bool {
+	return isBuildIDRune(r) || r == '+' || r == '/'
 }
 
 // DeriveTagPattern returns an anchored regex, consumed by native to scope its tag walk, that

@@ -19,11 +19,11 @@
 
 | Phase | Theme | Tasks | Status |
 |---|---|---|---|
-| 79 | Remaining security findings (NEW-003, NEW-004) | T421–T422 | Not started |
+| 79 | Remaining security findings (NEW-003, NEW-004) | T421–T422 | In progress (T421 done) |
 
 ### Phase 79 — Remaining security findings
 
-#### `[ ]` T421: `--set-version` has a character allowlist (NEW-003, CWE-20; ADR-0074 addendum)
+#### `[x]` T421: `--set-version` has a character allowlist (NEW-003, CWE-20; ADR-0074 addendum)
 
 `tagfmt.ValidateVersionOverride` (`internal/versioning/tagfmt/tagfmt.go:139`) rejects only an empty value and
 whitespace; shell safety of `--set-version` rests on the two per-strategy checks (`resolver.go`). Add the
@@ -31,6 +31,8 @@ allowlist `[0-9A-Za-z._+/-]` (the `/` stays: a full tag override may contain one
 skips both checks cannot reach hooks unfiltered. ADR-0074 gets an addendum (this narrows what the flag accepts
 for any strategy). Tests: a table of accepted and refused values (`$(id)`, `;`, backtick, quote, `*`, `{`),
 the Config exit code, and one e2e row.
+
+**Done.** `ValidateVersionOverride` now refuses anything outside `[0-9A-Za-z._+/-]`; it still runs first, in `cmd`, ahead of the per-strategy checks, so a shell-syntax value now gets the allowlist message ("only letters, digits…") instead of the CalVer format message. The three CalVer e2e rows that used `x$(id)` / `;id` keep their exit-2 assertion and only changed the expected text; a new `e2e/set_version_charset_test.go` covers the semver path. The `+` stays in the set for the full-tag/CalVer paths, but the SemVer strategies still reject build metadata (hint to use `--set-build-id`). Sensitivity: reverting the production change fails 3 e2e rows and 14 unit rows. Spec 03 updated. No ordering check was added (out of scope).
 
 #### `[ ]` T422: an asset file name containing `#` is refused (NEW-004, CWE-73; ADR-0076 addendum)
 

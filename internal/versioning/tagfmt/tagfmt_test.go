@@ -404,6 +404,23 @@ func TestValidateVersionOverride(t *testing.T) {
 		{"trailing space", "1.2.3 ", true},
 		{"contains tab", "1.2.3\t", true},
 		{"trailing newline", "1.2.3\n", true},
+		{"build metadata", "1.2.3+build.5", false},
+		{"full tag with a slash", "dev/1.2.3", false},
+		{"underscore", "1.2.3_rc", false},
+		{"command substitution", "$(id)", true},
+		{"backtick substitution", "`id`", true},
+		{"command separator", "1.2.3;id", true},
+		{"pipe", "1.2.3|id", true},
+		{"ampersand", "1.2.3&id", true},
+		{"double quote", `1.2.3"`, true},
+		{"single quote", "1.2.3'", true},
+		{"backslash", `1.2.3\n`, true},
+		{"glob star", "1.*", true},
+		{"question mark", "1.2.?", true},
+		{"brace", "1.{2,3}", true},
+		{"redirect", "1.2.3>out", true},
+		{"non-ASCII letter", "1.2.3é", true},
+		{"NUL byte", "1.2.3\x00", true},
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
