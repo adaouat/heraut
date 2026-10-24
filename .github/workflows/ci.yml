@@ -8,7 +8,7 @@ on:
 jobs:
   # Lint + test come from forge's shared reusable workflow (ADR-0006).
   ci:
-    uses: adaouat/forge/.github/workflows/go-ci.yml@396a89227a4adc006b59f11a4669d0fb3674fca6 # v0.19.6
+    uses: adaouat/forge/.github/workflows/go-ci.yml@5faab0423b48c929f72111e8cf61143b79f0eb71 # v0.19.7
     with:
       coverage-threshold: 85
 
@@ -23,8 +23,6 @@ jobs:
         uses: jdx/mise-action@1648a7812b9aeae629881980618f079932869151 # v4
       - name: Build
         run: go build ./cmd/heraut/
-      - name: Check GoReleaser config
-        run: goreleaser check
 
   # The reusable `ci` job only runs golangci-lint, but all linting is configured in hk
   # (.config/hk/config.pkl) — hadolint, actionlint, yamlfmt, typos, pkl, go fmt, … — and the
