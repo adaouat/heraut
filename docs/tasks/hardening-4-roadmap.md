@@ -1,6 +1,6 @@
 # Héraut — Hardening 4 Roadmap (e2e coverage)
 
-> Status: Complete (drafted 2026-10-22; T418 not yet run on the sandboxes)
+> Status: Complete (drafted 2026-10-22; T418 run on both sandboxes 2026-10-24, all passing)
 > Source: the verification question of the refreshed modernization brief
 > (`analysis/heraut/MODERNIZATION_BRIEF.md` § 7), answered 2026-10-22: the built binary's scenarios
 > (`e2e/`, ADR-0066) should cover the behavior changed by [`hardening-roadmap.md`](hardening-roadmap.md) and
