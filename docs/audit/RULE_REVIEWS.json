@@ -1,0 +1,379 @@
+{
+  "system": "heraut",
+  "version": 1,
+  "reviews": {
+    "RULE-001": {
+      "verdict": "confirmed",
+      "at": "2026-10-14T16:36:57Z",
+      "title": "Commit-to-bump level"
+    },
+    "RULE-002": {
+      "verdict": "wrong",
+      "at": "2026-10-16T12:30:32Z",
+      "title": "SemVer arithmetic"
+    },
+    "RULE-003": {
+      "verdict": "confirmed",
+      "at": "2026-10-16T14:45:03Z",
+      "title": "Release base tag and ordering",
+      "note": "Build metadata is ignored in ordering (SemVer 11); a v1.4.0 / v1.4.0+5 tie is harmless."
+    },
+    "RULE-004": {
+      "verdict": "confirmed",
+      "at": "2026-10-16T12:30:32Z",
+      "title": "Initial version"
+    },
+    "RULE-005": {
+      "verdict": "confirmed",
+      "at": "2026-10-16T12:30:32Z",
+      "title": "Pre-release counter"
+    },
+    "RULE-006": {
+      "verdict": "confirmed",
+      "at": "2026-10-16T12:30:32Z",
+      "title": "Version-branch fixed version"
+    },
+    "RULE-007": {
+      "verdict": "wrong",
+      "at": "2026-10-14T16:52:32Z",
+      "title": "CalVer date values",
+      "note": "use UTC"
+    },
+    "RULE-008": {
+      "verdict": "wrong",
+      "at": "2026-10-14T16:52:32Z",
+      "title": "CalVer PATCH and period reset",
+      "note": "highest parsed value"
+    },
+    "RULE-009": {
+      "verdict": "confirmed",
+      "at": "2026-10-16T12:30:32Z",
+      "title": "CalVer rendering and padding"
+    },
+    "RULE-010": {
+      "verdict": "confirmed",
+      "at": "2026-10-14T16:36:57Z",
+      "title": "Tag format render and parse"
+    },
+    "RULE-011": {
+      "verdict": "confirmed",
+      "at": "2026-10-16T12:30:32Z",
+      "title": "Per-env auto bump"
+    },
+    "RULE-012": {
+      "verdict": "confirmed",
+      "at": "2026-10-16T12:30:32Z",
+      "title": "Changelog rotation buckets"
+    },
+    "RULE-013": {
+      "verdict": "wrong",
+      "at": "2026-10-20T14:49:50Z",
+      "title": "Commit classification into sections",
+      "note": "Drop the body heuristic entirely. `security` becomes a built-in commit type (label \"Security\", right after Bug Fixes), like feat/fix. A commit of an unconfigured type mentioning \"security\" now lands in Other. ADR-0075 (T404); also widens the commit-verify allow-list by one word."
+    },
+    "RULE-014": {
+      "verdict": "confirmed",
+      "at": "2026-10-16T12:30:32Z",
+      "title": "Release-note day statistics"
+    },
+    "RULE-015": {
+      "verdict": "wrong",
+      "at": "2026-10-20T14:49:50Z",
+      "title": "Sprint bump",
+      "note": "Edit sprint only inside the top-level versioning block: replace or insert there, tolerate a trailing comment on the versioning: line, leave other sprint: keys alone. Test-first, no ADR."
+    },
+    "RULE-016": {
+      "verdict": "wrong",
+      "at": "2026-10-16T12:30:32Z",
+      "title": "Config must validate before a run"
+    },
+    "RULE-017": {
+      "verdict": "confirmed",
+      "at": "2026-10-16T12:30:32Z",
+      "title": "Strict load and removed keys"
+    },
+    "RULE-018": {
+      "verdict": "confirmed",
+      "at": "2026-10-16T12:30:32Z",
+      "title": "Resolvable publish destination"
+    },
+    "RULE-019": {
+      "verdict": "confirmed",
+      "at": "2026-10-16T12:30:32Z",
+      "title": "Forge entry validity and uniqueness"
+    },
+    "RULE-020": {
+      "verdict": "confirmed",
+      "at": "2026-10-16T12:30:32Z",
+      "title": "One target per forge"
+    },
+    "RULE-021": {
+      "verdict": "confirmed",
+      "at": "2026-10-16T12:30:32Z",
+      "title": "Enrichment forge and policy values"
+    },
+    "RULE-022": {
+      "verdict": "confirmed",
+      "at": "2026-10-16T12:30:32Z",
+      "title": "Per-env structure and promote source"
+    },
+    "RULE-023": {
+      "verdict": "confirmed",
+      "at": "2026-10-16T12:30:32Z",
+      "title": "Promotion cycle detection"
+    },
+    "RULE-024": {
+      "verdict": "confirmed",
+      "at": "2026-10-16T12:30:32Z",
+      "title": "Per-env tag_format and `{build}` placement"
+    },
+    "RULE-025": {
+      "verdict": "confirmed",
+      "at": "2026-10-16T12:30:32Z",
+      "title": "CalVer, bump and template config validation"
+    },
+    "RULE-026": {
+      "verdict": "confirmed",
+      "at": "2026-10-16T12:30:32Z",
+      "title": "Branches config validation"
+    },
+    "RULE-027": {
+      "verdict": "confirmed",
+      "at": "2026-10-16T12:30:32Z",
+      "title": "No releasable commits"
+    },
+    "RULE-028": {
+      "verdict": "confirmed",
+      "at": "2026-10-16T12:30:32Z",
+      "title": "Pre-release label and flag usage"
+    },
+    "RULE-029": {
+      "verdict": "confirmed",
+      "at": "2026-10-16T12:30:32Z",
+      "title": "Pre-release monotonicity and escalation"
+    },
+    "RULE-030": {
+      "verdict": "confirmed",
+      "at": "2026-10-16T12:30:32Z",
+      "title": "Pre-release needs a commit unless promoting"
+    },
+    "RULE-031": {
+      "verdict": "confirmed",
+      "at": "2026-10-16T12:30:32Z",
+      "title": "CalVer format parsing"
+    },
+    "RULE-032": {
+      "verdict": "wrong",
+      "at": "2026-10-20T07:20:20Z",
+      "title": "Version override flag combinations",
+      "note": "Validate --set-version per strategy: SemVer for semver/semver-per-env (v prefix optional), the configured CalVer format for calver/calver-per-env; else a Config error. Reverses the strategy-agnostic override in tagfmt.ValidateVersionOverride, so it needs an ADR addendum (ADR-0074)."
+    },
+    "RULE-033": {
+      "verdict": "confirmed",
+      "at": "2026-10-16T12:30:32Z",
+      "title": "`--json` requires `--dry-run`"
+    },
+    "RULE-034": {
+      "verdict": "confirmed",
+      "at": "2026-10-16T12:30:32Z",
+      "title": "Conventional commit grammar"
+    },
+    "RULE-035": {
+      "verdict": "confirmed",
+      "at": "2026-10-16T12:30:32Z",
+      "title": "Commit type and scope allow-list"
+    },
+    "RULE-036": {
+      "verdict": "confirmed",
+      "at": "2026-10-16T12:30:32Z",
+      "title": "Commit rules (deny, require, require_ticket)"
+    },
+    "RULE-037": {
+      "verdict": "confirmed",
+      "at": "2026-10-16T12:30:32Z",
+      "title": "Commit rules and tickets config validation"
+    },
+    "RULE-038": {
+      "verdict": "confirmed",
+      "at": "2026-10-16T12:30:32Z",
+      "title": "Git preflight and identity"
+    },
+    "RULE-039": {
+      "verdict": "wrong",
+      "at": "2026-10-16T14:45:03Z",
+      "title": "Asset glob handling",
+      "note": "A glob matching nothing at publish time should fail, unless the entry is marked optional. Needs an ADR. Repo confinement (SEC-009) is already fixed."
+    },
+    "RULE-040": {
+      "verdict": "confirmed",
+      "at": "2026-10-16T12:30:32Z",
+      "title": "Release pre-flight gates (skipped in dry-run)"
+    },
+    "RULE-041": {
+      "verdict": "confirmed",
+      "at": "2026-10-16T12:30:32Z",
+      "title": "stay_at_v0 hold"
+    },
+    "RULE-042": {
+      "verdict": "confirmed",
+      "at": "2026-10-16T12:30:32Z",
+      "title": "Maintenance range"
+    },
+    "RULE-043": {
+      "verdict": "confirmed",
+      "at": "2026-10-16T12:30:32Z",
+      "title": "Promotion source env"
+    },
+    "RULE-044": {
+      "verdict": "confirmed",
+      "at": "2026-10-16T12:30:32Z",
+      "title": "Promotion guard E001: target tag exists"
+    },
+    "RULE-045": {
+      "verdict": "confirmed",
+      "at": "2026-10-16T12:30:32Z",
+      "title": "Promotion guard E002: destination ahead"
+    },
+    "RULE-046": {
+      "verdict": "wrong",
+      "at": "2026-10-14T16:52:32Z",
+      "title": "Promotion guard E003: no source tags",
+      "note": "run probe for an existing tag"
+    },
+    "RULE-047": {
+      "verdict": "confirmed",
+      "at": "2026-10-16T12:30:32Z",
+      "title": "Env branch guard"
+    },
+    "RULE-048": {
+      "verdict": "confirmed",
+      "at": "2026-10-16T12:30:32Z",
+      "title": "Release branch allow-list"
+    },
+    "RULE-049": {
+      "verdict": "confirmed",
+      "at": "2026-10-16T12:30:32Z",
+      "title": "`--env auto` resolution"
+    },
+    "RULE-050": {
+      "verdict": "confirmed",
+      "at": "2026-10-16T12:30:32Z",
+      "title": "Tag type selection"
+    },
+    "RULE-051": {
+      "verdict": "confirmed",
+      "at": "2026-10-16T12:30:32Z",
+      "title": "Pre-release flag only under SemVer"
+    },
+    "RULE-052": {
+      "verdict": "wrong",
+      "at": "2026-10-16T14:45:03Z",
+      "title": "Default commit excludes",
+      "note": "Keep excludes render-only. Warn when every releasable commit is excluded from the changelog (empty-changelog release). No bump change."
+    },
+    "RULE-053": {
+      "verdict": "confirmed",
+      "at": "2026-10-16T12:30:32Z",
+      "title": "`--offline` override"
+    },
+    "RULE-054": {
+      "verdict": "confirmed",
+      "at": "2026-10-16T12:30:32Z",
+      "title": "Enrichment policy"
+    },
+    "RULE-055": {
+      "verdict": "confirmed",
+      "at": "2026-10-14T16:52:32Z",
+      "title": "Hook validation and execution safety",
+      "note": "leave quoting to the hook author and document it, also warn CI not to run hooks from an untrusted PR's config"
+    },
+    "RULE-056": {
+      "verdict": "confirmed",
+      "at": "2026-10-16T12:30:32Z",
+      "title": "Exit-code mapping"
+    },
+    "RULE-057": {
+      "verdict": "confirmed",
+      "at": "2026-10-16T12:30:32Z",
+      "title": "Release step order"
+    },
+    "RULE-058": {
+      "verdict": "confirmed",
+      "at": "2026-10-14T17:08:24Z",
+      "title": "No rollback on failure",
+      "note": "can we write a doc to help revert cleanly or is it too complex (\"casse gueule\" in french)? | Decision: document it (failure-recovery guide), no `heraut recover` command; no automatic rollback."
+    },
+    "RULE-059": {
+      "verdict": "confirmed",
+      "at": "2026-10-16T12:30:32Z",
+      "title": "Dry-run executes nothing"
+    },
+    "RULE-060": {
+      "verdict": "confirmed",
+      "at": "2026-10-16T12:30:32Z",
+      "title": "Changelog commit and push are idempotent"
+    },
+    "RULE-061": {
+      "verdict": "confirmed",
+      "at": "2026-10-14T16:36:57Z",
+      "title": "Tag pushed before post_tag and publish"
+    },
+    "RULE-062": {
+      "verdict": "confirmed",
+      "at": "2026-10-16T12:30:32Z",
+      "title": "Per-platform publish and hook isolation"
+    },
+    "RULE-063": {
+      "verdict": "confirmed",
+      "at": "2026-10-16T12:30:32Z",
+      "title": "Notes generated once or per platform"
+    },
+    "RULE-064": {
+      "verdict": "confirmed",
+      "at": "2026-10-16T12:30:32Z",
+      "title": "Hook points and template variables"
+    },
+    "RULE-065": {
+      "verdict": "wrong",
+      "at": "2026-10-20T07:20:20Z",
+      "title": "Hook stage patterns feed the release commit",
+      "note": "Declaring hook `stage` while the changelog is disabled (globally or for the env) becomes a config validation error, consistent with ADR-0061. Needs a validator rule, Spec 02 note and ADR-0061 addendum."
+    },
+    "RULE-066": {
+      "verdict": "confirmed",
+      "at": "2026-10-16T12:30:32Z",
+      "title": "`--no-hooks` and `--skip-hooks`"
+    },
+    "RULE-067": {
+      "verdict": "confirmed",
+      "at": "2026-10-16T12:30:32Z",
+      "title": "Changelog-only flow"
+    },
+    "RULE-068": {
+      "verdict": "confirmed",
+      "at": "2026-10-16T12:30:32Z",
+      "title": "`NoPush` semantics"
+    },
+    "RULE-069": {
+      "verdict": "wrong",
+      "at": "2026-10-14T16:52:32Z",
+      "title": "Incremental changelog splice",
+      "note": "the write should be atomic (temp file plus rename)"
+    },
+    "RULE-070": {
+      "verdict": "confirmed",
+      "at": "2026-10-16T12:30:32Z",
+      "title": "`--json` envelope"
+    },
+    "RULE-071": {
+      "verdict": "confirmed",
+      "at": "2026-10-16T12:30:32Z",
+      "title": "`release --dry-run --json` plan"
+    },
+    "RULE-072": {
+      "verdict": "confirmed",
+      "at": "2026-10-16T12:30:32Z",
+      "title": "Degraded-run and resolver warnings"
+    }
+  }
+}
