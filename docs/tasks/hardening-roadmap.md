@@ -303,7 +303,8 @@ recovery is `heraut notes <tag> --output` plus `gh release create --verify-tag` 
 `glab release create` tags the default branch's HEAD when the tag is not on the remote, `gh --verify-tag`
 refuses; `gh release delete --cleanup-tag` removes the tag only if the release exists; `glab release create
 <files>` attaches plain links, unlike heraut's Generic Packages layout. The hook-failure state was observed
-for `post_release` only; the `pre_release` path is from Spec 02. Correction made on the way: Spec 03 said a
+for `post_release` only; the `pre_release` path is from Spec 02 (its skip-only-that-target behaviour is covered
+by the e2e subtest "a failing pre_release skips only its own target"; the hand recovery after it was not run). Correction made on the way: Spec 03 said a
 retry skips the changelog commit when the file is identical, but the footer timestamp is minute-resolution,
 so only a retry in the same minute does; the spec now says so. Two process notes: I pushed test commits to
 the GitHub sandbox's `main` (the harness works on `e2e/<id>` branches), which needs a force-push to undo,
