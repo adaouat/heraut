@@ -247,6 +247,7 @@ discipline that applies to every task.
 | 76 | Brief follow-ups: origin lookup, CI env names, platform wizard | Done — T410–T412, see `hardening-3-roadmap.md` |
 | 77 | Built-binary (e2e) scenarios for the changed behavior | Complete — T413–T418 done (T418 written, not yet run on the sandboxes), see `hardening-4-roadmap.md` |
 | 78 | Security follow-ups from the 2026-10-22 re-scan | Complete — T419–T420, see `hardening-5-roadmap.md` |
+| 79 | Remaining security findings (NEW-003, NEW-004) | Not started — T421–T422, see `hardening-6-roadmap.md` |
 
 ### Open items
 
