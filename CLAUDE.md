@@ -145,8 +145,9 @@ For targeted lint fixes: `hk fix -S <linter>` (e.g. `hk fix -S golangci_lint`,
 `hk fix -S yamlfmt`) — note the underscore in `golangci_lint`, the actual `.config/hk/config.pkl`
 step id; a hyphenated `golangci-lint` matches no step.
 
-Go, golangci-lint, and goreleaser are installed via mise (see
-`.config/mise/config.toml`).
+Go and golangci-lint are installed via mise (see `.config/mise/config.toml`). goreleaser is not:
+CI runs `goreleaser check` from forge's shared `go-ci.yml`, and releases use forge's `release-build`
+pin. To run it locally: `mise x goreleaser@2.19.0 -- goreleaser check`.
 
 ## ldflags invariant
 
