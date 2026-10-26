@@ -248,6 +248,8 @@ discipline that applies to every task.
 | 77 | Built-binary (e2e) scenarios for the changed behavior | Complete — T413–T418 done (T418 run on both sandboxes, passing), see `hardening-4-roadmap.md` |
 | 78 | Security follow-ups from the 2026-10-22 re-scan | Complete — T419–T420, see `hardening-5-roadmap.md` |
 | 79 | Remaining security findings (NEW-003, NEW-004) | Complete — T421–T422, see `hardening-6-roadmap.md` |
+| 80 | GitHub publishing without `gh` (ADR-0077) | Not started — T423–T430, see `github-client-roadmap.md` |
+| 81 | GitLab asset read from the descriptor (NEW-002 for GitLab) | Not started — T431, waits for T425 and the user's go |
 
 ### Open items
 
@@ -3404,6 +3406,17 @@ The skill states the rule that `release` and `changelog --commit/--tag` need the
 order (`check`, `version next`, `release --dry-run --json`, then `release`), the JSON envelope, exit codes and
 the plan steps. packslip: not investigated, the file ships in the binary and nothing depends on it. Not done:
 an MCP server (out of scope for the phase), installing for agents other than via `skill print`.
+
+### Phase 81 — GitLab asset read from the descriptor
+
+#### `[ ]` T431: the GitLab client reads assets through the open-once helper (NEW-002 for GitLab)
+
+`internal/platforms/gitlab/client.go` opens each asset by path (`os.Open` in `upload`) after the confinement
+check, so the symlink swap of NEW-002 still applies there once GitHub is fixed. Switch it to the helper T425
+adds in `internal/platforms` (ADR-0077). Kept out of Phase 80 on purpose: that epic does not touch the GitLab
+driver. Depends on T425; schedule only with the user's go. Tests: the existing GitLab contract rows keep
+passing, plus the swap row from T425 through the GitLab client; then mark NEW-002 fully resolved in
+`docs/audit/SECURITY_FINDINGS.md`.
 
 Every Phase above marked `Done` and not pointing to a dedicated roadmap (D, 0–9, 11–22, 26, 28,
 30, 31) has had its full task write-up — implementation notes, decisions, deviations — moved to

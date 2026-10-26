@@ -9,6 +9,7 @@
 | [`docs-audit-roadmap.md`](docs-audit-roadmap.md) | Documentation audit epic (T222+) — tracked as Phase 27 |
 | [`changelog-rotation-roadmap.md`](changelog-rotation-roadmap.md) | Changelog rotation epic (T244+) — tracked as Phase 29 |
 | [`hardening-roadmap.md`](hardening-roadmap.md) | Hardening and refactor epic (T380+) — tracked as Phases 70–73 |
+| [`github-client-roadmap.md`](github-client-roadmap.md) | GitHub publishing without `gh` (T423+, ADR-0077) — tracked as Phase 80 |
 | [`archive/`](archive) | Full task write-ups for `Done` tasks, moved out of the files above to keep them lean. Each dedicated roadmap's "Progress at a glance" table links to its own archive file. |
 
 Task status is tracked inline via checkbox markers (`[ ]` / `[x]`) on each task heading, in
