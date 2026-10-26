@@ -65,7 +65,7 @@ host, Actions on github.com publishing to a GHES. Not wired yet.
 
 **Completion note:** `config.GitHubAPIURL(baseURL, getenv)` in `internal/config/githubapi.go` takes `getenv` like
 `forge.Resolve`, so it reads no process environment itself. It returns the root without a trailing slash (go-github
-wants one; T426 adds it). Two choices the task left open: `GITHUB_API_URL` is used only when `GITHUB_ACTIONS=true`
+wants one; T426 adds it). Two choices the task left open, approved by the user and recorded in ADR-0077: `GITHUB_API_URL` is used only when `GITHUB_ACTIONS=true`
 as well as a same-origin `GITHUB_SERVER_URL` (outside Actions stray variables are ignored), and an insecure
 `GITHUB_API_URL` that passes the origin test is an error rather than a silent fallback. Same origin compares
 scheme, host name (case-insensitive) and port (an omitted port is the scheme's default). The github.com and

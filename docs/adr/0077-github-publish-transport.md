@@ -125,10 +125,12 @@ because one package imports it.
   pins it.
 - **API root.** A `config` helper derives it from the platform's `base_url`: github.com gives
   `https://api.github.com`; a `*.ghe.com` host (GitHub Enterprise Cloud with data residency) gives
-  `https://api.<host>`; any other host (GHES) gives `<base_url>/api/v3`. In GitHub Actions, `GITHUB_API_URL`
-  wins only when `GITHUB_SERVER_URL` has the same origin as `base_url`, so an Actions run on github.com
-  publishing to a GHES does not take the runner's API. `config.IsSecureURL` is enforced (plain http only
-  for loopback addresses, for tests). This closes the `GH_HOST` scheme question.
+  `https://api.<host>`; any other host (GHES) gives `<base_url>/api/v3`. `GITHUB_API_URL` wins only when
+  `GITHUB_ACTIONS=true` and `GITHUB_SERVER_URL` has the same origin as `base_url` (scheme, host, port), so
+  an Actions run on github.com publishing to a GHES does not take the runner's API, and stray variables
+  outside Actions are ignored. `config.IsSecureURL` is enforced (plain http only for loopback addresses,
+  for tests); a `GITHUB_API_URL` that passes the origin test but fails it is an error, not a silent
+  fallback to the derived root. This closes the `GH_HOST` scheme question.
 - **Token.** When `token_env` is set explicitly, only that variable is read. Otherwise heraut follows
   `gh`'s chain: github.com and `*.ghe.com` read `GH_TOKEN`, then `GITHUB_TOKEN`; GHES reads
   `GH_ENTERPRISE_TOKEN`, then `GITHUB_ENTERPRISE_TOKEN`, then `GH_TOKEN` (last, so a GHES config that
