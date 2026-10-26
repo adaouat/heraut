@@ -81,4 +81,4 @@ trade-offs were accepted.
 | [0074](0074-command-line-values-that-reach-tags-and-hooks.md) | Command-line values that reach tags and hooks are restricted | Accepted |
 | [0075](0075-security-is-a-built-in-commit-type.md) | `security` is a built-in commit type, and the body heuristic goes | Accepted |
 | [0076](0076-a-release-asset-pattern-must-match-a-file.md) | A release asset pattern must match a file | Accepted |
-| [0077](0077-github-publish-transport.md) | GitHub publish transport — replace `gh` with an in-process client | Proposed (transport settled by T423) |
+| [0077](0077-github-publish-transport.md) | GitHub publish transport — replace `gh` with `go-github` | Accepted |

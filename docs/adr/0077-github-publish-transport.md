@@ -1,7 +1,7 @@
-# ADR-0077: GitHub publish transport — replace `gh` with an in-process client
+# ADR-0077: GitHub publish transport — replace `gh` with `go-github`
 
-- **Status**: Proposed (the transport choice is settled by the T423 gate; everything else below is decided)
-- **Date**: 2026-10-25
+- **Status**: Accepted
+- **Date**: 2026-10-25 (accepted 2026-10-26, after the T423 gate)
 - **Deciders**: bchatard
 
 ---
@@ -62,20 +62,53 @@ The derivation moves to `internal/config`, a leaf both packages may import.
 | Fixes NEW-002 | yes | yes (upload takes an `*os.File`) | no |
 | Request code owned by heraut | ~5 small calls, JSON and a raw body | none | none |
 | Fit with existing code | same style as `forge/github` | a second GitHub HTTP stack | n/a |
-| Dependency weight | none | to be measured (T423) | external binary, a Docker image stage |
-| Upgrade churn | none | frequent major versions | `gh` version drift |
+| Dependency weight | none | measured by T423, below | external binary, a Docker image stage |
+| Upgrade churn | none | frequent major versions, measured below | `gh` version drift |
 | Contract tests | `httptest.Server` | `httptest.Server` (base and upload URLs are settable) | `MockRunner` argv |
 
 ADR-0069 chose the SDK for GitLab because of job-token auth, multipart uploads and link fields that `glab`
 already got right. None of these applies to GitHub, and heraut already has a GitHub client in this style.
-**The user asked to decide with measurements**: T423 spikes A and B against the GitHub sandbox and records
-binary size, module and `go.sum` growth, lines of code, and the live behaviour of the flow below. Its
-result fills in the transport line of the Decision and moves this ADR to Accepted.
+**The user asked to decide with measurements**, so T423 built the flow twice in a scratch worktree, linked
+each into the heraut binary, and ran both against GitHub.
+
+### Measured (T423, go1.27.3, stripped, darwin/arm64)
+
+| | A. `net/http` | B. `go-github` v93.0.0 |
+|---|---|---|
+| Binary (baseline 23.32 MB) | 23.37 MB (+51 KB, +0.2%) | 27.93 MB (+4.6 MB, +19.8%) |
+| Packages linked (baseline 357) | 359 | 360 (`go-github` is one large package) |
+| `go.mod` / `go.sum` | unchanged | +1 direct module, no indirect module, +2 lines |
+| Client code, without tests | 217 lines | 82 lines |
+| Major versions | n/a | v60 (2024-02) to v93 (2026-10): 33 majors in about 32 months |
+
+`go-github` v93 already does what the Decision asks of the token and the upload body:
+`WithAuthToken` attaches the token only to the configured API and upload origins, checked on every request
+(redirect hops included; the scheme is part of the origin, so https to http drops it), and
+`UploadReleaseAssetFromRelease` refuses to send a body to any other origin (`ErrUntrustedDestination`). The
+upload origin has to be configured, so a GHES with subdomain isolation (`uploads.<host>`) needs that origin
+known before the upload.
+
+### Observed live (T423, github.com, both options identical)
+
+Sandbox `bchatard/heraut-testing`, then a throwaway private repository with immutable releases on:
+
+- `upload_url` is on `uploads.github.com`. Slash tags (`uat/0.0.1`) and `+` tags (`v0.0.2+a.1`) work.
+- No assets: one create call, `prerelease` honoured. With assets: draft, upload, publish works, also with
+  immutable releases on (the release comes back `immutable: true`). `draft: true` leaves a draft whose
+  `html_url` is `…/releases/tag/untagged-…`, not the tag URL heraut prints (true of the `gh` driver too).
+- A failed upload (duplicate name: 422 `already_exists`) followed by deleting the draft leaves the tag
+  in place and no release.
+- Uploading to a published immutable release: 422 `Cannot upload assets to an immutable release.` Deleting
+  the tag of a published immutable release is refused (repository rule violation).
+- GitHub rewrites special characters in an asset name: `meta#1.json` is published as `meta.1.json`.
 
 ## Decision
 
-Replace `gh` with an in-process client in `internal/platforms/github`. Transport: **decided by T423**
-(A or B). The rest holds for either.
+Replace `gh` with an in-process client in `internal/platforms/github` on **`github.com/google/go-github`
+(option B)**, imported only by that package. The user chose it over option A after the gate: the library
+owns the request shapes, the error types and the primary and secondary rate-limit handling, and already
+enforces the origin rules below. The cost is +4.6 MB and a major version roughly every month, kept local
+because one package imports it.
 
 - **Publish order.** No assets: one create call with `draft` and `prerelease` as configured or derived. With
   assets: create with `draft: true`, upload each file, then `PATCH draft: false`, skipped when the target
@@ -85,8 +118,11 @@ Replace `gh` with an in-process client in `internal/platforms/github`. Transport
   re-run starts clean instead of piling up drafts.
 - **Upload URL.** The `upload_url` from the create response is used, but the token is sent only to an
   expected origin over https: `uploads.github.com` for github.com, else the configured host or
-  `uploads.<host>`. Any other origin is refused before a byte is sent. The redirect rule applies on top:
-  the token is dropped on a host change or an https to http drop, and redirects stop after 10.
+  `uploads.<host>`. Any other origin is refused before a byte is sent. heraut checks the returned origin
+  against that list, then has `go-github` upload with that origin configured, so its own
+  `ErrUntrustedDestination` gate and per-request token rule apply as well. The token never follows a
+  redirect to another origin (the library's rule, which covers the T419 cases); a redirect test in T426
+  pins it.
 - **API root.** A `config` helper derives it from the platform's `base_url`: github.com gives
   `https://api.github.com`; a `*.ghe.com` host (GitHub Enterprise Cloud with data residency) gives
   `https://api.<host>`; any other host (GHES) gives `<base_url>/api/v3`. In GitHub Actions, `GITHUB_API_URL`
@@ -106,7 +142,9 @@ Replace `gh` with an in-process client in `internal/platforms/github`. Transport
   extension, else `application/octet-stream`. The GitLab client keeps its `os.Open` in this epic; adopting
   the helper there is a separate roadmap task.
 - **`#` in asset paths.** Lifted. The name travels as a query parameter, so `#` is no longer a label
-  separator. This supersedes the 2026-10-24 addendum of ADR-0076 for GitHub and resolves NEW-004.
+  separator; GitHub rewrites it (and other special characters) to `.` in the published name. heraut
+  compares the name GitHub returns with the file's basename and prints a warning when they differ, for any
+  rewritten character. This supersedes the 2026-10-24 addendum of ADR-0076 for GitHub and resolves NEW-004.
 - **`Check()`.** Validates the token with the releases list (above), and no longer probes a binary.
 
 ## Consequences
@@ -120,7 +158,10 @@ Replace `gh` with an in-process client in `internal/platforms/github`. Transport
   the same call T368 made for `glab`.
 - User-visible: a self-hosted `base_url` must be https (loopback excepted), which the validator already
   enforces; a token in `GITHUB_TOKEN` alone is now enough on github.com; a GHES token can live in
-  `GH_ENTERPRISE_TOKEN`; asset paths may contain `#`; a failed upload leaves no draft behind.
+  `GH_ENTERPRISE_TOKEN`; asset paths may contain `#` (published under GitHub's rewritten name, with a
+  warning); a failed upload leaves no draft behind.
+- Heraut gains `go-github` in `go.mod`, covered by the OSV scan. Renovate will propose a major bump
+  about monthly; each one changes the import path in `internal/platforms/github` only.
 - The `gh` argv contract tests become `httptest` contract tests, and Lane A gets a loopback GitHub stub
   (`harness.Repo.FakeGitHub()`), as T366 did for GitLab.
 - `config.EnvGitHubCLIToken`'s comment ("the one the `gh` CLI reads") is reworded; the name stays because
@@ -131,5 +172,4 @@ Replace `gh` with an in-process client in `internal/platforms/github`. Transport
 - Moving `internal/forge/github` onto the shared API-root helper (it lacks `*.ghe.com`): a task in this
   epic, but its own commit and behaviour change.
 - The GitLab client's descriptor-based read (NEW-002 for GitLab).
-- Retries and rate-limit backoff (unless T423 picks option B, which brings its own rate-limit errors):
-  revisit only if Lane B shows a need.
+- Retries beyond what `go-github` does for rate limits: revisit only if Lane B shows a need.
