@@ -1,7 +1,7 @@
 # Héraut — GitHub Client Roadmap (replace `gh` for publishing)
 
-> Status: Not started (drafted 2026-10-25)
-> Decision: [ADR-0077](../adr/0077-github-publish-transport.md) (Proposed until T423 settles the transport).
+> Status: In progress (drafted 2026-10-25; T423 done 2026-10-26)
+> Decision: [ADR-0077](../adr/0077-github-publish-transport.md) (Accepted: `go-github`).
 > Precedent: ADR-0069 and Phase 61 (T364–T368), which moved GitLab publishing from `glab` to `client-go`.
 > Main roadmap: tracked as Phase 80 in [`roadmap.md`](roadmap.md).
 
@@ -23,11 +23,11 @@
 
 | Phase | Theme | Tasks | Status |
 |---|---|---|---|
-| 80 | GitHub publishing without `gh` | T423–T430 | Not started |
+| 80 | GitHub publishing without `gh` | T423–T430 | In progress — T423 done |
 
 ### Phase 80 — GitHub publishing without `gh`
 
-#### `[ ]` T423: gate — measure `net/http` against `go-github` and probe the publish flow live
+#### `[x]` T423: gate — measure `net/http` against `go-github` and probe the publish flow live
 
 In a scratch worktree, implement the publish flow twice (option A, plain `net/http`; option B,
 `google/go-github` at its current major): create draft, upload one asset to `upload_url`, publish, list
@@ -37,6 +37,23 @@ github.com, a slash tag (`uat/0.0.1`), `prerelease`, a draft left as a draft, th
 uploading to a published release with immutable releases on, and what deleting a draft leaves behind (the
 tag must survive). Fill the transport line of ADR-0077's Decision and move it to Accepted. Restore the
 sandbox to a bare `main`. No production code.
+
+**Completion note:** the user chose option B, `go-github` v93.0.0, over the recommended option A. Measured
+(go1.27.3, stripped, darwin/arm64, each option linked into heraut through a build-tagged `init`): A adds
+51 KB (+0.2%) and no module, 217 lines; B adds 4.6 MB (+19.8%), one direct module and no indirect one, two
+`go.sum` lines, 82 lines; `go-github` shipped 33 majors between v60 (2024-02) and v93 (2026-10). v93 already
+limits the token to the configured API and upload origins on every request and refuses an upload body to any
+other origin (`ErrUntrustedDestination`), so T426 relies on it instead of a hand-written `CheckRedirect`. Live
+(both options identical): on `heraut-testing`, slash and `+` tags, `prerelease`, a `draft: true` target left as
+a draft (`html_url` is `untagged-…`), and a failed upload (duplicate name, 422) deleting the draft while the
+tag survives; `upload_url` is on `uploads.github.com`. On a throwaway private repo with immutable releases on
+(`bchatard/heraut-t423-immutable`, created because a published immutable tag cannot be deleted; the user
+deletes it, the token lacks `delete_repo`): draft, upload, publish works and returns `immutable: true`; an
+upload to the published release gives 422 `Cannot upload assets to an immutable release.`; deleting its tag
+is refused. New finding: GitHub rewrites special characters in asset names (`meta#1.json` becomes
+`meta.1.json`); the user chose to lift the `#` rule anyway and warn when the published name differs, now in
+ADR-0077 and T427. `heraut-testing` was restored to a bare `main`. The probe code lived in a scratch worktree
+and was not committed.
 
 #### `[ ]` T424: `config` helper for the GitHub API root
 
@@ -57,19 +74,21 @@ GitLab's `client.go` is not touched (see T431 in `roadmap.md`).
 
 #### `[ ]` T426: GitHub publish client (create, upload, publish, cleanup)
 
-`internal/platforms/github/client.go` on the transport from T423: create, upload from a descriptor, publish,
-delete on failure, list for `Check()`. `Authorization: Bearer`; the `upload_url` origin allowlist; the
-token-safe redirect rule (T419). Contract tests on `httptest.Server`: request order and bodies, no-asset
-single call, `draft: true` skips the PATCH, `prerelease`, slash and `+` tags, upload refused for an
-unexpected origin (no request reaches it), redirect to another host or to http drops the token, a failed
-upload or PATCH deletes the draft and returns the original error (and a failed delete is appended), 1 MB
-notes. Not wired yet.
+`internal/platforms/github/client.go` on `go-github` v93 (ADR-0077): add the module, then create, upload from
+a descriptor (`UploadReleaseAssetFromRelease`, reader and size), publish, delete on failure, list for `Check()`.
+`WithAuthToken` plus `WithURLs` for the API and upload origins; heraut's own `upload_url` allowlist runs first
+(`uploads.github.com`, or the GHES host or `uploads.<host>`), and the upload origin is configured from the
+accepted value. Return the published asset names so the driver can warn on a rewrite. Contract tests on
+`httptest.Server`: request order and bodies, no-asset single call, `draft: true` skips the PATCH, `prerelease`,
+slash and `+` tags, upload refused for an unexpected origin (no request reaches it), a redirect to another
+origin or to http carries no token, a failed upload or PATCH deletes the draft and returns the original error
+(and a failed delete is appended), 1 MB notes, error text readable without Go struct dumps. Not wired yet.
 
 #### `[ ]` T427: swap the GitHub driver onto the client; port `Check()`, tokens and Lane A
 
 `platforms/github` stops using `port.Runner` (`New(cfg)`; `app` wiring in the same commit). Token chain per
 ADR-0077 for both `Check()` and publishing; the Actions `GITHUB_TOKEN` special case goes. `CheckAssets`
-drops the `#` refusal. `hostEnv`, `tokenEnvSlice` and the notes temp file go. The platform tests move from
+drops the `#` refusal, and publishing warns when GitHub returns an asset name other than the file's basename. `hostEnv`, `tokenEnvSlice` and the notes temp file go. The platform tests move from
 `MockRunner` to a stub server row by row (the `gh`-missing row is obsolete; new rows for each token-chain
 branch). Lane A: `harness.Repo.FakeGitHub()`, a loopback stub logging `github [METHOD] [/path]` into the
 shared call log, replaces `FakeCLI("gh")` in the `release` scenarios (the forge `base_url` points at it), plus
