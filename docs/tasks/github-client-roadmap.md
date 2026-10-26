@@ -1,6 +1,6 @@
 # Héraut — GitHub Client Roadmap (replace `gh` for publishing)
 
-> Status: In progress (drafted 2026-10-25; T423 done 2026-10-26)
+> Status: In progress (drafted 2026-10-25; T423–T425 done 2026-10-26)
 > Decision: [ADR-0077](../adr/0077-github-publish-transport.md) (Accepted: `go-github`).
 > Precedent: ADR-0069 and Phase 61 (T364–T368), which moved GitLab publishing from `glab` to `client-go`.
 > Main roadmap: tracked as Phase 80 in [`roadmap.md`](roadmap.md).
@@ -23,7 +23,7 @@
 
 | Phase | Theme | Tasks | Status |
 |---|---|---|---|
-| 80 | GitHub publishing without `gh` | T423–T430 | In progress — T423, T424 done |
+| 80 | GitHub publishing without `gh` | T423–T430 | In progress — T423–T425 done |
 
 ### Phase 80 — GitHub publishing without `gh`
 
@@ -75,7 +75,7 @@ scheme, host name (case-insensitive) and port (an omitted port is the scheme's d
 `GITHUB_ACTIONS` test, `.ghe.com` case, its leading dot, the two `IsSecureURL` checks, default-port
 normalization, host case folding) each fail at least one row.
 
-#### `[ ]` T425: open-once asset helper in `internal/platforms` (NEW-002)
+#### `[x]` T425: open-once asset helper in `internal/platforms` (NEW-002)
 
 A helper that resolves the asset globs (lenient, same warnings as today), checks confinement on the real
 path, opens it, and confirms with `os.SameFile` that the descriptor is the checked file. It returns open
@@ -83,6 +83,25 @@ handles with name and size, and the caller closes them. Duplicate basenames are 
 `globs_test.go` rows keep passing; new rows for a symlink retargeted between check and open (simulated
 through a test hook, no sleeps), a file replaced by a directory, and duplicate basenames. Not wired yet.
 GitLab's `client.go` is not touched (see T431 in `roadmap.md`).
+
+**Completion note:** `platforms.OpenAssets(patterns, warn) ([]Asset, error)` in `internal/platforms/assets.go`, with
+`Asset{Path, Name, Size, File}` and `CloseAssets`. It globs, skips directories and warns like `ResolveGlobsLenient`
+(left as is for the `gh` driver and GitLab), checks confinement on the real path, then opens the checked real path
+through an `os.Root` on the repository root and requires `os.SameFile` between the first stat and the open file.
+Deviation from the task text: `os.Root` (Go 1.24+) was added on top of `SameFile`, because `SameFile` alone misses a
+path that points outside when stat'ed and opened but inside during the check; a test pins that case.
+`os.Root` also refuses absolute symlink targets, which is harmless since the opened path has no symlinks left
+unless swapped. `requireInside` now delegates to a new `realPathInside`, which returns the relative real path.
+Duplicate basenames are refused before anything is opened, including one file matched by two patterns. The name
+is the basename of the match, so a symlink publishes under the link's name as with `gh`; a leading `-` needs no
+`./` prefix. On any error no file stays open. Swaps are driven by two package hooks (`afterStat`, `beforeOpen`) in
+`assets_internal_test.go`, no sleeps. Tests: 12 behaviour rows (mirroring the `globs_test.go` rules, which all
+still pass) and 7 swap rows (file to an outside symlink, parent directory to an outside symlink, inside retarget,
+file renamed over, file replaced by a directory, a later asset refused after an earlier one opened, the
+three-step case). Sensitivity: eight mutations (plain `os.Open`, no `SameFile`, no duplicate check, no confinement
+error, no directory skip, no warning, name from the real path, size zeroed) each fail at least one row. Not
+covered: closing the earlier files on error is not observable from a test, and a FIFO match would block the open
+(same as today with `gh`); neither is in scope. Not wired yet.
 
 #### `[ ]` T426: GitHub publish client (create, upload, publish, cleanup)
 

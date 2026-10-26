@@ -102,19 +102,25 @@ func realWorkingDir() (string, error) {
 // absolute before symlinks are resolved so a working directory reached through a symlink compares
 // equal to root.
 func requireInside(root, path string) error {
+	_, err := realPathInside(root, path)
+	return err
+}
+
+// realPathInside is requireInside returning the real path relative to root.
+func realPathInside(root, path string) (string, error) {
 	abs, err := filepath.Abs(path)
 	if err != nil {
-		return fmt.Errorf("resolving asset %q: %w", path, err)
+		return "", fmt.Errorf("resolving asset %q: %w", path, err)
 	}
 	real, err := filepath.EvalSymlinks(abs)
 	if err != nil {
-		return fmt.Errorf("resolving asset %q: %w", path, err)
+		return "", fmt.Errorf("resolving asset %q: %w", path, err)
 	}
 	rel, err := filepath.Rel(root, real)
 	if err != nil || rel == ".." || strings.HasPrefix(rel, ".."+string(filepath.Separator)) {
-		return fmt.Errorf("asset %q resolves outside the repository (%s): only files under the repository root can be published", path, root)
+		return "", fmt.Errorf("asset %q resolves outside the repository (%s): only files under the repository root can be published", path, root)
 	}
-	return nil
+	return rel, nil
 }
 
 func optionSafe(path string) string {

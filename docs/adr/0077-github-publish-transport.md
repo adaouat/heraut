@@ -138,7 +138,8 @@ because one package imports it.
   `Check()` and publishing use the same chain, so the Actions-only `GITHUB_TOKEN` special case goes. There
   is no keyring lookup.
 - **Assets (NEW-002).** A helper in `internal/platforms` resolves each match, checks confinement on the
-  real path, opens that path, and confirms with `os.SameFile` that the descriptor is the file it checked.
+  real path, opens that path through an `os.Root` on the repository root (so a symlink swapped in after the
+  check cannot lead outside it), and confirms with `os.SameFile` that the descriptor is the file it checked.
   The upload reads from the descriptor and takes `Content-Length` from its `Stat`. The asset name is the
   basename, and duplicate basenames are refused before any request. `Content-Type` comes from the
   extension, else `application/octet-stream`. The GitLab client keeps its `os.Open` in this epic; adopting
