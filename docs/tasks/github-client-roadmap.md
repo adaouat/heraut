@@ -23,7 +23,7 @@
 
 | Phase | Theme | Tasks | Status |
 |---|---|---|---|
-| 80 | GitHub publishing without `gh` | T423–T430 | In progress — T423 done |
+| 80 | GitHub publishing without `gh` | T423–T430 | In progress — T423, T424 done |
 
 ### Phase 80 — GitHub publishing without `gh`
 
@@ -55,13 +55,25 @@ is refused. New finding: GitHub rewrites special characters in asset names (`met
 ADR-0077 and T427. `heraut-testing` was restored to a bare `main`. The probe code lived in a scratch worktree
 and was not committed.
 
-#### `[ ]` T424: `config` helper for the GitHub API root
+#### `[x]` T424: `config` helper for the GitHub API root
 
 `config.GitHubAPIURL(baseURL)` (name settled in the task): github.com gives `https://api.github.com`,
 `*.ghe.com` gives `https://api.<host>`, any other host gives `<base_url>/api/v3`; `GITHUB_API_URL` wins
 only when `GITHUB_SERVER_URL` has the same origin as `base_url`; a non-secure URL is refused through
 `IsSecureURL`. Table tests: trailing slash, port, path prefix, loopback http, `localhost.evil.com`, mixed-case
 host, Actions on github.com publishing to a GHES. Not wired yet.
+
+**Completion note:** `config.GitHubAPIURL(baseURL, getenv)` in `internal/config/githubapi.go` takes `getenv` like
+`forge.Resolve`, so it reads no process environment itself. It returns the root without a trailing slash (go-github
+wants one; T426 adds it). Two choices the task left open: `GITHUB_API_URL` is used only when `GITHUB_ACTIONS=true`
+as well as a same-origin `GITHUB_SERVER_URL` (outside Actions stray variables are ignored), and an insecure
+`GITHUB_API_URL` that passes the origin test is an error rather than a silent fallback. Same origin compares
+scheme, host name (case-insensitive) and port (an omitted port is the scheme's default). The github.com and
+`*.ghe.com` cases ignore any path in `base_url`; GHES keeps it as a prefix (`/github/api/v3`). Not handled: a
+`base_url` that already ends in `/api/v3` gets it twice (not seen in configs; YAGNI). Tests: 14 derivation rows,
+5 insecure bases, 7 Actions rows, 1 insecure `GITHUB_API_URL`. Sensitivity: eight mutations (same-origin test,
+`GITHUB_ACTIONS` test, `.ghe.com` case, its leading dot, the two `IsSecureURL` checks, default-port
+normalization, host case folding) each fail at least one row.
 
 #### `[ ]` T425: open-once asset helper in `internal/platforms` (NEW-002)
 
