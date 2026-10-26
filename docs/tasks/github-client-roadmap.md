@@ -1,6 +1,6 @@
 # Héraut — GitHub Client Roadmap (replace `gh` for publishing)
 
-> Status: In progress (drafted 2026-10-25; T423–T425 done 2026-10-26)
+> Status: In progress (drafted 2026-10-25; T423–T426 done 2026-10-26)
 > Decision: [ADR-0077](../adr/0077-github-publish-transport.md) (Accepted: `go-github`).
 > Precedent: ADR-0069 and Phase 61 (T364–T368), which moved GitLab publishing from `glab` to `client-go`.
 > Main roadmap: tracked as Phase 80 in [`roadmap.md`](roadmap.md).
@@ -23,7 +23,7 @@
 
 | Phase | Theme | Tasks | Status |
 |---|---|---|---|
-| 80 | GitHub publishing without `gh` | T423–T430 | In progress — T423–T425 done |
+| 80 | GitHub publishing without `gh` | T423–T430 | In progress — T423–T426 done |
 
 ### Phase 80 — GitHub publishing without `gh`
 
@@ -106,7 +106,7 @@ the open, and the release after the tag push), and on Unix the open uses `O_NONB
 after the check fails `SameFile` instead of hanging (`assets_unix.go`; Windows has no filesystem FIFOs). Two
 Unix-only rows, guarded by a 5 s watchdog; removing either defence fails its row. Not wired yet.
 
-#### `[ ]` T426: GitHub publish client (create, upload, publish, cleanup)
+#### `[x]` T426: GitHub publish client (create, upload, publish, cleanup)
 
 `internal/platforms/github/client.go` on `go-github` v93 (ADR-0077): add the module, then create, upload from
 a descriptor (`UploadReleaseAssetFromRelease`, reader and size), publish, delete on failure, list for `Check()`.
@@ -117,6 +117,32 @@ accepted value. Return the published asset names so the driver can warn on a rew
 slash and `+` tags, upload refused for an unexpected origin (no request reaches it), a redirect to another
 origin or to http carries no token, a failed upload or PATCH deletes the draft and returns the original error
 (and a failed delete is appended), 1 MB notes, error text readable without Go struct dumps. Not wired yet.
+
+**Completion note:** `internal/platforms/github/client.go` adds `NewClient(baseURL, repository, token, getenv)`,
+`CreateRelease(tag, notes, draft, prerelease, assets []platforms.Asset) ([]string, error)` (it returns the names
+GitHub published) and `VerifyReleasesAccess()`, on `go-github` v93.0.0 (one direct module and no indirect one, as
+T423 measured). The create request sets `name` to the tag, as in ADR-0077's API table; T429 should confirm the
+title matches what `gh` published. go-github fixes its upload origin when the client is built, so once
+`checkUploadURL` accepts the returned `upload_url` (`uploads.github.com` for github.com, otherwise `base_url`'s
+origin or `uploads.<host>` on the same scheme and port, never with userinfo), a second go-github client is built
+with that origin; go-github's `ErrUntrustedDestination` gate and per-request token rule then apply to it.
+`config.sameOrigin` became `config.SameOrigin` for that check. go-github's `ErrorResponse.Error()` prints its
+error list as Go structs, so errors are wrapped in an `apiError` that reads `422 Validation Failed: name
+already_exists` (or the server's message, such as the immutable-release one) and still unwraps to the go-github
+error. The repository must be `owner/repo` in GitHub's character set, which also keeps `/`, `?` and `#` out of the
+paths go-github builds. Two checks were dropped as duplicates of go-github: an empty token (`WithAuthToken`
+refuses it) and copying the `http.Client` (`WithHTTPClient` copies it; a test pins that). Contract tests use real
+host names: a dialer routes every connection to a local TLS stub (plain HTTP on port 80), so github.com, GHES with
+and without subdomain isolation, a `*.ghe.com` tenant and an Actions `GITHUB_API_URL` all run with no network.
+Tests: 5 no-asset rows (draft, prerelease, slash and `+` tags), 1 MB notes, the draft-upload-publish sequence
+with bodies, sizes and Content-Types, a draft target, a rewritten name, 4 host rows, 5 refused upload origins
+(the draft is deleted, no upload request is made), 19 `checkUploadURL` rows, failed create, upload, publish and
+delete, 3 redirect rows (another host, https to http, another port) with no token on the second hop, the access
+check, 14 construction rows. Sensitivity: 15 mutations; 14 fail at least one row (draft flag, publish skipped or
+forced, no delete, delete error replacing the original, no allowlist, no github.com case, userinfo accepted, raw
+go-github errors, upload origin not configured, no release name, no `per_page`, dot names, shared `http.Client`
+after the test was added); the empty-token one led to dropping the duplicate check. Not handled: requests have no
+timeout (as with `gh`), and retries are go-github's. Not wired yet.
 
 #### `[ ]` T427: swap the GitHub driver onto the client; port `Check()`, tokens and Lane A
 
