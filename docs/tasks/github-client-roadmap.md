@@ -100,8 +100,11 @@ still pass) and 7 swap rows (file to an outside symlink, parent directory to an 
 file renamed over, file replaced by a directory, a later asset refused after an earlier one opened, the
 three-step case). Sensitivity: eight mutations (plain `os.Open`, no `SameFile`, no duplicate check, no confinement
 error, no directory skip, no warning, name from the real path, size zeroed) each fail at least one row. Not
-covered: closing the earlier files on error is not observable from a test, and a FIFO match would block the open
-(same as today with `gh`); neither is in scope. Not wired yet.
+covered: closing the earlier files on error is not observable from a test. Follow-up the same day, at the
+user's request: anything but a regular file is refused at the check, before any open (a FIFO would block
+the open, and the release after the tag push), and on Unix the open uses `O_NONBLOCK` so a FIFO swapped in
+after the check fails `SameFile` instead of hanging (`assets_unix.go`; Windows has no filesystem FIFOs). Two
+Unix-only rows, guarded by a 5 s watchdog; removing either defence fails its row. Not wired yet.
 
 #### `[ ]` T426: GitHub publish client (create, upload, publish, cleanup)
 

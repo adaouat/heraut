@@ -26,8 +26,9 @@ var (
 // the time it is read (NEW-002, ADR-0077). The open goes through an os.Root on the repository root,
 // which refuses a path that leaves it even if a symlink is swapped in after the check, and
 // os.SameFile confirms the descriptor is the file that was checked. Two matches with the same
-// basename are refused, since they would be published under one name. On success the caller closes
-// the files with CloseAssets; on error none is left open.
+// basename are refused, since they would be published under one name, and so is anything but a
+// regular file: opening a FIFO would block the release. On success the caller closes the files with
+// CloseAssets; on error none is left open.
 func OpenAssets(patterns []string, warn func(string)) ([]Asset, error) {
 	rootPath, err := realWorkingDir()
 	if err != nil {
@@ -53,6 +54,9 @@ func OpenAssets(patterns []string, warn func(string)) ([]Asset, error) {
 			}
 			if info.IsDir() {
 				continue
+			}
+			if !info.Mode().IsRegular() {
+				return nil, fmt.Errorf("asset %q is not a regular file: only files can be published", m)
 			}
 			afterStat(m)
 			rel, err := realPathInside(rootPath, m)
@@ -92,7 +96,7 @@ func OpenAssets(patterns []string, warn func(string)) ([]Asset, error) {
 
 func openChecked(root *os.Root, path, rel string, checked os.FileInfo) (Asset, error) {
 	beforeOpen(path)
-	f, err := root.Open(rel)
+	f, err := root.OpenFile(rel, assetOpenFlags, 0)
 	if err != nil {
 		return Asset{}, fmt.Errorf("opening asset %q: %w", path, err)
 	}
