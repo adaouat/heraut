@@ -248,7 +248,7 @@ discipline that applies to every task.
 | 77 | Built-binary (e2e) scenarios for the changed behavior | Complete — T413–T418 done (T418 run on both sandboxes, passing), see `hardening-4-roadmap.md` |
 | 78 | Security follow-ups from the 2026-10-22 re-scan | Complete — T419–T420, see `hardening-5-roadmap.md` |
 | 79 | Remaining security findings (NEW-003, NEW-004) | Complete — T421–T422, see `hardening-6-roadmap.md` |
-| 80 | GitHub publishing without `gh` (ADR-0077) | In progress — T423–T427 done, T428–T430 open, see `github-client-roadmap.md` |
+| 80 | GitHub publishing without `gh` (ADR-0077) | In progress — T423–T427 done, T428–T430 and T432 open, see `github-client-roadmap.md` |
 | 81 | GitLab asset read from the descriptor (NEW-002 for GitLab) | Not started — T431, waits for T425 and the user's go |
 
 ### Open items

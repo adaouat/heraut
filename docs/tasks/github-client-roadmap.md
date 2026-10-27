@@ -23,7 +23,7 @@
 
 | Phase | Theme | Tasks | Status |
 |---|---|---|---|
-| 80 | GitHub publishing without `gh` | T423–T430 | In progress — T423–T427 done |
+| 80 | GitHub publishing without `gh` | T423–T430, T432 | In progress — T423–T427 done |
 
 ### Phase 80 — GitHub publishing without `gh`
 
@@ -205,6 +205,17 @@ workflow is the first production run of the new driver; note anything it needs (
 Switch the enrichment client's `apiBase` to the T424 helper so publishing and enrichment agree on the API
 root, which adds `*.ghe.com` support to enrichment. Behaviour change for `*.ghe.com` hosts only; table tests
 first.
+
+#### `[ ]` T432: refuse duplicate basenames and non-regular assets before anything is committed
+
+`platforms.OpenAssets` refuses two matches with the same basename and any match that is not a regular file,
+but only at publish time, after the tag is pushed. `platforms.CheckAssetGlobs`, which `CheckAssets()` runs
+before the changelog commit, applies neither rule, so such a release fails half-way. Move both rules into the
+preflight: share one check between `CheckAssetGlobs` and `OpenAssets`, without opening anything in the
+preflight (a FIFO must still never block). `CheckAssetGlobs` is shared with the GitLab driver, so its
+preflight gains the same refusals; GitLab's publish path itself is not touched (T431). Table tests first in
+`internal/platforms`, and one Lane A scenario showing that a duplicate basename stops `heraut release` with no
+commit and no tag.
 
 **Phase 80 exit:** `go test -count=1 ./...` passes, `gh` appears only in Lane B's harness and historical
 docs, each behaviour change confirmed to fail when reverted, lint clean, and Lane B green on GitHub (T429).
