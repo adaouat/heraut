@@ -1,6 +1,6 @@
 # Héraut — GitHub Client Roadmap (replace `gh` for publishing)
 
-> Status: In progress (drafted 2026-10-25; T423–T426 done 2026-10-26, T427–T430 done 2026-10-27)
+> Status: Done (drafted 2026-10-25; T423–T426 done 2026-10-26, T427–T430 and T432 done 2026-10-27)
 > Decision: [ADR-0077](../adr/0077-github-publish-transport.md) (Accepted: `go-github`).
 > Precedent: ADR-0069 and Phase 61 (T364–T368), which moved GitLab publishing from `glab` to `client-go`.
 > Main roadmap: tracked as Phase 80 in [`roadmap.md`](roadmap.md).
@@ -23,7 +23,7 @@
 
 | Phase | Theme | Tasks | Status |
 |---|---|---|---|
-| 80 | GitHub publishing without `gh` | T423–T430, T432 | In progress — T423–T430 done, T432 open |
+| 80 | GitHub publishing without `gh` | T423–T430, T432 | Done — T423–T430 and T432 done (exit note below) |
 
 ### Phase 80 — GitHub publishing without `gh`
 
@@ -255,7 +255,7 @@ resolved API root, an insecure `GITHUB_API_URL`, two `*.ghe.com` GraphQL rows an
 `*.ghe.com` GraphQL rule, the old host fallback) each fail a test. Spec 02 § Identity resolution and Spec 05's
 self-hosted bullet say so.
 
-#### `[ ]` T432: refuse duplicate basenames and non-regular assets before anything is committed
+#### `[x]` T432: refuse duplicate basenames and non-regular assets before anything is committed
 
 `platforms.OpenAssets` refuses two matches with the same basename and any match that is not a regular file,
 but only at publish time, after the tag is pushed. `platforms.CheckAssetGlobs`, which `CheckAssets()` runs
@@ -266,5 +266,24 @@ preflight gains the same refusals; GitLab's publish path itself is not touched (
 `internal/platforms`, and one Lane A scenario showing that a duplicate basename stops `heraut release` with no
 commit and no tag.
 
+Done 2026-10-27, before T431 on the user's choice. `OpenAssets`' matching loop became `matchAssets` (glob,
+skip directories, refuse anything but a regular file, confinement, duplicate basename, warn on no match), and
+`CheckAssetGlobs` calls it instead of `ResolveGlobsLenient`; it opens nothing, so a FIFO is refused by its mode
+and cannot block. The same file matched by two patterns stays refused, as `OpenAssets` already did. These
+refusals are never wrapped in `port.ErrAssetUnmatched`, so a dry run fails on them too. `ResolveGlobsLenient`,
+GitLab's publish path, is unchanged: until T431, GitLab's preflight refuses these cases but its publish step
+would not. Tests first: a duplicate table (two directories, one pattern matching both, the same file twice;
+with and without `allow_missing_assets`), distinct names pass, a FIFO refused without blocking, and a Lane A
+scenario for GitHub and GitLab, real and dry runs: exit Runtime, no commit, no tag, only read requests reached
+the stand-ins. Against the old code the GitLab real run committed and tagged. Three mutations (no regular-file
+rule, no duplicate rule, a match error wrapped as unmatched) each fail tests. Spec 03 step 3 and Spec 05 § asset
+resolution list the rules.
+
 **Phase 80 exit:** `go test -count=1 ./...` passes, `gh` appears only in Lane B's harness and historical
 docs, each behaviour change confirmed to fail when reverted, lint clean, and Lane B green on GitHub (T429).
+
+Exit check, 2026-10-27: met, with one leftover. `go test -count=1 ./...` passes, lint is clean, every task's
+mutations fail tests, and Lane B is green on GitHub. `gh` still appears outside Lane B's harness and history in
+one place: Lane A's generic `harness.Repo.FakeCLI`, which no scenario uses any more, is unit-tested with a fake
+binary named `gh` (`e2e/harness/harness_test.go`). Removing or renaming it is harness cleanup, not publishing
+behaviour, and is left for the user to schedule. GitLab's half of NEW-002 is T431 (Phase 81).
