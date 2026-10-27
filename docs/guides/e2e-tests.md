@@ -118,6 +118,17 @@ sweeper, then the scenarios.
 
 - GitHub's release list and its commit-to-pull-request association lag behind by seconds, so the
   tests look releases up by tag and poll with a bounded timeout.
+- GitHub publishing runs in process since [ADR-0077](../adr/0077-github-publish-transport.md): a release
+  with assets is created as a draft, the files are uploaded, then the draft is published. On the sandbox
+  this looks the same as before from the outside: B4 and B7 find the assets attached, B7's draft target
+  stays a draft, B2 is flagged as a pre-release, and the per-test cleanup leaves no release, tag or branch
+  behind (first run 2026-10-27, every GitHub scenario plus B6, no push retried). The harness itself still
+  uses `gh` to read and clean up the sandbox; heraut does not.
+- The GitHub sandbox keeps immutable releases **off**. The tag of a published immutable release cannot
+  be deleted, so with them on every run would leak its tags. The draft, upload and publish order exists
+  for immutable releases (an upload to a published one is refused with 422); it was checked once on a
+  throwaway repository with them on (ADR-0077 § live probe), and heraut's own releases, which are
+  immutable, exercise it on every run.
 - GitLab has no pre-release or draft flag; B2 and B7 assert them only where the forge has one.
 - Each target's notes link commits on its own forge, so B6 compares the notes with the link
   targets removed.

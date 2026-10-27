@@ -1,6 +1,6 @@
 # Héraut — GitHub Client Roadmap (replace `gh` for publishing)
 
-> Status: In progress (drafted 2026-10-25; T423–T426 done 2026-10-26, T427 and T428 done 2026-10-27)
+> Status: In progress (drafted 2026-10-25; T423–T426 done 2026-10-26, T427–T429 done 2026-10-27)
 > Decision: [ADR-0077](../adr/0077-github-publish-transport.md) (Accepted: `go-github`).
 > Precedent: ADR-0069 and Phase 61 (T364–T368), which moved GitLab publishing from `glab` to `client-go`.
 > Main roadmap: tracked as Phase 80 in [`roadmap.md`](roadmap.md).
@@ -23,7 +23,7 @@
 
 | Phase | Theme | Tasks | Status |
 |---|---|---|---|
-| 80 | GitHub publishing without `gh` | T423–T430, T432 | In progress — T423–T428 done |
+| 80 | GitHub publishing without `gh` | T423–T430, T432 | In progress — T423–T429 done |
 
 ### Phase 80 — GitHub publishing without `gh`
 
@@ -213,12 +213,26 @@ example is a real test (`TestCreateRelease_SendsTheRelease`) so it cannot rot ag
 generic `FakeCLI`, now used only by its own tests (they fake a binary called `gh`); `platform.go`'s comment on the
 token chain's compatibility with the old driver; ADRs and plans, which are history.
 
-#### `[ ]` T429: Lane B validation on the GitHub sandbox
+#### `[x]` T429: Lane B validation on the GitHub sandbox
 
 Only when the user says so. Run Lane B's GitHub scenarios against `bchatard/heraut-testing` with the swapped
 driver, including one with assets, one draft target and one pre-release. Confirm cleanup leaves the sandbox
 with no releases or tags. Record observed behaviour in `docs/guides/e2e-tests.md`. heraut's own `Release`
 workflow is the first production run of the new driver; note anything it needs (token env) here.
+
+Done 2026-10-27, on the user's go. Lane B ran against `bchatard/heraut-testing` (and `-enrich` for B9) with
+the in-process driver: all ten GitHub scenarios pass in 140s (B1–B5, both B7s, B8, B9, B10), covering assets
+(B4, B7 "matching files are attached", two files), a draft target (B7, stays a draft) and a pre-release (B2,
+flagged). B6, which publishes a GitLab-sourced release to GitHub as a second target, was run on its own with the
+GitLab sandbox too and passes; no GitLab code changed. No `[remote rejected]` push was retried, and no rename
+warning appeared. Afterwards both GitHub sandboxes and the GitLab one hold no release, tag, package or branch
+besides `main`. The scenarios needed no change: the harness already sets `token_env: GH_TOKEN`, so the default
+token order is not exercised live (it is covered by `TestPlatform_TokenChain`). The sandbox keeps immutable
+releases off on purpose (a published immutable tag cannot be deleted, so cleanup would leak); that path was
+probed in T423 and is exercised by heraut's own releases. heraut's `Release` workflow needs nothing new:
+forge's `release-publish` action (v0.19.7) already sets `GH_TOKEN` and `GITHUB_TOKEN`, and
+`.config/heraut.yml` has no `token_env`, so the driver reads `GH_TOKEN`; the next release of heraut is the first
+production run of the new driver. `docs/guides/e2e-tests.md` records the observed behaviour.
 
 #### `[ ]` T430: `internal/forge/github` onto the shared API-root helper
 
