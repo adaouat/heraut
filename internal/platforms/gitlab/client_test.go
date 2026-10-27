@@ -14,6 +14,7 @@ import (
 
 	gl "gitlab.com/gitlab-org/api/client-go"
 
+	"github.com/adaouat/heraut/internal/platforms"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -75,6 +76,21 @@ func writeAsset(t *testing.T, dir, name, content string) string {
 	return p
 }
 
+// opened opens each path as an asset the way platforms.OpenAssets hands it over.
+func opened(t *testing.T, paths ...string) []platforms.Asset {
+	t.Helper()
+	assets := make([]platforms.Asset, 0, len(paths))
+	for _, p := range paths {
+		f, err := os.Open(p)
+		require.NoError(t, err)
+		t.Cleanup(func() { _ = f.Close() })
+		info, err := f.Stat()
+		require.NoError(t, err)
+		assets = append(assets, platforms.Asset{Path: p, Name: filepath.Base(p), Size: info.Size(), File: f})
+	}
+	return assets
+}
+
 // unescaped decodes a link URL: client-go percent-encodes "." and the project path's "/", which
 // GitLab decodes back to the same route.
 func unescaped(t *testing.T, v any) string {
@@ -99,7 +115,7 @@ func TestClient_CreateRelease_UploadsAssetsThenCreatesReleaseWithLinks(t *testin
 
 	c, err := NewClient(f.srv.URL, "tok", false)
 	require.NoError(t, err)
-	require.NoError(t, c.CreateRelease("acme/widget", "v1.2.3", "the notes", []string{a, b}))
+	require.NoError(t, c.CreateRelease("acme/widget", "v1.2.3", "the notes", opened(t, a, b)))
 
 	require.Len(t, f.requests, 3, "two uploads then one release")
 	up1, up2, rel := f.requests[0], f.requests[1], f.requests[2]
@@ -144,7 +160,7 @@ func TestClient_CreateRelease_AuthHeader(t *testing.T) {
 			a := writeAsset(t, t.TempDir(), "a.txt", "x")
 			c, err := NewClient(f.srv.URL, "secret", tc.jobToken)
 			require.NoError(t, err)
-			require.NoError(t, c.CreateRelease("acme/widget", "v1.0.0", "n", []string{a}))
+			require.NoError(t, c.CreateRelease("acme/widget", "v1.0.0", "n", opened(t, a)))
 
 			require.NotEmpty(t, f.requests)
 			for _, r := range f.requests {
@@ -173,7 +189,7 @@ func TestClient_CreateRelease_PerEnvTag_SanitizesOnlyThePackageVersion(t *testin
 	c, err := NewClient(f.srv.URL, "tok", false)
 	require.NoError(t, err)
 
-	require.NoError(t, c.CreateRelease("acme/widget", "uat/0.0.0+smoke", "n", []string{a}))
+	require.NoError(t, c.CreateRelease("acme/widget", "uat/0.0.0+smoke", "n", opened(t, a)))
 
 	require.Len(t, f.requests, 2)
 	assert.Equal(t, "/api/v4/projects/acme/widget/packages/generic/release-assets/uat-0.0.0+smoke/a.txt", f.requests[0].path)
@@ -191,7 +207,7 @@ func TestClient_CreateRelease_UploadFailure_CreatesNoRelease(t *testing.T) {
 	c, err := NewClient(f.srv.URL, "tok", false)
 	require.NoError(t, err)
 
-	err = c.CreateRelease("acme/widget", "v1.0.0", "n", []string{a})
+	err = c.CreateRelease("acme/widget", "v1.0.0", "n", opened(t, a))
 
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "a.txt")
@@ -216,31 +232,27 @@ func TestClient_CreateRelease_ReleaseFailure_ReturnsTheError(t *testing.T) {
 	assert.True(t, errors.As(err, &apiErr))
 }
 
-func TestClient_CreateRelease_MissingAsset_FailsBeforeAnyRequest(t *testing.T) {
+// The upload reads the file that was opened and checked, not whatever its path names by the time
+// the client runs (NEW-002): a symlink swapped in after the open must not be followed.
+func TestClient_CreateRelease_UploadsTheOpenedFileNotWhatThePathNamesLater(t *testing.T) {
 	f := newFakeGitLab(t)
+	repo := t.TempDir()
+	t.Chdir(repo)
+	writeAsset(t, repo, "app.zip", "checked")
+	secret := writeAsset(t, t.TempDir(), "secret.txt", "secret")
+	assets, err := platforms.OpenAssets([]string{"app.zip"}, func(p string) { t.Errorf("unexpected warning for %q", p) })
+	require.NoError(t, err)
+	t.Cleanup(func() { platforms.CloseAssets(assets) })
+
+	require.NoError(t, os.Remove(filepath.Join(repo, "app.zip")))
+	require.NoError(t, os.Symlink(secret, filepath.Join(repo, "app.zip")))
+
 	c, err := NewClient(f.srv.URL, "tok", false)
 	require.NoError(t, err)
+	require.NoError(t, c.CreateRelease("acme/widget", "v1.0.0", "n", assets))
 
-	err = c.CreateRelease("acme/widget", "v1.0.0", "n", []string{filepath.Join(t.TempDir(), "gone.txt")})
-
-	require.Error(t, err)
-	assert.ErrorIs(t, err, os.ErrNotExist)
-	assert.Empty(t, f.requests)
-}
-
-func TestClient_CreateRelease_DuplicateBasenames_FailsBeforeAnyRequest(t *testing.T) {
-	f := newFakeGitLab(t)
-	dir := t.TempDir()
-	one := writeAsset(t, filepath.Join(dir, "x"), "app.tgz", "1")
-	two := writeAsset(t, filepath.Join(dir, "y"), "app.tgz", "2")
-	c, err := NewClient(f.srv.URL, "tok", false)
-	require.NoError(t, err)
-
-	err = c.CreateRelease("acme/widget", "v1.0.0", "n", []string{one, two})
-
-	require.Error(t, err)
-	assert.Contains(t, err.Error(), "app.tgz")
-	assert.Empty(t, f.requests)
+	require.Len(t, f.requests, 2)
+	assert.Equal(t, "checked", string(f.requests[0].body))
 }
 
 func TestClient_CreateRelease_LargeNotesArriveIntact(t *testing.T) {

@@ -9,47 +9,6 @@ import (
 	"github.com/adaouat/heraut/internal/port"
 )
 
-// ResolveGlobsLenient expands each glob pattern and returns all matched file paths, skipping
-// directories. A pattern that matches no file (nothing at all, or only directories) calls warn
-// instead of failing; invalid glob syntax still returns an error.
-//
-// Assets are confined to the working directory (the repository root): a match whose real path,
-// after resolving symlinks, lies outside it is refused, so a pattern such as /etc/* or ../* cannot
-// publish files that are not part of the project. A relative match whose name starts with "-" is
-// returned as "./name" so it cannot be read as an option by the tool it is passed to.
-func ResolveGlobsLenient(patterns []string, warn func(string)) ([]string, error) {
-	root, err := realWorkingDir()
-	if err != nil {
-		return nil, err
-	}
-	var files []string
-	for _, pattern := range patterns {
-		matches, err := filepath.Glob(pattern)
-		if err != nil {
-			return nil, fmt.Errorf("invalid glob pattern %q: %w", pattern, err)
-		}
-		matched := false
-		for _, m := range matches {
-			info, err := os.Stat(m)
-			if err != nil {
-				return nil, fmt.Errorf("stat %q: %w", m, err)
-			}
-			if info.IsDir() {
-				continue
-			}
-			if err := requireInside(root, m); err != nil {
-				return nil, err
-			}
-			files = append(files, optionSafe(m))
-			matched = true
-		}
-		if !matched {
-			warn(pattern)
-		}
-	}
-	return files, nil
-}
-
 // CheckAssetGlobs applies the publish-time asset rules (matchAssets) without opening anything, so a
 // refusal surfaces before anything is committed or pushed: every match must be a regular file inside
 // the repository with a basename no other match has, and, unless allowMissing is set, every pattern
@@ -103,15 +62,9 @@ func realWorkingDir() (string, error) {
 	return root, nil
 }
 
-// requireInside fails when path, with symlinks resolved, is not under root. The path is made
-// absolute before symlinks are resolved so a working directory reached through a symlink compares
-// equal to root.
-func requireInside(root, path string) error {
-	_, err := realPathInside(root, path)
-	return err
-}
-
-// realPathInside is requireInside returning the real path relative to root.
+// realPathInside fails when path, with symlinks resolved, is not under root, and otherwise returns
+// its real path relative to root. The path is made absolute before symlinks are resolved so a
+// working directory reached through a symlink compares equal to root.
 func realPathInside(root, path string) (string, error) {
 	abs, err := filepath.Abs(path)
 	if err != nil {
@@ -126,11 +79,4 @@ func realPathInside(root, path string) (string, error) {
 		return "", fmt.Errorf("asset %q resolves outside the repository (%s): only files under the repository root can be published", path, root)
 	}
 	return rel, nil
-}
-
-func optionSafe(path string) string {
-	if !filepath.IsAbs(path) && strings.HasPrefix(path, "-") {
-		return "./" + path
-	}
-	return path
 }

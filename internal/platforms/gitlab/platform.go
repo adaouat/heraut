@@ -176,8 +176,8 @@ func sameGitLabHost(a, b string) bool {
 	return strings.EqualFold(ua.Scheme, ub.Scheme) && strings.EqualFold(ua.Host, ub.Host)
 }
 
-// CreateRelease uploads the resolved asset files and creates the release (Client.CreateRelease).
-// Asset globs resolve leniently, as on GitHub: a pattern matching nothing warns and is skipped.
+// CreateRelease opens the asset files once (platforms.OpenAssets), uploads them and creates the
+// release (Client.CreateRelease). As on GitHub, a pattern matching nothing warns and is skipped.
 // prerelease is accepted to satisfy the shared port.Platform contract and ignored — GitLab
 // releases have no pre-release concept (ADR-0064).
 func (p *Platform) CreateRelease(tag, notes string, prerelease bool) error {
@@ -186,21 +186,22 @@ func (p *Platform) CreateRelease(tag, notes string, prerelease bool) error {
 		return err
 	}
 
-	var files []string
+	var assets []platforms.Asset
 	if len(p.cfg.Assets) > 0 {
-		files, err = platforms.ResolveGlobsLenient(p.cfg.Assets, func(pattern string) {
+		assets, err = platforms.OpenAssets(p.cfg.Assets, func(pattern string) {
 			_, _ = fmt.Fprintf(os.Stderr, "warning: no files matched asset pattern %q — skipping\n", pattern)
 		})
 		if err != nil {
 			return fmt.Errorf("gitlab release create: resolving assets: %w", err)
 		}
+		defer platforms.CloseAssets(assets)
 	}
 
 	c, err := p.client()
 	if err != nil {
 		return fmt.Errorf("gitlab release create: %w", err)
 	}
-	if err := c.CreateRelease(proj, tag, notes, files); err != nil {
+	if err := c.CreateRelease(proj, tag, notes, assets); err != nil {
 		return fmt.Errorf("gitlab release create: %w", err)
 	}
 	return nil

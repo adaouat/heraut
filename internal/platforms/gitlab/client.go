@@ -3,13 +3,12 @@ package gitlab
 import (
 	"fmt"
 	"net/http"
-	"os"
-	"path/filepath"
 	"strings"
 
 	gl "gitlab.com/gitlab-org/api/client-go"
 
 	"github.com/adaouat/heraut/internal/config"
+	"github.com/adaouat/heraut/internal/platforms"
 )
 
 // assetPackageName is the Generic Packages package that holds every release asset.
@@ -62,22 +61,19 @@ func dropTokenOnCrossHostRedirect(c *http.Client) {
 	}
 }
 
-// CreateRelease uploads each file to the project's Generic Packages registry, then creates the
-// release for tag with one package link per file. Uploads come first so a failed upload leaves
-// no asset-less release behind. POST /uploads is not used: it rejects CI_JOB_TOKEN, the
+// CreateRelease uploads each asset to the project's Generic Packages registry, then creates the
+// release for tag with one package link per asset. Uploads come first so a failed upload leaves
+// no asset-less release behind. Each asset is read from its open file, never reopened by path
+// (platforms.OpenAssets). POST /uploads is not used: it rejects CI_JOB_TOKEN, the
 // Generic Packages API accepts it. Each link's direct_asset_path keeps the public download URL
 // (.../releases/<tag>/downloads/<file>) independent of the package version.
-func (c *Client) CreateRelease(project, tag, notes string, files []string) error {
-	if err := checkAssets(files); err != nil {
-		return err
-	}
-
+func (c *Client) CreateRelease(project, tag, notes string, assets []platforms.Asset) error {
 	version := packageVersion(tag)
-	links := make([]*gl.ReleaseAssetLinkOptions, 0, len(files))
-	for _, file := range files {
-		name := filepath.Base(file)
-		if err := c.upload(project, version, name, file); err != nil {
-			return err
+	links := make([]*gl.ReleaseAssetLinkOptions, 0, len(assets))
+	for _, a := range assets {
+		name := a.Name
+		if _, _, err := c.api.GenericPackages.PublishPackageFile(project, assetPackageName, version, name, a.File, nil); err != nil {
+			return fmt.Errorf("uploading asset %s: %w", name, err)
 		}
 		path, err := c.api.GenericPackages.FormatPackageURL(project, assetPackageName, version, name)
 		if err != nil {
@@ -120,35 +116,6 @@ func (c *Client) VerifyReleasesAccess(project string) error {
 	opts := &gl.ListReleasesOptions{ListOptions: gl.ListOptions{PerPage: 1}}
 	if _, _, err := c.api.Releases.ListReleases(project, opts); err != nil {
 		return fmt.Errorf("listing releases of %s: %w", project, err)
-	}
-	return nil
-}
-
-func (c *Client) upload(project, version, name, file string) error {
-	f, err := os.Open(file)
-	if err != nil {
-		return fmt.Errorf("opening asset %s: %w", name, err)
-	}
-	defer func() { _ = f.Close() }()
-	if _, _, err := c.api.GenericPackages.PublishPackageFile(project, assetPackageName, version, name, f, nil); err != nil {
-		return fmt.Errorf("uploading asset %s: %w", name, err)
-	}
-	return nil
-}
-
-// checkAssets fails before any request when a file is missing or two files share a basename
-// (they would overwrite each other in the package and collide as release links).
-func checkAssets(files []string) error {
-	seen := make(map[string]string, len(files))
-	for _, file := range files {
-		if _, err := os.Stat(file); err != nil {
-			return fmt.Errorf("asset %s: %w", file, err)
-		}
-		name := filepath.Base(file)
-		if prev, dup := seen[name]; dup {
-			return fmt.Errorf("assets %s and %s share the file name %q", prev, file, name)
-		}
-		seen[name] = file
 	}
 	return nil
 }

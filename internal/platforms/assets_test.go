@@ -118,6 +118,17 @@ func TestOpenAssets_RefusesAbsolutePathOutsideTheRoot(t *testing.T) {
 	assert.Contains(t, err.Error(), "secret.txt")
 }
 
+// Confinement applies to files, not to patterns: a pattern outside the repository that matches
+// nothing only warns.
+func TestOpenAssets_NoMatchOutsideTheRootStillJustWarns(t *testing.T) {
+	inRepo(t)
+	var warned []string
+	assets, err := openAssets(t, []string{filepath.Join(t.TempDir(), "*.zip")}, func(p string) { warned = append(warned, p) })
+	require.NoError(t, err)
+	assert.Empty(t, assets)
+	assert.Len(t, warned, 1)
+}
+
 func TestOpenAssets_RefusesParentTraversal(t *testing.T) {
 	repo := inRepo(t)
 	writeFile(t, filepath.Dir(repo), "sibling.bin", "x")

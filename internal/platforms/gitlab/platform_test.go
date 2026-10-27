@@ -589,6 +589,38 @@ func TestCreateRelease_Assets_NoMatch_StillCreates(t *testing.T) {
 	assert.NotContains(t, st.release(t), "assets")
 }
 
+// Two assets published under one name would overwrite each other in the package, so the release is
+// refused before any request, whether two files share a basename or one file is matched twice.
+func TestCreateRelease_Assets_DuplicateNamesAreRefusedBeforeAnyRequest(t *testing.T) {
+	tests := []struct {
+		name     string
+		patterns []string
+	}{
+		{"two files share a basename", []string{"linux/app.zip", "darwin/app.zip"}},
+		{"one file matched twice", []string{"linux/*.zip", "linux/app.zip"}},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			notInCI(t)
+			st := newStub(t)
+			tmp := t.TempDir()
+			t.Chdir(tmp)
+			for _, d := range []string{"linux", "darwin"} {
+				require.NoError(t, os.MkdirAll(filepath.Join(tmp, d), 0o755))
+				require.NoError(t, os.WriteFile(filepath.Join(tmp, d, "app.zip"), []byte(d), 0o644))
+			}
+			t.Setenv("GITLAB_TOKEN", "tok")
+			p := gitlab.New(&config.Platform{Project: "grp/repo", BaseURL: st.srv.URL, Assets: tc.patterns})
+
+			err := p.CreateRelease("v1.0.0", "notes", false)
+
+			require.Error(t, err)
+			assert.Contains(t, err.Error(), "app.zip")
+			assert.Empty(t, st.requests)
+		})
+	}
+}
+
 func TestCreateRelease_PerEnvTag_KeepsTheTagAndSanitizesThePackageVersion(t *testing.T) {
 	notInCI(t)
 	st := newStub(t)
