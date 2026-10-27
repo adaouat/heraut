@@ -250,7 +250,7 @@ discipline that applies to every task.
 | 79 | Remaining security findings (NEW-003, NEW-004) | Complete — T421–T422, see `hardening-6-roadmap.md` |
 | 80 | GitHub publishing without `gh` (ADR-0077) | Done — T423–T430, T432 and T433, see `github-client-roadmap.md` |
 | 81 | GitLab asset read from the descriptor (NEW-002 for GitLab) | Done |
-| 82 | Last open security findings (NEW-005 residual, SEC-002) | Not started — T434, T435 |
+| 82 | Last open security findings (NEW-005 residual, SEC-002) | In progress — T434 done, T435 waits for the user's decision |
 
 ### Open items
 
@@ -3438,7 +3438,7 @@ B6 exercise GitLab uploads.
 The two Info items still open in `docs/audit/SECURITY_FINDINGS.md` after T431, scheduled by the user on
 2026-10-27.
 
-#### `[ ]` T434: no leftover changelog temp file after a crash (NEW-005 residual)
+#### `[x]` T434: no leftover changelog temp file after a crash (NEW-005 residual)
 
 `writeFileAtomic` (`internal/generators/native/generator.go`) writes the changelog to
 `.<name>.tmp-*` next to it and renames it over the target. It removes the temp file on every error it sees,
@@ -3449,6 +3449,17 @@ repository's changelog at a time). Rejected alternative: a temp file outside the
 `.git/`), because the rename is atomic only within one filesystem and a worktree's git directory can sit
 elsewhere. Tests first: a leftover is removed and the write succeeds; an unrelated file with a similar name
 (`<name>.tmp-x`, no leading dot; another target's leftover) is kept. Then mark NEW-005 fully resolved.
+
+Done 2026-10-27, as written (the user weighed the OS temp directory and kept the same-directory file, since a
+rename across filesystems would fail in Docker CI and on tmpfs). `writeFileAtomic` calls `removeLeftovers` on
+the resolved target's directory before `CreateTemp`: it deletes regular files whose name starts with
+`.<name>.tmp-`, best effort (a failure to remove does not stop the write). Exact-case prefix match, so
+`.changelog.md.tmp-*` is not touched for `CHANGELOG.md`, even on a case-insensitive filesystem. Tests first:
+one row with two leftovers removed and five similar names kept (no leading dot, no dash, another target, other
+case, a directory), and one for a symlinked changelog, whose leftovers are named after the target. Three
+mutations fail them: no regular-file check, the prefix without its dash, the prefix taken from the link name.
+Spec 05 § Atomic write describes the rule, and its stale "mode `0644`" now says an existing file keeps its
+mode (T420). NEW-005 is resolved in `SECURITY_FINDINGS.md`.
 
 #### `[ ]` T435: decide and apply the rule for operator-chosen output paths (SEC-002)
 

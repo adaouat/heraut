@@ -1,5 +1,14 @@
 # Security findings: heraut (2026-10-14)
 
+## Update 2026-10-27 (after T434)
+
+This section supersedes the rows and the scorecard below for NEW-005. In-place update, not a re-scan.
+
+- **NEW-005: RESOLVED.** The crash-leftover half is closed: each changelog write first removes the `.<name>.tmp-*` regular files an interrupted earlier write of the same target left behind (`edc48ba`, T434). The permission half was resolved in T420.
+- **Still open:** SEC-002, scheduled as T435 (Phase 82), which starts with a decision for the user.
+
+**Scorecard (current):** Critical 0 · High 0 · Medium 0 · Low 0 · Info 1 (SEC-002). Coverage gaps from the 2026-10-22 section still apply.
+
 ## Update 2026-10-27 (after T431)
 
 The GitLab driver now reads its assets the way the GitHub driver does. This section supersedes the rows and the scorecard below for NEW-002. In-place update, not a re-scan.

@@ -256,9 +256,12 @@ previously-anchorless file) — see [ADR-0038](../adr/0038-incremental-changelog
 migration story, including the `regenerate_changelog` `workflow_dispatch` input heraut's own CI
 uses for its own migration.
 
-**Atomic write.** The changelog is written to a temp file in the same directory and renamed over the
-target (mode `0644`), so a crash or a full disk leaves the previous file whole. A symlinked changelog
-path is resolved first: the link is kept and its target replaced.
+**Atomic write.** The changelog is written to a temp file in the same directory (`.<name>.tmp-*`) and
+renamed over the target, so a crash or a full disk leaves the previous file whole. An existing file keeps
+its permission bits; a new one gets `0644`. A symlinked changelog path is resolved first: the link is kept
+and its target replaced. A temp file left by a write that was killed before its rename is removed by the
+next write to the same target, so it cannot linger until a hook that stages everything commits it. The
+temp file stays in the target's directory because the rename is atomic only within one filesystem.
 
 **Rotating `changelog.output`** (see [Spec 02 § Rotating changelog output](02-configuration.md#rotating-changelog-output))
 reuses this same bootstrap path unchanged for each new file: the first release in a new period/
