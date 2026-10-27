@@ -279,13 +279,22 @@ the stand-ins. Against the old code the GitLab real run committed and tagged. Th
 rule, no duplicate rule, a match error wrapped as unmatched) each fail tests. Spec 03 step 3 and Spec 05 § asset
 resolution list the rules.
 
-#### `[ ]` T433: drop Lane A's fake-binary helper
+#### `[x]` T433: drop Lane A's fake-binary helper
 
 `harness.Repo.FakeCLI` (with `Repo.FailReleases` and `BinDir`) installs fake executables on `PATH`; no
 scenario uses it since the GitHub and GitLab stand-ins replaced `gh` and `glab`, and only its own tests still
 fake a binary called `gh`. Remove it and its tests, keep the call log the two stand-ins share, and rename
 `CLICalls` to `APICalls` since nothing logged is a CLI any more. Harness only: no scenario's assertions
 change. Asked for by the user after T431.
+
+Done 2026-10-27. `fakecli.go` is gone (`FakeCLI`, `Repo.FailReleases`, `BinDir`, the shell script, and the
+`PATH` prepending in `Run`, which now uses `baseEnv` directly). `APICalls` and the log read moved to
+`calllog.go`; the repository's `binDir` field became `logDir`, and the stand-ins' comments no longer mention
+fake CLIs. `CLICalls` was renamed at every call site (Lane A scenarios only; no Lane B file used it). Tests:
+the two `FakeCLI` tests are removed, the `FakeGitLab` and home/stdin tests lost their `FakeCLI` lines, and a
+new `TestRepo_StandInsShareOneCallLogInOrder` covers what the mixed `gh`-plus-GitLab test used to show: both
+stand-ins write one log, in order. Mutation: giving the GitLab stand-in its own log file fails it. `gh` now
+appears only in Lane B's harness and in historical docs, which closes the Phase 80 exit leftover.
 
 **Phase 80 exit:** `go test -count=1 ./...` passes, `gh` appears only in Lane B's harness and historical
 docs, each behaviour change confirmed to fail when reverted, lint clean, and Lane B green on GitHub (T429).
@@ -294,4 +303,5 @@ Exit check, 2026-10-27: met, with one leftover. `go test -count=1 ./...` passes,
 mutations fail tests, and Lane B is green on GitHub. `gh` still appears outside Lane B's harness and history in
 one place: Lane A's generic `harness.Repo.FakeCLI`, which no scenario uses any more, is unit-tested with a fake
 binary named `gh` (`e2e/harness/harness_test.go`). Removing or renaming it is harness cleanup, not publishing
-behaviour, and is left for the user to schedule. GitLab's half of NEW-002 is T431 (Phase 81).
+behaviour, and is left for the user to schedule. GitLab's half of NEW-002 is T431 (Phase 81). The leftover is closed by
+T433 (2026-10-27).
