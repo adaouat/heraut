@@ -41,7 +41,7 @@ no longer a parity target — heraut's rendering is its own spec, validated by g
 | Phase 2.5 — remove the git-cliff package (own ADR)   | T177–T194              | Done        |
 | Phase C — wizard simplification (supersedes T164)    | T195–T202              | Done        |
 | Phase D — infra housekeeping (Dockerfile / mise / ADR-0016) | T205–T208       | Done        |
-| Phase 3 — raw-HTTP clients (drop `gh` / `glab`)       | —                      | Deferred    |
+| Phase 3 — raw-HTTP clients (drop `gh` / `glab`)       | done elsewhere         | Superseded  |
 
 ---
 
@@ -49,12 +49,11 @@ no longer a parity target — heraut's rendering is its own spec, validated by g
 
 ### Phase 3 — Raw-HTTP platform clients
 
-**Not scheduled.** Replacing `gh` / `glab` with direct `net/http` platform clients — which
-would let heraut drop those binaries entirely and reach a fully self-contained generator +
-publisher — is **explicitly deferred behind its own ADR** (see ADR-0032, "Phase 3"). It
-reimplements asset upload, pagination, and rate-limit handling the CLIs currently absorb, and
-shifts ongoing API-churn maintenance onto heraut. Listed here only so the epic's full arc is
-visible; do **not** start it without a follow-up ADR.
+**Superseded: done outside this epic.** Replacing `gh` / `glab` with in-process platform clients was
+deferred here behind its own ADR (ADR-0032, "Phase 3"). It was later done with library clients rather than raw
+`net/http`: GitLab moved to `client-go` (ADR-0069, Phase 61, T364–T368) and GitHub to `go-github` (ADR-0077,
+Phase 80, T423–T433, with T431 for GitLab's asset read). heraut no longer runs either binary; only Lane B's
+sandbox harness still uses them. Kept here so the epic's full arc stays visible.
 
 ## Archived task detail
 

@@ -1,6 +1,6 @@
 # Héraut — Release Hooks Roadmap
 
-> Status: Active
+> Status: Complete
 > Design: [`docs/superpowers/specs/2026-09-11-release-hooks-design.md`](../superpowers/specs/2026-09-11-release-hooks-design.md)
 > Superseded exploration notes: [`docs/superpowers/specs/2026-08-28-release-hooks-exploration.md`](../superpowers/specs/2026-08-28-release-hooks-exploration.md)
 > ADRs: new ADR-0053 ("Release lifecycle hooks: arbitrary shell execution via config" — written in T273)
@@ -46,7 +46,7 @@ non-POSIX shells, and a configurable working directory are explicitly out of sco
 | T270 | Wire `pre_release`/`post_release` into `release.go`'s per-platform loop, with isolation         | Done |
 | T271 | Dry-run rendering for all six hook points, both pipelines                                       | Done |
 | T272 | Integration test: real-git-repo happy path proving hook execution + templating end to end       | Done |
-| T273 | Docs: `docs/specs/`, README (if applicable), new ADR-0053                                        | Not started |
+| T273 | Docs: `docs/specs/`, README (if applicable), new ADR-0053                                        | Done |
 
 Sequencing follows the design doc's "Roadmap placement": T267 (config schema) and T268 (execution
 helper) have no dependency on each other and can build in either order. T269 depends on both

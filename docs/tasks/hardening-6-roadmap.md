@@ -1,6 +1,6 @@
 # Héraut — Hardening 6 Roadmap (remaining security findings)
 
-> Status: Not started (drafted 2026-10-24)
+> Status: Complete (drafted 2026-10-24; T421–T422 done, NEW-002 later resolved by T425–T431)
 > Source: the Info findings NEW-003 and NEW-004 of the security re-scan (`analysis/heraut/SECURITY_FINDINGS.md`),
 > scheduled by the user on 2026-10-24. NEW-002 (symlink swap between the glob check and the read) is **deferred
 > by decision** (2026-10-24) until the `gh` dependency is removed for GitHub publishing, as `glab` was for GitLab
