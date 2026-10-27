@@ -110,26 +110,7 @@ func TestRepo_RemoteAndFileHelpers(t *testing.T) {
 	assert.Empty(t, r.GitRemote("tag", "-l"), "a restored remote starts without tags")
 }
 
-func TestRepo_FakeCLIRecordsCallsInOrderAndCanFail(t *testing.T) {
-	r := NewRepo(t)
-	r.FakeCLI("gh")
-	r.FakeCLI("tea")
-
-	res := r.Run("/bin/sh", nil, "-c", "gh --version; tea release create v1 --repo acme/w; gh release create v1; echo rc=$?")
-	assert.Equal(t, 0, res.ExitCode)
-	assert.Equal(t, []string{
-		"gh [--version]",
-		"tea [release] [create] [v1] [--repo] [acme/w]",
-		"gh [release] [create] [v1]",
-	}, r.CLICalls())
-
-	r.FailReleases("gh")
-	res = r.Run("/bin/sh", nil, "-c", "gh release create v2; echo rc=$?")
-	assert.Equal(t, "rc=1\n", res.Stdout)
-	assert.Equal(t, "gh [release] [create] [v2]", r.CLICalls()[3], "a failing call is still recorded")
-}
-
-func TestRepo_HomeBinDirAndStdin(t *testing.T) {
+func TestRepo_HomeAndStdin(t *testing.T) {
 	r := NewRepo(t)
 
 	r.WriteHomeFile("cfg/x.yml", "hello\n")
@@ -137,33 +118,15 @@ func TestRepo_HomeBinDirAndStdin(t *testing.T) {
 	assert.Equal(t, "hello\n", res.Stdout, "the child sees the same HOME")
 	assert.Equal(t, r.Home()+"/cfg/x.yml", strings.TrimSpace(r.Run("/bin/sh", nil, "-c", "echo $HOME/cfg/x.yml").Stdout))
 
-	assert.Empty(t, r.BinDir())
-	r.FakeCLI("gh")
-	assert.NotEmpty(t, r.BinDir())
-	assert.FileExists(t, r.BinDir()+"/gh")
-
 	res = r.RunStdin("/bin/cat", nil, "from stdin\n")
 	assert.Equal(t, "from stdin\n", res.Stdout)
 }
 
-func TestRepo_FakeCLIWorksWithOnlyItsOwnDirOnPath(t *testing.T) {
+func TestRepo_FakeGitLabAnswersAndLogs(t *testing.T) {
 	r := NewRepo(t)
-	r.FakeCLI("gh")
-
-	res := r.Run("/bin/sh", []string{"PATH=" + r.BinDir()}, "-c", "gh --version")
-
-	assert.Equal(t, 0, res.ExitCode, res.Stderr)
-	assert.Equal(t, []string{"gh [--version]"}, r.CLICalls(), "the call is logged next to the fake, not at /")
-}
-
-func TestRepo_FakeGitLabAnswersAndLogsNextToTheFakeCLIs(t *testing.T) {
-	r := NewRepo(t)
-	r.FakeCLI("gh")
 	gl := r.FakeGitLab()
 	assert.Same(t, gl, r.FakeGitLab(), "a repository has one stand-in")
 
-	res := r.Run("/bin/sh", nil, "-c", "gh --version")
-	require.Equal(t, 0, res.ExitCode)
 	do := func(method, path, body string) (int, string) {
 		req, err := http.NewRequest(method, gl.URL+path, strings.NewReader(body))
 		require.NoError(t, err)
@@ -185,18 +148,17 @@ func TestRepo_FakeGitLabAnswersAndLogsNextToTheFakeCLIs(t *testing.T) {
 	assert.Equal(t, 201, code)
 
 	assert.Equal(t, []string{
-		"gh [--version]",
 		"gitlab [GET] [/api/v4/user]",
 		"gitlab [GET] [/api/v4/projects/42/releases]",
 		"gitlab [PUT] [/api/v4/projects/acme/widget/packages/generic/release-assets/v1/a.txt]",
 		"gitlab [POST] [/api/v4/projects/acme/widget/releases]",
-	}, r.CLICalls(), "requests are logged in order, with decoded paths and no query")
+	}, r.APICalls(), "requests are logged in order, with decoded paths and no query")
 	assert.Equal(t, "v1", gl.Release()["tag_name"])
 
 	gl.FailReleases()
 	code, _ = do(http.MethodPost, "/api/v4/projects/acme%2Fwidget/releases", `{"tag_name":"v2"}`)
 	assert.Equal(t, 403, code)
-	assert.Equal(t, "gitlab [POST] [/api/v4/projects/acme/widget/releases]", r.CLICalls()[5], "a failing call is still recorded")
+	assert.Equal(t, "gitlab [POST] [/api/v4/projects/acme/widget/releases]", r.APICalls()[4], "a failing call is still recorded")
 	assert.Equal(t, "v1", gl.Release()["tag_name"], "a refused release is not kept")
 }
 
@@ -231,7 +193,7 @@ func TestRepo_FakeGitHubAnswersLikeAnEnterpriseServerAndLogs(t *testing.T) {
 		"github [POST] [/api/v3/repos/acme/widget/releases]",
 		"github [POST] [/api/uploads/repos/acme/widget/releases/1/assets]",
 		"github [PATCH] [/api/v3/repos/acme/widget/releases/1]",
-	}, r.CLICalls(), "requests are logged in order, with no query")
+	}, r.APICalls(), "requests are logged in order, with no query")
 	assert.Equal(t, "v1", gh.Release()["tag_name"])
 	assert.Equal(t, []string{"meta#1.json"}, gh.Uploads(), "the names as sent")
 
@@ -245,5 +207,24 @@ func TestRepo_FakeGitHubAnswersLikeAnEnterpriseServerAndLogs(t *testing.T) {
 	assert.Equal(t, 403, code)
 	assert.Equal(t, "v1", gh.Release()["tag_name"], "a refused release is not kept")
 	assert.Equal(t, []string{"meta#1.json"}, gh.Uploads(), "a refused upload is not kept")
-	assert.Len(t, r.CLICalls(), 7, "failing calls are still recorded")
+	assert.Len(t, r.APICalls(), 7, "failing calls are still recorded")
+}
+
+func TestRepo_StandInsShareOneCallLogInOrder(t *testing.T) {
+	r := NewRepo(t)
+	get := func(url string) {
+		resp, err := http.Get(url)
+		require.NoError(t, err)
+		_ = resp.Body.Close()
+	}
+
+	get(r.FakeGitLab().URL + "/api/v4/user")
+	get(r.FakeGitHub().URL + "/api/v3/repos/acme/widget/releases")
+	get(r.FakeGitLab().URL + "/api/v4/user")
+
+	assert.Equal(t, []string{
+		"gitlab [GET] [/api/v4/user]",
+		"github [GET] [/api/v3/repos/acme/widget/releases]",
+		"gitlab [GET] [/api/v4/user]",
+	}, r.APICalls())
 }

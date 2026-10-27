@@ -14,7 +14,7 @@ type Repo struct {
 	Dir    string
 	home   string
 	remote string
-	binDir string
+	logDir string
 	gitlab *GitLab
 	github *GitHub
 }

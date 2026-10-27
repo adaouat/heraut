@@ -14,8 +14,8 @@ import (
 
 // GitLab is a loopback stand-in for the GitLab REST API. It answers 200 to reads (an empty array
 // for a releases list), 201 to uploads and release creation, and logs every request as
-// "gitlab [METHOD] [/decoded/path]" in the call log the fake CLIs share, so a test can assert on
-// the order of CLI and API calls together.
+// "gitlab [METHOD] [/decoded/path]" in the call log both stand-ins share, so a test can
+// assert on the order of calls across forges.
 type GitLab struct {
 	URL string
 
@@ -26,15 +26,15 @@ type GitLab struct {
 }
 
 // FakeGitLab starts the stand-in for this repository (once; later calls return the same one) and
-// shuts it down with the test. Point a forge's base_url at URL. The call log lives next to the
-// fake CLIs, so it exists from here on.
+// shuts it down with the test. Point a forge's base_url at URL. The call log exists from here
+// on.
 func (r *Repo) FakeGitLab() *GitLab {
 	r.t.Helper()
 	if r.gitlab != nil {
 		return r.gitlab
 	}
-	if r.binDir == "" {
-		r.binDir = r.t.TempDir()
+	if r.logDir == "" {
+		r.logDir = r.t.TempDir()
 	}
 	g := &GitLab{repo: r}
 	srv := httptest.NewServer(http.HandlerFunc(g.serve))
@@ -94,7 +94,7 @@ func (g *GitLab) serve(w http.ResponseWriter, req *http.Request) {
 func (g *GitLab) log(method, path string) {
 	g.mu.Lock()
 	defer g.mu.Unlock()
-	f, err := os.OpenFile(filepath.Join(g.repo.binDir, "calls.log"), os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0o644)
+	f, err := os.OpenFile(filepath.Join(g.repo.logDir, "calls.log"), os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0o644)
 	if err != nil {
 		return
 	}

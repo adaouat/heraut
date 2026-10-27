@@ -77,7 +77,7 @@ func TestRelease_GitHubRequests(t *testing.T) {
 	res := repo.Run(bin, tokens, "release", "--offline")
 
 	require.Equal(t, exitOK, res.ExitCode, "stdout:\n%s\nstderr:\n%s", res.Stdout, res.Stderr)
-	assert.Equal(t, []string{githubList, githubRelease}, repo.CLICalls(), "the token is checked, then the release is created in one call")
+	assert.Equal(t, []string{githubList, githubRelease}, repo.APICalls(), "the token is checked, then the release is created in one call")
 	rel := repo.FakeGitHub().Release()
 	assert.Equal(t, "v0.1.0", rel["tag_name"])
 	assert.Equal(t, false, rel["draft"])
@@ -102,7 +102,7 @@ func TestRelease_TwoTargetsPublishInDeclaredOrderWithDriverFlags(t *testing.T) {
 		"gitlab [GET] [/api/v4/user]",
 		githubRelease,
 		gitlabRelease,
-	}, repo.CLICalls(), "every target is probed first, then published in declared order")
+	}, repo.APICalls(), "every target is probed first, then published in declared order")
 	assert.Equal(t, true, repo.FakeGitHub().Release()["draft"], "draft is GitHub-only")
 }
 
@@ -125,7 +125,7 @@ func TestRelease_GitLabIgnoresThePreReleaseFlag(t *testing.T) {
 	res := repo.Run(bin, tokens, "release", "--offline", "--pre-release", "rc")
 
 	require.Equal(t, exitOK, res.ExitCode, "stdout:\n%s\nstderr:\n%s", res.Stdout, res.Stderr)
-	calls := repo.CLICalls()
+	calls := repo.APICalls()
 	assert.Contains(t, calls, githubRelease)
 	assert.Equal(t, true, repo.FakeGitHub().Release()["prerelease"])
 	assert.Contains(t, calls, gitlabRelease)
@@ -152,7 +152,7 @@ func TestRelease_AssetsAreAttachedAndAZeroMatchIsRefusedUnlessAllowed(t *testing
 		res := repo.Run(bin, tokens, "release", "--offline")
 
 		require.Equal(t, exitOK, res.ExitCode, "stdout:\n%s\nstderr:\n%s", res.Stdout, res.Stderr)
-		assert.Equal(t, []string{githubList, githubRelease, githubUpload, githubUpload, githubPublish}, repo.CLICalls())
+		assert.Equal(t, []string{githubList, githubRelease, githubUpload, githubUpload, githubPublish}, repo.APICalls())
 		assert.Equal(t, true, repo.FakeGitHub().Release()["draft"])
 		assert.Equal(t, []string{"a.txt", "b.txt"}, repo.FakeGitHub().Uploads())
 	})
@@ -168,7 +168,7 @@ func TestRelease_AssetsAreAttachedAndAZeroMatchIsRefusedUnlessAllowed(t *testing
 		assert.Contains(t, out, "allow_missing_assets")
 		assert.Equal(t, before, repoState(t, repo), "no changelog commit, no tag")
 		assert.Empty(t, repo.GitRemote("tag", "-l"))
-		assert.NotContains(t, repo.CLICalls(), githubRelease, "only the read-only preflight may have reached GitHub")
+		assert.NotContains(t, repo.APICalls(), githubRelease, "only the read-only preflight may have reached GitHub")
 	})
 	t.Run("a file name with a # is published under the name GitHub gives it, with a warning", func(t *testing.T) {
 		repo := releaseRepo(t, cfg)
@@ -188,7 +188,7 @@ func TestRelease_AssetsAreAttachedAndAZeroMatchIsRefusedUnlessAllowed(t *testing
 		res := repo.Run(bin, tokens, "release", "--offline")
 
 		require.Equal(t, exitRuntime, res.ExitCode, "stdout:\n%s\nstderr:\n%s", res.Stdout, res.Stderr)
-		assert.Equal(t, []string{githubList, githubRelease, githubUpload, githubDelete}, repo.CLICalls(), "no draft is left behind")
+		assert.Equal(t, []string{githubList, githubRelease, githubUpload, githubDelete}, repo.APICalls(), "no draft is left behind")
 		out := normalize(res.Stdout + " " + res.Stderr)
 		assert.Contains(t, out, "publish to github")
 		assert.Contains(t, out, "uploading asset a.txt: 422 validation failed")
@@ -208,7 +208,7 @@ func TestRelease_AssetsAreAttachedAndAZeroMatchIsRefusedUnlessAllowed(t *testing
 		res := repo.Run(bin, tokens, "release", "--offline")
 
 		require.Equal(t, exitOK, res.ExitCode, "stdout:\n%s\nstderr:\n%s", res.Stdout, res.Stderr)
-		assert.Equal(t, []string{githubList, githubRelease}, repo.CLICalls(), "nothing to upload")
+		assert.Equal(t, []string{githubList, githubRelease}, repo.APICalls(), "nothing to upload")
 	})
 }
 
@@ -231,7 +231,7 @@ func TestRelease_DuplicateAssetNamesAreRefusedBeforeAnythingIsCommitted(t *testi
 				assert.Contains(t, normalize(res.Stdout+" "+res.Stderr), `would both be published as "app.txt"`)
 				assert.Equal(t, before, repoState(t, repo), "no changelog commit, no tag")
 				assert.Empty(t, repo.GitRemote("tag", "-l"))
-				for _, call := range repo.CLICalls() {
+				for _, call := range repo.APICalls() {
 					assert.Contains(t, call, "[GET]", "only the read-only preflight may have reached the forge")
 				}
 			})
@@ -248,7 +248,7 @@ func TestRelease_AFailingPublishAbortsTheLoop(t *testing.T) {
 
 	require.Equal(t, exitRuntime, res.ExitCode, "stdout:\n%s\nstderr:\n%s", res.Stdout, res.Stderr)
 	assert.Contains(t, normalize(res.Stdout+" "+res.Stderr), "publish to github")
-	assert.NotContains(t, repo.CLICalls(), gitlabRelease, "the second target must not publish")
+	assert.NotContains(t, repo.APICalls(), gitlabRelease, "the second target must not publish")
 	assert.Equal(t, "v0.1.0", repo.GitRemote("tag", "-l"), "the tag was already pushed and stays")
 }
 
@@ -269,7 +269,7 @@ func TestRelease_GitLabAssetsAreUploadedThenLinkedOnTheRelease(t *testing.T) {
 		"gitlab [PUT] [/api/v4/projects/acme/widget/packages/generic/release-assets/v0.1.0/a.txt]",
 		"gitlab [PUT] [/api/v4/projects/acme/widget/packages/generic/release-assets/v0.1.0/b.txt]",
 		gitlabRelease,
-	}, repo.CLICalls(), "assets are uploaded before the release that links them")
+	}, repo.APICalls(), "assets are uploaded before the release that links them")
 	links := repo.FakeGitLab().Release()["assets"].(map[string]any)["links"].([]any)
 	assert.Len(t, links, 2)
 }
@@ -295,7 +295,7 @@ func TestRelease_DryRunCallsNothingAndCreatesNothing(t *testing.T) {
 
 	require.Equal(t, exitOK, res.ExitCode, "stdout:\n%s\nstderr:\n%s", res.Stdout, res.Stderr)
 	assert.Contains(t, normalize(res.Stdout), "[dry-run] would create release")
-	assert.Empty(t, repo.CLICalls(), "neither the GitHub nor the GitLab API is called")
+	assert.Empty(t, repo.APICalls(), "neither the GitHub nor the GitLab API is called")
 	assert.Equal(t, before, repoState(t, repo), "no tag, commit or file")
 	assert.Empty(t, repo.GitRemote("tag", "-l"))
 }
@@ -326,7 +326,7 @@ func TestRelease_ReleaseHooksRunPerTarget(t *testing.T) {
 		res := repo.Run(bin, tokens, "release", "--offline")
 
 		require.Equal(t, exitRuntime, res.ExitCode, "the run still fails when a target was skipped")
-		calls := repo.CLICalls()
+		calls := repo.APICalls()
 		assert.NotContains(t, calls, githubRelease, "github must be skipped")
 		assert.Contains(t, calls, gitlabRelease)
 		assert.Equal(t, []string{"ok"}, logLines(repo.ReadFile(".hooklog")))
@@ -343,7 +343,7 @@ func TestRelease_AFailingPostReleaseHookWarnsAndTheLoopContinues(t *testing.T) {
 	res := repo.Run(bin, tokens, "release", "--offline")
 
 	require.Equal(t, exitRuntime, res.ExitCode, "the run still fails when a post_release hook failed")
-	calls := repo.CLICalls()
+	calls := repo.APICalls()
 	assert.Contains(t, calls, githubRelease, "github was published")
 	assert.Contains(t, calls, gitlabRelease, "and the loop went on to gitlab")
 	assert.Equal(t, []string{"ok"}, logLines(repo.ReadFile(".hooklog")))
@@ -358,7 +358,7 @@ func TestRelease_AMissingTokenIsRefusedInPreflight(t *testing.T) {
 
 	require.Equal(t, exitRuntime, res.ExitCode, "stdout:\n%s\nstderr:\n%s", res.Stdout, res.Stderr)
 	assert.Contains(t, normalize(res.Stdout+" "+res.Stderr), "environment variable gh_token is not set")
-	assert.Empty(t, repo.CLICalls(), "the token is checked before any request")
+	assert.Empty(t, repo.APICalls(), "the token is checked before any request")
 	assert.Equal(t, before, repoState(t, repo), "no tag, commit or file")
 }
 
@@ -393,7 +393,7 @@ release:
 		res := repo.Run(bin, tokens, "release", "--offline")
 
 		require.Equal(t, exitConfig, res.ExitCode, "stdout:\n%s\nstderr:\n%s", res.Stdout, res.Stderr)
-		assert.Empty(t, repo.CLICalls())
+		assert.Empty(t, repo.APICalls())
 		assert.Empty(t, repo.GitRemote("tag", "-l"))
 	})
 	t.Run("with --force the release goes ahead", func(t *testing.T) {
@@ -402,6 +402,6 @@ release:
 		res := repo.Run(bin, tokens, "release", "--offline", "--force")
 
 		require.Equal(t, exitOK, res.ExitCode, "stdout:\n%s\nstderr:\n%s", res.Stdout, res.Stderr)
-		assert.Equal(t, []string{githubList, githubRelease}, repo.CLICalls())
+		assert.Equal(t, []string{githubList, githubRelease}, repo.APICalls())
 	})
 }

@@ -164,7 +164,7 @@ func TestCheckRuntime(t *testing.T) {
 
 		require.Equal(t, exitOK, code, out)
 		assert.Contains(t, out, "all checks passed")
-		assert.Equal(t, []string{githubList}, repo.CLICalls(), "the token is checked against the releases list")
+		assert.Equal(t, []string{githubList}, repo.APICalls(), "the token is checked against the releases list")
 	})
 	t.Run("a missing token is its own failure", func(t *testing.T) {
 		repo := newRepo(t, githubCfg)
@@ -173,7 +173,7 @@ func TestCheckRuntime(t *testing.T) {
 
 		require.Equal(t, exitRuntime, code, out)
 		assert.Contains(t, out, "environment variable gh_token is not set")
-		assert.Empty(t, repo.CLICalls())
+		assert.Empty(t, repo.APICalls())
 	})
 	t.Run("an unset git identity fails", func(t *testing.T) {
 		repo := newRepo(t, githubCfg)

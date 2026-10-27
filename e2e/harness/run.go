@@ -26,7 +26,7 @@ func (r *Repo) RunStdin(bin string, env []string, stdin string, args ...string) 
 	r.t.Helper()
 	cmd := exec.Command(bin, args...)
 	cmd.Dir = r.Dir
-	cmd.Env = append(r.runEnv(), env...)
+	cmd.Env = append(baseEnv(r.home), env...)
 	if stdin != "" {
 		cmd.Stdin = strings.NewReader(stdin)
 	}
