@@ -1,7 +1,6 @@
 package e2e_test
 
 import (
-	"regexp"
 	"strings"
 	"testing"
 
@@ -22,6 +21,7 @@ forges:
   - name: github
     platform: github
     repository: acme/widget
+    base_url: __GITHUB_URL__
     token_env: GH_TOKEN
   - name: gitlab
     platform: gitlab
@@ -39,49 +39,52 @@ const bothTargets = `    - forge: github
     - forge: gitlab
 `
 
-var notesPath = regexp.MustCompile(`\[[^\]]*heraut-notes-[0-9]+\]`)
-
-// normCalls replaces the temp notes-file path, which differs per run, with <notes>.
-func normCalls(calls []string) []string {
-	out := make([]string, len(calls))
-	for i, c := range calls {
-		out[i] = notesPath.ReplaceAllString(c, "[<notes>]")
-	}
-	return out
-}
-
 var tokens = []string{"GH_TOKEN=ghtok", "GITLAB_TOKEN=gltok"}
 
-// gitlabRelease is the call log line of a GitLab release creation on the acme/widget project.
-const gitlabRelease = "gitlab [POST] [/api/v4/projects/acme/widget/releases]"
+// The call log lines of the GitHub and GitLab requests on the acme/widget project.
+const (
+	githubList    = "github [GET] [/api/v3/repos/acme/widget/releases]"
+	githubRelease = "github [POST] [/api/v3/repos/acme/widget/releases]"
+	githubUpload  = "github [POST] [/api/uploads/repos/acme/widget/releases/1/assets]"
+	githubPublish = "github [PATCH] [/api/v3/repos/acme/widget/releases/1]"
+	githubDelete  = "github [DELETE] [/api/v3/repos/acme/widget/releases/1]"
+	gitlabRelease = "gitlab [POST] [/api/v4/projects/acme/widget/releases]"
+)
 
-// releaseRepo is a flowRepo with the fake gh CLI and the GitLab stand-in installed (the forge's
-// base_url points at it) and one releasable commit.
+// withStandIns points the __GITHUB_URL__ and __GITLAB_URL__ base_url placeholders of cfg at the
+// repository's GitHub and GitLab stand-ins.
+func withStandIns(repo *harness.Repo, cfg string) string {
+	cfg = strings.ReplaceAll(cfg, "__GITHUB_URL__", repo.FakeGitHub().URL)
+	return strings.ReplaceAll(cfg, "__GITLAB_URL__", repo.FakeGitLab().URL)
+}
+
+// releaseRepo is a flowRepo with the GitHub and GitLab stand-ins installed (the forges' base_url
+// point at them) and one releasable commit.
 func releaseRepo(t *testing.T, cfg string) *harness.Repo {
 	t.Helper()
 	repo := harness.NewRepo(t)
-	repo.FakeCLI("gh")
-	repo.WriteConfig(strings.ReplaceAll(cfg, "__GITLAB_URL__", repo.FakeGitLab().URL))
+	repo.WriteConfig(withStandIns(repo, cfg))
 	repo.Commit("chore: init")
 	repo.AddRemote()
 	repo.Commit("feat: one")
 	return repo
 }
 
-func TestRelease_GitHubArgv(t *testing.T) {
+func TestRelease_GitHubRequests(t *testing.T) {
 	bin := harness.Binary(t)
 	repo := releaseRepo(t, releaseCfg("    - forge: github\n", ""))
 
 	res := repo.Run(bin, tokens, "release", "--offline")
 
 	require.Equal(t, exitOK, res.ExitCode, "stdout:\n%s\nstderr:\n%s", res.Stdout, res.Stderr)
-	assert.Equal(t, []string{
-		"gh [--version]",
-		"gh [api] [repos/acme/widget/releases?per_page=1]",
-		"gh [release] [create] [v0.1.0] [--notes-file] [<notes>] [--repo] [acme/widget]",
-	}, normCalls(repo.CLICalls()))
+	assert.Equal(t, []string{githubList, githubRelease}, repo.CLICalls(), "the token is checked, then the release is created in one call")
+	rel := repo.FakeGitHub().Release()
+	assert.Equal(t, "v0.1.0", rel["tag_name"])
+	assert.Equal(t, false, rel["draft"])
+	assert.Equal(t, false, rel["prerelease"])
+	assert.Contains(t, rel["body"], "One")
 	assert.Equal(t, "v0.1.0", repo.GitRemote("tag", "-l"), "the tag is pushed before the release is created")
-	assert.Contains(t, normalize(res.Stdout), "https://github.com/acme/widget/releases/tag/v0.1.0")
+	assert.Contains(t, res.Stdout, repo.FakeGitHub().URL+"/acme/widget/releases/tag/v0.1.0")
 }
 
 func TestRelease_TwoTargetsPublishInDeclaredOrderWithDriverFlags(t *testing.T) {
@@ -95,12 +98,12 @@ func TestRelease_TwoTargetsPublishInDeclaredOrderWithDriverFlags(t *testing.T) {
 
 	require.Equal(t, exitOK, res.ExitCode, "stdout:\n%s\nstderr:\n%s", res.Stdout, res.Stderr)
 	assert.Equal(t, []string{
-		"gh [--version]",
-		"gh [api] [repos/acme/widget/releases?per_page=1]",
+		githubList,
 		"gitlab [GET] [/api/v4/user]",
-		"gh [release] [create] [v0.1.0] [--notes-file] [<notes>] [--repo] [acme/widget] [--draft]",
+		githubRelease,
 		gitlabRelease,
-	}, normCalls(repo.CLICalls()), "every target is probed first, then published in declared order; draft is GitHub-only")
+	}, repo.CLICalls(), "every target is probed first, then published in declared order")
+	assert.Equal(t, true, repo.FakeGitHub().Release()["draft"], "draft is GitHub-only")
 }
 
 func TestRelease_PreReleaseIsMarkedFromTheVersion(t *testing.T) {
@@ -110,8 +113,9 @@ func TestRelease_PreReleaseIsMarkedFromTheVersion(t *testing.T) {
 	res := repo.Run(bin, tokens, "release", "--offline", "--pre-release", "rc")
 
 	require.Equal(t, exitOK, res.ExitCode, "stdout:\n%s\nstderr:\n%s", res.Stdout, res.Stderr)
-	calls := normCalls(repo.CLICalls())
-	assert.Equal(t, "gh [release] [create] [v0.1.0-rc.1] [--notes-file] [<notes>] [--repo] [acme/widget] [--prerelease]", calls[len(calls)-1])
+	rel := repo.FakeGitHub().Release()
+	assert.Equal(t, "v0.1.0-rc.1", rel["tag_name"])
+	assert.Equal(t, true, rel["prerelease"])
 }
 
 func TestRelease_GitLabIgnoresThePreReleaseFlag(t *testing.T) {
@@ -121,8 +125,9 @@ func TestRelease_GitLabIgnoresThePreReleaseFlag(t *testing.T) {
 	res := repo.Run(bin, tokens, "release", "--offline", "--pre-release", "rc")
 
 	require.Equal(t, exitOK, res.ExitCode, "stdout:\n%s\nstderr:\n%s", res.Stdout, res.Stderr)
-	calls := normCalls(repo.CLICalls())
-	assert.Contains(t, calls, "gh [release] [create] [v0.1.0-rc.1] [--notes-file] [<notes>] [--repo] [acme/widget] [--prerelease]")
+	calls := repo.CLICalls()
+	assert.Contains(t, calls, githubRelease)
+	assert.Equal(t, true, repo.FakeGitHub().Release()["prerelease"])
 	assert.Contains(t, calls, gitlabRelease)
 	rel := repo.FakeGitLab().Release()
 	assert.Equal(t, "v0.1.0-rc.1", rel["tag_name"])
@@ -139,7 +144,7 @@ func TestRelease_AssetsAreAttachedAndAZeroMatchIsRefusedUnlessAllowed(t *testing
 `
 	cfg := releaseCfg(target, "")
 
-	t.Run("matching files are passed to gh", func(t *testing.T) {
+	t.Run("matching files are uploaded to a draft that is then published", func(t *testing.T) {
 		repo := releaseRepo(t, cfg)
 		repo.WriteFile("dist/a.txt", "a\n")
 		repo.WriteFile("dist/b.txt", "b\n")
@@ -147,8 +152,9 @@ func TestRelease_AssetsAreAttachedAndAZeroMatchIsRefusedUnlessAllowed(t *testing
 		res := repo.Run(bin, tokens, "release", "--offline")
 
 		require.Equal(t, exitOK, res.ExitCode, "stdout:\n%s\nstderr:\n%s", res.Stdout, res.Stderr)
-		calls := normCalls(repo.CLICalls())
-		assert.Equal(t, "gh [release] [create] [v0.1.0] [--notes-file] [<notes>] [--repo] [acme/widget] [dist/a.txt] [dist/b.txt]", calls[len(calls)-1])
+		assert.Equal(t, []string{githubList, githubRelease, githubUpload, githubUpload, githubPublish}, repo.CLICalls())
+		assert.Equal(t, true, repo.FakeGitHub().Release()["draft"])
+		assert.Equal(t, []string{"a.txt", "b.txt"}, repo.FakeGitHub().Uploads())
 	})
 	t.Run("a pattern matching nothing is refused before anything is committed or pushed", func(t *testing.T) {
 		repo := releaseRepo(t, cfg)
@@ -162,25 +168,31 @@ func TestRelease_AssetsAreAttachedAndAZeroMatchIsRefusedUnlessAllowed(t *testing
 		assert.Contains(t, out, "allow_missing_assets")
 		assert.Equal(t, before, repoState(t, repo), "no changelog commit, no tag")
 		assert.Empty(t, repo.GitRemote("tag", "-l"))
-		for _, call := range repo.CLICalls() {
-			assert.NotContains(t, call, "[release] [create]", "only the read-only preflight may have reached gh")
-		}
+		assert.NotContains(t, repo.CLICalls(), githubRelease, "only the read-only preflight may have reached GitHub")
 	})
-	t.Run("a file name with a # is refused before anything is committed or pushed", func(t *testing.T) {
+	t.Run("a file name with a # is published under the name GitHub gives it, with a warning", func(t *testing.T) {
 		repo := releaseRepo(t, cfg)
 		repo.WriteFile("dist/app#1.txt", "a\n")
-		before := repoState(t, repo)
+
+		res := repo.Run(bin, tokens, "release", "--offline")
+
+		require.Equal(t, exitOK, res.ExitCode, "stdout:\n%s\nstderr:\n%s", res.Stdout, res.Stderr)
+		assert.Equal(t, []string{"app#1.txt"}, repo.FakeGitHub().Uploads(), "the name is sent as the file's basename")
+		assert.Contains(t, res.Stderr, `asset "dist/app#1.txt" was published as "app.1.txt"`)
+	})
+	t.Run("a refused upload deletes the draft and exits runtime", func(t *testing.T) {
+		repo := releaseRepo(t, cfg)
+		repo.WriteFile("dist/a.txt", "a\n")
+		repo.FakeGitHub().FailUploads()
 
 		res := repo.Run(bin, tokens, "release", "--offline")
 
 		require.Equal(t, exitRuntime, res.ExitCode, "stdout:\n%s\nstderr:\n%s", res.Stdout, res.Stderr)
+		assert.Equal(t, []string{githubList, githubRelease, githubUpload, githubDelete}, repo.CLICalls(), "no draft is left behind")
 		out := normalize(res.Stdout + " " + res.Stderr)
-		assert.Contains(t, out, "dist/app#1.txt")
-		assert.Contains(t, out, "label separator")
-		assert.Equal(t, before, repoState(t, repo), "no changelog commit, no tag")
-		for _, call := range repo.CLICalls() {
-			assert.NotContains(t, call, "[release] [create]")
-		}
+		assert.Contains(t, out, "publish to github")
+		assert.Contains(t, out, "uploading asset a.txt: 422 validation failed")
+		assert.Equal(t, "v0.1.0", repo.GitRemote("tag", "-l"), "the tag was already pushed and stays")
 	})
 	t.Run("a dry run only warns", func(t *testing.T) {
 		repo := releaseRepo(t, cfg)
@@ -196,15 +208,14 @@ func TestRelease_AssetsAreAttachedAndAZeroMatchIsRefusedUnlessAllowed(t *testing
 		res := repo.Run(bin, tokens, "release", "--offline")
 
 		require.Equal(t, exitOK, res.ExitCode, "stdout:\n%s\nstderr:\n%s", res.Stdout, res.Stderr)
-		calls := normCalls(repo.CLICalls())
-		assert.Equal(t, "gh [release] [create] [v0.1.0] [--notes-file] [<notes>] [--repo] [acme/widget]", calls[len(calls)-1])
+		assert.Equal(t, []string{githubList, githubRelease}, repo.CLICalls(), "nothing to upload")
 	})
 }
 
 func TestRelease_AFailingPublishAbortsTheLoop(t *testing.T) {
 	bin := harness.Binary(t)
 	repo := releaseRepo(t, releaseCfg(bothTargets, ""))
-	repo.FailReleases("gh")
+	repo.FakeGitHub().FailReleases()
 
 	res := repo.Run(bin, tokens, "release", "--offline")
 
@@ -257,7 +268,7 @@ func TestRelease_DryRunCallsNothingAndCreatesNothing(t *testing.T) {
 
 	require.Equal(t, exitOK, res.ExitCode, "stdout:\n%s\nstderr:\n%s", res.Stdout, res.Stderr)
 	assert.Contains(t, normalize(res.Stdout), "[dry-run] would create release")
-	assert.Empty(t, repo.CLICalls(), "neither gh nor the GitLab API is called")
+	assert.Empty(t, repo.CLICalls(), "neither the GitHub nor the GitLab API is called")
 	assert.Equal(t, before, repoState(t, repo), "no tag, commit or file")
 	assert.Empty(t, repo.GitRemote("tag", "-l"))
 }
@@ -289,9 +300,7 @@ func TestRelease_ReleaseHooksRunPerTarget(t *testing.T) {
 
 		require.Equal(t, exitRuntime, res.ExitCode, "the run still fails when a target was skipped")
 		calls := repo.CLICalls()
-		for _, call := range calls {
-			assert.False(t, strings.HasPrefix(call, "gh [release]"), "github must be skipped: %s", call)
-		}
+		assert.NotContains(t, calls, githubRelease, "github must be skipped")
 		assert.Contains(t, calls, gitlabRelease)
 		assert.Equal(t, []string{"ok"}, logLines(repo.ReadFile(".hooklog")))
 	})
@@ -307,8 +316,8 @@ func TestRelease_AFailingPostReleaseHookWarnsAndTheLoopContinues(t *testing.T) {
 	res := repo.Run(bin, tokens, "release", "--offline")
 
 	require.Equal(t, exitRuntime, res.ExitCode, "the run still fails when a post_release hook failed")
-	calls := normCalls(repo.CLICalls())
-	assert.Contains(t, calls, "gh [release] [create] [v0.1.0] [--notes-file] [<notes>] [--repo] [acme/widget]", "github was published")
+	calls := repo.CLICalls()
+	assert.Contains(t, calls, githubRelease, "github was published")
 	assert.Contains(t, calls, gitlabRelease, "and the loop went on to gitlab")
 	assert.Equal(t, []string{"ok"}, logLines(repo.ReadFile(".hooklog")))
 }
@@ -322,7 +331,7 @@ func TestRelease_AMissingTokenIsRefusedInPreflight(t *testing.T) {
 
 	require.Equal(t, exitRuntime, res.ExitCode, "stdout:\n%s\nstderr:\n%s", res.Stdout, res.Stderr)
 	assert.Contains(t, normalize(res.Stdout+" "+res.Stderr), "environment variable gh_token is not set")
-	assert.Equal(t, []string{"gh [--version]"}, repo.CLICalls(), "nothing but the binary check ran")
+	assert.Empty(t, repo.CLICalls(), "the token is checked before any request")
 	assert.Equal(t, before, repoState(t, repo), "no tag, commit or file")
 }
 
@@ -339,6 +348,7 @@ forges:
   - name: github
     platform: github
     repository: acme/widget
+    base_url: __GITHUB_URL__
     token_env: GH_TOKEN
 release:
   targets:
@@ -365,7 +375,6 @@ release:
 		res := repo.Run(bin, tokens, "release", "--offline", "--force")
 
 		require.Equal(t, exitOK, res.ExitCode, "stdout:\n%s\nstderr:\n%s", res.Stdout, res.Stderr)
-		calls := normCalls(repo.CLICalls())
-		assert.Equal(t, "gh [release] [create] [v0.1.0] [--notes-file] [<notes>] [--repo] [acme/widget]", calls[len(calls)-1])
+		assert.Equal(t, []string{githubList, githubRelease}, repo.CLICalls())
 	})
 }

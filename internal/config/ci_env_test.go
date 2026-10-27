@@ -20,6 +20,8 @@ func TestForgeEnvNames(t *testing.T) {
 		{config.EnvGitHubRefType, "GITHUB_REF_TYPE"},
 		{config.EnvGitHubToken, "GITHUB_TOKEN"},
 		{config.EnvGitHubCLIToken, "GH_TOKEN"},
+		{config.EnvGitHubEnterpriseCLIToken, "GH_ENTERPRISE_TOKEN"},
+		{config.EnvGitHubEnterpriseToken, "GITHUB_ENTERPRISE_TOKEN"},
 		{config.EnvGitLabCI, "GITLAB_CI"},
 		{config.EnvGitLabServerURL, "CI_SERVER_URL"},
 		{config.EnvGitLabAPIURL, "CI_API_V4_URL"},
@@ -53,6 +55,7 @@ func TestEnvConfigFile(t *testing.T) {
 func TestCIEnvVars_ListsEveryForgeNameOnce(t *testing.T) {
 	want := []string{
 		"GITHUB_ACTIONS", "GITHUB_SERVER_URL", "GITHUB_API_URL", "GITHUB_REPOSITORY", "GITHUB_REF_NAME", "GITHUB_REF_TYPE", "GITHUB_TOKEN", "GH_TOKEN",
+		"GH_ENTERPRISE_TOKEN", "GITHUB_ENTERPRISE_TOKEN",
 		"GITLAB_CI", "CI_SERVER_URL", "CI_API_V4_URL", "CI_PROJECT_PATH", "CI_PROJECT_URL", "CI_PROJECT_ID", "CI_COMMIT_BRANCH", "CI_JOB_TOKEN", "GITLAB_TOKEN",
 		"TF_BUILD", "SYSTEM_COLLECTIONURI", "SYSTEM_TEAMPROJECT", "BUILD_REPOSITORY_NAME", "BUILD_SOURCEBRANCH", "SYSTEM_ACCESSTOKEN", "AZURE_DEVOPS_TOKEN",
 	}

@@ -149,6 +149,7 @@ const releaseTargetCfg = `forges:
   - name: github
     platform: github
     repository: acme/widget
+    base_url: __GITHUB_URL__
 release:
   targets:
     - forge: github
@@ -171,8 +172,7 @@ func TestMaintenance_ReleaseOnAnUnlistedBranch(t *testing.T) {
 	bin := harness.Binary(t)
 	newRepo := func(t *testing.T) *harness.Repo {
 		repo := harness.NewRepo(t)
-		repo.WriteConfig(branchesCfg + releaseTargetCfg)
-		repo.FakeCLI("gh")
+		repo.WriteConfig(withStandIns(repo, branchesCfg+releaseTargetCfg))
 		applySteps(repo, lineHistory("feature/x", commit("fix: x")))
 		return repo
 	}
@@ -188,7 +188,7 @@ func TestMaintenance_ReleaseOnAnUnlistedBranch(t *testing.T) {
 		assert.Contains(t, all, `branch matches no versioning.branches entry: branch "feature/x"`)
 		assert.Contains(t, all, "pass --force to release anyway")
 		assert.Equal(t, before, repoState(t, repo), "no tag, commit or file may be created")
-		assert.Empty(t, repo.CLICalls(), "gh is never reached")
+		assert.Empty(t, repo.CLICalls(), "GitHub is never reached")
 	})
 
 	t.Run("--dry-run is a preview: not refused, and nothing is created", func(t *testing.T) {
@@ -201,7 +201,7 @@ func TestMaintenance_ReleaseOnAnUnlistedBranch(t *testing.T) {
 		assert.Contains(t, res.Stdout, "[dry-run] would tag")
 		assert.NotContains(t, normalize(res.Stdout+" "+res.Stderr), "pass --force")
 		assert.Equal(t, before, repoState(t, repo), "a dry run must not create a tag, commit or file")
-		assert.Empty(t, repo.CLICalls(), "a dry run calls no CLI")
+		assert.Empty(t, repo.CLICalls(), "a dry run calls no API")
 	})
 }
 

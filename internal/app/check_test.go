@@ -2,6 +2,8 @@ package app_test
 
 import (
 	"errors"
+	"net/http"
+	"net/http/httptest"
 	"strings"
 	"testing"
 
@@ -239,11 +241,16 @@ func TestRuntimeCheck_WithGitHubPlatform(t *testing.T) {
 	mr.QueueResponse("a@b.com", "", nil)              // user.email
 	mr.QueueResponse("", "", nil)                     // git status
 	mr.QueueResponse("", "", errors.New("no origin")) // git remote get-url origin (forge resolution)
-	mr.QueueResponse("gh 2.67.0", "", nil)            // gh binary — inside p.Check()
-	mr.QueueResponse(`[]`, "", nil)                   // gh api auth — inside p.Check().checkAPIAuth()
+
+	var requests []string
+	api := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		requests = append(requests, r.Method+" "+r.URL.Path+" "+r.Header.Get("Authorization"))
+		_, _ = w.Write([]byte(`[]`))
+	}))
+	t.Cleanup(api.Close)
 
 	cfg := semverCfg()
-	cfg.Forges = []config.Forge{{Name: "gh", Type: "github", Repository: "org/repo"}}
+	cfg.Forges = []config.Forge{{Name: "gh", Type: "github", Repository: "org/repo", BaseURL: api.URL}}
 	cfg.Release = &config.Release{
 		Targets: []config.Target{{Forge: "gh"}},
 	}
@@ -257,6 +264,7 @@ func TestRuntimeCheck_WithGitHubPlatform(t *testing.T) {
 		}
 	}
 	assert.True(t, found, "expected gh item")
+	assert.Equal(t, []string{"GET /api/v3/repos/org/repo/releases Bearer test-token"}, requests, "the token is checked against the forge's own API")
 }
 
 func TestRuntimeCheck_WithGitHubPlatform_MissingToken(t *testing.T) {
@@ -269,8 +277,6 @@ func TestRuntimeCheck_WithGitHubPlatform_MissingToken(t *testing.T) {
 	mr.QueueResponse("a@b.com", "", nil)              // user.email
 	mr.QueueResponse("", "", nil)                     // git status
 	mr.QueueResponse("", "", errors.New("no origin")) // git remote get-url origin (forge resolution)
-	mr.QueueResponse("gh 2.67.0", "", nil)            // gh binary — p.Check() runs binary before token
-	// token missing → checkAPIAuth skipped → no API runner call
 
 	cfg := semverCfg()
 	cfg.Forges = []config.Forge{{Name: "gh", Type: "github", Repository: "org/repo"}}

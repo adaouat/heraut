@@ -3,6 +3,8 @@ package github
 import (
 	"errors"
 	"fmt"
+	"io"
+	"net/http"
 	"net/url"
 	"os"
 	"strings"
@@ -12,27 +14,25 @@ import (
 	"github.com/adaouat/heraut/internal/port"
 )
 
-// Platform implements port.Platform for GitHub via the gh CLI.
+// Platform implements port.Platform for GitHub over the REST API (ADR-0077).
 type Platform struct {
-	runner port.Runner
-	cfg    *config.Platform
+	cfg        *config.Platform
+	getenv     func(string) string
+	stderr     io.Writer
+	httpClient *http.Client // nil: a default client
 }
 
 var _ port.Platform = (*Platform)(nil)
 
 // New constructs a GitHub Platform.
-func New(runner port.Runner, cfg *config.Platform) *Platform {
-	return &Platform{runner: runner, cfg: cfg}
+func New(cfg *config.Platform) *Platform {
+	return &Platform{cfg: cfg, getenv: os.Getenv, stderr: os.Stderr}
 }
 
 func (p *Platform) Name() string { return p.cfg.Name }
 
 func (p *Platform) ReleaseURL(tag string) string {
-	baseURL := p.cfg.BaseURL
-	if baseURL == "" {
-		baseURL = config.DefaultGitHubBaseURL
-	}
-	return fmt.Sprintf("%s/%s/releases/tag/%s", baseURL, p.repository(), port.URLTag(tag))
+	return fmt.Sprintf("%s/%s/releases/tag/%s", p.baseURL(), p.repository(), port.URLTag(tag))
 }
 
 // ReleaseURLFromContext builds the release URL from a pre-resolved link context so the
@@ -55,136 +55,73 @@ func (p *Platform) ReleaseURLFromContext(tag string, lc *port.LinkContext) strin
 // host when unset (e.g. a config that was not run through the loader's normalize step).
 func (p *Platform) LinkContext() port.LinkContext {
 	owner, repo, _ := strings.Cut(p.repository(), "/")
-	baseURL := p.cfg.BaseURL
-	if baseURL == "" {
-		baseURL = config.DefaultGitHubBaseURL
-	}
 	return port.LinkContext{
-		BaseURL:  baseURL,
+		BaseURL:  p.baseURL(),
 		Owner:    owner,
 		Repo:     repo,
 		Platform: "github",
 	}
 }
 
-// Check verifies gh is on PATH, the token env var is set, repository is resolvable,
-// and the token authenticates successfully against the GitHub API.
+// Check verifies a token is available, the repository is resolvable, and the token can read the
+// repository's releases.
 func (p *Platform) Check() error {
 	var errs []error
-
-	_, _, binaryErr := p.runner.Run("gh", "--version")
-	if binaryErr != nil {
-		errs = append(errs, fmt.Errorf("gh not found: %w", binaryErr))
+	token, tokenEnv, tokenErr := p.token()
+	if tokenErr != nil {
+		errs = append(errs, tokenErr)
+	}
+	if _, _, err := splitRepository(p.repository()); err != nil {
+		errs = append(errs, err)
+	}
+	if len(errs) > 0 {
+		return errors.Join(errs...)
 	}
 
-	tokenEnvName := p.tokenEnv()
-	tokenMissing := os.Getenv(tokenEnvName) == ""
-	if tokenMissing {
-		errs = append(errs, fmt.Errorf("environment variable %s is not set", tokenEnvName))
-	}
-
-	if p.repository() == "" {
-		errs = append(errs, fmt.Errorf("repository not set: configure repository: in .heraut.yml or set $%s", config.EnvGitHubRepository))
-	}
-
-	if binaryErr == nil {
-		if err := p.checkAPIAuth(tokenMissing); err != nil {
-			errs = append(errs, err)
-		}
-	}
-
-	return errors.Join(errs...)
-}
-
-// checkAPIAuth verifies API access. For the default GitHub host in GitHub Actions,
-// GITHUB_TOKEN is used directly because gh auth status reads config files and won't see
-// the injected env var. For self-hosted instances (GHES), and outside Actions, the
-// configured token (plus GH_HOST/GH_ENTERPRISE_TOKEN when self-hosted) is validated via a
-// repo-scoped API call.
-func (p *Platform) checkAPIAuth(tokenMissing bool) error {
-	if !p.selfHosted() && os.Getenv(config.EnvGitHubActions) == "true" {
-		githubToken := os.Getenv(config.EnvGitHubToken)
-		repo := os.Getenv(config.EnvGitHubRepository)
-		if githubToken != "" && repo != "" {
-			endpoint := "repos/" + repo + "/releases?per_page=1"
-			_, stderr, err := p.runner.RunEnv([]string{config.EnvGitHubCLIToken + "=" + githubToken}, "gh", "api", endpoint)
-			if err != nil {
-				return fmt.Errorf("github: API call failed (gh api %s): %s\n  hint: verify GITHUB_TOKEN has read access to the repository", endpoint, strings.TrimSpace(stderr))
-			}
-			return nil
-		}
-		// GITHUB_TOKEN absent: fall through to validate the configured token.
-	}
-	if tokenMissing {
-		return nil
-	}
-	// Use the explicit repository rather than {owner}/{repo} placeholders.
-	// gh resolves placeholders from git remotes, which fails when the remote points to a
-	// different host (e.g. GitLab CI triggering a GitHub release).
-	repo := p.repository()
-	if repo == "" {
-		return nil // Check() already reports the missing repository error.
-	}
-	endpoint := "repos/" + repo + "/releases?per_page=1"
-	env := append(p.tokenEnvSlice(), p.hostEnv()...)
-	_, stderr, err := p.runner.RunEnv(env, "gh", "api", endpoint)
+	c, err := p.client(token)
 	if err != nil {
-		return fmt.Errorf("github: API call failed (gh api %s): %s\n  hint: verify %s is valid and has the necessary scopes", endpoint, strings.TrimSpace(stderr), p.tokenEnv())
+		return err
+	}
+	if err := c.VerifyReleasesAccess(); err != nil {
+		return fmt.Errorf("github: API call failed: %w\n  hint: verify %s is valid and can read the repository's releases", err, tokenEnv)
 	}
 	return nil
 }
 
-// CreateRelease runs `gh release create`.
-// Resolved asset files are included as positional args so the create and upload are atomic —
-// this avoids GitHub's HTTP 422 "Cannot upload assets to an immutable release" that occurs when
-// uploading to an already-published release via a separate gh release upload call. Asset globs
-// resolve leniently: the tag is already pushed by now, so a pattern matching nothing warns and
-// is skipped rather than failing the release.
-// prerelease is derived by the caller from the resolved version (ADR-0064), not read from
-// config — release.targets[].prerelease was a static bool that could contradict the version
-// actually being published.
+// CreateRelease publishes the release through the REST API (Client.CreateRelease). Asset globs
+// resolve leniently: the tag is already pushed by now, so a pattern matching nothing warns and is
+// skipped rather than failing the release. Each asset is opened once and uploaded from that
+// descriptor (NEW-002), and a name GitHub rewrites is reported. prerelease is derived by the
+// caller from the resolved version (ADR-0064), not read from config.
 func (p *Platform) CreateRelease(tag, notes string, prerelease bool) error {
-	repo, err := p.requireRepository()
+	token, _, err := p.token()
 	if err != nil {
-		return err
+		return fmt.Errorf("github release create: %w", err)
 	}
-
-	// Write notes to a temp file so large changelogs don't exceed ARG_MAX when
-	// passed as a --notes value. gh supports -F/--notes-file for exactly this.
-	notesFile, err := os.CreateTemp("", "heraut-notes-*")
+	c, err := p.client(token)
 	if err != nil {
-		return fmt.Errorf("gh release create: write notes file: %w", err)
-	}
-	defer func() { _ = os.Remove(notesFile.Name()) }()
-	if _, err := notesFile.WriteString(notes); err != nil {
-		_ = notesFile.Close()
-		return fmt.Errorf("gh release create: write notes file: %w", err)
-	}
-	if err := notesFile.Close(); err != nil {
-		return fmt.Errorf("gh release create: write notes file: %w", err)
+		return fmt.Errorf("github release create: %w", err)
 	}
 
-	args := []string{"release", "create", tag, "--notes-file", notesFile.Name(), "--repo", repo}
-	if p.cfg.Draft {
-		args = append(args, "--draft")
-	}
-	if prerelease {
-		args = append(args, "--prerelease")
-	}
-
+	var assets []platforms.Asset
 	if len(p.cfg.Assets) > 0 {
-		files, err := platforms.ResolveGlobsLenient(p.cfg.Assets, func(pattern string) {
-			_, _ = fmt.Fprintf(os.Stderr, "warning: no files matched asset pattern %q — skipping\n", pattern)
+		assets, err = platforms.OpenAssets(p.cfg.Assets, func(pattern string) {
+			_, _ = fmt.Fprintf(p.stderr, "warning: no files matched asset pattern %q — skipping\n", pattern)
 		})
 		if err != nil {
-			return fmt.Errorf("gh release create: resolving assets: %w", err)
+			return fmt.Errorf("github release create: resolving assets: %w", err)
 		}
-		args = append(args, files...)
+		defer platforms.CloseAssets(assets)
 	}
 
-	env := append(p.tokenEnvSlice(), p.hostEnv()...)
-	if _, _, err := p.runner.RunEnv(env, "gh", args...); err != nil {
-		return fmt.Errorf("gh release create: %w", err)
+	names, err := c.CreateRelease(tag, notes, p.cfg.Draft, prerelease, assets)
+	if err != nil {
+		return fmt.Errorf("github release create: %w", err)
+	}
+	for i, a := range assets {
+		if names[i] != a.Name {
+			_, _ = fmt.Fprintf(p.stderr, "warning: asset %q was published as %q: GitHub rewrote its name\n", a.Path, names[i])
+		}
 	}
 	return nil
 }
@@ -192,76 +129,63 @@ func (p *Platform) CreateRelease(tag, notes string, prerelease bool) error {
 func (p *Platform) HasAssets() bool { return len(p.cfg.Assets) > 0 }
 
 // CheckAssets applies the asset rules (confinement to the repository, and every pattern matching a
-// file unless release.allow_missing_assets is set, and no path containing gh's "#label" separator) ahead of publishing.
+// file unless release.allow_missing_assets is set) ahead of publishing.
 func (p *Platform) CheckAssets() error {
-	if err := platforms.CheckAssetGlobs(p.cfg.Assets, p.cfg.AllowMissingAssets); err != nil {
-		return err
-	}
-	files, err := platforms.ResolveGlobsLenient(p.cfg.Assets, func(string) {})
-	if err != nil {
-		return err
-	}
-	for _, f := range files {
-		if strings.Contains(f, "#") {
-			return fmt.Errorf("asset %q contains '#', which gh reads as a label separator: rename the file (ADR-0076)", f)
-		}
-	}
-	return nil
+	return platforms.CheckAssetGlobs(p.cfg.Assets, p.cfg.AllowMissingAssets)
 }
 
 func (p *Platform) repository() string {
 	if p.cfg.Repository != "" {
 		return p.cfg.Repository
 	}
-	return os.Getenv(config.EnvGitHubRepository)
+	return p.getenv(config.EnvGitHubRepository)
 }
 
-func (p *Platform) requireRepository() (string, error) {
-	repo := p.repository()
-	if repo == "" {
-		return "", fmt.Errorf("repository not set: configure repository: in .heraut.yml or set $%s", config.EnvGitHubRepository)
-	}
-	return repo, nil
-}
-
-func (p *Platform) tokenEnv() string {
+// tokenEnvs lists the variables the token is read from, first set wins (ADR-0077): token_env alone
+// when configured, else gh's chain for the host. GH_TOKEN comes last on GitHub Enterprise Server so a
+// configuration that worked with the gh driver keeps working.
+func (p *Platform) tokenEnvs() []string {
 	if p.cfg.TokenEnv != "" {
-		return p.cfg.TokenEnv
+		return []string{p.cfg.TokenEnv}
 	}
-	return config.EnvGitHubCLIToken
+	if enterpriseServer(p.baseURL()) {
+		return []string{config.EnvGitHubEnterpriseCLIToken, config.EnvGitHubEnterpriseToken, config.EnvGitHubCLIToken}
+	}
+	return []string{config.EnvGitHubCLIToken, config.EnvGitHubToken}
 }
 
-// tokenEnvSlice reads the configured token and returns it as ["GH_TOKEN=<value>"]
-// so gh always finds it regardless of which env var name was configured.
-// Returns nil when the token is unset (auth will fail — Check() should have caught this).
-func (p *Platform) tokenEnvSlice() []string {
-	if token := os.Getenv(p.tokenEnv()); token != "" {
-		return []string{config.EnvGitHubCLIToken + "=" + token}
+// token returns the token and the variable it was read from.
+func (p *Platform) token() (token, envName string, err error) {
+	envs := p.tokenEnvs()
+	for _, name := range envs {
+		if t := p.getenv(name); t != "" {
+			return t, name, nil
+		}
 	}
-	return nil
+	if len(envs) == 1 {
+		return "", "", fmt.Errorf("environment variable %s is not set", envs[0])
+	}
+	return "", "", fmt.Errorf("no GitHub token: none of %s is set", strings.Join(envs, ", "))
 }
 
-// selfHosted reports whether this platform targets a non-default GitHub host
-// (i.e. a GitHub Enterprise Server instance).
-func (p *Platform) selfHosted() bool {
-	return p.cfg.BaseURL != "" && p.cfg.BaseURL != config.DefaultGitHubBaseURL
+func (p *Platform) client(token string) (*Client, error) {
+	return newClient(p.baseURL(), p.repository(), token, p.getenv, p.httpClient)
 }
 
-// hostEnv returns the env vars needed to point gh at a self-hosted GHES instance:
-// GH_HOST selects the host, and GH_ENTERPRISE_TOKEN (gh's expected var for non-github.com
-// hosts) carries the configured token. Returns nil for the default host (github.com), so
-// RunEnv(p.hostEnv(), ...) is a no-op for the common case.
-func (p *Platform) hostEnv() []string {
-	if !p.selfHosted() {
-		return nil
+func (p *Platform) baseURL() string {
+	if p.cfg.BaseURL != "" {
+		return p.cfg.BaseURL
 	}
-	u, err := url.Parse(p.cfg.BaseURL)
-	if err != nil || u.Host == "" {
-		return nil
+	return config.DefaultGitHubBaseURL
+}
+
+// enterpriseServer reports whether baseURL is a GitHub Enterprise Server rather than github.com or a
+// GitHub Enterprise Cloud tenant on *.ghe.com.
+func enterpriseServer(baseURL string) bool {
+	u, err := url.Parse(baseURL)
+	if err != nil {
+		return true
 	}
-	env := []string{"GH_HOST=" + u.Host}
-	if token := os.Getenv(p.tokenEnv()); token != "" {
-		env = append(env, "GH_ENTERPRISE_TOKEN="+token)
-	}
-	return env
+	host := strings.ToLower(u.Hostname())
+	return host != "github.com" && !strings.HasSuffix(host, ".ghe.com")
 }

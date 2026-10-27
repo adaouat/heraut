@@ -5,8 +5,9 @@ package config
 // does for the forges' default web hosts (DefaultGitHubBaseURL and friends).
 //
 // Two token names per forge are deliberate and are not interchangeable: EnvGitHubToken is the
-// variable GitHub Actions provides and forge detection reads, EnvGitHubCLIToken is the one the `gh`
-// CLI the GitHub driver runs expects.
+// variable GitHub Actions provides and forge detection reads, EnvGitHubCLIToken is the GitHub
+// publish driver's first choice, named after the `gh` CLI's convention. The driver reads the
+// enterprise names for GitHub Enterprise Server, as `gh` does (ADR-0077).
 const (
 	// GitHub Actions.
 	EnvGitHubActions    = "GITHUB_ACTIONS"
@@ -17,6 +18,9 @@ const (
 	EnvGitHubRefType    = "GITHUB_REF_TYPE"
 	EnvGitHubToken      = "GITHUB_TOKEN"
 	EnvGitHubCLIToken   = "GH_TOKEN"
+
+	EnvGitHubEnterpriseCLIToken = "GH_ENTERPRISE_TOKEN"
+	EnvGitHubEnterpriseToken    = "GITHUB_ENTERPRISE_TOKEN"
 
 	// GitLab CI.
 	EnvGitLabCI           = "GITLAB_CI"
@@ -43,6 +47,7 @@ const (
 // the test sets, not on the CI job the test happens to run in.
 var CIEnvVars = []string{
 	EnvGitHubActions, EnvGitHubServerURL, EnvGitHubAPIURL, EnvGitHubRepository, EnvGitHubRefName, EnvGitHubRefType, EnvGitHubToken, EnvGitHubCLIToken,
+	EnvGitHubEnterpriseCLIToken, EnvGitHubEnterpriseToken,
 	EnvGitLabCI, EnvGitLabServerURL, EnvGitLabAPIURL, EnvGitLabProjectPath, EnvGitLabProjectURL, EnvGitLabProjectID, EnvGitLabCommitBranch, EnvGitLabJobToken, EnvGitLabToken,
 	EnvAzureBuild, EnvAzureCollectionURI, EnvAzureTeamProject, EnvAzureRepositoryName, EnvAzureSourceBranch, EnvAzureAccessToken, EnvAzureDevOpsToken,
 }

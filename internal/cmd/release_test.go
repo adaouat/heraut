@@ -106,10 +106,11 @@ forges:
   - name: github
     platform: github
     repository: test/repo
+    base_url: %s
 release:
   targets:
     - forge: github
-`, outPath))
+`, outPath, githubStandIn(t)))
 
 	exectest.FakeBin(t, "git", `#!/bin/sh
 case "$*" in
@@ -121,14 +122,6 @@ case "$*" in
   *) exit 1 ;;
 esac
 `)
-	exectest.FakeBin(t, "gh", `#!/bin/sh
-case "$*" in
-  "--version") echo "gh version 2.x" ;;
-  "api repos/test/repo/releases?per_page=1") echo "[]" ;;
-  *) exit 1 ;;
-esac
-`)
-
 	out, err := executeRoot("release", "--config", cfgPath)
 	require.Error(t, err)
 	assert.Contains(t, out, "no heraut-release anchors",

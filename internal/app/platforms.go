@@ -10,8 +10,8 @@ import (
 	"github.com/adaouat/heraut/internal/port"
 )
 
-func buildGitHubPlatform(runner port.Runner, cfg *config.Platform) (port.Platform, error) {
-	return github.New(runner, cfg), nil
+func buildGitHubPlatform(_ port.Runner, cfg *config.Platform) (port.Platform, error) {
+	return github.New(cfg), nil
 }
 
 func buildGitLabPlatform(_ port.Runner, cfg *config.Platform) (port.Platform, error) {

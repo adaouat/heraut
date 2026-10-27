@@ -1,6 +1,6 @@
 # Héraut — GitHub Client Roadmap (replace `gh` for publishing)
 
-> Status: In progress (drafted 2026-10-25; T423–T426 done 2026-10-26)
+> Status: In progress (drafted 2026-10-25; T423–T426 done 2026-10-26, T427 done 2026-10-27)
 > Decision: [ADR-0077](../adr/0077-github-publish-transport.md) (Accepted: `go-github`).
 > Precedent: ADR-0069 and Phase 61 (T364–T368), which moved GitLab publishing from `glab` to `client-go`.
 > Main roadmap: tracked as Phase 80 in [`roadmap.md`](roadmap.md).
@@ -23,7 +23,7 @@
 
 | Phase | Theme | Tasks | Status |
 |---|---|---|---|
-| 80 | GitHub publishing without `gh` | T423–T430 | In progress — T423–T426 done |
+| 80 | GitHub publishing without `gh` | T423–T430 | In progress — T423–T427 done |
 
 ### Phase 80 — GitHub publishing without `gh`
 
@@ -144,7 +144,7 @@ go-github errors, upload origin not configured, no release name, no `per_page`, 
 after the test was added); the empty-token one led to dropping the duplicate check. Not handled: requests have no
 timeout (as with `gh`), and retries are go-github's. Not wired yet.
 
-#### `[ ]` T427: swap the GitHub driver onto the client; port `Check()`, tokens and Lane A
+#### `[x]` T427: swap the GitHub driver onto the client; port `Check()`, tokens and Lane A
 
 `platforms/github` stops using `port.Runner` (`New(cfg)`; `app` wiring in the same commit). Token chain per
 ADR-0077 for both `Check()` and publishing; the Actions `GITHUB_TOKEN` special case goes. `CheckAssets`
@@ -155,6 +155,33 @@ shared call log, replaces `FakeCLI("gh")` in the `release` scenarios (the forge 
 scenarios for an asset path with `#`, a refused upload leaving no draft, and the exit code. Run the whole suite
 behind a logging proxy to prove no test reaches github.com. ADR-0076 gets a note that its 2026-10-24 addendum
 is superseded by ADR-0077.
+
+**Completion note:** `github.New(cfg)` takes no runner; the driver keeps `getenv`, a warnings writer and an
+optional `*http.Client` as unexported fields so the contract tests (`platform_internal_test.go`) reuse T426's
+TLS stub with real host names. The token chain lives in `tokenEnvs`/`token` and is shared by `Check()` and
+publishing; a table runs each of its 10 rows through both. A missing token and a missing repository are reported
+together before any request. `CreateRelease` opens the assets through `platforms.OpenAssets` and warns on stderr
+when GitHub publishes a different name. `config` gains `EnvGitHubEnterpriseCLIToken` and
+`EnvGitHubEnterpriseToken` (also in `CIEnvVars`, so `ClearCIEnv` clears them), and `EnvGitHubCLIToken`'s comment
+is reworded. The `gh` platform rows became stub rows; the binary-only `gh` fallback of `heraut check runtime` stays
+for T428. Lane A: `harness.Repo.FakeGitHub()` answers as a GHES without subdomain isolation (API under `/api/v3`,
+uploads under `/api/uploads`, one loopback origin) and can refuse releases or uploads; the `release`, `check
+runtime` and maintenance scenarios point the forge's `base_url` at it. New scenarios: a path with `#` is published
+with a warning, a refused upload deletes the draft and exits Runtime. The obsolete "missing gh" `check runtime`
+row became "git and a token pass". Beyond the task text: four tests outside the driver's package (`internal/app`
+`TestRuntimeCheck_WithGitHubPlatform` and `TestBuildTargetPlatforms_TargetOwnAssetsAreLenient`, `internal/cmd`
+`TestCheckRuntime_AllGood` and `TestRelease_ForeignFile_ShortSummaryNotRepeated`) reached the real
+api.github.com once `gh` was no longer faked; they now use a loopback stub. Spec 02 and Spec 05 describe the
+requests and the token chain; the `gh` wording about the runtime tool, Spec 06's and `testing.md`'s `MockRunner`
+example (`github.New(mr, …)` no longer compiles) are left for T428. Proof of no network: the whole suite ran
+behind a logging proxy that refuses every request, with the harness temporarily forwarding `HTTPS_PROXY` to the
+binary (not committed), and logged nothing; a control run of the binary with no `base_url` was logged
+(`CONNECT api.github.com:443`). Sensitivity: 14 mutations of the driver (token_env falling through, chain order on
+GHES, `GITHUB_TOKEN` on GHES, `*.ghe.com` as GHES, no `GITHUB_TOKEN` on github.com, no API call in `Check()`, no
+rename warning, repository from the process environment, `GITHUB_API_URL` ignored, the hint's variable, the
+repository error dropped, draft dropped, unmatched-pattern warning dropped, `#` refused again) each fail at least
+one row. Not done: the preflight `CheckAssets` does not refuse duplicate basenames or non-regular files; those are
+refused at publish time, after the tag push.
 
 #### `[ ]` T428: drop `gh` from the runtime check, image and docs
 

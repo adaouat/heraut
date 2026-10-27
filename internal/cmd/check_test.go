@@ -2,6 +2,9 @@ package cmd_test
 
 import (
 	"bytes"
+	"net/http"
+	"net/http/httptest"
+	"strings"
 	"testing"
 
 	"github.com/adaouat/forge/exec/exectest"
@@ -108,6 +111,21 @@ echo "cog 6.x"
 
 // ---- check runtime ----
 
+// githubStandIn serves the GitHub releases list on loopback, as a GitHub Enterprise Server would:
+// point a forge's base_url at the returned URL so the platform check stays off the network.
+func githubStandIn(t *testing.T) string {
+	t.Helper()
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodGet || !strings.HasSuffix(r.URL.Path, "/releases") {
+			http.NotFound(w, r)
+			return
+		}
+		_, _ = w.Write([]byte(`[]`))
+	}))
+	t.Cleanup(srv.Close)
+	return srv.URL
+}
+
 func TestCheckRuntime_AllGood(t *testing.T) {
 	cfgPath := writeConfig(t, `
 version: "1"
@@ -118,6 +136,7 @@ forges:
   - name: github
     platform: github
     repository: acme/widget
+    base_url: `+githubStandIn(t)+`
 release:
   targets:
     - forge: github
@@ -129,9 +148,6 @@ case "$*" in
   "config user.email") echo "john@example.com" ;;
   *) exit 0 ;;
 esac
-`)
-	exectest.FakeBin(t, "gh", `#!/bin/sh
-echo "gh 2.x"
 `)
 	t.Setenv("GH_TOKEN", "test-token")
 	t.Setenv("GITHUB_REPOSITORY", "org/repo")

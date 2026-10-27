@@ -1,6 +1,8 @@
 package app
 
 import (
+	"net/http"
+	"net/http/httptest"
 	"testing"
 
 	"github.com/adaouat/forge/exec/exectest"
@@ -90,24 +92,30 @@ func TestBuildReleasePipelineConfig_CommitMessage(t *testing.T) {
 // leniently (warn and skip a non-matching pattern) just like top-level release.assets already did,
 // since a strict failure would abort the release after the tag was already created and pushed.
 func TestBuildTargetPlatforms_TargetOwnAssetsAreLenient(t *testing.T) {
-	mr := exectest.NewMockRunner()
-	mr.QueueResponse("", "", nil) // gh release create
+	t.Chdir(t.TempDir())
+	t.Setenv("GH_TOKEN", "tok")
+	var requests []string
+	api := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		requests = append(requests, r.Method+" "+r.URL.Path)
+		w.WriteHeader(http.StatusCreated)
+		_, _ = w.Write([]byte(`{"id":1}`))
+	}))
+	t.Cleanup(api.Close)
 	cfg := &config.Config{
-		Forges: []config.Forge{{Name: "gh", Type: "github"}},
+		Forges: []config.Forge{{Name: "gh", Type: "github", TokenEnv: "GH_TOKEN"}},
 	}
 	targets := []config.Target{
 		{Forge: "gh", Assets: []string{"no-such-file-*.tar.gz"}},
 	}
-	resolved := forge.Resolved{Forges: []port.ForgeIdentity{{Type: "github", Project: "acme/widget"}}}
+	resolved := forge.Resolved{Forges: []port.ForgeIdentity{{Type: "github", Host: api.URL, Project: "acme/widget"}}}
 
-	platforms, err := buildTargetPlatforms(mr, cfg, targets, nil, resolved)
+	platforms, err := buildTargetPlatforms(exectest.NewMockRunner(), cfg, targets, nil, resolved)
 	require.NoError(t, err)
 	require.Len(t, platforms, 1)
 
 	err = platforms[0].CreateRelease("v1.0.0", "notes", false)
 	require.NoError(t, err, "a target-declared asset glob matching nothing must warn and skip, not fail the release")
-	require.Len(t, mr.Calls, 1)
-	assert.NotContains(t, mr.Calls[0].Args, "no-such-file-*.tar.gz")
+	assert.Equal(t, []string{"POST /api/v3/repos/acme/widget/releases"}, requests, "the release is created, with nothing to upload")
 }
 
 // TestBuildTargetPlatforms_AllowMissingAssetsReachesTheDrivers covers ADR-0076: release.allow_missing_assets

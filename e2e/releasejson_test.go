@@ -34,7 +34,7 @@ func TestReleaseDryRunJSON_PlansEveryActionAndChangesNothing(t *testing.T) {
 		`{"action":"publish","target":"gitlab","notes":true},`+
 		`{"action":"hook","point":"post_release","target":"gitlab","commands":["echo post gitlab >> .hooklog"]}]},"warnings":[]}`,
 		strings.TrimSpace(res.Stdout))
-	assert.Empty(t, repo.CLICalls(), "neither gh nor the GitLab API is called")
+	assert.Empty(t, repo.CLICalls(), "neither the GitHub nor the GitLab API is called")
 	assert.Equal(t, before, repoState(t, repo), "no tag, commit or file, and no hook ran")
 }
 

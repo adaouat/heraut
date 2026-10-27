@@ -134,6 +134,7 @@ forges:
   - name: github
     platform: github
     repository: acme/widget
+    base_url: __GITHUB_URL__
     token_env: GH_TOKEN
 release:
   targets:
@@ -145,7 +146,7 @@ func TestCheckRuntime(t *testing.T) {
 	newRepo := func(t *testing.T, cfg string) *harness.Repo {
 		repo := harness.NewRepo(t)
 		if cfg != "" {
-			repo.WriteConfig(cfg)
+			repo.WriteConfig(withStandIns(repo, cfg))
 		}
 		repo.Commit("feat: one")
 		return repo
@@ -156,45 +157,33 @@ func TestCheckRuntime(t *testing.T) {
 		return normalize(res.Stdout + " " + res.Stderr), res.ExitCode
 	}
 
-	t.Run("everything present passes", func(t *testing.T) {
-		repo := newRepo(t, githubCfg)
-		repo.FakeCLI("gh")
-
-		out, code := run(t, repo, repo.BinDir()+string(os.PathListSeparator)+gitOnlyPath(t), []string{"GH_TOKEN=x"}, "check", "runtime")
-
-		require.Equal(t, exitOK, code, out)
-		assert.Contains(t, out, "all checks passed")
-	})
-	t.Run("a missing gh is its own failure", func(t *testing.T) {
+	t.Run("git and a token pass: gh is not needed to publish to GitHub", func(t *testing.T) {
 		repo := newRepo(t, githubCfg)
 
 		out, code := run(t, repo, gitOnlyPath(t), []string{"GH_TOKEN=x"}, "check", "runtime")
 
-		require.Equal(t, exitRuntime, code, out)
-		assert.Contains(t, out, "gh not found")
-		assert.NotContains(t, out, "environment variable gh_token is not set")
+		require.Equal(t, exitOK, code, out)
+		assert.Contains(t, out, "all checks passed")
+		assert.Equal(t, []string{githubList}, repo.CLICalls(), "the token is checked against the releases list")
 	})
 	t.Run("a missing token is its own failure", func(t *testing.T) {
 		repo := newRepo(t, githubCfg)
-		repo.FakeCLI("gh")
 
-		out, code := run(t, repo, repo.BinDir()+string(os.PathListSeparator)+gitOnlyPath(t), nil, "check", "runtime")
+		out, code := run(t, repo, gitOnlyPath(t), nil, "check", "runtime")
 
 		require.Equal(t, exitRuntime, code, out)
 		assert.Contains(t, out, "environment variable gh_token is not set")
-		assert.NotContains(t, out, "gh not found")
+		assert.Empty(t, repo.CLICalls())
 	})
 	t.Run("an unset git identity fails", func(t *testing.T) {
 		repo := newRepo(t, githubCfg)
-		repo.FakeCLI("gh")
 		repo.Git("config", "--unset", "user.name")
 
-		out, code := run(t, repo, repo.BinDir()+string(os.PathListSeparator)+gitOnlyPath(t), []string{"GH_TOKEN=x"}, "check", "runtime")
+		out, code := run(t, repo, gitOnlyPath(t), []string{"GH_TOKEN=x"}, "check", "runtime")
 
 		require.Equal(t, exitRuntime, code, out)
 		assert.Contains(t, out, "git user.name — not configured")
-		assert.NotContains(t, out, "gh not found", "only the identity is wrong")
-		assert.NotContains(t, out, "environment variable gh_token is not set")
+		assert.NotContains(t, out, "environment variable gh_token is not set", "only the identity is wrong")
 	})
 	t.Run("with no config every tool is required", func(t *testing.T) {
 		repo := newRepo(t, "")
@@ -212,7 +201,7 @@ func TestCheck_ConfigErrorsOutrankRuntimeFailures(t *testing.T) {
 	bin := harness.Binary(t)
 	newRepo := func(t *testing.T, cfg string) *harness.Repo {
 		repo := harness.NewRepo(t)
-		repo.WriteConfig(cfg)
+		repo.WriteConfig(withStandIns(repo, cfg))
 		repo.Commit("feat: one")
 		return repo
 	}
@@ -234,7 +223,7 @@ func TestCheck_ConfigErrorsOutrankRuntimeFailures(t *testing.T) {
 		require.Equal(t, exitConfig, res.ExitCode, "stdout:\n%s\nstderr:\n%s", res.Stdout, res.Stderr)
 		out := normalize(res.Stdout + " " + res.Stderr)
 		assert.Contains(t, out, `"nope" is not a valid strategy`)
-		assert.Contains(t, out, "gh not found", "the runtime section still ran and reported")
+		assert.Contains(t, out, "environment variable gh_token is not set", "the runtime section still ran and reported")
 	})
 }
 
