@@ -182,3 +182,66 @@ func TestResolve_RejectsPlainHTTPToARemoteHost(t *testing.T) {
 		require.Len(t, got.Forges, 1)
 	})
 }
+
+// A GitHub identity's API root follows the same rules as publishing (config.GitHubAPIURL): an
+// explicit api_url wins; else GITHUB_API_URL, but only on the instance the forge points at; else
+// the host's own API root. Enrichment and publishing then query the same instance.
+func TestResolve_GitHubAPIRoot(t *testing.T) {
+	actionsOn := func(server, api string) map[string]string {
+		return map[string]string{"GITHUB_ACTIONS": "true", "GITHUB_SERVER_URL": server, "GITHUB_API_URL": api, "GITHUB_REPOSITORY": "acme/widget"}
+	}
+	explicit := func(baseURL, apiURL string) *config.Config {
+		return &config.Config{Forges: []config.Forge{{Name: "gh", Type: "github", Repository: "acme/widget", BaseURL: baseURL, APIURL: apiURL}}}
+	}
+	tests := []struct {
+		name   string
+		cfg    *config.Config
+		env    map[string]string
+		origin string
+		want   string
+	}{
+		{name: "GHES forge run on a github.com runner keeps its own API",
+			cfg: explicit("https://ghes.example.com", ""), env: actionsOn("https://github.com", "https://api.github.com"),
+			want: "https://ghes.example.com/api/v3"},
+		{name: "GHES forge run on its own runner takes GITHUB_API_URL",
+			cfg: explicit("https://ghes.example.com", ""), env: actionsOn("https://ghes.example.com", "https://ghes-api.example.com"),
+			want: "https://ghes-api.example.com"},
+		{name: "an explicit api_url wins over GITHUB_API_URL",
+			cfg: explicit("https://ghes.example.com", "https://proxy.example.com/api"), env: actionsOn("https://ghes.example.com", "https://ghes-api.example.com"),
+			want: "https://proxy.example.com/api"},
+		{name: "a ghe.com tenant gets api.<host>",
+			cfg: explicit("https://acme.ghe.com", ""), env: map[string]string{},
+			want: "https://api.acme.ghe.com"},
+		{name: "github.com forge with no CI",
+			cfg: explicit("", ""), env: map[string]string{},
+			want: "https://api.github.com"},
+		{name: "zero config in Actions takes GITHUB_API_URL",
+			cfg: &config.Config{}, env: actionsOn("https://acme.ghe.com", "https://api.acme.ghe.com"),
+			want: "https://api.acme.ghe.com"},
+		{name: "zero config in Actions without GITHUB_SERVER_URL ignores GITHUB_API_URL",
+			cfg: &config.Config{}, env: map[string]string{"GITHUB_ACTIONS": "true", "GITHUB_API_URL": "https://api.elsewhere.example.com"},
+			want: "https://api.github.com"},
+		{name: "zero config from the git origin",
+			cfg: &config.Config{}, env: map[string]string{"GITHUB_TOKEN": "t"}, origin: "git@github.com:acme/widget.git",
+			want: "https://api.github.com"},
+		{name: "zero config from a lone token",
+			cfg: &config.Config{}, env: map[string]string{"GITHUB_TOKEN": "t"},
+			want: "https://api.github.com"},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			got, err := forge.Resolve(tc.cfg, env(tc.env), tc.origin)
+			require.NoError(t, err)
+			require.Len(t, got.Forges, 1)
+			assert.Equal(t, tc.want, got.Forges[0].APIURL)
+		})
+	}
+}
+
+func TestResolve_GitHubInsecureActionsAPIURLIsRefused(t *testing.T) {
+	_, err := forge.Resolve(&config.Config{}, env(map[string]string{
+		"GITHUB_ACTIONS": "true", "GITHUB_SERVER_URL": "https://ghes.example.com", "GITHUB_API_URL": "http://ghes.example.com/api/v3",
+	}), "")
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "GITHUB_API_URL")
+}

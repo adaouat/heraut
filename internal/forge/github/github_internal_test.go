@@ -5,6 +5,7 @@ import (
 
 	"github.com/adaouat/heraut/internal/port"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 // graphqlEndpoint must land on the exact GraphQL path for every identity shape GitHub can present:
@@ -37,13 +38,33 @@ func TestGraphqlEndpoint(t *testing.T) {
 			id:   port.ForgeIdentity{Host: "https://github.example.com", APIURL: "https://github.example.com/api/v3"},
 			want: "https://github.example.com/api/graphql",
 		},
+		{
+			name: "ghe.com tenant host-only",
+			id:   port.ForgeIdentity{Host: "https://acme.ghe.com"},
+			want: "https://api.acme.ghe.com/graphql",
+		},
+		{
+			name: "ghe.com tenant explicit APIURL",
+			id:   port.ForgeIdentity{Host: "https://acme.ghe.com", APIURL: "https://api.acme.ghe.com"},
+			want: "https://api.acme.ghe.com/graphql",
+		},
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			f := &Forge{id: tc.id}
-			assert.Equal(t, tc.want, f.graphqlEndpoint())
+			got, err := f.graphqlEndpoint()
+			require.NoError(t, err)
+			assert.Equal(t, tc.want, got)
 		})
 	}
+}
+
+// The token never goes to a plain-http host: deriving the endpoint from one is an error.
+func TestGraphqlEndpoint_InsecureHostIsRefused(t *testing.T) {
+	f := &Forge{id: port.ForgeIdentity{Host: "http://github.example.com"}}
+	_, err := f.graphqlEndpoint()
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "must use https")
 }
 
 // I2: pins the generated GraphQL query byte-for-byte — the aliasing scheme (s0, s1, …), the

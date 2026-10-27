@@ -43,9 +43,18 @@ func Resolve(cfg *config.Config, getenv func(string) string, gitOrigin string) (
 	if err != nil {
 		return Resolved{}, err
 	}
-	for _, id := range res.Forges {
+	for i, id := range res.Forges {
 		if err := requireSecure(id); err != nil {
 			return Resolved{}, err
+		}
+		// A GitHub API root not set in config comes from the helper publishing uses, which takes
+		// GITHUB_API_URL only on the instance the forge points at (ADR-0077).
+		if id.Type == "github" && id.APIURL == "" {
+			apiURL, err := config.GitHubAPIURL(id.Host, getenv)
+			if err != nil {
+				return Resolved{}, err
+			}
+			res.Forges[i].APIURL = apiURL
 		}
 	}
 	return res, nil
@@ -85,7 +94,7 @@ func resolveExplicit(cfg *config.Config, getenv func(string) string, gitOrigin s
 		forges[i] = port.ForgeIdentity{
 			Type:       f.Type,
 			Host:       resolveField(f.BaseURL, ciMatches, ciHost, originMatches, originHost, defaultHostFor(f.Type)),
-			APIURL:     resolveField(f.APIURL, ciMatches, ciAPIURL, false, "", ""),
+			APIURL:     resolveField(f.APIURL, ciMatches && f.Type != "github", ciAPIURL, false, "", ""),
 			Project:    resolveField(configProject(f), ciMatches, ciProject, originMatches, originProject, ""),
 			Repository: resolveField(repositoryFor(f), ciMatches, ciRepository, false, "", ""),
 			Token:      token,
@@ -120,6 +129,9 @@ func resolveAuto(getenv func(string) string, gitOrigin string) (Resolved, error)
 		host := ciHost
 		if host == "" {
 			host = defaultHostFor(ciType)
+		}
+		if ciType == "github" {
+			ciAPIURL = "" // derived in Resolve, see there
 		}
 		return single(port.ForgeIdentity{
 			Type:       ciType,

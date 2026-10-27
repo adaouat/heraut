@@ -5,6 +5,7 @@ package github
 import (
 	"fmt"
 	"net/http"
+	"net/url"
 	"strings"
 	"time"
 
@@ -70,30 +71,33 @@ func (f *Forge) CompareURL(from, to string) string {
 	return fmt.Sprintf("%s/compare/%s...%s", f.webBase(), port.URLTag(from), port.URLTag(to))
 }
 
-// apiBase returns the REST API root: the explicit APIURL when set (GitHub Actions provides
-// GITHUB_API_URL), else api.github.com for github.com and {host}/api/v3 for GitHub Enterprise.
-func (f *Forge) apiBase() string {
+// apiBase returns the REST API root: the identity's APIURL, which forge resolution always sets for
+// GitHub, else the root config.GitHubAPIURL derives from the host (api.github.com, api.<host> for a
+// *.ghe.com tenant, {host}/api/v3 for GitHub Enterprise Server).
+func (f *Forge) apiBase() (string, error) {
 	if f.id.APIURL != "" {
-		return strings.TrimRight(f.id.APIURL, "/")
+		return strings.TrimRight(f.id.APIURL, "/"), nil
 	}
-	host := strings.TrimRight(f.id.Host, "/")
-	if host == config.DefaultGitHubBaseURL || host == "" {
-		return "https://api.github.com"
-	}
-	return host + "/api/v3"
+	return config.GitHubAPIURL(f.id.Host, func(string) string { return "" })
 }
 
-// graphqlEndpoint returns the GraphQL API endpoint. github.com serves it at
-// https://api.github.com/graphql; GitHub Enterprise Server serves it at {host}/api/graphql — a
-// sibling of /api/v3 (REST), not nested under it. An explicit APIURL (as GITHUB_API_URL sets it on
-// GHES, "{host}/api/v3") is normalized the same way: strip a trailing /api/v3 before appending
-// /graphql.
-func (f *Forge) graphqlEndpoint() string {
-	base := f.apiBase()
-	if base == "https://api.github.com" {
-		return base + "/graphql"
+// graphqlEndpoint returns the GraphQL API endpoint. github.com and *.ghe.com serve it at
+// {api root}/graphql (https://api.github.com/graphql, https://api.<tenant>.ghe.com/graphql); GitHub
+// Enterprise Server serves it at {host}/api/graphql — a sibling of /api/v3 (REST), not nested under
+// it. An explicit APIURL (as GITHUB_API_URL sets it on GHES, "{host}/api/v3") is normalized the same
+// way: strip a trailing /api/v3 before appending /api/graphql.
+func (f *Forge) graphqlEndpoint() (string, error) {
+	base, err := f.apiBase()
+	if err != nil {
+		return "", err
 	}
-	return strings.TrimSuffix(base, "/api/v3") + "/api/graphql"
+	if u, err := url.Parse(base); err == nil {
+		host := strings.ToLower(u.Hostname())
+		if host == "api.github.com" || (strings.HasPrefix(host, "api.") && strings.HasSuffix(host, ".ghe.com")) {
+			return base + "/graphql", nil
+		}
+	}
+	return strings.TrimSuffix(base, "/api/v3") + "/api/graphql", nil
 }
 
 // Enrich resolves each commit's associated pull request and linked commit-author handle via
