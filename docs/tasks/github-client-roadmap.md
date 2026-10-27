@@ -279,6 +279,14 @@ the stand-ins. Against the old code the GitLab real run committed and tagged. Th
 rule, no duplicate rule, a match error wrapped as unmatched) each fail tests. Spec 03 step 3 and Spec 05 § asset
 resolution list the rules.
 
+#### `[ ]` T433: drop Lane A's fake-binary helper
+
+`harness.Repo.FakeCLI` (with `Repo.FailReleases` and `BinDir`) installs fake executables on `PATH`; no
+scenario uses it since the GitHub and GitLab stand-ins replaced `gh` and `glab`, and only its own tests still
+fake a binary called `gh`. Remove it and its tests, keep the call log the two stand-ins share, and rename
+`CLICalls` to `APICalls` since nothing logged is a CLI any more. Harness only: no scenario's assertions
+change. Asked for by the user after T431.
+
 **Phase 80 exit:** `go test -count=1 ./...` passes, `gh` appears only in Lane B's harness and historical
 docs, each behaviour change confirmed to fail when reverted, lint clean, and Lane B green on GitHub (T429).
 
