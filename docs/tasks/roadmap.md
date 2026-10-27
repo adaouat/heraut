@@ -250,6 +250,7 @@ discipline that applies to every task.
 | 79 | Remaining security findings (NEW-003, NEW-004) | Complete — T421–T422, see `hardening-6-roadmap.md` |
 | 80 | GitHub publishing without `gh` (ADR-0077) | Done — T423–T430, T432 and T433, see `github-client-roadmap.md` |
 | 81 | GitLab asset read from the descriptor (NEW-002 for GitLab) | Done |
+| 82 | Last open security findings (NEW-005 residual, SEC-002) | Not started — T434, T435 |
 
 ### Open items
 
@@ -3431,6 +3432,36 @@ Mutation: reopening by `a.Path` in the client uploads the outside file and fails
 tests; the one rule `OpenAssets` did not test yet (a no-match outside the repository only warns) moved to
 `assets_test.go`. NEW-002 is marked resolved in `SECURITY_FINDINGS.md`. Lane B not rerun (not asked); B4 and
 B6 exercise GitLab uploads.
+
+### Phase 82 — Last open security findings
+
+The two Info items still open in `docs/audit/SECURITY_FINDINGS.md` after T431, scheduled by the user on
+2026-10-27.
+
+#### `[ ]` T434: no leftover changelog temp file after a crash (NEW-005 residual)
+
+`writeFileAtomic` (`internal/generators/native/generator.go`) writes the changelog to
+`.<name>.tmp-*` next to it and renames it over the target. It removes the temp file on every error it sees,
+but a process killed between the create and the rename leaves the temp file behind, and a hook that stages
+everything (`git add -A`) can then commit it. Proposed fix: before creating its temp file, remove any
+`.<name>.tmp-*` sibling, which only an interrupted earlier write can have left (only one heraut run writes a
+repository's changelog at a time). Rejected alternative: a temp file outside the directory (for example under
+`.git/`), because the rename is atomic only within one filesystem and a worktree's git directory can sit
+elsewhere. Tests first: a leftover is removed and the write succeeds; an unrelated file with a similar name
+(`<name>.tmp-x`, no leading dot; another target's leftover) is kept. Then mark NEW-005 fully resolved.
+
+#### `[ ]` T435: decide and apply the rule for operator-chosen output paths (SEC-002)
+
+Four writes take their path from the operator and are not confined to the repository: `heraut notes
+--output`, `heraut skill install --dir`, `heraut init`'s output path, and `heraut version sprint bump`
+rewriting the config file it was given. A person at the shell can already write anywhere, so the finding is
+Info; the case that matters is an agent driving heraut (the bundled skill, ADR-0072) being talked into
+`--output ~/.bashrc`. **Starts with a decision for the user**, between: (a) accept and document the risk in
+Spec 01 and the skill, no code change; (b) refuse to overwrite an existing file that heraut did not write
+(for `notes --output`: an existing file only with `--force`), the paths themselves staying free; (c) confine
+every such path to the repository, which breaks installing the skill outside it. Recommendation: (b), since
+it stops the overwrite case without breaking a legitimate path. Tests first for whichever is chosen, then
+close SEC-002 in `SECURITY_FINDINGS.md`.
 
 Every Phase above marked `Done` and not pointing to a dedicated roadmap (D, 0–9, 11–22, 26, 28,
 30, 31) has had its full task write-up — implementation notes, decisions, deviations — moved to
