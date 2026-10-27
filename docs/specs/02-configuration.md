@@ -616,6 +616,14 @@ that supplies a value:
    | Azure Pipelines | `TF_BUILD`    | `SYSTEM_COLLECTIONURI` | —              | `SYSTEM_TEAMPROJECT`  | `SYSTEM_ACCESSTOKEN` |
 
    Detection checks GitLab, then GitHub, then Azure, and stops at the first marker present.
+
+   A GitHub entry's API URL is the exception: with no `api_url` in config it is derived from the
+   resolved host by the same rule publishing uses ([ADR-0077](../adr/0077-github-publish-transport.md),
+   Spec 05 § GitHub). `GITHUB_API_URL` applies only when `GITHUB_SERVER_URL` has the same origin as
+   that host, so a GitHub Enterprise forge run on a github.com runner keeps its own API; otherwise
+   the root is `https://api.github.com` for github.com, `https://api.<host>` for a `*.ghe.com`
+   tenant and `<host>/api/v3` for GitHub Enterprise Server. PR enrichment and publishing therefore
+   always query the same instance.
 3. **`git remote get-url origin`** — when the origin host is a known public host
    (`github.com`, `gitlab.com`, `dev.azure.com`), its type, host, and `owner/repo` path are
    used (both the SSH `git@host:path` and HTTPS `https://host/path` forms are parsed).

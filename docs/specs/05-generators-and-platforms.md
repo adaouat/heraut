@@ -564,7 +564,9 @@ for local servers and tests. When `base_url` is self-hosted, heraut:
 
 - Points the driver at that host: the GitLab client is built on `base_url`; the GitHub client on
   `<base_url>/api/v3` (GitHub Enterprise Server) or `https://api.<host>` (`*.ghe.com`), with the
-  token chain above.
+  token chain above. GitHub PR enrichment uses the same API root, and its GraphQL endpoint is
+  `<base_url>/api/graphql` on GitHub Enterprise Server and `https://api.<host>/graphql` on
+  `*.ghe.com`.
 - On GitLab, skips CI autologin (`GITLAB_CI`) for that entry unless `base_url` is the CI job's own
   instance — the job token cannot reach another host — and validates the configured `token_env`.
   GitHub has no autologin: the token comes from the chain in § GitHub above, the same for `Check()`

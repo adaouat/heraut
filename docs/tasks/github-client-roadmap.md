@@ -1,6 +1,6 @@
 # Héraut — GitHub Client Roadmap (replace `gh` for publishing)
 
-> Status: In progress (drafted 2026-10-25; T423–T426 done 2026-10-26, T427–T429 done 2026-10-27)
+> Status: In progress (drafted 2026-10-25; T423–T426 done 2026-10-26, T427–T430 done 2026-10-27)
 > Decision: [ADR-0077](../adr/0077-github-publish-transport.md) (Accepted: `go-github`).
 > Precedent: ADR-0069 and Phase 61 (T364–T368), which moved GitLab publishing from `glab` to `client-go`.
 > Main roadmap: tracked as Phase 80 in [`roadmap.md`](roadmap.md).
@@ -23,7 +23,7 @@
 
 | Phase | Theme | Tasks | Status |
 |---|---|---|---|
-| 80 | GitHub publishing without `gh` | T423–T430, T432 | In progress — T423–T429 done |
+| 80 | GitHub publishing without `gh` | T423–T430, T432 | In progress — T423–T430 done, T432 open |
 
 ### Phase 80 — GitHub publishing without `gh`
 
@@ -234,11 +234,26 @@ forge's `release-publish` action (v0.19.7) already sets `GH_TOKEN` and `GITHUB_T
 `.config/heraut.yml` has no `token_env`, so the driver reads `GH_TOKEN`; the next release of heraut is the first
 production run of the new driver. `docs/guides/e2e-tests.md` records the observed behaviour.
 
-#### `[ ]` T430: `internal/forge/github` onto the shared API-root helper
+#### `[x]` T430: `internal/forge/github` onto the shared API-root helper
 
 Switch the enrichment client's `apiBase` to the T424 helper so publishing and enrichment agree on the API
 root, which adds `*.ghe.com` support to enrichment. Behaviour change for `*.ghe.com` hosts only; table tests
 first.
+
+Done 2026-10-27. Wider than the task text, on the user's decision: forge resolution copied `GITHUB_API_URL`
+into every GitHub identity whenever the CI type was GitHub, so a GHES or `*.ghe.com` forge run on a github.com
+runner sent its enrichment queries, with its own token, to api.github.com. Now `forge.Resolve` takes a GitHub
+identity's `APIURL` from config `api_url` when set, else from `config.GitHubAPIURL(host, getenv)`, the helper
+publishing uses, after `requireSecure`; the CI value is no longer copied for GitHub (explicit and zero-config
+paths). An insecure `GITHUB_API_URL` is refused there. `internal/forge/github`'s `apiBase` falls back to the same
+helper (with no environment) for an identity built without `APIURL`, and returns an error instead of a string;
+`graphqlEndpoint` gives `{api root}/graphql` for api.github.com and `api.*.ghe.com`, and keeps `/api/graphql`
+beside `/api/v3` for GHES. Behaviour changes: `*.ghe.com` enrichment (was `<host>/api/v3`), and a forge run in
+Actions on another instance. GitLab and Azure resolution is unchanged. Tests first: a 9-row table on the
+resolved API root, an insecure `GITHUB_API_URL`, two `*.ghe.com` GraphQL rows and an insecure host; six mutations
+(CI value copied again for explicit or zero-config forges, the helper given no environment, no derivation, no
+`*.ghe.com` GraphQL rule, the old host fallback) each fail a test. Spec 02 § Identity resolution and Spec 05's
+self-hosted bullet say so.
 
 #### `[ ]` T432: refuse duplicate basenames and non-regular assets before anything is committed
 
