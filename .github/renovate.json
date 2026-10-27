@@ -27,13 +27,6 @@
   "customManagers": [
     {
       "customType": "regex",
-      "fileMatch": ["^Dockerfile$"],
-      "matchStrings": ["ARG MISE_VERSION=(?<currentValue>[\\d.]+)"],
-      "depNameTemplate": "jdx/mise",
-      "datasourceTemplate": "github-releases"
-    },
-    {
-      "customType": "regex",
       "fileMatch": ["^\\.github/workflows/e2e\\.yml$"],
       "matchStrings": ["GLAB_VERSION=(?<currentValue>[\\d.]+)"],
       "depNameTemplate": "gitlab-org/cli",
@@ -41,8 +34,8 @@
     },
     {
       "customType": "regex",
-      "fileMatch": ["^Dockerfile$"],
-      "matchStrings": ["ARG GH_VERSION=(?<currentValue>[\\d.]+)"],
+      "fileMatch": ["^\\.github/workflows/e2e\\.yml$"],
+      "matchStrings": ["GH_VERSION=(?<currentValue>[\\d.]+)"],
       "depNameTemplate": "cli/cli",
       "datasourceTemplate": "github-releases"
     }
