@@ -1,6 +1,7 @@
 package harness
 
 import (
+	"encoding/json"
 	"io"
 	"net/http"
 	"os"
@@ -197,4 +198,52 @@ func TestRepo_FakeGitLabAnswersAndLogsNextToTheFakeCLIs(t *testing.T) {
 	assert.Equal(t, 403, code)
 	assert.Equal(t, "gitlab [POST] [/api/v4/projects/acme/widget/releases]", r.CLICalls()[5], "a failing call is still recorded")
 	assert.Equal(t, "v1", gl.Release()["tag_name"], "a refused release is not kept")
+}
+
+func TestRepo_FakeGitHubAnswersLikeAnEnterpriseServerAndLogs(t *testing.T) {
+	r := NewRepo(t)
+	gh := r.FakeGitHub()
+	assert.Same(t, gh, r.FakeGitHub(), "a repository has one stand-in")
+	do := func(method, url, body string) (int, map[string]any) {
+		req, err := http.NewRequest(method, url, strings.NewReader(body))
+		require.NoError(t, err)
+		resp, err := http.DefaultClient.Do(req)
+		require.NoError(t, err)
+		defer func() { _ = resp.Body.Close() }()
+		var m map[string]any
+		_ = json.NewDecoder(resp.Body).Decode(&m)
+		return resp.StatusCode, m
+	}
+
+	code, _ := do(http.MethodGet, gh.URL+"/api/v3/repos/acme/widget/releases?per_page=1", "")
+	assert.Equal(t, 200, code)
+	code, rel := do(http.MethodPost, gh.URL+"/api/v3/repos/acme/widget/releases", `{"tag_name":"v1","draft":true}`)
+	assert.Equal(t, 201, code)
+	assert.Equal(t, gh.URL+"/api/uploads/repos/acme/widget/releases/1/assets{?name,label}", rel["upload_url"], "uploads go to the same origin")
+	code, asset := do(http.MethodPost, gh.URL+"/api/uploads/repos/acme/widget/releases/1/assets?name=meta%231.json", "{}")
+	assert.Equal(t, 201, code)
+	assert.Equal(t, "meta.1.json", asset["name"], "GitHub rewrites special characters")
+	code, _ = do(http.MethodPatch, gh.URL+"/api/v3/repos/acme/widget/releases/1", `{"draft":false}`)
+	assert.Equal(t, 200, code)
+
+	assert.Equal(t, []string{
+		"github [GET] [/api/v3/repos/acme/widget/releases]",
+		"github [POST] [/api/v3/repos/acme/widget/releases]",
+		"github [POST] [/api/uploads/repos/acme/widget/releases/1/assets]",
+		"github [PATCH] [/api/v3/repos/acme/widget/releases/1]",
+	}, r.CLICalls(), "requests are logged in order, with no query")
+	assert.Equal(t, "v1", gh.Release()["tag_name"])
+	assert.Equal(t, []string{"meta#1.json"}, gh.Uploads(), "the names as sent")
+
+	gh.FailUploads()
+	code, _ = do(http.MethodPost, gh.URL+"/api/uploads/repos/acme/widget/releases/1/assets?name=b.txt", "b")
+	assert.Equal(t, 422, code)
+	code, _ = do(http.MethodDelete, gh.URL+"/api/v3/repos/acme/widget/releases/1", "")
+	assert.Equal(t, 204, code)
+	gh.FailReleases()
+	code, _ = do(http.MethodPost, gh.URL+"/api/v3/repos/acme/widget/releases", `{"tag_name":"v2"}`)
+	assert.Equal(t, 403, code)
+	assert.Equal(t, "v1", gh.Release()["tag_name"], "a refused release is not kept")
+	assert.Equal(t, []string{"meta#1.json"}, gh.Uploads(), "a refused upload is not kept")
+	assert.Len(t, r.CLICalls(), 7, "failing calls are still recorded")
 }
