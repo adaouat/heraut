@@ -48,15 +48,15 @@ func actionsAPIURL(base *url.URL, getenv func(string) string) string {
 		return ""
 	}
 	server, err := url.Parse(getenv(EnvGitHubServerURL))
-	if err != nil || !sameOrigin(server, base) {
+	if err != nil || !SameOrigin(server, base) {
 		return ""
 	}
 	return getenv(EnvGitHubAPIURL)
 }
 
-// sameOrigin compares scheme, host name and port, ignoring case and treating an omitted port as the
-// scheme's default.
-func sameOrigin(a, b *url.URL) bool {
+// SameOrigin reports whether a and b share an origin: scheme, host name and port, ignoring case and
+// treating an omitted port as the scheme's default.
+func SameOrigin(a, b *url.URL) bool {
 	return strings.EqualFold(a.Scheme, b.Scheme) &&
 		strings.EqualFold(a.Hostname(), b.Hostname()) &&
 		effectivePort(a) == effectivePort(b)
