@@ -9,7 +9,8 @@ heraut always pushes to the remote named `origin` ([Spec 03](../specs/03-command
 so the commands below use that name.
 
 The examples use the tag `v1.2.3`, the GitHub repository `acme/widget` and the GitLab project
-`acme/widget`; substitute your own.
+`acme/widget`; substitute your own. The forge commands use the `gh` and `glab` CLIs, which heraut
+itself does not need: install them for the recovery, or do the same in the forge's web UI.
 
 ## 1. Find out what exists
 

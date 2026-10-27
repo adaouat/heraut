@@ -21,7 +21,7 @@ file named by `--config` / `HERAUT_FILE`). The project's `schema.json` describes
 
 ## Safe order for a release
 
-1. `heraut check --json` — the config is valid and the tools (git, gh, tokens) are present.
+1. `heraut check --json` — the config is valid and the tools (git, tokens) are present.
 2. `heraut version next --json` — the version a release would create, and why (`bump`).
 3. `heraut release --dry-run --json` — the ordered plan: changelog, hooks, tag, push, publish.
    Show it to the user.

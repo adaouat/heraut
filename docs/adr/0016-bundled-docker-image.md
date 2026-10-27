@@ -4,6 +4,12 @@
 - **Date**: 2026-05-25
 - **Deciders**: bchatard
 
+> **Amended (2026-10-27) by [ADR-0069](0069-gitlab-publish-transport.md) and
+> [ADR-0077](0077-github-publish-transport.md).** heraut publishes to GitLab and GitHub in process, so the
+> image no longer bundles `glab` or `gh`, and the mise tools stage is gone. The image holds heraut, `git` and
+> CA certificates (230MB, local `arm64` build). The rest of this ADR, a full release runner on Debian with
+> pinned versions, still applies.
+
 ---
 
 ## Context

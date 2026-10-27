@@ -45,9 +45,8 @@ subcommand) is not enveloped: stdout is empty and the exit code is 1.
 ## `heraut --version`
 
 Prints the heraut version banner (logo + tagline + `heraut <version>`), with the version
-string injected from ldflags. To check the external CLIs heraut orchestrates (`git`,
-`gh`) — whether it is on `PATH` and which token env vars are set —
-use `heraut check runtime` instead.
+string injected from ldflags. To check the external CLI heraut orchestrates (`git`) — whether
+it is on `PATH` — and each publish destination's token, use `heraut check runtime` instead.
 
 ## `heraut init`
 
@@ -165,12 +164,11 @@ has no such requirement (see § Tag-only workflow below).
       with different URLs. `release.notes` (defaulted per [ADR-0046](../adr/0046-release-block-atomicity.md)
       when `release:` is present at all — see [Spec 02 § `release`](02-configuration.md#release))
       supplies rendering overrides.
-   2. Create the release: `gh release create` for GitHub (notes written to a temp file and passed
-      with `--notes-file`, so a large changelog can't exceed `ARG_MAX`), or a
+   2. Create the release: a `POST /repos/{owner}/{repo}/releases` request for GitHub, or a
       `POST /projects/:id/releases` request for GitLab.
-   3. Upload assets matching glob patterns (or, when the assets came from a lenient
-      source, attach them directly to the create call instead of a separate upload —
-      see [Spec 05](05-generators-and-platforms.md)). Every matched file must lie under the
+   3. Upload assets matching glob patterns (on GitHub the release is created as a draft, the
+      files are uploaded, then the draft is published — see
+      [Spec 05](05-generators-and-platforms.md)). Every matched file must lie under the
       repository root (the working directory) once symlinks are resolved; a match outside it
       fails the step before any request, so a pattern like `/etc/*` or `../*` cannot publish
       files that are not part of the project. The same rule is checked once before anything is
@@ -680,9 +678,9 @@ Example output (with errors):
 
 Online checks:
 
-- Each external CLI in use (`git`, plus the configured platforms) is on `PATH`
-  (the `native` generator has no external binary of its own)
-- The token env var for each configured platform is set
+- `git` is on `PATH` (publishing calls the forge APIs in process, and the `native`
+  generator has no external binary of its own)
+- Each effective release target's token is set and can read the target's releases
 - `git config user.name` and `git config user.email` are set (required for the
   changelog commit)
 - **Working tree** (advisory) — `git status --porcelain`; a dirty tree prints the count
@@ -693,10 +691,13 @@ Online checks:
   the same failure is only an advisory warning, since a changelog-only user may never
   publish.
 
-When no config file is found, `heraut check runtime` proceeds rather than failing. All
-supported tools (git, gh) are treated as required — hard error if any binary
-is missing. The full platform check (token + API auth) is skipped in this case since
-there is no config to source token names from; only binary presence is verified.
+- **No publish destination** (advisory) — when no effective release target resolves to a
+  `github` or `gitlab` forge, one `publish` row warns `no release target resolves to github or
+  gitlab`; it never fails the check, since a changelog-only user never publishes.
+
+When no config file is found, `heraut check runtime` proceeds rather than failing: it prints
+`no config found at <path> — checking git only`, checks git, and the `publish` row warns `no
+config found, destinations not checked`.
 
 **`--env`**: the Platforms section checks the *effective* `release.targets` list for
 the given environment — the env's `release.targets` when non-empty, replacing the root

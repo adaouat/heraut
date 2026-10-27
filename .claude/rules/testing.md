@@ -14,15 +14,15 @@ silently agree.
 | Layer       | Scope                                                               | Tooling                              |
 |-------------|---------------------------------------------------------------------|--------------------------------------|
 | Unit        | Pure functions (version resolvers, config parsers, tag format)      | `go test ./...`                      |
-| Contract    | CLI invocation (`git`, `gh`) or direct HTTP (`internal/forge/*` enrichment, `internal/platforms/gitlab` publishing) | `exectest.MockRunner` (CLI) / `httptest.Server` (HTTP) |
+| Contract    | CLI invocation (`git`) or direct HTTP (`internal/forge/*` enrichment, `internal/platforms/*` publishing) | `exectest.MockRunner` (CLI) / `httptest.Server` (HTTP) |
 | Integration | Full pipeline against a real git repo, or cobra commands in-process | `go test` + `exectest.FakeBin` / `internal/testutil.RealGitRepo` |
 | Schema      | `.heraut.yml` validates against `schema.json`                       | JSON Schema + fixtures               |
 
 Every code change needs unit tests. Contract tests are mandatory for every CLI invocation
-of an external tool — no platform driver, no generator, no `git` subcall ships without
-asserting the exact arguments passed. The `internal/forge/*` HTTP enrichment clients get
-the same rigor against a real `httptest.Server` instead, since there's no CLI invocation
-to assert arguments on.
+of an external tool — no generator and no `git` subcall ships without asserting the exact
+arguments passed. The platform drivers and the `internal/forge/*` HTTP enrichment clients get
+the same rigor against a real `httptest.Server` instead, asserting each request's method,
+path, headers and body.
 
 ## E2E layers (ADR-0066)
 
@@ -45,15 +45,15 @@ CI-env-clearing helpers) implements `port.Runner` and records every call:
 
 ```go
 mr := exectest.NewMockRunner()
-mr.QueueResponse("", "", nil) // stdout, stderr, err — ordered FIFO
+mr.QueueResponse("git version 2.40.0", "", nil) // stdout, stderr, err — ordered FIFO
+mr.QueueResponse("Alice", "", nil)              // git config user.name
+mr.QueueResponse("a@b.com", "", nil)            // git config user.email
 
-plat := github.New(mr, &config.Platform{Repository: "acme/widget", TokenEnv: "GH_TOKEN"})
-require.NoError(t, plat.CreateRelease("v1.2.3", "release notes body"))
+require.NoError(t, app.PreflightCheck(mr))
 
-require.Len(t, mr.Calls, 1)
-assert.Equal(t, "gh", mr.Calls[0].Name)
-assert.Contains(t, mr.Calls[0].Args, "--notes-file") // notes go to a temp file, never passed inline
-assert.Contains(t, mr.Calls[0].Args, "acme/widget")
+require.Len(t, mr.Calls, 3)
+assert.Equal(t, "git", mr.Calls[0].Name)
+assert.Equal(t, []string{"--version"}, mr.Calls[0].Args)
 ```
 
 When the assertion is about *which CLI args were passed*, use `MockRunner`. Never reach
@@ -109,9 +109,10 @@ tested is deliberately changed — and only after writing an ADR documenting the
 
 - No time-of-day dependencies. CalVer resolver takes a `now func() time.Time` so tests
   can fix the clock.
-- No network calls. Platform driver tests use `MockRunner` — never call the real
-  GitHub/GitLab API. `internal/forge/*` enrichment clients use a real `httptest.Server`
-  instead (§ Four test layers above). heraut has no self-update mechanism to test
+- No network calls. Platform driver tests and `internal/forge/*` enrichment clients use a
+  real `httptest.Server` (§ Four test layers above) — never call the real GitHub/GitLab API.
+  A test that builds a GitHub target must point its `base_url` at such a server, or the
+  driver calls api.github.com. heraut has no self-update mechanism to test
   (superseded by forge ADR-0005; update checking is `forge/updatecheck`'s responsibility).
 - No filesystem outside `t.TempDir()`. Embedded native template defaults
   (`internal/generators/native/*.tmpl`) are tested by reading through the production

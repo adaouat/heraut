@@ -54,7 +54,7 @@ behavioural spec.
 | **JSON Schema**               | `schema.json` for IDE validation of `.heraut.yml`                   |
 | **`//go:embed`**              | Embedded native generator templates (`internal/generators/native/`) + `CHANGELOG.md` (offline fallback for `whatsnew`) |
 | **goreleaser**                | Cross-platform release builds, raw binaries (see [ADR-0013](docs/adr/0013-raw-binary-goreleaser-format.md)) |
-| **gh**                        | External CLI orchestrated by heraut for GitHub publishing (not bundled) |
+| **go-github**                 | GitHub REST client for publishing (`internal/platforms/github`, [ADR-0077](docs/adr/0077-github-publish-transport.md)) |
 | **client-go**                 | GitLab REST client for publishing (`internal/platforms/gitlab`, [ADR-0069](docs/adr/0069-gitlab-publish-transport.md)) |
 
 ## Project layout
@@ -99,7 +99,7 @@ internal/
    generators/
       native/                   built-in, zero-external-dependency generator — commit walk + classification + embedded template rendering (ADR-0032, sole generator since ADR-0045)
    platforms/
-      github/                   `gh release create` + asset upload (with contract tests)
+      github/                   GitHub REST release + asset upload (go-github, `httptest` contract tests)
       gitlab/                   GitLab REST release + Generic Packages assets (client-go, `httptest` contract tests)
    pipeline/
       release.go                full release flow (resolve → changelog → tag → publish)
@@ -120,7 +120,7 @@ docs/guides/                    task-oriented how-tos, distinct from the behavio
 LICENSE.md                      project license
 schema.json                     published JSON Schema for .heraut.yml IDE validation
 .goreleaser.yml                 raw-binary release config (no archives — see ADR-0013)
-Dockerfile                      bundled image: heraut + all external CLIs (see ADR-0016)
+Dockerfile                      bundled image: heraut + git (see ADR-0016)
 .github/workflows/              ci.yml (PR test/lint/build), release.yml (workflow_dispatch —
                                  builds via GoReleaser, then the fresh heraut binary creates its
                                  own tag/release — ADR-0018), osv-scan.yml (dependency scanning)
@@ -173,12 +173,12 @@ repo and no longer self-replaces its binary (see
 `.config/heraut.yml` → `.heraut.yml`. `HERAUT_FILE` is the easiest way to inject a
 non-default path in CI pipelines without touching command invocations.
 
-## Bundled external CLIs (not installed by heraut)
+## External CLIs (not installed by heraut)
 
-heraut invokes `git` and `gh` via the `port.Runner` abstraction (GitHub **publishing** and git
-plumbing). Neither is bundled with the heraut binary — users install them separately.
-`heraut check runtime` verifies they are on `PATH`. GitLab **publishing** needs no CLI: since
-ADR-0069 `internal/platforms/gitlab` calls the REST API through `client-go`. PR/MR commit
+heraut invokes `git` via the `port.Runner` abstraction (git plumbing). It is not bundled with the
+heraut binary — users install it separately, and `heraut check runtime` verifies it is on `PATH`.
+**Publishing** needs no CLI: `internal/platforms/github` calls the REST API through `go-github`
+(ADR-0077) and `internal/platforms/gitlab` through `client-go` (ADR-0069). PR/MR commit
 **enrichment** does not shell out either: `internal/forge/{github,gitlab,azure}` talk to each
 platform's API directly over `net/http` (ADR-0043).
 

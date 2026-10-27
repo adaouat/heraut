@@ -1,6 +1,6 @@
 # Héraut — GitHub Client Roadmap (replace `gh` for publishing)
 
-> Status: In progress (drafted 2026-10-25; T423–T426 done 2026-10-26, T427 done 2026-10-27)
+> Status: In progress (drafted 2026-10-25; T423–T426 done 2026-10-26, T427 and T428 done 2026-10-27)
 > Decision: [ADR-0077](../adr/0077-github-publish-transport.md) (Accepted: `go-github`).
 > Precedent: ADR-0069 and Phase 61 (T364–T368), which moved GitLab publishing from `glab` to `client-go`.
 > Main roadmap: tracked as Phase 80 in [`roadmap.md`](roadmap.md).
@@ -23,7 +23,7 @@
 
 | Phase | Theme | Tasks | Status |
 |---|---|---|---|
-| 80 | GitHub publishing without `gh` | T423–T430, T432 | In progress — T423–T427 done |
+| 80 | GitHub publishing without `gh` | T423–T430, T432 | In progress — T423–T428 done |
 
 ### Phase 80 — GitHub publishing without `gh`
 
@@ -183,7 +183,7 @@ repository error dropped, draft dropped, unmatched-pattern warning dropped, `#` 
 one row. Not done: the preflight `CheckAssets` does not refuse duplicate basenames or non-regular files; those are
 refused at publish time, after the tag push.
 
-#### `[ ]` T428: drop `gh` from the runtime check, image and docs
+#### `[x]` T428: drop `gh` from the runtime check, image and docs
 
 `internal/app/check.go`'s binary-only fallback no longer probes `gh` (decide what, if anything, it reports
 with no target). The Dockerfile drops `GH_VERSION` and its tools stage; `e2e.yml` pins `gh` itself (it reads
@@ -192,6 +192,26 @@ the version from the Dockerfile today) because Lane B's harness still uses it. S
 wording) and `config/forgeenv.go`'s comment drop `gh` as a runtime tool. `docs/audit/SECURITY_FINDINGS.md`:
 NEW-002 resolved for GitHub (open for GitLab), NEW-004 resolved, SEC-004 residual closed. **Needs the user's
 OK before touching the Dockerfile and CI.**
+
+Done 2026-10-27. With no target resolving, `heraut check runtime` shows one advisory `publish` row (`no release
+target resolves to github or gitlab`, or with no config `no config found, destinations not checked`) instead of
+probing `gh`; the user chose this over an empty section or a hard error. With no config only git is required, so a
+git-only machine passes (the e2e row "with no config every tool is required" became "only git is checked"), and
+the header reads `no config found at <path> — checking git only`. Four mutations (warn turned into a failure, the
+two reasons swapped, a `gh` probe put back, the row dropped) each fail a test. With the user's OK: the Dockerfile
+drops the mise tools stage and both `GH_VERSION` and `MISE_VERSION` (the latter had no other use); the image holds
+heraut, git and CA certificates, 230MB on a local `arm64` build, checked with `docker build` and `--version`.
+`e2e.yml` pins `GH_VERSION=2.92.0` itself and Renovate tracks it there; the Dockerfile's `MISE_VERSION` rule went
+with the arg. Docs: `CLAUDE.md` (stack table now lists go-github, layout, the external-CLI section), README
+prerequisites (git only, plus the token chain), Spec 01, 03 (`check runtime`, publish steps), 05, 06 (error
+example, contract layer, no-network rule), `.claude/rules/testing.md`, the e2e, hooks and failure-recovery guides
+(the last keeps its manual `gh`/`glab` commands and says heraut does not need them), `SKILL.md`, and
+`SECURITY_FINDINGS.md` (NEW-002 resolved for GitHub, NEW-004 resolved, SEC-004 residual closed). ADR-0016 gets an
+amendment note for both `gh` (ADR-0077) and `glab` (ADR-0069, which had not updated it). The Spec 06 contract
+example is a real test (`TestCreateRelease_SendsTheRelease`) so it cannot rot again. Left as is:
+`internal/config/forgeenv.go`'s comment, which names `gh` only as the origin of the token names; the harness's
+generic `FakeCLI`, now used only by its own tests (they fake a binary called `gh`); `platform.go`'s comment on the
+token chain's compatibility with the old driver; ADRs and plans, which are history.
 
 #### `[ ]` T429: Lane B validation on the GitHub sandbox
 

@@ -48,8 +48,8 @@ Config validation errors carry `Path`, `Message`, and `Hint`:
 Runtime errors include the env var name, expected binary, or git command that failed:
 
 ```
-✗ check runtime: gh not found in PATH
-  hint: install with `brew install gh` or download from https://cli.github.com/
+✗ github — github: API call failed: listing releases of acme/widget: 401 Bad credentials
+  hint: verify GH_TOKEN is valid and can read the repository's releases
 
 ✗ check runtime: GITHUB_REPOSITORY not set
   hint: heraut needs the repo as <owner>/<repo>; set it explicitly or run in a GitHub Actions context
@@ -85,29 +85,32 @@ Every exported function has tests. Table-driven where the input space is enumera
 `github.com/adaouat/forge/exec/exectest.MockRunner` (heraut's shared plumbing dependency —
 not `internal/testutil`, which holds only heraut-specific fixtures: `MockGenerator`,
 `MockPlatform`, `RealGitRepo`, and CI-env-clearing helpers) records every `Run` / `RunEnv`
-call into `[]Call` and returns ordered `[]Response`. Used for every CLI invocation: `git`,
-`gh`.
+call into `[]Call` and returns ordered `[]Response`. Used for every CLI invocation, which
+today means `git`: the tests assert the **exact arguments** passed — flag names, value
+formats, order, env vars.
 
-A platform driver does not ship without contract tests. The tests assert the **exact
-CLI arguments** passed — flag names, value formats, order, env vars. Example shape:
+The platform drivers (`internal/platforms/{github,gitlab}`, ADR-0077 and ADR-0069) and the
+`internal/forge/{github,gitlab,azure}` enrichment clients (ADR-0043) call HTTP APIs instead, so
+they are contract-tested against a real `httptest.Server`: the tests assert the method, path,
+headers and body of each request. A platform driver does not ship without them. Example shape
+(`TestCreateRelease_SendsTheRelease` in `internal/platforms/github`):
 
 ```go
-mr := exectest.NewMockRunner()
-mr.QueueResponse("", "", nil)
-plat := github.New(mr, &config.Platform{Repository: "acme/widget", TokenEnv: "GH_TOKEN"})
+t.Setenv("GH_TOKEN", "test-token")
+var got []string
+srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+    got = append(got, r.Method+" "+r.URL.Path)
+    w.WriteHeader(http.StatusCreated)
+    _, _ = w.Write([]byte(`{"id":1}`))
+}))
+t.Cleanup(srv.Close)
 
-require.NoError(t, plat.CreateRelease("v1.2.3", "release notes body"))
+// a loopback base_url is a GitHub Enterprise Server to the driver: the API sits under /api/v3
+plat := github.New(&config.Platform{Repository: "acme/widget", BaseURL: srv.URL})
+require.NoError(t, plat.CreateRelease("v1.2.3", "release notes body", false))
 
-require.Len(t, mr.Calls, 1)
-assert.Equal(t, "gh", mr.Calls[0].Name)
-assert.Equal(t, "release", mr.Calls[0].Args[0])
-assert.Contains(t, mr.Calls[0].Args, "--notes-file") // notes go to a temp file, never passed inline
-assert.Contains(t, mr.Calls[0].Args, "acme/widget")
+assert.Equal(t, []string{"POST /api/v3/repos/acme/widget/releases"}, got)
 ```
-
-The `internal/forge/{github,gitlab,azure}` HTTP enrichment clients (ADR-0043) are contract-
-tested differently, against a real `httptest.Server` rather than `MockRunner` — there is no
-CLI invocation to assert arguments on for a direct HTTP call.
 
 ### Integration
 
@@ -139,10 +142,11 @@ mechanism used for native's rendered changelog/release-notes output
 
 - **No real time.** Calver resolver takes a `now func() time.Time` so tests can fix the
   clock.
-- **No real network.** Platform driver tests use `MockRunner` (`gh`) or an `httptest.Server` (GitLab); `gh` and the GitLab API are never
-  reached. The `internal/forge/*` HTTP enrichment clients use a real `httptest.Server`
-  instead (§ Contract above) — heraut has no self-update mechanism to test (superseded by
-  forge ADR-0005; update checking is `forge/updatecheck`'s responsibility).
+- **No real network.** Platform driver tests and the `internal/forge/*` HTTP enrichment
+  clients use a real `httptest.Server` (§ Contract above); the GitHub and GitLab APIs are
+  never reached. Any test that builds a GitHub target must point its `base_url` at such a
+  server, or the driver calls api.github.com. heraut has no self-update mechanism to test
+  (superseded by forge ADR-0005; update checking is `forge/updatecheck`'s responsibility).
 - **No filesystem outside `t.TempDir()`.** Embedded Go `text/template` content
   (`internal/generators/native/*.tmpl`) is accessed through production functions, not by
   reading the source tree.

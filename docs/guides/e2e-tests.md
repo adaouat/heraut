@@ -6,8 +6,8 @@ heraut's `e2e/` tree drives the **built `heraut` binary**. It has two lanes
 
 | Lane | What it runs against | When it runs |
 |---|---|---|
-| **A, hermetic** | throwaway local git repositories, a local bare remote, a fake `gh` that records its arguments and a loopback stub of the GitLab API | every `go test ./...`, so every pull request |
-| **B, forge sandbox** | real private GitHub and GitLab repositories, the real `gh` and GitLab API (the harness uses `gh`/`glab` to manage sandbox fixtures) | on demand and nightly, never on pull requests (`e2e_forge` build tag) |
+| **A, hermetic** | throwaway local git repositories, a local bare remote, loopback stubs of the GitHub and GitLab APIs that record each request | every `go test ./...`, so every pull request |
+| **B, forge sandbox** | real private GitHub and GitLab repositories, the real GitHub and GitLab APIs (the harness uses `gh`/`glab` to manage sandbox fixtures) | on demand and nightly, never on pull requests (`e2e_forge` build tag) |
 
 Lane A needs nothing. This guide is about Lane B.
 

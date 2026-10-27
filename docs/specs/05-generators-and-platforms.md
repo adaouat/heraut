@@ -244,7 +244,7 @@ Each section is enriched independently, so GitHub (batched GraphQL, 50 SHAs/quer
 batched connection queries — commit authors via `commits`, MR refs via inverted `mergeRequests`,
 [ADR-0042](../adr/0042-gitlab-graphql-enrichment.md)), and Azure (one `pullrequestquery` POST) each
 batch *within* a release, costing roughly one API call per release (O(releases)). All of these run
-over heraut's own `net/http` forge clients — no `gh` process is spawned for enrichment
+over heraut's own `net/http` forge clients — no external process is spawned for enrichment
 ([ADR-0043](../adr/0043-forge-abstraction.md)). The one exception is GitLab in `api_mode: rest`
 (the **default**), which resolves MRs with one
 `GET /projects/:id/repository/commits/:sha/merge_requests` **per commit**: a full regeneration
@@ -416,7 +416,7 @@ link detection.
 
 ## Platforms
 
-Two platforms are supported: `github` (via `gh`) and `gitlab` (via the GitLab REST API, ADR-0069). A release
+Two platforms are supported: `github` (via the GitHub REST API, ADR-0077) and `gitlab` (via the GitLab REST API, ADR-0069). A release
 can be published to one or both — `release.targets` is a list, each entry referencing a
 `forges[].name` ([ADR-0044](../adr/0044-publishing-config-unification.md)). Connection
 fields (`repository`/`project`, `token_env`, `base_url`) live on the `forges:` entry;

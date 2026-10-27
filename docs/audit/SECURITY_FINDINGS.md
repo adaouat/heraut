@@ -1,5 +1,16 @@
 # Security findings: heraut (2026-10-14)
 
+## Update 2026-10-27 (after T425 to T428)
+
+GitHub publishing no longer runs `gh`: `internal/platforms/github` calls the REST API in process through `go-github` (ADR-0077). This section supersedes the rows and the scorecard below for NEW-002, NEW-004 and SEC-004's residual. In-place update, not a re-scan.
+
+- **NEW-002: RESOLVED for GitHub, still open for GitLab.** `platforms.OpenAssets` (`0434081`, `d062752`, T425) opens each asset once through an `os.Root` on the repository root, checks the descriptor with `os.SameFile` against the path that was checked, and refuses anything but a regular file; the GitHub driver uploads from those descriptors (`9301d41`, T427). The GitLab client still reads by path; T431 moves it onto the same helper.
+- **NEW-004: RESOLVED, by removal.** The `path#label` syntax was `gh`'s. The asset name now travels as a query parameter, so a `#` in a path is accepted again; when GitHub publishes a file under a different name, heraut prints a warning (`9301d41`, T427). The ADR-0076 addendum's refusal is gone.
+- **SEC-004 residual: CLOSED.** No `GH_HOST` is set any more. The API root is derived from `base_url` (`config.GitHubAPIURL`, T424), which must be https unless loopback, and the upload goes only to an origin expected for `base_url` (T426).
+- **Still open:** SEC-002, NEW-002 for GitLab (T431), and the crash-leftover temp-file residual of NEW-005.
+
+**Scorecard (current):** Critical 0 · High 0 · Medium 0 · Low 0 · Info 3 (SEC-002, NEW-002 for GitLab, NEW-005 temp-file residual). Coverage gaps from the 2026-10-22 section still apply.
+
 ## Update 2026-10-24 (after T421 and T422)
 
 NEW-003 and NEW-004 are **resolved**; this section supersedes their rows and the scorecard in the update below. In-place update, not a re-scan.
