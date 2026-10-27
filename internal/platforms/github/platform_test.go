@@ -1,6 +1,9 @@
 package github_test
 
 import (
+	"encoding/json"
+	"net/http"
+	"net/http/httptest"
 	"os"
 	"path/filepath"
 	"testing"
@@ -8,6 +11,7 @@ import (
 	"github.com/adaouat/heraut/internal/config"
 	"github.com/adaouat/heraut/internal/platforms/github"
 	"github.com/adaouat/heraut/internal/port"
+	"github.com/adaouat/heraut/internal/testutil"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -138,4 +142,28 @@ func TestCheckAssets_PathWithAHashIsAccepted(t *testing.T) {
 	require.NoError(t, os.WriteFile(filepath.Join("dist", "app#1.txt"), []byte("x"), 0o644))
 
 	assert.NoError(t, github.New(&config.Platform{Assets: []string{"dist/*"}}).CheckAssets())
+}
+
+// A loopback base_url is a GitHub Enterprise Server to the driver, so the API sits under /api/v3
+// and the test never leaves the machine (Spec 06 § Contract shows this test).
+func TestCreateRelease_SendsTheRelease(t *testing.T) {
+	testutil.ClearCIEnv(t)
+	t.Setenv("GH_TOKEN", "test-token")
+	var got []string
+	var body map[string]any
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		got = append(got, r.Method+" "+r.URL.Path)
+		assert.Equal(t, "Bearer test-token", r.Header.Get("Authorization"))
+		assert.NoError(t, json.NewDecoder(r.Body).Decode(&body))
+		w.WriteHeader(http.StatusCreated)
+		_, _ = w.Write([]byte(`{"id":1}`))
+	}))
+	t.Cleanup(srv.Close)
+
+	plat := github.New(&config.Platform{Repository: "acme/widget", BaseURL: srv.URL})
+	require.NoError(t, plat.CreateRelease("v1.2.3", "release notes body", false))
+
+	assert.Equal(t, []string{"POST /api/v3/repos/acme/widget/releases"}, got)
+	assert.Equal(t, "v1.2.3", body["tag_name"])
+	assert.Equal(t, "release notes body", body["body"])
 }
