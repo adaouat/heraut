@@ -171,7 +171,8 @@ has no such requirement (see § Tag-only workflow below).
       [Spec 05](05-generators-and-platforms.md)). Every matched file must lie under the
       repository root (the working directory) once symlinks are resolved; a match outside it
       fails the step before any request, so a pattern like `/etc/*` or `../*` cannot publish
-      files that are not part of the project. The same rule is checked once before anything is
+      files that are not part of the project. Two matches with the same basename, or a match that is
+      not a regular file, are refused too. These rules are checked once before anything is
       committed or pushed (right after the `post_bump` hooks), so a refused asset stops the run
       before the changelog commit and the tag, and a `--dry-run` reports it too; a pattern that
       matches nothing is also an error at that point unless `release.allow_missing_assets: true` is set (a `--dry-run` only warns, since hooks do not run in it; [ADR-0076](../adr/0076-a-release-asset-pattern-must-match-a-file.md)).

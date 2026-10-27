@@ -212,6 +212,33 @@ func TestRelease_AssetsAreAttachedAndAZeroMatchIsRefusedUnlessAllowed(t *testing
 	})
 }
 
+// Two assets with one basename would be published under one name: the run refuses them before the
+// changelog commit, for either forge, and a dry run refuses them too.
+func TestRelease_DuplicateAssetNamesAreRefusedBeforeAnythingIsCommitted(t *testing.T) {
+	bin := harness.Binary(t)
+	for _, forge := range []string{"github", "gitlab"} {
+		cfg := releaseCfg("    - forge: "+forge+"\n      assets:\n        - \"dist/*/app.txt\"\n", "")
+		for _, args := range [][]string{{"release", "--offline"}, {"release", "--offline", "--dry-run"}} {
+			t.Run(forge+" "+strings.Join(args[1:], " "), func(t *testing.T) {
+				repo := releaseRepo(t, cfg)
+				repo.WriteFile("dist/linux/app.txt", "linux\n")
+				repo.WriteFile("dist/darwin/app.txt", "darwin\n")
+				before := repoState(t, repo)
+
+				res := repo.Run(bin, tokens, args...)
+
+				require.Equal(t, exitRuntime, res.ExitCode, "stdout:\n%s\nstderr:\n%s", res.Stdout, res.Stderr)
+				assert.Contains(t, normalize(res.Stdout+" "+res.Stderr), `would both be published as "app.txt"`)
+				assert.Equal(t, before, repoState(t, repo), "no changelog commit, no tag")
+				assert.Empty(t, repo.GitRemote("tag", "-l"))
+				for _, call := range repo.CLICalls() {
+					assert.Contains(t, call, "[GET]", "only the read-only preflight may have reached the forge")
+				}
+			})
+		}
+	}
+}
+
 func TestRelease_AFailingPublishAbortsTheLoop(t *testing.T) {
 	bin := harness.Binary(t)
 	repo := releaseRepo(t, releaseCfg(bothTargets, ""))

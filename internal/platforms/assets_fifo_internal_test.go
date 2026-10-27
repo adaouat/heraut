@@ -9,6 +9,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/adaouat/heraut/internal/port"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -51,4 +52,21 @@ func TestOpenAssets_FIFOSwappedInBeforeTheOpenFailsFast(t *testing.T) {
 	err := openWithin(t, []string{"dist/app.zip"})
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "changed after it was checked")
+}
+
+// The pre-release check refuses a FIFO too, by its mode alone: it opens nothing, so it cannot block.
+func TestCheckAssetGlobs_RefusesAFIFOWithoutBlocking(t *testing.T) {
+	repo, _ := swapRepo(t)
+	require.NoError(t, syscall.Mkfifo(filepath.Join(repo, "dist", "pipe"), 0o600))
+
+	done := make(chan error, 1)
+	go func() { done <- CheckAssetGlobs([]string{"dist/*"}, false) }()
+	select {
+	case err := <-done:
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "not a regular file")
+		assert.NotErrorIs(t, err, port.ErrAssetUnmatched, "a dry run must refuse it too")
+	case <-time.After(5 * time.Second):
+		t.Fatal("CheckAssetGlobs blocked on a FIFO")
+	}
 }

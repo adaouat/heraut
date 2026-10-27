@@ -50,14 +50,19 @@ func ResolveGlobsLenient(patterns []string, warn func(string)) ([]string, error)
 	return files, nil
 }
 
-// CheckAssetGlobs applies the publish-time asset rules without publishing, so a refusal surfaces
-// before anything is committed or pushed: every match must lie inside the repository, and, unless
-// allowMissing is set, every pattern must match at least one file (ADR-0076). The latter is wrapped
-// in port.ErrAssetUnmatched so a dry run, where hooks have not built the files, can tell it apart.
-// With allowMissing a pattern matching nothing is left for publishing to warn about.
+// CheckAssetGlobs applies the publish-time asset rules (matchAssets) without opening anything, so a
+// refusal surfaces before anything is committed or pushed: every match must be a regular file inside
+// the repository with a basename no other match has, and, unless allowMissing is set, every pattern
+// must match at least one file (ADR-0076). The latter is wrapped in port.ErrAssetUnmatched so a dry
+// run, where hooks have not built the files, can tell it apart. With allowMissing a pattern matching
+// nothing is left for publishing to warn about.
 func CheckAssetGlobs(patterns []string, allowMissing bool) error {
+	root, err := realWorkingDir()
+	if err != nil {
+		return err
+	}
 	var unmatched []string
-	if _, err := ResolveGlobsLenient(patterns, func(pattern string) { unmatched = append(unmatched, pattern) }); err != nil {
+	if _, err := matchAssets(root, patterns, func(pattern string) { unmatched = append(unmatched, pattern) }); err != nil {
 		return err
 	}
 	if allowMissing || len(unmatched) == 0 {

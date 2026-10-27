@@ -21,24 +21,53 @@ var (
 	beforeOpen = func(string) {}
 )
 
-// OpenAssets resolves the asset globs with the same rules and warnings as ResolveGlobsLenient and
-// opens every match, so an upload reads the file that was checked, not whatever the path names by
-// the time it is read (NEW-002, ADR-0077). The open goes through an os.Root on the repository root,
-// which refuses a path that leaves it even if a symlink is swapped in after the check, and
-// os.SameFile confirms the descriptor is the file that was checked. Two matches with the same
-// basename are refused, since they would be published under one name, and so is anything but a
-// regular file: opening a FIFO would block the release. On success the caller closes the files with
+// OpenAssets resolves the asset globs with the rules of matchAssets and opens every match, so an
+// upload reads the file that was checked, not whatever the path names by the time it is read
+// (NEW-002, ADR-0077). The open goes through an os.Root on the repository root, which refuses a
+// path that leaves it even if a symlink is swapped in after the check, and os.SameFile confirms the
+// descriptor is the file that was checked. On success the caller closes the files with
 // CloseAssets; on error none is left open.
 func OpenAssets(patterns []string, warn func(string)) ([]Asset, error) {
 	rootPath, err := realWorkingDir()
 	if err != nil {
 		return nil, err
 	}
-
-	type candidate struct {
-		path, rel string
-		checked   os.FileInfo
+	candidates, err := matchAssets(rootPath, patterns, warn)
+	if err != nil {
+		return nil, err
 	}
+
+	root, err := os.OpenRoot(rootPath)
+	if err != nil {
+		return nil, fmt.Errorf("opening the repository root %q: %w", rootPath, err)
+	}
+	defer func() { _ = root.Close() }()
+
+	assets := make([]Asset, 0, len(candidates))
+	for _, c := range candidates {
+		a, err := openChecked(root, c.path, c.rel, c.checked)
+		if err != nil {
+			CloseAssets(assets)
+			return nil, err
+		}
+		assets = append(assets, a)
+	}
+	return assets, nil
+}
+
+// candidate is a glob match that passed matchAssets: path as the glob returned it, rel its real
+// path relative to the repository root, checked what os.Stat saw.
+type candidate struct {
+	path, rel string
+	checked   os.FileInfo
+}
+
+// matchAssets expands the globs under the publishing rules, without opening anything: directories
+// are skipped, anything else that is not a regular file is refused (opening a FIFO would block the
+// release), every match must lie inside rootPath once symlinks are resolved, and two matches with
+// the same basename are refused, since they would be published under one name. A pattern with no
+// file calls warn. Both the pre-release check and publishing apply these rules.
+func matchAssets(rootPath string, patterns []string, warn func(string)) ([]candidate, error) {
 	var candidates []candidate
 	pathByName := map[string]string{}
 	for _, pattern := range patterns {
@@ -75,23 +104,7 @@ func OpenAssets(patterns []string, warn func(string)) ([]Asset, error) {
 			warn(pattern)
 		}
 	}
-
-	root, err := os.OpenRoot(rootPath)
-	if err != nil {
-		return nil, fmt.Errorf("opening the repository root %q: %w", rootPath, err)
-	}
-	defer func() { _ = root.Close() }()
-
-	assets := make([]Asset, 0, len(candidates))
-	for _, c := range candidates {
-		a, err := openChecked(root, c.path, c.rel, c.checked)
-		if err != nil {
-			CloseAssets(assets)
-			return nil, err
-		}
-		assets = append(assets, a)
-	}
-	return assets, nil
+	return candidates, nil
 }
 
 func openChecked(root *os.Root, path, rel string, checked os.FileInfo) (Asset, error) {

@@ -221,3 +221,49 @@ func TestCheckAssetGlobs_ADirectoryOnlyMatchIsNotAFile(t *testing.T) {
 
 	require.ErrorIs(t, err, port.ErrAssetUnmatched, "a directory is skipped when publishing, so it is not an asset")
 }
+
+// Two matches published under one name are refused before anything is committed, as publishing
+// would refuse them after the tag push. Never wrapped in ErrAssetUnmatched: a dry run must fail too.
+func TestCheckAssetGlobs_RefusesDuplicateBasenames(t *testing.T) {
+	tests := []struct {
+		name     string
+		files    []string
+		patterns []string
+		want     []string
+	}{
+		{name: "same name in two directories", files: []string{"linux/app.zip", "darwin/app.zip"},
+			patterns: []string{"linux/*.zip", "darwin/*.zip"}, want: []string{`"app.zip"`, "linux/app.zip", "darwin/app.zip"}},
+		{name: "one pattern matching both", files: []string{"linux/app.zip", "darwin/app.zip"},
+			patterns: []string{"*/app.zip"}, want: []string{`"app.zip"`}},
+		{name: "the same file matched twice", files: []string{"app.zip"},
+			patterns: []string{"*.zip", "app.zip"}, want: []string{`"app.zip"`}},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			repo := inRepo(t)
+			for _, f := range tc.files {
+				require.NoError(t, os.MkdirAll(filepath.Join(repo, filepath.Dir(f)), 0o755))
+				touch(t, repo, f)
+			}
+
+			for _, allowMissing := range []bool{false, true} {
+				err := platforms.CheckAssetGlobs(tc.patterns, allowMissing)
+				require.Error(t, err)
+				assert.NotErrorIs(t, err, port.ErrAssetUnmatched)
+				for _, w := range tc.want {
+					assert.Contains(t, err.Error(), w)
+				}
+			}
+		})
+	}
+}
+
+func TestCheckAssetGlobs_DistinctNamesPass(t *testing.T) {
+	repo := inRepo(t)
+	for _, d := range []string{"linux", "darwin"} {
+		require.NoError(t, os.Mkdir(filepath.Join(repo, d), 0o755))
+		touch(t, repo, d+"/app-"+d+".zip")
+	}
+
+	require.NoError(t, platforms.CheckAssetGlobs([]string{"linux/*.zip", "darwin/*.zip"}, false))
+}

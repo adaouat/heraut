@@ -540,8 +540,10 @@ already exist (heraut tags and pushes before publishing).
 
 `release.assets` and `release.targets[].assets` (see [Spec 02](02-configuration.md#releaseassets))
 both resolve in two steps. Before anything is committed or pushed, right after the `post_bump`
-hooks, each glob is expanded against the working directory and a pattern matching no file aborts the
-run ([ADR-0076](../adr/0076-a-release-asset-pattern-must-match-a-file.md); `release.allow_missing_assets: true`
+hooks, each glob is expanded against the working directory, and the run aborts on a match outside the
+repository, a match that is not a regular file (directories are skipped), two matches with the same
+basename (they would be published under one name, so this applies to a dry run too), or a pattern
+matching no file ([ADR-0076](../adr/0076-a-release-asset-pattern-must-match-a-file.md); `release.allow_missing_assets: true`
 turns that off, and a dry run only warns). (A path containing `#` is accepted since ADR-0077, which supersedes the ADR-0076 addendum.) At publish time resolution stays **lenient**: a pattern
 matching nothing emits a warning and is skipped rather than failing the release — by then the tag has
 already been created and pushed, so a strict failure here would leave the repository in a
