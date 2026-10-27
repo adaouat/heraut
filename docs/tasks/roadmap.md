@@ -249,7 +249,7 @@ discipline that applies to every task.
 | 78 | Security follow-ups from the 2026-10-22 re-scan | Complete — T419–T420, see `hardening-5-roadmap.md` |
 | 79 | Remaining security findings (NEW-003, NEW-004) | Complete — T421–T422, see `hardening-6-roadmap.md` |
 | 80 | GitHub publishing without `gh` (ADR-0077) | Done — T423–T430 and T432, see `github-client-roadmap.md` |
-| 81 | GitLab asset read from the descriptor (NEW-002 for GitLab) | Not started — T431, ready (T425 done), waits for the user's go |
+| 81 | GitLab asset read from the descriptor (NEW-002 for GitLab) | Done |
 
 ### Open items
 
@@ -3409,7 +3409,7 @@ an MCP server (out of scope for the phase), installing for agents other than via
 
 ### Phase 81 — GitLab asset read from the descriptor
 
-#### `[ ]` T431: the GitLab client reads assets through the open-once helper (NEW-002 for GitLab)
+#### `[x]` T431: the GitLab client reads assets through the open-once helper (NEW-002 for GitLab)
 
 `internal/platforms/gitlab/client.go` opens each asset by path (`os.Open` in `upload`) after the confinement
 check, so the symlink swap of NEW-002 still applies there once GitHub is fixed. Switch it to the helper T425
@@ -3417,6 +3417,20 @@ adds in `internal/platforms` (ADR-0077). Kept out of Phase 80 on purpose: that e
 driver. Depends on T425; schedule only with the user's go. Tests: the existing GitLab contract rows keep
 passing, plus the swap row from T425 through the GitLab client; then mark NEW-002 fully resolved in
 `docs/audit/SECURITY_FINDINGS.md`.
+
+Done 2026-10-27. `Platform.CreateRelease` resolves assets with `platforms.OpenAssets` (closed with
+`CloseAssets` on return) and `Client.CreateRelease` takes `[]platforms.Asset`, uploading each `File` under its
+`Name`; the client's own `checkAssets` (missing file, duplicate basename) is gone, since `OpenAssets` refuses
+both before the client runs. GitLab and GitHub now share one asset path end to end. Tests: the client rows
+open their files (`opened` helper), the client's missing-file and duplicate rows moved to the platform (two
+files sharing a basename, one file matched twice, both refused before any request), and two new rows: the
+swap row through the client (the path becomes a symlink to an outside file after the open; the upload still
+carries the checked bytes) and a Unix-only FIFO row behind a 5 s watchdog, which hung on the old driver.
+Mutation: reopening by `a.Path` in the client uploads the outside file and fails the swap row. Deviation:
+`ResolveGlobsLenient`, `requireInside` and `optionSafe` lost their last caller and were removed with their
+tests; the one rule `OpenAssets` did not test yet (a no-match outside the repository only warns) moved to
+`assets_test.go`. NEW-002 is marked resolved in `SECURITY_FINDINGS.md`. Lane B not rerun (not asked); B4 and
+B6 exercise GitLab uploads.
 
 Every Phase above marked `Done` and not pointing to a dedicated roadmap (D, 0–9, 11–22, 26, 28,
 30, 31) has had its full task write-up — implementation notes, decisions, deviations — moved to

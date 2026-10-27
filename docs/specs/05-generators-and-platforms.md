@@ -547,10 +547,11 @@ matching no file ([ADR-0076](../adr/0076-a-release-asset-pattern-must-match-a-fi
 turns that off, and a dry run only warns). (A path containing `#` is accepted since ADR-0077, which supersedes the ADR-0076 addendum.) At publish time resolution stays **lenient**: a pattern
 matching nothing emits a warning and is skipped rather than failing the release — by then the tag has
 already been created and pushed, so a strict failure here would leave the repository in a
-partially-completed state (tag exists, no platform release). On GitHub each
+partially-completed state (tag exists, no platform release). On both forges each
 resolved file is opened once, after its real path is checked to be inside the repository, and
 uploaded from that open file, so a symlink swapped in after the check cannot leak a file from
-outside (NEW-002); two files with the same basename are refused. The uploads go to a draft that is
+outside (NEW-002); the rules of the first step apply again, so a duplicate basename or a file that is
+not a regular file still fails the release. On GitHub the uploads go to a draft that is
 published afterwards (§ GitHub above): GitHub rejects an upload to an already-published immutable
 release with HTTP 422 ("Cannot upload assets to an immutable release"). On GitLab they are uploaded to the Generic Packages
 registry and linked on the release in the same create request (§ GitLab above). Deleting a GitLab

@@ -1,5 +1,14 @@
 # Security findings: heraut (2026-10-14)
 
+## Update 2026-10-27 (after T431)
+
+The GitLab driver now reads its assets the way the GitHub driver does. This section supersedes the rows and the scorecard below for NEW-002. In-place update, not a re-scan.
+
+- **NEW-002: RESOLVED.** `internal/platforms/gitlab` resolves assets through `platforms.OpenAssets` and the client uploads from the open descriptors; no asset is opened by path any more (`a01fe4b`, T431). A Unix FIFO among GitLab assets, which used to block the release after the tag push, is refused at once. `ResolveGlobsLenient`, the by-path resolver the finding pointed at, is removed.
+- **Still open:** SEC-002, and the crash-leftover temp-file residual of NEW-005.
+
+**Scorecard (current):** Critical 0 · High 0 · Medium 0 · Low 0 · Info 2 (SEC-002, NEW-005 temp-file residual). Coverage gaps from the 2026-10-22 section still apply.
+
 ## Update 2026-10-27 (after T425 to T428)
 
 GitHub publishing no longer runs `gh`: `internal/platforms/github` calls the REST API in process through `go-github` (ADR-0077). This section supersedes the rows and the scorecard below for NEW-002, NEW-004 and SEC-004's residual. In-place update, not a re-scan.
