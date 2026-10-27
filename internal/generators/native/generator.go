@@ -502,7 +502,9 @@ func writeFileAtomic(path string, data []byte, perm os.FileMode) error {
 	if info, err := os.Stat(path); err == nil {
 		perm = info.Mode().Perm()
 	}
-	tmp, err := os.CreateTemp(filepath.Dir(path), "."+filepath.Base(path)+".tmp-*")
+	prefix := "." + filepath.Base(path) + ".tmp-"
+	removeLeftovers(filepath.Dir(path), prefix)
+	tmp, err := os.CreateTemp(filepath.Dir(path), prefix+"*")
 	if err != nil {
 		return err
 	}
@@ -527,6 +529,22 @@ func writeFileAtomic(path string, data []byte, perm os.FileMode) error {
 		return err
 	}
 	return nil
+}
+
+// removeLeftovers deletes the regular files in dir whose name starts with prefix: temp files of a
+// write that was killed before its rename, which a hook staging everything could otherwise commit
+// (NEW-005). Only one run writes a repository's changelog at a time, so none of them is in use. It is
+// best effort: a leftover that cannot be removed does not stop the write.
+func removeLeftovers(dir, prefix string) {
+	entries, err := os.ReadDir(dir)
+	if err != nil {
+		return
+	}
+	for _, e := range entries {
+		if e.Type().IsRegular() && strings.HasPrefix(e.Name(), prefix) {
+			_ = os.Remove(filepath.Join(dir, e.Name()))
+		}
+	}
 }
 
 // renderRelease renders one changelog release section, or "" when the range has no

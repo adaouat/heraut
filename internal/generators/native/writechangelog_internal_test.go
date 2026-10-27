@@ -135,6 +135,46 @@ func TestWriteChangelog_KeepsTheModeOfASymlinkTarget(t *testing.T) {
 	assert.Equal(t, os.FileMode(0o600), info.Mode().Perm())
 }
 
+// A process killed between creating its temp file and renaming it leaves the temp file behind, where a
+// hook staging everything could commit it. The next write removes such leftovers of its own target,
+// and nothing else.
+func TestWriteChangelog_RemovesTempFilesAnInterruptedWriteLeft(t *testing.T) {
+	dir := t.TempDir()
+	out := filepath.Join(dir, "CHANGELOG.md")
+	require.NoError(t, os.WriteFile(out, []byte("old\n"), 0o644))
+	for _, name := range []string{
+		".CHANGELOG.md.tmp-123", ".CHANGELOG.md.tmp-", // leftovers of this target
+		"CHANGELOG.md.tmp-1", ".CHANGELOG.md.tmpx", ".NOTES.md.tmp-1", ".changelog.md.tmp-1", // not ours
+	} {
+		require.NoError(t, os.WriteFile(filepath.Join(dir, name), []byte("x"), 0o644))
+	}
+	require.NoError(t, os.Mkdir(filepath.Join(dir, ".CHANGELOG.md.tmp-dir"), 0o755))
+
+	_, err := newWriter(out).writeChangelog("new\n")
+	require.NoError(t, err)
+
+	assert.ElementsMatch(t, []string{
+		"CHANGELOG.md",
+		"CHANGELOG.md.tmp-1", ".CHANGELOG.md.tmpx", ".NOTES.md.tmp-1", ".changelog.md.tmp-1",
+		".CHANGELOG.md.tmp-dir",
+	}, dirEntries(t, dir), "only regular files named like this target's temp files are removed")
+}
+
+func TestWriteChangelog_RemovesTheLeftoversOfASymlinkTarget(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("symlinks need privileges on windows")
+	}
+	dir := t.TempDir()
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "real.md"), []byte("old\n"), 0o644))
+	require.NoError(t, os.Symlink("real.md", filepath.Join(dir, "CHANGELOG.md")))
+	require.NoError(t, os.WriteFile(filepath.Join(dir, ".real.md.tmp-1"), []byte("x"), 0o644))
+
+	_, err := newWriter(filepath.Join(dir, "CHANGELOG.md")).writeChangelog("new\n")
+	require.NoError(t, err)
+
+	assert.ElementsMatch(t, []string{"CHANGELOG.md", "real.md"}, dirEntries(t, dir))
+}
+
 func TestWriteChangelog_NoOutputWritesNothing(t *testing.T) {
 	got, err := newWriter("").writeChangelog("body\n")
 	require.NoError(t, err)
