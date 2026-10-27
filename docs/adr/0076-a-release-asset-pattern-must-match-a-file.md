@@ -67,6 +67,11 @@ build the files.
 
 ## Addendum (2026-10-24): a GitHub asset path may not contain `#`
 
+> **Superseded (2026-10-27) by [ADR-0077](0077-github-publish-transport.md).** The GitHub driver no longer
+> runs `gh`: the asset name travels as a query parameter, so a path with `#` is accepted. GitHub publishes it
+> under a rewritten name (`meta#1.json` becomes `meta.1.json`) and heraut prints a warning. The rest of this
+> ADR still applies.
+
 `gh release create <tag> <file>…` reads `path#label` as a file plus a display label, so a file whose path
 contains `#` is split at the `#`: the asset is published under a different label, or the truncated path is
 not found. The GitLab driver passes the path to a REST upload and is unaffected.

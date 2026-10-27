@@ -437,7 +437,7 @@ forges:
   - name: github
     platform: github
     repository: org/repo        # optional, defaults to $GITHUB_REPOSITORY
-    token_env: GH_TOKEN         # optional, defaults to GH_TOKEN
+    token_env: GH_TOKEN         # optional, see Token below
     base_url: https://github.com  # optional, defaults to https://github.com
 
 release:
@@ -448,20 +448,34 @@ release:
         - dist/myapp_*
 ```
 
-**Invocation**:
+**Requests** ([ADR-0077](../adr/0077-github-publish-transport.md)): the driver calls the REST API in
+process through `go-github`; no `gh` binary is involved.
 
-```
-gh release create <tag> --notes-file <tmpfile> --repo <repository> [--draft] [--prerelease] [<asset-file>...]
-```
+| Step | Request |
+|---|---|
+| `Check()` | `GET /repos/{owner}/{repo}/releases?per_page=1` |
+| create | `POST /repos/{owner}/{repo}/releases` (`tag_name`, `name` = the tag, `body` = the notes, `draft`, `prerelease`) |
+| upload | `POST {upload_url}?name=<basename>`, the file as the raw body |
+| publish | `PATCH /repos/{owner}/{repo}/releases/{id}` (`draft: false`) |
+| cleanup | `DELETE /repos/{owner}/{repo}/releases/{id}` |
 
-Notes are written to a temp file and passed via `--notes-file` (not `--notes`), so a large
-changelog can't exceed `ARG_MAX`. Resolved asset files are appended as positional args to
-`release create` directly — see § Asset resolution below; there is no separate
-`gh release upload` call in the normal `heraut release` flow.
+Without assets the release is one create call. With assets it is created as a draft, each file is
+uploaded, then the draft is published, unless the target sets `draft: true` (uploading to a
+published release fails when immutable releases are on). If an upload or the publish fails, the
+draft is deleted and the original error is returned, with any delete failure appended. The upload
+goes only to an expected origin: `uploads.github.com` for github.com, else `base_url`'s own origin
+or `uploads.<host>`; any other `upload_url` is refused before a byte is sent.
 
+- **API root**: `https://api.github.com` for github.com, `https://api.<host>` for a `*.ghe.com`
+  tenant, `<base_url>/api/v3` for GitHub Enterprise Server. In GitHub Actions, `GITHUB_API_URL` is
+  used instead when `GITHUB_SERVER_URL` has the same origin as `base_url`.
 - **Repository** resolution: `cfg.Repository` → `$GITHUB_REPOSITORY` → error
-- **Token** is read from `$<TokenEnv>` (default `GH_TOKEN`); `gh` picks it up
-  automatically from the environment
+- **Token**: when `token_env` is set, only that variable is read. Otherwise github.com and
+  `*.ghe.com` read `GH_TOKEN`, then `GITHUB_TOKEN`; GitHub Enterprise Server reads
+  `GH_ENTERPRISE_TOKEN`, then `GITHUB_ENTERPRISE_TOKEN`, then `GH_TOKEN`. `Check()` and publishing
+  use the same token, sent as `Authorization: Bearer`.
+- **Asset names**: each file is published under its basename; GitHub rewrites special characters
+  (`meta#1.json` becomes `meta.1.json`), and heraut warns when the published name differs.
 - **Pre-release**: `--prerelease` is passed iff the active strategy is SemVer-based
   (`semver`/`semver-per-env`) *and* the resolved version carries SemVer pre-release identifiers
   (e.g. `1.4.0-rc.1`) — never for a final, and never under a CalVer strategy, regardless of
@@ -528,14 +542,15 @@ already exist (heraut tags and pushes before publishing).
 both resolve in two steps. Before anything is committed or pushed, right after the `post_bump`
 hooks, each glob is expanded against the working directory and a pattern matching no file aborts the
 run ([ADR-0076](../adr/0076-a-release-asset-pattern-must-match-a-file.md); `release.allow_missing_assets: true`
-turns that off, and a dry run only warns). The same gate refuses, for a GitHub target only, a matched file whose path contains `#`, which `gh` would read as a `path#label` separator (ADR-0076 addendum). At publish time resolution stays **lenient**: a pattern
+turns that off, and a dry run only warns). (A path containing `#` is accepted since ADR-0077, which supersedes the ADR-0076 addendum.) At publish time resolution stays **lenient**: a pattern
 matching nothing emits a warning and is skipped rather than failing the release — by then the tag has
 already been created and pushed, so a strict failure here would leave the repository in a
-partially-completed state (tag exists, no platform release). On GitHub the
-resolved files are appended as positional arguments to `gh release create ... <files>` rather than
-uploaded by a separate call — GitHub's API rejects a separate upload to an already-created release
-with HTTP 422 ("Cannot upload assets to an immutable release"), so attaching them atomically at
-creation time avoids that failure mode. On GitLab they are uploaded to the Generic Packages
+partially-completed state (tag exists, no platform release). On GitHub each
+resolved file is opened once, after its real path is checked to be inside the repository, and
+uploaded from that open file, so a symlink swapped in after the check cannot leak a file from
+outside (NEW-002); two files with the same basename are refused. The uploads go to a draft that is
+published afterwards (§ GitHub above): GitHub rejects an upload to an already-published immutable
+release with HTTP 422 ("Cannot upload assets to an immutable release"). On GitLab they are uploaded to the Generic Packages
 registry and linked on the release in the same create request (§ GitLab above). Deleting a GitLab
 release does not delete its package files.
 
@@ -547,11 +562,13 @@ platform's default (`github.com` / `gitlab.com`). Plain `http://` is refused, fo
 that host; the only exception is a loopback host (`localhost`, `127.0.0.0/8`, `::1`), which exists
 for local servers and tests. When `base_url` is self-hosted, heraut:
 
-- Points the driver at that host: the GitLab client is built on `base_url`; `GH_HOST=<host>` +
-  `GH_ENTERPRISE_TOKEN=<token>` for GitHub Enterprise Server.
-- Skips CI autologin (`GITHUB_ACTIONS`/`GITLAB_CI`) for that entry — autologin always
-  targets the CI runner's own (public) host, never a separately-configured self-hosted
-  target — and instead always validates the configured `token_env`.
+- Points the driver at that host: the GitLab client is built on `base_url`; the GitHub client on
+  `<base_url>/api/v3` (GitHub Enterprise Server) or `https://api.<host>` (`*.ghe.com`), with the
+  token chain above.
+- On GitLab, skips CI autologin (`GITLAB_CI`) for that entry unless `base_url` is the CI job's own
+  instance — the job token cannot reach another host — and validates the configured `token_env`.
+  GitHub has no autologin: the token comes from the chain in § GitHub above, the same for `Check()`
+  and publishing.
 - Resolves `ReleaseURL`/`LinkContext` against `base_url` instead of the type default.
 
 Because `forges` is a list, multiple entries of the *same* platform type are
@@ -588,7 +605,7 @@ type Platform interface {
     ReleaseURL(tag string) string                  // canonical URL
     ReleaseURLFromContext(tag string, lc *port.LinkContext) string // URL consistent with a given link context (ADR-0022); falls back to ReleaseURL when lc is nil
     LinkContext() port.LinkContext                 // this platform's link-resolution coordinates (host, owner, repo, type)
-    Check() error                                  // binary + token + project/repo resolved
+    Check() error                                  // token + project/repo resolved, token accepted by the API
     CreateRelease(tag, notes string, prerelease bool) error // create the release and attach its assets — see § Asset resolution above
     HasAssets() bool                               // true if cfg.Assets is non-empty
     CheckAssets() error                            // asset path rules, applied before anything is pushed (no request, no CLI call)
@@ -600,9 +617,8 @@ actually calls to produce the post-release URL and to keep it consistent with th
 context passed to the release-notes generator in the multi-platform case (§ Generator
 interface above).
 
-Both implementations are contract-tested — every CLI argument heraut passes to `gh` is asserted
-with `MockRunner`, and the GitLab driver's requests (paths, headers, bodies) against an
-`httptest.Server`. Adding a third
+Both implementations are contract-tested: their requests (hosts, paths, headers, bodies) are
+asserted against an `httptest.Server`. Adding a third
 platform later means: implement `port.Platform`, add contract tests, register in
 `app.BuildPipeline`.
 

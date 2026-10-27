@@ -314,7 +314,8 @@ forges:
     repository: acme/widget
 
     # token_env — env var holding a GitHub token with contents:write scope.
-    # Defaults to GH_TOKEN if omitted.
+    # If omitted, publishing reads GH_TOKEN, then GITHUB_TOKEN (GitHub Enterprise
+    # Server: GH_ENTERPRISE_TOKEN, GITHUB_ENTERPRISE_TOKEN, then GH_TOKEN).
     token_env: GH_TOKEN
 
     # base_url — web base URL of the forge instance. Defaults to

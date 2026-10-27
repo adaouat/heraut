@@ -475,10 +475,9 @@ Two states only:
   is published to every entry in `release.targets`, or, when `targets` is omitted/empty, to
   the single resolved forge (zero-config publishing; see § Identity resolution under
   § `forges` below). This is the common CI shape: no `forges:`, no `release.targets`,
-  `release: {}`. On GitHub Actions this still requires `GH_TOKEN` to be exported: the
-  identity's token is resolved for enrichment but is not passed to the `gh`-based driver, and
-  `gh`'s own check has no CI exemption (unlike GitLab CI, where the driver uses `CI_JOB_TOKEN`
-  directly — see `inCIAutologin` in the GitLab driver).
+  `release: {}`. On GitHub Actions, `GITHUB_TOKEN` exported to the step is enough: with no
+  `token_env`, the GitHub driver reads `GH_TOKEN`, then `GITHUB_TOKEN` (Spec 05 § GitHub). On
+  GitLab CI the driver uses `CI_JOB_TOKEN` directly (see `inCIAutologin` in the GitLab driver).
 
 - **`release:` omitted entirely** — no notes, no publish. Valid when `heraut release` is not
   used. Note: `heraut release` itself requires at least one **resolvable** publish
@@ -1014,7 +1013,7 @@ forges:
   - name: github
     platform: github
     repository: org/repo        # optional, defaults to $GITHUB_REPOSITORY
-    token_env: GH_TOKEN         # optional, defaults to GH_TOKEN
+    token_env: GH_TOKEN         # optional, see below
     base_url: https://github.com  # optional, defaults to https://github.com
 
 release:
@@ -1025,17 +1024,16 @@ release:
         - dist/myapp_*
 ```
 
-Implementation: shells out to `gh release create` + `gh release upload`. `--prerelease` is
-passed when the resolved version carries SemVer pre-release identifiers — see Spec 05 § GitHub.
+Implementation: calls the GitHub REST API in process ([ADR-0077](../adr/0077-github-publish-transport.md)).
+The release is marked pre-release when the resolved version carries SemVer pre-release
+identifiers — see Spec 05 § GitHub.
 
-**`token_env`'s default differs by subsystem when omitted.** Forge-identity resolution (enrichment,
-§ Identity resolution above) falls back to `GITHUB_TOKEN` — the token GitHub Actions provides
-automatically. The `gh`-based publish driver shown here falls back independently to `GH_TOKEN` —
-`gh`'s own convention, not automatically populated by GitHub Actions. On GitHub Actions with no
-explicit `token_env` set, enrichment works out of the box but publishing does not: export
-`GH_TOKEN` (e.g. `GH_TOKEN: ${{ github.token }}` in the workflow) for `heraut release` to publish.
-Setting `token_env` explicitly on the `forges:` entry applies to both subsystems uniformly and
-avoids this gap.
+**With no `token_env`, each subsystem has its own fallback.** Forge-identity resolution
+(enrichment, § Identity resolution above) reads `GITHUB_TOKEN`, the token GitHub Actions provides.
+The publish driver reads `GH_TOKEN`, then `GITHUB_TOKEN`, on github.com and `*.ghe.com`, and
+`GH_ENTERPRISE_TOKEN`, then `GITHUB_ENTERPRISE_TOKEN`, then `GH_TOKEN` on GitHub Enterprise Server
+(Spec 05 § GitHub). On GitHub Actions on github.com, exporting `GITHUB_TOKEN` to the step serves
+both. Setting `token_env` explicitly makes both read only that variable.
 
 ## `environments`
 
