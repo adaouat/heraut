@@ -170,7 +170,7 @@ func newCheckRuntimeCmd() *cobra.Command {
 				if !errors.Is(err, os.ErrNotExist) {
 					return exitcode.Wrap(exitcode.Config, err)
 				}
-				_, _ = fmt.Fprintln(out, ui.Warn(out, fmt.Sprintf("no config found at %s — all tools checked as required", path)))
+				_, _ = fmt.Fprintln(out, ui.Warn(out, fmt.Sprintf("no config found at %s — checking git only", path)))
 				cfg = nil
 			}
 

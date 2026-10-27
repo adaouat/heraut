@@ -1,6 +1,7 @@
 package app
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"strings"
@@ -49,11 +50,8 @@ func PreflightCheck(runner port.Runner) error {
 //
 //	Git:        git binary → user.name → user.email → working tree
 //	Platforms:  one row per effective release.targets entry (resolved against
-//	            forges:/CI env/git origin, same as `heraut release`), or
-//	            gh (GitHub) as a binary-only fallback when nothing resolves
-//
-// Configured tools are hard errors when missing; unconfigured-but-supported
-// tools warn when absent and succeed silently when present.
+//	            forges:/CI env/git origin, same as `heraut release`), or an
+//	            advisory "publish" row when nothing resolves
 func RuntimeCheck(
 	runner port.Runner,
 	cfg *config.Config,
@@ -129,7 +127,7 @@ func RuntimeCheck(
 			return RuntimeCheckItem{Name: "forge", Err: resolveErr, IsWarn: !wantsForge}
 		})
 	case len(platCfgs) > 0:
-		// One row per effective target's resolved platform: full check (binary + token +
+		// One row per effective target's resolved platform: full check (token +
 		// project/repository + API auth), labeled by the resolved forge name.
 		for i := range platCfgs {
 			platCfg := &platCfgs[i]
@@ -146,24 +144,15 @@ func RuntimeCheck(
 			})
 		}
 	default:
-		// No target resolves to a publishable platform: fall back to a binary-only probe of gh, the only
-		// publish driver that still shells out. Required (hard error) when cfg is nil (no config
-		// file found, so it could plausibly be needed); advisory otherwise.
-		required := cfg == nil
-		for _, bin := range []string{"gh"} {
-			dispatch(bin, func() RuntimeCheckItem {
-				out, _, err := runner.Run(bin, "--version")
-				if err != nil {
-					if required {
-						return RuntimeCheckItem{Name: bin,
-							Err: fmt.Errorf("%s: not found on PATH", bin)}
-					}
-					return RuntimeCheckItem{Name: bin, IsWarn: true,
-						Err: fmt.Errorf("not found (not required by this config)")}
-				}
-				return RuntimeCheckItem{Name: bin, Value: strings.TrimSpace(out)}
-			})
+		// Nothing to publish to: heraut release would refuse to run, but a changelog-only user never
+		// publishes, so this warns rather than fails.
+		reason := "no release target resolves to github or gitlab"
+		if cfg == nil {
+			reason = "no config found, destinations not checked"
 		}
+		dispatch("publish", func() RuntimeCheckItem {
+			return RuntimeCheckItem{Name: "publish", IsWarn: true, Err: errors.New(reason)}
+		})
 	}
 }
 

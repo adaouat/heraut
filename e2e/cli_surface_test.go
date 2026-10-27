@@ -115,7 +115,7 @@ func TestConfigDiscoveryAndTildeExpansion(t *testing.T) {
 	})
 }
 
-// gitOnlyPath is a PATH holding nothing but git, so the real gh can never be found.
+// gitOnlyPath is a PATH holding nothing but git, so no other installed tool can be found.
 func gitOnlyPath(t *testing.T) string {
 	t.Helper()
 	gitPath, err := exec.LookPath("git")
@@ -185,14 +185,14 @@ func TestCheckRuntime(t *testing.T) {
 		assert.Contains(t, out, "git user.name — not configured")
 		assert.NotContains(t, out, "environment variable gh_token is not set", "only the identity is wrong")
 	})
-	t.Run("with no config every tool is required", func(t *testing.T) {
+	t.Run("with no config only git is checked", func(t *testing.T) {
 		repo := newRepo(t, "")
 
 		out, code := run(t, repo, gitOnlyPath(t), nil, "check", "runtime")
 
-		require.Equal(t, exitRuntime, code, out)
-		assert.Contains(t, out, "no config found at .heraut.yml — all tools checked as required")
-		assert.Contains(t, out, "gh: not found on path")
+		require.Equal(t, exitOK, code, out)
+		assert.Contains(t, out, "no config found at .heraut.yml — checking git only")
+		assert.Contains(t, out, "no config found, destinations not checked")
 		assert.NotContains(t, out, "glab", "glab is no longer a runtime dependency")
 	})
 }

@@ -97,16 +97,14 @@ case "$*" in
   *) exit 0 ;;
 esac
 `)
-	exectest.FakeBin(t, "gh", `#!/bin/sh
-echo "gh 2.x"
-`)
 	exectest.FakeBin(t, "cog", `#!/bin/sh
 echo "cog 6.x"
 `)
 
 	out, err := executeRoot("check", "runtime")
-	require.NoError(t, err)
-	assert.Contains(t, out, "no config")
+	require.NoError(t, err, "with no config only git is required")
+	assert.Contains(t, out, "no config found at .heraut.yml — checking git only")
+	assert.Contains(t, out, "no config found, destinations not checked")
 }
 
 // ---- check runtime ----
@@ -255,9 +253,6 @@ case "$*" in
   "config user.email") echo "john@example.com" ;;
   *) exit 0 ;;
 esac
-`)
-	exectest.FakeBin(t, "gh", `#!/bin/sh
-echo "gh 2.x"
 `)
 	exectest.FakeBin(t, "cog", `#!/bin/sh
 echo "cog 6.x"

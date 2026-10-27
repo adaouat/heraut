@@ -4,7 +4,6 @@ import (
 	"errors"
 	"net/http"
 	"net/http/httptest"
-	"strings"
 	"testing"
 
 	"github.com/adaouat/forge/exec/exectest"
@@ -27,16 +26,15 @@ func collectItems(mr *exectest.MockRunner, cfg *config.Config, env string) []app
 	return items
 }
 
-// queueSuccess queues the 6 runner.Run responses for semverCfg (no forges/targets) with all
+// queueSuccess queues the 5 runner.Run responses for semverCfg (no forges/targets) with all
 // tools present. Call order: git, user.name, user.email, git status, git remote get-url
-// origin (forge resolution — errors, no origin configured), gh.
+// origin (forge resolution — errors, no origin configured).
 func queueSuccess(mr *exectest.MockRunner) {
 	mr.QueueResponse("git version 2.40.0", "", nil)   // git --version
 	mr.QueueResponse("Alice", "", nil)                // git config user.name
 	mr.QueueResponse("a@b.com", "", nil)              // git config user.email
 	mr.QueueResponse("", "", nil)                     // git status --porcelain (clean)
 	mr.QueueResponse("", "", errors.New("no origin")) // git remote get-url origin (forge resolution)
-	mr.QueueResponse("gh 2.0.0", "", nil)             // gh --version
 }
 
 // ---- PreflightCheck -----------------------------------------------------------
@@ -109,7 +107,6 @@ func TestRuntimeCheck_GitValue(t *testing.T) {
 	mr.QueueResponse("a@b.com", "", nil)              // user.email
 	mr.QueueResponse("", "", nil)                     // git status
 	mr.QueueResponse("", "", errors.New("no origin")) // git remote get-url origin (forge resolution)
-	mr.QueueResponse("gh 2.0", "", nil)               // gh
 
 	cfg := semverCfg()
 	items := collectItems(mr, cfg, "")
@@ -132,7 +129,6 @@ func TestRuntimeCheck_UserNameValue(t *testing.T) {
 	mr.QueueResponse("alice@example.com\n", "", nil)  // user.email
 	mr.QueueResponse("", "", nil)                     // git status
 	mr.QueueResponse("", "", errors.New("no origin")) // git remote get-url origin (forge resolution)
-	mr.QueueResponse("gh 2.0", "", nil)               // gh
 
 	cfg := semverCfg()
 	items := collectItems(mr, cfg, "")
@@ -155,7 +151,6 @@ func TestRuntimeCheck_WorkingTreeClean(t *testing.T) {
 	mr.QueueResponse("a@b.com", "", nil)              // user.email
 	mr.QueueResponse("", "", nil)                     // git status --porcelain (clean)
 	mr.QueueResponse("", "", errors.New("no origin")) // git remote get-url origin (forge resolution)
-	mr.QueueResponse("gh 2.0", "", nil)
 
 	cfg := semverCfg()
 	items := collectItems(mr, cfg, "")
@@ -179,7 +174,6 @@ func TestRuntimeCheck_WorkingTreeDirty(t *testing.T) {
 	mr.QueueResponse("a@b.com", "", nil)                                  // user.email
 	mr.QueueResponse(" M internal/foo.go\n M internal/bar.go\n", "", nil) // git status
 	mr.QueueResponse("", "", errors.New("no origin"))                     // git remote get-url origin (forge resolution)
-	mr.QueueResponse("gh 2.0", "", nil)
 
 	cfg := semverCfg()
 	items := collectItems(mr, cfg, "")
@@ -212,7 +206,7 @@ func TestRuntimeCheck_DispatchNames(t *testing.T) {
 
 	assert.Equal(t, []string{
 		"git", "git user.name", "git user.email", "working tree",
-		"gh",
+		"publish",
 	}, names)
 }
 
@@ -305,7 +299,6 @@ func TestRuntimeCheck_EnvTargetOverrideReplacesRoot(t *testing.T) {
 	mr.QueueResponse("a@b.com", "", nil)              // user.email
 	mr.QueueResponse("", "", nil)                     // git status
 	mr.QueueResponse("", "", errors.New("no origin")) // git remote get-url origin (forge resolution)
-	mr.QueueResponse("gh 2.67.0", "", nil)            // github-prod binary — only entry checked
 
 	cfg := semverCfg()
 	cfg.Forges = []config.Forge{
@@ -344,7 +337,6 @@ func TestRuntimeCheck_EnvWithoutTargetOverrideInheritsRoot(t *testing.T) {
 	mr.QueueResponse("a@b.com", "", nil)              // user.email
 	mr.QueueResponse("", "", nil)                     // git status
 	mr.QueueResponse("", "", errors.New("no origin")) // git remote get-url origin (forge resolution)
-	mr.QueueResponse("gh 2.67.0", "", nil)            // github-root binary — only entry checked
 
 	cfg := semverCfg()
 	cfg.Forges = []config.Forge{{Name: "github-root", Type: "github", Repository: "org/root"}}
@@ -553,7 +545,6 @@ func TestRuntimeCheck_UserNameMissing(t *testing.T) {
 	mr.QueueResponse("a@b.com", "", nil)              // user.email
 	mr.QueueResponse("", "", nil)                     // git status
 	mr.QueueResponse("", "", errors.New("no origin")) // git remote get-url origin (forge resolution)
-	mr.QueueResponse("gh 2.0", "", nil)
 
 	cfg := semverCfg()
 	items := collectItems(mr, cfg, "")
@@ -575,7 +566,6 @@ func TestRuntimeCheck_UserEmailMissing(t *testing.T) {
 	mr.QueueResponse("", "", nil)                     // user.email empty
 	mr.QueueResponse("", "", nil)                     // git status
 	mr.QueueResponse("", "", errors.New("no origin")) // git remote get-url origin (forge resolution)
-	mr.QueueResponse("gh 2.0", "", nil)
 
 	cfg := semverCfg()
 	items := collectItems(mr, cfg, "")
@@ -589,29 +579,40 @@ func TestRuntimeCheck_UserEmailMissing(t *testing.T) {
 	assert.True(t, found, "expected git user.email error item")
 }
 
-// ---- Optional tool checks -------------------------------------------------------
+// ---- No publish destination ----------------------------------------------------
 
-func TestRuntimeCheck_OptionalPlatformsWarnWhenMissing(t *testing.T) {
-	testutil.ClearCIEnv(t)
-	mr := exectest.NewMockRunner()
-	mr.QueueResponse("git version 2.40.0", "", nil)       // git --version
-	mr.QueueResponse("Alice", "", nil)                    // user.name
-	mr.QueueResponse("a@b.com", "", nil)                  // user.email
-	mr.QueueResponse("", "", nil)                         // git status
-	mr.QueueResponse("", "", errors.New("no origin"))     // git remote get-url origin (forge resolution)
-	mr.QueueResponse("", "", errors.New("gh: not found")) // gh (optional, missing)
-
-	cfg := semverCfg()
-	items := collectItems(mr, cfg, "")
-
-	warnNames := make(map[string]bool)
+// publishItem returns the "publish" row, failing the test when there is none.
+func publishItem(t *testing.T, items []app.RuntimeCheckItem) app.RuntimeCheckItem {
+	t.Helper()
 	for _, it := range items {
-		if it.IsWarn && it.Err != nil && strings.Contains(it.Err.Error(), "not required") {
-			warnNames[it.Name] = true
+		if it.Name == "publish" {
+			return it
 		}
 	}
-	assert.False(t, warnNames["glab"], "glab is no longer probed")
-	assert.True(t, warnNames["gh"], "expected optional warn for gh")
+	t.Fatal("expected a publish item")
+	return app.RuntimeCheckItem{}
+}
+
+// assertNoBinaryProbed fails when the check ran anything but git: no publish driver shells out.
+func assertNoBinaryProbed(t *testing.T, mr *exectest.MockRunner) {
+	t.Helper()
+	for _, c := range mr.Calls {
+		assert.Equal(t, "git", c.Name, "only git is probed: %v", c.Args)
+	}
+}
+
+func TestRuntimeCheck_NoTargetIsAdvisory(t *testing.T) {
+	testutil.ClearCIEnv(t)
+	mr := exectest.NewMockRunner()
+	queueSuccess(mr)
+
+	items := collectItems(mr, semverCfg(), "")
+
+	it := publishItem(t, items)
+	require.Error(t, it.Err)
+	assert.True(t, it.IsWarn, "a config with no publish destination warns, it does not fail")
+	assert.Equal(t, "no release target resolves to github or gitlab", it.Err.Error())
+	assertNoBinaryProbed(t, mr)
 }
 
 // TestRuntimeCheck_ReleaseWithoutTargets_RunsPublishCheck covers T216: release atomicity means
@@ -643,19 +644,18 @@ func TestRuntimeCheck_ReleaseWithoutTargets_RunsPublishCheck(t *testing.T) {
 	assert.True(t, found, "release: presence with no explicit targets must still resolve and run a full publish check against the configured forge")
 }
 
-// TestRuntimeCheck_AzureOnlyFallsBackToBinaryProbe covers T221: effectiveTargetPlatforms delegates
-// to synthesizeDefaultTarget, so a resolved forge with no publish driver (azure_devops) must not
-// synthesize a per-target row here either — it must fall back to the same advisory binary-only
-// probe as "no forge resolved at all," staying consistent with heraut release's own behavior.
-func TestRuntimeCheck_AzureOnlyFallsBackToBinaryProbe(t *testing.T) {
+// TestRuntimeCheck_AzureOnlyIsAdvisory covers T221: effectiveTargetPlatforms delegates to
+// synthesizeDefaultTarget, so a resolved forge with no publish driver (azure_devops) must not
+// synthesize a per-target row here either — it gets the same advisory row as "no forge resolved at
+// all," staying consistent with heraut release's own behavior.
+func TestRuntimeCheck_AzureOnlyIsAdvisory(t *testing.T) {
 	testutil.ClearCIEnv(t)
 	mr := exectest.NewMockRunner()
-	mr.QueueResponse("git version 2.40.0", "", nil)       // git --version
-	mr.QueueResponse("Alice", "", nil)                    // user.name
-	mr.QueueResponse("a@b.com", "", nil)                  // user.email
-	mr.QueueResponse("", "", nil)                         // git status
-	mr.QueueResponse("", "", errors.New("no origin"))     // git remote get-url origin (forge resolution)
-	mr.QueueResponse("", "", errors.New("gh: not found")) // gh (advisory binary-only probe)
+	mr.QueueResponse("git version 2.40.0", "", nil)   // git --version
+	mr.QueueResponse("Alice", "", nil)                // user.name
+	mr.QueueResponse("a@b.com", "", nil)              // user.email
+	mr.QueueResponse("", "", nil)                     // git status
+	mr.QueueResponse("", "", errors.New("no origin")) // git remote get-url origin (forge resolution)
 
 	cfg := semverCfg()
 	cfg.Forges = []config.Forge{{Name: "az", Type: "azure_devops", Project: "org/proj", Repository: "repo"}}
@@ -665,76 +665,45 @@ func TestRuntimeCheck_AzureOnlyFallsBackToBinaryProbe(t *testing.T) {
 	for _, it := range items {
 		assert.NotEqual(t, "az", it.Name, "azure_devops has no publish driver; it must not get a per-target publish check row")
 	}
-	warnNames := make(map[string]bool)
-	for _, it := range items {
-		if it.IsWarn {
-			warnNames[it.Name] = true
-		}
-	}
-	assert.False(t, warnNames["glab"], "glab is no longer probed")
-	assert.True(t, warnNames["gh"], "falls back to the advisory binary-only probe")
-}
-
-func TestRuntimeCheck_OptionalToolsSilentWhenPresent(t *testing.T) {
-	testutil.ClearCIEnv(t)
-	mr := exectest.NewMockRunner()
-	queueSuccess(mr)
-
-	cfg := semverCfg()
-	items := collectItems(mr, cfg, "")
-
-	for _, it := range items {
-		if it.Err != nil && strings.Contains(it.Err.Error(), "not required") {
-			t.Errorf("unexpected optional warn item: %s — %v", it.Name, it.Err)
-		}
-	}
+	assert.True(t, publishItem(t, items).IsWarn, "falls back to the advisory publish row")
+	assertNoBinaryProbed(t, mr)
 }
 
 // ---- RuntimeCheck with nil config -------------------------------------------
 
-// queueSuccessNilConfig queues the 5 runner.Run responses for the nil-config path: unlike a
+// queueSuccessNilConfig queues the 4 runner.Run responses for the nil-config path: unlike a
 // non-nil config, effectiveTargetPlatforms short-circuits before ever resolving a forge (nothing
 // to resolve against), so no git remote get-url origin call happens. Call order: git, user.name,
-// user.email, git status, gh.
+// user.email, git status.
 func queueSuccessNilConfig(mr *exectest.MockRunner) {
 	mr.QueueResponse("git version 2.40.0", "", nil) // git --version
 	mr.QueueResponse("Alice", "", nil)              // git config user.name
 	mr.QueueResponse("a@b.com", "", nil)            // git config user.email
 	mr.QueueResponse("", "", nil)                   // git status --porcelain (clean)
-	mr.QueueResponse("gh 2.0.0", "", nil)           // gh --version
 }
 
-func TestRuntimeCheck_NilConfig_AllToolsPassWhenPresent(t *testing.T) {
+func TestRuntimeCheck_NilConfig_GitPasses(t *testing.T) {
 	mr := exectest.NewMockRunner()
 	queueSuccessNilConfig(mr)
 
 	items := collectItems(mr, nil, "")
 	require.Len(t, items, 5)
 	for _, it := range items {
-		if it.Name == "working tree" {
-			continue // always advisory regardless of config
+		if it.Name == "working tree" || it.Name == "publish" {
+			continue
 		}
-		assert.NoError(t, it.Err, "nil config: %s should pass when binary present", it.Name)
-		assert.False(t, it.IsWarn, "nil config: %s must not be optional", it.Name)
+		assert.NoError(t, it.Err, "nil config: %s should pass", it.Name)
 	}
 }
 
-func TestRuntimeCheck_NilConfig_MissingBinaryIsHardError(t *testing.T) {
+func TestRuntimeCheck_NilConfig_PublishIsAdvisory(t *testing.T) {
 	mr := exectest.NewMockRunner()
-	mr.QueueResponse("git version 2.40.0", "", nil)       // git
-	mr.QueueResponse("Alice", "", nil)                    // user.name
-	mr.QueueResponse("a@b.com", "", nil)                  // user.email
-	mr.QueueResponse("", "", nil)                         // git status
-	mr.QueueResponse("", "", errors.New("gh: not found")) // gh missing
+	queueSuccessNilConfig(mr)
 
-	items := collectItems(mr, nil, "")
+	it := publishItem(t, collectItems(mr, nil, ""))
 
-	for _, it := range items {
-		if it.Name == "gh" {
-			assert.Error(t, it.Err, "missing gh should be a hard error with nil config")
-			assert.False(t, it.IsWarn, "missing gh must not be a warning with nil config")
-			return
-		}
-	}
-	t.Fatal("expected gh item")
+	require.Error(t, it.Err)
+	assert.True(t, it.IsWarn, "with no config there is nothing to publish to: a warning, not a failure")
+	assert.Equal(t, "no config found, destinations not checked", it.Err.Error())
+	assertNoBinaryProbed(t, mr)
 }

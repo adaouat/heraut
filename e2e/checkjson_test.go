@@ -46,7 +46,7 @@ func TestCommitVerifyJSON(t *testing.T) {
 	})
 }
 
-// TestCheckRuntimeJSON does not pin the exit code: whether gh is installed is the machine's business.
+// TestCheckRuntimeJSON does not pin the exit code: the machine's git identity decides it.
 func TestCheckRuntimeJSON(t *testing.T) {
 	bin := harness.Binary(t)
 	repo := harness.NewRepo(t)
