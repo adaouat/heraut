@@ -1,5 +1,113 @@
 # Changelog
 
+<!-- heraut-release: v0.82.0 -->
+## [0.82.0](https://github.com/adaouat/heraut/compare/v0.81.0..v0.82.0) - 2026-10-28
+
+### 🚀 Features
+
+- *(app)* Stop probing gh in check runtime - ([4ff0b48](https://github.com/adaouat/heraut/commit/4ff0b48a223dbeecafeca1bfc25d7d16ffbdefab)) by @bchatard
+
+- *(cmd)* [**breaking**] Refuse to replace an existing notes --output file - ([21cf83f](https://github.com/adaouat/heraut/commit/21cf83fdd3a179ee4fc3d32da10802083356b4b6)) by @bchatard
+
+- *(config)* Derive the GitHub API root from base_url - ([75594b9](https://github.com/adaouat/heraut/commit/75594b9cb732e8bbdf5c21ac392ebeccda35c594)) by @bchatard
+
+- *(forge)* Derive the GitHub API root as publishing does - ([9a5b7df](https://github.com/adaouat/heraut/commit/9a5b7dfa64069ad1d439e823d9099712056e8a10)) by @bchatard
+
+- *(pipeline)* Stop publishing on Ctrl-C and bound GitHub requests - ([2b88be3](https://github.com/adaouat/heraut/commit/2b88be3f61cddc3de27e624f92c0e8a580d0b515)) by @bchatard
+
+- *(platforms)* Open release assets once, inside the repository root - ([e9d50a0](https://github.com/adaouat/heraut/commit/e9d50a0c5a55930cc6ddd6a61390d3dab2789347)) by @bchatard
+
+- *(platforms/github)* Add a go-github publish client - ([3a1d82a](https://github.com/adaouat/heraut/commit/3a1d82a81d9023230f1d20053d7bd6598353b2c4)) by @bchatard
+
+- *(platforms/github)* Publish through the in-process client - ([541c7b6](https://github.com/adaouat/heraut/commit/541c7b6790a7b85d96ef88c195b9deba5f11658d)) by @bchatard
+
+
+### 🐛 Bug Fixes
+
+- *(cmd)* Wrap the notes --output refusal and require --output - ([0530063](https://github.com/adaouat/heraut/commit/0530063b86f7a9167276fb11700b4779259b01ce)) by @bchatard
+
+- *(generators/native)* Remove temp files an interrupted write left - ([edc48ba](https://github.com/adaouat/heraut/commit/edc48ba6df3063da39c39610e7cb330506b12419)) by @bchatard
+
+- *(platforms)* Refuse non-regular assets and never block on a FIFO - ([94f81f2](https://github.com/adaouat/heraut/commit/94f81f2b28919171477baeede601c790fe5c59ac)) by @bchatard
+
+- *(platforms)* Refuse duplicate and non-regular assets before commit - ([adddf4f](https://github.com/adaouat/heraut/commit/adddf4f2e787e71278d5b75d513ea4a47ffaf505)) by @bchatard
+
+- *(platforms/github)* Refuse assets GitHub would publish as one - ([0b03773](https://github.com/adaouat/heraut/commit/0b03773d7e409e29fe4ba84a34205fa5387af271)) by @bchatard
+
+- *(platforms/gitlab)* Upload assets from the files opened once - ([a01fe4b](https://github.com/adaouat/heraut/commit/a01fe4b84d67d28d5eb41f78f749cb8342069c7d)) by @bchatard
+
+- *(scaffold)* Keep the default GitHub token chain in heraut init - ([1d6c4ae](https://github.com/adaouat/heraut/commit/1d6c4ae561cbe17fd92f1af74309487000be74a4)) by @bchatard
+
+
+### 🚜 Refactor
+
+- *(config)* Export SameOrigin - ([32ad21d](https://github.com/adaouat/heraut/commit/32ad21d4a293759763b83b0e2ef1d773a3da75b9)) by @bchatard
+
+
+### 📚 Documentation
+
+- *(adr)* Add 0077 GitHub publish transport without gh - ([b0821b4](https://github.com/adaouat/heraut/commit/b0821b4f183b11ed509723179e81f0565a6dcdf1)) by @bchatard
+
+- *(adr)* Accept 0077 with go-github as the GitHub transport - ([df519dc](https://github.com/adaouat/heraut/commit/df519dc1af8f6e405898c35e7d103deda66485bf)) by @bchatard
+
+- *(adr)* Record the GITHUB_API_URL rules approved in T424 - ([ee82f5b](https://github.com/adaouat/heraut/commit/ee82f5bf04b05aef1b5330b3950c508492c582d8)) by @bchatard
+
+- *(roadmap)* Plan the GitHub client epic as Phase 80 - ([15a270b](https://github.com/adaouat/heraut/commit/15a270b3744814eb795dce63db1d562e1d4357b9)) by @bchatard
+
+- *(roadmap)* Complete T423, the GitHub transport gate - ([65fc633](https://github.com/adaouat/heraut/commit/65fc633c52c23319d8b23b992caaa0a613f78e64)) by @bchatard
+
+- *(roadmap)* Add T432, refuse late asset errors in the preflight - ([70d5e2f](https://github.com/adaouat/heraut/commit/70d5e2f882563ccb70d94a6de543c95a28bff040)) by @bchatard
+
+- *(roadmap)* Complete T432 and close Phase 80 - ([d57704c](https://github.com/adaouat/heraut/commit/d57704c4256f7f0951a37a9ac9ee67b464467e05)) by @bchatard
+
+- *(roadmap)* Add T433 to drop Lane A's fake-binary helper - ([f95c902](https://github.com/adaouat/heraut/commit/f95c902b9129f288554e582433c5f7cd36dbb289)) by @bchatard
+
+- *(roadmap)* Complete T433 - ([9770040](https://github.com/adaouat/heraut/commit/9770040b5b44220527a6f5b930c0b55668ed9fdd)) by @bchatard
+
+- *(roadmap)* Schedule the last open security findings - ([2db4fb2](https://github.com/adaouat/heraut/commit/2db4fb28bcbdc18481c32651eef305f0b3347d0c)) by @bchatard
+
+- *(roadmap)* Fix stale epic statuses - ([cfa9459](https://github.com/adaouat/heraut/commit/cfa9459b0b245e9012915c6ffd1767fc026ca111)) by @bchatard
+
+- *(roadmap)* Add Phase 83 for the code review follow-ups - ([eb64df3](https://github.com/adaouat/heraut/commit/eb64df34e906e114728768ef29344add8cda0767)) by @bchatard
+
+- *(roadmap)* Complete T437 - ([d5a865d](https://github.com/adaouat/heraut/commit/d5a865d679bbc4c437617c5b7e166940834d0c99)) by @bchatard
+
+- Describe the in-process GitHub driver - ([5506e4a](https://github.com/adaouat/heraut/commit/5506e4aea87f106a1d39f7d884af833b1bb490bb)) by @bchatard
+
+- Drop gh as a runtime tool - ([d5e247c](https://github.com/adaouat/heraut/commit/d5e247c0079b52f5b356dd2a4e905fdbb3cd467d)) by @bchatard
+
+- Record Lane B on GitHub with the in-process driver - ([ca05be5](https://github.com/adaouat/heraut/commit/ca05be5c0873ec88b7e2834201c238977f95dbf3)) by @bchatard
+
+- Describe the shared GitHub API root for enrichment - ([9031f61](https://github.com/adaouat/heraut/commit/9031f61d29028fb79246e1db729fbe1a59df5059)) by @bchatard
+
+- Record T431 and resolve NEW-002 for GitLab - ([5930fe3](https://github.com/adaouat/heraut/commit/5930fe3d44bfa2a50a10d0f789bcb47d1d8e5023)) by @bchatard
+
+- Record T434 and resolve NEW-005 - ([e8e0385](https://github.com/adaouat/heraut/commit/e8e0385c26d660cd74e1485fc157d4d95d574a42)) by @bchatard
+
+- Record T435 and resolve SEC-002 - ([f84416f](https://github.com/adaouat/heraut/commit/f84416f022cf3b9ddd576426ebfdd0944d66681c)) by @bchatard
+
+- Leave token_env out of the GitHub examples - ([155d50e](https://github.com/adaouat/heraut/commit/155d50e756889cd22ac9a0ddb6647194af175c79)) by @bchatard
+
+- Record GitHub's asset renaming and complete T438 - ([5d5c28c](https://github.com/adaouat/heraut/commit/5d5c28cb16c4408c3ed45f0234a73cbd96cd02ab)) by @bchatard
+
+- Describe Ctrl-C during publishing and complete T439 - ([be8acdf](https://github.com/adaouat/heraut/commit/be8acdfa8bddc6c5344c2a95c95cecac237051d6)) by @bchatard
+
+
+### 🧪 Testing
+
+- *(e2e)* Drop the fake-binary helper from the Lane A harness - ([f957429](https://github.com/adaouat/heraut/commit/f957429a09bdeb1e80de9cd2462f6b57b4ac1ed6)) by @bchatard
+
+- *(e2e/harness)* Add a loopback GitHub stand-in - ([f1b0fb6](https://github.com/adaouat/heraut/commit/f1b0fb66bec701f826ae9ffcaf6e3c4f7eff2e40)) by @bchatard
+
+- *(platforms)* Check earlier assets are closed when a later one fails - ([24ac6de](https://github.com/adaouat/heraut/commit/24ac6dea47db5623c30f183f5c800194ab514c52)) by @bchatard
+
+- *(platforms/github)* Pin the documented loopback contract test - ([4e3286c](https://github.com/adaouat/heraut/commit/4e3286cdcd7e3538d0f4e2871db6d0765ee7a040)) by @bchatard
+
+
+### ⚙️ Miscellaneous Tasks
+
+- Drop gh from the Docker image - ([b0a85af](https://github.com/adaouat/heraut/commit/b0a85af592bd784769b4a097e3f660df8fed2060)) by @bchatard
+
 <!-- heraut-release: v0.81.0 -->
 ## [0.81.0](https://github.com/adaouat/heraut/compare/v0.80.0..v0.81.0) - 2026-10-24
 
@@ -3618,4 +3726,4 @@
 <!-- heraut-footer -->
 
 ---
-_Generated by [heraut](https://github.com/adaouat/heraut) v0.81.0 at 20:12 on 2026-10-24._
+_Generated by [heraut](https://github.com/adaouat/heraut) v0.82.0 at 09:59 on 2026-10-28._
