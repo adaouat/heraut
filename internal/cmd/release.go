@@ -182,7 +182,7 @@ func runRelease(cmd *cobra.Command, version string, rf *releaseFlags, asJSON boo
 		}
 		return writeJSON(cmd.OutOrStdout(), planData(plan), plan.Warnings, nil)
 	}
-	return wrapRunErr(pipe.Run(), "release failed")
+	return wrapRunErr(pipe.Run(cmd.Context()), "release failed")
 }
 
 // planData is the JSON data of `release --dry-run --json`; steps keep the order a real run follows.

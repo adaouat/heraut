@@ -71,7 +71,7 @@ func TestPlatform_TokenChain(t *testing.T) {
 	}
 	operations := map[string]func(p *Platform) error{
 		"check":   func(p *Platform) error { return p.Check() },
-		"publish": func(p *Platform) error { return p.CreateRelease("v1.0.0", "notes", false) },
+		"publish": func(p *Platform) error { return p.CreateRelease(t.Context(), "v1.0.0", "notes", false) },
 	}
 	for _, tc := range tests {
 		for op, run := range operations {
@@ -192,7 +192,7 @@ func TestPlatform_CreateReleaseSendsTheTargetOptions(t *testing.T) {
 			f := newFakeGitHub(t, githubUploadURL)
 			p, _ := testPlatform(&config.Platform{Repository: testRepository, Draft: tc.draft}, map[string]string{"GH_TOKEN": "tok"}, f)
 
-			require.NoError(t, p.CreateRelease("v1.2.3", "## Notes\n", tc.prerelease))
+			require.NoError(t, p.CreateRelease(t.Context(), "v1.2.3", "## Notes\n", tc.prerelease))
 
 			calls := f.recorded()
 			require.Len(t, calls, 1)
@@ -210,7 +210,7 @@ func TestPlatform_CreateReleaseReadsTheRepositoryFromTheEnvironment(t *testing.T
 	f := newFakeGitHub(t, githubUploadURL)
 	p, _ := testPlatform(&config.Platform{}, map[string]string{"GH_TOKEN": "tok", "GITHUB_REPOSITORY": "envorg/envrepo"}, f)
 
-	require.NoError(t, p.CreateRelease("v1.0.0", "notes", false))
+	require.NoError(t, p.CreateRelease(t.Context(), "v1.0.0", "notes", false))
 	assert.Equal(t, []string{"POST api.github.com/repos/envorg/envrepo/releases"}, f.requests())
 }
 
@@ -218,7 +218,7 @@ func TestPlatform_CreateReleaseWithoutRepositoryCallsNothing(t *testing.T) {
 	f := newFakeGitHub(t, githubUploadURL)
 	p, _ := testPlatform(&config.Platform{}, map[string]string{"GH_TOKEN": "tok"}, f)
 
-	err := p.CreateRelease("v1.0.0", "notes", false)
+	err := p.CreateRelease(t.Context(), "v1.0.0", "notes", false)
 
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "repository not set")
@@ -231,7 +231,7 @@ func TestPlatform_CreateReleaseUploadsTheMatchedFiles(t *testing.T) {
 	p, warnings := testPlatform(&config.Platform{Repository: testRepository, Assets: []string{"dist/app_*"}},
 		map[string]string{"GH_TOKEN": "tok"}, f)
 
-	require.NoError(t, p.CreateRelease("v1.0.0", "notes", false))
+	require.NoError(t, p.CreateRelease(t.Context(), "v1.0.0", "notes", false))
 
 	assert.Equal(t, []string{
 		"POST api.github.com" + releasesPath,
@@ -255,7 +255,7 @@ func TestPlatform_CreateReleaseSkipsAnUnmatchedPatternWithAWarning(t *testing.T)
 	p, warnings := testPlatform(&config.Platform{Repository: testRepository, Assets: []string{"dist/*", "build/*"}},
 		map[string]string{"GH_TOKEN": "tok"}, f)
 
-	require.NoError(t, p.CreateRelease("v1.0.0", "notes", false))
+	require.NoError(t, p.CreateRelease(t.Context(), "v1.0.0", "notes", false))
 
 	assert.Equal(t, []string{"POST api.github.com" + releasesPath}, f.requests())
 	assert.Equal(t, false, jsonBody(t, f.recorded()[0])["draft"], "with nothing to upload the release is published at once")
@@ -269,7 +269,7 @@ func TestPlatform_CreateReleaseWarnsWhenGitHubRenamesAnAsset(t *testing.T) {
 	p, warnings := testPlatform(&config.Platform{Repository: testRepository, Assets: []string{"dist/*"}},
 		map[string]string{"GH_TOKEN": "tok"}, f)
 
-	require.NoError(t, p.CreateRelease("v1.0.0", "notes", false))
+	require.NoError(t, p.CreateRelease(t.Context(), "v1.0.0", "notes", false))
 
 	assert.Equal(t, "meta#1.json", f.recorded()[1].Query.Get("name"), "the name is sent as the file's basename")
 	assert.Contains(t, warnings.String(), `"dist/meta#1.json" was published as "meta.1.json"`)
@@ -284,7 +284,7 @@ func TestPlatform_CreateReleaseRefusesAnAssetOutsideTheRepository(t *testing.T) 
 	p, _ := testPlatform(&config.Platform{Repository: testRepository, Assets: []string{filepath.Join(outside, "*.txt")}},
 		map[string]string{"GH_TOKEN": "tok"}, f)
 
-	err := p.CreateRelease("v1.0.0", "notes", false)
+	err := p.CreateRelease(t.Context(), "v1.0.0", "notes", false)
 
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "outside the repository")
@@ -297,7 +297,7 @@ func TestPlatform_CreateReleaseFailureIsWrapped(t *testing.T) {
 		`{"message":"Validation Failed","errors":[{"resource":"Release","code":"already_exists","field":"tag_name"}]}`)
 	p, _ := testPlatform(githubTarget, map[string]string{"GH_TOKEN": "tok"}, f)
 
-	err := p.CreateRelease("v1.0.0", "notes", false)
+	err := p.CreateRelease(t.Context(), "v1.0.0", "notes", false)
 
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "github release create")

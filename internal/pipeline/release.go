@@ -1,6 +1,7 @@
 package pipeline
 
 import (
+	"context"
 	"fmt"
 	"io"
 	"log/slog"
@@ -104,7 +105,7 @@ func (p *Pipeline) Check() error {
 //  5. For each platform: (if notes configured + multi-platform) regenerate notes with the
 //     platform's LinkContext, then CreateRelease, which also attaches any assets — reported as
 //     a sub-result when platform.HasAssets()
-func (p *Pipeline) Run() error {
+func (p *Pipeline) Run(ctx context.Context) error {
 	var result versioning.Result
 	if err := p.runStep("Resolve version", func() (string, []string, error) {
 		r, err := p.resolver.Resolve()
@@ -119,7 +120,7 @@ func (p *Pipeline) Run() error {
 	}
 	printResolveWarnings(p.out, result.Warnings)
 
-	flow := p.releaseFlow(result)
+	flow := p.releaseFlow(ctx, result)
 	if err := p.runner().runSteps(flow.prelude, &flow.hookFailed); err != nil {
 		return err
 	}

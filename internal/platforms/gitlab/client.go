@@ -1,6 +1,7 @@
 package gitlab
 
 import (
+	"context"
 	"fmt"
 	"net/http"
 	"strings"
@@ -66,13 +67,14 @@ func dropTokenOnCrossHostRedirect(c *http.Client) {
 // no asset-less release behind. Each asset is read from its open file, never reopened by path
 // (platforms.OpenAssets). POST /uploads is not used: it rejects CI_JOB_TOKEN, the
 // Generic Packages API accepts it. Each link's direct_asset_path keeps the public download URL
-// (.../releases/<tag>/downloads/<file>) independent of the package version.
-func (c *Client) CreateRelease(project, tag, notes string, assets []platforms.Asset) error {
+// (.../releases/<tag>/downloads/<file>) independent of the package version. ctx stops the requests
+// (Ctrl-C); an upload cut short creates no release.
+func (c *Client) CreateRelease(ctx context.Context, project, tag, notes string, assets []platforms.Asset) error {
 	version := packageVersion(tag)
 	links := make([]*gl.ReleaseAssetLinkOptions, 0, len(assets))
 	for _, a := range assets {
 		name := a.Name
-		if _, _, err := c.api.GenericPackages.PublishPackageFile(project, assetPackageName, version, name, a.File, nil); err != nil {
+		if _, _, err := c.api.GenericPackages.PublishPackageFile(project, assetPackageName, version, name, a.File, nil, gl.WithContext(ctx)); err != nil {
 			return fmt.Errorf("uploading asset %s: %w", name, err)
 		}
 		path, err := c.api.GenericPackages.FormatPackageURL(project, assetPackageName, version, name)
@@ -95,7 +97,7 @@ func (c *Client) CreateRelease(project, tag, notes string, assets []platforms.As
 	if len(links) > 0 {
 		opts.Assets = &gl.ReleaseAssetsOptions{Links: links}
 	}
-	if _, _, err := c.api.Releases.CreateRelease(project, opts); err != nil {
+	if _, _, err := c.api.Releases.CreateRelease(project, opts, gl.WithContext(ctx)); err != nil {
 		return fmt.Errorf("creating release %s: %w", tag, err)
 	}
 	return nil

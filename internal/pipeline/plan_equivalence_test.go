@@ -112,7 +112,7 @@ func TestRelease_PlanDryRunAndRealRunListTheSameSteps(t *testing.T) {
 
 			var dry []capturedStep
 			require.NoError(t, pipeline.New(exectest.NewMockRunner(), &fakeResolver{result: res}, tc.cfg(), &bytes.Buffer{}, true).
-				WithReporter(capturingStepFn(&dry)).Run())
+				WithReporter(capturingStepFn(&dry)).Run(t.Context()))
 			assert.Equal(t, want, stepNames(dry), "dry-run steps")
 
 			mr := exectest.NewMockRunner()
@@ -121,7 +121,7 @@ func TestRelease_PlanDryRunAndRealRunListTheSameSteps(t *testing.T) {
 			}
 			var real []capturedStep
 			require.NoError(t, pipeline.New(mr, &fakeResolver{result: res}, tc.cfg(), &bytes.Buffer{}, false).
-				WithReporter(capturingStepFn(&real)).Run())
+				WithReporter(capturingStepFn(&real)).Run(t.Context()))
 			assert.Equal(t, want, stepNames(real), "executed steps")
 		})
 	}

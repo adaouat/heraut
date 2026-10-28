@@ -81,7 +81,7 @@ func TestRun_HappyPath_NoChangelog(t *testing.T) {
 	}
 
 	p := pipeline.New(mr, &fakeResolver{result: resolvedResult("v1.2.3")}, cfg, &bytes.Buffer{}, false)
-	require.NoError(t, p.Run())
+	require.NoError(t, p.Run(t.Context()))
 
 	// git tag v1.2.3
 	require.Len(t, mr.Calls, 2)
@@ -125,7 +125,7 @@ func TestRun_Prerelease_DerivedFromVersion(t *testing.T) {
 
 			result := versioning.Result{Version: tc.version, Tag: "v" + tc.version}
 			p := pipeline.New(mr, &fakeResolver{result: result}, cfg, &bytes.Buffer{}, false)
-			require.NoError(t, p.Run())
+			require.NoError(t, p.Run(t.Context()))
 
 			require.Len(t, platform.CreateReleaseCalls, 1)
 			assert.Equal(t, tc.want, platform.CreateReleaseCalls[0].Prerelease)
@@ -159,7 +159,7 @@ func TestRun_WithChangelog(t *testing.T) {
 	}
 
 	p := pipeline.New(mr, &fakeResolver{result: resolvedResult("v1.2.3")}, cfg, &bytes.Buffer{}, false)
-	require.NoError(t, p.Run())
+	require.NoError(t, p.Run(t.Context()))
 
 	require.Len(t, changelog.GenerateCalls, 1)
 	assert.Equal(t, "v1.2.3", changelog.GenerateCalls[0])
@@ -189,7 +189,7 @@ func TestRun_WithNotes(t *testing.T) {
 	}
 
 	p := pipeline.New(mr, &fakeResolver{result: resolvedResult("v1.2.3")}, cfg, &bytes.Buffer{}, false)
-	require.NoError(t, p.Run())
+	require.NoError(t, p.Run(t.Context()))
 
 	require.Len(t, notes.GenerateCalls, 1)
 	require.Len(t, platform.CreateReleaseCalls, 1)
@@ -221,7 +221,7 @@ func TestRun_SinglePlatform_PlatformContext(t *testing.T) {
 	cfg := &pipeline.Config{Notes: notes, Platforms: []port.Platform{gh}}
 
 	p := pipeline.New(mr, &fakeResolver{result: resolvedResult("v1.2.3")}, cfg, &bytes.Buffer{}, false)
-	require.NoError(t, p.Run())
+	require.NoError(t, p.Run(t.Context()))
 
 	require.Len(t, notes.GenerateCalls, 1)
 	require.Len(t, notes.GenerateContexts, 1)
@@ -248,7 +248,7 @@ func TestRun_SinglePlatform_AmbientHostPreferred(t *testing.T) {
 	cfg := &pipeline.Config{Notes: notes, Platforms: []port.Platform{gl}}
 
 	p := pipeline.New(mr, &fakeResolver{result: resolvedResult("v1.2.3")}, cfg, &bytes.Buffer{}, false)
-	require.NoError(t, p.Run())
+	require.NoError(t, p.Run(t.Context()))
 
 	require.NotNil(t, notes.GenerateContexts[0])
 	assert.Equal(t, "https://gitlab.example.com/grp/proj", notes.GenerateContexts[0].BaseURL,
@@ -271,7 +271,7 @@ func TestRun_SinglePlatform_AmbientMismatchIgnored(t *testing.T) {
 	cfg := &pipeline.Config{Notes: notes, Platforms: []port.Platform{gh}}
 
 	p := pipeline.New(mr, &fakeResolver{result: resolvedResult("v1.2.3")}, cfg, &bytes.Buffer{}, false)
-	require.NoError(t, p.Run())
+	require.NoError(t, p.Run(t.Context()))
 
 	require.NotNil(t, notes.GenerateContexts[0])
 	assert.Equal(t, lc, *notes.GenerateContexts[0], "mismatched ambient platform must be ignored")
@@ -296,7 +296,7 @@ func TestRun_MultiPlatform_NotesPerPlatform(t *testing.T) {
 	cfg := &pipeline.Config{Notes: notes, Platforms: []port.Platform{gh, gl}}
 
 	p := pipeline.New(mr, &fakeResolver{result: resolvedResult("v1.2.3")}, cfg, &bytes.Buffer{}, false)
-	require.NoError(t, p.Run())
+	require.NoError(t, p.Run(t.Context()))
 
 	require.Len(t, notes.GenerateCalls, 2)
 	require.Len(t, notes.GenerateContexts, 2)
@@ -331,7 +331,7 @@ func TestRun_Changelog_PlatformFallback_WhenNoAmbient(t *testing.T) {
 	}
 
 	p := pipeline.New(mr, &fakeResolver{result: resolvedResult("v1.2.3")}, cfg, &bytes.Buffer{}, false)
-	require.NoError(t, p.Run())
+	require.NoError(t, p.Run(t.Context()))
 
 	require.Len(t, changelog.GenerateContexts, 1)
 	require.NotNil(t, changelog.GenerateContexts[0], "changelog must receive platform context when no ambient CI env")
@@ -363,7 +363,7 @@ func TestRun_Changelog_AmbientPreferredForChangelog(t *testing.T) {
 	}
 
 	p := pipeline.New(mr, &fakeResolver{result: resolvedResult("v1.2.3")}, cfg, &bytes.Buffer{}, false)
-	require.NoError(t, p.Run())
+	require.NoError(t, p.Run(t.Context()))
 
 	require.Len(t, changelog.GenerateContexts, 1)
 	require.NotNil(t, changelog.GenerateContexts[0])
@@ -393,7 +393,7 @@ func TestRun_Changelog_NilContext_MultiPlatform(t *testing.T) {
 	}
 
 	p := pipeline.New(mr, &fakeResolver{result: resolvedResult("v1.2.3")}, cfg, &bytes.Buffer{}, false)
-	require.NoError(t, p.Run())
+	require.NoError(t, p.Run(t.Context()))
 
 	require.Len(t, changelog.GenerateContexts, 1)
 	assert.Nil(t, changelog.GenerateContexts[0], "changelog must get nil when multiple platforms and no ambient CI env")
@@ -423,7 +423,7 @@ func TestRun_MultiPlatform_Notes_AmbientForMatchingPlatform(t *testing.T) {
 	cfg := &pipeline.Config{Notes: notes, Platforms: []port.Platform{gl, gh}}
 
 	p := pipeline.New(mr, &fakeResolver{result: resolvedResult("v1.2.3")}, cfg, &bytes.Buffer{}, false)
-	require.NoError(t, p.Run())
+	require.NoError(t, p.Run(t.Context()))
 
 	require.Len(t, notes.GenerateContexts, 2, "notes must be generated once per platform")
 	require.NotNil(t, notes.GenerateContexts[0])
@@ -456,7 +456,7 @@ func TestRun_PublishStep_UsesAmbientContextForReleaseURL(t *testing.T) {
 	cfg := &pipeline.Config{Platforms: []port.Platform{gl}}
 
 	p := pipeline.New(mr, &fakeResolver{result: resolvedResult("v1.2.3")}, cfg, &bytes.Buffer{}, false)
-	require.NoError(t, p.Run())
+	require.NoError(t, p.Run(t.Context()))
 
 	require.NotEmpty(t, gl.ReleaseURLFromContextCalls, "ReleaseURLFromContext must be called (not ReleaseURL)")
 	for _, call := range gl.ReleaseURLFromContextCalls {
@@ -481,7 +481,7 @@ func TestRun_WithAssets(t *testing.T) {
 	cfg := &pipeline.Config{Platforms: []port.Platform{platform}}
 
 	p := pipeline.New(mr, &fakeResolver{result: resolvedResult("v1.2.3")}, cfg, &bytes.Buffer{}, false)
-	require.NoError(t, p.Run())
+	require.NoError(t, p.Run(t.Context()))
 
 	require.Len(t, platform.CreateReleaseCalls, 1)
 	assert.Equal(t, "v1.2.3", platform.CreateReleaseCalls[0].Tag)
@@ -500,7 +500,7 @@ func TestRun_BadAssets_FailsBeforeAnyGitMutation(t *testing.T) {
 	cfg := &pipeline.Config{Changelog: gen, Platforms: []port.Platform{platform}}
 
 	p := pipeline.New(mr, &fakeResolver{result: resolvedResult("v1.2.3")}, cfg, &bytes.Buffer{}, false)
-	err := p.Run()
+	err := p.Run(t.Context())
 
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "github")
@@ -516,7 +516,7 @@ func TestRun_BadAssets_DryRunReportsIt(t *testing.T) {
 	cfg := &pipeline.Config{Platforms: []port.Platform{platform}}
 
 	p := pipeline.New(exectest.NewMockRunner(), &fakeResolver{result: resolvedResult("v1.2.3")}, cfg, &bytes.Buffer{}, true)
-	require.ErrorContains(t, p.Run(), "outside the repository")
+	require.ErrorContains(t, p.Run(t.Context()), "outside the repository")
 }
 
 // ADR-0076: a pattern that matches nothing is refused at the same gate, before any mutation.
@@ -530,7 +530,7 @@ func TestRun_UnmatchedAssetPattern_FailsBeforeAnyGitMutation(t *testing.T) {
 	}
 	cfg := &pipeline.Config{Changelog: gen, Platforms: []port.Platform{platform}}
 
-	err := pipeline.New(mr, &fakeResolver{result: resolvedResult("v1.2.3")}, cfg, &bytes.Buffer{}, false).Run()
+	err := pipeline.New(mr, &fakeResolver{result: resolvedResult("v1.2.3")}, cfg, &bytes.Buffer{}, false).Run(t.Context())
 
 	require.ErrorIs(t, err, port.ErrAssetUnmatched)
 	assert.Empty(t, mr.Calls, "nothing may be committed, tagged or pushed")
@@ -547,7 +547,7 @@ func TestRun_UnmatchedAssetPattern_DryRunOnlyWarns(t *testing.T) {
 	cfg := &pipeline.Config{Platforms: []port.Platform{platform}}
 	var out bytes.Buffer
 
-	err := pipeline.New(exectest.NewMockRunner(), &fakeResolver{result: resolvedResult("v1.2.3")}, cfg, &out, true).Run()
+	err := pipeline.New(exectest.NewMockRunner(), &fakeResolver{result: resolvedResult("v1.2.3")}, cfg, &out, true).Run(t.Context())
 
 	require.NoError(t, err)
 	assert.Contains(t, out.String(), `asset pattern "dist/*" matches no file`)
@@ -568,7 +568,7 @@ func TestRun_DryRun(t *testing.T) {
 
 	out := &bytes.Buffer{}
 	p := pipeline.New(mr, &fakeResolver{result: resolvedResult("v1.2.3")}, cfg, out, true)
-	require.NoError(t, p.Run())
+	require.NoError(t, p.Run(t.Context()))
 
 	// No real runner calls in dry-run
 	assert.Len(t, mr.Calls, 0)
@@ -595,7 +595,7 @@ func TestRun_DisableChangelog(t *testing.T) {
 	}
 
 	p := pipeline.New(mr, &fakeResolver{result: resolvedResult("v1.2.3")}, cfg, &bytes.Buffer{}, false)
-	require.NoError(t, p.Run())
+	require.NoError(t, p.Run(t.Context()))
 
 	// Generator.Generate should not have been called
 	assert.Len(t, changelog.GenerateCalls, 0)
@@ -623,7 +623,7 @@ func TestRun_CommitMessage(t *testing.T) {
 	}
 
 	p := pipeline.New(mr, &fakeResolver{result: resolvedResult("v1.2.3")}, cfg, &bytes.Buffer{}, false)
-	require.NoError(t, p.Run())
+	require.NoError(t, p.Run(t.Context()))
 
 	commitCall := mr.Calls[2]
 	assert.Equal(t, "commit", commitCall.Args[0])
@@ -655,7 +655,7 @@ func TestRun_UsesRotatedChangelogOutputPath(t *testing.T) {
 	}
 
 	p := pipeline.New(mr, &fakeResolver{result: resolvedResult("2026.05.0")}, cfg, &bytes.Buffer{}, false)
-	require.NoError(t, p.Run())
+	require.NoError(t, p.Run(t.Context()))
 
 	addCall := mr.Calls[0]
 	assert.Equal(t, []string{"add", "CHANGELOG_2026.md"}, addCall.Args,
@@ -683,7 +683,7 @@ func TestRun_CustomCommitMessage(t *testing.T) {
 	}
 
 	p := pipeline.New(mr, &fakeResolver{result: resolvedResult("v1.2.3")}, cfg, &bytes.Buffer{}, false)
-	require.NoError(t, p.Run())
+	require.NoError(t, p.Run(t.Context()))
 
 	commitCall := mr.Calls[2]
 	assert.Equal(t, "release: v1.2.3", commitCall.Args[2])
@@ -700,7 +700,7 @@ func TestRun_AnnotatedTag(t *testing.T) {
 	}
 
 	p := pipeline.New(mr, &fakeResolver{result: resolvedResult("v1.2.3")}, cfg, &bytes.Buffer{}, false)
-	require.NoError(t, p.Run())
+	require.NoError(t, p.Run(t.Context()))
 
 	require.Len(t, mr.Calls, 2)
 	assert.Equal(t, []string{"tag", "-a", "v1.2.3", "-m", "chore(release): 1.2.3"}, mr.Calls[0].Args)
@@ -720,7 +720,7 @@ func TestRun_SignedTag(t *testing.T) {
 	}
 
 	p := pipeline.New(mr, &fakeResolver{result: resolvedResult("v1.2.3")}, cfg, &bytes.Buffer{}, false)
-	require.NoError(t, p.Run())
+	require.NoError(t, p.Run(t.Context()))
 
 	require.Len(t, mr.Calls, 2)
 	assert.Equal(t, []string{"tag", "-s", "v1.2.3", "-m", "chore(release): 1.2.3"}, mr.Calls[0].Args)
@@ -741,7 +741,7 @@ func TestRun_SignedTag_LightweightBase(t *testing.T) {
 	}
 
 	p := pipeline.New(mr, &fakeResolver{result: resolvedResult("v1.2.3")}, cfg, &bytes.Buffer{}, false)
-	require.NoError(t, p.Run())
+	require.NoError(t, p.Run(t.Context()))
 
 	require.Len(t, mr.Calls, 2)
 	assert.Equal(t, []string{"tag", "-s", "v1.2.3", "-m", "chore(release): 1.2.3"}, mr.Calls[0].Args)
@@ -759,7 +759,7 @@ func TestRun_AnnotatedTagCustomMessage(t *testing.T) {
 	}
 
 	p := pipeline.New(mr, &fakeResolver{result: resolvedResult("v1.2.3")}, cfg, &bytes.Buffer{}, false)
-	require.NoError(t, p.Run())
+	require.NoError(t, p.Run(t.Context()))
 
 	assert.Equal(t, []string{"tag", "-a", "v1.2.3", "-m", "release: v1.2.3"}, mr.Calls[0].Args)
 }
@@ -769,7 +769,7 @@ func TestRun_ResolverError(t *testing.T) {
 	mr := exectest.NewMockRunner()
 	cfg := &pipeline.Config{}
 	p := pipeline.New(mr, &fakeResolver{err: errors.New("no commits since last tag")}, cfg, &bytes.Buffer{}, false)
-	err := p.Run()
+	err := p.Run(t.Context())
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "no commits")
 }
@@ -790,7 +790,7 @@ func TestRun_DisableNotes(t *testing.T) {
 	}
 
 	p := pipeline.New(mr, &fakeResolver{result: resolvedResult("v1.2.3")}, cfg, &bytes.Buffer{}, false)
-	require.NoError(t, p.Run())
+	require.NoError(t, p.Run(t.Context()))
 
 	// Notes generator must not have been called
 	assert.Len(t, notes.GenerateCalls, 0)
@@ -811,7 +811,7 @@ func TestRun_MultiplePlatforms(t *testing.T) {
 	cfg := &pipeline.Config{Platforms: []port.Platform{p1, p2}}
 
 	p := pipeline.New(mr, &fakeResolver{result: resolvedResult("v1.2.3")}, cfg, &bytes.Buffer{}, false)
-	require.NoError(t, p.Run())
+	require.NoError(t, p.Run(t.Context()))
 
 	assert.Len(t, p1.CreateReleaseCalls, 1)
 	assert.Len(t, p2.CreateReleaseCalls, 1)
@@ -830,7 +830,7 @@ func TestRun_GitAddError(t *testing.T) {
 	}
 
 	p := pipeline.New(mr, &fakeResolver{result: resolvedResult("v1.2.3")}, cfg, &bytes.Buffer{}, false)
-	err := p.Run()
+	err := p.Run(t.Context())
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "git add")
 }
@@ -850,7 +850,7 @@ func TestRun_GitCommitError(t *testing.T) {
 	}
 
 	p := pipeline.New(mr, &fakeResolver{result: resolvedResult("v1.2.3")}, cfg, &bytes.Buffer{}, false)
-	err := p.Run()
+	err := p.Run(t.Context())
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "git commit")
 }
@@ -871,7 +871,7 @@ func TestRun_GitPushError(t *testing.T) {
 	}
 
 	p := pipeline.New(mr, &fakeResolver{result: resolvedResult("v1.2.3")}, cfg, &bytes.Buffer{}, false)
-	err := p.Run()
+	err := p.Run(t.Context())
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "git push")
 }
@@ -896,7 +896,7 @@ func TestRun_DefaultChangelogFile(t *testing.T) {
 	}
 
 	p := pipeline.New(mr, &fakeResolver{result: resolvedResult("v1.2.3")}, cfg, &bytes.Buffer{}, false)
-	require.NoError(t, p.Run())
+	require.NoError(t, p.Run(t.Context()))
 
 	assert.Equal(t, []string{"add", "CHANGELOG.md"}, mr.Calls[0].Args)
 }
@@ -912,7 +912,7 @@ func TestRun_ChangelogGenerateError(t *testing.T) {
 	}
 
 	p := pipeline.New(mr, &fakeResolver{result: resolvedResult("v1.2.3")}, cfg, &bytes.Buffer{}, false)
-	err := p.Run()
+	err := p.Run(t.Context())
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "generating changelog")
 }
@@ -925,7 +925,7 @@ func TestRun_GitTagError(t *testing.T) {
 	cfg := &pipeline.Config{}
 
 	p := pipeline.New(mr, &fakeResolver{result: resolvedResult("v1.2.3")}, cfg, &bytes.Buffer{}, false)
-	err := p.Run()
+	err := p.Run(t.Context())
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "git tag")
 }
@@ -939,7 +939,7 @@ func TestRun_GitPushTagError(t *testing.T) {
 	cfg := &pipeline.Config{}
 
 	p := pipeline.New(mr, &fakeResolver{result: resolvedResult("v1.2.3")}, cfg, &bytes.Buffer{}, false)
-	err := p.Run()
+	err := p.Run(t.Context())
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "git push v1.2.3")
 }
@@ -957,7 +957,7 @@ func TestRun_ReleaseNotesError(t *testing.T) {
 	}
 
 	p := pipeline.New(mr, &fakeResolver{result: resolvedResult("v1.2.3")}, cfg, &bytes.Buffer{}, false)
-	err := p.Run()
+	err := p.Run(t.Context())
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "generating release notes")
 }
@@ -976,7 +976,7 @@ func TestRun_CreateReleaseError(t *testing.T) {
 	cfg := &pipeline.Config{Platforms: []port.Platform{platform}}
 
 	p := pipeline.New(mr, &fakeResolver{result: resolvedResult("v1.2.3")}, cfg, &bytes.Buffer{}, false)
-	err := p.Run()
+	err := p.Run(t.Context())
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "create release")
 }
@@ -1015,7 +1015,7 @@ func TestRun_ChangelogNothingToCommit(t *testing.T) {
 
 	out := &bytes.Buffer{}
 	p := pipeline.New(mr, &fakeResolver{result: resolvedResult("v1.2.3")}, cfg, out, false)
-	require.NoError(t, p.Run())
+	require.NoError(t, p.Run(t.Context()))
 
 	// No commit, but HEAD is still pushed (T360).
 	for _, c := range mr.Calls {
@@ -1074,7 +1074,7 @@ func TestRun_DisabledChangelog_PreReleaseStillTagsAndPublishes(t *testing.T) {
 	}
 	result := versioning.Result{Version: "1.4.0-rc.1", Tag: "v1.4.0-rc.1"}
 	p := pipeline.New(mr, &fakeResolver{result: result}, cfg, &bytes.Buffer{}, false)
-	require.NoError(t, p.Run())
+	require.NoError(t, p.Run(t.Context()))
 
 	assert.Empty(t, changelog.GenerateCalls)
 	require.Len(t, mr.Calls, 2)
@@ -1093,7 +1093,7 @@ func TestRun_DryRun_DisabledChangelog_PlainOutputOmitsChangelog(t *testing.T) {
 	}
 	var out bytes.Buffer
 	p := pipeline.New(exectest.NewMockRunner(), &fakeResolver{result: resolvedResult("v1.4.0-rc.1")}, cfg, &out, true)
-	require.NoError(t, p.Run())
+	require.NoError(t, p.Run(t.Context()))
 
 	assert.Contains(t, out.String(), "[dry-run] would tag v1.4.0-rc.1")
 	assert.NotContains(t, out.String(), "hangelog")

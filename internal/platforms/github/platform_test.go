@@ -214,7 +214,7 @@ func TestCreateRelease_SendsTheRelease(t *testing.T) {
 	t.Cleanup(srv.Close)
 
 	plat := github.New(&config.Platform{Repository: "acme/widget", BaseURL: srv.URL})
-	require.NoError(t, plat.CreateRelease("v1.2.3", "release notes body", false))
+	require.NoError(t, plat.CreateRelease(t.Context(), "v1.2.3", "release notes body", false))
 
 	assert.Equal(t, []string{"POST /api/v3/repos/acme/widget/releases"}, got)
 	assert.Equal(t, "v1.2.3", body["tag_name"])

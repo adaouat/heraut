@@ -185,7 +185,7 @@ func TestCreateRelease_WithoutAssetsIsOneCreateCall(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			f := newFakeGitHub(t, githubUploadURL)
 
-			names, err := githubClient(t, f).CreateRelease(tc.tag, "the notes", tc.draft, tc.prerelease, nil)
+			names, err := githubClient(t, f).CreateRelease(t.Context(), tc.tag, "the notes", tc.draft, tc.prerelease, nil)
 			require.NoError(t, err)
 			assert.Empty(t, names)
 
@@ -203,7 +203,7 @@ func TestCreateRelease_LargeNotesTravelInTheBody(t *testing.T) {
 	f := newFakeGitHub(t, githubUploadURL)
 	notes := strings.Repeat("- a changelog line\n", (1<<20)/19+1)
 
-	_, err := githubClient(t, f).CreateRelease("v1.2.3", notes, false, false, nil)
+	_, err := githubClient(t, f).CreateRelease(t.Context(), "v1.2.3", notes, false, false, nil)
 	require.NoError(t, err)
 	assert.Equal(t, notes, jsonBody(t, f.recorded()[0])["body"])
 }
@@ -214,7 +214,7 @@ func TestCreateRelease_WithAssetsCreatesADraftUploadsThenPublishes(t *testing.T)
 	f := newFakeGitHub(t, githubUploadURL)
 	assets := []platforms.Asset{testAsset(t, "app.zip", "zip bytes"), testAsset(t, "notes.txt", "hello")}
 
-	names, err := githubClient(t, f).CreateRelease("v1.2.3", "the notes", false, true, assets)
+	names, err := githubClient(t, f).CreateRelease(t.Context(), "v1.2.3", "the notes", false, true, assets)
 	require.NoError(t, err)
 	assert.Equal(t, []string{"app.zip", "notes.txt"}, names)
 
@@ -248,7 +248,7 @@ func TestCreateRelease_WithAssetsCreatesADraftUploadsThenPublishes(t *testing.T)
 func TestCreateRelease_DraftTargetWithAssetsIsNotPublished(t *testing.T) {
 	f := newFakeGitHub(t, githubUploadURL)
 
-	_, err := githubClient(t, f).CreateRelease("v1.2.3", "n", true, false, []platforms.Asset{testAsset(t, "app.zip", "x")})
+	_, err := githubClient(t, f).CreateRelease(t.Context(), "v1.2.3", "n", true, false, []platforms.Asset{testAsset(t, "app.zip", "x")})
 	require.NoError(t, err)
 	assert.Equal(t, []string{
 		"POST api.github.com" + releasesPath,
@@ -259,7 +259,7 @@ func TestCreateRelease_DraftTargetWithAssetsIsNotPublished(t *testing.T) {
 func TestCreateRelease_ReturnsTheNamesGitHubPublished(t *testing.T) {
 	f := newFakeGitHub(t, githubUploadURL)
 
-	names, err := githubClient(t, f).CreateRelease("v1.2.3", "n", false, false, []platforms.Asset{testAsset(t, "meta#1.json", "{}")})
+	names, err := githubClient(t, f).CreateRelease(t.Context(), "v1.2.3", "n", false, false, []platforms.Asset{testAsset(t, "meta#1.json", "{}")})
 	require.NoError(t, err)
 	assert.Equal(t, "meta#1.json", f.recorded()[1].Query.Get("name"), "the basename is sent as is")
 	assert.Equal(t, []string{"meta.1.json"}, names)
@@ -310,7 +310,7 @@ func TestCreateRelease_Hosts(t *testing.T) {
 			c, err := newClient(tc.baseURL, testRepository, testToken, getenv, f.httpClient())
 			require.NoError(t, err)
 
-			_, err = c.CreateRelease("v1.2.3", "n", true, false, []platforms.Asset{testAsset(t, "app.zip", "x")})
+			_, err = c.CreateRelease(t.Context(), "v1.2.3", "n", true, false, []platforms.Asset{testAsset(t, "app.zip", "x")})
 			require.NoError(t, err)
 			assert.Equal(t, []string{tc.wantCreate, tc.wantUpload}, f.requests())
 			for _, call := range f.recorded() {
@@ -333,7 +333,7 @@ func TestCreateRelease_RefusesAnUnexpectedUploadOriginAndDeletesTheDraft(t *test
 		t.Run(uploadURL, func(t *testing.T) {
 			f := newFakeGitHub(t, uploadURL)
 
-			_, err := githubClient(t, f).CreateRelease("v1.2.3", "n", false, false, []platforms.Asset{testAsset(t, "app.zip", "x")})
+			_, err := githubClient(t, f).CreateRelease(t.Context(), "v1.2.3", "n", false, false, []platforms.Asset{testAsset(t, "app.zip", "x")})
 			require.Error(t, err)
 			assert.Contains(t, err.Error(), "upload URL")
 			assert.Equal(t, []string{
@@ -395,7 +395,7 @@ func TestCreateRelease_FailedUploadDeletesTheDraft(t *testing.T) {
 	f.override[uploadKey] = failWith(http.StatusUnprocessableEntity,
 		`{"message":"Validation Failed","errors":[{"resource":"ReleaseAsset","code":"already_exists","field":"name"}]}`)
 
-	_, err := githubClient(t, f).CreateRelease("v1.2.3", "n", false, false, []platforms.Asset{testAsset(t, "app.zip", "x")})
+	_, err := githubClient(t, f).CreateRelease(t.Context(), "v1.2.3", "n", false, false, []platforms.Asset{testAsset(t, "app.zip", "x")})
 	require.Error(t, err)
 	assert.Equal(t, []string{
 		"POST api.github.com" + releasesPath,
@@ -415,7 +415,7 @@ func TestCreateRelease_FailedPublishDeletesTheDraft(t *testing.T) {
 	f := newFakeGitHub(t, githubUploadURL)
 	f.override["PATCH api.github.com"+releasesPath+"/42"] = failWith(http.StatusInternalServerError, `{"message":"Server Error"}`)
 
-	_, err := githubClient(t, f).CreateRelease("v1.2.3", "n", false, false, []platforms.Asset{testAsset(t, "app.zip", "x")})
+	_, err := githubClient(t, f).CreateRelease(t.Context(), "v1.2.3", "n", false, false, []platforms.Asset{testAsset(t, "app.zip", "x")})
 	require.Error(t, err)
 	assert.Equal(t, []string{
 		"POST api.github.com" + releasesPath,
@@ -434,7 +434,7 @@ func TestCreateRelease_AFailedDeleteIsAppendedToTheOriginalError(t *testing.T) {
 		`{"message":"Validation Failed","errors":[{"resource":"Release","code":"custom","message":"Cannot upload assets to an immutable release."}]}`)
 	f.override["DELETE api.github.com"+releasesPath+"/42"] = failWith(http.StatusForbidden, `{"message":"Must have admin rights to Repository."}`)
 
-	_, err := githubClient(t, f).CreateRelease("v1.2.3", "n", false, false, []platforms.Asset{testAsset(t, "app.zip", "x")})
+	_, err := githubClient(t, f).CreateRelease(t.Context(), "v1.2.3", "n", false, false, []platforms.Asset{testAsset(t, "app.zip", "x")})
 	require.Error(t, err)
 	msg := err.Error()
 	assert.Contains(t, msg, "Cannot upload assets to an immutable release.")
@@ -451,7 +451,7 @@ func TestCreateRelease_FailedCreateLeavesNothingToDelete(t *testing.T) {
 	f.override["POST api.github.com"+releasesPath] = failWith(http.StatusUnprocessableEntity,
 		`{"message":"Validation Failed","errors":[{"resource":"Release","code":"already_exists","field":"tag_name"}]}`)
 
-	_, err := githubClient(t, f).CreateRelease("v1.2.3", "n", false, false, []platforms.Asset{testAsset(t, "app.zip", "x")})
+	_, err := githubClient(t, f).CreateRelease(t.Context(), "v1.2.3", "n", false, false, []platforms.Asset{testAsset(t, "app.zip", "x")})
 	require.Error(t, err)
 	assert.Equal(t, []string{"POST api.github.com" + releasesPath}, f.requests())
 	assert.Contains(t, err.Error(), "creating release v1.2.3")
@@ -554,7 +554,7 @@ func TestNewClient_LeavesTheGivenHTTPClientAlone(t *testing.T) {
 
 	c, err := newClient("https://github.com", testRepository, testToken, noEnv, hc)
 	require.NoError(t, err)
-	_, err = c.CreateRelease("v1.2.3", "n", false, false, []platforms.Asset{testAsset(t, "app.zip", "x")})
+	_, err = c.CreateRelease(t.Context(), "v1.2.3", "n", false, false, []platforms.Asset{testAsset(t, "app.zip", "x")})
 	require.NoError(t, err)
 	assert.Same(t, transport, hc.Transport, "go-github must wrap a copy, not the http.Client it is given")
 }

@@ -25,7 +25,7 @@ func TestBuildPipeline_SkipHooks_DryRunOmitsSkippedPoint(t *testing.T) {
 
 	p, err := app.BuildPipeline(exectest.NewMockRunner(), cfg, defaultResolver, opts)
 	require.NoError(t, err)
-	require.NoError(t, p.Run())
+	require.NoError(t, p.Run(t.Context()))
 
 	assert.NotContains(t, out.String(), "pre-tag-marker", "a skipped point must not appear in the dry-run plan")
 	assert.Contains(t, out.String(), "post-tag-marker", "an unskipped point must still run")
@@ -42,7 +42,7 @@ func TestBuildPipeline_NoSkipHooks_DryRunShowsEveryPoint(t *testing.T) {
 
 	p, err := app.BuildPipeline(exectest.NewMockRunner(), cfg, defaultResolver, opts)
 	require.NoError(t, err)
-	require.NoError(t, p.Run())
+	require.NoError(t, p.Run(t.Context()))
 
 	assert.Contains(t, out.String(), "pre-tag-marker")
 	assert.Contains(t, out.String(), "post-tag-marker")

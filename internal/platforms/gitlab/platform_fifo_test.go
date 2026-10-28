@@ -26,7 +26,7 @@ func TestCreateRelease_Assets_AFIFOIsRefusedWithoutBlocking(t *testing.T) {
 	p := gitlab.New(&config.Platform{Project: "grp/repo", BaseURL: st.srv.URL, Assets: []string{"pipe"}})
 
 	done := make(chan error, 1)
-	go func() { done <- p.CreateRelease("v1.0.0", "notes", false) }()
+	go func() { done <- p.CreateRelease(t.Context(), "v1.0.0", "notes", false) }()
 	select {
 	case err := <-done:
 		require.Error(t, err)

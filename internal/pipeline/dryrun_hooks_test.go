@@ -30,7 +30,7 @@ func TestRun_DryRun_AllFourSharedHookSteps(t *testing.T) {
 	var captured []capturedStep
 	p := pipeline.New(mr, &fakeResolver{result: resolvedResult("v1.2.3")}, cfg, &bytes.Buffer{}, true).
 		WithReporter(capturingStepFn(&captured))
-	require.NoError(t, p.Run())
+	require.NoError(t, p.Run(t.Context()))
 
 	assert.Empty(t, mr.Calls, "dry-run must not execute anything for real")
 
@@ -62,7 +62,7 @@ func TestRun_DryRun_PreReleaseAndPostReleaseHooks_FoldedIntoPublishStep(t *testi
 	var captured []capturedStep
 	p := pipeline.New(mr, &fakeResolver{result: resolvedResult("v1.2.3")}, cfg, &bytes.Buffer{}, true).
 		WithReporter(capturingStepFn(&captured))
-	require.NoError(t, p.Run())
+	require.NoError(t, p.Run(t.Context()))
 
 	names := stepNames(captured)
 	assert.NotContains(t, names, "Run pre_release hooks", "pre/post_release fold into the publish step, not separate steps")
@@ -94,7 +94,7 @@ func TestRun_DryRun_NoHooksSuppressesAllHookOutput(t *testing.T) {
 	var captured []capturedStep
 	p := pipeline.New(mr, &fakeResolver{result: resolvedResult("v1.2.3")}, cfg, &bytes.Buffer{}, true).
 		WithReporter(capturingStepFn(&captured))
-	require.NoError(t, p.Run())
+	require.NoError(t, p.Run(t.Context()))
 
 	names := stepNames(captured)
 	assert.NotContains(t, names, "Run post_bump hooks")
@@ -116,7 +116,7 @@ func TestRun_DryRun_HookTemplateError_Aborts(t *testing.T) {
 	}
 
 	p := pipeline.New(mr, &fakeResolver{result: resolvedResult("v1.2.3")}, cfg, &bytes.Buffer{}, true)
-	require.Error(t, p.Run())
+	require.Error(t, p.Run(t.Context()))
 }
 
 // TestRun_DryRun_PostBumpHookWithStage_ShowsWouldStageLine proves a Stage-bearing HookStep's
@@ -136,7 +136,7 @@ func TestRun_DryRun_PostBumpHookWithStage_ShowsWouldStageLine(t *testing.T) {
 	var captured []capturedStep
 	p := pipeline.New(mr, &fakeResolver{result: resolvedResult("v1.2.3")}, cfg, &bytes.Buffer{}, true).
 		WithReporter(capturingStepFn(&captured))
-	require.NoError(t, p.Run())
+	require.NoError(t, p.Run(t.Context()))
 
 	assert.Empty(t, mr.Calls, "dry-run must not execute anything for real")
 
@@ -160,7 +160,7 @@ func TestRun_DryRun_Plain_ShowsHookLines(t *testing.T) {
 
 	out := &bytes.Buffer{}
 	p := pipeline.New(mr, &fakeResolver{result: resolvedResult("v1.2.3")}, cfg, out, true)
-	require.NoError(t, p.Run())
+	require.NoError(t, p.Run(t.Context()))
 
 	assert.Contains(t, out.String(), "[dry-run] would run: echo 1.2.3")
 }

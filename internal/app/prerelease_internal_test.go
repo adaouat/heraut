@@ -109,7 +109,7 @@ func TestBuildPipeline_PreRelease_DryRunShowsNoChangelog(t *testing.T) {
 		DryRun: true, Out: &out, PreReleaseLabel: "rc",
 	})
 	require.NoError(t, err)
-	require.NoError(t, p.Run())
+	require.NoError(t, p.Run(t.Context()))
 
 	assert.NotContains(t, out.String(), "hangelog")
 	assert.NotContains(t, out.String(), "pre-changelog-marker")

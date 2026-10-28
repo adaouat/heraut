@@ -1,6 +1,7 @@
 package github
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"io"
@@ -93,7 +94,7 @@ func (p *Platform) Check() error {
 // skipped rather than failing the release. Each asset is opened once and uploaded from that
 // descriptor (NEW-002), and a name GitHub rewrites is reported. prerelease is derived by the
 // caller from the resolved version (ADR-0064), not read from config.
-func (p *Platform) CreateRelease(tag, notes string, prerelease bool) error {
+func (p *Platform) CreateRelease(ctx context.Context, tag, notes string, prerelease bool) error {
 	token, _, err := p.token()
 	if err != nil {
 		return fmt.Errorf("github release create: %w", err)
@@ -114,7 +115,7 @@ func (p *Platform) CreateRelease(tag, notes string, prerelease bool) error {
 		defer platforms.CloseAssets(assets)
 	}
 
-	names, err := c.CreateRelease(tag, notes, p.cfg.Draft, prerelease, assets)
+	names, err := c.CreateRelease(ctx, tag, notes, p.cfg.Draft, prerelease, assets)
 	if err != nil {
 		return fmt.Errorf("github release create: %w", err)
 	}

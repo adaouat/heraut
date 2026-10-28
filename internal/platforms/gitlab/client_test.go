@@ -1,6 +1,7 @@
 package gitlab
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"io"
@@ -11,6 +12,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
 	gl "gitlab.com/gitlab-org/api/client-go"
 
@@ -31,9 +33,10 @@ type recordedRequest struct {
 type fakeGitLab struct {
 	srv      *httptest.Server
 	requests []recordedRequest
-	status   map[string]int    // "PUT", "POST" -> status override
-	bodies   map[string]string // method -> success body override (default "{}")
-	queries  []string          // raw query of each request, parallel to requests
+	status   map[string]int      // "PUT", "POST" -> status override
+	bodies   map[string]string   // method -> success body override (default "{}")
+	queries  []string            // raw query of each request, parallel to requests
+	hook     func(*http.Request) // runs on each request before the answer, when set
 }
 
 func newFakeGitLab(t *testing.T) *fakeGitLab {
@@ -45,6 +48,9 @@ func newFakeGitLab(t *testing.T) *fakeGitLab {
 			method: r.Method, path: r.URL.Path, escaped: r.URL.EscapedPath(), header: r.Header.Clone(), body: body,
 		})
 		f.queries = append(f.queries, r.URL.RawQuery)
+		if f.hook != nil {
+			f.hook(r)
+		}
 		code := http.StatusCreated
 		if r.Method == http.MethodGet {
 			code = http.StatusOK
@@ -115,7 +121,7 @@ func TestClient_CreateRelease_UploadsAssetsThenCreatesReleaseWithLinks(t *testin
 
 	c, err := NewClient(f.srv.URL, "tok", false)
 	require.NoError(t, err)
-	require.NoError(t, c.CreateRelease("acme/widget", "v1.2.3", "the notes", opened(t, a, b)))
+	require.NoError(t, c.CreateRelease(t.Context(), "acme/widget", "v1.2.3", "the notes", opened(t, a, b)))
 
 	require.Len(t, f.requests, 3, "two uploads then one release")
 	up1, up2, rel := f.requests[0], f.requests[1], f.requests[2]
@@ -160,7 +166,7 @@ func TestClient_CreateRelease_AuthHeader(t *testing.T) {
 			a := writeAsset(t, t.TempDir(), "a.txt", "x")
 			c, err := NewClient(f.srv.URL, "secret", tc.jobToken)
 			require.NoError(t, err)
-			require.NoError(t, c.CreateRelease("acme/widget", "v1.0.0", "n", opened(t, a)))
+			require.NoError(t, c.CreateRelease(t.Context(), "acme/widget", "v1.0.0", "n", opened(t, a)))
 
 			require.NotEmpty(t, f.requests)
 			for _, r := range f.requests {
@@ -176,7 +182,7 @@ func TestClient_CreateRelease_NoAssets_OnlyCreatesTheRelease(t *testing.T) {
 	c, err := NewClient(f.srv.URL, "tok", false)
 	require.NoError(t, err)
 
-	require.NoError(t, c.CreateRelease("acme/widget", "v1.0.0", "n", nil))
+	require.NoError(t, c.CreateRelease(t.Context(), "acme/widget", "v1.0.0", "n", nil))
 
 	require.Len(t, f.requests, 1)
 	assert.Equal(t, http.MethodPost, f.requests[0].method)
@@ -189,7 +195,7 @@ func TestClient_CreateRelease_PerEnvTag_SanitizesOnlyThePackageVersion(t *testin
 	c, err := NewClient(f.srv.URL, "tok", false)
 	require.NoError(t, err)
 
-	require.NoError(t, c.CreateRelease("acme/widget", "uat/0.0.0+smoke", "n", opened(t, a)))
+	require.NoError(t, c.CreateRelease(t.Context(), "acme/widget", "uat/0.0.0+smoke", "n", opened(t, a)))
 
 	require.Len(t, f.requests, 2)
 	assert.Equal(t, "/api/v4/projects/acme/widget/packages/generic/release-assets/uat-0.0.0+smoke/a.txt", f.requests[0].path)
@@ -207,7 +213,7 @@ func TestClient_CreateRelease_UploadFailure_CreatesNoRelease(t *testing.T) {
 	c, err := NewClient(f.srv.URL, "tok", false)
 	require.NoError(t, err)
 
-	err = c.CreateRelease("acme/widget", "v1.0.0", "n", opened(t, a))
+	err = c.CreateRelease(t.Context(), "acme/widget", "v1.0.0", "n", opened(t, a))
 
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "a.txt")
@@ -225,7 +231,7 @@ func TestClient_CreateRelease_ReleaseFailure_ReturnsTheError(t *testing.T) {
 	c, err := NewClient(f.srv.URL, "tok", false)
 	require.NoError(t, err)
 
-	err = c.CreateRelease("acme/widget", "v1.0.0", "n", nil)
+	err = c.CreateRelease(t.Context(), "acme/widget", "v1.0.0", "n", nil)
 
 	require.Error(t, err)
 	var apiErr *gl.ErrorResponse
@@ -249,10 +255,39 @@ func TestClient_CreateRelease_UploadsTheOpenedFileNotWhatThePathNamesLater(t *te
 
 	c, err := NewClient(f.srv.URL, "tok", false)
 	require.NoError(t, err)
-	require.NoError(t, c.CreateRelease("acme/widget", "v1.0.0", "n", assets))
+	require.NoError(t, c.CreateRelease(t.Context(), "acme/widget", "v1.0.0", "n", assets))
 
 	require.Len(t, f.requests, 2)
 	assert.Equal(t, "checked", string(f.requests[0].body))
+}
+
+// Ctrl-C during an upload stops the publish before the release is created, so no release links a
+// package file that was never completed.
+func TestClient_CreateRelease_CancelledDuringAnUploadCreatesNoRelease(t *testing.T) {
+	f := newFakeGitLab(t)
+	ctx, cancel := context.WithCancel(t.Context())
+	f.hook = func(r *http.Request) {
+		if r.Method == http.MethodPut {
+			cancel()
+			<-r.Context().Done()
+		}
+	}
+	a := writeAsset(t, t.TempDir(), "a.txt", "x")
+	c, err := NewClient(f.srv.URL, "tok", false)
+	require.NoError(t, err)
+
+	done := make(chan error, 1)
+	go func() { done <- c.CreateRelease(ctx, "acme/widget", "v1.0.0", "n", opened(t, a)) }()
+	select {
+	case err = <-done:
+	case <-time.After(5 * time.Second):
+		t.Fatal("the publish did not return")
+	}
+
+	require.ErrorIs(t, err, context.Canceled)
+	for _, r := range f.requests {
+		assert.NotEqual(t, http.MethodPost, r.method, "no release may be created after a cancelled upload")
+	}
 }
 
 func TestClient_CreateRelease_LargeNotesArriveIntact(t *testing.T) {
@@ -261,7 +296,7 @@ func TestClient_CreateRelease_LargeNotesArriveIntact(t *testing.T) {
 	c, err := NewClient(f.srv.URL, "tok", false)
 	require.NoError(t, err)
 
-	require.NoError(t, c.CreateRelease("acme/widget", "v1.0.0", notes, nil))
+	require.NoError(t, c.CreateRelease(t.Context(), "acme/widget", "v1.0.0", notes, nil))
 
 	assert.Equal(t, notes, decodeRelease(t, f.requests[0])["description"])
 }
@@ -271,7 +306,7 @@ func TestClient_CreateRelease_SelfHostedWithRelativeURLRoot(t *testing.T) {
 	c, err := NewClient(f.srv.URL+"/gitlab", "tok", false)
 	require.NoError(t, err)
 
-	require.NoError(t, c.CreateRelease("acme/widget", "v1.0.0", "n", nil))
+	require.NoError(t, c.CreateRelease(t.Context(), "acme/widget", "v1.0.0", "n", nil))
 
 	assert.Equal(t, "/gitlab/api/v4/projects/acme/widget/releases", f.requests[0].path)
 }

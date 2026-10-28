@@ -38,7 +38,7 @@ func TestRun_LogsDiagnostics(t *testing.T) {
 			logger := forgelog.New(&buf, tc.level)
 			p := pipeline.New(mr, &fakeResolver{result: resolvedResult("v1.2.3")}, cfg, &bytes.Buffer{}, false).
 				WithLogger(logger)
-			require.NoError(t, p.Run())
+			require.NoError(t, p.Run(t.Context()))
 
 			out := buf.String()
 			if tc.wantLogged {

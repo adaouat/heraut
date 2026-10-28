@@ -1,6 +1,9 @@
 package port
 
-import "errors"
+import (
+	"context"
+	"errors"
+)
 
 // ErrAssetUnmatched is wrapped by a platform's CheckAssets when a release asset pattern matches no
 // file (ADR-0076). The pipeline downgrades it to a warning in a dry run, where hooks do not run.
@@ -27,7 +30,9 @@ type Platform interface {
 	// accepts and ignores it.
 	// Drivers attach any configured assets to the release inside this same call: GitHub rejects
 	// uploads to an already-published release (HTTP 422), so there is no separate upload step.
-	CreateRelease(tag, notes string, prerelease bool) error
+	// ctx is the command's context, cancelled on SIGINT/SIGTERM: a driver stops its requests when it
+	// is done, and removes what it created (a GitHub draft) on a context of its own.
+	CreateRelease(ctx context.Context, tag, notes string, prerelease bool) error
 	HasAssets() bool
 	// CheckAssets verifies the configured assets can be published, without publishing or
 	// contacting the platform, so the pipeline can refuse a bad asset before it pushes a tag.

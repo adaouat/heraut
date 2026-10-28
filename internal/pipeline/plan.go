@@ -1,6 +1,9 @@
 package pipeline
 
-import "fmt"
+import (
+	"context"
+	"fmt"
+)
 
 // PlanStep is one action a real release would take. Action is one of hook, changelog,
 // commit_changelog, tag, push_tag, notes or publish; the other fields apply per action.
@@ -32,7 +35,7 @@ func (p *Pipeline) Plan() (Plan, error) {
 	if err != nil {
 		return Plan{}, fmt.Errorf("resolving version: %w", err)
 	}
-	flow := p.releaseFlow(result)
+	flow := p.releaseFlow(context.Background(), result) // Plan runs no step, so no request uses it
 	plan := Plan{Tag: result.Tag, Version: result.Version, CurrentTag: result.CurrentTag, PreRelease: flow.prerelease, Warnings: result.Warnings}
 	for _, s := range flow.steps() {
 		if s.plan == nil {

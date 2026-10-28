@@ -1,6 +1,7 @@
 package gitlab
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"net/url"
@@ -180,7 +181,7 @@ func sameGitLabHost(a, b string) bool {
 // release (Client.CreateRelease). As on GitHub, a pattern matching nothing warns and is skipped.
 // prerelease is accepted to satisfy the shared port.Platform contract and ignored — GitLab
 // releases have no pre-release concept (ADR-0064).
-func (p *Platform) CreateRelease(tag, notes string, prerelease bool) error {
+func (p *Platform) CreateRelease(ctx context.Context, tag, notes string, prerelease bool) error {
 	proj, err := p.requireProject()
 	if err != nil {
 		return err
@@ -201,7 +202,7 @@ func (p *Platform) CreateRelease(tag, notes string, prerelease bool) error {
 	if err != nil {
 		return fmt.Errorf("gitlab release create: %w", err)
 	}
-	if err := c.CreateRelease(proj, tag, notes, assets); err != nil {
+	if err := c.CreateRelease(ctx, proj, tag, notes, assets); err != nil {
 		return fmt.Errorf("gitlab release create: %w", err)
 	}
 	return nil

@@ -113,7 +113,7 @@ func TestBuildTargetPlatforms_TargetOwnAssetsAreLenient(t *testing.T) {
 	require.NoError(t, err)
 	require.Len(t, platforms, 1)
 
-	err = platforms[0].CreateRelease("v1.0.0", "notes", false)
+	err = platforms[0].CreateRelease(t.Context(), "v1.0.0", "notes", false)
 	require.NoError(t, err, "a target-declared asset glob matching nothing must warn and skip, not fail the release")
 	assert.Equal(t, []string{"POST /api/v3/repos/acme/widget/releases"}, requests, "the release is created, with nothing to upload")
 }

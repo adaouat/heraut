@@ -1,6 +1,10 @@
 package testutil
 
-import "github.com/adaouat/heraut/internal/port"
+import (
+	"context"
+
+	"github.com/adaouat/heraut/internal/port"
+)
 
 // MockPlatform is a port.Platform that records calls for contract testing.
 type MockPlatform struct {
@@ -12,6 +16,7 @@ type MockPlatform struct {
 	LinkContextVal   port.LinkContext
 
 	CreateReleaseCalls []struct {
+		Ctx        context.Context
 		Tag, Notes string
 		Prerelease bool
 	}
@@ -39,11 +44,12 @@ func (m *MockPlatform) LinkContext() port.LinkContext { return m.LinkContextVal 
 
 func (m *MockPlatform) Check() error { return m.CheckErr }
 
-func (m *MockPlatform) CreateRelease(tag, notes string, prerelease bool) error {
+func (m *MockPlatform) CreateRelease(ctx context.Context, tag, notes string, prerelease bool) error {
 	m.CreateReleaseCalls = append(m.CreateReleaseCalls, struct {
+		Ctx        context.Context
 		Tag, Notes string
 		Prerelease bool
-	}{tag, notes, prerelease})
+	}{ctx, tag, notes, prerelease})
 	return m.CreateReleaseErr
 }
 

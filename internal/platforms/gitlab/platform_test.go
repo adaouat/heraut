@@ -451,7 +451,7 @@ func TestCreateRelease_SelfHosted_UsesTheBaseURLAndTheConfiguredToken(t *testing
 	t.Setenv("GITLAB_TOKEN", "tok")
 	p := gitlab.New(&config.Platform{Project: "grp/repo", BaseURL: st.srv.URL})
 
-	require.NoError(t, p.CreateRelease("v1.0.0", "notes", false))
+	require.NoError(t, p.CreateRelease(t.Context(), "v1.0.0", "notes", false))
 
 	require.Len(t, st.requests, 1)
 	assert.Equal(t, "/api/v4/projects/grp/repo/releases", st.requests[0].path)
@@ -466,7 +466,7 @@ func TestCreateRelease_SelfHosted_MatchesCIServerURL_UsesTheJobToken(t *testing.
 	t.Setenv("CI_JOB_TOKEN", "jobtok")
 	p := gitlab.New(&config.Platform{Project: "grp/repo", BaseURL: st.srv.URL})
 
-	require.NoError(t, p.CreateRelease("v1.0.0", "notes", false))
+	require.NoError(t, p.CreateRelease(t.Context(), "v1.0.0", "notes", false))
 
 	assert.Equal(t, "jobtok", st.requests[0].header.Get("Job-Token"))
 	assert.Empty(t, st.requests[0].header.Get("Private-Token"))
@@ -480,7 +480,7 @@ func TestCreateRelease_Basic(t *testing.T) {
 	t.Setenv("GITLAB_TOKEN", "tok")
 	p := gitlab.New(&config.Platform{Project: "grp/repo", TokenEnv: "GITLAB_TOKEN", BaseURL: st.srv.URL})
 
-	require.NoError(t, p.CreateRelease("v1.2.3", "## Notes\n- thing\n", false))
+	require.NoError(t, p.CreateRelease(t.Context(), "v1.2.3", "## Notes\n- thing\n", false))
 
 	require.Len(t, st.requests, 1, "no assets: only the release call")
 	rel := st.release(t)
@@ -497,7 +497,7 @@ func TestCreateRelease_InCI_UsesTheJobTokenOnTheServerURL(t *testing.T) {
 	t.Setenv("GITLAB_TOKEN", "ignored")
 	p := gitlab.New(&config.Platform{Project: "grp/repo", TokenEnv: "GITLAB_TOKEN"})
 
-	require.NoError(t, p.CreateRelease("v1.0.0", "notes", false))
+	require.NoError(t, p.CreateRelease(t.Context(), "v1.0.0", "notes", false))
 
 	assert.Equal(t, "ci-job-token", st.requests[0].header.Get("Job-Token"))
 	assert.Empty(t, st.requests[0].header.Get("Private-Token"))
@@ -506,7 +506,7 @@ func TestCreateRelease_InCI_UsesTheJobTokenOnTheServerURL(t *testing.T) {
 func TestCreateRelease_NoToken_Error(t *testing.T) {
 	notInCI(t)
 	t.Setenv("GITLAB_TOKEN", "")
-	err := gitlab.New(&config.Platform{Project: "grp/repo"}).CreateRelease("v1.0.0", "notes", false)
+	err := gitlab.New(&config.Platform{Project: "grp/repo"}).CreateRelease(t.Context(), "v1.0.0", "notes", false)
 
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "GITLAB_TOKEN")
@@ -526,7 +526,7 @@ func TestCreateRelease_Assets_UploadedThenLinked(t *testing.T) {
 		Assets:  []string{filepath.Join(tmp, "heraut_linux"), filepath.Join(tmp, "checksums.txt")},
 	})
 
-	require.NoError(t, p.CreateRelease("v1.0.0", "notes", false))
+	require.NoError(t, p.CreateRelease(t.Context(), "v1.0.0", "notes", false))
 
 	assert.Equal(t, []string{
 		"/api/v4/projects/grp/repo/packages/generic/release-assets/v1.0.0/heraut_linux",
@@ -547,7 +547,7 @@ func TestCreateRelease_Assets_GlobInOneCall(t *testing.T) {
 	t.Setenv("GITLAB_TOKEN", "tok")
 	p := gitlab.New(&config.Platform{Project: "grp/repo", BaseURL: st.srv.URL, Assets: []string{filepath.Join(tmp, "app_*")}})
 
-	require.NoError(t, p.CreateRelease("v1.0.0", "notes", false))
+	require.NoError(t, p.CreateRelease(t.Context(), "v1.0.0", "notes", false))
 
 	assert.ElementsMatch(t, []string{
 		"/api/v4/projects/grp/repo/packages/generic/release-assets/v1.0.0/app_linux_amd64",
@@ -565,7 +565,7 @@ func TestCreateRelease_Assets_GlobSkipsDirectories(t *testing.T) {
 	t.Setenv("GITLAB_TOKEN", "tok")
 	p := gitlab.New(&config.Platform{Project: "grp/repo", BaseURL: st.srv.URL, Assets: []string{filepath.Join(tmp, "*")}})
 
-	require.NoError(t, p.CreateRelease("v1.0.0", "notes", false))
+	require.NoError(t, p.CreateRelease(t.Context(), "v1.0.0", "notes", false))
 
 	assert.Equal(t, []string{"/api/v4/projects/grp/repo/packages/generic/release-assets/v1.0.0/app"}, st.puts())
 }
@@ -582,7 +582,7 @@ func TestCreateRelease_Assets_NoMatch_StillCreates(t *testing.T) {
 		Assets:  []string{filepath.Join(t.TempDir(), "heraut_*")},
 	})
 
-	require.NoError(t, p.CreateRelease("v1.0.0", "notes", false))
+	require.NoError(t, p.CreateRelease(t.Context(), "v1.0.0", "notes", false))
 
 	require.Len(t, st.requests, 1)
 	assert.Empty(t, st.puts())
@@ -612,7 +612,7 @@ func TestCreateRelease_Assets_DuplicateNamesAreRefusedBeforeAnyRequest(t *testin
 			t.Setenv("GITLAB_TOKEN", "tok")
 			p := gitlab.New(&config.Platform{Project: "grp/repo", BaseURL: st.srv.URL, Assets: tc.patterns})
 
-			err := p.CreateRelease("v1.0.0", "notes", false)
+			err := p.CreateRelease(t.Context(), "v1.0.0", "notes", false)
 
 			require.Error(t, err)
 			assert.Contains(t, err.Error(), "app.zip")
@@ -630,7 +630,7 @@ func TestCreateRelease_PerEnvTag_KeepsTheTagAndSanitizesThePackageVersion(t *tes
 	t.Setenv("GITLAB_TOKEN", "tok")
 	p := gitlab.New(&config.Platform{Project: "grp/repo", BaseURL: st.srv.URL, Assets: []string{filepath.Join(tmp, "app")}})
 
-	require.NoError(t, p.CreateRelease("uat/1.0.0+b5", "notes", false))
+	require.NoError(t, p.CreateRelease(t.Context(), "uat/1.0.0+b5", "notes", false))
 
 	assert.Equal(t, []string{"/api/v4/projects/grp/repo/packages/generic/release-assets/uat-1.0.0+b5/app"}, st.puts())
 	assert.Equal(t, "uat/1.0.0+b5", st.release(t)["tag_name"])
@@ -646,7 +646,7 @@ func TestCreateRelease_PrereleaseParamIgnored(t *testing.T) {
 		st := newStub(t)
 		t.Setenv("GITLAB_TOKEN", "tok")
 		p := gitlab.New(&config.Platform{Project: "grp/repo", BaseURL: st.srv.URL})
-		require.NoError(t, p.CreateRelease("v1.2.3", "notes", prerelease))
+		require.NoError(t, p.CreateRelease(t.Context(), "v1.2.3", "notes", prerelease))
 		bodies = append(bodies, st.release(t))
 	}
 	assert.Equal(t, bodies[0], bodies[1])
@@ -659,14 +659,14 @@ func TestCreateRelease_ProjectFromEnv(t *testing.T) {
 	t.Setenv("GITLAB_TOKEN", "tok")
 	p := gitlab.New(&config.Platform{BaseURL: st.srv.URL})
 
-	require.NoError(t, p.CreateRelease("v1.0.0", "notes", false))
+	require.NoError(t, p.CreateRelease(t.Context(), "v1.0.0", "notes", false))
 
 	assert.Equal(t, "/api/v4/projects/envgrp/envrepo/releases", st.requests[0].path)
 }
 
 func TestCreateRelease_NoProject_Error(t *testing.T) {
 	notInCI(t)
-	err := gitlab.New(&config.Platform{}).CreateRelease("v1.0.0", "notes", false)
+	err := gitlab.New(&config.Platform{}).CreateRelease(t.Context(), "v1.0.0", "notes", false)
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "project")
 }
@@ -678,7 +678,7 @@ func TestCreateRelease_APIError_IsReturned(t *testing.T) {
 	t.Setenv("GITLAB_TOKEN", "tok")
 	p := gitlab.New(&config.Platform{Project: "grp/repo", BaseURL: st.srv.URL})
 
-	err := p.CreateRelease("v1.0.0", "notes", false)
+	err := p.CreateRelease(t.Context(), "v1.0.0", "notes", false)
 
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "gitlab release create")

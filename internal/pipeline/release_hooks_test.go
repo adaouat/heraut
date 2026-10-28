@@ -24,7 +24,7 @@ func TestRun_PostBumpHook_FiresAfterResolve(t *testing.T) {
 		Platforms:     []port.Platform{&testutil.MockPlatform{PlatformName: "github"}},
 	}
 	p := pipeline.New(mr, &fakeResolver{result: resolvedResult("v1.2.3")}, cfg, &bytes.Buffer{}, false)
-	require.NoError(t, p.Run())
+	require.NoError(t, p.Run(t.Context()))
 
 	require.Len(t, mr.Calls, 3)
 	assert.Equal(t, "sh", mr.Calls[0].Name)
@@ -47,7 +47,7 @@ func TestRun_PostBumpHook_SubstitutesEnv(t *testing.T) {
 		Platforms:     []port.Platform{&testutil.MockPlatform{PlatformName: "github"}},
 	}
 	p := pipeline.New(mr, &fakeResolver{result: resolvedResult("v1.2.3")}, cfg, &bytes.Buffer{}, false)
-	require.NoError(t, p.Run())
+	require.NoError(t, p.Run(t.Context()))
 
 	require.Len(t, mr.Calls, 3)
 	assert.Equal(t, []string{"-c", "echo staging"}, mr.Calls[0].Args)
@@ -73,7 +73,7 @@ func TestRun_PostBumpHook_StagePatternIncludedInCommit(t *testing.T) {
 		Platforms:     []port.Platform{&testutil.MockPlatform{PlatformName: "github"}},
 	}
 	p := pipeline.New(mr, &fakeResolver{result: resolvedResult("v1.2.3")}, cfg, &bytes.Buffer{}, false)
-	require.NoError(t, p.Run())
+	require.NoError(t, p.Run(t.Context()))
 
 	require.Len(t, mr.Calls, 7)
 	assert.Equal(t, []string{"add", "CHANGELOG.md", "extra.txt"}, mr.Calls[1].Args)
@@ -102,7 +102,7 @@ func TestRun_PostBumpAndPreChangelogHooks_StagePatternsCombinedInCommit(t *testi
 		Platforms:         []port.Platform{&testutil.MockPlatform{PlatformName: "github"}},
 	}
 	p := pipeline.New(mr, &fakeResolver{result: resolvedResult("v1.2.3")}, cfg, &bytes.Buffer{}, false)
-	require.NoError(t, p.Run())
+	require.NoError(t, p.Run(t.Context()))
 
 	require.Len(t, mr.Calls, 8)
 	assert.Equal(t, []string{"add", "CHANGELOG.md", "postbump.txt", "prechangelog.txt"}, mr.Calls[2].Args)
@@ -124,7 +124,7 @@ func TestRun_PreChangelogHook_FiresBeforeChangelogGeneration(t *testing.T) {
 		Platforms:         []port.Platform{&testutil.MockPlatform{PlatformName: "github"}},
 	}
 	p := pipeline.New(mr, &fakeResolver{result: resolvedResult("v1.2.3")}, cfg, &bytes.Buffer{}, false)
-	require.NoError(t, p.Run())
+	require.NoError(t, p.Run(t.Context()))
 
 	require.Len(t, mr.Calls, 6)
 	assert.Equal(t, "sh", mr.Calls[0].Name)
@@ -145,7 +145,7 @@ func TestRun_PreTagHook_FiresBeforeTagCreation(t *testing.T) {
 		Platforms:   []port.Platform{&testutil.MockPlatform{PlatformName: "github"}},
 	}
 	p := pipeline.New(mr, &fakeResolver{result: resolvedResult("v1.2.3")}, cfg, &bytes.Buffer{}, false)
-	require.NoError(t, p.Run())
+	require.NoError(t, p.Run(t.Context()))
 
 	require.Len(t, mr.Calls, 3)
 	assert.Equal(t, []string{"-c", "go build ./..."}, mr.Calls[0].Args)
@@ -163,7 +163,7 @@ func TestRun_PostTagHook_FiresAfterPush(t *testing.T) {
 		Platforms:    []port.Platform{&testutil.MockPlatform{PlatformName: "github"}},
 	}
 	p := pipeline.New(mr, &fakeResolver{result: resolvedResult("v1.2.3")}, cfg, &bytes.Buffer{}, false)
-	require.NoError(t, p.Run())
+	require.NoError(t, p.Run(t.Context()))
 
 	require.Len(t, mr.Calls, 3)
 	assert.Equal(t, []string{"tag", "v1.2.3"}, mr.Calls[0].Args)
@@ -184,7 +184,7 @@ func TestRun_Hooks_NoHooksSkipsAllConfiguredHooks(t *testing.T) {
 		Platforms:     []port.Platform{&testutil.MockPlatform{PlatformName: "github"}},
 	}
 	p := pipeline.New(mr, &fakeResolver{result: resolvedResult("v1.2.3")}, cfg, &bytes.Buffer{}, false)
-	require.NoError(t, p.Run())
+	require.NoError(t, p.Run(t.Context()))
 
 	require.Len(t, mr.Calls, 2)
 	assert.Equal(t, "git", mr.Calls[0].Name)
@@ -201,7 +201,7 @@ func TestRun_Hooks_DryRunNeverExecutesHooks(t *testing.T) {
 		Platforms:     []port.Platform{&testutil.MockPlatform{PlatformName: "github"}},
 	}
 	p := pipeline.New(mr, &fakeResolver{result: resolvedResult("v1.2.3")}, cfg, &bytes.Buffer{}, true)
-	require.NoError(t, p.Run())
+	require.NoError(t, p.Run(t.Context()))
 
 	assert.Empty(t, mr.Calls, "dry-run must never execute a hook for real")
 }
@@ -218,7 +218,7 @@ func TestRun_PreReleaseHook_FiresBeforeCreateRelease(t *testing.T) {
 		Platforms:       []port.Platform{plat},
 	}
 	p := pipeline.New(mr, &fakeResolver{result: resolvedResult("v1.2.3")}, cfg, &bytes.Buffer{}, false)
-	require.NoError(t, p.Run())
+	require.NoError(t, p.Run(t.Context()))
 
 	require.Len(t, mr.Calls, 3)
 	assert.Equal(t, []string{"-c", "echo about to publish to github"}, mr.Calls[2].Args)
@@ -237,7 +237,7 @@ func TestRun_PostReleaseHook_FiresAfterCreateRelease(t *testing.T) {
 		Platforms:        []port.Platform{plat},
 	}
 	p := pipeline.New(mr, &fakeResolver{result: resolvedResult("v1.2.3")}, cfg, &bytes.Buffer{}, false)
-	require.NoError(t, p.Run())
+	require.NoError(t, p.Run(t.Context()))
 
 	require.Len(t, mr.Calls, 3)
 	assert.Equal(t, []string{"-c", "echo released v1.2.3 to github"}, mr.Calls[2].Args)
@@ -261,7 +261,7 @@ func TestRun_PreReleaseHook_FailureSkipsThatPlatformOnly(t *testing.T) {
 		Platforms:       []port.Platform{plat1, plat2},
 	}
 	p := pipeline.New(mr, &fakeResolver{result: resolvedResult("v1.2.3")}, cfg, &bytes.Buffer{}, false)
-	err := p.Run()
+	err := p.Run(t.Context())
 	require.Error(t, err)
 
 	assert.Empty(t, plat1.CreateReleaseCalls, "pre_release hook failed — this platform's publish must be skipped")
@@ -284,7 +284,7 @@ func TestRun_PostReleaseHook_FailureWarnsButContinuesToNextPlatform(t *testing.T
 		Platforms:        []port.Platform{plat1, plat2},
 	}
 	p := pipeline.New(mr, &fakeResolver{result: resolvedResult("v1.2.3")}, cfg, &bytes.Buffer{}, false)
-	err := p.Run()
+	err := p.Run(t.Context())
 	require.Error(t, err)
 
 	require.Len(t, plat1.CreateReleaseCalls, 1, "post_release fires after publish already happened")
@@ -303,7 +303,7 @@ func TestRun_RealPublishFailureStillAbortsWholeLoop(t *testing.T) {
 	cfg := &pipeline.Config{Platforms: []port.Platform{plat1, plat2}}
 
 	p := pipeline.New(mr, &fakeResolver{result: resolvedResult("v1.2.3")}, cfg, &bytes.Buffer{}, false)
-	err := p.Run()
+	err := p.Run(t.Context())
 	require.Error(t, err)
 
 	require.Len(t, plat1.CreateReleaseCalls, 1)
@@ -323,7 +323,7 @@ func TestRun_Hooks_NoHooksSkipsPreAndPostRelease(t *testing.T) {
 		Platforms:        []port.Platform{plat},
 	}
 	p := pipeline.New(mr, &fakeResolver{result: resolvedResult("v1.2.3")}, cfg, &bytes.Buffer{}, false)
-	require.NoError(t, p.Run())
+	require.NoError(t, p.Run(t.Context()))
 
 	require.Len(t, mr.Calls, 2, "only the git tag + push calls — no sh -c calls")
 	require.Len(t, plat.CreateReleaseCalls, 1)
@@ -378,7 +378,7 @@ func TestRun_Hooks_FailureAbortsRun(t *testing.T) {
 			cfg.Platforms = []port.Platform{&testutil.MockPlatform{PlatformName: "github"}}
 
 			p := pipeline.New(mr, &fakeResolver{result: resolvedResult("v1.2.3")}, cfg, &bytes.Buffer{}, false)
-			err := p.Run()
+			err := p.Run(t.Context())
 			require.Error(t, err)
 			assert.Len(t, mr.Calls, tc.wantCall)
 		})

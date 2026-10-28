@@ -1,6 +1,7 @@
 package pipeline
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"io"
@@ -49,7 +50,7 @@ func (f *releaseFlow) steps() []releaseStep {
 }
 
 // releaseFlow builds the steps of a release for a resolved version. Nothing runs here.
-func (p *Pipeline) releaseFlow(result versioning.Result) *releaseFlow {
+func (p *Pipeline) releaseFlow(ctx context.Context, result versioning.Result) *releaseFlow {
 	// prerelease is derived once from the resolved version, but only under a SemVer strategy
 	// (ADR-0064): a SemVer pre-release (e.g. 2.0.0-rc.1) publishes as a pre-release; a final
 	// version never does. cfg.SemVerStrategy gates this — a CalVer version can itself parse as a
@@ -187,7 +188,7 @@ func (p *Pipeline) releaseFlow(result versioning.Result) *releaseFlow {
 	}
 
 	for _, plat := range p.cfg.Platforms {
-		flow.body = append(flow.body, p.publishStep(plat, result, vars, flow.prerelease, notesEnabled && multiPlatform, notesEnabled, &notes))
+		flow.body = append(flow.body, p.publishStep(ctx, plat, result, vars, flow.prerelease, notesEnabled && multiPlatform, notesEnabled, &notes))
 	}
 	return flow
 }
@@ -265,7 +266,7 @@ func hookPlanStep(point, target string, steps []HookStep, vars hookVars) (PlanSt
 // publishStep builds the step that publishes to one platform, with that platform's pre_release and
 // post_release hooks folded in. A hook failure there is isolated to the platform (ADR-0053),
 // unlike a real publish failure, which aborts the whole loop.
-func (p *Pipeline) publishStep(plat port.Platform, result versioning.Result, vars hookVars, prerelease, regenerateNotes, notesEnabled bool, sharedNotes *string) releaseStep {
+func (p *Pipeline) publishStep(ctx context.Context, plat port.Platform, result versioning.Result, vars hookVars, prerelease, regenerateNotes, notesEnabled bool, sharedNotes *string) releaseStep {
 	platVars := vars
 	platVars.Platform = plat.Name()
 	hooksOn := !p.cfg.NoHooks
@@ -291,7 +292,7 @@ func (p *Pipeline) publishStep(plat port.Platform, result versioning.Result, var
 				subs = append(subs, "notes generated")
 				subs = append(subs, degradedSubs(p.cfg.Notes)...)
 			}
-			if err := plat.CreateRelease(result.Tag, notes, prerelease); err != nil {
+			if err := plat.CreateRelease(ctx, result.Tag, notes, prerelease); err != nil {
 				return "", nil, fmt.Errorf("platform %s: create release: %w", plat.Name(), err)
 			}
 			if plat.HasAssets() {

@@ -27,7 +27,7 @@ func TestRun_PrintsResolveWarnings(t *testing.T) {
 	cfg := &pipeline.Config{Platforms: []port.Platform{&testutil.MockPlatform{PlatformName: "github"}}}
 
 	p := pipeline.New(exectest.NewMockRunner(), &fakeResolver{result: res}, cfg, &out, true)
-	require.NoError(t, p.Run())
+	require.NoError(t, p.Run(t.Context()))
 
 	assert.Contains(t, out.String(), "! "+heldBackWarning+"\n")
 }
@@ -37,7 +37,7 @@ func TestRun_NoResolveWarnings_PrintsNoWarningLine(t *testing.T) {
 	cfg := &pipeline.Config{Platforms: []port.Platform{&testutil.MockPlatform{PlatformName: "github"}}}
 
 	p := pipeline.New(exectest.NewMockRunner(), &fakeResolver{result: resolvedResult("v1.2.3")}, cfg, &out, true)
-	require.NoError(t, p.Run())
+	require.NoError(t, p.Run(t.Context()))
 
 	assert.NotContains(t, out.String(), "held back")
 	for _, line := range strings.Split(out.String(), "\n") {
@@ -63,7 +63,7 @@ func TestRun_PrintsSeveralResolveWarningsInOrder(t *testing.T) {
 	cfg := &pipeline.Config{Platforms: []port.Platform{&testutil.MockPlatform{PlatformName: "github"}}}
 
 	p := pipeline.New(exectest.NewMockRunner(), &fakeResolver{result: res}, cfg, &out, true)
-	require.NoError(t, p.Run())
+	require.NoError(t, p.Run(t.Context()))
 
 	first := strings.Index(out.String(), "! "+firstResolveWarning+"\n")
 	second := strings.Index(out.String(), "! "+secondResolveWarning+"\n")
@@ -83,7 +83,7 @@ func TestRun_NonDryRun_PrintsResolveWarnings(t *testing.T) {
 
 	var out bytes.Buffer
 	p := pipeline.New(mr, &fakeResolver{result: res}, cfg, &out, false)
-	require.NoError(t, p.Run())
+	require.NoError(t, p.Run(t.Context()))
 
 	require.Len(t, platform.CreateReleaseCalls, 1, "the run really executed rather than stopping at a dry-run")
 	first := strings.Index(out.String(), "! "+firstResolveWarning+"\n")

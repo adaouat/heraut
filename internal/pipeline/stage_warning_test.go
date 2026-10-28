@@ -39,7 +39,7 @@ func TestRun_StageWithoutChangelogCommit_WarnsWhichFilesWereLeft(t *testing.T) {
 			cfg.Platforms = []port.Platform{&testutil.MockPlatform{PlatformName: "github"}}
 			var out bytes.Buffer
 			p := pipeline.New(mr, &fakeResolver{result: resolvedResult("v1.2.3")}, cfg, &out, false)
-			require.NoError(t, p.Run())
+			require.NoError(t, p.Run(t.Context()))
 
 			assert.Contains(t, out.String(), uncommittedStageWarning)
 			assert.Contains(t, out.String(), "VERSION")
@@ -65,7 +65,7 @@ func TestRun_NoWarningWhenTheChangelogCommitCarriesTheStagedFiles(t *testing.T) 
 	}
 	var out bytes.Buffer
 	p := pipeline.New(mr, &fakeResolver{result: resolvedResult("v1.2.3")}, cfg, &out, false)
-	require.NoError(t, p.Run())
+	require.NoError(t, p.Run(t.Context()))
 
 	assert.NotContains(t, out.String(), uncommittedStageWarning)
 }
@@ -82,7 +82,7 @@ func TestRun_NoWarningWithoutStagePatterns(t *testing.T) {
 	}
 	var out bytes.Buffer
 	p := pipeline.New(mr, &fakeResolver{result: resolvedResult("v1.2.3")}, cfg, &out, false)
-	require.NoError(t, p.Run())
+	require.NoError(t, p.Run(t.Context()))
 
 	assert.NotContains(t, out.String(), uncommittedStageWarning)
 }

@@ -8,6 +8,7 @@ import (
 	"net/url"
 	"regexp"
 	"strings"
+	"time"
 
 	gh "github.com/google/go-github/v93/github"
 
@@ -24,6 +25,14 @@ type Client struct {
 	httpClient  *http.Client
 	owner, repo string
 }
+
+// responseHeaderTimeout bounds the wait for GitHub's answer once a request is sent: a connection that
+// stalls after the tag push must not hang the release. It does not bound the request itself, so a
+// large upload still completes. cleanupTimeout bounds the delete of a draft left by a failed publish.
+var (
+	responseHeaderTimeout = 2 * time.Minute
+	cleanupTimeout        = 30 * time.Second
+)
 
 // NewClient builds a client for repository ("owner/repo") on the GitHub instance whose web root is
 // baseURL (empty means github.com). The API root comes from config.GitHubAPIURL, which reads
@@ -45,7 +54,9 @@ func newClient(baseURL, repository, token string, getenv func(string) string, ht
 		return nil, err
 	}
 	if httpClient == nil {
-		httpClient = &http.Client{}
+		tr := http.DefaultTransport.(*http.Transport).Clone()
+		tr.ResponseHeaderTimeout = responseHeaderTimeout
+		httpClient = &http.Client{Transport: tr}
 	}
 	c := &Client{baseURL: baseURL, apiURL: apiURL + "/", token: token, httpClient: httpClient, owner: owner, repo: repo}
 	if c.api, err = c.newAPI(nil); err != nil {
@@ -69,9 +80,9 @@ func (c *Client) newAPI(uploadOrigin *string) (*gh.Client, error) {
 // assets it is one create call. With assets the release is created as a draft, each file is
 // uploaded, then the draft is published unless draft is set: uploading to a published release
 // fails when immutable releases are on. If an upload or the publish fails, the draft is deleted so
-// a re-run starts clean; a failed delete is appended to the original error.
-func (c *Client) CreateRelease(tag, notes string, draft, prerelease bool, assets []platforms.Asset) ([]string, error) {
-	ctx := context.Background()
+// a re-run starts clean; a failed delete is appended to the original error. ctx stops the requests
+// (Ctrl-C); the delete runs on its own short context, so it still happens once ctx is cancelled.
+func (c *Client) CreateRelease(ctx context.Context, tag, notes string, draft, prerelease bool, assets []platforms.Asset) ([]string, error) {
 	release, _, err := c.api.Repositories.CreateRelease(ctx, c.owner, c.repo, gh.CreateReleaseRequest{
 		TagName:    tag,
 		Name:       new(tag),
@@ -88,7 +99,9 @@ func (c *Client) CreateRelease(tag, notes string, draft, prerelease bool, assets
 
 	names, err := c.uploadAndPublish(ctx, release, tag, draft, assets)
 	if err != nil {
-		if _, delErr := c.api.Repositories.DeleteRelease(ctx, c.owner, c.repo, release.ID); delErr != nil {
+		cleanupCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), cleanupTimeout)
+		defer cancel()
+		if _, delErr := c.api.Repositories.DeleteRelease(cleanupCtx, c.owner, c.repo, release.ID); delErr != nil {
 			return nil, fmt.Errorf("%w; deleting the draft release %d also failed: %w", err, release.ID, readable(delErr))
 		}
 		return nil, err

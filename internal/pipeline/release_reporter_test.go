@@ -57,7 +57,7 @@ func TestRun_Reporter_MinimalSequence(t *testing.T) {
 	p := pipeline.New(mr, &fakeResolver{result: resolvedResult("v1.2.3")}, cfg, &bytes.Buffer{}, false).
 		WithReporter(capturingStepFn(&captured))
 
-	require.NoError(t, p.Run())
+	require.NoError(t, p.Run(t.Context()))
 
 	names := stepNames(captured)
 	require.Equal(t, []string{
@@ -97,7 +97,7 @@ func TestRun_Reporter_WithChangelog(t *testing.T) {
 	p := pipeline.New(mr, &fakeResolver{result: resolvedResult("v1.2.3")}, cfg, &bytes.Buffer{}, false).
 		WithReporter(capturingStepFn(&captured))
 
-	require.NoError(t, p.Run())
+	require.NoError(t, p.Run(t.Context()))
 
 	names := stepNames(captured)
 	require.Equal(t, []string{
@@ -128,7 +128,7 @@ func TestRun_Reporter_WithNotes(t *testing.T) {
 	p := pipeline.New(mr, &fakeResolver{result: resolvedResult("v1.2.3")}, cfg, &bytes.Buffer{}, false).
 		WithReporter(capturingStepFn(&captured))
 
-	require.NoError(t, p.Run())
+	require.NoError(t, p.Run(t.Context()))
 
 	names := stepNames(captured)
 	require.Equal(t, []string{
@@ -154,7 +154,7 @@ func TestRun_Reporter_AssetUploadSubResult(t *testing.T) {
 	p := pipeline.New(mr, &fakeResolver{result: resolvedResult("v1.2.3")}, cfg, &bytes.Buffer{}, false).
 		WithReporter(capturingStepFn(&captured))
 
-	require.NoError(t, p.Run())
+	require.NoError(t, p.Run(t.Context()))
 
 	names := stepNames(captured)
 	// Publish to github is still a single numbered step (no extra step for assets).
@@ -181,7 +181,7 @@ func TestRun_Reporter_MultiplePlatformsEachGetStep(t *testing.T) {
 	p := pipeline.New(mr, &fakeResolver{result: resolvedResult("v1.2.3")}, cfg, &bytes.Buffer{}, false).
 		WithReporter(capturingStepFn(&captured))
 
-	require.NoError(t, p.Run())
+	require.NoError(t, p.Run(t.Context()))
 
 	names := stepNames(captured)
 	assert.Contains(t, names, "Publish to github")
@@ -204,7 +204,7 @@ func TestRun_Reporter_MultiPlatform_NotesFoldedIntoPublish(t *testing.T) {
 	var captured []capturedStep
 	p := pipeline.New(mr, &fakeResolver{result: resolvedResult("v1.2.3")}, cfg, &bytes.Buffer{}, false).
 		WithReporter(capturingStepFn(&captured))
-	require.NoError(t, p.Run())
+	require.NoError(t, p.Run(t.Context()))
 
 	names := stepNames(captured)
 	assert.NotContains(t, names, "Generate release notes", "multi-platform must not emit a standalone notes step")
@@ -234,7 +234,7 @@ func TestRun_Reporter_DegradedNotes_EmitsSubResult(t *testing.T) {
 	var captured []capturedStep
 	p := pipeline.New(mr, &fakeResolver{result: resolvedResult("v1.2.3")}, cfg, &bytes.Buffer{}, false).
 		WithReporter(capturingStepFn(&captured))
-	require.NoError(t, p.Run())
+	require.NoError(t, p.Run(t.Context()))
 
 	var notesStep *capturedStep
 	for i := range captured {
@@ -258,7 +258,7 @@ func TestRun_BuildTag_PropagatesToPlatform(t *testing.T) {
 	cfg := &pipeline.Config{Notes: notes, Platforms: []port.Platform{platform}}
 
 	p := pipeline.New(mr, &fakeResolver{result: resolvedResult("uat/7.4.1-158404")}, cfg, &bytes.Buffer{}, false)
-	require.NoError(t, p.Run())
+	require.NoError(t, p.Run(t.Context()))
 
 	require.Len(t, platform.CreateReleaseCalls, 1)
 	assert.Equal(t, "uat/7.4.1-158404", platform.CreateReleaseCalls[0].Tag)
@@ -278,7 +278,7 @@ func TestRun_Reporter_SinglePlatform_StandaloneNotesStep(t *testing.T) {
 	var captured []capturedStep
 	p := pipeline.New(mr, &fakeResolver{result: resolvedResult("v1.2.3")}, cfg, &bytes.Buffer{}, false).
 		WithReporter(capturingStepFn(&captured))
-	require.NoError(t, p.Run())
+	require.NoError(t, p.Run(t.Context()))
 
 	assert.Contains(t, stepNames(captured), "Generate release notes")
 }
@@ -296,7 +296,7 @@ func TestRun_DryRun_MultiPlatform_NotesFolded(t *testing.T) {
 	var captured []capturedStep
 	p := pipeline.New(mr, &fakeResolver{result: resolvedResult("v1.2.3")}, cfg, &bytes.Buffer{}, true).
 		WithReporter(capturingStepFn(&captured))
-	require.NoError(t, p.Run())
+	require.NoError(t, p.Run(t.Context()))
 
 	assert.NotContains(t, stepNames(captured), "Generate release notes")
 	assert.Len(t, notes.GenerateCalls, 0, "dry-run must not call the generator")
@@ -323,7 +323,7 @@ func TestRun_Reporter_DryRunSequence(t *testing.T) {
 	p := pipeline.New(mr, &fakeResolver{result: resolvedResult("v1.2.3")}, cfg, &bytes.Buffer{}, true).
 		WithReporter(capturingStepFn(&captured))
 
-	require.NoError(t, p.Run())
+	require.NoError(t, p.Run(t.Context()))
 
 	// No real git or platform calls.
 	assert.Len(t, mr.Calls, 0)
@@ -353,7 +353,7 @@ func TestRun_Reporter_SummaryContainsTag(t *testing.T) {
 	p := pipeline.New(mr, &fakeResolver{result: resolvedResult("v1.2.3")}, cfg, out, false).
 		WithReporter(capturingStepFn(new([]capturedStep)))
 
-	require.NoError(t, p.Run())
+	require.NoError(t, p.Run(t.Context()))
 	assert.Contains(t, out.String(), "v1.2.3")
 }
 
@@ -377,8 +377,8 @@ func TestRun_Reporter_NilIsTransparent(t *testing.T) {
 	out2 := &bytes.Buffer{}
 	p2 := pipeline.New(mr2, &fakeResolver{result: resolvedResult("v1.2.3")}, cfg, out2, false)
 
-	require.NoError(t, p1.Run())
-	require.NoError(t, p2.Run())
+	require.NoError(t, p1.Run(t.Context()))
+	require.NoError(t, p2.Run(t.Context()))
 
 	// Both produce the same output when no reporter is set.
 	assert.Equal(t, out1.String(), out2.String())
@@ -397,7 +397,7 @@ func TestRun_Reporter_AGateRefusalIsShownToTheUser(t *testing.T) {
 	p := pipeline.New(exectest.NewMockRunner(), &fakeResolver{result: resolvedResult("v1.2.3")}, cfg, &out, false).
 		WithReporter(capturingStepFn(&captured))
 
-	err := p.Run()
+	err := p.Run(t.Context())
 
 	require.ErrorIs(t, err, port.ErrAssetUnmatched)
 	assert.Contains(t, out.String(), `asset pattern "dist/*" matches no file`)
