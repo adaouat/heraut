@@ -125,7 +125,7 @@ func askPlatformToken(p *PlatformAnswer) error {
 	tokenChoice, customToken := resolveTokenChoice(p.Type, p.TokenEnv)
 	tokenOpts := make([]huh.Option[string], 0, 3)
 	for _, k := range tokenSelectOptions(p.Type) {
-		tokenOpts = append(tokenOpts, huh.NewOption(k, k))
+		tokenOpts = append(tokenOpts, huh.NewOption(tokenOptionLabel(k), k))
 	}
 	apiMode := apiModeOrDefault(p.APIMode)
 

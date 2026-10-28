@@ -331,7 +331,8 @@ func TestResolveTokenChoice(t *testing.T) {
 		wantCustom   string
 	}{
 		// empty → platform default pre-selected
-		{"github default", "github", "", "GH_TOKEN", ""},
+		// GitHub defaults to no token_env, so the driver's chain applies (ADR-0077)
+		{"github default", "github", "", tokenDefaultChain, ""},
 		{"gitlab default", "gitlab", "", "GITLAB_TOKEN", ""},
 		{"unknown platform default", "other", "", "custom", ""},
 		// known tokens round-trip
@@ -341,6 +342,8 @@ func TestResolveTokenChoice(t *testing.T) {
 		// custom values
 		{"github custom token", "github", "MY_GITHUB_PAT", "custom", "MY_GITHUB_PAT"},
 		{"gitlab custom token", "gitlab", "MY_GITLAB_TOKEN", "custom", "MY_GITLAB_TOKEN"},
+		// a variable that happens to be named like the sentinel stays an explicit name
+		{"github token named default", "github", tokenDefaultChain, "custom", tokenDefaultChain},
 		// wrong-platform token treated as custom
 		{"GH_TOKEN on gitlab is custom", "gitlab", "GH_TOKEN", "custom", "GH_TOKEN"},
 	}
@@ -415,6 +418,8 @@ func TestFinishPlatformToken(t *testing.T) {
 		wantToken, wantAPIMode       string
 	}{
 		{"known token kept", "github", "GH_TOKEN", "", "rest", "GH_TOKEN", ""},
+		{"github default chain writes no token_env", "github", tokenDefaultChain, "", "rest", "", ""},
+		{"a custom name spelled like the sentinel is kept", "github", "custom", tokenDefaultChain, "rest", tokenDefaultChain, ""},
 		{"custom token trimmed", "gitlab", "custom", "  MY_TOKEN ", "rest", "MY_TOKEN", "rest"},
 		{"gitlab keeps the chosen api mode", "gitlab", "GITLAB_TOKEN", "", "graphql", "GITLAB_TOKEN", "graphql"},
 		{"job token drops the api mode", "gitlab", "CI_JOB_TOKEN", "", "graphql", "CI_JOB_TOKEN", ""},

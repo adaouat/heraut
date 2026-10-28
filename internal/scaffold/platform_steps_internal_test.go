@@ -46,9 +46,19 @@ func TestPrefillPlatformLocation(t *testing.T) {
 }
 
 func TestTokenSelectOptions_KnownNamesThenCustom(t *testing.T) {
-	assert.Equal(t, []string{"GH_TOKEN", "custom"}, tokenSelectOptions("github"))
+	assert.Equal(t, []string{tokenDefaultChain, "GH_TOKEN", "custom"}, tokenSelectOptions("github"))
 	assert.Equal(t, []string{"GITLAB_TOKEN", "CI_JOB_TOKEN", "custom"}, tokenSelectOptions("gitlab"))
 	assert.Equal(t, []string{"custom"}, tokenSelectOptions("other"))
+}
+
+// The default chain is offered under a label that says what it reads; every other option shows its
+// own name.
+func TestTokenOptionLabel(t *testing.T) {
+	label := tokenOptionLabel(tokenDefaultChain)
+	assert.Contains(t, label, "GH_TOKEN")
+	assert.Contains(t, label, "GITHUB_TOKEN")
+	assert.Equal(t, "GH_TOKEN", tokenOptionLabel("GH_TOKEN"))
+	assert.Equal(t, "custom", tokenOptionLabel("custom"))
 }
 
 func TestAPIModeOrDefault(t *testing.T) {

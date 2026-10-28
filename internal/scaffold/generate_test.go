@@ -313,6 +313,23 @@ func TestGenerateYAML_PlatformUsesPassthroughName(t *testing.T) {
 	assert.Equal(t, "gh-internal", cfg.Release.Targets[0].Forge)
 }
 
+// A GitHub platform without a token name leaves token_env out, so the driver's chain (GH_TOKEN, then
+// GITHUB_TOKEN; the enterprise names on GHES) applies, as ADR-0077 intends.
+func TestGenerateYAML_GitHubWithoutATokenNameOmitsTokenEnv(t *testing.T) {
+	a := scaffold.Answers{
+		Strategy:        "semver",
+		PublishReleases: true,
+		Platforms:       []scaffold.PlatformAnswer{{Type: "github", Repository: "org/repo"}},
+	}
+	out, err := scaffold.GenerateYAML(a, "dev")
+	require.NoError(t, err)
+	assert.NotContains(t, out, "token_env")
+	cfg, err := config.LoadFromReader(strings.NewReader(stripHeader(out)))
+	require.NoError(t, err)
+	require.Len(t, cfg.Forges, 1)
+	assert.Empty(t, cfg.Forges[0].TokenEnv)
+}
+
 // TestGenerateYAML_PlatformPassthroughFieldsRoundTrip no longer round-trips `prerelease` — it was
 // removed from config.Target/scaffold.PlatformAnswer (ADR-0064, T337).
 func TestGenerateYAML_PlatformPassthroughFieldsRoundTrip(t *testing.T) {

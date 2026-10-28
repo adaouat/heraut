@@ -48,12 +48,17 @@ func parseRemoteProject(rawURL string) string {
 	return strings.TrimSuffix(rawURL, ".git")
 }
 
-// platformTokenOptions returns the known token env var names for a platform,
-// in display order. The first entry is the recommended default.
+// tokenDefaultChain is the GitHub token choice that writes no token_env, so the driver reads its
+// own chain (GH_TOKEN, then GITHUB_TOKEN; the enterprise names on GHES, ADR-0077). An explicit
+// token_env would turn that chain off.
+const tokenDefaultChain = "default"
+
+// platformTokenOptions returns the token choices for a platform, in display order. The first
+// entry is the recommended default.
 func platformTokenOptions(platformType string) []string {
 	switch platformType {
 	case "github":
-		return []string{config.EnvGitHubCLIToken}
+		return []string{tokenDefaultChain, config.EnvGitHubCLIToken}
 	case "gitlab":
 		return []string{config.EnvGitLabToken, config.EnvGitLabJobToken}
 	default:
@@ -62,8 +67,10 @@ func platformTokenOptions(platformType string) []string {
 }
 
 // resolveTokenChoice maps an existing token env var to a wizard select choice
-// and optional custom value. When existing is empty the first known token is
-// returned as the default. Unrecognised values map to ("custom", existing).
+// and optional custom value. When existing is empty the platform's first choice
+// is returned as the default (for GitHub, the default chain). Unrecognised values,
+// and a variable that happens to be named like tokenDefaultChain, map to
+// ("custom", existing).
 func resolveTokenChoice(platformType, existing string) (choice, custom string) {
 	opts := platformTokenOptions(platformType)
 	if existing == "" {
@@ -72,7 +79,7 @@ func resolveTokenChoice(platformType, existing string) (choice, custom string) {
 		}
 		return "custom", ""
 	}
-	if slices.Contains(opts, existing) {
+	if existing != tokenDefaultChain && slices.Contains(opts, existing) {
 		return existing, ""
 	}
 	return "custom", existing
@@ -229,13 +236,17 @@ func ValidateCalVerFormat(format string) error {
 	return nil
 }
 
-// finishPlatformToken turns the token and API-mode answers into the stored values: a custom token
-// is trimmed, and the API mode is kept only where the prompt was shown (hideAPIMode), so a hidden
+// finishPlatformToken turns the token and API-mode answers into the stored values: the default chain
+// stores no token name, a custom token is trimmed, and the API mode is kept only where the prompt was shown (hideAPIMode), so a hidden
 // prompt never leaves a stale value behind.
 func finishPlatformToken(platformType, tokenChoice, customToken, apiMode string) (tokenEnv, mode string) {
-	tokenEnv = tokenChoice
-	if tokenChoice == "custom" {
+	switch tokenChoice {
+	case tokenDefaultChain:
+		tokenEnv = ""
+	case "custom":
 		tokenEnv = strings.TrimSpace(customToken)
+	default:
+		tokenEnv = tokenChoice
 	}
 	if hideAPIMode(platformType, tokenChoice) {
 		return tokenEnv, ""
@@ -285,10 +296,19 @@ func prefillPlatformLocation(p *PlatformAnswer, detected string) {
 	}
 }
 
-// tokenSelectOptions is the token env var choices offered for a platform: its known names, then
-// "custom".
+// tokenSelectOptions is the token choices offered for a platform: its own (platformTokenOptions),
+// then "custom".
 func tokenSelectOptions(platformType string) []string {
 	return append(platformTokenOptions(platformType), "custom")
+}
+
+// tokenOptionLabel is the text a token choice is shown with: the default chain names what it reads,
+// every other choice shows itself.
+func tokenOptionLabel(choice string) string {
+	if choice == tokenDefaultChain {
+		return "default chain (" + config.EnvGitHubCLIToken + ", then " + config.EnvGitHubToken + ")"
+	}
+	return choice
 }
 
 // apiModeOrDefault is the API mode the form starts on: the existing one, else "rest".
