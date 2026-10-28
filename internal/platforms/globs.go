@@ -16,12 +16,30 @@ import (
 // run, where hooks have not built the files, can tell it apart. With allowMissing a pattern matching
 // nothing is left for publishing to warn about.
 func CheckAssetGlobs(patterns []string, allowMissing bool) error {
+	return checkAssetGlobs(patterns, allowMissing, nil)
+}
+
+// NameRule describes how a forge turns a file name into the name it publishes: Key maps a basename
+// to a value that is equal for any two basenames the forge would publish as one asset. Forge names
+// the forge in the refusal.
+type NameRule struct {
+	Forge string
+	Key   func(name string) string
+}
+
+// CheckAssetGlobsFor is CheckAssetGlobs for a forge that renames assets: two matches whose names
+// share rule.Key are refused as well, before anything is committed.
+func CheckAssetGlobsFor(patterns []string, allowMissing bool, rule NameRule) error {
+	return checkAssetGlobs(patterns, allowMissing, &rule)
+}
+
+func checkAssetGlobs(patterns []string, allowMissing bool, rule *NameRule) error {
 	root, err := realWorkingDir()
 	if err != nil {
 		return err
 	}
 	var unmatched []string
-	if _, err := matchAssets(root, patterns, func(pattern string) { unmatched = append(unmatched, pattern) }); err != nil {
+	if _, err := matchAssets(root, patterns, func(pattern string) { unmatched = append(unmatched, pattern) }, rule); err != nil {
 		return err
 	}
 	if allowMissing || len(unmatched) == 0 {

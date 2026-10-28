@@ -144,6 +144,59 @@ func TestCheckAssets_PathWithAHashIsAccepted(t *testing.T) {
 	assert.NoError(t, github.New(&config.Platform{Assets: []string{"dist/*"}}).CheckAssets())
 }
 
+// GitHub renames some characters and compares asset names without case, so two files whose names
+// differ only there would collide after the tag is pushed (422 already_exists). The preflight
+// refuses them first, in a dry run too. Each file sits in its own directory, so the pair can exist on
+// a case-insensitive filesystem.
+func TestCheckAssets_RefusesNamesGitHubWouldMerge(t *testing.T) {
+	for _, pair := range [][2]string{
+		{"Case.txt", "case.txt"},
+		{"dup#1.txt", "dup.1.txt"},
+		{"sp ace.txt", "sp.ace.txt"},
+		{"Straße.txt", "strasse.txt"},
+		{"Smørrebrød.txt", "smorrebrod.txt"},
+	} {
+		t.Run(pair[0]+" and "+pair[1], func(t *testing.T) {
+			t.Chdir(t.TempDir())
+			for i, name := range pair {
+				dir := []string{"a", "b"}[i]
+				require.NoError(t, os.MkdirAll(dir, 0o755))
+				require.NoError(t, os.WriteFile(filepath.Join(dir, name), []byte("x"), 0o644))
+			}
+
+			err := github.New(&config.Platform{Assets: []string{"a/*", "b/*"}}).CheckAssets()
+
+			require.Error(t, err)
+			assert.Contains(t, err.Error(), pair[0])
+			assert.Contains(t, err.Error(), pair[1])
+			assert.Contains(t, err.Error(), "GitHub")
+			assert.NotErrorIs(t, err, port.ErrAssetUnmatched, "a dry run must refuse it too")
+		})
+	}
+}
+
+// Characters GitHub keeps ("+", "@", "-", "_") must not be treated as renamed, or a release GitHub
+// accepts would be refused.
+func TestCheckAssets_NamesGitHubKeepsApartPass(t *testing.T) {
+	for _, pair := range [][2]string{
+		{"a+b.txt", "a.b.txt"},
+		{"a@b.txt", "a.b.txt"},
+		{"a-b.txt", "a_b.txt"},
+		{"a--b.txt", "a-b.txt"},
+	} {
+		t.Run(pair[0]+" and "+pair[1], func(t *testing.T) {
+			t.Chdir(t.TempDir())
+			for i, name := range pair {
+				dir := []string{"a", "b"}[i]
+				require.NoError(t, os.MkdirAll(dir, 0o755))
+				require.NoError(t, os.WriteFile(filepath.Join(dir, name), []byte("x"), 0o644))
+			}
+
+			assert.NoError(t, github.New(&config.Platform{Assets: []string{"a/*", "b/*"}}).CheckAssets())
+		})
+	}
+}
+
 // A loopback base_url is a GitHub Enterprise Server to the driver, so the API sits under /api/v3
 // and the test never leaves the machine (Spec 06 § Contract shows this test).
 func TestCreateRelease_SendsTheRelease(t *testing.T) {

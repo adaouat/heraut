@@ -34,7 +34,7 @@ func OpenAssets(patterns []string, warn func(string)) ([]Asset, error) {
 	if err != nil {
 		return nil, err
 	}
-	candidates, err := matchAssets(rootPath, patterns, warn)
+	candidates, err := matchAssets(rootPath, patterns, warn, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -67,11 +67,13 @@ type candidate struct {
 // matchAssets expands the globs under the publishing rules, without opening anything: directories
 // are skipped, anything else that is not a regular file is refused (opening a FIFO would block the
 // release), every match must lie inside rootPath once symlinks are resolved, and two matches with
-// the same basename are refused, since they would be published under one name. A pattern with no
-// file calls warn. Both the pre-release check and publishing apply these rules.
-func matchAssets(rootPath string, patterns []string, warn func(string)) ([]candidate, error) {
+// the same basename are refused, since they would be published under one name. With a rule, two
+// basenames with the same rule.Key are refused too. A pattern with no file calls warn. Both the
+// pre-release check and publishing apply these rules.
+func matchAssets(rootPath string, patterns []string, warn func(string), rule *NameRule) ([]candidate, error) {
 	var candidates []candidate
 	pathByName := map[string]string{}
+	pathByKey := map[string]string{}
 	for _, pattern := range patterns {
 		matches, err := filepath.Glob(pattern)
 		if err != nil {
@@ -99,6 +101,13 @@ func matchAssets(rootPath string, patterns []string, warn func(string)) ([]candi
 				return nil, fmt.Errorf("assets %q and %q would both be published as %q: rename one or narrow the patterns", prev, m, name)
 			}
 			pathByName[name] = m
+			if rule != nil {
+				key := rule.Key(name)
+				if prev, ok := pathByKey[key]; ok {
+					return nil, fmt.Errorf("assets %q and %q would both be published on %s as %q, which renames special characters and compares names without case: rename one or narrow the patterns", prev, m, rule.Forge, key)
+				}
+				pathByKey[key] = m
+			}
 			candidates = append(candidates, candidate{path: m, rel: rel, checked: info})
 			matched = true
 		}

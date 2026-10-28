@@ -127,6 +127,20 @@ func TestCheckAssetGlobs_RefusesDuplicateBasenames(t *testing.T) {
 	}
 }
 
+// Without a published-name rule (GitLab) names compare exactly: only GitHub folds case and renames.
+func TestCheckAssetGlobs_ComparesNamesExactly(t *testing.T) {
+	repo := inRepo(t)
+	for _, d := range []string{"a", "b"} {
+		require.NoError(t, os.MkdirAll(filepath.Join(repo, d), 0o755))
+	}
+	touch(t, filepath.Join(repo, "a"), "Case.txt")
+	touch(t, filepath.Join(repo, "b"), "case.txt")
+	touch(t, filepath.Join(repo, "a"), "dup#1.txt")
+	touch(t, filepath.Join(repo, "b"), "dup.1.txt")
+
+	assert.NoError(t, platforms.CheckAssetGlobs([]string{"a/*", "b/*"}, false))
+}
+
 func TestCheckAssetGlobs_DistinctNamesPass(t *testing.T) {
 	repo := inRepo(t)
 	for _, d := range []string{"linux", "darwin"} {

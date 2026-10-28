@@ -129,9 +129,13 @@ func (p *Platform) CreateRelease(tag, notes string, prerelease bool) error {
 func (p *Platform) HasAssets() bool { return len(p.cfg.Assets) > 0 }
 
 // CheckAssets applies the asset rules (confinement to the repository, and every pattern matching a
-// file unless release.allow_missing_assets is set) ahead of publishing.
+// file unless release.allow_missing_assets is set) ahead of publishing, and refuses two files GitHub
+// would publish under one name: it renames special characters and compares names without case.
 func (p *Platform) CheckAssets() error {
-	return platforms.CheckAssetGlobs(p.cfg.Assets, p.cfg.AllowMissingAssets)
+	return platforms.CheckAssetGlobsFor(p.cfg.Assets, p.cfg.AllowMissingAssets, platforms.NameRule{
+		Forge: "GitHub",
+		Key:   func(name string) string { return strings.ToLower(publishedName(name)) },
+	})
 }
 
 func (p *Platform) repository() string {
