@@ -479,7 +479,7 @@ or `uploads.<host>`; any other `upload_url` is refused before a byte is sent.
   use the same token, sent as `Authorization: Bearer`.
 - **Asset names**: each file is published under its basename; GitHub rewrites special characters
   (`meta#1.json` becomes `meta.1.json`), and heraut warns when the published name differs.
-- **Pre-release**: `--prerelease` is passed iff the active strategy is SemVer-based
+- **Pre-release**: the release is created with `prerelease: true` iff the active strategy is SemVer-based
   (`semver`/`semver-per-env`) *and* the resolved version carries SemVer pre-release identifiers
   (e.g. `1.4.0-rc.1`) — never for a final, and never under a CalVer strategy, regardless of
   whether the CalVer version happens to parse as a SemVer pre-release (a `format:

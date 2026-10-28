@@ -40,6 +40,9 @@ func NewNotesCmd() *cobra.Command {
 			if err := flags.Err(); err != nil {
 				return err
 			}
+			if overwrite && output == "" {
+				return exitcode.Wrap(exitcode.Usage, errors.New("--overwrite needs --output"))
+			}
 
 			runner := execadapter.New(false, verbose)
 
@@ -112,7 +115,7 @@ func writeNotes(path, content string, overwrite bool) error {
 	}
 	f, err := os.OpenFile(path, flag, 0o644)
 	if errors.Is(err, fs.ErrExist) {
-		return exitcode.Wrap(exitcode.Usage, fmt.Errorf("%s already exists: pass --overwrite to replace it", path))
+		return exitcode.Wrap(exitcode.Usage, fmt.Errorf("%s already exists, pass --overwrite to replace it: %w", path, err))
 	}
 	if err != nil {
 		return exitcode.Wrap(exitcode.Runtime, fmt.Errorf("writing notes: %w", err))

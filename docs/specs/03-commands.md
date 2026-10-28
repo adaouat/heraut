@@ -347,6 +347,7 @@ The `notes:` block ([Spec 02 § `notes`](02-configuration.md#notes)) reshapes it
 | per-env strategy without `--env` | Config error (2) |
 | no commit survives `commits.types` / `rendering.excludes` | empty stdout, exit 0, a notice on stderr |
 | `--output` names an existing file or symlink and `--overwrite` is not passed | Usage error (1); the file is untouched and nothing is printed |
+| `--overwrite` without `--output` | Usage error (1) |
 | `--output` cannot be written | Runtime error (3) |
 | empty range with `--output` | an empty file |
 

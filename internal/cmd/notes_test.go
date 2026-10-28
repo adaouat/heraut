@@ -2,6 +2,7 @@ package cmd_test
 
 import (
 	"bytes"
+	"io/fs"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -101,6 +102,7 @@ func TestNotes_OutputRefusesAnExistingFileWithoutOverwrite(t *testing.T) {
 	assert.Equal(t, exitcode.Usage, exitcode.Resolve(err))
 	assert.Contains(t, err.Error(), file)
 	assert.Contains(t, err.Error(), "--overwrite")
+	assert.ErrorIs(t, err, fs.ErrExist)
 	assert.NotContains(t, stdout, "Stop the crash", "the notes do not fall back to stdout")
 	b, err := os.ReadFile(file)
 	require.NoError(t, err)
@@ -119,6 +121,16 @@ func TestNotes_OutputWithOverwriteReplacesAnExistingFile(t *testing.T) {
 	require.NoError(t, err)
 	assert.Contains(t, string(b), "- (ui) Stop the crash")
 	assert.NotContains(t, string(b), "old")
+}
+
+func TestNotes_OverwriteWithoutOutputIsAUsageError(t *testing.T) {
+	notesRepo(t)
+
+	_, _, err := runNotes(t, "v0.2.0", "--overwrite")
+
+	require.Error(t, err)
+	assert.Equal(t, exitcode.Usage, exitcode.Resolve(err))
+	assert.Contains(t, err.Error(), "--output")
 }
 
 // A symlink counts as an existing file even when its target does not exist, so the notes cannot be
