@@ -14,6 +14,8 @@ file named by `--config` / `HERAUT_FILE`). The project's `schema.json` describes
 - **Never run `heraut release` or `heraut changelog --commit/--tag` without the user's explicit
   approval in this conversation.** They push commits and tags and publish releases, which cannot be
   taken back. The other commands read, or write one local file (noted in the table).
+- Never replace an existing file without the user's approval: do not pass `--overwrite` (`notes`,
+  `init`) or `--force` (`skill install`) unless the user asked for that file to be replaced.
 - Always put `--json` on commands that support it and read stdout only. Stderr carries human text.
 - Use `--offline` when you have no forge token; it skips PR/MR enrichment.
 - Do not run `heraut init` or `heraut commit create` interactively. Use `heraut init --defaults`, or
@@ -40,7 +42,7 @@ Per-env strategies need `--env <name>` on every command. A tag format containing
 | `heraut commit verify "<message>"` | validates one conventional-commit message | yes | no |
 | `heraut commit check [range]` | validates every commit of a range | no | no |
 | `heraut commit tickets [range]` | validates the `commits.tickets` patterns | no | no |
-| `heraut notes <tag>` | prints the release notes of a tag (`--format markdown\|text`, `--from <tag>`, `--output <file>`) | no | no (writes only `--output`) |
+| `heraut notes <tag>` | prints the release notes of a tag (`--format markdown\|text`, `--from <tag>`, `--output <file>`) | no | no (writes only `--output`, a new file unless `--overwrite`) |
 | `heraut whatsnew` | release notes newer than the running heraut build | no | no |
 | `heraut release --dry-run` | the release plan | yes (with `--dry-run`) | no |
 | `heraut release` | version, changelog, commit, tag, push, publish | no | **yes** |

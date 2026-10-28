@@ -54,6 +54,30 @@ func TestNotes_OutputWritesTheFileAndKeepsStdoutEmpty(t *testing.T) {
 	assert.Equal(t, "🐛 Bug Fixes\n\n- (ui) Stop the crash\n", string(b))
 }
 
+func TestNotes_OutputNeverReplacesAFileWithoutOverwrite(t *testing.T) {
+	bin := harness.Binary(t)
+	repo := harness.NewRepo(t)
+	repo.WriteConfig(notesCfg)
+	applySteps(repo, notesHistory())
+	file := filepath.Join(t.TempDir(), "store.txt")
+	require.NoError(t, os.WriteFile(file, []byte("keep\n"), 0o644))
+
+	res := repo.Run(bin, nil, "notes", "v1.1.0", "--offline", "--format", "text", "--output", file)
+
+	assert.Equal(t, exitUsage, res.ExitCode, "stdout:\n%s\nstderr:\n%s", res.Stdout, res.Stderr)
+	assert.Contains(t, res.Stderr, "--overwrite")
+	b, err := os.ReadFile(file)
+	require.NoError(t, err)
+	assert.Equal(t, "keep\n", string(b), "the existing file is untouched")
+
+	res = repo.Run(bin, nil, "notes", "v1.1.0", "--offline", "--format", "text", "--output", file, "--overwrite")
+
+	require.Equal(t, exitOK, res.ExitCode, "stdout:\n%s\nstderr:\n%s", res.Stdout, res.Stderr)
+	b, err = os.ReadFile(file)
+	require.NoError(t, err)
+	assert.Equal(t, "🐛 Bug Fixes\n\n- (ui) Stop the crash\n", string(b))
+}
+
 func TestNotes_Bounds(t *testing.T) {
 	bin := harness.Binary(t)
 	rcHistory := []step{

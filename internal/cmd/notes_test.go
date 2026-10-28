@@ -5,6 +5,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"runtime"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -18,7 +19,7 @@ import (
 func TestNewNotesCmd(t *testing.T) {
 	c := cmd.NewNotesCmd()
 	assert.Equal(t, "notes <tag>", c.Use)
-	for _, name := range []string{"from", "format", "template", "output", "env", "force", "offline"} {
+	for _, name := range []string{"from", "format", "template", "output", "overwrite", "env", "force", "offline"} {
 		assert.NotNil(t, c.Flags().Lookup(name), "flag %q not registered", name)
 	}
 	assert.Equal(t, "markdown", c.Flags().Lookup("format").DefValue)
@@ -85,6 +86,58 @@ func TestNotes_OutputWritesTheFileAndPrintsNothing(t *testing.T) {
 	b, err := os.ReadFile(file)
 	require.NoError(t, err)
 	assert.Contains(t, string(b), "- (ui) Stop the crash")
+}
+
+// --output never replaces a file silently (SEC-002): an agent talked into --output ~/.bashrc must be
+// stopped unless it also passes --overwrite.
+func TestNotes_OutputRefusesAnExistingFileWithoutOverwrite(t *testing.T) {
+	notesRepo(t)
+	file := filepath.Join(t.TempDir(), "store.txt")
+	require.NoError(t, os.WriteFile(file, []byte("keep\n"), 0o644))
+
+	stdout, _, err := runNotes(t, "v0.2.0", "--output", file)
+
+	require.Error(t, err)
+	assert.Equal(t, exitcode.Usage, exitcode.Resolve(err))
+	assert.Contains(t, err.Error(), file)
+	assert.Contains(t, err.Error(), "--overwrite")
+	assert.NotContains(t, stdout, "Stop the crash", "the notes do not fall back to stdout")
+	b, err := os.ReadFile(file)
+	require.NoError(t, err)
+	assert.Equal(t, "keep\n", string(b))
+}
+
+func TestNotes_OutputWithOverwriteReplacesAnExistingFile(t *testing.T) {
+	notesRepo(t)
+	file := filepath.Join(t.TempDir(), "store.txt")
+	require.NoError(t, os.WriteFile(file, []byte("old\n"), 0o644))
+
+	_, _, err := runNotes(t, "v0.2.0", "--format", "text", "--output", file, "--overwrite")
+
+	require.NoError(t, err)
+	b, err := os.ReadFile(file)
+	require.NoError(t, err)
+	assert.Contains(t, string(b), "- (ui) Stop the crash")
+	assert.NotContains(t, string(b), "old")
+}
+
+// A symlink counts as an existing file even when its target does not exist, so the notes cannot be
+// written through a planted link to a path outside the operator's choice.
+func TestNotes_OutputRefusesADanglingSymlinkWithoutOverwrite(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("symlinks need privileges on windows")
+	}
+	notesRepo(t)
+	dir := t.TempDir()
+	target := filepath.Join(dir, "elsewhere.txt")
+	link := filepath.Join(dir, "store.txt")
+	require.NoError(t, os.Symlink(target, link))
+
+	_, _, err := runNotes(t, "v0.2.0", "--output", link)
+
+	require.Error(t, err)
+	assert.Equal(t, exitcode.Usage, exitcode.Resolve(err))
+	assert.NoFileExists(t, target)
 }
 
 func TestNotes_OutputToAMissingDirectoryIsARuntimeError(t *testing.T) {

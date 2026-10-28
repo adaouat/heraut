@@ -3,6 +3,7 @@ package cmd
 import (
 	"errors"
 	"fmt"
+	"io/fs"
 	"os"
 
 	execadapter "github.com/adaouat/forge/exec"
@@ -16,10 +17,11 @@ import (
 // NewNotesCmd constructs the `heraut notes` command.
 func NewNotesCmd() *cobra.Command {
 	var (
-		from     string
-		format   string
-		template string
-		output   string
+		from      string
+		format    string
+		template  string
+		output    string
+		overwrite bool
 	)
 
 	notesCmd := &cobra.Command{
@@ -77,10 +79,7 @@ func NewNotesCmd() *cobra.Command {
 				if content != "" {
 					content += "\n"
 				}
-				if err := os.WriteFile(output, []byte(content), 0o644); err != nil {
-					return exitcode.Wrap(exitcode.Runtime, fmt.Errorf("writing notes: %w", err))
-				}
-				return nil
+				return writeNotes(output, content, overwrite)
 			}
 			if res.Text != "" {
 				if _, err := fmt.Fprintln(cmd.OutOrStdout(), res.Text); err != nil {
@@ -95,9 +94,35 @@ func NewNotesCmd() *cobra.Command {
 	notesCmd.Flags().StringVar(&format, "format", "markdown", "output format: markdown or text")
 	notesCmd.Flags().StringVar(&template, "template", "", "template file for this run (replaces notes.template)")
 	notesCmd.Flags().StringVar(&output, "output", "", "write the notes to this file instead of stdout")
+	notesCmd.Flags().BoolVar(&overwrite, "overwrite", false, "replace the --output file if it already exists")
 	notesCmd.Flags().String("env", "", "target environment (for per-env strategies)")
 	notesCmd.Flags().Bool("force", false, "downgrade commits.enrichment_policy: required to optional for this run")
 	notesCmd.Flags().Bool("offline", false, "skip remote PR/MR metadata enrichment (forces enrichment_policy: disabled)")
 
 	return notesCmd
+}
+
+// writeNotes writes content to path. Without overwrite an existing path, a symlink included, is
+// refused (SEC-002): the existence check and the create are one O_EXCL open, so nothing can be put
+// there in between.
+func writeNotes(path, content string, overwrite bool) error {
+	flag := os.O_WRONLY | os.O_CREATE | os.O_EXCL
+	if overwrite {
+		flag = os.O_WRONLY | os.O_CREATE | os.O_TRUNC
+	}
+	f, err := os.OpenFile(path, flag, 0o644)
+	if errors.Is(err, fs.ErrExist) {
+		return exitcode.Wrap(exitcode.Usage, fmt.Errorf("%s already exists: pass --overwrite to replace it", path))
+	}
+	if err != nil {
+		return exitcode.Wrap(exitcode.Runtime, fmt.Errorf("writing notes: %w", err))
+	}
+	if _, err := f.WriteString(content); err != nil {
+		_ = f.Close()
+		return exitcode.Wrap(exitcode.Runtime, fmt.Errorf("writing notes: %w", err))
+	}
+	if err := f.Close(); err != nil {
+		return exitcode.Wrap(exitcode.Runtime, fmt.Errorf("writing notes: %w", err))
+	}
+	return nil
 }
