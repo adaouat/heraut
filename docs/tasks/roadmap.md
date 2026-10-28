@@ -251,6 +251,7 @@ discipline that applies to every task.
 | 80 | GitHub publishing without `gh` (ADR-0077) | Done — T423–T430, T432 and T433, see `github-client-roadmap.md` |
 | 81 | GitLab asset read from the descriptor (NEW-002 for GitLab) | Done |
 | 82 | Last open security findings (NEW-005 residual, SEC-002) | Done |
+| 83 | Code review follow-ups (2026-10-28 review of Phases 80–82) | In progress — T436 done; T437, T438, T439 not started |
 
 ### Open items
 
@@ -3494,6 +3495,54 @@ with a `BREAKING CHANGE` footer (`stay_at_v0` keeps it a minor bump). The skill'
 agent never passes `--overwrite` or `--force` unless the user asked; Spec 03 § notes and the app-store guide
 document the flag and the exit code. SEC-002 is resolved in `SECURITY_FINDINGS.md`, which leaves no open
 finding. Nothing changed for `skill install`, `init` or `version sprint bump`.
+
+### Phase 83 — Code review follow-ups
+
+A read-only review of the 34 commits of Phases 80–82 (`origin/main..main` on 2026-10-28, run as an Opus
+subagent at the user's request) found no critical or high issue. The user chose to fix its four small items
+at once (T436) and to schedule the other three, one per session.
+
+#### `[x]` T436: small review fixes (test gap, error wrapping, flag check, spec wording)
+
+Done 2026-10-28. (1) `TestOpenAssets_SwapOfALaterAssetClosesTheEarlierOnes` only checked the open order, so
+removing `CloseAssets` from `OpenAssets`' error path still passed: an `afterOpen` hook, beside `afterStat` and
+`beforeOpen`, hands the test each opened file, and it asserts the first returns `os.ErrClosed`; removing the
+call now fails it. (2) The `notes --output` refusal wraps `fs.ErrExist` (`%w`), pinned with `ErrorIs`. (3)
+`--overwrite` without `--output` is a Usage error instead of being ignored. (4) Spec 05's pre-release bullet
+no longer says "`--prerelease` is passed" (`gh`'s flag); Spec 03 lists the new usage error.
+
+#### `[ ]` T437: `heraut init` keeps the default GitHub token chain
+
+The wizard's only GitHub token choices are `GH_TOKEN` and a custom name (`platformTokenOptions` in
+`internal/scaffold/decisions.go`), and it writes the choice as `token_env`. An explicit `token_env` turns off
+the chain ADR-0077 introduced (`GH_TOKEN` then `GITHUB_TOKEN`; the enterprise names on GHES), so a config made
+by `heraut init` fails in GitHub Actions with only `GITHUB_TOKEN` set, against the ADR's "`GITHUB_TOKEN` alone is
+enough on github.com". Make "default chain" (no `token_env`) the wizard's first GitHub option, keep a custom
+name possible, and keep an existing config's explicit `token_env` when the wizard edits it. Drop `token_env:
+GH_TOKEN` from `docs/heraut.sample.yml` and the GitHub examples in Spec 02 and Spec 05 (a comment can show the
+key). Tests first in `internal/scaffold` (generated YAML has no `token_env` for the default; custom and
+existing values survive); the GitLab options are unchanged.
+
+#### `[ ]` T438: the preflight sees names GitHub would rewrite into a collision
+
+`matchAssets` refuses two assets with the same basename, but GitHub rewrites some characters on upload
+(`#` becomes `.`, recorded in ADR-0077), so `dist/meta#1.json` and `dist/meta.1.json` both pass
+`CheckAssetGlobs`; after the tag is pushed the second upload gets 422 `already_exists` and the release fails.
+In the GitHub driver's `CheckAssets`, also compare the names after the known rewrites and refuse a collision
+before anything is committed. Decide at the start whether to model only the documented `#` rule or a wider
+set; do not guess GitHub's full normalisation without evidence (a Lane B probe on the sandbox can settle it,
+only with the user's go). GitLab keeps names as given and needs nothing.
+
+#### `[ ]` T439: bounded GitHub publish requests and draft cleanup on interrupt
+
+`internal/platforms/github/client.go` uses a bare `http.Client` and `context.Background()`: a connection that
+stalls after the tag push hangs `heraut release`, and Ctrl-C there skips the delete-draft cleanup, leaving
+the draft ADR-0077's failure rule removes. Add a transport-level `ResponseHeaderTimeout` (not a total timeout,
+so large uploads still complete) and give the publish a context cancelled on SIGINT/SIGTERM, with the
+cleanup DELETE run on a fresh short-lived context. Check how `forge/cli.Run` already handles signals before
+adding a handler. The old `gh` path had no bound either, so this is a hardening, not a regression. Tests
+first against `httptest` (a server that never sends headers; a cancel during upload still deletes the
+draft).
 
 Every Phase above marked `Done` and not pointing to a dedicated roadmap (D, 0–9, 11–22, 26, 28,
 30, 31) has had its full task write-up — implementation notes, decisions, deviations — moved to
