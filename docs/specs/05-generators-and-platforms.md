@@ -478,7 +478,13 @@ or `uploads.<host>`; any other `upload_url` is refused before a byte is sent.
   `GH_ENTERPRISE_TOKEN`, then `GITHUB_ENTERPRISE_TOKEN`, then `GH_TOKEN`. `Check()` and publishing
   use the same token, sent as `Authorization: Bearer`.
 - **Asset names**: each file is published under its basename; GitHub rewrites special characters
-  (`meta#1.json` becomes `meta.1.json`), and heraut warns when the published name differs.
+  (`meta#1.json` becomes `meta.1.json`), and heraut warns when the published name differs. GitHub
+  also compares asset names without case, so `App.zip` and `app.zip` cannot both be published. The
+  pre-release check therefore refuses two basenames that GitHub would publish as one, before
+  anything is committed, using the renaming observed on github.com (ADR-0077 addendum): accents are
+  dropped and a few letters spelled out (`ß` → `ss`, `ø` → `o`, `æ` → `ae`, `ł` → `l`), any other
+  character outside ASCII letters, digits and `._-+@` becomes `.`, runs of `.` collapse, a
+  trailing `.` is dropped and a leading `.` gets `default` in front. GitLab keeps names as given.
 - **Pre-release**: the release is created with `prerelease: true` iff the active strategy is SemVer-based
   (`semver`/`semver-per-env`) *and* the resolved version carries SemVer pre-release identifiers
   (e.g. `1.4.0-rc.1`) — never for a final, and never under a CalVer strategy, regardless of
@@ -545,7 +551,8 @@ already exist (heraut tags and pushes before publishing).
 both resolve in two steps. Before anything is committed or pushed, right after the `post_bump`
 hooks, each glob is expanded against the working directory, and the run aborts on a match outside the
 repository, a match that is not a regular file (directories are skipped), two matches with the same
-basename (they would be published under one name, so this applies to a dry run too), or a pattern
+basename (they would be published under one name, so this applies to a dry run too; on GitHub,
+also two basenames it would rename into one, § GitHub), or a pattern
 matching no file ([ADR-0076](../adr/0076-a-release-asset-pattern-must-match-a-file.md); `release.allow_missing_assets: true`
 turns that off, and a dry run only warns). (A path containing `#` is accepted since ADR-0077, which supersedes the ADR-0076 addendum.) At publish time resolution stays **lenient**: a pattern
 matching nothing emits a warning and is skipped rather than failing the release — by then the tag has

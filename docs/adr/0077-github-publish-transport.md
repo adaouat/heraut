@@ -176,3 +176,30 @@ because one package imports it.
   epic, but its own commit and behaviour change.
 - The GitLab client's descriptor-based read (NEW-002 for GitLab).
 - Retries beyond what `go-github` does for rate limits: revisit only if Lane B shows a need.
+
+## Addendum (2026-10-28): how GitHub renames asset names
+
+The Decision records one rewrite, `#` to `.`. A code review found that the duplicate-name check compared
+names as given, so two files GitHub renames into one passed the pre-release check and the release failed
+after the tag push (422 `already_exists`). On the user's go, T438 probed github.com: about 60 names
+uploaded to a draft release on the GitHub sandbox, published names read back, the draft deleted (no tag
+is created for a draft). Observed:
+
+- kept: ASCII letters, digits, `.`, `_`, `-`, `+`, `@`, and the case;
+- every other ASCII character, and space, becomes `.`; runs of `.` collapse, original dots included
+  (`dd..x.txt` → `dd.x.txt`);
+- a trailing `.` or space is dropped (`trail.txt.` → `trail.txt`); a leading `.` gets `default` in
+  front (`.hidden` → `default.hidden`); a name left empty becomes `default` (`日本.txt` → `default.txt`);
+- letters are transliterated (`é` → `e`, `ß` → `ss`, `ø` → `o`, `æ` → `ae`, `Ł` → `L`); other
+  non-ASCII characters (`€`, emoji, CJK) become `.`;
+- names compare **without case**: `Case.txt` then `case.txt`, and `Straße.txt` then `strasse.txt`, are
+  refused with 422 `already_exists`.
+
+One outlier is not modelled: `x.` was published as `default.x`, while `trail.txt.` lost its dot.
+`publishedName` in `internal/platforms/github` encodes the rest (its test table is the observed
+list), and the GitHub driver's `CheckAssets` refuses two basenames whose lowercased published names
+match. The model only decides collisions; the published name is still read from GitHub's answer.
+GitHub documents that it renames such names, not how. If it changes the rules, the model can miss a
+collision (the old failure, after the tag push) or refuse two names GitHub would now keep apart; the
+remedy for the latter is renaming one file. Rerun the probe before changing the model.
+

@@ -251,7 +251,7 @@ discipline that applies to every task.
 | 80 | GitHub publishing without `gh` (ADR-0077) | Done — T423–T430, T432 and T433, see `github-client-roadmap.md` |
 | 81 | GitLab asset read from the descriptor (NEW-002 for GitLab) | Done |
 | 82 | Last open security findings (NEW-005 residual, SEC-002) | Done |
-| 83 | Code review follow-ups (2026-10-28 review of Phases 80–82) | In progress — T436, T437 done; T438, T439 not started |
+| 83 | Code review follow-ups (2026-10-28 review of Phases 80–82) | In progress — T436–T438 done; T439 not started |
 
 ### Open items
 
@@ -3537,7 +3537,7 @@ comment it out, two other Spec 02 examples and the README drop it; Spec 03 § in
 Not changed: `testdata/config/valid/*` and the e2e configs, which set `token_env` on purpose to test an
 explicit value.
 
-#### `[ ]` T438: the preflight sees names GitHub would rewrite into a collision
+#### `[x]` T438: the preflight sees names GitHub would rewrite into a collision
 
 `matchAssets` refuses two assets with the same basename, but GitHub rewrites some characters on upload
 (`#` becomes `.`, recorded in ADR-0077), so `dist/meta#1.json` and `dist/meta.1.json` both pass
@@ -3546,6 +3546,21 @@ In the GitHub driver's `CheckAssets`, also compare the names after the known rew
 before anything is committed. Decide at the start whether to model only the documented `#` rule or a wider
 set; do not guess GitHub's full normalisation without evidence (a Lane B probe on the sandbox can settle it,
 only with the user's go). GitLab keeps names as given and needs nothing.
+
+Done 2026-10-28. The user chose the probe. Two runs on `bchatard/heraut-testing` uploaded about 60 names to
+a draft release each (deleted after; no tag or release left, checked). Findings beyond the task text:
+GitHub keeps `+` and `@`, collapses runs of `.`, transliterates letters (`ß` → `ss`, `ø` → `o`), and compares
+names **without case** (`Case.txt` then `case.txt` is 422), which the old exact check missed too. Recorded
+in an ADR-0077 addendum. `publishedName` (`internal/platforms/github/publishedname.go`, NFD from
+`golang.org/x/text`, now a direct dependency, plus a 7-letter table) models it; its test table is the
+observed list except `x.` → `default.x`, an outlier left unmodelled. `matchAssets` takes an optional
+`NameRule{Forge, Key}`; `CheckAssetGlobsFor` passes one, `CheckAssetGlobs` (GitLab) and `OpenAssets` pass
+none, so GitLab and the publish-time check are unchanged. The GitHub driver's `CheckAssets` keys on the
+lowercased published name. Tests first: five merge pairs refused (red on the old code), four keep-apart
+pairs accepted (`+`, `@`, `-`/`_`, `--`), and a pin that GitLab compares exactly. Five mutations fail them
+(no case folding, no dot collapse, `+` renamed, no `ß` entry, the matcher ignoring the rule); two first
+attempts were invalid (one hit the doc comment, one did not compile) and were redone. Spec 03 and Spec 05
+describe the rule. Not done: a Lane A scenario (the T432 duplicate scenario covers the preflight path).
 
 #### `[ ]` T439: bounded GitHub publish requests and draft cleanup on interrupt
 
