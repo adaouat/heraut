@@ -251,7 +251,7 @@ discipline that applies to every task.
 | 80 | GitHub publishing without `gh` (ADR-0077) | Done — T423–T430, T432 and T433, see `github-client-roadmap.md` |
 | 81 | GitLab asset read from the descriptor (NEW-002 for GitLab) | Done |
 | 82 | Last open security findings (NEW-005 residual, SEC-002) | Done |
-| 83 | Code review follow-ups (2026-10-28 review of Phases 80–82) | In progress — T436 done; T437, T438, T439 not started |
+| 83 | Code review follow-ups (2026-10-28 review of Phases 80–82) | In progress — T436, T437 done; T438, T439 not started |
 
 ### Open items
 
@@ -3511,7 +3511,7 @@ call now fails it. (2) The `notes --output` refusal wraps `fs.ErrExist` (`%w`), 
 `--overwrite` without `--output` is a Usage error instead of being ignored. (4) Spec 05's pre-release bullet
 no longer says "`--prerelease` is passed" (`gh`'s flag); Spec 03 lists the new usage error.
 
-#### `[ ]` T437: `heraut init` keeps the default GitHub token chain
+#### `[x]` T437: `heraut init` keeps the default GitHub token chain
 
 The wizard's only GitHub token choices are `GH_TOKEN` and a custom name (`platformTokenOptions` in
 `internal/scaffold/decisions.go`), and it writes the choice as `token_env`. An explicit `token_env` turns off
@@ -3522,6 +3522,20 @@ name possible, and keep an existing config's explicit `token_env` when the wizar
 GH_TOKEN` from `docs/heraut.sample.yml` and the GitHub examples in Spec 02 and Spec 05 (a comment can show the
 key). Tests first in `internal/scaffold` (generated YAML has no `token_env` for the default; custom and
 existing values survive); the GitLab options are unchanged.
+
+Done 2026-10-28. GitHub's token choices are now `default` (shown as "default chain (GH_TOKEN, then
+GITHUB_TOKEN)"), `GH_TOKEN`, then `custom`; `default` stores no `token_env` (`finishPlatformToken`), and an
+empty existing value pre-selects it, so re-running `init` on a config without `token_env` no longer adds one.
+`GH_TOKEN` stays as an explicit choice so an existing explicit value round-trips. Edge case handled: an
+existing `token_env` literally named `default` maps to `custom` with that name, never to the chain. Tests
+first (`TestTokenSelectOptions_KnownNamesThenCustom`, `TestResolveTokenChoice`, `TestFinishPlatformToken`,
+new `TestTokenOptionLabel` and `TestGenerateYAML_GitHubWithoutATokenNameOmitsTokenEnv`, the last a pin since
+`omitempty` already drops the key). Three mutations fail them: the sentinel stored as a name, no guard for a
+variable named `default`, `GH_TOKEN` first again. Docs: the sample config shows `token_env` commented out
+with a note that setting it reads only that variable; Spec 02's and Spec 05's GitHub reference blocks
+comment it out, two other Spec 02 examples and the README drop it; Spec 03 § init describes the choice.
+Not changed: `testdata/config/valid/*` and the e2e configs, which set `token_env` on purpose to test an
+explicit value.
 
 #### `[ ]` T438: the preflight sees names GitHub would rewrite into a collision
 
