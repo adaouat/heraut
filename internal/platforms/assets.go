@@ -15,10 +15,12 @@ type Asset struct {
 	File *os.File
 }
 
-// afterStat and beforeOpen run around an asset's confinement check, so tests can swap the file there.
+// afterStat and beforeOpen run around an asset's confinement check, so tests can swap the file there;
+// afterOpen hands tests each opened file, so they can check it is closed on a later error.
 var (
 	afterStat  = func(string) {}
 	beforeOpen = func(string) {}
+	afterOpen  = func(*os.File) {}
 )
 
 // OpenAssets resolves the asset globs with the rules of matchAssets and opens every match, so an
@@ -113,6 +115,7 @@ func openChecked(root *os.Root, path, rel string, checked os.FileInfo) (Asset, e
 	if err != nil {
 		return Asset{}, fmt.Errorf("opening asset %q: %w", path, err)
 	}
+	afterOpen(f)
 	info, err := f.Stat()
 	if err != nil {
 		_ = f.Close()

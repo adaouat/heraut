@@ -124,9 +124,17 @@ func TestOpenAssets_SwapOfALaterAssetClosesTheEarlierOnes(t *testing.T) {
 		}
 	})
 
+	var files []*os.File
+	prevAfterOpen := afterOpen
+	afterOpen = func(f *os.File) { files = append(files, f) }
+	t.Cleanup(func() { afterOpen = prevAfterOpen })
+
 	err := openAfterSwap(t, []string{"dist/app.zip", "dist/b.zip"})
 	require.Error(t, err)
 	assert.Equal(t, []string{"dist/app.zip", "dist/b.zip"}, opened, "the first asset was opened before the second was refused")
+	require.NotEmpty(t, files, "the first asset was opened")
+	_, statErr := files[0].Stat()
+	assert.ErrorIs(t, statErr, os.ErrClosed, "the first asset is closed when a later one is refused")
 }
 
 // Outside when stat'ed and when opened, inside only for the confinement check: SameFile alone would
