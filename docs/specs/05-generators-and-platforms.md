@@ -465,7 +465,11 @@ process through `go-github`; no `gh` binary is involved.
 Without assets the release is one create call. With assets it is created as a draft, each file is
 uploaded, then the draft is published, unless the target sets `draft: true` (uploading to a
 published release fails when immutable releases are on). If an upload or the publish fails, the
-draft is deleted and the original error is returned, with any delete failure appended. The upload
+draft is deleted and the original error is returned, with any delete failure appended. The same
+cleanup runs when the run is interrupted (Ctrl-C, SIGTERM): the requests stop and the delete is sent
+on a context of its own, bounded to 30 seconds. A request whose response headers do not arrive within
+two minutes fails; the bound is on the wait for the answer, not on the request, so a large upload is
+not cut short. The upload
 goes only to an expected origin: `uploads.github.com` for github.com, else `base_url`'s own origin
 or `uploads.<host>`; any other `upload_url` is refused before a byte is sent.
 

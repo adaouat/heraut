@@ -251,7 +251,7 @@ discipline that applies to every task.
 | 80 | GitHub publishing without `gh` (ADR-0077) | Done — T423–T430, T432 and T433, see `github-client-roadmap.md` |
 | 81 | GitLab asset read from the descriptor (NEW-002 for GitLab) | Done |
 | 82 | Last open security findings (NEW-005 residual, SEC-002) | Done |
-| 83 | Code review follow-ups (2026-10-28 review of Phases 80–82) | In progress — T436–T438 done; T439 not started |
+| 83 | Code review follow-ups (2026-10-28 review of Phases 80–82) | In progress — T436–T439 done; T440 not started |
 
 ### Open items
 
@@ -3562,7 +3562,7 @@ pairs accepted (`+`, `@`, `-`/`_`, `--`), and a pin that GitLab compares exactly
 attempts were invalid (one hit the doc comment, one did not compile) and were redone. Spec 03 and Spec 05
 describe the rule. Not done: a Lane A scenario (the T432 duplicate scenario covers the preflight path).
 
-#### `[ ]` T439: bounded GitHub publish requests and draft cleanup on interrupt
+#### `[x]` T439: bounded GitHub publish requests and draft cleanup on interrupt
 
 `internal/platforms/github/client.go` uses a bare `http.Client` and `context.Background()`: a connection that
 stalls after the tag push hangs `heraut release`, and Ctrl-C there skips the delete-draft cleanup, leaving
@@ -3572,6 +3572,34 @@ cleanup DELETE run on a fresh short-lived context. Check how `forge/cli.Run` alr
 adding a handler. The old `gh` path had no bound either, so this is a hardening, not a regression. Tests
 first against `httptest` (a server that never sends headers; a cancel during upload still deletes the
 draft).
+
+Done 2026-10-28. Finding at the start: `forge/cli.Run` already makes fang cancel `cmd.Context()` on
+SIGINT/SIGTERM through `signal.NotifyContext`, held for the whole run, so Go's default exit on Ctrl-C is off
+while nothing in heraut read the context: a stalled forge request ignored Ctrl-C entirely (only `git`
+children died). The user chose to thread the command's context rather than a GitHub-local signal handler.
+`port.Platform.CreateRelease(ctx, …)`; `Pipeline.Run(ctx)` passes it through `releaseFlow` to `publishStep`
+(`Plan()` passes `context.Background()`, it runs no step; `ChangelogPipeline.Run()` is unchanged); `heraut
+release` passes `cmd.Context()`. GitHub: a cloned default transport with `ResponseHeaderTimeout` 2 min, the
+draft delete on `context.WithTimeout(context.WithoutCancel(ctx), 30s)`. GitLab: `gl.WithContext(ctx)` on
+the upload and the release call (no new timeout there). Tests first: the pipeline passes its context to
+every publish; GitHub: a silent server times out, a cancel mid-upload still deletes the draft, the cleanup
+is bounded, a cancelled context sends nothing; GitLab: a cancel mid-upload creates no release; harness:
+`Repo.Start`/`Interrupt`/`Wait`/`WaitForOutput` and `HangUploads`; e2e (Unix): SIGINT mid-upload exits
+with Runtime after `DELETE`. Six mutations fail them; with the command's context dropped, the e2e
+process was still running 30 s after SIGINT, the original bug. Two first mutation attempts did not compile
+and were redone. A test stub that never read its request body hung `httptest.Server.Close` and was fixed.
+About 145 test call sites of `Run()` and `CreateRelease()` were updated mechanically. Spec 03, Spec 05 and
+the failure-recovery guide describe the behaviour. Left for T440: every other network call.
+
+#### `[ ]` T440: Ctrl-C during the other network calls
+
+T439 threads the command's context only into publishing. The other HTTP calls still run on their own:
+the preflight token checks (`port.Platform.Check()`, `VerifyReleasesAccess` on both forges), PR/MR
+enrichment in `internal/forge/{github,gitlab,azure}` (changelog and notes), and `heraut check runtime`.
+While fang holds SIGINT, a stall there still ignores Ctrl-C (the enrichment clients have a total timeout,
+the checks have none). Thread `cmd.Context()` the same way (`Check(ctx)`, the forge enrichment interface,
+`ChangelogPipeline.Run(ctx)`), and decide whether GitLab publishing gets the response-header bound GitHub
+has. Tests first, including an e2e interrupt during a stalled check.
 
 Every Phase above marked `Done` and not pointing to a dedicated roadmap (D, 0–9, 11–22, 26, 28,
 30, 31) has had its full task write-up — implementation notes, decisions, deviations — moved to

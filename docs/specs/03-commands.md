@@ -112,6 +112,11 @@ already exists, else `.heraut.yml`. The file starts with a
 
 Run the full release pipeline.
 
+Ctrl-C (SIGINT) or SIGTERM during publishing stops the forge requests in flight, and the run fails
+with the Runtime code. A GitHub draft created for assets is deleted on the way out (Spec 05 §
+GitHub); by then the tag is pushed, so the repository is in [failure-recovery](../guides/failure-recovery.md)
+state C. A GitHub request whose answer does not start within two minutes fails the same way.
+
 ```
 heraut release [--set-version <version>] [--set-build-id <id>] [--pre-release <label>] [--regenerate-changelog] [--dry-run] [--env <name>] [--force] [--offline] [--no-hooks] [--skip-hook <point>[,<point>…]] [--allow-major]
 ```
