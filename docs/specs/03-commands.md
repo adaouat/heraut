@@ -298,7 +298,7 @@ tag's previous release to the tag. Read-only: no commit, tag, push, publish or h
 that leaves heraut, such as an app store submission.
 
 ```
-heraut notes <tag> [--from <tag>] [--format markdown|text] [--template <file>] [--output <file>] [--env <name>] [--force] [--offline]
+heraut notes <tag> [--from <tag>] [--format markdown|text] [--template <file>] [--output <file> [--overwrite]] [--env <name>] [--force] [--offline]
 ```
 
 | Flag         | Description |
@@ -306,7 +306,8 @@ heraut notes <tag> [--from <tag>] [--format markdown|text] [--template <file>] [
 | `--from`     | Lower bound of the range, instead of the tag's previous release. Must be a tag in the history of `<tag>`. Spans several pre-releases into one text, for example `--from v7.7.0` on `v7.8.0`. |
 | `--format`   | `markdown` (default) prints the rendered template as it is. `text` converts that Markdown to plain text with a CommonMark parser: headings become plain lines, list items keep their `- `, emphasis, strong and code-span markers and link URLs are dropped. Text that is not formatting in CommonMark (`snake_case`) is untouched; text that is (`*stars*`) loses its markers, as a Markdown viewer would show it. |
 | `--template` | Template file for this run; replaces `notes.template`. |
-| `--output`   | Write the notes to this file (created or replaced) instead of stdout. |
+| `--output`   | Write the notes to this file instead of stdout. An existing path, a symlink included, is refused unless `--overwrite` is passed, so a mistyped or injected path cannot silently replace a file. |
+| `--overwrite` | Let `--output` replace an existing file. |
 | `--env`      | Active environment; required for the per-env strategies. |
 | `--force`    | Downgrades `commits.enrichment_policy: required` to `optional` for this run. |
 | `--offline`  | Forces `commits.enrichment_policy: disabled` for this run. |
@@ -345,12 +346,14 @@ The `notes:` block ([Spec 02 § `notes`](02-configuration.md#notes)) reshapes it
 | `--format` is neither `markdown` nor `text` | Usage error (1) |
 | per-env strategy without `--env` | Config error (2) |
 | no commit survives `commits.types` / `rendering.excludes` | empty stdout, exit 0, a notice on stderr |
+| `--output` names an existing file or symlink and `--overwrite` is not passed | Usage error (1); the file is untouched and nothing is printed |
 | `--output` cannot be written | Runtime error (3) |
 | empty range with `--output` | an empty file |
 
 Warnings and degraded-run notices go to stderr, so `heraut notes v7.8.0 > store.txt` captures only
 the notes. A pipeline that publishes to a store can run
-`heraut release && heraut notes "$(heraut version current)" --format text --output store.txt`.
+`heraut release && heraut notes "$(heraut version current)" --format text --output store.txt`
+(add `--overwrite` when `store.txt` survives from an earlier run).
 
 ## `heraut version next`
 

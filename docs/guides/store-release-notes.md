@@ -10,6 +10,9 @@ heraut release                                   # cut and publish v7.8.0
 heraut notes v7.8.0 --format text --output store.txt
 ```
 
+`--output` refuses to replace a file that already exists; add `--overwrite` when `store.txt` is left
+from an earlier run (a fresh CI checkout never has one).
+
 `heraut notes` only reads git. Run it after the tag exists, from any checkout that has the tag
 and its history, including a shallow-free CI checkout of the tag itself.
 
@@ -87,7 +90,7 @@ heraut notes v7.8.0-rc.3 --from v7.7.0 --format text
 | Situation | Code |
 |---|---|
 | unknown tag, a tag that is not a release tag, unknown `--from`, `--from` outside the tag's history, unwritable `--output`, git failing | 3 (runtime) |
-| `--format` other than `markdown` or `text` | 1 (usage) |
+| `--format` other than `markdown` or `text`, `--output` naming an existing file without `--overwrite` | 1 (usage) |
 | per-env strategy without `--env` | 2 (config) |
 
 A range with no notable commit prints nothing on stdout, exits 0 and says so on stderr.

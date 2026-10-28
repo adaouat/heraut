@@ -250,7 +250,7 @@ discipline that applies to every task.
 | 79 | Remaining security findings (NEW-003, NEW-004) | Complete — T421–T422, see `hardening-6-roadmap.md` |
 | 80 | GitHub publishing without `gh` (ADR-0077) | Done — T423–T430, T432 and T433, see `github-client-roadmap.md` |
 | 81 | GitLab asset read from the descriptor (NEW-002 for GitLab) | Done |
-| 82 | Last open security findings (NEW-005 residual, SEC-002) | In progress — T434 done, T435 waits for the user's decision |
+| 82 | Last open security findings (NEW-005 residual, SEC-002) | Done |
 
 ### Open items
 
@@ -3461,7 +3461,7 @@ mutations fail them: no regular-file check, the prefix without its dash, the pre
 Spec 05 § Atomic write describes the rule, and its stale "mode `0644`" now says an existing file keeps its
 mode (T420). NEW-005 is resolved in `SECURITY_FINDINGS.md`.
 
-#### `[ ]` T435: decide and apply the rule for operator-chosen output paths (SEC-002)
+#### `[x]` T435: decide and apply the rule for operator-chosen output paths (SEC-002)
 
 Four writes take their path from the operator and are not confined to the repository: `heraut notes
 --output`, `heraut skill install --dir`, `heraut init`'s output path, and `heraut version sprint bump`
@@ -3473,6 +3473,27 @@ Spec 01 and the skill, no code change; (b) refuse to overwrite an existing file 
 every such path to the repository, which breaks installing the skill outside it. Recommendation: (b), since
 it stops the overwrite case without breaking a legitimate path. Tests first for whichever is chosen, then
 close SEC-002 in `SECURITY_FINDINGS.md`.
+
+**Decision (user, 2026-10-28): (b), narrowed to `notes --output`.** A re-read showed the other three writes
+already refuse to replace a file without an explicit choice: `skill install` only writes `<dir>/heraut/SKILL.md`
+and refuses a different one without `--force`; `init` asks, or refuses under `--defaults` without
+`--overwrite`; `version sprint bump` rewrites only a file that loads as a heraut config with a `versioning:`
+block. `notes --output` overwrites anything silently, and the skill lists `notes` as safe to run without
+approval. So `notes` gains `--overwrite` (the name `init` uses; `--force` already means something else on
+`notes`), refuses an existing path without it (Usage, exit 1), and the skill says an agent asks before
+passing `--overwrite`. A small breaking change for scripts that rerun `notes --output` onto the same file.
+
+Done 2026-10-28. `writeNotes` in `internal/cmd/notes.go` opens the file with `O_CREATE|O_EXCL`, or
+`O_TRUNC` under `--overwrite`; `fs.ErrExist` becomes a Usage error naming the path and the flag. One open does
+the check and the create, so nothing can be planted in between, and a dangling symlink counts as existing
+(an `os.Stat` check would have followed it). Tests first: three in `internal/cmd/notes_test.go` (existing
+file refused and untouched, `--overwrite` replaces it, dangling symlink refused and its target not created)
+and one e2e row (exit 1, file untouched, then `--overwrite` writes it). Three mutations fail them: always
+truncate, an `os.Stat` check before a plain open, the refusal mapped to Runtime. Committed as `feat(cmd)!`
+with a `BREAKING CHANGE` footer (`stay_at_v0` keeps it a minor bump). The skill's table and rules say an
+agent never passes `--overwrite` or `--force` unless the user asked; Spec 03 § notes and the app-store guide
+document the flag and the exit code. SEC-002 is resolved in `SECURITY_FINDINGS.md`, which leaves no open
+finding. Nothing changed for `skill install`, `init` or `version sprint bump`.
 
 Every Phase above marked `Done` and not pointing to a dedicated roadmap (D, 0–9, 11–22, 26, 28,
 30, 31) has had its full task write-up — implementation notes, decisions, deviations — moved to

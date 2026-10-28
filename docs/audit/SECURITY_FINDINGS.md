@@ -1,5 +1,14 @@
 # Security findings: heraut (2026-10-14)
 
+## Update 2026-10-28 (after T435)
+
+This section supersedes the rows and the scorecard below for SEC-002. In-place update, not a re-scan.
+
+- **SEC-002: RESOLVED.** Of the four operator-chosen paths, three already refused to replace a file without an explicit flag (`skill install` without `--force`, `init --defaults` without `--overwrite`, `version sprint bump` on anything but a heraut config). `heraut notes --output` overwrote silently; it now creates the file with `O_EXCL` and refuses an existing path, a symlink included, unless `--overwrite` is passed (`21cf83f`, T435). The bundled skill tells agents not to pass `--overwrite` or `--force` without the user's approval. The paths themselves stay unconfined: they are the operator's choice.
+- **Still open:** nothing.
+
+**Scorecard (current):** Critical 0 · High 0 · Medium 0 · Low 0 · Info 0. Coverage gaps from the 2026-10-22 section still apply; no re-scan has run since.
+
 ## Update 2026-10-27 (after T434)
 
 This section supersedes the rows and the scorecard below for NEW-005. In-place update, not a re-scan.
