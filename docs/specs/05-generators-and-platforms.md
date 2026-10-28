@@ -440,7 +440,7 @@ forges:
   - name: github
     platform: github
     repository: org/repo        # optional, defaults to $GITHUB_REPOSITORY
-    token_env: GH_TOKEN         # optional, see Token below
+    # token_env: GH_TOKEN       # optional; omit it to keep the default chain, see Token below
     base_url: https://github.com  # optional, defaults to https://github.com
 
 release:

@@ -315,8 +315,9 @@ forges:
 
     # token_env — env var holding a GitHub token with contents:write scope.
     # If omitted, publishing reads GH_TOKEN, then GITHUB_TOKEN (GitHub Enterprise
-    # Server: GH_ENTERPRISE_TOKEN, GITHUB_ENTERPRISE_TOKEN, then GH_TOKEN).
-    token_env: GH_TOKEN
+    # Server: GH_ENTERPRISE_TOKEN, GITHUB_ENTERPRISE_TOKEN, then GH_TOKEN). Setting
+    # it reads only that variable, so leave it out unless you need another name.
+    # token_env: GH_TOKEN
 
     # base_url — web base URL of the forge instance. Defaults to
     # https://github.com (GitHub) / https://gitlab.com (GitLab).

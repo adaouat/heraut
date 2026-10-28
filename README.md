@@ -184,7 +184,6 @@ forges:
   - name: github
     platform: github
     repository: acme/widget
-    token_env: GH_TOKEN
 
 release:
   notes: {}

@@ -94,6 +94,11 @@ in a GitLab CI/CD pipeline to use `CI_JOB_TOKEN` instead of `GITLAB_TOKEN` and t
 enable "Allow Git push requests to the repository" (Settings › CI/CD › Job token
 permissions).
 
+For GitHub, the token step starts on **default chain**, which writes no `token_env`, so publishing
+reads `GH_TOKEN`, then `GITHUB_TOKEN` (the enterprise names on GitHub Enterprise Server; Spec 05 §
+GitHub). Choosing `GH_TOKEN` or a custom name writes it as `token_env`, which then is the only
+variable read. Re-running `heraut init` keeps an existing `token_env` as it is.
+
 When `SPRINT` is chosen as part of the CalVer format, the wizard adds an extra step
 asking for the current sprint number. This value is written to `versioning.sprint` and
 can be advanced later with `heraut version sprint bump`.

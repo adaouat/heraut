@@ -1021,7 +1021,7 @@ forges:
   - name: github
     platform: github
     repository: org/repo        # optional, defaults to $GITHUB_REPOSITORY
-    token_env: GH_TOKEN         # optional, see below
+    # token_env: GH_TOKEN       # optional; omit it to keep the default chain, see below
     base_url: https://github.com  # optional, defaults to https://github.com
 
 release:
@@ -1075,7 +1075,6 @@ forges:
   - name: github
     platform: github
     repository: acme/widget
-    token_env: GH_TOKEN
 
 release:
   notes: {}
@@ -1172,7 +1171,6 @@ forges:
   - name: github
     platform: github
     repository: org/myapp
-    token_env: GH_TOKEN
 
 commits:
   enrichment_forge: gitlab
