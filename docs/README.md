@@ -8,4 +8,4 @@ Project documentation for Héraut.
 | [`guides/`](guides/) | How-to guides and worked examples for specific use cases |
 | [`adr/`](adr/) | Architecture Decision Records — why key choices were made |
 | [`tasks/`](tasks/) | Build roadmap with inline task checklist |
-| [`ideas.md`](ideas.md) | Post-v1.0 ideas not yet scheduled (heraut-action, Option B, library extraction) |
+| [`ideas.md`](ideas.md) | Post-v1.0 ideas not yet scheduled (heraut-action, CI pipeline templates) |
