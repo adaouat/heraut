@@ -26,8 +26,8 @@ var (
 // OpenAssets resolves the asset globs with the rules of matchAssets and opens every match, so an
 // upload reads the file that was checked, not whatever the path names by the time it is read
 // (NEW-002, ADR-0077). The open goes through an os.Root on the repository root, which refuses a
-// path that leaves it even if a symlink is swapped in after the check, and os.SameFile confirms the
-// descriptor is the file that was checked. On success the caller closes the files with
+// path that leaves it even if a symlink is swapped in after the check, and os.SameFile and the file
+// type confirm the descriptor is the file that was checked. On success the caller closes the files with
 // CloseAssets; on error none is left open.
 func OpenAssets(patterns []string, warn func(string)) ([]Asset, error) {
 	rootPath, err := realWorkingDir()
@@ -130,7 +130,9 @@ func openChecked(root *os.Root, path, rel string, checked os.FileInfo) (Asset, e
 		_ = f.Close()
 		return Asset{}, fmt.Errorf("stat %q: %w", path, err)
 	}
-	if !os.SameFile(checked, info) {
+	// SameFile compares device and inode only, and ext4 hands a freed inode to the next node made, so
+	// a file removed and replaced by a directory or a FIFO can pass it: the type is compared too.
+	if !os.SameFile(checked, info) || info.Mode().Type() != checked.Mode().Type() {
 		_ = f.Close()
 		return Asset{}, fmt.Errorf("asset %q changed after it was checked: refusing to publish it", path)
 	}
