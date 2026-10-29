@@ -107,7 +107,7 @@ t.Cleanup(srv.Close)
 
 // a loopback base_url is a GitHub Enterprise Server to the driver: the API sits under /api/v3
 plat := github.New(&config.Platform{Repository: "acme/widget", BaseURL: srv.URL})
-require.NoError(t, plat.CreateRelease("v1.2.3", "release notes body", false))
+require.NoError(t, plat.CreateRelease(t.Context(), "v1.2.3", "release notes body", false))
 
 assert.Equal(t, []string{"POST /api/v3/repos/acme/widget/releases"}, got)
 ```
@@ -122,8 +122,8 @@ Integration tests target a real local git repo (`internal/testutil.RealGitRepo`,
 in `t.TempDir()`) exercised through cobra commands in-process (`internal/cmd/*_test.go`) or
 through the native generator's own integration test
 (`internal/generators/native/integration_test.go`), which drives real git history through
-`forge/exec`. No test builds or executes the `heraut` binary itself today — that would be a
-genuinely stronger guarantee for the full CLI wiring, but it isn't part of the current suite.
+`forge/exec`. Tests that build and run the `heraut` binary itself live in `e2e/` (§ End-to-end tests
+below).
 
 ### Schema
 

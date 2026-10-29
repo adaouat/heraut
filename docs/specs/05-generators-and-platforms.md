@@ -625,7 +625,7 @@ type Platform interface {
     ReleaseURLFromContext(tag string, lc *port.LinkContext) string // URL consistent with a given link context (ADR-0022); falls back to ReleaseURL when lc is nil
     LinkContext() port.LinkContext                 // this platform's link-resolution coordinates (host, owner, repo, type)
     Check() error                                  // token + project/repo resolved, token accepted by the API
-    CreateRelease(tag, notes string, prerelease bool) error // create the release and attach its assets — see § Asset resolution above
+    CreateRelease(ctx context.Context, tag, notes string, prerelease bool) error // create the release and attach its assets — see § Asset resolution above; stops when ctx is cancelled (Ctrl-C)
     HasAssets() bool                               // true if cfg.Assets is non-empty
     CheckAssets() error                            // asset path rules, applied before anything is pushed (no request, no CLI call)
 }

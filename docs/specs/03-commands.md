@@ -319,7 +319,7 @@ heraut notes <tag> [--from <tag>] [--format markdown|text] [--template <file>] [
 | `--format`   | `markdown` (default) prints the rendered template as it is. `text` converts that Markdown to plain text with a CommonMark parser: headings become plain lines, list items keep their `- `, emphasis, strong and code-span markers and link URLs are dropped. Text that is not formatting in CommonMark (`snake_case`) is untouched; text that is (`*stars*`) loses its markers, as a Markdown viewer would show it. |
 | `--template` | Template file for this run; replaces `notes.template`. |
 | `--output`   | Write the notes to this file instead of stdout. An existing path, a symlink included, is refused unless `--overwrite` is passed, so a mistyped or injected path cannot silently replace a file. |
-| `--overwrite` | Let `--output` replace an existing file. |
+| `--overwrite` | Let `--output` replace an existing file. Without `--output` it is a usage error (exit 1). |
 | `--env`      | Active environment; required for the per-env strategies. |
 | `--force`    | Downgrades `commits.enrichment_policy: required` to `optional` for this run. |
 | `--offline`  | Forces `commits.enrichment_policy: disabled` for this run. |

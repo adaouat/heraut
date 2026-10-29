@@ -110,7 +110,8 @@ direction, do not add the import.
 - `RunE` (never `Run`) so errors propagate to `forge/cli.Run`.
 - Flags declared in the command's constructor function; never package-level globals.
 - Command bodies are short: read flags → load config (`config.Load`) → call
-  `app.NewResolver(...)` and `app.BuildPipeline(...)` → call `pipeline.Run()` → done.
+  `app.NewResolver(...)` and `app.BuildPipeline(...)` → call the pipeline's `Run` → done. The
+  release pipeline takes `cmd.Context()`, so Ctrl-C stops a publish.
 - No strategy switching, no generator construction, no platform construction in
   `internal/cmd/`.
 - Global flags on root: `--config`, `--verbose`. Every other flag (`--dry-run`, `--env`,
