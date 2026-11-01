@@ -54,6 +54,29 @@ templates that cover the multi-job pattern (lint + test + release gate).
 
 ---
 
+## Azure DevOps sandbox for the forge end-to-end tests
+
+Lane B of the end-to-end tests (`e2e_forge`, [ADR-0066](adr/0066-e2e-test-lanes.md)) runs against
+sandbox repositories on GitHub and GitLab only. Azure DevOps enrichment is covered by unit and
+contract tests against `httptest` servers, whose responses are written by hand. A real sandbox would
+have caught the problems fixed in Phase 84: a `dev.azure.com` origin that was not detected, a vote of
+5 not counted as an approval, and the organization named twice in links inside Azure Pipelines.
+
+**Why it is not done:** an Azure DevOps organization asks for a credit card, even on the free plan,
+so no sandbox was created (2026-11-01).
+
+**If a sandbox becomes available:** a driver in `e2e/forgeharness` that opens and completes a pull
+request through the REST API, approves it (with no branch policy, the author can vote on their own
+pull request), then runs `heraut changelog` in a clone whose origin is on `dev.azure.com`. heraut has
+no Azure publish driver, so the test covers detection and enrichment only. Azure cannot delete pull
+requests, only abandon them: the sweep would delete branches and tags and abandon open pull requests,
+and tests would find theirs by run ID.
+
+**Cheaper step without an account:** replace the hand-written responses in the Azure contract tests
+with the samples from Microsoft's REST API reference, which would catch a wrong field name or shape.
+
+---
+
 ## Implemented since
 
 Ideas that used to be listed here and have shipped:
