@@ -78,7 +78,7 @@ func TestEnrich_MapsPRsAndLocalAuthors(t *testing.T) {
 	assert.Equal(t, []string{"feature"}, pr.Labels)
 	assert.Equal(t, "bob", pr.MergedBy.Username)
 	require.Len(t, pr.Approvers, 1)
-	assert.Equal(t, "carol", pr.Approvers[0].Username, "only vote >= 10 counts as approval")
+	assert.Equal(t, "carol", pr.Approvers[0].Username, "a vote of 10 is an approval")
 
 	// Azure exposes no linked handle: `by @` comes from the local git author.
 	assert.Equal(t, "alice", en.Authors["abc123"])
@@ -248,4 +248,29 @@ type prQueryWire struct {
 		Type  string   `json:"type"`
 		Items []string `json:"items"`
 	} `json:"queries"`
+}
+
+// Azure votes 10 (approved), 5 (approved with suggestions), 0 (no vote), -5 (waiting for the author)
+// and -10 (rejected); both approving votes make an approver.
+func TestEnrich_ApproversIncludeApprovedWithSuggestions(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{"results":[{"abc123":[{"pullRequestId":42,"reviewers":[
+			{"uniqueName":"approved@example.com","vote":10},
+			{"uniqueName":"suggestions@example.com","vote":5},
+			{"uniqueName":"novote@example.com","vote":0},
+			{"uniqueName":"waiting@example.com","vote":-5},
+			{"uniqueName":"rejected@example.com","vote":-10}
+		]}]}]}`))
+	}))
+	defer srv.Close()
+	f := azure.New(port.ForgeIdentity{Host: srv.URL, Project: "myorg/myproject", Repository: "myrepo"}, srv.Client())
+
+	en, err := f.Enrich([]port.Commit{{Hash: "abc123"}}, "")
+	require.NoError(t, err)
+	var got []string
+	for _, a := range en.PRs["abc123"].Approvers {
+		got = append(got, a.Username)
+	}
+	assert.Equal(t, []string{"approved", "suggestions"}, got)
 }

@@ -252,7 +252,7 @@ discipline that applies to every task.
 | 81 | GitLab asset read from the descriptor (NEW-002 for GitLab) | Done |
 | 82 | Last open security findings (NEW-005 residual, SEC-002) | Done |
 | 83 | Code review follow-ups (2026-10-28 review of Phases 80–82) | In progress — T436–T439 done; T440 not started |
-| 84 | Azure DevOps enrichment fixes | In progress — T441 done; T442–T444 not started |
+| 84 | Azure DevOps enrichment fixes | In progress — T441–T442 done; T443–T444 not started |
 
 ### Open items
 
@@ -3632,10 +3632,14 @@ strip, no `DefaultCollection` drop, no unescape, explicit entries ignoring the o
 them. Spec 02 § identity resolution lists the forms. Left: a project or repository name with a space keeps
 the space in links, as with the CI variables (not changed here).
 
-#### `[ ]` T442: count "approved with suggestions" as an Azure approval
+#### `[x]` T442: count "approved with suggestions" as an Azure approval
 
 Azure votes 10 for approved and 5 for approved with suggestions; the enrichment counts only 10, so those
 reviewers are missing from the approvers. Count both.
+
+Done 2026-11-01. A reviewer counts as an approver from vote 5 up (`voteApprovedWithSuggestions`); 0 and the
+negative votes still do not. A table of all five votes pins it, and thresholds of 10 and 0 each fail it.
+Spec 05 keeps describing approvers as best-effort without naming votes, so no doc change.
 
 #### `[ ]` T443: split large Azure pull-request queries
 

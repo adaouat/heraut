@@ -17,6 +17,10 @@ import (
 // apiVersion pins the Azure DevOps REST API version for pullrequestquery (ADR-0035).
 const apiVersion = "7.1"
 
+// voteApprovedWithSuggestions is the lower of Azure's two approving votes (5, and 10 for approved);
+// 0 is no vote and the negative ones wait for the author or reject.
+const voteApprovedWithSuggestions = 5
+
 // enrichPRs resolves the pull request associated with each commit SHA via one batched Azure
 // DevOps `pullrequestquery` POST (ADR-0035): a single request for the whole release, correlating
 // `results[0][sha] → PR`. Commits with no PR are absent from the map. Title and labels are
@@ -87,7 +91,7 @@ func (f *Forge) enrichPRs(shas []string) (map[string]port.PullRequest, error) {
 		}
 		var approvers []port.Author
 		for _, r := range pr.Reviewers {
-			if r.Vote >= 10 {
+			if r.Vote >= voteApprovedWithSuggestions {
 				approvers = append(approvers, port.Author{Username: authorLogin(identityRef{DisplayName: r.DisplayName, UniqueName: r.UniqueName})})
 			}
 		}
