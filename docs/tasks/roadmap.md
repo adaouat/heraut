@@ -252,6 +252,7 @@ discipline that applies to every task.
 | 81 | GitLab asset read from the descriptor (NEW-002 for GitLab) | Done |
 | 82 | Last open security findings (NEW-005 residual, SEC-002) | Done |
 | 83 | Code review follow-ups (2026-10-28 review of Phases 80–82) | In progress — T436–T439 done; T440 not started |
+| 84 | Azure DevOps enrichment fixes | In progress — T441–T443 |
 
 ### Open items
 
@@ -3600,6 +3601,32 @@ While fang holds SIGINT, a stall there still ignores Ctrl-C (the enrichment clie
 the checks have none). Thread `cmd.Context()` the same way (`Check(ctx)`, the forge enrichment interface,
 `ChangelogPipeline.Run(ctx)`), and decide whether GitLab publishing gets the response-header bound GitHub
 has. Tests first, including an e2e interrupt during a stalled check.
+
+### Phase 84 — Azure DevOps enrichment fixes
+
+A check of the Azure DevOps forge on 2026-10-31, asked for by the user after Phases 80–83 (which did not
+touch it), found that identity detection from the git origin, which Spec 02 promises for `dev.azure.com`,
+does not work, plus two smaller gaps. The user asked for all three in one session.
+
+#### `[ ]` T441: detect Azure DevOps from its git origin URLs
+
+`parseGitOrigin` matches only a bare `https://dev.azure.com/...` origin, and even then keeps
+`org/project/_git/repo` as the project with an empty repository, so links read `…/_git/repo/_git//commit/…`
+and enrichment fails with "Repository is empty". The clone URL Azure shows (`https://org@dev.azure.com/…`),
+the SSH form (`git@ssh.dev.azure.com:v3/org/project/repo`) and the legacy `org.visualstudio.com` host are not
+detected at all. Recognise all four, split project and repository (at `_git`, or the SSH `v3/` layout), and
+give the legacy host its own base URL (`https://org.visualstudio.com`) like the CI path does. The wizard's
+`DetectForWizard` uses the same parser. Table tests first.
+
+#### `[ ]` T442: count "approved with suggestions" as an Azure approval
+
+Azure votes 10 for approved and 5 for approved with suggestions; the enrichment counts only 10, so those
+reviewers are missing from the approvers. Count both.
+
+#### `[ ]` T443: split large Azure pull-request queries
+
+`pullrequestquery` sends every commit SHA of the release in one POST, while the GitHub client splits its
+batched queries into chunks. Split the Azure query too, and merge the results.
 
 Every Phase above marked `Done` and not pointing to a dedicated roadmap (D, 0–9, 11–22, 26, 28,
 30, 31) has had its full task write-up — implementation notes, decisions, deviations — moved to
