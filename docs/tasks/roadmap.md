@@ -252,7 +252,7 @@ discipline that applies to every task.
 | 81 | GitLab asset read from the descriptor (NEW-002 for GitLab) | Done |
 | 82 | Last open security findings (NEW-005 residual, SEC-002) | Done |
 | 83 | Code review follow-ups (2026-10-28 review of Phases 80–82) | In progress — T436–T439 done; T440 not started |
-| 84 | Azure DevOps enrichment fixes | In progress — T441–T443 done; T444 not started |
+| 84 | Azure DevOps enrichment fixes | Done |
 
 ### Open items
 
@@ -3654,13 +3654,26 @@ also keeps each request well inside the 30 s client timeout. Tests: 201 SHAs mak
 too large, results not merged) each fail them. Spec 05's cost note updated; ADR-0038's table is history
 and left as is.
 
-#### `[ ]` T444: an explicit Azure entry in Azure Pipelines repeats the organization
+#### `[x]` T444: an explicit Azure entry in Azure Pipelines repeats the organization
 
 Found during T441. Spec 02 documents an explicit Azure entry as `project: organization/project`, but in
 Azure Pipelines (no `base_url`) the host comes from `SYSTEM_COLLECTIONURI`, which already ends with the
 organization (`https://dev.azure.com/myorg`), so links and the pull-request query read
 `dev.azure.com/myorg/myorg/myproject/…` and enrichment fails. `TestResolve_ExplicitAzureForgeRepositoryFallsBackToCI`
 has this shape but asserts only the repository. Compose host and project so the organization appears once.
+
+Done 2026-11-01. `detectCIForge` now splits `SYSTEM_COLLECTIONURI` (`azureCollection`) into the shape
+ADR-0035 and Spec 02 already give an Azure entry: a host without the organization and
+`project: organization/project`. The CI path had drifted from it by keeping the organization in the host
+(the earlier C2 fix), which was safe only while CI filled both fields. The organization is the URI's last
+path segment, which also covers an Azure DevOps Server collection, else the legacy `org.visualstudio.com`
+subdomain. Deviation: in Azure Pipelines on a legacy organization, links now point at `dev.azure.com`
+instead of `org.visualstudio.com`, as T441 does for git origins; both serve the same organization. The two
+tests that pinned the old CI split now assert the new one (same invariant, the organization once), and
+`TestEndpoint_NoDuplicateOrganization`'s legacy row expects `dev.azure.com`. New: an explicit entry in
+Azure Pipelines (project set, `base_url` set, nothing set), Azure DevOps Server, and a URI without team
+project (project left empty, not `myorg/`). Four mutations (the old split, no legacy host, the organization
+kept in the host, no empty-project guard) each fail them. Spec 02 § identity resolution describes the split.
 
 Every Phase above marked `Done` and not pointing to a dedicated roadmap (D, 0–9, 11–22, 26, 28,
 30, 31) has had its full task write-up — implementation notes, decisions, deviations — moved to

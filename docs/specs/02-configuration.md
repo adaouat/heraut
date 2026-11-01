@@ -617,6 +617,14 @@ that supplies a value:
 
    Detection checks GitLab, then GitHub, then Azure, and stops at the first marker present.
 
+   Azure's values take the shape of a `forges:` entry, so a field set in config and one filled from
+   CI never name the organization twice: the last path segment of `SYSTEM_COLLECTIONURI` is the
+   organization (`https://dev.azure.com/myorg/` gives `base_url: https://dev.azure.com` and
+   `project: myorg/<team project>`); a legacy `https://myorg.visualstudio.com/` resolves to
+   `https://dev.azure.com` the same way. On Azure DevOps Server the collection plays the
+   organization's part: `https://ado.example.com/tfs/DefaultCollection/` gives
+   `base_url: https://ado.example.com/tfs` and `project: DefaultCollection/<team project>`.
+
    A GitHub entry's API URL is the exception: with no `api_url` in config it is derived from the
    resolved host by the same rule publishing uses ([ADR-0077](../adr/0077-github-publish-transport.md),
    Spec 05 § GitHub). `GITHUB_API_URL` applies only when `GITHUB_SERVER_URL` has the same origin as
