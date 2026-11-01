@@ -158,8 +158,8 @@ func TestEndpoint_NoDuplicateOrganization(t *testing.T) {
 		{
 			name:          "legacy visualstudio.com",
 			collectionURI: "https://myorg.visualstudio.com/",
-			wantEndpoint:  "https://myorg.visualstudio.com/myproject/_apis/git/repositories/myrepo/pullrequestquery?api-version=7.1",
-			wantWebBase:   "https://myorg.visualstudio.com/myproject/_git/myrepo",
+			wantEndpoint:  "https://dev.azure.com/myorg/myproject/_apis/git/repositories/myrepo/pullrequestquery?api-version=7.1",
+			wantWebBase:   "https://dev.azure.com/myorg/myproject/_git/myrepo",
 		},
 	}
 

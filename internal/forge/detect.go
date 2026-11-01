@@ -48,11 +48,38 @@ func detectCIForge(getenv func(string) string) (typ, host, apiURL, project, repo
 		return "github", getenv(config.EnvGitHubServerURL), getenv(config.EnvGitHubAPIURL), getenv(config.EnvGitHubRepository), "", getenv(config.EnvGitHubToken), port.TokenPrivate, true
 	}
 	if getenv(config.EnvAzureBuild) != "" {
-		host := strings.TrimRight(getenv(config.EnvAzureCollectionURI), "/")
-		teamProject := getenv(config.EnvAzureTeamProject)
-		return "azure_devops", host, "", teamProject, getenv(config.EnvAzureRepositoryName), getenv(config.EnvAzureAccessToken), port.TokenPrivate, true
+		host, project := azureCollection(getenv(config.EnvAzureCollectionURI), getenv(config.EnvAzureTeamProject))
+		return "azure_devops", host, "", project, getenv(config.EnvAzureRepositoryName), getenv(config.EnvAzureAccessToken), port.TokenPrivate, true
 	}
 	return "", "", "", "", "", "", port.TokenNone, false
+}
+
+// azureCollection splits Azure Pipelines' collection URI into the shape of a forges: entry
+// (ADR-0035): a host without the organization and "organization/project", so a field filled from CI
+// composes with one set in config without naming the organization twice. The organization is the
+// URI's last path segment (dev.azure.com/org, or an Azure DevOps Server's collection), else the
+// legacy org.visualstudio.com subdomain, whose host becomes dev.azure.com as for a git origin. A URI
+// with neither is kept whole, with the team project alone.
+func azureCollection(collectionURI, teamProject string) (host, project string) {
+	collectionURI = strings.TrimRight(collectionURI, "/")
+	u, err := neturl.Parse(collectionURI)
+	if err != nil || u.Host == "" {
+		return collectionURI, teamProject
+	}
+	var org string
+	switch {
+	case u.Path != "":
+		i := strings.LastIndex(u.Path, "/")
+		org, host = u.Path[i+1:], u.Scheme+"://"+u.Host+u.Path[:i]
+	case strings.HasSuffix(u.Hostname(), ".visualstudio.com"):
+		org, host = strings.TrimSuffix(u.Hostname(), ".visualstudio.com"), config.DefaultAzureDevOpsBaseURL
+	default:
+		return collectionURI, teamProject
+	}
+	if teamProject == "" {
+		return host, ""
+	}
+	return host, org + "/" + teamProject
 }
 
 // parseGitOrigin extracts a forge type, host, project path and (Azure DevOps only) repository name

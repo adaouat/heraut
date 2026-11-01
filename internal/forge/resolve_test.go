@@ -56,11 +56,10 @@ func TestResolve_AmbiguousZeroConfig(t *testing.T) {
 	assert.True(t, errors.Is(err, forge.ErrAmbiguousForge))
 }
 
-// Modern form: SYSTEM_COLLECTIONURI carries the org as its first path segment
-// ("https://dev.azure.com/myorg/"). The org must appear exactly once across Host+Project — Host
-// keeps the org path segment (there is nowhere else to park it), so Project is the team project
-// alone. This is the ground truth from the C2 fix: composing Host+"/"+Project must never
-// double the org (regression coverage for the duplicated-org bug).
+// Modern form: SYSTEM_COLLECTIONURI carries the org as its last path segment
+// ("https://dev.azure.com/myorg/"). The identity takes the shape of a forges: entry (ADR-0035):
+// Host without the org, Project "org/project", so the org appears exactly once whichever source
+// filled each field (C2, T444).
 func TestResolve_AzureCIZeroConfig(t *testing.T) {
 	got, err := forge.Resolve(&config.Config{}, env(map[string]string{
 		"TF_BUILD":              "true",
@@ -73,17 +72,16 @@ func TestResolve_AzureCIZeroConfig(t *testing.T) {
 	require.Len(t, got.Forges, 1)
 	f := got.Forges[got.EnrichmentIndex]
 	assert.Equal(t, "azure_devops", f.Type)
-	assert.Equal(t, "https://dev.azure.com/myorg", f.Host)
-	assert.Equal(t, "myproject", f.Project)
+	assert.Equal(t, "https://dev.azure.com", f.Host)
+	assert.Equal(t, "myorg/myproject", f.Project)
 	assert.Equal(t, "myrepo", f.Repository)
 	assert.Equal(t, "tok", f.Token)
 	assert.Equal(t, port.TokenPrivate, f.TokenKind)
 }
 
 // Legacy form: SYSTEM_COLLECTIONURI carries the org as the Host's subdomain
-// ("https://myorg.visualstudio.com/"), with no org path segment. Project must NOT re-add the org
-// as a path segment — Host's subdomain is the only place it appears — or the org is duplicated
-// (the exact C2 bug: API path became /myorg/myorg/myproject/...).
+// ("https://myorg.visualstudio.com/"). It resolves like a git origin on that host: dev.azure.com,
+// which serves legacy organizations too, and Project "org/project".
 func TestResolve_AzureCIZeroConfigLegacyCollectionURI(t *testing.T) {
 	got, err := forge.Resolve(&config.Config{}, env(map[string]string{
 		"TF_BUILD":              "true",
@@ -96,8 +94,8 @@ func TestResolve_AzureCIZeroConfigLegacyCollectionURI(t *testing.T) {
 	require.Len(t, got.Forges, 1)
 	f := got.Forges[got.EnrichmentIndex]
 	assert.Equal(t, "azure_devops", f.Type)
-	assert.Equal(t, "https://myorg.visualstudio.com", f.Host)
-	assert.Equal(t, "myproject", f.Project)
+	assert.Equal(t, "https://dev.azure.com", f.Host)
+	assert.Equal(t, "myorg/myproject", f.Project)
 	assert.Equal(t, "myrepo", f.Repository)
 }
 
@@ -309,4 +307,59 @@ func TestResolve_GitOriginWithCredentials(t *testing.T) {
 	require.Len(t, got.Forges, 1)
 	assert.Equal(t, "github", got.Forges[0].Type)
 	assert.Equal(t, "owner/repo", got.Forges[0].Project)
+}
+
+// Azure DevOps Server: the collection is the last segment of SYSTEM_COLLECTIONURI and plays the
+// organization's part, so a forges: entry for it reads base_url: <server>, project: collection/project.
+func TestResolve_AzureCIZeroConfigServerCollection(t *testing.T) {
+	got, err := forge.Resolve(&config.Config{}, env(map[string]string{
+		"TF_BUILD":              "true",
+		"SYSTEM_COLLECTIONURI":  "https://ado.example.com/tfs/DefaultCollection/",
+		"SYSTEM_TEAMPROJECT":    "myproject",
+		"BUILD_REPOSITORY_NAME": "myrepo",
+	}), "")
+	require.NoError(t, err)
+	f := got.Forges[0]
+	assert.Equal(t, "https://ado.example.com/tfs", f.Host)
+	assert.Equal(t, "DefaultCollection/myproject", f.Project)
+}
+
+// An explicit entry filled partly from Azure Pipelines names the organization once, whichever
+// fields the entry sets: Host and Project now share the shape Spec 02 documents (T444).
+func TestResolve_ExplicitAzureForgeInAzurePipelines(t *testing.T) {
+	ci := env(map[string]string{
+		"TF_BUILD":              "true",
+		"SYSTEM_COLLECTIONURI":  "https://dev.azure.com/myorg/",
+		"SYSTEM_TEAMPROJECT":    "myproject",
+		"BUILD_REPOSITORY_NAME": "myrepo",
+	})
+	tests := []struct {
+		name  string
+		entry config.Forge
+	}{
+		{"project and repository set", config.Forge{Name: "A", Type: "azure_devops", Project: "myorg/myproject", Repository: "myrepo"}},
+		{"base_url set", config.Forge{Name: "A", Type: "azure_devops", BaseURL: "https://dev.azure.com"}},
+		{"nothing set", config.Forge{Name: "A", Type: "azure_devops"}},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			got, err := forge.Resolve(&config.Config{Forges: []config.Forge{tc.entry}}, ci, "")
+			require.NoError(t, err)
+			f := got.Forges[0]
+			assert.Equal(t, "https://dev.azure.com", f.Host)
+			assert.Equal(t, "myorg/myproject", f.Project)
+			assert.Equal(t, "myrepo", f.Repository)
+		})
+	}
+}
+
+// Without SYSTEM_TEAMPROJECT the project stays empty rather than becoming "myorg/".
+func TestResolve_AzureCIWithoutTeamProject(t *testing.T) {
+	got, err := forge.Resolve(&config.Config{}, env(map[string]string{
+		"TF_BUILD":             "true",
+		"SYSTEM_COLLECTIONURI": "https://dev.azure.com/myorg/",
+	}), "")
+	require.NoError(t, err)
+	assert.Equal(t, "https://dev.azure.com", got.Forges[0].Host)
+	assert.Empty(t, got.Forges[0].Project)
 }
