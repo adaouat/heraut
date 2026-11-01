@@ -625,8 +625,13 @@ that supplies a value:
    tenant and `<host>/api/v3` for GitHub Enterprise Server. PR enrichment and publishing therefore
    always query the same instance.
 3. **`git remote get-url origin`** — when the origin host is a known public host
-   (`github.com`, `gitlab.com`, `dev.azure.com`), its type, host, and `owner/repo` path are
-   used (both the SSH `git@host:path` and HTTPS `https://host/path` forms are parsed).
+   (`github.com`, `gitlab.com`, Azure DevOps), its type, host, and `owner/repo` path are
+   used (both the SSH `user@host:path` and HTTPS `https://[user@]host/path` forms are parsed;
+   credentials in the URL are ignored). Azure DevOps origins are recognised in every form it
+   shows for cloning — `https://org@dev.azure.com/org/project/_git/repo`,
+   `git@ssh.dev.azure.com:v3/org/project/repo`, and the legacy `org.visualstudio.com` and
+   `vs-ssh.visualstudio.com` ones — and give `project: org/project` and `repository: repo` on
+   `https://dev.azure.com`, which serves legacy organizations too.
 4. **Offline fallback** — a per-type default host (`https://github.com`,
    `https://gitlab.com`, `https://dev.azure.com`) and default token env var
    (`GITHUB_TOKEN`, `GITLAB_TOKEN`, `AZURE_DEVOPS_TOKEN`).

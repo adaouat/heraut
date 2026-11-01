@@ -252,7 +252,7 @@ discipline that applies to every task.
 | 81 | GitLab asset read from the descriptor (NEW-002 for GitLab) | Done |
 | 82 | Last open security findings (NEW-005 residual, SEC-002) | Done |
 | 83 | Code review follow-ups (2026-10-28 review of Phases 80–82) | In progress — T436–T439 done; T440 not started |
-| 84 | Azure DevOps enrichment fixes | In progress — T441–T443 |
+| 84 | Azure DevOps enrichment fixes | In progress — T441 done; T442–T444 not started |
 
 ### Open items
 
@@ -3608,7 +3608,7 @@ A check of the Azure DevOps forge on 2026-10-31, asked for by the user after Pha
 touch it), found that identity detection from the git origin, which Spec 02 promises for `dev.azure.com`,
 does not work, plus two smaller gaps. The user asked for all three in one session.
 
-#### `[ ]` T441: detect Azure DevOps from its git origin URLs
+#### `[x]` T441: detect Azure DevOps from its git origin URLs
 
 `parseGitOrigin` matches only a bare `https://dev.azure.com/...` origin, and even then keeps
 `org/project/_git/repo` as the project with an empty repository, so links read `…/_git/repo/_git//commit/…`
@@ -3617,6 +3617,20 @@ the SSH form (`git@ssh.dev.azure.com:v3/org/project/repo`) and the legacy `org.v
 detected at all. Recognise all four, split project and repository (at `_git`, or the SSH `v3/` layout), and
 give the legacy host its own base URL (`https://org.visualstudio.com`) like the CI path does. The wizard's
 `DetectForWizard` uses the same parser. Table tests first.
+
+Done 2026-11-01. `parseGitOrigin` returns the repository too, and `azurePath` splits an Azure path:
+`[org/][DefaultCollection/]project/_git/repo`, `[org/]_git/repo` (the repository named after its project)
+and SSH `v3/org/project/repo`, with segments unescaped as the CI variables are. Both resolution paths
+(no `forges:` block, and an explicit entry) now fill `repository` from the origin. Deviation: the legacy
+`org.visualstudio.com` and `vs-ssh.visualstudio.com` origins resolve to `https://dev.azure.com` with
+`project: org/project`, not to their own host, so an origin identity has the same shape as a hand-written
+`forges:` entry (`dev.azure.com` serves legacy organizations too). Credentials in the origin's user part
+(`https://org@…`, `https://x-access-token:…@github.com/…`) are now ignored for every host, which the Azure
+clone URL needs and which also lets a CI checkout's GitHub origin be detected. An unknown layout on an Azure
+host is not detected rather than half-filled. Table tests in `resolve_test.go`; four mutations (no user-part
+strip, no `DefaultCollection` drop, no unescape, explicit entries ignoring the origin repository) each fail
+them. Spec 02 § identity resolution lists the forms. Left: a project or repository name with a space keeps
+the space in links, as with the CI variables (not changed here).
 
 #### `[ ]` T442: count "approved with suggestions" as an Azure approval
 
@@ -3627,6 +3641,14 @@ reviewers are missing from the approvers. Count both.
 
 `pullrequestquery` sends every commit SHA of the release in one POST, while the GitHub client splits its
 batched queries into chunks. Split the Azure query too, and merge the results.
+
+#### `[ ]` T444: an explicit Azure entry in Azure Pipelines repeats the organization
+
+Found during T441. Spec 02 documents an explicit Azure entry as `project: organization/project`, but in
+Azure Pipelines (no `base_url`) the host comes from `SYSTEM_COLLECTIONURI`, which already ends with the
+organization (`https://dev.azure.com/myorg`), so links and the pull-request query read
+`dev.azure.com/myorg/myorg/myproject/…` and enrichment fails. `TestResolve_ExplicitAzureForgeRepositoryFallsBackToCI`
+has this shape but asserts only the repository. Compose host and project so the organization appears once.
 
 Every Phase above marked `Done` and not pointing to a dedicated roadmap (D, 0–9, 11–22, 26, 28,
 30, 31) has had its full task write-up — implementation notes, decisions, deviations — moved to
