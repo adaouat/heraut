@@ -252,7 +252,7 @@ discipline that applies to every task.
 | 81 | GitLab asset read from the descriptor (NEW-002 for GitLab) | Done |
 | 82 | Last open security findings (NEW-005 residual, SEC-002) | Done |
 | 83 | Code review follow-ups (2026-10-28 review of Phases 80–82) | In progress — T436–T439 done; T440 not started |
-| 84 | Azure DevOps enrichment fixes | In progress — T441–T442 done; T443–T444 not started |
+| 84 | Azure DevOps enrichment fixes | In progress — T441–T443 done; T444 not started |
 
 ### Open items
 
@@ -3641,10 +3641,18 @@ Done 2026-11-01. A reviewer counts as an approver from vote 5 up (`voteApprovedW
 negative votes still do not. A table of all five votes pins it, and thresholds of 10 and 0 each fail it.
 Spec 05 keeps describing approvers as best-effort without naming votes, so no doc change.
 
-#### `[ ]` T443: split large Azure pull-request queries
+#### `[x]` T443: split large Azure pull-request queries
 
 `pullrequestquery` sends every commit SHA of the release in one POST, while the GitHub client splits its
 batched queries into chunks. Split the Azure query too, and merge the results.
+
+Done 2026-11-01. `enrichPRs` sends at most `prQueryChunkSize` (100) SHAs per `pullrequestquery` and merges
+the results; a failed chunk fails the enrichment, named by its index, so the `remote_metadata` policy
+applies as before. Azure documents no limit, so 100 is a precaution (GitHub's GraphQL chunk is 50), and it
+also keeps each request well inside the 30 s client timeout. Tests: 201 SHAs make three requests of at most
+100, asked in order, all merged; a 500 on the second chunk fails. Three mutations (error ignored, chunk one
+too large, results not merged) each fail them. Spec 05's cost note updated; ADR-0038's table is history
+and left as is.
 
 #### `[ ]` T444: an explicit Azure entry in Azure Pipelines repeats the organization
 

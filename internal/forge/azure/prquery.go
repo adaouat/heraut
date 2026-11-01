@@ -21,8 +21,12 @@ const apiVersion = "7.1"
 // 0 is no vote and the negative ones wait for the author or reject.
 const voteApprovedWithSuggestions = 5
 
-// enrichPRs resolves the pull request associated with each commit SHA via one batched Azure
-// DevOps `pullrequestquery` POST (ADR-0035): a single request for the whole release, correlating
+// prQueryChunkSize is the most commit SHAs sent in one pullrequestquery. Azure documents no limit;
+// chunking keeps each request and response small, and each within the client timeout.
+const prQueryChunkSize = 100
+
+// enrichPRs resolves the pull request associated with each commit SHA via batched Azure
+// DevOps `pullrequestquery` POSTs (ADR-0035), at most prQueryChunkSize SHAs each, correlating
 // `results[0][sha] → PR`. Commits with no PR are absent from the map. Title and labels are
 // populated best-effort from the response (labels may be empty if the API requires an expand);
 // first-timer detection and the New Contributors block are computed by the shared local git
@@ -40,6 +44,17 @@ func (f *Forge) enrichPRs(shas []string) (map[string]port.PullRequest, error) {
 	if f.id.Repository == "" {
 		return nil, fmt.Errorf("azure pullrequestquery: Repository is empty")
 	}
+	for i := 0; i < len(shas); i += prQueryChunkSize {
+		chunk := shas[i:min(i+prQueryChunkSize, len(shas))]
+		if err := f.queryPRs(chunk, result); err != nil {
+			return nil, fmt.Errorf("azure pullrequestquery (chunk %d): %w", i/prQueryChunkSize, err)
+		}
+	}
+	return result, nil
+}
+
+// queryPRs sends one pullrequestquery for shas and adds the pull requests found to result.
+func (f *Forge) queryPRs(shas []string, result map[string]port.PullRequest) error {
 	// Project is appended as-is (never split): the organization lives in Host when Host is the
 	// dev.azure.com form ("https://dev.azure.com/myorg"), or in Host's subdomain when it's the
 	// legacy visualstudio.com form — either way Host already carries it exactly once, so Project
@@ -50,11 +65,11 @@ func (f *Forge) enrichPRs(shas []string) (map[string]port.PullRequest, error) {
 
 	body, err := json.Marshal(prQuery{Queries: []prQueryInput{{Type: "lastMergeCommit", Items: shas}}})
 	if err != nil {
-		return nil, fmt.Errorf("azure pullrequestquery: encoding request: %w", err)
+		return fmt.Errorf("encoding request: %w", err)
 	}
 	req, err := http.NewRequest(http.MethodPost, endpoint, bytes.NewReader(body))
 	if err != nil {
-		return nil, fmt.Errorf("azure pullrequestquery: building request: %w", err)
+		return fmt.Errorf("building request: %w", err)
 	}
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Accept", "application/json")
@@ -64,19 +79,19 @@ func (f *Forge) enrichPRs(shas []string) (map[string]port.PullRequest, error) {
 
 	resp, err := f.client.Do(req)
 	if err != nil {
-		return nil, fmt.Errorf("azure pullrequestquery: %w", err)
+		return fmt.Errorf("sending request: %w", err)
 	}
 	defer func() { _ = resp.Body.Close() }()
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
-		return nil, fmt.Errorf("azure pullrequestquery: unexpected status %s", resp.Status)
+		return fmt.Errorf("unexpected status %s", resp.Status)
 	}
 
 	var out prQueryResult
 	if err := json.NewDecoder(resp.Body).Decode(&out); err != nil {
-		return nil, fmt.Errorf("azure pullrequestquery: decoding response: %w", err)
+		return fmt.Errorf("decoding response: %w", err)
 	}
 	if len(out.Results) == 0 {
-		return result, nil
+		return nil
 	}
 
 	prWebBase := f.webBase() + "/pullrequest/"
@@ -108,7 +123,7 @@ func (f *Forge) enrichPRs(shas []string) (map[string]port.PullRequest, error) {
 			Approvers:   approvers,
 		}
 	}
-	return result, nil
+	return nil
 }
 
 type prQuery struct {
