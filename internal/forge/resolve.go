@@ -77,7 +77,7 @@ func requireSecure(id port.ForgeIdentity) error {
 // its detected type matches the entry's platform) → a type default (host, token env).
 func resolveExplicit(cfg *config.Config, getenv func(string) string, gitOrigin string) (Resolved, error) {
 	ciType, ciHost, ciAPIURL, ciProject, ciRepository, ciToken, ciKind, ciOK := detectCIForge(getenv)
-	originType, originHost, originProject, originOK := parseGitOrigin(gitOrigin)
+	originType, originHost, originProject, originRepository, originOK := parseGitOrigin(gitOrigin)
 
 	forges := make([]port.ForgeIdentity, len(cfg.Forges))
 	for i, f := range cfg.Forges {
@@ -96,7 +96,7 @@ func resolveExplicit(cfg *config.Config, getenv func(string) string, gitOrigin s
 			Host:       resolveField(f.BaseURL, ciMatches, ciHost, originMatches, originHost, defaultHostFor(f.Type)),
 			APIURL:     resolveField(f.APIURL, ciMatches && f.Type != "github", ciAPIURL, false, "", ""),
 			Project:    resolveField(configProject(f), ciMatches, ciProject, originMatches, originProject, ""),
-			Repository: resolveField(repositoryFor(f), ciMatches, ciRepository, false, "", ""),
+			Repository: resolveField(repositoryFor(f), ciMatches, ciRepository, originMatches, originRepository, ""),
 			Token:      token,
 			TokenKind:  kind,
 			APIMode:    apiMode,
@@ -145,15 +145,16 @@ func resolveAuto(getenv func(string) string, gitOrigin string) (Resolved, error)
 		}), nil
 	}
 
-	if originType, originHost, originProject, ok := parseGitOrigin(gitOrigin); ok {
+	if originType, originHost, originProject, originRepository, ok := parseGitOrigin(gitOrigin); ok {
 		token, kind := tokenFromDefaultEnv(getenv, defaultTokenEnvFor(originType))
 		return single(port.ForgeIdentity{
-			Type:      originType,
-			Host:      originHost,
-			Project:   originProject,
-			Token:     token,
-			TokenKind: kind,
-			APIMode:   "rest",
+			Type:       originType,
+			Host:       originHost,
+			Project:    originProject,
+			Repository: originRepository,
+			Token:      token,
+			TokenKind:  kind,
+			APIMode:    "rest",
 		}), nil
 	}
 

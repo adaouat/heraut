@@ -1,6 +1,7 @@
 package forge
 
 import (
+	neturl "net/url"
 	"strings"
 
 	"github.com/adaouat/heraut/internal/config"
@@ -54,42 +55,87 @@ func detectCIForge(getenv func(string) string) (typ, host, apiURL, project, repo
 	return "", "", "", "", "", "", port.TokenNone, false
 }
 
-// parseGitOrigin extracts a forge type, host, and project path from a git origin URL, handling
-// both the SSH (git@host:path.git) and HTTPS (https://host/path.git) forms. ok is false when the
-// host isn't one of the known public hosts (github.com, gitlab.com, dev.azure.com).
-func parseGitOrigin(url string) (typ, host, project string, ok bool) {
+// parseGitOrigin extracts a forge type, host, project path and (Azure DevOps only) repository name
+// from a git origin URL, handling both the SSH (user@host:path.git) and HTTPS
+// (https://[user@]host/path.git) forms. ok is false when the host isn't one of the known public
+// hosts (github.com, gitlab.com, Azure DevOps), or when an Azure path has no repository in it.
+func parseGitOrigin(url string) (typ, host, project, repository string, ok bool) {
 	url = strings.TrimSuffix(strings.TrimSpace(url), ".git")
 
 	var rawHost, path string
 	switch {
-	case strings.HasPrefix(url, "git@"):
-		rest := strings.TrimPrefix(url, "git@")
-		h, p, found := strings.Cut(rest, ":")
-		if !found {
-			return "", "", "", false
-		}
-		rawHost, path = h, p
 	case strings.HasPrefix(url, "https://"), strings.HasPrefix(url, "http://"):
 		rest := strings.TrimPrefix(strings.TrimPrefix(url, "https://"), "http://")
 		h, p, found := strings.Cut(rest, "/")
 		if !found {
-			return "", "", "", false
+			return "", "", "", "", false
+		}
+		rawHost, path = h, p
+	case !strings.Contains(url, "://"):
+		h, p, found := strings.Cut(url, ":")
+		if !found || !strings.Contains(h, "@") {
+			return "", "", "", "", false
 		}
 		rawHost, path = h, p
 	default:
-		return "", "", "", false
+		return "", "", "", "", false
+	}
+	if i := strings.LastIndex(rawHost, "@"); i >= 0 {
+		rawHost = rawHost[i+1:]
 	}
 
-	switch rawHost {
-	case "github.com":
-		return "github", config.DefaultGitHubBaseURL, path, true
-	case "gitlab.com":
-		return "gitlab", config.DefaultGitLabBaseURL, path, true
-	case "dev.azure.com":
-		return "azure_devops", config.DefaultAzureDevOpsBaseURL, path, true
-	default:
-		return "", "", "", false
+	switch {
+	case rawHost == "github.com":
+		return "github", config.DefaultGitHubBaseURL, path, "", true
+	case rawHost == "gitlab.com":
+		return "gitlab", config.DefaultGitLabBaseURL, path, "", true
+	case rawHost == "dev.azure.com", rawHost == "ssh.dev.azure.com", rawHost == "vs-ssh.visualstudio.com":
+		project, repository, ok = azurePath("", path)
+	case strings.HasSuffix(rawHost, ".visualstudio.com"):
+		project, repository, ok = azurePath(strings.TrimSuffix(rawHost, ".visualstudio.com"), path)
 	}
+	if !ok {
+		return "", "", "", "", false
+	}
+	return "azure_devops", config.DefaultAzureDevOpsBaseURL, project, repository, true
+}
+
+// azurePath splits an Azure DevOps origin path into "organization/project" and the repository
+// name. org is the organization when the host carries it (legacy org.visualstudio.com), else the
+// path's first segment. The web form is [org/]project/_git/repo, or [org/]_git/repo for the
+// repository named after its project; SSH is v3/org/project/repo. The legacy DefaultCollection
+// segment is dropped. Segments are unescaped, as the CI variables are. The host is always
+// dev.azure.com, which serves every organization, legacy ones included.
+func azurePath(org, path string) (project, repository string, ok bool) {
+	segs := strings.Split(strings.Trim(path, "/"), "/")
+	if segs[0] == "v3" {
+		if org != "" || len(segs) != 4 {
+			return "", "", false
+		}
+		org, segs = segs[1], segs[2:]
+		segs = []string{segs[0], "_git", segs[1]}
+	} else if org == "" {
+		org, segs = segs[0], segs[1:]
+	}
+	if len(segs) > 0 && segs[0] == "DefaultCollection" {
+		segs = segs[1:]
+	}
+	switch {
+	case len(segs) == 3 && segs[1] == "_git":
+		project, repository = segs[0], segs[2]
+	case len(segs) == 2 && segs[0] == "_git":
+		project, repository = segs[1], segs[1]
+	default:
+		return "", "", false
+	}
+	for _, s := range []*string{&org, &project, &repository} {
+		v, err := neturl.PathUnescape(*s)
+		if err != nil || v == "" {
+			return "", "", false
+		}
+		*s = v
+	}
+	return org + "/" + project, repository, true
 }
 
 // DetectForWizard identifies a forge's platform type and project/repository path for wizard
@@ -106,7 +152,7 @@ func DetectForWizard(getenv func(string) string, gitOrigin string) (typ, project
 		}
 		return ciType, project, true
 	}
-	if originType, _, originProject, originOK := parseGitOrigin(gitOrigin); originOK {
+	if originType, _, originProject, _, originOK := parseGitOrigin(gitOrigin); originOK {
 		return originType, originProject, true
 	}
 	return "", "", false

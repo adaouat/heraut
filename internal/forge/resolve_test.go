@@ -245,3 +245,68 @@ func TestResolve_GitHubInsecureActionsAPIURLIsRefused(t *testing.T) {
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "GITHUB_API_URL")
 }
+
+// Azure DevOps shows several clone URLs for one repository; each must resolve to the same identity,
+// with the repository split from the project and the host on dev.azure.com (the legacy
+// visualstudio.com host serves the same organization there).
+func TestResolve_GitOriginAzure(t *testing.T) {
+	tests := []struct {
+		name, origin, project, repository string
+	}{
+		{"clone URL with the organization as user", "https://myorg@dev.azure.com/myorg/myproject/_git/myrepo", "myorg/myproject", "myrepo"},
+		{"https without user", "https://dev.azure.com/myorg/myproject/_git/myrepo", "myorg/myproject", "myrepo"},
+		{"ssh", "git@ssh.dev.azure.com:v3/myorg/myproject/myrepo", "myorg/myproject", "myrepo"},
+		{"legacy host", "https://myorg.visualstudio.com/myproject/_git/myrepo", "myorg/myproject", "myrepo"},
+		{"legacy host with DefaultCollection", "https://myorg.visualstudio.com/DefaultCollection/myproject/_git/myrepo", "myorg/myproject", "myrepo"},
+		{"legacy ssh", "myorg@vs-ssh.visualstudio.com:v3/myorg/myproject/myrepo", "myorg/myproject", "myrepo"},
+		{"repository named after its project", "https://dev.azure.com/myorg/_git/myrepo", "myorg/myrepo", "myrepo"},
+		{"escaped spaces", "https://dev.azure.com/myorg/My%20Project/_git/My%20Repo", "myorg/My Project", "My Repo"},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			got, err := forge.Resolve(&config.Config{}, env(map[string]string{"AZURE_DEVOPS_TOKEN": "pat"}), tc.origin)
+			require.NoError(t, err)
+			require.Len(t, got.Forges, 1)
+			f := got.Forges[0]
+			assert.Equal(t, "azure_devops", f.Type)
+			assert.Equal(t, "https://dev.azure.com", f.Host)
+			assert.Equal(t, tc.project, f.Project)
+			assert.Equal(t, tc.repository, f.Repository)
+			assert.Equal(t, "pat", f.Token)
+		})
+	}
+}
+
+func TestResolve_GitOriginAzureUnknownLayoutIsNotDetected(t *testing.T) {
+	for _, origin := range []string{
+		"https://dev.azure.com/myorg/myproject",
+		"https://dev.azure.com/myorg/myproject/_wiki/wikis/x",
+		"git@ssh.dev.azure.com:v2/myorg/myproject/myrepo",
+		"git@ssh.dev.azure.com:v3/myorg/myrepo",
+	} {
+		t.Run(origin, func(t *testing.T) {
+			got, err := forge.Resolve(&config.Config{}, env(nil), origin)
+			require.NoError(t, err)
+			assert.Empty(t, got.Forges)
+		})
+	}
+}
+
+func TestResolve_ExplicitAzureForgeFillsFromGitOrigin(t *testing.T) {
+	cfg := &config.Config{Forges: []config.Forge{{Name: "A", Type: "azure_devops"}}}
+	got, err := forge.Resolve(cfg, env(nil), "git@ssh.dev.azure.com:v3/myorg/myproject/myrepo")
+	require.NoError(t, err)
+	f := got.Forges[0]
+	assert.Equal(t, "https://dev.azure.com", f.Host)
+	assert.Equal(t, "myorg/myproject", f.Project)
+	assert.Equal(t, "myrepo", f.Repository)
+}
+
+// A token embedded in an https origin (a CI checkout) is not part of the host.
+func TestResolve_GitOriginWithCredentials(t *testing.T) {
+	got, err := forge.Resolve(&config.Config{}, env(nil), "https://x-access-token:secret@github.com/owner/repo.git")
+	require.NoError(t, err)
+	require.Len(t, got.Forges, 1)
+	assert.Equal(t, "github", got.Forges[0].Type)
+	assert.Equal(t, "owner/repo", got.Forges[0].Project)
+}
