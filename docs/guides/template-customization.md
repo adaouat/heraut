@@ -170,7 +170,7 @@ below), just keyed by token instead of block name: global → per-driver → per
 per token, an unset token falls through. There's no full-file equivalent —
 `rendering.templates.commit.trailers` is inline-only.
 
-See [Spec 02 § `rendering.trailers`](../specs/02-configuration.md#renderingtrailers-adr-0057)
+See [Spec 02 § `rendering.trailers`](../specs/02-configuration.md#renderingtrailers-adr-0057-adr-0058)
 for the full field reference.
 
 ---
