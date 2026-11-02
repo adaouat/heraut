@@ -62,7 +62,7 @@ func NewNotesCmd() *cobra.Command {
 				return exitcode.Wrap(exitcode.Config, err)
 			}
 
-			res, err := app.GenerateNotes(runner, cfg, app.NotesOpts{
+			res, err := app.GenerateNotes(cmd.Context(), runner, cfg, app.NotesOpts{
 				Tag: args[0], From: from, Env: env, TemplateFile: template, Format: format, Force: force,
 			})
 			switch {

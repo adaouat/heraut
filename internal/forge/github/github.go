@@ -3,6 +3,7 @@
 package github
 
 import (
+	"context"
 	"fmt"
 	"net/http"
 	"net/url"
@@ -102,9 +103,9 @@ func (f *Forge) graphqlEndpoint() (string, error) {
 
 // Enrich resolves each commit's associated pull request and linked commit-author handle via
 // batched GraphQL queries. ref is unused: GitHub resolves per-commit, not via a ref-anchored walk.
-func (f *Forge) Enrich(commits []port.Commit, _ string) (port.Enrichment, error) {
+func (f *Forge) Enrich(ctx context.Context, commits []port.Commit, _ string) (port.Enrichment, error) {
 	if len(commits) == 0 {
 		return port.Enrichment{PRs: map[string]port.PullRequest{}, Authors: map[string]string{}}, nil
 	}
-	return f.enrichGraphQL(commits)
+	return f.enrichGraphQL(ctx, commits)
 }

@@ -57,7 +57,7 @@ func TestChangelogRun_DryRunAndRealRunListTheSameSteps(t *testing.T) {
 
 			var dry []capturedStep
 			require.NoError(t, pipeline.NewChangelog(exectest.NewMockRunner(), &fakeResolver{result: res}, tc.cfg(), &bytes.Buffer{}, true).
-				WithReporter(capturingStepFn(&dry)).Run())
+				WithReporter(capturingStepFn(&dry)).Run(t.Context()))
 
 			mr := exectest.NewMockRunner()
 			for range 40 {
@@ -65,7 +65,7 @@ func TestChangelogRun_DryRunAndRealRunListTheSameSteps(t *testing.T) {
 			}
 			var real []capturedStep
 			require.NoError(t, pipeline.NewChangelog(mr, &fakeResolver{result: res}, tc.cfg(), &bytes.Buffer{}, false).
-				WithReporter(capturingStepFn(&real)).Run())
+				WithReporter(capturingStepFn(&real)).Run(t.Context()))
 
 			assert.Equal(t, stepNames(real), stepNames(dry))
 		})

@@ -17,7 +17,7 @@ func TestGenerator_Notes_NeverUsesAnOptionShapedTagAsABound(t *testing.T) {
 		"2026-01-02T00:00:00Z", "feat: add the thing", ""), "", nil)
 
 	g := New(mr, &config.ContentDriver{}, ModeNotes)
-	_, err := g.Generate("v1.2.0", nil)
+	_, err := g.Generate(t.Context(), "v1.2.0", nil)
 	require.NoError(t, err)
 
 	require.Len(t, mr.Calls, 2)
@@ -32,7 +32,7 @@ func TestGenerator_Notes_BoundComesFromTheTagsOwnHistory(t *testing.T) {
 		"2026-01-02T00:00:00Z", "feat: add the thing", ""), "", nil)
 
 	g := New(mr, &config.ContentDriver{}, ModeNotes)
-	out, err := g.Generate("v1.2.0", nil)
+	out, err := g.Generate(t.Context(), "v1.2.0", nil)
 	require.NoError(t, err)
 
 	assert.Contains(t, out, "- Add the thing")

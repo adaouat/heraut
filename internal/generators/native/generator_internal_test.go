@@ -34,7 +34,7 @@ func TestGenerator_GenerateReleaseNotes(t *testing.T) {
 	mr.QueueResponse("alice@example.com\n", "", nil) // authorsBefore: git log v1.0.0 --format=%ae
 
 	g := New(mr, &config.ContentDriver{}, ModeReleaseNotes)
-	out, err := g.Generate("v1.1.0", nil)
+	out, err := g.Generate(t.Context(), "v1.1.0", nil)
 	require.NoError(t, err)
 
 	assert.Contains(t, out, "### 🚀 Features")
@@ -62,7 +62,7 @@ func TestGenerator_GenerateReleaseNotes_TitleSubtitle(t *testing.T) {
 			"subtitle": "Highlights below.",
 		},
 	}, ModeReleaseNotes)
-	out, err := g.Generate("v1.1.0", nil)
+	out, err := g.Generate(t.Context(), "v1.1.0", nil)
 	require.NoError(t, err)
 
 	assert.True(t, strings.HasPrefix(out, "MyApp v1.1.0 Release\n\nHighlights below.\n\n"))
@@ -77,7 +77,7 @@ func TestGenerator_GenerateReleaseNotes_TitleSubtitleEmptyByDefault(t *testing.T
 	mr.QueueResponse("alice@example.com\n", "", nil)
 
 	g := New(mr, &config.ContentDriver{}, ModeReleaseNotes)
-	out, err := g.Generate("v1.1.0", nil)
+	out, err := g.Generate(t.Context(), "v1.1.0", nil)
 	require.NoError(t, err)
 
 	assert.True(t, strings.HasPrefix(out, "### 🚀 Features"),
@@ -95,7 +95,7 @@ func TestGenerator_GenerateReleaseNotes_TitleContextIsHerautOnly(t *testing.T) {
 	g := New(mr, &config.ContentDriver{
 		EffectiveTemplates: map[string]string{"title": "{{ .Tag }}"}, // .Tag exists on Release, not tplHeraut
 	}, ModeReleaseNotes)
-	_, err := g.Generate("v1.1.0", nil)
+	_, err := g.Generate(t.Context(), "v1.1.0", nil)
 	require.Error(t, err, "title only receives .Heraut's own fields — .Tag must fail to execute")
 	assert.Contains(t, err.Error(), "title")
 }
@@ -111,7 +111,7 @@ func TestGenerator_GenerateReleaseNotes_TagGlob(t *testing.T) {
 	mr.QueueResponse("alice@example.com\n", "", nil) // authorsBefore: git log prod/v1.0.0 --format=%ae
 
 	g := New(mr, &config.ContentDriver{TagGlob: "prod/v*"}, ModeReleaseNotes)
-	_, err := g.Generate("prod/v1.1.0", nil)
+	_, err := g.Generate(t.Context(), "prod/v1.1.0", nil)
 	require.NoError(t, err)
 
 	require.Len(t, mr.Calls, 4)
@@ -132,7 +132,7 @@ func TestGenerator_GenerateChangelog_TagGlob(t *testing.T) {
 		"2026-01-01T00:00:00Z", "fix: an old bug", ""), "", nil) // existing prod/v1.0.0
 
 	g := New(mr, &config.ContentDriver{TagGlob: "prod/v*"}, ModeChangelog)
-	_, err := g.Generate("prod/v1.1.0", nil)
+	_, err := g.Generate(t.Context(), "prod/v1.1.0", nil)
 	require.NoError(t, err)
 
 	assert.Equal(t, []string{"tag", "-l", "prod/v*", "--sort=-version:refname"}, mr.Calls[0].Args)
@@ -150,7 +150,7 @@ func TestGenerator_GenerateReleaseNotes_TagPatternRegex(t *testing.T) {
 	mr.QueueResponse("a@example.com\n", "", nil) // authorsBefore: git log v1.0.0-prod --format=%ae
 
 	g := New(mr, &config.ContentDriver{TagPattern: `-prod$`}, ModeReleaseNotes)
-	_, err := g.Generate("v2.0.0-prod", nil)
+	_, err := g.Generate(t.Context(), "v2.0.0-prod", nil)
 	require.NoError(t, err)
 
 	require.Len(t, mr.Calls, 4)
@@ -195,7 +195,7 @@ func TestGenerator_GenerateReleaseNotes_DaysBetweenReleases(t *testing.T) {
 	mr.QueueResponse("a@example.com\n", "", nil) // authorsBefore: git log v1.0.0 --format=%ae
 
 	g := New(mr, &config.ContentDriver{}, ModeReleaseNotes)
-	out, err := g.Generate("v1.1.0", nil)
+	out, err := g.Generate(t.Context(), "v1.1.0", nil)
 	require.NoError(t, err)
 
 	assert.Equal(t, []string{"log", "-1", "--format=%cI", "v1.0.0"}, mr.Calls[1].Args)
@@ -215,7 +215,7 @@ func TestGenerator_GenerateChangelog_WritesFile(t *testing.T) {
 	outPath := filepath.Join(dir, "CHANGELOG.md")
 	g := New(mr, &config.ContentDriver{Output: outPath}, ModeChangelog)
 
-	body, err := g.Generate("v1.1.0", nil)
+	body, err := g.Generate(t.Context(), "v1.1.0", nil)
 	require.NoError(t, err)
 
 	assert.Contains(t, body, "# Changelog")
@@ -244,7 +244,7 @@ func TestGenerator_GenerateChangelog_TitleSubtitleFireOncePerDocument(t *testing
 		},
 	}, ModeChangelog)
 
-	body, err := g.Generate("v1.1.0", nil)
+	body, err := g.Generate(t.Context(), "v1.1.0", nil)
 	require.NoError(t, err)
 
 	assert.Equal(t, 1, strings.Count(body, "# MyApp Changelog"),
@@ -274,7 +274,7 @@ func TestGenerator_GenerateChangelog_IncrementalRefreshesTitle(t *testing.T) {
 		EffectiveTemplates: map[string]string{"title": "# Configured Title"},
 	}, ModeChangelog)
 
-	body, err := g.Generate("v1.1.0", nil)
+	body, err := g.Generate(t.Context(), "v1.1.0", nil)
 	require.NoError(t, err)
 
 	assert.True(t, strings.HasPrefix(body, "# Configured Title\n\n"),
@@ -302,7 +302,7 @@ func TestGenerator_GenerateChangelog_RegenerateRerendersTitle(t *testing.T) {
 		EffectiveTemplates:  map[string]string{"title": "# Fresh Title"},
 	}, ModeChangelog)
 
-	body, err := g.Generate("v1.1.0", nil)
+	body, err := g.Generate(t.Context(), "v1.1.0", nil)
 	require.NoError(t, err)
 
 	assert.True(t, strings.HasPrefix(body, "# Fresh Title\n\n"),
@@ -323,7 +323,7 @@ func TestGenerator_GenerateChangelog_TitleContextIsHerautOnly(t *testing.T) {
 		Output:             filepath.Join(dir, "CHANGELOG.md"),
 		EffectiveTemplates: map[string]string{"title": "{{ .Tag }}"}, // .Tag exists on Release, not tplHeraut
 	}, ModeChangelog)
-	_, err := g.Generate("v1.1.0", nil)
+	_, err := g.Generate(t.Context(), "v1.1.0", nil)
 	require.Error(t, err, "title only receives .Heraut's own fields — .Tag must fail to execute")
 	assert.Contains(t, err.Error(), "title")
 }
@@ -348,7 +348,7 @@ func TestGenerator_GenerateChangelog_PreviousTagOverride_BoundsBootstrapRange(t 
 		PreviousTagOverride: "2025.12.0",
 	}, ModeChangelog)
 
-	_, err := g.Generate("2026.01.0", nil)
+	_, err := g.Generate(t.Context(), "2026.01.0", nil)
 	require.NoError(t, err)
 
 	require.Len(t, mr.Calls, 2)
@@ -377,7 +377,7 @@ func TestGenerator_GenerateChangelog_PreviousTagOverride_SpliceUsesOverride(t *t
 		PreviousTagOverride: "2026.01.0",
 	}, ModeChangelog)
 
-	_, err := g.Generate("2026.02.0", nil)
+	_, err := g.Generate(t.Context(), "2026.02.0", nil)
 	require.NoError(t, err)
 
 	require.Len(t, mr.Calls, 2)
@@ -392,7 +392,7 @@ func TestGenerator_GenerateChangelog_FirstRelease(t *testing.T) {
 		"2026-01-01T00:00:00Z", "feat: initial", ""), "", nil) // new release: full history (HEAD)
 
 	g := New(mr, &config.ContentDriver{}, ModeChangelog)
-	body, err := g.Generate("v0.1.0", nil)
+	body, err := g.Generate(t.Context(), "v0.1.0", nil)
 	require.NoError(t, err)
 	assert.Contains(t, body, "## [0.1.0]")
 
@@ -411,7 +411,7 @@ func TestGenerate_InlineCommitOverride(t *testing.T) {
 		EffectiveTemplates: map[string]string{"commit.message": "CUSTOM {{ .Description }}"},
 	}, ModeReleaseNotes)
 
-	out, err := g.Generate("v1.1.0", nil)
+	out, err := g.Generate(t.Context(), "v1.1.0", nil)
 	require.NoError(t, err)
 	assert.Contains(t, out, "CUSTOM Add x", "inline commit override is applied")
 	assert.NotContains(t, out, "- *(", "built-in commit format is replaced")
@@ -431,7 +431,7 @@ func TestGenerate_TemplateFileOverride(t *testing.T) {
 	mr.QueueResponse("bob@x\n", "", nil) // authorsBefore
 	g := New(mr, &config.ContentDriver{Template: file}, ModeReleaseNotes)
 
-	out, err := g.Generate("v1.1.0", nil)
+	out, err := g.Generate(t.Context(), "v1.1.0", nil)
 	require.NoError(t, err)
 	assert.Contains(t, out, "FILE-NOTES", "the template file replaces the release-notes root")
 	assert.Contains(t, out, "- Add x")
@@ -452,7 +452,7 @@ func TestGenerate_ReleaseFooterOverride(t *testing.T) {
 	}, ModeReleaseNotes)
 	g.now = func() time.Time { return time.Date(2026, 7, 6, 0, 0, 0, 0, time.UTC) }
 
-	out, err := g.Generate("v1.1.0", nil)
+	out, err := g.Generate(t.Context(), "v1.1.0", nil)
 	require.NoError(t, err)
 	assert.Contains(t, out, "-- heraut 9.9.9 @ 2026-07-06 (https://github.com/adaouat/heraut)",
 		"release.footer (per-release, Release-rooted) renders .Heraut.Version + injected GeneratedAt + URL")
@@ -467,7 +467,7 @@ func TestGenerate_DefaultDocumentFooterCreditsHeraut(t *testing.T) {
 	g := New(mr, &config.ContentDriver{HerautVersion: "9.9.9"}, ModeReleaseNotes)
 	g.now = func() time.Time { return time.Date(2026, 7, 6, 14, 30, 0, 0, time.UTC) }
 
-	out, err := g.Generate("v1.1.0", nil)
+	out, err := g.Generate(t.Context(), "v1.1.0", nil)
 	require.NoError(t, err)
 	assert.Contains(t, out,
 		"_Generated by [heraut](https://github.com/adaouat/heraut) 9.9.9 at 14:30 on 2026-07-06._",
@@ -483,7 +483,7 @@ func TestGenerate_DocumentFooterContextIsHerautOnly(t *testing.T) {
 	g := New(mr, &config.ContentDriver{
 		EffectiveTemplates: map[string]string{"footer": "{{ .Tag }}"}, // .Tag exists on Release, not tplHeraut
 	}, ModeReleaseNotes)
-	_, err := g.Generate("v1.1.0", nil)
+	_, err := g.Generate(t.Context(), "v1.1.0", nil)
 	require.Error(t, err, "the document-level footer only receives .Heraut's own fields — .Tag must fail to execute")
 	assert.Contains(t, err.Error(), "footer")
 }
@@ -503,7 +503,7 @@ func TestGenerateChangelog_DocumentFooterOnceAcrossMultipleSections(t *testing.T
 	g := New(mr, &config.ContentDriver{Output: out, RegenerateChangelog: true, HerautVersion: "9.9.9"}, ModeChangelog)
 	g.now = func() time.Time { return time.Date(2026, 7, 6, 14, 30, 0, 0, time.UTC) }
 
-	body, err := g.Generate("v1.1.0", nil)
+	body, err := g.Generate(t.Context(), "v1.1.0", nil)
 	require.NoError(t, err)
 	assert.Equal(t, 1, strings.Count(body, "_Generated by [heraut]"),
 		"the document footer must appear exactly once across a multi-release changelog, not once per section")
@@ -530,7 +530,7 @@ func TestGenerator_GenerateChangelog_IncrementalRefreshesDocumentFooter(t *testi
 	g := New(mr, &config.ContentDriver{Output: outPath, HerautVersion: "9.9.9"}, ModeChangelog)
 	g.now = func() time.Time { return time.Date(2026, 7, 6, 14, 30, 0, 0, time.UTC) }
 
-	body, err := g.Generate("v1.1.0", nil)
+	body, err := g.Generate(t.Context(), "v1.1.0", nil)
 	require.NoError(t, err)
 	assert.Equal(t, 1, strings.Count(body, "_Generated by [heraut]"),
 		"the refreshed footer replaces the stale one, it does not duplicate it")
@@ -548,7 +548,7 @@ func TestGenerateChangelog_BootstrapAnchored(t *testing.T) {
 	mr.QueueResponse(record("aaa1111111", "A", "a@x", "2026-01-01T00:00:00Z", "feat: initial", ""), "", nil) // latest..HEAD
 	g := New(mr, &config.ContentDriver{Output: out}, ModeChangelog)
 
-	body, err := g.Generate("v0.1.0", nil)
+	body, err := g.Generate(t.Context(), "v0.1.0", nil)
 	require.NoError(t, err)
 	assert.Contains(t, body, "<!-- heraut-release: v0.1.0 -->", "bootstrap stamps an anchor")
 	assert.Contains(t, body, "## [0.1.0]")
@@ -566,7 +566,7 @@ func TestGenerateChangelog_IncrementalInserts(t *testing.T) {
 	mr.QueueResponse(record("bbb2222222", "B", "b@x", "2026-02-01T00:00:00Z", "feat: new thing", ""), "", nil) // v1.0.0..HEAD
 	g := New(mr, &config.ContentDriver{Output: out}, ModeChangelog)
 
-	body, err := g.Generate("v1.1.0", nil)
+	body, err := g.Generate(t.Context(), "v1.1.0", nil)
 	require.NoError(t, err)
 	assert.Contains(t, body, "<!-- heraut-release: v1.1.0 -->")
 	assert.Contains(t, body, "New thing")
@@ -584,7 +584,7 @@ func TestGenerateChangelog_ForeignFileErrors(t *testing.T) {
 	mr.QueueResponse(record("bbb2222222", "B", "b@x", "2026-02-01T00:00:00Z", "feat: x", ""), "", nil)
 	g := New(mr, &config.ContentDriver{Output: out}, ModeChangelog)
 
-	_, err := g.Generate("v1.1.0", nil)
+	_, err := g.Generate(t.Context(), "v1.1.0", nil)
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "--regenerate-changelog", "names the heraut release flag too")
 	assert.Contains(t, err.Error(), "--regenerate")
@@ -606,7 +606,7 @@ func TestGenerateChangelog_ForeignFileErrors_BeforeEnrichment(t *testing.T) {
 	mr := exectest.NewMockRunner() // no response queued: the anchor check must return before any git/enrichment call
 	g := New(mr, &config.ContentDriver{Output: out, RemoteMetadata: "required"}, ModeChangelog)
 
-	_, err := g.Generate("v1.1.0", ghLC())
+	_, err := g.Generate(t.Context(), "v1.1.0", ghLC())
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "--regenerate-changelog")
 	assert.Contains(t, err.Error(), "--regenerate")
@@ -633,7 +633,7 @@ func TestGenerateChangelog_RegenerateEnrichesAllSections(t *testing.T) {
 	}}
 	g := New(mr, &config.ContentDriver{Output: out, RegenerateChangelog: true}, ModeChangelog, WithForge(forge))
 
-	body, err := g.Generate("v1.1.0", ghLC())
+	body, err := g.Generate(t.Context(), "v1.1.0", ghLC())
 	require.NoError(t, err)
 	assert.Contains(t, body, "by @carol", "regenerate enriches historical sections")
 	assert.Contains(t, body, "<!-- heraut-release: v1.0.0 -->")
@@ -656,7 +656,7 @@ func TestGenerateChangelog_RegenerateOldestScopedTagExcludesOutOfScopeHistory(t 
 	mr.QueueResponse(record("ddd4444444", "D", "d@x", "2026-01-15T00:00:00Z", "feat: prod first", ""), "", nil)  // historical: staging/v1.0.0..prod/v1.0.0
 
 	g := New(mr, &config.ContentDriver{Output: out, TagGlob: "prod/v*", RegenerateChangelog: true}, ModeChangelog)
-	body, err := g.Generate("prod/v1.1.0", nil)
+	body, err := g.Generate(t.Context(), "prod/v1.1.0", nil)
 	require.NoError(t, err)
 
 	assert.Contains(t, body, "Prod first")
@@ -703,7 +703,7 @@ func TestGenerator_GenerateChangelog_TagOrder_FiltersAndReorders(t *testing.T) {
 	mr.QueueResponse("", "", nil)                                                                             // historical: oldest-in-list section ("v1.3.0"), no commits — skipped
 
 	g := New(mr, &config.ContentDriver{}, ModeChangelog, WithTagOrder(preReleaseFilterOrder))
-	body, err := g.Generate("v1.5.0", nil)
+	body, err := g.Generate(t.Context(), "v1.5.0", nil)
 	require.NoError(t, err)
 
 	assert.Contains(t, body, "## [1.5.0]")
@@ -735,7 +735,7 @@ func TestGenerator_GenerateReleaseNotes_TagOrder_ResolvesPrevFromList_NoDescribe
 	mr.QueueResponse("c@x\n", "", nil)                                                                        // authorsBefore
 
 	g := New(mr, &config.ContentDriver{}, ModeReleaseNotes, WithTagOrder(preReleaseFilterOrder))
-	out, err := g.Generate("v1.5.0", nil)
+	out, err := g.Generate(t.Context(), "v1.5.0", nil)
 	require.NoError(t, err)
 	assert.Contains(t, out, "Commit c")
 
@@ -762,7 +762,7 @@ func TestGenerator_GenerateChangelog_TagOrder_OldestInScopeFallbackIsAncestryBou
 	mr.QueueResponse(record("ddd4444444", "D", "d@x", "2026-01-01T00:00:00Z", "feat: prod release", ""), "", nil)
 
 	g := New(mr, &config.ContentDriver{TagGlob: "prod/v*"}, ModeChangelog, WithTagOrder(preReleaseFilterOrder))
-	body, err := g.Generate("prod/v1.4.1", nil)
+	body, err := g.Generate(t.Context(), "prod/v1.4.1", nil)
 	require.NoError(t, err)
 	assert.Contains(t, body, "Prod release")
 
@@ -791,7 +791,7 @@ func TestGenerator_BuildAllSections_TagOrder_BoundsEachSectionByAncestry(t *test
 	mr.QueueResponse(record("ccc3333333", "C", "c@x", "2026-01-01T00:00:00Z", "feat: one", ""), "", nil)  // v1.3.1 (full history)
 
 	g := New(mr, &config.ContentDriver{RegenerateChangelog: true}, ModeChangelog, WithTagOrder(allKindsDescOrder))
-	_, err := g.Generate("v1.5.0", nil)
+	_, err := g.Generate(t.Context(), "v1.5.0", nil)
 	require.NoError(t, err)
 
 	want := [][]string{
@@ -822,7 +822,7 @@ func TestGenerator_BuildAllSections_NoTagOrder_CallSequenceUnchanged(t *testing.
 	}
 
 	g := New(mr, &config.ContentDriver{RegenerateChangelog: true}, ModeChangelog)
-	_, err := g.Generate("v1.5.0", nil)
+	_, err := g.Generate(t.Context(), "v1.5.0", nil)
 	require.NoError(t, err)
 
 	want := [][]string{
@@ -853,7 +853,7 @@ func TestGenerator_BuildAllSections_TagOrder_AncestryIsScopePreserving(t *testin
 	mr.QueueResponse(record("aaa1111111", "A", "a@x", "2026-01-01T00:00:00Z", "feat: a", ""), "", nil)
 
 	g := New(mr, &config.ContentDriver{TagGlob: "prod/*", RegenerateChangelog: true}, ModeChangelog, WithTagOrder(allKindsDescOrder))
-	_, err := g.Generate("prod/1.4.0", nil)
+	_, err := g.Generate(t.Context(), "prod/1.4.0", nil)
 	require.NoError(t, err)
 
 	require.Len(t, mr.Calls, 6)
@@ -893,7 +893,7 @@ func TestGenerateChangelog_IncrementalWithCustomHeader(t *testing.T) {
 		EffectiveTemplates: map[string]string{"release.section": "=== {{ .Version }} ==="},
 	}, ModeChangelog)
 
-	body, err := g.Generate("v1.1.0", nil)
+	body, err := g.Generate(t.Context(), "v1.1.0", nil)
 	require.NoError(t, err)
 	assert.Contains(t, body, "<!-- heraut-release: v1.1.0 -->\n=== 1.1.0 ===", "custom header still splices under the structural anchor")
 	assert.Contains(t, body, "- old", "history preserved")

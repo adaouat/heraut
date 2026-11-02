@@ -114,7 +114,7 @@ func TestChangelogRun_StageWithoutCommit_WarnsWhichFilesWereLeft(t *testing.T) {
 			}
 			var out bytes.Buffer
 			p := pipeline.NewChangelog(mr, &fakeResolver{result: resolvedResult("v1.2.3")}, tc.cfg, &out, false)
-			require.NoError(t, p.Run())
+			require.NoError(t, p.Run(t.Context()))
 
 			assert.Contains(t, out.String(), uncommittedStageWarning)
 			if len(tc.cfg.PostBumpHooks) > 0 {
@@ -141,7 +141,7 @@ func TestChangelogRun_NoWarningWhenTheCommitHappens(t *testing.T) {
 	}
 	var out bytes.Buffer
 	p := pipeline.NewChangelog(mr, &fakeResolver{result: resolvedResult("v1.2.3")}, cfg, &out, false)
-	require.NoError(t, p.Run())
+	require.NoError(t, p.Run(t.Context()))
 
 	assert.NotContains(t, out.String(), uncommittedStageWarning)
 }

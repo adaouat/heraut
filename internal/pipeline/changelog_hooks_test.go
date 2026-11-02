@@ -20,7 +20,7 @@ func TestChangelogRun_PostBumpHook_FiresAfterResolve(t *testing.T) {
 		PostBumpHooks: []pipeline.HookStep{{Run: "echo {{ .Version }}"}},
 	}
 	p := pipeline.NewChangelog(mr, &fakeResolver{result: resolvedResult("v1.2.3")}, cfg, &bytes.Buffer{}, false)
-	require.NoError(t, p.Run())
+	require.NoError(t, p.Run(t.Context()))
 
 	require.Len(t, mr.Calls, 1)
 	assert.Equal(t, "sh", mr.Calls[0].Name)
@@ -38,7 +38,7 @@ func TestChangelogRun_PostBumpHook_SubstitutesEnv(t *testing.T) {
 		PostBumpHooks: []pipeline.HookStep{{Run: "echo {{ .Env }}"}},
 	}
 	p := pipeline.NewChangelog(mr, &fakeResolver{result: resolvedResult("v1.2.3")}, cfg, &bytes.Buffer{}, false)
-	require.NoError(t, p.Run())
+	require.NoError(t, p.Run(t.Context()))
 
 	require.Len(t, mr.Calls, 1)
 	assert.Equal(t, []string{"-c", "echo staging"}, mr.Calls[0].Args)
@@ -57,7 +57,7 @@ func TestChangelogRun_PostBumpHook_FiresEvenWhenDisabledAndNoTag(t *testing.T) {
 		PostBumpHooks:    []pipeline.HookStep{{Run: "echo post-bump"}},
 	}
 	p := pipeline.NewChangelog(mr, &fakeResolver{result: resolvedResult("v1.2.3")}, cfg, &bytes.Buffer{}, false)
-	require.NoError(t, p.Run())
+	require.NoError(t, p.Run(t.Context()))
 
 	require.Len(t, mr.Calls, 1)
 	assert.Equal(t, []string{"-c", "echo post-bump"}, mr.Calls[0].Args)
@@ -74,7 +74,7 @@ func TestChangelogRun_PreChangelogHook_NeverFiresWhenChangelogDisabled(t *testin
 		PreChangelogHooks: []pipeline.HookStep{{Run: "echo pre-changelog"}},
 	}
 	p := pipeline.NewChangelog(mr, &fakeResolver{result: resolvedResult("v1.2.3")}, cfg, &bytes.Buffer{}, false)
-	require.NoError(t, p.Run())
+	require.NoError(t, p.Run(t.Context()))
 
 	assert.Empty(t, mr.Calls)
 }
@@ -97,7 +97,7 @@ func TestChangelogRun_PostBumpHook_StagePatternIncludedInCommit(t *testing.T) {
 		PostBumpHooks: []pipeline.HookStep{{Run: "echo bumping", Stage: []string{"extra.txt"}}},
 	}
 	p := pipeline.NewChangelog(mr, &fakeResolver{result: resolvedResult("v1.2.3")}, cfg, &bytes.Buffer{}, false)
-	require.NoError(t, p.Run())
+	require.NoError(t, p.Run(t.Context()))
 
 	require.Len(t, mr.Calls, 5)
 	assert.Equal(t, []string{"add", "CHANGELOG.md", "extra.txt"}, mr.Calls[1].Args)
@@ -123,7 +123,7 @@ func TestChangelogRun_PostBumpAndPreChangelogHooks_StagePatternsCombinedInCommit
 		PreChangelogHooks: []pipeline.HookStep{{Run: "make lint", Stage: []string{"prechangelog.txt"}}},
 	}
 	p := pipeline.NewChangelog(mr, &fakeResolver{result: resolvedResult("v1.2.3")}, cfg, &bytes.Buffer{}, false)
-	require.NoError(t, p.Run())
+	require.NoError(t, p.Run(t.Context()))
 
 	require.Len(t, mr.Calls, 6)
 	assert.Equal(t, []string{"add", "CHANGELOG.md", "postbump.txt", "prechangelog.txt"}, mr.Calls[2].Args)
@@ -139,7 +139,7 @@ func TestChangelogRun_PreChangelogHook_FiresBeforeChangelogGeneration(t *testing
 		PreChangelogHooks: []pipeline.HookStep{{Run: "make lint"}},
 	}
 	p := pipeline.NewChangelog(mr, &fakeResolver{result: resolvedResult("v1.2.3")}, cfg, &bytes.Buffer{}, false)
-	require.NoError(t, p.Run())
+	require.NoError(t, p.Run(t.Context()))
 
 	require.Len(t, mr.Calls, 1)
 	assert.Equal(t, []string{"-c", "make lint"}, mr.Calls[0].Args)
@@ -157,7 +157,7 @@ func TestChangelogRun_PreTagHook_FiresBeforeTagCreation(t *testing.T) {
 		PreTagHooks: []pipeline.HookStep{{Run: "go build ./..."}},
 	}
 	p := pipeline.NewChangelog(mr, &fakeResolver{result: resolvedResult("v1.2.3")}, cfg, &bytes.Buffer{}, false)
-	require.NoError(t, p.Run())
+	require.NoError(t, p.Run(t.Context()))
 
 	require.Len(t, mr.Calls, 3)
 	assert.Equal(t, []string{"-c", "go build ./..."}, mr.Calls[0].Args)
@@ -175,7 +175,7 @@ func TestChangelogRun_PostTagHook_FiresAfterPush(t *testing.T) {
 		PostTagHooks: []pipeline.HookStep{{Run: "npm publish"}},
 	}
 	p := pipeline.NewChangelog(mr, &fakeResolver{result: resolvedResult("v1.2.3")}, cfg, &bytes.Buffer{}, false)
-	require.NoError(t, p.Run())
+	require.NoError(t, p.Run(t.Context()))
 
 	require.Len(t, mr.Calls, 3)
 	assert.Equal(t, []string{"push", "origin", "v1.2.3"}, mr.Calls[1].Args)
@@ -193,7 +193,7 @@ func TestChangelogRun_PostTagHook_FiresEvenWithNoPush(t *testing.T) {
 		PostTagHooks: []pipeline.HookStep{{Run: "echo done"}},
 	}
 	p := pipeline.NewChangelog(mr, &fakeResolver{result: resolvedResult("v1.2.3")}, cfg, &bytes.Buffer{}, false)
-	require.NoError(t, p.Run())
+	require.NoError(t, p.Run(t.Context()))
 
 	require.Len(t, mr.Calls, 2)
 	assert.Equal(t, []string{"tag", "v1.2.3"}, mr.Calls[0].Args)
@@ -213,7 +213,7 @@ func TestChangelogRun_Hooks_NoHooksSkipsAllConfiguredHooks(t *testing.T) {
 		PostTagHooks:  []pipeline.HookStep{{Run: "echo post-tag"}},
 	}
 	p := pipeline.NewChangelog(mr, &fakeResolver{result: resolvedResult("v1.2.3")}, cfg, &bytes.Buffer{}, false)
-	require.NoError(t, p.Run())
+	require.NoError(t, p.Run(t.Context()))
 
 	require.Len(t, mr.Calls, 2)
 	assert.Equal(t, "git", mr.Calls[0].Name)
@@ -230,7 +230,7 @@ func TestChangelogRun_Hooks_DryRunNeverExecutesHooks(t *testing.T) {
 		PostTagHooks:  []pipeline.HookStep{{Run: "echo post-tag"}},
 	}
 	p := pipeline.NewChangelog(mr, &fakeResolver{result: resolvedResult("v1.2.3")}, cfg, &bytes.Buffer{}, true)
-	require.NoError(t, p.Run())
+	require.NoError(t, p.Run(t.Context()))
 
 	assert.Empty(t, mr.Calls, "dry-run must never execute a hook for real")
 }
@@ -276,7 +276,7 @@ func TestChangelogRun_Hooks_FailureAbortsRun(t *testing.T) {
 			tc.queue(mr)
 
 			p := pipeline.NewChangelog(mr, &fakeResolver{result: resolvedResult("v1.2.3")}, tc.cfg, &bytes.Buffer{}, false)
-			err := p.Run()
+			err := p.Run(t.Context())
 			require.Error(t, err)
 			assert.Len(t, mr.Calls, tc.wantCall)
 		})

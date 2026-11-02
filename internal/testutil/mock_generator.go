@@ -1,6 +1,10 @@
 package testutil
 
-import "github.com/adaouat/heraut/internal/port"
+import (
+	"context"
+
+	"github.com/adaouat/heraut/internal/port"
+)
 
 // MockGenerator is a port.Generator that records calls for contract testing.
 type MockGenerator struct {
@@ -10,6 +14,7 @@ type MockGenerator struct {
 	GenerateErr      error
 	GenerateCalls    []string            // tags passed to Generate
 	GenerateContexts []*port.LinkContext // link context passed alongside each tag (nil = single-platform)
+	GenerateCtxs     []context.Context   // command context passed alongside each tag
 	DegradedVal      bool                // value returned by Degraded()
 	DegradedReasonV  string              // value returned by DegradedReason()
 	LastOutputPathV  string              // value returned by LastOutputPath()
@@ -19,7 +24,8 @@ func (m *MockGenerator) Check() error { return m.CheckErr }
 
 func (m *MockGenerator) Validate() error { return m.ValidateErr }
 
-func (m *MockGenerator) Generate(tag string, lc *port.LinkContext) (string, error) {
+func (m *MockGenerator) Generate(ctx context.Context, tag string, lc *port.LinkContext) (string, error) {
+	m.GenerateCtxs = append(m.GenerateCtxs, ctx)
 	m.GenerateCalls = append(m.GenerateCalls, tag)
 	m.GenerateContexts = append(m.GenerateContexts, lc)
 	return m.GenerateOut, m.GenerateErr

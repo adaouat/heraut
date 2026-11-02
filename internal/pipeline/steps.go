@@ -104,7 +104,7 @@ func (p *Pipeline) releaseFlow(ctx context.Context, result versioning.Result) *r
 			releaseStep{
 				name: "Generate changelog",
 				exec: func() (string, []string, error) {
-					if _, err := p.cfg.Changelog.Generate(result.Tag, p.changelogLinkContext()); err != nil {
+					if _, err := p.cfg.Changelog.Generate(ctx, result.Tag, p.changelogLinkContext()); err != nil {
 						return "", nil, fmt.Errorf("generating changelog: %w", err)
 					}
 					detail, subs := changelogGenResult(p.cfg.Changelog)
@@ -176,7 +176,7 @@ func (p *Pipeline) releaseFlow(ctx context.Context, result versioning.Result) *r
 			name: "Generate release notes",
 			exec: func() (string, []string, error) {
 				var err error
-				notes, err = p.cfg.Notes.Generate(result.Tag, p.singlePlatformLinkContext())
+				notes, err = p.cfg.Notes.Generate(ctx, result.Tag, p.singlePlatformLinkContext())
 				if err != nil {
 					return "", nil, fmt.Errorf("generating release notes: %w", err)
 				}
@@ -284,7 +284,7 @@ func (p *Pipeline) publishStep(ctx context.Context, plat port.Platform, result v
 			notes := *sharedNotes
 			lc := p.platformLinkContext(plat)
 			if regenerateNotes {
-				generated, err := p.cfg.Notes.Generate(result.Tag, lc)
+				generated, err := p.cfg.Notes.Generate(ctx, result.Tag, lc)
 				if err != nil {
 					return "", nil, fmt.Errorf("platform %s: generating release notes: %w", plat.Name(), err)
 				}

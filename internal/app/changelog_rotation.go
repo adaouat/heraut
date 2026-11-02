@@ -1,6 +1,7 @@
 package app
 
 import (
+	"context"
 	"fmt"
 	"strconv"
 	"strings"
@@ -81,14 +82,14 @@ func (r *rotatingGenerator) Validate() error { return r.fallback.Validate() }
 // internal/app) so the commit/summary steps target the real file instead of the raw pattern.
 func (r *rotatingGenerator) LastOutputPath() string { return r.lastOutputPath }
 
-func (r *rotatingGenerator) Generate(tag string, lc *port.LinkContext) (string, error) {
+func (r *rotatingGenerator) Generate(ctx context.Context, tag string, lc *port.LinkContext) (string, error) {
 	concrete, err := r.resolveDriver(tag)
 	if err != nil {
 		return "", fmt.Errorf("resolving rotated changelog output for %q: %w", tag, err)
 	}
 	r.lastOutputPath = concrete.Output
 	gen := buildGenerator(r.runner, concrete, native.ModeChangelog, r.herautVersion, r.regenerateChangelog, r.force, r.enrichForge, r.degradedReason, r.tagOrder)
-	return gen.Generate(tag, lc)
+	return gen.Generate(ctx, tag, lc)
 }
 
 // resolveDriver substitutes {TOKEN} placeholders in r.driver.Output with the values the resolved

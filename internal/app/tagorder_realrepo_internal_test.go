@@ -64,7 +64,7 @@ func TestTagOrderFor_RealRepo_SemverPrecedenceBoundsChangelogAndNotes(t *testing
 	driver := &config.ContentDriver{Output: filepath.Join(changelogDir, "CHANGELOG.md")}
 	changelogGen := buildGenerator(runner, driver, native.ModeChangelog, "", false, false, nil, "", order)
 
-	body, err := changelogGen.Generate("v1.5.0", nil)
+	body, err := changelogGen.Generate(t.Context(), "v1.5.0", nil)
 	require.NoError(t, err)
 
 	unreleasedAnchor := "<!-- heraut-release: v1.5.0 -->"
@@ -89,7 +89,7 @@ func TestTagOrderFor_RealRepo_SemverPrecedenceBoundsChangelogAndNotes(t *testing
 	git("tag", "v1.5.0")
 
 	notesGen := buildGenerator(runner, &config.ContentDriver{}, native.ModeReleaseNotes, "", false, false, nil, "", order)
-	notes, err := notesGen.Generate("v1.5.0", nil)
+	notes, err := notesGen.Generate(t.Context(), "v1.5.0", nil)
 	require.NoError(t, err)
 
 	assert.Contains(t, notes, "Commit c")
@@ -149,7 +149,7 @@ func TestTagOrderFor_RealRepo_FallbackNeverBoundsByNonAncestorTag(t *testing.T) 
 	driver := &config.ContentDriver{Output: filepath.Join(changelogDir, "CHANGELOG.md"), TagGlob: "envb/*"}
 	gen := buildGenerator(runner, driver, native.ModeChangelog, "", false, false, nil, "", order)
 
-	body, err := gen.Generate("envb/1.1.0", nil)
+	body, err := gen.Generate(t.Context(), "envb/1.1.0", nil)
 	require.NoError(t, err)
 
 	assert.NotContains(t, body, "Enva release", "enva's commit must never leak into envb's changelog")

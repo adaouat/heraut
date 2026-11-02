@@ -26,7 +26,7 @@ func TestChangelogRun_GenerateOnly(t *testing.T) {
 
 	out := &bytes.Buffer{}
 	p := pipeline.NewChangelog(mr, &fakeResolver{result: resolvedResult("v1.2.3")}, cfg, out, false)
-	require.NoError(t, p.Run())
+	require.NoError(t, p.Run(t.Context()))
 
 	require.Len(t, gen.GenerateCalls, 1)
 	assert.Equal(t, "v1.2.3", gen.GenerateCalls[0])
@@ -50,7 +50,7 @@ func TestChangelogRun_WithCommit(t *testing.T) {
 	}
 
 	p := pipeline.NewChangelog(mr, &fakeResolver{result: resolvedResult("v1.2.3")}, cfg, &bytes.Buffer{}, false)
-	require.NoError(t, p.Run())
+	require.NoError(t, p.Run(t.Context()))
 
 	require.Len(t, gen.GenerateCalls, 1)
 	require.Len(t, mr.Calls, 4)
@@ -81,7 +81,7 @@ func TestChangelogRun_WithCommit_UsesRotatedOutputPath(t *testing.T) {
 	}
 
 	p := pipeline.NewChangelog(mr, &fakeResolver{result: resolvedResult("2026.05.0")}, cfg, &bytes.Buffer{}, false)
-	require.NoError(t, p.Run())
+	require.NoError(t, p.Run(t.Context()))
 
 	require.Len(t, mr.Calls, 4)
 	assert.Equal(t, []string{"add", "CHANGELOG_2026.md"}, mr.Calls[0].Args,
@@ -107,7 +107,7 @@ func TestChangelogRun_WithTag(t *testing.T) {
 	}
 
 	p := pipeline.NewChangelog(mr, &fakeResolver{result: resolvedResult("v1.2.3")}, cfg, &bytes.Buffer{}, false)
-	require.NoError(t, p.Run())
+	require.NoError(t, p.Run(t.Context()))
 
 	require.Len(t, gen.GenerateCalls, 1)
 	require.Len(t, mr.Calls, 6)
@@ -130,7 +130,7 @@ func TestChangelogRun_TagWithoutChangelog(t *testing.T) {
 	}
 
 	p := pipeline.NewChangelog(mr, &fakeResolver{result: resolvedResult("v1.2.3")}, cfg, &bytes.Buffer{}, false)
-	require.NoError(t, p.Run())
+	require.NoError(t, p.Run(t.Context()))
 
 	require.Len(t, mr.Calls, 2)
 	assert.Equal(t, []string{"tag", "v1.2.3"}, mr.Calls[0].Args)
@@ -154,7 +154,7 @@ func TestChangelogRun_WithCommit_NoPush(t *testing.T) {
 	}
 
 	p := pipeline.NewChangelog(mr, &fakeResolver{result: resolvedResult("v1.2.3")}, cfg, &bytes.Buffer{}, false)
-	require.NoError(t, p.Run())
+	require.NoError(t, p.Run(t.Context()))
 
 	require.Len(t, gen.GenerateCalls, 1)
 	require.Len(t, mr.Calls, 3)
@@ -184,7 +184,7 @@ func TestChangelogRun_WithTag_NoPush(t *testing.T) {
 	}
 
 	p := pipeline.NewChangelog(mr, &fakeResolver{result: resolvedResult("v1.2.3")}, cfg, &bytes.Buffer{}, false)
-	require.NoError(t, p.Run())
+	require.NoError(t, p.Run(t.Context()))
 
 	require.Len(t, mr.Calls, 4)
 	assert.Equal(t, []string{"add", "CHANGELOG.md"}, mr.Calls[0].Args)
@@ -207,7 +207,7 @@ func TestChangelogRun_TagWithoutChangelog_NoPush(t *testing.T) {
 	}
 
 	p := pipeline.NewChangelog(mr, &fakeResolver{result: resolvedResult("v1.2.3")}, cfg, &bytes.Buffer{}, false)
-	require.NoError(t, p.Run())
+	require.NoError(t, p.Run(t.Context()))
 
 	require.Len(t, mr.Calls, 1)
 	assert.Equal(t, []string{"tag", "v1.2.3"}, mr.Calls[0].Args)
@@ -227,7 +227,7 @@ func TestChangelogRun_DryRun(t *testing.T) {
 
 	out := &bytes.Buffer{}
 	p := pipeline.NewChangelog(mr, &fakeResolver{result: resolvedResult("v1.2.3")}, cfg, out, true)
-	require.NoError(t, p.Run())
+	require.NoError(t, p.Run(t.Context()))
 
 	assert.Len(t, mr.Calls, 0)
 	assert.Len(t, gen.GenerateCalls, 0)
@@ -247,7 +247,7 @@ func TestChangelogRun_DisabledChangelog(t *testing.T) {
 
 	out := &bytes.Buffer{}
 	p := pipeline.NewChangelog(mr, &fakeResolver{result: resolvedResult("v1.2.3")}, cfg, out, false)
-	require.NoError(t, p.Run())
+	require.NoError(t, p.Run(t.Context()))
 
 	assert.Len(t, gen.GenerateCalls, 0)
 	assert.Len(t, mr.Calls, 0)
@@ -266,7 +266,7 @@ func TestChangelogRun_AnnotatedTag(t *testing.T) {
 	}
 
 	p := pipeline.NewChangelog(mr, &fakeResolver{result: resolvedResult("v1.2.3")}, cfg, &bytes.Buffer{}, false)
-	require.NoError(t, p.Run())
+	require.NoError(t, p.Run(t.Context()))
 
 	require.Len(t, mr.Calls, 2)
 	assert.Equal(t, []string{"tag", "-a", "v1.2.3", "-m", "chore(release): 1.2.3"}, mr.Calls[0].Args)
@@ -286,7 +286,7 @@ func TestChangelogRun_AnnotatedTagCustomMessage(t *testing.T) {
 	}
 
 	p := pipeline.NewChangelog(mr, &fakeResolver{result: resolvedResult("v1.2.3")}, cfg, &bytes.Buffer{}, false)
-	require.NoError(t, p.Run())
+	require.NoError(t, p.Run(t.Context()))
 
 	assert.Equal(t, []string{"tag", "-a", "v1.2.3", "-m", "docs: v1.2.3"}, mr.Calls[0].Args)
 }
@@ -304,7 +304,7 @@ func TestChangelogRun_SignedTag(t *testing.T) {
 	}
 
 	p := pipeline.NewChangelog(mr, &fakeResolver{result: resolvedResult("v1.2.3")}, cfg, &bytes.Buffer{}, false)
-	require.NoError(t, p.Run())
+	require.NoError(t, p.Run(t.Context()))
 
 	require.Len(t, mr.Calls, 2)
 	assert.Equal(t, []string{"tag", "-s", "v1.2.3", "-m", "chore(release): 1.2.3"}, mr.Calls[0].Args)
@@ -317,7 +317,7 @@ func TestChangelogRun_ResolverError(t *testing.T) {
 	cfg := &pipeline.ChangelogConfig{}
 
 	p := pipeline.NewChangelog(mr, &fakeResolver{err: errors.New("no commits since last tag")}, cfg, &bytes.Buffer{}, false)
-	err := p.Run()
+	err := p.Run(t.Context())
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "no commits")
 }
@@ -339,7 +339,7 @@ func TestChangelogRun_DefaultCommitMessage(t *testing.T) {
 	}
 
 	p := pipeline.NewChangelog(mr, &fakeResolver{result: resolvedResult("v1.2.3")}, cfg, &bytes.Buffer{}, false)
-	require.NoError(t, p.Run())
+	require.NoError(t, p.Run(t.Context()))
 
 	commitCall := mr.Calls[2]
 	assert.Equal(t, "commit", commitCall.Args[0])
@@ -365,7 +365,7 @@ func TestChangelogRun_CustomCommitMessage(t *testing.T) {
 	}
 
 	p := pipeline.NewChangelog(mr, &fakeResolver{result: resolvedResult("v1.2.3")}, cfg, &bytes.Buffer{}, false)
-	require.NoError(t, p.Run())
+	require.NoError(t, p.Run(t.Context()))
 
 	assert.Equal(t, "docs: update changelog for v1.2.3", mr.Calls[2].Args[2])
 }
@@ -388,7 +388,7 @@ func TestChangelogRun_DisabledChangelog_WithTag(t *testing.T) {
 
 	out := &bytes.Buffer{}
 	p := pipeline.NewChangelog(mr, &fakeResolver{result: resolvedResult("v1.2.3")}, cfg, out, false)
-	require.NoError(t, p.Run())
+	require.NoError(t, p.Run(t.Context()))
 
 	assert.Len(t, gen.GenerateCalls, 0)
 	require.Len(t, mr.Calls, 2)
@@ -421,7 +421,7 @@ func TestChangelogRun_NothingToCommit(t *testing.T) {
 
 	out := &bytes.Buffer{}
 	p := pipeline.NewChangelog(mr, &fakeResolver{result: resolvedResult("v1.2.3")}, cfg, out, false)
-	require.NoError(t, p.Run())
+	require.NoError(t, p.Run(t.Context()))
 
 	for _, c := range mr.Calls {
 		require.NotEqual(t, "commit", c.Args[0], "git commit must be skipped when nothing is staged")
@@ -451,7 +451,7 @@ func TestChangelogRun_GitAddError(t *testing.T) {
 	}
 
 	p := pipeline.NewChangelog(mr, &fakeResolver{result: resolvedResult("v1.2.3")}, cfg, &bytes.Buffer{}, false)
-	err := p.Run()
+	err := p.Run(t.Context())
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "git add")
 }
@@ -472,7 +472,7 @@ func TestChangelogRun_GitCommitError(t *testing.T) {
 	}
 
 	p := pipeline.NewChangelog(mr, &fakeResolver{result: resolvedResult("v1.2.3")}, cfg, &bytes.Buffer{}, false)
-	err := p.Run()
+	err := p.Run(t.Context())
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "git commit")
 }
@@ -494,7 +494,7 @@ func TestChangelogRun_GitPushError(t *testing.T) {
 	}
 
 	p := pipeline.NewChangelog(mr, &fakeResolver{result: resolvedResult("v1.2.3")}, cfg, &bytes.Buffer{}, false)
-	err := p.Run()
+	err := p.Run(t.Context())
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "git push")
 }
@@ -516,7 +516,7 @@ func TestChangelogRun_DefaultChangelogFile(t *testing.T) {
 	}
 
 	p := pipeline.NewChangelog(mr, &fakeResolver{result: resolvedResult("v1.2.3")}, cfg, &bytes.Buffer{}, false)
-	require.NoError(t, p.Run())
+	require.NoError(t, p.Run(t.Context()))
 
 	assert.Equal(t, []string{"add", "CHANGELOG.md"}, mr.Calls[0].Args)
 }
@@ -547,7 +547,7 @@ func TestChangelogRun_PreRelease_SkipsChangelogButStillTags(t *testing.T) {
 					return err
 				})
 			}
-			require.NoError(t, p.Run())
+			require.NoError(t, p.Run(t.Context()))
 
 			assert.Empty(t, gen.GenerateCalls)
 			assert.Contains(t, out.String(), "pre-release")
@@ -572,7 +572,7 @@ func TestChangelogRun_PreRelease_WithoutTagExitsCleanly(t *testing.T) {
 	cfg := &pipeline.ChangelogConfig{DisableChangelog: true, PreRelease: true}
 	var out bytes.Buffer
 	p := pipeline.NewChangelog(mr, &fakeResolver{result: resolvedResult("v1.4.0-rc.1")}, cfg, &out, false)
-	require.NoError(t, p.Run())
+	require.NoError(t, p.Run(t.Context()))
 	assert.Contains(t, out.String(), "CHANGELOG.md not updated")
 	assert.Empty(t, mr.Calls)
 }
@@ -607,7 +607,7 @@ func TestChangelogRun_NothingToCommit_SummaryDoesNotClaimCommit(t *testing.T) {
 					_, _, err := fn()
 					return err
 				})
-			require.NoError(t, p.Run())
+			require.NoError(t, p.Run(t.Context()))
 
 			assert.Contains(t, out.String(), tc.want)
 			assert.NotContains(t, out.String(), "committed and pushed")

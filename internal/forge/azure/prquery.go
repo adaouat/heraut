@@ -2,6 +2,7 @@ package azure
 
 import (
 	"bytes"
+	"context"
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
@@ -32,7 +33,7 @@ const prQueryChunkSize = 100
 // first-timer detection and the New Contributors block are computed by the shared local git
 // tier, not here. Auth is a PAT (id.Token) via HTTP Basic; any transport error or non-2xx status
 // is wrapped so enrichForRelease applies the remote_metadata policy.
-func (f *Forge) enrichPRs(shas []string) (map[string]port.PullRequest, error) {
+func (f *Forge) enrichPRs(ctx context.Context, shas []string) (map[string]port.PullRequest, error) {
 	result := make(map[string]port.PullRequest)
 	if len(shas) == 0 {
 		return result, nil
@@ -46,7 +47,7 @@ func (f *Forge) enrichPRs(shas []string) (map[string]port.PullRequest, error) {
 	}
 	for i := 0; i < len(shas); i += prQueryChunkSize {
 		chunk := shas[i:min(i+prQueryChunkSize, len(shas))]
-		if err := f.queryPRs(chunk, result); err != nil {
+		if err := f.queryPRs(ctx, chunk, result); err != nil {
 			return nil, fmt.Errorf("azure pullrequestquery (chunk %d): %w", i/prQueryChunkSize, err)
 		}
 	}
@@ -54,7 +55,7 @@ func (f *Forge) enrichPRs(shas []string) (map[string]port.PullRequest, error) {
 }
 
 // queryPRs sends one pullrequestquery for shas and adds the pull requests found to result.
-func (f *Forge) queryPRs(shas []string, result map[string]port.PullRequest) error {
+func (f *Forge) queryPRs(ctx context.Context, shas []string, result map[string]port.PullRequest) error {
 	// Project is appended as-is (never split): the organization lives in Host when Host is the
 	// dev.azure.com form ("https://dev.azure.com/myorg"), or in Host's subdomain when it's the
 	// legacy visualstudio.com form — either way Host already carries it exactly once, so Project
@@ -67,7 +68,7 @@ func (f *Forge) queryPRs(shas []string, result map[string]port.PullRequest) erro
 	if err != nil {
 		return fmt.Errorf("encoding request: %w", err)
 	}
-	req, err := http.NewRequest(http.MethodPost, endpoint, bytes.NewReader(body))
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, endpoint, bytes.NewReader(body))
 	if err != nil {
 		return fmt.Errorf("building request: %w", err)
 	}

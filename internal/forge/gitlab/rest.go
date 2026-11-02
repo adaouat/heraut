@@ -1,6 +1,7 @@
 package gitlab
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -31,10 +32,10 @@ type restUser struct {
 // enrichREST resolves each commit's MR via GET /projects/{id}/repository/commits/{sha}/merge_requests
 // — one of the endpoints GitLab allows a CI job token to call. Author handles come from the local
 // git metadata (REST exposes no linked username).
-func (f *Forge) enrichREST(commits []port.Commit) (port.Enrichment, error) {
+func (f *Forge) enrichREST(ctx context.Context, commits []port.Commit) (port.Enrichment, error) {
 	prs := make(map[string]port.PullRequest, len(commits))
 	for _, c := range commits {
-		mrs, err := f.commitMRs(c.Hash)
+		mrs, err := f.commitMRs(ctx, c.Hash)
 		if err != nil {
 			return port.Enrichment{}, err
 		}
@@ -47,11 +48,11 @@ func (f *Forge) enrichREST(commits []port.Commit) (port.Enrichment, error) {
 }
 
 // commitMRs fetches the merge requests that introduced one commit.
-func (f *Forge) commitMRs(sha string) ([]restMR, error) {
+func (f *Forge) commitMRs(ctx context.Context, sha string) ([]restMR, error) {
 	endpoint := fmt.Sprintf("%s/projects/%s/repository/commits/%s/merge_requests",
 		f.apiBase(), url.PathEscape(f.id.Project), url.PathEscape(sha))
 
-	req, err := http.NewRequest(http.MethodGet, endpoint, nil)
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, endpoint, nil)
 	if err != nil {
 		return nil, fmt.Errorf("gitlab commit merge_requests: building request: %w", err)
 	}

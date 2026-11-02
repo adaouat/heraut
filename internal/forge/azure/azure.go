@@ -4,6 +4,7 @@
 package azure
 
 import (
+	"context"
 	"fmt"
 	"net/http"
 	"strings"
@@ -73,7 +74,7 @@ func (f *Forge) CompareURL(from, to string) string {
 // Enrich resolves the pull request associated with each commit SHA plus a local commit-author
 // handle via batched Azure DevOps pullrequestquery POSTs. ref is unused: Azure resolves
 // per-commit, not via a ref-anchored walk.
-func (f *Forge) Enrich(commits []port.Commit, _ string) (port.Enrichment, error) {
+func (f *Forge) Enrich(ctx context.Context, commits []port.Commit, _ string) (port.Enrichment, error) {
 	if len(commits) == 0 {
 		return port.Enrichment{PRs: map[string]port.PullRequest{}, Authors: map[string]string{}}, nil
 	}
@@ -81,7 +82,7 @@ func (f *Forge) Enrich(commits []port.Commit, _ string) (port.Enrichment, error)
 	for _, c := range commits {
 		shas = append(shas, c.Hash)
 	}
-	prs, err := f.enrichPRs(shas)
+	prs, err := f.enrichPRs(ctx, shas)
 	if err != nil {
 		return port.Enrichment{}, err
 	}

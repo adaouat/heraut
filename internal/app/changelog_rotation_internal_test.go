@@ -1,6 +1,7 @@
 package app
 
 import (
+	"context"
 	"os"
 	"path/filepath"
 	"strings"
@@ -23,7 +24,7 @@ type stubGenerator struct {
 
 func (s *stubGenerator) Check() error    { return s.checkErr }
 func (s *stubGenerator) Validate() error { return s.validateErr }
-func (s *stubGenerator) Generate(tag string, lc *port.LinkContext) (string, error) {
+func (s *stubGenerator) Generate(_ context.Context, tag string, lc *port.LinkContext) (string, error) {
 	return "stub:" + tag, nil
 }
 
@@ -198,7 +199,7 @@ func TestRotatingGenerator_Generate_WritesConcreteFile(t *testing.T) {
 	gen := buildGenerator(mr, driver, native.ModeChangelog, "", false, false, nil, "", nil)
 	wrapped := wrapWithRotation(gen, mr, cfg, driver, "", false, false, nil, "", nil)
 
-	body, err := wrapped.Generate("2026.05.0", nil)
+	body, err := wrapped.Generate(t.Context(), "2026.05.0", nil)
 	require.NoError(t, err)
 	assert.Contains(t, body, "## [2026.05.0]")
 
@@ -296,7 +297,7 @@ func TestBuildGenerator_TagOrder_ListsReachableTagsOnly(t *testing.T) {
 			mr.QueueResponse("", "", nil) // scoped tag listing: no tags yet
 			mr.QueueResponse("", "", nil) // new section: full history, no commits
 			gen := buildGenerator(mr, &config.ContentDriver{}, native.ModeChangelog, "", false, false, nil, "", tc.order)
-			_, err := gen.Generate("v1.0.0", nil)
+			_, err := gen.Generate(t.Context(), "v1.0.0", nil)
 			require.NoError(t, err)
 			require.NotEmpty(t, mr.Calls)
 			assert.Equal(t, tc.want, mr.Calls[0].Args)

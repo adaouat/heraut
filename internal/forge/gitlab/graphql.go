@@ -2,6 +2,7 @@ package gitlab
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -136,7 +137,7 @@ func oldestCommitDate(commits []port.Commit) time.Time {
 // commits(ref:) walk to the release window's true range tip — the caller resolves it (a tag name,
 // or a commit SHA for the unreleased section), rather than this function guessing it from commit
 // dates, which breaks under rewritten committer dates (rebase/amend/cherry-pick — T153).
-func (f *Forge) enrichGraphQL(commits []port.Commit, ref string) (port.Enrichment, error) {
+func (f *Forge) enrichGraphQL(ctx context.Context, commits []port.Commit, ref string) (port.Enrichment, error) {
 	if f.id.TokenKind == port.TokenJob {
 		return port.Enrichment{}, fmt.Errorf(
 			"%w; set api_mode: rest, or supply a read_api token via token_env", ErrJobTokenGraphQL)
@@ -155,11 +156,11 @@ func (f *Forge) enrichGraphQL(commits []port.Commit, ref string) (port.Enrichmen
 		since = oldest.Add(-time.Minute).UTC().Format(time.RFC3339)
 	}
 
-	authors, err := f.fetchGraphQLAuthors(ref, since, want)
+	authors, err := f.fetchGraphQLAuthors(ctx, ref, since, want)
 	if err != nil {
 		return port.Enrichment{}, err
 	}
-	prs, err := f.fetchGraphQLMRs(since, want)
+	prs, err := f.fetchGraphQLMRs(ctx, since, want)
 	if err != nil {
 		return port.Enrichment{}, err
 	}
@@ -169,14 +170,14 @@ func (f *Forge) enrichGraphQL(commits []port.Commit, ref string) (port.Enrichmen
 // fetchGraphQLAuthors pages through project.repository.commits(ref:) to resolve a
 // sha→author.username map for the SHAs in want. Paging stops early once every SHA in want has been
 // seen, even if GitLab reports more pages.
-func (f *Forge) fetchGraphQLAuthors(ref, committedAfter string, want map[string]bool) (map[string]string, error) {
+func (f *Forge) fetchGraphQLAuthors(ctx context.Context, ref, committedAfter string, want map[string]bool) (map[string]string, error) {
 	authors := make(map[string]string)
 	seen := make(map[string]bool)
 	after := ""
 	for {
 		query := gqlCommitsQuery(f.id.Project, ref, committedAfter, after)
 		var resp gqlCommitsResponse
-		if err := f.postGraphQL(query, &resp); err != nil {
+		if err := f.postGraphQL(ctx, query, &resp); err != nil {
 			return nil, fmt.Errorf("gitlab graphql commits: %w", err)
 		}
 		if len(resp.Errors) > 0 {
@@ -206,13 +207,13 @@ func (f *Forge) fetchGraphQLAuthors(ref, committedAfter string, want map[string]
 
 // fetchGraphQLMRs pages through project.mergeRequests(state:merged) to resolve a sha→PR map for the
 // SHAs in want. Paging stops early once every SHA in want has a resolved PR.
-func (f *Forge) fetchGraphQLMRs(mergedAfter string, want map[string]bool) (map[string]port.PullRequest, error) {
+func (f *Forge) fetchGraphQLMRs(ctx context.Context, mergedAfter string, want map[string]bool) (map[string]port.PullRequest, error) {
 	prs := make(map[string]port.PullRequest)
 	after := ""
 	for {
 		query := gqlMRsQuery(f.id.Project, mergedAfter, after)
 		var resp gqlMRsResponse
-		if err := f.postGraphQL(query, &resp); err != nil {
+		if err := f.postGraphQL(ctx, query, &resp); err != nil {
 			return nil, fmt.Errorf("gitlab graphql merge_requests: %w", err)
 		}
 		if len(resp.Errors) > 0 {
@@ -244,13 +245,13 @@ func (f *Forge) fetchGraphQLMRs(mergedAfter string, want map[string]bool) (map[s
 // postGraphQL issues query against the instance's /api/graphql endpoint and decodes the response
 // into out. Arguments are inlined into the query string itself (see gqlCommitsQuery/gqlMRsQuery),
 // so the request carries no variables object.
-func (f *Forge) postGraphQL(query string, out any) error {
+func (f *Forge) postGraphQL(ctx context.Context, query string, out any) error {
 	endpoint := strings.TrimSuffix(f.apiBase(), "/api/v4") + "/api/graphql"
 	body, err := json.Marshal(map[string]any{"query": query})
 	if err != nil {
 		return fmt.Errorf("gitlab graphql: encoding request: %w", err)
 	}
-	req, err := http.NewRequest(http.MethodPost, endpoint, bytes.NewReader(body))
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, endpoint, bytes.NewReader(body))
 	if err != nil {
 		return fmt.Errorf("gitlab graphql: building request: %w", err)
 	}

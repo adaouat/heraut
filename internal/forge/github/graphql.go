@@ -2,6 +2,7 @@ package github
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -24,7 +25,7 @@ const (
 // batched GraphQL queries (at most ghChunkSize SHAs per query). Commits with no associated PR are
 // absent from the PR map; commits whose author email isn't linked to a GitHub user are absent
 // from the authors map. All errors are wrapped before being returned.
-func (f *Forge) enrichGraphQL(commits []port.Commit) (port.Enrichment, error) {
+func (f *Forge) enrichGraphQL(ctx context.Context, commits []port.Commit) (port.Enrichment, error) {
 	shas := make([]string, len(commits))
 	for i, c := range commits {
 		shas[i] = c.Hash
@@ -39,7 +40,7 @@ func (f *Forge) enrichGraphQL(commits []port.Commit) (port.Enrichment, error) {
 		if end > len(shas) {
 			end = len(shas)
 		}
-		p, a, err := f.fetchChunk(owner, repo, shas[i:end])
+		p, a, err := f.fetchChunk(ctx, owner, repo, shas[i:end])
 		if err != nil {
 			return port.Enrichment{}, fmt.Errorf("enriching GitHub PRs (chunk %d): %w", i/ghChunkSize, err)
 		}
@@ -55,7 +56,7 @@ func (f *Forge) enrichGraphQL(commits []port.Commit) (port.Enrichment, error) {
 
 // fetchChunk issues one GraphQL POST for a chunk of SHAs and returns the sha→PullRequest and
 // sha→author-handle maps for that chunk. Aliases are local to the chunk (s0, s1, …).
-func (f *Forge) fetchChunk(owner, repo string, shas []string) (map[string]port.PullRequest, map[string]string, error) {
+func (f *Forge) fetchChunk(ctx context.Context, owner, repo string, shas []string) (map[string]port.PullRequest, map[string]string, error) {
 	query := buildGitHubQuery(owner, repo, shas)
 
 	body, err := json.Marshal(map[string]string{"query": query})
@@ -67,7 +68,7 @@ func (f *Forge) fetchChunk(owner, repo string, shas []string) (map[string]port.P
 	if err != nil {
 		return nil, nil, err
 	}
-	req, err := http.NewRequest(http.MethodPost, endpoint, bytes.NewReader(body))
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, endpoint, bytes.NewReader(body))
 	if err != nil {
 		return nil, nil, fmt.Errorf("building GraphQL request: %w", err)
 	}

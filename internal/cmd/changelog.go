@@ -121,7 +121,7 @@ func NewChangelogCmd(version string) *cobra.Command {
 				return exitcode.Wrap(exitcode.Config, err)
 			}
 
-			return wrapRunErr(pipe.Run(), "changelog failed")
+			return wrapRunErr(pipe.Run(cmd.Context()), "changelog failed")
 		},
 	}
 

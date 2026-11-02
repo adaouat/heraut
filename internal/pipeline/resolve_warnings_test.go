@@ -51,7 +51,7 @@ func TestChangelogRun_PrintsResolveWarnings(t *testing.T) {
 	res.Warnings = []string{heldBackWarning}
 
 	p := pipeline.NewChangelog(exectest.NewMockRunner(), &fakeResolver{result: res}, &pipeline.ChangelogConfig{}, &out, true)
-	require.NoError(t, p.Run())
+	require.NoError(t, p.Run(t.Context()))
 
 	assert.Contains(t, out.String(), "! "+heldBackWarning+"\n")
 }
@@ -99,7 +99,7 @@ func TestChangelogRun_PrintsSeveralResolveWarningsInOrder(t *testing.T) {
 	res.Warnings = []string{firstResolveWarning, secondResolveWarning}
 
 	p := pipeline.NewChangelog(exectest.NewMockRunner(), &fakeResolver{result: res}, &pipeline.ChangelogConfig{}, &out, true)
-	require.NoError(t, p.Run())
+	require.NoError(t, p.Run(t.Context()))
 
 	first := strings.Index(out.String(), "! "+firstResolveWarning+"\n")
 	second := strings.Index(out.String(), "! "+secondResolveWarning+"\n")
@@ -119,7 +119,7 @@ func TestChangelogRun_DisableChangelogWithoutTag_PrintsWarningBeforeDisabledLine
 
 	var out bytes.Buffer
 	p := pipeline.NewChangelog(mr, &fakeResolver{result: res}, cfg, &out, false)
-	require.NoError(t, p.Run())
+	require.NoError(t, p.Run(t.Context()))
 
 	assert.Empty(t, gen.GenerateCalls)
 	assert.Empty(t, mr.Calls)

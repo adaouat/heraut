@@ -47,7 +47,7 @@ func notesFor(t *testing.T, tag string, preRelease bool) string {
 	pCfg, err := buildReleasePipelineConfig(runner, runner, cfg, "", "", false, false, preRelease)
 	require.NoError(t, err)
 	require.NotNil(t, pCfg.Notes)
-	out, err := pCfg.Notes.Generate(tag, nil)
+	out, err := pCfg.Notes.Generate(t.Context(), tag, nil)
 	require.NoError(t, err)
 	return out
 }

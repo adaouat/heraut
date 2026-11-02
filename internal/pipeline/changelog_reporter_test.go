@@ -31,7 +31,7 @@ func TestChangelogRun_Reporter_GenerateOnly(t *testing.T) {
 	p := pipeline.NewChangelog(mr, &fakeResolver{result: resolvedResult("v1.2.3")}, cfg, &bytes.Buffer{}, false).
 		WithReporter(capturingStepFn(&captured))
 
-	require.NoError(t, p.Run())
+	require.NoError(t, p.Run(t.Context()))
 
 	assert.Equal(t, []string{"Resolve version", "Generate changelog"}, stepNames(captured))
 	assert.Equal(t, "v1.2.3", captured[0].result)
@@ -58,7 +58,7 @@ func TestChangelogRun_Reporter_WithCommit(t *testing.T) {
 	p := pipeline.NewChangelog(mr, &fakeResolver{result: resolvedResult("v1.2.3")}, cfg, &bytes.Buffer{}, false).
 		WithReporter(capturingStepFn(&captured))
 
-	require.NoError(t, p.Run())
+	require.NoError(t, p.Run(t.Context()))
 
 	assert.Equal(t, []string{
 		"Resolve version",
@@ -89,7 +89,7 @@ func TestChangelogRun_Reporter_WithTag(t *testing.T) {
 	p := pipeline.NewChangelog(mr, &fakeResolver{result: resolvedResult("v1.2.3")}, cfg, &bytes.Buffer{}, false).
 		WithReporter(capturingStepFn(&captured))
 
-	require.NoError(t, p.Run())
+	require.NoError(t, p.Run(t.Context()))
 
 	assert.Equal(t, []string{
 		"Resolve version",
@@ -113,7 +113,7 @@ func TestChangelogRun_Reporter_TagWithoutChangelog(t *testing.T) {
 	p := pipeline.NewChangelog(mr, &fakeResolver{result: resolvedResult("v1.2.3")}, cfg, &bytes.Buffer{}, false).
 		WithReporter(capturingStepFn(&captured))
 
-	require.NoError(t, p.Run())
+	require.NoError(t, p.Run(t.Context()))
 
 	assert.Equal(t, []string{
 		"Resolve version",
@@ -139,7 +139,7 @@ func TestChangelogRun_Reporter_DryRunSequence(t *testing.T) {
 	p := pipeline.NewChangelog(mr, &fakeResolver{result: resolvedResult("v1.2.3")}, cfg, &bytes.Buffer{}, true).
 		WithReporter(capturingStepFn(&captured))
 
-	require.NoError(t, p.Run())
+	require.NoError(t, p.Run(t.Context()))
 
 	// No real operations.
 	assert.Len(t, mr.Calls, 0)
@@ -170,7 +170,7 @@ func TestChangelogRun_Reporter_DisabledChangelog(t *testing.T) {
 	p := pipeline.NewChangelog(mr, &fakeResolver{result: resolvedResult("v1.2.3")}, cfg, out, false).
 		WithReporter(capturingStepFn(new([]capturedStep)))
 
-	require.NoError(t, p.Run())
+	require.NoError(t, p.Run(t.Context()))
 
 	assert.Len(t, gen.GenerateCalls, 0)
 	assert.Len(t, mr.Calls, 0)
@@ -198,7 +198,7 @@ func TestChangelogRun_Reporter_DisabledChangelog_WithTag(t *testing.T) {
 	p := pipeline.NewChangelog(mr, &fakeResolver{result: resolvedResult("v1.2.3")}, cfg, out, false).
 		WithReporter(capturingStepFn(&captured))
 
-	require.NoError(t, p.Run())
+	require.NoError(t, p.Run(t.Context()))
 
 	assert.Len(t, gen.GenerateCalls, 0)
 	assert.Equal(t, []string{
@@ -227,7 +227,7 @@ func TestChangelogRun_DryRun_DisabledChangelog_WithTag(t *testing.T) {
 	p := pipeline.NewChangelog(mr, &fakeResolver{result: resolvedResult("v1.2.3")}, cfg, out, true).
 		WithReporter(capturingStepFn(&captured))
 
-	require.NoError(t, p.Run())
+	require.NoError(t, p.Run(t.Context()))
 
 	assert.Len(t, mr.Calls, 0)
 	assert.Len(t, gen.GenerateCalls, 0)
@@ -253,7 +253,7 @@ func TestChangelogRun_Reporter_SummaryContainsTag(t *testing.T) {
 	p := pipeline.NewChangelog(mr, &fakeResolver{result: resolvedResult("v1.2.3")}, cfg, out, false).
 		WithReporter(capturingStepFn(new([]capturedStep)))
 
-	require.NoError(t, p.Run())
+	require.NoError(t, p.Run(t.Context()))
 	assert.Contains(t, out.String(), "v1.2.3")
 }
 
@@ -274,8 +274,8 @@ func TestChangelogRun_Reporter_NilIsTransparent(t *testing.T) {
 	out2 := &bytes.Buffer{}
 	p2 := pipeline.NewChangelog(mr2, &fakeResolver{result: resolvedResult("v1.2.3")}, cfg, out2, false)
 
-	require.NoError(t, p1.Run())
-	require.NoError(t, p2.Run())
+	require.NoError(t, p1.Run(t.Context()))
+	require.NoError(t, p2.Run(t.Context()))
 
 	assert.Equal(t, out1.String(), out2.String())
 }

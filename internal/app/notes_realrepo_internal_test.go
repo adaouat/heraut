@@ -25,7 +25,7 @@ func standaloneNotesRepo(t *testing.T) (commit func(string), tag func(string), g
 
 func runNotes(t *testing.T, cfg *config.Config, opts NotesOpts) (NotesResult, error) {
 	t.Helper()
-	return GenerateNotes(execadapter.New(false, false), cfg, opts)
+	return GenerateNotes(t.Context(), execadapter.New(false, false), cfg, opts)
 }
 
 func TestGenerateNotes_DefaultsToThePreviousRelease(t *testing.T) {

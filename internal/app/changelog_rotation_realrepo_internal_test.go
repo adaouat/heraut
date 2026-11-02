@@ -62,7 +62,7 @@ func TestChangelogRotation_RealRepo_PeriodBoundary(t *testing.T) {
 
 	// Release 1: 2025.12.0 — generated before the tag exists, matching the real pipeline's
 	// generate-then-tag sequencing.
-	_, err := build().Generate("2025.12.0", nil)
+	_, err := build().Generate(t.Context(), "2025.12.0", nil)
 	require.NoError(t, err)
 	git("tag", "2025.12.0")
 
@@ -71,7 +71,7 @@ func TestChangelogRotation_RealRepo_PeriodBoundary(t *testing.T) {
 
 	// Release 2: 2026.01.0 — a new rotation bucket. 2025.12.0 exists as a real tag but falls
 	// outside the "^2026\." scope.
-	_, err = build().Generate("2026.01.0", nil)
+	_, err = build().Generate(t.Context(), "2026.01.0", nil)
 	require.NoError(t, err)
 
 	changelog2025, err := os.ReadFile(filepath.Join(changelogDir, "CHANGELOG_2025.md"))

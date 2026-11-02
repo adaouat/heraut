@@ -3,6 +3,7 @@
 package gitlab
 
 import (
+	"context"
 	"fmt"
 	"net/http"
 	"strings"
@@ -99,14 +100,14 @@ func (f *Forge) setAuth(req *http.Request) {
 // Enrich resolves per-commit MR references and author handles. api_mode: graphql opts into the
 // batched GraphQL transport (linked @usernames, requires a non-job token); the default is REST,
 // which resolves per-commit and ignores ref. GraphQL anchors its commits(ref:) walk on ref (T153).
-func (f *Forge) Enrich(commits []port.Commit, ref string) (port.Enrichment, error) {
+func (f *Forge) Enrich(ctx context.Context, commits []port.Commit, ref string) (port.Enrichment, error) {
 	if len(commits) == 0 {
 		return port.Enrichment{PRs: map[string]port.PullRequest{}, Authors: map[string]string{}}, nil
 	}
 	if f.id.APIMode == "graphql" {
-		return f.enrichGraphQL(commits, ref)
+		return f.enrichGraphQL(ctx, commits, ref)
 	}
-	return f.enrichREST(commits)
+	return f.enrichREST(ctx, commits)
 }
 
 // gitAuthors maps sha → the git author email's local-part, falling back to the git author name.

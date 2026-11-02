@@ -1,6 +1,7 @@
 package native
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"os"
@@ -137,14 +138,14 @@ func (g *Generator) DegradedReason() string { return g.degradedReason }
 
 // Generate produces the changelog (writing it to cfg.Output when set) or the release-notes
 // string for tag, resolving commit/compare links against lc.
-func (g *Generator) Generate(tag string, lc *port.LinkContext) (string, error) {
+func (g *Generator) Generate(ctx context.Context, tag string, lc *port.LinkContext) (string, error) {
 	if g.mode == ModeNotes {
-		return g.generateNotes(tag, lc)
+		return g.generateNotes(ctx, tag, lc)
 	}
 	if g.mode == ModeReleaseNotes {
-		return g.generateReleaseNotes(tag, lc)
+		return g.generateReleaseNotes(ctx, tag, lc)
 	}
-	return g.generateChangelog(tag, lc)
+	return g.generateChangelog(ctx, tag, lc)
 }
 
 // scopedTags returns the release tags for the active scope, newest-first: the env glob (per-env
@@ -206,7 +207,7 @@ func (g *Generator) scopedPreviousTag(tag string) (string, error) {
 	return previousTag(g.runner, tag, g.cfg.TagGlob)
 }
 
-func (g *Generator) generateReleaseNotes(tag string, lc *port.LinkContext) (string, error) {
+func (g *Generator) generateReleaseNotes(ctx context.Context, tag string, lc *port.LinkContext) (string, error) {
 	prev, err := g.scopedPreviousTag(tag)
 	if err != nil {
 		return "", err
@@ -224,7 +225,7 @@ func (g *Generator) generateReleaseNotes(tag string, lc *port.LinkContext) (stri
 	// tag is already a pushed ref by the time release notes are generated (the release pipeline
 	// tags and pushes before this step), so it anchors enrichment directly — no HEAD resolution
 	// needed (T153).
-	er, err := g.enrichForRelease(commits, tag)
+	er, err := g.enrichForRelease(ctx, commits, tag)
 	if err != nil {
 		return "", err
 	}
@@ -260,7 +261,7 @@ func (g *Generator) notesPreviousTag(tag string) (string, error) {
 	return previousInList(tag, tags), nil
 }
 
-func (g *Generator) generateNotes(tag string, lc *port.LinkContext) (string, error) {
+func (g *Generator) generateNotes(ctx context.Context, tag string, lc *port.LinkContext) (string, error) {
 	prev, err := g.notesPreviousTag(tag)
 	if err != nil {
 		return "", err
@@ -269,7 +270,7 @@ func (g *Generator) generateNotes(tag string, lc *port.LinkContext) (string, err
 	if err != nil {
 		return "", err
 	}
-	er, err := g.enrichForRelease(commits, tag)
+	er, err := g.enrichForRelease(ctx, commits, tag)
 	if err != nil {
 		return "", err
 	}
@@ -281,15 +282,15 @@ func (g *Generator) generateNotes(tag string, lc *port.LinkContext) (string, err
 // generateChangelog produces CHANGELOG.md: incrementally, splicing only the new release's
 // section into the existing file (preserving history and its attribution verbatim), or as a
 // full rebuild when cfg.RegenerateChangelog is set (the --regenerate flag).
-func (g *Generator) generateChangelog(tag string, lc *port.LinkContext) (string, error) {
+func (g *Generator) generateChangelog(ctx context.Context, tag string, lc *port.LinkContext) (string, error) {
 	if g.cfg.RegenerateChangelog {
-		body, err := g.buildAllSections(tag, lc, true) // enrich every section
+		body, err := g.buildAllSections(ctx, tag, lc, true) // enrich every section
 		if err != nil {
 			return "", err
 		}
 		return g.writeChangelog(body)
 	}
-	return g.generateIncremental(tag, lc)
+	return g.generateIncremental(ctx, tag, lc)
 }
 
 // newSectionBound returns the previous-tag bound for the newest (unreleased) release section:
@@ -312,7 +313,7 @@ func (g *Generator) newSectionBound(scopedTags []string) string {
 // buildAllSections renders every release section (newest-first), each prefixed with its anchor.
 // The newest (unreleased) section is always enriched; historical sections are enriched only when
 // enrichAll is true (--regenerate). Matches the pre-incremental full-regen layout plus anchors.
-func (g *Generator) buildAllSections(tag string, lc *port.LinkContext, enrichAll bool) (string, error) {
+func (g *Generator) buildAllSections(ctx context.Context, tag string, lc *port.LinkContext, enrichAll bool) (string, error) {
 	tags, err := g.scopedTags()
 	if err != nil {
 		return "", err
@@ -326,7 +327,7 @@ func (g *Generator) buildAllSections(tag string, lc *port.LinkContext, enrichAll
 	var blocks []string
 
 	latest := g.newSectionBound(tags)
-	if sec, err := g.renderRelease(tag, latest, "HEAD", lc, true); err != nil {
+	if sec, err := g.renderRelease(ctx, tag, latest, "HEAD", lc, true); err != nil {
 		return "", err
 	} else if sec != "" {
 		blocks = append(blocks, anchorLine(tag)+"\n"+sec)
@@ -394,7 +395,7 @@ func (g *Generator) buildAllSections(tag string, lc *port.LinkContext, enrichAll
 				prev = p
 			}
 		}
-		if sec, err := g.renderRelease(t, prev, t, lc, enrichAll); err != nil {
+		if sec, err := g.renderRelease(ctx, t, prev, t, lc, enrichAll); err != nil {
 			return "", err
 		} else if sec != "" {
 			blocks = append(blocks, anchorLine(t)+"\n"+sec)
@@ -416,7 +417,7 @@ func (g *Generator) buildAllSections(tag string, lc *port.LinkContext, enrichAll
 // previously on disk (ADR-0050; supersedes the "preamble preserved verbatim" line in ADR-0038). It
 // bootstraps a full build when the file is missing/empty, and errors when the file is non-empty
 // but has no anchors.
-func (g *Generator) generateIncremental(tag string, lc *port.LinkContext) (string, error) {
+func (g *Generator) generateIncremental(ctx context.Context, tag string, lc *port.LinkContext) (string, error) {
 	var existing string
 	if g.cfg.Output != "" {
 		b, err := os.ReadFile(g.cfg.Output)
@@ -426,7 +427,7 @@ func (g *Generator) generateIncremental(tag string, lc *port.LinkContext) (strin
 		existing = string(b)
 	}
 	if strings.TrimSpace(existing) == "" {
-		body, err := g.buildAllSections(tag, lc, false) // bootstrap: enrich newest only
+		body, err := g.buildAllSections(ctx, tag, lc, false) // bootstrap: enrich newest only
 		if err != nil {
 			return "", err
 		}
@@ -444,7 +445,7 @@ func (g *Generator) generateIncremental(tag string, lc *port.LinkContext) (strin
 		return "", err
 	}
 	latest := g.newSectionBound(tags)
-	newBody, err := g.renderRelease(tag, latest, "HEAD", lc, true)
+	newBody, err := g.renderRelease(ctx, tag, latest, "HEAD", lc, true)
 	if err != nil {
 		return "", err
 	}
@@ -553,7 +554,7 @@ func removeLeftovers(dir, prefix string) {
 // fetch per historical release (ADR-0034 §5). tip is the range's git-resolvable upper bound — a
 // tag name for a historical release, or the literal "HEAD" for the unreleased section — used both
 // to collect the range's commits and, when enrichment runs, as the enrichment ref (T153).
-func (g *Generator) renderRelease(version, prev, tip string, lc *port.LinkContext, enrichEnabled bool) (string, error) {
+func (g *Generator) renderRelease(ctx context.Context, version, prev, tip string, lc *port.LinkContext, enrichEnabled bool) (string, error) {
 	commits, err := collectCommits(g.runner, commitRange(prev, tip))
 	if err != nil {
 		return "", err
@@ -564,7 +565,7 @@ func (g *Generator) renderRelease(version, prev, tip string, lc *port.LinkContex
 	}
 	var prs map[string]PullRequest
 	if enrichEnabled {
-		er, err := g.enrichForRelease(commits, tip)
+		er, err := g.enrichForRelease(ctx, commits, tip)
 		if err != nil {
 			return "", err
 		}

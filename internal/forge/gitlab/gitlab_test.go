@@ -45,7 +45,7 @@ func TestEnrichREST_JobToken(t *testing.T) {
 		Token: "jobtok", TokenKind: port.TokenJob, APIMode: "rest",
 	}, srv.Client())
 
-	en, err := f.Enrich([]port.Commit{{Hash: "abc123", Author: "Alice", Email: "alice@example.com", Date: time.Now()}}, "")
+	en, err := f.Enrich(t.Context(), []port.Commit{{Hash: "abc123", Author: "Alice", Email: "alice@example.com", Date: time.Now()}}, "")
 	require.NoError(t, err)
 
 	assert.Equal(t, "/api/v4/projects/group%2Fproject/repository/commits/abc123/merge_requests", gotPath)
@@ -76,7 +76,7 @@ func TestEnrichREST_PrivateTokenHeader(t *testing.T) {
 		Type: "gitlab", Host: srv.URL, APIURL: srv.URL + "/api/v4", Project: "group/project",
 		Token: "pat", TokenKind: port.TokenPrivate,
 	}, srv.Client())
-	_, err := f.Enrich([]port.Commit{{Hash: "abc123", Author: "Alice"}}, "")
+	_, err := f.Enrich(t.Context(), []port.Commit{{Hash: "abc123", Author: "Alice"}}, "")
 	require.NoError(t, err)
 	assert.Equal(t, "pat", gotPrivate, "a PAT must be sent as PRIVATE-TOKEN")
 	assert.Empty(t, gotJob)
@@ -89,7 +89,7 @@ func TestEnrichREST_NoMR_And_ErrorStatus(t *testing.T) {
 		}))
 		defer srv.Close()
 		f := gitlab.New(port.ForgeIdentity{Host: srv.URL, APIURL: srv.URL + "/api/v4", Project: "g/p"}, srv.Client())
-		en, err := f.Enrich([]port.Commit{{Hash: "abc123", Author: "Alice"}}, "")
+		en, err := f.Enrich(t.Context(), []port.Commit{{Hash: "abc123", Author: "Alice"}}, "")
 		require.NoError(t, err)
 		assert.Empty(t, en.PRs, "a commit with no MR yields no PR entry")
 		assert.Equal(t, "Alice", en.Authors["abc123"], "author handle still resolves offline-style")
@@ -101,7 +101,7 @@ func TestEnrichREST_NoMR_And_ErrorStatus(t *testing.T) {
 		}))
 		defer srv.Close()
 		f := gitlab.New(port.ForgeIdentity{Host: srv.URL, APIURL: srv.URL + "/api/v4", Project: "g/p"}, srv.Client())
-		_, err := f.Enrich([]port.Commit{{Hash: "abc123"}}, "")
+		_, err := f.Enrich(t.Context(), []port.Commit{{Hash: "abc123"}}, "")
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "401")
 	})
@@ -109,7 +109,7 @@ func TestEnrichREST_NoMR_And_ErrorStatus(t *testing.T) {
 
 func TestEnrich_NoCommits(t *testing.T) {
 	f := gitlab.New(port.ForgeIdentity{Host: "https://gitlab.example.com", Project: "g/p"}, nil)
-	en, err := f.Enrich(nil, "")
+	en, err := f.Enrich(t.Context(), nil, "")
 	require.NoError(t, err)
 	assert.Empty(t, en.PRs)
 	assert.Empty(t, en.Authors)
@@ -162,7 +162,7 @@ func TestEnrich_RedirectDropsTokenHeadersOnHostChange(t *testing.T) {
 					Token: "secret-token", TokenKind: tc.kind, APIMode: "rest",
 				}, client)
 
-				_, err := f.Enrich([]port.Commit{{Hash: "abc123"}}, "")
+				_, err := f.Enrich(t.Context(), []port.Commit{{Hash: "abc123"}}, "")
 				require.NoError(t, err)
 				require.NotNil(t, seen, "the redirect target must have been reached")
 				assert.Empty(t, seen.Get(tc.header), "the token must not follow a redirect to another host")
@@ -189,7 +189,7 @@ func TestEnrich_RedirectKeepsTokenOnSameHost(t *testing.T) {
 		Type: "gitlab", Host: srv.URL, APIURL: srv.URL + "/api/v4", Project: "group/project",
 		Token: "secret-token", TokenKind: port.TokenPrivate, APIMode: "rest",
 	}, nil)
-	_, err := f.Enrich([]port.Commit{{Hash: "abc123"}}, "")
+	_, err := f.Enrich(t.Context(), []port.Commit{{Hash: "abc123"}}, "")
 	require.NoError(t, err)
 	assert.Equal(t, "secret-token", gotToken, "a same-host redirect keeps the token")
 }
@@ -206,7 +206,7 @@ func TestEnrich_RedirectLoopStopsAtNetHTTPDefaultLimit(t *testing.T) {
 		Type: "gitlab", Host: srv.URL, APIURL: srv.URL + "/api/v4", Project: "group/project",
 		Token: "secret-token", TokenKind: port.TokenPrivate, APIMode: "rest",
 	}, nil)
-	_, err := f.Enrich([]port.Commit{{Hash: "abc123"}}, "")
+	_, err := f.Enrich(t.Context(), []port.Commit{{Hash: "abc123"}}, "")
 	require.Error(t, err)
 	assert.Equal(t, 10, hits, "the limit net/http applies by default must survive a custom CheckRedirect")
 }

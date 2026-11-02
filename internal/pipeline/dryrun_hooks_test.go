@@ -181,7 +181,7 @@ func TestChangelogRun_DryRun_AllFourHookSteps(t *testing.T) {
 	var captured []capturedStep
 	p := pipeline.NewChangelog(mr, &fakeResolver{result: resolvedResult("v1.2.3")}, cfg, &bytes.Buffer{}, true).
 		WithReporter(capturingStepFn(&captured))
-	require.NoError(t, p.Run())
+	require.NoError(t, p.Run(t.Context()))
 
 	assert.Empty(t, mr.Calls)
 	names := stepNames(captured)
@@ -205,7 +205,7 @@ func TestChangelogRun_DryRun_PostBumpRendersEvenWhenDisabledAndNoTag(t *testing.
 
 	out := &bytes.Buffer{}
 	p := pipeline.NewChangelog(mr, &fakeResolver{result: resolvedResult("v1.2.3")}, cfg, out, true)
-	require.NoError(t, p.Run())
+	require.NoError(t, p.Run(t.Context()))
 
 	assert.Empty(t, mr.Calls, "dry-run must not execute anything for real")
 	assert.Contains(t, out.String(), "[dry-run] would run: echo 1.2.3")
@@ -224,7 +224,7 @@ func TestChangelogRun_DryRun_PostBumpRendersEvenWhenDisabledAndNoTag_Reporter(t 
 	var captured []capturedStep
 	p := pipeline.NewChangelog(mr, &fakeResolver{result: resolvedResult("v1.2.3")}, cfg, &bytes.Buffer{}, true).
 		WithReporter(capturingStepFn(&captured))
-	require.NoError(t, p.Run())
+	require.NoError(t, p.Run(t.Context()))
 
 	assert.Empty(t, mr.Calls)
 	names := stepNames(captured)
@@ -247,7 +247,7 @@ func TestChangelogRun_DryRun_PreChangelogHookWithStage_ShowsWouldStageLine(t *te
 
 	out := &bytes.Buffer{}
 	p := pipeline.NewChangelog(mr, &fakeResolver{result: resolvedResult("v1.2.3")}, cfg, out, true)
-	require.NoError(t, p.Run())
+	require.NoError(t, p.Run(t.Context()))
 
 	assert.Empty(t, mr.Calls, "dry-run must not execute anything for real")
 	lines := out.String()
@@ -271,7 +271,7 @@ func TestChangelogRun_DryRun_NoHooksSuppressesAllHookSteps(t *testing.T) {
 	var captured []capturedStep
 	p := pipeline.NewChangelog(mr, &fakeResolver{result: resolvedResult("v1.2.3")}, cfg, &bytes.Buffer{}, true).
 		WithReporter(capturingStepFn(&captured))
-	require.NoError(t, p.Run())
+	require.NoError(t, p.Run(t.Context()))
 
 	names := stepNames(captured)
 	assert.NotContains(t, names, "Run post_bump hooks")

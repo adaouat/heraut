@@ -1,6 +1,7 @@
 package native
 
 import (
+	"context"
 	"errors"
 	"strings"
 	"testing"
@@ -157,8 +158,9 @@ func queueReleaseNotesGit(mr *exectest.MockRunner) {
 	mr.QueueResponse(record("abc1234567", "A", "a@example.com", "2026-01-02T00:00:00Z", "feat: x", ""), "", nil) // collectCommits: git log
 }
 
-// countingForge records how many times Enrich was called and returns a canned result or error.
+// countingForge records how many times Enrich was called, and with which context, and returns a canned result or error.
 type countingForge struct {
+	ctx    context.Context // context of the last call
 	calls  int
 	gotRef string
 	en     port.Enrichment
@@ -170,7 +172,8 @@ func (f *countingForge) Identity() port.ForgeIdentity     { return port.ForgeIde
 func (f *countingForge) CommitURL(sha string) string      { return "" }
 func (f *countingForge) ChangeURL(int) string             { return "" }
 func (f *countingForge) CompareURL(string, string) string { return "" }
-func (f *countingForge) Enrich(c []port.Commit, ref string) (port.Enrichment, error) {
+func (f *countingForge) Enrich(ctx context.Context, c []port.Commit, ref string) (port.Enrichment, error) {
+	f.ctx = ctx
 	f.calls++
 	f.gotRef = ref
 	return f.en, f.err
@@ -186,7 +189,7 @@ func TestGenerate_Enrich_Disabled_NoAPICall(t *testing.T) {
 	}}
 	g := New(mr, &config.ContentDriver{RemoteMetadata: "disabled"}, ModeReleaseNotes, WithForge(forge))
 
-	out, err := g.Generate("v1.1.0", ghLC())
+	out, err := g.Generate(t.Context(), "v1.1.0", ghLC())
 	require.NoError(t, err)
 	assert.NotContains(t, out, "by @")
 	assert.Equal(t, 0, forge.calls, "disabled must never call the forge")
@@ -207,7 +210,7 @@ func TestGenerate_Enrich_OptionalSuccess(t *testing.T) {
 	}}
 	g := New(mr, &config.ContentDriver{RemoteMetadata: "optional"}, ModeReleaseNotes, WithForge(forge))
 
-	out, err := g.Generate("v1.1.0", ghLC())
+	out, err := g.Generate(t.Context(), "v1.1.0", ghLC())
 	require.NoError(t, err)
 	assert.Contains(t, out, "by @octocat in [#42]")
 	assert.False(t, g.Degraded())
@@ -225,7 +228,7 @@ func TestGenerate_Enrich_OptionalFailure_Degrades(t *testing.T) {
 	forge := &countingForge{err: errors.New("API rate limit exceeded")}
 	g := New(mr, &config.ContentDriver{RemoteMetadata: "optional"}, ModeReleaseNotes, WithForge(forge))
 
-	out, err := g.Generate("v1.1.0", ghLC())
+	out, err := g.Generate(t.Context(), "v1.1.0", ghLC())
 	require.NoError(t, err, "optional degrades, does not fail")
 	assert.NotContains(t, out, "by @", "rendered bare on degrade")
 	assert.True(t, g.Degraded())
@@ -244,7 +247,7 @@ func TestGenerate_Enrich_OptionalFailure_CapturesReason(t *testing.T) {
 	forge := &countingForge{err: errors.New("API rate limit exceeded")}
 	g := New(mr, &config.ContentDriver{RemoteMetadata: "optional"}, ModeReleaseNotes, WithForge(forge))
 
-	_, err := g.Generate("v1.1.0", ghLC())
+	_, err := g.Generate(t.Context(), "v1.1.0", ghLC())
 	require.NoError(t, err)
 	require.True(t, g.Degraded())
 	assert.Contains(t, g.DegradedReason(), "remote enrichment unavailable")
@@ -257,7 +260,7 @@ func TestGenerate_Enrich_RequiredFailure_Errors(t *testing.T) {
 	forge := &countingForge{err: errors.New("API rate limit exceeded")}
 	g := New(mr, &config.ContentDriver{RemoteMetadata: "required"}, ModeReleaseNotes, WithForge(forge))
 
-	_, err := g.Generate("v1.1.0", ghLC())
+	_, err := g.Generate(t.Context(), "v1.1.0", ghLC())
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "required")
 }
@@ -271,7 +274,7 @@ func TestGenerate_Enrich_RequiredFailure_ForceDegrades(t *testing.T) {
 	forge := &countingForge{err: errors.New("API rate limit exceeded")}
 	g := New(mr, &config.ContentDriver{RemoteMetadata: "required", Force: true}, ModeReleaseNotes, WithForge(forge))
 
-	out, err := g.Generate("v1.1.0", ghLC())
+	out, err := g.Generate(t.Context(), "v1.1.0", ghLC())
 	require.NoError(t, err, "--force downgrades required to optional")
 	assert.NotContains(t, out, "by @", "rendered bare on forced degrade")
 	assert.True(t, g.Degraded())
@@ -285,7 +288,7 @@ func TestGenerate_Enrich_RequiredNilContext_ForceDegrades(t *testing.T) {
 	mr.QueueResponse("bob@x\n", "", nil) // authorsBefore
 	g := New(mr, &config.ContentDriver{RemoteMetadata: "required", Force: true}, ModeReleaseNotes)
 
-	_, err := g.Generate("v1.1.0", nil)
+	_, err := g.Generate(t.Context(), "v1.1.0", nil)
 	require.NoError(t, err, "--force downgrades required even with no remote configured")
 }
 
@@ -299,7 +302,7 @@ func TestGenerate_Enrich_RequiredNilContext_Errors(t *testing.T) {
 	mr.QueueResponse("bob@x\n", "", nil) // authorsBefore — reached only if required is (wrongly) not enforced
 	g := New(mr, &config.ContentDriver{RemoteMetadata: "required"}, ModeReleaseNotes)
 
-	_, err := g.Generate("v1.1.0", nil) // no remote / platform → required cannot be satisfied
+	_, err := g.Generate(t.Context(), "v1.1.0", nil) // no remote / platform → required cannot be satisfied
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "required")
 	// M2: the message must name what's actually missing under the current forge-based
@@ -325,7 +328,7 @@ func TestGenerate_Enrich_ChangelogEnrichesOnlyNewRelease(t *testing.T) {
 	}}
 	g := New(mr, &config.ContentDriver{RemoteMetadata: "optional"}, ModeChangelog, WithForge(forge))
 
-	body, err := g.Generate("v1.1.0", ghLC())
+	body, err := g.Generate(t.Context(), "v1.1.0", ghLC())
 	require.NoError(t, err)
 	assert.Contains(t, body, "## [1.1.0]")
 	assert.Contains(t, body, "by @octocat in [#50]", "new section is enriched")

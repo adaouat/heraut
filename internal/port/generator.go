@@ -1,6 +1,9 @@
 package port
 
-import "strings"
+import (
+	"context"
+	"strings"
+)
 
 // LinkContext carries the per-platform link-resolution context used to render
 // commit/PR/MR links in release notes. A nil *LinkContext means "no per-platform
@@ -18,11 +21,12 @@ type LinkContext struct {
 // Generate renders the content for tag. When lc is non-nil, the generator resolves
 // links against that per-platform context (each implementation translating it into
 // its own native mechanism); when nil, the generator falls through to whatever
-// ambient detection it already performs.
+// ambient detection it already performs. ctx is the command's context: Ctrl-C stops the forge
+// requests that fetch pull-request details.
 type Generator interface {
 	Check() error
 	Validate() error
-	Generate(tag string, lc *LinkContext) (string, error)
+	Generate(ctx context.Context, tag string, lc *LinkContext) (string, error)
 }
 
 // URLTag returns tag ready to embed in a URL path or query string. Only "+" is escaped (as

@@ -1,6 +1,7 @@
 package native
 
 import (
+	"context"
 	"fmt"
 
 	"github.com/adaouat/heraut/internal/port"
@@ -16,7 +17,7 @@ type enrichResult struct {
 // an enrichResult. Returns a zero enrichResult when no forge is configured. ref is the
 // git-resolvable tip of the release window — a tag name, or the literal "HEAD" for the unreleased
 // section — passed on to the forge as the true range anchor (T153).
-func (g *Generator) enrich(commits []rawCommit, ref string) (enrichResult, error) {
+func (g *Generator) enrich(ctx context.Context, commits []rawCommit, ref string) (enrichResult, error) {
 	if g.forge == nil {
 		return enrichResult{}, nil
 	}
@@ -28,7 +29,7 @@ func (g *Generator) enrich(commits []rawCommit, ref string) (enrichResult, error
 	for _, c := range commits {
 		pc = append(pc, port.Commit{Hash: c.Hash, Author: c.Author, Email: c.Email, Date: c.Date})
 	}
-	en, err := g.forge.Enrich(pc, resolvedRef)
+	en, err := g.forge.Enrich(ctx, pc, resolvedRef)
 	if err != nil {
 		return enrichResult{}, err
 	}
@@ -54,7 +55,7 @@ func (g *Generator) resolveEnrichRef(ref string) (string, error) {
 // No forge configured is not itself a failure — it simply yields no enrichment — except under
 // "required", where an unconfigured forge cannot satisfy the policy and is a hard error. ref is
 // the release window's git-resolvable tip, forwarded to enrich (T153).
-func (g *Generator) enrichForRelease(commits []rawCommit, ref string) (enrichResult, error) {
+func (g *Generator) enrichForRelease(ctx context.Context, commits []rawCommit, ref string) (enrichResult, error) {
 	if g.cfg.RemoteMetadata == "disabled" {
 		return enrichResult{}, nil
 	}
@@ -64,9 +65,10 @@ func (g *Generator) enrichForRelease(commits []rawCommit, ref string) (enrichRes
 	if required && g.forge == nil {
 		return enrichResult{}, fmt.Errorf("remote enrichment (required): no forge resolved to fetch PR/MR metadata from — configure a forges: entry, run in a supported CI environment, or use a recognised git origin")
 	}
-	er, err := g.enrich(commits, ref)
+	er, err := g.enrich(ctx, commits, ref)
 	if err != nil {
-		if required {
+		// An interrupted run is not an unavailable forge: it stops rather than rendering without PRs.
+		if required || ctx.Err() != nil {
 			return enrichResult{}, fmt.Errorf("remote enrichment (required): %w", err)
 		}
 		if !g.degraded {

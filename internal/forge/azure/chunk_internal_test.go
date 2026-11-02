@@ -54,7 +54,7 @@ func TestEnrich_SplitsTheQueryIntoChunks(t *testing.T) {
 	f := New(port.ForgeIdentity{Host: srv.URL, Project: "myorg/myproject", Repository: "myrepo"}, srv.Client())
 	commits := commitsN(2*prQueryChunkSize + 1)
 
-	en, err := f.Enrich(commits, "")
+	en, err := f.Enrich(t.Context(), commits, "")
 	require.NoError(t, err)
 
 	require.Len(t, *requests, 3)
@@ -75,7 +75,7 @@ func TestEnrich_AFailedChunkFailsTheEnrichment(t *testing.T) {
 	srv, _ := pullRequestQueryServer(t, 2)
 	f := New(port.ForgeIdentity{Host: srv.URL, Project: "myorg/myproject", Repository: "myrepo"}, srv.Client())
 
-	_, err := f.Enrich(commitsN(prQueryChunkSize+1), "")
+	_, err := f.Enrich(t.Context(), commitsN(prQueryChunkSize+1), "")
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "500")
 }

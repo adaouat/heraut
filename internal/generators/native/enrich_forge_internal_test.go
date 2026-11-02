@@ -1,6 +1,7 @@
 package native
 
 import (
+	"context"
 	"errors"
 	"testing"
 
@@ -27,7 +28,7 @@ func (s *stubForge) CommitURL(sha string) string {
 }
 func (s *stubForge) ChangeURL(int) string             { return "" }
 func (s *stubForge) CompareURL(string, string) string { return "" }
-func (s *stubForge) Enrich(c []port.Commit, ref string) (port.Enrichment, error) {
+func (s *stubForge) Enrich(_ context.Context, c []port.Commit, ref string) (port.Enrichment, error) {
 	s.got = c
 	s.gotRef = ref
 	return s.en, s.err
@@ -40,7 +41,7 @@ func TestEnrich_PrefersInjectedForge(t *testing.T) {
 	}}
 	g := New(nil, testDriver(), ModeChangelog, WithForge(sf))
 
-	er, err := g.enrich([]rawCommit{{Hash: "abc", Author: "Alice", Email: "alice@example.com"}}, "v1.0.0")
+	er, err := g.enrich(t.Context(), []rawCommit{{Hash: "abc", Author: "Alice", Email: "alice@example.com"}}, "v1.0.0")
 	require.NoError(t, err)
 
 	require.Len(t, sf.got, 1, "the forge receives the collected commits")
@@ -55,7 +56,7 @@ func TestEnrich_PrefersInjectedForge(t *testing.T) {
 func TestEnrich_ForgeErrorPropagates(t *testing.T) {
 	sentinel := errors.New("boom")
 	g := New(nil, testDriver(), ModeChangelog, WithForge(&stubForge{err: sentinel}))
-	_, err := g.enrich([]rawCommit{{Hash: "abc"}}, "v1.0.0")
+	_, err := g.enrich(t.Context(), []rawCommit{{Hash: "abc"}}, "v1.0.0")
 	require.Error(t, err)
 	assert.True(t, errors.Is(err, sentinel))
 }
@@ -63,7 +64,7 @@ func TestEnrich_ForgeErrorPropagates(t *testing.T) {
 // Without an injected forge, enrichment yields nothing (no transport left to fall back to).
 func TestEnrich_NoForgeYieldsNoEnrichment(t *testing.T) {
 	g := New(nil, testDriver(), ModeChangelog)
-	er, err := g.enrich([]rawCommit{{Hash: "abc"}}, "v1.0.0")
+	er, err := g.enrich(t.Context(), []rawCommit{{Hash: "abc"}}, "v1.0.0")
 	require.NoError(t, err)
 	assert.Empty(t, er.prs)
 }
@@ -79,7 +80,7 @@ func TestEnrichForRelease_RequiredSatisfiedByInjectedForge(t *testing.T) {
 	driver.RemoteMetadata = "required"
 	g := New(nil, driver, ModeChangelog, WithForge(sf))
 
-	er, err := g.enrichForRelease([]rawCommit{{Hash: "abc", Author: "Alice"}}, "v1.0.0")
+	er, err := g.enrichForRelease(t.Context(), []rawCommit{{Hash: "abc", Author: "Alice"}}, "v1.0.0")
 	require.NoError(t, err, "an injected forge must satisfy the required policy")
 	assert.Equal(t, 7, er.prs["abc"].Number)
 	assert.Equal(t, "alice", er.authors["abc"])
@@ -92,7 +93,7 @@ func TestEnrichForRelease_RequiredStillErrorsWithoutForge(t *testing.T) {
 	driver.RemoteMetadata = "required"
 	g := New(nil, driver, ModeChangelog)
 
-	_, err := g.enrichForRelease([]rawCommit{{Hash: "abc"}}, "v1.0.0")
+	_, err := g.enrichForRelease(t.Context(), []rawCommit{{Hash: "abc"}}, "v1.0.0")
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "remote enrichment (required)")
 }

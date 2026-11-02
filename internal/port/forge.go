@@ -1,6 +1,9 @@
 package port
 
-import "time"
+import (
+	"context"
+	"time"
+)
 
 // TokenKind selects how a forge token is presented to the API. GitLab distinguishes a CI job
 // token (JOB-TOKEN header) from a personal/project access token (PRIVATE-TOKEN header); other
@@ -85,6 +88,6 @@ type Forge interface {
 	// for the unreleased section (never the literal "HEAD": a remote forge API does not understand
 	// local git shorthand). It anchors ref-scoped queries such as GitLab's GraphQL
 	// commits(ref:) walk (T153); implementations that resolve enrichment per-commit (GitHub,
-	// Azure, GitLab REST) ignore it.
-	Enrich(commits []Commit, ref string) (Enrichment, error)
+	// Azure, GitLab REST) ignore it. ctx is the command's context: Ctrl-C stops the requests.
+	Enrich(ctx context.Context, commits []Commit, ref string) (Enrichment, error)
 }

@@ -28,7 +28,7 @@ func TestEnrichGraphQL_JobTokenRejected(t *testing.T) {
 		Token: "jobtok", TokenKind: port.TokenJob, APIMode: "graphql",
 	}, srv.Client())
 
-	_, err := f.Enrich([]port.Commit{{Hash: "abc123", Author: "Alice"}}, "v1.0.0")
+	_, err := f.Enrich(t.Context(), []port.Commit{{Hash: "abc123", Author: "Alice"}}, "v1.0.0")
 	require.Error(t, err)
 	assert.True(t, errors.Is(err, gitlab.ErrJobTokenGraphQL))
 	assert.Contains(t, err.Error(), "api_mode: rest", "the error must point at the fix")
@@ -59,7 +59,7 @@ func TestEnrichGraphQL_LinkedUsernameAndHeader(t *testing.T) {
 		Token: "pat", TokenKind: port.TokenPrivate, APIMode: "graphql",
 	}, srv.Client())
 
-	en, err := f.Enrich([]port.Commit{{Hash: "abc123", Author: "Alice", Email: "alice@example.com"}}, "v1.0.0")
+	en, err := f.Enrich(t.Context(), []port.Commit{{Hash: "abc123", Author: "Alice", Email: "alice@example.com"}}, "v1.0.0")
 	require.NoError(t, err)
 
 	assert.Equal(t, "pat", gotPrivate, "GraphQL uses PRIVATE-TOKEN")
@@ -84,7 +84,7 @@ func TestEnrichGraphQL_APIError(t *testing.T) {
 		Host: srv.URL, APIURL: srv.URL + "/api/v4", Project: "group/project",
 		Token: "pat", TokenKind: port.TokenPrivate, APIMode: "graphql",
 	}, srv.Client())
-	_, err := f.Enrich([]port.Commit{{Hash: "abc123"}}, "v1.0.0")
+	_, err := f.Enrich(t.Context(), []port.Commit{{Hash: "abc123"}}, "v1.0.0")
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "insufficient scope")
 }
@@ -110,7 +110,7 @@ func TestEnrichGraphQL_SendsReleaseWindowBounds(t *testing.T) {
 	}, srv.Client())
 
 	oldest := time.Date(2026, 7, 1, 12, 0, 0, 0, time.UTC)
-	_, err := f.Enrich([]port.Commit{
+	_, err := f.Enrich(t.Context(), []port.Commit{
 		{Hash: "aaa", Author: "Alice", Date: oldest},
 		{Hash: "bbb", Author: "Bob", Date: oldest.Add(48 * time.Hour)},
 	}, "v1.0.0")
@@ -147,7 +147,7 @@ func TestEnrichGraphQL_AnchorsOnCallerSuppliedRef_NotNewestCommitDate(t *testing
 
 	// "bbb" carries the newest committer date (rewritten by a rebase), but it is an ancestor, not
 	// the range tip — "ccc-the-real-head-sha" (resolved by the caller) is.
-	_, err := f.Enrich([]port.Commit{
+	_, err := f.Enrich(t.Context(), []port.Commit{
 		{Hash: "aaa", Author: "Alice", Date: time.Date(2026, 7, 1, 0, 0, 0, 0, time.UTC)},
 		{Hash: "bbb", Author: "Bob", Date: time.Date(2026, 7, 10, 0, 0, 0, 0, time.UTC)},
 	}, "ccc-the-real-head-sha")
@@ -199,7 +199,7 @@ func TestEnrichGraphQL_PaginatesBothConnections(t *testing.T) {
 		Token: "pat", TokenKind: port.TokenPrivate, APIMode: "graphql",
 	}, srv.Client())
 
-	en, err := f.Enrich([]port.Commit{
+	en, err := f.Enrich(t.Context(), []port.Commit{
 		{Hash: "aaa", Author: "Alice", Date: time.Now().Add(-48 * time.Hour)},
 		{Hash: "bbb", Author: "Bob", Date: time.Now()},
 	}, "v1.0.0")
@@ -232,7 +232,7 @@ func TestEnrichGraphQL_StopsOnEmptyCursor(t *testing.T) {
 
 	done := make(chan struct{})
 	go func() {
-		_, _ = f.Enrich([]port.Commit{{Hash: "aaa", Author: "Alice", Date: time.Now()}}, "v1.0.0")
+		_, _ = f.Enrich(t.Context(), []port.Commit{{Hash: "aaa", Author: "Alice", Date: time.Now()}}, "v1.0.0")
 		close(done)
 	}()
 	select {

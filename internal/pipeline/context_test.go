@@ -3,6 +3,7 @@ package pipeline_test
 import (
 	"bytes"
 	"context"
+	"fmt"
 	"testing"
 
 	"github.com/adaouat/forge/exec/exectest"
@@ -50,4 +51,49 @@ func TestCheck_PassesItsContextToEveryPlatform(t *testing.T) {
 		require.Len(t, plat.CheckContexts, 1)
 		assert.Equal(t, "this run", plat.CheckContexts[0].Value(runKey{}), plat.PlatformName)
 	}
+}
+
+// The changelog and the release notes fetch pull-request details from the forge: the command's
+// context reaches every generation, so Ctrl-C stops those requests too.
+func TestRun_PassesItsContextToEveryGeneration(t *testing.T) {
+	for _, platforms := range []int{1, 2} {
+		t.Run(fmt.Sprintf("%d platform(s)", platforms), func(t *testing.T) {
+			mr := exectest.NewMockRunner()
+			mr.QueueResponse("", "", nil)               // git add
+			mr.QueueResponse("CHANGELOG.md\n", "", nil) // git diff --cached --name-only
+			mr.QueueResponse("", "", nil)               // git commit
+			mr.QueueResponse("", "", nil)               // git push
+			mr.QueueResponse("", "", nil)               // git tag
+			mr.QueueResponse("", "", nil)               // git push <tag>
+
+			changelog, notes := &testutil.MockGenerator{}, &testutil.MockGenerator{}
+			cfg := &pipeline.Config{Changelog: changelog, ChangelogFile: "CHANGELOG.md", Notes: notes}
+			for i := range platforms {
+				cfg.Platforms = append(cfg.Platforms, &testutil.MockPlatform{PlatformName: fmt.Sprintf("p%d", i)})
+			}
+			p := pipeline.New(mr, &fakeResolver{result: resolvedResult("v1.2.3")}, cfg, &bytes.Buffer{}, false)
+
+			ctx := context.WithValue(t.Context(), runKey{}, "this run")
+			require.NoError(t, p.Run(ctx))
+
+			require.Len(t, changelog.GenerateCtxs, 1)
+			assert.Equal(t, "this run", changelog.GenerateCtxs[0].Value(runKey{}))
+			require.Len(t, notes.GenerateCtxs, platforms)
+			for _, c := range notes.GenerateCtxs {
+				assert.Equal(t, "this run", c.Value(runKey{}))
+			}
+		})
+	}
+}
+
+func TestChangelogRun_PassesItsContextToTheGenerator(t *testing.T) {
+	gen := &testutil.MockGenerator{}
+	cfg := &pipeline.ChangelogConfig{Changelog: gen, ChangelogFile: "CHANGELOG.md"}
+	p := pipeline.NewChangelog(exectest.NewMockRunner(), &fakeResolver{result: resolvedResult("v1.2.3")}, cfg, &bytes.Buffer{}, false)
+
+	ctx := context.WithValue(t.Context(), runKey{}, "this run")
+	require.NoError(t, p.Run(ctx))
+
+	require.Len(t, gen.GenerateCtxs, 1)
+	assert.Equal(t, "this run", gen.GenerateCtxs[0].Value(runKey{}))
 }

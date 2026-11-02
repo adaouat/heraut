@@ -27,7 +27,7 @@ func notesGenerator(t *testing.T, drv *config.ContentDriver, opts ...native.Opti
 func TestNotes_RealRepo_DefaultLayout(t *testing.T) {
 	g := notesGenerator(t, &config.ContentDriver{})
 
-	out, err := g.Generate("v0.1.0", nil)
+	out, err := g.Generate(t.Context(), "v0.1.0", nil)
 	require.NoError(t, err)
 
 	assert.Contains(t, out, "### ")
@@ -43,7 +43,7 @@ func TestNotes_RealRepo_DefaultLayout(t *testing.T) {
 func TestNotes_RealRepo_RangeIsThePreviousTagToTheTag(t *testing.T) {
 	g := notesGenerator(t, &config.ContentDriver{})
 
-	out, err := g.Generate("v0.2.0", nil)
+	out, err := g.Generate(t.Context(), "v0.2.0", nil)
 	require.NoError(t, err)
 
 	assert.Contains(t, out, "Redesign the page")
@@ -52,13 +52,13 @@ func TestNotes_RealRepo_RangeIsThePreviousTagToTheTag(t *testing.T) {
 
 func TestNotes_RealRepo_FromOverridesTheLowerBound(t *testing.T) {
 	g := notesGenerator(t, &config.ContentDriver{}, native.WithFromTag("v0.1.0"))
-	out, err := g.Generate("v0.2.0", nil)
+	out, err := g.Generate(t.Context(), "v0.2.0", nil)
 	require.NoError(t, err)
 	assert.Contains(t, out, "Redesign the page")
 	assert.NotContains(t, out, "Add login")
 
 	g = notesGenerator(t, &config.ContentDriver{}, native.WithFromTag("v0.2.0"))
-	out, err = g.Generate("v0.2.0", nil)
+	out, err = g.Generate(t.Context(), "v0.2.0", nil)
 	require.NoError(t, err)
 	assert.Empty(t, out, "an empty range prints nothing")
 }
@@ -67,7 +67,7 @@ func TestNotes_RealRepo_NoSurvivingCommitIsEmpty(t *testing.T) {
 	drv := &config.ContentDriver{Excludes: []config.Exclude{{Type: "feat"}, {Type: "revert"}}}
 	g := notesGenerator(t, drv)
 
-	out, err := g.Generate("v0.2.0", nil)
+	out, err := g.Generate(t.Context(), "v0.2.0", nil)
 	require.NoError(t, err)
 	assert.Empty(t, out)
 }

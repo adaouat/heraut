@@ -1,6 +1,7 @@
 package app
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"os"
@@ -46,8 +47,9 @@ type NotesResult struct {
 }
 
 // GenerateNotes renders the release notes of opts.Tag (heraut notes): the groups and commit lines of
-// the range from the tag's previous release, or opts.From, to the tag. It only reads git.
-func GenerateNotes(runner port.Runner, cfg *config.Config, opts NotesOpts) (NotesResult, error) {
+// the range from the tag's previous release, or opts.From, to the tag. It reads git, and the forge for
+// pull-request details unless enrichment is off; ctx is the command's context, which Ctrl-C cancels.
+func GenerateNotes(ctx context.Context, runner port.Runner, cfg *config.Config, opts NotesOpts) (NotesResult, error) {
 	format := opts.Format
 	if format == "" {
 		format = "markdown"
@@ -94,7 +96,7 @@ func GenerateNotes(runner port.Runner, cfg *config.Config, opts NotesOpts) (Note
 		extra = append(extra, native.WithFromTag(opts.From))
 	}
 	gen := buildGenerator(runner, driver, native.ModeNotes, "", false, opts.Force, enrichForge, degraded, notesOrderFor(cfg, opts.Env, opts.Tag), extra...)
-	text, err := gen.Generate(opts.Tag, pipeline.LinkContext(forgeID))
+	text, err := gen.Generate(ctx, opts.Tag, pipeline.LinkContext(forgeID))
 	if err != nil {
 		return NotesResult{}, fmt.Errorf("generating notes: %w", err)
 	}

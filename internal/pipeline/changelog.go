@@ -1,6 +1,7 @@
 package pipeline
 
 import (
+	"context"
 	"fmt"
 	"io"
 
@@ -111,7 +112,7 @@ func (p *ChangelogPipeline) runStep(name string, fn func() (string, []string, er
 // changelogFlow builds the steps of a changelog run for a resolved version. Nothing runs here.
 // The prelude is the post_bump hooks, which fire on every resolve (ADR-0053) — including the
 // DisableChangelog run without --tag, which stops right after them; the body is the rest.
-func (p *ChangelogPipeline) changelogFlow(result versioning.Result) (prelude, body []releaseStep) {
+func (p *ChangelogPipeline) changelogFlow(ctx context.Context, result versioning.Result) (prelude, body []releaseStep) {
 	vars := p.hookVars(result)
 	// stage collects the files hooks asked to commit with the changelog (ADR-0061): post_bump's,
 	// then pre_changelog's.
@@ -138,7 +139,7 @@ func (p *ChangelogPipeline) changelogFlow(result versioning.Result) (prelude, bo
 		body = append(body, releaseStep{
 			name: "Generate changelog",
 			exec: func() (string, []string, error) {
-				if _, err := p.cfg.Changelog.Generate(result.Tag, p.changelogLinkContext()); err != nil {
+				if _, err := p.cfg.Changelog.Generate(ctx, result.Tag, p.changelogLinkContext()); err != nil {
 					return "", nil, fmt.Errorf("generating changelog: %w", err)
 				}
 				detail, subs := changelogGenResult(p.cfg.Changelog)
@@ -225,8 +226,9 @@ func (p *ChangelogPipeline) changelogFlow(result versioning.Result) (prelude, bo
 //  5. If Tag: git tag → git push origin <tag>
 //
 // When NoPush is set, both pushes (HEAD and the tag) are skipped — the commit and
-// tag are created locally only. With a dry-run Pipeline the same steps are rendered instead.
-func (p *ChangelogPipeline) Run() error {
+// tag are created locally only. With a dry-run Pipeline the same steps are rendered instead. ctx is
+// the command's context: Ctrl-C stops the forge requests behind the changelog's pull-request links.
+func (p *ChangelogPipeline) Run(ctx context.Context) error {
 	var result versioning.Result
 	if err := p.runStep("Resolve version", func() (string, []string, error) {
 		r, err := p.resolver.Resolve()
@@ -240,7 +242,7 @@ func (p *ChangelogPipeline) Run() error {
 	}
 	printResolveWarnings(p.out, result.Warnings)
 
-	prelude, body := p.changelogFlow(result)
+	prelude, body := p.changelogFlow(ctx, result)
 	if err := p.runner().runSteps(prelude, nil); err != nil {
 		return err
 	}
