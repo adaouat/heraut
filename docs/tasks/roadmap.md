@@ -251,7 +251,7 @@ discipline that applies to every task.
 | 80 | GitHub publishing without `gh` (ADR-0077) | Done — T423–T430, T432 and T433, see `github-client-roadmap.md` |
 | 81 | GitLab asset read from the descriptor (NEW-002 for GitLab) | Done |
 | 82 | Last open security findings (NEW-005 residual, SEC-002) | Done |
-| 83 | Code review follow-ups (2026-10-28 review of Phases 80–82) | In progress — T436–T439 done; T440 not started |
+| 83 | Code review follow-ups (2026-10-28 review of Phases 80–82) | Done |
 | 84 | Azure DevOps enrichment fixes | Done |
 
 ### Open items
@@ -3592,7 +3592,7 @@ and were redone. A test stub that never read its request body hung `httptest.Ser
 About 145 test call sites of `Run()` and `CreateRelease()` were updated mechanically. Spec 03, Spec 05 and
 the failure-recovery guide describe the behaviour. Left for T440: every other network call.
 
-#### `[ ]` T440: Ctrl-C during the other network calls
+#### `[x]` T440: Ctrl-C during the other network calls
 
 T439 threads the command's context only into publishing. The other HTTP calls still run on their own:
 the preflight token checks (`port.Platform.Check()`, `VerifyReleasesAccess` on both forges), PR/MR
@@ -3601,6 +3601,27 @@ While fang holds SIGINT, a stall there still ignores Ctrl-C (the enrichment clie
 the checks have none). Thread `cmd.Context()` the same way (`Check(ctx)`, the forge enrichment interface,
 `ChangelogPipeline.Run(ctx)`), and decide whether GitLab publishing gets the response-header bound GitHub
 has. Tests first, including an e2e interrupt during a stalled check.
+
+Done 2026-11-02. `port.Platform.Check(ctx)`, `port.Forge.Enrich(ctx, …)` and `port.Generator.Generate(ctx,
+…)` take the command's context; `Pipeline.Check(ctx)`, `ChangelogPipeline.Run(ctx)`, `app.RuntimeCheck(ctx,
+…)` and `app.GenerateNotes(ctx, …)` pass it on, and `heraut release`, `changelog`, `notes` and every form of
+`check` (text and `--json`) hand it `cmd.Context()`. `port.Generator.Check()` stays without one: it makes no
+request. The user chose to give GitLab publishing the 2-minute response-header bound GitHub has
+(`gl.WithHTTPClient` with a cloned default transport). Found on the way: under the default `optional`
+policy an interrupted lookup would have degraded, so heraut would have written the changelog without PR
+links; `enrichForRelease` now fails when the run's context is done, under every policy, with "remote
+enrichment: …" rather than the `required` wording (Spec 02 says so). The e2e GitHub stand-in's
+`HangUploads()` became `Hang(kind)` (uploads, release lists, GraphQL). Tests first for each layer: the three
+forge clients (GitLab REST and GraphQL, including its second query), both publish clients' checks, the GitLab
+bound, the native generator in every mode (`--regenerate` included), both pipelines, the rotating changelog,
+`heraut notes`; e2e (Unix): SIGINT during the four forms of `heraut check`, `heraut release`'s preflight, and
+the lookups of `heraut changelog` (no file written) and `heraut notes`. 53 mutations each fail a test. The
+first batch ran under `timeout`, which macOS lacks, so every run "failed" with command not found and proved
+nothing; redone with `go test -timeout`, the mutations exposed two gaps, since covered (the `--regenerate`
+path and GitLab's merge-request query), and one pattern that had hit `CreateRelease` instead of
+`ListReleases`. About 190 test call
+sites were updated mechanically. Specs 02, 03 and 05, the failure-recovery guide and the coding rule describe
+the behaviour.
 
 ### Phase 84 — Azure DevOps enrichment fixes
 

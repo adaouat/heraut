@@ -112,10 +112,12 @@ already exists, else `.heraut.yml`. The file starts with a
 
 Run the full release pipeline.
 
-Ctrl-C (SIGINT) or SIGTERM during publishing stops the forge requests in flight, and the run fails
-with the Runtime code. A GitHub draft created for assets is deleted on the way out (Spec 05 §
+Ctrl-C (SIGINT) or SIGTERM stops the forge requests in flight, and the run fails with the Runtime
+code: the preflight token check, the pull-request lookups behind the changelog and the notes, and
+publishing. During publishing, a GitHub draft created for assets is deleted on the way out (Spec 05 §
 GitHub); by then the tag is pushed, so the repository is in [failure-recovery](../guides/failure-recovery.md)
-state C. A GitHub request whose answer does not start within two minutes fails the same way.
+state C. A GitHub or GitLab publish request whose answer does not start within two minutes fails the
+same way.
 
 ```
 heraut release [--set-version <version>] [--set-build-id <id>] [--pre-release <label>] [--regenerate-changelog] [--dry-run] [--env <name>] [--force] [--offline] [--no-hooks] [--skip-hook <point>[,<point>…]] [--allow-major]
@@ -232,6 +234,9 @@ false-positive problem.
 
 Resolve the next version, optionally generate a changelog, optionally commit and tag —
 without publishing to any release platform.
+
+Ctrl-C (SIGINT) or SIGTERM during the pull-request lookups stops them, and the run fails with the
+Runtime code before the changelog is written.
 
 ```
 heraut changelog [--commit] [--tag] [--no-push] [--set-version <version>] [--regenerate] [--dry-run] [--env <name>] [--force] [--offline] [--no-hooks] [--skip-hook <point>[,<point>…]] [--allow-major]
@@ -355,6 +360,7 @@ The `notes:` block ([Spec 02 § `notes`](02-configuration.md#notes)) reshapes it
 | `<tag>` is not a release tag of the strategy and `--env` (a build marker, another environment's tag) | Runtime error (3) |
 | `--from` is not in the history of `<tag>` | Runtime error (3) |
 | git itself fails (not a repository, git missing) | Runtime error (3) carrying git's message |
+| interrupted (Ctrl-C, SIGTERM) during a pull-request lookup | Runtime error (3); nothing is printed or written |
 | `--format` is neither `markdown` nor `text` | Usage error (1) |
 | per-env strategy without `--env` | Config error (2) |
 | no commit survives `commits.types` / `rendering.excludes` | empty stdout, exit 0, a notice on stderr |
@@ -652,6 +658,8 @@ config` takes neither, since it's pure offline YAML validation with no runtime o
 per-environment dimension.
 
 Runs both sections in sequence (Config, then Runtime) and reports a combined summary.
+Ctrl-C (SIGINT) or SIGTERM during a token check stops the request, and the check fails with the
+Runtime code.
 
 **No config file found**: like `heraut check runtime`, bare `check` degrades instead of
 hard-failing — the Config section prints a warning and is skipped, and the Runtime

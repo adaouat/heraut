@@ -845,7 +845,9 @@ when the metadata cannot be fetched — the forge is unavailable/unreachable, *o
 configured or auto-detected to fetch from), `optional` (default — fetch when possible, else warn),
 `disabled` (never fetch). `--force` downgrades `required` to `optional` for a single run (degrade
 with a warning instead of failing). The global `--offline` flag forces `disabled` for a single run
-(ADR-0023; renamed from `commits.remote_metadata` by ADR-0043 — semantics unchanged).
+(ADR-0023; renamed from `commits.remote_metadata` by ADR-0043 — semantics unchanged). An interrupted
+fetch (Ctrl-C, SIGTERM) is not an unavailable forge: it fails the run under every policy, so no
+changelog or notes are written without their PR links because of an interrupt.
 
 ## `rendering`
 

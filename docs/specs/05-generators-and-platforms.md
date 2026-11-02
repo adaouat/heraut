@@ -400,7 +400,7 @@ The generator implements `port.Generator`:
 type Generator interface {
     Check() error                                            // no-op: no external binary to verify
     Validate() error                                         // no-op: no external config file to verify
-    Generate(tag string, link *port.LinkContext) (string, error) // render in-process, return the rendered string
+    Generate(ctx context.Context, tag string, link *port.LinkContext) (string, error) // render in-process, return the rendered string; ctx stops the pull-request lookups (Ctrl-C)
 }
 ```
 
@@ -532,7 +532,10 @@ API through `gitlab.com/gitlab-org/api/client-go`; no `glab` binary is involved.
    `direct_asset_path` is `/<file>`, so the public URL stays `…/-/releases/<tag>/downloads/<file>`.
 
 Uploads happen first, so a failed upload leaves no release without its assets. The tag must
-already exist (heraut tags and pushes before publishing).
+already exist (heraut tags and pushes before publishing). When the run is interrupted (Ctrl-C,
+SIGTERM) the requests stop; an upload cut short creates no release. A request whose response headers
+do not arrive within two minutes fails, as on GitHub: the bound is on the wait for the answer, so a
+large upload is not cut short.
 
 - **Project** resolution: `cfg.Project` → `$CI_PROJECT_PATH` → error
 - **Token**: in GitLab CI on the instance named by `CI_SERVER_URL`, `CI_JOB_TOKEN` is sent as
@@ -624,7 +627,7 @@ type Platform interface {
     ReleaseURL(tag string) string                  // canonical URL
     ReleaseURLFromContext(tag string, lc *port.LinkContext) string // URL consistent with a given link context (ADR-0022); falls back to ReleaseURL when lc is nil
     LinkContext() port.LinkContext                 // this platform's link-resolution coordinates (host, owner, repo, type)
-    Check() error                                  // token + project/repo resolved, token accepted by the API
+    Check(ctx context.Context) error               // token + project/repo resolved, token accepted by the API; stops when ctx is cancelled (Ctrl-C)
     CreateRelease(ctx context.Context, tag, notes string, prerelease bool) error // create the release and attach its assets — see § Asset resolution above; stops when ctx is cancelled (Ctrl-C)
     HasAssets() bool                               // true if cfg.Assets is non-empty
     CheckAssets() error                            // asset path rules, applied before anything is pushed (no request, no CLI call)

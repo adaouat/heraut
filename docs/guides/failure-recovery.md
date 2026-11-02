@@ -66,7 +66,7 @@ git push origin v1.2.3
 ## C. Tag pushed, no release
 
 Typical cause: the forge call failed (token, scope, outage), or the run was interrupted (Ctrl-C)
-while publishing; heraut deletes a GitHub draft it created on the way out, so there is no
+while it fetched the release notes' pull requests or published; heraut deletes a GitHub draft it created on the way out, so there is no
 half-published release to clean up. A release asset pattern that matches nothing is not a cause: it is refused before anything is pushed (state A). No heraut command publishes a release
 for an existing tag, so create it with the forge's CLI, using the notes heraut generates:
 
