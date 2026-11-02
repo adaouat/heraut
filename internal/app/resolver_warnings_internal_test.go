@@ -18,9 +18,10 @@ func (s stubResolver) Resolve() (versioning.Result, error) { return s.res, s.err
 
 func TestWarningResolver_KeepsWarningsTheInnerResolverAlreadySet(t *testing.T) {
 	w := warningResolver{
-		inner:           stubResolver{res: versioning.Result{Tag: "v0.69.0", Warnings: []string{"inner"}}},
-		warnings:        func() []string { return []string{"recorded"} },
-		wouldBeVersions: func() []string { return nil },
+		inner:            stubResolver{res: versioning.Result{Tag: "v0.69.0", Warnings: []string{"inner"}}},
+		warnings:         func() []string { return []string{"recorded"} },
+		wouldBeVersions:  func() []string { return nil },
+		unconfirmedMajor: func() []string { return nil },
 	}
 
 	res, err := w.Resolve()

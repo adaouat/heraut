@@ -58,10 +58,14 @@ func WithAllowMajor(allow bool) ResolverOption {
 // perenv.VersionCalculator, whose BumpAuto returns only (string, error). The semver resolver
 // resets its recorded warnings on entry to both Resolve and BumpAuto, so reading them after
 // Resolve can never return a previous run's text.
+//
+// It also copies the commits of a major left for --allow-major to confirm (ADR-0078) into
+// Result.UnconfirmedMajor, for the same reason.
 type warningResolver struct {
-	inner           versioning.Resolver
-	warnings        func() []string
-	wouldBeVersions func() []string
+	inner            versioning.Resolver
+	warnings         func() []string
+	wouldBeVersions  func() []string
+	unconfirmedMajor func() []string
 }
 
 func (w warningResolver) Resolve() (versioning.Result, error) {
@@ -79,6 +83,7 @@ func (w warningResolver) Resolve() (versioning.Result, error) {
 		rewritten[i] = warn
 	}
 	res.Warnings = append(res.Warnings, rewritten...)
+	res.UnconfirmedMajor = w.unconfirmedMajor()
 	return res, nil
 }
 
@@ -216,13 +221,13 @@ func NewResolver(cfg *config.Config, env string, force bool, versionOverride, bu
 		if err := applyBranchRule(r, cfg, runner, o.noGuard); err != nil {
 			return nil, err
 		}
-		return warningResolver{inner: r, warnings: r.Warnings, wouldBeVersions: r.WouldBeVersions}, nil
+		return warningResolver{inner: r, warnings: r.Warnings, wouldBeVersions: r.WouldBeVersions, unconfirmedMajor: r.UnconfirmedMajor}, nil
 	case "calver":
 		return calver.New(runner, cfg, clock()), nil
 	case "semver-per-env":
 		calc := semver.New(nil, cfg)
 		calc.SetAllowMajor(o.allowMajor)
-		return warningResolver{inner: perenv.New(runner, cfg, env, force, calc), warnings: calc.Warnings, wouldBeVersions: calc.WouldBeVersions}, nil
+		return warningResolver{inner: perenv.New(runner, cfg, env, force, calc), warnings: calc.Warnings, wouldBeVersions: calc.WouldBeVersions, unconfirmedMajor: calc.UnconfirmedMajor}, nil
 	case "calver-per-env":
 		calc := calver.New(nil, cfg, clock())
 		return perenv.New(runner, cfg, env, force, calc), nil

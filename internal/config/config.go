@@ -100,6 +100,11 @@ func (v Versioning) StayAtV0() bool {
 	return v.Bump != nil && v.Bump.StayAtV0
 }
 
+// ConfirmMajor reports whether versioning.bump.confirm_major is set. Nil-safe.
+func (v Versioning) ConfirmMajor() bool {
+	return v.Bump != nil && v.Bump.ConfirmMajor
+}
+
 // BumpConfig configures SemVer auto-bump resolution (T261): the resolution mode, and — for auto
 // mode — per-commit bump-level overrides layered on top of the built-in defaults (breaking
 // commits → major, feat → minor, any other conventional commit → patch).
@@ -108,6 +113,8 @@ type BumpConfig struct {
 	Overrides []BumpRule `yaml:"overrides,omitempty"`
 	// StayAtV0 holds a major bump back to minor while the current major version is 0 (ADR-0063).
 	StayAtV0 bool `yaml:"stay_at_v0,omitempty"`
+	// ConfirmMajor refuses an automatic major bump until the run passes --allow-major (ADR-0078).
+	ConfirmMajor bool `yaml:"confirm_major,omitempty"`
 }
 
 // BumpRule assigns an explicit bump level to commits matching Type, Regex, and/or Breaking — all

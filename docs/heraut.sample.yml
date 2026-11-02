@@ -37,8 +37,8 @@ versioning:
   # semver and semver-per-env only.
   initial_version: "0.1.0"
 
-  # bump — how to determine the version increment. mode is semver only; overrides and
-  # stay_at_v0 apply to semver and to the `bump: auto` environments of semver-per-env
+  # bump — how to determine the version increment. mode is semver only; overrides,
+  # stay_at_v0 and confirm_major apply to semver and to the `bump: auto` environments of semver-per-env
   # (each environment's own bump: auto/promote still decides whether commits are
   # inspected at all — see environments below). Omit the whole block for the default
   # (mode: auto, no overrides).
@@ -77,6 +77,15 @@ versioning:
     # stay_at_v0 applies to the `bump: auto` environments too). Does not apply to
     # `bump: promote` environments or to CalVer.
     stay_at_v0: false
+
+    # confirm_major — optional, default false. An automatic major bump, at any version,
+    # stops heraut release and heraut changelog (Config error, exit 2, before anything is
+    # written or tagged) until the run is repeated with --allow-major, so a major release
+    # is always deliberate. heraut version next still prints the major, with a warning.
+    # stay_at_v0 goes first: a major it holds back at 0.x needs no confirmation. Ignored
+    # with --set-version and under mode: manual; applies to the `bump: auto` environments
+    # of semver-per-env, not to `bump: promote` environments or to CalVer.
+    confirm_major: false
 
   # tag_type — git tag type. Omit for the default (annotated).
   #   annotated   created with -a; carries tagger, timestamp, message

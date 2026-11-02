@@ -22,6 +22,7 @@ type Resolver struct {
 	preReleaseLabel string
 	warnings        []string
 	wouldBeVersions []string
+	unconfirmed     []string
 	maintenance     *Range
 	fixedCore       string
 	allowReleased   bool
@@ -37,8 +38,7 @@ func New(runner port.Runner, cfg *config.Config) *Resolver {
 // full commit messages since the latest tag. Implements the VersionCalculator
 // interface consumed by internal/versioning/perenv.
 func (r *Resolver) BumpAuto(tags []string, commits []string) (string, error) {
-	r.warnings = nil
-	r.wouldBeVersions = nil
+	r.reset()
 	if len(tags) == 0 {
 		return r.initialVersion(), nil
 	}
@@ -88,29 +88,49 @@ func (r *Resolver) WouldBeVersions() []string {
 	return slices.Clone(r.wouldBeVersions)
 }
 
+// UnconfirmedMajor returns the subject of every commit that forced the major bump of the most
+// recent Resolve or BumpAuto call when versioning.bump.confirm_major asks for --allow-major before
+// it (ADR-0078) — nil when there is nothing to confirm. The resolver still returns the major; the
+// commands decide whether to refuse it.
+func (r *Resolver) UnconfirmedMajor() []string {
+	return slices.Clone(r.unconfirmed)
+}
+
+func (r *Resolver) reset() {
+	r.warnings = nil
+	r.wouldBeVersions = nil
+	r.unconfirmed = nil
+}
+
 // bumpAfterHold is DetermineBump plus versioning.bump.stay_at_v0 (ADR-0063), recording any
-// warning for Warnings.
+// warning for Warnings, then versioning.bump.confirm_major (ADR-0078), recording a major still
+// left for UnconfirmedMajor: the hold goes first, so a major it lowered needs no confirmation.
 func (r *Resolver) bumpAfterHold(currentVersion string, commits []string) versioning.BumpType {
 	overrides := r.cfg.Versioning.BumpOverrides()
 	bump := DetermineBump(commits, overrides)
 	r.warnIfChangelogWouldBeEmpty(commits, overrides)
-	if !r.cfg.Versioning.StayAtV0() || r.allowMajor {
+	if r.allowMajor {
 		return bump
 	}
-	held, warning, wouldBe := holdMajorAtZero(currentVersion, bump, commits, overrides)
-	if warning != "" {
-		r.warnings = append(r.warnings, warning)
-		r.wouldBeVersions = append(r.wouldBeVersions, wouldBe)
+	if r.cfg.Versioning.StayAtV0() {
+		held, warning, wouldBe := holdMajorAtZero(currentVersion, bump, commits, overrides)
+		if warning != "" {
+			r.warnings = append(r.warnings, warning)
+			r.wouldBeVersions = append(r.wouldBeVersions, wouldBe)
+		}
+		bump = held
 	}
-	return held
+	if bump == versioning.BumpMajor && r.cfg.Versioning.ConfirmMajor() {
+		r.unconfirmed = commitsAtLevel(commits, overrides, versioning.BumpMajor)
+	}
+	return bump
 }
 
 // Resolve returns the next version result.
 // An explicit versionOverride (set via SetVersionOverride) always takes precedence over
 // the configured bump mode — this allows --set-version to short-circuit auto resolution.
 func (r *Resolver) Resolve() (versioning.Result, error) {
-	r.warnings = nil
-	r.wouldBeVersions = nil
+	r.reset()
 	if r.versionOverride != "" || r.cfg.Versioning.BumpMode() == "manual" {
 		return r.resolveManual()
 	}

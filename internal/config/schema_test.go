@@ -80,6 +80,7 @@ func TestSchema_InvalidFixtures(t *testing.T) {
 		{"targets_prerelease_removed.yml", "release.targets[].prerelease is a disallowed property (removed key, ADR-0064)"},
 		{"branches_bad_range.yml", "versioning.branches[].range must match N.x or N.N.x (ADR-0065)"},
 		{"branches_empty_name.yml", "versioning.branches[].name minLength 1 (ADR-0065)"},
+		{"confirm_major_not_boolean.yml", "versioning.bump.confirm_major must be a boolean (ADR-0078)"},
 	}
 
 	for _, tc := range tests {

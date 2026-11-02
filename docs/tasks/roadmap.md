@@ -3709,7 +3709,7 @@ automatic major bump is refused until the run is repeated with `--allow-major`, 
 The user chose to build it, `heraut version next` to preview with a warning rather than fail, and the
 Config exit code (2) for the refusal.
 
-#### `[ ]` T445: the setting, and the resolver's unconfirmed-major mark
+#### `[x]` T445: the setting, and the resolver's unconfirmed-major mark
 
 `versioning.bump.confirm_major` (bool, default `false`) in `config.go`, `schema.json` and
 `docs/heraut.sample.yml`, with valid and invalid fixtures. In `bumpAfterHold`, after the `stay_at_v0` hold:
@@ -3720,6 +3720,17 @@ mark; it reaches `semver-per-env`'s `bump: auto` environments the way the hold's
 winning at v0 with both on, `--allow-major`, `--set-version` and `bump.mode: manual` unaffected, an override
 yielding `major`, opening a pre-release series on a new major, a `semver-per-env` auto environment, a
 promote environment unaffected, a version branch keeping its out-of-range error.
+
+Done 2026-11-02. `BumpConfig.ConfirmMajor` with a nil-safe `Versioning.ConfirmMajor()`; `bumpAfterHold` now
+returns early on `--allow-major`, applies the hold, then records `commitsAtLevel(…, BumpMajor)` when the bump
+is still major and the setting is on. The mark is `versioning.Result.UnconfirmedMajor []string`, the subjects
+of every forcing commit (non-empty exactly when there is something to confirm, since a major always has a
+commit at that level; the commands will cap the list at five). `(*semver.Resolver).UnconfirmedMajor()`
+exposes it, a shared `reset()` clears it with the warnings on entry to `Resolve` and `BumpAuto`, and
+`app.warningResolver` copies it onto the result for `semver` and `semver-per-env` alike, the hold's path.
+Schema, sample (which already describes the refusal T446 adds), a valid fixture and an invalid one (a
+non-boolean value). Tests first, every row the task lists; 11 mutations each fail a test, a no-op control
+survives. Until T446 the setting is read but nothing refuses on it.
 
 #### `[ ]` T446: refuse in release and changelog, preview in version next
 

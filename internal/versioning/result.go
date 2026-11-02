@@ -24,6 +24,10 @@ type Result struct {
 	// versioning.bump.stay_at_v0. One entry per warning; an entry may span several lines, headline
 	// first. Resolvers never print them; callers do.
 	Warnings []string
+	// UnconfirmedMajor lists the subject of every commit that forced an automatic major bump which
+	// versioning.bump.confirm_major asks --allow-major for (ADR-0078); nil when there is nothing to
+	// confirm. Resolvers never refuse it; the commands that tag do.
+	UnconfirmedMajor []string
 }
 
 // String names the bump ("none", "patch", "minor", "major").

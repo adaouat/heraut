@@ -456,6 +456,10 @@
         "stay_at_v0": {
           "type": "boolean",
           "description": "While the current major version is 0, hold a major bump back to minor (with a warning) instead of releasing 1.0.0. Lift it for one run with --allow-major. Defaults to false."
+        },
+        "confirm_major": {
+          "type": "boolean",
+          "description": "Refuse an automatic major bump, at any version, until the run is repeated with --allow-major, so a major release is always deliberate. heraut version next still prints the major, with a warning. stay_at_v0 goes first: a major it holds back at 0.x needs no confirmation. Ignored with --set-version and under mode: manual. Defaults to false."
         }
       }
     },
