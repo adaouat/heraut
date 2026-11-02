@@ -88,6 +88,7 @@ func TestEnrichForRelease_AnInterruptFailsEvenWhenOptional(t *testing.T) {
 	_, err := g.enrichForRelease(ctx, []rawCommit{{Hash: "abc"}}, "v1.0.0")
 
 	require.ErrorIs(t, err, context.Canceled)
+	assert.NotContains(t, err.Error(), "required", "the policy is not what stopped the run")
 	assert.False(t, g.Degraded())
 }
 

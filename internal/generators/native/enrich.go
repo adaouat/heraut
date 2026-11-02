@@ -68,7 +68,10 @@ func (g *Generator) enrichForRelease(ctx context.Context, commits []rawCommit, r
 	er, err := g.enrich(ctx, commits, ref)
 	if err != nil {
 		// An interrupted run is not an unavailable forge: it stops rather than rendering without PRs.
-		if required || ctx.Err() != nil {
+		if ctx.Err() != nil {
+			return enrichResult{}, fmt.Errorf("remote enrichment: %w", err)
+		}
+		if required {
 			return enrichResult{}, fmt.Errorf("remote enrichment (required): %w", err)
 		}
 		if !g.degraded {
