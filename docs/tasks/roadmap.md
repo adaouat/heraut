@@ -253,10 +253,11 @@ discipline that applies to every task.
 | 82 | Last open security findings (NEW-005 residual, SEC-002) | Done |
 | 83 | Code review follow-ups (2026-10-28 review of Phases 80–82) | Done |
 | 84 | Azure DevOps enrichment fixes | Done |
+| 85 | Confirm major bumps (`versioning.bump.confirm_major`, ADR-0078) | Not started — T445, T446 |
 
 ### Open items
 
-The only unchecked item outside Phase 53 (T304 is a deliberately unscheduled future task) is the
+The only unchecked item outside Phase 53 and Phase 85 (T445, T446) is the
 last sub-checkbox of Phase 10's closing checkpoint, `v1.0.0 cut …`:
 
 #### ✦ `[x]` CHECKPOINT K — Beta polish complete, ready for v1.0.0
@@ -1786,7 +1787,7 @@ config` passes with the dogfood key enabled. Deferred minors, not covered: a few
 in `internal/pipeline` and `internal/app` (failed-resolve and CalVer guards, ordering of several
 warnings). T304 remains unscheduled.
 
-#### ✦ `[ ]` T304: (future, not scheduled) major-bump gate for versions ≥ 1
+#### ✦ `[x]` T304: (future, not scheduled) major-bump gate for versions ≥ 1
 
 A separate, deliberately deferred decision: a setting under which — for **every** major version,
 not only v0 — an automatic major bump *fails* with a clear message until the run is repeated with
@@ -1795,6 +1796,10 @@ demotion: releasing a breaking change as a minor above 1.0 violates SemVer §8 a
 Commits' `BREAKING CHANGE` ↔ MAJOR mapping. Reuses T303's `--allow-major`. Needs its own design
 pass (setting name and placement, interaction with `stay_at_v0`, per-env behaviour) before any
 work; do not start it without one.
+
+Design pass done 2026-11-02 with the user: [ADR-0078](../adr/0078-confirm-major-bumps.md) decides an opt-in
+`versioning.bump.confirm_major`, the hold of `stay_at_v0` going first at v0, `heraut version next`
+previewing with a warning, and the Config exit code. The work is scheduled as Phase 85 (T445, T446).
 
 ---
 
@@ -3695,6 +3700,35 @@ tests that pinned the old CI split now assert the new one (same invariant, the o
 Azure Pipelines (project set, `base_url` set, nothing set), Azure DevOps Server, and a URI without team
 project (project left empty, not `myorg/`). Four mutations (the old split, no legacy host, the organization
 kept in the host, no empty-project guard) each fail them. Spec 02 § identity resolution describes the split.
+
+### Phase 85 — Confirm major bumps (`versioning.bump.confirm_major`)
+
+The design pass T304 asked for, held with the user on 2026-11-02 and recorded in
+[ADR-0078](../adr/0078-confirm-major-bumps.md): an opt-in `versioning.bump.confirm_major` under which an
+automatic major bump is refused until the run is repeated with `--allow-major`, at every major version.
+The user chose to build it, `heraut version next` to preview with a warning rather than fail, and the
+Config exit code (2) for the refusal.
+
+#### `[ ]` T445: the setting, and the resolver's unconfirmed-major mark
+
+`versioning.bump.confirm_major` (bool, default `false`) in `config.go`, `schema.json` and
+`docs/heraut.sample.yml`, with valid and invalid fixtures. In `bumpAfterHold`, after the `stay_at_v0` hold:
+when the setting is on, `--allow-major` was not passed and the bump is still `major`, mark the result as an
+unconfirmed major and keep the commits that forced it (reuse `majorCommits`). `versioning.Result` carries the
+mark; it reaches `semver-per-env`'s `bump: auto` environments the way the hold's warnings do (the pointer
+`app.NewResolver` keeps). Tests first: `semver` auto, `0.x` → `1.0.0` with the setting alone, the hold
+winning at v0 with both on, `--allow-major`, `--set-version` and `bump.mode: manual` unaffected, an override
+yielding `major`, opening a pre-release series on a new major, a `semver-per-env` auto environment, a
+promote environment unaffected, a version branch keeping its out-of-range error.
+
+#### `[ ]` T446: refuse in release and changelog, preview in version next
+
+`heraut release` and `heraut changelog` refuse a marked result in their "Resolve version" step, before any
+hook, write, commit or tag, `--dry-run` and `--json` included, with a sentinel error mapped to the Config
+code (2): the would-be tag, up to five forcing commits, and the `--allow-major` hint. `heraut version next`
+prints the tag, exits 0 and warns on stderr. Tests first, unit and e2e (exit code, nothing written or
+tagged, the dry run refusing, `version next` stdout unchanged). Specs 02, 03 and 04 describe the setting
+and the refusal.
 
 Every Phase above marked `Done` and not pointing to a dedicated roadmap (D, 0–9, 11–22, 26, 28,
 30, 31) has had its full task write-up — implementation notes, decisions, deviations — moved to

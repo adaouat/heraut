@@ -102,7 +102,7 @@ flag lift it for a single run.** `versioning.bump` gains an optional boolean `st
   feature with a different shape — an *error* until the run is repeated with `--allow-major`, not a
   demotion. It is recorded as roadmap task T304, deliberately deferred and needing its own design
   pass (setting name and placement, interaction with `stay_at_v0`, per-env behaviour); this ADR does
-  not decide it.
+  not decide it. [ADR-0078](0078-confirm-major-bumps.md) does.
 - **One more resolver option and one more result field.** Small, but every future resolver that can
   produce warnings goes through the same `Result.Warnings` → `ui.WarnLines` path rather than
   printing on its own.
