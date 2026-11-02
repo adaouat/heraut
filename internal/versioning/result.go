@@ -1,5 +1,18 @@
 package versioning
 
+import (
+	"errors"
+	"fmt"
+	"strings"
+)
+
+// ErrMajorNotConfirmed is matched (errors.Is) by MajorConfirmationError's error: an automatic major
+// bump that versioning.bump.confirm_major asks --allow-major for (ADR-0078).
+var ErrMajorNotConfirmed = errors.New("major bump not confirmed")
+
+// maxListedCommits caps the commits a major-confirmation message lists.
+const maxListedCommits = 5
+
 // BumpType represents the SemVer component to increment.
 type BumpType int
 
@@ -41,4 +54,44 @@ func (b BumpType) String() string {
 		return "major"
 	}
 	return "none"
+}
+
+// MajorConfirmationError is the refusal heraut release and heraut changelog return for a major still
+// to confirm (ADR-0078), naming the tag and the commits that forced it; nil when there is nothing
+// to confirm.
+func (r Result) MajorConfirmationError() error {
+	if len(r.UnconfirmedMajor) == 0 {
+		return nil
+	}
+	msg := fmt.Sprintf("%s is a major release, and versioning.bump.confirm_major asks to confirm it: pass --allow-major on this run to release it", r.Tag)
+	return &majorNotConfirmedError{msg: msg + listCommits(r.UnconfirmedMajor)}
+}
+
+// MajorConfirmationWarning is what heraut version next prints instead of refusing; "" when there
+// is nothing to confirm.
+func (r Result) MajorConfirmationWarning() string {
+	if len(r.UnconfirmedMajor) == 0 {
+		return ""
+	}
+	return fmt.Sprintf("%s is a major release: heraut release and heraut changelog refuse it without --allow-major (versioning.bump.confirm_major)", r.Tag) +
+		listCommits(r.UnconfirmedMajor)
+}
+
+type majorNotConfirmedError struct{ msg string }
+
+func (e *majorNotConfirmedError) Error() string { return e.msg }
+func (e *majorNotConfirmedError) Unwrap() error { return ErrMajorNotConfirmed }
+
+// listCommits renders up to maxListedCommits subjects as "\n  - <subject>" lines, then a
+// "\n  … and N more" line for the others.
+func listCommits(subjects []string) string {
+	var b strings.Builder
+	for i, s := range subjects {
+		if i == maxListedCommits {
+			fmt.Fprintf(&b, "\n  … and %d more", len(subjects)-maxListedCommits)
+			break
+		}
+		fmt.Fprintf(&b, "\n  - %s", s)
+	}
+	return b.String()
 }

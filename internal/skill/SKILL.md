@@ -14,6 +14,8 @@ file named by `--config` / `HERAUT_FILE`). The project's `schema.json` describes
 - **Never run `heraut release` or `heraut changelog --commit/--tag` without the user's explicit
   approval in this conversation.** They push commits and tags and publish releases, which cannot be
   taken back. The other commands read, or write one local file (noted in the table).
+- Never pass `--allow-major` unless the user asked for a major release in this conversation:
+  `versioning.bump.confirm_major` makes a major wait for exactly that confirmation.
 - Never replace an existing file without the user's approval: do not pass `--overwrite` (`notes`,
   `init`) or `--force` (`skill install`) unless the user asked for that file to be replaced.
 - Always put `--json` on commands that support it and read stdout only. Stderr carries human text.
@@ -75,7 +77,7 @@ stdout stays empty, the message is on stderr, exit 1.
 |---|---|---|
 | 0 | success | — |
 | 1 | usage error (bad flag, no terminal for an interactive command, invalid commit message) | fix the call |
-| 2 | configuration error (invalid YAML, missing `--env`, branch guard, `{build}` without an ID) | fix `.heraut.yml` or the flags; `heraut check config --json` lists the findings |
+| 2 | configuration error (invalid YAML, missing `--env`, branch guard, `{build}` without an ID, a major release `versioning.bump.confirm_major` asks to confirm) | fix `.heraut.yml` or the flags; `heraut check config --json` lists the findings. For an unconfirmed major, ask the user |
 | 3 | runtime error (git, token, network, hook, publish failed) | read `error.message`; retry only if transient |
 | 4 | promotion guard (E001–E003) | do not force: report to the user, `--force` overrides a safety check |
 | 70 | internal error | report it |

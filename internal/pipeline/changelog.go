@@ -235,6 +235,9 @@ func (p *ChangelogPipeline) Run(ctx context.Context) error {
 		if err != nil {
 			return "", nil, fmt.Errorf("resolving version: %w", err)
 		}
+		if err := r.MajorConfirmationError(); err != nil {
+			return "", nil, err
+		}
 		result = r
 		return r.Tag, nil, nil
 	}); err != nil {

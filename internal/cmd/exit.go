@@ -24,7 +24,8 @@ func wrapBranchErr(err error) error {
 
 // wrapRunErr classifies an error from resolving a version or running a pipeline:
 // promotion guards (E001/E002/E003) map to exit code 4, a tag format that needs a {build} ID
-// nobody supplied, or a missing/unknown --env, maps to the configuration code (the same class as the explicit --set-version
+// nobody supplied, a missing/unknown --env, or a major bump versioning.bump.confirm_major asks
+// --allow-major for, maps to the configuration code (the same class as the explicit --set-version
 // path), everything else to the runtime code. Returns nil when err is nil.
 //
 // summary is optional. When given, the returned error displays summary instead of err's own
@@ -39,7 +40,7 @@ func wrapRunErr(err error, summary ...string) error {
 	code := exitcode.Runtime
 	if app.IsPromotionGuard(err) {
 		code = exitcode.Promotion
-	} else if app.IsBuildIDRequired(err) || app.IsEnvSelection(err) {
+	} else if app.IsBuildIDRequired(err) || app.IsEnvSelection(err) || app.IsMajorNotConfirmed(err) {
 		code = exitcode.Config
 	}
 	if len(summary) > 0 {

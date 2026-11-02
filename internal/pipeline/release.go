@@ -113,6 +113,9 @@ func (p *Pipeline) Run(ctx context.Context) error {
 		if err != nil {
 			return "", nil, fmt.Errorf("resolving version: %w", err)
 		}
+		if err := r.MajorConfirmationError(); err != nil {
+			return "", nil, err
+		}
 		result = r
 		p.debug("resolved version", "tag", r.Tag, "version", r.Version, "current_tag", r.CurrentTag)
 		return r.Tag, nil, nil

@@ -49,7 +49,7 @@ func NewReleaseCmd(version string) *cobra.Command {
 	releaseCmd.Flags().Bool("json", false, "with --dry-run, print the plan as a JSON envelope")
 	releaseCmd.Flags().String("env", "", "target environment (for per-env strategies)")
 	releaseCmd.Flags().Bool("force", false, "override safety checks blocking tag promotion or missing PR/MR metadata")
-	releaseCmd.Flags().Bool("allow-major", false, "lift versioning.bump.stay_at_v0 and the pre-release series major-escalation block for this run")
+	releaseCmd.Flags().Bool("allow-major", false, "confirm a major bump for this run: lift versioning.bump.stay_at_v0, versioning.bump.confirm_major and the pre-release series major-escalation block")
 	releaseCmd.Flags().String("pre-release", "", "mint a pre-release <core>-<label>.<N> (plain semver only; never writes CHANGELOG.md)")
 	releaseCmd.Flags().Bool("offline", false, "skip remote PR/MR metadata enrichment (forces enrichment_policy: disabled)")
 	releaseCmd.Flags().BoolVar(&rf.noHooks, "no-hooks", false, "skip every configured hook (post_bump/pre_changelog/pre_tag/post_tag/pre_release/post_release) for this run")

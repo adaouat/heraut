@@ -2,6 +2,7 @@ package app
 
 import (
 	"errors"
+	"github.com/adaouat/heraut/internal/versioning"
 	"github.com/adaouat/heraut/internal/versioning/branch"
 
 	"github.com/adaouat/heraut/internal/versioning/perenv"
@@ -37,6 +38,13 @@ func IsBranchMismatch(err error) bool {
 // configuration exit code without importing the tagfmt package directly.
 func IsBuildIDRequired(err error) bool {
 	return errors.Is(err, tagfmt.ErrBuildIDRequired)
+}
+
+// IsMajorNotConfirmed reports whether err is the refusal of an automatic major bump that
+// versioning.bump.confirm_major asks --allow-major for (ADR-0078). The cmd layer maps it to the
+// configuration exit code: a project rule stopped the run.
+func IsMajorNotConfirmed(err error) bool {
+	return errors.Is(err, versioning.ErrMajorNotConfirmed)
 }
 
 // PromotionGuardID returns the guard identifier ("E001", "E002" or "E003") err wraps, or "" when err

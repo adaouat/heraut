@@ -35,6 +35,9 @@ func (p *Pipeline) Plan() (Plan, error) {
 	if err != nil {
 		return Plan{}, fmt.Errorf("resolving version: %w", err)
 	}
+	if err := result.MajorConfirmationError(); err != nil {
+		return Plan{}, err
+	}
 	flow := p.releaseFlow(context.Background(), result) // Plan runs no step, so no request uses it
 	plan := Plan{Tag: result.Tag, Version: result.Version, CurrentTag: result.CurrentTag, PreRelease: flow.prerelease, Warnings: result.Warnings}
 	for _, s := range flow.steps() {
