@@ -152,6 +152,41 @@ It is v0-only on purpose: SemVer permits breaking changes in `0.y.z` (§4) but r
 bump for them from 1.0.0 (§8), so holding one back above 1.0 would make the version number lie.
 The changelog and release notes still mark the commits as breaking.
 
+### Confirming major bumps (`confirm_major`)
+
+A project can require every major release to be deliberate, at any version
+([ADR-0078](../adr/0078-confirm-major-bumps.md)):
+
+```yaml
+versioning:
+  bump:
+    confirm_major: true             # optional, default false
+```
+
+When a release's bump resolves to `major` — after `bump.overrides`, as for `stay_at_v0` —
+`heraut release` and `heraut changelog` stop at "Resolve version", before any hook, write, commit or
+tag, with the Config exit code (2). `--dry-run` and `--json` refuse the same way. The message names
+the tag, the commits that forced the major (five at most, then a count) and the way through:
+
+```
+v2.0.0 is a major release, and versioning.bump.confirm_major asks to confirm it: pass --allow-major on this run to release it
+  - feat!: drop the v1 API
+```
+
+Pass `--allow-major` to release the major for that run. `heraut version next` does not refuse: it
+prints the major tag on stdout, exits 0 and warns on stderr (in `--json`, in `warnings`) that
+`release` and `changelog` will refuse it without `--allow-major`.
+
+It applies at every major version, `0.x` → `1.0.0` included. With `stay_at_v0` also set, the hold
+goes first: at `0.x` the major becomes a minor and nothing is left to confirm; from 1.0 on the hold
+does nothing and the refusal applies. Opening a pre-release series on a new major
+(`1.4.0` → `2.0.0-rc.1`) is refused the same way; moving an open series to a new major is already an
+error (§ Pre-release lifecycle). On a version branch a major leaves the branch's range, and that
+error stands (§ Maintenance branches). The setting is ignored with `--set-version` and under
+`bump.mode: manual`, and applies to `semver` and to the `bump: auto` environments of
+`semver-per-env` — not to CalVer or `promote` environments, which copy a version approved where it
+came from.
+
 ### Prefix handling
 
 `tag_prefix` (default `"v"`) is stripped before SemVer comparison and re-applied on output.

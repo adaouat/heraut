@@ -253,11 +253,11 @@ discipline that applies to every task.
 | 82 | Last open security findings (NEW-005 residual, SEC-002) | Done |
 | 83 | Code review follow-ups (2026-10-28 review of Phases 80–82) | Done |
 | 84 | Azure DevOps enrichment fixes | Done |
-| 85 | Confirm major bumps (`versioning.bump.confirm_major`, ADR-0078) | In progress — T445 done; T446 not started |
+| 85 | Confirm major bumps (`versioning.bump.confirm_major`, ADR-0078) | Done |
 
 ### Open items
 
-The only unchecked item outside Phase 53 and Phase 85 (T445, T446) is the
+The only unchecked item outside Phase 53 is the
 last sub-checkbox of Phase 10's closing checkpoint, `v1.0.0 cut …`:
 
 #### ✦ `[x]` CHECKPOINT K — Beta polish complete, ready for v1.0.0
@@ -3732,7 +3732,7 @@ Schema, sample (which already describes the refusal T446 adds), a valid fixture 
 non-boolean value). Tests first, every row the task lists; 11 mutations each fail a test, a no-op control
 survives. Until T446 the setting is read but nothing refuses on it.
 
-#### `[ ]` T446: refuse in release and changelog, preview in version next
+#### `[x]` T446: refuse in release and changelog, preview in version next
 
 `heraut release` and `heraut changelog` refuse a marked result in their "Resolve version" step, before any
 hook, write, commit or tag, `--dry-run` and `--json` included, with a sentinel error mapped to the Config
@@ -3740,6 +3740,21 @@ code (2): the would-be tag, up to five forcing commits, and the `--allow-major` 
 prints the tag, exits 0 and warns on stderr. Tests first, unit and e2e (exit code, nothing written or
 tagged, the dry run refusing, `version next` stdout unchanged). Specs 02, 03 and 04 describe the setting
 and the refusal.
+
+Done 2026-11-02. `versioning.Result` gained `MajorConfirmationError()` (wrapping the new
+`versioning.ErrMajorNotConfirmed`) and `MajorConfirmationWarning()`, one place for both texts and the
+five-commit cap. Both pipelines' "Resolve version" steps and `Pipeline.Plan()` (`--json`) return the error,
+so nothing after them runs, in a dry run too; `app.IsMajorNotConfirmed` lets `wrapRunErr` map it to Config
+(2), and the JSON `error.code` follows as `config`. `version next` appends the warning to its warnings
+(stderr, or `warnings` in `--json`). Beyond the task: the `--allow-major` help text of the three commands now
+names `confirm_major`, Spec 01's exit-code table lists the refusal, and the bundled agent skill tells an
+agent never to pass `--allow-major` unless the user asked for a major in the conversation, since that is
+the confirmation the setting waits for. Tests first: result messages, both pipelines and the plan (no hook,
+git call or generation), the Config code on `release --dry-run`, `release --dry-run --json` and `changelog
+--dry-run`, `--allow-major`, `version next` text and JSON; e2e: `release`, `release --dry-run`, `changelog
+--tag` and `changelog --dry-run` exit 2 with nothing tagged, written or published, `--allow-major` tags
+`v2.0.0`, `version next` prints it. 12 mutations each fail a test (one first try did not compile and was
+redone), a no-op control survives.
 
 Every Phase above marked `Done` and not pointing to a dedicated roadmap (D, 0–9, 11–22, 26, 28,
 30, 31) has had its full task write-up — implementation notes, decisions, deviations — moved to
