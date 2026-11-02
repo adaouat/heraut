@@ -56,11 +56,9 @@ func (f *Forge) enrichPRs(ctx context.Context, shas []string) (map[string]port.P
 
 // queryPRs sends one pullrequestquery for shas and adds the pull requests found to result.
 func (f *Forge) queryPRs(ctx context.Context, shas []string, result map[string]port.PullRequest) error {
-	// Project is appended as-is (never split): the organization lives in Host when Host is the
-	// dev.azure.com form ("https://dev.azure.com/myorg"), or in Host's subdomain when it's the
-	// legacy visualstudio.com form — either way Host already carries it exactly once, so Project
-	// composes here as one opaque segment, matching webBase()'s formula (C2: composing an
-	// org-splitting Project on top of an org-bearing Host duplicated the organization).
+	// Host carries no organization ("https://dev.azure.com", or an Azure DevOps Server root without
+	// its collection) and Project is "organization/project" (ADR-0035), so Project is appended
+	// as-is, one opaque segment, matching webBase()'s formula: the organization appears once.
 	endpoint := fmt.Sprintf("%s/%s/_apis/git/repositories/%s/pullrequestquery?api-version=%s",
 		strings.TrimRight(f.id.Host, "/"), f.id.Project, url.PathEscape(f.id.Repository), apiVersion)
 
