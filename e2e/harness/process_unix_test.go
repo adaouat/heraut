@@ -25,38 +25,50 @@ func TestRepo_StartInterruptAndWait(t *testing.T) {
 	assert.Equal(t, "ready\ngot-int\n", res.Stdout)
 }
 
-func TestRepo_FakeGitHubHangUploadsUntilTheClientLeaves(t *testing.T) {
-	r := NewRepo(t)
-	gh := r.FakeGitHub()
-	arrived := gh.HangUploads()
-
-	ctx, cancel := context.WithCancel(t.Context())
-	done := make(chan error, 1)
-	go func() {
-		req, err := http.NewRequestWithContext(ctx, http.MethodPost, gh.URL+"/api/uploads/repos/acme/widget/releases/1/assets?name=a.txt", strings.NewReader("a"))
-		if err != nil {
-			done <- err
-			return
-		}
-		resp, err := http.DefaultClient.Do(req)
-		if err == nil {
-			_ = resp.Body.Close()
-		}
-		done <- err
-	}()
-
-	select {
-	case <-arrived:
-	case <-time.After(5 * time.Second):
-		t.Fatal("the upload never reached the stand-in")
+func TestRepo_FakeGitHubHangsUntilTheClientLeaves(t *testing.T) {
+	tests := []struct {
+		kind         Hang
+		method, path string
+	}{
+		{HangUploads, http.MethodPost, "/api/uploads/repos/acme/widget/releases/1/assets"},
+		{HangReleaseLists, http.MethodGet, "/api/v3/repos/acme/widget/releases"},
+		{HangGraphQL, http.MethodPost, "/api/graphql"},
 	}
-	cancel()
-	select {
-	case err := <-done:
-		require.ErrorIs(t, err, context.Canceled)
-	case <-time.After(5 * time.Second):
-		t.Fatal("the hung upload did not end when the client left")
+	for _, tc := range tests {
+		t.Run(tc.path, func(t *testing.T) {
+			r := NewRepo(t)
+			gh := r.FakeGitHub()
+			arrived := gh.Hang(tc.kind)
+
+			ctx, cancel := context.WithCancel(t.Context())
+			done := make(chan error, 1)
+			go func() {
+				req, err := http.NewRequestWithContext(ctx, tc.method, gh.URL+tc.path+"?name=a.txt", strings.NewReader("a"))
+				if err != nil {
+					done <- err
+					return
+				}
+				resp, err := http.DefaultClient.Do(req)
+				if err == nil {
+					_ = resp.Body.Close()
+				}
+				done <- err
+			}()
+
+			select {
+			case <-arrived:
+			case <-time.After(5 * time.Second):
+				t.Fatal("the request never reached the stand-in")
+			}
+			cancel()
+			select {
+			case err := <-done:
+				require.ErrorIs(t, err, context.Canceled)
+			case <-time.After(5 * time.Second):
+				t.Fatal("the hung request did not end when the client left")
+			}
+			assert.Equal(t, []string{"github [" + tc.method + "] [" + tc.path + "]"}, r.APICalls())
+			assert.Empty(t, gh.Uploads(), "a hung upload is not accepted")
+		})
 	}
-	assert.Equal(t, []string{"github [POST] [/api/uploads/repos/acme/widget/releases/1/assets]"}, r.APICalls())
-	assert.Empty(t, gh.Uploads(), "a hung upload is not accepted")
 }

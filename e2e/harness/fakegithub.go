@@ -25,8 +25,7 @@ type GitHub struct {
 	mu           sync.Mutex
 	failReleases bool
 	failUploads  bool
-	hangUploads  chan struct{} // closed when the first hung upload arrives; nil when uploads answer
-	hangOnce     sync.Once
+	hang         map[Hang]chan struct{} // closed when the first hung request of the kind arrives
 	release      map[string]any
 	uploads      []string
 }
@@ -65,14 +64,27 @@ func (g *GitHub) FailUploads() {
 	g.failUploads = true
 }
 
-// HangUploads makes every following asset upload wait without answering until the client gives up
-// (the call is still logged, and the upload is not accepted). The returned channel is closed when
-// the first such upload arrives, so a test can act while the client waits.
-func (g *GitHub) HangUploads() <-chan struct{} {
+// Hang names a kind of request the stand-in can be told to leave unanswered.
+type Hang int
+
+const (
+	HangUploads      Hang = iota // asset uploads
+	HangReleaseLists             // GET .../releases, the token check
+	HangGraphQL                  // POST /api/graphql, the pull-request lookups
+)
+
+// Hang makes every following request of kind wait without answering until the client gives up
+// (the call is still logged, and an upload is not accepted). The returned channel is closed when
+// the first such request arrives, so a test can act while the client waits.
+func (g *GitHub) Hang(kind Hang) <-chan struct{} {
 	g.mu.Lock()
 	defer g.mu.Unlock()
-	g.hangUploads = make(chan struct{})
-	return g.hangUploads
+	if g.hang == nil {
+		g.hang = map[Hang]chan struct{}{}
+	}
+	ch := make(chan struct{})
+	g.hang[kind] = ch
+	return ch
 }
 
 // Release is the JSON body of the last accepted release creation (nil if none).
@@ -95,13 +107,29 @@ func (g *GitHub) serve(w http.ResponseWriter, req *http.Request) {
 
 	isRelease := req.Method == http.MethodPost && strings.HasSuffix(req.URL.Path, "/releases")
 	isUpload := req.Method == http.MethodPost && strings.HasSuffix(req.URL.Path, "/assets")
+	isList := req.Method == http.MethodGet && strings.HasSuffix(req.URL.Path, "/releases")
+	isGraphQL := req.Method == http.MethodPost && req.URL.Path == "/api/graphql"
+	kind, hangable := HangUploads, isUpload
+	switch {
+	case isList:
+		kind, hangable = HangReleaseLists, true
+	case isGraphQL:
+		kind, hangable = HangGraphQL, true
+	}
 	g.mu.Lock()
 	refuseRelease, refuseUpload := isRelease && g.failReleases, isUpload && g.failUploads
-	hang := g.hangUploads
+	hang, hung := g.hang[kind]
+	hung = hung && hangable
+	if hung {
+		select {
+		case <-hang:
+		default:
+			close(hang) // the first hung request of its kind
+		}
+	}
 	g.mu.Unlock()
 
-	if isUpload && hang != nil {
-		g.hangOnce.Do(func() { close(hang) })
+	if hung {
 		<-req.Context().Done()
 		return
 	}
@@ -133,7 +161,7 @@ func (g *GitHub) serve(w http.ResponseWriter, req *http.Request) {
 		_ = json.NewEncoder(w).Encode(map[string]any{"name": strings.ReplaceAll(name, "#", ".")})
 	case req.Method == http.MethodDelete:
 		w.WriteHeader(http.StatusNoContent)
-	case req.Method == http.MethodGet && strings.HasSuffix(req.URL.Path, "/releases"):
+	case isList:
 		_, _ = w.Write([]byte(`[]`))
 	default:
 		_, _ = w.Write([]byte(`{"id":1}`))
