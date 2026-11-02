@@ -253,7 +253,7 @@ discipline that applies to every task.
 | 82 | Last open security findings (NEW-005 residual, SEC-002) | Done |
 | 83 | Code review follow-ups (2026-10-28 review of Phases 80–82) | Done |
 | 84 | Azure DevOps enrichment fixes | Done |
-| 85 | Confirm major bumps (`versioning.bump.confirm_major`, ADR-0078) | Not started — T445, T446 |
+| 85 | Confirm major bumps (`versioning.bump.confirm_major`, ADR-0078) | In progress — T445 done; T446 not started |
 
 ### Open items
 
