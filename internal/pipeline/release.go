@@ -76,8 +76,9 @@ func (p *Pipeline) runStep(name string, fn func() (string, []string, error)) err
 	return p.runner().runStep(name, fn)
 }
 
-// Check verifies all generators and platforms are usable before running.
-func (p *Pipeline) Check() error {
+// Check verifies all generators and platforms are usable before running. ctx is the command's
+// context: Ctrl-C stops a platform's API call.
+func (p *Pipeline) Check(ctx context.Context) error {
 	if p.cfg.Changelog != nil {
 		if err := p.cfg.Changelog.Check(); err != nil {
 			return fmt.Errorf("changelog generator: %w", err)
@@ -89,7 +90,7 @@ func (p *Pipeline) Check() error {
 		}
 	}
 	for _, platform := range p.cfg.Platforms {
-		if err := platform.Check(); err != nil {
+		if err := platform.Check(ctx); err != nil {
 			return fmt.Errorf("platform %s: %w", platform.Name(), err)
 		}
 	}

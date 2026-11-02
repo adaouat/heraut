@@ -35,3 +35,19 @@ func TestRun_PassesItsContextToEveryPublish(t *testing.T) {
 		assert.Equal(t, "this run", plat.CreateReleaseCalls[0].Ctx.Value(runKey{}), plat.PlatformName)
 	}
 }
+
+// The preflight check gets the command's context too, so Ctrl-C stops a token check that stalls.
+func TestCheck_PassesItsContextToEveryPlatform(t *testing.T) {
+	gl := &testutil.MockPlatform{PlatformName: "gitlab"}
+	gh := &testutil.MockPlatform{PlatformName: "github"}
+	cfg := &pipeline.Config{Platforms: []port.Platform{gl, gh}}
+	p := pipeline.New(exectest.NewMockRunner(), &fakeResolver{result: resolvedResult("v1.2.3")}, cfg, &bytes.Buffer{}, false)
+
+	ctx := context.WithValue(t.Context(), runKey{}, "this run")
+	require.NoError(t, p.Check(ctx))
+
+	for _, plat := range []*testutil.MockPlatform{gl, gh} {
+		require.Len(t, plat.CheckContexts, 1)
+		assert.Equal(t, "this run", plat.CheckContexts[0].Value(runKey{}), plat.PlatformName)
+	}
+}

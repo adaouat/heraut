@@ -1,10 +1,12 @@
 package app_test
 
 import (
+	"context"
 	"errors"
 	"net/http"
 	"net/http/httptest"
 	"testing"
+	"time"
 
 	"github.com/adaouat/forge/exec/exectest"
 	"github.com/adaouat/heraut/internal/app"
@@ -16,8 +18,12 @@ import (
 
 // collectItems drives RuntimeCheck synchronously and returns all items.
 func collectItems(mr *exectest.MockRunner, cfg *config.Config, env string) []app.RuntimeCheckItem {
+	return collectItemsCtx(context.Background(), mr, cfg, env)
+}
+
+func collectItemsCtx(ctx context.Context, mr *exectest.MockRunner, cfg *config.Config, env string) []app.RuntimeCheckItem {
 	var items []app.RuntimeCheckItem
-	app.RuntimeCheck(mr, cfg, env,
+	app.RuntimeCheck(ctx, mr, cfg, env,
 		func(_ string) {}, // no-op for section headers
 		func(_ string, run func() app.RuntimeCheckItem) {
 			items = append(items, run())
@@ -196,7 +202,7 @@ func TestRuntimeCheck_DispatchNames(t *testing.T) {
 
 	cfg := semverCfg()
 	var names []string
-	app.RuntimeCheck(mr, cfg, "",
+	app.RuntimeCheck(t.Context(), mr, cfg, "",
 		func(_ string) {}, // ignore section headers
 		func(name string, run func() app.RuntimeCheckItem) {
 			names = append(names, name)
@@ -217,7 +223,7 @@ func TestRuntimeCheck_SectionHeaders(t *testing.T) {
 
 	cfg := semverCfg()
 	var headers []string
-	app.RuntimeCheck(mr, cfg, "",
+	app.RuntimeCheck(t.Context(), mr, cfg, "",
 		func(title string) { headers = append(headers, title) },
 		func(_ string, run func() app.RuntimeCheckItem) { run() },
 	)
@@ -259,6 +265,53 @@ func TestRuntimeCheck_WithGitHubPlatform(t *testing.T) {
 	}
 	assert.True(t, found, "expected gh item")
 	assert.Equal(t, []string{"GET /api/v3/repos/org/repo/releases Bearer test-token"}, requests, "the token is checked against the forge's own API")
+}
+
+// Ctrl-C during heraut check stops a token check that stalls.
+func TestRuntimeCheck_APlatformCheckStopsWhenTheContextIsCancelled(t *testing.T) {
+	for _, forge := range []config.Forge{
+		{Name: "gh", Type: "github", Repository: "org/repo"},
+		{Name: "gl", Type: "gitlab", Project: "group/project"},
+	} {
+		t.Run(forge.Type, func(t *testing.T) {
+			testutil.ClearCIEnv(t)
+			t.Setenv("GH_TOKEN", "test-token")
+			t.Setenv("GITLAB_TOKEN", "test-token")
+
+			mr := exectest.NewMockRunner()
+			mr.QueueResponse("git version 2.40.0", "", nil)   // git --version
+			mr.QueueResponse("Alice", "", nil)                // user.name
+			mr.QueueResponse("a@b.com", "", nil)              // user.email
+			mr.QueueResponse("", "", nil)                     // git status
+			mr.QueueResponse("", "", errors.New("no origin")) // git remote get-url origin (forge resolution)
+
+			ctx, cancel := context.WithCancel(t.Context())
+			api := httptest.NewServer(http.HandlerFunc(func(_ http.ResponseWriter, r *http.Request) {
+				cancel()
+				<-r.Context().Done()
+			}))
+			t.Cleanup(api.Close)
+
+			cfg := semverCfg()
+			forge.BaseURL = api.URL
+			cfg.Forges = []config.Forge{forge}
+			cfg.Release = &config.Release{Targets: []config.Target{{Forge: forge.Name}}}
+
+			done := make(chan []app.RuntimeCheckItem, 1)
+			go func() { done <- collectItemsCtx(ctx, mr, cfg, "") }()
+			var items []app.RuntimeCheckItem
+			select {
+			case items = <-done:
+			case <-time.After(5 * time.Second):
+				t.Fatal("the check did not return")
+			}
+
+			require.NotEmpty(t, items)
+			last := items[len(items)-1]
+			assert.Equal(t, forge.Name, last.Name)
+			assert.ErrorIs(t, last.Err, context.Canceled)
+		})
+	}
 }
 
 func TestRuntimeCheck_WithGitHubPlatform_MissingToken(t *testing.T) {

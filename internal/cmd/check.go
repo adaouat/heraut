@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"io"
@@ -77,7 +78,7 @@ func NewCheckCmd() *cobra.Command {
 			}
 
 			// Runtime section (Git / Platforms — headers emitted by RuntimeCheck)
-			failed += runRuntimeCheck(runner, cfg, env, out)
+			failed += runRuntimeCheck(cmd.Context(), runner, cfg, env, out)
 
 			// Summary
 			_, _ = fmt.Fprintln(out)
@@ -179,7 +180,7 @@ func newCheckRuntimeCmd() *cobra.Command {
 				return exitcode.Wrap(exitcode.Config, err)
 			}
 
-			if failed := runRuntimeCheck(runner, cfg, env, out); failed > 0 {
+			if failed := runRuntimeCheck(cmd.Context(), runner, cfg, env, out); failed > 0 {
 				_, _ = fmt.Fprintln(out)
 				_, _ = fmt.Fprintln(out, ui.Err(out, fmt.Sprintf("%d check(s) failed", failed)))
 				return exitcode.Wrap(exitcode.Runtime, fmt.Errorf("one or more runtime checks failed"))
@@ -198,10 +199,10 @@ func newCheckRuntimeCmd() *cobra.Command {
 // the number of hard failures (warnings do not count). env selects the
 // effective release.targets list (root or env override) for the Platforms
 // section; pass "" to check the root list.
-func runRuntimeCheck(runner port.Runner, cfg *config.Config, env string, out io.Writer) int {
+func runRuntimeCheck(ctx context.Context, runner port.Runner, cfg *config.Config, env string, out io.Writer) int {
 	var failed int
 	sp := forgeui.NewSpinner(out, forgeui.Human)
-	app.RuntimeCheck(runner, cfg, env,
+	app.RuntimeCheck(ctx, runner, cfg, env,
 		func(title string) { ui.Header(out, title) },
 		func(name string, run func() app.RuntimeCheckItem) {
 			err := sp.Run(name, func() (forgeui.Result, error) {

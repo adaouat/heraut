@@ -72,7 +72,7 @@ func (p *Platform) LinkContext() port.LinkContext {
 
 // Check verifies a token is available, the project is resolvable, and the token authenticates
 // against the GitLab API.
-func (p *Platform) Check() error {
+func (p *Platform) Check(ctx context.Context) error {
 	var errs []error
 
 	token, jobToken, tokenErr := p.credentials()
@@ -85,7 +85,7 @@ func (p *Platform) Check() error {
 	}
 
 	if tokenErr == nil {
-		if err := p.checkAPIAuth(token, jobToken); err != nil {
+		if err := p.checkAPIAuth(ctx, token, jobToken); err != nil {
 			errs = append(errs, err)
 		}
 	}
@@ -120,7 +120,7 @@ func (p *Platform) client() (*Client, error) {
 // checkAPIAuth verifies API access with the call each token kind can make: a job token cannot
 // reach /user, so it reads the project's releases (by CI_PROJECT_ID when set), while a personal
 // token is validated through /user.
-func (p *Platform) checkAPIAuth(token string, jobToken bool) error {
+func (p *Platform) checkAPIAuth(ctx context.Context, token string, jobToken bool) error {
 	c, err := NewClient(p.resolveBaseURL(), token, jobToken)
 	if err != nil {
 		return err
@@ -130,12 +130,12 @@ func (p *Platform) checkAPIAuth(token string, jobToken bool) error {
 		if project == "" {
 			project = p.project()
 		}
-		if err := c.VerifyReleasesAccess(project); err != nil {
+		if err := c.VerifyReleasesAccess(ctx, project); err != nil {
 			return fmt.Errorf("gitlab: API call failed (list releases of %s): %w\n  hint: ensure CI_JOB_TOKEN has read access (Settings > CI/CD > Job token permissions)", project, err)
 		}
 		return nil
 	}
-	if err := c.VerifyUser(); err != nil {
+	if err := c.VerifyUser(ctx); err != nil {
 		return fmt.Errorf("gitlab: API call failed (GET /user): %w\n  hint: verify %s is valid and has the api scope", err, p.tokenEnv())
 	}
 	return nil

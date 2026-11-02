@@ -21,7 +21,9 @@ type Platform interface {
 	// repo, type) for rendering per-platform release-notes links. The pipeline passes
 	// it to the notes generator only in the multi-platform case (ADR-0020 / ADR-0021).
 	LinkContext() LinkContext
-	Check() error
+	// Check verifies the token and the repository, calling the platform's API. ctx is the command's
+	// context: Ctrl-C stops the call.
+	Check(ctx context.Context) error
 	// CreateRelease publishes a release for tag with notes. prerelease is derived by the caller
 	// from the resolved version, but only under a SemVer strategy (ADR-0064) — a SemVer
 	// pre-release like 2.0.0-rc.1 passes true, a final version passes false, and so does every

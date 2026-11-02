@@ -274,7 +274,7 @@ func TestCheck_TokenMissing(t *testing.T) {
 	t.Setenv("GITLAB_TOKEN", "")
 	p := gitlab.New(&config.Platform{TokenEnv: "GITLAB_TOKEN", Project: "grp/repo"})
 
-	err := p.Check()
+	err := p.Check(t.Context())
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "GITLAB_TOKEN")
 }
@@ -285,7 +285,7 @@ func TestCheck_ProjectMissing(t *testing.T) {
 	t.Setenv("GITLAB_TOKEN", "tok")
 	p := gitlab.New(&config.Platform{TokenEnv: "GITLAB_TOKEN", BaseURL: st.srv.URL})
 
-	err := p.Check()
+	err := p.Check(t.Context())
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "project")
 }
@@ -296,7 +296,7 @@ func TestCheck_OK_ValidatesThePersonalTokenAgainstUser(t *testing.T) {
 	t.Setenv("GITLAB_TOKEN", "tok")
 	p := gitlab.New(&config.Platform{TokenEnv: "GITLAB_TOKEN", Project: "grp/repo", BaseURL: st.srv.URL})
 
-	require.NoError(t, p.Check())
+	require.NoError(t, p.Check(t.Context()))
 
 	require.Len(t, st.requests, 1)
 	assert.Equal(t, "/api/v4/user", st.requests[0].path)
@@ -309,7 +309,7 @@ func TestCheck_DefaultTokenEnv(t *testing.T) {
 	st := newStub(t)
 	t.Setenv("GITLAB_TOKEN", "tok")
 
-	require.NoError(t, gitlab.New(&config.Platform{Project: "grp/repo", BaseURL: st.srv.URL}).Check())
+	require.NoError(t, gitlab.New(&config.Platform{Project: "grp/repo", BaseURL: st.srv.URL}).Check(t.Context()))
 	assert.Equal(t, "tok", st.requests[0].header.Get("Private-Token"))
 }
 
@@ -320,7 +320,7 @@ func TestCheck_Auth_Failure(t *testing.T) {
 	t.Setenv("GITLAB_TOKEN", "bad-token")
 	p := gitlab.New(&config.Platform{TokenEnv: "GITLAB_TOKEN", Project: "grp/repo", BaseURL: st.srv.URL})
 
-	err := p.Check()
+	err := p.Check(t.Context())
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "API call failed")
 	assert.Contains(t, err.Error(), "GITLAB_TOKEN")
@@ -337,7 +337,7 @@ func TestCheck_InCI_UsesTheJobTokenAndNoConfiguredTokenIsRequired(t *testing.T) 
 	t.Setenv("CI_PROJECT_ID", "42")
 	t.Setenv("GITLAB_TOKEN", "") // deliberately absent
 
-	require.NoError(t, gitlab.New(&config.Platform{Project: "grp/repo"}).Check())
+	require.NoError(t, gitlab.New(&config.Platform{Project: "grp/repo"}).Check(t.Context()))
 
 	require.Len(t, st.requests, 1)
 	assert.Equal(t, "/api/v4/projects/42/releases", st.requests[0].path)
@@ -355,7 +355,7 @@ func TestCheck_InCI_JobTokenIgnoresAConfiguredToken(t *testing.T) {
 	t.Setenv("CI_PROJECT_ID", "42")
 	t.Setenv("GITLAB_TOKEN", "pat")
 
-	require.NoError(t, gitlab.New(&config.Platform{TokenEnv: "GITLAB_TOKEN", Project: "grp/repo"}).Check())
+	require.NoError(t, gitlab.New(&config.Platform{TokenEnv: "GITLAB_TOKEN", Project: "grp/repo"}).Check(t.Context()))
 
 	assert.Equal(t, "jobtok", st.requests[0].header.Get("Job-Token"), "same-host CI keeps preferring the job token")
 	assert.Empty(t, st.requests[0].header.Get("Private-Token"))
@@ -368,7 +368,7 @@ func TestCheck_InCI_NoProjectID_UsesTheProjectPath(t *testing.T) {
 	t.Setenv("CI_SERVER_URL", st.srv.URL)
 	t.Setenv("CI_JOB_TOKEN", "jobtok")
 
-	require.NoError(t, gitlab.New(&config.Platform{Project: "grp/repo"}).Check())
+	require.NoError(t, gitlab.New(&config.Platform{Project: "grp/repo"}).Check(t.Context()))
 
 	assert.Equal(t, "/api/v4/projects/grp/repo/releases", st.requests[0].path)
 }
@@ -382,7 +382,7 @@ func TestCheck_InCI_JobTokenRejected_HintsAtJobTokenPermissions(t *testing.T) {
 	t.Setenv("CI_JOB_TOKEN", "jobtok")
 	t.Setenv("CI_PROJECT_ID", "42")
 
-	err := gitlab.New(&config.Platform{Project: "grp/repo"}).Check()
+	err := gitlab.New(&config.Platform{Project: "grp/repo"}).Check(t.Context())
 
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "API call failed")
@@ -398,12 +398,12 @@ func TestCheck_InCI_NoJobToken_FallsBackToTheConfiguredToken(t *testing.T) {
 	t.Setenv("CI_SERVER_URL", st.srv.URL)
 	t.Setenv("GITLAB_TOKEN", "pat")
 
-	require.NoError(t, gitlab.New(&config.Platform{TokenEnv: "GITLAB_TOKEN", Project: "grp/repo"}).Check())
+	require.NoError(t, gitlab.New(&config.Platform{TokenEnv: "GITLAB_TOKEN", Project: "grp/repo"}).Check(t.Context()))
 	assert.Equal(t, "/api/v4/user", st.requests[0].path)
 	assert.Equal(t, "pat", st.requests[0].header.Get("Private-Token"))
 
 	t.Setenv("GITLAB_TOKEN", "")
-	err := gitlab.New(&config.Platform{TokenEnv: "GITLAB_TOKEN", Project: "grp/repo"}).Check()
+	err := gitlab.New(&config.Platform{TokenEnv: "GITLAB_TOKEN", Project: "grp/repo"}).Check(t.Context())
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "GITLAB_TOKEN")
 }
@@ -422,7 +422,7 @@ func TestCheck_SelfHosted_DifferentCIServerURL_UsesTheConfiguredToken(t *testing
 	t.Setenv("GITLAB_TOKEN", "pat")
 	p := gitlab.New(&config.Platform{TokenEnv: "GITLAB_TOKEN", Project: "grp/repo", BaseURL: st.srv.URL})
 
-	require.NoError(t, p.Check())
+	require.NoError(t, p.Check(t.Context()))
 
 	assert.Equal(t, "/api/v4/user", st.requests[0].path)
 	assert.Equal(t, "pat", st.requests[0].header.Get("Private-Token"))
@@ -440,7 +440,7 @@ func TestCheck_SelfHosted_MatchesCIServerURL_TrustsTheJobToken(t *testing.T) {
 	t.Setenv("CI_PROJECT_ID", "42")
 	t.Setenv("GITLAB_TOKEN", "")
 
-	require.NoError(t, gitlab.New(&config.Platform{Project: "grp/repo", BaseURL: st.srv.URL}).Check())
+	require.NoError(t, gitlab.New(&config.Platform{Project: "grp/repo", BaseURL: st.srv.URL}).Check(t.Context()))
 
 	assert.Equal(t, "jobtok", st.requests[0].header.Get("Job-Token"))
 }

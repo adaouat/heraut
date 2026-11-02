@@ -70,7 +70,7 @@ func TestPlatform_TokenChain(t *testing.T) {
 			env: map[string]string{"GITHUB_TOKEN": "actions"}, wantErr: []string{"GH_ENTERPRISE_TOKEN", "GITHUB_ENTERPRISE_TOKEN", "GH_TOKEN"}},
 	}
 	operations := map[string]func(p *Platform) error{
-		"check":   func(p *Platform) error { return p.Check() },
+		"check":   func(p *Platform) error { return p.Check(t.Context()) },
 		"publish": func(p *Platform) error { return p.CreateRelease(t.Context(), "v1.0.0", "notes", false) },
 	}
 	for _, tc := range tests {
@@ -112,7 +112,7 @@ func TestPlatform_CheckInActionsValidatesThePublishToken(t *testing.T) {
 	p, _ := testPlatform(&config.Platform{Repository: testRepository, TokenEnv: "GH_TOKEN"},
 		map[string]string{"GITHUB_ACTIONS": "true", "GITHUB_TOKEN": "actions", "GITHUB_REPOSITORY": "other/repo", "GH_TOKEN": "pat"}, f)
 
-	require.NoError(t, p.Check())
+	require.NoError(t, p.Check(t.Context()))
 
 	calls := f.recorded()
 	require.Len(t, calls, 1)
@@ -127,7 +127,7 @@ func TestPlatform_CheckReportsTheTokenAndTheRepositoryTogether(t *testing.T) {
 	f := newFakeGitHub(t, githubUploadURL)
 	p, _ := testPlatform(&config.Platform{TokenEnv: "GH_TOKEN"}, nil, f)
 
-	err := p.Check()
+	err := p.Check(t.Context())
 
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "environment variable GH_TOKEN is not set")
@@ -139,7 +139,7 @@ func TestPlatform_CheckReadsTheRepositoryFromTheEnvironment(t *testing.T) {
 	f := newFakeGitHub(t, githubUploadURL)
 	p, _ := testPlatform(&config.Platform{}, map[string]string{"GH_TOKEN": "tok", "GITHUB_REPOSITORY": "acme/widget"}, f)
 
-	require.NoError(t, p.Check())
+	require.NoError(t, p.Check(t.Context()))
 	assert.Equal(t, []string{"GET api.github.com" + releasesPath}, f.requests())
 }
 
@@ -148,7 +148,7 @@ func TestPlatform_CheckRefusedTokenNamesTheVariable(t *testing.T) {
 	f.override["GET api.github.com"+releasesPath] = failWith(http.StatusUnauthorized, `{"message":"Bad credentials"}`)
 	p, _ := testPlatform(githubTarget, map[string]string{"GITHUB_TOKEN": "bad"}, f)
 
-	err := p.Check()
+	err := p.Check(t.Context())
 
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "API call failed")
@@ -162,7 +162,7 @@ func TestPlatform_UsesTheActionsAPIRootOfItsOwnInstance(t *testing.T) {
 		"GH_TOKEN": "tok", "GITHUB_ACTIONS": "true", "GITHUB_SERVER_URL": "https://github.com", "GITHUB_API_URL": "https://api.proxy.example.com",
 	}, f)
 
-	require.NoError(t, p.Check())
+	require.NoError(t, p.Check(t.Context()))
 	assert.Equal(t, []string{"GET api.proxy.example.com" + releasesPath}, f.requests())
 }
 
@@ -171,7 +171,7 @@ func TestPlatform_GHESIsReachedUnderItsAPIRoot(t *testing.T) {
 	p, _ := testPlatform(&config.Platform{Repository: testRepository, BaseURL: "https://github.example.com"},
 		map[string]string{"GH_TOKEN": "tok"}, f)
 
-	require.NoError(t, p.Check())
+	require.NoError(t, p.Check(t.Context()))
 	assert.Equal(t, []string{"GET github.example.com/api/v3" + releasesPath}, f.requests())
 }
 

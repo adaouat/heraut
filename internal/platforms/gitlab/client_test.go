@@ -337,7 +337,7 @@ func TestClient_VerifyUser(t *testing.T) {
 	c, err := NewClient(f.srv.URL, "secret", false)
 	require.NoError(t, err)
 
-	require.NoError(t, c.VerifyUser())
+	require.NoError(t, c.VerifyUser(t.Context()))
 
 	require.Len(t, f.requests, 1)
 	assert.Equal(t, http.MethodGet, f.requests[0].method)
@@ -351,7 +351,7 @@ func TestClient_VerifyUser_Rejected(t *testing.T) {
 	c, err := NewClient(f.srv.URL, "bad", false)
 	require.NoError(t, err)
 
-	err = c.VerifyUser()
+	err = c.VerifyUser(t.Context())
 
 	var apiErr *gl.ErrorResponse
 	require.True(t, errors.As(err, &apiErr))
@@ -364,7 +364,7 @@ func TestClient_VerifyReleasesAccess_UsesTheReleasesListWithTheJobToken(t *testi
 	c, err := NewClient(f.srv.URL, "jobtok", true)
 	require.NoError(t, err)
 
-	require.NoError(t, c.VerifyReleasesAccess("42"))
+	require.NoError(t, c.VerifyReleasesAccess(t.Context(), "42"))
 
 	require.Len(t, f.requests, 1)
 	assert.Equal(t, "/api/v4/projects/42/releases", f.requests[0].path)
@@ -378,7 +378,7 @@ func TestClient_VerifyReleasesAccess_Rejected(t *testing.T) {
 	c, err := NewClient(f.srv.URL, "jobtok", true)
 	require.NoError(t, err)
 
-	err = c.VerifyReleasesAccess("acme/widget")
+	err = c.VerifyReleasesAccess(t.Context(), "acme/widget")
 
 	var apiErr *gl.ErrorResponse
 	require.True(t, errors.As(err, &apiErr))
@@ -412,7 +412,7 @@ func TestClient_RedirectDropsTokenHeadersOnHostChange(t *testing.T) {
 
 			c, err := NewClient(origin.URL, "secret-token", tc.jobToken)
 			require.NoError(t, err)
-			require.NoError(t, c.VerifyReleasesAccess("group/project"))
+			require.NoError(t, c.VerifyReleasesAccess(t.Context(), "group/project"))
 
 			require.NotNil(t, seen, "the redirect target must have been reached")
 			assert.Empty(t, seen.Get(tc.header), "the token must not follow a redirect to another host")
@@ -436,6 +436,59 @@ func TestClient_RedirectKeepsTokenOnSameHost(t *testing.T) {
 
 	c, err := NewClient(srv.URL, "secret-token", false)
 	require.NoError(t, err)
-	require.NoError(t, c.VerifyReleasesAccess("group/project"))
+	require.NoError(t, c.VerifyReleasesAccess(t.Context(), "group/project"))
 	assert.Equal(t, "secret-token", gotToken, "a same-host redirect keeps the token")
+}
+
+// Ctrl-C during the preflight check stops it, whichever call the token kind makes.
+func TestClient_VerifyStopsWhenTheContextIsCancelled(t *testing.T) {
+	for name, verify := range map[string]func(context.Context, *Client) error{
+		"user":     func(ctx context.Context, c *Client) error { return c.VerifyUser(ctx) },
+		"releases": func(ctx context.Context, c *Client) error { return c.VerifyReleasesAccess(ctx, "acme/widget") },
+	} {
+		t.Run(name, func(t *testing.T) {
+			f := newFakeGitLab(t)
+			ctx, cancel := context.WithCancel(t.Context())
+			f.hook = func(r *http.Request) {
+				cancel()
+				<-r.Context().Done()
+			}
+			c, err := NewClient(f.srv.URL, "tok", false)
+			require.NoError(t, err)
+
+			err = within(t, func() error { return verify(ctx, c) })
+			require.ErrorIs(t, err, context.Canceled)
+		})
+	}
+}
+
+// A server that accepts the request and never answers must not hang the release after the tag push.
+// The bound is on the response headers, not on the whole exchange, so a long upload still completes.
+func TestClient_CreateRelease_AServerThatNeverAnswersTimesOut(t *testing.T) {
+	prev := responseHeaderTimeout
+	responseHeaderTimeout = 100 * time.Millisecond
+	t.Cleanup(func() { responseHeaderTimeout = prev })
+	f := newFakeGitLab(t)
+	f.hook = func(r *http.Request) { <-r.Context().Done() }
+	c, err := NewClient(f.srv.URL, "tok", false)
+	require.NoError(t, err)
+
+	err = within(t, func() error { return c.CreateRelease(t.Context(), "acme/widget", "v1.0.0", "n", nil) })
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "timeout awaiting response headers")
+}
+
+// within fails the test when fn has not returned after a few seconds: every case above would hang
+// forever without its bound.
+func within(t *testing.T, fn func() error) error {
+	t.Helper()
+	done := make(chan error, 1)
+	go func() { done <- fn() }()
+	select {
+	case err := <-done:
+		return err
+	case <-time.After(5 * time.Second):
+		t.Fatal("the call did not return")
+		return nil
+	}
 }

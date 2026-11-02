@@ -1,6 +1,7 @@
 package app
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"os"
@@ -38,7 +39,8 @@ func PreflightCheck(runner port.Runner) error {
 // RuntimeCheck verifies all runtime dependencies, grouped into two sections:
 // Git and Platforms. header is called once per section before its items.
 // dispatch is called once per item with the label shown while the check
-// runs; the run function performs the check and returns the result.
+// runs; the run function performs the check and returns the result. ctx is the
+// command's context: Ctrl-C stops a platform's API call.
 //
 // env selects the active environment for the Platforms section: when non-empty
 // and cfg.Environments[env].Release.Targets is non-empty, it replaces the root
@@ -53,6 +55,7 @@ func PreflightCheck(runner port.Runner) error {
 //	            forges:/CI env/git origin, same as `heraut release`), or an
 //	            advisory "publish" row when nothing resolves
 func RuntimeCheck(
+	ctx context.Context,
 	runner port.Runner,
 	cfg *config.Config,
 	env string,
@@ -137,7 +140,7 @@ func RuntimeCheck(
 				if buildErr != nil {
 					return RuntimeCheckItem{Name: name, Err: buildErr}
 				}
-				if err := p.Check(); err != nil {
+				if err := p.Check(ctx); err != nil {
 					return RuntimeCheckItem{Name: name, Err: err}
 				}
 				return RuntimeCheckItem{Name: name}

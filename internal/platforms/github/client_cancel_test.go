@@ -111,3 +111,16 @@ func TestCreateRelease_ACancelledContextSendsNothing(t *testing.T) {
 	require.ErrorIs(t, err, context.Canceled)
 	assert.Empty(t, f.requests())
 }
+
+// Ctrl-C during the preflight check stops it: a token check that stalls must not ignore the interrupt.
+func TestVerifyReleasesAccess_StopsWhenTheContextIsCancelled(t *testing.T) {
+	f := newFakeGitHub(t, githubUploadURL)
+	ctx, cancel := context.WithCancel(t.Context())
+	f.override["GET api.github.com"+releasesPath] = func(_ http.ResponseWriter, r *http.Request) {
+		cancel()
+		<-r.Context().Done()
+	}
+
+	err := within(t, func() error { return githubClient(t, f).VerifyReleasesAccess(ctx) })
+	require.ErrorIs(t, err, context.Canceled)
+}

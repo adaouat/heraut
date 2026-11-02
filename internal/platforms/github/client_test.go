@@ -472,7 +472,7 @@ func assertReadable(t *testing.T, err error) {
 func TestVerifyReleasesAccess(t *testing.T) {
 	f := newFakeGitHub(t, githubUploadURL)
 
-	require.NoError(t, githubClient(t, f).VerifyReleasesAccess())
+	require.NoError(t, githubClient(t, f).VerifyReleasesAccess(t.Context()))
 	calls := f.recorded()
 	require.Equal(t, []string{"GET api.github.com" + releasesPath}, f.requests())
 	assert.Equal(t, "1", calls[0].Query.Get("per_page"))
@@ -483,7 +483,7 @@ func TestVerifyReleasesAccess_BadCredentials(t *testing.T) {
 	f := newFakeGitHub(t, githubUploadURL)
 	f.override["GET api.github.com"+releasesPath] = failWith(http.StatusUnauthorized, `{"message":"Bad credentials"}`)
 
-	err := githubClient(t, f).VerifyReleasesAccess()
+	err := githubClient(t, f).VerifyReleasesAccess(t.Context())
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "listing releases of acme/widget")
 	assert.Contains(t, err.Error(), "401 Bad credentials")
@@ -505,7 +505,7 @@ func TestVerifyReleasesAccess_TheTokenDoesNotFollowARedirectToAnotherOrigin(t *t
 				writeJSON(w, http.StatusOK, []any{})
 			}
 
-			_ = githubClient(t, f).VerifyReleasesAccess()
+			_ = githubClient(t, f).VerifyReleasesAccess(t.Context())
 			calls := f.recorded()
 			require.Len(t, calls, 2, "%v", f.requests())
 			assert.Equal(t, "Bearer "+testToken, calls[0].Auth)

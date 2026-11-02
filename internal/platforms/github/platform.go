@@ -66,7 +66,7 @@ func (p *Platform) LinkContext() port.LinkContext {
 
 // Check verifies a token is available, the repository is resolvable, and the token can read the
 // repository's releases.
-func (p *Platform) Check() error {
+func (p *Platform) Check(ctx context.Context) error {
 	var errs []error
 	token, tokenEnv, tokenErr := p.token()
 	if tokenErr != nil {
@@ -83,7 +83,7 @@ func (p *Platform) Check() error {
 	if err != nil {
 		return err
 	}
-	if err := c.VerifyReleasesAccess(); err != nil {
+	if err := c.VerifyReleasesAccess(ctx); err != nil {
 		return fmt.Errorf("github: API call failed: %w\n  hint: verify %s is valid and can read the repository's releases", err, tokenEnv)
 	}
 	return nil

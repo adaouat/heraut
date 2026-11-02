@@ -39,7 +39,7 @@ func TestCheck_Passes(t *testing.T) {
 	}
 
 	p := pipeline.New(mr, &fakeResolver{result: resolvedResult("v1.2.3")}, cfg, &bytes.Buffer{}, false)
-	require.NoError(t, p.Check())
+	require.NoError(t, p.Check(t.Context()))
 }
 
 func TestCheck_GeneratorFails(t *testing.T) {
@@ -48,7 +48,7 @@ func TestCheck_GeneratorFails(t *testing.T) {
 
 	cfg := &pipeline.Config{Changelog: gen}
 	p := pipeline.New(mr, &fakeResolver{result: resolvedResult("v1.2.3")}, cfg, &bytes.Buffer{}, false)
-	err := p.Check()
+	err := p.Check(t.Context())
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "generator check failed")
 }
@@ -62,7 +62,7 @@ func TestCheck_PlatformFails(t *testing.T) {
 
 	cfg := &pipeline.Config{Platforms: []port.Platform{platform}}
 	p := pipeline.New(mr, &fakeResolver{result: resolvedResult("v1.2.3")}, cfg, &bytes.Buffer{}, false)
-	err := p.Check()
+	err := p.Check(t.Context())
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "gh not found")
 }
@@ -987,7 +987,7 @@ func TestCheck_ChangelogGeneratorError(t *testing.T) {
 	cfg := &pipeline.Config{Changelog: changelog}
 
 	p := pipeline.New(exectest.NewMockRunner(), &fakeResolver{}, cfg, &bytes.Buffer{}, false)
-	err := p.Check()
+	err := p.Check(t.Context())
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "changelog generator")
 }
@@ -1042,7 +1042,7 @@ func TestCheck_NotesGeneratorError(t *testing.T) {
 	cfg := &pipeline.Config{Notes: notes}
 
 	p := pipeline.New(exectest.NewMockRunner(), &fakeResolver{}, cfg, &bytes.Buffer{}, false)
-	err := p.Check()
+	err := p.Check(t.Context())
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "release-notes generator")
 }
@@ -1053,7 +1053,7 @@ func TestCheck_PlatformError(t *testing.T) {
 	cfg := &pipeline.Config{Platforms: []port.Platform{platform}}
 
 	p := pipeline.New(exectest.NewMockRunner(), &fakeResolver{}, cfg, &bytes.Buffer{}, false)
-	err := p.Check()
+	err := p.Check(t.Context())
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "platform github")
 }

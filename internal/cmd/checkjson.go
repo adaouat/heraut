@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"os"
@@ -54,11 +55,11 @@ func newConfigReport(path string, source config.PathSource, cfg *config.Config) 
 
 // collectRuntime runs the runtime checks without any spinner and returns one finding per check and
 // the number of hard failures (warnings do not count).
-func collectRuntime(runner port.Runner, cfg *config.Config, env string) (runtimeReport, int) {
+func collectRuntime(ctx context.Context, runner port.Runner, cfg *config.Config, env string) (runtimeReport, int) {
 	report := runtimeReport{Checks: []runtimeFinding{}}
 	var section string
 	var failed int
-	app.RuntimeCheck(runner, cfg, env,
+	app.RuntimeCheck(ctx, runner, cfg, env,
 		func(title string) { section = title },
 		func(name string, run func() app.RuntimeCheckItem) {
 			item := run()
@@ -115,7 +116,7 @@ func runCheckAllJSON(cmd *cobra.Command) error {
 	}
 
 	cfgReport, configFailed := newConfigReport(path, source, cfg)
-	rtReport, runtimeFailed := collectRuntime(runner, cfg, env)
+	rtReport, runtimeFailed := collectRuntime(cmd.Context(), runner, cfg, env)
 	data := struct {
 		Config  configReport  `json:"config"`
 		Runtime runtimeReport `json:"runtime"`
@@ -168,7 +169,7 @@ func runCheckRuntimeJSON(cmd *cobra.Command) error {
 	if err != nil {
 		return writeJSON(out, nil, nil, exitcode.Wrap(exitcode.Config, err))
 	}
-	report, failed := collectRuntime(runner, cfg, env)
+	report, failed := collectRuntime(cmd.Context(), runner, cfg, env)
 	if failed > 0 {
 		return writeJSON(out, report, nil, exitcode.Wrap(exitcode.Runtime, fmt.Errorf("one or more runtime checks failed")))
 	}

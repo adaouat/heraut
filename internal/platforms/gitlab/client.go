@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net/http"
 	"strings"
+	"time"
 
 	gl "gitlab.com/gitlab-org/api/client-go"
 
@@ -14,6 +15,11 @@ import (
 
 // assetPackageName is the Generic Packages package that holds every release asset.
 const assetPackageName = "release-assets"
+
+// responseHeaderTimeout bounds the wait for GitLab's answer once a request is sent: a connection that
+// stalls after the tag push must not hang the release. It does not bound the request itself, so a
+// large upload still completes.
+var responseHeaderTimeout = 2 * time.Minute
 
 // Client publishes GitLab releases over the REST API (ADR-0069).
 type Client struct {
@@ -26,14 +32,17 @@ func NewClient(baseURL, token string, jobToken bool) (*Client, error) {
 	if !config.IsSecureURL(baseURL) {
 		return nil, fmt.Errorf("GitLab base URL %q must use https (plain http is accepted only for localhost and loopback addresses)", baseURL)
 	}
+	tr := http.DefaultTransport.(*http.Transport).Clone()
+	tr.ResponseHeaderTimeout = responseHeaderTimeout
+	opts := []gl.ClientOptionFunc{gl.WithBaseURL(baseURL), gl.WithHTTPClient(&http.Client{Transport: tr})}
 	var (
 		api *gl.Client
 		err error
 	)
 	if jobToken {
-		api, err = gl.NewJobClient(token, gl.WithBaseURL(baseURL))
+		api, err = gl.NewJobClient(token, opts...)
 	} else {
-		api, err = gl.NewClient(token, gl.WithBaseURL(baseURL))
+		api, err = gl.NewClient(token, opts...)
 	}
 	if err != nil {
 		return nil, fmt.Errorf("creating GitLab client for %q: %w", baseURL, err)
@@ -105,8 +114,8 @@ func (c *Client) CreateRelease(ctx context.Context, project, tag, notes string, 
 
 // VerifyUser checks a personal token with GET /user. A job token cannot call it (401), so a CI
 // run uses VerifyReleasesAccess instead.
-func (c *Client) VerifyUser() error {
-	if _, _, err := c.api.Users.CurrentUser(); err != nil {
+func (c *Client) VerifyUser(ctx context.Context) error {
+	if _, _, err := c.api.Users.CurrentUser(gl.WithContext(ctx)); err != nil {
 		return fmt.Errorf("fetching the current user: %w", err)
 	}
 	return nil
@@ -114,9 +123,9 @@ func (c *Client) VerifyUser() error {
 
 // VerifyReleasesAccess checks that the token can read the project's releases, the API
 // CI_JOB_TOKEN is documented to reach. project is a path or a numeric ID.
-func (c *Client) VerifyReleasesAccess(project string) error {
+func (c *Client) VerifyReleasesAccess(ctx context.Context, project string) error {
 	opts := &gl.ListReleasesOptions{ListOptions: gl.ListOptions{PerPage: 1}}
-	if _, _, err := c.api.Releases.ListReleases(project, opts); err != nil {
+	if _, _, err := c.api.Releases.ListReleases(project, opts, gl.WithContext(ctx)); err != nil {
 		return fmt.Errorf("listing releases of %s: %w", project, err)
 	}
 	return nil

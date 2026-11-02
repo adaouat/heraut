@@ -15,6 +15,8 @@ type MockPlatform struct {
 	CheckAssetsErr   error
 	LinkContextVal   port.LinkContext
 
+	CheckContexts []context.Context // context passed to each Check
+
 	CreateReleaseCalls []struct {
 		Ctx        context.Context
 		Tag, Notes string
@@ -42,7 +44,10 @@ func (m *MockPlatform) ReleaseURLFromContext(tag string, lc *port.LinkContext) s
 
 func (m *MockPlatform) LinkContext() port.LinkContext { return m.LinkContextVal }
 
-func (m *MockPlatform) Check() error { return m.CheckErr }
+func (m *MockPlatform) Check(ctx context.Context) error {
+	m.CheckContexts = append(m.CheckContexts, ctx)
+	return m.CheckErr
+}
 
 func (m *MockPlatform) CreateRelease(ctx context.Context, tag, notes string, prerelease bool) error {
 	m.CreateReleaseCalls = append(m.CreateReleaseCalls, struct {

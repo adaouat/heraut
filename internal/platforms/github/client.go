@@ -136,8 +136,8 @@ func (c *Client) uploadAndPublish(ctx context.Context, release *gh.RepositoryRel
 }
 
 // VerifyReleasesAccess checks that the token can read the repository's releases.
-func (c *Client) VerifyReleasesAccess() error {
-	if _, _, err := c.api.Repositories.ListReleases(context.Background(), c.owner, c.repo, &gh.ListOptions{PerPage: 1}); err != nil {
+func (c *Client) VerifyReleasesAccess(ctx context.Context) error {
+	if _, _, err := c.api.Repositories.ListReleases(ctx, c.owner, c.repo, &gh.ListOptions{PerPage: 1}); err != nil {
 		return fmt.Errorf("listing releases of %s/%s: %w", c.owner, c.repo, readable(err))
 	}
 	return nil

@@ -170,7 +170,7 @@ func runRelease(cmd *cobra.Command, version string, rf *releaseFlags, asJSON boo
 		if err := app.PreflightCheck(runner); err != nil {
 			return exitcode.Wrap(exitcode.Runtime, fmt.Errorf("preflight check failed: %w", err))
 		}
-		if err := pipe.Check(); err != nil {
+		if err := pipe.Check(cmd.Context()); err != nil {
 			return exitcode.Wrap(exitcode.Runtime, fmt.Errorf("preflight check failed: %w", err))
 		}
 	}
