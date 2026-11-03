@@ -3802,7 +3802,7 @@ test, 10 resolver rows plus a nil config, 4 validation rows, an environment path
 `tag: []` row was added, and a no-op control survives. Spec 02 is left for T448 with the rest of the
 docs. Until T448 the setting is read but no push uses it.
 
-#### `[ ]` T448: pass the options to both pushes, in dry runs and plans too
+#### `[x]` T448: pass the options to both pushes, in dry runs and plans too
 
 - **Pipeline:**
   - `gitHelper.commitChangelog` and `pushTag` take the options and run
@@ -3827,6 +3827,42 @@ Tests first:
 Docs: Spec 02 (the block and the override row), Spec 03 (the push steps of `release` and
 `changelog`), and the failure-recovery guide (an unsupported option: drop it and retry). The
 GitHub wording waits for T449.
+
+Done 2026-11-03.
+- **Git calls.** `gitHelper.commitChangelog` and `pushTag` take the options. A shared `pushArgs`
+  builds `push --push-option=<v>… origin <ref>`, one argument per value.
+- **Pipelines.** `pipeline.Config` and `ChangelogConfig` gained `CommitPushOptions` and
+  `TagPushOptions`, which the app layer fills from `cfg.PushOptions(env)` in both builders.
+- **Dry run and plan.** `withPushOptions` appends ` (--push-option=a --push-option=b)` to the six
+  push lines: the reporter's `would commit and push` and `would push <tag>`, and the plain
+  `would generate changelog → commit → push`, `would commit → push` and `would tag <tag> and
+  push`. `PlanStep.PushOptions` (`push_options`, omitted when empty) is set on `commit_changelog`
+  and `push_tag` only.
+- **`--no-push`** is unchanged: no push step, so no options. The plain no-push lines don't show
+  them either.
+- **Tests first:**
+  - git-helper tables: none, `[]`, one, several in order, a leading `-`, no push, and a refused
+    push wrapped with `errors.Is`;
+  - both pipelines with different commit and tag lists, `--no-push`, the plain and reporter
+    dry-run lines of both pipelines, the plan;
+  - an app-layer test showing an environment's `commit: []` reaches both pipeline configs while
+    `tag` inherits.
+- **e2e (Lane A).** `harness.RecordPushOptions` turns on `receive.advertisePushOptions` and
+  installs a `pre-receive` hook that logs `GIT_PUSH_OPTION_*` per push, read back by
+  `PushOptions()` (its own harness tests). Scenarios:
+  - `changelog` and `release` send each list on its own push;
+  - a per-env `commit: []` clears that list and the tag list is inherited;
+  - the dry run shows the options and pushes nothing;
+  - the `--json` plan lists them;
+  - a remote without the capability fails the commit push with exit 3, leaving no tag and an
+    untouched remote;
+  - an empty value is exit 2 with nothing committed.
+- **Mutations.** 23 mutations each fail a test, and a no-op control survives.
+- **Docs.** Spec 02 gains a `git` section, the top-level row, the environment row and the override
+  row. Spec 03 names the options in the push steps of `release` and `changelog` and in the
+  `--json` field list. The agent skill's plan section mentions `push_options`. The
+  failure-recovery guide covers a refused option in states A and B. GitHub is still not
+  mentioned, pending T449.
 
 #### `[ ]` T449: confirm GitHub and GitLab behaviour in the sandboxes (Lane B)
 

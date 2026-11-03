@@ -39,6 +39,9 @@ Then pick the state that matches:
 
 Typical cause: a `pre_tag` hook failed, creating the tag failed, or a release asset pattern matched no file
 (that check runs before the changelog commit, so the run stops with nothing committed and a clear message).
+A remote that refuses push options fails the commit push itself ("the receiving end does not support
+push options"), so the commit exists only locally. Drop the option from `git.push_options.commit` and
+run again: the retry finds nothing to commit and pushes the local commit before tagging.
 
 Fix the cause, then run `heraut release` again. The version is recomputed and comes out the same,
 because the `chore(release)` commit is not a releasable commit. If the regenerated changelog is
@@ -54,7 +57,8 @@ heraut release --skip-hook pre_tag
 
 ## B. Local tag only
 
-Typical cause: the tag push failed (network, permissions, a protected-tag rule).
+Typical cause: the tag push failed (network, permissions, a protected-tag rule, or a remote that
+refuses `git.push_options.tag`).
 
 `heraut release` will not help here: the tag exists and no commit is newer, so it stops with
 `no commits since v1.2.3`. Push the tag yourself, then continue with [C](#c-tag-pushed-no-release):

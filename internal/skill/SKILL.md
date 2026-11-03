@@ -85,8 +85,9 @@ stdout stays empty, the message is on stderr, exit 1.
 ## Reading a plan
 
 `release --dry-run --json` returns `data.steps` in execution order. Each step has an `action`:
-`hook` (with `point` and the rendered `commands`), `changelog`, `commit_changelog`, `tag`, `push_tag`,
-`notes`, `publish` (with `target`, `notes`, `assets`, `pre_release`). `data.pre_release` is true for a
+`hook` (with `point` and the rendered `commands`), `changelog`, `commit_changelog`, `tag`, `push_tag`
+(these two with any `push_options` their push sends), `notes`, `publish` (with `target`, `notes`,
+`assets`, `pre_release`). `data.pre_release` is true for a
 SemVer pre-release, which publishes as a pre-release and never writes `CHANGELOG.md`.
 
 ## Release notes for a store

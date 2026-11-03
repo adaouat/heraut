@@ -49,6 +49,7 @@ commits: ...           # optional — commit type set, scopes, tickets, enrichme
 rendering: ...         # optional — global exclude rules + template-block snippets + trailer rules
 forges: ...            # optional — code-hosting platforms for publishing and/or enrichment
 hooks: ...             # optional — shell commands run at points in the release lifecycle
+git: ...               # optional — push options for the changelog commit push and the tag push
 ```
 
 | Field          | Required | Description                                                                                                                |
@@ -62,6 +63,7 @@ hooks: ...             # optional — shell commands run at points in the releas
 | `rendering`    | No       | Global content-output overrides: exclude rules, template-block snippets, and footer-trailer rendering rules (see § `rendering` below). |
 | `forges`       | No       | Code-hosting platforms heraut talks to for publishing and/or commit enrichment (see § `forges` below). |
 | `hooks`        | No       | Shell commands run at points in the release lifecycle (see § `hooks` below). |
+| `git`          | No       | `--push-option` values for the two pushes heraut makes (see § `git` below). |
 
 ### Design principles
 
@@ -245,6 +247,7 @@ are optional unless noted.
 | `disable_release`   | `false` | When `true`, turns off the entire `release:` behavior for this env — notes generation *and* publishing, together, since the two can no longer be split (see § `release` below). Takes precedence over `release:` when both are set. |
 | `changelog`         | —       | Override the root `changelog` for this env. Deep-merges field-by-field (see § Content override semantics). Absent means use the root default.                              |
 | `release`           | —       | Override `release.notes` (deep-merge) and/or `release.targets` (replace) for this env (see § Content override semantics below).                                            |
+| `git`               | —       | Override `git.push_options.commit` and/or `git.push_options.tag` for this env, each list replacing the root one; `[]` clears it (see § `git` below). |
 
 ### Content override semantics
 
@@ -277,6 +280,7 @@ is ambiguous); absent means use the root list:
 |-------------------|------------------------------|--------------------------------|
 | `release.targets` | Use root `release.targets`  | Replace entirely for this env |
 | `release.notes`   | Use root `release.notes`    | **Deep-merge** over root       |
+| `git.push_options.commit` / `.tag` | Use the root list | Replace that list for this env; `[]` clears it |
 
 Setting contradictory flags (e.g. `disable_changelog: true` and `changelog:` on the same
 env) produces a non-zero exit from `heraut check config` with an actionable hint
@@ -1201,6 +1205,53 @@ release:
     - forge: github
       assets:
         - dist/myapp_*
+```
+
+## `git`
+
+`git.push_options` lists the `--push-option` values of the two pushes heraut makes when it commits
+and tags ([ADR-0079](../adr/0079-push-options.md)):
+
+```yaml
+git:
+  push_options:
+    commit: ["ci.skip"]   # git push --push-option=ci.skip origin HEAD
+    tag: []               # git push origin <tag>
+```
+
+| Field                     | Default | Description |
+|---------------------------|---------|-------------|
+| `push_options.commit`     | `[]`    | Passed, in order, to the changelog commit push (`git push origin HEAD`) of `heraut release` and `heraut changelog --commit/--tag`. |
+| `push_options.tag`        | `[]`    | Passed, in order, to the tag push (`git push origin <tag>`) of the same commands. |
+
+Each value becomes one `--push-option=<value>` argument, so a value starting with `-` is not read as a
+flag. A value that is empty or contains a line break or a NUL byte is a config error (exit 2), checked
+before anything runs; any other value goes to the server unchecked, since push options mean what the
+server says they mean. With `--no-push` nothing is pushed and neither list is used. The `[dry-run]` push
+lines and the `release --dry-run --json` plan show them.
+
+The use it was made for: on GitLab, `ci.skip` on the commit push skips the release commit's pipeline
+while the tag's still runs. `[skip ci]` in `versioning.commit_message` cannot do that, since the tag
+points at that same commit and its pipeline is skipped too. GitLab also reads `ci.variable="KEY=VALUE"`.
+
+A remote that does not advertise push options refuses a push that carries them ("the receiving end does
+not support push options"): the run stops at that push, as with any failed push (see the
+[failure-recovery guide](../guides/failure-recovery.md)). Remove the option and run again.
+
+Per environment, `environments.<name>.git.push_options.commit` and `.tag` each replace the root list
+when set; an absent list inherits it, and `[]` clears it (§ Content override semantics):
+
+```yaml
+git:
+  push_options:
+    commit: ["ci.skip"]
+environments:
+  prod:
+    bump: promote
+    source: staging
+    git:
+      push_options:
+        commit: []        # prod's release commit runs its pipeline
 ```
 
 ## `hooks`
