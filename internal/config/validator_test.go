@@ -691,6 +691,7 @@ func TestValidate_validFixtures(t *testing.T) {
 		"../../testdata/config/valid/changelog-rotation-calver.yml",
 		"../../testdata/config/valid/changelog-rotation-semver.yml",
 		"../../testdata/config/valid/semver_branches.yml",
+		"../../testdata/config/valid/push-options.yml",
 	}
 	for _, path := range fixtures {
 		t.Run(path, func(t *testing.T) {
@@ -776,6 +777,16 @@ func TestValidate_invalidFixtures(t *testing.T) {
 			fixture:     "../../testdata/config/invalid/branches_empty_name.yml",
 			wantPath:    "versioning.branches[0].name",
 			wantMessage: "required",
+		},
+		{
+			fixture:     "../../testdata/config/invalid/push_options_empty_value.yml",
+			wantPath:    "git.push_options.commit[0]",
+			wantMessage: "empty",
+		},
+		{
+			fixture:     "../../testdata/config/invalid/push_options_newline.yml",
+			wantPath:    "git.push_options.tag[0]",
+			wantMessage: "line break",
 		},
 	}
 	for _, tc := range tests {

@@ -81,6 +81,9 @@ func TestSchema_InvalidFixtures(t *testing.T) {
 		{"branches_bad_range.yml", "versioning.branches[].range must match N.x or N.N.x (ADR-0065)"},
 		{"branches_empty_name.yml", "versioning.branches[].name minLength 1 (ADR-0065)"},
 		{"confirm_major_not_boolean.yml", "versioning.bump.confirm_major must be a boolean (ADR-0078)"},
+		{"push_options_empty_value.yml", "git.push_options.commit[] must not be empty (ADR-0079)"},
+		{"push_options_newline.yml", "git.push_options.tag[] must not contain a line break (ADR-0079)"},
+		{"push_options_not_a_list.yml", "git.push_options.commit must be an array (ADR-0079)"},
 	}
 
 	for _, tc := range tests {

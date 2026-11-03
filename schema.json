@@ -49,6 +49,9 @@
       "items": {
         "$ref": "#/definitions/Forge"
       }
+    },
+    "git": {
+      "$ref": "#/definitions/Git"
     }
   },
   "definitions": {
@@ -796,6 +799,43 @@
         "release": {
           "$ref": "#/definitions/EnvRelease",
           "description": "Override release settings for this environment."
+        },
+        "git": {
+          "$ref": "#/definitions/Git",
+          "description": "Override git.push_options for this environment, list by list."
+        }
+      }
+    },
+    "Git": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "The git operations heraut runs itself (ADR-0079).",
+      "properties": {
+        "push_options": {
+          "$ref": "#/definitions/PushOptions"
+        }
+      }
+    },
+    "PushOptions": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "--push-option values for each push heraut makes (ADR-0079). Under an environment, an absent list inherits the root's and [] clears it.",
+      "properties": {
+        "commit": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^[^\\n\\r\\x00]+$"
+          },
+          "description": "Passed to the changelog commit push (git push origin HEAD), in order, e.g. [\"ci.skip\"] to skip that commit's GitLab pipeline."
+        },
+        "tag": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^[^\\n\\r\\x00]+$"
+          },
+          "description": "Passed to the tag push (git push origin <tag>), in order. Keep ci.skip out of it unless the tag pipeline should not run."
         }
       }
     }

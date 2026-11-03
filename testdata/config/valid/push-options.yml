@@ -1,0 +1,31 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/adaouat/heraut/main/schema.json
+
+version: "1"
+
+versioning:
+  strategy: semver-per-env
+  tag_format: "{env}/{version}"
+
+git:
+  push_options:
+    commit: ["ci.skip"]
+    tag: ["ci.variable=DEPLOY=true"]
+
+environments:
+  dev:
+    bump: auto
+  staging:
+    bump: promote
+    source: dev
+    git:
+      push_options:
+        tag: []
+  prod:
+    bump: promote
+    source: staging
+    git:
+      push_options:
+        commit: []
+
+changelog:
+  output: CHANGELOG.md

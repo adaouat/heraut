@@ -182,6 +182,12 @@ versioning:
 #     #   targets:
 #     #     - forge: gitlab-saas
 #
+#     # git override — each push_options list replaces the root one for this env;
+#     # an absent list inherits it, [] pushes with no options (see the git block below).
+#     # git:
+#     #   push_options:
+#     #     commit: []
+#
 #   staging:
 #     bump: promote
 #     source: dev        # environment to promote from
@@ -422,6 +428,24 @@ changelog:
 #         section: "## {{ .Version }}"     # add a heading back
 #       commit:
 #         message: "- {{ .Description }} ({{ .ShortHash }})"
+
+# ── git ───────────────────────────────────────────────────────────────────────
+#
+# push_options — --push-option values for the two pushes heraut makes when it
+# commits and tags (ADR-0079), passed in order. commit applies to the changelog
+# commit push (git push origin HEAD), tag to the tag push (git push origin <tag>).
+# Unused with --no-push. Values are the server's: GitLab reads ci.skip and
+# ci.variable="KEY=VALUE". A remote that does not support push options refuses
+# the push. Overridable per environment (see the environments block above).
+#
+# Skip the release commit's GitLab pipeline and keep the tag's — [skip ci] in
+# versioning.commit_message would skip the tag's too, since the tag points at
+# that commit:
+#
+# git:
+#   push_options:
+#     commit: ["ci.skip"]
+#     tag: []
 
 # ── hooks ─────────────────────────────────────────────────────────────────────
 #

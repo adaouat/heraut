@@ -47,6 +47,7 @@ func Validate(cfg *Config) ValidationErrors {
 	errs = append(errs, validateRendering(cfg)...)
 	errs = append(errs, validateForges(cfg)...)
 	errs = append(errs, validateHooks(cfg)...)
+	errs = append(errs, validateGit(cfg)...)
 	return errs
 }
 

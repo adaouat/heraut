@@ -254,7 +254,7 @@ discipline that applies to every task.
 | 83 | Code review follow-ups (2026-10-28 review of Phases 80–82) | Done |
 | 84 | Azure DevOps enrichment fixes | Done |
 | 85 | Confirm major bumps (`versioning.bump.confirm_major`, ADR-0078) | Done |
-| 86 | Push options for the release pushes (`git.push_options`, ADR-0079) | Not started |
+| 86 | Push options for the release pushes (`git.push_options`, ADR-0079) | In progress |
 
 ### Open items
 
@@ -3765,7 +3765,7 @@ top-level `git.push_options` block has two lists, `commit` and `tag`, each passe
 (`ci.skip`) and keep the tag's. Environments can override each list. Free-form git arguments and a
 CLI flag were ruled out.
 
-#### `[ ]` T447: the setting, its validation and the per-environment resolution
+#### `[x]` T447: the setting, its validation and the per-environment resolution
 
 `Config.Git` (`git.push_options.commit`, `git.push_options.tag`, both `[]string`) and the same block
 under `environments.<name>.git`, in `config.go`, `schema.json` and `docs/heraut.sample.yml`.
@@ -3781,6 +3781,26 @@ to tell absent apart from `[]`. Tests first:
 - **Invalid fixtures:** empty value, newline, not a list.
 - **Resolver rows:** root only; an environment overriding only `commit` while `tag` inherits; `[]`
   clearing; no `git` block at all.
+
+Done 2026-11-03. `Config.Git` and `Environment.Git` are both `*Git{PushOptions *PushOptions}`, and
+`PushOptions` holds two plain `[]string`. yaml.v3 decodes an absent list as nil and `[]` as an empty
+non-nil slice, which is the distinction the override needs, so no pointer-to-slice was required (a
+loader test pins it). `(*Config).PushOptions(env)` is nil-safe: it starts from the root lists and
+replaces each one the environment sets, including with `[]`. An empty or unknown `env` yields the
+root lists. `validate_git.go` reports an empty value, a line break (`\n` or `\r`) or a NUL at
+`git.push_options.<list>[i]` and `environments.<name>.git.push_options.<list>[i]`, each with a hint.
+The schema adds `git`, the `Git` and `PushOptions` definitions and `Environment.git`, with the
+pattern `^[^\n\r\x00]+$`. That pattern also rejects an empty value, so the schema has no
+`minLength` (a surviving mutant showed it was redundant). Fixtures:
+- valid `push-options.yml` (root lists, `staging` clearing `tag`, `prod` clearing `commit`);
+- invalid `push_options_empty_value.yml` and `push_options_newline.yml` (schema and validator);
+- invalid `push_options_not_a_list.yml` (schema and loader).
+
+The sample documents the root block and the environment override. Tests first: the strict-loader
+test, 10 resolver rows plus a nil config, 4 validation rows, an environment path, values that pass
+(a leading `-`, spaces), and the fixture tables. 13 mutations each fail a test once the missing
+`tag: []` row was added, and a no-op control survives. Spec 02 is left for T448 with the rest of the
+docs. Until T448 the setting is read but no push uses it.
 
 #### `[ ]` T448: pass the options to both pushes, in dry runs and plans too
 

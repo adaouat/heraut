@@ -31,6 +31,44 @@ type Config struct {
 	Forges []Forge `yaml:"forges,omitempty"`
 	// Hooks configures shell commands run at points in the release lifecycle (ADR-0053).
 	Hooks *Hooks `yaml:"hooks,omitempty"`
+	// Git configures the git operations heraut runs itself (ADR-0079).
+	Git *Git `yaml:"git,omitempty"`
+}
+
+// Git configures the git operations heraut runs itself (ADR-0079).
+type Git struct {
+	PushOptions *PushOptions `yaml:"push_options,omitempty"`
+}
+
+// PushOptions lists the --push-option values of each push heraut makes: Commit for
+// `git push origin HEAD` (the changelog commit), Tag for `git push origin <tag>`. Under an
+// environment, a nil list is absent and inherits the root's, while an empty non-nil list (`[]`)
+// replaces it with none.
+type PushOptions struct {
+	Commit []string `yaml:"commit,omitempty"`
+	Tag    []string `yaml:"tag,omitempty"`
+}
+
+// PushOptions returns the effective push options for env (ADR-0079): each list is the
+// environment's when it sets one, the root's otherwise. env "" or an unknown environment yields
+// the root lists. Nil-safe.
+func (c *Config) PushOptions(env string) PushOptions {
+	if c == nil {
+		return PushOptions{}
+	}
+	var eff PushOptions
+	if c.Git != nil && c.Git.PushOptions != nil {
+		eff = *c.Git.PushOptions
+	}
+	if e, ok := c.Environments[env]; ok && e.Git != nil && e.Git.PushOptions != nil {
+		if e.Git.PushOptions.Commit != nil {
+			eff.Commit = e.Git.PushOptions.Commit
+		}
+		if e.Git.PushOptions.Tag != nil {
+			eff.Tag = e.Git.PushOptions.Tag
+		}
+	}
+	return eff
 }
 
 // Tickets returns the configured ticket-link patterns (commits.tickets), or nil. Nil-safe.
@@ -146,6 +184,8 @@ type Environment struct {
 	DisableRelease bool           `yaml:"disable_release,omitempty"`
 	Changelog      *ContentDriver `yaml:"changelog,omitempty"`
 	Release        *EnvRelease    `yaml:"release,omitempty"`
+	// Git overrides the root git block per list (ADR-0079): see Config.PushOptions.
+	Git *Git `yaml:"git,omitempty"`
 }
 
 // EnvRelease holds per-environment release overrides.
