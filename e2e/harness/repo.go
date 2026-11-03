@@ -190,3 +190,49 @@ func (r *Repo) WriteHomeFile(rel, content string) {
 		r.t.Fatalf("writing %s: %v", rel, err)
 	}
 }
+
+// pushOptionsHook appends each push's options to push-options.log in the bare remote, one per
+// line, and closes every push with an end-of-push marker, so a push without options still counts.
+const pushOptionsHook = `#!/bin/sh
+cat >/dev/null
+i=0
+while [ "$i" -lt "${GIT_PUSH_OPTION_COUNT:-0}" ]; do
+	eval "printf '%s\n' \"\$GIT_PUSH_OPTION_$i\""
+	i=$((i + 1))
+done >>push-options.log
+printf '\036\n' >>push-options.log
+`
+
+// RecordPushOptions makes the bare remote accept push options and record them; read them back
+// with PushOptions. Call it after AddRemote.
+func (r *Repo) RecordPushOptions() {
+	r.t.Helper()
+	r.GitRemote("config", "receive.advertisePushOptions", "true")
+	if err := os.WriteFile(filepath.Join(r.remote, "hooks", "pre-receive"), []byte(pushOptionsHook), 0o755); err != nil {
+		r.t.Fatalf("writing the pre-receive hook: %v", err)
+	}
+}
+
+// PushOptions returns the options of every push the remote received since RecordPushOptions, one
+// entry per push in order. A push without options is an empty entry.
+func (r *Repo) PushOptions() [][]string {
+	r.t.Helper()
+	b, err := os.ReadFile(filepath.Join(r.remote, "push-options.log"))
+	if os.IsNotExist(err) {
+		return nil
+	}
+	if err != nil {
+		r.t.Fatalf("reading push-options.log: %v", err)
+	}
+	var pushes [][]string
+	current := []string{}
+	for _, line := range strings.Split(strings.TrimSuffix(string(b), "\n"), "\n") {
+		if line == "\036" {
+			pushes = append(pushes, current)
+			current = []string{}
+			continue
+		}
+		current = append(current, line)
+	}
+	return pushes
+}

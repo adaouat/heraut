@@ -228,3 +228,25 @@ func TestRepo_StandInsShareOneCallLogInOrder(t *testing.T) {
 		"gitlab [GET] [/api/v4/user]",
 	}, r.APICalls())
 }
+
+func TestRepo_RecordPushOptions(t *testing.T) {
+	r := NewRepo(t)
+	r.Commit("feat: first")
+	r.AddRemote()
+	r.RecordPushOptions()
+
+	r.Commit("feat: second")
+	r.Git("push", "-o", "ci.skip", "-o", "ci.variable=A=b c", "origin", "HEAD")
+	r.Tag("v1.0.0")
+	r.Git("push", "origin", "v1.0.0")
+
+	assert.Equal(t, [][]string{{"ci.skip", "ci.variable=A=b c"}, {}}, r.PushOptions(), "one entry per push, in order")
+}
+
+func TestRepo_PushOptionsWithoutRecordingIsEmpty(t *testing.T) {
+	r := NewRepo(t)
+	r.Commit("feat: first")
+	r.AddRemote()
+
+	assert.Empty(t, r.PushOptions())
+}
