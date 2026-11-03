@@ -254,6 +254,7 @@ discipline that applies to every task.
 | 83 | Code review follow-ups (2026-10-28 review of Phases 80–82) | Done |
 | 84 | Azure DevOps enrichment fixes | Done |
 | 85 | Confirm major bumps (`versioning.bump.confirm_major`, ADR-0078) | Done |
+| 86 | Push options for the release pushes (`git.push_options`, ADR-0079) | Not started |
 
 ### Open items
 
@@ -3755,6 +3756,68 @@ git call or generation), the Config code on `release --dry-run`, `release --dry-
 --tag` and `changelog --dry-run` exit 2 with nothing tagged, written or published, `--allow-major` tags
 `v2.0.0`, `version next` prints it. 12 mutations each fail a test (one first try did not compile and was
 redone), a no-op control survives.
+
+### Phase 86 — Push options for the release pushes (`git.push_options`)
+
+Decided with the user on 2026-11-03 and recorded in [ADR-0079](../adr/0079-push-options.md). A
+top-level `git.push_options` block has two lists, `commit` and `tag`, each passed to its own push as
+`--push-option=<value>`, so a GitLab project can skip the `chore(release)` commit's pipeline
+(`ci.skip`) and keep the tag's. Environments can override each list. Free-form git arguments and a
+CLI flag were ruled out.
+
+#### `[ ]` T447: the setting, its validation and the per-environment resolution
+
+`Config.Git` (`git.push_options.commit`, `git.push_options.tag`, both `[]string`) and the same block
+under `environments.<name>.git`, in `config.go`, `schema.json` and `docs/heraut.sample.yml`.
+Validation is a config error, with a path and a hint, for:
+- an empty value, a newline (`\n`, `\r`) or a NUL in either list;
+- a `git` block under an environment of a non-per-env strategy, which is already covered by the
+  existing rule.
+
+A nil-safe resolver returns the effective lists for an environment, each sub-field resolved on
+its own: absent inherits the root, present replaces it, `[]` clears it. That means the decoder has
+to tell absent apart from `[]`. Tests first:
+- **Valid fixtures:** root only, environment override, and environment `[]` clearing a root value.
+- **Invalid fixtures:** empty value, newline, not a list.
+- **Resolver rows:** root only; an environment overriding only `commit` while `tag` inherits; `[]`
+  clearing; no `git` block at all.
+
+#### `[ ]` T448: pass the options to both pushes, in dry runs and plans too
+
+- **Pipeline:**
+  - `gitHelper.commitChangelog` and `pushTag` take the options and run
+    `git push --push-option=<v>… origin HEAD` and `git push --push-option=<v>… origin <tag>`.
+  - Both the release and the changelog pipelines pass the effective lists for the selected
+    environment.
+  - `--no-push` passes none, because nothing is pushed.
+- **Dry run:** the `[dry-run]` push lines name the options.
+- **JSON plan:** the `commit_changelog` and `push_tag` steps gain `push_options`, omitted when
+  empty.
+
+Tests first:
+- MockRunner contract tests asserting the exact push arguments: none, one, several (in order), and a
+  value starting with `-`. Commit and tag get different lists.
+- Both pipelines, with an environment override.
+- The dry-run lines and the plan.
+- e2e (Lane A), using a local bare remote with `receive.advertisePushOptions` on:
+  - the options reach the server, which a `pre-receive` hook records from `GIT_PUSH_OPTION_*`;
+  - a remote without the capability makes the push fail with git's error, wrapped, and the run
+    stops there.
+
+Docs: Spec 02 (the block and the override row), Spec 03 (the push steps of `release` and
+`changelog`), and the failure-recovery guide (an unsupported option: drop it and retry). The
+GitHub wording waits for T449.
+
+#### `[ ]` T449: confirm GitHub and GitLab behaviour in the sandboxes (Lane B)
+
+Runs only on the user's go, against `bchatard/heraut-testing` on both forges:
+- **GitLab:** `commit: ["ci.skip"]` skips the commit's pipeline, and the tag's pipeline still runs.
+- **github.com:** check whether it accepts push options (or refuses the push).
+- **GitHub:** check whether `[skip ci]` in `commit_message` also skips a tag-push workflow.
+
+Record the results in Spec 02 and the sample. If github.com refuses push options, `heraut check
+config` should warn when the block is set and the only forge is GitHub; that would be a follow-up
+task, not part of T449.
 
 Every Phase above marked `Done` and not pointing to a dedicated roadmap (D, 0–9, 11–22, 26, 28,
 30, 31) has had its full task write-up — implementation notes, decisions, deviations — moved to

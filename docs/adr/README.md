@@ -83,3 +83,4 @@ trade-offs were accepted.
 | [0076](0076-a-release-asset-pattern-must-match-a-file.md) | A release asset pattern must match a file | Accepted |
 | [0077](0077-github-publish-transport.md) | GitHub publish transport — replace `gh` with `go-github` | Accepted |
 | [0078](0078-confirm-major-bumps.md) | Confirm major bumps — `versioning.bump.confirm_major` | Accepted |
+| [0079](0079-push-options.md) | Push options for the release pushes — `git.push_options` | Accepted |
