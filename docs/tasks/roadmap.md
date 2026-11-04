@@ -254,7 +254,8 @@ discipline that applies to every task.
 | 83 | Code review follow-ups (2026-10-28 review of Phases 80–82) | Done |
 | 84 | Azure DevOps enrichment fixes | Done |
 | 85 | Confirm major bumps (`versioning.bump.confirm_major`, ADR-0078) | Done |
-| 86 | Push options for the release pushes (`git.push_options`, ADR-0079) | In progress |
+| 86 | Push options for the release pushes (`git.push_options`, ADR-0079) | Done |
+| 87 | Skip only the release commit's workflow on GitHub (docs) | In progress |
 
 ### Open items
 
@@ -3891,6 +3892,12 @@ so the `.gitlab-ci.yml` and workflow it needs stay out of `heraut-testing`. Resu
 Spec 02 gains a table of the four outcomes, and the sample says github.com ignores push options.
 While testing, a global `tag.gpgsign=true` turned `tag_type: lightweight` into a signed tag; that is
 git's doing, not heraut's, so the lightweight case was run with the setting off.
+
+### Phase 87 — Skip only the release commit's workflow on GitHub (docs)
+
+Split out of Phase 86 on 2026-11-04. Push options do nothing on github.com (T449), so a GitHub
+project that wants the tag's workflow but not the release commit's has to filter in the workflow.
+This phase documents how.
 
 #### `[ ]` T450: document skipping only the release commit's workflow on GitHub
 
