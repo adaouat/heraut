@@ -254,7 +254,7 @@ discipline that applies to every task.
 | 83 | Code review follow-ups (2026-10-28 review of Phases 80–82) | Done |
 | 84 | Azure DevOps enrichment fixes | Done |
 | 85 | Confirm major bumps (`versioning.bump.confirm_major`, ADR-0078) | Done |
-| 86 | Push options for the release pushes (`git.push_options`, ADR-0079) | In progress |
+| 86 | Push options for the release pushes (`git.push_options`, ADR-0079) | Done |
 
 ### Open items
 
@@ -3862,9 +3862,9 @@ Done 2026-11-03.
   row. Spec 03 names the options in the push steps of `release` and `changelog` and in the
   `--json` field list. The agent skill's plan section mentions `push_options`. The
   failure-recovery guide covers a refused option in states A and B. GitHub is still not
-  mentioned, pending T449.
+  mentioned, pending T449 (since done).
 
-#### `[ ]` T449: confirm GitHub and GitLab behaviour in the sandboxes (Lane B)
+#### `[x]` T449: confirm GitHub and GitLab behaviour in the sandboxes (Lane B)
 
 Runs only on the user's go, against `bchatard/heraut-testing` on both forges:
 - **GitLab:** `commit: ["ci.skip"]` skips the commit's pipeline, and the tag's pipeline still runs.
@@ -3874,6 +3874,23 @@ Runs only on the user's go, against `bchatard/heraut-testing` on both forges:
 Record the results in Spec 02 and the sample. If github.com refuses push options, `heraut check
 config` should warn when the block is set and the only forge is GitHub; that would be a follow-up
 task, not part of T449.
+
+Done 2026-11-04, by hand with the built binary (`heraut changelog --commit --tag --offline`), not
+as an `e2e_forge` scenario: the outcome is a CI pipeline, which the Lane B harness does not read.
+The user approved a dedicated private pair, `bchatard/heraut-testing-push-options` on both forges,
+so the `.gitlab-ci.yml` and workflow it needs stay out of `heraut-testing`. Results:
+- **gitlab.com, `commit: ["ci.skip"]`:** the release commit's pipeline is created as `skipped`, and
+  the tag's pipeline runs. ADR-0079's use case holds.
+- **gitlab.com, `[skip ci]` in `commit_message`:** both pipelines are skipped, as the ADR says.
+- **github.com, `commit: ["ci.skip"]`:** the push is accepted and the option ignored; both
+  workflows run. github.com does not refuse push options, so the `check config` warning is not
+  needed and no follow-up task is added.
+- **github.com, `[skip ci]` in `commit_message`:** the branch and tag workflow runs are both
+  skipped, for an annotated tag and for a lightweight one.
+
+Spec 02 gains a table of the four outcomes, and the sample says github.com ignores push options.
+While testing, a global `tag.gpgsign=true` turned `tag_type: lightweight` into a signed tag; that is
+git's doing, not heraut's, so the lightweight case was run with the setting off.
 
 Every Phase above marked `Done` and not pointing to a dedicated roadmap (D, 0–9, 11–22, 26, 28,
 30, 31) has had its full task write-up — implementation notes, decisions, deviations — moved to

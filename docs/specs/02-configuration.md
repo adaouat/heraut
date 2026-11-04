@@ -1234,6 +1234,16 @@ The use it was made for: on GitLab, `ci.skip` on the commit push skips the relea
 while the tag's still runs. `[skip ci]` in `versioning.commit_message` cannot do that, since the tag
 points at that same commit and its pipeline is skipped too. GitLab also reads `ci.variable="KEY=VALUE"`.
 
+What each forge does, checked against gitlab.com and github.com on 2026-11-04:
+
+| Setup                                       | gitlab.com                                                | github.com                                                   |
+|---------------------------------------------|-----------------------------------------------------------|--------------------------------------------------------------|
+| `push_options.commit: ["ci.skip"]`          | The commit's pipeline is created as `skipped`; the tag's runs. | The push is accepted and the option ignored: both workflows run. |
+| `[skip ci]` in `versioning.commit_message`  | Both pipelines are skipped.                                | Both workflow runs are skipped, for an annotated or a lightweight tag. |
+
+github.com has no push option that skips a workflow, so on GitHub the commit's run and the tag's run are
+skipped together or not at all.
+
 A remote that does not advertise push options refuses a push that carries them ("the receiving end does
 not support push options"): the run stops at that push, as with any failed push (see the
 [failure-recovery guide](../guides/failure-recovery.md)). Remove the option and run again.

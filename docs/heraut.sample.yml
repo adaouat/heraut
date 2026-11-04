@@ -435,12 +435,13 @@ changelog:
 # commits and tags (ADR-0079), passed in order. commit applies to the changelog
 # commit push (git push origin HEAD), tag to the tag push (git push origin <tag>).
 # Unused with --no-push. Values are the server's: GitLab reads ci.skip and
-# ci.variable="KEY=VALUE". A remote that does not support push options refuses
-# the push. Overridable per environment (see the environments block above).
+# ci.variable="KEY=VALUE". github.com accepts push options and ignores them. A
+# remote that does not support push options refuses the push. Overridable per
+# environment (see the environments block above).
 #
 # Skip the release commit's GitLab pipeline and keep the tag's — [skip ci] in
 # versioning.commit_message would skip the tag's too, since the tag points at
-# that commit:
+# that commit (on GitHub as on GitLab):
 #
 # git:
 #   push_options:
