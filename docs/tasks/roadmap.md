@@ -256,6 +256,7 @@ discipline that applies to every task.
 | 85 | Confirm major bumps (`versioning.bump.confirm_major`, ADR-0078) | Done |
 | 86 | Push options for the release pushes (`git.push_options`, ADR-0079) | Done |
 | 87 | Skip only the release commit's workflow on GitHub (docs) | Done |
+| 88 | One enrichment forge for every target: check and docs | Not started |
 
 ### Open items
 
@@ -3925,6 +3926,34 @@ and one `heraut changelog --commit --tag --offline`:
 Spec 02's `git` section shows both patterns and their limits: the path filter needs the feature
 commits pushed beforehand, and the condition must match `commit_message`'s prefix. The sample
 points to it.
+
+### Phase 88 — One enrichment forge for every target: check and docs
+
+Found with the user on 2026-11-04 while checking how a release with several `release.targets` is
+enriched. Every target's notes are regenerated with its own link context (ADR-0021), but the
+PR/MR data comes from one forge, `commits.enrichment_forge` (`internal/app/pipeline.go`,
+`native.WithForge`). That is the intended behaviour; the check that enforces it and the spec that
+describes it each have a gap.
+
+#### `[ ]` T451: require `commits.enrichment_forge` with several forges, even without a `commits:` block
+
+Spec 02 says `enrichment_forge` is required when more than one forge is configured, and
+`validate_forges.go` enforces it, but only inside `if cfg.Commits != nil`. With two `forges:`
+entries and no `commits:` block, the config passes and `forge.Resolve` silently enriches from the
+first entry (`EnrichmentIndex` 0). Move the check out so it runs without the block. Tests first: a
+fixture with two forges and no `commits:` block is a config error on `commits.enrichment_forge`,
+and the existing cases keep their results. If `schema.json` can express it, keep it in step.
+
+#### `[ ]` T452: say that one forge enriches every target, and fix Spec 05's link paragraph
+
+- **Spec 05 § Per-platform link resolution** (`docs/specs/05-generators-and-platforms.md`) says
+  each target's link context makes "commit/PR/MR links resolve to the correct host". Only the
+  commit and compare links do: a PR/MR link is the enrichment forge's absolute URL, so a GitHub
+  target enriched from GitLab links `!12` to the GitLab MR. The same paragraph says a
+  single-platform release passes `nil`; the code passes that platform's own context
+  (`singlePlatformLinkContext`), and `nil` only when no platform is configured.
+- **Spec 02 § `commits.enrichment_forge`** gains one line: the PR/MR numbers, links, `@handles` and
+  New Contributors in every target's notes come from that one forge.
 
 Every Phase above marked `Done` and not pointing to a dedicated roadmap (D, 0–9, 11–22, 26, 28,
 30, 31) has had its full task write-up — implementation notes, decisions, deviations — moved to
