@@ -51,8 +51,8 @@ func (g *gitHelper) runInteractive(name string, args ...string) error {
 // and failed at the push, and the tag pushed afterwards would otherwise point at a commit on no
 // remote branch (T360). A files entry
 // that matches nothing on disk is a `git add` failure like any other, propagated as-is — no new
-// zero-match detection needed (ADR-0061 Design §4).
-func (g *gitHelper) commitChangelog(files []string, msg string, push bool) (bool, error) {
+// zero-match detection needed (ADR-0061 Design §4). pushOptions go to that push (ADR-0079).
+func (g *gitHelper) commitChangelog(files []string, msg string, push bool, pushOptions []string) (bool, error) {
 	if err := g.run("git", append([]string{"add"}, files...)...); err != nil {
 		return false, fmt.Errorf("git add: %w", err)
 	}
@@ -66,7 +66,7 @@ func (g *gitHelper) commitChangelog(files []string, msg string, push bool) (bool
 		}
 	}
 	if push && (staged || g.aheadOfUpstream()) {
-		if err := g.run("git", "push", "origin", "HEAD"); err != nil {
+		if err := g.run("git", pushArgs("HEAD", pushOptions)...); err != nil {
 			return false, fmt.Errorf("git push: %w", err)
 		}
 	}
@@ -107,11 +107,33 @@ func (g *gitHelper) tag(tag, msg string, annotated, sign bool) error {
 	return g.run("git", "tag", tag)
 }
 
-func (g *gitHelper) pushTag(tag string) error {
-	if err := g.run("git", "push", "origin", tag); err != nil {
+func (g *gitHelper) pushTag(tag string, pushOptions []string) error {
+	if err := g.run("git", pushArgs(tag, pushOptions)...); err != nil {
 		return fmt.Errorf("git push %s: %w", tag, err)
 	}
 	return nil
+}
+
+// pushArgs builds `push [--push-option=<v>…] origin <ref>`. Each option is one
+// --push-option=<v> argument, so a value starting with "-" is never read as a flag (ADR-0079).
+func pushArgs(ref string, pushOptions []string) []string {
+	args := []string{"push"}
+	for _, o := range pushOptions {
+		args = append(args, "--push-option="+o)
+	}
+	return append(args, "origin", ref)
+}
+
+// withPushOptions appends a push's options to its [dry-run] line, as git receives them.
+func withPushOptions(line string, pushOptions []string) string {
+	if len(pushOptions) == 0 {
+		return line
+	}
+	flags := make([]string, len(pushOptions))
+	for i, o := range pushOptions {
+		flags[i] = "--push-option=" + o
+	}
+	return line + " (" + strings.Join(flags, " ") + ")"
 }
 
 func commitMessage(template, version string) string {

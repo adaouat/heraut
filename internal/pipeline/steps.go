@@ -112,7 +112,7 @@ func (p *Pipeline) releaseFlow(ctx context.Context, result versioning.Result) *r
 				},
 				dry: func() (string, []string, error) { return "[dry-run] would write " + file, nil, nil },
 				plain: func() ([]string, error) {
-					return []string{"[dry-run] would generate changelog → commit → push"}, nil
+					return []string{withPushOptions("[dry-run] would generate changelog → commit → push", p.cfg.CommitPushOptions)}, nil
 				},
 				plan: func() ([]PlanStep, error) { return []PlanStep{{Action: "changelog", Target: file}}, nil },
 			},
@@ -120,7 +120,7 @@ func (p *Pipeline) releaseFlow(ctx context.Context, result versioning.Result) *r
 				name: "Commit changelog",
 				exec: func() (string, []string, error) {
 					var err error
-					committed, err = p.git.commitChangelog(append([]string{file}, stage...), commitMessage(p.cfg.CommitMessage, result.Version), true)
+					committed, err = p.git.commitChangelog(append([]string{file}, stage...), commitMessage(p.cfg.CommitMessage, result.Version), true, p.cfg.CommitPushOptions)
 					if err != nil {
 						return "", nil, fmt.Errorf("committing changelog: %w", err)
 					}
@@ -131,8 +131,12 @@ func (p *Pipeline) releaseFlow(ctx context.Context, result versioning.Result) *r
 						warnNothingToCommit(p.out, file)
 					}
 				},
-				dry:  func() (string, []string, error) { return "[dry-run] would commit and push", nil, nil },
-				plan: func() ([]PlanStep, error) { return []PlanStep{{Action: "commit_changelog", Target: file}}, nil },
+				dry: func() (string, []string, error) {
+					return withPushOptions("[dry-run] would commit and push", p.cfg.CommitPushOptions), nil, nil
+				},
+				plan: func() ([]PlanStep, error) {
+					return []PlanStep{{Action: "commit_changelog", Target: file, PushOptions: p.cfg.CommitPushOptions}}, nil
+				},
 			})
 	}
 
@@ -150,17 +154,19 @@ func (p *Pipeline) releaseFlow(ctx context.Context, result versioning.Result) *r
 			},
 			dry: func() (string, []string, error) { return "[dry-run] would tag", nil, nil },
 			plain: func() ([]string, error) {
-				return []string{fmt.Sprintf("[dry-run] would tag %s and push", result.Tag)}, nil
+				return []string{withPushOptions(fmt.Sprintf("[dry-run] would tag %s and push", result.Tag), p.cfg.TagPushOptions)}, nil
 			},
 			plan: func() ([]PlanStep, error) { return []PlanStep{{Action: "tag", Target: result.Tag}}, nil },
 		},
 		releaseStep{
 			name: "Push tag",
-			exec: func() (string, []string, error) { return "", nil, p.git.pushTag(result.Tag) },
+			exec: func() (string, []string, error) { return "", nil, p.git.pushTag(result.Tag, p.cfg.TagPushOptions) },
 			dry: func() (string, []string, error) {
-				return fmt.Sprintf("[dry-run] would push %s", result.Tag), nil, nil
+				return withPushOptions(fmt.Sprintf("[dry-run] would push %s", result.Tag), p.cfg.TagPushOptions), nil, nil
 			},
-			plan: func() ([]PlanStep, error) { return []PlanStep{{Action: "push_tag", Target: result.Tag}}, nil },
+			plan: func() ([]PlanStep, error) {
+				return []PlanStep{{Action: "push_tag", Target: result.Tag, PushOptions: p.cfg.TagPushOptions}}, nil
+			},
 		})
 	if s, ok := p.hookStep("post_tag", p.cfg.PostTagHooks, vars, nil); ok {
 		flow.body = append(flow.body, s)

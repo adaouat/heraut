@@ -19,7 +19,7 @@ func TestCommitChangelog_StagedCommits(t *testing.T) {
 	mr.QueueResponse("", "", nil)               // git push
 
 	g := gitHelper{runner: mr}
-	committed, err := g.commitChangelog([]string{"CHANGELOG.md"}, "chore(release): 1.2.3", true)
+	committed, err := g.commitChangelog([]string{"CHANGELOG.md"}, "chore(release): 1.2.3", true, nil)
 	require.NoError(t, err)
 	assert.True(t, committed)
 
@@ -41,7 +41,7 @@ func TestCommitChangelog_StagesMultipleFiles(t *testing.T) {
 	mr.QueueResponse("", "", nil)                              // git push
 
 	g := gitHelper{runner: mr}
-	committed, err := g.commitChangelog([]string{"CHANGELOG.md", "composer.json"}, "chore(release): 1.2.3", true)
+	committed, err := g.commitChangelog([]string{"CHANGELOG.md", "composer.json"}, "chore(release): 1.2.3", true, nil)
 	require.NoError(t, err)
 	assert.True(t, committed)
 
@@ -60,7 +60,7 @@ func TestCommitChangelog_ChangelogUnchangedButStagedFileChanged_StillCommits(t *
 	mr.QueueResponse("", "", nil)                // git push
 
 	g := gitHelper{runner: mr}
-	committed, err := g.commitChangelog([]string{"CHANGELOG.md", "composer.json"}, "chore(release): 1.2.3", true)
+	committed, err := g.commitChangelog([]string{"CHANGELOG.md", "composer.json"}, "chore(release): 1.2.3", true, nil)
 	require.NoError(t, err)
 	assert.True(t, committed)
 
@@ -76,7 +76,7 @@ func TestCommitChangelog_ZeroMatchStagePattern_PropagatesGitAddError(t *testing.
 	mr.QueueResponse("", "", errors.New("fatal: pathspec 'nonexistent.txt' did not match any files"))
 
 	g := gitHelper{runner: mr}
-	committed, err := g.commitChangelog([]string{"CHANGELOG.md", "nonexistent.txt"}, "chore(release): 1.2.3", true)
+	committed, err := g.commitChangelog([]string{"CHANGELOG.md", "nonexistent.txt"}, "chore(release): 1.2.3", true, nil)
 	require.Error(t, err)
 	assert.False(t, committed)
 	assert.Contains(t, err.Error(), "git add")
@@ -95,7 +95,7 @@ func TestCommitChangelog_NothingStagedSkips(t *testing.T) {
 	mr.QueueResponse("", "", nil) // git diff --cached --name-only (empty: nothing staged)
 
 	g := gitHelper{runner: mr}
-	committed, err := g.commitChangelog([]string{"CHANGELOG.md"}, "chore(release): 1.2.3", false)
+	committed, err := g.commitChangelog([]string{"CHANGELOG.md"}, "chore(release): 1.2.3", false, nil)
 	require.NoError(t, err)
 	assert.False(t, committed)
 
@@ -115,7 +115,7 @@ func TestCommitChangelog_NothingStagedPushesUnpushedCommits(t *testing.T) {
 	mr.QueueResponse("", "", nil)    // git push origin HEAD
 
 	g := gitHelper{runner: mr}
-	committed, err := g.commitChangelog([]string{"CHANGELOG.md"}, "chore(release): 1.2.3", true)
+	committed, err := g.commitChangelog([]string{"CHANGELOG.md"}, "chore(release): 1.2.3", true, nil)
 	require.NoError(t, err)
 	assert.False(t, committed)
 
@@ -145,7 +145,7 @@ func TestCommitChangelog_NothingStagedNothingToPush(t *testing.T) {
 			mr.QueueResponse(tc.out, "", tc.err) // git rev-list --count @{u}..HEAD
 
 			g := gitHelper{runner: mr}
-			committed, err := g.commitChangelog([]string{"CHANGELOG.md"}, "chore(release): 1.2.3", true)
+			committed, err := g.commitChangelog([]string{"CHANGELOG.md"}, "chore(release): 1.2.3", true, nil)
 			require.NoError(t, err)
 			assert.False(t, committed)
 			require.Len(t, mr.Calls, tc.calls, "no push attempted")
@@ -162,7 +162,7 @@ func TestCommitChangelog_NothingStagedPushError(t *testing.T) {
 	mr.QueueResponse("", "", errors.New("remote unreachable")) // git push fails
 
 	g := gitHelper{runner: mr}
-	committed, err := g.commitChangelog([]string{"CHANGELOG.md"}, "chore(release): 1.2.3", true)
+	committed, err := g.commitChangelog([]string{"CHANGELOG.md"}, "chore(release): 1.2.3", true, nil)
 	require.Error(t, err)
 	assert.False(t, committed)
 	assert.Contains(t, err.Error(), "git push")
@@ -176,7 +176,7 @@ func TestCommitChangelog_DiffError(t *testing.T) {
 	mr.QueueResponse("", "", errors.New("fatal: not a git repo")) // git diff fails
 
 	g := gitHelper{runner: mr}
-	committed, err := g.commitChangelog([]string{"CHANGELOG.md"}, "chore(release): 1.2.3", true)
+	committed, err := g.commitChangelog([]string{"CHANGELOG.md"}, "chore(release): 1.2.3", true, nil)
 	require.Error(t, err)
 	assert.False(t, committed)
 	assert.Contains(t, err.Error(), "git diff --cached")
@@ -200,7 +200,7 @@ func TestCommitChangelog_UsesInteractiveRunnerForCommit(t *testing.T) {
 	interactive.QueueResponse("", "", nil) // git commit
 
 	g := gitHelper{runner: mr, interactiveRunner: interactive}
-	committed, err := g.commitChangelog([]string{"CHANGELOG.md"}, "chore(release): 1.2.3", true)
+	committed, err := g.commitChangelog([]string{"CHANGELOG.md"}, "chore(release): 1.2.3", true, nil)
 	require.NoError(t, err)
 	assert.True(t, committed)
 
@@ -224,7 +224,7 @@ func TestCommitChangelog_NoInteractiveRunnerFallsBackToRegular(t *testing.T) {
 	mr.QueueResponse("", "", nil)               // git push
 
 	g := gitHelper{runner: mr}
-	committed, err := g.commitChangelog([]string{"CHANGELOG.md"}, "chore(release): 1.2.3", true)
+	committed, err := g.commitChangelog([]string{"CHANGELOG.md"}, "chore(release): 1.2.3", true, nil)
 	require.NoError(t, err)
 	assert.True(t, committed)
 	require.Len(t, mr.Calls, 4)
@@ -260,4 +260,85 @@ func TestTag_Unsigned_UsesRegularRunner(t *testing.T) {
 	require.Len(t, mr.Calls, 1)
 	assert.Equal(t, []string{"tag", "-a", "v1.2.3", "-m", "chore(release): 1.2.3"}, mr.Calls[0].Args)
 	assert.Empty(t, interactive.Calls)
+}
+
+func TestCommitChangelog_PushOptions(t *testing.T) {
+	tests := []struct {
+		name string
+		opts []string
+		want []string
+	}{
+		{"none", nil, []string{"push", "origin", "HEAD"}},
+		{"empty list", []string{}, []string{"push", "origin", "HEAD"}},
+		{"one", []string{"ci.skip"}, []string{"push", "--push-option=ci.skip", "origin", "HEAD"}},
+		{
+			"several, in order",
+			[]string{"ci.skip", "ci.variable=DEPLOY=true"},
+			[]string{"push", "--push-option=ci.skip", "--push-option=ci.variable=DEPLOY=true", "origin", "HEAD"},
+		},
+		{"a value starting with a dash stays one argument", []string{"-f"}, []string{"push", "--push-option=-f", "origin", "HEAD"}},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			mr := exectest.NewMockRunner()
+			mr.QueueResponse("", "", nil)               // git add
+			mr.QueueResponse("CHANGELOG.md\n", "", nil) // git diff --cached --name-only (staged)
+			mr.QueueResponse("", "", nil)               // git commit
+			mr.QueueResponse("", "", nil)               // git push
+
+			g := gitHelper{runner: mr}
+			_, err := g.commitChangelog([]string{"CHANGELOG.md"}, "chore(release): 1.2.3", true, tc.opts)
+			require.NoError(t, err)
+
+			require.Len(t, mr.Calls, 4)
+			assert.Equal(t, tc.want, mr.Calls[3].Args)
+		})
+	}
+}
+
+func TestCommitChangelog_PushOptionsWithoutPush(t *testing.T) {
+	mr := exectest.NewMockRunner()
+	mr.QueueResponse("", "", nil)               // git add
+	mr.QueueResponse("CHANGELOG.md\n", "", nil) // git diff --cached --name-only (staged)
+	mr.QueueResponse("", "", nil)               // git commit
+
+	g := gitHelper{runner: mr}
+	_, err := g.commitChangelog([]string{"CHANGELOG.md"}, "chore(release): 1.2.3", false, []string{"ci.skip"})
+	require.NoError(t, err)
+	require.Len(t, mr.Calls, 3, "no push, so the options go nowhere")
+}
+
+func TestPushTag_PushOptions(t *testing.T) {
+	tests := []struct {
+		name string
+		opts []string
+		want []string
+	}{
+		{"none", nil, []string{"push", "origin", "v1.2.3"}},
+		{"one", []string{"ci.variable=DEPLOY=true"}, []string{"push", "--push-option=ci.variable=DEPLOY=true", "origin", "v1.2.3"}},
+		{"several, in order", []string{"a", "b"}, []string{"push", "--push-option=a", "--push-option=b", "origin", "v1.2.3"}},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			mr := exectest.NewMockRunner()
+			mr.QueueResponse("", "", nil)
+
+			g := gitHelper{runner: mr}
+			require.NoError(t, g.pushTag("v1.2.3", tc.opts))
+
+			require.Len(t, mr.Calls, 1)
+			assert.Equal(t, tc.want, mr.Calls[0].Args)
+		})
+	}
+}
+
+func TestPushTag_PushOptionsRefusedIsWrapped(t *testing.T) {
+	mr := exectest.NewMockRunner()
+	refused := errors.New("fatal: the receiving end does not support push options")
+	mr.QueueResponse("", "", refused)
+
+	g := gitHelper{runner: mr}
+	err := g.pushTag("v1.2.3", []string{"ci.skip"})
+	require.ErrorIs(t, err, refused)
+	assert.Contains(t, err.Error(), "git push v1.2.3")
 }

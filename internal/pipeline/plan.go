@@ -16,6 +16,8 @@ type PlanStep struct {
 	Notes      bool     `json:"notes,omitempty"`    // publish: release notes are generated for it
 	Assets     bool     `json:"assets,omitempty"`   // publish: assets are uploaded
 	PreRelease bool     `json:"pre_release,omitempty"`
+	// PushOptions are commit_changelog's and push_tag's --push-option values (ADR-0079).
+	PushOptions []string `json:"push_options,omitempty"`
 }
 
 // Plan is what Run would do, computed without executing, writing or contacting anything.

@@ -20,6 +20,10 @@ type Config struct {
 	// CommitMessage is the git commit message template for the changelog commit.
 	// Defaults to "chore(release): ${version}". ${version} is substituted.
 	CommitMessage string
+	// CommitPushOptions and TagPushOptions are the --push-option values of the changelog commit
+	// push and of the tag push (git.push_options, ADR-0079), already resolved for the env.
+	CommitPushOptions []string
+	TagPushOptions    []string
 	// DisableChangelog skips changelog generation and commit for the active env.
 	DisableChangelog bool
 	// DisableNotes skips release notes generation for the active env.

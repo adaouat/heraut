@@ -21,6 +21,10 @@ type ChangelogConfig struct {
 	ForgeIdentity *port.ForgeIdentity
 	// CommitMessage is the git commit message template. Defaults to "chore(release): ${version}".
 	CommitMessage string
+	// CommitPushOptions and TagPushOptions are the --push-option values of the changelog commit
+	// push and of the tag push (git.push_options, ADR-0079), already resolved for the env.
+	CommitPushOptions []string
+	TagPushOptions    []string
 	// DisableChangelog skips all steps and exits 0 with an info message.
 	DisableChangelog bool
 	// PreRelease marks that the run publishes a SemVer pre-release; set together with
@@ -152,7 +156,7 @@ func (p *ChangelogPipeline) changelogFlow(ctx context.Context, result versioning
 			body = append(body, releaseStep{
 				name: "Commit changelog",
 				exec: func() (string, []string, error) {
-					committed, err := p.git.commitChangelog(append([]string{file}, stage...), commitMessage(p.cfg.CommitMessage, result.Version), !p.cfg.NoPush)
+					committed, err := p.git.commitChangelog(append([]string{file}, stage...), commitMessage(p.cfg.CommitMessage, result.Version), !p.cfg.NoPush, p.cfg.CommitPushOptions)
 					if err != nil {
 						return "", nil, fmt.Errorf("committing changelog: %w", err)
 					}
@@ -168,13 +172,13 @@ func (p *ChangelogPipeline) changelogFlow(ctx context.Context, result versioning
 					if p.cfg.NoPush {
 						return "[dry-run] would commit (no push)", nil, nil
 					}
-					return "[dry-run] would commit and push", nil, nil
+					return withPushOptions("[dry-run] would commit and push", p.cfg.CommitPushOptions), nil, nil
 				},
 				plain: func() ([]string, error) {
 					if p.cfg.NoPush {
 						return []string{"[dry-run] would commit (no push)"}, nil
 					}
-					return []string{"[dry-run] would commit → push"}, nil
+					return []string{withPushOptions("[dry-run] would commit → push", p.cfg.CommitPushOptions)}, nil
 				},
 			})
 		}
@@ -197,15 +201,15 @@ func (p *ChangelogPipeline) changelogFlow(ctx context.Context, result versioning
 				if p.cfg.NoPush {
 					return []string{fmt.Sprintf("[dry-run] would tag %s (no push)", result.Tag)}, nil
 				}
-				return []string{fmt.Sprintf("[dry-run] would tag %s and push", result.Tag)}, nil
+				return []string{withPushOptions(fmt.Sprintf("[dry-run] would tag %s and push", result.Tag), p.cfg.TagPushOptions)}, nil
 			},
 		})
 		if !p.cfg.NoPush {
 			body = append(body, releaseStep{
 				name: "Push tag",
-				exec: func() (string, []string, error) { return "", nil, p.git.pushTag(result.Tag) },
+				exec: func() (string, []string, error) { return "", nil, p.git.pushTag(result.Tag, p.cfg.TagPushOptions) },
 				dry: func() (string, []string, error) {
-					return fmt.Sprintf("[dry-run] would push %s", result.Tag), nil, nil
+					return withPushOptions(fmt.Sprintf("[dry-run] would push %s", result.Tag), p.cfg.TagPushOptions), nil, nil
 				},
 			})
 		}
