@@ -841,8 +841,13 @@ code-hosting platform heraut talks to — see `docs/heraut.sample.yml` and
 [ADR-0043](../adr/0043-forge-abstraction.md)) supplies PR/MR metadata (author handle, PR number)
 for changelog and release-notes generation. With a single `forges` entry (or none, relying on
 auto-detection from CI environment or `git remote get-url origin`), `enrichment_forge` can be
-omitted; it becomes required when multiple forges are configured and heraut cannot pick one
-unambiguously.
+omitted; it is required when more than one forge is configured, with or without a `commits:`
+block (a config error otherwise, exit 2).
+
+That one forge enriches the notes of every `release.targets` entry: the PR/MR numbers and their
+links, the `@handles` and the New Contributors block are the same in each target's notes. Only
+the commit and compare links follow each target's own forge
+([Spec 05 § Per-platform link resolution](05-generators-and-platforms.md#generator-interface)).
 
 `enrichment_policy` governs **whether** that fetch happens at all: `required` (fetch, and **fail**
 when the metadata cannot be fetched — the forge is unavailable/unreachable, *or* no forge is

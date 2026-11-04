@@ -256,7 +256,7 @@ discipline that applies to every task.
 | 85 | Confirm major bumps (`versioning.bump.confirm_major`, ADR-0078) | Done |
 | 86 | Push options for the release pushes (`git.push_options`, ADR-0079) | Done |
 | 87 | Skip only the release commit's workflow on GitHub (docs) | Done |
-| 88 | One enrichment forge for every target: check and docs | In progress |
+| 88 | One enrichment forge for every target: check and docs | Done |
 
 ### Open items
 
@@ -3960,7 +3960,7 @@ reading an empty name when the block is absent; the policy check stays inside it
 No user-visible change for valid configs; a config that relied on the first forge being picked
 silently now gets the error and its hint.
 
-#### `[ ]` T452: say that one forge enriches every target, and fix Spec 05's link paragraph
+#### `[x]` T452: say that one forge enriches every target, and fix Spec 05's link paragraph
 
 - **Spec 05 § Per-platform link resolution** (`docs/specs/05-generators-and-platforms.md`) says
   each target's link context makes "commit/PR/MR links resolve to the correct host". Only the
@@ -3970,6 +3970,19 @@ silently now gets the error and its hint.
   (`singlePlatformLinkContext`), and `nil` only when no platform is configured.
 - **Spec 02 § `commits.enrichment_forge`** gains one line: the PR/MR numbers, links, `@handles` and
   New Contributors in every target's notes come from that one forge.
+
+Done 2026-11-04.
+- **Spec 05.** The paragraph now says the per-target context drives the commit and compare links.
+  A single-platform release passes its platform's context too, and the CI job's own context wins
+  when the job runs on that platform's type. `nil` is passed only with no platform configured.
+- **The enrichment forge.** A second paragraph says the PR/MR data comes from
+  `commits.enrichment_forge` for every target: the reference links to that forge's URL, and the
+  `@handles` and New Contributors come from it. It gives the GitLab-mirrored-to-GitHub example.
+- **Spec 02.** The `commits.enrichment_forge` reference says the field is required with more than
+  one forge, with or without a `commits:` block (T451). It adds that the one forge enriches every
+  target's notes, pointing to Spec 05.
+
+No ADR change: ADR-0021 and ADR-0043 already describe this split; only the specs had drifted.
 
 Every Phase above marked `Done` and not pointing to a dedicated roadmap (D, 0–9, 11–22, 26, 28,
 30, 31) has had its full task write-up — implementation notes, decisions, deviations — moved to

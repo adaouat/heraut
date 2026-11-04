@@ -412,10 +412,19 @@ none.
 
 **Per-platform link resolution**: when a release targets **more than one** platform,
 heraut regenerates the release notes once per platform and passes that platform's
-`link` context (host, owner, repo, type) so commit/PR/MR links resolve to the correct
-host and path shape (see [ADR-0021](../adr/0021-per-platform-release-notes.md)). A
-single-platform release passes `nil`, and the generator falls through to ambient-CI
-link detection.
+`link` context (host, owner, repo, type) so the commit and compare links resolve to that
+platform's host and path shape (see [ADR-0021](../adr/0021-per-platform-release-notes.md)).
+A single-platform release passes its one platform's context the same way. Either way, the
+CI job's own context is used instead when the job runs on that platform's type. `nil` is
+passed only when no platform is configured, and the generator then falls through to
+ambient-CI link detection.
+
+The PR/MR data does not follow the target: it comes from the one forge named by
+`commits.enrichment_forge` ([Spec 02](02-configuration.md#commitsenrichment_forge--commitsenrichment_policy)),
+for every target. The PR/MR reference (`#12` or `!12`) links to that forge's own URL for
+it, and the `@handles` and the New Contributors block come from it too. A GitLab project
+mirrored to GitHub, enriched from GitLab, publishes GitHub notes whose commit links point to
+github.com and whose `!12` links point to the GitLab merge request.
 
 ## Platforms
 
