@@ -3982,7 +3982,11 @@ Done 2026-11-04.
   one forge, with or without a `commits:` block (T451). It adds that the one forge enriches every
   target's notes, pointing to Spec 05.
 
-No ADR change: ADR-0021 and ADR-0043 already describe this split; only the specs had drifted.
+No ADR change. ADR-0021 predates the native generator: it describes git-cliff and cocogitto
+building every link, PR/MR links included, from each platform's context, which was true then.
+ADR-0043 made `commits.enrichment_forge` the single source of PR/MR data, and the PR/MR URL now
+comes from that forge's API, but no ADR states that consequence for multi-target notes. The specs
+now do. An addendum to ADR-0021 is possible if the user wants the ADR trail to say it too.
 
 Every Phase above marked `Done` and not pointing to a dedicated roadmap (D, 0–9, 11–22, 26, 28,
 30, 31) has had its full task write-up — implementation notes, decisions, deviations — moved to
