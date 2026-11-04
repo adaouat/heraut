@@ -255,7 +255,7 @@ discipline that applies to every task.
 | 84 | Azure DevOps enrichment fixes | Done |
 | 85 | Confirm major bumps (`versioning.bump.confirm_major`, ADR-0078) | Done |
 | 86 | Push options for the release pushes (`git.push_options`, ADR-0079) | Done |
-| 87 | Skip only the release commit's workflow on GitHub (docs) | In progress |
+| 87 | Skip only the release commit's workflow on GitHub (docs) | Done |
 
 ### Open items
 
@@ -3899,7 +3899,7 @@ Split out of Phase 86 on 2026-11-04. Push options do nothing on github.com (T449
 project that wants the tag's workflow but not the release commit's has to filter in the workflow.
 This phase documents how.
 
-#### `[ ]` T450: document skipping only the release commit's workflow on GitHub
+#### `[x]` T450: document skipping only the release commit's workflow on GitHub
 
 Added with the user on 2026-11-04, after T449 showed github.com ignores push options and `[skip ci]`
 skips the tag's run too. GitHub can only do it in the workflow, so this is a docs task in Spec 02's
@@ -3913,6 +3913,18 @@ skips the tag's run too. GitHub can only do it in the workflow, so this is a doc
 
 Check both on a private GitHub sandbox before writing them down, as T449 did. That sandbox run
 needs the user's go.
+
+Done 2026-11-04 on a private sandbox, `bchatard/heraut-testing-workflow-skip`, with three workflows
+and one `heraut changelog --commit --tag --offline`:
+- **`paths-ignore: [CHANGELOG.md]`:** no run for the release commit; the tag's run starts.
+- **`if: !startsWith(head_commit.message, 'chore(release):')`:** skips the tag's run too, because a
+  tag push's `head_commit` is the release commit. Not documented as is.
+- **The same condition with `github.ref_type == 'tag' ||` in front:** the release commit's run is
+  skipped, the tag's runs. This is the form Spec 02 shows.
+
+Spec 02's `git` section shows both patterns and their limits: the path filter needs the feature
+commits pushed beforehand, and the condition must match `commit_message`'s prefix. The sample
+points to it.
 
 Every Phase above marked `Done` and not pointing to a dedicated roadmap (D, 0–9, 11–22, 26, 28,
 30, 31) has had its full task write-up — implementation notes, decisions, deviations — moved to

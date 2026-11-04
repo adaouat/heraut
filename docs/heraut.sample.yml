@@ -447,6 +447,9 @@ changelog:
 #   push_options:
 #     commit: ["ci.skip"]
 #     tag: []
+#
+# On GitHub, filter in the workflow instead, e.g. paths-ignore: [CHANGELOG.md] on
+# the branch trigger (docs/specs/02-configuration.md § git).
 
 # ── hooks ─────────────────────────────────────────────────────────────────────
 #

@@ -1244,6 +1244,31 @@ What each forge does, checked against gitlab.com and github.com on 2026-11-04:
 github.com has no push option that skips a workflow, so on GitHub the commit's run and the tag's run are
 skipped together or not at all.
 
+On GitHub, skip only the release commit's run in the workflow itself instead. Either of these works
+(checked on github.com on 2026-11-04):
+
+```yaml
+# 1. A path filter. GitHub does not apply path filters to tag pushes, so the tag's run still starts.
+on:
+  push:
+    branches: [main]
+    paths-ignore: [CHANGELOG.md]   # changelog.output
+    tags: ["*"]
+```
+
+```yaml
+# 2. A job condition. The release commit's run still appears, as skipped.
+jobs:
+  build:
+    if: "github.ref_type == 'tag' || !startsWith(github.event.head_commit.message, 'chore(release):')"
+```
+
+The path filter skips the run only when the push changes nothing but the changelog, so the feature
+commits must already be on the remote when heraut runs, as they are when heraut runs in CI. The job
+condition must match the prefix of `versioning.commit_message`, and it needs the
+`github.ref_type == 'tag'` guard: a tag push's `head_commit` is the release commit, so without it the
+tag's run is skipped too.
+
 A remote that does not advertise push options refuses a push that carries them ("the receiving end does
 not support push options"): the run stops at that push, as with any failed push (see the
 [failure-recovery guide](../guides/failure-recovery.md)). Remove the option and run again.
