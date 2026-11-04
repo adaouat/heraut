@@ -844,6 +844,30 @@
     {
       "if": {
         "properties": {
+          "forges": {
+            "minItems": 2
+          }
+        },
+        "required": [
+          "forges"
+        ]
+      },
+      "then": {
+        "required": [
+          "commits"
+        ],
+        "properties": {
+          "commits": {
+            "required": [
+              "enrichment_forge"
+            ]
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
           "versioning": {
             "properties": {
               "strategy": {

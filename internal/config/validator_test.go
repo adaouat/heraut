@@ -788,6 +788,16 @@ func TestValidate_invalidFixtures(t *testing.T) {
 			wantPath:    "git.push_options.tag[0]",
 			wantMessage: "line break",
 		},
+		{
+			fixture:     "../../testdata/config/invalid/enrichment_forge_missing.yml",
+			wantPath:    "commits.enrichment_forge",
+			wantMessage: "required when more than one forge is configured",
+		},
+		{
+			fixture:     "../../testdata/config/invalid/enrichment_forge_missing_no_commits.yml",
+			wantPath:    "commits.enrichment_forge",
+			wantMessage: "required when more than one forge is configured",
+		},
 	}
 	for _, tc := range tests {
 		t.Run(tc.fixture, func(t *testing.T) {

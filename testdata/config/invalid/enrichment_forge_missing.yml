@@ -1,0 +1,15 @@
+version: "1"
+
+versioning:
+  strategy: semver
+
+forges:
+  - name: gl
+    platform: gitlab
+    project: group/repo
+  - name: gh
+    platform: github
+    repository: owner/repo
+
+commits:
+  enrichment_policy: optional

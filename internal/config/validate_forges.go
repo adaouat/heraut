@@ -116,6 +116,7 @@ func validateForges(cfg *Config) []ValidationError {
 		}
 	}
 
+	var ef string
 	if cfg.Commits != nil {
 		if !validEnrichmentPolicies[cfg.Commits.EnrichmentPolicy] {
 			errs = append(errs, ValidationError{
@@ -124,20 +125,21 @@ func validateForges(cfg *Config) []ValidationError {
 				Hint:    "valid values: disabled, optional, required",
 			})
 		}
-		switch ef := cfg.Commits.EnrichmentForge; {
-		case ef != "" && !knownForges[ef]:
-			errs = append(errs, ValidationError{
-				Path:    "commits.enrichment_forge",
-				Message: fmt.Sprintf("unknown forge %q", ef),
-				Hint:    "must match one of forges[].name",
-			})
-		case ef == "" && len(cfg.Forges) > 1:
-			errs = append(errs, ValidationError{
-				Path:    "commits.enrichment_forge",
-				Message: "required when more than one forge is configured",
-				Hint:    "set commits.enrichment_forge to one of forges[].name",
-			})
-		}
+		ef = cfg.Commits.EnrichmentForge
+	}
+	switch {
+	case ef != "" && !knownForges[ef]:
+		errs = append(errs, ValidationError{
+			Path:    "commits.enrichment_forge",
+			Message: fmt.Sprintf("unknown forge %q", ef),
+			Hint:    "must match one of forges[].name",
+		})
+	case ef == "" && len(cfg.Forges) > 1:
+		errs = append(errs, ValidationError{
+			Path:    "commits.enrichment_forge",
+			Message: "required when more than one forge is configured",
+			Hint:    "set commits.enrichment_forge to one of forges[].name",
+		})
 	}
 
 	if cfg.Release != nil {

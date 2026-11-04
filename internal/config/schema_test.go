@@ -84,6 +84,8 @@ func TestSchema_InvalidFixtures(t *testing.T) {
 		{"push_options_empty_value.yml", "git.push_options.commit[] must not be empty (ADR-0079)"},
 		{"push_options_newline.yml", "git.push_options.tag[] must not contain a line break (ADR-0079)"},
 		{"push_options_not_a_list.yml", "git.push_options.commit must be an array (ADR-0079)"},
+		{"enrichment_forge_missing.yml", "two forges need commits.enrichment_forge"},
+		{"enrichment_forge_missing_no_commits.yml", "two forges need commits.enrichment_forge, even without a commits block"},
 	}
 
 	for _, tc := range tests {

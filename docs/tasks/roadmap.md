@@ -256,7 +256,7 @@ discipline that applies to every task.
 | 85 | Confirm major bumps (`versioning.bump.confirm_major`, ADR-0078) | Done |
 | 86 | Push options for the release pushes (`git.push_options`, ADR-0079) | Done |
 | 87 | Skip only the release commit's workflow on GitHub (docs) | Done |
-| 88 | One enrichment forge for every target: check and docs | Not started |
+| 88 | One enrichment forge for every target: check and docs | In progress |
 
 ### Open items
 
@@ -3935,7 +3935,7 @@ PR/MR data comes from one forge, `commits.enrichment_forge` (`internal/app/pipel
 `native.WithForge`). That is the intended behaviour; the check that enforces it and the spec that
 describes it each have a gap.
 
-#### `[ ]` T451: require `commits.enrichment_forge` with several forges, even without a `commits:` block
+#### `[x]` T451: require `commits.enrichment_forge` with several forges, even without a `commits:` block
 
 Spec 02 says `enrichment_forge` is required when more than one forge is configured, and
 `validate_forges.go` enforces it, but only inside `if cfg.Commits != nil`. With two `forges:`
@@ -3943,6 +3943,22 @@ entries and no `commits:` block, the config passes and `forge.Resolve` silently 
 first entry (`EnrichmentIndex` 0). Move the check out so it runs without the block. Tests first: a
 fixture with two forges and no `commits:` block is a config error on `commits.enrichment_forge`,
 and the existing cases keep their results. If `schema.json` can express it, keep it in step.
+
+Done 2026-11-04. Reproduced first with the built binary: two forges and no `commits:` block gave
+`✓ config: ok`, and adding `commits: {enrichment_policy: optional}` turned the same file into the
+error. The `enrichment_forge` switch in `validate_forges.go` now runs after the `commits` block,
+reading an empty name when the block is absent; the policy check stays inside it.
+- **Schema.** `schema.json` had no rule for this at all, with or without the block. A root `allOf`
+  entry now says: when `forges` has two items or more, `commits` and `commits.enrichment_forge`
+  are required.
+- **Tests first.** A unit row with no `commits:` block (and a single-forge control), plus two
+  invalid fixtures, `enrichment_forge_missing.yml` (block present) and
+  `enrichment_forge_missing_no_commits.yml`, in both the validator and the schema fixture tables.
+- **Mutations.** 7 mutants (the guard put back, `> 1` → `> 2`, the unknown-forge case dropped, each
+  half of the schema rule removed, `minItems` 3 and 1) each fail a test; a no-op control survives.
+
+No user-visible change for valid configs; a config that relied on the first forge being picked
+silently now gets the error and its hint.
 
 #### `[ ]` T452: say that one forge enriches every target, and fix Spec 05's link paragraph
 

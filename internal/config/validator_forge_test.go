@@ -18,6 +18,11 @@ func cfgWithForges(forges []config.Forge, enrichForge string) *config.Config {
 	}
 }
 
+func withoutCommits(cfg *config.Config) *config.Config {
+	cfg.Commits = nil
+	return cfg
+}
+
 // forgeErr reports whether some validation error's Path or Message contains want.
 func forgeErr(errs config.ValidationErrors, want string) bool {
 	for _, e := range errs {
@@ -42,6 +47,10 @@ func TestValidate_Forges(t *testing.T) {
 			cfgWithForges([]config.Forge{{Name: "A", Type: "gitlab"}, {Name: "A", Type: "github"}}, "A"), "duplicate"},
 		{"multi forge requires enrichment_forge",
 			cfgWithForges([]config.Forge{{Name: "A", Type: "gitlab"}, {Name: "B", Type: "github"}}, ""), "enrichment_forge"},
+		{"multi forge requires enrichment_forge without a commits block",
+			withoutCommits(cfgWithForges([]config.Forge{{Name: "A", Type: "gitlab"}, {Name: "B", Type: "github"}}, "")), "enrichment_forge"},
+		{"single forge without a commits block ok",
+			withoutCommits(cfgWithForges([]config.Forge{{Name: "A", Type: "gitlab"}}, "")), ""},
 		{"enrichment_forge names unknown forge",
 			cfgWithForges([]config.Forge{{Name: "A", Type: "gitlab"}}, "Z"), "unknown"},
 		{"bad api_mode",
