@@ -254,7 +254,7 @@ discipline that applies to every task.
 | 83 | Code review follow-ups (2026-10-28 review of Phases 80–82) | Done |
 | 84 | Azure DevOps enrichment fixes | Done |
 | 85 | Confirm major bumps (`versioning.bump.confirm_major`, ADR-0078) | Done |
-| 86 | Push options for the release pushes (`git.push_options`, ADR-0079) | Done |
+| 86 | Push options for the release pushes (`git.push_options`, ADR-0079) | In progress |
 
 ### Open items
 
@@ -3891,6 +3891,21 @@ so the `.gitlab-ci.yml` and workflow it needs stay out of `heraut-testing`. Resu
 Spec 02 gains a table of the four outcomes, and the sample says github.com ignores push options.
 While testing, a global `tag.gpgsign=true` turned `tag_type: lightweight` into a signed tag; that is
 git's doing, not heraut's, so the lightweight case was run with the setting off.
+
+#### `[ ]` T450: document skipping only the release commit's workflow on GitHub
+
+Added with the user on 2026-11-04, after T449 showed github.com ignores push options and `[skip ci]`
+skips the tag's run too. GitHub can only do it in the workflow, so this is a docs task in Spec 02's
+`git` section, next to the T449 table, plus a pointer in the sample:
+- **`paths-ignore: [CHANGELOG.md]` on the branch trigger**, with `tags` alongside. Path filters are
+  not applied to tag pushes, so the tag's run still starts. It relies on the feature commits being
+  pushed before heraut runs, and on `changelog.output` being the only file the release commit
+  touches.
+- **A job condition** on the commit message prefix (`chore(release):` or whatever
+  `commit_message` sets). The run still appears, with skipped jobs.
+
+Check both on a private GitHub sandbox before writing them down, as T449 did. That sandbox run
+needs the user's go.
 
 Every Phase above marked `Done` and not pointing to a dedicated roadmap (D, 0–9, 11–22, 26, 28,
 30, 31) has had its full task write-up — implementation notes, decisions, deviations — moved to
