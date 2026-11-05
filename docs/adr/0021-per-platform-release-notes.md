@@ -223,3 +223,22 @@ limitation (communique users get identical notes across platforms) is documented
 - **Always regenerate per platform, including communique.** Acceptable for correctness but
   wasteful for a generator that ignores the context; left as implementation latitude (the
   pipeline may special-case context-blind generators) rather than mandated either way.
+
+## Addendum (2026-11-05): which links follow the target
+
+This ADR was written when git-cliff and cocogitto rendered every link, PR/MR links included, from
+the per-platform context. Since the native generator ([ADR-0032](0032-native-content-generator.md)) and
+the single enrichment source ([ADR-0043](0043-forge-abstraction.md)), the split is:
+
+- **Per target:** the commit and compare links, built from that target's `LinkContext`. A
+  single-platform release now passes its context too; the CI job's own context wins when the job
+  runs on that platform's type. `nil` is passed only when no platform is configured.
+- **From `commits.enrichment_forge`, for every target:** the PR/MR reference and its link (the
+  forge's absolute URL for it), the `@handles` and the New Contributors block. A GitLab project
+  mirrored to GitHub and enriched from GitLab publishes GitHub notes whose commit links point to
+  github.com and whose `!12` links point to the GitLab merge request.
+
+Rendering the PR/MR link from the target instead would point it at a pull request number that
+does not exist on that host. With two forges or more, `commits.enrichment_forge` is required
+(a config error otherwise), so the source is always named. Spec 05 § Per-platform link
+resolution is the behavioural reference.
