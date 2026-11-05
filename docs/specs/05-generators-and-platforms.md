@@ -288,17 +288,17 @@ commits:
   enrichment_forge: azure-devops     # names the forges[] entry above as the metadata source
 ```
 
-Release notes always has a deterministic forge — it is generated per publish target being
-published to (`release.targets`, each referencing a `forges[].name`). The changelog has no
-such anchor, so it resolves the enrichment forge the same way any zero-config forge
+The changelog and the release notes share one enrichment forge: the release notes of every
+publish target are enriched from it too, not from the target's own forge (§ Per-platform
+link resolution below). heraut resolves it the same way any zero-config forge
 resolves: a **non-empty `forges:` block always wins** — each entry's still-unset fields
 (host, project, token) are filled from CI env or git origin, but the block's own presence
 and its entries are never bypassed. Only an **empty `forges:`** (or no block at all) falls
 through to auto-detection: ambient CI markers, then `git remote get-url origin`, then a
 single unambiguous default token env var; `nil` (bare hashes, no enrichment) if none of
-those resolve anything. With multiple configured `forges:` entries and no explicit
-`commits.enrichment_forge`, the **first** entry is used, not an error — name one explicitly
-once you have more than one and enrichment shouldn't default to the first. `forges` entries
+those resolve anything. A single `forges:` entry is the enrichment forge. With two entries or
+more, `commits.enrichment_forge` must name one, with or without a `commits:` block (a config
+error otherwise, exit 2). `forges` entries
 are connection/identity only — they never grant publish capability on their own; heraut
 never publishes a release through a `forges` entry, it only tells heraut where to source
 PR/MR metadata and commit/PR link shapes. Publishing is a separate concern (`release.targets`,
