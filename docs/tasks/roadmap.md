@@ -4248,7 +4248,7 @@ is, so there is no 422 mapping.
   survives.
 - **Shallow clone.** The suite also passes in a `--depth 1` clone.
 
-#### `[ ]` T488: no double period at the end of an error panel
+#### `[x]` T488: no double period at the end of an error panel
 
 The error panel appends a period to every message: fang's `DefaultErrorHandler` renders
 `err.Error()+"."` (`charm.land/fang/v2` `help.go`), called from forge's `cli/errors.go`. Messages
@@ -4263,6 +4263,19 @@ Options:
 
 The first fixes every adaouat tool at once. Decide with the user, since it touches the sibling
 repo. Tests: the handler's rendering for messages ending in `.`, `)`, a command, and plain text.
+
+Done 2026-11-06, both halves.
+- **Forge side.** forge v0.20.0 (bumped in heraut by the user, `ecd4bbe`) drops the appended period
+  when the message already ends with `.`, `!`, `?` or `…` (`dropRedundantPeriod` in forge's
+  `cli/errors.go`). That fixes E003's "..".
+- **Heraut side.** The E001 and E002 messages ended with a bare command
+  (`· To bypass this check: heraut release --env prod --force`), which the panel turned into
+  `--force.`. The line now reads
+  `· To bypass this check, add --force (heraut release --env prod --force)`, so the period closes a
+  sentence (`internal/versioning/perenv/promote.go`).
+- **Tests first.** The two rich-message tests now require that ending; no test pinned the old one.
+- **Checked with the built binary.** The E001, E002 and E003 panels each end with a single period.
+- **Not changed.** ADR-0007 quotes the old wording as history.
 
 #### `[ ]` T489: show the degraded-enrichment notes as warnings, not successes
 

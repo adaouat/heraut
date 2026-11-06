@@ -62,7 +62,7 @@ func (e *PromotionError) renderE001() string {
 			"    · If you need to re-release, remove the existing tag first:\n"+
 			"        git tag -d %s\n"+
 			"        git push origin :refs/tags/%s\n"+
-			"    · To bypass this check: heraut release --env %s --force",
+			"    · To bypass this check, add --force (heraut release --env %s --force)",
 		e.srcTag, e.candidateTag,
 		e.srcEnv, e.srcTag,
 		e.candidateTag,
@@ -88,7 +88,7 @@ func (e *PromotionError) renderE002() string {
 			"        git tag %s <commit-sha>\n"+
 			"        git push origin %s\n"+
 			"    · Or promote from a newer %s version once one exists.\n"+
-			"    · To bypass this check: heraut release --env %s --force",
+			"    · To bypass this check, add --force (heraut release --env %s --force)",
 		e.srcTag, e.candidateTag, e.latestDestTag,
 		e.destEnv,
 		e.srcEnv, e.srcTag,

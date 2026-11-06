@@ -3,6 +3,7 @@ package perenv_test
 import (
 	"errors"
 	"fmt"
+	"strings"
 	"testing"
 	"time"
 
@@ -535,7 +536,8 @@ func TestPromotionError_E001_RichMessage(t *testing.T) {
 	assert.Contains(t, msg, "prod/1.0.2")
 	assert.Contains(t, msg, "already exists")
 	assert.Contains(t, msg, "git tag -d prod/1.0.2")
-	assert.Contains(t, msg, "heraut release --env prod --force")
+	assert.True(t, strings.HasSuffix(msg, "· To bypass this check, add --force (heraut release --env prod --force)"),
+		"the message ends with a sentence, not a bare command the error panel would put a period on: %q", msg)
 }
 
 func TestPromotionError_E002_RichMessage(t *testing.T) {
@@ -568,7 +570,8 @@ func TestPromotionError_E002_RichMessage(t *testing.T) {
 	assert.Contains(t, msg, "prod/1.0.3")
 	assert.Contains(t, msg, "regression")
 	assert.Contains(t, msg, "backwards")
-	assert.Contains(t, msg, "heraut release --env prod --force")
+	assert.True(t, strings.HasSuffix(msg, "· To bypass this check, add --force (heraut release --env prod --force)"),
+		"the message ends with a sentence, not a bare command the error panel would put a period on: %q", msg)
 }
 
 // TestPromotionError_E002_SourceTagFormatNeedsBuildID_SuggestionDegradesGracefully is T313: when
