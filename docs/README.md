@@ -32,6 +32,7 @@ Each guide answers one situation.
 - `heraut <command> --help`: the flags of each command.
 - [Environment variables](reference/environment-variables.md): the tokens, the `HERAUT_` settings
   and the CI variables heraut reads.
+- [Exit codes](reference/exit-codes.md): what each code means and what to do about it.
 - [Changelog](../CHANGELOG.md): what changed in each version.
 
 ---

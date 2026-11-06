@@ -205,10 +205,19 @@ Done 2026-11-06.
   pull-request enrichment reads only `GITHUB_TOKEN` (`defaultTokenEnvFor`). A user who sets only
   `GH_TOKEN` publishes fine but gets no PR data outside Actions. The page states it as it is.
 
-#### `[ ]` T464: exit codes reference
+#### `[x]` T464: exit codes reference
 
 New `docs/reference/exit-codes.md`: each exit code, what causes it, and what to do (config error, runtime,
 promotion E001–E003, …). Checked against `internal/exitcode`.
+
+Done 2026-11-06.
+- **The page.** `docs/reference/exit-codes.md` has a summary table (code, `--json` `error.code`,
+  meaning), one section per code listing its causes and what to do, and a table for the three
+  promotion guards with `--force`'s effect on each. It is linked from the docs home.
+- **Sources.** The causes come from Spec 01's table, Spec 03 and Spec 04 § Promotion guards. The
+  shallow-clone and detached-HEAD refusals from Phase 90 are included under 3.
+- **Drift test.** `TestExitCodesReference_ListsEveryCode` (`internal/exitcode`) fails when a code
+  constant or a guard has no table row; deleting the 70 row fails it.
 
 ---
 
