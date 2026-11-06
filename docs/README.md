@@ -15,6 +15,8 @@ release to GitHub or GitLab. Start where your question is.
 - [Choose a versioning strategy](concepts/versioning-strategies.md): SemVer or CalVer, with or without
   environments.
 - [How the next version is found](concepts/next-version.md): why heraut picked this version.
+- [What goes into the changelog](concepts/changelog-content.md): which commits appear, in which
+  section, and where their links come from.
 
 ## Release from CI
 

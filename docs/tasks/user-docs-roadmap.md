@@ -1,6 +1,6 @@
 # Héraut — User Documentation Roadmap
 
-> Status: In progress (drafted 2026-11-06; 89a, 89b and 89c done)
+> Status: In progress (drafted 2026-11-06; 89a, 89b, 89c and 89d done)
 > Source: the user's review of 2026-11-06. heraut's docs are written for contributors and agents
 > (specs, ADRs, roadmap); a user who lands on the repo has no path that avoids them. This epic adds
 > user docs next to the contributor docs, without moving `docs/specs/`, `docs/adr/` or `docs/tasks/`.
@@ -36,7 +36,7 @@
 | 89a | Front doors and getting started | T453–T458 | Done |
 | 89b | Generated reference | T459–T464 | Done |
 | 89c | Guides | T465–T475, T486 | Done |
-| 89d | Concepts | T476–T479 | Planned |
+| 89d | Concepts | T476–T479 | Done |
 | 89e | Keeping user docs current | T480 | Planned |
 
 ---
@@ -635,10 +635,26 @@ Done 2026-11-06.
     mode, and CalVer counting up with no new commit.
   - The quoted messages are exact.
 
-#### `[ ]` T479: What goes into the changelog
+#### `[x]` T479: What goes into the changelog
 
 New `docs/concepts/changelog-content.md`: which commits appear, sections, breaking changes, the changelog vs
 release notes, where links come from.
+
+Done 2026-11-06.
+- **The page.** `docs/concepts/changelog-content.md` covers:
+  - the section per release, inserted (not rewritten), with its markers and `--regenerate`;
+  - the type-to-section table;
+  - what never appears;
+  - breaking changes;
+  - a changelog-against-release-notes table;
+  - where each link comes from.
+  - It is linked from the docs home.
+- **Run with the built binary.** The table and the exclusions come from a changelog rendered from 18
+  varied commits. That run showed `ci` under Miscellaneous Tasks, `build` and non-conventional
+  messages under Other, and `revert` in its own section, with `chore(deps)`, merges and `fixup!`
+  dropped. A `chore(deps)`-only release gave `v2.0.1` with the empty-section warning.
+- **Checked in the code.** The release-notes differences come from `release_notes.tmpl`, and the
+  GitHub compare link shape (`..`) from `links.go`.
 
 ---
 
