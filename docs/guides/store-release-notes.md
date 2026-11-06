@@ -14,7 +14,7 @@ heraut notes v7.8.0 --format text --output store.txt
 from an earlier run (a fresh CI checkout never has one).
 
 `heraut notes` only reads git. Run it after the tag exists, from any checkout that has the tag
-and its history, including a shallow-free CI checkout of the tag itself.
+and its history, such as a CI job for the tag that fetches the full history.
 
 By default it prints the groups of the range from the tag's previous release, one line per commit,
 with no release heading and none of the hash, author or PR reference the changelog shows:
@@ -33,7 +33,7 @@ with no release heading and none of the hash, author or PR reference the changel
 ```
 
 The group headings are the `commits.types` labels, emoji included; set `render` on a type to change one
-(see the [`commits.types`](../specs/02-configuration.md#commitstypes) reference). The blank lines are the
+(see `commits.types` in the [configuration reference](../reference/configuration.md#commits)). The blank lines are the
 changelog's own spacing.
 
 `--format text` converts the same notes to plain text:
