@@ -24,7 +24,7 @@ publishing, and config that's validated before it runs, not discovered broken in
 Config-driven, not script-driven — change behavior by editing `.heraut.yml`, not by
 reading bash.
 
-*The name's a French pun — [`héraut`](docs/adr/0002-tool-name-heraut.md) (herald) sounds
+*The name's a French pun — `héraut` (herald) sounds
 like `héros` (hero), which is the idea.*
 
 ## Install

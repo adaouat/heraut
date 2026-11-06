@@ -1,6 +1,6 @@
 # Héraut — User Documentation Roadmap
 
-> Status: In progress (drafted 2026-11-06; 89a, 89b, 89c and 89d done)
+> Status: Done (drafted and completed 2026-11-06)
 > Source: the user's review of 2026-11-06. heraut's docs are written for contributors and agents
 > (specs, ADRs, roadmap); a user who lands on the repo has no path that avoids them. This epic adds
 > user docs next to the contributor docs, without moving `docs/specs/`, `docs/adr/` or `docs/tasks/`.
@@ -37,7 +37,7 @@
 | 89b | Generated reference | T459–T464 | Done |
 | 89c | Guides | T465–T475, T486 | Done |
 | 89d | Concepts | T476–T479 | Done |
-| 89e | Keeping user docs current | T480 | Planned |
+| 89e | Keeping user docs current | T480 | Done |
 
 ---
 
@@ -660,8 +660,34 @@ Done 2026-11-06.
 
 ### Phase 89e — Keeping user docs current
 
-#### `[ ]` T480: user docs in the workflow
+#### `[x]` T480: user docs in the workflow
 
 `.claude/rules/workflow.md` gains a rule: a change to behaviour, a flag or a config key updates the spec
 and the user page that mentions it in the same commit series. `CLAUDE.md` § Docs and `docs/tasks/README.md`
 describe the two front doors. A link check over `docs/` (lychee or an equivalent hk step) runs in hk and CI.
+
+Done 2026-11-06.
+- **The rule.** `.claude/rules/workflow.md` gains § User docs: the two kinds of docs and their front
+  doors; a user-visible change updates the spec, every user page that shows it (with a `grep`
+  recipe) and the generated reference (`mise run docs:gen`); and the user-page rules (no spec or ADR
+  links, examples run against the binary, synthetic names, no internals). `CLAUDE.md` § Docs,
+  `docs/tasks/README.md` and `CONTRIBUTING.md` point to it.
+- **The link check: a Go test instead of lychee.** `docs_links_test.go` (root package) adds no tool
+  and makes no network call (lychee would also hit external URLs). It checks every relative link and
+  `#anchor` in the living docs against GitHub's heading slugs, and checks that user pages never link
+  `docs/specs/` or `docs/adr/`.
+- **Where it runs.**
+  - `go test ./...`, so CI's go-ci job.
+  - hk's new `docs_links` step (`.config/hk/config.pkl`) when Markdown is staged, which CI's existing
+    `hk check --all` job also runs.
+  - No workflow file changed.
+- **Not checked.** `docs/tasks/archive/` and `docs/superpowers/` are historical snapshots; 92 of
+  their links point at files moved or removed since, and are left as written.
+- **What it found and fixed.**
+  - Spec 03 linked ADR-0064 under an old file name.
+  - The README's name pun linked ADR-0002; the link is dropped and the pun kept.
+  - The configuration reference printed descriptions containing `[version](compare-url)`, which
+    GitHub renders as a broken link. The generator now escapes `[` (unit test first) and the page is
+    regenerated.
+- **Mutations.** A broken anchor, a missing file, a user page linking a spec and a broken anchor in a
+  spec each fail the test. A valid new link to a numbered heading passes.

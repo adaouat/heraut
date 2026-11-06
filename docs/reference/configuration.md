@@ -93,7 +93,7 @@ A generated document: the changelog file (changelog:) or the notes published wit
 | Key | Type | Default | Description |
 |---|---|---|---|
 | `changelog.output` | string |  | Where the changelog is written, e.g. CHANGELOG.md. Only under changelog:, since release notes are never written to a file. Tokens start a new file per period: CHANGELOG_{YYYY}.md (CalVer) or CHANGELOG_{MAJOR}.md (SemVer). |
-| `changelog.tag_pattern` | string |  | Regex selecting this scope's release tags, applied in-process (Go regex). E.g. "^v[0-9]" for bare semver or "^prod/" for a per-env prefix. |
+| `changelog.tag_pattern` | string |  | Regex selecting this scope's release tags, applied in-process (Go regex). E.g. "^v\[0-9]" for bare semver or "^prod/" for a per-env prefix. |
 | `changelog.template` | string |  | Path to a full Go text/template file layered over the built-in blocks. It can redefine the whole document or single blocks, and wins over rendering.templates for what it defines. |
 | `changelog.rendering` | object |  | Rendering overrides for this document only (template snippets, excludes), merged over the top-level rendering block. Same keys as `rendering`. |
 
@@ -115,8 +115,8 @@ Publishing: create a release with its notes on each target forge. Present, even 
 | `release.notes` | object |  | A generated document: the changelog file (changelog:) or the notes published with each release (release.notes:). Sets where the changelog is written, which tags it covers, and its template and rendering overrides. Same keys as `changelog`. |
 | `release.assets` | list of string |  | Files to attach to every target's release, as glob patterns (e.g. dist/*.tar.gz). Each must match a file in the repository once post_bump hooks have run, or the release stops before committing. A target's own assets replace this list. |
 | `release.allow_missing_assets` | boolean |  | Let an asset pattern match nothing: it is skipped with a warning instead of stopping the release. Set it when a pre_tag, post_tag or pre_release hook builds the files. Default false. |
-| `release.targets` | list of objects |  | Where to publish, each entry naming a forges[].name. Omit it to publish to the one forge found from the CI job or the git origin. |
-| `release.targets[].forge` | string |  | References a forges[].name. Optional when exactly one forge is configured. |
+| `release.targets` | list of objects |  | Where to publish, each entry naming a forges\[].name. Omit it to publish to the one forge found from the CI job or the git origin. |
+| `release.targets[].forge` | string |  | References a forges\[].name. Optional when exactly one forge is configured. |
 | `release.targets[].draft` | boolean |  | Create the release as a draft, to publish by hand. GitHub only. Default false. |
 | `release.targets[].assets` | list of string |  | Glob patterns of files to attach to this target's release only, replacing release.assets for it. The same rules apply: files in the repository, and each pattern must match unless allow_missing_assets is set. |
 
@@ -136,7 +136,7 @@ Per-environment configuration. Required for semver-per-env and calver-per-env st
 | `environments.<name>.release` | object |  | Override release settings for this environment. |
 | `environments.<name>.release.notes` | object |  | Release notes settings for this environment, merged over release.notes. Same keys as `changelog`. |
 | `environments.<name>.release.targets` | list of objects |  | Where to publish for this environment, replacing the top-level release.targets list entirely. |
-| `environments.<name>.release.targets[].forge` | string |  | References a forges[].name. Optional when exactly one forge is configured. |
+| `environments.<name>.release.targets[].forge` | string |  | References a forges\[].name. Optional when exactly one forge is configured. |
 | `environments.<name>.release.targets[].draft` | boolean |  | Create the release as a draft, to publish by hand. GitHub only. Default false. |
 | `environments.<name>.release.targets[].assets` | list of string |  | Glob patterns of files to attach to this target's release only, replacing release.assets for it. The same rules apply: files in the repository, and each pattern must match unless allow_missing_assets is set. |
 | `environments.<name>.git` | object |  | Override git.push_options for this environment, list by list. Same keys as `git`. |
@@ -160,18 +160,18 @@ How commit messages are read: the allowed types and scopes, ticket links, extra 
 | `commits.scopes[].description` | string |  | One-line hint shown beside the scope in the 'heraut commit create' wizard picker. |
 | `commits.scopes_restricted` | boolean |  | When true, 'heraut commit verify' rejects scopes outside the scopes list. Defaults to false. |
 | `commits.tickets` | list of object |  | Issue-tracker links. Each entry's regex is matched in commit messages and rendered as a link in the changelog and release notes. |
-| `commits.tickets[].pattern` | string |  | Regex matching ticket IDs, e.g. [A-Z]+-[0-9]+. The first capture group (or full match) becomes {ticket}. |
+| `commits.tickets[].pattern` | string |  | Regex matching ticket IDs, e.g. \[A-Z]+-\[0-9]+. The first capture group (or full match) becomes {ticket}. |
 | `commits.tickets[].url` | string |  | URL template containing {ticket}, e.g. https://jira.example.com/browse/{ticket}. |
 | `commits.rules` | list of objects |  | Extra checks on commit messages, run by heraut commit verify and commit check: a regex a message must or must not match, or a required ticket reference, optionally limited to some types or scopes. |
 | `commits.rules[].name` | string |  | Rule name, shown in violation messages. Must be unique within commits.rules. |
 | `commits.rules[].deny` | string |  | Regex that must NOT match target. |
 | `commits.rules[].require` | string |  | Regex that MUST match target. |
-| `commits.rules[].require_ticket` | boolean |  | Shorthand: target must match one of the already-configured commits.tickets[].pattern entries, instead of duplicating a ticket regex in require. Requires a non-empty commits.tickets. |
+| `commits.rules[].require_ticket` | boolean |  | Shorthand: target must match one of the already-configured commits.tickets\[].pattern entries, instead of duplicating a ticket regex in require. Requires a non-empty commits.tickets. |
 | `commits.rules[].target` | `header` \| `body` \| `footer` \| `message` | `message` | Part of the message matched against: the raw first line (header), the parsed body, the joined footer trailers (footer), or the full raw text (message, the default). |
 | `commits.rules[].message` | string |  | Shown when the rule is violated. Required for deny/require; optional for require_ticket (gets a synthesized default naming the rule). |
 | `commits.rules[].types` | list of string |  | Optionally scope the rule to commits of these conventional-commit types. Omitting both types and scopes applies the rule to every commit. |
 | `commits.rules[].scopes` | list of string |  | Optionally scope the rule to commits with these scopes. Omitting both types and scopes applies the rule to every commit. |
-| `commits.enrichment_forge` | string |  | The forges[].name to read pull request or merge request data from (links, authors, new contributors) for every target's notes. Required with two or more forges. Example: github. |
+| `commits.enrichment_forge` | string |  | The forges\[].name to read pull request or merge request data from (links, authors, new contributors) for every target's notes. Required with two or more forges. Example: github. |
 | `commits.enrichment_policy` | `disabled` \| `optional` \| `required` | `optional` | Whether to fetch pull request data: optional (the default) fetches it and warns when it can't, required fails the run instead, disabled never fetches. --offline forces disabled for one run. |
 
 ## `rendering`
@@ -186,18 +186,18 @@ Shapes the changelog and release notes: template snippets that replace the built
 | `rendering.templates` | object |  | Go text/template snippets that replace built-in blocks by name, e.g. release.group for the type headings. Unset blocks keep their default. Merged from the top level, then per document, then per environment. |
 | `rendering.templates.title` | string |  | Document-level title, fired once per document (not once per release). Executes against .Heraut's own fields directly (.Version .URL .GeneratedAt), not the full release data — write {{ .Version }}, not {{ .Heraut.Version }}. Changelog default: '# Changelog'. Release-notes default: empty. |
 | `rendering.templates.subtitle` | string |  | Document-level subtitle rendered under title, fired once per document. Same .Heraut-only context as title. Empty by default, in the changelog and the release notes. |
-| `rendering.templates.footer` | string |  | Document-level footer, fired once per document (not once per release) — the trailing counterpart to title/subtitle. Same .Heraut-only context as title: write {{ .Version }}, not {{ .Heraut.Version }}. Default: '_Generated by [heraut](url) version at HH:MM on YYYY-MM-DD._'. |
+| `rendering.templates.footer` | string |  | Document-level footer, fired once per document (not once per release) — the trailing counterpart to title/subtitle. Same .Heraut-only context as title: write {{ .Version }}, not {{ .Heraut.Version }}. Default: '_Generated by \[heraut](url) version at HH:MM on YYYY-MM-DD._'. |
 | `rendering.templates.changelog` | string |  | Root changelog-section template composing release.section, release.group, and commit.message blocks. |
 | `rendering.templates.release_notes` | string |  | Root release-notes template composing release.section, release.group, commit.message, release.contributors, and release.stats blocks. |
 | `rendering.templates.release` | object |  | Blocks used once per release in the document: its version heading, the type group headings, the new contributors and statistics blocks, and a footer after each release. |
-| `rendering.templates.release.section` | string |  | One release's version heading, fired once per rendered release. Changelog default: '## [version](compare-url) - date'. Release-notes default: empty. |
+| `rendering.templates.release.section` | string |  | One release's version heading, fired once per rendered release. Changelog default: '## \[version](compare-url) - date'. Release-notes default: empty. |
 | `rendering.templates.release.group` | string |  | Commit-type group heading (e.g. '### 🚀 Features'). |
 | `rendering.templates.release.contributors` | string |  | The 'New Contributors ❤️' block wrapping the contributor entries (release notes). |
 | `rendering.templates.release.stats` | string |  | The Commit Statistics block (commit/issue counts, timespan) in release notes. |
 | `rendering.templates.release.footer` | string |  | Trailing content appended after each rendered release's body. Fires once per release, not once per document — use the top-level footer instead for document-level content. Empty by default. |
 | `rendering.templates.commit` | object |  | Blocks used once per commit: the commit line, its ticket links and the new-contributor entries, plus trailers, which sets how footer lines such as Co-authored-by render. |
 | `rendering.templates.commit.message` | string |  | One commit line: description, scope, breaking marker, hash link, 'by @author', PR/MR reference, ticket links. |
-| `rendering.templates.commit.ticket` | string |  | One ticket link within a commit line (called once per match from the commit.message block). Default: '([TICKET](url))'. |
+| `rendering.templates.commit.ticket` | string |  | One ticket link within a commit line (called once per match from the commit.message block). Default: '(\[TICKET](url))'. |
 | `rendering.templates.commit.contributor` | string |  | One entry in the New Contributors block for a first-time contributor. |
 | `rendering.templates.commit.trailers` | list of objects |  | How commit footer trailers render, by token (e.g. Co-authored-by): a template for the line, or hide to drop it. Merged by token from the top level, then per document, then per environment. |
 | `rendering.templates.commit.trailers[].token` | string |  | The trailer token to match, e.g. "Co-authored-by". Case doesn't matter. |
@@ -235,9 +235,9 @@ Code-hosting platforms heraut talks to. Usually not needed: heraut finds the for
 
 | Key | Type | Default | Description |
 |---|---|---|---|
-| `forges[].name` | string |  | Unique identifier for this forge entry, referenced by release.targets[].forge and commits.enrichment_forge. |
+| `forges[].name` | string |  | Unique identifier for this forge entry, referenced by release.targets\[].forge and commits.enrichment_forge. |
 | `forges[].platform` | `github` \| `gitlab` \| `azure_devops` |  | The forge's type: github, gitlab or azure_devops. Azure DevOps supplies pull request data only; it has no releases to publish to. |
-| `forges[].project` | string |  | GitLab project path (namespace[/subgroup]/repo). GitLab. For azure_devops, "organization/project". |
+| `forges[].project` | string |  | GitLab project path (namespace\[/subgroup]/repo). GitLab. For azure_devops, "organization/project". |
 | `forges[].repository` | string |  | GitHub repository (owner/repo). GitHub. For azure_devops, the repository name. |
 | `forges[].base_url` | string |  | Web base URL of the forge instance (e.g. https://gitlab.example.com for a self-hosted instance). Must be https (plain http is accepted only for loopback hosts). Defaults per type when unset. |
 | `forges[].api_url` | string |  | API host override, when it differs from base_url. Must be https (plain http is accepted only for loopback hosts). Defaults per type when unset. |
@@ -250,7 +250,7 @@ Options for the git commands heraut runs itself: the --push-option values of its
 
 | Key | Type | Default | Description |
 |---|---|---|---|
-| `git.push_options` | object |  | --push-option values for heraut's pushes, e.g. commit: ["ci.skip"] to skip the release commit's GitLab pipeline. Under an environment, a missing list keeps the top-level one and [] clears it. |
-| `git.push_options.commit` | list of string |  | Passed to the changelog commit push (git push origin HEAD), in order, e.g. ["ci.skip"] to skip that commit's GitLab pipeline. |
+| `git.push_options` | object |  | --push-option values for heraut's pushes, e.g. commit: \["ci.skip"] to skip the release commit's GitLab pipeline. Under an environment, a missing list keeps the top-level one and \[] clears it. |
+| `git.push_options.commit` | list of string |  | Passed to the changelog commit push (git push origin HEAD), in order, e.g. \["ci.skip"] to skip that commit's GitLab pipeline. |
 | `git.push_options.tag` | list of string |  | Passed to the tag push (git push origin \<tag\>), in order. Keep ci.skip out of it unless the tag pipeline should not run. |
 <!-- END GENERATED -->

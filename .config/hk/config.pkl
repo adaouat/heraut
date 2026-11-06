@@ -29,6 +29,12 @@ local codeLinters = new Mapping<String, Step> {
   ["actionlint"] = Builtins.actionlint
   ["hadolint"] = Builtins.hadolint
   ["gomod_tidy"] = Builtins.gomod_tidy
+  // Relative links and anchors in the documentation resolve, and user pages don't link the specs
+  // or the ADRs (docs_links_test.go, which `go test ./...` runs too).
+  ["docs_links"] = new Step {
+    glob = List("*.md", "**/*.md")
+    check = "go test -count=1 -run TestDocumentationLinks ."
+  }
   // hack to pass configuration to yamlfmt/typos
   // it's duplicated from Builtins
   // waiting to find a better solution to use custom configuration

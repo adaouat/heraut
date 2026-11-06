@@ -117,7 +117,7 @@ func defaultCell(n node) string {
 }
 
 func cell(s string) string {
-	return strings.NewReplacer("|", `\|`, "<", `\<`, ">", `\>`, "\n", " ").Replace(s)
+	return strings.NewReplacer("|", `\|`, "<", `\<`, ">", `\>`, "[", `\[`, "\n", " ").Replace(s)
 }
 
 // children writes a row per key under n, depth first. A definition already expanded elsewhere is

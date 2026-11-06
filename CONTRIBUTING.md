@@ -35,6 +35,9 @@ on the commit message. Don't bypass them (`--no-verify`); fix what they report.
   [`.claude/rules/coding.md`](.claude/rules/coding.md), with the rules on errors, config and comments.
 - **Config changes** update `internal/config`, [`schema.json`](schema.json) and
   [`docs/heraut.sample.yml`](docs/heraut.sample.yml) together.
+- **User docs move with the code.** A change a user can see updates the spec and every user page that
+  shows it, in the same commit series; user pages never link the specs or ADRs. The rule is in
+  [`.claude/rules/workflow.md`](.claude/rules/workflow.md) § User docs, and a test checks every link.
 - **Command help is user documentation.** A command's `Short:`, `Long:`, `Example:` and flag text
   become [`docs/reference/commands/`](docs/reference/commands/). After changing them, run
   `mise run docs:gen`; a test fails while the pages are stale.

@@ -35,6 +35,11 @@ behavioural spec.
 
 ## Docs
 
+Two front doors: users start at [`README.md`](README.md) → [`docs/README.md`](docs/README.md) (install,
+getting started, guides, concepts, generated reference); contributors and agents start at
+[`CONTRIBUTING.md`](CONTRIBUTING.md) and this file. A behaviour change updates the spec and the user
+pages that show it (`.claude/rules/workflow.md` § User docs).
+
 - [`docs/specs/`](docs/specs/) — behavioural specification (read before changing CLI surface or config schema)
 - [`docs/adr/`](docs/adr/) — architecture decision records (79 ADRs, numbered consecutively)
 - [`docs/tasks/`](docs/tasks/) — build roadmap (`roadmap.md`) plus dedicated per-epic roadmaps

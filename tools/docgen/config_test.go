@@ -24,7 +24,7 @@ const testSchema = `{
       "tags": {"type": "array", "items": {"type": "string"}, "description": "Tag list <glob>."}
     }},
     "Doc": {"type": "object", "description": "A document.", "properties": {
-      "output": {"type": "string", "default": "CHANGELOG.md", "description": "Where."},
+      "output": {"type": "string", "default": "CHANGELOG.md", "description": "Where. Default: '## [version](compare-url)'."},
       "rendering": {"$ref": "#/definitions/Rendering"}
     }},
     "Rendering": {"type": "object", "description": "Looks.", "properties": {
@@ -50,7 +50,7 @@ func TestConfigReference(t *testing.T) {
 		"## `versioning`\n\nHow versions work.\n",
 		"| `versioning.strategy` | `semver` \\| `calver` |  | The strategy \\| how. |",
 		"| `versioning.tags` | list of string |  | Tag list \\<glob\\>. |",
-		"| `changelog.output` | string | `CHANGELOG.md` | Where. |",
+		"| `changelog.output` | string | `CHANGELOG.md` | Where. Default: '## \\[version](compare-url)'. |",
 		"| `forges[].name` | string |  | Its name. |",
 		"| `forges[].draft` | boolean |  | Draft. |",
 		"## `environments`\n\nPer env.\n",

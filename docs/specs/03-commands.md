@@ -350,7 +350,7 @@ heraut notes <tag> [--from <tag>] [--format markdown|text] [--template <file>] [
 The bound is the previous release reachable **from the requested tag**, not from `HEAD`, so a tag cut
 on a maintenance line is bounded by that line. A SemVer final skips pre-releases when looking for its
 previous release; a pre-release is bounded by the previous tag of any kind
-([ADR-0064](../adr/0064-semver-v2-and-the-pre-release-lifecycle.md)).
+([ADR-0064](../adr/0064-semver-v2-compliance.md)).
 
 By default the output has no release heading and no hash, author or PR reference on the commit lines:
 

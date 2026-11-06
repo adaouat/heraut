@@ -13,6 +13,10 @@
 | [`user-docs-roadmap.md`](user-docs-roadmap.md) | User documentation epic (T453+) — tracked as Phase 89 |
 | [`archive/`](archive) | Full task write-ups for `Done` tasks, moved out of the files above to keep them lean. Each dedicated roadmap's "Progress at a glance" table links to its own archive file. |
 
+These files are contributor documentation, like `docs/specs/` and `docs/adr/`. User documentation
+starts at [`docs/README.md`](../README.md); the rule that keeps both in step is in
+[`.claude/rules/workflow.md`](../../.claude/rules/workflow.md) § User docs.
+
 Task status is tracked inline via checkbox markers (`[ ]` / `[x]`) on each task heading, in
 whichever file owns that task's ID range. See
 [`.claude/rules/workflow.md`](../../.claude/rules/workflow.md) for the two-step roadmap flow that

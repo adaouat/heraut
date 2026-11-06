@@ -67,6 +67,40 @@ For each task:
 Never silently mark a task complete without the roadmap note. The note is what makes the
 roadmap a living document.
 
+## User docs
+
+heraut has two kinds of documentation, for two readers:
+
+- **User docs**, for people who use heraut: `README.md` → `docs/README.md`, then `docs/install.md`,
+  `docs/getting-started.md`, `docs/guides/`, `docs/concepts/`, `docs/reference/` and
+  `docs/heraut.sample.yml`.
+- **Contributor docs**, for people and agents who change heraut: `CONTRIBUTING.md` and `CLAUDE.md`,
+  then `docs/specs/` (the behavioural authority), `docs/adr/` and `docs/tasks/`.
+
+A change to behaviour, a flag, a config key or a message a user sees updates both in the same commit
+series:
+
+1. **The spec first**, as today.
+2. **Every user page that shows it.** Find them with
+   `grep -rn '<flag or key>' README.md docs/*.md docs/guides docs/concepts docs/heraut.sample.yml`,
+   and fix the text, the examples and any quoted output.
+3. **The generated reference**: run `mise run docs:gen`. It rewrites `docs/reference/commands/` from
+   the commands' help text and the table in `docs/reference/configuration.md` from `schema.json`; a
+   test fails while either is stale.
+
+Rules for user pages:
+
+- **Never link to `docs/specs/` or `docs/adr/`**, and never cite an ADR or a task id. Put what the
+  reader needs on the page, or link the user reference.
+- **Run every example against the built binary** and quote its real output. Use synthetic names
+  (`acme/app`, `gitlab.example.com`, `ada@example.com`), never real projects or people.
+- **Write for someone who doesn't know heraut's internals**: no package names, no `native`.
+
+`TestDocumentationLinks` (`docs_links_test.go`) fails on a relative link or anchor that doesn't
+resolve, anywhere in the living docs, and on a user page linking the specs or ADRs. It runs in
+`go test ./...` and as hk's `docs_links` step when Markdown is staged. `docs/tasks/archive/` and
+`docs/superpowers/` are historical snapshots and are not checked.
+
 ## Git hooks (hk)
 
 Hooks live in `.config/hk/config.pkl`. They run on every commit:
