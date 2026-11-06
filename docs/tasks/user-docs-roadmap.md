@@ -309,10 +309,27 @@ Done 2026-11-06.
 - **Finding, not fixed.** Passing the tagged commit's SHA as `target_commitish` would make GitHub
   refuse a release whose commit it doesn't have, instead of tagging another commit silently.
 
-#### `[ ]` T466: Guide — self-hosted GitLab
+#### `[x]` T466: Guide — self-hosted GitLab
 
 New `docs/guides/self-hosted-gitlab.md`: `base_url`, `token_env`, what CI fills in for you, and running
 locally on a work machine (the config route, and the env-only route with its limits).
+
+Done 2026-11-06.
+- **The guide.** `docs/guides/self-hosted-gitlab.md` covers CI on the instance (the minimal config
+  is enough), a `forges:` entry for your own machine (with a table of `base_url`, `project`,
+  `api_url` and `token_env`), the env-only trap, a private CA, and a failure table. It is linked
+  from the docs home and the GitLab CI guide.
+- **The env-only trap, found with the built binary.** Outside CI, with a self-hosted origin, no
+  `forges:` and `GITLAB_TOKEN` set, zero-config detection falls back to the token and assumes
+  gitlab.com. The dry run shows "Publish to gitlab", and a real run would push the tag to the
+  server and then fail creating the release. The guide says to add the entry; detection works as
+  Spec 02 describes, so there's no code change.
+- **Checked in the code.**
+  - Plain `http` is refused (the message is quoted from a run).
+  - The job token is used for a `base_url` naming the job's own instance (`inCIAutologin`).
+  - `api_url` only affects enrichment, since publishing goes through `base_url` with client-go.
+  - The GitLab "not set" message comes from `credentials()`.
+- **Not run against a real self-hosted GitLab.**
 
 #### `[ ]` T467: Guide — keep the release commit from triggering CI
 

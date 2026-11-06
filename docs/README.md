@@ -20,6 +20,7 @@ Each guide answers one situation.
 | I want to… | Guide |
 |---|---|
 | Publish to GitHub from a GitLab pipeline, or to both | [Publish to GitHub from GitLab CI/CD](guides/github-from-gitlab-ci.md) |
+| Release on my company's own GitLab server | [Self-hosted GitLab](guides/self-hosted-gitlab.md) |
 | Tag every CI build of a mobile app with its build number | [Mobile apps: build numbers in tags](guides/mobile-ci-tagging.md) |
 | Release a fix on an older version line | [Maintenance branches](guides/maintenance-branches.md) |
 | Run my own scripts during a release | [Release pipeline and hooks](guides/release-pipeline-and-hooks.md) |
