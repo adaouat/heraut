@@ -192,12 +192,32 @@ Done 2026-11-06.
 - **Also updated.** CONTRIBUTING lists the task and says help text is user documentation, and the
   CLAUDE.md layout names `docs/reference/`.
 
-#### `[ ]` T461: `schema.json` descriptions written for users
+#### `[x]` T461: `schema.json` descriptions written for users
 
 128 keys: fill the 15 without a description, drop the ADR references (25), shorten the long ones. Each
 description says what the key does, its default and one example value. IDEs show these on hover. The
 `docs/heraut.sample.yml` comments are aligned where they disagree. Schema tests stay green; a test asserts
 every property has a description and none cites an ADR.
+
+Done 2026-11-06.
+- **The survey.** 124 described keys in today's schema (the 128 in the plan counted differently):
+  11 with no description, 15 citing ADRs, 5 over 300 characters.
+- **`$ref` keys.** The schema is draft-07, which ignores a `$ref`'s sibling keys. So a `$ref` key is
+  described by its definition, and the four definitions without one got one: `Versioning`,
+  `ContentDriver`, `Release`, `BranchRule`. That fixes the empty hover on `versioning:`,
+  `changelog:`, `release:`, `commits:`, `rendering:`, `hooks:` and `git:` at once.
+- **Rewritten for users.** 39 descriptions, the ADR-citing and long ones, plus weak or jargon ones
+  (`strategy`, `platform`, `draft`, `bump`, `source`, `api_mode`, `types_heading_level`, "on both
+  drivers"). Each says what the key does, then its default or an example where one helps. Defaults
+  were checked in code; `types_heading_level` is 3 (`headingPrefix`).
+- **Formatting.** Edited through a JSON round trip, which reproduces the file byte for byte.
+- **The test.** `TestSchema_EveryKeyIsDescribedForUsers` (`internal/config`) walks every property
+  (root, definitions, inline items and maps). Each needs a description, on itself or on its `$ref`
+  definition, with no ADR number, task id, spec path or `§`, and at most 300 characters. It failed
+  37 subtests before the rewrite.
+- **The sample.** The keys rewritten here agree with `docs/heraut.sample.yml`.
+- **Deferred.** The sample's comments still cite ADRs (20 times). They are contributor references
+  in a file users read; removing them belongs to a separate pass on the sample.
 
 #### `[ ]` T462: generated configuration reference
 

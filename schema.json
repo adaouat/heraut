@@ -45,7 +45,7 @@
     },
     "forges": {
       "type": "array",
-      "description": "Code-hosting platforms heraut talks to (ADR-0043/ADR-0044): connection/identity only. What to publish (draft/assets) lives in release.targets; the enrichment source is commits.enrichment_forge.",
+      "description": "Code-hosting platforms heraut talks to. Usually not needed: heraut finds the forge from the CI job or the git origin. Add one for a self-hosted instance, a custom token variable, or to publish to several forges.",
       "items": {
         "$ref": "#/definitions/Forge"
       }
@@ -58,12 +58,12 @@
     "Commits": {
       "type": "object",
       "additionalProperties": false,
-      "description": "Single source of truth for commit semantics and enrichment (ADR-0033): the conventional-commit type set (used by 'heraut commit verify'/'create' and the native renderer), scope rules, ticket links, and the enrichment_policy.",
+      "description": "How commit messages are read: the allowed types and scopes, ticket links, extra message rules, and where pull request data for the changelog comes from. Used by heraut commit verify and by the changelog alike.",
       "properties": {
         "types_heading_level": {
           "type": "integer",
           "minimum": 1,
-          "description": "Heading depth (number of '#') for type sections in rendered output. Defaults to the renderer's default when omitted."
+          "description": "Heading depth (number of '#') of the type sections, such as ### 🚀 Features, in the changelog and release notes. Default 3."
         },
         "types": {
           "type": "array",
@@ -107,14 +107,14 @@
         },
         "rules": {
           "type": "array",
-          "description": "Project-specific commit-message constraints (deny/require/require_ticket patterns), enforced by 'heraut commit verify'/'check' alongside types/scopes (ADR-0056).",
+          "description": "Extra checks on commit messages, run by heraut commit verify and commit check: a regex a message must or must not match, or a required ticket reference, optionally limited to some types or scopes.",
           "items": {
             "$ref": "#/definitions/CommitRule"
           }
         },
         "enrichment_forge": {
           "type": "string",
-          "description": "References a forges[].name used as the PR/MR metadata source for changelog and release-notes generation (ADR-0043)."
+          "description": "The forges[].name to read pull request or merge request data from (links, authors, new contributors) for every target's notes. Required with two or more forges. Example: github."
         },
         "enrichment_policy": {
           "type": "string",
@@ -124,7 +124,7 @@
             "required"
           ],
           "default": "optional",
-          "description": "PR/MR enrichment policy sourced from enrichment_forge: 'required': fetch and fail if unavailable. 'optional' (default): fetch when possible, else warn. 'disabled': never fetch. The --offline flag forces 'disabled' for a single run. Renamed from remote_metadata (removed, ADR-0043)."
+          "description": "Whether to fetch pull request data: optional (the default) fetches it and warns when it can't, required fails the run instead, disabled never fetches. --offline forces disabled for one run."
         }
       }
     },
@@ -186,7 +186,7 @@
       "required": [
         "name"
       ],
-      "description": "Enforces one pattern constraint on a commit message, checked by 'heraut commit verify'/'check' alongside the type/scope checks (ADR-0056). Set exactly one of deny, require, or require_ticket. message is required for deny/require; optional (defaulted) for require_ticket.",
+      "description": "One extra check on commit messages. Set exactly one of deny (a regex that must not match), require (one that must) or require_ticket. message is what the author sees when the check fails.",
       "properties": {
         "name": {
           "type": "string",
@@ -238,7 +238,7 @@
     "Hooks": {
       "type": "object",
       "additionalProperties": false,
-      "description": "Shell commands run at points in the release lifecycle (ADR-0053, ADR-0061). post_bump/pre_changelog/pre_tag/post_tag fire in both `heraut release` and `heraut changelog --tag`; pre_release/post_release fire only in `heraut release`, once per publish target. run is a Go text/template string substituting {{ .Version }}, {{ .Tag }}, {{ .PreviousTag }}, and (pre_release/post_release only) {{ .Platform }}.",
+      "description": "Shell commands run at fixed points of a release, e.g. a build once the version is known. run can use {{ .Version }}, {{ .Tag }}, {{ .PreviousTag }}, {{ .Env }}, and {{ .Platform }} in pre_release and post_release.",
       "properties": {
         "post_bump": {
           "type": "array",
@@ -290,7 +290,7 @@
       "required": [
         "run"
       ],
-      "description": "One command in a hook point's list (ADR-0053, extended by ADR-0061: object-only, stage added).",
+      "description": "One hook command: run, the shell command, and for post_bump and pre_changelog only, stage, the files it changes that go into the release commit.",
       "properties": {
         "run": {
           "type": "string",
@@ -308,7 +308,7 @@
     "Rendering": {
       "type": "object",
       "additionalProperties": false,
-      "description": "Content output configuration (ADR-0033).",
+      "description": "Shapes the changelog and release notes: template snippets that replace the built-in blocks, and filters that drop commits. Set at the top level, per document (changelog, release.notes) or per environment; the closest level wins, key by key.",
       "properties": {
         "excludes": {
           "type": "array",
@@ -319,7 +319,7 @@
         },
         "templates": {
           "type": "object",
-          "description": "Override built-in native template blocks. Each value is a Go text/template snippet. native only; deep-merged global -> per-driver -> per-env (ADR-0037, ADR-0048, ADR-0059).",
+          "description": "Go text/template snippets that replace built-in blocks by name, e.g. release.group for the type headings. Unset blocks keep their default. Merged from the top level, then per document, then per environment.",
           "additionalProperties": false,
           "properties": {
             "title": {
@@ -328,7 +328,7 @@
             },
             "subtitle": {
               "type": "string",
-              "description": "Document-level subtitle rendered under title, fired once per document. Same .Heraut-only context as title. Empty by default on both drivers."
+              "description": "Document-level subtitle rendered under title, fired once per document. Same .Heraut-only context as title. Empty by default, in the changelog and the release notes."
             },
             "footer": {
               "type": "string",
@@ -344,7 +344,7 @@
             },
             "release": {
               "type": "object",
-              "description": "Release-cadence block overrides, fired once per rendered release (ADR-0059).",
+              "description": "Blocks used once per release in the document: its version heading, the type group headings, the new contributors and statistics blocks, and a footer after each release.",
               "additionalProperties": false,
               "properties": {
                 "section": {
@@ -371,7 +371,7 @@
             },
             "commit": {
               "type": "object",
-              "description": "Commit-cadence block overrides (ADR-0059), plus trailers (ADR-0060, a non-template-snippet exception grouped here for discoverability).",
+              "description": "Blocks used once per commit: the commit line, its ticket links and the new-contributor entries, plus trailers, which sets how footer lines such as Co-authored-by render.",
               "additionalProperties": false,
               "properties": {
                 "message": {
@@ -388,7 +388,7 @@
                 },
                 "trailers": {
                   "type": "array",
-                  "description": "Customizes how individual commit-message footer trailers render, matched by token. native only; deep-merged global -> per-driver -> per-env, by token (ADR-0057, relocated here by ADR-0060).",
+                  "description": "How commit footer trailers render, by token (e.g. Co-authored-by): a template for the line, or hide to drop it. Merged by token from the top level, then per document, then per environment.",
                   "items": {
                     "$ref": "#/definitions/FooterRule"
                   }
@@ -420,11 +420,11 @@
       "required": [
         "token"
       ],
-      "description": "Customizes the rendering of one commit-message footer trailer (e.g. Co-authored-by, Refs), matched case-insensitively, exact-match, by token (ADR-0057). Set exactly one of renderer or hide.",
+      "description": "How one commit footer trailer renders, matched by its token regardless of case (e.g. Co-authored-by, Refs). Set either renderer or hide.",
       "properties": {
         "token": {
           "type": "string",
-          "description": "Footer trailer token to match, e.g. \"Co-authored-by\". Matched case-insensitively against the token as parsed (conventionalcommit never normalizes casing)."
+          "description": "The trailer token to match, e.g. \"Co-authored-by\". Case doesn't matter."
         },
         "renderer": {
           "type": "string",
@@ -462,7 +462,7 @@
         },
         "confirm_major": {
           "type": "boolean",
-          "description": "Refuse an automatic major bump, at any version, until the run is repeated with --allow-major, so a major release is always deliberate. heraut version next still prints the major, with a warning. stay_at_v0 goes first: a major it holds back at 0.x needs no confirmation. Ignored with --set-version and under mode: manual. Defaults to false."
+          "description": "Refuse an automatic major bump, at any version, until the run is repeated with --allow-major, so a major release is always deliberate. version next still prints it, with a warning. Ignored with --set-version or mode: manual. Default false."
         }
       }
     },
@@ -500,6 +500,7 @@
     },
     "Versioning": {
       "type": "object",
+      "description": "How versions are computed and written as tags: the strategy (SemVer or CalVer, optionally one line per environment), the tag prefix or format, and how commits bump the version. Example: strategy: semver with tag_prefix: \"v\" gives tags like v1.4.0.",
       "required": [
         "strategy"
       ],
@@ -513,7 +514,7 @@
             "semver-per-env",
             "calver-per-env"
           ],
-          "description": "Versioning strategy."
+          "description": "How versions are computed: semver from commit messages (v1.4.0), calver from the date (2026.11.0), or semver-per-env / calver-per-env for one version line per environment (dev, staging, prod)."
         },
         "tag_prefix": {
           "type": "string",
@@ -554,7 +555,7 @@
         },
         "branches": {
           "type": "array",
-          "description": "Release, maintenance and version branches (semver strategy only). An entry with a range, or a glob name whose matched branch ends in N.x / N.N.x / N.N, is a maintenance branch; a glob name whose matched branch ends in N.N.N (release/7.8.0) is a version branch whose name is its version; an exact name without a range is a release branch. See docs/specs/02-configuration.md § versioning.branches.",
+          "description": "Branches heraut may release from (semver only). An exact name is a release branch (main). A range, or a glob whose matched name ends in N.x or N.N.x, makes a maintenance branch limited to that line (release/1.x).",
           "items": {
             "$ref": "#/definitions/BranchRule"
           }
@@ -585,6 +586,7 @@
     },
     "BranchRule": {
       "type": "object",
+      "description": "One branch heraut may release from: a release branch such as main, or a maintenance branch limited to a version range, such as release/1.x.",
       "required": [
         "name"
       ],
@@ -604,11 +606,12 @@
     },
     "ContentDriver": {
       "type": "object",
+      "description": "A generated document: the changelog file (changelog:) or the notes published with each release (release.notes:). Sets where the changelog is written, which tags it covers, and its template and rendering overrides.",
       "additionalProperties": false,
       "properties": {
         "output": {
           "type": "string",
-          "description": "Changelog output file path (e.g. \"CHANGELOG.md\"). For changelog.output only (not release.notes.output, which is never written to disk): may contain rotation tokens for a periodic file, e.g. \"CHANGELOG_{YYYY}.md\" (calver: YYYY, MM, DD, WW, QQ, SS, SPRINT) or \"CHANGELOG_{MAJOR}.md\" (semver: MAJOR, MINOR). See docs/specs/02-configuration.md § Rotating changelog output."
+          "description": "Where the changelog is written, e.g. CHANGELOG.md. Only under changelog:, since release notes are never written to a file. Tokens start a new file per period: CHANGELOG_{YYYY}.md (CalVer) or CHANGELOG_{MAJOR}.md (SemVer)."
         },
         "tag_pattern": {
           "type": "string",
@@ -616,11 +619,11 @@
         },
         "template": {
           "type": "string",
-          "description": "Path to a full template file (Go text/template) parsed on top of the built-in blocks: it may redefine the document root and/or any block; parsed last, so it wins over inline rendering.templates for whatever it defines (ADR-0037)."
+          "description": "Path to a full Go text/template file layered over the built-in blocks. It can redefine the whole document or single blocks, and wins over rendering.templates for what it defines."
         },
         "rendering": {
           "$ref": "#/definitions/Rendering",
-          "description": "Per-driver rendering overrides (template snippets + excludes), deep-merged over the global rendering block (ADR-0037)."
+          "description": "Rendering overrides for this document only (template snippets, excludes), merged over the top-level rendering block."
         }
       }
     },
@@ -641,6 +644,7 @@
     },
     "Release": {
       "type": "object",
+      "description": "Publishing: create a release with its notes on each target forge. Present, even as release: {}, means heraut release publishes; omit it for a project that only tags. Holds the targets, the files to attach and the notes settings.",
       "additionalProperties": false,
       "properties": {
         "notes": {
@@ -648,18 +652,18 @@
         },
         "assets": {
           "type": "array",
-          "description": "Glob patterns for files to attach to the release, applied to all targets. Every pattern must match at least one file by the time the post_bump hooks have run, or the release aborts before anything is committed or pushed (ADR-0076); set allow_missing_assets for files built by a later hook. Every matched file must lie under the repository root (symlinks resolved); a match outside it aborts the release. If a target also defines assets, the target-level list takes full precedence for that target (no merging).",
+          "description": "Files to attach to every target's release, as glob patterns (e.g. dist/*.tar.gz). Each must match a file in the repository once post_bump hooks have run, or the release stops before committing. A target's own assets replace this list.",
           "items": {
             "type": "string"
           }
         },
         "allow_missing_assets": {
           "type": "boolean",
-          "description": "Let an asset pattern (in release.assets or any target's assets) match no file: it then warns at publish time and is skipped. Default false: a pattern matching nothing aborts the release before anything is committed or pushed (ADR-0076). Set it when a pre_tag, pre_release or post_tag hook builds the files, which do not exist yet when the pre-commit asset gate runs."
+          "description": "Let an asset pattern match nothing: it is skipped with a warning instead of stopping the release. Set it when a pre_tag, post_tag or pre_release hook builds the files. Default false."
         },
         "targets": {
           "type": "array",
-          "description": "Release publish destinations, each referencing a forges[].name (ADR-0043/ADR-0044).",
+          "description": "Where to publish, each entry naming a forges[].name. Omit it to publish to the one forge found from the CI job or the git origin.",
           "items": {
             "$ref": "#/definitions/Target"
           }
@@ -673,7 +677,7 @@
         "platform"
       ],
       "additionalProperties": false,
-      "description": "One code-hosting platform heraut talks to — connection/identity only (ADR-0043/ADR-0044). What to publish (draft/assets) lives in release.targets; the enrichment source is commits.enrichment_forge.",
+      "description": "One code-hosting platform: its type, the project or repository, and how to reach it (base_url, api_url, token_env). What to publish goes in release.targets.",
       "properties": {
         "name": {
           "type": "string",
@@ -686,7 +690,7 @@
             "gitlab",
             "azure_devops"
           ],
-          "description": "Forge type."
+          "description": "The forge's type: github, gitlab or azure_devops. Azure DevOps supplies pull request data only; it has no releases to publish to."
         },
         "project": {
           "type": "string",
@@ -711,7 +715,7 @@
             "graphql"
           ],
           "default": "rest",
-          "description": "API access mode. \"rest\" (default) or \"graphql\"."
+          "description": "How heraut calls the forge's API: rest (the default) or graphql."
         },
         "token_env": {
           "type": "string",
@@ -722,7 +726,7 @@
     "Target": {
       "type": "object",
       "additionalProperties": false,
-      "description": "One release publish destination: a reference to a forges[].name plus publish options (ADR-0043).",
+      "description": "One place to publish the release: a forges[].name plus options for that target (draft, its own assets).",
       "properties": {
         "forge": {
           "type": "string",
@@ -730,14 +734,14 @@
         },
         "draft": {
           "type": "boolean",
-          "description": "Create as draft release."
+          "description": "Create the release as a draft, to publish by hand. GitHub only. Default false."
         },
         "assets": {
           "type": "array",
           "items": {
             "type": "string"
           },
-          "description": "Target-specific glob patterns for files to attach to the release. Matched files must lie under the repository root, and each pattern must match a file unless release.allow_missing_assets is set (ADR-0076). When set, overrides release.assets entirely for this target. Omit to inherit release.assets."
+          "description": "Glob patterns of files to attach to this target's release only, replacing release.assets for it. The same rules apply: files in the repository, and each pattern must match unless allow_missing_assets is set."
         }
       }
     },
@@ -755,7 +759,7 @@
           "items": {
             "$ref": "#/definitions/Target"
           },
-          "description": "Override release publish targets for this environment (ADR-0043/ADR-0044)."
+          "description": "Where to publish for this environment, replacing the top-level release.targets list entirely."
         }
       }
     },
@@ -770,7 +774,7 @@
             "auto",
             "promote"
           ],
-          "description": "Bump mode for this environment."
+          "description": "auto computes this environment's next version from its commits or the date; promote copies the latest version of the source environment (e.g. staging to prod)."
         },
         "tag_format": {
           "type": "string",
@@ -782,7 +786,7 @@
         },
         "source": {
           "type": "string",
-          "description": "Source environment for promote bump mode."
+          "description": "The environment a promote environment copies its version from, e.g. staging."
         },
         "disable_changelog": {
           "type": "boolean",
@@ -809,7 +813,7 @@
     "Git": {
       "type": "object",
       "additionalProperties": false,
-      "description": "The git operations heraut runs itself (ADR-0079).",
+      "description": "Options for the git commands heraut runs itself: the --push-option values of its two pushes.",
       "properties": {
         "push_options": {
           "$ref": "#/definitions/PushOptions"
@@ -819,7 +823,7 @@
     "PushOptions": {
       "type": "object",
       "additionalProperties": false,
-      "description": "--push-option values for each push heraut makes (ADR-0079). Under an environment, an absent list inherits the root's and [] clears it.",
+      "description": "--push-option values for heraut's pushes, e.g. commit: [\"ci.skip\"] to skip the release commit's GitLab pipeline. Under an environment, a missing list keeps the top-level one and [] clears it.",
       "properties": {
         "commit": {
           "type": "array",
