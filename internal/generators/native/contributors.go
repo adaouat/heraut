@@ -8,14 +8,14 @@ import (
 )
 
 // authorsBefore returns the set of git author emails reachable from prev (git log prev
-// --format=%ae). An empty prev (first release) yields an empty set with no git call, so every
+// --format=%aE, through .mailmap, as the commit walk reads them). An empty prev (first release) yields an empty set with no git call, so every
 // release author counts as new. This is the local tier's first_time source (ADR-0036).
 func authorsBefore(runner port.Runner, prev string) (map[string]bool, error) {
 	set := make(map[string]bool)
 	if prev == "" {
 		return set, nil
 	}
-	stdout, _, err := runner.Run("git", "log", prev, "--format=%ae")
+	stdout, _, err := runner.Run("git", "log", prev, "--format=%aE")
 	if err != nil {
 		return nil, fmt.Errorf("listing authors before %s: %w", prev, err)
 	}

@@ -32,7 +32,7 @@ func TestAuthorsBefore_Set(t *testing.T) {
 	assert.False(t, got["carol@x"])
 
 	require.Len(t, mr.Calls, 1)
-	assert.Equal(t, []string{"log", "v1.0.0", "--format=%ae"}, mr.Calls[0].Args)
+	assert.Equal(t, []string{"log", "v1.0.0", "--format=%aE"}, mr.Calls[0].Args)
 }
 
 func TestCollectContributors_FirstTimerFromGit(t *testing.T) {

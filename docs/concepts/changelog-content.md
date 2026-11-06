@@ -81,7 +81,7 @@ The release notes of a version use the same sections and lines, with a few diffe
 | Covers | every release, newest first | this release only |
 | Lives | in the repository, committed | on the forge's release page |
 | Commit bodies and footers | no | yes, under each line |
-| New Contributors ❤️ | no | yes, people whose first contribution is in this release |
+| New Contributors ❤️ | no | yes, people whose first contribution is in this release ([counted twice?](../guides/pr-data-and-tokens.md#someone-listed-as-new-twice)) |
 | Commit Statistics | no | yes: commit counts, days covered, tickets |
 | A pre-release | adds nothing | has its own notes, covering the changes since the previous candidate |
 

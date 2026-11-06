@@ -164,3 +164,21 @@ rendered-commits scoping landed as a T149 follow-up.)
 - [ADR-0034](0034-native-remote-enrichment.md) — native remote enrichment mechanism (transport unchanged; first-timer mechanism superseded here)
 - [ADR-0035](0035-azure-enrichment-native-http.md) — Azure native `net/http` transport (unchanged; its deferred first-timer note is resolved here)
 - `docs/tasks/native-generator-roadmap.md` — Phase 2.7 task breakdown and completion notes
+
+## Addendum (2026-11-06): identity goes through `.mailmap`
+
+The local tier keys contributors by git author email. A user reported the same person listed as a
+new contributor twice, in two releases: they had committed under two emails, both linked to one
+GitLab account, and the second email was absent from the authors before the previous tag.
+
+Identity stays git-based, as decided above, but heraut now reads it through git's mailmap: the
+commit walk uses `%aN`/`%aE` and the authors-before query `%aE` (T490). A project lists a person's
+other emails in `.mailmap`, and every place heraut shows or compares an author sees one canonical
+identity. Without a `.mailmap`, git returns the raw values, so nothing changes for projects that
+don't use one.
+
+The alternative, asking the forge whether a merge request is a first contribution (GitLab's
+`first_contribution`), was left aside: GitHub has no reliable equivalent (`authorAssociation`
+describes the relationship today, not when the PR was opened), Azure DevOps none, and it would make
+the result depend on the forge again, which this ADR moved away from.
+

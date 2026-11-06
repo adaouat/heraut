@@ -182,7 +182,7 @@ func (f *countingForge) Enrich(ctx context.Context, c []port.Commit, ref string)
 func TestGenerate_Enrich_Disabled_NoAPICall(t *testing.T) {
 	mr := exectest.NewMockRunner()
 	queueReleaseNotesGit(mr)
-	mr.QueueResponse("bob@x\n", "", nil) // authorsBefore: git log v1.0.0 --format=%ae
+	mr.QueueResponse("bob@x\n", "", nil) // authorsBefore: git log v1.0.0 --format=%aE
 	forge := &countingForge{en: port.Enrichment{
 		PRs:     map[string]port.PullRequest{"abc1234567": {Number: 42, RefPrefix: "#"}},
 		Authors: map[string]string{"abc1234567": "octocat"},
@@ -196,14 +196,14 @@ func TestGenerate_Enrich_Disabled_NoAPICall(t *testing.T) {
 	assert.False(t, g.Degraded())
 
 	require.Len(t, mr.Calls, 4)
-	assert.Equal(t, []string{"log", "v1.0.0", "--format=%ae"}, mr.Calls[3].Args)
+	assert.Equal(t, []string{"log", "v1.0.0", "--format=%aE"}, mr.Calls[3].Args)
 }
 
 func TestGenerate_Enrich_OptionalSuccess(t *testing.T) {
 	mr := exectest.NewMockRunner()
 	queueReleaseNotesGit(mr)
 	// authorsBefore runs after forge enrich, so its response is queued last (T140-style ripple).
-	mr.QueueResponse("bob@x\n", "", nil) // authorsBefore: git log v1.0.0 --format=%ae
+	mr.QueueResponse("bob@x\n", "", nil) // authorsBefore: git log v1.0.0 --format=%aE
 	forge := &countingForge{en: port.Enrichment{
 		PRs:     map[string]port.PullRequest{"abc1234567": {Number: 42, URL: "https://github.com/o/r/pull/42", RefPrefix: "#"}},
 		Authors: map[string]string{"abc1234567": "octocat"},
@@ -217,14 +217,14 @@ func TestGenerate_Enrich_OptionalSuccess(t *testing.T) {
 	assert.Equal(t, 1, forge.calls)
 
 	require.Len(t, mr.Calls, 4)
-	assert.Equal(t, []string{"log", "v1.0.0", "--format=%ae"}, mr.Calls[3].Args)
+	assert.Equal(t, []string{"log", "v1.0.0", "--format=%aE"}, mr.Calls[3].Args)
 }
 
 func TestGenerate_Enrich_OptionalFailure_Degrades(t *testing.T) {
 	mr := exectest.NewMockRunner()
 	queueReleaseNotesGit(mr)
 	// optional degrades on the forge failure (no error returned) and proceeds to authorsBefore.
-	mr.QueueResponse("bob@x\n", "", nil) // authorsBefore: git log v1.0.0 --format=%ae
+	mr.QueueResponse("bob@x\n", "", nil) // authorsBefore: git log v1.0.0 --format=%aE
 	forge := &countingForge{err: errors.New("API rate limit exceeded")}
 	g := New(mr, &config.ContentDriver{RemoteMetadata: "optional"}, ModeReleaseNotes, WithForge(forge))
 
@@ -234,7 +234,7 @@ func TestGenerate_Enrich_OptionalFailure_Degrades(t *testing.T) {
 	assert.True(t, g.Degraded())
 
 	require.Len(t, mr.Calls, 4)
-	assert.Equal(t, []string{"log", "v1.0.0", "--format=%ae"}, mr.Calls[3].Args)
+	assert.Equal(t, []string{"log", "v1.0.0", "--format=%aE"}, mr.Calls[3].Args)
 }
 
 // On an optional degrade the failure reason is captured on the generator (surfaced by the

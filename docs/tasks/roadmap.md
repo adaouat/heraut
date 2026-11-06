@@ -261,7 +261,7 @@ discipline that applies to every task.
 | 90 | CI checkout pitfalls and `init --defaults` (shallow clone, detached HEAD) | Done |
 | 91 | Follow-ups from the generated reference (GitHub token for PR data, `check runtime` help) | Done |
 | 92 | Follow-ups from the guides (GitHub release commit, error punctuation, warning marks) | Done |
-| 93 | One person, one New Contributors entry (`.mailmap`, one entry per handle) | Planned — T490, T491 |
+| 93 | One person, one New Contributors entry (`.mailmap`, one entry per handle) | In progress — T490 done; T491 open |
 
 ### Open items
 
@@ -4322,7 +4322,7 @@ following ADR-0036. A contributor who commits under a second email (work and per
 to one forge account) looks new again, and the entry carries the same `@handle` from the merge
 request. Identity stays git-based, so no new ADR: an addendum to ADR-0036 records both changes.
 
-#### `[ ]` T490: respect `.mailmap` when finding new contributors
+#### `[x]` T490: respect `.mailmap` when finding new contributors
 
 Read the author through git's mailmap: `%aE`/`%aN` instead of `%ae`/`%an`, in `authorsBefore` and in
 the commit walk's `logFormat` (`commits.go`). A project then lists a person's other emails once in a
@@ -4338,6 +4338,26 @@ Projects without a `.mailmap` see no change: git returns the raw values.
 
 Tests first: a real-git test (two emails, one mailmap line, two releases: listed once), a test
 without a `.mailmap` (unchanged), and contract rows on the new format strings.
+
+Done 2026-11-06.
+- **The check of where author identity reaches the output.** It all comes from `rawCommit`
+  (`internal/generators/native/commits.go`): templates, New Contributors, and the `port.Commit`
+  values the GitLab REST and Azure forges turn into handles. Nothing else reads git authors. So the
+  two format strings were the whole change: `logFormat` now reads `%aN`/`%aE`, and `authorsBefore`
+  reads `%aE`. The comments in `commits.go`, `contributors.go` and `port/forge.go` say so.
+- **Tests first.**
+  - A literal check on `logFormat`.
+  - A real-git test: Ada releases v1.0.0 with her work email, then commits with her personal one;
+    a `.mailmap` maps both. The commit is "Ada Lovelace <ada@example.com>" and she isn't new.
+  - The same repository without a `.mailmap` keeps today's result.
+  - The contract rows on `authorsBefore`'s arguments now expect `%aE` (13 rows in three files).
+- **Mutations.** The raw name and email in the walk, the raw email alone, and the raw email in
+  `authorsBefore` each fail the real-git tests on their own; a no-op control survives.
+- **Docs.**
+  - Spec 05 gains "Author identity follows `.mailmap`", and ADR-0036 an addendum (with the
+    forge-confirmation alternative and why it was left aside).
+  - The PR-data guide gains "Someone listed as new twice?", with a `.mailmap` example and a check
+    command; the changelog concept page links it.
 
 #### `[ ]` T491: one New Contributors entry per handle within a release
 

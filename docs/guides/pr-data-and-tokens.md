@@ -10,6 +10,21 @@ forge's API it adds the pull request (or merge request) each commit came from, a
 The release notes also get a **New Contributors ❤️** block naming everyone whose first contribution
 is in the release, with their pull requests.
 
+### Someone listed as new twice?
+
+heraut recognises people by the email of their commits. Someone who committed under two emails (a
+work one and a personal one) looks new again under the second. List their emails in a `.mailmap` at
+the root of the repository, committed like any other file, and heraut counts them as one person:
+
+```text
+# .mailmap: the name and email to show, then each other email
+Ada Lovelace <ada@example.com> <ada.lovelace@corp.example.com>
+Ada Lovelace <ada@example.com> <ada@home.example.com>
+```
+
+`git log --format='%aN <%aE>' | sort -u` shows each person once when the file is right. The same
+name and email then appear in the changelog everywhere.
+
 ## The token it needs
 
 | Forge | Where | Token |

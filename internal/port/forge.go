@@ -59,8 +59,8 @@ type Enrichment struct {
 // local git author name/email/date.
 type Commit struct {
 	Hash   string
-	Author string // git author name (%an)
-	Email  string // git author email (%ae)
+	Author string // git author name, after .mailmap (%aN)
+	Email  string // git author email, after .mailmap (%aE)
 	Date   time.Time
 }
 

@@ -49,6 +49,14 @@ including Azure DevOps. See [ADR-0033](../adr/0033-native-config-model.md),
 [ADR-0034](../adr/0034-native-remote-enrichment.md), and
 [ADR-0036](../adr/0036-unified-enrichment-model.md).
 
+**Author identity follows `.mailmap`.** Every author name and email heraut reads from git (the commit
+walk, `%aN`/`%aE`, and the authors before the previous tag, `%aE`) goes through git's mailmap: a
+`.mailmap` at the repository root (or `mailmap.file`) maps a person's other emails to one canonical
+identity. A contributor who committed under two emails is then one author everywhere: in the New
+Contributors check, in `{{ .Author.Name }}` / `{{ .Author.Email }}`, and in the email local-part
+GitLab REST and Azure DevOps use as the handle. Without a `.mailmap`, git returns the raw values, as
+before.
+
 ### Commit classification (ADR-0033, ADR-0075)
 
 Each commit is grouped by its parsed conventional-commit type, never by its body. A type that is in the

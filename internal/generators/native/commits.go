@@ -17,8 +17,10 @@ import (
 // logFormat is the git-log --format string: six \x01-delimited fields per commit, each
 // commit terminated by a \x00 NUL. Body is last because it may contain newlines; the
 // field and record separators are control bytes that never occur in commit messages.
-// Mirrors the NUL-delimited pattern in internal/versioning/semver/resolver.go.
-const logFormat = "%H%x01%an%x01%ae%x01%cI%x01%s%x01%b%x00"
+// Mirrors the NUL-delimited pattern in internal/versioning/semver/resolver.go. The author is read
+// through git's mailmap (%aN, %aE), so a person who committed under several emails listed in
+// .mailmap is one author.
+const logFormat = "%H%x01%aN%x01%aE%x01%cI%x01%s%x01%b%x00"
 
 const (
 	fieldSep  = "\x01"
@@ -30,8 +32,8 @@ const (
 // (T123) or remote enrichment (Phase 2). Fields map 1:1 to the logFormat placeholders.
 type rawCommit struct {
 	Hash    string    // %H — full hash (truncated at render time)
-	Author  string    // %an — author name
-	Email   string    // %ae — author email
+	Author  string    // %aN — author name, after .mailmap
+	Email   string    // %aE — author email, after .mailmap
 	Date    time.Time // %cI — committer date (strict ISO-8601)
 	Subject string    // %s — subject line
 	Body    string    // %b — body without the subject
