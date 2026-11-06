@@ -258,6 +258,7 @@ discipline that applies to every task.
 | 87 | Skip only the release commit's workflow on GitHub (docs) | Done |
 | 88 | One enrichment forge for every target: check and docs | Done |
 | 89 | User documentation (front doors, guides, generated reference) | In progress — 89a (T453–T458) done; T459–T480, see `user-docs-roadmap.md` |
+| 90 | CI checkout pitfalls and `init --defaults` (shallow clone, detached HEAD) | Planned — T481–T483 |
 
 ### Open items
 
@@ -4000,6 +4001,63 @@ and a `CONTRIBUTING.md` front door for contributors, without moving the specs, A
 28 tasks, so the breakdown and live `[ ] / [x]` status live in a dedicated roadmap:
 
 → **[User Documentation Roadmap](user-docs-roadmap.md)** — T453+
+
+---
+
+### Phase 90 — CI checkout pitfalls and `init --defaults`
+
+Found on 2026-11-06 while writing the CI guides (T457, T458) and Getting started (T456) against the
+built binary. Each is a CI default that makes `heraut release` fail late, or a default that doesn't
+match the repository. Today the guides work around them. Each task changes behaviour, so the spec
+is updated first. When a task lands, simplify the guide that works around it.
+
+#### `[ ]` T481: fail early in a shallow clone instead of resolving the first version again
+
+`actions/checkout` fetches one commit and no tags by default, and GitLab clones with a limited
+depth. heraut then sees no release tag, resolves `initial_version` (`v0.1.0` while `v0.1.0`
+exists), writes and commits the changelog, and only fails at the tag push. ADR-0065 names this
+risk but nothing detects it. Proposal: before resolving, run `git rev-parse
+--is-shallow-repository`. When it prints `true`, `release`, `changelog` and `version next` stop
+with a config/runtime error whose hint names `fetch-depth: 0` and `GIT_DEPTH: "0"`.
+`heraut check runtime` reports it too. Open points to settle in Spec 03 (and Spec 04 § resolution) before coding:
+- error or warning;
+- which commands it covers;
+- whether `--set-version` (ADR-0073), which needs no history, is exempt;
+- the exit code.
+
+Tests first: a contract row on the new git call, and an e2e Lane A scenario cloning with
+`--depth 1`. Then drop the shallow rows from the guides' failure tables, or reword them to the new
+message.
+
+#### `[ ]` T482: push the changelog commit to the CI branch from a detached HEAD
+
+GitLab CI checks out the commit, not the branch. `git push origin HEAD` (`commitChangelog`,
+`internal/pipeline/git.go`) then fails with "The destination you provided is not a full refname",
+after the commit was made. `branch.CurrentBranch` already falls back to `CI_COMMIT_BRANCH`,
+`GITHUB_REF_NAME` and Azure's source branch on a detached HEAD. The push could use it:
+`git push origin HEAD:refs/heads/<branch>`. Without a branch (a detached HEAD with no CI variable),
+fail before the commit with a hint, not after it. Spec 03 (the release and changelog push steps)
+and Spec 02 (`git.push_options.commit`) state the refspec. Tests first:
+- MockRunner rows for the refspec on a detached HEAD;
+- a row where the branch is checked out (unchanged `HEAD`);
+- a row with no branch at all.
+
+Then drop `git checkout -B "$CI_COMMIT_BRANCH"` from `docs/guides/gitlab-ci.md`. Also check
+whether a tag pipeline (no `CI_COMMIT_BRANCH`) needs its own message.
+
+#### `[ ]` T483: `heraut init --defaults` picks the forge from `origin`
+
+`scaffold.Defaults()` always writes `forges: [{platform: gitlab}]`, as Spec 03 says. On a GitHub
+repository the result points at the wrong forge, which is why Getting started doesn't use
+`--defaults`. Proposal:
+- read `origin` with the same detection `forge.Resolve` uses;
+- with a GitHub or GitLab origin, write that forge, or write no `forges:` block at all, since it
+  auto-detects;
+- keep GitLab only when nothing is detected, or omit the block and let `check config` say what's
+  missing.
+
+Spec 03's `--defaults` row changes with it. Tests first: GitHub, GitLab, self-hosted and no-origin
+rows on the generated YAML, each valid against `schema.json`.
 
 Every Phase above marked `Done` and not pointing to a dedicated roadmap (D, 0–9, 11–22, 26, 28,
 30, 31) has had its full task write-up — implementation notes, decisions, deviations — moved to
