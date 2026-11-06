@@ -185,11 +185,25 @@ every property has a description and none cites an ADR.
 are organised, a minimal example, a link to `docs/heraut.sample.yml`) above a table generated from
 `schema.json` (key path, type, default, description). Same generator task and drift test as T460.
 
-#### `[ ]` T463: environment variables reference
+#### `[x]` T463: environment variables reference
 
 New `docs/reference/environment-variables.md`: every variable heraut reads — `HERAUT_FILE`,
 `HERAUT_SKIP_HOOKS`, `HERAUT_CHECK_UPDATE`, the token variables, the CI variables used for detection — with
 what each does. Hand-written, checked against `internal/config` and `internal/forge`.
+
+Done 2026-11-06.
+- **The page.** `docs/reference/environment-variables.md` has four sections: heraut's own settings;
+  the tokens (who reads which, in what order); the CI variables, per CI system, with what each is
+  read for; and `NO_COLOR` and `PAGER`/`NO_PAGER` (forge's `whatsnew` pager). It is linked from the
+  docs home.
+- **Checked against the code.** The token rows come from `internal/platforms/{github,gitlab}`
+  (publishing) and `internal/forge/{detect,resolve}.go` (enrichment). `HERAUT_TEST_NOW` is left out
+  because only the `heraut_testclock` test build reads it.
+- **Drift test.** `TestEnvironmentVariablesReference_NamesEveryVariable` (`internal/config`) fails
+  when a name in `config.CIEnvVars`, or one of the three `HERAUT_` settings, is missing from the page.
+- **Finding, not fixed.** For GitHub, publishing reads `GH_TOKEN` then `GITHUB_TOKEN`, but
+  pull-request enrichment reads only `GITHUB_TOKEN` (`defaultTokenEnvFor`). A user who sets only
+  `GH_TOKEN` publishes fine but gets no PR data outside Actions. The page states it as it is.
 
 #### `[ ]` T464: exit codes reference
 

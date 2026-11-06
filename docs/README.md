@@ -30,6 +30,8 @@ Each guide answers one situation.
 
 - [`heraut.sample.yml`](heraut.sample.yml): every configuration key, with a comment.
 - `heraut <command> --help`: the flags of each command.
+- [Environment variables](reference/environment-variables.md): the tokens, the `HERAUT_` settings
+  and the CI variables heraut reads.
 - [Changelog](../CHANGELOG.md): what changed in each version.
 
 ---
