@@ -96,6 +96,9 @@ git:
     commit: ["ci.skip"]
 ```
 
+Why not `[skip ci]`, and the per-environment form: [Keep the release commit from running
+CI](skip-ci-on-release-commit.md).
+
 ## When it fails
 
 | Message | Cause | Fix |

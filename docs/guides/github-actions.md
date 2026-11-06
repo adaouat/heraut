@@ -100,6 +100,8 @@ on:
     tags: ["*"]
 ```
 
+Another way, and the details: [Keep the release commit from running CI](skip-ci-on-release-commit.md).
+
 ## A protected `main`
 
 If a branch rule or ruleset requires pull requests on `main`, the push of the changelog commit is

@@ -331,10 +331,20 @@ Done 2026-11-06.
   - The GitLab "not set" message comes from `credentials()`.
 - **Not run against a real self-hosted GitLab.**
 
-#### `[ ]` T467: Guide — keep the release commit from triggering CI
+#### `[x]` T467: Guide — keep the release commit from triggering CI
 
 New `docs/guides/skip-ci-on-release-commit.md`: `git.push_options` on GitLab, `[skip ci]` and why it also
 skips the tag pipeline, the GitHub `paths-ignore` and job-condition patterns.
+
+Done 2026-11-06.
+- **The guide.** `docs/guides/skip-ci-on-release-commit.md` covers GitLab's `ci.skip` on the commit
+  push only, why `[skip ci]` in the message skips the tag's pipeline too, GitHub's path filter and
+  job condition (with the `ref_type == 'tag'` guard), the workflow-token note, per-environment
+  lists, and a failure table.
+- **Sources.** The forge behaviour comes from Spec 02 § `git`, checked on gitlab.com and github.com
+  on 2026-11-04 (T446, T449). The dry-run line is quoted from a run of the built binary.
+- **Links.** The two CI guides keep their short version and point here; the docs home lists the
+  guide.
 
 #### `[ ]` T468: Guide — several environments
 
