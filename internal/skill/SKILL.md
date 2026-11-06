@@ -78,7 +78,7 @@ stdout stays empty, the message is on stderr, exit 1.
 | 0 | success | — |
 | 1 | usage error (bad flag, no terminal for an interactive command, invalid commit message) | fix the call |
 | 2 | configuration error (invalid YAML, missing `--env`, branch guard, `{build}` without an ID, a major release `versioning.bump.confirm_major` asks to confirm) | fix `.heraut.yml` or the flags; `heraut check config --json` lists the findings. For an unconfirmed major, ask the user |
-| 3 | runtime error (git, token, network, hook, publish failed) | read `error.message`; retry only if transient |
+| 3 | runtime error (git, token, network, hook, publish failed, or a checkout heraut refuses: a shallow clone, a detached `HEAD` with no CI branch) | read `error.message`; retry only if transient. For a shallow clone, tell the user to fetch the full history (`git fetch --unshallow --tags`) |
 | 4 | promotion guard (E001–E003) | do not force: report to the user, `--force` overrides a safety check |
 | 70 | internal error | report it |
 
