@@ -51,7 +51,7 @@ func TestCreateRelease_AServerThatNeverAnswersTimesOut(t *testing.T) {
 	require.NoError(t, err)
 
 	err = within(t, func() error {
-		_, err := c.CreateRelease(t.Context(), "v1.2.3", "n", false, false, nil)
+		_, err := c.CreateRelease(t.Context(), "v1.2.3", "", "n", false, false, nil)
 		return err
 	})
 	require.Error(t, err)
@@ -69,7 +69,7 @@ func TestCreateRelease_CancelledDuringAnUploadDeletesTheDraft(t *testing.T) {
 	}
 
 	err := within(t, func() error {
-		_, err := githubClient(t, f).CreateRelease(ctx, "v1.2.3", "n", false, false, []platforms.Asset{testAsset(t, "app.zip", "x")})
+		_, err := githubClient(t, f).CreateRelease(ctx, "v1.2.3", "", "n", false, false, []platforms.Asset{testAsset(t, "app.zip", "x")})
 		return err
 	})
 	require.ErrorIs(t, err, context.Canceled)
@@ -92,7 +92,7 @@ func TestCreateRelease_TheDraftCleanupIsBounded(t *testing.T) {
 	}
 
 	err := within(t, func() error {
-		_, err := githubClient(t, f).CreateRelease(t.Context(), "v1.2.3", "n", false, false, []platforms.Asset{testAsset(t, "app.zip", "x")})
+		_, err := githubClient(t, f).CreateRelease(t.Context(), "v1.2.3", "", "n", false, false, []platforms.Asset{testAsset(t, "app.zip", "x")})
 		return err
 	})
 	require.Error(t, err)
@@ -106,7 +106,7 @@ func TestCreateRelease_ACancelledContextSendsNothing(t *testing.T) {
 	ctx, cancel := context.WithCancel(t.Context())
 	cancel()
 
-	_, err := githubClient(t, f).CreateRelease(ctx, "v1.2.3", "n", false, false, nil)
+	_, err := githubClient(t, f).CreateRelease(ctx, "v1.2.3", "", "n", false, false, nil)
 
 	require.ErrorIs(t, err, context.Canceled)
 	assert.Empty(t, f.requests())

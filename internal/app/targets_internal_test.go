@@ -109,13 +109,17 @@ func TestBuildTargetPlatforms_TargetOwnAssetsAreLenient(t *testing.T) {
 	}
 	resolved := forge.Resolved{Forges: []port.ForgeIdentity{{Type: "github", Host: api.URL, Project: "acme/widget"}}}
 
-	platforms, err := buildTargetPlatforms(exectest.NewMockRunner(), cfg, targets, nil, resolved)
+	runner := exectest.NewMockRunner()
+	runner.QueueResponse("4e1c2a7d0f\n", "", nil) // git rev-parse: the tagged commit
+	platforms, err := buildTargetPlatforms(runner, cfg, targets, nil, resolved)
 	require.NoError(t, err)
 	require.Len(t, platforms, 1)
 
 	err = platforms[0].CreateRelease(t.Context(), "v1.0.0", "notes", false)
 	require.NoError(t, err, "a target-declared asset glob matching nothing must warn and skip, not fail the release")
 	assert.Equal(t, []string{"POST /api/v3/repos/acme/widget/releases"}, requests, "the release is created, with nothing to upload")
+	require.Len(t, runner.Calls, 1, "the GitHub driver reads the tagged commit with the pipeline's runner")
+	assert.Equal(t, []string{"rev-parse", "--verify", "--quiet", "refs/tags/v1.0.0^{commit}"}, runner.Calls[0].Args)
 }
 
 // TestBuildTargetPlatforms_AllowMissingAssetsReachesTheDrivers covers ADR-0076: release.allow_missing_assets

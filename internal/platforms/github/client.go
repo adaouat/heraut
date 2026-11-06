@@ -82,14 +82,21 @@ func (c *Client) newAPI(uploadOrigin *string) (*gh.Client, error) {
 // fails when immutable releases are on. If an upload or the publish fails, the draft is deleted so
 // a re-run starts clean; a failed delete is appended to the original error. ctx stops the requests
 // (Ctrl-C); the delete runs on its own short context, so it still happens once ctx is cancelled.
-func (c *Client) CreateRelease(ctx context.Context, tag, notes string, draft, prerelease bool, assets []platforms.Asset) ([]string, error) {
-	release, _, err := c.api.Repositories.CreateRelease(ctx, c.owner, c.repo, gh.CreateReleaseRequest{
+func (c *Client) CreateRelease(ctx context.Context, tag, commit, notes string, draft, prerelease bool, assets []platforms.Asset) ([]string, error) {
+	req := gh.CreateReleaseRequest{
 		TagName:    tag,
 		Name:       new(tag),
 		Body:       new(notes),
 		Draft:      new(draft || len(assets) > 0),
 		Prerelease: new(prerelease),
-	})
+	}
+	// GitHub creates a missing tag itself, on target_commitish or else on its default branch's
+	// head. Naming the tagged commit means a tag not yet on GitHub (a mirror that hasn't synced)
+	// lands on the right commit, or the request is refused, never on another commit.
+	if commit != "" {
+		req.TargetCommitish = new(commit)
+	}
+	release, _, err := c.api.Repositories.CreateRelease(ctx, c.owner, c.repo, req)
 	if err != nil {
 		return nil, fmt.Errorf("creating release %s: %w", tag, readable(err))
 	}

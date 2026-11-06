@@ -20,6 +20,8 @@ type Platform struct {
 	getenv     func(string) string
 	stderr     io.Writer
 	httpClient *http.Client // nil: a default client
+	// runner reads the tagged commit for the release request; nil leaves the commit out.
+	runner port.Runner
 }
 
 var _ port.Platform = (*Platform)(nil)
@@ -27,6 +29,25 @@ var _ port.Platform = (*Platform)(nil)
 // New constructs a GitHub Platform.
 func New(cfg *config.Platform) *Platform {
 	return &Platform{cfg: cfg, getenv: os.Getenv, stderr: os.Stderr}
+}
+
+// WithRunner gives the driver the git runner it reads a tag's commit with, so a release names the
+// commit it was tagged on.
+func (p *Platform) WithRunner(r port.Runner) *Platform {
+	p.runner = r
+	return p
+}
+
+// taggedCommit returns the commit tag points at, or "" when the driver has no runner.
+func (p *Platform) taggedCommit(tag string) (string, error) {
+	if p.runner == nil {
+		return "", nil
+	}
+	out, _, err := p.runner.Run("git", "rev-parse", "--verify", "--quiet", "refs/tags/"+tag+"^{commit}")
+	if err != nil {
+		return "", fmt.Errorf("reading the commit of tag %s: %w", tag, err)
+	}
+	return strings.TrimSpace(out), nil
 }
 
 func (p *Platform) Name() string { return p.cfg.Name }
@@ -102,6 +123,10 @@ func (p *Platform) CreateRelease(ctx context.Context, tag, notes string, prerele
 	if err != nil {
 		return fmt.Errorf("github release create: %w", err)
 	}
+	commit, err := p.taggedCommit(tag)
+	if err != nil {
+		return fmt.Errorf("github release create: %w", err)
+	}
 
 	var assets []platforms.Asset
 	if len(p.cfg.Assets) > 0 {
@@ -114,7 +139,7 @@ func (p *Platform) CreateRelease(ctx context.Context, tag, notes string, prerele
 		defer platforms.CloseAssets(assets)
 	}
 
-	names, err := c.CreateRelease(ctx, tag, notes, p.cfg.Draft, prerelease, assets)
+	names, err := c.CreateRelease(ctx, tag, commit, notes, p.cfg.Draft, prerelease, assets)
 	if err != nil {
 		return fmt.Errorf("github release create: %w", err)
 	}

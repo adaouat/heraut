@@ -8,8 +8,8 @@ Three things change compared with a GitLab-only release:
 
 1. **A GitHub token.** The job's `CI_JOB_TOKEN` only works on GitLab.
 2. **The tag must reach GitHub before the release is created.** heraut pushes to `origin`, your
-   GitLab project. If the tag isn't on GitHub yet, GitHub creates it itself, on the head of its own
-   default branch, which may be an older commit.
+   GitLab project, and tells GitHub which commit the release is for. If GitHub doesn't have that
+   commit yet, it refuses the release.
 3. **Two forges in the configuration**, so heraut knows where to publish and where to read merge
    request data from.
 
@@ -66,7 +66,8 @@ the job below), right after heraut pushes them to GitLab and before it creates t
 `$CI_COMMIT_BRANCH` is the branch the pipeline runs for.
 
 Already mirroring with GitLab's push mirror? Keep the hook anyway. The mirror runs on its own
-schedule and may not have pushed the tag when heraut publishes.
+schedule and may not have pushed the release commit when heraut publishes; GitHub would then refuse
+the release.
 
 ## The token
 
@@ -121,7 +122,7 @@ The `CHANGELOG.md` committed to the repository uses the job's own host, GitLab.
 | `fatal: 'github' does not appear to be a git repository` | the `post_tag` hook ran without the remote | the `git remote add github` line in the job |
 | `remote: Permission to acme/app.git denied` or `403` | the token can't push | give it **Contents: read and write** on the repository |
 | `commits.enrichment_forge: required when more than one forge is configured` | two forges and no enrichment forge | name the forge whose merge requests you want |
-| the GitHub release points at an older commit | the tag wasn't on GitHub when heraut published | the `post_tag` hook |
+| `422` when creating the GitHub release | the release commit isn't on GitHub yet | the `post_tag` hook |
 
 If a release stops halfway, [Recover from a failed release](failure-recovery.md) says what is done and
 how to finish.

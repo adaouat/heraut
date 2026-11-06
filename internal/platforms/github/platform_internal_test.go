@@ -2,11 +2,13 @@ package github
 
 import (
 	"bytes"
+	"errors"
 	"net/http"
 	"os"
 	"path/filepath"
 	"testing"
 
+	"github.com/adaouat/forge/exec/exectest"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
@@ -302,4 +304,34 @@ func TestPlatform_CreateReleaseFailureIsWrapped(t *testing.T) {
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "github release create")
 	assert.Contains(t, err.Error(), "422 Validation Failed: tag_name already_exists")
+}
+
+// The driver reads the tagged commit with git before it calls GitHub, and sends it with the release.
+func TestPlatform_CreateReleaseSendsTheTaggedCommit(t *testing.T) {
+	f := newFakeGitHub(t, githubUploadURL)
+	mr := exectest.NewMockRunner()
+	mr.QueueResponse("4e1c2a7d0f\n", "", nil)
+	p, _ := testPlatform(&config.Platform{Repository: testRepository}, map[string]string{"GH_TOKEN": "tok"}, f)
+	p = p.WithRunner(mr)
+
+	require.NoError(t, p.CreateRelease(t.Context(), "v1.2.3", "notes", false))
+
+	require.Len(t, mr.Calls, 1)
+	assert.Equal(t, "git", mr.Calls[0].Name)
+	assert.Equal(t, []string{"rev-parse", "--verify", "--quiet", "refs/tags/v1.2.3^{commit}"}, mr.Calls[0].Args)
+	assert.Equal(t, "4e1c2a7d0f", jsonBody(t, f.recorded()[0])["target_commitish"])
+}
+
+// A tag git can't resolve stops the release before anything is sent to GitHub.
+func TestPlatform_CreateReleaseUnknownTagCallsNothing(t *testing.T) {
+	f := newFakeGitHub(t, githubUploadURL)
+	mr := exectest.NewMockRunner()
+	mr.QueueResponse("", "", errors.New("exit status 1"))
+	p, _ := testPlatform(&config.Platform{Repository: testRepository}, map[string]string{"GH_TOKEN": "tok"}, f)
+	p = p.WithRunner(mr)
+
+	err := p.CreateRelease(t.Context(), "v1.2.3", "notes", false)
+
+	require.ErrorContains(t, err, "the commit of tag v1.2.3")
+	assert.Empty(t, f.recorded(), "no request reaches GitHub")
 }

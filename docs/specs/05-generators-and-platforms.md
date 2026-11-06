@@ -466,10 +466,16 @@ process through `go-github`; no `gh` binary is involved.
 | Step | Request |
 |---|---|
 | `Check()` | `GET /repos/{owner}/{repo}/releases?per_page=1` |
-| create | `POST /repos/{owner}/{repo}/releases` (`tag_name`, `name` = the tag, `body` = the notes, `draft`, `prerelease`) |
+| create | `POST /repos/{owner}/{repo}/releases` (`tag_name`, `target_commitish` = the tagged commit's SHA, `name` = the tag, `body` = the notes, `draft`, `prerelease`) |
 | upload | `POST {upload_url}?name=<basename>`, the file as the raw body |
 | publish | `PATCH /repos/{owner}/{repo}/releases/{id}` (`draft: false`) |
 | cleanup | `DELETE /repos/{owner}/{repo}/releases/{id}` |
+
+`target_commitish` is read with `git rev-parse --verify --quiet refs/tags/<tag>^{commit}` just before
+the request (a tag git can't resolve fails the publish before any request). GitHub ignores it when the
+tag already exists on GitHub. When it doesn't (a project mirrored to GitHub whose mirror hasn't synced
+the tag), GitHub creates the tag on that commit if it has it, and refuses the release otherwise,
+instead of tagging the head of its default branch.
 
 Without assets the release is one create call. With assets it is created as a draft, each file is
 uploaded, then the draft is published, unless the target sets `draft: true` (uploading to a

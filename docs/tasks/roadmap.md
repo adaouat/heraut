@@ -260,7 +260,7 @@ discipline that applies to every task.
 | 89 | User documentation (front doors, guides, generated reference) | In progress — 89a, 89b and 89c (T453–T475, T486) done; T476–T480, see `user-docs-roadmap.md` |
 | 90 | CI checkout pitfalls and `init --defaults` (shallow clone, detached HEAD) | Done |
 | 91 | Follow-ups from the generated reference (GitHub token for PR data, `check runtime` help) | Done |
-| 92 | Follow-ups from the guides (GitHub release commit, error punctuation, warning marks) | Planned — T487–T489 |
+| 92 | Follow-ups from the guides (GitHub release commit, error punctuation, warning marks) | In progress — T487 done; T488, T489 open |
 
 ### Open items
 
@@ -4204,7 +4204,7 @@ are part of the commit. Text only, so the drift test is its test.
 
 Found on 2026-11-06 while writing and verifying the Phase 89c guides against the built binary.
 
-#### `[ ]` T487: create a GitHub release on the tagged commit, never on GitHub's default branch
+#### `[x]` T487: create a GitHub release on the tagged commit, never on GitHub's default branch
 
 The GitHub driver creates a release with `tag_name` only (`CreateRelease` in
 `internal/platforms/github/client.go`, no `target_commitish`). When the tag isn't on GitHub yet
@@ -4225,6 +4225,28 @@ refuses with a 422 otherwise, which heraut reports as a publish failure. Points 
 
 Tests first: a contract row on the request body (`target_commitish` = the SHA), and the 422
 mapping.
+
+Done 2026-11-06, without the sandbox check (agreed with the user): GitHub's own error shows as it
+is, so there is no 422 mapping.
+- **Deviation from the proposal: no port change.** The GitHub driver reads the commit itself, so
+  `port.Platform.CreateRelease` and the GitLab driver are untouched, and so are the pipeline tests
+  that queue exact git answers. It gets the pipeline's runner through `Platform.WithRunner`
+  (`buildGitHubPlatform` in `internal/app/platforms.go`). Just before the request it runs
+  `git rev-parse --verify --quiet refs/tags/<tag>^{commit}`: `^{commit}` because an annotated tag's
+  own SHA is not a commit. A tag git can't resolve fails the publish before any request.
+- **The client.** `Client.CreateRelease` gains the commit and sends `target_commitish` only when it
+  is set.
+- **Docs.** Spec 05's create row and a paragraph after the table say so. The GitLab-to-GitHub guide
+  now says GitHub refuses the release, rather than tagging an older commit, when the commit isn't
+  there yet; the `post_tag` hook stays.
+- **Tests first.** A client row on the body, and driver rows for the git call and for an unknown
+  tag sending nothing. The app test that publishes through a built GitHub driver now queues and
+  asserts the lookup, which covers the wiring. e2e Lane A asserts the fake GitHub receives the
+  tag's commit (`TestRelease_GitHubRequests`).
+- **Mutations.** 5 mutants each fail a test: the client dropping the field, no lookup, no runner
+  wired, the tag object's SHA instead of the commit's, and a lookup error ignored. A no-op control
+  survives.
+- **Shallow clone.** The suite also passes in a `--depth 1` clone.
 
 #### `[ ]` T488: no double period at the end of an error panel
 

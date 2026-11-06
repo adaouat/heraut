@@ -80,6 +80,8 @@ func TestRelease_GitHubRequests(t *testing.T) {
 	assert.Equal(t, []string{githubList, githubRelease}, repo.APICalls(), "the token is checked, then the release is created in one call")
 	rel := repo.FakeGitHub().Release()
 	assert.Equal(t, "v0.1.0", rel["tag_name"])
+	assert.Equal(t, repo.Git("rev-parse", "v0.1.0^{commit}"), rel["target_commitish"],
+		"the release names the tagged commit, so GitHub never tags its default branch instead")
 	assert.Equal(t, false, rel["draft"])
 	assert.Equal(t, false, rel["prerelease"])
 	assert.Contains(t, rel["body"], "One")
