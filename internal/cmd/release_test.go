@@ -80,6 +80,7 @@ release:
   targets:
     - forge: github
 `)
+	testutil.RealGitRepo(t, "v0.1.0") // never the checkout the tests run in: a shallow CI clone is refused
 	out, err := executeRoot("release", "--config", cfgPath, "--env", "uat",
 		"--set-version", "7.4.1", "--set-build-id", "158404", "--dry-run")
 	require.NoError(t, err)
@@ -330,6 +331,7 @@ release:
 		{"calver year.patch", "2024.03"},
 		{"calver full", "2024.03.15.2"},
 	}
+	testutil.RealGitRepo(t, "v0.1.0") // never the checkout the tests run in: a shallow CI clone is refused
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			_, err := executeRoot("release", "--config", cfgPath, "--set-version", tc.version, "--dry-run")

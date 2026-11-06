@@ -7,6 +7,7 @@ import (
 	"github.com/adaouat/forge/exec/exectest"
 	"github.com/adaouat/heraut/internal/cmd"
 	"github.com/adaouat/heraut/internal/exitcode"
+	"github.com/adaouat/heraut/internal/testutil"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -280,6 +281,7 @@ version: "1"
 versioning:
   strategy: semver
 `)
+	testutil.RealGitRepo(t, "v0.1.0") // never the checkout the tests run in: a shallow CI clone adds a warning
 	out, err := executeRoot("version", "next", "--config", cfgPath, "--set-version", "1.4.0", "--set-build-id", "158404")
 	require.NoError(t, err)
 	assert.Equal(t, "v1.4.0+158404\n", out)
