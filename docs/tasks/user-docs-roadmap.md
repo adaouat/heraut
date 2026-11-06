@@ -35,7 +35,7 @@
 |---|---|---|---|
 | 89a | Front doors and getting started | T453–T458 | Done |
 | 89b | Generated reference | T459–T464 | Done |
-| 89c | Guides | T465–T475 | Planned |
+| 89c | Guides | T465–T475, T486 | Planned |
 | 89d | Concepts | T476–T479 | Planned |
 | 89e | Keeping user docs current | T480 | Planned |
 
@@ -338,6 +338,19 @@ New `docs/guides/ai-agents.md`: `heraut skill install`, the `--json` commands, a
 `mobile-ci-tagging`, `maintenance-branches`, `release-pipeline-and-hooks`, `template-customization`,
 `store-release-notes`, `failure-recovery`: titles from the page map, ADR/task references removed, links
 moved from specs to the user reference, examples re-run. May split per guide if the diff gets large.
+
+#### `[ ]` T486: `heraut.sample.yml` for users
+
+Found while writing T461: the sample's comments cite ADRs 20 times, and its header sends readers to
+`docs/specs/02-configuration.md` and `04-versioning.md`. It is linked from the docs home and the
+configuration reference as the commented full example, so it should follow the user-page rule:
+- drop the ADR and task references;
+- point to the user reference (`docs/reference/configuration.md`) and the guides instead of the
+  specs;
+- keep each comment in step with the schema descriptions rewritten in T461.
+
+`TestShippedExamples_LoadAndValidate` must stay green; consider a test that the sample cites no ADR,
+like the schema's.
 
 ---
 

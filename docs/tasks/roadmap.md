@@ -259,6 +259,7 @@ discipline that applies to every task.
 | 88 | One enrichment forge for every target: check and docs | Done |
 | 89 | User documentation (front doors, guides, generated reference) | In progress — 89a and 89b (T453–T464) done; T465–T480, see `user-docs-roadmap.md` |
 | 90 | CI checkout pitfalls and `init --defaults` (shallow clone, detached HEAD) | Done |
+| 91 | Follow-ups from the generated reference (GitHub token for PR data, `check runtime` help) | Planned — T484, T485 |
 
 ### Open items
 
@@ -4139,6 +4140,36 @@ Done 2026-11-06.
   own checkout, whose real origin would leak in, so these are e2e and not cmd tests.
 - **Mutations.** 6 mutants each fail a test, a seventh doesn't compile, and a no-op control
   survives.
+
+### Phase 91 — Follow-ups from the generated reference
+
+Found on 2026-11-06 while writing the environment-variables reference and the command help
+(Phase 89b, T459, T463).
+
+#### `[ ]` T484: read `GH_TOKEN` for GitHub pull-request data, as publishing does
+
+With no `token_env`, the GitHub publish driver reads `GH_TOKEN`, then `GITHUB_TOKEN`
+(`internal/platforms/github`). Enrichment reads only `GITHUB_TOKEN` (`defaultTokenEnvFor` in
+`internal/forge/detect.go`). Spec 02 § GitHub documents the difference ("each subsystem has its own
+fallback"). A user who sets only `GH_TOKEN`, the `gh` CLI's name, publishes fine but gets no PR
+links, authors or New Contributors outside GitHub Actions, with only a degraded-enrichment warning.
+Proposal: enrichment reads the same chain as the publish driver, on github.com and on GitHub
+Enterprise Server. Points to settle in the spec first:
+- **Zero-config detection.** It looks for exactly one default token variable to pick a forge
+  (Spec 02 § Identity resolution). Should `GH_TOKEN` count as a GitHub candidate there, and does that
+  change any ambiguity result (`GH_TOKEN` and `GITLAB_TOKEN` both set)?
+- **GitHub Actions.** The CI token `GITHUB_TOKEN` keeps priority inside Actions.
+
+Then update Spec 02 § GitHub, the environment-variables reference (whose drift test only checks
+names), and `check runtime` if it reports the enrichment token. Tests first: resolve rows with
+`GH_TOKEN` only, `GITHUB_TOKEN` only, both, and the Enterprise names, plus the ambiguity rows.
+
+#### `[ ]` T485: fix `heraut check runtime`'s one-line help
+
+Its `Short:` still says "Check binaries on PATH, token env vars, and git user config". heraut has
+no external binary but `git` since the native generator, and the check now also covers the history
+(T481) and each target's API access. Rewrite it to match the `Long:` written in T459, then run
+`mise run docs:gen` (the command pages and the index carry the `Short:`).
 
 Every Phase above marked `Done` and not pointing to a dedicated roadmap (D, 0–9, 11–22, 26, 28,
 30, 31) has had its full task write-up — implementation notes, decisions, deviations — moved to
