@@ -112,7 +112,8 @@ func spinnerReporter(out io.Writer, total int) ui.StepFn {
 	return func(name string, fn func() (result string, subs []string, err error)) error {
 		return sp.Run(name, func() (forgeui.Result, error) {
 			result, subs, err := fn()
-			return forgeui.Result{Detail: result, Subs: subs}, err
+			ok, warnings := ui.SplitSubs(subs)
+			return forgeui.Result{Detail: result, Subs: ok, Warnings: warnings}, err
 		})
 	}
 }

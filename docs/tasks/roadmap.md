@@ -260,7 +260,7 @@ discipline that applies to every task.
 | 89 | User documentation (front doors, guides, generated reference) | In progress — 89a, 89b and 89c (T453–T475, T486) done; T476–T480, see `user-docs-roadmap.md` |
 | 90 | CI checkout pitfalls and `init --defaults` (shallow clone, detached HEAD) | Done |
 | 91 | Follow-ups from the generated reference (GitHub token for PR data, `check runtime` help) | Done |
-| 92 | Follow-ups from the guides (GitHub release commit, error punctuation, warning marks) | In progress — T487 done; T488, T489 open |
+| 92 | Follow-ups from the guides (GitHub release commit, error punctuation, warning marks) | Done |
 
 ### Open items
 
@@ -4277,7 +4277,7 @@ Done 2026-11-06, both halves.
 - **Checked with the built binary.** The E001, E002 and E003 panels each end with a single period.
 - **Not changed.** ADR-0007 quotes the old wording as history.
 
-#### `[ ]` T489: show the degraded-enrichment notes as warnings, not successes
+#### `[x]` T489: show the degraded-enrichment notes as warnings, not successes
 
 When PR/MR enrichment fails under `enrichment_policy: optional`, the changelog step prints
 "— without enrichment" and two sub-lines, both marked ✓ like successes:
@@ -4293,6 +4293,24 @@ reporter as ordinary sub-lines. They should carry the warning mark (`!`), as oth
 in the styled reporter and in plain output. Check whether forge's step reporter has a warning
 sub-line; if not, this is a forge change too (see T488). Then update the quote in
 `docs/guides/pr-data-and-tokens.md`. Tests first: the reporter's output for a degraded generator.
+
+Done 2026-11-06. forge v0.20.0 provides `Result.Warnings`, printed with "!" after the successes.
+- **The contract.** heraut's step contract (`ui.StepFn`) carries sub-lines as plain strings, and 30
+  step closures return them. So rather than change that signature, a sub-line can be marked with
+  `ui.Warning(s)`, which prefixes a NUL-delimited mark that never occurs in printed text.
+- **The adapter.** `spinnerReporter` (`internal/app/pipeline.go`) splits the lines with
+  `ui.SplitSubs` into forge's `Subs` and `Warnings`. It is the only reporter, so no other path
+  prints the mark.
+- **What's marked.** `degradedSubs` (`internal/pipeline/warn.go`) marks its two lines, the reason
+  and the omission note.
+- **Tests first.**
+  - `TestSplitSubs`, and the adapter's output: `!` for the warning, `✓` for the rest, no NUL.
+  - The `degradedSubs` and `changelogGenResult` rows now expect marked lines.
+  - The reporter test that captures raw sub-lines expects the marked note, a deliberate change.
+- **Mutations.** 4 mutants each fail a test, a fifth doesn't compile, and a no-op control survives.
+- **Checked with the built binary** (a bad GitHub token): both lines print with "!", and no NUL
+  byte reaches the output.
+- **The guide.** The quote in `docs/guides/pr-data-and-tokens.md` is updated.
 
 Every Phase above marked `Done` and not pointing to a dedicated roadmap (D, 0–9, 11–22, 26, 28,
 30, 31) has had its full task write-up — implementation notes, decisions, deviations — moved to

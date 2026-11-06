@@ -19,10 +19,10 @@ func degradedSubs(gen port.Generator) []string {
 	var subs []string
 	if r, ok := gen.(interface{ DegradedReason() string }); ok {
 		if reason := r.DegradedReason(); reason != "" {
-			subs = append(subs, reason)
+			subs = append(subs, ui.Warning(reason))
 		}
 	}
-	return append(subs, "remote metadata unavailable — PR authors/numbers omitted")
+	return append(subs, ui.Warning("remote metadata unavailable — PR authors/numbers omitted"))
 }
 
 // changelogGenResult builds the completed-step detail and sub-results for a changelog generation

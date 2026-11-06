@@ -34,8 +34,8 @@ By default heraut writes the changelog anyway, without the links, and says so:
 
 ```text
 ✓ [2/2] Generate changelog — without enrichment
-     ✓ remote enrichment unavailable; rendering without PR attribution: … 401 Unauthorized
-     ✓ remote metadata unavailable — PR authors/numbers omitted
+     ! remote enrichment unavailable; rendering without PR attribution: … 401 Unauthorized
+     ! remote metadata unavailable — PR authors/numbers omitted
 ```
 
 `commits.enrichment_policy` changes that:

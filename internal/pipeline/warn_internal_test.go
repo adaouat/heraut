@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/adaouat/heraut/internal/testutil"
+	"github.com/adaouat/heraut/internal/ui"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -14,17 +15,18 @@ func TestDegradedSubs(t *testing.T) {
 	assert.Nil(t, degradedSubs(&testutil.MockGenerator{DegradedVal: false}), "not degraded → no subs")
 
 	withReason := degradedSubs(&testutil.MockGenerator{DegradedVal: true, DegradedReasonV: "boom: connection reset"})
-	assert.Equal(t, []string{"boom: connection reset", omitNote}, withReason, "reason then generic note")
+	assert.Equal(t, []string{ui.Warning("boom: connection reset"), ui.Warning(omitNote)}, withReason,
+		"reason then generic note, both warnings")
 
 	noReason := degradedSubs(&testutil.MockGenerator{DegradedVal: true})
-	assert.Equal(t, []string{omitNote}, noReason, "no reason exposed → generic note only")
+	assert.Equal(t, []string{ui.Warning(omitNote)}, noReason, "no reason exposed → generic note only")
 }
 
 func TestChangelogGenResult(t *testing.T) {
 	// Degraded: "without enrichment" + reason + omission note.
 	detail, subs := changelogGenResult(&testutil.MockGenerator{DegradedVal: true, DegradedReasonV: "boom"})
 	assert.Equal(t, "without enrichment", detail)
-	assert.Equal(t, []string{"boom", omitNote}, subs)
+	assert.Equal(t, []string{ui.Warning("boom"), ui.Warning(omitNote)}, subs)
 
 	// Not degraded: no detail, no sub-results (GitLab is now batched — no rate-limit heads-up).
 	detail, subs = changelogGenResult(&testutil.MockGenerator{DegradedVal: false})

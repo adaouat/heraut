@@ -243,7 +243,8 @@ func TestRun_Reporter_DegradedNotes_EmitsSubResult(t *testing.T) {
 		}
 	}
 	require.NotNil(t, notesStep, "expected a Generate release notes step")
-	assert.Contains(t, notesStep.subs, "remote metadata unavailable — PR authors/numbers omitted")
+	assert.Contains(t, notesStep.subs, ui.Warning("remote metadata unavailable — PR authors/numbers omitted"),
+		"the omission note is a warning, not a success")
 }
 
 // TestRun_BuildTag_PropagatesToPlatform verifies a build-rendered tag (T57 — heraut
