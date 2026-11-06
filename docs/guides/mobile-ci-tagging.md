@@ -1,4 +1,4 @@
-# Guide: Mobile / CI multi-build tagging
+# Mobile apps: build numbers in tags
 
 This guide covers projects that create multiple tagged builds per semantic
 version — the typical mobile CI pattern:
@@ -88,10 +88,9 @@ and pushes the changelog, then pushes the tag.
 
 ## Version display in the changelog
 
-heraut's native generator already handles build-id tags. A heading
-postprocessor, auto-derived from `tag_format`, strips the env prefix and
-trailing numeric build ID from every version heading, so the output reads
-`7.4.1` instead of `main/7.4.1+159001`:
+The changelog's version headings show the version alone: heraut drops the
+environment and the build number it reads from `tag_format`, so a heading
+reads `7.4.1`, not `main/7.4.1+159001`:
 
 | Tag | Displayed as |
 |---|---|
@@ -100,10 +99,9 @@ trailing numeric build ID from every version heading, so the output reads
 | `7.4.1+159001` | `7.4.1` |
 | `v1.2.3` | `1.2.3` (unchanged — no build suffix) |
 
-The postprocessor requires a trailing `+{digits}` segment to match, so
-standard semver tags are unaffected. No extra config file is needed — just
-set `changelog.tag_pattern` in `.heraut.yml` to scope changelog generation to
-the production env as shown above.
+Only a trailing `+<digits>` build number is dropped, so ordinary tags are
+unaffected. Nothing else to configure: `changelog.tag_pattern`, as above,
+keeps the changelog to the production tags.
 
 ---
 
@@ -112,22 +110,29 @@ the production env as shown above.
 ```markdown
 # Changelog
 
-## [7.4.1] - 2024-06-01
+<!-- heraut-release: main/7.4.1+159001 -->
+## [7.4.1] - 2026-06-01
 
 ### 🚀 Features
-- *(auth)* Add biometric login support
-- *(cart)* Persist cart across sessions
+
+- *(auth)* Add biometric login support - 6881760
+
 
 ### 🐛 Bug Fixes
-- Fix crash on empty product list
-- *(checkout)* Correct total when applying discount codes
 
-## [7.4.0] - 2024-05-12
+- *(checkout)* Correct total when applying discount codes - 68d598e
+
+<!-- heraut-release: main/7.4.0+155398 -->
+## [7.4.0] - 2026-05-12
 
 ### 🚀 Features
-- Add dark mode toggle
-...
+
+- Add dark mode toggle - 05fd288
 ```
+
+The two UAT builds of `7.4.1` added nothing to it: the `7.4.1` section spans
+every commit since the previous production tag. In CI, each hash links to its
+commit.
 
 ---
 
