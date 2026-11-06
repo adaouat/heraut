@@ -1,15 +1,28 @@
-# Guide: Release pipeline and hook positions
+# Run your own steps during a release
 
-[Spec 02 § `hooks`](../specs/02-configuration.md#hooks) documents each of the six hook
-points in isolation — when it fires, what template variables it sees, how failures are
-handled. This guide instead shows the two pipelines end to end, so it's visible at a
-glance where each hook point actually sits relative to every other step. It does not
-replace Spec 02 or [ADR-0053](../adr/0053-release-lifecycle-hooks.md) as the source of
-truth for hook behavior — treat this page as a map, those as the reference.
+Hooks run your own commands at fixed points of a release: write the new version into another file,
+build or test before tagging, publish a package after the tag, send a message once the release is
+out.
 
-Hook nodes are drawn as hexagons in both diagrams below.
+```yaml
+hooks:
+  post_bump:
+    - run: "npm version {{ .Version }} --no-git-tag-version"
+      stage: [package.json]          # commit this file with the changelog
+  pre_tag:
+    - run: "make test"
+  post_tag:
+    - run: "npm publish"
+  post_release:
+    - run: "curl -X POST \"$SLACK_WEBHOOK\" -d 'Released {{ .Tag }} on {{ .Platform }}'"
+```
 
-## `heraut release`
+Each hook point takes a list of steps, run in order. A step is an object with `run`, the command,
+and for two points `stage`, the files it changes (see below).
+
+## Where each hook runs
+
+### `heraut release`
 
 ```mermaid
 flowchart TD
@@ -38,37 +51,10 @@ flowchart TD
     T --> N["Print summary"]
 ```
 
-Things the diagram compresses that are worth stating explicitly:
+Hooks are the hexagons. `--dry-run` runs none of them: it prints each command as it would run, with
+the values filled in.
 
-- **`post_bump` fires unconditionally**, before the `--dry-run` check — it runs (or, under
-  `--dry-run`, renders) even on a run that will otherwise change nothing, e.g.
-  `disable_changelog: true` with no other flags.
-- **`pre_tag` fires whichever branch the changelog decision took.** A skipped or disabled
-  changelog step doesn't skip `pre_tag` — it's a separate gate, not chained to changelog
-  generation.
-- **`pre_release`/`post_release` are the one exception to "a failing hook aborts the run."**
-  They're scoped per `release.targets` entry: a failing hook skips (`pre_release`) or warns
-  (`post_release`) for that target only, and the loop still attempts the rest. A real
-  publish failure (not a hook) still aborts the whole loop as every other step does. See
-  [Spec 02 § Failure semantics](../specs/02-configuration.md#failure-semantics) for the
-  full rationale.
-- **`--dry-run` never executes a hook.** Every hook node above still "fires" during a
-  dry run, but only to render the substituted command as a plan line — the shell it would
-  otherwise run through ([ADR-0054](../adr/0054-windows-hook-execution.md)) never starts.
-- **`post_bump` and `pre_changelog` are also the only two points where a hook can stage
-  files.** Both run before the "Commit changelog" step in the diagram above, so a `run`
-  command's declared `stage` patterns land in that same commit alongside `CHANGELOG.md`
-  ([ADR-0061](../adr/0061-hook-file-staging.md)). See
-  [Spec 02 § `stage`](../specs/02-configuration.md#stage-adr-0061) for the full semantics
-  and scope-validation rules.
-- **That commit only exists on the `D -- yes` branch above.** When no `changelog:` block is
-  configured, or `disable_changelog: true` for this env (`D -- no`), `post_bump`'s hook still
-  fires unconditionally as stated above, but there is no "Commit changelog" step for its
-  `stage` patterns to join — the `run` command still executes, and any files it declared via
-  `stage` stay uncommitted in the working tree, with a warning naming them. If the changelog
-  can never run in the whole config, declaring `stage` is a config error instead (Spec 02 § `stage`).
-
-## `heraut changelog`
+### `heraut changelog`
 
 ```mermaid
 flowchart TD
@@ -98,63 +84,87 @@ flowchart TD
     H4 --> SUM
 ```
 
-`pre_release`/`post_release` never appear here — `heraut changelog` never publishes to a
-platform, so those two points simply don't exist in this pipeline (no flag needed to turn
-them off). Note also that `--tag` with `disable_changelog: true` skips straight from the
-disabled-changelog warning to the tag section: `pre_changelog` and `post_bump`'s sibling
-changelog-generation step never run, but `pre_tag`/`post_tag` still do — see [Spec 03 §
-Tag-only workflow](../specs/03-commands.md#tag-only-workflow-no-release-block-required).
-As in the `release` pipeline above, `post_bump` and `pre_changelog` are the two points
-whose `run` commands may declare `stage` patterns, staged into the "Commit changelog" step
-here ([ADR-0061](../adr/0061-hook-file-staging.md),
-[Spec 02 § `stage`](../specs/02-configuration.md#stage-adr-0061)) — but only in a run that
-actually reaches that step. Several branches in the diagram above skip it, and `stage`
-patterns declared for such a run are silently discarded (the hook's `run` command still
-executes; its declared files just stay uncommitted):
+`pre_release` and `post_release` never run here, since `heraut changelog` publishes nothing.
 
-- the disabled-changelog-and-no-`--tag` exit (`B -- yes` → `C2 -- no` → `END1`) skips the
-  commit entirely — `pre_changelog` and its sibling changelog-generation step never run;
-- `disable_changelog: true` **with** `--tag` (`B -- yes` → `C2 -- yes` → `R -- no` →
-  `S -- no` → `Tg -- yes`) also never commits — it skips straight to tagging, same as
-  above, just without exiting first;
-- generating a changelog with neither `--commit` nor `--tag` (`S -- yes` → `Gen` →
-  `Cd -- no` → `Tg -- no` → `SUM`) generates and writes `CHANGELOG.md` to disk but never
-  stages or commits anything, so `pre_changelog`'s `stage` patterns go uncommitted too.
+## The hook points
 
-## Hook point quick reference
+| Point | Runs |
+|---|---|
+| `post_bump` | Right after the version is known, every time, even in a run that will change nothing else. |
+| `pre_changelog` | Before the changelog is written, when one is written this run. |
+| `pre_tag` | Before the tag is created, when one is created this run. |
+| `post_tag` | After the tag is pushed, and also with `--no-push`. |
+| `pre_release` | `heraut release` only: before publishing, once per target. |
+| `post_release` | `heraut release` only: after publishing (and uploading files), once per target. |
 
-| Point            | Fires (both pipelines, unless noted)                          |
-|-------------------|----------------------------------------------------------------|
-| `post_bump`       | Immediately after version resolution — unconditionally.        |
-| `pre_changelog`   | Before changelog generation — only when a changelog actually generates this run. |
-| `pre_tag`         | Before the local git tag is created — only when a tag is actually created this run. |
-| `post_tag`        | After the tag push attempt — fires even with `--no-push`.       |
-| `pre_release`     | `heraut release` only, once per `release.targets` entry, before publishing. |
-| `post_release`    | `heraut release` only, once per `release.targets` entry, after publishing (and any asset upload). |
+## Values you can use
 
-Full detail — command list semantics, template variables (`{{ .Version }}`, `{{ .Tag }}`,
-`{{ .PreviousTag }}`, `{{ .Platform }}`, `{{ .Env }}`), failure semantics, and `--no-hooks`
-— lives in [Spec 02 § `hooks`](../specs/02-configuration.md#hooks).
+Commands are templates: heraut fills these in before running them.
 
-To skip only some of these points for one run, use `--skip-hook <point>` (or the
-`HERAUT_SKIP_HOOKS` environment variable) — the point names in the first column above are the
-valid values; `heraut changelog` accepts only the four it runs. See
-[Spec 02 § `--skip-hook`](../specs/02-configuration.md#--skip-hook-and-heraut_skip_hooks).
+| Value | Example | Available in |
+|---|---|---|
+| `{{ .Version }}` | `1.2.3` | every point |
+| `{{ .Tag }}` | `v1.2.3` | every point |
+| `{{ .PreviousTag }}` | `v1.2.2`, empty for the first release | every point |
+| `{{ .Env }}` | the `--env` value, empty without one | every point |
+| `{{ .Platform }}` | the target's name, e.g. `github` | `pre_release`, `post_release` |
 
-## Quoting and untrusted configs
+They are Go templates, so one command can branch:
+`{{ if eq .Env "prod" }}./deploy.sh{{ end }}`.
 
-Hook template values are pasted into the command text unquoted, then parsed by the shell, so quote
-them yourself when they could hold a space or shell syntax: `notify '{{ .Tag }}'`. Single quotes keep a
-value inert; double quotes still allow `$(...)`. The config file is the trust boundary: a hook runs with
-the credentials of whoever runs heraut, so **never run heraut with hooks from a pull request's
-`.heraut.yml` that you did not review**, in CI above all. Use the base branch's config, or `--no-hooks`.
-Details in [Spec 02 § Quoting and trust](../specs/02-configuration.md#quoting-and-trust).
+## Commit the files a hook changes
 
-## See also
+A file a hook writes is not committed unless you say so. List it under `stage`, and heraut adds it to
+the release commit, next to `CHANGELOG.md`:
 
-- [ADR-0053: Release lifecycle hooks](../adr/0053-release-lifecycle-hooks.md) — why hooks
-  are shaped this way, including the `pre_release`/`post_release` isolation decision.
-- [Spec 02 § `hooks`](../specs/02-configuration.md#hooks) — configuration reference.
-- [Spec 03 § `heraut release`](../specs/03-commands.md#heraut-release) and
-  [§ `heraut changelog`](../specs/03-commands.md#heraut-changelog) — full command/flag
-  reference, including the non-hook action sequence this guide diagrams.
+```yaml
+hooks:
+  post_bump:
+    - run: "echo {{ .Version }} > VERSION"
+      stage: [VERSION]
+```
+
+- `stage` works on `post_bump` and `pre_changelog` only, the two points before the release commit.
+  On any other point it is a configuration error.
+- A pattern that matches no file stops the run.
+- In a run that makes no release commit (no changelog, `disable_changelog`, a pre-release,
+  `heraut changelog` without `--commit`), the command still runs and its files stay uncommitted,
+  with a warning. When no run of the configuration can make that commit, `stage` is a configuration
+  error.
+
+## When a hook fails
+
+A failing hook stops the run, and what already happened stays: a release commit pushed before a
+failing `pre_tag` hook stays pushed. [Recover from a failed release](failure-recovery.md) says how to
+finish.
+
+`pre_release` and `post_release` are the exception, because they run once per target. A failing
+`pre_release` skips that target only; a failing `post_release` is reported, but the release is
+already out. heraut still tries the other targets, then exits with an error.
+
+## Skip hooks for one run
+
+```bash
+heraut release --no-hooks                  # skip them all
+heraut release --skip-hook pre_tag         # skip one point (repeatable, or comma-separated)
+HERAUT_SKIP_HOOKS=pre_tag,post_tag heraut release
+```
+
+`--skip-hook` wins over `HERAUT_SKIP_HOOKS`, and `--no-hooks` over both. `heraut changelog` accepts
+the four points it runs.
+
+## Quoting, and configs you didn't write
+
+Values are pasted into the command as they are, then the shell reads it. Quote a value that could
+hold a space or shell syntax: `notify '{{ .Tag }}'`. Single quotes keep it inert; double quotes still
+run a `$(…)` inside it.
+
+A hook runs with the permissions of whoever runs heraut, CI tokens included. **Never run heraut with
+hooks from a `.heraut.yml` you haven't reviewed**, such as the one in a pull request from a fork. Run
+it with the base branch's configuration, or pass `--no-hooks`.
+
+## Which shell
+
+Commands run with `sh -c` on Linux and macOS, and with `cmd` on Windows. Write them for the shell of
+the machine that runs the release; heraut doesn't translate between the two. A hook's output shows
+as it runs.
