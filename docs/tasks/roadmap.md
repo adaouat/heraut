@@ -261,6 +261,7 @@ discipline that applies to every task.
 | 90 | CI checkout pitfalls and `init --defaults` (shallow clone, detached HEAD) | Done |
 | 91 | Follow-ups from the generated reference (GitHub token for PR data, `check runtime` help) | Done |
 | 92 | Follow-ups from the guides (GitHub release commit, error punctuation, warning marks) | Done |
+| 93 | One person, one New Contributors entry (`.mailmap`, one entry per handle) | Planned — T490, T491 |
 
 ### Open items
 
@@ -4311,6 +4312,42 @@ Done 2026-11-06. forge v0.20.0 provides `Result.Warnings`, printed with "!" afte
 - **Checked with the built binary** (a bad GitHub token): both lines print with "!", and no NUL
   byte reaches the output.
 - **The guide.** The quote in `docs/guides/pr-data-and-tokens.md` is updated.
+
+### Phase 93 — One person, one New Contributors entry
+
+Reported by the user on a GitLab project: the same person was listed as a new contributor twice, in
+1.3.0 and 1.5.0. heraut decides who is new by git author email alone (`authorsBefore` runs
+`git log <prev> --format=%ae`; the commit walk reads `%an`/`%ae`, `internal/generators/native/`),
+following ADR-0036. A contributor who commits under a second email (work and personal, both linked
+to one forge account) looks new again, and the entry carries the same `@handle` from the merge
+request. Identity stays git-based, so no new ADR: an addendum to ADR-0036 records both changes.
+
+#### `[ ]` T490: respect `.mailmap` when finding new contributors
+
+Read the author through git's mailmap: `%aE`/`%aN` instead of `%ae`/`%an`, in `authorsBefore` and in
+the commit walk's `logFormat` (`commits.go`). A project then lists a person's other emails once in a
+`.mailmap` at the repository root, and their commits under any of them count as one contributor.
+Projects without a `.mailmap` see no change: git returns the raw values.
+- **Check first** where else the name and email reach the output (the changelog's author fields,
+  `{{ .Author.Name }}` / `.Email` in templates, Azure's `by @<local-part>` fallback, GitLab REST
+  handles from the email). The canonical identity should appear everywhere, and Spec 05 must say so.
+- **Specs.** Spec 05 § New Contributors (the local tier) says `.mailmap` is honoured; the ADR-0036
+  addendum says why.
+- **Docs.** `docs/concepts/changelog-content.md` and `docs/guides/pr-data-and-tokens.md` get a short
+  "the same person counted twice?" note with a `.mailmap` example.
+
+Tests first: a real-git test (two emails, one mailmap line, two releases: listed once), a test
+without a `.mailmap` (unchanged), and contract rows on the new format strings.
+
+#### `[ ]` T491: one New Contributors entry per handle within a release
+
+When two emails new in the same release resolve to the same forge `@handle`, render one entry, with
+the PRs of both merged and de-duplicated (`collectContributors`, which dedupes by email today). Only
+when a handle is known: without enrichment, entries stay per email. This fixes the same-release
+variant without a `.mailmap`; it doesn't fix the cross-release case, which T490 does.
+
+Tests first: two emails with one handle (one entry, both PRs), two emails with different handles
+(two entries), and no handle (unchanged).
 
 Every Phase above marked `Done` and not pointing to a dedicated roadmap (D, 0–9, 11–22, 26, 28,
 30, 31) has had its full task write-up — implementation notes, decisions, deviations — moved to
