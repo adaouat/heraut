@@ -118,6 +118,9 @@ func resolveNext(cmd *cobra.Command, versionOverride, buildID string) (nextResul
 	if w := result.MajorConfirmationWarning(); w != "" {
 		next.warnings = append(next.warnings, w)
 	}
+	if w := app.ShallowCloneWarning(runner); w != "" {
+		next.warnings = append(next.warnings, w)
+	}
 	if result.Bump != 0 {
 		next.bump = result.Bump.String()
 	}
@@ -149,9 +152,12 @@ func newVersionCurrentCmd() *cobra.Command {
 			if err := flags.Err(); err != nil {
 				return err
 			}
-			tag, version, err := resolveCurrent(cmd, asJSON || !bare, asJSON || bare, includePreRelease)
+			tag, version, warnings, err := resolveCurrent(cmd, asJSON || !bare, asJSON || bare, includePreRelease)
 			if asJSON {
-				return writeJSON(cmd.OutOrStdout(), currentData{Tag: tag, Version: version}, nil, err)
+				return writeJSON(cmd.OutOrStdout(), currentData{Tag: tag, Version: version}, warnings, err)
+			}
+			for _, w := range warnings {
+				ui.WarnLines(cmd.ErrOrStderr(), w)
 			}
 			if err != nil {
 				return err
@@ -178,30 +184,35 @@ type currentData struct {
 }
 
 // resolveCurrent returns the latest released tag and its bare version, each only when asked for:
-// every one is its own tag lookup, and the text mode wants exactly one of them.
-func resolveCurrent(cmd *cobra.Command, withTag, withVersion, includePreRelease bool) (tag, version string, err error) {
+// every one is its own tag lookup, and the text mode wants exactly one of them. warnings holds the
+// shallow-clone warning when the history is cut.
+func resolveCurrent(cmd *cobra.Command, withTag, withVersion, includePreRelease bool) (tag, version string, warnings []string, err error) {
 	flags := newFlagReader(cmd)
 	cfgPath := flags.String("config")
 	verbose := flags.Bool("verbose")
 	env := flags.String("env")
 	force := flags.Bool("force")
 	if err := flags.Err(); err != nil {
-		return "", "", err
+		return "", "", nil, err
 	}
 
 	runner := execadapter.New(false, verbose)
 	cfg, err := loadValidatedConfig(cmd, config.ResolvePath(cfgPath))
 	if err != nil {
-		return "", "", err
+		return "", "", nil, err
 	}
 
 	env, err = app.ResolveEnv(env, cfg, runner)
 	if err != nil {
-		return "", "", exitcode.Wrap(exitcode.Config, err)
+		return "", "", nil, exitcode.Wrap(exitcode.Config, err)
 	}
 
 	if err := app.CheckBranch(runner, cfg, env, force); err != nil {
-		return "", "", wrapBranchErr(err)
+		return "", "", nil, wrapBranchErr(err)
+	}
+
+	if w := app.ShallowCloneWarning(runner); w != "" {
+		warnings = append(warnings, w)
 	}
 
 	classify := func(err error) error {
@@ -212,13 +223,13 @@ func resolveCurrent(cmd *cobra.Command, withTag, withVersion, includePreRelease 
 	}
 	if withTag {
 		if tag, err = app.CurrentTag(runner, cfg, env, includePreRelease); err != nil {
-			return "", "", classify(err)
+			return "", "", nil, classify(err)
 		}
 	}
 	if withVersion {
 		if version, err = app.CurrentVersion(runner, cfg, env, includePreRelease); err != nil {
-			return "", "", classify(err)
+			return "", "", nil, classify(err)
 		}
 	}
-	return tag, version, nil
+	return tag, version, warnings, nil
 }

@@ -155,7 +155,12 @@ has no such requirement (see § Tag-only workflow below).
 1. **Preflight** — always: `config.Validate`. Unless `--dry-run`: also the branch guard
    (§ Per-environment fields → `branch` in [Spec 02](02-configuration.md)) and a runtime
    check (`git` on `PATH`, `git config user.name`/`user.email` set). There is no
-   working-tree cleanliness check.
+   working-tree cleanliness check. Always, `--dry-run` included: a shallow clone
+   (`git rev-parse --is-shallow-repository` prints `true`) is refused with the Runtime code (3)
+   before the version is resolved, since a cut history can hide the last tag or part of the
+   commit range and give a wrong version or changelog. The hint names `git fetch --unshallow
+   --tags`, `fetch-depth: 0` (GitHub Actions) and `GIT_DEPTH: "0"` (GitLab CI). `--set-version` is
+   not exempt: the changelog still reads the history.
 2. **Resolve next version** — strategy-specific (see [Spec 04](04-versioning.md))
 3. **Generate changelog** (if `changelog` is configured and not disabled for the env)
    — writes to `changelog.output` (default `CHANGELOG.md`)
@@ -174,7 +179,7 @@ has no such requirement (see § Tag-only workflow below).
    `BUILD_SOURCEBRANCH` (a `refs/heads/` ref). That branch must have been fetched
    (`refs/remotes/origin/<branch>` exists), so heraut never creates a branch on the remote. With no
    CI branch, or one that was not fetched, the run stops before anything is resolved or written,
-   `--dry-run` included, with the configuration code (2) and a hint to check out the branch. This
+   `--dry-run` included, with the Runtime code (3) and a hint to check out the branch. This
    lookup runs only when the run commits and pushes: `heraut release` with a changelog that is not
    disabled for the env, and `heraut changelog --commit`/`--tag` without `--no-push`.
 5. **Create git tag** (annotated by default; set `versioning.tag_type: lightweight` to use a bare ref tag) on the changelog commit, then `git push origin <tag>`, carrying `git.push_options.tag`
@@ -247,6 +252,9 @@ without publishing to any release platform.
 
 Ctrl-C (SIGINT) or SIGTERM during the pull-request lookups stops them, and the run fails with the
 Runtime code before the changelog is written.
+
+Like `heraut release`, it refuses a shallow clone with the Runtime code (3) before resolving,
+`--dry-run` and `--set-version` included ([§ `heraut release`](#heraut-release) step 1).
 
 ```
 heraut changelog [--commit] [--tag] [--no-push] [--set-version <version>] [--regenerate] [--dry-run] [--env <name>] [--force] [--offline] [--no-hooks] [--skip-hook <point>[,<point>…]] [--allow-major]
@@ -401,6 +409,10 @@ attempting resolution.
 
 Exits non-zero if a promotion guard trips (E001/E002/E003).
 
+In a shallow clone it still prints the version, with a warning on stderr (in `--json`, in
+`warnings`) that the history may be cut off and the version wrong; `release` and `changelog`
+refuse the same clone.
+
 With `--pre-release <label>`, `version next` prints the pre-release tag `heraut release --pre-release` would create (`v1.4.0-rc.1`), with the same usage errors as on `release` (Config code 2) and any series-escalation warning on stderr. See the `--pre-release` row of the [`heraut release` flag table](#heraut-release).
 
 With `--set-version`, `version next` renders instead of computing: it skips version resolution from
@@ -473,7 +485,8 @@ error prints the same path/hint output and exits with the Config code (2) withou
 attempting resolution.
 
 Exits non-zero if no qualifying tag exists; when only pre-release tags exist, the error
-suggests `--include-pre-release`.
+suggests `--include-pre-release`. In a shallow clone it warns on stderr (in `--json`, in
+`warnings`) that tags outside the fetched history are missing, as `version next` does.
 With `versioning.branches` set, a branch matching more than one entry, or a glob match whose
 range cannot be derived from the branch name, exits with the Config code (2), as on `version
 next` and `release`.
@@ -723,6 +736,9 @@ Online checks:
   changelog commit)
 - **Working tree** (advisory) — `git status --porcelain`; a dirty tree prints the count
   of uncommitted changes as a warning, never a hard failure.
+- **History** — `git rev-parse --is-shallow-repository`; a shallow clone is a hard failure, since
+  `heraut release` and `heraut changelog` refuse it. When git cannot answer, the row passes: the
+  other git rows report a broken repository.
 - **Forge resolution** — hard failure if it fails *and* a publish destination was
   actually requested (an explicit `forges:` block, or a non-empty effective
   `release.targets`); otherwise (zero-config auto-detection with nothing configured)

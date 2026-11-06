@@ -50,7 +50,7 @@ func PreflightCheck(runner port.Runner) error {
 //
 // Check order:
 //
-//	Git:        git binary → user.name → user.email → working tree
+//	Git:        git binary → user.name → user.email → working tree → history
 //	Platforms:  one row per effective release.targets entry (resolved against
 //	            forges:/CI env/git origin, same as `heraut release`), or an
 //	            advisory "publish" row when nothing resolves
@@ -109,6 +109,14 @@ func RuntimeCheck(
 		n := len(strings.Split(trimmed, "\n"))
 		return RuntimeCheckItem{Name: "working tree", IsWarn: true,
 			Err: fmt.Errorf("%d uncommitted change(s)", n)}
+	})
+
+	// history: release and changelog refuse a shallow clone, so it fails the check too
+	dispatch("history", func() RuntimeCheckItem {
+		if err := CheckFullHistory(runner); err != nil {
+			return RuntimeCheckItem{Name: "history", Err: err}
+		}
+		return RuntimeCheckItem{Name: "history", Value: "full"}
 	})
 
 	// ── Platforms ─────────────────────────────────────────────────────────────

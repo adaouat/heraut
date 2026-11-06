@@ -21,10 +21,10 @@ func commitPushBranch(runner port.Runner) (string, error) {
 	}
 	name, ok := branch.CIBranch()
 	if !ok {
-		return "", fmt.Errorf("HEAD is detached and no CI branch variable names the branch to push the changelog commit to: check out the branch first (git checkout -B <branch>)")
+		return "", &CheckoutError{msg: "HEAD is detached and no CI branch variable names the branch to push the changelog commit to: check out the branch first (git checkout -B <branch>)"}
 	}
 	if _, _, err := runner.Run("git", "rev-parse", "--verify", "--quiet", "refs/remotes/origin/"+name); err != nil {
-		return "", fmt.Errorf("HEAD is detached and origin/%s was not fetched, so the changelog commit has no branch to go to: release from a branch pipeline, or check out the branch first (git checkout -B <branch>)", name)
+		return "", &CheckoutError{msg: fmt.Sprintf("HEAD is detached and origin/%s was not fetched, so the changelog commit has no branch to go to: release from a branch pipeline, or check out the branch first (git checkout -B <branch>)", name)}
 	}
 	return name, nil
 }

@@ -32,14 +32,15 @@ func collectItemsCtx(ctx context.Context, mr *exectest.MockRunner, cfg *config.C
 	return items
 }
 
-// queueSuccess queues the 5 runner.Run responses for semverCfg (no forges/targets) with all
-// tools present. Call order: git, user.name, user.email, git status, git remote get-url
+// queueSuccess queues the 6 runner.Run responses for semverCfg (no forges/targets) with all
+// tools present. Call order: git, user.name, user.email, git status, the shallow check, git remote get-url
 // origin (forge resolution — errors, no origin configured).
 func queueSuccess(mr *exectest.MockRunner) {
 	mr.QueueResponse("git version 2.40.0", "", nil)   // git --version
 	mr.QueueResponse("Alice", "", nil)                // git config user.name
 	mr.QueueResponse("a@b.com", "", nil)              // git config user.email
 	mr.QueueResponse("", "", nil)                     // git status --porcelain (clean)
+	mr.QueueResponse("false\n", "", nil)              // git rev-parse --is-shallow-repository
 	mr.QueueResponse("", "", errors.New("no origin")) // git remote get-url origin (forge resolution)
 }
 
@@ -93,7 +94,7 @@ func TestRuntimeCheck_MinimalConfig(t *testing.T) {
 
 	cfg := semverCfg()
 	items := collectItems(mr, cfg, "")
-	require.Len(t, items, 5)
+	require.Len(t, items, 6)
 
 	names := make([]string, len(items))
 	for i, it := range items {
@@ -112,6 +113,7 @@ func TestRuntimeCheck_GitValue(t *testing.T) {
 	mr.QueueResponse("Alice", "", nil)                // user.name
 	mr.QueueResponse("a@b.com", "", nil)              // user.email
 	mr.QueueResponse("", "", nil)                     // git status
+	mr.QueueResponse("false\n", "", nil)              // git rev-parse --is-shallow-repository
 	mr.QueueResponse("", "", errors.New("no origin")) // git remote get-url origin (forge resolution)
 
 	cfg := semverCfg()
@@ -134,6 +136,7 @@ func TestRuntimeCheck_UserNameValue(t *testing.T) {
 	mr.QueueResponse("Alice Smith\n", "", nil)        // user.name
 	mr.QueueResponse("alice@example.com\n", "", nil)  // user.email
 	mr.QueueResponse("", "", nil)                     // git status
+	mr.QueueResponse("false\n", "", nil)              // git rev-parse --is-shallow-repository
 	mr.QueueResponse("", "", errors.New("no origin")) // git remote get-url origin (forge resolution)
 
 	cfg := semverCfg()
@@ -156,6 +159,7 @@ func TestRuntimeCheck_WorkingTreeClean(t *testing.T) {
 	mr.QueueResponse("Alice", "", nil)                // user.name
 	mr.QueueResponse("a@b.com", "", nil)              // user.email
 	mr.QueueResponse("", "", nil)                     // git status --porcelain (clean)
+	mr.QueueResponse("false\n", "", nil)              // git rev-parse --is-shallow-repository
 	mr.QueueResponse("", "", errors.New("no origin")) // git remote get-url origin (forge resolution)
 
 	cfg := semverCfg()
@@ -179,6 +183,7 @@ func TestRuntimeCheck_WorkingTreeDirty(t *testing.T) {
 	mr.QueueResponse("Alice", "", nil)                                    // user.name
 	mr.QueueResponse("a@b.com", "", nil)                                  // user.email
 	mr.QueueResponse(" M internal/foo.go\n M internal/bar.go\n", "", nil) // git status
+	mr.QueueResponse("false\n", "", nil)                                  // git rev-parse --is-shallow-repository
 	mr.QueueResponse("", "", errors.New("no origin"))                     // git remote get-url origin (forge resolution)
 
 	cfg := semverCfg()
@@ -193,6 +198,54 @@ func TestRuntimeCheck_WorkingTreeDirty(t *testing.T) {
 		}
 	}
 	t.Fatal("expected working tree item")
+}
+
+// A shallow clone fails the check: heraut release and heraut changelog refuse it. When git cannot
+// answer, the row passes, since the other git rows already report a broken repository.
+func TestRuntimeCheck_History(t *testing.T) {
+	tests := []struct {
+		name      string
+		out       string
+		err       error
+		wantValue string
+		wantErr   string
+	}{
+		{name: "full history", out: "false\n", wantValue: "full"},
+		{name: "shallow clone", out: "true\n", wantErr: "shallow clone"},
+		{name: "git cannot tell", err: errors.New("not a git repository"), wantValue: "full"},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			testutil.ClearCIEnv(t)
+			mr := exectest.NewMockRunner()
+			mr.QueueResponse("git version 2.40.0", "", nil)   // git --version
+			mr.QueueResponse("Alice", "", nil)                // user.name
+			mr.QueueResponse("a@b.com", "", nil)              // user.email
+			mr.QueueResponse("", "", nil)                     // git status --porcelain (clean)
+			mr.QueueResponse(tc.out, "", tc.err)              // git rev-parse --is-shallow-repository
+			mr.QueueResponse("", "", errors.New("no origin")) // git remote get-url origin (forge resolution)
+
+			items := collectItems(mr, semverCfg(), "")
+
+			assert.Equal(t, []string{"rev-parse", "--is-shallow-repository"}, mr.Calls[4].Args)
+			for _, it := range items {
+				if it.Name != "history" {
+					continue
+				}
+				assert.False(t, it.IsWarn, "a shallow clone is a hard failure, never advisory")
+				if tc.wantErr != "" {
+					require.Error(t, it.Err)
+					assert.Contains(t, it.Err.Error(), tc.wantErr)
+					assert.Contains(t, it.Err.Error(), "git fetch --unshallow --tags")
+					return
+				}
+				assert.NoError(t, it.Err)
+				assert.Equal(t, tc.wantValue, it.Value)
+				return
+			}
+			t.Fatal("expected history item")
+		})
+	}
 }
 
 func TestRuntimeCheck_DispatchNames(t *testing.T) {
@@ -211,7 +264,7 @@ func TestRuntimeCheck_DispatchNames(t *testing.T) {
 	)
 
 	assert.Equal(t, []string{
-		"git", "git user.name", "git user.email", "working tree",
+		"git", "git user.name", "git user.email", "working tree", "history",
 		"publish",
 	}, names)
 }
@@ -240,6 +293,7 @@ func TestRuntimeCheck_WithGitHubPlatform(t *testing.T) {
 	mr.QueueResponse("Alice", "", nil)                // user.name
 	mr.QueueResponse("a@b.com", "", nil)              // user.email
 	mr.QueueResponse("", "", nil)                     // git status
+	mr.QueueResponse("false\n", "", nil)              // git rev-parse --is-shallow-repository
 	mr.QueueResponse("", "", errors.New("no origin")) // git remote get-url origin (forge resolution)
 
 	var requests []string
@@ -283,6 +337,7 @@ func TestRuntimeCheck_APlatformCheckStopsWhenTheContextIsCancelled(t *testing.T)
 			mr.QueueResponse("Alice", "", nil)                // user.name
 			mr.QueueResponse("a@b.com", "", nil)              // user.email
 			mr.QueueResponse("", "", nil)                     // git status
+			mr.QueueResponse("false\n", "", nil)              // git rev-parse --is-shallow-repository
 			mr.QueueResponse("", "", errors.New("no origin")) // git remote get-url origin (forge resolution)
 
 			ctx, cancel := context.WithCancel(t.Context())
@@ -323,6 +378,7 @@ func TestRuntimeCheck_WithGitHubPlatform_MissingToken(t *testing.T) {
 	mr.QueueResponse("Alice", "", nil)                // user.name
 	mr.QueueResponse("a@b.com", "", nil)              // user.email
 	mr.QueueResponse("", "", nil)                     // git status
+	mr.QueueResponse("false\n", "", nil)              // git rev-parse --is-shallow-repository
 	mr.QueueResponse("", "", errors.New("no origin")) // git remote get-url origin (forge resolution)
 
 	cfg := semverCfg()
@@ -351,6 +407,7 @@ func TestRuntimeCheck_EnvTargetOverrideReplacesRoot(t *testing.T) {
 	mr.QueueResponse("Alice", "", nil)                // user.name
 	mr.QueueResponse("a@b.com", "", nil)              // user.email
 	mr.QueueResponse("", "", nil)                     // git status
+	mr.QueueResponse("false\n", "", nil)              // git rev-parse --is-shallow-repository
 	mr.QueueResponse("", "", errors.New("no origin")) // git remote get-url origin (forge resolution)
 
 	cfg := semverCfg()
@@ -389,6 +446,7 @@ func TestRuntimeCheck_EnvWithoutTargetOverrideInheritsRoot(t *testing.T) {
 	mr.QueueResponse("Alice", "", nil)                // user.name
 	mr.QueueResponse("a@b.com", "", nil)              // user.email
 	mr.QueueResponse("", "", nil)                     // git status
+	mr.QueueResponse("false\n", "", nil)              // git rev-parse --is-shallow-repository
 	mr.QueueResponse("", "", errors.New("no origin")) // git remote get-url origin (forge resolution)
 
 	cfg := semverCfg()
@@ -421,6 +479,7 @@ func TestRuntimeCheck_AmbiguousForgeIsWarnWithoutPublishConfig(t *testing.T) {
 		mr.QueueResponse("Alice", "", nil)                // user.name
 		mr.QueueResponse("a@b.com", "", nil)              // user.email
 		mr.QueueResponse("", "", nil)                     // git status
+		mr.QueueResponse("false\n", "", nil)              // git rev-parse --is-shallow-repository
 		mr.QueueResponse("", "", errors.New("no origin")) // git remote get-url origin (forge resolution)
 
 		cfg := semverCfg()
@@ -447,6 +506,7 @@ func TestRuntimeCheck_AmbiguousForgeIsWarnWithoutPublishConfig(t *testing.T) {
 		mr.QueueResponse("Alice", "", nil)                // user.name
 		mr.QueueResponse("a@b.com", "", nil)              // user.email
 		mr.QueueResponse("", "", nil)                     // git status
+		mr.QueueResponse("false\n", "", nil)              // git rev-parse --is-shallow-repository
 		mr.QueueResponse("", "", errors.New("no origin")) // git remote get-url origin (forge resolution)
 
 		cfg := semverCfg()
@@ -475,6 +535,7 @@ func TestRuntimeCheck_AmbiguousForgeIsWarnWithoutPublishConfig(t *testing.T) {
 		mr.QueueResponse("Alice", "", nil)                // user.name
 		mr.QueueResponse("a@b.com", "", nil)              // user.email
 		mr.QueueResponse("", "", nil)                     // git status
+		mr.QueueResponse("false\n", "", nil)              // git rev-parse --is-shallow-repository
 		mr.QueueResponse("", "", errors.New("no origin")) // git remote get-url origin (forge resolution)
 
 		cfg := semverCfg()
@@ -503,6 +564,7 @@ func TestRuntimeCheck_AmbiguousForgeIsWarnWithoutPublishConfig(t *testing.T) {
 		mr.QueueResponse("Alice", "", nil)                // user.name
 		mr.QueueResponse("a@b.com", "", nil)              // user.email
 		mr.QueueResponse("", "", nil)                     // git status
+		mr.QueueResponse("false\n", "", nil)              // git rev-parse --is-shallow-repository
 		mr.QueueResponse("", "", errors.New("no origin")) // git remote get-url origin (forge resolution)
 
 		cfg := semverCfg()
@@ -535,6 +597,7 @@ func TestRuntimeCheck_UnknownPlatform(t *testing.T) {
 	mr.QueueResponse("Alice", "", nil)                // user.name
 	mr.QueueResponse("a@b.com", "", nil)              // user.email
 	mr.QueueResponse("", "", nil)                     // git status
+	mr.QueueResponse("false\n", "", nil)              // git rev-parse --is-shallow-repository
 	mr.QueueResponse("", "", errors.New("no origin")) // git remote get-url origin (forge resolution)
 
 	cfg := semverCfg()
@@ -564,6 +627,7 @@ func TestRuntimeCheck_MultipleSameTypePlatforms(t *testing.T) {
 	mr.QueueResponse("Alice", "", nil)                // user.name
 	mr.QueueResponse("a@b.com", "", nil)              // user.email
 	mr.QueueResponse("", "", nil)                     // git status
+	mr.QueueResponse("false\n", "", nil)              // git rev-parse --is-shallow-repository
 	mr.QueueResponse("", "", errors.New("no origin")) // git remote get-url origin (forge resolution)
 	// p.Check() of both GitLab targets runs no command: the token is missing, so it fails before
 	// any API call.
@@ -597,6 +661,7 @@ func TestRuntimeCheck_UserNameMissing(t *testing.T) {
 	mr.QueueResponse("", "", nil)                     // user.name empty
 	mr.QueueResponse("a@b.com", "", nil)              // user.email
 	mr.QueueResponse("", "", nil)                     // git status
+	mr.QueueResponse("false\n", "", nil)              // git rev-parse --is-shallow-repository
 	mr.QueueResponse("", "", errors.New("no origin")) // git remote get-url origin (forge resolution)
 
 	cfg := semverCfg()
@@ -618,6 +683,7 @@ func TestRuntimeCheck_UserEmailMissing(t *testing.T) {
 	mr.QueueResponse("Alice", "", nil)                // user.name OK
 	mr.QueueResponse("", "", nil)                     // user.email empty
 	mr.QueueResponse("", "", nil)                     // git status
+	mr.QueueResponse("false\n", "", nil)              // git rev-parse --is-shallow-repository
 	mr.QueueResponse("", "", errors.New("no origin")) // git remote get-url origin (forge resolution)
 
 	cfg := semverCfg()
@@ -680,6 +746,7 @@ func TestRuntimeCheck_ReleaseWithoutTargets_RunsPublishCheck(t *testing.T) {
 	mr.QueueResponse("Alice", "", nil)                // user.name
 	mr.QueueResponse("a@b.com", "", nil)              // user.email
 	mr.QueueResponse("", "", nil)                     // git status
+	mr.QueueResponse("false\n", "", nil)              // git rev-parse --is-shallow-repository
 	mr.QueueResponse("", "", errors.New("no origin")) // git remote get-url origin (forge resolution)
 	// GITLAB_TOKEN unset and not in CI autologin → p.Check() fails on the token with no API call
 
@@ -708,6 +775,7 @@ func TestRuntimeCheck_AzureOnlyIsAdvisory(t *testing.T) {
 	mr.QueueResponse("Alice", "", nil)                // user.name
 	mr.QueueResponse("a@b.com", "", nil)              // user.email
 	mr.QueueResponse("", "", nil)                     // git status
+	mr.QueueResponse("false\n", "", nil)              // git rev-parse --is-shallow-repository
 	mr.QueueResponse("", "", errors.New("no origin")) // git remote get-url origin (forge resolution)
 
 	cfg := semverCfg()
@@ -733,6 +801,7 @@ func queueSuccessNilConfig(mr *exectest.MockRunner) {
 	mr.QueueResponse("Alice", "", nil)              // git config user.name
 	mr.QueueResponse("a@b.com", "", nil)            // git config user.email
 	mr.QueueResponse("", "", nil)                   // git status --porcelain (clean)
+	mr.QueueResponse("false\n", "", nil)            // git rev-parse --is-shallow-repository
 }
 
 func TestRuntimeCheck_NilConfig_GitPasses(t *testing.T) {
@@ -740,7 +809,7 @@ func TestRuntimeCheck_NilConfig_GitPasses(t *testing.T) {
 	queueSuccessNilConfig(mr)
 
 	items := collectItems(mr, nil, "")
-	require.Len(t, items, 5)
+	require.Len(t, items, 6)
 	for _, it := range items {
 		if it.Name == "working tree" || it.Name == "publish" {
 			continue

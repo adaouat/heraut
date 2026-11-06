@@ -22,6 +22,16 @@ func wrapBranchErr(err error) error {
 	return exitcode.Wrap(exitcode.Runtime, err)
 }
 
+// wrapBuildErr classifies an error from building a pipeline: a checkout heraut cannot release from
+// (a detached HEAD with no branch to push to) is a runtime problem, every other error a
+// configuration one.
+func wrapBuildErr(err error) error {
+	if app.IsUnusableCheckout(err) {
+		return exitcode.Wrap(exitcode.Runtime, err)
+	}
+	return exitcode.Wrap(exitcode.Config, err)
+}
+
 // wrapRunErr classifies an error from resolving a version or running a pipeline:
 // promotion guards (E001/E002/E003) map to exit code 4, a tag format that needs a {build} ID
 // nobody supplied, a missing/unknown --env, or a major bump versioning.bump.confirm_major asks

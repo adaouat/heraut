@@ -46,7 +46,7 @@ func TestDetachedHEAD_WithoutABranchStopsBeforeWriting(t *testing.T) {
 
 			res := repo.Run(bin, tc.env, "changelog", "--commit", "--tag", "--offline")
 
-			assert.Equal(t, exitConfig, res.ExitCode, "stdout:\n%s\nstderr:\n%s", res.Stdout, res.Stderr)
+			assert.Equal(t, exitRuntime, res.ExitCode, "stdout:\n%s\nstderr:\n%s", res.Stdout, res.Stderr)
 			assert.Contains(t, res.Stderr, tc.want)
 			assert.Contains(t, res.Stderr, "git checkout -B")
 			assert.Equal(t, "feat: one", repo.Git("log", "-1", "--format=%s"), "nothing committed")

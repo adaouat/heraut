@@ -64,9 +64,9 @@ tag.
 still works, with a warning and without PR links.
 
 **`fetch-depth: 0`** is the one setting you can't skip. By default `actions/checkout` fetches one
-commit and no tags. heraut then sees no previous release: it starts over at `0.1.0`, or at whatever
-your first version is, and the tag push fails because that tag already exists. With
-`fetch-depth: 0` it sees every commit and tag.
+commit and no tags, and without them heraut can't tell which version comes next, so it stops with
+`the repository is a shallow clone` before changing anything. With `fetch-depth: 0` it sees every
+commit and tag.
 
 **Install heraut**: `gh` is already on GitHub's runners, so this downloads the Linux binary of the
 pinned release. Using mise instead? `jdx/mise-action` with
@@ -116,7 +116,7 @@ violations`). Two ways out:
 
 | Message | Cause | Fix |
 |---|---|---|
-| the next version is `0.1.0` (or your first version) again, then the tag push fails | shallow checkout, no tags | `fetch-depth: 0` |
+| `the repository is a shallow clone` | the default checkout, one commit and no tags | `fetch-depth: 0` |
 | `fatal: empty ident name` or `Please tell me who you are` | no git identity | the identity step |
 | `403` or `Resource not accessible by integration` when creating the release | `contents: write` missing | the `permissions:` block |
 | `GH006: Protected branch update failed` | protected `main` | see above |

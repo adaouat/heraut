@@ -71,6 +71,10 @@ func NewChangelogCmd(version string) *cobra.Command {
 				return exitcode.Wrap(exitcode.Config, fmt.Errorf("configuration is invalid"))
 			}
 
+			if err := app.CheckFullHistory(readRunner); err != nil {
+				return exitcode.Wrap(exitcode.Runtime, err)
+			}
+
 			env, err = app.ResolveEnv(env, cfg, readRunner)
 			if err != nil {
 				return exitcode.Wrap(exitcode.Config, err)
@@ -118,7 +122,7 @@ func NewChangelogCmd(version string) *cobra.Command {
 
 			pipe, err := app.BuildChangelogPipeline(runner, cfg, resolver, opts)
 			if err != nil {
-				return exitcode.Wrap(exitcode.Config, err)
+				return wrapBuildErr(err)
 			}
 
 			return wrapRunErr(pipe.Run(cmd.Context()), "changelog failed")

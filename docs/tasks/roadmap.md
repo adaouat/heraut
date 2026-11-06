@@ -258,7 +258,7 @@ discipline that applies to every task.
 | 87 | Skip only the release commit's workflow on GitHub (docs) | Done |
 | 88 | One enrichment forge for every target: check and docs | Done |
 | 89 | User documentation (front doors, guides, generated reference) | In progress — 89a (T453–T458) done; T459–T480, see `user-docs-roadmap.md` |
-| 90 | CI checkout pitfalls and `init --defaults` (shallow clone, detached HEAD) | In progress — T482 done; T481, T483 open |
+| 90 | CI checkout pitfalls and `init --defaults` (shallow clone, detached HEAD) | In progress — T481, T482 done; T483 open |
 
 ### Open items
 
@@ -4011,7 +4011,7 @@ built binary. Each is a CI default that makes `heraut release` fail late, or a d
 match the repository. Today the guides work around them. Each task changes behaviour, so the spec
 is updated first. When a task lands, simplify the guide that works around it.
 
-#### `[ ]` T481: fail early in a shallow clone instead of resolving the first version again
+#### `[x]` T481: fail early in a shallow clone instead of resolving the first version again
 
 `actions/checkout` fetches one commit and no tags by default, and GitLab clones with a limited
 depth. heraut then sees no release tag, resolves `initial_version` (`v0.1.0` while `v0.1.0`
@@ -4028,6 +4028,35 @@ with a config/runtime error whose hint names `fetch-depth: 0` and `GIT_DEPTH: "0
 Tests first: a contract row on the new git call, and an e2e Lane A scenario cloning with
 `--depth 1`. Then drop the shallow rows from the guides' failure tables, or reword them to the new
 message.
+
+Done 2026-11-06. The open points were settled with the user:
+- **Refusals.** `release` and `changelog` refuse a shallow clone with the Runtime code (3), right
+  after config validation, so before the version is resolved. That holds with `--dry-run` and with
+  `--set-version`, since the changelog still reads the history.
+- **Warnings.** `version next` and `version current` answer with a warning on stderr (in `--json`,
+  in `warnings`); stdout stays the tag.
+- **check runtime.** It gains a `history` row in the Git section that fails on a shallow clone.
+- **Code.** `app.CheckFullHistory` and `app.ShallowCloneWarning` (`internal/app/checkout.go`) both
+  run `git rev-parse --is-shallow-repository`. When git cannot answer they pass: the run's other
+  git calls report a broken repository. That also kept every FakeBin `git` script in the cmd tests
+  unchanged.
+- **T482's exit code.** By the same reasoning, the detached-HEAD refusal of T482 moved from 2 to 3.
+  Both refusals are an `app.CheckoutError`, and `wrapBuildErr` (`internal/cmd/exit.go`) maps it to
+  the Runtime code while every other pipeline build error stays a configuration error.
+- **Specs.** Spec 03 (release step 1, changelog, version next and current, check runtime) and
+  Spec 01's exit-code table say so.
+- **Tests first.** Unit rows for both functions and the history row, and the 21 runtime-check
+  queues gained the new call. e2e Lane A makes the harness repo shallow with
+  `git fetch --depth=1 origin`, then checks:
+  - four refused writes, each leaving the repo and the remote untouched;
+  - the warnings of both version commands, in text and JSON;
+  - `check runtime` failing;
+  - `git fetch --unshallow --tags` fixing it.
+- **Mutations.** 13 mutants each fail a test; a no-op control survives.
+- **The real bug, with the built binary.** On a `git clone --depth 1`, `version next` warns and
+  prints `v0.1.0` while `v0.1.0` exists. After the unshallow it prints `v0.1.1`.
+- **Guides.** Both CI guides now describe the refusal and its message instead of the late
+  tag-push failure.
 
 #### `[x]` T482: push the changelog commit to the CI branch from a detached HEAD
 

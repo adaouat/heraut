@@ -52,9 +52,9 @@ pipeline has no such branch, so heraut stops there before writing anything.
 
 **`resource_group: release`** runs one release job at a time, so two runs never race for the same tag.
 
-**`GIT_DEPTH: "0"`** is the one setting you can't skip. GitLab clones with a limited depth by default;
-heraut then may not see the last release tag, starts over at your first version, and the tag push
-fails because that tag already exists. `0` clones the whole history.
+**`GIT_DEPTH: "0"`** is the one setting you can't skip. GitLab clones with a limited depth by default,
+which can hide the last release tag, so heraut stops with `the repository is a shallow clone` before
+changing anything. `0` clones the whole history.
 
 **Git identity**: the runner has no git user, and the changelog commit needs one.
 
@@ -100,7 +100,7 @@ git:
 
 | Message | Cause | Fix |
 |---|---|---|
-| the next version is your first version again, then the tag push fails | shallow clone | `GIT_DEPTH: "0"` |
+| `the repository is a shallow clone` | GitLab's default clone depth | `GIT_DEPTH: "0"` |
 | `HEAD is detached and no CI branch variable names the branch` | the job ran in a tag or merge request pipeline | run it in a branch pipeline (the `rules:` above) |
 | `fatal: empty ident name` or `Please tell me who you are` | no git identity | the two `git config` lines |
 | `You are not allowed to push code to this project` | job token push not allowed | the setting at the top |

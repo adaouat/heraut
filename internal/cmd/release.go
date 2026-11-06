@@ -123,6 +123,10 @@ func runRelease(cmd *cobra.Command, version string, rf *releaseFlags, asJSON boo
 		return exitcode.Wrap(exitcode.Config, fmt.Errorf("configuration is invalid"))
 	}
 
+	if err := app.CheckFullHistory(readRunner); err != nil {
+		return exitcode.Wrap(exitcode.Runtime, err)
+	}
+
 	env, err = app.ResolveEnv(env, cfg, readRunner)
 	if err != nil {
 		return exitcode.Wrap(exitcode.Config, err)
@@ -157,7 +161,7 @@ func runRelease(cmd *cobra.Command, version string, rf *releaseFlags, asJSON boo
 	}
 	pipe, err := app.BuildPipeline(runner, cfg, resolver, opts)
 	if err != nil {
-		return exitcode.Wrap(exitcode.Config, err)
+		return wrapBuildErr(err)
 	}
 
 	if !dryRun {

@@ -64,6 +64,7 @@ func TestCommitPushBranch(t *testing.T) {
 			if tc.wantErr != "" {
 				require.ErrorContains(t, err, tc.wantErr)
 				assert.ErrorContains(t, err, "git checkout -B", "the hint says how to fix it")
+				assert.True(t, IsUnusableCheckout(err), "commands map it to the Runtime code")
 			} else {
 				require.NoError(t, err)
 			}
