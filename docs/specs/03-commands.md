@@ -168,6 +168,15 @@ has no such requirement (see § Tag-only workflow below).
    still runs when `HEAD` is ahead of its upstream, so a retry after a failed push delivers
    the release commit the tag points at; a detached `HEAD` or a branch without upstream is
    left alone. The push carries `git.push_options.commit` ([Spec 02](02-configuration.md#git)).
+   On a detached `HEAD` (GitLab CI always checks out the commit, not the branch) the push names
+   the CI job's branch instead: `git push origin HEAD:refs/heads/<branch>`, with the branch from
+   `CI_COMMIT_BRANCH`, `GITHUB_REF_NAME` (when `GITHUB_REF_TYPE` is `branch`) or Azure's
+   `BUILD_SOURCEBRANCH` (a `refs/heads/` ref). That branch must have been fetched
+   (`refs/remotes/origin/<branch>` exists), so heraut never creates a branch on the remote. With no
+   CI branch, or one that was not fetched, the run stops before anything is resolved or written,
+   `--dry-run` included, with the configuration code (2) and a hint to check out the branch. This
+   lookup runs only when the run commits and pushes: `heraut release` with a changelog that is not
+   disabled for the env, and `heraut changelog --commit`/`--tag` without `--no-push`.
 5. **Create git tag** (annotated by default; set `versioning.tag_type: lightweight` to use a bare ref tag) on the changelog commit, then `git push origin <tag>`, carrying `git.push_options.tag`
 6. **For each target** in `release.targets` (in declared order, or the single resolved
    forge with default options when `release.targets` is omitted):
@@ -197,7 +206,8 @@ re-resolves it.
 
 ### The remote is always `origin`
 
-heraut pushes the changelog commit (`git push origin HEAD`) and the tag (`git push origin <tag>`) to a
+heraut pushes the changelog commit (`git push origin HEAD`, or `HEAD:refs/heads/<branch>` from a detached
+`HEAD`, § `heraut release` step 4) and the tag (`git push origin <tag>`) to a
 remote named `origin`, and reads `git remote get-url origin` to detect the forge when none is configured
 and no CI environment names it. There is no setting for another remote name. A checkout whose upstream
 is called something else (a fork workflow, say) needs a remote called `origin` pointing at the repository

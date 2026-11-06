@@ -1226,7 +1226,7 @@ git:
 
 | Field                     | Default | Description |
 |---------------------------|---------|-------------|
-| `push_options.commit`     | `[]`    | Passed, in order, to the changelog commit push (`git push origin HEAD`) of `heraut release` and `heraut changelog --commit/--tag`. |
+| `push_options.commit`     | `[]`    | Passed, in order, to the changelog commit push (`git push origin HEAD`, or `HEAD:refs/heads/<branch>` from a detached `HEAD`, Spec 03) of `heraut release` and `heraut changelog --commit/--tag`. |
 | `push_options.tag`        | `[]`    | Passed, in order, to the tag push (`git push origin <tag>`) of the same commands. |
 
 Each value becomes one `--push-option=<value>` argument, so a value starting with `-` is not read as a

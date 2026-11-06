@@ -26,7 +26,7 @@ type Pipeline struct {
 
 // New constructs a release Pipeline.
 func New(runner port.Runner, resolver versioning.Resolver, cfg *Config, out io.Writer, dryRun bool) *Pipeline {
-	return &Pipeline{git: gitHelper{runner: runner}, resolver: resolver, cfg: cfg, out: out, dryRun: dryRun}
+	return &Pipeline{git: gitHelper{runner: runner, pushBranch: cfg.CommitPushBranch}, resolver: resolver, cfg: cfg, out: out, dryRun: dryRun}
 }
 
 // WithReporter sets the step reporter and returns p for chaining.

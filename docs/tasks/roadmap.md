@@ -258,7 +258,7 @@ discipline that applies to every task.
 | 87 | Skip only the release commit's workflow on GitHub (docs) | Done |
 | 88 | One enrichment forge for every target: check and docs | Done |
 | 89 | User documentation (front doors, guides, generated reference) | In progress — 89a (T453–T458) done; T459–T480, see `user-docs-roadmap.md` |
-| 90 | CI checkout pitfalls and `init --defaults` (shallow clone, detached HEAD) | Planned — T481–T483 |
+| 90 | CI checkout pitfalls and `init --defaults` (shallow clone, detached HEAD) | In progress — T482 done; T481, T483 open |
 
 ### Open items
 
@@ -4029,7 +4029,7 @@ Tests first: a contract row on the new git call, and an e2e Lane A scenario clon
 `--depth 1`. Then drop the shallow rows from the guides' failure tables, or reword them to the new
 message.
 
-#### `[ ]` T482: push the changelog commit to the CI branch from a detached HEAD
+#### `[x]` T482: push the changelog commit to the CI branch from a detached HEAD
 
 GitLab CI checks out the commit, not the branch. `git push origin HEAD` (`commitChangelog`,
 `internal/pipeline/git.go`) then fails with "The destination you provided is not a full refname",
@@ -4044,6 +4044,38 @@ and Spec 02 (`git.push_options.commit`) state the refspec. Tests first:
 
 Then drop `git checkout -B "$CI_COMMIT_BRANCH"` from `docs/guides/gitlab-ci.md`. Also check
 whether a tag pipeline (no `CI_COMMIT_BRANCH`) needs its own message.
+
+Done 2026-11-06.
+- **Where the lookup runs.** `internal/app` works out the branch when it builds the pipeline
+  (`commitPushBranch`, `push_branch.go`), and the pipeline gets it as `CommitPushBranch`. Doing it
+  in `commitChangelog` would have added a git call to every commit path in the 224 FIFO-queued
+  pipeline tests. It runs only when the run commits and pushes: `release` with a changelog not
+  disabled for the env, and `changelog --commit`/`--tag` without `--no-push`. So it also stops a
+  `--dry-run` before anything is written.
+- **Detecting a detached HEAD.** `git symbolic-ref -q --short HEAD` is used, not
+  `rev-parse --abbrev-ref`: a cmd test showed `rev-parse` fails on a branch with no commits yet.
+- **The branch.** The branch comes from the new `branch.CIBranch()`, extracted from
+  `CurrentBranch` (same variables: `CI_COMMIT_BRANCH`, `GITHUB_REF_NAME` on a branch ref, Azure's
+  `refs/heads/`). It must exist as `refs/remotes/origin/<branch>`. That keeps heraut from creating
+  a branch on the remote: a GitHub pull request's `12/merge` ref, say.
+- **Errors.** With no CI branch, or one that wasn't fetched, the run stops with exit 2, since
+  `BuildPipeline` errors map to the configuration code. The hint names `git checkout -B`. A tag or
+  merge request pipeline gets the "no CI branch variable" message, so it needed no message of its
+  own.
+- **Specs.** Spec 03 (step 4 and § The remote is always `origin`) and Spec 02
+  (`git.push_options.commit`) state the refspec.
+- **Tests.** Unit rows for `CIBranch` and `commitPushBranch`, and config-build rows for the gating.
+  Pipeline rows check the refspec reaches the push with its push options, and the tag push is
+  unchanged. Two e2e Lane A scenarios on a bare remote: the commit lands on `main` with the tag on
+  it, and both failure cases leave the repo and the remote untouched. Mutations: 9 mutants, every
+  gate and the refspec, each fail a test; a no-op control survives.
+- **Existing tests.** Six tests that build a pipeline with a changelog on an exact mock queue, or
+  a fake `git` script, got the extra `symbolic-ref` answer.
+- **Deferred.** The T360 retry check (`@{u}..HEAD`) still skips a detached HEAD. A fresh CI clone
+  has no unpushed release commit to deliver, so comparing against `origin/<branch>` wasn't worth
+  the extra call.
+- **GitLab guide.** It drops the `git checkout -B` line and says to keep the job in branch
+  pipelines.
 
 #### `[ ]` T483: `heraut init --defaults` picks the forge from `origin`
 

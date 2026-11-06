@@ -196,3 +196,31 @@ func TestCheckReleaseBranch(t *testing.T) {
 }
 
 func ptrU64(n uint64) *uint64 { return &n }
+
+func TestCIBranch(t *testing.T) {
+	tests := []struct {
+		name   string
+		env    map[string]string
+		want   string
+		wantOK bool
+	}{
+		{name: "GitLab", env: map[string]string{"CI_COMMIT_BRANCH": "main"}, want: "main", wantOK: true},
+		{name: "GitHub branch", env: map[string]string{"GITHUB_REF_NAME": "main", "GITHUB_REF_TYPE": "branch"}, want: "main", wantOK: true},
+		{name: "GitHub tag ref ignored", env: map[string]string{"GITHUB_REF_NAME": "v1.3.1", "GITHUB_REF_TYPE": "tag"}},
+		{name: "Azure", env: map[string]string{"BUILD_SOURCEBRANCH": "refs/heads/release/1.3"}, want: "release/1.3", wantOK: true},
+		{name: "Azure tag ref ignored", env: map[string]string{"BUILD_SOURCEBRANCH": "refs/tags/v1.3.1"}},
+		{name: "GitLab wins over GitHub", env: map[string]string{"CI_COMMIT_BRANCH": "main", "GITHUB_REF_NAME": "dev", "GITHUB_REF_TYPE": "branch"}, want: "main", wantOK: true},
+		{name: "no CI"},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			clearBranchEnv(t)
+			for k, v := range tc.env {
+				t.Setenv(k, v)
+			}
+			got, ok := branch.CIBranch()
+			assert.Equal(t, tc.want, got)
+			assert.Equal(t, tc.wantOK, ok)
+		})
+	}
+}

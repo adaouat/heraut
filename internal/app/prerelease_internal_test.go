@@ -2,6 +2,7 @@ package app
 
 import (
 	"bytes"
+	"errors"
 	"testing"
 
 	"github.com/adaouat/forge/exec/exectest"
@@ -74,6 +75,13 @@ func preReleaseChangelogCfg() *config.Config {
 
 func TestPreReleaseRun_StepTotalExcludesChangelog(t *testing.T) {
 	runner := exectest.NewMockRunner()
+	noOrigin := errors.New("no origin")
+	runner.QueueResponse("", "", noOrigin)  // release: git remote get-url origin
+	runner.QueueResponse("main\n", "", nil) // release: git symbolic-ref (the changelog commit's branch)
+	runner.QueueResponse("", "", noOrigin)  // pre-release: git remote get-url origin, no commit to push
+	runner.QueueResponse("", "", noOrigin)  // changelog --tag: git remote get-url origin
+	runner.QueueResponse("main\n", "", nil) // changelog --tag: git symbolic-ref
+	runner.QueueResponse("", "", noOrigin)  // pre-release changelog: git remote get-url origin
 
 	final, err := buildReleasePipelineConfig(runner, runner, preReleaseChangelogCfg(), "", "", false, false, false)
 	require.NoError(t, err)

@@ -29,7 +29,6 @@ release:
   variables:
     GIT_DEPTH: "0"    # all commits and tags: heraut needs them to find the version
   script:
-    - git checkout -B "$CI_COMMIT_BRANCH"
     - git config user.name "Release Bot"
     - git config user.email "release-bot@example.com"
     - heraut check
@@ -46,16 +45,16 @@ GitLab the shell it needs to run `script:`. Using your own image instead? Instal
 ([Install](../install.md)); heraut needs only `git` next to it.
 
 **`rules:`** adds the job to pipelines on the default branch, as a manual job: it waits for you to
-press play. Drop `when: manual` to release on every push to the default branch.
+press play. Drop `when: manual` to release on every push to the default branch. Keep the job in
+branch pipelines: GitLab checks out the pipeline's commit rather than its branch, and heraut pushes
+the changelog commit to the branch the pipeline runs for (`CI_COMMIT_BRANCH`). A tag or merge request
+pipeline has no such branch, so heraut stops there before writing anything.
 
 **`resource_group: release`** runs one release job at a time, so two runs never race for the same tag.
 
 **`GIT_DEPTH: "0"`** is the one setting you can't skip. GitLab clones with a limited depth by default;
 heraut then may not see the last release tag, starts over at your first version, and the tag push
 fails because that tag already exists. `0` clones the whole history.
-
-**`git checkout -B "$CI_COMMIT_BRANCH"`**: GitLab checks out the commit, not the branch (a "detached
-HEAD"), and the changelog commit can't be pushed from there. This puts the branch back.
 
 **Git identity**: the runner has no git user, and the changelog commit needs one.
 
@@ -102,7 +101,7 @@ git:
 | Message | Cause | Fix |
 |---|---|---|
 | the next version is your first version again, then the tag push fails | shallow clone | `GIT_DEPTH: "0"` |
-| `The destination you provided is not a full refname` | detached HEAD | `git checkout -B "$CI_COMMIT_BRANCH"` |
+| `HEAD is detached and no CI branch variable names the branch` | the job ran in a tag or merge request pipeline | run it in a branch pipeline (the `rules:` above) |
 | `fatal: empty ident name` or `Please tell me who you are` | no git identity | the two `git config` lines |
 | `You are not allowed to push code to this project` | job token push not allowed | the setting at the top |
 | `You are not allowed to push code to protected branches` | protected branch | see above |

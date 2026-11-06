@@ -239,6 +239,7 @@ func TestBuildReleasePipelineConfig_UsesReadRunnerForForgeResolution(t *testing.
 	pipelineRunner := exectest.NewMockRunner() // stands in for a dry-run runner: no response queued
 	readRunner := exectest.NewMockRunner()
 	readRunner.QueueResponse("https://gitlab.com/group/subgroup/project.git\n", "", nil)
+	readRunner.QueueResponse("main\n", "", nil) // git symbolic-ref: the changelog commit's branch
 
 	cfg := &config.Config{
 		Version:    "1",
@@ -254,8 +255,9 @@ func TestBuildReleasePipelineConfig_UsesReadRunnerForForgeResolution(t *testing.
 	assert.Equal(t, "group/subgroup/project", pCfg.ForgeIdentity.Project)
 
 	assert.Empty(t, pipelineRunner.Calls, "the pipeline (dry-run-capable) runner must not be used for origin detection")
-	require.Len(t, readRunner.Calls, 1)
+	require.Len(t, readRunner.Calls, 2)
 	assert.Equal(t, []string{"remote", "get-url", "origin"}, readRunner.Calls[0].Args)
+	assert.Equal(t, []string{"symbolic-ref", "-q", "--short", "HEAD"}, readRunner.Calls[1].Args)
 }
 
 // assertNoOriginErr simulates `git remote get-url origin` failing (no origin configured).

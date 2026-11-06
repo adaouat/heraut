@@ -119,6 +119,7 @@ case "$*" in
   "config user.email") echo "test@example.com" ;;
   "tag -l v* --sort=-version:refname") echo "v1.0.0" ;;
   "log v1.0.0..HEAD --format=%B"*) printf "feat: new feature\x00" ;;
+  "symbolic-ref -q --short HEAD") echo "main" ;;
   *) exit 1 ;;
 esac
 `)

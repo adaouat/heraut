@@ -35,9 +35,8 @@ type BranchMatch struct {
 }
 
 // CurrentBranch reads the checked-out branch. A detached HEAD (the norm in CI checkouts) falls
-// back to the CI providers' branch variables; GitHub's ref name and Azure's source ref only
-// count when the ref is a branch, since a tag-triggered run exposes the tag there. ok is false when no source
-// yields a branch; err is set only when git itself fails.
+// back to the CI providers' branch variables (CIBranch). ok is false when no source yields a
+// branch; err is set only when git itself fails.
 func CurrentBranch(runner port.Runner) (branch string, ok bool, err error) {
 	out, _, err := runner.Run("git", "rev-parse", "--abbrev-ref", "HEAD")
 	if err != nil {
@@ -47,18 +46,26 @@ func CurrentBranch(runner port.Runner) (branch string, ok bool, err error) {
 	if branch != "" && branch != "HEAD" {
 		return branch, true, nil
 	}
+	branch, ok = CIBranch()
+	return branch, ok, nil
+}
+
+// CIBranch reads the branch a CI job runs for from the providers' variables. GitHub's ref name
+// and Azure's source ref only count when the ref is a branch, since a tag-triggered run exposes
+// the tag there. ok is false outside CI or on a tag build.
+func CIBranch() (branch string, ok bool) {
 	if v := os.Getenv(config.EnvGitLabCommitBranch); v != "" {
-		return v, true, nil
+		return v, true
 	}
 	if v := os.Getenv(config.EnvGitHubRefName); v != "" && os.Getenv(config.EnvGitHubRefType) == "branch" {
-		return v, true, nil
+		return v, true
 	}
 	// Azure's BUILD_SOURCEBRANCHNAME is only the ref's last path segment (release/1.3 → "1.3"),
 	// so read the full ref and accept branch refs only — a tag build carries refs/tags/….
 	if v, ok := strings.CutPrefix(os.Getenv(config.EnvAzureSourceBranch), "refs/heads/"); ok && v != "" {
-		return v, true, nil
+		return v, true
 	}
-	return "", false, nil
+	return "", false
 }
 
 // MatchBranchRule matches branch against cfg.Versioning.Branches. A glob match whose name ends in

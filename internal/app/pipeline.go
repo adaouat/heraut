@@ -335,6 +335,11 @@ func buildReleasePipelineConfig(runner, readRunner port.Runner, cfg *config.Conf
 	pCfg.CommitMessage = cfg.Versioning.CommitMessage
 	pushOptions := cfg.PushOptions(env)
 	pCfg.CommitPushOptions, pCfg.TagPushOptions = pushOptions.Commit, pushOptions.Tag
+	if effectiveChangelog != nil && !pCfg.DisableChangelog {
+		if pCfg.CommitPushBranch, err = commitPushBranch(readRunner); err != nil {
+			return nil, err
+		}
+	}
 	// SemVerStrategy gates the pipeline's derived GitHub pre-release flag (ADR-0064): a CalVer
 	// version can itself parse as a SemVer pre-release, so the pipeline cannot infer this from the
 	// version alone — only the app layer knows which strategy produced it.
@@ -482,6 +487,13 @@ func buildChangelogPipelineConfig(runner, readRunner port.Runner, cfg *config.Co
 	cCfg.CommitMessage = cfg.Versioning.CommitMessage
 	pushOptions := cfg.PushOptions(opts.Env)
 	cCfg.CommitPushOptions, cCfg.TagPushOptions = pushOptions.Commit, pushOptions.Tag
+	if effectiveChangelog != nil && !cCfg.DisableChangelog && cCfg.Commit && !cCfg.NoPush {
+		branchName, err := commitPushBranch(readRunner)
+		if err != nil {
+			return nil, err
+		}
+		cCfg.CommitPushBranch = branchName
+	}
 	cCfg.NoHooks = opts.NoHooks
 
 	// Hooks (ADR-0053) — flat/global only in v1, no per-env override. Env (ADR-0055) still

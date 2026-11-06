@@ -25,6 +25,10 @@ type ChangelogConfig struct {
 	// push and of the tag push (git.push_options, ADR-0079), already resolved for the env.
 	CommitPushOptions []string
 	TagPushOptions    []string
+	// CommitPushBranch is the branch the changelog commit is pushed to from a detached HEAD (a CI
+	// checkout): the push becomes HEAD:refs/heads/<branch>. Empty pushes HEAD, the checked-out
+	// branch. Set by the app layer.
+	CommitPushBranch string
 	// DisableChangelog skips all steps and exits 0 with an info message.
 	DisableChangelog bool
 	// PreRelease marks that the run publishes a SemVer pre-release; set together with
@@ -77,7 +81,7 @@ type ChangelogPipeline struct {
 
 // NewChangelog constructs a ChangelogPipeline.
 func NewChangelog(runner port.Runner, resolver versioning.Resolver, cfg *ChangelogConfig, out io.Writer, dryRun bool) *ChangelogPipeline {
-	return &ChangelogPipeline{git: gitHelper{runner: runner}, resolver: resolver, cfg: cfg, out: out, dryRun: dryRun}
+	return &ChangelogPipeline{git: gitHelper{runner: runner, pushBranch: cfg.CommitPushBranch}, resolver: resolver, cfg: cfg, out: out, dryRun: dryRun}
 }
 
 // WithReporter sets the step reporter and returns p for chaining.

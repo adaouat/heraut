@@ -36,6 +36,8 @@ func TestBuildPipeline_Minimal(t *testing.T) {
 
 func TestBuildPipeline_ChangelogBuildsNative(t *testing.T) {
 	mr := exectest.NewMockRunner()
+	mr.QueueResponse("", "", errors.New("no origin")) // git remote get-url origin (forge resolution)
+	mr.QueueResponse("main\n", "", nil)               // git symbolic-ref: the changelog commit's branch
 	cfg := semverCfg()
 	cfg.Changelog = &config.ContentDriver{Output: "CHANGELOG.md"}
 	p, err := app.BuildPipeline(mr, cfg, defaultResolver, defaultOpts)

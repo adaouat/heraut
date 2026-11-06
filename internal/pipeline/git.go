@@ -18,6 +18,9 @@ type gitHelper struct {
 	// every construction that doesn't set it (every pre-T260 test, any caller that hasn't opted
 	// in) behaves exactly as before.
 	interactiveRunner port.Runner
+	// pushBranch names the branch the changelog commit goes to from a detached HEAD; empty pushes
+	// HEAD to the checked-out branch.
+	pushBranch string
 }
 
 func (g *gitHelper) run(name string, args ...string) error {
@@ -66,11 +69,20 @@ func (g *gitHelper) commitChangelog(files []string, msg string, push bool, pushO
 		}
 	}
 	if push && (staged || g.aheadOfUpstream()) {
-		if err := g.run("git", pushArgs("HEAD", pushOptions)...); err != nil {
+		if err := g.run("git", pushArgs(g.commitPushRef(), pushOptions)...); err != nil {
 			return false, fmt.Errorf("git push: %w", err)
 		}
 	}
 	return staged, nil
+}
+
+// commitPushRef is the refspec the changelog commit is pushed with. A detached HEAD has no branch
+// for `git push origin HEAD` to update, so it names the CI job's branch.
+func (g *gitHelper) commitPushRef() string {
+	if g.pushBranch == "" {
+		return "HEAD"
+	}
+	return "HEAD:refs/heads/" + g.pushBranch
 }
 
 // aheadOfUpstream reports whether HEAD holds commits its upstream lacks. It answers false when it

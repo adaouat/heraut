@@ -36,6 +36,7 @@ func fakeGitBreakingSinceV140(t *testing.T) {
 case "$*" in
   "tag -l v* --sort=-version:refname") echo "v1.4.0" ;;
   "log v1.4.0..HEAD --format=%B"*) printf "feat!: break the api\x00" ;;
+  "symbolic-ref -q --short HEAD") echo "main" ;;
   *) exit 1 ;;
 esac
 `)

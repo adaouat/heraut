@@ -24,6 +24,10 @@ type Config struct {
 	// push and of the tag push (git.push_options, ADR-0079), already resolved for the env.
 	CommitPushOptions []string
 	TagPushOptions    []string
+	// CommitPushBranch is the branch the changelog commit is pushed to from a detached HEAD (a CI
+	// checkout): the push becomes HEAD:refs/heads/<branch>. Empty pushes HEAD, the checked-out
+	// branch. Set by the app layer.
+	CommitPushBranch string
 	// DisableChangelog skips changelog generation and commit for the active env.
 	DisableChangelog bool
 	// DisableNotes skips release notes generation for the active env.

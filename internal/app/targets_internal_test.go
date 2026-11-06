@@ -543,6 +543,7 @@ func TestBuildReleasePipelineConfig_ForgeResolutionErrorScope(t *testing.T) {
 		runner := exectest.NewMockRunner()
 		readRunner := exectest.NewMockRunner()
 		readRunner.QueueResponse("", "", assertNoOriginErr)
+		readRunner.QueueResponse("main\n", "", nil) // git symbolic-ref: the changelog commit's branch
 
 		cfg := &config.Config{
 			Version:    "1",
