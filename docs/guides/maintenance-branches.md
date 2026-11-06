@@ -4,9 +4,8 @@ Cut hotfixes on a long-lived `release/x.y` branch while `main` moves on, and hav
 the next version *on that line* (`v1.3.2`), not on top of the newest tag in the repository
 (`v2.0.1`).
 
-Reference: [Spec 02 § `versioning.branches`](../specs/02-configuration.md#versioningbranches),
-[Spec 04 § Maintenance branches](../specs/04-versioning.md#maintenance-branches), and the decision
-record, [ADR-0065](../adr/0065-branch-aware-semver-resolution.md).
+Every key used here is in the [configuration reference](../reference/configuration.md#versioning),
+under `versioning.branches`.
 
 ## When to use it
 
@@ -67,9 +66,14 @@ The history of the line's base tag must be fetched: a shallow clone that lost it
 release in range".
 
 When the commit does not fit, the error names the range and the way out:
-`feat: y would release 1.4.0, outside release/1.3 (>=1.3.0 <1.4.0) -- land it on a branch whose
-range allows it, or on main`. If the branch has no tag in range yet (a fresh `release/1.3`), tag
-its starting point or pass `--set-version`.
+
+```text
+Next version is outside the maintenance range: feat: y would release 1.4.0, outside release/1.3
+(>=1.3.0 <1.4.0) — land it on a branch whose range allows it, or on main.
+```
+
+If the branch has no tag in range yet (a fresh `release/1.3`), tag its starting point or pass
+`--set-version`.
 
 ## Forward-merge and backport workflow
 
