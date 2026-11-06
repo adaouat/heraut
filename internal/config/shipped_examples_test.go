@@ -87,3 +87,13 @@ func readmeYAMLConfigBlocks(t *testing.T, path string) []string {
 	require.NoError(t, scanner.Err())
 	return blocks
 }
+
+// docs/heraut.sample.yml is user documentation, linked from the docs home and the configuration
+// reference: its comments must not send readers to ADRs, roadmap tasks or the specs.
+func TestShippedSample_CitesNoInternalDocument(t *testing.T) {
+	raw, err := os.ReadFile("../../docs/heraut.sample.yml")
+	require.NoError(t, err)
+	for i, line := range strings.Split(string(raw), "\n") {
+		assert.NotRegexp(t, internalReference, line, "docs/heraut.sample.yml line %d cites an internal document", i+1)
+	}
+}

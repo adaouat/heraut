@@ -257,7 +257,7 @@ discipline that applies to every task.
 | 86 | Push options for the release pushes (`git.push_options`, ADR-0079) | Done |
 | 87 | Skip only the release commit's workflow on GitHub (docs) | Done |
 | 88 | One enrichment forge for every target: check and docs | Done |
-| 89 | User documentation (front doors, guides, generated reference) | In progress — 89a and 89b (T453–T464) done; T465–T480, see `user-docs-roadmap.md` |
+| 89 | User documentation (front doors, guides, generated reference) | In progress — 89a, 89b and 89c (T453–T475, T486) done; T476–T480, see `user-docs-roadmap.md` |
 | 90 | CI checkout pitfalls and `init --defaults` (shallow clone, detached HEAD) | Done |
 | 91 | Follow-ups from the generated reference (GitHub token for PR data, `check runtime` help) | Done |
 

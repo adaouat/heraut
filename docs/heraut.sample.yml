@@ -4,8 +4,8 @@
 # This file documents every supported field. Copy the blocks you need into
 # .heraut.yml (or .config/heraut.yml) and delete the rest.
 #
-# Full field reference: docs/specs/02-configuration.md
-# Versioning strategies: docs/specs/04-versioning.md
+# Every key, with its type and default: docs/reference/configuration.md
+# How-tos by situation (environments, hooks, templates, …): docs/guides/
 # ─────────────────────────────────────────────────────────────────────────────
 
 # yaml-language-server: $schema=https://raw.githubusercontent.com/adaouat/heraut/<version>/schema.json
@@ -19,7 +19,7 @@ version: "1"
 # ── versioning ────────────────────────────────────────────────────────────────
 #
 # Four strategies are available. Pick one; fields irrelevant to your strategy
-# are ignored. See docs/specs/04-versioning.md for the full strategy reference.
+# are ignored. For several environments, see docs/guides/environments.md.
 
 versioning:
   # strategy — required. One of:
@@ -176,7 +176,7 @@ versioning:
 #     #   tag_pattern: "^dev/"
 #
 #     # release overrides — release.notes deep-merges over root, release.targets
-#     # replaces the root list entirely for this env (ADR-0043/ADR-0044). Both
+#     # replaces the root list entirely for this env. Both
 #     # still generate + publish together — see the release block below.
 #     # release:
 #     #   targets:
@@ -204,9 +204,9 @@ versioning:
 
 # ── commits ───────────────────────────────────────────────────────────────────
 #
-# Single source of truth for commit semantics and enrichment (ADR-0033). The type
-# set here is used by BOTH `heraut commit verify`/`create` AND the native renderer's
-# changelog section taxonomy.
+# Single source of truth for commit semantics and enrichment. The type
+# set here is used by BOTH `heraut commit verify`/`create` AND the changelog's
+# sections.
 # commits:
 #   # types — conventional-commit type rules, MERGED over the built-in defaults by
 #   # name (feat → 🚀 Features, fix → 🐛 Bug Fixes, security → 🛡️ Security, …). List only what you change:
@@ -233,7 +233,7 @@ versioning:
 #     - { name: ui }
 #   scopes_restricted: false
 #   # enrichment_forge — references a forges[].name (see the forges block below) used
-#   # as the PR/MR metadata source for changelog and release-notes generation (ADR-0043).
+#   # as the PR/MR metadata source for changelog and release-notes generation.
 #   enrichment_forge: gitlab-saas
 #   # enrichment_policy — whether generators fetch PR/MR metadata (author, PR number) to
 #   # enrich changelog/release-notes, sourced from enrichment_forge:
@@ -248,7 +248,7 @@ versioning:
 #       url: 'https://acme.atlassian.net/browse/{ticket}'
 #     - pattern: 'GH-([0-9]+)'                            # GitHub issues: GH-123
 #       url: 'https://github.com/acme/app/issues/{ticket}'
-#   # rules — project-specific commit-message constraints (ADR-0056), checked by
+#   # rules — project-specific commit-message constraints, checked by
 #   # `heraut commit verify`/`check` alongside types/scopes above. Set exactly one of
 #   # deny/require/require_ticket per rule; message is required for deny/require
 #   # (require_ticket gets a synthesized default). Optionally scope a rule to
@@ -267,7 +267,7 @@ versioning:
 
 # ── rendering ─────────────────────────────────────────────────────────────────
 #
-# Content output rules (ADR-0033).
+# Content output rules.
 # rendering:
 #   # excludes — drop matched commits from the rendered changelog/release-notes.
 #   # Set exactly one of type or regex per entry. Independent of commits.types
@@ -275,8 +275,8 @@ versioning:
 #   excludes:
 #     - regex: '^chore\(deps.*\)'
 #     - type: chore
-#   # templates — override built-in native template blocks (ADR-0037, ADR-0048, ADR-0049,
-#   # ADR-0059). native only. Each value is a Go text/template snippet; unset blocks keep their
+#   # templates — override built-in template blocks. Each value is a Go text/template snippet;
+#   # unset blocks keep their
 #   # built-in. Document-level (fire once per document, no nesting): title, subtitle, footer.
 #   # Release-cadence (nest under release:): section, group, contributors, stats, footer.
 #   # Commit-cadence (nest under commit:): message, ticket, contributor, trailers. Plus the
@@ -286,16 +286,16 @@ versioning:
 #   # fields directly (.Version .URL .GeneratedAt) — not the full release data, and not
 #   # .Heraut.Version like every other block (including release.footer). footer defaults to a
 #   # heraut credit line with version + timestamp; release.footer (per-release, unlike footer)
-#   # defaults to empty. Data & funcs: see the native template contract in the docs. Precedence:
+#   # defaults to empty. Data & funcs: see docs/guides/template-customization.md. Precedence:
 #   # built-in -> rendering.templates (global) -> <driver>.rendering.templates ->
 #   # environments.<env>.<driver>.rendering.templates -> <driver>.template file.
 #   #
-#   # commit.trailers (ADR-0057, moved here by ADR-0060) is the one commit.* key that isn't a
+#   # commit.trailers is the one commit.* key that isn't a
 #   # template snippet — a list of rules customizing how individual commit-message footer
 #   # trailers render, matched case-insensitively by token. Set exactly one of renderer (a Go
 #   # text/template snippet, executed with {Token, Value}) or hide per entry. An unmatched token
 #   # keeps the built-in "Token: Value" line — except Co-Authored-By, which already has a built-in
-#   # default (`_Co-Authored-By: {{ .Value }}_`, ADR-0058); the entry below only demonstrates
+#   # default (`_Co-Authored-By: {{ .Value }}_`); the entry below only demonstrates
 #   # overriding that default with different Markdown, not introducing new behavior. Governs how a
 #   # footer renders, not whether a block shows footers — release notes already render .Footers by
 #   # default; opt the changelog in via commit.message above.
@@ -315,7 +315,7 @@ versioning:
 
 # ── forges ────────────────────────────────────────────────────────────────────
 #
-# Code-hosting platforms heraut talks to (ADR-0043/ADR-0044): connection/identity
+# Code-hosting platforms heraut talks to: connection/identity
 # only. What to publish (draft/assets) lives in release.targets below; the PR/MR
 # enrichment source is commits.enrichment_forge above. Optional in the common case:
 # heraut auto-detects a single forge from the CI environment or the git remote
@@ -336,7 +336,7 @@ forges:
 
     # base_url — web base URL of the forge instance. Defaults to
     # https://github.com (GitHub) / https://gitlab.com (GitLab).
-    # Self-hosted (non-default) values are supported (ADR-0025).
+    # Self-hosted (non-default) values are supported.
     # base_url: https://github.com
 
 # ── GitLab ───────────────────────────────────────────────────────────────
@@ -349,7 +349,7 @@ forges:
 #   api_mode: rest              # rest (default) | graphql
 #   # token_env: GITLAB_TOKEN   # defaults per type when unset
 
-# ── Multiple instances of the same forge type (ADR-0025/ADR-0044) ─────────────
+# ── Multiple instances of the same forge type ─────────────
 # Declare multiple forges: entries (distinct name:, base_url:, token_env:) and
 # reference each from its own release.targets entry to publish to both instances:
 # forges:
@@ -378,7 +378,7 @@ changelog:
   # output may instead rotate into one file per release line/period — {TOKEN} placeholders
   # are substituted from the resolved version, and tag-scoping is derived automatically
   # (no separate field to keep in sync). A literal path with no {...} is unaffected.
-  #   semver (strategy: semver above): MAJOR, MINOR — never PATCH (ADR-0047)
+  #   semver (strategy: semver above): MAJOR, MINOR — never PATCH
   # output: "CHANGELOG_{MAJOR}.md"          # one file per major version
   # output: "CHANGELOG_{MAJOR}_{MINOR}.md"  # one file per minor release line
   #   calver (strategy: calver, format: "YYYY.MM.PATCH"): tokens must be a leading
@@ -394,14 +394,14 @@ changelog:
   #   per-env prod:     "^prod/"
   # tag_pattern: "^v[0-9]"
 
-  # template — path to a full native template file (Go text/template), parsed on top
+  # template — path to a full template file (Go text/template), parsed on top
   # of the built-in blocks: it may redefine the document root and/or any block, and is
   # authored with real editor tooling (highlighting, no YAML escaping). Parsed last, so
-  # it wins over inline rendering.templates for whatever it defines. native only (ADR-0037).
+  # it wins over inline rendering.templates for whatever it defines.
   # template: .config/heraut/changelog.tmpl
 
   # rendering — per-driver overrides (template snippets + excludes), deep-merged over the
-  # global rendering block. native only. Use this to reformat one block for the changelog
+  # global rendering block. Use this to reformat one block for the changelog
   # without touching release notes (or vice-versa). See the global rendering block above.
   # rendering:
   #   templates:
@@ -418,7 +418,7 @@ changelog:
 # app store). By default it prints the changelog's groups and commit lines, without the release
 # heading and without each commit's hash, author and PR reference; this block reshapes that.
 # Layered over the global rendering block, then over the built-in notes blocks; `--template`
-# replaces the file for one run. native only.
+# replaces the file for one run.
 #
 # notes:
 #   template: .config/heraut/notes.tmpl
@@ -432,7 +432,7 @@ changelog:
 # ── git ───────────────────────────────────────────────────────────────────────
 #
 # push_options — --push-option values for the two pushes heraut makes when it
-# commits and tags (ADR-0079), passed in order. commit applies to the changelog
+# commits and tags, passed in order. commit applies to the changelog
 # commit push (git push origin HEAD), tag to the tag push (git push origin <tag>).
 # Unused with --no-push. Values are the server's: GitLab reads ci.skip and
 # ci.variable="KEY=VALUE". github.com accepts push options and ignores them. A
@@ -449,14 +449,14 @@ changelog:
 #     tag: []
 #
 # On GitHub, filter in the workflow instead, e.g. paths-ignore: [CHANGELOG.md] on
-# the branch trigger (docs/specs/02-configuration.md § git).
+# the branch trigger (docs/guides/skip-ci-on-release-commit.md).
 
 # ── hooks ─────────────────────────────────────────────────────────────────────
 #
-# Shell commands run at points in the release lifecycle (ADR-0053, ADR-0061). Each key is a list
+# Shell commands run at points in the release lifecycle. Each key is a list
 # of hook steps, run in order; the first failing step stops the rest of that list. Every step is
 # an object: `run` (required) is a Go text/template string — {{ .Version }}, {{ .Tag }},
-# {{ .PreviousTag }}, {{ .Env }} (ADR-0055) are always available; {{ .Platform }} is set only for
+# {{ .PreviousTag }}, {{ .Env }} are always available; {{ .Platform }} is set only for
 # pre_release/post_release. `stage` (optional) lists file paths/patterns that `run` produces,
 # staged into the same commit as CHANGELOG.md — patterns pass straight to `git add` (git's own
 # pathspec matching, no new glob dependency), and a pattern matching nothing is a `git add`
@@ -487,11 +487,11 @@ changelog:
 #
 # Omit this block if you do not publish releases to any platform. Presence — even
 # empty (release: {}) — always means "generate release notes and publish them,"
-# together; there is no config shape that gets one without the other (ADR-0046).
+# together; there is no config shape that gets one without the other.
 
 release:
-  # notes — rendering overrides for the release-page description text, generated
-  # natively. Omit entirely to use native's defaults (equivalent to `notes: {}`).
+  # notes — rendering overrides for the release-page description text. Omit it to use
+  # the built-in defaults (equivalent to `notes: {}`).
   #
   # tag_pattern, template — same semantics as the changelog block above.
   # notes:
@@ -499,8 +499,8 @@ release:
 
   # assets — glob patterns for files to attach to the release, applied to all targets.
   # Every pattern must match at least one file by the time the post_bump hooks have run,
-  # or the release aborts before anything is committed or pushed (ADR-0076; a dry run
-  # only warns, since hooks do not run in it). Every matched file must lie under the repository
+  # or the release aborts before anything is committed or pushed (a dry run only warns,
+  # since hooks do not run in it). Every matched file must lie under the repository
   # root (the directory heraut runs in), symlinks resolved: a match outside it, such as
   # an absolute path or ../, aborts the release before anything is published.
   # Precedence: if a target also defines assets:, the target-level list takes full
@@ -522,7 +522,7 @@ release:
 
   # targets — release publish destinations, each referencing a forges[].name (see
   # the forges block above). Omitting targets entirely publishes to the single
-  # resolved forge with default options (zero-config publishing) — see ADR-0044.
+  # resolved forge with default options (zero-config publishing).
   targets:
     # forge — references a forges[].name. Optional when exactly one forge is
     # configured (or auto-detected); required when more than one is configured.

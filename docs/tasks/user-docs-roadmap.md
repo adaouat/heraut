@@ -1,6 +1,6 @@
 # Héraut — User Documentation Roadmap
 
-> Status: In progress (drafted 2026-11-06; 89a and 89b done)
+> Status: In progress (drafted 2026-11-06; 89a, 89b and 89c done)
 > Source: the user's review of 2026-11-06. heraut's docs are written for contributors and agents
 > (specs, ADRs, roadmap); a user who lands on the repo has no path that avoids them. This epic adds
 > user docs next to the contributor docs, without moving `docs/specs/`, `docs/adr/` or `docs/tasks/`.
@@ -35,7 +35,7 @@
 |---|---|---|---|
 | 89a | Front doors and getting started | T453–T458 | Done |
 | 89b | Generated reference | T459–T464 | Done |
-| 89c | Guides | T465–T475, T486 | Planned |
+| 89c | Guides | T465–T475, T486 | Done |
 | 89d | Concepts | T476–T479 | Planned |
 | 89e | Keeping user docs current | T480 | Planned |
 
@@ -537,7 +537,7 @@ Done 2026-11-06, one commit per guide.
 - **Indexes.** `docs/guides/README.md` lists all 17 guides under the new titles, grouped, and the
   docs home's link texts follow the new titles.
 
-#### `[ ]` T486: `heraut.sample.yml` for users
+#### `[x]` T486: `heraut.sample.yml` for users
 
 Found while writing T461: the sample's comments cite ADRs 20 times, and its header sends readers to
 `docs/specs/02-configuration.md` and `04-versioning.md`. It is linked from the docs home and the
@@ -549,6 +549,20 @@ configuration reference as the commented full example, so it should follow the u
 
 `TestShippedExamples_LoadAndValidate` must stay green; consider a test that the sample cites no ADR,
 like the schema's.
+
+Done 2026-11-06.
+- **The header.** It now points to the configuration reference and the guides instead of Spec 02
+  and Spec 04. The other spec pointers go to the matching guides (environments, templates, skipping
+  the release commit's CI).
+- **Citations removed.** All 24 offending lines are clean: parenthetical ADR citations stripped,
+  the rest rewritten.
+- **Native jargon removed.** The six "native" mentions (the generator's internal name, also dropped
+  from the schema in T461) now say "built-in" or are gone.
+- **The test.** `TestShippedSample_CitesNoInternalDocument` (`internal/config`) applies the schema
+  test's pattern (ADR numbers, task ids, spec paths, `§`) to every line of the sample. It failed on
+  24 lines first, and a reintroduced `(ADR-0043)` fails it.
+- **Still valid.** `TestShippedExamples_LoadAndValidate` stays green, and `heraut check config`
+  accepts the sample.
 
 ---
 
