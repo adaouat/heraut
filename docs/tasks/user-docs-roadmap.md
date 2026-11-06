@@ -79,11 +79,17 @@ the file name doesn't) and was checked against the real 0.84.0 assets: the check
 and `gh attestation verify` succeeds (the packslip action attests each binary). The upgrade table
 uses the commands forge's update hint prints (`brew upgrade heraut`, `mise upgrade heraut`).
 
-#### `[ ]` T455: `docs/README.md`, the user docs home
+#### `[x]` T455: `docs/README.md`, the user docs home
 
 Rewrite `docs/README.md` as the user docs home, sorted by goal: get started, set up CI, guides by
 situation, concepts, reference, changelog. It lists only pages that exist; each later task adds its page.
 One closing line points contributors to `CONTRIBUTING.md`.
+
+**Done.** `docs/README.md` opens with one sentence on what heraut does, then Get started (Install),
+Guides as an "I want to…" table over the six user guides, and Reference. Until T460/T462 the reference
+is the commented `heraut.sample.yml`, `--help` and the changelog; no spec is linked. The specs, ADRs,
+roadmap and `ideas.md` rows the old index had now live in `CONTRIBUTING.md` (`ideas.md` added there).
+`docs/guides/README.md` stays as the folder index; its titles are aligned in T475.
 
 #### `[ ]` T456: Getting started — your first release
 

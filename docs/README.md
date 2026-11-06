@@ -1,11 +1,31 @@
-# Docs
+# heraut documentation
 
-Project documentation for Héraut.
+heraut computes your next version, writes the changelog and release notes, tags, and publishes the
+release to GitHub or GitLab. Start where your question is.
 
-| Path | Contents |
+## Get started
+
+- [Install](install.md): Homebrew, mise, a prebuilt binary, Docker or `go install`, and how to upgrade.
+
+## Guides
+
+Each guide answers one situation.
+
+| I want to… | Guide |
 |---|---|
-| [`specs/`](specs/) | Technical specifications — what the tool does and how |
-| [`guides/`](guides/) | How-to guides and worked examples for specific use cases |
-| [`adr/`](adr/) | Architecture Decision Records — why key choices were made |
-| [`tasks/`](tasks/) | Build roadmap with inline task checklist |
-| [`ideas.md`](ideas.md) | Post-v1.0 ideas not yet scheduled (heraut-action, CI pipeline templates) |
+| Tag every CI build of a mobile app with its build number | [Mobile apps: build numbers in tags](guides/mobile-ci-tagging.md) |
+| Release a fix on an older version line | [Maintenance branches](guides/maintenance-branches.md) |
+| Run my own scripts during a release | [Release pipeline and hooks](guides/release-pipeline-and-hooks.md) |
+| Change what the changelog and release notes look like | [Template customization](guides/template-customization.md) |
+| Get one release's notes as plain text for an app store | [Release notes for an app store](guides/store-release-notes.md) |
+| Finish or undo a release that failed halfway | [Recover from a failed release](guides/failure-recovery.md) |
+
+## Reference
+
+- [`heraut.sample.yml`](heraut.sample.yml): every configuration key, with a comment.
+- `heraut <command> --help`: the flags of each command.
+- [Changelog](../CHANGELOG.md): what changed in each version.
+
+---
+
+Working on heraut itself? See [CONTRIBUTING.md](../CONTRIBUTING.md).

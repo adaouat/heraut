@@ -58,5 +58,6 @@ fresh heraut binary releases itself (tag, changelog, GitHub release). See
 | [`docs/adr/`](docs/adr/) | Architecture decision records |
 | [`docs/tasks/`](docs/tasks/) | Roadmaps and task status |
 | [`docs/contributing/`](docs/contributing/) | Contributor guides (e2e tests) |
+| [`docs/ideas.md`](docs/ideas.md) | Post-v1.0 ideas, not scheduled yet |
 | [`internal/`](internal/) | The code, one package per concern (see `CLAUDE.md` for the layout) |
 | [`e2e/`](e2e/) | Tests against the built binary |
