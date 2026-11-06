@@ -40,7 +40,8 @@ forge your `origin` points to. heraut reads `git@github.com:acme/app.git` and kn
 GitHub, project `acme/app`.
 
 Prefer questions to a blank file? `heraut init` asks them (strategy, prefix, changelog, where to
-publish) and writes the file for you.
+publish) and writes the file for you. `heraut init --defaults` writes this same file without asking
+(with `release: {}`, which means the same as `notes: {}`) and says which forge it found.
 
 Commit the file:
 

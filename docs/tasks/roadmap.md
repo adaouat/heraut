@@ -258,7 +258,7 @@ discipline that applies to every task.
 | 87 | Skip only the release commit's workflow on GitHub (docs) | Done |
 | 88 | One enrichment forge for every target: check and docs | Done |
 | 89 | User documentation (front doors, guides, generated reference) | In progress — 89a (T453–T458) done; T459–T480, see `user-docs-roadmap.md` |
-| 90 | CI checkout pitfalls and `init --defaults` (shallow clone, detached HEAD) | In progress — T481, T482 done; T483 open |
+| 90 | CI checkout pitfalls and `init --defaults` (shallow clone, detached HEAD) | Done |
 
 ### Open items
 
@@ -4106,7 +4106,7 @@ Done 2026-11-06.
 - **GitLab guide.** It drops the `git checkout -B` line and says to keep the job in branch
   pipelines.
 
-#### `[ ]` T483: `heraut init --defaults` picks the forge from `origin`
+#### `[x]` T483: `heraut init --defaults` picks the forge from `origin`
 
 `scaffold.Defaults()` always writes `forges: [{platform: gitlab}]`, as Spec 03 says. On a GitHub
 repository the result points at the wrong forge, which is why Getting started doesn't use
@@ -4119,6 +4119,26 @@ repository the result points at the wrong forge, which is why Getting started do
 
 Spec 03's `--defaults` row changes with it. Tests first: GitHub, GitLab, self-hosted and no-origin
 rows on the generated YAML, each valid against `schema.json`.
+
+Done 2026-11-06.
+- **No `forges:` entry in any case.** `scaffold.Defaults()` writes no forge, so the file is the same
+  minimal config as the README and Getting started. Each run finds the forge from the CI job or the
+  origin. Writing the detected forge was rejected: it would freeze a project path that runtime
+  detection already finds. The old `{platform: gitlab}` was also wrong for self-hosted GitLab: it
+  points at gitlab.com.
+- **The report.** After writing, `init --defaults` says which forge it detected. It uses the new
+  `scaffold.DetectedForge`, the wizard's own detection: CI markers, then a github.com or gitlab.com
+  origin; Azure DevOps isn't counted, having no publish driver. When nothing is detected it warns
+  that `heraut release` needs a `forges:` entry, and still writes the file.
+- **Specs and docs.** Spec 03's `--defaults` row says so, and Getting started now mentions
+  `init --defaults`.
+- **Tests first.** Detection unit rows: GitHub SSH, GitLab.com HTTPS, self-hosted GitLab in its CI,
+  self-hosted outside CI, Azure, no origin. `TestDefaults_Platform` became `TestDefaults_NoForge`,
+  a deliberate change of the asserted behaviour this task makes. e2e Lane A covers three detected
+  origins (each config passing `check config`) and the warning. The cmd tests run inside heraut's
+  own checkout, whose real origin would leak in, so these are e2e and not cmd tests.
+- **Mutations.** 6 mutants each fail a test, a seventh doesn't compile, and a no-op control
+  survives.
 
 Every Phase above marked `Done` and not pointing to a dedicated roadmap (D, 0–9, 11–22, 26, 28,
 30, 31) has had its full task write-up — implementation notes, decisions, deviations — moved to

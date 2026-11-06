@@ -26,10 +26,51 @@ func TestDefaults_EnableChangelogAndRelease(t *testing.T) {
 	assert.True(t, a.PublishReleases)
 }
 
-func TestDefaults_Platform(t *testing.T) {
+// --defaults writes no forges: entry: the forge is found at each run from the CI job or the git
+// origin, so a GitHub or self-hosted GitLab repository is never pointed at gitlab.com.
+func TestDefaults_NoForge(t *testing.T) {
 	a := scaffold.Defaults()
-	assert.Len(t, a.Platforms, 1)
-	assert.Equal(t, "gitlab", a.Platforms[0].Type)
+	assert.Empty(t, a.Platforms)
+	assert.True(t, a.PublishReleases, "the release block stays, with the forge auto-detected")
+
+	out, err := scaffold.GenerateYAML(a, "dev")
+	require.NoError(t, err)
+	assert.NotContains(t, out, "forges:")
+	assert.Contains(t, out, "release:")
+}
+
+func TestDetectedForge(t *testing.T) {
+	noEnv := func(string) string { return "" }
+	gitlabCI := func(k string) string {
+		return map[string]string{
+			"GITLAB_CI":       "true",
+			"CI_SERVER_URL":   "https://gitlab.example.com",
+			"CI_PROJECT_PATH": "acme/app",
+		}[k]
+	}
+	tests := []struct {
+		name        string
+		getenv      func(string) string
+		origin      string
+		wantType    string
+		wantProject string
+		wantOK      bool
+	}{
+		{"GitHub origin, SSH", noEnv, "git@github.com:acme/app.git", "github", "acme/app", true},
+		{"GitLab.com origin, HTTPS", noEnv, "https://gitlab.com/acme/tools/app.git", "gitlab", "acme/tools/app", true},
+		{"self-hosted GitLab in its CI", gitlabCI, "https://gitlab.example.com/acme/app.git", "gitlab", "acme/app", true},
+		{"self-hosted origin outside CI", noEnv, "git@gitlab.example.com:acme/app.git", "", "", false},
+		{"Azure DevOps has no publish driver", noEnv, "https://dev.azure.com/acme/app/_git/app", "", "", false},
+		{"no origin", noEnv, "", "", "", false},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			typ, project, ok := scaffold.DetectedForge(tc.getenv, tc.origin)
+			assert.Equal(t, tc.wantType, typ)
+			assert.Equal(t, tc.wantProject, project)
+			assert.Equal(t, tc.wantOK, ok)
+		})
+	}
 }
 
 func TestConfigToAnswers_Strategy(t *testing.T) {

@@ -26,6 +26,21 @@ func detectPlatform(getenv func(string) string, gitOrigin string) (typ, projectO
 	return "", parseRemoteProject(gitOrigin)
 }
 
+// DetectedForge reports the publishing forge a run would find on its own: CI markers first, then a
+// git origin on github.com or gitlab.com. ok is false for anything else, Azure DevOps included,
+// since it has no publish driver.
+func DetectedForge(getenv func(string) string, gitOrigin string) (typ, project string, ok bool) {
+	typ, project = detectPlatform(getenv, gitOrigin)
+	if typ == "" {
+		return "", "", false
+	}
+	return typ, project, true
+}
+
+// GitOrigin returns the origin remote URL of the current directory's repository, or "" when there
+// is none.
+func GitOrigin() string { return gitRemoteOriginURL() }
+
 // parseRemoteProject extracts "namespace/project" (or "owner/repo") from a git
 // remote URL. Handles SSH (git@host:path.git), ssh:// and HTTPS schemes.
 func parseRemoteProject(rawURL string) string {

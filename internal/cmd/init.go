@@ -139,7 +139,20 @@ func runInit(cmd *cobra.Command, version string) error {
 	}
 
 	_, _ = fmt.Fprintln(out, ui.Success(out, "config written to "+path))
+	if defaults {
+		printDetectedForge(out)
+	}
 	return nil
+}
+
+// printDetectedForge says which forge the runs of a --defaults config will publish to, since the
+// file names none.
+func printDetectedForge(out io.Writer) {
+	if typ, project, ok := scaffold.DetectedForge(os.Getenv, scaffold.GitOrigin()); ok {
+		_, _ = fmt.Fprintln(out, ui.Info(out, fmt.Sprintf("heraut release will publish to %s (%s): each run finds it from the CI job or the git origin", typ, project)))
+		return
+	}
+	_, _ = fmt.Fprintln(out, ui.Warn(out, "no GitHub or GitLab forge detected from the CI job or the git origin: heraut release needs a forges: entry (see docs/heraut.sample.yml)"))
 }
 
 // printDroppedFieldsWarning warns that the listed settings exist in the loaded config

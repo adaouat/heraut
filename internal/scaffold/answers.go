@@ -89,8 +89,9 @@ var calverPresets = []struct {
 	{"Custom format", "custom"},
 }
 
-// Defaults returns opinionated non-interactive defaults: semver, prefix "v",
-// changelog + release enabled, gitlab platform.
+// Defaults returns opinionated non-interactive defaults: semver, prefix "v", changelog and
+// release enabled. It names no platform: each run finds the forge from the CI job or the git
+// origin, so the file fits a GitHub, GitLab.com or self-hosted GitLab repository alike.
 func Defaults() Answers {
 	return Answers{
 		Strategy:        "semver",
@@ -98,7 +99,6 @@ func Defaults() Answers {
 		EnableChangelog: true,
 		ChangelogOutput: "CHANGELOG.md",
 		PublishReleases: true,
-		Platforms:       []PlatformAnswer{{Type: "gitlab"}},
 	}
 }
 
