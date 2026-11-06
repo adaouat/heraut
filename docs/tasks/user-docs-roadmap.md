@@ -589,10 +589,27 @@ Done 2026-11-06.
 - **Checked in forge.** The update check is the once-a-day `updatecheck` hint.
 - **The console output** is the shape quoted in Getting started, from the built binary.
 
-#### `[ ]` T477: Choose a versioning strategy
+#### `[x]` T477: Choose a versioning strategy
 
 New `docs/concepts/versioning-strategies.md`: a decision table for the four strategies, one example each,
 `tag_format`.
+
+Done 2026-11-06.
+- **The page.** `docs/concepts/versioning-strategies.md` covers:
+  - a two-question decision table;
+  - one section per strategy, with when to choose it;
+  - the CalVer formats table;
+  - `tag_prefix` against `tag_format` and its three placeholders;
+  - what happens when you change strategy.
+  - It is linked from the docs home.
+- **Run with the built binary in a scratch repo.** The next version under every strategy, and
+  seven CalVer formats (`2026.11.0`, `2026.11.06.0`, `2026.45.0`, `2026.4.0`, `2026.2.0`,
+  `2026.5.0`, `2026.0`). Also:
+  - `PATCH` counting up within a period;
+  - `semver` ignoring a CalVer tag, and `--set-version` after a switch;
+  - a free `{version}-{env}` order.
+- **A format check, not a bug.** Text that isn't a token is kept literally (`YYYY.0M.PATCH` gives
+  `2026.0M.0`); that matches Spec 04's literal text, and the page says so.
 
 #### `[ ]` T478: How the next version is found
 

@@ -12,6 +12,8 @@ release to GitHub or GitLab. Start where your question is.
 
 - [How a release runs](concepts/how-heraut-works.md): the steps, what each one writes, and what heraut
   never does.
+- [Choose a versioning strategy](concepts/versioning-strategies.md): SemVer or CalVer, with or without
+  environments.
 
 ## Release from CI
 
