@@ -484,10 +484,25 @@ Done 2026-11-06.
 - **Not run.** The lefthook and hk snippets, and the two CI jobs. The GitLab variable comes from
   GitLab's predefined variables.
 
-#### `[ ]` T474: Guide — let an AI agent drive heraut
+#### `[x]` T474: Guide — let an AI agent drive heraut
 
 New `docs/guides/ai-agents.md`: `heraut skill install`, the `--json` commands, a safe agent loop
 (`check`, `version next`, `release --dry-run --json`).
+
+Done 2026-11-06.
+- **The guide.** `docs/guides/ai-agents.md` covers:
+  - installing the skill (Claude Code, per project or for all projects), and printing it for other
+    agents;
+  - the safe order the skill sets;
+  - the `--json` commands, with real `version next` and `release --dry-run` output;
+  - the error envelope and exit codes;
+  - which commands are safe to allow without asking.
+- **Run with the built binary.** `version next --json`, `release --dry-run --json`, `check config
+  --json` and `skill install --dir`. The JSON is exact (the plan is wrapped onto several lines for
+  reading).
+- **Also changed, in its own commit.** The bundled `SKILL.md` exit-code row for 3 now names the
+  checkout refusals from Phase 90, and tells the agent to ask for the full history rather than
+  retry.
 
 #### `[ ]` T475: the six existing guides, reviewed for users
 
