@@ -30,6 +30,9 @@ func NewNotesCmd() *cobra.Command {
 		Long: "Print the release notes of a tag: the changelog's groups and commit lines for the range from the tag's\n" +
 			"previous release (or --from) to the tag. Read-only. Shape the output with the notes: block of .heraut.yml,\n" +
 			"or --template for one run; --format text converts the Markdown to plain text.",
+		Example: "  heraut notes v1.2.0\n" +
+			"  heraut notes v1.2.0 --format text --output notes.txt\n" +
+			"  heraut notes v1.2.0 --from v1.0.0",
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			flags := newFlagReader(cmd)

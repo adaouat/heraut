@@ -28,6 +28,21 @@ func NewReleaseCmd(version string) *cobra.Command {
 	releaseCmd := &cobra.Command{
 		Use:   "release",
 		Short: "Resolve next version, generate changelog, tag, and publish",
+		Long: "Release the next version: resolve it from the commits since the last tag, write the changelog and\n" +
+			"commit it, create and push the tag, then publish a release with its notes to each target in\n" +
+			".heraut.yml (GitHub, GitLab). Run it from the branch you release from, with the full history fetched.\n" +
+			"--dry-run shows every step first; if a step fails, heraut stops there and says what is done.",
+		Example: "  # See what would happen, change nothing\n" +
+			"  heraut release --dry-run\n" +
+			"\n" +
+			"  # Release\n" +
+			"  heraut release\n" +
+			"\n" +
+			"  # Release a version you choose\n" +
+			"  heraut release --set-version 2.0.0\n" +
+			"\n" +
+			"  # Publish a release candidate (v1.4.0-rc.1), with no changelog entry\n" +
+			"  heraut release --pre-release rc",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			flags := newFlagReader(cmd)
 			asJSON := flags.Bool("json")

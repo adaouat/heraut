@@ -13,7 +13,12 @@ func NewRootCmd(version string) *cobra.Command {
 	root := &cobra.Command{
 		Use:   "heraut",
 		Short: "Release management for git-based projects",
-		Long:  ui.HelpLong(),
+		Example: "  # Write a config, check it, rehearse, release\n" +
+			"  heraut init\n" +
+			"  heraut check\n" +
+			"  heraut release --dry-run\n" +
+			"  heraut release",
+		Long: ui.HelpLong(),
 	}
 	root.SetVersionTemplate(ui.VersionTemplate())
 
@@ -29,12 +34,16 @@ func NewRootCmd(version string) *cobra.Command {
 	root.AddCommand(NewCommitCmd())
 	root.AddCommand(NewInitCmd(version))
 	root.AddCommand(NewSkillCmd())
-	root.AddCommand(updatecheck.WhatsNewCommand(updatecheck.WhatsNewConfig{
+	whatsNew := updatecheck.WhatsNewCommand(updatecheck.WhatsNewConfig{
 		Repo:      "adaouat/heraut",
 		Current:   version,
 		CacheFile: updatecheck.CacheFile("heraut"),
 		Changelog: heraut.Changelog,
-	}))
+	})
+	whatsNew.Long = "Show the release notes of every heraut version newer than the one running. When GitHub can't be\n" +
+		"reached it reads a local cache, then the changelog built into the binary, so it works offline too."
+	whatsNew.Example = "  heraut whatsnew"
+	root.AddCommand(whatsNew)
 
 	// After each command, print a one-line update hint if a newer release exists
 	// (cached 24h, errors swallowed). Skipped for dev builds and via opt-out.

@@ -26,6 +26,17 @@ func NewChangelogCmd(version string) *cobra.Command {
 	changelogCmd := &cobra.Command{
 		Use:   "changelog",
 		Short: "Generate changelog (optionally commit and tag)",
+		Long: "Write the changelog for the next version without publishing anything. On its own it only updates\n" +
+			"the changelog file; --commit also commits and pushes it, --tag also creates and pushes the tag.\n" +
+			"Use it for projects that tag but publish no forge release, or to read the changelog before releasing.",
+		Example: "  # Update CHANGELOG.md, commit nothing\n" +
+			"  heraut changelog\n" +
+			"\n" +
+			"  # Commit, tag and push, without a forge release\n" +
+			"  heraut changelog --tag\n" +
+			"\n" +
+			"  # Commit and tag locally only\n" +
+			"  heraut changelog --tag --no-push",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			skipHookPoints, err := resolveSkipHooks(cmd, skipHooks, noHooks, app.ChangelogHookPoints())
 			if err != nil {

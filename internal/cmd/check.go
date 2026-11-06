@@ -23,6 +23,12 @@ func NewCheckCmd() *cobra.Command {
 	checkCmd := &cobra.Command{
 		Use:   "check",
 		Short: "Run preflight validations",
+		Long: "Run both checks a release depends on: check config validates .heraut.yml offline, and check runtime\n" +
+			"checks git, its identity, the repository's history and each release target's token. The exit code is\n" +
+			"non-zero when either fails, so it works as a CI gate before heraut release.",
+		Example: "  heraut check\n" +
+			"  heraut check --env prod\n" +
+			"  heraut check --json",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			flags := newFlagReader(cmd)
 			asJSON := flags.Bool("json")
@@ -108,6 +114,10 @@ func newCheckConfigCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "config",
 		Short: "Validate .heraut.yml (offline)",
+		Long: "Validate .heraut.yml without any network access. Unknown keys, missing fields and invalid values are\n" +
+			"reported with their path and a hint.",
+		Example: "  heraut check config\n" +
+			"  heraut check config --config ci/heraut.yml",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			flags := newFlagReader(cmd)
 			asJSON := flags.Bool("json")
@@ -147,6 +157,11 @@ func newCheckRuntimeCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "runtime",
 		Short: "Check binaries on PATH, token env vars, and git user config",
+		Long: "Check what a release needs from this machine: git on PATH, git user.name and user.email, the full\n" +
+			"history (not a shallow clone), and for each release target a token that can reach its API. A dirty\n" +
+			"working tree is a warning, not a failure.",
+		Example: "  heraut check runtime\n" +
+			"  heraut check runtime --env prod",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			flags := newFlagReader(cmd)
 			asJSON := flags.Bool("json")

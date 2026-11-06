@@ -20,7 +20,13 @@ func NewInitCmd(version string) *cobra.Command {
 	initCmd := &cobra.Command{
 		Use:   "init",
 		Short: "Generate .heraut.yml interactively (or with --defaults)",
-		RunE:  func(cmd *cobra.Command, args []string) error { return runInit(cmd, version) },
+		Long: "Create .heraut.yml by answering a few questions: versioning strategy, tag prefix, changelog and where\n" +
+			"to publish. With an existing file it offers to update it. --defaults writes a default config without\n" +
+			"asking: SemVer, prefix v, CHANGELOG.md, and a release on the forge found from CI or the git origin.",
+		Example: "  heraut init\n" +
+			"  heraut init --defaults\n" +
+			"  heraut init --config .config/heraut.yml",
+		RunE: func(cmd *cobra.Command, args []string) error { return runInit(cmd, version) },
 	}
 
 	initCmd.Flags().Bool("defaults", false, "write opinionated defaults non-interactively")

@@ -16,6 +16,11 @@ func NewSkillCmd() *cobra.Command {
 	skillCmd := &cobra.Command{
 		Use:   "skill",
 		Short: "Install or print the agent skill that teaches an AI agent to use heraut",
+		Long: "The agent skill teaches an AI coding agent how to drive heraut: the safe order of commands, which\n" +
+			"ones change things, the --json output and the exit codes. It is built into the binary, so it always\n" +
+			"matches this version.",
+		Example: "  heraut skill install\n" +
+			"  heraut skill print",
 	}
 	skillCmd.AddCommand(newSkillPrintCmd(), newSkillInstallCmd())
 	return skillCmd
@@ -23,9 +28,11 @@ func NewSkillCmd() *cobra.Command {
 
 func newSkillPrintCmd() *cobra.Command {
 	return &cobra.Command{
-		Use:   "print",
-		Short: "Print the agent skill (SKILL.md) to stdout",
-		Args:  cobra.NoArgs,
+		Use:     "print",
+		Short:   "Print the agent skill (SKILL.md) to stdout",
+		Long:    "Print the agent skill (SKILL.md) to stdout, to put it wherever your agent reads its instructions.",
+		Example: "  heraut skill print > docs/agents/heraut.md",
+		Args:    cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if _, err := fmt.Fprint(cmd.OutOrStdout(), skill.Content()); err != nil {
 				return exitcode.Wrap(exitcode.Runtime, err)
@@ -41,7 +48,12 @@ func newSkillInstallCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "install",
 		Short: "Write the agent skill to <dir>/heraut/SKILL.md",
-		Args:  cobra.NoArgs,
+		Long: "Write the agent skill to <dir>/heraut/SKILL.md, by default under .claude/skills. A file identical to\n" +
+			"the bundled one is left alone; a file that differs is replaced only with --force.",
+		Example: "  heraut skill install\n" +
+			"  heraut skill install --dir ~/.claude/skills\n" +
+			"  heraut skill install --force",
+		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			target := filepath.Join(dir, "heraut", "SKILL.md")
 			want := []byte(skill.Content())

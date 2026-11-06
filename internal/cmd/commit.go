@@ -22,6 +22,12 @@ func NewCommitCmd() *cobra.Command {
 	commitCmd := &cobra.Command{
 		Use:   "commit",
 		Short: "Commit message tooling",
+		Long: "Tools for Conventional Commits messages, the format heraut reads to pick the next version and fill\n" +
+			"the changelog: check one message or a range of commits, check the ticket patterns, or write a message\n" +
+			"step by step.",
+		Example: "  heraut commit verify \"feat(api): add pagination\"\n" +
+			"  heraut commit check --from-latest-tag\n" +
+			"  heraut commit create",
 	}
 	commitCmd.AddCommand(newCommitVerifyCmd())
 	commitCmd.AddCommand(newCommitCheckCmd())
@@ -35,7 +41,12 @@ func newCommitVerifyCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "verify [message]",
 		Short: "Validate a commit message against the conventional-commit grammar",
-		Args:  cobra.MaximumNArgs(1),
+		Long: "Check one commit message against the Conventional Commits grammar, and against the types and rules\n" +
+			"in .heraut.yml when it has any. Prints the parsed type, scope and tickets; exits 1 when the message is\n" +
+			"invalid. Merge and fixup commits are accepted as they are. Made for a commit-msg hook.",
+		Example: "  heraut commit verify \"fix(parser): handle empty input\"\n" +
+			"  heraut commit verify --file .git/COMMIT_EDITMSG",
+		Args: cobra.MaximumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			flags := newFlagReader(cmd)
 			asJSON := flags.Bool("json")
@@ -63,7 +74,13 @@ func newCommitCheckCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "check [rev-range]",
 		Short: "Validate every commit in a range (or full history) against the conventional-commit grammar",
-		Args:  cobra.MaximumNArgs(1),
+		Long: "Check every commit in a range (git's own range syntax), every commit since the latest tag, or the\n" +
+			"whole history. Invalid commits are listed with the reason and the exit code is 1 when there is any.\n" +
+			"Merge and fixup commits are skipped. Run it in CI on a pull request's commits.",
+		Example: "  heraut commit check\n" +
+			"  heraut commit check origin/main..HEAD\n" +
+			"  heraut commit check --from-latest-tag",
+		Args: cobra.MaximumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if fromLatestTag && len(args) == 1 {
 				return exitcode.Wrap(exitcode.Usage, errors.New("cannot use both --from-latest-tag and a rev-range argument"))
@@ -140,7 +157,12 @@ func newCommitTicketsCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "tickets [rev-range]",
 		Short: "Validate commits.tickets patterns against a range (or full history) of commits",
-		Args:  cobra.MaximumNArgs(1),
+		Long: "Show which ticket references the commits.tickets patterns of .heraut.yml find in a range of\n" +
+			"commits, and the link each one becomes in the changelog. A diagnostic for writing those patterns: it\n" +
+			"warns when nothing matches but never fails.",
+		Example: "  heraut commit tickets --from-latest-tag\n" +
+			"  heraut commit tickets v1.2.0..HEAD",
+		Args: cobra.MaximumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if fromLatestTag && len(args) == 1 {
 				return exitcode.Wrap(exitcode.Usage, errors.New("cannot use both --from-latest-tag and a rev-range argument"))
@@ -212,7 +234,12 @@ func newCommitCreateCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "create",
 		Short: "Interactively author a Conventional Commits message and commit it",
-		Args:  cobra.NoArgs,
+		Long: "Write a Conventional Commits message step by step (type, scope, description, body, breaking change,\n" +
+			"tickets) and run git commit with it. Needs an interactive terminal.",
+		Example: "  heraut commit create\n" +
+			"  heraut commit create --all\n" +
+			"  heraut commit create --dry-run",
+		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			flags := newFlagReader(cmd)
 			cfgPath := flags.String("config")

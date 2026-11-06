@@ -147,11 +147,24 @@ T457) itself.
 
 ### Phase 89b — Generated reference
 
-#### `[ ]` T459: a `Long:` description for every command
+#### `[x]` T459: a `Long:` description for every command
 
 Only 2 commands have a `Long:` today. Write one for each command and subcommand: what it is for, when to use
 it, one example. It improves `--help` as much as the docs. Tests: a table test that every command has a
 non-empty `Long:` and `Example:`.
+
+Done 2026-11-06.
+- **Text.** Every command has a `Long:` (what it is for, when to use it, in two to four lines) and an
+  `Example:` block (cobra's two-space indent, `#` comments where examples need a word).
+- **`whatsnew`.** It comes from forge's `updatecheck.WhatsNewCommand`, so `root.go` sets its text
+  on the returned command instead of changing forge.
+- **The root command.** Its `Long:` stays the gold banner, and only an `Example:` was added. T460's
+  generator will replace the banner with plain text for the page.
+- **The test.** `TestEveryCommandHasLongAndExample` (`internal/cmd/help_text_test.go`) walks the
+  tree, skipping cobra's `help`/`completion`. Each command needs both fields, and every non-comment
+  example line must start with `heraut`. A mutant breaking that rule fails it.
+- **Not touched.** `check runtime`'s `Short:` still says "binaries on PATH, token env vars". It's
+  stale since native has no binary, but out of scope; its new `Long:` describes what it checks.
 
 #### `[ ]` T460: generated commands reference
 

@@ -17,6 +17,10 @@ func NewVersionCmd() *cobra.Command {
 	versionCmd := &cobra.Command{
 		Use:   "version",
 		Short: "Print version information",
+		Long: "Read versions without changing anything: next is the tag a release would create, current is the\n" +
+			"latest released tag. sprint bump advances the sprint counter of CalVer formats that use SPRINT.",
+		Example: "  heraut version next\n" +
+			"  heraut version current --bare",
 	}
 	versionCmd.AddCommand(newVersionNextCmd())
 	versionCmd.AddCommand(newVersionCurrentCmd())
@@ -30,6 +34,13 @@ func newVersionNextCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "next",
 		Short: "Compute and print the next version without side effects",
+		Long: "Print the tag the next release would create, from the commits since the last tag. Nothing is\n" +
+			"written. Use it in CI to know the version before building. Warnings (a major held back or still to\n" +
+			"confirm, a shallow clone) go to stderr, so stdout is exactly the tag.",
+		Example: "  heraut version next\n" +
+			"  heraut version next --env staging\n" +
+			"  heraut version next --pre-release rc\n" +
+			"  heraut version next --json",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			flags := newFlagReader(cmd)
 			asJSON := flags.Bool("json")
@@ -146,6 +157,11 @@ func newVersionCurrentCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "current",
 		Short: "Print the latest released tag",
+		Long: "Print the latest released tag for the strategy, and environment, in .heraut.yml. Pre-release tags are\n" +
+			"skipped unless --include-pre-release is given; --bare prints the version without its prefix.",
+		Example: "  heraut version current\n" +
+			"  heraut version current --bare\n" +
+			"  heraut version current --env prod",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			flags := newFlagReader(cmd)
 			asJSON := flags.Bool("json")

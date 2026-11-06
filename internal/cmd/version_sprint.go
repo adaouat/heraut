@@ -11,8 +11,10 @@ import (
 
 func newVersionSprintCmd() *cobra.Command {
 	sprintCmd := &cobra.Command{
-		Use:   "sprint",
-		Short: "Sprint counter management",
+		Use:     "sprint",
+		Short:   "Sprint counter management",
+		Long:    "Manage the sprint counter (versioning.sprint in .heraut.yml) of CalVer formats that contain SPRINT.",
+		Example: "  heraut version sprint bump",
 	}
 	sprintCmd.AddCommand(newVersionSprintBumpCmd())
 	return sprintCmd
@@ -22,6 +24,10 @@ func newVersionSprintBumpCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "bump",
 		Short: "Increment versioning.sprint in .heraut.yml",
+		Long: "Add one to versioning.sprint in .heraut.yml and write the file back. Run it at the start of each\n" +
+			"sprint: the next release uses the new number and resets PATCH to 0.",
+		Example: "  heraut version sprint bump\n" +
+			"  heraut version sprint bump --dry-run",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			flags := newFlagReader(cmd)
 			cfgPath := flags.String("config")
