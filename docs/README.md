@@ -6,6 +6,7 @@ release to GitHub or GitLab. Start where your question is.
 ## Get started
 
 - [Install](install.md): Homebrew, mise, a prebuilt binary, Docker or `go install`, and how to upgrade.
+- [Your first release](getting-started.md): from no config to a published release, step by step.
 
 ## Guides
 

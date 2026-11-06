@@ -91,11 +91,22 @@ is the commented `heraut.sample.yml`, `--help` and the changelog; no spec is lin
 roadmap and `ideas.md` rows the old index had now live in `CONTRIBUTING.md` (`ideas.md` added there).
 `docs/guides/README.md` stays as the folder index; its titles are aligned in T475.
 
-#### `[ ]` T456: Getting started — your first release
+#### `[x]` T456: Getting started — your first release
 
 New `docs/getting-started.md`: from an empty repo to a published release, locally. `heraut init` →
 `heraut check` → `heraut release --dry-run` → `heraut release`, with what each step prints (from a real run)
 and what it changed in the repo. Ends with links to the two CI guides.
+
+**Done.** `docs/getting-started.md`: write the minimal config (the README's, forge detected from
+`origin`) with `heraut init` as the guided alternative, then `check config`, `check runtime` (with
+the token), `version next` and the bump rules, `release --dry-run`, a local `heraut changelog` to read
+the result, and what `heraut release` does step by step. Every output is from a run of the built
+binary in a scratch repo with a `git@github.com:acme/app.git` origin; the git identity shown is
+synthetic. The publish step itself was not run against a real forge. Deviation: the page starts from a
+written config, not `heraut init --defaults`, because `--defaults` always writes a GitLab forge (Spec
+03), even in a repo whose origin is on GitHub; raised with the user as a possible change. Found while
+checking: the changelog has commit links only with a CI or target context, so a local `heraut
+changelog` shows bare hashes; the page says so. Links forward to the two CI guides (T457, T458).
 
 #### `[ ]` T457: Guide — release from GitHub Actions
 

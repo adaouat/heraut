@@ -46,6 +46,8 @@ heraut release --dry-run   # see what would happen, change nothing
 heraut release             # version, changelog, commit, tag, publish
 ```
 
+Step by step, with what each command prints: [Your first release](docs/getting-started.md).
+
 A small `.heraut.yml` for a project released on GitHub:
 
 ```yaml
