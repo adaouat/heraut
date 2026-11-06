@@ -1,12 +1,11 @@
-# Recovering from a failed release
+# Recover from a failed release
 
 `heraut release` does not roll back. A step that fails stops the run, and everything that already
-happened stays (Spec 02 § Failure semantics, [ADR-0053](../adr/0053-release-lifecycle-hooks.md)).
+happened stays.
 This guide lists the states a failed run can leave and how to get out of each one. It never asks you
 to rewrite history, and every command below was run against a GitHub and a GitLab test repository.
 
-heraut always pushes to the remote named `origin` ([Spec 03](../specs/03-commands.md#the-remote-is-always-origin)),
-so the commands below use that name.
+heraut always pushes to the remote named `origin`, so the commands below use that name.
 
 The examples use the tag `v1.2.3`, the GitHub repository `acme/widget` and the GitLab project
 `acme/widget`; substitute your own. The forge commands use the `gh` and `glab` CLIs, which heraut
@@ -37,8 +36,8 @@ Then pick the state that matches:
 
 ## A. Commit pushed, no tag
 
-Typical cause: a `pre_tag` hook failed, creating the tag failed, or a release asset pattern matched no file
-(that check runs before the changelog commit, so the run stops with nothing committed and a clear message).
+Typical cause: a `pre_tag` hook failed, or creating the tag failed. (A release asset pattern that
+matches no file stops the run earlier, before the changelog commit, with nothing committed.)
 A remote that refuses push options fails the commit push itself ("the receiving end does not support
 push options"), so the commit exists only locally. Drop the option from `git.push_options.commit` and
 run again: the retry finds nothing to commit and pushes the local commit before tagging.
@@ -70,8 +69,8 @@ git push origin v1.2.3
 ## C. Tag pushed, no release
 
 Typical cause: the forge call failed (token, scope, outage), or the run was interrupted (Ctrl-C)
-while it fetched the release notes' pull requests or published; heraut deletes a GitHub draft it created on the way out, so there is no
-half-published release to clean up. A release asset pattern that matches nothing is not a cause: it is refused before anything is pushed (state A). No heraut command publishes a release
+while it fetched the release notes' pull requests or published. heraut deletes a GitHub draft it
+created on the way out, so there is no half-published release to clean up. No heraut command publishes a release
 for an existing tag, so create it with the forge's CLI, using the notes heraut generates:
 
 ```bash
@@ -108,7 +107,7 @@ glab release create v1.2.3 dist/app.bin -F notes.md -R acme/widget    # GitLab: 
 ```
 
 On GitLab the files heraut publishes live in the project's Generic Packages registry and are linked
-from the release (ADR-0069). `glab release create <files>` attaches them as plain release links
+from the release (see [Attach files to a release](release-assets.md)). `glab release create <files>` attaches them as plain release links
 instead (link type `other`, not a package link). If that matters, delete the release (see
 [Undo a release](#undo-a-release)) and let `heraut release` publish it again after fixing the cause.
 
