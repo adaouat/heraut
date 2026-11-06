@@ -1,6 +1,6 @@
 # Héraut — User Documentation Roadmap
 
-> Status: Planned (drafted 2026-11-06)
+> Status: In progress (drafted 2026-11-06; 89a done)
 > Source: the user's review of 2026-11-06. heraut's docs are written for contributors and agents
 > (specs, ADRs, roadmap); a user who lands on the repo has no path that avoids them. This epic adds
 > user docs next to the contributor docs, without moving `docs/specs/`, `docs/adr/` or `docs/tasks/`.
@@ -33,7 +33,7 @@
 
 | Phase | Theme | Tasks | Status |
 |---|---|---|---|
-| 89a | Front doors and getting started | T453–T458 | In progress |
+| 89a | Front doors and getting started | T453–T458 | Done |
 | 89b | Generated reference | T459–T464 | Planned |
 | 89c | Guides | T465–T475 | Planned |
 | 89d | Concepts | T476–T479 | Planned |
@@ -125,11 +125,23 @@ version again, silently (raised with the user as a possible check); without a `c
 release has 5 steps and commits nothing. A user page doesn't link the spec, so the path filter from
 Spec 02 is inlined; T467 will own it.
 
-#### `[ ]` T458: Guide — release from GitLab CI/CD
+#### `[x]` T458: Guide — release from GitLab CI/CD
 
 New `docs/guides/gitlab-ci.md`: a complete `.gitlab-ci.yml` job (rules, `GIT_DEPTH`, the image), job token
 vs project access token (what each can push and publish), protected tags and branches, and the common
 failures.
+
+**Done.** `docs/guides/gitlab-ci.md`: the job-token push setting first, then a manual job on the
+default branch in heraut's Docker image (`entrypoint: [""]`, pinned tag), `resource_group`,
+`GIT_DEPTH: "0"`, `git checkout -B "$CI_COMMIT_BRANCH"`, a git identity, `heraut check` then
+`heraut release`; what each part is for, protected branches and tags (a project access token for the
+push only, since in GitLab CI the API always uses the job token), `git.push_options.commit: [ci.skip]`
+for the release commit's pipeline (observed on gitlab.com in T449), and a failure table. Found and
+checked with the binary: on a detached HEAD, GitLab CI's default checkout, the changelog commit's
+`git push origin HEAD` fails ("not a full refname") and nothing reaches the remote; after
+`git checkout -B main` the commit and tag are pushed. The job was not run on GitLab (no sandbox run
+requested). Raised with the user: heraut could detect the detached HEAD (and the shallow clone of
+T457) itself.
 
 ---
 

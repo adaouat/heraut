@@ -257,7 +257,7 @@ discipline that applies to every task.
 | 86 | Push options for the release pushes (`git.push_options`, ADR-0079) | Done |
 | 87 | Skip only the release commit's workflow on GitHub (docs) | Done |
 | 88 | One enrichment forge for every target: check and docs | Done |
-| 89 | User documentation (front doors, guides, generated reference) | Planned — T453–T480, see `user-docs-roadmap.md` |
+| 89 | User documentation (front doors, guides, generated reference) | In progress — 89a (T453–T458) done; T459–T480, see `user-docs-roadmap.md` |
 
 ### Open items
 

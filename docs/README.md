@@ -11,6 +11,7 @@ release to GitHub or GitLab. Start where your question is.
 ## Release from CI
 
 - [GitHub Actions](guides/github-actions.md): a workflow you run from the Actions tab.
+- [GitLab CI/CD](guides/gitlab-ci.md): a manual job on your default branch.
 
 ## Guides
 
