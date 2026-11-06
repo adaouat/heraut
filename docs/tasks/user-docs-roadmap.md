@@ -460,10 +460,29 @@ Done 2026-11-06.
   quoted lines), `commit verify` with and without a ticket, and `commit check`. The outputs are
   exact.
 
-#### `[ ]` T473: Guide — check commit messages
+#### `[x]` T473: Guide — check commit messages
 
 New `docs/guides/commit-conventions.md`: `commit verify` in a commit-msg hook (hk, lefthook, plain git
 hooks), `commit check` in CI, `commit create`, types, scopes and `commits.rules`.
+
+Done 2026-11-06.
+- **The guide.** `docs/guides/commit-conventions.md` covers:
+  - `commit verify` from a `commit-msg` hook: plain git, lefthook, and hk (the step shape copied
+    from heraut's own `.config/hk/config.pkl`);
+  - `commit check` on pull requests, in GitHub Actions (`origin/<base_ref>..HEAD`) and GitLab
+    (`$CI_MERGE_REQUEST_DIFF_BASE_SHA..HEAD`);
+  - `commit create`;
+  - types, scopes and rules, with a table.
+- **Run with the built binary in a scratch repo.**
+  - The plain git hook refusing a bad header, a restricted scope and a `deny` rule, then accepting
+    a good message.
+  - `commit check` on a range (exit 1), `--from-latest-tag`, and `commit create` without a
+    terminal.
+  - The guide's `commits` block validated, with a new type accepted, a removed type refused, and
+    merge and `fixup!` messages skipped.
+  - The quoted messages are exact.
+- **Not run.** The lefthook and hk snippets, and the two CI jobs. The GitLab variable comes from
+  GitLab's predefined variables.
 
 #### `[ ]` T474: Guide — let an AI agent drive heraut
 

@@ -27,6 +27,7 @@ Each guide answers one situation.
 | Attach binaries, archives or checksums to a release | [Attach files to a release](guides/release-assets.md) |
 | Get pull request links and authors in the changelog | [Pull request data in the changelog](guides/pr-data-and-tokens.md) |
 | Link Jira or issue numbers from commit messages | [Link tickets](guides/tickets.md) |
+| Check commit messages in a hook and on pull requests | [Check commit messages](guides/commit-conventions.md) |
 | Tag every CI build of a mobile app with its build number | [Mobile apps: build numbers in tags](guides/mobile-ci-tagging.md) |
 | Release a fix on an older version line | [Maintenance branches](guides/maintenance-branches.md) |
 | Run my own scripts during a release | [Release pipeline and hooks](guides/release-pipeline-and-hooks.md) |
