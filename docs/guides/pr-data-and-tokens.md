@@ -25,6 +25,9 @@ Ada Lovelace <ada@example.com> <ada@home.example.com>
 `git log --format='%aN <%aE>' | sort -u` shows each person once when the file is right. The same
 name and email then appear in the changelog everywhere.
 
+Within one release heraut already merges two emails that lead to the same forge account, without a
+`.mailmap`. Across releases, only the `.mailmap` can tell they're the same person.
+
 ## The token it needs
 
 | Forge | Where | Token |

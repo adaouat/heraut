@@ -146,3 +146,77 @@ func TestRenderedCommits_FiltersToGroups(t *testing.T) {
 	assert.Equal(t, "aaa", got[0].Hash)
 	assert.Equal(t, "ccc", got[1].Hash, "order preserved")
 }
+
+// Two emails new in the same release that resolve to the same forge handle are one person: one
+// entry, credited with the PRs of both, under the first email seen.
+func TestCollectContributors_OneEntryPerHandle(t *testing.T) {
+	tests := []struct {
+		name    string
+		prs     map[string]PullRequest
+		before  map[string]bool
+		want    []string // the email of each entry, in order
+		wantPRs [][]int
+	}{
+		{
+			name: "same handle: one entry, both PRs",
+			prs: map[string]PullRequest{
+				"aaa": {Number: 1, AuthorLogin: "ada"},
+				"bbb": {Number: 2, AuthorLogin: "ada"},
+			},
+			want:    []string{"ada@work.example.com"},
+			wantPRs: [][]int{{1, 2}},
+		},
+		{
+			name: "same handle, one PR across both emails: credited once",
+			prs: map[string]PullRequest{
+				"aaa": {Number: 1, AuthorLogin: "ada"},
+				"bbb": {Number: 1, AuthorLogin: "ada"},
+			},
+			want:    []string{"ada@work.example.com"},
+			wantPRs: [][]int{{1}},
+		},
+		{
+			name: "different handles: two entries",
+			prs: map[string]PullRequest{
+				"aaa": {Number: 1, AuthorLogin: "ada"},
+				"bbb": {Number: 2, AuthorLogin: "grace"},
+			},
+			want:    []string{"ada@work.example.com", "ada@home.example.com"},
+			wantPRs: [][]int{{1}, {2}},
+		},
+		{
+			name:    "no handle (offline): entries stay per email",
+			want:    []string{"ada@work.example.com", "ada@home.example.com"},
+			wantPRs: [][]int{nil, nil},
+		},
+		{
+			name: "a new email whose handle a returning author in the release has: not new",
+			prs: map[string]PullRequest{
+				"aaa": {Number: 1, AuthorLogin: "ada"},
+				"bbb": {Number: 2, AuthorLogin: "ada"},
+			},
+			before: map[string]bool{"ada@work.example.com": true},
+		},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			commits := []parsedCommit{pc("aaa", "Ada", "ada@work.example.com"), pc("bbb", "Ada", "ada@home.example.com")}
+			before := tc.before
+			if before == nil {
+				before = map[string]bool{}
+			}
+
+			got := collectContributors(commits, before, tc.prs)
+
+			require.Len(t, got, len(tc.want))
+			for i, c := range got {
+				assert.Equal(t, tc.want[i], c.Author.Email)
+				var numbers []int
+				for _, pr := range c.PRs {
+					numbers = append(numbers, pr.Number)
+				}
+				assert.Equal(t, tc.wantPRs[i], numbers)
+			}
+		})
+	}
+}

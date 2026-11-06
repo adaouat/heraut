@@ -57,6 +57,12 @@ Contributors check, in `{{ .Author.Name }}` / `{{ .Author.Email }}`, and in the 
 GitLab REST and Azure DevOps use as the handle. Without a `.mailmap`, git returns the raw values, as
 before.
 
+**Within a release, a forge handle is one person.** Once enrichment has resolved handles, New
+Contributors entries that share a handle are merged into the first (each PR credited once), and an
+entry whose handle a returning author of the same release also has is dropped. Entries without a
+handle (no enrichment) stay per email. This catches two emails used in one release without a
+`.mailmap`; across releases, only `.mailmap` can.
+
 ### Commit classification (ADR-0033, ADR-0075)
 
 Each commit is grouped by its parsed conventional-commit type, never by its body. A type that is in the

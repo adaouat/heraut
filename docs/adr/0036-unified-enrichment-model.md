@@ -177,6 +177,11 @@ other emails in `.mailmap`, and every place heraut shows or compares an author s
 identity. Without a `.mailmap`, git returns the raw values, so nothing changes for projects that
 don't use one.
 
+Within a single release, the forge handle the remote tier already resolves is used as a second key
+(T491): entries sharing a handle merge, and a "new" email whose handle a returning author of the same
+release also has is not new. That needs no extra API call and no configuration, but it only sees the
+release's own commits, so the cross-release case still needs `.mailmap`.
+
 The alternative, asking the forge whether a merge request is a first contribution (GitLab's
 `first_contribution`), was left aside: GitHub has no reliable equivalent (`authorAssociation`
 describes the relationship today, not when the PR was opened), Azure DevOps none, and it would make

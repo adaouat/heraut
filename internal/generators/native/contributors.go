@@ -2,6 +2,7 @@ package native
 
 import (
 	"fmt"
+	"slices"
 	"strings"
 
 	"github.com/adaouat/heraut/internal/port"
@@ -66,12 +67,18 @@ func renderedCommits(commits []rawCommit, groups []group) []rawCommit {
 // rebase-merged PR can attach the same number to several commits) referenced by the contributor's
 // commits, not just the first (T262) — someone who opens more than one PR in their first release
 // is credited for all of them. Only first-time contributors are returned — the "New Contributors"
-// block renders exactly this list.
+// block renders exactly this list. Entries are then merged by forge handle (mergeByHandle).
 func collectContributors(commits []parsedCommit, before map[string]bool, prs map[string]PullRequest) []Contributor {
 	seen := make(map[string]bool)
+	returning := make(map[string]bool) // handles of this release's returning authors
 	var out []Contributor
 	for i, c := range commits {
 		email := c.raw.Email
+		if before[email] {
+			if pr, ok := prs[c.raw.Hash]; ok && pr.AuthorLogin != "" {
+				returning[pr.AuthorLogin] = true
+			}
+		}
 		if email == "" || seen[email] {
 			continue
 		}
@@ -99,6 +106,37 @@ func collectContributors(commits []parsedCommit, before map[string]bool, prs map
 			contrib.PRs = append(contrib.PRs, pr)
 		}
 		out = append(out, contrib)
+	}
+	return mergeByHandle(out, returning)
+}
+
+// mergeByHandle treats a forge handle as one person across emails: entries sharing a handle fold
+// into the first, crediting each PR once, and an entry whose handle a returning author of this
+// release also has is dropped, since that person isn't new. Entries without a handle (no
+// enrichment) stay per email.
+func mergeByHandle(entries []Contributor, returning map[string]bool) []Contributor {
+	var out []Contributor
+	at := make(map[string]int) // handle → index in out
+	for _, e := range entries {
+		handle := e.Author.Username
+		if handle == "" {
+			out = append(out, e)
+			continue
+		}
+		if returning[handle] {
+			continue
+		}
+		i, dup := at[handle]
+		if !dup {
+			at[handle] = len(out)
+			out = append(out, e)
+			continue
+		}
+		for _, pr := range e.PRs {
+			if !slices.ContainsFunc(out[i].PRs, func(p PullRequest) bool { return p.Number == pr.Number }) {
+				out[i].PRs = append(out[i].PRs, pr)
+			}
+		}
 	}
 	return out
 }

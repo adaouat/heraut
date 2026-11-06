@@ -261,7 +261,7 @@ discipline that applies to every task.
 | 90 | CI checkout pitfalls and `init --defaults` (shallow clone, detached HEAD) | Done |
 | 91 | Follow-ups from the generated reference (GitHub token for PR data, `check runtime` help) | Done |
 | 92 | Follow-ups from the guides (GitHub release commit, error punctuation, warning marks) | Done |
-| 93 | One person, one New Contributors entry (`.mailmap`, one entry per handle) | In progress — T490 done; T491 open |
+| 93 | One person, one New Contributors entry (`.mailmap`, one entry per handle) | Done |
 
 ### Open items
 
@@ -4350,7 +4350,8 @@ Done 2026-11-06.
   - A real-git test: Ada releases v1.0.0 with her work email, then commits with her personal one;
     a `.mailmap` maps both. The commit is "Ada Lovelace <ada@example.com>" and she isn't new.
   - The same repository without a `.mailmap` keeps today's result.
-  - The contract rows on `authorsBefore`'s arguments now expect `%aE` (13 rows in three files).
+  - The contract rows on `authorsBefore`'s arguments now expect `%aE` (7 assertions and their 8
+    queue comments, in three files).
 - **Mutations.** The raw name and email in the walk, the raw email alone, and the raw email in
   `authorsBefore` each fail the real-git tests on their own; a no-op control survives.
 - **Docs.**
@@ -4359,7 +4360,7 @@ Done 2026-11-06.
   - The PR-data guide gains "Someone listed as new twice?", with a `.mailmap` example and a check
     command; the changelog concept page links it.
 
-#### `[ ]` T491: one New Contributors entry per handle within a release
+#### `[x]` T491: one New Contributors entry per handle within a release
 
 When two emails new in the same release resolve to the same forge `@handle`, render one entry, with
 the PRs of both merged and de-duplicated (`collectContributors`, which dedupes by email today). Only
@@ -4368,6 +4369,24 @@ variant without a `.mailmap`; it doesn't fix the cross-release case, which T490 
 
 Tests first: two emails with one handle (one entry, both PRs), two emails with different handles
 (two entries), and no handle (unchanged).
+
+Done 2026-11-06.
+- **Where it lives.** `collectContributors` still builds entries per email, then `mergeByHandle`
+  (`internal/generators/native/contributors.go`) folds entries sharing a handle into the first,
+  crediting each PR number once.
+- **An addition, made deliberately.** The plan said one entry per handle. The same pass also drops a
+  "new" email whose handle belongs to a returning author who committed in this release. Same
+  mechanism, no extra call, and it removes one more way the reported duplicate can appear.
+- **Unchanged.** Entries without a handle stay per email, as the template skips them anyway
+  (`buildContributors`).
+- **Tests first.** A table with five cases: one handle, the same PR across both emails, two
+  handles, no handle, and a returning author's handle.
+- **Mutations.** 6 mutants (no merge, returning handles ignored or not recorded, PRs not
+  de-duplicated or dropped) each fail a test; a no-op control survives.
+- **Docs.** Spec 05 gains "Within a release, a forge handle is one person". The ADR-0036 addendum
+  covers it, and the guide note says `.mailmap` is still needed across releases.
+- **Correction.** T490's note said "13 rows in three files" without counting; it was 7 assertions
+  and 8 queue comments, now fixed above.
 
 Every Phase above marked `Done` and not pointing to a dedicated roadmap (D, 0–9, 11–22, 26, 28,
 30, 31) has had its full task write-up — implementation notes, decisions, deviations — moved to
