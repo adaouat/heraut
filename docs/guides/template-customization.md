@@ -1,27 +1,8 @@
-# Guide: Customizing changelog & release-notes templates
+# Customize the changelog and release notes
 
-heraut's `native` generator (its sole generator, ADR-0045) renders Markdown from built-in
-Go `text/template`s. Those templates are **user-customizable** (ADR-0037): you can reformat
-individual pieces (a commit line, a ticket link, a heading) without touching anything else,
-or replace the whole document structure. This guide covers every knob, where each one can be
-set, and how they combine.
-
-This is a companion to
-[Spec 05 § User-customizable templates](../specs/05-generators-and-platforms.md#user-customizable-templates-adr-0037-adr-0048)
-(the terse behavioral contract) and a run of ADRs covering the template block set:
-[ADR-0037](../adr/0037-native-template-api.md) (the original design rationale),
-[ADR-0048](../adr/0048-changelog-title-subtitle-blocks.md) (the `release_header`/`release_notes`
-rename and the `title`/`subtitle` blocks), [ADR-0049](../adr/0049-changelog-release-notes-footer-block.md)
-(the `footer`/`release_footer` split), [ADR-0050](../adr/0050-changelog-preamble-postamble-always-fresh.md)
-(preamble/postamble always render fresh, no `--regenerate` required),
-[ADR-0051](../adr/0051-footer-visual-separator.md) (the automatic blank-line + `---` separator
-before `footer`), [ADR-0059](../adr/0059-namespaced-template-blocks.md) (the release-/commit-cadence
-blocks renamed and namespaced under `release:`/`commit:`), and
-[ADR-0060](../adr/0060-rendering-commit-trailers-path.md) (`rendering.trailers` relocated to
-`rendering.templates.commit.trailers`). This guide is the worked-example version.
-
-**Applies to `native` only.** Since ADR-0045, `native` is heraut's sole generator, so there
-is no `generator:` key to gate this feature on — every `.heraut.yml` gets it.
+heraut writes the changelog and the release notes from built-in templates. You can change one piece
+(a commit line, a ticket link, a heading) without touching the rest, or replace the whole document.
+This guide covers every setting, where each one can be set, and how they combine.
 
 ---
 
@@ -34,7 +15,7 @@ is no `generator:` key to gate this feature on — every `.heraut.yml` gets it.
 
 If all you want is to reformat or hide specific *footer trailers* (`Co-authored-by`, `Refs`,
 `Signed-off-by`, …) rather than the whole commit line, skip ahead to [Customizing footer
-trailers](#customizing-footer-trailers-renderingtrailers-adr-0057) below —
+trailers](#customize-footer-trailers) below —
 `rendering.templates.commit.trailers` is a narrower, purpose-built knob for exactly that, and
 doesn't need a whole block override.
 
@@ -64,10 +45,8 @@ changelog:
 
 Any key under `rendering.templates` other than the ones below is a **config error** at load
 time — `schema.json` enumerates the same set for editor autocompletion, so a typo is caught
-before a run, not silently ignored. Since [ADR-0059](../adr/0059-namespaced-template-blocks.md),
-the release- and commit-cadence blocks nest under `release:`/`commit:` YAML objects; the
-document-level trio and the two document-root overrides have no release/commit-scoped
-counterpart to disambiguate from, so they stay flat.
+before a run, not silently ignored. Blocks used once per release sit under `release:`, those used
+once per commit under `commit:`; the document-level ones stay at the top.
 
 | Key | Context (data passed in) | Renders | Built-in default |
 |---|---|---|---|
@@ -89,7 +68,7 @@ counterpart to disambiguate from, so they stay flat.
 every other block's scope.** Every other block above renders again for each release/section a
 run touches; `title`/`subtitle`/`footer` render exactly once regardless of how many sections a
 changelog build walks — `footer` specifically renders once *after* every section, the trailing
-counterpart to `title`/`subtitle` at the top (ADR-0049). They also reach heraut's own metadata
+counterpart to `title`/`subtitle` at the top. They also reach heraut's own metadata
 differently: bare `.Version` `.URL` `.GeneratedAt` directly on `.` (their context *is*
 `.Heraut`), **not** `.Heraut.Version` the way `release.footer`/`release.section`/every other
 block does, since their root isn't a `Release` at all.
@@ -103,8 +82,7 @@ once, detached from any particular release.
 
 **`footer` gets an automatic visual separator.** Whenever `footer` is non-empty — built-in
 default or a full override — heraut prepends a blank line and a Markdown horizontal rule (`---`)
-before it, structural like the anchors (ADR-0051): not part of the block's own text, not
-overridable, and skipped entirely when `footer` is unset or nulled (`footer: ""`).
+before it. The separator is not part of the block's own text and can't be overridden; it is and skipped entirely when `footer` is unset or nulled (`footer: ""`).
 
 **`commit.ticket` is a nested block.** `commit.message` calls `{{ template "commit.ticket" . }}`
 once per matched `commits.tickets` pattern. Override just `commit.ticket` to restyle ticket links
@@ -122,17 +100,14 @@ changelog's own root never calls them.
 
 ---
 
-## Customizing footer trailers (`rendering.trailers`, ADR-0057)
+## Customize footer trailers
 
 `.Footers` (the `Commit` field above) already carries every commit-message footer trailer —
 `Co-authored-by`, `Refs`, `Signed-off-by`, whatever a commit happens to have — generically, as
 `{Token, Value}` pairs. By default every trailer renders identically, as `Token: Value`.
 `rendering.templates.commit.trailers` lets you relabel or hide specific tokens without touching
 the `commit.message` block (or any other block) at all. It lives inside the *same*
-`rendering.templates.commit` object as `message`/`ticket`/`contributor` — one discoverable path
-for everything commit-cadence —
-[moved there](../adr/0060-rendering-commit-trailers-path.md) from the original flat
-`rendering.trailers` (ADR-0060):
+`rendering.templates.commit` object as `message`/`ticket`/`contributor`:
 
 ```yaml
 rendering:
@@ -155,7 +130,7 @@ Set exactly one of `renderer`/`hide` per entry. A token that matches no entry ke
 `Token: Value` format — `rendering.templates.commit.trailers` never changes output for tokens you
 haven't listed, and an unset `rendering.templates.commit.trailers` changes nothing at all. The
 one exception: `Co-Authored-By` already has a built-in default,
-`_Co-Authored-By: {{ .Value }}_` (ADR-0058) — add your own `token: Co-Authored-By` entry to
+`_Co-Authored-By: {{ .Value }}_` — add your own `token: Co-Authored-By` entry to
 render it differently or `hide: true` to suppress it, same as overriding any other entry.
 
 **This controls *how* a footer renders, never *whether* a block shows footers.** Release notes
@@ -170,8 +145,7 @@ below), just keyed by token instead of block name: global → per-driver → per
 per token, an unset token falls through. There's no full-file equivalent —
 `rendering.templates.commit.trailers` is inline-only.
 
-See [Spec 02 § `rendering.trailers`](../specs/02-configuration.md#renderingtrailers-adr-0057-adr-0058)
-for the full field reference.
+Every field is listed in the [configuration reference](../reference/configuration.md#rendering).
 
 ---
 
@@ -282,10 +256,11 @@ changelog:
 {{range .Commits}}{{ template "commit.message" . }}
 {{end}}
 {{end}}
----
-Generated by heraut {{ .Heraut.Version }}
 {{end}}
 ```
+
+The `changelog` root renders once per release section, so anything in it repeats under every
+release. For text that should appear once in the file, use `title`, `subtitle` or `footer`.
 
 A `template:` file is parsed **last** — it wins outright for whatever blocks it defines, even
 over a per-env inline override. Blocks it doesn't touch keep whatever the layers below it
@@ -299,7 +274,7 @@ The template root is a `Release`. Everything below is reachable from any block v
 context argument (a block invoked with `.` receives the type in its "Context" column above).
 
 **`title`/`subtitle` are the one exception to this contract.** Their root is `.Heraut` itself
-(`tplHeraut`), not a `Release` — they're not tied to any single release, so there's no `Release`
+not a `Release` — they're not tied to any single release, so there's no `Release`
 to root them on. Write `{{ .Version }}`, not `{{ .Heraut.Version }}`, inside a `title` or
 `subtitle` override.
 
@@ -333,7 +308,7 @@ commit subject line) `.Body` `.Hash` `.ShortHash` `.CommitURL` `.Date` `.Author`
 **`Footer`** (a git trailer parsed from the commit body)
 `.Token` `.Value` (as parsed) `.Line` (fully-resolved display line — any matching
 `rendering.templates.commit.trailers` rule already applied; print this, not `.Token`/`.Value`,
-see [Customizing footer trailers](#customizing-footer-trailers-renderingtrailers-adr-0057) below)
+see [Customize footer trailers](#customize-footer-trailers) above)
 
 **`Stats`**
 `.CommitCount` `.ConventionalCount` `.TimespanDays` `.DaysSincePrev` `.HasDaysSincePrev`
@@ -348,8 +323,7 @@ Field names are the **experimental-in-v1** public API: additive changes (new fie
 free; renames or removals would be called out explicitly. `.Heraut.GeneratedAt` is
 wall-clock; the built-in `footer` renders it (`at HH:MM on YYYY-MM-DD`). `title`/`subtitle`/
 `footer` all render fresh from current config on **every** `heraut changelog`/`heraut release`
-run — incremental or not, no `--regenerate-changelog`/`--regenerate` required
-([ADR-0050](../adr/0050-changelog-preamble-postamble-always-fresh.md)) — same as release notes,
+run — incremental or not, no `--regenerate-changelog`/`--regenerate` required — same as release notes,
 which have no incremental concept at all (each release's notes are generated fresh, once). The
 trade-off: a hand-edited title, subtitle, or footer written directly into `CHANGELOG.md` does not
 survive the next run — it is silently replaced. Null the block (`footer: ""`) if you'd rather
@@ -457,7 +431,6 @@ execute against `.Heraut` directly, not a `Release`. Compare `release.section` a
 
 ## Gotchas
 
-- **`native` only.** There's no `generator:` key to check — every project gets this API.
 - **`title`/`subtitle`/`footer` address `.Heraut` differently from every other block.** They
   execute against `.Heraut` directly — write `{{ .Version }}`, not `{{ .Heraut.Version }}`.
   Every other block (`release.footer`, `release.section`, …) reaches the same data through
@@ -471,24 +444,21 @@ execute against `.Heraut` directly, not a `Release`. Compare `release.section` a
 - **No per-forge scoping** — route forge-specific formatting through an environment instead.
 - **A `template:` file wins outright**, even over a more specific per-env inline override or a
   null (`""`) override, for whatever blocks it defines — it's parsed last in the precedence chain.
-- **`title`/`subtitle`/`footer` live outside the document root.** They're rendered by Go code
-  (once per document — `title`/`subtitle` via `renderPreamble` before the root runs, `footer`
-  via `renderPostamble` after every section is joined, ADR-0049) — so a custom `<driver>.template`
-  file that fully redefines the root cannot suppress or reposition them. If that custom root also
-  invokes `{{ template "title" . }}` or `{{ template "footer" . }}` itself, it executes there
-  against a full `Release` (not the bare `.Heraut` context `renderPreamble`/`renderPostamble`
-  use) — same block name, different context, potentially different output, rendered twice.
+- **`title`/`subtitle`/`footer` live outside the document root.** heraut renders them itself, once
+  per document: `title` and `subtitle` before the root, `footer` after every section. A custom
+  `<driver>.template` file that redefines the root can't suppress or move them. If that root also
+  calls `{{ template "title" . }}` or `{{ template "footer" . }}`, the block runs there a second
+  time, against a full `Release` instead of `.Heraut`, so its output may differ.
 - **A hand-edited title/subtitle/footer does not survive the next run.** All three re-render from
-  current config on every `heraut changelog`/`heraut release` invocation, incremental or not
-  ([ADR-0050](../adr/0050-changelog-preamble-postamble-always-fresh.md)) — see
+  current config on every `heraut changelog`/`heraut release` invocation, incremental or not — see
   [Data contract](#data-contract) above.
 - **`rendering.templates.commit.trailers` governs formatting, not visibility.** It never turns
   footers on for a block that doesn't already loop over `.Footers` (the changelog's built-in
-  `commit.message` doesn't) — see [Customizing footer trailers](#customizing-footer-trailers-renderingtrailers-adr-0057)
+  `commit.message` doesn't) — see [Customize footer trailers](#customize-footer-trailers)
   above. It's also inline-only (no full-file equivalent) and matched case-insensitively by exact
   token, not by regex.
 - **`Co-Authored-By` is not "unmatched by default" like every other token.** It already has a
-  built-in credit-line rendering ([ADR-0058](../adr/0058-default-coauthored-by-trailer.md)) — a
+  built-in credit-line rendering — a
   project that wants the raw `Token: Value` line back, or wants to hide it, needs its own
   `rendering.templates.commit.trailers` entry for that exact token, same as overriding any other
   default.

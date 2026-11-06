@@ -32,7 +32,7 @@ Each guide answers one situation.
 | Tag every CI build of a mobile app with its build number | [Mobile apps: build numbers in tags](guides/mobile-ci-tagging.md) |
 | Release a fix on an older version line | [Maintenance branches](guides/maintenance-branches.md) |
 | Run my own scripts during a release | [Run your own steps during a release](guides/release-pipeline-and-hooks.md) |
-| Change what the changelog and release notes look like | [Template customization](guides/template-customization.md) |
+| Change what the changelog and release notes look like | [Customize the changelog and release notes](guides/template-customization.md) |
 | Get one release's notes as plain text for an app store | [Release notes for an app store](guides/store-release-notes.md) |
 | Finish or undo a release that failed halfway | [Recover from a failed release](guides/failure-recovery.md) |
 
