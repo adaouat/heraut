@@ -260,6 +260,7 @@ discipline that applies to every task.
 | 89 | User documentation (front doors, guides, generated reference) | In progress — 89a, 89b and 89c (T453–T475, T486) done; T476–T480, see `user-docs-roadmap.md` |
 | 90 | CI checkout pitfalls and `init --defaults` (shallow clone, detached HEAD) | Done |
 | 91 | Follow-ups from the generated reference (GitHub token for PR data, `check runtime` help) | Done |
+| 92 | Follow-ups from the guides (GitHub release commit, error punctuation, warning marks) | Planned — T487–T489 |
 
 ### Open items
 
@@ -4198,6 +4199,65 @@ Done 2026-11-06. The `Short:` is now "Check git, its identity, the history and e
 token", matching the `Long:`. `TestCommandReference_IsCurrent` failed until `mise run docs:gen` ran;
 the regenerated `heraut_check_runtime.md`, `heraut_check.md` (its Subcommands list) and the index
 are part of the commit. Text only, so the drift test is its test.
+
+### Phase 92 — Follow-ups from the guides
+
+Found on 2026-11-06 while writing and verifying the Phase 89c guides against the built binary.
+
+#### `[ ]` T487: create a GitHub release on the tagged commit, never on GitHub's default branch
+
+The GitHub driver creates a release with `tag_name` only (`CreateRelease` in
+`internal/platforms/github/client.go`, no `target_commitish`). When the tag isn't on GitHub yet
+(a GitLab project mirrored to GitHub, the mirror not synced), GitHub creates the tag itself, on the
+head of its default branch, which may be an older commit. The release then silently points at the
+wrong code. The guide `docs/guides/github-from-gitlab-ci.md` works around it with a `post_tag`
+hook that pushes the tag to GitHub.
+
+Proposal: pass the tagged commit's SHA as `target_commitish`. GitHub ignores it when the tag
+exists. When the tag is missing, GitHub creates the tag on that exact commit if it has it, and
+refuses with a 422 otherwise, which heraut reports as a publish failure. Points to check first:
+- **Where the SHA comes from.** The pipeline knows it (`git rev-parse <tag>^{commit}`); it reaches
+  `port.Platform.CreateRelease` as a new parameter or a field, a port change that updates every
+  implementor in one commit.
+- **The 422.** GitHub's exact answer for an unknown commit, checked on the sandbox (Lane B), so the
+  error can say "push the tag to GitHub first".
+- **Specs.** Spec 05 § GitHub's create row, and the guide's wording once it lands.
+
+Tests first: a contract row on the request body (`target_commitish` = the SHA), and the 422
+mapping.
+
+#### `[ ]` T488: no double period at the end of an error panel
+
+The error panel appends a period to every message: fang's `DefaultErrorHandler` renders
+`err.Error()+"."` (`charm.land/fang/v2` `help.go`), called from forge's `cli/errors.go`. Messages
+that already end with a period or a command get a second one. Examples from runs:
+- E003: "…(there is no version to promote).." (`internal/versioning/perenv/promote.go`);
+- E001: "…`heraut release --env staging --force.`", where the period lands on the command.
+
+Options:
+- in forge's error handler, skip the period when the message already ends with punctuation or a
+  closing code span (the sibling repo, `../forge`, and a forge release heraut then bumps to);
+- or make heraut's multi-line messages, the promotion guards first, end without a period.
+
+The first fixes every adaouat tool at once. Decide with the user, since it touches the sibling
+repo. Tests: the handler's rendering for messages ending in `.`, `)`, a command, and plain text.
+
+#### `[ ]` T489: show the degraded-enrichment notes as warnings, not successes
+
+When PR/MR enrichment fails under `enrichment_policy: optional`, the changelog step prints
+"— without enrichment" and two sub-lines, both marked ✓ like successes:
+
+```text
+✓ [2/2] Generate changelog — without enrichment
+     ✓ remote enrichment unavailable; rendering without PR attribution: … 401 Unauthorized
+     ✓ remote metadata unavailable — PR authors/numbers omitted
+```
+
+The lines come from `degradedSubs` (`internal/pipeline/warn.go`) and are printed by the step
+reporter as ordinary sub-lines. They should carry the warning mark (`!`), as other warnings do,
+in the styled reporter and in plain output. Check whether forge's step reporter has a warning
+sub-line; if not, this is a forge change too (see T488). Then update the quote in
+`docs/guides/pr-data-and-tokens.md`. Tests first: the reporter's output for a degraded generator.
 
 Every Phase above marked `Done` and not pointing to a dedicated roadmap (D, 0–9, 11–22, 26, 28,
 30, 31) has had its full task write-up — implementation notes, decisions, deviations — moved to
