@@ -28,7 +28,9 @@ Each guide answers one situation.
 
 ## Reference
 
-- [`heraut.sample.yml`](heraut.sample.yml): every configuration key, with a comment.
+- [Configuration](reference/configuration.md): where the file lives and every key, with its type and
+  default.
+- [`heraut.sample.yml`](heraut.sample.yml): every configuration key in context, with a comment.
 - [Commands](reference/commands/README.md): every command, its flags and examples (the same text as
   `heraut <command> --help`).
 - [Environment variables](reference/environment-variables.md): the tokens, the `HERAUT_` settings

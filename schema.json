@@ -752,7 +752,7 @@
       "properties": {
         "notes": {
           "$ref": "#/definitions/ContentDriver",
-          "description": "Override release notes generator for this environment."
+          "description": "Release notes settings for this environment, merged over release.notes."
         },
         "targets": {
           "type": "array",
@@ -798,7 +798,7 @@
         },
         "changelog": {
           "$ref": "#/definitions/ContentDriver",
-          "description": "Override changelog generator for this environment."
+          "description": "Changelog settings for this environment, merged over the top-level changelog block."
         },
         "release": {
           "$ref": "#/definitions/EnvRelease",

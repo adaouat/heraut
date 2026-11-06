@@ -1,6 +1,6 @@
 # Héraut — User Documentation Roadmap
 
-> Status: In progress (drafted 2026-11-06; 89a done)
+> Status: In progress (drafted 2026-11-06; 89a and 89b done)
 > Source: the user's review of 2026-11-06. heraut's docs are written for contributors and agents
 > (specs, ADRs, roadmap); a user who lands on the repo has no path that avoids them. This epic adds
 > user docs next to the contributor docs, without moving `docs/specs/`, `docs/adr/` or `docs/tasks/`.
@@ -34,7 +34,7 @@
 | Phase | Theme | Tasks | Status |
 |---|---|---|---|
 | 89a | Front doors and getting started | T453–T458 | Done |
-| 89b | Generated reference | T459–T464 | Planned |
+| 89b | Generated reference | T459–T464 | Done |
 | 89c | Guides | T465–T475 | Planned |
 | 89d | Concepts | T476–T479 | Planned |
 | 89e | Keeping user docs current | T480 | Planned |
@@ -206,7 +206,7 @@ Done 2026-11-06.
   described by its definition, and the four definitions without one got one: `Versioning`,
   `ContentDriver`, `Release`, `BranchRule`. That fixes the empty hover on `versioning:`,
   `changelog:`, `release:`, `commits:`, `rendering:`, `hooks:` and `git:` at once.
-- **Rewritten for users.** 39 descriptions, the ADR-citing and long ones, plus weak or jargon ones
+- **Rewritten for users.** 41 descriptions, the ADR-citing and long ones, plus weak or jargon ones
   (`strategy`, `platform`, `draft`, `bump`, `source`, `api_mode`, `types_heading_level`, "on both
   drivers"). Each says what the key does, then its default or an example where one helps. Defaults
   were checked in code; `types_heading_level` is 3 (`headingPrefix`).
@@ -219,11 +219,31 @@ Done 2026-11-06.
 - **Deferred.** The sample's comments still cite ADRs (20 times). They are contributor references
   in a file users read; removing them belongs to a separate pass on the sample.
 
-#### `[ ]` T462: generated configuration reference
+#### `[x]` T462: generated configuration reference
 
 `docs/reference/configuration.md`: a hand-written intro (where the file lives, `HERAUT_FILE`, how the keys
 are organised, a minimal example, a link to `docs/heraut.sample.yml`) above a table generated from
 `schema.json` (key path, type, default, description). Same generator task and drift test as T460.
+
+Done 2026-11-06.
+- **The page.** `docs/reference/configuration.md` is hand-written up to a marker comment: where the
+  file lives, the minimal file with its schema line, how the keys are organised, how to read the
+  paths. Below the marker, `mise run docs:gen` writes one section per top-level key, each a table of
+  path, type (enum values listed), schema default and description. The intro stays editable in
+  place.
+- **The generator.** It is in `tools/docgen/config.go` and keeps the schema's own key order (a token
+  walk, since Go maps lose it). Lists show as `forges[].name` and maps as
+  `environments.<name>.bump`.
+- **Repeated definitions.** A definition is expanded once, at its own top-level key when it has
+  one, and every other place says "Same keys as `rendering`". So `environments.<name>.changelog`
+  doesn't repeat 30 rows.
+- **Result.** 126 rows.
+- **Tests.** Unit tests on a synthetic schema cover order, types, enums, defaults, escaping, list
+  and map paths, and first expansion at the top level. `TestConfigReference_IsCurrent` fails while
+  the page is behind `schema.json`. Both drift tests (commands and configuration) now share the one
+  `docs:gen` task.
+- **Two more schema fixes.** The per-environment `changelog` and `release.notes` said "Override …
+  generator"; they now say they merge over the top-level block. Linked from the docs home.
 
 #### `[x]` T463: environment variables reference
 
