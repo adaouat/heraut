@@ -33,7 +33,7 @@
 
 | Phase | Theme | Tasks | Status |
 |---|---|---|---|
-| 89a | Front doors and getting started | T453–T458 | Planned |
+| 89a | Front doors and getting started | T453–T458 | In progress |
 | 89b | Generated reference | T459–T464 | Planned |
 | 89c | Guides | T465–T475 | Planned |
 | 89d | Concepts | T476–T479 | Planned |
@@ -43,12 +43,19 @@
 
 ### Phase 89a — Front doors and getting started
 
-#### `[ ]` T453: `CONTRIBUTING.md`, the contributor front door
+#### `[x]` T453: `CONTRIBUTING.md`, the contributor front door
 
 New `CONTRIBUTING.md`: setup (`mise install`, hk hooks), TDD and the test layers, conventional commits, the
 roadmap flow, then links to `docs/specs/`, `docs/adr/`, `docs/tasks/` and the e2e guide.
 `docs/guides/e2e-tests.md` moves to `docs/contributing/e2e-tests.md` (update every link to it, `CLAUDE.md`
 and the rules files included). Points to `.claude/rules/` rather than repeating them.
+
+**Done.** `CONTRIBUTING.md` covers setup, the hooks, how work is done (specs and ADRs first, roadmap,
+TDD, conventional commits, architecture, config sync), e2e and releases, and links to `.claude/rules/`
+for the full rules instead of copying them. `e2e-tests.md` moved to `docs/contributing/` (its relative
+links keep working at the same depth); live references updated in Spec 06, `docs/guides/README.md`,
+`CLAUDE.md`'s layout and the comment at the top of `.github/workflows/e2e.yml` (comment only). Past
+roadmap notes and `docs/superpowers/` plans keep the old path: they record what was true then.
 
 #### `[ ]` T454: README as the user front door, and `docs/install.md`
 

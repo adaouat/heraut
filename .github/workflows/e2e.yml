@@ -3,7 +3,7 @@ name: E2E forge lane
 # Advisory: runs the opt-in forge-sandbox scenarios (ADR-0066, Lane B). Never on pull requests,
 # because the sandbox tokens are secrets. A failure sends GitHub's built-in email for failed
 # scheduled workflows; it gates nothing. Setup (variables, secrets, token scopes):
-# docs/guides/e2e-tests.md.
+# docs/contributing/e2e-tests.md.
 on:
   workflow_dispatch:
   schedule:
