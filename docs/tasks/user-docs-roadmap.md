@@ -373,10 +373,29 @@ Done 2026-11-06.
 - **Cosmetic finding, not fixed.** The error panel ends E003's text with ".." and E001's with
   "--force.": the renderer adds a period to messages that already end with one or with a command.
 
-#### `[ ]` T469: Guide — pre-releases
+#### `[x]` T469: Guide — pre-releases
 
 New `docs/guides/pre-releases.md`: `--pre-release`, the `-rc.N` series, moving to the final version, what is
 and is not written (no `CHANGELOG.md`), the GitHub pre-release flag.
+
+Done 2026-11-06.
+- **The guide.** `docs/guides/pre-releases.md` covers:
+  - cutting a candidate, and what it writes (no changelog or commit; the notes span the series step);
+  - the GitHub flag, and no GitLab equivalent;
+  - shipping the final on the same commit, and `version current` with and without
+    `--include-pre-release`;
+  - label ordering;
+  - escalation, and the major block with `--allow-major`;
+  - `--set-version` with a pre-release value.
+- **Run with the built binary in a scratch repo.**
+  - `rc.1`, then `rc.2` after a fix.
+  - The no-new-commit and label-regression errors.
+  - The final `v1.4.0`.
+  - The `1.3.1` → `1.4.0` escalation warning, and the major-escalation error.
+  - `--set-version 2.0.0-beta.1` (5 steps, no changelog) and its conflict with `--pre-release`.
+  - The quoted outputs are from those runs.
+- **Spec only.** GitLab's lack of a pre-release marker comes from Spec 05 and
+  `gitlab.Platform.CreateRelease`.
 
 #### `[ ]` T470: Guide — attach files to a release
 

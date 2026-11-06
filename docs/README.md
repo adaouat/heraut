@@ -23,6 +23,7 @@ Each guide answers one situation.
 | Release on my company's own GitLab server | [Self-hosted GitLab](guides/self-hosted-gitlab.md) |
 | Stop the release commit from running my CI, but keep the tag's pipeline | [Keep the release commit from running CI](guides/skip-ci-on-release-commit.md) |
 | Promote one version through dev, staging and prod | [Several environments](guides/environments.md) |
+| Publish release candidates (`v1.4.0-rc.1`) before the final version | [Pre-releases](guides/pre-releases.md) |
 | Tag every CI build of a mobile app with its build number | [Mobile apps: build numbers in tags](guides/mobile-ci-tagging.md) |
 | Release a fix on an older version line | [Maintenance branches](guides/maintenance-branches.md) |
 | Run my own scripts during a release | [Release pipeline and hooks](guides/release-pipeline-and-hooks.md) |
