@@ -611,10 +611,29 @@ Done 2026-11-06.
 - **A format check, not a bug.** Text that isn't a token is kept literally (`YYYY.0M.PATCH` gives
   `2026.0M.0`); that matches Spec 04's literal text, and the page says so.
 
-#### `[ ]` T478: How the next version is found
+#### `[x]` T478: How the next version is found
 
 New `docs/concepts/next-version.md`: commit types to bump, tags as the starting point, `stay_at_v0`,
 `confirm_major`, `--set-version`, CalVer tokens and `PATCH` reset.
+
+Done 2026-11-06.
+- **The page.** `docs/concepts/next-version.md` covers:
+  - SemVer's starting point and commit levels, with a worked table;
+  - `bump.overrides` and the no-releasable-commits refusal;
+  - `stay_at_v0`, `confirm_major` and `--allow-major`;
+  - `--set-version` and `mode: manual`;
+  - CalVer's date and `PATCH` reset;
+  - environments and maintenance branches;
+  - `version next --json` to see why.
+  - It is linked from the docs home.
+- **Run with the built binary.**
+  - Each commit kind: fix, feat, `!`, footer, docs, chore, `chore(deps)`, `chore(release)`, a
+    non-conventional message, no commits.
+  - A `none` override's refusal.
+  - A pre-release tag never being the base.
+  - `stay_at_v0` with `--allow-major`, `v1.10.0` sorting above `v1.9.0`, the JSON output, manual
+    mode, and CalVer counting up with no new commit.
+  - The quoted messages are exact.
 
 #### `[ ]` T479: What goes into the changelog
 
