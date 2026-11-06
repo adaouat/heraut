@@ -108,11 +108,22 @@ written config, not `heraut init --defaults`, because `--defaults` always writes
 checking: the changelog has commit links only with a CI or target context, so a local `heraut
 changelog` shows bare hashes; the page says so. Links forward to the two CI guides (T457, T458).
 
-#### `[ ]` T457: Guide — release from GitHub Actions
+#### `[x]` T457: Guide — release from GitHub Actions
 
 New `docs/guides/github-actions.md`: a complete workflow file (manual trigger, `permissions:`,
 `fetch-depth: 0`, token, the heraut install step), what each part is for, and the common failures
 (shallow clone, missing `contents: write`, protected branch).
+
+**Done.** `docs/guides/github-actions.md`: a `workflow_dispatch` workflow (concurrency, `contents:
+write` and `pull-requests: read`, `fetch-depth: 0`, heraut installed with `gh release download` at a
+pinned version as forge's release-setup does, a bot git identity, `heraut check` then `heraut
+release`), what each part is for, why the release push starts no workflow with the workflow token,
+the GitHub path filter for other tokens, a protected `main`, and a failure table. The workflow was
+not run on GitHub (no sandbox run requested); its parts are those of heraut's own release workflow
+and forge's release actions. Checked with the binary: a depth-1 clone without tags resolves the first
+version again, silently (raised with the user as a possible check); without a `changelog:` block the
+release has 5 steps and commits nothing. A user page doesn't link the spec, so the path filter from
+Spec 02 is inlined; T467 will own it.
 
 #### `[ ]` T458: Guide — release from GitLab CI/CD
 
