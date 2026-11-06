@@ -346,10 +346,32 @@ Done 2026-11-06.
 - **Links.** The two CI guides keep their short version and point here; the docs home lists the
   guide.
 
-#### `[ ]` T468: Guide — several environments
+#### `[x]` T468: Guide — several environments
 
 New `docs/guides/environments.md`: `semver-per-env` / `calver-per-env`, `--env`, promotion between
 environments, the E001–E003 errors and `--force`, `disable_changelog`.
+
+Done 2026-11-06.
+- **The guide.** `docs/guides/environments.md` covers:
+  - a dev → staging → prod chain;
+  - `auto` against `promote`, and `source`;
+  - the per-environment keys (`disable_changelog`, `disable_release`, `changelog`,
+    `release.targets`, `git.push_options`);
+  - `branch` and `--env auto`;
+  - the three guards, with `--force` and exit 4;
+  - `calver-per-env`;
+  - a CI pointer.
+- **Run with the built binary in a scratch repo.**
+  - E003 before anything reached staging.
+  - `dev/0.1.0` tagged with no changelog commit (`disable_changelog`).
+  - `staging/0.1.0` promoted with its changelog commit.
+  - E001 on a second promotion, and E002 with a `prod/0.2.0` tag in the way.
+  - `--force` bypassing E002.
+  - The branch-guard message, and `--env auto` picking `staging` from `main`.
+  - `calver-per-env` giving `dev/2026.11.1` and `prod/2026.11.0`.
+  - The quoted messages are from those runs.
+- **Cosmetic finding, not fixed.** The error panel ends E003's text with ".." and E001's with
+  "--force.": the renderer adds a period to messages that already end with one or with a command.
 
 #### `[ ]` T469: Guide — pre-releases
 
