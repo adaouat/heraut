@@ -445,9 +445,20 @@ Done 2026-11-06.
 - **Cosmetic finding, not fixed.** Those warning sub-lines print with a ✓ mark, like successes,
   in plain output.
 
-#### `[ ]` T472: Guide — link tickets
+#### `[x]` T472: Guide — link tickets
 
 New `docs/guides/tickets.md`: ticket patterns and URLs, `require_ticket`, `heraut commit tickets`.
+
+Done 2026-11-06.
+- **The guide.** `docs/guides/tickets.md` covers:
+  - two patterns (Jira and GitHub issues), and how `{ticket}` takes the first capture group;
+  - the rendered changelog lines, including a ticket found in the body;
+  - `heraut commit tickets` with its output;
+  - a `require_ticket` rule scoped by type, with the refusal and exit 1;
+  - a pointer to the commit-conventions guide (T473) and the statistics block.
+- **Run with the built binary in a scratch repo.** `commit tickets`, `changelog --offline` (the
+  quoted lines), `commit verify` with and without a ticket, and `commit check`. The outputs are
+  exact.
 
 #### `[ ]` T473: Guide — check commit messages
 
