@@ -23,7 +23,7 @@ Each scenario runs once per forge unless noted. Everything it creates carries a 
 | B3 | `+` build-metadata tag and the exact release URL spelling |
 | B4 | per-env `<id>/{env}/{version}` tag with an uploaded asset |
 | B5 | CalVer tag (simulated clock) |
-| B6 | one run on a GitLab source publishes to GitLab **and** GitHub |
+| B6 | one run on a GitLab source publishes to GitLab **and** GitHub, a `post_tag` hook pushing the tag to GitHub first |
 | B7 | GitHub draft release |
 | B8 | a maintenance line: next patch of its range, then a taken version refused |
 | B9 | PR/MR enrichment: the changelog links the merged request (needs the second pair below) |

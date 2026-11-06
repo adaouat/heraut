@@ -58,7 +58,15 @@ release:
   targets:
     - forge: gitlab
     - forge: github
+hooks:
+  post_tag:
+    - run: 'git -c http.extraheader= push --quiet "https://x-access-token:${GH_TOKEN}@github.com/` + gh.Coordinates() + `.git" "{{ .Tag }}"'
 `
+	// The repository lives on GitLab; GitHub only gets what is pushed to it. The post_tag hook does
+	// that, as the GitLab-to-GitHub guide shows: the release names the tagged commit, which GitHub
+	// refuses (422) when it doesn't have it. Only the tag is pushed: it carries its commit, and the
+	// mirror cleanup removes tags, not branches. http.extraheader is reset because the workspace
+	// sets GitLab's credentials there; the token comes from the environment, never the config.
 	commitConfigAndSubjects(ws, cfg, "feat: one", "fix: two")
 
 	res := ws.Run(bin, []string{"GITLAB_TOKEN=" + gl.Token(), "GH_TOKEN=" + gh.Token()}, "release", "--offline")

@@ -4248,6 +4248,12 @@ is, so there is no 422 mapping.
   wired, the tag object's SHA instead of the commit's, and a lookup error ignored. A no-op control
   survives.
 - **Shallow clone.** The suite also passes in a `--depth 1` clone.
+- **Lane B follow-up (2026-11-06).** The user's e2e run failed B6 (GitLab source mirrored to GitHub)
+  with GitHub's `422 … target_commitish invalid`, the intended refusal. The scenario pushed the
+  commit and tag to GitLab only and had passed because GitHub silently tagged its own default
+  branch: it was testing the bug. B6 now pushes the tag to GitHub from a `post_tag` hook, as the
+  GitLab-to-GitHub guide does: the tag only (it carries its commit; mirror cleanup removes tags, not
+  branches), with `http.extraheader` reset and the token from `GH_TOKEN`, never the config.
 
 #### `[x]` T488: no double period at the end of an error panel
 
