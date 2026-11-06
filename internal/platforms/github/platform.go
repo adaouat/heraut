@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"io"
 	"net/http"
-	"net/url"
 	"os"
 	"strings"
 
@@ -153,10 +152,7 @@ func (p *Platform) tokenEnvs() []string {
 	if p.cfg.TokenEnv != "" {
 		return []string{p.cfg.TokenEnv}
 	}
-	if enterpriseServer(p.baseURL()) {
-		return []string{config.EnvGitHubEnterpriseCLIToken, config.EnvGitHubEnterpriseToken, config.EnvGitHubCLIToken}
-	}
-	return []string{config.EnvGitHubCLIToken, config.EnvGitHubToken}
+	return config.GitHubTokenEnvs(p.baseURL())
 }
 
 // token returns the token and the variable it was read from.
@@ -182,15 +178,4 @@ func (p *Platform) baseURL() string {
 		return p.cfg.BaseURL
 	}
 	return config.DefaultGitHubBaseURL
-}
-
-// enterpriseServer reports whether baseURL is a GitHub Enterprise Server rather than github.com or a
-// GitHub Enterprise Cloud tenant on *.ghe.com.
-func enterpriseServer(baseURL string) bool {
-	u, err := url.Parse(baseURL)
-	if err != nil {
-		return true
-	}
-	host := strings.ToLower(u.Hostname())
-	return host != "github.com" && !strings.HasSuffix(host, ".ghe.com")
 }

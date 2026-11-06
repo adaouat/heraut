@@ -21,10 +21,10 @@ below. One exception: inside GitLab CI, publishing to the job's own GitLab insta
 
 | Variable | Forge | Used for |
 |---|---|---|
-| `GH_TOKEN` | GitHub | Publishing: read first. |
-| `GITHUB_TOKEN` | GitHub | Publishing when `GH_TOKEN` is unset, and pull request data. GitHub Actions provides it to the job. |
-| `GH_ENTERPRISE_TOKEN` | GitHub Enterprise Server | Publishing: read first on a GitHub Enterprise Server host. |
-| `GITHUB_ENTERPRISE_TOKEN` | GitHub Enterprise Server | Publishing when `GH_ENTERPRISE_TOKEN` is unset; `GH_TOKEN` comes after both. |
+| `GH_TOKEN` | GitHub | Publishing and pull request data: read first. |
+| `GITHUB_TOKEN` | GitHub | Publishing and pull request data when `GH_TOKEN` is unset. GitHub Actions provides it to the job, and inside Actions pull request data uses it first. |
+| `GH_ENTERPRISE_TOKEN` | GitHub Enterprise Server | Publishing and pull request data: read first on a GitHub Enterprise Server host. |
+| `GITHUB_ENTERPRISE_TOKEN` | GitHub Enterprise Server | Read when `GH_ENTERPRISE_TOKEN` is unset; `GH_TOKEN` comes after both. |
 | `GITLAB_TOKEN` | GitLab | Publishing and merge request data, outside GitLab CI or for another GitLab instance than the job's. |
 | `CI_JOB_TOKEN` | GitLab | Publishing and merge request data inside GitLab CI, on the job's own instance. GitLab provides it. |
 | `AZURE_DEVOPS_TOKEN` | Azure DevOps | Pull request data, outside Azure Pipelines. |

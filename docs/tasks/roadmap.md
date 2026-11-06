@@ -259,7 +259,7 @@ discipline that applies to every task.
 | 88 | One enrichment forge for every target: check and docs | Done |
 | 89 | User documentation (front doors, guides, generated reference) | In progress — 89a and 89b (T453–T464) done; T465–T480, see `user-docs-roadmap.md` |
 | 90 | CI checkout pitfalls and `init --defaults` (shallow clone, detached HEAD) | Done |
-| 91 | Follow-ups from the generated reference (GitHub token for PR data, `check runtime` help) | Planned — T484, T485 |
+| 91 | Follow-ups from the generated reference (GitHub token for PR data, `check runtime` help) | In progress — T484 done; T485 open |
 
 ### Open items
 
@@ -4146,7 +4146,7 @@ Done 2026-11-06.
 Found on 2026-11-06 while writing the environment-variables reference and the command help
 (Phase 89b, T459, T463).
 
-#### `[ ]` T484: read `GH_TOKEN` for GitHub pull-request data, as publishing does
+#### `[x]` T484: read `GH_TOKEN` for GitHub pull-request data, as publishing does
 
 With no `token_env`, the GitHub publish driver reads `GH_TOKEN`, then `GITHUB_TOKEN`
 (`internal/platforms/github`). Enrichment reads only `GITHUB_TOKEN` (`defaultTokenEnvFor` in
@@ -4163,6 +4163,29 @@ Enterprise Server. Points to settle in the spec first:
 Then update Spec 02 § GitHub, the environment-variables reference (whose drift test only checks
 names), and `check runtime` if it reports the enrichment token. Tests first: resolve rows with
 `GH_TOKEN` only, `GITHUB_TOKEN` only, both, and the Enterprise names, plus the ambiguity rows.
+
+Done 2026-11-06. Zero-config detection was settled with the user: `GH_TOKEN` does not count as a
+candidate, so `GH_TOKEN` next to `GITLAB_TOKEN` stays unambiguous (GitLab). Only the token read
+changes, once the forge is known to be GitHub.
+- **One chain.** It lives in `config.GitHubTokenEnvs(baseURL)` (`internal/config/github_token.go`),
+  the bottom layer, so both users import it. The publish driver's own copy (`enterpriseServer` and
+  the two lists) is gone, and `TestPlatform_TokenChain` still covers it.
+- **Enrichment.** `defaultTokenEnvsFor(type, host)` (`internal/forge/detect.go`) returns the chain
+  for GitHub and the single default variable for the others. All four resolution paths read it with
+  the forge's resolved host: explicit entries, CI, origin and the single-candidate path. So a GitHub
+  Enterprise Server entry reads the enterprise names.
+- **Priorities.** `token_env` still wins, and inside GitHub Actions the job's `GITHUB_TOKEN` still
+  comes first.
+- **Not changed.** `check runtime` reports the publish driver's token, which already read the chain,
+  so it needed no change.
+- **Docs.** Spec 02 (§ Identity resolution fallback and detection, § GitHub) and the
+  environment-variables reference now say both read the same chain.
+- **Tests first.** Unit rows for the chain per host, and resolve rows: `GH_TOKEN` only,
+  `GITHUB_TOKEN` only, both, the Enterprise order, Enterprise ignoring `GITHUB_TOKEN`, `token_env`,
+  a github.com origin, Actions for an automatic and an explicit forge, and `GH_TOKEN` not being a
+  detection candidate.
+- **Mutations.** 7 mutants each fail a test; two survived the first run, so a test row was added
+  for each. A no-op control survives.
 
 #### `[ ]` T485: fix `heraut check runtime`'s one-line help
 

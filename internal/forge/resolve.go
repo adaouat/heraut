@@ -89,11 +89,12 @@ func resolveExplicit(cfg *config.Config, getenv func(string) string, gitOrigin s
 			apiMode = "rest"
 		}
 
-		token, kind := resolveToken(f.TokenEnv, getenv, ciMatches, ciToken, ciKind, defaultTokenEnvFor(f.Type))
+		host := resolveField(f.BaseURL, ciMatches, ciHost, originMatches, originHost, defaultHostFor(f.Type))
+		token, kind := resolveToken(f.TokenEnv, getenv, ciMatches, ciToken, ciKind, defaultTokenEnvsFor(f.Type, host))
 
 		forges[i] = port.ForgeIdentity{
 			Type:       f.Type,
-			Host:       resolveField(f.BaseURL, ciMatches, ciHost, originMatches, originHost, defaultHostFor(f.Type)),
+			Host:       host,
 			APIURL:     resolveField(f.APIURL, ciMatches && f.Type != "github", ciAPIURL, false, "", ""),
 			Project:    resolveField(configProject(f), ciMatches, ciProject, originMatches, originProject, ""),
 			Repository: resolveField(repositoryFor(f), ciMatches, ciRepository, originMatches, originRepository, ""),
@@ -122,13 +123,13 @@ func resolveExplicit(cfg *config.Config, getenv func(string) string, gitOrigin s
 // offline (empty Resolved, not an error) and more than one means ErrAmbiguousForge.
 func resolveAuto(getenv func(string) string, gitOrigin string) (Resolved, error) {
 	if ciType, ciHost, ciAPIURL, ciProject, ciRepository, ciToken, ciKind, ok := detectCIForge(getenv); ok {
-		token, kind := ciToken, ciKind
-		if token == "" {
-			token, kind = tokenFromDefaultEnv(getenv, defaultTokenEnvFor(ciType))
-		}
 		host := ciHost
 		if host == "" {
 			host = defaultHostFor(ciType)
+		}
+		token, kind := ciToken, ciKind
+		if token == "" {
+			token, kind = tokenFromEnvs(getenv, defaultTokenEnvsFor(ciType, host))
 		}
 		if ciType == "github" {
 			ciAPIURL = "" // derived in Resolve, see there
@@ -146,7 +147,7 @@ func resolveAuto(getenv func(string) string, gitOrigin string) (Resolved, error)
 	}
 
 	if originType, originHost, originProject, originRepository, ok := parseGitOrigin(gitOrigin); ok {
-		token, kind := tokenFromDefaultEnv(getenv, defaultTokenEnvFor(originType))
+		token, kind := tokenFromEnvs(getenv, defaultTokenEnvsFor(originType, originHost))
 		return single(port.ForgeIdentity{
 			Type:       originType,
 			Host:       originHost,
@@ -170,7 +171,7 @@ func resolveAuto(getenv func(string) string, gitOrigin string) (Resolved, error)
 		return Resolved{}, nil
 	case 1:
 		typ := candidates[0]
-		token, kind := tokenFromDefaultEnv(getenv, defaultTokenEnvFor(typ))
+		token, kind := tokenFromEnvs(getenv, defaultTokenEnvsFor(typ, defaultHostFor(typ)))
 		return single(port.ForgeIdentity{
 			Type:      typ,
 			Host:      defaultHostFor(typ),
@@ -224,24 +225,23 @@ func resolveField(explicit string, ciApplies bool, ciValue string, originApplies
 
 // resolveToken fills the token/tokenKind pair, in precedence order: an explicit token_env (kind
 // Private, since it names a personal/project token) → the CI token (when it applies) → the
-// type's default token env (kind Private).
-func resolveToken(tokenEnv string, getenv func(string) string, ciApplies bool, ciToken string, ciKind port.TokenKind, defaultTokenEnv string) (string, port.TokenKind) {
+// type's default token envs (kind Private).
+func resolveToken(tokenEnv string, getenv func(string) string, ciApplies bool, ciToken string, ciKind port.TokenKind, defaultTokenEnvs []string) (string, port.TokenKind) {
 	if tokenEnv != "" {
 		return getenv(tokenEnv), port.TokenPrivate
 	}
 	if ciApplies && ciToken != "" {
 		return ciToken, ciKind
 	}
-	return tokenFromDefaultEnv(getenv, defaultTokenEnv)
+	return tokenFromEnvs(getenv, defaultTokenEnvs)
 }
 
-// tokenFromDefaultEnv reads a type's default token env var, reporting TokenNone when unset.
-func tokenFromDefaultEnv(getenv func(string) string, defaultTokenEnv string) (string, port.TokenKind) {
-	if defaultTokenEnv == "" {
-		return "", port.TokenNone
-	}
-	if tok := getenv(defaultTokenEnv); tok != "" {
-		return tok, port.TokenPrivate
+// tokenFromEnvs reads the first of envs that is set, reporting TokenNone when none is.
+func tokenFromEnvs(getenv func(string) string, envs []string) (string, port.TokenKind) {
+	for _, name := range envs {
+		if tok := getenv(name); tok != "" {
+			return tok, port.TokenPrivate
+		}
 	}
 	return "", port.TokenNone
 }

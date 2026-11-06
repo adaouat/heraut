@@ -22,8 +22,21 @@ func defaultHostFor(typ string) string {
 	}
 }
 
+// defaultTokenEnvsFor returns the variables a forge type's token is read from when no token_env
+// is set, first set wins. GitHub reads the publish driver's chain for the host.
+func defaultTokenEnvsFor(typ, host string) []string {
+	if typ == "github" {
+		return config.GitHubTokenEnvs(host)
+	}
+	if name := defaultTokenEnvFor(typ); name != "" {
+		return []string{name}
+	}
+	return nil
+}
+
 // defaultTokenEnvFor returns the default token env var name for a forge type, or "" when
-// unknown.
+// unknown. Zero-config detection counts these alone: GH_TOKEN is often exported for the gh CLI,
+// so it never picks GitHub on its own.
 func defaultTokenEnvFor(typ string) string {
 	switch typ {
 	case "github":

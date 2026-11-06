@@ -645,12 +645,16 @@ that supplies a value:
    `vs-ssh.visualstudio.com` ones — and give `project: org/project` and `repository: repo` on
    `https://dev.azure.com`, which serves legacy organizations too.
 4. **Offline fallback** — a per-type default host (`https://github.com`,
-   `https://gitlab.com`, `https://dev.azure.com`) and default token env var
-   (`GITHUB_TOKEN`, `GITLAB_TOKEN`, `AZURE_DEVOPS_TOKEN`).
+   `https://gitlab.com`, `https://dev.azure.com`) and default token env vars:
+   `GITLAB_TOKEN`, `AZURE_DEVOPS_TOKEN`, and for GitHub the publish driver's chain
+   (`GH_TOKEN`, then `GITHUB_TOKEN`; on GitHub Enterprise Server `GH_ENTERPRISE_TOKEN`, then
+   `GITHUB_ENTERPRISE_TOKEN`, then `GH_TOKEN`), first set wins.
 
 With **no `forges:` block**, heraut auto-detects at most one forge the same way: CI markers
 first, then git origin, then — if neither applies — it looks for exactly one of the three
-default token env vars set in the environment. Auto-detection **never guesses**: if more
+default token env vars set in the environment: `GITHUB_TOKEN`, `GITLAB_TOKEN`,
+`AZURE_DEVOPS_TOKEN`. `GH_TOKEN` is not a candidate there, since it is often exported for the `gh`
+CLI alone; once GitHub is known, it is read like the rest of the chain. Auto-detection **never guesses**: if more
 than one candidate is found (e.g. both `GITLAB_TOKEN` and `GITHUB_TOKEN` are set with no CI
 markers and no recognized git origin) heraut fails with:
 
@@ -1060,12 +1064,11 @@ Implementation: calls the GitHub REST API in process ([ADR-0077](../adr/0077-git
 The release is marked pre-release when the resolved version carries SemVer pre-release
 identifiers — see Spec 05 § GitHub.
 
-**With no `token_env`, each subsystem has its own fallback.** Forge-identity resolution
-(enrichment, § Identity resolution above) reads `GITHUB_TOKEN`, the token GitHub Actions provides.
-The publish driver reads `GH_TOKEN`, then `GITHUB_TOKEN`, on github.com and `*.ghe.com`, and
-`GH_ENTERPRISE_TOKEN`, then `GITHUB_ENTERPRISE_TOKEN`, then `GH_TOKEN` on GitHub Enterprise Server
-(Spec 05 § GitHub). On GitHub Actions on github.com, exporting `GITHUB_TOKEN` to the step serves
-both. Setting `token_env` explicitly makes both read only that variable.
+**With no `token_env`, enrichment and publishing read the same chain**: `GH_TOKEN`, then
+`GITHUB_TOKEN`, on github.com and `*.ghe.com`, and `GH_ENTERPRISE_TOKEN`, then
+`GITHUB_ENTERPRISE_TOKEN`, then `GH_TOKEN` on GitHub Enterprise Server (Spec 05 § GitHub). Inside
+GitHub Actions, enrichment uses the job's `GITHUB_TOKEN` first (§ Identity resolution above). Setting
+`token_env` explicitly makes both read only that variable.
 
 ## `environments`
 
