@@ -166,11 +166,31 @@ Done 2026-11-06.
 - **Not touched.** `check runtime`'s `Short:` still says "binaries on PATH, token env vars". It's
   stale since native has no binary, but out of scope; its new `Long:` describes what it checks.
 
-#### `[ ]` T460: generated commands reference
+#### `[x]` T460: generated commands reference
 
 `docs/reference/commands/*.md`, one page per command, generated with `cobra/doc` (part of the cobra module
 already required). A `mise run docs:gen` task writes them; a test regenerates into `t.TempDir()` and fails
 on any diff with the committed files. Exit codes and env vars link to T463/T464's pages.
+
+Done 2026-11-06.
+- **Not `cobra/doc`, a deviation.** It imports `go-md2man` and `blackfriday`, absent from `go.sum`,
+  so it would have added two dependencies, against the plan's "no new dependency". The generator is
+  ~150 lines in `internal/cmd/reference.go` (`WriteCommandReference`), walking the cobra tree. Its
+  output follows the docs' own style: title, Short, Long, Usage, Examples, a Flags and a Global
+  flags table (type, default, description), Subcommands, and See also (parent, index, exit codes,
+  environment variables).
+- **The root page.** It skips the root's `Long:`, which is the terminal banner.
+- **Escaping.** `<placeholder>` text outside code is escaped so Markdown doesn't eat it as HTML, and
+  `|` is escaped in table cells.
+- **Entry point.** `tools/docgen/main.go` is a thin program run by the new `mise run docs:gen` task.
+  It writes `docs/reference/commands/`: 22 pages plus a `README.md` index linked from the docs home.
+- **Tests.** A unit test on a synthetic tree covers hidden commands and flags, shorthand, defaults,
+  slices, escaping and the root banner. `TestCommandReference_IsCurrent` regenerates into
+  `t.TempDir()` and fails on any difference; editing a `Long:` without regenerating fails it.
+- **`go.mod`.** `go mod tidy` moved `spf13/pflag` from indirect to direct (now imported for the
+  flag tables); no new module.
+- **Also updated.** CONTRIBUTING lists the task and says help text is user documentation, and the
+  CLAUDE.md layout names `docs/reference/`.
 
 #### `[ ]` T461: `schema.json` descriptions written for users
 

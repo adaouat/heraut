@@ -14,6 +14,7 @@ mise run test         # go test ./...
 mise run lint:check   # every linter (hk check)
 mise run lint:fix     # fixes what can be fixed (hk fix)
 mise run run -- release --dry-run   # runs the CLI from source
+mise run docs:gen     # regenerates docs/reference/commands from the commands' help text
 ```
 
 The hooks run on every commit: linters on the staged files, a typo check, and `heraut commit verify`
@@ -34,6 +35,9 @@ on the commit message. Don't bypass them (`--no-verify`); fix what they report.
   [`.claude/rules/coding.md`](.claude/rules/coding.md), with the rules on errors, config and comments.
 - **Config changes** update `internal/config`, [`schema.json`](schema.json) and
   [`docs/heraut.sample.yml`](docs/heraut.sample.yml) together.
+- **Command help is user documentation.** A command's `Short:`, `Long:`, `Example:` and flag text
+  become [`docs/reference/commands/`](docs/reference/commands/). After changing them, run
+  `mise run docs:gen`; a test fails while the pages are stale.
 
 The files in [`.claude/rules/`](.claude/rules/) are the full rules; [`CLAUDE.md`](CLAUDE.md) is the
 project overview for coding agents.

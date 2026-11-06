@@ -117,6 +117,7 @@ docs/adr/                       79 ADRs (architectural decisions)
 docs/tasks/                     roadmap.md + dedicated per-epic roadmaps (see § Docs above)
 docs/guides/                    task-oriented how-tos, distinct from the behavioural specs
 docs/contributing/              contributor guides (e2e tests); CONTRIBUTING.md is the contributor front door
+docs/reference/                 user reference; commands/ is generated (mise run docs:gen, tools/docgen)
 
 LICENSE.md                      project license
 schema.json                     published JSON Schema for .heraut.yml IDE validation
