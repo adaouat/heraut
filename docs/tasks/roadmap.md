@@ -257,6 +257,7 @@ discipline that applies to every task.
 | 86 | Push options for the release pushes (`git.push_options`, ADR-0079) | Done |
 | 87 | Skip only the release commit's workflow on GitHub (docs) | Done |
 | 88 | One enrichment forge for every target: check and docs | Done |
+| 89 | User documentation (front doors, guides, generated reference) | Planned — T453–T480, see `user-docs-roadmap.md` |
 
 ### Open items
 
@@ -3986,7 +3987,19 @@ No ADR change. ADR-0021 predates the native generator: it describes git-cliff an
 building every link, PR/MR links included, from each platform's context, which was true then.
 ADR-0043 made `commits.enrichment_forge` the single source of PR/MR data, and the PR/MR URL now
 comes from that forge's API, but no ADR states that consequence for multi-target notes. The specs
-now do. An addendum to ADR-0021 is possible if the user wants the ADR trail to say it too.
+now do. The ADR trail says it too since the ADR-0021 addendum of 2026-11-05.
+
+---
+
+### Phase 89 — User documentation
+
+heraut's docs are written for contributors and agents; a user who lands on the repo has no path that
+avoids the specs. This phase adds user docs (a shorter README, `docs/README.md` as the user home,
+Getting started, CI and situation guides, concepts, a reference generated from cobra and `schema.json`)
+and a `CONTRIBUTING.md` front door for contributors, without moving the specs, ADRs or roadmap.
+28 tasks, so the breakdown and live `[ ] / [x]` status live in a dedicated roadmap:
+
+→ **[User Documentation Roadmap](user-docs-roadmap.md)** — T453+
 
 Every Phase above marked `Done` and not pointing to a dedicated roadmap (D, 0–9, 11–22, 26, 28,
 30, 31) has had its full task write-up — implementation notes, decisions, deviations — moved to
