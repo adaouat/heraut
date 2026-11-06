@@ -8,6 +8,11 @@ release to GitHub or GitLab. Start where your question is.
 - [Install](install.md): Homebrew, mise, a prebuilt binary, Docker or `go install`, and how to upgrade.
 - [Your first release](getting-started.md): from no config to a published release, step by step.
 
+## How heraut works
+
+- [How a release runs](concepts/how-heraut-works.md): the steps, what each one writes, and what heraut
+  never does.
+
 ## Release from CI
 
 - [GitHub Actions](guides/github-actions.md): a workflow you run from the Actions tab.

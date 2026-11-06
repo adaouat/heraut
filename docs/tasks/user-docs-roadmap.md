@@ -568,10 +568,26 @@ Done 2026-11-06.
 
 ### Phase 89d — Concepts
 
-#### `[ ]` T476: How a release runs
+#### `[x]` T476: How a release runs
 
 New `docs/concepts/how-heraut-works.md`: the steps of `heraut release` and `heraut changelog`, what each
 writes or pushes, what heraut never does (force-push, rewrite history), dry runs.
+
+Done 2026-11-06.
+- **The page.** `docs/concepts/how-heraut-works.md` covers:
+  - the release steps, as a table of what each does and changes;
+  - `heraut changelog` and where each flag stops;
+  - what heraut never does;
+  - `--dry-run`;
+  - where each kind of call goes.
+  - The docs home gets a "How heraut works" section.
+- **Checked against the code.** The pipeline's only git writes are `add`, `commit` (hooks run),
+  `tag` and two plain `push origin` calls (`internal/pipeline/git.go`): no force, delete, amend or
+  reset.
+- **Checked against the spec.** The dry-run claims (no git writes, no network, no hooks, branch
+  rules skipped) match Spec 03.
+- **Checked in forge.** The update check is the once-a-day `updatecheck` hint.
+- **The console output** is the shape quoted in Getting started, from the built binary.
 
 #### `[ ]` T477: Choose a versioning strategy
 
