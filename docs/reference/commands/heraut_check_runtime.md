@@ -2,7 +2,7 @@
 
 # heraut check runtime
 
-Check binaries on PATH, token env vars, and git user config.
+Check git, its identity, the history and each release target's token.
 
 Check what a release needs from this machine: git on PATH, git user.name and user.email, the full
 history (not a shallow clone), and for each release target a token that can reach its API. A dirty

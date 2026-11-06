@@ -8,7 +8,7 @@ Every heraut command, from the same text as `heraut <command> --help`.
   - [heraut changelog](heraut_changelog.md): Generate changelog (optionally commit and tag)
   - [heraut check](heraut_check.md): Run preflight validations
     - [heraut check config](heraut_check_config.md): Validate .heraut.yml (offline)
-    - [heraut check runtime](heraut_check_runtime.md): Check binaries on PATH, token env vars, and git user config
+    - [heraut check runtime](heraut_check_runtime.md): Check git, its identity, the history and each release target's token
   - [heraut commit](heraut_commit.md): Commit message tooling
     - [heraut commit check](heraut_commit_check.md): Validate every commit in a range (or full history) against the conventional-commit grammar
     - [heraut commit create](heraut_commit_create.md): Interactively author a Conventional Commits message and commit it

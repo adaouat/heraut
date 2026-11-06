@@ -40,7 +40,7 @@ heraut check --json
 ## Subcommands
 
 - [heraut check config](heraut_check_config.md): Validate .heraut.yml (offline)
-- [heraut check runtime](heraut_check_runtime.md): Check binaries on PATH, token env vars, and git user config
+- [heraut check runtime](heraut_check_runtime.md): Check git, its identity, the history and each release target's token
 
 ## See also
 

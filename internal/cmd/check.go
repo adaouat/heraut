@@ -156,7 +156,7 @@ func newCheckConfigCmd() *cobra.Command {
 func newCheckRuntimeCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "runtime",
-		Short: "Check binaries on PATH, token env vars, and git user config",
+		Short: "Check git, its identity, the history and each release target's token",
 		Long: "Check what a release needs from this machine: git on PATH, git user.name and user.email, the full\n" +
 			"history (not a shallow clone), and for each release target a token that can reach its API. A dirty\n" +
 			"working tree is a warning, not a failure.",

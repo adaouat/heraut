@@ -259,7 +259,7 @@ discipline that applies to every task.
 | 88 | One enrichment forge for every target: check and docs | Done |
 | 89 | User documentation (front doors, guides, generated reference) | In progress — 89a and 89b (T453–T464) done; T465–T480, see `user-docs-roadmap.md` |
 | 90 | CI checkout pitfalls and `init --defaults` (shallow clone, detached HEAD) | Done |
-| 91 | Follow-ups from the generated reference (GitHub token for PR data, `check runtime` help) | In progress — T484 done; T485 open |
+| 91 | Follow-ups from the generated reference (GitHub token for PR data, `check runtime` help) | Done |
 
 ### Open items
 
@@ -4187,12 +4187,17 @@ changes, once the forge is known to be GitHub.
 - **Mutations.** 7 mutants each fail a test; two survived the first run, so a test row was added
   for each. A no-op control survives.
 
-#### `[ ]` T485: fix `heraut check runtime`'s one-line help
+#### `[x]` T485: fix `heraut check runtime`'s one-line help
 
 Its `Short:` still says "Check binaries on PATH, token env vars, and git user config". heraut has
 no external binary but `git` since the native generator, and the check now also covers the history
 (T481) and each target's API access. Rewrite it to match the `Long:` written in T459, then run
 `mise run docs:gen` (the command pages and the index carry the `Short:`).
+
+Done 2026-11-06. The `Short:` is now "Check git, its identity, the history and each release target's
+token", matching the `Long:`. `TestCommandReference_IsCurrent` failed until `mise run docs:gen` ran;
+the regenerated `heraut_check_runtime.md`, `heraut_check.md` (its Subcommands list) and the index
+are part of the commit. Text only, so the drift test is its test.
 
 Every Phase above marked `Done` and not pointing to a dedicated roadmap (D, 0–9, 11–22, 26, 28,
 30, 31) has had its full task write-up — implementation notes, decisions, deviations — moved to
