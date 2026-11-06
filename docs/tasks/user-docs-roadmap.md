@@ -397,10 +397,31 @@ Done 2026-11-06.
 - **Spec only.** GitLab's lack of a pre-release marker comes from Spec 05 and
   `gitlab.Platform.CreateRelease`.
 
-#### `[ ]` T470: Guide — attach files to a release
+#### `[x]` T470: Guide — attach files to a release
 
 New `docs/guides/release-assets.md`: `release.targets[].assets` patterns, what GitHub renames, GitLab generic
 packages, failures on a missing file.
+
+Done 2026-11-06.
+- **The guide.** `docs/guides/release-assets.md` covers:
+  - `release.assets`, and a target's own `assets` replacing it;
+  - the early check after `post_bump`, with building in a `post_bump` hook and
+    `allow_missing_assets`;
+  - the refusals: outside the repository, duplicate names, GitHub name collisions, non-regular
+    files;
+  - how GitHub (draft while uploading, renames) and GitLab (generic packages plus release links)
+    store them;
+  - `draft`.
+- **Run with the built binary.** Three cases ran as dry runs; the quoted messages are from those
+  runs:
+  - the no-match warning, silent once `allow_missing_assets` is set;
+  - the outside-repository refusal through a symlink to `/etc/hosts`;
+  - the GitHub collision of `meta#1.tar.gz` with `meta.1.tar.gz`.
+- **What couldn't run locally.**
+  - The `App`/`app` case: macOS's filesystem is case-insensitive.
+  - A real release: the runtime preflight calls GitHub with the token first.
+- **From the code and spec.** Directories are skipped, not refused (`matchAssets`); the
+  GitHub/GitLab storage details come from Spec 05.
 
 #### `[ ]` T471: Guide — PR/MR data in the changelog
 
