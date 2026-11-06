@@ -36,14 +36,14 @@ jobs:
       # build bakes it into main.Version, the cask URL and the Docker build-arg.
       - name: Release setup
         id: setup
-        uses: adaouat/forge/.github/actions/release-setup@5faab0423b48c929f72111e8cf61143b79f0eb71 # v0.19.7
+        uses: adaouat/forge/.github/actions/release-setup@2f0ca0c083e6e8eb48f7ff2f8c5991a0bb0d0fc4 # v0.20.0
         with:
           gpg-private-key: ${{ secrets.RELEASE_GPG_PRIVATE_KEY }}
           github-token: ${{ secrets.GITHUB_TOKEN }}
           version: ${{ inputs.version }}
 
       - name: Release build
-        uses: adaouat/forge/.github/actions/release-build@5faab0423b48c929f72111e8cf61143b79f0eb71 # v0.19.7
+        uses: adaouat/forge/.github/actions/release-build@2f0ca0c083e6e8eb48f7ff2f8c5991a0bb0d0fc4 # v0.20.0
         with:
           app: heraut
           github-token: ${{ secrets.GITHUB_TOKEN }}
@@ -70,7 +70,7 @@ jobs:
           fi
 
       - name: Release publish
-        uses: adaouat/forge/.github/actions/release-publish@5faab0423b48c929f72111e8cf61143b79f0eb71 # v0.19.7
+        uses: adaouat/forge/.github/actions/release-publish@2f0ca0c083e6e8eb48f7ff2f8c5991a0bb0d0fc4 # v0.20.0
         with:
           app: heraut
           github-token: ${{ secrets.GITHUB_TOKEN }}

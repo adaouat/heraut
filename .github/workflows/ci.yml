@@ -8,7 +8,7 @@ on:
 jobs:
   # Lint + test come from forge's shared reusable workflow (ADR-0006).
   ci:
-    uses: adaouat/forge/.github/workflows/go-ci.yml@5faab0423b48c929f72111e8cf61143b79f0eb71 # v0.19.7
+    uses: adaouat/forge/.github/workflows/go-ci.yml@2f0ca0c083e6e8eb48f7ff2f8c5991a0bb0d0fc4 # v0.20.0
     with:
       coverage-threshold: 85
 
