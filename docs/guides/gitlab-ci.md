@@ -107,5 +107,7 @@ git:
 | `You are not allowed to push code to protected branches` | protected branch | see above |
 | `! [rejected] … (fetch first)` | new commits landed on the branch since the pipeline started | run the job again from the newest pipeline |
 
+Publishing on GitHub too? See [Publish to GitHub from GitLab CI/CD](github-from-gitlab-ci.md).
+
 If a release stops halfway, [Recover from a failed release](failure-recovery.md) says what is done and
 how to finish.

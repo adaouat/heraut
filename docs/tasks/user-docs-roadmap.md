@@ -283,11 +283,31 @@ Done 2026-11-06.
 
 ### Phase 89c — Guides
 
-#### `[ ]` T465: Guide — publish to GitHub from GitLab CI/CD
+#### `[x]` T465: Guide — publish to GitHub from GitLab CI/CD
 
 New `docs/guides/github-from-gitlab-ci.md`: a GitLab project that publishes to GitHub, or to both. The two
 `forges:` entries, tokens (`token_env`, why the job token does not work for GitHub), `release.targets`,
 `commits.enrichment_forge`, and which links point where in each target's notes.
+
+Done 2026-11-06.
+- **The guide.** `docs/guides/github-from-gitlab-ci.md` covers the config (two forges,
+  `enrichment_forge: gitlab`, a GitHub target, or both), the token, the job, which links point
+  where, and a failure table. It is linked from the docs home and the GitLab CI guide.
+- **A step the plan missed: the tag must be on GitHub first.** The GitHub driver creates the
+  release by tag name only (no `target_commitish`). When the tag isn't on GitHub yet, GitHub creates
+  it on the head of its own default branch, which may be an older commit. heraut pushes only to
+  `origin`, so the guide pushes the commit and the tag to a `github` remote from a `post_tag` hook,
+  which runs after the tag push and before publishing. A GitLab push mirror isn't enough: it is
+  asynchronous.
+- **Verified with the built binary,** simulating a GitLab CI job:
+  - `check config` passes, and the dry run shows the hook between "Push tag" and "Publish to github";
+  - from a detached HEAD, `changelog --tag` runs the hook for real into a bare repository standing in
+    for GitHub (branch and tag arrive), and the release commit lands on `origin`'s `main` (T482);
+  - the committed `CHANGELOG.md` links to the job's GitLab host;
+  - the quoted messages come from runs.
+- **Not run on real forges.** No sandbox run was requested.
+- **Finding, not fixed.** Passing the tagged commit's SHA as `target_commitish` would make GitHub
+  refuse a release whose commit it doesn't have, instead of tagging another commit silently.
 
 #### `[ ]` T466: Guide — self-hosted GitLab
 
