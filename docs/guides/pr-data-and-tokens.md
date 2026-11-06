@@ -1,0 +1,86 @@
+# Pull request data in the changelog
+
+From git alone, heraut writes one line per commit: its message and its hash. With access to your
+forge's API it adds the pull request (or merge request) each commit came from, and who opened it:
+
+```markdown
+- Add search - ([4e1c2a7](https://github.com/acme/app/commit/4e1c2a7…)) by @ada in [#12](https://github.com/acme/app/pull/12)
+```
+
+The release notes also get a **New Contributors ❤️** block naming everyone whose first contribution
+is in the release, with their pull requests.
+
+## The token it needs
+
+| Forge | Where | Token |
+|---|---|---|
+| GitHub | GitHub Actions | the job's `GITHUB_TOKEN`, with `pull-requests: read` in the workflow's `permissions` |
+| GitHub | elsewhere | `GH_TOKEN` or `GITHUB_TOKEN`: a token that can read the repository's pull requests |
+| GitLab | GitLab CI | nothing to set: the job token can read merge requests |
+| GitLab | elsewhere | `GITLAB_TOKEN`, a token with `read_api` (or `api`) |
+| Azure DevOps | Azure Pipelines | `SYSTEM_ACCESSTOKEN`, mapped into the job's environment |
+| Azure DevOps | elsewhere | `AZURE_DEVOPS_TOKEN`, a token that can read code |
+
+The same token usually also publishes the release, so a release job rarely needs a second one. All
+the variables are listed in [Environment variables](../reference/environment-variables.md).
+
+On GitLab, the handles come from the commit author's email (`ada@example.com` gives `@ada`). For the
+real GitLab usernames, set `api_mode: graphql` on the forge and give it a `read_api` token; the job
+token can't call GitLab's GraphQL API.
+
+## When the data can't be fetched
+
+By default heraut writes the changelog anyway, without the links, and says so:
+
+```text
+✓ [2/2] Generate changelog — without enrichment
+     ✓ remote enrichment unavailable; rendering without PR attribution: … 401 Unauthorized
+     ✓ remote metadata unavailable — PR authors/numbers omitted
+```
+
+`commits.enrichment_policy` changes that:
+
+```yaml
+commits:
+  enrichment_policy: required   # optional (the default) | required | disabled
+```
+
+| Policy | When the data can't be fetched |
+|---|---|
+| `optional` | Writes the changelog without it, with a warning. |
+| `required` | Stops the run before anything is written. Use it when a release without its pull request links is not acceptable. |
+| `disabled` | Never asks: commit lines only, no API call. |
+
+Two flags change the policy for one run: `--offline` acts as `disabled` (handy on a plane, or to
+look at a changelog quickly), and `--force` turns `required` into `optional`.
+
+## Several forges: one source
+
+When you publish to several forges (say GitLab and a GitHub mirror), the pull request data still
+comes from one of them, named by `commits.enrichment_forge`. Choose the forge where your pull or merge
+requests actually live:
+
+```yaml
+forges:
+  - name: gitlab
+    platform: gitlab
+  - name: github
+    platform: github
+    repository: acme/app
+
+commits:
+  enrichment_forge: gitlab
+```
+
+Every target's notes then carry the same `!12` links, authors and New Contributors, pointing to
+GitLab. Only the commit and compare links follow each target. See
+[Publish to GitHub from GitLab CI/CD](github-from-gitlab-ci.md).
+
+## When it fails
+
+| Message | Cause | Fix |
+|---|---|---|
+| `remote enrichment unavailable; …: 401 Unauthorized` | no token, or it can't read the pull requests | set the token from the table above |
+| `remote enrichment (required): …` and the run stops | `enrichment_policy: required` and the fetch failed | fix the token, or `--force` for this run |
+| `You cannot use job tokens to authenticate GraphQL requests` | `api_mode: graphql` with GitLab's job token | `api_mode: rest`, or a `read_api` token in `token_env` |
+| no warning, and no links | heraut found no forge at all (no CI, an unknown origin, no token) | add a `forges:` entry |

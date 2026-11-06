@@ -423,10 +423,27 @@ Done 2026-11-06.
 - **From the code and spec.** Directories are skipped, not refused (`matchAssets`); the
   GitHub/GitLab storage details come from Spec 05.
 
-#### `[ ]` T471: Guide — PR/MR data in the changelog
+#### `[x]` T471: Guide — PR/MR data in the changelog
 
 New `docs/guides/pr-data-and-tokens.md`: what enrichment adds (PR/MR links, `@handles`, New Contributors),
 the tokens it needs per forge, `enrichment_policy`, `--offline`, one enrichment forge for every target.
+
+Done 2026-11-06.
+- **The guide.** `docs/guides/pr-data-and-tokens.md` covers:
+  - what enrichment adds (the commit line shape from `blocks.tmpl`, New Contributors);
+  - a token table per forge and place, which uses the shared GitHub chain from T484;
+  - GitLab's email-based handles against `api_mode: graphql`;
+  - `enrichment_policy`, `--offline` and `--force`;
+  - one enrichment forge for every target;
+  - a failure table.
+- **Run with the built binary** on a github.com origin with a bad token:
+  - the optional-policy warning (two sub-lines) and "— without enrichment";
+  - the `required` failure;
+  - `--force` downgrading it;
+  - `--offline` skipping the call.
+  - The quoted output is exact.
+- **Cosmetic finding, not fixed.** Those warning sub-lines print with a ✓ mark, like successes,
+  in plain output.
 
 #### `[ ]` T472: Guide — link tickets
 

@@ -25,6 +25,7 @@ Each guide answers one situation.
 | Promote one version through dev, staging and prod | [Several environments](guides/environments.md) |
 | Publish release candidates (`v1.4.0-rc.1`) before the final version | [Pre-releases](guides/pre-releases.md) |
 | Attach binaries, archives or checksums to a release | [Attach files to a release](guides/release-assets.md) |
+| Get pull request links and authors in the changelog | [Pull request data in the changelog](guides/pr-data-and-tokens.md) |
 | Tag every CI build of a mobile app with its build number | [Mobile apps: build numbers in tags](guides/mobile-ci-tagging.md) |
 | Release a fix on an older version line | [Maintenance branches](guides/maintenance-branches.md) |
 | Run my own scripts during a release | [Release pipeline and hooks](guides/release-pipeline-and-hooks.md) |
