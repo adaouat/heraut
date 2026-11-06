@@ -29,193 +29,59 @@ like `héros` (hero), which is the idea.*
 
 ## Install
 
-### Homebrew
+```bash
+brew install --cask adaouat/tap/heraut       # Homebrew, with shell completions and a man page
+mise use packslip:github.com/adaouat/heraut  # mise, checks the release signature first (mise 2026.9.2+)
+```
+
+heraut needs `git` on your `PATH`, nothing else. A prebuilt binary, Docker, `go install`, checking
+a download and upgrading: see [Install](docs/install.md).
+
+## A first look
 
 ```bash
-brew install --cask adaouat/tap/heraut
+heraut init                # answer a few questions, get a .heraut.yml
+heraut check config        # check the config, offline
+heraut release --dry-run   # see what would happen, change nothing
+heraut release             # version, changelog, commit, tag, publish
 ```
 
-Also installs bash/zsh/fish completions and the `heraut` man page.
-
-### mise
-
-```bash
-mise use packslip:github.com/adaouat/heraut
-```
-
-Verifies the release against heraut's GitHub Actions signing identity via a
-[packslip](https://packslip.dev) manifest before installing — requires mise v2026.9.2 or newer.
-Declare it in your `.mise.toml` / `mise.toml`:
-
-```toml
-[tools]
-"packslip:github.com/adaouat/heraut" = "latest"
-```
-
-On an older mise, or if you'd rather skip verification, use the plain GitHub-releases backend:
-
-```bash
-mise use github:adaouat/heraut
-```
-
-### Prebuilt binary
-
-Download the raw binary for your platform from the
-[releases page](https://github.com/adaouat/heraut/releases). Assets are named
-`heraut_<version>_<os>_<arch>` — no `.tar.gz`/`.zip` wrapper, just the binary — alongside
-a `checksums.txt` for verification.
-
-```bash
-# example: macOS arm64 — replace <version> with the release tag
-curl -L -o heraut "https://github.com/adaouat/heraut/releases/download/<version>/heraut_<version>_darwin_arm64"
-chmod +x heraut
-./heraut --version
-```
-
-Once installed, heraut prints a one-line upgrade hint when a newer release exists; re-run
-your install method (`mise upgrade heraut`, `go install …@latest`, or the curl command) to
-upgrade.
-
-> **macOS / Gatekeeper:** heraut's binaries aren't notarized by Apple (yet), so macOS
-> quarantines them on download and refuses to run them. Until that changes, clear the
-> quarantine flag yourself before running the binary:
-> ```bash
-> xattr -d com.apple.quarantine heraut
-> ```
-
-### Docker
-
-```bash
-docker run --rm ghcr.io/adaouat/heraut:latest --version
-
-# run against the current repo
-docker run --rm -v "$PWD":/repo -w /repo ghcr.io/adaouat/heraut:latest release --dry-run
-```
-
-Available tags (Docker images do not carry the `v` prefix that git tags use):
-
-| Tag | Meaning |
-|-----|---------|
-| `latest` | Latest release |
-| `X.Y.Z` | Exact version, e.g. `0.58.0` |
-| `X.Y` | Latest patch of that minor, e.g. `0.58` |
-| `X` | Latest release of that major, e.g. `0` |
-
-### `go install`
-
-```bash
-go install github.com/adaouat/heraut/cmd/heraut@latest
-```
-
-## Prerequisites
-
-heraut needs one external tool: `git`, on `PATH`. When running via **binary or `go install`**,
-install it yourself; the **Docker image** bundles it.
-
-Publishing needs no CLI: heraut calls the GitHub REST API itself, with `GH_TOKEN` or `GITHUB_TOKEN`
-(`GH_ENTERPRISE_TOKEN` or `GITHUB_ENTERPRISE_TOKEN` first on GitHub Enterprise Server), and the GitLab
-REST API, with `GITLAB_TOKEN` or, in GitLab CI, `CI_JOB_TOKEN`. A forge's `token_env` replaces these
-defaults. Enriching a changelog with PR/MR data from a `github`/`gitlab` forge also talks to each
-platform's API directly over HTTP. Changelog and release-notes generation needs no external binary
-either — `native` (heraut's built-in generator) ships in the `heraut` binary.
-
-Run `heraut check runtime` to verify the tools and tokens for your config are available.
-
-## Quickstart
-
-```bash
-# 1. Generate a .heraut.yml interactively (or `heraut init --defaults` for an opinionated default)
-heraut init
-
-# 2. Validate the config offline — parse + semantic checks, no network
-heraut check config
-
-# 3. Preview the full pipeline without side effects
-heraut release --dry-run
-
-# 4. Cut the release: resolve version → changelog → commit → tag → publish
-heraut release
-```
-
-## What it handles
-
-- **Versioning** — SemVer or CalVer, plus a per-environment variant of each for projects
-  with independently-versioned lines (e.g. `staging` vs. `prod`). See
-  [Spec 04 — Versioning](docs/specs/04-versioning.md).
-- **Changelog & release notes** — built in (`native`), no external binary to install or
-  pin a version of. See [Spec 05](docs/specs/05-generators-and-platforms.md).
-- **Publishing** — GitHub and GitLab releases; Azure DevOps is supported for commit
-  enrichment (PR/MR data in the changelog) but has no release API of its own to publish
-  to. See [Spec 05](docs/specs/05-generators-and-platforms.md).
-
-## Commands
-
-The [Quickstart](#quickstart) above covers the core loop. Beyond that: `heraut changelog`
-(changelog only, optionally `--commit`/`--tag`), `heraut notes <tag>` (print the release notes of a
-tag, for example as plain text for an app store), `heraut version next`/`current` (print
-without side effects), `heraut commit verify`/`create` (Conventional Commits tooling).
-`heraut skill install` writes a ready-made skill so an AI coding agent knows how to drive heraut; the
-commands an agent needs most (`version`, `check`, `commit verify`, `release --dry-run`) take `--json`.
-`--help` works on every command; `--dry-run` on the ones with side effects (`release`,
-`changelog`, `commit create`, `version sprint bump`). See
-[Spec 03 — Commands](docs/specs/03-commands.md) for the full per-command flag reference.
-
-## Configuration
-
-Configuration lives in `.heraut.yml` (or `.config/heraut.yml`). Add the schema header for
-IDE autocomplete and inline validation in any editor with YAML Language Server support:
+A small `.heraut.yml` for a project released on GitHub:
 
 ```yaml
 # yaml-language-server: $schema=https://raw.githubusercontent.com/adaouat/heraut/main/schema.json
-
 version: "1"
 
 versioning:
   strategy: semver
   tag_prefix: "v"
-  initial_version: "0.1.0"
-  bump:
-    mode: auto
 
 changelog:
   output: CHANGELOG.md
 
-forges:
-  - name: github
-    platform: github
-    repository: acme/widget
-
 release:
   notes: {}
-  targets:
-    - forge: github
 ```
 
-| Block | Purpose |
-|-------|---------|
-| `versioning` | Which strategy to use and how it computes the next version |
-| `forges` | Code-hosting connections heraut talks to — often not needed at all, since it auto-detects from CI or your git origin |
-| `release` | What to publish and where; `release.targets` references a `forges[].name` |
+heraut finds the GitHub or GitLab project from your CI or your git remote. The schema line gives
+autocomplete and validation in editors that support the YAML language server.
 
-That's the shape, not the whole schema — `changelog` output, per-environment overrides
-via `environments`, and every other field are in
-[Spec 02 — Configuration](docs/specs/02-configuration.md). For a fully annotated example
-covering every field, see [`docs/heraut.sample.yml`](docs/heraut.sample.yml).
+## What it handles
 
-## Updates
-
-After any command, heraut runs a non-blocking, once-per-day check against the GitHub
-Releases API and prints a one-line hint — with the matching upgrade command — when a newer
-version exists. Disable the check with `HERAUT_CHECK_UPDATE=false`.
-
-heraut does not self-replace its binary: upgrades go through your install method
-(`mise upgrade heraut`, `go install …@latest`, Homebrew, or re-running the curl command).
+- **Versions** from your commit messages ([Conventional Commits](https://www.conventionalcommits.org/)):
+  SemVer or CalVer, and one version line per environment (`dev`, `staging`, `prod`) when you need it.
+- **Changelog and release notes**, built in, with links to commits and pull requests, and templates you
+  can override.
+- **Publishing** to GitHub and GitLab, one or both, with files attached. Azure DevOps works for pull
+  request data in the changelog; it has no releases to publish to.
+- **Your own steps** before and after the tag or the release, from a single config file, checked before
+  anything runs.
 
 ## Documentation
 
-- [`docs/specs/`](docs/specs/) — behavioural specification (the authority for users)
-- [`docs/adr/`](docs/adr/) — architecture decision records
-- [`docs/guides/`](docs/guides/) — task-oriented how-tos
+[Read the docs](docs/README.md).
+
+Working on heraut itself? See [CONTRIBUTING.md](CONTRIBUTING.md).
 
 ## License
 

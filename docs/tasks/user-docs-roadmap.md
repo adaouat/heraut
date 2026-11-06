@@ -57,7 +57,7 @@ links keep working at the same depth); live references updated in Spec 06, `docs
 `CLAUDE.md`'s layout and the comment at the top of `.github/workflows/e2e.yml` (comment only). Past
 roadmap notes and `docs/superpowers/` plans keep the old path: they record what was true then.
 
-#### `[ ]` T454: README as the user front door, and `docs/install.md`
+#### `[x]` T454: README as the user front door, and `docs/install.md`
 
 `README.md` keeps: what heraut is and why, one short example, install with Homebrew and
 `mise use packslip:…` only, a "Read the docs" link to `docs/README.md`, license. The Quickstart, Commands,
@@ -67,6 +67,17 @@ one line for contributors pointing to `CONTRIBUTING.md`.
 
 New `docs/install.md`: the plain `github:` mise backend, the prebuilt binary (checksums, packslip
 verification), Docker, `go install`, prerequisites (`git`), updates and the update hint.
+
+**Done.** The README keeps the pitch, then Install (Homebrew and `mise use packslip:…` only, one line
+each), "A first look" (the four commands and a minimal `.heraut.yml` with no `forges:` block, checked
+with the built binary: `check config` passes and the dry run resolves `v0.1.0` and would publish to the
+GitHub origin), "What it handles" in user terms, and Documentation (the user docs, plus one line to
+`CONTRIBUTING.md`). The Prerequisites, Commands, Configuration and Updates sections left the README:
+`git` and upgrades went to `docs/install.md`; tokens, commands and configuration come back with Getting
+started and the reference. `docs/install.md` fixes a bug in the old curl example (the tag has a `v`,
+the file name doesn't) and was checked against the real 0.84.0 assets: the checksum line reads `OK`
+and `gh attestation verify` succeeds (the packslip action attests each binary). The upgrade table
+uses the commands forge's update hint prints (`brew upgrade heraut`, `mise upgrade heraut`).
 
 #### `[ ]` T455: `docs/README.md`, the user docs home
 
