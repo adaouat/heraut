@@ -513,8 +513,8 @@ func buildChangelogPipelineConfig(runner, readRunner port.Runner, cfg *config.Co
 // from the effective tag format, plus the top-level enrichment_policy:
 //   - HeadingVersionPattern: strips env prefix/suffix and build from changelog headings
 //     (when {env} or {build} is present)
-//   - TagPattern: scopes native's tag walk to the active env's tags (when {env} and the user
-//     has not set an explicit tag_pattern)
+//   - TagPattern / TagGlob: scope native's tag walk to the active env's tags (on a per-env run,
+//     when the user has not set an explicit tag_pattern)
 //   - RemoteMetadata: the top-level Config.EnrichmentPolicy, so the generator honours
 //     it (empty is left empty — the generator treats that as "optional")
 //   - Tickets: the top-level Config.Tickets, so the generator can inject link_parsers
@@ -530,10 +530,10 @@ func withEnvDerivations(driver *config.ContentDriver, cfg *config.Config, env st
 	var tagPat, tagGlob string
 	if driver.TagPattern == "" {
 		tagPat = tagfmt.DeriveTagPattern(tf, tagfmt.Tokens{Env: env})
-		// The git glob is the native equivalent of git-cliff's --tag-pattern regex: it scopes
-		// listTags / previousTag to the active env's tags. Derived only for a per-env format
-		// ({env} present) — otherwise native keeps walking all tags.
-		if env != "" && strings.Contains(tf, "{env}") {
+		// The git glob scopes listTags / previousTag to the active env's tags. It is derived on
+		// every per-env run (env set), whether the env's tag_format names {env} or spells its
+		// prefix out (prod/{version}); otherwise native keeps walking all tags.
+		if env != "" {
 			if g, err := tagfmt.GlobPattern(tf, tagfmt.Tokens{Env: env}); err == nil {
 				tagGlob = g
 			}

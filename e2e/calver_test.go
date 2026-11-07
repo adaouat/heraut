@@ -208,3 +208,49 @@ environments:
 	require.Equal(t, exitOK, res.ExitCode, "stdout:\n%s\nstderr:\n%s", res.Stdout, res.Stderr)
 	assert.Equal(t, "prod/2026.11.07.0", strings.TrimSpace(res.Stdout))
 }
+
+// An environment's changelog holds its own releases only, whether or not tag_format names {env}.
+func TestCalVerPerEnv_ChangelogStaysInItsEnvironment(t *testing.T) {
+	for _, tc := range []struct{ name, formats, heading string }{
+		{"literal prefixes", `
+environments:
+  dev:
+    bump: auto
+    tag_format: "dev/{version}"
+  prod:
+    bump: auto
+    tag_format: "prod/{version}"
+`, "prod/2026.11.0"},
+		{"{env} token", `
+  tag_format: "{env}/{version}"
+environments:
+  dev:
+    bump: auto
+  prod:
+    bump: auto
+`, "2026.11.0"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			bin := harness.Binary(t, "heraut_testclock")
+			repo := flowRepo(t, `version: "1"
+versioning:
+  strategy: calver-per-env
+  format: "YYYY.MM.PATCH"`+tc.formats+`changelog:
+  output: CHANGELOG.md
+`)
+			now := []string{"HERAUT_TEST_NOW=2026-11-07T12:00:00Z"}
+			repo.Commit("feat: one")
+			res := repo.Run(bin, now, "changelog", "--tag", "--no-push", "--env", "dev", "--offline")
+			require.Equal(t, exitOK, res.ExitCode, "stdout:\n%s\nstderr:\n%s", res.Stdout, res.Stderr)
+			repo.Commit("feat: two")
+			res = repo.Run(bin, now, "changelog", "--tag", "--no-push", "--env", "dev", "--offline")
+			require.Equal(t, exitOK, res.ExitCode, "stdout:\n%s\nstderr:\n%s", res.Stdout, res.Stderr)
+
+			res = repo.Run(bin, now, "changelog", "--env", "prod", "--regenerate", "--offline")
+			require.Equal(t, exitOK, res.ExitCode, "stdout:\n%s\nstderr:\n%s", res.Stdout, res.Stderr)
+
+			assert.Equal(t, []string{tc.heading + ": One, Two, Init"}, changelogOutline(repo.ReadFile("CHANGELOG.md")),
+				"prod's first release only, none of dev's")
+		})
+	}
+}

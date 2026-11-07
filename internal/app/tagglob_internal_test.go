@@ -22,6 +22,20 @@ func TestWithEnvDerivations_SetsTagGlobForPerEnv(t *testing.T) {
 	assert.Empty(t, driver.TagGlob, "the original driver is never mutated")
 }
 
+// An env whose tag_format spells its prefix out (prod/{version}, no {env} token) is scoped too:
+// without the glob, its changelog walked every env's tags.
+func TestWithEnvDerivations_SetsTagGlobForALiteralEnvPrefix(t *testing.T) {
+	driver := &config.ContentDriver{}
+	cfg := &config.Config{
+		Versioning:   config.Versioning{Strategy: "calver-per-env", Format: "YYYY.MM.PATCH"},
+		Environments: map[string]config.Environment{"prod": {Bump: "auto", TagFormat: "prod/{version}"}},
+		Changelog:    driver,
+	}
+
+	got := withEnvDerivations(driver, cfg, "prod")
+	assert.Equal(t, "prod/*", got.TagGlob)
+}
+
 // TestWithEnvDerivations_NoTagGlobForNonPerEnv verifies a non-per-env tag format leaves TagGlob
 // empty, so native keeps listing all tags (unchanged behaviour for semver/calver).
 func TestWithEnvDerivations_NoTagGlobForNonPerEnv(t *testing.T) {

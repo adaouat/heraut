@@ -32,13 +32,13 @@ post-v1 (Phase 100). The v1.0.0 cut (Phase 101) comes last.
 
 | Phase | Theme | Tasks | Status |
 |---|---|---|---|
-| 94 | Release-logic bugs that block v1 | T492–T501 | In progress — T492–T495 done |
+| 94 | Release-logic bugs that block v1 | T492–T501 | In progress — T492–T496 done |
 | 95 | Decisions to make before the format freezes (ADRs) | T502–T506 | Not started |
 | 96 | Behaviour fixes | T507–T522 | Not started |
 | 97 | Tests that give false confidence | T523–T529 | Not started |
 | 98 | User docs | T530–T536 | Not started |
 | 99 | Contributor docs | T537–T541 | Not started |
-| 100 | Remaining review items (graded post-v1, done before v1 by decision) | T542–T554 | Not started |
+| 100 | Remaining review items (graded post-v1, done before v1 by decision) | T542–T554, T556 | Not started |
 | 101 | Cut v1.0.0 | T555 | Not started |
 
 ---
@@ -131,7 +131,7 @@ red before), an E002 table over the four-component, yearly and suffixed formats,
 the format-based reading. The changelog's ordering of CalVer tags (`calverOrder`, Spec 05) is T496 and
 T552.
 
-#### `[ ]` T496: calver-per-env changelogs stay in their environment
+#### `[x]` T496: calver-per-env changelogs stay in their environment
 
 With `tag_format: dev/{version}` / `prod/{version}` (no `{env}`, Spec 04's own calver-per-env example),
 `heraut changelog --env prod` writes the dev tags' sections and no prod section.
@@ -139,6 +139,16 @@ With `tag_format: dev/{version}` / `prod/{version}` (no `{env}`, Spec 04's own c
 `internal/app/pipeline.go:531-541` derives tag scoping only for `{env}` formats. semver-per-env is
 correct (`SortTags` drops unparsable tags). Fix: drop unreadable tags in `calverOrder`, and derive the
 tag glob from any per-env `tag_format`. Tests: both shapes, both strategies.
+
+**Done (2026-11-07).** `withEnvDerivations` now derives the env's tag glob on every per-env run, not
+only when `tag_format` names `{env}`: `prod/{version}` lists `prod/*`. I did not make `calverOrder`
+drop unreadable tags, the other fix the review offered: under plain calver a legacy tag (`v1.2.3`)
+bounds the oldest CalVer section today, and dropping it would make that section walk the whole history.
+The glob alone fixes the reported case. Tests: `TestWithEnvDerivations_SetsTagGlobForALiteralEnvPrefix`
+(killed by restoring the `{env}` condition), and Lane A `TestCalVerPerEnv_ChangelogStaysInItsEnvironment`
+for both shapes; the literal one wrote only dev's sections before. Spec 02's `tag_pattern` row says the
+derivation covers literal prefixes. Found along the way: a literal-prefix env's heading keeps the whole
+tag (`## [prod/2026.11.0]`) while a `{env}` format strips it; recorded as T556.
 
 #### `[ ]` T497: say so when tags exist but none match the prefix ✔︎
 
@@ -655,6 +665,16 @@ forms (not the forms themselves) and the `whatsnew` fallback.
 Two review agents made unintended network calls (tokenless read-only calls to api.github.com, and a DNS
 miss on `gitlab.example.com`): find which commands still reach the network without `--offline` in a
 fresh repo, and make sure the docs and `check` say so. Close with a note if T519 and T533 covered it.
+
+---
+
+#### `[ ]` T556: per-env changelog headings strip a literal env prefix too
+
+Found during T496. With `tag_format: "{env}/{version}"` a per-env changelog heading reads
+`## [2026.11.0]`; with a literal `prod/{version}` it reads `## [prod/2026.11.0]`, because
+`tagfmt.DeriveHeadingVersionPattern` only strips around `{env}` / `{build}`. Derive the heading pattern
+from the env's effective format whatever its shape, so both read the same; check the release notes and
+`heraut notes` headings too.
 
 ---
 
