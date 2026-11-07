@@ -147,12 +147,16 @@ heraut release [--set-version <version>] [--set-build-id <id>] [--pre-release <l
 > platform release per build, by design. Omitting the build ID is a configuration error (exit
 > code 2). See [Spec 02 § `{build}` token](02-configuration.md#build-token--ci-build-ids).
 
-`heraut release` requires at least one **resolvable** publish destination — an explicit
-`release.targets` entry, or a forge that auto-detects from CI/git origin and has a publish
-driver (`github`/`gitlab`; `azure_devops` never counts, see
-[Spec 02 § Platform drivers](02-configuration.md#platform-drivers)). Zero resolvable
-destinations is a configuration error for this command specifically — `heraut changelog`
-has no such requirement (see § Tag-only workflow below).
+Without a `release:` block (at the root or on the active environment), `heraut release` tags only:
+it runs the changelog, commit, tag and push steps, creates no release-notes or publish step even
+when a forge auto-detects, and warns `publishing is off: the config has no release: block, so no
+forge release is created (add release: {} to publish)` (in `--json`, under `warnings`). With a
+`release:` block it requires at least one **resolvable** publish destination — an explicit
+`release.targets` entry, or a forge that auto-detects from CI/git origin and has a publish driver
+(`github`/`gitlab`; `azure_devops` never counts, see
+[Spec 02 § Platform drivers](02-configuration.md#platform-drivers)). A `release:` block with zero
+resolvable destinations is a configuration error, naming both ways out: declare a target, or remove
+the block to tag only.
 
 **Action sequence** ([ADR-0011](../adr/0011-single-pipeline-release-via-pre-computation.md), [ADR-0012](../adr/0012-changelog-commit-ownership.md)) — for where the six `hooks:` points ([Spec 02 § `hooks`](02-configuration.md#hooks)) fall relative to these steps, see [Guide: Release pipeline and hook positions](../guides/release-pipeline-and-hooks.md):
 
@@ -749,9 +753,11 @@ Online checks:
   the same failure is only an advisory warning, since a changelog-only user may never
   publish.
 
-- **No publish destination** (advisory) — when no effective release target resolves to a
-  `github` or `gitlab` forge, one `publish` row warns `no release target resolves to github or
-  gitlab`; it never fails the check, since a changelog-only user never publishes.
+- **Publishing off** — without a `release:` block, one `publish` row reads `off (no release:
+  block)` and no destination is resolved or checked (no origin lookup, no token probe).
+- **No publish destination** (advisory) — when a `release:` block is set but no effective release
+  target resolves to a `github` or `gitlab` forge, one `publish` row warns `no release target
+  resolves to github or gitlab`; it never fails the check.
 
 When no config file is found, `heraut check runtime` proceeds rather than failing: it prints
 `no config found at <path> — checking git only`, checks git, and the `publish` row warns `no

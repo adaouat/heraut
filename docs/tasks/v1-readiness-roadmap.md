@@ -32,7 +32,7 @@ post-v1 (Phase 100). The v1.0.0 cut (Phase 101) comes last.
 
 | Phase | Theme | Tasks | Status |
 |---|---|---|---|
-| 94 | Release-logic bugs that block v1 | T492–T501 | In progress — T492–T498, T500–T501 done |
+| 94 | Release-logic bugs that block v1 | T492–T501 | Done |
 | 95 | Decisions to make before the format freezes (ADRs) | T502–T506 | Not started |
 | 96 | Behaviour fixes | T507–T522 | Not started |
 | 97 | Tests that give false confidence | T523–T529 | Not started |
@@ -210,7 +210,7 @@ were both killed; an equivalent condition survived. Comments and key order are s
 file is rewritten); Spec 03 says so. Spec 03 § init lists what is kept, and `init`'s help says it.
 No Lane A scenario: the wizard needs a terminal, and `--defaults` goes through the same function.
 
-#### `[ ]` T499: **Decision** — a config without `release:` ✔︎
+#### `[x]` T499: **Decision** — a config without `release:` ✔︎
 
 With no `release:` block, `heraut release` still publishes to the detected forge and runs no
 release-notes step (`internal/app/pipeline.go`: notes stay nil while targets come from detection);
@@ -219,6 +219,23 @@ release-notes step (`internal/app/pipeline.go`: notes stay nil while targets com
 that gets one without the other") and `docs/guides/environments.md:9-32`, whose example config hits it
 for every environment. Options: (a) publish with default notes, (b) refuse with a config error naming
 the block to add, (c) tag only. Then align the code, the spec, the reference, the sample and the guide.
+
+**Done (2026-11-07). The user chose (c), tag only.** Without a `release:` block (root or environment),
+`buildReleasePipelineConfig` takes the `disable_release` path, with no notes and no publish target even
+when a forge auto-detects, and adds a pipeline warning: `publishing is off: the config has no
+release: block, so no forge release is created (add release: {} to publish)`. A new
+`pipeline.Config.Warnings` carries it, printed after the resolver's warnings and listed in the
+`--json` plan. `heraut release` checks for a destination only when there is a `release:` block; its
+message now names both ways out. `heraut check runtime` shows `publish — off (no release: block)` and
+resolves no forge. Five tests assumed the old rule and were updated: the zero-config targets row and
+`TestRelease_NoPlatforms_Error` now set `release: {}` (the CI shape Spec 02 documents), and two check
+rows and one Lane A check config needed `release: {}` to keep testing what they test. The ambiguous-token
+row now asserts publishing is off, with no forge row. New tests: a tag-only row,
+`TestRuntimeCheck_WithoutAReleaseBlockPublishingIsOff`, and Lane A
+`TestReleaseFlow_WithoutAReleaseBlockTagsOnly` (a real run pushes the tag; a GitHub Actions env plans
+no notes and no publish). Docs: Spec 02 § release, Spec 03 § release and § check, CLAUDE.md's
+constraint, the sample, the environments guide (its config tags only, now said), and the self-hosted
+guide's error row.
 
 #### `[x]` T500: CI values only fill a forge entry on the same instance
 

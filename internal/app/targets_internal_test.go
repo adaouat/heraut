@@ -216,7 +216,25 @@ func TestBuildReleasePipelineConfig_TargetsWiring(t *testing.T) {
 		require.Len(t, readRunner.Calls, 1, "exactly one git call — shared with enrichment resolution")
 	})
 
-	t.Run("zero-config: no release.targets at all, one auto-detected forge yields one driver", func(t *testing.T) {
+	t.Run("zero-config: release: {} without targets, one auto-detected forge yields one driver", func(t *testing.T) {
+		testutil.ClearCIEnv(t)
+		runner := exectest.NewMockRunner()
+		readRunner := exectest.NewMockRunner()
+		readRunner.QueueResponse("https://gitlab.com/group/subgroup/project.git\n", "", nil)
+
+		cfg := &config.Config{
+			Version:    "1",
+			Versioning: config.Versioning{Strategy: "semver"},
+			Release:    &config.Release{Notes: &config.ContentDriver{}},
+		}
+
+		pCfg, err := buildReleasePipelineConfig(runner, readRunner, cfg, "", "", false, false, false)
+		require.NoError(t, err)
+		require.Len(t, pCfg.Platforms, 1, "zero-config: one resolved forge must yield one driver")
+		assert.Empty(t, pCfg.Warnings)
+	})
+
+	t.Run("no release: block tags only, even when a forge auto-detects", func(t *testing.T) {
 		testutil.ClearCIEnv(t)
 		runner := exectest.NewMockRunner()
 		readRunner := exectest.NewMockRunner()
@@ -229,7 +247,10 @@ func TestBuildReleasePipelineConfig_TargetsWiring(t *testing.T) {
 
 		pCfg, err := buildReleasePipelineConfig(runner, readRunner, cfg, "", "", false, false, false)
 		require.NoError(t, err)
-		require.Len(t, pCfg.Platforms, 1, "zero-config: one resolved forge must yield one driver")
+		assert.Empty(t, pCfg.Platforms, "no release: block, no publish target")
+		assert.Nil(t, pCfg.Notes, "and no notes")
+		assert.True(t, pCfg.DisableNotes)
+		assert.Equal(t, []string{NoReleaseBlockNotice}, pCfg.Warnings)
 	})
 
 	t.Run("release.notes set, no release.targets: zero-config publish still fires (T216 atomicity)", func(t *testing.T) {

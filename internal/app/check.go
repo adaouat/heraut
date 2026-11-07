@@ -122,6 +122,14 @@ func RuntimeCheck(
 	// ── Platforms ─────────────────────────────────────────────────────────────
 	header("Platforms")
 
+	if cfg != nil && !PublishesReleases(cfg, env) {
+		// No release: block: heraut release tags only, so no destination is resolved or checked.
+		dispatch("publish", func() RuntimeCheckItem {
+			return RuntimeCheckItem{Name: "publish", Value: "off (no release: block)"}
+		})
+		return
+	}
+
 	platCfgs, resolveErr := effectiveTargetPlatforms(runner, cfg, env)
 
 	switch {

@@ -216,7 +216,7 @@ func TestCheck_ConfigErrorsOutrankRuntimeFailures(t *testing.T) {
 		assert.Contains(t, normalize(res.Stdout), "config: ok")
 	})
 	t.Run("config and runtime fail: the config code wins", func(t *testing.T) {
-		repo := newRepo(t, "version: \"1\"\nversioning:\n  strategy: nope\nforges:\n  - name: github\n    platform: github\n    repository: acme/widget\n    token_env: GH_TOKEN\n")
+		repo := newRepo(t, "version: \"1\"\nversioning:\n  strategy: nope\nforges:\n  - name: github\n    platform: github\n    repository: acme/widget\n    token_env: GH_TOKEN\nrelease: {}\n")
 
 		res := repo.Run(bin, []string{path}, "check")
 

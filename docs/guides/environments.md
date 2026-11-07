@@ -40,6 +40,10 @@ heraut release --env staging        # staging/0.1.0, the same version
 heraut release --env prod
 ```
 
+This configuration has no `release:` block, so each `heraut release` tags only: changelog, commit,
+tag and push, with a warning that publishing is off. Add `release: {}` to also publish each
+environment's release to the forge.
+
 ## Two ways to get a version
 
 **`bump: auto`** works like a single-environment release: it reads the commits since the

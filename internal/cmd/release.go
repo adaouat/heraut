@@ -147,9 +147,9 @@ func runRelease(cmd *cobra.Command, version string, rf *releaseFlags, asJSON boo
 		return exitcode.Wrap(exitcode.Config, err)
 	}
 
-	if !app.HasResolvablePublishTarget(readRunner, cfg, env) {
+	if app.PublishesReleases(cfg, env) && !app.HasResolvablePublishTarget(readRunner, cfg, env) {
 		return exitcode.Wrap(exitcode.Config, fmt.Errorf(
-			"heraut release requires at least one resolvable publish destination — declare release.targets (with a forges: entry) or run where a forge auto-detects (CI env or git origin); use 'heraut changelog' for tag-only workflows",
+			"heraut release publishes (the config has a release: block) but found no destination — declare release.targets (with a forges: entry) or run where a forge auto-detects (CI env or git origin); remove the release: block to tag only",
 		))
 	}
 

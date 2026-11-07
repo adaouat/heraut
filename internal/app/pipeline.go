@@ -226,6 +226,15 @@ func changelogStepTotal(cfg *pipeline.ChangelogConfig) int {
 // A forge-resolution error here (e.g. an ambiguous multi-token machine) is deliberately treated as
 // "not resolvable" rather than propagated: BuildPipeline performs the same resolution again and
 // surfaces that error with full context, so this pre-flight only needs a yes/no answer.
+// NoReleaseBlockNotice is the warning heraut release gives when the config has no release: block.
+const NoReleaseBlockNotice = "publishing is off: the config has no release: block, so no forge release is created (add release: {} to publish)"
+
+// PublishesReleases reports whether cfg asks heraut release to publish for env: a release: block at
+// the root or on the environment. Without one, heraut release tags only.
+func PublishesReleases(cfg *config.Config, env string) bool {
+	return config.EffectiveReleaseNotes(cfg, env) != nil
+}
+
 func HasResolvablePublishTarget(runner port.Runner, cfg *config.Config, env string) bool {
 	if cfg == nil {
 		return false
@@ -317,6 +326,13 @@ func buildReleasePipelineConfig(runner, readRunner port.Runner, cfg *config.Conf
 		}
 		gen := buildGenerator(runner, driver, native.ModeReleaseNotes, herautVersion, regenerateChangelog, force, enrichForge, "", notesOrder)
 		pCfg.Notes = gen
+	}
+
+	// No release: block (root or environment) means tag only: no notes, no publish, even when a
+	// forge auto-detects. disable_release says so explicitly and needs no notice.
+	if effectiveNotes == nil && !pCfg.DisableNotes {
+		pCfg.DisableNotes = true
+		pCfg.Warnings = append(pCfg.Warnings, NoReleaseBlockNotice)
 	}
 
 	// Targets (release.targets — ADR-0043/ADR-0044, the only publish surface). Skipped entirely

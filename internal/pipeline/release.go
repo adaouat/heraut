@@ -123,6 +123,7 @@ func (p *Pipeline) Run(ctx context.Context) error {
 		return err
 	}
 	printResolveWarnings(p.out, result.Warnings)
+	printResolveWarnings(p.out, p.cfg.Warnings)
 
 	flow := p.releaseFlow(ctx, result)
 	if err := p.runner().runSteps(flow.prelude, &flow.hookFailed); err != nil {

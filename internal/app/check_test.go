@@ -485,15 +485,14 @@ func TestRuntimeCheck_AmbiguousForgeIsWarnWithoutPublishConfig(t *testing.T) {
 		cfg := semverCfg()
 		items := collectItems(mr, cfg, "")
 
-		found := false
+		// No release: block means heraut release tags only: no destination is resolved, so the
+		// ambiguity never comes up and nothing fails.
 		for _, it := range items {
-			if it.Name == "forge" {
-				found = true
-				assert.True(t, it.IsWarn, "a user who configured no publishing must not fail the check")
-				require.Error(t, it.Err, "the row must still explain what failed")
-			}
+			assert.NotEqual(t, "forge", it.Name, "no forge is resolved without a release: block")
 		}
-		assert.True(t, found, "expected forge item")
+		it := publishItem(t, items)
+		assert.NoError(t, it.Err, "a user who configured no publishing must not fail the check")
+		assert.Equal(t, "off (no release: block)", it.Value)
 	})
 
 	// No forges: block (so resolution still runs zero-config auto-detection and hits the same
@@ -572,6 +571,7 @@ func TestRuntimeCheck_AmbiguousForgeIsWarnWithoutPublishConfig(t *testing.T) {
 			{Name: "A", Type: "gitlab", Project: "group/subgroup/project"},
 			{Name: "B", Type: "github", Repository: "acme/widget"},
 		}
+		cfg.Release = &config.Release{Notes: &config.ContentDriver{}} // release: {}, so it publishes
 		require.Empty(t, config.EffectiveTargets(cfg, ""), "fixture must leave release.targets empty")
 		items := collectItems(mr, cfg, "")
 
@@ -724,8 +724,10 @@ func TestRuntimeCheck_NoTargetIsAdvisory(t *testing.T) {
 	testutil.ClearCIEnv(t)
 	mr := exectest.NewMockRunner()
 	queueSuccess(mr)
+	cfg := semverCfg()
+	cfg.Release = &config.Release{Notes: &config.ContentDriver{}} // release: {} with nowhere to publish
 
-	items := collectItems(mr, semverCfg(), "")
+	items := collectItems(mr, cfg, "")
 
 	it := publishItem(t, items)
 	require.Error(t, it.Err)
@@ -828,4 +830,24 @@ func TestRuntimeCheck_NilConfig_PublishIsAdvisory(t *testing.T) {
 	assert.True(t, it.IsWarn, "with no config there is nothing to publish to: a warning, not a failure")
 	assert.Equal(t, "no config found, destinations not checked", it.Err.Error())
 	assertNoBinaryProbed(t, mr)
+}
+
+// Without a release: block, heraut release tags only: the check says publishing is off and resolves
+// no destination (no origin lookup, no token probe).
+func TestRuntimeCheck_WithoutAReleaseBlockPublishingIsOff(t *testing.T) {
+	testutil.ClearCIEnv(t)
+	t.Setenv("GITHUB_ACTIONS", "true")
+	t.Setenv("GITHUB_REPOSITORY", "acme/app")
+	mr := exectest.NewMockRunner()
+	queueSuccess(mr)
+
+	items := collectItems(mr, semverCfg(), "")
+
+	it := publishItem(t, items)
+	assert.NoError(t, it.Err)
+	assert.False(t, it.IsWarn)
+	assert.Equal(t, "off (no release: block)", it.Value)
+	for _, c := range mr.Calls {
+		assert.NotEqual(t, []string{"remote", "get-url", "origin"}, c.Args, "no destination is resolved")
+	}
 }

@@ -191,11 +191,12 @@ platform's API directly over `net/http` (ADR-0043).
 
 ## Non-obvious constraints
 
-- `heraut release` requires at least one **resolvable** publish destination — an explicit
-  `release.targets` entry, or a forge that auto-detects from CI/git origin *and* has a
-  publish driver (`github`/`gitlab`; an auto-detected `azure_devops`-only forge does not
-  count, since Azure DevOps has no publish driver at all). Omitting the `release` block
-  with zero resolvable destinations is a config error, not a silent no-op.
+- Without a `release:` block, `heraut release` tags only (changelog → commit → tag → push), even
+  when a forge auto-detects, and warns that publishing is off. With one, it requires at least one
+  **resolvable** publish destination — an explicit `release.targets` entry, or a forge that
+  auto-detects from CI/git origin *and* has a publish driver (`github`/`gitlab`; an auto-detected
+  `azure_devops`-only forge does not count, since Azure DevOps has no publish driver at all). A
+  `release:` block with zero resolvable destinations is a config error, not a silent no-op.
 - `disable_changelog: true` per-env skips changelog generation and the commit, but **not**
   the tag when `--tag` is also passed. Use `heraut changelog --tag --env <env>` for
   tag-only flows on environments where changelog is disabled.

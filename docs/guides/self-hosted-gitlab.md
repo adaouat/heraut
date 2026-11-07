@@ -76,7 +76,7 @@ Linux, `SSL_CERT_FILE=/path/to/ca.pem` also works for a single command or CI job
 | Message | Cause | Fix |
 |---|---|---|
 | `forges[0].base_url: "http://…" must use https` | a plain `http` address | use `https` (plain `http` is accepted only for `localhost`) |
-| `heraut release requires at least one resolvable publish destination` | no `forges:` entry, outside CI, and no token | add the `forges:` entry |
+| `heraut release publishes (the config has a release: block) but found no destination` | no `forges:` entry, outside CI, and no token | add the `forges:` entry |
 | `environment variable GITLAB_TOKEN is not set` | no token outside CI | set `GITLAB_TOKEN`, or name your variable in `token_env` |
 | `x509: certificate signed by unknown authority` | a private certificate authority | trust it, see above |
 | `401 Unauthorized` | the token is wrong, expired, or lacks the `api` scope | create a new token with `api` |

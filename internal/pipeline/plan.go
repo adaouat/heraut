@@ -3,6 +3,7 @@ package pipeline
 import (
 	"context"
 	"fmt"
+	"slices"
 )
 
 // PlanStep is one action a real release would take. Action is one of hook, changelog,
@@ -41,7 +42,7 @@ func (p *Pipeline) Plan() (Plan, error) {
 		return Plan{}, err
 	}
 	flow := p.releaseFlow(context.Background(), result) // Plan runs no step, so no request uses it
-	plan := Plan{Tag: result.Tag, Version: result.Version, CurrentTag: result.CurrentTag, PreRelease: flow.prerelease, Warnings: result.Warnings}
+	plan := Plan{Tag: result.Tag, Version: result.Version, CurrentTag: result.CurrentTag, PreRelease: flow.prerelease, Warnings: append(slices.Clone(result.Warnings), p.cfg.Warnings...)}
 	for _, s := range flow.steps() {
 		if s.plan == nil {
 			continue

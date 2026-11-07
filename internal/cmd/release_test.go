@@ -177,6 +177,8 @@ esac
 	assert.Contains(t, out, "[dry-run]")
 }
 
+// A config that asks to publish (release: present) with nowhere to publish to is refused; without
+// release: it would tag only.
 func TestRelease_NoPlatforms_Error(t *testing.T) {
 	testutil.ClearCIEnv(t)
 	cfgPath := writeConfig(t, `
@@ -186,6 +188,7 @@ versioning:
   tag_prefix: "v"
 changelog:
   output: CHANGELOG.md
+release: {}
 `)
 	dir := t.TempDir()
 	t.Chdir(dir)
@@ -198,7 +201,7 @@ esac
 	_, err := executeRoot("release", "--config", cfgPath, "--dry-run")
 	require.Error(t, err)
 	assert.Equal(t, exitcode.Config, cmd.ExitCode(err))
-	assert.Contains(t, err.Error(), "publish destination")
+	assert.Contains(t, err.Error(), "found no destination")
 }
 
 func TestRelease_EmptyTargets_ZeroConfigResolves(t *testing.T) {

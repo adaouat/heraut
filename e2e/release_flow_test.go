@@ -407,3 +407,36 @@ release:
 		assert.Equal(t, []string{githubList, githubRelease}, repo.APICalls())
 	})
 }
+
+// A config without release: tags only: heraut release writes the changelog, commits, tags and pushes,
+// creates no forge release, and says so.
+func TestReleaseFlow_WithoutAReleaseBlockTagsOnly(t *testing.T) {
+	const noticeText = "publishing is off: the config has no release: block, so no forge release is created (add release: {} to publish)"
+	bin := harness.Binary(t)
+
+	t.Run("a real run", func(t *testing.T) {
+		repo := flowRepo(t, flowCfg)
+		repo.Commit("feat: one")
+
+		res := repo.Run(bin, nil, "release", "--offline")
+
+		require.Equal(t, exitOK, res.ExitCode, "stdout:\n%s\nstderr:\n%s", res.Stdout, res.Stderr)
+		assert.Equal(t, "v0.1.0", repo.GitRemote("tag", "-l"), "the tag reached the remote")
+		assert.Equal(t, "chore(release): 0.1.0", repo.GitRemote("log", "-1", "--format=%s", "main"))
+		assert.Contains(t, res.Stdout+res.Stderr, noticeText)
+	})
+
+	t.Run("a forge that auto-detects is not published to", func(t *testing.T) {
+		repo := flowRepo(t, flowCfg)
+		repo.Commit("feat: one")
+		ci := []string{"GITHUB_ACTIONS=true", "GITHUB_SERVER_URL=https://github.com", "GITHUB_REPOSITORY=acme/app"}
+
+		res := repo.Run(bin, ci, "release", "--dry-run", "--offline", "--json")
+
+		require.Equal(t, exitOK, res.ExitCode, "stdout:\n%s\nstderr:\n%s", res.Stdout, res.Stderr)
+		assert.NotContains(t, res.Stdout, `"publish"`)
+		assert.NotContains(t, res.Stdout, `"notes"`)
+		assert.Contains(t, res.Stdout, `"push_tag"`)
+		assert.Contains(t, res.Stdout, `publishing is off`)
+	})
+}

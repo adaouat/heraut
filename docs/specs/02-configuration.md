@@ -483,11 +483,11 @@ Two states only:
   `token_env`, the GitHub driver reads `GH_TOKEN`, then `GITHUB_TOKEN` (Spec 05 § GitHub). On
   GitLab CI the driver uses `CI_JOB_TOKEN` directly (see `inCIAutologin` in the GitLab driver).
 
-- **`release:` omitted entirely** — no notes, no publish. Valid when `heraut release` is not
-  used. Note: `heraut release` itself requires at least one **resolvable** publish
-  destination — an explicit `release.targets` entry, or a forge that auto-detects. Zero
-  resolvable destinations (no targets, no forge, no CI/origin to detect one) is a
-  configuration error for that command.
+- **`release:` omitted entirely** — no notes, no publish: `heraut release` tags only (changelog,
+  commit, tag, push), even when a forge auto-detects, and warns that publishing is off. A
+  `release:` block, by contrast, requires at least one **resolvable** publish destination — an
+  explicit `release.targets` entry, or a forge that auto-detects; with none, `heraut release` is a
+  configuration error.
 
 `release.notes` is a rendering-customization sub-block, not an on/off toggle — set fields
 there (`template`, `tag_pattern`, etc.) to override native's defaults for the release-notes

@@ -262,7 +262,7 @@ discipline that applies to every task.
 | 91 | Follow-ups from the generated reference (GitHub token for PR data, `check runtime` help) | Done |
 | 92 | Follow-ups from the guides (GitHub release commit, error punctuation, warning marks) | Done |
 | 93 | One person, one New Contributors entry (`.mailmap`, one entry per handle) | Done |
-| 94–101 | v1.0 readiness: every finding of the 2026-11-07 pre-v1 review, then the cut | Not started — T492–T555, see `v1-readiness-roadmap.md` |
+| 94–101 | v1.0 readiness: every finding of the 2026-11-07 pre-v1 review, then the cut | In progress — Phase 94 done (T492–T501), see `v1-readiness-roadmap.md` |
 
 ### Open items
 

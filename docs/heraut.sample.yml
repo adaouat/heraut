@@ -487,9 +487,10 @@ changelog:
 
 # ── release ───────────────────────────────────────────────────────────────────
 #
-# Omit this block if you do not publish releases to any platform. Presence — even
-# empty (release: {}) — always means "generate release notes and publish them,"
-# together; there is no config shape that gets one without the other.
+# Omit this block if you do not publish releases to any platform: heraut release
+# then tags only (changelog, commit, tag, push) and says publishing is off.
+# Presence — even empty (release: {}) — always means "generate release notes and
+# publish them," together; there is no config shape that gets one without the other.
 
 release:
   # notes — rendering overrides for the release-page description text. Omit it to use

@@ -32,6 +32,9 @@ type Config struct {
 	DisableChangelog bool
 	// DisableNotes skips release notes generation for the active env.
 	DisableNotes bool
+	// Warnings are notices known when the pipeline is built (e.g. publishing is off), printed and
+	// planned with the resolver's warnings.
+	Warnings []string
 	// AnnotatedTags creates annotated git tags (-a -m <commit_message>).
 	// When false, lightweight tags are created. Defaults to false (set by app layer).
 	AnnotatedTags bool
