@@ -7,6 +7,7 @@ import (
 	"github.com/adaouat/forge/exec/exectest"
 	"github.com/adaouat/heraut/internal/app"
 	"github.com/adaouat/heraut/internal/config"
+	"github.com/adaouat/heraut/internal/testutil"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -68,6 +69,7 @@ func TestResolveEnv_Auto_GitError(t *testing.T) {
 }
 
 func TestResolveEnv_Auto_DetachedHEAD(t *testing.T) {
+	testutil.ClearCIEnv(t)
 	mr := exectest.NewMockRunner()
 	mr.QueueResponse("HEAD\n", "", nil)
 	_, err := app.ResolveEnv("auto", perEnvCfg(map[string]string{"prod": "main"}), mr)
@@ -130,4 +132,18 @@ func TestResolveEnv_NamedEnvNeedsAPerEnvStrategy(t *testing.T) {
 		require.NoError(t, err)
 		assert.Equal(t, "prod", got)
 	})
+}
+
+// On a detached CI checkout, --env auto reads the branch the job runs for.
+func TestResolveEnv_Auto_DetachedHEADUsesTheCIBranch(t *testing.T) {
+	testutil.ClearCIEnv(t)
+	t.Setenv("GITLAB_CI", "true")
+	t.Setenv("CI_COMMIT_BRANCH", "develop")
+	mr := exectest.NewMockRunner()
+	mr.QueueResponse("HEAD\n", "", nil)
+
+	env, err := app.ResolveEnv("auto", perEnvCfg(map[string]string{"prod": "main", "staging": "develop"}), mr)
+
+	require.NoError(t, err)
+	assert.Equal(t, "staging", env)
 }

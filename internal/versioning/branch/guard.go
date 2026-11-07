@@ -2,7 +2,6 @@ package branch
 
 import (
 	"fmt"
-	"strings"
 
 	"github.com/adaouat/heraut/internal/config"
 	"github.com/adaouat/heraut/internal/port"
@@ -22,7 +21,8 @@ func (e *BranchMismatchError) Error() string {
 // CheckBranch enforces the per-environment branch guard: when the active environment
 // declares a branch, the current git branch must match it. This prevents operating on
 // an environment (e.g. releasing prod) from the wrong branch. It is a no-op when env is
-// empty or the environment has no branch set. force bypasses the check entirely.
+// empty or the environment has no branch set. force bypasses the check entirely. On a detached
+// checkout the branch is the one the CI job runs for (CurrentBranch).
 func CheckBranch(runner port.Runner, cfg *config.Config, env string, force bool) error {
 	if env == "" || force {
 		return nil
@@ -31,11 +31,13 @@ func CheckBranch(runner port.Runner, cfg *config.Config, env string, force bool)
 	if !ok || envCfg.Branch == "" {
 		return nil
 	}
-	out, _, err := runner.Run("git", "rev-parse", "--abbrev-ref", "HEAD")
+	current, ok, err := CurrentBranch(runner)
 	if err != nil {
-		return fmt.Errorf("determining current git branch: %w", err)
+		return err
 	}
-	current := strings.TrimSpace(out)
+	if !ok {
+		current = "HEAD"
+	}
 	if current != envCfg.Branch {
 		return &BranchMismatchError{Env: env, Want: envCfg.Branch, Current: current}
 	}

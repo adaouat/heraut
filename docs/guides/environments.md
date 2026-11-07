@@ -70,6 +70,10 @@ Each environment's release can differ:
 Environment "dev" must be operated from branch "develop", but the current branch is "main" (use --force to override).
 ```
 
+In CI, where the job checks out a commit rather than a branch, the current branch is the one the job
+runs for (`CI_COMMIT_BRANCH`, `GITHUB_REF_NAME`, `BUILD_SOURCEBRANCH`), so a pipeline on `main` can
+release `prod` as it is.
+
 With branches set, `--env auto` picks the environment from the current branch. When two
 environments share a branch, as `staging` and `prod` do above, name it with `--env`.
 

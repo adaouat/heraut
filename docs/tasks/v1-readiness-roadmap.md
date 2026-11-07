@@ -32,7 +32,7 @@ post-v1 (Phase 100). The v1.0.0 cut (Phase 101) comes last.
 
 | Phase | Theme | Tasks | Status |
 |---|---|---|---|
-| 94 | Release-logic bugs that block v1 | T492–T501 | In progress — T492–T493 done |
+| 94 | Release-logic bugs that block v1 | T492–T501 | In progress — T492–T494 done |
 | 95 | Decisions to make before the format freezes (ADRs) | T502–T506 | Not started |
 | 96 | Behaviour fixes | T507–T522 | Not started |
 | 97 | Tests that give false confidence | T523–T529 | Not started |
@@ -89,7 +89,7 @@ and moved the call index, and its assertions are unchanged. New tests: a contrac
 removing the loop skip were both killed; an equivalent rewrite (`i > -1`) survived as the control.
 Spec 05 § Changelog structure now states the bound. The `--force` re-run case belongs to T503.
 
-#### `[ ]` T494: the per-env branch guard and `--env auto` read the CI branch ✔︎
+#### `[x]` T494: the per-env branch guard and `--env auto` read the CI branch ✔︎
 
 `internal/versioning/branch/guard.go:34` and `internal/app/env.go:35-42` use
 `git rev-parse --abbrev-ref HEAD` only. On a detached CI checkout with `CI_COMMIT_BRANCH=main`,
@@ -98,6 +98,16 @@ current branch is "HEAD"`, and `--env auto` says `HEAD is detached`. Every GitLa
 project with `branch:` is refused; the only escape is `--force`, which also drops E001/E002. Fix: use
 `branch.CurrentBranch` (which already falls back to the CI variables) in both places. Tests: contract
 rows per CI system, a Lane A detached-HEAD per-env scenario.
+
+**Done (2026-11-07).** `CheckBranch` and `ResolveEnv("auto")` now call `branch.CurrentBranch`, the
+helper the push and the branch rules already use; without a CI branch the guard still reports
+`"HEAD"` and `--env auto` still says HEAD is detached, so the messages outside CI are unchanged. Tests:
+a guard table over GitLab, GitHub (branch refs only, a tag build is refused), Azure, a different CI
+branch and no CI, and an `--env auto` case. `TestResolveEnv_Auto_DetachedHEAD` now clears the CI
+variables, since it would otherwise pass or fail depending on the runner. Lane A
+`TestDetachedHEAD_PerEnvBranchGuardReadsTheCIBranch` (`--env prod`, `--env auto`, and a refused
+`develop`) fails on the old code. Spec 02's `branch` row and the environments guide say where the
+branch comes from on a CI checkout. `--force` is unchanged here (T503).
 
 #### `[ ]` T495: calver-per-env reads every CalVer format's tags
 

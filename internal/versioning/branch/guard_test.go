@@ -6,6 +6,7 @@ import (
 
 	"github.com/adaouat/forge/exec/exectest"
 	"github.com/adaouat/heraut/internal/config"
+	"github.com/adaouat/heraut/internal/testutil"
 	"github.com/adaouat/heraut/internal/versioning/branch"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -63,4 +64,41 @@ func TestCheckBranch_GitError(t *testing.T) {
 	err := branch.CheckBranch(mr, branchCfg("prod", "main"), "prod", false)
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "current")
+}
+
+// On a detached checkout, the guard reads the branch the CI job runs for, as the push and the branch
+// rules do: CI systems check out a commit, not a branch.
+func TestCheckBranch_DetachedHeadUsesTheCIBranch(t *testing.T) {
+	tests := []struct {
+		name    string
+		env     map[string]string
+		wantErr string
+	}{
+		{name: "GitLab CI", env: map[string]string{"GITLAB_CI": "true", "CI_COMMIT_BRANCH": "main"}},
+		{name: "GitHub Actions", env: map[string]string{"GITHUB_REF_NAME": "main", "GITHUB_REF_TYPE": "branch"}},
+		{name: "Azure Pipelines", env: map[string]string{"BUILD_SOURCEBRANCH": "refs/heads/main"}},
+		{name: "CI branch differs", env: map[string]string{"CI_COMMIT_BRANCH": "develop"}, wantErr: `current branch is "develop"`},
+		{name: "a tag build is no branch", env: map[string]string{"GITHUB_REF_NAME": "v1.0.0", "GITHUB_REF_TYPE": "tag"}, wantErr: `current branch is "HEAD"`},
+		{name: "outside CI", wantErr: `current branch is "HEAD"`},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			testutil.ClearCIEnv(t)
+			for k, v := range tc.env {
+				t.Setenv(k, v)
+			}
+			mr := exectest.NewMockRunner()
+			mr.QueueResponse("HEAD\n", "", nil)
+
+			err := branch.CheckBranch(mr, branchCfg("prod", "main"), "prod", false)
+
+			if tc.wantErr == "" {
+				require.NoError(t, err)
+				return
+			}
+			var mismatch *branch.BranchMismatchError
+			require.ErrorAs(t, err, &mismatch)
+			assert.Contains(t, err.Error(), tc.wantErr)
+		})
+	}
 }

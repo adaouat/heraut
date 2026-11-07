@@ -7,10 +7,11 @@ import (
 
 	"github.com/adaouat/heraut/internal/config"
 	"github.com/adaouat/heraut/internal/port"
+	"github.com/adaouat/heraut/internal/versioning/branch"
 )
 
 // ResolveEnv resolves the --env flag value before any pipeline work. When env
-// is "auto", it reads the current branch and matches it against configured
+// is "auto", it reads the current branch (on a detached checkout, the CI job's) and matches it against configured
 // environments' branch fields. All other values (including "") are returned
 // as-is without calling git.
 func ResolveEnv(env string, cfg *config.Config, runner port.Runner) (string, error) {
@@ -32,26 +33,24 @@ func ResolveEnv(env string, cfg *config.Config, runner port.Runner) (string, err
 		return "", fmt.Errorf("--env auto requires a per-env strategy; current strategy is %q", strategy)
 	}
 
-	out, _, err := runner.Run("git", "rev-parse", "--abbrev-ref", "HEAD")
+	current, ok, err := branch.CurrentBranch(runner)
 	if err != nil {
-		return "", fmt.Errorf("determining current git branch: %w", err)
+		return "", err
 	}
-	branch := strings.TrimSpace(out)
-
-	if branch == "HEAD" {
+	if !ok {
 		return "", fmt.Errorf("cannot auto-detect env: HEAD is detached — pass --env explicitly")
 	}
 
 	var matches []string
 	for name, e := range cfg.Environments {
-		if e.Branch == branch {
+		if e.Branch == current {
 			matches = append(matches, name)
 		}
 	}
 
 	switch len(matches) {
 	case 0:
-		return "", fmt.Errorf("no env is linked to branch %q — pass --env explicitly", branch)
+		return "", fmt.Errorf("no env is linked to branch %q — pass --env explicitly", current)
 	case 1:
 		return matches[0], nil
 	default:
@@ -61,6 +60,6 @@ func ResolveEnv(env string, cfg *config.Config, runner port.Runner) (string, err
 			quoted[i] = fmt.Sprintf("%q", m)
 		}
 		return "", fmt.Errorf("envs %s all use branch %q — pass --env explicitly",
-			strings.Join(quoted, ", "), branch)
+			strings.Join(quoted, ", "), current)
 	}
 }
