@@ -11,6 +11,7 @@
 | [`hardening-roadmap.md`](hardening-roadmap.md) | Hardening and refactor epic (T380+) — tracked as Phases 70–73 |
 | [`github-client-roadmap.md`](github-client-roadmap.md) | GitHub publishing without `gh` (T423+, ADR-0077) — tracked as Phase 80 |
 | [`user-docs-roadmap.md`](user-docs-roadmap.md) | User documentation epic (T453+) — tracked as Phase 89 |
+| [`v1-readiness-roadmap.md`](v1-readiness-roadmap.md) | v1.0 readiness: the pre-v1 review findings and the cut (T492+) — tracked as Phases 94–101 |
 | [`archive/`](archive) | Full task write-ups for `Done` tasks, moved out of the files above to keep them lean. Each dedicated roadmap's "Progress at a glance" table links to its own archive file. |
 
 These files are contributor documentation, like `docs/specs/` and `docs/adr/`. User documentation

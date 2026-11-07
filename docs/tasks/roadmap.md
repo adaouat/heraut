@@ -262,6 +262,7 @@ discipline that applies to every task.
 | 91 | Follow-ups from the generated reference (GitHub token for PR data, `check runtime` help) | Done |
 | 92 | Follow-ups from the guides (GitHub release commit, error punctuation, warning marks) | Done |
 | 93 | One person, one New Contributors entry (`.mailmap`, one entry per handle) | Done |
+| 94–101 | v1.0 readiness: every finding of the 2026-11-07 pre-v1 review, then the cut | Not started — T492–T555, see `v1-readiness-roadmap.md` |
 
 ### Open items
 
@@ -4398,6 +4399,17 @@ Every Phase above marked `Done` and not pointing to a dedicated roadmap (D, 0–
 30, 31) has had its full task write-up — implementation notes, decisions, deviations — moved to
 [`archive/roadmap-phases.md`](archive/roadmap-phases.md) to keep this file lean. Nothing is lost,
 just relocated; the table above is the status index.
+
+---
+
+### Phases 94–101 — v1.0 readiness
+
+A five-part review on 2026-11-07 (core logic, integrations and security, tests, user docs, contributor
+docs) found release-logic bugs, decisions that become breaking changes after 1.0, test gaps and doc
+drift. The user decided every finding is fixed before v1.0. 64 tasks, so the breakdown and live
+`[ ] / [x]` status live in a dedicated roadmap:
+
+→ **[v1.0 Readiness Roadmap](v1-readiness-roadmap.md)** — T492+
 
 ---
 
