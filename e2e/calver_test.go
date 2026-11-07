@@ -177,3 +177,34 @@ func TestCalVer_PerEnv(t *testing.T) {
 			env:     at("2026-10-07T00:00:00Z"), wantOut: "dev/2026.10.1"},
 	})
 }
+
+// calver-per-env reads its own tags under a four-component format: the second release of the day
+// increments PATCH, and prod promotes it.
+func TestCalVerPerEnv_DailyFormatReadsItsTags(t *testing.T) {
+	bin := harness.Binary(t, "heraut_testclock")
+	repo := flowRepo(t, `version: "1"
+versioning:
+  strategy: calver-per-env
+  format: "YYYY.MM.DD.PATCH"
+  tag_format: "{env}/{version}"
+environments:
+  dev:
+    bump: auto
+  prod:
+    bump: promote
+    source: dev
+`)
+	now := []string{"HERAUT_TEST_NOW=2026-11-07T12:00:00Z"}
+	repo.Commit("feat: one")
+	res := repo.Run(bin, now, "changelog", "--tag", "--env", "dev", "--offline")
+	require.Equal(t, exitOK, res.ExitCode, "stdout:\n%s\nstderr:\n%s", res.Stdout, res.Stderr)
+	repo.Commit("feat: two")
+
+	res = repo.Run(bin, now, "version", "next", "--env", "dev")
+	require.Equal(t, exitOK, res.ExitCode, "stdout:\n%s\nstderr:\n%s", res.Stdout, res.Stderr)
+	assert.Equal(t, "dev/2026.11.07.1", strings.TrimSpace(res.Stdout))
+
+	res = repo.Run(bin, now, "version", "next", "--env", "prod")
+	require.Equal(t, exitOK, res.ExitCode, "stdout:\n%s\nstderr:\n%s", res.Stdout, res.Stderr)
+	assert.Equal(t, "prod/2026.11.07.0", strings.TrimSpace(res.Stdout))
+}

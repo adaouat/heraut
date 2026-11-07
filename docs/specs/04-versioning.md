@@ -220,8 +220,10 @@ commit, while the tag, push and publish still happen (ADR-0064). The next final'
 run therefore lists those commits in its own section.
 
 The same rules apply to `semver-per-env` (source and destination selection, and the E002
-comparison). `calver-per-env` keeps its dotted-integer handling — zero-padded CalVer versions are
-not SemVer.
+comparison). `calver-per-env` reads its tags through `versioning.format` instead, since zero-padded
+CalVer versions are not SemVer: a tag counts when its version parses under the format (any number of
+components, a trailing literal such as `-lts`), and source, destination and the E002 comparison order
+versions by calendar value under the format.
 
 heraut mints pre-release tags itself with `heraut release --pre-release <label>` (plain `semver` only; see [Pre-release lifecycle](#pre-release-lifecycle) below). Pre-release tags can also be created with `--set-version`.
 

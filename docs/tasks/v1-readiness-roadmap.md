@@ -32,7 +32,7 @@ post-v1 (Phase 100). The v1.0.0 cut (Phase 101) comes last.
 
 | Phase | Theme | Tasks | Status |
 |---|---|---|---|
-| 94 | Release-logic bugs that block v1 | T492–T501 | In progress — T492–T494 done |
+| 94 | Release-logic bugs that block v1 | T492–T501 | In progress — T492–T495 done |
 | 95 | Decisions to make before the format freezes (ADRs) | T502–T506 | Not started |
 | 96 | Behaviour fixes | T507–T522 | Not started |
 | 97 | Tests that give false confidence | T523–T529 | Not started |
@@ -109,7 +109,7 @@ variables, since it would otherwise pass or fail depending on the runner. Lane A
 `develop`) fails on the old code. Spec 02's `branch` row and the environments guide say where the
 branch comes from on a CI checkout. `--force` is unchanged here (T503).
 
-#### `[ ]` T495: calver-per-env reads every CalVer format's tags
+#### `[x]` T495: calver-per-env reads every CalVer format's tags
 
 `internal/versioning/perenv/order.go:32` filters tags with `semver.IsBareVersion` (`semver/bump.go:170`),
 so any CalVer format that isn't three dotted integers (`YYYY.MM.DD.PATCH`, `YYYY.PATCH`, a literal
@@ -117,6 +117,19 @@ suffix; all in Spec 04's examples) sees no tags: `version next --env dev` re-pri
 `dev/2026.11.07.0`, promotion says E003, and a second run fails at `git tag … already exists` (exit 3)
 after the changelog commit was pushed. Plain `calver` is correct. Fix: validate with
 `calver.ParseVersion(tokens, bare)`. Tests: a table over Spec 04's format examples under per-env.
+
+**Done (2026-11-07).** `releaseTags` keeps a calver-per-env tag when its version parses under
+`versioning.format` (`calverVersionCheck`; an unusable format, which the validator rejects first,
+falls back to the old check). The same gap was in E002: `compareVersions` read versions as dotted
+integers, so with a trailing literal `2026.05.1-lts` compared equal to `2026.05.0-lts` and a
+destination ahead went unseen. It now compares by calendar value under the format (it takes the
+format as a new argument). Tests: an auto-mode table over Spec 04's examples plus `-lts` (three rows
+red before), an E002 table over the four-component, yearly and suffixed formats, and Lane A
+`TestCalVerPerEnv_DailyFormatReadsItsTags` (testclock), which on the old code re-minted
+`dev/2026.11.07.0` and refused prod with E003. Mutations: reverting the comparison was killed by the
+`-lts` row; an equivalent rewrite survived as the control. Spec 04 § Pre-release tags now describes
+the format-based reading. The changelog's ordering of CalVer tags (`calverOrder`, Spec 05) is T496 and
+T552.
 
 #### `[ ]` T496: calver-per-env changelogs stay in their environment
 

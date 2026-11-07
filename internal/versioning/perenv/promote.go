@@ -190,7 +190,7 @@ func resolvePromote(runner port.Runner, cfg *config.Config, env string, force bo
 
 	destRawTags := splitLines(stdout)
 	currentDestTag, latestDestVersion, destComparable := latestTag(cfg.Versioning.Strategy, destTF, cfg.Versioning.Format, destRawTags)
-	if destComparable && compareVersions(cfg.Versioning.Strategy, latestDestVersion, candidateVersion) > 0 && !force {
+	if destComparable && compareVersions(cfg.Versioning.Strategy, cfg.Versioning.Format, latestDestVersion, candidateVersion) > 0 && !force {
 		suggested, renderErr := tagfmt.Render(srcTF, tagfmt.Tokens{Env: srcEnv, Version: latestDestVersion})
 		if renderErr != nil {
 			// srcTF needing a {build} token can't render a suggested tag from a promoted version alone

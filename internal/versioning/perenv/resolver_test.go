@@ -1030,3 +1030,67 @@ func TestResolve_CalverPerEnv_UsesTheHighestTagWhateverGitsOrder(t *testing.T) {
 		require.ErrorIs(t, err, perenv.ErrDestinationAhead)
 	})
 }
+
+// Every CalVer format reads its existing tags, not only three-number ones: the next release in the
+// same period increments PATCH.
+func TestResolve_Auto_Calver_EveryFormatReadsItsTags(t *testing.T) {
+	now := fixedNow(2026, time.May, 7)
+	tests := []struct {
+		format, existing, want string
+	}{
+		{"YYYY.MM.PATCH", "2026.05.0", "2026.05.1"},
+		{"YYYY.MM.DD.PATCH", "2026.05.07.0", "2026.05.07.1"},
+		{"YYYY.WW.PATCH", "2026.19.0", "2026.19.1"},
+		{"YYYY.QQ.PATCH", "2026.2.0", "2026.2.1"},
+		{"YYYY.SS.PATCH", "2026.1.0", "2026.1.1"},
+		{"YYYY.PATCH", "2026.0", "2026.1"},
+		{"YYYY.MM.PATCH-lts", "2026.05.0-lts", "2026.05.1-lts"},
+	}
+	for _, tc := range tests {
+		t.Run(tc.format, func(t *testing.T) {
+			mr := exectest.NewMockRunner()
+			mr.QueueResponse("dev/"+tc.existing+"\n", "", nil)
+			cfg := &config.Config{
+				Versioning:   config.Versioning{Strategy: "calver-per-env", Format: tc.format},
+				Environments: map[string]config.Environment{"dev": {Bump: "auto", TagFormat: "dev/{version}"}},
+			}
+
+			result, err := perenv.New(mr, cfg, "dev", false, calverCalc(tc.format, now)).Resolve()
+
+			require.NoError(t, err)
+			assert.Equal(t, "dev/"+tc.want, result.Tag)
+			assert.Equal(t, "dev/"+tc.existing, result.CurrentTag)
+		})
+	}
+}
+
+// E002 compares CalVer versions through the format, so a format with more components or a trailing
+// literal still sees a destination that is ahead.
+func TestResolve_Promote_Calver_E002_EveryFormat(t *testing.T) {
+	tests := []struct {
+		format, candidate, ahead string
+	}{
+		{"YYYY.MM.DD.PATCH", "2026.05.07.0", "2026.05.07.1"},
+		{"YYYY.PATCH", "2026.0", "2026.1"},
+		{"YYYY.MM.PATCH-lts", "2026.05.0-lts", "2026.05.1-lts"},
+	}
+	for _, tc := range tests {
+		t.Run(tc.format, func(t *testing.T) {
+			mr := exectest.NewMockRunner()
+			mr.QueueResponse("dev/"+tc.candidate+"\n", "", nil) // git tag -l dev/*
+			mr.QueueResponse("", "", nil)                       // git tag -l prod/<candidate>
+			mr.QueueResponse("prod/"+tc.ahead+"\n", "", nil)    // git tag -l prod/*
+			cfg := &config.Config{
+				Versioning: config.Versioning{Strategy: "calver-per-env", Format: tc.format},
+				Environments: map[string]config.Environment{
+					"dev":  {Bump: "auto", TagFormat: "dev/{version}"},
+					"prod": {Bump: "promote", TagFormat: "prod/{version}"},
+				},
+			}
+
+			_, err := perenv.New(mr, cfg, "prod", false, calverCalc(tc.format, fixedNow(2026, time.May, 7))).Resolve()
+
+			assert.ErrorIs(t, err, perenv.ErrDestinationAhead)
+		})
+	}
+}
