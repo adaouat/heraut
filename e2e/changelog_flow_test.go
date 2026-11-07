@@ -281,3 +281,24 @@ changelog:
 	assert.Empty(t, repo.Git("status", "--porcelain", "--untracked-files=all", "CHANGELOG_2026.md"))
 	assert.Equal(t, "2026.11.0", repo.GitRemote("tag", "-l"))
 }
+
+// Re-rendering the changelog of a version that is already tagged keeps that version's commits: the
+// section covers the previous release up to the tag, never the commits made after it.
+func TestChangelogFlow_RerenderingATaggedVersionKeepsItsSection(t *testing.T) {
+	bin := harness.Binary(t)
+	repo := flowRepo(t, flowCfg)
+	repo.Commit("feat: one")
+	runOK(t, repo, bin, "changelog", "--tag", "--offline")
+	repo.Commit("feat: two")
+	runOK(t, repo, bin, "changelog", "--tag", "--offline")
+	repo.Commit("fix: after release")
+	want := []string{"0.2.0: Two", "0.1.0: One, Init"}
+
+	runOK(t, repo, bin, "changelog", "--set-version", "0.2.0", "--offline")
+	assert.Equal(t, want, changelogOutline(repo.ReadFile("CHANGELOG.md")), "incremental re-render")
+
+	runOK(t, repo, bin, "changelog", "--set-version", "0.2.0", "--regenerate", "--offline")
+	content := repo.ReadFile("CHANGELOG.md")
+	assert.Equal(t, want, changelogOutline(content), "full regeneration")
+	assert.Equal(t, 1, strings.Count(content, "<!-- heraut-release: v0.2.0 -->"), "one section per version")
+}

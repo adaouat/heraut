@@ -310,6 +310,84 @@ func (g *Generator) newSectionBound(scopedTags []string) string {
 	return ""
 }
 
+// previousRelease returns the release before tags[i], the bound of its section. Without a tagOrder,
+// prev is the next-older tag by version refname (listTags is version-sorted). With a tagOrder set
+// (ADR-0065), prev is the highest-precedence tag that is both in the scoped list and an ancestor of
+// t: the next-older tag in order can sit on another line of history (a maintenance tag merged
+// forward after t was cut), and bounding by it would describe a range t never contained. The
+// membership test is scope-preserving — an out-of-scope ancestor (another env's tag under
+// semver-per-env) never wins over an in-scope one. The ancestor listing keeps tags on t's own
+// commit, so a release tagged on the same commit as an older one is still bounded by it (an empty
+// section). The oldest tag has no candidates and skips the listing.
+func (g *Generator) previousRelease(tags []string, i int) (string, error) {
+	t := tags[i]
+	prev := ""
+	if g.tagOrder != nil && i+1 < len(tags) {
+		ancestors, err := listAncestorTags(g.runner, t)
+		if err != nil {
+			return "", err
+		}
+		for _, cand := range tags[i+1:] {
+			if slices.Contains(ancestors, cand) {
+				prev = cand
+				break
+			}
+		}
+	}
+	if g.tagOrder == nil && i+1 < len(tags) {
+		prev = tags[i+1]
+	} else if prev == "" && (g.cfg.TagGlob != "" || g.cfg.TagPattern != "") {
+		// t is the oldest tag within an active scope (per-env TagGlob, an explicit
+		// tag_pattern, or a rotating changelog.output's derived TagPattern) — or, with a
+		// tagOrder set, has no in-scope ancestor — and "no previous tag in the scoped list"
+		// does not mean "no earlier release at all" (T257). Resolve
+		// the true previous tag unscoped, so a --regenerate never silently walks back to the
+		// very beginning of all history — and never leaks an out-of-scope release's commits
+		// into this one's section — just because this happens to be the first release within
+		// the current scope. A tagOrder set (T334) must still only ever consider t's actual
+		// ancestors: an unscoped, §11-ordered pool can place a tag from an unrelated branch
+		// (e.g. another env's tag under semver-per-env, whose {env} token is a wildcard)
+		// directly adjacent to t, and ordering alone doesn't fix that — only ancestry does.
+		// listMergedTags(runner, t) lists exactly t's ancestor tags; tagOrder's first
+		// entry in that pool is the highest-precedence ancestor release, i.e. the true
+		// previous tag (t itself is never in the pool, since --no-contains t excludes it).
+		// Unlike the in-scope listing above, it must drop tags on t's own commit: a
+		// promotion tags one commit for several envs, and another env's tag there would
+		// bound this section to nothing.
+		if g.tagOrder != nil {
+			merged, err := listMergedTags(g.runner, t)
+			if err != nil {
+				return "", err
+			}
+			if ordered := g.tagOrder(merged); len(ordered) > 0 {
+				prev = ordered[0]
+			}
+		} else {
+			p, err := previousTag(g.runner, t, "")
+			if err != nil {
+				return "", err
+			}
+			prev = p
+		}
+	}
+	return prev, nil
+}
+
+// newestSection renders the section of the release being generated. A tag already in scope (the
+// changelog of a released version, re-rendered) runs from its previous release to the tag itself, so
+// commits made after the release never replace its content; a new one runs from the last release to
+// HEAD.
+func (g *Generator) newestSection(ctx context.Context, tag string, tags []string, lc *port.LinkContext) (string, error) {
+	if i := slices.Index(tags, tag); i >= 0 {
+		prev, err := g.previousRelease(tags, i)
+		if err != nil {
+			return "", err
+		}
+		return g.renderRelease(ctx, tag, prev, tag, lc, true)
+	}
+	return g.renderRelease(ctx, tag, g.newSectionBound(tags), "HEAD", lc, true)
+}
+
 // buildAllSections renders every release section (newest-first), each prefixed with its anchor.
 // The newest (unreleased) section is always enriched; historical sections are enriched only when
 // enrichAll is true (--regenerate). Matches the pre-incremental full-regen layout plus anchors.
@@ -326,74 +404,22 @@ func (g *Generator) buildAllSections(ctx context.Context, tag string, lc *port.L
 
 	var blocks []string
 
-	latest := g.newSectionBound(tags)
-	if sec, err := g.renderRelease(ctx, tag, latest, "HEAD", lc, true); err != nil {
+	if sec, err := g.newestSection(ctx, tag, tags, lc); err != nil {
 		return "", err
 	} else if sec != "" {
 		blocks = append(blocks, anchorLine(tag)+"\n"+sec)
 	}
 
-	// Existing releases, newest-first. Without a tagOrder, prev is the next-older tag by version
-	// refname (listTags is version-sorted). With a tagOrder set (ADR-0065), prev is the
-	// highest-precedence tag that is both in the scoped list and an ancestor of t: the next-older
-	// tag in order can sit on another line of history (a maintenance tag merged forward after t
-	// was cut), and bounding by it would describe a range t never contained. The membership test
-	// is scope-preserving — an out-of-scope ancestor (another env's tag under semver-per-env) never
-	// wins over an in-scope one. The ancestor listing keeps tags on t's own commit, so a release
-	// tagged on the same commit as an older one is still bounded by it (an empty section), as
-	// before. Linear history keeps the next-older tag, so output is unchanged. The oldest tag has
-	// no candidates and skips the listing.
+	// Existing releases, newest-first, each bounded by previousRelease.
 	// release-notes mode instead resolves prev via git-describe topology (or, equally with a
 	// tagOrder set, the ordered list); equivalent for linear history — the common case.
 	for i, t := range tags {
-		prev := ""
-		if g.tagOrder != nil && i+1 < len(tags) {
-			ancestors, err := listAncestorTags(g.runner, t)
-			if err != nil {
-				return "", err
-			}
-			for _, cand := range tags[i+1:] {
-				if slices.Contains(ancestors, cand) {
-					prev = cand
-					break
-				}
-			}
+		if t == tag {
+			continue // rendered above as the newest section
 		}
-		if g.tagOrder == nil && i+1 < len(tags) {
-			prev = tags[i+1]
-		} else if prev == "" && (g.cfg.TagGlob != "" || g.cfg.TagPattern != "") {
-			// t is the oldest tag within an active scope (per-env TagGlob, an explicit
-			// tag_pattern, or a rotating changelog.output's derived TagPattern) — or, with a
-			// tagOrder set, has no in-scope ancestor — and "no previous tag in the scoped list"
-			// does not mean "no earlier release at all" (T257). Resolve
-			// the true previous tag unscoped, so a --regenerate never silently walks back to the
-			// very beginning of all history — and never leaks an out-of-scope release's commits
-			// into this one's section — just because this happens to be the first release within
-			// the current scope. A tagOrder set (T334) must still only ever consider t's actual
-			// ancestors: an unscoped, §11-ordered pool can place a tag from an unrelated branch
-			// (e.g. another env's tag under semver-per-env, whose {env} token is a wildcard)
-			// directly adjacent to t, and ordering alone doesn't fix that — only ancestry does.
-			// listMergedTags(runner, t) lists exactly t's ancestor tags; tagOrder's first
-			// entry in that pool is the highest-precedence ancestor release, i.e. the true
-			// previous tag (t itself is never in the pool, since --no-contains t excludes it).
-			// Unlike the in-scope listing above, it must drop tags on t's own commit: a
-			// promotion tags one commit for several envs, and another env's tag there would
-			// bound this section to nothing.
-			if g.tagOrder != nil {
-				merged, err := listMergedTags(g.runner, t)
-				if err != nil {
-					return "", err
-				}
-				if ordered := g.tagOrder(merged); len(ordered) > 0 {
-					prev = ordered[0]
-				}
-			} else {
-				p, err := previousTag(g.runner, t, "")
-				if err != nil {
-					return "", err
-				}
-				prev = p
-			}
+		prev, err := g.previousRelease(tags, i)
+		if err != nil {
+			return "", err
 		}
 		if sec, err := g.renderRelease(ctx, t, prev, t, lc, enrichAll); err != nil {
 			return "", err
@@ -444,8 +470,7 @@ func (g *Generator) generateIncremental(ctx context.Context, tag string, lc *por
 	if err != nil {
 		return "", err
 	}
-	latest := g.newSectionBound(tags)
-	newBody, err := g.renderRelease(ctx, tag, latest, "HEAD", lc, true)
+	newBody, err := g.newestSection(ctx, tag, tags, lc)
 	if err != nil {
 		return "", err
 	}

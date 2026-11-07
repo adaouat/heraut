@@ -32,7 +32,7 @@ post-v1 (Phase 100). The v1.0.0 cut (Phase 101) comes last.
 
 | Phase | Theme | Tasks | Status |
 |---|---|---|---|
-| 94 | Release-logic bugs that block v1 | T492–T501 | In progress — T492 done |
+| 94 | Release-logic bugs that block v1 | T492–T501 | In progress — T492–T493 done |
 | 95 | Decisions to make before the format freezes (ADRs) | T502–T506 | Not started |
 | 96 | Behaviour fixes | T507–T522 | Not started |
 | 97 | Tests that give false confidence | T523–T529 | Not started |
@@ -65,7 +65,7 @@ binary, `CHANGELOG_{YYYY}.md`) fails on the old code with the reviewer's `pathsp
 now. The dry-run line still shows the raw pattern, since nothing has been generated then; no spec or
 user doc described the broken behaviour, so none changed.
 
-#### `[ ]` T493: re-rendering a tagged version keeps its section
+#### `[x]` T493: re-rendering a tagged version keeps its section
 
 Re-rendering the changelog of a version that is already tagged replaces its section with the commits
 *after* the tag: the bound is `scopedTags[0]`, the tag itself, so the range is `<tag>..HEAD`
@@ -75,6 +75,19 @@ after v0.1.0, and by `--force` re-runs (T503); with `--regenerate` the section a
 the tag is already in the scoped list, bound by its predecessor with `tip=tag`, and skip it in the
 historical loop. Tests: native unit tests for the three entry points; a Lane A scenario on a release
 branch.
+
+**Done (2026-11-07).** The previous-release computation of the historical loop moved into
+`previousRelease`, and a new `newestSection` uses it when the target tag is already in scope: the
+section then runs from the previous release to the tag. The incremental and full builds both go through
+it, and the full build's loop skips that tag, so `--regenerate` renders it once.
+`TestGenerateChangelog_RegenerateOldestScopedTagExcludesOutOfScopeHistory` regenerated an existing
+`prod/v1.1.0` and queued a `prod/v1.1.0..HEAD` call that no longer happens; I removed that mock response
+and moved the call index, and its assertions are unchanged. New tests: a contract test asserting the
+`v1.0.0..v1.1.0` range and the in-place replacement; Lane A `TestChangelogFlow_RerenderingATaggedVersionKeepsItsSection`
+(`--set-version` incremental and `--regenerate`) and `TestVersionBranch_ChangelogRerendersTheTaggedVersion`
+(Spec 04 row 12b), both failing on the old code. Mutations: disabling the existing-tag branch and
+removing the loop skip were both killed; an equivalent rewrite (`i > -1`) survived as the control.
+Spec 05 § Changelog structure now states the bound. The `--force` re-run case belongs to T503.
 
 #### `[ ]` T494: the per-env branch guard and `--env auto` read the CI branch ✔︎
 

@@ -574,6 +574,30 @@ func TestGenerateChangelog_IncrementalInserts(t *testing.T) {
 	assert.Less(t, strings.Index(body, "v1.1.0"), strings.Index(body, "v1.0.0"), "new section on top")
 }
 
+// Re-rendering a version that is already tagged reads its own range, previous release to the tag,
+// and replaces its section in place: commits made after the tag stay out.
+func TestGenerateChangelog_IncrementalRerendersATaggedVersion(t *testing.T) {
+	dir := t.TempDir()
+	out := filepath.Join(dir, "CHANGELOG.md")
+	require.NoError(t, os.WriteFile(out, []byte("# Changelog\n\n"+
+		"<!-- heraut-release: v1.1.0 -->\n## [1.1.0] - 2026-02-01\n\n### 🚀 Features\n\n- stale\n\n"+
+		"<!-- heraut-release: v1.0.0 -->\n## [1.0.0] - 2026-01-01\n\n### 🚀 Features\n\n- old by @carol\n"), 0o644))
+	mr := exectest.NewMockRunner()
+	mr.QueueResponse("v1.1.0\nv1.0.0\n", "", nil)                                                                   // scopedTags
+	mr.QueueResponse(record("bbb2222222", "B", "b@x", "2026-02-01T00:00:00Z", "feat: shipped in 1.1", ""), "", nil) // v1.0.0..v1.1.0
+	g := New(mr, &config.ContentDriver{Output: out}, ModeChangelog)
+
+	body, err := g.Generate(t.Context(), "v1.1.0", nil)
+	require.NoError(t, err)
+
+	require.Len(t, mr.Calls, 2)
+	assert.Equal(t, "v1.0.0..v1.1.0", mr.Calls[1].Args[1], "the tagged version's own range, not v1.1.0..HEAD")
+	assert.Contains(t, body, "Shipped in 1.1")
+	assert.NotContains(t, body, "- stale", "the section is replaced in place")
+	assert.Equal(t, 1, strings.Count(body, "<!-- heraut-release: v1.1.0 -->"))
+	assert.Contains(t, body, "- old by @carol", "older sections are kept verbatim")
+}
+
 func TestGenerateChangelog_ForeignFileErrors(t *testing.T) {
 	dir := t.TempDir()
 	out := filepath.Join(dir, "CHANGELOG.md")
@@ -650,8 +674,7 @@ func TestGenerateChangelog_RegenerateOldestScopedTagExcludesOutOfScopeHistory(t 
 	out := filepath.Join(dir, "CHANGELOG.md")
 	mr := exectest.NewMockRunner()
 	mr.QueueResponse("prod/v1.1.0\nprod/v1.0.0\n", "", nil)                                                      // scopedTags: git tag -l prod/v*
-	mr.QueueResponse("", "", nil)                                                                                // newest pre-loop: prod/v1.1.0..HEAD (nothing new)
-	mr.QueueResponse(record("ccc3333333", "C", "c@x", "2026-02-01T00:00:00Z", "feat: prod second", ""), "", nil) // historical: prod/v1.0.0..prod/v1.1.0
+	mr.QueueResponse(record("ccc3333333", "C", "c@x", "2026-02-01T00:00:00Z", "feat: prod second", ""), "", nil) // newest, already tagged: prod/v1.0.0..prod/v1.1.0
 	mr.QueueResponse("staging/v1.0.0\n", "", nil)                                                                // NEW: previousTag(prod/v1.0.0, "") — git describe --tags --abbrev=0 prod/v1.0.0^
 	mr.QueueResponse(record("ddd4444444", "D", "d@x", "2026-01-15T00:00:00Z", "feat: prod first", ""), "", nil)  // historical: staging/v1.0.0..prod/v1.0.0
 
@@ -663,8 +686,8 @@ func TestGenerateChangelog_RegenerateOldestScopedTagExcludesOutOfScopeHistory(t 
 	assert.Contains(t, body, "Prod second")
 	assert.NotContains(t, body, "staging", "an out-of-scope release must never leak into a scoped changelog")
 
-	require.Len(t, mr.Calls, 5)
-	assert.Equal(t, []string{"describe", "--tags", "--abbrev=0", "prod/v1.0.0^"}, mr.Calls[3].Args,
+	require.Len(t, mr.Calls, 4)
+	assert.Equal(t, []string{"describe", "--tags", "--abbrev=0", "prod/v1.0.0^"}, mr.Calls[2].Args,
 		"the oldest scoped tag's true previous tag is resolved unscoped (no --match), same primitive scopedPreviousTag already uses")
 }
 

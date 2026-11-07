@@ -333,3 +333,22 @@ func TestVersionBranch_Resolution(t *testing.T) {
 			history: lineHistory("release/1.3", commit("fix: x")), args: versionNext, wantOut: "v1.3.1"},
 	})
 }
+
+// On a version branch whose version is already tagged, heraut changelog without --tag re-renders
+// that version: its section keeps the commits it was released with.
+func TestVersionBranch_ChangelogRerendersTheTaggedVersion(t *testing.T) {
+	bin := harness.Binary(t)
+	repo := harness.NewRepo(t)
+	repo.WriteConfig(changelogCfg)
+	repo.Commit("feat: initial")
+	repo.AddRemote()
+	repo.Git("switch", "-c", "release/7.8.0")
+	repo.Commit("fix: before release")
+	runOK(t, repo, bin, "changelog", "--tag", "--offline")
+	require.Equal(t, "v7.8.0", repo.Git("tag", "-l"))
+	repo.Commit("fix: after release")
+
+	runOK(t, repo, bin, "changelog", "--offline")
+
+	assert.Equal(t, []string{"7.8.0: Initial, Before release"}, changelogOutline(repo.ReadFile("CHANGELOG.md")))
+}

@@ -244,6 +244,12 @@ calls) and splices it into the existing file's sections, leaving every other sec
   feature) → the run **stops with an error** directing the operator to `--regenerate`; the file is
   left byte-for-byte unchanged.
 
+The new section covers the commits since the previous release. When its version is already tagged
+(the changelog of a released version re-rendered: `heraut changelog --set-version <released>`, or
+`heraut changelog` without `--tag` on a version branch whose version is tagged), it covers the
+previous release up to that tag, not up to `HEAD`: commits made after the release never replace its
+content, and a full regeneration renders it once.
+
 `title`/`subtitle`/`footer` (the preamble and postamble, ADR-0048/ADR-0049) are **not** part of
 what "incremental" preserves: they render fresh from current config on every run, incremental or
 full-regeneration alike, discarding whatever was previously on disk — including a hand-edited
