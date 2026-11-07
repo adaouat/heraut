@@ -259,3 +259,25 @@ commits:
 		assert.FileExists(t, filepath.Join(repo.Dir, "CHANGELOG.md"))
 	})
 }
+
+// A changelog.output with rotation tokens is committed under the file it resolved to.
+func TestChangelogFlow_RotatingOutputIsCommitted(t *testing.T) {
+	bin := harness.Binary(t, "heraut_testclock")
+	repo := flowRepo(t, `version: "1"
+versioning:
+  strategy: calver
+  format: "YYYY.MM.PATCH"
+  tag_prefix: ""
+changelog:
+  output: "CHANGELOG_{YYYY}.md"
+`)
+	repo.Commit("feat: one")
+
+	res := repo.Run(bin, []string{"HERAUT_TEST_NOW=2026-11-07T12:00:00Z"}, "changelog", "--tag", "--offline")
+	require.Equal(t, exitOK, res.ExitCode, "stdout:\n%s\nstderr:\n%s", res.Stdout, res.Stderr)
+
+	assert.Equal(t, "CHANGELOG_2026.md", repo.Git("show", "--name-only", "--format=", "HEAD"),
+		"the release commit holds the resolved file")
+	assert.Empty(t, repo.Git("status", "--porcelain", "--untracked-files=all", "CHANGELOG_2026.md"))
+	assert.Equal(t, "2026.11.0", repo.GitRemote("tag", "-l"))
+}

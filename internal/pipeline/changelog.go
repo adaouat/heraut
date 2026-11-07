@@ -137,7 +137,9 @@ func (p *ChangelogPipeline) changelogFlow(ctx context.Context, result versioning
 	// The committed changelog is tied to origin, so it resolves links from the explicit remote, the
 	// resolved forge, or the ambient CI host (ADR-0022 / ADR-0043).
 	if p.cfg.Changelog != nil && !p.cfg.DisableChangelog {
-		file := resolvedChangelogFile(p.cfg.Changelog, p.cfg.ChangelogFile)
+		// The path is read when each step runs: a rotating changelog.output only resolves to its
+		// file once Generate has run.
+		file := func() string { return resolvedChangelogFile(p.cfg.Changelog, p.cfg.ChangelogFile) }
 		if s, ok := newHookStep(p.cfg.NoHooks, &p.git, "pre_changelog", p.cfg.PreChangelogHooks, vars, &stage); ok {
 			if !commits {
 				s = warnIfStageUncommitted(s, p.out, &stage)
@@ -153,14 +155,14 @@ func (p *ChangelogPipeline) changelogFlow(ctx context.Context, result versioning
 				detail, subs := changelogGenResult(p.cfg.Changelog)
 				return detail, subs, nil
 			},
-			dry:   func() (string, []string, error) { return "[dry-run] would write " + file, nil, nil },
+			dry:   func() (string, []string, error) { return "[dry-run] would write " + file(), nil, nil },
 			plain: func() ([]string, error) { return []string{"[dry-run] would generate changelog for " + result.Tag}, nil },
 		})
 		if p.cfg.Commit || p.cfg.Tag {
 			body = append(body, releaseStep{
 				name: "Commit changelog",
 				exec: func() (string, []string, error) {
-					committed, err := p.git.commitChangelog(append([]string{file}, stage...), commitMessage(p.cfg.CommitMessage, result.Version), !p.cfg.NoPush, p.cfg.CommitPushOptions)
+					committed, err := p.git.commitChangelog(append([]string{file()}, stage...), commitMessage(p.cfg.CommitMessage, result.Version), !p.cfg.NoPush, p.cfg.CommitPushOptions)
 					if err != nil {
 						return "", nil, fmt.Errorf("committing changelog: %w", err)
 					}
@@ -169,7 +171,7 @@ func (p *ChangelogPipeline) changelogFlow(ctx context.Context, result versioning
 				},
 				after: func() {
 					if !p.committed {
-						warnNothingToCommit(p.out, file)
+						warnNothingToCommit(p.out, file())
 					}
 				},
 				dry: func() (string, []string, error) {

@@ -40,6 +40,12 @@ func (m *MockGenerator) Degraded() bool { return m.DegradedVal }
 func (m *MockGenerator) DegradedReason() string { return m.DegradedReasonV }
 
 // LastOutputPath mirrors the optional LastOutputPath() method the pipeline type-asserts on a
-// rotation-wrapped generator (T247) to target the commit/summary steps at the concrete file a
-// rotating changelog.output pattern resolved to, instead of the raw "{TOKEN}" pattern.
-func (m *MockGenerator) LastOutputPath() string { return m.LastOutputPathV }
+// rotation-wrapped generator to target the commit/summary steps at the concrete file a rotating
+// changelog.output pattern resolved to, instead of the raw "{TOKEN}" pattern. Like the real
+// wrapper, it knows the path only once Generate has run.
+func (m *MockGenerator) LastOutputPath() string {
+	if len(m.GenerateCalls) == 0 {
+		return ""
+	}
+	return m.LastOutputPathV
+}

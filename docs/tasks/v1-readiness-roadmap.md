@@ -32,7 +32,7 @@ post-v1 (Phase 100). The v1.0.0 cut (Phase 101) comes last.
 
 | Phase | Theme | Tasks | Status |
 |---|---|---|---|
-| 94 | Release-logic bugs that block v1 | T492–T501 | Not started |
+| 94 | Release-logic bugs that block v1 | T492–T501 | In progress — T492 done |
 | 95 | Decisions to make before the format freezes (ADRs) | T502–T506 | Not started |
 | 96 | Behaviour fixes | T507–T522 | Not started |
 | 97 | Tests that give false confidence | T523–T529 | Not started |
@@ -45,7 +45,7 @@ post-v1 (Phase 100). The v1.0.0 cut (Phase 101) comes last.
 
 ### Phase 94 — Release-logic bugs that block v1
 
-#### `[ ]` T492: commit a rotating changelog under its real file name ✔︎
+#### `[x]` T492: commit a rotating changelog under its real file name ✔︎
 
 With `changelog.output: "CHANGELOG_{YYYY}.md"`, `heraut changelog --tag` and `heraut release` fail at
 the commit step: `git add: … pathspec 'CHANGELOG_{YYYY}.md' did not match any files` (exit 3), leaving
@@ -55,6 +55,15 @@ still empty and the raw pattern is passed. Regression from the "describe each re
 refactor; `release_test.go:648` hides it because its `MockGenerator` reports a path before `Generate`.
 Fix: resolve the path inside the commit step's `exec`. Tests: make the mock report a path only after
 `Generate`, a pipeline test for both flows, and a Lane A scenario with a rotating output.
+
+**Done (2026-11-07).** Both flows (`steps.go`, `changelog.go`) now hold the path as a closure read when
+each step runs, so the commit step sees the file `Generate` resolved; the summary lines were already
+read after the run. `MockGenerator.LastOutputPath` now reports a path only after `Generate`, like the
+real wrapper, which turned the two existing rotation tests red against the old code (that red run is
+the mutation check). New Lane A scenario `TestChangelogFlow_RotatingOutputIsCommitted` (testclock
+binary, `CHANGELOG_{YYYY}.md`) fails on the old code with the reviewer's `pathspec` error and passes
+now. The dry-run line still shows the raw pattern, since nothing has been generated then; no spec or
+user doc described the broken behaviour, so none changed.
 
 #### `[ ]` T493: re-rendering a tagged version keeps its section
 

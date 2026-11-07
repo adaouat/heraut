@@ -96,7 +96,9 @@ func (p *Pipeline) releaseFlow(ctx context.Context, result versioning.Result) *r
 	// ambient CI host (ADR-0022), falling back to the single configured platform context for
 	// local/non-CI runs.
 	if p.cfg.Changelog != nil && !p.cfg.DisableChangelog {
-		file := resolvedChangelogFile(p.cfg.Changelog, p.cfg.ChangelogFile)
+		// The path is read when each step runs: a rotating changelog.output only resolves to its
+		// file once Generate has run.
+		file := func() string { return resolvedChangelogFile(p.cfg.Changelog, p.cfg.ChangelogFile) }
 		if s, ok := p.hookStep("pre_changelog", p.cfg.PreChangelogHooks, vars, &stage); ok {
 			flow.body = append(flow.body, s)
 		}
@@ -110,17 +112,17 @@ func (p *Pipeline) releaseFlow(ctx context.Context, result versioning.Result) *r
 					detail, subs := changelogGenResult(p.cfg.Changelog)
 					return detail, subs, nil
 				},
-				dry: func() (string, []string, error) { return "[dry-run] would write " + file, nil, nil },
+				dry: func() (string, []string, error) { return "[dry-run] would write " + file(), nil, nil },
 				plain: func() ([]string, error) {
 					return []string{withPushOptions("[dry-run] would generate changelog → commit → push", p.cfg.CommitPushOptions)}, nil
 				},
-				plan: func() ([]PlanStep, error) { return []PlanStep{{Action: "changelog", Target: file}}, nil },
+				plan: func() ([]PlanStep, error) { return []PlanStep{{Action: "changelog", Target: file()}}, nil },
 			},
 			releaseStep{
 				name: "Commit changelog",
 				exec: func() (string, []string, error) {
 					var err error
-					committed, err = p.git.commitChangelog(append([]string{file}, stage...), commitMessage(p.cfg.CommitMessage, result.Version), true, p.cfg.CommitPushOptions)
+					committed, err = p.git.commitChangelog(append([]string{file()}, stage...), commitMessage(p.cfg.CommitMessage, result.Version), true, p.cfg.CommitPushOptions)
 					if err != nil {
 						return "", nil, fmt.Errorf("committing changelog: %w", err)
 					}
@@ -128,14 +130,14 @@ func (p *Pipeline) releaseFlow(ctx context.Context, result versioning.Result) *r
 				},
 				after: func() {
 					if !committed {
-						warnNothingToCommit(p.out, file)
+						warnNothingToCommit(p.out, file())
 					}
 				},
 				dry: func() (string, []string, error) {
 					return withPushOptions("[dry-run] would commit and push", p.cfg.CommitPushOptions), nil, nil
 				},
 				plan: func() ([]PlanStep, error) {
-					return []PlanStep{{Action: "commit_changelog", Target: file, PushOptions: p.cfg.CommitPushOptions}}, nil
+					return []PlanStep{{Action: "commit_changelog", Target: file(), PushOptions: p.cfg.CommitPushOptions}}, nil
 				},
 			})
 	}
