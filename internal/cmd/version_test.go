@@ -95,6 +95,7 @@ versioning:
 	exectest.FakeBin(t, "git", `#!/bin/sh
 case "$*" in
   "tag -l v* --sort=-version:refname") echo "" ;;
+  "tag -l") echo "" ;;
   *) exit 1 ;;
 esac
 `)
@@ -113,6 +114,7 @@ versioning:
 	exectest.FakeBin(t, "git", `#!/bin/sh
 case "$*" in
   "tag -l * --sort=-version:refname") echo "" ;;
+  "tag -l") echo "" ;;
   *) exit 1 ;;
 esac
 `)

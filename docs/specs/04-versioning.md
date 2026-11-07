@@ -193,6 +193,18 @@ came from.
 Tags are sorted by SemVer order, not lexicographically — `v1.10.0` is newer than
 `v1.9.0`, and bumping `v1.9.0` produces `v1.10.0` (never `v1.100.0`).
 
+Only tags carrying the prefix count. When none does (a first release), `semver` and `calver` list
+every tag, and when some read as versions under another prefix (bare `1.0.0` tags while the prefix
+is the `"v"` default), the resolution warns, naming the prefix most of them carry and the setting
+that reads them:
+
+```text
+! no tag matches versioning.tag_prefix "v", but 2 tags look like versions with the prefix "" (e.g. 1.0.0): set versioning.tag_prefix: "" to continue from them
+```
+
+A tag's prefix is what comes before its first digit. The warning is a warning: the run goes on from
+`initial_version`. A top-level `tag_format` defines its own tag shape and gets no such check.
+
 ### Pre-release tags
 
 heraut parses tags strictly per SemVer 2.0.0 and orders them by SemVer §11 precedence in Go — it

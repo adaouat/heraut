@@ -32,7 +32,7 @@ post-v1 (Phase 100). The v1.0.0 cut (Phase 101) comes last.
 
 | Phase | Theme | Tasks | Status |
 |---|---|---|---|
-| 94 | Release-logic bugs that block v1 | T492–T501 | In progress — T492–T496 done |
+| 94 | Release-logic bugs that block v1 | T492–T501 | In progress — T492–T497 done |
 | 95 | Decisions to make before the format freezes (ADRs) | T502–T506 | Not started |
 | 96 | Behaviour fixes | T507–T522 | Not started |
 | 97 | Tests that give false confidence | T523–T529 | Not started |
@@ -150,7 +150,7 @@ for both shapes; the literal one wrote only dev's sections before. Spec 02's `ta
 derivation covers literal prefixes. Found along the way: a literal-prefix env's heading keeps the whole
 tag (`## [prod/2026.11.0]`) while a `{env}` format strips it; recorded as T556.
 
-#### `[ ]` T497: say so when tags exist but none match the prefix ✔︎
+#### `[x]` T497: say so when tags exist but none match the prefix ✔︎
 
 With no `tag_prefix` and existing bare tags (`1.0.0`), semver uses the `v` default
 (`internal/app/resolver.go:470`) and `version next` prints `v0.1.0` with no warning, so adopting heraut
@@ -158,6 +158,22 @@ on a project with bare tags silently restarts at 0.1.0. `docs/heraut.sample.yml:
 gives bare tags, and `docs/reference/configuration.md:69` shows no default. Fix: warn (version next,
 release, changelog, check config) when the repository has version-like tags but none match the active
 pattern, naming the prefix to set; correct the sample and the reference. Tests: resolver + Lane A.
+
+**Done (2026-11-07).** A `foreignTagsResolver` wraps the plain `semver` and `calver` resolvers (not
+`--set-version`, not a top-level `tag_format`). On a first release (no current tag) it lists every tag
+once and, when some read as versions under another prefix (the text before the first digit), adds a
+warning naming the most common prefix and the setting:
+`! no tag matches versioning.tag_prefix "v", but 2 tags look like versions with the prefix "" (e.g.
+1.0.0): set versioning.tag_prefix: "" to continue from them`. It rides `Result.Warnings`, so `version
+next` (plain and `--json`), `release` and `changelog` show it; the run goes on. Deviation: `check
+config` doesn't show it, since it reads no git; the adoption guide (T530) covers that path. A first
+release now makes one more git call (`git tag -l`); three tests stubbing git had to answer it, and the
+calver one now also asserts its arguments. Tests: a real-git table (bare tags, `v` tags with a bare
+prefix, calver, matching tags, a non-version tag), an internal table for the prefix choice and the
+plural, Lane A `TestSemver_WarnsWhenTagsUseAnotherPrefix`. Mutations: skipping the check and making
+ties pick the last prefix were killed; an equivalent comparison survived. Docs: Spec 04 § Prefix
+handling, the sample (default per strategy), `schema.json`'s description (so the generated reference),
+and the versioning-strategies concept page.
 
 #### `[ ]` T498: re-running `heraut init` keeps what it doesn't ask about
 

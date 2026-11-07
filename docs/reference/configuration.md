@@ -66,7 +66,7 @@ How versions are computed and written as tags: the strategy (SemVer or CalVer, o
 | Key | Type | Default | Description |
 |---|---|---|---|
 | `versioning.strategy` | `semver` \| `calver` \| `semver-per-env` \| `calver-per-env` |  | How versions are computed: semver from commit messages (v1.4.0), calver from the date (2026.11.0), or semver-per-env / calver-per-env for one version line per environment (dev, staging, prod). |
-| `versioning.tag_prefix` | string |  | Tag prefix (e.g. "v"). Set to "" for bare version tags. |
+| `versioning.tag_prefix` | string |  | Prepended to every version tag. Defaults to "v" for semver and semver-per-env, "" for calver and calver-per-env. Set "" for bare version tags (1.2.3). Only tags with this prefix count as releases. |
 | `versioning.initial_version` | string |  | Version used when no tags exist yet. SemVer strategies only. |
 | `versioning.bump` | object |  | SemVer auto-bump resolution: mode and, for auto mode, per-commit bump-level overrides. SemVer strategies only. |
 | `versioning.bump.mode` | `auto` \| `manual` |  | "auto" infers from conventional commits. "manual" requires --set-version. Defaults to "auto" when omitted. |

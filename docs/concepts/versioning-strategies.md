@@ -75,8 +75,16 @@ setup, promotion guards included, is in [Several environments](../guides/environ
 
 ## Tag formats
 
-`tag_prefix` is enough for one line: `"v"` gives `v1.4.0`. The per-environment strategies use
-`tag_format` instead, with these placeholders:
+`tag_prefix` is enough for one line: `"v"` gives `v1.4.0`. It defaults to `"v"` for SemVer and to
+`""` for CalVer, and only tags with that prefix count as releases. If your existing tags are bare
+(`1.4.0`), set `tag_prefix: ""`; heraut warns on a first release when it finds version tags under
+another prefix:
+
+```text
+! no tag matches versioning.tag_prefix "v", but 2 tags look like versions with the prefix "" (e.g. 1.0.0): set versioning.tag_prefix: "" to continue from them
+```
+
+The per-environment strategies use `tag_format` instead, with these placeholders:
 
 | Placeholder | Becomes |
 |---|---|

@@ -173,6 +173,7 @@ func TestNewResolver_Calver_StayAtV0_IsInertAndWarningFree(t *testing.T) {
 	cfg.Versioning.Bump = &config.BumpConfig{StayAtV0: true}
 	mr := exectest.NewMockRunner()
 	mr.QueueResponse("", "", nil) // git tag -l *  → no tags yet
+	mr.QueueResponse("", "", nil) // git tag -l    → no tag under another prefix either
 
 	r, err := app.NewResolver(cfg, "", false, "", "", mr)
 	require.NoError(t, err)
@@ -181,7 +182,8 @@ func TestNewResolver_Calver_StayAtV0_IsInertAndWarningFree(t *testing.T) {
 
 	assert.NotEmpty(t, res.Tag)
 	assert.Empty(t, res.Warnings)
-	require.Len(t, mr.Calls, 1, "calver reads tags only; it never inspects commits for a bump")
+	require.Len(t, mr.Calls, 2, "calver reads tags only; it never inspects commits for a bump")
+	assert.Equal(t, []string{"tag", "-l"}, mr.Calls[1].Args, "a first release looks for tags under another prefix")
 }
 
 func TestNewResolver_CalverPerEnv_StayAtV0_IsInertAndWarningFree(t *testing.T) {

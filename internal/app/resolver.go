@@ -221,9 +221,9 @@ func NewResolver(cfg *config.Config, env string, force bool, versionOverride, bu
 		if err := applyBranchRule(r, cfg, runner, o.noGuard); err != nil {
 			return nil, err
 		}
-		return warningResolver{inner: r, warnings: r.Warnings, wouldBeVersions: r.WouldBeVersions, unconfirmedMajor: r.UnconfirmedMajor}, nil
+		return withForeignTagsWarning(cfg, runner, warningResolver{inner: r, warnings: r.Warnings, wouldBeVersions: r.WouldBeVersions, unconfirmedMajor: r.UnconfirmedMajor}), nil
 	case "calver":
-		return calver.New(runner, cfg, clock()), nil
+		return withForeignTagsWarning(cfg, runner, calver.New(runner, cfg, clock())), nil
 	case "semver-per-env":
 		calc := semver.New(nil, cfg)
 		calc.SetAllowMajor(o.allowMajor)
@@ -234,6 +234,84 @@ func NewResolver(cfg *config.Config, env string, force bool, versionOverride, bu
 	default:
 		return nil, fmt.Errorf("unknown versioning strategy %q (supported: semver, calver, semver-per-env, calver-per-env)", cfg.Versioning.Strategy)
 	}
+}
+
+// foreignTagsResolver warns on a first release when the repository already has version tags under
+// another prefix. With versioning.tag_prefix left at its "v" default, bare 1.0.0 tags are not read, and
+// the release would silently restart at the initial version.
+type foreignTagsResolver struct {
+	inner     versioning.Resolver
+	runner    port.Runner
+	prefix    string
+	isVersion func(string) bool
+}
+
+// withForeignTagsWarning wraps the plain semver and calver resolvers, whose tags are tag_prefix plus
+// a version. A top-level tag_format defines its own tag shape, so it is left alone.
+func withForeignTagsWarning(cfg *config.Config, runner port.Runner, r versioning.Resolver) versioning.Resolver {
+	if cfg.Versioning.TagFormat != "" {
+		return r
+	}
+	isVersion := func(v string) bool { _, err := semver.Parse(v); return err == nil }
+	if cfg.Versioning.Strategy == "calver" {
+		tokens, err := calver.ParseFormat(cfg.Versioning.Format)
+		if err != nil {
+			return r
+		}
+		isVersion = func(v string) bool { _, err := calver.ParseVersion(tokens, v); return err == nil }
+	}
+	return foreignTagsResolver{inner: r, runner: runner, prefix: configuredTagPrefix(cfg), isVersion: isVersion}
+}
+
+func (f foreignTagsResolver) Resolve() (versioning.Result, error) {
+	res, err := f.inner.Resolve()
+	if err != nil || res.CurrentTag != "" {
+		return res, err
+	}
+	stdout, _, err := f.runner.Run("git", "tag", "-l")
+	if err != nil {
+		return versioning.Result{}, fmt.Errorf("listing git tags: %w", err)
+	}
+	if w := foreignTagsWarning(port.TagNames(stdout), f.prefix, f.isVersion); w != "" {
+		res.Warnings = append(res.Warnings, w)
+	}
+	return res, nil
+}
+
+// foreignTagsWarning names the prefix most of tags' versions carry when it isn't prefix, with an
+// example; "" when no tag reads as a version under another prefix. A tag's prefix is what comes
+// before its first digit.
+func foreignTagsWarning(tags []string, prefix string, isVersion func(string) bool) string {
+	count := map[string]int{}
+	example := map[string]string{}
+	var order []string
+	for _, tag := range tags {
+		i := strings.IndexFunc(tag, func(r rune) bool { return r >= '0' && r <= '9' })
+		if i < 0 || tag[:i] == prefix || !isVersion(tag[i:]) {
+			continue
+		}
+		p := tag[:i]
+		if count[p] == 0 {
+			order = append(order, p)
+			example[p] = tag
+		}
+		count[p]++
+	}
+	if len(order) == 0 {
+		return ""
+	}
+	best := order[0]
+	for _, p := range order[1:] {
+		if count[p] > count[best] {
+			best = p
+		}
+	}
+	if count[best] == 1 {
+		return fmt.Sprintf("no tag matches versioning.tag_prefix %q, but 1 tag looks like a version with the prefix %q (%s): set versioning.tag_prefix: %q to continue from it",
+			prefix, best, example[best], best)
+	}
+	return fmt.Sprintf("no tag matches versioning.tag_prefix %q, but %d tags look like versions with the prefix %q (e.g. %s): set versioning.tag_prefix: %q to continue from them",
+		prefix, count[best], best, example[best], best)
 }
 
 // guardSetVersion adds the tag-collision guard to a --set-version resolver, for every strategy, so

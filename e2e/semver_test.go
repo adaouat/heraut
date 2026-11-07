@@ -1,7 +1,10 @@
 package e2e_test
 
 import (
+	"strings"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
 
 	"github.com/adaouat/heraut/e2e/harness"
 )
@@ -188,4 +191,21 @@ func TestSemVer_Overrides(t *testing.T) {
 			args:     []string{"version", "next", "--set-version", "nope"},
 			wantExit: exitConfig, wantText: []string{"is not a valid semver version"}},
 	})
+}
+
+// Adopting heraut on a repository with bare version tags: the default "v" prefix reads none of them,
+// and heraut says which prefix would.
+func TestSemver_WarnsWhenTagsUseAnotherPrefix(t *testing.T) {
+	bin := harness.Binary(t)
+	repo := harness.NewRepo(t)
+	repo.WriteConfig("version: \"1\"\nversioning:\n  strategy: semver\n")
+	repo.Commit("feat: a")
+	repo.Git("tag", "-a", "1.0.0", "-m", "1.0.0")
+	repo.Commit("fix: b")
+
+	res := repo.Run(bin, nil, "version", "next")
+
+	assert.Equal(t, exitOK, res.ExitCode, "stdout:\n%s\nstderr:\n%s", res.Stdout, res.Stderr)
+	assert.Equal(t, "v0.1.0", strings.TrimSpace(res.Stdout))
+	assert.Contains(t, res.Stderr, `no tag matches versioning.tag_prefix "v", but 1 tag looks like a version with the prefix "" (1.0.0): set versioning.tag_prefix: "" to continue from it`)
 }

@@ -518,7 +518,7 @@
         },
         "tag_prefix": {
           "type": "string",
-          "description": "Tag prefix (e.g. \"v\"). Set to \"\" for bare version tags."
+          "description": "Prepended to every version tag. Defaults to \"v\" for semver and semver-per-env, \"\" for calver and calver-per-env. Set \"\" for bare version tags (1.2.3). Only tags with this prefix count as releases."
         },
         "initial_version": {
           "type": "string",
