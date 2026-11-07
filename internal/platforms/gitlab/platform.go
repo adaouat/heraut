@@ -141,27 +141,23 @@ func (p *Platform) checkAPIAuth(ctx context.Context, token string, jobToken bool
 	return nil
 }
 
-// selfHosted reports whether this platform targets a non-default GitLab host.
-func (p *Platform) selfHosted() bool {
-	return p.cfg.BaseURL != "" && p.cfg.BaseURL != config.DefaultGitLabBaseURL
-}
-
 // inCIAutologin reports whether this run authenticates with the CI job token (CI_JOB_TOKEN is
 // not a valid PRIVATE-TOKEN, so the two are never mixed).
 //
-// It applies to the default gitlab.com host, and — as of T215 — to a self-hosted base_url naming
-// the exact instance the CI job itself is running on (CI_SERVER_URL), so that isn't the
-// "separately configured" self-hosted target ADR-0025 §4 guards against. A self-hosted base_url
-// naming a genuinely different instance still requires the configured token — the job token
-// cannot reach a host other than its own.
+// It applies only when the target is the instance the CI job runs on (CI_SERVER_URL, gitlab.com
+// when unset), so that isn't the "separately configured" target ADR-0025 §4 guards against. Any
+// other host — a self-hosted one from a gitlab.com job, or gitlab.com from a self-hosted job — needs
+// the configured token: the job token cannot reach a host other than its own, and must not be sent
+// there.
 func (p *Platform) inCIAutologin() bool {
 	if os.Getenv(config.EnvGitLabCI) != "true" {
 		return false
 	}
-	if !p.selfHosted() {
-		return true
+	server := os.Getenv(config.EnvGitLabServerURL)
+	if server == "" {
+		server = config.DefaultGitLabBaseURL
 	}
-	return sameGitLabHost(p.cfg.BaseURL, os.Getenv(config.EnvGitLabServerURL))
+	return sameGitLabHost(p.resolveBaseURL(), server)
 }
 
 // sameGitLabHost reports whether a and b name the same GitLab instance, comparing scheme and host

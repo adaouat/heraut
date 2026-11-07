@@ -32,7 +32,7 @@ post-v1 (Phase 100). The v1.0.0 cut (Phase 101) comes last.
 
 | Phase | Theme | Tasks | Status |
 |---|---|---|---|
-| 94 | Release-logic bugs that block v1 | T492–T501 | In progress — T492–T498, T500 done |
+| 94 | Release-logic bugs that block v1 | T492–T501 | In progress — T492–T498, T500–T501 done |
 | 95 | Decisions to make before the format freezes (ADRs) | T502–T506 | Not started |
 | 96 | Behaviour fixes | T507–T522 | Not started |
 | 97 | Tests that give false confidence | T523–T529 | Not started |
@@ -253,13 +253,21 @@ case at pipeline level. Mutations: the type-only CI match and the old link-conte
 killed. Spec 02 § Identity resolution states the instance rule; Spec 05 states the link rule, and its
 two-GitLab example now gives `gitlab-com` a `base_url` (it resolved to the runner's host without one).
 
-#### `[ ]` T501: the GitLab job token only goes to its own instance (needs the go for the GitLab driver)
+#### `[x]` T501: the GitLab job token only goes to its own instance (needs the go for the GitLab driver)
 
 `internal/platforms/gitlab/platform.go:157-165` (`inCIAutologin`) returns true for any GitLab CI job
 when `base_url` is gitlab.com (`!p.selfHosted()` skips the host comparison), so a self-hosted job sends
 its `CI_JOB_TOKEN` to gitlab.com and ignores `GITLAB_TOKEN`. Spec 05: the job token is used only "on the
 instance named by `CI_SERVER_URL`". Fix: always compare `sameGitLabHost(resolveBaseURL(), CI_SERVER_URL)`,
 an empty `CI_SERVER_URL` meaning gitlab.com. Tests: `credentials()` table over both directions.
+
+**Done (2026-11-07), with the user's go for this one GitLab driver change.** `inCIAutologin` now always
+compares the target's host (`resolveBaseURL`) with `CI_SERVER_URL`, gitlab.com when unset, so a
+gitlab.com target in a self-hosted job gets the configured token. `selfHosted`, its only user, is gone.
+No other driver change. Test: a `credentials()` table over gitlab.com and self-hosted targets and jobs,
+with and without `base_url` or `CI_SERVER_URL`; the gitlab.com target in a self-hosted job returned the
+job token before. Mutation: a wrong default for an unset `CI_SERVER_URL` was killed. Spec 05 § GitLab
+names the gitlab.com case.
 
 ---
 

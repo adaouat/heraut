@@ -576,8 +576,10 @@ do not arrive within two minutes fails, as on GitHub: the bound is on the wait f
 large upload is not cut short.
 
 - **Project** resolution: `cfg.Project` → `$CI_PROJECT_PATH` → error
-- **Token**: in GitLab CI on the instance named by `CI_SERVER_URL`, `CI_JOB_TOKEN` is sent as
-  `JOB-TOKEN` and any configured token is ignored; otherwise `$<TokenEnv>` (default
+- **Token**: in GitLab CI, when the target is the instance named by `CI_SERVER_URL` (gitlab.com
+  when unset), `CI_JOB_TOKEN` is sent as `JOB-TOKEN` and any configured token is ignored; a target on
+  any other host, gitlab.com included when the job runs on a self-hosted instance, never gets the job
+  token; otherwise `$<TokenEnv>` (default
   `GITLAB_TOKEN`) is sent as `PRIVATE-TOKEN`. `heraut check runtime` validates a personal token
   with `GET /user` and a job token by listing the project's releases (a job token cannot call
   `GET /user`)
@@ -625,8 +627,8 @@ for local servers and tests. When `base_url` is self-hosted, heraut:
   token chain above. GitHub PR enrichment uses the same API root, and its GraphQL endpoint is
   `<base_url>/api/graphql` on GitHub Enterprise Server and `https://api.<host>/graphql` on
   `*.ghe.com`.
-- On GitLab, skips CI autologin (`GITLAB_CI`) for that entry unless `base_url` is the CI job's own
-  instance — the job token cannot reach another host — and validates the configured `token_env`.
+- On GitLab, skips CI autologin (`GITLAB_CI`) for that entry unless its host is the CI job's own
+  instance (also when `base_url` is `https://gitlab.com`) — the job token cannot reach another host — and validates the configured `token_env`.
   GitHub has no autologin: the token comes from the chain in § GitHub above, the same for `Check()`
   and publishing.
 - Resolves `ReleaseURL`/`LinkContext` against `base_url` instead of the type default.
