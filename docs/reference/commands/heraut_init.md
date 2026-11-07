@@ -5,8 +5,9 @@
 Generate .heraut.yml interactively (or with --defaults).
 
 Create .heraut.yml by answering a few questions: versioning strategy, tag prefix, changelog and where
-to publish. With an existing file it offers to update it. --defaults writes a default config without
-asking: SemVer, prefix v, CHANGELOG.md, and a release on the forge found from CI or the git origin.
+to publish. With an existing file it offers to update it, keeping every setting it does not ask about.
+--defaults writes a default config without asking: SemVer, prefix v, CHANGELOG.md, and a release on
+the forge found from CI or the git origin.
 
 ## Usage
 

@@ -21,8 +21,9 @@ func NewInitCmd(version string) *cobra.Command {
 		Use:   "init",
 		Short: "Generate .heraut.yml interactively (or with --defaults)",
 		Long: "Create .heraut.yml by answering a few questions: versioning strategy, tag prefix, changelog and where\n" +
-			"to publish. With an existing file it offers to update it. --defaults writes a default config without\n" +
-			"asking: SemVer, prefix v, CHANGELOG.md, and a release on the forge found from CI or the git origin.",
+			"to publish. With an existing file it offers to update it, keeping every setting it does not ask about.\n" +
+			"--defaults writes a default config without asking: SemVer, prefix v, CHANGELOG.md, and a release on\n" +
+			"the forge found from CI or the git origin.",
 		Example: "  heraut init\n" +
 			"  heraut init --defaults\n" +
 			"  heraut init --config .config/heraut.yml",
@@ -99,7 +100,6 @@ func runInit(cmd *cobra.Command, version string) error {
 			answers = scaffold.ConfigToAnswers(cfg)
 			existingLoaded = true
 			existingCfg = cfg
-			printDroppedFieldsWarning(out, scaffold.DroppedFields(cfg))
 		}
 	}
 
@@ -117,7 +117,7 @@ func runInit(cmd *cobra.Command, version string) error {
 		printDroppedFieldsWarning(out, scaffold.DroppedEnvFields(existingCfg, answers.Environments))
 	}
 
-	content, err := scaffold.GenerateYAML(answers, version)
+	content, err := scaffold.GenerateUpdatedYAML(existingCfg, answers, version)
 	if err != nil {
 		return fmt.Errorf("generating config: %w", err)
 	}
@@ -161,9 +161,9 @@ func printDetectedForge(out io.Writer) {
 	_, _ = fmt.Fprintln(out, ui.Warn(out, "no GitHub or GitLab forge detected from the CI job or the git origin: heraut release needs a forges: entry (see docs/heraut.sample.yml)"))
 }
 
-// printDroppedFieldsWarning warns that the listed settings exist in the loaded config
-// but are not editable by the wizard, so continuing the "Update it?" flow will drop them
-// from the rewritten file. No-op when dropped is empty.
+// printDroppedFieldsWarning warns that the listed per-platform or per-environment settings of the
+// loaded config could not be matched to the edited platform or environment list, so the rewritten
+// file drops them. No-op when dropped is empty.
 func printDroppedFieldsWarning(out io.Writer, dropped []string) {
 	if len(dropped) == 0 {
 		return

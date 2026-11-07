@@ -49,6 +49,19 @@ type PushOptions struct {
 	Tag    []string `yaml:"tag,omitempty"`
 }
 
+// MarshalYAML keeps the difference between an absent list (nil, not written) and an empty one
+// (written as []), which under an environment means "none" rather than "inherit the root's".
+func (p PushOptions) MarshalYAML() (any, error) {
+	out := map[string][]string{}
+	if p.Commit != nil {
+		out["commit"] = p.Commit
+	}
+	if p.Tag != nil {
+		out["tag"] = p.Tag
+	}
+	return out, nil
+}
+
 // PushOptions returns the effective push options for env (ADR-0079): each list is the
 // environment's when it sets one, the root's otherwise. env "" or an unknown environment yields
 // the root lists. Nil-safe.

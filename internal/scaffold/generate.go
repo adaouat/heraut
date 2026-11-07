@@ -22,8 +22,22 @@ func buildSchemaURL(version string) string {
 // GenerateYAML converts answers to a .heraut.yml string with a yaml-language-server header.
 // version is the heraut build version (e.g. "v1.2.3"); empty or "dev" falls back to main.
 func GenerateYAML(a Answers, version string) (string, error) {
-	cfg := answersToConfig(a)
+	return encodeYAML(answersToConfig(a), version)
+}
 
+// GenerateUpdatedYAML is GenerateYAML for the "Update it?" flow: the answers are laid over the
+// existing config, so every key the wizard does not ask about (hooks, git, bump, branches,
+// rendering, commit rules, per-target assets, …) is kept as it was. A nil existing config is a new
+// file.
+func GenerateUpdatedYAML(existing *config.Config, a Answers, version string) (string, error) {
+	cfg := answersToConfig(a)
+	if existing != nil {
+		cfg = overlayAnswers(*existing, a, cfg)
+	}
+	return encodeYAML(cfg, version)
+}
+
+func encodeYAML(cfg config.Config, version string) (string, error) {
 	var buf bytes.Buffer
 	enc := yaml.NewEncoder(&buf)
 	enc.SetIndent(2)

@@ -32,7 +32,7 @@ post-v1 (Phase 100). The v1.0.0 cut (Phase 101) comes last.
 
 | Phase | Theme | Tasks | Status |
 |---|---|---|---|
-| 94 | Release-logic bugs that block v1 | T492–T501 | In progress — T492–T497 done |
+| 94 | Release-logic bugs that block v1 | T492–T501 | In progress — T492–T498 done |
 | 95 | Decisions to make before the format freezes (ADRs) | T502–T506 | Not started |
 | 96 | Behaviour fixes | T507–T522 | Not started |
 | 97 | Tests that give false confidence | T523–T529 | Not started |
@@ -175,7 +175,7 @@ ties pick the last prefix were killed; an equivalent comparison survived. Docs: 
 handling, the sample (default per strategy), `schema.json`'s description (so the generated reference),
 and the versioning-strategies concept page.
 
-#### `[ ]` T498: re-running `heraut init` keeps what it doesn't ask about
+#### `[x]` T498: re-running `heraut init` keeps what it doesn't ask about
 
 Re-running `init` ("Update it?") rewrites the config and loses keys:
 - **`tag_prefix`**: a semver config without the key gets `tag_prefix: ""`
@@ -191,6 +191,24 @@ wizard doesn't ask about through verbatim (the existing pattern for `commits.tic
 `DroppedFields` report whatever still can't be kept, shown before writing. Spec 03:76-87 lists the wrong
 set (it says tickets and assets are dropped; they're kept): rewrite it from the code. Tests: a
 round-trip of a config holding every key.
+
+**Done (2026-11-07).** Deviation from the planned fix: rather than adding each kept key to `Answers`,
+`GenerateUpdatedYAML` lays the answers over the existing config (`overlay.go`). The wizard's own keys
+take the answers; every other key, including ones added later, stays as it was. That covers `init`'s
+update flow and `--defaults` on an existing file. `ConfigToAnswers` offers an unset prefix as the
+strategy default, and `TestConfigToAnswers_NilPrefix`, which locked in `""`, now asserts `"v"`. Writing
+a loaded config back exposed two encoders the config lacked: `Rendering` (nested `templates.commit.*`
+and the trailers, flattened on load) and `PushOptions` (an environment's `tag: []`, meaning "none",
+was dropped by `omitempty` and turned into "inherit"); both now have `MarshalYAML`. Forges no release
+target uses (PR data only) are kept, since the wizard never shows them. The `DroppedFields` stub is
+gone; its nine tests asserted the stub's nil, and they now check that their config survives an update.
+New tests: every valid fixture plus the sample encode back to the same config (`internal/config`);
+every valid fixture survives an unchanged update (18 of 21 lost something before); changed answers
+apply and keep hooks, push options, bump, `allow_missing_assets` and target assets; turning the
+release off drops it. Mutations: dropping the untargeted forges and writing `tag` only when non-empty
+were both killed; an equivalent condition survived. Comments and key order are still not kept (the
+file is rewritten); Spec 03 says so. Spec 03 § init lists what is kept, and `init`'s help says it.
+No Lane A scenario: the wizard needs a terminal, and `--defaults` goes through the same function.
 
 #### `[ ]` T499: **Decision** — a config without `release:` ✔︎
 

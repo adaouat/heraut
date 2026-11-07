@@ -92,13 +92,15 @@ func TestConfigToAnswers_Prefix(t *testing.T) {
 	assert.Equal(t, "v", a.TagPrefix)
 }
 
+// An unset prefix is offered as the strategy's default, the prefix heraut reads: offering "" made a
+// re-run of init rewrite a semver config to bare tags and restart its version history.
 func TestConfigToAnswers_NilPrefix(t *testing.T) {
 	cfg := &config.Config{
 		Version:    "1",
 		Versioning: config.Versioning{Strategy: "semver"},
 	}
 	a := scaffold.ConfigToAnswers(cfg)
-	assert.Equal(t, "", a.TagPrefix)
+	assert.Equal(t, "v", a.TagPrefix)
 }
 
 func TestConfigToAnswers_CalVerFormat(t *testing.T) {

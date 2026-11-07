@@ -74,17 +74,21 @@ enrichment policy (+ enrichment forge, only when 2+ forges are configured) →
 environments (for per-env strategies, loops to add N envs). Existing config (if any)
 pre-populates the answers, so re-running `heraut init` updates instead of replacing.
 
-**Fields the wizard cannot preserve.** The wizard has no prompt for `commits.tickets`,
-`release.assets`, `commits.types`/`scopes`/`scopes_restricted`/`types_heading_level`,
-`versioning.initial_version`, `versioning.tag_type`, `changelog.tag_pattern`,
-`changelog.template`, `rendering.*` (global or per-driver), `release.notes` rendering
-overrides, a forge's `api_url`, or per-environment `changelog`/`release` overrides. On a
-config that already has any of these set, re-running `heraut init` silently drops them
-from the rewritten file — there is currently no pre-wizard warning naming them. The only
-warnings `heraut init` prints are narrower, post-wizard ones: if the platform list or the
-environment list itself was edited (an entry added, removed, reordered, or its type
-changed) such that the rebuilt list can no longer be positionally matched to the original,
-it lists exactly which per-platform or per-environment fields couldn't carry through.
+**Updating keeps what the wizard doesn't ask.** On "Update it?" (and with `--defaults` on an
+existing file) the answers are laid over the existing config instead of replacing it: the wizard's
+own keys (strategy, `tag_prefix`, CalVer `format`, `sprint`, `tag_format`, each environment's `bump`,
+`tag_format`, `source`, `branch` and `disable_*` flags, whether there is a changelog and its
+`output`, whether there is a release and its forges, the enrichment policy and forge) take the
+answers, and every other key is kept as it was: `hooks`, `git`, `versioning.bump`, `branches`,
+`initial_version`, `tag_type`, `commit_message`, `commits.*`, `rendering.*`, `notes`, release
+`notes`, `allow_missing_assets`, per-target `assets`, a forge's `api_url`, an environment's `git`,
+`changelog` and `release` overrides, and a forge no release target uses (PR data only). Comments
+and key order in the file are not kept: the file is rewritten. An unset `tag_prefix` is offered as
+the strategy's default (`"v"` for SemVer, `""` for CalVer), so accepting it keeps the tags heraut
+reads. The only warnings `heraut init` prints are post-wizard ones: if the platform list or the
+environment list itself was edited (an entry added, removed, reordered, or its type changed) such
+that the rebuilt list can no longer be matched to the original, it lists exactly which
+per-platform or per-environment fields couldn't carry through.
 
 For each platform step, the project/repository field is pre-populated from
 `git remote get-url origin` when the current directory is a git repo (SSH and HTTPS

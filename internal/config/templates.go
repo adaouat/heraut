@@ -2,6 +2,7 @@ package config
 
 import (
 	"fmt"
+	"strings"
 
 	"gopkg.in/yaml.v3"
 )
@@ -123,4 +124,40 @@ func extractCommitTrailers(templatesNode *yaml.Node) ([]FooterRule, error) {
 		return nil, nil
 	}
 	return nil, nil
+}
+
+// MarshalYAML writes Rendering in the shape UnmarshalYAML reads: namespaced template keys
+// ("commit.message") nest back under their namespace, and the commit trailers go back under
+// templates.commit.trailers.
+func (r Rendering) MarshalYAML() (any, error) {
+	out := map[string]any{}
+	if len(r.Excludes) > 0 {
+		out["excludes"] = r.Excludes
+	}
+	templates := map[string]any{}
+	for key, snippet := range r.Templates {
+		ns, sub, nested := strings.Cut(key, ".")
+		if !nested || !namespacedTemplateKeys[ns] {
+			templates[key] = snippet
+			continue
+		}
+		block, _ := templates[ns].(map[string]any)
+		if block == nil {
+			block = map[string]any{}
+			templates[ns] = block
+		}
+		block[sub] = snippet
+	}
+	if r.Commit != nil && len(r.Commit.Trailers) > 0 {
+		block, _ := templates["commit"].(map[string]any)
+		if block == nil {
+			block = map[string]any{}
+			templates["commit"] = block
+		}
+		block["trailers"] = r.Commit.Trailers
+	}
+	if len(templates) > 0 {
+		out["templates"] = templates
+	}
+	return out, nil
 }

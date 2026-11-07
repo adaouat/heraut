@@ -116,6 +116,9 @@ func ConfigToAnswers(cfg *config.Config) Answers {
 		a.EnrichmentForge = cfg.Commits.EnrichmentForge
 	}
 
+	// An unset prefix is offered as the strategy's default ("v" for SemVer, "" for CalVer): that is the
+	// prefix heraut reads, so accepting the wizard as is keeps the existing tags.
+	a.TagPrefix = defaultTagPrefix(cfg.Versioning.Strategy)
 	if cfg.Versioning.TagPrefix != nil {
 		a.TagPrefix = *cfg.Versioning.TagPrefix
 	}
@@ -177,4 +180,12 @@ func ConfigToAnswers(cfg *config.Config) Answers {
 	}
 
 	return a
+}
+
+// defaultTagPrefix is the prefix heraut uses when versioning.tag_prefix is unset.
+func defaultTagPrefix(strategy string) string {
+	if strategy == "semver" || strategy == "semver-per-env" {
+		return "v"
+	}
+	return ""
 }

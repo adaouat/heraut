@@ -43,14 +43,6 @@ func DroppedEnvFields(cfg *config.Config, rebuilt []EnvAnswer) []string {
 	return dropped
 }
 
-// DroppedFields returns the YAML paths of settings present in cfg that ConfigToAnswers
-// and GenerateYAML do not preserve. The "Update it?" flow in `heraut init` uses this to
-// warn the user before regenerating the config, since these settings would otherwise be
-// silently dropped from the rewritten file.
-func DroppedFields(cfg *config.Config) []string {
-	return nil
-}
-
 // DroppedPlatformFields returns the YAML paths of per-platform settings that could not
 // be carried through to the rebuilt platform list after the wizard ran. A field is
 // "dropped" only when the original config had more entries of a given platform type than
