@@ -1,6 +1,7 @@
 package pipeline
 
 import (
+	"net/url"
 	"os"
 	"strings"
 
@@ -125,18 +126,31 @@ func LinkContext(id *port.ForgeIdentity) *port.LinkContext {
 	return ambientLinkContext()
 }
 
-// platformLinkContext resolves the link context for one platform: the ambient CI host when
-// it describes the *same* platform type (so a self-hosted instance whose real host only
-// lives in the CI env is honoured), otherwise the platform's own base_url-derived context.
-// The platform-match guard prevents a mismatched CI (e.g. a GitHub release built in
-// GitLab CI) from stamping the wrong host. Used for both single and multi-platform release
-// notes so the ambient-preference logic is consistent across both paths (ADR-0022).
+// platformLinkContext resolves the link context for one platform: the ambient CI context when it
+// describes that same target (same platform, same instance, and the same repository unless the
+// platform names none), otherwise the platform's own base_url-derived context. A CI job publishing
+// to another platform, another instance (a GitHub Enterprise mirror) or another repository therefore
+// never stamps its own host or repository on that target's links and release URL. Used for both
+// single and multi-platform release notes so the ambient preference is consistent (ADR-0022).
 func (p *Pipeline) platformLinkContext(plat port.Platform) *port.LinkContext {
 	lc := plat.LinkContext()
-	if amb := ambientLinkContext(); amb != nil && amb.Platform == lc.Platform {
+	if amb := ambientLinkContext(); amb != nil && describesTarget(*amb, lc) {
 		return amb
 	}
 	return &lc
+}
+
+// describesTarget reports whether the ambient CI context amb is target's own.
+func describesTarget(amb, target port.LinkContext) bool {
+	if amb.Platform != target.Platform {
+		return false
+	}
+	a, errA := url.Parse(amb.BaseURL)
+	b, errB := url.Parse(target.BaseURL)
+	if errA != nil || errB != nil || !config.SameOrigin(a, b) {
+		return false
+	}
+	return target.Repo == "" || (amb.Owner == target.Owner && amb.Repo == target.Repo)
 }
 
 // singlePlatformLinkContext resolves the link context for a single-platform release.

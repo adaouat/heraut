@@ -230,12 +230,14 @@ func TestRun_SinglePlatform_PlatformContext(t *testing.T) {
 	assert.Equal(t, "## notes\n", gh.CreateReleaseCalls[0].Notes)
 }
 
-// TestRun_SinglePlatform_AmbientHostPreferred verifies that when the ambient CI host
-// describes the *same* platform, it is preferred (so a self-hosted instance, whose real
-// host only lives in the CI env, is honoured) — T75.
+// TestRun_SinglePlatform_AmbientHostPreferred verifies that when the ambient CI context
+// describes the *same* target (platform, instance and project), it is the one used — T75. The
+// platform reports the CI's instance, as forge resolution gives it when base_url is unset.
 func TestRun_SinglePlatform_AmbientHostPreferred(t *testing.T) {
 	clearAmbientCIEnv(t)
-	t.Setenv("CI_PROJECT_URL", "https://gitlab.example.com/grp/proj")
+	t.Setenv("GITLAB_CI", "true")
+	t.Setenv("CI_SERVER_URL", "https://gitlab.example.com/")
+	t.Setenv("CI_PROJECT_PATH", "grp/proj")
 	mr := exectest.NewMockRunner()
 	mr.QueueResponse("", "", nil) // git tag
 	mr.QueueResponse("", "", nil) // git push <tag>
@@ -243,7 +245,7 @@ func TestRun_SinglePlatform_AmbientHostPreferred(t *testing.T) {
 	notes := &testutil.MockGenerator{GenerateOut: "n"}
 	gl := &testutil.MockPlatform{
 		PlatformName:   "gitlab",
-		LinkContextVal: port.LinkContext{BaseURL: "https://gitlab.com", Owner: "grp", Repo: "proj", Platform: "gitlab"},
+		LinkContextVal: port.LinkContext{BaseURL: "https://gitlab.example.com", Owner: "grp", Repo: "proj", Platform: "gitlab"},
 	}
 	cfg := &pipeline.Config{Notes: notes, Platforms: []port.Platform{gl}}
 
@@ -251,8 +253,8 @@ func TestRun_SinglePlatform_AmbientHostPreferred(t *testing.T) {
 	require.NoError(t, p.Run(t.Context()))
 
 	require.NotNil(t, notes.GenerateContexts[0])
-	assert.Equal(t, "https://gitlab.example.com/grp/proj", notes.GenerateContexts[0].BaseURL,
-		"ambient self-hosted host must win over the default base_url")
+	assert.Equal(t, &port.LinkContext{BaseURL: "https://gitlab.example.com", Owner: "grp", Repo: "proj", Platform: "gitlab"},
+		notes.GenerateContexts[0], "the ambient context of the same target is used")
 }
 
 // TestRun_SinglePlatform_AmbientMismatchIgnored verifies a mismatched ambient CI (e.g. a
@@ -400,12 +402,13 @@ func TestRun_Changelog_NilContext_MultiPlatform(t *testing.T) {
 }
 
 // TestRun_MultiPlatform_Notes_AmbientForMatchingPlatform verifies that in multi-platform
-// mode each platform's release notes prefer the ambient CI context when the platform type
-// matches — the self-hosted GitLab scenario: no base_url in config, CI_PROJECT_URL carries
-// the correct host, and only the matching platform should use it (ADR-0022).
+// mode each platform's release notes use the ambient CI context only for the platform it
+// describes — the self-hosted GitLab job publishing to GitLab and GitHub (ADR-0022).
 func TestRun_MultiPlatform_Notes_AmbientForMatchingPlatform(t *testing.T) {
 	clearAmbientCIEnv(t)
-	t.Setenv("CI_PROJECT_URL", "https://git.example.com/acme/widget")
+	t.Setenv("GITLAB_CI", "true")
+	t.Setenv("CI_SERVER_URL", "https://git.example.com")
+	t.Setenv("CI_PROJECT_PATH", "acme/widget")
 
 	mr := exectest.NewMockRunner()
 	mr.QueueResponse("", "", nil) // git tag
@@ -414,7 +417,7 @@ func TestRun_MultiPlatform_Notes_AmbientForMatchingPlatform(t *testing.T) {
 	notes := &testutil.MockGenerator{GenerateOut: "## notes\n"}
 	gl := &testutil.MockPlatform{
 		PlatformName:   "gitlab",
-		LinkContextVal: port.LinkContext{BaseURL: "https://gitlab.com", Owner: "acme", Repo: "widget", Platform: "gitlab"},
+		LinkContextVal: port.LinkContext{BaseURL: "https://git.example.com", Owner: "acme", Repo: "widget", Platform: "gitlab"},
 	}
 	gh := &testutil.MockPlatform{
 		PlatformName:   "github",
@@ -428,22 +431,23 @@ func TestRun_MultiPlatform_Notes_AmbientForMatchingPlatform(t *testing.T) {
 	require.Len(t, notes.GenerateContexts, 2, "notes must be generated once per platform")
 	require.NotNil(t, notes.GenerateContexts[0])
 	require.NotNil(t, notes.GenerateContexts[1])
-	// GitLab platform matches ambient CI_PROJECT_URL → ambient self-hosted URL wins.
-	assert.Equal(t, "https://git.example.com/acme/widget", notes.GenerateContexts[0].BaseURL,
-		"ambient self-hosted URL must win for the matching GitLab platform")
+	// GitLab platform is the CI's own target → the ambient context is used.
+	assert.Equal(t, "https://git.example.com", notes.GenerateContexts[0].BaseURL,
+		"ambient self-hosted URL must be used for the matching GitLab platform")
 	// GitHub platform does not match GitLab ambient → its own platform context is used.
 	assert.Equal(t, "https://github.com", notes.GenerateContexts[1].BaseURL,
 		"non-matching platform must keep its own context")
 }
 
 // TestRun_PublishStep_UsesAmbientContextForReleaseURL verifies that the pipeline passes the
-// ambient-resolved link context to ReleaseURLFromContext (not the platform's default base_url),
-// so the displayed release URL in the step output and summary reflects the self-hosted host
-// when CI_PROJECT_URL is present (ADR-0022). This guards against the regression where the
-// publish step called plat.ReleaseURL() directly, bypassing the ambient URL resolution.
+// resolved link context to ReleaseURLFromContext, so the displayed release URL in the step output
+// and summary is the one the notes use (ADR-0022). This guards against the regression where the
+// publish step called plat.ReleaseURL() directly, bypassing the link-context resolution.
 func TestRun_PublishStep_UsesAmbientContextForReleaseURL(t *testing.T) {
 	clearAmbientCIEnv(t)
-	t.Setenv("CI_PROJECT_URL", "https://git.example.com/acme/widget")
+	t.Setenv("GITLAB_CI", "true")
+	t.Setenv("CI_SERVER_URL", "https://git.example.com")
+	t.Setenv("CI_PROJECT_PATH", "acme/widget")
 
 	mr := exectest.NewMockRunner()
 	mr.QueueResponse("", "", nil) // git tag
@@ -451,7 +455,7 @@ func TestRun_PublishStep_UsesAmbientContextForReleaseURL(t *testing.T) {
 
 	gl := &testutil.MockPlatform{
 		PlatformName:   "gitlab",
-		LinkContextVal: port.LinkContext{BaseURL: "https://gitlab.com", Owner: "acme", Repo: "widget", Platform: "gitlab"},
+		LinkContextVal: port.LinkContext{BaseURL: "https://git.example.com", Owner: "acme", Repo: "widget", Platform: "gitlab"},
 	}
 	cfg := &pipeline.Config{Platforms: []port.Platform{gl}}
 
@@ -461,8 +465,8 @@ func TestRun_PublishStep_UsesAmbientContextForReleaseURL(t *testing.T) {
 	require.NotEmpty(t, gl.ReleaseURLFromContextCalls, "ReleaseURLFromContext must be called (not ReleaseURL)")
 	for _, call := range gl.ReleaseURLFromContextCalls {
 		require.NotNil(t, call.LC, "ReleaseURLFromContext must receive the resolved link context")
-		assert.Equal(t, "https://git.example.com/acme/widget", call.LC.BaseURL,
-			"ambient self-hosted URL must be passed to ReleaseURLFromContext, not the platform default")
+		assert.Equal(t, "https://git.example.com", call.LC.BaseURL,
+			"the resolved link context must be passed to ReleaseURLFromContext")
 	}
 }
 
@@ -1098,4 +1102,28 @@ func TestRun_DryRun_DisabledChangelog_PlainOutputOmitsChangelog(t *testing.T) {
 	assert.Contains(t, out.String(), "[dry-run] would tag v1.4.0-rc.1")
 	assert.NotContains(t, out.String(), "hangelog")
 	assert.NotContains(t, out.String(), "pre-changelog-marker")
+}
+
+// A target on another instance than the CI job's (a GitHub Enterprise mirror published from
+// github.com Actions) keeps its own context: its notes link to it and its release URL is its own.
+func TestRun_TargetOnAnotherInstanceKeepsItsOwnContext(t *testing.T) {
+	clearAmbientCIEnv(t)
+	t.Setenv("GITHUB_SERVER_URL", "https://github.com")
+	t.Setenv("GITHUB_REPOSITORY", "acme/app")
+	mr := exectest.NewMockRunner()
+	mr.QueueResponse("", "", nil) // git tag
+	mr.QueueResponse("", "", nil) // git push <tag>
+	mirror := port.LinkContext{BaseURL: "https://ghe.example.com", Owner: "acme", Repo: "mirror", Platform: "github"}
+	notes := &testutil.MockGenerator{GenerateOut: "n"}
+	ghes := &testutil.MockPlatform{PlatformName: "ghes", LinkContextVal: mirror}
+	cfg := &pipeline.Config{Notes: notes, Platforms: []port.Platform{ghes}}
+
+	p := pipeline.New(mr, &fakeResolver{result: resolvedResult("v1.2.3")}, cfg, &bytes.Buffer{}, false)
+	require.NoError(t, p.Run(t.Context()))
+
+	assert.Equal(t, &mirror, notes.GenerateContexts[0])
+	require.NotEmpty(t, ghes.ReleaseURLFromContextCalls)
+	for _, call := range ghes.ReleaseURLFromContextCalls {
+		assert.Equal(t, &mirror, call.LC)
+	}
 }

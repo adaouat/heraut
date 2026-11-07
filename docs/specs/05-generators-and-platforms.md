@@ -435,7 +435,10 @@ heraut regenerates the release notes once per platform and passes that platform'
 `link` context (host, owner, repo, type) so the commit and compare links resolve to that
 platform's host and path shape (see [ADR-0021](../adr/0021-per-platform-release-notes.md)).
 A single-platform release passes its one platform's context the same way. Either way, the
-CI job's own context is used instead when the job runs on that platform's type. `nil` is
+CI job's own context is used instead when it describes that same target: the same platform, the
+same instance (origin of the base URL), and the same repository unless the platform names none.
+A target on another instance or repository (a GitHub Enterprise mirror published from github.com
+Actions) keeps its own context, for its links and for the release URL printed after publishing. `nil` is
 passed only when no platform is configured, and the generator then falls through to
 ambient-CI link detection.
 
@@ -637,6 +640,7 @@ forges:
   - name: gitlab-com
     platform: gitlab
     project: acme/widget-catalog
+    base_url: https://gitlab.com
   - name: gitlab-internal
     platform: gitlab
     project: acme/widget
@@ -647,6 +651,9 @@ release:
     - forge: gitlab-com
     - forge: gitlab-internal
 ```
+
+Give every entry its `base_url` when there are several of one type: an entry without one takes
+the CI job's instance, so a run on the self-hosted runner would point `gitlab-com` there too.
 
 Each `forges[]` entry's `name` must be unique and is referenced by its `release.targets`
 entry; the name is used to label that entry's row in `heraut check runtime`'s Platforms

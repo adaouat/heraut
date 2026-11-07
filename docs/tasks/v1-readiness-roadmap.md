@@ -32,7 +32,7 @@ post-v1 (Phase 100). The v1.0.0 cut (Phase 101) comes last.
 
 | Phase | Theme | Tasks | Status |
 |---|---|---|---|
-| 94 | Release-logic bugs that block v1 | T492–T501 | In progress — T492–T498 done |
+| 94 | Release-logic bugs that block v1 | T492–T501 | In progress — T492–T498, T500 done |
 | 95 | Decisions to make before the format freezes (ADRs) | T502–T506 | Not started |
 | 96 | Behaviour fixes | T507–T522 | Not started |
 | 97 | Tests that give false confidence | T523–T529 | Not started |
@@ -220,7 +220,7 @@ that gets one without the other") and `docs/guides/environments.md:9-32`, whose 
 for every environment. Options: (a) publish with default notes, (b) refuse with a config error naming
 the block to add, (c) tag only. Then align the code, the spec, the reference, the sample and the guide.
 
-#### `[ ]` T500: CI values only fill a forge entry on the same instance
+#### `[x]` T500: CI values only fill a forge entry on the same instance
 
 `internal/forge/resolve.go:84,93,98` fills a `forges:` entry's host, API URL, project and **token** from
 CI whenever the CI platform type matches, even when its `base_url` names another instance:
@@ -236,6 +236,22 @@ wrong-host links and prints the CI repository's release URL in the step and summ
 only when `base_url` is unset or has the CI server's origin; match host and repository in
 `platformLinkContext`, and print `plat.ReleaseURL(tag)` in the summary. Tests: resolve tables for each
 pairing; a linkctx test.
+
+**Done (2026-11-07).** `resolveExplicit` now takes CI and git-origin values only when the entry's
+`base_url` is unset or has the detected host's origin (`sameInstance`, on `config.SameOrigin`). A
+self-hosted GitLab entry in a gitlab.com job keeps its `token_env` and its project; a GHES entry on a
+github.com runner reads `GH_ENTERPRISE_TOKEN`. `platformLinkContext` uses the CI context only when it
+describes the target itself: same platform, same instance, and the same repository unless the target
+names none. The summary and publish-step URL already go through it, so they now print the target's
+own URL; no separate `ReleaseURL` call was needed. Three pipeline tests modelled a self-hosted job with
+only `CI_PROJECT_URL` set and a platform reporting `gitlab.com`. Real wiring gives the platform the CI
+host (`platformConfigFromTarget` copies the identity's host), so their fixtures now use a GitLab job's
+real variables and that host; they still assert the CI context reaches the notes and the release URL.
+New tests: a resolve table (self-hosted with and without `token_env`, GHES, same instance with other
+case and a trailing slash), an origin case, a `platformLinkContext` table, and the reviewer's GHES-mirror
+case at pipeline level. Mutations: the type-only CI match and the old link-context rule were both
+killed. Spec 02 § Identity resolution states the instance rule; Spec 05 states the link rule, and its
+two-GitLab example now gives `gitlab-com` a `base_url` (it resolved to the runner's host without one).
 
 #### `[ ]` T501: the GitLab job token only goes to its own instance (needs the go for the GitLab driver)
 

@@ -226,3 +226,39 @@ func TestChangelogPipelineLinkContext(t *testing.T) {
 		})
 	}
 }
+
+// A target uses the CI job's context only when that context describes the target itself: same
+// platform, same instance, and the same repository when the target names one. Otherwise its links and
+// release URL would point at the CI's repository.
+func TestPlatformLinkContext_AmbientOnlyForTheSameTarget(t *testing.T) {
+	gh := func(base, owner, repo string) port.LinkContext {
+		return port.LinkContext{BaseURL: base, Owner: owner, Repo: repo, Platform: "github"}
+	}
+	tests := []struct {
+		name       string
+		target     port.LinkContext
+		wantFromCI bool
+	}{
+		{name: "the CI's own repository", target: gh("https://github.com", "acme", "app"), wantFromCI: true},
+		{name: "a target that names no repository", target: gh("https://github.com", "", ""), wantFromCI: true},
+		{name: "another instance", target: gh("https://ghe.example.com", "acme", "mirror")},
+		{name: "another repository on the same instance", target: gh("https://github.com", "acme", "mirror")},
+		{name: "another platform", target: port.LinkContext{BaseURL: "https://gitlab.com", Owner: "acme", Repo: "app", Platform: "gitlab"}},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			testutil.ClearCIEnv(t)
+			t.Setenv("GITHUB_SERVER_URL", "https://github.com")
+			t.Setenv("GITHUB_REPOSITORY", "acme/app")
+			p := &Pipeline{}
+
+			got := p.platformLinkContext(&testutil.MockPlatform{PlatformName: "github", LinkContextVal: tc.target})
+
+			if tc.wantFromCI {
+				assert.Equal(t, ambientLinkContext(), got)
+				return
+			}
+			assert.Equal(t, &tc.target, got)
+		})
+	}
+}

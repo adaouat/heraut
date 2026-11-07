@@ -6,6 +6,8 @@ package forge
 import (
 	"errors"
 	"fmt"
+	neturl "net/url"
+	"strings"
 
 	"github.com/adaouat/heraut/internal/config"
 	"github.com/adaouat/heraut/internal/port"
@@ -73,16 +75,17 @@ func requireSecure(id port.ForgeIdentity) error {
 }
 
 // resolveExplicit builds one ForgeIdentity per cfg.Forges entry. Each field fills gaps in order:
-// explicit config → CI env (when the CI type matches the entry's platform) → git origin (when
-// its detected type matches the entry's platform) → a type default (host, token env).
+// explicit config → CI env (when the CI runs on the entry's platform and instance) → git origin
+// (likewise) → a type default (host, token env). An entry whose base_url names another instance
+// takes nothing from CI or the origin: its token, above all, belongs to the CI's own instance.
 func resolveExplicit(cfg *config.Config, getenv func(string) string, gitOrigin string) (Resolved, error) {
 	ciType, ciHost, ciAPIURL, ciProject, ciRepository, ciToken, ciKind, ciOK := detectCIForge(getenv)
 	originType, originHost, originProject, originRepository, originOK := parseGitOrigin(gitOrigin)
 
 	forges := make([]port.ForgeIdentity, len(cfg.Forges))
 	for i, f := range cfg.Forges {
-		ciMatches := ciOK && ciType == f.Type
-		originMatches := originOK && originType == f.Type
+		ciMatches := ciOK && ciType == f.Type && sameInstance(f.BaseURL, ciHost, ciType)
+		originMatches := originOK && originType == f.Type && sameInstance(f.BaseURL, originHost, originType)
 
 		apiMode := f.APIMode
 		if apiMode == "" {
@@ -244,4 +247,19 @@ func tokenFromEnvs(getenv func(string) string, envs []string) (string, port.Toke
 		}
 	}
 	return "", port.TokenNone
+}
+
+// sameInstance reports whether a forge entry's base_url and a detected host (from CI or the git origin)
+// name the same instance. An entry without base_url takes the detected one; an empty detected host is
+// the platform's default.
+func sameInstance(baseURL, detected, typ string) bool {
+	if baseURL == "" {
+		return true
+	}
+	if detected == "" {
+		detected = defaultHostFor(typ)
+	}
+	a, errA := neturl.Parse(strings.TrimRight(baseURL, "/"))
+	b, errB := neturl.Parse(strings.TrimRight(detected, "/"))
+	return errA == nil && errB == nil && config.SameOrigin(a, b)
 }

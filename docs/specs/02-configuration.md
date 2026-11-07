@@ -611,7 +611,11 @@ that supplies a value:
 
 1. **Explicit config** — the value set directly on the `forges:` entry.
 2. **CI environment** — when the entry's `platform` matches the CI system detected from
-   ambient environment variables:
+   ambient environment variables, and the entry names no `base_url` or one with the CI host's
+   origin (scheme, host, port; case and a trailing slash ignored). An entry whose `base_url` names
+   another instance takes nothing from CI, the token above all: a self-hosted GitLab entry run in
+   a gitlab.com job keeps its own `token_env`, and a GitHub Enterprise entry run on a github.com
+   runner reads `GH_ENTERPRISE_TOKEN`, never that runner's `GITHUB_TOKEN`:
 
    | CI system    | Marker           | Host             | API URL            | Project/repo         | Token            |
    |--------------|------------------|-------------------|---------------------|-----------------------|------------------|
@@ -637,7 +641,7 @@ that supplies a value:
    tenant and `<host>/api/v3` for GitHub Enterprise Server. PR enrichment and publishing therefore
    always query the same instance.
 3. **`git remote get-url origin`** — when the origin host is a known public host
-   (`github.com`, `gitlab.com`, Azure DevOps), its type, host, and `owner/repo` path are
+   (`github.com`, `gitlab.com`, Azure DevOps) on the entry's instance (same rule as CI), its type, host, and `owner/repo` path are
    used (both the SSH `user@host:path` and HTTPS `https://[user@]host/path` forms are parsed;
    credentials in the URL are ignored). Azure DevOps origins are recognised in every form it
    shows for cloning — `https://org@dev.azure.com/org/project/_git/repo`,

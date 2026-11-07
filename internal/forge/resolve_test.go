@@ -363,3 +363,62 @@ func TestResolve_AzureCIWithoutTeamProject(t *testing.T) {
 	assert.Equal(t, "https://dev.azure.com", got.Forges[0].Host)
 	assert.Empty(t, got.Forges[0].Project)
 }
+
+// A forge whose base_url names another instance than the CI job's takes nothing from CI: not its API
+// URL, not its project, and never its token, which belongs to the CI's own instance.
+func TestResolve_ExplicitForgeOnAnotherInstanceTakesNothingFromCI(t *testing.T) {
+	gitlabCOM := map[string]string{
+		"GITLAB_CI": "true", "CI_SERVER_URL": "https://gitlab.com", "CI_API_V4_URL": "https://gitlab.com/api/v4",
+		"CI_PROJECT_PATH": "acme/app", "CI_JOB_TOKEN": "job-token", "SELF_PAT": "self-hosted-pat",
+	}
+	githubCOM := map[string]string{
+		"GITHUB_ACTIONS": "true", "GITHUB_SERVER_URL": "https://github.com", "GITHUB_API_URL": "https://api.github.com",
+		"GITHUB_REPOSITORY": "acme/app", "GITHUB_TOKEN": "github-com-token", "GH_ENTERPRISE_TOKEN": "ghes-token",
+	}
+	tests := []struct {
+		name        string
+		forge       config.Forge
+		env         map[string]string
+		wantHost    string
+		wantAPIURL  string
+		wantProject string
+		wantToken   string
+	}{
+		{name: "self-hosted GitLab from gitlab.com CI",
+			forge: config.Forge{Name: "self", Type: "gitlab", BaseURL: "https://gitlab.example.com", Project: "acme/mirror", TokenEnv: "SELF_PAT"},
+			env:   gitlabCOM, wantHost: "https://gitlab.example.com", wantProject: "acme/mirror", wantToken: "self-hosted-pat"},
+		{name: "self-hosted GitLab without token_env",
+			forge: config.Forge{Name: "self", Type: "gitlab", BaseURL: "https://gitlab.example.com", Project: "acme/mirror"},
+			env:   gitlabCOM, wantHost: "https://gitlab.example.com", wantProject: "acme/mirror", wantToken: ""},
+		{name: "GHES from github.com Actions",
+			forge: config.Forge{Name: "ghes", Type: "github", BaseURL: "https://ghe.example.com", Repository: "acme/mirror"},
+			env:   githubCOM, wantHost: "https://ghe.example.com", wantProject: "acme/mirror", wantToken: "ghes-token"},
+		{name: "same instance, other case and a trailing slash",
+			forge: config.Forge{Name: "com", Type: "gitlab", BaseURL: "https://GitLab.com/"},
+			env:   gitlabCOM, wantHost: "https://GitLab.com/", wantAPIURL: "https://gitlab.com/api/v4", wantProject: "acme/app", wantToken: "job-token"},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			got, err := forge.Resolve(&config.Config{Forges: []config.Forge{tc.forge}}, env(tc.env), "")
+			require.NoError(t, err)
+
+			f := got.Forges[0]
+			assert.Equal(t, tc.wantHost, f.Host)
+			assert.Equal(t, tc.wantProject, f.Project)
+			assert.Equal(t, tc.wantToken, f.Token)
+			if tc.wantAPIURL != "" || tc.forge.Type == "gitlab" {
+				assert.Equal(t, tc.wantAPIURL, f.APIURL)
+			}
+		})
+	}
+}
+
+// The git origin fills a forge only when it is on the forge's instance too.
+func TestResolve_ExplicitForgeOnAnotherInstanceTakesNothingFromTheOrigin(t *testing.T) {
+	cfg := &config.Config{Forges: []config.Forge{{Name: "ghes", Type: "github", BaseURL: "https://ghe.example.com"}}}
+
+	got, err := forge.Resolve(cfg, env(nil), "git@github.com:acme/app.git")
+
+	require.NoError(t, err)
+	assert.Empty(t, got.Forges[0].Project)
+}
