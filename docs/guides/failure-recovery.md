@@ -42,11 +42,10 @@ A remote that refuses push options fails the commit push itself ("the receiving 
 push options"), so the commit exists only locally. Drop the option from `git.push_options.commit` and
 run again: the retry finds nothing to commit and pushes the local commit before tagging.
 
-Fix the cause, then run `heraut release` again. The version is recomputed and comes out the same,
-because the `chore(release)` commit is not a releasable commit. If the regenerated changelog is
-byte-identical, heraut skips the commit with a warning and goes on to tag and publish. The changelog
-footer carries a timestamp to the minute, so a retry in a later minute commits the file again: you
-get a second `chore(release): 1.2.3` commit, which is harmless.
+Fix the cause, then run `heraut release` again. The version is recomputed and comes out the same:
+the `chore(release)` commit counts, but it adds at most a patch, which never raises the level the
+other commits already gave. The regenerated changelog is identical (a newer generation time in the
+footer doesn't count), so heraut skips the commit with a warning and goes on to tag and publish.
 
 If the hook that failed is not worth fixing right now, skip it for the retry:
 

@@ -70,7 +70,8 @@ environments:
     bump: promote                 # prod gets staging's latest version
 ```
 
-Every command then takes `--env`. `calver-per-env` is the same with a `format:` and dates. The whole
+Every command that resolves a version (`release`, `changelog`, `notes`, `version next` and
+`version current`) then takes `--env`. `calver-per-env` is the same with a `format:` and dates. The whole
 setup, promotion guards included, is in [Several environments](../guides/environments.md).
 
 ## Tag formats

@@ -11,8 +11,8 @@ You need:
 - a git repository whose `origin` is on GitHub or GitLab, and push access to it;
 - commit messages that follow [Conventional Commits](https://www.conventionalcommits.org/)
   (`feat: …`, `fix: …`). heraut reads them to pick the next version and fill the changelog;
-- a token that can create releases: `GITHUB_TOKEN` (or `GH_TOKEN`) for GitHub, `GITLAB_TOKEN` for
-  GitLab.
+- a token that can create releases: `GH_TOKEN` or `GITHUB_TOKEN` for GitHub (`GH_TOKEN` wins when
+  both are set), `GITLAB_TOKEN` for GitLab.
 
 The examples use a GitHub project, `acme/app`, with two commits: `feat: first version of the app`
 and `fix: typo in the readme`.

@@ -18,7 +18,7 @@ $ heraut release
 
 | Step | What it does | What it changes |
 |---|---|---|
-| Check | Validates `.heraut.yml`, the branch rules, git and its identity, and that the history is complete. | Nothing. |
+| Check (before the numbered steps) | Validates `.heraut.yml`, the branch rules, git and its identity, and that the history is complete. | Nothing. |
 | Resolve version | Finds the last release tag and computes the next version from the commits since. | Nothing. |
 | Generate changelog | Adds the new version's section to `CHANGELOG.md`. | The file, on disk. |
 | Commit changelog | Commits the file (`chore(release): 1.4.0`) and pushes the branch to `origin`. | One commit, pushed. |

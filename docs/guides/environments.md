@@ -34,8 +34,10 @@ environments:
 Every command that resolves a version takes `--env`:
 
 ```bash
+git switch develop                  # dev is operated from develop
 heraut version next --env dev       # dev/0.1.0
 heraut release --env dev
+git switch main                     # staging and prod from main
 heraut release --env staging        # staging/0.1.0, the same version
 heraut release --env prod
 ```

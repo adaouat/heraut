@@ -38,7 +38,8 @@ The skill tells the agent to work in this order, and to stop before anything tha
 4. `heraut release`, only after you approve it in the conversation.
 
 The skill also tells the agent never to pass `--allow-major` or `--force`, nor to replace a file, unless
-you asked, and to use `--offline` when it has no forge token.
+you asked, and to use `--offline` (on `release`, `changelog`, `notes` and `check`) when it has no
+forge token.
 
 ## The JSON output
 

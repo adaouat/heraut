@@ -68,7 +68,7 @@ jobs:
   commits:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@v6
         with:
           fetch-depth: 0
       # install heraut as in the release workflow

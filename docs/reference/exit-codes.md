@@ -17,7 +17,7 @@ problem stopped it. The code is the same with and without `--json`; in `--json` 
 ## 1: usage
 
 - An unknown flag or command, a missing argument, or flags that can't be combined (`--json` on
-  `heraut release` without `--dry-run`, `--set-build-id` without `--set-version`).
+  `heraut release` without `--dry-run`).
 - `heraut commit verify` or `heraut commit check` found an invalid commit message.
 - `heraut init` or `heraut commit create` ran without an interactive terminal.
 - `heraut skill install` would replace an installed skill that differs: pass `--force`.
@@ -26,6 +26,7 @@ Read the message, fix the command line, run it again. `heraut <command> --help` 
 
 ## 2: config
 
+- `--set-build-id` without `--set-version`.
 - `.heraut.yml` doesn't parse, has an unknown key or a missing field, or has an invalid value. The
   message gives the key's path and a hint; `heraut check config` reports every finding at once.
 - `--env` is missing or names an unknown environment, on a per-environment strategy.
@@ -33,8 +34,8 @@ Read the message, fix the command line, run it again. `heraut <command> --help` 
 - The tag format contains `{build}` and no `--set-build-id` was given.
 - A `--set-version` value doesn't fit the strategy (not SemVer, or not the CalVer format).
 - The next release is a major one and `versioning.bump.confirm_major` asks for `--allow-major`.
-- `heraut release` has nowhere to publish: no `release.targets`, and no GitHub or GitLab forge found
-  from CI or the git origin.
+- `heraut release` has a `release:` block but nowhere to publish: no `release.targets`, and no GitHub
+  or GitLab forge found from CI or the git origin. (Without a `release:` block it tags only.)
 
 Fix `.heraut.yml` or the flags. `heraut check config` runs offline and catches the file's errors
 before a release does.

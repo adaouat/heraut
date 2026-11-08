@@ -22,7 +22,7 @@ jobs:
       contents: write        # push the changelog commit and the tag, create the release
       pull-requests: read    # PR links and authors in the changelog
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@v6
         with:
           fetch-depth: 0     # all commits and tags: heraut needs them to find the version
 

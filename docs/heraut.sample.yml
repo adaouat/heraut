@@ -8,10 +8,9 @@
 # How-tos by situation (environments, hooks, templates, …): docs/guides/
 # ─────────────────────────────────────────────────────────────────────────────
 
-# yaml-language-server: $schema=https://raw.githubusercontent.com/adaouat/heraut/<version>/schema.json
-# heraut init fills in <version> automatically (e.g. v0.58.0), pinned to your installed
-# heraut. Editing this file by hand? Replace <version> with your `heraut --version` output,
-# or use "main" for the latest schema on the default branch.
+# yaml-language-server: $schema=https://raw.githubusercontent.com/adaouat/heraut/main/schema.json
+# "main" is the latest schema. heraut init pins it to your installed version instead
+# (…/heraut/v1.2.0/schema.json), which you can do by hand too.
 
 # Schema version. Must be "1".
 version: "1"
@@ -59,9 +58,10 @@ versioning:
     # exactly one of type or regex (matched against the commit subject), optionally
     # combined with breaking (true/false) to further scope the match, plus the
     # resulting bump level: major, minor, patch, or none — e.g. {type: fix, bump:
-    # minor} to promote fixes. A commit whose only matching rule resolves to "none"
-    # — or that never matches anything and isn't a recognized conventional-commit
-    # type — does not contribute to the release; if every commit since the last tag
+    # minor} to promote fixes. A commit whose matching rule resolves to "none", or
+    # whose message isn't a conventional commit at all, does not contribute to the
+    # release (any other type, even one heraut doesn't know, is a patch); if every
+    # commit since the last tag
     # ends up this way, `heraut release` errors instead of silently cutting an
     # empty release.
     overrides:
@@ -498,7 +498,7 @@ release:
   #
   # tag_pattern, template — same semantics as the changelog block above.
   # notes:
-  #   tag_pattern: "v[0-9]*"
+  #   tag_pattern: "^v[0-9]"      # a regex, as in the changelog block
 
   # assets — glob patterns for files to attach to the release, applied to all targets.
   # Every pattern must match at least one file by the time the post_bump hooks have run,

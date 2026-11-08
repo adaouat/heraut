@@ -19,7 +19,7 @@ file named by `--config` / `HERAUT_FILE`). The project's `schema.json` describes
 - Never replace an existing file without the user's approval: do not pass `--overwrite` (`notes`,
   `init`) or `--force` (`skill install`) unless the user asked for that file to be replaced.
 - Always put `--json` on commands that support it and read stdout only. Stderr carries human text.
-- Use `--offline` when you have no forge token; it skips PR/MR enrichment.
+- Use `--offline` on `release`, `changelog`, `notes` or `check` when you have no forge token; it skips PR/MR enrichment. `version next` and `version current` never call a forge and have no such flag.
 - Do not run `heraut init` or `heraut commit create` interactively. Use `heraut init --defaults`, or
   write `.heraut.yml` yourself; check a message with `heraut commit verify`, then use `git commit -m`.
 

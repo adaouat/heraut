@@ -860,7 +860,7 @@ already says it since T532; the `--offline` help on `release`, `changelog` and `
 commit links go too" (reference regenerated). The PR-data row was right on reading (all three sources
 absent); its wording now says so plainly.
 
-#### `[ ]` T534: fact fixes
+#### `[x]` T534: fact fixes
 
 - `reference/exit-codes.md:19`: `--set-build-id` without `--set-version` exits 2, not 1.
 - `SKILL.md:22`, `guides/ai-agents.md:41`: `--offline` exists only on `release`, `changelog`, `notes`
@@ -875,6 +875,23 @@ absent); its wording now says so plainly.
 - `concepts/how-heraut-works.md:19-28`: the "Check" row isn't a numbered step.
 - `concepts/versioning-strategies.md:73`: not every command takes `--env`.
 - `heraut.sample.yml:11-14`: one schema-URL convention across the docs, and a real URL in the sample.
+
+**Done (2026-11-08).** Each item fixed, the two checkable ones checked with the binary:
+- `--set-build-id` alone exits 2 and moved to § 2 of the exit-codes page;
+- `--offline` exists only on `release`, `changelog`, `notes` and `check` (the skill and the AI-agents
+  guide name them).
+
+Also:
+- The sample: an unknown type is a patch, notes' `tag_pattern` is the regex `^v[0-9]`, and the schema
+  URL is `main` (with a line on pinning a version), as on every other page.
+- failure-recovery: the right reason, plus T511's behaviour (a later minute no longer commits again).
+- `GH_TOKEN` wins over `GITHUB_TOKEN`.
+- `actions/checkout@v6`, the version heraut's own workflows pin (whether v7 exists couldn't be
+  checked offline).
+- The "Check" row is "before the numbered steps".
+- The commands that take `--env` are named.
+- The environments example switches branches.
+- Exit 2's "nowhere to publish" now says it applies with a `release:` block (T499).
 
 #### `[ ]` T535: FAQ and troubleshooting
 
