@@ -436,6 +436,11 @@ versioning:
 The version is derived from the current date plus a `PATCH` counter that resets when
 the calendar period changes.
 
+Like SemVer, a release needs at least one commit since the current tag (`calver` and the `auto`
+environments of `calver-per-env`): with none, the resolution stops with `no commits since <tag>`,
+exit 5, so a re-run or a retry never tags the same commit twice. A new period does not lift it; a
+date-only release takes a commit or `--set-version`.
+
 ### CalVer format tokens
 
 | Token    | Description                        | Example value |

@@ -25,73 +25,73 @@ func TestCalVer_PeriodBoundaries(t *testing.T) {
 	bin := harness.Binary(t, "heraut_testclock")
 	runScenarios(t, bin, nil, []scenario{
 		{name: "monthly: same month increments", config: calverFmt("YYYY.MM.PATCH", "", ""),
-			history: []step{commit("feat: a"), tag("2026.05.2")}, args: versionNext,
+			history: []step{commit("feat: a"), tag("2026.05.2"), commit("fix: b")}, args: versionNext,
 			env: at("2026-05-20T10:00:00Z"), wantOut: "2026.05.3"},
 		{name: "monthly: last minute of the month increments", config: calverFmt("YYYY.MM.PATCH", "", ""),
-			history: []step{commit("feat: a"), tag("2026.05.2")}, args: versionNext,
+			history: []step{commit("feat: a"), tag("2026.05.2"), commit("fix: b")}, args: versionNext,
 			env: at("2026-05-31T23:59:00Z"), wantOut: "2026.05.3"},
 		{name: "monthly: next month resets PATCH", config: calverFmt("YYYY.MM.PATCH", "", ""),
-			history: []step{commit("feat: a"), tag("2026.05.2")}, args: versionNext,
+			history: []step{commit("feat: a"), tag("2026.05.2"), commit("fix: b")}, args: versionNext,
 			env: at("2026-06-01T00:00:00Z"), wantOut: "2026.06.0"},
 		{name: "monthly: year rollover resets PATCH", config: calverFmt("YYYY.MM.PATCH", "", ""),
-			history: []step{commit("feat: a"), tag("2026.12.4")}, args: versionNext,
+			history: []step{commit("feat: a"), tag("2026.12.4"), commit("fix: b")}, args: versionNext,
 			env: at("2027-01-01T00:00:00Z"), wantOut: "2027.01.0"},
 		{name: "monthly: same month of another year resets PATCH", config: calverFmt("YYYY.MM.PATCH", "", ""),
-			history: []step{commit("feat: a"), tag("2026.01.2")}, args: versionNext,
+			history: []step{commit("feat: a"), tag("2026.01.2"), commit("fix: b")}, args: versionNext,
 			env: at("2027-01-15T00:00:00Z"), wantOut: "2027.01.0"},
 		{name: "monthly: untagged repo starts at PATCH 0", config: calverFmt("YYYY.MM.PATCH", "", ""),
 			history: []step{commit("feat: a")}, args: versionNext,
 			env: at("2026-10-07T00:00:00Z"), wantOut: "2026.10.0"},
 		{name: "monthly: a tag prefix round-trips", config: calverFmt("YYYY.MM.PATCH", "v", ""),
-			history: []step{commit("feat: a"), tag("v2026.05.2")}, args: versionNext,
+			history: []step{commit("feat: a"), tag("v2026.05.2"), commit("fix: b")}, args: versionNext,
 			env: at("2026-05-20T10:00:00Z"), wantOut: "v2026.05.3"},
 		{name: "daily: last minute of the day increments", config: calverFmt("YYYY.MM.DD.PATCH", "", ""),
-			history: []step{commit("feat: a"), tag("2026.05.07.1")}, args: versionNext,
+			history: []step{commit("feat: a"), tag("2026.05.07.1"), commit("fix: b")}, args: versionNext,
 			env: at("2026-05-07T23:59:00Z"), wantOut: "2026.05.07.2"},
 		{name: "daily: first minute of the next day resets", config: calverFmt("YYYY.MM.DD.PATCH", "", ""),
-			history: []step{commit("feat: a"), tag("2026.05.07.1")}, args: versionNext,
+			history: []step{commit("feat: a"), tag("2026.05.07.1"), commit("fix: b")}, args: versionNext,
 			env: at("2026-05-08T00:01:00Z"), wantOut: "2026.05.08.0"},
 		{name: "weekly: same ISO week increments", config: calverFmt("YYYY.WW.PATCH", "", ""),
-			history: []step{commit("feat: a"), tag("2026.19.1")}, args: versionNext,
+			history: []step{commit("feat: a"), tag("2026.19.1"), commit("fix: b")}, args: versionNext,
 			env: at("2026-05-08T10:00:00Z"), wantOut: "2026.19.2"},
 		{name: "weekly: Sunday night still belongs to the week", config: calverFmt("YYYY.WW.PATCH", "", ""),
-			history: []step{commit("feat: a"), tag("2026.19.1")}, args: versionNext,
+			history: []step{commit("feat: a"), tag("2026.19.1"), commit("fix: b")}, args: versionNext,
 			env: at("2026-05-10T23:59:00Z"), wantOut: "2026.19.2"},
 		{name: "weekly: Monday 00:00 starts a new ISO week", config: calverFmt("YYYY.WW.PATCH", "", ""),
-			history: []step{commit("feat: a"), tag("2026.19.1")}, args: versionNext,
+			history: []step{commit("feat: a"), tag("2026.19.1"), commit("fix: b")}, args: versionNext,
 			env: at("2026-05-11T00:00:00Z"), wantOut: "2026.20.0"},
 		{name: "weekly: Monday starts a new ISO week", config: calverFmt("YYYY.WW.PATCH", "", ""),
-			history: []step{commit("feat: a"), tag("2026.19.1")}, args: versionNext,
+			history: []step{commit("feat: a"), tag("2026.19.1"), commit("fix: b")}, args: versionNext,
 			env: at("2026-05-11T10:00:00Z"), wantOut: "2026.20.0"},
 		{name: "weekly: week 53 of a long year keeps counting", config: calverFmt("YYYY.WW.PATCH", "", ""),
-			history: []step{commit("feat: a"), tag("2026.53.1")}, args: versionNext,
+			history: []step{commit("feat: a"), tag("2026.53.1"), commit("fix: b")}, args: versionNext,
 			env: at("2026-12-31T10:00:00Z"), wantOut: "2026.53.2"},
 		{name: "weekly: January days still in week 53 keep the old ISO year", config: calverFmt("YYYY.WW.PATCH", "", ""),
-			history: []step{commit("feat: a"), tag("2026.53.1")}, args: versionNext,
+			history: []step{commit("feat: a"), tag("2026.53.1"), commit("fix: b")}, args: versionNext,
 			env: at("2027-01-01T10:00:00Z"), wantOut: "2026.53.2"},
 		{name: "weekly: the first Monday of the new ISO year", config: calverFmt("YYYY.WW.PATCH", "", ""),
-			history: []step{commit("feat: a"), tag("2026.53.1")}, args: versionNext,
+			history: []step{commit("feat: a"), tag("2026.53.1"), commit("fix: b")}, args: versionNext,
 			env: at("2027-01-04T10:00:00Z"), wantOut: "2027.01.0"},
 		{name: "weekly: late December already in week 1 never reuses January's tag", config: calverFmt("YYYY.WW.PATCH", "", ""),
-			history: []step{commit("feat: a"), tag("2025.01.0"), tag("2025.52.3")}, args: versionNext,
+			history: []step{commit("feat: a"), tag("2025.01.0"), tag("2025.52.3"), commit("fix: b")}, args: versionNext,
 			env: at("2025-12-29T10:00:00Z"), wantOut: "2026.01.0"},
 		{name: "quarterly: last minute of Q2 increments", config: calverFmt("YYYY.QQ.PATCH", "", ""),
-			history: []step{commit("feat: a"), tag("2026.2.1")}, args: versionNext,
+			history: []step{commit("feat: a"), tag("2026.2.1"), commit("fix: b")}, args: versionNext,
 			env: at("2026-06-30T23:59:00Z"), wantOut: "2026.2.2"},
 		{name: "quarterly: first minute of Q3 resets", config: calverFmt("YYYY.QQ.PATCH", "", ""),
-			history: []step{commit("feat: a"), tag("2026.2.1")}, args: versionNext,
+			history: []step{commit("feat: a"), tag("2026.2.1"), commit("fix: b")}, args: versionNext,
 			env: at("2026-07-01T00:00:00Z"), wantOut: "2026.3.0"},
 		{name: "semester: last minute of S1 increments", config: calverFmt("YYYY.SS.PATCH", "", ""),
-			history: []step{commit("feat: a"), tag("2026.1.1")}, args: versionNext,
+			history: []step{commit("feat: a"), tag("2026.1.1"), commit("fix: b")}, args: versionNext,
 			env: at("2026-06-30T23:59:00Z"), wantOut: "2026.1.2"},
 		{name: "semester: first minute of S2 resets", config: calverFmt("YYYY.SS.PATCH", "", ""),
-			history: []step{commit("feat: a"), tag("2026.1.1")}, args: versionNext,
+			history: []step{commit("feat: a"), tag("2026.1.1"), commit("fix: b")}, args: versionNext,
 			env: at("2026-07-01T00:00:00Z"), wantOut: "2026.2.0"},
 		{name: "yearly: last minute of the year increments", config: calverFmt("YYYY.PATCH", "", ""),
-			history: []step{commit("feat: a"), tag("2026.4")}, args: versionNext,
+			history: []step{commit("feat: a"), tag("2026.4"), commit("fix: b")}, args: versionNext,
 			env: at("2026-12-31T23:59:00Z"), wantOut: "2026.5"},
 		{name: "yearly: first minute of the next year resets", config: calverFmt("YYYY.PATCH", "", ""),
-			history: []step{commit("feat: a"), tag("2026.4")}, args: versionNext,
+			history: []step{commit("feat: a"), tag("2026.4"), commit("fix: b")}, args: versionNext,
 			env: at("2027-01-01T00:00:00Z"), wantOut: "2027.0"},
 		{name: "a breaking conventional commit does not change the result", config: calverFmt("YYYY.MM.PATCH", "", ""),
 			history: []step{commit("feat: a"), tag("2026.10.0"), commit("feat!: x\n\nBREAKING CHANGE: y")},
@@ -109,10 +109,10 @@ func TestCalVer_Sprint(t *testing.T) {
 	}
 	runScenarios(t, bin, nil, []scenario{
 		{name: "same sprint increments PATCH", config: sprintCfg("5"),
-			history: []step{commit("feat: a"), tag("2026.5.1")}, args: versionNext,
+			history: []step{commit("feat: a"), tag("2026.5.1"), commit("fix: b")}, args: versionNext,
 			env: at("2026-10-07T00:00:00Z"), wantOut: "2026.5.2"},
 		{name: "a bumped sprint resets PATCH", config: sprintCfg("6"),
-			history: []step{commit("feat: a"), tag("2026.5.1")}, args: versionNext,
+			history: []step{commit("feat: a"), tag("2026.5.1"), commit("fix: b")}, args: versionNext,
 			env: at("2026-10-07T00:00:00Z"), wantOut: "2026.6.0"},
 	})
 
@@ -121,6 +121,7 @@ func TestCalVer_Sprint(t *testing.T) {
 		repo.WriteConfig(sprintCfg("5"))
 		repo.Commit("feat: a")
 		repo.Tag("2026.5.1")
+		repo.Commit("fix: b") // a release needs a commit since the last tag
 		env := at("2026-10-07T00:00:00Z")
 
 		dry := repo.Run(bin, env, "version", "sprint", "bump", "--dry-run")
@@ -264,4 +265,22 @@ func TestCalVer_VersionCurrentIgnoresALegacyTag(t *testing.T) {
 			history: []step{commit("feat: a"), tag("2026.11.0"), commit("feat: b"), tag("v1.2.3")},
 			args:    []string{"version", "current"}, wantOut: "2026.11.0"},
 	})
+}
+
+// A CalVer re-run with nothing new stops instead of tagging the same commit again (exit 5).
+func TestCalVer_ReRunWithoutACommitHasNothingToRelease(t *testing.T) {
+	bin := harness.Binary(t, "heraut_testclock")
+	repo := flowRepo(t, calverCfg+"changelog:\n  output: CHANGELOG.md\n")
+	repo.Commit("feat: one")
+	now := []string{"HERAUT_TEST_NOW=2026-11-07T12:00:00Z"}
+	res := repo.Run(bin, now, "changelog", "--tag", "--offline")
+	require.Equal(t, exitOK, res.ExitCode, "stdout:\n%s\nstderr:\n%s", res.Stdout, res.Stderr)
+	head := repo.Git("rev-parse", "HEAD")
+
+	res = repo.Run(bin, now, "changelog", "--tag", "--offline")
+
+	assert.Equal(t, exitNothingToRelease, res.ExitCode, "stdout:\n%s\nstderr:\n%s", res.Stdout, res.Stderr)
+	assert.Contains(t, res.Stdout+res.Stderr, "no commits since 2026.11.0")
+	assert.Equal(t, "2026.11.0", repo.Git("tag", "-l"), "no second tag")
+	assert.Equal(t, head, repo.Git("rev-parse", "HEAD"), "no second commit")
 }

@@ -7,6 +7,7 @@ import (
 
 	"github.com/adaouat/forge/exec/exectest"
 	"github.com/adaouat/heraut/internal/config"
+	"github.com/adaouat/heraut/internal/versioning"
 	"github.com/adaouat/heraut/internal/versioning/calver"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -68,6 +69,7 @@ func TestResolve_WithPrefix_NoTags_FirstRelease(t *testing.T) {
 func TestResolve_SamePeriod_PatchIncrement(t *testing.T) {
 	mr := exectest.NewMockRunner()
 	mr.QueueResponse("2026.05.1\n2026.05.0\n", "", nil)
+	mr.QueueResponse("1\n", "", nil) // git rev-list --count <current>..HEAD: one new commit
 
 	cfg := &config.Config{
 		Versioning: config.Versioning{
@@ -88,6 +90,7 @@ func TestResolve_SamePeriod_PatchIncrement(t *testing.T) {
 func TestResolve_NewMonth_PatchReset(t *testing.T) {
 	mr := exectest.NewMockRunner()
 	mr.QueueResponse("2026.04.5\n2026.04.0\n", "", nil)
+	mr.QueueResponse("1\n", "", nil) // git rev-list --count <current>..HEAD: one new commit
 
 	cfg := &config.Config{
 		Versioning: config.Versioning{
@@ -107,6 +110,7 @@ func TestResolve_NewMonth_PatchReset(t *testing.T) {
 func TestResolve_NewYear_PatchReset(t *testing.T) {
 	mr := exectest.NewMockRunner()
 	mr.QueueResponse("2025.12.3\n", "", nil)
+	mr.QueueResponse("1\n", "", nil) // git rev-list --count <current>..HEAD: one new commit
 
 	cfg := &config.Config{
 		Versioning: config.Versioning{
@@ -125,6 +129,7 @@ func TestResolve_NewYear_PatchReset(t *testing.T) {
 func TestResolve_DailyFormat_SameDay_PatchIncrement(t *testing.T) {
 	mr := exectest.NewMockRunner()
 	mr.QueueResponse("2026.05.24.0\n", "", nil)
+	mr.QueueResponse("1\n", "", nil) // git rev-list --count <current>..HEAD: one new commit
 
 	cfg := &config.Config{
 		Versioning: config.Versioning{
@@ -143,6 +148,7 @@ func TestResolve_DailyFormat_SameDay_PatchIncrement(t *testing.T) {
 func TestResolve_DailyFormat_NewDay_PatchReset(t *testing.T) {
 	mr := exectest.NewMockRunner()
 	mr.QueueResponse("2026.05.23.2\n", "", nil)
+	mr.QueueResponse("1\n", "", nil) // git rev-list --count <current>..HEAD: one new commit
 
 	cfg := &config.Config{
 		Versioning: config.Versioning{
@@ -162,6 +168,7 @@ func TestResolve_DailyFormat_NewDay_PatchReset(t *testing.T) {
 func TestResolve_WeeklyFormat_SameWeek_PatchIncrement(t *testing.T) {
 	mr := exectest.NewMockRunner()
 	mr.QueueResponse("2026.21.0\n", "", nil)
+	mr.QueueResponse("1\n", "", nil) // git rev-list --count <current>..HEAD: one new commit
 
 	cfg := &config.Config{
 		Versioning: config.Versioning{
@@ -180,6 +187,7 @@ func TestResolve_WeeklyFormat_SameWeek_PatchIncrement(t *testing.T) {
 func TestResolve_WeeklyFormat_NewWeek_PatchReset(t *testing.T) {
 	mr := exectest.NewMockRunner()
 	mr.QueueResponse("2026.20.3\n", "", nil)
+	mr.QueueResponse("1\n", "", nil) // git rev-list --count <current>..HEAD: one new commit
 
 	cfg := &config.Config{
 		Versioning: config.Versioning{
@@ -199,6 +207,7 @@ func TestResolve_WeeklyFormat_NewWeek_PatchReset(t *testing.T) {
 func TestResolve_QuarterlyFormat_SameQuarter_PatchIncrement(t *testing.T) {
 	mr := exectest.NewMockRunner()
 	mr.QueueResponse("2026.2.0\n", "", nil)
+	mr.QueueResponse("1\n", "", nil) // git rev-list --count <current>..HEAD: one new commit
 
 	cfg := &config.Config{
 		Versioning: config.Versioning{
@@ -218,6 +227,7 @@ func TestResolve_QuarterlyFormat_SameQuarter_PatchIncrement(t *testing.T) {
 func TestResolve_QuarterlyFormat_NewQuarter_PatchReset(t *testing.T) {
 	mr := exectest.NewMockRunner()
 	mr.QueueResponse("2026.1.5\n", "", nil)
+	mr.QueueResponse("1\n", "", nil) // git rev-list --count <current>..HEAD: one new commit
 
 	cfg := &config.Config{
 		Versioning: config.Versioning{
@@ -237,6 +247,7 @@ func TestResolve_QuarterlyFormat_NewQuarter_PatchReset(t *testing.T) {
 func TestResolve_SemesterFormat_SameSemester_PatchIncrement(t *testing.T) {
 	mr := exectest.NewMockRunner()
 	mr.QueueResponse("2026.1.2\n", "", nil)
+	mr.QueueResponse("1\n", "", nil) // git rev-list --count <current>..HEAD: one new commit
 
 	cfg := &config.Config{
 		Versioning: config.Versioning{
@@ -256,6 +267,7 @@ func TestResolve_SemesterFormat_SameSemester_PatchIncrement(t *testing.T) {
 func TestResolve_SemesterFormat_NewSemester_PatchReset(t *testing.T) {
 	mr := exectest.NewMockRunner()
 	mr.QueueResponse("2026.1.5\n", "", nil)
+	mr.QueueResponse("1\n", "", nil) // git rev-list --count <current>..HEAD: one new commit
 
 	cfg := &config.Config{
 		Versioning: config.Versioning{
@@ -275,6 +287,7 @@ func TestResolve_SemesterFormat_NewSemester_PatchReset(t *testing.T) {
 func TestResolve_SprintFormat_SameSprint_PatchIncrement(t *testing.T) {
 	mr := exectest.NewMockRunner()
 	mr.QueueResponse("2026.5.2\n", "", nil)
+	mr.QueueResponse("1\n", "", nil) // git rev-list --count <current>..HEAD: one new commit
 
 	cfg := &config.Config{
 		Versioning: config.Versioning{
@@ -294,6 +307,7 @@ func TestResolve_SprintFormat_SameSprint_PatchIncrement(t *testing.T) {
 func TestResolve_SprintFormat_NewSprint_PatchReset(t *testing.T) {
 	mr := exectest.NewMockRunner()
 	mr.QueueResponse("2026.5.3\n", "", nil)
+	mr.QueueResponse("1\n", "", nil) // git rev-list --count <current>..HEAD: one new commit
 
 	cfg := &config.Config{
 		Versioning: config.Versioning{
@@ -313,6 +327,7 @@ func TestResolve_SprintFormat_NewSprint_PatchReset(t *testing.T) {
 func TestResolve_YearlyFormat_SameYear_PatchIncrement(t *testing.T) {
 	mr := exectest.NewMockRunner()
 	mr.QueueResponse("2026.3\n2026.0\n", "", nil)
+	mr.QueueResponse("1\n", "", nil) // git rev-list --count <current>..HEAD: one new commit
 
 	cfg := &config.Config{
 		Versioning: config.Versioning{
@@ -331,6 +346,7 @@ func TestResolve_YearlyFormat_SameYear_PatchIncrement(t *testing.T) {
 func TestResolve_YearlyFormat_NewYear_PatchReset(t *testing.T) {
 	mr := exectest.NewMockRunner()
 	mr.QueueResponse("2025.7\n", "", nil)
+	mr.QueueResponse("1\n", "", nil) // git rev-list --count <current>..HEAD: one new commit
 
 	cfg := &config.Config{
 		Versioning: config.Versioning{
@@ -350,6 +366,7 @@ func TestResolve_YearlyFormat_NewYear_PatchReset(t *testing.T) {
 func TestResolve_IgnoresUnparsableTags(t *testing.T) {
 	mr := exectest.NewMockRunner()
 	mr.QueueResponse("some-unrelated-tag\n2026.05.1\n", "", nil)
+	mr.QueueResponse("1\n", "", nil) // git rev-list --count <current>..HEAD: one new commit
 
 	cfg := &config.Config{
 		Versioning: config.Versioning{
@@ -503,6 +520,7 @@ func TestResolve_BaseTag_Characterization(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			mr := exectest.NewMockRunner()
 			mr.QueueResponse(tc.tags, "", nil)
+			mr.QueueResponse("1\n", "", nil) // git rev-list --count <current>..HEAD: one new commit
 			cfg := &config.Config{Versioning: config.Versioning{Strategy: "calver", Format: tc.format, Sprint: tc.sprint}}
 
 			result, err := calver.New(mr, cfg, func() time.Time { return tc.now }).Resolve()
@@ -537,6 +555,7 @@ func TestResolve_BaseTag_IsTheHighestParsedTag(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			mr := exectest.NewMockRunner()
 			mr.QueueResponse(tc.tags, "", nil)
+			mr.QueueResponse("1\n", "", nil) // git rev-list --count <current>..HEAD: one new commit
 			cfg := &config.Config{Versioning: config.Versioning{Strategy: "calver", Format: tc.format, Sprint: tc.sprint}}
 
 			result, err := calver.New(mr, cfg, func() time.Time { return tc.now }).Resolve()
@@ -587,4 +606,26 @@ func TestResolve_DatesAreUTC(t *testing.T) {
 			assert.Equal(t, tc.want, result.Version)
 		})
 	}
+}
+
+// CalVer needs a commit since the current tag, like SemVer: a re-run with nothing new stops with
+// "no commits since" (nothing to release) instead of tagging the same commit again.
+func TestResolve_NoCommitSinceTheCurrentTag(t *testing.T) {
+	cfg := &config.Config{Versioning: config.Versioning{Strategy: "calver", Format: "YYYY.MM.PATCH"}}
+
+	mr := exectest.NewMockRunner()
+	mr.QueueResponse("2026.05.0\n", "", nil) // git tag -l * --sort=-version:refname
+	mr.QueueResponse("0\n", "", nil)         // git rev-list --count 2026.05.0..HEAD
+	_, err := calver.New(mr, cfg, fixedNow(2026, time.May, 24)).Resolve()
+	require.ErrorIs(t, err, versioning.ErrNothingToRelease)
+	assert.Contains(t, err.Error(), "no commits since 2026.05.0")
+	require.Len(t, mr.Calls, 2)
+	assert.Equal(t, []string{"rev-list", "--count", "2026.05.0..HEAD"}, mr.Calls[1].Args)
+
+	mr = exectest.NewMockRunner()
+	mr.QueueResponse("2026.05.0\n", "", nil)
+	mr.QueueResponse("3\n", "", nil)
+	result, err := calver.New(mr, cfg, fixedNow(2026, time.May, 24)).Resolve()
+	require.NoError(t, err)
+	assert.Equal(t, "2026.05.1", result.Version)
 }

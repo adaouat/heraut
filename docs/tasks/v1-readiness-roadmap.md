@@ -448,9 +448,19 @@ validator requires for CalVer; they now set one. Tests: two unit tests (a legacy
 ignored; only other tags gives nothing to release), and Lane A `TestCalVer_VersionCurrentIgnoresALegacyTag`.
 No doc change: Spec 04 already said it.
 
-#### `[ ]` T510: **Decision** — CalVer with no new commit
+#### `[x]` T510: **Decision** — CalVer with no new commit
 
 **Decision (user, 2026-11-08):** require a commit, like SemVer: no commit since the current tag stops with `no commits since <tag>`, exit 5.
+
+**Done (2026-11-08).** `calver.Resolver.Resolve` counts commits since the current tag (`git rev-list
+--count <tag>..HEAD`), and the calver-per-env auto path reuses `fetchCommitsSince`; with none, both
+return `versioning.NothingToReleasef("no commits since …")`. Fallout, all fixtures with a tag and
+nothing after it: 18 calver and 5 perenv mock tests now answer the new git call; three e2e tests
+(period boundaries, sprint, the option-shaped tag) and the foreign-prefix app test gained a commit
+after their tag. What each checks is unchanged. New: a resolver test (zero commits refused with the
+call's arguments, three allowed), a per-env one, and Lane A
+`TestCalVer_ReRunWithoutACommitHasNothingToRelease` (no second tag, no second commit). Docs: Spec 04 §
+CalVer, the next-version page (it said the opposite). The failure-recovery guide's promise now holds.
 
 A second `changelog --tag` with no new commit makes `2026.11.1` on the same commit as `2026.11.0`
 (`internal/versioning/calver/resolver.go:27-63`, and the per-env calver auto path). The failure-recovery

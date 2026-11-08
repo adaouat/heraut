@@ -88,7 +88,8 @@ counts the releases in that period:
 | `2026.11.0` | 2026-11-20 | `2026.11.1` |
 | `2026.11.1` | 2026-12-02 | `2026.12.0`: a new month starts again at `0` |
 
-A CalVer release doesn't need a new commit. Dates are read in UTC. With `SPRINT` in the format, the
+A CalVer release needs a commit since the last tag, as SemVer does: run twice with nothing new and the
+second run stops with `no commits since 2026.11.1` (exit 5). Dates are read in UTC. With `SPRINT` in the format, the
 period is the sprint number in `versioning.sprint`, which you advance with
 `heraut version sprint bump`.
 

@@ -50,6 +50,18 @@ func (r *Resolver) Resolve() (versioning.Result, error) {
 		}
 	}
 
+	// Like SemVer, a release needs a commit since the current one: a re-run with nothing new would
+	// otherwise tag the same commit again under the next PATCH.
+	if currentTag != "" {
+		count, _, err := r.runner.Run("git", "rev-list", "--count", currentTag+"..HEAD")
+		if err != nil {
+			return versioning.Result{}, fmt.Errorf("counting commits since %s: %w", currentTag, err)
+		}
+		if strings.TrimSpace(count) == "0" {
+			return versioning.Result{}, versioning.NothingToReleasef("no commits since %s — create at least one commit before running heraut release", currentTag)
+		}
+	}
+
 	version, err := r.computeNext(tokens, latestValues)
 	if err != nil {
 		return versioning.Result{}, err

@@ -31,6 +31,16 @@ func resolveAuto(runner port.Runner, cfg *config.Config, env string, calc Versio
 
 	var nextVersion string
 	if cfg.Versioning.Strategy == "calver-per-env" {
+		// Like SemVer, a release needs a commit since the environment's current tag.
+		if currentTag != "" {
+			commits, err := fetchCommitsSince(runner, currentTag)
+			if err != nil {
+				return versioning.Result{}, err
+			}
+			if len(commits) == 0 {
+				return versioning.Result{}, versioning.NothingToReleasef("no commits since %s — create at least one commit before running heraut release", currentTag)
+			}
+		}
 		nextVersion, err = calc.BumpFromDate(bareVersions)
 		if err != nil {
 			return versioning.Result{}, fmt.Errorf("computing next version: %w", err)

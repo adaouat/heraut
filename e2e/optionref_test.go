@@ -22,6 +22,7 @@ func TestOptionShapedTagNeverReachesGit(t *testing.T) {
 	repo.Commit("fix: two")
 	repo.Tag("2026.05.1")
 	repo.Git("update-ref", "refs/tags/--output=pwned", "HEAD")
+	repo.Commit("fix: three") // something to release since 2026.05.1
 	env := at("2026-05-20T10:00:00Z")
 
 	for _, args := range [][]string{

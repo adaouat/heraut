@@ -1,6 +1,7 @@
 package app_test
 
 import (
+	"os/exec"
 	"testing"
 
 	"github.com/adaouat/forge/exec/exectest"
@@ -37,6 +38,8 @@ func TestNewResolver_WarnsWhenVersionTagsUseAnotherPrefix(t *testing.T) {
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			testutil.RealGitRepo(t, tc.tag)
+			// A commit after the tag, so a release has something to release.
+			require.NoError(t, exec.Command("git", "commit", "--allow-empty", "-q", "-m", "fix: after").Run())
 			cfg := &config.Config{Version: "1", Versioning: tc.cfg}
 
 			r, err := app.NewResolver(cfg, "", false, "", "", execadapter.New(false, false))

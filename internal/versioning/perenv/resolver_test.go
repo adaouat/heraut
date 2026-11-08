@@ -9,6 +9,7 @@ import (
 
 	"github.com/adaouat/forge/exec/exectest"
 	"github.com/adaouat/heraut/internal/config"
+	"github.com/adaouat/heraut/internal/versioning"
 	"github.com/adaouat/heraut/internal/versioning/calver"
 	"github.com/adaouat/heraut/internal/versioning/perenv"
 	"github.com/adaouat/heraut/internal/versioning/semver"
@@ -220,6 +221,7 @@ func TestResolve_Auto_Calver_NoTags_FirstRelease(t *testing.T) {
 func TestResolve_Auto_Calver_SamePeriod_PatchIncrement(t *testing.T) {
 	mr := exectest.NewMockRunner()
 	mr.QueueResponse("dev/2026.05.1\ndev/2026.05.0\n", "", nil)
+	mr.QueueResponse("fix: a\n\x00", "", nil) // git log <current>..HEAD: one new commit
 
 	cfg := &config.Config{
 		Versioning: config.Versioning{
@@ -243,6 +245,7 @@ func TestResolve_Auto_Calver_SamePeriod_PatchIncrement(t *testing.T) {
 func TestResolve_Auto_Calver_NewPeriod_PatchReset(t *testing.T) {
 	mr := exectest.NewMockRunner()
 	mr.QueueResponse("dev/2026.04.5\n", "", nil)
+	mr.QueueResponse("fix: a\n\x00", "", nil) // git log <current>..HEAD: one new commit
 
 	cfg := &config.Config{
 		Versioning: config.Versioning{
@@ -934,6 +937,7 @@ func TestResolve_Promote_Semver_CurrentTag_ReleaseAlreadyHighest(t *testing.T) {
 func TestResolve_Auto_Calver_ZeroPaddedUnaffected(t *testing.T) {
 	mr := exectest.NewMockRunner()
 	mr.QueueResponse("dev/2026.05.3\ndev/2026.05.2\n", "", nil)
+	mr.QueueResponse("fix: a\n\x00", "", nil) // git log <current>..HEAD: one new commit
 
 	cfg := &config.Config{
 		Versioning:   config.Versioning{Strategy: "calver-per-env", Format: "YYYY.MM.PATCH"},
@@ -1002,6 +1006,7 @@ func TestResolve_CalverPerEnv_UsesTheHighestTagWhateverGitsOrder(t *testing.T) {
 	t.Run("auto reports the tag the next version came from", func(t *testing.T) {
 		mr := exectest.NewMockRunner()
 		mr.QueueResponse(misleading, "", nil)
+		mr.QueueResponse("fix: a\n\x00", "", nil) // git log <current>..HEAD: one new commit
 
 		result, err := perenv.New(mr, cfg, "dev", false, calc).Resolve()
 		require.NoError(t, err)
@@ -1051,6 +1056,7 @@ func TestResolve_Auto_Calver_EveryFormatReadsItsTags(t *testing.T) {
 		t.Run(tc.format, func(t *testing.T) {
 			mr := exectest.NewMockRunner()
 			mr.QueueResponse("dev/"+tc.existing+"\n", "", nil)
+			mr.QueueResponse("fix: a\n\x00", "", nil) // git log <current>..HEAD: one new commit
 			cfg := &config.Config{
 				Versioning:   config.Versioning{Strategy: "calver-per-env", Format: tc.format},
 				Environments: map[string]config.Environment{"dev": {Bump: "auto", TagFormat: "dev/{version}"}},
@@ -1094,4 +1100,20 @@ func TestResolve_Promote_Calver_E002_EveryFormat(t *testing.T) {
 			assert.ErrorIs(t, err, perenv.ErrDestinationAhead)
 		})
 	}
+}
+
+// calver-per-env needs a commit since the environment's current tag too.
+func TestResolve_Auto_Calver_NoCommitSinceTheCurrentTag(t *testing.T) {
+	cfg := &config.Config{
+		Versioning:   config.Versioning{Strategy: "calver-per-env", Format: "YYYY.MM.PATCH"},
+		Environments: map[string]config.Environment{"dev": {Bump: "auto", TagFormat: "dev/{version}"}},
+	}
+	mr := exectest.NewMockRunner()
+	mr.QueueResponse("dev/2026.05.0\n", "", nil) // git tag -l dev/*
+	mr.QueueResponse("", "", nil)                // git log dev/2026.05.0..HEAD → nothing
+
+	_, err := perenv.New(mr, cfg, "dev", false, calverCalc("YYYY.MM.PATCH", fixedNow(2026, time.May, 24))).Resolve()
+
+	require.ErrorIs(t, err, versioning.ErrNothingToRelease)
+	assert.Contains(t, err.Error(), "no commits since dev/2026.05.0")
 }
