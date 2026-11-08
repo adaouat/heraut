@@ -34,7 +34,7 @@ post-v1 (Phase 100). The v1.0.0 cut (Phase 101) comes last.
 |---|---|---|---|
 | 94 | Release-logic bugs that block v1 | T492–T501 | Done |
 | 95 | Decisions to make before the format freezes (ADRs) | T502–T506 | Done |
-| 96 | Behaviour fixes | T507–T522 | Done except T520 (Docker change committed, image check pending) |
+| 96 | Behaviour fixes | T507–T522 | Done |
 | 97 | Tests that give false confidence | T523–T529 | Not started |
 | 98 | User docs | T530–T536 | Not started |
 | 99 | Contributor docs | T537–T541 | Not started |
@@ -608,7 +608,7 @@ quiet (`check runtime` still gets it). Docs: Spec 03 § Background update hint, 
 01:88-90 says a dry run makes no network calls; Spec 03:671 calls `check config` offline only. Fix: skip
 the hint for those, or document the exception in both specs.
 
-#### `[ ]` T520: the Docker image works on Linux bind mounts (CI/CD: needs the go)
+#### `[x]` T520: the Docker image works on Linux bind mounts (CI/CD: needs the go)
 
 **Decision (user, 2026-11-08):** go for the one `safe.directory` line in the Dockerfile, verified with a local build.
 
@@ -616,6 +616,13 @@ the hint for those, or document the exception in both specs.
 safe.directory '*'`, with a comment saying why; hadolint passes. Still open: the Docker daemon wasn't
 running here, so the planned check (build the image, run `heraut check runtime` on a bind mount owned
 by another uid on Linux) hasn't run. Tick this task once it has.
+
+**Verified (2026-11-08).** Built both images locally. Docker Desktop maps bind mounts to root and
+hides the problem, so the check creates a repository inside the container, `chown`s it to uid 1000 and
+runs `heraut version next` as root. The image without the line fails as the reviewer reported
+(`detected dubious ownership in repository at '/repo'`, exit 3); the fixed image prints `v0.1.0`, exit
+0. The documented `docker run -v "$PWD":/repo -w /repo` usage also works. Test images removed
+afterwards.
 
 The image runs as root with no `safe.directory` (`Dockerfile:32-41`); a bind-mounted repo keeps the host
 uid on Linux, and git refuses it (`detected dubious ownership`), so the `docker run -v "$PWD":/repo`
