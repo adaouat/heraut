@@ -792,12 +792,23 @@ Both behaved as the guide says. Exit code 3 comes from `wrapRunErr`, already cov
 
 ### Phase 98 — User docs
 
-#### `[ ]` T530: guide — adopt heraut on an existing project
+#### `[x]` T530: guide — adopt heraut on an existing project
 
 No page covers it. Existing tags and their prefix (T497), a `CHANGELOG.md` from another tool
 (`heraut changelog` fails with exit 3, `no heraut-release anchors … run heraut changelog --regenerate`,
 and `--regenerate` replaces the whole file, including hand-written text), and the mapping from
 semantic-release, release-please and git-cliff. Linked from getting-started and the guides index.
+
+**Done (2026-11-08).** New `docs/guides/adopt-on-an-existing-project.md`:
+1. match the tags (T497's warning quoted, then `tag_prefix: ""` giving `1.2.0`);
+2. the existing changelog (the real "no heraut-release anchors" error; rebuild with `--regenerate`,
+   which replaces hand-written text, or rename the old file);
+3. a table for semantic-release, release-please, git-cliff and hand-made tags;
+4. the first release (`check`, `--dry-run`, `release`).
+
+Every output was taken from the built binary in a scratch repository. Linked from getting-started, the
+guides index (a new "Getting going" section) and the docs home. A sentence about using `tag_pattern` to
+keep only new releases was dropped because it wasn't verified.
 
 #### `[ ]` T531: the configuration reference shows defaults and what's required
 

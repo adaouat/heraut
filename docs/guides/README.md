@@ -2,6 +2,12 @@
 
 Each guide answers one situation. The [docs home](../README.md) lists them by question.
 
+## Getting going
+
+| Guide | Covers |
+|---|---|
+| [Adopt heraut on an existing project](adopt-on-an-existing-project.md) | Existing tags, an existing changelog, another release tool |
+
 ## Release from CI
 
 | Guide | Covers |

@@ -2,7 +2,8 @@
 
 This page takes a project from no heraut config to a published release, from your own machine. Once
 it works, move it to CI: [GitHub Actions](guides/github-actions.md) or
-[GitLab CI/CD](guides/gitlab-ci.md).
+[GitLab CI/CD](guides/gitlab-ci.md). If the project already has release tags, a changelog or another
+release tool, read [Adopt heraut on an existing project](guides/adopt-on-an-existing-project.md) too.
 
 You need:
 
