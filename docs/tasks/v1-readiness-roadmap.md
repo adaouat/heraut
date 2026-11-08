@@ -739,11 +739,21 @@ field: `line 5: versioning.bump.confirm_major must be true or false, not "yes"`.
 `UnmarshalYAML` is skipped. Tests cover five spellings, a per-env key, and `true` still loading. Spec 02
 § Validation says it.
 
-#### `[ ]` T527: Lane A releases under every strategy
+#### `[x]` T527: Lane A releases under every strategy
 
 Every Lane A `release` uses `strategy: semver`. Add scenarios against the fake forge: `release` under
 calver (testclock binary), `release --env` under semver-per-env (auto and promote) and calver-per-env,
 and `release` with `disable_release` / `disable_changelog`.
+
+**Done (2026-11-08).** New `e2e/release_strategies_test.go`, against the fake GitHub:
+- `calver` (testclock) publishes `2026.11.0`;
+- `semver-per-env` publishes `dev/0.1.0`, then a promotion publishes `prod/0.1.0`, whose release commit
+  (its own changelog) sits right on dev's;
+- `calver-per-env` publishes `dev/2026.11.0`;
+- `disable_release` tags and pushes with no publish request, the changelog still committed;
+- `disable_changelog` publishes with no changelog commit and no file.
+
+All passed first time: these were coverage gaps, not bugs. Lane B keeps the real-forge variants (B4, B5).
 
 #### `[ ]` T528: failures after the tag push are tested
 
