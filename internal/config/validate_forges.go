@@ -59,6 +59,20 @@ func validateForges(cfg *Config) []ValidationError {
 				Hint:    "valid platforms: github, gitlab, azure_devops",
 			})
 		}
+		switch {
+		case f.Type == "github" && f.Project != "":
+			errs = append(errs, ValidationError{
+				Path:    path + ".project",
+				Message: "project is not read for a GitHub forge",
+				Hint:    "GitHub uses repository (owner/repo); project is for GitLab and Azure DevOps",
+			})
+		case f.Type == "gitlab" && f.Repository != "":
+			errs = append(errs, ValidationError{
+				Path:    path + ".repository",
+				Message: "repository is not read for a GitLab forge",
+				Hint:    "GitLab uses project (group[/subgroup]/project); repository is for GitHub and Azure DevOps",
+			})
+		}
 		if !validAPIModes[f.APIMode] {
 			errs = append(errs, ValidationError{
 				Path:    path + ".api_mode",
@@ -193,6 +207,13 @@ func validateTargetForges(targets []Target, knownForges map[string]bool, forges 
 			// Only targets that resolve at all take part in the duplicate scan: an entry
 			// already rejected above would otherwise draw a second error for one mistake.
 			dest := resolvedForgeName(t, forges)
+			if t.Draft && forgeType(dest, forges) == "gitlab" {
+				errs = append(errs, ValidationError{
+					Path:    fmt.Sprintf("%s[%d].draft", pathPrefix, i),
+					Message: "draft is GitHub only: a GitLab release is published at once",
+					Hint:    "remove draft from this target",
+				})
+			}
 			if seen[dest] {
 				duplicate = true
 			}
@@ -251,6 +272,38 @@ func validateEnvRelease(r *EnvRelease, topRelease *Release, path string) []Valid
 			topNotes = topRelease.Notes
 		}
 		errs = append(errs, validateContentDriver(MergeContentDriver(topNotes, r.Notes), path+".notes")...)
+	}
+	return errs
+}
+
+// forgeType is the platform of the forges: entry named name; "" when there is none.
+func forgeType(name string, forges []Forge) string {
+	for _, f := range forges {
+		if f.Name == name {
+			return f.Type
+		}
+	}
+	return ""
+}
+
+// validateReleaseNotesOutput rejects output under release.notes: the release notes are published with
+// each release, never written to a file, so the key would be silently ignored.
+func validateReleaseNotesOutput(cfg *Config) []ValidationError {
+	notesErr := func(path string) ValidationError {
+		return ValidationError{
+			Path:    path,
+			Message: "release notes are not written to a file: they are published with each release",
+			Hint:    "remove output; changelog.output names the changelog file, and heraut notes --output writes notes to a file",
+		}
+	}
+	var errs []ValidationError
+	if cfg.Release != nil && cfg.Release.Notes != nil && cfg.Release.Notes.Output != "" {
+		errs = append(errs, notesErr("release.notes.output"))
+	}
+	for _, envName := range sortedEnvKeys(cfg.Environments) {
+		if r := cfg.Environments[envName].Release; r != nil && r.Notes != nil && r.Notes.Output != "" {
+			errs = append(errs, notesErr(fmt.Sprintf("environments.%s.release.notes.output", envName)))
+		}
 	}
 	return errs
 }

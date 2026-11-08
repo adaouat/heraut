@@ -535,7 +535,7 @@ release:
 | Field        | Required                              | Default | Description                                                                                    |
 |--------------|----------------------------------------|---------|--------------------------------------------------------------------------------------------------|
 | `forge`      | Conditional                            | —       | References a `forges[].name`. Optional when exactly one forge is configured/resolved; required when more than one is configured. |
-| `draft`      | No                                      | `false` | Create the release as a draft. GitHub only.                                                     |
+| `draft`      | No                                      | `false` | Create the release as a draft. GitHub only: on a target whose forge is GitLab it is a config error, since a GitLab release is published at once. |
 | `assets`     | No                                      | —       | Target-specific glob patterns. When set, overrides `release.assets` entirely for this target (no merging). Every pattern must match a file unless `release.allow_missing_assets` is set, same as `release.assets` (see § `release.assets` above). |
 
 There is no `prerelease` field: GitHub's `--prerelease` flag is derived automatically from the
@@ -593,8 +593,8 @@ forges:
 |---------------|----------|-----------------------|-------------------------------------------------------------------------------------------------------|
 | `name`        | Yes      | —                     | Unique identifier for this forge entry within `forges:`, referenced by `release.targets[].forge` and `commits.enrichment_forge`. |
 | `platform`    | Yes      | —                     | One of: `github`, `gitlab`, `azure_devops`.                                                            |
-| `project`     | No       | Inferred (see below)  | GitLab project path (`namespace[/subgroup]/repo`). For `azure_devops`, `organization/project`.        |
-| `repository`  | No       | Inferred (see below)  | GitHub repository (`owner/repo`). For `azure_devops`, the repository name.                            |
+| `project`     | No       | Inferred (see below)  | GitLab project path (`namespace[/subgroup]/repo`). For `azure_devops`, `organization/project`. A config error on a `github` forge, which uses `repository`. |
+| `repository`  | No       | Inferred (see below)  | GitHub repository (`owner/repo`). For `azure_devops`, the repository name. A config error on a `gitlab` forge, which uses `project`. |
 | `base_url`    | No       | Per-type default (see below) | Web base URL of the forge instance, e.g. `https://gitlab.example.com` for a self-hosted instance. |
 | `api_url`     | No       | Derived from `base_url` | API host override, when it differs from `base_url`.                                                 |
 | `api_mode`    | No       | `rest`                | `rest` or `graphql` — see § `api_mode` trade-off below.                                               |
@@ -886,7 +886,8 @@ rendering:
 
 A list of filters that drop matched commits from the rendered changelog / release-notes. Each
 entry sets **exactly one** of `type` (match a conventional-commit type) or `regex` (match the
-commit subject). This is independent of `commits.types` `remove`, which governs the verify
+commit subject); any other key in an entry is a config error, as it is in a
+`rendering.templates.commit.trailers` entry. This is independent of `commits.types` `remove`, which governs the verify
 allow-list rather than the rendered output.
 
 **Built-in defaults are always applied, in addition to your entries.** heraut prepends four
@@ -969,7 +970,7 @@ only generator (ADR-0045) — there is no `generator:` key to set; an empty `cha
 
 | Field         | Required | Description                                                                                                                                                                                                                                                                       |
 |---------------|----------|-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| `output`      | No       | Output file path (e.g. `CHANGELOG.md`). `changelog.output` (not `release.notes.output`, which is never written to disk) may contain rotation tokens for a periodic file — see § Rotating changelog output below. |
+| `output`      | No       | Output file path (e.g. `CHANGELOG.md`). `changelog.output` may contain rotation tokens for a periodic file — see § Rotating changelog output below. `release.notes.output` (root or environment) is a config error, since release notes are published, never written to disk. |
 | `tag_pattern` | No       | Tag pattern regex scoping which tags are considered. **For per-env strategies heraut auto-derives this from the effective `tag_format` so `--env <env>` only considers that environment's tags** (e.g. `{version}_{env}` + `--env prod` → `^.+_prod$`), whether the format names `{env}` or spells the environment's prefix out (`prod/{version}` lists only `prod/*` tags); set it explicitly to override the derivation. |
 | `template`    | No       | Path to a full custom Go `text/template` file, parsed on top of native's built-ins (ADR-0037). See [Spec 05 § User-customizable templates](05-generators-and-platforms.md#user-customizable-templates-adr-0037-adr-0048). |
 | `rendering`   | No       | Per-driver exclude rules, template-block snippets, and footer-trailer rendering rules, layered over the global `rendering` block (see § `rendering` above). |

@@ -27,17 +27,24 @@ func (h *HookStep) UnmarshalYAML(node *yaml.Node) error {
 	}
 	type rawHookStep HookStep
 	var raw rawHookStep
-	b, err := yaml.Marshal(node)
-	if err != nil {
-		return fmt.Errorf("re-marshaling hook step: %w", err)
-	}
-	dec := yaml.NewDecoder(bytes.NewReader(b))
-	dec.KnownFields(true)
-	if err := dec.Decode(&raw); err != nil {
+	if err := decodeStrict(node, &raw); err != nil {
 		return err
 	}
 	*h = HookStep(raw)
 	return nil
+}
+
+// decodeStrict decodes node into out, refusing unknown fields. node.Decode alone ignores the outer
+// decoder's KnownFields(true), so a node decoded on its own (inside a custom UnmarshalYAML) goes
+// through a fresh strict decoder instead.
+func decodeStrict(node *yaml.Node, out any) error {
+	b, err := yaml.Marshal(node)
+	if err != nil {
+		return fmt.Errorf("re-marshaling: %w", err)
+	}
+	dec := yaml.NewDecoder(bytes.NewReader(b))
+	dec.KnownFields(true)
+	return dec.Decode(out)
 }
 
 // Hooks configures shell commands run at points in the release lifecycle (ADR-0053, ADR-0061).

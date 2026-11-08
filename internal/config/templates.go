@@ -74,7 +74,7 @@ func (r *Rendering) UnmarshalYAML(value *yaml.Node) error {
 		keyNode, valNode := value.Content[i], value.Content[i+1]
 		switch keyNode.Value {
 		case "excludes":
-			if err := valNode.Decode(&r.Excludes); err != nil {
+			if err := decodeStrict(valNode, &r.Excludes); err != nil {
 				return fmt.Errorf("rendering.excludes: %w", err)
 			}
 		case "templates":
@@ -116,7 +116,7 @@ func extractCommitTrailers(templatesNode *yaml.Node) ([]FooterRule, error) {
 				continue
 			}
 			var trailers []FooterRule
-			if err := commitNode.Content[j+1].Decode(&trailers); err != nil {
+			if err := decodeStrict(commitNode.Content[j+1], &trailers); err != nil {
 				return nil, fmt.Errorf("rendering.templates.commit.trailers: %w", err)
 			}
 			return trailers, nil

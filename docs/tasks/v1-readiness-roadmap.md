@@ -33,7 +33,7 @@ post-v1 (Phase 100). The v1.0.0 cut (Phase 101) comes last.
 | Phase | Theme | Tasks | Status |
 |---|---|---|---|
 | 94 | Release-logic bugs that block v1 | T492–T501 | Done |
-| 95 | Decisions to make before the format freezes (ADRs) | T502–T506 | In progress — decided 2026-11-08; T502–T504 done |
+| 95 | Decisions to make before the format freezes (ADRs) | T502–T506 | In progress — decided 2026-11-08; T502–T505 done |
 | 96 | Behaviour fixes | T507–T522 | Not started |
 | 97 | Tests that give false confidence | T523–T529 | Not started |
 | 98 | User docs | T530–T536 | Not started |
@@ -354,7 +354,7 @@ next/current` no longer emit an empty `{tag, version}`, an invalid `commit verif
 `TestJSON_FailuresCarryNoData` over the four commands (three red before) plus `check` keeping its report.
 Docs: Spec 03 § Machine-readable output, the skill, the AI-agents guide.
 
-#### `[ ]` T505: **Decision** — reject keys heraut would ignore
+#### `[x]` T505: **Decision** — reject keys heraut would ignore
 
 - `rendering.excludes[]` and `rendering.templates.commit.trailers[]` are decoded with `node.Decode`
   (`internal/config/templates.go:76,118`), bypassing `KnownFields`: `excludes: [{type: chore, typo_key: x}]`
@@ -368,6 +368,16 @@ Tightening after v1 breaks configs that load today. Recommendation: strict decod
 for each combination now.
 
 **Decision (user, 2026-11-08):** a config error now for all of them, each naming the key and the right one.
+
+**Done (2026-11-08).** `decodeStrict` (the re-marshal plus `KnownFields` that `HookStep` used) now also
+decodes `rendering.excludes` and `rendering.templates.commit.trailers`, at every level, since the
+`Rendering` type is shared. Validation reports `forges[i].project` on GitHub and
+`forges[i].repository` on GitLab (Azure DevOps uses both), `draft` on a target whose forge is GitLab
+(root and environment targets), and `release.notes.output` (root and environment); each message names
+the key to use. Tests: a table of eight configs (all red before), plus a config using every key where it
+applies, which stays valid. Deviation: `schema.json` already refuses the unknown keys but can't express
+the per-platform rules (forges share one definition), so the schema still accepts those; the validator
+is the authority. Spec 02's key tables say what is refused.
 
 #### `[ ]` T506: **Decision** — "nothing to release"
 
