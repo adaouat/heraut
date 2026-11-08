@@ -88,6 +88,9 @@ direction, do not add the import.
      `Message`, `Hint`.
 - Struct field names in `internal/config/config.go` are **wire-compatible** with existing
   `.heraut.yml` files. Renaming a field is a breaking change requiring an ADR.
+- After 1.0, [ADR-0080](../../docs/adr/0080-compatibility-after-1-0.md) defines the stable surface
+  (config, flags, exit codes, `--json`, template data): breaking it needs a major release, and a key
+  or flag that goes away is deprecated (works and warns) for at least one minor release first.
 - When adding, renaming, or removing a field in `internal/config/config.go`, **also update**:
   - `schema.json` — type, description, enum values, required list
   - `docs/heraut.sample.yml` — show the field in context with a comment

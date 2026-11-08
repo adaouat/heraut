@@ -57,6 +57,11 @@ Releases are cut by running the `Release` workflow by hand. GoReleaser builds th
 fresh heraut binary releases itself (tag, changelog, GitHub release). See
 [ADR-0018](docs/adr/0018-ci-build-then-release-pipeline.md).
 
+From 1.0 on, heraut's configuration, flags, exit codes, `--json` output and template data are a stable
+surface: changing them incompatibly needs a major release, and anything removed is deprecated (it
+still works and warns) for at least one minor release first. See
+[ADR-0080](docs/adr/0080-compatibility-after-1-0.md).
+
 ## Where things are
 
 | Path | Contents |

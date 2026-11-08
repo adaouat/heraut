@@ -292,7 +292,7 @@ names the gitlab.com case.
 
 Each task: an options sheet, the user's choice, an ADR, then the code, spec and docs.
 
-#### `[ ]` T502: **Decision** — compatibility after 1.0
+#### `[x]` T502: **Decision** — compatibility after 1.0
 
 Every config break so far was justified as "pre-v1, no shim" (ADR-0040:29, ADR-0046:96,
 `roadmap.md:1418`); nothing says what counts as breaking once 1.0 ships. Write the ADR: the stable
@@ -301,6 +301,14 @@ the deprecation window and how a deprecated key warns. Point to it from `coding.
 CONTRIBUTING.md.
 
 **Decision (user, 2026-11-08):** SemVer plus deprecation. The stable surface is config keys and values, flags, exit codes, the `--json` envelope and error codes, and template data fields; any of them breaks only in a major. A deprecated key or flag keeps working and warns, naming its replacement, for at least one minor release, and is removed in the next major. Message wording and the built-in templates' output may change in a minor.
+
+**Done (2026-11-08).** [ADR-0080](../adr/0080-compatibility-after-1-0.md) lists the stable surface
+(config keys, values and defaults; commands, flags and the environment variables heraut reads; exit
+codes; the `--json` envelope, `error.code` values and `data` fields; template data; the tag shapes and
+changelog anchors heraut reads back), what is not part of it (message wording, built-in template
+output, `internal/`), the deprecation rule, and a security exception. The loader's deprecation warning
+is built with the first deprecation, not now. Pointers: `coding.md` § Config, CONTRIBUTING.md §
+Releases, the ADR index.
 
 #### `[ ]` T503: **Decision** — split `--force`, and make re-tagging honest
 
