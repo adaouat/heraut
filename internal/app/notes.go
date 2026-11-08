@@ -6,15 +6,16 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
-	"regexp"
 	"strings"
 
 	"github.com/adaouat/heraut/internal/config"
 	"github.com/adaouat/heraut/internal/generators/native"
 	"github.com/adaouat/heraut/internal/pipeline"
 	"github.com/adaouat/heraut/internal/port"
+	"github.com/adaouat/heraut/internal/versioning/calver"
 	"github.com/adaouat/heraut/internal/versioning/perenv"
 	"github.com/adaouat/heraut/internal/versioning/semver"
+	"github.com/adaouat/heraut/internal/versioning/tagfmt"
 )
 
 // ErrNotesFormat marks an unsupported --format value.
@@ -132,24 +133,42 @@ func requireTag(runner port.Runner, tag string) error {
 	return nil
 }
 
-var calverVersionPattern = regexp.MustCompile(`^[0-9]+(\.[0-9]+)*$`)
-
 // isReleaseTag reports whether tag is a release tag of cfg's strategy for env: it carries the
-// configured prefix or matches the tag format, and holds a version of the strategy's shape.
+// configured prefix, or matches the tag format with env as a literal (another environment's tag is
+// not one), and holds a version of the strategy's shape (for CalVer, one that parses under format).
 func isReleaseTag(cfg *config.Config, env, tag string) bool {
 	switch cfg.Versioning.Strategy {
 	case "semver", "semver-per-env":
-		bare, ok := semverExtractor(cfg, env)(tag)
+		bare, ok := envVersion(cfg, env, tag, semverExtractor)
 		if !ok {
 			return false
 		}
 		_, err := semver.Parse(bare)
 		return err == nil
 	case "calver", "calver-per-env":
-		bare, ok := calverExtractor(cfg, env)(tag)
-		return ok && calverVersionPattern.MatchString(bare)
+		bare, ok := envVersion(cfg, env, tag, calverExtractor)
+		if !ok {
+			return false
+		}
+		tokens, err := calver.ParseFormat(cfg.Versioning.Format)
+		if err != nil {
+			return false
+		}
+		_, err = calver.ParseVersion(tokens, bare)
+		return err == nil
 	}
 	return true
+}
+
+// envVersion reads tag's bare version with extract, after checking that a per-env tag belongs to env:
+// the format's {env} matches any environment, so it is rendered with env first.
+func envVersion(cfg *config.Config, env, tag string, extract func(*config.Config, string) func(string) (string, bool)) (string, bool) {
+	if env != "" && strings.HasSuffix(cfg.Versioning.Strategy, "-per-env") {
+		tf := strings.ReplaceAll(cfg.EffectiveTagFormat(env), "{env}", env)
+		bare, err := tagfmt.ParseVersion(tf, tag)
+		return bare, err == nil
+	}
+	return extract(cfg, env)(tag)
 }
 
 func forEnv(env string) string {

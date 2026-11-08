@@ -134,3 +134,20 @@ func TestNotes_PerEnv(t *testing.T) {
 			wantText: []string{"dev/0.1.1"}},
 	})
 }
+
+// heraut notes matches the strategy's own tags: with an {env} tag format another environment's tag is
+// refused, and a CalVer tag with a trailing literal, which heraut itself creates, is accepted.
+func TestNotes_ReleaseTagShapes(t *testing.T) {
+	bin := harness.Binary(t)
+	envToken := "version: \"1\"\nversioning:\n  strategy: semver-per-env\n  tag_format: \"{env}/{version}\"\nenvironments:\n  dev:\n    bump: auto\n  prod:\n    bump: auto\n"
+	lts := "version: \"1\"\nversioning:\n  strategy: calver\n  format: \"YYYY.MM.PATCH-lts\"\n"
+	runScenarios(t, bin, nil, []scenario{
+		{name: "an {env} format refuses another environment's tag", config: envToken,
+			history: []step{commit("feat: a"), tag("dev/0.1.0")},
+			args:    []string{"notes", "dev/0.1.0", "--env", "prod", "--offline"}, wantExit: exitRuntime,
+			wantText: []string{"dev/0.1.0"}},
+		{name: "a CalVer tag with a trailing literal", config: lts,
+			history: []step{commit("feat: add alpha"), tag("2026.11.0-lts")},
+			args:    []string{"notes", "2026.11.0-lts", "--offline"}, wantOut: "### 🚀 Features\n\n- Add alpha"},
+	})
+}

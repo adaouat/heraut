@@ -419,7 +419,7 @@ Lane A `TestReleaseDryRunJSON_RefusesWhatTheDryRunRefuses` (an asset beside the 
 both modes; the old `Plan` exited 0 with `--json`). No doc change: Spec 03 already promised the same
 exit code.
 
-#### `[ ]` T508: `heraut notes` matches the strategy's tags exactly
+#### `[x]` T508: `heraut notes` matches the strategy's tags exactly
 
 - `tagfmt.ParseVersion` turns `{env}` into `[^/]+` (`internal/versioning/tagfmt/tagfmt.go:60`), so
   `notes dev/0.1.0 --env prod` prints notes (exit 0); Spec 03 § notes says exit 3. Substitute the active
@@ -427,6 +427,13 @@ exit code.
 - `notes` refuses CalVer tags heraut itself creates with a trailing literal: format `YYYY.MM.PATCH-lts`
   makes `2026.11.0-lts`, then `notes 2026.11.0-lts` says `Not a release tag` (`notes.go:136,151`).
   Check with `calver.ParseVersion` against the configured format.
+
+**Done (2026-11-08).** `isReleaseTag` reads a per-env tag through the effective format with the active
+environment rendered in (`envVersion`), and checks a CalVer version with `calver.ParseVersion` against
+`versioning.format` instead of the digits-and-dots regex. The shared extractors are untouched: they also
+order tags, where the env glob already scopes them. Tests: an `isReleaseTag` table (four rows red
+before) and Lane A `TestNotes_ReleaseTagShapes` (both red on the old code). Spec 03 already said both;
+no doc change.
 
 #### `[ ]` T509: `version current` under CalVer picks the highest CalVer tag
 
