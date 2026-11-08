@@ -162,3 +162,33 @@ func TestConfig_ExcludesAreValidatedEverywhere(t *testing.T) {
 		}
 	}
 }
+
+// An unknown key names its place in the file and the key that was probably meant, never a Go type.
+func TestConfig_UnknownKeyErrors(t *testing.T) {
+	tests := []struct {
+		name, yaml string
+		want       []string
+	}{
+		{"a typo in versioning", "version: \"1\"\nversioning:\n  strategy: semver\n  tag_prefx: v\n",
+			[]string{`line 4: unknown key "tag_prefx" in versioning`, `did you mean "tag_prefix"?`}},
+		{"a typo at the top level", "version: \"1\"\nversionin:\n  strategy: semver\n",
+			[]string{`line 2: unknown key "versionin" at the top level`, `did you mean "versioning"?`}},
+		{"a typo in a list entry", "version: \"1\"\nversioning:\n  strategy: semver\nforges:\n  - name: gh\n    platfrm: github\n",
+			[]string{`line 6: unknown key "platfrm" in forges[0]`, `did you mean "platform"?`}},
+		{"nothing close", "version: \"1\"\nversioning:\n  strategy: semver\n  colour: blue\n",
+			[]string{`line 4: unknown key "colour" in versioning`}},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			_, err := config.LoadFromReader(strings.NewReader(tc.yaml))
+			require.Error(t, err)
+			for _, w := range tc.want {
+				assert.Contains(t, err.Error(), w)
+			}
+			assert.NotContains(t, err.Error(), "config.", "no Go type name")
+			if tc.name == "nothing close" {
+				assert.NotContains(t, err.Error(), "did you mean")
+			}
+		})
+	}
+}

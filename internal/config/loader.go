@@ -1,7 +1,6 @@
 package config
 
 import (
-	"bytes"
 	"errors"
 	"fmt"
 	"io"
@@ -10,7 +9,6 @@ import (
 	"slices"
 	"strings"
 
-	forgeconfig "github.com/adaouat/forge/config"
 	"gopkg.in/yaml.v3"
 )
 
@@ -205,7 +203,7 @@ func Load(path string) (*Config, error) {
 		return nil, err
 	}
 	var cfg Config
-	if err := forgeconfig.Decode(bytes.NewReader(raw), &cfg); err != nil {
+	if err := decodeConfig(raw, &cfg); err != nil {
 		return nil, err
 	}
 	normalize(&cfg)
@@ -222,7 +220,7 @@ func LoadFromReader(r io.Reader) (*Config, error) {
 		return nil, err
 	}
 	var cfg Config
-	if err := forgeconfig.Decode(bytes.NewReader(raw), &cfg); err != nil {
+	if err := decodeConfig(raw, &cfg); err != nil {
 		return nil, err
 	}
 	normalize(&cfg)

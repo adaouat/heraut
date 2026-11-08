@@ -22,7 +22,7 @@ func TestCheckConfig(t *testing.T) {
 			wantExit: exitConfig, wantText: []string{`versioning.strategy: "semvr" is not a valid strategy`, "valid strategies: semver, calver, semver-per-env, calver-per-env", "1 error(s)"}},
 		{name: "an unknown key reports its line", config: "version: \"1\"\nversioning:\n  strategy: semver\n  bogus_key: 1\n",
 			args:     []string{"check", "config"},
-			wantExit: exitConfig, wantText: []string{"line 4: field bogus_key not found in type config.versioning"}},
+			wantExit: exitConfig, wantText: []string{`line 4: unknown key "bogus_key" in versioning`}},
 		{name: "malformed YAML is a config error", config: "version: [unclosed",
 			args:     []string{"check", "config"},
 			wantExit: exitConfig, wantText: []string{"yaml: line 1"}},

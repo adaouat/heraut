@@ -638,11 +638,21 @@ section.
 `commit verify "revert: undo x"` exits 1 (`commit-conventions.md:104` agrees with the binary). Options:
 add `revert` to the default types (it already has a section) or drop the row.
 
-#### `[ ]` T522: config errors name the key and suggest the fix
+#### `[x]` T522: config errors name the key and suggest the fix
 
 An unknown key gives `Config: line 4: field tag_prefx not found in type config.Versioning.`: a Go type
 name and no hint, while `getting-started.md:61-62` promises "its line and a hint". Fix: name the YAML
 path, suggest the closest known key, drop the Go type.
+
+**Done (2026-11-08).** The loader decodes with its own strict decoder (`decodeConfig`, the same rules
+as forge's `config.Decode`, which flattens yaml's `TypeError` into a string). Each unknown-field entry
+becomes `line 4: unknown key "tag_prefx" in versioning — did you mean "tag_prefix"?`. The path comes
+from the YAML node tree (`forges[0]`, or "at the top level"); the suggestion is the closest key of that
+config type within two edits, found by reflection over the `Config` structs. Other errors pass through
+unchanged. Two tests quoted the old Go-type wording (`TestLoad_NotesRejectsOutputAndTagPattern`, e2e
+`TestCheckConfig`); they now expect the new text and still check what they did. New: a table (a typo in
+`versioning`, at the top level, in a list entry, and one with no close key). The getting-started page
+quotes the real output.
 
 ---
 

@@ -3,6 +3,7 @@ package config
 import (
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -38,7 +39,8 @@ func TestLoad_NotesRejectsOutputAndTagPattern(t *testing.T) {
 	for _, key := range []string{"output: NOTES.md", "tag_pattern: ^v"} {
 		_, err := loadNotesDoc(t, "version: \"1\"\nversioning:\n  strategy: semver\nnotes:\n  "+key+"\n")
 		require.Error(t, err, key)
-		assert.Contains(t, err.Error(), "not found in type config.Notes", key)
+		field, _, _ := strings.Cut(key, ":")
+		assert.Contains(t, err.Error(), `unknown key "`+field+`" in notes`, key)
 	}
 }
 

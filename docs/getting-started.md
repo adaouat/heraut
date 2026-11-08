@@ -59,7 +59,11 @@ $ heraut check config
 ```
 
 This runs offline. A typo, an unknown key or a missing field is reported here with its line and a
-hint, instead of in the middle of a release.
+hint, instead of in the middle of a release:
+
+```text
+Config: line 4: unknown key "tag_prefx" in versioning — did you mean "tag_prefix"?
+```
 
 ## 3. Check your machine
 
