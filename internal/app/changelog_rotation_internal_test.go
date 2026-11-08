@@ -33,7 +33,7 @@ func TestWrapWithRotation_NoTokens_Passthrough(t *testing.T) {
 	driver := &config.ContentDriver{Output: "CHANGELOG.md"}
 	cfg := &config.Config{Versioning: config.Versioning{Strategy: "semver"}}
 
-	got := wrapWithRotation(gen, nil, cfg, driver, "", false, false, nil, "", nil)
+	got := wrapWithRotation(gen, nil, cfg, driver, "", false, nil, "", nil)
 
 	assert.Same(t, gen, got, "no rotation tokens must return the original generator unchanged")
 }
@@ -44,7 +44,7 @@ func TestWrapWithRotation_WithTokens_DelegatesCheckAndValidate(t *testing.T) {
 	driver := &config.ContentDriver{Output: "CHANGELOG_{YYYY}.md"}
 	cfg := &config.Config{Versioning: config.Versioning{Strategy: "calver", Format: "YYYY.MM.PATCH"}}
 
-	got := wrapWithRotation(gen, nil, cfg, driver, "", false, false, nil, "", nil)
+	got := wrapWithRotation(gen, nil, cfg, driver, "", false, nil, "", nil)
 
 	assert.NotSame(t, gen, got, "tokens present must wrap, not pass through")
 	assert.ErrorIs(t, got.Check(), wantErr)
@@ -196,8 +196,8 @@ func TestRotatingGenerator_Generate_WritesConcreteFile(t *testing.T) {
 	driver := &config.ContentDriver{Output: filepath.Join(dir, "CHANGELOG_{YYYY}.md")}
 	cfg := &config.Config{Versioning: config.Versioning{Strategy: "calver", Format: "YYYY.MM.PATCH"}}
 
-	gen := buildGenerator(mr, driver, native.ModeChangelog, "", false, false, nil, "", nil)
-	wrapped := wrapWithRotation(gen, mr, cfg, driver, "", false, false, nil, "", nil)
+	gen := buildGenerator(mr, driver, native.ModeChangelog, "", false, nil, "", nil)
+	wrapped := wrapWithRotation(gen, mr, cfg, driver, "", false, nil, "", nil)
 
 	body, err := wrapped.Generate(t.Context(), "2026.05.0", nil)
 	require.NoError(t, err)
@@ -296,7 +296,7 @@ func TestBuildGenerator_TagOrder_ListsReachableTagsOnly(t *testing.T) {
 			mr := exectest.NewMockRunner()
 			mr.QueueResponse("", "", nil) // scoped tag listing: no tags yet
 			mr.QueueResponse("", "", nil) // new section: full history, no commits
-			gen := buildGenerator(mr, &config.ContentDriver{}, native.ModeChangelog, "", false, false, nil, "", tc.order)
+			gen := buildGenerator(mr, &config.ContentDriver{}, native.ModeChangelog, "", false, nil, "", tc.order)
 			_, err := gen.Generate(t.Context(), "v1.0.0", nil)
 			require.NoError(t, err)
 			require.NotEmpty(t, mr.Calls)

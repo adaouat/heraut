@@ -161,7 +161,7 @@ coverage:
 - `v1.9.0` → `v1.10.0` (not `v1.100.0`) — SemVer ordering, not lexicographic
 - CalVer `PATCH` reset on calendar period boundary
 - Per-env cycle detection in `source:` chains
-- E001 / E002 / E003 `--force` bypass semantics (E003 is not bypassable)
+- E001 / E002 / E003 `--force` semantics (only E002 is bypassable, ADR-0081)
 
 These cases are kept in the test suite indefinitely. A test row is removed only when the
 behaviour it covers is deliberately changed, with an ADR documenting the change.

@@ -1,6 +1,6 @@
 # ADR-0007: Version Promotion Error Handling (E001 / E002 / E003)
 
-- **Status**: Accepted
+- **Status**: Accepted, amended by [ADR-0081](0081-force-means-release-from-here.md) (E001 is no longer bypassable by `--force`)
 - **Date**: 2026-05-23
 - **Deciders**: bchatard
 

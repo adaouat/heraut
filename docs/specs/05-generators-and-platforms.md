@@ -367,14 +367,13 @@ happens with whichever outcome above occurred:
   `Degraded()` with the wrapped HTTP error as the reason — commit lines render with no `by @`
   handle and no `in [#N]` reference, but the degraded warning names an HTTP failure, not a
   missing forge. Under `required`, the run **fails outright** with that same wrapped 404 (not
-  the "no forge resolved" message below). `--force` downgrades `required` to the `optional`
-  behavior above ([ADR-0041](../adr/0041-remote-metadata-required-enforcement-and-force.md));
-  this is also what downgrades the ambiguous-token-env case above from a hard failure.
-- **`optional` / `required`, zero-token (or ambiguous, under `--force`) outcome** — nothing
-  resolves at all: no CI marker, no recognised origin, no ambient token (or an ambiguity that
-  got downgraded). Under `optional`, generation proceeds with no PR/MR enrichment, silently,
+  the "no forge resolved" message below). Nothing downgrades `required` for a run; `--offline`
+  turns enrichment off instead ([ADR-0081](../adr/0081-force-means-release-from-here.md), amending
+  [ADR-0041](../adr/0041-remote-metadata-required-enforcement-and-force.md)).
+- **`optional` / `required`, zero-token outcome** — nothing resolves at all: no CI marker, no
+  recognised origin, no ambient token. Under `optional`, generation proceeds with no PR/MR enrichment, silently,
   with no warning and no `Degraded()` signal (that signal is reserved for a *configured* forge
-  whose fetch fails, not for the absence of one); under `required` (without `--force`), the run
+  whose fetch fails, not for the absence of one); under `required`, the run
   fails with an error explaining that no forge was resolved and naming the three ways to supply
   one — a `forges:` entry, a supported CI environment, or a recognised git origin.
 

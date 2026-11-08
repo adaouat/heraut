@@ -69,8 +69,8 @@ commits:
 | `required` | Stops the run before anything is written. Use it when a release without its pull request links is not acceptable. |
 | `disabled` | Never asks: commit lines only, no API call. |
 
-Two flags change the policy for one run: `--offline` acts as `disabled` (handy on a plane, or to
-look at a changelog quickly), and `--force` turns `required` into `optional`.
+One flag changes the policy for one run: `--offline` acts as `disabled` (handy on a plane, to look
+at a changelog quickly, or to release without PR data while the forge is down).
 
 ## Several forges: one source
 
@@ -99,6 +99,6 @@ GitLab. Only the commit and compare links follow each target. See
 | Message | Cause | Fix |
 |---|---|---|
 | `remote enrichment unavailable; …: 401 Unauthorized` | no token, or it can't read the pull requests | set the token from the table above |
-| `remote enrichment (required): …` and the run stops | `enrichment_policy: required` and the fetch failed | fix the token, or `--force` for this run |
+| `remote enrichment (required): …` and the run stops | `enrichment_policy: required` and the fetch failed | fix the token, or `--offline` to release without PR data |
 | `You cannot use job tokens to authenticate GraphQL requests` | `api_mode: graphql` with GitLab's job token | `api_mode: rest`, or a `read_api` token in `token_env` |
 | no warning, and no links | heraut found no forge at all (no CI, an unknown origin, no token) | add a `forges:` entry |

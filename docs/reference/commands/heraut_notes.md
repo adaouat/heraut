@@ -27,7 +27,6 @@ heraut notes v1.2.0 --from v1.0.0
 | Flag | Default | Description |
 |---|---|---|
 | `--env <string>` |  | target environment (for per-env strategies) |
-| `--force` |  | downgrade commits.enrichment_policy: required to optional for this run |
 | `--format <string>` | `markdown` | output format: markdown or text |
 | `--from <string>` |  | lower bound of the range (default: the tag's previous release) |
 | `--offline` |  | skip remote PR/MR metadata enrichment (forces enrichment_policy: disabled) |

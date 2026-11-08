@@ -875,9 +875,9 @@ func TestNewResolver_SetVersion_ProbesUnderEveryStrategy(t *testing.T) {
 		{"semver-per-env, taken", perEnv("semver-per-env", "uat/{version}"), "uat", false, "1.2.3", "uat/1.2.3\n", "", []string{"tag", "-l", "uat/1.2.3", "uat/1.2.3+*"}},
 		{"calver-per-env, free", perEnv("calver-per-env", "uat/{version}"), "uat", false, "2026.05.1", "", "uat/2026.05.1", []string{"tag", "-l", "uat/2026.05.1"}},
 		{"calver-per-env, taken", perEnv("calver-per-env", "uat/{version}"), "uat", false, "2026.05.1", "uat/2026.05.1\n", "", []string{"tag", "-l", "uat/2026.05.1"}},
-		// --force keeps its per-env meaning (it bypasses E001, the candidate-exists check): no probe.
-		{"semver-per-env, taken, --force", perEnv("semver-per-env", "uat/{version}"), "uat", true, "1.2.3", "uat/1.2.3\n", "uat/1.2.3", nil},
-		{"calver-per-env, taken, --force", perEnv("calver-per-env", "uat/{version}"), "uat", true, "2026.05.1", "uat/2026.05.1\n", "uat/2026.05.1", nil},
+		// --force does not skip the probe (ADR-0081): a taken tag cannot be forced.
+		{"semver-per-env, taken, --force", perEnv("semver-per-env", "uat/{version}"), "uat", true, "1.2.3", "uat/1.2.3\n", "", []string{"tag", "-l", "uat/1.2.3", "uat/1.2.3+*"}},
+		{"calver-per-env, taken, --force", perEnv("calver-per-env", "uat/{version}"), "uat", true, "2026.05.1", "uat/2026.05.1\n", "", []string{"tag", "-l", "uat/2026.05.1"}},
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
@@ -903,4 +903,22 @@ func TestNewResolver_SetVersion_ProbesUnderEveryStrategy(t *testing.T) {
 			assert.Equal(t, [][]string{tc.wantProbe}, gitArgs(mr))
 		})
 	}
+}
+
+// Under a per-env strategy --force no longer skips the --set-version probe (ADR-0081): the tag exists,
+// so the run stops before anything is written.
+func TestNewResolver_SetVersion_PerEnvForceStillProbes(t *testing.T) {
+	cfg := &config.Config{
+		Version:      "1",
+		Versioning:   config.Versioning{Strategy: "semver-per-env", TagFormat: "{env}/{version}"},
+		Environments: map[string]config.Environment{"prod": {Bump: "auto"}},
+	}
+	mr := exectest.NewMockRunner()
+	mr.QueueResponse("prod/1.3.2\n", "", nil) // git tag -l prod/1.3.2 prod/1.3.2+*
+
+	r, err := app.NewResolver(cfg, "prod", true, "1.3.2", "", mr)
+	require.NoError(t, err)
+	_, err = r.Resolve()
+
+	require.ErrorIs(t, err, semver.ErrTagExists)
 }

@@ -25,7 +25,6 @@ import (
 // PipelineOpts carries runtime options for building a pipeline.
 type PipelineOpts struct {
 	DryRun          bool
-	Force           bool
 	VersionOverride string
 	Env             string
 	Out             io.Writer
@@ -85,7 +84,7 @@ func BuildPipeline(runner port.Runner, cfg *config.Config, resolver versioning.R
 	if readRunner == nil {
 		readRunner = runner
 	}
-	pipelineCfg, err := buildReleasePipelineConfig(runner, readRunner, cfg, opts.Env, opts.HerautVersion, opts.RegenerateChangelog, opts.Force, isPreReleaseRun(cfg, opts.Env, opts))
+	pipelineCfg, err := buildReleasePipelineConfig(runner, readRunner, cfg, opts.Env, opts.HerautVersion, opts.RegenerateChangelog, isPreReleaseRun(cfg, opts.Env, opts))
 	if err != nil {
 		return nil, err
 	}
@@ -249,7 +248,7 @@ func HasResolvablePublishTarget(runner port.Runner, cfg *config.Config, env stri
 	return len(synthesizeDefaultTarget(resolved)) > 0
 }
 
-func buildReleasePipelineConfig(runner, readRunner port.Runner, cfg *config.Config, env, herautVersion string, regenerateChangelog, force, preRelease bool) (*pipeline.Config, error) {
+func buildReleasePipelineConfig(runner, readRunner port.Runner, cfg *config.Config, env, herautVersion string, regenerateChangelog, preRelease bool) (*pipeline.Config, error) {
 	pCfg := &pipeline.Config{}
 
 	// Resolve effective config: start from root, apply per-env overrides.
@@ -311,8 +310,8 @@ func buildReleasePipelineConfig(runner, readRunner port.Runner, cfg *config.Conf
 	if effectiveChangelog != nil {
 		driver := withEnvDerivations(effectiveChangelog, cfg, env)
 		order := tagOrderFor(cfg, env)
-		gen := buildGenerator(runner, driver, native.ModeChangelog, herautVersion, regenerateChangelog, force, enrichForge, "", order)
-		pCfg.Changelog = wrapWithRotation(gen, runner, cfg, driver, herautVersion, regenerateChangelog, force, enrichForge, "", order)
+		gen := buildGenerator(runner, driver, native.ModeChangelog, herautVersion, regenerateChangelog, enrichForge, "", order)
+		pCfg.Changelog = wrapWithRotation(gen, runner, cfg, driver, herautVersion, regenerateChangelog, enrichForge, "", order)
 		pCfg.ChangelogFile = effectiveChangelog.Output
 		pCfg.ForgeIdentity = forgeID
 	}
@@ -324,7 +323,7 @@ func buildReleasePipelineConfig(runner, readRunner port.Runner, cfg *config.Conf
 		if preRelease {
 			notesOrder = notesTagOrderFor(cfg, env)
 		}
-		gen := buildGenerator(runner, driver, native.ModeReleaseNotes, herautVersion, regenerateChangelog, force, enrichForge, "", notesOrder)
+		gen := buildGenerator(runner, driver, native.ModeReleaseNotes, herautVersion, regenerateChangelog, enrichForge, "", notesOrder)
 		pCfg.Notes = gen
 	}
 
@@ -487,14 +486,14 @@ func buildChangelogPipelineConfig(runner, readRunner port.Runner, cfg *config.Co
 	}
 
 	if effectiveChangelog != nil {
-		enrichForge, forgeID, degradedReason, err := resolveEnrichForgeIfNeeded(readRunner, os.Getenv, cfg, opts.Force)
+		enrichForge, forgeID, degradedReason, err := resolveEnrichForgeIfNeeded(readRunner, os.Getenv, cfg)
 		if err != nil {
 			return nil, err
 		}
 		driver := withEnvDerivations(effectiveChangelog, cfg, opts.Env)
 		order := tagOrderFor(cfg, opts.Env)
-		gen := buildGenerator(runner, driver, native.ModeChangelog, opts.HerautVersion, opts.RegenerateChangelog, opts.Force, enrichForge, degradedReason, order)
-		cCfg.Changelog = wrapWithRotation(gen, runner, cfg, driver, opts.HerautVersion, opts.RegenerateChangelog, opts.Force, enrichForge, degradedReason, order)
+		gen := buildGenerator(runner, driver, native.ModeChangelog, opts.HerautVersion, opts.RegenerateChangelog, enrichForge, degradedReason, order)
+		cCfg.Changelog = wrapWithRotation(gen, runner, cfg, driver, opts.HerautVersion, opts.RegenerateChangelog, enrichForge, degradedReason, order)
 		cCfg.ChangelogFile = effectiveChangelog.Output
 		cCfg.ForgeIdentity = forgeID
 	}
@@ -654,12 +653,11 @@ func effectiveExcludes(cfg *config.Config, driver *config.ContentDriver) []confi
 // buildGenerator constructs the native generator. tagOrder (T334, ADR-0064 — from tagOrderFor)
 // bounds the changelog/notes tag walk by SemVer §11 (or, for CalVer, dotted-integer) precedence over
 // HEAD's history instead of git's version:refname order; nil keeps git's order.
-func buildGenerator(runner port.Runner, driver *config.ContentDriver, defaultMode native.Mode, herautVersion string, regenerateChangelog, force bool, enrichForge port.Forge, degradedReason string, tagOrder func([]string) []string, extra ...native.Option) port.Generator {
+func buildGenerator(runner port.Runner, driver *config.ContentDriver, defaultMode native.Mode, herautVersion string, regenerateChangelog bool, enrichForge port.Forge, degradedReason string, tagOrder func([]string) []string, extra ...native.Option) port.Generator {
 	// Copy so setting the running version never mutates the shared config.
 	nativeDriver := *driver
 	nativeDriver.HerautVersion = herautVersion
 	nativeDriver.RegenerateChangelog = regenerateChangelog
-	nativeDriver.Force = force
 	opts := []native.Option{native.WithClock(clock())}
 	if enrichForge != nil {
 		opts = append(opts, native.WithForge(enrichForge))
@@ -697,14 +695,14 @@ func buildGenerator(runner port.Runner, driver *config.ContentDriver, defaultMod
 // markers (GITHUB_ACTIONS, GITLAB_CI, TF_BUILD), so a hardcoded os.Getenv would let the ambient
 // CI environment of heraut's *own* pipeline decide what a test resolves — which is exactly how
 // this function's tests broke on GitHub Actions while passing locally.
-func resolveEnrichForgeIfNeeded(runner port.Runner, getenv func(string) string, cfg *config.Config, force bool) (port.Forge, *port.ForgeIdentity, string, error) {
+func resolveEnrichForgeIfNeeded(runner port.Runner, getenv func(string) string, cfg *config.Config) (port.Forge, *port.ForgeIdentity, string, error) {
 	policy := cfg.EnrichmentPolicy()
 	if policy == "disabled" {
 		return nil, nil, "", nil
 	}
 	resolved, err := resolveForge(runner, getenv, cfg)
 	if err != nil {
-		if policy == "required" && !force {
+		if policy == "required" {
 			return nil, nil, "", err
 		}
 		return nil, nil, fmt.Sprintf("remote enrichment unavailable; rendering without PR attribution: %v", err), nil

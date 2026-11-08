@@ -265,33 +265,6 @@ func TestGenerate_Enrich_RequiredFailure_Errors(t *testing.T) {
 	assert.Contains(t, err.Error(), "required")
 }
 
-// --force downgrades required to optional: a fetch failure degrades (warn + render bare) instead
-// of erroring, so the user can still produce a changelog when the remote is unreachable.
-func TestGenerate_Enrich_RequiredFailure_ForceDegrades(t *testing.T) {
-	mr := exectest.NewMockRunner()
-	queueReleaseNotesGit(mr)
-	mr.QueueResponse("bob@x\n", "", nil) // authorsBefore — reached because force degrades past the failure
-	forge := &countingForge{err: errors.New("API rate limit exceeded")}
-	g := New(mr, &config.ContentDriver{RemoteMetadata: "required", Force: true}, ModeReleaseNotes, WithForge(forge))
-
-	out, err := g.Generate(t.Context(), "v1.1.0", ghLC())
-	require.NoError(t, err, "--force downgrades required to optional")
-	assert.NotContains(t, out, "by @", "rendered bare on forced degrade")
-	assert.True(t, g.Degraded())
-}
-
-// --force also downgrades the nil-context / no-forge (unconfigured remote) case: render bare, no
-// error.
-func TestGenerate_Enrich_RequiredNilContext_ForceDegrades(t *testing.T) {
-	mr := exectest.NewMockRunner()
-	queueReleaseNotesGit(mr)
-	mr.QueueResponse("bob@x\n", "", nil) // authorsBefore
-	g := New(mr, &config.ContentDriver{RemoteMetadata: "required", Force: true}, ModeReleaseNotes)
-
-	_, err := g.Generate(t.Context(), "v1.1.0", nil)
-	require.NoError(t, err, "--force downgrades required even with no remote configured")
-}
-
 // required with no resolvable remote (nil LinkContext, no injected forge) cannot be satisfied —
 // there is nothing to fetch from — so it must be a hard error, not a silent metadata-less render.
 // Regression guard for the state native was permanently in before changelog.remote worked with

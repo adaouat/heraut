@@ -146,7 +146,7 @@ func NewResolver(cfg *config.Config, env string, force bool, versionOverride, bu
 			if err := validateSemVerComposition(version, buildID); err != nil {
 				return nil, err
 			}
-			return guardSetVersion(cfg, versioning.NewStaticResolver(prefix+version+"+"+buildID, version), runner, o, force), nil
+			return guardSetVersion(cfg, versioning.NewStaticResolver(prefix+version+"+"+buildID, version), runner, o), nil
 		}
 
 		var tf string
@@ -210,7 +210,7 @@ func NewResolver(cfg *config.Config, env string, force bool, versionOverride, bu
 		if err := validateCalverStrategyOverride(cfg.Versioning.Strategy, cfg.Versioning.Format, version); err != nil {
 			return nil, err
 		}
-		return guardSetVersion(cfg, versioning.NewStaticResolver(tag, version), runner, o, force), nil
+		return guardSetVersion(cfg, versioning.NewStaticResolver(tag, version), runner, o), nil
 	}
 
 	switch cfg.Versioning.Strategy {
@@ -318,10 +318,9 @@ func foreignTagsWarning(tags []string, prefix string, isVersion func(string) boo
 // a version already released fails before the changelog commit is pushed. The probe runs inside
 // Resolve, not here: a taken version is a runtime condition, and NewResolver's own errors are
 // reported as configuration errors. With noGuard (a run that never tags) the resolver is returned
-// unchanged and makes no git call; so it is under a per-env strategy with --force, which there means
-// "go on although the candidate tag exists" (E001).
-func guardSetVersion(cfg *config.Config, r versioning.Resolver, runner port.Runner, o resolverOptions, force bool) versioning.Resolver {
-	if o.noGuard || (force && isPerEnvStrategy(cfg.Versioning.Strategy)) {
+// unchanged and makes no git call. --force never skips it (ADR-0081): a taken tag cannot be forced.
+func guardSetVersion(cfg *config.Config, r versioning.Resolver, runner port.Runner, o resolverOptions) versioning.Resolver {
+	if o.noGuard {
 		return r
 	}
 	if o.guardNeedsBranches && (len(cfg.Versioning.Branches) == 0 || cfg.Versioning.Strategy != "semver") {

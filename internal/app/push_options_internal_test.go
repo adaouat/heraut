@@ -39,7 +39,7 @@ func TestBuildPipelineConfigs_PushOptionsFollowTheEnvironment(t *testing.T) {
 		t.Run(tc.env, func(t *testing.T) {
 			cfg := pushOptionsConfig()
 
-			pCfg, err := buildReleasePipelineConfig(exectest.NewMockRunner(), exectest.NewMockRunner(), cfg, tc.env, "", false, false, false)
+			pCfg, err := buildReleasePipelineConfig(exectest.NewMockRunner(), exectest.NewMockRunner(), cfg, tc.env, "", false, false)
 			require.NoError(t, err)
 			assert.Equal(t, tc.wantCommit, pCfg.CommitPushOptions, "release commit push")
 			assert.Equal(t, []string{"ci.variable=DEPLOY=true"}, pCfg.TagPushOptions, "release tag push")

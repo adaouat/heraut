@@ -44,7 +44,7 @@ func notesFor(t *testing.T, tag string, preRelease bool) string {
 	cfg := &config.Config{Version: "1", Versioning: config.Versioning{Strategy: "semver"},
 		Release: &config.Release{Notes: &config.ContentDriver{}}}
 	runner := execadapter.New(false, false)
-	pCfg, err := buildReleasePipelineConfig(runner, runner, cfg, "", "", false, false, preRelease)
+	pCfg, err := buildReleasePipelineConfig(runner, runner, cfg, "", "", false, preRelease)
 	require.NoError(t, err)
 	require.NotNil(t, pCfg.Notes)
 	out, err := pCfg.Notes.Generate(t.Context(), tag, nil)

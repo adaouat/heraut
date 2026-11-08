@@ -37,7 +37,6 @@ type NotesOpts struct {
 	Env          string
 	TemplateFile string
 	Format       string // "markdown" (default) or "text"
-	Force        bool
 }
 
 // NotesResult is the rendered text and any run notices to show next to it.
@@ -86,7 +85,7 @@ func GenerateNotes(ctx context.Context, runner port.Runner, cfg *config.Config, 
 	if opts.TemplateFile != "" {
 		driver.Template = opts.TemplateFile
 	}
-	enrichForge, forgeID, degraded, err := resolveEnrichForgeIfNeeded(runner, os.Getenv, cfg, opts.Force)
+	enrichForge, forgeID, degraded, err := resolveEnrichForgeIfNeeded(runner, os.Getenv, cfg)
 	if err != nil {
 		return NotesResult{}, err
 	}
@@ -95,7 +94,7 @@ func GenerateNotes(ctx context.Context, runner port.Runner, cfg *config.Config, 
 	if opts.From != "" {
 		extra = append(extra, native.WithFromTag(opts.From))
 	}
-	gen := buildGenerator(runner, driver, native.ModeNotes, "", false, opts.Force, enrichForge, degraded, notesOrderFor(cfg, opts.Env, opts.Tag), extra...)
+	gen := buildGenerator(runner, driver, native.ModeNotes, "", false, enrichForge, degraded, notesOrderFor(cfg, opts.Env, opts.Tag), extra...)
 	text, err := gen.Generate(ctx, opts.Tag, pipeline.LinkContext(forgeID))
 	if err != nil {
 		return NotesResult{}, fmt.Errorf("generating notes: %w", err)

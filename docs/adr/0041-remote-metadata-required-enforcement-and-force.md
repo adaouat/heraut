@@ -1,6 +1,6 @@
 # ADR-0041: `remote_metadata: required` enforcement and `--force` override
 
-- **Status**: Accepted
+- **Status**: Accepted, amended by [ADR-0081](0081-force-means-release-from-here.md) (`--force` no longer downgrades `required`)
 - **Date**: 2026-07-23
 - **Deciders**: bchatard
 

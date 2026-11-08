@@ -33,7 +33,7 @@ post-v1 (Phase 100). The v1.0.0 cut (Phase 101) comes last.
 | Phase | Theme | Tasks | Status |
 |---|---|---|---|
 | 94 | Release-logic bugs that block v1 | T492–T501 | Done |
-| 95 | Decisions to make before the format freezes (ADRs) | T502–T506 | In progress — all five decided 2026-11-08 |
+| 95 | Decisions to make before the format freezes (ADRs) | T502–T506 | In progress — decided 2026-11-08; T502–T503 done |
 | 96 | Behaviour fixes | T507–T522 | Not started |
 | 97 | Tests that give false confidence | T523–T529 | Not started |
 | 98 | User docs | T530–T536 | Not started |
@@ -310,7 +310,7 @@ output, `internal/`), the deprecation rule, and a security exception. The loader
 is built with the first deprecation, not now. Pointers: `coding.md` § Config, CONTRIBUTING.md §
 Releases, the ADR index.
 
-#### `[ ]` T503: **Decision** — split `--force`, and make re-tagging honest
+#### `[x]` T503: **Decision** — split `--force`, and make re-tagging honest
 
 On `release`, `--force` bypasses six unrelated things: E001, E002, `enrichment_policy: required`, the
 unlisted-branch refusal, the per-env branch guard and the per-env `--set-version` probe. And `--force`
@@ -320,6 +320,22 @@ Options: narrow `--force` to the promotion guards and add explicit flags for the
 non-bypassable (ADR-0007 matrix) or make it an explicit re-tag. Either way, fail before the commit.
 
 **Decision (user, 2026-11-08):** `--force` means "release from here": it lifts E002 and the branch guards (unlisted branch, per-env branch) and nothing else. E001 is never bypassable and is refused before any commit; the per-env `--set-version` probe goes with it. `--force` no longer downgrades `enrichment_policy: required`: `--offline` is the way to release without PR data. No new flag. (Splitting into named flags was rejected as too heavy.)
+
+**Done (2026-11-08).** [ADR-0081](../adr/0081-force-means-release-from-here.md) amends ADR-0007 (E001)
+and ADR-0041 (the `required` downgrade). E001 is checked without `force`, so a forced promotion whose
+tag exists stops with exit 4 before anything is written; its message no longer suggests `--force` and
+ends "Then run the release again." `guardSetVersion` lost its `force` skip and parameter. The
+enrichment downgrade is gone end to end: `ContentDriver.Force`, the `force` arguments of
+`buildGenerator`, `wrapWithRotation`, `buildReleasePipelineConfig` and `resolveEnrichForgeIfNeeded`,
+`PipelineOptions.Force`, `NotesOptions.Force`, and `heraut notes --force`. Tests that encoded the old
+rule now expect the new one: E001 with force, the two per-env "taken, --force" probe rows, the E001
+message suffix, and the e2e "E001 is bypassed by --force" row. Three tests of the removed downgrade
+were deleted (two native, one resolution); ADR-0081 records the removal. New: a resolver test for
+the per-env probe under `--force`, and Lane A `TestPerEnv_E001StopsBeforeWritingEvenWithForce` (the
+reviewer's reproduction: exit 4, nothing committed or pushed, no changelog written). Docs: `--force`
+help text on `release`, `changelog`, `version next` and `version current` (reference regenerated);
+Spec 02/03/04/05/06; the environments, maintenance-branches and PR-data guides; the exit-codes
+reference.
 
 #### `[ ]` T504: **Decision** — the `--json` envelope on failure
 

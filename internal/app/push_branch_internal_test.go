@@ -102,7 +102,7 @@ func TestBuildPipelineConfigs_CommitPushBranch(t *testing.T) {
 
 	t.Run("release", func(t *testing.T) {
 		read := detached(true)
-		pCfg, err := buildReleasePipelineConfig(exectest.NewMockRunner(), read, cfg, "", "", false, false, false)
+		pCfg, err := buildReleasePipelineConfig(exectest.NewMockRunner(), read, cfg, "", "", false, false)
 		require.NoError(t, err)
 		assert.Equal(t, "main", pCfg.CommitPushBranch)
 	})
@@ -129,7 +129,7 @@ func TestBuildPipelineConfigs_CommitPushBranch(t *testing.T) {
 		noChangelog.Changelog = nil
 		read := exectest.NewMockRunner()
 		read.QueueResponse("https://gitlab.example.com/acme/app.git\n", "", nil) // git remote get-url origin
-		_, err := buildReleasePipelineConfig(exectest.NewMockRunner(), read, &noChangelog, "", "", false, false, false)
+		_, err := buildReleasePipelineConfig(exectest.NewMockRunner(), read, &noChangelog, "", "", false, false)
 		require.NoError(t, err)
 		for _, c := range read.Calls {
 			assert.NotEqual(t, "symbolic-ref", c.Args[0])

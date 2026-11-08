@@ -85,3 +85,4 @@ trade-offs were accepted.
 | [0078](0078-confirm-major-bumps.md) | Confirm major bumps — `versioning.bump.confirm_major` | Accepted |
 | [0079](0079-push-options.md) | Push options for the release pushes — `git.push_options` | Accepted |
 | [0080](0080-compatibility-after-1-0.md) | Compatibility after 1.0 — SemVer for the CLI, with a deprecation window | Accepted |
+| [0081](0081-force-means-release-from-here.md) | `--force` means "release from here" (amends 0007) | Accepted |

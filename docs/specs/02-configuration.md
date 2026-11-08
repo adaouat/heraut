@@ -324,7 +324,7 @@ three hard-fail conditions are checked before any tag is created:
 
 | Code | Condition                                                      | Bypassed by `--force`?    |
 |------|----------------------------------------------------------------|---------------------------|
-| E001 | The target tag already exists                                  | Yes                       |
+| E001 | The target tag already exists                                  | No — stops before anything is written (ADR-0081) |
 | E002 | The destination is already ahead of the candidate (regression) | Yes                       |
 | E003 | The source environment has no tags yet                         | No — nothing to promote   |
 
@@ -860,8 +860,8 @@ the commit and compare links follow each target's own forge
 `enrichment_policy` governs **whether** that fetch happens at all: `required` (fetch, and **fail**
 when the metadata cannot be fetched — the forge is unavailable/unreachable, *or* no forge is
 configured or auto-detected to fetch from), `optional` (default — fetch when possible, else warn),
-`disabled` (never fetch). `--force` downgrades `required` to `optional` for a single run (degrade
-with a warning instead of failing). The global `--offline` flag forces `disabled` for a single run
+`disabled` (never fetch). Nothing downgrades `required` for a run: `--force` no longer does
+([ADR-0081](../adr/0081-force-means-release-from-here.md)). The `--offline` flag forces `disabled` for a single run
 (ADR-0023; renamed from `commits.remote_metadata` by ADR-0043 — semantics unchanged). An interrupted
 fetch (Ctrl-C, SIGTERM) is not an unavailable forge: it fails the run under every policy, so no
 changelog or notes are written without their PR links because of an interrupt.

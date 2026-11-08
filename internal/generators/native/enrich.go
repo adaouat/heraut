@@ -59,9 +59,7 @@ func (g *Generator) enrichForRelease(ctx context.Context, commits []rawCommit, r
 	if g.cfg.RemoteMetadata == "disabled" {
 		return enrichResult{}, nil
 	}
-	// --force downgrades required to optional: an unavailable or unconfigured remote degrades
-	// instead of erroring.
-	required := g.cfg.RemoteMetadata == "required" && !g.cfg.Force
+	required := g.cfg.RemoteMetadata == "required"
 	if required && g.forge == nil {
 		return enrichResult{}, fmt.Errorf("remote enrichment (required): no forge resolved to fetch PR/MR metadata from — configure a forges: entry, run in a supported CI environment, or use a recognised git origin")
 	}

@@ -378,13 +378,14 @@ func TestResolve_Promote_E001_NoForce(t *testing.T) {
 	}
 }
 
-func TestResolve_Promote_E001_Force_Bypasses(t *testing.T) {
+// E001 is never bypassed (ADR-0081): forcing it could only push a changelog commit and then fail at
+// git tag, since the tag exists.
+func TestResolve_Promote_E001_ForceDoesNotBypass(t *testing.T) {
 	for _, b := range promoteBackends {
 		t.Run(b.name, func(t *testing.T) {
 			mr := exectest.NewMockRunner()
 			mr.QueueResponse(b.srcTag+"\n", "", nil) // git tag -l dev/*
 			mr.QueueResponse(b.dstTag+"\n", "", nil) // git tag -l <candidateTag> → exists
-			mr.QueueResponse("", "", nil)            // git tag -l prod/* → some dest tags
 
 			cfg := &config.Config{
 				Versioning: config.Versioning{
@@ -395,9 +396,8 @@ func TestResolve_Promote_E001_Force_Bypasses(t *testing.T) {
 			}
 
 			r := perenv.New(mr, cfg, "prod", true, b.calc)
-			result, err := r.Resolve()
-			require.NoError(t, err)
-			assert.Equal(t, b.dstTag, result.Tag)
+			_, err := r.Resolve()
+			assert.ErrorIs(t, err, perenv.ErrTargetExists)
 		})
 	}
 }
@@ -536,7 +536,8 @@ func TestPromotionError_E001_RichMessage(t *testing.T) {
 	assert.Contains(t, msg, "prod/1.0.2")
 	assert.Contains(t, msg, "already exists")
 	assert.Contains(t, msg, "git tag -d prod/1.0.2")
-	assert.True(t, strings.HasSuffix(msg, "· To bypass this check, add --force (heraut release --env prod --force)"),
+	assert.NotContains(t, msg, "--force", "E001 cannot be forced, so the message never suggests it")
+	assert.True(t, strings.HasSuffix(msg, "Then run the release again."),
 		"the message ends with a sentence, not a bare command the error panel would put a period on: %q", msg)
 }
 

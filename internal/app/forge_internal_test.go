@@ -23,7 +23,7 @@ func TestResolveEnrichForgeIfNeeded(t *testing.T) {
 		mr := exectest.NewMockRunner()
 		mr.QueueResponse("https://gitlab.com/group/subgroup/project.git\n", "", nil)
 		cfg := &config.Config{}
-		f, id, degradedReason, err := resolveEnrichForgeIfNeeded(mr, fakeEnv(nil), cfg, false)
+		f, id, degradedReason, err := resolveEnrichForgeIfNeeded(mr, fakeEnv(nil), cfg)
 		require.NoError(t, err)
 		require.NotNil(t, id)
 		assert.Equal(t, "gitlab", id.Type)
@@ -36,7 +36,7 @@ func TestResolveEnrichForgeIfNeeded(t *testing.T) {
 		mr := exectest.NewMockRunner()
 		mr.QueueResponse("", "", assertNoOriginErr)
 		cfg := &config.Config{Forges: []config.Forge{{Name: "gh", Type: "github", Repository: "acme/widget"}}}
-		f, id, degradedReason, err := resolveEnrichForgeIfNeeded(mr, fakeEnv(nil), cfg, false)
+		f, id, degradedReason, err := resolveEnrichForgeIfNeeded(mr, fakeEnv(nil), cfg)
 		require.NoError(t, err)
 		require.NotNil(t, id)
 		assert.Equal(t, "github", id.Type)
@@ -51,7 +51,7 @@ func TestResolveEnrichForgeIfNeeded(t *testing.T) {
 		cfg := &config.Config{Forges: []config.Forge{{
 			Name: "az", Type: "azure_devops", Project: "myorg/myproject", Repository: "myrepo",
 		}}}
-		f, id, degradedReason, err := resolveEnrichForgeIfNeeded(mr, fakeEnv(nil), cfg, false)
+		f, id, degradedReason, err := resolveEnrichForgeIfNeeded(mr, fakeEnv(nil), cfg)
 		require.NoError(t, err)
 		require.NotNil(t, id)
 		assert.Equal(t, "azure_devops", id.Type)
@@ -69,7 +69,7 @@ func TestResolveEnrichForgeIfNeeded(t *testing.T) {
 		mr.QueueResponse("", "", assertNoOriginErr)
 		env := fakeEnv(map[string]string{"GITLAB_TOKEN": "glpat", "GITHUB_TOKEN": "ghp"})
 		cfg := &config.Config{}
-		f, id, degradedReason, err := resolveEnrichForgeIfNeeded(mr, env, cfg, false)
+		f, id, degradedReason, err := resolveEnrichForgeIfNeeded(mr, env, cfg)
 		require.NoError(t, err)
 		assert.Nil(t, f)
 		assert.Nil(t, id)
@@ -81,23 +81,11 @@ func TestResolveEnrichForgeIfNeeded(t *testing.T) {
 		mr.QueueResponse("", "", assertNoOriginErr)
 		env := fakeEnv(map[string]string{"GITLAB_TOKEN": "glpat", "GITHUB_TOKEN": "ghp"})
 		cfg := &config.Config{Commits: &config.Commits{EnrichmentPolicy: "required"}}
-		f, id, degradedReason, err := resolveEnrichForgeIfNeeded(mr, env, cfg, false)
+		f, id, degradedReason, err := resolveEnrichForgeIfNeeded(mr, env, cfg)
 		require.Error(t, err, "required is a guarantee — a resolution failure must stay fatal")
 		assert.Nil(t, f)
 		assert.Nil(t, id)
 		assert.Empty(t, degradedReason)
-	})
-
-	t.Run("--force downgrades a required-policy resolution failure to degrade, same as a fetch failure", func(t *testing.T) {
-		mr := exectest.NewMockRunner()
-		mr.QueueResponse("", "", assertNoOriginErr)
-		env := fakeEnv(map[string]string{"GITLAB_TOKEN": "glpat", "GITHUB_TOKEN": "ghp"})
-		cfg := &config.Config{Commits: &config.Commits{EnrichmentPolicy: "required"}}
-		f, id, degradedReason, err := resolveEnrichForgeIfNeeded(mr, env, cfg, true)
-		require.NoError(t, err)
-		assert.Nil(t, f)
-		assert.Nil(t, id)
-		assert.NotEmpty(t, degradedReason)
 	})
 
 	t.Run("GitLab CI end-to-end: resolution, job-token header selection, and forge construction compose (T160)", func(t *testing.T) {
@@ -116,7 +104,7 @@ func TestResolveEnrichForgeIfNeeded(t *testing.T) {
 		})
 
 		cfg := &config.Config{}
-		f, id, degradedReason, err := resolveEnrichForgeIfNeeded(mr, env, cfg, false)
+		f, id, degradedReason, err := resolveEnrichForgeIfNeeded(mr, env, cfg)
 		require.NoError(t, err)
 
 		require.NotNil(t, id)
@@ -137,7 +125,7 @@ func TestResolveEnrichForgeIfNeeded(t *testing.T) {
 		mr := exectest.NewMockRunner() // no response queued: a git call here would error
 		env := fakeEnv(map[string]string{"GITLAB_TOKEN": "glpat", "GITHUB_TOKEN": "ghp"})
 		cfg := &config.Config{Commits: &config.Commits{EnrichmentPolicy: "disabled"}}
-		f, id, degradedReason, err := resolveEnrichForgeIfNeeded(mr, env, cfg, false)
+		f, id, degradedReason, err := resolveEnrichForgeIfNeeded(mr, env, cfg)
 		require.NoError(t, err)
 		assert.Nil(t, f)
 		assert.Nil(t, id)
@@ -247,7 +235,7 @@ func TestBuildReleasePipelineConfig_UsesReadRunnerForForgeResolution(t *testing.
 		Changelog:  &config.ContentDriver{Output: "CHANGELOG.md"},
 	}
 
-	pCfg, err := buildReleasePipelineConfig(pipelineRunner, readRunner, cfg, "", "", false, false, false)
+	pCfg, err := buildReleasePipelineConfig(pipelineRunner, readRunner, cfg, "", "", false, false)
 	require.NoError(t, err)
 	require.NotNil(t, pCfg.ForgeIdentity)
 	assert.Equal(t, "gitlab", pCfg.ForgeIdentity.Type)

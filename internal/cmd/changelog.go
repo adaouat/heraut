@@ -108,7 +108,6 @@ func NewChangelogCmd(version string) *cobra.Command {
 				Commit:              commit,
 				Tag:                 tag,
 				NoPush:              noPush,
-				Force:               force,
 				SignTags:            app.ReadGPGSign(readRunner),
 				HerautVersion:       version,
 				RegenerateChangelog: regenerate,
@@ -148,7 +147,7 @@ func NewChangelogCmd(version string) *cobra.Command {
 		"rebuild the entire changelog and re-fetch PR attribution (instead of incrementally adding the new section)")
 	changelogCmd.Flags().Bool("dry-run", false, "print actions without executing them")
 	changelogCmd.Flags().String("env", "", "target environment (for per-env strategies)")
-	changelogCmd.Flags().Bool("force", false, "override safety checks blocking tag promotion or missing PR/MR metadata")
+	changelogCmd.Flags().Bool("force", false, "release from here: lift the branch checks and E002 (destination ahead); E001 and missing PR data are never forced")
 	changelogCmd.Flags().Bool("allow-major", false, "confirm a major bump for this run: lift versioning.bump.stay_at_v0 and versioning.bump.confirm_major")
 	changelogCmd.Flags().Bool("offline", false, "skip remote PR/MR metadata enrichment (forces enrichment_policy: disabled)")
 	changelogCmd.Flags().BoolVar(&noHooks, "no-hooks", false, "skip every configured hook (post_bump/pre_changelog/pre_tag/post_tag) for this run")

@@ -20,7 +20,7 @@ import (
 func TestNewNotesCmd(t *testing.T) {
 	c := cmd.NewNotesCmd()
 	assert.Equal(t, "notes <tag>", c.Use)
-	for _, name := range []string{"from", "format", "template", "output", "overwrite", "env", "force", "offline"} {
+	for _, name := range []string{"from", "format", "template", "output", "overwrite", "env", "offline"} {
 		assert.NotNil(t, c.Flags().Lookup(name), "flag %q not registered", name)
 	}
 	assert.Equal(t, "markdown", c.Flags().Lookup("format").DefValue)

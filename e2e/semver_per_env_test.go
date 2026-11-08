@@ -1,6 +1,7 @@
 package e2e_test
 
 import (
+	"github.com/stretchr/testify/assert"
 	"testing"
 
 	"github.com/adaouat/heraut/e2e/harness"
@@ -105,9 +106,10 @@ environments:
 			history:  []step{commit("feat: a"), tag("dev/1.0.2"), tag("prod/1.0.2")},
 			args:     envArgs("next", "prod"),
 			wantExit: exitPromotion, wantText: []string{"e001", "prod/1.0.2", "already exists"}},
-		{name: "E001 is bypassed by --force", config: perEnvCfg,
-			history: []step{commit("feat: a"), tag("dev/1.0.2"), tag("prod/1.0.2")},
-			args:    envArgs("next", "prod", "--force"), wantOut: "prod/1.0.2"},
+		{name: "E001 is not bypassed by --force", config: perEnvCfg,
+			history:  []step{commit("feat: a"), tag("dev/1.0.2"), tag("prod/1.0.2")},
+			args:     envArgs("next", "prod", "--force"),
+			wantExit: exitPromotion, wantText: []string{"e001", "prod/1.0.2", "already exists"}},
 		{name: "E002: the destination is already ahead", config: perEnvCfg,
 			history:  []step{commit("feat: a"), tag("dev/1.0.2"), tag("prod/1.1.0")},
 			args:     envArgs("next", "prod"),
@@ -297,4 +299,25 @@ environments:
 			args:     envArgs("next", "dev"),
 			wantExit: exitConfig, wantText: []string{"must contain {version}"}},
 	})
+}
+
+// Forcing a promotion whose tag already exists used to push a changelog commit and then fail at
+// git tag. E001 now stops it before anything is written.
+func TestPerEnv_E001StopsBeforeWritingEvenWithForce(t *testing.T) {
+	bin := harness.Binary(t)
+	repo := flowRepo(t, perEnvCfg+"changelog:\n  output: CHANGELOG.md\n")
+	repo.Commit("feat: a")
+	repo.Git("tag", "-a", "dev/1.0.2", "-m", "dev/1.0.2")
+	repo.Git("tag", "-a", "prod/1.0.2", "-m", "prod/1.0.2")
+	repo.Commit("fix: after")
+	head := repo.Git("rev-parse", "HEAD")
+	remoteHead := repo.GitRemote("rev-parse", "main")
+
+	res := repo.Run(bin, nil, "changelog", "--tag", "--env", "prod", "--force", "--offline")
+
+	assert.Equal(t, exitPromotion, res.ExitCode, "stdout:\n%s\nstderr:\n%s", res.Stdout, res.Stderr)
+	assert.Contains(t, res.Stdout+res.Stderr, "E001")
+	assert.Equal(t, head, repo.Git("rev-parse", "HEAD"), "nothing committed")
+	assert.Equal(t, remoteHead, repo.GitRemote("rev-parse", "main"), "nothing pushed")
+	assert.NoFileExists(t, repo.Dir+"/CHANGELOG.md")
 }

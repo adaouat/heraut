@@ -27,7 +27,7 @@ heraut version current --env prod
 |---|---|---|
 | `--bare` |  | print the bare semantic version (strip prefix/env/build), not the raw tag |
 | `--env <string>` |  | target environment (for per-env strategies) |
-| `--force` |  | override safety checks blocking tag promotion or missing PR/MR metadata |
+| `--force` |  | lift the per-environment branch check |
 | `--include-pre-release` |  | print the highest SemVer tag including pre-releases (SemVer strategies only; default: latest release) |
 | `--json` |  | print the result as a JSON envelope (tag and version) |
 

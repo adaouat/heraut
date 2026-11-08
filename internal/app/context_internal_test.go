@@ -47,8 +47,8 @@ func TestRotatingGenerator_PassesItsContextToTheForge(t *testing.T) {
 	forge := &recordingForge{}
 	driver := &config.ContentDriver{Output: filepath.Join(t.TempDir(), "CHANGELOG_{YYYY}.md")}
 	cfg := &config.Config{Versioning: config.Versioning{Strategy: "calver", Format: "YYYY.MM.PATCH"}}
-	gen := buildGenerator(mr, driver, native.ModeChangelog, "", false, false, forge, "", nil)
-	wrapped := wrapWithRotation(gen, mr, cfg, driver, "", false, false, forge, "", nil)
+	gen := buildGenerator(mr, driver, native.ModeChangelog, "", false, forge, "", nil)
+	wrapped := wrapWithRotation(gen, mr, cfg, driver, "", false, forge, "", nil)
 
 	ctx := context.WithValue(t.Context(), runKey{}, "this run")
 	_, err := wrapped.Generate(ctx, "2026.05.0", nil)

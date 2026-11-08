@@ -34,10 +34,8 @@ versioning:
 - An exact name without `range` is a release branch (today's behaviour).
 - On a branch matched by no entry, `heraut release` and `heraut changelog --tag` refuse to
   publish unless you pass `--force`. Previews (`version next`, `--dry-run`) keep working.
-  `--force` is one flag with several meanings: it also bypasses the per-env promotion guards and
-  downgrades `commits.enrichment_policy: required`. A CI job that passes `--force` for one of
-  those reasons loses the unlisted-branch protection too, so run such jobs only on branches you
-  intend to release from.
+  `--force` means "release from here": it lifts the branch checks and, between environments, the
+  "destination is ahead" guard (`E002`), and nothing else.
 
 ## What happens on a maintenance branch
 

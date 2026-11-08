@@ -29,7 +29,7 @@ heraut version next --json
 |---|---|---|
 | `--allow-major` |  | confirm a major bump for this run: lift versioning.bump.stay_at_v0, versioning.bump.confirm_major and the pre-release series major-escalation block |
 | `--env <string>` |  | target environment (for per-env strategies) |
-| `--force` |  | override safety checks blocking tag promotion or missing PR/MR metadata |
+| `--force` |  | lift the branch checks and E002 (destination ahead); E001 is never forced |
 | `--json` |  | print the result as a JSON envelope |
 | `--pre-release <string>` |  | mint a pre-release \<core\>-\<label\>.\<N\> (plain semver only; never writes CHANGELOG.md) |
 | `--set-build-id <string>` |  | build ID for the tag: the {build} token in tag_format, or +\<id\> build metadata under plain semver (requires --set-version) |

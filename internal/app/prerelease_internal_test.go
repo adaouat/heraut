@@ -83,9 +83,9 @@ func TestPreReleaseRun_StepTotalExcludesChangelog(t *testing.T) {
 	runner.QueueResponse("main\n", "", nil) // changelog --tag: git symbolic-ref
 	runner.QueueResponse("", "", noOrigin)  // pre-release changelog: git remote get-url origin
 
-	final, err := buildReleasePipelineConfig(runner, runner, preReleaseChangelogCfg(), "", "", false, false, false)
+	final, err := buildReleasePipelineConfig(runner, runner, preReleaseChangelogCfg(), "", "", false, false)
 	require.NoError(t, err)
-	pre, err := buildReleasePipelineConfig(runner, runner, preReleaseChangelogCfg(), "", "", false, false, true)
+	pre, err := buildReleasePipelineConfig(runner, runner, preReleaseChangelogCfg(), "", "", false, true)
 	require.NoError(t, err)
 
 	assert.False(t, final.DisableChangelog)

@@ -62,12 +62,11 @@ func (e *PromotionError) renderE001() string {
 			"    · If you need to re-release, remove the existing tag first:\n"+
 			"        git tag -d %s\n"+
 			"        git push origin :refs/tags/%s\n"+
-			"    · To bypass this check, add --force (heraut release --env %s --force)",
+			"      Then run the release again.",
 		e.srcTag, e.candidateTag,
 		e.srcEnv, e.srcTag,
 		e.candidateTag,
 		e.candidateTag, e.candidateTag,
-		e.destEnv,
 	)
 }
 
@@ -167,7 +166,9 @@ func resolvePromote(runner port.Runner, cfg *config.Config, env string, force bo
 	if err != nil {
 		return versioning.Result{}, fmt.Errorf("checking candidate tag existence: %w", err)
 	}
-	if strings.TrimSpace(stdout) != "" && !force {
+	// E001 is never bypassed (ADR-0081): with the tag there, a forced run could only fail at git tag
+	// after pushing its changelog commit.
+	if strings.TrimSpace(stdout) != "" {
 		return versioning.Result{}, &PromotionError{
 			sentinel:     ErrTargetExists,
 			srcEnv:       srcEnv,

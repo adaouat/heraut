@@ -62,7 +62,7 @@ func TestTagOrderFor_RealRepo_SemverPrecedenceBoundsChangelogAndNotes(t *testing
 	// Review Focus 1: the incremental changelog's new section must list commit C only.
 	changelogDir := t.TempDir()
 	driver := &config.ContentDriver{Output: filepath.Join(changelogDir, "CHANGELOG.md")}
-	changelogGen := buildGenerator(runner, driver, native.ModeChangelog, "", false, false, nil, "", order)
+	changelogGen := buildGenerator(runner, driver, native.ModeChangelog, "", false, nil, "", order)
 
 	body, err := changelogGen.Generate(t.Context(), "v1.5.0", nil)
 	require.NoError(t, err)
@@ -88,7 +88,7 @@ func TestTagOrderFor_RealRepo_SemverPrecedenceBoundsChangelogAndNotes(t *testing
 	git("tag", "v1.5.0-rc.1")
 	git("tag", "v1.5.0")
 
-	notesGen := buildGenerator(runner, &config.ContentDriver{}, native.ModeReleaseNotes, "", false, false, nil, "", order)
+	notesGen := buildGenerator(runner, &config.ContentDriver{}, native.ModeReleaseNotes, "", false, nil, "", order)
 	notes, err := notesGen.Generate(t.Context(), "v1.5.0", nil)
 	require.NoError(t, err)
 
@@ -147,7 +147,7 @@ func TestTagOrderFor_RealRepo_FallbackNeverBoundsByNonAncestorTag(t *testing.T) 
 
 	changelogDir := t.TempDir()
 	driver := &config.ContentDriver{Output: filepath.Join(changelogDir, "CHANGELOG.md"), TagGlob: "envb/*"}
-	gen := buildGenerator(runner, driver, native.ModeChangelog, "", false, false, nil, "", order)
+	gen := buildGenerator(runner, driver, native.ModeChangelog, "", false, nil, "", order)
 
 	body, err := gen.Generate(t.Context(), "envb/1.1.0", nil)
 	require.NoError(t, err)

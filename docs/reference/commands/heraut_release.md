@@ -38,7 +38,7 @@ heraut release --pre-release rc
 | `--allow-major` |  | confirm a major bump for this run: lift versioning.bump.stay_at_v0, versioning.bump.confirm_major and the pre-release series major-escalation block |
 | `--dry-run` |  | print actions without executing them |
 | `--env <string>` |  | target environment (for per-env strategies) |
-| `--force` |  | override safety checks blocking tag promotion or missing PR/MR metadata |
+| `--force` |  | release from here: lift the branch checks and E002 (destination ahead); E001 and missing PR data are never forced |
 | `--json` |  | with --dry-run, print the plan as a JSON envelope |
 | `--no-hooks` |  | skip every configured hook (post_bump/pre_changelog/pre_tag/post_tag/pre_release/post_release) for this run |
 | `--offline` |  | skip remote PR/MR metadata enrichment (forces enrichment_policy: disabled) |

@@ -117,7 +117,7 @@ func TestMaintenanceBranches_RealRepo(t *testing.T) {
 
 		git("tag", "-a", "-m", tag, tag)
 		driver := config.ContentDriver{}
-		gen := buildGenerator(execadapter.New(false, false), &driver, native.ModeReleaseNotes, "", false, false, nil, "", tagOrderFor(cfg, ""))
+		gen := buildGenerator(execadapter.New(false, false), &driver, native.ModeReleaseNotes, "", false, nil, "", tagOrderFor(cfg, ""))
 		notes, err := gen.Generate(t.Context(), tag, historyLC)
 		require.NoError(t, err)
 		assert.Contains(t, notes, "1 commit(s) contributed", "the range v1.3.1..v1.3.2 holds exactly one commit")

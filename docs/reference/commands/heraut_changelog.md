@@ -35,7 +35,7 @@ heraut changelog --tag --no-push
 | `--commit` |  | commit the generated changelog |
 | `--dry-run` |  | print actions without executing them |
 | `--env <string>` |  | target environment (for per-env strategies) |
-| `--force` |  | override safety checks blocking tag promotion or missing PR/MR metadata |
+| `--force` |  | release from here: lift the branch checks and E002 (destination ahead); E001 and missing PR data are never forced |
 | `--no-hooks` |  | skip every configured hook (post_bump/pre_changelog/pre_tag/post_tag) for this run |
 | `--no-push` |  | commit and tag locally without pushing (only meaningful with --commit/--tag) |
 | `--offline` |  | skip remote PR/MR metadata enrichment (forces enrichment_policy: disabled) |

@@ -61,7 +61,7 @@ message names both environments, the candidate tag and the tags in the way.
 
 | Guard | What happened | What to do | `--force` |
 |---|---|---|---|
-| `E001` | The tag the promotion would create already exists. | Nothing, if that version was already promoted. To release it again, delete the tag first. | Bypasses it |
+| `E001` | The tag the promotion would create already exists. | Nothing, if that version was already promoted. To release it again, delete the tag first. | No effect: the run stops before writing anything |
 | `E002` | The destination environment is already at a higher version than the candidate. | Usually a fix went straight to the destination: tag the source environment for it first, or wait for a newer source version. | Bypasses it |
 | `E003` | The source environment has no release yet, so there is nothing to promote. | Release the source environment first (`heraut release --env <source>`). | No effect |
 

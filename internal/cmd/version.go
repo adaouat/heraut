@@ -63,7 +63,7 @@ func newVersionNextCmd() *cobra.Command {
 	}
 	cmd.Flags().String("env", "", "target environment (for per-env strategies)")
 	cmd.Flags().Bool("json", false, "print the result as a JSON envelope")
-	cmd.Flags().Bool("force", false, "override safety checks blocking tag promotion or missing PR/MR metadata")
+	cmd.Flags().Bool("force", false, "lift the branch checks and E002 (destination ahead); E001 is never forced")
 	cmd.Flags().Bool("allow-major", false, "confirm a major bump for this run: lift versioning.bump.stay_at_v0, versioning.bump.confirm_major and the pre-release series major-escalation block")
 	cmd.Flags().String("pre-release", "", "mint a pre-release <core>-<label>.<N> (plain semver only; never writes CHANGELOG.md)")
 	addVersionOverrideFlags(cmd, &versionOverride, &buildID)
@@ -190,7 +190,7 @@ func newVersionCurrentCmd() *cobra.Command {
 	cmd.Flags().BoolVar(&includePreRelease, "include-pre-release", false, "print the highest SemVer tag including pre-releases (SemVer strategies only; default: latest release)")
 	cmd.Flags().String("env", "", "target environment (for per-env strategies)")
 	cmd.Flags().Bool("json", false, "print the result as a JSON envelope (tag and version)")
-	cmd.Flags().Bool("force", false, "override safety checks blocking tag promotion or missing PR/MR metadata")
+	cmd.Flags().Bool("force", false, "lift the per-environment branch check")
 	return cmd
 }
 

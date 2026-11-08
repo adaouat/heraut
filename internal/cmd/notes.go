@@ -39,7 +39,6 @@ func NewNotesCmd() *cobra.Command {
 			cfgPath := flags.String("config")
 			verbose := flags.Bool("verbose")
 			env := flags.String("env")
-			force := flags.Bool("force")
 			if err := flags.Err(); err != nil {
 				return err
 			}
@@ -66,7 +65,7 @@ func NewNotesCmd() *cobra.Command {
 			}
 
 			res, err := app.GenerateNotes(cmd.Context(), runner, cfg, app.NotesOpts{
-				Tag: args[0], From: from, Env: env, TemplateFile: template, Format: format, Force: force,
+				Tag: args[0], From: from, Env: env, TemplateFile: template, Format: format,
 			})
 			switch {
 			case errors.Is(err, app.ErrNotesFormat):
@@ -102,7 +101,6 @@ func NewNotesCmd() *cobra.Command {
 	notesCmd.Flags().StringVar(&output, "output", "", "write the notes to this file instead of stdout")
 	notesCmd.Flags().BoolVar(&overwrite, "overwrite", false, "replace the --output file if it already exists")
 	notesCmd.Flags().String("env", "", "target environment (for per-env strategies)")
-	notesCmd.Flags().Bool("force", false, "downgrade commits.enrichment_policy: required to optional for this run")
 	notesCmd.Flags().Bool("offline", false, "skip remote PR/MR metadata enrichment (forces enrichment_policy: disabled)")
 
 	return notesCmd

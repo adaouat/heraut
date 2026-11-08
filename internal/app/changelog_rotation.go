@@ -29,7 +29,6 @@ type rotatingGenerator struct {
 	driver              *config.ContentDriver // raw driver; Output/TagPattern may hold {TOKEN} placeholders
 	herautVersion       string
 	regenerateChangelog bool
-	force               bool
 	enrichForge         port.Forge
 	degradedReason      string
 	tokens              []string // {TOKEN} names found in driver.Output, e.g. ["YYYY"]
@@ -50,7 +49,7 @@ func wrapWithRotation(
 	cfg *config.Config,
 	driver *config.ContentDriver,
 	herautVersion string,
-	regenerateChangelog, force bool,
+	regenerateChangelog bool,
 	enrichForge port.Forge,
 	degradedReason string,
 	tagOrder func([]string) []string,
@@ -66,7 +65,6 @@ func wrapWithRotation(
 		driver:              driver,
 		herautVersion:       herautVersion,
 		regenerateChangelog: regenerateChangelog,
-		force:               force,
 		enrichForge:         enrichForge,
 		degradedReason:      degradedReason,
 		tokens:              tokens,
@@ -88,7 +86,7 @@ func (r *rotatingGenerator) Generate(ctx context.Context, tag string, lc *port.L
 		return "", fmt.Errorf("resolving rotated changelog output for %q: %w", tag, err)
 	}
 	r.lastOutputPath = concrete.Output
-	gen := buildGenerator(r.runner, concrete, native.ModeChangelog, r.herautVersion, r.regenerateChangelog, r.force, r.enrichForge, r.degradedReason, r.tagOrder)
+	gen := buildGenerator(r.runner, concrete, native.ModeChangelog, r.herautVersion, r.regenerateChangelog, r.enrichForge, r.degradedReason, r.tagOrder)
 	return gen.Generate(ctx, tag, lc)
 }
 

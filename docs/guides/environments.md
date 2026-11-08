@@ -88,7 +88,7 @@ The exit code is 4.
 
 | Code | What happened | `--force` |
 |---|---|---|
-| `E001` | The tag already exists: this version was already promoted to this environment. | Bypasses it |
+| `E001` | The tag already exists: this version was already promoted to this environment. | No effect: delete the tag to release it again |
 | `E002` | The destination is already at a higher version, e.g. `prod/0.2.0` exists and you promote `0.1.0`. Often a fix that went straight to `prod`. | Bypasses it |
 | `E003` | The source environment has no release yet: there is nothing to promote. | No effect |
 
@@ -100,7 +100,8 @@ error[E003]: no source tags found
   Cannot promote to prod: no staging/* tags exist in this repository.
 ```
 
-`--force` also lets you release an environment from another branch than its own.
+`--force` also lets you release an environment from another branch than its own. It never lifts
+`E001`: the run stops before it writes anything.
 
 ## CalVer per environment
 

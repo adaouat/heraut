@@ -48,7 +48,7 @@ func TestBuildReleasePipelineConfig_PropagatesHooks(t *testing.T) {
 		},
 	}
 
-	pCfg, err := buildReleasePipelineConfig(runner, readRunner, cfg, "", "", false, false, false)
+	pCfg, err := buildReleasePipelineConfig(runner, readRunner, cfg, "", "", false, false)
 	require.NoError(t, err)
 	assert.Equal(t, []pipeline.HookStep{{Run: "echo post-bump"}}, pCfg.PostBumpHooks)
 	assert.Equal(t, []pipeline.HookStep{{Run: "make lint"}}, pCfg.PreChangelogHooks)
@@ -73,7 +73,7 @@ func TestBuildReleasePipelineConfig_PropagatesEnv(t *testing.T) {
 		Environments: map[string]config.Environment{"staging": {Bump: "patch"}},
 	}
 
-	pCfg, err := buildReleasePipelineConfig(runner, readRunner, cfg, "staging", "", false, false, false)
+	pCfg, err := buildReleasePipelineConfig(runner, readRunner, cfg, "staging", "", false, false)
 	require.NoError(t, err)
 	assert.Equal(t, "staging", pCfg.Env)
 }
@@ -86,7 +86,7 @@ func TestBuildReleasePipelineConfig_NoHooksConfiguredIsNilSafe(t *testing.T) {
 
 	cfg := &config.Config{Version: "1", Versioning: config.Versioning{Strategy: "semver"}}
 
-	pCfg, err := buildReleasePipelineConfig(runner, readRunner, cfg, "", "", false, false, false)
+	pCfg, err := buildReleasePipelineConfig(runner, readRunner, cfg, "", "", false, false)
 	require.NoError(t, err)
 	assert.Empty(t, pCfg.PostBumpHooks)
 	assert.Empty(t, pCfg.PreChangelogHooks)
@@ -151,7 +151,7 @@ func TestBuildReleasePipelineConfig_EmptyEnvIsFlatDefault(t *testing.T) {
 
 	cfg := &config.Config{Version: "1", Versioning: config.Versioning{Strategy: "semver"}}
 
-	pCfg, err := buildReleasePipelineConfig(runner, readRunner, cfg, "", "", false, false, false)
+	pCfg, err := buildReleasePipelineConfig(runner, readRunner, cfg, "", "", false, false)
 	require.NoError(t, err)
 	assert.Equal(t, "", pCfg.Env)
 }

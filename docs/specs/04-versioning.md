@@ -381,7 +381,7 @@ The collision guard still applies: resolution runs `git tag -l <tag> <tag>+*` (o
 lists anything. Since [ADR-0073](../adr/0073-set-version-always-probes-for-an-existing-tag.md) this
 holds for every strategy and with or without a `branches` block (CalVer strategies probe the exact
 tag), for every run that tags; `version next` and a `changelog` run without `--tag` probe only as
-before. Under a per-env strategy `--force` skips the probe, as it skips E001.
+before. `--force` never skips the probe ([ADR-0081](../adr/0081-force-means-release-from-here.md)).
 
 **Worked examples.** History: `main` has `v1.3.0 → v1.3.1 → v1.4.0 → v2.0.0`; `release/1.3` cut
 from `v1.3.1`; `release/1.x` cut from `v1.4.0`. Config:
@@ -602,7 +602,7 @@ Three hard-fail conditions are checked before any tag is created
 
 | Code | Condition                                                                | Bypassed by `--force`?   |
 |------|--------------------------------------------------------------------------|--------------------------|
-| E001 | The candidate target tag already exists                                  | Yes                      |
+| E001 | The candidate target tag already exists                                  | No — the run stops before anything is written ([ADR-0081](../adr/0081-force-means-release-from-here.md)) |
 | E002 | The destination environment is already at a version strictly greater than the candidate | Yes           |
 | E003 | The source environment has no tags yet (nothing to promote)              | No — `--force` has no effect |
 
