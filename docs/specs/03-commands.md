@@ -805,7 +805,9 @@ heraut 1.2.3 available — run: mise upgrade heraut
 The check is delegated to forge's shared `updatecheck` package and runs at most once per 24
 hours (cached under `$XDG_CACHE_HOME/heraut/`). heraut does **not** self-replace its binary —
 upgrades go through the package manager (see [ADR-0014](../adr/0014-self-update-architecture.md),
-superseded). Disabled in `dev` builds and when `HERAUT_CHECK_UPDATE=false` is set.
+superseded). Disabled in `dev` builds and when `HERAUT_CHECK_UPDATE=false` is set, and skipped
+after a `--dry-run`, `--offline` or `--json` run and after `heraut check config`: those promise no
+network (Spec 01) or output a script reads.
 
 ## `heraut whatsnew`
 

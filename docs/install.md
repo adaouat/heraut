@@ -115,4 +115,5 @@ upgrade command for your install method. It never replaces itself. Upgrade the w
 | Docker | pull the new tag |
 | `go install` | run `go install …@latest` again |
 
-To turn the check off, set `HERAUT_CHECK_UPDATE=false`.
+It doesn't check after `--dry-run`, `--offline` or `--json` runs, or after `heraut check config`. To
+turn the check off everywhere, set `HERAUT_CHECK_UPDATE=false`.

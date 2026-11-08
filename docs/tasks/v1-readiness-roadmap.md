@@ -594,9 +594,14 @@ rendering block. Test: a table of three blocks × three faults (no type or regex
 doesn't compile); the six per-driver rows were red before, and the top-level rows give that block its
 first tests. The comment in `excludes.go` ("the validator rejects it upstream") is now true.
 
-#### `[ ]` T519: the update hint stays quiet where heraut promises no network
+#### `[x]` T519: the update hint stays quiet where heraut promises no network
 
 **Decision (user, 2026-11-08):** no update check on `--dry-run`, `--offline`, `--json`, or `check config`.
+
+**Done (2026-11-08).** `withUpdateHint` wraps forge's `Hinter.PostRun`. It skips the hint when the command
+defines `dry-run`, `offline` or `json` and the flag is set, and for `heraut check config`. It takes the
+hint as an argument, so the test counts calls instead of touching the network: six commands, four
+quiet (`check runtime` still gets it). Docs: Spec 03 § Background update hint, install.md § Upgrade.
 
 `internal/cmd/root.go:50` runs forge's update hint after every command, including `--dry-run`,
 `--offline`, `--json` and `check config`, and it calls the GitHub API when its cache is stale. Spec

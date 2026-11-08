@@ -46,15 +46,33 @@ func NewRootCmd(version string) *cobra.Command {
 	root.AddCommand(whatsNew)
 
 	// After each command, print a one-line update hint if a newer release exists
-	// (cached 24h, errors swallowed). Skipped for dev builds and via opt-out.
-	root.PersistentPostRunE = updatecheck.Hinter{
+	// (cached 24h, errors swallowed). Skipped for dev builds, via opt-out, and where heraut promises
+	// no network or machine output (withUpdateHint).
+	root.PersistentPostRunE = withUpdateHint(updatecheck.Hinter{
 		Repo:      "adaouat/heraut",
 		Bin:       "heraut",
 		Module:    "github.com/adaouat/heraut/cmd/heraut",
 		Current:   version,
 		CacheFile: updatecheck.CacheFile("heraut"),
 		OptOutEnv: "HERAUT_CHECK_UPDATE",
-	}.PostRun()
+	}.PostRun())
 
 	return root
+}
+
+// withUpdateHint runs hint after a command, except on --dry-run, --offline and --json runs and on
+// heraut check config: the hint may call GitHub, and those runs promise no network (a dry run, offline,
+// a config-only check) or output a script reads.
+func withUpdateHint(hint func(*cobra.Command, []string) error) func(*cobra.Command, []string) error {
+	return func(cmd *cobra.Command, args []string) error {
+		for _, name := range []string{"dry-run", "offline", "json"} {
+			if f := cmd.Flags().Lookup(name); f != nil && f.Value.String() == "true" {
+				return nil
+			}
+		}
+		if cmd.CommandPath() == cmd.Root().Name()+" check config" {
+			return nil
+		}
+		return hint(cmd, args)
+	}
 }
