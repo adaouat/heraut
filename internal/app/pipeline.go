@@ -387,6 +387,17 @@ func toPipelineHookSteps(steps []config.HookStep) []pipeline.HookStep {
 	return out
 }
 
+// targetPlatformConfig is the platform config of one release target: its forge's identity, the
+// release's allow_missing_assets, and its own assets or, when it declares none, release.assets.
+func targetPlatformConfig(cfg *config.Config, t config.Target, f config.Forge, id port.ForgeIdentity, releaseAssets []string) config.Platform {
+	platCfg := platformConfigFromTarget(t, f, id)
+	platCfg.AllowMissingAssets = cfg.Release != nil && cfg.Release.AllowMissingAssets
+	if len(platCfg.Assets) == 0 && len(releaseAssets) > 0 {
+		platCfg.Assets = releaseAssets
+	}
+	return platCfg
+}
+
 // buildTargetPlatforms builds one port.Platform per effective release.targets entry (ADR-0043),
 // resolving each target's forge reference (or the sole/enrichment forge when a target — or the
 // whole list — leaves it implicit) against resolved. When targets is empty but resolved found at
@@ -410,11 +421,7 @@ func buildTargetPlatforms(runner port.Runner, cfg *config.Config, targets []conf
 		if err != nil {
 			return nil, fmt.Errorf("release.targets[%d]: %w", i, err)
 		}
-		platCfg := platformConfigFromTarget(t, f, id)
-		platCfg.AllowMissingAssets = cfg.Release != nil && cfg.Release.AllowMissingAssets
-		if len(platCfg.Assets) == 0 && len(releaseAssets) > 0 {
-			platCfg.Assets = releaseAssets
-		}
+		platCfg := targetPlatformConfig(cfg, t, f, id, releaseAssets)
 		p, err := buildPlatform(runner, &platCfg)
 		if err != nil {
 			return nil, fmt.Errorf("release.targets[%d] (%s): %w", i, platCfg.Type, err)

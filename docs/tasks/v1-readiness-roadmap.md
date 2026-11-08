@@ -665,7 +665,7 @@ quotes the real output.
 
 ### Phase 97 — Tests that give false confidence
 
-#### `[ ]` T523: `internal/app` wiring tests assert what they wire
+#### `[x]` T523: `internal/app` wiring tests assert what they wire
 
 These tests assert only `NotNil`, and mutations of what they wire survived every layer:
 - `pipeline_test.go:108` `TestBuildPipeline_LightweightTagType`: `AnnotatedTags = true` survived
@@ -676,6 +676,15 @@ These tests assert only `NotNil`, and mutations of what they wire survived every
 - `:138` `TestBuildChangelogPipeline_PerEnvDisable` and `:98` `AnnotatedTagsDefault` (caught by e2e only).
 
 Assert the built config, as `targets_internal_test.go` does for `disable_release`.
+
+**Done (2026-11-08).** New internal tests assert the built config: `tag_type` → `AnnotatedTags` (default,
+annotated, lightweight), per-env `disable_changelog` and `disable_release` in the release pipeline, both
+in the changelog pipeline, and the target assets rule. For the last, the per-target step of
+`buildTargetPlatforms` moved into `targetPlatformConfig`, since a built platform doesn't expose its
+assets. The four mutants that survived the review (`AnnotatedTags = true`, release `DisableChangelog
+= false`, `release.assets` replacing a target's own, changelog `DisableChangelog = false`) are now
+killed; an equivalent condition survived as the control. The `NotNil` tests stay; they still prove
+the build succeeds.
 
 #### `[ ]` T524: cover the guards no test executes
 
