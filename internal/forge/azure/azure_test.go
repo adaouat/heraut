@@ -274,3 +274,12 @@ func TestEnrich_ApproversIncludeApprovedWithSuggestions(t *testing.T) {
 	}
 	assert.Equal(t, []string{"approved", "suggestions"}, got)
 }
+
+// Azure project and repository names often hold spaces: each path segment is escaped, so the links
+// stay valid Markdown.
+func TestForge_URLsEscapeProjectAndRepositoryNames(t *testing.T) {
+	f := azure.New(port.ForgeIdentity{Type: "azure_devops", Host: "https://dev.azure.com", Project: "acme/My Project", Repository: "My Repo"}, nil)
+
+	assert.Equal(t, "https://dev.azure.com/acme/My%20Project/_git/My%20Repo/pullrequest/12", f.ChangeURL(12))
+	assert.Equal(t, "https://dev.azure.com/acme/My%20Project/_git/My%20Repo/commit/abc", f.CommitURL("abc"))
+}

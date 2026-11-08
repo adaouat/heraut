@@ -569,11 +569,15 @@ Spec 02's `api_url` row, the schema description (so the generated reference).
 override" and says enrichment and publishing "always query the same instance". Pick one and make the
 code, spec and reference agree.
 
-#### `[ ]` T517: Azure PR links escape project and repository names
+#### `[x]` T517: Azure PR links escape project and repository names
 
 `internal/forge/azure/azure.go:62`, `prquery.go:96` build the PR URL unescaped; a project or repo name
 with spaces (common on Azure) gives `…/My Project/_git/My Repo/pullrequest/12`, a broken Markdown link.
 Fix: `PathEscape` each segment, as the generator's `azureRepoRoot` does.
+
+**Done (2026-11-08).** `webBase` escapes each segment of the project path and the repository name, so
+the PR link (`prquery.go` builds on `webBase`), `ChangeURL` and `CommitURL` are all escaped. Test: names
+with spaces give `%20` in both URLs (red before). Existing URL tests (plain names) are unchanged.
 
 #### `[ ]` T518: per-driver `rendering.excludes` are validated
 

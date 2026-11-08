@@ -7,6 +7,7 @@ import (
 	"context"
 	"fmt"
 	"net/http"
+	"net/url"
 	"strings"
 	"time"
 
@@ -58,9 +59,14 @@ func withTokenSafeRedirects(c *http.Client) *http.Client {
 func (f *Forge) Type() string                 { return "azure_devops" }
 func (f *Forge) Identity() port.ForgeIdentity { return f.id }
 
-// webBase is the repository's web root, e.g. https://dev.azure.com/org/project/_git/repo.
+// webBase is the repository's web root, e.g. https://dev.azure.com/org/project/_git/repo. Each path
+// segment is escaped: Azure project and repository names often hold spaces.
 func (f *Forge) webBase() string {
-	return strings.TrimRight(f.id.Host, "/") + "/" + f.id.Project + "/_git/" + f.id.Repository
+	segments := strings.Split(f.id.Project, "/")
+	for i, seg := range segments {
+		segments[i] = url.PathEscape(seg)
+	}
+	return strings.TrimRight(f.id.Host, "/") + "/" + strings.Join(segments, "/") + "/_git/" + url.PathEscape(f.id.Repository)
 }
 
 func (f *Forge) CommitURL(sha string) string { return f.webBase() + "/commit/" + sha }
