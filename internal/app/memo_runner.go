@@ -4,6 +4,8 @@ import (
 	"strings"
 	"sync"
 
+	execadapter "github.com/adaouat/forge/exec"
+
 	"github.com/adaouat/heraut/internal/port"
 )
 
@@ -16,7 +18,7 @@ import (
 // only Run.
 type memoRunner struct {
 	port.Runner
-	mu    sync.Mutex
+	mu    *sync.Mutex // shared with a quiet copy (quietRunner), as is cache
 	cache map[string]memoResult
 }
 
@@ -27,7 +29,23 @@ type memoResult struct {
 
 // NewMemoizingRunner wraps r so repeated identical Run calls are served from cache.
 func NewMemoizingRunner(r port.Runner) port.Runner {
-	return &memoRunner{Runner: r, cache: make(map[string]memoResult)}
+	return &memoRunner{Runner: r, mu: &sync.Mutex{}, cache: make(map[string]memoResult)}
+}
+
+// quietRunner returns a runner that never echoes a command's output, for a call whose output may hold
+// a secret (the origin URL can carry a token, and --verbose echoes every output). A memoizing runner
+// keeps its cache, so the call is still made once. Other runners (test doubles) are returned as they
+// are.
+func quietRunner(r port.Runner) port.Runner {
+	switch v := r.(type) {
+	case *execadapter.CmdRunner:
+		quiet := *v
+		quiet.Verbose = false
+		return &quiet
+	case *memoRunner:
+		return &memoRunner{Runner: quietRunner(v.Runner), mu: v.mu, cache: v.cache}
+	}
+	return r
 }
 
 func (m *memoRunner) Run(name string, args ...string) (string, string, error) {

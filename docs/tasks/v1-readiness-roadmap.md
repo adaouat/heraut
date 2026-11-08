@@ -514,12 +514,22 @@ Lane A `TestHooks_ATemplateTypoStopsBeforeTagging` (`check config` and `changelo
 nothing tagged or pushed). Spec 02 § hooks says it. A stale comment claiming `pipeline` never imports
 `config` was corrected.
 
-#### `[ ]` T514: `--verbose` doesn't print credentials from the origin URL
+#### `[x]` T514: `--verbose` doesn't print credentials from the origin URL
 
 `internal/forge/origin.go:11` runs `git remote get-url origin` through the echoing runner (forge
 `exec/runner.go:86-88`), so `--verbose` prints `https://oauth2:glpat-…@gitlab.example.com/…` in full.
 Fix: run that call without echo, or redact userinfo (`url.URL.Redacted`) in `GitOriginURL`; check every
 other place the origin URL is printed.
+
+**Done (2026-11-08).** `resolveForge` reads the origin through `quietRunner`, a copy of forge's
+`CmdRunner` with `Verbose` off; for the memoizing runner, a copy that shares its cache and mutex (now a
+pointer), so the call is still made once. Test doubles pass through unchanged. Trade-off: forge logs a
+command line under the same switch, so `git remote get-url origin` itself no longer appears in the
+verbose log. Test: a real repo whose origin carries a token, resolved through a verbose runner and a
+memoizing one, with the token absent from the log (red before). The reviewer's reproduction prints it
+0 times. The other place the URL could appear is `git push`'s `To <url>` line on stderr, which
+`--verbose` echoes; whether git strips the token there was not checked offline, so it is added to
+T552.
 
 #### `[ ]` T515: GitHub "Latest" goes to the highest release only
 
@@ -859,6 +869,8 @@ Reproduce each; fix it as its own commit or record why it holds:
 - `calverOrder` sorts with `CompareVersions`, not `CompareByFormat` (formats not leading with `YYYY`).
 - `NewResolver` errors are all mapped to Config (`internal/cmd/release.go:158`), git failures included.
 - `flagReader.Err` maps an undeclared-flag programming error to Runtime (3) instead of Internal (70).
+- `git push` prints `To <url>` on stderr, which `--verbose` echoes: check whether git keeps a token from an
+  origin URL there (found during T514).
 
 #### `[ ]` T553: interactive packages get real coverage
 

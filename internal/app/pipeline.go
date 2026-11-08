@@ -717,7 +717,7 @@ func resolveEnrichForgeIfNeeded(runner port.Runner, getenv func(string) string, 
 // resolved identities (publishing) must call this once and derive both from its result — a
 // second call would add a duplicate git subprocess invocation.
 func resolveForge(runner port.Runner, getenv func(string) string, cfg *config.Config) (forge.Resolved, error) {
-	resolved, err := forge.Resolve(cfg, getenv, forge.GitOriginURL(runner))
+	resolved, err := forge.Resolve(cfg, getenv, forge.GitOriginURL(quietRunner(runner)))
 	if err != nil {
 		return forge.Resolved{}, fmt.Errorf("resolving forge: %w", err)
 	}
