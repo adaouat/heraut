@@ -721,13 +721,23 @@ unset) runs from a new `TestMain` in `app`, `cmd` and `commitwizard`, the packag
 `notInCI` and eight `t.Setenv("GITLAB_CI", "")` lines now call `testutil.ClearCIEnv`. After: 0
 failures in each of the three environments. No production change.
 
-#### `[ ]` T526: the schema and the Go loader can't drift unnoticed
+#### `[x]` T526: the schema and the Go loader can't drift unnoticed
 
 - `testdata/config/valid/` has no `azure_devops` forge fixture, which `testing.md` requires.
 - `schema_test.go:64-97` runs invalid fixtures against `schema.json` only; `loader_test.go:296-313` loads
   4 of 21 valid fixtures. Go accepts `confirm_major_not_boolean.yml` (`confirm_major: "yes"`, and `"off"`
   reads as false): fix the loader to refuse non-boolean strings.
 - Run every fixture through `Load` + `Validate` too, with an explicit list of schema-only cases.
+
+**Done (2026-11-08).** New `testdata/config/valid/forge-azure-devops.yml`. `TestFixtures_TheGoLoaderAgreesWithTheSchema`
+runs every valid fixture through `Load` + `Validate` (no errors) and every invalid one (refused by one or
+the other). A probe found only `confirm_major_not_boolean.yml` accepted, so no schema-only list is
+needed. `TestFixtures_EveryPlatformHasAValidFixture` keeps the testing.md rule. The loader fix:
+yaml.v3 decodes `yes`, `on`, `off`, and even a quoted `"yes"`, into a bool, so `checkBools` now walks
+the YAML tree with the `Config` types before decoding and refuses a non-boolean scalar for a `bool`
+field: `line 5: versioning.bump.confirm_major must be true or false, not "yes"`. A type with its own
+`UnmarshalYAML` is skipped. Tests cover five spellings, a per-env key, and `true` still loading. Spec 02
+§ Validation says it.
 
 #### `[ ]` T527: Lane A releases under every strategy
 

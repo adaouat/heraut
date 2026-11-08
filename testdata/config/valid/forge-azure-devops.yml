@@ -1,0 +1,16 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/adaouat/heraut/main/schema.json
+
+version: "1"
+
+versioning:
+  strategy: semver
+
+changelog:
+  output: CHANGELOG.md
+
+forges:
+  - name: azure
+    platform: azure_devops
+    project: acme/app
+    repository: app
+    token_env: AZURE_DEVOPS_TOKEN

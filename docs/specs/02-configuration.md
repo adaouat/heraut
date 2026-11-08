@@ -75,7 +75,11 @@ git: ...               # optional — push options for the changelog commit push
   `release.targets[]` is a typed field on `Config` and listed in `schema.json`
   (`additionalProperties: false`); an unrecognized driver-specific key is a parse error,
   not a pass-through.
-- **Unknown keys fail validation** — the schema is strict; typos surface immediately.
+- **Unknown keys fail validation** — the schema is strict; typos surface immediately. The error names
+  the key's place and the key probably meant (`unknown key "tag_prefx" in versioning — did you mean
+  "tag_prefix"?`).
+- **Booleans are `true` or `false`** — YAML 1.1's `yes`, `no`, `on` and `off` (quoted or not) are
+  refused for a boolean key, as the schema refuses them.
   See [ADR-0006](../adr/0006-config-naming-generator-platform.md) for the platform naming
   convention (`platform: …`).
 

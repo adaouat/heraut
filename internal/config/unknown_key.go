@@ -18,6 +18,9 @@ import (
 // error so each unknown key can be reported by its place in the file and the key probably meant
 // (describeUnknownKey), instead of a Go type name.
 func decodeConfig(raw []byte, cfg *Config) error {
+	if err := checkBools(raw); err != nil {
+		return err
+	}
 	dec := yaml.NewDecoder(bytes.NewReader(raw))
 	dec.KnownFields(true)
 	err := dec.Decode(cfg)
