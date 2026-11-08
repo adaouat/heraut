@@ -1367,6 +1367,10 @@ rendering) substituting these fields:
 | `{{ .Platform }}`    | The publish target's name (`github`, `gitlab`, …) | `pre_release`/`post_release` only — empty elsewhere |
 | `{{ .Env }}`         | The active `--env` value, empty if none  | All six points ([ADR-0055](../adr/0055-env-hook-template-variable.md)) |
 
+Validation parses and executes every `run` and `stage` template against these fields, so a template
+that doesn't parse or names another field (`{{ .Tga }}`) is a config error at load, reported by
+`heraut check config`, never a failure at its hook point after the tag is pushed.
+
 Because these are real Go templates, a single command can branch per platform with
 `{{ if eq .Platform "github" }}...{{ end }}` or per environment with
 `{{ if eq .Env "prod" }}...{{ end }}`, rather than needing separate per-platform or

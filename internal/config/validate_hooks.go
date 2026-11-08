@@ -35,6 +35,13 @@ func validateHooks(cfg *Config) []ValidationError {
 					Path: base + ".run", Message: "required",
 					Hint: `every hook entry needs a run command, e.g. { run: "echo hi" }`,
 				})
+			} else if err := checkHookTemplate(step.Run); err != nil {
+				errs = append(errs, hookTemplateError(base+".run", err))
+			}
+			for j, s := range step.Stage {
+				if err := checkHookTemplate(s); err != nil {
+					errs = append(errs, hookTemplateError(fmt.Sprintf("%s.stage[%d]", base, j), err))
+				}
 			}
 			if p.allowStage && noChangelogCommit && len(step.Stage) > 0 {
 				errs = append(errs, ValidationError{
@@ -79,4 +86,12 @@ func changelogNeverRuns(cfg *Config) bool {
 		}
 	}
 	return true
+}
+
+func hookTemplateError(path string, err error) ValidationError {
+	return ValidationError{
+		Path:    path,
+		Message: fmt.Sprintf("invalid template: %v", err),
+		Hint:    "hook templates can use {{ .Version }}, {{ .Tag }}, {{ .PreviousTag }}, {{ .Platform }} and {{ .Env }}",
+	}
 }

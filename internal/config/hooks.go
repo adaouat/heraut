@@ -3,6 +3,8 @@ package config
 import (
 	"bytes"
 	"fmt"
+	"io"
+	"text/template"
 
 	"gopkg.in/yaml.v3"
 )
@@ -112,4 +114,24 @@ func (c *Config) PostReleaseHooks() []HookStep {
 		return nil
 	}
 	return c.Hooks.PostRelease
+}
+
+// HookData is what a hook's run and stage templates are rendered against ({{ .Tag }} …). The
+// pipeline renders with it, and validation executes every template against it first, so a typo fails
+// heraut check config instead of the release, after the tag is pushed.
+type HookData struct {
+	Version     string
+	Tag         string
+	PreviousTag string
+	Platform    string
+	Env         string
+}
+
+// checkHookTemplate parses tmpl and executes it against sample HookData, the way the pipeline will.
+func checkHookTemplate(tmpl string) error {
+	t, err := template.New("hook").Parse(tmpl)
+	if err != nil {
+		return err
+	}
+	return t.Execute(io.Discard, HookData{Version: "1.2.3", Tag: "v1.2.3", PreviousTag: "v1.2.2", Platform: "github", Env: "prod"})
 }

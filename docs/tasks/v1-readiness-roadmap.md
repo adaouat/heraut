@@ -498,12 +498,21 @@ generator of the last `Generate` and forward both methods.
 wrapper didn't implement the interface). No doc change: the step output already documents the
 degraded line.
 
-#### `[ ]` T513: hook templates are checked by `check config`
+#### `[x]` T513: hook templates are checked by `check config`
 
 `validateHooks` (`internal/config/validate_hooks.go:12-50`) never parses the templates: with
 `post_tag: [{run: "echo {{ .Tga }}"}]`, `check config` says ok, then `changelog --tag` creates and pushes
 the tag and fails at the hook (`can't evaluate field Tga`). Fix: parse and execute each `run`/`stage`
 template against the hook data struct during validation.
+
+**Done (2026-11-08).** The hook data struct moved to `config.HookData`, and `pipeline`'s `hookVars` is
+an alias for it, so validation and rendering use one definition. `validateHooks` parses and executes
+every `run` and `stage` template against sample data; an error is reported at its path
+(`hooks.post_tag[0].run`, `…stage[0]`) with the list of fields. Tests: a validation table (unknown field
+in `run`, an unparsable `run`, unknown field in `stage`) plus every documented field staying valid, and
+Lane A `TestHooks_ATemplateTypoStopsBeforeTagging` (`check config` and `changelog --tag` exit 2,
+nothing tagged or pushed). Spec 02 § hooks says it. A stale comment claiming `pipeline` never imports
+`config` was corrected.
 
 #### `[ ]` T514: `--verbose` doesn't print credentials from the origin URL
 

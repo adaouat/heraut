@@ -95,3 +95,33 @@ release:
 	require.NoError(t, err)
 	assert.Empty(t, config.Validate(cfg))
 }
+
+// A hook template that would fail when its hook runs fails validation instead, before anything is
+// tagged or published: an unknown field, or a template that doesn't parse.
+func TestConfig_HookTemplatesAreChecked(t *testing.T) {
+	tests := []struct {
+		name, hooks, path, contains string
+	}{
+		{"unknown field in run", "  post_tag:\n    - run: \"echo {{ .Tga }}\"\n", "hooks.post_tag[0].run", "Tga"},
+		{"unparsable run", "  pre_release:\n    - run: \"echo {{ .Tag \"\n", "hooks.pre_release[0].run", "template"},
+		{"unknown field in stage", "  post_bump:\n    - run: \"make\"\n      stage: [\"dist/{{ .Release }}\"]\n", "hooks.post_bump[0].stage[0]", "Release"},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			cfg, err := config.LoadFromReader(strings.NewReader(ignoredKeysBase + "changelog:\n  output: CHANGELOG.md\nhooks:\n" + tc.hooks))
+			require.NoError(t, err)
+			var found *config.ValidationError
+			for _, ve := range config.Validate(cfg) {
+				if ve.Path == tc.path {
+					found = &ve
+				}
+			}
+			require.NotNil(t, found, "expected a validation error at %s, got %v", tc.path, config.Validate(cfg))
+			assert.Contains(t, found.Message, tc.contains)
+		})
+	}
+
+	valid, err := config.LoadFromReader(strings.NewReader(ignoredKeysBase + "changelog:\n  output: CHANGELOG.md\nhooks:\n  post_bump:\n    - run: \"echo {{ .Version }} {{ .Tag }} {{ .PreviousTag }} {{ .Env }}\"\n      stage: [\"dist/{{ .Version }}\"]\n  post_release:\n    - run: \"notify {{ .Platform }}\"\n"))
+	require.NoError(t, err)
+	assert.Empty(t, config.Validate(valid), "every documented field renders")
+}

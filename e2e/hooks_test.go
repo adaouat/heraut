@@ -347,3 +347,20 @@ func TestHooks_SkippingAndPreviewing(t *testing.T) {
 		assert.Contains(t, normalize(res.Stdout+" "+res.Stderr), `hook point "pre_release" does not apply to this command`)
 	})
 }
+
+// A typo in a hook template is a config error before anything runs, not a failure after the tag is
+// pushed.
+func TestHooks_ATemplateTypoStopsBeforeTagging(t *testing.T) {
+	bin := harness.Binary(t)
+	repo := flowRepo(t, flowCfg+"hooks:\n  post_tag:\n    - run: \"echo notify {{ .Tga }}\"\n")
+	repo.Commit("feat: one")
+
+	check := repo.Run(bin, nil, "check", "config")
+	assert.Equal(t, exitConfig, check.ExitCode, "stdout:\n%s\nstderr:\n%s", check.Stdout, check.Stderr)
+	assert.Contains(t, check.Stdout+check.Stderr, "hooks.post_tag[0].run")
+
+	res := repo.Run(bin, nil, "changelog", "--tag", "--offline")
+	assert.Equal(t, exitConfig, res.ExitCode, "stdout:\n%s\nstderr:\n%s", res.Stdout, res.Stderr)
+	assert.Empty(t, repo.Git("tag", "-l"), "nothing tagged")
+	assert.Empty(t, repo.GitRemote("tag", "-l"), "nothing pushed")
+}

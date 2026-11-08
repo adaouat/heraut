@@ -6,22 +6,17 @@ import (
 	"strings"
 	"text/template"
 
+	"github.com/adaouat/heraut/internal/config"
 	"github.com/adaouat/heraut/internal/port"
 )
 
 // hookVars are the Go text/template fields available in hook command strings (ADR-0053).
 // Platform is set only for pre_release/post_release; empty at every other point. Env (ADR-0055)
 // is the active --env value at every point, empty when the run isn't targeting one.
-type hookVars struct {
-	Version     string
-	Tag         string
-	PreviousTag string
-	Platform    string
-	Env         string
-}
+type hookVars = config.HookData
 
 // HookStep is one command in a hook point's list, translated from config.HookStep by
-// internal/app (ADR-0053, ADR-0061) — this package never imports internal/config.
+// internal/app (ADR-0053, ADR-0061).
 type HookStep struct {
 	Run   string
 	Stage []string
