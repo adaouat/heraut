@@ -131,8 +131,8 @@ keeps the changelog to the production tags.
 ```
 
 The two UAT builds of `7.4.1` added nothing to it: the `7.4.1` section spans
-every commit since the previous production tag. In CI, each hash links to its
-commit.
+every commit since the previous production tag. In CI, and on your machine unless
+you pass `--offline`, each hash links to its commit.
 
 ---
 

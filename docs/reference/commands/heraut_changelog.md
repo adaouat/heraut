@@ -38,7 +38,7 @@ heraut changelog --tag --no-push
 | `--force` |  | release from here: lift the branch checks and E002 (destination ahead); E001 and missing PR data are never forced |
 | `--no-hooks` |  | skip every configured hook (post_bump/pre_changelog/pre_tag/post_tag) for this run |
 | `--no-push` |  | commit and tag locally without pushing (only meaningful with --commit/--tag) |
-| `--offline` |  | skip remote PR/MR metadata enrichment (forces enrichment_policy: disabled) |
+| `--offline` |  | skip remote PR/MR metadata enrichment (forces enrichment_policy: disabled); outside CI, commit links go too |
 | `--regenerate` |  | rebuild the entire changelog and re-fetch PR attribution (instead of incrementally adding the new section) |
 | `--set-build-id <string>` |  | build ID for the tag: the {build} token in tag_format, or +\<id\> build metadata under plain semver (requires --set-version) |
 | `--set-version <string>` |  | override the resolved version — with or without tag prefix (e.g. 1.2.3 or v1.2.3); must match the strategy (SemVer, or the CalVer format) |

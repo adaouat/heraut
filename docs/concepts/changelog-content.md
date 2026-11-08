@@ -96,8 +96,10 @@ The release notes of a version use the same sections and lines, with a few diffe
 | The pull request (`#12`, `!12`) and `@handle` | the forge's API, when a token can read it; see [Pull request data in the changelog](../guides/pr-data-and-tokens.md) |
 | Tickets (`APP-12`) | your `commits.tickets` patterns; see [Link tickets](../guides/tickets.md) |
 
-Without a forge to link to (a plain `heraut changelog` on your machine, outside CI), the hashes are
-plain text. When you publish to several forges, each one's notes link commits on that forge, while
+Commit and compare links come from the forge heraut knows. In CI, that is the job's own (GitHub Actions
+or GitLab CI), even with `--offline`. On your machine, it is the forge of your `forges:` entry or your
+git origin, which `--offline` (or `enrichment_policy: disabled`) skips, so the hashes are then plain
+text. With no forge at all, they are plain text too. When you publish to several forges, each one's notes link commits on that forge, while
 the pull request links all come from the one forge named by `commits.enrichment_forge`.
 
 To change any of this, the lines, headings, footer or whole layout, see

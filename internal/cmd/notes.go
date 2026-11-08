@@ -101,7 +101,7 @@ func NewNotesCmd() *cobra.Command {
 	notesCmd.Flags().StringVar(&output, "output", "", "write the notes to this file instead of stdout")
 	notesCmd.Flags().BoolVar(&overwrite, "overwrite", false, "replace the --output file if it already exists")
 	notesCmd.Flags().String("env", "", "target environment (for per-env strategies)")
-	notesCmd.Flags().Bool("offline", false, "skip remote PR/MR metadata enrichment (forces enrichment_policy: disabled)")
+	notesCmd.Flags().Bool("offline", false, "skip remote PR/MR metadata enrichment (forces enrichment_policy: disabled); outside CI, commit links go too")
 
 	return notesCmd
 }

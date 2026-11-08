@@ -66,7 +66,7 @@ func NewReleaseCmd(version string) *cobra.Command {
 	releaseCmd.Flags().Bool("force", false, "release from here: lift the branch checks and E002 (destination ahead); E001 and missing PR data are never forced")
 	releaseCmd.Flags().Bool("allow-major", false, "confirm a major bump for this run: lift versioning.bump.stay_at_v0, versioning.bump.confirm_major and the pre-release series major-escalation block")
 	releaseCmd.Flags().String("pre-release", "", "mint a pre-release <core>-<label>.<N> (plain semver only; never writes CHANGELOG.md)")
-	releaseCmd.Flags().Bool("offline", false, "skip remote PR/MR metadata enrichment (forces enrichment_policy: disabled)")
+	releaseCmd.Flags().Bool("offline", false, "skip remote PR/MR metadata enrichment (forces enrichment_policy: disabled); outside CI, commit links go too")
 	releaseCmd.Flags().BoolVar(&rf.noHooks, "no-hooks", false, "skip every configured hook (post_bump/pre_changelog/pre_tag/post_tag/pre_release/post_release) for this run")
 	addSkipHookFlag(releaseCmd, &rf.skipHooks, app.ReleaseHookPoints())
 

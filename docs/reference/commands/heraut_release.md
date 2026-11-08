@@ -41,7 +41,7 @@ heraut release --pre-release rc
 | `--force` |  | release from here: lift the branch checks and E002 (destination ahead); E001 and missing PR data are never forced |
 | `--json` |  | with --dry-run, print the plan as a JSON envelope |
 | `--no-hooks` |  | skip every configured hook (post_bump/pre_changelog/pre_tag/post_tag/pre_release/post_release) for this run |
-| `--offline` |  | skip remote PR/MR metadata enrichment (forces enrichment_policy: disabled) |
+| `--offline` |  | skip remote PR/MR metadata enrichment (forces enrichment_policy: disabled); outside CI, commit links go too |
 | `--pre-release <string>` |  | mint a pre-release \<core\>-\<label\>.\<N\> (plain semver only; never writes CHANGELOG.md) |
 | `--regenerate-changelog` |  | rebuild the entire changelog and re-fetch PR attribution (needed once when migrating an existing changelog onto heraut) |
 | `--set-build-id <string>` |  | build ID for the tag: the {build} token in tag_format, or +\<id\> build metadata under plain semver (requires --set-version) |

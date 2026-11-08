@@ -29,7 +29,7 @@ heraut notes v1.2.0 --from v1.0.0
 | `--env <string>` |  | target environment (for per-env strategies) |
 | `--format <string>` | `markdown` | output format: markdown or text |
 | `--from <string>` |  | lower bound of the range (default: the tag's previous release) |
-| `--offline` |  | skip remote PR/MR metadata enrichment (forces enrichment_policy: disabled) |
+| `--offline` |  | skip remote PR/MR metadata enrichment (forces enrichment_policy: disabled); outside CI, commit links go too |
 | `--output <string>` |  | write the notes to this file instead of stdout |
 | `--overwrite` |  | replace the --output file if it already exists |
 | `--template <string>` |  | template file for this run (replaces notes.template) |

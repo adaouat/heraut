@@ -843,7 +843,7 @@ shares; the reference renders that block as "Same keys as `changelog`".
 - The two CI guides quote heraut's preflight message for a missing identity, taken from a run with no
   git identity.
 
-#### `[ ]` T533: when commit links and PR data appear
+#### `[x]` T533: when commit links and PR data appear
 
 - `concepts/changelog-content.md:99-100`, `guides/mobile-ci-tagging.md:134-135`, `getting-started.md:149`
   and the `--offline` help say hashes are plain outside CI. Real rule: linked whenever a forge is known
@@ -851,6 +851,14 @@ shares; the reference renders that block as "Same keys as `changelog`".
   even with `--offline`. Say it once, the same way everywhere.
 - `guides/pr-data-and-tokens.md:104` says "no warning, and no links" with no token; a GitHub origin with
   no token prints `! remote enrichment unavailable … 403` and still links.
+
+**Done (2026-11-08).** The rule, checked with the binary (the CI and `--offline` cases need no network):
+in CI the job's variables give the links even with `--offline`; on a machine the forge from `forges:` or
+the origin gives them, `--offline` removes them, and no forge means plain hashes. The concepts page states
+it once; the mobile guide says "in CI, and on your machine unless you pass `--offline`"; getting-started
+already says it since T532; the `--offline` help on `release`, `changelog` and `notes` adds "outside CI,
+commit links go too" (reference regenerated). The PR-data row was right on reading (all three sources
+absent); its wording now says so plainly.
 
 #### `[ ]` T534: fact fixes
 
