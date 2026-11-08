@@ -510,6 +510,11 @@ func (g *Generator) foreignFileError(err error) error {
 // writeChangelog writes body to cfg.Output when set and returns it.
 func (g *Generator) writeChangelog(body string) (string, error) {
 	if g.cfg.Output != "" {
+		// A re-run with nothing new would only change the footer's time: keep the file as it is,
+		// so there is nothing to commit.
+		if existing, err := os.ReadFile(g.cfg.Output); err == nil && withoutFooter(string(existing)) == withoutFooter(body) {
+			return string(existing), nil
+		}
 		if err := writeFileAtomic(g.cfg.Output, []byte(body), 0o644); err != nil {
 			return "", fmt.Errorf("writing changelog %q: %w", g.cfg.Output, err)
 		}

@@ -104,14 +104,19 @@ func TestChangelogFlow_CommitWithoutTag(t *testing.T) {
 	assert.Equal(t, repo.Git("rev-parse", "HEAD"), repo.GitRemote("rev-parse", "main"), "the commit was pushed")
 }
 
+// The two runs straddle a minute, so only the footer's time would change: the file is left as it is
+// and nothing is committed. The pinned clock makes it deterministic.
 func TestChangelogFlow_AnIdenticalRerunSkipsTheCommit(t *testing.T) {
-	bin := harness.Binary(t)
+	bin := harness.Binary(t, "heraut_testclock")
 	repo := flowRepo(t, flowCfg)
 	repo.Commit("feat: one")
-	runOK(t, repo, bin, "changelog", "--commit", "--offline", "--set-version", "0.1.0")
+	args := []string{"changelog", "--commit", "--offline", "--set-version", "0.1.0"}
+	first := repo.Run(bin, []string{"HERAUT_TEST_NOW=2026-11-08T10:25:59Z"}, args...)
+	require.Equal(t, exitOK, first.ExitCode, "stdout:\n%s\nstderr:\n%s", first.Stdout, first.Stderr)
 	head := repo.Git("rev-parse", "HEAD")
 
-	res := runOK(t, repo, bin, "changelog", "--commit", "--offline", "--set-version", "0.1.0")
+	res := repo.Run(bin, []string{"HERAUT_TEST_NOW=2026-11-08T10:26:00Z"}, args...)
+	require.Equal(t, exitOK, res.ExitCode, "stdout:\n%s\nstderr:\n%s", res.Stdout, res.Stderr)
 
 	assert.Equal(t, head, repo.Git("rev-parse", "HEAD"), "nothing new is committed")
 	assert.Contains(t, normalize(res.Stdout+" "+res.Stderr), "nothing to commit")
@@ -213,18 +218,21 @@ func TestChangelogFlow_AFailingPushIsARuntimeError(t *testing.T) {
 // locally and fails at the push; once the remote is back the identical changelog stages nothing, yet
 // the retry must still push the release commit so the remote tag points at a commit on main.
 func TestChangelogFlow_ARetryAfterAFailedPushPushesTheReleaseCommit(t *testing.T) {
-	bin := harness.Binary(t)
+	bin := harness.Binary(t, "heraut_testclock")
 	repo := flowRepo(t, flowCfg)
 	repo.Commit("feat: one")
 	behind := repo.GitRemote("rev-parse", "main")
 	repo.RemoveRemote()
-	failed := repo.Run(bin, nil, "changelog", "--commit", "--tag", "--offline")
+	failed := repo.Run(bin, []string{"HERAUT_TEST_NOW=2026-11-08T10:25:59Z"}, "changelog", "--commit", "--tag", "--offline")
 	require.Equal(t, exitRuntime, failed.ExitCode, "stdout:\n%s\nstderr:\n%s", failed.Stdout, failed.Stderr)
 	repo.RestoreRemote(behind)
 
-	runOK(t, repo, bin, "changelog", "--commit", "--tag", "--offline")
+	// The retry runs a minute later: only the footer's time would change, so it commits nothing new.
+	retry := repo.Run(bin, []string{"HERAUT_TEST_NOW=2026-11-08T10:26:00Z"}, "changelog", "--commit", "--tag", "--offline")
+	require.Equal(t, exitOK, retry.ExitCode, "stdout:\n%s\nstderr:\n%s", retry.Stdout, retry.Stderr)
 
 	assert.Equal(t, "chore(release): 0.1.0", repo.Git("log", "-1", "--format=%s"))
+	assert.Equal(t, "feat: one", repo.Git("log", "-1", "--format=%s", "HEAD~1"), "one release commit, not two")
 	assert.Equal(t, repo.Git("rev-parse", "HEAD"), repo.GitRemote("rev-parse", "main"),
 		"the release commit reached the remote branch")
 	assert.Equal(t, repo.Git("rev-parse", "HEAD"), repo.GitRemote("rev-list", "-n", "1", "v0.1.0"),

@@ -71,6 +71,14 @@ func parseChangelog(content string) (preamble string, sections []anchoredSection
 // counterpart to a section anchor, structural (ADR-0051) so it applies uniformly whether footer is
 // the built-in default or a user override. A no-op when footer is empty (unset or nulled): no
 // anchor, no separator, no trailing content at all.
+// withoutFooter is content up to its footer anchor, or all of it when it has none.
+func withoutFooter(content string) string {
+	if i := strings.Index(content, footerAnchor); i >= 0 {
+		return content[:i]
+	}
+	return content
+}
+
 func appendFooter(body, footer string) string {
 	if footer == "" {
 		return body

@@ -253,7 +253,9 @@ content, and a full regeneration renders it once.
 `title`/`subtitle`/`footer` (the preamble and postamble, ADR-0048/ADR-0049) are **not** part of
 what "incremental" preserves: they render fresh from current config on every run, incremental or
 full-regeneration alike, discarding whatever was previously on disk — including a hand-edited
-title (ADR-0050). Only the sections themselves are ever preserved verbatim.
+title (ADR-0050). Only the sections themselves are ever preserved verbatim. When the new content
+differs from the file only in the footer (its generation time), the file is not written at all, so
+an identical re-run has nothing to commit.
 
 **Full regeneration (`--regenerate` / `--regenerate-changelog`).** Ignores the existing file,
 rebuilds every section from all tags, and **re-enriches all of them** — this re-enrichment (an
