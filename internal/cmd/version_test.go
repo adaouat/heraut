@@ -425,7 +425,7 @@ versioning:
 `)
 	out, err := executeRoot("version", "sprint", "bump", "--config", cfgPath)
 	require.NoError(t, err)
-	assert.Contains(t, out, "6")
+	assert.Contains(t, out, "sprint bumped to 6")
 
 	// Verify the file was updated
 	data, _ := os.ReadFile(cfgPath)
@@ -442,7 +442,7 @@ versioning:
 `)
 	out, err := executeRoot("version", "sprint", "bump", "--config", cfgPath)
 	require.NoError(t, err)
-	assert.Contains(t, out, "1")
+	assert.Contains(t, out, "sprint bumped to 1")
 
 	data, _ := os.ReadFile(cfgPath)
 	assert.Contains(t, string(data), "sprint: 1")
@@ -461,8 +461,7 @@ versioning:
 	out, err := executeRoot("version", "sprint", "bump", "--config", cfgPath, "--dry-run")
 	require.NoError(t, err)
 	assert.Contains(t, out, "[dry-run]")
-	assert.Contains(t, out, "5")
-	assert.Contains(t, out, "6")
+	assert.Contains(t, out, "would bump sprint 5 -> 6")
 
 	after, err := os.ReadFile(cfgPath)
 	require.NoError(t, err)

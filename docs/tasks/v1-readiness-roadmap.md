@@ -35,7 +35,7 @@ post-v1 (Phase 100). The v1.0.0 cut (Phase 101) comes last.
 | 94 | Release-logic bugs that block v1 | T492–T501 | Done |
 | 95 | Decisions to make before the format freezes (ADRs) | T502–T506 | Done |
 | 96 | Behaviour fixes | T507–T522 | Done |
-| 97 | Tests that give false confidence | T523–T529 | Not started |
+| 97 | Tests that give false confidence | T523–T529 | Done |
 | 98 | User docs | T530–T536 | Not started |
 | 99 | Contributor docs | T537–T541 | Not started |
 | 100 | Remaining review items (graded post-v1, done before v1 by decision) | T542–T554, T556 | Not started |
@@ -771,13 +771,22 @@ the failure-recovery guide's states.
 
 Both behaved as the guide says. Exit code 3 comes from `wrapRunErr`, already covered in `cmd`.
 
-#### `[ ]` T529: small contract and assertion gaps
+#### `[x]` T529: small contract and assertion gaps
 
 - `internal/app/notes.go:73` (`merge-base --is-ancestor`) and `:126` (`show-ref --verify --quiet`) have
   no argument-asserting test; the non-exit-1 path at `:78` is uncovered.
 - `generator.go:513-531`: the atomic write's cleanup on write, sync, close or rename failure.
 - `internal/cmd/version_test.go:426,443,462-463`: `assert.Contains(out, "6")` on sprint output; assert
   the whole line.
+
+**Done (2026-11-08).**
+- `heraut notes` git calls: contract tests pin `show-ref --verify --quiet refs/tags/<tag>` (both
+  tags) and `merge-base --is-ancestor <from> <tag>`. Exit 1 is "not in the history"
+  (`ErrNotesRange`); any other failure is reported as a failure, the path that had no hits. A missing
+  tag is `ErrNotesTagNotFound`.
+- The atomic write: a rename that fails (the target is a directory) leaves no temp file; removing the
+  cleanup is killed.
+- The sprint tests now assert `sprint bumped to 6` and `would bump sprint 5 -> 6`, not single digits.
 
 ---
 

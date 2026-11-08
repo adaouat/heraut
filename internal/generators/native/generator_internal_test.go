@@ -1065,3 +1065,19 @@ func TestGenerateChangelog_NothingNewLeavesTheFileUntouched(t *testing.T) {
 	onDisk, _ := os.ReadFile(out)
 	assert.Equal(t, existing, string(onDisk))
 }
+
+// A failed atomic write leaves the directory as it was: the temp file is removed, and the target is
+// untouched (here the rename fails because the target is a directory).
+func TestWriteFileAtomic_FailureLeavesNoTempFile(t *testing.T) {
+	dir := t.TempDir()
+	target := filepath.Join(dir, "CHANGELOG.md")
+	require.NoError(t, os.Mkdir(target, 0o755))
+
+	err := writeFileAtomic(target, []byte("content"), 0o644)
+
+	require.Error(t, err)
+	entries, err := os.ReadDir(dir)
+	require.NoError(t, err)
+	require.Len(t, entries, 1, "only the target remains, no temp file: %v", entries)
+	assert.True(t, entries[0].IsDir())
+}
