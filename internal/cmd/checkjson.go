@@ -124,9 +124,9 @@ func runCheckAllJSON(cmd *cobra.Command) error {
 
 	switch {
 	case configFailed > 0:
-		return writeJSON(out, data, nil, exitcode.Wrap(exitcode.Config, fmt.Errorf("one or more checks failed")))
+		return writeJSONReport(out, data, nil, exitcode.Wrap(exitcode.Config, fmt.Errorf("one or more checks failed")))
 	case runtimeFailed > 0:
-		return writeJSON(out, data, nil, exitcode.Wrap(exitcode.Runtime, fmt.Errorf("one or more checks failed")))
+		return writeJSONReport(out, data, nil, exitcode.Wrap(exitcode.Runtime, fmt.Errorf("one or more checks failed")))
 	}
 	return writeJSON(out, data, nil, nil)
 }
@@ -145,7 +145,7 @@ func runCheckConfigJSON(cmd *cobra.Command) error {
 	}
 	report, failed := newConfigReport(path, source, cfg)
 	if failed > 0 {
-		return writeJSON(out, report, nil, exitcode.Wrap(exitcode.Config, fmt.Errorf("%d error(s) in config", failed)))
+		return writeJSONReport(out, report, nil, exitcode.Wrap(exitcode.Config, fmt.Errorf("%d error(s) in config", failed)))
 	}
 	return writeJSON(out, report, nil, nil)
 }
@@ -171,7 +171,7 @@ func runCheckRuntimeJSON(cmd *cobra.Command) error {
 	}
 	report, failed := collectRuntime(cmd.Context(), runner, cfg, env)
 	if failed > 0 {
-		return writeJSON(out, report, nil, exitcode.Wrap(exitcode.Runtime, fmt.Errorf("one or more runtime checks failed")))
+		return writeJSONReport(out, report, nil, exitcode.Wrap(exitcode.Runtime, fmt.Errorf("one or more runtime checks failed")))
 	}
 	return writeJSON(out, report, nil, nil)
 }

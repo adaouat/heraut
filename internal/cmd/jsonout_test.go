@@ -64,3 +64,20 @@ func TestWriteJSON(t *testing.T) {
 		})
 	}
 }
+
+// A failed command's envelope has no data; writeJSONReport (heraut check) keeps it.
+func TestWriteJSON_NoDataOnFailure(t *testing.T) {
+	data := map[string]string{"tag": "v1.0.0"}
+	failure := exitcode.Wrap(exitcode.Runtime, errors.New("boom"))
+
+	var plain, report bytes.Buffer
+	_ = writeJSON(&plain, data, nil, failure)
+	_ = writeJSONReport(&report, data, nil, failure)
+
+	assert.Equal(t, `{"ok":false,"warnings":[],"error":{"code":"runtime","message":"boom"}}`+"\n", plain.String())
+	assert.Equal(t, `{"ok":false,"data":{"tag":"v1.0.0"},"warnings":[],"error":{"code":"runtime","message":"boom"}}`+"\n", report.String())
+
+	var ok bytes.Buffer
+	require.NoError(t, writeJSON(&ok, data, nil, nil))
+	assert.Equal(t, `{"ok":true,"data":{"tag":"v1.0.0"},"warnings":[]}`+"\n", ok.String())
+}

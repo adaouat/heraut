@@ -67,7 +67,7 @@ One line on stdout:
 
 `error.code` is `usage`, `config`, `runtime`, `promotion` or `internal`; a promotion guard reports
 `E001` (target tag exists), `E002` (destination ahead of source) or `E003` (no source tags).
-`check` failures keep their findings in `data` next to `ok:false`. The exit code is the same with and
+A failure has no `data`, except `check`, which keeps its findings in `data` next to `ok:false`. The exit code is the same with and
 without `--json`. A flag or subcommand typo is rejected by the argument parser before heraut runs:
 stdout stays empty, the message is on stderr, exit 1.
 

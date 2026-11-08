@@ -1,7 +1,12 @@
 package e2e_test
 
 import (
+	"encoding/json"
+	"strings"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 
 	"github.com/adaouat/heraut/e2e/harness"
 )
@@ -50,5 +55,44 @@ func TestVersionNext_WarnsWhenEveryReleasableCommitIsHiddenFromTheChangelog(t *t
 			history: append(append([]step{}, base...), commit("chore(deps): bump x")),
 			args:    []string{"version", "next", "--json"},
 			wantOut: `{"ok":true,"data":{"tag":"v1.0.1","version":"1.0.1","current_tag":"v1.0.0","bump":"patch"},"warnings":[]}`},
+	})
+}
+
+// A failed command's envelope carries no data: scripts read ok and error.code (ADR-0080's stable
+// surface). heraut check is the exception, since its data is the report of what failed.
+func TestJSON_FailuresCarryNoData(t *testing.T) {
+	bin := harness.Binary(t)
+	failures := [][]string{
+		{"version", "current", "--json"},
+		{"version", "next", "--json", "--set-build-id", "5"},
+		{"commit", "verify", "not conventional", "--json"},
+		{"release", "--dry-run", "--json", "--set-version", "bad version"},
+	}
+	for _, args := range failures {
+		t.Run(strings.Join(args, " "), func(t *testing.T) {
+			repo := harness.NewRepo(t)
+			repo.WriteConfig(semverCfg(""))
+			repo.Commit("feat: a")
+
+			res := repo.Run(bin, nil, args...)
+
+			require.NotEqual(t, exitOK, res.ExitCode, "stdout:\n%s\nstderr:\n%s", res.Stdout, res.Stderr)
+			var env map[string]any
+			require.NoError(t, json.Unmarshal([]byte(res.Stdout), &env), res.Stdout)
+			assert.Equal(t, false, env["ok"])
+			assert.NotContains(t, env, "data", res.Stdout)
+			assert.Contains(t, env, "error")
+		})
+	}
+
+	t.Run("check keeps its report", func(t *testing.T) {
+		repo := harness.NewRepo(t)
+		repo.WriteConfig("version: \"1\"\nversioning:\n  strategy: semvr\n")
+
+		res := repo.Run(bin, nil, "check", "config", "--json")
+
+		require.Equal(t, exitConfig, res.ExitCode, res.Stdout)
+		assert.Contains(t, res.Stdout, `"data":{`)
+		assert.Contains(t, res.Stdout, `"ok":false`)
 	})
 }

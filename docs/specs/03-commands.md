@@ -32,7 +32,7 @@ command's section says whether it does. With `--json`, stdout carries exactly on
 | Field | Meaning |
 |-------|---------|
 | `ok` | `true` on success, `false` on any failure |
-| `data` | the command's result object (shape documented per command); a `check` failure still carries its findings |
+| `data` | the command's result object (shape documented per command), on success only: a failed command has no `data`, except `check`, whose failure still carries its findings |
 | `warnings` | always present; the notices the text mode writes to stderr |
 | `error.code` | `usage`, `config`, `runtime`, `promotion` or `internal` (the exit-code classes of Spec 01), or `E001` / `E002` / `E003` for a promotion guard |
 | `error.message` | the error text |

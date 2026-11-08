@@ -25,7 +25,17 @@ type jsonError struct {
 
 // writeJSON prints the envelope for a finished command as a single line and returns err unchanged,
 // so the caller returns it and the process keeps the exit code the error carries.
+// writeJSON writes the --json envelope. A failed command carries no data: scripts read ok and
+// error.code. heraut check, whose data is the report of what failed, uses writeJSONReport.
 func writeJSON(w io.Writer, data any, warnings []string, err error) error {
+	if err != nil {
+		data = nil
+	}
+	return writeJSONReport(w, data, warnings, err)
+}
+
+// writeJSONReport is writeJSON keeping data on failure.
+func writeJSONReport(w io.Writer, data any, warnings []string, err error) error {
 	if warnings == nil {
 		warnings = []string{}
 	}

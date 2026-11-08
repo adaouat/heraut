@@ -33,7 +33,7 @@ post-v1 (Phase 100). The v1.0.0 cut (Phase 101) comes last.
 | Phase | Theme | Tasks | Status |
 |---|---|---|---|
 | 94 | Release-logic bugs that block v1 | T492–T501 | Done |
-| 95 | Decisions to make before the format freezes (ADRs) | T502–T506 | In progress — decided 2026-11-08; T502–T503 done |
+| 95 | Decisions to make before the format freezes (ADRs) | T502–T506 | In progress — decided 2026-11-08; T502–T504 done |
 | 96 | Behaviour fixes | T507–T522 | Not started |
 | 97 | Tests that give false confidence | T523–T529 | Not started |
 | 98 | User docs | T530–T536 | Not started |
@@ -337,7 +337,7 @@ help text on `release`, `changelog`, `version next` and `version current` (refer
 Spec 02/03/04/05/06; the environments, maintenance-branches and PR-data guides; the exit-codes
 reference.
 
-#### `[ ]` T504: **Decision** — the `--json` envelope on failure
+#### `[x]` T504: **Decision** — the `--json` envelope on failure
 
 Inconsistent today: failed `version next/current --json` emit `"data":{"tag":"","version":""}`
 (`internal/cmd/version.go:52,173`); `commit verify --json "feat:x"` emits `"data":{"skipped":true}` for
@@ -346,6 +346,13 @@ commits; `release --json` emits no `data`. Recommendation: omit `data` on failur
 documented. Update Spec 03, the skill and the reference.
 
 **Decision (user, 2026-11-08):** no `data` on failure, for every command except `heraut check`; `commit verify` uses `skipped` only for merge and fixup commits.
+
+**Done (2026-11-08).** `writeJSON` drops `data` whenever there is an error; `heraut check` uses the new
+`writeJSONReport`, which keeps its findings. That fixes all three shapes at once: `version
+next/current` no longer emit an empty `{tag, version}`, an invalid `commit verify` no longer emits
+`{"skipped": true}`, and `release` was already right. Tests: a unit test of both writers, and Lane A
+`TestJSON_FailuresCarryNoData` over the four commands (three red before) plus `check` keeping its report.
+Docs: Spec 03 § Machine-readable output, the skill, the AI-agents guide.
 
 #### `[ ]` T505: **Decision** — reject keys heraut would ignore
 
