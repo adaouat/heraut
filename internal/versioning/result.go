@@ -6,6 +6,25 @@ import (
 	"strings"
 )
 
+// ErrNothingToRelease is matched (errors.Is) by every "nothing to release" condition: no commits since
+// the last release, no releasable commits, no release tag yet (ADR-0082). It has its own exit code, so
+// a CI job that releases on every push can tell it from a failure.
+var ErrNothingToRelease = errors.New("nothing to release")
+
+// NothingToRelease returns an error with message msg that matches ErrNothingToRelease. Its own
+// identity is kept, so a package can hold one as a sentinel too.
+func NothingToRelease(msg string) error { return &nothingToRelease{msg: msg} }
+
+// NothingToReleasef is NothingToRelease with a format.
+func NothingToReleasef(format string, args ...any) error {
+	return &nothingToRelease{msg: fmt.Sprintf(format, args...)}
+}
+
+type nothingToRelease struct{ msg string }
+
+func (e *nothingToRelease) Error() string        { return e.msg }
+func (e *nothingToRelease) Is(target error) bool { return target == ErrNothingToRelease }
+
 // ErrMajorNotConfirmed is matched (errors.Is) by MajorConfirmationError's error: an automatic major
 // bump that versioning.bump.confirm_major asks --allow-major for (ADR-0078).
 var ErrMajorNotConfirmed = errors.New("major bump not confirmed")

@@ -235,7 +235,7 @@ func resolveCurrent(cmd *cobra.Command, withTag, withVersion, includePreRelease 
 		if errors.Is(err, app.ErrAmbiguousBranch) || errors.Is(err, app.ErrUnderivableRange) || app.IsEnvSelection(err) {
 			return exitcode.Wrap(exitcode.Config, err)
 		}
-		return exitcode.Wrap(exitcode.Runtime, err)
+		return wrapRunErr(err)
 	}
 	if withTag {
 		if tag, err = app.CurrentTag(runner, cfg, env, includePreRelease); err != nil {

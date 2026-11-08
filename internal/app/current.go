@@ -1,8 +1,8 @@
 package app
 
 import (
-	"errors"
 	"fmt"
+	"github.com/adaouat/heraut/internal/versioning"
 	"github.com/adaouat/heraut/internal/versioning/branch"
 	"slices"
 	"strings"
@@ -16,7 +16,7 @@ import (
 )
 
 // errNoTagsFound is the sentinel CurrentTag returns when no tags match the resolved glob.
-var errNoTagsFound = errors.New("no tags found")
+var errNoTagsFound = versioning.NothingToRelease("no tags found")
 
 // CurrentTag returns the latest existing git tag for the given strategy and environment. For
 // SemVer strategies it is the highest SemVer §11 release, or — with includePreRelease — the

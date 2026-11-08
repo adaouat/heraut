@@ -73,7 +73,7 @@ func (r *Resolver) resolveMaintenance(rg *Range) (versioning.Result, error) {
 	}
 	commits := parseCommits(stdout)
 	if len(commits) == 0 {
-		return versioning.Result{}, fmt.Errorf("no commits since %s — create at least one commit before running heraut release", currentTag)
+		return versioning.Result{}, versioning.NothingToReleasef("no commits since %s — create at least one commit before running heraut release", currentTag)
 	}
 
 	bump := r.bumpAfterHold(currentVersion, commits)

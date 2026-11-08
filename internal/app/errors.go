@@ -60,3 +60,9 @@ func PromotionGuardID(err error) string {
 	}
 	return ""
 }
+
+// IsNothingToRelease reports whether err says there is nothing to release (ADR-0082): no commits
+// since the last release, no releasable commits, or no release tag yet.
+func IsNothingToRelease(err error) bool {
+	return errors.Is(err, versioning.ErrNothingToRelease)
+}

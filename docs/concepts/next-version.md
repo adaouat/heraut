@@ -29,8 +29,8 @@ With `v1.2.0` as the last release:
 | `fix: a`, `feat: b` | `v1.3.0` |
 | `feat!: a`, or a `BREAKING CHANGE:` footer | `v2.0.0` |
 | `docs: a`, or `chore: a` | `v1.2.1` |
-| only `Update readme` | refused: no releasable commits |
-| nothing | refused: no commits since `v1.2.0` |
+| only `Update readme` | refused: no releasable commits (exit 5) |
+| nothing | refused: no commits since `v1.2.0` (exit 5) |
 
 The first release, with no tag yet, is `0.1.0`, or `versioning.initial_version`.
 

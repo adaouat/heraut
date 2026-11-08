@@ -61,7 +61,7 @@ esac
 	assert.Equal(t, exitcode.Promotion, cmd.ExitCode(err))
 }
 
-func TestExitCode_NoCommits_Runtime(t *testing.T) {
+func TestExitCode_NoCommits_NothingToRelease(t *testing.T) {
 	cfgPath := writeConfig(t, `
 version: "1"
 versioning:
@@ -77,10 +77,10 @@ esac
 `)
 	_, err := executeRoot("version", "next", "--config", cfgPath)
 	require.Error(t, err)
-	assert.Equal(t, exitcode.Runtime, cmd.ExitCode(err))
+	assert.Equal(t, exitcode.NothingToRelease, cmd.ExitCode(err))
 }
 
-func TestExitCode_CurrentNoTags_Runtime(t *testing.T) {
+func TestExitCode_CurrentNoTags_NothingToRelease(t *testing.T) {
 	cfgPath := writeConfig(t, `
 version: "1"
 versioning:
@@ -92,7 +92,7 @@ echo ""
 `)
 	_, err := executeRoot("version", "current", "--config", cfgPath)
 	require.Error(t, err)
-	assert.Equal(t, exitcode.Runtime, cmd.ExitCode(err))
+	assert.Equal(t, exitcode.NothingToRelease, cmd.ExitCode(err))
 }
 
 func TestExitCode_VersionNext_InvalidConfig_Config(t *testing.T) {

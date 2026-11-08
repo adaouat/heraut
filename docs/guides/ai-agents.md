@@ -65,7 +65,7 @@ The release plan lists the steps in the order they run:
 ```
 
 A failure has `"ok":false`, no `data` (except `heraut check`, which keeps its findings), and an `error`
-with a `code` (`usage`, `config`, `runtime`, `promotion`, or `E001`–`E003`), a `message` and sometimes
+with a `code` (`usage`, `config`, `runtime`, `promotion`, `nothing_to_release`, or `E001`–`E003`), a `message` and sometimes
 a `hint`. The exit code is the same as without
 `--json`; [Exit codes](../reference/exit-codes.md) explains each one.
 

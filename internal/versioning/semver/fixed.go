@@ -87,7 +87,7 @@ func (r *Resolver) resolveFixed() (versioning.Result, error) {
 			return versioning.Result{}, fmt.Errorf("reading git log: %w", err)
 		}
 		if len(parseCommits(stdout)) == 0 {
-			return versioning.Result{}, fmt.Errorf("no commits since %s — create at least one commit before running heraut release", previous.Tag)
+			return versioning.Result{}, versioning.NothingToReleasef("no commits since %s — create at least one commit before running heraut release", previous.Tag)
 		}
 	}
 	if latest, ok := Latest(merged, false); ok && Compare(coreVersion(latest.Version), core) > 0 {

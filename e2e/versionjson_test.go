@@ -25,10 +25,10 @@ func TestVersionJSON(t *testing.T) {
 		{name: "current", config: semverCfg(""), history: released,
 			args:    []string{"version", "current", "--json"},
 			wantOut: `{"ok":true,"data":{"tag":"v1.0.0","version":"1.0.0"},"warnings":[]}`},
-		{name: "current with no tag is a runtime error", config: semverCfg(""),
+		{name: "current with no tag has nothing to release", config: semverCfg(""),
 			history:  []step{commit("feat: a")},
 			args:     []string{"version", "current", "--json"},
-			wantExit: exitRuntime, wantText: []string{`"ok":false`, `"code":"runtime"`}},
+			wantExit: exitNothingToRelease, wantText: []string{`"ok":false`, `"code":"nothing_to_release"`}},
 		{name: "next on a per-env strategy without --env is a config error", config: perEnvCfg,
 			history:  released,
 			args:     []string{"version", "next", "--json"},
@@ -94,5 +94,29 @@ func TestJSON_FailuresCarryNoData(t *testing.T) {
 		require.Equal(t, exitConfig, res.ExitCode, res.Stdout)
 		assert.Contains(t, res.Stdout, `"data":{`)
 		assert.Contains(t, res.Stdout, `"ok":false`)
+	})
+}
+
+// "Nothing to release" has its own exit code, 5, and error.code: a CI job that releases on every push
+// can tell it from a failure (ADR-0082).
+func TestNothingToRelease_ExitsFive(t *testing.T) {
+	bin := harness.Binary(t)
+	tagged := []step{commit("feat: a"), tag("v1.0.0")}
+	runScenarios(t, bin, nil, []scenario{
+		{name: "no commits since the last tag", config: semverCfg(""), history: tagged,
+			args: versionNext, wantExit: exitNothingToRelease, wantText: []string{"no commits since v1.0.0"}},
+		{name: "no commits since the last tag, --json", config: semverCfg(""), history: tagged,
+			args:     []string{"version", "next", "--json"},
+			wantExit: exitNothingToRelease, wantText: []string{`"ok":false`, `"code":"nothing_to_release"`}},
+		{name: "only commits that don't release", config: semverCfg(""),
+			history:  append(append([]step{}, tagged...), commit("Update readme")),
+			args:     versionNext,
+			wantExit: exitNothingToRelease, wantText: []string{"no releasable commits since v1.0.0"}},
+		{name: "version current with no tag yet", config: semverCfg(""), history: []step{commit("feat: a")},
+			args:     []string{"version", "current", "--json"},
+			wantExit: exitNothingToRelease, wantText: []string{`"code":"nothing_to_release"`}},
+		{name: "a release with nothing to release", config: semverCfg("") + "changelog:\n  output: CHANGELOG.md\n", history: tagged,
+			args:     []string{"release", "--dry-run", "--offline"},
+			wantExit: exitNothingToRelease, wantText: []string{"no commits since v1.0.0"}},
 	})
 }

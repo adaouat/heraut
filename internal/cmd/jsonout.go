@@ -64,6 +64,8 @@ func errorCode(err error) string {
 		return "runtime"
 	case exitcode.Promotion:
 		return "promotion"
+	case exitcode.NothingToRelease:
+		return "nothing_to_release"
 	case exitcode.Internal:
 		return "internal"
 	}

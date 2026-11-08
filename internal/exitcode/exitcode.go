@@ -10,12 +10,15 @@ import forgeexit "github.com/adaouat/forge/exitcode"
 // re-exported from forge's shared vocabulary (ADR-0003); Promotion is heraut's
 // own domain code in the reserved 4-69 range.
 const (
-	OK        = forgeexit.OK       // success
-	Usage     = forgeexit.Usage    // bad flags or arguments (also the default for unclassified errors)
-	Config    = forgeexit.Config   // invalid YAML, missing required fields, semantic validation failure
-	Runtime   = forgeexit.Runtime  // binary missing, token unset, network failure, git operation failed
-	Promotion = 4                  // promotion guard tripped (E001/E002/E003)
-	Internal  = forgeexit.Internal // unexpected/internal condition
+	OK        = forgeexit.OK      // success
+	Usage     = forgeexit.Usage   // bad flags or arguments (also the default for unclassified errors)
+	Config    = forgeexit.Config  // invalid YAML, missing required fields, semantic validation failure
+	Runtime   = forgeexit.Runtime // binary missing, token unset, network failure, git operation failed
+	Promotion = 4                 // promotion guard tripped (E001/E002/E003)
+	// NothingToRelease: no commits since the last release, no releasable commits, or no release
+	// tag yet (ADR-0082). Non-zero, since nothing was released, but distinct from a failure.
+	NothingToRelease = 5
+	Internal         = forgeexit.Internal // unexpected/internal condition
 )
 
 // Wrap annotates err with an exit code; the first/innermost classification wins.

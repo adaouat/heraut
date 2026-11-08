@@ -44,7 +44,7 @@ func (r *Resolver) BumpAuto(tags []string, commits []string) (string, error) {
 	}
 	currentVersion := tags[0]
 	if len(commits) == 0 {
-		return "", fmt.Errorf("no commits since %s — create at least one commit before running heraut release", currentVersion)
+		return "", versioning.NothingToReleasef("no commits since %s — create at least one commit before running heraut release", currentVersion)
 	}
 	bump := r.bumpAfterHold(currentVersion, commits)
 	if bump == versioning.BumpNone {
@@ -194,7 +194,7 @@ func (r *Resolver) resolveAuto() (versioning.Result, error) {
 
 	commits := parseCommits(stdout)
 	if len(commits) == 0 {
-		return versioning.Result{}, fmt.Errorf("no commits since %s — create at least one commit before running heraut release", currentTag)
+		return versioning.Result{}, versioning.NothingToReleasef("no commits since %s — create at least one commit before running heraut release", currentTag)
 	}
 
 	bump := r.bumpAfterHold(currentVersion, commits)
@@ -251,7 +251,7 @@ func noReleasableCommitsError(currentTag string, commits []string) error {
 	for i, c := range commits {
 		lines[i] = "  - " + firstLine(c)
 	}
-	return fmt.Errorf(
+	return versioning.NothingToReleasef(
 		"no releasable commits since %s: %d commit(s) since then are excluded from the version bump\n%s",
 		currentTag, len(commits), strings.Join(lines, "\n"),
 	)

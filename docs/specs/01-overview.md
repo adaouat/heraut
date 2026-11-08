@@ -102,6 +102,7 @@ resolved version rather than a fallback to `initial_version`. See
 | 2    | Configuration error (invalid YAML, missing required fields, semantic validation failure, a `tag_format` containing `{build}` when no build ID was supplied, a missing or unknown `--env` on a per-env strategy, a per-env branch guard refusal ([ADR-0068](../adr/0068-env-selection-and-branch-guard-exit-code.md)), an automatic major bump that `versioning.bump.confirm_major` asks `--allow-major` for ([ADR-0078](../adr/0078-confirm-major-bumps.md))) |
 | 3    | Runtime error (binary missing from PATH, token env var unset, network failure, git operation failed, a hook command exiting non-zero, a shallow clone or a detached `HEAD` with no branch to push the changelog commit to (`release`/`changelog`), a GitHub or GitLab API call failing during publish — including a run that skipped a target because its `pre_release` hook failed) |
 | 4    | Promotion guard tripped (E001 / E002 / E003) — see [ADR-0007](../adr/0007-version-promotion-error-handling.md) |
+| 5    | Nothing to release: no commits since the last release tag, no releasable commits, or (`version current`) no release tag yet — see [ADR-0082](../adr/0082-nothing-to-release-exit-code.md) |
 | 70   | Internal software error (unexpected panic or unhandled condition)    |
 
 ## Boundaries

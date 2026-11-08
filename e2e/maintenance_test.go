@@ -54,7 +54,7 @@ func TestMaintenance_Resolution(t *testing.T) {
 		{name: "version current on a line without a release in range fails too", config: branchesCfg,
 			history:  lineHistory("release/2.0", commit("fix: x")),
 			args:     []string{"version", "current"},
-			wantExit: exitRuntime, wantText: []string{"no tags found in range 2.0.x reachable from release/2.0"}},
+			wantExit: exitNothingToRelease, wantText: []string{"no tags found in range 2.0.x reachable from release/2.0"}},
 		{name: "main keeps resolving from its own history", config: branchesCfg,
 			history: lineHistory("release/1.3", switchTo("main"), commit("fix: m")),
 			args:    versionNext, wantOut: "v1.4.1"},

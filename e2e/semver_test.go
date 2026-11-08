@@ -54,7 +54,7 @@ func TestSemVer_Resolution(t *testing.T) {
 		{name: "non-conventional commits give no bump", config: semverCfg(""),
 			history:  []step{commit("feat: a"), tag("v1.0.0"), commit("update stuff")},
 			args:     versionNext,
-			wantExit: exitRuntime, wantText: []string{"no releasable commits since v1.0.0"}},
+			wantExit: exitNothingToRelease, wantText: []string{"no releasable commits since v1.0.0"}},
 		{name: "custom tag prefix round-trips", config: `version: "1"
 versioning:
   strategy: semver
@@ -135,7 +135,7 @@ func TestSemVer_PreReleaseLifecycle(t *testing.T) {
 		{name: "re-cutting a label needs a new commit", config: semverCfg(""),
 			history:  []step{commit("feat: a"), tag("v1.3.0"), commit("feat: b"), tag("v1.4.0-rc.1")},
 			args:     rc,
-			wantExit: exitRuntime, wantText: []string{"no commits since v1.4.0-rc.1"}},
+			wantExit: exitNothingToRelease, wantText: []string{"no commits since v1.4.0-rc.1"}},
 		{name: "a higher label needs no new commit", config: semverCfg(""),
 			history: []step{commit("feat: a"), tag("v1.3.0"), commit("feat: b"), tag("v1.4.0-beta.2")},
 			args:    rc, wantOut: "v1.4.0-rc.1"},

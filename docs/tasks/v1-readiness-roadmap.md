@@ -33,7 +33,7 @@ post-v1 (Phase 100). The v1.0.0 cut (Phase 101) comes last.
 | Phase | Theme | Tasks | Status |
 |---|---|---|---|
 | 94 | Release-logic bugs that block v1 | T492–T501 | Done |
-| 95 | Decisions to make before the format freezes (ADRs) | T502–T506 | In progress — decided 2026-11-08; T502–T505 done |
+| 95 | Decisions to make before the format freezes (ADRs) | T502–T506 | Done |
 | 96 | Behaviour fixes | T507–T522 | Not started |
 | 97 | Tests that give false confidence | T523–T529 | Not started |
 | 98 | User docs | T530–T536 | Not started |
@@ -379,7 +379,7 @@ applies, which stays valid. Deviation: `schema.json` already refuses the unknown
 the per-platform rules (forges share one definition), so the schema still accepts those; the validator
 is the authority. Spec 02's key tables say what is refused.
 
-#### `[ ]` T506: **Decision** — "nothing to release"
+#### `[x]` T506: **Decision** — "nothing to release"
 
 "No commits since v1.4.0", "No releasable commits", `version current` with no tags and a pre-release
 that would sort below an existing one all exit 3 (`runtime`), like a real failure, and none is listed in
@@ -387,6 +387,18 @@ that would sort below an existing one all exit 3 (`runtime`), like a real failur
 distinct exit code, a distinct `error.code`, or both. Document the result and give a CI recipe.
 
 **Decision (user, 2026-11-08):** exit code 5 and `--json` `error.code: "nothing_to_release"`, for no commits since the last tag, no releasable commits, and `version current` with no tag yet. Documented with a CI recipe (`|| [ $? -eq 5 ]`).
+
+**Done (2026-11-08).** [ADR-0082](../adr/0082-nothing-to-release-exit-code.md). `versioning.ErrNothingToRelease`
+is matched by every "no commits since" error (semver, fixed, maintenance and pre-release paths), by
+`noReleasableCommitsError`, and by `app`'s `errNoTagsFound`. That is a `nothingToRelease` type that
+keeps each message and identity, so `errors.Is(err, errNoTagsFound)` still works. `wrapRunErr` maps
+it to the new `exitcode.NothingToRelease` (5), `version current` now classifies through
+`wrapRunErr`, and `--json` reports `nothing_to_release`. Seven tests asserted exit 3 for these cases
+and now expect 5, with their scenarios unchanged. New: Lane A `TestNothingToRelease_ExitsFive` (five
+cases, all red before). CalVer with no new commit is T510 and was not touched; a pre-release sorting
+below an existing one stays a runtime error. Docs: Spec 01's exit table, Spec 03's `error.code` list,
+the exit-codes reference (a new section with the CI recipe), the skill, the AI-agents guide, and the
+failure-recovery and next-version pages.
 
 ---
 

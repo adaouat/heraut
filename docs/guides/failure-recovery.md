@@ -60,7 +60,7 @@ Typical cause: the tag push failed (network, permissions, a protected-tag rule, 
 refuses `git.push_options.tag`).
 
 `heraut release` will not help here: the tag exists and no commit is newer, so it stops with
-`no commits since v1.2.3`. Push the tag yourself, then continue with [C](#c-tag-pushed-no-release):
+`no commits since v1.2.3` (exit 5). Push the tag yourself, then continue with [C](#c-tag-pushed-no-release):
 
 ```bash
 git push origin v1.2.3

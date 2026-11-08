@@ -50,6 +50,8 @@ func wrapRunErr(err error, summary ...string) error {
 	code := exitcode.Runtime
 	if app.IsPromotionGuard(err) {
 		code = exitcode.Promotion
+	} else if app.IsNothingToRelease(err) {
+		code = exitcode.NothingToRelease
 	} else if app.IsBuildIDRequired(err) || app.IsEnvSelection(err) || app.IsMajorNotConfirmed(err) {
 		code = exitcode.Config
 	}
