@@ -38,6 +38,8 @@ type rotatingGenerator struct {
 	tagOrder func([]string) []string
 
 	lastOutputPath string
+	// last is the generator the most recent Generate call built, read for degradation.
+	last port.Generator
 }
 
 // wrapWithRotation returns gen unchanged when driver.Output has no {TOKEN} placeholders — the
@@ -87,7 +89,23 @@ func (r *rotatingGenerator) Generate(ctx context.Context, tag string, lc *port.L
 	}
 	r.lastOutputPath = concrete.Output
 	gen := buildGenerator(r.runner, concrete, native.ModeChangelog, r.herautVersion, r.regenerateChangelog, r.enrichForge, r.degradedReason, r.tagOrder)
+	r.last = gen
 	return gen.Generate(ctx, tag, lc)
+}
+
+// Degraded reports whether the last Generate rendered without PR/MR data, as a plain changelog
+// generator does, so the step says so.
+func (r *rotatingGenerator) Degraded() bool {
+	d, ok := r.last.(interface{ Degraded() bool })
+	return ok && d.Degraded()
+}
+
+// DegradedReason is the last Generate's reason for rendering without PR/MR data; "" when it didn't.
+func (r *rotatingGenerator) DegradedReason() string {
+	if d, ok := r.last.(interface{ DegradedReason() string }); ok {
+		return d.DegradedReason()
+	}
+	return ""
 }
 
 // resolveDriver substitutes {TOKEN} placeholders in r.driver.Output with the values the resolved

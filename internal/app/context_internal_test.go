@@ -2,6 +2,7 @@ package app
 
 import (
 	"context"
+	"errors"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -89,4 +90,40 @@ func TestGenerateNotes_StopsWhenTheContextIsCancelled(t *testing.T) {
 	case <-time.After(5 * time.Second):
 		t.Fatal("heraut notes did not return")
 	}
+}
+
+// failingForge's Enrich fails, as an unreachable forge does.
+type failingForge struct{ recordingForge }
+
+func (f *failingForge) Enrich(context.Context, []port.Commit, string) (port.Enrichment, error) {
+	return port.Enrichment{}, errors.New("connection refused")
+}
+
+// A rotating changelog reports a degraded enrichment like a plain one, so the step says "without
+// enrichment" and the reason is shown.
+func TestRotatingGenerator_ReportsADegradedEnrichment(t *testing.T) {
+	mr := exectest.NewMockRunner()
+	mr.QueueResponse("", "", nil) // latestMatchingTag: no prior tags
+	mr.QueueResponse("", "", nil) // listTags: none
+	mr.QueueResponse(record("aaa1111111", "A", "a@example.com", "2026-05-01T00:00:00Z", "feat: initial", ""), "", nil)
+	mr.QueueResponse("aaa1111111\n", "", nil) // git rev-parse HEAD (enrichment ref)
+
+	forge := &failingForge{}
+	driver := &config.ContentDriver{Output: filepath.Join(t.TempDir(), "CHANGELOG_{YYYY}.md")}
+	cfg := &config.Config{Versioning: config.Versioning{Strategy: "calver", Format: "YYYY.MM.PATCH"}}
+	gen := buildGenerator(mr, driver, native.ModeChangelog, "", false, forge, "", nil)
+	wrapped := wrapWithRotation(gen, mr, cfg, driver, "", false, forge, "", nil)
+
+	d, ok := wrapped.(interface {
+		Degraded() bool
+		DegradedReason() string
+	})
+	require.True(t, ok, "the rotating generator reports degradation")
+	assert.False(t, d.Degraded(), "nothing generated yet")
+
+	_, err := wrapped.Generate(t.Context(), "2026.05.0", nil)
+	require.NoError(t, err)
+
+	assert.True(t, d.Degraded())
+	assert.Contains(t, d.DegradedReason(), "connection refused")
 }

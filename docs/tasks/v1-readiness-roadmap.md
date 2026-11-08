@@ -485,12 +485,18 @@ with `HERAUT_TEST_NOW` at `10:25:59Z` then `10:26:00Z`), and lets the T360 retry
 for the wrong reason. Fix: ignore the footer when deciding the file is unchanged (or keep the old footer
 when the body is identical); pin `HERAUT_TEST_NOW` in those tests and add a cross-minute case.
 
-#### `[ ]` T512: a rotating changelog reports degraded enrichment
+#### `[x]` T512: a rotating changelog reports degraded enrichment
 
 `rotatingGenerator` (`internal/app/changelog_rotation.go:77-90`) doesn't implement
 `Degraded()`/`DegradedReason()`: with enrichment failing, `CHANGELOG.md` shows `Generate changelog —
 without enrichment` and two warnings, `CHANGELOG_{YYYY}.md` shows a plain `✓`. Fix: keep the inner
 generator of the last `Generate` and forward both methods.
+
+**Done (2026-11-08).** `rotatingGenerator` keeps the generator its last `Generate` built and forwards
+`Degraded()` and `DegradedReason()` to it; before any `Generate` both report nothing. Test:
+`TestRotatingGenerator_ReportsADegradedEnrichment`, with a forge whose `Enrich` fails (red before: the
+wrapper didn't implement the interface). No doc change: the step output already documents the
+degraded line.
 
 #### `[ ]` T513: hook templates are checked by `check config`
 
