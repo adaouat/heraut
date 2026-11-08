@@ -59,13 +59,13 @@ func NewReleaseCmd(version string) *cobra.Command {
 
 	addVersionOverrideFlags(releaseCmd, &rf.versionOverride, &rf.buildID)
 	releaseCmd.Flags().BoolVar(&rf.regenerateChangelog, "regenerate-changelog", false,
-		"rebuild the entire changelog and re-fetch PR attribution (needed once when migrating an existing changelog onto heraut)")
+		"rebuild the whole changelog from the tags, replacing the file (hand-written text included); needed once for a changelog written by another tool")
 	releaseCmd.Flags().Bool("dry-run", false, "print actions without executing them")
 	releaseCmd.Flags().Bool("json", false, "with --dry-run, print the plan as a JSON envelope")
 	releaseCmd.Flags().String("env", "", "target environment (for per-env strategies)")
 	releaseCmd.Flags().Bool("force", false, "release from here: lift the branch checks and E002 (destination ahead); E001 and missing PR data are never forced")
-	releaseCmd.Flags().Bool("allow-major", false, "confirm a major bump for this run: lift versioning.bump.stay_at_v0, versioning.bump.confirm_major and the pre-release series major-escalation block")
-	releaseCmd.Flags().String("pre-release", "", "mint a pre-release <core>-<label>.<N> (plain semver only; never writes CHANGELOG.md)")
+	releaseCmd.Flags().Bool("allow-major", false, "allow a major version for this run: lifts versioning.bump.stay_at_v0 and versioning.bump.confirm_major, and lets a pre-release series move to a new major")
+	releaseCmd.Flags().String("pre-release", "", "release a pre-release such as v1.4.0-rc.1 (label rc; semver only; the changelog is not written)")
 	releaseCmd.Flags().Bool("offline", false, "skip remote PR/MR metadata enrichment (forces enrichment_policy: disabled); outside CI, commit links go too")
 	releaseCmd.Flags().BoolVar(&rf.noHooks, "no-hooks", false, "skip every configured hook (post_bump/pre_changelog/pre_tag/post_tag/pre_release/post_release) for this run")
 	addSkipHookFlag(releaseCmd, &rf.skipHooks, app.ReleaseHookPoints())

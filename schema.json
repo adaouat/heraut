@@ -661,7 +661,8 @@
       "additionalProperties": false,
       "properties": {
         "notes": {
-          "$ref": "#/definitions/ContentDriver"
+          "$ref": "#/definitions/ContentDriver",
+          "description": "How the release notes published with each release are rendered: their template and rendering overrides. They are never written to a file, so output is refused here."
         },
         "assets": {
           "type": "array",

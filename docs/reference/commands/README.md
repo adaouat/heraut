@@ -12,7 +12,7 @@ Every heraut command, from the same text as `heraut <command> --help`.
   - [heraut commit](heraut_commit.md): Commit message tooling
     - [heraut commit check](heraut_commit_check.md): Validate every commit in a range (or full history) against the conventional-commit grammar
     - [heraut commit create](heraut_commit_create.md): Interactively author a Conventional Commits message and commit it
-    - [heraut commit tickets](heraut_commit_tickets.md): Validate commits.tickets patterns against a range (or full history) of commits
+    - [heraut commit tickets](heraut_commit_tickets.md): Show the tickets your commits.tickets patterns find in a range of commits
     - [heraut commit verify](heraut_commit_verify.md): Validate a commit message against the conventional-commit grammar
   - [heraut init](heraut_init.md): Generate .heraut.yml interactively (or with --defaults)
   - [heraut notes](heraut_notes.md): Print the release notes of a tag

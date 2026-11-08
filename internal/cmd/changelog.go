@@ -144,7 +144,7 @@ func NewChangelogCmd(version string) *cobra.Command {
 	changelogCmd.Flags().BoolVar(&noPush, "no-push", false, "commit and tag locally without pushing (only meaningful with --commit/--tag)")
 	addVersionOverrideFlags(changelogCmd, &versionOverride, &buildID)
 	changelogCmd.Flags().BoolVar(&regenerate, "regenerate", false,
-		"rebuild the entire changelog and re-fetch PR attribution (instead of incrementally adding the new section)")
+		"rebuild the whole changelog from the tags, replacing the file (hand-written text included), instead of adding the new section")
 	changelogCmd.Flags().Bool("dry-run", false, "print actions without executing them")
 	changelogCmd.Flags().String("env", "", "target environment (for per-env strategies)")
 	changelogCmd.Flags().Bool("force", false, "release from here: lift the branch checks and E002 (destination ahead); E001 and missing PR data are never forced")

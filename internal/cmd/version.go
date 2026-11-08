@@ -64,8 +64,8 @@ func newVersionNextCmd() *cobra.Command {
 	cmd.Flags().String("env", "", "target environment (for per-env strategies)")
 	cmd.Flags().Bool("json", false, "print the result as a JSON envelope")
 	cmd.Flags().Bool("force", false, "lift the branch checks and E002 (destination ahead); E001 is never forced")
-	cmd.Flags().Bool("allow-major", false, "confirm a major bump for this run: lift versioning.bump.stay_at_v0, versioning.bump.confirm_major and the pre-release series major-escalation block")
-	cmd.Flags().String("pre-release", "", "mint a pre-release <core>-<label>.<N> (plain semver only; never writes CHANGELOG.md)")
+	cmd.Flags().Bool("allow-major", false, "allow a major version for this run: lifts versioning.bump.stay_at_v0 and versioning.bump.confirm_major, and lets a pre-release series move to a new major")
+	cmd.Flags().String("pre-release", "", "release a pre-release such as v1.4.0-rc.1 (label rc; semver only; the changelog is not written)")
 	addVersionOverrideFlags(cmd, &versionOverride, &buildID)
 	return cmd
 }

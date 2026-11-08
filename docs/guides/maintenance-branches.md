@@ -12,8 +12,7 @@ under `versioning.branches`.
 - You keep old lines alive (`release/1.3`) and tag fixes on them while `main` ships `v1.4`, `v2.0`.
 - You use the `semver` strategy. `semver-per-env` and the CalVer strategies reject the block.
 
-Without a `versioning.branches` block nothing changes: every branch resolves from the repository's
-whole tag list, as before.
+Without a `versioning.branches` block, every branch resolves from the repository's whole tag list.
 
 ## Configuration
 
@@ -21,7 +20,7 @@ whole tag list, as before.
 versioning:
   strategy: semver
   branches:
-    - name: main                  # release branch: global tags, as today
+    - name: main                  # release branch: the repository's latest tag
     - name: release/1.3           # maintenance branch, explicit range
       range: 1.3.x                # >=1.3.0 <1.4.0 (patch only)
     - name: "release/*"           # maintenance branch, range derived from the name
@@ -31,7 +30,7 @@ versioning:
 - A glob entry derives the range from the branch name's last segment: `release/1.3` and
   `release/1.3.x` give `1.3.x`, `release/1.x` gives `1.x`. A name with no version in it
   (`release/legacy`) is an error for automatic resolution.
-- An exact name without `range` is a release branch (today's behaviour).
+- An exact name without `range` is a release branch: it continues from the repository's latest tag.
 - On a branch matched by no entry, `heraut release` and `heraut changelog --tag` refuse to
   publish unless you pass `--force`. Previews (`version next`, `--dry-run`) keep working.
   `--force` means "release from here": it lifts the branch checks and, between environments, the
@@ -95,8 +94,8 @@ heraut changelog --regenerate        # v1.3.2 gets its own section: v1.3.1..v1.3
 Changelog and release-notes bounds only use tags in a section's own history. Until `release/1.3`
 is merged into `main`, `v1.3.2` has no section in `main`'s `CHANGELOG.md` and `v1.4.0` still
 bounds at `v1.3.1`. After the merge, `v1.3.2` has its own section, and a later `main` section also
-lists the merged-in fix, because it is in that section's history. This bounds-fix applies to every
-`semver` repository, with or without a `branches` block; linear histories render identically.
+lists the merged-in fix, because it is in that section's history. Sections are bounded this way in
+every `semver` repository, with or without a `branches` block.
 
 ## When the branch is the version
 

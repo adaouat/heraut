@@ -156,7 +156,7 @@ func newCommitTicketsCmd() *cobra.Command {
 	var fromLatestTag bool
 	cmd := &cobra.Command{
 		Use:   "tickets [rev-range]",
-		Short: "Validate commits.tickets patterns against a range (or full history) of commits",
+		Short: "Show the tickets your commits.tickets patterns find in a range of commits",
 		Long: "Show which ticket references the commits.tickets patterns of .heraut.yml find in a range of\n" +
 			"commits, and the link each one becomes in the changelog. A diagnostic for writing those patterns: it\n" +
 			"warns when nothing matches but never fails.",

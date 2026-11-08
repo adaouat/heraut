@@ -114,7 +114,7 @@ Publishing: create a release with its notes on each target forge. Present, even 
 
 | Key | Type | Default | Required | Description |
 |---|---|---|---|---|
-| `release.notes` | object |  |  | A generated document: the changelog file (changelog:) or the notes published with each release (release.notes:). Sets where the changelog is written, which tags it covers, and its template and rendering overrides. Same keys as `changelog`. |
+| `release.notes` | object |  |  | How the release notes published with each release are rendered: their template and rendering overrides. They are never written to a file, so output is refused here. Same keys as `changelog`. |
 | `release.assets` | list of string |  |  | Files to attach to every target's release, as glob patterns (e.g. dist/*.tar.gz). Each must match a file in the repository once post_bump hooks have run, or the release stops before committing. A target's own assets replace this list. |
 | `release.allow_missing_assets` | boolean | `false` |  | Let an asset pattern match nothing: it is skipped with a warning instead of stopping the release. Set it when a pre_tag, post_tag or pre_release hook builds the files. Default false. |
 | `release.targets` | list of objects |  |  | Where to publish, each entry naming a forges\[].name. Omit it to publish to the one forge found from the CI job or the git origin. |

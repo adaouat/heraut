@@ -2,7 +2,7 @@
 
 # heraut commit tickets
 
-Validate commits.tickets patterns against a range (or full history) of commits.
+Show the tickets your commits.tickets patterns find in a range of commits.
 
 Show which ticket references the commits.tickets patterns of .heraut.yml find in a range of
 commits, and the link each one becomes in the changelog. A diagnostic for writing those patterns: it

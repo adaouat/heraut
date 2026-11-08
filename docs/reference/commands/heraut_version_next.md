@@ -27,11 +27,11 @@ heraut version next --json
 
 | Flag | Default | Description |
 |---|---|---|
-| `--allow-major` |  | confirm a major bump for this run: lift versioning.bump.stay_at_v0, versioning.bump.confirm_major and the pre-release series major-escalation block |
+| `--allow-major` |  | allow a major version for this run: lifts versioning.bump.stay_at_v0 and versioning.bump.confirm_major, and lets a pre-release series move to a new major |
 | `--env <string>` |  | target environment (for per-env strategies) |
 | `--force` |  | lift the branch checks and E002 (destination ahead); E001 is never forced |
 | `--json` |  | print the result as a JSON envelope |
-| `--pre-release <string>` |  | mint a pre-release \<core\>-\<label\>.\<N\> (plain semver only; never writes CHANGELOG.md) |
+| `--pre-release <string>` |  | release a pre-release such as v1.4.0-rc.1 (label rc; semver only; the changelog is not written) |
 | `--set-build-id <string>` |  | build ID for the tag: the {build} token in tag_format, or +\<id\> build metadata under plain semver (requires --set-version) |
 | `--set-version <string>` |  | override the resolved version — with or without tag prefix (e.g. 1.2.3 or v1.2.3); must match the strategy (SemVer, or the CalVer format) |
 

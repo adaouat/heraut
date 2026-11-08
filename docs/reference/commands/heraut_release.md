@@ -35,15 +35,15 @@ heraut release --pre-release rc
 
 | Flag | Default | Description |
 |---|---|---|
-| `--allow-major` |  | confirm a major bump for this run: lift versioning.bump.stay_at_v0, versioning.bump.confirm_major and the pre-release series major-escalation block |
+| `--allow-major` |  | allow a major version for this run: lifts versioning.bump.stay_at_v0 and versioning.bump.confirm_major, and lets a pre-release series move to a new major |
 | `--dry-run` |  | print actions without executing them |
 | `--env <string>` |  | target environment (for per-env strategies) |
 | `--force` |  | release from here: lift the branch checks and E002 (destination ahead); E001 and missing PR data are never forced |
 | `--json` |  | with --dry-run, print the plan as a JSON envelope |
 | `--no-hooks` |  | skip every configured hook (post_bump/pre_changelog/pre_tag/post_tag/pre_release/post_release) for this run |
 | `--offline` |  | skip remote PR/MR metadata enrichment (forces enrichment_policy: disabled); outside CI, commit links go too |
-| `--pre-release <string>` |  | mint a pre-release \<core\>-\<label\>.\<N\> (plain semver only; never writes CHANGELOG.md) |
-| `--regenerate-changelog` |  | rebuild the entire changelog and re-fetch PR attribution (needed once when migrating an existing changelog onto heraut) |
+| `--pre-release <string>` |  | release a pre-release such as v1.4.0-rc.1 (label rc; semver only; the changelog is not written) |
+| `--regenerate-changelog` |  | rebuild the whole changelog from the tags, replacing the file (hand-written text included); needed once for a changelog written by another tool |
 | `--set-build-id <string>` |  | build ID for the tag: the {build} token in tag_format, or +\<id\> build metadata under plain semver (requires --set-version) |
 | `--set-version <string>` |  | override the resolved version — with or without tag prefix (e.g. 1.2.3 or v1.2.3); must match the strategy (SemVer, or the CalVer format) |
 | `--skip-hook <strings>` |  | skip individual hook points for this run (post_bump/pre_changelog/pre_tag/post_tag/pre_release/post_release); repeatable or comma-separated, also read from HERAUT_SKIP_HOOKS when the flag is absent; cannot be combined with --no-hooks |

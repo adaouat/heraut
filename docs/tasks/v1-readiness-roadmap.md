@@ -36,7 +36,7 @@ post-v1 (Phase 100). The v1.0.0 cut (Phase 101) comes last.
 | 95 | Decisions to make before the format freezes (ADRs) | T502–T506 | Done |
 | 96 | Behaviour fixes | T507–T522 | Done |
 | 97 | Tests that give false confidence | T523–T529 | Done |
-| 98 | User docs | T530–T536 | Not started |
+| 98 | User docs | T530–T536 | Done |
 | 99 | Contributor docs | T537–T541 | Not started |
 | 100 | Remaining review items (graded post-v1, done before v1 by decision) | T542–T554, T556 | Not started |
 | 101 | Cut v1.0.0 | T555 | Not started |
@@ -910,7 +910,7 @@ PowerShell install and PATH block in `install.md`; hooks run under `cmd`).
 `PATH`) and the note that git is needed and hooks run under `cmd`. Linked from the guides index, the
 docs home and the exit-codes page. The PowerShell block wasn't run (no Windows machine here).
 
-#### `[ ]` T536: plain-language pass
+#### `[x]` T536: plain-language pass
 
 - `guides/template-customization.md:85`: a garbled sentence; contributor jargon there and in the sample
   (`<driver>.template`, "both drivers", "data contract", "root `Release`").
@@ -920,6 +920,22 @@ docs home and the exit-codes page. The PowerShell block wasn't run (no Windows m
   `version current --force`, `--regenerate` / `--regenerate-changelog` (say they replace the file), and
   `commit tickets` ("Validate", but it never fails).
 - `reference/configuration.md:115`: `release.notes` reuses the changelog's description.
+
+**Done (2026-11-08).**
+- **Template guide:** the garbled sentence is fixed. `<driver>.template` and "per-driver" now read
+  "`changelog.template` or `release.notes.template`" and "per document". "Data contract" became
+  "the same data", "root `Release`" became "the release (`.`)", and "both drivers" became "the
+  changelog and the release notes". The sample's precedence comment and per-document `rendering` line
+  follow.
+- **Maintenance guide:** no more "as before", "as today", "today's behaviour" or "bounds-fix".
+- **Help text:** `--pre-release` ("such as v1.4.0-rc.1"), `--allow-major` (what it lifts, in words),
+  `--regenerate` / `--regenerate-changelog` (say they replace the file, hand-written text included),
+  and `commit tickets` ("Show", since it never fails). `version current --force` was already done in
+  T503.
+- **Configuration reference:** `release.notes` gets its own description next to its `$ref` (docgen
+  prefers it): the notes are never written to a file.
+
+Reference regenerated.
 
 ---
 
