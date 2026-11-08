@@ -33,7 +33,7 @@ post-v1 (Phase 100). The v1.0.0 cut (Phase 101) comes last.
 | Phase | Theme | Tasks | Status |
 |---|---|---|---|
 | 94 | Release-logic bugs that block v1 | T492–T501 | Done |
-| 95 | Decisions to make before the format freezes (ADRs) | T502–T506 | Not started |
+| 95 | Decisions to make before the format freezes (ADRs) | T502–T506 | In progress — all five decided 2026-11-08 |
 | 96 | Behaviour fixes | T507–T522 | Not started |
 | 97 | Tests that give false confidence | T523–T529 | Not started |
 | 98 | User docs | T530–T536 | Not started |
@@ -300,6 +300,8 @@ surface (config keys, flags, exit codes, `--json` envelope, template data, embed
 the deprecation window and how a deprecated key warns. Point to it from `coding.md` § Config and
 CONTRIBUTING.md.
 
+**Decision (user, 2026-11-08):** SemVer plus deprecation. The stable surface is config keys and values, flags, exit codes, the `--json` envelope and error codes, and template data fields; any of them breaks only in a major. A deprecated key or flag keeps working and warns, naming its replacement, for at least one minor release, and is removed in the next major. Message wording and the built-in templates' output may change in a minor.
+
 #### `[ ]` T503: **Decision** — split `--force`, and make re-tagging honest
 
 On `release`, `--force` bypasses six unrelated things: E001, E002, `enrichment_policy: required`, the
@@ -309,6 +311,8 @@ then `git tag` fails with `already exists` (exit 3; `perenv/promote.go:170`, `ap
 Options: narrow `--force` to the promotion guards and add explicit flags for the rest; make E001
 non-bypassable (ADR-0007 matrix) or make it an explicit re-tag. Either way, fail before the commit.
 
+**Decision (user, 2026-11-08):** `--force` means "release from here": it lifts E002 and the branch guards (unlisted branch, per-env branch) and nothing else. E001 is never bypassable and is refused before any commit; the per-env `--set-version` probe goes with it. `--force` no longer downgrades `enrichment_policy: required`: `--offline` is the way to release without PR data. No new flag. (Splitting into named flags was rejected as too heavy.)
+
 #### `[ ]` T504: **Decision** — the `--json` envelope on failure
 
 Inconsistent today: failed `version next/current --json` emit `"data":{"tag":"","version":""}`
@@ -316,6 +320,8 @@ Inconsistent today: failed `version next/current --json` emit `"data":{"tag":"",
 an invalid message (`commit.go:360-365`) though Spec 03:518 reserves `skipped` for merge and fixup
 commits; `release --json` emits no `data`. Recommendation: omit `data` on failure except for `check`, as
 documented. Update Spec 03, the skill and the reference.
+
+**Decision (user, 2026-11-08):** no `data` on failure, for every command except `heraut check`; `commit verify` uses `skipped` only for merge and fixup commits.
 
 #### `[ ]` T505: **Decision** — reject keys heraut would ignore
 
@@ -330,12 +336,16 @@ documented. Update Spec 03, the skill and the reference.
 Tightening after v1 breaks configs that load today. Recommendation: strict decode and a validation error
 for each combination now.
 
+**Decision (user, 2026-11-08):** a config error now for all of them, each naming the key and the right one.
+
 #### `[ ]` T506: **Decision** — "nothing to release"
 
 "No commits since v1.4.0", "No releasable commits", `version current` with no tags and a pre-release
 that would sort below an existing one all exit 3 (`runtime`), like a real failure, and none is listed in
 `docs/reference/exit-codes.md` or SKILL.md:81. A CI job that releases on every push goes red. Options: a
 distinct exit code, a distinct `error.code`, or both. Document the result and give a CI recipe.
+
+**Decision (user, 2026-11-08):** exit code 5 and `--json` `error.code: "nothing_to_release"`, for no commits since the last tag, no releasable commits, and `version current` with no tag yet. Documented with a CI recipe (`|| [ $? -eq 5 ]`).
 
 ---
 
