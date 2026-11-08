@@ -706,7 +706,7 @@
         },
         "api_url": {
           "type": "string",
-          "description": "API host override, when it differs from base_url. Must be https (plain http is accepted only for loopback hosts). Defaults per type when unset."
+          "description": "API root, when it differs from the one derived from base_url. PR data and publishing both use it; links keep base_url. Must be https (plain http is accepted only for loopback hosts). Defaults per type when unset."
         },
         "api_mode": {
           "type": "string",

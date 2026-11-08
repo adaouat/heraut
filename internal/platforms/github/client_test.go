@@ -162,7 +162,7 @@ const githubUploadURL = "https://uploads.github.com/repos/acme/widget/releases/4
 
 func githubClient(t *testing.T, f *fakeGitHub) *Client {
 	t.Helper()
-	c, err := newClient("https://github.com", testRepository, testToken, noEnv, f.httpClient())
+	c, err := newClient("https://github.com", "", testRepository, testToken, noEnv, f.httpClient())
 	require.NoError(t, err)
 	return c
 }
@@ -307,7 +307,7 @@ func TestCreateRelease_Hosts(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			f := newFakeGitHub(t, tc.uploadURL)
 			getenv := func(k string) string { return tc.env[k] }
-			c, err := newClient(tc.baseURL, testRepository, testToken, getenv, f.httpClient())
+			c, err := newClient(tc.baseURL, "", testRepository, testToken, getenv, f.httpClient())
 			require.NoError(t, err)
 
 			_, err = c.CreateRelease(t.Context(), "v1.2.3", "", "n", true, false, []platforms.Asset{testAsset(t, "app.zip", "x")})
@@ -552,7 +552,7 @@ func TestNewClient_LeavesTheGivenHTTPClientAlone(t *testing.T) {
 	hc := f.httpClient()
 	transport := hc.Transport
 
-	c, err := newClient("https://github.com", testRepository, testToken, noEnv, hc)
+	c, err := newClient("https://github.com", "", testRepository, testToken, noEnv, hc)
 	require.NoError(t, err)
 	_, err = c.CreateRelease(t.Context(), "v1.2.3", "", "n", false, false, []platforms.Asset{testAsset(t, "app.zip", "x")})
 	require.NoError(t, err)

@@ -724,3 +724,17 @@ func TestCheckAssets_PathWithHashIsAccepted(t *testing.T) {
 
 	assert.NoError(t, gitlab.New(&config.Platform{Assets: []string{"dist/*"}}).CheckAssets())
 }
+
+// forges[].api_url moves publishing to that API root too, so PR data and releases use the same
+// instance; base_url keeps naming the instance for links.
+func TestCreateRelease_APIURLReachesPublishing(t *testing.T) {
+	notInCI(t)
+	st := newStub(t)
+	t.Setenv("GITLAB_TOKEN", "pat")
+	p := gitlab.New(&config.Platform{Project: "grp/repo", BaseURL: "https://gitlab.example.invalid", APIURL: st.srv.URL + "/api/v4", TokenEnv: "GITLAB_TOKEN"})
+
+	require.NoError(t, p.CreateRelease(t.Context(), "v1.0.0", "notes", false))
+
+	require.NotEmpty(t, st.requests, "the release went to api_url, not to base_url")
+	assert.Equal(t, "https://gitlab.example.invalid/grp/repo/-/releases/v1.0.0", p.ReleaseURL("v1.0.0"), "links keep base_url")
+}

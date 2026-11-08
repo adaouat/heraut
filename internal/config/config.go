@@ -326,7 +326,10 @@ type Platform struct {
 	// GitLab-specific
 	Project string
 	// Shared
-	BaseURL  string
+	BaseURL string
+	// APIURL is the owning forge's api_url: the API root publishing calls, instead of the one
+	// derived from BaseURL. Empty derives it. Links keep BaseURL.
+	APIURL   string
 	TokenEnv string
 	Assets   []string
 	// AllowMissingAssets is release.allow_missing_assets for the target this platform publishes

@@ -360,3 +360,17 @@ func TestPlatform_SetLatestReachesTheRequest(t *testing.T) {
 	require.NoError(t, p.CreateRelease(t.Context(), "v1.0.0", "notes", false))
 	assert.NotContains(t, jsonBody(t, f.recorded()[0]), "make_latest")
 }
+
+// forges[].api_url moves publishing to that API root too, so PR data and releases use the same
+// instance; links keep base_url.
+func TestPlatform_APIURLReachesPublishing(t *testing.T) {
+	inRepo(t, nil)
+	f := newFakeGitHub(t, githubUploadURL)
+	cfg := &config.Platform{Name: "github", Repository: testRepository, APIURL: "https://proxy.example.com/github/"}
+	p, _ := testPlatform(cfg, map[string]string{"GH_TOKEN": "tok"}, f)
+
+	require.NoError(t, p.CreateRelease(t.Context(), "v1.0.0", "notes", false))
+
+	assert.Equal(t, []string{"POST proxy.example.com/github/repos/" + testRepository + "/releases"}, f.requests())
+	assert.Equal(t, "https://github.com/"+testRepository+"/releases/tag/v1.0.0", p.ReleaseURL("v1.0.0"), "links keep base_url")
+}

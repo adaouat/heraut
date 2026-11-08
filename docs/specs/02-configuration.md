@@ -596,7 +596,7 @@ forges:
 | `project`     | No       | Inferred (see below)  | GitLab project path (`namespace[/subgroup]/repo`). For `azure_devops`, `organization/project`. A config error on a `github` forge, which uses `repository`. |
 | `repository`  | No       | Inferred (see below)  | GitHub repository (`owner/repo`). For `azure_devops`, the repository name. A config error on a `gitlab` forge, which uses `project`. |
 | `base_url`    | No       | Per-type default (see below) | Web base URL of the forge instance, e.g. `https://gitlab.example.com` for a self-hosted instance. |
-| `api_url`     | No       | Derived from `base_url` | API host override, when it differs from `base_url`.                                                 |
+| `api_url`     | No       | Derived from `base_url` | API root, when it differs from the one derived from `base_url` (a proxy, a separate API host). Both PR/MR enrichment and publishing (GitHub, GitLab) call it; links keep `base_url`. |
 | `api_mode`    | No       | `rest`                | `rest` or `graphql` — see § `api_mode` trade-off below.                                               |
 | `token_env`   | No       | Per-type default (see below) | Env var holding the API token.                                                                 |
 

@@ -552,9 +552,17 @@ has a Latest), an `app` real-git table (`v2.0.0` yes; `v1.0.1` and `v2.1.0-rc.1`
 dev/uat per-env release, becomes "Latest". Fix: send `make_latest: "false"` when the version isn't the
 highest final release of the strategy (or `"legacy"`), with an httptest contract assertion; document it.
 
-#### `[ ]` T516: `forges[].api_url` reaches publishing, or is documented as enrichment-only (needs the go for the GitLab driver)
+#### `[x]` T516: `forges[].api_url` reaches publishing, or is documented as enrichment-only (needs the go for the GitLab driver)
 
 **Decision (user, 2026-11-08):** publish through it too, on GitHub and GitLab; the user gave the go for the GitLab driver change this needs.
+
+**Done (2026-11-08).** `config.Platform` gains `APIURL`, which `platformConfigFromTarget` copies from the
+forge's explicit `api_url`. GitHub: `newClient` takes it as the API root (https or loopback only)
+instead of deriving one. GitLab, the one driver change approved: a new `apiBase()` (api_url, else the
+base URL) feeds both client constructions, while `resolveBaseURL` still serves links and the job-token
+host check. Tests: one per driver (requests reach the api_url host, release links keep `base_url`;
+red before) and a wiring test. The three GitHub client tests calling `newClient` pass `""`. Docs:
+Spec 02's `api_url` row, the schema description (so the generated reference).
 
 `platformConfigFromTarget` (`internal/app/platforms.go:49-69`) never copies the identity's API URL, so
 `api_url` changes enrichment but not publishing on either platform. Spec 02 calls it an "API host

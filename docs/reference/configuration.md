@@ -240,7 +240,7 @@ Code-hosting platforms heraut talks to. Usually not needed: heraut finds the for
 | `forges[].project` | string |  | GitLab project path (namespace\[/subgroup]/repo). GitLab. For azure_devops, "organization/project". |
 | `forges[].repository` | string |  | GitHub repository (owner/repo). GitHub. For azure_devops, the repository name. |
 | `forges[].base_url` | string |  | Web base URL of the forge instance (e.g. https://gitlab.example.com for a self-hosted instance). Must be https (plain http is accepted only for loopback hosts). Defaults per type when unset. |
-| `forges[].api_url` | string |  | API host override, when it differs from base_url. Must be https (plain http is accepted only for loopback hosts). Defaults per type when unset. |
+| `forges[].api_url` | string |  | API root, when it differs from the one derived from base_url. PR data and publishing both use it; links keep base_url. Must be https (plain http is accepted only for loopback hosts). Defaults per type when unset. |
 | `forges[].api_mode` | `rest` \| `graphql` | `rest` | How heraut calls the forge's API: rest (the default) or graphql. |
 | `forges[].token_env` | string |  | Environment variable holding the API token. Defaults per type when unset. |
 

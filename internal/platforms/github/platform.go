@@ -207,7 +207,7 @@ func (p *Platform) token() (token, envName string, err error) {
 }
 
 func (p *Platform) client(token string) (*Client, error) {
-	return newClient(p.baseURL(), p.repository(), token, p.getenv, p.httpClient)
+	return newClient(p.baseURL(), p.cfg.APIURL, p.repository(), token, p.getenv, p.httpClient)
 }
 
 func (p *Platform) baseURL() string {

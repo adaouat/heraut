@@ -114,14 +114,14 @@ func (p *Platform) client() (*Client, error) {
 	if err != nil {
 		return nil, err
 	}
-	return NewClient(p.resolveBaseURL(), token, jobToken)
+	return NewClient(p.apiBase(), token, jobToken)
 }
 
 // checkAPIAuth verifies API access with the call each token kind can make: a job token cannot
 // reach /user, so it reads the project's releases (by CI_PROJECT_ID when set), while a personal
 // token is validated through /user.
 func (p *Platform) checkAPIAuth(ctx context.Context, token string, jobToken bool) error {
-	c, err := NewClient(p.resolveBaseURL(), token, jobToken)
+	c, err := NewClient(p.apiBase(), token, jobToken)
 	if err != nil {
 		return err
 	}
@@ -241,6 +241,16 @@ func (p *Platform) tokenEnv() string {
 //     ambientLinkContext() uses CI_PROJECT_URL unconditionally; covers custom CI setups and
 //     containers that expose CI_PROJECT_URL without setting GITLAB_CI)
 //  4. gitlab.com (public fallback for local / non-CI runs without explicit config)
+//
+// apiBase is where API requests go: the forge's api_url when set, else the instance's base URL.
+// Links and the job-token host check keep using resolveBaseURL.
+func (p *Platform) apiBase() string {
+	if p.cfg.APIURL != "" {
+		return p.cfg.APIURL
+	}
+	return p.resolveBaseURL()
+}
+
 func (p *Platform) resolveBaseURL() string {
 	if p.cfg.BaseURL != "" {
 		return p.cfg.BaseURL

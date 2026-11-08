@@ -55,6 +55,7 @@ func platformConfigFromTarget(t config.Target, f config.Forge, id port.ForgeIden
 		Name:     name,
 		Type:     id.Type,
 		BaseURL:  id.Host,
+		APIURL:   f.APIURL,
 		TokenEnv: f.TokenEnv,
 		Draft:    t.Draft,
 		Assets:   t.Assets,

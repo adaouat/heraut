@@ -589,3 +589,12 @@ func TestBuildReleasePipelineConfig_ForgeResolutionErrorScope(t *testing.T) {
 		assert.Nil(t, pCfg.ForgeIdentity)
 	})
 }
+
+// A forge's api_url reaches the platform, so publishing uses the API PR data is read from.
+func TestPlatformConfigFromTarget_CarriesTheAPIURL(t *testing.T) {
+	got := platformConfigFromTarget(config.Target{}, config.Forge{Name: "gl", APIURL: "https://api.gitlab.example.com/api/v4"},
+		port.ForgeIdentity{Type: "gitlab", Host: "https://gitlab.example.com", Project: "acme/app"})
+
+	assert.Equal(t, "https://api.gitlab.example.com/api/v4", got.APIURL)
+	assert.Equal(t, "https://gitlab.example.com", got.BaseURL)
+}

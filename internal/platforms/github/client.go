@@ -41,10 +41,12 @@ var (
 // baseURL (empty means github.com). The API root comes from config.GitHubAPIURL, which reads
 // GITHUB_API_URL through getenv in GitHub Actions.
 func NewClient(baseURL, repository, token string, getenv func(string) string) (*Client, error) {
-	return newClient(baseURL, repository, token, getenv, nil)
+	return newClient(baseURL, "", repository, token, getenv, nil)
 }
 
-func newClient(baseURL, repository, token string, getenv func(string) string, httpClient *http.Client) (*Client, error) {
+// newClient is NewClient with an explicit API root (apiURL, the forge's api_url; empty derives it
+// from baseURL) and an HTTP client (nil: a default one).
+func newClient(baseURL, apiURL, repository, token string, getenv func(string) string, httpClient *http.Client) (*Client, error) {
 	owner, repo, err := splitRepository(repository)
 	if err != nil {
 		return nil, err
@@ -52,10 +54,14 @@ func newClient(baseURL, repository, token string, getenv func(string) string, ht
 	if baseURL == "" {
 		baseURL = config.DefaultGitHubBaseURL
 	}
-	apiURL, err := config.GitHubAPIURL(baseURL, getenv)
-	if err != nil {
-		return nil, err
+	if apiURL == "" {
+		if apiURL, err = config.GitHubAPIURL(baseURL, getenv); err != nil {
+			return nil, err
+		}
+	} else if !config.IsSecureURL(apiURL) {
+		return nil, fmt.Errorf("GitHub api_url %q must use https (plain http is accepted only for localhost and loopback addresses)", apiURL)
 	}
+	apiURL = strings.TrimSuffix(apiURL, "/")
 	if httpClient == nil {
 		tr := http.DefaultTransport.(*http.Transport).Clone()
 		tr.ResponseHeaderTimeout = responseHeaderTimeout
