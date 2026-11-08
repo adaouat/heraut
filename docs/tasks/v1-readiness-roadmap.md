@@ -435,11 +435,18 @@ order tags, where the env glob already scopes them. Tests: an `isReleaseTag` tab
 before) and Lane A `TestNotes_ReleaseTagShapes` (both red on the old code). Spec 03 already said both;
 no doc change.
 
-#### `[ ]` T509: `version current` under CalVer picks the highest CalVer tag
+#### `[x]` T509: `version current` under CalVer picks the highest CalVer tag
 
 `internal/app/current.go:86` returns git's first listed tag even when it isn't CalVer: a legacy `v1.2.3`
 plus `2026.11.0` gives `v1.2.3` (also `--bare` and `--json`) while `version next` gives `2026.11.1`.
 Spec 04: "Tags that do not parse are ignored." Fix: pick as `calver.Resolver.Resolve` does.
+
+**Done (2026-11-08).** `globalCurrentTag` under CalVer now goes through `latestCalverTag`: tags whose
+version parses under `versioning.format`, highest by calendar value (`CompareByFormat`); with none,
+it is `no tags found`, exit 5 since T506. Three `current_test.go` fixtures had no `format`, which the
+validator requires for CalVer; they now set one. Tests: two unit tests (a legacy tag and `latest`
+ignored; only other tags gives nothing to release), and Lane A `TestCalVer_VersionCurrentIgnoresALegacyTag`.
+No doc change: Spec 04 already said it.
 
 #### `[ ]` T510: **Decision** — CalVer with no new commit
 

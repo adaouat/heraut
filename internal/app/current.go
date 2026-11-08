@@ -82,11 +82,40 @@ func globalCurrentTag(runner port.Runner, cfg *config.Config, env, glob string, 
 		}
 		return "", fmt.Errorf("%w for %q", errNoTagsFound, glob)
 	default:
-		if len(lines) > 0 {
-			return lines[0], nil
+		if tag, ok := latestCalverTag(cfg, env, lines); ok {
+			return tag, nil
 		}
 		return "", fmt.Errorf("%w for %q", errNoTagsFound, glob)
 	}
+}
+
+// latestCalverTag is the highest of tags whose version parses under versioning.format, by calendar
+// value; tags that aren't CalVer versions of the format (a legacy v1.2.3, latest) are ignored, as the
+// resolver ignores them. ok is false when none is.
+func latestCalverTag(cfg *config.Config, env string, tags []string) (string, bool) {
+	tokens, err := calver.ParseFormat(cfg.Versioning.Format)
+	if err != nil {
+		return "", false
+	}
+	cmp, err := calver.CompareByFormat(cfg.Versioning.Format)
+	if err != nil {
+		return "", false
+	}
+	extract := calverExtractor(cfg, env)
+	best, bestVersion := "", ""
+	for _, tag := range tags {
+		v, ok := extract(tag)
+		if !ok {
+			continue
+		}
+		if _, err := calver.ParseVersion(tokens, v); err != nil {
+			continue
+		}
+		if best == "" || cmp(v, bestVersion) > 0 {
+			best, bestVersion = tag, v
+		}
+	}
+	return best, best != ""
 }
 
 // currentVersionBranchTag is CurrentTag on a version branch (ADR-0065): the highest tag reachable

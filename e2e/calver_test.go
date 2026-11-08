@@ -254,3 +254,14 @@ versioning:
 		})
 	}
 }
+
+// version current under CalVer ignores tags that aren't CalVer versions of the format, such as a
+// legacy SemVer tag from before the switch.
+func TestCalVer_VersionCurrentIgnoresALegacyTag(t *testing.T) {
+	bin := harness.Binary(t)
+	runScenarios(t, bin, nil, []scenario{
+		{name: "a legacy v1.2.3 beside 2026.11.0", config: calverCfg,
+			history: []step{commit("feat: a"), tag("2026.11.0"), commit("feat: b"), tag("v1.2.3")},
+			args:    []string{"version", "current"}, wantOut: "2026.11.0"},
+	})
+}

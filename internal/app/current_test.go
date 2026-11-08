@@ -34,7 +34,7 @@ func TestCurrentTag_Calver(t *testing.T) {
 
 	empty := ""
 	cfg := &config.Config{
-		Versioning: config.Versioning{Strategy: "calver", TagPrefix: &empty},
+		Versioning: config.Versioning{Strategy: "calver", Format: "YYYY.MM.PATCH", TagPrefix: &empty},
 	}
 	got, err := app.CurrentTag(mr, cfg, "", false)
 	require.NoError(t, err)
@@ -157,7 +157,7 @@ func TestCurrentVersion_CalverStripsPrefix(t *testing.T) {
 	mr.QueueResponse("rel-2026.05.1\n", "", nil)
 
 	cfg := &config.Config{
-		Versioning: config.Versioning{Strategy: "calver", TagPrefix: strPtr("rel-")},
+		Versioning: config.Versioning{Strategy: "calver", Format: "YYYY.MM.PATCH", TagPrefix: strPtr("rel-")},
 	}
 	got, err := app.CurrentVersion(mr, cfg, "", false)
 	require.NoError(t, err)
@@ -263,7 +263,7 @@ func TestCurrentTag_Calver_IgnoresIncludePreRelease(t *testing.T) {
 	mr := exectest.NewMockRunner()
 	mr.QueueResponse("2026.05.1\n", "", nil)
 	empty := ""
-	cfg := &config.Config{Versioning: config.Versioning{Strategy: "calver", TagPrefix: &empty}}
+	cfg := &config.Config{Versioning: config.Versioning{Strategy: "calver", Format: "YYYY.MM.PATCH", TagPrefix: &empty}}
 
 	got, err := app.CurrentTag(mr, cfg, "", true)
 	require.NoError(t, err)
