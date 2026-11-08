@@ -1,6 +1,7 @@
 package config_test
 
 import (
+	"fmt"
 	"strings"
 	"testing"
 
@@ -124,4 +125,40 @@ func TestConfig_HookTemplatesAreChecked(t *testing.T) {
 	valid, err := config.LoadFromReader(strings.NewReader(ignoredKeysBase + "changelog:\n  output: CHANGELOG.md\nhooks:\n  post_bump:\n    - run: \"echo {{ .Version }} {{ .Tag }} {{ .PreviousTag }} {{ .Env }}\"\n      stage: [\"dist/{{ .Version }}\"]\n  post_release:\n    - run: \"notify {{ .Platform }}\"\n"))
 	require.NoError(t, err)
 	assert.Empty(t, config.Validate(valid), "every documented field renders")
+}
+
+// Every rendering.excludes list is validated the same way, top level and per driver: an entry sets
+// exactly one of type or regex, and a regex compiles.
+func TestConfig_ExcludesAreValidatedEverywhere(t *testing.T) {
+	blocks := map[string]string{
+		"rendering.excludes":               "rendering:\n  excludes:\n%s",
+		"changelog.rendering.excludes":     "changelog:\n  output: CHANGELOG.md\n  rendering:\n    excludes:\n%s",
+		"release.notes.rendering.excludes": "release:\n  notes:\n    rendering:\n      excludes:\n%s",
+	}
+	indent := map[string]string{
+		"rendering.excludes": "    ", "changelog.rendering.excludes": "      ", "release.notes.rendering.excludes": "        ",
+	}
+	entries := []struct{ name, entry, suffix, message string }{
+		{"a regex that doesn't compile", `- regex: "("`, ".regex", "invalid regex"},
+		{"both type and regex", `- {type: chore, regex: "x"}`, "", "only one of type or regex"},
+		{"neither", `- {}`, "", "exactly one of type or regex"},
+	}
+	for path, block := range blocks {
+		for _, e := range entries {
+			t.Run(path+": "+e.name, func(t *testing.T) {
+				yaml := ignoredKeysBase + fmt.Sprintf(block, indent[path]+e.entry+"\n")
+				cfg, err := config.LoadFromReader(strings.NewReader(yaml))
+				require.NoError(t, err, yaml)
+				want := path + "[0]" + e.suffix
+				var found *config.ValidationError
+				for _, ve := range config.Validate(cfg) {
+					if ve.Path == want {
+						found = &ve
+					}
+				}
+				require.NotNil(t, found, "expected %s, got %v", want, config.Validate(cfg))
+				assert.Contains(t, found.Message, e.message)
+			})
+		}
+	}
 }

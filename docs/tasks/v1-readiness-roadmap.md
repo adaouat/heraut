@@ -579,13 +579,20 @@ Fix: `PathEscape` each segment, as the generator's `azureRepoRoot` does.
 the PR link (`prquery.go` builds on `webBase`), `ChangeURL` and `CommitURL` are all escaped. Test: names
 with spaces give `%20` in both URLs (red before). Existing URL tests (plain names) are unchanged.
 
-#### `[ ]` T518: per-driver `rendering.excludes` are validated
+#### `[x]` T518: per-driver `rendering.excludes` are validated
 
 `validateContentDriver` (`internal/config/validate_rendering.go:151-168`) validates no excludes:
 `changelog.rendering.excludes: [{regex: "("}]` or `[{type: chore, regex: x}]` pass `check config`, and
 `NewExcludeMatcher` skips the bad regex silently. The top-level validation (`:19-31`) has no test at
 all, and `excludes.go:14-15` claims "the validator rejects it upstream". Fix: validate excludes for
 changelog, notes, targets and environments; table tests for the three messages.
+
+**Done (2026-11-08).** The top-level checks moved into `validateExcludes(excludes, path)`, which
+`validateContentDriver` now also runs. So every driver it validates (`changelog`, `release.notes`, an
+environment's changelog and release notes) reports `<path>.rendering.excludes[i]`. Targets have no
+rendering block. Test: a table of three blocks × three faults (no type or regex, both, a regex that
+doesn't compile); the six per-driver rows were red before, and the top-level rows give that block its
+first tests. The comment in `excludes.go` ("the validator rejects it upstream") is now true.
 
 #### `[ ]` T519: the update hint stays quiet where heraut promises no network
 

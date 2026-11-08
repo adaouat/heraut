@@ -15,26 +15,33 @@ func validateRendering(cfg *Config) []ValidationError {
 	if cfg.Rendering == nil {
 		return nil
 	}
-	var errs []ValidationError
-	for i, e := range cfg.Rendering.Excludes {
-		path := fmt.Sprintf("rendering.excludes[%d]", i)
-		switch {
-		case e.Type == "" && e.Regex == "":
-			errs = append(errs, ValidationError{Path: path, Message: "must set exactly one of type or regex", Hint: `e.g. {type: chore} or {regex: "^chore\\(deps"}`})
-		case e.Type != "" && e.Regex != "":
-			errs = append(errs, ValidationError{Path: path, Message: "set only one of type or regex, not both"})
-		case e.Regex != "":
-			if _, err := regexp.Compile(e.Regex); err != nil {
-				errs = append(errs, ValidationError{Path: path + ".regex", Message: fmt.Sprintf("invalid regex: %v", err)})
-			}
-		}
-	}
+	errs := validateExcludes(cfg.Rendering.Excludes, "rendering.excludes")
 	errs = append(errs, validateTemplateSnippets(cfg.Rendering.Templates, "rendering.templates")...)
 	var trailers []FooterRule
 	if cfg.Rendering.Commit != nil {
 		trailers = cfg.Rendering.Commit.Trailers
 	}
 	errs = append(errs, validateTrailers(trailers)...)
+	return errs
+}
+
+// validateExcludes checks a rendering.excludes list, wherever it sits: each entry sets exactly one of
+// type or regex, and a regex compiles (an invalid one would otherwise be skipped silently).
+func validateExcludes(excludes []Exclude, path string) []ValidationError {
+	var errs []ValidationError
+	for i, e := range excludes {
+		p := fmt.Sprintf("%s[%d]", path, i)
+		switch {
+		case e.Type == "" && e.Regex == "":
+			errs = append(errs, ValidationError{Path: p, Message: "must set exactly one of type or regex", Hint: `e.g. {type: chore} or {regex: "^chore\\(deps"}`})
+		case e.Type != "" && e.Regex != "":
+			errs = append(errs, ValidationError{Path: p, Message: "set only one of type or regex, not both"})
+		case e.Regex != "":
+			if _, err := regexp.Compile(e.Regex); err != nil {
+				errs = append(errs, ValidationError{Path: p + ".regex", Message: fmt.Sprintf("invalid regex: %v", err)})
+			}
+		}
+	}
 	return errs
 }
 
@@ -163,6 +170,9 @@ func validateContentDriver(d *ContentDriver, path string) []ValidationError {
 				Hint:    "tag_pattern is a Go regex (e.g. ^v.*-prod$)",
 			})
 		}
+	}
+	if d.Rendering != nil {
+		errs = append(errs, validateExcludes(d.Rendering.Excludes, path+".rendering.excludes")...)
 	}
 	errs = append(errs, validateContentDriverTemplates(d, path)...)
 	return errs
