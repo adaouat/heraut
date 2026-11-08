@@ -352,3 +352,14 @@ func TestVersionBranch_ChangelogRerendersTheTaggedVersion(t *testing.T) {
 
 	assert.Equal(t, []string{"7.8.0: Initial, Before release"}, changelogOutline(repo.ReadFile("CHANGELOG.md")))
 }
+
+// On a maintenance line, commits that don't release are refused by name, like on main.
+func TestMaintenance_NoReleasableCommits(t *testing.T) {
+	bin := harness.Binary(t)
+	runScenarios(t, bin, nil, []scenario{
+		{name: "only a non-conventional commit on the line", config: branchesCfg,
+			history:  lineHistory("release/1.3", commit("Update readme")),
+			args:     versionNext,
+			wantExit: exitNothingToRelease, wantText: []string{"no releasable commits since v1.3.0", "update readme"}},
+	})
+}

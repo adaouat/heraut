@@ -1046,3 +1046,22 @@ func TestWriteChangelog_FooterAloneDoesNotRewrite(t *testing.T) {
 	written, _ := os.ReadFile(out)
 	assert.Equal(t, newer, string(written), "a section changed: written, with the new footer")
 }
+
+// When every commit since the last release is hidden (here a dependency bump), the new section would be
+// empty: the file is left exactly as it is, with no empty anchor.
+func TestGenerateChangelog_NothingNewLeavesTheFileUntouched(t *testing.T) {
+	out := filepath.Join(t.TempDir(), "CHANGELOG.md")
+	existing := "# Changelog\n\n<!-- heraut-release: v1.0.0 -->\n## [1.0.0] - 2026-01-01\n\n### 🚀 Features\n\n- old\n"
+	require.NoError(t, os.WriteFile(out, []byte(existing), 0o644))
+	mr := exectest.NewMockRunner()
+	mr.QueueResponse("v1.0.0\n", "", nil)                                                                          // scopedTags
+	mr.QueueResponse(record("bbb2222222", "B", "b@x", "2026-02-01T00:00:00Z", "chore(deps): bump x", ""), "", nil) // v1.0.0..HEAD
+	g := New(mr, &config.ContentDriver{Output: out}, ModeChangelog)
+
+	body, err := g.Generate(t.Context(), "v1.0.1", nil)
+
+	require.NoError(t, err)
+	assert.Equal(t, existing, body)
+	onDisk, _ := os.ReadFile(out)
+	assert.Equal(t, existing, string(onDisk))
+}

@@ -686,13 +686,21 @@ assets. The four mutants that survived the review (`AnnotatedTags = true`, relea
 killed; an equivalent condition survived as the control. The `NotNil` tests stay; they still prove
 the build succeeds.
 
-#### `[ ]` T524: cover the guards no test executes
+#### `[x]` T524: cover the guards no test executes
 
 - `internal/generators/native/generator.go:453`: "nothing new, leave the file untouched"; the mutant
   `if false && newBody == ""` survived (it writes an empty anchor and a new footer).
 - `internal/versioning/semver/maintenance.go:80-82` and `prerelease.go:117-119`: "no releasable commits";
   mutants survived, and for the pre-release path the user then gets "would sort below existing v1.2.0"
   instead of "No releasable commits".
+
+**Done (2026-11-08).** Three guards are now tested, each mutant (`if false && …`) killed:
+- the changelog's "nothing new": a native test where the only commit since `v1.0.0` is a dependency
+  bump leaves the file byte-identical;
+- the maintenance and pre-release "no releasable commits": Lane A scenarios (`Update readme` alone on
+  `release/1.3`, and before `--pre-release rc`), each exiting 5 with `no releasable commits since …`.
+
+No production change.
 
 #### `[ ]` T525: tests don't depend on the developer's environment (one file is a GitLab driver test: needs the go)
 

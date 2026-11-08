@@ -209,3 +209,15 @@ func TestSemver_WarnsWhenTagsUseAnotherPrefix(t *testing.T) {
 	assert.Equal(t, "v0.1.0", strings.TrimSpace(res.Stdout))
 	assert.Contains(t, res.Stderr, `no tag matches versioning.tag_prefix "v", but 1 tag looks like a version with the prefix "" (1.0.0): set versioning.tag_prefix: "" to continue from it`)
 }
+
+// A pre-release needs a releasable commit too; the message says so, rather than that the candidate
+// would sort below the last release.
+func TestSemver_PreReleaseWithNoReleasableCommits(t *testing.T) {
+	bin := harness.Binary(t)
+	runScenarios(t, bin, nil, []scenario{
+		{name: "only a non-conventional commit since v1.2.0", config: semverCfg(""),
+			history:  []step{commit("feat: a"), tag("v1.2.0"), commit("Update readme")},
+			args:     []string{"version", "next", "--pre-release", "rc"},
+			wantExit: exitNothingToRelease, wantText: []string{"no releasable commits since v1.2.0"}},
+	})
+}
