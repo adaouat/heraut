@@ -105,7 +105,7 @@ CI](skip-ci-on-release-commit.md).
 |---|---|---|
 | `the repository is a shallow clone` | GitLab's default clone depth | `GIT_DEPTH: "0"` |
 | `HEAD is detached and no CI branch variable names the branch` | the job ran in a tag or merge request pipeline | run it in a branch pipeline (the `rules:` above) |
-| `fatal: empty ident name` or `Please tell me who you are` | no git identity | the two `git config` lines |
+| `Preflight check failed: git user.name is not configured` (or `user.email`) | no git identity | the two `git config` lines |
 | `You are not allowed to push code to this project` | job token push not allowed | the setting at the top |
 | `You are not allowed to push code to protected branches` | protected branch | see above |
 | `! [rejected] … (fetch first)` | new commits landed on the branch since the pipeline started | run the job again from the newest pipeline |

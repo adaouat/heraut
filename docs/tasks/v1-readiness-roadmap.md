@@ -825,13 +825,23 @@ adds a Required column from each object's `required` list, 18 keys marked. A par
 says what both columns mean. `changelog.output`'s default sits on the definition `release.notes`
 shares; the reference renders that block as "Same keys as `changelog`".
 
-#### `[ ]` T532: quoted output matches the binary
+#### `[x]` T532: quoted output matches the binary
 
 - `getting-started.md:66-80`: real `check runtime` output also prints the working-tree and history rows.
   Re-run and check: the reviewer's run failed, so read why before quoting it.
 - `getting-started.md:127-151`: the quoted changelog lacks `<!-- heraut-footer -->` and the footer.
 - `guides/github-actions.md:122`, `gitlab-ci.md:108`: quote heraut's preflight message
   (`git user.name is not configured; run: …`), not git's.
+
+**Done (2026-11-08).** Regenerated in a scratch repository matching the page (the same config, origin
+`git@github.com:acme/app.git`, no token, no network):
+- `check runtime` now quotes the working-tree and history rows, and the page says it exits 3 with a
+  closing message. The reviewer's failing run was simply this missing-token case.
+- The changelog example became `heraut changelog --offline` (it would otherwise call GitHub's API) and
+  quotes the real file: its `<!-- heraut-footer -->` and footer line, with dates and version kept
+  synthetic. The paragraph now says when hashes are links.
+- The two CI guides quote heraut's preflight message for a missing identity, taken from a run with no
+  git identity.
 
 #### `[ ]` T533: when commit links and PR data appear
 

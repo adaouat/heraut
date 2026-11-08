@@ -119,7 +119,7 @@ violations`). Two ways out:
 | Message | Cause | Fix |
 |---|---|---|
 | `the repository is a shallow clone` | the default checkout, one commit and no tags | `fetch-depth: 0` |
-| `fatal: empty ident name` or `Please tell me who you are` | no git identity | the identity step |
+| `Preflight check failed: git user.name is not configured` (or `user.email`) | no git identity | the identity step |
 | `403` or `Resource not accessible by integration` when creating the release | `contents: write` missing | the `permissions:` block |
 | `GH006: Protected branch update failed` | protected `main` | see above |
 | a warning that PR data could not be fetched | `pull-requests: read` missing, or the token can't see the PRs | add the permission |
