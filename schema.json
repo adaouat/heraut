@@ -63,7 +63,8 @@
         "types_heading_level": {
           "type": "integer",
           "minimum": 1,
-          "description": "Heading depth (number of '#') of the type sections, such as ### 🚀 Features, in the changelog and release notes. Default 3."
+          "description": "Heading depth (number of '#') of the type sections, such as ### 🚀 Features, in the changelog and release notes. Default 3.",
+          "default": 3
         },
         "types": {
           "type": "array",
@@ -81,7 +82,8 @@
         },
         "scopes_restricted": {
           "type": "boolean",
-          "description": "When true, 'heraut commit verify' rejects scopes outside the scopes list. Defaults to false."
+          "description": "When true, 'heraut commit verify' rejects scopes outside the scopes list. Defaults to false.",
+          "default": false
         },
         "tickets": {
           "type": "array",
@@ -150,7 +152,8 @@
         },
         "remove": {
           "type": "boolean",
-          "description": "Drop this default type from the effective set (removes it from the 'heraut commit verify' allow-list)."
+          "description": "Drop this default type from the effective set (removes it from the 'heraut commit verify' allow-list).",
+          "default": false
         },
         "description": {
           "type": "string",
@@ -172,7 +175,8 @@
         },
         "remove": {
           "type": "boolean",
-          "description": "Drop this scope from the effective set — used to remove a built-in default (deps, deps-dev, release)."
+          "description": "Drop this scope from the effective set — used to remove a built-in default (deps, deps-dev, release).",
+          "default": false
         },
         "description": {
           "type": "string",
@@ -202,7 +206,8 @@
         },
         "require_ticket": {
           "type": "boolean",
-          "description": "Shorthand: target must match one of the already-configured commits.tickets[].pattern entries, instead of duplicating a ticket regex in require. Requires a non-empty commits.tickets."
+          "description": "Shorthand: target must match one of the already-configured commits.tickets[].pattern entries, instead of duplicating a ticket regex in require. Requires a non-empty commits.tickets.",
+          "default": false
         },
         "target": {
           "type": "string",
@@ -447,7 +452,8 @@
             "auto",
             "manual"
           ],
-          "description": "\"auto\" infers from conventional commits. \"manual\" requires --set-version. Defaults to \"auto\" when omitted."
+          "description": "\"auto\" infers from conventional commits. \"manual\" requires --set-version. Defaults to \"auto\" when omitted.",
+          "default": "auto"
         },
         "overrides": {
           "type": "array",
@@ -458,11 +464,13 @@
         },
         "stay_at_v0": {
           "type": "boolean",
-          "description": "While the current major version is 0, hold a major bump back to minor (with a warning) instead of releasing 1.0.0. Lift it for one run with --allow-major. Defaults to false."
+          "description": "While the current major version is 0, hold a major bump back to minor (with a warning) instead of releasing 1.0.0. Lift it for one run with --allow-major. Defaults to false.",
+          "default": false
         },
         "confirm_major": {
           "type": "boolean",
-          "description": "Refuse an automatic major bump, at any version, until the run is repeated with --allow-major, so a major release is always deliberate. version next still prints it, with a warning. Ignored with --set-version or mode: manual. Default false."
+          "description": "Refuse an automatic major bump, at any version, until the run is repeated with --allow-major, so a major release is always deliberate. version next still prints it, with a warning. Ignored with --set-version or mode: manual. Default false.",
+          "default": false
         }
       }
     },
@@ -484,7 +492,8 @@
         },
         "breaking": {
           "type": "boolean",
-          "description": "Further scope the match to commits with (true) or without (false) the breaking-change flag/footer."
+          "description": "Further scope the match to commits with (true) or without (false) the breaking-change flag/footer.",
+          "default": false
         },
         "bump": {
           "type": "string",
@@ -522,7 +531,8 @@
         },
         "initial_version": {
           "type": "string",
-          "description": "Version used when no tags exist yet. SemVer strategies only."
+          "description": "Version used when no tags exist yet. SemVer strategies only.",
+          "default": "0.1.0"
         },
         "bump": {
           "$ref": "#/definitions/BumpConfig",
@@ -547,11 +557,13 @@
             "annotated",
             "lightweight"
           ],
-          "description": "Git tag type. \"annotated\" (default) creates tags with a tagger, timestamp, and message. \"lightweight\" creates bare ref tags."
+          "description": "Git tag type. \"annotated\" (default) creates tags with a tagger, timestamp, and message. \"lightweight\" creates bare ref tags.",
+          "default": "annotated"
         },
         "commit_message": {
           "type": "string",
-          "description": "Commit message template for the changelog commit, and (when tag_type is \"annotated\") the tag's own annotation message. \"${version}\" is substituted with the resolved version. Defaults to \"chore(release): ${version}\"."
+          "description": "Commit message template for the changelog commit, and (when tag_type is \"annotated\") the tag's own annotation message. \"${version}\" is substituted with the resolved version. Defaults to \"chore(release): ${version}\".",
+          "default": "chore(release): ${version}"
         },
         "branches": {
           "type": "array",
@@ -611,7 +623,8 @@
       "properties": {
         "output": {
           "type": "string",
-          "description": "Where the changelog is written, e.g. CHANGELOG.md. Only under changelog:, since release notes are never written to a file. Tokens start a new file per period: CHANGELOG_{YYYY}.md (CalVer) or CHANGELOG_{MAJOR}.md (SemVer)."
+          "description": "Where the changelog is written, e.g. CHANGELOG.md. Only under changelog:, since release notes are never written to a file. Tokens start a new file per period: CHANGELOG_{YYYY}.md (CalVer) or CHANGELOG_{MAJOR}.md (SemVer).",
+          "default": "CHANGELOG.md"
         },
         "tag_pattern": {
           "type": "string",
@@ -659,7 +672,8 @@
         },
         "allow_missing_assets": {
           "type": "boolean",
-          "description": "Let an asset pattern match nothing: it is skipped with a warning instead of stopping the release. Set it when a pre_tag, post_tag or pre_release hook builds the files. Default false."
+          "description": "Let an asset pattern match nothing: it is skipped with a warning instead of stopping the release. Set it when a pre_tag, post_tag or pre_release hook builds the files. Default false.",
+          "default": false
         },
         "targets": {
           "type": "array",
@@ -734,7 +748,8 @@
         },
         "draft": {
           "type": "boolean",
-          "description": "Create the release as a draft, to publish by hand. GitHub only. Default false."
+          "description": "Create the release as a draft, to publish by hand. GitHub only. Default false.",
+          "default": false
         },
         "assets": {
           "type": "array",
@@ -790,11 +805,13 @@
         },
         "disable_changelog": {
           "type": "boolean",
-          "description": "Disable changelog generation for this environment."
+          "description": "Disable changelog generation for this environment.",
+          "default": false
         },
         "disable_release": {
           "type": "boolean",
-          "description": "Disable the entire release: behavior (notes generation and publishing, together) for this environment."
+          "description": "Disable the entire release: behavior (notes generation and publishing, together) for this environment.",
+          "default": false
         },
         "changelog": {
           "$ref": "#/definitions/ContentDriver",

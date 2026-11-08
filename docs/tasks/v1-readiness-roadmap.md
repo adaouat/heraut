@@ -810,11 +810,20 @@ Every output was taken from the built binary in a scratch repository. Linked fro
 guides index (a new "Getting going" section) and the docs home. A sentence about using `tag_pattern` to
 keep only new releases was dropped because it wasn't verified.
 
-#### `[ ]` T531: the configuration reference shows defaults and what's required
+#### `[x]` T531: the configuration reference shows defaults and what's required
 
 The Default column is empty for all keys but three, and nothing is marked required, while
 `docs/README.md:51` and the sample promise "every key, with its type and default". Add `default` values
 to `schema.json`, a Required column to `tools/docgen`, regenerate.
+
+**Done (2026-11-08).** `schema.json` gains `default` for every key whose default is a single value,
+each taken from the code: `initial_version` `0.1.0`, `bump.mode` `auto`, `tag_type` `annotated`,
+`commit_message` `chore(release): ${version}`, `changelog.output` `CHANGELOG.md`,
+`types_heading_level` 3, and `false` for the eleven boolean keys (the three existing defaults stay).
+`tag_prefix` has no single default (it depends on the strategy); its description says so. `tools/docgen`
+adds a Required column from each object's `required` list, 18 keys marked. A paragraph above the tables
+says what both columns mean. `changelog.output`'s default sits on the definition `release.notes`
+shares; the reference renders that block as "Same keys as `changelog`".
 
 #### `[ ]` T532: quoted output matches the binary
 

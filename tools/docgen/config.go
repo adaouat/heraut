@@ -116,6 +116,24 @@ func defaultCell(n node) string {
 	return fmt.Sprintf("`%v`", v)
 }
 
+// requiredKeys is the set of n's keys listed in its "required" array.
+func requiredKeys(n node) map[string]bool {
+	var keys []string
+	_ = json.Unmarshal(n["required"], &keys)
+	set := make(map[string]bool, len(keys))
+	for _, k := range keys {
+		set[k] = true
+	}
+	return set
+}
+
+func requiredCell(required bool) string {
+	if required {
+		return "yes"
+	}
+	return ""
+}
+
 func cell(s string) string {
 	return strings.NewReplacer("|", `\|`, "<", `\<`, ">", `\>`, "[", `\[`, "\n", " ").Replace(s)
 }
@@ -149,6 +167,7 @@ func (g *refGen) expand(path string, n node) error {
 		return err
 	}
 	all := resolved.child("properties")
+	required := requiredKeys(resolved)
 	for _, k := range keys {
 		child := all.child(k)
 		childPath := k
@@ -161,7 +180,7 @@ func (g *refGen) expand(path string, n node) error {
 		if childDef != "" && expanded {
 			desc += fmt.Sprintf(" Same keys as `%s`.", first)
 		}
-		fmt.Fprintf(&g.b, "| `%s` | %s | %s | %s |\n", childPath, typeCell(child, childResolved), defaultCell(child), cell(desc))
+		fmt.Fprintf(&g.b, "| `%s` | %s | %s | %s | %s |\n", childPath, typeCell(child, childResolved), defaultCell(child), requiredCell(required[k]), cell(desc))
 		if childDef != "" && expanded {
 			continue
 		}
@@ -173,7 +192,7 @@ func (g *refGen) expand(path string, n node) error {
 }
 
 // configReference renders schema.json as one section per top-level key, each a table of its keys:
-// path, type, default and description.
+// path, type, default, whether it is required (when its block is present) and description.
 func configReference(schema []byte) (string, error) {
 	var root node
 	if err := json.Unmarshal(schema, &root); err != nil {
@@ -200,7 +219,8 @@ func configReference(schema []byte) (string, error) {
 			}
 		}
 	}
-	const header = "| Key | Type | Default | Description |\n|---|---|---|---|\n"
+	const header = "| Key | Type | Default | Required | Description |\n|---|---|---|---|---|\n"
+	rootRequired := requiredKeys(root)
 	for _, k := range keys {
 		prop := props.child(k)
 		resolved, _ := g.resolve(prop)
@@ -208,7 +228,7 @@ func configReference(schema []byte) (string, error) {
 		nested := hasProps || resolved.child("items") != nil || resolved.child("additionalProperties") != nil
 		fmt.Fprintf(&g.b, "\n## `%s`\n\n", k)
 		if !nested {
-			fmt.Fprintf(&g.b, "%s| `%s` | %s | %s | %s |\n", header, k, typeCell(prop, resolved), defaultCell(prop), cell(g.description(prop)))
+			fmt.Fprintf(&g.b, "%s| `%s` | %s | %s | %s | %s |\n", header, k, typeCell(prop, resolved), defaultCell(prop), requiredCell(rootRequired[k]), cell(g.description(prop)))
 			continue
 		}
 		fmt.Fprintf(&g.b, "%s\n\n%s", cell(g.description(prop)), header)

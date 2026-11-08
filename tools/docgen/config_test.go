@@ -10,6 +10,7 @@ import (
 
 const testSchema = `{
   "type": "object",
+  "required": ["version"],
   "properties": {
     "version": {"type": "string", "description": "Schema version."},
     "versioning": {"$ref": "#/definitions/Versioning"},
@@ -30,7 +31,7 @@ const testSchema = `{
     "Rendering": {"type": "object", "description": "Looks.", "properties": {
       "excludes": {"type": "array", "items": {"type": "string"}, "description": "Dropped."}
     }},
-    "Forge": {"type": "object", "description": "One forge.", "properties": {
+    "Forge": {"type": "object", "description": "One forge.", "required": ["name"], "properties": {
       "name": {"type": "string", "description": "Its name."},
       "draft": {"type": "boolean", "description": "Draft."}
     }},
@@ -46,22 +47,22 @@ func TestConfigReference(t *testing.T) {
 
 	for _, want := range []string{
 		"## `version`\n",
-		"| `version` | string |  | Schema version. |",
+		"| `version` | string |  | yes | Schema version. |",
 		"## `versioning`\n\nHow versions work.\n",
-		"| `versioning.strategy` | `semver` \\| `calver` |  | The strategy \\| how. |",
-		"| `versioning.tags` | list of string |  | Tag list \\<glob\\>. |",
-		"| `changelog.output` | string | `CHANGELOG.md` | Where. Default: '## \\[version](compare-url)'. |",
-		"| `forges[].name` | string |  | Its name. |",
-		"| `forges[].draft` | boolean |  | Draft. |",
+		"| `versioning.strategy` | `semver` \\| `calver` |  |  | The strategy \\| how. |",
+		"| `versioning.tags` | list of string |  |  | Tag list \\<glob\\>. |",
+		"| `changelog.output` | string | `CHANGELOG.md` |  | Where. Default: '## \\[version](compare-url)'. |",
+		"| `forges[].name` | string |  | yes | Its name. |",
+		"| `forges[].draft` | boolean |  |  | Draft. |",
 		"## `environments`\n\nPer env.\n",
-		"| `environments.<name>.changelog` | object |  | A document. Same keys as `changelog`. |",
+		"| `environments.<name>.changelog` | object |  |  | A document. Same keys as `changelog`. |",
 	} {
 		assert.Contains(t, got, want)
 	}
 	assert.NotContains(t, got, "`environments.<name>.changelog.output`", "a definition is expanded once, then referred to")
-	assert.Contains(t, got, "| `changelog.rendering` | object |  | Looks. Same keys as `rendering`. |",
+	assert.Contains(t, got, "| `changelog.rendering` | object |  |  | Looks. Same keys as `rendering`. |",
 		"a definition with its own top-level key is expanded there, even when another key reaches it first")
-	assert.Contains(t, got, "| `rendering.excludes` | list of string |  | Dropped. |")
+	assert.Contains(t, got, "| `rendering.excludes` | list of string |  |  | Dropped. |")
 }
 
 func TestReplaceGenerated(t *testing.T) {
