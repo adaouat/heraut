@@ -34,7 +34,7 @@ post-v1 (Phase 100). The v1.0.0 cut (Phase 101) comes last.
 |---|---|---|---|
 | 94 | Release-logic bugs that block v1 | T492–T501 | Done |
 | 95 | Decisions to make before the format freezes (ADRs) | T502–T506 | Done |
-| 96 | Behaviour fixes | T507–T522 | In progress — decisions taken 2026-11-08 |
+| 96 | Behaviour fixes | T507–T522 | Done except T520 (Docker change committed, image check pending) |
 | 97 | Tests that give false confidence | T523–T529 | Not started |
 | 98 | User docs | T530–T536 | Not started |
 | 99 | Contributor docs | T537–T541 | Not started |
