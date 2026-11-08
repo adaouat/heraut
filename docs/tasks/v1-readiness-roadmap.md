@@ -755,12 +755,21 @@ and `release` with `disable_release` / `disable_changelog`.
 
 All passed first time: these were coverage gaps, not bugs. Lane B keeps the real-forge variants (B4, B5).
 
-#### `[ ]` T528: failures after the tag push are tested
+#### `[x]` T528: failures after the tag push are tested
 
 Uncovered: `internal/pipeline/steps.go:293-296` (notes generation fails after the tag push, maybe after
 an earlier platform published) and `changelog.go:198-200` (`git tag` fails after the changelog commit
 was pushed). Pipeline tests assert the error text, the steps already done and the exit code, and match
 the failure-recovery guide's states.
+
+**Done (2026-11-08).** Two pipeline tests:
+- notes failing for the second platform after the tag push and the first platform's release (a
+  generator that fails on its second call): the error names `platform gitlab: generating release
+  notes`; github published, gitlab never did (state C);
+- `git tag` failing after the changelog commit was pushed: the error names the tag step; the push ran
+  and no tag push follows (state A).
+
+Both behaved as the guide says. Exit code 3 comes from `wrapRunErr`, already covered in `cmd`.
 
 #### `[ ]` T529: small contract and assertion gaps
 

@@ -615,3 +615,24 @@ func TestChangelogRun_NothingToCommit_SummaryDoesNotClaimCommit(t *testing.T) {
 		})
 	}
 }
+
+// git tag failing after the changelog commit was pushed stops the run there: the error names the tag
+// step, the commit is already on the remote, and no tag push is attempted (failure-recovery state A).
+func TestChangelogRun_TagFailsAfterTheCommitWasPushed(t *testing.T) {
+	mr := exectest.NewMockRunner()
+	mr.QueueResponse("", "", nil)                                              // git add
+	mr.QueueResponse("CHANGELOG.md\n", "", nil)                                // git diff --cached --name-only (staged)
+	mr.QueueResponse("", "", nil)                                              // git commit
+	mr.QueueResponse("", "", nil)                                              // git push
+	mr.QueueResponse("", "", errors.New("fatal: tag 'v1.2.3' already exists")) // git tag
+
+	cfg := &pipeline.ChangelogConfig{Changelog: &testutil.MockGenerator{}, ChangelogFile: "CHANGELOG.md", Tag: true}
+	err := pipeline.NewChangelog(mr, &fakeResolver{result: resolvedResult("v1.2.3")}, cfg, &bytes.Buffer{}, false).Run(t.Context())
+
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "git tag")
+	assert.Contains(t, err.Error(), "already exists")
+	require.Len(t, mr.Calls, 5, "nothing runs after the failed tag: no tag push")
+	assert.Equal(t, "push", mr.Calls[3].Args[0], "the changelog commit was pushed before")
+	assert.Equal(t, "tag", mr.Calls[4].Args[0])
+}

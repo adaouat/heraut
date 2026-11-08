@@ -2,6 +2,7 @@ package pipeline_test
 
 import (
 	"bytes"
+	"context"
 	"errors"
 	"fmt"
 	"testing"
@@ -1155,4 +1156,38 @@ func TestRun_TellsThePlatformWhetherTheReleaseIsTheLatest(t *testing.T) {
 		assert.Equal(t, []string{"v1.2.3"}, asked, "asked once, for the platform that has a Latest")
 		require.Len(t, gh.CreateReleaseCalls, 1, "then published")
 	}
+}
+
+// failingSecondNotes generates notes once, then fails, as a forge outage in the middle of a run does.
+type failingSecondNotes struct{ testutil.MockGenerator }
+
+func (g *failingSecondNotes) Generate(ctx context.Context, tag string, lc *port.LinkContext) (string, error) {
+	if _, err := g.MockGenerator.Generate(ctx, tag, lc); err != nil {
+		return "", err
+	}
+	if len(g.GenerateCalls) > 1 {
+		return "", errors.New("api rate limit exceeded")
+	}
+	return "## notes\n", nil
+}
+
+// Notes failing for the second platform, after the tag push and the first platform's release, stop the
+// run with an error naming that platform; the first release stands and the second is never created
+// (failure-recovery state C: the tag exists, a release is missing).
+func TestRun_NotesFailForTheSecondPlatformAfterTheFirstPublished(t *testing.T) {
+	mr := exectest.NewMockRunner()
+	mr.QueueResponse("", "", nil) // git tag
+	mr.QueueResponse("", "", nil) // git push <tag>
+	gh := &testutil.MockPlatform{PlatformName: "github"}
+	gl := &testutil.MockPlatform{PlatformName: "gitlab"}
+	cfg := &pipeline.Config{Notes: &failingSecondNotes{}, Platforms: []port.Platform{gh, gl}}
+
+	err := pipeline.New(mr, &fakeResolver{result: resolvedResult("v1.2.3")}, cfg, &bytes.Buffer{}, false).Run(t.Context())
+
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "platform gitlab: generating release notes")
+	assert.Contains(t, err.Error(), "api rate limit exceeded")
+	assert.Len(t, gh.CreateReleaseCalls, 1, "the first platform published")
+	assert.Empty(t, gl.CreateReleaseCalls, "the second never did")
+	assert.Equal(t, []string{"push", "origin", "v1.2.3"}, mr.Calls[1].Args[:3], "the tag was pushed before")
 }
