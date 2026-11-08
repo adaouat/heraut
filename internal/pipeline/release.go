@@ -22,6 +22,17 @@ type Pipeline struct {
 	dryRun   bool
 	reporter ui.StepFn
 	logger   *slog.Logger
+	// collected, when set (Plan), receives the warnings a gate gives instead of printing them.
+	collected *[]string
+}
+
+// warn prints msg as a warning, or collects it while Plan runs the gates.
+func (p *Pipeline) warn(msg string) {
+	if p.collected != nil {
+		*p.collected = append(*p.collected, msg)
+		return
+	}
+	_, _ = fmt.Fprintln(p.out, ui.Warn(p.out, msg))
 }
 
 // New constructs a release Pipeline.

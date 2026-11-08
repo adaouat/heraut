@@ -1,6 +1,8 @@
 package e2e_test
 
 import (
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 
@@ -59,4 +61,20 @@ func TestReleaseDryRunJSON_ErrorsAreEnveloped(t *testing.T) {
 	require.Equal(t, exitConfig, res.ExitCode)
 	assert.Contains(t, res.Stdout, `"ok":false`)
 	assert.Contains(t, res.Stdout, `"code":"config"`)
+}
+
+// --json exits as the plain dry run does: an asset outside the repository is refused in both.
+func TestReleaseDryRunJSON_RefusesWhatTheDryRunRefuses(t *testing.T) {
+	bin := harness.Binary(t)
+	repo := releaseRepo(t, releaseCfg(bothTargets, "  assets: [\"../*.txt\"]\n"))
+	// A file beside the repository (still inside this test's temp tree) for the pattern to reach.
+	require.NoError(t, os.WriteFile(filepath.Join(repo.Dir, "..", "outside.txt"), []byte("x"), 0o600))
+
+	plain := repo.Run(bin, tokens, "release", "--offline", "--dry-run")
+	asJSON := repo.Run(bin, tokens, "release", "--offline", "--dry-run", "--json")
+
+	require.Equal(t, exitRuntime, plain.ExitCode, "stdout:\n%s\nstderr:\n%s", plain.Stdout, plain.Stderr)
+	assert.Equal(t, plain.ExitCode, asJSON.ExitCode, "stdout:\n%s\nstderr:\n%s", asJSON.Stdout, asJSON.Stderr)
+	assert.True(t, strings.HasPrefix(asJSON.Stdout, `{"ok":false,`), asJSON.Stdout)
+	assert.Contains(t, asJSON.Stdout, "outside the repository")
 }

@@ -404,12 +404,20 @@ failure-recovery and next-version pages.
 
 ### Phase 96 — Behaviour fixes
 
-#### `[ ]` T507: `release --dry-run --json` runs the same gates
+#### `[x]` T507: `release --dry-run --json` runs the same gates
 
 `Plan()` skips gate steps (`internal/pipeline/plan.go:46`): with `release.assets: ["../*.txt"]`,
 `release --dry-run` exits 3 (`asset … resolves outside the repository`) while `--dry-run --json` returns
 `ok` and exit 0. Spec 03: "The process exit code is the same with and without `--json`." Fix: run each
 step's gate in `Plan()`.
+
+**Done (2026-11-08).** `Plan()` runs each gate step as a dry run does. A gate's warning (an unmatched
+asset pattern) goes through a new `Pipeline.warn`, which prints during a run and collects into
+`plan.Warnings` while `Plan()` runs, since `--json` discards the pipeline's output. Tests:
+`TestPlan_RunsTheGates` (a refused asset fails the plan; an unmatched one lands in its warnings) and
+Lane A `TestReleaseDryRunJSON_RefusesWhatTheDryRunRefuses` (an asset beside the repository: exit 3 in
+both modes; the old `Plan` exited 0 with `--json`). No doc change: Spec 03 already promised the same
+exit code.
 
 #### `[ ]` T508: `heraut notes` matches the strategy's tags exactly
 

@@ -3,6 +3,7 @@ package pipeline_test
 import (
 	"bytes"
 	"errors"
+	"fmt"
 	"testing"
 
 	"github.com/adaouat/forge/exec/exectest"
@@ -111,4 +112,19 @@ func TestPlan_ResolveAndHookTemplateErrorsAreReturned(t *testing.T) {
 
 	_, _, err = planFor(t, &pipeline.Config{PreTagHooks: []pipeline.HookStep{{Run: "{{ .Typo }}"}}}, versioning.Result{Tag: "v1"})
 	require.ErrorContains(t, err, "Typo")
+}
+
+// The plan runs the same gates as a dry run, so --json exits as the plain dry run does: a refused
+// asset fails the plan, and an unmatched pattern (a warning in a dry run) lands in the plan's warnings.
+func TestPlan_RunsTheGates(t *testing.T) {
+	refused := errors.New("asset ../x.txt resolves outside the repository")
+	cfg := &pipeline.Config{Platforms: []port.Platform{&testutil.MockPlatform{PlatformName: "github", CheckAssetsErr: refused}}}
+	_, _, err := planFor(t, cfg, versioning.Result{Version: "1.0.0", Tag: "v1.0.0"})
+	require.ErrorIs(t, err, refused)
+
+	unmatched := fmt.Errorf("dist/*: %w", port.ErrAssetUnmatched)
+	cfg = &pipeline.Config{Platforms: []port.Platform{&testutil.MockPlatform{PlatformName: "github", CheckAssetsErr: unmatched}}}
+	plan, _, err := planFor(t, cfg, versioning.Result{Version: "1.0.0", Tag: "v1.0.0"})
+	require.NoError(t, err)
+	assert.Contains(t, plan.Warnings, "[dry-run] platform github: dist/*: asset pattern matches no file")
 }

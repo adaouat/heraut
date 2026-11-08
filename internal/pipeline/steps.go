@@ -83,7 +83,7 @@ func (p *Pipeline) releaseFlow(ctx context.Context, result versioning.Result) *r
 				// not exist: an unmatched pattern is a warning there, and the real run applies the
 				// rule (ADR-0076).
 				if p.dryRun && errors.Is(err, port.ErrAssetUnmatched) {
-					_, _ = fmt.Fprintln(p.out, ui.Warn(p.out, fmt.Sprintf("[dry-run] platform %s: %v", plat.Name(), err)))
+					p.warn(fmt.Sprintf("[dry-run] platform %s: %v", plat.Name(), err))
 					continue
 				}
 				return fmt.Errorf("platform %s: %w", plat.Name(), err)

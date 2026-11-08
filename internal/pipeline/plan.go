@@ -43,7 +43,17 @@ func (p *Pipeline) Plan() (Plan, error) {
 	}
 	flow := p.releaseFlow(context.Background(), result) // Plan runs no step, so no request uses it
 	plan := Plan{Tag: result.Tag, Version: result.Version, CurrentTag: result.CurrentTag, PreRelease: flow.prerelease, Warnings: append(slices.Clone(result.Warnings), p.cfg.Warnings...)}
+	// The gates run as in a dry run, so --json refuses what the plain dry run refuses; their
+	// warnings go into the plan instead of the (discarded) output.
+	p.collected = &plan.Warnings
+	defer func() { p.collected = nil }()
 	for _, s := range flow.steps() {
+		if s.gate != nil {
+			if err := s.gate(); err != nil {
+				return Plan{}, err
+			}
+			continue
+		}
 		if s.plan == nil {
 			continue
 		}
