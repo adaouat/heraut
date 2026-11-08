@@ -139,9 +139,9 @@ type TypeRule struct {
 }
 
 // defaultTypes is the built-in commit-type set merged under user config: the ADR-0027 verify
-// types plus security (ADR-0075), render-labeled and ordered for changelog sections. revert and
-// the catch-all "Other" group are rendering concerns owned by the native renderer, not
-// allow-list types, so they are deliberately absent here.
+// types plus security (ADR-0075) and revert, render-labeled and ordered for changelog sections. The
+// catch-all "Other" group is a rendering concern owned by the native renderer, not an allow-list
+// type; so is its Revert fallback, used only when a config removes the revert type.
 func defaultTypes() []TypeRule {
 	order := func(n int) *int { return &n }
 	return []TypeRule{
@@ -155,6 +155,7 @@ func defaultTypes() []TypeRule {
 		{Name: "test", Order: order(7), Render: "🧪 Testing", Description: "Adding or fixing tests"},
 		{Name: "chore", Order: order(8), Render: "⚙️ Miscellaneous Tasks", Description: "Tooling / housekeeping"},
 		{Name: "ci", Order: order(8), Render: "⚙️ Miscellaneous Tasks", Description: "CI / release tooling"},
+		{Name: "revert", Order: order(9), Render: "◀️ Revert", Description: "Undo an earlier commit"},
 		{Name: "build", Description: "Build system / dependencies"},
 	}
 }

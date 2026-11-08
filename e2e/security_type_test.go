@@ -68,3 +68,17 @@ func TestSecurityCommitType_SectionOrder(t *testing.T) {
 	assert.Equal(t, []string{"🚀 Features", "🐛 Bug Fixes", "🛡️ Security", "🚜 Refactor"}, headings)
 	assert.Contains(t, res.Stdout, "- Patch the token leak")
 }
+
+// revert is a built-in type: commit verify accepts it, and it releases a patch in its own section.
+func TestRevertType(t *testing.T) {
+	bin := harness.Binary(t)
+	verify := func(msg string) []string { return []string{"commit", "verify", msg} }
+	runScenarios(t, bin, nil, []scenario{
+		{name: "verify accepts revert", config: semverCfg(""),
+			args:    verify("revert: undo the cache change"),
+			wantOut: "✓ commit message is valid\n  type:        revert\n  breaking:    false\n  description: undo the cache change"},
+		{name: "a revert is a patch", config: semverCfg(""),
+			history: []step{commit("feat: a"), tag("v1.0.0"), commit("revert: undo a")},
+			args:    versionNext, wantOut: "v1.0.1"},
+	})
+}

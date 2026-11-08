@@ -781,6 +781,8 @@ defaults are the 10 types in [`workflow.md`](../../.claude/rules/workflow.md)'s 
 table (`feat, fix, docs, chore, refactor, test, style, perf, ci, build`) plus `security`
 ([ADR-0075](../adr/0075-security-is-a-built-in-commit-type.md)), render-labeled. `security` is
 rendered as `🛡️ Security`, right after Bug Fixes; `remove: true` takes it out of the allow-list.
+`revert` is built in as well, rendered as `◀️ Revert` after Miscellaneous Tasks; with `remove: true`
+it leaves the allow-list, and existing `revert:` commits still render in that section.
 Merge and `fixup!`/`squash!` commits are always skipped by verify, unconditionally.
 
 ### `commits.scopes` / `commits.scopes_restricted`

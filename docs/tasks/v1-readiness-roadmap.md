@@ -622,9 +622,17 @@ uid on Linux, and git refuses it (`detected dubious ownership`), so the `docker 
 usage in `docs/install.md:78` fails. Docker Desktop on macOS hides it. Fix:
 `git config --system --add safe.directory '*'` in the final stage; verify with a Linux run.
 
-#### `[ ]` T521: **Decision** — `revert` commits
+#### `[x]` T521: **Decision** — `revert` commits
 
 **Decision (user, 2026-11-08):** add `revert` as a built-in type (patch bump, its existing section).
+
+**Done (2026-11-08).** `revert` joins `defaultTypes` (render `◀️ Revert`, order 9, after Miscellaneous
+Tasks), so `commit verify` accepts it and it bumps a patch. The renderer's own Revert fallback (order
+102) stays for a config that removes the type, now with a test. Two tests pinned the old built-in
+set and the section's position (102 → 9) and were updated. New: a config test, Lane A `TestRevertType`
+(verify accepts it; `revert:` after `v1.0.0` gives `v1.0.1`). Docs: Spec 02 § commits.types, the
+commit-conventions guide, and an addendum to ADR-0075. The changelog-content page already showed the
+section.
 
 `docs/concepts/changelog-content.md:45` shows a `◀️ Revert` section, but `revert` isn't an allowed type:
 `commit verify "revert: undo x"` exits 1 (`commit-conventions.md:104` agrees with the binary). Options:

@@ -55,3 +55,11 @@ Security section can already add a `security` type, but nothing does it for them
   depends on prose, and it still would not be documented anywhere a user looks.
 - **Document a `commits.types` snippet instead of a built-in type.** Leaves the allow-list unchanged,
   but every user who wants the section has to write config that heraut can ship.
+
+## Addendum (2026-11-08): `revert` is built in too
+
+The changelog has always rendered `revert:` commits in a `◀️ Revert` section, but `revert` was not an
+allowed type, so `heraut commit verify "revert: …"` refused the message the changelog documented.
+`revert` is now a built-in type like `security`: in the verify allow-list, rendered as `◀️ Revert`
+after Miscellaneous Tasks, bumping a patch like any type other than `feat`. The renderer's own Revert
+fallback stays for a config that removes the type.

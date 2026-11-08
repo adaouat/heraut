@@ -59,7 +59,7 @@ func TestGroupCommits_DefaultTaxonomy(t *testing.T) {
 			wantGroup: "💼 Other",
 			wantOrder: 103,
 		},
-		{"revert → Revert", "revert: revert feat x", "", "◀️ Revert", 102},
+		{"revert → Revert (a built-in type)", "revert: revert feat x", "", "◀️ Revert", 9},
 		{"unknown type → Other", "wip: half-done", "", "💼 Other", 103},
 		{"non-conventional → Other", "just a plain commit message", "", "💼 Other", 103},
 	}
@@ -75,6 +75,16 @@ func TestGroupCommits_DefaultTaxonomy(t *testing.T) {
 			assert.Equal(t, commit, groups[0].commits[0].raw)
 		})
 	}
+}
+
+// A config that removes the revert type still renders revert commits in the Revert section, after
+// the configured types.
+func TestGroupCommits_RevertFallbackWhenTheTypeIsRemoved(t *testing.T) {
+	commit := rc("abc1234", "revert: revert feat x", "")
+	groups := groupCommits([]rawCommit{commit}, []config.TypeRule{{Name: "revert", Remove: true}}, nil)
+	require.Len(t, groups, 1)
+	assert.Equal(t, "◀️ Revert", groups[0].name)
+	assert.Equal(t, 102, groups[0].order)
 }
 
 // TestGroupCommits_DefaultExcludes verifies the built-in exclude set (heraut release commits

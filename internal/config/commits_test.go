@@ -37,7 +37,7 @@ func findScope(scopes []ScopeRule, name string) *ScopeRule {
 func TestEffectiveTypes_DefaultsWhenEmpty(t *testing.T) {
 	got := EffectiveTypes(nil)
 	assert.Equal(t,
-		[]string{"feat", "fix", "security", "refactor", "docs", "perf", "style", "test", "chore", "ci", "build"},
+		[]string{"feat", "fix", "security", "refactor", "docs", "perf", "style", "test", "chore", "ci", "revert", "build"},
 		typeNames(got),
 		"default commits.types is the ADR-0027 verify type set, render-labeled")
 
@@ -238,4 +238,17 @@ func TestRendering_UnmarshalYAML_UnknownFieldRejected(t *testing.T) {
 	err := yaml.Unmarshal([]byte("bogus: true"), &r)
 	require.Error(t, err, "a custom UnmarshalYAML must not silently accept unknown top-level rendering keys")
 	assert.Contains(t, err.Error(), "bogus")
+}
+
+// revert is a built-in type: commit verify accepts it and the changelog gives it its section.
+func TestEffectiveTypes_RevertIsBuiltIn(t *testing.T) {
+	var revert *TypeRule
+	for _, tr := range EffectiveTypes(nil) {
+		if tr.Name == "revert" {
+			revert = &tr
+		}
+	}
+	if assert.NotNil(t, revert) {
+		assert.Equal(t, "◀️ Revert", revert.Render)
+	}
 }

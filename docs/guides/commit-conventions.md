@@ -102,7 +102,7 @@ interactive terminal.
 ## Your types, scopes and rules
 
 The allowed types are the usual ones: `feat`, `fix`, `docs`, `chore`, `refactor`, `test`, `style`,
-`perf`, `ci`, `build` and `security`. In `.heraut.yml`, `commits` adjusts them, and adds checks of
+`perf`, `ci`, `build`, `security` and `revert`. In `.heraut.yml`, `commits` adjusts them, and adds checks of
 your own:
 
 ```yaml
