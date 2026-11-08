@@ -201,9 +201,7 @@ func TestRun_WithNotes(t *testing.T) {
 // sets GITHUB_SERVER_URL).
 func clearAmbientCIEnv(t *testing.T) {
 	t.Helper()
-	t.Setenv("CI_PROJECT_URL", "")
-	t.Setenv("GITHUB_SERVER_URL", "")
-	t.Setenv("GITHUB_REPOSITORY", "")
+	testutil.ClearCIEnv(t)
 }
 
 // TestRun_SinglePlatform_PlatformContext verifies the single-platform path generates notes

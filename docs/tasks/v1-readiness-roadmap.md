@@ -702,7 +702,7 @@ the build succeeds.
 
 No production change.
 
-#### `[ ]` T525: tests don't depend on the developer's environment (one file is a GitLab driver test: needs the go)
+#### `[x]` T525: tests don't depend on the developer's environment (one file is a GitLab driver test: needs the go)
 
 - `HERAUT_FILE` exported → 25 tests fail in `internal/cmd` (`notes_test.go:68` and others); it isn't in
   `config.CIEnvVars` / `testutil.ClearCIEnv` (`internal/config/forgeenv.go:49-53`,
@@ -712,6 +712,14 @@ No production change.
   `testutil.ClearCIEnv(t)`.
 - `testutil.RealGitRepo` (`realgit.go:20-31`) doesn't isolate git config: a global `commit.gpgsign` or
   `core.hooksPath` fails 10 tests. Set `GIT_CONFIG_GLOBAL=/dev/null` and `GIT_CONFIG_NOSYSTEM=1`.
+
+**Done (2026-11-08), with the user's go for the GitLab driver test file only.** Reproduced first:
+`HERAUT_FILE` exported failed 25 tests, GitLab CI variables 7, a signing global git config 13.
+`testutil.IsolateProcessEnv` (`GIT_CONFIG_GLOBAL=/dev/null`, `GIT_CONFIG_NOSYSTEM=1`, `HERAUT_FILE`
+unset) runs from a new `TestMain` in `app`, `cmd` and `commitwizard`, the packages that run real git;
+`RealGitRepo` applies the same per test. The pipeline's `clearAmbientCIEnv` and the GitLab tests'
+`notInCI` and eight `t.Setenv("GITLAB_CI", "")` lines now call `testutil.ClearCIEnv`. After: 0
+failures in each of the three environments. No production change.
 
 #### `[ ]` T526: the schema and the Go loader can't drift unnoticed
 

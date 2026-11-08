@@ -13,6 +13,7 @@ import (
 	"github.com/adaouat/heraut/internal/config"
 	"github.com/adaouat/heraut/internal/platforms/gitlab"
 	"github.com/adaouat/heraut/internal/port"
+	"github.com/adaouat/heraut/internal/testutil"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -23,14 +24,14 @@ func TestName(t *testing.T) {
 }
 
 func TestReleaseURL(t *testing.T) {
-	t.Setenv("GITLAB_CI", "") // ensure CI_SERVER_URL fallback is not active
+	testutil.ClearCIEnv(t) // no CI host may stand in for the configured one
 	cfg := &config.Platform{Project: "mygroup/myrepo"}
 	p := gitlab.New(cfg)
 	assert.Equal(t, "https://gitlab.com/mygroup/myrepo/-/releases/v1.2.3", p.ReleaseURL("v1.2.3"))
 }
 
 func TestReleaseURL_FromEnv(t *testing.T) {
-	t.Setenv("GITLAB_CI", "")
+	testutil.ClearCIEnv(t) // no CI host may stand in for the configured one
 	t.Setenv("CI_PROJECT_PATH", "envgroup/envrepo")
 	p := gitlab.New(&config.Platform{})
 	assert.Equal(t, "https://gitlab.com/envgroup/envrepo/-/releases/v1.0.0", p.ReleaseURL("v1.0.0"))
@@ -67,7 +68,7 @@ func TestReleaseURL_NoGitlabCIVar_ProjectURLSuffices(t *testing.T) {
 	// setups expose CI_PROJECT_URL without the GITLAB_CI marker. resolveBaseURL must
 	// treat CI_PROJECT_URL as the authoritative source regardless — consistent with how
 	// ambientLinkContext() uses it unconditionally for notes/changelog link resolution.
-	t.Setenv("GITLAB_CI", "")
+	testutil.ClearCIEnv(t) // no CI host may stand in for the configured one
 	t.Setenv("CI_SERVER_URL", "")
 	t.Setenv("CI_PROJECT_URL", "https://git.example.com/acme/widget")
 	cfg := &config.Platform{Project: "acme/widget"}
@@ -99,7 +100,7 @@ func TestReleaseURLFromContext_PlatformContext(t *testing.T) {
 }
 
 func TestReleaseURLFromContext_Nil_FallsBackToReleaseURL(t *testing.T) {
-	t.Setenv("GITLAB_CI", "")
+	testutil.ClearCIEnv(t) // no CI host may stand in for the configured one
 	t.Setenv("CI_PROJECT_URL", "")
 	cfg := &config.Platform{Project: "grp/repo"}
 	p := gitlab.New(cfg)
@@ -108,7 +109,7 @@ func TestReleaseURLFromContext_Nil_FallsBackToReleaseURL(t *testing.T) {
 
 // Tags may carry SemVer build metadata ("+"), which must reach the URL as %2B (ADR-0064).
 func TestReleaseURL_EscapesPlusInTag(t *testing.T) {
-	t.Setenv("GITLAB_CI", "")
+	testutil.ClearCIEnv(t) // no CI host may stand in for the configured one
 	p := gitlab.New(&config.Platform{Project: "group/proj"})
 	assert.Equal(t, "https://gitlab.com/group/proj/-/releases/v1.4.0%2B158404", p.ReleaseURL("v1.4.0+158404"))
 
@@ -122,7 +123,7 @@ func TestReleaseURL_EscapesPlusInTag(t *testing.T) {
 // GitLab routes a release tag as a single path segment, so the "/" of a per-env tag must reach
 // the URL as %2F — matching the link GitLab itself renders for such a release.
 func TestReleaseURL_EscapesSlashInTag(t *testing.T) {
-	t.Setenv("GITLAB_CI", "")
+	testutil.ClearCIEnv(t) // no CI host may stand in for the configured one
 	t.Setenv("CI_PROJECT_URL", "")
 	p := gitlab.New(&config.Platform{Project: "group/proj"})
 
@@ -165,7 +166,7 @@ func TestLinkContext_NestedGroup(t *testing.T) {
 }
 
 func TestLinkContext_SimpleProject(t *testing.T) {
-	t.Setenv("GITLAB_CI", "") // ensure CI_SERVER_URL fallback is not active
+	testutil.ClearCIEnv(t) // no CI host may stand in for the configured one
 	t.Setenv("GITLAB_TOKEN", "")
 	// BaseURL empty (config not normalized) → falls back to the default host.
 	cfg := &config.Platform{Project: "group/proj"}
@@ -176,7 +177,7 @@ func TestLinkContext_SimpleProject(t *testing.T) {
 }
 
 func TestLinkContext_FromEnv(t *testing.T) {
-	t.Setenv("GITLAB_CI", "")
+	testutil.ClearCIEnv(t) // no CI host may stand in for the configured one
 	t.Setenv("GITLAB_TOKEN", "")
 	t.Setenv("CI_PROJECT_PATH", "envgroup/envrepo")
 	lc := gitlab.New(&config.Platform{}).LinkContext()
@@ -262,9 +263,7 @@ func (s *stubGitLab) puts() []string {
 // notInCI clears every GitLab CI signal so a developer's or runner's ambient env cannot leak in.
 func notInCI(t *testing.T) {
 	t.Helper()
-	for _, k := range []string{"GITLAB_CI", "CI_SERVER_URL", "CI_PROJECT_URL", "CI_PROJECT_ID", "CI_PROJECT_PATH", "CI_JOB_TOKEN"} {
-		t.Setenv(k, "")
-	}
+	testutil.ClearCIEnv(t)
 }
 
 // ---- Check -------------------------------------------------------------------
