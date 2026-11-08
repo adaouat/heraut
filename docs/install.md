@@ -39,6 +39,20 @@ sudo mv heraut /usr/local/bin/
 heraut --version
 ```
 
+**Windows (PowerShell):** download the `.exe` into a folder of your own, add it to your `PATH`
+once, then open a new terminal:
+
+```powershell
+$Version = "1.2.3"   # the release you want
+$Dir = "$env:LOCALAPPDATA\Programs\heraut"
+New-Item -ItemType Directory -Force $Dir | Out-Null
+Invoke-WebRequest "https://github.com/adaouat/heraut/releases/download/v$Version/heraut_${Version}_windows_amd64.exe" -OutFile "$Dir\heraut.exe"
+[Environment]::SetEnvironmentVariable("Path", "$([Environment]::GetEnvironmentVariable('Path','User'));$Dir", "User")
+```
+
+heraut needs `git` on the `PATH` too ([Git for Windows](https://git-scm.com/download/win)). Hooks run
+under `cmd`, not a POSIX shell: see [Run your own steps during a release](guides/release-pipeline-and-hooks.md).
+
 **macOS:** the binaries aren't notarized by Apple yet, so a binary downloaded with a browser is
 quarantined and macOS refuses to run it. Clear the flag once:
 

@@ -34,6 +34,7 @@ Each guide answers one situation. The [docs home](../README.md) lists them by qu
 | [Attach files to a release](release-assets.md) | Binaries, archives and checksums on GitHub and GitLab |
 | [Run your own steps during a release](release-pipeline-and-hooks.md) | Hooks: where they run, their values, committing the files they change |
 | [Recover from a failed release](failure-recovery.md) | What a failed run leaves, and how to finish or undo it |
+| [Troubleshooting and FAQ](troubleshooting.md) | Messages by text and exit code; monorepos, Windows, nothing to release |
 
 ## Changelog and notes
 

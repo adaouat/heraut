@@ -1,7 +1,7 @@
 # Exit codes
 
 Every heraut command exits with one of these codes, so a script or a CI job can tell what kind of
-problem stopped it. The code is the same with and without `--json`; in `--json` output,
+problem stopped it. [Troubleshooting and FAQ](../guides/troubleshooting.md) lists the common messages. The code is the same with and without `--json`; in `--json` output,
 `error.code` names the same class.
 
 | Code | `error.code` | Meaning |

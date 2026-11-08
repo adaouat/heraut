@@ -30,6 +30,7 @@ Each guide answers one situation.
 | I want to… | Guide |
 |---|---|
 | Start using heraut on a project that already has tags or a changelog | [Adopt heraut on an existing project](guides/adopt-on-an-existing-project.md) |
+| Understand an error message, or a question like "monorepo?" | [Troubleshooting and FAQ](guides/troubleshooting.md) |
 | Publish to GitHub from a GitLab pipeline, or to both | [Publish to GitHub from GitLab CI/CD](guides/github-from-gitlab-ci.md) |
 | Release on my company's own GitLab server | [Self-hosted GitLab](guides/self-hosted-gitlab.md) |
 | Stop the release commit from running my CI, but keep the tag's pipeline | [Keep the release commit from running CI](guides/skip-ci-on-release-commit.md) |

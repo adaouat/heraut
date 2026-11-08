@@ -893,11 +893,22 @@ Also:
 - The environments example switches branches.
 - Exit 2's "nowhere to publish" now says it applies with a `release:` block (T499).
 
-#### `[ ]` T535: FAQ and troubleshooting
+#### `[x]` T535: FAQ and troubleshooting
 
 A page indexed by message and exit code, linked from `exit-codes.md`: nothing to release (with T506's
 outcome and a CI recipe), monorepos (commits aren't filtered by path; say so plainly), Windows (a
 PowerShell install and PATH block in `install.md`; hooks run under `cmd`).
+
+**Done (2026-11-08).** New `docs/guides/troubleshooting.md`:
+- a table of fourteen messages with their exit code and what to do; each message was quoted from an
+  earlier binary run this session or an existing guide table;
+- "Nothing to release", with the `|| [ $? -eq 5 ]` recipe;
+- questions: monorepos (not supported: commits aren't filtered by path), Windows, previews, network
+  use, failed releases.
+
+`install.md` gains a PowerShell block (download to `%LOCALAPPDATA%\Programs\heraut`, add to the user
+`PATH`) and the note that git is needed and hooks run under `cmd`. Linked from the guides index, the
+docs home and the exit-codes page. The PowerShell block wasn't run (no Windows machine here).
 
 #### `[ ]` T536: plain-language pass
 
