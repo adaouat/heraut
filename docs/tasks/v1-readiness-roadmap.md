@@ -612,6 +612,11 @@ the hint for those, or document the exception in both specs.
 
 **Decision (user, 2026-11-08):** go for the one `safe.directory` line in the Dockerfile, verified with a local build.
 
+**Implemented, not yet verified (2026-11-08).** The final stage runs `git config --system --add
+safe.directory '*'`, with a comment saying why; hadolint passes. Still open: the Docker daemon wasn't
+running here, so the planned check (build the image, run `heraut check runtime` on a bind mount owned
+by another uid on Linux) hasn't run. Tick this task once it has.
+
 The image runs as root with no `safe.directory` (`Dockerfile:32-41`); a bind-mounted repo keeps the host
 uid on Linux, and git refuses it (`detected dubious ownership`), so the `docker run -v "$PWD":/repo`
 usage in `docs/install.md:78` fails. Docker Desktop on macOS hides it. Fix:

@@ -38,6 +38,11 @@ RUN apt-get update \
     && apt-get install -y --no-install-recommends git ca-certificates \
     && rm -rf /var/lib/apt/lists/*
 
+# The repository is bind-mounted with the host user's uid while heraut runs as root, and git refuses
+# a repository owned by another user ("detected dubious ownership"). The container only ever sees the
+# mounted repository, so every directory is trusted.
+RUN git config --system --add safe.directory '*'
+
 COPY --from=builder /heraut /usr/local/bin/heraut
 
 WORKDIR /workspace
