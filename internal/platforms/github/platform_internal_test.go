@@ -13,6 +13,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/adaouat/heraut/internal/config"
+	"github.com/adaouat/heraut/internal/port"
 )
 
 // testPlatform builds the driver with env as its whole environment and, when f is set, every
@@ -334,4 +335,28 @@ func TestPlatform_CreateReleaseUnknownTagCallsNothing(t *testing.T) {
 
 	require.ErrorContains(t, err, "the commit of tag v1.2.3")
 	assert.Empty(t, f.recorded(), "no request reaches GitHub")
+}
+
+// SetLatest decides make_latest for the release the driver publishes next; without it nothing is
+// sent and GitHub decides.
+func TestPlatform_SetLatestReachesTheRequest(t *testing.T) {
+	inRepo(t, nil)
+	for _, latest := range []bool{true, false} {
+		f := newFakeGitHub(t, githubUploadURL)
+		p, _ := testPlatform(githubTarget, map[string]string{"GH_TOKEN": "tok"}, f)
+		var marker port.LatestMarker = p
+		marker.SetLatest(latest)
+
+		require.NoError(t, p.CreateRelease(t.Context(), "v1.0.0", "notes", false))
+		want := "false"
+		if latest {
+			want = "true"
+		}
+		assert.Equal(t, want, jsonBody(t, f.recorded()[0])["make_latest"])
+	}
+
+	f := newFakeGitHub(t, githubUploadURL)
+	p, _ := testPlatform(githubTarget, map[string]string{"GH_TOKEN": "tok"}, f)
+	require.NoError(t, p.CreateRelease(t.Context(), "v1.0.0", "notes", false))
+	assert.NotContains(t, jsonBody(t, f.recorded()[0]), "make_latest")
 }

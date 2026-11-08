@@ -32,6 +32,9 @@ type Config struct {
 	DisableChangelog bool
 	// DisableNotes skips release notes generation for the active env.
 	DisableNotes bool
+	// IsLatest reports whether tag is the highest final release of its line, asked before publishing
+	// to a platform that has a "Latest" release (port.LatestMarker). Nil leaves the platform's default.
+	IsLatest func(tag string) (bool, error)
 	// Warnings are notices known when the pipeline is built (e.g. publishing is off), printed and
 	// planned with the resolver's warnings.
 	Warnings []string

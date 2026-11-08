@@ -7,6 +7,7 @@ import (
 	"io"
 	"net/http"
 	"os"
+	"strconv"
 	"strings"
 
 	"github.com/adaouat/heraut/internal/config"
@@ -22,9 +23,17 @@ type Platform struct {
 	httpClient *http.Client // nil: a default client
 	// runner reads the tagged commit for the release request; nil leaves the commit out.
 	runner port.Runner
+	// latest, once SetLatest is called, is sent as make_latest; nil lets GitHub decide.
+	latest *bool
 }
 
-var _ port.Platform = (*Platform)(nil)
+var (
+	_ port.Platform     = (*Platform)(nil)
+	_ port.LatestMarker = (*Platform)(nil)
+)
+
+// SetLatest decides whether the next release published becomes the repository's "Latest".
+func (p *Platform) SetLatest(latest bool) { p.latest = &latest }
 
 // New constructs a GitHub Platform.
 func New(cfg *config.Platform) *Platform {
@@ -139,6 +148,9 @@ func (p *Platform) CreateRelease(ctx context.Context, tag, notes string, prerele
 		defer platforms.CloseAssets(assets)
 	}
 
+	if p.latest != nil {
+		c.MakeLatest = strconv.FormatBool(*p.latest)
+	}
 	names, err := c.CreateRelease(ctx, tag, commit, notes, p.cfg.Draft, prerelease, assets)
 	if err != nil {
 		return fmt.Errorf("github release create: %w", err)

@@ -300,6 +300,20 @@ func (p *Pipeline) publishStep(ctx context.Context, plat port.Platform, result v
 				subs = append(subs, "notes generated")
 				subs = append(subs, degradedSubs(p.cfg.Notes)...)
 			}
+			if m, ok := plat.(port.LatestMarker); ok && p.cfg.IsLatest != nil {
+				latest, err := p.cfg.IsLatest(result.Tag)
+				switch {
+				case err != nil:
+					subs = append(subs, fmt.Sprintf("could not tell whether %s is the latest release (%v): the platform decides", result.Tag, err))
+				case !latest:
+					m.SetLatest(false)
+					if !prerelease {
+						subs = append(subs, "not marked as the latest release: a higher one exists")
+					}
+				default:
+					m.SetLatest(true)
+				}
+			}
 			if err := plat.CreateRelease(ctx, result.Tag, notes, prerelease); err != nil {
 				return "", nil, fmt.Errorf("platform %s: create release: %w", plat.Name(), err)
 			}

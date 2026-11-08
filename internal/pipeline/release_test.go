@@ -1127,3 +1127,34 @@ func TestRun_TargetOnAnotherInstanceKeepsItsOwnContext(t *testing.T) {
 		assert.Equal(t, &mirror, call.LC)
 	}
 }
+
+// latestPlatform records what the pipeline decides about GitHub's "Latest".
+type latestPlatform struct {
+	testutil.MockPlatform
+	latest []bool
+}
+
+func (l *latestPlatform) SetLatest(latest bool) { l.latest = append(l.latest, latest) }
+
+// Before publishing, a platform with a "Latest" release learns whether this one is the highest of
+// its line; a platform without the notion is not asked.
+func TestRun_TellsThePlatformWhetherTheReleaseIsTheLatest(t *testing.T) {
+	for _, want := range []bool{true, false} {
+		mr := exectest.NewMockRunner()
+		mr.QueueResponse("", "", nil) // git tag
+		mr.QueueResponse("", "", nil) // git push <tag>
+		gh := &latestPlatform{MockPlatform: testutil.MockPlatform{PlatformName: "github"}}
+		gl := &testutil.MockPlatform{PlatformName: "gitlab"}
+		var asked []string
+		cfg := &pipeline.Config{Platforms: []port.Platform{gh, gl}, IsLatest: func(tag string) (bool, error) {
+			asked = append(asked, tag)
+			return want, nil
+		}}
+
+		require.NoError(t, pipeline.New(mr, &fakeResolver{result: resolvedResult("v1.2.3")}, cfg, &bytes.Buffer{}, false).Run(t.Context()))
+
+		assert.Equal(t, []bool{want}, gh.latest)
+		assert.Equal(t, []string{"v1.2.3"}, asked, "asked once, for the platform that has a Latest")
+		require.Len(t, gh.CreateReleaseCalls, 1, "then published")
+	}
+}

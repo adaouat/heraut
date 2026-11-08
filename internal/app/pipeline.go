@@ -1,6 +1,7 @@
 package app
 
 import (
+	"errors"
 	"fmt"
 	"io"
 	"log/slog"
@@ -345,6 +346,7 @@ func buildReleasePipelineConfig(runner, readRunner port.Runner, cfg *config.Conf
 		}
 	}
 	pCfg.Platforms = append(pCfg.Platforms, targetPlatforms...)
+	pCfg.IsLatest = isLatestFunc(runner, cfg, env)
 
 	pCfg.AnnotatedTags = cfg.Versioning.TagType != "lightweight"
 	pCfg.RegenerateChangelog = regenerateChangelog
@@ -757,3 +759,23 @@ type (
 	ReleasePlan = pipeline.Plan
 	PlanStep    = pipeline.PlanStep
 )
+
+// isLatestFunc reports whether a published tag is the highest final release of its line: the
+// strategy's tags (the environment's, under a per-env strategy), pre-releases excluded. It runs after
+// the tag is pushed, so the tag is among them.
+func isLatestFunc(runner port.Runner, cfg *config.Config, env string) func(string) (bool, error) {
+	return func(tag string) (bool, error) {
+		glob, err := currentTagGlob(cfg, env)
+		if err != nil {
+			return false, err
+		}
+		highest, err := globalCurrentTag(runner, cfg, env, glob, false)
+		if errors.Is(err, errNoTagsFound) {
+			return false, nil
+		}
+		if err != nil {
+			return false, err
+		}
+		return highest == tag, nil
+	}
+}

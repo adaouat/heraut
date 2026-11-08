@@ -24,6 +24,9 @@ type Client struct {
 	token       string
 	httpClient  *http.Client
 	owner, repo string
+	// MakeLatest is sent as make_latest ("true" or "false") with the request that publishes the
+	// release; empty sends nothing and leaves the choice to GitHub.
+	MakeLatest string
 }
 
 // responseHeaderTimeout bounds the wait for GitHub's answer once a request is sent: a connection that
@@ -96,6 +99,9 @@ func (c *Client) CreateRelease(ctx context.Context, tag, commit, notes string, d
 	if commit != "" {
 		req.TargetCommitish = new(commit)
 	}
+	if c.MakeLatest != "" && !*req.Draft {
+		req.MakeLatest = new(c.MakeLatest)
+	}
 	release, _, err := c.api.Repositories.CreateRelease(ctx, c.owner, c.repo, req)
 	if err != nil {
 		return nil, fmt.Errorf("creating release %s: %w", tag, readable(err))
@@ -136,7 +142,11 @@ func (c *Client) uploadAndPublish(ctx context.Context, release *gh.RepositoryRel
 	if draft {
 		return names, nil
 	}
-	if _, _, err := c.api.Repositories.UpdateRelease(ctx, c.owner, c.repo, release.ID, gh.UpdateReleaseRequest{Draft: new(false)}); err != nil {
+	publish := gh.UpdateReleaseRequest{Draft: new(false)}
+	if c.MakeLatest != "" {
+		publish.MakeLatest = new(c.MakeLatest)
+	}
+	if _, _, err := c.api.Repositories.UpdateRelease(ctx, c.owner, c.repo, release.ID, publish); err != nil {
 		return nil, fmt.Errorf("publishing release %s: %w", tag, readable(err))
 	}
 	return names, nil

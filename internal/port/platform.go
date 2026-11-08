@@ -40,3 +40,10 @@ type Platform interface {
 	// contacting the platform, so the pipeline can refuse a bad asset before it pushes a tag.
 	CheckAssets() error
 }
+
+// LatestMarker is implemented by a platform whose releases can be marked as the repository's latest
+// (GitHub's "Latest"). The pipeline calls SetLatest before CreateRelease with whether the release is
+// the highest final one of its line; a platform without the notion does not implement it.
+type LatestMarker interface {
+	SetLatest(latest bool)
+}

@@ -440,3 +440,21 @@ func TestReleaseFlow_WithoutAReleaseBlockTagsOnly(t *testing.T) {
 		assert.Contains(t, res.Stdout, `publishing is off`)
 	})
 }
+
+// GitHub's "Latest" goes only to the highest release: the first one is, one published below an
+// existing higher version is not.
+func TestRelease_GitHubLatestOnlyForTheHighestRelease(t *testing.T) {
+	bin := harness.Binary(t)
+
+	repo := releaseRepo(t, releaseCfg("    - forge: github\n", ""))
+	res := repo.Run(bin, tokens, "release", "--offline")
+	require.Equal(t, exitOK, res.ExitCode, "stdout:\n%s\nstderr:\n%s", res.Stdout, res.Stderr)
+	assert.Equal(t, "true", repo.FakeGitHub().Release()["make_latest"])
+
+	repo = releaseRepo(t, releaseCfg("    - forge: github\n", ""))
+	repo.Git("tag", "-a", "v2.0.0", "-m", "v2.0.0")
+	res = repo.Run(bin, tokens, "release", "--offline", "--set-version", "1.0.0")
+	require.Equal(t, exitOK, res.ExitCode, "stdout:\n%s\nstderr:\n%s", res.Stdout, res.Stderr)
+	assert.Equal(t, "false", repo.FakeGitHub().Release()["make_latest"])
+	assert.Contains(t, res.Stdout, "not marked as the latest release")
+}

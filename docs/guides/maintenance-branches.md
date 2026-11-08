@@ -73,6 +73,9 @@ Next version is outside the maintenance range: feat: y would release 1.4.0, outs
 If the branch has no tag in range yet (a fresh `release/1.3`), tag its starting point or pass
 `--set-version`.
 
+On GitHub, a patch released from a maintenance line is not marked as the repository's **Latest**
+release when a higher version exists: `v1.3.1` published after `v2.0.0` leaves `v2.0.0` as Latest.
+
 ## Forward-merge and backport workflow
 
 heraut neither merges nor cherry-picks; that stays a git workflow.

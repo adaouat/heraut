@@ -528,6 +528,12 @@ or `uploads.<host>`; any other `upload_url` is refused before a byte is sent.
   dropped and a few letters spelled out (`ß` → `ss`, `ø` → `o`, `æ` → `ae`, `ł` → `l`), any other
   character outside ASCII letters, digits and `._-+@` becomes `.`, runs of `.` collapse, a
   trailing `.` is dropped and a leading `.` gets `default` in front. GitLab keeps names as given.
+- **Latest**: `make_latest` is `true` only when the tag is the highest final release of its line —
+  the strategy's tags, or the environment's under a per-env strategy, pre-releases excluded — and
+  `false` otherwise (a `1.x` maintenance patch published after `2.0.0`, a version set below a higher
+  one, a pre-release). It is sent with the request that publishes the release (the create call, or
+  the publish update after uploading assets). When heraut cannot tell, it sends nothing and GitHub
+  decides; the step says so.
 - **Pre-release**: the release is created with `prerelease: true` iff the active strategy is SemVer-based
   (`semver`/`semver-per-env`) *and* the resolved version carries SemVer pre-release identifiers
   (e.g. `1.4.0-rc.1`) — never for a final, and never under a CalVer strategy, regardless of

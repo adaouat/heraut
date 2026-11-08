@@ -571,3 +571,35 @@ func TestCreateRelease_NamesTheTaggedCommit(t *testing.T) {
 		"tag_name": "v1.2.3", "target_commitish": "4e1c2a7d0f", "name": "v1.2.3", "body": "the notes", "draft": false, "prerelease": false,
 	}, jsonBody(t, f.recorded()[0]))
 }
+
+// make_latest goes with the request that publishes the release: the create call without assets, the
+// publish update with assets (GitHub ignores it on a draft). Unset, nothing is sent.
+func TestCreateRelease_SendsMakeLatestWhenPublishing(t *testing.T) {
+	for _, latest := range []string{"true", "false"} {
+		t.Run("without assets, "+latest, func(t *testing.T) {
+			f := newFakeGitHub(t, githubUploadURL)
+			c := githubClient(t, f)
+			c.MakeLatest = latest
+
+			_, err := c.CreateRelease(t.Context(), "v1.2.3", "", "n", false, false, nil)
+			require.NoError(t, err)
+			assert.Equal(t, latest, jsonBody(t, f.recorded()[0])["make_latest"])
+		})
+		t.Run("with assets, "+latest, func(t *testing.T) {
+			f := newFakeGitHub(t, githubUploadURL)
+			c := githubClient(t, f)
+			c.MakeLatest = latest
+
+			_, err := c.CreateRelease(t.Context(), "v1.2.3", "", "n", false, false, []platforms.Asset{testAsset(t, "app.zip", "x")})
+			require.NoError(t, err)
+			calls := f.recorded()
+			assert.NotContains(t, jsonBody(t, calls[0]), "make_latest", "not on the draft")
+			assert.Equal(t, map[string]any{"draft": false, "make_latest": latest}, jsonBody(t, calls[len(calls)-1]))
+		})
+	}
+
+	f := newFakeGitHub(t, githubUploadURL)
+	_, err := githubClient(t, f).CreateRelease(t.Context(), "v1.2.3", "", "n", false, false, nil)
+	require.NoError(t, err)
+	assert.NotContains(t, jsonBody(t, f.recorded()[0]), "make_latest", "unset: GitHub decides")
+}

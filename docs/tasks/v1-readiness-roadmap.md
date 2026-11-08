@@ -531,9 +531,21 @@ memoizing one, with the token absent from the log (red before). The reviewer's r
 `--verbose` echoes; whether git strips the token there was not checked offline, so it is added to
 T552.
 
-#### `[ ]` T515: GitHub "Latest" goes to the highest release only
+#### `[x]` T515: GitHub "Latest" goes to the highest release only
 
 **Decision (user, 2026-11-08):** heraut decides: `make_latest` is true only when the tag is the highest final release of its line (for per-env, of its environment's tags), false otherwise. No config key.
+
+**Done (2026-11-08).** The GitLab driver is untouched. A new optional `port.LatestMarker` (`SetLatest`)
+is implemented by the GitHub platform, which passes it to the client as `MakeLatest`. That is sent with
+the request that publishes: the create call, or the publish update after the uploads (never on a draft
+create). `pipeline.Config.IsLatest` is asked before publishing to a platform that implements the marker.
+`app` builds it from `globalCurrentTag` (the line's highest final tag, per strategy and environment,
+pre-releases excluded), run after the tag push. When it fails, nothing is sent and the step says so; a
+final that isn't the highest gets a sub-line. Tests: client contract tests (create and publish
+bodies, absent when unset), a platform test, a pipeline test (asked once, only for the platform that
+has a Latest), an `app` real-git table (`v2.0.0` yes; `v1.0.1` and `v2.1.0-rc.1` no), and Lane A
+`TestRelease_GitHubLatestOnlyForTheHighestRelease` (`true` for a first release, `false` for
+`--set-version 1.0.0` below `v2.0.0`). Docs: Spec 05 § GitHub, the maintenance-branches guide.
 
 `make_latest` is never set (`internal/platforms/github/client.go:86,139`; no `MakeLatest` in
 `internal/`), and GitHub's default is `true`, so a maintenance patch published after a newer major, or a
