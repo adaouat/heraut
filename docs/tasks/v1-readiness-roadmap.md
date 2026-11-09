@@ -1213,7 +1213,7 @@ split as before. The host is lower-cased, and `ssh.github.com` and `altssh.gitla
 SSH-over-443 hosts, the real "host with a port" case) count as GitHub and GitLab. A trailing `/` is
 trimmed too; `file://` and local paths still detect nothing. Spec 02 lists the forms.
 
-#### `[ ]` T552: settle the review's unverified suspicions
+#### `[x]` T552: settle the review's unverified suspicions
 
 Reproduce each; fix it as its own commit or record why it holds:
 - GitLab Generic Packages may reject some asset file names (spaces, `#`, non-ASCII) at upload, after the
@@ -1231,7 +1231,7 @@ Reproduce each; fix it as its own commit or record why it holds:
 - `git push` prints `To <url>` on stderr, which `--verbose` echoes: check whether git keeps a token from an
   origin URL there (found during T514).
 
-In progress (2026-11-09). Settled:
+Done (2026-11-09):
 - `associatedPullRequests`: real; now `first:5`, the first merged PR is kept, an open one never
   (f69f3e1a). A merged PR into another branch still can't be told apart: the enrichment does not
   receive the base branch.
@@ -1248,13 +1248,13 @@ In progress (2026-11-09). Settled:
 - `git push` "To <url>": holds. Git 2.56 strips the credentials from the `To` line and its error
   messages (checked through an `ssh://user:secret@` origin).
 
-Open, each waiting for the user's go:
-- GitLab asset names: GitLab's Generic Packages `file_name` rule (letters, digits, `.`, `_`, `-`,
-  `+`, `~`, from memory) refuses spaces, `#` and non-ASCII at upload, after the tag push. The fix is a
-  preflight rule in the GitLab driver; it needs confirming on the Lane B sandbox first.
-- `docker-build`: confirmed by reading; its checkout has no `ref:`, so the image embeds the
-  dispatched commit's `CHANGELOG.md`, without the release section. The fix is
-  `ref: ${{ needs.release.outputs.tag }}` in `release.yml` (CI/CD).
+Then, on the user's go:
+- GitLab asset names: real. GitLab documents the Generic Packages `file_name` rule (letters, digits,
+  `. _ - + ~ @ /`, no leading or trailing `~` or `@`); `CheckAssets` now applies it through a new
+  `NameRule.Valid`, before anything is committed. ADR-0076 gets an addendum, since its earlier one said
+  `#` was fine on GitLab, and `TestCheckAssets_PathWithHashIsAccepted` became the rule's table.
+  Not run against the Lane B sandbox.
+- `docker-build`: its checkout now uses `ref: ${{ needs.release.outputs.tag }}` (9d33094d).
 
 #### `[ ]` T553: interactive packages get real coverage
 
