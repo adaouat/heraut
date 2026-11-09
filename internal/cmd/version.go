@@ -106,6 +106,9 @@ func resolveNext(cmd *cobra.Command, versionOverride, buildID string) (nextResul
 	if err != nil {
 		return nextResult{}, err
 	}
+	if err := app.CheckHasCommits(runner); err != nil {
+		return nextResult{}, exitcode.Wrap(exitcode.Runtime, err)
+	}
 
 	env, err = app.ResolveEnv(env, cfg, runner)
 	if err != nil {

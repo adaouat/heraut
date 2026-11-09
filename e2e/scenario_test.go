@@ -80,6 +80,10 @@ func runScenarios(t *testing.T, bin string, env []string, tests []scenario) {
 			if tc.branch != "" {
 				repo.Checkout(tc.branch)
 			}
+			if len(tc.history) == 0 {
+				// heraut refuses a branch with no commit; a scenario without history means "nothing tagged yet"
+				repo.Commit("chore: init")
+			}
 			applySteps(repo, tc.history)
 
 			res := repo.Run(bin, append(append([]string{}, env...), tc.env...), tc.args...)

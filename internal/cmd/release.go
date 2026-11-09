@@ -141,6 +141,9 @@ func runRelease(cmd *cobra.Command, version string, rf *releaseFlags, asJSON boo
 	if err := app.CheckFullHistory(readRunner); err != nil {
 		return exitcode.Wrap(exitcode.Runtime, err)
 	}
+	if err := app.CheckHasCommits(readRunner); err != nil {
+		return exitcode.Wrap(exitcode.Runtime, err)
+	}
 
 	env, err = app.ResolveEnv(env, cfg, readRunner)
 	if err != nil {

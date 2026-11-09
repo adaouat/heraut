@@ -1120,10 +1120,19 @@ version branch" moved to the app resolver table. `Generator.Validate` left the p
 implementers and Spec 05. Mutation checks: removing `r.reset()` fails both reset tests, and a
 `silentReporter` that skips the step fails 21 pipeline tests.
 
-#### `[ ]` T546: a clear error on a repository with no commits
+#### `[x]` T546: a clear error on a repository with no commits
 
 On an unborn branch, `version next` prints `v0.1.0` and `changelog` fails with
 `listing git tags: … fatal: malformed object name HEAD` (exit 3). Say "no commits yet".
+
+Done. `app.CheckHasCommits` refuses an unborn branch with a `CheckoutError` (exit 3, "the repository
+has no commits yet"); `release`, `changelog` and `version next` call it, `--dry-run` and
+`--set-version` included, after `CheckFullHistory`. It needs a positive signal, not just a failing
+`git rev-parse --verify --quiet HEAD`: `git symbolic-ref -q HEAD` must also name a branch. The cmd
+tests' fake `git` scripts exit 1 on any call they don't know, which a single-call check read as
+"unborn" in 40 tests. `version current` is unchanged: it already answers `No tags found for "v*"` (exit 5). Six e2e
+scenarios with no history ran on an unborn branch by accident; `runScenarios` now gives them a
+`chore: init` commit. Specs 01 and 03 and the troubleshooting table name the error.
 
 #### `[ ]` T547: the changelog is written inside the repository
 

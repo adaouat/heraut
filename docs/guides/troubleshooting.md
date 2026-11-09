@@ -16,6 +16,7 @@ Find your message or question below. Every error also has an exit code, which
 | `Environment "prod" must be operated from branch "main"` | 2 | Run it from that branch, or pass `--force` to release from here. See [Several environments](environments.md). |
 | `changelog "CHANGELOG.md" has no heraut-release anchors` | 3 | The file was written by another tool. See [Adopt heraut on an existing project](adopt-on-an-existing-project.md#2-your-existing-changelog). |
 | `the repository is a shallow clone` | 3 | The CI checkout has one commit and no tags: fetch the full history (`fetch-depth: 0` on GitHub, `GIT_DEPTH: "0"` on GitLab). |
+| `the repository has no commits yet` | 3 | There is nothing to version. Make a first commit, then run heraut again. |
 | `HEAD is detached and no CI branch variable names the branch` | 3 | The job runs on a tag or a merge request, not a branch. Run it in a branch pipeline. |
 | `Preflight check failed: git user.name is not configured` | 3 | Set the identity the CI job commits with. See [GitHub Actions](github-actions.md) or [GitLab CI/CD](gitlab-ci.md). |
 | `no GitHub token: none of GH_TOKEN, GITHUB_TOKEN is set` | 3 | Export a token that can create releases. See [Pull request data in the changelog](pr-data-and-tokens.md). |

@@ -47,6 +47,52 @@ func TestCheckFullHistory(t *testing.T) {
 	}
 }
 
+func TestCheckHasCommits(t *testing.T) {
+	verify := []string{"rev-parse", "--verify", "--quiet", "HEAD"}
+	symbolic := []string{"symbolic-ref", "-q", "HEAD"}
+	exit1 := errors.New("exit status 1")
+	type reply struct {
+		out string
+		err error
+	}
+	tests := []struct {
+		name      string
+		replies   []reply
+		wantCalls [][]string
+		wantError bool
+	}{
+		{name: "a commit", replies: []reply{{out: "0123456789abcdef0123456789abcdef01234567\n"}}, wantCalls: [][]string{verify}},
+		{name: "unborn branch", replies: []reply{{err: exit1}, {out: "refs/heads/main\n"}},
+			wantCalls: [][]string{verify, symbolic}, wantError: true},
+		{name: "git cannot tell", replies: []reply{{err: exit1}, {err: errors.New("exit status 128")}},
+			wantCalls: [][]string{verify, symbolic}},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			mr := exectest.NewMockRunner()
+			for _, r := range tc.replies {
+				mr.QueueResponse(r.out, "", r.err)
+			}
+
+			err := app.CheckHasCommits(mr)
+
+			var calls [][]string
+			for _, c := range mr.Calls {
+				assert.Equal(t, "git", c.Name)
+				calls = append(calls, c.Args)
+			}
+			assert.Equal(t, tc.wantCalls, calls)
+			if !tc.wantError {
+				assert.NoError(t, err)
+				return
+			}
+			require.Error(t, err)
+			assert.True(t, app.IsUnusableCheckout(err))
+			assert.Contains(t, err.Error(), "no commits yet")
+		})
+	}
+}
+
 func TestIsUnusableCheckout_OtherErrors(t *testing.T) {
 	assert.False(t, app.IsUnusableCheckout(nil))
 	assert.False(t, app.IsUnusableCheckout(errors.New("boom")))

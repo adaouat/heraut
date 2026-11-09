@@ -85,6 +85,9 @@ func NewChangelogCmd(version string) *cobra.Command {
 			if err := app.CheckFullHistory(readRunner); err != nil {
 				return exitcode.Wrap(exitcode.Runtime, err)
 			}
+			if err := app.CheckHasCommits(readRunner); err != nil {
+				return exitcode.Wrap(exitcode.Runtime, err)
+			}
 
 			env, err = app.ResolveEnv(env, cfg, readRunner)
 			if err != nil {

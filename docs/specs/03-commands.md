@@ -168,7 +168,9 @@ the block to tag only.
    before the version is resolved, since a cut history can hide the last tag or part of the
    commit range and give a wrong version or changelog. The hint names `git fetch --unshallow
    --tags`, `fetch-depth: 0` (GitHub Actions) and `GIT_DEPTH: "0"` (GitLab CI). `--set-version` is
-   not exempt: the changelog still reads the history.
+   not exempt: the changelog still reads the history. A branch with no commit yet (`git rev-parse
+   --verify HEAD` fails while `git symbolic-ref HEAD` names a branch) is refused the same way:
+   "the repository has no commits yet".
 2. **Resolve next version** — strategy-specific (see [Spec 04](04-versioning.md))
 3. **Generate changelog** (if `changelog` is configured and not disabled for the env)
    — writes to `changelog.output` (default `CHANGELOG.md`)
@@ -261,8 +263,9 @@ without publishing to any release platform.
 Ctrl-C (SIGINT) or SIGTERM during the pull-request lookups stops them, and the run fails with the
 Runtime code before the changelog is written.
 
-Like `heraut release`, it refuses a shallow clone with the Runtime code (3) before resolving,
-`--dry-run` and `--set-version` included ([§ `heraut release`](#heraut-release) step 1).
+Like `heraut release`, it refuses a shallow clone and a branch with no commit yet with the Runtime
+code (3) before resolving, `--dry-run` and `--set-version` included
+([§ `heraut release`](#heraut-release) step 1).
 
 ```
 heraut changelog [--commit] [--tag] [--no-push] [--set-version <version>] [--regenerate] [--dry-run] [--env <name>] [--force] [--offline] [--no-hooks] [--skip-hook <point>[,<point>…]] [--allow-major]
@@ -419,7 +422,8 @@ Exits non-zero if a promotion guard trips (E001/E002/E003).
 
 In a shallow clone it still prints the version, with a warning on stderr (in `--json`, in
 `warnings`) that the history may be cut off and the version wrong; `release` and `changelog`
-refuse the same clone.
+refuse the same clone. On a branch with no commit yet it prints no version and exits with the
+Runtime code (3): "the repository has no commits yet".
 
 With `--pre-release <label>`, `version next` prints the pre-release tag `heraut release --pre-release` would create (`v1.4.0-rc.1`), with the same config errors as on `release` (exit code 2) and any series-escalation warning on stderr. See the `--pre-release` row of the [`heraut release` flag table](#heraut-release).
 

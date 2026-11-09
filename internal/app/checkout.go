@@ -7,8 +7,8 @@ import (
 	"github.com/adaouat/heraut/internal/port"
 )
 
-// CheckoutError reports a checkout heraut cannot release from: a shallow clone, or a detached
-// HEAD with no branch to push the changelog commit to. Commands map it to the Runtime exit code.
+// CheckoutError reports a checkout heraut cannot release from: a shallow clone, a branch with no
+// commit yet, or a detached HEAD with no branch to push the changelog commit to. Commands map it to the Runtime exit code.
 type CheckoutError struct{ msg string }
 
 func (e *CheckoutError) Error() string { return e.msg }
@@ -29,6 +29,19 @@ func CheckFullHistory(runner port.Runner) error {
 		return nil
 	}
 	return &CheckoutError{msg: "the repository is a shallow clone, so heraut cannot see every commit and tag to resolve the version and write the changelog; " + unshallowHint}
+}
+
+// CheckHasCommits refuses a repository whose branch has no commit yet: there is nothing to version,
+// tag or describe. HEAD then names a branch that does not resolve. When git cannot answer either
+// question (not a repository at all), it returns nil: the run's other git calls report it.
+func CheckHasCommits(runner port.Runner) error {
+	if _, _, err := runner.Run("git", "rev-parse", "--verify", "--quiet", "HEAD"); err == nil {
+		return nil
+	}
+	if _, _, err := runner.Run("git", "symbolic-ref", "-q", "HEAD"); err != nil {
+		return nil
+	}
+	return &CheckoutError{msg: "the repository has no commits yet: commit something first, then run heraut again"}
 }
 
 // ShallowCloneWarning is the warning a read-only command prints in a shallow clone, or "" when
