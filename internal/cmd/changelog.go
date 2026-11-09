@@ -100,7 +100,7 @@ func NewChangelogCmd(version string) *cobra.Command {
 			}
 			resolver, err := app.NewResolver(cfg, env, force, versionOverride, buildID, readRunner, resolverOpts...)
 			if err != nil {
-				return exitcode.Wrap(exitcode.Config, err)
+				return wrapResolverErr(err)
 			}
 
 			opts := app.PipelineOpts{

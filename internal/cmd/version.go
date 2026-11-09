@@ -121,7 +121,7 @@ func resolveNext(cmd *cobra.Command, versionOverride, buildID string) (nextResul
 
 	resolver, err := app.NewResolver(cfg, env, force, versionOverride, buildID, runner, app.WithAllowMajor(allowMajor), app.WithPreRelease(preRelease), app.WithBranchesOnlyCollisionGuard())
 	if err != nil {
-		return nextResult{}, exitcode.Wrap(exitcode.Config, err)
+		return nextResult{}, wrapResolverErr(err)
 	}
 
 	result, err := resolver.Resolve()

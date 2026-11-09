@@ -1,6 +1,9 @@
 package cmd
 
 import (
+	"errors"
+	osexec "os/exec"
+
 	"github.com/adaouat/heraut/internal/app"
 	"github.com/adaouat/heraut/internal/exitcode"
 )
@@ -10,6 +13,18 @@ import (
 // forge/cli.Run here to decide os.Exit's argument.
 func ExitCode(err error) int {
 	return exitcode.Resolve(err)
+}
+
+// wrapResolverErr classifies an error from app.NewResolver: a command that failed or is missing
+// (git reading the branch) is a runtime failure, anything else (a flag or a config the resolver
+// refuses) a config error.
+func wrapResolverErr(err error) error {
+	var exitErr *osexec.ExitError
+	var execErr *osexec.Error
+	if errors.As(err, &exitErr) || errors.As(err, &execErr) {
+		return exitcode.Wrap(exitcode.Runtime, err)
+	}
+	return exitcode.Wrap(exitcode.Config, err)
 }
 
 // wrapBranchErr classifies an error from app.CheckBranch: the guard refusing the current branch is

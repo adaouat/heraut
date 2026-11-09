@@ -158,7 +158,7 @@ func runRelease(cmd *cobra.Command, version string, rf *releaseFlags, asJSON boo
 
 	resolver, err := app.NewResolver(cfg, env, force, rf.versionOverride, rf.buildID, readRunner, app.WithAllowMajor(allowMajor), app.WithPreRelease(preRelease))
 	if err != nil {
-		return exitcode.Wrap(exitcode.Config, err)
+		return wrapResolverErr(err)
 	}
 
 	opts := app.PipelineOpts{
