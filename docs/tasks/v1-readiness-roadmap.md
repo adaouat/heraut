@@ -1184,9 +1184,9 @@ an absent answer passes: the check catches a read-only user, not every read-only
 now names `contents: write`. GitLab: a personal, project or group token is checked with
 `GET /personal_access_tokens/self` and fails without the `api` scope; no scopes in the answer pass,
 and a 404 (an instance without the endpoint) falls back to `GET /user`. A job token is unchanged:
-neither endpoint accepts it, and its write access cannot be proven before the tag push. Not run
-against the Lane B sandboxes (only on the user's word): the real answers of both endpoints for the
-sandbox tokens remain to be seen there.
+neither endpoint accepts it, and its write access cannot be proven before the tag push. The user ran
+Lane B against both sandboxes on 2026-11-09, after T548–T556: it passed, so the real sandbox tokens
+pass both checks.
 
 #### `[x]` T550: CI hardening (CI/CD: needs the go)
 
@@ -1253,7 +1253,7 @@ Then, on the user's go:
   `. _ - + ~ @ /`, no leading or trailing `~` or `@`); `CheckAssets` now applies it through a new
   `NameRule.Valid`, before anything is committed. ADR-0076 gets an addendum, since its earlier one said
   `#` was fine on GitLab, and `TestCheckAssets_PathWithHashIsAccepted` became the rule's table.
-  Not run against the Lane B sandbox.
+  Lane B passed against both sandboxes afterwards (the user's run, 2026-11-09).
 - `docker-build`: its checkout now uses `ref: ${{ needs.release.outputs.tag }}` (9d33094d).
 
 #### `[x]` T553: interactive packages get real coverage
