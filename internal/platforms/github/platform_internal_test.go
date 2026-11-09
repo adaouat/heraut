@@ -118,10 +118,13 @@ func TestPlatform_CheckInActionsValidatesThePublishToken(t *testing.T) {
 	require.NoError(t, p.Check(t.Context()))
 
 	calls := f.recorded()
-	require.Len(t, calls, 1)
+	require.Len(t, calls, 2)
 	assert.Equal(t, "GET api.github.com"+releasesPath, calls[0].String())
 	assert.Equal(t, "1", calls[0].Query.Get("per_page"))
-	assert.Equal(t, "Bearer pat", calls[0].Auth)
+	assert.Equal(t, "GET api.github.com/repos/acme/widget", calls[1].String(), "the push permission")
+	for _, c := range calls {
+		assert.Equal(t, "Bearer pat", c.Auth)
+	}
 }
 
 // ---- Check ------------------------------------------------------------------------------------
@@ -143,7 +146,7 @@ func TestPlatform_CheckReadsTheRepositoryFromTheEnvironment(t *testing.T) {
 	p, _ := testPlatform(&config.Platform{}, map[string]string{"GH_TOKEN": "tok", "GITHUB_REPOSITORY": "acme/widget"}, f)
 
 	require.NoError(t, p.Check(t.Context()))
-	assert.Equal(t, []string{"GET api.github.com" + releasesPath}, f.requests())
+	assert.Equal(t, []string{"GET api.github.com" + releasesPath, "GET api.github.com/repos/acme/widget"}, f.requests())
 }
 
 func TestPlatform_CheckRefusedTokenNamesTheVariable(t *testing.T) {
@@ -166,7 +169,7 @@ func TestPlatform_UsesTheActionsAPIRootOfItsOwnInstance(t *testing.T) {
 	}, f)
 
 	require.NoError(t, p.Check(t.Context()))
-	assert.Equal(t, []string{"GET api.proxy.example.com" + releasesPath}, f.requests())
+	assert.Equal(t, []string{"GET api.proxy.example.com" + releasesPath, "GET api.proxy.example.com/repos/acme/widget"}, f.requests())
 }
 
 func TestPlatform_GHESIsReachedUnderItsAPIRoot(t *testing.T) {
@@ -175,7 +178,7 @@ func TestPlatform_GHESIsReachedUnderItsAPIRoot(t *testing.T) {
 		map[string]string{"GH_TOKEN": "tok"}, f)
 
 	require.NoError(t, p.Check(t.Context()))
-	assert.Equal(t, []string{"GET github.example.com/api/v3" + releasesPath}, f.requests())
+	assert.Equal(t, []string{"GET github.example.com/api/v3" + releasesPath, "GET github.example.com/api/v3/repos/acme/widget"}, f.requests())
 }
 
 // ---- CreateRelease ----------------------------------------------------------------------------

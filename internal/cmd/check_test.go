@@ -109,16 +109,20 @@ echo "cog 6.x"
 
 // ---- check runtime ----
 
-// githubStandIn serves the GitHub releases list on loopback, as a GitHub Enterprise Server would:
-// point a forge's base_url at the returned URL so the platform check stays off the network.
+// githubStandIn serves the GitHub releases list and the repository on loopback, as a GitHub
+// Enterprise Server would: point a forge's base_url at the returned URL so the platform check stays
+// off the network.
 func githubStandIn(t *testing.T) string {
 	t.Helper()
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.Method != http.MethodGet || !strings.HasSuffix(r.URL.Path, "/releases") {
+		switch {
+		case r.Method == http.MethodGet && strings.HasSuffix(r.URL.Path, "/releases"):
+			_, _ = w.Write([]byte(`[]`))
+		case r.Method == http.MethodGet && strings.HasPrefix(r.URL.Path, "/api/v3/repos/"):
+			_, _ = w.Write([]byte(`{"permissions":{"push":true}}`))
+		default:
 			http.NotFound(w, r)
-			return
 		}
-		_, _ = w.Write([]byte(`[]`))
 	}))
 	t.Cleanup(srv.Close)
 	return srv.URL

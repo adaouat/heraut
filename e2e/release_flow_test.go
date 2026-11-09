@@ -44,6 +44,7 @@ var tokens = []string{"GH_TOKEN=ghtok", "GITLAB_TOKEN=gltok"}
 // The call log lines of the GitHub and GitLab requests on the acme/widget project.
 const (
 	githubList    = "github [GET] [/api/v3/repos/acme/widget/releases]"
+	githubRepo    = "github [GET] [/api/v3/repos/acme/widget]" // the push permission
 	githubRelease = "github [POST] [/api/v3/repos/acme/widget/releases]"
 	githubUpload  = "github [POST] [/api/uploads/repos/acme/widget/releases/1/assets]"
 	githubPublish = "github [PATCH] [/api/v3/repos/acme/widget/releases/1]"
@@ -77,7 +78,7 @@ func TestRelease_GitHubRequests(t *testing.T) {
 	res := repo.Run(bin, tokens, "release", "--offline")
 
 	require.Equal(t, exitOK, res.ExitCode, "stdout:\n%s\nstderr:\n%s", res.Stdout, res.Stderr)
-	assert.Equal(t, []string{githubList, githubRelease}, repo.APICalls(), "the token is checked, then the release is created in one call")
+	assert.Equal(t, []string{githubList, githubRepo, githubRelease}, repo.APICalls(), "the token is checked, then the release is created in one call")
 	rel := repo.FakeGitHub().Release()
 	assert.Equal(t, "v0.1.0", rel["tag_name"])
 	assert.Equal(t, repo.Git("rev-parse", "v0.1.0^{commit}"), rel["target_commitish"],
@@ -101,6 +102,7 @@ func TestRelease_TwoTargetsPublishInDeclaredOrderWithDriverFlags(t *testing.T) {
 	require.Equal(t, exitOK, res.ExitCode, "stdout:\n%s\nstderr:\n%s", res.Stdout, res.Stderr)
 	assert.Equal(t, []string{
 		githubList,
+		githubRepo,
 		"gitlab [GET] [/api/v4/user]",
 		githubRelease,
 		gitlabRelease,
@@ -154,7 +156,7 @@ func TestRelease_AssetsAreAttachedAndAZeroMatchIsRefusedUnlessAllowed(t *testing
 		res := repo.Run(bin, tokens, "release", "--offline")
 
 		require.Equal(t, exitOK, res.ExitCode, "stdout:\n%s\nstderr:\n%s", res.Stdout, res.Stderr)
-		assert.Equal(t, []string{githubList, githubRelease, githubUpload, githubUpload, githubPublish}, repo.APICalls())
+		assert.Equal(t, []string{githubList, githubRepo, githubRelease, githubUpload, githubUpload, githubPublish}, repo.APICalls())
 		assert.Equal(t, true, repo.FakeGitHub().Release()["draft"])
 		assert.Equal(t, []string{"a.txt", "b.txt"}, repo.FakeGitHub().Uploads())
 	})
@@ -190,7 +192,7 @@ func TestRelease_AssetsAreAttachedAndAZeroMatchIsRefusedUnlessAllowed(t *testing
 		res := repo.Run(bin, tokens, "release", "--offline")
 
 		require.Equal(t, exitRuntime, res.ExitCode, "stdout:\n%s\nstderr:\n%s", res.Stdout, res.Stderr)
-		assert.Equal(t, []string{githubList, githubRelease, githubUpload, githubDelete}, repo.APICalls(), "no draft is left behind")
+		assert.Equal(t, []string{githubList, githubRepo, githubRelease, githubUpload, githubDelete}, repo.APICalls(), "no draft is left behind")
 		out := normalize(res.Stdout + " " + res.Stderr)
 		assert.Contains(t, out, "publish to github")
 		assert.Contains(t, out, "uploading asset a.txt: 422 validation failed")
@@ -210,7 +212,7 @@ func TestRelease_AssetsAreAttachedAndAZeroMatchIsRefusedUnlessAllowed(t *testing
 		res := repo.Run(bin, tokens, "release", "--offline")
 
 		require.Equal(t, exitOK, res.ExitCode, "stdout:\n%s\nstderr:\n%s", res.Stdout, res.Stderr)
-		assert.Equal(t, []string{githubList, githubRelease}, repo.APICalls(), "nothing to upload")
+		assert.Equal(t, []string{githubList, githubRepo, githubRelease}, repo.APICalls(), "nothing to upload")
 	})
 }
 
@@ -404,7 +406,7 @@ release:
 		res := repo.Run(bin, tokens, "release", "--offline", "--force")
 
 		require.Equal(t, exitOK, res.ExitCode, "stdout:\n%s\nstderr:\n%s", res.Stdout, res.Stderr)
-		assert.Equal(t, []string{githubList, githubRelease}, repo.APICalls())
+		assert.Equal(t, []string{githubList, githubRepo, githubRelease}, repo.APICalls())
 	})
 }
 

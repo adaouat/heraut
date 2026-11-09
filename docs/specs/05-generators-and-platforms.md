@@ -485,7 +485,7 @@ process through `go-github`; no `gh` binary is involved.
 
 | Step | Request |
 |---|---|
-| `Check()` | `GET /repos/{owner}/{repo}/releases?per_page=1` |
+| `Check()` | `GET /repos/{owner}/{repo}/releases?per_page=1`, then `GET /repos/{owner}/{repo}`: fails when `permissions.push` is `false` (a read-only token); passes when GitHub returns no `permissions` |
 | create | `POST /repos/{owner}/{repo}/releases` (`tag_name`, `target_commitish` = the tagged commit's SHA, `name` = the tag, `body` = the notes, `draft`, `prerelease`) |
 | upload | `POST {upload_url}?name=<basename>`, the file as the raw body |
 | publish | `PATCH /repos/{owner}/{repo}/releases/{id}` (`draft: false`) |

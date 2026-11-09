@@ -5,6 +5,7 @@ import (
 	"errors"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 	"time"
 
@@ -299,7 +300,11 @@ func TestRuntimeCheck_WithGitHubPlatform(t *testing.T) {
 	var requests []string
 	api := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		requests = append(requests, r.Method+" "+r.URL.Path+" "+r.Header.Get("Authorization"))
-		_, _ = w.Write([]byte(`[]`))
+		if strings.HasSuffix(r.URL.Path, "/releases") {
+			_, _ = w.Write([]byte(`[]`))
+			return
+		}
+		_, _ = w.Write([]byte(`{"permissions":{"push":true}}`))
 	}))
 	t.Cleanup(api.Close)
 
@@ -318,7 +323,10 @@ func TestRuntimeCheck_WithGitHubPlatform(t *testing.T) {
 		}
 	}
 	assert.True(t, found, "expected gh item")
-	assert.Equal(t, []string{"GET /api/v3/repos/org/repo/releases Bearer test-token"}, requests, "the token is checked against the forge's own API")
+	assert.Equal(t, []string{
+		"GET /api/v3/repos/org/repo/releases Bearer test-token",
+		"GET /api/v3/repos/org/repo Bearer test-token",
+	}, requests, "the token is checked against the forge's own API")
 }
 
 // Ctrl-C during heraut check stops a token check that stalls.

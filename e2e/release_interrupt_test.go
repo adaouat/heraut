@@ -36,7 +36,7 @@ func TestRelease_InterruptDuringAnUploadDeletesTheDraftAndExits(t *testing.T) {
 
 	assert.Equal(t, exitRuntime, res.ExitCode, "stdout:\n%s\nstderr:\n%s", res.Stdout, res.Stderr)
 	assert.Contains(t, res.Stdout, "context canceled")
-	assert.Equal(t, []string{githubList, githubRelease, githubUpload, githubDelete}, repo.APICalls())
+	assert.Equal(t, []string{githubList, githubRepo, githubRelease, githubUpload, githubDelete}, repo.APICalls())
 }
 
 // Ctrl-C while the token check stalls stops heraut check instead of being ignored, whichever form
