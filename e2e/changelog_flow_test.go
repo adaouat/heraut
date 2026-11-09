@@ -310,3 +310,16 @@ func TestChangelogFlow_RerenderingATaggedVersionKeepsItsSection(t *testing.T) {
 	assert.Equal(t, want, changelogOutline(content), "full regeneration")
 	assert.Equal(t, 1, strings.Count(content, "<!-- heraut-release: v0.2.0 -->"), "one section per version")
 }
+
+// A branch with the same name as the tag doesn't make the tag push ambiguous: the tag is pushed by its
+// full ref.
+func TestChangelogFlow_ATagNamedLikeABranchIsPushed(t *testing.T) {
+	bin := harness.Binary(t)
+	repo := flowRepo(t, flowCfg)
+	repo.Commit("feat: one")
+	repo.Git("branch", "v0.1.0") // a branch named like the next tag
+
+	runOK(t, repo, bin, "changelog", "--tag", "--offline")
+
+	assert.Equal(t, "v0.1.0", repo.GitRemote("tag", "-l"))
+}

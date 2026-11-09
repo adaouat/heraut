@@ -116,7 +116,7 @@ func TestChangelogRun_WithTag(t *testing.T) {
 	assert.Equal(t, "commit", mr.Calls[2].Args[0])
 	assert.Equal(t, []string{"push", "origin", "HEAD"}, mr.Calls[3].Args)
 	assert.Equal(t, []string{"tag", "v1.2.3"}, mr.Calls[4].Args)
-	assert.Equal(t, []string{"push", "origin", "v1.2.3"}, mr.Calls[5].Args)
+	assert.Equal(t, []string{"push", "origin", "refs/tags/v1.2.3"}, mr.Calls[5].Args)
 }
 
 // TestChangelogRun_TagWithoutChangelog verifies tag-only when no generator is configured.
@@ -134,7 +134,7 @@ func TestChangelogRun_TagWithoutChangelog(t *testing.T) {
 
 	require.Len(t, mr.Calls, 2)
 	assert.Equal(t, []string{"tag", "v1.2.3"}, mr.Calls[0].Args)
-	assert.Equal(t, []string{"push", "origin", "v1.2.3"}, mr.Calls[1].Args)
+	assert.Equal(t, []string{"push", "origin", "refs/tags/v1.2.3"}, mr.Calls[1].Args)
 }
 
 // TestChangelogRun_WithCommit_NoPush verifies --no-push commits but does not push.
@@ -270,7 +270,7 @@ func TestChangelogRun_AnnotatedTag(t *testing.T) {
 
 	require.Len(t, mr.Calls, 2)
 	assert.Equal(t, []string{"tag", "-a", "v1.2.3", "-m", "chore(release): 1.2.3"}, mr.Calls[0].Args)
-	assert.Equal(t, []string{"push", "origin", "v1.2.3"}, mr.Calls[1].Args)
+	assert.Equal(t, []string{"push", "origin", "refs/tags/v1.2.3"}, mr.Calls[1].Args)
 }
 
 // TestChangelogRun_AnnotatedTagCustomMessage verifies the annotation reuses the commit_message template.
@@ -393,7 +393,7 @@ func TestChangelogRun_DisabledChangelog_WithTag(t *testing.T) {
 	assert.Len(t, gen.GenerateCalls, 0)
 	require.Len(t, mr.Calls, 2)
 	assert.Equal(t, []string{"tag", "v1.2.3"}, mr.Calls[0].Args)
-	assert.Equal(t, []string{"push", "origin", "v1.2.3"}, mr.Calls[1].Args)
+	assert.Equal(t, []string{"push", "origin", "refs/tags/v1.2.3"}, mr.Calls[1].Args)
 	assert.Contains(t, out.String(), "disabled")
 	assert.NotContains(t, strings.ToLower(out.String()), "changelog updated")
 	assert.Contains(t, out.String(), "tagged v1.2.3")
@@ -432,7 +432,7 @@ func TestChangelogRun_NothingToCommit(t *testing.T) {
 	assert.Equal(t, []string{"rev-list", "--count", "@{u}..HEAD"}, mr.Calls[2].Args)
 	assert.Equal(t, []string{"push", "origin", "HEAD"}, mr.Calls[3].Args)
 	assert.Equal(t, []string{"tag", "v1.2.3"}, mr.Calls[4].Args)
-	assert.Equal(t, []string{"push", "origin", "v1.2.3"}, mr.Calls[5].Args)
+	assert.Equal(t, []string{"push", "origin", "refs/tags/v1.2.3"}, mr.Calls[5].Args)
 
 	assert.Contains(t, out.String(), "nothing to commit — CHANGELOG.md and any hook-staged files are unchanged")
 }
@@ -562,7 +562,7 @@ func TestChangelogRun_PreRelease_SkipsChangelogButStillTags(t *testing.T) {
 			}
 			require.Len(t, mr.Calls, 2)
 			assert.Equal(t, "tag", mr.Calls[0].Args[0])
-			assert.Equal(t, []string{"push", "origin", "v1.4.0-rc.1"}, mr.Calls[1].Args)
+			assert.Equal(t, []string{"push", "origin", "refs/tags/v1.4.0-rc.1"}, mr.Calls[1].Args)
 		})
 	}
 }

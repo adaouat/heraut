@@ -44,7 +44,7 @@ func TestRun_PushOptions_ReachBothPushes(t *testing.T) {
 
 	require.Len(t, mr.Calls, 6)
 	assert.Equal(t, []string{"push", "--push-option=ci.skip", "origin", "HEAD"}, mr.Calls[3].Args)
-	assert.Equal(t, []string{"push", "--push-option=ci.variable=DEPLOY=true", "--push-option=-x", "origin", "v1.2.3"}, mr.Calls[5].Args)
+	assert.Equal(t, []string{"push", "--push-option=ci.variable=DEPLOY=true", "--push-option=-x", "origin", "refs/tags/v1.2.3"}, mr.Calls[5].Args)
 }
 
 func TestChangelogRun_PushOptions_ReachBothPushes(t *testing.T) {
@@ -63,7 +63,7 @@ func TestChangelogRun_PushOptions_ReachBothPushes(t *testing.T) {
 
 	require.Len(t, mr.Calls, 6)
 	assert.Equal(t, []string{"push", "--push-option=ci.skip", "origin", "HEAD"}, mr.Calls[3].Args)
-	assert.Equal(t, []string{"push", "--push-option=ci.variable=DEPLOY=true", "--push-option=-x", "origin", "v1.2.3"}, mr.Calls[5].Args)
+	assert.Equal(t, []string{"push", "--push-option=ci.variable=DEPLOY=true", "--push-option=-x", "origin", "refs/tags/v1.2.3"}, mr.Calls[5].Args)
 }
 
 func TestChangelogRun_PushOptions_NoPushPushesNothing(t *testing.T) {

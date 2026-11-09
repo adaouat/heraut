@@ -190,7 +190,7 @@ the block to tag only.
    `--dry-run` included, with the Runtime code (3) and a hint to check out the branch. This
    lookup runs only when the run commits and pushes: `heraut release` with a changelog that is not
    disabled for the env, and `heraut changelog --commit`/`--tag` without `--no-push`.
-5. **Create git tag** (annotated by default; set `versioning.tag_type: lightweight` to use a bare ref tag) on the changelog commit, then `git push origin <tag>`, carrying `git.push_options.tag`
+5. **Create git tag** (annotated by default; set `versioning.tag_type: lightweight` to use a bare ref tag) on the changelog commit, then `git push origin refs/tags/<tag>`, carrying `git.push_options.tag`
 6. **For each target** in `release.targets` (in declared order, or the single resolved
    forge with default options when `release.targets` is omitted):
    1. **Generate release notes** — regenerated independently for *this* target, using
@@ -220,7 +220,7 @@ re-resolves it.
 ### The remote is always `origin`
 
 heraut pushes the changelog commit (`git push origin HEAD`, or `HEAD:refs/heads/<branch>` from a detached
-`HEAD`, § `heraut release` step 4) and the tag (`git push origin <tag>`) to a
+`HEAD`, § `heraut release` step 4) and the tag (`git push origin refs/tags/<tag>`) to a
 remote named `origin`, and reads `git remote get-url origin` to detect the forge when none is configured
 and no CI environment names it. There is no setting for another remote name. A checkout whose upstream
 is called something else (a fork workflow, say) needs a remote called `origin` pointing at the repository
@@ -272,7 +272,7 @@ heraut changelog [--commit] [--tag] [--no-push] [--set-version <version>] [--reg
 |----------------|----------------------------------------------------------------------------------------------------------|
 | `--commit`     | After generating, commit `CHANGELOG.md` and push.                                                        |
 | `--tag`        | After committing, create and push a git tag on that commit. Implies `--commit`.                          |
-| `--no-push`    | Commit and tag locally without pushing. Skips both `git push origin HEAD` and `git push origin <tag>`. Only meaningful with `--commit`/`--tag`. |
+| `--no-push`    | Commit and tag locally without pushing. Skips both `git push origin HEAD` and `git push origin refs/tags/<tag>`. Only meaningful with `--commit`/`--tag`. |
 | `--set-version`| Override the auto-computed version. Bypasses bump resolution. Same validation as `heraut release --set-version` (ADR-0064): non-empty, only `[0-9A-Za-z._+/-]` (so no whitespace or shell syntax), and — under `semver`/`semver-per-env` — a valid SemVer v2 version carrying no build metadata, or — under `calver`/`calver-per-env` — the canonical form of `versioning.format`. The tag-collision probe ([ADR-0073](../adr/0073-set-version-always-probes-for-an-existing-tag.md)) runs only with `--tag`: re-rendering the changelog of an already-released version without `--tag` is not a collision. |
 | `--set-build-id` | CI build ID for the tag. Per-env strategies: substituted into the `{build}` token of `tag_format` (which must be `"+{build}"`). Plain semver without `tag_format`: appended as SemVer build metadata (`v1.4.0+158404`). Under `semver`/`semver-per-env` the resulting `<version>+<id>` must itself be valid SemVer — the build ID must be dot-separated `[0-9A-Za-z-]` identifiers — or heraut rejects it with a config error (ADR-0064); `calver`/`calver-per-env` accept letters, digits, `.`, `_` and `-` (every strategy rejects other characters, [ADR-0074](../adr/0074-command-line-values-that-reach-tags-and-hooks.md)). Requires `--set-version`. `--set-version` must not itself carry build metadata (`"+…"`) when `--set-build-id` is also given. |
 | `--regenerate` | Rebuild the entire changelog and re-enrich every section (batched per platform; one API call per commit on GitLab) instead of incrementally splicing just the new section. See [ADR-0038](../adr/0038-incremental-changelog.md). |
@@ -296,7 +296,7 @@ relative to these steps, see [Guide: Release pipeline and hook positions](../gui
    after a failed push), unless `--no-push`; a detached `HEAD` or a branch without upstream
    is left alone. The push carries `git.push_options.commit` ([Spec 02](02-configuration.md#git)).
 4. Create a git tag (annotated by default; set `versioning.tag_type: lightweight` for a bare ref tag) on that commit
-5. Push tag (`git push origin <tag>`, carrying `git.push_options.tag`) — skipped with `--no-push`
+5. Push tag (`git push origin refs/tags/<tag>`, carrying `git.push_options.tag`) — skipped with `--no-push`
 
 With `--no-push`, the commit and tag are created locally only; push them yourself (or
 let a CI job own pushing) afterwards. The flag is a no-op without `--commit`/`--tag`,

@@ -314,9 +314,9 @@ func TestPushTag_PushOptions(t *testing.T) {
 		opts []string
 		want []string
 	}{
-		{"none", nil, []string{"push", "origin", "v1.2.3"}},
-		{"one", []string{"ci.variable=DEPLOY=true"}, []string{"push", "--push-option=ci.variable=DEPLOY=true", "origin", "v1.2.3"}},
-		{"several, in order", []string{"a", "b"}, []string{"push", "--push-option=a", "--push-option=b", "origin", "v1.2.3"}},
+		{"none", nil, []string{"push", "origin", "refs/tags/v1.2.3"}},
+		{"one", []string{"ci.variable=DEPLOY=true"}, []string{"push", "--push-option=ci.variable=DEPLOY=true", "origin", "refs/tags/v1.2.3"}},
+		{"several, in order", []string{"a", "b"}, []string{"push", "--push-option=a", "--push-option=b", "origin", "refs/tags/v1.2.3"}},
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {

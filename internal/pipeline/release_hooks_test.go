@@ -167,7 +167,7 @@ func TestRun_PostTagHook_FiresAfterPush(t *testing.T) {
 
 	require.Len(t, mr.Calls, 3)
 	assert.Equal(t, []string{"tag", "v1.2.3"}, mr.Calls[0].Args)
-	assert.Equal(t, []string{"push", "origin", "v1.2.3"}, mr.Calls[1].Args)
+	assert.Equal(t, []string{"push", "origin", "refs/tags/v1.2.3"}, mr.Calls[1].Args)
 	assert.Equal(t, []string{"-c", "npm publish"}, mr.Calls[2].Args)
 }
 

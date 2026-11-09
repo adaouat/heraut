@@ -1236,13 +1236,13 @@ and tags ([ADR-0079](../adr/0079-push-options.md)):
 git:
   push_options:
     commit: ["ci.skip"]   # git push --push-option=ci.skip origin HEAD
-    tag: []               # git push origin <tag>
+    tag: []               # git push origin refs/tags/<tag>
 ```
 
 | Field                     | Default | Description |
 |---------------------------|---------|-------------|
 | `push_options.commit`     | `[]`    | Passed, in order, to the changelog commit push (`git push origin HEAD`, or `HEAD:refs/heads/<branch>` from a detached `HEAD`, Spec 03) of `heraut release` and `heraut changelog --commit/--tag`. |
-| `push_options.tag`        | `[]`    | Passed, in order, to the tag push (`git push origin <tag>`) of the same commands. |
+| `push_options.tag`        | `[]`    | Passed, in order, to the tag push (`git push origin refs/tags/<tag>`) of the same commands. |
 
 Each value becomes one `--push-option=<value>` argument, so a value starting with `-` is not read as a
 flag. A value that is empty or contains a line break or a NUL byte is a config error (exit 2), checked

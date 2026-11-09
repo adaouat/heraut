@@ -89,7 +89,7 @@ func TestRun_HappyPath_NoChangelog(t *testing.T) {
 	assert.Equal(t, "git", mr.Calls[0].Name)
 	assert.Equal(t, []string{"tag", "v1.2.3"}, mr.Calls[0].Args)
 	// git push <tag>
-	assert.Equal(t, []string{"push", "origin", "v1.2.3"}, mr.Calls[1].Args)
+	assert.Equal(t, []string{"push", "origin", "refs/tags/v1.2.3"}, mr.Calls[1].Args)
 
 	// platform.CreateRelease was called with the resolved tag
 	require.Len(t, platform.CreateReleaseCalls, 1)
@@ -172,7 +172,7 @@ func TestRun_WithChangelog(t *testing.T) {
 	assert.Equal(t, "commit", mr.Calls[2].Args[0])
 	assert.Equal(t, []string{"push", "origin", "HEAD"}, mr.Calls[3].Args)
 	assert.Equal(t, []string{"tag", "v1.2.3"}, mr.Calls[4].Args)
-	assert.Equal(t, []string{"push", "origin", "v1.2.3"}, mr.Calls[5].Args)
+	assert.Equal(t, []string{"push", "origin", "refs/tags/v1.2.3"}, mr.Calls[5].Args)
 }
 
 // TestRun_WithNotes verifies release notes are generated and passed to CreateRelease.
@@ -707,7 +707,7 @@ func TestRun_AnnotatedTag(t *testing.T) {
 
 	require.Len(t, mr.Calls, 2)
 	assert.Equal(t, []string{"tag", "-a", "v1.2.3", "-m", "chore(release): 1.2.3"}, mr.Calls[0].Args)
-	assert.Equal(t, []string{"push", "origin", "v1.2.3"}, mr.Calls[1].Args)
+	assert.Equal(t, []string{"push", "origin", "refs/tags/v1.2.3"}, mr.Calls[1].Args)
 }
 
 // TestRun_SignedTag verifies that SignTags:true produces "git tag -s <tag> -m <msg>"
@@ -1030,7 +1030,7 @@ func TestRun_ChangelogNothingToCommit(t *testing.T) {
 	assert.Equal(t, []string{"rev-list", "--count", "@{u}..HEAD"}, mr.Calls[2].Args)
 	assert.Equal(t, []string{"push", "origin", "HEAD"}, mr.Calls[3].Args)
 	assert.Equal(t, []string{"tag", "v1.2.3"}, mr.Calls[4].Args)
-	assert.Equal(t, []string{"push", "origin", "v1.2.3"}, mr.Calls[5].Args)
+	assert.Equal(t, []string{"push", "origin", "refs/tags/v1.2.3"}, mr.Calls[5].Args)
 
 	// Still published.
 	require.Len(t, platform.CreateReleaseCalls, 1)
@@ -1189,5 +1189,5 @@ func TestRun_NotesFailForTheSecondPlatformAfterTheFirstPublished(t *testing.T) {
 	assert.Contains(t, err.Error(), "api rate limit exceeded")
 	assert.Len(t, gh.CreateReleaseCalls, 1, "the first platform published")
 	assert.Empty(t, gl.CreateReleaseCalls, "the second never did")
-	assert.Equal(t, []string{"push", "origin", "v1.2.3"}, mr.Calls[1].Args[:3], "the tag was pushed before")
+	assert.Equal(t, []string{"push", "origin", "refs/tags/v1.2.3"}, mr.Calls[1].Args[:3], "the tag was pushed before")
 }

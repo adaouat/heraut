@@ -119,8 +119,10 @@ func (g *gitHelper) tag(tag, msg string, annotated, sign bool) error {
 	return g.run("git", "tag", tag)
 }
 
+// pushTag pushes tag by its full ref: a branch with the same name would make the bare name ambiguous
+// ("src refspec … matches more than one").
 func (g *gitHelper) pushTag(tag string, pushOptions []string) error {
-	if err := g.run("git", pushArgs(tag, pushOptions)...); err != nil {
+	if err := g.run("git", pushArgs("refs/tags/"+tag, pushOptions)...); err != nil {
 		return fmt.Errorf("git push %s: %w", tag, err)
 	}
 	return nil

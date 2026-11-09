@@ -31,7 +31,7 @@ func TestRun_CommitPushBranch_NamesTheBranch(t *testing.T) {
 
 	require.Len(t, mr.Calls, 6)
 	assert.Equal(t, []string{"push", "--push-option=ci.skip", "origin", "HEAD:refs/heads/main"}, mr.Calls[3].Args)
-	assert.Equal(t, []string{"push", "origin", "v1.2.3"}, mr.Calls[5].Args)
+	assert.Equal(t, []string{"push", "origin", "refs/tags/v1.2.3"}, mr.Calls[5].Args)
 }
 
 func TestChangelogRun_CommitPushBranch_NamesTheBranch(t *testing.T) {
@@ -49,5 +49,5 @@ func TestChangelogRun_CommitPushBranch_NamesTheBranch(t *testing.T) {
 
 	require.Len(t, mr.Calls, 6)
 	assert.Equal(t, []string{"push", "origin", "HEAD:refs/heads/release/1.3"}, mr.Calls[3].Args)
-	assert.Equal(t, []string{"push", "origin", "v1.2.3"}, mr.Calls[5].Args)
+	assert.Equal(t, []string{"push", "origin", "refs/tags/v1.2.3"}, mr.Calls[5].Args)
 }

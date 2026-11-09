@@ -41,7 +41,7 @@ type Git struct {
 }
 
 // PushOptions lists the --push-option values of each push heraut makes: Commit for
-// `git push origin HEAD` (the changelog commit), Tag for `git push origin <tag>`. Under an
+// `git push origin HEAD` (the changelog commit), Tag for `git push origin refs/tags/<tag>`. Under an
 // environment, a nil list is absent and inherits the root's, while an empty non-nil list (`[]`)
 // replaces it with none.
 type PushOptions struct {
