@@ -1,5 +1,9 @@
 # Mid-flight failure / dirty state
 
+> **Resolved (noted 2026-11-09).** The questions below were answered by the hardening work (Phase 72)
+> and the user guide `docs/guides/failure-recovery.md`, which describes each state a failed run can
+> leave and how to finish or undo it. Kept as the original analysis.
+
 ## Problem
 
 `heraut release` is not atomic. If it fails partway through, the repo can be left in a partially-committed state. Failure scenarios by step:

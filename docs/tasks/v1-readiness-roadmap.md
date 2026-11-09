@@ -1020,7 +1020,7 @@ The index rows say the same, and row 0006 credits `release.targets` to 0044.
 - **Task indexes:** `docs/tasks/README.md` lists all fifteen roadmaps without "Phases 1–31", and the six
   done epics are marked Complete.
 
-#### `[ ]` T540: roadmap housekeeping
+#### `[x]` T540: roadmap housekeeping
 
 - `roadmap.md:11,39` ("63 ADRs"), `:19-21` (wraps `gh`/`glab`), `:86-153` (dependency graph and testing
   principles naming `internal/adapter/exec`, gitcliff, cocogitto, selfupdate, `testutil.MockRunner`):
@@ -1031,6 +1031,20 @@ The index rows say the same, and row 0006 credits `release.targets` to 0044.
 - The unmerged `worktree-monorepo-support` branch reuses T261: add a pointer in `docs/ideas.md`, note the
   ID clash.
 - `.claude/notes/mid-flight-failure.md`: answered since; delete or mark resolved.
+
+**Done (2026-11-09).** `roadmap.md`:
+- no ADR count, and the overview says publishing goes through `go-github` and `client-go`;
+- the dependency-graph and testing-principles sections carry a "historical" note pointing to the
+  rules files, instead of a rewrite of the plan as it was;
+- "only unchecked item of this file", the two-section check TUI, Phase 56 exercised by v0.70.0 (T320),
+  and the self-update risk marked obsolete.
+
+Also:
+- T164 is closed as superseded.
+- `docs/ideas.md` gains a "Monorepo support (unmerged branch)" entry naming `worktree-monorepo-support`
+  and the T261 clash to renumber.
+- The mid-flight note is marked resolved rather than deleted, since deleting a file needs the user's
+  go.
 
 #### `[ ]` T541: package doc comments
 

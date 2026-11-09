@@ -8,7 +8,7 @@ described in `docs/specs/`. Each task carries an inline `[ ] / [x]` checkbox —
 headings for what to do next, read the surrounding prose for *why* and *how*.
 
 The behavioural authority is `docs/specs/` (six numbered specs); the architectural
-authority is `docs/adr/` (63 ADRs). Where this roadmap mentions "behaviour", the specs
+authority is `docs/adr/` (indexed in `docs/adr/README.md`). Where this roadmap mentions "behaviour", the specs
 win; where it mentions a "decision", the ADR wins. If you find a disagreement between
 roadmap and spec/ADR, fix the roadmap.
 
@@ -17,7 +17,8 @@ roadmap and spec/ADR, fix the roadmap.
 ## Overview
 
 Héraut is a Go CLI that resolves versions, generates changelogs, and publishes releases to
-GitHub / GitLab — wrapping `git`, `gh`, and `glab` for git operations and publishing, with
+GitHub / GitLab — wrapping `git` for git operations and publishing through the forges' APIs
+(`go-github` and `client-go`, ADR-0077 and ADR-0069), with
 changelog/release-notes generation built in (`native`, no external generator dependency —
 ADR-0045) and PR/MR commit enrichment via direct HTTP against the GitHub/GitLab/Azure DevOps
 APIs (ADR-0043). This roadmap captures the work to take it from an empty repo to a v1.0
@@ -36,7 +37,7 @@ The goals of v1.0:
    provides these (see [ADR-0014](../adr/0014-self-update-architecture.md), superseded,
    for the self-update → forge/updatecheck migration).
 
-The `docs/specs/` (six numbered specs) and the 63 ADRs in `docs/adr/` are authoritative.
+The `docs/specs/` (six numbered specs) and the ADRs in `docs/adr/` are authoritative.
 
 ---
 
@@ -81,6 +82,11 @@ CLI framework ([ADR-0003](../adr/0003-cli-framework-cobra-fang.md)), binary dist
 ---
 
 ## Dependency graph
+
+> **Historical (noted 2026-11-09).** This section is the plan as written at the start of the build.
+> Several packages and tools it names are gone (`internal/adapter/exec`, the git-cliff, communique and
+> cocogitto generators, `internal/selfupdate`, the `gh`/`glab` CLIs, `testutil.MockRunner`). The
+> current architecture is in `.claude/rules/coding.md`; the testing rules in `.claude/rules/testing.md`.
 
 Implementation proceeds bottom-up; vertical slices deliver working functionality at the
 end of each phase.
@@ -142,6 +148,11 @@ Layer 13: Docs reconciliation, README
 ---
 
 ## Testing principles
+
+> **Historical (noted 2026-11-09).** This section is the plan as written at the start of the build.
+> Several packages and tools it names are gone (`internal/adapter/exec`, the git-cliff, communique and
+> cocogitto generators, `internal/selfupdate`, the `gh`/`glab` CLIs, `testutil.MockRunner`). The
+> current architecture is in `.claude/rules/coding.md`; the testing rules in `.claude/rules/testing.md`.
 
 All code is written test-first. The cycle is **red → green → refactor**.
 
@@ -224,7 +235,7 @@ discipline that applies to every task.
 | 53 | Stay at v0 — hold major bumps at v0 (`stay_at_v0`, `--allow-major`) | Done |
 | 54 | Phase 53 follow-ups — hygiene, test breadth, docs polish, `version next` in manual mode | Done |
 | 55 | Phase 54 follow-ups — promote.go error handling, cmd naming, message polish | Done |
-| 56 | Sign the raw binaries with a packslip manifest | Done — not yet exercised by a real release run, see T319/T320 |
+| 56 | Sign the raw binaries with a packslip manifest | Done — exercised by the v0.70.0 release, see T320 |
 | 57 | SBOM generation; shell completions investigated | Done — completions not shipped (ADR-0013 + notarization gap), see T321/T322 |
 | 58 | Homebrew cask: tar.gz archive for completions/man pages | Done — see T323 |
 | 59 | SemVer v2 compliance and pre-release lifecycle | Done — see `semver-v2-roadmap.md` |
@@ -266,7 +277,7 @@ discipline that applies to every task.
 
 ### Open items
 
-The only unchecked item outside Phase 53 is the
+The only unchecked item of this file is the
 last sub-checkbox of Phase 10's closing checkpoint, `v1.0.0 cut …`:
 
 #### ✦ `[x]` CHECKPOINT K — Beta polish complete, ready for v1.0.0
@@ -282,7 +293,7 @@ last sub-checkbox of Phase 10's closing checkpoint, `v1.0.0 cut …`:
 - [ ] v1.0.0 cut by running `heraut release` on the heraut repo itself
 
 All Phase 10 tasks (T43–T49) shipped. `heraut check runtime` now displays a clean
-three-section TUI (Git / Platforms / Generators) with config-aware required vs optional
+two-section TUI (Git / Platforms) with config-aware required vs optional
 tool checks and full API auth verification for configured platforms. The release workflow
 uses native-runner parallel Docker builds and proper attestation. The one remaining item
 is cutting v1.0.0 itself — all quality gates are green.
@@ -4419,7 +4430,7 @@ drift. The user decided every finding is fixed before v1.0. 64 tasks, so the bre
 |-------------------------------------------------------------------------------------|-------------------|---------------------------------------------------------------------------|
 | `perenv.VersionCalculator` interface doesn't cleanly fit both semver and calver     | High — blocks T12 | Prototype with semver first (T10); validate with calver before locking it |
 | GitHub Actions release pipeline + GoReleaser GHCR push requires setup               | Med — blocks T02  | Test release pipeline on a scratch tag early; don't wait until T24        |
-| Self-update on macOS blocked by quarantine / Gatekeeper on downloaded binaries      | Med — poor UX     | Implement `xattr -d com.apple.quarantine` step post-download in T21       |
+| Self-update on macOS blocked by quarantine / Gatekeeper on downloaded binaries      | Obsolete          | heraut no longer self-updates (ADR-0014 superseded); install.md documents the `xattr` step |
 | `heraut check runtime` needs `git user.name` which may not be set in CI containers  | Low — known issue | Detect the missing config, print an actionable hint, exit non-zero        |
 
 ---

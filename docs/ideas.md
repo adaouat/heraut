@@ -77,6 +77,15 @@ with the samples from Microsoft's REST API reference, which would catch a wrong 
 
 ---
 
+## Monorepo support (unmerged branch)
+
+One version per package in a single repository: commits filtered by path, a changelog and tags per
+package. Work started on the local branch `worktree-monorepo-support` (36 commits, last on
+2026-09-08, never merged), with its own `docs/tasks/monorepo-support-roadmap.md`. That roadmap
+reuses the task ID T261, which on `main` is "exclude commit types from bump determination": renumber
+its tasks from the next free ID before picking it up. Until then heraut doesn't support monorepos
+(Spec 01 lists it as out of scope; the troubleshooting guide says so).
+
 ## Implemented since
 
 Ideas that used to be listed here and have shipped:

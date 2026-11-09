@@ -48,7 +48,7 @@ plan first** (via `superpowers:writing-plans` → subagent-driven execution).
 
 ## Open items
 
-### T164: `heraut init` generates the forge config (P4, superseded)
+### `[x]` T164: `heraut init` generates the forge config (P4, closed as superseded by native-generator Phase C, T195–T202)
 
 Deliberately last in the original phasing: the wizard codifies the config shape, so it lands only
 after the new config is **battle-tested in real pipelines** (P1–P3), to avoid churning it against
