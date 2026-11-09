@@ -221,7 +221,7 @@ environments:
   prod:
     bump: auto
     tag_format: "prod/{version}"
-`, "prod/2026.11.0"},
+`, "2026.11.0"}, // the spelled-out env is stripped from the heading too
 		{"{env} token", `
   tag_format: "{env}/{version}"
 environments:
