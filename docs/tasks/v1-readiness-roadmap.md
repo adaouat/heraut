@@ -996,7 +996,7 @@ CLAUDE.md's workflow list is T539.
 
 The index rows say the same, and row 0006 credits `release.targets` to 0044.
 
-#### `[ ]` T539: CLAUDE.md, rules and indexes
+#### `[x]` T539: CLAUDE.md, rules and indexes
 
 - CLAUDE.md:17: release order is "… → tag → notes + publish per target".
 - CLAUDE.md layout: `heraut commit tickets` (lines 26, 85); `.goreleaser.yml` "no archives" (it has
@@ -1008,6 +1008,17 @@ The index rows say the same, and row 0006 credits `release.targets` to 0044.
   release-hooks, semver-v2, this file); CLAUDE.md:45-47 likewise.
 - Epic headers still "Status: Active" though done: changelog-rotation, docs-audit, forge-abstraction,
   hook-file-staging, native-generator, release-config.
+
+**Done (2026-11-09).**
+- **CLAUDE.md:** the release order ("notes + publish per target"), `commit tickets` in two places,
+  `cli.Run(ctx, root, Version, ui.Accent())`, goldmark in the stack, the shared `internal/platforms`
+  helpers, `reference.go`, `docs/audit/`, `tools/docgen/`, `e2e/`, `e2e.yml`, and `.goreleaser.yml`'s
+  two archives. The ADR count is dropped instead of updated, since it goes stale with every ADR
+  (82 today); CLAUDE.md now points at the indexes instead of listing four roadmaps.
+- **Rules:** `workflow.md`'s type table gains `security` and `revert`, and `coding.md`'s layer table
+  gains `tools/docgen/`.
+- **Task indexes:** `docs/tasks/README.md` lists all fifteen roadmaps without "Phases 1–31", and the six
+  done epics are marked Complete.
 
 #### `[ ]` T540: roadmap housekeeping
 

@@ -1,6 +1,6 @@
 # Héraut — Release Config Roadmap
 
-> Status: Active
+> Status: Complete (marked 2026-11-09: the main roadmap lists this epic as Done)
 > Design: [`docs/superpowers/specs/2026-08-26-release-config-simplification-design.md`](../superpowers/specs/2026-08-26-release-config-simplification-design.md)
 > ADRs: ADR-0046 (release block atomicity — written in T219) · extends 0043, 0044, 0045
 > Main roadmap: tracked as Phase 25 in [`roadmap.md`](roadmap.md)

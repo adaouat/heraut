@@ -1,6 +1,6 @@
 # Héraut — Forge Abstraction Roadmap
 
-> Status: Active
+> Status: Complete (marked 2026-11-09: the main roadmap lists this epic as Done)
 > Design: [`docs/superpowers/specs/2026-07-24-forge-abstraction-design.md`](../superpowers/specs/2026-07-24-forge-abstraction-design.md)
 > ADRs: ADR-0043 (forge abstraction + config unification — written in T154) · extends/supersedes
 > 0006, 0020, 0023, 0025, 0026, 0034, 0035, 0039, 0040, 0041, 0042

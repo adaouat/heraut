@@ -60,6 +60,7 @@ internal/pipeline/            release + changelog flows (no factories)
 | `internal/ui/`       | nothing from heraut (pure: styling, banner, step spinner)                          |
 | `internal/testutil/` | `internal/{port,config}/` (test doubles implementing the port interfaces; `config` for the CI variable list `ClearCIEnv` clears) |
 | `e2e/`               | `e2e/harness` and testify only, never an `internal/` package (it drives the built binary, ADR-0066) |
+| `tools/docgen/`      | `internal/cmd/` (to render the commands' help); a build-time tool, not part of the binary |
 
 If you find yourself importing `up` the stack, the design is wrong — fix the dependency
 direction, do not add the import.

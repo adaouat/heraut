@@ -1,6 +1,6 @@
 # Héraut — Changelog Rotation Roadmap
 
-> Status: Active
+> Status: Complete (marked 2026-11-09: the main roadmap lists this epic as Done)
 > Design: [`docs/superpowers/specs/2026-08-28-changelog-rotation-design.md`](../superpowers/specs/2026-08-28-changelog-rotation-design.md)
 > ADRs: new ADR-0047 ("Changelog output resolves after version, not at config-build time" — written in T249)
 > Main roadmap: tracked as Phase 29 in [`roadmap.md`](roadmap.md)

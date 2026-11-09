@@ -1,6 +1,6 @@
 # Héraut — Native Content Generator Roadmap
 
-> Status: Active
+> Status: Complete (marked 2026-11-09: the main roadmap lists this epic as Done)
 > ADRs: [ADR-0032](../adr/0032-native-content-generator.md) (generator) · [ADR-0033](../adr/0033-native-config-model.md) (config model) · [ADR-0034](../adr/0034-native-remote-enrichment.md) (enrichment)
 > Main roadmap: tracked as Phase 23 in [`roadmap.md`](roadmap.md)
 

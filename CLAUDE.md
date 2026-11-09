@@ -14,7 +14,7 @@ feel like (see [ADR-0002](docs/adr/0002-tool-name-heraut.md)).
 ## What this tool does
 
 ```
-heraut release          # resolve next version → changelog → commit → tag → publish → notes
+heraut release          # resolve next version → changelog → commit → tag → notes + publish per target
 heraut changelog        # changelog only (optionally commit + tag)
 heraut notes <tag>      # print the release notes of a tag (markdown or plain text)
 heraut skill install    # write the bundled agent skill (SKILL.md) for AI coding agents
@@ -23,7 +23,7 @@ heraut version current  # print the latest released tag (per active strategy / e
 heraut version sprint bump  # increment sprint counter in .heraut.yml (CalVer)
 heraut check            # preflight: config + runtime
 heraut init             # interactive wizard to generate .heraut.yml
-heraut commit verify/check/create  # conventional-commit validation + interactive authoring
+heraut commit verify/check/create/tickets  # conventional-commit validation, authoring, ticket lookup
 heraut whatsnew         # release notes for versions newer than the running build
 ```
 
@@ -41,10 +41,10 @@ getting started, guides, concepts, generated reference); contributors and agents
 pages that show it (`.claude/rules/workflow.md` § User docs).
 
 - [`docs/specs/`](docs/specs/) — behavioural specification (read before changing CLI surface or config schema)
-- [`docs/adr/`](docs/adr/) — architecture decision records (79 ADRs, numbered consecutively)
-- [`docs/tasks/`](docs/tasks/) — build roadmap (`roadmap.md`) plus dedicated per-epic roadmaps
-  (`forge-abstraction-roadmap.md`, `native-generator-roadmap.md`, `release-config-roadmap.md`,
-  `docs-audit-roadmap.md`) that `roadmap.md` points to for large, multi-task epics
+- [`docs/adr/`](docs/adr/) — architecture decision records (numbered consecutively; the index lists them)
+- [`docs/tasks/`](docs/tasks/) — build roadmap (`roadmap.md`) plus dedicated per-epic roadmaps that
+  `roadmap.md` points to for large, multi-task epics; [`docs/tasks/README.md`](docs/tasks/README.md)
+  lists them all
 
 ## Tech stack
 
@@ -61,11 +61,12 @@ pages that show it (`.claude/rules/workflow.md` § User docs).
 | **goreleaser**                | Cross-platform release builds, raw binaries (see [ADR-0013](docs/adr/0013-raw-binary-goreleaser-format.md)) |
 | **go-github**                 | GitHub REST client for publishing (`internal/platforms/github`, [ADR-0077](docs/adr/0077-github-publish-transport.md)) |
 | **client-go**                 | GitLab REST client for publishing (`internal/platforms/gitlab`, [ADR-0069](docs/adr/0069-gitlab-publish-transport.md)) |
+| **goldmark**                  | Markdown parsing for `heraut notes --format text` (`internal/generators/native/plaintext.go`) |
 
 ## Project layout
 
 ```
-cmd/heraut/main.go              entry point — forge/cli.Run(cmd.NewRootCmd(version), …)
+cmd/heraut/main.go              entry point — forge/cli.Run(ctx, root, Version, ui.Accent())
 changelog.go                    //go:embed CHANGELOG.md — offline fallback for `whatsnew`
 
 internal/
@@ -82,7 +83,8 @@ internal/
       init.go                   heraut init
       offline.go                --offline flag → forces commits.enrichment_policy: disabled
       exit.go                   maps pipeline errors to internal/exitcode codes
-      commit.go                 heraut commit verify / check / create
+      commit.go                 heraut commit verify / check / create / tickets
+      reference.go              writes docs/reference/commands/ from the commands' help (docs:gen)
    port/                        interfaces — Runner (alias to forge/exec.Runner), Generator, Platform, Forge
    skill/                       embedded SKILL.md for AI agents (pure leaf, ADR-0072)
    exitcode/                    re-exports forge/exitcode + heraut's own Promotion (E001/E002/E003) code
@@ -103,7 +105,7 @@ internal/
       branch/                   versioning.branches matching + the per-env/release branch guards (ADR-0065)
    generators/
       native/                   built-in, zero-external-dependency generator — commit walk + classification + embedded template rendering (ADR-0032, sole generator since ADR-0045)
-   platforms/
+   platforms/                   shared driver helpers: asset globs and safe file opening (assets*.go, globs.go)
       github/                   GitHub REST release + asset upload (go-github, `httptest` contract tests)
       gitlab/                   GitLab REST release + Generic Packages assets (client-go, `httptest` contract tests)
    pipeline/
@@ -118,19 +120,23 @@ pkl/                            Pkl builtin used by `heraut commit verify`'s own
 testdata/                       repo-wide read-only test fixtures (.heraut.yml samples, …)
 
 docs/specs/                     6 numbered specs (behavioural authority)
-docs/adr/                       79 ADRs (architectural decisions)
+docs/adr/                       ADRs (architectural decisions), indexed in docs/adr/README.md
 docs/tasks/                     roadmap.md + dedicated per-epic roadmaps (see § Docs above)
 docs/guides/                    task-oriented how-tos, distinct from the behavioural specs
 docs/contributing/              contributor guides (e2e tests); CONTRIBUTING.md is the contributor front door
 docs/reference/                 user reference; commands/ is generated (mise run docs:gen, tools/docgen)
+docs/audit/                     security scan findings and their status
+tools/docgen/                   generates docs/reference (commands from cobra, the config table from schema.json)
+e2e/                            built-binary tests: Lane A (hermetic) and Lane B (e2e_forge tag, sandboxes) — ADR-0066
 
 LICENSE.md                      project license
 schema.json                     published JSON Schema for .heraut.yml IDE validation
-.goreleaser.yml                 raw-binary release config (no archives — see ADR-0013)
+.goreleaser.yml                 release builds: raw binaries (ADR-0013), plus a tar.gz for Homebrew
 Dockerfile                      bundled image: heraut + git (see ADR-0016)
 .github/workflows/              ci.yml (PR test/lint/build), release.yml (workflow_dispatch —
                                  builds via GoReleaser, then the fresh heraut binary creates its
-                                 own tag/release — ADR-0018), osv-scan.yml (dependency scanning)
+                                 own tag/release — ADR-0018), osv-scan.yml (dependency scanning),
+                                 e2e.yml (Lane B against the sandboxes, nightly and on demand)
 ```
 
 ## Tooling (mise)

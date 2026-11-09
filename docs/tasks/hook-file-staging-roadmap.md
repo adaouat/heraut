@@ -1,6 +1,6 @@
 # Héraut — Hook-Declared File Staging Roadmap
 
-> Status: Active
+> Status: Complete (marked 2026-11-09: the main roadmap lists this epic as Done)
 > Design: [`docs/superpowers/specs/2026-09-17-hook-file-staging-design.md`](../superpowers/specs/2026-09-17-hook-file-staging-design.md)
 > ADRs: new ADR-0061 ("Hook-declared file staging + object-only hook config" — written in T300)
 > Main roadmap: tracked as Phase 51 in [`roadmap.md`](roadmap.md)

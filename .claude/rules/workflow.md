@@ -33,6 +33,8 @@ All commits must follow [Conventional Commits](https://www.conventionalcommits.o
 | `perf`     | Performance-only change                                        |
 | `ci`       | `.github/workflows/*`, GoReleaser, Docker, release tooling     |
 | `build`    | `go.mod`, build system, ldflags                                |
+| `security` | A security fix or hardening (built-in since ADR-0075)          |
+| `revert`   | Undoing an earlier commit (built-in, see ADR-0075's addendum)  |
 
 **Scope** matches the affected package or subcommand. Examples:
 

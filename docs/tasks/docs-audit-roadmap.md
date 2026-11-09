@@ -1,6 +1,6 @@
 # Héraut — Documentation Audit Roadmap
 
-> Status: Active
+> Status: Complete (marked 2026-11-09: the main roadmap lists this epic as Done)
 > Source: four parallel Opus audit passes (2026-08-26) — specs vs. code, ADRs vs. code, and
 > `CLAUDE.md`/`.claude/rules/`/`README.md`/`schema.json`/`heraut.sample.yml` vs. code.
 > Main roadmap: tracked as Phase 27 in [`roadmap.md`](roadmap.md)
