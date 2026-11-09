@@ -583,19 +583,23 @@ func TestChangelogRun_NothingToCommit_SummaryDoesNotClaimCommit(t *testing.T) {
 	tests := []struct {
 		name   string
 		noPush bool
+		ahead  string // git rev-list --count @{u}..HEAD; "" when --no-push skips the check
 		want   string
 	}{
-		{"pushed", false, "CHANGELOG.md unchanged, HEAD pushed"},
-		{"no-push", true, "CHANGELOG.md unchanged, nothing committed"},
+		{"an earlier commit pushed", false, "1", "CHANGELOG.md unchanged, HEAD pushed"},
+		{"nothing to push", false, "0", "CHANGELOG.md unchanged, nothing committed or pushed"},
+		{"no-push", true, "", "CHANGELOG.md unchanged, nothing committed"},
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			mr := exectest.NewMockRunner()
 			mr.QueueResponse("", "", nil) // git add
 			mr.QueueResponse("", "", nil) // git diff --cached (nothing staged)
-			if !tc.noPush {
-				mr.QueueResponse("1\n", "", nil) // git rev-list --count @{u}..HEAD
-				mr.QueueResponse("", "", nil)    // git push origin HEAD
+			if tc.ahead != "" {
+				mr.QueueResponse(tc.ahead+"\n", "", nil) // git rev-list --count @{u}..HEAD
+			}
+			if tc.ahead == "1" {
+				mr.QueueResponse("", "", nil) // git push origin HEAD
 			}
 			cfg := &pipeline.ChangelogConfig{
 				Changelog: &testutil.MockGenerator{}, ChangelogFile: "CHANGELOG.md",
@@ -612,7 +616,28 @@ func TestChangelogRun_NothingToCommit_SummaryDoesNotClaimCommit(t *testing.T) {
 			assert.Contains(t, out.String(), tc.want)
 			assert.NotContains(t, out.String(), "committed and pushed")
 			assert.NotContains(t, out.String(), "committed (not pushed)")
+			assert.NotContains(t, out.String(), "continuing to tag and release", "heraut changelog never releases")
 		})
+	}
+}
+
+// Without a changelog: block nothing is written, so the summary never says the changelog was updated.
+func TestChangelogRun_NoChangelogBlockSaysNothingWasWritten(t *testing.T) {
+	for _, commit := range []bool{false, true} {
+		mr := exectest.NewMockRunner()
+		var out bytes.Buffer
+		cfg := &pipeline.ChangelogConfig{Commit: commit}
+		p := pipeline.NewChangelog(mr, &fakeResolver{result: resolvedResult("v0.1.0")}, cfg, &out, false).
+			WithReporter(func(_ string, fn func() (string, []string, error)) error {
+				_, _, err := fn()
+				return err
+			})
+
+		require.NoError(t, p.Run(t.Context()))
+
+		assert.NotContains(t, out.String(), "Changelog updated", "commit=%v", commit)
+		assert.Contains(t, out.String(), "No changelog: block in the config: nothing written", "commit=%v", commit)
+		assert.Empty(t, mr.Calls, "nothing to commit or push")
 	}
 }
 

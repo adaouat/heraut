@@ -296,15 +296,25 @@ func (p *ChangelogPipeline) printSummary(result versioning.Result) {
 		p.printTagOnlySummary(result)
 		return
 	}
+	if p.cfg.Changelog == nil {
+		if p.cfg.Tag {
+			p.printTagOnlySummary(result)
+			return
+		}
+		_, _ = fmt.Fprintf(p.out, "\nNo changelog: block in the config: nothing written for %s\n", result.Tag)
+		return
+	}
 	if p.reporter != nil {
 		_, _ = fmt.Fprintf(p.out, "\nChangelog updated for %s\n", result.Tag)
-		if (p.cfg.Commit || p.cfg.Tag) && p.cfg.Changelog != nil {
+		if p.cfg.Commit || p.cfg.Tag {
 			file := resolvedChangelogFile(p.cfg.Changelog, p.cfg.ChangelogFile)
 			switch {
+			case !p.committed && p.git.pushed:
+				_, _ = fmt.Fprintf(p.out, "  %s unchanged, HEAD pushed\n", file)
 			case !p.committed && p.cfg.NoPush:
 				_, _ = fmt.Fprintf(p.out, "  %s unchanged, nothing committed\n", file)
 			case !p.committed:
-				_, _ = fmt.Fprintf(p.out, "  %s unchanged, HEAD pushed\n", file)
+				_, _ = fmt.Fprintf(p.out, "  %s unchanged, nothing committed or pushed\n", file)
 			case p.cfg.NoPush:
 				_, _ = fmt.Fprintf(p.out, "  %s committed (not pushed)\n", file)
 			default:

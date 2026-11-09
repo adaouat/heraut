@@ -12,6 +12,9 @@ const defaultCommitMessage = "chore(release): ${version}"
 
 type gitHelper struct {
 	runner port.Runner
+	// pushed records whether the last commitChangelog pushed anything, so a summary never claims a
+	// push that didn't happen.
+	pushed bool
 	// interactiveRunner runs commands that may need a real terminal — a GPG pinentry prompt during
 	// `git commit`/`git tag -s`, T260 — connecting stdin/stdout/stderr directly instead of
 	// capturing them (forge v0.19.0's CmdRunner.Interactive). Falls back to runner when nil, so
@@ -68,10 +71,12 @@ func (g *gitHelper) commitChangelog(files []string, msg string, push bool, pushO
 			return false, fmt.Errorf("git commit: %w", err)
 		}
 	}
+	g.pushed = false
 	if push && (staged || g.aheadOfUpstream()) {
 		if err := g.run("git", pushArgs(g.commitPushRef(), pushOptions)...); err != nil {
 			return false, fmt.Errorf("git push: %w", err)
 		}
+		g.pushed = true
 	}
 	return staged, nil
 }

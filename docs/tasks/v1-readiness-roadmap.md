@@ -1072,12 +1072,23 @@ an explicit go; it is the only package left without a doc comment.
 Twenty contract assertions now expect `refs/tags/<tag>` as the pushed ref. Specs 02 and 03 and the
 `PushOptions` comment show the full ref; ADR-0079 keeps its original text.
 
-#### `[ ]` T543: step messages say what happened
+#### `[x]` T543: step messages say what happened
 
 - No `changelog:` block: `heraut changelog` and `--commit` print "Changelog updated for v0.1.0" (exit 0)
   with no file written (`internal/pipeline/changelog.go:298`).
 - "CHANGELOG.md unchanged, HEAD pushed" when no push ran (`:305`).
 - The `changelog --commit` warning says "continuing to tag and release" (`:314`, `release.go:170`).
+
+**Done (2026-11-09).**
+- With no `changelog:` block, `heraut changelog` (and `--commit`) prints `No changelog: block in the
+  config: nothing written for v0.1.0` instead of "Changelog updated", and makes no git call; with
+  `--tag` it gives the tag-only summary.
+- The git helper records whether `commitChangelog` pushed, so "unchanged, HEAD pushed" appears only after
+  a real push; with nothing to push it reads "unchanged, nothing committed or pushed".
+- The nothing-to-commit warning ends at "skipping the commit".
+
+The existing summary table gained the nothing-to-push row and a check on the warning, plus a new
+no-changelog test; all were red before.
 
 #### `[ ]` T544: `version sprint bump` refuses configs without `SPRINT`
 

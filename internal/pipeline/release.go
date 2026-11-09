@@ -176,10 +176,10 @@ func isPreRelease(version string) bool {
 // byte-identical to the last commit, so there's no single file to pin the cause on. It
 // writes to w (both reporter and plain modes) so the diagnostic is visible in CI, where
 // this most often surfaces (re-run after a partial release, or no changelog-worthy
-// commits). The pipeline continues to tag and publish.
+// commits). The pipeline goes on with whatever steps follow (tag, publish), if any.
 func warnNothingToCommit(w io.Writer, file string) {
 	_, _ = fmt.Fprintln(w, ui.Warn(w, fmt.Sprintf(
-		"nothing to commit — %s and any hook-staged files are unchanged; skipping commit, continuing to tag and release", file)))
+		"nothing to commit — %s and any hook-staged files are unchanged; skipping the commit", file)))
 }
 
 // warnStageNotCommitted says which hook-staged files this run leaves uncommitted because no
