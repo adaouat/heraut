@@ -1090,10 +1090,15 @@ Twenty contract assertions now expect `refs/tags/<tag>` as the pushed ref. Specs
 The existing summary table gained the nothing-to-push row and a check on the warning, plus a new
 no-changelog test; all were red before.
 
-#### `[ ]` T544: `version sprint bump` refuses configs without `SPRINT`
+#### `[x]` T544: `version sprint bump` refuses configs without `SPRINT`
 
 On plain `semver` it writes `sprint: 1` and reports success (`internal/cmd/version_sprint.go:41-56`);
 Spec 03 limits it to CalVer formats with `SPRINT`. Config error, dry run included.
+
+**Done (2026-11-09).** The command loads the config first, real run and dry run alike, and refuses a
+`versioning.format` without `SPRINT` with a config error (exit 2) naming the format and strategy; the
+file is left untouched. Test: semver and a `YYYY.MM.PATCH` calver config, with and without `--dry-run`
+(red before). Spec 03 already said so.
 
 #### `[ ]` T545: remove code no binary path reaches
 

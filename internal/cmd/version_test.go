@@ -527,3 +527,25 @@ exit 1
 		assert.Equal(t, exitcode.Config, exitcode.Resolve(err), bad)
 	}
 }
+
+// sprint bump only applies to a CalVer format with SPRINT: anywhere else it refuses (config error)
+// and leaves the file alone, dry run included.
+func TestVersionSprintBump_RefusesAFormatWithoutSprint(t *testing.T) {
+	for _, cfg := range []string{
+		"version: \"1\"\nversioning:\n  strategy: semver\n",
+		"version: \"1\"\nversioning:\n  strategy: calver\n  format: \"YYYY.MM.PATCH\"\n",
+	} {
+		for _, extra := range [][]string{nil, {"--dry-run"}} {
+			cfgPath := writeConfig(t, cfg)
+			before, _ := os.ReadFile(cfgPath)
+
+			_, err := executeRoot(append([]string{"version", "sprint", "bump", "--config", cfgPath}, extra...)...)
+
+			require.Error(t, err)
+			assert.Equal(t, exitcode.Config, cmd.ExitCode(err))
+			assert.Contains(t, err.Error(), "SPRINT")
+			after, _ := os.ReadFile(cfgPath)
+			assert.Equal(t, string(before), string(after), "the config is not rewritten")
+		}
+	}
+}

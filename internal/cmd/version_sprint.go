@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/adaouat/heraut/internal/config"
 	"github.com/adaouat/heraut/internal/exitcode"
@@ -38,11 +39,17 @@ func newVersionSprintBumpCmd() *cobra.Command {
 			path := config.ResolvePath(cfgPath)
 			out := cmd.OutOrStdout()
 
+			cfg, err := config.Load(path)
+			if err != nil {
+				return exitcode.Wrap(exitcode.Config, err)
+			}
+			if !strings.Contains(cfg.Versioning.Format, "SPRINT") {
+				return exitcode.Wrap(exitcode.Config, fmt.Errorf(
+					"version sprint bump needs a CalVer format with SPRINT (versioning.format is %q, strategy %s): there is no sprint to bump",
+					cfg.Versioning.Format, cfg.Versioning.Strategy))
+			}
+
 			if dryRun {
-				cfg, err := config.Load(path)
-				if err != nil {
-					return exitcode.Wrap(exitcode.Config, err)
-				}
 				newSprint := cfg.Versioning.Sprint + 1
 				_, _ = fmt.Fprintf(out, "[dry-run] would bump sprint %d -> %d in %s\n", cfg.Versioning.Sprint, newSprint, path)
 				return nil
