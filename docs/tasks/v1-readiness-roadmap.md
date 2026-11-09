@@ -1262,11 +1262,21 @@ Then, on the user's go:
 registration (`root_test.go:38`) and its offline fallback has no e2e. Cover the decision logic behind the
 forms (not the forms themselves) and the `whatsnew` fallback.
 
-#### `[ ]` T554: the review's own environment notes
+#### `[x]` T554: the review's own environment notes
 
 Two review agents made unintended network calls (tokenless read-only calls to api.github.com, and a DNS
 miss on `gitlab.example.com`): find which commands still reach the network without `--offline` in a
 fresh repo, and make sure the docs and `check` say so. Close with a note if T519 and T533 covered it.
+
+Done. Measured behind a local logging proxy, in fresh repositories (no origin; a github.com origin; a
+`forges:` entry on `gitlab.example.com`), with no token: `changelog` (not `--dry-run`) and `notes`
+call the forge's API whenever one resolves, token or not, which explains both agents' calls;
+`whatsnew` always reads heraut's own releases on api.github.com (offline fallback built in). `version`,
+`check config`, the dry runs and `--offline` runs made no call. T519 had covered the update hint only.
+`check runtime` gets a "PR data" section: one `pr data` row naming the forge those commands ask,
+`off` when enrichment is disabled or `--offline`, `none` with no forge, and a warning when there is
+no token; the forge is now resolved once for that row and the Platforms section. The PR-data guide
+gets "When heraut calls the network", getting-started's quoted output and Spec 03 are updated.
 
 ---
 

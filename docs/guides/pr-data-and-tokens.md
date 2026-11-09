@@ -72,6 +72,26 @@ commits:
 One flag changes the policy for one run: `--offline` acts as `disabled` (handy on a plane, to look
 at a changelog quickly, or to release without PR data while the forge is down).
 
+### When heraut calls the network
+
+`heraut changelog`, `heraut release` and `heraut notes` ask the forge for pull request data whenever
+they find one: from `forges:` in the config, the CI job, or an `origin` on github.com, gitlab.com or
+Azure DevOps. They ask even when no token is set; the request then fails, with a warning, and the
+changelog is written without PR data. Only `--dry-run` and `--offline` (or `enrichment_policy:
+disabled`) keep them off the network.
+
+`heraut check runtime` names the forge they will ask, and warns when it has no token:
+
+```text
+PR data
+
+! pr data — github acme/app on https://github.com, no token: changelog, release and notes still call its API and go without PR data; set its token, or enrichment_policy: disabled
+```
+
+Two other commands reach GitHub for heraut itself: `heraut whatsnew` reads heraut's own release notes
+(and falls back to the ones built into the binary when it can't), and a daily check after a command
+looks for a newer heraut (see [Upgrade](../install.md#upgrade)).
+
 ## Several forges: one source
 
 When you publish to several forges (say GitLab and a GitHub mirror), the pull request data still

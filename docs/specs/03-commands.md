@@ -756,9 +756,15 @@ Online checks:
   `release.targets`); otherwise (zero-config auto-detection with nothing configured)
   the same failure is only an advisory warning, since a changelog-only user may never
   publish.
+- **PR data** — its own section, one `pr data` row naming the forge that `changelog`, `release` and
+  `notes` ask for pull request data (`<type> <project> on <host>`): `off` under
+  `enrichment_policy: disabled` or `--offline`, `none` when no forge resolves, and a warning when
+  that forge has no token, since those commands still call its API (unauthenticated, and GitHub's
+  GraphQL refuses it) and go without PR data. Only `--dry-run` and `--offline` keep them off the
+  network. Never a hard failure.
 
 - **Publishing off** — without a `release:` block, one `publish` row reads `off (no release:
-  block)` and no destination is resolved or checked (no origin lookup, no token probe).
+  block)` and no destination is checked (no token probe; the origin is read once, for PR data).
 - **No publish destination** (advisory) — when a `release:` block is set but no effective release
   target resolves to a `github` or `gitlab` forge, one `publish` row warns `no release target
   resolves to github or gitlab`; it never fails the check.

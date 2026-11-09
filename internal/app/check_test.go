@@ -5,6 +5,7 @@ import (
 	"errors"
 	"net/http"
 	"net/http/httptest"
+	"slices"
 	"strings"
 	"testing"
 	"time"
@@ -95,7 +96,7 @@ func TestRuntimeCheck_MinimalConfig(t *testing.T) {
 
 	cfg := semverCfg()
 	items := collectItems(mr, cfg, "")
-	require.Len(t, items, 6)
+	require.Len(t, items, 7)
 
 	names := make([]string, len(items))
 	for i, it := range items {
@@ -266,7 +267,7 @@ func TestRuntimeCheck_DispatchNames(t *testing.T) {
 
 	assert.Equal(t, []string{
 		"git", "git user.name", "git user.email", "working tree", "history",
-		"publish",
+		"pr data", "publish",
 	}, names)
 }
 
@@ -282,7 +283,7 @@ func TestRuntimeCheck_SectionHeaders(t *testing.T) {
 		func(_ string, run func() app.RuntimeCheckItem) { run() },
 	)
 
-	assert.Equal(t, []string{"Git", "Platforms"}, headers)
+	assert.Equal(t, []string{"Git", "PR data", "Platforms"}, headers)
 }
 
 func TestRuntimeCheck_WithGitHubPlatform(t *testing.T) {
@@ -855,7 +856,80 @@ func TestRuntimeCheck_WithoutAReleaseBlockPublishingIsOff(t *testing.T) {
 	assert.NoError(t, it.Err)
 	assert.False(t, it.IsWarn)
 	assert.Equal(t, "off (no release: block)", it.Value)
+	origins := 0
 	for _, c := range mr.Calls {
-		assert.NotEqual(t, []string{"remote", "get-url", "origin"}, c.Args, "no destination is resolved")
+		if slices.Equal(c.Args, []string{"remote", "get-url", "origin"}) {
+			origins++
+		}
+	}
+	assert.Equal(t, 1, origins, "the origin is read once, for the PR data row; no destination is resolved")
+}
+
+// ---- PR data ------------------------------------------------------------------
+
+// queueGitWithOrigin queues the Git section's answers and an origin URL ("" for none).
+func queueGitWithOrigin(mr *exectest.MockRunner, origin string) {
+	mr.QueueResponse("git version 2.40.0", "", nil)
+	mr.QueueResponse("Alice", "", nil)
+	mr.QueueResponse("a@b.com", "", nil)
+	mr.QueueResponse("", "", nil)
+	mr.QueueResponse("false\n", "", nil)
+	if origin == "" {
+		mr.QueueResponse("", "", errors.New("no origin"))
+		return
+	}
+	mr.QueueResponse(origin+"\n", "", nil)
+}
+
+func prDataItem(t *testing.T, items []app.RuntimeCheckItem) app.RuntimeCheckItem {
+	t.Helper()
+	for _, it := range items {
+		if it.Name == "pr data" {
+			return it
+		}
+	}
+	t.Fatalf("no pr data row in %+v", items)
+	return app.RuntimeCheckItem{}
+}
+
+// changelog, release and notes ask the forge for pull request data whenever one resolves, token or
+// not: check runtime names it, and warns when no token is set.
+func TestRuntimeCheck_PRData(t *testing.T) {
+	disabled := semverCfg()
+	disabled.Commits = &config.Commits{EnrichmentPolicy: "disabled"}
+	tests := []struct {
+		name     string
+		cfg      *config.Config
+		origin   string
+		token    string
+		wantWarn bool
+		want     []string
+	}{
+		{name: "a forge and a token", cfg: semverCfg(), origin: "git@github.com:acme/app.git", token: "t",
+			want: []string{"github", "acme/app"}},
+		{name: "a forge without a token", cfg: semverCfg(), origin: "git@github.com:acme/app.git", wantWarn: true,
+			want: []string{"github", "acme/app", "no token", "enrichment_policy: disabled"}},
+		{name: "no forge", cfg: semverCfg(), want: []string{"none"}},
+		{name: "enrichment off", cfg: disabled, origin: "git@github.com:acme/app.git", want: []string{"off"}},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			testutil.ClearCIEnv(t)
+			t.Setenv("GH_TOKEN", "")
+			t.Setenv("GITHUB_TOKEN", tc.token)
+			mr := exectest.NewMockRunner()
+			queueGitWithOrigin(mr, tc.origin)
+
+			it := prDataItem(t, collectItems(mr, tc.cfg, ""))
+
+			assert.Equal(t, tc.wantWarn, it.IsWarn)
+			text := it.Value
+			if it.Err != nil {
+				text += " " + it.Err.Error()
+			}
+			for _, w := range tc.want {
+				assert.Contains(t, text, w)
+			}
+		})
 	}
 }

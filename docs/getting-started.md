@@ -79,6 +79,10 @@ Git
 ✓ working tree — clean
 ✓ history — full
 
+PR data
+
+! pr data — github acme/app on https://github.com, no token: changelog, release and notes still call its API and go without PR data; set its token, or enrichment_policy: disabled
+
 Platforms
 
 ✗ github — no GitHub token: none of GH_TOKEN, GITHUB_TOKEN is set

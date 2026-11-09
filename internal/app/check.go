@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"github.com/adaouat/heraut/internal/config"
+	"github.com/adaouat/heraut/internal/forge"
 	"github.com/adaouat/heraut/internal/port"
 )
 
@@ -119,6 +120,21 @@ func RuntimeCheck(
 		return RuntimeCheckItem{Name: "history", Value: "full"}
 	})
 
+	// The forge is resolved once (one `git remote get-url origin`), for PR data and for publishing.
+	var (
+		resolved   forge.Resolved
+		resolveErr error
+	)
+	if cfg != nil {
+		resolved, resolveErr = resolveForge(runner, os.Getenv, cfg)
+	}
+
+	// ── PR data ───────────────────────────────────────────────────────────────
+	if cfg != nil {
+		header("PR data")
+		dispatch("pr data", func() RuntimeCheckItem { return prDataCheck(cfg, resolved, resolveErr) })
+	}
+
 	// ── Platforms ─────────────────────────────────────────────────────────────
 	header("Platforms")
 
@@ -130,7 +146,7 @@ func RuntimeCheck(
 		return
 	}
 
-	platCfgs, resolveErr := effectiveTargetPlatforms(runner, cfg, env)
+	platCfgs, resolveErr := effectiveTargetPlatforms(cfg, env, resolved, resolveErr)
 
 	switch {
 	case resolveErr != nil:
@@ -182,16 +198,15 @@ func RuntimeCheck(
 // cfg is nil (no config file found — nothing to resolve against) or when no target resolves to a
 // forge; returns a non-nil error only when resolution itself fails (e.g. an ambiguous zero-config
 // environment), matching heraut release's own forge-resolution failure mode.
-func effectiveTargetPlatforms(runner port.Runner, cfg *config.Config, env string) ([]config.Platform, error) {
+func effectiveTargetPlatforms(cfg *config.Config, env string, resolved forge.Resolved, resolveErr error) ([]config.Platform, error) {
 	if cfg == nil {
 		return nil, nil
 	}
+	if resolveErr != nil {
+		return nil, resolveErr
+	}
 
 	targets := config.EffectiveTargets(cfg, env)
-	resolved, err := resolveForge(runner, os.Getenv, cfg)
-	if err != nil {
-		return nil, err
-	}
 
 	if len(targets) == 0 {
 		targets = synthesizeDefaultTarget(resolved)
@@ -208,4 +223,26 @@ func effectiveTargetPlatforms(runner port.Runner, cfg *config.Config, env string
 		platCfgs = append(platCfgs, platCfg)
 	}
 	return platCfgs, nil
+}
+
+// prDataCheck reports the forge changelog, release and notes ask for pull request data: they ask it
+// whenever one resolves and enrichment is on, with or without a token, so a missing token is a
+// warning (the request is sent and fails, and the changelog goes without PR data).
+func prDataCheck(cfg *config.Config, resolved forge.Resolved, resolveErr error) RuntimeCheckItem {
+	const name = "pr data"
+	switch {
+	case cfg.EnrichmentPolicy() == "disabled":
+		return RuntimeCheckItem{Name: name, Value: "off (enrichment_policy: disabled, or --offline): no API call"}
+	case resolveErr != nil:
+		return RuntimeCheckItem{Name: name, IsWarn: true, Err: fmt.Errorf("no forge to ask: %w", resolveErr)}
+	case len(resolved.Forges) == 0:
+		return RuntimeCheckItem{Name: name, Value: "none: no forge found, commit lines only"}
+	}
+	id := resolved.Forges[resolved.EnrichmentIndex]
+	where := fmt.Sprintf("%s %s on %s", id.Type, id.Project, id.Host)
+	if id.Token == "" {
+		return RuntimeCheckItem{Name: name, IsWarn: true, Err: fmt.Errorf(
+			"%s, no token: changelog, release and notes still call its API and go without PR data; set its token, or enrichment_policy: disabled", where)}
+	}
+	return RuntimeCheckItem{Name: name, Value: where}
 }
