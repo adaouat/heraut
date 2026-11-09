@@ -106,8 +106,6 @@ func (f *fakeGitHub) serve(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusNoContent)
 	case r.Method == http.MethodGet && strings.HasSuffix(r.URL.Path, "/releases"):
 		writeJSON(w, http.StatusOK, []any{})
-	case r.Method == http.MethodGet && strings.HasSuffix(r.URL.Path, "/repos/"+testRepository):
-		writeJSON(w, http.StatusOK, map[string]any{"full_name": testRepository})
 	default:
 		writeJSON(w, http.StatusNotFound, map[string]any{"message": "Not Found"})
 	}
@@ -477,47 +475,11 @@ func assertReadable(t *testing.T, err error) {
 func TestVerifyReleasesAccess(t *testing.T) {
 	f := newFakeGitHub(t, githubUploadURL)
 
-	f.override[repoKey] = repoWithPermissions(map[string]bool{"pull": true, "push": true})
-
 	require.NoError(t, githubClient(t, f).VerifyReleasesAccess(t.Context()))
 	calls := f.recorded()
-	require.Equal(t, []string{"GET api.github.com" + releasesPath, repoKey}, f.requests())
+	require.Equal(t, []string{"GET api.github.com" + releasesPath}, f.requests())
 	assert.Equal(t, "1", calls[0].Query.Get("per_page"))
 	assert.Equal(t, "Bearer "+testToken, calls[0].Auth)
-	assert.Equal(t, "Bearer "+testToken, calls[1].Auth)
-}
-
-const repoKey = "GET api.github.com/repos/acme/widget"
-
-func repoWithPermissions(permissions map[string]bool) http.HandlerFunc {
-	return func(w http.ResponseWriter, _ *http.Request) {
-		repo := map[string]any{"full_name": testRepository}
-		if permissions != nil {
-			repo["permissions"] = permissions
-		}
-		writeJSON(w, http.StatusOK, repo)
-	}
-}
-
-// A read-only token passed the releases list and failed only after the tag push: the check now
-// asks whether the token may push.
-func TestVerifyReleasesAccess_AReadOnlyTokenFails(t *testing.T) {
-	f := newFakeGitHub(t, githubUploadURL)
-	f.override[repoKey] = repoWithPermissions(map[string]bool{"pull": true, "push": false})
-
-	err := githubClient(t, f).VerifyReleasesAccess(t.Context())
-
-	require.Error(t, err)
-	assert.Contains(t, err.Error(), "cannot push to acme/widget")
-}
-
-// GitHub does not always say (an installation token gets no permissions object): no answer is no
-// refusal.
-func TestVerifyReleasesAccess_NoPermissionsInTheAnswerPasses(t *testing.T) {
-	f := newFakeGitHub(t, githubUploadURL)
-	f.override[repoKey] = repoWithPermissions(nil)
-
-	require.NoError(t, githubClient(t, f).VerifyReleasesAccess(t.Context()))
 }
 
 func TestVerifyReleasesAccess_BadCredentials(t *testing.T) {
@@ -548,7 +510,7 @@ func TestVerifyReleasesAccess_TheTokenDoesNotFollowARedirectToAnotherOrigin(t *t
 
 			_ = githubClient(t, f).VerifyReleasesAccess(t.Context())
 			calls := f.recorded()
-			require.GreaterOrEqual(t, len(calls), 2, "%v", f.requests())
+			require.Len(t, calls, 2, "%v", f.requests())
 			assert.Equal(t, "Bearer "+testToken, calls[0].Auth)
 			assert.Empty(t, calls[1].Auth, "token sent to %s", calls[1])
 		})

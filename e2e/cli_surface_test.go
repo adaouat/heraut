@@ -164,7 +164,7 @@ func TestCheckRuntime(t *testing.T) {
 
 		require.Equal(t, exitOK, code, out)
 		assert.Contains(t, out, "all checks passed")
-		assert.Equal(t, []string{githubList, githubRepo}, repo.APICalls(), "the token is checked: the releases list, then the push permission")
+		assert.Equal(t, []string{githubList}, repo.APICalls(), "the token is checked against the releases list")
 	})
 	t.Run("a missing token is its own failure", func(t *testing.T) {
 		repo := newRepo(t, githubCfg)

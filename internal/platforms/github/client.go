@@ -219,19 +219,10 @@ func transient(err error) bool {
 	return errors.As(err, &urlErr)
 }
 
-// VerifyReleasesAccess checks that the token can read the repository's releases and may push to it,
-// which creating a release needs. GitHub reports the push permission of the token's user; when it
-// reports none (an installation token), the check passes.
+// VerifyReleasesAccess checks that the token can read the repository's releases.
 func (c *Client) VerifyReleasesAccess(ctx context.Context) error {
 	if _, _, err := c.api.Repositories.ListReleases(ctx, c.owner, c.repo, &gh.ListOptions{PerPage: 1}); err != nil {
 		return fmt.Errorf("listing releases of %s/%s: %w", c.owner, c.repo, readable(err))
-	}
-	repo, _, err := c.api.Repositories.Get(ctx, c.owner, c.repo)
-	if err != nil {
-		return fmt.Errorf("reading repository %s/%s: %w", c.owner, c.repo, readable(err))
-	}
-	if perms := repo.GetPermissions(); perms != nil && perms.Push != nil && !*perms.Push {
-		return fmt.Errorf("the token cannot push to %s/%s: creating a release needs write access (contents: write)", c.owner, c.repo)
 	}
 	return nil
 }

@@ -50,7 +50,7 @@ Runtime errors include the env var name, expected binary, or git command that fa
 
 ```
 ✗ github — github: API call failed: listing releases of acme/widget: 401 Bad credentials
-  hint: verify GH_TOKEN is valid and can push to the repository (contents: write)
+  hint: verify GH_TOKEN is valid and can read the repository's releases
 
 ✗ check runtime: GITHUB_REPOSITORY not set
   hint: heraut needs the repo as <owner>/<repo>; set it explicitly or run in a GitHub Actions context

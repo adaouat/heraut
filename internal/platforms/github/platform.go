@@ -113,7 +113,7 @@ func (p *Platform) Check(ctx context.Context) error {
 		return err
 	}
 	if err := c.VerifyReleasesAccess(ctx); err != nil {
-		return fmt.Errorf("github: API call failed: %w\n  hint: verify %s is valid and can push to the repository (contents: write)", err, tokenEnv)
+		return fmt.Errorf("github: API call failed: %w\n  hint: verify %s is valid and can read the repository's releases", err, tokenEnv)
 	}
 	return nil
 }

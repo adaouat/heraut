@@ -1188,6 +1188,15 @@ neither endpoint accepts it, and its write access cannot be proven before the ta
 Lane B against both sandboxes on 2026-11-09, after T548–T556: it passed, so the real sandbox tokens
 pass both checks.
 
+**Reverted on GitHub (2026-11-09).** The v1.0.0 Release workflow stopped in its preflight: "the token
+cannot push to adaouat/heraut". GitHub answers `GET /repos/{owner}/{repo}` for the Actions token with a
+`permissions` object whose `push` is false although the workflow grants `contents: write`; the
+assumption above (no object for an installation token) was wrong, and for a personal token the field
+is the user's role, not the token's. GitHub reports nothing that proves a token can create a release,
+so the GitHub check is back to listing releases only (the commit reverting 803da309). Nothing was
+tagged or published. The GitLab scope check stands: `personal_access_tokens/self` reports the
+token's own scopes.
+
 #### `[x]` T550: CI hardening (CI/CD: needs the go)
 
 - `.github/workflows/ci.yml` has no `permissions:`: add `contents: read` at the top.
