@@ -647,8 +647,9 @@ that supplies a value:
    always query the same instance.
 3. **`git remote get-url origin`** — when the origin host is a known public host
    (`github.com`, `gitlab.com`, Azure DevOps) on the entry's instance (same rule as CI), its type, host, and `owner/repo` path are
-   used (both the SSH `user@host:path` and HTTPS `https://[user@]host/path` forms are parsed;
-   credentials in the URL are ignored). Azure DevOps origins are recognised in every form it
+   used (the scp-like SSH `user@host:path` form and `https://`, `http://` and `ssh://` URLs are parsed,
+   with or without a port; credentials in the URL are ignored; the host is compared without case, and
+   GitHub's and GitLab's SSH-over-443 hosts `ssh.github.com` and `altssh.gitlab.com` count as theirs). Azure DevOps origins are recognised in every form it
    shows for cloning — `https://org@dev.azure.com/org/project/_git/repo`,
    `git@ssh.dev.azure.com:v3/org/project/repo`, and the legacy `org.visualstudio.com` and
    `vs-ssh.visualstudio.com` ones — and give `project: org/project` and `repository: repo` on

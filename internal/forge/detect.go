@@ -96,38 +96,21 @@ func azureCollection(collectionURI, teamProject string) (host, project string) {
 }
 
 // parseGitOrigin extracts a forge type, host, project path and (Azure DevOps only) repository name
-// from a git origin URL, handling both the SSH (user@host:path.git) and HTTPS
-// (https://[user@]host/path.git) forms. ok is false when the host isn't one of the known public
-// hosts (github.com, gitlab.com, Azure DevOps), or when an Azure path has no repository in it.
-func parseGitOrigin(url string) (typ, host, project, repository string, ok bool) {
-	url = strings.TrimSuffix(strings.TrimSpace(url), ".git")
-
-	var rawHost, path string
-	switch {
-	case strings.HasPrefix(url, "https://"), strings.HasPrefix(url, "http://"):
-		rest := strings.TrimPrefix(strings.TrimPrefix(url, "https://"), "http://")
-		h, p, found := strings.Cut(rest, "/")
-		if !found {
-			return "", "", "", "", false
-		}
-		rawHost, path = h, p
-	case !strings.Contains(url, "://"):
-		h, p, found := strings.Cut(url, ":")
-		if !found || !strings.Contains(h, "@") {
-			return "", "", "", "", false
-		}
-		rawHost, path = h, p
-	default:
+// from a git origin URL: scp-like SSH (user@host:path.git), or an https, http or ssh URL with or
+// without credentials and a port. The host is compared without case; GitHub's and GitLab's SSH-over-443
+// hosts count as theirs. ok is false when the host isn't one of the known public hosts (github.com,
+// gitlab.com, Azure DevOps), or when the path is empty or, for Azure, has no repository in it.
+func parseGitOrigin(origin string) (typ, host, project, repository string, ok bool) {
+	rawHost, path, found := splitOrigin(strings.TrimSpace(origin))
+	path = strings.TrimSuffix(strings.Trim(path, "/"), ".git")
+	if !found || path == "" {
 		return "", "", "", "", false
 	}
-	if i := strings.LastIndex(rawHost, "@"); i >= 0 {
-		rawHost = rawHost[i+1:]
-	}
 
-	switch {
-	case rawHost == "github.com":
+	switch rawHost = strings.ToLower(rawHost); {
+	case rawHost == "github.com", rawHost == "ssh.github.com":
 		return "github", config.DefaultGitHubBaseURL, path, "", true
-	case rawHost == "gitlab.com":
+	case rawHost == "gitlab.com", rawHost == "altssh.gitlab.com":
 		return "gitlab", config.DefaultGitLabBaseURL, path, "", true
 	case rawHost == "dev.azure.com", rawHost == "ssh.dev.azure.com", rawHost == "vs-ssh.visualstudio.com":
 		project, repository, ok = azurePath("", path)
@@ -138,6 +121,22 @@ func parseGitOrigin(url string) (typ, host, project, repository string, ok bool)
 		return "", "", "", "", false
 	}
 	return "azure_devops", config.DefaultAzureDevOpsBaseURL, project, repository, true
+}
+
+// splitOrigin returns an origin's host, without user or port, and its path, still escaped.
+func splitOrigin(origin string) (host, path string, ok bool) {
+	if strings.Contains(origin, "://") {
+		u, err := neturl.Parse(origin)
+		if err != nil || (u.Scheme != "https" && u.Scheme != "http" && u.Scheme != "ssh") || u.Hostname() == "" {
+			return "", "", false
+		}
+		return u.Hostname(), u.EscapedPath(), true
+	}
+	h, p, found := strings.Cut(origin, ":")
+	if !found || !strings.Contains(h, "@") {
+		return "", "", false
+	}
+	return h[strings.LastIndex(h, "@")+1:], p, true
 }
 
 // azurePath splits an Azure DevOps origin path into "organization/project" and the repository

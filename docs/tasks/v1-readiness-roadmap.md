@@ -1200,11 +1200,18 @@ Done (the user's go, 2026-11-09). `ci.yml` declares `permissions: contents: read
 holds no path under the build machine's home directory. The ldflags are untouched. Spec 06 names the
 read-only token. Not seen on GitHub yet: the next push to `main` runs it.
 
-#### `[ ]` T551: detect more origin URL shapes
+#### `[x]` T551: detect more origin URL shapes
 
 `parseGitOrigin` (`internal/forge/detect.go`) misses `ssh://git@github.com/acme/app.git`, a host with a
 port, and mixed-case hosts, so zero-config detection silently goes offline. Parse with `net/url`,
 normalise the host. (Found by reading; reproduce first.)
+
+Done. Reproduced first: a new `parseGitOrigin` table failed on all 8 forms (ssh URLs, ports,
+mixed-case hosts and schemes, an Azure ssh URL). URL forms now go through `net/url` (https, http and
+ssh; the port and credentials dropped, the path kept escaped for `azurePath`); the scp-like form is
+split as before. The host is lower-cased, and `ssh.github.com` and `altssh.gitlab.com` (the
+SSH-over-443 hosts, the real "host with a port" case) count as GitHub and GitLab. A trailing `/` is
+trimmed too; `file://` and local paths still detect nothing. Spec 02 lists the forms.
 
 #### `[ ]` T552: settle the review's unverified suspicions
 
