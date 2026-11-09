@@ -38,7 +38,7 @@ post-v1 (Phase 100). The v1.0.0 cut (Phase 101) comes last.
 | 97 | Tests that give false confidence | T523–T529 | Done |
 | 98 | User docs | T530–T536 | Done |
 | 99 | Contributor docs | T537–T541 | Done (T541 minus the GitLab driver package) |
-| 100 | Remaining review items (graded post-v1, done before v1 by decision) | T542–T554, T556 | In progress — the user approved the GitLab parts of T548/T549 and T550's CI changes (2026-11-09) |
+| 100 | Remaining review items (graded post-v1, done before v1 by decision) | T542–T554, T556 | Done (2026-11-09) — with the user's go for the GitLab parts of T548/T549/T552 and the CI changes of T550/T552 |
 | 101 | Cut v1.0.0 | T555 | Not started |
 
 ---
