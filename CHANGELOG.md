@@ -1,5 +1,329 @@
 # Changelog
 
+<!-- heraut-release: v1.0.1 -->
+## [1.0.1](https://github.com/adaouat/heraut/compare/v0.84.0..v1.0.1) - 2026-11-09
+
+### 🚀 Features
+
+- *(app)* Refuse to release from a shallow clone - ([360b7bd](https://github.com/adaouat/heraut/commit/360b7bd242a41d91aff642e4c87d0e574d56fb37)) by @bchatard
+
+- *(app)* Warn when version tags use another prefix - ([eda0c2a](https://github.com/adaouat/heraut/commit/eda0c2a6d4ac9c47925985d986c9b25f16e41d11)) by @bchatard
+
+- *(app)* Tag only when the config has no release: block - ([3e71319](https://github.com/adaouat/heraut/commit/3e713194b3e3971802b2d35dccd09eab75ac3004)) by @bchatard
+
+- *(app)* Name the forge heraut asks for PR data in check runtime - ([162db2b](https://github.com/adaouat/heraut/commit/162db2be3aa1ac65fc1c13de0e505d84a136d152)) by @bchatard
+
+- *(cmd)* [**breaking**] Make --force mean "release from here" - ([10166cb](https://github.com/adaouat/heraut/commit/10166cbfc17c4ea88c54414195adb22f641a20e5)) by @bchatard
+
+- *(cmd)* [**breaking**] Exit 5 when there is nothing to release - ([50f2582](https://github.com/adaouat/heraut/commit/50f2582234a73f895b3b353ab6f3dd99d6ddf79d)) by @bchatard
+
+- *(config)* [**breaking**] Refuse keys heraut would silently ignore - ([1e2a024](https://github.com/adaouat/heraut/commit/1e2a024d1cb14a568ccc2912480ec20bb0fdf850)) by @bchatard
+
+- *(config)* Make revert a built-in commit type - ([c5a9732](https://github.com/adaouat/heraut/commit/c5a9732c5ad6ea07f94b75fabf1cdd50575fd537)) by @bchatard
+
+- *(platforms/github)* Mark only the highest release as Latest - ([a8d3904](https://github.com/adaouat/heraut/commit/a8d39042a14e5860bc2968ced4ccc03b7c3d0925)) by @bchatard
+
+- *(platforms/github)* Retry a transient publish error - ([9707913](https://github.com/adaouat/heraut/commit/9707913840b80d4834859ade2b5fbc4cc6287259)) by @bchatard
+
+- *(platforms/github)* Check that the token may push before tagging - ([803da30](https://github.com/adaouat/heraut/commit/803da309fff57b838c95849511d3bd2c2aec2bfe)) by @bchatard
+
+- *(platforms/gitlab)* Recover a release created behind a lost answer - ([08c4283](https://github.com/adaouat/heraut/commit/08c428350b51ccd830e307f964e5db0dd03f0c22)) by @bchatard
+
+- *(platforms/gitlab)* Check the token's api scope before tagging - ([d17f229](https://github.com/adaouat/heraut/commit/d17f229ab0fd1fe0e0f8d6e465990616188b6447)) by @bchatard
+
+- *(scaffold)* Init --defaults leaves the forge to auto-detection - ([4f319a3](https://github.com/adaouat/heraut/commit/4f319a381ab2213811c59b0c36cf97cb99367287)) by @bchatard
+
+
+### 🐛 Bug Fixes
+
+- *(app)* Push the release commit to the CI branch from a detached HEAD - ([66caf3b](https://github.com/adaouat/heraut/commit/66caf3b2bca361cbb24106d49796212aa57ceaa1)) by @bchatard
+
+- *(app)* Scope a per-env changelog to its tags without {env} - ([ac6a472](https://github.com/adaouat/heraut/commit/ac6a4723701012a3fbf51ef562a5056aa20d49cd)) by @bchatard
+
+- *(app)* Match heraut notes tags to the strategy's own - ([94a6ed6](https://github.com/adaouat/heraut/commit/94a6ed6770582fcc6227ebabca23c93bd1ae0fd0)) by @bchatard
+
+- *(app)* Pick the highest CalVer tag for version current - ([7fea9d4](https://github.com/adaouat/heraut/commit/7fea9d4f9d22f0437f6abdf193d6814e69663f6a)) by @bchatard
+
+- *(app)* Report degraded enrichment for a rotating changelog - ([29ae192](https://github.com/adaouat/heraut/commit/29ae19294f6ec4872ec4b7380345ff929a5d3db9)) by @bchatard
+
+- *(app)* Keep the origin URL out of the --verbose log - ([9757bd0](https://github.com/adaouat/heraut/commit/9757bd0533ad59d9c302860caa9446c2a46a97b0)) by @bchatard
+
+- *(app)* Say "no commits yet" on a branch with no commit - ([7d4f963](https://github.com/adaouat/heraut/commit/7d4f963fc6110c2e0908f5045b2827ec070fc9de)) by @bchatard
+
+- *(app)* Order CalVer tags by their format for changelog sections - ([12e6f4a](https://github.com/adaouat/heraut/commit/12e6f4a4e39882a6a24d75375e08e373f12b7129)) by @bchatard
+
+- *(cmd)* Emit no data in a failed --json envelope - ([6240d65](https://github.com/adaouat/heraut/commit/6240d65b1762e851e3ac1ff30ae9b876057bed54)) by @bchatard
+
+- *(cmd)* Skip the update hint on dry, offline and json runs - ([5b0d9b5](https://github.com/adaouat/heraut/commit/5b0d9b584369342f075de6821db78e83dee42038)) by @bchatard
+
+- *(cmd)* Refuse version sprint bump without a SPRINT format - ([891e2e5](https://github.com/adaouat/heraut/commit/891e2e525d9a986b03d5e9ff64799b2031ff8a5d)) by @bchatard
+
+- *(cmd)* Exit 3, not 2, when git fails while building the resolver - ([66a9e76](https://github.com/adaouat/heraut/commit/66a9e76bbdb1542808e113f3f98a4195e1f4c631)) by @bchatard
+
+- *(cmd)* Exit 70 when a command reads a flag it never declared - ([068c33f](https://github.com/adaouat/heraut/commit/068c33fe9943a8aa70ec8418d9e87f3441093c97)) by @bchatard
+
+- *(config)* Require enrichment_forge with two forges, even no commits - ([1812079](https://github.com/adaouat/heraut/commit/18120795e8d9c40e1ae2e705dc4d5b8664b1267a)) by @bchatard
+
+- *(config)* Check hook templates when validating the config - ([5a38787](https://github.com/adaouat/heraut/commit/5a3878773d522ba4e970e8292be1a0a43cfc27cc)) by @bchatard
+
+- *(config)* Validate rendering.excludes in every driver - ([b222088](https://github.com/adaouat/heraut/commit/b222088be094be5b2c5ccc8d24339e4050793acc)) by @bchatard
+
+- *(config)* Name the key and suggest one for an unknown key - ([b0e88ac](https://github.com/adaouat/heraut/commit/b0e88ace0fd1a6ee57493e7cf421d8b032d1ffbe)) by @bchatard
+
+- *(config)* [**breaking**] Accept only true or false for boolean keys - ([241dbc8](https://github.com/adaouat/heraut/commit/241dbc8cfd192f4dbf954a3f0d2b12c923387644)) by @bchatard
+
+- *(config)* Keep the changelog.output description within 300 chars - ([9ebe7a6](https://github.com/adaouat/heraut/commit/9ebe7a6b8db7c7b322d8d00df1e5eb6c24f09a79)) by @bchatard
+
+- *(conventionalcommit)* Accept CRLF line endings - ([9a5d1bc](https://github.com/adaouat/heraut/commit/9a5d1bcdc2c62edac9e08b339b6445b946280480)) by @bchatard
+
+- *(forge)* Read GH_TOKEN for GitHub pull-request data too - ([e1f4cfd](https://github.com/adaouat/heraut/commit/e1f4cfd33f811e7413f883e966ba425048e32189)) by @bchatard
+
+- *(forge)* Take CI values only for a forge on the CI's instance - ([94c8424](https://github.com/adaouat/heraut/commit/94c8424090c47e597b4febdf0e09df7c030b68dc)) by @bchatard
+
+- *(forge)* Recognise ssh://, ported and mixed-case origin URLs - ([cbabb0f](https://github.com/adaouat/heraut/commit/cbabb0f84d23b7e69fc1dbc2c39bbf0b4116dad2)) by @bchatard
+
+- *(forge/azure)* Escape project and repository names in links - ([ca2d452](https://github.com/adaouat/heraut/commit/ca2d4525c0f96fa150d4d41e3fafe90dff543926)) by @bchatard
+
+- *(forge/github)* Credit a commit to its merged pull request - ([f69f3e1](https://github.com/adaouat/heraut/commit/f69f3e1ab383a12dbc5c7a2372bc7f370c81ed49)) by @bchatard
+
+- *(forge/github)* Keep a chunk's enrichment when one commit errors - ([e8b1d64](https://github.com/adaouat/heraut/commit/e8b1d646c04a213534eb130fd888d5f9c9440327)) by @bchatard
+
+- *(forge/gitlab)* Page through the commits of a long merge request - ([ade464e](https://github.com/adaouat/heraut/commit/ade464e7cd79c850048d7234e15c08f1cdbba912)) by @bchatard
+
+- *(generators/native)* Read commit authors through .mailmap - ([84fd74c](https://github.com/adaouat/heraut/commit/84fd74cd74a46bf8a380e512dc354d66c4292da1)) by @bchatard
+
+- *(generators/native)* One New Contributors entry per forge handle - ([16a9a2a](https://github.com/adaouat/heraut/commit/16a9a2aa8211d4b98db148c35dbc91e4a259135b)) by @bchatard
+
+- *(generators/native)* Re-render a tagged version from its own range - ([0c61d94](https://github.com/adaouat/heraut/commit/0c61d94615e7b46637cfc47e8742e6611437a191)) by @bchatard
+
+- *(generators/native)* Skip rewriting when only the footer changes - ([26406df](https://github.com/adaouat/heraut/commit/26406df370572d3458a15a20b85608a0a6970161)) by @bchatard
+
+- *(generators/native)* Keep the changelog inside the repository - ([38644d2](https://github.com/adaouat/heraut/commit/38644d2bd0df05f5d4b1e4384f5e20f8cb340b06)) by @bchatard
+
+- *(pipeline)* Print the degraded-enrichment notes as warnings - ([6877a63](https://github.com/adaouat/heraut/commit/6877a63b74bdd0eb74665d064800d6dd8f7fac76)) by @bchatard
+
+- *(pipeline)* Commit a rotating changelog under its resolved name - ([aa32b74](https://github.com/adaouat/heraut/commit/aa32b741a4246383807f9595bce3a36f62365122)) by @bchatard
+
+- *(pipeline)* Run the gates when planning a --json dry run - ([5a6420e](https://github.com/adaouat/heraut/commit/5a6420eddb37adb6147c233b80128f5647d69698)) by @bchatard
+
+- *(pipeline)* Push the release tag by its full ref - ([e38e6fa](https://github.com/adaouat/heraut/commit/e38e6fa326e95ef70ac0e12f357ce4086ba67221)) by @bchatard
+
+- *(pipeline)* Make the changelog step messages say what happened - ([35d3b90](https://github.com/adaouat/heraut/commit/35d3b902610bea84be6e587999ff4cca5221254e)) by @bchatard
+
+- *(platforms)* Publish through forges[].api_url when it is set - ([f7ad774](https://github.com/adaouat/heraut/commit/f7ad7745e65e5225879d716bf2042693f4b94044)) by @bchatard
+
+- *(platforms/github)* Create the release on the tagged commit - ([34c0cbd](https://github.com/adaouat/heraut/commit/34c0cbd980d4e0d39e211d4b6c4d18bf3df4df5b)) by @bchatard
+
+- *(platforms/gitlab)* Send the job token only to the job's instance - ([bed96fa](https://github.com/adaouat/heraut/commit/bed96fa893ded70b89d2dce19845478e18eb725a)) by @bchatard
+
+- *(platforms/gitlab)* Refuse an asset name the package registry rejects - ([7fe81a9](https://github.com/adaouat/heraut/commit/7fe81a94558168d9defe07608d8ecb4596c9d328)) by @bchatard
+
+- *(scaffold)* Keep every setting init doesn't ask about on update - ([02c5a42](https://github.com/adaouat/heraut/commit/02c5a42e911e80c143c0e42e1d17515886bb0295)) by @bchatard
+
+- *(versioning/branch)* Read the CI branch in the per-env branch guard - ([b82c432](https://github.com/adaouat/heraut/commit/b82c43272238c04c642850d68e5e2744b4fbc045)) by @bchatard
+
+- *(versioning/calver)* [**breaking**] Require a commit since the current tag - ([d5c7d3b](https://github.com/adaouat/heraut/commit/d5c7d3ba70d7625aa59b495dcf95351badab92f7)) by @bchatard
+
+- *(versioning/perenv)* End E001 and E002 with a sentence, not a command - ([24923f4](https://github.com/adaouat/heraut/commit/24923f45c0ac06de4f1a7b92b8d1817864be14ca)) by @bchatard
+
+- *(versioning/perenv)* Read calver-per-env tags through the format - ([c93fd58](https://github.com/adaouat/heraut/commit/c93fd5899ace9d4f51614890aa40feebbc822037)) by @bchatard
+
+- *(versioning/tagfmt)* Strip a spelled-out env from changelog headings - ([988e45c](https://github.com/adaouat/heraut/commit/988e45c47190ce492b86d7162b11e109057112f6)) by @bchatard
+
+
+### 🚜 Refactor
+
+- *(pipeline)* Remove code no binary path reaches - ([b5f7555](https://github.com/adaouat/heraut/commit/b5f7555bdd5ec4e3147531d2bedcce174faf2a5c)) by @bchatard
+
+
+### 📚 Documentation
+
+- *(adr)* Add 0021 addendum, PR/MR links follow the enrichment forge - ([780894a](https://github.com/adaouat/heraut/commit/780894affdee65db493ae29d340a0b045ee7d60e)) by @bchatard
+
+- *(adr)* Add 0080, compatibility after 1.0 - ([0ff3b84](https://github.com/adaouat/heraut/commit/0ff3b84c70352663f7c6c72c56a56e93ed8076f3)) by @bchatard
+
+- *(adr)* Align ADR statuses with the index and add amendments - ([750aa2a](https://github.com/adaouat/heraut/commit/750aa2a5b5540178c330524968c55a37c13c13e5)) by @bchatard
+
+- *(cmd)* Describe every command in --help with an example - ([2f52ec9](https://github.com/adaouat/heraut/commit/2f52ec9c1e57813d22ca65c85211076b8113e4c8)) by @bchatard
+
+- *(cmd)* Say what check runtime checks in its one-line help - ([4da88f5](https://github.com/adaouat/heraut/commit/4da88f5933e8fe79284d081628e53c94c12b6be3)) by @bchatard
+
+- *(concepts)* Add How a release runs - ([c42ce0a](https://github.com/adaouat/heraut/commit/c42ce0af33b2fd037baf82f232d22d068549dbf5)) by @bchatard
+
+- *(concepts)* Add Choose a versioning strategy - ([7f96c82](https://github.com/adaouat/heraut/commit/7f96c8274b50584b1dd407649c8a6095aef9d8c7)) by @bchatard
+
+- *(concepts)* Add How the next version is found - ([b50b145](https://github.com/adaouat/heraut/commit/b50b145771c106d45ff954b0bb50e50f54819813)) by @bchatard
+
+- *(concepts)* Add What goes into the changelog - ([b72bfea](https://github.com/adaouat/heraut/commit/b72bfea547dada8213c6129ad8dfa06b900db3f8)) by @bchatard
+
+- *(contributing)* Add CONTRIBUTING.md, complete T453 - ([041133b](https://github.com/adaouat/heraut/commit/041133b56af435b734b15a0363d2b7937dff80eb)) by @bchatard
+
+- *(guides)* Add Release from GitHub Actions, complete T457 - ([d97ca83](https://github.com/adaouat/heraut/commit/d97ca833159b551ea29d6114502f39286fd39f4f)) by @bchatard
+
+- *(guides)* Add Release from GitLab CI/CD, complete T458 - ([46118a6](https://github.com/adaouat/heraut/commit/46118a6fd680f384baca873317242641221ada06)) by @bchatard
+
+- *(guides)* Add Publish to GitHub from GitLab CI/CD - ([2465cdd](https://github.com/adaouat/heraut/commit/2465cdd88b72448437dcd35ea431267a14365f54)) by @bchatard
+
+- *(guides)* Add Self-hosted GitLab - ([cb46262](https://github.com/adaouat/heraut/commit/cb46262d1e4cc2b2c47530ed86ef4d65da4eae3f)) by @bchatard
+
+- *(guides)* Add Keep the release commit from running CI - ([43e434a](https://github.com/adaouat/heraut/commit/43e434a0f3a7a51266ec78460bd0a5ca700d7a62)) by @bchatard
+
+- *(guides)* Add Several environments - ([981962d](https://github.com/adaouat/heraut/commit/981962dd9b617f79eeb10313fb796effc33da63b)) by @bchatard
+
+- *(guides)* Add Pre-releases - ([c260bf5](https://github.com/adaouat/heraut/commit/c260bf5050c9256384b5a5d0023e7e377e9b4f23)) by @bchatard
+
+- *(guides)* Add Attach files to a release - ([e94343d](https://github.com/adaouat/heraut/commit/e94343da1c2716872b7a776d4e3e067ffe50db2b)) by @bchatard
+
+- *(guides)* Add Pull request data in the changelog - ([a8b095f](https://github.com/adaouat/heraut/commit/a8b095fe71a43652a0759007dec23a656718f370)) by @bchatard
+
+- *(guides)* Add Link tickets - ([5efca73](https://github.com/adaouat/heraut/commit/5efca732917025e85c77e8d581cfa05b1fa47072)) by @bchatard
+
+- *(guides)* Add Check commit messages - ([67e9a09](https://github.com/adaouat/heraut/commit/67e9a090c01ceb542776b7a68b3155f967a19435)) by @bchatard
+
+- *(guides)* Add Let an AI agent drive heraut - ([d9a4da1](https://github.com/adaouat/heraut/commit/d9a4da16b8448f1bb106a93a51eaada2a62526e6)) by @bchatard
+
+- *(guides)* Point Release notes for an app store at the user reference - ([d74ef5a](https://github.com/adaouat/heraut/commit/d74ef5a3ecd6c87989844b748ee73c55827ebe4c)) by @bchatard
+
+- *(guides)* Point Maintenance branches at the user reference - ([b084ac1](https://github.com/adaouat/heraut/commit/b084ac14b13992d3ca7fe5efe5fae0fc6cfd4d48)) by @bchatard
+
+- *(guides)* Retitle Recover from a failed release - ([43ade13](https://github.com/adaouat/heraut/commit/43ade1329575ca73bfb596d85f461f2eb8a90a7f)) by @bchatard
+
+- *(guides)* Retitle Mobile apps: build numbers in tags - ([abfdd14](https://github.com/adaouat/heraut/commit/abfdd14193350934ccad90c94034a65e1a49afc0)) by @bchatard
+
+- *(guides)* Rewrite the hooks guide as Run your own steps - ([3117b98](https://github.com/adaouat/heraut/commit/3117b98e603936f847bdd574c2e483c0bf52b3ad)) by @bchatard
+
+- *(guides)* Rewrite the templates guide for users, refresh the index - ([ac13b67](https://github.com/adaouat/heraut/commit/ac13b67179e6c0ef73376df2b38860276417693c)) by @bchatard
+
+- *(guides)* Add the guide for adopting heraut on a project - ([421d718](https://github.com/adaouat/heraut/commit/421d718815d24b298dfe290922ce67d998ff2539)) by @bchatard
+
+- *(guides)* Add troubleshooting and FAQ, and a Windows install - ([f62ec08](https://github.com/adaouat/heraut/commit/f62ec083c7b3930c8c23bbf39b80ea9cc394d407)) by @bchatard
+
+- *(readme)* Make the README the user front door, complete T454 - ([f3c0b0d](https://github.com/adaouat/heraut/commit/f3c0b0def9fb78839c807d8d6cdcf203eaf66479)) by @bchatard
+
+- *(reference)* List every environment variable heraut reads - ([4489439](https://github.com/adaouat/heraut/commit/448943960c1aef271371ca062e28ff242f75f7a2)) by @bchatard
+
+- *(reference)* Explain every exit code and what to do about it - ([8c213de](https://github.com/adaouat/heraut/commit/8c213dede5cc689f4d18cec32780f037675499fb)) by @bchatard
+
+- *(reference)* Generate the commands reference from --help - ([276a5ae](https://github.com/adaouat/heraut/commit/276a5ae4beaa45bbe9bff03104c25e14d521d917)) by @bchatard
+
+- *(reference)* Generate the configuration reference from schema.json - ([2c3d940](https://github.com/adaouat/heraut/commit/2c3d940bc7f5b8ab5cc0fe8fd285dd5e2d49c446)) by @bchatard
+
+- *(reference)* Show each key's default and whether it is required - ([e3cb22e](https://github.com/adaouat/heraut/commit/e3cb22eabff3336039e66b44d4a6a1fc48f004b8)) by @bchatard
+
+- *(roadmap)* Plan Phase 88, enrichment forge check and docs - ([a21ad1e](https://github.com/adaouat/heraut/commit/a21ad1e88c5254dd84d9117588fcc89c3a616b17)) by @bchatard
+
+- *(roadmap)* Correct the T452 note on what the ADRs record - ([6d64ed4](https://github.com/adaouat/heraut/commit/6d64ed4ac9302db4b2bd77e5d82bbee7bb5bdc2e)) by @bchatard
+
+- *(roadmap)* Plan Phase 89, user documentation - ([78bdce8](https://github.com/adaouat/heraut/commit/78bdce8f6b68dfcb94486d01d832a439203730b2)) by @bchatard
+
+- *(roadmap)* Add Phase 90, CI checkout pitfalls and init defaults - ([ba988cf](https://github.com/adaouat/heraut/commit/ba988cf02aeb768b53518520cec1c7a98c55193a)) by @bchatard
+
+- *(roadmap)* Add Phase 91 and T486, follow-ups from Phase 89b - ([04b2881](https://github.com/adaouat/heraut/commit/04b288120c16c75283906d9ca1e4572cb4628e64)) by @bchatard
+
+- *(roadmap)* Add Phase 92, follow-ups from the Phase 89c guides - ([ae07a8f](https://github.com/adaouat/heraut/commit/ae07a8f68dddfc21776e117fb866b74432ea0fcf)) by @bchatard
+
+- *(roadmap)* Add Phase 93, one New Contributors entry per person - ([912c5e1](https://github.com/adaouat/heraut/commit/912c5e11ba25cfafde042ccf0a1d33f3050b89d9)) by @bchatard
+
+- *(roadmap)* Add the v1.0 readiness roadmap, Phases 94-101 - ([62408d8](https://github.com/adaouat/heraut/commit/62408d821f6d9063b537b07c0a0de0336c667e6a)) by @bchatard
+
+- *(roadmap)* Record the five Phase 95 decisions - ([6fdffc5](https://github.com/adaouat/heraut/commit/6fdffc515e5577dc2b768c0b676a23fce951779c)) by @bchatard
+
+- *(roadmap)* Record the Phase 96 decisions - ([749bdf6](https://github.com/adaouat/heraut/commit/749bdf6f63c6c31951fd9c29cc5afe0c01676e1a)) by @bchatard
+
+- *(roadmap)* Phase 96 done but T520's Docker image check - ([6510a77](https://github.com/adaouat/heraut/commit/6510a7760fa40bd5cabf8a166546988b1c2ac6bb)) by @bchatard
+
+- *(roadmap)* T520 verified with a local image build - ([fd48891](https://github.com/adaouat/heraut/commit/fd488912d8b4b25e83ca0a617bf96efced50b66d)) by @bchatard
+
+- *(roadmap)* Housekeeping before 1.0 - ([0fbcd61](https://github.com/adaouat/heraut/commit/0fbcd61b19176d94741b3e1e0a0cca45eddb2109)) by @bchatard
+
+- *(roadmap)* Record T542 and the Phase 100 approvals - ([d826afe](https://github.com/adaouat/heraut/commit/d826afe473c6bd385ba4ef3396ab962c8e9a330b)) by @bchatard
+
+- *(roadmap)* Record the T552 findings settled so far - ([ed9753e](https://github.com/adaouat/heraut/commit/ed9753e78a3ed8182f75e533563f075747d31eaa)) by @bchatard
+
+- *(roadmap)* Close T552 - ([9f73946](https://github.com/adaouat/heraut/commit/9f73946e25ad2756ead4e4d85966d8cd33e4681a)) by @bchatard
+
+- *(roadmap)* Mark Phase 100 done - ([88be220](https://github.com/adaouat/heraut/commit/88be220a8b30acf4c8185cded0f5afcf3b22c3fa)) by @bchatard
+
+- *(roadmap)* Record the Lane B run after Phase 100 - ([8450449](https://github.com/adaouat/heraut/commit/8450449fd910507331c8b0ad01a41924713f3dad)) by @bchatard
+
+- *(sample)* Rewrite heraut.sample.yml's comments for users - ([e97645f](https://github.com/adaouat/heraut/commit/e97645ffd318d0b25c751ac9f309273b1b3e6067)) by @bchatard
+
+- *(schema)* Describe every .heraut.yml key for the people writing it - ([56d1425](https://github.com/adaouat/heraut/commit/56d14254de11103709f8c45d62124a7149012401)) by @bchatard
+
+- *(skill)* Name the checkout refusals under exit code 3 - ([4750d5b](https://github.com/adaouat/heraut/commit/4750d5beecdf93ff6e0aee1033f868b0fac46290)) by @bchatard
+
+- *(specs)* One forge enriches every target, complete T452 - ([eac1594](https://github.com/adaouat/heraut/commit/eac1594de7a85bfce3fa7bb88a540572afa5cf3a)) by @bchatard
+
+- *(specs)* Drop the first-forge default from Spec 05 enrichment - ([481034a](https://github.com/adaouat/heraut/commit/481034aad8fc3fdefdabac158f7a25ccb255165d)) by @bchatard
+
+- *(specs)* Make the specs say what the code does - ([3012056](https://github.com/adaouat/heraut/commit/3012056082eb8992ac9faebeacbcd04e749bae53)) by @bchatard
+
+- Make docs/README.md the user docs home, complete T455 - ([2762eda](https://github.com/adaouat/heraut/commit/2762eda9a2374295e667113c9b8a11d0c8cd2bc0)) by @bchatard
+
+- Add Your first release, complete T456 - ([c3d0052](https://github.com/adaouat/heraut/commit/c3d0052b855ef5197019867674ad4272f55e17af)) by @bchatard
+
+- Keep user docs current and check every documentation link - ([86dcca6](https://github.com/adaouat/heraut/commit/86dcca6dce60d5a7ff4922c115b74e20d58612bc)) by @bchatard
+
+- Quote the output heraut prints today - ([cfd3a4e](https://github.com/adaouat/heraut/commit/cfd3a4efe6a73104294f1e26122f42b665cd0cfd)) by @bchatard
+
+- Say when commit links appear in the changelog - ([d0a0b49](https://github.com/adaouat/heraut/commit/d0a0b49bbf1d3fe50e219abb8013ca4e88f670be)) by @bchatard
+
+- Fix the facts the review found wrong in the user pages - ([ea286f4](https://github.com/adaouat/heraut/commit/ea286f41c0afa87b79f712db4a758a746d984f9f)) by @bchatard
+
+- Rewrite contributor jargon in user pages and help text - ([8420ab0](https://github.com/adaouat/heraut/commit/8420ab069c34176fb17c2fbd51120c6f3b3c568b)) by @bchatard
+
+- Bring CLAUDE.md, the rules and the task indexes up to date - ([c5fcb91](https://github.com/adaouat/heraut/commit/c5fcb91e6893e4f4d276a01b460a6532f3081c2f)) by @bchatard
+
+- Add a package comment to every package but the GitLab driver - ([3fae393](https://github.com/adaouat/heraut/commit/3fae39378fc252538e4752db8d4424811f7d8241)) by @bchatard
+
+
+### 🧪 Testing
+
+- *(app)* Assert what the pipeline builders wire - ([3beb543](https://github.com/adaouat/heraut/commit/3beb5435543761bc3457f59b439235ab7be35088)) by @bchatard
+
+- *(cmd)* Run three release/version tests in a throwaway repository - ([448da58](https://github.com/adaouat/heraut/commit/448da58ac100915fe6a9589f50b85e350ff14ce3)) by @bchatard
+
+- *(cmd)* Expect no data in a failed writeJSON envelope - ([f444ede](https://github.com/adaouat/heraut/commit/f444ede18609041b76645313bd063c3ba90e57c2)) by @bchatard
+
+- *(e2e)* Push the tag to GitHub before B6 publishes there - ([737907f](https://github.com/adaouat/heraut/commit/737907fc6d35b5b249eb044191e133656feadd9f)) by @bchatard
+
+- *(e2e)* Release under every strategy against the fake forge - ([9d5c7ad](https://github.com/adaouat/heraut/commit/9d5c7ad2c52bf611e9862a8973ea7542e36e75d8)) by @bchatard
+
+- *(e2e)* Expect the bare version in a literal-prefix per-env heading - ([8798721](https://github.com/adaouat/heraut/commit/8798721699c80ea6cd7bd4926e38031334603806)) by @bchatard
+
+- *(pipeline)* Cover failures after the tag push - ([76f3c8a](https://github.com/adaouat/heraut/commit/76f3c8acf7791bf039ce61c0d153e8717157ab8d)) by @bchatard
+
+- Cover the nothing-to-render and no-releasable guards - ([38338c8](https://github.com/adaouat/heraut/commit/38338c8f35e3fdef4a2ef1a47decdd65979cd090)) by @bchatard
+
+- Keep the developer's environment out of the tests - ([fb0b6dc](https://github.com/adaouat/heraut/commit/fb0b6dc3166adfa4c8f22f40ebdb780b8517d21c)) by @bchatard
+
+- Pin the notes git calls, atomic-write cleanup and sprint output - ([10ba2e7](https://github.com/adaouat/heraut/commit/10ba2e7b88825fba3219c8a447fe629fab4db6e9)) by @bchatard
+
+- Cover the wizards' decisions and whatsnew's offline fallback - ([01262b4](https://github.com/adaouat/heraut/commit/01262b4c1cffb790d80fe8849ae7acf545a96b93)) by @bchatard
+
+
+### ⚙️ Miscellaneous Tasks
+
+- *(docker)* Trust the bind-mounted repository in the image - ([95dd491](https://github.com/adaouat/heraut/commit/95dd491cc867fe433f4e103699c634d9f704105a)) by @bchatard
+
+- Bump forge shared workflows and actions to v0.20.0 - ([0c99029](https://github.com/adaouat/heraut/commit/0c99029cab3250582ab840eebd3d9a1fff457067)) by @bchatard
+
+- Give CI a read-only token and build releases with -trimpath - ([9e45936](https://github.com/adaouat/heraut/commit/9e45936cb90fa0ad4850a6a2b36f048611d98232)) by @bchatard
+
+- Build the Docker image from the release tag - ([9d33094](https://github.com/adaouat/heraut/commit/9d33094d1d9ae1242f696032d94b5bbbec1cc4e2)) by @bchatard
+
+
+### ◀️ Revert
+
+- Check that the GitHub token may push before tagging - ([2a73f5f](https://github.com/adaouat/heraut/commit/2a73f5f35fae82335784e45eac712791ad5bab43)) by @bchatard
+
+
+### 💼 Other
+
+- *(deps)* Bump forge to v0.20.0 - ([ecd4bbe](https://github.com/adaouat/heraut/commit/ecd4bbebf814b43552d09e015ba2659b5a22537c)) by @bchatard
+
+- Bump golang.org/x/net to v0.62.0 for two html CVEs - ([e18fe26](https://github.com/adaouat/heraut/commit/e18fe262abf43f35282fb5a642f0c6710e7722c2)) by @bchatard
+
 <!-- heraut-release: v0.84.0 -->
 ## [0.84.0](https://github.com/adaouat/heraut/compare/v0.83.0..v0.84.0) - 2026-11-04
 
@@ -3828,4 +4152,4 @@
 <!-- heraut-footer -->
 
 ---
-_Generated by [heraut](https://github.com/adaouat/heraut) v0.84.0 at 13:56 on 2026-11-04._
+_Generated by [heraut](https://github.com/adaouat/heraut) v1.0.1 at 13:43 on 2026-11-09._
