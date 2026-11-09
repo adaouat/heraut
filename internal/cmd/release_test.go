@@ -93,6 +93,7 @@ release:
 func TestRelease_ForeignFile_ShortSummaryNotRepeated(t *testing.T) {
 	t.Setenv("GH_TOKEN", "test-token")
 	changelogDir := t.TempDir()
+	t.Chdir(changelogDir) // the changelog is confined to the working directory
 	outPath := filepath.Join(changelogDir, "CHANGELOG.md")
 	require.NoError(t, os.WriteFile(outPath, []byte("# Changelog\n\nsome content with no anchors\n"), 0o644))
 

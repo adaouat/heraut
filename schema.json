@@ -623,7 +623,7 @@
       "properties": {
         "output": {
           "type": "string",
-          "description": "Where the changelog is written, e.g. CHANGELOG.md. Only under changelog:, since release notes are never written to a file. Tokens start a new file per period: CHANGELOG_{YYYY}.md (CalVer) or CHANGELOG_{MAJOR}.md (SemVer).",
+          "description": "Where the changelog is written, e.g. CHANGELOG.md, under the repository root: a path or a symlink that leads out of it is refused. Only under changelog:, since release notes are never written to a file. Tokens start a new file per period: CHANGELOG_{YYYY}.md (CalVer) or CHANGELOG_{MAJOR}.md (SemVer).",
           "default": "CHANGELOG.md"
         },
         "tag_pattern": {

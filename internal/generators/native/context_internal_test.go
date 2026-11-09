@@ -39,7 +39,7 @@ func TestGenerate_PassesItsContextToTheForge(t *testing.T) {
 			mr.QueueResponse("aaa1111111\n", "", nil) // resolveEnrichRef("HEAD")
 		}},
 		{"changelog, spliced section", ModeChangelog, false, 1, func(t *testing.T) string {
-			out := filepath.Join(t.TempDir(), "CHANGELOG.md")
+			out := filepath.Join(repoDir(t), "CHANGELOG.md")
 			require.NoError(t, os.WriteFile(out, []byte("# Changelog\n\n<!-- heraut-release: v1.0.0 -->\n## [1.0.0]\n\n- one\n"), 0o644))
 			return out
 		}, func(mr *exectest.MockRunner) {

@@ -2,8 +2,10 @@ package native
 
 import (
 	"context"
+	"crypto/rand"
 	"errors"
 	"fmt"
+	"io/fs"
 	"os"
 	"path/filepath"
 	"slices"
@@ -443,13 +445,9 @@ func (g *Generator) buildAllSections(ctx context.Context, tag string, lc *port.L
 // bootstraps a full build when the file is missing/empty, and errors when the file is non-empty
 // but has no anchors.
 func (g *Generator) generateIncremental(ctx context.Context, tag string, lc *port.LinkContext) (string, error) {
-	var existing string
-	if g.cfg.Output != "" {
-		b, err := os.ReadFile(g.cfg.Output)
-		if err != nil && !os.IsNotExist(err) {
-			return "", fmt.Errorf("reading changelog %q: %w", g.cfg.Output, err)
-		}
-		existing = string(b)
+	existing, err := g.readChangelog()
+	if err != nil {
+		return "", err
 	}
 	if strings.TrimSpace(existing) == "" {
 		body, err := g.buildAllSections(ctx, tag, lc, false) // bootstrap: enrich newest only
@@ -506,40 +504,111 @@ func (g *Generator) foreignFileError(err error) error {
 		g.cfg.Output, err)
 }
 
+// readChangelog returns the changelog at cfg.Output, or "" when there is none (no output, or no
+// file yet).
+func (g *Generator) readChangelog() (string, error) {
+	if g.cfg.Output == "" {
+		return "", nil
+	}
+	root, rel, err := g.outputRoot()
+	if err != nil {
+		return "", err
+	}
+	defer func() { _ = root.Close() }()
+	b, err := root.ReadFile(rel)
+	if err != nil && !errors.Is(err, fs.ErrNotExist) {
+		return "", fmt.Errorf("reading changelog %q: %w", g.cfg.Output, err)
+	}
+	return string(b), nil
+}
+
 // writeChangelog writes body to cfg.Output when set and returns it.
 func (g *Generator) writeChangelog(body string) (string, error) {
-	if g.cfg.Output != "" {
-		// A re-run with nothing new would only change the footer's time: keep the file as it is,
-		// so there is nothing to commit.
-		if existing, err := os.ReadFile(g.cfg.Output); err == nil && withoutFooter(string(existing)) == withoutFooter(body) {
-			return string(existing), nil
-		}
-		if err := writeFileAtomic(g.cfg.Output, []byte(body), 0o644); err != nil {
-			return "", fmt.Errorf("writing changelog %q: %w", g.cfg.Output, err)
-		}
+	if g.cfg.Output == "" {
+		return body, nil
+	}
+	root, rel, err := g.outputRoot()
+	if err != nil {
+		return "", err
+	}
+	defer func() { _ = root.Close() }()
+	// A re-run with nothing new would only change the footer's time: keep the file as it is,
+	// so there is nothing to commit.
+	if existing, err := root.ReadFile(rel); err == nil && withoutFooter(string(existing)) == withoutFooter(body) {
+		return string(existing), nil
+	}
+	if err := writeFileAtomic(root, rel, []byte(body), 0o644); err != nil {
+		return "", fmt.Errorf("writing changelog %q: %w", g.cfg.Output, err)
 	}
 	return body, nil
 }
 
-// writeFileAtomic replaces path with data through a temp file in the same directory and a rename,
-// so a crash or a full disk leaves the previous file whole instead of truncated. A symlinked path
-// is resolved first: the rename replaces the link's target, not the link. An existing file keeps its
-// own permission bits; perm applies only when the file is new.
-func writeFileAtomic(path string, data []byte, perm os.FileMode) error {
-	if resolved, err := filepath.EvalSymlinks(path); err == nil {
-		path = resolved
+// outputRoot opens the repository root (the working directory, symlinks resolved) and returns
+// cfg.Output's real path relative to it. A path that leaves the root, or a symlink whose target
+// does, is refused; the os.Root keeps a symlink swapped in later from leading out either. A
+// symlink inside the repository is followed, so the rename replaces its target, not the link.
+func (g *Generator) outputRoot() (*os.Root, string, error) {
+	wd, err := os.Getwd()
+	if err != nil {
+		return nil, "", fmt.Errorf("resolving the repository root: %w", err)
 	}
-	if info, err := os.Stat(path); err == nil {
+	rootPath, err := filepath.EvalSymlinks(wd)
+	if err != nil {
+		return nil, "", fmt.Errorf("resolving the repository root %q: %w", wd, err)
+	}
+	path := g.cfg.Output
+	if !filepath.IsAbs(path) {
+		path = filepath.Join(wd, path)
+	}
+	real, err := resolveExisting(path)
+	if err != nil {
+		return nil, "", fmt.Errorf("resolving changelog %q: %w", g.cfg.Output, err)
+	}
+	rel, err := filepath.Rel(rootPath, real)
+	if err != nil || rel == ".." || strings.HasPrefix(rel, ".."+string(filepath.Separator)) {
+		return nil, "", fmt.Errorf("changelog %q resolves outside the repository (%s): changelog.output must name a file under the repository root", g.cfg.Output, rootPath)
+	}
+	root, err := os.OpenRoot(rootPath)
+	if err != nil {
+		return nil, "", fmt.Errorf("opening the repository root %q: %w", rootPath, err)
+	}
+	return root, rel, nil
+}
+
+// resolveExisting resolves the symlinks of path's longest existing prefix and appends the part that
+// does not exist yet, so a changelog (or its directory) still to be created resolves too.
+func resolveExisting(path string) (string, error) {
+	p, rest := filepath.Clean(path), ""
+	for {
+		real, err := filepath.EvalSymlinks(p)
+		if err == nil {
+			return filepath.Join(real, rest), nil
+		}
+		parent := filepath.Dir(p)
+		if !errors.Is(err, fs.ErrNotExist) || parent == p {
+			return "", err
+		}
+		rest = filepath.Join(filepath.Base(p), rest)
+		p = parent
+	}
+}
+
+// writeFileAtomic replaces rel under root with data through a temp file in the same directory and a
+// rename, so a crash or a full disk leaves the previous file whole instead of truncated. An existing
+// file keeps its own permission bits; perm applies only when the file is new.
+func writeFileAtomic(root *os.Root, rel string, data []byte, perm os.FileMode) error {
+	if info, err := root.Stat(rel); err == nil {
 		perm = info.Mode().Perm()
 	}
-	prefix := "." + filepath.Base(path) + ".tmp-"
-	removeLeftovers(filepath.Dir(path), prefix)
-	tmp, err := os.CreateTemp(filepath.Dir(path), prefix+"*")
+	dir := filepath.Dir(rel)
+	prefix := "." + filepath.Base(rel) + ".tmp-"
+	removeLeftovers(root, dir, prefix)
+	tmpName := filepath.Join(dir, prefix+rand.Text())
+	tmp, err := root.OpenFile(tmpName, os.O_RDWR|os.O_CREATE|os.O_EXCL, 0o600)
 	if err != nil {
 		return err
 	}
-	tmpName := tmp.Name()
-	cleanup := func() { _ = os.Remove(tmpName) }
+	cleanup := func() { _ = root.Remove(tmpName) }
 	if _, err := tmp.Write(data); err != nil {
 		_ = tmp.Close()
 		cleanup()
@@ -554,7 +623,7 @@ func writeFileAtomic(path string, data []byte, perm os.FileMode) error {
 		cleanup()
 		return err
 	}
-	if err := os.Rename(tmpName, path); err != nil {
+	if err := root.Rename(tmpName, rel); err != nil {
 		cleanup()
 		return err
 	}
@@ -565,14 +634,19 @@ func writeFileAtomic(path string, data []byte, perm os.FileMode) error {
 // write that was killed before its rename, which a hook staging everything could otherwise commit
 // (NEW-005). Only one run writes a repository's changelog at a time, so none of them is in use. It is
 // best effort: a leftover that cannot be removed does not stop the write.
-func removeLeftovers(dir, prefix string) {
-	entries, err := os.ReadDir(dir)
+func removeLeftovers(root *os.Root, dir, prefix string) {
+	d, err := root.Open(dir)
+	if err != nil {
+		return
+	}
+	entries, err := d.ReadDir(-1)
+	_ = d.Close()
 	if err != nil {
 		return
 	}
 	for _, e := range entries {
 		if e.Type().IsRegular() && strings.HasPrefix(e.Name(), prefix) {
-			_ = os.Remove(filepath.Join(dir, e.Name()))
+			_ = root.Remove(filepath.Join(dir, e.Name()))
 		}
 	}
 }

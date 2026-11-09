@@ -46,7 +46,7 @@ func TestRotatingGenerator_PassesItsContextToTheForge(t *testing.T) {
 	mr.QueueResponse("aaa1111111\n", "", nil) // git rev-parse HEAD (enrichment ref)
 
 	forge := &recordingForge{}
-	driver := &config.ContentDriver{Output: filepath.Join(t.TempDir(), "CHANGELOG_{YYYY}.md")}
+	driver := &config.ContentDriver{Output: filepath.Join(chdirTemp(t), "CHANGELOG_{YYYY}.md")}
 	cfg := &config.Config{Versioning: config.Versioning{Strategy: "calver", Format: "YYYY.MM.PATCH"}}
 	gen := buildGenerator(mr, driver, native.ModeChangelog, "", false, forge, "", nil)
 	wrapped := wrapWithRotation(gen, mr, cfg, driver, "", false, forge, "", nil)
@@ -109,7 +109,7 @@ func TestRotatingGenerator_ReportsADegradedEnrichment(t *testing.T) {
 	mr.QueueResponse("aaa1111111\n", "", nil) // git rev-parse HEAD (enrichment ref)
 
 	forge := &failingForge{}
-	driver := &config.ContentDriver{Output: filepath.Join(t.TempDir(), "CHANGELOG_{YYYY}.md")}
+	driver := &config.ContentDriver{Output: filepath.Join(chdirTemp(t), "CHANGELOG_{YYYY}.md")}
 	cfg := &config.Config{Versioning: config.Versioning{Strategy: "calver", Format: "YYYY.MM.PATCH"}}
 	gen := buildGenerator(mr, driver, native.ModeChangelog, "", false, forge, "", nil)
 	wrapped := wrapWithRotation(gen, mr, cfg, driver, "", false, forge, "", nil)
@@ -126,4 +126,12 @@ func TestRotatingGenerator_ReportsADegradedEnrichment(t *testing.T) {
 
 	assert.True(t, d.Degraded())
 	assert.Contains(t, d.DegradedReason(), "connection refused")
+}
+
+// chdirTemp returns a temp directory made the working directory: the changelog is confined to it.
+func chdirTemp(t *testing.T) string {
+	t.Helper()
+	dir := t.TempDir()
+	t.Chdir(dir)
+	return dir
 }

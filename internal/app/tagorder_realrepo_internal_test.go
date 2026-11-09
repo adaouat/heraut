@@ -60,7 +60,7 @@ func TestTagOrderFor_RealRepo_SemverPrecedenceBoundsChangelogAndNotes(t *testing
 	order := tagOrderFor(cfg, "")
 
 	// Review Focus 1: the incremental changelog's new section must list commit C only.
-	changelogDir := t.TempDir()
+	changelogDir := "." // the changelog lives in the repository, the working directory
 	driver := &config.ContentDriver{Output: filepath.Join(changelogDir, "CHANGELOG.md")}
 	changelogGen := buildGenerator(runner, driver, native.ModeChangelog, "", false, nil, "", order)
 
@@ -145,7 +145,7 @@ func TestTagOrderFor_RealRepo_FallbackNeverBoundsByNonAncestorTag(t *testing.T) 
 	}
 	order := tagOrderFor(cfg, "envb")
 
-	changelogDir := t.TempDir()
+	changelogDir := "." // the changelog lives in the repository, the working directory
 	driver := &config.ContentDriver{Output: filepath.Join(changelogDir, "CHANGELOG.md"), TagGlob: "envb/*"}
 	gen := buildGenerator(runner, driver, native.ModeChangelog, "", false, nil, "", order)
 

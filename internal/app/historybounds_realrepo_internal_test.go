@@ -3,7 +3,6 @@ package app
 import (
 	"os"
 	"os/exec"
-	"path/filepath"
 	"strings"
 	"testing"
 
@@ -88,7 +87,7 @@ func sectionOf(body, tag string) string {
 
 func regenerateSemver(t *testing.T, cfg *config.Config, env string, driver config.ContentDriver, tag string) string {
 	t.Helper()
-	driver.Output = filepath.Join(t.TempDir(), "CHANGELOG.md")
+	driver.Output = "CHANGELOG.md" // inside the repository, the working directory
 	gen := buildGenerator(execadapter.New(false, false), &driver, native.ModeChangelog, "", true, nil, "", tagOrderFor(cfg, env))
 	body, err := gen.Generate(t.Context(), tag, historyLC)
 	require.NoError(t, err)

@@ -47,7 +47,7 @@ func TestChangelogRotation_RealRepo_PeriodBoundary(t *testing.T) {
 	git("init")
 	commit("feat: first feature")
 
-	changelogDir := t.TempDir()
+	changelogDir := "." // the changelog lives in the repository, the working directory
 	driver := &config.ContentDriver{Output: filepath.Join(changelogDir, "CHANGELOG_{YYYY}.md")}
 	cfg := &config.Config{Versioning: config.Versioning{Strategy: "calver", Format: "YYYY.MM.PATCH"}}
 	runner := execadapter.New(false, false)

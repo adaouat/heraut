@@ -191,6 +191,7 @@ func TestRotatingGenerator_Generate_WritesConcreteFile(t *testing.T) {
 		"2026-05-01T00:00:00Z", "feat: initial", ""), "", nil) // new release: full history
 
 	dir := t.TempDir()
+	t.Chdir(dir) // the changelog is confined to the working directory
 	driver := &config.ContentDriver{Output: filepath.Join(dir, "CHANGELOG_{YYYY}.md")}
 	cfg := &config.Config{Versioning: config.Versioning{Strategy: "calver", Format: "YYYY.MM.PATCH"}}
 

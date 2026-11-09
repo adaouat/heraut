@@ -1134,11 +1134,22 @@ tests' fake `git` scripts exit 1 on any call they don't know, which a single-cal
 scenarios with no history ran on an unborn branch by accident; `runScenarios` now gives them a
 `chore: init` commit. Specs 01 and 03 and the troubleshooting table name the error.
 
-#### `[ ]` T547: the changelog is written inside the repository
+#### `[x]` T547: the changelog is written inside the repository
 
 `changelog.output: ../../escaped.md` writes two levels up, and a committed symlink `CHANGELOG.md ->
 ../victim.txt` (empty target) gets the changelog written through it. Open through `os.Root` on the repo
 root and refuse symlinks, as `OpenAssets` does.
+
+Done. The native generator resolves `changelog.output` against the working directory (symlinks
+resolved, the same root as assets) and refuses a path or a symlink target outside it: "changelog
+\"…\" resolves outside the repository" (exit 3), before anything is read or written. Reads and the
+atomic write (temp file, rename, leftover cleanup) go through an `os.Root`, so a symlink swapped in
+later cannot lead out either; with the explicit check removed, the root alone still refuses. A
+symlink *inside* the repository is still followed, as since the atomic write: refusing every
+symlink, as the task title says, would break that deliberate case for no safety gain, so this
+follows "as `OpenAssets` does" (confinement, not refusal). Tests that wrote the changelog to a
+temp directory outside their working directory now write it inside (`repoDir`, `chdirTemp`,
+`t.Chdir`). e2e covers both reported cases. Schema, Spec 02 and the troubleshooting table say so.
 
 #### `[ ]` T548: publishing survives a transient error (needs the go for the GitLab driver)
 
