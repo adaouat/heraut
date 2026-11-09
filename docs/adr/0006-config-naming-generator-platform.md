@@ -1,6 +1,6 @@
 # ADR-0006: Config Naming — generator / platform / release
 
-- **Status**: Accepted
+- **Status**: Accepted; its naming superseded by ADR-0044 (`release.platforms` → `release.targets` + `forges:`) and ADR-0045 (`generator:` removed)
 - **Date**: 2026-05-23
 - **Deciders**: bchatard
 

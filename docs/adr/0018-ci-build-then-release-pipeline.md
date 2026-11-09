@@ -1,6 +1,6 @@
 # ADR-0018: Self-Bootstrapping CI Release Pipeline
 
-- **Status**: Accepted
+- **Status**: Accepted, amended (see the 2026-11-09 note at the end)
 - **Date**: 2026-05-30
 - **Deciders**: bchatard
 
@@ -184,3 +184,12 @@ step is removed from `release.yml` — heraut generates the release notes intern
   `dist/`; heraut uploads them via `release.assets`.
 - **Resolved questions table** (`docs/tasks/roadmap.md`): the entry
   *"GoReleaser creates GitHub Releases directly"* is superseded by this ADR.
+
+## Note (2026-11-09): the workflow today
+
+Several details above are stale. The flag is `--set-version`, not `--version`; there is no cliff
+config to validate; the tag and release come from heraut's own GitHub driver (`go-github`,
+ADR-0077), not `gh release create`. `release.yml` now uses forge's `release-setup`, `release-build` and
+`release-publish` actions, and the Docker jobs run after the release job (`needs: release`) instead of
+on a `v*` tag push. The decision itself (build first, then the fresh binary releases itself, triggered
+by hand) holds.

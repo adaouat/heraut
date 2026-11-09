@@ -1,6 +1,6 @@
 # ADR-0043: Forge abstraction + unified `forges:` config
 
-- **Status**: Accepted
+- **Status**: Accepted, amended by ADR-0069 and ADR-0077: publishing no longer uses `gh` or `glab` (see the note at the end)
 - **Date**: 2026-07-24
 - **Deciders**: bchatard
 - **Extends / supersedes**: [ADR-0006](0006-config-naming-generator-platform.md) (naming),
@@ -157,3 +157,10 @@ Phasing).
 - [ADR-0034](0034-native-remote-enrichment.md) — native remote enrichment transport (`gh api` / `glab api` via `port.Runner`); GitLab's transport is replaced here
 - [ADR-0035](0035-azure-enrichment-native-http.md) — Azure native `net/http` transport, unchanged in this phase
 - [ADR-0042](0042-gitlab-graphql-enrichment.md) — GitLab GraphQL enrichment logic, reused by the `api_mode: graphql` path
+
+## Note (2026-11-09): the publish transport
+
+Where this ADR says GitHub and GitLab publishing keep the `gh` and `glab` CLIs, that no longer holds:
+[ADR-0069](0069-gitlab-publish-transport.md) moved GitLab publishing to `client-go` and
+[ADR-0077](0077-github-publish-transport.md) moved GitHub publishing to `go-github`. heraut runs no
+forge CLI.

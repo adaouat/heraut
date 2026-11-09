@@ -1,6 +1,6 @@
 # ADR-0015: Unified Logging with `charm.land/log`
 
-- **Status**: Rejected
+- **Status**: Rejected, later reversed through forge: structured logging shipped via `forge/log` (charm.land/log, forge ADR-0011)
 - **Date**: 2026-05-25
 - **Deciders**: bchatard
 
@@ -136,3 +136,9 @@ If consistent TTY/color detection or log levels become a real need after v1.0, t
 preferred path is **Option 4 from the Considered section** — grow `internal/ui` with
 typed status-line helpers (`Success`, `Warn`, `Err`, `Info`) that commands call directly,
 without a third-party logging framework. This is tracked in the roadmap.
+
+## Note (2026-11-09): reversed
+
+The structured logger this ADR rejected before 1.0 shipped anyway, through the shared library:
+`forge/log` wraps charm.land/log (forge ADR-0011), and `heraut release` builds it with `forgelog.New`.
+Spec 03 documents it.

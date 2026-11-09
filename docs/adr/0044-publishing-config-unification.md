@@ -1,6 +1,6 @@
 # ADR-0044: Publishing config unification — `release.targets` replaces `release.platforms`
 
-- **Status**: Accepted
+- **Status**: Accepted, amended by ADR-0069 and ADR-0077: publishing no longer uses `gh` or `glab` (see the note at the end)
 - **Date**: 2026-07-31
 - **Deciders**: bchatard
 - **Extends / supersedes**: [ADR-0043](0043-forge-abstraction.md) (supersedes its P3 framing,
@@ -140,3 +140,10 @@ re-litigated:
   property
 - [ADR-0016](0016-bundled-docker-image.md) — bundled Docker image; unchanged, `gh`/`glab` remain
   bundled
+
+## Note (2026-11-09): the publish transport
+
+Where this ADR says GitHub and GitLab publishing keep the `gh` and `glab` CLIs, that no longer holds:
+[ADR-0069](0069-gitlab-publish-transport.md) moved GitLab publishing to `client-go` and
+[ADR-0077](0077-github-publish-transport.md) moved GitHub publishing to `go-github`. heraut runs no
+forge CLI.

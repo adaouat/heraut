@@ -974,7 +974,7 @@ Reference regenerated.
 
 CLAUDE.md's workflow list is T539.
 
-#### `[ ]` T538: ADR statuses and amendments
+#### `[x]` T538: ADR statuses and amendments
 
 - 0022, 0024, 0040: status line says Accepted, the index says superseded (by 0045, 0033, 0043).
 - 0034:14, 0043:26-28, 0044:71,101 and index rows `README.md:41,50,51` still say `gh`/`glab` publish:
@@ -984,6 +984,17 @@ CLAUDE.md's workflow list is T539.
 - 0015 is Rejected, but its decision shipped through forge (`forgelog.New`, `release.go:123`).
 - 0006 lacks the supersede note the index shows; index line 13 credits `release.targets` to 0043
   (it's 0044).
+
+**Done (2026-11-09).** Status lines now agree with the index:
+- 0022, 0024 and 0040 are "Superseded by" 0045, 0033 and 0043.
+- 0006 names its superseders (0044 for `release.targets`, 0045 for `generator:`).
+- 0015 is "Rejected, later reversed through forge", with a note.
+- 0018 is "Accepted, amended", with a note on today's workflow (`--set-version`, forge's release
+  actions, Docker after the release, no cliff, no `gh`).
+- 0034, 0043 and 0044 get "amended by 0069 and 0077" and a note that publishing no longer uses a
+  forge CLI.
+
+The index rows say the same, and row 0006 credits `release.targets` to 0044.
 
 #### `[ ]` T539: CLAUDE.md, rules and indexes
 

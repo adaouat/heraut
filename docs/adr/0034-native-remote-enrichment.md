@@ -1,6 +1,6 @@
 # ADR-0034: Native remote enrichment (Phase 2)
 
-- **Status**: Accepted
+- **Status**: Accepted, amended by ADR-0069 and ADR-0077: publishing no longer uses `gh` or `glab` (see the note at the end)
 - **Date**: 2026-06-29
 - **Deciders**: bchatard
 
@@ -230,3 +230,10 @@ Implements roadmap Phase 2: **T127** (GitHub, batched), **T128** (GitLab, batche
 (Azure DevOps via `az` — optional, last). The deferred Phase-1 "days between releases" stat
 (needs the previous tag's date) folds into T127's view-model wiring or ships as a small
 standalone follow-up.
+
+## Note (2026-11-09): the publish transport
+
+Where this ADR says GitHub and GitLab publishing keep the `gh` and `glab` CLIs, that no longer holds:
+[ADR-0069](0069-gitlab-publish-transport.md) moved GitLab publishing to `client-go` and
+[ADR-0077](0077-github-publish-transport.md) moved GitHub publishing to `go-github`. heraut runs no
+forge CLI.

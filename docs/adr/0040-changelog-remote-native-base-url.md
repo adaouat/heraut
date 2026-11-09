@@ -1,6 +1,6 @@
 # ADR-0040: `changelog.remote` for native + unified `base_url` host override
 
-- **Status**: Accepted
+- **Status**: Superseded by ADR-0043 (`changelog.remote` replaced by `forges:` and `commits.enrichment_forge`)
 - **Date**: 2026-07-22
 - **Deciders**: bchatard
 

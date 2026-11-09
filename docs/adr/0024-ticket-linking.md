@@ -1,6 +1,6 @@
 # ADR-0024: Ticket linking via git-cliff link_parsers
 
-- **Status**: Accepted
+- **Status**: Superseded by ADR-0033 (tickets moved to `commits.tickets`)
 - **Date**: 2026-06-11
 - **Deciders**: bchatard
 

@@ -1,6 +1,6 @@
 # ADR-0022: Fat Injection / Thin git-cliff Templates
 
-- **Status**: Accepted
+- **Status**: Superseded by [ADR-0045](0045-native-sole-generator.md)
 - **Date**: 2026-06-09
 - **Deciders**: bchatard
 
