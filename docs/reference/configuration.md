@@ -94,7 +94,7 @@ A generated document: the changelog file (changelog:) or the notes published wit
 
 | Key | Type | Default | Required | Description |
 |---|---|---|---|---|
-| `changelog.output` | string | `CHANGELOG.md` |  | Where the changelog is written, e.g. CHANGELOG.md, under the repository root: a path or a symlink that leads out of it is refused. Only under changelog:, since release notes are never written to a file. Tokens start a new file per period: CHANGELOG_{YYYY}.md (CalVer) or CHANGELOG_{MAJOR}.md (SemVer). |
+| `changelog.output` | string | `CHANGELOG.md` |  | Where the changelog is written, e.g. CHANGELOG.md, inside the repository: a path or symlink leading out is refused. Only under changelog:, since release notes are never written to a file. Tokens start a new file per period: CHANGELOG_{YYYY}.md (CalVer) or CHANGELOG_{MAJOR}.md (SemVer). |
 | `changelog.tag_pattern` | string |  |  | Regex selecting this scope's release tags, applied in-process (Go regex). E.g. "^v\[0-9]" for bare semver or "^prod/" for a per-env prefix. |
 | `changelog.template` | string |  |  | Path to a full Go text/template file layered over the built-in blocks. It can redefine the whole document or single blocks, and wins over rendering.templates for what it defines. |
 | `changelog.rendering` | object |  |  | Rendering overrides for this document only (template snippets, excludes), merged over the top-level rendering block. Same keys as `rendering`. |
