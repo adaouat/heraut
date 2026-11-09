@@ -713,6 +713,14 @@ func TestNewResolver_Maintenance(t *testing.T) {
 			wantTag:   "v7.8.0",
 			wantCalls: [][]string{{"tag", "-l", "v7.8.0", "v7.8.0+*"}, revParse},
 		},
+		{
+			name:      "--set-version wins over a version branch's own version",
+			cfg:       maintenanceCfg(mainAndRelease...),
+			override:  "9.9.9",
+			responses: []string{"", "release/7.8.0\n"},
+			wantTag:   "v9.9.9",
+			wantCalls: [][]string{{"tag", "-l", "v9.9.9", "v9.9.9+*"}, revParse},
+		},
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {

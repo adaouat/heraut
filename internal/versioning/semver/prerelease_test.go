@@ -343,17 +343,6 @@ func TestResolve_PreRelease_WarningsResetBetweenCalls(t *testing.T) {
 	}
 }
 
-func TestResolve_PreRelease_OverrideAndManualBypass(t *testing.T) {
-	mr := exectest.NewMockRunner()
-	r := semver.New(mr, &config.Config{Versioning: config.Versioning{Strategy: "semver"}})
-	r.SetPreRelease("rc")
-	r.SetVersionOverride("1.2.3-beta.1")
-	res, err := r.Resolve()
-	require.NoError(t, err)
-	assert.Equal(t, "v1.2.3-beta.1", res.Tag)
-	assert.Empty(t, mr.Calls)
-}
-
 func TestResolve_EmptyPreReleaseLeavesAutoPathUnchanged(t *testing.T) {
 	mr := exectest.NewMockRunner()
 	mr.QueueResponse("v1.3.0\n", "", nil)

@@ -17,7 +17,6 @@ const defaultInitialVersion = "0.1.0"
 type Resolver struct {
 	runner          port.Runner
 	cfg             *config.Config
-	versionOverride string
 	allowMajor      bool
 	preReleaseLabel string
 	warnings        []string
@@ -57,12 +56,6 @@ func (r *Resolver) BumpAuto(tags []string, commits []string) (string, error) {
 // VersionCalculator interface for internal/versioning/perenv.
 func (r *Resolver) BumpFromDate(_ []string) (string, error) {
 	return "", fmt.Errorf("BumpFromDate is not supported by the SemVer calculator")
-}
-
-// SetVersionOverride pins the resolved version, bypassing both auto and manual bump logic.
-// The caller passes the bare version (e.g. "1.0.0"); the prefix is still applied.
-func (r *Resolver) SetVersionOverride(v string) {
-	r.versionOverride = v
 }
 
 // SetAllowMajor lifts versioning.bump.stay_at_v0's hold-back for this resolver (--allow-major).
@@ -126,13 +119,12 @@ func (r *Resolver) bumpAfterHold(currentVersion string, commits []string) versio
 	return bump
 }
 
-// Resolve returns the next version result.
-// An explicit versionOverride (set via SetVersionOverride) always takes precedence over
-// the configured bump mode — this allows --set-version to short-circuit auto resolution.
+// Resolve returns the next version result. --set-version never reaches it: app.NewResolver returns a
+// static resolver instead, so bump: manual here means the flag is missing.
 func (r *Resolver) Resolve() (versioning.Result, error) {
 	r.reset()
-	if r.versionOverride != "" || r.cfg.Versioning.BumpMode() == "manual" {
-		return r.resolveManual()
+	if r.cfg.Versioning.BumpMode() == "manual" {
+		return versioning.Result{}, fmt.Errorf("manual bump mode requires --set-version flag")
 	}
 	if r.fixedCore != "" {
 		return r.resolveFixed()
@@ -141,21 +133,6 @@ func (r *Resolver) Resolve() (versioning.Result, error) {
 		return r.resolvePreRelease()
 	}
 	return r.resolveAuto()
-}
-
-func (r *Resolver) resolveManual() (versioning.Result, error) {
-	if r.versionOverride == "" {
-		return versioning.Result{}, fmt.Errorf("manual bump mode requires --set-version flag")
-	}
-	prefix := r.prefix()
-	// Strip the prefix if the caller passed the full tag (e.g. from `heraut version next`)
-	// so that --set-version v1.0.0 and --set-version 1.0.0 both produce the tag v1.0.0.
-	version := strings.TrimPrefix(r.versionOverride, prefix)
-	return versioning.Result{
-		Version: version,
-		Tag:     prefix + version,
-		Bump:    versioning.BumpNone,
-	}, nil
 }
 
 func (r *Resolver) resolveAuto() (versioning.Result, error) {

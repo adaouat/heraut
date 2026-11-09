@@ -164,29 +164,18 @@ func TestResolve_StayAtV0_WarningCapsListedCommits(t *testing.T) {
 	assert.True(t, strings.HasSuffix(w, "\n  … and 2 more"), "got: %q", w)
 }
 
-func TestResolve_StayAtV0_ManualModeAndSetVersionUntouched(t *testing.T) {
-	cfg := stayAtV0Cfg()
-	cfg.Versioning.Bump.Mode = "manual"
-	r := semver.New(exectest.NewMockRunner(), cfg)
-	r.SetVersionOverride("1.0.0")
-
-	res, err := r.Resolve()
-	require.NoError(t, err)
-	assert.Equal(t, "1.0.0", res.Version)
-	assert.Empty(t, r.Warnings())
-}
-
 func TestResolve_StayAtV0_WarningsResetBetweenCalls(t *testing.T) {
 	mr := exectest.NewMockRunner()
 	mr.QueueResponse("v0.68.0\n", "", nil)
 	mr.QueueResponse("feat!: break\x00", "", nil)
+	mr.QueueResponse("v0.68.0\n", "", nil)
+	mr.QueueResponse("fix: small\x00", "", nil)
 	r := semver.New(mr, stayAtV0Cfg())
 
 	_, err := r.Resolve()
 	require.NoError(t, err)
 	require.Len(t, r.Warnings(), 1)
 
-	r.SetVersionOverride("0.70.0") // the second resolution holds nothing back
 	_, err = r.Resolve()
 	require.NoError(t, err)
 	assert.Empty(t, r.Warnings(), "a later Resolve with nothing held back must not repeat the old warning")
@@ -196,6 +185,8 @@ func TestResolve_StayAtV0_WouldBeVersionsStaysParallelToWarningsAndResets(t *tes
 	mr := exectest.NewMockRunner()
 	mr.QueueResponse("v0.68.0\n", "", nil)
 	mr.QueueResponse("feat!: break\x00", "", nil)
+	mr.QueueResponse("v0.68.0\n", "", nil)
+	mr.QueueResponse("fix: small\x00", "", nil)
 	r := semver.New(mr, stayAtV0Cfg())
 
 	_, err := r.Resolve()
@@ -204,7 +195,6 @@ func TestResolve_StayAtV0_WouldBeVersionsStaysParallelToWarningsAndResets(t *tes
 	require.Len(t, r.WouldBeVersions(), 1)
 	assert.Equal(t, "1.0.0", r.WouldBeVersions()[0])
 
-	r.SetVersionOverride("0.70.0") // the second resolution holds nothing back
 	_, err = r.Resolve()
 	require.NoError(t, err)
 	assert.Empty(t, r.Warnings())

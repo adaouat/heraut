@@ -76,13 +76,6 @@ func renderHookSteps(steps []HookStep, vars hookVars) ([]renderedHookStep, error
 	return rendered, nil
 }
 
-// shouldRunHooks reports whether a hook point should actually execute: never during --dry-run
-// (hooks are arbitrary shell commands — dry-run must never execute anything for real) or when
-// --no-hooks/NoHooks is set, and only when at least one step is configured.
-func shouldRunHooks(dryRun, noHooks bool, steps []HookStep) bool {
-	return !dryRun && !noHooks && len(steps) > 0
-}
-
 // runHookPointSteps renders steps against vars and executes each rendered Run command in order
 // via r, stopping at the first render or execution error. Returns the rendered steps so callers
 // that need declared Stage patterns (post_bump/pre_changelog — T298) can collect them; the other

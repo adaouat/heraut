@@ -37,12 +37,11 @@ func (p *Pipeline) warn(msg string) {
 
 // New constructs a release Pipeline.
 func New(runner port.Runner, resolver versioning.Resolver, cfg *Config, out io.Writer, dryRun bool) *Pipeline {
-	return &Pipeline{git: gitHelper{runner: runner, pushBranch: cfg.CommitPushBranch}, resolver: resolver, cfg: cfg, out: out, dryRun: dryRun}
+	return &Pipeline{git: gitHelper{runner: runner, pushBranch: cfg.CommitPushBranch}, resolver: resolver, cfg: cfg, out: out, dryRun: dryRun, reporter: silentReporter}
 }
 
-// WithReporter sets the step reporter and returns p for chaining.
-// When reporter is nil (the zero value), Run() behaves identically to the
-// pre-reporter implementation — no output beyond the final summary.
+// WithReporter sets the step reporter and returns p for chaining. Without one, steps run and
+// report nothing (silentReporter).
 func (p *Pipeline) WithReporter(fn ui.StepFn) *Pipeline {
 	p.reporter = fn
 	return p
@@ -140,9 +139,6 @@ func (p *Pipeline) Run(ctx context.Context) error {
 	if err := p.runner().runSteps(flow.prelude, &flow.hookFailed); err != nil {
 		return err
 	}
-	if p.dryRun && p.reporter == nil {
-		_, _ = fmt.Fprintf(p.out, "[dry-run] would release %s\n", result.Tag)
-	}
 	if err := p.runner().runSteps(flow.body, &flow.hookFailed); err != nil {
 		return err
 	}
@@ -174,7 +170,7 @@ func isPreRelease(version string) bool {
 // warnNothingToCommit emits an actionable warning when `git add` staged nothing this run —
 // the changelog file, any hook-declared `stage` files (ADR-0061), or both, were already
 // byte-identical to the last commit, so there's no single file to pin the cause on. It
-// writes to w (both reporter and plain modes) so the diagnostic is visible in CI, where
+// writes to w so the diagnostic is visible in CI, where
 // this most often surfaces (re-run after a partial release, or no changelog-worthy
 // commits). The pipeline goes on with whatever steps follow (tag, publish), if any.
 func warnNothingToCommit(w io.Writer, file string) {
@@ -191,20 +187,10 @@ func warnStageNotCommitted(w io.Writer, patterns []string) {
 }
 
 // printSummary writes the post-run summary to p.out.
-// With a reporter it uses the styled block; without one it keeps the original
-// single-line format so existing plain callers are unaffected.
 func (p *Pipeline) printSummary(result versioning.Result) {
-	if p.reporter != nil {
-		_, _ = fmt.Fprintf(p.out, "\nReleased %s\n", result.Tag)
-		for _, platform := range p.cfg.Platforms {
-			lc := p.platformLinkContext(platform)
-			_, _ = fmt.Fprintf(p.out, "  › %-8s %s\n", platform.Name(), platform.ReleaseURLFromContext(result.Tag, lc))
-		}
-		return
-	}
-	_, _ = fmt.Fprintf(p.out, "released %s\n", result.Tag)
+	_, _ = fmt.Fprintf(p.out, "\nReleased %s\n", result.Tag)
 	for _, platform := range p.cfg.Platforms {
 		lc := p.platformLinkContext(platform)
-		_, _ = fmt.Fprintf(p.out, "  %s: %s\n", platform.Name(), platform.ReleaseURLFromContext(result.Tag, lc))
+		_, _ = fmt.Fprintf(p.out, "  › %-8s %s\n", platform.Name(), platform.ReleaseURLFromContext(result.Tag, lc))
 	}
 }

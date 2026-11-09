@@ -225,13 +225,15 @@ func TestChangelogRun_DryRun(t *testing.T) {
 		Tag:           true,
 	}
 
-	out := &bytes.Buffer{}
-	p := pipeline.NewChangelog(mr, &fakeResolver{result: resolvedResult("v1.2.3")}, cfg, out, true)
+	var captured []capturedStep
+	p := pipeline.NewChangelog(mr, &fakeResolver{result: resolvedResult("v1.2.3")}, cfg, &bytes.Buffer{}, true).
+		WithReporter(capturingStepFn(&captured))
 	require.NoError(t, p.Run(t.Context()))
 
 	assert.Len(t, mr.Calls, 0)
 	assert.Len(t, gen.GenerateCalls, 0)
-	assert.Contains(t, out.String(), "v1.2.3")
+	require.NotEmpty(t, captured)
+	assert.Equal(t, "[dry-run] would push v1.2.3", captured[len(captured)-1].result)
 }
 
 // TestChangelogRun_DisabledChangelog exits 0 with an info message; no generate or git ops.
@@ -396,7 +398,7 @@ func TestChangelogRun_DisabledChangelog_WithTag(t *testing.T) {
 	assert.Equal(t, []string{"push", "origin", "refs/tags/v1.2.3"}, mr.Calls[1].Args)
 	assert.Contains(t, out.String(), "disabled")
 	assert.NotContains(t, strings.ToLower(out.String()), "changelog updated")
-	assert.Contains(t, out.String(), "tagged v1.2.3")
+	assert.Contains(t, out.String(), "Tagged v1.2.3 and pushed")
 }
 
 // TestChangelogRun_NothingToCommit verifies that when git add stages nothing (the
@@ -524,47 +526,28 @@ func TestChangelogRun_DefaultChangelogFile(t *testing.T) {
 // TestChangelogRun_PreRelease_SkipsChangelogButStillTags pins ADR-0064: a pre-release never gets
 // a CHANGELOG.md section, yet --tag still tags and pushes it.
 func TestChangelogRun_PreRelease_SkipsChangelogButStillTags(t *testing.T) {
-	for _, withReporter := range []bool{false, true} {
-		name := "plain"
-		if withReporter {
-			name = "reporter"
-		}
-		t.Run(name, func(t *testing.T) {
-			mr := exectest.NewMockRunner()
-			mr.QueueResponse("", "", nil) // git tag
-			mr.QueueResponse("", "", nil) // git push <tag>
-			gen := &testutil.MockGenerator{}
+	mr := exectest.NewMockRunner()
+	mr.QueueResponse("", "", nil) // git tag
+	mr.QueueResponse("", "", nil) // git push <tag>
+	gen := &testutil.MockGenerator{}
 
-			cfg := &pipeline.ChangelogConfig{
-				Changelog: gen, ChangelogFile: "CHANGELOG.md",
-				DisableChangelog: true, PreRelease: true, Tag: true,
-			}
-			var out bytes.Buffer
-			p := pipeline.NewChangelog(mr, &fakeResolver{result: resolvedResult("v1.4.0-rc.1")}, cfg, &out, false)
-			if withReporter {
-				p = p.WithReporter(func(_ string, fn func() (string, []string, error)) error {
-					_, _, err := fn()
-					return err
-				})
-			}
-			require.NoError(t, p.Run(t.Context()))
-
-			assert.Empty(t, gen.GenerateCalls)
-			assert.Contains(t, out.String(), "pre-release")
-			assert.Contains(t, out.String(), "CHANGELOG.md not updated")
-			assert.NotContains(t, out.String(), "changelog disabled")
-			assert.NotContains(t, strings.ToLower(out.String()), "changelog updated")
-			assert.NotContains(t, out.String(), "committed")
-			if withReporter {
-				assert.Contains(t, out.String(), "Tagged v1.4.0-rc.1 and pushed")
-			} else {
-				assert.Contains(t, out.String(), "tagged v1.4.0-rc.1")
-			}
-			require.Len(t, mr.Calls, 2)
-			assert.Equal(t, "tag", mr.Calls[0].Args[0])
-			assert.Equal(t, []string{"push", "origin", "refs/tags/v1.4.0-rc.1"}, mr.Calls[1].Args)
-		})
+	cfg := &pipeline.ChangelogConfig{
+		Changelog: gen, ChangelogFile: "CHANGELOG.md",
+		DisableChangelog: true, PreRelease: true, Tag: true,
 	}
+	var out bytes.Buffer
+	p := pipeline.NewChangelog(mr, &fakeResolver{result: resolvedResult("v1.4.0-rc.1")}, cfg, &out, false)
+	require.NoError(t, p.Run(t.Context()))
+
+	assert.Empty(t, gen.GenerateCalls)
+	assert.Contains(t, out.String(), "pre-release: CHANGELOG.md not updated")
+	assert.NotContains(t, out.String(), "changelog disabled")
+	assert.NotContains(t, strings.ToLower(out.String()), "changelog updated")
+	assert.NotContains(t, out.String(), "committed")
+	assert.Contains(t, out.String(), "Tagged v1.4.0-rc.1 and pushed")
+	require.Len(t, mr.Calls, 2)
+	assert.Equal(t, "tag", mr.Calls[0].Args[0])
+	assert.Equal(t, []string{"push", "origin", "refs/tags/v1.4.0-rc.1"}, mr.Calls[1].Args)
 }
 
 func TestChangelogRun_PreRelease_WithoutTagExitsCleanly(t *testing.T) {

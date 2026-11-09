@@ -29,8 +29,6 @@ type releaseStep struct {
 	// reported, so a hook template that does not render aborts the dry run instead of showing a
 	// failed step. Nil means the step has nothing to show.
 	dry func() (detail string, subs []string, err error)
-	// plain returns the lines a dry run prints when there is no reporter. Nil means none.
-	plain func() ([]string, error)
 	// plan returns the entries Plan lists for the step. Nil means none.
 	plan func() ([]PlanStep, error)
 }
@@ -112,10 +110,7 @@ func (p *Pipeline) releaseFlow(ctx context.Context, result versioning.Result) *r
 					detail, subs := changelogGenResult(p.cfg.Changelog)
 					return detail, subs, nil
 				},
-				dry: func() (string, []string, error) { return "[dry-run] would write " + file(), nil, nil },
-				plain: func() ([]string, error) {
-					return []string{withPushOptions("[dry-run] would generate changelog → commit → push", p.cfg.CommitPushOptions)}, nil
-				},
+				dry:  func() (string, []string, error) { return "[dry-run] would write " + file(), nil, nil },
 				plan: func() ([]PlanStep, error) { return []PlanStep{{Action: "changelog", Target: file()}}, nil },
 			},
 			releaseStep{
@@ -154,10 +149,7 @@ func (p *Pipeline) releaseFlow(ctx context.Context, result versioning.Result) *r
 				}
 				return "", nil, nil
 			},
-			dry: func() (string, []string, error) { return "[dry-run] would tag", nil, nil },
-			plain: func() ([]string, error) {
-				return []string{withPushOptions(fmt.Sprintf("[dry-run] would tag %s and push", result.Tag), p.cfg.TagPushOptions)}, nil
-			},
+			dry:  func() (string, []string, error) { return "[dry-run] would tag", nil, nil },
 			plan: func() ([]PlanStep, error) { return []PlanStep{{Action: "tag", Target: result.Tag}}, nil },
 		},
 		releaseStep{
@@ -232,7 +224,6 @@ func newHookStep(noHooks bool, git *gitHelper, point string, steps []HookStep, v
 			}
 			return lines[0], lines[1:], nil
 		},
-		plain: func() ([]string, error) { return dryRunHookLines(steps, vars) },
 		plan: func() ([]PlanStep, error) {
 			entry, err := hookPlanStep(point, "", steps, vars)
 			return []PlanStep{entry}, err
@@ -347,18 +338,6 @@ func (p *Pipeline) publishStep(ctx context.Context, plat port.Platform, result v
 			}
 			return "[dry-run] would create release", append(subs, post...), nil
 		},
-		plain: func() ([]string, error) {
-			pre, err := p.dryRunHookLinesOrNil(p.cfg.PreReleaseHooks, platVars)
-			if err != nil {
-				return nil, err
-			}
-			post, err := p.dryRunHookLinesOrNil(p.cfg.PostReleaseHooks, platVars)
-			if err != nil {
-				return nil, err
-			}
-			lines := append(pre, "[dry-run] would publish to "+plat.Name())
-			return append(lines, post...), nil
-		},
 		plan: func() ([]PlanStep, error) {
 			var entries []PlanStep
 			if hooksOn && len(p.cfg.PreReleaseHooks) > 0 {
@@ -400,7 +379,7 @@ type stepRunner struct {
 	debug func(msg string, args ...any)
 }
 
-// runStep calls fn via the reporter when one is set, or directly when nil.
+// runStep calls fn via the reporter.
 // Errors returned by fn are propagated verbatim so callers can use errors.Is/As.
 func (r stepRunner) runStep(name string, fn func() (string, []string, error)) error {
 	if r.debug != nil {
@@ -413,10 +392,6 @@ func (r stepRunner) runStep(name string, fn func() (string, []string, error)) er
 		}
 		return out, sub, err
 	}
-	if r.reporter == nil {
-		_, _, err := logged()
-		return err
-	}
 	return r.reporter(name, logged)
 }
 
@@ -427,9 +402,7 @@ func (r stepRunner) runSteps(steps []releaseStep, hookFailed *[]string) error {
 			if err := s.gate(); err != nil {
 				// A gate runs outside any reported step, and the command swaps the error for a
 				// one-line summary once a reporter has run, so show the reason here.
-				if r.reporter != nil {
-					_, _ = fmt.Fprintln(r.out, ui.Err(r.out, err.Error()))
-				}
+				_, _ = fmt.Fprintln(r.out, ui.Err(r.out, err.Error()))
 				return err
 			}
 			continue
@@ -455,22 +428,8 @@ func (r stepRunner) runSteps(steps []releaseStep, hookFailed *[]string) error {
 	return nil
 }
 
-// renderStep shows what s would do: one reported step when there is a reporter, otherwise the
-// plain [dry-run] lines for CI-friendly output.
+// renderStep shows what s would do as one reported step.
 func (r stepRunner) renderStep(s releaseStep) error {
-	if r.reporter == nil {
-		if s.plain == nil {
-			return nil
-		}
-		lines, err := s.plain()
-		if err != nil {
-			return err
-		}
-		for _, l := range lines {
-			_, _ = fmt.Fprintln(r.out, l)
-		}
-		return nil
-	}
 	if s.dry == nil {
 		return nil
 	}
@@ -482,4 +441,10 @@ func (r stepRunner) renderStep(s releaseStep) error {
 		return nil
 	}
 	return r.runStep(s.name, func() (string, []string, error) { return detail, subs, nil })
+}
+
+// silentReporter runs a step and shows nothing: the pipeline's reporter until WithReporter sets one.
+func silentReporter(_ string, fn func() (string, []string, error)) error {
+	_, _, err := fn()
+	return err
 }

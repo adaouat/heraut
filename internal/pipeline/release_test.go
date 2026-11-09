@@ -569,16 +569,20 @@ func TestRun_DryRun(t *testing.T) {
 		Platforms:     []port.Platform{platform},
 	}
 
-	out := &bytes.Buffer{}
-	p := pipeline.New(mr, &fakeResolver{result: resolvedResult("v1.2.3")}, cfg, out, true)
+	var captured []capturedStep
+	p := pipeline.New(mr, &fakeResolver{result: resolvedResult("v1.2.3")}, cfg, &bytes.Buffer{}, true).
+		WithReporter(capturingStepFn(&captured))
 	require.NoError(t, p.Run(t.Context()))
 
 	// No real runner calls in dry-run
 	assert.Len(t, mr.Calls, 0)
 	// No platform calls
 	assert.Len(t, platform.CreateReleaseCalls, 0)
-	// Dry-run output contains the resolved tag
-	assert.Contains(t, out.String(), "v1.2.3")
+	results := map[string]string{}
+	for _, s := range captured {
+		results[s.name] = s.result
+	}
+	assert.Equal(t, "[dry-run] would push v1.2.3", results["Push tag"])
 }
 
 // TestRun_DisableChangelog verifies changelog step is skipped when flag is set.
@@ -1087,20 +1091,19 @@ func TestRun_DisabledChangelog_PreReleaseStillTagsAndPublishes(t *testing.T) {
 	assert.True(t, platform.CreateReleaseCalls[0].Prerelease)
 }
 
-// TestRun_DryRun_DisabledChangelog_PlainOutputOmitsChangelog pins that a dry run with the
-// changelog disabled (as for a pre-release) prints no changelog line and no pre_changelog hook.
-func TestRun_DryRun_DisabledChangelog_PlainOutputOmitsChangelog(t *testing.T) {
+// TestRun_DryRun_DisabledChangelog_OmitsChangelog pins that a dry run with the changelog disabled
+// (as for a pre-release) shows no changelog step and no pre_changelog hook.
+func TestRun_DryRun_DisabledChangelog_OmitsChangelog(t *testing.T) {
 	cfg := &pipeline.Config{
 		Changelog: &testutil.MockGenerator{}, ChangelogFile: "CHANGELOG.md", DisableChangelog: true,
 		PreChangelogHooks: []pipeline.HookStep{{Run: "echo pre-changelog-marker"}},
 	}
-	var out bytes.Buffer
-	p := pipeline.New(exectest.NewMockRunner(), &fakeResolver{result: resolvedResult("v1.4.0-rc.1")}, cfg, &out, true)
+	var captured []capturedStep
+	p := pipeline.New(exectest.NewMockRunner(), &fakeResolver{result: resolvedResult("v1.4.0-rc.1")}, cfg, &bytes.Buffer{}, true).
+		WithReporter(capturingStepFn(&captured))
 	require.NoError(t, p.Run(t.Context()))
 
-	assert.Contains(t, out.String(), "[dry-run] would tag v1.4.0-rc.1")
-	assert.NotContains(t, out.String(), "hangelog")
-	assert.NotContains(t, out.String(), "pre-changelog-marker")
+	assert.Equal(t, []string{"Resolve version", "Create tag v1.4.0-rc.1", "Push tag"}, stepNames(captured))
 }
 
 // A target on another instance than the CI job's (a GitHub Enterprise mirror published from

@@ -25,7 +25,6 @@ type LinkContext struct {
 // requests that fetch pull-request details.
 type Generator interface {
 	Check() error
-	Validate() error
 	Generate(ctx context.Context, tag string, lc *LinkContext) (string, error)
 }
 

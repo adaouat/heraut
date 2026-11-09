@@ -17,13 +17,12 @@ import (
 )
 
 // stubGenerator is a minimal port.Generator double used to prove wrapWithRotation's passthrough
-// behavior and Check/Validate delegation without constructing a real native.Generator.
+// behavior and Check delegation without constructing a real native.Generator.
 type stubGenerator struct {
-	checkErr, validateErr error
+	checkErr error
 }
 
-func (s *stubGenerator) Check() error    { return s.checkErr }
-func (s *stubGenerator) Validate() error { return s.validateErr }
+func (s *stubGenerator) Check() error { return s.checkErr }
 func (s *stubGenerator) Generate(_ context.Context, tag string, lc *port.LinkContext) (string, error) {
 	return "stub:" + tag, nil
 }
@@ -38,9 +37,9 @@ func TestWrapWithRotation_NoTokens_Passthrough(t *testing.T) {
 	assert.Same(t, gen, got, "no rotation tokens must return the original generator unchanged")
 }
 
-func TestWrapWithRotation_WithTokens_DelegatesCheckAndValidate(t *testing.T) {
+func TestWrapWithRotation_WithTokens_DelegatesCheck(t *testing.T) {
 	wantErr := assert.AnError
-	gen := &stubGenerator{checkErr: wantErr, validateErr: wantErr}
+	gen := &stubGenerator{checkErr: wantErr}
 	driver := &config.ContentDriver{Output: "CHANGELOG_{YYYY}.md"}
 	cfg := &config.Config{Versioning: config.Versioning{Strategy: "calver", Format: "YYYY.MM.PATCH"}}
 
@@ -48,7 +47,6 @@ func TestWrapWithRotation_WithTokens_DelegatesCheckAndValidate(t *testing.T) {
 
 	assert.NotSame(t, gen, got, "tokens present must wrap, not pass through")
 	assert.ErrorIs(t, got.Check(), wantErr)
-	assert.ErrorIs(t, got.Validate(), wantErr)
 }
 
 // noTagsMockRunner returns a MockRunner pre-queued with an empty git-tag-list response, for

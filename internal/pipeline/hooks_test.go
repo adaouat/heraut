@@ -118,27 +118,6 @@ func TestRenderHookSteps_StopsAtFirstError(t *testing.T) {
 	require.Error(t, err)
 }
 
-func TestShouldRunHooks(t *testing.T) {
-	tests := []struct {
-		name    string
-		dryRun  bool
-		noHooks bool
-		steps   []HookStep
-		want    bool
-	}{
-		{"normal run with hooks configured", false, false, []HookStep{{Run: "echo hi"}}, true},
-		{"dry-run skips even when configured", true, false, []HookStep{{Run: "echo hi"}}, false},
-		{"--no-hooks skips even when configured", false, true, []HookStep{{Run: "echo hi"}}, false},
-		{"nothing configured", false, false, nil, false},
-		{"dry-run and no-hooks and nothing configured", true, true, nil, false},
-	}
-	for _, tc := range tests {
-		t.Run(tc.name, func(t *testing.T) {
-			assert.Equal(t, tc.want, shouldRunHooks(tc.dryRun, tc.noHooks, tc.steps))
-		})
-	}
-}
-
 func TestRunHookPointSteps_ReturnsRenderedStepsOnSuccess(t *testing.T) {
 	mr := exectest.NewMockRunner()
 	mr.QueueResponse("", "", nil)

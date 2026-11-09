@@ -1100,12 +1100,25 @@ Spec 03 limits it to CalVer formats with `SPRINT`. Config error, dry run include
 file is left untouched. Test: semver and a `YYYY.MM.PATCH` calver config, with and without `--dry-run`
 (red before). Spec 03 already said so.
 
-#### `[ ]` T545: remove code no binary path reaches
+#### `[x]` T545: remove code no binary path reaches
 
 A reporter is always installed (`internal/app/pipeline.go:101,173`), so every `reporter == nil` branch
 is dead: each step's `plain` closure, `release.go:131` "[dry-run] would release", the plain summaries.
 Also test-only: `pipeline.shouldRunHooks` (`hooks.go:87`), `semver.Resolver.SetVersionOverride` and the
 override branch of `resolveManual`; `Generator.Validate()` has no production caller (Spec 05:421).
+
+Done. `pipeline.New` and `NewChangelog` now install `silentReporter` (runs the step, shows nothing), so
+the step runner always goes through a reporter: the `plain` field and its closures, the `reporter == nil`
+branches, the "[dry-run] would release" line and the lower-case plain summaries are gone. The 11 tests
+that read plain output now capture the reporter (`capturingStepFn`); the three that only duplicated an
+existing reporter test (`Plain_ShowsHookLines`, both `PushOptionsInPlainLines`) were deleted.
+`shouldRunHooks` and its test went; the pipeline hook tests cover the same rule. `SetVersionOverride` and
+`resolveManual` went (bump: manual without the flag still errors in `Resolve`). Of their tests, the ones
+`app.NewResolver` already covers were deleted, the pre-release one tested a combination the app refuses,
+and the two stay_at_v0 reset tests now hold nothing back with a `fix:` commit. "--set-version beats a
+version branch" moved to the app resolver table. `Generator.Validate` left the port, the three
+implementers and Spec 05. Mutation checks: removing `r.reset()` fails both reset tests, and a
+`silentReporter` that skips the step fails 21 pipeline tests.
 
 #### `[ ]` T546: a clear error on a repository with no commits
 

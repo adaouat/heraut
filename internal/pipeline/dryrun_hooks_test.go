@@ -2,7 +2,6 @@ package pipeline_test
 
 import (
 	"bytes"
-	"strings"
 	"testing"
 
 	"github.com/adaouat/forge/exec/exectest"
@@ -150,21 +149,6 @@ func TestRun_DryRun_PostBumpHookWithStage_ShowsWouldStageLine(t *testing.T) {
 	assert.Contains(t, step.subs, "[dry-run] would stage: CHANGELOG.md")
 }
 
-func TestRun_DryRun_Plain_ShowsHookLines(t *testing.T) {
-	mr := exectest.NewMockRunner()
-	platform := &testutil.MockPlatform{PlatformName: "github"}
-	cfg := &pipeline.Config{
-		Platforms:     []port.Platform{platform},
-		PostBumpHooks: []pipeline.HookStep{{Run: "echo {{ .Version }}"}},
-	}
-
-	out := &bytes.Buffer{}
-	p := pipeline.New(mr, &fakeResolver{result: resolvedResult("v1.2.3")}, cfg, out, true)
-	require.NoError(t, p.Run(t.Context()))
-
-	assert.Contains(t, out.String(), "[dry-run] would run: echo 1.2.3")
-}
-
 func TestChangelogRun_DryRun_AllFourHookSteps(t *testing.T) {
 	mr := exectest.NewMockRunner()
 	changelog := &testutil.MockGenerator{}
@@ -192,28 +176,9 @@ func TestChangelogRun_DryRun_AllFourHookSteps(t *testing.T) {
 }
 
 // TestChangelogRun_DryRun_PostBumpRendersEvenWhenDisabledAndNoTag proves post_bump's dry-run
-// rendering fires even in the one case where dryRunOutput itself is never reached (Run()
-// returns immediately after the DisableChangelog+!Tag branch, before the dry-run check) — the
+// rendering fires even when Run() returns right after the DisableChangelog+!Tag branch — the
 // dry-run counterpart to TestChangelogRun_PostBumpHook_FiresEvenWhenDisabledAndNoTag.
 func TestChangelogRun_DryRun_PostBumpRendersEvenWhenDisabledAndNoTag(t *testing.T) {
-	mr := exectest.NewMockRunner()
-	cfg := &pipeline.ChangelogConfig{
-		DisableChangelog: true,
-		Tag:              false,
-		PostBumpHooks:    []pipeline.HookStep{{Run: "echo {{ .Version }}"}},
-	}
-
-	out := &bytes.Buffer{}
-	p := pipeline.NewChangelog(mr, &fakeResolver{result: resolvedResult("v1.2.3")}, cfg, out, true)
-	require.NoError(t, p.Run(t.Context()))
-
-	assert.Empty(t, mr.Calls, "dry-run must not execute anything for real")
-	assert.Contains(t, out.String(), "[dry-run] would run: echo 1.2.3")
-}
-
-// TestChangelogRun_DryRun_PostBumpRendersEvenWhenDisabledAndNoTag_Reporter is the reporter-path
-// counterpart: the step must appear even though dryRunOutput is never reached.
-func TestChangelogRun_DryRun_PostBumpRendersEvenWhenDisabledAndNoTag_Reporter(t *testing.T) {
 	mr := exectest.NewMockRunner()
 	cfg := &pipeline.ChangelogConfig{
 		DisableChangelog: true,
@@ -226,15 +191,14 @@ func TestChangelogRun_DryRun_PostBumpRendersEvenWhenDisabledAndNoTag_Reporter(t 
 		WithReporter(capturingStepFn(&captured))
 	require.NoError(t, p.Run(t.Context()))
 
-	assert.Empty(t, mr.Calls)
-	names := stepNames(captured)
-	assert.Contains(t, names, "Run post_bump hooks")
+	assert.Empty(t, mr.Calls, "dry-run must not execute anything for real")
+	require.Equal(t, []string{"Resolve version", "Run post_bump hooks"}, stepNames(captured))
+	assert.Equal(t, "[dry-run] would run: echo 1.2.3", captured[1].result)
 }
 
-// TestChangelogRun_DryRun_PreChangelogHookWithStage_ShowsWouldStageLine is the plain-writer
-// counterpart to TestRun_DryRun_PostBumpHookWithStage_ShowsWouldStageLine: proves the
-// "would stage:" line surfaces through printDryRunHookLinesPlain → dryRunHookLinesOrNil →
-// dryRunHookLines too, right after its "would run:" line, for the ChangelogPipeline.
+// TestChangelogRun_DryRun_PreChangelogHookWithStage_ShowsWouldStageLine is the ChangelogPipeline
+// counterpart to TestRun_DryRun_PostBumpHookWithStage_ShowsWouldStageLine: the "would stage:" line
+// follows its "would run:" line.
 func TestChangelogRun_DryRun_PreChangelogHookWithStage_ShowsWouldStageLine(t *testing.T) {
 	mr := exectest.NewMockRunner()
 	changelog := &testutil.MockGenerator{}
@@ -245,17 +209,19 @@ func TestChangelogRun_DryRun_PreChangelogHookWithStage_ShowsWouldStageLine(t *te
 		},
 	}
 
-	out := &bytes.Buffer{}
-	p := pipeline.NewChangelog(mr, &fakeResolver{result: resolvedResult("v1.2.3")}, cfg, out, true)
+	var captured []capturedStep
+	p := pipeline.NewChangelog(mr, &fakeResolver{result: resolvedResult("v1.2.3")}, cfg, &bytes.Buffer{}, true).
+		WithReporter(capturingStepFn(&captured))
 	require.NoError(t, p.Run(t.Context()))
 
 	assert.Empty(t, mr.Calls, "dry-run must not execute anything for real")
-	lines := out.String()
-	runIdx := strings.Index(lines, "[dry-run] would run: make lint")
-	stageIdx := strings.Index(lines, "[dry-run] would stage: dist/*.tgz")
-	require.NotEqual(t, -1, runIdx, "would run: line must be present")
-	require.NotEqual(t, -1, stageIdx, "would stage: line must be present")
-	assert.Less(t, runIdx, stageIdx, "would stage: must follow its would run: line")
+	byName := map[string]capturedStep{}
+	for _, s := range captured {
+		byName[s.name] = s
+	}
+	step := byName["Run pre_changelog hooks"]
+	assert.Equal(t, "[dry-run] would run: make lint", step.result)
+	assert.Equal(t, []string{"[dry-run] would stage: dist/*.tgz"}, step.subs)
 }
 
 func TestChangelogRun_DryRun_NoHooksSuppressesAllHookSteps(t *testing.T) {

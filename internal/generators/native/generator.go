@@ -126,7 +126,6 @@ func (g *Generator) Check() error { return nil }
 
 // Validate checks generator-specific config. native has no required config in Phase 1 (user
 // templates are deferred — ADR-0033), so it always succeeds.
-func (g *Generator) Validate() error { return nil }
 
 // Degraded reports whether an optional remote-enrichment fetch failed during the last run.
 func (g *Generator) Degraded() bool { return g.degraded }

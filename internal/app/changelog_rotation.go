@@ -74,8 +74,7 @@ func wrapWithRotation(
 	}
 }
 
-func (r *rotatingGenerator) Check() error    { return r.fallback.Check() }
-func (r *rotatingGenerator) Validate() error { return r.fallback.Validate() }
+func (r *rotatingGenerator) Check() error { return r.fallback.Check() }
 
 // LastOutputPath returns the concrete path the most recent Generate call resolved to, or "" before
 // the first call. internal/pipeline type-asserts for this (structurally — it never imports

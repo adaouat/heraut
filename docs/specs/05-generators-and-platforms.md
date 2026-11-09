@@ -420,16 +420,12 @@ The generator implements `port.Generator`:
 ```go
 type Generator interface {
     Check() error                                            // no-op: no external binary to verify
-    Validate() error                                         // no-op: no external config file to verify
     Generate(ctx context.Context, tag string, link *port.LinkContext) (string, error) // render in-process, return the rendered string; ctx stops the pull-request lookups (Ctrl-C)
 }
 ```
 
-`Validate()` has no production call site today — `heraut check config` validates the parsed
-`Config` struct directly (`config.Validate`), and `Pipeline.Check` calls `Generator.Check()`,
-not `Validate()`. It exists on the interface for a generator implementation that has its own
-config to validate independently of `.heraut.yml`; `native` correctly no-ops it since it has
-none.
+`heraut check config` validates the parsed `Config` struct directly (`config.Validate`); a generator
+has no config of its own to validate, so the interface has no `Validate` method.
 
 **Per-platform link resolution**: when a release targets **more than one** platform,
 heraut regenerates the release notes once per platform and passes that platform's

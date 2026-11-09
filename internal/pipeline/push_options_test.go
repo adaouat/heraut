@@ -89,22 +89,6 @@ func TestChangelogRun_PushOptions_NoPushPushesNothing(t *testing.T) {
 	}
 }
 
-func TestRun_DryRun_PushOptionsInPlainLines(t *testing.T) {
-	cfg := &pipeline.Config{
-		Changelog:         &testutil.MockGenerator{},
-		ChangelogFile:     "CHANGELOG.md",
-		Platforms:         []port.Platform{&testutil.MockPlatform{PlatformName: "github"}},
-		CommitPushOptions: commitOpts,
-		TagPushOptions:    tagOpts,
-	}
-	var out bytes.Buffer
-	p := pipeline.New(exectest.NewMockRunner(), &fakeResolver{result: resolvedResult("v1.2.3")}, cfg, &out, true)
-	require.NoError(t, p.Run(t.Context()))
-
-	assert.Contains(t, out.String(), "[dry-run] would generate changelog → commit → push (--push-option=ci.skip)\n")
-	assert.Contains(t, out.String(), "[dry-run] would tag v1.2.3 and push (--push-option=ci.variable=DEPLOY=true --push-option=-x)\n")
-}
-
 func TestRun_DryRun_PushOptionsInReporterLines(t *testing.T) {
 	cfg := &pipeline.Config{
 		Changelog:         &testutil.MockGenerator{},
@@ -132,28 +116,17 @@ func TestRun_DryRun_NoPushOptionsKeepsTheLines(t *testing.T) {
 		ChangelogFile: "CHANGELOG.md",
 		Platforms:     []port.Platform{&testutil.MockPlatform{PlatformName: "github"}},
 	}
-	var out bytes.Buffer
-	p := pipeline.New(exectest.NewMockRunner(), &fakeResolver{result: resolvedResult("v1.2.3")}, cfg, &out, true)
+	var captured []capturedStep
+	p := pipeline.New(exectest.NewMockRunner(), &fakeResolver{result: resolvedResult("v1.2.3")}, cfg, &bytes.Buffer{}, true).
+		WithReporter(capturingStepFn(&captured))
 	require.NoError(t, p.Run(t.Context()))
 
-	assert.Contains(t, out.String(), "[dry-run] would generate changelog → commit → push\n")
-	assert.Contains(t, out.String(), "[dry-run] would tag v1.2.3 and push\n")
-}
-
-func TestChangelogRun_DryRun_PushOptionsInPlainLines(t *testing.T) {
-	cfg := &pipeline.ChangelogConfig{
-		Changelog:         &testutil.MockGenerator{},
-		ChangelogFile:     "CHANGELOG.md",
-		Tag:               true,
-		CommitPushOptions: commitOpts,
-		TagPushOptions:    tagOpts,
+	results := map[string]string{}
+	for _, s := range captured {
+		results[s.name] = s.result
 	}
-	var out bytes.Buffer
-	p := pipeline.NewChangelog(exectest.NewMockRunner(), &fakeResolver{result: resolvedResult("v1.2.3")}, cfg, &out, true)
-	require.NoError(t, p.Run(t.Context()))
-
-	assert.Contains(t, out.String(), "[dry-run] would commit → push (--push-option=ci.skip)\n")
-	assert.Contains(t, out.String(), "[dry-run] would tag v1.2.3 and push (--push-option=ci.variable=DEPLOY=true --push-option=-x)\n")
+	assert.Equal(t, "[dry-run] would commit and push", results["Commit changelog"])
+	assert.Equal(t, "[dry-run] would push v1.2.3", results["Push tag"])
 }
 
 func TestChangelogRun_DryRun_PushOptionsInReporterLines(t *testing.T) {

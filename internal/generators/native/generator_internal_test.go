@@ -18,10 +18,9 @@ import (
 	"github.com/adaouat/heraut/internal/port"
 )
 
-func TestGenerator_CheckValidateDegraded(t *testing.T) {
+func TestGenerator_CheckDegraded(t *testing.T) {
 	g := New(exectest.NewMockRunner(), &config.ContentDriver{}, ModeChangelog)
 	assert.NoError(t, g.Check(), "no external binary → Check always succeeds")
-	assert.NoError(t, g.Validate())
 	assert.False(t, g.Degraded(), "Phase 1 has no enrichment → never degraded")
 }
 

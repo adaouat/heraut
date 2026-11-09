@@ -45,7 +45,7 @@ func ValidateSkipHooks(values, allowed []string) ([]string, error) {
 
 // dropSkippedHooks empties each named point's step list. Emptying (rather than adding a parallel
 // "skipped" flag) is deliberate: every consumer already treats an empty list as "nothing
-// configured" — shouldRunHooks, the [N/total] step counters, dry-run hook lines, and the
+// configured" — the hook steps, the [N/total] step counters, dry-run hook lines, and the
 // collection of declared `stage` patterns — so a skipped point behaves exactly like an absent one
 // with no change to internal/pipeline.
 func dropSkippedHooks(skip []string, points map[string]*[]pipeline.HookStep) {

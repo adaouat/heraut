@@ -114,19 +114,6 @@ func TestResolveFixed_CustomPrefix(t *testing.T) {
 	assert.Equal(t, "7.8.0", res.Version)
 }
 
-func TestResolveFixed_SetVersionStillWins(t *testing.T) {
-	mr := exectest.NewMockRunner()
-	r := semver.New(mr, semverCfg())
-	r.SetFixedVersion("7.8.0")
-	r.SetVersionOverride("9.9.9")
-
-	res, err := r.Resolve()
-
-	require.NoError(t, err)
-	assert.Equal(t, "v9.9.9", res.Tag)
-	assert.Empty(t, mr.Calls)
-}
-
 func TestResolveFixed_EmptyRestoresNormalResolution(t *testing.T) {
 	mr := exectest.NewMockRunner()
 	mr.QueueResponse("", "", nil) // no tags: initial version

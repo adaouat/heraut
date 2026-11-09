@@ -81,12 +81,11 @@ type ChangelogPipeline struct {
 
 // NewChangelog constructs a ChangelogPipeline.
 func NewChangelog(runner port.Runner, resolver versioning.Resolver, cfg *ChangelogConfig, out io.Writer, dryRun bool) *ChangelogPipeline {
-	return &ChangelogPipeline{git: gitHelper{runner: runner, pushBranch: cfg.CommitPushBranch}, resolver: resolver, cfg: cfg, out: out, dryRun: dryRun}
+	return &ChangelogPipeline{git: gitHelper{runner: runner, pushBranch: cfg.CommitPushBranch}, resolver: resolver, cfg: cfg, out: out, dryRun: dryRun, reporter: silentReporter}
 }
 
-// WithReporter sets the step reporter and returns p for chaining.
-// When reporter is nil (the zero value), Run() behaves identically to the
-// pre-reporter implementation — no output beyond the final summary.
+// WithReporter sets the step reporter and returns p for chaining. Without one, steps run and
+// report nothing (silentReporter).
 func (p *ChangelogPipeline) WithReporter(fn ui.StepFn) *ChangelogPipeline {
 	p.reporter = fn
 	return p
@@ -155,8 +154,7 @@ func (p *ChangelogPipeline) changelogFlow(ctx context.Context, result versioning
 				detail, subs := changelogGenResult(p.cfg.Changelog)
 				return detail, subs, nil
 			},
-			dry:   func() (string, []string, error) { return "[dry-run] would write " + file(), nil, nil },
-			plain: func() ([]string, error) { return []string{"[dry-run] would generate changelog for " + result.Tag}, nil },
+			dry: func() (string, []string, error) { return "[dry-run] would write " + file(), nil, nil },
 		})
 		if p.cfg.Commit || p.cfg.Tag {
 			body = append(body, releaseStep{
@@ -180,12 +178,6 @@ func (p *ChangelogPipeline) changelogFlow(ctx context.Context, result versioning
 					}
 					return withPushOptions("[dry-run] would commit and push", p.cfg.CommitPushOptions), nil, nil
 				},
-				plain: func() ([]string, error) {
-					if p.cfg.NoPush {
-						return []string{"[dry-run] would commit (no push)"}, nil
-					}
-					return []string{withPushOptions("[dry-run] would commit → push", p.cfg.CommitPushOptions)}, nil
-				},
 			})
 		}
 	}
@@ -203,12 +195,6 @@ func (p *ChangelogPipeline) changelogFlow(ctx context.Context, result versioning
 				return "", nil, nil
 			},
 			dry: func() (string, []string, error) { return "[dry-run] would tag", nil, nil },
-			plain: func() ([]string, error) {
-				if p.cfg.NoPush {
-					return []string{fmt.Sprintf("[dry-run] would tag %s (no push)", result.Tag)}, nil
-				}
-				return []string{withPushOptions(fmt.Sprintf("[dry-run] would tag %s and push", result.Tag), p.cfg.TagPushOptions)}, nil
-			},
 		})
 		if !p.cfg.NoPush {
 			body = append(body, releaseStep{
@@ -261,15 +247,10 @@ func (p *ChangelogPipeline) Run(ctx context.Context) error {
 	}
 
 	if p.cfg.DisableChangelog {
-		switch {
-		case p.cfg.PreRelease && p.reporter != nil:
+		if p.cfg.PreRelease {
 			_, _ = fmt.Fprintln(p.out, ui.Warn(p.out, "pre-release: CHANGELOG.md not updated"))
-		case p.cfg.PreRelease:
-			_, _ = fmt.Fprintf(p.out, "pre-release %s: CHANGELOG.md not updated\n", result.Tag)
-		case p.reporter != nil:
+		} else {
 			_, _ = fmt.Fprintln(p.out, ui.Warn(p.out, "changelog disabled"))
-		default:
-			_, _ = fmt.Fprintf(p.out, "changelog disabled for %s\n", result.Tag)
 		}
 		if !p.cfg.Tag {
 			return nil
@@ -289,8 +270,6 @@ func (p *ChangelogPipeline) Run(ctx context.Context) error {
 }
 
 // printSummary writes the post-run summary to p.out.
-// With a reporter it uses the styled block; without one it keeps the original
-// single-line format so existing plain callers are unaffected.
 func (p *ChangelogPipeline) printSummary(result versioning.Result) {
 	if p.cfg.DisableChangelog {
 		p.printTagOnlySummary(result)
@@ -304,36 +283,28 @@ func (p *ChangelogPipeline) printSummary(result versioning.Result) {
 		_, _ = fmt.Fprintf(p.out, "\nNo changelog: block in the config: nothing written for %s\n", result.Tag)
 		return
 	}
-	if p.reporter != nil {
-		_, _ = fmt.Fprintf(p.out, "\nChangelog updated for %s\n", result.Tag)
-		if p.cfg.Commit || p.cfg.Tag {
-			file := resolvedChangelogFile(p.cfg.Changelog, p.cfg.ChangelogFile)
-			switch {
-			case !p.committed && p.git.pushed:
-				_, _ = fmt.Fprintf(p.out, "  %s unchanged, HEAD pushed\n", file)
-			case !p.committed && p.cfg.NoPush:
-				_, _ = fmt.Fprintf(p.out, "  %s unchanged, nothing committed\n", file)
-			case !p.committed:
-				_, _ = fmt.Fprintf(p.out, "  %s unchanged, nothing committed or pushed\n", file)
-			case p.cfg.NoPush:
-				_, _ = fmt.Fprintf(p.out, "  %s committed (not pushed)\n", file)
-			default:
-				_, _ = fmt.Fprintf(p.out, "  %s committed and pushed\n", file)
-			}
+	_, _ = fmt.Fprintf(p.out, "\nChangelog updated for %s\n", result.Tag)
+	if p.cfg.Commit || p.cfg.Tag {
+		file := resolvedChangelogFile(p.cfg.Changelog, p.cfg.ChangelogFile)
+		switch {
+		case !p.committed && p.git.pushed:
+			_, _ = fmt.Fprintf(p.out, "  %s unchanged, HEAD pushed\n", file)
+		case !p.committed && p.cfg.NoPush:
+			_, _ = fmt.Fprintf(p.out, "  %s unchanged, nothing committed\n", file)
+		case !p.committed:
+			_, _ = fmt.Fprintf(p.out, "  %s unchanged, nothing committed or pushed\n", file)
+		case p.cfg.NoPush:
+			_, _ = fmt.Fprintf(p.out, "  %s committed (not pushed)\n", file)
+		default:
+			_, _ = fmt.Fprintf(p.out, "  %s committed and pushed\n", file)
 		}
-		return
 	}
-	_, _ = fmt.Fprintf(p.out, "changelog updated for %s\n", result.Tag)
 }
 
 // printTagOnlySummary reports a run whose changelog step was skipped: the only work that can have
 // happened is the tag.
 func (p *ChangelogPipeline) printTagOnlySummary(result versioning.Result) {
 	if !p.cfg.Tag {
-		return
-	}
-	if p.reporter == nil {
-		_, _ = fmt.Fprintf(p.out, "tagged %s\n", result.Tag)
 		return
 	}
 	if p.cfg.NoPush {

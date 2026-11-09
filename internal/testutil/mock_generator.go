@@ -9,7 +9,6 @@ import (
 // MockGenerator is a port.Generator that records calls for contract testing.
 type MockGenerator struct {
 	CheckErr         error
-	ValidateErr      error
 	GenerateOut      string
 	GenerateErr      error
 	GenerateCalls    []string            // tags passed to Generate
@@ -21,8 +20,6 @@ type MockGenerator struct {
 }
 
 func (m *MockGenerator) Check() error { return m.CheckErr }
-
-func (m *MockGenerator) Validate() error { return m.ValidateErr }
 
 func (m *MockGenerator) Generate(ctx context.Context, tag string, lc *port.LinkContext) (string, error) {
 	m.GenerateCtxs = append(m.GenerateCtxs, ctx)
