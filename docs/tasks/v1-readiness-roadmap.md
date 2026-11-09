@@ -37,7 +37,7 @@ post-v1 (Phase 100). The v1.0.0 cut (Phase 101) comes last.
 | 96 | Behaviour fixes | T507–T522 | Done |
 | 97 | Tests that give false confidence | T523–T529 | Done |
 | 98 | User docs | T530–T536 | Done |
-| 99 | Contributor docs | T537–T541 | Not started |
+| 99 | Contributor docs | T537–T541 | Done (T541 minus the GitLab driver package) |
 | 100 | Remaining review items (graded post-v1, done before v1 by decision) | T542–T554, T556 | Not started |
 | 101 | Cut v1.0.0 | T555 | Not started |
 
@@ -1046,10 +1046,16 @@ Also:
 - The mid-flight note is marked resolved rather than deleted, since deleting a file needs the user's
   go.
 
-#### `[ ]` T541: package doc comments
+#### `[x]` T541: package doc comments
 
 `go list -f '{{.Doc}}'` is empty for app, cmd, config, pipeline, platforms/*, port, scaffold, testutil,
 ui and versioning/*. One sentence each, saying what the package owns.
+
+**Done (2026-11-09).** A `doc.go` with one or two sentences in each of 18 packages (including
+`cmd/heraut` and `e2e`). Each names what the package owns and, where it matters, what it never does
+(`app` alone constructs implementations; `pipeline` builds nothing itself). Not done:
+`internal/platforms/gitlab`, because the user's standing rule keeps the GitLab driver untouched without
+an explicit go; it is the only package left without a doc comment.
 
 ---
 
