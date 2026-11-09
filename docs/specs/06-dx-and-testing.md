@@ -169,7 +169,8 @@ behaviour it covers is deliberately changed, with an ADR documenting the change.
 
 ## CI
 
-`.github/workflows/ci.yml` runs three jobs on every PR and on every push to `main`:
+`.github/workflows/ci.yml` runs three jobs on every PR and on every push to `main`, with a
+read-only token (`permissions: contents: read`, the reusable workflow included):
 
 1. **`ci`** — delegates to forge's shared reusable workflow
    (`adaouat/forge/.github/workflows/go-ci.yml`), which runs `go test ./...` and

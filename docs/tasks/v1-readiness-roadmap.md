@@ -1188,11 +1188,17 @@ neither endpoint accepts it, and its write access cannot be proven before the ta
 against the Lane B sandboxes (only on the user's word): the real answers of both endpoints for the
 sandbox tokens remain to be seen there.
 
-#### `[ ]` T550: CI hardening (CI/CD: needs the go)
+#### `[x]` T550: CI hardening (CI/CD: needs the go)
 
 - `.github/workflows/ci.yml` has no `permissions:`: add `contents: read` at the top.
 - `.goreleaser.yml` builds without `-trimpath` (the Dockerfile has it): add `flags: [-trimpath]`. The
   ldflags themselves are identical, as CLAUDE.md requires.
+
+Done (the user's go, 2026-11-09). `ci.yml` declares `permissions: contents: read` at the top; forge's
+`go-ci.yml` at the pinned commit declares and writes nothing, so the cap costs it nothing.
+`.goreleaser.yml` builds with `flags: [-trimpath]`: `goreleaser check` passes, and a snapshot build
+holds no path under the build machine's home directory. The ldflags are untouched. Spec 06 names the
+read-only token. Not seen on GitHub yet: the next push to `main` runs it.
 
 #### `[ ]` T551: detect more origin URL shapes
 

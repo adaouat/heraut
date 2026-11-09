@@ -32,6 +32,9 @@ builds:
     ignore:
       - goos: windows
         goarch: arm64
+    # -trimpath as in the Dockerfile: no build-machine paths in the binary.
+    flags:
+      - -trimpath
     ldflags:
       - >-
         -s -w -X main.Version={{.Tag}}
