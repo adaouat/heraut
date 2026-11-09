@@ -1,6 +1,6 @@
 # Héraut — v1.0 Readiness Roadmap
 
-> Status: Active (drafted 2026-11-07 from the pre-v1.0 review)
+> Status: Done 2026-11-09, v1.0.1 cut (drafted 2026-11-07 from the pre-v1.0 review)
 > Main roadmap: tracked as Phases 94–101 in [`roadmap.md`](roadmap.md).
 > Source: a five-part review on 2026-11-07 (core logic, integrations and security, tests, user docs,
 > contributor docs). Every item below was reproduced against the built binary or quoted from the source;
@@ -39,7 +39,7 @@ post-v1 (Phase 100). The v1.0.0 cut (Phase 101) comes last.
 | 98 | User docs | T530–T536 | Done |
 | 99 | Contributor docs | T537–T541 | Done (T541 minus the GitLab driver package) |
 | 100 | Remaining review items (graded post-v1, done before v1 by decision) | T542–T554, T556 | Done (2026-11-09) — with the user's go for the GitLab parts of T548/T549/T552 and the CI changes of T550/T552 |
-| 101 | Cut v1.0.0 | T555 | Not started |
+| 101 | Cut v1.0.0 | T555 | Done (2026-11-09) — cut as v1.0.1, v1.0.0 cannot be tagged |
 
 ---
 
@@ -1319,10 +1319,38 @@ Spec 02 says so.
 
 ### Phase 101 — Cut v1.0.0
 
-#### `[ ]` T555: write the cut procedure, then cut
+#### `[x]` T555: write the cut procedure, then cut
 
 The last open item, `roadmap.md` checkpoint K ("v1.0.0 cut by running `heraut release` on the heraut repo
 itself"), has no steps. heraut's own `.config/heraut.yml:10` sets `stay_at_v0: true`, so a normal run never
 reaches 1.0.0. Write the steps under the checkbox: run the Release workflow with `version: v1.0.0`; then
 drop `stay_at_v0` (it does nothing after 1.0) and decide on `confirm_major: true`; switch to the post-v1
 branching rule in `workflow.md`. Cut only on the user's go, then tick checkpoint K.
+
+The cut as it happened on 2026-11-09, with the user's go:
+
+1. Dispatch the `Release` workflow on `main` with `version: v1.0.0`. The `version` input reaches
+   `heraut release` as `--set-version`, so `stay_at_v0` does not hold it back. The first run (13:10 UTC,
+   at `e18fe262`) stopped in preflight: the GitHub push-permission check added by T549 (`803da309`)
+   read `permissions.push: false` for the Actions token, which has `contents: write`. Nothing was
+   committed or tagged. `2a73f5f3` reverted that check (see the note under T549).
+2. Dispatch again with `version: v1.0.0` (13:21 UTC, at `2a73f5f3`). heraut wrote the changelog and
+   committed `chore(release): 1.0.0`, which reached `main`. It created `v1.0.0`, then GitHub refused to
+   push the tag: `GH013: Repository rule violations found for refs/tags/v1.0.0 — Cannot create ref due
+   to creations being restricted`. A `v1.0.0` release published by mistake months earlier was
+   immutable; deleting that release did not free its tag name, so `v1.0.0` can never be created on
+   `adaouat/heraut`. Nothing was published.
+3. Remove the orphaned `chore(release): 1.0.0` commit from `main` with a force-push back to
+   `2a73f5f3`.
+4. Dispatch with `version: v1.0.1` (13:40 UTC, at `2a73f5f3`): it succeeded. `3c1dc37d chore(release):
+   1.0.1` and the signed tag `v1.0.1` are on `main`, the GitHub Release is published, and **v1.0.1 is the
+   first 1.x release**. Anything that asks for "v1.0.0" means v1.0.1.
+5. After the cut, on the branch `chore/post-v1-cleanup`: remove `versioning.bump.stay_at_v0` from
+   `.config/heraut.yml`.
+
+Done. The user chose not to set `confirm_major: true` on heraut's own config. Breaking-change commits
+are to be refused by a `commits.rules` entry instead (follow-up, not done here), so a 2.0 is cut on
+purpose with the workflow's `version` input. From v1.0.1 on, the post-v1 rule in `workflow.md`
+applies: every session starts on a `<type>/<short-description>` branch off a fresh `origin/main`, and
+changes reach `main` through a pull request. This roadmap's "Commits go straight to `main`" convention
+was true for Phases 94–101 only. Checkpoint K in `roadmap.md` is ticked.
