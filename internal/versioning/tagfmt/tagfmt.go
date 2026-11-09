@@ -85,9 +85,11 @@ func ParseVersion(template, tag string) (string, error) {
 //	{version}_{env}          [2026.3.0_prod]      → [2026.3.0]
 //	{env}/{version}+{build}  [uat/7.4.1+158404]   → [7.4.1]
 //	{env}/{version}          [prod/1.2.3]         → [1.2.3]
+//	prod/{version}           [prod/1.2.3]         → [1.2.3]
 //
-// Returns "" when there is nothing to strip — no {version}, or neither {env} nor {build}
-// present (a plain or "v"-prefixed version heading is already clean).
+// Literal text is stripped like a token, so an env spelled out in the format reads as one written
+// {env}. Returns "" when there is nothing to strip: no {version}, or a plain or "v"-prefixed version
+// (whose heading is already clean).
 //
 // All wildcards exclude "]" so a match can never span two headings (postprocessors run
 // against the whole rendered document). The greedy version capture plus the anchored
@@ -97,7 +99,7 @@ func DeriveHeadingVersionPattern(template string) string {
 	if !strings.Contains(template, versionToken) {
 		return ""
 	}
-	if !strings.Contains(template, envToken) && !strings.Contains(template, buildToken) {
+	if strings.TrimPrefix(template, "v") == versionToken {
 		return ""
 	}
 	regexStr := regexp.QuoteMeta(template)

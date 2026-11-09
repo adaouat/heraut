@@ -352,9 +352,9 @@ environments:
 
 A per-environment `tag_format` always overrides the common one.
 
-**Changelog headings are cleaned automatically.** When `tag_format` carries an `{env}`
-(prefix or suffix) or `{build}` token, native strips those tokens from the version heading,
-leaving just the version: `prod/1.0.0` → `1.0.0`, `2026.3.0_prod` → `2026.3.0`,
+**Changelog headings are cleaned automatically.** Whatever surrounds `{version}` in `tag_format`
+(an `{env}` or `{build}` token, or the same text spelled out, as in `prod/{version}`) is stripped from
+the version heading, leaving just the version; only a plain `{version}` or `v{version}` is left as is: `prod/1.0.0` → `1.0.0`, `2026.3.0_prod` → `2026.3.0`,
 `uat/7.4.1+158404` → `7.4.1` (SemVer pre-release preserved: `7.4.1-rc.1`). Compare links
 still use the full tags.
 

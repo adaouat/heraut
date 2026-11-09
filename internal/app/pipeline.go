@@ -535,8 +535,8 @@ func buildChangelogPipelineConfig(runner, readRunner port.Runner, cfg *config.Co
 
 // withEnvDerivations returns a ContentDriver copy with env-derived scoping applied
 // from the effective tag format, plus the top-level enrichment_policy:
-//   - HeadingVersionPattern: strips env prefix/suffix and build from changelog headings
-//     (when {env} or {build} is present)
+//   - HeadingVersionPattern: strips everything but the version from changelog headings (an env
+//     prefix or suffix, written {env} or spelled out, and a build)
 //   - TagPattern / TagGlob: scope native's tag walk to the active env's tags (on a per-env run,
 //     when the user has not set an explicit tag_pattern)
 //   - RemoteMetadata: the top-level Config.EnrichmentPolicy, so the generator honours

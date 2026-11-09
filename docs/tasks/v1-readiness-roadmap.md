@@ -1270,13 +1270,20 @@ fresh repo, and make sure the docs and `check` say so. Close with a note if T519
 
 ---
 
-#### `[ ]` T556: per-env changelog headings strip a literal env prefix too
+#### `[x]` T556: per-env changelog headings strip a literal env prefix too
 
 Found during T496. With `tag_format: "{env}/{version}"` a per-env changelog heading reads
 `## [2026.11.0]`; with a literal `prod/{version}` it reads `## [prod/2026.11.0]`, because
 `tagfmt.DeriveHeadingVersionPattern` only strips around `{env}` / `{build}`. Derive the heading pattern
 from the env's effective format whatever its shape, so both read the same; check the release notes and
 `heraut notes` headings too.
+
+Done. `DeriveHeadingVersionPattern` now strips any literal text around `{version}` as it strips the
+tokens, so `prod/{version}` and `{env}/{version}` both give `## [0.1.0]`; a plain `{version}` and
+`v{version}` still get no pattern (their headings are already the bare version). The release notes
+and `heraut notes` carry no version heading, so there was nothing to change there. An e2e test runs
+both formats through `changelog --tag` and `notes`, and fails on `prod/{version}` without the fix.
+Spec 02 says so.
 
 ---
 

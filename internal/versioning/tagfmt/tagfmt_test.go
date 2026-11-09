@@ -279,6 +279,21 @@ func TestDeriveHeadingVersionPattern(t *testing.T) {
 			wantNil:  true,
 		},
 		{
+			name:     "literal env prefix reads like {env}/{version}",
+			template: "prod/{version}",
+			wantGroup1: map[string]string{
+				"[prod/2026.11.0]": "2026.11.0",
+			},
+			noMatches: []string{"[uat/2026.11.0]"},
+		},
+		{
+			name:     "literal env suffix",
+			template: "{version}-prod",
+			wantGroup1: map[string]string{
+				"[1.2.3-prod]": "1.2.3",
+			},
+		},
+		{
 			name:     "env suffix",
 			template: "{version}_{env}",
 			wantGroup1: map[string]string{
