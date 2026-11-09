@@ -62,6 +62,10 @@ Before anything is pushed, heraut also refuses:
   and ignores case, so `meta#1.tar.gz` and `meta.1.tar.gz` would collide:
   `assets "dist/meta#1.tar.gz" and "dist/meta.1.tar.gz" would both be published on GitHub as
   "meta.1.tar.gz"`;
+- **on GitLab, a name the package registry rejects.** GitLab accepts only letters, digits and
+  `. _ - + ~ @`, not starting or ending with `~` or `@`, so a space, a `#` or an accented letter is
+  refused: `asset "dist/my app.zip" cannot be published on GitLab: GitLab package file names allow
+  only letters, digits and . _ - + ~ @, and cannot start or end with ~ or @: rename the file`;
 - anything that isn't a regular file, such as a named pipe. A directory a pattern matches is simply
   skipped.
 

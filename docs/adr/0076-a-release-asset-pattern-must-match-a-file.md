@@ -82,3 +82,17 @@ not found. The GitLab driver passes the path to a REST upload and is unaffected.
 2. **GitLab targets are unchanged.** The rule belongs to the GitHub driver, not to the shared glob helper.
 3. **Not an escape mechanism.** `gh` has no way to quote the separator, so refusing is the only safe answer;
    rename the file in the build step.
+
+## Addendum (2026-11-09): a GitLab asset name follows the Generic Packages file-name rule
+
+The addendum above said GitLab is unaffected by `#`. Since [ADR-0069](0069-gitlab-publish-transport.md)
+the GitLab driver uploads each asset to the Generic Packages registry, whose documented `file_name` rule
+allows only letters, digits and `. _ - + ~ @ /`, and no leading or trailing `~` or `@`. A file outside it
+(a space, `#`, a non-ASCII letter) is refused at upload: after the tag push.
+
+1. **The GitLab asset gate applies that rule.** `CheckAssets` refuses a matched file whose name breaks it,
+   before anything is committed or pushed, with the Runtime exit code, naming the file and the characters
+   GitLab accepts. The check is on the basename, which is what is uploaded, so `/` never occurs.
+2. **The rule is GitLab's, in the GitLab driver**, passed to the shared glob helper as part of its name
+   rule, like GitHub's renaming key.
+3. **Not an escape mechanism.** GitLab does not rename; rename the file in the build step.

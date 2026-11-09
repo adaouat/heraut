@@ -97,6 +97,11 @@ func matchAssets(rootPath string, patterns []string, warn func(string), rule *Na
 				return nil, err
 			}
 			name := filepath.Base(m)
+			if rule != nil && rule.Valid != nil {
+				if err := rule.Valid(name); err != nil {
+					return nil, fmt.Errorf("asset %q cannot be published on %s: %w", m, rule.Forge, err)
+				}
+			}
 			if prev, ok := pathByName[name]; ok {
 				return nil, fmt.Errorf("assets %q and %q would both be published as %q: rename one or narrow the patterns", prev, m, name)
 			}

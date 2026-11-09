@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net/url"
 	"os"
+	"regexp"
 	"strings"
 
 	"github.com/adaouat/heraut/internal/config"
@@ -207,9 +208,27 @@ func (p *Platform) CreateRelease(ctx context.Context, tag, notes string, prerele
 func (p *Platform) HasAssets() bool { return len(p.cfg.Assets) > 0 }
 
 // CheckAssets applies the asset rules (confinement to the repository, and every pattern matching a
-// file unless release.allow_missing_assets is set) ahead of publishing.
+// file unless release.allow_missing_assets is set) ahead of publishing, and refuses a file name the
+// Generic Packages registry would reject at upload.
 func (p *Platform) CheckAssets() error {
-	return platforms.CheckAssetGlobs(p.cfg.Assets, p.cfg.AllowMissingAssets)
+	return platforms.CheckAssetGlobsFor(p.cfg.Assets, p.cfg.AllowMissingAssets, platforms.NameRule{
+		Forge: "GitLab",
+		Key:   func(name string) string { return name },
+		Valid: packageFileName,
+	})
+}
+
+// packageFileNamePattern is the Generic Packages file-name rule GitLab documents: letters, digits and
+// . _ - + ~ @ (and /, which a basename never has), not starting or ending with ~ or @.
+var packageFileNamePattern = regexp.MustCompile(`^[A-Za-z0-9._+-]$|^[A-Za-z0-9._+-][A-Za-z0-9._+~@-]*[A-Za-z0-9._+-]$`)
+
+// packageFileName refuses a name GitLab's Generic Packages registry rejects at upload (ADR-0076
+// addendum, 2026-11-09).
+func packageFileName(name string) error {
+	if packageFileNamePattern.MatchString(name) {
+		return nil
+	}
+	return fmt.Errorf("GitLab package file names allow only letters, digits and . _ - + ~ @, and cannot start or end with ~ or @: rename the file")
 }
 
 func (p *Platform) project() string {

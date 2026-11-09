@@ -715,13 +715,37 @@ func TestCheckAssets_UnmatchedPatternIsRefusedUnlessAllowed(t *testing.T) {
 	assert.NoError(t, gitlab.New(&config.Platform{Assets: []string{"dist/*"}, AllowMissingAssets: true}).CheckAssets())
 }
 
-// ADR-0076 addendum: the "#" rule is GitHub's (gh label syntax); GitLab uploads over REST.
-func TestCheckAssets_PathWithHashIsAccepted(t *testing.T) {
-	t.Chdir(t.TempDir())
-	require.NoError(t, os.MkdirAll("dist", 0o755))
-	require.NoError(t, os.WriteFile(filepath.Join("dist", "app#1.txt"), []byte("x"), 0o644))
+// ADR-0076 addendum (2026-11-09): Generic Packages refuses a file name outside its rule at upload,
+// after the tag push, so the gate refuses it first.
+func TestCheckAssets_GitLabFileNameRule(t *testing.T) {
+	tests := []struct {
+		name string
+		ok   bool
+	}{
+		{"app_v1.2.3+build~1@linux-amd64.tar.gz", true},
+		{"my app.zip", false},
+		{"app#1.txt", false},
+		{"résumé.pdf", false},
+		{"~app.zip", false},
+		{"app.zip@", false},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Chdir(t.TempDir())
+			require.NoError(t, os.MkdirAll("dist", 0o755))
+			require.NoError(t, os.WriteFile(filepath.Join("dist", tc.name), []byte("x"), 0o644))
 
-	assert.NoError(t, gitlab.New(&config.Platform{Assets: []string{"dist/*"}}).CheckAssets())
+			err := gitlab.New(&config.Platform{Assets: []string{"dist/*"}}).CheckAssets()
+
+			if tc.ok {
+				assert.NoError(t, err)
+				return
+			}
+			require.Error(t, err)
+			assert.Contains(t, err.Error(), tc.name)
+			assert.Contains(t, err.Error(), "GitLab")
+		})
+	}
 }
 
 // forges[].api_url moves publishing to that API root too, so PR data and releases use the same

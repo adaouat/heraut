@@ -632,8 +632,10 @@ outside (NEW-002); the rules of the first step apply again, so a duplicate basen
 not a regular file still fails the release. On GitHub the uploads go to a draft that is
 published afterwards (§ GitHub above): GitHub rejects an upload to an already-published immutable
 release with HTTP 422 ("Cannot upload assets to an immutable release"). On GitLab they are uploaded to the Generic Packages
-registry and linked on the release in the same create request (§ GitLab above). Deleting a GitLab
-release does not delete its package files.
+registry and linked on the release in the same create request (§ GitLab above). That registry accepts
+only letters, digits and `. _ - + ~ @` in a file name, not starting or ending with `~` or `@`, so the
+GitLab asset check refuses any other name (a space, `#`, a non-ASCII letter) before anything is committed
+(ADR-0076 addendum, 2026-11-09). Deleting a GitLab release does not delete its package files.
 
 ### Self-hosted instances and multiple entries of the same type (ADR-0025)
 

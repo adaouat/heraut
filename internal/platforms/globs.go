@@ -20,11 +20,13 @@ func CheckAssetGlobs(patterns []string, allowMissing bool) error {
 }
 
 // NameRule describes how a forge turns a file name into the name it publishes: Key maps a basename
-// to a value that is equal for any two basenames the forge would publish as one asset. Forge names
-// the forge in the refusal.
+// to a value that is equal for any two basenames the forge would publish as one asset, and Valid,
+// when set, refuses a basename the forge does not accept at all. Forge names the forge in the
+// refusal.
 type NameRule struct {
 	Forge string
 	Key   func(name string) string
+	Valid func(name string) error
 }
 
 // CheckAssetGlobsFor is CheckAssetGlobs for a forge that renames assets: two matches whose names
