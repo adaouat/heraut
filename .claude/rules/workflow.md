@@ -2,13 +2,11 @@
 
 ## Branching
 
-**During the build phase (pre-v1.0)**: commits land directly on `main`. The roadmap is
-the protection, not branches. One developer, one trunk.
+Every working session starts on a new branch off `main`, and its changes reach `main`
+through a pull request. Never commit directly to `main`. (Before v1.0.1, heraut's first
+1.x release, commits went straight to `main`; that build-phase rule no longer applies.)
 
-**After v1.0 ships**: every working session starts on a new branch off `main`. Never
-commit directly to `main`.
-
-- Branch name (post-v1.0): `<type>/<short-description>` where type matches the
+- Branch name: `<type>/<short-description>` where type matches the
   conventional-commit type (e.g. `feat/perenv-resolver`, `fix/calver-patch-reset`,
   `docs/spec-reconciliation`).
 - Fetch with prune before branching:
@@ -147,7 +145,7 @@ Rename the file to its real subject before the first commit that references it.
 
 ## Pull requests
 
-Once branches are in use (post-v1.0): each PR corresponds to one task (T-id) or one
+Each PR corresponds to one task (T-id) or one
 tight cluster of related changes. A PR title is the conventional-commit subject of its
 primary change. The description lists the touched packages and points to the roadmap
 task, e.g.:
