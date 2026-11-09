@@ -504,7 +504,14 @@ draft is deleted and the original error is returned, with any delete failure app
 cleanup runs when the run is interrupted (Ctrl-C, SIGTERM): the requests stop and the delete is sent
 on a context of its own, bounded to 30 seconds. A request whose response headers do not arrive within
 two minutes fails; the bound is on the wait for the answer, not on the request, so a large upload is
-not cut short. The upload
+not cut short.
+
+A transient error (a 5xx, or a request whose answer never came) on the create or the publish is
+retried twice, after 2 then 5 seconds. Such an error can hide a create that went through, so before
+each retry, and when a retry is refused because the release exists, the 30 latest releases are
+searched for this tag (a draft when assets are coming): a match is taken as this run's release and the
+run goes on with it. A refusal on the first attempt (4xx, `already_exists` included) is final and
+never looked up: a release that already exists is not this run's. Asset uploads are not retried. The upload
 goes only to an expected origin: `uploads.github.com` for github.com, else `base_url`'s own origin
 or `uploads.<host>`; any other `upload_url` is refused before a byte is sent.
 

@@ -412,6 +412,7 @@ func TestCreateRelease_FailedUploadDeletesTheDraft(t *testing.T) {
 }
 
 func TestCreateRelease_FailedPublishDeletesTheDraft(t *testing.T) {
+	noRetryWait(t)
 	f := newFakeGitHub(t, githubUploadURL)
 	f.override["PATCH api.github.com"+releasesPath+"/42"] = failWith(http.StatusInternalServerError, `{"message":"Server Error"}`)
 
@@ -420,6 +421,8 @@ func TestCreateRelease_FailedPublishDeletesTheDraft(t *testing.T) {
 	assert.Equal(t, []string{
 		"POST api.github.com" + releasesPath,
 		uploadKey,
+		"PATCH api.github.com" + releasesPath + "/42", // a 5xx is retried twice
+		"PATCH api.github.com" + releasesPath + "/42",
 		"PATCH api.github.com" + releasesPath + "/42",
 		"DELETE api.github.com" + releasesPath + "/42",
 	}, f.requests())

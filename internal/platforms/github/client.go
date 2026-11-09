@@ -32,9 +32,12 @@ type Client struct {
 // responseHeaderTimeout bounds the wait for GitHub's answer once a request is sent: a connection that
 // stalls after the tag push must not hang the release. It does not bound the request itself, so a
 // large upload still completes. cleanupTimeout bounds the delete of a draft left by a failed publish.
+// retryDelays are the waits before the second and the third attempt of a create or a publish that
+// failed on a transient error.
 var (
 	responseHeaderTimeout = 2 * time.Minute
 	cleanupTimeout        = 30 * time.Second
+	retryDelays           = []time.Duration{2 * time.Second, 5 * time.Second}
 )
 
 // NewClient builds a client for repository ("owner/repo") on the GitHub instance whose web root is
@@ -108,7 +111,7 @@ func (c *Client) CreateRelease(ctx context.Context, tag, commit, notes string, d
 	if c.MakeLatest != "" && !*req.Draft {
 		req.MakeLatest = new(c.MakeLatest)
 	}
-	release, _, err := c.api.Repositories.CreateRelease(ctx, c.owner, c.repo, req)
+	release, err := c.createRelease(ctx, req)
 	if err != nil {
 		return nil, fmt.Errorf("creating release %s: %w", tag, readable(err))
 	}
@@ -152,10 +155,68 @@ func (c *Client) uploadAndPublish(ctx context.Context, release *gh.RepositoryRel
 	if c.MakeLatest != "" {
 		publish.MakeLatest = new(c.MakeLatest)
 	}
-	if _, _, err := c.api.Repositories.UpdateRelease(ctx, c.owner, c.repo, release.ID, publish); err != nil {
+	err = platforms.Retry(ctx, retryDelays, transient, func() error {
+		_, _, err := c.api.Repositories.UpdateRelease(ctx, c.owner, c.repo, release.ID, publish)
+		return err
+	})
+	if err != nil {
 		return nil, fmt.Errorf("publishing release %s: %w", tag, readable(err))
 	}
 	return names, nil
+}
+
+// createRelease creates the release, retrying a transient error. Such an error can hide a create that
+// went through with its answer lost, so the release is then looked up by its tag before the next
+// attempt, and a retry refused because the release exists is that earlier attempt's: it is looked up
+// too. A first attempt refused is final: a release that exists then is not this run's.
+func (c *Client) createRelease(ctx context.Context, req gh.CreateReleaseRequest) (*gh.RepositoryRelease, error) {
+	var release *gh.RepositoryRelease
+	failedBefore := false
+	err := platforms.Retry(ctx, retryDelays, transient, func() error {
+		created, _, err := c.api.Repositories.CreateRelease(ctx, c.owner, c.repo, req)
+		if err == nil {
+			release = created
+			return nil
+		}
+		if failedBefore || transient(err) {
+			if found := c.findRelease(ctx, req.TagName, req.GetDraft()); found != nil {
+				release = found
+				return nil
+			}
+		}
+		failedBefore = true
+		return err
+	})
+	return release, err
+}
+
+// findRelease returns the newest release (a draft when draft is set) for tag among the latest ones,
+// or nil when there is none or GitHub cannot say.
+func (c *Client) findRelease(ctx context.Context, tag string, draft bool) *gh.RepositoryRelease {
+	releases, _, err := c.api.Repositories.ListReleases(ctx, c.owner, c.repo, &gh.ListOptions{PerPage: 30})
+	if err != nil {
+		return nil
+	}
+	for _, r := range releases {
+		if r.GetTagName() == tag && r.GetDraft() == draft {
+			return r
+		}
+	}
+	return nil
+}
+
+// transient reports whether err may pass on a second attempt: a 5xx, or a request whose answer
+// never came (connection lost, no response in time). The run's own cancellation is not.
+func transient(err error) bool {
+	if errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
+		return false
+	}
+	var resp *gh.ErrorResponse
+	if errors.As(err, &resp) {
+		return resp.Response != nil && resp.Response.StatusCode >= http.StatusInternalServerError
+	}
+	var urlErr *url.Error
+	return errors.As(err, &urlErr)
 }
 
 // VerifyReleasesAccess checks that the token can read the repository's releases.
