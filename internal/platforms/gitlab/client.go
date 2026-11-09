@@ -2,8 +2,10 @@ package gitlab
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"net/http"
+	"net/url"
 	"strings"
 	"time"
 
@@ -21,6 +23,14 @@ const assetPackageName = "release-assets"
 // large upload still completes.
 var responseHeaderTimeout = 2 * time.Minute
 
+// retryDelays are the waits before the second and the third attempt of a create whose answer never
+// came. serverErrorRetries is how often client-go retries a 5xx itself, any method, about 12 seconds
+// in all for 5 (its default).
+var (
+	retryDelays        = []time.Duration{2 * time.Second, 5 * time.Second}
+	serverErrorRetries = 5
+)
+
 // Client publishes GitLab releases over the REST API (ADR-0069).
 type Client struct {
 	api *gl.Client
@@ -34,7 +44,9 @@ func NewClient(baseURL, token string, jobToken bool) (*Client, error) {
 	}
 	tr := http.DefaultTransport.(*http.Transport).Clone()
 	tr.ResponseHeaderTimeout = responseHeaderTimeout
-	opts := []gl.ClientOptionFunc{gl.WithBaseURL(baseURL), gl.WithHTTPClient(&http.Client{Transport: tr})}
+	opts := []gl.ClientOptionFunc{
+		gl.WithBaseURL(baseURL), gl.WithHTTPClient(&http.Client{Transport: tr}), gl.WithCustomRetryMax(serverErrorRetries),
+	}
 	var (
 		api *gl.Client
 		err error
@@ -106,10 +118,49 @@ func (c *Client) CreateRelease(ctx context.Context, project, tag, notes string, 
 	if len(links) > 0 {
 		opts.Assets = &gl.ReleaseAssetsOptions{Links: links}
 	}
-	if _, _, err := c.api.Releases.CreateRelease(project, opts, gl.WithContext(ctx)); err != nil {
+	err := platforms.Retry(ctx, retryDelays, lostAnswer, func() error {
+		_, _, err := c.api.Releases.CreateRelease(project, opts, gl.WithContext(ctx))
+		if err != nil && mayHaveCreated(err) && c.hasRelease(ctx, project, tag, notes) {
+			return nil
+		}
+		return err
+	})
+	if err != nil {
 		return fmt.Errorf("creating release %s: %w", tag, err)
 	}
 	return nil
+}
+
+// mayHaveCreated reports whether a create that failed with err may have gone through anyway: its
+// answer was lost, it was a 5xx (client-go retries those itself, so the create may have run on an
+// earlier try), or the release already exists, which such a retry gets.
+func mayHaveCreated(err error) bool {
+	if lostAnswer(err) {
+		return true
+	}
+	var resp *gl.ErrorResponse
+	if !errors.As(err, &resp) || resp.Response == nil {
+		return false
+	}
+	code := resp.Response.StatusCode
+	return code == http.StatusConflict || code >= http.StatusInternalServerError
+}
+
+// hasRelease reports whether tag's release exists with notes as its description: the one this run
+// created. Another release for the tag, or none, or a lookup that fails, is false.
+func (c *Client) hasRelease(ctx context.Context, project, tag, notes string) bool {
+	r, _, err := c.api.Releases.GetRelease(project, tag, gl.WithContext(ctx))
+	return err == nil && r.TagName == tag && r.Description == notes
+}
+
+// lostAnswer reports whether err is a request whose answer never came (connection lost, no answer
+// in time), which client-go does not retry for a POST. The run's own cancellation is not one.
+func lostAnswer(err error) bool {
+	if errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
+		return false
+	}
+	var urlErr *url.Error
+	return errors.As(err, &urlErr)
 }
 
 // VerifyUser checks a personal token with GET /user. A job token cannot call it (401), so a CI

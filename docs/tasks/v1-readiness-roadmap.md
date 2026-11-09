@@ -1151,12 +1151,24 @@ follows "as `OpenAssets` does" (confinement, not refusal). Tests that wrote the 
 temp directory outside their working directory now write it inside (`repoDir`, `chdirTemp`,
 `t.Chdir`). e2e covers both reported cases. Schema, Spec 02 and the troubleshooting table say so.
 
-#### `[ ]` T548: publishing survives a transient error (needs the go for the GitLab driver)
+#### `[x]` T548: publishing survives a transient error (needs the go for the GitLab driver)
 
 Publishing runs after the tag push with no retry or idempotency check
 (`internal/platforms/github/client.go:94`, `gitlab/client.go:107`): a 5xx or timeout leaves state C, and
 a retry after a create that actually succeeded hits `already_exists`. On error, look up the release by
 tag before failing; retry 5xx with backoff.
+
+Done, on both drivers (the user's go, 2026-11-09). A shared `platforms.Retry` runs up to three
+attempts (waits of 2 then 5 seconds) while an error is transient. GitHub: a 5xx or a lost answer on
+the create or the publish of a draft is retried; before each retry, and when a retry gets
+`already_exists`, the 30 latest releases are searched for the tag (a draft when assets follow) and a
+match is this run's release. A first-attempt refusal is final and never looked up. GitLab: client-go
+already retries a 5xx on every method, POST included (5 times, about 12 s; now explicit as
+`serverErrorRetries`), so heraut only retries a lost answer, and after a lost answer, a 5xx or a 409
+it looks the release up by tag and takes it only when its description equals the notes: a 409 can
+answer heraut's first call when client-go's earlier try went through. Uploads are not retried
+beyond client-go (GitHub: not at all; a reader already consumed cannot be replayed safely). Spec 05
+describes both. Mutation checks: each lookup condition and the transient classification are caught.
 
 #### `[ ]` T549: the preflight check proves write access (needs the go for the GitLab driver)
 

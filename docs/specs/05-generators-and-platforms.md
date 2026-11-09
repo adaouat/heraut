@@ -585,6 +585,13 @@ SIGTERM) the requests stop; an upload cut short creates no release. A request wh
 do not arrive within two minutes fails, as on GitHub: the bound is on the wait for the answer, so a
 large upload is not cut short.
 
+client-go retries a 5xx itself, on any request, 5 times over about 12 seconds. heraut adds two
+things to the create: a request whose answer never came is retried twice, after 2 then 5 seconds,
+and after a lost answer, a 5xx or a 409 ("Release already exists", which a client-go retry gets when
+its first try went through) the release is looked up by its tag. It counts as this run's only when
+its description is this run's notes; anything else fails the run with the original error. Asset
+uploads get only client-go's 5xx retries.
+
 - **Project** resolution: `cfg.Project` → `$CI_PROJECT_PATH` → error
 - **Token**: in GitLab CI, when the target is the instance named by `CI_SERVER_URL` (gitlab.com
   when unset), `CI_JOB_TOKEN` is sent as `JOB-TOKEN` and any configured token is ignored; a target on
