@@ -212,9 +212,9 @@ func calverExtractor(cfg *config.Config, env string) func(string) (string, bool)
 	return func(tag string) (string, bool) { return strings.CutPrefix(tag, prefix) }
 }
 
-// calverOrder sorts tags newest first by calver.CompareVersions, stably (equal versions keep input
-// order); a tag extract cannot read sorts after every readable one.
-func calverOrder(extract func(string) (string, bool)) func([]string) []string {
+// calverOrder sorts tags newest first by cmp, stably (equal versions keep input order); a tag
+// extract cannot read sorts after every readable one.
+func calverOrder(extract func(string) (string, bool), cmp func(a, b string) int) func([]string) []string {
 	return func(tags []string) []string {
 		type entry struct {
 			tag, version string
@@ -228,7 +228,7 @@ func calverOrder(extract func(string) (string, bool)) func([]string) []string {
 		slices.SortStableFunc(entries, func(a, b entry) int {
 			switch {
 			case a.ok && b.ok:
-				return calver.CompareVersions(b.version, a.version)
+				return cmp(b.version, a.version)
 			case a.ok:
 				return -1
 			case b.ok:
@@ -251,12 +251,16 @@ func calverOrder(extract func(string) (string, bool)) func([]string) []string {
 // semver.SortTags using the same extractor CurrentTag uses, then drops every pre-release tag —
 // releases only, so a pre-release never gets its own changelog section and is never a range
 // boundary; its commits fold into the next release's section. calver/calver-per-env order by the
-// lenient dotted-integer comparison and keep every tag (T356): CalVer has no pre-release, and its
-// zero-padded components (2026.05.3) are not valid SemVer.
+// calendar versioning.format describes (MM.YYYY sorts by year first) and keep every tag (T356):
+// CalVer has no pre-release, and its zero-padded components (2026.05.3) are not valid SemVer.
 func tagOrderFor(cfg *config.Config, env string) func([]string) []string {
 	switch cfg.Versioning.Strategy {
 	case "calver", "calver-per-env":
-		return calverOrder(calverExtractor(cfg, env))
+		cmp, err := calver.CompareByFormat(cfg.Versioning.Format)
+		if err != nil {
+			cmp = calver.CompareVersions // config validation refuses such a format before this runs
+		}
+		return calverOrder(calverExtractor(cfg, env), cmp)
 	case "semver", "semver-per-env":
 		extract := semverExtractor(cfg, env)
 		return func(tags []string) []string {
