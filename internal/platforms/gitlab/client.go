@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
+	"slices"
 	"strings"
 	"time"
 
@@ -161,6 +162,23 @@ func lostAnswer(err error) bool {
 	}
 	var urlErr *url.Error
 	return errors.As(err, &urlErr)
+}
+
+// VerifyToken checks a personal, project or group token: GET /personal_access_tokens/self must answer,
+// and the token must carry the api scope a release needs (GET /user alone passes a read_user token).
+// No scopes in the answer pass; an instance without the endpoint (404) falls back to VerifyUser.
+func (c *Client) VerifyToken(ctx context.Context) error {
+	tok, resp, err := c.api.PersonalAccessTokens.GetSinglePersonalAccessToken(gl.WithContext(ctx))
+	if err != nil {
+		if resp != nil && resp.StatusCode == http.StatusNotFound {
+			return c.VerifyUser(ctx)
+		}
+		return fmt.Errorf("reading the token's scopes: %w", err)
+	}
+	if len(tok.Scopes) > 0 && !slices.Contains(tok.Scopes, "api") {
+		return fmt.Errorf("the token has the scopes %s: creating a release needs the api scope", strings.Join(tok.Scopes, ", "))
+	}
+	return nil
 }
 
 // VerifyUser checks a personal token with GET /user. A job token cannot call it (401), so a CI

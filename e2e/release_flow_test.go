@@ -103,7 +103,7 @@ func TestRelease_TwoTargetsPublishInDeclaredOrderWithDriverFlags(t *testing.T) {
 	assert.Equal(t, []string{
 		githubList,
 		githubRepo,
-		"gitlab [GET] [/api/v4/user]",
+		"gitlab [GET] [/api/v4/personal_access_tokens/self]",
 		githubRelease,
 		gitlabRelease,
 	}, repo.APICalls(), "every target is probed first, then published in declared order")
@@ -269,7 +269,7 @@ func TestRelease_GitLabAssetsAreUploadedThenLinkedOnTheRelease(t *testing.T) {
 
 	require.Equal(t, exitOK, res.ExitCode, "stdout:\n%s\nstderr:\n%s", res.Stdout, res.Stderr)
 	assert.Equal(t, []string{
-		"gitlab [GET] [/api/v4/user]",
+		"gitlab [GET] [/api/v4/personal_access_tokens/self]",
 		"gitlab [PUT] [/api/v4/projects/acme/widget/packages/generic/release-assets/v0.1.0/a.txt]",
 		"gitlab [PUT] [/api/v4/projects/acme/widget/packages/generic/release-assets/v0.1.0/b.txt]",
 		gitlabRelease,

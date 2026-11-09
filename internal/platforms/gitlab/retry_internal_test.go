@@ -199,3 +199,45 @@ func TestCreateRelease_GivesUpAfterThreeLostAnswers(t *testing.T) {
 	require.Error(t, err)
 	assert.Equal(t, []string{createPath, releasePath, createPath, releasePath, createPath, releasePath}, s.recorded())
 }
+
+const tokenSelfPath = "GET /api/v4/personal_access_tokens/self"
+
+// A personal, project or group token reports its scopes: creating a release needs api, which /user
+// alone does not prove (read_user passes it).
+func TestVerifyToken(t *testing.T) {
+	tests := []struct {
+		name      string
+		self      http.HandlerFunc
+		wantErr   []string
+		wantCalls []string
+	}{
+		{name: "api scope", self: answer(http.StatusOK, `{"scopes":["api"]}`), wantCalls: []string{tokenSelfPath}},
+		{name: "read scopes only", self: answer(http.StatusOK, `{"scopes":["read_api","read_repository"]}`),
+			wantErr: []string{"api scope", "read_api, read_repository"}, wantCalls: []string{tokenSelfPath}},
+		{name: "no scopes in the answer", self: answer(http.StatusOK, `{}`), wantCalls: []string{tokenSelfPath}},
+		{name: "an instance without the endpoint falls back to /user", self: answer(http.StatusNotFound, `{"message":"404 Not Found"}`),
+			wantCalls: []string{tokenSelfPath, "GET /api/v4/user"}},
+		{name: "a refused token", self: answer(http.StatusUnauthorized, `{"message":"401 Unauthorized"}`),
+			wantErr: []string{"401"}, wantCalls: []string{tokenSelfPath}},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			s := newScriptedGitLab(t, map[string][]http.HandlerFunc{
+				tokenSelfPath:      {tc.self},
+				"GET /api/v4/user": {answer(http.StatusOK, `{"username":"ada"}`)},
+			})
+
+			err := s.client(t).VerifyToken(t.Context())
+
+			assert.Equal(t, tc.wantCalls, s.recorded())
+			if len(tc.wantErr) == 0 {
+				require.NoError(t, err)
+				return
+			}
+			require.Error(t, err)
+			for _, want := range tc.wantErr {
+				assert.Contains(t, err.Error(), want)
+			}
+		})
+	}
+}

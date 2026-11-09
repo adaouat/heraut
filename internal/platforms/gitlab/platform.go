@@ -135,8 +135,8 @@ func (p *Platform) checkAPIAuth(ctx context.Context, token string, jobToken bool
 		}
 		return nil
 	}
-	if err := c.VerifyUser(ctx); err != nil {
-		return fmt.Errorf("gitlab: API call failed (GET /user): %w\n  hint: verify %s is valid and has the api scope", err, p.tokenEnv())
+	if err := c.VerifyToken(ctx); err != nil {
+		return fmt.Errorf("gitlab: API call failed (token check): %w\n  hint: verify %s is valid and has the api scope", err, p.tokenEnv())
 	}
 	return nil
 }

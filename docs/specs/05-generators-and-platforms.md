@@ -597,9 +597,11 @@ uploads get only client-go's 5xx retries.
   when unset), `CI_JOB_TOKEN` is sent as `JOB-TOKEN` and any configured token is ignored; a target on
   any other host, gitlab.com included when the job runs on a self-hosted instance, never gets the job
   token; otherwise `$<TokenEnv>` (default
-  `GITLAB_TOKEN`) is sent as `PRIVATE-TOKEN`. `heraut check runtime` validates a personal token
-  with `GET /user` and a job token by listing the project's releases (a job token cannot call
-  `GET /user`)
+  `GITLAB_TOKEN`) is sent as `PRIVATE-TOKEN`. `heraut check runtime` validates a personal, project or group
+  token with `GET /personal_access_tokens/self`, failing when its scopes lack `api` (which creating a
+  release needs; `GET /user` alone passed a `read_user` token), and falls back to `GET /user` on an
+  instance without that endpoint (404). A job token is validated by listing the project's releases
+  (it can call neither endpoint); its write access cannot be checked beforehand
 - **Pre-release**: not supported — GitLab releases have no pre-release concept. The shared
   `port.Platform.CreateRelease` contract still passes the derived flag (§ GitHub above), but
   this driver accepts and ignores it.

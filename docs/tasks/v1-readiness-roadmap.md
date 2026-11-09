@@ -1170,12 +1170,23 @@ answer heraut's first call when client-go's earlier try went through. Uploads ar
 beyond client-go (GitHub: not at all; a reader already consumed cannot be replayed safely). Spec 05
 describes both. Mutation checks: each lookup condition and the transient classification are caught.
 
-#### `[ ]` T549: the preflight check proves write access (needs the go for the GitLab driver)
+#### `[x]` T549: the preflight check proves write access (needs the go for the GitLab driver)
 
 `VerifyReleasesAccess` (`github/client.go:146`) and `VerifyUser` (`gitlab/client.go:121`) prove read
 access only, so a read-only token passes and fails after the tag push; the GitLab hint says "api scope"
 but `/user` accepts `read_user`. Check push permission (GitHub `permissions.push`) and token scopes
 (GitLab `personal_access_tokens/self`).
+
+Done, on both drivers (the user's go, 2026-11-09). GitHub: after the releases list, the check reads
+`GET /repos/{owner}/{repo}` and fails when `permissions.push` is false; GitHub reports the user's
+permission, not a fine-grained token's own, and gives no `permissions` for an installation token, so
+an absent answer passes: the check catches a read-only user, not every read-only token. The hint
+now names `contents: write`. GitLab: a personal, project or group token is checked with
+`GET /personal_access_tokens/self` and fails without the `api` scope; no scopes in the answer pass,
+and a 404 (an instance without the endpoint) falls back to `GET /user`. A job token is unchanged:
+neither endpoint accepts it, and its write access cannot be proven before the tag push. Not run
+against the Lane B sandboxes (only on the user's word): the real answers of both endpoints for the
+sandbox tokens remain to be seen there.
 
 #### `[ ]` T550: CI hardening (CI/CD: needs the go)
 
