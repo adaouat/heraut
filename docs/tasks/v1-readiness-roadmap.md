@@ -1231,6 +1231,31 @@ Reproduce each; fix it as its own commit or record why it holds:
 - `git push` prints `To <url>` on stderr, which `--verbose` echoes: check whether git keeps a token from an
   origin URL there (found during T514).
 
+In progress (2026-11-09). Settled:
+- `associatedPullRequests`: real; now `first:5`, the first merged PR is kept, an open one never
+  (f69f3e1a). A merged PR into another branch still can't be told apart: the enrichment does not
+  receive the base branch.
+- GitLab MR commits page: real (connection capped at 100); an MR with more is paged (ade464e7).
+- One `errors[]` entry: real; an error whose path goes below `repository` now drops only that commit,
+  one about the query or the repository still fails (e8b1d646).
+- CRLF: real, a footer message was refused and a header kept `\r`; `Parse` reads CRLF as LF
+  (9a5d1bcd).
+- `calverOrder`: real under `MM.YYYY.PATCH`; it now compares through the format (12e6f4a4).
+- `NewResolver` errors: real (`git rev-parse --abbrev-ref HEAD` when `versioning.branches` is set);
+  a failing or missing command now exits 3 (66a9e76b). Only the helper is tested: no test makes that
+  one git call fail while the branch guard before it passes.
+- `flagReader.Err`: now Internal (70) (068c33fe).
+- `git push` "To <url>": holds. Git 2.56 strips the credentials from the `To` line and its error
+  messages (checked through an `ssh://user:secret@` origin).
+
+Open, each waiting for the user's go:
+- GitLab asset names: GitLab's Generic Packages `file_name` rule (letters, digits, `.`, `_`, `-`,
+  `+`, `~`, from memory) refuses spaces, `#` and non-ASCII at upload, after the tag push. The fix is a
+  preflight rule in the GitLab driver; it needs confirming on the Lane B sandbox first.
+- `docker-build`: confirmed by reading; its checkout has no `ref:`, so the image embeds the
+  dispatched commit's `CHANGELOG.md`, without the release section. The fix is
+  `ref: ${{ needs.release.outputs.tag }}` in `release.yml` (CI/CD).
+
 #### `[ ]` T553: interactive packages get real coverage
 
 `internal/commitwizard` 51%, `internal/scaffold` 67%, `internal/cmd` 79%; `whatsnew` is tested only for
