@@ -273,12 +273,12 @@ discipline that applies to every task.
 | 91 | Follow-ups from the generated reference (GitHub token for PR data, `check runtime` help) | Done |
 | 92 | Follow-ups from the guides (GitHub release commit, error punctuation, warning marks) | Done |
 | 93 | One person, one New Contributors entry (`.mailmap`, one entry per handle) | Done |
-| 94–101 | v1.0 readiness: every finding of the 2026-11-07 pre-v1 review, then the cut | In progress — Phases 94–99 done (T492–T541), see `v1-readiness-roadmap.md` |
+| 94–101 | v1.0 readiness: every finding of the 2026-11-07 pre-v1 review, then the cut | Done — T492–T556, cut as v1.0.1 on 2026-11-09, see `v1-readiness-roadmap.md` |
 
 ### Open items
 
-The only unchecked item of this file is the
-last sub-checkbox of Phase 10's closing checkpoint, `v1.0.0 cut …`:
+The last unchecked item of this file was the
+last sub-checkbox of Phase 10's closing checkpoint, `v1.0.0 cut …`. It was ticked on 2026-11-09 (T555):
 
 #### ✦ `[x]` CHECKPOINT K — Beta polish complete, ready for v1.0.0
 
@@ -290,13 +290,14 @@ last sub-checkbox of Phase 10's closing checkpoint, `v1.0.0 cut …`:
 - [x] `versioning.tag_prefix` replaces `versioning.prefix` throughout (T48)
 - [x] `go test ./...` passes; 675 tests across 23 packages
 - [x] Docker build splits into parallel native-runner matrix; wall-clock ≤ 20 min (T49)
-- [ ] v1.0.0 cut by running `heraut release` on the heraut repo itself
+- [x] v1.0.0 cut by running `heraut release` on the heraut repo itself — cut as v1.0.1, because GitHub
+  refuses the `v1.0.0` tag on this repository (T555)
 
 All Phase 10 tasks (T43–T49) shipped. `heraut check runtime` now displays a clean
 two-section TUI (Git / Platforms) with config-aware required vs optional
 tool checks and full API auth verification for configured platforms. The release workflow
-uses native-runner parallel Docker builds and proper attestation. The one remaining item
-is cutting v1.0.0 itself — all quality gates are green.
+uses native-runner parallel Docker builds and proper attestation. The cut itself came last (T555): heraut
+released itself as v1.0.1, its first 1.x release.
 
 ---
 
