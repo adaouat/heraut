@@ -261,7 +261,8 @@ an identical re-run has nothing to commit.
 rebuilds every section from all tags, and **re-enriches all of them** — this re-enrichment (an
 API call per historical release rather than just the newest) is the actual distinguishing cost
 `--regenerate` controls; preamble/postamble freshness no longer depends on it at all (ADR-0050).
-Each section is enriched independently, so GitHub (batched GraphQL, 50 SHAs/query), GitLab in
+Each section is enriched independently, so GitHub (batched GraphQL, 50 SHAs/query; of the up to 5
+pull requests associated with a commit, the first merged one is taken, never an open one), GitLab in
 `api_mode: graphql` (two
 batched connection queries — commit authors via `commits`, MR refs via inverted `mergeRequests`,
 [ADR-0042](../adr/0042-gitlab-graphql-enrichment.md)), and Azure (`pullrequestquery` POSTs of 100 SHAs) each

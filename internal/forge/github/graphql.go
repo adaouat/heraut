@@ -18,7 +18,7 @@ const (
 	// the query size and staying well within GitHub's API node limits.
 	ghChunkSize = 50
 
-	prFragment = "...on Commit{author{user{login}}associatedPullRequests(first:1){nodes{number url title author{login}labels(first:20){nodes{name}}createdAt mergedAt mergedBy{login}latestReviews(first:20){nodes{state author{login}}}}}}"
+	prFragment = "...on Commit{author{user{login}}associatedPullRequests(first:5){nodes{number url title author{login}labels(first:20){nodes{name}}createdAt mergedAt mergedBy{login}latestReviews(first:20){nodes{state author{login}}}}}}"
 )
 
 // enrichGraphQL fetches the associated pull request and commit-author handle for each SHA via
@@ -158,6 +158,17 @@ type graphQLPR struct {
 	} `json:"latestReviews"`
 }
 
+// mergedPR returns the first merged pull request of nodes. A commit is also listed on open pull
+// requests that carry it (a release PR, a branch based on it), which are not where it landed.
+func mergedPR(nodes []graphQLPR) (graphQLPR, bool) {
+	for _, pr := range nodes {
+		if !pr.MergedAt.IsZero() {
+			return pr, true
+		}
+	}
+	return graphQLPR{}, false
+}
+
 // parseGitHubResponse decodes the GraphQL JSON and maps each SHA to its PullRequest and
 // commit-author handle. Aliases absent from the response are silently skipped. A commit with an
 // author but no associated PR still records its handle; empty PR nodes yield no PR entry.
@@ -180,10 +191,10 @@ func parseGitHubResponse(body []byte, shas []string) (map[string]port.PullReques
 		if commit.Author.User != nil && commit.Author.User.Login != "" {
 			authors[sha] = commit.Author.User.Login
 		}
-		if len(commit.AssociatedPullRequests.Nodes) == 0 {
+		pr, ok := mergedPR(commit.AssociatedPullRequests.Nodes)
+		if !ok {
 			continue
 		}
-		pr := commit.AssociatedPullRequests.Nodes[0]
 		var labels []string
 		for _, l := range pr.Labels.Nodes {
 			labels = append(labels, l.Name)

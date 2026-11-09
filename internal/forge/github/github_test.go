@@ -123,7 +123,7 @@ func TestEnrich_ChunksLargeCommitSets(t *testing.T) {
 		w.Header().Set("Content-Type", "application/json")
 		_, _ = fmt.Fprintf(w, `{"data":{"repository":{"s0":{
 			"author":{"user":{"login":"alice"}},
-			"associatedPullRequests":{"nodes":[{"number":%d,"url":"https://github.com/acme/widget/pull/%d","title":"chunk %d"}]}}}}}`,
+			"associatedPullRequests":{"nodes":[{"number":%d,"url":"https://github.com/acme/widget/pull/%d","title":"chunk %d","mergedAt":"2026-07-02T11:00:00Z"}]}}}}}`,
 			prNumber, prNumber, queries)
 	}))
 	defer srv.Close()
@@ -172,4 +172,38 @@ func TestEnrich_GraphQLEndpointGHESExplicitAPIURL(t *testing.T) {
 	_, err := f.Enrich(t.Context(), []port.Commit{{Hash: "abc123"}}, "")
 	require.NoError(t, err)
 	assert.Equal(t, "/api/graphql", gotPath)
+}
+
+// A commit can belong to several pull requests: the one that merged it, and open ones that also carry
+// it (a release PR, a branch based on it). Only a merged one is where the commit landed.
+func TestEnrich_TakesTheMergedPullRequest(t *testing.T) {
+	tests := []struct {
+		name, nodes string
+		want        int // 0: no PR
+	}{
+		{"an open PR listed first", `{"number":7,"url":"u7","title":"open"},{"number":42,"url":"u42","title":"merged","mergedAt":"2026-07-02T11:00:00Z"}`, 42},
+		{"only open PRs", `{"number":7,"url":"u7","title":"open"},{"number":8,"url":"u8","title":"also open"}`, 0},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			var gotBody string
+			srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				b, _ := io.ReadAll(r.Body)
+				gotBody = string(b)
+				_, _ = fmt.Fprintf(w, `{"data":{"repository":{"s0":{"author":{"user":null},"associatedPullRequests":{"nodes":[%s]}}}}}`, tc.nodes)
+			}))
+			defer srv.Close()
+
+			f := github.New(port.ForgeIdentity{Host: srv.URL, APIURL: srv.URL, Project: "acme/widget"}, srv.Client())
+			en, err := f.Enrich(t.Context(), []port.Commit{{Hash: "abc123"}}, "")
+
+			require.NoError(t, err)
+			assert.Contains(t, gotBody, "associatedPullRequests(first:5)", "more than one PR is asked for")
+			if tc.want == 0 {
+				assert.Empty(t, en.PRs)
+				return
+			}
+			assert.Equal(t, tc.want, en.PRs["abc123"].Number)
+		})
+	}
 }
