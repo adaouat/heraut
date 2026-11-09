@@ -1,6 +1,7 @@
 package conventionalcommit_test
 
 import (
+	"strings"
 	"testing"
 
 	"github.com/adaouat/heraut/internal/conventionalcommit"
@@ -285,4 +286,17 @@ func BenchmarkParse(b *testing.B) {
 			}
 		})
 	}
+}
+
+// A message saved by a Windows editor ends its lines with CRLF: it parses as its LF twin.
+func TestParse_CRLFLineEndings(t *testing.T) {
+	crlf := "feat(api)!: add x\r\n\r\nbody line\r\n\r\nBREAKING CHANGE: gone\r\nRefs: #12\r\n"
+
+	got, err := conventionalcommit.Parse(crlf)
+	require.NoError(t, err)
+	want, err := conventionalcommit.Parse(strings.ReplaceAll(crlf, "\r\n", "\n"))
+	require.NoError(t, err)
+
+	assert.Equal(t, want, got)
+	assert.Equal(t, "add x", got.Description)
 }

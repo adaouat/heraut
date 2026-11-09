@@ -47,7 +47,8 @@ type Commit struct {
 // structural components. It enforces grammar only — callers needing a type allow-list
 // apply that policy themselves (see internal/app.VerifyCommit).
 func Parse(message string) (*Commit, error) {
-	lines := strings.Split(message, "\n")
+	// A Windows editor saves CRLF line endings; the grammar is defined on LF.
+	lines := strings.Split(strings.ReplaceAll(message, "\r\n", "\n"), "\n")
 	header := lines[0]
 
 	m := headerPattern.FindStringSubmatch(header)
