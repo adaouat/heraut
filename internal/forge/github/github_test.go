@@ -207,3 +207,42 @@ func TestEnrich_TakesTheMergedPullRequest(t *testing.T) {
 		})
 	}
 }
+
+// GitHub answers a batched query with the data it could resolve plus an error per alias it could
+// not: one bad commit costs only its own PR data, not its 49 neighbours'.
+func TestEnrich_AnErrorOnOneCommitKeepsTheOthers(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		_, _ = w.Write([]byte(`{"data":{"repository":{
+			"s0":{"author":{"user":{"login":"alice"}},"associatedPullRequests":{"nodes":[{"number":42,"url":"u42","title":"ok","mergedAt":"2026-07-02T11:00:00Z"}]}},
+			"s1":null}},
+			"errors":[{"message":"Something went wrong resolving s1","path":["repository","s1"]}]}`))
+	}))
+	defer srv.Close()
+
+	f := github.New(port.ForgeIdentity{Host: srv.URL, APIURL: srv.URL, Project: "acme/widget"}, srv.Client())
+	en, err := f.Enrich(t.Context(), []port.Commit{{Hash: "good"}, {Hash: "bad"}}, "")
+
+	require.NoError(t, err)
+	assert.Equal(t, 42, en.PRs["good"].Number)
+	assert.NotContains(t, en.PRs, "bad")
+}
+
+// An error that names no commit is about the whole query: it still fails.
+func TestEnrich_AnErrorAboutTheWholeQueryFailsTheChunk(t *testing.T) {
+	for name, body := range map[string]string{
+		"no path":                `{"data":{"repository":{"s0":null}},"errors":[{"message":"API rate limit exceeded"}]}`,
+		"the repository missing": `{"data":{"repository":null},"errors":[{"type":"NOT_FOUND","path":["repository"],"message":"Could not resolve to a Repository"}]}`,
+	} {
+		t.Run(name, func(t *testing.T) {
+			srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				_, _ = w.Write([]byte(body))
+			}))
+			defer srv.Close()
+
+			f := github.New(port.ForgeIdentity{Host: srv.URL, APIURL: srv.URL, Project: "acme/widget"}, srv.Client())
+			_, err := f.Enrich(t.Context(), []port.Commit{{Hash: "abc123"}}, "")
+
+			require.Error(t, err)
+		})
+	}
+}

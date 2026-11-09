@@ -117,6 +117,7 @@ type graphQLResponse struct {
 	} `json:"data"`
 	Errors []struct {
 		Message string `json:"message"`
+		Path    []any  `json:"path"`
 	} `json:"errors"`
 }
 
@@ -177,8 +178,12 @@ func parseGitHubResponse(body []byte, shas []string) (map[string]port.PullReques
 	if err := json.Unmarshal(body, &resp); err != nil {
 		return nil, nil, fmt.Errorf("parsing github graphql response: %w", err)
 	}
-	if len(resp.Errors) > 0 {
-		return nil, nil, fmt.Errorf("github graphql: %s", resp.Errors[0].Message)
+	// An error whose path goes below repository concerns that one alias, whose data is null: the
+	// other commits are kept. Any other (no path, or the repository itself) is about the whole query.
+	for _, e := range resp.Errors {
+		if len(e.Path) < 2 || e.Path[0] != "repository" {
+			return nil, nil, fmt.Errorf("github graphql: %s", e.Message)
+		}
 	}
 	prs := make(map[string]port.PullRequest)
 	authors := make(map[string]string)
