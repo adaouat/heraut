@@ -200,7 +200,7 @@ platform's API directly over `net/http` (ADR-0043).
 - `disable_changelog: true` per-env skips changelog generation and the commit, but **not**
   the tag when `--tag` is also passed. Use `heraut changelog --tag --env <env>` for
   tag-only flows on environments where changelog is disabled.
-- The global `--offline` flag overrides config: it forces `commits.enrichment_policy:
+- The `--offline` flag (on `release`, `changelog`, `notes` and `check`) overrides config: it forces `commits.enrichment_policy:
   disabled` for the run regardless of what `.heraut.yml` sets, skipping PR/MR enrichment in
   changelog and release-notes generation (`internal/cmd/offline.go`).
 

@@ -941,7 +941,7 @@ Reference regenerated.
 
 ### Phase 99 — Contributor docs
 
-#### `[ ]` T537: specs say what the code does
+#### `[x]` T537: specs say what the code does
 
 - Spec 03:297-298 recommends `release --set-version <tag>` after `changelog --tag`; it fails with
   `tag already exists` (ADR-0073). Point to failure-recovery state C.
@@ -957,6 +957,22 @@ Reference regenerated.
 - Spec 01:42,57 describe `internal/cmd/` as `cmd/heraut/`.
 - Leftovers: `internal/pipeline/linkctx.go:16` ("git-cliff's linkEnv"), Spec 03:282 ("mirrors
   `cog bump`"), Spec 05:25 ("matching git-cliff").
+
+**Done (2026-11-09).** Each item fixed:
+- Spec 03 no longer suggests `release --set-version <tag>` for an existing tag; it points to
+  failure-recovery state C.
+- `--offline` is a per-command flag in CLAUDE.md and `offline.go`'s comment; Spec 02 already said so
+  (T503).
+- The `$CI_PROJECT_PATH` examples show `acme/app` and say there is no env expansion.
+- "Usage errors … exit 2" now reads "config errors".
+- The dry-run claim names the commands it covers.
+- Spec 06 describes the user docs as the users' front door, the `build` job as it is (with
+  `goreleaser check` in `ci`, and pushes to `main` too), and `e2e.yml`.
+- Spec 01's diagram has `cmd/heraut/` as the entry point and `internal/cmd/` as the commands.
+- Spec 02's top-level table gains `notes` and says `release` is needed to publish.
+- The git-cliff and `cog bump` leftovers are gone.
+
+CLAUDE.md's workflow list is T539.
 
 #### `[ ]` T538: ADR statuses and amendments
 

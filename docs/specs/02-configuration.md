@@ -57,7 +57,8 @@ git: ...               # optional — push options for the changelog commit push
 | `version`      | Yes      | Schema version. Only `"1"` is valid.                                                                                       |
 | `versioning`   | Yes      | Version resolution strategy and options.                                                                                   |
 | `changelog`    | No       | Changelog generator. When present, heraut generates and commits `CHANGELOG.md` during release.                             |
-| `release`      | No       | Release notes generator and target platforms.                                                                              |
+| `release`      | No       | Release notes generator and target platforms. Without it, `heraut release` tags only.                                     |
+| `notes`        | No       | Settings for `heraut notes` (template, rendering), separate from the published release notes (see § `notes` below). |
 | `environments` | No       | Per-environment settings (versioning and content). Only valid with `semver-per-env` or `calver-per-env`. |
 | `commits`      | No       | Conventional-commit type set, scopes, tickets, and enrichment forge/policy (see § `commits` below). |
 | `rendering`    | No       | Global content-output overrides: exclude rules, template-block snippets, and footer-trailer rendering rules (see § `rendering` below). |
@@ -1035,7 +1036,7 @@ attempting one (T221).
 forges:
   - name: gitlab
     platform: gitlab
-    project: $CI_PROJECT_PATH   # optional, defaults to $CI_PROJECT_PATH
+    project: acme/app           # optional, defaults to $CI_PROJECT_PATH (no env expansion here)
     token_env: GITLAB_TOKEN     # optional, defaults to GITLAB_TOKEN
     base_url: https://gitlab.com  # optional — see Spec 05's base_url resolution chain
 

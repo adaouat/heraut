@@ -6,7 +6,7 @@ import (
 	"github.com/adaouat/heraut/internal/config"
 )
 
-// applyOfflineOverride forces the enrichment_policy to "disabled" when the persistent
+// applyOfflineOverride forces the enrichment_policy to "disabled" when the command's
 // --offline flag is set, so the run makes no remote PR/MR metadata API calls regardless of
 // the configured policy. A one-off override of enrichment_policy for a single run.
 func applyOfflineOverride(cmd *cobra.Command, cfg *config.Config) error {

@@ -39,7 +39,9 @@ or run the Docker image. See [ADR-0013](../adr/0013-raw-binary-goreleaser-format
 ### Internal architecture (high level)
 
 ```
-cmd/heraut/         thin CLI: parses flags, calls app.*, displays UI
+cmd/heraut/         entry point: forge/cli.Run(ctx, cmd.NewRootCmd(version), …)
+   ↓
+internal/cmd/       cobra commands: parse flags, call app.*, display UI
    ↓
 internal/app/       wiring layer — NewResolver(), BuildPipeline(), BuildChangelogPipeline()
    ↓
@@ -54,7 +56,7 @@ The layout is hexagonal: `internal/port/` defines the contracts (`Runner`, `Gene
 `Platform`, `Forge`); `internal/forge/`, `internal/generators/`, and `internal/platforms/`
 implement them, and `port.Runner` is a type alias onto the concrete runner in
 `github.com/adaouat/forge/exec` (heraut's shared plumbing library). Domain wiring lives only in
-`internal/app/` — `cmd/heraut/` never constructs concrete implementations directly.
+`internal/app/` — `internal/cmd/` never constructs concrete implementations directly.
 
 ## Key concepts
 
@@ -85,8 +87,8 @@ version. Guards: E001 (target exists), E002 (destination ahead), E003 (no source
 See [ADR-0007](../adr/0007-version-promotion-error-handling.md) and
 [ADR-0008](../adr/0008-promote-source-env.md).
 
-**Dry-run** (`--dry-run`) — every command with side effects (`release`, `changelog`,
-`commit create`, `version sprint bump`) produces a human-readable plan of what it would
+**Dry-run** (`--dry-run`) — the commands that commit, tag, publish or rewrite the config
+(`release`, `changelog`, `commit create`, `version sprint bump`) produce a human-readable plan of what it would
 do instead: no git writes, no network calls, no file writes outside `/tmp`. One
 exception: version resolution always uses a real (non-dry-run) runner for its
 read-only git calls (`git tag -l`, `git log`), so the printed next version is the actual

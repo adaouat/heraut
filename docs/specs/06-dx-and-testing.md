@@ -22,8 +22,9 @@ developers before committing config changes. No tokens, no network, no git opera
 
 ### Dry-run
 
-Every command with side effects (`release`, `changelog`, `commit create`, `version sprint
-bump`) supports its own local `--dry-run` flag. The implementation:
+The commands that commit, tag, publish or rewrite the config (`release`, `changelog`,
+`commit create`, `version sprint bump`) support their own local `--dry-run` flag; the ones that
+only write a file you name (`init`, `skill install`, `notes --output`) have none. The implementation:
 
 1. The `exec.Runner` adapter checks its `DryRun` flag before invoking each command.
 2. When set, it logs the would-be invocation and returns immediately with empty stdout /
@@ -60,10 +61,10 @@ suggests the *fix*.
 
 ### Documentation
 
-- This `docs/specs/` directory — the behavioural authority for users
+- `README.md` → `docs/README.md` — the user docs: install, getting started, guides, concepts and the
+  generated reference. They never link the specs or ADRs (`TestDocumentationLinks`).
+- This `docs/specs/` directory — the behavioural authority, for contributors
 - `docs/adr/` — design decisions for contributors
-- `README.md` — install, quickstart, configuration crash-course (with links into
-  `docs/specs/`)
 
 Each strategy, generator, and platform has a dedicated section in one of the specs.
 
@@ -168,13 +169,13 @@ behaviour it covers is deliberately changed, with an ADR documenting the change.
 
 ## CI
 
-`.github/workflows/ci.yml` runs three jobs on every PR:
+`.github/workflows/ci.yml` runs three jobs on every PR and on every push to `main`:
 
 1. **`ci`** — delegates to forge's shared reusable workflow
    (`adaouat/forge/.github/workflows/go-ci.yml`), which runs `go test ./...` and
    `golangci-lint run` with an 85% coverage threshold enforced.
-2. **`build`** — `go build ./cmd/heraut/` plus `goreleaser check` (validates
-   `.goreleaser.yml` without building).
+2. **`build`** — `go build ./cmd/heraut/`. (`goreleaser check` runs inside forge's
+   `go-ci.yml`, in the `ci` job.)
 3. **`hk`** — `hk check --all --check --skip-step golangci_lint`: every other linter
    configured in `.config/hk/config.pkl` (hadolint, actionlint, yamlfmt, typos, pkl, go
    fmt, …) against the full tree, not just staged files. `golangci_lint` is skipped here
@@ -192,6 +193,10 @@ cross-compiles the binaries and nothing else. The freshly-built `heraut` binary 
 the git tag and the GitHub Release (dogfooding), uploads the checksums/binaries as
 release assets, and attaches build-provenance attestation. Separate `docker-build` /
 `docker-merge` jobs build and push the multi-arch `ghcr.io/adaouat/heraut` image.
+
+`.github/workflows/e2e.yml` runs Lane B (`-tags e2e_forge`) against the GitHub and GitLab sandbox
+repositories, nightly and on demand (`workflow_dispatch`), with `contents: read`; it never runs on a
+pull request ([ADR-0066](../adr/0066-e2e-test-lanes.md)).
 
 ## Resolved questions
 

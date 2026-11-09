@@ -22,7 +22,7 @@ Section labels, order, and heading depth come from `commits.types` and
 Each commit line credits the **commit author** — `by @<handle>` — resolved from the platform,
 independent of any associated pull request; the PR/MR, when present, contributes only its
 `in [#N](url)` reference link. When the committer differs from the PR/MR author, the committer
-is credited (matching git-cliff). GitHub resolves the handle at no extra cost, riding its existing
+is credited. GitHub resolves the handle at no extra cost, riding its existing
 batched PR-fetch query (ADR-0039). **GitLab** in `api_mode: graphql` (opt-in) resolves it via a
 batched `commits` GraphQL query, and separately inverts a batched `mergeRequests` query into a
 `commitSha → MR` map for the `in [!N]` reference plus MR review-metadata; a commit attributable to
@@ -551,7 +551,7 @@ or `uploads.<host>`; any other `upload_url` is refused before a byte is sent.
 forges:
   - name: gitlab
     platform: gitlab
-    project: $CI_PROJECT_PATH   # optional, defaults to $CI_PROJECT_PATH
+    project: acme/app           # optional, defaults to $CI_PROJECT_PATH (no env expansion here)
     token_env: GITLAB_TOKEN     # optional, defaults to GITLAB_TOKEN
     base_url: https://gitlab.com  # optional — see the resolution chain below
 

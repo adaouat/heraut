@@ -14,7 +14,7 @@ import (
 // that used to live in the embedded Tera templates, relocated into Go so the templates stay
 // branch-free (ADR-0022).
 //
-// BaseURL is the host only, with Owner/Repo split from the CI-provided path: git-cliff's linkEnv
+// BaseURL is the host only, with Owner/Repo split from the CI-provided path: the generator's link context
 // composes the same {remote} from BaseURL+Owner+Repo, and — crucially — native's remote enrichment
 // needs Owner/Repo to address the GitHub/GitLab API. Leaving them empty made native's ambient
 // enrichment query `owner:""` and 404 (silently degrading with no attribution). The GitLab
