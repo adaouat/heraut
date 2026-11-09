@@ -94,8 +94,12 @@ jobs:
           - platform: linux/arm64
             runner: ubuntu-24.04-arm
     steps:
+      # The release tag, not the dispatched commit: the image embeds CHANGELOG.md, whose release
+      # section the release job committed after the dispatch.
       - name: Checkout code
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          ref: ${{ needs.release.outputs.tag }}
 
       - name: Prepare platform tag
         run: echo "PLATFORM_PAIR=${PLATFORM//\//-}" >> "$GITHUB_ENV"
