@@ -1256,11 +1256,22 @@ Then, on the user's go:
   Not run against the Lane B sandbox.
 - `docker-build`: its checkout now uses `ref: ${{ needs.release.outputs.tag }}` (9d33094d).
 
-#### `[ ]` T553: interactive packages get real coverage
+#### `[x]` T553: interactive packages get real coverage
 
 `internal/commitwizard` 51%, `internal/scaffold` 67%, `internal/cmd` 79%; `whatsnew` is tested only for
 registration (`root_test.go:38`) and its offline fallback has no e2e. Cover the decision logic behind the
 forms (not the forms themselves) and the `whatsnew` fallback.
+
+Done. Covered the decision logic, not the `huh` forms: `resolveStaging`'s four failure paths (the
+staged-files and working-tree reads, the prompt, `git add`; a mutation that ignores `git add`'s error
+is caught) and `commitsTypes`/`commitsScopes` in `commitwizard`; the CI-markers-without-a-project case
+of scaffold's `detectPlatform`. `whatsnew`'s offline fallback gets an e2e test: behind a dead local
+proxy it exits 0 and shows the newest release of the repository's `CHANGELOG.md`. Package coverage
+now: `commitwizard` and `scaffold` around 73-75% (what is left is form code: `collectAnswers`,
+`RunWizard`, the platform wizard), `internal/cmd` 76% in-process. The `--json` paths of `check` and
+`commit verify` show 0% there but are pinned envelope by envelope in e2e (`checkjson_test.go`),
+which drives the built binary and so is not counted; duplicating them in-process would add numbers,
+not protection.
 
 #### `[x]` T554: the review's own environment notes
 

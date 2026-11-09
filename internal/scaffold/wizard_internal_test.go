@@ -110,6 +110,16 @@ func TestDetectPlatform_AzureDevOpsNotOfferedByWizardFallsBackToPathParsing(t *t
 	assert.Equal(t, "myorg/myproject/_git/myrepo", project)
 }
 
+// CI markers name the forge but not the project (no CI_PROJECT_PATH): the project still comes from
+// the origin, on any host.
+func TestDetectPlatform_CIMarkersWithoutAProjectReadTheOrigin(t *testing.T) {
+	typ, project := detectPlatform(func(k string) string {
+		return map[string]string{"GITLAB_CI": "true", "CI_SERVER_URL": "https://gitlab.example.com"}[k]
+	}, "git@gitlab.example.com:group/service.git")
+	assert.Equal(t, "gitlab", typ)
+	assert.Equal(t, "group/service", project)
+}
+
 func TestDetectPlatform_NoDetection(t *testing.T) {
 	typ, project := detectPlatform(func(string) string { return "" }, "")
 	assert.Equal(t, "", typ)
