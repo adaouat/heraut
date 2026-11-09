@@ -7,7 +7,6 @@ versioning:
   initial_version: "0.1.0"
   bump:
     mode: auto
-    stay_at_v0: true
 
 commits:
   rules:
