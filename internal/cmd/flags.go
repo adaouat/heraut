@@ -36,11 +36,11 @@ func (r *flagReader) note(name string, err error) {
 	}
 }
 
-// Err returns the first failure as an internal error (Runtime): the flag names are heraut's own, so
+// Err returns the first failure as an internal error (exit 70): the flag names are heraut's own, so
 // a failure is a bug in the command, not something the user typed.
 func (r *flagReader) Err() error {
 	if r.err == nil {
 		return nil
 	}
-	return exitcode.Wrap(exitcode.Runtime, r.err)
+	return exitcode.Wrap(exitcode.Internal, r.err)
 }

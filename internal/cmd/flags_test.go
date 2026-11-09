@@ -38,7 +38,7 @@ func TestFlagReader_UndeclaredFlagIsAnError(t *testing.T) {
 	err := f.Err()
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "--xq-force", "the first bad name is reported")
-	assert.Equal(t, exitcode.Runtime, exitcode.Resolve(err), "a missing flag is a heraut bug, not a usage error")
+	assert.Equal(t, exitcode.Internal, exitcode.Resolve(err), "a missing flag is a heraut bug: neither a usage error nor a runtime failure")
 }
 
 func TestFlagReader_WrongTypeIsAnError(t *testing.T) {
