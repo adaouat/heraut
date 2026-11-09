@@ -46,9 +46,30 @@ func gqlMRsQuery(project, mergedAfter, after string) string {
 	}
 	return fmt.Sprintf(`{project(fullPath:%s){mergeRequests(state:merged%s,first:100){`+
 		`nodes{iid webUrl title author{username}createdAt mergedAt mergeUser{username}`+
-		`labels{nodes{title}}mergeCommitSha commits{nodes{sha}}}`+
+		`labels{nodes{title}}mergeCommitSha commits(first:100){nodes{sha}pageInfo{endCursor hasNextPage}}}`+
 		`pageInfo{endCursor hasNextPage}}}}`,
 		gqlString(project), extra.String())
+}
+
+// gqlMRCommitsQuery fetches the next page of one merge request's commits, for an MR with more than
+// the 100 the merge request query returns.
+func gqlMRCommitsQuery(project, iid, after string) string {
+	return fmt.Sprintf(`{project(fullPath:%s){mergeRequest(iid:%s){commits(first:100,after:%s){`+
+		`nodes{sha}pageInfo{endCursor hasNextPage}}}}}`,
+		gqlString(project), gqlString(iid), gqlString(after))
+}
+
+type gqlMRCommitsResponse struct {
+	Data struct {
+		Project struct {
+			MergeRequest struct {
+				Commits gqlCommitPage `json:"commits"`
+			} `json:"mergeRequest"`
+		} `json:"project"`
+	} `json:"data"`
+	Errors []struct {
+		Message string `json:"message"`
+	} `json:"errors"`
 }
 
 // gqlString renders s as a GraphQL string literal so an interpolated value cannot break out of it.
@@ -111,12 +132,16 @@ type gqlMR struct {
 			Title string `json:"title"`
 		} `json:"nodes"`
 	} `json:"labels"`
-	MergeCommitSHA string `json:"mergeCommitSha"`
-	Commits        struct {
-		Nodes []struct {
-			SHA string `json:"sha"`
-		} `json:"nodes"`
-	} `json:"commits"`
+	MergeCommitSHA string        `json:"mergeCommitSha"`
+	Commits        gqlCommitPage `json:"commits"`
+}
+
+// gqlCommitPage is one page of a merge request's commits.
+type gqlCommitPage struct {
+	Nodes []struct {
+		SHA string `json:"sha"`
+	} `json:"nodes"`
+	PageInfo gqlPageInfo `json:"pageInfo"`
 }
 
 // oldestCommitDate returns the minimum commit date — the lower bound of the release window — or
@@ -222,7 +247,11 @@ func (f *Forge) fetchGraphQLMRs(ctx context.Context, mergedAfter string, want ma
 		mrs := resp.Data.Project.MergeRequests
 		for _, n := range mrs.Nodes {
 			pr := gqlMRToPullRequest(n)
-			for _, sha := range landingSHAs(n) {
+			more, err := f.remainingMRCommits(ctx, n)
+			if err != nil {
+				return nil, err
+			}
+			for _, sha := range append(landingSHAs(n), more...) {
 				if want[sha] {
 					if _, seen := prs[sha]; !seen {
 						prs[sha] = pr
@@ -240,6 +269,28 @@ func (f *Forge) fetchGraphQLMRs(ctx context.Context, mergedAfter string, want ma
 		}
 		after = mrs.PageInfo.EndCursor
 	}
+}
+
+// remainingMRCommits pages through the commits of n past the first page the merge request query
+// returned, so a commit of a long MR (over 100 commits) is still credited to it.
+func (f *Forge) remainingMRCommits(ctx context.Context, n gqlMR) ([]string, error) {
+	var shas []string
+	page := n.Commits.PageInfo
+	for page.HasNextPage && page.EndCursor != "" {
+		var resp gqlMRCommitsResponse
+		if err := f.postGraphQL(ctx, gqlMRCommitsQuery(f.id.Project, n.IID, page.EndCursor), &resp); err != nil {
+			return nil, fmt.Errorf("gitlab graphql commits of !%s: %w", n.IID, err)
+		}
+		if len(resp.Errors) > 0 {
+			return nil, fmt.Errorf("gitlab graphql commits of !%s: %s", n.IID, resp.Errors[0].Message)
+		}
+		commits := resp.Data.Project.MergeRequest.Commits
+		for _, c := range commits.Nodes {
+			shas = append(shas, c.SHA)
+		}
+		page = commits.PageInfo
+	}
+	return shas, nil
 }
 
 // postGraphQL issues query against the instance's /api/graphql endpoint and decodes the response

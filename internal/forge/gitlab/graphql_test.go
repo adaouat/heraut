@@ -169,12 +169,12 @@ func TestEnrichGraphQL_PaginatesBothConnections(t *testing.T) {
 		w.Header().Set("Content-Type", "application/json")
 		switch {
 		// commits, page 1 → one more page
-		case strings.Contains(body, "commits(") && !strings.Contains(body, "CURSOR-C"):
+		case !strings.Contains(body, "mergeRequests(") && !strings.Contains(body, "CURSOR-C"):
 			_, _ = w.Write([]byte(`{"data":{"project":{"repository":{"commits":{
 				"nodes":[{"sha":"aaa","author":{"username":"alice-gl"}}],
 				"pageInfo":{"endCursor":"CURSOR-C","hasNextPage":true}}}}}}`))
 		// commits, page 2 → done
-		case strings.Contains(body, "commits("):
+		case !strings.Contains(body, "mergeRequests("):
 			_, _ = w.Write([]byte(`{"data":{"project":{"repository":{"commits":{
 				"nodes":[{"sha":"bbb","author":{"username":"bob-gl"}}],
 				"pageInfo":{"endCursor":"","hasNextPage":false}}}}}}`))
@@ -241,4 +241,47 @@ func TestEnrichGraphQL_StopsOnEmptyCursor(t *testing.T) {
 		t.Fatal("Enrich did not terminate on an empty cursor — infinite pagination loop")
 	}
 	assert.Less(t, calls, 10, "must stop promptly, not spin")
+}
+
+// GitLab returns at most 100 commits of an MR per page: an MR with more is paged through, so a
+// commit past the first page is still credited to it.
+func TestEnrichGraphQL_PagesThroughALongMergeRequest(t *testing.T) {
+	var queries []string
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		b, _ := io.ReadAll(r.Body)
+		q := string(b)
+		queries = append(queries, q)
+		w.Header().Set("Content-Type", "application/json")
+		switch {
+		case strings.Contains(q, "mergeRequest(iid:"):
+			_, _ = w.Write([]byte(`{"data":{"project":{"mergeRequest":{"commits":{
+				"nodes":[{"sha":"late"}],"pageInfo":{"endCursor":"","hasNextPage":false}}}}}}`))
+		case strings.Contains(q, "mergeRequests("):
+			_, _ = w.Write([]byte(`{"data":{"project":{"mergeRequests":{"nodes":[{
+				"iid":"42","webUrl":"u42","title":"Big change","mergedAt":"2026-07-02T11:00:00Z",
+				"commits":{"nodes":[{"sha":"early"}],"pageInfo":{"endCursor":"cur1","hasNextPage":true}}
+			}],"pageInfo":{"endCursor":"","hasNextPage":false}}}}}`))
+		default:
+			_, _ = w.Write([]byte(`{"data":{"project":{"repository":{"commits":{"nodes":[]}}}}}`))
+		}
+	}))
+	defer srv.Close()
+
+	f := gitlab.New(port.ForgeIdentity{
+		Type: "gitlab", Host: srv.URL, APIURL: srv.URL + "/api/v4", Project: "group/project",
+		Token: "pat", TokenKind: port.TokenPrivate, APIMode: "graphql",
+	}, srv.Client())
+
+	en, err := f.Enrich(t.Context(), []port.Commit{{Hash: "early"}, {Hash: "late"}}, "v1.0.0")
+
+	require.NoError(t, err)
+	assert.Equal(t, 42, en.PRs["early"].Number)
+	assert.Equal(t, 42, en.PRs["late"].Number, "the commit on the MR's second page")
+	var followUp string
+	for _, q := range queries {
+		if strings.Contains(q, "mergeRequest(iid:") {
+			followUp = q
+		}
+	}
+	assert.Contains(t, followUp, `after:\"cur1\"`, "the second page starts at the first page's cursor")
 }
