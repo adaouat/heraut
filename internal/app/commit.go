@@ -167,6 +167,15 @@ func evaluateRule(r config.CommitRule, c *conventionalcommit.Commit, message str
 			msg = fmt.Sprintf("commit must reference a ticket matching one of the configured commits.tickets patterns (rule %q)", r.Name)
 		}
 		return true, msg, nil
+	case r.DenyBreaking:
+		if !c.Breaking {
+			return false, "", nil
+		}
+		msg := r.Message
+		if msg == "" {
+			msg = fmt.Sprintf("breaking changes are not allowed (rule %q)", r.Name)
+		}
+		return true, msg, nil
 	}
 	return false, "", nil
 }

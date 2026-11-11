@@ -206,6 +206,47 @@ func TestVerifyCommit_Rules_RequireTicket_DefaultMessage(t *testing.T) {
 	assert.Contains(t, err.Error(), "needs-ticket")
 }
 
+func TestVerifyCommit_Rules_DenyBreaking(t *testing.T) {
+	tests := []struct {
+		name    string
+		types   []string
+		message string
+		refused bool
+	}{
+		{"plain commit", nil, "feat: add x", false},
+		{"bang without scope", nil, "feat!: drop x", true},
+		{"bang with scope", nil, "fix(cmd)!: drop x", true},
+		{"BREAKING CHANGE footer", nil, "feat: x\n\nBREAKING CHANGE: x is gone", true},
+		{"BREAKING-CHANGE footer", nil, "feat: x\n\nBREAKING-CHANGE: x is gone", true},
+		{"breaking in body prose only", nil, "feat: x\n\nnot a breaking change", false},
+		{"scoped to feat, breaking fix passes", []string{"feat"}, "fix!: drop x", false},
+		{"scoped to feat, breaking feat refused", []string{"feat"}, "feat!: drop x", true},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			cfg := &config.Config{Commits: &config.Commits{
+				Rules: []config.CommitRule{{Name: "no-breaking", DenyBreaking: true, Types: tc.types, Message: "cut a major on purpose"}},
+			}}
+			_, err := app.VerifyCommit(cfg, tc.message)
+			if !tc.refused {
+				assert.NoError(t, err)
+				return
+			}
+			require.Error(t, err)
+			assert.Contains(t, err.Error(), "cut a major on purpose")
+		})
+	}
+}
+
+func TestVerifyCommit_Rules_DenyBreaking_DefaultMessage(t *testing.T) {
+	cfg := &config.Config{Commits: &config.Commits{
+		Rules: []config.CommitRule{{Name: "no-breaking", DenyBreaking: true}},
+	}}
+	_, err := app.VerifyCommit(cfg, "feat!: drop x")
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), `breaking changes are not allowed (rule "no-breaking")`)
+}
+
 func TestVerifyCommit_Rules_Target_Header(t *testing.T) {
 	cfg := &config.Config{Commits: &config.Commits{
 		Rules: []config.CommitRule{{Name: "no-wip-header", Deny: `wip`, Message: "no wip in header", Target: "header"}},

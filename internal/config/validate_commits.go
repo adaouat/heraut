@@ -124,7 +124,7 @@ func validateCommitRules(c *Commits) []ValidationError {
 		}
 
 		set := 0
-		for _, isSet := range []bool{r.Deny != "", r.Require != "", r.RequireTicket} {
+		for _, isSet := range []bool{r.Deny != "", r.Require != "", r.RequireTicket, r.DenyBreaking} {
 			if isSet {
 				set++
 			}
@@ -133,13 +133,13 @@ func validateCommitRules(c *Commits) []ValidationError {
 		case set == 0:
 			errs = append(errs, ValidationError{
 				Path:    path,
-				Message: "must set exactly one of deny, require, or require_ticket",
+				Message: "must set exactly one of deny, require, require_ticket, or deny_breaking",
 				Hint:    `e.g. {deny: "(?i)\\bwip\\b"} or {require_ticket: true}`,
 			})
 		case set > 1:
 			errs = append(errs, ValidationError{
 				Path:    path,
-				Message: "set only one of deny, require, or require_ticket, not more than one",
+				Message: "set only one of deny, require, require_ticket, or deny_breaking, not more than one",
 			})
 		}
 
@@ -167,7 +167,13 @@ func validateCommitRules(c *Commits) []ValidationError {
 				Hint:    "set a message shown when the rule is violated",
 			})
 		}
-		if !validCommitRuleTargets[r.Target] {
+		if r.DenyBreaking && r.Target != "" {
+			errs = append(errs, ValidationError{
+				Path:    path + ".target",
+				Message: "not allowed with deny_breaking, which reads the whole commit",
+				Hint:    "remove target from this rule",
+			})
+		} else if !validCommitRuleTargets[r.Target] {
 			errs = append(errs, ValidationError{
 				Path:    path + ".target",
 				Message: fmt.Sprintf("%q is not a valid target", r.Target),
