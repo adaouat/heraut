@@ -18,6 +18,9 @@ commits:
       deny: '^.{73,}'
       target: header
       message: "commit subject must be at most 72 characters"
+    - name: no-breaking
+      deny_breaking: true
+      message: "breaking changes are not allowed: a major release is cut with the Release workflow's version input"
 
 changelog:
   output: CHANGELOG.md
