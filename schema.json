@@ -190,7 +190,7 @@
       "required": [
         "name"
       ],
-      "description": "One extra check on commit messages. Set exactly one of deny (a regex that must not match), require (one that must) or require_ticket. message is what the author sees when the check fails.",
+      "description": "One extra check on commit messages. Set exactly one of deny (a regex that must not match), require (one that must), require_ticket or deny_breaking. message is what the author sees when the check fails.",
       "properties": {
         "name": {
           "type": "string",
@@ -209,6 +209,11 @@
           "description": "Shorthand: target must match one of the already-configured commits.tickets[].pattern entries, instead of duplicating a ticket regex in require. Requires a non-empty commits.tickets.",
           "default": false
         },
+        "deny_breaking": {
+          "type": "boolean",
+          "description": "Refuses a breaking change: a '!' before the header's colon, or a BREAKING CHANGE / BREAKING-CHANGE footer. target is not allowed with it.",
+          "default": false
+        },
         "target": {
           "type": "string",
           "enum": [
@@ -218,11 +223,11 @@
             "message"
           ],
           "default": "message",
-          "description": "Part of the message matched against: the raw first line (header), the parsed body, the joined footer trailers (footer), or the full raw text (message, the default)."
+          "description": "Part of the message matched against: the raw first line (header), the parsed body, the joined footer trailers (footer), or the full raw text (message, the default). Not allowed with deny_breaking."
         },
         "message": {
           "type": "string",
-          "description": "Shown when the rule is violated. Required for deny/require; optional for require_ticket (gets a synthesized default naming the rule)."
+          "description": "Shown when the rule is violated. Required for deny/require; optional for require_ticket and deny_breaking (get a synthesized default naming the rule)."
         },
         "types": {
           "type": "array",

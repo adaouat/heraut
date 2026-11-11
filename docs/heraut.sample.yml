@@ -252,8 +252,8 @@ versioning:
 #       url: 'https://github.com/acme/app/issues/{ticket}'
 #   # rules — project-specific commit-message constraints, checked by
 #   # `heraut commit verify`/`check` alongside types/scopes above. Set exactly one of
-#   # deny/require/require_ticket per rule; message is required for deny/require
-#   # (require_ticket gets a synthesized default). Optionally scope a rule to
+#   # deny/require/require_ticket/deny_breaking per rule; message is required for
+#   # deny/require (the others get a synthesized default). Optionally scope a rule to
 #   # specific types/scopes, and target the header/body/footer instead of the whole
 #   # message — e.g. requiring a ticket only as a footer trailer, not anywhere in
 #   # free text.
@@ -266,6 +266,8 @@ versioning:
 #       target: footer                # only a trailer counts, e.g. "Refs: PROJ-123"
 #       types: [fix]                  # only fix commits are checked
 #       message: "fix commits must reference a ticket in a footer trailer"
+#     - name: no-breaking
+#       deny_breaking: true           # refuses "feat!:" and BREAKING CHANGE footers; no target
 
 # ── rendering ─────────────────────────────────────────────────────────────────
 #
