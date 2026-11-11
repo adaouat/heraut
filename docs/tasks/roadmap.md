@@ -274,7 +274,7 @@ discipline that applies to every task.
 | 92 | Follow-ups from the guides (GitHub release commit, error punctuation, warning marks) | Done |
 | 93 | One person, one New Contributors entry (`.mailmap`, one entry per handle) | Done |
 | 94–101 | v1.0 readiness: every finding of the 2026-11-07 pre-v1 review, then the cut | Done — T492–T556, cut as v1.0.1 on 2026-11-09, see `v1-readiness-roadmap.md` |
-| 102 | Commit rules that know about breaking changes (`deny_breaking`, then a breaking-only filter) | In progress |
+| 102 | Commit rules that know about breaking changes (`deny_breaking`, then a breaking-only filter) | In progress — T557 done, T558 open |
 
 ### Open items
 
@@ -4433,7 +4433,7 @@ cut on purpose with the Release workflow's `version` input. A `deny` regex can a
 it duplicates what the commit parser already decides (a `!` in the header, a `BREAKING CHANGE` or
 `BREAKING-CHANGE` footer) and drifts from it.
 
-#### `[ ]` T557: `deny_breaking` rule kind
+#### `[x]` T557: `deny_breaking` rule kind
 
 Add a fourth `commits.rules` kind, `deny_breaking: true`, next to `deny`, `require` and
 `require_ticket`: the rule fails when the parser marks the commit breaking. `types`/`scopes` still
@@ -4446,6 +4446,22 @@ examples.
 Tests first: validator (exactly one kind, `target` refused, message optional), `VerifyCommit` (`!`
 with and without scope, both footer tokens, scoping by type, the default message), and the own-config
 test.
+
+Done 2026-11-11.
+- **Design change mid-task.** The first cut was two `deny` regexes in heraut's own config; the user
+  preferred a rule kind read from the parser's `Commit.Breaking`, so the regexes never landed. The
+  ADR-0056 addendum records why.
+- **Where it lives.** `CommitRule.DenyBreaking` (`internal/config/commits.go`), counted in the
+  exactly-one check and refusing `target` in `validate_commits.go`, evaluated in `app.evaluateRule`
+  with the default message `breaking changes are not allowed (rule "<name>")`.
+- **Tests first.** Validator rows (valid with no message and with `types`, two kinds set, `false`
+  counted as unset, `target` refused), an 8-row `VerifyCommit` table, the default message, the schema
+  fixture, and `commit_own_config_test.go`, which loads `.config/heraut.yml`.
+- **Docs.** Spec 02, `schema.json`, the sample, the generated configuration reference, the
+  `commit-conventions.md` table, and a new "Commit rules" guide with six examples run against the
+  built binary, linked from both docs indexes.
+- **Deferred.** The breaking-only filter and `require_ticket` naming its ticket entry are T558; the
+  guide's breaking-commit ticket example waits for it.
 
 #### `[ ]` T558: a breaking-only rule filter, and `require_ticket` naming its ticket kind
 
