@@ -274,6 +274,7 @@ discipline that applies to every task.
 | 92 | Follow-ups from the guides (GitHub release commit, error punctuation, warning marks) | Done |
 | 93 | One person, one New Contributors entry (`.mailmap`, one entry per handle) | Done |
 | 94–101 | v1.0 readiness: every finding of the 2026-11-07 pre-v1 review, then the cut | Done — T492–T556, cut as v1.0.1 on 2026-11-09, see `v1-readiness-roadmap.md` |
+| 102 | Commit rules that know about breaking changes (`deny_breaking`, then a breaking-only filter) | In progress |
 
 ### Open items
 
@@ -4422,6 +4423,38 @@ drift. The user decided every finding is fixed before v1.0. 64 tasks, so the bre
 `[ ] / [x]` status live in a dedicated roadmap:
 
 → **[v1.0 Readiness Roadmap](v1-readiness-roadmap.md)** — T492+
+
+---
+
+### Phase 102 — Commit rules that know about breaking changes
+
+T555 left a follow-up: heraut's own config should refuse breaking-change commits, so a 2.0 is only
+cut on purpose with the Release workflow's `version` input. A `deny` regex can approximate it, but
+it duplicates what the commit parser already decides (a `!` in the header, a `BREAKING CHANGE` or
+`BREAKING-CHANGE` footer) and drifts from it.
+
+#### `[ ]` T557: `deny_breaking` rule kind
+
+Add a fourth `commits.rules` kind, `deny_breaking: true`, next to `deny`, `require` and
+`require_ticket`: the rule fails when the parser marks the commit breaking. `types`/`scopes` still
+narrow it. `target` is refused with it (the parser reads the whole message); `message` is optional,
+with a default naming the rule. Spec 02, an ADR-0056 addendum, `schema.json`, the sample, the user
+pages and the generated reference follow. heraut's own `.config/heraut.yml` uses it, pinned by a
+test that loads that file. A new user guide, "Commit rules", gathers what rules can do, with
+examples.
+
+Tests first: validator (exactly one kind, `target` refused, message optional), `VerifyCommit` (`!`
+with and without scope, both footer tokens, scoping by type, the default message), and the own-config
+test.
+
+#### `[ ]` T558: a breaking-only rule filter, and `require_ticket` naming its ticket kind
+
+Not started. A `breaking: true` filter that narrows any rule to breaking commits, the way
+`types`/`scopes` do, so "a breaking change must reference a ticket" can be written. The user wants
+`require_ticket` to name which `commits.tickets` entry it accepts, since a project can list several
+patterns (e.g. a Jira key, not any GitHub issue). Both need a design pass (how a ticket entry is
+named, and how the old `require_ticket: true` keeps working) before implementation. When done, add
+the breaking-commit ticket example to the "Commit rules" guide.
 
 ---
 
