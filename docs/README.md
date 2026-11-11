@@ -40,6 +40,7 @@ Each guide answers one situation.
 | Get pull request links and authors in the changelog | [Pull request data in the changelog](guides/pr-data-and-tokens.md) |
 | Link Jira or issue numbers from commit messages | [Link tickets](guides/tickets.md) |
 | Check commit messages in a hook and on pull requests | [Check commit messages](guides/commit-conventions.md) |
+| Refuse WIP commits, require tickets, or block breaking changes | [Commit rules](guides/commit-rules.md) |
 | Let an AI coding agent prepare and run releases | [Let an AI agent drive heraut](guides/ai-agents.md) |
 | Tag every CI build of a mobile app with its build number | [Mobile apps: build numbers in tags](guides/mobile-ci-tagging.md) |
 | Release a fix on an older version line | [Maintenance branches](guides/maintenance-branches.md) |

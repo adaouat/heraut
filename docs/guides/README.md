@@ -50,4 +50,5 @@ Each guide answers one situation. The [docs home](../README.md) lists them by qu
 | Guide | Covers |
 |---|---|
 | [Check commit messages](commit-conventions.md) | Conventional Commits in a hook, on pull requests, and interactively |
+| [Commit rules](commit-rules.md) | Checks of your own: no WIP, tickets, subject length, no breaking change |
 | [Let an AI agent drive heraut](ai-agents.md) | The bundled skill and the `--json` output |

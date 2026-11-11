@@ -126,7 +126,7 @@ commits:
 |---|---|
 | `types` | Added to the built-in list, by name. To narrow the list, `remove:` types; listing some doesn't drop the others. |
 | `scopes` + `scopes_restricted: true` | Refuses other scopes: `Commit scope "db" is not allowed (allowed: deps, deps-dev, release, api, ui).` Without `scopes_restricted`, scopes are suggestions in `commit create`. |
-| `rules` | A regular expression a message must not match (`deny`) or must match (`require`), or a required ticket (see [Link tickets](tickets.md)). Each can be limited to some types or scopes. |
+| `rules` | A regular expression a message must not match (`deny`) or must match (`require`), a required ticket, or no breaking change (`deny_breaking`). Each can be limited to some types or scopes. See [Commit rules](commit-rules.md) for examples. |
 
 `deps`, `deps-dev` and `release` are always among the scopes, for dependency bots and heraut's own
 release commit.
