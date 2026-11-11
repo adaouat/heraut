@@ -819,7 +819,7 @@ Heraut injects each entry as a link parser; the link is appended to the commit l
 
 Project-specific commit-message constraints, checked by `heraut commit verify`/`check`
 alongside the type and scope checks above ([ADR-0056](../adr/0056-configurable-commit-message-rules.md)).
-Each rule sets **exactly one** of `deny`, `require`, or `require_ticket`.
+Each rule sets **exactly one** of `deny`, `require`, `require_ticket`, or `deny_breaking`.
 
 | Field | Meaning |
 |---|---|
@@ -827,8 +827,9 @@ Each rule sets **exactly one** of `deny`, `require`, or `require_ticket`.
 | `deny` | A regex that must **not** match `target`. |
 | `require` | A regex that **must** match `target`. |
 | `require_ticket` | Shorthand for "`target` must match one of the already-configured `commits.tickets[].pattern` entries" — reuses that list instead of duplicating a ticket regex in `require`. Requires a non-empty `commits.tickets`. |
-| `target` | Part of the message matched against: `header` (the raw first line), `body`, `footer` (each footer trailer rendered as `Token: Value`, joined), or `message` (the full raw text — the default). |
-| `message` | Shown when the rule is violated. Required for `deny`/`require`; optional for `require_ticket`, which gets a default message naming the rule. |
+| `deny_breaking` | When `true`, refuses a breaking change as the commit parser detects it: a `!` before the header's colon, or a `BREAKING CHANGE` / `BREAKING-CHANGE` footer. `target` is not allowed with it (the parser reads the whole message). |
+| `target` | Part of the message matched against: `header` (the raw first line), `body`, `footer` (each footer trailer rendered as `Token: Value`, joined), or `message` (the full raw text — the default). Not allowed with `deny_breaking`. |
+| `message` | Shown when the rule is violated. Required for `deny`/`require`; optional for `require_ticket` and `deny_breaking`, which get a default message naming the rule. |
 | `types` / `scopes` | Optionally scope the rule to commits of the listed conventional-commit types/scopes (AND'd together). Omitting both applies the rule to every commit. |
 
 ```yaml
@@ -845,6 +846,8 @@ commits:
       target: footer            # only a trailer counts, e.g. "Refs: PROJ-123"
       types: [fix]
       message: "fix commits must reference a ticket in a footer trailer"
+    - name: no-breaking
+      deny_breaking: true       # default message: breaking changes are not allowed (rule "no-breaking")
 ```
 
 A commit can trip more than one rule at once — `heraut commit verify`/`check` collect every

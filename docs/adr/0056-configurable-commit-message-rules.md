@@ -135,3 +135,20 @@ or keep a deny pattern from tripping on unrelated footer trailers like `Co-Autho
   ticket-in-footer convention is common enough, and `conventionalcommit.Parse` already
   produces the header/body/footer split for free, that not exposing it would force users
   into looser regexes to approximate scoping heraut can already do precisely.
+
+## Addendum (2026-11-11): `deny_breaking`, a rule kind read from the parser
+
+heraut's own config needed to refuse breaking-change commits, so that a major release is only cut on
+purpose. A `deny` regex can do it, two in fact (`^[A-Za-z]+(\([^)]*\))?!:` on the header,
+`^BREAKING[ -]CHANGE: ` on the footer), but they copy what `conventionalcommit.Parse` already decides
+in `Commit.Breaking` and will drift from it, and every project wanting this would copy them again.
+
+A fourth kind joins `deny`, `require` and `require_ticket`: `deny_breaking: true` fails when
+`Commit.Breaking` is true. It is still exactly one kind per rule, and `types`/`scopes` still narrow it.
+`target` is a validation error with it, since the parser reads the whole message and a target would
+silently do nothing. `message` is optional, with a default naming the rule, like `require_ticket`.
+
+Considered and left for later: a `breaking: true` *filter*, narrowing any rule to breaking commits as
+`types`/`scopes` do. It can express "a breaking change must reference a ticket", but refusing outright
+would then need a dummy `deny: '.'`. Both can coexist; the filter is tracked as its own task, together
+with letting `require_ticket` name which `commits.tickets` entry it accepts.
