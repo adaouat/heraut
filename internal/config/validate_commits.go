@@ -119,8 +119,9 @@ func validateCommits(cfg *Config) []ValidationError {
 // name; sets exactly one of deny/require/require_ticket/refuse; deny/require compile as regex
 // and require a message; require_ticket requires a non-empty commits.tickets; tickets is only
 // set with require_ticket and lists non-empty names of existing commits.tickets entries;
-// refuse has at least one filter (types, scopes or is_breaking) and no target; and target,
-// when set, is one of header/body/footer/message.
+// types/except_types and scopes/except_scopes are not both set; refuse has at least one filter
+// (types, scopes, except_types, except_scopes or is_breaking) and no target; and target, when
+// set, is one of header/body/footer/message.
 func validateCommitRules(c *Commits) []ValidationError {
 	var errs []ValidationError
 	seen := make(map[string]int)
@@ -202,10 +203,16 @@ func validateCommitRules(c *Commits) []ValidationError {
 				})
 			}
 		}
-		if r.Refuse && len(r.Types) == 0 && len(r.Scopes) == 0 && !r.IsBreaking {
+		if len(r.Types) > 0 && len(r.ExceptTypes) > 0 {
+			errs = append(errs, ValidationError{Path: path + ".except_types", Message: "not allowed with types", Hint: "use either types or except_types"})
+		}
+		if len(r.Scopes) > 0 && len(r.ExceptScopes) > 0 {
+			errs = append(errs, ValidationError{Path: path + ".except_scopes", Message: "not allowed with scopes", Hint: "use either scopes or except_scopes"})
+		}
+		if r.Refuse && len(r.Types) == 0 && len(r.Scopes) == 0 && len(r.ExceptTypes) == 0 && len(r.ExceptScopes) == 0 && !r.IsBreaking {
 			errs = append(errs, ValidationError{
 				Path:    path + ".refuse",
-				Message: "needs at least one of types, scopes or is_breaking",
+				Message: "needs at least one of types, scopes, except_types, except_scopes or is_breaking",
 				Hint:    "without a filter this rule refuses every commit",
 			})
 		}

@@ -28,3 +28,7 @@ commits:
       types: [docs]
       require_ticket: true
       tickets: [jira]
+    - name: others-need-a-ticket
+      except_types: [docs]
+      except_scopes: [deps]
+      require_ticket: true

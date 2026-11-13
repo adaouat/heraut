@@ -1445,6 +1445,25 @@ func TestValidate_CommitsRule_ValidConfigs(t *testing.T) {
     - name: no-chore
       types: [chore]
       refuse: true`},
+		{"refuse with except_types", `
+    - name: only-docs
+      except_types: [docs]
+      refuse: true`},
+		{"refuse with except_scopes", `
+    - name: only-api
+      except_scopes: [api]
+      refuse: true`},
+		{"except_types with require_ticket", `
+    - name: others-need-github
+      except_types: [docs]
+      require_ticket: true
+      tickets: [github]`},
+		{"except_types with scopes", `
+    - name: mixed
+      except_types: [docs]
+      scopes: [api]
+      deny: wip
+      message: m`},
 		{"refuse with scopes", `
     - name: frozen
       scopes: [legacy]
@@ -1747,6 +1766,42 @@ commits:
 	}
 }
 
+func TestValidate_CommitsRuleExceptFiltersExcludeTheirPair(t *testing.T) {
+	tests := []struct {
+		name     string
+		rule     string
+		path     string
+		contains string
+	}{
+		{"types and except_types", `
+    - name: both-types
+      types: [fix]
+      except_types: [docs]
+      deny: wip
+      message: m`, "commits.rules[0].except_types", "not allowed with types"},
+		{"scopes and except_scopes", `
+    - name: both-scopes
+      scopes: [api]
+      except_scopes: [legacy]
+      deny: wip
+      message: m`, "commits.rules[0].except_scopes", "not allowed with scopes"},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			cfg := mustLoad(t, `
+version: "1"
+versioning:
+  strategy: semver
+commits:
+  rules:`+tc.rule+`
+`)
+			e := findErr(config.Validate(cfg), tc.path)
+			require.NotNil(t, e)
+			assert.Contains(t, e.Message, tc.contains)
+		})
+	}
+}
+
 func TestValidate_CommitsRuleRefuseRefusesTarget(t *testing.T) {
 	cfg := mustLoad(t, `
 version: "1"
@@ -1788,7 +1843,7 @@ commits:
 `)
 			e := findErr(config.Validate(cfg), "commits.rules[0].refuse")
 			require.NotNil(t, e)
-			assert.Contains(t, e.Message, "needs at least one of types, scopes or is_breaking")
+			assert.Contains(t, e.Message, "needs at least one of types, scopes, except_types, except_scopes or is_breaking")
 		})
 	}
 }

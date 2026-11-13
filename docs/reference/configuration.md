@@ -171,7 +171,9 @@ How commit messages are read: the allowed types and scopes, ticket links, extra 
 | `commits.rules[].require` | string |  |  | Regex that MUST match target. |
 | `commits.rules[].tickets` | list of string |  |  | With require_ticket: only the commits.tickets entries with these names count. Omitted or empty: any entry. |
 | `commits.rules[].require_ticket` | boolean | `false` |  | Shorthand: target must match one of the already-configured commits.tickets\[].pattern entries, instead of duplicating a ticket regex in require. Requires a non-empty commits.tickets. |
-| `commits.rules[].refuse` | boolean | `false` |  | Refuses every commit the rule's filters (types, scopes, is_breaking) select. Needs at least one filter; target is not allowed with it. |
+| `commits.rules[].refuse` | boolean | `false` |  | Refuses every commit the rule's filters (types, scopes, except_types, except_scopes, is_breaking) select. Needs at least one filter; target is not allowed with it. |
+| `commits.rules[].except_types` | list of string |  |  | Filter: the rule checks commits of every type but these. Not allowed with types. |
+| `commits.rules[].except_scopes` | list of string |  |  | Filter: the rule checks commits of every scope but these, commits without a scope included. Not allowed with scopes. |
 | `commits.rules[].is_breaking` | boolean | `false` |  | Filter: when true, the rule only checks breaking commits (a '!' before the header's colon, or a BREAKING CHANGE / BREAKING-CHANGE footer). |
 | `commits.rules[].target` | `header` \| `body` \| `footer` \| `message` | `message` |  | Part of the message matched against: the raw first line (header), the parsed body, the joined footer trailers (footer), or the full raw text (message, the default). Not allowed with refuse. |
 | `commits.rules[].message` | string |  |  | Shown when the rule is violated. Required for deny/require; optional for require_ticket and refuse (get a synthesized default naming the rule). |

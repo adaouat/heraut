@@ -276,6 +276,10 @@ versioning:
 #       types: [docs]
 #       require_ticket: true
 #       tickets: [jira]               # only the entry named jira counts
+#     - name: others-need-github
+#       except_types: [docs]          # every type but docs (except_scopes: likewise)
+#       require_ticket: true
+#       tickets: [github]
 
 # ── rendering ─────────────────────────────────────────────────────────────────
 #

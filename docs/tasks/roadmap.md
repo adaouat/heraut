@@ -274,7 +274,7 @@ discipline that applies to every task.
 | 92 | Follow-ups from the guides (GitHub release commit, error punctuation, warning marks) | Done |
 | 93 | One person, one New Contributors entry (`.mailmap`, one entry per handle) | Done |
 | 94–101 | v1.0 readiness: every finding of the 2026-11-07 pre-v1 review, then the cut | Done — T492–T556, cut as v1.0.1 on 2026-11-09, see `v1-readiness-roadmap.md` |
-| 102 | Commit rules that know about breaking changes (`is_breaking` filter, `refuse`, named tickets) | Done — T557–T558 |
+| 102 | Commit rules that know about breaking changes (`is_breaking` filter, `refuse`, named tickets, `except_*` filters) | In progress — T557–T558 done, T559 open |
 
 ### Open items
 
@@ -4505,6 +4505,17 @@ Done 2026-11-13.
 - **Deferred.** "Every type except X" in `types` (the docs-to-Jira example lists the other types for
   now), to be discussed next; ticket names in changelog, release notes or `--json` output.
 
+
+#### `[ ]` T559: `except_types` / `except_scopes` rule filters
+
+T558's "docs reference Jira, everything else GitHub" example had to list every other type by hand.
+Two filters mirror `types`/`scopes` and leave commits out instead: `except_types: [docs]`,
+`except_scopes: [legacy]`. A rule can't set both `types` and `except_types` (or both scope keys);
+a commit without a scope is not excluded by `except_scopes`; both count as filters for `refuse`;
+names are not checked against the allowed types, as for `types`. Spec 02, the ADR-0056 addendum,
+schema, sample, the generated reference, the "Commit rules" guide and Lane A e2e scenarios follow.
+Rejected: `types: ["!docs"]` (an unquoted `!docs` is a YAML tag) and `types: {except: [...]}` (one key,
+two shapes).
 ---
 
 ## Risks and mitigations

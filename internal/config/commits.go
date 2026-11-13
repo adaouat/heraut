@@ -266,8 +266,8 @@ func EffectiveScopes(user []ScopeRule) []ScopeRule {
 }
 
 // CommitRule enforces one pattern constraint on a commit message, checked by `heraut
-// commit verify`/`check` alongside the type/scope checks (ADR-0056). Types, Scopes and
-// IsBreaking are filters selecting the commits it checks; exactly one of the kinds Deny, Require,
+// commit verify`/`check` alongside the type/scope checks (ADR-0056). Types, Scopes, ExceptTypes,
+// ExceptScopes and IsBreaking are filters selecting the commits it checks; exactly one of the kinds Deny, Require,
 // RequireTicket, or Refuse must be set.
 type CommitRule struct {
 	Name string `yaml:"name"`
@@ -295,6 +295,10 @@ type CommitRule struct {
 	// types/scopes (AND'd together). Omitting both applies the rule to every commit.
 	Types  []string `yaml:"types,omitempty"`
 	Scopes []string `yaml:"scopes,omitempty"`
+	// ExceptTypes and ExceptScopes are the opposite filters: commits of any other type/scope
+	// (a commit without a scope included). Each excludes its counterpart on the same rule.
+	ExceptTypes  []string `yaml:"except_types,omitempty"`
+	ExceptScopes []string `yaml:"except_scopes,omitempty"`
 	// IsBreaking, when true, limits the rule to commits the conventional-commit parser marks
 	// breaking (a "!" in the header, or a BREAKING CHANGE / BREAKING-CHANGE footer).
 	IsBreaking bool `yaml:"is_breaking,omitempty"`

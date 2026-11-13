@@ -224,8 +224,22 @@
         },
         "refuse": {
           "type": "boolean",
-          "description": "Refuses every commit the rule's filters (types, scopes, is_breaking) select. Needs at least one filter; target is not allowed with it.",
+          "description": "Refuses every commit the rule's filters (types, scopes, except_types, except_scopes, is_breaking) select. Needs at least one filter; target is not allowed with it.",
           "default": false
+        },
+        "except_types": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Filter: the rule checks commits of every type but these. Not allowed with types."
+        },
+        "except_scopes": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Filter: the rule checks commits of every scope but these, commits without a scope included. Not allowed with scopes."
         },
         "is_breaking": {
           "type": "boolean",
