@@ -12,7 +12,7 @@ permissions:
 jobs:
   # Lint + test come from forge's shared reusable workflow (ADR-0006).
   ci:
-    uses: adaouat/forge/.github/workflows/go-ci.yml@2f0ca0c083e6e8eb48f7ff2f8c5991a0bb0d0fc4 # v0.20.0
+    uses: adaouat/forge/.github/workflows/go-ci.yml@d296956b0548d8da36419772b3efe18afdc8c513 # v0.20.1
     with:
       coverage-threshold: 85
 
