@@ -274,7 +274,7 @@ discipline that applies to every task.
 | 92 | Follow-ups from the guides (GitHub release commit, error punctuation, warning marks) | Done |
 | 93 | One person, one New Contributors entry (`.mailmap`, one entry per handle) | Done |
 | 94–101 | v1.0 readiness: every finding of the 2026-11-07 pre-v1 review, then the cut | Done — T492–T556, cut as v1.0.1 on 2026-11-09, see `v1-readiness-roadmap.md` |
-| 102 | Commit rules that know about breaking changes (`deny_breaking`, then a breaking-only filter) | In progress — T557 done, T558 open |
+| 102 | Commit rules that know about breaking changes (`is_breaking` filter, `refuse`, named tickets) | Done — T557–T558 |
 
 ### Open items
 
@@ -4462,15 +4462,40 @@ Done 2026-11-11.
   built binary, linked from both docs indexes.
 - **Deferred.** The breaking-only filter and `require_ticket` naming its ticket entry are T558; the
   guide's breaking-commit ticket example waits for it.
+- **Reworked before merge (2026-11-13).** Designing T558 showed `deny_breaking` is a verdict and
+  cannot combine with `require_ticket`. It became the `is_breaking` filter plus the `refuse` kind,
+  in the same pull request; it was never released, so it has no deprecation.
 
-#### `[ ]` T558: a breaking-only rule filter, and `require_ticket` naming its ticket kind
+#### `[x]` T558: `is_breaking` filter, `refuse` kind, and named tickets
 
-Not started. A `breaking: true` filter that narrows any rule to breaking commits, the way
-`types`/`scopes` do, so "a breaking change must reference a ticket" can be written. The user wants
-`require_ticket` to name which `commits.tickets` entry it accepts, since a project can list several
-patterns (e.g. a Jira key, not any GitHub issue). Both need a design pass (how a ticket entry is
-named, and how the old `require_ticket: true` keeps working) before implementation. When done, add
-the breaking-commit ticket example to the "Commit rules" guide.
+A rule gets filters (`types`, `scopes`, new `is_breaking`) that pick the commits it checks, and
+exactly one kind (`deny`, `require`, `require_ticket`, new `refuse`) that says what is checked, so
+"a breaking change must reference a ticket" can be written. `commits.tickets` entries get an optional
+unique `name`, and a rule's `tickets: [names]` narrows `require_ticket` to those entries (a project can
+list a Jira key and GitHub issues). Design:
+`docs/superpowers/specs/2026-11-12-commit-rule-filters-and-ticket-refs-design.md`; plan:
+`.claude/plans/t557-t558-commit-rule-filters.md`.
+
+Done 2026-11-13.
+- **Where it lives.** `CommitRule.IsBreaking`/`Refuse`/`Tickets` (`internal/config/commits.go`),
+  `Ticket.Name` (`config.go`); validation in `validate_commits.go` (unique ticket names; `refuse` needs
+  a filter and takes no `target`; `tickets` needs `require_ticket: true` and known names, matched
+  case-sensitively); `app.ruleAppliesTo` gains `IsBreaking`, `app.evaluateRule` gains `refuse` and
+  narrows the ticket list before `native.MatchTickets`, within the rule's `target`.
+- **Decisions.** `is_breaking: false`, `refuse: false` and `tickets: []` mean unset; a name listed
+  twice is accepted. Default messages: `commit refused (rule "<name>")`, and `commit must reference a
+  ticket of kind <a> or <b> (rule "<name>")` when `tickets` is set. `refuse: true`, not `deny: true`,
+  because `deny` already takes a regex.
+- **Tests first.** Validator tables (refuse with each filter, without one, with `target`; `tickets`
+  without the kind, unknown and wrong-case names; duplicate ticket names, including after an entry
+  missing its url); `VerifyCommit` tables (refuse on breaking, merge and fixup commits untouched, the
+  filter with `require`, named tickets with a capture-group pattern, a footer target, an unnamed entry,
+  the breaking-needs-Jira case); default messages; the own-config test; the schema fixture.
+- **Docs.** Spec 02 (filters and kinds tables), the ADR-0056 addendum rewritten, `schema.json`, the
+  sample, the generated reference; the "Commit rules" guide (breaking change needs Jira, docs to Jira
+  and the rest to GitHub, a frozen scope, config mistakes), `tickets.md`, `commit-conventions.md`.
+- **Deferred.** "Every type except X" in `types` (the docs-to-Jira example lists the other types for
+  now), to be discussed next; ticket names in changelog, release notes or `--json` output.
 
 ---
 
