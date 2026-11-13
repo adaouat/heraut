@@ -103,8 +103,10 @@ func (c *Config) EnrichmentPolicy() string {
 
 // Ticket maps a commit ticket-ID pattern to a URL template. {ticket} in URL is the first
 // capture group of Pattern (or the full match if Pattern has no group); the link label is
-// always the full match.
+// always the full match. Name, optional and unique, is how a commits.rules entry's Tickets
+// list points at this entry.
 type Ticket struct {
+	Name    string `yaml:"name,omitempty"`
 	Pattern string `yaml:"pattern"`
 	URL     string `yaml:"url"`
 }

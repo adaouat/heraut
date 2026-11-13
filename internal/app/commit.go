@@ -162,10 +162,18 @@ func evaluateRule(r config.CommitRule, c *conventionalcommit.Commit, message str
 		}
 		return !re.MatchString(target), r.Message, nil
 	case r.RequireTicket:
+		if len(r.Tickets) > 0 {
+			tickets = slices.DeleteFunc(slices.Clone(tickets), func(t config.Ticket) bool {
+				return !slices.Contains(r.Tickets, t.Name)
+			})
+		}
 		if len(native.MatchTickets(target, tickets)) > 0 {
 			return false, "", nil
 		}
 		msg := r.Message
+		if msg == "" && len(r.Tickets) > 0 {
+			msg = fmt.Sprintf("commit must reference a ticket of kind %s (rule %q)", strings.Join(r.Tickets, " or "), r.Name)
+		}
 		if msg == "" {
 			msg = fmt.Sprintf("commit must reference a ticket matching one of the configured commits.tickets patterns (rule %q)", r.Name)
 		}

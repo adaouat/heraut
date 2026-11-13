@@ -162,12 +162,14 @@ How commit messages are read: the allowed types and scopes, ticket links, extra 
 | `commits.scopes[].description` | string |  |  | One-line hint shown beside the scope in the 'heraut commit create' wizard picker. |
 | `commits.scopes_restricted` | boolean | `false` |  | When true, 'heraut commit verify' rejects scopes outside the scopes list. Defaults to false. |
 | `commits.tickets` | list of object |  |  | Issue-tracker links. Each entry's regex is matched in commit messages and rendered as a link in the changelog and release notes. |
+| `commits.tickets[].name` | string |  |  | Optional, unique name a commits.rules entry's tickets list uses to point at this entry, e.g. jira. |
 | `commits.tickets[].pattern` | string |  | yes | Regex matching ticket IDs, e.g. \[A-Z]+-\[0-9]+. The first capture group (or full match) becomes {ticket}. |
 | `commits.tickets[].url` | string |  | yes | URL template containing {ticket}, e.g. https://jira.example.com/browse/{ticket}. |
-| `commits.rules` | list of objects |  |  | Extra checks on commit messages, run by heraut commit verify and commit check: a regex a message must or must not match, or a required ticket reference, optionally limited to some types or scopes. |
+| `commits.rules` | list of objects |  |  | Extra checks on commit messages, run by heraut commit verify and commit check: a regex a message must or must not match, a required ticket reference, or a refusal, optionally limited to some types, scopes or breaking commits. |
 | `commits.rules[].name` | string |  | yes | Rule name, shown in violation messages. Must be unique within commits.rules. |
 | `commits.rules[].deny` | string |  |  | Regex that must NOT match target. |
 | `commits.rules[].require` | string |  |  | Regex that MUST match target. |
+| `commits.rules[].tickets` | list of string |  |  | With require_ticket: only the commits.tickets entries with these names count. Omitted or empty: any entry. |
 | `commits.rules[].require_ticket` | boolean | `false` |  | Shorthand: target must match one of the already-configured commits.tickets\[].pattern entries, instead of duplicating a ticket regex in require. Requires a non-empty commits.tickets. |
 | `commits.rules[].refuse` | boolean | `false` |  | Refuses every commit the rule's filters (types, scopes, is_breaking) select. Needs at least one filter; target is not allowed with it. |
 | `commits.rules[].is_breaking` | boolean | `false` |  | Filter: when true, the rule only checks breaking commits (a '!' before the header's colon, or a BREAKING CHANGE / BREAKING-CHANGE footer). |

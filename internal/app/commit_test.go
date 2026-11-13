@@ -272,6 +272,56 @@ func TestVerifyCommit_Rules_RefuseByType(t *testing.T) {
 	assert.NoError(t, err)
 }
 
+func TestVerifyCommit_Rules_RequireTicket_Named(t *testing.T) {
+	jira := config.Ticket{Name: "jira", Pattern: `[A-Z]+-[0-9]+`, URL: "https://jira.example.com/browse/{ticket}"}
+	github := config.Ticket{Name: "github", Pattern: `#([0-9]+)`, URL: "https://github.com/acme/app/issues/{ticket}"}
+	linear := config.Ticket{Pattern: `LIN-[0-9]+`, URL: "https://linear.example.com/{ticket}"}
+	tests := []struct {
+		name    string
+		tickets []config.Ticket
+		rule    config.CommitRule
+		message string
+		refused bool
+	}{
+		{"jira rule accepts a Jira key", []config.Ticket{jira, github}, config.CommitRule{Tickets: []string{"jira"}}, "fix: x APP-12", false},
+		{"jira rule refuses a GitHub issue", []config.Ticket{jira, github}, config.CommitRule{Tickets: []string{"jira"}}, "fix: x #34", true},
+		{"capture-group pattern still matches", []config.Ticket{jira, github}, config.CommitRule{Tickets: []string{"github"}}, "fix: x #34", false},
+		{"footer target: key in subject refused", []config.Ticket{jira, github}, config.CommitRule{Tickets: []string{"jira"}, Target: "footer"}, "fix: x APP-12", true},
+		{"footer target: key in trailer accepted", []config.Ticket{jira, github}, config.CommitRule{Tickets: []string{"jira"}, Target: "footer"}, "fix: x\n\nRefs: APP-12", false},
+		{"no tickets list: unnamed entry counts", []config.Ticket{jira, linear}, config.CommitRule{}, "fix: LIN-7", false},
+		{"breaking needs jira: no ticket refused", []config.Ticket{jira, github}, config.CommitRule{IsBreaking: true, Tickets: []string{"jira"}}, "feat!: drop", true},
+		{"breaking needs jira: with key accepted", []config.Ticket{jira, github}, config.CommitRule{IsBreaking: true, Tickets: []string{"jira"}}, "feat!: drop APP-1", false},
+		{"breaking needs jira: non-breaking not selected", []config.Ticket{jira, github}, config.CommitRule{IsBreaking: true, Tickets: []string{"jira"}}, "feat: plain", false},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			rule := tc.rule
+			rule.Name, rule.RequireTicket, rule.Message = "needs-ticket", true, "reference the right ticket"
+			cfg := &config.Config{Commits: &config.Commits{Tickets: tc.tickets, Rules: []config.CommitRule{rule}}}
+			_, err := app.VerifyCommit(cfg, tc.message)
+			if !tc.refused {
+				assert.NoError(t, err)
+				return
+			}
+			require.Error(t, err)
+			assert.Contains(t, err.Error(), "reference the right ticket")
+		})
+	}
+}
+
+func TestVerifyCommit_Rules_RequireTicket_NamedDefaultMessage(t *testing.T) {
+	cfg := &config.Config{Commits: &config.Commits{
+		Tickets: []config.Ticket{
+			{Name: "jira", Pattern: `[A-Z]+-[0-9]+`, URL: "https://jira.example.com/browse/{ticket}"},
+			{Name: "github", Pattern: `#([0-9]+)`, URL: "https://github.com/acme/app/issues/{ticket}"},
+		},
+		Rules: []config.CommitRule{{Name: "needs-ticket", RequireTicket: true, Tickets: []string{"jira", "github"}}},
+	}}
+	_, err := app.VerifyCommit(cfg, "fix: no ticket")
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), `commit must reference a ticket of kind jira or github (rule "needs-ticket")`)
+}
+
 func TestVerifyCommit_Rules_Target_Header(t *testing.T) {
 	cfg := &config.Config{Commits: &config.Commits{
 		Rules: []config.CommitRule{{Name: "no-wip-header", Deny: `wip`, Message: "no wip in header", Target: "header"}},
