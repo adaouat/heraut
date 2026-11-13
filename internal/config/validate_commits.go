@@ -116,9 +116,11 @@ func validateCommits(cfg *Config) []ValidationError {
 }
 
 // validateCommitRules validates commits.rules (ADR-0056): each rule has a non-empty, unique
-// name; sets exactly one of deny/require/require_ticket; deny/require compile as regex and
-// require a message; require_ticket requires a non-empty commits.tickets; and target, when
-// set, is one of header/body/footer/message.
+// name; sets exactly one of deny/require/require_ticket/refuse; deny/require compile as regex
+// and require a message; require_ticket requires a non-empty commits.tickets; tickets is only
+// set with require_ticket and lists non-empty names of existing commits.tickets entries;
+// refuse has at least one filter (types, scopes or is_breaking) and no target; and target,
+// when set, is one of header/body/footer/message.
 func validateCommitRules(c *Commits) []ValidationError {
 	var errs []ValidationError
 	seen := make(map[string]int)
