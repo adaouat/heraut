@@ -4494,6 +4494,14 @@ Done 2026-11-13.
 - **Docs.** Spec 02 (filters and kinds tables), the ADR-0056 addendum rewritten, `schema.json`, the
   sample, the generated reference; the "Commit rules" guide (breaking change needs Jira, docs to Jira
   and the rest to GitHub, a frozen scope, config mistakes), `tickets.md`, `commit-conventions.md`.
+- **E2E, added after the final review.** `e2e/commit_rules_test.go` (Lane A, 9 scenarios) drives the
+  built binary: `commit verify` and `commit check --from-latest-tag` exit 1 on a refused commit,
+  `check config` exits 2 on a broken rule. `commits.rules` had no e2e coverage before. Three
+  mutations (refuse never violates, tickets not narrowed, the refuse filter check dropped) each fail a
+  scenario; a no-op control passes.
+- **Final review.** No Critical or Important finding. One Minor, re-graded Important and fixed
+  test-first: `tickets: [""]` passed validation. The other, a stale `validateCommitRules` comment, was
+  fixed too.
 - **Deferred.** "Every type except X" in `types` (the docs-to-Jira example lists the other types for
   now), to be discussed next; ticket names in changelog, release notes or `--json` output.
 
