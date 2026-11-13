@@ -1437,14 +1437,23 @@ func TestValidate_CommitsRule_ValidConfigs(t *testing.T) {
       message: "no wip"
       types: [fix]
       scopes: [cmd]`},
-		{"deny_breaking, no message", `
+		{"refuse with is_breaking, no message", `
     - name: no-breaking
-      deny_breaking: true`},
-		{"deny_breaking scoped by types", `
-    - name: no-breaking-feat
-      deny_breaking: true
-      message: "no breaking feat"
-      types: [feat]`},
+      is_breaking: true
+      refuse: true`},
+		{"refuse with types", `
+    - name: no-chore
+      types: [chore]
+      refuse: true`},
+		{"refuse with scopes", `
+    - name: frozen
+      scopes: [legacy]
+      refuse: true`},
+		{"is_breaking with require", `
+    - name: breaking-needs-x
+      is_breaking: true
+      require: 'x'
+      message: m`},
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
@@ -1488,14 +1497,15 @@ func TestValidate_CommitsRuleExactlyOneOfDenyRequireRequireTicket(t *testing.T) 
       require: 'x'
       require_ticket: true
       message: "conflicting"`, "only one"},
-		{"deny and deny_breaking both set", `
+		{"deny and refuse both set", `
     - name: ambiguous
       deny: 'wip'
-      deny_breaking: true
+      refuse: true
+      types: [chore]
       message: "conflicting"`, "only one"},
-		{"deny_breaking false counts as unset", `
+		{"refuse false counts as unset", `
     - name: broken
-      deny_breaking: false`, "exactly one"},
+      refuse: false`, "exactly one"},
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
@@ -1638,7 +1648,7 @@ commits:
 	require.NotNil(t, e)
 }
 
-func TestValidate_CommitsRuleDenyBreakingRefusesTarget(t *testing.T) {
+func TestValidate_CommitsRuleRefuseRefusesTarget(t *testing.T) {
 	cfg := mustLoad(t, `
 version: "1"
 versioning:
@@ -1646,12 +1656,42 @@ versioning:
 commits:
   rules:
     - name: no-breaking
-      deny_breaking: true
+      is_breaking: true
+      refuse: true
       target: footer
 `)
 	e := findErr(config.Validate(cfg), "commits.rules[0].target")
 	require.NotNil(t, e)
-	assert.Contains(t, e.Message, "deny_breaking")
+	assert.Contains(t, e.Message, "not allowed with refuse")
+}
+
+func TestValidate_CommitsRuleRefuseNeedsAFilter(t *testing.T) {
+	tests := []struct {
+		name string
+		rule string
+	}{
+		{"no filter", `
+    - name: refuse-all
+      refuse: true`},
+		{"is_breaking false is no filter", `
+    - name: refuse-all
+      is_breaking: false
+      refuse: true`},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			cfg := mustLoad(t, `
+version: "1"
+versioning:
+  strategy: semver
+commits:
+  rules:`+tc.rule+`
+`)
+			e := findErr(config.Validate(cfg), "commits.rules[0].refuse")
+			require.NotNil(t, e)
+			assert.Contains(t, e.Message, "needs at least one of types, scopes or is_breaking")
+		})
+	}
 }
 
 // ── changelog rotation tokens (T246) ─────────────────────────────────────────

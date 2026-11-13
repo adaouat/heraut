@@ -266,8 +266,9 @@ func EffectiveScopes(user []ScopeRule) []ScopeRule {
 }
 
 // CommitRule enforces one pattern constraint on a commit message, checked by `heraut
-// commit verify`/`check` alongside the type/scope checks (ADR-0056). Exactly one of Deny,
-// Require, RequireTicket, or DenyBreaking must be set.
+// commit verify`/`check` alongside the type/scope checks (ADR-0056). Types, Scopes and
+// IsBreaking are filters selecting the commits it checks; exactly one of the kinds Deny, Require,
+// RequireTicket, or Refuse must be set.
 type CommitRule struct {
 	Name string `yaml:"name"`
 	// Deny is a regex that must NOT match Target.
@@ -278,20 +279,22 @@ type CommitRule struct {
 	// already-configured commits.tickets[].pattern entries" — reusing that list instead of
 	// asking rule authors to duplicate a ticket regex in Require.
 	RequireTicket bool `yaml:"require_ticket,omitempty"`
-	// DenyBreaking, when true, refuses a commit the conventional-commit parser marks breaking
-	// (a "!" in the header, or a BREAKING CHANGE / BREAKING-CHANGE footer). Target does not
-	// apply to it.
-	DenyBreaking bool `yaml:"deny_breaking,omitempty"`
+	// Refuse, when true, refuses every commit the filters select. It needs at least one filter
+	// and takes no Target.
+	Refuse bool `yaml:"refuse,omitempty"`
 	// Target selects the part of the message matched against: "header", "body", "footer",
 	// or "message" (the full raw text — the default when empty).
 	Target string `yaml:"target,omitempty"`
 	// Message is shown when the rule is violated. Required for Deny/Require; optional
-	// (defaulted) for RequireTicket and DenyBreaking.
+	// (defaulted) for RequireTicket and Refuse.
 	Message string `yaml:"message,omitempty"`
 	// Types and Scopes optionally scope the rule to commits of the listed conventional-commit
 	// types/scopes (AND'd together). Omitting both applies the rule to every commit.
 	Types  []string `yaml:"types,omitempty"`
 	Scopes []string `yaml:"scopes,omitempty"`
+	// IsBreaking, when true, limits the rule to commits the conventional-commit parser marks
+	// breaking (a "!" in the header, or a BREAKING CHANGE / BREAKING-CHANGE footer).
+	IsBreaking bool `yaml:"is_breaking,omitempty"`
 }
 
 // ScopeNames returns the names of the given scopes, in order.
