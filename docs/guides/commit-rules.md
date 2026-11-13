@@ -16,6 +16,8 @@ match all of them.
 |---|---|
 | `types: [feat, fix]` | commits of these types |
 | `scopes: [api]` | commits of these scopes |
+| `except_types: [docs]` | commits of every other type. Not with `types` on the same rule. |
+| `except_scopes: [deps]` | commits of every other scope, and commits without a scope. Not with `scopes` on the same rule. |
 | `is_breaking: true` | breaking changes: `feat!:`, `feat(api)!:`, or a `BREAKING CHANGE:` or `BREAKING-CHANGE:` footer |
 
 **What is checked.** Exactly one of these per rule:
@@ -25,7 +27,7 @@ match all of them.
 | `deny: <regex>` | the regular expression matches |
 | `require: <regex>` | the regular expression doesn't match |
 | `require_ticket: true` | no ticket is mentioned, by the patterns in `commits.tickets` (see [Link tickets](tickets.md)). Add `tickets: [jira]` to accept only the entries with those names. |
-| `refuse: true` | always: every commit the rule checks is refused. It needs `types`, `scopes` or `is_breaking`. |
+| `refuse: true` | always: every commit the rule checks is refused. It needs at least one setting from the table above. |
 
 Then, optionally:
 
@@ -208,13 +210,12 @@ Commit message violates rule(s): commit must reference a ticket of kind jira (ru
       require_ticket: true
       tickets: [jira]
     - name: others-need-github
-      types: [feat, fix, chore, refactor, test, style, perf, ci, build, security, revert]
+      except_types: [docs]
       require_ticket: true
       tickets: [github]
 ```
 
-The second rule lists every type but `docs`; a type you add to `commits.types` later goes in that list
-too.
+`except_types` keeps the second rule right when you add a type to `commits.types` later.
 
 ```console
 $ heraut commit verify "docs: explain setup #12"
@@ -224,6 +225,25 @@ $ heraut commit verify "fix: crash on empty query APP-3"
 Commit message violates rule(s): commit must reference a ticket of kind github (rule
 "others-need-github").
 ```
+
+### A ticket on every commit, except dependency bumps
+
+Dependency bots commit with the `deps` scope (`chore(deps): bump yaml.v3 to 3.0.2`), and those
+commits have no ticket to name:
+
+```yaml
+    - name: ticket-except-deps
+      except_scopes: [deps]
+      require_ticket: true
+```
+
+```console
+$ heraut commit verify "chore: tidy up"
+Commit message violates rule(s): commit must reference a ticket matching one of the configured
+commits.tickets patterns (rule "ticket-except-deps").
+```
+
+`chore(deps): bump yaml.v3 to 3.0.2` passes. A commit without a scope is still checked.
 
 ### Freeze a part of the project
 
@@ -246,11 +266,11 @@ Commit message violates rule(s): the legacy module is frozen.
 ```console
 $ heraut check config
   .heraut.yml  (from .heraut.yml)
-✗ commits.rules[0].refuse: needs at least one of types, scopes or is_breaking
+✗ commits.rules[0].refuse: needs at least one of types, scopes, except_types, except_scopes or is_breaking
   hint: without a filter this rule refuses every commit
 ✗ commits.rules[1].tickets: needs require_ticket: true
-✗ commits.rules[1].tickets[0]: unknown ticket "jira"
-  hint: name an entry of commits.tickets (set its name)
+✗ commits.rules[2].except_types: not allowed with types
+  hint: use either types or except_types
 3 error(s)
 ```
 
