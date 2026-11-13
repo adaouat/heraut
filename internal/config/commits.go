@@ -275,6 +275,9 @@ type CommitRule struct {
 	Deny string `yaml:"deny,omitempty"`
 	// Require is a regex that MUST match Target.
 	Require string `yaml:"require,omitempty"`
+	// Tickets narrows RequireTicket to the commits.tickets entries with these names; empty
+	// means any entry.
+	Tickets []string `yaml:"tickets,omitempty"`
 	// RequireTicket, when true, is shorthand for "Target must match one of the
 	// already-configured commits.tickets[].pattern entries" — reusing that list instead of
 	// asking rule authors to duplicate a ticket regex in Require.

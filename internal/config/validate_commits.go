@@ -3,6 +3,7 @@ package config
 import (
 	"fmt"
 	"regexp"
+	"slices"
 	"strings"
 )
 
@@ -21,8 +22,20 @@ func validateTickets(cfg *Config) []ValidationError {
 		return nil
 	}
 	var errs []ValidationError
+	seen := make(map[string]int, len(tickets))
 	for i, t := range tickets {
 		base := fmt.Sprintf("commits.tickets[%d]", i)
+		if t.Name != "" {
+			if first, ok := seen[t.Name]; ok {
+				errs = append(errs, ValidationError{
+					Path:    base + ".name",
+					Message: fmt.Sprintf("duplicate ticket name %q (already used by tickets[%d])", t.Name, first),
+					Hint:    "ticket names must be unique within commits.tickets",
+				})
+			} else {
+				seen[t.Name] = i
+			}
+		}
 		if t.Pattern == "" {
 			errs = append(errs, ValidationError{Path: base + ".pattern", Message: "required", Hint: "a regex matching ticket IDs, e.g. [A-Z]+-[0-9]+"})
 		} else if _, err := regexp.Compile(t.Pattern); err != nil {
@@ -166,6 +179,18 @@ func validateCommitRules(c *Commits) []ValidationError {
 				Message: "required for deny/require rules",
 				Hint:    "set a message shown when the rule is violated",
 			})
+		}
+		if len(r.Tickets) > 0 && !r.RequireTicket {
+			errs = append(errs, ValidationError{Path: path + ".tickets", Message: "needs require_ticket: true"})
+		}
+		for j, name := range r.Tickets {
+			if !slices.ContainsFunc(c.Tickets, func(t Ticket) bool { return t.Name == name }) {
+				errs = append(errs, ValidationError{
+					Path:    fmt.Sprintf("%s.tickets[%d]", path, j),
+					Message: fmt.Sprintf("unknown ticket %q", name),
+					Hint:    "name an entry of commits.tickets (set its name)",
+				})
+			}
 		}
 		if r.Refuse && len(r.Types) == 0 && len(r.Scopes) == 0 && !r.IsBreaking {
 			errs = append(errs, ValidationError{

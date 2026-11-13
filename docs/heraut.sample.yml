@@ -244,11 +244,14 @@ versioning:
 #   enrichment_policy: optional
 #   # tickets — link issue-tracker references found in commit messages. Each entry's
 #   # regex is matched; {ticket} in the URL is the first capture group (or the whole
-#   # match), and the link label is the matched text.
+#   # match), and the link label is the matched text. name is optional: a rule's
+#   # tickets list points at entries by it.
 #   tickets:
-#     - pattern: '[A-Z]+-[0-9]+'                          # Jira/Linear: PROJ-123
+#     - name: jira
+#       pattern: '[A-Z]+-[0-9]+'                          # Jira/Linear: PROJ-123
 #       url: 'https://acme.atlassian.net/browse/{ticket}'
-#     - pattern: 'GH-([0-9]+)'                            # GitHub issues: GH-123
+#     - name: github
+#       pattern: 'GH-([0-9]+)'                            # GitHub issues: GH-123
 #       url: 'https://github.com/acme/app/issues/{ticket}'
 #   # rules — project-specific commit-message constraints, checked by
 #   # `heraut commit verify`/`check` alongside types/scopes above. Set exactly one of
@@ -269,6 +272,10 @@ versioning:
 #     - name: no-breaking
 #       is_breaking: true             # filter: only "feat!:" or BREAKING CHANGE commits
 #       refuse: true                  # refuse every commit the filters select; no target
+#     - name: docs-need-jira
+#       types: [docs]
+#       require_ticket: true
+#       tickets: [jira]               # only the entry named jira counts
 
 # ── rendering ─────────────────────────────────────────────────────────────────
 #

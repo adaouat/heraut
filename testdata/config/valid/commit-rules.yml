@@ -9,7 +9,8 @@ changelog: {}
 
 commits:
   tickets:
-    - pattern: '[A-Z]{2,}-[0-9]+'
+    - name: jira
+      pattern: '[A-Z]{2,}-[0-9]+'
       url: 'https://acme.atlassian.net/browse/{ticket}'
   rules:
     - name: no-wip
@@ -23,3 +24,7 @@ commits:
     - name: no-breaking
       is_breaking: true
       refuse: true
+    - name: docs-need-jira
+      types: [docs]
+      require_ticket: true
+      tickets: [jira]

@@ -1449,6 +1449,24 @@ func TestValidate_CommitsRule_ValidConfigs(t *testing.T) {
     - name: frozen
       scopes: [legacy]
       refuse: true`},
+		{"require_ticket with tickets", `
+    - name: docs-need-jira
+      types: [docs]
+      require_ticket: true
+      tickets: [jira]`},
+		{"tickets listed twice", `
+    - name: twice
+      require_ticket: true
+      tickets: [jira, jira]`},
+		{"empty tickets list", `
+    - name: any-ticket
+      require_ticket: true
+      tickets: []`},
+		{"is_breaking with require_ticket and tickets", `
+    - name: breaking-needs-jira
+      is_breaking: true
+      require_ticket: true
+      tickets: [jira]`},
 		{"is_breaking with require", `
     - name: breaking-needs-x
       is_breaking: true
@@ -1463,8 +1481,12 @@ versioning:
   strategy: semver
 commits:
   tickets:
-    - pattern: '[A-Z]{2,}-\d+'
+    - name: jira
+      pattern: '[A-Z]{2,}-\d+'
       url: "https://jira.example.com/browse/{ticket}"
+    - name: github
+      pattern: '#([0-9]+)'
+      url: "https://github.com/acme/app/issues/{ticket}"
   rules:`+tc.yaml+`
 `)
 			assert.Empty(t, config.Validate(cfg))
@@ -1646,6 +1668,77 @@ commits:
 `)
 	e := findErr(config.Validate(cfg), "commits.rules[0].target")
 	require.NotNil(t, e)
+}
+
+func TestValidate_TicketNameDuplicate(t *testing.T) {
+	tests := []struct {
+		name     string
+		firstURL string
+	}{
+		{"both complete", `"https://jira.example.com/browse/{ticket}"`},
+		{"first entry missing its url", `""`},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			cfg := mustLoad(t, `
+version: "1"
+versioning:
+  strategy: semver
+commits:
+  tickets:
+    - name: jira
+      pattern: '[A-Z]+-[0-9]+'
+      url: `+tc.firstURL+`
+    - name: jira
+      pattern: 'JIRA-[0-9]+'
+      url: "https://jira.example.com/browse/{ticket}"
+`)
+			e := findErr(config.Validate(cfg), "commits.tickets[1].name")
+			require.NotNil(t, e)
+			assert.Contains(t, e.Message, `duplicate ticket name "jira"`)
+		})
+	}
+}
+
+func TestValidate_CommitsRuleTickets(t *testing.T) {
+	tests := []struct {
+		name     string
+		rule     string
+		path     string
+		contains string
+	}{
+		{"tickets without require_ticket", `
+    - name: wrong-kind
+      deny: 'wip'
+      message: m
+      tickets: [jira]`, "commits.rules[0].tickets", "needs require_ticket: true"},
+		{"unknown ticket name", `
+    - name: unknown
+      require_ticket: true
+      tickets: [linear]`, "commits.rules[0].tickets[0]", `unknown ticket "linear"`},
+		{"names match case-sensitively", `
+    - name: case
+      require_ticket: true
+      tickets: [Jira]`, "commits.rules[0].tickets[0]", `unknown ticket "Jira"`},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			cfg := mustLoad(t, `
+version: "1"
+versioning:
+  strategy: semver
+commits:
+  tickets:
+    - name: jira
+      pattern: '[A-Z]+-[0-9]+'
+      url: "https://jira.example.com/browse/{ticket}"
+  rules:`+tc.rule+`
+`)
+			e := findErr(config.Validate(cfg), tc.path)
+			require.NotNil(t, e)
+			assert.Contains(t, e.Message, tc.contains)
+		})
+	}
 }
 
 func TestValidate_CommitsRuleRefuseRefusesTarget(t *testing.T) {
