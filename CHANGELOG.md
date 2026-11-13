@@ -1,5 +1,75 @@
 # Changelog
 
+<!-- heraut-release: v1.1.0 -->
+## [1.1.0](https://github.com/adaouat/heraut/compare/v1.0.1..v1.1.0) - 2026-11-13
+
+### 🚀 Features
+
+- *(config)* Add the deny_breaking commit rule - ([c63ab95](https://github.com/adaouat/heraut/commit/c63ab95c8a699649b9af35a098b22759412a4147)) by @bchatard in [#2](https://github.com/adaouat/heraut/pull/2)
+
+- *(config)* Replace deny_breaking with is_breaking and refuse - ([f66989a](https://github.com/adaouat/heraut/commit/f66989a8f9add4ffa31c06bdee3053a0c8ed10ff)) by @bchatard in [#2](https://github.com/adaouat/heraut/pull/2)
+
+- *(config)* Let require_ticket rules name their tickets - ([63ef3be](https://github.com/adaouat/heraut/commit/63ef3be78ec703dde5d897e2b2c40949937e6881)) by @bchatard in [#2](https://github.com/adaouat/heraut/pull/2)
+
+- *(config)* Add except_types and except_scopes rule filters - ([425ea28](https://github.com/adaouat/heraut/commit/425ea28401956af3ab9cda49f7d39509c84a4d17)) by @bchatard in [#2](https://github.com/adaouat/heraut/pull/2)
+
+
+### 🐛 Bug Fixes
+
+- *(config)* Reject an empty ticket name in a rule's tickets list - ([163e721](https://github.com/adaouat/heraut/commit/163e721e277257f11a7f4c0ddcd4b8ec0051de6e)) by @bchatard in [#2](https://github.com/adaouat/heraut/pull/2)
+
+
+### 📚 Documentation
+
+- *(adr)* Amend 0056 with the deny_breaking rule kind - ([280919a](https://github.com/adaouat/heraut/commit/280919a1863e0310d9d4553a5de13e451196b681)) by @bchatard in [#2](https://github.com/adaouat/heraut/pull/2)
+
+- *(adr)* Revise 0056 addendum for is_breaking, refuse, named tickets - ([a815f01](https://github.com/adaouat/heraut/commit/a815f01861287b504971e8db693bdcc059706367)) by @bchatard in [#2](https://github.com/adaouat/heraut/pull/2)
+
+- *(config)* Bring validateCommitRules' comment up to date - ([6da11c0](https://github.com/adaouat/heraut/commit/6da11c038407ed9d785f0f833341546fd78b984c)) by @bchatard in [#2](https://github.com/adaouat/heraut/pull/2)
+
+- *(guides)* Add a Commit rules guide - ([3b01ada](https://github.com/adaouat/heraut/commit/3b01ada749b8859a6d4b9d2dc7e31c71842b895f)) by @bchatard in [#2](https://github.com/adaouat/heraut/pull/2)
+
+- *(guides)* Cover is_breaking, refuse and named tickets - ([510f93d](https://github.com/adaouat/heraut/commit/510f93d4f1f75c41d25216c0e4824da05d8940b5)) by @bchatard in [#2](https://github.com/adaouat/heraut/pull/2)
+
+- *(guides)* Show except_types and except_scopes in Commit rules - ([7b4c52c](https://github.com/adaouat/heraut/commit/7b4c52cb9fc4aae842c8be43689c1ffec0be2cc0)) by @bchatard in [#2](https://github.com/adaouat/heraut/pull/2)
+
+- *(roadmap)* Record the v1 cut and close T555 - ([6bb6e7a](https://github.com/adaouat/heraut/commit/6bb6e7a0e4a8663372629b10ff31c588622cbbfc)) by @bchatard in [#1](https://github.com/adaouat/heraut/pull/1)
+
+- *(roadmap)* Plan T557 deny_breaking rule and the T558 follow-up - ([c01acda](https://github.com/adaouat/heraut/commit/c01acda76a2bb8ad65b52c42b9016c2ad78a272b)) by @bchatard in [#2](https://github.com/adaouat/heraut/pull/2)
+
+- *(roadmap)* Complete T557 - ([2b64a06](https://github.com/adaouat/heraut/commit/2b64a06fbae1ff9433ab68d645c14f128de8caa4)) by @bchatard in [#2](https://github.com/adaouat/heraut/pull/2)
+
+- *(roadmap)* Complete T558 - ([d8dced5](https://github.com/adaouat/heraut/commit/d8dced52af8deb14b2b46dce5b0e67e3551ae7ab)) by @bchatard in [#2](https://github.com/adaouat/heraut/pull/2)
+
+- *(roadmap)* Complete T559 - ([adc7fdf](https://github.com/adaouat/heraut/commit/adc7fdf1e1e1604d68cab314213598ca2aa036ba)) by @bchatard in [#2](https://github.com/adaouat/heraut/pull/2)
+
+- *(rules)* Make the post-v1 branching rule the current one - ([d2e387d](https://github.com/adaouat/heraut/commit/d2e387d6371d971a4e5f68f2c0f799707ec87cf9)) by @bchatard in [#1](https://github.com/adaouat/heraut/pull/1)
+
+- *(superpowers)* Design commit-rule filters and named tickets - ([e33bf75](https://github.com/adaouat/heraut/commit/e33bf758f9de71e95d6268f33b1ca95028ea30b9)) by @bchatard in [#2](https://github.com/adaouat/heraut/pull/2)
+
+
+### 🧪 Testing
+
+- *(e2e)* Cover commit rules through the built binary - ([08581f5](https://github.com/adaouat/heraut/commit/08581f5c7965d5afda208550767e38c60ef5d4bb)) by @bchatard in [#2](https://github.com/adaouat/heraut/pull/2)
+
+- *(e2e)* Cover the except_types and except_scopes filters - ([4b18abd](https://github.com/adaouat/heraut/commit/4b18abd04d4b57b6bda864bcad19c7036eb62837)) by @bchatard in [#2](https://github.com/adaouat/heraut/pull/2)
+
+
+### ⚙️ Miscellaneous Tasks
+
+- *(config)* Drop stay_at_v0 now that heraut is past 1.0 - ([a744b36](https://github.com/adaouat/heraut/commit/a744b3604e07752eeed9db6b2d9b674a9622c431)) by @bchatard in [#1](https://github.com/adaouat/heraut/pull/1)
+
+- *(config)* Refuse breaking-change commits in heraut's own config - ([6e8f145](https://github.com/adaouat/heraut/commit/6e8f145a11a0909df1f51756a0a2281f024d685f)) by @bchatard in [#2](https://github.com/adaouat/heraut/pull/2)
+
+- Bump forge shared workflows and actions to v0.20.1 - ([6350a8e](https://github.com/adaouat/heraut/commit/6350a8eeeb91689368e03d751e17597a9b54c9f1)) by @bchatard
+
+
+### 💼 Other
+
+- *(deps)* Bump Go to 1.27.4 - ([cd26810](https://github.com/adaouat/heraut/commit/cd2681054af64dc5d5d49044cea14b3ef7a6b0b1)) by @bchatard in [#2](https://github.com/adaouat/heraut/pull/2)
+
+- *(deps)* Bump forge to v0.20.1 - ([7cec6cc](https://github.com/adaouat/heraut/commit/7cec6cc0233566ee1035f95798704d6cd5de6091)) by @bchatard
+
 <!-- heraut-release: v1.0.1 -->
 ## [1.0.1](https://github.com/adaouat/heraut/compare/v0.84.0..v1.0.1) - 2026-11-09
 
@@ -4152,4 +4222,4 @@
 <!-- heraut-footer -->
 
 ---
-_Generated by [heraut](https://github.com/adaouat/heraut) v1.0.1 at 13:43 on 2026-11-09._
+_Generated by [heraut](https://github.com/adaouat/heraut) v1.1.0 at 12:08 on 2026-11-13._
