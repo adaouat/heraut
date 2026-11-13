@@ -1720,6 +1720,10 @@ func TestValidate_CommitsRuleTickets(t *testing.T) {
     - name: case
       require_ticket: true
       tickets: [Jira]`, "commits.rules[0].tickets[0]", `unknown ticket "Jira"`},
+		{"empty name", `
+    - name: empty
+      require_ticket: true
+      tickets: [""]`, "commits.rules[0].tickets[0]", "must not be empty"},
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
@@ -1732,6 +1736,8 @@ commits:
     - name: jira
       pattern: '[A-Z]+-[0-9]+'
       url: "https://jira.example.com/browse/{ticket}"
+    - pattern: 'LIN-[0-9]+'
+      url: "https://linear.example.com/{ticket}"
   rules:`+tc.rule+`
 `)
 			e := findErr(config.Validate(cfg), tc.path)

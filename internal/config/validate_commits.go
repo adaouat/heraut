@@ -184,6 +184,14 @@ func validateCommitRules(c *Commits) []ValidationError {
 			errs = append(errs, ValidationError{Path: path + ".tickets", Message: "needs require_ticket: true"})
 		}
 		for j, name := range r.Tickets {
+			if name == "" {
+				errs = append(errs, ValidationError{
+					Path:    fmt.Sprintf("%s.tickets[%d]", path, j),
+					Message: "must not be empty",
+					Hint:    "name an entry of commits.tickets (set its name)",
+				})
+				continue
+			}
 			if !slices.ContainsFunc(c.Tickets, func(t Ticket) bool { return t.Name == name }) {
 				errs = append(errs, ValidationError{
 					Path:    fmt.Sprintf("%s.tickets[%d]", path, j),
