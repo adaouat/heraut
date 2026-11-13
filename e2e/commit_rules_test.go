@@ -58,7 +58,7 @@ func TestCommitRules(t *testing.T) {
 
 		{name: "check config: refuse without a filter", config: semverCfg("") + ticketsCfg + "    - name: refuse-all\n      refuse: true\n",
 			args:     []string{"check", "config"},
-			wantExit: exitConfig, wantText: []string{"commits.rules[0].refuse: needs at least one of types, scopes or is_breaking"}},
+			wantExit: exitConfig, wantText: []string{"commits.rules[0].refuse: needs at least one of types, scopes, except_types, except_scopes or is_breaking"}},
 		{name: "check config: tickets naming an unknown entry", config: semverCfg("") + ticketsCfg +
 			"    - name: needs-linear\n      require_ticket: true\n      tickets: [linear]\n",
 			args:     []string{"check", "config"},

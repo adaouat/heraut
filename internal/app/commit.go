@@ -126,13 +126,17 @@ func verifyRules(cfg *config.Config, c *conventionalcommit.Commit, message strin
 	return fmt.Errorf("commit message violates rule(s): %s", strings.Join(violations, "; "))
 }
 
-// ruleAppliesTo reports whether r's optional filters (Types, Scopes, IsBreaking) all match c.
+// ruleAppliesTo reports whether r's optional filters (Types, Scopes, ExceptTypes, ExceptScopes,
+// IsBreaking) all match c.
 // A rule with no filter applies to every commit.
 func ruleAppliesTo(r config.CommitRule, c *conventionalcommit.Commit) bool {
 	if len(r.Types) > 0 && !slices.Contains(r.Types, c.Type) {
 		return false
 	}
 	if len(r.Scopes) > 0 && !slices.Contains(r.Scopes, c.Scope) {
+		return false
+	}
+	if slices.Contains(r.ExceptTypes, c.Type) || slices.Contains(r.ExceptScopes, c.Scope) {
 		return false
 	}
 	if r.IsBreaking && !c.Breaking {

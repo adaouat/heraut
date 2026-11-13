@@ -169,5 +169,11 @@ Decisions along the way:
 - **`tickets` needs an explicit `require_ticket: true`.** If it implied the kind it would be a kind of
   its own, and could not later refine another kind without a breaking change.
 
-Left out: an "only non-breaking commits" filter, "every type except X", ticket names in any output,
-and the `commit create` wizard.
+**`except_types` / `except_scopes`** (added the same day, before release) mirror `types`/`scopes` and
+leave commits out, so "every type but `docs`" needs no hand-kept list. A rule sets one of each pair,
+not both; a commit without a scope is not excluded by `except_scopes`. `types: ["!docs"]` was rejected
+because an unquoted `!docs` is a YAML tag, and `types: {except: [...]}` because one key would take two
+shapes.
+
+Left out: an "only non-breaking commits" filter, ticket names in any output, and the `commit create`
+wizard.

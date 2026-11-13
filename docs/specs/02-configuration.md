@@ -835,6 +835,8 @@ is checked. Merge and fixup commits are never checked.
 |---|---|
 | `types` | Commits of the listed conventional-commit types. |
 | `scopes` | Commits of the listed scopes. |
+| `except_types` | Commits of every type but the listed ones. Not allowed with `types` (error at `commits.rules[i].except_types`: `not allowed with types`). |
+| `except_scopes` | Commits of every scope but the listed ones, including commits without a scope. Not allowed with `scopes` (error at `commits.rules[i].except_scopes`: `not allowed with scopes`). |
 | `is_breaking` | When `true`, breaking commits only, as the commit parser detects them: a `!` before the header's colon, or a `BREAKING CHANGE` / `BREAKING-CHANGE` footer. `false` is the same as leaving it out. |
 
 **Kinds** — exactly one per rule; a `false` boolean counts as unset. Errors at `commits.rules[i]`:
@@ -846,7 +848,7 @@ require_ticket, or refuse, not more than one`.
 | `deny` | the regex matches `target`. |
 | `require` | the regex does not match `target`. |
 | `require_ticket` | `target` matches none of the `commits.tickets[].pattern` entries. Requires a non-empty `commits.tickets`. With `tickets`, only those named entries count. Default message: `commit must reference a ticket matching one of the configured commits.tickets patterns (rule "<name>")`, or with `tickets`: `commit must reference a ticket of kind <a> or <b> (rule "<name>")`. |
-| `refuse` | always, once the filters select it. Needs at least one filter (error at `commits.rules[i].refuse`: `needs at least one of types, scopes or is_breaking`); `target` is an error with it (`not allowed with refuse, which matches no text`). Default message: `commit refused (rule "<name>")`. |
+| `refuse` | always, once the filters select it. Needs at least one filter (error at `commits.rules[i].refuse`: `needs at least one of types, scopes, except_types, except_scopes or is_breaking`); `target` is an error with it (`not allowed with refuse, which matches no text`). Default message: `commit refused (rule "<name>")`. |
 
 `tickets` lists `commits.tickets[].name` values and refines `require_ticket` only: without
 `require_ticket: true` it is an error at `commits.rules[i].tickets` (`needs require_ticket: true`);
@@ -882,6 +884,10 @@ commits:
       types: [docs]
       require_ticket: true
       tickets: [jira]
+    - name: others-need-github
+      except_types: [docs]
+      require_ticket: true
+      tickets: [github]
 ```
 
 A commit can trip more than one rule at once — `heraut commit verify`/`check` collect every

@@ -322,6 +322,37 @@ func TestVerifyCommit_Rules_RequireTicket_NamedDefaultMessage(t *testing.T) {
 	assert.Contains(t, err.Error(), `commit must reference a ticket of kind jira or github (rule "needs-ticket")`)
 }
 
+func TestVerifyCommit_Rules_ExceptFilters(t *testing.T) {
+	tests := []struct {
+		name    string
+		rule    config.CommitRule
+		message string
+		refused bool
+	}{
+		{"except_types: listed type passes", config.CommitRule{ExceptTypes: []string{"docs"}}, "docs: x", false},
+		{"except_types: other type refused", config.CommitRule{ExceptTypes: []string{"docs"}}, "fix: x", true},
+		{"except_scopes: listed scope passes", config.CommitRule{ExceptScopes: []string{"legacy"}}, "fix(legacy): x", false},
+		{"except_scopes: other scope refused", config.CommitRule{ExceptScopes: []string{"legacy"}}, "fix(api): x", true},
+		{"except_scopes: no scope refused", config.CommitRule{ExceptScopes: []string{"legacy"}}, "fix: x", true},
+		{"except_types with is_breaking: non-breaking passes", config.CommitRule{ExceptTypes: []string{"docs"}, IsBreaking: true}, "fix: x", false},
+		{"except_types with is_breaking: breaking fix refused", config.CommitRule{ExceptTypes: []string{"docs"}, IsBreaking: true}, "fix!: x", true},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			rule := tc.rule
+			rule.Name, rule.Refuse, rule.Message = "filtered", true, "filtered out"
+			cfg := &config.Config{Commits: &config.Commits{Rules: []config.CommitRule{rule}}}
+			_, err := app.VerifyCommit(cfg, tc.message)
+			if !tc.refused {
+				assert.NoError(t, err)
+				return
+			}
+			require.Error(t, err)
+			assert.Contains(t, err.Error(), "filtered out")
+		})
+	}
+}
+
 func TestVerifyCommit_Rules_Target_Header(t *testing.T) {
 	cfg := &config.Config{Commits: &config.Commits{
 		Rules: []config.CommitRule{{Name: "no-wip-header", Deny: `wip`, Message: "no wip in header", Target: "header"}},
