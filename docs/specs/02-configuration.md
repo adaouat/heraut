@@ -811,6 +811,7 @@ Links issue-tracker references found in commit messages — **subject, body, or 
 |---|---|
 | `pattern` | A regex matching ticket IDs. Each match is rendered as a link; the **label** is always the full match. |
 | `url` | A URL template containing `{ticket}` — the pattern's **first capture group**, or the **full match** when there is no group. |
+| `name` | Optional. Lets a rule point at this entry (`commits.rules[].tickets`). Unique within `commits.tickets` when set; error at `commits.tickets[i].name`: `duplicate ticket name "<n>" (already used by tickets[<first>])`. Matched case-sensitively. |
 
 Heraut injects each entry as a link parser; the link is appended to the commit line as
 `([TICKET](url))`.
@@ -819,35 +820,68 @@ Heraut injects each entry as a link parser; the link is appended to the commit l
 
 Project-specific commit-message constraints, checked by `heraut commit verify`/`check`
 alongside the type and scope checks above ([ADR-0056](../adr/0056-configurable-commit-message-rules.md)).
-Each rule sets **exactly one** of `deny`, `require`, `require_ticket`, or `deny_breaking`.
+A rule has **filters**, which pick the commits it checks, and **exactly one kind**, which says what
+is checked. Merge and fixup commits are never checked.
 
 | Field | Meaning |
 |---|---|
 | `name` | Rule name (required), shown in violation messages. Must be unique within `commits.rules`. |
-| `deny` | A regex that must **not** match `target`. |
-| `require` | A regex that **must** match `target`. |
-| `require_ticket` | Shorthand for "`target` must match one of the already-configured `commits.tickets[].pattern` entries" — reuses that list instead of duplicating a ticket regex in `require`. Requires a non-empty `commits.tickets`. |
-| `deny_breaking` | When `true`, refuses a breaking change as the commit parser detects it: a `!` before the header's colon, or a `BREAKING CHANGE` / `BREAKING-CHANGE` footer. `target` is not allowed with it (the parser reads the whole message). |
-| `target` | Part of the message matched against: `header` (the raw first line), `body`, `footer` (each footer trailer rendered as `Token: Value`, joined), or `message` (the full raw text — the default). Not allowed with `deny_breaking`. |
-| `message` | Shown when the rule is violated. Required for `deny`/`require`; optional for `require_ticket` and `deny_breaking`, which get a default message naming the rule. |
-| `types` / `scopes` | Optionally scope the rule to commits of the listed conventional-commit types/scopes (AND'd together). Omitting both applies the rule to every commit. |
+| `message` | Shown when the rule is violated. Required for `deny`/`require`; optional for `require_ticket` and `refuse`, which get a default naming the rule. |
+| `target` | Part of the message `deny`, `require` and `require_ticket` match against: `header` (the raw first line), `body`, `footer` (each footer trailer rendered as `Token: Value`, joined), or `message` (the full raw text — the default). Not allowed with `refuse`. |
+
+**Filters** — omitted filters select every commit; set filters must all match.
+
+| Field | Selects |
+|---|---|
+| `types` | Commits of the listed conventional-commit types. |
+| `scopes` | Commits of the listed scopes. |
+| `is_breaking` | When `true`, breaking commits only, as the commit parser detects them: a `!` before the header's colon, or a `BREAKING CHANGE` / `BREAKING-CHANGE` footer. `false` is the same as leaving it out. |
+
+**Kinds** — exactly one per rule; a `false` boolean counts as unset. Errors at `commits.rules[i]`:
+`must set exactly one of deny, require, require_ticket, or refuse` / `set only one of deny, require,
+require_ticket, or refuse, not more than one`.
+
+| Field | The commit is refused when |
+|---|---|
+| `deny` | the regex matches `target`. |
+| `require` | the regex does not match `target`. |
+| `require_ticket` | `target` matches none of the `commits.tickets[].pattern` entries. Requires a non-empty `commits.tickets`. With `tickets`, only those named entries count. Default message: `commit must reference a ticket matching one of the configured commits.tickets patterns (rule "<name>")`, or with `tickets`: `commit must reference a ticket of kind <a> or <b> (rule "<name>")`. |
+| `refuse` | always, once the filters select it. Needs at least one filter (error at `commits.rules[i].refuse`: `needs at least one of types, scopes or is_breaking`); `target` is an error with it (`not allowed with refuse, which matches no text`). Default message: `commit refused (rule "<name>")`. |
+
+`tickets` lists `commits.tickets[].name` values and refines `require_ticket` only: without
+`require_ticket: true` it is an error at `commits.rules[i].tickets` (`needs require_ticket: true`);
+a name absent from `commits.tickets` is an error at `commits.rules[i].tickets[j]` (`unknown ticket
+"<n>"`). An empty list is the same as leaving it out; a name listed twice is accepted.
 
 ```yaml
 commits:
   tickets:
-    - pattern: '[A-Z]{2,}-[0-9]+'
+    - name: jira
+      pattern: '[A-Z]{2,}-[0-9]+'
       url: 'https://acme.atlassian.net/browse/{ticket}'
+    - name: github
+      pattern: '#([0-9]+)'
+      url: 'https://github.com/acme/app/issues/{ticket}'
   rules:
     - name: no-wip
       deny: '(?i)\bwip\b'
       message: "commit message must not contain WIP"
     - name: require-ticket-on-fix
-      require_ticket: true      # matches any pattern already listed in tickets above
+      require_ticket: true      # any pattern listed in tickets above
       target: footer            # only a trailer counts, e.g. "Refs: PROJ-123"
       types: [fix]
       message: "fix commits must reference a ticket in a footer trailer"
-    - name: no-breaking
-      deny_breaking: true       # default message: breaking changes are not allowed (rule "no-breaking")
+    - name: no-breaking         # refuse every breaking commit
+      is_breaking: true
+      refuse: true
+    - name: breaking-needs-jira # a breaking commit references a Jira ticket
+      is_breaking: true
+      require_ticket: true
+      tickets: [jira]
+    - name: docs-need-jira
+      types: [docs]
+      require_ticket: true
+      tickets: [jira]
 ```
 
 A commit can trip more than one rule at once — `heraut commit verify`/`check` collect every
