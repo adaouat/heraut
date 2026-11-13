@@ -8,9 +8,11 @@ the changelog and the release notes, and check that commits mention one.
 ```yaml
 commits:
   tickets:
-    - pattern: "[A-Z]+-[0-9]+"                         # Jira: APP-12
+    - name: jira                                       # optional: lets a rule point at it
+      pattern: "[A-Z]+-[0-9]+"                         # Jira: APP-12
       url: https://jira.example.com/browse/{ticket}
-    - pattern: "#([0-9]+)"                             # GitHub issues: #34
+    - name: github
+      pattern: "#([0-9]+)"                             # GitHub issues: #34
       url: https://github.com/acme/app/issues/{ticket}
 ```
 
@@ -64,7 +66,11 @@ Commit message violates rule(s): commit must reference a ticket matching one of 
 commits.tickets patterns (rule "ticket").
 ```
 
-The exit code is then 1. To run the check on every commit as you write it, and on every pull
+The exit code is then 1. Add `tickets: [jira]` to accept only the patterns with that `name`, for
+example to require Jira tickets on `docs` commits and GitHub issues on the others; see
+[Commit rules](commit-rules.md).
+
+To run the check on every commit as you write it, and on every pull
 request, see [Check commit messages](commit-conventions.md).
 
 ## In the release statistics

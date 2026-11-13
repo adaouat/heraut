@@ -7,22 +7,32 @@ exit code is 1. To run the checks in a commit-msg hook and on every pull request
 
 ## What a rule is made of
 
-Each rule has a `name` and exactly one check:
+Each rule has a `name`, says **which commits** it checks, and **what** it checks in them.
+
+**Which commits.** Leave these out and the rule checks every commit; set several and a commit must
+match all of them.
+
+| Setting | Checks only |
+|---|---|
+| `types: [feat, fix]` | commits of these types |
+| `scopes: [api]` | commits of these scopes |
+| `is_breaking: true` | breaking changes: `feat!:`, `feat(api)!:`, or a `BREAKING CHANGE:` or `BREAKING-CHANGE:` footer |
+
+**What is checked.** Exactly one of these per rule:
 
 | Check | Refuses a commit when |
 |---|---|
 | `deny: <regex>` | the regular expression matches |
 | `require: <regex>` | the regular expression doesn't match |
-| `require_ticket: true` | no ticket is mentioned, by the patterns in `commits.tickets` (see [Link tickets](tickets.md)) |
-| `deny_breaking: true` | the commit is a breaking change: `feat!:`, `feat(api)!:`, or a `BREAKING CHANGE:` or `BREAKING-CHANGE:` footer |
+| `require_ticket: true` | no ticket is mentioned, by the patterns in `commits.tickets` (see [Link tickets](tickets.md)). Add `tickets: [jira]` to accept only the entries with those names. |
+| `refuse: true` | always: every commit the rule checks is refused. It needs `types`, `scopes` or `is_breaking`. |
 
 Then, optionally:
 
 | Setting | Effect |
 |---|---|
-| `target` | The part of the message `deny`, `require` and `require_ticket` look at: `header` (the first line), `body`, `footer` (the trailers, each as `Token: value` on its own line) or `message` (everything, the default). `deny_breaking` reads the whole commit and takes no `target`. |
-| `types`, `scopes` | Only check commits of these types, or these scopes. With both, a commit must match both. |
-| `message` | What the author sees when the rule refuses a commit. Required for `deny` and `require`; `require_ticket` and `deny_breaking` have a default that names the rule. |
+| `target` | The part of the message `deny`, `require` and `require_ticket` look at: `header` (the first line), `body`, `footer` (the trailers, each as `Token: value` on its own line) or `message` (everything, the default). `refuse` takes no `target`. |
+| `message` | What the author sees when the rule refuses a commit. Required for `deny` and `require`; `require_ticket` and `refuse` have a default that names the rule. |
 
 Every rule runs on every commit, and a commit that breaks several gets all their messages at once:
 
@@ -36,8 +46,7 @@ Merge and fixup commits are accepted as they are.
 
 ## Examples
 
-Each example below is one entry under `commits.rules`. `heraut check config` reports a rule with a
-mistake in it, such as an invalid regular expression or two checks in one rule.
+Each example below is one entry under `commits.rules`.
 
 ### No work in progress
 
@@ -126,8 +135,13 @@ Commit message violates rule(s): a feat explains why in the body.
 
 ```yaml
     - name: no-breaking
-      deny_breaking: true
-      message: "breaking changes are not allowed: a major release is cut on purpose"
+      is_breaking: true
+      refuse: true
+```
+
+```console
+$ heraut commit verify "feat!: drop v1 routes"
+Commit message violates rule(s): commit refused (rule "no-breaking").
 ```
 
 Under `semver`, a breaking change makes the next release a major one. With this rule, no commit can
@@ -137,7 +151,8 @@ Add `scopes` or `types` to protect one part of a project and leave the rest free
 
 ```yaml
     - name: stable-api
-      deny_breaking: true
+      is_breaking: true
+      refuse: true
       scopes: [api]
 ```
 
@@ -145,7 +160,7 @@ Add `scopes` or `types` to protect one part of a project and leave the rest free
 $ heraut commit verify "feat(api)!: drop v1 routes
 
 Clients move to v2."
-Commit message violates rule(s): breaking changes are not allowed (rule "stable-api").
+Commit message violates rule(s): commit refused (rule "stable-api").
 
 $ heraut commit verify "feat(ui)!: new layout
 
@@ -156,3 +171,87 @@ The old one is gone."
   breaking:    true
   description: new layout
 ```
+
+### A breaking change references a Jira ticket
+
+Name the ticket patterns, then point a rule at one of them:
+
+```yaml
+commits:
+  tickets:
+    - name: jira
+      pattern: "[A-Z]+-[0-9]+"
+      url: https://jira.example.com/browse/{ticket}
+    - name: github
+      pattern: "#([0-9]+)"
+      url: https://github.com/acme/app/issues/{ticket}
+  rules:
+    - name: breaking-needs-jira
+      is_breaking: true
+      require_ticket: true
+      tickets: [jira]
+```
+
+```console
+$ heraut commit verify "feat!: drop v1 routes"
+Commit message violates rule(s): commit must reference a ticket of kind jira (rule
+"breaking-needs-jira").
+```
+
+`feat!: drop v1 routes, see APP-7` passes. Leave `tickets` out to accept any of the patterns.
+
+### Documentation references Jira, everything else GitHub
+
+```yaml
+    - name: docs-need-jira
+      types: [docs]
+      require_ticket: true
+      tickets: [jira]
+    - name: others-need-github
+      types: [feat, fix, chore, refactor, test, style, perf, ci, build, security, revert]
+      require_ticket: true
+      tickets: [github]
+```
+
+The second rule lists every type but `docs`; a type you add to `commits.types` later goes in that list
+too.
+
+```console
+$ heraut commit verify "docs: explain setup #12"
+Commit message violates rule(s): commit must reference a ticket of kind jira (rule "docs-need-jira").
+
+$ heraut commit verify "fix: crash on empty query APP-3"
+Commit message violates rule(s): commit must reference a ticket of kind github (rule
+"others-need-github").
+```
+
+### Freeze a part of the project
+
+```yaml
+    - name: frozen-legacy
+      scopes: [legacy]
+      refuse: true
+      message: the legacy module is frozen
+```
+
+```console
+$ heraut commit verify "fix(legacy): patch #34"
+Commit message violates rule(s): the legacy module is frozen.
+```
+
+### Mistakes in a rule
+
+`heraut check config` reports a rule that can't work:
+
+```console
+$ heraut check config
+  .heraut.yml  (from .heraut.yml)
+✗ commits.rules[0].refuse: needs at least one of types, scopes or is_breaking
+  hint: without a filter this rule refuses every commit
+✗ commits.rules[1].tickets: needs require_ticket: true
+✗ commits.rules[1].tickets[0]: unknown ticket "jira"
+  hint: name an entry of commits.tickets (set its name)
+3 error(s)
+```
+
+The exit code is then 2.
