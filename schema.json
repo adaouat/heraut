@@ -212,7 +212,8 @@
         "tickets": {
           "type": "array",
           "items": {
-            "type": "string"
+            "type": "string",
+            "minLength": 1
           },
           "description": "With require_ticket: only the commits.tickets entries with these names count. Omitted or empty: any entry."
         },

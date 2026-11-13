@@ -851,7 +851,7 @@ require_ticket, or refuse, not more than one`.
 `tickets` lists `commits.tickets[].name` values and refines `require_ticket` only: without
 `require_ticket: true` it is an error at `commits.rules[i].tickets` (`needs require_ticket: true`);
 a name absent from `commits.tickets` is an error at `commits.rules[i].tickets[j]` (`unknown ticket
-"<n>"`). An empty list is the same as leaving it out; a name listed twice is accepted.
+"<n>"`), and an empty name (`""`) one too (`must not be empty`). An empty list is the same as leaving it out; a name listed twice is accepted.
 
 ```yaml
 commits:
