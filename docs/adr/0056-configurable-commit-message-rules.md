@@ -136,19 +136,38 @@ or keep a deny pattern from tripping on unrelated footer trailers like `Co-Autho
   produces the header/body/footer split for free, that not exposing it would force users
   into looser regexes to approximate scoping heraut can already do precisely.
 
-## Addendum (2026-11-11): `deny_breaking`, a rule kind read from the parser
+## Addendum (2026-11-11, revised 2026-11-12): breaking-commit filter, `refuse`, named tickets
 
 heraut's own config needed to refuse breaking-change commits, so that a major release is only cut on
-purpose. A `deny` regex can do it, two in fact (`^[A-Za-z]+(\([^)]*\))?!:` on the header,
-`^BREAKING[ -]CHANGE: ` on the footer), but they copy what `conventionalcommit.Parse` already decides
-in `Commit.Breaking` and will drift from it, and every project wanting this would copy them again.
+purpose; users also wanted "a breaking change must reference a ticket" and "`docs` commits reference
+Jira, the others GitHub". None of these could be written: two `deny` regexes can approximate the first
+(`^[A-Za-z]+(\([^)]*\))?!:` on the header, `^BREAKING[ -]CHANGE: ` on the footer) but copy what
+`conventionalcommit.Parse` already decides in `Commit.Breaking`, and `require_ticket` accepts any
+`commits.tickets` entry.
 
-A fourth kind joins `deny`, `require` and `require_ticket`: `deny_breaking: true` fails when
-`Commit.Breaking` is true. It is still exactly one kind per rule, and `types`/`scopes` still narrow it.
-`target` is a validation error with it, since the parser reads the whole message and a target would
-silently do nothing. `message` is optional, with a default naming the rule, like `require_ticket`.
+A rule now has **filters**, which pick the commits it checks, and **exactly one kind**, which says
+what is checked:
 
-Considered and left for later: a `breaking: true` *filter*, narrowing any rule to breaking commits as
-`types`/`scopes` do. It can express "a breaking change must reference a ticket", but refusing outright
-would then need a dummy `deny: '.'`. Both can coexist; the filter is tracked as its own task, together
-with letting `require_ticket` name which `commits.tickets` entry it accepts.
+- **`is_breaking: true`**, a filter beside `types` and `scopes`: the rule only checks commits the
+  parser marks breaking. `false` is the same as leaving it out.
+- **`refuse: true`**, a fourth kind beside `deny`, `require` and `require_ticket`: it refuses every
+  commit the filters select. It needs at least one filter, or it would refuse every commit, and takes
+  no `target`, since it matches no text.
+- **`commits.tickets[].name`**, optional and unique, and a rule's **`tickets: [names]`**, which
+  narrows `require_ticket` to those entries. Names reference entries the way `forges[].name` does.
+
+Decisions along the way:
+
+- **`deny_breaking: true` was dropped before release.** The first version of this addendum added it
+  as a kind. It is a verdict ("breaking means refused"), and "a breaking change must reference a
+  ticket" needs a condition: on a breaking commit with a ticket, `deny_breaking` and `require_ticket`
+  would disagree. `is_breaking` + `refuse` expresses both. It never shipped, so it has no deprecation.
+- **`refuse: true`, not `deny: true`.** `deny` already takes a regex; one key with two types was
+  rejected for the same reason as the next point.
+- **`tickets` beside `require_ticket`, not `require_ticket: <name>`.** One key taking `true`, a name
+  or a list complicates the schema and editor completion, and a list sits next to `types`/`scopes`.
+- **`tickets` needs an explicit `require_ticket: true`.** If it implied the kind it would be a kind of
+  its own, and could not later refine another kind without a breaking change.
+
+Left out: an "only non-breaking commits" filter, "every type except X", ticket names in any output,
+and the `commit create` wizard.
