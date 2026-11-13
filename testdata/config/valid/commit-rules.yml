@@ -21,4 +21,5 @@ commits:
       types: [fix]
       message: "fix commits must reference a ticket in a footer trailer (e.g. Refs: JIRA-123)"
     - name: no-breaking
-      deny_breaking: true
+      is_breaking: true
+      refuse: true

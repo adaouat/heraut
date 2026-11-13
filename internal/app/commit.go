@@ -126,13 +126,16 @@ func verifyRules(cfg *config.Config, c *conventionalcommit.Commit, message strin
 	return fmt.Errorf("commit message violates rule(s): %s", strings.Join(violations, "; "))
 }
 
-// ruleAppliesTo reports whether r's optional Types/Scopes scoping matches c. Omitting both
-// applies the rule to every commit.
+// ruleAppliesTo reports whether r's optional filters (Types, Scopes, IsBreaking) all match c.
+// A rule with no filter applies to every commit.
 func ruleAppliesTo(r config.CommitRule, c *conventionalcommit.Commit) bool {
 	if len(r.Types) > 0 && !slices.Contains(r.Types, c.Type) {
 		return false
 	}
 	if len(r.Scopes) > 0 && !slices.Contains(r.Scopes, c.Scope) {
+		return false
+	}
+	if r.IsBreaking && !c.Breaking {
 		return false
 	}
 	return true
@@ -167,13 +170,10 @@ func evaluateRule(r config.CommitRule, c *conventionalcommit.Commit, message str
 			msg = fmt.Sprintf("commit must reference a ticket matching one of the configured commits.tickets patterns (rule %q)", r.Name)
 		}
 		return true, msg, nil
-	case r.DenyBreaking:
-		if !c.Breaking {
-			return false, "", nil
-		}
+	case r.Refuse:
 		msg := r.Message
 		if msg == "" {
-			msg = fmt.Sprintf("breaking changes are not allowed (rule %q)", r.Name)
+			msg = fmt.Sprintf("commit refused (rule %q)", r.Name)
 		}
 		return true, msg, nil
 	}

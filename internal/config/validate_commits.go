@@ -124,7 +124,7 @@ func validateCommitRules(c *Commits) []ValidationError {
 		}
 
 		set := 0
-		for _, isSet := range []bool{r.Deny != "", r.Require != "", r.RequireTicket, r.DenyBreaking} {
+		for _, isSet := range []bool{r.Deny != "", r.Require != "", r.RequireTicket, r.Refuse} {
 			if isSet {
 				set++
 			}
@@ -133,13 +133,13 @@ func validateCommitRules(c *Commits) []ValidationError {
 		case set == 0:
 			errs = append(errs, ValidationError{
 				Path:    path,
-				Message: "must set exactly one of deny, require, require_ticket, or deny_breaking",
+				Message: "must set exactly one of deny, require, require_ticket, or refuse",
 				Hint:    `e.g. {deny: "(?i)\\bwip\\b"} or {require_ticket: true}`,
 			})
 		case set > 1:
 			errs = append(errs, ValidationError{
 				Path:    path,
-				Message: "set only one of deny, require, require_ticket, or deny_breaking, not more than one",
+				Message: "set only one of deny, require, require_ticket, or refuse, not more than one",
 			})
 		}
 
@@ -167,10 +167,17 @@ func validateCommitRules(c *Commits) []ValidationError {
 				Hint:    "set a message shown when the rule is violated",
 			})
 		}
-		if r.DenyBreaking && r.Target != "" {
+		if r.Refuse && len(r.Types) == 0 && len(r.Scopes) == 0 && !r.IsBreaking {
+			errs = append(errs, ValidationError{
+				Path:    path + ".refuse",
+				Message: "needs at least one of types, scopes or is_breaking",
+				Hint:    "without a filter this rule refuses every commit",
+			})
+		}
+		if r.Refuse && r.Target != "" {
 			errs = append(errs, ValidationError{
 				Path:    path + ".target",
-				Message: "not allowed with deny_breaking, which reads the whole commit",
+				Message: "not allowed with refuse, which matches no text",
 				Hint:    "remove target from this rule",
 			})
 		} else if !validCommitRuleTargets[r.Target] {

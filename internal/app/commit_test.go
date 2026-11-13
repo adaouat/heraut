@@ -206,7 +206,7 @@ func TestVerifyCommit_Rules_RequireTicket_DefaultMessage(t *testing.T) {
 	assert.Contains(t, err.Error(), "needs-ticket")
 }
 
-func TestVerifyCommit_Rules_DenyBreaking(t *testing.T) {
+func TestVerifyCommit_Rules_RefuseBreaking(t *testing.T) {
 	tests := []struct {
 		name    string
 		types   []string
@@ -221,11 +221,13 @@ func TestVerifyCommit_Rules_DenyBreaking(t *testing.T) {
 		{"breaking in body prose only", nil, "feat: x\n\nnot a breaking change", false},
 		{"scoped to feat, breaking fix passes", []string{"feat"}, "fix!: drop x", false},
 		{"scoped to feat, breaking feat refused", []string{"feat"}, "feat!: drop x", true},
+		{"merge commit", nil, "Merge branch 'x'", false},
+		{"fixup commit", nil, "fixup! feat!: drop x", false},
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			cfg := &config.Config{Commits: &config.Commits{
-				Rules: []config.CommitRule{{Name: "no-breaking", DenyBreaking: true, Types: tc.types, Message: "cut a major on purpose"}},
+				Rules: []config.CommitRule{{Name: "no-breaking", IsBreaking: true, Refuse: true, Types: tc.types, Message: "cut a major on purpose"}},
 			}}
 			_, err := app.VerifyCommit(cfg, tc.message)
 			if !tc.refused {
@@ -238,13 +240,36 @@ func TestVerifyCommit_Rules_DenyBreaking(t *testing.T) {
 	}
 }
 
-func TestVerifyCommit_Rules_DenyBreaking_DefaultMessage(t *testing.T) {
+func TestVerifyCommit_Rules_Refuse_DefaultMessage(t *testing.T) {
 	cfg := &config.Config{Commits: &config.Commits{
-		Rules: []config.CommitRule{{Name: "no-breaking", DenyBreaking: true}},
+		Rules: []config.CommitRule{{Name: "no-breaking", IsBreaking: true, Refuse: true}},
 	}}
 	_, err := app.VerifyCommit(cfg, "feat!: drop x")
 	require.Error(t, err)
-	assert.Contains(t, err.Error(), `breaking changes are not allowed (rule "no-breaking")`)
+	assert.Contains(t, err.Error(), `commit refused (rule "no-breaking")`)
+}
+
+func TestVerifyCommit_Rules_IsBreakingFilter(t *testing.T) {
+	cfg := &config.Config{Commits: &config.Commits{
+		Rules: []config.CommitRule{{Name: "breaking-needs-ok", IsBreaking: true, Require: "x-ok", Message: "needs x-ok"}},
+	}}
+	_, err := app.VerifyCommit(cfg, "feat: plain")
+	assert.NoError(t, err, "a non-breaking commit is not selected")
+	_, err = app.VerifyCommit(cfg, "feat!: drop")
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "needs x-ok")
+	_, err = app.VerifyCommit(cfg, "feat!: drop x-ok")
+	assert.NoError(t, err)
+}
+
+func TestVerifyCommit_Rules_RefuseByType(t *testing.T) {
+	cfg := &config.Config{Commits: &config.Commits{
+		Rules: []config.CommitRule{{Name: "no-chore", Types: []string{"chore"}, Refuse: true}},
+	}}
+	_, err := app.VerifyCommit(cfg, "chore: x")
+	require.Error(t, err)
+	_, err = app.VerifyCommit(cfg, "fix: x")
+	assert.NoError(t, err)
 }
 
 func TestVerifyCommit_Rules_Target_Header(t *testing.T) {

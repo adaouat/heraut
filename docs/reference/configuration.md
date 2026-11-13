@@ -169,9 +169,10 @@ How commit messages are read: the allowed types and scopes, ticket links, extra 
 | `commits.rules[].deny` | string |  |  | Regex that must NOT match target. |
 | `commits.rules[].require` | string |  |  | Regex that MUST match target. |
 | `commits.rules[].require_ticket` | boolean | `false` |  | Shorthand: target must match one of the already-configured commits.tickets\[].pattern entries, instead of duplicating a ticket regex in require. Requires a non-empty commits.tickets. |
-| `commits.rules[].deny_breaking` | boolean | `false` |  | Refuses a breaking change: a '!' before the header's colon, or a BREAKING CHANGE / BREAKING-CHANGE footer. target is not allowed with it. |
-| `commits.rules[].target` | `header` \| `body` \| `footer` \| `message` | `message` |  | Part of the message matched against: the raw first line (header), the parsed body, the joined footer trailers (footer), or the full raw text (message, the default). Not allowed with deny_breaking. |
-| `commits.rules[].message` | string |  |  | Shown when the rule is violated. Required for deny/require; optional for require_ticket and deny_breaking (get a synthesized default naming the rule). |
+| `commits.rules[].refuse` | boolean | `false` |  | Refuses every commit the rule's filters (types, scopes, is_breaking) select. Needs at least one filter; target is not allowed with it. |
+| `commits.rules[].is_breaking` | boolean | `false` |  | Filter: when true, the rule only checks breaking commits (a '!' before the header's colon, or a BREAKING CHANGE / BREAKING-CHANGE footer). |
+| `commits.rules[].target` | `header` \| `body` \| `footer` \| `message` | `message` |  | Part of the message matched against: the raw first line (header), the parsed body, the joined footer trailers (footer), or the full raw text (message, the default). Not allowed with refuse. |
+| `commits.rules[].message` | string |  |  | Shown when the rule is violated. Required for deny/require; optional for require_ticket and refuse (get a synthesized default naming the rule). |
 | `commits.rules[].types` | list of string |  |  | Optionally scope the rule to commits of these conventional-commit types. Omitting both types and scopes applies the rule to every commit. |
 | `commits.rules[].scopes` | list of string |  |  | Optionally scope the rule to commits with these scopes. Omitting both types and scopes applies the rule to every commit. |
 | `commits.enrichment_forge` | string |  |  | The forges\[].name to read pull request or merge request data from (links, authors, new contributors) for every target's notes. Required with two or more forges. Example: github. |
