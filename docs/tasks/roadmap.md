@@ -274,7 +274,7 @@ discipline that applies to every task.
 | 92 | Follow-ups from the guides (GitHub release commit, error punctuation, warning marks) | Done |
 | 93 | One person, one New Contributors entry (`.mailmap`, one entry per handle) | Done |
 | 94–101 | v1.0 readiness: every finding of the 2026-11-07 pre-v1 review, then the cut | Done — T492–T556, cut as v1.0.1 on 2026-11-09, see `v1-readiness-roadmap.md` |
-| 102 | Commit rules that know about breaking changes (`is_breaking` filter, `refuse`, named tickets, `except_*` filters) | In progress — T557–T558 done, T559 open |
+| 102 | Commit rules that know about breaking changes (`is_breaking` filter, `refuse`, named tickets, `except_*` filters) | Done — T557–T559 |
 
 ### Open items
 
@@ -4506,7 +4506,7 @@ Done 2026-11-13.
   now), to be discussed next; ticket names in changelog, release notes or `--json` output.
 
 
-#### `[ ]` T559: `except_types` / `except_scopes` rule filters
+#### `[x]` T559: `except_types` / `except_scopes` rule filters
 
 T558's "docs reference Jira, everything else GitHub" example had to list every other type by hand.
 Two filters mirror `types`/`scopes` and leave commits out instead: `except_types: [docs]`,
@@ -4516,6 +4516,21 @@ names are not checked against the allowed types, as for `types`. Spec 02, the AD
 schema, sample, the generated reference, the "Commit rules" guide and Lane A e2e scenarios follow.
 Rejected: `types: ["!docs"]` (an unquoted `!docs` is a YAML tag) and `types: {except: [...]}` (one key,
 two shapes).
+
+Done 2026-11-13, on T557/T558's branch at the user's request.
+- **Where it lives.** `CommitRule.ExceptTypes`/`ExceptScopes`; `app.ruleAppliesTo` skips a commit whose
+  type or scope is listed (an empty scope is never listed); `validate_commits.go` refuses each pair on
+  one rule (`not allowed with types` / `not allowed with scopes`) and counts both as filters for
+  `refuse`, whose error now reads `needs at least one of types, scopes, except_types, except_scopes or
+  is_breaking`.
+- **Tests first.** Validator rows (valid with `refuse`, `require_ticket`, `scopes`; each pair refused;
+  the updated `refuse` message) and a 7-row `VerifyCommit` table (listed type/scope skipped, others
+  checked, a scopeless commit checked, combined with `is_breaking`). Five Lane A e2e scenarios join
+  `e2e/commit_rules_test.go`; three mutations (each filter ignored, the pair check dropped) each fail
+  one, a no-op control passes.
+- **Docs.** Spec 02, the ADR-0056 addendum, schema, sample, fixture, the generated reference; the
+  "Commit rules" guide's docs-to-Jira example now uses `except_types`, plus a new "ticket on every
+  commit, except dependency bumps" example with `except_scopes: [deps]`.
 ---
 
 ## Risks and mitigations
