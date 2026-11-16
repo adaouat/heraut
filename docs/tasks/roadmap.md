@@ -275,6 +275,7 @@ discipline that applies to every task.
 | 93 | One person, one New Contributors entry (`.mailmap`, one entry per handle) | Done |
 | 94–101 | v1.0 readiness: every finding of the 2026-11-07 pre-v1 review, then the cut | Done — T492–T556, cut as v1.0.1 on 2026-11-09, see `v1-readiness-roadmap.md` |
 | 102 | Commit rules that know about breaking changes (`is_breaking` filter, `refuse`, named tickets, `except_*` filters) | Done — T557–T559 |
+| 103 | Agent skill review: docs for people, hook rule, flag drift test | Done — T560 |
 
 ### Open items
 
@@ -4531,6 +4532,31 @@ Done 2026-11-13, on T557/T558's branch at the user's request.
 - **Docs.** Spec 02, the ADR-0056 addendum, schema, sample, fixture, the generated reference; the
   "Commit rules" guide's docs-to-Jira example now uses `except_types`, plus a new "ticket on every
   commit, except dependency bumps" example with `except_scopes: [deps]`.
+
+### Phase 103 — Agent skill review
+
+#### `[x]` T560: the skill separates what an agent runs from what it shows people
+
+An agent that used the bundled skill to write a project README copied `--json` and `heraut init
+--defaults` into it: every rule is about the agent's own calls, and nothing says how to show heraut to
+people. A review of the whole skill against the 1.1.0 CLI found three more gaps.
+
+Done 2026-11-16.
+- **Docs for people.** The `--json` rule now reads "on the commands you run", and a short "Writing docs
+  for people" section says to leave out `--json` (unless a script reads stdout), to recommend the
+  interactive `init` and `commit create`, and to write the safe order without `--json`. The agent's
+  feedback asked for a whole agent-vs-human section with side-by-side examples. That was cut down to
+  one section: the skill is loaded into the agent's context on every use.
+- **Review findings.** A rule against `--no-hooks`/`--skip-hook` unless asked (the skill did not
+  mention them, so nothing stopped an agent from skipping a failing hook); exit 3 now lists a token
+  that cannot push (the push-permission preflight) and a branch with no commit yet; the description
+  also triggers on setting heraut up and on writing docs about it. Exit codes, JSON error codes,
+  plan step actions, `--offline`/`--json` support and the envelope example were checked against the
+  built binary and matched.
+- **Tests.** Content tests for the new section and the hook rule (red first). `TestSkill_NamesOnlyRealFlags`
+  guards against drift: every `--flag` the skill names (outside `git` commands) must be declared
+  by some command; a mutation (`--no-hookz`) fails it.
+- **Docs.** Spec 03 § `heraut skill` and the "AI agents" guide.
 ---
 
 ## Risks and mitigations

@@ -1,6 +1,6 @@
 ---
 name: heraut
-description: Use when releasing, versioning, tagging, changelogging or validating commit messages in a git project that has a .heraut.yml, or when asked to run the heraut CLI. Covers the safe order of commands, JSON output and exit codes.
+description: Use when releasing, versioning, tagging, changelogging or validating commit messages in a git project that has a .heraut.yml, when setting heraut up, when asked to run the heraut CLI, or when writing docs that show heraut commands. Covers the safe order of commands, JSON output and exit codes.
 ---
 
 # heraut
@@ -18,7 +18,9 @@ file named by `--config` / `HERAUT_FILE`). The project's `schema.json` describes
   `versioning.bump.confirm_major` makes a major wait for exactly that confirmation.
 - Never replace an existing file without the user's approval: do not pass `--overwrite` (`notes`,
   `init`) or `--force` (`skill install`) unless the user asked for that file to be replaced.
-- Always put `--json` on commands that support it and read stdout only. Stderr carries human text.
+- Never pass `--no-hooks` or `--skip-hook` unless the user asked for it: the hooks are the project's
+  own release steps. When a hook fails, report it.
+- Always put `--json` on the commands you run that support it and read stdout only. Stderr carries human text.
 - Use `--offline` on `release`, `changelog`, `notes` or `check` when you have no forge token; it skips PR/MR enrichment. `version next` and `version current` never call a forge and have no such flag.
 - Do not run `heraut init` or `heraut commit create` interactively. Use `heraut init --defaults`, or
   write `.heraut.yml` yourself; check a message with `heraut commit verify`, then use `git commit -m`.
@@ -33,6 +35,17 @@ file named by `--config` / `HERAUT_FILE`). The project's `schema.json` describes
 
 Per-env strategies need `--env <name>` on every command. A tag format containing `{build}` also needs
 `--set-version <v> --set-build-id <id>`.
+
+## Writing docs for people
+
+The rules above are for the commands you run. In a README, guide or snippet written for people:
+
+- Leave out `--json`: people read the default output. Keep it only where a script reads stdout
+  (`heraut version next --json | jq -r .data.tag`).
+- Recommend the interactive `heraut init` and `heraut commit create`, not `heraut init --defaults`
+  or a hand-written `git commit -m`.
+- Write the safe order as `heraut check`, `heraut version next`, `heraut release --dry-run`, then
+  `heraut release`.
 
 ## Commands
 
@@ -78,7 +91,7 @@ stdout stays empty, the message is on stderr, exit 1.
 | 0 | success | — |
 | 1 | usage error (bad flag, no terminal for an interactive command, invalid commit message) | fix the call |
 | 2 | configuration error (invalid YAML, missing `--env`, branch guard, `{build}` without an ID, a major release `versioning.bump.confirm_major` asks to confirm) | fix `.heraut.yml` or the flags; `heraut check config --json` lists the findings. For an unconfirmed major, ask the user |
-| 3 | runtime error (git, token, network, hook, publish failed, or a checkout heraut refuses: a shallow clone, a detached `HEAD` with no CI branch) | read `error.message`; retry only if transient. For a shallow clone, tell the user to fetch the full history (`git fetch --unshallow --tags`) |
+| 3 | runtime error (git, token, network, hook, publish failed, a token that cannot push, or a checkout heraut refuses: a shallow clone, a branch with no commit yet, a detached `HEAD` with no CI branch) | read `error.message`; retry only if transient. For a shallow clone, tell the user to fetch the full history (`git fetch --unshallow --tags`) |
 | 4 | promotion guard (E001–E003) | do not force: report to the user, `--force` overrides a safety check |
 | 5 | nothing to release (no commit since the last tag, none that releases, or no tag yet for `version current`) | not a failure: report it, nothing to do |
 | 70 | internal error | report it |
