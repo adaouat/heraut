@@ -37,9 +37,12 @@ The skill tells the agent to work in this order, and to stop before anything tha
    plan.
 4. `heraut release`, only after you approve it in the conversation.
 
-The skill also tells the agent never to pass `--allow-major` or `--force`, nor to replace a file, unless
-you asked, and to use `--offline` (on `release`, `changelog`, `notes` and `check`) when it has no
-forge token.
+The skill also tells the agent never to pass `--allow-major` or `--force`, nor to skip your release
+hooks or replace a file, unless you asked, and to use `--offline` (on `release`, `changelog`, `notes`
+and `check`) when it has no forge token.
+
+`--json` and `heraut init --defaults` are for the agent's own runs. When it writes a README or a guide
+for you, the skill tells it to show the plain commands and the interactive `heraut init`.
 
 ## The JSON output
 

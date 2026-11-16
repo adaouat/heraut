@@ -784,7 +784,8 @@ empty). `heraut check` (bare) applies the same `--env`-aware resolution.
 ## `heraut skill`
 
 Bundles the agent skill that teaches an AI coding agent how to drive heraut ([ADR-0072](../adr/0072-agent-skill.md)):
-the safe order of commands, which ones change things, the `--json` contract and the exit codes. The file is
+the safe order of commands, which ones change things, the `--json` contract, the exit codes, and how to show
+heraut in docs written for people (no `--json`, the interactive `init`). The file is
 embedded in the binary, so it always matches the version it ships with.
 
 ```
