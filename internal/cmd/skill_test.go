@@ -3,10 +3,12 @@ package cmd_test
 import (
 	"os"
 	"path/filepath"
+	"regexp"
 	"strings"
 	"testing"
 
 	"github.com/spf13/cobra"
+	"github.com/spf13/pflag"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
@@ -66,4 +68,27 @@ func TestSkill_NamesEveryCommand(t *testing.T) {
 		}
 	}
 	walk(cmd.NewRootCmd("dev"))
+}
+
+func TestSkill_NamesOnlyRealFlags(t *testing.T) {
+	flags := map[string]bool{}
+	var walk func(c *cobra.Command)
+	walk = func(c *cobra.Command) {
+		for _, fs := range []*pflag.FlagSet{c.LocalFlags(), c.InheritedFlags()} {
+			fs.VisitAll(func(f *pflag.Flag) { flags[f.Name] = true })
+		}
+		for _, sub := range c.Commands() {
+			walk(sub)
+		}
+	}
+	walk(cmd.NewRootCmd("dev"))
+
+	for _, m := range regexp.MustCompile("`[^`]*`").FindAllString(skill.Content(), -1) {
+		if strings.HasPrefix(m, "`git ") {
+			continue
+		}
+		for _, f := range regexp.MustCompile(`(?:^|\s|\x60)--([a-z][a-z-]*)`).FindAllStringSubmatch(m, -1) {
+			assert.True(t, flags[f[1]], "the skill names --%s, which no command declares", f[1])
+		}
+	}
 }
